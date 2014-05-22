@@ -1,0 +1,67 @@
+v.Next - 2014-XX-XX
+
+  1. When running in hadoop 0.23+ (hadoop 2+), listStatus will now throw a
+     FileNotFoundException when a nont-existent path is passed in.
+
+
+1.2.5 - 2014-05-08
+
+  1. Fixed a bug where fs.gs.auth.client.file was unconditionally being
+     overwritten by a default value.
+  2. Enabled direct upload for directory creation to save one round-trip call.
+  3. Added wiring for GoogleHadoopFileSystem.close() to call through to close()
+     its underlying helper classes as well.
+  4. Added a new batch mode for creating directories in parallel which requires
+     manually parallelizing in the client. Speeds up nested directory creation
+     and repairing large numbers of implicit directories in listStatus.
+  5. Eliminated redundant API calls in listStatus, speeding it up by ~half.
+  6. Fixed a bug where globStatus didn't correctly handle globs containing '?'.
+  7. Implemented new version of globStatus which initially performs a flat
+     listing before performing the recursive glob logic in-memory to
+     dramatically speed up globs with lots of directories; the new behavior is
+     default, but can disabled by setting fs.gs.glob.flatlist.enable = false.
+
+
+1.2.4 - 2014-04-09
+
+  1. The value of fs.gs.io.buffersize.write is now rounded up to 8MB if set to
+     a lower value, otherwise the backend will error out on unaligned chunks.
+  2. Misc refactoring to enable reuse of the resumable upload classes in other
+     libraries.
+
+
+1.2.3 - 2014-03-21
+
+  1. Fixed a bug where renaming a directory could cause the file contents to get
+     shuffled between files when the fully-qualified file paths have different
+     lengths. Does not apply to renames on files directly, such as when using
+     a glob expression inside a flat directory.
+  2. Changed the behavior of batch request API calls such that they are retried
+     on failure in the same manner as non-batch requests.
+  3. Eliminated an unnecessary dependency on com/google/protobuf which could
+     cause version-incompatibility issues with Apache Shark.
+
+
+1.2.2 - 2014-02-12
+
+  1. Fixed a bug where filenames with '+' were unreadable due to premature
+     URL-decoding.
+  2. Modified a check to allow fs.gs.io.buffersize.write to be a non-multiple
+     of 8MB, just printing out a warning instead of check-failing.
+  3. Added some debug-level logging of exceptions before throwing in cases
+     where Hadoop tends to swallows the exception along with its useful info.
+
+
+1.2.1 - 2014-01-23
+
+  1. Added CHANGES.txt for release notes.
+  2. Fixed a bug where accidental URI decoding make it impossible to use
+     pre-escaped filenames, e.g. foo%3Abar. This is necessary for Pig to work.
+  3. Fixed a bug where an IOException was thrown when trying to read a
+     zero-byte file. Necessary for Pig to work.
+
+
+1.2.0 - 2014-01-14
+
+  1. Preview release of GCS connector.
+
