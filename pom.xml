@@ -109,7 +109,7 @@
       <dependency>
         <groupId>com.google.apis</groupId>
         <artifactId>google-api-services-storage</artifactId>
-        <version>v1beta2-rev44-1.15.0-rc</version>
+        <version>v1-rev2-1.18.0-rc</version>
       </dependency>
       <dependency>
         <groupId>com.google.oauth-client</groupId>
