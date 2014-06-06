@@ -19,8 +19,6 @@ package com.google.cloud.hadoop.gcsio;
 import com.google.api.services.storage.Storage.Objects.Insert;
 import com.google.common.base.Optional;
 
-import java.math.BigInteger;
-
 /**
  * Conditions on which a object write should be allowed to continue. Corresponds to
  * setting IfGenerationmatch and IfMetaGenerationMatch in API requests.
@@ -67,12 +65,11 @@ public class ObjectWriteConditions {
    */
   public void apply(Insert objectToInsert) {
     if (hasContentGenerationMatch()) {
-      objectToInsert.setIfGenerationMatch(BigInteger.valueOf(getContentGenerationMatch()));
+      objectToInsert.setIfGenerationMatch(getContentGenerationMatch());
     }
 
     if (hasMetaGenerationMatch()) {
-      objectToInsert.setIfMetagenerationMatch(
-          BigInteger.valueOf(getMetaGenerationMatch()));
+      objectToInsert.setIfMetagenerationMatch(getMetaGenerationMatch());
     }
   }
 }

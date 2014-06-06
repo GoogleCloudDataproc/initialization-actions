@@ -47,7 +47,6 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.math.BigInteger;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -721,7 +720,7 @@ public class GoogleCloudStorageImpl
     clientRequestHelper.setDirectUploadEnabled(insertObject, true);
 
     if (!createObjectOptions.overwriteExisting()) {
-      insertObject.setIfGenerationMatch(BigInteger.ZERO);
+      insertObject.setIfGenerationMatch(0L);
     }
     return insertObject;
   }
