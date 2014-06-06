@@ -35,6 +35,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ReadableByteChannel;
+import java.util.regex.Pattern;
 
 /**
  * Provides seekable read access to GCS.
@@ -43,6 +44,9 @@ public class GoogleCloudStorageReadChannel
     implements SeekableReadableByteChannel {
   // Logger.
   private static LogUtil log = new LogUtil(GoogleCloudStorageReadChannel.class);
+
+  // Used to separate elements of a Content-Range
+  private static final Pattern SLASH = Pattern.compile("/");
 
   // GCS access instance.
   private Storage gcs;
@@ -498,7 +502,20 @@ public class GoogleCloudStorageReadChannel
         throw new IOException(msg, e);
       }
     }
-    size = response.getHeaders().getContentLength() + newPosition;
+    String contentRange = response.getHeaders().getContentRange();
+    if (response.getHeaders().getContentLength() != null) {
+      size = response.getHeaders().getContentLength() + newPosition;
+    } else if (contentRange != null) {
+      String sizeStr = SLASH.split(contentRange)[1];
+      try {
+        size = Long.parseLong(sizeStr);
+      } catch (NumberFormatException e) {
+        throw new IOException(
+            "Could not determine size from response from Content-Range: " + contentRange, e);
+      }
+    } else {
+      throw new IOException("Could not determine size of response");
+    }
     return response.getContent();
   }
 

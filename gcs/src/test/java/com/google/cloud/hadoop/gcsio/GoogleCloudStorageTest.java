@@ -216,6 +216,18 @@ public class GoogleCloudStorageTest {
    */
   private HttpResponse createFakeResponse(final long contentLength, final InputStream content)
       throws IOException {
+       return createFakeResponse("Content-Length", Long.toString(contentLength), content);
+  }
+
+  /** Like createFakeResponse, but responds with a Content-Range header */
+  private HttpResponse createFakeResponseForRange(final long contentLength,
+                                                  final InputStream content)
+      throws IOException {
+       return createFakeResponse("Content-Range", "bytes=0-123/" + contentLength, content);
+  }
+
+  private HttpResponse createFakeResponse(final String responseHeader, final String responseValue,
+                                          final InputStream content) throws IOException {
     HttpTransport transport = new MockHttpTransport() {
       @Override
       public LowLevelHttpRequest buildRequest(String method, String url) throws IOException {
@@ -223,7 +235,7 @@ public class GoogleCloudStorageTest {
           @Override
           public LowLevelHttpResponse execute() throws IOException {
             return new MockLowLevelHttpResponse()
-                .addHeader("Content-Length", Long.toString(contentLength))
+                .addHeader(responseHeader, responseValue)
                 .setContent(content);
           }
         };
@@ -766,7 +778,8 @@ public class GoogleCloudStorageTest {
     byte[] testData2 = { 0x03, 0x05, 0x08 };
     when(mockStorageObjectsGet.executeMedia())
         .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(testData)))
-        .thenReturn(createFakeResponse(testData2.length, new ByteArrayInputStream(testData2)));
+        .thenReturn(createFakeResponseForRange(
+            testData2.length, new ByteArrayInputStream(testData2)));
 
     SeekableReadableByteChannel readChannel =
         gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
@@ -1612,16 +1625,16 @@ public class GoogleCloudStorageTest {
                dstBucketName, ImmutableList.of(dstObjectName));
       fail("Expected UnsupportedOperationException");
     } catch (UnsupportedOperationException e) {
-      assertTrue(e.getMessage().indexOf("not supported") >= 0 &&
-                 e.getMessage().indexOf("storage location") >= 0);
+      assertTrue(e.getMessage().indexOf("not supported") >= 0
+                 && e.getMessage().indexOf("storage location") >= 0);
     }
     try {
       gcs.copy(BUCKET_NAME, ImmutableList.of(OBJECT_NAME),
                dstBucketName, ImmutableList.of(dstObjectName));
       fail("Expected UnsupportedOperationException");
     } catch (UnsupportedOperationException e) {
-      assertTrue(e.getMessage().indexOf("not supported") >= 0 &&
-                 e.getMessage().indexOf("storage class") >= 0);
+      assertTrue(e.getMessage().indexOf("not supported") >= 0
+                 && e.getMessage().indexOf("storage class") >= 0);
     }
 
     verify(mockStorage, times(4)).buckets();
@@ -2166,7 +2179,7 @@ public class GoogleCloudStorageTest {
             .setLocation("us-west-123")
             .setStorageClass("class-af4"));
     try {
-      GoogleCloudStorageItemInfo info = gcs.getItemInfo(new StorageResourceId(BUCKET_NAME));
+      gcs.getItemInfo(new StorageResourceId(BUCKET_NAME));
       fail("Expected IllegalArgumentException with a wrong-bucket-name");
     } catch (IllegalArgumentException iae) {
       // Expected.
