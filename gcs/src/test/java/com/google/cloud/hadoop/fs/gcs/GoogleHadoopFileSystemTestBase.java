@@ -275,7 +275,9 @@ public abstract class GoogleHadoopFileSystemTestBase
   @Test
   public void testMakeQualifiedNotRoot()  {
     GoogleHadoopFileSystemBase myGhfs = (GoogleHadoopFileSystemBase) ghfs;
-    String fsRoot = myGhfs.getFileSystemRoot().toString();
+    Path fsRootPath = myGhfs.getFileSystemRoot();
+    URI fsRootUri = fsRootPath.toUri();
+    String fsRoot = fsRootPath.toString();
     String workingParent = fsRoot + "working/";
     String workingDir = workingParent + "dir";
     myGhfs.setWorkingDirectory(new Path(workingDir));
@@ -318,6 +320,15 @@ public abstract class GoogleHadoopFileSystemTestBase
     qualifiedPaths.put("../../../foo/../foo", fsRoot + "foo");
     qualifiedPaths.put("../../../foo/bar/../../foo/bar", fsRoot + "foo/bar");
 
+    // Skip for authority-less gsg paths.
+    if (fsRootUri.getAuthority() != null) {
+      // When the path to qualify is of the form gs://somebucket, we want to qualify
+      // it as gs://someBucket/
+      qualifiedPaths.put(
+          fsRoot.substring(0, fsRoot.length() - 1),
+          fsRoot);
+    }
+
     for (String unqualifiedString : qualifiedPaths.keySet()) {
       Path unqualifiedPath = new Path(unqualifiedString);
       Path qualifiedPath = new Path(qualifiedPaths.get(unqualifiedString));
@@ -332,7 +343,9 @@ public abstract class GoogleHadoopFileSystemTestBase
   public void testMakeQualifiedRoot()  {
     GoogleHadoopFileSystemBase myGhfs = (GoogleHadoopFileSystemBase) ghfs;
     myGhfs.setWorkingDirectory(myGhfs.getFileSystemRoot());
-    String fsRoot = myGhfs.getFileSystemRoot().toString();
+    Path fsRootPath = myGhfs.getFileSystemRoot();
+    URI fsRootUri = fsRootPath.toUri();
+    String fsRoot = fsRootPath.toString();
     Map<String, String > qualifiedPaths = new HashMap<>();
     qualifiedPaths.put("/", fsRoot);
     qualifiedPaths.put("/foo", fsRoot + "foo");
@@ -372,6 +385,15 @@ public abstract class GoogleHadoopFileSystemTestBase
     qualifiedPaths.put(fsRoot + "../foo/bar/../../foo/bar", fsRoot + "foo/bar");
     qualifiedPaths.put(fsRoot + "foo/../../../../foo", fsRoot + "foo");
     qualifiedPaths.put(fsRoot + "foo/bar/../../../../../foo/bar", fsRoot + "foo/bar");
+
+    // Skip for authority-less gsg paths.
+    if (fsRootUri.getAuthority() != null) {
+      // When the path to qualify is of the form gs://somebucket, we want to qualify
+      // it as gs://someBucket/
+      qualifiedPaths.put(
+          fsRoot.substring(0, fsRoot.length() - 1),
+          fsRoot);
+    }
 
     for (String unqualifiedString : qualifiedPaths.keySet()) {
       Path unqualifiedPath = new Path(unqualifiedString);

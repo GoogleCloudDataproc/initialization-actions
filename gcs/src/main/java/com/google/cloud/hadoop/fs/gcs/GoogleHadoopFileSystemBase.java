@@ -440,10 +440,12 @@ public abstract class GoogleHadoopFileSystemBase
     log.debug("GHFS.makeQualified: path: %s", path);
     Path qualifiedPath = super.makeQualified(path);
 
-    Preconditions.checkState(
-        qualifiedPath.isAbsolute(), "Path '%s' must be fully qualified.", qualifiedPath);
-
     URI uri = qualifiedPath.toUri();
+
+    Preconditions.checkState(
+        "".equals(uri.getPath()) || qualifiedPath.isAbsolute(),
+        "Path '%s' must be fully qualified.",
+        qualifiedPath);
 
     // Strip initial '..'s to make root is its own parent.
     StringBuilder sb = new StringBuilder(uri.getPath());
@@ -453,9 +455,12 @@ public abstract class GoogleHadoopFileSystemBase
     }
 
     String strippedPath = sb.toString();
-    if (strippedPath.equals("/..")) {
+
+    // Allow a Path of gs://someBucket to map to gs://someBucket/
+    if (strippedPath.equals("/..") || strippedPath.equals("")) {
       strippedPath = "/";
     }
+
     Path result = new Path(uri.getScheme(), uri.getAuthority(), strippedPath);
     log.debug("GHFS.makeQualified:=> %s", result);
     return result;
