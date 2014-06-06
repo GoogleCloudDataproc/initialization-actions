@@ -42,7 +42,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
-import com.google.common.net.MediaType;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.io.FileNotFoundException;
@@ -90,6 +89,9 @@ public class GoogleCloudStorageImpl
 
   // Logger.
   private static final LogUtil log = new LogUtil(GoogleCloudStorage.class);
+
+  // com.google.common.net cannot be imported here for various dependency reasons.
+  private static final String OCTECT_STREAM_MEDIA_TYPE = "application/octet-stream";
 
   // Determine if a given IOException is due to rate-limiting.
   private final Predicate<IOException> isRateLimitedException = new Predicate<IOException>() {
@@ -713,7 +715,7 @@ public class GoogleCloudStorageImpl
     // Ideally we'd use EmptyContent, but Storage requires an AbstractInputStreamContent and not
     // just an HttpContent, so we'll just use the next easiest thing.
     ByteArrayContent emptyContent =
-        new ByteArrayContent(MediaType.OCTET_STREAM.toString(), new byte[0]);
+        new ByteArrayContent(OCTECT_STREAM_MEDIA_TYPE, new byte[0]);
     Storage.Objects.Insert insertObject = gcs.objects().insert(
         resourceId.getBucketName(), object, emptyContent);
     insertObject.setDisableGZipContent(true);
