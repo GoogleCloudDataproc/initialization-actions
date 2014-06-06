@@ -12,6 +12,9 @@
      early detection of overwrite conflicts that may occur and prevents
      certain race conditions that could be encountered when relying on
      a single exists() check.
+  5. The dependencies on cglib and asm were removed from the GCS connector
+     and the classes for these are no longer included in the JAR.
+
 
 1.2.5 - 2014-05-08
 
