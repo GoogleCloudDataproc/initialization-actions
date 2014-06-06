@@ -126,7 +126,10 @@ public class GoogleCloudStorageImpl
   private ExecutorService manualBatchingThreadPool = new ThreadPoolExecutor(
       10 /* base num threads */, 20 /* max num threads */, 10L /* keepalive time */,
       TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(),
-      new ThreadFactoryBuilder().setNameFormat("gcs-manual-batching-pool-%d").build());
+      new ThreadFactoryBuilder()
+          .setNameFormat("gcs-manual-batching-pool-%d")
+          .setDaemon(true)
+          .build());
 
   // Helper delegate for turning IOExceptions from API calls into higher-level semantics.
   private ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
