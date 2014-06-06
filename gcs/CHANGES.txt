@@ -1,8 +1,17 @@
-v.Next - 2014-XX-XX
+1.2.6 - 2014-06-05
 
   1. When running in hadoop 0.23+ (hadoop 2+), listStatus will now throw a
-     FileNotFoundException when a nont-existent path is passed in.
-
+     FileNotFoundException when a non-existent path is passed in.
+  2. The GCS connector now uses the v1 JSON API when accessing Google
+     Cloud Storage.
+  3. The GoogleHadoopFileSystem now treats the parent of the root path as if
+     it is the root path. This behavior mimics the POSIX behavior of "/.."
+     being the same as "/".
+  4. When creating a new file, a zero-length marker file will be created
+     before the FSDataOutputStream is returned in create(). This allows for
+     early detection of overwrite conflicts that may occur and prevents
+     certain race conditions that could be encountered when relying on
+     a single exists() check.
 
 1.2.5 - 2014-05-08
 
