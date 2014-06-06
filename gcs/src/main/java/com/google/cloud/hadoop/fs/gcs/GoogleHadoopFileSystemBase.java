@@ -430,6 +430,37 @@ public abstract class GoogleHadoopFileSystemBase
   @Override
   public abstract String getHadoopScheme();
 
+  /**
+   *
+   * <p> Overridden to make root it's own parent. This is POSIX compliant, but more importantly
+   * guards against poor directory accounting in the PathData class of Hadoop 2's FsShell.
+   */
+  @Override
+  public Path makeQualified(Path path) {
+    log.debug("GHFS.makeQualified: path: %s", path);
+    Path qualifiedPath = super.makeQualified(path);
+
+    Preconditions.checkState(
+        qualifiedPath.isAbsolute(), "Path '%s' must be fully qualified.", qualifiedPath);
+
+    URI uri = qualifiedPath.toUri();
+
+    // Strip initial '..'s to make root is its own parent.
+    StringBuilder sb = new StringBuilder(uri.getPath());
+    while (sb.indexOf("/../") == 0) {
+      // Leave a preceding slash, so path is still absolute.
+      sb.delete(0, 3);
+    }
+
+    String strippedPath = sb.toString();
+    if (strippedPath.equals("/..")) {
+      strippedPath = "/";
+    }
+    Path result = new Path(uri.getScheme(), uri.getAuthority(), strippedPath);
+    log.debug("GHFS.makeQualified:=> %s", result);
+    return result;
+  }
+
   @Override
   protected void checkPath(Path path) {
     URI uri = path.toUri();
@@ -1535,14 +1566,6 @@ public abstract class GoogleHadoopFileSystemBase
     log.debug("GHFS.getFileChecksum:");
     FileChecksum result = super.getFileChecksum(f);
     log.debug("GHFS.getFileChecksum:=> %s", result);
-    return result;
-  }
-
-  @Override
-  public Path makeQualified(Path path) {
-    log.debug("GHFS.makeQualified:");
-    Path result = super.makeQualified(path);
-    log.debug("GHFS.makeQualified:=> %s", result);
     return result;
   }
 

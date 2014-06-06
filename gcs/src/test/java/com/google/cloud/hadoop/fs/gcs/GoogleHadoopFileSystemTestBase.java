@@ -34,6 +34,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Abstract base class for test suites targeting variants of GoogleHadoopFileSystem via the
@@ -267,6 +269,117 @@ public abstract class GoogleHadoopFileSystemTestBase
     clearBucket(bucketName);
   }
 
+ /**
+   * Validates makeQualified() when working directory is not root.
+   */
+  @Test
+  public void testMakeQualifiedNotRoot()  {
+    GoogleHadoopFileSystemBase myGhfs = (GoogleHadoopFileSystemBase) ghfs;
+    String fsRoot = myGhfs.getFileSystemRoot().toString();
+    String workingParent = fsRoot + "working/";
+    String workingDir = workingParent + "dir";
+    myGhfs.setWorkingDirectory(new Path(workingDir));
+    Map<String, String > qualifiedPaths = new HashMap<>();
+    qualifiedPaths.put("/", fsRoot);
+    qualifiedPaths.put("/foo", fsRoot + "foo");
+    qualifiedPaths.put("/foo/bar", fsRoot + "foo/bar");
+    qualifiedPaths.put(".", workingDir);
+    qualifiedPaths.put("foo", workingDir + "/foo");
+    qualifiedPaths.put("foo/bar", workingDir + "/foo/bar");
+    qualifiedPaths.put(fsRoot, fsRoot);
+    qualifiedPaths.put(fsRoot + "foo", fsRoot + "foo");
+    qualifiedPaths.put(fsRoot + "foo/bar", fsRoot + "foo/bar");
+    qualifiedPaths.put("/foo/../foo", fsRoot + "foo");
+    qualifiedPaths.put("/foo/bar/../../foo/bar", fsRoot + "foo/bar");
+    qualifiedPaths.put("foo/../foo", workingDir + "/foo");
+    qualifiedPaths.put("foo/bar/../../foo/bar", workingDir + "/foo/bar");
+    qualifiedPaths.put(fsRoot + "foo/../foo", fsRoot + "foo");
+    qualifiedPaths.put(fsRoot + "foo/bar/../../foo/bar", fsRoot + "foo/bar");
+    qualifiedPaths.put("..", workingParent);
+    qualifiedPaths.put("../..", fsRoot);
+    qualifiedPaths.put("../foo", workingParent + "/foo");
+    qualifiedPaths.put("../foo/bar", workingParent + "/foo/bar");
+    qualifiedPaths.put("../foo/../foo", workingParent + "/foo");
+    qualifiedPaths.put("../foo/bar/../../foo/bar", workingParent + "/foo/bar");
+    qualifiedPaths.put(workingDir + "/../foo/../foo", workingParent + "/foo");
+    qualifiedPaths.put(workingDir + "/../foo/bar/../../foo/bar", workingParent + "/foo/bar");
+    qualifiedPaths.put(fsRoot + "..foo/bar", fsRoot + "..foo/bar");
+    qualifiedPaths.put("..foo/bar", workingDir + "/..foo/bar");
+
+    // GHFS specific behavior where root is it's own parent.
+    qualifiedPaths.put("/..", fsRoot);
+    qualifiedPaths.put("/../../..", fsRoot);
+    qualifiedPaths.put("/../foo/", fsRoot + "foo");
+    qualifiedPaths.put("/../../../foo/bar", fsRoot + "foo/bar");
+    qualifiedPaths.put("../../..", fsRoot);
+    qualifiedPaths.put(fsRoot + "..", fsRoot);
+    qualifiedPaths.put(fsRoot + "../foo", fsRoot + "foo");
+    qualifiedPaths.put(fsRoot + "../foo/bar", fsRoot + "foo/bar");
+    qualifiedPaths.put("../../../foo/../foo", fsRoot + "foo");
+    qualifiedPaths.put("../../../foo/bar/../../foo/bar", fsRoot + "foo/bar");
+
+    for (String unqualifiedString : qualifiedPaths.keySet()) {
+      Path unqualifiedPath = new Path(unqualifiedString);
+      Path qualifiedPath = new Path(qualifiedPaths.get(unqualifiedString));
+      Assert.assertEquals(qualifiedPath, myGhfs.makeQualified(unqualifiedPath));
+    }
+  }
+
+  /**
+   * Validates makeQualified() when working directory is root.
+   */
+  @Test
+  public void testMakeQualifiedRoot()  {
+    GoogleHadoopFileSystemBase myGhfs = (GoogleHadoopFileSystemBase) ghfs;
+    myGhfs.setWorkingDirectory(myGhfs.getFileSystemRoot());
+    String fsRoot = myGhfs.getFileSystemRoot().toString();
+    Map<String, String > qualifiedPaths = new HashMap<>();
+    qualifiedPaths.put("/", fsRoot);
+    qualifiedPaths.put("/foo", fsRoot + "foo");
+    qualifiedPaths.put("/foo/bar", fsRoot + "foo/bar");
+    qualifiedPaths.put(".", fsRoot);
+    qualifiedPaths.put("foo", fsRoot + "foo");
+    qualifiedPaths.put("foo/bar", fsRoot + "foo/bar");
+    qualifiedPaths.put(fsRoot, fsRoot);
+    qualifiedPaths.put(fsRoot + "foo", fsRoot + "foo");
+    qualifiedPaths.put(fsRoot + "foo/bar", fsRoot + "foo/bar");
+    qualifiedPaths.put("/foo/../foo", fsRoot + "foo");
+    qualifiedPaths.put("/foo/bar/../../foo/bar", fsRoot + "foo/bar");
+    qualifiedPaths.put("foo/../foo", fsRoot + "foo");
+    qualifiedPaths.put("foo/bar/../../foo/bar", fsRoot + "foo/bar");
+    qualifiedPaths.put(fsRoot + "foo/../foo", fsRoot + "foo");
+    qualifiedPaths.put(fsRoot + "foo/bar/../../foo/bar", fsRoot + "foo/bar");
+    qualifiedPaths.put(fsRoot + "..foo/bar", fsRoot + "..foo/bar");
+    qualifiedPaths.put("..foo/bar", fsRoot + "..foo/bar");
+
+    // GHFS specific behavior where root is it's own parent.
+    qualifiedPaths.put("/..", fsRoot);
+    qualifiedPaths.put("/../../..", fsRoot);
+    qualifiedPaths.put("/../foo/", fsRoot + "foo");
+    qualifiedPaths.put("/../../../foo/bar", fsRoot + "foo/bar");
+    qualifiedPaths.put("..", fsRoot);
+    qualifiedPaths.put("../..", fsRoot);
+    qualifiedPaths.put("../foo", fsRoot + "foo");
+    qualifiedPaths.put("../foo/bar", fsRoot + "foo/bar");
+    qualifiedPaths.put(fsRoot + "..", fsRoot);
+    qualifiedPaths.put(fsRoot + "../foo", fsRoot + "foo");
+    qualifiedPaths.put(fsRoot + "../foo/bar", fsRoot + "foo/bar");
+    qualifiedPaths.put("../foo/../foo", fsRoot + "foo");
+    qualifiedPaths.put("../../../foo/bar/../../foo/bar", fsRoot + "foo/bar");
+    qualifiedPaths.put("../foo/../foo", fsRoot + "foo");
+    qualifiedPaths.put("../foo/bar/../../foo/bar", fsRoot + "foo/bar");
+    qualifiedPaths.put(fsRoot + "../foo/../foo", fsRoot + "foo");
+    qualifiedPaths.put(fsRoot + "../foo/bar/../../foo/bar", fsRoot + "foo/bar");
+    qualifiedPaths.put(fsRoot + "foo/../../../../foo", fsRoot + "foo");
+    qualifiedPaths.put(fsRoot + "foo/bar/../../../../../foo/bar", fsRoot + "foo/bar");
+
+    for (String unqualifiedString : qualifiedPaths.keySet()) {
+      Path unqualifiedPath = new Path(unqualifiedString);
+      Path qualifiedPath = new Path(qualifiedPaths.get(unqualifiedString));
+      Assert.assertEquals(qualifiedPath, myGhfs.makeQualified(unqualifiedPath));
+    }
+  }
+
   /**
    * We override certain methods in FileSystem simply to provide debug tracing. (Search for
    * "Overridden functions for debug tracing" in GoogleHadoopFileSystemBase.java).
@@ -321,7 +434,6 @@ public abstract class GoogleHadoopFileSystemTestBase
       ghfs.getUsed();
       ghfs.setVerifyChecksum(false);
       ghfs.getFileChecksum(tempFilePath2);
-      ghfs.makeQualified(localTempFilePath);
       ghfs.setPermission(tempFilePath2, FsPermission.getDefault());
       try {
         ghfs.setOwner(tempFilePath2, "foo-user", "foo-group");
@@ -339,6 +451,4 @@ public abstract class GoogleHadoopFileSystemTestBase
       }
     }
   }
-
-
 }
