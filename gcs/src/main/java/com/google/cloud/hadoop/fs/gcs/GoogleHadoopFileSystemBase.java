@@ -85,7 +85,7 @@ public abstract class GoogleHadoopFileSystemBase
   public static final LogUtil log = new LogUtil(GoogleHadoopFileSystemBase.class);
 
   // Current version.
-  public static final String VERSION = "1.2.6-SNAPSHOT";
+  public static final String VERSION = "1.2.6";
 
   // Identifies this version of the GoogleHadoopFileSystemBase library.
   public static final String GHFS_ID = String.format("GHFS/%s", VERSION);

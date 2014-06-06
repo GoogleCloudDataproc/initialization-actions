@@ -26,7 +26,7 @@
   </parent>
 
   <artifactId>gcs-connector</artifactId>
-  <version>1.2.6-SNAPSHOT</version>
+  <version>1.2.6</version>
   <name>gcs-connector.jar</name>
   <description>
     An implementation of org.apache.hadoop.fs.FileSystem targeting Google Cloud Storage
@@ -153,7 +153,7 @@
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>util</artifactId>
       <classifier>${hadoop.classifier}</classifier>
-      <version>1.2.6-SNAPSHOT</version>
+      <version>1.2.6</version>
     </dependency>
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
