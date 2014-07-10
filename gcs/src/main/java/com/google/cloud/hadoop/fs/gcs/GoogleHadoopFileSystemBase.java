@@ -26,6 +26,7 @@ import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.HadoopVersionInfo;
 import com.google.cloud.hadoop.util.LogUtil;
+import com.google.cloud.hadoop.util.PropertyUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -83,12 +84,6 @@ public abstract class GoogleHadoopFileSystemBase
     extends FileSystem implements FileSystemDescriptor {
   // Logger.
   public static final LogUtil log = new LogUtil(GoogleHadoopFileSystemBase.class);
-
-  // Current version.
-  public static final String VERSION = "1.2.7";
-
-  // Identifies this version of the GoogleHadoopFileSystemBase library.
-  public static final String GHFS_ID = String.format("GHFS/%s", VERSION);
 
   // Default value of replication factor.
   public static final short REPLICATION_FACTOR_DEFAULT = 3;
@@ -231,6 +226,28 @@ public abstract class GoogleHadoopFileSystemBase
       return true;
     }
   };
+
+  // A resource file containing GCS related build properties.
+  public static final String PROPERTIES_FILE = "gcs.properties";
+
+  // The key in the PROPERTIES_FILE that contains the version built.
+  public static final String VERSION_PROPERTY = "gcs.connector.version";
+
+  // The version returned when one cannot be found in properties.
+  public static final String UNKNOWN_VERSION = "0.0.0";
+
+  // Current version.
+  public static final String VERSION;
+
+  // Identifies this version of the GoogleHadoopFileSystemBase library.
+  public static final String GHFS_ID;
+
+  static {
+    VERSION = PropertyUtil.getPropertyOrDefault(
+        GoogleHadoopFileSystemBase.class, PROPERTIES_FILE, VERSION_PROPERTY, UNKNOWN_VERSION);
+    log.info("GHFS version: %s", VERSION);
+    GHFS_ID = String.format("GHFS/%s", VERSION);
+  }
 
   // Instance value of fs.gs.glob.flatlist.enable based on the initial Configuration.
   private boolean enableFlatGlob = GCS_ENABLE_FLAT_GLOB_DEFAULT;

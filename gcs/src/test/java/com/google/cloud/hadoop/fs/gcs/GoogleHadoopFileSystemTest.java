@@ -20,6 +20,7 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -52,6 +53,13 @@ public class GoogleHadoopFileSystemTest
   public static void afterAllTests()
       throws IOException {
     GoogleHadoopGlobalRootedFileSystemIntegrationTest.afterAllTests();
+  }
+
+  @Test
+  public void testVersionString() {
+    Assert.assertNotNull(GoogleHadoopFileSystemBase.VERSION);
+    Assert.assertFalse(
+        GoogleHadoopFileSystemBase.UNKNOWN_VERSION.equals(GoogleHadoopFileSystemBase.VERSION));
   }
 
   // -----------------------------------------------------------------
