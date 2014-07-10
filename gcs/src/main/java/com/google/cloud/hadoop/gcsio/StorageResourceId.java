@@ -16,9 +16,10 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+
+import java.util.Objects;
 
 /**
  * Data struct representing either a GCS StorageObject, a GCS Bucket or the GCS root (gs://).
@@ -133,8 +134,8 @@ public class StorageResourceId {
   public boolean equals(Object obj) {
     if (obj instanceof StorageResourceId) {
       StorageResourceId other = (StorageResourceId) obj;
-      return Objects.equal(bucketName, other.bucketName)
-          && Objects.equal(objectName, other.objectName);
+      return Objects.equals(bucketName, other.bucketName)
+          && Objects.equals(objectName, other.objectName);
     }
     return false;
   }

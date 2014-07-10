@@ -16,10 +16,10 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 
 import java.util.Date;
+import java.util.Objects;
 
 /**
  * Contains information about an item in Google Cloud Storage.
@@ -162,8 +162,8 @@ public class GoogleCloudStorageItemInfo {
       return resourceId.equals(other.resourceId) 
           && creationTime == other.creationTime 
           && size == other.size 
-          && Objects.equal(location, other.location) 
-          && Objects.equal(storageClass, other.storageClass);
+          && Objects.equals(location, other.location) 
+          && Objects.equals(storageClass, other.storageClass);
     }
     return false;
   }
