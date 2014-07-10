@@ -24,6 +24,8 @@ import com.google.cloud.hadoop.testing.ExceptionUtil;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.AfterClass;
@@ -443,7 +445,6 @@ public class GoogleHadoopFileSystemIntegrationTest
     Assert.assertEquals(systemBucketName, fs.getSystemBucketName());
     Assert.assertEquals(initUri, fs.initUri);
     Assert.assertEquals(systemBucketName, fs.getRootBucketName());
-    
   }
   
   /**
@@ -527,5 +528,45 @@ public class GoogleHadoopFileSystemIntegrationTest
     expectedException.expect(IOException.class);
 
     fs2.exists(new Path("/SomePath/That/Doesnt/Matter"));
+  }
+
+  public void createFile(Path filePath, byte[] data) throws IOException {
+    try (FSDataOutputStream output = ghfs.create(filePath)) {
+      output.write(data);
+    }
+  }
+
+  @Test
+  public void testGlobStatus() throws IOException {
+    ghfs.mkdirs(new Path("/directory1"));
+    ghfs.mkdirs(new Path("/directory1/subdirectory1"));
+    ghfs.mkdirs(new Path("/directory1/subdirectory2"));
+
+    byte[] data = new byte[10];
+    for (int i = 0; i < data.length; i++) {
+      data[i] = (byte) i;
+    }
+
+    createFile(new Path("/directory1/subdirectory1/file1"), data);
+    createFile(new Path("/directory1/subdirectory1/file2"), data);
+    createFile(new Path("/directory1/subdirectory2/file1"), data);
+    createFile(new Path("/directory1/subdirectory2/file2"), data);
+
+    FileStatus[] rootDirectories = ghfs.globStatus(new Path("/d*"));
+    Assert.assertEquals(1, rootDirectories.length);
+    Assert.assertEquals("directory1", rootDirectories[0].getPath().getName());
+
+    FileStatus[] subDirectories = ghfs.globStatus(new Path("/directory1/s*"));
+    Assert.assertEquals(2, subDirectories.length);
+
+    FileStatus[] subDirectory1Files = ghfs.globStatus(new Path("/directory1/subdirectory1/*"));
+    Assert.assertEquals(2, subDirectory1Files.length);
+    Assert.assertEquals("file1", subDirectory1Files[0].getPath().getName());
+    Assert.assertEquals("file2", subDirectory1Files[1].getPath().getName());
+
+    FileStatus[] subDirectory2Files = ghfs.globStatus(new Path("/directory1/subdirectory2/f*"));
+    Assert.assertEquals(2, subDirectory2Files.length);
+    Assert.assertEquals("file1", subDirectory2Files[0].getPath().getName());
+    Assert.assertEquals("file2", subDirectory2Files[1].getPath().getName());
   }
 }
