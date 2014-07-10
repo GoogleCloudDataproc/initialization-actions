@@ -22,11 +22,11 @@
   <parent>
     <groupId>com.google.cloud.bigdataoss</groupId>
     <artifactId>bigdataoss-parent</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.2.8-SNAPSHOT</version>
+    <relativePath>..</relativePath>
   </parent>
 
   <artifactId>gcs-connector</artifactId>
-  <version>1.2.6</version>
   <name>gcs-connector.jar</name>
   <description>
     An implementation of org.apache.hadoop.fs.FileSystem targeting Google Cloud Storage
@@ -35,7 +35,6 @@
   <profiles>
     <profile>
       <id>hadoop1</id>
-      <activation><activeByDefault>true</activeByDefault></activation>
       <dependencies>
         <dependency>
           <groupId>org.apache.hadoop</groupId>
@@ -152,8 +151,6 @@
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>util</artifactId>
-      <classifier>${hadoop.classifier}</classifier>
-      <version>1.2.6</version>
     </dependency>
     <dependency>
       <groupId>com.google.code.findbugs</groupId>
@@ -215,33 +212,51 @@
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <version>2.4</version>
-        <configuration>
-          <finalName>${project.artifactId}-${project.version}-${hadoop.classifier}-with-dependencies</finalName>
-          <appendAssemblyId>false</appendAssemblyId>
-          <attach>false</attach>
-          <descriptorRefs>
-            <descriptorRef>jar-with-dependencies</descriptorRef>
-          </descriptorRefs>
-        </configuration>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>2.3</version>
         <executions>
           <execution>
-            <id>make-assembly</id>
             <phase>package</phase>
             <goals>
-              <goal>single</goal>
+              <goal>shade</goal>
             </goals>
+            <configuration>
+              <artifactSet>
+                <includes>
+                  <include>com.fasterxml.jackson.core:jackson-core</include>
+                  <include>com.google.api-client:*</include>
+                  <include>com.google.apis:*</include>
+                  <include>com.google.cloud.bigdataoss:util</include>
+                  <include>com.google.guava:*</include>
+                  <include>com.google.http-client:google-http-client</include>
+                  <include>com.google.http-client:google-http-client-jackson2</include>
+                  <include>com.google.oauth-client:google-oauth-client</include>
+                  <include>com.google.oauth-client:google-oauth-client-java6</include>
+                  <include>org.apache.httpcomponents:httpclient</include>
+                  <include>org.apache.httpcomponents:httpcore</include>
+                  <!-- needed by http client and versions conflict -->
+                  <include>commons-codec:commons-codec</include>
+                </includes>
+              </artifactSet>
+              <minimizeJar>true</minimizeJar>
+              <relocations>
+                <relocation>
+                  <pattern>com.google.common</pattern>
+                  <shadedPattern>com.google.cloud.hadoop.repackaged.com.google.common</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.fasterxml</pattern>
+                  <shadedPattern>com.google.cloud.hadoop.repackaged.com.fasterxml</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.commons.codec</pattern>
+                  <shadedPattern>com.google.cloud.hadoop.repackaged.org.apache.commons.codec</shadedPattern>
+                </relocation>
+              </relocations>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+            </configuration>
           </execution>
         </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <version>2.4</version>
-        <configuration>
-          <classifier>${hadoop.classifier}</classifier>
-        </configuration>
       </plugin>
     </plugins>
   </build>
