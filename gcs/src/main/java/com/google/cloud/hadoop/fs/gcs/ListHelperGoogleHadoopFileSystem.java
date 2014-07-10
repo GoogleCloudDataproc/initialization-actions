@@ -29,7 +29,9 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * ListHelperGoogleHadoopFileSystem overrides the behavior of GoogleHadoopFileSystem to manifest
@@ -54,11 +56,35 @@ class ListHelperGoogleHadoopFileSystem
         "Cannot construct ListHelperGoogleHadoopFileSystem with empty fileInfos list!");
     List<GoogleCloudStorageItemInfo> infos = new ArrayList<>();
     URI rootUri = null;
+
+    Set<URI> providedPaths = new HashSet<>();
     for (FileInfo info : fileInfos) {
       infos.add(info.getItemInfo());
+      providedPaths.add(info.getPath());
+
       if (rootUri == null) {
         // Set the root URI to the first path in the collection.
         rootUri = info.getPath();
+      }
+    }
+
+    // The flow for populating this doesn't bother to populate metadata entries for parent
+    // directories but we know the parent directories are expected to exist, so we'll just
+    // populate the missing entries explicitly here. Necessary for getFileStatus(parentOfInfo)
+    // to work when using an instance of this class.
+    Set<URI> missingParents = new HashSet<>();
+    for (FileInfo info : fileInfos) {
+      URI parentPath = GoogleCloudStorageFileSystem.getParentPath(info.getPath());
+      while (parentPath != null && !parentPath.equals(GoogleCloudStorageFileSystem.GCS_ROOT)) {
+        if (!providedPaths.contains(parentPath)) {
+          log.debug("Adding fake entry for missing parent path '%s'", parentPath);
+          GoogleCloudStorageItemInfo fakeInfo = new GoogleCloudStorageItemInfo(
+              GoogleCloudStorageFileSystem.validatePathAndGetId(parentPath, true),
+              0, 0, null, null);
+          infos.add(fakeInfo);
+          providedPaths.add(parentPath);
+        }
+        parentPath = GoogleCloudStorageFileSystem.getParentPath(parentPath);
       }
     }
 

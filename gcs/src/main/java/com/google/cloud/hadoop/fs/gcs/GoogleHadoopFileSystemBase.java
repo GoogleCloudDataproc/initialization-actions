@@ -810,6 +810,7 @@ public abstract class GoogleHadoopFileSystemBase
         status.add(getFileStatus(fileInfo));
       }
     } catch (FileNotFoundException fnfe) {
+      log.debug("Got fnfe: ", fnfe);
       return listStatusFileNotFoundBehavior.handle(gcsPath.toString());
     }
 
