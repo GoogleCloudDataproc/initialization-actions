@@ -65,7 +65,7 @@ public class HadoopCredentialConfiguration
    */
   public static class Builder
       extends EntriesCredentialConfiguration.Builder
-      <HadoopCredentialConfiguration.Builder> {
+      <HadoopCredentialConfiguration.Builder, HadoopCredentialConfiguration> {
     public Builder withConfiguration(Configuration config) {
       super.withConfiguration(new ConfigurationEntriesAdapter(config));
       return this;
@@ -74,6 +74,11 @@ public class HadoopCredentialConfiguration
     @Override
     protected Builder self() {
       return this;
+    }
+
+    @Override
+    protected HadoopCredentialConfiguration beginBuild() {
+      return new HadoopCredentialConfiguration(prefixes);
     }
   }
 
@@ -85,6 +90,11 @@ public class HadoopCredentialConfiguration
     return new Builder();
   }
 
+  /**
+   * Translates the "Entries" configuration of the superclass into a Hadoop "Configuration"
+   * using getConfigurationInto() on a wrapper which passes through each key from the Entries
+   * to the corresponding Hadoop object.
+   */
   public Configuration getConf() {
     Configuration configuration = new Configuration();
     getConfigurationInto(new ConfigurationEntriesAdapter(configuration));

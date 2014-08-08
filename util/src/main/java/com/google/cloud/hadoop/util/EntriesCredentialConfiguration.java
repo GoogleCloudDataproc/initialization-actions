@@ -92,9 +92,10 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
   /**
    * Builder for constructing CredentialConfiguration instances.
    */
-  public abstract static class Builder<T extends Builder<T>> {
+  public abstract static class Builder<B extends Builder<B, T>,
+                                       T extends EntriesCredentialConfiguration> {
+    protected List<String> prefixes = new ArrayList<>();
     private Entries configuration;
-    private List<String> prefixes = new ArrayList<>();
     private CredentialFactory credentialFactory = new CredentialFactory();
 
     public Builder () {
@@ -105,43 +106,61 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
      * Return "this" of the appropriate Builder type.
      * Builder subclass must override to return "this".
      */
-    protected abstract T self();
+    protected abstract B self();
+
+    /**
+     * Return an instance of the concrete type specified as the second template argument of this
+     * builder, optionally performing any type-specific initialization before this builder
+     * finishes off the rest of the build() method using methods defined within
+     * the EntriesCredentialConfiguration base class.
+     * Subclasses must override to return a constructed instance of the concrete class being built.
+     */
+    protected abstract T beginBuild();
+
+    /**
+     * Return the fully-assembled concrete object for which this is a builder.
+     */
+    public T build() {
+      T concreteCredentialConfiguration = beginBuild();
+      if (configuration != null) {
+        concreteCredentialConfiguration.setConfiguration(configuration);
+      }
+      if (credentialFactory != null) {
+        concreteCredentialConfiguration.setCredentialFactory(credentialFactory);
+      }
+      return concreteCredentialConfiguration;
+    }
 
     @VisibleForTesting
-    T withCredentialFactory(CredentialFactory credentialFactory) {
+    B withCredentialFactory(CredentialFactory credentialFactory) {
       this.credentialFactory = credentialFactory;
       return self();
     }
 
-    public T withConfiguration(Entries configuration) {
+    public B withConfiguration(Entries configuration) {
       this.configuration = configuration;
       return self();
     }
 
-    public T withOverridePrefix(String prefix) {
+    public B withOverridePrefix(String prefix) {
       this.prefixes.add(prefix);
       return self();
-    }
-
-    public CredentialConfiguration build() {
-      EntriesCredentialConfiguration credentialConfiguration =
-          new EntriesCredentialConfiguration(prefixes);
-      if (configuration != null) {
-        credentialConfiguration.setConfiguration(configuration);
-      }
-      if (credentialFactory != null) {
-        credentialConfiguration.setCredentialFactory(credentialFactory);
-      }
-      return credentialConfiguration;
     }
   }
 
   /**
    * A builder for use without a subclasses of EntriesCredentialConfiguration.
    */
-  public static class EntriesBuilder extends Builder<EntriesBuilder> {
+  public static class EntriesBuilder
+      extends Builder<EntriesBuilder, EntriesCredentialConfiguration> {
+    @Override
     public EntriesBuilder self() {
       return this;
+    }
+
+    @Override
+    protected EntriesCredentialConfiguration beginBuild() {
+      return new EntriesCredentialConfiguration(prefixes);
     }
   }
 
