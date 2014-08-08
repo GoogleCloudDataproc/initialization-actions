@@ -22,10 +22,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.util.Clock;
-import com.google.cloud.hadoop.testing.ExceptionUtil;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -34,6 +35,9 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class CachedBucketTest {
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
+
   private Clock mockClock;
   private StorageResourceId bucketResourceId;
   private StorageResourceId objectResourceId;
@@ -53,73 +57,134 @@ public class CachedBucketTest {
   }
 
   @Test
-  public void testConstructorBucketNameInvalidArgs() {
-    // Disallow null bucketName.
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        CachedBucket.class, "<init>", String.class);
-
-    // Disallow empty bucketName.
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        CachedBucket.class, "<init>", "");
+  public void testConstructorThrowsWhenBucketNameIsNull() {
+    expectedException.expect(IllegalArgumentException.class);
+    new CachedBucket((String) null);
   }
 
   @Test
-  public void testConstructorBucketInfoInvalidArgs() {
-    // Disallow null.
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        CachedBucket.class, "<init>", GoogleCloudStorageItemInfo.class);
-
-    // Disallow root.
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        CachedBucket.class, "<init>", GoogleCloudStorageItemInfo.ROOT_INFO);
-
-    // Disallow nonexistent bucket.
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        CachedBucket.class, "<init>",
-        GoogleCloudStorageImpl.createItemInfoForNotFound(bucketResourceId));
-
-    // Disallow StorageObject.
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        CachedBucket.class, "<init>", objectInfo);
+  public void testConstructorThrowsWhenBucketNameIsEmpty() {
+    expectedException.expect(IllegalArgumentException.class);
+    new CachedBucket("");
   }
 
   @Test
-  public void testInvalidResourceIdForInnerObjects() {
+  public void testConstructorThrowsWhenStorageItemInfoIsNull() {
+    expectedException.expect(IllegalArgumentException.class);
+    new CachedBucket((GoogleCloudStorageItemInfo) null);
+  }
+
+  @Test
+  public void testConstructorThrowsWhenStorageItemInfoIsRoot() {
+    expectedException.expect(IllegalArgumentException.class);
+    new CachedBucket(GoogleCloudStorageItemInfo.ROOT_INFO);
+  }
+
+  @Test
+  public void testConstructorThrowsWhenNonExistentBucket() {
+    expectedException.expect(IllegalArgumentException.class);
+    new CachedBucket(GoogleCloudStorageImpl.createItemInfoForNotFound(bucketResourceId));
+  }
+
+  @Test
+  public void testConstructorThrowsWhenStorageItemInfoIsStorageObject() {
+    expectedException.expect(IllegalArgumentException.class);
+    new CachedBucket(objectInfo);
+  }
+
+  @Test
+  public void testGetThrowsWhenStorageResourceIsNull() {
+    CachedBucket bucket = new CachedBucket(bucketResourceId.getBucketName());
+    expectedException.expect(IllegalArgumentException.class);
+    bucket.get(null);
+  }
+
+  @Test
+  public void testRemoveThrowsWhenStorageResourceIsNull() {
+    CachedBucket bucket = new CachedBucket(bucketResourceId.getBucketName());
+    expectedException.expect(IllegalArgumentException.class);
+    bucket.remove(null);
+  }
+
+  @Test
+  public void testPutThrowsWhenStorageResourceIsNull() {
+    CachedBucket bucket = new CachedBucket(bucketResourceId.getBucketName());
+    expectedException.expect(IllegalArgumentException.class);
+    bucket.put(null);
+  }
+
+  @Test
+  public void testGetThrowsWhenStorageResourceIsRoot() {
+    CachedBucket bucket = new CachedBucket(bucketResourceId.getBucketName());
+    expectedException.expect(IllegalArgumentException.class);
+    bucket.get(StorageResourceId.ROOT);
+  }
+
+  @Test
+  public void testRemoveThrowsWhenStorageResourceIsRoot() {
+    CachedBucket bucket = new CachedBucket(bucketResourceId.getBucketName());
+    expectedException.expect(IllegalArgumentException.class);
+    bucket.remove(StorageResourceId.ROOT);
+  }
+
+  @Test
+  public void testPutThrowsWhenStorageResourceIsRoot() {
+    CachedBucket bucket = new CachedBucket(bucketResourceId.getBucketName());
+    expectedException.expect(IllegalArgumentException.class);
+    bucket.put(StorageResourceId.ROOT);
+  }
+
+  @Test
+  public void testGetThrowsWhenStorageResourceIdIsABucket() {
+    CachedBucket bucket = new CachedBucket(bucketResourceId.getBucketName());
+    expectedException.expect(IllegalArgumentException.class);
+    bucket.get(bucketResourceId);
+  }
+
+  @Test
+  public void testRemoveThrowsWhenStorageResourceIdIsABucket() {
+    CachedBucket bucket = new CachedBucket(bucketResourceId.getBucketName());
+    expectedException.expect(IllegalArgumentException.class);
+    bucket.remove(bucketResourceId);
+  }
+
+  @Test
+  public void testPutThrowsWhenStorageResourceIdIsABucket() {
+    CachedBucket bucket = new CachedBucket(bucketResourceId.getBucketName());
+    expectedException.expect(IllegalArgumentException.class);
+    bucket.put(bucketResourceId);
+  }
+
+  @Test
+  public void testGetThrowsWhenStorageResourceIsInDifferentBucket() {
     CachedBucket bucket = new CachedBucket(bucketResourceId.getBucketName());
 
-    // Disallow null.
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        bucket, "get", StorageResourceId.class);
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        bucket, "remove", StorageResourceId.class);
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        bucket, "put", StorageResourceId.class);
-
-    // Disallow root.
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        bucket, "get", StorageResourceId.ROOT);
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        bucket, "remove", StorageResourceId.ROOT);
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        bucket, "put", StorageResourceId.ROOT);
-
-    // Disallow buckets (for inner objects).
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        bucket, "get", bucketResourceId);
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        bucket, "remove", bucketResourceId);
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        bucket, "put", bucketResourceId);
-
-    // Disallow objects whose bucket doesn't the CachedBucket's bucketName.
+    // Disallow objects whose bucket doesn't match the CachedBucket's bucketName.
     StorageResourceId invalidObjectId =
         DirectoryListCacheTestUtils.createObjectInfo("other-bucket", "bar-object").getResourceId();
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        bucket, "get", invalidObjectId);
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        bucket, "remove", invalidObjectId);
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        bucket, "put", invalidObjectId);
+    expectedException.expect(IllegalArgumentException.class);
+    bucket.get(invalidObjectId);
+  }
+
+  @Test
+  public void testRemoveThrowsWhenStorageResourceIsInDifferentBucket() {
+    CachedBucket bucket = new CachedBucket(bucketResourceId.getBucketName());
+
+    // Disallow objects whose bucket doesn't match the CachedBucket's bucketName.
+    StorageResourceId invalidObjectId =
+        DirectoryListCacheTestUtils.createObjectInfo("other-bucket", "bar-object").getResourceId();
+    expectedException.expect(IllegalArgumentException.class);
+    bucket.remove(invalidObjectId);
+  }
+
+  @Test
+  public void testPutThrowsWhenStorageResourceIsInDifferentBucket() {
+    CachedBucket bucket = new CachedBucket(bucketResourceId.getBucketName());
+    // Disallow objects whose bucket doesn't match the CachedBucket's bucketName.
+    StorageResourceId invalidObjectId =
+        DirectoryListCacheTestUtils.createObjectInfo("other-bucket", "bar-object").getResourceId();
+    expectedException.expect(IllegalArgumentException.class);
+    bucket.put(invalidObjectId);
   }
 
   /**

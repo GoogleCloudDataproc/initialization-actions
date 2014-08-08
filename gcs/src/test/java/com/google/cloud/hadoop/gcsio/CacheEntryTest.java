@@ -21,10 +21,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.util.Clock;
-import com.google.cloud.hadoop.testing.ExceptionUtil;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -33,6 +34,9 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class CacheEntryTest {
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
+
   private Clock mockClock;
   private StorageResourceId bucketResourceId;
   private StorageResourceId objectResourceId;
@@ -52,33 +56,39 @@ public class CacheEntryTest {
   }
 
   @Test
-  public void testConstructorResourceIdInvalidArgs() {
-    // Disallow null.
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        CacheEntry.class, "<init>", StorageResourceId.class);
-
-    // Disallow root.
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        CacheEntry.class, "<init>", StorageResourceId.ROOT);
+  public void testConstructorThrowsWhenStorageResourceIsNull() {
+    expectedException.expect(IllegalArgumentException.class);
+    new CacheEntry((StorageResourceId) null);
   }
 
   @Test
-  public void testConstructorItemInfoInvalidArgs() {
-    // Disallow null.
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        CacheEntry.class, "<init>", GoogleCloudStorageItemInfo.class);
+  public void testConstructorThrowsWhenStorageResourceIsRoot() {
+    expectedException.expect(IllegalArgumentException.class);
+    new CacheEntry(StorageResourceId.ROOT);
+  }
 
-    // Disallow root.
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        CacheEntry.class, "<init>", GoogleCloudStorageItemInfo.ROOT_INFO);
+  @Test
+  public void testConstructorThrowsWhenStorageItemInfoIsNull() {
+    expectedException.expect(IllegalArgumentException.class);
+    new CacheEntry((GoogleCloudStorageItemInfo) null);
+  }
 
-    // Disallow nonexistent bucket and object.
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        CacheEntry.class, "<init>",
-        GoogleCloudStorageImpl.createItemInfoForNotFound(bucketResourceId));
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        CacheEntry.class, "<init>",
-        GoogleCloudStorageImpl.createItemInfoForNotFound(objectResourceId));
+  @Test
+  public void testConstructorThrowsWhenStorageItemInfoIsRoot() {
+    expectedException.expect(IllegalArgumentException.class);
+    new CacheEntry(GoogleCloudStorageItemInfo.ROOT_INFO);
+  }
+
+  @Test
+  public void testConstructorThrowsWhenBucketStorageItemInfoIsNotFound() {
+    expectedException.expect(IllegalArgumentException.class);
+    new CacheEntry(GoogleCloudStorageImpl.createItemInfoForNotFound(bucketResourceId));
+  }
+
+  @Test
+  public void testConstructorThrowsWhenObjectStorageItemInfoIsNotFound() {
+    expectedException.expect(IllegalArgumentException.class);
+    new CacheEntry(GoogleCloudStorageImpl.createItemInfoForNotFound(objectResourceId));
   }
 
   /**
@@ -174,23 +184,30 @@ public class CacheEntryTest {
   }
 
   @Test
-  public void testSetItemInfoInvalidArgs() {
+  public void testSetItemInfoThrowsWhenStorageItemInfoIsNull() {
     CacheEntry entry = new CacheEntry(bucketInfo);
+    expectedException.expect(IllegalArgumentException.class);
+    entry.setItemInfo(null);
+  }
 
-    // Disallow null.
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        entry, "setItemInfo", GoogleCloudStorageItemInfo.class);
+  @Test
+  public void testSetItemInfoThrowsWhenStorageItemInfoIsRoot() {
+    CacheEntry entry = new CacheEntry(bucketInfo);
+    expectedException.expect(IllegalArgumentException.class);
+    entry.setItemInfo(GoogleCloudStorageItemInfo.ROOT_INFO);
+  }
 
-    // Disallow root.
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        entry, "setItemInfo", GoogleCloudStorageItemInfo.ROOT_INFO);
+  @Test
+  public void testSetItemInfoThrowsWhenStorageItemInfoIsNotFound() {
+    CacheEntry entry = new CacheEntry(bucketInfo);
+    expectedException.expect(IllegalArgumentException.class);
+    entry.setItemInfo(GoogleCloudStorageImpl.createItemInfoForNotFound(bucketResourceId));
+  }
 
-    // Disallow not found.
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        entry, "setItemInfo", GoogleCloudStorageImpl.createItemInfoForNotFound(bucketResourceId));
-
-    // Disallow info with resourceId != existing resourceId.
-    ExceptionUtil.checkThrows(IllegalArgumentException.class,
-        entry, "setItemInfo", objectInfo);
+  @Test
+  public void testSetItemInfoThrowsWhenChangingResourceIds() {
+    CacheEntry entry = new CacheEntry(bucketInfo);
+    expectedException.expect(IllegalArgumentException.class);
+    entry.setItemInfo(objectInfo);
   }
 }

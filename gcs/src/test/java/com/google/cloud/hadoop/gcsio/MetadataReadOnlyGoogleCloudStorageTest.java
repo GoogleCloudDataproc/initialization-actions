@@ -18,10 +18,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import com.google.cloud.hadoop.testing.ExceptionUtil;
 import com.google.common.collect.ImmutableList;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -37,12 +38,17 @@ import java.util.Map;
  */
 @RunWith(JUnit4.class)
 public class MetadataReadOnlyGoogleCloudStorageTest {
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
+
   private static final String BUCKET_NAME = "foo-bucket";
 
   // Test setup, initialized on demand depending on each test case.
   private List<GoogleCloudStorageItemInfo> initialInfos;
   private Map<StorageResourceId, GoogleCloudStorageItemInfo> initialMap;
   private MetadataReadOnlyGoogleCloudStorage gcs;
+  private MetadataReadOnlyGoogleCloudStorage emptyGcs = new MetadataReadOnlyGoogleCloudStorage(
+      new ArrayList<GoogleCloudStorageItemInfo>());
 
   /**
    * Helper to create a StorageResourceId without the verbosity of re-specifying a bucket each time
@@ -85,39 +91,82 @@ public class MetadataReadOnlyGoogleCloudStorageTest {
   }
 
   @Test
-  public void testUnsupportedOperations() {
-    gcs = new MetadataReadOnlyGoogleCloudStorage(
+  public void testCreateIsUnsupported() throws IOException {
+    StorageResourceId resourceId = new StorageResourceId("foo", "bar");
+    expectedException.expect(UnsupportedOperationException.class);
+    emptyGcs.create(resourceId);
+  }
+
+  @Test
+  public void testCreateEmptyObjectIsUnsupported() throws IOException {
+    StorageResourceId resourceId = new StorageResourceId("foo", "bar");
+    expectedException.expect(UnsupportedOperationException.class);
+    emptyGcs.createEmptyObject(resourceId);
+  }
+
+  @Test
+  public void testCreateEmptyObjectsIsUnsupported() throws IOException {
+    StorageResourceId resourceId = new StorageResourceId("foo", "bar");
+    expectedException.expect(UnsupportedOperationException.class);
+    emptyGcs.createEmptyObjects(ImmutableList.of(resourceId));
+  }
+
+  @Test
+  public void testOpenIsUnsupported() throws IOException {
+    StorageResourceId resourceId = new StorageResourceId("foo", "bar");
+    expectedException.expect(UnsupportedOperationException.class);
+    emptyGcs.open(resourceId);
+  }
+
+  @Test
+  public void testCreateBucketIsUnsupported() throws IOException {
+    expectedException.expect(UnsupportedOperationException.class);
+    emptyGcs.create("bucketName");
+  }
+
+  @Test
+  public void testDeleteBucketsIsUnsupported() throws IOException {
+    expectedException.expect(UnsupportedOperationException.class);
+    emptyGcs.deleteBuckets(ImmutableList.of("bucketName"));
+  }
+
+  @Test
+  public void testDeleteObjectsIsUnsupported() throws IOException {
+    StorageResourceId resourceId = new StorageResourceId("foo", "bar");
+    expectedException.expect(UnsupportedOperationException.class);
+    emptyGcs.deleteObjects(ImmutableList.of(resourceId));
+  }
+
+  @Test
+  public void testCopyIsUnsupported() throws IOException {
+    expectedException.expect(UnsupportedOperationException.class);
+    emptyGcs.copy("bucket", ImmutableList.of("objSrc"), "bucket", ImmutableList.of("objDst"));
+  }
+
+  @Test
+  public void testListBucketNamesIsUnsupported() throws IOException {
+    expectedException.expect(UnsupportedOperationException.class);
+    emptyGcs.listBucketNames();
+  }
+
+  @Test
+  public void testListBucketInfoIsUnsupported() throws IOException {
+    expectedException.expect(UnsupportedOperationException.class);
+    emptyGcs.listBucketInfo();
+  }
+
+  @Test
+  public void testWaitForBucketEmptyIsUnsupported() throws IOException {
+    expectedException.expect(UnsupportedOperationException.class);
+    emptyGcs.waitForBucketEmpty("bucket");
+  }
+
+  @Test
+  public void testCallingGcsCloseIsAllowed() {
+    GoogleCloudStorage gcsToClose = new MetadataReadOnlyGoogleCloudStorage(
         new ArrayList<GoogleCloudStorageItemInfo>());
 
-    StorageResourceId resourceId = new StorageResourceId("foo", "bar");
-    ExceptionUtil.checkThrows(
-        UnsupportedOperationException.class, gcs, "create", resourceId);
-    ExceptionUtil.checkThrows(
-        UnsupportedOperationException.class, gcs, "createEmptyObject", resourceId);
-    ExceptionUtil.checkThrows(
-        UnsupportedOperationException.class,
-        gcs, "createEmptyObjects", ImmutableList.of(resourceId));
-    ExceptionUtil.checkThrows(
-        UnsupportedOperationException.class, gcs, "open", resourceId);
-    ExceptionUtil.checkThrows(
-        UnsupportedOperationException.class, gcs, "create", "foo");
-    ExceptionUtil.checkThrows(
-        UnsupportedOperationException.class, gcs, "deleteBuckets", ImmutableList.of("foo"));
-    ExceptionUtil.checkThrows(
-        UnsupportedOperationException.class,
-        gcs, "deleteObjects", ImmutableList.of(resourceId));
-    ExceptionUtil.checkThrows(
-        UnsupportedOperationException.class, gcs, "copy",
-        "foo", ImmutableList.of("bar"), "foo", ImmutableList.of("bar2"));
-    ExceptionUtil.checkThrows(
-        UnsupportedOperationException.class, gcs, "listBucketNames");
-    ExceptionUtil.checkThrows(
-        UnsupportedOperationException.class, gcs, "listBucketInfo");
-    ExceptionUtil.checkThrows(
-        UnsupportedOperationException.class, gcs, "waitForBucketEmpty", "foo");
-
-    // Calling close() is allowed.
-    gcs.close();
+    gcsToClose.close();
   }
 
   /**
