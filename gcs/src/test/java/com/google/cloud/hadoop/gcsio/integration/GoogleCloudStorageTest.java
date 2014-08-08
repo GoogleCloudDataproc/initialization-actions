@@ -35,7 +35,6 @@ import com.google.cloud.hadoop.gcsio.SeekableReadableByteChannel;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
 import com.google.common.base.Function;
-import com.google.common.base.Pair;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
@@ -101,12 +100,11 @@ public class GoogleCloudStorageTest {
    */
   public static class SharedBucketScope implements TestBucketScope {
     static Map<GoogleCloudStorage, String> createdBucketMap = new HashMap<>();
-    static List<Pair<GoogleCloudStorage, String>> bucketsToDelete = new ArrayList<>();
 
     public static void cleanupTestBuckets() throws IOException {
-      for (Pair<GoogleCloudStorage, String> toCleanup : bucketsToDelete) {
+      for (Map.Entry<GoogleCloudStorage, String> toCleanup : createdBucketMap.entrySet()) {
         try {
-          toCleanup.first.deleteBuckets(ImmutableList.of(toCleanup.second));
+          toCleanup.getKey().deleteBuckets(ImmutableList.of(toCleanup.getValue()));
         } catch (IOException ioe) {
           // List inconsistency can cause bucket delete to fail.
         }
@@ -132,7 +130,6 @@ public class GoogleCloudStorageTest {
                 "shared");
             rawStorage.create(name);
             createdBucketMap.put(rawStorage, name);
-            bucketsToDelete.add(Pair.of(rawStorage, name));
           }
 
           return createdBucketMap.get(rawStorage);
