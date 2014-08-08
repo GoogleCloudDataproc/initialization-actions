@@ -1,4 +1,6 @@
-1.2.8 - 2014-XX-XX
+1.2.9 - 2014-XX-XX
+
+1.2.8 - 2014-08-07
 
   1. Changed the manner in which the GCS connector jar is built to A) reduce
      included dependencies to only those parts which are used and B) repackaged
