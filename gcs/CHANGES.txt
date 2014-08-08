@@ -3,6 +3,7 @@
   1. Changed the manner in which the GCS connector jar is built to A) reduce
      included dependencies to only those parts which are used and B) repackaged
      dependencies whose versions conflict with those bundled with Hadoop.
+  2. Deprecated fs.gs.system.bucket config.
 
 1.2.7 - 2014-06-23
 

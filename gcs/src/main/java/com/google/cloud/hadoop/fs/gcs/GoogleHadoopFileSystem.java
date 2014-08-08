@@ -70,11 +70,16 @@ public class GoogleHadoopFileSystem
       throws IOException {
     super.configureBuckets(systemBucketName, createConfiguredBuckets);
     rootBucket = initUri.getAuthority();
-    if (rootBucket == null) {
-      rootBucket = systemBucket;
-    } else {
+    if (rootBucket != null) {
       // Validate root bucket name
       GoogleCloudStorageFileSystem.getPath(rootBucket);
+    } else if (systemBucket != null) {
+      log.warn("GHFS.configureBuckets: Warning. No GCS bucket provided. "
+          + "Falling back on deprecated fs.gs.system.bucket.");
+      rootBucket = systemBucket;
+    } else {
+      String msg = String.format("No bucket specified in GCS URI: %s", initUri);
+      throw new IllegalArgumentException(msg);
     }
     log.debug("GHFS.configureBuckets: GoogleHadoopFileSystem root in bucket: ", rootBucket);
   }

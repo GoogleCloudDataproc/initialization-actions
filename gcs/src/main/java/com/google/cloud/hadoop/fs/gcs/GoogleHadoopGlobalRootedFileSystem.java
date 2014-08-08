@@ -30,27 +30,29 @@ import java.net.URISyntaxException;
 /**
  * This class provides a Hadoop compatible File System on top of Google Cloud Storage (GCS).
  *
- * It is implemented as a thin abstraction layer on top of GCS.
- * The layer hides any specific characteristics of the underlying store and exposes FileSystem
- * interface understood by the Hadoop engine.
+ *  It is implemented as a thin abstraction layer on top of GCS. The layer hides any specific
+ * characteristics of the underlying store and exposes FileSystem interface understood by the Hadoop
+ * engine.
  * <p>
- * Users interact with the files in the storage using fully qualified URIs.
- * The file system exposed by this class is identified using the 'gs' scheme.
- * For example, {@code gs://dir1/dir2/file1.txt}.
+ * Users interact with the files in the storage using fully qualified URIs. The file system exposed
+ * by this class is identified using the 'gs' scheme. For example, {@code gs://dir1/dir2/file1.txt}.
  * <p>
- * This implementation translates paths between hadoop Path and GCS URI with the convention that
- * the Hadoop root directly corresponds to the GCS "root", e.g. gs:/. This is convenient for many
+ * This implementation translates paths between hadoop Path and GCS URI with the convention that the
+ * Hadoop root directly corresponds to the GCS "root", e.g. gs:/. This is convenient for many
  * reasons, such as data portability and close equivalence to gsutil paths, but imposes certain
  * inherited constraints, such as files not being allowed in root (only 'directories' can be placed
  * in root), and directory names inside root have a more limited set of allowed characters.
  * <p>
- * One of the main goals of this implementation is to maintain compatibility
- * with behavior of HDFS implementation when accessed through FileSystem interface.
- * HDFS implementation is not very consistent about the cases when it throws versus
- * the cases when methods return false. We run GHFS tests and HDFS tests against the
- * same test data and use that as a guide to decide whether to throw or to
- * return false.
+ * One of the main goals of this implementation is to maintain compatibility with behavior of HDFS
+ * implementation when accessed through FileSystem interface. HDFS implementation is not very
+ * consistent about the cases when it throws versus the cases when methods return false. We run GHFS
+ * tests and HDFS tests against the same test data and use that as a guide to decide whether to
+ * throw or to return false.
+ *
+ * @deprecated This implementation is deprecated and relies on the deprecated systemBucket property.
+ *             Use GoogleHadoopFileSystem instead.
  */
+@Deprecated
 public class GoogleHadoopGlobalRootedFileSystem
     extends GoogleHadoopFileSystemBase {
 

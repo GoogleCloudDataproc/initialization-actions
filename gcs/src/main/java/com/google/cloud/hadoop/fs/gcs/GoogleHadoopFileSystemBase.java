@@ -167,22 +167,22 @@ public abstract class GoogleHadoopFileSystemBase
   // This key is deprecated. See HadoopCredentialConfiguration for current key names.
   public static final String GCS_CLIENT_SECRET_KEY = "fs.gs.client.secret";
 
-  // Configuration key for system bucket name. If the FileSystem is global-rooted, the bucket
-  // is equivalent to the top-level directory where the Hadoop "home directory" resides.
-  // If bucket-rooted, the bucket specified here *is* the root, and all paths are defined relative
-  // to this bucket.
+  // Configuration key for system bucket name. It is a fall back for the
+  // rootBucket of GoogleHadoopFileSystem in gs:///path URIs .
   // Default value: none
+  // This key is deprecated. Always init the FileSystem with a bucket.
   public static final String GCS_SYSTEM_BUCKET_KEY = "fs.gs.system.bucket";
 
   // Configuration key for flag to indicate whether system bucket should be created
   // if it does not exist.
+  // This key is deprecated. See GCS_SYSTEM_BUCKET_KEY.
   public static final String GCS_CREATE_SYSTEM_BUCKET_KEY = "fs.gs.system.bucket.create";
 
   // Default value of fs.gs.system.bucket.create.
   public static final boolean GCS_CREATE_SYSTEM_BUCKET_DEFAULT = true;
 
   // Configuration key for initial working directory of a GHFS instance.
-  // Default value: getHadoopPath(systemBucket, "")
+  // Default value: '/'
   public static final String GCS_WORKING_DIRECTORY_KEY = "fs.gs.working.dir";
 
   // Configuration key for setting 250GB upper limit on file size to gain higher write throughput.
@@ -255,10 +255,9 @@ public abstract class GoogleHadoopFileSystemBase
   //The URI the File System is passed in initialize.
   protected URI initUri;
 
-  // The retrieved configuration value for fs.gs.system.bucket, used for default values of:
-  // -- working directory
-  // -- user home directories (only for Hadoop purposes).
-  //    This is not the same as a user's OS home directory.
+  // The retrieved configuration value for fs.gs.system.bucket.
+  // Used as a fallback for a root bucket, when required.
+  @Deprecated
   protected String systemBucket;
 
   // Underlying GCS file system object.
@@ -1165,8 +1164,11 @@ public abstract class GoogleHadoopFileSystemBase
 
   /**
    * Gets system bucket name.
+   *
+   * @deprecated Use getUri().authority instead.
    */
   @VisibleForTesting
+  @Deprecated
   String getSystemBucketName() {
     return systemBucket;
   }
@@ -1383,7 +1385,7 @@ public abstract class GoogleHadoopFileSystemBase
     defaultBlockSize = config.getLong(BLOCK_SIZE_KEY, BLOCK_SIZE_DEFAULT);
     log.debug("%s = %d", BLOCK_SIZE_KEY, defaultBlockSize);
 
-    String systemBucketName = ConfigurationUtil.getMandatoryConfig(config, GCS_SYSTEM_BUCKET_KEY);
+    String systemBucketName = config.get(GCS_SYSTEM_BUCKET_KEY, null);
     log.debug("%s = %s", GCS_SYSTEM_BUCKET_KEY, systemBucketName);
 
     boolean createSystemBucket =
@@ -1435,18 +1437,21 @@ public abstract class GoogleHadoopFileSystemBase
 
     systemBucket = systemBucketName;
 
-    // Ensure that system bucket exists. It really must be a bucket, not a GCS path.
-    URI systemBucketPath = GoogleCloudStorageFileSystem.getPath(systemBucket);
+    if (systemBucket != null) {
+      log.debug("GHFS.configureBuckets: Warning fs.gs.system.bucket is deprecated.");
+      // Ensure that system bucket exists. It really must be a bucket, not a GCS path.
+      URI systemBucketPath = GoogleCloudStorageFileSystem.getPath(systemBucket);
 
-    checkOpen();
+      checkOpen();
 
-    if (!gcsfs.exists(systemBucketPath)) {
-      if (createSystemBucket) {
-        gcsfs.mkdirs(systemBucketPath);
-      } else {
-        String msg = String.format("%s: system bucket not found: %s",
-            GCS_SYSTEM_BUCKET_KEY, systemBucket);
-        throw new FileNotFoundException(msg);
+      if (!gcsfs.exists(systemBucketPath)) {
+        if (createSystemBucket) {
+          gcsfs.mkdirs(systemBucketPath);
+        } else {
+          String msg =
+              String.format("%s: system bucket not found: %s", GCS_SYSTEM_BUCKET_KEY, systemBucket);
+          throw new FileNotFoundException(msg);
+        }
       }
     }
 
