@@ -95,11 +95,6 @@ public class GoogleHadoopFileSystemTest
   }
 
   @Test @Override
-  public void testInitializeFailure()
-      throws IOException, URISyntaxException {
-  }
-
-  @Test @Override
   public void testInitializeWithWorkingDirectory()
       throws IOException, URISyntaxException {
   }

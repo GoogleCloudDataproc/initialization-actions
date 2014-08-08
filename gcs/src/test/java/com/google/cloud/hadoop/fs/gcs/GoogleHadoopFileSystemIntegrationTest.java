@@ -14,13 +14,11 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
-import com.google.cloud.hadoop.fs.gcs.HadoopFileSystemTestBase.WorkingDirData;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageIntegrationTest;
 import com.google.cloud.hadoop.gcsio.InMemoryGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
-import com.google.cloud.hadoop.testing.ExceptionUtil;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 
 import org.apache.hadoop.conf.Configuration;
@@ -266,33 +264,32 @@ public class GoogleHadoopFileSystemIntegrationTest
     Assert.assertEquals(systemBucketName, fs.getRootBucketName());
   }
 
-  /**
-   * Validates failure paths in initialize().
-   */
-  @Test @Override
-  public void testInitializeFailure()
-      throws IOException, URISyntaxException {
+  @Test
+  public void testInitializeThrowsWithConnectionFailureToMetadata()
+      throws URISyntaxException, IOException {
     String existingBucket = bucketName;
 
-    // Verify that we cannot initialize using URI with a wrong scheme.
-    URI wrongScheme = new URI("http://foo/bar");
-    ExceptionUtil.checkThrowsWithMessage(IllegalArgumentException.class,
-        "URI scheme not supported",
-        new GoogleHadoopFileSystem(), "initialize", wrongScheme, new Configuration());
-
-    // Verify that we can invoke GCE service account auth (though it will not succeed).
     Configuration config = new Configuration();
     URI gsUri = new URI("gs://foobar/");
     String fakeProjectId = "123456";
-    config.setBoolean(GoogleHadoopFileSystemBase.ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY, true);
-    config.set(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY, fakeProjectId);
-    config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, existingBucket);
-    ExceptionUtil.checkThrowsWithMessage(IOException.class,
-        "Error getting access token from metadata server",
-        new GoogleHadoopFileSystem(), "initialize", gsUri, config);
 
+    config.setBoolean(GoogleHadoopFileSystemBase.ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY, true);
+    config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, existingBucket);
+    config.set(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY, fakeProjectId);
+
+    expectedException.expect(IOException.class);
+    expectedException.expectMessage("Error getting access token from metadata server");
+    new GoogleHadoopFileSystem().initialize(gsUri, config);
+  }
+
+  @Test
+  public void testInitializeThrowsWhenNoProjectIdConfigured()
+      throws URISyntaxException, IOException {
     // Verify that incomplete config raises exception.
-    config = new Configuration();
+    String existingBucket = bucketName;
+
+    Configuration config = new Configuration();
+    URI gsUri = new URI("gs://foobar/");
     config.setBoolean(GoogleHadoopFileSystemBase.ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY, false);
     config.setBoolean(
         HadoopCredentialConfiguration.BASE_KEY_PREFIX +
@@ -300,21 +297,34 @@ public class GoogleHadoopFileSystemIntegrationTest
         true);
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, existingBucket);
     // project ID is not set.
-    ExceptionUtil.checkThrowsWithMessage(IOException.class,
-        GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY,
-        new GoogleHadoopFileSystem(), "initialize", gsUri, config);
 
-    // Verify that running on non-GCE with ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY == true
-    // raises exception.
-    config = new Configuration();
-    config.setBoolean(GoogleHadoopFileSystemBase.ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY, true);
-    config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, existingBucket);
-    config.set(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY, fakeProjectId);
-    ExceptionUtil.checkThrowsWithMessage(IOException.class,
-        "Error getting access token from metadata server",
-        new GoogleHadoopFileSystem(), "initialize", gsUri, config);
+    expectedException.expect(IOException.class);
+    expectedException.expectMessage(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY);
 
+    new GoogleHadoopFileSystem().initialize(gsUri, config);
+  }
+
+  @Test
+  public void testInitializeThrowsWhenWrongSchemeConfigured()
+      throws URISyntaxException, IOException {
+    // Verify that we cannot initialize using URI with a wrong scheme.
+    URI wrongScheme = new URI("http://foo/bar");
+
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("URI scheme not supported");
+
+    new GoogleHadoopFileSystem().initialize(wrongScheme, new Configuration());
+  }
+
+  @Test
+  public void testInitializeThrowsWhenCredentialsNotFound()
+      throws URISyntaxException, IOException {
     String fakeClientId = "fooclient";
+    String existingBucket = bucketName;
+
+    Configuration config = new Configuration();
+    URI gsUri = new URI("gs://foobar/");
+    String fakeProjectId = "123456";
     config = new Configuration();
     config.setBoolean(
         GoogleHadoopFileSystemBase.ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY, false);
@@ -322,42 +332,13 @@ public class GoogleHadoopFileSystemIntegrationTest
     config.set(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY, fakeProjectId);
     config.set(GoogleHadoopFileSystemBase.GCS_CLIENT_ID_KEY, fakeClientId);
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, existingBucket);
-    ExceptionUtil.checkThrowsWithMessage(IllegalStateException.class,
-        "No valid credential configuration discovered.",
-        new GoogleHadoopFileSystem(), "initialize", gsUri, config);
-    
-    // To test the parts of initialize which occur after GCSFS initialization in configure(), while
-    // still being reusable by derived unittests (we can't call loadConfig in a test case which
-    // is inherited by a derived test), we will use the constructor which already provides a (fake)
-    // GCSFS and skip the portions of the config specific to GCSFS.
-    GoogleCloudStorageFileSystem fakeGcsFs =
-        new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
 
-    // Non-existent system bucket with GCS_CREATE_SYSTEM_BUCKET_KEY set to false.
-    config = new Configuration();
-    config.setBoolean(GoogleHadoopFileSystemBase.GCS_CREATE_SYSTEM_BUCKET_KEY, false);
-    config.set(
-        GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, "this-bucket-doesnt-exist");
-    ExceptionUtil.checkThrowsWithMessage(FileNotFoundException.class,
-        GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY,
-        new GoogleHadoopFileSystem(fakeGcsFs), "initialize", gsUri, config);
+    expectedException.expect(IllegalStateException.class);
+    expectedException.expectMessage("No valid credential configuration discovered");
 
-    // System bucket which causes invalid URI.
-    config = new Configuration();
-    config.setBoolean(GoogleHadoopFileSystemBase.GCS_CREATE_SYSTEM_BUCKET_KEY, true);
-    config.set(
-        GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, "this-bucket-has-illegal-char^");
-    ExceptionUtil.checkThrowsWithMessage(IllegalArgumentException.class, "Invalid bucket name",
-        new GoogleHadoopFileSystem(fakeGcsFs), "initialize", gsUri, config);
-
-    // System bucket which looks like a path (contains '/').
-    config = new Configuration();
-    config.setBoolean(GoogleHadoopFileSystemBase.GCS_CREATE_SYSTEM_BUCKET_KEY, true);
-    config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, "bucket/with-subdir");
-    ExceptionUtil.checkThrowsWithMessage(IllegalArgumentException.class, "must not contain '/'",
-        new GoogleHadoopFileSystem(fakeGcsFs), "initialize", gsUri, config);
+    new GoogleHadoopFileSystem().initialize(gsUri, config);
   }
-  
+
   /**
    * Validates initialize() with configuration key fs.gs.working.dir set.
    */
@@ -446,43 +427,42 @@ public class GoogleHadoopFileSystemIntegrationTest
     Assert.assertEquals(initUri, fs.initUri);
     Assert.assertEquals(systemBucketName, fs.getRootBucketName());
   }
-  
-  /**
-   * Validates failure paths in configureBuckets().
-   * @throws IOException 
-   * @throws URISyntaxException 
-   */
-  @Test @Override
-  public void testConfigureBucketsFailure()
-      throws IOException, URISyntaxException {
-    // To test configureBuckets which occurs after GCSFS initialization in configure(), while
-    // still being reusable by derived unittests (we can't call loadConfig in a test case which
-    // is inherited by a derived test), we will use the constructor which already provides a (fake)
-    // GCSFS and skip the portions of the config specific to GCSFS.
+
+  @Test
+  public void testConfigureBucketsThrowsWhenBucketNotFound() throws IOException {
     GoogleCloudStorageFileSystem fakeGcsFs =
         new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
 
     // Non-existent system bucket with GCS_CREATE_SYSTEM_BUCKET_KEY set to false.
     boolean createSystemBuckets = false;
     String systemBucketName = "this-bucket-doesnt-exist";
-    ExceptionUtil.checkThrowsWithMessage(FileNotFoundException.class,
-        GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY,
-        new GoogleHadoopFileSystem(fakeGcsFs),
-        "configureBuckets", systemBucketName, createSystemBuckets);
+    expectedException.expect(FileNotFoundException.class);
+    expectedException.expectMessage(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY);
+    new GoogleHadoopFileSystem(fakeGcsFs).configureBuckets(systemBucketName, createSystemBuckets);
+  }
 
-    // System bucket which causes invalid URI.
-    createSystemBuckets = true;
-    systemBucketName = "this-bucket-has-illegal-char^";
-    ExceptionUtil.checkThrowsWithMessage(IllegalArgumentException.class, "Invalid bucket name",
-        new GoogleHadoopFileSystem(fakeGcsFs),
-        "configureBuckets", systemBucketName, createSystemBuckets);
+  @Test
+  public void testConfigureBucketsThrowsWhenInvalidBucketName() throws IOException {
+    GoogleCloudStorageFileSystem fakeGcsFs =
+        new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
 
-    // System bucket which looks like a path (contains '/').
-    createSystemBuckets = true;
-    systemBucketName = "bucket/with-subdir";
-    ExceptionUtil.checkThrowsWithMessage(IllegalArgumentException.class, "must not contain '/'",
-        new GoogleHadoopFileSystem(fakeGcsFs),
-        "configureBuckets", systemBucketName, createSystemBuckets);
+    boolean createSystemBuckets = true;
+    String systemBucketName = "this-bucket-has-illegal-char^";
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("Invalid bucket name");
+    new GoogleHadoopFileSystem(fakeGcsFs).configureBuckets(systemBucketName, createSystemBuckets);
+  }
+
+  @Test
+  public void testConfigureBucketsThrowsWhenSubdirSpecified() throws IOException {
+    GoogleCloudStorageFileSystem fakeGcsFs =
+        new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
+
+    boolean createSystemBuckets = true;
+    String systemBucketName = "bucket/with-subdir";
+    expectedException.expect(IllegalArgumentException.class);
+    expectedException.expectMessage("must not contain '/'");
+    new GoogleHadoopFileSystem(fakeGcsFs).configureBuckets(systemBucketName, createSystemBuckets);
   }
 
 

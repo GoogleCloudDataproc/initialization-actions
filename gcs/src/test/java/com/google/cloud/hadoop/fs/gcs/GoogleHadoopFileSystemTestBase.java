@@ -110,21 +110,12 @@ public abstract class GoogleHadoopFileSystemTestBase
       throws IOException, URISyntaxException;
 
   @Test
-  public abstract void testInitializeFailure()
-      throws IOException, URISyntaxException;
-
-  @Test
   public abstract void testInitializeWithWorkingDirectory()
       throws IOException, URISyntaxException;
 
   @Test
   public abstract void testConfigureBucketsSuccess()
       throws URISyntaxException, IOException;
-
-  @Test
-  public abstract void testConfigureBucketsFailure()
-      throws IOException, URISyntaxException;
-
 
   /**
    * Tests getGcsPath().
