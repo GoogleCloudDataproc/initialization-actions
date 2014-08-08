@@ -19,6 +19,7 @@ package com.google.cloud.hadoop.util;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.HttpBackOffIOExceptionHandler;
 import com.google.api.client.http.HttpBackOffUnsuccessfulResponseHandler;
+import com.google.api.client.http.HttpIOExceptionHandler;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpResponse;
@@ -29,8 +30,10 @@ import com.google.api.client.util.Sleeper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableSet;
 
 import java.io.IOException;
+import java.util.Set;
 
 public class RetryHttpInitializer
     implements HttpRequestInitializer {
@@ -48,6 +51,53 @@ public class RetryHttpInitializer
 
   // String to set as user-agent when initializing HttpRequests if none already set.
   private String defaultUserAgent;
+
+  /**
+   * A HttpUnsuccessfulResponseHandler logs the URL that generated certain failures.
+   */
+  private class LoggingResponseHandler
+      implements HttpUnsuccessfulResponseHandler, HttpIOExceptionHandler {
+    private final HttpUnsuccessfulResponseHandler delegateResponseHandler;
+    private final HttpIOExceptionHandler delegateIOExceptionHandler;
+    private final ImmutableSet<Integer> responseCodesToLog;
+
+    /**
+     * @param delegateResponseHandler The HttpUnsuccessfulResponseHandler to invoke to
+     *    really handle errors.
+     * @param delegateIOExceptionHandler The HttpIOExceptionResponseHandler to delegate to.
+     * @param responseCodesToLog The set of response codes to log URLs for.
+     */
+    public LoggingResponseHandler(
+        HttpUnsuccessfulResponseHandler delegateResponseHandler,
+        HttpIOExceptionHandler delegateIOExceptionHandler,
+        Set<Integer> responseCodesToLog) {
+      this.delegateResponseHandler = delegateResponseHandler;
+      this.delegateIOExceptionHandler = delegateIOExceptionHandler;
+      this.responseCodesToLog = ImmutableSet.copyOf(responseCodesToLog);
+    }
+
+    @Override
+    public boolean handleResponse(
+        HttpRequest httpRequest, HttpResponse httpResponse, boolean supportsRetry)
+        throws IOException {
+      if (responseCodesToLog.contains(httpResponse.getStatusCode())) {
+        log.error("Encountered status code %s when accessing URL %s.",
+            httpResponse.getStatusCode(),
+            httpRequest.getUrl());
+      }
+
+      return delegateResponseHandler.handleResponse(httpRequest, httpResponse, supportsRetry);
+    }
+
+    @Override
+    public boolean handleIOException(HttpRequest httpRequest, boolean supportsRetry)
+        throws IOException {
+      // We sadly don't get anything helpful to see if this is something we want to log. As a result
+      // we'll turn down the logging level to debug.
+      log.warn("Encountered an IOException when accessing URL %s", httpRequest.getUrl());
+      return delegateIOExceptionHandler.handleIOException(httpRequest, supportsRetry);
+    }
+  }
 
   /**
    * An inner class allowing this initializer to create a new handler instance per HttpRequest
@@ -119,10 +169,6 @@ public class RetryHttpInitializer
     // Credential must be the interceptor to fill in accessToken fields.
     request.setInterceptor(credential);
 
-    // Supply a new composite handler for unsuccessful return codes, so that 401's will be handled
-    // by the Credential, and 5XX by a backoff handler.
-    request.setUnsuccessfulResponseHandler(new CredentialOrBackoffResponseHandler());
-
     // IOExceptions such as "socket timed out" of "insufficient bytes written" will follow a
     // straightforward backoff.
     HttpBackOffIOExceptionHandler exceptionHandler =
@@ -130,8 +176,13 @@ public class RetryHttpInitializer
     if (sleeperOverride != null) {
       exceptionHandler.setSleeper(sleeperOverride);
     }
-    request.setIOExceptionHandler(exceptionHandler);
 
+    // Supply a new composite handler for unsuccessful return codes, so that 401's will be handled
+    // by the Credential, and 5XX by a backoff handler.
+    LoggingResponseHandler loggingResponseHandler = new LoggingResponseHandler(
+        new CredentialOrBackoffResponseHandler(), exceptionHandler, ImmutableSet.of(410, 503));
+    request.setUnsuccessfulResponseHandler(loggingResponseHandler);
+    request.setIOExceptionHandler(loggingResponseHandler);
 
     if (Strings.isNullOrEmpty(request.getHeaders().getUserAgent())) {
       log.debug("Request is missing a user-agent, adding default value of '%s'", defaultUserAgent);
