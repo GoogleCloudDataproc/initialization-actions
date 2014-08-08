@@ -53,7 +53,7 @@
     <profile>
       <id>hadoop2</id>
       <properties>
-        <hadoop.version>2.2.0</hadoop.version>
+        <hadoop.version>2.4.1</hadoop.version>
       </properties>
       <dependencyManagement>
         <dependencies>
