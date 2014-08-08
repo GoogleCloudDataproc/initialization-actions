@@ -83,9 +83,18 @@ public class GoogleCloudStorageTestHelper {
       GoogleCloudStorage gcs,
       List<String> bucketNames,
       List<StorageResourceId> resources) throws IOException {
-    gcs.deleteObjects(resources);
+    List<StorageResourceId> objectsToDelete = new ArrayList<>();
+    List<String> bucketsToDelete = new ArrayList<>(bucketNames);
+    for (StorageResourceId resource : resources) {
+      if (resource.isBucket()) {
+        bucketsToDelete.add(resource.getBucketName());
+      } else {
+        objectsToDelete.add(resource);
+      }
+    }
+    gcs.deleteObjects(objectsToDelete);
     try {
-      gcs.deleteBuckets(bucketNames);
+      gcs.deleteBuckets(bucketsToDelete);
     } catch (IOException ioe) {
       // We'll cleanup again in @After
     }
