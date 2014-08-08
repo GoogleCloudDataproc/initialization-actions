@@ -1,3 +1,9 @@
+1.2.8 - 2014-XX-XX
+
+  1. Changed the manner in which the GCS connector jar is built to A) reduce
+     included dependencies to only those parts which are used and B) repackaged
+     dependencies whose versions conflict with those bundled with Hadoop.
+
 1.2.7 - 2014-06-23
 
   1. Fixed a bug where certain globs incorrectly reported the parent directory
