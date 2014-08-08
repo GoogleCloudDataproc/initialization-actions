@@ -136,6 +136,22 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
     }
   }
 
+  /**
+   * A builder for use without a subclasses of EntriesCredentialConfiguration.
+   */
+  public static class EntriesBuilder extends Builder<EntriesBuilder> {
+    public EntriesBuilder self() {
+      return this;
+    }
+  }
+
+  /**
+   * Create a builder for this class.
+   */
+  public static EntriesBuilder newEntriesBuilder() {
+    return new EntriesBuilder();
+  }
+
   private static Optional<Boolean> maybeGetBoolean(Entries config, String key) {
     String value = config.get(key);
     if (value == null) {
