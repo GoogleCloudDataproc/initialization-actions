@@ -64,8 +64,6 @@ import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -143,8 +141,6 @@ public class GoogleCloudStorageTest {
   @BeforeClass
   public static void beforeAllTests()
       throws IOException {
-    // Disable logging.
-    Logger.getRootLogger().setLevel(Level.OFF);
   }
 
   /**
