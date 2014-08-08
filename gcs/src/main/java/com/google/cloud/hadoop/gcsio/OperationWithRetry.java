@@ -63,7 +63,7 @@ public class OperationWithRetry<T extends StorageRequest<S>, S> {
         return request.execute();
       } catch (IOException ioe) {
         if (shouldRetryPredicate.apply(ioe)) {
-          log.debug("Retrying after catching exception %s", ioe);
+          log.debug("Retrying after catching exception", ioe);
           lastException = ioe;
           nextRetryBackoff = backOff.nextBackOffMillis();
           try {
@@ -72,13 +72,13 @@ public class OperationWithRetry<T extends StorageRequest<S>, S> {
             throw new IOException(ie);
           }
         } else {
-          log.debug("Not retrying after catching exception %s", ioe);
+          log.debug("Not retrying after catching exception", ioe);
           throw ioe;
         }
       }
     } while (nextRetryBackoff != BackOff.STOP);
 
-    log.debug("Exhausted retries. lastException was %s", lastException);
+    log.debug("Exhausted retries. lastException was: ", lastException);
     throw lastException;
   }
 }
