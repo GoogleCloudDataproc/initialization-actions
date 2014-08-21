@@ -74,7 +74,7 @@ public class GoogleCloudStorageTestHelper {
     GoogleCloudStorageOptions.Builder builder = GoogleCloudStorageOptions.newBuilder();
     builder.setAppName(GoogleCloudStorageTestHelper.APP_NAME)
         .setProjectId(projectId)
-        .setMaxListItemsPerCall(3)
+        .setMaxListItemsPerCall(50)
         .setMaxRequestsPerBatch(2);
     return builder;
   }
