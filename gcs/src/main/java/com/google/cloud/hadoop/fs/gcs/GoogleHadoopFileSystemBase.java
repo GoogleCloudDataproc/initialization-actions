@@ -1127,8 +1127,8 @@ public abstract class GoogleHadoopFileSystemBase
             fileInfo.isDirectory(),
             REPLICATION_FACTOR_DEFAULT,
             defaultBlockSize,
-            fileInfo.getCreationTime(),
-            fileInfo.getCreationTime(),
+            fileInfo.getModificationTime(), /* Last modification time */
+            fileInfo.getModificationTime(), /* Last access time */
             PERMISSIONS_TO_REPORT,
             USER_NAME,
             USER_NAME,
