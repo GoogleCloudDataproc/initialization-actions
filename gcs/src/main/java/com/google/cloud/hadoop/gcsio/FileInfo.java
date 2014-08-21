@@ -20,6 +20,7 @@ import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.primitives.Longs;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -53,7 +54,7 @@ public class FileInfo {
   private final GoogleCloudStorageItemInfo itemInfo;
 
   // Custom file attributes, including those used for storing custom modification times, etc
-  private final Map<String, String> attributes;
+  private final Map<String, byte[]> attributes;
 
   /**
    * Constructs an instance of FileInfo.
@@ -139,10 +140,11 @@ public class FileInfo {
    * Time is expressed as milliseconds since January 1, 1970 UTC.
    */
   public long getModificationTime() {
-    if (attributes.containsKey(FILE_MODIFICATION_TIMESTAMP_KEY)) {
+    if (attributes.containsKey(FILE_MODIFICATION_TIMESTAMP_KEY)
+        && attributes.get(FILE_MODIFICATION_TIMESTAMP_KEY) != null) {
       try {
-        return Long.parseLong(attributes.get(FILE_MODIFICATION_TIMESTAMP_KEY));
-      } catch (NumberFormatException nfe) {
+        return Longs.fromByteArray(attributes.get(FILE_MODIFICATION_TIMESTAMP_KEY));
+      } catch (IllegalArgumentException iae) {
         log.debug("Failed to parse modification time '%s' millis for object %s",
             attributes.get(FILE_MODIFICATION_TIMESTAMP_KEY), itemInfo.getObjectName());
       }
@@ -154,7 +156,7 @@ public class FileInfo {
    * Retrieve file attributes for this file.
    * @return A map of file attributes
    */
-  public Map<String, String> getAttributes() {
+  public Map<String, byte[]> getAttributes() {
     return attributes;
   }
 
@@ -220,8 +222,8 @@ public class FileInfo {
    * @param attributes The file attributes map to update
    * @param clock The clock to retrieve the current time from
    */
-  public static void addModificationTimeToAttributes(Map<String, String> attributes, Clock clock) {
-    attributes.put(FILE_MODIFICATION_TIMESTAMP_KEY, Long.toString(clock.currentTimeMillis()));
+  public static void addModificationTimeToAttributes(Map<String, byte[]> attributes, Clock clock) {
+    attributes.put(FILE_MODIFICATION_TIMESTAMP_KEY, Longs.toByteArray(clock.currentTimeMillis()));
   }
 
   /**

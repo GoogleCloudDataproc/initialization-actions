@@ -25,11 +25,11 @@ import java.util.Map;
  */
 public class CreateFileOptions {
 
-  public static final Map<String, String> EMPTY_ATTRIBUTES = ImmutableMap.of();
+  public static final Map<String, byte[]> EMPTY_ATTRIBUTES = ImmutableMap.of();
   public static final CreateFileOptions DEFAULT = new CreateFileOptions(true, EMPTY_ATTRIBUTES);
 
   private final boolean overwriteExisting;
-  private final Map<String, String> attributes;
+  private final Map<String, byte[]> attributes;
 
   /**
    * Create a file with empty attributes and optionally overwriting any existing file.
@@ -44,7 +44,7 @@ public class CreateFileOptions {
    * @param overwriteExisting True to overwrite an existing file with the same name
    * @param attributes File attributes to apply to the file at creation
    */
-  public CreateFileOptions(boolean overwriteExisting, Map<String, String> attributes) {
+  public CreateFileOptions(boolean overwriteExisting, Map<String, byte[]> attributes) {
     this.overwriteExisting = overwriteExisting;
     this.attributes = attributes;
   }
@@ -59,7 +59,7 @@ public class CreateFileOptions {
   /**
    * Extended attributes to set when creating a file.
    */
-  public Map<String, String> getAttributes() {
+  public Map<String, byte[]> getAttributes() {
     return attributes;
   }
 }

@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.channels.WritableByteChannel;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -1613,7 +1614,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest
     CreateFileOptions createFileOptions =
         new CreateFileOptions(
             false /* overwrite existing */,
-            ImmutableMap.of("key1", "value1"));
+            ImmutableMap.of("key1", "value1".getBytes(StandardCharsets.UTF_8)));
 
     URI testFilePath = getPath(bucketName, "test-file-creation-attributes.txt");
     try (WritableByteChannel channel =
@@ -1624,7 +1625,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest
 
     Assert.assertEquals(1, info.getAttributes().size());
     Assert.assertTrue(info.getAttributes().containsKey("key1"));
-    Assert.assertEquals("value1", info.getAttributes().get("key1"));
+    Assert.assertArrayEquals(
+        "value1".getBytes(StandardCharsets.UTF_8), info.getAttributes().get("key1"));
   }
 
   @Test
@@ -1775,7 +1777,6 @@ public class GoogleCloudStorageFileSystemIntegrationTest
         directoryInfo.getModificationTime(),
         updatedDirectoryInfo.getModificationTime());
 
-
     // Timestamps for both source and destination *should* change:
     FileInfo updatedSourceDirectoryInfo = gcsfs.getFileInfo(sourceDirectory);
     FileInfo updatedDestinationDirectoryInfo = gcsfs.getFileInfo(destinationDirectory);
@@ -1794,7 +1795,6 @@ public class GoogleCloudStorageFileSystemIntegrationTest
             - updatedDestinationDirectoryInfo.getModificationTime();
     Assert.assertTrue(Math.abs(destinationTimeDelta) < TimeUnit.MINUTES.toMillis(10));
   }
-
 
   /**
    * Gets a unique path of a non-existent file.

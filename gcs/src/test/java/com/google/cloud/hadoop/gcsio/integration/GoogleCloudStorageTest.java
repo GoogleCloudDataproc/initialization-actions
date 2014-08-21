@@ -36,6 +36,7 @@ import com.google.cloud.hadoop.gcsio.SeekableReadableByteChannel;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.UpdatableItemInfo;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
+import com.google.common.base.Equivalence;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -69,6 +70,21 @@ import java.util.Map;
 
 @RunWith(Parameterized.class)
 public class GoogleCloudStorageTest {
+
+  /**
+   * An Equivalence for byte arrays.
+   */
+  public static final Equivalence<byte[]> BYTE_ARRAY_EQUIVALENCE = new Equivalence<byte[]>() {
+    @Override
+    protected boolean doEquivalent(byte[] bytes, byte[] bytes2) {
+      return Arrays.equals(bytes, bytes2);
+    }
+
+    @Override
+    protected int doHash(byte[] bytes) {
+      return Arrays.hashCode(bytes);
+    }
+  };
 
   /**
    * A method for defining a scope / block of code that should share a single bucket for tests
@@ -1265,7 +1281,9 @@ public class GoogleCloudStorageTest {
       byte[] bytesToWrite = new byte[100];
       GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
 
-      Map<String, String> metadata = ImmutableMap.of("key1", "value1", "key2", "value2");
+      Map<String, byte[]> metadata = ImmutableMap.of(
+          "key1", "value1".getBytes(StandardCharsets.UTF_8),
+          "key2", "value2".getBytes(StandardCharsets.UTF_8));
 
       // Verify the bucket exist by creating an object
       StorageResourceId objectToCreate =
@@ -1277,7 +1295,7 @@ public class GoogleCloudStorageTest {
 
       // Verify metadata was set on create.
       GoogleCloudStorageItemInfo itemInfo = gcs.getItemInfo(objectToCreate);
-      assertMapsEqual(metadata, itemInfo.getMetadata());
+      assertMapsEqual(metadata, itemInfo.getMetadata(), BYTE_ARRAY_EQUIVALENCE);
     }
   }
 
@@ -1287,7 +1305,9 @@ public class GoogleCloudStorageTest {
       String bucketName = scope.getBucketName();
       GoogleCloudStorage gcs = scope.getStorageInstance();
 
-      Map<String, String> metadata = ImmutableMap.of("key1", "value1", "key2", "value2");
+      Map<String, byte[]> metadata = ImmutableMap.of(
+          "key1", "value1".getBytes(StandardCharsets.UTF_8),
+          "key2", "value2".getBytes(StandardCharsets.UTF_8));
 
       // Verify the bucket exist by creating an object
       StorageResourceId objectToCreate =
@@ -1296,7 +1316,7 @@ public class GoogleCloudStorageTest {
 
       // Verify we get metadata from getItemInfo
       GoogleCloudStorageItemInfo itemInfo = gcs.getItemInfo(objectToCreate);
-      assertMapsEqual(metadata, itemInfo.getMetadata());
+      assertMapsEqual(metadata, itemInfo.getMetadata(), BYTE_ARRAY_EQUIVALENCE);
     }
   }
 
@@ -1309,7 +1329,9 @@ public class GoogleCloudStorageTest {
       byte[] bytesToWrite = new byte[100];
       GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
 
-      Map<String, String> metadata = ImmutableMap.of("key1", "value1", "key2", "value2");
+      Map<String, byte[]> metadata = ImmutableMap.of(
+          "key1", "value1".getBytes(StandardCharsets.UTF_8),
+          "key2", "value2".getBytes(StandardCharsets.UTF_8));
 
       // Verify the bucket exist by creating an object
       StorageResourceId objectToCreate =
@@ -1326,25 +1348,30 @@ public class GoogleCloudStorageTest {
           gcs.updateItems(ImmutableList.of(new UpdatableItemInfo(objectToCreate, metadata)));
 
       assertEquals(1, results.size());
-      assertMapsEqual(metadata, results.get(0).getMetadata());
+      assertMapsEqual(metadata, results.get(0).getMetadata(), BYTE_ARRAY_EQUIVALENCE);
 
       // Verify we get metadata from getItemInfo
       itemInfo = gcs.getItemInfo(objectToCreate);
-      assertMapsEqual(metadata, itemInfo.getMetadata());
+      assertMapsEqual(metadata, itemInfo.getMetadata(), BYTE_ARRAY_EQUIVALENCE);
 
       // Delete key1 from metadata:
-      Map<String, String> deletionMap = new HashMap<String, String>();
+      Map<String, byte[]> deletionMap = new HashMap<>();
       deletionMap.put("key1", null);
       gcs.updateItems(ImmutableList.of(new UpdatableItemInfo(objectToCreate, deletionMap)));
       
       itemInfo = gcs.getItemInfo(objectToCreate);
       // Ensure that only key2:value2 still exists:
-      assertMapsEqual(ImmutableMap.of("key2", "value2"), itemInfo.getMetadata());
+      assertMapsEqual(
+          ImmutableMap.of(
+              "key2", "value2".getBytes(StandardCharsets.UTF_8)),
+          itemInfo.getMetadata(),
+          BYTE_ARRAY_EQUIVALENCE);
     }
   }
 
-  static void assertMapsEqual(Map<String, String> expected, Map<String, String> result) {
-    MapDifference<String, String> difference = Maps.difference(expected, result);
+  static <K, V> void assertMapsEqual(
+      Map<K, V> expected, Map<K, V> result, Equivalence<V> valueEquivalence) {
+    MapDifference<K, V> difference = Maps.difference(expected, result, valueEquivalence);
     if (!difference.areEqual()) {
       StringBuilder builder = new StringBuilder();
       builder.append("Maps differ. ");

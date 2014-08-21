@@ -1135,7 +1135,7 @@ public class GoogleCloudStorageFileSystem {
       }
     }
 
-    Map<String, String> modificationAttributes = new HashMap<>();
+    Map<String, byte[]> modificationAttributes = new HashMap<>();
     FileInfo.addModificationTimeToAttributes(modificationAttributes, Clock.SYSTEM);
 
     List<UpdatableItemInfo> itemUpdates = new ArrayList<>(parentUrisToUpdate.size());

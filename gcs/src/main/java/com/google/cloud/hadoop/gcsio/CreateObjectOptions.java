@@ -27,10 +27,10 @@ import java.util.Map;
 public class CreateObjectOptions {
 
   public static final CreateObjectOptions DEFAULT =
-      new CreateObjectOptions(true, ImmutableMap.<String, String>of());
+      new CreateObjectOptions(true, ImmutableMap.<String, byte[]>of());
 
   private final boolean overwriteExisting;
-  private final Map<String, String> metadata;
+  private final Map<String, byte[]> metadata;
 
   /**
    * Construct a new CreateObjectOptions with empty metadata.
@@ -38,14 +38,14 @@ public class CreateObjectOptions {
    * @param overwriteExisting True to overwrite any existing objects with the same name.
    */
   public CreateObjectOptions(boolean overwriteExisting) {
-    this(overwriteExisting, ImmutableMap.<String, String>of());
+    this(overwriteExisting, ImmutableMap.<String, byte[]>of());
   }
 
   /**
    * @param overwriteExisting True to overwrite any existing objects with the same name.
    * @param metadata A dictionary of metadata to apply to created objects.
    */
-  public CreateObjectOptions(boolean overwriteExisting, Map<String, String> metadata) {
+  public CreateObjectOptions(boolean overwriteExisting, Map<String, byte[]> metadata) {
     this.overwriteExisting = overwriteExisting;
     this.metadata = metadata;
   }
@@ -60,7 +60,7 @@ public class CreateObjectOptions {
   /**
    * Custom metadata to apply to this object.
    */
-  public Map<String, String> getMetadata() {
+  public Map<String, byte[]> getMetadata() {
     return metadata;
   }
 }

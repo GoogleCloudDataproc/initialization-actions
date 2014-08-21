@@ -58,7 +58,7 @@ public class GoogleCloudStorageWriteChannel
     this.bucketName = bucketName;
     this.objectName = objectName;
     this.writeConditions = writeConditions;
-    metadata = objectMetadata;
+    this.metadata = objectMetadata;
   }
 
   @Override

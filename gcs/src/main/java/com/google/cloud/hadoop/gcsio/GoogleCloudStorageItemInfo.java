@@ -32,7 +32,7 @@ public class GoogleCloudStorageItemInfo {
       new GoogleCloudStorageItemInfo(StorageResourceId.ROOT, 0, 0, null, null);
 
   // Instead of returning null metadata, we'll return this map.
-  private static final Map<String, String> EMPTY_METADATA = ImmutableMap.of();
+  private static final Map<String, byte[]> EMPTY_METADATA = ImmutableMap.of();
 
   // The Bucket and maybe StorageObject names of the GCS "item" referenced by this object. Not null.
   private final StorageResourceId resourceId;
@@ -52,7 +52,7 @@ public class GoogleCloudStorageItemInfo {
   private final String storageClass;
 
   // User-supplied metadata.
-  private final Map<String, String> metadata;
+  private final Map<String, byte[]> metadata;
 
   /**
    * Constructs an instance of GoogleCloudStorageItemInfo.
@@ -63,7 +63,7 @@ public class GoogleCloudStorageItemInfo {
    */
   public GoogleCloudStorageItemInfo(StorageResourceId resourceId,
       long creationTime, long size, String location, String storageClass) {
-    this(resourceId, creationTime, size, location, storageClass, ImmutableMap.<String, String>of());
+    this(resourceId, creationTime, size, location, storageClass, ImmutableMap.<String, byte[]>of());
   }
 
   /**
@@ -76,7 +76,7 @@ public class GoogleCloudStorageItemInfo {
    */
   public GoogleCloudStorageItemInfo(StorageResourceId resourceId,
       long creationTime, long size, String location, String storageClass,
-      Map<String, String> metadata) {
+      Map<String, byte[]> metadata) {
     Preconditions.checkArgument(resourceId != null,
         "resourceId must not be null! Use StorageResourceId.ROOT to represent GCS root.");
     this.resourceId = resourceId;
@@ -152,7 +152,7 @@ public class GoogleCloudStorageItemInfo {
    *
    * Note: metadata is only supported for objects. This value is always an empty map for buckets.
    */
-  public Map<String, String> getMetadata() {
+  public Map<String, byte[]> getMetadata() {
     return metadata;
   }
 

@@ -39,10 +39,13 @@ import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.LogUtil;
 import com.google.cloud.hadoop.util.RetryHttpInitializer;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
+import com.google.common.collect.Maps;
+import com.google.common.io.BaseEncoding;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.io.FileNotFoundException;
@@ -100,6 +103,32 @@ public class GoogleCloudStorageImpl
     public boolean apply(IOException e) {
       return errorExtractor.rateLimited(e);
     }
+  };
+
+  // A function to encode metadata map values
+  private static final Function<byte[], String> ENCODE_METADATA_VALUES =
+      new Function<byte[], String>() {
+        @Override
+        public String apply(byte[] bytes) {
+          if (bytes == null) {
+            return Data.NULL_STRING;
+          } else {
+            return BaseEncoding.base64().encode(bytes);
+          }
+        }
+  };
+
+  private static final Function<String, byte[]> DECODE_METADATA_VALUES =
+      new Function<String, byte[]>() {
+        @Override
+        public byte[] apply(String value) {
+          try {
+            return BaseEncoding.base64().decode(value);
+          } catch (IllegalArgumentException iae) {
+            log.error("Failed to parse base64 encoded attribute value %s - %s", value, iae);
+            return null;
+          }
+        }
   };
 
   /**
@@ -265,6 +294,9 @@ public class GoogleCloudStorageImpl
           Optional.of(result.getGeneration()), Optional.<Long>absent());
     }
 
+    Map<String, String> rewrittenMetadata =
+        Maps.transformValues(options.getMetadata(), ENCODE_METADATA_VALUES);
+
     GoogleCloudStorageWriteChannel channel = new GoogleCloudStorageWriteChannel(
         threadPool,
         gcs,
@@ -272,7 +304,7 @@ public class GoogleCloudStorageImpl
         resourceId.getObjectName(),
         storageOptions.getWriteChannelOptions(),
         writeConditions,
-        options.getMetadata());
+        rewrittenMetadata);
 
     channel.initialize();
 
@@ -716,7 +748,9 @@ public class GoogleCloudStorageImpl
       CreateObjectOptions createObjectOptions) throws IOException {
     StorageObject object = new StorageObject();
     object.setName(resourceId.getObjectName());
-    object.setMetadata(createObjectOptions.getMetadata());
+    Map<String, String> rewrittenMetadata =
+        Maps.transformValues(createObjectOptions.getMetadata(), ENCODE_METADATA_VALUES);
+    object.setMetadata(rewrittenMetadata);
 
     // Ideally we'd use EmptyContent, but Storage requires an AbstractInputStreamContent and not
     // just an HttpContent, so we'll just use the next easiest thing.
@@ -975,11 +1009,15 @@ public class GoogleCloudStorageImpl
         String.format("resourceId.getObjectName() must equal object.getName(): '%s' vs '%s'",
             resourceId.getObjectName(), object.getName()));
 
+    Map<String, byte[]> decodedMetadata =
+        object.getMetadata() == null ? null
+            : Maps.transformValues(object.getMetadata(), DECODE_METADATA_VALUES);
+
     // GCS API does not make available location and storage class at object level at present
     // (it is same for all objects in a bucket). Further, we do not use the values for objects.
     // The GoogleCloudStorageItemInfo thus has 'null' for location and storage class.
     return new GoogleCloudStorageItemInfo(resourceId, object.getUpdated().getValue(),
-        object.getSize().longValue(), null, null, object.getMetadata());
+        object.getSize().longValue(), null, null, decodedMetadata);
   }
 
   /**
@@ -1107,13 +1145,9 @@ public class GoogleCloudStorageImpl
       final String bucketName = resourceId.getBucketName();
       final String objectName = resourceId.getObjectName();
 
-      Map<String, String> rewrittenMetadata = new HashMap<>(itemInfo.getMetadata());
-
-      for (Map.Entry<String, String> metadataEntry : rewrittenMetadata.entrySet()) {
-        if (metadataEntry.getValue() == null) {
-          metadataEntry.setValue(Data.NULL_STRING);
-        }
-      }
+      Map<String, byte[]> originalMetadata = itemInfo.getMetadata();
+      Map<String, String> rewrittenMetadata =
+          Maps.transformValues(originalMetadata, ENCODE_METADATA_VALUES);
 
       Storage.Objects.Patch patch =
           gcs.objects().patch(

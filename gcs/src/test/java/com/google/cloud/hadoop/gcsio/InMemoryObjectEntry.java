@@ -50,7 +50,7 @@ class InMemoryObjectEntry {
   private GoogleCloudStorageItemInfo info;
 
   public InMemoryObjectEntry(String bucketName, String objectName, long createTimeMillis,
-      Map<String, String> metadata) {
+      Map<String, byte[]> metadata) {
     // Override close() to commit its completed byte array into completedContents to reflect
     // the behavior that any readable contents are only well-defined if the writeStream is closed.
     writeStream = new ByteArrayOutputStream() {
@@ -198,10 +198,10 @@ class InMemoryObjectEntry {
    * has a corresponding null value will be removed from the object's metadata. All other values
    * will be added.
    */
-  public synchronized void patchMetadata(Map<String, String> newMetadata) {
-    Map<String, String> mergedMetadata = Maps.newHashMap(info.getMetadata());
+  public synchronized void patchMetadata(Map<String, byte[]> newMetadata) {
+    Map<String, byte[]> mergedMetadata = Maps.newHashMap(info.getMetadata());
 
-    for (Map.Entry<String, String> entry : newMetadata.entrySet()) {
+    for (Map.Entry<String, byte[]> entry : newMetadata.entrySet()) {
       if (entry.getValue() == null && mergedMetadata.containsKey(entry.getKey())) {
         mergedMetadata.remove(entry.getKey());
       } else if (entry.getValue() != null) {

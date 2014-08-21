@@ -23,13 +23,13 @@ import java.util.Map;
 public class UpdatableItemInfo {
 
   private final StorageResourceId storageResourceId;
-  private final Map<String, String> metadata;
+  private final Map<String, byte[]> metadata;
 
   /**
    * @param storageResourceId The StorageResourceId for which these records pertain
    * @param metadata The object metadata for this object.
    */
-  public UpdatableItemInfo(StorageResourceId storageResourceId, Map<String, String> metadata) {
+  public UpdatableItemInfo(StorageResourceId storageResourceId, Map<String, byte[]> metadata) {
     this.storageResourceId = storageResourceId;
     this.metadata = metadata;
   }
@@ -38,7 +38,7 @@ public class UpdatableItemInfo {
     return storageResourceId;
   }
 
-  public Map<String, String> getMetadata() {
+  public Map<String, byte[]> getMetadata() {
     return metadata;
   }
 }
