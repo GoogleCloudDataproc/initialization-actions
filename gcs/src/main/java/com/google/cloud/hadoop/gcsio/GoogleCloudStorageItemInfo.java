@@ -17,8 +17,10 @@
 package com.google.cloud.hadoop.gcsio;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 
 import java.util.Date;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -46,6 +48,9 @@ public class GoogleCloudStorageItemInfo {
   // Storage class of this item.
   private final String storageClass;
 
+  // User-supplied metadata.
+  private final Map<String, String> metadata;
+
   /**
    * Constructs an instance of GoogleCloudStorageItemInfo.
    *
@@ -55,6 +60,20 @@ public class GoogleCloudStorageItemInfo {
    */
   public GoogleCloudStorageItemInfo(StorageResourceId resourceId,
       long creationTime, long size, String location, String storageClass) {
+    this(resourceId, creationTime, size, location, storageClass, ImmutableMap.<String, String>of());
+  }
+
+  /**
+   * Constructs an instance of GoogleCloudStorageItemInfo.
+   *
+   * @param resourceId identifies either root, a Bucket, or a StorageObject
+   * @param creationTime Time when object was created (milliseconds since January 1, 1970 UTC).
+   * @param size Size of the given object (number of bytes) or -1 if the object does not exist.
+   * @param metadata User-supplied object metadata for this object.
+   */
+  public GoogleCloudStorageItemInfo(StorageResourceId resourceId,
+      long creationTime, long size, String location, String storageClass,
+      Map<String, String> metadata) {
     Preconditions.checkArgument(resourceId != null,
         "resourceId must not be null! Use StorageResourceId.ROOT to represent GCS root.");
     this.resourceId = resourceId;
@@ -62,6 +81,7 @@ public class GoogleCloudStorageItemInfo {
     this.size = size;
     this.location = location;
     this.storageClass = storageClass;
+    this.metadata = metadata;
   }
 
   /**
@@ -119,6 +139,15 @@ public class GoogleCloudStorageItemInfo {
    */
   public String getStorageClass() {
     return storageClass;
+  }
+
+  /**
+   * Gets user-supplied metadata for this item.
+   *
+   * Note: metadata is only supported for objects. This value is always an empty map for buckets.
+   */
+  public Map<String, String> getMetadata() {
+    return metadata;
   }
 
   /**

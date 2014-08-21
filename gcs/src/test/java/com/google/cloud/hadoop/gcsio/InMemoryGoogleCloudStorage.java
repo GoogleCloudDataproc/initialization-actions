@@ -15,6 +15,7 @@
 package com.google.cloud.hadoop.gcsio;
 
 import com.google.api.client.util.Clock;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 import java.io.FileNotFoundException;
@@ -108,7 +109,8 @@ public class InMemoryGoogleCloudStorage
     InMemoryObjectEntry entry = new InMemoryObjectEntry(
         resourceId.getBucketName(),
         resourceId.getObjectName(),
-        clock.currentTimeMillis());
+        clock.currentTimeMillis(),
+        options.getMetadata());
     bucketLookup.get(resourceId.getBucketName()).add(entry);
     return entry.getWriteChannel();
   }
@@ -339,6 +341,32 @@ public class InMemoryGoogleCloudStorage
         itemInfos.add(getItemInfo(resourceId));
       } catch (IOException ioe) {
         throw new IOException("Error getting StorageObject", ioe);
+      }
+    }
+    return itemInfos;
+  }
+
+  @Override
+  public List<GoogleCloudStorageItemInfo> updateItems(List<UpdatableItemInfo> itemInfoList)
+      throws IOException {
+    List<GoogleCloudStorageItemInfo> itemInfos = new ArrayList<>();
+    for (UpdatableItemInfo updatableItemInfo : itemInfoList) {
+      StorageResourceId resourceId = updatableItemInfo.getStorageResourceId();
+      Preconditions.checkArgument(
+          !resourceId.isRoot() && !resourceId.isBucket(),
+          "Can't update item on GCS Root or bucket resources");
+      if (!validateObjectName(resourceId.getObjectName())) {
+        throw new IOException("Error accessing");
+      }
+      if (bucketLookup.containsKey(resourceId.getBucketName())
+          && bucketLookup.get(resourceId.getBucketName()).get(resourceId.getObjectName()) != null) {
+        InMemoryObjectEntry objectEntry =
+            bucketLookup.get(resourceId.getBucketName()).get(resourceId.getObjectName());
+        objectEntry.patchMetadata(updatableItemInfo.getMetadata());
+        itemInfos.add(getItemInfo(resourceId));
+      } else {
+        throw new IOException(
+            String.format("Error getting StorageObject %s", resourceId.toString()));
       }
     }
     return itemInfos;

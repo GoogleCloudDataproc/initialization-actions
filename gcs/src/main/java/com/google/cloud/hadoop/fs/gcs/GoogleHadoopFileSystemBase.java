@@ -499,7 +499,7 @@ public abstract class GoogleHadoopFileSystemBase
   }
 
   /**
-   * See {@link initialize(URI, Configuration, boolean)} for details; calls with third arg
+   * See {@link #initialize(URI, Configuration, boolean)} for details; calls with third arg
    * defaulting to 'true' for initializing the superclass.
    *
    * @param path URI of a file/directory within this file system.
@@ -522,7 +522,7 @@ public abstract class GoogleHadoopFileSystemBase
    *
    * @param path URI of a file/directory within this file system.
    * @param config Hadoop configuration.
-   * @param initSuperClass if false, doesn't call super.initialize(path, config); avoids
+   * @param initSuperclass if false, doesn't call super.initialize(path, config); avoids
    *     registering a global Statistics object for this instance.
    */
   public void initialize(URI path, Configuration config, boolean initSuperclass)

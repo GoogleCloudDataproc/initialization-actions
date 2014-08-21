@@ -231,6 +231,14 @@ public interface GoogleCloudStorage {
       throws IOException;
 
   /**
+   * Attempt to update metadata of the objects referenced within the passed itemInfo objects.
+   * @return Updated GoogleCloudStorageItemInfo objects for the referenced objects.
+   * @throws IOException on IO error
+   */
+  List<GoogleCloudStorageItemInfo> updateItems(List<UpdatableItemInfo> itemInfoList)
+      throws IOException;
+
+  /**
    * Releases resources used by this instance.
    */
   void close();

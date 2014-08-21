@@ -14,12 +14,16 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.WritableByteChannel;
+import java.util.Map;
 
 /**
  * InMemoryObjectEntry represents a GCS StorageObject in-memory by maintaining byte[] contents
@@ -42,11 +46,11 @@ class InMemoryObjectEntry {
   // interface uses WritableByteChannels for writing.
   private WritableByteChannel writeChannel;
 
-  // The metadata associated with this ObjectEntry; only its 'size' will change after
-  // initialization when the writeChannel is closed.
+  // The metadata associated with this ObjectEntry;
   private GoogleCloudStorageItemInfo info;
 
-  public InMemoryObjectEntry(String bucketName, String objectName, long createTimeMillis) {
+  public InMemoryObjectEntry(String bucketName, String objectName, long createTimeMillis,
+      Map<String, String> metadata) {
     // Override close() to commit its completed byte array into completedContents to reflect
     // the behavior that any readable contents are only well-defined if the writeStream is closed.
     writeStream = new ByteArrayOutputStream() {
@@ -57,7 +61,12 @@ class InMemoryObjectEntry {
           writeStream = null;
           writeChannel = null;
           info = new GoogleCloudStorageItemInfo(
-              info.getResourceId(), info.getCreationTime(), completedContents.length, null, null);
+              info.getResourceId(),
+              info.getCreationTime(),
+              completedContents.length,
+              null,
+              null,
+              info.getMetadata());
         }
       }
     };
@@ -89,7 +98,12 @@ class InMemoryObjectEntry {
     };
     // Size 0 initially because this object exists, but contains no data.
     info = new GoogleCloudStorageItemInfo(
-        new StorageResourceId(bucketName, objectName), createTimeMillis, 0, null, null);
+        new StorageResourceId(bucketName, objectName),
+        createTimeMillis,
+        0,
+        null,
+        null,
+        ImmutableMap.copyOf(metadata));
   }
 
   /**
@@ -138,8 +152,12 @@ class InMemoryObjectEntry {
     copy.writeChannel = writeChannel;
     // TODO(user): Check if the creation time should change too, add copy constructor.
     copy.info = new GoogleCloudStorageItemInfo(
-        new StorageResourceId(bucketName, objectName), info.getCreationTime(), info.getSize(),
-        null, null);
+        new StorageResourceId(bucketName, objectName),
+        info.getCreationTime(),
+        info.getSize(),
+        null,
+        null,
+        info.getMetadata());
     return copy;
   }
 
@@ -173,5 +191,30 @@ class InMemoryObjectEntry {
    */
   public synchronized GoogleCloudStorageItemInfo getInfo() {
     return info;
+  }
+
+  /**
+   * Updates the metadata associated with this InMemoryObjectEntry. Any key in newMetadata which
+   * has a corresponding null value will be removed from the object's metadata. All other values
+   * will be added.
+   */
+  public synchronized void patchMetadata(Map<String, String> newMetadata) {
+    Map<String, String> mergedMetadata = Maps.newHashMap(info.getMetadata());
+
+    for (Map.Entry<String, String> entry : newMetadata.entrySet()) {
+      if (entry.getValue() == null && mergedMetadata.containsKey(entry.getKey())) {
+        mergedMetadata.remove(entry.getKey());
+      } else if (entry.getValue() != null) {
+        mergedMetadata.put(entry.getKey(), entry.getValue());
+      }
+    }
+
+    info = new GoogleCloudStorageItemInfo(
+        info.getResourceId(),
+        info.getCreationTime(),
+        completedContents.length,
+        null,
+        null,
+        mergedMetadata);
   }
 }

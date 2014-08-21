@@ -230,6 +230,12 @@ public class MetadataReadOnlyGoogleCloudStorage
     return infos;
   }
 
+  @Override
+  public List<GoogleCloudStorageItemInfo> updateItems(List<UpdatableItemInfo> itemInfoList)
+      throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
   /**
    * Pure fetch from cache.
    */

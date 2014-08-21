@@ -24,6 +24,7 @@ import com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -36,6 +37,7 @@ public class GoogleCloudStorageWriteChannel
   private final String bucketName;
   private final String objectName;
   private final ObjectWriteConditions writeConditions;
+  private final Map<String, String> metadata;
 
   /**
    * Constructs an instance of GoogleCloudStorageWriteChannel.
@@ -44,22 +46,28 @@ public class GoogleCloudStorageWriteChannel
    * @param gcs storage object instance
    * @param bucketName name of the bucket to create object in
    * @param objectName name of the object to create
+   * @param objectMetadata metadata to apply to the newly created object
    * @throws IOException on IO error
    */
   public GoogleCloudStorageWriteChannel(
       ExecutorService threadPool, Storage gcs, String bucketName, String objectName,
-      AsyncWriteChannelOptions options, ObjectWriteConditions writeConditions) {
+      AsyncWriteChannelOptions options, ObjectWriteConditions writeConditions,
+      Map<String, String> objectMetadata) {
     super(threadPool, options);
     this.gcs = gcs;
     this.bucketName = bucketName;
     this.objectName = objectName;
     this.writeConditions = writeConditions;
+    metadata = objectMetadata;
   }
 
   @Override
   public Insert createRequest(InputStreamContent inputStream) throws IOException {
-    // Create object with the given name.
-    StorageObject object = (new StorageObject()).setName(objectName);
+    // Create object with the given name and metadata.
+    StorageObject object =
+        new StorageObject()
+            .setName(objectName)
+            .setMetadata(metadata);
 
     Insert insert = gcs.objects().insert(bucketName, object, inputStream);
     writeConditions.apply(insert);

@@ -147,6 +147,12 @@ public class ResourceLoggingGoogleCloudStorage implements GoogleCloudStorage {
   }
 
   @Override
+  public List<GoogleCloudStorageItemInfo> updateItems(List<UpdatableItemInfo> itemInfoList)
+      throws IOException {
+    return delegateGcs.updateItems(itemInfoList);
+  }
+
+  @Override
   public void close() {
     delegateGcs.close();
   }

@@ -23,6 +23,7 @@ import static org.junit.Assert.fail;
 
 import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.gcsio.CacheSupplementedGoogleCloudStorage;
+import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageWriteChannel;
@@ -33,10 +34,14 @@ import com.google.cloud.hadoop.gcsio.ListProhibitedGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.ResourceLoggingGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.SeekableReadableByteChannel;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
+import com.google.cloud.hadoop.gcsio.UpdatableItemInfo;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.MapDifference;
+import com.google.common.collect.Maps;
 
 import org.junit.After;
 import org.junit.AfterClass;
@@ -1249,5 +1254,104 @@ public class GoogleCloudStorageTest {
   @Test @Ignore("Not implemented")
   public void testOperationsAfterCloseFail() {
 
+  }
+
+  @Test
+  public void testMetadataIsWrittenWhenCreatingObjects() throws IOException {
+    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
+      String bucketName = scope.getBucketName();
+      GoogleCloudStorage gcs = scope.getStorageInstance();
+
+      byte[] bytesToWrite = new byte[100];
+      GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
+
+      Map<String, String> metadata = ImmutableMap.of("key1", "value1", "key2", "value2");
+
+      // Verify the bucket exist by creating an object
+      StorageResourceId objectToCreate =
+          new StorageResourceId(bucketName, "testUpdateItemInfoUpdatesMetadata");
+      try (WritableByteChannel channel = gcs.create(
+          objectToCreate, new CreateObjectOptions(false, metadata))) {
+        channel.write(ByteBuffer.wrap(bytesToWrite));
+      }
+
+      // Verify metadata was set on create.
+      GoogleCloudStorageItemInfo itemInfo = gcs.getItemInfo(objectToCreate);
+      assertMapsEqual(metadata, itemInfo.getMetadata());
+    }
+  }
+
+  @Test
+  public void testMetdataIsWrittenWhenCreatingEmptyObjects() throws IOException {
+    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
+      String bucketName = scope.getBucketName();
+      GoogleCloudStorage gcs = scope.getStorageInstance();
+
+      Map<String, String> metadata = ImmutableMap.of("key1", "value1", "key2", "value2");
+
+      // Verify the bucket exist by creating an object
+      StorageResourceId objectToCreate =
+          new StorageResourceId(bucketName, "testMetdataIsWrittenWhenCreatingEmptyObjects");
+      gcs.createEmptyObject(objectToCreate, new CreateObjectOptions(false, metadata));
+
+      // Verify we get metadata from getItemInfo
+      GoogleCloudStorageItemInfo itemInfo = gcs.getItemInfo(objectToCreate);
+      assertMapsEqual(metadata, itemInfo.getMetadata());
+    }
+  }
+
+  @Test
+  public void testUpdateItemInfoUpdatesMetadata() throws IOException {
+    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
+      String bucketName = scope.getBucketName();
+      GoogleCloudStorage gcs = scope.getStorageInstance();
+
+      byte[] bytesToWrite = new byte[100];
+      GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
+
+      Map<String, String> metadata = ImmutableMap.of("key1", "value1", "key2", "value2");
+
+      // Verify the bucket exist by creating an object
+      StorageResourceId objectToCreate =
+          new StorageResourceId(bucketName, "testUpdateItemInfoUpdatesMetadata");
+      try (WritableByteChannel channel = gcs.create(objectToCreate)) {
+        channel.write(ByteBuffer.wrap(bytesToWrite));
+      }
+
+      GoogleCloudStorageItemInfo itemInfo = gcs.getItemInfo(objectToCreate);
+      assertEquals("iniital metadata should be empty", 0, itemInfo.getMetadata().size());
+
+      // Verify we can update metadata:
+      List<GoogleCloudStorageItemInfo> results =
+          gcs.updateItems(ImmutableList.of(new UpdatableItemInfo(objectToCreate, metadata)));
+
+      assertEquals(1, results.size());
+      assertMapsEqual(metadata, results.get(0).getMetadata());
+
+      // Verify we get metadata from getItemInfo
+      itemInfo = gcs.getItemInfo(objectToCreate);
+      assertMapsEqual(metadata, itemInfo.getMetadata());
+
+      // Delete key1 from metadata:
+      Map<String, String> deletionMap = new HashMap<String, String>();
+      deletionMap.put("key1", null);
+      gcs.updateItems(ImmutableList.of(new UpdatableItemInfo(objectToCreate, deletionMap)));
+      
+      itemInfo = gcs.getItemInfo(objectToCreate);
+      // Ensure that only key2:value2 still exists:
+      assertMapsEqual(ImmutableMap.of("key2", "value2"), itemInfo.getMetadata());
+    }
+  }
+
+  static void assertMapsEqual(Map<String, String> expected, Map<String, String> result) {
+    MapDifference<String, String> difference = Maps.difference(expected, result);
+    if (!difference.areEqual()) {
+      StringBuilder builder = new StringBuilder();
+      builder.append("Maps differ. ");
+      builder.append("Entries differing: ").append(difference.entriesDiffering()).append("\n");
+      builder.append("Missing entries: ").append(difference.entriesOnlyOnLeft()).append("\n");
+      builder.append("Extra entries: ").append(difference.entriesOnlyOnRight()).append("\n");
+      fail(builder.toString());
+    }
   }
 }

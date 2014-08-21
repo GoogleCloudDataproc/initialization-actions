@@ -39,7 +39,8 @@ public class ThrottledGoogleCloudStorage implements GoogleCloudStorage {
     COPY_OBJECT,
     LIST_BUCKETS,
     LIST_OBJECTS,
-    GET_ITEMINFO
+    GET_ITEMINFO,
+    UPDATE_ITEMINFO
   }
 
   private final RateLimiter rateLimiter;
@@ -203,6 +204,13 @@ public class ThrottledGoogleCloudStorage implements GoogleCloudStorage {
       List<StorageResourceId> resourceIds) throws IOException {
     throttle(StorageOperation.GET_ITEMINFO, resourceIds.size());
     return wrappedGcs.getItemInfos(resourceIds);
+  }
+
+  @Override
+  public List<GoogleCloudStorageItemInfo> updateItems(List<UpdatableItemInfo> itemInfoList)
+      throws IOException {
+    throttle(StorageOperation.UPDATE_ITEMINFO, itemInfoList.size());
+    return wrappedGcs.updateItems(itemInfoList);
   }
 
   @Override

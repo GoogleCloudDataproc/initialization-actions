@@ -142,6 +142,12 @@ public class LaggedGoogleCloudStorage implements GoogleCloudStorage  {
   }
 
   @Override
+  public List<GoogleCloudStorageItemInfo> updateItems(List<UpdatableItemInfo> itemInfoList)
+      throws IOException {
+    return delegate.updateItems(itemInfoList);
+  }
+
+  @Override
   public void waitForBucketEmpty(String bucketName) throws IOException {
     delegate.waitForBucketEmpty(bucketName);
   }

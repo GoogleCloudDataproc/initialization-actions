@@ -17,17 +17,37 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import com.google.common.collect.ImmutableMap;
+
+import java.util.Map;
+
 /**
  * Options for creating objects in GCS.
  */
 public class CreateObjectOptions {
 
-  public static final CreateObjectOptions DEFAULT = new CreateObjectOptions(true);
+  public static final CreateObjectOptions DEFAULT =
+      new CreateObjectOptions(true, ImmutableMap.<String, String>of());
 
   private final boolean overwriteExisting;
+  private final Map<String, String> metadata;
 
+  /**
+   * Construct a new CreateObjectOptions with empty metadata.
+   *
+   * @param overwriteExisting True to overwrite any existing objects with the same name.
+   */
   public CreateObjectOptions(boolean overwriteExisting) {
+    this(overwriteExisting, ImmutableMap.<String, String>of());
+  }
+
+  /**
+   * @param overwriteExisting True to overwrite any existing objects with the same name.
+   * @param metadata A dictionary of metadata to apply to created objects.
+   */
+  public CreateObjectOptions(boolean overwriteExisting, Map<String, String> metadata) {
     this.overwriteExisting = overwriteExisting;
+    this.metadata = metadata;
   }
 
   /**
@@ -35,5 +55,12 @@ public class CreateObjectOptions {
    */
   public boolean overwriteExisting() {
     return overwriteExisting;
+  }
+
+  /**
+   * Custom metadata to apply to this object.
+   */
+  public Map<String, String> getMetadata() {
+    return metadata;
   }
 }

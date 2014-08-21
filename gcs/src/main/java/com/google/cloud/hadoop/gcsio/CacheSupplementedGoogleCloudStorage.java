@@ -486,6 +486,13 @@ public class CacheSupplementedGoogleCloudStorage
     return gcsDelegate.getItemInfos(resourceIds);
   }
 
+  @Override
+  public List<GoogleCloudStorageItemInfo> updateItems(List<UpdatableItemInfo> itemInfoList)
+      throws IOException {
+    log.debug("updateItems(%s)", itemInfoList);
+    return gcsDelegate.updateItems(itemInfoList);
+  }
+
   /**
    * Pure pass-through.
    */
