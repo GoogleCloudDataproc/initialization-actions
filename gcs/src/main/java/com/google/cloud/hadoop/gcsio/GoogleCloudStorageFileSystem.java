@@ -17,11 +17,14 @@
 package com.google.cloud.hadoop.gcsio;
 
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -33,8 +36,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Provides a POSIX like file system layered on top of Google Cloud Storage (GCS).
@@ -88,10 +93,9 @@ public class GoogleCloudStorageFileSystem {
   /**
    * Constructs an instance of GoogleCloudStorageFileSystem.
    *
-   * @param projectId Project ID to which to charge new buckets..
-   * @param appName Application name (for OAuth2).
    * @param credential OAuth2 credential that allows access to GCS.
-   * @param enableMetadataCache If true, use a CacheSupplementedGoogleCloudStorage.
+   * @param options Options for how this filesystem should operate and configure its
+   *    underlying storage.
    * @throws IOException
    */
   public GoogleCloudStorageFileSystem(
@@ -135,7 +139,7 @@ public class GoogleCloudStorageFileSystem {
    * Convert {@code CreateFileOptions} to {@code CreateObjectOptions}.
    */
   public static CreateObjectOptions objectOptionsFromFileOptions(CreateFileOptions options) {
-    return new CreateObjectOptions(options.overwriteExisting());
+    return new CreateObjectOptions(options.overwriteExisting(), options.getAttributes());
   }
 
   /**
@@ -181,7 +185,9 @@ public class GoogleCloudStorageFileSystem {
 
     // Validate the given path. false == do not allow empty object name.
     StorageResourceId resourceId = validatePathAndGetId(path, false);
-    return gcs.create(resourceId, objectOptionsFromFileOptions(options));
+    WritableByteChannel channel = gcs.create(resourceId, objectOptionsFromFileOptions(options));
+    tryUpdateTimestampsForParentDirectories(ImmutableList.of(path), ImmutableList.<URI>of());
+    return channel;
   }
 
   /**
@@ -283,6 +289,8 @@ public class GoogleCloudStorageFileSystem {
         objectsToDelete.add(resourceId);
       }
       gcs.deleteObjects(objectsToDelete);
+      // Any path that was deleted, we should update the parent except for parents we also deleted
+      tryUpdateTimestampsForParentDirectories(paths, paths);
     }
 
     if (bucketPaths.size() > 0) {
@@ -329,6 +337,13 @@ public class GoogleCloudStorageFileSystem {
     if (dirsToCreate.isEmpty()) {
       return;
     }
+
+    /*
+     * Note that in both cases, we do not update parent directory timestamps. The idea is that:
+     * 1) directory repair isn't a user-invoked action, 2) directory repair shouldn't be thought
+     * of "creating" directories, instead it drops markers to help GCSFS and GHFS find directories
+     * that already "existed" and 3) it's extra RPCs on top of the list and create empty object RPCs
+     */
     if (dirsToCreate.size() == 1) {
       // Don't go through batch interface for a single-item case to avoid batching overhead.
       gcs.createEmptyObject(dirsToCreate.get(0));
@@ -419,7 +434,7 @@ public class GoogleCloudStorageFileSystem {
       @Override
       public int compare(FileInfo file1, FileInfo file2) {
         return Integer.valueOf(file1.getPath().toString().length())
-            .compareTo(Integer.valueOf(file2.getPath().toString().length()));
+            .compareTo(file2.getPath().toString().length());
       }
     });
 
@@ -446,6 +461,17 @@ public class GoogleCloudStorageFileSystem {
     } else if (dirsToCreate.size() > 1) {
       gcs.createEmptyObjects(dirsToCreate);
     }
+
+    List<URI> createdDirectories =
+        Lists.transform(dirsToCreate, new Function<StorageResourceId, URI>() {
+          @Override
+          public URI apply(StorageResourceId resourceId) {
+            return getPath(resourceId.getBucketName(), resourceId.getObjectName());
+          }
+        });
+
+    // Update parent directories, but not the ones we just created because we just created them.
+    tryUpdateTimestampsForParentDirectories(createdDirectories, createdDirectories);
   }
 
   /**
@@ -650,6 +676,13 @@ public class GoogleCloudStorageFileSystem {
 
       // Perform copy.
       gcs.copy(srcBucketName, srcObjectNames, dstBucketName, dstObjectNames);
+
+      // So far, only the destination directories are updated. Only do those now:
+      List<URI> destinationUris = new ArrayList<>(dstObjectNames.size());
+      for (String dstObjectName : dstObjectNames) {
+        destinationUris.add(getPath(dstBucketName, dstObjectName));
+      }
+      tryUpdateTimestampsForParentDirectories(destinationUris, destinationUris);
     }
 
     List<URI> bucketsToDelete = new ArrayList<>();
@@ -832,7 +865,7 @@ public class GoogleCloudStorageFileSystem {
   }
 
   /**
-   * See {@link listFileInfo(URI, boolean)} for behavior. Calls with default value of
+   * See {@link #listFileInfo(URI, boolean)} for behavior. Calls with default value of
    * enableAutoRepair == false.
    */
   public List<FileInfo> listFileInfo(URI path)
@@ -849,7 +882,7 @@ public class GoogleCloudStorageFileSystem {
    * Note:
    * This function is expensive to call, especially for a directory with many
    * children. Use the alternative
-   * {@link GoogleCloudStorageFileSystem.listFileNames(FileInfo)} if you only need
+   * {@link GoogleCloudStorageFileSystem#listFileNames(FileInfo)} if you only need
    * names of children and no other attributes.
    *
    * @param path Given path.
@@ -906,7 +939,7 @@ public class GoogleCloudStorageFileSystem {
    *
    * @param path The path we want information about.
    * @return Information about the given path item.
-   * @throws IOException.
+   * @throws IOException
    */
   public FileInfo getFileInfo(URI path)
       throws IOException {
@@ -1003,7 +1036,7 @@ public class GoogleCloudStorageFileSystem {
   /**
    * Efficiently gets info about each path in the list without performing auto-retry with casting
    * paths to "directory paths". This means that even if "foo/" exists, fetching "foo" will return
-   * a !exists() info, unlike {@link getFileInfos(List<URI>)}.
+   * a !exists() info, unlike {@link #getFileInfos(List<URI>)}.
    *
    * @param paths List of paths.
    * @return Information about each path in the given list.
@@ -1078,6 +1111,66 @@ public class GoogleCloudStorageFileSystem {
 
     // Not a top-level directory, create 0 sized object.
     gcs.createEmptyObject(resourceId);
+
+    tryUpdateTimestampsForParentDirectories(ImmutableList.of(path), ImmutableList.<URI>of());
+  }
+
+  /**
+   * For each listed modified object, attempt to update the modification time
+   * of the parent directory.
+   * @param modifiedObjects The objects that have been modified
+   * @param excludedParents A list of parent directories that we shouldn't attempt to update.
+   */
+  protected void updateTimestampsForParentDirectories(
+      List<URI> modifiedObjects, List<URI> excludedParents) throws IOException {
+    log.debug("updateTimestampsForParentDirectories(%s, %s)", modifiedObjects, excludedParents);
+
+    Set<URI> excludedParentPathsSet = new HashSet<>(excludedParents);
+
+    HashSet<URI> parentUrisToUpdate = new HashSet<>(modifiedObjects.size());
+    for (URI modifiedObjectUri : modifiedObjects) {
+      URI parentPathUri = getParentPath(modifiedObjectUri);
+      if (!excludedParentPathsSet.contains(parentPathUri)) {
+        parentUrisToUpdate.add(parentPathUri);
+      }
+    }
+
+    Map<String, String> modificationAttributes = new HashMap<>();
+    FileInfo.addModificationTimeToAttributes(modificationAttributes, Clock.SYSTEM);
+
+    List<UpdatableItemInfo> itemUpdates = new ArrayList<>(parentUrisToUpdate.size());
+
+    for (URI parentUri : parentUrisToUpdate) {
+      StorageResourceId resourceId = validatePathAndGetId(parentUri, true);
+      if (!resourceId.isBucket() && !resourceId.isRoot()) {
+        itemUpdates.add(new UpdatableItemInfo(resourceId, modificationAttributes));
+      }
+    }
+
+    gcs.updateItems(itemUpdates);
+  }
+
+  /**
+   * For each listed modified object, attempt to update the modification time
+   * of the parent directory.
+   *
+   * This method will log & swallow exceptions thrown by the GCSIO layer.
+   * @param modifiedObjects The objects that have been modified
+   * @param excludedParents A list of parent directories that we shouldn't attempt to update.
+   */
+  protected void tryUpdateTimestampsForParentDirectories(
+      List<URI> modifiedObjects, List<URI> excludedParents) {
+    log.debug("tryUpdateTimestampsForParentDirectories(%s, %s)", modifiedObjects, excludedParents);
+
+    try {
+      updateTimestampsForParentDirectories(modifiedObjects, excludedParents);
+    } catch (IOException ioe) {
+      log.debug("Exception caught when trying to update parent directory timestamps.", ioe);
+      log.warn(
+          "Failed to update parent directory timestamps for objects rooted in '%s', excluding '%s'",
+          modifiedObjects,
+          excludedParents);
+    }
   }
 
   /**
@@ -1092,7 +1185,6 @@ public class GoogleCloudStorageFileSystem {
    * @return List of sub-directory like paths.
    */
   static List<String> getSubDirs(String objectName) {
-
     List<String> subdirs = new ArrayList<>();
     if (!Strings.isNullOrEmpty(objectName)) {
       // Create a list of all subdirs.

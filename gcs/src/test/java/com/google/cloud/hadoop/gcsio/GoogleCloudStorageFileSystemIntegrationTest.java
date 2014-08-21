@@ -16,8 +16,10 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
+import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 
 import org.joda.time.Instant;
@@ -88,9 +90,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest
   public static void beforeAllTests()
       throws IOException {
     if (gcsfs == null) {
-      Credential credential = GoogleCloudStorageIntegrationTest.getCredential();
+      Credential credential = GoogleCloudStorageTestHelper.getCredential();
       String appName = GoogleCloudStorageIntegrationTest.APP_NAME;
-      String projectId = System.getenv(GoogleCloudStorageIntegrationTest.GCS_TEST_PROJECT_ID);
+      String projectId = TestConfiguration.getInstance().getProjectId();
       Assert.assertNotNull(projectId);
 
       GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
@@ -1605,6 +1607,194 @@ public class GoogleCloudStorageFileSystemIntegrationTest
         "test-flat/oldA/b");
     assertPathsExist(testDescRecursive, bucketName, deletedObjects, false);
   }
+
+  @Test
+  public void testFileCreationSetsAttributes() throws IOException {
+    CreateFileOptions createFileOptions =
+        new CreateFileOptions(
+            false /* overwrite existing */,
+            ImmutableMap.of("key1", "value1"));
+
+    URI testFilePath = getPath(bucketName, "test-file-creation-attributes.txt");
+    try (WritableByteChannel channel =
+        gcsfs.create(testFilePath, createFileOptions)) {
+    }
+
+    FileInfo info = gcsfs.getFileInfo(testFilePath);
+
+    Assert.assertEquals(1, info.getAttributes().size());
+    Assert.assertTrue(info.getAttributes().containsKey("key1"));
+    Assert.assertEquals("value1", info.getAttributes().get("key1"));
+  }
+
+  @Test
+  public void testFileCreationUpdatesParentDirectoryModificationTimestamp()
+      throws IOException, InterruptedException {
+    URI directory = getPath(bucketName, "test-modification-timestamps/create-dir/");
+
+    gcsfs.mkdirs(directory);
+
+    FileInfo directoryInfo = gcsfs.getFileInfo(directory);
+
+    Assert.assertTrue(directoryInfo.isDirectory());
+    Assert.assertTrue(directoryInfo.exists());
+    Thread.sleep(100);
+
+    URI childFile = directory.resolve("file.txt");
+
+    try (WritableByteChannel channel = gcsfs.create(childFile)) {
+    }
+
+    FileInfo newDirectoryInfo = gcsfs.getFileInfo(directory);
+
+    Assert.assertFalse(
+        "Modificaiton times should not be equal",
+        directoryInfo.getModificationTime() == newDirectoryInfo.getModificationTime());
+
+    // This is prone to flake. Creation time is set by GCS while modification time is set
+    // client side. We'll only assert that A) creation time is different from modification time and
+    // B) that they are within 10 minutes of eachother.
+    long timeDelta = directoryInfo.getCreationTime() - newDirectoryInfo.getModificationTime();
+    Assert.assertTrue(Math.abs(timeDelta) < TimeUnit.MINUTES.toMillis(10));
+  }
+
+  @Test
+  public void testMkdirsUpdatesParentDirectoryModificationTimestamp()
+      throws IOException, InterruptedException {
+    URI directory = getPath(bucketName, "test-modification-timestamps/mkdirs-dir/");
+    URI directoryToUpdate = directory.resolve("subdirectory-1/");
+    gcsfs.mkdirs(directoryToUpdate);
+
+    FileInfo directoryInfo = gcsfs.getFileInfo(directory);
+    FileInfo directoryToUpdateInfo = gcsfs.getFileInfo(directoryToUpdate);
+
+    Assert.assertTrue(directoryInfo.isDirectory() && directoryToUpdateInfo.isDirectory());
+    Assert.assertTrue(directoryInfo.exists() && directoryToUpdateInfo.exists());
+
+    Thread.sleep(100);
+
+    URI childDirectory = directoryToUpdate.resolve("subdirectory-2/subdirectory-3/");
+
+    gcsfs.mkdirs(childDirectory);
+
+    FileInfo newDirectoryToUpdateInfo = gcsfs.getFileInfo(directoryToUpdate);
+
+    Assert.assertFalse(
+        "Modificaiton times should not be equal",
+        directoryToUpdateInfo.getModificationTime()
+            == newDirectoryToUpdateInfo.getModificationTime());
+
+    // This is prone to flake. Creation time is set by GCS while modification time is set
+    // client side. We'll only assert that A) creation time is different from modification time and
+    // B) that they are within 10 minutes of each other.
+    long timeDelta =
+        directoryToUpdateInfo.getCreationTime() - newDirectoryToUpdateInfo.getModificationTime();
+    Assert.assertTrue(Math.abs(timeDelta) < TimeUnit.MINUTES.toMillis(10));
+
+    // The root (/test-modification-timestamps/mkdirs-dir/) should *not* have had its timestamp
+    // updated, only subdirectory-1 should have:
+    FileInfo nonUpdatedDirectoryInfo = gcsfs.getFileInfo(directory);
+    Assert.assertEquals(
+        directoryInfo.getModificationTime(),
+        nonUpdatedDirectoryInfo.getModificationTime());
+  }
+
+  @Test
+  public void testDeleteUpdatesDirectoryModificationTimestamps()
+      throws IOException, InterruptedException {
+    URI directory = getPath(bucketName, "test-modification-timestamps/delete-dir/");
+    gcsfs.mkdirs(directory);
+
+    URI sourceFile = directory.resolve("child-file");
+    // Create a test object in our source directory:
+    try (WritableByteChannel channel = gcsfs.create(sourceFile)) {
+    }
+
+    FileInfo directoryInfo = gcsfs.getFileInfo(directory);
+    FileInfo sourceFileInfo = gcsfs.getFileInfo(sourceFile);
+
+    Assert.assertTrue(directoryInfo.isDirectory());
+    Assert.assertTrue(
+        directoryInfo.exists()
+            && sourceFileInfo.exists());
+
+    Thread.sleep(100);
+
+    gcsfs.delete(sourceFile, false);
+
+    FileInfo updatedDirectoryInfo = gcsfs.getFileInfo(directory);
+    Assert.assertFalse(
+        "Modificaiton times should not be equal",
+        directoryInfo.getModificationTime() == updatedDirectoryInfo.getModificationTime());
+
+    // This is prone to flake. Creation time is set by GCS while modification time is set
+    // client side. We'll only assert that A) creation time is different from modification time and
+    // B) that they are within 10 minutes of eachother.
+    long timeDelta =
+        directoryInfo.getCreationTime() - updatedDirectoryInfo.getModificationTime();
+    Assert.assertTrue(Math.abs(timeDelta) < TimeUnit.MINUTES.toMillis(10));
+  }
+
+  @Test
+  public void testRenameUpdatesParentDirectoryModificationTimestamps()
+      throws IOException, InterruptedException {
+    URI directory = getPath(bucketName, "test-modification-timestamps/rename-dir/");
+    URI sourceDirectory = directory.resolve("src-directory/");
+    URI destinationDirectory = directory.resolve("destination-directory/");
+    gcsfs.mkdirs(sourceDirectory);
+    gcsfs.mkdirs(destinationDirectory);
+
+    URI sourceFile = sourceDirectory.resolve("child-file");
+    // Create a test object in our source directory:
+    try (WritableByteChannel channel = gcsfs.create(sourceFile)) {
+    }
+
+    FileInfo directoryInfo = gcsfs.getFileInfo(directory);
+    FileInfo sourceDirectoryInfo = gcsfs.getFileInfo(sourceDirectory);
+    FileInfo destinationDirectoryInfo = gcsfs.getFileInfo(destinationDirectory);
+    FileInfo sourceFileInfo = gcsfs.getFileInfo(sourceFile);
+
+    Assert.assertTrue(
+        directoryInfo.isDirectory()
+            && destinationDirectoryInfo.isDirectory()
+            && sourceDirectoryInfo.isDirectory());
+    Assert.assertTrue(
+        directoryInfo.exists()
+            && destinationDirectoryInfo.exists()
+            && sourceDirectoryInfo.exists()
+            && sourceFileInfo.exists());
+
+    Thread.sleep(100);
+
+    gcsfs.rename(sourceFile, destinationDirectory);
+
+    // The root (/test-modification-timestamps/rename-dir/) directory's time stamp shouldn't change:
+    FileInfo updatedDirectoryInfo = gcsfs.getFileInfo(directory);
+    Assert.assertEquals(
+        "Modification time should NOT have changed",
+        directoryInfo.getModificationTime(),
+        updatedDirectoryInfo.getModificationTime());
+
+
+    // Timestamps for both source and destination *should* change:
+    FileInfo updatedSourceDirectoryInfo = gcsfs.getFileInfo(sourceDirectory);
+    FileInfo updatedDestinationDirectoryInfo = gcsfs.getFileInfo(destinationDirectory);
+    // This is prone to flake. Creation time is set by GCS while modification time is set
+    // client side. We'll only assert that A) creation time is different from modification time and
+    // B) that they are within 10 minutes of eachother.
+    long sourceTimeDelta =
+        sourceDirectoryInfo.getCreationTime() - updatedSourceDirectoryInfo.getModificationTime();
+    Assert.assertTrue(Math.abs(sourceTimeDelta) < TimeUnit.MINUTES.toMillis(10));
+
+    // This is prone to flake. Creation time is set by GCS while modification time is set
+    // client side. We'll only assert that A) creation time is different from modification time and
+    // B) that they are within 10 minutes of eachother.
+    long destinationTimeDelta =
+        destinationDirectoryInfo.getCreationTime()
+            - updatedDestinationDirectoryInfo.getModificationTime();
+    Assert.assertTrue(Math.abs(destinationTimeDelta) < TimeUnit.MINUTES.toMillis(10));
+  }
+
 
   /**
    * Gets a unique path of a non-existent file.

@@ -16,16 +16,37 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import com.google.common.collect.ImmutableMap;
+
+import java.util.Map;
+
 /**
  * Options that can be specified when creating a file in the {@code GoogleCloudFileSystem}.
  */
 public class CreateFileOptions {
-  public static final CreateFileOptions DEFAULT = new CreateFileOptions(true);
+
+  public static final Map<String, String> EMPTY_ATTRIBUTES = ImmutableMap.of();
+  public static final CreateFileOptions DEFAULT = new CreateFileOptions(true, EMPTY_ATTRIBUTES);
 
   private final boolean overwriteExisting;
+  private final Map<String, String> attributes;
 
+  /**
+   * Create a file with empty attributes and optionally overwriting any existing file.
+   * @param overwriteExisting True to overwrite an existing file with the same name
+   */
   public CreateFileOptions(boolean overwriteExisting) {
+    this(overwriteExisting, EMPTY_ATTRIBUTES);
+  }
+
+  /**
+   * Create a file with specified attributes and optionally overwriting an existing file.
+   * @param overwriteExisting True to overwrite an existing file with the same name
+   * @param attributes File attributes to apply to the file at creation
+   */
+  public CreateFileOptions(boolean overwriteExisting, Map<String, String> attributes) {
     this.overwriteExisting = overwriteExisting;
+    this.attributes = attributes;
   }
 
   /**
@@ -33,5 +54,12 @@ public class CreateFileOptions {
    */
   public boolean overwriteExisting() {
     return overwriteExisting;
+  }
+
+  /**
+   * Extended attributes to set when creating a file.
+   */
+  public Map<String, String> getAttributes() {
+    return attributes;
   }
 }

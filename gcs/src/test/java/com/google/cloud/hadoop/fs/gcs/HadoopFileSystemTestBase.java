@@ -1104,4 +1104,28 @@ public abstract class HadoopFileSystemTestBase
 
     return totalBytesWritten;
   }
+
+  @Override
+  public void testFileCreationSetsAttributes() throws IOException {
+  }
+
+  @Override
+  public void testFileCreationUpdatesParentDirectoryModificationTimestamp()
+      throws IOException, InterruptedException {
+  }
+
+  @Override
+  public void testMkdirsUpdatesParentDirectoryModificationTimestamp()
+      throws IOException, InterruptedException {
+  }
+
+  @Override
+  public void testDeleteUpdatesDirectoryModificationTimestamps()
+      throws IOException, InterruptedException {
+  }
+
+  @Override
+  public void testRenameUpdatesParentDirectoryModificationTimestamps()
+      throws IOException, InterruptedException {
+  }
 }

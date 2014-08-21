@@ -16,6 +16,7 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
+import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Strings;
@@ -24,11 +25,7 @@ import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.joda.time.Instant;
-import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -49,9 +46,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Integration tests for GoogleCloudStorage class.
  */
-@RunWith(JUnit4.class)
 public abstract class GoogleCloudStorageIntegrationTest {
-
   // Logger.
   protected static LogUtil log = new LogUtil(GoogleCloudStorageIntegrationTest.class);
 
@@ -100,13 +95,12 @@ public abstract class GoogleCloudStorageIntegrationTest {
   /**
    * Perform initialization once before tests are run.
    */
-  @BeforeClass
   public static void beforeAllTests()
       throws IOException {
     if (gcs == null) {
-      projectId = System.getenv(GCS_TEST_PROJECT_ID);
+      projectId = TestConfiguration.getInstance().getProjectId();
       Assert.assertNotNull(projectId);
-      credential = getCredential();
+      credential = GoogleCloudStorageTestHelper.getCredential();
       GoogleCloudStorageOptions.Builder optionsBuilder =
           GoogleCloudStorageOptions.newBuilder();
       optionsBuilder
@@ -182,7 +176,6 @@ public abstract class GoogleCloudStorageIntegrationTest {
   /**
    * Perform clean-up once after all tests are turn.
    */
-  @AfterClass
   public static void afterAllTests()
       throws IOException {
 

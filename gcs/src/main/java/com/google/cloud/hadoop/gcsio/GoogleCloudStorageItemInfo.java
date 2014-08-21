@@ -31,6 +31,9 @@ public class GoogleCloudStorageItemInfo {
   public static final GoogleCloudStorageItemInfo ROOT_INFO =
       new GoogleCloudStorageItemInfo(StorageResourceId.ROOT, 0, 0, null, null);
 
+  // Instead of returning null metadata, we'll return this map.
+  private static final Map<String, String> EMPTY_METADATA = ImmutableMap.of();
+
   // The Bucket and maybe StorageObject names of the GCS "item" referenced by this object. Not null.
   private final StorageResourceId resourceId;
 
@@ -81,7 +84,11 @@ public class GoogleCloudStorageItemInfo {
     this.size = size;
     this.location = location;
     this.storageClass = storageClass;
-    this.metadata = metadata;
+    if (metadata == null) {
+      this.metadata = EMPTY_METADATA;
+    } else {
+      this.metadata = metadata;
+    }
   }
 
   /**
@@ -104,7 +111,6 @@ public class GoogleCloudStorageItemInfo {
   public StorageResourceId getResourceId() {
     return resourceId;
   }
-
 
   /**
    * Gets creation time of this item.

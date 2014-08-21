@@ -16,12 +16,16 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import com.google.api.client.util.Clock;
+import com.google.cloud.hadoop.util.LogUtil;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Contains information about a file or a directory.
@@ -32,14 +36,24 @@ import java.util.List;
  * GoogleCloudStorageFileSystem because it exposes non-file system information (eg, buckets).
  */
 public class FileInfo {
+
+  public static LogUtil log = new LogUtil(FileInfo.class);
+
   // Info about the root path.
   public static final FileInfo ROOT_INFO = new FileInfo(GoogleCloudStorageItemInfo.ROOT_INFO);
+
+  // The metadata key used for storing a custom modification time.
+  // The name and value of this attribute count towards storage pricing.
+  public static final String FILE_MODIFICATION_TIMESTAMP_KEY = "system.gcsfs_mts";
 
   // Path of this file or directory.
   private final URI path;
 
   // Information about the underlying GCS item.
   private final GoogleCloudStorageItemInfo itemInfo;
+
+  // Custom file attributes, including those used for storing custom modification times, etc
+  private final Map<String, String> attributes;
 
   /**
    * Constructs an instance of FileInfo.
@@ -52,6 +66,10 @@ public class FileInfo {
     // Construct the path once.
     this.path = GoogleCloudStorageFileSystem.getPath(
         itemInfo.getBucketName(), itemInfo.getObjectName(), true);
+
+    Preconditions.checkArgument(itemInfo.getMetadata() != null);
+
+    this.attributes = itemInfo.getMetadata();
   }
 
   /**
@@ -115,6 +133,32 @@ public class FileInfo {
   }
 
   /**
+   * Gets the modification time of this file if one is set, otherwise the value of
+   * {@link #getCreationTime()} is returned.
+   *
+   * Time is expressed as milliseconds since January 1, 1970 UTC.
+   */
+  public long getModificationTime() {
+    if (attributes.containsKey(FILE_MODIFICATION_TIMESTAMP_KEY)) {
+      try {
+        return Long.parseLong(attributes.get(FILE_MODIFICATION_TIMESTAMP_KEY));
+      } catch (NumberFormatException nfe) {
+        log.debug("Failed to parse modification time '%s' millis for object %s",
+            attributes.get(FILE_MODIFICATION_TIMESTAMP_KEY), itemInfo.getObjectName());
+      }
+    }
+    return getCreationTime();
+  }
+
+  /**
+   * Retrieve file attributes for this file.
+   * @return A map of file attributes
+   */
+  public Map<String, String> getAttributes() {
+    return attributes;
+  }
+
+  /**
    * Indicates whether this file or directory exists.
    */
   public boolean exists() {
@@ -168,6 +212,16 @@ public class FileInfo {
       }
     }
     return objectName;
+  }
+
+  /**
+   * Add a key and value representing the current time, as determined by the passed clock, to the
+   * passed attributes dictionary.
+   * @param attributes The file attributes map to update
+   * @param clock The clock to retrieve the current time from
+   */
+  public static void addModificationTimeToAttributes(Map<String, String> attributes, Clock clock) {
+    attributes.put(FILE_MODIFICATION_TIMESTAMP_KEY, Long.toString(clock.currentTimeMillis()));
   }
 
   /**

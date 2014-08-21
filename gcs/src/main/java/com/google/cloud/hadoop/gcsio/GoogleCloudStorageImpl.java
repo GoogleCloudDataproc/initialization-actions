@@ -43,7 +43,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.io.FileNotFoundException;
@@ -94,9 +93,6 @@ public class GoogleCloudStorageImpl
 
   // com.google.common.net cannot be imported here for various dependency reasons.
   private static final String OCTECT_STREAM_MEDIA_TYPE = "application/octet-stream";
-
-  // Instead of returning null metadata, we'll return this map.
-  private static final Map<String, String> EMPTY_METADATA = ImmutableMap.<String, String>of();
 
   // Determine if a given IOException is due to rate-limiting.
   private final Predicate<IOException> isRateLimitedException = new Predicate<IOException>() {
@@ -979,14 +975,11 @@ public class GoogleCloudStorageImpl
         String.format("resourceId.getObjectName() must equal object.getName(): '%s' vs '%s'",
             resourceId.getObjectName(), object.getName()));
 
-    Map<String, String> metadata =
-        object.getMetadata() == null ? EMPTY_METADATA : object.getMetadata();
-
     // GCS API does not make available location and storage class at object level at present
     // (it is same for all objects in a bucket). Further, we do not use the values for objects.
     // The GoogleCloudStorageItemInfo thus has 'null' for location and storage class.
     return new GoogleCloudStorageItemInfo(resourceId, object.getUpdated().getValue(),
-        object.getSize().longValue(), null, null, metadata);
+        object.getSize().longValue(), null, null, object.getMetadata());
   }
 
   /**
