@@ -1,4 +1,12 @@
 1.2.9 - 2014-XX-XX
+  1. When directory contents are updated e.g., files or directories are added,
+     removed, or renamed the GCS connector will now attempt to update a
+     metadata property on the parent directory with a modification time. The
+     modification time recorded will be used as the modification time in
+     subsequent FileSystem#getStatus(...), FileSystem#listStatus and
+     FileSystem#globStatus(...) calls and is the time as reported by
+     the system clock of the system that made the modification.
+
 
 1.2.8 - 2014-08-07
 
