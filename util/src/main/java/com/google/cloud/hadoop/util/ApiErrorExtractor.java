@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.google.cloud.hadoop.gcsio;
+package com.google.cloud.hadoop.util;
 
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
@@ -38,8 +38,8 @@ public class ApiErrorExtractor {
    */
   public boolean itemNotFound(IOException e) {
     if (e instanceof GoogleJsonResponseException) {
-      return (getHttpStatusCode((GoogleJsonResponseException) e)) ==
-          HttpStatusCodes.STATUS_CODE_NOT_FOUND;
+      return (getHttpStatusCode((GoogleJsonResponseException) e))
+          == HttpStatusCodes.STATUS_CODE_NOT_FOUND;
     }
     return false;
   }
@@ -56,8 +56,8 @@ public class ApiErrorExtractor {
    */
   public boolean rangeNotSatisfiable(IOException e) {
     if (e instanceof GoogleJsonResponseException) {
-      return (getHttpStatusCode((GoogleJsonResponseException) e)) ==
-          STATUS_CODE_RANGE_NOT_SATISFIABLE;
+      return (getHttpStatusCode((GoogleJsonResponseException) e))
+          == STATUS_CODE_RANGE_NOT_SATISFIABLE;
     }
     return false;
   }

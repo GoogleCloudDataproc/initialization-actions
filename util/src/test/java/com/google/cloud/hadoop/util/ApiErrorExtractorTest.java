@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package com.google.cloud.hadoop.gcsio;
+package com.google.cloud.hadoop.util;
 
 import static org.mockito.Mockito.mock;
 
