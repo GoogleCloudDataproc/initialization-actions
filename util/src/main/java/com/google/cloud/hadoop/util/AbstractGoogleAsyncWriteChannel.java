@@ -290,40 +290,41 @@ public abstract class AbstractGoogleAsyncWriteChannel
   }
 
   class UploadOperation implements Runnable {
-    // Object to be uploaded.
-    private T uploadOject;
+    // Object to be uploaded. This object declared final for safe object publishing.
+    private final T uploadObject;
     private S response;
-    // Exception encountered during upload.
-    IOException exception;
+    // Exception/error encountered during upload.
+    Throwable exception;
 
-    // Allows other threads to wait for this operation to be complete.
-    CountDownLatch uploadDone = new CountDownLatch(1);
+    // Allows other threads to wait for this operation to be complete. This object declared final
+    // for safe object publishing.
+    final CountDownLatch uploadDone = new CountDownLatch(1);
 
-    // Read end of the pipe.
-    private InputStream pipeSource;
+    // Read end of the pipe. This object declared final for safe object publishing.
+    private final InputStream pipeSource;
 
     /**
      * Constructs an instance of UploadOperation.
      */
     public UploadOperation(T uploadObject, InputStream pipeSource) {
-      this.uploadOject = uploadObject;
+      this.uploadObject = uploadObject;
       this.pipeSource = pipeSource;
     }
 
     /**
-     * Gets exception encountered during upload or null.
+     * Gets throwable (exception/error) encountered during upload or null.
      */
-    public IOException exception() {
+    public Throwable exception() {
       return exception;
     }
 
     @Override
     public void run() {
       try {
-        response = uploadOject.execute();
-      } catch (IOException e) {
-        exception = e;
-        log.error(e);
+        response = uploadObject.execute();
+      } catch (Throwable t) {
+        exception = t;
+        log.error(t);
       } finally {
         uploadDone.countDown();
         try {
@@ -339,13 +340,13 @@ public abstract class AbstractGoogleAsyncWriteChannel
     }
 
     public void waitForCompletion() {
-      while (uploadDone.getCount() > 0) {
+      do {
         try {
           uploadDone.await();
         } catch (InterruptedException e) {
           // Ignore it and continue to wait.
         }
-      }
+      } while(uploadDone.getCount() > 0);
     }
 
     public S getResponse() {
@@ -370,13 +371,16 @@ public abstract class AbstractGoogleAsyncWriteChannel
   }
 
   /**
-   * Throws if upload operation failed.
+   * Throws if upload operation failed. Propagates any errors.
    *
    * @throws IOException on IO error
    */
   private void throwIfUploadFailed()
       throws IOException {
     if ((uploadOperation != null) && (uploadOperation.exception() != null)) {
+      if (uploadOperation.exception() instanceof Error) {
+        throw (Error) uploadOperation.exception();
+      }
       throw new IOException(uploadOperation.exception());
     }
   }

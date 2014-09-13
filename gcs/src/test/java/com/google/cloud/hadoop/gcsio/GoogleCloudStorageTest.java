@@ -342,7 +342,7 @@ public class GoogleCloudStorageTest {
    * GoogleCloudStorage.create(2).
    */
   @Test
-  public void testCreateObjectApiException()
+  public void testCreateObjectApiIOException()
       throws IOException {
     // Prepare the mock return values before invoking the method being tested.
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
@@ -368,8 +368,7 @@ public class GoogleCloudStorageTest {
     verify(mockExecutorService).execute(runCaptor.capture());
 
     // Set up the mock Insert to throw an exception when execute() is called.
-    // TODO(user): Test behavior if some kind of RuntimeException is thrown instead.
-    IOException fakeException = new IOException("Fake error");
+    IOException fakeException = new IOException("Fake IOException");
     when(mockStorageObjectsInsert.execute())
         .thenThrow(fakeException);
     runCaptor.getValue().run();
@@ -379,6 +378,96 @@ public class GoogleCloudStorageTest {
       fail("Expected IOException");
     } catch (IOException ioe) {
       assertEquals(fakeException, ioe.getCause());
+    }
+    verify(mockStorageObjectsInsert, times(2)).execute();
+  }
+
+  /**
+   * Test handling of various types of exceptions thrown during JSON API call for
+   * GoogleCloudStorage.create(2).
+   */
+  @Test
+  public void testCreateObjectApiRuntimeException()
+      throws IOException {
+    // Prepare the mock return values before invoking the method being tested.
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.insert(
+        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
+        .thenReturn(mockStorageObjectsInsert);
+    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsInsert)))
+        .thenReturn(mockHeaders);
+
+    WritableByteChannel writeChannel = gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
+    assertTrue(writeChannel.isOpen());
+
+    verify(mockStorage, times(2)).objects();
+    verify(mockStorageObjects, times(2)).insert(
+        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
+    verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
+    verify(mockHeaders, times(2)).set(startsWith("X-Goog-Upload-"), anyInt());
+    verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Insert.class));
+    verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
+    verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
+
+    ArgumentCaptor<Runnable> runCaptor = ArgumentCaptor.forClass(Runnable.class);
+    verify(mockExecutorService).execute(runCaptor.capture());
+
+    // Set up the mock Insert to throw an exception when execute() is called.
+    RuntimeException fakeException = new RuntimeException("Fake exception");
+    when(mockStorageObjectsInsert.execute())
+        .thenThrow(fakeException);
+    runCaptor.getValue().run();
+
+    try {
+      writeChannel.close();
+      fail("Expected IOException");
+    } catch (IOException ioe) {
+      assertEquals(fakeException, ioe.getCause());
+    }
+    verify(mockStorageObjectsInsert, times(2)).execute();
+  }
+
+  /**
+   * Test handling of various types of Errors thrown during JSON API call for
+   * GoogleCloudStorage.create(2).
+   */
+  @Test
+  public void testCreateObjectApiError()
+      throws IOException {
+    // Prepare the mock return values before invoking the method being tested.
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.insert(
+        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
+        .thenReturn(mockStorageObjectsInsert);
+    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsInsert)))
+        .thenReturn(mockHeaders);
+
+    WritableByteChannel writeChannel = gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
+    assertTrue(writeChannel.isOpen());
+
+    verify(mockStorage, times(2)).objects();
+    verify(mockStorageObjects, times(2)).insert(
+        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
+    verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
+    verify(mockHeaders, times(2)).set(startsWith("X-Goog-Upload-"), anyInt());
+    verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Insert.class));
+    verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
+    verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
+
+    ArgumentCaptor<Runnable> runCaptor = ArgumentCaptor.forClass(Runnable.class);
+    verify(mockExecutorService).execute(runCaptor.capture());
+
+    // Set up the mock Insert to throw an exception when execute() is called.
+    Error fakeError = new Error("Fake error");
+    when(mockStorageObjectsInsert.execute())
+        .thenThrow(fakeError);
+    runCaptor.getValue().run();
+
+    try {
+      writeChannel.close();
+      fail("Expected Error");
+    } catch (Error error) {
+      assertEquals(fakeError, error);
     }
     verify(mockStorageObjectsInsert, times(2)).execute();
   }
