@@ -17,6 +17,7 @@ package com.google.cloud.hadoop.util;
 import static org.mockito.Mockito.mock;
 
 import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpStatusCodes;
 
@@ -26,6 +27,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.IOException;
+import java.net.SocketTimeoutException;
 
 /**
  * Unit-tests for ApiErrorExtractor class.
@@ -45,13 +47,30 @@ public class ApiErrorExtractorTest {
     // Code to return when getHttpStatusCode() is called.
     public int code;
 
+    // ErrorInfo to return when getErrorInfo is called.
+    public ErrorInfo errorInfo = new ErrorInfo();
+
     /**
      * Returns this.code regardless of the given exception instance.
      */
     @Override
-    int getHttpStatusCode(GoogleJsonResponseException e) {
+    protected int getHttpStatusCode(GoogleJsonResponseException e) {
       int ignored = super.getHttpStatusCode(e);
       return code;
+    }
+
+    @Override
+    protected ErrorInfo getErrorInfo(IOException ex) {
+      ErrorInfo ignored = super.getErrorInfo(ex);
+      if (!(ex instanceof GoogleJsonResponseException)) {
+        return null;
+      }
+      return errorInfo;
+    }
+
+    @Override
+    protected ErrorInfo getErrorInfo(GoogleJsonError details) {
+      return errorInfo;
     }
   }
 
@@ -60,6 +79,39 @@ public class ApiErrorExtractorTest {
 
   // Instance of GoogleJsonResponseException used in tests.
   private GoogleJsonResponseException e = mock(GoogleJsonResponseException.class);
+
+  /**
+   * Validates accessDenied().
+   */
+  @Test
+  public void testAccessDenied() {
+    // Check success case.
+    errorExtractor.code = HttpStatusCodes.STATUS_CODE_FORBIDDEN;
+    Assert.assertTrue(errorExtractor.accessDenied(e));
+    Assert.assertTrue(errorExtractor.accessDenied(new IOException(e)));
+
+    // Check failure case.
+    errorExtractor.code = HttpStatusCodes.STATUS_CODE_OK;
+    Assert.assertFalse(errorExtractor.accessDenied(e));
+    Assert.assertFalse(errorExtractor.accessDenied(new IOException(e)));
+  }
+
+  /**
+   * Validates itemAlreadyExists().
+   */
+  @Test
+  public void testItemAlreadyExists() {
+    // Check success cases.
+    errorExtractor.code = 409;  // 409 == "Conflict"
+    Assert.assertTrue(errorExtractor.itemAlreadyExists(e));
+
+    // Check failure cases.
+    errorExtractor.code = HttpStatusCodes.STATUS_CODE_OK;
+    Assert.assertFalse(errorExtractor.itemAlreadyExists(new IOException(e)));
+
+    errorExtractor.code = 409;  // 409 == "Conflict"
+    Assert.assertFalse(errorExtractor.itemAlreadyExists(new IOException(e)));
+  }
 
   /**
    * Validates itemNotFound().
@@ -86,22 +138,6 @@ public class ApiErrorExtractorTest {
   }
 
   /**
-   * Validates accessDenied().
-   */
-  @Test
-  public void testAccessDenied() {
-    // Check success case.
-    errorExtractor.code = HttpStatusCodes.STATUS_CODE_FORBIDDEN;
-    Assert.assertTrue(errorExtractor.accessDenied(e));
-    Assert.assertTrue(errorExtractor.accessDenied(new IOException(e)));
-
-    // Check failure case.
-    errorExtractor.code = HttpStatusCodes.STATUS_CODE_OK;
-    Assert.assertFalse(errorExtractor.accessDenied(e));
-    Assert.assertFalse(errorExtractor.accessDenied(new IOException(e)));
-  }
-
-  /**
    * Validates rangeNotSatisfiable().
    */
   @Test
@@ -116,5 +152,43 @@ public class ApiErrorExtractorTest {
     // Check failure case.
     errorExtractor.code = HttpStatusCodes.STATUS_CODE_OK;
     Assert.assertFalse(errorExtractor.rangeNotSatisfiable(e));
+  }
+
+  /**
+   * Validates rateLimited().
+   */
+  @Test
+  public void testRateLimited() {
+    // Check success case.
+    errorExtractor.errorInfo = new ErrorInfo();
+    errorExtractor.errorInfo.setReason(
+        ApiErrorExtractor.RATE_LIMITED_REASON_CODE);
+    errorExtractor.errorInfo.setDomain(
+        ApiErrorExtractor.USAGE_LIMITS_DOMAIN);
+
+    Assert.assertTrue(errorExtractor.rateLimited(e));
+
+    // Check failure cases.
+    Assert.assertFalse(errorExtractor.rateLimited(new IOException(e)));
+    errorExtractor.errorInfo = new ErrorInfo();
+    errorExtractor.errorInfo.setReason(
+        ApiErrorExtractor.RATE_LIMITED_REASON_CODE);
+    Assert.assertFalse(errorExtractor.rateLimited(e));
+  }
+
+  /**
+   * Validates readTimedOut().
+   */
+  @Test
+  public void testReadTimedOut() {
+    // Check success case.
+    IOException x = new SocketTimeoutException("Read timed out");
+    Assert.assertTrue(errorExtractor.readTimedOut(x));
+
+    // Check failure cases.
+    x = new IOException("not a SocketTimeoutException");
+    Assert.assertFalse(errorExtractor.readTimedOut(x));
+    x = new SocketTimeoutException("not the right kind of timeout");
+    Assert.assertFalse(errorExtractor.readTimedOut(x));
   }
 }
