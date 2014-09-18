@@ -1,4 +1,5 @@
-1.2.9 - 2014-XX-XX
+1.2.9 - 2014-09-18
+
   1. When directory contents are updated e.g., files or directories are added,
      removed, or renamed the GCS connector will now attempt to update a
      metadata property on the parent directory with a modification time. The
@@ -14,6 +15,7 @@
      included dependencies to only those parts which are used and B) repackaged
      dependencies whose versions conflict with those bundled with Hadoop.
   2. Deprecated fs.gs.system.bucket config.
+
 
 1.2.7 - 2014-06-23
 
