@@ -50,7 +50,10 @@ public class HadoopVersionInfo {
     parseVersionString(versionString);
   }
 
-  static class ParseState {
+  /**
+   * ParseState is used by subclasses that are parsing version strings.
+   */
+  protected static class ParseState {
     public final String input;
     public int currentIndex;
 
