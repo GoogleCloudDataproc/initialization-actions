@@ -34,7 +34,7 @@ public class CacheSupplementedGoogleCloudStorageInheritedTest
     GoogleCloudStorage delegate = super.createTestInstance();
     CacheSupplementedGoogleCloudStorage cacheSupplemented =
         new CacheSupplementedGoogleCloudStorage(delegate);
-    cacheSupplemented.setResourceCache(new DirectoryListCache());
+    cacheSupplemented.setResourceCache(new InMemoryDirectoryListCache());
     return cacheSupplemented;
   }
 }

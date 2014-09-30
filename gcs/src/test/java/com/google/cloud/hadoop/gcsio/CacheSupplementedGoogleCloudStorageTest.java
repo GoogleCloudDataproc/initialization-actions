@@ -78,7 +78,7 @@ public class CacheSupplementedGoogleCloudStorageTest {
     bucketResourceId = bucketInfo.getResourceId();
     objectInfo = DirectoryListCacheTestUtils.createObjectInfo("foo-bucket", "bar-object");
     objectResourceId = objectInfo.getResourceId();
-    cache = new DirectoryListCache();
+    cache = new InMemoryDirectoryListCache();
     cache.getMutableConfig()
         .setMaxEntryAgeMillis(MAX_ENTRY_AGE)
         .setMaxInfoAgeMillis(MAX_INFO_AGE);
@@ -170,8 +170,8 @@ public class CacheSupplementedGoogleCloudStorageTest {
         any(StorageResourceId.class), any(CreateObjectOptions.class));
     verify(mockWriteChannel, times(3)).close();
 
-    assertEquals(1, cache.getObjectList("foo-bucket").size());
-    assertEquals(2, cache.getObjectList("foo-bucket2").size());
+    assertEquals(1, cache.getObjectList("foo-bucket", "", null, null).size());
+    assertEquals(2, cache.getObjectList("foo-bucket2", "", null, null).size());
     assertEquals(2, cache.getBucketList().size());
 
     List<StorageResourceId> toDelete = ImmutableList.of(
@@ -181,8 +181,8 @@ public class CacheSupplementedGoogleCloudStorageTest {
     gcs.deleteObjects(toDelete);
     verify(mockGcsDelegate).deleteObjects(eq(toDelete));
 
-    assertEquals(1, cache.getObjectList("foo-bucket").size());
-    assertEquals(0, cache.getObjectList("foo-bucket2").size());
+    assertEquals(1, cache.getObjectList("foo-bucket", "", null, null).size());
+    assertEquals(0, cache.getObjectList("foo-bucket2", "", null, null).size());
     assertEquals(2, cache.getBucketList().size());
   }
 

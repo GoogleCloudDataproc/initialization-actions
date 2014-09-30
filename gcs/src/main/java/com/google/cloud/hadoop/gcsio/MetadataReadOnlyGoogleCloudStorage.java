@@ -46,7 +46,7 @@ public class MetadataReadOnlyGoogleCloudStorage
   public static final LogUtil log = new LogUtil(MetadataReadOnlyGoogleCloudStorage.class);
 
   // Immutable cache of all metadata held by this instance, populated at construction time.
-  private final DirectoryListCache resourceCache = new DirectoryListCache();
+  private final DirectoryListCache resourceCache = new InMemoryDirectoryListCache();
 
   // TODO(user): Consolidate this with the equivalent object in LaggedGoogleCloudStorage.java.
   private static final Function<GoogleCloudStorageItemInfo, String> ITEM_INFO_TO_NAME =
@@ -175,26 +175,19 @@ public class MetadataReadOnlyGoogleCloudStorage
       throws IOException {
     log.debug("listObjectInfo(%s, %s, %s)", bucketName, objectNamePrefix, delimiter);
     List<GoogleCloudStorageItemInfo> allObjectInfos = new ArrayList<>();
-    List<CacheEntry> cachedObjects = resourceCache.getObjectList(bucketName);
     Set<String> retrievedNames = new HashSet<>();
     Set<String> prefixes = new HashSet<>();
+    List<CacheEntry> cachedObjects = resourceCache.getObjectList(
+        bucketName, objectNamePrefix, delimiter, prefixes);
     if (cachedObjects != null) {
+      // Pull the itemInfos out of all the matched entries; in our usage here of DirectoryListCache,
+      // we expect the info to *always* be available.
       for (CacheEntry entry : cachedObjects) {
-        String objectName = entry.getResourceId().getObjectName();
-        String matchedName = GoogleCloudStorageStrings.matchListPrefix(
-          objectNamePrefix, delimiter, objectName);
-        if (matchedName != null) {
-          if (objectName.equals(matchedName)) {
-            // Exact match; not a raw "prefix".
-            GoogleCloudStorageItemInfo info = entry.getItemInfo();
-            Preconditions.checkState(
-                info != null, "Cache entry missing info for name '%s'!", entry.getResourceId());
-            allObjectInfos.add(info);
-            retrievedNames.add(matchedName);
-          } else {
-            prefixes.add(matchedName);
-          }
-        }
+        GoogleCloudStorageItemInfo info = entry.getItemInfo();
+        Preconditions.checkState(
+            info != null, "Cache entry missing info for name '%s'!", entry.getResourceId());
+        allObjectInfos.add(info);
+        retrievedNames.add(entry.getResourceId().getObjectName());
       }
 
       // Check whether each raw prefix already had a valid real entry; if not, we'll add a fake

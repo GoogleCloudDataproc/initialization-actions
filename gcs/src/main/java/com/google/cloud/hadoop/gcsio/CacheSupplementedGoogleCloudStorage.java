@@ -38,62 +38,6 @@ public class CacheSupplementedGoogleCloudStorage
   // Logger.
   private static final LogUtil log = new LogUtil(CacheSupplementedGoogleCloudStorage.class);
 
-  /**
-   * Helper interface to allow sharing cache-supplement logic between listBucketInfo and
-   * listObjectInfo, where listBucketInfo doesn't require matching any prefixes, but listObjectInfo
-   * requires checking against the prefix-matching logic used by the GCS API.
-   */
-  private static interface StorageResourceIdAcceptor {
-    /**
-     * Returns true if the caller should continue processing {@code resourceId}, false to skip it.
-     */
-    boolean accept(StorageResourceId resourceId);
-  }
-
-  /**
-   * Implementation of StorageResourceIdAcceptor used in listObjectNames and listObjectInfo,
-   * which simply checks for an exact match using GoogleCloudStorageStrings.matchListPrefix.
-   */
-  private static class ObjectPrefixMatchAcceptor implements StorageResourceIdAcceptor {
-    // The prefix to be used for matching objectNames; may be null.
-    private final String objectNamePrefix;
-
-    // The 'delimiter' following the semantics defined in GoogleCloudStorageStrings; may be null.
-    private final String delimiter;
-
-    public ObjectPrefixMatchAcceptor(String objectNamePrefix, String delimiter) {
-      this.objectNamePrefix = objectNamePrefix;
-      this.delimiter = delimiter;
-    }
-
-    @Override
-    public boolean accept(StorageResourceId resourceId) {
-      // For now, we won't try to supplement match "prefixes"; in normal operation, the
-      // cache will also contain the "parent directory" objects for each file, so they would
-      // be supplemented as exact matches anyway (if we have gs://bucket/foo/ and
-      // gs://bucket/foo/bar, we won't need gs://bucket/foo/bar to generate the "prefix match"
-      // gs://bucket/foo/, since the exact directory object already exists).
-      // The only exception is if a *different* client created the directory object, so that
-      // the local client created the file without creating the directory objects, and then
-      // the list API fails to list either object. This is a case of cross-client inconsistency
-      // not solved by this cache.
-      String matchedName = GoogleCloudStorageStrings.matchListPrefix(
-          objectNamePrefix, delimiter, resourceId.getObjectName());
-      return matchedName != null && matchedName.equals(resourceId.getObjectName());
-    }
-  }
-
-  /**
-   * Default "always return true" instance so that bucket-listing doesn't have to instantiate
-   * new instances of StorageResourceIdAcceptor.
-   */
-  private static StorageResourceIdAcceptor defaultAcceptor = new StorageResourceIdAcceptor() {
-    @Override
-    public boolean accept(StorageResourceId resourceId) {
-      return true;
-    }
-  };
-
   // An actual implementation of GoogleCloudStorage which will be used for the actual logic of
   // GCS operations, while this class adds book-keeping around the delegated calls.
   private final GoogleCloudStorage gcsDelegate;
@@ -118,7 +62,7 @@ public class CacheSupplementedGoogleCloudStorage
    */
   public CacheSupplementedGoogleCloudStorage(GoogleCloudStorage gcsDelegate) {
     this.gcsDelegate = gcsDelegate;
-    this.resourceCache = DirectoryListCache.getInstance();
+    this.resourceCache = InMemoryDirectoryListCache.getInstance();
   }
 
   @VisibleForTesting
@@ -288,22 +232,19 @@ public class CacheSupplementedGoogleCloudStorage
 
   /**
    * Helper for checking the list of {@code candidateEntries} against a {@code originalIds} to
-   * possibly retrieve supplemental results from the DirectoryListCache; a CacheEntry will be
-   * present in the returned list only if {@code acceptor} returns true for its StorageResourceId
-   * (e.g. if a CacheEntry matches a match-prefix for listing objects). This method will modify
-   * {@code originalIds} as it goes to include the StorageResourceIds of CacheEntrys being returned.
+   * possibly retrieve supplemental results from the DirectoryListCache.
+   * This method will modify {@code originalIds} as it goes to include the StorageResourceIds
+   * of CacheEntrys being returned.
    *
    * @return A list of CacheEntry which is a subset of {@code candidateEntries}, whose elements
-   *     are accepted by {@code acceptor} and whose resourceIds are not in the set of resourceIds
-   *     corresponding to {@code originalIds}.
+   *     are not in the set of resourceIds corresponding to {@code originalIds}.
    */
   private List<CacheEntry> getSupplementalEntries(
-      Set<StorageResourceId> originalIds, List<CacheEntry> candidateEntries,
-      StorageResourceIdAcceptor acceptor) {
+      Set<StorageResourceId> originalIds, List<CacheEntry> candidateEntries) {
     List<CacheEntry> supplementalEntries = new ArrayList<>();
     for (CacheEntry entry : candidateEntries) {
       StorageResourceId entryId = entry.getResourceId();
-      if (acceptor.accept(entryId) && !originalIds.contains(entryId)) {
+      if (!originalIds.contains(entryId)) {
         supplementalEntries.add(entry);
         originalIds.add(entryId);
       }
@@ -367,8 +308,7 @@ public class CacheSupplementedGoogleCloudStorage
       bucketIds.add(new StorageResourceId(bucketName));
     }
 
-    List<CacheEntry> missingCachedBuckets = getSupplementalEntries(
-        bucketIds, cachedBuckets, defaultAcceptor);
+    List<CacheEntry> missingCachedBuckets = getSupplementalEntries(bucketIds, cachedBuckets);
     for (CacheEntry supplement : missingCachedBuckets) {
       log.info("Supplementing missing matched StorageResourceId: %s", supplement.getResourceId());
       allBucketNames.add(supplement.getResourceId().getBucketName());
@@ -400,8 +340,7 @@ public class CacheSupplementedGoogleCloudStorage
     for (GoogleCloudStorageItemInfo itemInfo : allBucketInfos) {
       bucketIdsSet.add(itemInfo.getResourceId());
     }
-    List<CacheEntry> missingCachedBuckets = getSupplementalEntries(
-        bucketIdsSet, cachedBuckets, defaultAcceptor);
+    List<CacheEntry> missingCachedBuckets = getSupplementalEntries(bucketIdsSet, cachedBuckets);
     List<GoogleCloudStorageItemInfo> supplementalInfos = extractItemInfos(missingCachedBuckets);
 
     allBucketInfos.addAll(supplementalInfos);
@@ -419,7 +358,17 @@ public class CacheSupplementedGoogleCloudStorage
     log.debug("listObjectNames(%s, %s, %s)", bucketName, objectNamePrefix, delimiter);
     List<String> allObjectNames =
         gcsDelegate.listObjectNames(bucketName, objectNamePrefix, delimiter);
-    List<CacheEntry> cachedObjects = resourceCache.getObjectList(bucketName);
+    // We pass 'null' for 'prefixes' because for now, we won't try to supplement match "prefixes";
+    // in normal operation, the cache will also contain the "parent directory" objects for each
+    // file, so they would be supplemented as exact matches anyway (if we have gs://bucket/foo/ and
+    // gs://bucket/foo/bar, we won't need gs://bucket/foo/bar to generate the "prefix match"
+    // gs://bucket/foo/, since the exact directory object already exists).
+    // The only exception is if a *different* client created the directory object, so that
+    // the local client created the file without creating the directory objects, and then
+    // the list API fails to list either object. This is a case of cross-client inconsistency
+    // not solved by this cache.
+    List<CacheEntry> cachedObjects = resourceCache.getObjectList(
+        bucketName, objectNamePrefix, delimiter, null);
     if (cachedObjects == null || cachedObjects.isEmpty()) {
       return allObjectNames;
     } else {
@@ -432,8 +381,7 @@ public class CacheSupplementedGoogleCloudStorage
       objectIds.add(new StorageResourceId(bucketName, objectName));
     }
 
-    List<CacheEntry> missingCachedObjects = getSupplementalEntries(
-        objectIds, cachedObjects, new ObjectPrefixMatchAcceptor(objectNamePrefix, delimiter));
+    List<CacheEntry> missingCachedObjects = getSupplementalEntries(objectIds, cachedObjects);
     for (CacheEntry supplement : missingCachedObjects) {
       log.info("Supplementing missing matched StorageResourceId: %s", supplement.getResourceId());
       allObjectNames.add(supplement.getResourceId().getObjectName());
@@ -449,12 +397,13 @@ public class CacheSupplementedGoogleCloudStorage
    */
   @Override
   public List<GoogleCloudStorageItemInfo> listObjectInfo(
-      final String bucketName, String objectNamePrefix, String delimiter)
+      String bucketName, String objectNamePrefix, String delimiter)
       throws IOException {
     log.debug("listObjectInfo(%s, %s, %s)", bucketName, objectNamePrefix, delimiter);
     List<GoogleCloudStorageItemInfo> allObjectInfos =
         gcsDelegate.listObjectInfo(bucketName, objectNamePrefix, delimiter);
-    List<CacheEntry> cachedObjects = resourceCache.getObjectList(bucketName);
+    List<CacheEntry> cachedObjects = resourceCache.getObjectList(
+        bucketName, objectNamePrefix, delimiter, null);
     if (cachedObjects == null || cachedObjects.isEmpty()) {
       return allObjectInfos;
     } else {
@@ -468,8 +417,7 @@ public class CacheSupplementedGoogleCloudStorage
       objectIdsSet.add(itemInfo.getResourceId());
     }
 
-    List<CacheEntry> missingCachedObjects = getSupplementalEntries(
-        objectIdsSet, cachedObjects, new ObjectPrefixMatchAcceptor(objectNamePrefix, delimiter));
+    List<CacheEntry> missingCachedObjects = getSupplementalEntries(objectIdsSet, cachedObjects);
     List<GoogleCloudStorageItemInfo> supplementalInfos = extractItemInfos(missingCachedObjects);
 
     allObjectInfos.addAll(supplementalInfos);
