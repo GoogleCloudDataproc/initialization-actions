@@ -22,6 +22,8 @@ import com.google.api.services.storage.Storage.Objects.Insert;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
+import com.google.cloud.hadoop.util.ClientRequestHelper;
+import com.google.common.annotations.VisibleForTesting;
 
 import java.io.IOException;
 import java.util.Map;
@@ -32,6 +34,8 @@ import java.util.concurrent.ExecutorService;
  */
 public class GoogleCloudStorageWriteChannel
     extends AbstractGoogleAsyncWriteChannel<Insert, StorageObject> {
+
+  private static ClientRequestHelper<StorageObject> staticClientRequestHelper;
 
   private final Storage gcs;
   private final String bucketName;
@@ -54,6 +58,9 @@ public class GoogleCloudStorageWriteChannel
       AsyncWriteChannelOptions options, ObjectWriteConditions writeConditions,
       Map<String, String> objectMetadata) {
     super(threadPool, options);
+    if (staticClientRequestHelper != null) {
+        this.setClientRequestHelper(staticClientRequestHelper);
+    }
     this.gcs = gcs;
     this.bucketName = bucketName;
     this.objectName = objectName;
@@ -72,5 +79,11 @@ public class GoogleCloudStorageWriteChannel
     Insert insert = gcs.objects().insert(bucketName, object, inputStream);
     writeConditions.apply(insert);
     return insert;
+  }
+
+  @VisibleForTesting
+  static void setStaticClientRequestHelper(
+      ClientRequestHelper<StorageObject> clientRequestHelper) {
+    staticClientRequestHelper = clientRequestHelper;
   }
 }

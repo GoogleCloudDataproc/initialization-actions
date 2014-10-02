@@ -14,7 +14,6 @@
 
 package com.google.cloud.hadoop.util;
 
-
 import com.google.api.client.googleapis.media.MediaHttpUploader;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.http.HttpHeaders;
@@ -40,10 +39,10 @@ import java.util.concurrent.ExecutorService;
  * Close(), initalize(), etc have no thread-safety guarantees and their use should be coordinated
  * by callers to be not called concurrent to any write operation.
  * @param <T> API request type that we will be uploading.
- * @param <S> API response type that we will be the result of the upload.
+ * @param <S> API response type that will be the result of the upload.
  */
 public abstract class AbstractGoogleAsyncWriteChannel
-    <T extends AbstractGoogleClientRequest<? extends S>, S>
+    <T extends AbstractGoogleClientRequest<S>, S>
     implements WritableByteChannel {
 
   // Default size of upload buffer.
@@ -59,17 +58,19 @@ public abstract class AbstractGoogleAsyncWriteChannel
    * Sets the ClientRequestHelper to be used instead of calling final methods in client requests.
    */
   @VisibleForTesting
-  public static void setClientRequestHelper(ClientRequestHelper helper) {
+  public void setClientRequestHelper(ClientRequestHelper<S> helper) {
     clientRequestHelper = helper;
   }
+
   // Upper limit on object size.
   // We use less than 250GB limit to avoid potential boundary errors
   private static final long UPLOAD_MAX_SIZE = 249 * 1024 * 1024 * 1024L;
 
   // ClientRequestHelper to be used instead of calling final methods in client requests.
-  private static ClientRequestHelper clientRequestHelper = new ClientRequestHelper();
+  private ClientRequestHelper<S> clientRequestHelper = new ClientRequestHelper<>();
 
-  private static LogUtil log = new LogUtil(AbstractGoogleClientRequest.class);
+  private static LogUtil log =
+      new LogUtil(AbstractGoogleAsyncWriteChannel.class);
 
   // Buffering used in the upload path:
   // There are a series of buffers used along the upload path. It is important to understand their

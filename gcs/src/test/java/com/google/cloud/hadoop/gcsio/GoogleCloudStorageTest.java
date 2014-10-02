@@ -128,7 +128,7 @@ public class GoogleCloudStorageTest {
   @Mock private BatchHelper.Factory mockBatchFactory;
   @Mock private BatchHelper mockBatchHelper;
   @Mock private HttpHeaders mockHeaders;
-  @Mock private ClientRequestHelper mockClientRequestHelper;
+  @Mock private ClientRequestHelper<StorageObject> mockClientRequestHelper;
   @Mock private Sleeper mockSleeper;
   @Mock private NanoClock mockClock;
   @Mock private BackOff mockBackOff;
@@ -152,8 +152,10 @@ public class GoogleCloudStorageTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     gcs = createTestInstance();
-    GoogleCloudStorageReadChannel.setClientRequestHelper(mockClientRequestHelper);
-    GoogleCloudStorageWriteChannel.setClientRequestHelper(mockClientRequestHelper);
+    GoogleCloudStorageReadChannel.setStaticClientRequestHelper(
+        mockClientRequestHelper);
+    GoogleCloudStorageWriteChannel.setStaticClientRequestHelper(
+        mockClientRequestHelper);
   }
 
   /**

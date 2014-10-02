@@ -23,18 +23,20 @@ import com.google.api.client.http.HttpHeaders;
  * ClientRequestHelper provides wrapper methods around final methods of AbstractGoogleClientRequest
  * to allow overriding them if necessary. Typically should be used for testing purposes only.
  */
-public class ClientRequestHelper {
+public class ClientRequestHelper<S> {
   /**
    * Wraps AbstractGoogleClientRequest.getRequestHeaders().
    */
-  public HttpHeaders getRequestHeaders(AbstractGoogleClientRequest clientRequest) {
+  public HttpHeaders getRequestHeaders(
+      AbstractGoogleClientRequest<S> clientRequest) {
     return clientRequest.getRequestHeaders();
   }
 
   /**
    * Wraps AbstractGoogleClientRequest.getMediaHttpUploader().
    */
-  public void setChunkSize(AbstractGoogleClientRequest clientRequest, int chunkSize) {
+  public void setChunkSize(
+      AbstractGoogleClientRequest<S> clientRequest, int chunkSize) {
     clientRequest.getMediaHttpUploader().setChunkSize(chunkSize);
   }
 
@@ -42,7 +44,8 @@ public class ClientRequestHelper {
    * Configures the {@code clientRequest} to enable/disable direct (single-request) uploads
    * according to {@code enable}.
    */
-  public void setDirectUploadEnabled(AbstractGoogleClientRequest clientRequest, boolean enable) {
+  public void setDirectUploadEnabled(
+      AbstractGoogleClientRequest<S> clientRequest, boolean enable) {
     clientRequest.getMediaHttpUploader().setDirectUploadEnabled(enable);
   }
 }

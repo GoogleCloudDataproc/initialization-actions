@@ -166,7 +166,8 @@ public class GoogleCloudStorageImpl
   private ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
 
   // Helper for interacting with objects invovled with the API client libraries.
-  private ClientRequestHelper clientRequestHelper = new ClientRequestHelper();
+  private ClientRequestHelper<StorageObject> clientRequestHelper =
+      new ClientRequestHelper<>();
 
   // Factory for BatchHelpers setting up BatchRequests; can be swapped out for testing purposes.
   private BatchHelper.Factory batchFactory = new BatchHelper.Factory();
@@ -237,7 +238,8 @@ public class GoogleCloudStorageImpl
   }
 
   @VisibleForTesting
-  void setClientRequestHelper(ClientRequestHelper clientRequestHelper) {
+  void setClientRequestHelper(
+      ClientRequestHelper<StorageObject> clientRequestHelper) {
     this.clientRequestHelper = clientRequestHelper;
   }
 

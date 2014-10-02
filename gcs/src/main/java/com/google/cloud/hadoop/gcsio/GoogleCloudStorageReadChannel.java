@@ -23,6 +23,7 @@ import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.client.util.NanoClock;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
+import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.LogUtil;
@@ -124,7 +125,8 @@ public class GoogleCloudStorageReadChannel
   public static final int DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS = 2 * 60 * 1000;
 
   // ClientRequestHelper to be used instead of calling final methods in client requests.
-  private static ClientRequestHelper clientRequestHelper = new ClientRequestHelper();
+  private static ClientRequestHelper<StorageObject> clientRequestHelper =
+      new ClientRequestHelper<>();
 
   /**
    * Constructs an instance of GoogleCloudStorageReadChannel.
@@ -164,7 +166,8 @@ public class GoogleCloudStorageReadChannel
    * Sets the ClientRequestHelper to be used instead of calling final methods in client requests.
    */
   @VisibleForTesting
-  static void setClientRequestHelper(ClientRequestHelper helper) {
+  static void setStaticClientRequestHelper(
+      ClientRequestHelper<StorageObject> helper) {
     clientRequestHelper = helper;
   }
 
