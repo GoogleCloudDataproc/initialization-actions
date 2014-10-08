@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.util;
 
+
 /**
  * Options for the GoogleCloudStorageWriteChannel.
  */
@@ -52,7 +53,6 @@ public class AsyncWriteChannelOptions {
 
   /**
    * Create a new builder with default values.
-   * @return
    */
   public static Builder newBuilder() {
     return new Builder();

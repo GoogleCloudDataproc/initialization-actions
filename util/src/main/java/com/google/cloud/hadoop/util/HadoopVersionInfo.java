@@ -150,7 +150,8 @@ public class HadoopVersionInfo {
    * string.
    * @param major The major number to compare against
    * @param minor The minor number to compare against
-   * @return
+   * @return True if the version curently running is greater than
+   *    the given major and minor version numbers.
    */
   public boolean isGreaterThan(int major, int minor) {
     return majorVersion.isPresent() && majorVersion.get() > major
@@ -164,7 +165,8 @@ public class HadoopVersionInfo {
    * string.
    * @param major The major number to compare against
    * @param minor The minor number to compare against
-   * @return
+   * @return True if the version curently running is less than
+   *    the given major and minor version numbers.
    */
   public boolean isLessThan(int major, int minor) {
     return majorVersion.isPresent() && majorVersion.get() < major
