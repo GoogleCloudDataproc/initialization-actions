@@ -152,10 +152,6 @@ public class GoogleCloudStorageTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
     gcs = createTestInstance();
-    GoogleCloudStorageReadChannel.setStaticClientRequestHelper(
-        mockClientRequestHelper);
-    GoogleCloudStorageWriteChannel.setStaticClientRequestHelper(
-        mockClientRequestHelper);
   }
 
   /**

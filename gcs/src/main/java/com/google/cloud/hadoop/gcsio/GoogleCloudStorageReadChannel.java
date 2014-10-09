@@ -90,6 +90,9 @@ public class GoogleCloudStorageReadChannel
   // Helper delegate for turning IOExceptions from API calls into higher-level semantics.
   private final ApiErrorExtractor errorExtractor;
 
+  // Request helper to use to set extra headers
+  private final ClientRequestHelper<StorageObject> clientRequestHelper;
+
   // Sleeper used for waiting between retries.
   private Sleeper sleeper = Sleeper.DEFAULT;
 
@@ -124,23 +127,25 @@ public class GoogleCloudStorageReadChannel
   // accounting for the randomization of backoff intervals.
   public static final int DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS = 2 * 60 * 1000;
 
-  // ClientRequestHelper to be used instead of calling final methods in client requests.
-  private static ClientRequestHelper<StorageObject> clientRequestHelper =
-      new ClientRequestHelper<>();
-
   /**
    * Constructs an instance of GoogleCloudStorageReadChannel.
    *
    * @param gcs storage object instance
    * @param bucketName name of the bucket containing the object to read
    * @param objectName name of the object to read
+   * @param requestHelper a ClientRequestHelper used to set any extra headers
    * @throws FileNotFoundException if the given object does not exist
    * @throws IOException on IO error
    */
   GoogleCloudStorageReadChannel(
-      Storage gcs, String bucketName, String objectName, ApiErrorExtractor errorExtractor)
+      Storage gcs,
+      String bucketName,
+      String objectName,
+      ApiErrorExtractor errorExtractor,
+      ClientRequestHelper<StorageObject> requestHelper)
       throws IOException {
     this.gcs = gcs;
+    this.clientRequestHelper = requestHelper;
     this.bucketName = bucketName;
     this.objectName = objectName;
     this.errorExtractor = errorExtractor;
@@ -157,18 +162,10 @@ public class GoogleCloudStorageReadChannel
   @VisibleForTesting
   GoogleCloudStorageReadChannel()
       throws IOException {
+    this.clientRequestHelper = null;
     this.errorExtractor = null;
     channelIsOpen = true;
     position(0);
-  }
-
-  /**
-   * Sets the ClientRequestHelper to be used instead of calling final methods in client requests.
-   */
-  @VisibleForTesting
-  static void setStaticClientRequestHelper(
-      ClientRequestHelper<StorageObject> helper) {
-    clientRequestHelper = helper;
   }
 
   /**

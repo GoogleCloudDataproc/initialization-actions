@@ -303,6 +303,7 @@ public class GoogleCloudStorageImpl
     GoogleCloudStorageWriteChannel channel = new GoogleCloudStorageWriteChannel(
         threadPool,
         gcs,
+        clientRequestHelper,
         resourceId.getBucketName(),
         resourceId.getObjectName(),
         storageOptions.getWriteChannelOptions(),
@@ -429,7 +430,11 @@ public class GoogleCloudStorageImpl
     }
 
     return new GoogleCloudStorageReadChannel(
-        gcs, resourceId.getBucketName(), resourceId.getObjectName(), errorExtractor);
+        gcs,
+        resourceId.getBucketName(),
+        resourceId.getObjectName(),
+        errorExtractor,
+        clientRequestHelper);
   }
 
   /**
