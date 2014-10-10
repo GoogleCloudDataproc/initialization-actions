@@ -1619,6 +1619,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest
     URI testFilePath = getPath(bucketName, "test-file-creation-attributes.txt");
     try (WritableByteChannel channel =
         gcsfs.create(testFilePath, createFileOptions)) {
+      Assert.assertNotNull(channel);
     }
 
     FileInfo info = gcsfs.getFileInfo(testFilePath);
@@ -1645,6 +1646,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest
     URI childFile = directory.resolve("file.txt");
 
     try (WritableByteChannel channel = gcsfs.create(childFile)) {
+      Assert.assertNotNull(channel);
     }
 
     FileInfo newDirectoryInfo = gcsfs.getFileInfo(directory);
@@ -1710,6 +1712,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest
     URI sourceFile = directory.resolve("child-file");
     // Create a test object in our source directory:
     try (WritableByteChannel channel = gcsfs.create(sourceFile)) {
+      Assert.assertNotNull(channel);
     }
 
     FileInfo directoryInfo = gcsfs.getFileInfo(directory);
@@ -1749,6 +1752,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest
     URI sourceFile = sourceDirectory.resolve("child-file");
     // Create a test object in our source directory:
     try (WritableByteChannel channel = gcsfs.create(sourceFile)) {
+      Assert.assertNotNull(channel);
     }
 
     FileInfo directoryInfo = gcsfs.getFileInfo(directory);
