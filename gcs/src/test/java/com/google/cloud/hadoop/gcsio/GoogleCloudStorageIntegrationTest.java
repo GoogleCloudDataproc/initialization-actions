@@ -41,6 +41,7 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -120,8 +121,8 @@ public abstract class GoogleCloudStorageIntegrationTest {
         }
 
         @Override
-        protected WritableByteChannel create(String bucketName, String objectName)
-            throws IOException {
+        protected WritableByteChannel create(
+            String bucketName, String objectName, CreateFileOptions options) throws IOException {
           throw new IllegalStateException("Not implemented");
         }
 
@@ -226,7 +227,8 @@ public abstract class GoogleCloudStorageIntegrationTest {
     WritableByteChannel writeChannel = null;
 
     try {
-      writeChannel = create(bucketName, objectName);
+      writeChannel = create(
+          bucketName, objectName, new CreateFileOptions(false /* overwrite existing */));
       for (int i = 0; i < numWrites; i++) {
         buffer.clear();
         numBytesWritten = writeChannel.write(buffer);
@@ -308,11 +310,19 @@ public abstract class GoogleCloudStorageIntegrationTest {
   protected abstract SeekableReadableByteChannel open(String bucketName, String objectName)
       throws IOException;
 
+
   /**
    * Opens the given object for writing.
    */
-  protected abstract WritableByteChannel create(String bucketName, String objectName)
-      throws IOException;
+  protected WritableByteChannel create(String bucketName, String objectName) throws IOException {
+    return create(bucketName, objectName, CreateFileOptions.DEFAULT);
+  }
+
+  /**
+   * Opens the given object for writing.
+   */
+  protected abstract WritableByteChannel create(
+      String bucketName, String objectName, CreateFileOptions options) throws IOException;
 
   /**
    * Creates a directory like object.
@@ -439,36 +449,38 @@ public abstract class GoogleCloudStorageIntegrationTest {
    */
   private void createObjects(final String bucketName, String[] objectNames)
       throws IOException {
+
     final ExecutorService threadPool = Executors.newCachedThreadPool();
     final CountDownLatch counter = new CountDownLatch(objectNames.length);
-    try {
-      // Do each creation asynchronously.
-      for (final String objectName : objectNames) {
-        threadPool.submit(new Runnable() {
-          @Override
-          public void run() {
-            try {
-              if (objectName.endsWith(GoogleCloudStorage.PATH_DELIMITER)) {
-                mkdir(bucketName, objectName);
-              } else {
-                // Just use objectName as file contents.
-                writeTextFile(bucketName, objectName, objectName);
-              }
-            } catch (IOException ioe) {
-              throw new RuntimeException(
-                  String.format("Exception creating %s/%s", bucketName, objectName), ioe);
-            } finally {
-              counter.countDown();
+    List<Future<?>> futures = new ArrayList<>();
+    // Do each creation asynchronously.
+    for (final String objectName : objectNames) {
+      Future<?> future = threadPool.submit(new Runnable() {
+        @Override
+        public void run() {
+          try {
+            if (objectName.endsWith(GoogleCloudStorage.PATH_DELIMITER)) {
+              mkdir(bucketName, objectName);
+            } else {
+              // Just use objectName as file contents.
+              writeTextFile(bucketName, objectName, objectName);
             }
+          } catch (Throwable ioe) {
+            throw new RuntimeException(
+                String.format("Exception creating %s/%s", bucketName, objectName), ioe);
+          } finally {
+            counter.countDown();
           }
-        });
-      }
-      try {
-        counter.await();
-      } catch (InterruptedException ie) {
-        throw new IOException("Interrupted while awaiting object creation!", ie);
-      }
-    } finally {
+        }
+      });
+      futures.add(future);
+    }
+
+    try {
+      counter.await();
+    } catch (InterruptedException ie) {
+      throw new IOException("Interrupted while awaiting object creation!", ie);
+    }  finally {
       threadPool.shutdown();
       try {
         if (!threadPool.awaitTermination(10L, TimeUnit.SECONDS)) {
@@ -477,6 +489,16 @@ public abstract class GoogleCloudStorageIntegrationTest {
         }
       } catch (InterruptedException ie) {
         throw new IOException("Interrupted while shutting down threadpool!", ie);
+      }
+    }
+
+    for (Future<?> future : futures) {
+      try {
+        // We should already be done.
+        future.get(10, TimeUnit.MILLISECONDS);
+      } catch (Exception e) {
+        throw new IOException(
+            String.format("Creation of file %s failed with exception", objectName), e);
       }
     }
   }

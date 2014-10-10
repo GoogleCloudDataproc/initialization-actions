@@ -93,7 +93,9 @@ public class InMemoryGoogleCloudStorage
   }
 
   @Override
-  public WritableByteChannel create(StorageResourceId resourceId, final CreateObjectOptions options)
+  public synchronized WritableByteChannel create(
+      StorageResourceId resourceId,
+      final CreateObjectOptions options)
       throws IOException {
     if (!bucketLookup.containsKey(resourceId.getBucketName())) {
       throw new IOException(String.format(
@@ -122,21 +124,23 @@ public class InMemoryGoogleCloudStorage
   }
 
   @Override
-  public void createEmptyObject(StorageResourceId resourceId, CreateObjectOptions options)
-      throws IOException {
+  public synchronized void createEmptyObject(
+      StorageResourceId resourceId, CreateObjectOptions options) throws IOException {
     // TODO(user): Since this class is not performance-tuned, we'll just delegate to the
     // write-channel version of the method.
     create(resourceId, options).close();
   }
 
   @Override
-  public void createEmptyObjects(List<StorageResourceId> resourceIds)
+  public synchronized void createEmptyObjects(List<StorageResourceId> resourceIds)
       throws IOException {
     createEmptyObjects(resourceIds, CreateObjectOptions.DEFAULT);
   }
 
   @Override
-  public void createEmptyObjects(List<StorageResourceId> resourceIds, CreateObjectOptions options)
+  public synchronized void createEmptyObjects(
+      List<StorageResourceId> resourceIds,
+      CreateObjectOptions options)
       throws IOException {
     for (StorageResourceId resourceId : resourceIds) {
       createEmptyObject(resourceId, options);

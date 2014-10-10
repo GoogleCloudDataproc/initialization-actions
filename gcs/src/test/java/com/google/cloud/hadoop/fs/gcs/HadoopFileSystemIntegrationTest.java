@@ -89,7 +89,7 @@ public class HadoopFileSystemIntegrationTest
       }
     };
 
-    statistics = FileSystemStatistics.EXACT;
+    statistics = FileSystemStatistics.IGNORE; // Multi-threaded code screws us up.
     gcsit = new HadoopFileSystemIntegrationTest();
     postCreateInit();
   }

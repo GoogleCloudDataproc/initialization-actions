@@ -75,7 +75,7 @@ public class LocalFileSystemIntegrationTest
 
     // The file:/// scheme will secretly use a ChecksumFileSystem under the hood, causing all
     // writes to actually write many more intermediate bytes than the number desired.
-    statistics = FileSystemStatistics.GREATER_OR_EQUAL;
+    statistics = FileSystemStatistics.IGNORE;
 
     gcsit = new LocalFileSystemIntegrationTest();
     postCreateInit();

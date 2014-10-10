@@ -329,10 +329,10 @@ public class GoogleCloudStorageFileSystemIntegrationTest
    * Opens the given object for writing.
    */
   @Override
-  protected WritableByteChannel create(String bucketName, String objectName)
-      throws IOException {
+  protected WritableByteChannel create(
+      String bucketName, String objectName, CreateFileOptions options) throws IOException {
     URI path = getPath(bucketName, objectName);
-    return gcsfs.create(path);
+    return gcsfs.create(path, options);
   }
 
   /**

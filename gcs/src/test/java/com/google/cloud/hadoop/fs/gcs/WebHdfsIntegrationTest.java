@@ -91,7 +91,7 @@ public class WebHdfsIntegrationTest
       }
     };
 
-    statistics = FileSystemStatistics.NONE;
+    statistics = FileSystemStatistics.IGNORE;
     gcsit = new WebHdfsIntegrationTest();
     postCreateInit();
   }

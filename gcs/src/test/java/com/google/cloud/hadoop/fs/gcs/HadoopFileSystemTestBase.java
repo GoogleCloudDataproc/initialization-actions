@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
 import com.google.cloud.hadoop.gcsio.SeekableReadableByteChannel;
@@ -78,10 +79,13 @@ public abstract class HadoopFileSystemTestBase
     // written/read by caller because of hidden underlying operations
     // involving check-summing.
     GREATER_OR_EQUAL,
+
+    // We skip all FS statistics tests
+    IGNORE,
   }
 
   // FS statistics mode of the FS tested by this class.
-  static FileSystemStatistics statistics = FileSystemStatistics.EXACT;
+  static FileSystemStatistics statistics = FileSystemStatistics.IGNORE;
 
   /**
    * Perform initialization after creating test instances.
@@ -368,8 +372,8 @@ public abstract class HadoopFileSystemTestBase
    * Opens the given object for writing.
    */
   @Override
-  protected WritableByteChannel create(String bucketName, String objectName)
-      throws IOException {
+  protected WritableByteChannel create(
+      String bucketName, String objectName, CreateFileOptions options) throws IOException {
     return null;
   }
 
@@ -491,6 +495,8 @@ public abstract class HadoopFileSystemTestBase
     } else if (statistics == FileSystemStatistics.NONE) {
       Assert.assertEquals("FS statistics expected to be 0", 0, fileSystemBytesRead);
       Assert.assertEquals("FS statistics expected to be 0", 0, endFileSystemBytesRead);
+    } else if (statistics == FileSystemStatistics.IGNORE) {
+      // NO-OP
     }
 
     return text;
@@ -1100,6 +1106,8 @@ public abstract class HadoopFileSystemTestBase
           totalBytesWritten <= bytesWrittenStats);
     } else if (statistics == FileSystemStatistics.NONE) {
       // Do not perform any check because stats are either not maintained or are erratic.
+    } else if (statistics == FileSystemStatistics.IGNORE) {
+      // NO-OP
     }
 
     return totalBytesWritten;

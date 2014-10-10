@@ -180,7 +180,9 @@ class InMemoryObjectEntry {
    */
   public synchronized SeekableReadableByteChannel getReadChannel() throws IOException {
     if (!isCompleted()) {
-      throw new IOException("Cannot getReadChannel() before writes have been committed!");
+      throw new IOException(
+          String.format("Cannot getReadChannel() before writes have been committed! Object = %s",
+              this.getObjectName()));
     }
     return new InMemoryObjectReadChannel(completedContents);
   }
@@ -189,7 +191,13 @@ class InMemoryObjectEntry {
    * Gets the {@code GoogleCloudStorageItemInfo} associated with this InMemoryObjectEntry, whose
    * 'size' is only updated when the initial writer has finished closing the channel.
    */
-  public synchronized GoogleCloudStorageItemInfo getInfo() {
+  public synchronized GoogleCloudStorageItemInfo getInfo() throws IOException {
+    if (!isCompleted()) {
+      throw new IOException(
+          String.format(
+              "Cannot getInfo() before writes have been committed! Object = %s",
+              this.getObjectName()));
+    }
     return info;
   }
 
@@ -198,7 +206,13 @@ class InMemoryObjectEntry {
    * has a corresponding null value will be removed from the object's metadata. All other values
    * will be added.
    */
-  public synchronized void patchMetadata(Map<String, byte[]> newMetadata) {
+  public synchronized void patchMetadata(Map<String, byte[]> newMetadata) throws IOException {
+    if (!isCompleted()) {
+      throw new IOException(
+          String.format(
+              "Cannot patchMetadata() before writes have been committed! Object = %s",
+              this.getObjectName()));
+    }
     Map<String, byte[]> mergedMetadata = Maps.newHashMap(info.getMetadata());
 
     for (Map.Entry<String, byte[]> entry : newMetadata.entrySet()) {
