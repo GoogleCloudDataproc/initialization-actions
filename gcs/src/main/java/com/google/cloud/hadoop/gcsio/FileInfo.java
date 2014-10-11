@@ -193,8 +193,7 @@ public class FileInfo {
    * @return Whether the given object name looks like a directory path.
    */
   static boolean objectHasDirectoryPath(String objectName) {
-    return !Strings.isNullOrEmpty(objectName) &&
-        objectName.endsWith(GoogleCloudStorage.PATH_DELIMITER);
+    return StorageResourceId.objectHasDirectoryPath(objectName);
   }
 
   /**
@@ -208,12 +207,7 @@ public class FileInfo {
    * @return Directory path for the given path.
    */
   static String convertToDirectoryPath(String objectName) {
-    if (!Strings.isNullOrEmpty(objectName)) {
-      if (!objectHasDirectoryPath(objectName)) {
-        objectName += GoogleCloudStorage.PATH_DELIMITER;
-      }
-    }
-    return objectName;
+    return StorageResourceId.convertToDirectoryPath(objectName);
   }
 
   /**

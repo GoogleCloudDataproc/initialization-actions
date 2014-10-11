@@ -68,6 +68,28 @@ public class CacheEntry {
   }
 
   /**
+   * Constructs a CacheEntry with no known GoogleCloudStorageItemInfo and an explicit
+   * creationTimeMillis; callers may have to fetch the associated GoogleCloudStorageItemInfo
+   * on-demand. This should be used for implementations where the in-memory CacheEntry objects
+   * are not the authoritative listing, and presumably the cache-entry creation times are
+   * stored somewhere else, e.g. on a filesystem.
+   *
+   * @param resourceId Must be non-null, and correspond to either a Bucket or StorageObject.
+   * @param creationTimeMillis The logical creation time of the authoritative cache entry.
+   */
+  public CacheEntry(StorageResourceId resourceId, long creationTimeMillis) {
+    Preconditions.checkArgument(resourceId != null,
+        "CacheEntry requires non-null resourceId.");
+    Preconditions.checkArgument(!resourceId.isRoot(),
+        "CacheEntry cannot take a resourceId corresponding to 'root'.");
+
+    this.resourceId = resourceId;
+    this.creationTimeMillis = creationTimeMillis;
+    this.itemInfo = null;
+    this.itemInfoUpdateTimeMillis = 0;
+  }
+
+  /**
    * @param itemInfo A last-known itemInfo associated to be held and returned by this CacheEntry;
    *     must be non-null, must be a Bucket or StorageObject, and exists() must return true.
    */

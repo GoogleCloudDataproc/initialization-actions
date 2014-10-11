@@ -24,6 +24,9 @@ public class GoogleCloudStorageFileSystemOptions {
    */
   public static class Builder {
     protected boolean metadataCacheEnabled = true;
+    protected DirectoryListCache.Type cacheType = DirectoryListCache.Type.IN_MEMORY;
+    protected String cacheBasePath = null;
+
     private GoogleCloudStorageOptions.Builder cloudStorageOptionsBuilder =
         new GoogleCloudStorageOptions.Builder();
 
@@ -36,10 +39,22 @@ public class GoogleCloudStorageFileSystemOptions {
       return this;
     }
 
+    public Builder setCacheType(DirectoryListCache.Type cacheType) {
+      this.cacheType = cacheType;
+      return this;
+    }
+
+    public Builder setCacheBasePath(String cacheBasePath) {
+      this.cacheBasePath = cacheBasePath;
+      return this;
+    }
+
     public GoogleCloudStorageFileSystemOptions build() {
       return new GoogleCloudStorageFileSystemOptions(
           cloudStorageOptionsBuilder.build(),
-          metadataCacheEnabled);
+          metadataCacheEnabled,
+          cacheType,
+          cacheBasePath);
     }
   }
 
@@ -49,11 +64,16 @@ public class GoogleCloudStorageFileSystemOptions {
 
   private final GoogleCloudStorageOptions cloudStorageOptions;
   private final boolean metadataCacheEnabled;
+  private final DirectoryListCache.Type cacheType;
+  private final String cacheBasePath;  // Only used if cacheType == LOCAL_FILE_BACKED.
 
   public GoogleCloudStorageFileSystemOptions(
-      GoogleCloudStorageOptions cloudStorageOptions, boolean metadataCacheEnabled) {
+      GoogleCloudStorageOptions cloudStorageOptions, boolean metadataCacheEnabled,
+      DirectoryListCache.Type cacheType, String cacheBasePath) {
     this.cloudStorageOptions = cloudStorageOptions;
     this.metadataCacheEnabled = metadataCacheEnabled;
+    this.cacheType = cacheType;
+    this.cacheBasePath = cacheBasePath;
   }
 
   public GoogleCloudStorageOptions getCloudStorageOptions() {
@@ -62,6 +82,14 @@ public class GoogleCloudStorageFileSystemOptions {
 
   public boolean isMetadataCacheEnabled() {
     return metadataCacheEnabled;
+  }
+
+  public DirectoryListCache.Type getCacheType() {
+    return cacheType;
+  }
+
+  public String getCacheBasePath() {
+    return cacheBasePath;
   }
 
   public void throwIfNotValid() {

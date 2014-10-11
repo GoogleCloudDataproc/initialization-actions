@@ -20,6 +20,7 @@ import com.google.cloud.hadoop.gcsio.CacheSupplementedGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
+import com.google.cloud.hadoop.gcsio.InMemoryDirectoryListCache;
 import com.google.cloud.hadoop.gcsio.ThrottledGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.ThrottledGoogleCloudStorage.StorageOperation;
 import com.google.common.util.concurrent.RateLimiter;
@@ -34,14 +35,21 @@ import java.util.Collection;
 import java.util.EnumSet;
 
 @RunWith(Parameterized.class)
-public class GoogleCloudStorageIntegrationTest  extends GoogleCloudStorageTest {
+public class GoogleCloudStorageIntegrationTest extends GoogleCloudStorageTest {
 
   @Parameters
   public static Collection<Object[]> getConstructorArguments() throws IOException {
     GoogleCloudStorage gcs = getGoogleCloudStorage();
-    GoogleCloudStorage cachedGcs = new CacheSupplementedGoogleCloudStorage(getGoogleCloudStorage());
+    GoogleCloudStorage cachedGcs = new CacheSupplementedGoogleCloudStorage(
+        getGoogleCloudStorage(), InMemoryDirectoryListCache.getInstance());
+    GoogleCloudStorage cachedFileBackedGcs = new CacheSupplementedGoogleCloudStorage(
+        getGoogleCloudStorage(), fileBackedCache);
 
-    return Arrays.asList(new Object[][]{{gcs}, {cachedGcs}});
+    return Arrays.asList(new Object[][]{
+        {gcs},
+        {cachedGcs},
+        {cachedFileBackedGcs}
+    });
   }
 
   public GoogleCloudStorageIntegrationTest(GoogleCloudStorage gcs) {

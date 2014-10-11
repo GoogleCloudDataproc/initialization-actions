@@ -21,6 +21,7 @@ import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
@@ -59,7 +60,7 @@ public abstract class DirectoryListCache {
     // to expire fully from the cache once reasonably certain the remote GCS API's list-index
     // is up-to-date to save memory and computation when trying to supplement new results using
     // the cache.
-    private long maxEntryAgeMillis = 60 * 1000L;
+    private long maxEntryAgeMillis = 30 * 60 * 1000L;
 
     // Maximum number of milliseconds a GoogleCloudStorageItemInfo will remain "valid" in the cache,
     // after which the next attempt to fetch the itemInfo will require fetching fresh info from
@@ -98,6 +99,38 @@ public abstract class DirectoryListCache {
   }
 
   /**
+   * Known types of DirectoryListCache implementations.
+   */
+  public static enum Type {
+    IN_MEMORY,
+    LOCAL_FILE_BACKED
+  }
+
+  /**
+   * Implementations should indicate whether or not CacheEntry objects returned from methods are
+   * intended to be shared references which are authoritative cache state regarding metadata
+   * like cached GoogleCloudStorageItemInfo, etc. If true, then the implementation implicitly
+   * supports caching of GoogleCloudStorageItemInfo, and if false, the implication is that info
+   * caching is *not* supported. Likewise, if 'true', CacheEntries are implied to be shared
+   * references with their own synchronization, so that multiple entry holders may pass info
+   * from one holder to another without re-querying the DirectoryListCache. If 'false', then each
+   * CacheEntry logically represents a wrapper around some other source of authoritative
+   * information, and thus references should not be assumed to be shared, and cached info should
+   * not be expected to persist between CacheEntry instances corresponding to the same
+   * StorageResourceId.
+   */
+  @VisibleForTesting
+  public abstract boolean supportsCacheEntryByReference();
+
+  /**
+   * Implementations should indicate whether implicit directories are automatically detected and
+   * added as CacheEntry items when putResourceId is called without first adding explicit
+   * directory objects for the implied parent directories of the added object.
+   */
+  @VisibleForTesting
+  public abstract boolean containsEntriesForImplicitDirectories();
+
+  /**
    * Adds the names of the Bucket or StorageObject referenced by {@code resourceId} to the cache,
    * with no attached metadata. If the entry already exists, then nothing is modified. If resourceId
    * is a StorageObject, the parent Bucket name is also added to the cache, if it doesn't already
@@ -107,14 +140,14 @@ public abstract class DirectoryListCache {
    *
    * @return The CacheEntry corresponding to the item added.
    */
-  public abstract CacheEntry putResourceId(StorageResourceId resourceId);
+  public abstract CacheEntry putResourceId(StorageResourceId resourceId) throws IOException;
 
   /**
    * Returns the CacheEntry associated with {@code resourceId}, or null if it doesn't exist.
    * This returns the real mutable CacheEntry (rather than a copy of the data) so that the
    * caller may efficiently update the info stored in the CacheEntry if necessary.
    */
-  public abstract CacheEntry getCacheEntry(StorageResourceId resourceId);
+  public abstract CacheEntry getCacheEntry(StorageResourceId resourceId) throws IOException;
 
   /**
    * Removes CacheEntry associated with {@code resourceId}, if it exists. Cached
@@ -125,7 +158,7 @@ public abstract class DirectoryListCache {
    * will *not* remove the actual CachedBucket, even though the bucketName will stop appearing
    * in calls to getBucketList().
    */
-  public abstract void removeResourceId(StorageResourceId resourceId);
+  public abstract void removeResourceId(StorageResourceId resourceId) throws IOException;
 
   /**
    * @return List of CacheEntry corresponding to Buckets known by this cache; includes buckets
@@ -133,7 +166,7 @@ public abstract class DirectoryListCache {
    *     corresponding bucket. Will not return null. Hides/removes expired bucket entries and
    *     clears any expired GoogleCloudStorageItemInfo associated with buckets.
    */
-  public abstract List<CacheEntry> getBucketList();
+  public abstract List<CacheEntry> getBucketList() throws IOException;
 
   /**
    * @param bucketName The bucket inside of which to list objects.
@@ -152,20 +185,21 @@ public abstract class DirectoryListCache {
    *     are present. May also return an empty list.
    */
   public abstract List<CacheEntry> getObjectList(
-      String bucketName, String objectNamePrefix, String delimiter, Set<String> returnedPrefixes);
+      String bucketName, String objectNamePrefix, String delimiter, Set<String> returnedPrefixes)
+      throws IOException;
 
   /**
    * Gets the internal number of CachedBucket entries, which may not be equal to the size of
    * getBucketList() if there are expired entries. Does not mutate the cache.
    */
   @VisibleForTesting
-  abstract int getInternalNumBuckets();
+  abstract int getInternalNumBuckets() throws IOException;
 
   /**
    * Gets the internal total count of cached StorageObject entries. Does not mutate the cache.
    */
   @VisibleForTesting
-  abstract int getInternalNumObjects();
+  abstract int getInternalNumObjects() throws IOException;
 
   /**
    * Returns the {@code Config} instance used by this DirectoryListCache instance to determine

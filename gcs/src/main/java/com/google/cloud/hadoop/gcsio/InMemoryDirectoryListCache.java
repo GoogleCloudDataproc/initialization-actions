@@ -77,6 +77,26 @@ public class InMemoryDirectoryListCache extends DirectoryListCache {
     return singletonInstance;
   }
 
+  /**
+   * We use in-memory data structures to hold CacheEntry items, and thus manage them in a shared
+   * manner; returned CacheEntry items are shared references, and updating their cached info
+   * effectively updates the entry's info for all users of the cache.
+   */
+  @Override
+  public boolean supportsCacheEntryByReference() {
+    return true;
+  }
+
+  /**
+   * We don't inspect StorageResourceIds in putResourceId to auto-insert entries for parent
+   * directories, nor do we return fake entries in getObjectList when a delimiter implies a
+   * pure-prefix match.
+   */
+  @Override
+  public boolean containsEntriesForImplicitDirectories() {
+    return false;
+  }
+
   @Override
   public synchronized CacheEntry putResourceId(StorageResourceId resourceId) {
     validateResourceId(resourceId);

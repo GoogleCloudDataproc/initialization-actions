@@ -27,10 +27,12 @@ import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageWriteChannel;
+import com.google.cloud.hadoop.gcsio.InMemoryDirectoryListCache;
 import com.google.cloud.hadoop.gcsio.InMemoryGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage.ListVisibilityCalculator;
 import com.google.cloud.hadoop.gcsio.ListProhibitedGoogleCloudStorage;
+import com.google.cloud.hadoop.gcsio.LocalFileBackedDirectoryListCache;
 import com.google.cloud.hadoop.gcsio.ResourceLoggingGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.SeekableReadableByteChannel;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
@@ -46,10 +48,12 @@ import com.google.common.collect.Maps;
 
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -207,6 +211,13 @@ public class GoogleCloudStorageTest {
     }
   }
 
+  /**
+   * Static instance which we can use inside long-lived GoogleCloudStorage instances, but still
+   * may reconfigure to point to new temporary directories in each test case.
+   */
+  protected static LocalFileBackedDirectoryListCache fileBackedCache =
+      LocalFileBackedDirectoryListCache.getUninitializedInstanceForTest();
+
   // Test classes using JUnit4 runner must have only a single constructor. Since we
   // want to be able to pass in dependencies, we'll maintain this base class as
   // @Parameterized with @Parameters.
@@ -214,17 +225,33 @@ public class GoogleCloudStorageTest {
   public static Collection<Object[]> getConstructorArguments() throws IOException {
     GoogleCloudStorage gcs = new InMemoryGoogleCloudStorage();
     GoogleCloudStorage cachedGcs =
-        new CacheSupplementedGoogleCloudStorage(new InMemoryGoogleCloudStorage());
+        new CacheSupplementedGoogleCloudStorage(
+            new InMemoryGoogleCloudStorage(), InMemoryDirectoryListCache.getInstance());
     GoogleCloudStorage cachedLaggedGcs = new CacheSupplementedGoogleCloudStorage(
         new LaggedGoogleCloudStorage(
             new InMemoryGoogleCloudStorage(),
             Clock.SYSTEM,
-            ListVisibilityCalculator.DEFAULT_LAGGED));
-    return Arrays.asList(new Object[][]{{gcs}, {cachedGcs}, {cachedLaggedGcs}});
+            ListVisibilityCalculator.DEFAULT_LAGGED),
+        InMemoryDirectoryListCache.getInstance());
+    GoogleCloudStorage cachedFilebackedLaggedGcs = new CacheSupplementedGoogleCloudStorage(
+        new LaggedGoogleCloudStorage(
+            new InMemoryGoogleCloudStorage(),
+            Clock.SYSTEM,
+            ListVisibilityCalculator.DEFAULT_LAGGED),
+        fileBackedCache);
+    return Arrays.asList(new Object[][]{
+        {gcs},
+        {cachedGcs},
+        {cachedLaggedGcs},
+        {cachedFilebackedLaggedGcs}
+    });
   }
 
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
+
+  @Rule
+  public TemporaryFolder tempDirectoryProvider = new TemporaryFolder();
 
   private final GoogleCloudStorage rawStorage;
   private final TestBucketHelper bucketHelper;
@@ -232,6 +259,12 @@ public class GoogleCloudStorageTest {
   public GoogleCloudStorageTest(GoogleCloudStorage rawStorage) {
     this.bucketHelper = new TestBucketHelper("gcs_it");
     this.rawStorage = rawStorage;
+  }
+
+  @Before
+  public void setUp() throws IOException {
+    // Point the shared static cache instance at a new temp directory.
+    fileBackedCache.setBasePath(tempDirectoryProvider.newFolder("gcs-metadata").toString());
   }
 
   private void cleanupTestObjects(String bucketName, StorageResourceId object) throws IOException {

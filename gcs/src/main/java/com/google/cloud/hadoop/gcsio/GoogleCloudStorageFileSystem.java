@@ -109,7 +109,23 @@ public class GoogleCloudStorageFileSystem {
     gcs = new GoogleCloudStorageImpl(options.getCloudStorageOptions(), credential);
 
     if (options.isMetadataCacheEnabled()) {
-      gcs = new CacheSupplementedGoogleCloudStorage(gcs);
+      DirectoryListCache resourceCache = null;
+      switch (options.getCacheType()) {
+        case IN_MEMORY: {
+          resourceCache = InMemoryDirectoryListCache.getInstance();
+          break;
+        }
+        case LOCAL_FILE_BACKED: {
+          Preconditions.checkArgument(!Strings.isNullOrEmpty(options.getCacheBasePath()),
+              "When using LOCAL_FILE_BACKED DirectoryListCache, cacheBasePath must not be null.");
+          resourceCache = new LocalFileBackedDirectoryListCache(options.getCacheBasePath());
+          break;
+        }
+        default:
+          throw new IllegalArgumentException(String.format(
+              "DirectoryListCache.Type '%s' not supported.", options.getCacheType()));
+      }
+      gcs = new CacheSupplementedGoogleCloudStorage(gcs, resourceCache);
     }
   }
 

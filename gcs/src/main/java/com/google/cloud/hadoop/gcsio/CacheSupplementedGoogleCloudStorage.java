@@ -17,7 +17,7 @@
 package com.google.cloud.hadoop.gcsio;
 
 import com.google.cloud.hadoop.util.LogUtil;
-import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -60,13 +60,12 @@ public class CacheSupplementedGoogleCloudStorage
    * @param gcsDelegate The GoogleCloudStorage to be used for normal API interactions, before
    *     supplementing with in-memory info.
    */
-  public CacheSupplementedGoogleCloudStorage(GoogleCloudStorage gcsDelegate) {
-    this.gcsDelegate = gcsDelegate;
-    this.resourceCache = InMemoryDirectoryListCache.getInstance();
-  }
+  public CacheSupplementedGoogleCloudStorage(
+      GoogleCloudStorage gcsDelegate, DirectoryListCache resourceCache) {
+    Preconditions.checkArgument(gcsDelegate != null, "gcsDelegate must not be null");
+    Preconditions.checkArgument(resourceCache != null, "resourceCache must not be null");
 
-  @VisibleForTesting
-  void setResourceCache(DirectoryListCache resourceCache) {
+    this.gcsDelegate = gcsDelegate;
     this.resourceCache = resourceCache;
   }
 

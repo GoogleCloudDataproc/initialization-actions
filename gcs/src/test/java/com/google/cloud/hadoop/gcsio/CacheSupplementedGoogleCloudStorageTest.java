@@ -88,8 +88,7 @@ public class CacheSupplementedGoogleCloudStorageTest {
 
     // Give the testInstance a fresh DirectoryListCache for each test case.
     CacheSupplementedGoogleCloudStorage testInstance =
-        new CacheSupplementedGoogleCloudStorage(mockGcsDelegate);
-    testInstance.setResourceCache(cache);
+        new CacheSupplementedGoogleCloudStorage(mockGcsDelegate, cache);
     gcs = testInstance;
   }
 

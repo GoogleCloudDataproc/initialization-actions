@@ -20,6 +20,7 @@ import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -47,8 +48,7 @@ public class MetadataReadOnlyGoogleCloudStorageTest {
   private List<GoogleCloudStorageItemInfo> initialInfos;
   private Map<StorageResourceId, GoogleCloudStorageItemInfo> initialMap;
   private MetadataReadOnlyGoogleCloudStorage gcs;
-  private MetadataReadOnlyGoogleCloudStorage emptyGcs = new MetadataReadOnlyGoogleCloudStorage(
-      new ArrayList<GoogleCloudStorageItemInfo>());
+  private MetadataReadOnlyGoogleCloudStorage emptyGcs;
 
   /**
    * Helper to create a StorageResourceId without the verbosity of re-specifying a bucket each time
@@ -88,6 +88,11 @@ public class MetadataReadOnlyGoogleCloudStorageTest {
       lookupMap.put(info.getResourceId(), info);
     }
     return lookupMap;
+  }
+
+  @Before
+  public void setUp() throws IOException {
+    emptyGcs = new MetadataReadOnlyGoogleCloudStorage(new ArrayList<GoogleCloudStorageItemInfo>());
   }
 
   @Test
@@ -162,7 +167,7 @@ public class MetadataReadOnlyGoogleCloudStorageTest {
   }
 
   @Test
-  public void testCallingGcsCloseIsAllowed() {
+  public void testCallingGcsCloseIsAllowed() throws IOException {
     GoogleCloudStorage gcsToClose = new MetadataReadOnlyGoogleCloudStorage(
         new ArrayList<GoogleCloudStorageItemInfo>());
 
@@ -172,7 +177,7 @@ public class MetadataReadOnlyGoogleCloudStorageTest {
   /**
    * Helper to set up our test objects with a basic list with no phantom directories.
    */
-  protected void setupWithBasicInfoList() {
+  protected void setupWithBasicInfoList() throws IOException {
     initialInfos = ImmutableList.of(
         createDir("foo/", 111),
         createDir("foo/bar/", 222),

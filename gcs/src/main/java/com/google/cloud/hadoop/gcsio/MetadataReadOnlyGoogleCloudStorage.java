@@ -64,7 +64,8 @@ public class MetadataReadOnlyGoogleCloudStorage
    *
    * @param itemInfos The collection of item infos with which to serve all list/get object requests.
    */
-  public MetadataReadOnlyGoogleCloudStorage(Collection<GoogleCloudStorageItemInfo> itemInfos) {
+  public MetadataReadOnlyGoogleCloudStorage(Collection<GoogleCloudStorageItemInfo> itemInfos)
+      throws IOException {
     // Entries never expire for this use case.
     resourceCache.getMutableConfig().setMaxEntryAgeMillis(Long.MAX_VALUE);
     resourceCache.getMutableConfig().setMaxInfoAgeMillis(Long.MAX_VALUE);

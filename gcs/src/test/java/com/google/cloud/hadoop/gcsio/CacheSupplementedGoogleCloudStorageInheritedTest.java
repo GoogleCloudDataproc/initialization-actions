@@ -14,15 +14,51 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import com.google.common.base.Throwables;
+
+import org.junit.Rule;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
 
 /**
  * Base unittests inherited from GoogleCloudStorageTest for CacheSupplementedGoogleCloudStorage.
  */
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class CacheSupplementedGoogleCloudStorageInheritedTest
     extends GoogleCloudStorageTest {
+  @Parameters
+  public static Collection<Object[]> getConstructorArguments() throws IOException {
+    return Arrays.asList(new Object[][]{
+        {DirectoryListCache.Type.LOCAL_FILE_BACKED},
+        {DirectoryListCache.Type.IN_MEMORY}
+    });
+  }
+
+  @Rule
+  public TemporaryFolder tempDirectoryProvider = new TemporaryFolder();
+
+  private final DirectoryListCache.Type cacheType;
+
+  // The File corresponding to the temporary basePath of the testInstance if cacheType is
+  // LOCAL_FILE_BACKED.
+  private File basePathFile = null;
+
+  /**
+   * Should be populated with our Parameterized runner via getConstructorArguments(). Don't
+   * create actual instances here, just store the parameters, so that at runtime callers
+   * may call createTestInstance() as much as desired for fresh test instances.
+   */
+  public CacheSupplementedGoogleCloudStorageInheritedTest(DirectoryListCache.Type cacheType) {
+    this.cacheType = cacheType;
+  }
+
   /**
    * Simply overriding the createTestInstance() method of the base class runs all the unittests in
    * GoogleCloudStorageTest against a CacheSupplementedGoogleCloudStorage instance. For extended
@@ -32,9 +68,30 @@ public class CacheSupplementedGoogleCloudStorageInheritedTest
   @Override
   protected GoogleCloudStorage createTestInstance() {
     GoogleCloudStorage delegate = super.createTestInstance();
+
+    DirectoryListCache resourceCache = null;
+    switch (cacheType) {
+      case IN_MEMORY: {
+        resourceCache = new InMemoryDirectoryListCache();
+        break;
+      }
+      case LOCAL_FILE_BACKED: {
+        try {
+          basePathFile = tempDirectoryProvider.newFolder("gcs_metadata");
+          resourceCache =
+              new LocalFileBackedDirectoryListCache(basePathFile.toString());
+        } catch (IOException ioe) {
+          Throwables.propagate(ioe);
+        }
+        break;
+      }
+      default:
+        throw new RuntimeException(String.format(
+            "Invalid DirectoryListCache.Type: '%s'", cacheType));
+    }
+
     CacheSupplementedGoogleCloudStorage cacheSupplemented =
-        new CacheSupplementedGoogleCloudStorage(delegate);
-    cacheSupplemented.setResourceCache(new InMemoryDirectoryListCache());
+        new CacheSupplementedGoogleCloudStorage(delegate, resourceCache);
     return cacheSupplemented;
   }
 }
