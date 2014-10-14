@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -52,7 +53,8 @@ public class GoogleCloudStorageFileSystemTest
     if (gcsfs == null) {
       // TODO(user): Maybe switch to
       // new CacheSupplementedGoogleCloudStorage(new InMemoryGoogleCloudStorage()).
-      gcsfs = new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
+      gcsfs = new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage(),
+          GoogleCloudStorageFileSystemOptions.newBuilder().build());
       gcsfs.setUpdateTimestampsExecutor(MoreExecutors.newDirectExecutorService());
       gcsit = new GoogleCloudStorageFileSystemIntegrationTest();
       gcs = null;
@@ -125,7 +127,7 @@ public class GoogleCloudStorageFileSystemTest
 
     // Verify that credential == null throws IllegalArgumentException.
     try {
-      new GoogleCloudStorageFileSystem(null, optionsBuilder.build());
+      new GoogleCloudStorageFileSystem((Credential) null, optionsBuilder.build());
       Assert.fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException iae) {
       // Expected.

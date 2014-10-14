@@ -26,6 +26,7 @@ public class GoogleCloudStorageFileSystemOptions {
     protected boolean metadataCacheEnabled = true;
     protected DirectoryListCache.Type cacheType = DirectoryListCache.Type.IN_MEMORY;
     protected String cacheBasePath = null;
+    private boolean directoryTimestampUpdatingEnabled = true;
 
     private GoogleCloudStorageOptions.Builder cloudStorageOptionsBuilder =
         new GoogleCloudStorageOptions.Builder();
@@ -49,12 +50,18 @@ public class GoogleCloudStorageFileSystemOptions {
       return this;
     }
 
+    public Builder setDirectoryTimestampUpdatingEnabled(boolean directoryTimestampUpdatingEnabled) {
+      this.directoryTimestampUpdatingEnabled = directoryTimestampUpdatingEnabled;
+      return this;
+    }
+
     public GoogleCloudStorageFileSystemOptions build() {
       return new GoogleCloudStorageFileSystemOptions(
           cloudStorageOptionsBuilder.build(),
           metadataCacheEnabled,
           cacheType,
-          cacheBasePath);
+          cacheBasePath,
+          directoryTimestampUpdatingEnabled);
     }
   }
 
@@ -66,14 +73,19 @@ public class GoogleCloudStorageFileSystemOptions {
   private final boolean metadataCacheEnabled;
   private final DirectoryListCache.Type cacheType;
   private final String cacheBasePath;  // Only used if cacheType == LOCAL_FILE_BACKED.
+  private final boolean directoryTimestampUpdatingEnabled;
 
   public GoogleCloudStorageFileSystemOptions(
-      GoogleCloudStorageOptions cloudStorageOptions, boolean metadataCacheEnabled,
-      DirectoryListCache.Type cacheType, String cacheBasePath) {
+      GoogleCloudStorageOptions cloudStorageOptions,
+      boolean metadataCacheEnabled,
+      DirectoryListCache.Type cacheType,
+      String cacheBasePath,
+      boolean directoryTimestampUpdatingEnabled) {
     this.cloudStorageOptions = cloudStorageOptions;
     this.metadataCacheEnabled = metadataCacheEnabled;
     this.cacheType = cacheType;
     this.cacheBasePath = cacheBasePath;
+    this.directoryTimestampUpdatingEnabled = directoryTimestampUpdatingEnabled;
   }
 
   public GoogleCloudStorageOptions getCloudStorageOptions() {
@@ -90,6 +102,10 @@ public class GoogleCloudStorageFileSystemOptions {
 
   public String getCacheBasePath() {
     return cacheBasePath;
+  }
+
+  public boolean isDirectoryTimestampUpdatingEnabled() {
+    return directoryTimestampUpdatingEnabled;
   }
 
   public void throwIfNotValid() {

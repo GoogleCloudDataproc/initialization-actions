@@ -68,6 +68,10 @@ public class GoogleCloudStorageFileSystem {
   // GCS access instance.
   private GoogleCloudStorage gcs;
 
+  // FS options
+  private final GoogleCloudStorageFileSystemOptions options;
+
+  // Executor for updating directory timestamps
   private ExecutorService updateTimestampsExecutor = new ThreadPoolExecutor(
       0 /* base thread count */, 5 /* max thread count */, 2 /* keepAliveTime */,
       TimeUnit.SECONDS /* keepAliveTime unit */, new LinkedBlockingQueue<Runnable>(),
@@ -120,7 +124,8 @@ public class GoogleCloudStorageFileSystem {
 
     Preconditions.checkArgument(credential != null, "credential must not be null");
 
-    gcs = new GoogleCloudStorageImpl(options.getCloudStorageOptions(), credential);
+    this.options = options;
+    this.gcs = new GoogleCloudStorageImpl(options.getCloudStorageOptions(), credential);
 
     if (options.isMetadataCacheEnabled()) {
       DirectoryListCache resourceCache = null;
@@ -147,9 +152,18 @@ public class GoogleCloudStorageFileSystem {
    * Constructs a GoogleCloudStorageFilesystem based on an already-configured underlying
    * GoogleCloudStorage {@code gcs}.
    */
-  public GoogleCloudStorageFileSystem(GoogleCloudStorage gcs)
-      throws IOException {
+  public GoogleCloudStorageFileSystem(GoogleCloudStorage gcs) throws IOException {
+    this(gcs, GoogleCloudStorageFileSystemOptions.newBuilder().build());
+  }
+
+  /**
+   * Constructs a GoogleCloudStorageFilesystem based on an already-configured underlying
+   * GoogleCloudStorage {@code gcs}. Any options pertaining to GCS creation will be ignored.
+   */
+  public GoogleCloudStorageFileSystem(
+      GoogleCloudStorage gcs, GoogleCloudStorageFileSystemOptions options) throws IOException {
     this.gcs = gcs;
+    this.options = options;
   }
 
   @VisibleForTesting
@@ -1173,6 +1187,13 @@ public class GoogleCloudStorageFileSystem {
   protected void updateTimestampsForParentDirectories(
       List<URI> modifiedObjects, List<URI> excludedParents) throws IOException {
     log.debug("updateTimestampsForParentDirectories(%s, %s)", modifiedObjects, excludedParents);
+
+    if (!options.isDirectoryTimestampUpdatingEnabled()) {
+      log.debug(
+          "Parent directory timestamp updates are disabled. Skipping updates for parents of %s",
+          modifiedObjects);
+      return;
+    }
 
     Set<URI> excludedParentPathsSet = new HashSet<>(excludedParents);
 

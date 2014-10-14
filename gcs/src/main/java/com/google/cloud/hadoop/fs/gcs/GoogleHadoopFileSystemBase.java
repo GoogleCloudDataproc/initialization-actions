@@ -198,6 +198,14 @@ public abstract class GoogleHadoopFileSystemBase
   // Default value for fs.gs.metadata.cache.enable.
   public static final boolean GCS_ENABLE_METADATA_CACHE_DEFAULT = true;
 
+  // Configuration key for whether or not we should update timestamps for parent directories
+  // when we create new files in them.
+  public static final String GCS_ENABLE_PARENT_TIMESTAMP_UPDATES_KEY =
+      "fs.gs.parent.timestamp.updating.enable";
+
+  // Default value for fs.gs.parent.timestamp.updating.enable.
+  public static final boolean GCS_ENABLE_PARENT_TIMESTAMP_UPDATES_DEFAULT = true;
+
   // Configuration key for enabling automatic repair of implicit directories whenever detected
   // inside listStatus and globStatus calls, or other methods which may indirectly call listStatus
   // and/or globaStatus.
@@ -1334,6 +1342,13 @@ public abstract class GoogleHadoopFileSystemBase
           GCS_ENABLE_METADATA_CACHE_DEFAULT);
       log.debug("%s = %s", GCS_ENABLE_METADATA_CACHE_KEY, enableMetadataCache);
       optionsBuilder.setIsMetadataCacheEnabled(enableMetadataCache);
+
+      boolean enableDirectoryTimestampUpdating = config.getBoolean(
+          GCS_ENABLE_PARENT_TIMESTAMP_UPDATES_KEY,
+          GCS_ENABLE_PARENT_TIMESTAMP_UPDATES_DEFAULT);
+      log.debug("%s = %s", GCS_ENABLE_PARENT_TIMESTAMP_UPDATES_KEY,
+          enableDirectoryTimestampUpdating);
+      optionsBuilder.setDirectoryTimestampUpdatingEnabled(enableDirectoryTimestampUpdating);
 
       enableAutoRepairImplicitDirectories = config.getBoolean(
           GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY,
