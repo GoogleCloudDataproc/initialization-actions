@@ -1182,10 +1182,6 @@ public class GoogleCloudStorageFileSystem {
       updateTimestampsForParentDirectories(modifiedObjects, excludedParents);
     } catch (IOException ioe) {
       log.debug("Exception caught when trying to update parent directory timestamps.", ioe);
-      log.warn(
-          "Failed to update parent directory timestamps for objects rooted in '%s', excluding '%s'",
-          modifiedObjects,
-          excludedParents);
     }
   }
 
