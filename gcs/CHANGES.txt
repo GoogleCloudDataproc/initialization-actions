@@ -6,6 +6,9 @@
      should be updated.
   2. Directory timestamp updating will now occur on a background thread inside
      GoogleCloudStorageFileSystem.
+  3. Attempting to acquire an OAuth access token will be now be retried when
+     using .p12 or installed application (JWT) credentials if there is a
+     recoverable error such as an HTTP 5XX response code or an IOException.
 
 1.2.9 - 2014-09-18
 

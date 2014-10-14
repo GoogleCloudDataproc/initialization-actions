@@ -24,9 +24,14 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.compute.ComputeCredential;
 import com.google.api.client.googleapis.extensions.java6.auth.oauth2.GooglePromptReceiver;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.http.HttpBackOffIOExceptionHandler;
+import com.google.api.client.http.HttpBackOffUnsuccessfulResponseHandler;
+import com.google.api.client.http.HttpRequest;
+import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.services.storage.StorageScopes;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -41,6 +46,21 @@ import java.util.List;
  * Miscellaneous helper methods for getting a {@code Credential} from various sources.
  */
 public class CredentialFactory {
+
+  /**
+   * Simple HttpRequestInitializer that retries requests that result in 5XX response codes and
+   * IO Exceptions with an exponential backoff.
+   */
+  public static class CredentialHttpRetryInitializer implements HttpRequestInitializer {
+    @Override
+    public void initialize(HttpRequest httpRequest) throws IOException {
+      httpRequest.setIOExceptionHandler(
+          new HttpBackOffIOExceptionHandler(new ExponentialBackOff()));
+      httpRequest.setUnsuccessfulResponseHandler(
+          new HttpBackOffUnsuccessfulResponseHandler(new ExponentialBackOff()));
+    }
+  }
+
   // List of GCS scopes to specify when obtaining a credential.
   public static final List<String> GCS_SCOPES =
       ImmutableList.of(StorageScopes.DEVSTORAGE_FULL_CONTROL);
@@ -80,6 +100,9 @@ public class CredentialFactory {
   public Credential getCredentialFromMetadataServiceAccount()
       throws IOException, GeneralSecurityException {
     log.debug("getCredentialFromMetadataServiceAccount()");
+    // ComputeCredential doesn't allow us to set up an HttpRequestInitializer (it's also less likely
+    // to suffer a recoverable error). Consider rolling our own ComputeCredential or creating a
+    // fix in the compute API client code.
     Credential cred = new ComputeCredential(getHttpTransport(), JSON_FACTORY);
     try {
       cred.refreshToken();
@@ -104,12 +127,14 @@ public class CredentialFactory {
       throws IOException, GeneralSecurityException {
     log.debug("getCredentialFromPrivateKeyServiceAccount(%s, %s, %s)",
         serviceAccountEmail, privateKeyFile, scopes);
+
     return new GoogleCredential.Builder()
         .setTransport(getHttpTransport())
         .setJsonFactory(JSON_FACTORY)
         .setServiceAccountId(serviceAccountEmail)
         .setServiceAccountScopes(scopes)
         .setServiceAccountPrivateKeyFromP12File(new File(privateKeyFile))
+        .setRequestInitializer(new CredentialHttpRetryInitializer())
         .build();
   }
 
@@ -150,9 +175,14 @@ public class CredentialFactory {
         new FileCredentialStore(new File(filePath), JSON_FACTORY);
 
     // Set up authorization code flow.
-    GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-        getHttpTransport(), JSON_FACTORY, clientSecrets, scopes)
+    GoogleAuthorizationCodeFlow flow =
+        new GoogleAuthorizationCodeFlow.Builder(
+            getHttpTransport(),
+            JSON_FACTORY,
+            clientSecrets,
+            scopes)
         .setCredentialStore(credentialStore)
+        .setRequestInitializer(new CredentialHttpRetryInitializer())
         .build();
 
     // Authorize access.
