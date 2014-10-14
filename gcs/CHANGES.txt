@@ -1,3 +1,12 @@
+1.2.10 - 2014-10-XX
+
+  1. Directory timestamp updating can now be controlled via user-settable
+     property "fs.gs.parent.timestamp.updating.enable" in core-site.xml.
+     The default value for this property is "true" which indicates timestamps
+     should be updated.
+  2. Directory timestamp updating will now occur on a background thread inside
+     GoogleCloudStorageFileSystem.
+
 1.2.9 - 2014-09-18
 
   1. When directory contents are updated e.g., files or directories are added,

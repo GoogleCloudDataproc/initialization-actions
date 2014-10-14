@@ -21,6 +21,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import org.joda.time.Instant;
 import org.junit.AfterClass;
@@ -111,6 +112,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest
       gcsfs = new GoogleCloudStorageFileSystem(
           credential,
           optionsBuilder.build());
+
+      gcsfs.setUpdateTimestampsExecutor(MoreExecutors.newDirectExecutorService());
 
       gcsit = new GoogleCloudStorageFileSystemIntegrationTest();
 
@@ -1707,6 +1710,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest
   public void testDeleteUpdatesDirectoryModificationTimestamps()
       throws IOException, InterruptedException {
     URI directory = getPath(bucketName, "test-modification-timestamps/delete-dir/");
+
     gcsfs.mkdirs(directory);
 
     URI sourceFile = directory.resolve("child-file");

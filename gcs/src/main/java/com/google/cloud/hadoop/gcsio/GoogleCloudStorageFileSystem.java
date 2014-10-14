@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -40,6 +41,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+
 
 /**
  * Provides a POSIX like file system layered on top of Google Cloud Storage (GCS).
@@ -61,6 +67,14 @@ public class GoogleCloudStorageFileSystem {
 
   // GCS access instance.
   private GoogleCloudStorage gcs;
+
+  private ExecutorService updateTimestampsExecutor = new ThreadPoolExecutor(
+      0 /* base thread count */, 5 /* max thread count */, 2 /* keepAliveTime */,
+      TimeUnit.SECONDS /* keepAliveTime unit */, new LinkedBlockingQueue<Runnable>(),
+      new ThreadFactoryBuilder()
+          .setNameFormat("gcsfs-timestamp-updates-%d")
+          .setDaemon(true)
+          .build());
 
   // Comparator used for sorting paths.
   //
@@ -137,6 +151,12 @@ public class GoogleCloudStorageFileSystem {
       throws IOException {
     this.gcs = gcs;
   }
+
+  @VisibleForTesting
+  void setUpdateTimestampsExecutor(ExecutorService executor) {
+    this.updateTimestampsExecutor = executor;
+  }
+
 
   /**
    * Creates and opens an object for writing.
@@ -1088,6 +1108,19 @@ public class GoogleCloudStorageFileSystem {
         gcs = null;
       }
     }
+
+    if (updateTimestampsExecutor != null) {
+      updateTimestampsExecutor.shutdown();
+      try {
+        if (!updateTimestampsExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
+          log.warn("Forcibly shutting down timestamp update threadpool.");
+          updateTimestampsExecutor.shutdownNow();
+        }
+      } catch (InterruptedException e) {
+        log.warn("Interrupted awaiting timestamp update threadpool.");
+      }
+      updateTimestampsExecutor = null;
+    }
   }
 
   /**
@@ -1175,14 +1208,21 @@ public class GoogleCloudStorageFileSystem {
    * @param excludedParents A list of parent directories that we shouldn't attempt to update.
    */
   protected void tryUpdateTimestampsForParentDirectories(
-      List<URI> modifiedObjects, List<URI> excludedParents) {
+      final List<URI> modifiedObjects, final List<URI> excludedParents) {
     log.debug("tryUpdateTimestampsForParentDirectories(%s, %s)", modifiedObjects, excludedParents);
 
-    try {
-      updateTimestampsForParentDirectories(modifiedObjects, excludedParents);
-    } catch (IOException ioe) {
-      log.debug("Exception caught when trying to update parent directory timestamps.", ioe);
-    }
+    // If we're calling tryUpdateTimestamps, we don't actually care about the results. Submit
+    // these requests via a background thread and continue on.
+    updateTimestampsExecutor.submit(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          updateTimestampsForParentDirectories(modifiedObjects, excludedParents);
+        } catch (IOException ioe) {
+          log.debug("Exception caught when trying to update parent directory timestamps.", ioe);
+        }
+      }
+    });
   }
 
   /**

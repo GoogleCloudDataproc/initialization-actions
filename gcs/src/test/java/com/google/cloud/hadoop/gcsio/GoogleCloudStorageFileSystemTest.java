@@ -16,6 +16,7 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
@@ -52,6 +53,7 @@ public class GoogleCloudStorageFileSystemTest
       // TODO(user): Maybe switch to
       // new CacheSupplementedGoogleCloudStorage(new InMemoryGoogleCloudStorage()).
       gcsfs = new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
+      gcsfs.setUpdateTimestampsExecutor(MoreExecutors.newDirectExecutorService());
       gcsit = new GoogleCloudStorageFileSystemIntegrationTest();
       gcs = null;
       GoogleCloudStorageFileSystemIntegrationTest.postCreateInit();
