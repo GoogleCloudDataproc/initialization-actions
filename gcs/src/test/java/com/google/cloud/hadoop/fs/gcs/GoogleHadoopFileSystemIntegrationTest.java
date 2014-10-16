@@ -265,24 +265,6 @@ public class GoogleHadoopFileSystemIntegrationTest
   }
 
   @Test
-  public void testInitializeThrowsWithConnectionFailureToMetadata()
-      throws URISyntaxException, IOException {
-    String existingBucket = bucketName;
-
-    Configuration config = new Configuration();
-    URI gsUri = new URI("gs://foobar/");
-    String fakeProjectId = "123456";
-
-    config.setBoolean(GoogleHadoopFileSystemBase.ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY, true);
-    config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, existingBucket);
-    config.set(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY, fakeProjectId);
-
-    expectedException.expect(IOException.class);
-    expectedException.expectMessage("Error getting access token from metadata server");
-    new GoogleHadoopFileSystem().initialize(gsUri, config);
-  }
-
-  @Test
   public void testInitializeThrowsWhenNoProjectIdConfigured()
       throws URISyntaxException, IOException {
     // Verify that incomplete config raises exception.
