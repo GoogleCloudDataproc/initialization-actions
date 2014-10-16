@@ -1,9 +1,12 @@
 1.3.0 - 2014-10-xx
 
   1. Directory timestamp updating can now be controlled via user-settable
-     property "fs.gs.parent.timestamp.updating.enable" in core-site.xml.
-     The default value for this property is "true" which indicates timestamps
-     should be updated.
+     properties "fs.gs.parent.timestamp.update.enable",
+     "fs.gs.parent.timestamp.update.substrings.excludes". and
+     "fs.gs.parent.timestamp.update.substrings.includes" in core-site.xml. By
+     default, timestamp updating is enabled for the YARN done and intermediate
+     done directories and excluded for everything else. Strings listed in
+     includes take precedence over excludes.
   2. Directory timestamp updating will now occur on a background thread inside
      GoogleCloudStorageFileSystem.
   3. Attempting to acquire an OAuth access token will be now be retried when
@@ -31,6 +34,7 @@
      to include things like "foo/bar1" and "foo/bar1/baz", even though the
      results themselves would be correct due to filtering out the proper glob
      client-side in the end.
+  7. The versions of java API clients were updated to 1.19 derived versions.
 
 
 1.2.9 - 2014-09-18
