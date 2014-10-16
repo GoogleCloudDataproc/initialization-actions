@@ -1207,10 +1207,18 @@ public abstract class GoogleHadoopFileSystemBase
       String pathString = fixedPath.toString();
       String prefixString = trimToPrefixWithoutGlob(pathString);
       Path prefixPath = new Path(prefixString);
+      URI prefixUri = getGcsPath(prefixPath);
+
+      if (prefixString.endsWith("/") && !prefixPath.toString().endsWith("/")) {
+        // Path strips a trailing slash unless it's the 'root' path. We want to keep the trailing
+        // slash so that we don't wastefully list sibling files which may match the directory-name
+        // as a strict prefix but would've been omitted due to not containing the '/' at the end.
+        prefixUri = FileInfo.convertToDirectoryPath(prefixUri);
+      }
 
       // Get everything matching the non-glob prefix.
-      log.debug("Listing everything with prefix '%s'", prefixPath);
-      List<FileInfo> fileInfos = gcsfs.listAllFileInfoForPrefix(getGcsPath(prefixPath));
+      log.debug("Listing everything with prefix '%s'", prefixUri);
+      List<FileInfo> fileInfos = gcsfs.listAllFileInfoForPrefix(prefixUri);
       if (fileInfos.isEmpty()) {
         // Let the superclass define the proper logic for finding no matches.
         return super.globStatus(fixedPath, filter);

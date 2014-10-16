@@ -26,6 +26,11 @@
   5. Optimized seeks in GoogleHadoopFSDataInputStream which fit within
      the pre-fetched memory buffer by simply repositioning the buffer in-place
      instead of delegating to the underlying channel at all.
+  6. Fixed a performance-hindering bug in globStatus where "foo/bar/*" would
+     flat-list "foo/bar" instead of "foo/bar/"; causing the "candidate matches"
+     to include things like "foo/bar1" and "foo/bar1/baz", even though the
+     results themselves would be correct due to filtering out the proper glob
+     client-side in the end.
 
 
 1.2.9 - 2014-09-18

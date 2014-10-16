@@ -701,7 +701,7 @@ public class GoogleCloudStorageImpl
     String pageToken = null;
     do {
       if (pageToken != null) {
-        log.debug("listBucketsInternal: next page");
+        log.debug("listBucketsInternal: next page %s", pageToken);
         listBucket.setPageToken(pageToken);
       }
 
@@ -710,6 +710,7 @@ public class GoogleCloudStorageImpl
       // Accumulate buckets (if any).
       List<Bucket> buckets = items.getItems();
       if (buckets != null) {
+        log.debug("listed %d items", buckets.size());
         allBuckets.addAll(buckets);
       }
 
@@ -822,7 +823,7 @@ public class GoogleCloudStorageImpl
 
     do {
       if (pageToken != null) {
-        log.debug("listObjectNames: next page");
+        log.debug("listObjectNames: next page %s", pageToken);
         listObject.setPageToken(pageToken);
       }
 
@@ -841,12 +842,14 @@ public class GoogleCloudStorageImpl
       // Add prefixes (if any).
       List<String> prefixes = items.getPrefixes();
       if (prefixes != null) {
+        log.debug("listed %d prefixes", prefixes.size());
         listedPrefixes.addAll(prefixes);
       }
 
       // Add object names (if any).
       List<StorageObject> objects = items.getItems();
       if (objects != null) {
+        log.debug("listed %d objects", objects.size());
 
         // Although GCS does not implement a file system, it treats objects that end
         // in delimiter as different from other objects when listing objects.
