@@ -101,27 +101,34 @@
       <dependency>
         <groupId>com.google.api-client</groupId>
         <artifactId>google-api-client-jackson2</artifactId>
-        <version>1.18.0-rc</version>
+        <version>1.19.0</version>
       </dependency>
       <dependency>
         <groupId>com.google.api-client</groupId>
         <artifactId>google-api-client-java6</artifactId>
-        <version>1.18.0-rc</version>
+        <version>1.19.0</version>
+        <exclusions>
+          <exclusion>
+            <!-- this version hides too many things -->
+            <artifactId>guava-jdk5</artifactId>
+            <groupId>com.google.guava</groupId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>com.google.apis</groupId>
         <artifactId>google-api-services-storage</artifactId>
-        <version>v1-rev2-1.18.0-rc</version>
+        <version>v1-rev16-1.19.0</version>
       </dependency>
       <dependency>
         <groupId>com.google.oauth-client</groupId>
         <artifactId>google-oauth-client</artifactId>
-        <version>1.18.0-rc</version>
+        <version>1.19.0</version>
       </dependency>
       <dependency>
         <groupId>com.google.oauth-client</groupId>
         <artifactId>google-oauth-client-java6</artifactId>
-        <version>1.18.0-rc</version>
+        <version>1.19.0</version>
       </dependency>
       <dependency>
         <groupId>com.google.code.findbugs</groupId>
