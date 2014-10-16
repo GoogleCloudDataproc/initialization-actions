@@ -794,64 +794,167 @@ public abstract class HadoopFileSystemTestBase
     int numBytesWritten = writeFile(hadoopPath, text, 1, false);
 
     // Verify that position is at 0 for a newly opened stream.
-    FSDataInputStream readStream =
-        ghfs.open(hadoopPath, GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT);
-    Assert.assertEquals(0, readStream.getPos());
+    try (FSDataInputStream readStream =
+        ghfs.open(hadoopPath, GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT)) {
+      Assert.assertEquals(0, readStream.getPos());
 
-    // Verify that position advances by 2 after reading 2 bytes.
-    Assert.assertEquals(readStream.read(), (int) 'H');
-    Assert.assertEquals(readStream.read(), (int) 'e');
-    Assert.assertEquals(2, readStream.getPos());
+      // Verify that position advances by 2 after reading 2 bytes.
+      Assert.assertEquals(readStream.read(), (int) 'H');
+      Assert.assertEquals(readStream.read(), (int) 'e');
+      Assert.assertEquals(2, readStream.getPos());
 
-    // Verify that setting position to the same value is a no-op.
-    readStream.seek(2);
-    Assert.assertEquals(2, readStream.getPos());
-    readStream.seek(2);
-    Assert.assertEquals(2, readStream.getPos());
+      // Verify that setting position to the same value is a no-op.
+      readStream.seek(2);
+      Assert.assertEquals(2, readStream.getPos());
+      readStream.seek(2);
+      Assert.assertEquals(2, readStream.getPos());
 
-    // Verify that position can be set to a valid position.
-    readStream.seek(6);
-    Assert.assertEquals(6, readStream.getPos());
-    Assert.assertEquals(readStream.read(), (int) 'W');
+      // Verify that position can be set to a valid position.
+      readStream.seek(6);
+      Assert.assertEquals(6, readStream.getPos());
+      Assert.assertEquals(readStream.read(), (int) 'W');
 
-    // Verify that position can be set to end of file.
-    long posEOF = numBytesWritten - 1;
-    int val;
-    readStream.seek(posEOF);
-    Assert.assertEquals(posEOF, readStream.getPos());
-    val = readStream.read();
-    Assert.assertTrue(val != -1);
-    val = readStream.read();
-    Assert.assertEquals(val, -1);
-    readStream.seek(0);
-    Assert.assertEquals(0, readStream.getPos());
+      // Verify that position can be set to end of file.
+      long posEOF = numBytesWritten - 1;
+      int val;
+      readStream.seek(posEOF);
+      Assert.assertEquals(posEOF, readStream.getPos());
+      val = readStream.read();
+      Assert.assertTrue(val != -1);
+      val = readStream.read();
+      Assert.assertEquals(val, -1);
+      readStream.seek(0);
+      Assert.assertEquals(0, readStream.getPos());
 
-    // Verify that position cannot be set to a negative position.
-    // Note:
-    // HDFS implementation allows seek(-1) to succeed.
-    // It even sets the position to -1!
-    // We cannot enable the following test till HDFS bug is fixed.
-    // try {
-    //   readStream.seek(-1);
-    //   Assert.fail("Expected IOException");
-    // } catch (IOException expected) {
-    //   // Expected.
-    // }
+      // Verify that position cannot be set to a negative position.
+      // Note:
+      // HDFS implementation allows seek(-1) to succeed.
+      // It even sets the position to -1!
+      // We cannot enable the following test till HDFS bug is fixed.
+      // try {
+      //   readStream.seek(-1);
+      //   Assert.fail("Expected IOException");
+      // } catch (IOException expected) {
+      //   // Expected.
+      // }
 
-    // Verify that position cannot be set beyond end of file.
-    try {
-      readStream.seek(numBytesWritten + 1);
-      Assert.fail("Expected IOException");
-    } catch (IOException expected) {
-      // Expected.
+      // Verify that position cannot be set beyond end of file.
+      try {
+        readStream.seek(numBytesWritten + 1);
+        Assert.fail("Expected IOException");
+      } catch (IOException expected) {
+        // Expected.
+      }
+
+      // Perform some misc checks.
+      // TODO(user): Make it no longer necessary to do instanceof.
+      if (ghfs instanceof GoogleHadoopFileSystemBase) {
+        long someValidPosition = 2;
+        Assert.assertEquals(false, readStream.seekToNewSource(someValidPosition));
+        Assert.assertEquals(false, readStream.markSupported());
+      }
     }
+  }
 
-    // Perform some misc checks.
-    // TODO(user): Make it no longer necessary to do instanceof.
-    if (ghfs instanceof GoogleHadoopFileSystemBase) {
-      long someValidPosition = 2;
-      Assert.assertEquals(false, readStream.seekToNewSource(someValidPosition));
-      Assert.assertEquals(false, readStream.markSupported());
+  /**
+   * More comprehensive testing of various "seek" calls backwards and forwards and around
+   * the edge cases related to buffer sizes.
+   */
+  @Test
+  public void testFilePositionInDepthSeeks()
+      throws IOException {
+    // Write an object.
+    URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
+    Path hadoopPath = castAsHadoopPath(path);
+
+    byte[] testBytes = new byte[GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT * 3];
+    // The value of each byte should be each to its integer index squared, cast as a byte.
+    for (int i = 0; i < testBytes.length; ++i) {
+      testBytes[i] = (byte) (i * i);
+    }
+    int numBytesWritten = writeFile(hadoopPath, ByteBuffer.wrap(testBytes), 1, false);
+    Assert.assertEquals(testBytes.length, numBytesWritten);
+
+    try (FSDataInputStream readStream =
+        ghfs.open(hadoopPath, GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT)) {
+      Assert.assertEquals(0, readStream.getPos());
+      Assert.assertEquals(testBytes[0], (byte) readStream.read());
+      Assert.assertEquals(1, readStream.getPos());
+      Assert.assertEquals(testBytes[1], (byte) readStream.read());
+      Assert.assertEquals(2, readStream.getPos());
+
+      // Seek backwards after reads got us to the current position.
+      readStream.seek(0);
+      Assert.assertEquals(0, readStream.getPos());
+      Assert.assertEquals(testBytes[0], (byte) readStream.read());
+      Assert.assertEquals(1, readStream.getPos());
+      Assert.assertEquals(testBytes[1], (byte) readStream.read());
+      Assert.assertEquals(2, readStream.getPos());
+
+      // Seek to same position, should be no-op, data should still be right.
+      readStream.seek(2);
+      Assert.assertEquals(2, readStream.getPos());
+      Assert.assertEquals(testBytes[2], (byte) readStream.read());
+      Assert.assertEquals(3, readStream.getPos());
+
+      // Seek farther, but within the read buffersize.
+      int midPos = (int) GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT / 2;
+      readStream.seek(midPos);
+      Assert.assertEquals(midPos, readStream.getPos());
+      Assert.assertEquals(testBytes[midPos], (byte) readStream.read());
+
+      // Seek backwards after we got here from some seeking, seek close to but not equal to
+      // the beginning.
+      readStream.seek(42);
+      Assert.assertEquals(42, readStream.getPos());
+      Assert.assertEquals(testBytes[42], (byte) readStream.read());
+
+      // Seek to right before the end of the internal buffer.
+      int edgePos = (int) GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT - 1;
+      readStream.seek(edgePos);
+      Assert.assertEquals(edgePos, readStream.getPos());
+      Assert.assertEquals(testBytes[edgePos], (byte) readStream.read());
+
+      // This read should put us over the buffer's limit and require a new read from the underlying
+      // stream.
+      Assert.assertEquals(edgePos + 1, readStream.getPos());
+      Assert.assertEquals(testBytes[edgePos + 1], (byte) readStream.read());
+
+      // Seek back to the edge and this time seek forward.
+      readStream.seek(edgePos);
+      Assert.assertEquals(edgePos, readStream.getPos());
+      readStream.seek(edgePos + 1);
+      Assert.assertEquals(edgePos + 1, readStream.getPos());
+      Assert.assertEquals(testBytes[edgePos + 1], (byte) readStream.read());
+
+      // Seek into buffer 2, then seek a bit further into it.
+      int bufferTwoStart = GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT * 2;
+      readStream.seek(bufferTwoStart);
+      Assert.assertEquals(bufferTwoStart, readStream.getPos());
+      Assert.assertEquals(testBytes[bufferTwoStart], (byte) readStream.read());
+      readStream.seek(bufferTwoStart + 42);
+      Assert.assertEquals(bufferTwoStart + 42, readStream.getPos());
+      Assert.assertEquals(testBytes[bufferTwoStart + 42], (byte) readStream.read());
+
+      // Seek backwards in-place inside buffer 2.
+      readStream.seek(bufferTwoStart);
+      Assert.assertEquals(bufferTwoStart, readStream.getPos());
+      Assert.assertEquals(testBytes[bufferTwoStart], (byte) readStream.read());
+
+      // Seek backwards by one buffer, but not all the way back to buffer 0.
+      int bufferOneInternal = GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT + 42;
+      readStream.seek(bufferOneInternal);
+      Assert.assertEquals(bufferOneInternal, readStream.getPos());
+      Assert.assertEquals(testBytes[bufferOneInternal], (byte) readStream.read());
+
+      // Seek to the very beginning again and then seek to the very end.
+      readStream.seek(0);
+      Assert.assertEquals(0, readStream.getPos());
+      Assert.assertEquals(testBytes[0], (byte) readStream.read());
+      Assert.assertEquals(1, readStream.getPos());
+      readStream.seek(testBytes.length - 1);
+      Assert.assertEquals(testBytes[testBytes.length - 1], (byte) readStream.read());
+      Assert.assertEquals(testBytes.length, readStream.getPos());
     }
   }
 

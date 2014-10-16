@@ -239,13 +239,47 @@ class GoogleHadoopFSInputStream
       throws IOException {
     long startTime = System.nanoTime();
     log.debug("seek: %d", pos);
-    try {
-      channel.position(pos);
-    } catch (IllegalArgumentException e) {
-      throw new IOException(e);
+    long curPos = getPos();
+    if (curPos == pos) {
+      log.debug("Skipping no-op seek.");
+    } else if (pos < curPos && curPos - pos <= buffer.position()) {
+      // Skip backwards few enough bytes that our current buffer still has those bytes around
+      // so that we simply need to reposition the buffer backwards a bit.
+      long skipBack = curPos - pos;
+
+      // Guaranteed safe to cast as an (int) because curPos - pos is <= buffer.position(), and
+      // position() is itself an int.
+      int newBufferPosition = buffer.position() - (int) skipBack;
+      log.debug("Skipping backward %d bytes in-place from buffer pos %s to new pos %s",
+          skipBack, buffer.position(), newBufferPosition);
+      buffer.position(newBufferPosition);
+    } else if (curPos < pos && pos < channel.position()) {
+      // Skip forwards--between curPos and channel.position() are the bytes we already have
+      // available in the buffer.
+      long skipBytes = pos - curPos;
+      Preconditions.checkState(skipBytes < buffer.remaining(),
+          "skipBytes (%s) must be less than buffer.remaining() (%s)",
+          skipBytes, buffer.remaining());
+
+      // We know skipBytes is castable as (int) even if the top-level position is capable of
+      // overflowing an int, since we at least assert that skipBytes < buffer.remaining(),
+      // which is itself less than Integer.MAX_VALUE.
+      int newBufferPosition = buffer.position() + (int) skipBytes;
+      log.debug("Skipping %d bytes in-place from buffer pos %d to new pos %d",
+          skipBytes, buffer.position(), newBufferPosition);
+      buffer.position(newBufferPosition);
+    } else {
+      log.debug("New position '%d' out of range of inplace buffer, with curPos (%d), "
+         + "buffer.position() (%d) and buffer.remaining() (%d).",
+          pos, curPos, buffer.position(), buffer.remaining());
+      try {
+        channel.position(pos);
+      } catch (IllegalArgumentException e) {
+        throw new IOException(e);
+      }
+      buffer.limit(0);
+      buffer.rewind();
     }
-    buffer.limit(0);
-    buffer.rewind();
     long duration = System.nanoTime() - startTime;
     ghfs.increment(GoogleHadoopFileSystemBase.Counter.SEEK);
     ghfs.increment(GoogleHadoopFileSystemBase.Counter.SEEK_TIME, duration);

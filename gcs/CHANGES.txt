@@ -1,4 +1,4 @@
-1.2.10 - 2014-10-XX
+1.3.0 - 2014-10-xx
 
   1. Directory timestamp updating can now be controlled via user-settable
      property "fs.gs.parent.timestamp.updating.enable" in core-site.xml.
@@ -9,6 +9,25 @@
   3. Attempting to acquire an OAuth access token will be now be retried when
      using .p12 or installed application (JWT) credentials if there is a
      recoverable error such as an HTTP 5XX response code or an IOException.
+  4. Added LocalFileBackedDirectoryListCache, extracting a common interface
+     for it to share with the (InMemory)DirectoryListCache; instead of using
+     an in-memory HashMap to enforce only same-process list consistency, the
+     LocalFileBacked version mirrors GCS objects as empty files on a local
+     FileSystem, which may itself be an NFS mount for cluster-wide or even
+     potentially cross-cluster consistency groups. This allows a cluster to
+     be configured with a "consistent view", making it safe to use GCS as the
+     DEFAULT_FS for arbitrary multi-stage or even multi-platform workloads.
+     This is now enabled by default for machine-wide consistency, but it is
+     strongly recommended to configure clusters with an NFS directory for
+     cluster-wide strong consistency. Relevant configuration settings:
+
+     fs.gs.metadata.cache.enable [default: true]
+     fs.gs.metadata.cache.type [IN_MEMORY (default) | LOCAL_FILE_BACKED]
+     fs.gs.metadata.cache.directory [default: /tmp/gcs_connector_metadata_cache]
+  5. Optimized seeks in GoogleHadoopFSDataInputStream which fit within
+     the pre-fetched memory buffer by simply repositioning the buffer in-place
+     instead of delegating to the underlying channel at all.
+
 
 1.2.9 - 2014-09-18
 
