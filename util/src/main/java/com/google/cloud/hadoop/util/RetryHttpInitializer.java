@@ -81,7 +81,7 @@ public class RetryHttpInitializer
         HttpRequest httpRequest, HttpResponse httpResponse, boolean supportsRetry)
         throws IOException {
       if (responseCodesToLog.contains(httpResponse.getStatusCode())) {
-        log.warn("Encountered status code %s when accessing URL %s. "
+        log.info("Encountered status code %s when accessing URL %s. "
             + "Delegating to response handler for possible retry.",
             httpResponse.getStatusCode(),
             httpRequest.getUrl());
@@ -95,7 +95,7 @@ public class RetryHttpInitializer
         throws IOException {
       // We sadly don't get anything helpful to see if this is something we want to log. As a result
       // we'll turn down the logging level to debug.
-      log.warn("Encountered an IOException when accessing URL %s", httpRequest.getUrl());
+      log.debug("Encountered an IOException when accessing URL %s", httpRequest.getUrl());
       return delegateIOExceptionHandler.handleIOException(httpRequest, supportsRetry);
     }
   }
