@@ -1239,4 +1239,9 @@ public abstract class HadoopFileSystemTestBase
   public void testRenameUpdatesParentDirectoryModificationTimestamps()
       throws IOException, InterruptedException {
   }
+
+  @Override
+  public void testPredicateIsConsultedForModificationTimestamps()
+      throws IOException, InterruptedException {
+  }
 }

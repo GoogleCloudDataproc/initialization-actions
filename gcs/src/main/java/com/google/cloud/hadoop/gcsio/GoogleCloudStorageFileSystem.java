@@ -22,6 +22,7 @@ import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -1188,19 +1189,15 @@ public class GoogleCloudStorageFileSystem {
       List<URI> modifiedObjects, List<URI> excludedParents) throws IOException {
     log.debug("updateTimestampsForParentDirectories(%s, %s)", modifiedObjects, excludedParents);
 
-    if (!options.isDirectoryTimestampUpdatingEnabled()) {
-      log.debug(
-          "Parent directory timestamp updates are disabled. Skipping updates for parents of %s",
-          modifiedObjects);
-      return;
-    }
-
+    Predicate<String> shouldIncludeInTimestampUpdatesPredicate =
+        options.getShouldIncludeInTimestampUpdatesPredicate();
     Set<URI> excludedParentPathsSet = new HashSet<>(excludedParents);
 
     HashSet<URI> parentUrisToUpdate = new HashSet<>(modifiedObjects.size());
     for (URI modifiedObjectUri : modifiedObjects) {
       URI parentPathUri = getParentPath(modifiedObjectUri);
-      if (!excludedParentPathsSet.contains(parentPathUri)) {
+      if (!excludedParentPathsSet.contains(parentPathUri)
+          && shouldIncludeInTimestampUpdatesPredicate.apply(parentPathUri.getPath())) {
         parentUrisToUpdate.add(parentPathUri);
       }
     }
@@ -1217,7 +1214,11 @@ public class GoogleCloudStorageFileSystem {
       }
     }
 
-    gcs.updateItems(itemUpdates);
+    if (!itemUpdates.isEmpty()) {
+      gcs.updateItems(itemUpdates);
+    } else {
+      log.debug("All paths were excluded from directory timestamp updating.");
+    }
   }
 
   /**

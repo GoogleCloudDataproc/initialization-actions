@@ -29,6 +29,8 @@ import com.google.cloud.hadoop.util.LogUtil;
 import com.google.cloud.hadoop.util.PropertyUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 
@@ -98,6 +100,9 @@ public abstract class GoogleHadoopFileSystemBase
 
   // We report this value as a file's owner/group name.
   private static final String USER_NAME = System.getProperty("user.name");
+
+  // Splitter for list values stored in a single configuration value
+  private static final Splitter CONFIGURATION_SPLITTER = Splitter.on(',');
 
   // -----------------------------------------------------------------
   // Configuration settings.
@@ -200,11 +205,42 @@ public abstract class GoogleHadoopFileSystemBase
 
   // Configuration key for whether or not we should update timestamps for parent directories
   // when we create new files in them.
-  public static final String GCS_ENABLE_PARENT_TIMESTAMP_UPDATES_KEY =
-      "fs.gs.parent.timestamp.updating.enable";
+  public static final String GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY =
+      "fs.gs.parent.timestamp.update.enable";
 
-  // Default value for fs.gs.parent.timestamp.updating.enable.
-  public static final boolean GCS_ENABLE_PARENT_TIMESTAMP_UPDATES_DEFAULT = true;
+  // Default value for fs.gs.parent.timestamp.update.enable.
+  public static final boolean GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_DEFAULT = true;
+
+  // Configuration key containing a comma-separated list of sub-strings that when matched will
+  // cause a particular directory to not have its modification timestamp updated.
+  // Includes take precedence over excludes.
+  public static final String GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY =
+      "fs.gs.parent.timestamp.update.substrings.excludes";
+
+  // Default value for fs.gs.parent.timestamp.updating.substrings.exclude
+  public static final String GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_DEFAULT =
+      "/";
+
+  // Configuration key for the MR intermediate done dir.
+  public static final String MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY =
+      "mapreduce.jobhistory.intermediate-done-dir";
+
+  // Configuration key of the MR done directory.
+  public static final String MR_JOB_HISTORY_DONE_DIR_KEY =
+      "mapreduce.jobhistory.done-dir";
+
+  // Configuration key containing a comma-separated list of sub-strings that when matched will
+  // cause a particular directory to have its modification timestamp updated.
+  // Includes take precedence over excludes.
+  public static final String GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY =
+      "fs.gs.parent.timestamp.update.substrings.includes";
+
+  // Default value for fs.gs.parent.timestamp.updating.substrings.include
+  public static final String GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_DEFAULT =
+      String.format(
+          "${%s},${%s}",
+          MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY,
+          MR_JOB_HISTORY_DONE_DIR_KEY);
 
   // Configuration key for enabling automatic repair of implicit directories whenever detected
   // inside listStatus and globStatus calls, or other methods which may indirectly call listStatus
@@ -398,6 +434,92 @@ public abstract class GoogleHadoopFileSystemBase
     WRITE_TIME,
     WRITE_CLOSE,
     WRITE_CLOSE_TIME,
+  }
+
+  /**
+   * A predicate that processes individual directory paths and evaluates the conditions set in
+   * fs.gs.parent.timestamp.update.enable, fs.gs.parent.timestamp.update.substrings.include and
+   * fs.gs.parent.timestamp.update.substrings.exclude to determine if a path should be ignored
+   * when running directory timestamp updates. If no match is found in either include or
+   * exclude and updates are enabled, the directory timestamp will be updated.
+   */
+  public static class ParentTimestampUpdateIncludePredicate implements Predicate<String> {
+
+    /**
+     * Create a new ParentTimestampUpdateIncludePredicate from the passed Hadoop configuration
+     * object.
+     */
+    public static Predicate<String> create(Configuration config) {
+      boolean enableDirectoryTimestampUpdating = config.getBoolean(
+          GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY,
+          GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_DEFAULT);
+      log.debug("%s = %s", GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY,
+          enableDirectoryTimestampUpdating);
+
+      String includedParentPaths = config.get(
+          GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY,
+          GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_DEFAULT);
+      log.debug("%s = %s", GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY, includedParentPaths);
+      List<String> splitIncludedParentPaths =
+          CONFIGURATION_SPLITTER.splitToList(includedParentPaths);
+
+      String excludedParentPaths = config.get(
+          GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY,
+          GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_DEFAULT);
+      log.debug("%s = %s", GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY, excludedParentPaths);
+      List<String> splitExcludedParentPaths =
+          CONFIGURATION_SPLITTER.splitToList(excludedParentPaths);
+
+      return new ParentTimestampUpdateIncludePredicate(
+          enableDirectoryTimestampUpdating, splitIncludedParentPaths, splitExcludedParentPaths);
+    }
+
+    // Include and exclude lists are intended to be small N and checked relatively
+    // infrequently. If that becomes not that case, consider Aho-Corasick or similar matching
+    // algorithms.
+    private final List<String> includeSubstrings;
+    private final List<String> excludeSubstrings;
+    private final boolean enableTimestampUpdates;
+
+    public ParentTimestampUpdateIncludePredicate(
+        boolean enableTimestampUpdates,
+        List<String> includeSubstrings,
+        List<String> excludeSubstrings) {
+      this.includeSubstrings = includeSubstrings;
+      this.excludeSubstrings = excludeSubstrings;
+      this.enableTimestampUpdates = enableTimestampUpdates;
+    }
+
+    /**
+     * Determine if updating directory timestamps should be ignored.
+     * @return True if the directory timestamp should not be updated. False to indicate it should
+     * be updated.
+     */
+    @Override
+    public boolean apply(String path) {
+      if (!enableTimestampUpdates) {
+        log.debug("Timestamp updating disabled. Not updating path %s", path);
+        return false;
+      }
+
+      for (String include : includeSubstrings) {
+        if (path.contains(include)) {
+          log.debug(
+              "Path %s matched included path %s. Updating timestamps.", path, include);
+          return true;
+        }
+      }
+
+      for (String exclude : excludeSubstrings) {
+        if (path.contains(exclude)) {
+          log.debug(
+              "Path %s matched excluded path %s. Not updating timestamps.", path, exclude);
+          return false;
+        }
+      }
+
+      return true;
+    }
   }
 
   /**
@@ -1343,12 +1465,11 @@ public abstract class GoogleHadoopFileSystemBase
       log.debug("%s = %s", GCS_ENABLE_METADATA_CACHE_KEY, enableMetadataCache);
       optionsBuilder.setIsMetadataCacheEnabled(enableMetadataCache);
 
-      boolean enableDirectoryTimestampUpdating = config.getBoolean(
-          GCS_ENABLE_PARENT_TIMESTAMP_UPDATES_KEY,
-          GCS_ENABLE_PARENT_TIMESTAMP_UPDATES_DEFAULT);
-      log.debug("%s = %s", GCS_ENABLE_PARENT_TIMESTAMP_UPDATES_KEY,
-          enableDirectoryTimestampUpdating);
-      optionsBuilder.setDirectoryTimestampUpdatingEnabled(enableDirectoryTimestampUpdating);
+
+      Predicate<String> shouldIncludeInTimestampUpdatesPredicate =
+          ParentTimestampUpdateIncludePredicate.create(config);
+      optionsBuilder.setShouldIncludeInTimestampUpdatesPredicate(
+          shouldIncludeInTimestampUpdatesPredicate);
 
       enableAutoRepairImplicitDirectories = config.getBoolean(
           GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY,

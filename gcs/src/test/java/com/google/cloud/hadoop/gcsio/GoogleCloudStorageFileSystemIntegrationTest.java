@@ -17,6 +17,7 @@ package com.google.cloud.hadoop.gcsio;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
+import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -85,6 +86,27 @@ public class GoogleCloudStorageFileSystemIntegrationTest
   // GCS FS test access instance.
   protected static GoogleCloudStorageFileSystem gcsfs;
 
+  // My sister was once bitten by a moose, let's not update those paths
+  protected static final String EXCLUDED_TIMESTAMP_SUBSTRING = "moose/";
+
+  // I like turtles, let's always update those paths
+  protected static final String INCLUDED_TIMESTAMP_SUBSTRING = "turtles/";
+
+  protected static final Predicate<String> INCLUDE_SUBSTRINGS_PREDICATE = new Predicate<String>() {
+    @Override
+    public boolean apply(String path) {
+       if (path.contains(INCLUDED_TIMESTAMP_SUBSTRING)) {
+        return true; // Don't ignore
+      }
+
+      if (path.contains(EXCLUDED_TIMESTAMP_SUBSTRING)) {
+        return false; // Ignore
+      }
+
+      return true; // Include everything else
+    }
+  };
+
   /**
    * Perform initialization once before tests are run.
    */
@@ -102,6 +124,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest
 
       optionsBuilder
           .setIsMetadataCacheEnabled(true)
+          .setShouldIncludeInTimestampUpdatesPredicate(INCLUDE_SUBSTRINGS_PREDICATE)
           .getCloudStorageOptionsBuilder()
           .setAppName(appName)
           .setProjectId(projectId)
@@ -1666,17 +1689,61 @@ public class GoogleCloudStorageFileSystemIntegrationTest
   }
 
   @Test
+  public void testPredicateIsConsultedForModificationTimestamps()
+      throws IOException, InterruptedException {
+    URI directory = getPath(bucketName, "test-modification-predicates/mkdirs-dir/");
+    URI directoryToUpdate = directory.resolve("subdirectory-1/");
+    URI directoryToIncludeAlways = directory.resolve(INCLUDED_TIMESTAMP_SUBSTRING);
+    URI directoryToExcludeAlways = directory.resolve(EXCLUDED_TIMESTAMP_SUBSTRING);
+
+    gcsfs.mkdirs(directoryToUpdate);
+    gcsfs.mkdirs(directoryToIncludeAlways);
+    gcsfs.mkdirs(directoryToExcludeAlways);
+
+    FileInfo directoryInfo = gcsfs.getFileInfo(directory);
+    FileInfo directoryToUpdateInfo = gcsfs.getFileInfo(directoryToUpdate);
+    FileInfo includeAlwaysInfo = gcsfs.getFileInfo(directoryToIncludeAlways);
+    FileInfo excludeAlwaysInfo = gcsfs.getFileInfo(directoryToExcludeAlways);
+
+    Assert.assertTrue(directoryInfo.isDirectory() && directoryToUpdateInfo.isDirectory());
+    Assert.assertTrue(directoryToUpdateInfo.isDirectory() && directoryToUpdateInfo.exists());
+    Assert.assertTrue(includeAlwaysInfo.isDirectory() && includeAlwaysInfo.exists());
+    Assert.assertTrue(excludeAlwaysInfo.isDirectory() && excludeAlwaysInfo.exists());
+
+    Thread.sleep(100);
+
+    for (URI parentDirectory : new URI[]{directoryToExcludeAlways, directoryToIncludeAlways}) {
+      URI sourceFile = parentDirectory.resolve("child-file");
+      try (WritableByteChannel channel = gcsfs.create(sourceFile)) {
+        Assert.assertNotNull(channel);
+      }
+    }
+
+    FileInfo updatedIncludeAlways = gcsfs.getFileInfo(directoryToIncludeAlways);
+    FileInfo updatedExcludeAlwaysInfo = gcsfs.getFileInfo(directoryToExcludeAlways);
+
+    long updatedTimeDelta =
+        includeAlwaysInfo.getCreationTime() - updatedIncludeAlways.getModificationTime();
+    Assert.assertTrue(Math.abs(updatedTimeDelta) < TimeUnit.MINUTES.toMillis(10));
+
+    // Despite having a new file, modification time should not be updated.
+    Assert.assertEquals(
+        updatedExcludeAlwaysInfo.getModificationTime(), excludeAlwaysInfo.getModificationTime());
+  }
+
+  @Test
   public void testMkdirsUpdatesParentDirectoryModificationTimestamp()
       throws IOException, InterruptedException {
     URI directory = getPath(bucketName, "test-modification-timestamps/mkdirs-dir/");
     URI directoryToUpdate = directory.resolve("subdirectory-1/");
+
     gcsfs.mkdirs(directoryToUpdate);
 
     FileInfo directoryInfo = gcsfs.getFileInfo(directory);
     FileInfo directoryToUpdateInfo = gcsfs.getFileInfo(directoryToUpdate);
 
     Assert.assertTrue(directoryInfo.isDirectory() && directoryToUpdateInfo.isDirectory());
-    Assert.assertTrue(directoryInfo.exists() && directoryToUpdateInfo.exists());
+    Assert.assertTrue(directoryToUpdateInfo.isDirectory() && directoryToUpdateInfo.exists());
 
     Thread.sleep(100);
 

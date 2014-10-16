@@ -14,6 +14,11 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
+
+
 /**
  * Configurable options for the GoogleCloudStorageFileSystem class.
  */
@@ -26,7 +31,7 @@ public class GoogleCloudStorageFileSystemOptions {
     protected boolean metadataCacheEnabled = true;
     protected DirectoryListCache.Type cacheType = DirectoryListCache.Type.IN_MEMORY;
     protected String cacheBasePath = null;
-    private boolean directoryTimestampUpdatingEnabled = true;
+    protected Predicate<String> shouldIncludeInTimestampUpdatesPredicate = Predicates.alwaysTrue();
 
     private GoogleCloudStorageOptions.Builder cloudStorageOptionsBuilder =
         new GoogleCloudStorageOptions.Builder();
@@ -50,8 +55,9 @@ public class GoogleCloudStorageFileSystemOptions {
       return this;
     }
 
-    public Builder setDirectoryTimestampUpdatingEnabled(boolean directoryTimestampUpdatingEnabled) {
-      this.directoryTimestampUpdatingEnabled = directoryTimestampUpdatingEnabled;
+    public Builder setShouldIncludeInTimestampUpdatesPredicate(
+        Predicate<String> shouldIncludeInTimestampUpdatesPredicate) {
+      this.shouldIncludeInTimestampUpdatesPredicate = shouldIncludeInTimestampUpdatesPredicate;
       return this;
     }
 
@@ -61,7 +67,7 @@ public class GoogleCloudStorageFileSystemOptions {
           metadataCacheEnabled,
           cacheType,
           cacheBasePath,
-          directoryTimestampUpdatingEnabled);
+          shouldIncludeInTimestampUpdatesPredicate);
     }
   }
 
@@ -73,19 +79,19 @@ public class GoogleCloudStorageFileSystemOptions {
   private final boolean metadataCacheEnabled;
   private final DirectoryListCache.Type cacheType;
   private final String cacheBasePath;  // Only used if cacheType == LOCAL_FILE_BACKED.
-  private final boolean directoryTimestampUpdatingEnabled;
+  private final Predicate<String> shouldIncludeInTimestampUpdatesPredicate;
 
   public GoogleCloudStorageFileSystemOptions(
       GoogleCloudStorageOptions cloudStorageOptions,
       boolean metadataCacheEnabled,
       DirectoryListCache.Type cacheType,
       String cacheBasePath,
-      boolean directoryTimestampUpdatingEnabled) {
+      Predicate<String> shouldIncludeInTimestampUpdatesPredicate) {
     this.cloudStorageOptions = cloudStorageOptions;
     this.metadataCacheEnabled = metadataCacheEnabled;
     this.cacheType = cacheType;
     this.cacheBasePath = cacheBasePath;
-    this.directoryTimestampUpdatingEnabled = directoryTimestampUpdatingEnabled;
+    this.shouldIncludeInTimestampUpdatesPredicate = shouldIncludeInTimestampUpdatesPredicate;
   }
 
   public GoogleCloudStorageOptions getCloudStorageOptions() {
@@ -104,11 +110,15 @@ public class GoogleCloudStorageFileSystemOptions {
     return cacheBasePath;
   }
 
-  public boolean isDirectoryTimestampUpdatingEnabled() {
-    return directoryTimestampUpdatingEnabled;
+  public Predicate<String> getShouldIncludeInTimestampUpdatesPredicate() {
+    return shouldIncludeInTimestampUpdatesPredicate;
   }
 
   public void throwIfNotValid() {
+    Preconditions.checkArgument(
+        shouldIncludeInTimestampUpdatesPredicate != null,
+        "Predicate for ignored directory updates should not be null. "
+            + "Consider Predicates.alwasyTrue");
     cloudStorageOptions.throwIfNotValid();
   }
 }

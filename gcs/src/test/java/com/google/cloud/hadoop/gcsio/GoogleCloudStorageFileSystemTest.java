@@ -54,7 +54,10 @@ public class GoogleCloudStorageFileSystemTest
       // TODO(user): Maybe switch to
       // new CacheSupplementedGoogleCloudStorage(new InMemoryGoogleCloudStorage()).
       gcsfs = new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage(),
-          GoogleCloudStorageFileSystemOptions.newBuilder().build());
+          GoogleCloudStorageFileSystemOptions
+              .newBuilder()
+              .setShouldIncludeInTimestampUpdatesPredicate(INCLUDE_SUBSTRINGS_PREDICATE)
+              .build());
       gcsfs.setUpdateTimestampsExecutor(MoreExecutors.newDirectExecutorService());
       gcsit = new GoogleCloudStorageFileSystemIntegrationTest();
       gcs = null;
