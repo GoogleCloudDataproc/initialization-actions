@@ -136,7 +136,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest
           credential,
           optionsBuilder.build());
 
-      gcsfs.setUpdateTimestampsExecutor(MoreExecutors.newDirectExecutorService());
+      gcsfs.setUpdateTimestampsExecutor(MoreExecutors.sameThreadExecutor());
 
       gcsit = new GoogleCloudStorageFileSystemIntegrationTest();
 
