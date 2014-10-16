@@ -150,7 +150,11 @@ public class GoogleCloudStorageImpl
   private Storage gcs;
 
   // Thread-pool used for background tasks.
-  private ExecutorService threadPool = Executors.newCachedThreadPool();
+  private ExecutorService threadPool = Executors.newCachedThreadPool(
+      new ThreadFactoryBuilder()
+          .setNameFormat("gcs-async-channel-pool-%d")
+          .setDaemon(true)
+          .build());
 
   // Thread-pool for manual matching of metadata tasks.
   // TODO(user): Wire out GoogleCloudStorageOptions for these.
