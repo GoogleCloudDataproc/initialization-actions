@@ -38,13 +38,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * UnitTests for LocalFileBackedDirectoryListCache class. Since LocalFileBackedDirectoryListCache
+ * UnitTests for FileSystemBackedDirectoryListCache class. Since FileSystemBackedDirectoryListCache
  * is intended to be used in a large multi-process environment, we mix in a lot of race-condition
  * test cases that may arise from multi-process interactions.
  */
 @RunWith(JUnit4.class)
-public class LocalFileBackedDirectoryListCacheTest extends DirectoryListCacheTest {
-  private static final LogUtil log = new LogUtil(LocalFileBackedDirectoryListCacheTest.class);
+public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTest {
+  private static final LogUtil log = new LogUtil(FileSystemBackedDirectoryListCacheTest.class);
 
   @Rule
   public TemporaryFolder tempDirectoryProvider = new TemporaryFolder();
@@ -54,14 +54,14 @@ public class LocalFileBackedDirectoryListCacheTest extends DirectoryListCacheTes
 
   // Get a reference to the cache impl so we can do some gray-box testing with access to
   // its internal helpers.
-  private LocalFileBackedDirectoryListCache fileBackedCache;
+  private FileSystemBackedDirectoryListCache fileBackedCache;
 
   @Override
   protected DirectoryListCache getTestInstance() throws IOException {
     basePathFile = tempDirectoryProvider.newFolder("gcs_metadata");
     // Re-root to a subdir which doesn't exist yet just to make sure it's handled properly.
     basePathFile = basePathFile.toPath().resolve("subdir").toFile();
-    fileBackedCache = new LocalFileBackedDirectoryListCache(basePathFile.toString());
+    fileBackedCache = new FileSystemBackedDirectoryListCache(basePathFile.toString());
     DirectoryListCache cache = fileBackedCache;
     cache.getMutableConfig()
         .setMaxEntryAgeMillis(MAX_ENTRY_AGE)
@@ -204,8 +204,8 @@ public class LocalFileBackedDirectoryListCacheTest extends DirectoryListCacheTes
 
   @Test
   public void testRaceConditionCreateSameFile() throws IOException {
-    final LocalFileBackedDirectoryListCache fileBackedCache =
-        (LocalFileBackedDirectoryListCache) cache;
+    final FileSystemBackedDirectoryListCache fileBackedCache =
+        (FileSystemBackedDirectoryListCache) cache;
 
     // Test already-exists race on file-creation.
     final StorageResourceId fileToCreate = new StorageResourceId("foo-bucket", "foo/bar/baz.txt");
@@ -258,8 +258,8 @@ public class LocalFileBackedDirectoryListCacheTest extends DirectoryListCacheTes
 
   @Test
   public void testRaceConditionCreateSameFileAsConflictingDirectoryOrFile() throws IOException {
-    final LocalFileBackedDirectoryListCache fileBackedCache =
-        (LocalFileBackedDirectoryListCache) cache;
+    final FileSystemBackedDirectoryListCache fileBackedCache =
+        (FileSystemBackedDirectoryListCache) cache;
 
     // Test already-exists collision race on file-creation.
     final StorageResourceId fileToCreate = new StorageResourceId("foo-bucket", "foo/bar/baz.txt");
@@ -341,7 +341,7 @@ public class LocalFileBackedDirectoryListCacheTest extends DirectoryListCacheTes
         Path mirrorPath = fileBackedCache.getMirrorPath(resourceId);
         File parentFile = mirrorPath.toFile().getParentFile();
         assertTrue(parentFile.exists());
-        int maxRetries = LocalFileBackedDirectoryListCache.MAX_RETRIES_FOR_CREATE;
+        int maxRetries = FileSystemBackedDirectoryListCache.MAX_RETRIES_FOR_CREATE;
         if (resourceId.equals(fileToCreate) && clobberCountForFile[0] <= maxRetries) {
           // Only on the final object creation, clobber the parentFile just after the cache thinks
           // it successfully checked for its existence and before it creates the child object.

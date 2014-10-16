@@ -18,6 +18,7 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
+import com.google.cloud.hadoop.gcsio.DirectoryListCache;
 import com.google.cloud.hadoop.gcsio.FileInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
@@ -210,6 +211,26 @@ public abstract class GoogleHadoopFileSystemBase
 
   // Default value for fs.gs.parent.timestamp.update.enable.
   public static final boolean GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_DEFAULT = true;
+
+  // Configuration key for specifying which implementation of DirectoryListCache to use for
+  // supplementing GCS API "list" results. Supported implementations:
+  // IN_MEMORY: Enforces immediate consistency within same Java process.
+  // FILESYSTEM_BACKED: Enforces consistency across all cooperating processes pointed at the same
+  //     local mirror directory, which may be an NFS directory for distributed coordination.
+  public static final String GCS_METADATA_CACHE_TYPE_KEY = "fs.gs.metadata.cache.type";
+
+  // Default value for fs.gs.metadata.cache.type.
+  public static final String GCS_METADATA_CACHE_TYPE_DEFAULT = "IN_MEMORY";
+
+  // Only used if fs.gs.metadata.cache.type is FILESYSTEM_BACKED, specifies the local path to
+  // use as the base path for storing mirrored GCS metadata. Must be an absolute path, must be
+  // a directory, and must be fully readable/writable/executable by any user running processes
+  // which use the GCS connector.
+  public static final String GCS_METADATA_CACHE_DIRECTORY_KEY = "fs.gs.metadata.cache.directory";
+
+  // Default value for fs.gs.metadata.cache.directory.
+  public static final String GCS_METADATA_CACHE_DIRECTORY_DEFAULT =
+      "/tmp/gcs_connector_metadata_cache";
 
   // Configuration key containing a comma-separated list of sub-strings that when matched will
   // cause a particular directory to not have its modification timestamp updated.
@@ -1465,6 +1486,15 @@ public abstract class GoogleHadoopFileSystemBase
       log.debug("%s = %s", GCS_ENABLE_METADATA_CACHE_KEY, enableMetadataCache);
       optionsBuilder.setIsMetadataCacheEnabled(enableMetadataCache);
 
+      DirectoryListCache.Type cacheType = DirectoryListCache.Type.valueOf(config.get(
+          GCS_METADATA_CACHE_TYPE_KEY, GCS_METADATA_CACHE_TYPE_DEFAULT));
+      log.debug("%s = %s", GCS_METADATA_CACHE_TYPE_KEY, cacheType);
+      optionsBuilder.setCacheType(cacheType);
+
+      String cacheBasePath = config.get(
+          GCS_METADATA_CACHE_DIRECTORY_KEY, GCS_METADATA_CACHE_DIRECTORY_DEFAULT);
+      log.debug("%s = %s", GCS_METADATA_CACHE_DIRECTORY_KEY, cacheBasePath);
+      optionsBuilder.setCacheBasePath(cacheBasePath);
 
       Predicate<String> shouldIncludeInTimestampUpdatesPredicate =
           ParentTimestampUpdateIncludePredicate.create(config);

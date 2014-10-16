@@ -20,9 +20,8 @@
      This is now enabled by default for machine-wide consistency, but it is
      strongly recommended to configure clusters with an NFS directory for
      cluster-wide strong consistency. Relevant configuration settings:
-
      fs.gs.metadata.cache.enable [default: true]
-     fs.gs.metadata.cache.type [IN_MEMORY (default) | LOCAL_FILE_BACKED]
+     fs.gs.metadata.cache.type [IN_MEMORY (default) | FILESYSTEM_BACKED]
      fs.gs.metadata.cache.directory [default: /tmp/gcs_connector_metadata_cache]
   5. Optimized seeks in GoogleHadoopFSDataInputStream which fit within
      the pre-fetched memory buffer by simply repositioning the buffer in-place

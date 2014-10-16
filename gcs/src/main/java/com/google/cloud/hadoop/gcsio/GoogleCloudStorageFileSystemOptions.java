@@ -78,7 +78,7 @@ public class GoogleCloudStorageFileSystemOptions {
   private final GoogleCloudStorageOptions cloudStorageOptions;
   private final boolean metadataCacheEnabled;
   private final DirectoryListCache.Type cacheType;
-  private final String cacheBasePath;  // Only used if cacheType == LOCAL_FILE_BACKED.
+  private final String cacheBasePath;  // Only used if cacheType == FILESYSTEM_BACKED.
   private final Predicate<String> shouldIncludeInTimestampUpdatesPredicate;
 
   public GoogleCloudStorageFileSystemOptions(

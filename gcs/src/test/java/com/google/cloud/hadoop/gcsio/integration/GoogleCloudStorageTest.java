@@ -24,6 +24,7 @@ import static org.junit.Assert.fail;
 import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.gcsio.CacheSupplementedGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
+import com.google.cloud.hadoop.gcsio.FileSystemBackedDirectoryListCache;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageWriteChannel;
@@ -32,7 +33,6 @@ import com.google.cloud.hadoop.gcsio.InMemoryGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage.ListVisibilityCalculator;
 import com.google.cloud.hadoop.gcsio.ListProhibitedGoogleCloudStorage;
-import com.google.cloud.hadoop.gcsio.LocalFileBackedDirectoryListCache;
 import com.google.cloud.hadoop.gcsio.ResourceLoggingGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.SeekableReadableByteChannel;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
@@ -215,8 +215,8 @@ public class GoogleCloudStorageTest {
    * Static instance which we can use inside long-lived GoogleCloudStorage instances, but still
    * may reconfigure to point to new temporary directories in each test case.
    */
-  protected static LocalFileBackedDirectoryListCache fileBackedCache =
-      LocalFileBackedDirectoryListCache.getUninitializedInstanceForTest();
+  protected static FileSystemBackedDirectoryListCache fileBackedCache =
+      FileSystemBackedDirectoryListCache.getUninitializedInstanceForTest();
 
   // Test classes using JUnit4 runner must have only a single constructor. Since we
   // want to be able to pass in dependencies, we'll maintain this base class as

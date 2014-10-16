@@ -39,7 +39,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * LocalFileBackedDirectoryListCache mirrors all GCS directory and file creation into a matching
+ * FileSystemBackedDirectoryListCache mirrors all GCS directory and file creation into a matching
  * tree of directories + empty files inside a configured local filesystem, as accessed via
  * java.nio.Path and java.io.File, all under a base directory configured at construction-time.
  * If a regular local filesystem path is used, then this cache thus enables immediate list
@@ -53,8 +53,8 @@ import java.util.Set;
  * <p>
  * This class is thread-safe.
  */
-public class LocalFileBackedDirectoryListCache extends DirectoryListCache {
-  private static final LogUtil log = new LogUtil(LocalFileBackedDirectoryListCache.class);
+public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
+  private static final LogUtil log = new LogUtil(FileSystemBackedDirectoryListCache.class);
 
   // Instead of opting for explicitly file-locking, we recognize that garbage-collection only
   // occurs rarely compared to cache additions, and that in general overwriting existing
@@ -84,22 +84,22 @@ public class LocalFileBackedDirectoryListCache extends DirectoryListCache {
    * Returns an instance not bound to a basePath for testing purposes.
    */
   @VisibleForTesting
-  public static LocalFileBackedDirectoryListCache getUninitializedInstanceForTest() {
-    return new LocalFileBackedDirectoryListCache();
+  public static FileSystemBackedDirectoryListCache getUninitializedInstanceForTest() {
+    return new FileSystemBackedDirectoryListCache();
   }
 
   /**
    * @param basePathStr The absolute path under which to place all mirrored directory trees;
    *     Paths.get(basePathStr).isAbsolute() must return true.
    */
-  public LocalFileBackedDirectoryListCache(String basePathStr) {
+  public FileSystemBackedDirectoryListCache(String basePathStr) {
     setBasePath(basePathStr);
   }
 
   /**
    * No-arg constructor which should only ever be used in tests.
    */
-  private LocalFileBackedDirectoryListCache() {
+  private FileSystemBackedDirectoryListCache() {
   }
 
   /**

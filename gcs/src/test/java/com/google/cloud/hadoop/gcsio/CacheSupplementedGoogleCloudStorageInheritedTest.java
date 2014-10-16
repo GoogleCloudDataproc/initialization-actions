@@ -36,7 +36,7 @@ public class CacheSupplementedGoogleCloudStorageInheritedTest
   @Parameters
   public static Collection<Object[]> getConstructorArguments() throws IOException {
     return Arrays.asList(new Object[][]{
-        {DirectoryListCache.Type.LOCAL_FILE_BACKED},
+        {DirectoryListCache.Type.FILESYSTEM_BACKED},
         {DirectoryListCache.Type.IN_MEMORY}
     });
   }
@@ -47,7 +47,7 @@ public class CacheSupplementedGoogleCloudStorageInheritedTest
   private final DirectoryListCache.Type cacheType;
 
   // The File corresponding to the temporary basePath of the testInstance if cacheType is
-  // LOCAL_FILE_BACKED.
+  // FILESYSTEM_BACKED.
   private File basePathFile = null;
 
   /**
@@ -75,11 +75,11 @@ public class CacheSupplementedGoogleCloudStorageInheritedTest
         resourceCache = new InMemoryDirectoryListCache();
         break;
       }
-      case LOCAL_FILE_BACKED: {
+      case FILESYSTEM_BACKED: {
         try {
           basePathFile = tempDirectoryProvider.newFolder("gcs_metadata");
           resourceCache =
-              new LocalFileBackedDirectoryListCache(basePathFile.toString());
+              new FileSystemBackedDirectoryListCache(basePathFile.toString());
         } catch (IOException ioe) {
           Throwables.propagate(ioe);
         }

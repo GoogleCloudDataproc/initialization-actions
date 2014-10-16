@@ -135,10 +135,10 @@ public class GoogleCloudStorageFileSystem {
           resourceCache = InMemoryDirectoryListCache.getInstance();
           break;
         }
-        case LOCAL_FILE_BACKED: {
+        case FILESYSTEM_BACKED: {
           Preconditions.checkArgument(!Strings.isNullOrEmpty(options.getCacheBasePath()),
-              "When using LOCAL_FILE_BACKED DirectoryListCache, cacheBasePath must not be null.");
-          resourceCache = new LocalFileBackedDirectoryListCache(options.getCacheBasePath());
+              "When using FILESYSTEM_BACKED DirectoryListCache, cacheBasePath must not be null.");
+          resourceCache = new FileSystemBackedDirectoryListCache(options.getCacheBasePath());
           break;
         }
         default:

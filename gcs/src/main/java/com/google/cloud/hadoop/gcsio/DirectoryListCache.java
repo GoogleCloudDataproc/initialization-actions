@@ -103,7 +103,7 @@ public abstract class DirectoryListCache {
    */
   public static enum Type {
     IN_MEMORY,
-    LOCAL_FILE_BACKED
+    FILESYSTEM_BACKED
   }
 
   /**
