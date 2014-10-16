@@ -1,0 +1,65 @@
+/**
+ * Copyright 2014 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.google.cloud.hadoop.fs.gcs;
+
+import com.google.cloud.hadoop.gcsio.CacheEntry;
+import com.google.cloud.hadoop.gcsio.FileSystemBackedDirectoryListCache;
+import com.google.cloud.hadoop.util.LogUtil;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.util.GenericOptionsParser;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+/**
+ * A tool that will perform GC on {@link FileSystemBackedDirectoryListCache} backing stores.
+ */
+public class GoogleHadoopFileSystemCacheCleaner {
+  public static final LogUtil log = new LogUtil(GoogleHadoopFileSystemCacheCleaner.class);
+
+  public static void main(String[] args) throws IOException {
+    GenericOptionsParser parser = new GenericOptionsParser(args);
+    args = parser.getRemainingArgs();
+    Configuration configuration = parser.getConfiguration();
+
+    // TODO: Wire out constants and defaults through GoogleHadoopFileSystemBase once submitted.
+    if ("FILESYSTEM_BACKED".equals(configuration.get("fs.gs.metadata.cache.type", "IN_MEMORY"))) {
+      String fsStringPath = configuration.get("fs.gs.metadata.cache.directory", "");
+      Preconditions.checkState(!Strings.isNullOrEmpty(fsStringPath));
+      log.info("Performing GC on cache directory %s", fsStringPath);
+
+      Path path = Paths.get(fsStringPath);
+      if (Files.exists(path)) {
+        FileSystemBackedDirectoryListCache cache =
+            new FileSystemBackedDirectoryListCache(fsStringPath);
+        for (CacheEntry bucket : cache.getBucketList()) {
+          String bucketName = bucket.getResourceId().getBucketName();
+          log.info("Performing GC on cache bucket %s", bucketName);
+
+          cache.getObjectList(bucketName, "", null, null);
+        }
+      }
+    }
+
+    log.info("Done with GC.");
+  }
+}
