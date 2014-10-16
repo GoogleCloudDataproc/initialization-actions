@@ -12,10 +12,10 @@
   3. Attempting to acquire an OAuth access token will be now be retried when
      using .p12 or installed application (JWT) credentials if there is a
      recoverable error such as an HTTP 5XX response code or an IOException.
-  4. Added LocalFileBackedDirectoryListCache, extracting a common interface
+  4. Added FileSystemBackedDirectoryListCache, extracting a common interface
      for it to share with the (InMemory)DirectoryListCache; instead of using
      an in-memory HashMap to enforce only same-process list consistency, the
-     LocalFileBacked version mirrors GCS objects as empty files on a local
+     FileSystemBacked version mirrors GCS objects as empty files on a local
      FileSystem, which may itself be an NFS mount for cluster-wide or even
      potentially cross-cluster consistency groups. This allows a cluster to
      be configured with a "consistent view", making it safe to use GCS as the
