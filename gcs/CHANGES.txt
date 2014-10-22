@@ -1,4 +1,4 @@
-1.3.0 - 2014-10-xx
+1.3.0 - 2014-10-17
 
   1. Directory timestamp updating can now be controlled via user-settable
      properties "fs.gs.parent.timestamp.update.enable",
