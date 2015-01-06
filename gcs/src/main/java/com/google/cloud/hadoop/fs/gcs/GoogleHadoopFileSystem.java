@@ -144,7 +144,7 @@ public class GoogleHadoopFileSystem
           resourceId.getBucketName(), rootBucket));
     }
 
-    Path hadoopPath = new Path(getHadoopScheme() + "://"
+    Path hadoopPath = new Path(getScheme() + "://"
         + rootBucket + '/' + resourceId.getObjectName());
     log.debug("GHFS.getHadoopPath: %s -> %s", gcsPath, hadoopPath);
     return hadoopPath;
@@ -181,13 +181,13 @@ public class GoogleHadoopFileSystem
    * GCS scheme.
    */
   @Override
-  public String getHadoopScheme() {
+  public String getScheme() {
     return GoogleCloudStorageFileSystem.SCHEME;
   }
 
   @Override
   public Path getFileSystemRoot() {
-    return new Path(getHadoopScheme() + "://" + rootBucket + '/');
+    return new Path(getScheme() + "://" + rootBucket + '/');
   }
 
   /**

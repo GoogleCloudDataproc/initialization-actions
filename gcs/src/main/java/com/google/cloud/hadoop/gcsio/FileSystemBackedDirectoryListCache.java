@@ -54,6 +54,14 @@ import java.util.Set;
  * This class is thread-safe.
  */
 public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
+  /**
+   * Defines a basic run(File) method for internal usage, e.g. efficiently traversing large
+   * directory trees without having to assemble a complete list.
+   */
+  private static interface FileCallback {
+    void run(File file) throws IOException;
+  }
+
   private static final LogUtil log = new LogUtil(FileSystemBackedDirectoryListCache.class);
 
   // Instead of opting for explicitly file-locking, we recognize that garbage-collection only
@@ -453,6 +461,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
     log.debug("getBucketList()");
     // Get initial listing of everything in our basePath to represent buckets.
     File[] bucketList = basePath.toFile().listFiles();
+
     List<CacheEntry> bucketEntries = new ArrayList<>();
     Set<StorageResourceId> expiredBuckets = new HashSet<>();
     for (File bucket : bucketList) {
@@ -483,8 +492,29 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
   }
 
   @Override
+  public List<CacheEntry> getRawBucketList() throws IOException {
+    log.debug("getRawBucketList()");
+
+    // Get initial listing of everything in our basePath to represent buckets.
+    File[] bucketList = basePath.toFile().listFiles();
+
+    List<CacheEntry> bucketEntries = new ArrayList<>();
+    for (File bucket : bucketList) {
+      if (!bucket.isDirectory()) {
+        log.error("Found non-directory file '%s' in bucket listing! Ignoring it.", bucket);
+        continue;
+      }
+      StorageResourceId bucketId = new StorageResourceId(bucket.getName());
+      CacheEntry entry = new CacheEntry(bucketId, bucket.lastModified());
+      bucketEntries.add(entry);
+    }
+    return bucketEntries;
+  }
+
+  @Override
   public List<CacheEntry> getObjectList(
-      String bucketName, String objectNamePrefix, String delimiter, Set<String> returnedPrefixes)
+      final String bucketName, final String objectNamePrefix, final String delimiter,
+      Set<String> returnedPrefixes)
       throws IOException {
     log.debug("getObjectList(%s, %s, %s)", bucketName, objectNamePrefix, delimiter);
     Preconditions.checkArgument(delimiter == null || "/".equals(delimiter),
@@ -522,84 +552,92 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
       return null;
     }
 
-    final List<File> candidateFiles = new ArrayList<>();
+    // The list of cacheEntries to return.
+    final List<CacheEntry> cacheEntries = new ArrayList<>();
+
+    // We'll need to relativize each file against this bucketBasePath to extract the effective
+    // 'objectName' portion of the paths.
+    final Path bucketBasePath = getMirrorPath(new StorageResourceId(bucketName));
+
+    // Handler for visiting each file in-place, possibly deleting it due to expiration or otherwise
+    // matching against our list prefix and possibly adding an entry to return.
+    final FileCallback fileVisitor = new FileCallback() {
+      public void run(File candidateFile) throws IOException {
+        // This should chop off the entire prefix up to the bucket base.
+        Path objectNamePath = bucketBasePath.relativize(candidateFile.toPath());
+
+        // If the candidateFile is a directory, we must explicitly make the corresponding
+        // StorageResourceId have a directory-path object string.
+        String objectNamePathString = objectNamePath.toString();
+        if (candidateFile.isDirectory()) {
+          objectNamePathString = StorageResourceId.convertToDirectoryPath(objectNamePathString);
+        }
+
+        StorageResourceId objectId = new StorageResourceId(bucketName, objectNamePathString);
+        CacheEntry entry = new CacheEntry(objectId, candidateFile.lastModified());
+        if (isCacheEntryExpired(entry)) {
+          // Handle entry expiration; try to delete it, and delete will return false if the
+          // directory is non-empty.
+          log.debug("About to delete expired entry for resourceId '%s'", objectId);
+          removeResourceId(objectId);
+        } else {
+          String objectName = objectId.getObjectName();
+          String matchedName = GoogleCloudStorageStrings.matchListPrefix(
+              objectNamePrefix, delimiter, objectName);
+          if (matchedName != null && objectName.equals(matchedName)) {
+            // We expect only "exact matches" here, since the only way to get a "prefix match" here
+            // would be if we had listed *recursively* in the presence of a delimiter. Since we
+            // already handled the presence of a delimiter by doing a flat list instead of a
+            // recursive walkFileTree, we won't need to deal with prefix matches here.
+            log.debug("Adding matching entry '%s'", objectId);
+            cacheEntries.add(entry);
+          }
+        }
+      }
+    };
+
     if (delimiter != null) {
       // Since there's a delimiter, all we're expected to do is to flat-list a single level.
       File[] fileList = listBaseFile.listFiles();
-      for (File object : fileList) {
-        candidateFiles.add(object);
+      if (fileList != null) {
+        for (File object : fileList) {
+          fileVisitor.run(object);
+        }
+      } else {
+        // A race condition can occur in rare cases if another client deletes listBaseFile between
+        // the time we checked listBaseFile.exists() and calling listBaseFile.listFiles().
+        log.warn("Got null fileList for listBaseFile '%s' even though exists() was true!",
+                 listBaseFile);
+        return null;
       }
     } else {
       Files.walkFileTree(listBasePath, new SimpleFileVisitor<Path>() {
         @Override
         public FileVisitResult postVisitDirectory(Path dir, IOException ioe) throws IOException {
           if (!listBasePath.equals(dir)) {
-            candidateFiles.add(dir.toFile());
+            fileVisitor.run(dir.toFile());
           }
           return FileVisitResult.CONTINUE;
         }
 
         @Override
         public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-          candidateFiles.add(file.toFile());
+          fileVisitor.run(file.toFile());
           return FileVisitResult.CONTINUE;
         }
       });
     }
 
-    // We'll need to relativize each file against this bucketBasePath to extract the effective
-    // 'objectName' portion of the paths.
-    Path bucketBasePath = getMirrorPath(new StorageResourceId(bucketName));
-
-    List<CacheEntry> cacheEntries = new ArrayList<>();
-    Set<StorageResourceId> expiredEntries = new HashSet<>();
-    log.debug("Found %d entries listing path '%s'", candidateFiles.size(), listBasePath);
-    for (File candidateFile : candidateFiles) {
-      // This should chop off the entire prefix up to the bucket base.
-      Path objectNamePath = bucketBasePath.relativize(candidateFile.toPath());
-
-      // If the candidateFile is a directory, we must explicitly make the corresponding
-      // StorageResourceId have a directory-path object string.
-      String objectNamePathString = objectNamePath.toString();
-      if (candidateFile.isDirectory()) {
-        objectNamePathString = StorageResourceId.convertToDirectoryPath(objectNamePathString);
-      }
-
-      StorageResourceId objectId = new StorageResourceId(bucketName, objectNamePathString);
-      CacheEntry entry = new CacheEntry(objectId, candidateFile.lastModified());
-      if (isCacheEntryExpired(entry)) {
-        // Keep a set of expired entries to handle after the loop.
-        expiredEntries.add(objectId);
-      } else {
-        String objectName = objectId.getObjectName();
-        String matchedName = GoogleCloudStorageStrings.matchListPrefix(
-            objectNamePrefix, delimiter, objectName);
-        if (matchedName != null && objectName.equals(matchedName)) {
-          // We expect only "exact matches" here, since the only way to get a "prefix match" here
-          // would be if we had listed *recursively* in the presence of a delimiter. Since we
-          // already handled the presence of a delimiter by doing a flat list instead of a
-          // recursive walkFileTree, we won't need to deal with prefix matches here.
-          cacheEntries.add(entry);
-        }
-      }
-    }
-
-    // Handle entry expiration; try to delete it, and delete will return false if the directory
-    // is non-empty.
-    for (StorageResourceId expiredEntry : expiredEntries) {
-      log.debug("About to delete expired entry for resourceId '%s'", expiredEntry);
-      removeResourceId(expiredEntry);
-    }
     return cacheEntries;
   }
 
   @Override
-  int getInternalNumBuckets() throws IOException {
+  public int getInternalNumBuckets() throws IOException {
     return basePath.toFile().listFiles().length;
   }
 
   @Override
-  int getInternalNumObjects() throws IOException {
+  public int getInternalNumObjects() throws IOException {
     // Use int[1] so that the anonymous class can increment this 'count'.
     final int[] count = new int[1];
     Files.walkFileTree(basePath, new SimpleFileVisitor<Path>() {

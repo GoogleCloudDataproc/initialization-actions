@@ -354,6 +354,7 @@ public abstract class DirectoryListCacheTest {
 
     CacheEntry objectEntry = cache.putResourceId(objectResourceId);
     objectEntry.setItemInfo(objectInfo);
+    assertEquals(1, cache.getRawBucketList().size());
     assertEquals(1, cache.getInternalNumBuckets());
     assertEquals(1, cache.getInternalNumObjects());
     List<CacheEntry> listedBuckets = cache.getBucketList();
@@ -365,6 +366,7 @@ public abstract class DirectoryListCacheTest {
     when(mockClock.currentTimeMillis()).thenReturn(nextTime);
     listedBuckets = cache.getBucketList();
     assertEquals(0, listedBuckets.size());
+    assertEquals(1, cache.getRawBucketList().size());
     assertEquals(1, cache.getInternalNumBuckets());
     assertEquals(1, cache.getInternalNumObjects());
 
@@ -386,11 +388,13 @@ public abstract class DirectoryListCacheTest {
     assertNotNull(listedObjects);
     assertEquals(0, listedObjects.size());
 
+    assertEquals(1, cache.getRawBucketList().size());
     assertEquals(1, cache.getInternalNumBuckets());
     assertEquals(0, cache.getInternalNumObjects());
 
     // Next time we call getBucketList, the expired bucket will actually be fully removed.
     listedBuckets = cache.getBucketList();
+    assertEquals(0, cache.getRawBucketList().size());
     assertEquals(0, cache.getInternalNumBuckets());
     assertEquals(0, cache.getInternalNumObjects());
     assertEquals(0, listedBuckets.size());
@@ -474,6 +478,23 @@ public abstract class DirectoryListCacheTest {
     // The next call to getObjectList returns null since the bucket is gone.
     listedObjects = cache.getObjectList(BUCKET_NAME, "", null, null);
     assertNull(listedObjects);
+  }
+
+  @Test
+  public void testExpirationLargeDeeplyNestedDirectories() throws IOException {
+    cache.putResourceId(new StorageResourceId(
+        "foo-bucket", "a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z"));
+
+    if (cache.containsEntriesForImplicitDirectories()) {
+      assertEquals(26, cache.getInternalNumObjects());
+    } else {
+      assertEquals(1, cache.getInternalNumObjects());
+    }
+    long nextTime = BASE_TIME + MAX_ENTRY_AGE + 1000L;
+    when(mockClock.currentTimeMillis()).thenReturn(nextTime);
+    List<CacheEntry> listedObjects = cache.getObjectList(BUCKET_NAME, "", null, null);
+    assertEquals(0, listedObjects.size());
+    assertEquals(0, cache.getInternalNumObjects());
   }
 
   /**

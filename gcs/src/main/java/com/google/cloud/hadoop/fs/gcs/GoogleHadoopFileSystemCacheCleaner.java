@@ -17,6 +17,7 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.CacheEntry;
+import com.google.cloud.hadoop.gcsio.DirectoryListCache;
 import com.google.cloud.hadoop.gcsio.FileSystemBackedDirectoryListCache;
 import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Preconditions;
@@ -36,6 +37,23 @@ import java.nio.file.Paths;
 public class GoogleHadoopFileSystemCacheCleaner {
   public static final LogUtil log = new LogUtil(GoogleHadoopFileSystemCacheCleaner.class);
 
+  /**
+   * Iterates over items in {@code cache}, object-first then buckets, allowing the list operations
+   * to perform cache-expiration as they run.
+   */
+  public static void cleanCache(DirectoryListCache cache) throws IOException {
+    for (CacheEntry bucket : cache.getRawBucketList()) {
+      String bucketName = bucket.getResourceId().getBucketName();
+      log.info("Performing GC on cache bucket %s", bucketName);
+
+      cache.getObjectList(bucketName, "", null, null);
+    }
+
+    // After having cleared out the objects/subdirectories, go over the top-level bucket list once
+    // to potentially garbage-collect newly emptied buckets.
+    cache.getBucketList();
+  }
+
   public static void main(String[] args) throws IOException {
     GenericOptionsParser parser = new GenericOptionsParser(args);
     args = parser.getRemainingArgs();
@@ -51,12 +69,7 @@ public class GoogleHadoopFileSystemCacheCleaner {
       if (Files.exists(path)) {
         FileSystemBackedDirectoryListCache cache =
             new FileSystemBackedDirectoryListCache(fsStringPath);
-        for (CacheEntry bucket : cache.getBucketList()) {
-          String bucketName = bucket.getResourceId().getBucketName();
-          log.info("Performing GC on cache bucket %s", bucketName);
-
-          cache.getObjectList(bucketName, "", null, null);
-        }
+        cleanCache(cache);
       }
     }
 

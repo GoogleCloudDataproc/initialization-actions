@@ -1,0 +1,321 @@
+package com.google.cloud.hadoop.io.bigquery;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.when;
+
+import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.bigquery.model.Dataset;
+import com.google.api.services.bigquery.model.DatasetReference;
+import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
+import com.google.cloud.hadoop.gcsio.TestConfiguration;
+import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
+import com.google.cloud.hadoop.util.LogUtil;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import com.google.common.collect.Maps;
+import com.google.gson.JsonObject;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.InputFormat;
+import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.JobID;
+import org.apache.hadoop.mapreduce.OutputCommitter;
+import org.apache.hadoop.mapreduce.OutputFormat;
+import org.apache.hadoop.mapreduce.RecordReader;
+import org.apache.hadoop.mapreduce.RecordWriter;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.TaskAttemptID;
+import org.apache.hadoop.mapreduce.TaskID;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Integration tests covering both InputFormat and OutputFormat functionality of the BigQuery
+ * connector libraries.
+ */
+public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
+  // Environment variable name for the projectId with which we will run this test.
+  public static final String BIGQUERY_PROJECT_ID_ENVVARNAME = "BIGQUERY_PROJECT_ID";
+  // Environment variable name to enable async/resumable writes.
+  public static final String BIGQUERY_ENABLE_ASYNC_WRITE_ENVVARNAME =
+      "ENABLE_BIGQUERY_ASYNC_WRITES";
+  protected static final String MARKET_CAP_FIELD_NAME = "MarketCap";
+  protected static final String COMPANY_NAME_FIELD_NAME = "CompanyName";
+
+  // Logger.
+  private static final LogUtil log = new LogUtil(AbstractBigQueryIoIntegrationTestBase.class);
+
+  // Populated by command-line projectId and falls back to env.
+  private String projectIdvalue;
+
+  // A unique per-setUp String to avoid collisions between test runs.
+  private String testId;
+
+  // DatasetId derived from testId; same for all test methods.
+  private String testDataset;
+
+  // Bucket name derived from testId, shared between all test methods.
+  private String testBucket;
+
+  // Instance of Bigquery API hook to use during test setup/teardown.
+  private Bigquery bigqueryInstance;
+
+  // Configuration object for passing settings through to the connector.
+  private Configuration config;
+
+  // Only use mocks to redirect the IO classes to grabbing our fake Configuration object. They
+  // basically only use the task/job contexts to retrieve the configuration values.
+  @Mock private TaskAttemptContext mockTaskAttemptContext;
+  @Mock private JobContext mockJobContext;
+
+  // The InputFormat and OutputFormat handles with which we will invoke the underlying "connector"
+  // library methods.
+  private InputFormat inputFormat;
+  private OutputFormat outputFormat;
+
+  // TableId derived from testId, a unique one should be used for each test method.
+  private String testTable;
+
+  /**
+   * True to enable using an AsyncWriteChannel.
+   */
+  public boolean enableAsyncWrites = false;
+
+  public AbstractBigQueryIoIntegrationTestBase(Boolean enableAsyncWrites, InputFormat inputFormat) {
+    this.inputFormat = inputFormat;
+    this.enableAsyncWrites = enableAsyncWrites;
+  }
+
+  /**
+   * Read the current value from the given record reader and return record fields in a Map.
+   */
+  protected abstract Map<String, Object> readReacord(RecordReader<?, T> recordReader)
+      throws IOException, InterruptedException;
+
+  /**
+   * Helper method for grabbing service-account email and private keyfile name based on settings
+   * intended for BigQueryFactory and adding them as GCS-equivalent credential settings.
+   */
+  private void setConfigForGcsFromBigquerySettings() {
+    TestConfiguration configuration = TestConfiguration.getInstance();
+
+    String bigqueryServiceAccount = configuration.getServiceAccount();
+    if (Strings.isNullOrEmpty(bigqueryServiceAccount)) {
+      bigqueryServiceAccount = System.getenv(BigQueryFactory.BIGQUERY_SERVICE_ACCOUNT);
+    }
+
+    String bigqueryPrivateKeyFile = configuration.getPrivateKeyFile();
+    if (Strings.isNullOrEmpty(bigqueryPrivateKeyFile)) {
+      bigqueryPrivateKeyFile = System.getenv(BigQueryFactory.BIGQUERY_PRIVATE_KEY_FILE);
+    }
+
+    config.set(
+        BigQueryFactory.BIGQUERY_CONFIG_PREFIX
+            + HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX,
+        "true");
+    config.set(
+        BigQueryFactory.BIGQUERY_CONFIG_PREFIX
+            + HadoopCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX,
+        bigqueryServiceAccount);
+    config.set(
+        BigQueryFactory.BIGQUERY_CONFIG_PREFIX
+            + HadoopCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX,
+        bigqueryPrivateKeyFile);
+    config.set(GoogleHadoopFileSystemBase.SERVICE_ACCOUNT_AUTH_KEYFILE_KEY, bigqueryPrivateKeyFile);
+    config.set(GoogleHadoopFileSystemBase.SERVICE_ACCOUNT_AUTH_EMAIL_KEY, bigqueryServiceAccount);
+    config.set(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY, projectIdvalue);
+    config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, testBucket);
+    config.setBoolean(BigQueryConfiguration.ENABLE_ASYNC_WRITE, this.enableAsyncWrites);
+
+    config.set("fs.gs.impl",
+               "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
+  }
+
+  @Before
+  public void setUp()
+      throws IOException, GeneralSecurityException {
+    MockitoAnnotations.initMocks(this);
+
+    TestConfiguration configuration = TestConfiguration.getInstance();
+
+    // For our test purposes, it's well worth it to have DEBUG-level logging for the BigQuery
+    // connector classes.
+    GsonBigQueryInputFormat.log.setLevel(LogUtil.Level.DEBUG);
+    BigQueryOutputCommitter.log.setLevel(LogUtil.Level.DEBUG);
+    BigQueryOutputFormat.log.setLevel(LogUtil.Level.DEBUG);
+    BigQueryRecordWriter.log.setLevel(LogUtil.Level.DEBUG);
+    BigQueryUtils.log.setLevel(LogUtil.Level.DEBUG);
+    GsonRecordReader.log.setLevel(LogUtil.Level.DEBUG);
+
+    // Use current time to label the test run.
+    // TODO(user): Use a date formatter.
+    testId = "bq_integration_test_" + System.currentTimeMillis();
+
+    projectIdvalue = configuration.getProjectId();
+    if (Strings.isNullOrEmpty(projectIdvalue)) {
+      projectIdvalue = System.getenv(BIGQUERY_PROJECT_ID_ENVVARNAME);
+    }
+
+    Preconditions.checkArgument(
+        !Strings.isNullOrEmpty(projectIdvalue),
+        String.format("Must provide %s", BIGQUERY_PROJECT_ID_ENVVARNAME));
+    testDataset = testId + "_dataset";
+    testBucket = testId + "_bucket";
+
+    // We have to create the output dataset ourselves.
+    // TODO(user): Extract dataset creation into a library which is also used by
+    // BigQueryOutputCommitter.
+    Dataset outputDataset = new Dataset();
+    DatasetReference datasetReference = new DatasetReference();
+    datasetReference.setProjectId(projectIdvalue);
+    datasetReference.setDatasetId(testDataset);
+
+    config = new Configuration();
+    setConfigForGcsFromBigquerySettings();
+    BigQueryFactory factory = new BigQueryFactory();
+    bigqueryInstance = factory.getBigQuery(config);
+
+    Bigquery.Datasets datasets = bigqueryInstance.datasets();
+    outputDataset.setDatasetReference(datasetReference);
+    log.info("Creating temporary dataset '%s' for project '%s'", testDataset, projectIdvalue);
+    datasets.insert(projectIdvalue, outputDataset).execute();
+
+    Path toCreate = new Path(String.format("gs://%s", testBucket));
+    FileSystem fs = toCreate.getFileSystem(config);
+    log.info("Creating temporary test bucket '%s'", toCreate);
+    fs.mkdirs(toCreate);
+
+    // Since the TaskAttemptContext and JobContexts are mostly used just to access a
+    // "Configuration" object, we'll mock the two contexts to just return our fake configuration
+    // object with which we'll provide the settings we want to test.
+    config.clear();
+    setConfigForGcsFromBigquerySettings();
+
+    when(mockTaskAttemptContext.getConfiguration())
+        .thenReturn(config);
+    when(mockJobContext.getConfiguration())
+        .thenReturn(config);
+
+    // Have a realistic-looking fake TaskAttemptID.
+    int taskNumber = 3;
+    int taskAttempt = 2;
+    int jobNumber = 42;
+    String jobIdString = "jobid" + System.currentTimeMillis();
+    JobID jobId = new JobID(jobIdString, jobNumber);
+    TaskAttemptID taskAttemptId =
+        new TaskAttemptID(new TaskID(jobId, false, taskNumber), taskAttempt);
+    when(mockTaskAttemptContext.getTaskAttemptID())
+        .thenReturn(taskAttemptId);
+    when(mockJobContext.getJobID()).thenReturn(jobId);
+
+    testTable = testId + "_table_" + jobIdString;
+
+    // Instantiate an OutputFormat and InputFormat instance.
+    outputFormat = new BigQueryOutputFormat();
+  }
+
+  @After
+  public void tearDown() throws IOException {
+    // Delete the test dataset along with all tables inside it.
+    // TODO(user): Move this into library shared by BigQueryOutputCommitter.
+    Bigquery.Datasets datasets = bigqueryInstance.datasets();
+    log.info("Deleting temporary test dataset '%s' for project '%s'", testDataset, projectIdvalue);
+    datasets.delete(projectIdvalue, testDataset).setDeleteContents(true).execute();
+
+    // Recursively delete the testBucket.
+    setConfigForGcsFromBigquerySettings();
+    Path toDelete = new Path(String.format("gs://%s", testBucket));
+    FileSystem fs = toDelete.getFileSystem(config);
+    log.info("Deleting temporary test bucket '%s'", toDelete);
+    fs.delete(toDelete, true);
+  }
+
+  @Test
+  public void testBasicWriteAndRead()
+      throws IOException, InterruptedException {
+    // Prepare the output settings.
+    BigQueryConfiguration.configureBigQueryOutput(
+        config, projectIdvalue, testDataset, testTable,
+        "[{'name': 'CompanyName','type': 'STRING'},{'name': 'MarketCap','type': 'INTEGER'}]");
+
+    // TODO(user): This shouldn't be necessary, but it's a bug where output committer assumes
+    // the inputformat was also BQ and thus tries to find a GCS path to delete. We should make
+    // the input and output independent from each other.
+    config.setBoolean(BigQueryConfiguration.DELETE_INTERMEDIATE_TABLE_KEY, false);
+
+    // First, obtain the "committer" and call the "setup" methods which are expected to create
+    // the temporary dataset.
+    OutputCommitter committer = outputFormat.getOutputCommitter(mockTaskAttemptContext);
+    committer.setupJob(mockJobContext);
+    committer.setupTask(mockTaskAttemptContext);
+
+    // Write some data records into the bare RecordWriter interface.
+    RecordWriter<Text, JsonObject> writer = outputFormat.getRecordWriter(mockTaskAttemptContext);
+    JsonObject value = new JsonObject();
+    value.addProperty(COMPANY_NAME_FIELD_NAME, "Google");
+    value.addProperty(MARKET_CAP_FIELD_NAME, 409);
+    writer.write(new Text("unused"), value);
+    value = new JsonObject();
+    value.addProperty(COMPANY_NAME_FIELD_NAME, "Microsoft");
+    value.addProperty(MARKET_CAP_FIELD_NAME, 314);
+    writer.write(new Text("unused"), value);
+    value = new JsonObject();
+    value.addProperty(COMPANY_NAME_FIELD_NAME, "Facebook");
+    value.addProperty(MARKET_CAP_FIELD_NAME, 175);
+    writer.write(new Text("unused"), value);
+
+    // Calling close should flush the data in a new load job request.
+    writer.close(mockTaskAttemptContext);
+
+    // Run the "commit" methods in order of task, then job. These should copy from the temporary
+    // table into the final destination.
+    assertTrue(committer.needsTaskCommit(mockTaskAttemptContext));
+    committer.commitTask(mockTaskAttemptContext);
+    committer.commitJob(mockJobContext);
+
+    // Clear the config before preparing the input settings to ensure we're not relying on an
+    // unexpected carryover of a config value from the output settings; input and output
+    // should each be able to operate fully independently.
+    // Set up the InputFormat to do a direct read of a table; no "query" or temporary extra table.
+    config.clear();
+    setConfigForGcsFromBigquerySettings();
+    BigQueryConfiguration.configureBigQueryInput(
+        config, projectIdvalue, testDataset, testTable);
+    config.set(BigQueryConfiguration.GCS_BUCKET_KEY, testBucket);
+
+    // Invoke the export/read flow by calling getSplits and createRecordReader.
+    List<InputSplit> splits = inputFormat.getSplits(mockJobContext);
+    assertEquals(2, splits.size());
+    RecordReader<?, T> reader =
+        inputFormat.createRecordReader(splits.get(0), mockTaskAttemptContext);
+
+    reader.initialize(splits.get(0), mockTaskAttemptContext);
+    // Place the read values into a map since they may arrive in any order.
+    Map<String, Integer> readValues = Maps.newHashMap();
+    while (reader.nextKeyValue()) {
+      Map<String, Object> record = readReacord(reader);
+      assertTrue(record.containsKey(COMPANY_NAME_FIELD_NAME));
+      assertTrue(record.containsKey(MARKET_CAP_FIELD_NAME));
+      readValues.put(
+          (String) record.get(COMPANY_NAME_FIELD_NAME),
+          (int) record.get(MARKET_CAP_FIELD_NAME));
+    }
+    assertEquals(3, readValues.size());
+    assertEquals(409, readValues.get("Google").intValue());
+    assertEquals(314, readValues.get("Microsoft").intValue());
+    assertEquals(175, readValues.get("Facebook").intValue());
+  }
+}

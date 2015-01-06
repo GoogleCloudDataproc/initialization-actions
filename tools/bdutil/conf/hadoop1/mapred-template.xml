@@ -1,0 +1,73 @@
+<?xml version="1.0" ?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+  <property>
+    <name>mapred.job.tracker</name>
+    <value><envVar name="JOB_TRACKER_URI"/></value>
+    <description>
+      The host and port that the MapReduce job tracker runsat.  If "local",
+      then jobs are run in-process as a single mapand reduce task.
+    </description>
+  </property>
+  <property>
+    <name>mapred.map.tasks</name>
+    <value><envVar name="DEFAULT_NUM_MAPS"/></value>
+    <description>
+      The default number of map tasks per job.Ignored when mapred.job.tracker is
+      "local".
+    </description>
+  </property>
+  <property>
+    <name>mapred.reduce.tasks</name>
+    <value><envVar name="DEFAULT_NUM_REDUCES"/></value>
+    <description>
+      The default number of reduce tasks per job. Typically set to 99%of the
+      cluster's reduce capacity, so that if a node fails the reduces canstill be
+      executed in a single wave.Ignored when mapred.job.tracker is
+      "local".
+    </description>
+  </property>
+  <property>
+    <name>mapred.tasktracker.map.tasks.maximum</name>
+    <value><envVar name="MAP_SLOTS"/></value>
+    <description>
+      The maximum number of map tasks that will be runsimultaneously by a task
+      tracker.
+    </description>
+  </property>
+  <property>
+    <name>mapred.tasktracker.reduce.tasks.maximum</name>
+    <value><envVar name="REDUCE_SLOTS"/></value>
+    <description>
+      The maximum number of reduce tasks that will be runsimultaneously by a
+      task tracker.
+    </description>
+  </property>
+  <property>
+    <name>mapred.child.java.opts</name>
+    <value><envVar name="JAVAOPTS"/></value>
+    <description>
+      Java opts for the task tracker child processes.The following symbol, if
+      present, will be interpolated: @taskid@ is replacedby current TaskID. Any
+      other occurrences of '@' will go unchanged.For example, to enable verbose
+      gc logging to a file named for the taskid in/tmp and to set the heap
+      maximum to be a gigabyte, pass a 'value' of:-Xmx1024m -verbose:gc
+      -Xloggc:/tmp/@taskid@.gcThe configuration variable mapred.child.ulimit can
+      be used to control themaximum virtual memory of the child processes.
+    </description>
+  </property>
+  <property>
+    <name>mapred.jobtracker.restart.recover</name>
+    <value>true</value>
+    <description>
+      Whether or not to enable (job) recovery upon restart.
+    </description>
+  </property>
+  <property>
+    <name>mapred.local.dir</name>
+    <value><envVar name="MAPRED_LOCAL_DIRS"/></value>
+    <description>
+        Directories on the local machine in which to store mapreduce temp files.
+    </description>
+  </property>
+</configuration>

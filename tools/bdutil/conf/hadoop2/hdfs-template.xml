@@ -1,0 +1,58 @@
+<?xml version="1.0" ?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+  <property>
+    <name>dfs.namenode.secondary.http-address</name>
+    <value><envVar name="MASTER_HOSTNAME"/>:50090</value>
+    <description>
+      The secondary namenode http server address and port.
+    </description>
+  </property>
+  <property>
+    <name>dfs.namenode.rpc-address</name>
+    <value><envVar name="MASTER_HOSTNAME"/>:8020</value>
+    <description>
+      RPC address that handles all clients requests. If empty then we'll get
+      thevalue from fs.default.name.The value of this property will take the
+      form of hdfs://nn-host1:rpc-port.
+    </description>
+  </property>
+  <property>
+    <name>dfs.namenode.name.dir</name>
+    <value><envVar name="HDFS_NAME_DIR"/></value>
+    <description>
+      Determines where on the local filesystem the DFS namenode should store the
+      name table(fsimage). If this is a comma-delimited list of directories then
+      the name table is replicated in all of thedirectories, for redundancy.
+    </description>
+  </property>
+  <property>
+    <name>dfs.datanode.data.dir</name>
+    <value><envVar name="HDFS_DATA_DIRS"/></value>
+    <description>
+      Determines where on the local filesystem an DFS datanode should store its
+      blocks. If this is a comma-delimited list of directories, then data will
+      be stored in all named directories, typically on different
+      devices.Directories that do not exist are ignored.
+    </description>
+  </property>
+  <property>
+    <name>dfs.datanode.data.dir.perm</name>
+    <value><envVar name="HDFS_DATA_DIRS_PERM"/></value>
+    <description>
+      Permissions for the directories on on the local filesystem where the DFS
+      data node store its blocks. The permissions can either be octal or
+      symbolic.
+    </description>
+  </property>
+  <property>
+    <name>dfs.permissions.enabled</name>
+    <value><envVar name="ENABLE_HDFS_PERMISSIONS"/></value>
+    <description>
+      If "true", enable permission checking in HDFS. If "false", permission
+      checking is turned off, but all other behavior is unchanged. Switching
+      from one parameter value to the other does not change the mode, owner or
+      group of files or directories.
+    </description>
+  </property>
+</configuration>

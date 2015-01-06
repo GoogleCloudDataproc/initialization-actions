@@ -595,7 +595,13 @@ public abstract class GoogleHadoopFileSystemBase
   public abstract Path getFileSystemRoot();
 
   @Override
-  public abstract String getHadoopScheme();
+  public abstract String getScheme();
+
+  @Deprecated
+  @Override
+  public String getHadoopScheme() {
+    return getScheme();
+  }
 
   /**
    *
@@ -639,12 +645,12 @@ public abstract class GoogleHadoopFileSystemBase
     String scheme = uri.getScheme();
     // Only check that the scheme matches. The authority and path will be
     // validated later.
-    if (scheme == null || scheme.equalsIgnoreCase(getHadoopScheme())) {
+    if (scheme == null || scheme.equalsIgnoreCase(getScheme())) {
       return;
     } else {
       String msg = String.format(
           "Wrong FS scheme: %s, in path: %s, expected scheme: %s",
-          scheme, path, getHadoopScheme());
+          scheme, path, getScheme());
       throw new IllegalArgumentException(msg);
     }
   }
@@ -682,7 +688,7 @@ public abstract class GoogleHadoopFileSystemBase
     Preconditions.checkArgument(path != null, "path must not be null");
     Preconditions.checkArgument(config != null, "config must not be null");
     Preconditions.checkArgument(path.getScheme() != null, "scheme of path must not be null");
-    if (!path.getScheme().equals(getHadoopScheme())) {
+    if (!path.getScheme().equals(getScheme())) {
       throw new IllegalArgumentException("URI scheme not supported: " + path);
     }
     initUri = path;
@@ -695,7 +701,7 @@ public abstract class GoogleHadoopFileSystemBase
           "Initializing 'statistics' as an instance not attached to the static FileSystem map");
       // Provide an ephemeral Statistics object to avoid NPE, but still avoid registering a global
       // statistics object.
-      statistics = new Statistics(getHadoopScheme());
+      statistics = new Statistics(getScheme());
     }
     configure(config);
 

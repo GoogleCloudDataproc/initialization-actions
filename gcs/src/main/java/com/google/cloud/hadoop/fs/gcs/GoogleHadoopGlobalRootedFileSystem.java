@@ -135,7 +135,7 @@ public class GoogleHadoopGlobalRootedFileSystem
     // For this global-rooted GHFS implementation, the hadoop path's scheme is exactly equal to
     // the underlying GCSFS scheme.
     URI pathUri = null;
-    String path = getHadoopScheme() + ":/" + bucketName + "/" + objectName;
+    String path = getScheme() + ":/" + bucketName + "/" + objectName;
     try {
       pathUri = new URI(path);
     } catch (URISyntaxException e) {
@@ -190,14 +190,14 @@ public class GoogleHadoopGlobalRootedFileSystem
 
   @Override
   public Path getFileSystemRoot() {
-    return new Path(getHadoopScheme() + ":/");
+    return new Path(getScheme() + ":/");
   }
 
   /**
    * As the global-rooted FileSystem, our hadoop-path "scheme" is distinct from GCS's scheme.
    */
   @Override
-  public String getHadoopScheme() {
+  public String getScheme() {
     return "gsg";
   }
 

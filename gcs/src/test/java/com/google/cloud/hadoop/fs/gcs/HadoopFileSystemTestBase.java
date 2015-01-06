@@ -310,7 +310,7 @@ public abstract class HadoopFileSystemTestBase
           String.format("Hadoop path %s expected to exist", hadoopPath), pathExpectedToExist);
     }
 
-    if (!ghfsFileSystemDescriptor.getHadoopScheme().equals("file")) {
+    if (!ghfsFileSystemDescriptor.getScheme().equals("file")) {
       Assert.assertEquals(
           String.format("Hadoop path %s", hadoopPath.toString()),
           pathExpectedToExist, fileStatus != null);
@@ -453,7 +453,7 @@ public abstract class HadoopFileSystemTestBase
     FSDataInputStream readStream = null;
     long fileSystemBytesRead = 0;
     FileSystem.Statistics stats = FileSystem.getStatistics(
-        ghfsFileSystemDescriptor.getHadoopScheme(), ghfs.getClass());
+        ghfsFileSystemDescriptor.getScheme(), ghfs.getClass());
     if (stats != null) {
       // Let it be null in case no stats have been added for our scheme yet.
       fileSystemBytesRead =
@@ -481,7 +481,7 @@ public abstract class HadoopFileSystemTestBase
 
     // After the read, the stats better be non-null for our ghfs scheme.
     stats = FileSystem.getStatistics(
-        ghfsFileSystemDescriptor.getHadoopScheme(), ghfs.getClass());
+        ghfsFileSystemDescriptor.getScheme(), ghfs.getClass());
     Assert.assertNotNull(stats);
     long endFileSystemBytesRead = stats.getBytesRead();
     int bytesReadStats = (int) (endFileSystemBytesRead - fileSystemBytesRead);
@@ -1153,7 +1153,7 @@ public abstract class HadoopFileSystemTestBase
 
     long fileSystemBytesWritten = 0;
     FileSystem.Statistics stats = FileSystem.getStatistics(
-        ghfsFileSystemDescriptor.getHadoopScheme(), ghfs.getClass());
+        ghfsFileSystemDescriptor.getScheme(), ghfs.getClass());
     if (stats != null) {
       // Let it be null in case no stats have been added for our scheme yet.
       fileSystemBytesWritten =
@@ -1195,7 +1195,7 @@ public abstract class HadoopFileSystemTestBase
     }
 
     // After the write, the stats better be non-null for our ghfs scheme.
-    stats = FileSystem.getStatistics(ghfsFileSystemDescriptor.getHadoopScheme(), ghfs.getClass());
+    stats = FileSystem.getStatistics(ghfsFileSystemDescriptor.getScheme(), ghfs.getClass());
     Assert.assertNotNull(stats);
     long endFileSystemBytesWritten =
         stats.getBytesWritten();

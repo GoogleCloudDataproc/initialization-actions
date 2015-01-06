@@ -169,6 +169,13 @@ public abstract class DirectoryListCache {
   public abstract List<CacheEntry> getBucketList() throws IOException;
 
   /**
+   * @return List of *all* Bucket CacheEntries, including ones which might be expired. Doesn't
+   *     actively invalidate, set expiration, or delete expired entries. Can be used when the
+   *     internal bucket list is needed without wanting to cause any mutations in the cache.
+   */
+  public abstract List<CacheEntry> getRawBucketList() throws IOException;
+
+  /**
    * @param bucketName The bucket inside of which to list objects.
    * @param objectNamePrefix The prefix to be used to match object names to return.
    * @param delimiter The character for specifying 'directory' boundaries, or null.
@@ -193,13 +200,13 @@ public abstract class DirectoryListCache {
    * getBucketList() if there are expired entries. Does not mutate the cache.
    */
   @VisibleForTesting
-  abstract int getInternalNumBuckets() throws IOException;
+  public abstract int getInternalNumBuckets() throws IOException;
 
   /**
    * Gets the internal total count of cached StorageObject entries. Does not mutate the cache.
    */
   @VisibleForTesting
-  abstract int getInternalNumObjects() throws IOException;
+  public abstract int getInternalNumObjects() throws IOException;
 
   /**
    * Returns the {@code Config} instance used by this DirectoryListCache instance to determine
@@ -215,7 +222,7 @@ public abstract class DirectoryListCache {
    * Sets the static Clock instance used for calculating expiration times.
    */
   @VisibleForTesting
-  synchronized void setClock(Clock clock) {
+  public synchronized void setClock(Clock clock) {
     this.clock = clock;
   }
 

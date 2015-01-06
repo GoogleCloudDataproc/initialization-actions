@@ -32,6 +32,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 
+import org.apache.http.HttpStatus;
+
 import java.io.IOException;
 import java.util.Set;
 
@@ -178,10 +180,12 @@ public class RetryHttpInitializer
       exceptionHandler.setSleeper(sleeperOverride);
     }
 
-    // Supply a new composite handler for unsuccessful return codes, so that 401's will be handled
-    // by the Credential, and 5XX by a backoff handler.
+    // Supply a new composite handler for unsuccessful return codes. 401 Unauthorized will be
+    // handled by the Credential, 410 Gone will be logged, and 5XX will be handled by a backoff
+    // handler.
     LoggingResponseHandler loggingResponseHandler = new LoggingResponseHandler(
-        new CredentialOrBackoffResponseHandler(), exceptionHandler, ImmutableSet.of(410, 503));
+        new CredentialOrBackoffResponseHandler(), exceptionHandler,
+        ImmutableSet.of(HttpStatus.SC_GONE, HttpStatus.SC_SERVICE_UNAVAILABLE));
     request.setUnsuccessfulResponseHandler(loggingResponseHandler);
     request.setIOExceptionHandler(loggingResponseHandler);
 

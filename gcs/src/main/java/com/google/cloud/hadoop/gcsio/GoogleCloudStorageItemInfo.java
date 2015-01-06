@@ -53,6 +53,8 @@ public class GoogleCloudStorageItemInfo {
 
   // User-supplied metadata.
   private final Map<String, byte[]> metadata;
+  private final long contentGeneration;
+  private final long metaGeneration;
 
   /**
    * Constructs an instance of GoogleCloudStorageItemInfo.
@@ -63,7 +65,15 @@ public class GoogleCloudStorageItemInfo {
    */
   public GoogleCloudStorageItemInfo(StorageResourceId resourceId,
       long creationTime, long size, String location, String storageClass) {
-    this(resourceId, creationTime, size, location, storageClass, ImmutableMap.<String, byte[]>of());
+    this(
+        resourceId,
+        creationTime,
+        size,
+        location,
+        storageClass,
+        ImmutableMap.<String, byte[]>of(),
+        0 /* content generation */,
+        0 /* meta generation */);
   }
 
   /**
@@ -74,9 +84,15 @@ public class GoogleCloudStorageItemInfo {
    * @param size Size of the given object (number of bytes) or -1 if the object does not exist.
    * @param metadata User-supplied object metadata for this object.
    */
-  public GoogleCloudStorageItemInfo(StorageResourceId resourceId,
-      long creationTime, long size, String location, String storageClass,
-      Map<String, byte[]> metadata) {
+  public GoogleCloudStorageItemInfo(
+      StorageResourceId resourceId,
+      long creationTime,
+      long size,
+      String location,
+      String storageClass,
+      Map<String, byte[]> metadata,
+      long contentGeneration,
+      long metaGeneration) {
     Preconditions.checkArgument(resourceId != null,
         "resourceId must not be null! Use StorageResourceId.ROOT to represent GCS root.");
     this.resourceId = resourceId;
@@ -89,6 +105,8 @@ public class GoogleCloudStorageItemInfo {
     } else {
       this.metadata = metadata;
     }
+    this.contentGeneration = contentGeneration;
+    this.metaGeneration = metaGeneration;
   }
 
   /**
@@ -178,6 +196,20 @@ public class GoogleCloudStorageItemInfo {
   }
 
   /**
+   * Get the content generation of the object.
+   */
+  public long getContentGeneration() {
+    return contentGeneration;
+  }
+
+  /**
+   * Get the meta generation of the object.
+   */
+  public long getMetaGeneration() {
+    return metaGeneration;
+  }
+
+  /**
    * Gets string representation of this instance.
    */
   @Override
@@ -198,7 +230,9 @@ public class GoogleCloudStorageItemInfo {
           && creationTime == other.creationTime 
           && size == other.size 
           && Objects.equals(location, other.location) 
-          && Objects.equals(storageClass, other.storageClass);
+          && Objects.equals(storageClass, other.storageClass)
+          && metaGeneration == other.metaGeneration
+          && contentGeneration == other.contentGeneration;
     }
     return false;
   }

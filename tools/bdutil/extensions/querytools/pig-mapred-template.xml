@@ -1,0 +1,11 @@
+<?xml version="1.0" ?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+  <property>
+    <name>mapred.working.dir</name>
+    <value>/user/<envVar name="HDP_USER"/></value>
+    <description>
+      The FileSystem working directory to use for relative paths.
+    </description>
+  </property>
+</configuration>

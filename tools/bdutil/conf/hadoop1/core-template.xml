@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+  <property>
+    <name>hadoop.tmp.dir</name>
+    <value><envVar name="HADOOP_TMP_DIR"/></value>
+    <description>A base for other temporary directories.</description>
+  </property>
+</configuration>

@@ -1,0 +1,1632 @@
+#!/bin/bash
+#
+# Copyright 2013 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS-IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Top-level harness which deploys a ready-to-use Hadoop cluster including
+# starting GCE VMs, installing Hadoop binaries, configuring HDFS, installing
+# GHFS libraries, and configuring GHFS.
+#
+# Usage: ./bdutil [deploy|delete] [optional: <paths to env files>]...
+
+BDUTIL_VERSION='{{ version_string }}'
+
+# Prints the usage for this script and exits.
+function print_usage() {
+  echo "bdutil version: ${BDUTIL_VERSION}"
+  cat <<'EOF'
+
+Usage: ./bdutil [ optional flags ] <command> [ args ]
+
+Description:
+  Utility for creating a Google Compute Engine cluster and installing, configuring, and calling
+  Hadoop and Hadoop-compatible software on it.
+
+Flags:
+  -b, --bucket
+    Google Cloud Storage bucket used in deployment and by the cluster.
+
+  -D, --debug
+    If provided, enables high-verbosity debug logging switches for underlying
+    gcloud compute and gsutil calls both locally and on deployed VMs; may result
+    in significantly larger logfiles. Use with --verbose to also see this debug
+    info on the console.
+
+  -d, --use_attached_pds
+    If true, uses additional non-boot volumes, optionally creating them on
+    deploy if they don't exist already and deleting them on cluster delete.
+
+  -e, --env_var_files
+    Comma-separated list of bash files that are sourced to configure the cluster
+    and installed software. Files are sourced in order with later files being
+    sourced last. bdutil_env.sh is always sourced first. Flag arguments are
+    set after all sourced files, but before the evaluate_late_variable_bindings
+    method of bdutil_env.sh. see bdutil_env.sh for more information.
+
+  -F, --default_fs
+    Specifies the default filesystem to set, one of [gs|hdfs].
+
+  -f, --force
+    Assume default response (y) at prompt.
+
+  -h, --help
+    Print this help message.
+
+  -i, --image
+    Specify the Google Compute Engine image to use.
+
+  -m, --machine_type
+    Specify the Google Compute Engine machine type to use.
+
+  --master_attached_pd_size_gb
+    Only applicable during deployment if USE_ATTACHED_PDS is true and
+    CREATE_ATTACHED_PDS_ON_DEPLOY is true. Specifies the size, in GB, of
+    the non-boot PD to create for the master node.
+
+  --master_attached_pd_type
+    Only applicable during deployment if USE_ATTACHED_PDS is true and
+    CREATE_ATTACHED_PDS_ON_DEPLOY is true. Specifies the disk type,
+    either 'pd-standard' or 'pd-ssd', to create for the master node.
+
+  --network
+    Specify a network name with which to associate new virtual machines.
+
+  -n, --num_workers
+    The number of worker nodes to create.
+
+  --old_hostname_suffixes
+    If true, uses the old hostname convention of $PREFIX-nn and $PREFIX-dn-$i
+    instead of the new $PREFIX-master and $PREFIX-worker-$i. Should only be
+    used if necessary for interacting with older existing clusters,
+    as the old naming scheme is deprecated and will eventually be removed.
+
+  -P, --prefix
+    Common prefix for cluster nodes.
+
+  -p, --project
+    The Google Cloud Platform project to use to create the cluster.
+
+  -t, --target
+    Where to execute code for run_command and run_command_group.
+    Must be one of [master|workers|all].
+
+  -u, --upload_files
+    Comma-separated list of additional files to upload to VMs
+
+  -v --verbose
+    If provided, sends gcloud compute output to console in addition to logfiles.
+
+  --worker_attached_pds_size_gb
+    Only applicable during deployment if USE_ATTACHED_PDS is true and
+    CREATE_ATTACHED_PDS_ON_DEPLOY is true. Specifies the size, in GB, of
+    each non-boot PD to create for the worker nodes.
+
+  --worker_attached_pds_type
+    Only applicable during deployment if USE_ATTACHED_PDS is true and
+    CREATE_ATTACHED_PDS_ON_DEPLOY is true. Specifies the disk type,
+    either 'pd-standard' or 'pd-ssd', to create for the worker nodes.
+
+  -z, --zone
+    Specify the Google Compute Engine zone to use.
+
+
+Commands:
+  create, delete, deploy, generate_config, run_command, run_command_group,
+  run_command_steps, shell, socksproxy
+
+create               Creates the VMs and optionally disks for the cluster.
+
+delete               Deletes the VMs and optionally disks for the cluster.
+
+deploy               Creates the VMs and optionally disks for the cluster and
+                     then runs all COMMAND_STEPS specified in resolved
+                     env_var_files on them.
+
+generate_config      Generates an overrides file containing the
+                     environment-variable settings generated from flags. Takes a
+                     single positional argument specifying the name of the file
+                     to generate.
+
+list_commands        List the available commands (for command completion).
+
+list_env_files       List the short names for all env files in our extensions
+                     path (for command completion).
+
+list_options         Succinctly list all command line options
+                     (for command completion).
+
+run_command          Executes given code on nodes of a cluster. Uses --target
+                     flag, with the default "master". Positional arguments
+                     following run_command will be executed.
+                     Use -- to pass flags to your command (see example).
+
+run_command_group    Executes the given command group in COMMAND_GROUPS
+                     variable in resolved env_var_files on nodes of a cluster.
+                     Uses --target flag, with the default "all". Takes one
+                     positional argument of the bash command to run.
+
+run_command_steps    Runs all COMMAND_STEPS specified in resolved
+                     env_var_files on the cluster.
+
+shell                Creates a new SSH connection to the master node.
+
+socksproxy           Create a SOCKS proxy running through the master node.
+
+
+Examples:
+
+  Deploy a 5-worker cluster with prefix 'my-cluster' and BigQuery/Datastore installed:
+  ./bdutil -b foo-bucket -n 5 -P my-cluster -e bigquery_env.sh,datastore_env.sh deploy
+
+  Pipe hadoop-validate-setup.sh into a bash shell on the cluster's master node:
+  ./bdutil -P my-cluster shell < ./hadoop-validate-setup.sh
+
+  Upload and execute hadoop-validate-setup.sh on the cluster's master node as user foo-user:
+  ./bdutil -P my-cluster -u hadoop-validate-setup.sh run_command -- \
+      sudo -u foo-user ./hadoop-validate-setup.sh
+
+  Configure an existing 20-worker Hadoop cluster, installing connectors as desired:
+  ./bdutil -P pre-existing-cluster -n 20 run_command_group install_connectors
+
+  Generate an env file from flags, then deploy/delete using that file.
+  ./bdutil -P prod-cluster1 -n 20 -b prod-bucket1 generate_config prod1_env.sh
+  ./bdutil -e prod1_env.sh deploy
+  ./bdutil -e prod1_env.sh delete
+
+EOF
+}
+
+# List all commands - used for command completion.
+function list_commands() {
+  print_usage | sed -n -e '/^Commands:/,/^$/p' | tail -n +2 | head -n -1 | \
+    tr -d ','
+}
+
+# List all options - used for command completion.
+function list_options() {
+  print_usage | grep -E '^ *-' | tr -d ','
+}
+
+# Allow overriding the date function for unit testing.
+function bdutil_date() {
+  date "$@"
+}
+
+# Simple wrapper around "echo" so that it's easy to add log messages with a
+# date/time prefix.
+function loginfo() {
+  echo "$(bdutil_date): ${@}"
+}
+
+# Simple wrapper around "echo" controllable with ${VERBOSE_MODE}.
+function logdebug() {
+  if (( ${VERBOSE_MODE} )); then
+    loginfo ${@}
+  fi
+}
+
+# Simple wrapper to pass errors to stderr.
+function logerror() {
+  loginfo ${@} >&2
+}
+
+# Give instructions on full usage statement and fail.
+function print_help() {
+  logerror "For help run './bdutil --help.'"
+  exit 1
+}
+
+# Helper to consolidate the various error logs into a single debug file for
+# easy review after an error occurs.
+function consolidate_error_logs() {
+  if [[ -e ${GCLOUD_COMPUTE_STDOUT_FILE} ]]; then
+    echo '******************* gcloud compute stdout *******************' \
+        >> ${AGGREGATE_DEBUG_FILE}
+    cat ${GCLOUD_COMPUTE_STDOUT_FILE} >> ${AGGREGATE_DEBUG_FILE}
+    echo >> ${AGGREGATE_DEBUG_FILE}
+  fi
+  if [[ -e ${GCLOUD_COMPUTE_STDERR_FILE} ]]; then
+    echo '******************* gcloud compute stderr *******************' \
+        >> ${AGGREGATE_DEBUG_FILE}
+    cat ${GCLOUD_COMPUTE_STDERR_FILE} >> ${AGGREGATE_DEBUG_FILE}
+    echo >> ${AGGREGATE_DEBUG_FILE}
+    echo '************ ERROR logs from gcloud compute stderr ************' \
+        >> ${AGGREGATE_DEBUG_FILE}
+    grep -i 'error' ${GCLOUD_COMPUTE_STDERR_FILE} >> ${AGGREGATE_DEBUG_FILE}
+    echo >> ${AGGREGATE_DEBUG_FILE}
+  fi
+  if [[ -e ${VM_DEBUG_FILE} ]]; then
+    echo '******************* Exit codes and VM logs *******************' \
+        >> ${AGGREGATE_DEBUG_FILE}
+    cat ${VM_DEBUG_FILE} >> ${AGGREGATE_DEBUG_FILE}
+    echo >> ${AGGREGATE_DEBUG_FILE}
+  fi
+  if (( ${VERBOSE_MODE} )); then
+    loginfo "Verbose mode--printing full contents of details debug info"
+    cat ${AGGREGATE_DEBUG_FILE}
+  fi
+  logerror "Detailed debug info available in file: ${AGGREGATE_DEBUG_FILE}"
+  logerror 'Check console output for error messages and/or retry your command.'
+}
+
+# Handler for errors occuring during the deployment to print useful info before
+# exiting. The following global variables control whether handle_error() should
+# actually process and consolidate a trapped error, or otherwise simply flip
+# CAUGHT_ERROR to '1' without trying to consolidate logs or exiting in case
+# the caller wants to simply continue on error.
+SUPPRESS_TRAPPED_ERRORS=0
+CAUGHT_ERROR=0
+function handle_error() {
+  # Save the error code responsible for the trap.
+  local errcode=$?
+  local bash_command=${BASH_COMMAND}
+  local lineno=${BASH_LINENO[0]}
+
+  CAUGHT_ERROR=1
+
+  if (( ${SUPPRESS_TRAPPED_ERRORS} )); then
+    loginfo "Continuing despite trapped error with code '${errcode}'"
+    return
+  fi
+
+  # Wait for remaining async things to finish, otherwise our error message may
+  # get lost among other logspam.
+  wait
+  logerror "Command failed: ${bash_command} on line ${lineno}."
+  logerror "Exit code of failed command: ${errcode}"
+
+  consolidate_error_logs
+  exit ${errcode}
+}
+
+# Needed to introduce small delays to mitigate hitting API on the same second
+function sleep_for_api_ops() {
+  sleep "${GCLOUD_COMPUTE_SLEEP_TIME_BETWEEN_ASYNC_CALLS_SECONDS}"
+}
+
+# Helper for waiting on all async jobs to finish, with info logging. $1 should
+# be a short description of what's being waiting on.
+function await_async_jobs() {
+  trap handle_error ERR
+
+  # Sleep a tiny bit to allow the async process to report its kickoff first,
+  # to try to keep this "Might take a while" warning as the last message
+  # before the long wait.
+  sleep '0.5'
+  loginfo "Waiting on async '$1' jobs to finish. Might take a while..."
+  for SUBPROC in $(jobs -p); do wait ${SUBPROC}; done
+  # Newline since the async jobs may have printed dots for progress.
+  echo
+}
+
+# Given $1 describing the command to confirm (deploy|delete), prints and reads
+# a confirmation prompt from the console.
+SKIP_PROMPT=0
+function prompt_confirmation() {
+  trap handle_error ERR
+  local msg="$1 cluster with following settings?
+      CONFIGBUCKET='${CONFIGBUCKET?}'
+      PROJECT='${PROJECT?}'
+      GCE_IMAGE='${GCE_IMAGE?}'
+      GCE_ZONE='${GCE_ZONE?}'
+      GCE_NETWORK='${GCE_NETWORK?}'
+      PREFIX='${PREFIX?}'
+      NUM_WORKERS=${NUM_WORKERS?}
+      MASTER_HOSTNAME='${MASTER_HOSTNAME}'
+      WORKERS='${WORKERS[@]}'
+      BDUTIL_GCS_STAGING_DIR='${BDUTIL_GCS_STAGING_DIR}'
+      "
+  if (( ${USE_ATTACHED_PDS} )); then
+    msg+="\
+      MASTER_ATTACHED_PD='${MASTER_ATTACHED_PD}'
+      WORKER_ATTACHED_PDS='${WORKER_ATTACHED_PDS[@]}'
+      "
+  fi
+  if [[ -n "${TARGET}" ]]; then
+    msg+="TARGET='${TARGET}'
+      "
+  fi
+  if [[ -n "${COMMAND_GROUP}" ]]; then
+    msg+="COMMAND_GROUP='${COMMAND_GROUP}'
+      "
+  fi
+  msg+="(y/n) "
+  if (( ${SKIP_PROMPT} )); then
+    echo "${msg}" y
+  else
+    read -p "${msg}" PROMPT_RESPONSE
+    if [[ ${PROMPT_RESPONSE} != 'y' ]]; then
+      logerror "Aborting command '${BDUTIL_CMD}', exiting..."
+      exit 1
+    fi
+  fi
+
+  if [[ ${EUID} -eq 0 ]]; then
+    msg='Are you sure you want to run the command as root? (y/n)'
+    read -p "${msg}" PROMPT_RESPONSE
+    if [[ ${PROMPT_RESPONSE} != 'y' ]]; then
+      logerror "Aborting command '$1', exiting..."
+      exit 1
+    fi
+  fi
+}
+
+# Wrapper around gcloud compute ssh
+function run_gcloud_compute_ssh() {
+  local hostname="$1"
+  # Empty command functions as regular ssh
+  local remote_command="$2"
+  local extra_args=("${@:3}")
+
+  # Ping the server every minute and allow two keepalive messages to be in
+  # flight at once.
+  extra_args+=('--ssh-flag=-oServerAliveInterval=60')
+  extra_args+=('--ssh-flag=-oServerAliveCountMax=3')
+  extra_args+=('--ssh-flag=-oConnectTimeout=30')
+
+  run_gcloud_compute_cmd ssh ${hostname} \
+      --command="${remote_command}" "${extra_args[@]}"
+}
+
+# The gcloud compute command with global flags and some common command flags to
+# use for all GCE operations.
+function run_gcloud_compute_cmd() {
+  local gcloud_compute_args=("$@")
+  local gcloud_flags=()
+
+  # Add global flags
+  gcloud_flags+=("--project=${PROJECT}")
+  gcloud_flags+=('--quiet')
+  gcloud_compute_args+=("--zone=${GCE_ZONE}")
+
+  if (( ${DEBUG_MODE} )); then
+    gcloud_flags+=('--verbosity=debug')
+  else
+    gcloud_flags+=('--verbosity=info')
+  fi
+
+  full_cmd=(gcloud "${gcloud_flags[@]}" compute "${gcloud_compute_args[@]}")
+
+  if (( ${RAW_MODE} )); then
+    loginfo "Running ${full_cmd[@]}"
+    "${full_cmd[@]}"
+  elif (( ${VERBOSE_MODE} )); then
+    loginfo "Running ${full_cmd[@]}"
+    "${full_cmd[@]}" \
+        2> >(tee -a ${GCLOUD_COMPUTE_STDERR_FILE} 1>&2) \
+        1> >(tee -a ${GCLOUD_COMPUTE_STDOUT_FILE}) \
+        < /dev/null
+  else
+    echo -n "."
+    "${full_cmd[@]}" \
+        2>>${GCLOUD_COMPUTE_STDERR_FILE} \
+        1>>${GCLOUD_COMPUTE_STDOUT_FILE} \
+        < /dev/null
+  fi
+
+  local exitcode=$?
+  if (( ${exitcode} != 0 )); then
+    if [[ "$*" =~ "--command=exit 0" ]]; then
+      # This is just an sshability check; only log it to debug.
+      logdebug "Exited ${exitcode} : ${full_cmd[@]}"
+    else
+      logerror "Exited ${exitcode} : ${full_cmd[@]}"
+    fi
+    loginfo "Exited ${exitcode} : ${full_cmd[@]}" >> ${VM_DEBUG_FILE}
+  else
+    echo -n '.'
+  fi
+  return ${exitcode}
+}
+
+# Checks for obvious issues like missing "required" fields.
+function run_sanity_checks() {
+  trap handle_error ERR
+  if [[ -z "${CONFIGBUCKET}" ]]; then
+    logerror 'CONFIGBUCKET must be provided'
+    print_help
+  fi
+
+  # Make sure groupings of shell scripts for running on VMs are defined.
+  if (( ${#COMMAND_GROUPS[@]} <= 0 )); then
+    logerror 'COMMAND_GROUPS must be non-empty.'
+    print_help
+  fi
+
+  # Make sure the series of steps to run on VMs are defined.
+  if (( ${#COMMAND_STEPS[@]} <= 0 )); then
+    logerror 'COMMAND_STEPS must be non-empty.'
+    print_help
+  fi
+
+  # Make sure the hostnames all abide by the PREFIX.
+  local node=''
+  for node in ${WORKERS[@]} ${MASTER_HOSTNAME?}; do
+    if ! [[ "${node}" =~ ^${PREFIX}.* ]]; then
+      logerror "Error: VM instance name ${node} doesn't start with ${PREFIX}."
+      print_help
+    fi
+  done
+
+  # Check for the right number of elements in WORKERS.
+  if (( ${#WORKERS[@]} != ${NUM_WORKERS?} )); then
+    logerror "WORKERS must contain ${NUM_WORKERS} elements; got ${#WORKERS[@]}"
+    print_help
+  fi
+
+  # Check for disk names being defined if USE_ATTACHED_PDS is true.
+  if (( ${USE_ATTACHED_PDS} )); then
+    if (( ${#WORKER_ATTACHED_PDS[@]} != ${NUM_WORKERS?} )); then
+      local actual=${#WORKER_ATTACHED_PDS[@]}
+      local varname='WORKER_ATTACHED_PDS'
+      logerror "${varname} has ${actual} elements, expected ${NUM_WORKERS}"
+      print_help
+    fi
+    if [[ -z "${MASTER_ATTACHED_PD}" ]]; then
+      logerror 'MASTER_ATTACHED_PD must be defined since USE_ATTACHED_PDS==1.'
+      print_help
+    fi
+  fi
+
+  # Make sure GCS connector is installed if it is the default FS
+  if [[ "${DEFAULT_FS}" == 'gs' ]] && (( ! "${INSTALL_GCS_CONNECTOR}" )); then
+    logerror 'INSTALL_GCS_CONNECTOR must 1 if DEFAULT_FS is gs.'
+    print_help
+  fi
+
+  # Make sure HDFS is enabled if it is the default FS
+  if [[ "${DEFAULT_FS}" == 'hdfs' ]] && (( ! "${ENABLE_HDFS}" )); then
+    logerror 'ENABLE_HDFS must 1 if DEFAULT_FS is hdfs.'
+    print_help
+  fi
+
+  local scheme=${HADOOP_TARBALL_URI%%://*}
+  # Make sure HADOOP_TARBALL_URI uses supported scheme
+  if [[ ! "${scheme}" =~ ^(gs|https?)$ ]] ; then
+    logerror "Unsupported scheme: \"$scheme\" in" \
+        "HADOOP_TARBALL_URI: ${HADOOP_TARBALL_URI}."
+    print_help
+  fi
+
+  # Make sure TARGET is set correctly
+  if [[ "${BDUTIL_CMD}" =~ ^run_command(_group)?$ ]]; then
+    if [[ -z "${TARGET}" ]]; then
+      if [[ "${BDUTIL_CMD}" == 'run_command_group' ]]; then
+        TARGET='all'
+      else
+        TARGET='master'
+      fi
+      logerror "TARGET unspecified assuming ${TARGET}."
+    elif ! [[ "${TARGET}" =~ ^(master|workers|all)$ ]]; then
+      logerror '--target must be [master|workers|all].'
+      print_help
+    fi
+  elif [[ -n "${TARGET}" ]]; then
+    logerror "Flag --target can only be specified for run_command" \
+        "or run_command_group."
+    print_help
+  fi
+
+  if [[ -n "${COMMAND_GROUP}" ]]; then
+    if ! grep -q ${COMMAND_GROUP}: <<< ${COMMAND_GROUPS[@]}; then
+      logerror "Command group '${COMMAND_GROUP}' not found in" \
+          "resolved COMMAND_GROUPS."
+      print_help
+    fi
+  fi
+
+  if [[ -z "${PROJECT}" ]]; then
+    loginfo 'No project provided; using default gcloud project.'
+    PROJECT="$(gcloud config list | grep project | cut -d'=' -f2 | tr -d ' ')"
+    if [[ -n "${PROJECT}" ]]; then
+      loginfo "Using project '${PROJECT}'"
+      echo "PROJECT=${PROJECT}" >> ${OVERRIDES_FILE}
+    else
+      logerror 'Cannot find project using gcloud.'
+      print_help
+    fi
+  fi
+
+  if [[ -z "${WORKER_ATTACHED_PDS_TYPE}" ]]; then
+    loginfo 'No WORKER_ATTACHED_PDS_TYPE provided; defaulting to pd-standard.'
+    WORKER_ATTACHED_PDS_TYPE='pd-standard'
+    echo "WORKER_ATTACHED_PDS_TYPE=${WORKER_ATTACHED_PDS_TYPE}" \
+        >> ${OVERRIDES_FILE}
+  fi
+
+  if [[ -z "${MASTER_ATTACHED_PD_TYPE}" ]]; then
+    loginfo 'No MASTER_ATTACHED_PD_TYPE provided; defaulting to pd-standard.'
+    MASTER_ATTACHED_PD_TYPE='pd-standard'
+    echo "MASTER_ATTACHED_PD_TYPE=${MASTER_ATTACHED_PD_TYPE}" \
+        >> ${OVERRIDES_FILE}
+  fi
+
+  # TODO(dhuo): Possibly all "late variable bindings" could be generated here
+  # instead of actually requiring the evaluate_late_variable_bindings function.
+  if [[ -z "${BDUTIL_GCS_STAGING_DIR}" ]]; then
+    loginfo 'No staging directory got defined; computing one now.'
+    local staging_dir_base="gs://${CONFIGBUCKET}/bdutil-staging"
+    BDUTIL_GCS_STAGING_DIR="${staging_dir_base}/${MASTER_HOSTNAME}"
+    echo "BDUTIL_GCS_STAGING_DIR=${BDUTIL_GCS_STAGING_DIR}" >> ${OVERRIDES_FILE}
+  fi
+
+  # Make sure fully quallified hostnames will be 64 characters or less to avoid
+  # JVM issues. Assumes FQDNs are <name>.c.${PROJECT}.internal
+  if ! [[ "${PROJECT}" =~ [a-z] ]]; then
+    logerror "Warning. Interpreting \$PROJECT as a project number instead of" \
+        "a Project ID. Instance fully qualified domain name length validation" \
+        "is disabled."
+  else
+    local char_limit=$(( 64 - 12 - ${#PROJECT} + 1 )) # 12 for .c..internal
+    local too_long_vm_name=$(echo ${MASTER_HOSTNAME} ${WORKERS[@]} \
+        | grep -Eo "\S{${char_limit},}" \
+        | head -n 1)
+    if [[ -n "${too_long_vm_name}" ]]; then
+      local fqdn="${too_long_vm_name}.c.${PROJECT/:/.}.internal"
+      logerror "VM '${too_long_vm_name}' will have the ${#fqdn} character" \
+          "fully qualified domain name of '${fqdn}', while the JVM can only" \
+          "handle up to 64 characters. Please rerun with a shorter \$PREFIX."
+      print_help
+    fi
+  fi
+}
+
+# Checks for more heavyweight but obvious issues like CONFIGBUCKET
+# inaccessibility prior to turning on any VMs.
+function validate_heavyweight_settings() {
+  # Perform gsutil checks last, because they are slow.
+  loginfo "Checking for existence of gs://${CONFIGBUCKET}..."
+  gsutil ls -b gs://${CONFIGBUCKET}
+
+  # Catch the exitcode so that we can provide more user-friendly error messages
+  # while still propagating the return value out for consolidated error-trap
+  # handling.
+  local exitcode=$?
+  if (( ${exitcode} != 0 )); then
+    logerror "Failed to access bucket gs://${CONFIGBUCKET}."
+    logerror 'Please make sure the bucket exists and is accessible with gsutil.'
+    return ${exitcode}
+  fi
+
+  # Make sure HADOOP_TARBALL_URI exists if it st
+  local scheme=${HADOOP_TARBALL_URI%%://*}
+  if [[ "${scheme}" == 'gs' ]]; then
+    loginfo "Checking for existence of ${HADOOP_TARBALL_URI}..."
+    if (( ${VERBOSE_MODE} )); then
+      gsutil stat ${HADOOP_TARBALL_URI}
+    else
+      gsutil -q stat ${HADOOP_TARBALL_URI}
+    fi
+    local exitcode=$?
+    if (( ${exitcode} != 0 )); then
+      logerror "Failed to find file ${HADOOP_TARBALL_URI}."
+      logerror 'Please make sure it exists and is accessible with gsutil.'
+      return ${exitcode}
+    fi
+  fi
+
+  # Check all the specified UPLOAD_FILES.
+  if (( ${#UPLOAD_FILES[@]} > 0 )); then
+    loginfo "Checking upload files..."
+    for upload_file in ${UPLOAD_FILES[@]}; do
+      if [[ -r "${upload_file}" ]]; then
+        loginfo "Verified '${upload_file}'"
+      else
+        logerror "Failed to read file ${upload_file}."
+        logerror 'Please make sure it exists and is accessible.'
+        return 1
+      fi
+    done
+  fi
+
+  return 0
+}
+
+# In the case of a single-node setup, we expect $WORKERS and $MASTER_HOSTNAME
+# to refer to the same thing, so some logic must call this function to avoid
+# duplicating certain steps (e.g. instances create/delete).
+function is_single_node_setup() {
+  if [ ${#WORKERS[@]} == 1 ] &&
+     [ "${WORKERS[0]}" == "${MASTER_HOSTNAME}" ]; then
+    true
+  else
+    false
+  fi
+}
+
+# Repeatedly try to ssh into node until success or limit is reached.
+# Will fail if node takes too long.
+function wait_for_ssh() {
+  trap handle_error ERR
+  local node=$1
+  local max_attempts=10
+  local sleep_time=${BDUTIL_POLL_INTERVAL_SECONDS}
+  for (( i=0; i < ${max_attempts}; i++ )); do
+    if run_gcloud_compute_ssh ${node} 'exit 0'; then
+      return 0
+    else
+      # Save the error code responsible for the trap.
+      local errcode=$?
+      loginfo "'${node}' not yet sshable (${errcode}); sleeping ${sleep_time}."
+      sleep ${sleep_time}
+    fi
+  done
+  logerror "Node '${node}' did not become ssh-able after ${max_attempts} attempts"
+  return ${errcode}
+}
+
+# Creates the VMs and optionally PDs of the cluster
+function create_cluster() {
+  trap handle_error ERR
+  # Optionally create the disks to be attached to the VMs.
+  if (( ${USE_ATTACHED_PDS} && ${CREATE_ATTACHED_PDS_ON_DEPLOY} )); then
+    if ! is_single_node_setup; then
+      loginfo "Creating attached worker disks: ${WORKER_ATTACHED_PDS[@]}"
+      for ((i=0; i < NUM_WORKERS; i++)); do
+        if (( ${i} > 0 && ${i} % ${MAX_CONCURRENT_ASYNC_PROCESSES} == 0 )); then
+          await_async_jobs 'disks create (partial)'
+          loginfo 'Done. Invoking next batch...'
+        fi
+        DISK=${WORKER_ATTACHED_PDS[${i}]}
+        run_gcloud_compute_cmd \
+          disks create \
+            --size=${WORKER_ATTACHED_PDS_SIZE_GB} \
+            --type=${WORKER_ATTACHED_PDS_TYPE} \
+            ${DISK} &
+        sleep_for_api_ops
+      done
+    fi
+    loginfo "Creating attached master disk: ${MASTER_ATTACHED_PD}"
+    run_gcloud_compute_cmd \
+        disks create \
+        --size=${MASTER_ATTACHED_PD_SIZE_GB} \
+        --type=${MASTER_ATTACHED_PD_TYPE} \
+        ${MASTER_ATTACHED_PD} &
+    await_async_jobs 'disks create'
+    loginfo 'Done creating disks!'
+  fi
+
+  # Start workers and master.
+  # For now, we will always auto-create a persistent boot disk and auto-delete
+  # it on shutdown; truly persistent volumes will be used as a non-root mount
+  # point. We can preserve the persistent boot disk once the setup is
+  # idempotent.
+  if ! is_single_node_setup; then
+    loginfo "Creating worker instances: ${WORKERS[@]}"
+    for ((i=0; i < NUM_WORKERS; i++)); do
+      if (( ${i} > 0 && ${i} % ${MAX_CONCURRENT_ASYNC_PROCESSES} == 0 )); then
+        await_async_jobs 'instances create (partial)'
+        loginfo 'Done. Invoking next batch...'
+      fi
+      if (( ${USE_ATTACHED_PDS} )); then
+        local optional_disk_arg="--disk name=${WORKER_ATTACHED_PDS[${i}]} mode=rw"
+      fi
+      run_gcloud_compute_cmd \
+          instances create \
+           ${WORKERS[${i}]} \
+          --machine-type=${GCE_MACHINE_TYPE} \
+          --image=${GCE_IMAGE} \
+          --network=${GCE_NETWORK} \
+          --scopes ${GCE_SERVICE_ACCOUNT_SCOPES[@]//,/ } \
+          --boot-disk-type=pd-standard \
+          ${optional_disk_arg} &
+      sleep_for_api_ops
+    done
+  fi
+  loginfo "Creating master instance: ${MASTER_HOSTNAME}"
+  if (( ${USE_ATTACHED_PDS} )); then
+    optional_disk_arg="--disk name=${MASTER_ATTACHED_PD} mode=rw"
+  fi
+  run_gcloud_compute_cmd \
+      instances create \
+      ${MASTER_HOSTNAME} \
+      --machine-type=${GCE_MACHINE_TYPE} \
+      --image=${GCE_IMAGE} \
+      --network=${GCE_NETWORK} \
+      --scopes ${GCE_SERVICE_ACCOUNT_SCOPES[@]//,/ } \
+      --boot-disk-type=pd-standard \
+      ${optional_disk_arg} &
+  await_async_jobs 'instances create'
+
+  loginfo 'Instances all created. Entering polling loop to wait for ssh-ability'
+
+  # This wait is necessary due to VMs not being immediately ssh-able. It may
+  # still fail if a VM is particularly slow in becoming ssh-able.
+  for ((i=0; i < NUM_WORKERS; i++)); do
+    if (( ${i} > 0 && ${i} % ${MAX_CONCURRENT_ASYNC_PROCESSES} == 0 )); then
+      await_async_jobs 'wait_for_ssh (partial)'
+      loginfo 'Done. Invoking next batch...'
+    fi
+    NODE=${WORKERS[${i}]}
+    wait_for_ssh ${NODE} &
+    sleep_for_api_ops
+  done
+  wait_for_ssh ${MASTER_HOSTNAME} &
+
+  # Wait for all nodes to be ready.
+  await_async_jobs 'wait_for_ssh'
+
+  loginfo 'Instances all ssh-able'
+}
+
+# Delete cluster and optionally attached PDs
+function delete_cluster() {
+  # For deletion, we want to continue despite errors, but print a warning at the end.
+  SUPPRESS_TRAPPED_ERRORS=1
+  trap handle_error ERR
+  loginfo 'Deleting hadoop cluster...'
+
+  if ! is_single_node_setup; then
+    for ((i=0; i < NUM_WORKERS; i++)); do
+      if (( ${i} > 0 && ${i} % ${MAX_CONCURRENT_ASYNC_PROCESSES} == 0 )); then
+        await_async_jobs 'instances delete (partial)'
+        loginfo 'Done. Invoking next batch...'
+      fi
+      NODE=${WORKERS[${i}]}
+      run_gcloud_compute_cmd instances delete --delete-disks=boot ${NODE} &
+      sleep_for_api_ops
+    done
+  fi
+  run_gcloud_compute_cmd instances delete \
+      --delete-disks=boot ${MASTER_HOSTNAME} &
+  await_async_jobs 'instances delete'
+  loginfo 'Done deleting VMs!'
+
+  # Optionally delete all the attached disks as well now that the instances
+  # have been deleted.
+  if (( ${USE_ATTACHED_PDS} && ${DELETE_ATTACHED_PDS_ON_DELETE} )); then
+    if ! is_single_node_setup; then
+      loginfo "Deleting attached worker disks: ${WORKER_ATTACHED_PDS[@]}"
+      for ((i=0; i < NUM_WORKERS; i++)); do
+        if (( ${i} > 0 && ${i} % ${MAX_CONCURRENT_ASYNC_PROCESSES} == 0 )); then
+          await_async_jobs 'disks delete (partial)'
+          loginfo 'Done. Invoking next batch...'
+        fi
+        DISK=${WORKER_ATTACHED_PDS[${i}]}
+        run_gcloud_compute_cmd disks delete ${DISK} &
+        sleep_for_api_ops
+      done
+    fi
+    loginfo "Deleting attached master disk: ${MASTER_ATTACHED_PD}"
+    run_gcloud_compute_cmd disks delete ${MASTER_ATTACHED_PD} &
+    await_async_jobs 'disks delete'
+    loginfo 'Done deleting disks!'
+  fi
+
+  if (( ${CAUGHT_ERROR} )); then
+    logerror "Warning: Some errors occurred, please review specified logfiles."
+    consolidate_error_logs
+    exit 1
+  fi
+
+  SUPPRESS_TRAPPED_ERRORS=0
+}
+
+# Given an env file name and a colon-separated path, look for the filename
+# in the path if it is an unqualified filename. If the filename includes
+# a directory part (either relative or absolute),
+# or if the file is not found in the path, the filename alone is returned.
+function resolve_env_file() {
+  local FILENAME="$1"
+  local EXTENSIONS_PATH="$2"
+  if [[ $(basename ${FILENAME}) == ${FILENAME} ]]; then
+    # If the filename has no directory part, we look for it in the path.
+    IFS=: read -a ext_path <<< "${EXTENSIONS_PATH}"
+    # First look for the filename as specified, then try appending "_env.sh".
+    for file in "${FILENAME}" "${FILENAME}_env.sh"; do
+      for dir in "${ext_path[@]}"; do
+        if [[ "{$dir}" != "" && -f "${dir}/${file}" ]]; then
+          echo "${dir}/${file}"
+          return
+        fi
+      done
+    done
+    # If the file is not in our path, fall through here and output $FILENAME
+  fi
+  echo "${FILENAME}"  # Filename with directory, or not in our path.
+}
+
+function get_extension_subdirs() {
+  local a=( ${BDUTIL_DIR}/extensions/* )
+  ( IFS=:  && echo "${a[*]}" )
+}
+
+# We first look in the current directory (.), then in any directories
+# the user specified by setting BDUTIL_EXTENSIONS_PATH, then in the
+# bdutil directory and its extension subdirectories.
+function get_extensions_path() {
+  local EXTENSION_SUBDIRS=$(get_extension_subdirs)
+  echo ".:${BDUTIL_EXTENSIONS_PATH}:${BDUTIL_DIR}:${EXTENSION_SUBDIRS}"
+}
+
+# Resolve all of the files in ENV_FILES by calling resolve_env_file on each
+# one and placing the result back into ENV_FILES.
+function resolve_env_files() {
+  local EXTENSIONS_PATH=$(get_extensions_path)
+  local n=0
+  for file in ${ENV_FILES[@]}; do
+    ENV_FILES[n]=$(resolve_env_file "${file}" "${EXTENSIONS_PATH}")
+    n=$(( n + 1 ))
+  done
+}
+
+# Print out the base names of all env files in our extensions path.
+# The "_env.sh" is not printed out.
+# This is for use by command completion after -e.
+function list_env_file_base_names() {
+  local EXTENSIONS_PATH=$(get_extensions_path)
+  IFS=: read -a ext_path <<< "${EXTENSIONS_PATH}"
+  local env_files=()
+  for dir in "${ext_path[@]}"; do
+    if [[ "{$dir}" != "" ]]; then
+      shopt -s nullglob   # ignore dirs with no env files in them
+      for file in ${dir}/*_env.sh; do
+        long_basename=$(basename $file)
+        short_basename=${long_basename%_env.sh}
+        env_files+=(${short_basename})
+      done
+    fi
+  done
+  echo "${env_files[@]}" | tr ' ' $'\n' | sort | uniq
+}
+
+# Check whether to use custom environment-variable file(s). We always include
+# bdutil_env.sh first.
+function source_env_files() {
+  trap handle_error ERR
+  ENV_FILES=("bdutil_env.sh" ${ENV_FILES[@]})
+  if (( ${#ENV_FILES[@]} )); then
+    loginfo "Using custom environment-variable file(s): ${ENV_FILES[@]}"
+  else
+    loginfo "Using default environment-variable file: ${ENV_FILES[@]}"
+  fi
+  resolve_env_files
+
+  # Pull in all the environment variables from the files, or exit if we can't
+  # find one of them.
+  for ENV_FILE in "${ENV_FILES[@]}"; do
+    if [[ -r "${ENV_FILE}" ]]; then
+      loginfo "Reading environment-variable file: ${ENV_FILE}"
+      source "${ENV_FILE}"
+    else
+      logerror "Cannot find environment-variable file: ${ENV_FILE}"
+      exit 1
+    fi
+  done
+
+  # Evaluate command level overrides.
+  if [[ -r "${OVERRIDES_FILE}" ]]; then
+    source ${OVERRIDES_FILE}
+  fi
+
+  evaluate_late_variable_bindings
+}
+
+# Copies the temporary ${OVERRIDES_FILE} to ${GENERATE_CONFIG_FILENAME}.
+function generate_config_file() {
+  trap handle_error ERR
+  if [[ -r "${GENERATE_CONFIG_FILENAME}" ]]; then
+    local msg="Overwrite existing file '${GENERATE_CONFIG_FILENAME}'? (y/n)"
+    read -p "${msg}" PROMPT_RESPONSE
+    if [[ ${PROMPT_RESPONSE} != 'y' ]]; then
+      logerror "Not generating config file, exiting..."
+      exit 1
+    fi
+  fi
+  loginfo "Creating config file '${GENERATE_CONFIG_FILENAME}' with contents:"
+  cat ${OVERRIDES_FILE}
+
+  cp ${OVERRIDES_FILE} ${GENERATE_CONFIG_FILENAME}
+  loginfo "To deploy: ./bdutil deploy -e ${GENERATE_CONFIG_FILENAME}"
+}
+
+# Generate grouped scripts with resolved environment files and
+# add them to UPLOAD_FILES.
+function generate_scripts_from_command_groups() {
+  trap handle_error ERR
+  # Dump a temporary script which "sets" all the env variables. This will act as
+  # preamble for all the other remote scripts.
+  cat <<EOF > "${SCRIPT_TMPDIR}/hadoop-env-setup.sh"
+#!/bin/bash
+set -e -a
+$(cat ${ENV_FILES[@]})
+$(cat ${OVERRIDES_FILE})
+evaluate_late_variable_bindings
+set +a
+# Put the helper functions into hadoop-env-setup.sh so they can be accessed globally
+$(cat ${BDUTIL_DIR}/libexec/bdutil_helpers.sh)
+EOF
+  UPLOAD_FILES+=("${SCRIPT_TMPDIR}/hadoop-env-setup.sh")
+
+  # Iterate over the COMMAND_GROUPS array defined by the ENV_FILES.
+  loginfo "Generating ${#COMMAND_GROUPS[@]} command groups..."
+  for cmd_group in "${COMMAND_GROUPS[@]}"; do
+    local filegroup="${cmd_group%%:*}"
+    logdebug "Generating command group '${filegroup}':"
+    local genfile="${SCRIPT_TMPDIR}/${filegroup}.sh"
+    cat << 'EOF' > ${genfile}
+#!/usr/bin/env bash
+set -e
+. $(dirname $0)/hadoop-env-setup.sh
+EOF
+    local files=(${cmd_group#*:})
+    for FILE in "${files[@]}"; do
+      if [[ "${FILE}" =~ ^/.* ]]; then
+        # Absolute path.
+        local resolved_file="${FILE}"
+      else
+        # Relative path.
+        local resolved_file"=${BDUTIL_DIR}/${FILE}"
+      fi
+      logdebug "    Appending file '${resolved_file}'..."
+      cat ${resolved_file} >> ${genfile}
+    done
+    # Make it runnable.
+    chmod 750 ${genfile}
+    UPLOAD_FILES+=(${genfile})
+  done
+
+  loginfo 'Done generating remote shell scripts.'
+}
+
+# Upload generated scripts and any specified upload files.
+function upload_scripts_and_files () {
+  trap handle_error ERR
+
+  if (( ${DEBUG_MODE} )); then
+    local gsutil_cmd='gsutil -D -m'
+  else
+    local gsutil_cmd='gsutil -m'
+  fi
+
+  if (( ${#UPLOAD_FILES[@]} == 0 )); then
+    loginfo "No files to upload."
+    return
+  fi
+
+  # End with a slash so that even if we're uploading only one file, gsutil
+  # will treat it as a directory.
+  local staging_dir="${BDUTIL_GCS_STAGING_DIR}/${INVOCATION_ID}/"
+  loginfo "Staging file and script dependencies into ${staging_dir}..."
+
+  ${gsutil_cmd} cp ${UPLOAD_FILES[@]} ${staging_dir}
+
+  local base_names=(${UPLOAD_FILES[@]##*/})
+  local remote_files=(${base_names[@]/#/${staging_dir}})
+
+  # Make the VMs download the bootstrap file.
+  loginfo 'Downloading staging files onto VMs...'
+  local bootstrap_cmd="gcloud --quiet components update gsutil; \
+${gsutil_cmd} cp ${remote_files[@]} . && chmod 755 *"
+  run_distributed_command "${bootstrap_cmd}" "${bootstrap_cmd}" bootstrap bootstrap
+
+  loginfo 'Uploads of shell scripts finished, deleting staging files...'
+
+  if ! ${gsutil_cmd} rm "${remote_files[@]}"; then
+    logerror 'Warning. Failed to delete all staging files.'
+  else
+    loginfo 'Staging files successfully deleted.'
+  fi
+}
+
+# Runs the given command as root while redirecting its stdout and stderr to
+# separate logfiles, on a remote machine via ssh.
+function run_remote_cmd() {
+  local hostname="$1"
+  local cmd="$2"
+  local logname="$3"
+  local extra_args=("${@:4}")
+  # Use sudo su -l instead of sudo to have /usr/local/bin in the PATH
+  local full_cmd="sudo su -l -c \"cd \${PWD} && ${cmd}\""
+  if (( ${VERBOSE_MODE} )) && [[ "${TARGET}" == master ]]; then
+    full_cmd+="\
+        2> >(tee -a ${logname}.stderr 1>&2) \
+        1> >(tee -a ${logname}.stdout)"
+  else
+    full_cmd+=" 2>>${logname}.stderr 1>>${logname}.stdout"
+  fi
+  # Force Pseudo tty allocation to bypass CentOS's sudoers defaults
+  extra_args+=('--ssh-flag=-tt')
+  run_gcloud_compute_ssh "${hostname}" "${full_cmd}" "${extra_args[@]}"
+  local exitcode=$?
+  if (( ${exitcode} > 0 )); then
+    logerror "Fetching on-VM logs from ${hostname}"
+
+    RAW_MODE=1
+    run_gcloud_compute_ssh ${hostname} "tail -vn 30 *.stderr" --ssh-flag=-n \
+        | sed "s/^/${hostname}:\t/" >> ${VM_DEBUG_FILE}
+    RAW_MODE=0
+  fi
+  return ${exitcode}
+}
+
+# Run command on many VMs using ssh.
+function run_distributed_command() {
+  trap handle_error ERR
+  local master_cmd="$1"
+  local workers_cmd="$2"
+  local master_logname="${3:-${master_cmd%% *}_${INVOCATION_ID}}"
+  local workers_logname="${4:-${workers_cmd%% *}_${INVOCATION_ID}}"
+  if [[ -n "${workers_cmd}" ]] && [[ "${TARGET}" != master ]]; then
+    loginfo "Invoking on workers: ${workers_cmd}"
+    for ((i=0; i < NUM_WORKERS; i++)); do
+      if (( ${i} > 0 && ${i} % ${MAX_CONCURRENT_ASYNC_PROCESSES} == 0 )); then
+        await_async_jobs 'ssh (partial)'
+        loginfo 'Done. Invoking next batch...'
+      fi
+      NODE=${WORKERS[${i}]}
+      # Instrumented command piping stderr/stdout to files.
+      run_remote_cmd ${NODE} "${workers_cmd}" "${workers_logname}" &
+      sleep_for_api_ops
+    done
+  fi
+  if [[ -n "${master_cmd}" ]] && [[ "${TARGET}" != workers ]]; then
+    loginfo "Invoking on master: ${master_cmd}"
+    run_remote_cmd ${MASTER_HOSTNAME} "${master_cmd}" "${master_logname}" &
+  fi
+  # Wait for all the async stuff to finish before moving on.
+  await_async_jobs 'ssh'
+}
+
+# Run a single command group speficied in an environment file.
+function run_command_group() {
+  trap handle_error ERR
+  if [[ "${BDUTIL_CMD}" == "deploy" ]]; then
+    local log_suffix="deploy"
+  else
+    local log_suffix="$(bdutil_date +%s)"
+  fi
+
+  local master_cmd_grp=${COMMAND_GROUP:-$1}
+  local workers_cmd_grp=${COMMAND_GROUP:-$2}
+  if [[ "${master_cmd_grp}" == "*" ]]; then
+    local master_cmd=''
+    local master_log=''
+  else
+    local master_cmd="./${master_cmd_grp}.sh"
+    local master_log="${master_cmd_grp}_${log_suffix}"
+  fi
+  if [[ "${workers_cmd_grp}" == "*" ]]; then
+    local workers_cmd=''
+    local workers_log=''
+  else
+    local workers_cmd="./${workers_cmd_grp}.sh"
+    local workers_log="${workers_cmd_grp}_${log_suffix}"
+  fi
+
+  run_distributed_command "${master_cmd}" "${workers_cmd}" "${master_log}" "${workers_log}"
+}
+
+# Iterate over the deployment-specification's COMMAND_STEPS to run the setup.
+function run_command_steps() {
+  trap handle_error ERR
+  for COMMAND_STR in ${COMMAND_STEPS[@]}; do
+    local workers_cmd_grp=$(echo ${COMMAND_STR} | cut -d ',' -f 2)
+    local master_cmd_grp=$(echo ${COMMAND_STR} | cut -d ',' -f 1)
+    run_command_group "${master_cmd_grp}" "${workers_cmd_grp}"
+    loginfo "Step '${COMMAND_STR}' done..."
+  done
+
+  loginfo 'Command steps complete.'
+}
+
+# Takes a list of possible binaries on PATH, and checks them in order using
+# "-x $(which ${CANDIDATE_BINARY})"; the first successful one will have its
+# "which ${CANDIDATE_BINARY}" as the output of this function.
+function first_which() {
+  local candidate_binary=''
+  for candidate_binary in "${@}"; do
+    if [[ -x $(which ${candidate_binary}) ]]; then
+      which ${candidate_binary}
+      return
+    fi
+  done
+}
+
+# Signal handler for SIGINT when the SOCKS proxy is running.
+function socksproxy_shutdown() {
+  cat <<SD_EOF
+*******************************************************************************
+**
+** Proxy terminated.
+**
+*******************************************************************************
+SD_EOF
+}
+
+# Create a SOCKS proxy to the master on local port $SOCKS_PROXY_PORT.
+function run_socks_proxy() {
+  SUPPRESS_TRAPPED_ERRORS=1
+  trap socksproxy_shutdown SIGINT
+
+  local useful_master_urls="${MASTER_UI_PORTS[@]/#/http://${MASTER_HOSTNAME}:}"
+  local chrome_cmd=$(first_which \
+      'google-chrome' 'chromium' 'chromium-browser' 'chrome')
+
+  if [[ -n "${chrome_cmd}" ]]; then
+    cat <<INS_EOF
+*******************************************************************************
+** To launch Chrome pointed at your socksproxy with some useful pages:
+*******************************************************************************
+
+${chrome_cmd} \
+--proxy-server='socks5://localhost:${SOCKS_PROXY_PORT}' \
+--host-resolver-rules='MAP * 0.0.0.0, EXCLUDE localhost' \
+--user-data-dir=/tmp/bdutil-socksproxy/${MASTER_HOSTNAME} \
+${useful_master_urls}
+
+*******************************************************************************
+INS_EOF
+  elif [[ -x $(which firefox) ]]; then
+    local firefox_profilename="bdutil-socksproxy-$(date +%s)"
+    local firefox_profiledir="/tmp/bdutil-socksproxy/${MASTER_HOSTNAME}"
+    cat <<INS_EOF
+*******************************************************************************
+** To launch Firefox pointed at your socksproxy with some useful pages:
+*******************************************************************************
+
+rm -rf ${firefox_profiledir}
+firefox -CreateProfile "${firefox_profilename} ${firefox_profiledir}"
+
+cat <<EOF >> '${firefox_profiledir}/prefs.js'
+user_pref("network.proxy.socks", "localhost");
+user_pref("network.proxy.socks_port", ${SOCKS_PROXY_PORT});
+user_pref("network.proxy.socks_remote_dns", true);
+user_pref("network.proxy.type", 1);
+EOF
+
+firefox -no-remote -profile ${firefox_profiledir} ${useful_master_urls}
+
+*******************************************************************************
+INS_EOF
+  fi
+
+  cat <<EOF
+*******************************************************************************
+**
+** Starting SOCKS proxy to ${MASTER_HOSTNAME} on port ${SOCKS_PROXY_PORT}
+**
+** To terminate the proxy press CTRL-C
+**
+*******************************************************************************
+
+EOF
+
+  run_gcloud_compute_ssh \
+      "${MASTER_HOSTNAME}" \
+      '' \
+      --ssh-flag=-N \
+      --ssh-flag="-D${SOCKS_PROXY_PORT}"
+}
+
+# Sets the names of the directories hold invocation specific files.
+function configure_vm_directories() {
+  local script_base_dir='/tmp/bdutil'
+  local subdir=''
+  case "${BDUTIL_CMD}" in
+    deploy)
+      subdir=deploy
+      ;;
+    run_command_group)
+      subdir="${COMMAND_GROUP}_${INVOCATION_ID}"
+      ;;
+    *)
+      subdir="${BDUTIL_CMD}_${INVOCATION_ID}"
+      ;;
+  esac
+  VM_SCRIPT_DIR=${script_base_dir}/${subdir}
+}
+
+function prepend_line_to_file() {
+  local line=$1
+  local file=$2
+
+  mv "${file}" "${file}.bak"
+  echo "${line}" > "${file}"
+  cat "${file}.bak" >> "${file}"
+  rm "${file}.bak"
+}
+
+
+# Check for a few special command line options that can be executed quickly
+# without additional setup. This allows us to ensure that we don't get
+# any extra output for options such as --list_options.
+function parse_early_options() {
+  while (( $# ));  do
+    case "$1" in
+      -h|--help)
+        print_usage
+        exit 0
+        ;;
+      list_commands)
+        list_commands
+        exit 0
+        ;;
+      list_env_files)
+        list_env_file_base_names
+        exit 0
+        ;;
+      list_options)
+        list_options
+        exit 0
+        ;;
+      *)
+        return
+        ;;
+    esac
+    shift
+  done
+}
+
+function parse_input() {
+  trap handle_error ERR
+  local positional_args=()
+
+  function validate_argument() {
+    local flag=$1
+    local value=$2
+    if [[ ${value} == -* ]] || [[ -z "${value}" ]]; then
+      logerror "Improper value '${value}' for flag '${flag}'."
+      print_help
+    fi
+  }
+
+  # Ensure the overrides file exists for future use
+  touch "${OVERRIDES_FILE}"
+
+  while (( $# ));  do
+    case "$1" in
+      -b|--bucket)
+        validate_argument $1 $2
+        echo "CONFIGBUCKET=$2" >> ${OVERRIDES_FILE}
+        shift 2;
+        ;;
+      -D|--debug)
+        if [[ "${2}" =~ ^(true|false|0|1)$ ]]; then
+          echo "DEBUG_MODE=$2" >> ${OVERRIDES_FILE}
+          shift 2
+        else
+          echo "DEBUG_MODE=true" >> ${OVERRIDES_FILE}
+          shift
+        fi
+        ;;
+      -d|--use_attached_pds)
+        if [[ "${2}" =~ ^(true|false|0|1)$ ]]; then
+          echo "USE_ATTACHED_PDS=$2" >> ${OVERRIDES_FILE}
+          shift 2
+        else
+          echo "USE_ATTACHED_PDS=true" >> ${OVERRIDES_FILE}
+          shift
+        fi
+        ;;
+      -e|--env_var_files)
+        validate_argument $1 $2
+        ENV_FILES+=(${2//,/ })
+        shift 2
+        ;;
+      -F|--default_fs)
+        validate_argument $1 $2
+        echo "DEFAULT_FS=$2" >> ${OVERRIDES_FILE}
+        shift 2
+        ;;
+      -f|--force)
+        SKIP_PROMPT=1
+        shift
+        ;;
+      -h|--help)
+        print_usage
+        exit 0
+        ;;
+      -i|--image)
+        validate_argument $1 $2
+        echo "GCE_IMAGE=$2" >> ${OVERRIDES_FILE}
+        shift 2
+        ;;
+      -m|--machine_type)
+        validate_argument $1 $2
+        echo "GCE_MACHINE_TYPE=$2" >> ${OVERRIDES_FILE}
+        shift 2
+        ;;
+      --master_attached_pd_size_gb)
+        validate_argument $1 $2
+        echo "MASTER_ATTACHED_PD_SIZE_GB=$2" >> ${OVERRIDES_FILE}
+        shift 2
+        ;;
+      --master_attached_pd_type)
+        validate_argument $1 $2
+        echo "MASTER_ATTACHED_PD_TYPE=$2" >> ${OVERRIDES_FILE}
+        shift 2
+        ;;
+      --network)
+        validate_argument $1 $2
+        echo "GCE_NETWORK=$2" >> ${OVERRIDES_FILE}
+        shift 2
+        ;;
+      -n|--num_workers)
+        validate_argument $1 $2
+        echo "NUM_WORKERS=$2" >> ${OVERRIDES_FILE}
+        shift 2
+        ;;
+      --old_hostname_suffixes)
+        if [[ "${2}" =~ ^(true|false|0|1)$ ]]; then
+          echo "OLD_HOSTNAME_SUFFIXES=$2" >> ${OVERRIDES_FILE}
+          shift 2
+        else
+          echo "OLD_HOSTNAME_SUFFIXES=true" >> ${OVERRIDES_FILE}
+          shift
+        fi
+        ;;
+      -P|--prefix)
+        validate_argument $1 $2
+        echo "PREFIX=$2" >> ${OVERRIDES_FILE}
+        shift 2
+        ;;
+      -p|--project)
+        validate_argument $1 $2
+        echo "PROJECT=$2" >> ${OVERRIDES_FILE}
+        shift 2
+        ;;
+      -t|--target)
+        validate_argument $1 $2
+        readonly TARGET="$2"
+        shift 2
+        ;;
+      -u|--upload_files)
+        validate_argument $1 $2
+        local extra_uploads=(${2//,/ })
+        echo "UPLOAD_FILES+=(${extra_uploads[@]})" >> ${OVERRIDES_FILE}
+        shift 2
+        ;;
+      -v|--verbose)
+        if [[ "${2}" =~ ^(true|false|0|1)$ ]]; then
+          echo "VERBOSE_MODE=$2" >> ${OVERRIDES_FILE}
+          shift 2
+        else
+          echo "VERBOSE_MODE=true" >> ${OVERRIDES_FILE}
+          shift
+        fi
+        ;;
+      --worker_attached_pds_size_gb)
+        validate_argument $1 $2
+        echo "WORKER_ATTACHED_PDS_SIZE_GB=$2" >> ${OVERRIDES_FILE}
+        shift 2
+        ;;
+      --worker_attached_pds_type)
+        validate_argument $1 $2
+        echo "WORKER_ATTACHED_PDS_TYPE=$2" >> ${OVERRIDES_FILE}
+        shift 2
+        ;;
+      -z|--zone)
+        validate_argument $1 $2
+        echo "GCE_ZONE=$2" >> ${OVERRIDES_FILE}
+        shift 2
+        ;;
+      --)
+        shift
+        break
+        ;;
+      -|-?|--*)
+        logerror "Error! Unknown flag: '$1'."
+        print_help
+        ;;
+      -??*)
+        # Split flags
+        set -- ${1:0:2} -${1:2} "${@:2}"
+        ;;
+      -*)
+        logerror "Error! Unknown flag: '$1'."
+        print_help
+        ;;
+      *)
+        positional_args+=($1)
+        shift
+        ;;
+    esac
+  done
+
+  set -- "${positional_args[@]}" "$@"
+
+  if ! (( $# )); then
+    logerror "Error! No command specified."
+    print_help
+  else
+    BDUTIL_CMD=$1
+    ADDITIONAL_ARGS=(${@:2})
+  fi
+
+  case "${BDUTIL_CMD}" in
+    run_command_group)
+      if (( ${#ADDITIONAL_ARGS[@]} == 1 )); then
+        readonly COMMAND_GROUP=${ADDITIONAL_ARGS[0]}
+      else
+        logerror "Error! run_command_group only takes 1 argument."
+        logerror "Got arguments: ${ADDITIONAL_ARGS[@]}"
+        print_help
+      fi
+      ;;
+    run_command)
+      if (( ${#ADDITIONAL_ARGS[@]} )); then
+        readonly REMOTE_COMMAND="${ADDITIONAL_ARGS[@]}"
+        prepend_line_to_file 'UPLOAD_FILES=()' "${OVERRIDES_FILE}"
+      else
+        logerror "Error! run_command requires a command"
+        print_help
+      fi
+      ;;
+    generate_config)
+      if (( ${#ADDITIONAL_ARGS[@]} == 1 )); then
+        readonly GENERATE_CONFIG_FILENAME=${ADDITIONAL_ARGS[0]}
+      else
+        logerror "Error! generate_config only takes 1 argument."
+        logerror "Got arguments: ${ADDITIONAL_ARGS[@]}"
+        print_help
+      fi
+      ;;
+    create|deploy|delete|dump_config|run_command_steps|shell)
+      if (( ${#ADDITIONAL_ARGS[@]} )); then
+        logerror "Error! ${BDUTIL_CMD} doesn't take any arguments."
+        logerror "Got arguments: ${ADDITIONAL_ARGS[@]}"
+        print_help
+      fi
+      ;;
+    socksproxy)
+      if (( ${#ADDITIONAL_ARGS[@]} )); then
+        readonly SOCKS_PROXY_PORT=${ADDITIONAL_ARGS[0]}
+      else
+        readonly SOCKS_PROXY_PORT=1080
+      fi
+      ;;
+    *)
+      logerror "Error! unknown command '${BDUTIL_CMD}'."
+      print_help
+  esac
+}
+
+function main() {
+
+  parse_early_options "$@"  # Check for --help and similar options.
+
+  # Use handle_error() for any errors in deployment commands.
+  trap handle_error ERR
+
+  # Create the temporary directory in which to place generated scripts for
+  # running  on remote VMs. Can be modified if a different directory is
+  # preferred.
+  SCRIPT_TMPDIR="$(mktemp -d /tmp/bdutil-$(bdutil_date +%Y%m%d-%H%M%S)-XXX)"
+  INVOCATION_ID="${SCRIPT_TMPDIR#*-}"
+  loginfo "Using local tmp dir for staging files: ${SCRIPT_TMPDIR}"
+
+  # A file containing more detailed debug info from inside VMs, only created
+  # on failure.
+  VM_DEBUG_FILE="${SCRIPT_TMPDIR}/vmdebuginfo.txt"
+
+  # A file containing a copy of the stdout from running gcloud compute commands.
+  GCLOUD_COMPUTE_STDOUT_FILE="${SCRIPT_TMPDIR}/gcloud_compute_out.txt"
+
+  # A file containing a copy of the stderr from running gcloud compute commands.
+  GCLOUD_COMPUTE_STDERR_FILE="${SCRIPT_TMPDIR}/gcloud_compute_err.txt"
+
+  # The aggregated file containing gcloud compute stdout/stderr and debug info from VMs,
+  # only created on failure.
+  AGGREGATE_DEBUG_FILE="${SCRIPT_TMPDIR}/debuginfo.txt"
+
+  # File holding overrides derived from command-line flags.
+  OVERRIDES_FILE="${SCRIPT_TMPDIR}/flag_overrides_env.sh"
+
+  # By default redirect gcloud compute I/O
+  RAW_MODE=0
+
+  parse_input "$@"
+
+  if [[ "${BDUTIL_CMD}" == dump_config ]]; then
+    INHERITED_VARS="${SCRIPT_TMPDIR}/inherited_vars.sh"
+    set -o posix
+    set > ${INHERITED_VARS}
+    set +o posix
+  fi
+
+  source_env_files
+  run_sanity_checks
+
+  if [[ "${BDUTIL_CMD}" == dump_config ]]; then
+    UPDATED_VARS="${SCRIPT_TMPDIR}/updated_vars.sh"
+    set -o posix
+    set > ${UPDATED_VARS}
+    set +o posix
+  fi
+
+  configure_vm_directories
+
+  # Create the files which will contain gcloud compute stdout/stderr.
+  touch ${GCLOUD_COMPUTE_STDOUT_FILE}
+  touch ${GCLOUD_COMPUTE_STDERR_FILE}
+
+  case ${BDUTIL_CMD} in
+    create)
+      prompt_confirmation 'Create'
+      create_cluster
+      ;;
+    delete)
+      prompt_confirmation 'Delete'
+      delete_cluster
+      ;;
+    deploy)
+      prompt_confirmation 'Deploy'
+      validate_heavyweight_settings
+      generate_scripts_from_command_groups
+      create_cluster
+      upload_scripts_and_files
+      run_command_steps
+      ;;
+    dump_config)
+      # Only parse out the lines that were "added" inside UPDATED_VARS.
+      diff --suppress-common-lines ${INHERITED_VARS} ${UPDATED_VARS} \
+          | grep "^> " | sed "s/^> //"
+      ;;
+    generate_config)
+      prompt_confirmation "Generate config '${GENERATE_CONFIG_FILENAME}' for"
+      generate_config_file
+      ;;
+    run_command_steps)
+      prompt_confirmation 'Run command steps on'
+      validate_heavyweight_settings
+      generate_scripts_from_command_groups
+      upload_scripts_and_files
+      run_command_steps
+      ;;
+    run_command_group)
+      prompt_confirmation "Run command group '${COMMAND_GROUP}' on"
+      validate_heavyweight_settings
+      generate_scripts_from_command_groups
+      upload_scripts_and_files
+      run_command_group ${COMMAND_GROUP}
+      ;;
+    run_command)
+      prompt_confirmation "Run command: '${REMOTE_COMMAND}' on"
+      upload_scripts_and_files
+      run_distributed_command "${REMOTE_COMMAND}" "${REMOTE_COMMAND}"
+      ;;
+    shell)
+      RAW_MODE=1
+      run_gcloud_compute_ssh "${MASTER_HOSTNAME}"
+      ;;
+    socksproxy)
+      run_socks_proxy
+      ;;
+    *)
+      logerror "Unknown command: '${BDUTIL_CMD}'. Exiting."
+      print_help
+      ;;
+  esac
+
+  loginfo 'Execution complete. Cleaning up temporary files...'
+  rm -r ${SCRIPT_TMPDIR}
+  loginfo "Cleanup complete."
+
+  case ${BDUTIL_CMD} in
+    delete|dump_config|generate_config|shell|socksproxy)
+      ;;
+    *)
+      LOGIN_CMD="gcloud --project=${PROJECT} compute ssh --zone=${GCE_ZONE} ${MASTER_HOSTNAME}"
+      loginfo "To log in to the master: ${LOGIN_CMD}"
+      ;;
+  esac
+}
+
+BDUTIL_DIR="$(dirname $0)"
+
+# Call main function, unless running unit tests
+if [[ ! "${BDUTIL_RUN_UNIT_TEST}" ]]; then
+  main "$@"
+fi

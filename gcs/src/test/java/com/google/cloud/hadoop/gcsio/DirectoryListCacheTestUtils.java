@@ -52,7 +52,9 @@ public class DirectoryListCacheTestUtils {
         .setName(objectName)
         .setBucket(bucketName)
         .setUpdated(new DateTime(OBJECT_BASE_UPDATED_TIME))
-        .setSize(BigInteger.valueOf(1024L * 1024 * 1024 * 1024));
+        .setSize(BigInteger.valueOf(1024L * 1024 * 1024 * 1024))
+        .setGeneration(1L)
+        .setMetageneration(1L);
     return GoogleCloudStorageImpl.createItemInfoForStorageObject(
         new StorageResourceId(bucketName, objectName), fakeStorageObject);
   }

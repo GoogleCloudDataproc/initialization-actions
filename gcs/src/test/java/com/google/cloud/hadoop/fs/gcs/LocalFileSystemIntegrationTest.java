@@ -68,8 +68,14 @@ public class LocalFileSystemIntegrationTest
       }
 
       @Override
-      public String getHadoopScheme() {
+      public String getScheme() {
         return getFileSystemRoot().toUri().getScheme();
+      }
+
+      @Deprecated
+      @Override
+      public String getHadoopScheme() {
+        return getScheme();
       }
     };
 

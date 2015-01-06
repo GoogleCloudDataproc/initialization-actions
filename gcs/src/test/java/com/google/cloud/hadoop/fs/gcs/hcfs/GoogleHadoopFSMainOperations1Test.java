@@ -24,6 +24,8 @@ import org.apache.hadoop.fs.Path;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 import java.io.IOException;
 
@@ -34,6 +36,7 @@ import java.io.IOException;
  *
  * This class is used to test Hadoop v1 functionality.
  */
+@RunWith(JUnit4.class)
 public class GoogleHadoopFSMainOperations1Test
     extends FSMainOperationsBaseTest {
   @Before

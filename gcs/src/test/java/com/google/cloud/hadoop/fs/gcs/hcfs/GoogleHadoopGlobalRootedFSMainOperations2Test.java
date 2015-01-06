@@ -24,6 +24,8 @@ import org.apache.hadoop.fs.FileSystemTestHelper;
 import org.apache.hadoop.fs.Path;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 import java.io.IOException;
 
@@ -33,6 +35,7 @@ import java.io.IOException;
  * Hadoop.
  * This class is used to test Hadoop v2 functionality.
  */
+@RunWith(JUnit4.class)
 public class GoogleHadoopGlobalRootedFSMainOperations2Test
     extends FSMainOperationsBaseTest {
 

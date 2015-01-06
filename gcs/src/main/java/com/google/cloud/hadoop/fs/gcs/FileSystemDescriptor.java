@@ -33,5 +33,11 @@ public interface FileSystemDescriptor {
   /**
    * Returns the URI scheme for the Hadoop FileSystem associated with this FileSystemDescriptor.
    */
+  String getScheme();
+
+  /**
+   * Deprecated in favor of getScehme, the name of which coincides with Hadoop 2's method.
+   */
+  @Deprecated
   String getHadoopScheme();
 }

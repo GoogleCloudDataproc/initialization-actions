@@ -12,12 +12,10 @@ For details, visit https://developers.google.com/hadoop/google-cloud-storage-con
 
 The Google Cloud Storage (GCS) connector is built with Maven 3 (as of 2014-05-23, version 3.2.1 has been tested). To build the connector for Hadoop 1, run the following commands from the main directory:
 
-    tools/generate-poms.sh
-    mvn -P hadoop1 package -f pom.xml-hadoop1
+    mvn -P hadoop1 package
 
 To build the connector with support for Hadoop 2 & YARN, run the following commands from the main directory:
 
-    tools/generate-poms.sh
-    mvn -P hadoop2 package -f pom.xml-hadoop2
+    mvn -P hadoop2 package
 
 In both cases the GCS connector JAR can be found in gcs/target/.

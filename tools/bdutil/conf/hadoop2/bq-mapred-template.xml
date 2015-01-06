@@ -1,0 +1,25 @@
+<?xml version="1.0" ?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+  <property>
+    <name>mapred.bq.project.id</name>
+    <value><envVar name="PROJECT"/></value>
+    <description>
+      Google Cloud Project ID to use for BigQuery operations.
+    </description>
+  </property>
+  <property>
+    <name>mapred.bq.gcs.bucket</name>
+    <value><envVar name="CONFIGBUCKET"/></value>
+    <description>
+      The GCS bucket holding temporary BigQuery data for the input connector.
+    </description>
+  </property>
+  <property>
+    <name>mapred.bq.output.buffer.size</name>
+    <value>67108864</value>
+    <description>
+      The size in bytes of the output buffer to use when writing to BigQuery.
+    </description>
+  </property>
+</configuration>

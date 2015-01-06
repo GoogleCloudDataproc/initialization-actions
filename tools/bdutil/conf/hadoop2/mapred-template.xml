@@ -1,0 +1,84 @@
+<?xml version="1.0" ?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+  <property>
+    <name>mapreduce.framework.name</name>
+    <value>yarn</value>
+  </property>
+  <property>
+    <name>mapreduce.jobtracker.address</name>
+    <value><envVar name="JOB_TRACKER_URI"/></value>
+    <description>
+      The host and port that the MapReduce job tracker runsat.  If "local",
+      then jobs are run in-process as a single mapand reduce task.
+    </description>
+  </property>
+  <property>
+    <name>mapreduce.jobhistory.address</name>
+    <value><envVar name="MASTER_HOSTNAME"/>:10020</value>
+    <description>
+      MapReduce JobHistory Server IPC host:port
+    </description>
+  </property>
+  <property>
+    <name>mapreduce.jobhistory.webapp.address</name>
+    <value><envVar name="MASTER_HOSTNAME"/>:19888</value>
+    <description>
+      MapReduce JobHistory Server Web UI host:port
+    </description>
+  </property>
+  <property>
+    <name>mapreduce.job.maps</name>
+    <value><envVar name="DEFAULT_NUM_MAPS"/></value>
+    <description>
+      The default number of map tasks per job.Ignored when mapred.job.tracker is
+      "local".
+    </description>
+  </property>
+  <property>
+    <name>mapreduce.job.reduces</name>
+    <value><envVar name="DEFAULT_NUM_REDUCES"/></value>
+    <description>
+      The default number of reduce tasks per job. Typically set to 99%of the
+      cluster's reduce capacity, so that if a node fails the reduces canstill be
+      executed in a single wave.Ignored when mapred.job.tracker is
+      "local".
+    </description>
+  </property>
+  <property>
+    <name>mapreduce.tasktracker.map.tasks.maximum</name>
+    <value><envVar name="MAP_SLOTS"/></value>
+    <description>
+      The maximum number of map tasks that will be runsimultaneously by a task
+      tracker.
+    </description>
+  </property>
+  <property>
+    <name>mapreduce.tasktracker.reduce.tasks.maximum</name>
+    <value><envVar name="REDUCE_SLOTS"/></value>
+    <description>
+      The maximum number of reduce tasks that will be runsimultaneously by a
+      task tracker.
+    </description>
+  </property>
+  <property>
+    <name>mapreduce.child.java.opts</name>
+    <value><envVar name="JAVAOPTS"/></value>
+    <description>
+      Java opts for the task tracker child processes.The following symbol, if
+      present, will be interpolated: @taskid@ is replacedby current TaskID. Any
+      other occurrences of '@' will go unchanged.For example, to enable verbose
+      gc logging to a file named for the taskid in/tmp and to set the heap
+      maximum to be a gigabyte, pass a 'value' of:-Xmx1024m -verbose:gc
+      -Xloggc:/tmp/@taskid@.gcThe configuration variable mapred.child.ulimit can
+      be used to control themaximum virtual memory of the child processes.
+    </description>
+  </property>
+  <property>
+    <name>mapred.local.dir</name>
+    <value><envVar name="MAPRED_LOCAL_DIRS"/></value>
+    <description>
+        Directories on the local machine in which to store mapreduce temp files.
+    </description>
+  </property>
+</configuration>

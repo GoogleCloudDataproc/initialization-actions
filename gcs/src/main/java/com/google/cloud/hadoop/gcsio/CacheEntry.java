@@ -119,7 +119,7 @@ public class CacheEntry {
    * Sets a custom Clock to be used for computing cache creation and update times.
    */
   @VisibleForTesting
-  static void setClock(Clock clock) {
+  public static void setClock(Clock clock) {
     CacheEntry.clock = clock;
   }
 

@@ -62,7 +62,7 @@ public class GoogleHadoopFS extends AbstractFileSystem {
     // AbstractFileSystem requires authority based AbstractFileSystems to have valid ports.
     // true == GoogleHadoopFS requires authorities in URIs.
     // 0 == the fake port passed to AbstractFileSystem.
-    super(uri, ghfs.getHadoopScheme(), true, 0);
+    super(uri, ghfs.getScheme(), true, 0);
     Preconditions.checkArgument(ghfs != null, "ghfs must not be null");
     this.ghfs = ghfs;
     ghfs.initialize(uri, conf);

@@ -32,6 +32,7 @@ import java.util.List;
 public class ApiErrorExtractor {
   // TODO(user): Move this into HttpStatusCodes.java.
   public static final int STATUS_CODE_RANGE_NOT_SATISFIABLE = 416;
+  public static final int STATUS_CODE_PRECONDITION_FAILED = 412;
   public static final String USAGE_LIMITS_DOMAIN = "usageLimits";
   public static final String RATE_LIMITED_REASON_CODE = "rateLimitExceeded";
 
@@ -87,6 +88,21 @@ public class ApiErrorExtractor {
           == HttpStatusCodes.STATUS_CODE_NOT_FOUND;
     }
     return false;
+  }
+
+  /**
+   * Determines if the given GoogleJsonError indicates 'precondition not met'
+   */
+  public boolean preconditionNotMet(GoogleJsonError e) {
+    return e.getCode() == STATUS_CODE_PRECONDITION_FAILED;
+  }
+
+  /**
+   * Determine if the given IOException indicates 'precondition not met'
+   */
+  public boolean preconditionNotMet(IOException e) {
+    return e instanceof GoogleJsonResponseException
+        && getHttpStatusCode((GoogleJsonResponseException) e) == STATUS_CODE_PRECONDITION_FAILED;
   }
 
   /**

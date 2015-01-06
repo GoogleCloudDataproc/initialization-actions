@@ -162,6 +162,7 @@ public class InMemoryDirectoryListCache extends DirectoryListCache {
 
   @Override
   public synchronized List<CacheEntry> getBucketList() {
+    log.debug("getBucketList()");
     List<CacheEntry> bucketEntries = new ArrayList<>();
     List<CachedBucket> expiredBuckets = new ArrayList<>();
     for (CachedBucket bucket : bucketLookup.values()) {
@@ -188,6 +189,12 @@ public class InMemoryDirectoryListCache extends DirectoryListCache {
     }
 
     return bucketEntries;
+  }
+
+  @Override
+  public synchronized List<CacheEntry> getRawBucketList() {
+    log.debug("getRawBucketList()");
+    return new ArrayList<CacheEntry>(bucketLookup.values());
   }
 
   @Override
@@ -241,12 +248,12 @@ public class InMemoryDirectoryListCache extends DirectoryListCache {
   }
 
   @Override
-  synchronized int getInternalNumBuckets() {
+  public synchronized int getInternalNumBuckets() {
     return bucketLookup.size();
   }
 
   @Override
-  synchronized int getInternalNumObjects() {
+  public synchronized int getInternalNumObjects() {
     int objectCount = 0;
     for (CachedBucket bucket : bucketLookup.values()) {
       objectCount += bucket.getNumObjects();

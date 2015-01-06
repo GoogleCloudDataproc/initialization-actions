@@ -86,8 +86,8 @@ public class GoogleCloudStorageImpl
   // Duration of wait (in milliseconds) per retry for a bucket to be empty.
   public static final int BUCKET_EMPTY_WAIT_TIME_MS = 500;
 
-  // HTTP transport used for interacting with Google APIs.
-  private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
+  // Default HTTP transport used for interacting with Google APIs.
+  private static final HttpTransport DEFAULT_HTTP_TRANSPORT = new NetHttpTransport();
 
   // JSON factory used for formatting GCS JSON API payloads.
   private static final JsonFactory JSON_FACTORY = new JacksonFactory();
@@ -97,6 +97,9 @@ public class GoogleCloudStorageImpl
 
   // com.google.common.net cannot be imported here for various dependency reasons.
   private static final String OCTECT_STREAM_MEDIA_TYPE = "application/octet-stream";
+
+  // Maximum number of times to retry deletes in the case of precondition failures.
+  private static final int MAXIMUM_PRECONDITION_FAILURES_IN_DELETE = 4;
 
   // Determine if a given IOException is due to rate-limiting.
   private final Predicate<IOException> isRateLimitedException = new Predicate<IOException>() {
@@ -196,30 +199,47 @@ public class GoogleCloudStorageImpl
    */
   public GoogleCloudStorageImpl(GoogleCloudStorageOptions options, Credential credential)
       throws IOException {
+    Preconditions.checkArgument(options != null, "options must not be null");
+
     log.debug("GCS(%s)", options.getAppName());
 
     options.throwIfNotValid();
 
-    storageOptions = options;
+    this.storageOptions = options;
 
-    Preconditions.checkArgument(credential != null,
-        "credential must not be null");
+    Preconditions.checkArgument(credential != null, "credential must not be null");
 
     this.httpRequestInitializer = new RetryHttpInitializer(credential, options.getAppName());
 
     // Create GCS instance.
-    gcs = new Storage.Builder(
-        HTTP_TRANSPORT, JSON_FACTORY, httpRequestInitializer)
+    this.gcs = new Storage.Builder(
+        DEFAULT_HTTP_TRANSPORT, JSON_FACTORY, httpRequestInitializer)
         .setApplicationName(options.getAppName())
         .build();
   }
 
-  @VisibleForTesting
-  GoogleCloudStorageImpl(GoogleCloudStorageOptions options, Storage gcs) {
-      this.gcs = gcs;
-      this.storageOptions = options;
-  }
+  /**
+   * Constructs an instance of GoogleCloudStorageImpl.
+   *
+   * @param gcs Preconstructed Storage to use for I/O.
+   */
+  public GoogleCloudStorageImpl(GoogleCloudStorageOptions options, Storage gcs) {
+    Preconditions.checkArgument(options != null, "options must not be null");
 
+    log.debug("GCS(%s)", options.getAppName());
+
+    options.throwIfNotValid();
+
+    this.storageOptions = options;
+
+    Preconditions.checkArgument(gcs != null, "gcs must not be null");
+
+    this.gcs = gcs;
+
+    // Normally used for batch requests, but not necessary for correctness.
+    // TODO(user): Support custom initializers without Credentials.
+    this.httpRequestInitializer = null;
+  }
 
   @VisibleForTesting
   protected GoogleCloudStorageImpl() {
@@ -274,32 +294,77 @@ public class GoogleCloudStorageImpl
     Preconditions.checkArgument(resourceId.isStorageObject(),
         "Expected full StorageObject id, got " + resourceId);
 
-    ObjectWriteConditions writeConditions = ObjectWriteConditions.NONE;
-
-    // Some discussion on order of writers:
-    // Two non-overwriting writers will never interfere with each other.
-    //
-    // If a non-overwriting writer creates an object first and a overwriting writer creates the same
-    // object before the non-overwriting writer finishes:
-    //    The overwriting writer is allowed to complete their write
-    //    The non-overwriting writer receives an exception when attempting to close their stream
-    //
-    // The benefit to performing the create empty object RPC lies in the early detection of a
-    // file maybe existing before beginning a possibly large write and can only be interrupted by an
-    // overwriting writer.
-
-    // This will fail if we're not overwriting and an item exists.
-    // In the case of overwriting this will truncate the file before writing begins.
+    /**
+     * When performing mutations in GCS, even when we aren't concerned with parallel writers,
+     * we need to protect ourselves from what appear to be out-of-order writes to the writer. These
+     * most commonly manifest themselves as a sequence of:
+     * 1) Perform mutation M1 on object O1, which results in an HTTP 503 error,
+     *    but can be any 5XX class error.
+     * 2) Retry mutation M1, which yields a 200 OK
+     * 3) Perform mutation M2 on O1 which yields a 200 OK
+     * 4) Some time later, get O1 and see M1 and not M2, even though M2 appears to have happened
+     *    later.
+     *
+     * To counter this we need to perform mutations with a condition attached, always.
+     *
+     * To perform a mutation with a condition, we first must get the content generation of the
+     * current object. Once we have the current generation, we will create a marker file
+     * conditionally with an ifGenerationMatch. We will then create the final object only if the
+     * generation matches the marker file.
+     */
     // TODO(user): Have createEmptyObject return enough information to use that instead.
-    Storage.Objects.Insert insertObject = prepareEmptyInsert(resourceId, options);
-    StorageObject result = insertObject.execute();
+    Optional<Long> markerGeneration = Optional.absent();
+    BackOff backOff = backOffFactory.newBackOff();
+    long backOffSleep = 0L;
 
-    if (!options.overwriteExisting()) {
-      // If we're overwriting, we're willing to trample any data that's present. Don't bother
-      // setting conditions to be enforced on close().
-      writeConditions = new ObjectWriteConditions(
-          Optional.of(result.getGeneration()), Optional.<Long>absent());
+    do {
+      if (backOffSleep != 0) {
+        try {
+          sleeper.sleep(backOffSleep);
+        } catch (InterruptedException ie) {
+          throw new IOException(String.format(
+              "Interrupted while sleeping for backoff in create of %s", resourceId));
+        }
+      }
+
+      backOffSleep = backOff.nextBackOffMillis();
+      Storage.Objects.Insert insertObject = prepareEmptyInsert(resourceId, options);
+      GoogleCloudStorageItemInfo info = getItemInfo(resourceId);
+
+      if (!info.exists()) {
+        insertObject.setIfGenerationMatch(0L);
+      } else if (info.exists() && options.overwriteExisting()) {
+        long generation = info.getContentGeneration();
+        Preconditions.checkState(
+            generation != 0, "Generation should not be 0 for an existing item");
+        insertObject.setIfGenerationMatch(generation);
+      } else {
+        throw new IOException(String.format("Object %s already exists", resourceId.toString()));
+      }
+
+      try {
+        StorageObject result = insertObject.execute();
+        markerGeneration = Optional.of(result.getGeneration());
+      } catch (IOException ioe) {
+        if (errorExtractor.preconditionNotMet(ioe)) {
+          log.info(
+              "Retrying marker file creation. Retrying according to backoff policy, %s - %s",
+              resourceId,
+              ioe);
+        } else {
+          throw ioe;
+        }
+      }
+    } while (!markerGeneration.isPresent() && backOffSleep != BackOff.STOP);
+
+    if (backOffSleep == BackOff.STOP) {
+      throw new IOException(
+          String.format(
+              "Retries exhausted while attempting to create marker file for %s", resourceId));
     }
+
+    ObjectWriteConditions writeConditions =
+        new ObjectWriteConditions(markerGeneration, Optional.<Long>absent());
 
     Map<String, String> rewrittenMetadata =
         Maps.transformValues(options.getMetadata(), ENCODE_METADATA_VALUES);
@@ -533,35 +598,92 @@ public class GoogleCloudStorageImpl
         httpRequestInitializer,
         gcs,
         storageOptions.getMaxRequestsPerBatch());
-    for (final StorageResourceId fullObjectName : fullObjectNames) {
-      final String bucketName = fullObjectName.getBucketName();
-      final String objectName = fullObjectName.getObjectName();
-      Storage.Objects.Delete deleteObject = gcs.objects().delete(bucketName, objectName);
-      batchHelper.queue(deleteObject, new JsonBatchCallback<Void>() {
-        @Override
-        public void onSuccess(Void obj, HttpHeaders responseHeaders) {
-          log.debug("Successfully deleted %s", fullObjectName.toString());
-        }
 
-        @Override
-        public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) {
-          if (errorExtractor.itemNotFound(e)) {
-            // Ignore item-not-found errors. We do not have to delete what we cannot find. This
-            // error typically shows up when we make a request to delete something and the server
-            // receives the request but we get a retry-able error before we get a response.
-            // During a retry, we no longer find the item because the server had deleted it already.
-            log.debug("deleteObjects(%s) : not found", fullObjectName.toString());
-          } else {
-            innerExceptions.add(wrapException(
-                new IOException(e.toString()), "Error deleting", bucketName, objectName));
-          }
-        }
-      });
+    for (final StorageResourceId fullObjectName : fullObjectNames) {
+      queueSingleObjectDelete(fullObjectName, innerExceptions, batchHelper, 1);
     }
-    batchHelper.flush();
+
+    do {
+      batchHelper.flush();
+    } while (!batchHelper.isEmpty());
+
     if (innerExceptions.size() > 0) {
       throw GoogleCloudStorageExceptions.createCompositeException(innerExceptions);
     }
+  }
+
+  private void queueSingleObjectDelete(
+      final StorageResourceId fullObjectName,
+      final List<IOException> innerExceptions,
+      final BatchHelper batchHelper,
+      final int attempt) throws IOException {
+
+    final String bucketName = fullObjectName.getBucketName();
+    final String objectName = fullObjectName.getObjectName();
+
+    // We first need to get the current object version to issue a safe delete for only the
+    // latest version of the object.
+    Storage.Objects.Get getObject = gcs.objects().get(bucketName, objectName);
+    batchHelper.queue(getObject, new JsonBatchCallback<StorageObject>() {
+      @Override
+      public void onSuccess(StorageObject storageObject, HttpHeaders httpHeaders)
+          throws IOException {
+        final Long generation = storageObject.getGeneration();
+        Storage.Objects.Delete deleteObject =
+            gcs.objects().delete(bucketName, objectName)
+                .setIfGenerationMatch(generation);
+
+        batchHelper.queue(deleteObject, new JsonBatchCallback<Void>() {
+          @Override
+          public void onSuccess(Void obj, HttpHeaders responseHeaders) {
+            log.debug(
+                "Successfully deleted %s at generation %s", fullObjectName.toString(), generation);
+          }
+
+          @Override
+          public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
+            if (errorExtractor.itemNotFound(e)) {
+              // Ignore item-not-found errors. We do not have to delete what we cannot find. This
+              // error typically shows up when we make a request to delete something and the server
+              // receives the request but we get a retry-able error before we get a response.
+              // During a retry, we no longer find the item because the server had deleted
+              // it already.
+              log.debug("deleteObjects(%s) : delete not found", fullObjectName.toString());
+            } else if (errorExtractor.preconditionNotMet(e)
+                && attempt <= MAXIMUM_PRECONDITION_FAILURES_IN_DELETE) {
+              log.info(
+                  "Precondition not met while deleting %s at generation %s. Attempt %s. Retrying.",
+                  fullObjectName.toString(),
+                  generation,
+                  attempt);
+              queueSingleObjectDelete(
+                  fullObjectName, innerExceptions, batchHelper, attempt + 1);
+            } else {
+              innerExceptions.add(wrapException(
+                  new IOException(e.toString()),
+                  String.format("Error deleting, stage 2 with generation %s", generation),
+                  bucketName,
+                  objectName));
+            }
+          }
+        });
+      }
+      @Override
+      public void onFailure(GoogleJsonError googleJsonError, HttpHeaders httpHeaders)
+          throws IOException {
+        if (errorExtractor.itemNotFound(googleJsonError)) {
+          // If the the item isn't found, treat it the same as if it's not found in the delete
+          // case: assume the user wanted the object gone and now it is.
+          log.debug("deleteObjects(%s) : get not found", fullObjectName.toString());
+        } else {
+          innerExceptions.add(wrapException(
+              new IOException(googleJsonError.toString()),
+              "Error deleting, stage 1",
+              bucketName,
+              objectName));
+        }
+      }
+    });
   }
 
   /**
@@ -1031,8 +1153,15 @@ public class GoogleCloudStorageImpl
     // GCS API does not make available location and storage class at object level at present
     // (it is same for all objects in a bucket). Further, we do not use the values for objects.
     // The GoogleCloudStorageItemInfo thus has 'null' for location and storage class.
-    return new GoogleCloudStorageItemInfo(resourceId, object.getUpdated().getValue(),
-        object.getSize().longValue(), null, null, decodedMetadata);
+    return new GoogleCloudStorageItemInfo(
+        resourceId,
+        object.getUpdated().getValue(),
+        object.getSize().longValue(),
+        null,
+        null,
+        decodedMetadata,
+        object.getGeneration(),
+        object.getMetageneration());
   }
 
   /**

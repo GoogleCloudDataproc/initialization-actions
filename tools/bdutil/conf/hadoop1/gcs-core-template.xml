@@ -1,0 +1,63 @@
+<?xml version="1.0" ?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<configuration>
+  <property>
+    <name>fs.gs.project.id</name>
+    <value><envVar name="PROJECT"/></value>
+    <description>
+      Google Cloud Project ID with access to configured GCS buckets.
+    </description>
+  </property>
+  <property>
+    <name>fs.gs.system.bucket</name>
+    <value><envVar name="CONFIGBUCKET"/></value>
+    <description>
+      GCS bucket to use as a default bucket if fs.default.name is not a gs: uri.
+    </description>
+  </property>
+  <property>
+    <name>fs.gs.working.dir</name>
+    <value>/</value>
+    <description>
+      The directory relative gs: uris resolve in inside of the default bucket.
+    </description>
+  </property>
+  <property>
+    <name>fs.gs.impl</name>
+    <value>com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem</value>
+    <description>The FileSystem for gs: (GCS) uris.</description>
+  </property>
+  <property>
+    <name>fs.gs.metadata.cache.enable</name>
+    <value>true</value>
+    <description>
+      If true, a DirectoryListCache will be used to supplement "list" requests
+      to GCS to fill in any missing items caused by eventual list consistency,
+      intercepting create/delete/copy calls to create cache entries. The
+      concrete type is determined with fs.gs.metadata.cache.type.
+    </description>
+  </property>
+  <property>
+    <name>fs.gs.metadata.cache.type</name>
+    <value><envVar name="GCS_METADATA_CACHE_TYPE"/></value>
+    <description>
+      Specifies which implementation of DirectoryListCache to use for
+      supplementing GCS API "list" requests. Supported implementations:
+      IN_MEMORY: Enforces immediate consistency within same Java process.
+      FILESYSTEM_BACKED: Enforces consistency across all cooperating processes
+      pointed at the same local mirror directory, which may be an NFS directory
+      for massively-distributed coordination.
+    </description>
+  </property>
+  <property>
+    <name>fs.gs.metadata.cache.directory</name>
+    <value><envVar name="GCS_FILE_CACHE_DIRECTORY"/></value>
+    <description>
+      Only used if fs.gs.metadata.cache.type is FILESYSTEM_BACKED, specifies
+      the local path to use as the base path for storing mirrored GCS metadata.
+      Must be an absolute path, must be a directory, and must be fully
+      readable/writable/executable by any user running processes which use the
+      GCS connector.
+    </description>
+  </property>
+</configuration>

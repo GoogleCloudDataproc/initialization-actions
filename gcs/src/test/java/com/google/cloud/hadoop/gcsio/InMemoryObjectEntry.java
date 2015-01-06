@@ -66,7 +66,9 @@ class InMemoryObjectEntry {
               completedContents.length,
               null,
               null,
-              info.getMetadata());
+              info.getMetadata(),
+              0L,
+              0L);
         }
       }
     };
@@ -103,7 +105,9 @@ class InMemoryObjectEntry {
         0,
         null,
         null,
-        ImmutableMap.copyOf(metadata));
+        ImmutableMap.copyOf(metadata),
+        0L,
+        0L);
   }
 
   /**
@@ -157,7 +161,9 @@ class InMemoryObjectEntry {
         info.getSize(),
         null,
         null,
-        info.getMetadata());
+        info.getMetadata(),
+        0L,
+        0L);
     return copy;
   }
 
@@ -229,6 +235,8 @@ class InMemoryObjectEntry {
         completedContents.length,
         null,
         null,
-        mergedMetadata);
+        mergedMetadata,
+        0L,
+        0L);
   }
 }

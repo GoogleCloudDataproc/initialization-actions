@@ -1,0 +1,285 @@
+1.0.1 - 2014-12-16
+
+  1. Replaced usage of deprecated gcutil with gcloud compute.
+  2. Changed GCE_SERVICE_ACCCOUNT_SCOPES from a comma separated list to a bash
+     array.
+  3. Fixed cleanup of pig-validate-setup.sh, hive-validate-setup.sh and
+     spark-validate-setup.sh.
+  4. Upgraded default Spark version to 1.1.1.
+  5. The default zone for instances is now us-central1-a.
+
+
+0.36.4 - 2014-10-17
+
+  1. Added bdutil flags --worker_attached_pds_size_gb and
+     --master_attached_pd_size_gb corresponding to the bdutil_env variables of
+     the same names.
+  2. Added bdutil_env.sh variables and corresponding flags:
+     --worker_attached_pds_type and --master_attached_pd_type to specify
+     the type or PD to create, 'pd-standard' or 'pd-ssd'. Default: pd-standard.
+  3. Fixed a bug where we forgot to actually add
+     extensions/querytools/setup_profiles.sh to the COMMAND_GROUPS under
+     extensions/querytools/querytools_env.sh; now it's actually possible to
+     run 'pig' or 'hive' directly with querytools_env.sh installed.
+  4. Fixed a bug affecting Hadoop 1.2.1 HDFS persistence across deployments
+     where dfs.data.dir directories inadvertently had their permissions
+     modified to 775 from the correct 755, and thus caused datanodes to fail to
+     recover the data. Only applies in the use case of setting:
+
+         CREATE_ATTACHED_PDS_ON_DEPLOY=false
+         DELETE_ATTACHED_PDS_ON_DELETE=false
+
+     after an initial deployment to persist HDFS across a delete/deploy command.
+     The explicit directory configuration is now set in bdutil_env.sh with
+     the variable HDFS_DATA_DIRS_PERM, which is in turn wired into
+     hdfs-site.xml.
+  5. Added mounted disks to /etc/fstab to re-mount them on boot.
+  6. bdutil now uses a search path mechanism to look for env files to reduce
+     the amount of typing necessary to specify env files. For each argument
+     to the -e (or --env_var_files) command line option, if the argument
+     specifies just a base filename without a directory, bdutil will use
+     the first file of that name that it finds in the following directories:
+       1. The current working directory (.).
+       2. Directories specified as a colon-separated list of directories in
+          the environment variable BDUTIL_EXTENSIONS_PATH.
+       3. The bdutil directory (where the bdutil script is located).
+       4. Each of the extensions directories within the bdutil directory.
+     If the base filename is not found, it will try appending "_env.sh" to
+     the filename and look again in the same set of directories.
+     This change allows the following:
+       1. You can specify standard extensions succinctly, such as
+          "-e spark" for the spark extension, or "-e hadoop2" to use Hadoop 2.
+       2. You can put the bdutil directory in your PATH and run bdutil
+          from anywhere, and it will still find all its own files.
+       3. You can run bdutil from a directory containing your custom env
+          files and use filename completion to add them to a bdutil command.
+       4. You can collect your custom env files into one directory, set
+          BDUTIL_EXTENSIONS_PATH to point to that directory, run bdutil
+          from anywhere, and specify your custom env files by name only.
+  7. Added new boolean setting to bdutil_env.sh, ENABLE_NFS_GCS_FILE_CACHE,
+     which defaults to 'true'. When true, the GCS connector will be configured
+     to use its new "FILESYSTEM_BACKED" DirectoryListCache for immediate
+     cluster-wide list consistency, allowing multi-stage pipelines in e.g. Pig
+     and Hive to safely operate with DEFAULT_FS=gs. With this setting, bdutil
+     will install and configure an NFS export point on the master node, to
+     be mounted as the shared metadata cache directory for all cluster nodes.
+  8. Fixed a bug where the datastore-to-bigquery sample neglected to set a
+     'filter' in its query based on its ancestor entities.
+  9. YARN local directories are now set to spread IO across all directories
+     under /mnt.
+  10. YARN container logs will be written to /hadoop/logs/.
+  11. The Hadoop 2 MR Job History Server will now be started on the master node.
+  12. Added /etc/init.d entries for Hadoop daemons to restart them after
+      VM restarts.
+  13. Moved "hadoop fs -test" of gcs-connector to end of Hadoop setup, after
+      starting Hadoop daemons.
+  14. The spark_env.sh extension will now install numpy.
+
+
+0.35.2 - 2014-09-18
+
+  1. When installing Hadoop 1 and 2, snappy will now be installed and symbolic
+     links will be created from the /usr/lib or /usr/lib64 tree to the Hadoop
+     native library directory.
+  2. When installing Hadoop 2, bdutil will attempt to download and install
+     precompiled native libraries for the installed version of Hadoop.
+  3. Modified default hadoop-validate-setup.sh to use 10MB of random data
+     instead of the old 1MB, otherwise it doesn't work for larger clusters.
+  4. Added a health check script in Hadoop 1 to check if Jetty failed to load
+     for the TaskTracker as in [MAPREDUCE-4668].
+  5. Added ServerAliveInterval and ServerAliveCountMax SSH options to SSH
+     invocations to detect dropped connections.
+  6. Pig and Hive installation (extensions/querytools/querytools_env.sh) now
+     sets DEFAULT_FS='hdfs'; reading from GCS using explicit gs:// URIs will
+     still work normally, but intermediate data for multi-stage pipelines will
+     now reside on HDFS. This is because Pig and Hive more commonly rely on
+     immediate "list consistency" across clients, and thus are more susceptible
+     to GCS "eventual list consistency" semantics even if the majority case
+     works fine.
+  7. Changed occurrences of 'hdpuser' to 'hadoop' in querytools_env.sh, such
+     that Pig and Hive will be installed under /home/hadoop instead of
+     /home/hdpuser, and the files will be owned by 'hadoop' instead of
+     'hdpuser'; this is more consistent with how other extensions have been
+     handled.
+  8. Modified extensions/querytools/querytools_env.sh to additionally insert
+     the Pig and Hive 'bin' directories into the PATH environment variable
+     for all users, such that SSH'ing into the master provides immediate
+     access to launching 'pig' or 'hive' without requiring
+     "sudo sudo -i -u hdpuser"; removed 'chmod 600 hive-site.xml' so that any
+     user can successfully run 'hive' directly.
+  9. Added extensions/querytools/{hive, pig}-validate-setup.sh which can be
+     used as a quick test of Pig/Hive functionality:
+     ./bdutil shell < extensions/querytools/pig-validate-setup.sh
+  10. Updated extensions/spark/spark_env.sh to now use spark-1.1.0 by default.
+  11. Added new BigQuery connector sample under bdutil-0.35.2/samples as file
+      streaming_word_count.sh which demonstrates using the new support for
+      the older "hadoop.mapred.*" interfaces via hadoop-streaming.jar.
+
+
+0.35.1 - 2014-08-07
+
+  1. Added a boolean bdutil option DEBUG_MODE with corresponding flags
+     -D/--debug which turns on high-verbosity modes for gcutil and gsutil
+     calls during the deployment, including on the remote VMs.
+  2. Added the ability for the Google connectors, bdconfig, and Hadoop
+     distributions to be stored and fetched from gs:// style URLs in addition
+     to http:// URLs.
+  3. In VERBOSE_MODE, on failure the detailed debuginfo.txt is now also printed
+     to the console in addition to being available in the /tmp directory.
+  4. Moved all configuration code in conf/.
+  5. Changed the default PREFIX to 'hadoop' instead of 'hs-ghfs', and the
+     naming convention for masters/workers to follow $PREFIX-m and $PREFIX-w-$i
+     instead of $PREFIX-nn and $PREFIX-dn-$i.  IMPORTANT: This breaks
+     compatibility with existing clusters deployed with bdutil 0.34.x and older,
+     but there is a new flag "--old_hostname_suffixes" to continue using the old
+     -nn/-dn naming convention. For example, to turn
+     down an old cluster if you've been using the default prefix:
+     ./bdutil --prefix=hs-ghfs --old_hostname_suffixes delete
+  6. Fixed a bug in VM environments where run_command could not find commands
+     such as 'hadoop' in their PATH.
+  7. Update BigQuery / Datastore sample scripts to be used with
+     "./bdutil run_command." rather than locally.
+  8. Added a test to guarantee VMs had no more than 64 characters in their fully
+     qualified domain names.
+  9. Added the import_env helper to allow "_env.sh" files to depend on each
+     other.
+  10. Renamed spark1_env.sh to spark_env.sh.
+  11. Added a gsutil update check upon first entering a VM.
+
+
+0.34.4 - 2014-06-23
+
+  1. Switched default gcs-connector version to 1.2.7 for patch fixing a bug
+     where globs wrongly reported "not found" in some cases in Hadoop 2.2.0.
+
+
+0.34.3 - 2014-06-13
+
+  1. Jobtracker / Resource manager recovery has been enabled by default to
+     preserve job queues if the daemon dies.
+  2. Fixed single_node_env.sh to work with hadoop2_env.sh
+  3. Two new commands were added to bdutil: socksproxy and shell; socksproxy
+     will establish a SOCKS proxy to the cluster and shell will start an SSH
+     session to the namenode.
+  4. A new variable, GCE_NETWORK, was added to bdutil_env.sh and can be set
+     from the command line via the --network flag when deploying a cluster or
+     generating a configuration file. The network specified by GCE_NETWORK
+     must exist and must allow SSH connections from the host running bdutil
+     and must allow intra-cluster communication.
+  5. Increased configured heap sizes of the master daemons (JobTracker,
+     NameNode, SecondaryNameNode, and ResourceManager).
+  6. The HADOOP_LOG_DIR is now /hadoop/logs instead of the default
+     /home/hadoop/hadoop-install/logs; if using attached PDs for larger disk
+     storage, this directory resides on that attached PD rather than the
+     boot volume, so that Hadoop logs will no longer fill up the boot disk.
+  7. Added new extensions under bdutil-<version>/extensions/spark; includes
+     spark_shark_env.sh and spark1_env.sh, both compatible for mixing with
+     Hadoop2 as well. For now, doesn't use Mesos or YARN in either case,
+     but suitable for single-user or Spark-only setups. The spark_shark_env.sh
+     extension installs Spark + Shark 0.9.1, while spark1_env.sh only installs
+     Spark 1.0.0, in which case Spark SQL serves as the alternative to Shark.
+  8. Cleaned updating of login scripts and $PATHs. Added safety check around
+     sourcing of hadoop-config.sh, because it can kill shells by calling exit in
+     Hadoop 2.
+
+
+0.34.2 - 2014-06-05
+
+  1. When using Hadoop 2 / YARN, and the default filesystem is set to 'gs', YARN
+     log aggregation will be enabled and YARN application logs, including
+     map-reduce task logs will be persisted to gs://<CONFIGBUCKET>/yarn-logs/.
+
+
+0.34.1 - 2014-05-12
+
+  1. Fixed a bug in the USE_ATTACHED_PDS feature (also enabled with
+     -d/--use_attached_pds) where disks didn't get attached properly.
+
+
+0.34.0 - 2014-05-08
+
+  1. Changed sample applications and tools to use GenericOptionsParser instead
+     of creating a new Configuration object directly.
+  2. Added printout of bdutil version number alongside "usage" message.
+  3. Added sleeps between async invocations of GCE API calls during deployment,
+     configurable with: GCUTIL_SLEEP_TIME_BETWEEN_ASYNC_CALLS_SECONDS
+  4. Added tee'ing of client-side console output into debuginfo.txt with better
+     delineation of where the error is likely to have occurred.
+  5. Just for extensions/querytools/querytools_env.sh, added an explicit
+     mapred.working.dir to fix a bug where PigInputFormat crashes whenever the
+     default FileSystem is different from the input FileSystem. This fix allows
+     using GCS input paths in Pig with DEFAULT_FS='hdfs'.
+  6. Added a retry-loop around "apt-get -y -qq update" since it may flake under
+     high load.
+  7. Significantly refactored bdutil into better-isolated helper functions, and
+     added basic support for command-line flags and several new commnds. The old
+     command "./bdutil env1.sh env2.sh" is now "./bdutil -e env1.sh,env2.sh".
+     Type ./bdutil --help for an overview of all the new functionality.
+  8. Added better checking of env and upload files before starting deployment.
+  9. Reorganized bdutil_env.sh into logical sections with better descriptions.
+  10. Significantly reduced amount of console output; printed dots indicate
+     progress of async subprocesses. Controllable with VERBOSE_MODE or '-v'.
+  11. Script and file dependencies are now staged through GCS rather than using
+     gcutil push; drastically decreases bandwidth and improves scalability.
+  12. Added MAX_CONCURRENT_ASYNC_PROCESSES to splitting the async loops into
+     multiple smaller batches, to avoid OOMing.
+  13. Made delete_cluster continue on error, still reporting a warning at the
+     end if errors were encountered. This way, previously-failed cluster
+     creations or deletions with partial resources still present can be
+     cleaned up by retrying the "delete" command.
+
+
+0.33.1 - 2014-04-09
+
+  1. Added deployment scripts for the BigQuery and Datastore connectors.
+  2. Added sample jarfiles for the BigQuery and Datastore connectors under
+     a new /samples/ subdirectory along with scripts for running the samples.
+  3. Set the default image type to backports-debian-7 for improved networking.
+
+
+0.33.0 - 2014-03-21
+
+  1. Renamed 'ghadoop' to 'bdutil' and ghadoop_env.sh to bdutil_env.sh.
+  2. Bundled a collection of *-site.xml.template files in conf/ subdirectory
+     which are integrated into the hadoop conf/ files in the remote scripts.
+  3. Switched core-site template to new 'fs.gs.auth.*' syntax for
+     enabling service-account auth.
+
+
+0.32.0 - 2014-02-12
+
+  1. ghadoop now always includes ghadoop_env.sh; only the overrides file needs
+     to be specified, e.g. ghadoop deploy single_node_env.sh.
+  2. Files in COMMAND_GROUPS are now relative to the directory in which ghadoop
+     resides, rather than having to be inside libexec/. Absolute paths are
+     also supported now.
+  3. Added UPLOAD_FILES to ghadoop_env.sh which ghadoop will use to upload
+     a list of relative or absolute file paths to every VM before starting
+     execution of COMMAND_STEPS.
+  4. Include full Hive and Pig sampleapp from Cloud Solutions with ghadoop;
+     added extensions/querytools/querytools_env.sh to auto-install Hive and
+     Pig as part of deployment. Usage:
+         ./ghadoop deploy extensions/querytools/querytools_env.sh
+
+
+0.31.1 - 2014-01-23
+
+  1. Added CHANGES.txt for release notes.
+  2. Switched from /hadoop/temp to /hadoop/tmp.
+  3. Added support for running ghadoop as root; will display additional
+     confirmation prompt before starting.
+  4. run_gcutil_cmd() now displays the full copy/paste-able gcutil command.
+  5. Now, only the public key of the master-generated ssh keypair is copied
+     into GCS during setup and onto the datanodes. This fixes the occasional
+     failed deployment due to GCS list-consistency, and is cleaner anyways.
+     The ssh keypair is now more descriptively named: 'hadoop_master_id_rsa'.
+  6. Added check for sshability from master to workers in start_hadoop.sh.
+  7. Cleaned up internal gcutil commands, added printout of full command
+     to ssh into the namenode at the end of the deployment.
+  8. Removed indirect config references from *-site.xml.
+  9. Stopped explicitly setting mapred.*.dir.
+
+
+0.31.0 - 2014-01-14
+
+  1. Preview release of ghadoop.

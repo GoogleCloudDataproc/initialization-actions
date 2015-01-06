@@ -1,0 +1,37 @@
+0.28.1 - 2014-05-08
+
+  1. Added Python 2.6 compatibility.
+
+
+0.28.0 - 2014-03-21
+
+  1. Renamed ghconfig to bdconfig.
+  2. Allowed for direct editing and querying of configuration *site.xml files.
+     Run 'bdconfig help' to see the new commands.
+  3. Allowed for in line replacement of '<envVar name="FOO" />' tags with the
+     enviroment variable '$FOO'.
+  4. Deprecated configure_hadoop, configure_ghfs, and set_default_fs commands.
+  5. Switched to new 'fs.gs.auth.*' syntax for the various auth-related keys
+     like client_id, client_secret, and enabling service-account auth.
+
+
+0.27.2 - 2014-02-12
+
+  1. Misc updates in client library dependencies.
+
+
+0.27.1 - 2014-01-23
+
+  1. Switched from /hadoop/temp to /hadoop/tmp and /temp to /tmp for various
+     Hadoop temp directories.
+  2. Got rid of the xml-local config values fs.gs.tmp.dir and
+     fs.gs.tmp.dir.local; older versions of Pig don't support the necessary
+     cross-config references.
+  3. Removed mapred directory overrides to revert them to defaults based on
+     hadoop.tmp.dir. This effectively moves mapred system files from /tmp to
+     /hadoop/tmp.
+
+
+0.27.0 - 2014-01-14
+
+  1. Preview release of ghconfig.

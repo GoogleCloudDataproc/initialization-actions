@@ -40,7 +40,9 @@ public class FileInfoTest {
             200L /* size */,
             "location",
             "storage class",
-            metadata);
+            metadata,
+            0L,
+            0L);
 
     FileInfo fileInfo = FileInfo.fromItemInfo(itemInfo);
 
@@ -59,7 +61,9 @@ public class FileInfoTest {
             200L /* size */,
             "location",
             "storage class",
-            metadata);
+            metadata,
+            0L,
+            0L);
 
     FileInfo fileInfo = FileInfo.fromItemInfo(itemInfo);
 
