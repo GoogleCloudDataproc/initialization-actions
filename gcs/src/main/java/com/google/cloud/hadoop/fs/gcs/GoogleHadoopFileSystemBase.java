@@ -284,6 +284,15 @@ public abstract class GoogleHadoopFileSystemBase
   // Default value for fs.gs.glob.flatlist.enable.
   public static final boolean GCS_ENABLE_FLAT_GLOB_DEFAULT = true;
 
+  // Configuration key for enabling the use of marker files during file creation. When running
+  // non-MR applications that make use of the FileSystem, it is a idea to enable marker files
+  // to better mimic HDFS overwrite and locking behavior.
+  public static final String GCS_ENABLE_MARKER_FILE_CREATION_KEY =
+      "fs.gs.create.marker.files.enable";
+
+  // Default value for fs.gs.create.marker.files.enable
+  public static final boolean GCS_ENABLE_MARKER_FILE_CREATION_DEFAULT = false;
+
   // Default PathFilter that accepts all paths.
   public static final PathFilter DEFAULT_FILTER = new PathFilter() {
     @Override
@@ -1529,6 +1538,15 @@ public abstract class GoogleHadoopFileSystemBase
       optionsBuilder
           .getCloudStorageOptionsBuilder()
           .setAutoRepairImplicitDirectoriesEnabled(enableAutoRepairImplicitDirectories);
+
+      boolean enableMarkerFileCreation = config.getBoolean(
+          GCS_ENABLE_MARKER_FILE_CREATION_KEY,
+          GCS_ENABLE_MARKER_FILE_CREATION_DEFAULT);
+      log.debug("%s = %s", GCS_ENABLE_MARKER_FILE_CREATION_KEY, enableMarkerFileCreation);
+
+      optionsBuilder
+          .getCloudStorageOptionsBuilder()
+          .setCreateMarkerObjects(enableMarkerFileCreation);
 
       projectId = ConfigurationUtil.getMandatoryConfig(config, GCS_PROJECT_ID_KEY);
 

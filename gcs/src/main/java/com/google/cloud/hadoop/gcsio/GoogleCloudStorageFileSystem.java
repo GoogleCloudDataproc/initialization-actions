@@ -47,7 +47,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-
 /**
  * Provides a POSIX like file system layered on top of Google Cloud Storage (GCS).
  *
@@ -916,17 +915,6 @@ public class GoogleCloudStorageFileSystem {
   }
 
   /**
-   * See {@link #listFileInfo(URI, boolean)} for behavior. Calls with default value of
-   * enableAutoRepair == false.
-   */
-  public List<FileInfo> listFileInfo(URI path)
-      throws IOException {
-    log.debug("listFileInfo(%s)", path);
-    Preconditions.checkNotNull(path);
-    return listFileInfo(path, false);
-  }
-
-  /**
    * If the given path points to a directory then the information about its
    * children is returned, otherwise information about the given file is returned.
    *
@@ -1382,8 +1370,9 @@ public class GoogleCloudStorageFileSystem {
     for (int i = 0; i < (objectName.length() - 1); i++) {
       if (objectName.charAt(i) == '/') {
         if (objectName.charAt(i + 1) == '/') {
-          throw new IllegalArgumentException(
-              "Google Cloud Storage path must not have consecutive '/' characters.");
+          throw new IllegalArgumentException(String.format(
+              "Google Cloud Storage path must not have consecutive '/' characters, got '%s'",
+              objectName));
         }
       }
     }

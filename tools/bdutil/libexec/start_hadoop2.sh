@@ -34,21 +34,9 @@ if (( ${ENABLE_HDFS} )); then
   # Start namenode and jobtracker
   start_with_retry_namenode start_dfs_hadoop_2
 
-  # Post DFS startup:
-  if ! hadoop fs -stat /tmp ; then
-    sudo -u hadoop ./bin/hadoop fs -mkdir -p /tmp/hadoop-yarn/history
-    sudo -u hadoop ./bin/hadoop fs -mkdir -p /tmp/hadoop-yarn/staging
-    sudo -u hadoop ./bin/hadoop fs -chmod -R 1777 /tmp
-  fi
-  # TODO: Replace the following line with logic from start_hadoop.sh
-  # that waits for DFS startup.
-  sleep 60
-
-  # Post DFS startup:
-  if ! hadoop fs -stat /tmp ; then
-    sudo -u hadoop ./bin/hadoop fs -mkdir -p /tmp/hadoop-yarn/history
-    sudo -u hadoop ./bin/hadoop fs -mkdir -p /tmp/hadoop-yarn/staging
-    sudo -u hadoop ./bin/hadoop fs -chmod -R 1777 /tmp
+  if [[ "${DEFAULT_FS}" == 'hdfs' ]]; then
+    # Set up HDFS /tmp and /user dirs
+    initialize_hdfs_dirs
   fi
 fi
 

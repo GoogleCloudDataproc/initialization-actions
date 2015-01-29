@@ -18,4 +18,10 @@
 # production usage due to stripping security.debian.org, but reduces external
 # load for non-critical use cases.
 
-install_application "openjdk-7-jre-headless" "java-1.7.0-openjdk"
+if (( ${INSTALL_JDK_DEVEL} )); then
+  echo 'Installing JDK with compiler and tools'
+  install_application "openjdk-7-jdk" "java-1.7.0-openjdk-devel"
+else
+  echo 'Installing minimal JRE'
+  install_application "openjdk-7-jre-headless" "java-1.7.0-openjdk"
+fi

@@ -20,8 +20,8 @@
 
   <parent>
     <groupId>com.google.cloud.bigdataoss</groupId>
-    <artifactId>bigquery-connector</artifactId>
-    <version>0.5.0</version>
+    <artifactId>bigquery-connector-parent</artifactId>
+    <version>0.5.1</version>
     <relativePath>pom.xml</relativePath>
   </parent>
 
@@ -30,5 +30,14 @@
   <description>
     Hadoop 2 MapReduce input and output formats for use with BigQuery
   </description>
-  <version>0.5.0-hadoop1</version>
+  <version>0.5.1-hadoop1</version>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
 </project>

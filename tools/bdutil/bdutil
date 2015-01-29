@@ -838,7 +838,7 @@ function resolve_env_file() {
 }
 
 function get_extension_subdirs() {
-  local a=( ${BDUTIL_DIR}/extensions/* )
+  local a=( ${BDUTIL_DIR}/extensions/* ${BDUTIL_DIR}/platforms/* )
   ( IFS=:  && echo "${a[*]}" )
 }
 

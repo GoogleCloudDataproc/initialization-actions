@@ -297,7 +297,7 @@ public class GsonBigQueryInputFormatTest {
       throws IOException, InterruptedException {
     config.setBoolean(BigQueryConfiguration.ENABLE_SHARDED_EXPORT_KEY, true);
 
-    // Make the bytes large enough that we will estimate a large number of shards.
+    // Make the bytes as small as possible.
     Table fakeTable = new Table()
         .setNumRows(BigInteger.valueOf(2L))
         .setNumBytes(1L);
@@ -333,6 +333,43 @@ public class GsonBigQueryInputFormatTest {
     verify(mockBigqueryTables, times(1)).get(
         eq(dataProjectId), eq("test_dataset"), eq("test_table"));
     verifyNoMoreInteractions(mockBigqueryTables);
+  }
+
+  @Test
+  public void testGetSplitsShardedBig()
+      throws IOException, InterruptedException {
+    config.setBoolean(BigQueryConfiguration.ENABLE_SHARDED_EXPORT_KEY, true);
+
+    // Make the bytes large enough that we will estimate a large number of shards.
+    Table fakeTable = new Table()
+        .setNumRows(BigInteger.valueOf(9999999L))
+        .setNumBytes(1024L * 1024 * 1024 * 1024 * 8);
+    when(mockBigqueryTablesGet.execute())
+        .thenReturn(fakeTable);
+
+    // Set the hint to a value larger than the maximum number of shards allowed by the service.
+    config.setInt(ShardedExportToCloudStorage.NUM_MAP_TASKS_HINT_KEY, 2400);
+    config.setInt(ShardedExportToCloudStorage.MAX_EXPORT_SHARDS_KEY, 250);
+
+    // Run getSplits method.
+    GsonBigQueryInputFormat gsonBigQueryInputFormat = new GsonBigQueryInputFormatForTest();
+    BigQueryJobWrapper wrapper = new BigQueryJobWrapper(config);
+    wrapper.setJobID(new JobID());
+    List<InputSplit> splits = gsonBigQueryInputFormat.getSplits(wrapper);
+
+    // The base export path should've gotten created.
+    Path baseExportPath = new Path(config.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY));
+    FileStatus baseStatus = baseExportPath.getFileSystem(config).getFileStatus(baseExportPath);
+    assertTrue(baseStatus.isDir());
+
+    assertEquals(250, splits.size());
+    for (int i = 0; i < 2; ++i) {
+      assertTrue(splits.get(i) instanceof ShardedInputSplit);
+    }
+
+    // Verify correct calls to BigQuery are made.
+    verify(mockBigqueryJobs, times(2)).insert(any(String.class), any(Job.class));
+    verify(mockBigqueryJobsInsert, times(2)).execute();
   }
 
   /**

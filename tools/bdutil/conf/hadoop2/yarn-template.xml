@@ -18,11 +18,29 @@
   </property>
   <property>
     <name>yarn.scheduler.maximum-allocation-mb</name>
-    <value><envVar name="NODEMANAGER_MEM_MB"/></value>
+    <value><envVar name="YARN_MAX_MEM_MB"/></value>
     <description>
       The maximum allocation for every container request at the RM, in MBs.
       Memory requests higher than this won't take effect, and will get capped
       to this value.
+    </description>
+  </property>
+  <property>
+    <name>yarn.scheduler.minimum-allocation-mb</name>
+    <value><envVar name="YARN_MIN_MEM_MB"/></value>
+    <description>
+      The minimum allocation for every container request at the RM, in MBs.
+      Memory requests lower than this won't take effect, and the specified
+      value will get allocated at minimum.
+    </description>
+  </property>
+  <property>
+    <name>yarn.nodemanager.resource.cpu-vcores</name>
+    <value><envVar name="NUM_CORES"/></value>
+    <description>
+      Number of vcores that can be allocated for containers. This is used by
+      the RM scheduler when allocating resources for containers. This is not
+      used to limit the number of physical cores used by YARN containers.
     </description>
   </property>
   <property>

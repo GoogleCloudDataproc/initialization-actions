@@ -28,6 +28,13 @@ public class ShardedExportToCloudStorage extends AbstractExportToCloudStorage {
   // Default desired num map tasks.
   public static final int NUM_MAP_TASKS_HINT_DEFAULT = 2;
 
+  // Configuration key for service-specified maxium number of export shards (not necessarily
+  // equal to the maximum number of export files).
+  public static final String MAX_EXPORT_SHARDS_KEY = "mapred.bq.input.sharded.export.shards.max";
+
+  // Default maximum number of export shards.
+  public static final int MAX_EXPORT_SHARDS_DEFAULT = 500;
+
   // Estimated size of export files, used to estimate the total number of files that will be
   // exported.
   public static final long APPROXIMATE_EXPORT_FILE_SIZE = 256L * 1024 * 1024;
@@ -103,15 +110,24 @@ public class ShardedExportToCloudStorage extends AbstractExportToCloudStorage {
    */
   private int computeNumShards(long numTableBytes) {
     int desiredNumMaps = configuration.getInt(NUM_MAP_TASKS_HINT_KEY, NUM_MAP_TASKS_HINT_DEFAULT);
+    log.debug("Fetched desiredNumMaps from '%s': %d", NUM_MAP_TASKS_HINT_KEY, desiredNumMaps);
+
     int estimatedNumFiles = (int) Math.min(
         Math.max(MIN_SHARDS_FOR_SHARDED_EXPORT, numTableBytes / APPROXIMATE_EXPORT_FILE_SIZE),
         APPROXIMATE_MAX_EXPORT_FILES);
+    log.debug("estimatedNumFiles: %d", estimatedNumFiles);
 
-    if (estimatedNumFiles < desiredNumMaps) {
-      log.warn("Estimated num files < desired num maps (%d < %d); clipping to %d.",
-          estimatedNumFiles, desiredNumMaps, estimatedNumFiles);
+    // Maximum number of shards is either equal to the number of files (such that each shard has
+    // exactly one file) or the service-enforced maximum.
+    int serviceMaxShards = configuration.getInt(MAX_EXPORT_SHARDS_KEY, MAX_EXPORT_SHARDS_DEFAULT);
+    log.debug("Fetched serviceMaxShards from '%s': %d", MAX_EXPORT_SHARDS_KEY, serviceMaxShards);
+
+    int maxShards = Math.min(estimatedNumFiles, serviceMaxShards);
+    if (maxShards < desiredNumMaps) {
+      log.warn("Estimated max shards < desired num maps (%d < %d); clipping to %d.",
+          maxShards, desiredNumMaps, maxShards);
       // TODO(user): Add config settings for whether to clip or not.
-      return estimatedNumFiles;
+      return maxShards;
     } else {
       return desiredNumMaps;
     }

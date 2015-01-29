@@ -39,6 +39,11 @@ public class GoogleCloudStorageOptions {
   public static final long MAX_REQUESTS_PER_BATCH_DEFAULT = 1000;
 
   /**
+   * Default setting for whether or not to create a marker file when beginning file creation.
+   */
+  public static final boolean CREATE_EMPTY_MARKER_OBJECT_DEFAULT = false;
+
+  /**
    * Mutable builder for the GoogleCloudStorageOptions class.
    */
   public static class Builder {
@@ -47,6 +52,7 @@ public class GoogleCloudStorageOptions {
     private String projectId = null;
     private String appName = null;
     private long maxListItemsPerCall = MAX_LIST_ITEMS_PER_CALL_DEFAULT;
+    private boolean createMarkerObjects = CREATE_EMPTY_MARKER_OBJECT_DEFAULT;
 
     // According to https://developers.google.com/storage/docs/json_api/v1/how-tos/batch, there is a
     // maximum of 1000 requests per batch; it should not generally be necessary to modify this value
@@ -82,6 +88,11 @@ public class GoogleCloudStorageOptions {
       return this;
     }
 
+    public Builder setCreateMarkerObjects(boolean createMarkerObjects) {
+      this.createMarkerObjects = createMarkerObjects;
+      return this;
+    }
+
     public Builder setWriteChannelOptionsBuilder(
         AsyncWriteChannelOptions.Builder builder) {
       writeChannelOptionsBuilder = builder;
@@ -99,6 +110,7 @@ public class GoogleCloudStorageOptions {
           appName,
           maxListItemsPerCall,
           maxRequestsPerBatch,
+          createMarkerObjects,
           writeChannelOptionsBuilder.build());
     }
   }
@@ -113,9 +125,11 @@ public class GoogleCloudStorageOptions {
   private final AsyncWriteChannelOptions writeChannelOptions;
   private final long maxListItemsPerCall;
   private final long maxRequestsPerBatch;
+  private final boolean createMarkerFile;
 
   public GoogleCloudStorageOptions(boolean autoRepairImplicitDirectoriesEnabled,
-      String projectId, String appName, long maxListItemsPerCall, long maxRequestsPerBatch,
+      String projectId, String appName, long maxListItemsPerCall,
+      long maxRequestsPerBatch, boolean createMarkerFile,
       AsyncWriteChannelOptions writeChannelOptions) {
     this.autoRepairImplicitDirectoriesEnabled = autoRepairImplicitDirectoriesEnabled;
     this.projectId = projectId;
@@ -123,6 +137,7 @@ public class GoogleCloudStorageOptions {
     this.writeChannelOptions = writeChannelOptions;
     this.maxListItemsPerCall = maxListItemsPerCall;
     this.maxRequestsPerBatch = maxRequestsPerBatch;
+    this.createMarkerFile = createMarkerFile;
   }
 
   public boolean isAutoRepairImplicitDirectoriesEnabled() {
@@ -147,6 +162,10 @@ public class GoogleCloudStorageOptions {
 
   public long getMaxRequestsPerBatch() {
     return maxRequestsPerBatch;
+  }
+
+  public boolean isMarkerFileCreationEnabled() {
+    return createMarkerFile;
   }
 
   public void throwIfNotValid() {

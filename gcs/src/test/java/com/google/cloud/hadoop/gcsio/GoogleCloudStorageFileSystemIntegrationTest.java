@@ -273,7 +273,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest
     List<FileInfo> fileInfos;
 
     try {
-      fileInfos = gcsfs.listFileInfo(path);
+      fileInfos = gcsfs.listFileInfo(path, false);
       if (!pathExpectedToExist) {
         Assert.fail("Expected FileNotFoundException for path: " + path);
       }
@@ -1936,7 +1936,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest
 
     // Iterate over all buckets to find the old ones.
     List<FileInfo> topLevelDirInfos =
-        gcsfs.listFileInfo(GoogleCloudStorageFileSystem.GCS_ROOT);
+        gcsfs.listFileInfo(GoogleCloudStorageFileSystem.GCS_ROOT, false);
     for (FileInfo dirInfo : topLevelDirInfos) {
       URI dirPath = dirInfo.getPath();
       StorageResourceId resourceId =

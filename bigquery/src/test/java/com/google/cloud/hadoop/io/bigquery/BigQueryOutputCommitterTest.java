@@ -17,10 +17,11 @@ import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
-import com.google.api.services.bigquery.model.TableList;
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -36,8 +37,6 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Unit tests for BigQueryOutputCommitter.
@@ -83,33 +82,15 @@ public class BigQueryOutputCommitterTest {
   // The expected final destination TableReference.
   private TableReference finalTableRef;
 
-  // Mock Bigquery for testing.
-  @Mock
-  private Bigquery mockBigquery;
-
-  // Mock Bigquery.Datasets for testing.
-  @Mock
-  private Bigquery.Datasets mockBigqueryDatasets;
-
-  // Mock Bigquery.Datasets.Insert for testing.
-  @Mock
-  private Bigquery.Datasets.Insert mockBigqueryDatasetsInsert;
-
-  // Mock Bigquery.Datasets.Delete for testing.
-  @Mock
-  private Bigquery.Datasets.Delete mockBigqueryDatasetsDelete;
-
-  // Mock Bigquery.Tables for testing.
-  @Mock
-  private Bigquery.Tables mockBigqueryTables;
-
-  // Mock Bigquery.Tables.Delete for testing.
-  @Mock
-  private Bigquery.Tables.Delete mockBigqueryTablesDelete;
-
-  // Sample TaskAttempt context for testing.
-  @Mock
-  private TaskAttemptContext context;
+  @Mock private ApiErrorExtractor mockErrorExtractor;
+  @Mock private Bigquery mockBigquery;
+  @Mock private Bigquery.Datasets mockBigqueryDatasets;
+  @Mock private Bigquery.Datasets.Delete mockBigqueryDatasetsDelete;
+  @Mock private Bigquery.Datasets.Insert mockBigqueryDatasetsInsert;
+  @Mock private Bigquery.Tables mockBigqueryTables;
+  @Mock private Bigquery.Tables.Delete mockBigqueryTablesDelete;
+  @Mock private Bigquery.Tables.Get mockBigqueryTablesGet;
+  @Mock private TaskAttemptContext context;
 
   /**
    * Sets up common objects for testing before each test.
@@ -145,6 +126,7 @@ public class BigQueryOutputCommitterTest {
     committerInstance =
         new BigQueryOutputCommitter(JOB_PROJECT_ID, tempTableRef, finalTableRef, conf);
     committerInstance.setBigquery(mockBigquery);
+    committerInstance.setErrorExtractor(mockErrorExtractor);
   }
 
   /**
@@ -155,9 +137,11 @@ public class BigQueryOutputCommitterTest {
     verifyNoMoreInteractions(mockBigquery);
     verifyNoMoreInteractions(mockBigqueryTables);
     verifyNoMoreInteractions(mockBigqueryTablesDelete);
+    verifyNoMoreInteractions(mockBigqueryTablesGet);
     verifyNoMoreInteractions(mockBigqueryDatasets);
     verifyNoMoreInteractions(mockBigqueryDatasetsInsert);
     verifyNoMoreInteractions(mockBigqueryDatasetsDelete);
+    verifyNoMoreInteractions(mockErrorExtractor);
   }
   
   /**
@@ -465,25 +449,7 @@ public class BigQueryOutputCommitterTest {
 
     // Run method and verify calls.
     committerInstance.abortTask(context);
-    verify(mockBigquery).tables();
-    verify(mockBigqueryTables).delete(eq(TEMP_PROJECT_ID), eq(TEMP_DATASET_ID), eq(TEMP_TABLE_ID));
-    verify(mockBigqueryTablesDelete).execute();
-  }
-
-  /**
-   * Tests the abortTask method of BigQueryOutputFormat when error is thrown.
-   */
-  @Test
-  public void testAbortTaskError() 
-      throws IOException {
-    // Mock method calls.
-    when(mockBigquery.tables()).thenReturn(mockBigqueryTables);
-    when(mockBigqueryTables.delete(any(String.class), any(String.class), any(String.class)))
-        .thenThrow(new IOException());
-    // Run method and verify calls.
-    committerInstance.abortTask(context);
-    verify(mockBigqueryTables).delete(eq(TEMP_PROJECT_ID), eq(TEMP_DATASET_ID), eq(TEMP_TABLE_ID));
-    verify(mockBigquery, times(1)).tables();
+    // Tear down verifies no calls are made.
   }
 
   /**
@@ -493,31 +459,29 @@ public class BigQueryOutputCommitterTest {
   public void testNeedsTaskCommit() 
       throws IOException {
     // Create a list of tables to mock the current Bigquery state.
-    List<TableList.Tables> tables = new ArrayList<>();
-    TableList.Tables table = new TableList.Tables();
-    TableReference tableReference = new TableReference();
-    tableReference.setTableId(TEMP_TABLE_ID);
-    table.setTableReference(tableReference);
-    tables.add(table);
+    Table tableToReturn = new Table()
+        .setId(TEMP_TABLE_ID);
 
-    // Bigquery state with no written table in directory.
-    TableList nullTableList = new TableList();
-
-    // Bigquery state with table written to directory.
-    TableList oneTableList = new TableList();
-    oneTableList.setTables(tables);
-
-    // Mock method calls.
-    Bigquery.Tables mockBigqueryTables = mock(Bigquery.Tables.class);
-    Bigquery.Tables.List mockTablesList = mock(Bigquery.Tables.List.class);
+    // Mock method calls. First time, throw "not found" exception, second time return the table.
     when(mockBigquery.tables()).thenReturn(mockBigqueryTables);
-    when(mockBigqueryTables.list(
-        eq(TEMP_PROJECT_ID), eq(TEMP_DATASET_ID))).thenReturn(mockTablesList);
-    when(mockTablesList.execute()).thenReturn(nullTableList).thenReturn(oneTableList);
+    when(mockBigqueryTables.get(
+        any(String.class), any(String.class), any(String.class)))
+        .thenReturn(mockBigqueryTablesGet);
+    IOException fakeNotFoundException = new IOException("Fake not found exception");
+    when(mockBigqueryTablesGet.execute())
+        .thenThrow(fakeNotFoundException)
+        .thenReturn(tableToReturn);
+    when(mockErrorExtractor.itemNotFound(any(IOException.class)))
+        .thenReturn(true);
 
     // Run method and verify calls.
     Assert.assertEquals(false, committerInstance.needsTaskCommit(context));
     Assert.assertEquals(true, committerInstance.needsTaskCommit(context));
+
     verify(mockBigquery, times(2)).tables();
+    verify(mockBigqueryTables, times(2)).get(
+        eq(TEMP_PROJECT_ID), eq(TEMP_DATASET_ID), eq(TEMP_TABLE_ID));
+    verify(mockBigqueryTablesGet, times(2)).execute();
+    verify(mockErrorExtractor).itemNotFound(eq(fakeNotFoundException));
   }
 }

@@ -146,13 +146,49 @@ function check_filesystem_accessibility() {
       if ! gsutil ls -b gs://${CONFIGBUCKET}; then
         echo "Error: Could not access GCS on VM $(hostname)" >&2
       else
-        cat << '        EOF' | sed 's/^\s*//' >&2
-        Error: There was a problem accessing your configuration bucket using the GCS
-        connector. Check configuration files. Also make sure have the GCS JSON API
-        enabled as described at https://developers.google.com/storage/docs/json_api/.
-        EOF
+        cat << EOF >&2
+Error: There was a problem accessing your configuration bucket using the GCS
+connector. Check configuration files. Also make sure have the GCS JSON API
+enabled as described at https://developers.google.com/storage/docs/json_api/.
+EOF
       fi
       return ${errcode}
     fi
   fi
 }
+
+# Determine the HDFS superuser
+function get_hdfs_superuser() {
+  local hdfs_superuser=''
+  if (id -u hdfs >& /dev/null); then
+    hdfs_superuser='hdfs'
+  elif (id -u hadoop >& /dev/null); then
+    hdfs_superuser='hadoop'
+  else
+    logerror 'Cannot find HDFS superuser.'
+    exit 1
+  fi
+  echo ${hdfs_superuser}
+}
+
+# Create and configure Hadoop2 specific HDFS directories.
+function initialize_hdfs_dirs() {
+  local hdfs_superuser=$(get_hdfs_superuser)
+  local dfs_cmd="sudo -i -u ${hdfs_superuser} hadoop fs"
+  loginfo "Setting up HDFS /tmp directories."
+  if ! ${dfs_cmd} -stat /tmp ; then
+    ${dfs_cmd} -mkdir -p /tmp/hadoop-yarn/history
+    ${dfs_cmd} -mkdir -p /tmp/hadoop-yarn/staging
+  fi
+  ${dfs_cmd} -chmod -R 1777 /tmp
+
+  loginfo "Setting up HDFS /user directories."
+  for USER in $(getent passwd | grep '/home' | cut -d ':' -f 1); do
+    if ! ${dfs_cmd} -stat /user/${USER}; then
+      loginfo "Creating HDFS directory for user '${USER}'"
+      ${dfs_cmd} -mkdir -p "/user/${USER}"
+      ${dfs_cmd} -chown "${USER}" "/user/${USER}"
+    fi
+  done
+}
+

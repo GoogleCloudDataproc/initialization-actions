@@ -28,11 +28,91 @@
     </description>
   </property>
   <property>
+    <name>mapreduce.map.memory.mb</name>
+    <value><envVar name="MAP_MEM_MB"/></value>
+    <description>
+      Default ammount of memory allocated in YARN for map tasks.
+    </description>
+  </property>
+  <property>
+    <name>mapreduce.reduce.memory.mb</name>
+    <value><envVar name="REDUCE_MEM_MB"/></value>
+    <description>
+      Default ammount of memory allocated in YARN for reduce tasks.
+    </description>
+  </property>
+  <property>
+    <name>yarn.app.mapreduce.am.resource.mb</name>
+    <value><envVar name="APP_MASTER_MEM_MB"/></value>
+    <description>
+      Default ammount of memory allocated in YARN for MapReduce AppMasters.
+    </description>
+  </property>
+  <property>
+    <name>mapreduce.map.java.opts</name>
+    <value><envVar name="MAP_JAVA_OPTS"/></value>
+    <description>
+      Arguments to java invocations of map tasks by the NodeManager. Most
+      commonly used to configure heap sizes. The following symbol, if present,
+      will be interpolated: @taskid@ is replaced by current TaskID. Any other
+      occurrences of '@' will go unchanged. For example, to enable verbose gc
+      logging to a file named for the taskid in /tmp and to set the heap maximum
+      to be a gigabyte, pass a 'value' of:
+      '-Xmx1024m -verbose:gc -Xloggc:/tmp/@taskid@.gc'. Usage of
+      '-Djava.library.path' can cause programs to no longer function if hadoop
+      native libraries are used. These values should instead be set as part of
+      LD_LIBRARY_PATH in the map / reduce JVM env using the mapreduce.map.env
+      and mapreduce.reduce.env config settings.
+    </description>
+  </property>
+  <property>
+    <name>mapreduce.reduce.java.opts</name>
+    <value><envVar name="REDUCE_JAVA_OPTS"/></value>
+    <description>
+      Arguments to java invocations of reduce tasks by the NodeManager. Most
+      commonly used to configure heap sizes. For more details see
+      mapreduce.reduce.java.opts.
+    </description>
+  </property>
+  <property>
+    <name>yarn.app.mapreduce.am.command-opts</name>
+    <value><envVar name="APP_MASTER_JAVA_OPTS"/></value>
+    <description>
+      Arguments to java invocations of MapReduce AppMasters. Most
+      commonly used to configure heap sizes. For more details see
+      mapreduce.reduce.java.opts.
+    </description>
+  </property>
+  <property>
+    <name>mapreduce.map.cpu.vcores</name>
+    <value><envVar name="CORES_PER_MAP_ROUNDED"/></value>
+    <description>
+      The number of virtual cores required for each map task. Not enforced by
+      default.
+    </description>
+  </property>
+  <property>
+    <name>mapreduce.reduce.cpu.vcores</name>
+    <value><envVar name="CORES_PER_REDUCE_ROUNDED"/></value>
+    <description>
+      The number of virtual cores required for each reduce task. Not enforced
+      by default.
+    </description>
+  </property>
+  <property>
+    <name>yarn.app.mapreduce.am.resource.cpu-vcores</name>
+    <value><envVar name="CORES_PER_APP_MASTER_ROUNDED"/></value>
+    <description>
+      The number of virtual cores required for The MR AppMaster. Not enforced
+      by default.
+    </description>
+  </property>
+  <property>
     <name>mapreduce.job.maps</name>
     <value><envVar name="DEFAULT_NUM_MAPS"/></value>
     <description>
-      The default number of map tasks per job.Ignored when mapred.job.tracker is
-      "local".
+      The default number of map tasks per job. Ignored when mapred.job.tracker
+      is "local".
     </description>
   </property>
   <property>
@@ -40,38 +120,15 @@
     <value><envVar name="DEFAULT_NUM_REDUCES"/></value>
     <description>
       The default number of reduce tasks per job. Typically set to 99%of the
-      cluster's reduce capacity, so that if a node fails the reduces canstill be
-      executed in a single wave.Ignored when mapred.job.tracker is
-      "local".
+      cluster's reduce capacity, so that if a node fails the reduces can still
+      be executed in a single wave. Ignored when mapred.job.tracker is "local".
     </description>
   </property>
   <property>
     <name>mapreduce.tasktracker.map.tasks.maximum</name>
     <value><envVar name="MAP_SLOTS"/></value>
     <description>
-      The maximum number of map tasks that will be runsimultaneously by a task
-      tracker.
-    </description>
-  </property>
-  <property>
-    <name>mapreduce.tasktracker.reduce.tasks.maximum</name>
-    <value><envVar name="REDUCE_SLOTS"/></value>
-    <description>
-      The maximum number of reduce tasks that will be runsimultaneously by a
-      task tracker.
-    </description>
-  </property>
-  <property>
-    <name>mapreduce.child.java.opts</name>
-    <value><envVar name="JAVAOPTS"/></value>
-    <description>
-      Java opts for the task tracker child processes.The following symbol, if
-      present, will be interpolated: @taskid@ is replacedby current TaskID. Any
-      other occurrences of '@' will go unchanged.For example, to enable verbose
-      gc logging to a file named for the taskid in/tmp and to set the heap
-      maximum to be a gigabyte, pass a 'value' of:-Xmx1024m -verbose:gc
-      -Xloggc:/tmp/@taskid@.gcThe configuration variable mapred.child.ulimit can
-      be used to control themaximum virtual memory of the child processes.
+      Property from MapReduce version 1 still used for TeraGen sharding.
     </description>
   </property>
   <property>

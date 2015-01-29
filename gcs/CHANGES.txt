@@ -1,3 +1,14 @@
+1.3.2 - 2015-01-22
+
+  1. In the create file path, marker file creation is now configurable. By
+     default, marker files will not be created. The default is most suitable
+     for MapReduce applications. Setting fs.gs.create.marker.files.enable to
+     true in core-site.xml will re-enable marker files. The use of marker files
+     should be considered for applications that depend on early failing when
+     two concurrent writes attempt to write to the same file. Note that file
+     overwrite semantics are preserved with or without marker files, but
+     failures will occur sooner with marker files present.
+
 1.3.1 - 2014-12-16
 
   1. Fixed a rare NullPointerException in FileSystemBackedDirectoryListCache

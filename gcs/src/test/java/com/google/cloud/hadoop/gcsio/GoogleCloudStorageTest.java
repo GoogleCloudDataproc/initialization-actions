@@ -169,6 +169,7 @@ public class GoogleCloudStorageTest {
     GoogleCloudStorageOptions.Builder optionsBuilder = GoogleCloudStorageOptions.newBuilder();
     optionsBuilder.setAppName(APP_NAME);
     optionsBuilder.setProjectId(PROJECT_ID);
+    optionsBuilder.setCreateMarkerObjects(true);
 
     GoogleCloudStorageImpl gcsTestInstance =
         new GoogleCloudStorageImpl(optionsBuilder.build(), mockStorage);

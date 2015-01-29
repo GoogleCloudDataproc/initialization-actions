@@ -9,7 +9,9 @@ import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.LogUtil;
+import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.hadoop.util.Progressable;
 
@@ -23,6 +25,9 @@ public class BigQueryHelper {
 
   // Logger.
   protected static final LogUtil log = new LogUtil(BigQueryHelper.class);
+
+  // Used for specialized handling of various API-defined exceptions.
+  private ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
 
   private Bigquery service;
 
@@ -83,6 +88,25 @@ public class BigQueryHelper {
   }
 
   /**
+   * Returns true if the table exists, or false if not.
+   */
+  public boolean tableExists(TableReference tableRef) throws IOException {
+    try {
+      Table fetchedTable = service.tables().get(
+          tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()).execute();
+      log.debug("Successfully fetched table '%s' for tableRef '%s'", fetchedTable, tableRef);
+      return true;
+    } catch (IOException ioe) {
+      if (errorExtractor.itemNotFound(ioe)) {
+        return false;
+      } else {
+        // Unhandled exceptions should just propagate up.
+        throw ioe;
+      }
+    }
+  }
+
+  /**
    * Gets the specified table resource by table ID. This method does not return the data in the
    * table, it only returns the table resource, which describes the structure of this table.
    *
@@ -110,4 +134,8 @@ public class BigQueryHelper {
     return table.getSchema();
   }
 
+  @VisibleForTesting
+  void setErrorExtractor(ApiErrorExtractor errorExtractor) {
+    this.errorExtractor = errorExtractor;
+  }
 }

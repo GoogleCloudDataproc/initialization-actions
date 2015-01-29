@@ -2,15 +2,14 @@ package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Jobs.Insert;
-import com.google.api.services.bigquery.Bigquery.Tables;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
-import com.google.api.services.bigquery.model.TableList;
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.HadoopToStringUtil;
 import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
@@ -23,7 +22,6 @@ import org.apache.hadoop.mapreduce.TaskAttemptID;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.List;
 
 /**
  * An OutputCommitter that commits tables specified in job output dataset in Bigquery. This is
@@ -34,6 +32,9 @@ public class BigQueryOutputCommitter
     extends OutputCommitter {
   // Logger.
   protected static final LogUtil log = new LogUtil(BigQueryOutputCommitter.class);
+
+  // Used for specialized handling of various API-defined exceptions.
+  private ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
 
   // Id of project used to describe the project under which all connector operations occur.
   private String projectId;
@@ -237,16 +238,7 @@ public class BigQueryOutputCommitter
     if (log.isDebugEnabled()) {
       log.debug("abortTask(%s)", HadoopToStringUtil.toString(context));
     }
-    Bigquery.Tables tables = bigquery.tables();
-    try {
-      tables.delete(
-          tempTableRef.getProjectId(),
-          tempTableRef.getDatasetId(),
-          tempTableRef.getTableId())
-          .execute();
-    } catch (IOException e) {
-      log.error("Could not delete table. Temporary data not cleaned up.", e);
-    }
+    // Cleanup of per-task temporary tables will be performed at job cleanup time.
   }
 
   /**
@@ -274,22 +266,14 @@ public class BigQueryOutputCommitter
           attemptId,
           BigQueryStrings.toString(tempTableRef));
     }
-    // Get list of all tables.
-    Tables.List listTablesReply = bigquery.tables().list(
-        tempTableRef.getProjectId(), tempTableRef.getDatasetId());
-    TableList tableList = listTablesReply.execute();
-    if (tableList.getTables() != null) {
-      List<TableList.Tables> tables = tableList.getTables();
-      // Test if the temporary table for the task has been written.
-      for (TableList.Tables table : tables) {
-        if (table.getTableReference().getTableId().equals(tempTableRef.getTableId())) {
-          log.debug("needsTaskCommit -> true");
-          return true;
-        }
-      }
-    }
-    log.debug("needsTaskCommit -> false");
-    return false;
+
+    // TODO(user): Remove ApiErrorExtractor from this class once we push all the bigquery
+    // interactions down into BigQueryHelper exclusively.
+    BigQueryHelper bigqueryHelper = new BigQueryHelper(bigquery);
+    bigqueryHelper.setErrorExtractor(errorExtractor);
+    boolean tableExists = bigqueryHelper.tableExists(tempTableRef);
+    log.debug("needsTaskCommit -> %s", tableExists);
+    return tableExists;
   }
 
   /**
@@ -298,5 +282,10 @@ public class BigQueryOutputCommitter
   @VisibleForTesting
   void setBigquery(Bigquery bigquery) {
     this.bigquery = bigquery;
+  }
+
+  @VisibleForTesting
+  void setErrorExtractor(ApiErrorExtractor errorExtractor) {
+    this.errorExtractor = errorExtractor;
   }
 }

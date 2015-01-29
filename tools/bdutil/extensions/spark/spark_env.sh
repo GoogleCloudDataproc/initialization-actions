@@ -24,8 +24,8 @@ SPARK_MODE="standalone"
 
 # URIs of tarballs to install.
 SCALA_TARBALL_URI='gs://spark-dist/scala-2.10.3.tgz'
-SPARK_HADOOP1_TARBALL_URI='gs://spark-dist/spark-1.1.1-bin-hadoop1.tgz'
-SPARK_HADOOP2_TARBALL_URI='gs://spark-dist/spark-1.1.1-bin-hadoop2.4.tgz'
+SPARK_HADOOP1_TARBALL_URI='gs://spark-dist/spark-1.2.0-bin-hadoop1.tgz'
+SPARK_HADOOP2_TARBALL_URI='gs://spark-dist/spark-1.2.0-bin-hadoop2.4.tgz'
 
 # Directory on each VM in which to install each package.
 SCALA_INSTALL_DIR='/home/hadoop/scala-install'

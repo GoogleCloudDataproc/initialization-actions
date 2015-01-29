@@ -34,6 +34,7 @@ else
 fi
 
 SPARK_TARBALL=${SPARK_TARBALL_URI##*/}
+SPARK_MAJOR_VERSION=$(sed 's/spark-\([0-9]*\).*/\1/' <<<${SPARK_TARBALL})
 gsutil cp ${SPARK_TARBALL_URI} /home/hadoop/${SPARK_TARBALL}
 tar -C /home/hadoop -xzvf /home/hadoop/${SPARK_TARBALL}
 mv /home/hadoop/spark*/ ${SPARK_INSTALL_DIR}
@@ -65,7 +66,8 @@ ln -s ${HADOOP_CONF_DIR}/core-site.xml ${SPARK_INSTALL_DIR}/conf/core-site.xml
 # attached PD for Spark to use for scratch, logs, etc.
 SPARK_TMPDIR='/hadoop/spark/tmp'
 SPARK_WORKDIR='/hadoop/spark/work'
-mkdir -p ${SPARK_TMPDIR} ${SPARK_WORKDIR}
+SPARK_LOG_DIR='/hadoop/spark/logs'
+mkdir -p ${SPARK_TMPDIR} ${SPARK_WORKDIR} ${SPARK_LOG_DIR}
 chgrp hadoop -R /hadoop/spark
 chmod 777 -R /hadoop/spark
 
@@ -97,18 +99,22 @@ else
 fi
 
 # Help spark find scala and the GCS connector.
-# For Spark 0.9.1 and older, Spark properties must be passed in programmatically
-# or as system properties; newer versions introduce spark-defaults.conf but for
-# backwards compatibility for now, we'll use system properties via
-# SPARK_JAVA_OPTS.
 cat << EOF >> ${SPARK_INSTALL_DIR}/conf/spark-env.sh
 export SCALA_HOME=${SCALA_INSTALL_DIR}
 export SPARK_WORKER_MEMORY=${SPARK_WORKER_MEMORY}m
-export SPARK_CLASSPATH=\$SPARK_CLASSPATH:${LOCAL_GCS_JAR}
 export SPARK_MASTER_IP=${MASTER_HOSTNAME}
 export SPARK_DAEMON_MEMORY=${SPARK_DAEMON_MEMORY}m
 export SPARK_WORKER_DIR=${SPARK_WORKDIR}
+export SPARK_LOCAL_DIRS=${SPARK_TMPDIR}
+export SPARK_LOG_DIR=${SPARK_LOG_DIR}
+export SPARK_CLASSPATH=\$SPARK_CLASSPATH:${LOCAL_GCS_JAR}
+EOF
 
+# For Spark 0.9.1 and older, Spark properties must be passed in programmatically
+# or as system properties; newer versions introduce spark-defaults.conf. This
+# usage of SPARK_JAVA_OPTS is deprecated for newer versions.
+if [[ "${SPARK_MAJOR_VERSION}" == '0' ]]; then
+cat << EOF >> ${SPARK_INSTALL_DIR}/conf/spark-env.sh
 # Append to front so that user-specified SPARK_JAVA_OPTS at runtime will win.
 export SPARK_JAVA_OPTS="-Dspark.executor.memory=${SPARK_EXECUTOR_MEMORY}m \${SPARK_JAVA_OPTS}"
 export SPARK_JAVA_OPTS="-Dspark.local.dir=${SPARK_TMPDIR} \${SPARK_JAVA_OPTS}"
@@ -116,10 +122,21 @@ export SPARK_JAVA_OPTS="-Dspark.local.dir=${SPARK_TMPDIR} \${SPARK_JAVA_OPTS}"
 # Will be ingored if not running on YARN
 export SPARK_JAVA_OPTS="-Dspark.yarn.executor.memoryOverhead=${SPARK_YARN_EXECUTOR_MEMORY}m \${SPARK_JAVA_OPTS}"
 EOF
+fi
 
 if [[ "${SPARK_MASTER}" != 'default' ]]; then
   echo "export MASTER=${SPARK_MASTER}" >> ${SPARK_INSTALL_DIR}/conf/spark-env.sh
+  echo "spark.master ${SPARK_MASTER}" >> ${SPARK_INSTALL_DIR}/conf/spark-defaults.conf
 fi
+
+# Misc Spark Properties that will be loaded by spark-submit.
+# TODO(user): Instead of single extraClassPath, use a lib directory.
+cat << EOF >> ${SPARK_INSTALL_DIR}/conf/spark-defaults.conf
+spark.eventLog.enabled true
+spark.eventLog.dir gs://${CONFIGBUCKET}/spark-eventlog-base/${MASTER_HOSTNAME}
+spark.executor.memory ${SPARK_EXECUTOR_MEMORY}m
+spark.yarn.executor.memoryOverhead ${SPARK_YARN_EXECUTOR_MEMORY}m
+EOF
 
 # Add the spark 'bin' path to the .bashrc so that it's easy to call 'spark'
 # during interactive ssh session.

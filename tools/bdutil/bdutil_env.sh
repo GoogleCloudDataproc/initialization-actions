@@ -85,7 +85,7 @@ WORKER_ATTACHED_PDS_TYPE='pd-standard'
 MASTER_ATTACHED_PD_TYPE='pd-standard'
 
 # Bash array of service-account scopes to include in the created VMs.
-# List of available scopes can be obtained with 'gcloud instances create --help'
+# List of available scopes can be obtained with 'gcloud compute instances create --help'
 # and looking under the description for "--scopes". Must at least include
 # 'storage-full' for gsutil and the GCS connector to work.
 GCE_SERVICE_ACCOUNT_SCOPES=('storage-full')
@@ -153,14 +153,24 @@ GCS_CACHE_CLEANER_LOG_DIRECTORY='/hadoop/logs'
 # be an appender already defined in Hadoop's log4j.properties file.
 GCS_CACHE_CLEANER_LOGGER='INFO,DRFA'
 
+# Decimal number controlling the number of map slots on each node as a ratio of
+# the number of virtual cores on the node. e.g. an n1-standard-4 with
+# CORES_PER_MAP_TASK set to 2 would have 4 / 2 = 2 map slots.
+CORES_PER_MAP_TASK=1.0
+
+# Decimal number controlling the number of reduce slots on each node as a ratio
+# of the number of virtual cores on the node. e.g. an n1-standard-4 with
+# CORES_PER_REDUCE_TASK set to 2 would have 4 / 2 = 2 reduce slots.
+CORES_PER_REDUCE_TASK=1.0
+
 # Options to be passed to TaskTracker child JVMs.
 JAVAOPTS='-Xms1024m -Xmx2048m'
 
 # Complete URL for downloading the GCS Connector JAR file.
-GCS_CONNECTOR_JAR='https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-1.3.1-hadoop1.jar'
+GCS_CONNECTOR_JAR='https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-1.3.2-hadoop1.jar'
 
 # Complete URL for downloading the BigQuery Connector JAR file.
-BIGQUERY_CONNECTOR_JAR='https://storage.googleapis.com/hadoop-lib/bigquery/bigquery-connector-0.5.0-hadoop1.jar'
+BIGQUERY_CONNECTOR_JAR='https://storage.googleapis.com/hadoop-lib/bigquery/bigquery-connector-0.5.1-hadoop1.jar'
 
 # Complete URL for downloading the Cloud Datastore Connector JAR file.
 DATASTORE_CONNECTOR_JAR='https://storage.googleapis.com/hadoop-lib/datastore/datastore-connector-0.14.9-hadoop1.jar'
@@ -199,6 +209,9 @@ HDFS_DATA_DIRS_PERM='755'
 # Ports on the master node which expose useful HTTP GUIs.
 # 50030 for jobtracker, 50070 for namenode.
 MASTER_UI_PORTS=('50030' '50070')
+
+# If true, install JDK with compiler/tools in addition to just the JRE.
+INSTALL_JDK_DEVEL=false
 
 ###############################################################################
 
@@ -271,6 +284,7 @@ function evaluate_late_variable_bindings() {
   normalize_boolean 'DEBUG_MODE'
   normalize_boolean 'OLD_HOSTNAME_SUFFIXES'
   normalize_boolean 'ENABLE_NFS_GCS_FILE_CACHE'
+  normalize_boolean 'INSTALL_JDK_DEVEL'
 
   # Generate WORKERS array based on PREFIX and NUM_WORKERS.
   local worker_suffix='w'

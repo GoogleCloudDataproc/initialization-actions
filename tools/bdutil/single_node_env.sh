@@ -18,6 +18,10 @@
 
 NUM_WORKERS=1
 
+# A single-node setup is much more likely to be used for development, so install
+# JDK with compiler/tools instead of just the minimal JRE.
+INSTALL_JDK_DEVEL=true
+
 function evaluate_late_variable_bindings() {
   normalize_boolean 'STRIP_EXTERNAL_MIRRORS'
   normalize_boolean 'ENABLE_HDFS'
@@ -31,6 +35,7 @@ function evaluate_late_variable_bindings() {
   normalize_boolean 'DEBUG_MODE'
   normalize_boolean 'OLD_HOSTNAME_SUFFIXES'
   normalize_boolean 'ENABLE_NFS_GCS_FILE_CACHE'
+  normalize_boolean 'INSTALL_JDK_DEVEL'
 
   # In the case of the single-node cluster, we'll just use the whole PREFIX
   # as the name of the master and worker.
@@ -54,5 +59,4 @@ function evaluate_late_variable_bindings() {
   # omit deploy-ssh-worker-setup because there is no need to copy SSH keys to
   # the localhost.
   COMMAND_STEPS=(${COMMAND_STEPS[@]/,*/,*})
-
 }

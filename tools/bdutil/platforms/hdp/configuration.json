@@ -1,0 +1,23 @@
+{
+  "configurations" : {
+      "core-site" : {
+        "fs.gs.project.id": "${PROJECT}",
+        "fs.gs.system.bucket": "${CONFIGBUCKET}",
+        "fs.gs.working.dir": "/",
+        "fs.gs.impl" : "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem",
+        "fs.AbstractFileSystem.gs.impl": "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS",
+        "fs.gs.metadata.cache.enable": "true",
+        "fs.gs.metadata.cache.type": "${GCS_METADATA_CACHE_TYPE}",
+        "fs.gs.metadata.cache.directory": "${GCS_FILE_CACHE_DIRECTORY}"
+      },
+      "hdfs-site" : {
+        "dfs.replication" : "2"
+      },
+      "hive-site" : {
+        "javax.jdo.option.ConnectionPassword" : "admin"
+      },
+      "nagios-env" : {
+        "nagios_contact" : "root@localhost"
+      }
+    }
+}

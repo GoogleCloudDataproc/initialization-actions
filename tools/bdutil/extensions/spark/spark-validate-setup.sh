@@ -30,7 +30,7 @@ set -e
 # Find hadoop-confg.sh
 HADOOP_CONFIGURE_CMD=''
 HADOOP_CONFIGURE_CMD=$(find ${HADOOP_LIBEXEC_DIR} ${HADOOP_PREFIX} \
-    /home/hadoop /usr/*/hadoop* -name hadoop-config.sh | head -n 1)
+    /home/hadoop /usr/*/hadoop* /usr/*/current/hadoop* -name hadoop-config.sh | head -n 1)
 
 # If hadoop-config.sh has been found source it
 if [[ -n "${HADOOP_CONFIGURE_CMD}" ]]; then

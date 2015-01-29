@@ -42,25 +42,49 @@ echo ${MASTER_HOSTNAME} > ${HADOOP_CONF_DIR}/masters
 export DEFAULT_NUM_MAPS=$((${NUM_WORKERS} * 10))
 export DEFAULT_NUM_REDUCES=$((${NUM_WORKERS} * 4))
 
-NUM_CORES="$(grep -c processor /proc/cpuinfo)"
-export MAP_SLOTS=${NUM_CORES}
-export REDUCE_SLOTS=${NUM_CORES}
+export NUM_CORES="$(grep -c processor /proc/cpuinfo)"
+export MAP_SLOTS=$(python -c "print int(${NUM_CORES} // \
+    ${CORES_PER_MAP_TASK})")
+export REDUCE_SLOTS=$(python -c "print int(${NUM_CORES} // \
+    ${CORES_PER_REDUCE_TASK})")
 
 # Calculate the memory allocations, MB, using 'free -m'. Floor to nearest MB.
 TOTAL_MEM=$(free -m | awk '/^Mem:/{print $2}')
 HADOOP_MR_MASTER_MEM_MB=$(python -c "print int(${TOTAL_MEM} * \
     ${HADOOP_MASTER_MAPREDUCE_MEMORY_FRACTION})")
 
-if [[ -n "${NODEMANAGER_MEMORY_FRACTION}" ]]; then
-  export NODEMANAGER_MEM_MB=$(python -c "print int(${TOTAL_MEM} * \
-      ${NODEMANAGER_MEMORY_FRACTION})")
+# Fix Python 2.6 on CentOS
+# TODO(user): Extract this into a helper.
+if ! python -c 'import argparse' && [[ -x $(which yum) ]]; then
+  yum install -y python-argparse
 fi
+
+# MapReduce v2 (and YARN) Configuration
+if [[ -x configure_mrv2_mem.py ]]; then
+  TEMP_ENV_FILE=$(mktemp /tmp/mrv2_XXX_tmp_env.sh)
+  ./configure_mrv2_mem.py \
+      --output_file ${TEMP_ENV_FILE} \
+      --total_memory ${TOTAL_MEM} \
+      --available_memory_ratio ${NODEMANAGER_MEMORY_FRACTION} \
+      --total_cores ${NUM_CORES} \
+      --cores_per_map ${CORES_PER_MAP_TASK} \
+      --cores_per_reduce ${CORES_PER_REDUCE_TASK} \
+      --cores_per_app_master ${CORES_PER_APP_MASTER}
+  source ${TEMP_ENV_FILE}
+  # Leave TMP_ENV_FILE around for debugging purposes.
+fi
+
+# Give Hadoop clients 1/4 of available memory
+HADOOP_CLIENT_MEM_MB=$(python -c "print int(${TOTAL_MEM} / 4)")
 
 cat << EOF >> ${HADOOP_CONF_DIR}/hadoop-env.sh
 export JAVA_HOME=${JAVA_HOME}
 export HADOOP_LOG_DIR=${HADOOP_LOG_DIR}
 
-# Increase maximum JobTracker Heap
+# Increase maximum Hadoop client heap
+HADOOP_CLIENT_OPTS="-Xmx${HADOOP_CLIENT_MEM_MB}m \${HADOOP_CLIENT_OPTS}"
+
+# Increase maximum JobTracker heap
 HADOOP_JOBTRACKER_OPTS="-Xmx${HADOOP_MR_MASTER_MEM_MB}m \
     \${HADOOP_JOBTRACKER_OPTS}"
 EOF
@@ -95,7 +119,6 @@ export NODEMANAGER_LOCAL_DIRS="${NODEMANAGER_LOCAL_DIRS// /,}"
 YARN_ENV_FILE=${YARN_CONF_DIR:-$HADOOP_CONF_DIR}/yarn-env.sh
 if [[ -f ${YARN_ENV_FILE} ]]; then
   cat << EOF >> ${YARN_ENV_FILE}
-# Increase maximum JobTracker Heap
 YARN_RESOURCEMANAGER_OPTS="-Xmx${HADOOP_MR_MASTER_MEM_MB}m \
     \${YARN_RESOURCEMANAGER_OPTS}"
 YARN_LOG_DIR=${HADOOP_LOG_DIR}
@@ -103,6 +126,9 @@ YARN_LOG_DIR=${HADOOP_LOG_DIR}
 # override any that have previously been set
 YARN_OPTS="\$YARN_OPTS -Dhadoop.log.dir=\$YARN_LOG_DIR"
 YARN_OPTS="\$YARN_OPTS -Dyarn.log.dir=\$YARN_LOG_DIR"
+
+# Increase maximum YARN client heap
+YARN_CLIENT_OPTS="-Xmx${HADOOP_CLIENT_MEM_MB}m \${YARN_CLIENT_OPTS}"
 EOF
 fi
 

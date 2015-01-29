@@ -1,3 +1,24 @@
+1.1.0 - 2015-01-22
+
+  1. Added plugin for deploying Ambari/HDP with:
+         ./bdutil -e platforms/hdp/ambari_env.sh deploy
+  2. Set dfs.replication to 2 under conf/hadoop*/hdfs-template.xml; this suits
+     PD deployments better than r=3, but if deploying with HDFS residing on
+     non-PD storage, the value should be reverted to 3.
+  3. Enabled Spark EventLog for Spark deployments, logging to
+     gs://${CONFIGBUCKET}/spark-eventlog-base/${MASTER_HOSTNAME}
+  4. Migrated off of misc deprecated fields in favor of using
+     spark-defaults.conf for Spark 1.0+; cleans up warnings on spark-submit.
+  5. Moved SPARK_LOG_DIR from default of ${SPARK_HOME}/logs into
+     /hadoop/spark/logs so that they reside on the large PD if it exists.
+  6. Upgraded default Spark version to 1.2.0.
+  7. Added bdutil_env option INSTALL_JDK_DEVEL to optionally install full JDK
+     with compiler/tools instead of just the minimal JRE; set to 'true' in
+     single_node_env.sh and ambari_env.sh.
+  8. Added python script to allocate memory more intelligently in Hadoop 2.
+  9. Upgraded default Hadoop 2 version to 2.5.2.
+
+
 1.0.1 - 2014-12-16
 
   1. Replaced usage of deprecated gcutil with gcloud compute.

@@ -1,3 +1,16 @@
+0.5.1 - 2015-01-22
+
+  1. Added enforcement of maximum number of export shards (currently 500)
+     when calculating splits for BigQueryIntputFormat.
+  2. Fixed a bug where BigQueryOutputCommitter.needsTaskCommit() incorrectly
+     depended on a Bigquery.Tables.list() call; listing tables suffers
+     "eventual consistency", so occasionally a task would erroneously
+     fail to commit data.
+  3. Removed extraneous table-deletion in BigQueryOutputCommitter.abortTask();
+     cleanup occurs during job cleanup anyways, and this would incorrectly
+     (but harmlessly) try to delete a nonexistent table for map tasks.
+
+
 0.5.0 - 2014-12-16
 
   1. BigQueryInputFormat has been renamed GsonBigQueryInputFormat to better

@@ -15,16 +15,12 @@
 # Configures HDFS
 
 set -e
+
+source hadoop_helpers.sh
+
 if (( ${ENABLE_HDFS} )); then
 
-  if (id -u hdfs >& /dev/null); then
-    HDFS_ADMIN=hdfs
-  elif (id -u hadoop >& /dev/null); then
-    HDFS_ADMIN=hadoop
-  else
-    echo 'Cannot find HDFS administrative user.'
-    exit 1
-  fi
+  HDFS_ADMIN=$(get_hdfs_superuser)
 
   # Location of HDFS metadata on namenode
   export HDFS_NAME_DIR=/hadoop/dfs/name

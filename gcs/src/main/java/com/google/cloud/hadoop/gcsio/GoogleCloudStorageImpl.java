@@ -312,59 +312,79 @@ public class GoogleCloudStorageImpl
      * conditionally with an ifGenerationMatch. We will then create the final object only if the
      * generation matches the marker file.
      */
+
     // TODO(user): Have createEmptyObject return enough information to use that instead.
-    Optional<Long> markerGeneration = Optional.absent();
-    BackOff backOff = backOffFactory.newBackOff();
+    Optional<Long> overwriteGeneration = Optional.absent();
     long backOffSleep = 0L;
+    GoogleCloudStorageItemInfo info = getItemInfo(resourceId);
 
-    do {
-      if (backOffSleep != 0) {
-        try {
-          sleeper.sleep(backOffSleep);
-        } catch (InterruptedException ie) {
-          throw new IOException(String.format(
-              "Interrupted while sleeping for backoff in create of %s", resourceId));
+    if (storageOptions.isMarkerFileCreationEnabled()) {
+      BackOff backOff = backOffFactory.newBackOff();
+      do {
+        if (backOffSleep != 0) {
+          try {
+            sleeper.sleep(backOffSleep);
+          } catch (InterruptedException ie) {
+            throw new IOException(String.format(
+                "Interrupted while sleeping for backoff in create of %s", resourceId));
+          }
         }
+
+        backOffSleep = backOff.nextBackOffMillis();
+
+        Storage.Objects.Insert insertObject = prepareEmptyInsert(resourceId, options);
+
+        if (!info.exists()) {
+          insertObject.setIfGenerationMatch(0L);
+        } else if (info.exists() && options.overwriteExisting()) {
+          long generation = info.getContentGeneration();
+          Preconditions.checkState(
+              generation != 0, "Generation should not be 0 for an existing item");
+          insertObject.setIfGenerationMatch(generation);
+        } else {
+          throw new IOException(String.format("Object %s already exists", resourceId.toString()));
+        }
+
+        try {
+          StorageObject result = insertObject.execute();
+          overwriteGeneration = Optional.of(result.getGeneration());
+        } catch (IOException ioe) {
+          if (errorExtractor.preconditionNotMet(ioe)) {
+            log.info(
+                "Retrying marker file creation. Retrying according to backoff policy, %s - %s",
+                resourceId,
+                ioe);
+          } else {
+            throw ioe;
+          }
+        }
+      } while (!overwriteGeneration.isPresent() && backOffSleep != BackOff.STOP);
+
+      if (backOffSleep == BackOff.STOP) {
+        throw new IOException(
+            String.format(
+                "Retries exhausted while attempting to create marker file for %s", resourceId));
       }
-
-      backOffSleep = backOff.nextBackOffMillis();
-      Storage.Objects.Insert insertObject = prepareEmptyInsert(resourceId, options);
-      GoogleCloudStorageItemInfo info = getItemInfo(resourceId);
-
+    } else {
+      // Do not use a marker-file
       if (!info.exists()) {
-        insertObject.setIfGenerationMatch(0L);
+        overwriteGeneration = Optional.of(0L);
       } else if (info.exists() && options.overwriteExisting()) {
         long generation = info.getContentGeneration();
         Preconditions.checkState(
             generation != 0, "Generation should not be 0 for an existing item");
-        insertObject.setIfGenerationMatch(generation);
+        overwriteGeneration = Optional.of(generation);
       } else {
-        throw new IOException(String.format("Object %s already exists", resourceId.toString()));
+        throw new IOException(String.format("Object %s already exists.", resourceId.toString()));
       }
 
-      try {
-        StorageObject result = insertObject.execute();
-        markerGeneration = Optional.of(result.getGeneration());
-      } catch (IOException ioe) {
-        if (errorExtractor.preconditionNotMet(ioe)) {
-          log.info(
-              "Retrying marker file creation. Retrying according to backoff policy, %s - %s",
-              resourceId,
-              ioe);
-        } else {
-          throw ioe;
-        }
-      }
-    } while (!markerGeneration.isPresent() && backOffSleep != BackOff.STOP);
-
-    if (backOffSleep == BackOff.STOP) {
-      throw new IOException(
-          String.format(
-              "Retries exhausted while attempting to create marker file for %s", resourceId));
+      Preconditions.checkState(
+          overwriteGeneration.isPresent(),
+          "Marker file creation is disabled, we should have a generation to overwrite.");
     }
 
     ObjectWriteConditions writeConditions =
-        new ObjectWriteConditions(markerGeneration, Optional.<Long>absent());
+        new ObjectWriteConditions(overwriteGeneration, Optional.<Long>absent());
 
     Map<String, String> rewrittenMetadata =
         Maps.transformValues(options.getMetadata(), ENCODE_METADATA_VALUES);
