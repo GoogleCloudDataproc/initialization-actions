@@ -640,6 +640,63 @@ public class GoogleCloudStorageTest {
   }
 
   @Test
+  public void testOpenWithExceptionDuringReadAndCloseForRetry()
+      throws IOException, InterruptedException {
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
+        .thenReturn(mockStorageObjectsGet);
+    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsGet)))
+        .thenReturn(mockHeaders);
+    when(mockStorageObjectsGet.execute())
+        .thenReturn(new StorageObject()
+            .setBucket(BUCKET_NAME)
+            .setName(OBJECT_NAME)
+            .setUpdated(new DateTime(11L))
+            .setSize(BigInteger.valueOf(111L))
+            .setGeneration(1L)
+            .setMetageneration(1L));
+
+    // First returned timeout stream will timout; we'll expect a re-opening where we'll return the
+    // real input stream.
+    InputStream mockExceptionStream = mock(InputStream.class);
+    byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
+    when(mockStorageObjectsGet.executeMedia())
+        .thenReturn(createFakeResponse(testData.length, mockExceptionStream))
+        .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(testData)));
+
+    when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
+        .thenThrow(new SSLException("fake SSLException"));
+    doThrow(new SSLException("fake SSLException on close()"))
+        .doThrow(new SSLException("second fake SSLException on close()"))
+        .when(mockExceptionStream).close();
+
+    when(mockBackOff.nextBackOffMillis())
+        .thenReturn(111L);
+
+    GoogleCloudStorageReadChannel readChannel =
+        (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
+    readChannel.setSleeper(mockSleeper);
+    readChannel.setNanoClock(mockClock);
+    readChannel.setBackOff(mockBackOff);
+    readChannel.setMaxRetries(3);
+    assertTrue(readChannel.isOpen());
+    assertEquals(0, readChannel.position());
+
+    byte[] actualData = new byte[testData.length];
+    assertEquals(testData.length, readChannel.read(ByteBuffer.wrap(actualData)));
+
+    verify(mockStorage, atLeastOnce()).objects();
+    verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockClientRequestHelper, times(2)).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders, times(2)).setRange(eq("bytes=0-"));
+    verify(mockStorageObjectsGet).execute();
+    verify(mockStorageObjectsGet, times(2)).executeMedia();
+    verify(mockBackOff).reset();
+    verify(mockBackOff).nextBackOffMillis();
+    verify(mockSleeper).sleep(eq(111L));
+  }
+
+  @Test
   public void testOpenExceptionsDuringReadTotalElapsedTimeTooGreat()
       throws IOException, InterruptedException {
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
