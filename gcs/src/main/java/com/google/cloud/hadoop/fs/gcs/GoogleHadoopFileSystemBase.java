@@ -293,6 +293,12 @@ public abstract class GoogleHadoopFileSystemBase
   // Default value for fs.gs.create.marker.files.enable
   public static final boolean GCS_ENABLE_MARKER_FILE_CREATION_DEFAULT = false;
 
+  // Configuration key for adding a suffix to the GHFS application name sent to GCS.
+  public static final String GCS_APPLICATION_NAME_SUFFIX_KEY = "fs.gs.application.name.suffix";
+
+  // Default suffix to add to the application name.
+  public static final String GCS_APPLICATION_NAME_SUFFIX_DEFAULT = "";
+
   // Default PathFilter that accepts all paths.
   public static final PathFilter DEFAULT_FILTER = new PathFilter() {
     @Override
@@ -1570,9 +1576,19 @@ public abstract class GoogleHadoopFileSystemBase
           getWriteChannelOptionsBuilder().
           setUploadBufferSize(uploadBufferSize);
 
+      String applicationNameSuffix = config.get(
+          GCS_APPLICATION_NAME_SUFFIX_KEY, GCS_APPLICATION_NAME_SUFFIX_DEFAULT);
+      log.debug("%s = %s", GCS_APPLICATION_NAME_SUFFIX_KEY, applicationNameSuffix);
+
+      String applicationName = GHFS_ID;
+      if (!Strings.isNullOrEmpty(applicationNameSuffix)) {
+        applicationName = applicationName + applicationNameSuffix;
+      }
+
+      log.debug("Setting GCS application name to %s", applicationName);
       optionsBuilder
           .getCloudStorageOptionsBuilder()
-          .setAppName(GHFS_ID);
+          .setAppName(applicationName);
 
       gcsfs = new GoogleCloudStorageFileSystem(credential, optionsBuilder.build());
     }
