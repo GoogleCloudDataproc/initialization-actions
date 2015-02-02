@@ -107,17 +107,14 @@ public class BigQueryConfiguration {
           OUTPUT_TABLE_SCHEMA_KEY);
 
   /**
-   * When writing records to BigQuery, there are two primary modes supported from the connectors.
-   * The first mode is buffered and synchronous; when a record write occurs, the record is buffered
-   * and when the buffer is full a synchronous load job is started and we wait for it to complete.
-   * The second mode is buffered and asynchronous; when a record write occurs the record is written
-   * to an in-process pipe. A second thread is continuously reading from this pipe and sending
-   * data to BigQuery. This method is experimental and may change or be removed.
-   * Set to false to use buffered and synchronous. True to use asynchronous writes.
+   * Obsolete; no longer affects any behavior. A warning will be printed if the key is found to be
+   * set to 'false', and then ignored. Outputs will now always occur in the "async" mode where
+   * a pipe connects the writer thread with another request-executor thread sending data to
+   * Google's "resumeable upload" service. This upload service is the same one used for uploads
+   * using the Google Cloud Storage connector for Hadoop.
    */
   public static final String ENABLE_ASYNC_WRITE = "mapred.bq.output.async.write.enabled";
-  // Experimental, default to false.
-  public static final boolean ENABLE_ASYNC_WRITE_DEFAULT = false;
+  public static final boolean ENABLE_ASYNC_WRITE_DEFAULT = true;
 
   // Logger.
   protected static final LogUtil log = new LogUtil(BigQueryConfiguration.class);

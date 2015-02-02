@@ -1,6 +1,5 @@
 package com.google.cloud.hadoop.io.bigquery;
 
-import com.google.api.client.http.ByteArrayContent;
 import com.google.api.client.http.InputStreamContent;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Jobs.Insert;
@@ -13,6 +12,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
+import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.HadoopToStringUtil;
 import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Preconditions;
@@ -26,11 +26,8 @@ import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.util.Progressable;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.ClosedChannelException;
-import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.util.List;
@@ -57,6 +54,11 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
 
   // Holds collection of counters used by this instance.
   private static Counters counters = new Counters();
+
+  // Passes through to newly-created BigQueryAsyncWriteChannel instances before calling
+  // initialize on them.
+  private ClientRequestHelper<Job> clientRequestHelper;
+
   private final Configuration configuration;
   private final Progressable progressable;
 
@@ -64,10 +66,13 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
   private Gson gson;
 
   // Channel to which we will write records.
-  private WritableByteChannel byteChannel;
+  private BigQueryAsyncWriteChannel byteChannel;
 
   // Thread pool to use for async write operations.
   private ExecutorService threadPool = Executors.newCachedThreadPool();
+
+  // Count of total bytes written after serialization of records.
+  private long bytesWritten = 0;
 
   /**
    * Defines names of counters we track for each operation.
@@ -76,130 +81,12 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
    * METHOD. -- METHOD_NAME_TIME : Total inclusive time spent in method METHOD.
    */
   public enum Counter {
-    WRITE_CALLS,
-    WRITE_TOTAL_TIME,
+    BYTES_WRITTEN,
     CLOSE_CALLS,
     CLOSE_TOTAL_TIME,
     JOBS_INSERTED,
-  }
-
-  /**
-   * A channel that implements synchronous, batched writes to BigQuery.
-   */
-  public static class BigQueryBatchedWriteChannel implements WritableByteChannel {
-    // Logger.
-    protected static final LogUtil log = new LogUtil(BigQueryRecordWriter.class);
-
-    public static final double OVERALLOCATION_FACTOR = 1.25;
-    private final Configuration configuration;
-    private final Progressable progressable;
-
-    private final Bigquery bigQuery;
-    private final int batchSizeInBytes;
-    private final Job outputJob;
-    private final String projectId;
-
-    // Set numRecordsCached and outputRecords.
-    int numBytesCached = 0;
-    int numBytesWritten = 0;
-    ByteArrayOutputStream outputStream;
-    boolean isOpen = true;
-
-    /**
-     * Construct a new BigQueryBatchedWriteChannel.
-     *
-     * @param configuration Job and task configuration
-     * @param progressable Object to provide progress updates to
-     * @param bigQuery The BigQuery instance to use
-     * @param batchSizeInBytes The number of bytes to buffer before flushing to BigQuery
-     * @param outputJob The Job corresponding to this load into BQ
-     * @param projectId The Project ID for this export
-     */
-    public BigQueryBatchedWriteChannel(
-        Configuration configuration,
-        Progressable progressable,
-        Bigquery bigQuery,
-        int batchSizeInBytes,
-        Job outputJob,
-        String projectId) {
-      this.configuration = configuration;
-      this.progressable = progressable;
-      this.outputStream =
-          new ByteArrayOutputStream((int) (batchSizeInBytes * OVERALLOCATION_FACTOR));
-      this.bigQuery = bigQuery;
-      this.batchSizeInBytes = batchSizeInBytes;
-      this.outputJob = outputJob;
-      this.projectId = projectId;
-    }
-
-    private void throwIfNotOpen() throws ClosedChannelException {
-      if (!isOpen()) {
-        throw new ClosedChannelException();
-      }
-    }
-
-    /**
-     * Write a buffer containing a complete record to this channel.
-     *
-     * It is assumed that it is  safe to call flush after any call to write().
-     */
-    @Override
-    public synchronized int write(ByteBuffer src) throws IOException {
-      throwIfNotOpen();
-
-      byte[] toWrite = new byte[src.remaining()];
-      src.get(toWrite);
-      outputStream.write(toWrite);
-      numBytesCached += toWrite.length;
-      if (numBytesCached >= batchSizeInBytes) {
-        flush();
-      }
-
-      return toWrite.length;
-    }
-
-    /**
-     * Flush all buffered writes to BQ.
-     */
-    public void flush() throws IOException {
-      log.debug("Writing a batch of %d bytes to %s", numBytesCached, projectId);
-      if (numBytesCached > 0) {
-        // Get ByteArray of output records.
-        ByteArrayContent contents =
-            new ByteArrayContent("application/octet-stream", outputStream.toByteArray());
-
-        // Run Bigquery load job.
-        Insert insert = bigQuery.jobs().insert(projectId, outputJob, contents);
-        insert.setProjectId(projectId);
-        increment(Counter.JOBS_INSERTED);
-        JobReference jobId = insert.execute().getJobReference();
-
-        // Check that job is completed.
-        try {
-          BigQueryUtils.waitForJobCompletion(bigQuery, projectId, jobId, progressable);
-        } catch (InterruptedException e) {
-          log.error(e.getMessage());
-          throw new IOException(e);
-        }
-
-        outputStream.reset();
-        // Reset counts.
-        numBytesWritten += numBytesCached;
-        numBytesCached = 0;
-      }
-    }
-
-    @Override
-    public boolean isOpen() {
-      return isOpen;
-    }
-
-    @Override
-    public void close() throws IOException {
-      throwIfNotOpen();
-      flush();
-      isOpen = false;
-    }
+    WRITE_CALLS,
+    WRITE_TOTAL_TIME,
   }
 
   /**
@@ -268,6 +155,8 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
    */
   public BigQueryRecordWriter(
       BigQueryFactory factory,
+      ExecutorService threadPool,
+      ClientRequestHelper<Job> clientRequestHelper,
       Configuration configuration,
       Progressable progressable,
       List<TableFieldSchema> outputRecordSchema,
@@ -300,6 +189,8 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
     gson = new Gson();
     this.configuration = configuration;
     this.progressable = progressable;
+    this.threadPool = threadPool;
+    this.clientRequestHelper = clientRequestHelper;
 
     // Get BigQuery.
     Bigquery bigquery;
@@ -310,10 +201,14 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
       throw new IOException(e);
     }
 
-    // Configure a write job.
+    // Configure a write job. We must use WRITE_TRUNCATE even though we are writing to a temporary
+    // table which should only contain records from this RecordWriter, since low-level retries may
+    // otherwise result in duplicate "load" jobs which append the uploaded contents multiple times.
+    // With WRITE_TRUNCATE, errant "load" jobs will simply overwritten atomically with the same
+    // fully-uploaded contents.
     JobConfigurationLoad loadConfig = new JobConfigurationLoad();
     loadConfig.setCreateDisposition("CREATE_IF_NEEDED");
-    loadConfig.setWriteDisposition("WRITE_APPEND");
+    loadConfig.setWriteDisposition("WRITE_TRUNCATE");
     loadConfig.setSourceFormat("NEWLINE_DELIMITED_JSON");
 
     // Describe the resulting table you are writing data to:
@@ -367,6 +262,8 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
       int writeBufferSize) throws IOException {
     this(
         new BigQueryFactory(),
+        Executors.newCachedThreadPool(),
+        new ClientRequestHelper<>(),
         configuration,
         progressable,
         outputRecordSchema,
@@ -375,7 +272,7 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
         writeBufferSize);
   }
 
-  private WritableByteChannel createByteChannel(
+  private BigQueryAsyncWriteChannel createByteChannel(
       Configuration configuration,
       Progressable progressable,
       Bigquery bigquery,
@@ -386,36 +283,30 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
         BigQueryConfiguration.ENABLE_ASYNC_WRITE,
         BigQueryConfiguration.ENABLE_ASYNC_WRITE_DEFAULT)) {
       log.debug("Using asynchronous write channel.");
-
-      AsyncWriteChannelOptions options = AsyncWriteChannelOptions
-          .newBuilder()
-          .setUploadBufferSize(writeBufferSize)
-          .build();
-
-      // TODO(user): Add threadpool configurations
-      BigQueryAsyncWriteChannel channel = new BigQueryAsyncWriteChannel(
-          configuration,
-          progressable,
-          threadPool,
-          bigquery,
-          outputJob,
-          projectId,
-          options);
-
-      channel.initialize();
-
-      return channel;
     } else {
-      log.debug("Using synchronous write channel.");
-
-      return new BigQueryBatchedWriteChannel(
-          configuration,
-          progressable,
-          bigquery,
-          writeBufferSize,
-          outputJob,
-          projectId);
+      log.warn(
+          "Got 'false' for obsolete key '%s', using asynchronous write channel anyway.",
+          BigQueryConfiguration.ENABLE_ASYNC_WRITE);
     }
+    AsyncWriteChannelOptions options = AsyncWriteChannelOptions
+        .newBuilder()
+        .setUploadBufferSize(writeBufferSize)
+        .build();
+
+    // TODO(user): Add threadpool configurations
+    BigQueryAsyncWriteChannel channel = new BigQueryAsyncWriteChannel(
+        configuration,
+        progressable,
+        threadPool,
+        bigquery,
+        outputJob,
+        projectId,
+        options);
+
+    channel.setClientRequestHelper(clientRequestHelper);
+    channel.initialize();
+
+    return channel;
   }
 
   /**
@@ -429,9 +320,12 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
   public void write(K key, V value) throws IOException {
     long startTime = System.nanoTime();
     String stringValue = gson.toJson(value) + "\n";
-    byteChannel.write(ByteBuffer.wrap(stringValue.getBytes(StandardCharsets.UTF_8)));
+    byte[] valueBytes = stringValue.getBytes(StandardCharsets.UTF_8);
+    bytesWritten += valueBytes.length;
+    byteChannel.write(ByteBuffer.wrap(valueBytes));
 
     long duration = System.nanoTime() - startTime;
+    increment(Counter.BYTES_WRITTEN, valueBytes.length);
     increment(Counter.WRITE_CALLS);
     increment(Counter.WRITE_TOTAL_TIME, duration);
   }
@@ -454,6 +348,13 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
     long duration = System.nanoTime() - startTime;
     increment(Counter.CLOSE_CALLS);
     increment(Counter.CLOSE_TOTAL_TIME, duration);
+  }
+
+  /**
+   * Returns the total number of bytes written so far.
+   */
+  public long getBytesWritten() {
+    return bytesWritten;
   }
 
   /**

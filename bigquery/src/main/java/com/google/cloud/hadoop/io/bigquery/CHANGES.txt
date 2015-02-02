@@ -1,3 +1,19 @@
+0.5.2 - 2015-xx-xx
+
+  1. Fixed a bug in BigQueryOutputFormat which can occasionally cause extraneous
+     records to be written due to low-level retries not be de-duplicated on the
+     server side; temporary tables are now written with WRITE_TRUNCATE intead of
+     WRITE_APPEND to get around the lack of de-duplication of low-level retries.
+  2. Removed the BigQueryBatchedWriteChannel, which was previously the default
+     behavior and controlled by mapred.bq.output.async.write.enabled defaulting
+     to 'false'; default is now 'true' and the key is ignored; the batched
+     channel is fundamentally vulnerable to low-level retries causing extraneous
+     records to be written. BigQueryAsyncWriteChannel is now always used, which
+     improves performance and reduces the number of "load" jobs over the course
+     of a mapreduce; it is now equal to the number of reduce tasks, rather than
+     being equal to the total output_size divided by the batch_size.
+
+
 0.5.1 - 2015-01-22
 
   1. Added enforcement of maximum number of export shards (currently 500)
