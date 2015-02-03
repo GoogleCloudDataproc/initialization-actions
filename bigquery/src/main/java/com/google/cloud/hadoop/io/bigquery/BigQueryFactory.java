@@ -81,6 +81,14 @@ public class BigQueryFactory {
   }
 
   /**
+   * Constructs a BigQueryHelper from a raw Bigquery constructed with {@link #getBigQuery}.
+   */
+  public BigQueryHelper getBigQueryHelper(Configuration config)
+      throws GeneralSecurityException, IOException {
+    return new BigQueryHelper(getBigQuery(config));
+  }
+
+  /**
    * Constructs a BigQuery from the credential constructed from the environment.
    *
    * @throws IOException on IO Error.

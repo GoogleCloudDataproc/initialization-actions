@@ -45,8 +45,8 @@ public class BigQueryOutputCommitter
   // Fully-qualified id of the final destination table we desire the output to go to.
   private TableReference finalTableRef;
 
-  // Bigquery connection.
-  private Bigquery bigquery;
+  // Wrapper around some Bigquery API methods and convenience methods.
+  private BigQueryHelper bigQueryHelper;
 
   /**
    * Creates a bigquery output committer.
@@ -67,7 +67,7 @@ public class BigQueryOutputCommitter
     // Get Bigquery.
     try {
       BigQueryFactory bigQueryFactory = new BigQueryFactory();
-      this.bigquery = bigQueryFactory.getBigQuery(configuration);
+      this.bigQueryHelper = bigQueryFactory.getBigQueryHelper(configuration);
     } catch (GeneralSecurityException e) {
       log.error("Could not get Bigquery", e);
       throw new IOException("Could not get Bigquery", e);
@@ -95,7 +95,7 @@ public class BigQueryOutputCommitter
     tempDataset.setDatasetReference(datasetReference);
 
     // Insert dataset into Bigquery.
-    Bigquery.Datasets datasets = bigquery.datasets();
+    Bigquery.Datasets datasets = bigQueryHelper.getRawBigquery().datasets();
 
     // TODO(user): Maybe allow the dataset to exist already instead of throwing 409 here.
     log.debug("Creating temporary dataset '%s' for project '%s'",
@@ -118,7 +118,7 @@ public class BigQueryOutputCommitter
     if (log.isDebugEnabled()) {
       log.debug("cleanupJob(%s)", HadoopToStringUtil.toString(context));
     }
-    Bigquery.Datasets datasets = bigquery.datasets();
+    Bigquery.Datasets datasets = bigQueryHelper.getRawBigquery().datasets();
     Configuration config = context.getConfiguration();
     try {
       log.debug("cleanupJob: Deleting dataset '%s' from project '%s'",
@@ -208,18 +208,34 @@ public class BigQueryOutputCommitter
     JobConfiguration config = new JobConfiguration();
     config.setCopy(copyTableConfig);
 
+    JobReference jobReference = bigQueryHelper.createJobReference(
+        projectId, context.getTaskAttemptID().toString());
+
     Job job = new Job();
     job.setConfiguration(config);
+    job.setJobReference(jobReference);
 
     // Run the job.
     log.debug("commitTask: Running table copy from %s to %s",
         BigQueryStrings.toString(tempTableRef), BigQueryStrings.toString(finalTableRef));
-    Insert insert = bigquery.jobs().insert(projectId, job);
-    JobReference jobReference = insert.execute().getJobReference();
+    Insert insert = bigQueryHelper.getRawBigquery().jobs().insert(projectId, job);
+    try {
+      Job response = insert.execute();
+      bigQueryHelper.checkJobIdEquality(job, response);
+    } catch (IOException ioe) {
+      if (errorExtractor.itemAlreadyExists(ioe)) {
+        log.info(String.format(
+            "Continuing normally after catching exception for duplicate jobId '%s'",
+            jobReference.getJobId(), ioe));
+      } else {
+        throw ioe;
+      }
+    }
 
     // Poll until job is complete.
     try {
-      BigQueryUtils.waitForJobCompletion(bigquery, projectId, jobReference, context);
+      BigQueryUtils.waitForJobCompletion(
+          bigQueryHelper.getRawBigquery(), projectId, jobReference, context);
     } catch (InterruptedException e) {
       log.error("Could not check if results of task were transfered.", e);
       throw new IOException("Could not check if results of task were transfered.", e);
@@ -267,11 +283,7 @@ public class BigQueryOutputCommitter
           BigQueryStrings.toString(tempTableRef));
     }
 
-    // TODO(user): Remove ApiErrorExtractor from this class once we push all the bigquery
-    // interactions down into BigQueryHelper exclusively.
-    BigQueryHelper bigqueryHelper = new BigQueryHelper(bigquery);
-    bigqueryHelper.setErrorExtractor(errorExtractor);
-    boolean tableExists = bigqueryHelper.tableExists(tempTableRef);
+    boolean tableExists = bigQueryHelper.tableExists(tempTableRef);
     log.debug("needsTaskCommit -> %s", tableExists);
     return tableExists;
   }
@@ -280,8 +292,8 @@ public class BigQueryOutputCommitter
    * Sets Bigquery for testing purposes.
    */
   @VisibleForTesting
-  void setBigquery(Bigquery bigquery) {
-    this.bigquery = bigquery;
+  void setBigQueryHelper(BigQueryHelper helper) {
+    this.bigQueryHelper = helper;
   }
 
   @VisibleForTesting

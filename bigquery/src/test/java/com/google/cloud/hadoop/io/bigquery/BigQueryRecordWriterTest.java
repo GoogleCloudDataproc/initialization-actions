@@ -23,6 +23,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.LogUtil;
 import com.google.gson.Gson;
@@ -88,9 +89,13 @@ public class BigQueryRecordWriterTest {
   // Sample JobStatus.
   private JobStatus jobStatus;
 
+  // Fake TaskAttemptID String.
+  private String taskIdentifier;
+
   @Mock private Insert mockInsert;
   @Mock private BigQueryFactory mockFactory;
   @Mock private Bigquery mockBigQuery;
+  @Mock private BigQueryHelper mockBigQueryHelper;
   @Mock private TaskAttemptContext mockContext;
   @Mock private Bigquery.Jobs mockBigQueryJobs;
   @Mock private Bigquery.Jobs.Get mockJobsGet;
@@ -98,6 +103,7 @@ public class BigQueryRecordWriterTest {
   @Mock private ExecutorService mockExecutorService;
   @Mock private ClientRequestHelper<Job> mockClientRequestHelper;
   @Mock private HttpHeaders mockHeaders;
+  @Mock private ApiErrorExtractor mockErrorExtractor;
 
   // The RecordWriter being tested.
   private BigQueryRecordWriter<LongWritable, JsonObject> recordWriter;
@@ -117,6 +123,7 @@ public class BigQueryRecordWriterTest {
     outputProjectId = "test_output_project";
     tableId = "test_table";
     datasetId = "test_dataset";
+    taskIdentifier = "attempt_201501292132_0016_r_000033_0";
 
     // Create the key, value pair.
     bigqueryKey = new LongWritable(123);
@@ -126,15 +133,20 @@ public class BigQueryRecordWriterTest {
 
     // Create the job result.
     jobReference = new JobReference();
-    jobReturn = new Job();
+    jobReference.setProjectId(jobProjectId);
+    jobReference.setJobId(taskIdentifier + "-12345");
+
     jobStatus = new JobStatus();
     jobStatus.setState("DONE");
     jobStatus.setErrorResult(null);
+
+    jobReturn = new Job();
     jobReturn.setStatus(jobStatus);
     jobReturn.setJobReference(jobReference);
 
     // Mock BigQuery.
-    when(mockFactory.getBigQuery(any(Configuration.class))).thenReturn(mockBigQuery);
+    when(mockFactory.getBigQueryHelper(any(Configuration.class))).thenReturn(mockBigQueryHelper);
+    when(mockBigQueryHelper.getRawBigquery()).thenReturn(mockBigQuery);
     when(mockBigQuery.jobs()).thenReturn(mockBigQueryJobs);
     when(mockBigQueryJobs.get(any(String.class), any(String.class)))
         .thenReturn(mockJobsGet);
@@ -166,16 +178,21 @@ public class BigQueryRecordWriterTest {
   }
 
   private void initializeRecordWriter() throws IOException {
+    when(mockBigQueryHelper.createJobReference(any(String.class), any(String.class)))
+        .thenReturn(jobReference);
     recordWriter = new BigQueryRecordWriter<>(
         mockFactory,
         mockExecutorService,
         mockClientRequestHelper,
         new Configuration(),
         progressable,
+        taskIdentifier,
         fields,
         jobProjectId,
         getSampleTableRef(),
         64 * 1024 * 1024);
+    recordWriter.setErrorExtractor(mockErrorExtractor);
+    verify(mockBigQueryHelper).createJobReference(eq(jobProjectId), eq(taskIdentifier));
   }
   
   /**
@@ -215,10 +232,10 @@ public class BigQueryRecordWriterTest {
     recordWriter.close(mockContext);
 
     // Check that the proper calls were sent to the BigQuery.
-    verify(mockFactory).getBigQuery(any(Configuration.class));
+    verify(mockFactory).getBigQueryHelper(any(Configuration.class));
     verify(mockBigQuery, times(2)).jobs();
     verify(mockJobsGet, times(1)).execute();
-    verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), any(String.class));
+    verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), eq(jobReference.getJobId()));
     verify(mockExecutorService).shutdown();
 
     String readDataString = new String(readData, StandardCharsets.UTF_8);
@@ -259,14 +276,83 @@ public class BigQueryRecordWriterTest {
     recordWriter.close(mockContext);
 
     // Check that the proper calls were sent to the BigQuery.
-    verify(mockFactory).getBigQuery(any(Configuration.class));
+    verify(mockFactory).getBigQueryHelper(any(Configuration.class));
     verify(mockBigQuery, times(2)).jobs();
     verify(mockJobsGet, times(1)).execute();
-    verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), any(String.class));
+    verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), eq(jobReference.getJobId()));
     verify(mockExecutorService).shutdown();
 
     String readDataString = new String(readData, StandardCharsets.UTF_8);
     assertEquals("", readDataString);
+  }
+
+  /**
+   * Tests the write method of BigQueryRecordWriter without writing anything but throwing a 409
+   * conflict from the job-insertion.
+   */
+  @Test
+  public void testConflictExceptionOnCreate() throws IOException, GeneralSecurityException {
+    initializeRecordWriter();
+
+    verify(mockBigQueryJobs).insert(
+        eq(jobProjectId), eq(getExpectedJob()), any(AbstractInputStreamContent.class));
+
+    ArgumentCaptor<Runnable> runCaptor = ArgumentCaptor.forClass(Runnable.class);
+    verify(mockExecutorService).execute(runCaptor.capture());
+
+    IOException fakeConflictException = new IOException("fake 409 conflict");
+    when(mockInsert.execute())
+        .thenThrow(fakeConflictException);
+    when(mockErrorExtractor.itemAlreadyExists(any(IOException.class)))
+        .thenReturn(true);
+    runCaptor.getValue().run();
+
+    // Close the RecordWriter.
+    recordWriter.close(mockContext);
+
+    // Check that the proper calls were sent to the BigQuery.
+    verify(mockFactory).getBigQueryHelper(any(Configuration.class));
+    verify(mockBigQuery, times(2)).jobs();
+    verify(mockJobsGet, times(1)).execute();
+    verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), eq(jobReference.getJobId()));
+    verify(mockExecutorService).shutdown();
+  }
+
+  /**
+   * Tests the write method of BigQueryRecordWriter without writing anything but throwing an
+   * unhandled exeption from the job-insertion.
+   */
+  @Test
+  public void testUnhandledExceptionOnCreate() throws IOException, GeneralSecurityException {
+    initializeRecordWriter();
+
+    verify(mockBigQueryJobs).insert(
+        eq(jobProjectId), eq(getExpectedJob()), any(AbstractInputStreamContent.class));
+
+    ArgumentCaptor<Runnable> runCaptor = ArgumentCaptor.forClass(Runnable.class);
+    verify(mockExecutorService).execute(runCaptor.capture());
+
+    IOException fakeUnhandledException = new IOException("fake unhandled exception");
+    when(mockInsert.execute())
+        .thenThrow(fakeUnhandledException);
+    when(mockErrorExtractor.itemAlreadyExists(any(IOException.class)))
+        .thenReturn(false);
+
+    // Exception gets stashed away, *not* thrown in the runner.
+    runCaptor.getValue().run();
+
+    // Close the RecordWriter; the stored exception finally propagates out.
+    try {
+      recordWriter.close(mockContext);
+      fail("Expected IOException on close, got no exception.");
+    } catch (IOException ioe) {
+      assertEquals(fakeUnhandledException, ioe.getCause());
+    }
+
+    // Check that the proper calls were sent to the BigQuery.
+    verify(mockFactory).getBigQueryHelper(any(Configuration.class));
+    verify(mockBigQuery, times(1)).jobs();
+    verify(mockExecutorService).shutdown();
   }
 
   @Test
@@ -303,10 +389,10 @@ public class BigQueryRecordWriterTest {
     recordWriter.close(mockContext);
 
     // Check that the proper calls were sent to the BigQuery.
-    verify(mockFactory).getBigQuery(any(Configuration.class));
+    verify(mockFactory).getBigQueryHelper(any(Configuration.class));
     verify(mockBigQuery, times(2)).jobs();
     verify(mockJobsGet, times(1)).execute();
-    verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), any(String.class));
+    verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), eq(jobReference.getJobId()));
     verify(mockExecutorService).shutdown();
 
     String readDataString = new String(readData, StandardCharsets.UTF_8);
@@ -363,14 +449,10 @@ public class BigQueryRecordWriterTest {
     JobConfiguration jobConfig = new JobConfiguration();
     jobConfig.setLoad(loadConfig);
 
-    // Create Job reference.
-    JobReference jobRef = new JobReference();
-    jobRef.setProjectId(jobProjectId);
-
     // Set the output write job.
     Job expectedJob = new Job();
     expectedJob.setConfiguration(jobConfig);
-    expectedJob.setJobReference(jobRef);
+    expectedJob.setJobReference(jobReference);
     return expectedJob;
   }
 }

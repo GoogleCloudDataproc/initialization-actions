@@ -1,9 +1,9 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -16,6 +16,7 @@ import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.collect.ImmutableList;
 
@@ -25,6 +26,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import java.io.IOException;
 
@@ -34,12 +37,13 @@ import java.io.IOException;
 @RunWith(JUnit4.class)
 public class BigQueryHelperTest {
   // Mocks for Bigquery API objects.
-  private Bigquery mockBigquery;
-  private Bigquery.Jobs mockBigqueryJobs;
-  private Bigquery.Jobs.Get mockBigqueryJobsGet;
-  private Bigquery.Jobs.Insert mockBigqueryJobsInsert;
-  private Bigquery.Tables mockBigqueryTables;
-  private Bigquery.Tables.Get mockBigqueryTablesGet;
+  @Mock private Bigquery mockBigquery;
+  @Mock private Bigquery.Jobs mockBigqueryJobs;
+  @Mock private Bigquery.Jobs.Get mockBigqueryJobsGet;
+  @Mock private Bigquery.Jobs.Insert mockBigqueryJobsInsert;
+  @Mock private Bigquery.Tables mockBigqueryTables;
+  @Mock private Bigquery.Tables.Get mockBigqueryTablesGet;
+  @Mock private ApiErrorExtractor mockErrorExtractor;
 
   // JobStatus to return for testing.
   private JobStatus jobStatus;
@@ -63,8 +67,12 @@ public class BigQueryHelperTest {
   // Sample jobId for JobReference for mockBigqueryJobs.
   private String jobId = "bigquery-job-1234";
 
+  // The instance being tested.
+  private BigQueryHelper helper;
+
   @Before
   public void setUp() throws IOException {
+    MockitoAnnotations.initMocks(this);
     GsonBigQueryInputFormat.log.setLevel(LogUtil.Level.DEBUG);
 
     // Create fake job reference.
@@ -79,26 +87,16 @@ public class BigQueryHelperTest {
     jobHandle.setStatus(jobStatus);
     jobHandle.setJobReference(fakeJobReference);
 
-    // Mock BigQuery.
-    mockBigquery = mock(Bigquery.class);
-    mockBigqueryJobs = mock(Bigquery.Jobs.class);
-    mockBigqueryJobsGet = mock(Bigquery.Jobs.Get.class);
-    mockBigqueryJobsInsert = mock(Bigquery.Jobs.Insert.class);
-    mockBigqueryTables = mock(Bigquery.Tables.class);
-    mockBigqueryTablesGet = mock(Bigquery.Tables.Get.class);
-
     // Mocks for Bigquery jobs.
     when(mockBigquery.jobs()).thenReturn(mockBigqueryJobs);
 
     // Mock getting Bigquery job.
-    when(mockBigqueryJobs.get(jobProjectId, fakeJobReference.getJobId())).thenReturn(
-        mockBigqueryJobsGet);
-    when(mockBigqueryJobsGet.execute()).thenReturn(jobHandle);
+    when(mockBigqueryJobs.get(jobProjectId, fakeJobReference.getJobId()))
+        .thenReturn(mockBigqueryJobsGet);
 
     // Mock inserting Bigquery job.
     when(mockBigqueryJobs.insert(any(String.class), any(Job.class))).thenReturn(
         mockBigqueryJobsInsert);
-    when(mockBigqueryJobsInsert.execute()).thenReturn(jobHandle);
 
     // Fake table.
     fakeTableSchema = new TableSchema();
@@ -111,14 +109,14 @@ public class BigQueryHelperTest {
     when(mockBigqueryTables.get(any(String.class), any(String.class), any(String.class)))
         .thenReturn(mockBigqueryTablesGet);
 
-    // Mock for executing get Bigquery table.
-    when(mockBigqueryTablesGet.execute()).thenReturn(fakeTable);
-
     // Create table reference.
     tableRef = new TableReference();
     tableRef.setProjectId(projectId);
     tableRef.setDatasetId(datasetId);
     tableRef.setTableId(tableId);
+
+    helper = new BigQueryHelper(mockBigquery);
+    helper.setErrorExtractor(mockErrorExtractor);
   }
 
   @After
@@ -129,6 +127,7 @@ public class BigQueryHelperTest {
     verifyNoMoreInteractions(mockBigqueryJobsInsert);
     verifyNoMoreInteractions(mockBigqueryTables);
     verifyNoMoreInteractions(mockBigqueryTablesGet);
+    verifyNoMoreInteractions(mockErrorExtractor);
   }
 
   /**
@@ -137,8 +136,12 @@ public class BigQueryHelperTest {
   @Test
   public void testExportBigQueryToGcsSingleShardAwaitCompletion() throws IOException,
       InterruptedException {
+    when(mockBigqueryTablesGet.execute()).thenReturn(fakeTable);
+    when(mockBigqueryJobsInsert.execute()).thenReturn(jobHandle);
+    when(mockBigqueryJobsGet.execute()).thenReturn(jobHandle);
+
     // Run exportBigQueryToGCS method.
-    new BigQueryHelper(mockBigquery).exportBigQueryToGcs(jobProjectId, tableRef,
+    helper.exportBigQueryToGcs(jobProjectId, tableRef,
         ImmutableList.of("test-export-path"), true);
 
     // Verify correct calls to BigQuery are made.
@@ -168,7 +171,8 @@ public class BigQueryHelperTest {
    */
   @Test
   public void testGetTable() throws IOException {
-    BigQueryHelper helper = new BigQueryHelper(mockBigquery);
+    when(mockBigqueryTablesGet.execute()).thenReturn(fakeTable);
+
     Table table = helper.getTable(tableRef);
 
     // Verify correct calls are made.
@@ -185,7 +189,8 @@ public class BigQueryHelperTest {
    */
   @Test
   public void testGetTableSchema() throws IOException {
-    BigQueryHelper helper = new BigQueryHelper(mockBigquery);
+    when(mockBigqueryTablesGet.execute()).thenReturn(fakeTable);
+
     TableSchema tableSchema = helper.getTableSchema(tableRef);
 
     // Verify correct calls are made.
@@ -195,4 +200,59 @@ public class BigQueryHelperTest {
     assertEquals(tableSchema, fakeTableSchema);
   }
   
+  @Test
+  public void testTableExistsTrue() throws IOException {
+    when(mockBigqueryTablesGet.execute()).thenReturn(fakeTable);
+
+    boolean exists = helper.tableExists(tableRef);
+
+    // Verify correct calls are made.
+    verify(mockBigquery, times(1)).tables();
+    verify(mockBigqueryTables, times(1)).get(eq(projectId), eq(datasetId), eq(tableId));
+    verify(mockBigqueryTablesGet, times(1)).execute();
+
+    assertEquals(true, exists);
+  }
+
+  @Test
+  public void testTableExistsFalse() throws IOException {
+    IOException fakeNotFoundException = new IOException("Fake not found exception");
+    when(mockBigqueryTablesGet.execute())
+        .thenThrow(fakeNotFoundException);
+    when(mockErrorExtractor.itemNotFound(any(IOException.class)))
+        .thenReturn(true);
+
+    boolean exists = helper.tableExists(tableRef);
+
+    // Verify correct calls are made.
+    verify(mockBigquery, times(1)).tables();
+    verify(mockBigqueryTables, times(1)).get(eq(projectId), eq(datasetId), eq(tableId));
+    verify(mockBigqueryTablesGet, times(1)).execute();
+    verify(mockErrorExtractor, times(1)).itemNotFound(eq(fakeNotFoundException));
+
+    assertEquals(false, exists);
+  }
+
+  @Test
+  public void testTableExistsUnhandledException() throws IOException {
+    IOException fakeUnhandledException = new IOException("Fake unhandled exception");
+    when(mockBigqueryTablesGet.execute())
+        .thenThrow(fakeUnhandledException);
+    when(mockErrorExtractor.itemNotFound(any(IOException.class)))
+        .thenReturn(false);
+
+    try {
+      helper.tableExists(tableRef);
+      fail("Expected IOException during tableExists(tableRef), got no exception");
+    } catch (IOException ioe) {
+      assertEquals(fakeUnhandledException, ioe);
+    }
+
+    // Verify correct calls are made.
+    verify(mockBigquery, times(1)).tables();
+    verify(mockBigqueryTables, times(1)).get(eq(projectId), eq(datasetId), eq(tableId));
+    verify(mockBigqueryTablesGet, times(1)).execute();
+    verify(mockErrorExtractor, times(1)).itemNotFound(eq(fakeUnhandledException));
+  }
+
 }

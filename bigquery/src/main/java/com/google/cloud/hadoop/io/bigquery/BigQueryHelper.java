@@ -12,16 +12,23 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 
 import org.apache.hadoop.util.Progressable;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Wrapper for BigQuery API.
  */
 public class BigQueryHelper {
+  // BigQuery job_ids must match this pattern.
+  public static final String BIGQUERY_JOB_ID_PATTERN = "[a-zA-Z0-9_-]+";
+
+  // Maximum number of characters in a BigQuery job_id.
+  public static final int BIGQUERY_JOB_ID_MAX_LENGTH = 1024;
 
   // Logger.
   protected static final LogUtil log = new LogUtil(BigQueryHelper.class);
@@ -33,6 +40,13 @@ public class BigQueryHelper {
 
   public BigQueryHelper(Bigquery service) {
     this.service = service;
+  }
+
+  /**
+   * Returns the underlying Bigquery instance used for communicating with the BigQuery API.
+   */
+  public Bigquery getRawBigquery() {
+    return service;
   }
 
   /**
@@ -71,7 +85,7 @@ public class BigQueryHelper {
     // Insert and run job.
     Insert insert = service.jobs().insert(projectId, job);
     insert.setProjectId(projectId);
-    JobReference jobId = insert.execute().getJobReference();
+    JobReference jobReference = insert.execute().getJobReference();
 
     // Create anonymous Progressable object
     Progressable progressable = new Progressable() {
@@ -83,7 +97,7 @@ public class BigQueryHelper {
 
     if (awaitCompletion) {
       // Poll until job is complete.
-      BigQueryUtils.waitForJobCompletion(service, projectId, jobId, progressable);
+      BigQueryUtils.waitForJobCompletion(service, projectId, jobReference, progressable);
     }
   }
 
@@ -132,6 +146,39 @@ public class BigQueryHelper {
       throws IOException {
     Table table = getTable(tableRef);
     return table.getSchema();
+  }
+
+  /**
+   * Creates a new JobReference with a unique jobId generated from {@code jobIdPrefix} plus a
+   * randomly generated UUID String.
+   */
+  public JobReference createJobReference(String projectId, String jobIdPrefix) {
+    Preconditions.checkArgument(projectId != null, "projectId must not be null.");
+    Preconditions.checkArgument(jobIdPrefix != null, "jobIdPrefix must not be null.");
+    Preconditions.checkArgument(jobIdPrefix.matches(BIGQUERY_JOB_ID_PATTERN),
+        "jobIdPrefix '%s' must match pattern '%s'", jobIdPrefix, BIGQUERY_JOB_ID_PATTERN);
+
+    String fullJobId = String.format("%s-%s", jobIdPrefix, UUID.randomUUID().toString());
+    Preconditions.checkArgument(fullJobId.length() <= BIGQUERY_JOB_ID_MAX_LENGTH,
+        "fullJobId '%s' has length '%s'; must be less than or equal to %s",
+        fullJobId, fullJobId.length(), BIGQUERY_JOB_ID_MAX_LENGTH);
+    return new JobReference()
+        .setProjectId(projectId)
+        .setJobId(fullJobId);
+  }
+
+  /**
+   * Helper to check for non-null Job.getJobReference().getJobId() and quality of the getJobId()
+   * between {@code expected} and {@code actual}, using Preconditions.checkState.
+   */
+  public void checkJobIdEquality(Job expected, Job actual) {
+    Preconditions.checkState(actual.getJobReference() != null
+        && actual.getJobReference().getJobId() != null
+        && expected.getJobReference() != null
+        && expected.getJobReference().getJobId() != null
+        && actual.getJobReference().getJobId().equals(expected.getJobReference().getJobId()),
+        "jobIds must match in '[expected|actual].getJobReference()' (got '%s' vs '%s')",
+        expected.getJobReference(), actual.getJobReference());
   }
 
   @VisibleForTesting

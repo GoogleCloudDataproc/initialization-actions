@@ -160,6 +160,19 @@ public abstract class AbstractGoogleAsyncWriteChannel
   public void handleResponse(S response) throws IOException {}
 
   /**
+   * Derived classes may optionally intercept an IOException thrown from the execute() method of
+   * a prepared request that came from {@link #createRequest}, and return a reconstituted
+   * "response" object if the IOException can be handled as a success; for example, if the caller
+   * already has an identifier for an object, and the response is used solely for obtaining the
+   * same identifier, and the IOException is a handled "409 Already Exists" type of exception,
+   * then the derived class may override this method to return the expected "identifier" response.
+   * Return null to let the exception propagate through correctly.
+   */
+  public S createResponseFromException(IOException ioe) {
+    return null;
+  }
+
+  /**
    * Sets size of upload buffer used.
    */
   public void setUploadBufferSize(int bufferSize) {
@@ -323,6 +336,16 @@ public abstract class AbstractGoogleAsyncWriteChannel
     public void run() {
       try {
         response = uploadObject.execute();
+      } catch (IOException ioe) {
+        response = createResponseFromException(ioe);
+        if (response != null) {
+          log.warn(String.format(
+              "Received IOException, but successfully converted to response '%s'.", response),
+              ioe);
+        } else {
+          exception = ioe;
+          log.error("Exception not convertible into handled response", ioe);
+        }
       } catch (Throwable t) {
         exception = t;
         log.error(t);

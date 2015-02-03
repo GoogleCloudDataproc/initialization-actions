@@ -130,6 +130,7 @@ public class BigQueryOutputFormat<K, V extends JsonObject>
     return new BigQueryRecordWriter<>(
         context.getConfiguration(),
         context,
+        context.getTaskAttemptID().toString(),
         BigQueryUtils.getSchemaFromString(tableSchema),
         jobProjectId,
         tempTableRef,

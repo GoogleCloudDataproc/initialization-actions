@@ -1,7 +1,6 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.api.client.http.InputStreamContent;
-import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Jobs.Insert;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
@@ -11,10 +10,12 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.HadoopToStringUtil;
 import com.google.cloud.hadoop.util.LogUtil;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.gson.Gson;
@@ -71,6 +72,9 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
   // Thread pool to use for async write operations.
   private ExecutorService threadPool = Executors.newCachedThreadPool();
 
+  // Used for specialized handling of various API-defined exceptions.
+  private ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+
   // Count of total bytes written after serialization of records.
   private long bytesWritten = 0;
 
@@ -92,34 +96,30 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
   /**
    * A channel for streaming results to BigQuery.
    */
-  public static class BigQueryAsyncWriteChannel
+  private class BigQueryAsyncWriteChannel
       extends AbstractGoogleAsyncWriteChannel<Insert, Job> {
 
-    private final Configuration configuration;
-    private final Progressable progressable;
-    private final Bigquery bigQuery;
+    private final BigQueryHelper bigQueryHelper;
     private final Job job;
     private final String projectId;
 
     public BigQueryAsyncWriteChannel(
-        Configuration configuration,
-        Progressable progressable,
-        ExecutorService threadPool,
-        Bigquery bigQuery,
+        BigQueryHelper bigQueryHelper,
         Job job,
         String projectId,
         AsyncWriteChannelOptions options) {
       super(threadPool, options);
-      this.configuration = configuration;
-      this.progressable = progressable;
-      this.bigQuery = bigQuery;
+      this.bigQueryHelper = bigQueryHelper;
       this.job = job;
       this.projectId = projectId;
+
+      // Set the ClientRequestHelper from the outer class instance.
+      setClientRequestHelper(clientRequestHelper);
     }
 
     @Override
     public Insert createRequest(InputStreamContent inputStream) throws IOException {
-      Insert insert = bigQuery.jobs().insert(projectId, job, inputStream);
+      Insert insert = bigQueryHelper.getRawBigquery().jobs().insert(projectId, job, inputStream);
       insert.setProjectId(projectId);
       increment(Counter.JOBS_INSERTED);
       return insert;
@@ -127,13 +127,28 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
 
     @Override
     public void handleResponse(Job response) throws IOException {
+      bigQueryHelper.checkJobIdEquality(job, response);
       JobReference jobReference = response.getJobReference();
       // Check that job is completed.
       try {
-        BigQueryUtils.waitForJobCompletion(bigQuery, projectId, jobReference, progressable);
+        BigQueryUtils.waitForJobCompletion(
+            bigQueryHelper.getRawBigquery(), projectId, jobReference, progressable);
       } catch (InterruptedException e) {
         log.error(e.getMessage());
         throw new IOException(e);
+      }
+    }
+
+    @Override
+    public Job createResponseFromException(IOException ioe) {
+      if (errorExtractor.itemAlreadyExists(ioe)) {
+        // For now, only wire through the JobReference since the handleResponse method only depends
+        // on the JobReference. We should update this if we depend on other parts of the Job,
+        // especially if there are any pieces which are liable to diverge from the Job resource
+        // we're trying to insert vs the Job resource we're supposed to get back from the server.
+        return new Job().setJobReference(job.getJobReference());
+      } else {
+        return null;
       }
     }
   }
@@ -159,6 +174,7 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
       ClientRequestHelper<Job> clientRequestHelper,
       Configuration configuration,
       Progressable progressable,
+      String taskIdentifier,
       List<TableFieldSchema> outputRecordSchema,
       String projectId,
       TableReference tableRef,
@@ -193,9 +209,9 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
     this.clientRequestHelper = clientRequestHelper;
 
     // Get BigQuery.
-    Bigquery bigquery;
+    BigQueryHelper bigQueryHelper;
     try {
-      bigquery = factory.getBigQuery(configuration);
+      bigQueryHelper = factory.getBigQueryHelper(configuration);
     } catch (GeneralSecurityException e) {
       log.error("Could not connect to BigQuery:", e);
       throw new IOException(e);
@@ -224,8 +240,7 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
     jobConfig.setLoad(loadConfig);
 
     // Create Job reference.
-    JobReference jobRef = new JobReference();
-    jobRef.setProjectId(projectId);
+    JobReference jobRef = bigQueryHelper.createJobReference(projectId, taskIdentifier);
 
     // Set the output write job.
     Job outputJob = new Job();
@@ -233,7 +248,7 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
     outputJob.setJobReference(jobRef);
 
     byteChannel = createByteChannel(
-        configuration, progressable, bigquery, outputJob, projectId, writeBufferSize);
+        bigQueryHelper, outputJob, projectId, writeBufferSize);
   }
 
   /**
@@ -246,6 +261,8 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
    *
    * @param configuration Configuration for the job / task
    * @param progressable Progressable to which we should report status
+   * @param taskIdentifier A String to help identify actions performed by this RecordWriter,
+   *     for example, a TaskAttemptID. Not required to be unique, but must match "[a-zA-Z0-9-_]+".
    * @param outputRecordSchema the schema describing the output records.
    * @param projectId the id of the project.
    * @param tableRef the fully qualified reference to the (temp) table to write to; its projectId
@@ -256,6 +273,7 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
   public BigQueryRecordWriter(
       Configuration configuration,
       Progressable progressable,
+      String taskIdentifier,
       List<TableFieldSchema> outputRecordSchema,
       String projectId,
       TableReference tableRef,
@@ -266,6 +284,7 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
         new ClientRequestHelper<>(),
         configuration,
         progressable,
+        taskIdentifier,
         outputRecordSchema,
         projectId,
         tableRef,
@@ -273,9 +292,7 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
   }
 
   private BigQueryAsyncWriteChannel createByteChannel(
-      Configuration configuration,
-      Progressable progressable,
-      Bigquery bigquery,
+      BigQueryHelper bigQueryHelper,
       Job outputJob,
       String projectId,
       int writeBufferSize) throws IOException {
@@ -295,15 +312,11 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
 
     // TODO(user): Add threadpool configurations
     BigQueryAsyncWriteChannel channel = new BigQueryAsyncWriteChannel(
-        configuration,
-        progressable,
-        threadPool,
-        bigquery,
+        bigQueryHelper,
         outputJob,
         projectId,
         options);
 
-    channel.setClientRequestHelper(clientRequestHelper);
     channel.initialize();
 
     return channel;
@@ -355,6 +368,11 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
    */
   public long getBytesWritten() {
     return bytesWritten;
+  }
+
+  @VisibleForTesting
+  void setErrorExtractor(ApiErrorExtractor errorExtractor) {
+    this.errorExtractor = errorExtractor;
   }
 
   /**
