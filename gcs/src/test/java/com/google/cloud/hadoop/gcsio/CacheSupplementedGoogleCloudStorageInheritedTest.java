@@ -66,8 +66,9 @@ public class CacheSupplementedGoogleCloudStorageInheritedTest
    * instance based on a simple mock GoogleCloudStorage.
    */
   @Override
-  protected GoogleCloudStorage createTestInstance() {
-    GoogleCloudStorage delegate = super.createTestInstance();
+  protected GoogleCloudStorage createTestInstance(
+      GoogleCloudStorageOptions options) {
+    GoogleCloudStorage delegate = super.createTestInstance(options);
 
     DirectoryListCache resourceCache = null;
     switch (cacheType) {
@@ -77,7 +78,9 @@ public class CacheSupplementedGoogleCloudStorageInheritedTest
       }
       case FILESYSTEM_BACKED: {
         try {
-          basePathFile = tempDirectoryProvider.newFolder("gcs_metadata");
+          String folderName = options.isAutoRepairImplicitDirectoriesEnabled()
+              ? "gcs_metadata" : "gcs_metadata_no_auto";
+          basePathFile = tempDirectoryProvider.newFolder(folderName);
           resourceCache =
               new FileSystemBackedDirectoryListCache(basePathFile.toString());
         } catch (IOException ioe) {

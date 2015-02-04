@@ -162,17 +162,52 @@ public class GoogleCloudStorageTest {
   }
 
   /**
-   * Creates an instance of GoogleCloudStorage using GoogleCloudStorageImpl as the concrete type
-   * and setting up the proper mocks.
+   * Creates an instance of GoogleCloudStorage using GoogleCloudStorageImpl
+   * as the concrete type and setting up the proper mocks.
    */
-  protected GoogleCloudStorage createTestInstance() {
-    GoogleCloudStorageOptions.Builder optionsBuilder = GoogleCloudStorageOptions.newBuilder();
+  protected GoogleCloudStorageOptions.Builder
+      createDefaultCloudStorageOptionsBuilder() {
+    GoogleCloudStorageOptions.Builder optionsBuilder =
+        GoogleCloudStorageOptions.newBuilder();
     optionsBuilder.setAppName(APP_NAME);
     optionsBuilder.setProjectId(PROJECT_ID);
     optionsBuilder.setCreateMarkerObjects(true);
+    return optionsBuilder;
+  }
 
+  /**
+   * Creates an instance of GoogleCloudStorage using GoogleCloudStorageImpl
+   * as the concrete type and setting up the proper mocks.
+   */
+  protected GoogleCloudStorage createTestInstance() {
+    GoogleCloudStorageOptions.Builder optionsBuilder =
+        createDefaultCloudStorageOptionsBuilder();
+    return createTestInstance(optionsBuilder.build());
+  }
+
+  /**
+   * Creates an instance of GoogleCloudStorage using GoogleCloudStorageImpl
+   * as the concrete type and setting up the proper mocks,
+   * with the specified value for autoRepairImplicitDirectories.
+   */
+  protected GoogleCloudStorage createTestInstance(
+      boolean autoRepairImplicitDirectories) {
+    GoogleCloudStorageOptions.Builder optionsBuilder =
+        createDefaultCloudStorageOptionsBuilder();
+    optionsBuilder
+        .setAutoRepairImplicitDirectoriesEnabled(autoRepairImplicitDirectories);
+    return createTestInstance(optionsBuilder.build());
+  }
+
+  /**
+   * Creates an instance of GoogleCloudStorage with the specified options,
+   * using GoogleCloudStorageImpl as the concrete type,
+   * and setting up the proper mocks.
+   */
+  protected GoogleCloudStorage createTestInstance(
+      GoogleCloudStorageOptions options) {
     GoogleCloudStorageImpl gcsTestInstance =
-        new GoogleCloudStorageImpl(optionsBuilder.build(), mockStorage);
+        new GoogleCloudStorageImpl(options, mockStorage);
     gcsTestInstance.setThreadPool(mockExecutorService);
     gcsTestInstance.setErrorExtractor(mockErrorExtractor);
     gcsTestInstance.setClientRequestHelper(mockClientRequestHelper);
@@ -2454,6 +2489,160 @@ public class GoogleCloudStorageTest {
       assertEquals(fakeObject.getUpdated().getValue(), listedInfo.getCreationTime());
       assertEquals(fakeObject.getSize().longValue(), listedInfo.getSize());
     }
+  }
+
+  @Test
+  public void testListObjectInfoNoAutoRepair()
+      throws IOException {
+    GoogleCloudStorage gcsNoAutoRepair = createTestInstance(false);
+
+    String objectPrefix = "foo/bar/baz/";
+    String delimiter = "/";
+
+    // Set up the initial list to return three prefixes,
+    // two of which don't exist.
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.list(any(String.class)))
+        .thenReturn(mockStorageObjectsList);
+    StorageObject fakeObject0 = new StorageObject()
+        .setName("foo/bar/baz/dir0/")
+        .setBucket(BUCKET_NAME)
+        .setUpdated(new DateTime(11L))
+        .setSize(BigInteger.valueOf(111L))
+        .setGeneration(1L)
+        .setMetageneration(1L);
+    StorageObject fakeObject1 = new StorageObject()
+        .setName("foo/bar/baz/dir1/")
+        .setBucket(BUCKET_NAME)
+        .setUpdated(new DateTime(22L))
+        .setSize(BigInteger.valueOf(222L))
+        .setGeneration(2L)
+        .setMetageneration(2L);
+    StorageObject fakeObject2 = new StorageObject()
+        .setName("foo/bar/baz/dir2/")
+        .setBucket(BUCKET_NAME)
+        .setUpdated(new DateTime(33L))
+        .setSize(BigInteger.valueOf(333L))
+        .setGeneration(3L)
+        .setMetageneration(3L);
+    final List<StorageObject> fakeObjectList = ImmutableList.of(
+        fakeObject0, fakeObject1, fakeObject2);
+    when(mockStorageObjectsList.execute())
+        .thenReturn(new Objects()
+            .setPrefixes(ImmutableList.of(
+                "foo/bar/baz/dir0/",
+                "foo/bar/baz/dir1/",
+                "foo/bar/baz/dir2/"))
+            .setNextPageToken(null));
+
+    // Set up the follow-up getItemInfos to return a batch with "not found".
+    when(mockBatchFactory.newBatchHelper(
+        any(HttpRequestInitializer.class),
+        any(Storage.class),
+        any(Long.class))).thenReturn(mockBatchHelper);
+    when(mockStorageObjects.get(any(String.class), any(String.class)))
+        .thenReturn(mockStorageObjectsGet);
+    final GoogleJsonError notFoundError = new GoogleJsonError();
+    notFoundError.setMessage("Fake not-found exception");
+    doAnswer(new Answer<Void>() {
+      @Override
+      public Void answer(InvocationOnMock invocation) {
+        Object[] args = invocation.getArguments();
+        @SuppressWarnings("unchecked")
+        JsonBatchCallback<StorageObject> callback =
+            (JsonBatchCallback<StorageObject>) args[1];
+        try {
+          // Object 0, return "not found".
+          callback.onFailure(notFoundError, new HttpHeaders());
+        } catch (IOException ioe) {
+          fail(ioe.toString());
+        }
+        return null;
+      }
+    }).doAnswer(new Answer<Void>() {
+      @Override
+      public Void answer(InvocationOnMock invocation) {
+        Object[] args = invocation.getArguments();
+        @SuppressWarnings("unchecked")
+        JsonBatchCallback<StorageObject> callback =
+            (JsonBatchCallback<StorageObject>) args[1];
+        try {
+          // Object 1, return it successfully.
+          callback.onSuccess(fakeObjectList.get(1), new HttpHeaders());
+        } catch (IOException ioe) {
+          fail(ioe.toString());
+        }
+        return null;
+      }
+    }).doAnswer(new Answer<Void>() {
+      @Override
+      public Void answer(InvocationOnMock invocation) {
+        Object[] args = invocation.getArguments();
+        @SuppressWarnings("unchecked")
+        JsonBatchCallback<StorageObject> callback =
+            (JsonBatchCallback<StorageObject>) args[1];
+        try {
+          // Object 2, return "not found".
+          callback.onFailure(notFoundError, new HttpHeaders());
+        } catch (IOException ioe) {
+          fail(ioe.toString());
+        }
+        return null;
+      }
+    })
+    .when(mockBatchHelper).queue(eq(mockStorageObjectsGet),
+        Matchers.<JsonBatchCallback<StorageObject>>anyObject());
+    when(mockErrorExtractor.itemNotFound(eq(notFoundError)))
+        .thenReturn(true);
+    doAnswer(new Answer<Void>() {
+      @Override
+      public Void answer(InvocationOnMock invocation) {
+        Object[] args = invocation.getArguments();
+        Runnable callback = (Runnable) args[0];
+        callback.run();
+        return null;
+      }
+    })
+    .when(mockExecutorService).execute(any(Runnable.class));
+
+    // List the objects, without attempting any auto-repair
+    List<GoogleCloudStorageItemInfo> objectInfos =
+        gcsNoAutoRepair.listObjectInfo(BUCKET_NAME, objectPrefix, delimiter);
+
+    // objects().list, objects().get x 3
+    verify(mockStorage, times(4)).objects();
+    verify(mockStorageObjects).list(eq(BUCKET_NAME));
+    verify(mockStorageObjectsList).setMaxResults(
+        eq(GoogleCloudStorageOptions.MAX_LIST_ITEMS_PER_CALL_DEFAULT));
+    verify(mockStorageObjectsList).setDelimiter(eq(delimiter));
+    verify(mockStorageObjectsList).setPrefix(eq(objectPrefix));
+    verify(mockStorageObjectsList).execute();
+
+    // Original batch get.
+    verify(mockBatchFactory, times(1))
+        .newBatchHelper(any(HttpRequestInitializer.class),
+            eq(mockStorage), any(Long.class));
+    verify(mockStorageObjects, times(3))
+        .get(eq(BUCKET_NAME), any(String.class));
+    verify(mockBatchHelper, times(3)).queue(
+        eq(mockStorageObjectsGet),
+        Matchers.<JsonBatchCallback<StorageObject>>anyObject());
+    verify(mockBatchHelper, times(1)).flush();
+    verify(mockErrorExtractor, times(2))
+        .itemNotFound(any(GoogleJsonError.class));
+
+    // Check logical contents after all the "verify" calls, otherwise the
+    // mock verifications won't be executed and we'll have misleading
+    // "NoInteractionsWanted" errors.
+
+    // Only one of our three directory objects existed.
+    assertEquals(1, objectInfos.size());
+
+    GoogleCloudStorageItemInfo listedInfo = objectInfos.get(0);
+    assertEquals(fakeObject1.getName(), listedInfo.getObjectName());
+    assertEquals(fakeObject1.getUpdated().getValue(),
+        listedInfo.getCreationTime());
+    assertEquals(fakeObject1.getSize().longValue(), listedInfo.getSize());
   }
 
   /**
