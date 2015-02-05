@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -28,6 +29,8 @@ import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
 
@@ -77,13 +80,15 @@ public class BigQueryHelperTest {
 
     // Create fake job reference.
     JobReference fakeJobReference = new JobReference();
+    fakeJobReference.setProjectId(jobProjectId);
     fakeJobReference.setJobId(jobId);
 
     // Create the job result.
-    jobHandle = new Job();
     jobStatus = new JobStatus();
     jobStatus.setState("DONE");
     jobStatus.setErrorResult(null);
+
+    jobHandle = new Job();
     jobHandle.setStatus(jobStatus);
     jobHandle.setJobReference(fakeJobReference);
 
@@ -91,7 +96,7 @@ public class BigQueryHelperTest {
     when(mockBigquery.jobs()).thenReturn(mockBigqueryJobs);
 
     // Mock getting Bigquery job.
-    when(mockBigqueryJobs.get(jobProjectId, fakeJobReference.getJobId()))
+    when(mockBigqueryJobs.get(any(String.class), any(String.class)))
         .thenReturn(mockBigqueryJobsGet);
 
     // Mock inserting Bigquery job.
@@ -137,7 +142,15 @@ public class BigQueryHelperTest {
   public void testExportBigQueryToGcsSingleShardAwaitCompletion() throws IOException,
       InterruptedException {
     when(mockBigqueryTablesGet.execute()).thenReturn(fakeTable);
-    when(mockBigqueryJobsInsert.execute()).thenReturn(jobHandle);
+
+    final ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    doAnswer(new Answer<Job>() {
+      @Override
+      public Job answer(InvocationOnMock invocationOnMock) throws Throwable {
+        verify(mockBigqueryJobs, times(1)).insert(eq(jobProjectId), jobCaptor.capture());
+        return jobCaptor.getValue();
+      }
+    }).when(mockBigqueryJobsInsert).execute();
     when(mockBigqueryJobsGet.execute()).thenReturn(jobHandle);
 
     // Run exportBigQueryToGCS method.
@@ -148,9 +161,9 @@ public class BigQueryHelperTest {
     verify(mockBigquery, times(2)).jobs();
 
     // Verify correct calls to BigQuery.Jobs are made.
-    verify(mockBigqueryJobs, times(1)).get(eq(jobProjectId), eq(jobId));
-    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    verify(mockBigqueryJobs, times(1)).insert(eq(jobProjectId), jobCaptor.capture());
+    verify(mockBigqueryJobs, times(1)).get(
+        eq(jobProjectId),
+        eq(jobCaptor.getValue().getJobReference().getJobId()));
     Job job = jobCaptor.getValue();
     assertEquals("test-export-path",
         job.getConfiguration().getExtract().getDestinationUris().get(0));
@@ -160,7 +173,6 @@ public class BigQueryHelperTest {
     verify(mockBigqueryJobsGet, times(1)).execute();
 
     // Verify correct calls to BigQuery.Jobs.Insert are made.
-    verify(mockBigqueryJobsInsert, times(1)).setProjectId(eq(jobProjectId));
     verify(mockBigqueryJobsInsert, times(1)).execute();
   }
   
@@ -255,4 +267,63 @@ public class BigQueryHelperTest {
     verify(mockErrorExtractor, times(1)).itemNotFound(eq(fakeUnhandledException));
   }
 
+  @Test
+  public void testInsertJobOrFetchDuplicateBasicInsert() throws IOException {
+    when(mockBigqueryJobsInsert.execute()).thenReturn(jobHandle);
+
+    assertEquals(jobHandle, helper.insertJobOrFetchDuplicate(jobProjectId, jobHandle));
+
+    verify(mockBigquery, times(1)).jobs();
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    verify(mockBigqueryJobs, times(1)).insert(eq(jobProjectId), jobCaptor.capture());
+    Job job = jobCaptor.getValue();
+    assertEquals(jobHandle, job);
+    verify(mockBigqueryJobsInsert, times(1)).execute();
+  }
+
+  @Test
+  public void testInsertJobOrFetchDuplicateAlreadyExistsException() throws IOException {
+    IOException fakeConflictException = new IOException("fake 409 conflict");
+    when(mockBigqueryJobsInsert.execute())
+        .thenThrow(fakeConflictException);
+    when(mockErrorExtractor.itemAlreadyExists(any(IOException.class)))
+        .thenReturn(true);
+    when(mockBigqueryJobsGet.execute()).thenReturn(jobHandle);
+
+    assertEquals(jobHandle, helper.insertJobOrFetchDuplicate(jobProjectId, jobHandle));
+
+    verify(mockBigquery, times(2)).jobs();
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    verify(mockBigqueryJobs, times(1)).insert(eq(jobProjectId), jobCaptor.capture());
+    Job job = jobCaptor.getValue();
+    assertEquals(jobHandle, job);
+    verify(mockBigqueryJobsInsert, times(1)).execute();
+    verify(mockBigqueryJobs, times(1)).get(eq(jobProjectId), eq(jobId));
+    verify(mockBigqueryJobsGet, times(1)).execute();
+    verify(mockErrorExtractor).itemAlreadyExists(eq(fakeConflictException));
+  }
+
+  @Test
+  public void testInsertJobOrFetchDuplicateUnhandledException() throws IOException {
+    IOException unhandledException = new IOException("unhandled exception");
+    when(mockBigqueryJobsInsert.execute())
+        .thenThrow(unhandledException);
+    when(mockErrorExtractor.itemAlreadyExists(any(IOException.class)))
+        .thenReturn(false);
+
+    try {
+      helper.insertJobOrFetchDuplicate(jobProjectId, jobHandle);
+      fail("Expected IOException on insertJobOrFetchDuplicate, got no exception.");
+    } catch (IOException ioe) {
+      assertEquals(unhandledException, ioe);
+    }
+
+    verify(mockBigquery, times(1)).jobs();
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    verify(mockBigqueryJobs, times(1)).insert(eq(jobProjectId), jobCaptor.capture());
+    Job job = jobCaptor.getValue();
+    assertEquals(jobHandle, job);
+    verify(mockBigqueryJobsInsert, times(1)).execute();
+    verify(mockErrorExtractor).itemAlreadyExists(eq(unhandledException));
+  }
 }

@@ -12,8 +12,8 @@
      improves performance and reduces the number of "load" jobs over the course
      of a mapreduce; it is now equal to the number of reduce tasks, rather than
      being equal to the total output_size divided by the batch_size.
-  3. All 'load' jobs now supply client-generated job_ids and handle 409
-     conflict as a duplicate job caused by low-level retries.
+  3. All BigQuery job insertions now supply client-generated job_ids and
+     handle 409 conflict as a duplicate job caused by low-level retries.
 
 
 0.5.1 - 2015-01-22

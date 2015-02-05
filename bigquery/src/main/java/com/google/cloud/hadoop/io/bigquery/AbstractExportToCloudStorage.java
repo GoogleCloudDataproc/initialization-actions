@@ -1,6 +1,5 @@
 package com.google.cloud.hadoop.io.bigquery;
 
-import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -27,7 +26,7 @@ public abstract class AbstractExportToCloudStorage implements Export {
   protected final Configuration configuration;
   protected final String gcsPath;
   protected final ExportFileFormat fileFormat;
-  protected final Bigquery bigqueryClient;
+  protected final BigQueryHelper bigQueryHelper;
   protected final String projectId;
   protected final TableReference tableToExport;
   protected JobReference exportJobReference;
@@ -36,13 +35,13 @@ public abstract class AbstractExportToCloudStorage implements Export {
       Configuration configuration,
       String gcsPath,
       ExportFileFormat fileFormat,
-      Bigquery bigQueryClient,
+      BigQueryHelper bigQueryHelper,
       String projectId,
       TableReference tableToExport) {
     this.configuration = configuration;
     this.gcsPath = gcsPath;
     this.fileFormat = fileFormat;
-    this.bigqueryClient = bigQueryClient;
+    this.bigQueryHelper = bigQueryHelper;
     this.projectId = projectId;
     this.tableToExport = tableToExport;
   }
@@ -64,8 +63,6 @@ public abstract class AbstractExportToCloudStorage implements Export {
   @Override
   public void beginExport() throws IOException {
     // Create job and configuration.
-    Job job = new Job();
-    JobConfiguration config = new JobConfiguration();
     JobConfigurationExtract extractConfig = new JobConfigurationExtract();
 
     // Set source.
@@ -74,14 +71,22 @@ public abstract class AbstractExportToCloudStorage implements Export {
     // Set destination.
     extractConfig.setDestinationUris(getExportPaths());
     extractConfig.set(DESTINATION_FORMAT_KEY, fileFormat.getFormatIdentifier());
+
+    JobConfiguration config = new JobConfiguration();
     config.setExtract(extractConfig);
+
+    JobReference jobReference =
+        bigQueryHelper.createJobReference(projectId, "exporttocloudstorage");
+
+    Job job = new Job();
     job.setConfiguration(config);
+    job.setJobReference(jobReference);
 
     // Insert and run job.
-    Bigquery.Jobs.Insert insert = null;
     try {
-      insert = bigqueryClient.jobs().insert(projectId, job);
-      exportJobReference = insert.execute().getJobReference();
+      Job response = bigQueryHelper.insertJobOrFetchDuplicate(projectId, job);
+      log.debug("Got response '%s'", response);
+      exportJobReference = response.getJobReference();
     } catch (IOException e) {
       String error = String.format(
           "Error while exporting table %s", BigQueryStrings.toString(tableToExport));

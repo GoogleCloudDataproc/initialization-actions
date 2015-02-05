@@ -1,7 +1,6 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.api.services.bigquery.Bigquery;
-import com.google.api.services.bigquery.Bigquery.Jobs.Insert;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.api.services.bigquery.model.Job;
@@ -218,19 +217,8 @@ public class BigQueryOutputCommitter
     // Run the job.
     log.debug("commitTask: Running table copy from %s to %s",
         BigQueryStrings.toString(tempTableRef), BigQueryStrings.toString(finalTableRef));
-    Insert insert = bigQueryHelper.getRawBigquery().jobs().insert(projectId, job);
-    try {
-      Job response = insert.execute();
-      bigQueryHelper.checkJobIdEquality(job, response);
-    } catch (IOException ioe) {
-      if (errorExtractor.itemAlreadyExists(ioe)) {
-        log.info(String.format(
-            "Continuing normally after catching exception for duplicate jobId '%s'",
-            jobReference.getJobId(), ioe));
-      } else {
-        throw ioe;
-      }
-    }
+    Job response = bigQueryHelper.insertJobOrFetchDuplicate(projectId, job);
+    log.debug("Got response '%s'", response);
 
     // Poll until job is complete.
     try {

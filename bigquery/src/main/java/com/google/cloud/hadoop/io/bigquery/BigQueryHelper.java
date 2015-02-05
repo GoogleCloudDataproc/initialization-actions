@@ -69,8 +69,6 @@ public class BigQueryHelper {
         BigQueryStrings.toString(tableRef), gcsPaths.size(), gcsPaths.get(0), awaitCompletion);
 
     // Create job and configuration.
-    Job job = new Job();
-    JobConfiguration config = new JobConfiguration();
     JobConfigurationExtract extractConfig = new JobConfigurationExtract();
 
     // Set source.
@@ -79,13 +77,18 @@ public class BigQueryHelper {
     // Set destination.
     extractConfig.setDestinationUris(gcsPaths);
     extractConfig.set("destinationFormat", "NEWLINE_DELIMITED_JSON");
+
+    JobConfiguration config = new JobConfiguration();
     config.setExtract(extractConfig);
+
+    JobReference jobReference = createJobReference(projectId, "direct-bigqueryhelper-export");
+
+    Job job = new Job();
     job.setConfiguration(config);
+    job.setJobReference(jobReference);
 
     // Insert and run job.
-    Insert insert = service.jobs().insert(projectId, job);
-    insert.setProjectId(projectId);
-    JobReference jobReference = insert.execute().getJobReference();
+    insertJobOrFetchDuplicate(projectId, job);
 
     // Create anonymous Progressable object
     Progressable progressable = new Progressable() {
@@ -179,6 +182,39 @@ public class BigQueryHelper {
         && actual.getJobReference().getJobId().equals(expected.getJobReference().getJobId()),
         "jobIds must match in '[expected|actual].getJobReference()' (got '%s' vs '%s')",
         expected.getJobReference(), actual.getJobReference());
+  }
+
+  /**
+   * Tries to run jobs().insert(...) with the provided {@code projectId} and {@code job}, which
+   * returns a {@code Job} under normal operation, which is then returned from this method.
+   * In case of an exception being thrown, if the cause was "409 conflict", then we issue a
+   * separate "jobs().get(...)" request and return the results of that fetch instead.
+   * Other exceptions propagate out as normal.
+   */
+  public Job insertJobOrFetchDuplicate(String projectId, Job job) throws IOException {
+    Preconditions.checkArgument(
+        job.getJobReference() != null && job.getJobReference().getJobId() != null,
+        "Require non-null JobReference and JobId inside; getJobReference() == '%s'",
+        job.getJobReference());
+    Insert insert = service.jobs().insert(projectId, job);
+    Job response = null;
+    try {
+      response = insert.execute();
+      log.debug("Successfully inserted job '%s'. Response: '%s'", job, response);
+    } catch (IOException ioe) {
+      if (errorExtractor.itemAlreadyExists(ioe)) {
+        log.info(String.format(
+            "Fetching existing job after catching exception for duplicate jobId '%s'",
+            job.getJobReference().getJobId(), ioe));
+        response = service.jobs().get(projectId, job.getJobReference().getJobId()).execute();
+      } else {
+        log.info(String.format(
+            "Unhandled exception trying to insert job '%s'", job), ioe);
+        throw ioe;
+      }
+    }
+    checkJobIdEquality(job, response);
+    return response;
   }
 
   @VisibleForTesting

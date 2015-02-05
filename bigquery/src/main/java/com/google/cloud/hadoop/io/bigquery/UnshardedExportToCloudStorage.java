@@ -1,6 +1,5 @@
 package com.google.cloud.hadoop.io.bigquery;
 
-import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Preconditions;
@@ -30,10 +29,10 @@ public class UnshardedExportToCloudStorage extends AbstractExportToCloudStorage 
       Configuration configuration,
       String gcsPath,
       ExportFileFormat fileFormat,
-      Bigquery bigqueryClient,
+      BigQueryHelper bigQueryHelper,
       String projectId,
       TableReference tableToExport) {
-    this(configuration, gcsPath, fileFormat, bigqueryClient, projectId, tableToExport,
+    this(configuration, gcsPath, fileFormat, bigQueryHelper, projectId, tableToExport,
         new TextInputFormat());
   }
 
@@ -41,11 +40,11 @@ public class UnshardedExportToCloudStorage extends AbstractExportToCloudStorage 
       Configuration configuration,
       String gcsPath,
       ExportFileFormat fileFormat,
-      Bigquery bigqueryClient,
+      BigQueryHelper bigQueryHelper,
       String projectId,
       TableReference tableToExport,
       InputFormat delegateInputFormat) {
-    super(configuration, gcsPath, fileFormat, bigqueryClient, projectId, tableToExport);
+    super(configuration, gcsPath, fileFormat, bigQueryHelper, projectId, tableToExport);
     this.delegateInputFormat = delegateInputFormat;
   }
 
@@ -73,7 +72,7 @@ public class UnshardedExportToCloudStorage extends AbstractExportToCloudStorage 
           "beginExport() must be called before waitForUsableMapReduceInput()");
 
       BigQueryUtils.waitForJobCompletion(
-          bigqueryClient,
+          bigQueryHelper.getRawBigquery(),
           projectId,
           exportJobReference,
           new Progressable() {

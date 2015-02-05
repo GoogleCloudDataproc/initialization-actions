@@ -403,35 +403,34 @@ public class BigQueryOutputCommitterTest {
     job.setJobReference(jobReference);
 
     // Mock the return of the commit task method calls.
-    when(mockBigqueryJobsInsert.execute()).thenReturn(job);
     when(mockBigqueryJobsGet.execute()).thenReturn(job);
 
     when(mockTaskAttemptContext.getTaskAttemptID())
         .thenReturn(fakeTaskId);
     when(mockBigQueryHelper.createJobReference(any(String.class), any(String.class)))
         .thenReturn(jobReference);
+    when(mockBigQueryHelper.insertJobOrFetchDuplicate(any(String.class), any(Job.class)))
+        .thenReturn(job);
 
     // Run method and verify calls.
     committerInstance.commitTask(mockTaskAttemptContext);
 
-    verify(mockBigquery, times(2)).jobs();
+    verify(mockBigquery, times(1)).jobs();
 
     // Verify the contents of the Job.
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-    verify(mockBigqueryJobs).insert(eq(JOB_PROJECT_ID), jobCaptor.capture());
+    verify(mockBigQueryHelper).insertJobOrFetchDuplicate(eq(JOB_PROJECT_ID), jobCaptor.capture());
     Job capturedJob = jobCaptor.getValue();
     assertEquals(tempTableRef, capturedJob.getConfiguration().getCopy().getSourceTable());
     assertEquals(finalTableRef, capturedJob.getConfiguration().getCopy().getDestinationTable());
 
-    verify(mockBigqueryJobsInsert).execute();
     verify(mockBigqueryJobs).get(JOB_PROJECT_ID, jobReference.getJobId());
     verify(mockBigqueryJobsGet).execute();
     verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
 
-    verify(mockTaskAttemptContext).getTaskAttemptID();
+    verify(mockTaskAttemptContext, atLeastOnce()).getTaskAttemptID();
     verify(mockBigQueryHelper).createJobReference(
         eq(JOB_PROJECT_ID), eq(fakeTaskId.toString()));
-    verify(mockBigQueryHelper).checkJobIdEquality(any(Job.class), any(Job.class));
   }
 
   /**
@@ -449,72 +448,27 @@ public class BigQueryOutputCommitterTest {
     job.setJobReference(jobReference);
 
     // Mock the return of the commit task method calls.
-    when(mockBigqueryJobsInsert.execute()).thenReturn(job);
     when(mockBigqueryJobsGet.execute()).thenReturn(job);
 
     when(mockTaskAttemptContext.getTaskAttemptID())
         .thenReturn(fakeTaskId);
     when(mockBigQueryHelper.createJobReference(any(String.class), any(String.class)))
         .thenReturn(jobReference);
+    when(mockBigQueryHelper.insertJobOrFetchDuplicate(any(String.class), any(Job.class)))
+        .thenReturn(job);
 
     // Run method and verify calls.
     committerInstance.commitTask(mockTaskAttemptContext);
 
-    verify(mockBigquery, times(2)).jobs();
-    verify(mockBigqueryJobs).insert(eq(JOB_PROJECT_ID), any(Job.class));
-    verify(mockBigqueryJobsInsert).execute();
+    verify(mockBigquery, times(1)).jobs();
+    verify(mockBigQueryHelper).insertJobOrFetchDuplicate(eq(JOB_PROJECT_ID), any(Job.class));
     verify(mockBigqueryJobs).get(JOB_PROJECT_ID, jobReference.getJobId());
     verify(mockBigqueryJobsGet).execute();
     verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
 
-    verify(mockTaskAttemptContext).getTaskAttemptID();
+    verify(mockTaskAttemptContext, atLeastOnce()).getTaskAttemptID();
     verify(mockBigQueryHelper).createJobReference(
         eq(JOB_PROJECT_ID), eq(fakeTaskId.toString()));
-    verify(mockBigQueryHelper).checkJobIdEquality(any(Job.class), any(Job.class));
-
-  }
-
-  /**
-   * Tests the commitTask method of BigQueryOutputFormat with "409 conflict" thrown on insert.
-   */
-  @Test
-  public void testCommitTaskAlreadyExistsException() 
-      throws IOException {
-    // Create the job result to return.
-    Job job = new Job();
-    JobStatus jobStatus = new JobStatus();
-    jobStatus.setState("DONE");
-    jobStatus.setErrorResult(null);
-    job.setStatus(jobStatus);
-    job.setJobReference(jobReference);
-
-    // Mock the return of the commit task method calls.
-    IOException fakeConflictException = new IOException("fake 409 conflict");
-    when(mockBigqueryJobsInsert.execute())
-        .thenThrow(fakeConflictException);
-    when(mockErrorExtractor.itemAlreadyExists(any(IOException.class)))
-        .thenReturn(true);
-    when(mockBigqueryJobsGet.execute()).thenReturn(job);
-
-    when(mockTaskAttemptContext.getTaskAttemptID())
-        .thenReturn(fakeTaskId);
-    when(mockBigQueryHelper.createJobReference(any(String.class), any(String.class)))
-        .thenReturn(jobReference);
-
-    // Run method and verify calls.
-    committerInstance.commitTask(mockTaskAttemptContext);
-
-    verify(mockBigquery, times(2)).jobs();
-    verify(mockBigqueryJobs).insert(eq(JOB_PROJECT_ID), any(Job.class));
-    verify(mockBigqueryJobsInsert).execute();
-    verify(mockBigqueryJobs).get(JOB_PROJECT_ID, jobReference.getJobId());
-    verify(mockBigqueryJobsGet).execute();
-    verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
-
-    verify(mockTaskAttemptContext).getTaskAttemptID();
-    verify(mockBigQueryHelper).createJobReference(
-        eq(JOB_PROJECT_ID), eq(fakeTaskId.toString()));
-    verify(mockErrorExtractor).itemAlreadyExists(eq(fakeConflictException));
   }
 
   /**
@@ -523,17 +477,13 @@ public class BigQueryOutputCommitterTest {
   @Test
   public void testCommitTaskUnhandledException() 
       throws IOException {
-    // Mock the return of the commit task method calls.
-    IOException fakeUnhandledException = new IOException("fake unhandled exception");
-    when(mockBigqueryJobsInsert.execute())
-        .thenThrow(fakeUnhandledException);
-    when(mockErrorExtractor.itemAlreadyExists(any(IOException.class)))
-        .thenReturn(false);
-
     when(mockTaskAttemptContext.getTaskAttemptID())
         .thenReturn(fakeTaskId);
     when(mockBigQueryHelper.createJobReference(any(String.class), any(String.class)))
         .thenReturn(jobReference);
+    IOException fakeUnhandledException = new IOException("fake unhandled exception");
+    when(mockBigQueryHelper.insertJobOrFetchDuplicate(any(String.class), any(Job.class)))
+        .thenThrow(fakeUnhandledException);
 
     // Run method and verify calls.
     try {
@@ -543,15 +493,10 @@ public class BigQueryOutputCommitterTest {
       assertEquals(fakeUnhandledException, ioe);
     }
 
-    verify(mockBigquery, times(1)).jobs();
-    verify(mockBigqueryJobs).insert(eq(JOB_PROJECT_ID), any(Job.class));
-    verify(mockBigqueryJobsInsert).execute();
-    verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
-
-    verify(mockTaskAttemptContext).getTaskAttemptID();
+    verify(mockBigQueryHelper).insertJobOrFetchDuplicate(eq(JOB_PROJECT_ID), any(Job.class));
+    verify(mockTaskAttemptContext, atLeastOnce()).getTaskAttemptID();
     verify(mockBigQueryHelper).createJobReference(
         eq(JOB_PROJECT_ID), eq(fakeTaskId.toString()));
-    verify(mockErrorExtractor).itemAlreadyExists(eq(fakeUnhandledException));
   }
 
   /**

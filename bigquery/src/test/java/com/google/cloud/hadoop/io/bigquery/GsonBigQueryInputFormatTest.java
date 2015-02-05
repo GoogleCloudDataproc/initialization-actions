@@ -6,7 +6,6 @@ import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -22,6 +21,7 @@ import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
 import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.collect.ImmutableList;
+import com.google.gson.JsonObject;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -41,7 +41,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mockito;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 import java.io.IOException;
 import java.math.BigInteger;
@@ -73,13 +74,16 @@ public class GsonBigQueryInputFormatTest {
   private String intermediateTable = "test_table";
 
   // Misc mocks for Bigquery auto-generated API objects.
-  private Bigquery mockBigquery;
-  private Bigquery.Jobs mockBigqueryJobs;
-  private Bigquery.Jobs.Get mockBigqueryJobsGet;
-  private Bigquery.Jobs.Insert mockBigqueryJobsInsert;
-  private Bigquery.Tables mockBigqueryTables;
-  private Bigquery.Tables.Get mockBigqueryTablesGet;
-  private Bigquery.Tables.Delete mockBigqueryTablesDelete;
+  @Mock private Bigquery mockBigquery;
+  @Mock private Bigquery.Jobs mockBigqueryJobs;
+  @Mock private Bigquery.Jobs.Get mockBigqueryJobsGet;
+  @Mock private Bigquery.Jobs.Insert mockBigqueryJobsInsert;
+  @Mock private Bigquery.Tables mockBigqueryTables;
+  @Mock private Bigquery.Tables.Get mockBigqueryTablesGet;
+  @Mock private Bigquery.Tables.Delete mockBigqueryTablesDelete;
+  @Mock private InputFormat<LongWritable, JsonObject> mockInputFormat;
+  @Mock private TaskAttemptContext mockTaskAttemptContext;
+  @Mock private BigQueryHelper mockBigQueryHelper;
 
   // JobStatus to return for testing.
   private JobStatus jobStatus;
@@ -90,8 +94,6 @@ public class GsonBigQueryInputFormatTest {
   // Sample TableReference for BigQuery.
   private TableReference tableRef;
 
-  private InputFormat mockInputFormat;
-
   /**
    * Creates an in-memory GHFS.
    *
@@ -100,6 +102,7 @@ public class GsonBigQueryInputFormatTest {
   @Before
   public void setUp() 
       throws IOException {
+    MockitoAnnotations.initMocks(this);
     GsonBigQueryInputFormat.log.setLevel(LogUtil.Level.DEBUG);
 
     // Set the Hadoop job configuration.
@@ -124,33 +127,27 @@ public class GsonBigQueryInputFormatTest {
     ghfs = new InMemoryGoogleHadoopFileSystem();
 
     JobReference fakeJobReference = new JobReference();
+    fakeJobReference.setProjectId(jobProjectId);
     fakeJobReference.setJobId("bigquery-job-1234");
 
-    mockInputFormat = mock(InputFormat.class);
-
     // Create the job result.
-    jobHandle = new Job();
     jobStatus = new JobStatus();
     jobStatus.setState("DONE");
     jobStatus.setErrorResult(null);
+
+    jobHandle = new Job();
     jobHandle.setStatus(jobStatus);
     jobHandle.setJobReference(fakeJobReference);
 
-    // Mock BigQuery.
-    mockBigquery = mock(Bigquery.class);
-    mockBigqueryJobs = mock(Bigquery.Jobs.class);
-    mockBigqueryJobsGet = mock(Bigquery.Jobs.Get.class);
-    mockBigqueryJobsInsert = mock(Bigquery.Jobs.Insert.class);
-    mockBigqueryTables = mock(Bigquery.Tables.class);
-    mockBigqueryTablesGet = mock(Bigquery.Tables.Get.class);
-    mockBigqueryTablesDelete = mock(Bigquery.Tables.Delete.class);
+    when(mockBigQueryHelper.getRawBigquery())
+        .thenReturn(mockBigquery);
 
     // Mocks for Bigquery jobs.
     when(mockBigquery.jobs())
         .thenReturn(mockBigqueryJobs);
 
     // Mock getting Bigquery job.
-    when(mockBigqueryJobs.get(jobProjectId, fakeJobReference.getJobId()))
+    when(mockBigqueryJobs.get(any(String.class), any(String.class)))
         .thenReturn(mockBigqueryJobsGet);
     when(mockBigqueryJobsGet.execute())
         .thenReturn(jobHandle);
@@ -169,6 +166,11 @@ public class GsonBigQueryInputFormatTest {
     when(mockBigqueryTables.get(any(String.class), any(String.class), any(String.class)))
         .thenReturn(mockBigqueryTablesGet);
 
+    when(mockBigQueryHelper.createJobReference(any(String.class), any(String.class)))
+        .thenReturn(fakeJobReference);
+    when(mockBigQueryHelper.insertJobOrFetchDuplicate(any(String.class), any(Job.class)))
+        .thenReturn(jobHandle);
+
     // Create table reference.
     tableRef = new TableReference();
     tableRef.setProjectId(dataProjectId);
@@ -181,6 +183,7 @@ public class GsonBigQueryInputFormatTest {
       throws IOException {
     Path tmpPath = new Path(config.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY));
     tmpPath.getFileSystem(config).delete(tmpPath, true);
+    verifyNoMoreInteractions(mockBigQueryHelper);
   }
 
   /**
@@ -190,9 +193,8 @@ public class GsonBigQueryInputFormatTest {
   public void testCreateRecordReader() 
       throws IOException, InterruptedException {
 
-    TaskAttemptContext context = Mockito.mock(TaskAttemptContext.class);
-    Mockito.when(context.getConfiguration()).thenReturn(config);
-    Mockito.when(context.getJobID()).thenReturn(new JobID());
+    when(mockTaskAttemptContext.getConfiguration()).thenReturn(config);
+    when(mockTaskAttemptContext.getJobID()).thenReturn(new JobID());
 
     // Write values to file.
     ByteBuffer buffer = GsonRecordReaderTest.stringToBytebuffer(value1 + "\n" + value2 + "\n");
@@ -206,7 +208,7 @@ public class GsonBigQueryInputFormatTest {
     GsonBigQueryInputFormat gsonBigQueryInputFormat = new GsonBigQueryInputFormat();
     GsonRecordReader recordReader =
         (GsonRecordReader) gsonBigQueryInputFormat.createRecordReader(bqInputSplit, config);
-    recordReader.initialize(bqInputSplit, context);
+    recordReader.initialize(bqInputSplit, mockTaskAttemptContext);
 
     // Verify BigQueryRecordReader set as expected.
     assertEquals(true, recordReader.nextKeyValue());
@@ -222,11 +224,14 @@ public class GsonBigQueryInputFormatTest {
       throws IOException, InterruptedException {
 
     // Run runQuery method.
-    QueryBasedExport.runQuery(mockBigquery, jobProjectId, tableRef, "test");
+    QueryBasedExport.runQuery(mockBigQueryHelper, jobProjectId, tableRef, "test");
 
     // Verify correct calls to BigQuery are made.
-    verify(mockBigqueryJobs).insert(any(String.class), any(Job.class));
-    verify(mockBigqueryJobsInsert).execute();
+    verify(mockBigQueryHelper, times(1)).createJobReference(
+        eq(jobProjectId), any(String.class));
+    verify(mockBigQueryHelper, times(1))
+        .insertJobOrFetchDuplicate(eq(jobProjectId), any(Job.class));
+    verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
   }
 
   /**
@@ -241,7 +246,7 @@ public class GsonBigQueryInputFormatTest {
     Table fakeTable = new Table()
         .setNumRows(BigInteger.valueOf(99999L))
         .setNumBytes(1024L * 1024 * 1024 * 8);
-    when(mockBigqueryTablesGet.execute())
+    when(mockBigQueryHelper.getTable(any(TableReference.class)))
         .thenReturn(fakeTable);
 
     // If the hinted map.tasks is smaller than the estimated number of files, then we defer
@@ -271,9 +276,8 @@ public class GsonBigQueryInputFormatTest {
               return new LineRecordReader();
             }
           });
-      TaskAttemptContext context = Mockito.mock(TaskAttemptContext.class);
-      Mockito.when(context.getConfiguration()).thenReturn(config);
-      reader.initialize(splits.get(i), context);
+      when(mockTaskAttemptContext.getConfiguration()).thenReturn(config);
+      reader.initialize(splits.get(i), mockTaskAttemptContext);
       Path shardDir = ((ShardedInputSplit) splits.get(i))
           .getShardDirectoryAndPattern()
           .getParent();
@@ -282,14 +286,16 @@ public class GsonBigQueryInputFormatTest {
     }
 
     // Verify correct calls to BigQuery are made.
-    verify(mockBigqueryJobs, times(2)).insert(any(String.class), any(Job.class));
-    verify(mockBigqueryJobsInsert, times(2)).execute();
+    verify(mockBigQueryHelper, times(2)).createJobReference(
+        eq(jobProjectId), any(String.class));
+    verify(mockBigQueryHelper, times(2))
+        .insertJobOrFetchDuplicate(eq(jobProjectId), any(Job.class));
 
     // Make sure we didn't try to delete the table in sharded mode even though
     // DELETE_INTERMEDIATE_TABLE_KEY is true and we had a query.
-    verify(mockBigqueryTables, times(1)).get(
-        eq(dataProjectId), eq("test_dataset"), eq("test_table"));
+    verify(mockBigQueryHelper, times(1)).getTable(eq(tableRef));
     verifyNoMoreInteractions(mockBigqueryTables);
+    verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
   }
 
   @Test
@@ -301,7 +307,7 @@ public class GsonBigQueryInputFormatTest {
     Table fakeTable = new Table()
         .setNumRows(BigInteger.valueOf(2L))
         .setNumBytes(1L);
-    when(mockBigqueryTablesGet.execute())
+    when(mockBigQueryHelper.getTable(any(TableReference.class)))
         .thenReturn(fakeTable);
 
     // If the hinted map.tasks is smaller than the estimated number of files, then we defer
@@ -325,14 +331,16 @@ public class GsonBigQueryInputFormatTest {
     }
 
     // Verify correct calls to BigQuery are made.
-    verify(mockBigqueryJobs, times(2)).insert(any(String.class), any(Job.class));
-    verify(mockBigqueryJobsInsert, times(2)).execute();
+    verify(mockBigQueryHelper, times(2)).createJobReference(
+        eq(jobProjectId), any(String.class));
+    verify(mockBigQueryHelper, times(2))
+        .insertJobOrFetchDuplicate(eq(jobProjectId), any(Job.class));
 
     // Make sure we didn't try to delete the table in sharded mode even though
     // DELETE_INTERMEDIATE_TABLE_KEY is true and we had a query.
-    verify(mockBigqueryTables, times(1)).get(
-        eq(dataProjectId), eq("test_dataset"), eq("test_table"));
+    verify(mockBigQueryHelper, times(1)).getTable(eq(tableRef));
     verifyNoMoreInteractions(mockBigqueryTables);
+    verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
   }
 
   @Test
@@ -344,7 +352,7 @@ public class GsonBigQueryInputFormatTest {
     Table fakeTable = new Table()
         .setNumRows(BigInteger.valueOf(9999999L))
         .setNumBytes(1024L * 1024 * 1024 * 1024 * 8);
-    when(mockBigqueryTablesGet.execute())
+    when(mockBigQueryHelper.getTable(any(TableReference.class)))
         .thenReturn(fakeTable);
 
     // Set the hint to a value larger than the maximum number of shards allowed by the service.
@@ -368,8 +376,12 @@ public class GsonBigQueryInputFormatTest {
     }
 
     // Verify correct calls to BigQuery are made.
-    verify(mockBigqueryJobs, times(2)).insert(any(String.class), any(Job.class));
-    verify(mockBigqueryJobsInsert, times(2)).execute();
+    verify(mockBigQueryHelper, times(2)).createJobReference(
+        eq(jobProjectId), any(String.class));
+    verify(mockBigQueryHelper, times(2))
+        .insertJobOrFetchDuplicate(eq(jobProjectId), any(Job.class));
+    verify(mockBigQueryHelper, times(1)).getTable(eq(tableRef));
+    verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
   }
 
   /**
@@ -379,12 +391,6 @@ public class GsonBigQueryInputFormatTest {
   public void testGetSplitsUnshardedBlocking()
       throws IOException, InterruptedException {
     config.setBoolean(BigQueryConfiguration.ENABLE_SHARDED_EXPORT_KEY, false);
-
-    Table fakeTable = new Table()
-        .setNumRows(BigInteger.valueOf(3L))
-        .setNumBytes(1024L);
-    when(mockBigqueryTablesGet.execute())
-        .thenReturn(fakeTable);
 
     BigQueryJobWrapper wrapper = new BigQueryJobWrapper(config);
     wrapper.setJobID(new JobID());
@@ -402,7 +408,7 @@ public class GsonBigQueryInputFormatTest {
             config,
             AbstractBigQueryInputFormat.extractExportPathRoot(config, new JobID()),
             ExportFileFormat.LINE_DELIMITED_JSON,
-            mockBigquery,
+            mockBigQueryHelper,
             jobProjectId,
             tableRef,
             mockInputFormat);
@@ -412,7 +418,7 @@ public class GsonBigQueryInputFormatTest {
             exportToCloudStorage,
             config.get(BigQueryConfiguration.INPUT_QUERY_KEY),
             jobProjectId,
-            mockBigquery,
+            mockBigQueryHelper,
             tableRef,
             false /* Dont delete intermediate */);
 
@@ -426,8 +432,13 @@ public class GsonBigQueryInputFormatTest {
         config.get("mapred.input.dir"));
 
     // Verify correct calls to BigQuery are made.
-    verify(mockBigqueryJobs, times(2)).insert(any(String.class), any(Job.class));
-    verify(mockBigqueryJobsInsert, times(2)).execute();
+    verify(mockBigQueryHelper, times(2)).createJobReference(
+        eq(jobProjectId), any(String.class));
+    verify(mockBigQueryHelper, times(2))
+        .insertJobOrFetchDuplicate(eq(jobProjectId), any(Job.class));
+
+    verifyNoMoreInteractions(mockBigqueryTables);
+    verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
   }
 
   /**
@@ -485,7 +496,7 @@ public class GsonBigQueryInputFormatTest {
     assertTrue(fs.exists(dataFile));
 
     // Run method and verify calls.
-    GsonBigQueryInputFormat.cleanupJob(mockBigquery, config);
+    GsonBigQueryInputFormat.cleanupJob(mockBigQueryHelper, config);
     assertTrue(!fs.exists(tempPath));
     assertTrue(!fs.exists(dataFile));
 
@@ -494,6 +505,12 @@ public class GsonBigQueryInputFormatTest {
     verify(mockBigqueryTables)
         .delete(eq(dataProjectId), eq(intermediateDataset), eq(intermediateTable));
     verify(mockBigqueryTablesDelete).execute();
+
+    // The getTable in constructor of ShardedExportToCloudStorage.
+    verify(mockBigQueryHelper, times(1)).getTable(eq(tableRef));
+
+    // To make the low-level "delete" call.
+    verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
   }
 
   /**
@@ -524,15 +541,21 @@ public class GsonBigQueryInputFormatTest {
     assertTrue(fs.exists(dataFile));
 
     // Run method and verify calls.
-    GsonBigQueryInputFormat.cleanupJob(mockBigquery, config);
+    GsonBigQueryInputFormat.cleanupJob(mockBigQueryHelper, config);
     assertTrue(fs.exists(tempPath));
     assertTrue(fs.exists(dataFile));
 
     // Verify calls to delete temporary table.
-    verify(mockBigquery, times(2)).tables();
+    verify(mockBigquery, times(1)).tables();
     verify(mockBigqueryTables)
         .delete(eq(dataProjectId), eq(intermediateDataset), eq(intermediateTable));
     verify(mockBigqueryTablesDelete).execute();
+
+    // The getTable in constructor of ShardedExportToCloudStorage.
+    verify(mockBigQueryHelper, times(1)).getTable(eq(tableRef));
+
+    // To make the low-level "delete" call.
+    verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
   }
 
   /**
@@ -546,6 +569,9 @@ public class GsonBigQueryInputFormatTest {
     config.setBoolean(BigQueryConfiguration.DELETE_EXPORT_FILES_FROM_GCS_KEY, true);
     config.setBoolean(BigQueryConfiguration.ENABLE_SHARDED_EXPORT_KEY, true);
 
+    when(mockBigQueryHelper.getTable(any(TableReference.class)))
+        .thenReturn(new Table());
+
     Path tempPath = new Path(config.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY));
     FileSystem fs = tempPath.getFileSystem(config);
     fs.mkdirs(tempPath);
@@ -555,14 +581,13 @@ public class GsonBigQueryInputFormatTest {
     assertTrue(fs.exists(dataFile));
 
     // Run method and verify calls.
-    GsonBigQueryInputFormat.cleanupJob(mockBigquery, config);
+    GsonBigQueryInputFormat.cleanupJob(mockBigQueryHelper, config);
 
     assertTrue(!fs.exists(tempPath));
     assertTrue(!fs.exists(dataFile));
 
-    verify(mockBigquery).tables();
-    verify(mockBigqueryTables).get(
-        eq(dataProjectId), eq(intermediateDataset), eq(intermediateTable));
+    // The getTable in constructor of ShardedExportToCloudStorage.
+    verify(mockBigQueryHelper, times(1)).getTable(eq(tableRef));
 
     verifyNoMoreInteractions(mockBigquery, mockBigqueryTables);
   }
@@ -595,7 +620,7 @@ public class GsonBigQueryInputFormatTest {
         .thenReturn(mockBigqueryTablesDelete);
 
     // Run method and verify calls.
-    GsonBigQueryInputFormat.cleanupJob(mockBigquery, config);
+    GsonBigQueryInputFormat.cleanupJob(mockBigQueryHelper, config);
 
     assertTrue(!fs.exists(tempPath));
     assertTrue(!fs.exists(dataFile));
@@ -604,6 +629,9 @@ public class GsonBigQueryInputFormatTest {
     verify(mockBigqueryTables).delete(
         eq(dataProjectId), eq(intermediateDataset), eq(intermediateTable));
     verify(mockBigqueryTablesDelete).execute();
+
+    // To make the low-level "delete" call.
+    verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
 
     verifyNoMoreInteractions(mockBigquery);
   }
@@ -618,6 +646,12 @@ public class GsonBigQueryInputFormatTest {
         throws GeneralSecurityException, IOException {
       return mockBigquery;
     }
+
+    @Override
+    public BigQueryHelper getBigQueryHelper(Configuration config)
+        throws GeneralSecurityException, IOException {
+      return mockBigQueryHelper;
+    }
   }
 
   /**
@@ -627,6 +661,12 @@ public class GsonBigQueryInputFormatTest {
     extends GsonBigQueryInputFormat {
     @Override
     public Bigquery getBigQuery(Configuration config)
+        throws GeneralSecurityException, IOException {
+      throw new GeneralSecurityException();
+    }
+
+    @Override
+    public BigQueryHelper getBigQueryHelper(Configuration config)
         throws GeneralSecurityException, IOException {
       throw new GeneralSecurityException();
     }

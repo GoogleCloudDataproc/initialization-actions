@@ -1,6 +1,5 @@
 package com.google.cloud.hadoop.io.bigquery;
 
-import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.hadoop.util.LogUtil;
@@ -52,15 +51,16 @@ public class ShardedExportToCloudStorage extends AbstractExportToCloudStorage {
 
   protected final Table tableMetadata;
 
-  public ShardedExportToCloudStorage(Configuration configuration, String gcsPath,
-      ExportFileFormat fileFormat, Bigquery bigqueryClient, String projectId,
+  public ShardedExportToCloudStorage(
+      Configuration configuration,
+      String gcsPath,
+      ExportFileFormat fileFormat,
+      BigQueryHelper bigQueryHelper,
+      String projectId,
       TableReference tableToExport) throws IOException {
-    super(configuration, gcsPath, fileFormat, bigqueryClient, projectId, tableToExport);
+    super(configuration, gcsPath, fileFormat, bigQueryHelper, projectId, tableToExport);
     // Fetch some metadata about the table we plan to export.
-    tableMetadata = bigqueryClient.tables().get(
-        tableToExport.getProjectId(),
-        tableToExport.getDatasetId(),
-        tableToExport.getTableId()).execute();
+    tableMetadata = bigQueryHelper.getTable(tableToExport);
   }
 
   @Override

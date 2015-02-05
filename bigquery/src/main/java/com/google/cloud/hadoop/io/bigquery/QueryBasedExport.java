@@ -25,7 +25,7 @@ public class QueryBasedExport implements Export {
   protected static final LogUtil log = new LogUtil(QueryBasedExport.class);
 
   private final String query;
-  private final Bigquery bigQueryClient;
+  private final BigQueryHelper bigQueryHelper;
   private final String projectId;
   private final TableReference tableToExport;
   private final Export delegate;
@@ -35,11 +35,11 @@ public class QueryBasedExport implements Export {
       Export delegate,
       String query,
       String projectId,
-      Bigquery bigQueryClient,
+      BigQueryHelper bigQueryHelper,
       TableReference tableToExport,
       boolean deleteIntermediateTable) {
     this.query = query;
-    this.bigQueryClient = bigQueryClient;
+    this.bigQueryHelper = bigQueryHelper;
     this.projectId = projectId;
     this.tableToExport = tableToExport;
     this.delegate = delegate;
@@ -72,7 +72,7 @@ public class QueryBasedExport implements Export {
       log.info("Invoking query '%s' and saving to '%s' before beginning export/read.",
           query, BigQueryStrings.toString(tableToExport));
       try {
-        runQuery(bigQueryClient, projectId, tableToExport, query);
+        runQuery(bigQueryHelper, projectId, tableToExport, query);
       } catch (InterruptedException ie) {
         throw new IOException(
             String.format("Interrupted during query '%s' into table '%s'",
@@ -91,7 +91,7 @@ public class QueryBasedExport implements Export {
           tableToExport.getDatasetId(),
           tableToExport.getTableId());
 
-      Bigquery.Tables tables = bigQueryClient.tables();
+      Bigquery.Tables tables = bigQueryHelper.getRawBigquery().tables();
       Bigquery.Tables.Delete delete = tables.delete(
           tableToExport.getProjectId(), tableToExport.getDatasetId(), tableToExport.getTableId());
       delete.execute();
@@ -111,14 +111,13 @@ public class QueryBasedExport implements Export {
    * @throws InterruptedException on interrupt.
    */
   @VisibleForTesting
-  static void runQuery(Bigquery bigquery, String projectId, TableReference tableRef, String query)
+  static void runQuery(
+      BigQueryHelper bigQueryHelper, String projectId, TableReference tableRef, String query)
       throws IOException, InterruptedException {
     log.debug("runQuery(bigquery, '%s', '%s', '%s')",
         projectId, BigQueryStrings.toString(tableRef), query);
 
     // Create a query statement and query request object.
-    Job job = new Job();
-    JobConfiguration config = new JobConfiguration();
     JobConfigurationQuery queryConfig = new JobConfigurationQuery();
     queryConfig.setAllowLargeResults(true);
     queryConfig.setQuery(query);
@@ -128,13 +127,19 @@ public class QueryBasedExport implements Export {
 
     // Require table to be empty.
     queryConfig.setWriteDisposition("WRITE_EMPTY");
+
+    JobConfiguration config = new JobConfiguration();
     config.setQuery(queryConfig);
+
+    JobReference jobReference = bigQueryHelper.createJobReference(projectId, "querybasedexport");
+
+    Job job = new Job();
     job.setConfiguration(config);
+    job.setJobReference(jobReference);
 
     // Run the job.
-    Bigquery.Jobs.Insert insert = bigquery.jobs().insert(projectId, job);
-    insert.setProjectId(projectId);
-    JobReference jobId = insert.execute().getJobReference();
+    Job response = bigQueryHelper.insertJobOrFetchDuplicate(projectId, job);
+    log.debug("Got response '%s'", response);
 
     // Create anonymous Progressable object
     Progressable progressable = new Progressable() {
@@ -145,7 +150,8 @@ public class QueryBasedExport implements Export {
     };
 
     // Poll until job is complete.
-    BigQueryUtils.waitForJobCompletion(bigquery, projectId, jobId, progressable);
+    BigQueryUtils.waitForJobCompletion(
+        bigQueryHelper.getRawBigquery(), projectId, jobReference, progressable);
   }
 
 }

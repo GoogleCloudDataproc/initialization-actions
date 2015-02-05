@@ -96,9 +96,9 @@ public abstract class AbstractBigQueryInputFormat<K, V>
 
     final Configuration configuration = context.getConfiguration();
     final JobID jobId = context.getJobID();
-    Bigquery bigquery = null;
+    BigQueryHelper bigQueryHelper = null;
     try {
-      bigquery = getBigQuery(configuration);
+      bigQueryHelper = getBigQueryHelper(configuration);
     } catch (GeneralSecurityException gse) {
       log.error("Failed to create BigQuery client", gse);
       throw new IOException("Failed to create BigQuery client", gse);
@@ -111,7 +111,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
         configuration,
         getExportFileFormat(),
         exportPath,
-        bigquery);
+        bigQueryHelper);
     export.prepare();
 
     // Invoke the export, maybe wait for it to complete.
@@ -162,8 +162,9 @@ public abstract class AbstractBigQueryInputFormat<K, V>
     }
   }
 
-  protected static Export constructExport(
-      Configuration configuration, ExportFileFormat format, String exportPath, Bigquery bigquery)
+  private static Export constructExport(
+      Configuration configuration, ExportFileFormat format, String exportPath,
+      BigQueryHelper bigQueryHelper)
       throws IOException {
     log.debug("contructExport() with export path %s", exportPath);
 
@@ -199,7 +200,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
           configuration,
           exportPath,
           format,
-          bigquery,
+          bigQueryHelper,
           jobProjectId,
           exportTableReference);
     } else {
@@ -207,7 +208,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
           configuration,
           exportPath,
           format,
-          bigquery,
+          bigQueryHelper,
           jobProjectId,
           exportTableReference);
     }
@@ -216,7 +217,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
       // A query was specified. In this case we want to add add prepare and cleanup steps
       // via the QueryBasedExport.
       export = new QueryBasedExport(
-          export, query, jobProjectId, bigquery, exportTableReference, deleteTableOnExit);
+          export, query, jobProjectId, bigQueryHelper, exportTableReference, deleteTableOnExit);
     }
 
     return export;
@@ -287,24 +288,25 @@ public abstract class AbstractBigQueryInputFormat<K, V>
     } catch (GeneralSecurityException gse) {
       throw new IOException("Failed to create Bigquery client", gse);
     }
-    cleanupJob(bigquery, configuration);
+    cleanupJob(new BigQueryHelper(bigquery), configuration);
   }
 
   /**
    * Similar to {@link #cleanupJob(JobContext)}, but allows specifying the Bigquery instance to use.
    *
-   * @param bigquery The Bigquery API-client instance to use.
+   * @param bigQueryHelper The Bigquery API-client helper instance to use.
    * @param config The job Configuration object which contains settings such as whether sharded
    *     export was enabled, which GCS directory the export was performed in, etc.
    */
-  public static void cleanupJob(Bigquery bigquery, Configuration config)
+  public static void cleanupJob(BigQueryHelper bigQueryHelper, Configuration config)
       throws IOException {
     log.debug("cleanupJob(Bigquery, Configuration)");
 
     String gcsPath = ConfigurationUtil.getMandatoryConfig(
         config, BigQueryConfiguration.TEMP_GCS_PATH_KEY);
 
-    Export export = constructExport(config, getExportFileFormat(config), gcsPath, bigquery);
+    Export export = constructExport(
+        config, getExportFileFormat(config), gcsPath, bigQueryHelper);
 
     try {
       export.cleanupExport();
@@ -349,5 +351,14 @@ public abstract class AbstractBigQueryInputFormat<K, V>
       throws GeneralSecurityException, IOException {
     BigQueryFactory factory = new BigQueryFactory();
     return factory.getBigQuery(config);
+  }
+
+  /**
+   * Helper method to override for testing.
+   */
+  protected BigQueryHelper getBigQueryHelper(Configuration config)
+      throws GeneralSecurityException, IOException {
+    BigQueryFactory factory = new BigQueryFactory();
+    return factory.getBigQueryHelper(config);
   }
 }
