@@ -281,7 +281,7 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
     this(
         new BigQueryFactory(),
         Executors.newCachedThreadPool(),
-        new ClientRequestHelper<>(),
+        new ClientRequestHelper<Job>(),
         configuration,
         progressable,
         taskIdentifier,
