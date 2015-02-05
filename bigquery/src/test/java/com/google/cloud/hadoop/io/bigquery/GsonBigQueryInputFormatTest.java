@@ -396,7 +396,7 @@ public class GsonBigQueryInputFormatTest {
     wrapper.setJobID(new JobID());
 
     when(mockInputFormat.getSplits(eq(wrapper)))
-        .thenReturn(ImmutableList.of(
+        .thenReturn(ImmutableList.<InputSplit>of(
             new FileSplit(new Path("file1"), 0, 100, new String[0])));
 
     // TODO (angusdavis): Inject a ExportProvider or something similar to allow us to inject a
