@@ -930,20 +930,28 @@ public class GoogleCloudStorageImpl
    * @param bucketName bucket name
    * @param objectNamePrefix object name prefix or null if all objects in the bucket are desired
    * @param delimiter delimiter to use (typically "/"), otherwise null
+   * @param maxResults maximum number of results to return (total of both
+   *        listedObject and listedPrefixes), unlimited if negative or zero
    * @param listedObjects output parameter into which retrieved StorageObjects will be added
    * @param listedPrefixes output parameter into which retrieved prefixes will be added
    */
   private void listStorageObjectsAndPrefixes(
       String bucketName, String objectNamePrefix, String delimiter,
+      long maxResults,
       List<StorageObject> listedObjects, List<String> listedPrefixes)
       throws IOException {
-    log.debug("listStorageObjectsAndPrefixes(%s, %s, %s)", bucketName, objectNamePrefix, delimiter);
+    log.debug("listStorageObjectsAndPrefixes(%s, %s, %s, %d)",
+        bucketName, objectNamePrefix, delimiter, maxResults);
     Preconditions.checkArgument(!Strings.isNullOrEmpty(bucketName),
         "bucketName must not be null or empty");
     Preconditions.checkArgument(listedObjects != null,
         "Must provide a non-null container for listedObjects.");
     Preconditions.checkArgument(listedPrefixes != null,
         "Must provide a non-null container for listedPrefixes.");
+    Preconditions.checkArgument(listedObjects.size() == 0,
+        "Must provide an empty container for listedObjects.");
+    Preconditions.checkArgument(listedPrefixes.size() == 0,
+        "Must provide an empty container for listedPrefixes.");
     Storage.Objects.List listObject = gcs.objects().list(bucketName);
 
     // Set delimiter if supplied.
@@ -952,7 +960,13 @@ public class GoogleCloudStorageImpl
     }
 
     // Set number of items to retrieve per call.
-    listObject.setMaxResults(storageOptions.getMaxListItemsPerCall());
+    if (maxResults <= 0
+        || maxResults + 1 >= storageOptions.getMaxListItemsPerCall()) {
+      listObject.setMaxResults(storageOptions.getMaxListItemsPerCall());
+    } else {
+      // We add one in case we filter out objectNamePrefix.
+      listObject.setMaxResults(maxResults + 1);
+    }
 
     // Set prefix if supplied.
     if (!Strings.isNullOrEmpty(objectNamePrefix)) {
@@ -963,9 +977,12 @@ public class GoogleCloudStorageImpl
     String pageToken = null;
     Objects items;
 
+    long numResults = listedObjects.size() + listedPrefixes.size();
+    long maxRemainingResults = maxResults - numResults;
+
     do {
       if (pageToken != null) {
-        log.debug("listObjectNames: next page %s", pageToken);
+        log.debug("listStorageObjectsAndPrefixes: next page %s", pageToken);
         listObject.setPageToken(pageToken);
       }
 
@@ -973,8 +990,9 @@ public class GoogleCloudStorageImpl
         items = listObject.execute();
       } catch (IOException e) {
         if (errorExtractor.itemNotFound(e)) {
-          log.debug("listObjectNames(%s, %s, %s): not found",
-              bucketName, objectNamePrefix, delimiter);
+          log.debug(
+              "listStorageObjectsAndPrefixes(%s, %s, %s, %d): item not found",
+              bucketName, objectNamePrefix, delimiter, maxResults);
           break;
         } else {
           throw wrapException(e, "Error listing", bucketName, objectNamePrefix);
@@ -985,7 +1003,21 @@ public class GoogleCloudStorageImpl
       List<String> prefixes = items.getPrefixes();
       if (prefixes != null) {
         log.debug("listed %d prefixes", prefixes.size());
-        listedPrefixes.addAll(prefixes);
+        numResults = listedObjects.size() + listedPrefixes.size();
+        maxRemainingResults = maxResults - numResults;
+        if (maxResults <= 0 || maxRemainingResults >= prefixes.size()) {
+          listedPrefixes.addAll(prefixes);
+        } else {
+          for (int ii = 0; ii < maxRemainingResults; ii++) {
+            listedPrefixes.add(prefixes.get(ii));
+          }
+        }
+      }
+
+      numResults = listedObjects.size() + listedPrefixes.size();
+      maxRemainingResults = maxResults - numResults;
+      if (maxResults > 0 && maxRemainingResults <= 0) {
+        break;
       }
 
       // Add object names (if any).
@@ -1012,29 +1044,56 @@ public class GoogleCloudStorageImpl
           String objectName = object.getName();
           if (!objectPrefixEndsWithDelimiter
               || (objectPrefixEndsWithDelimiter && !objectName.equals(objectNamePrefix))) {
-            listedObjects.add(object);
+            if (maxResults <= 0 || maxRemainingResults > 0) {
+              listedObjects.add(object);
+              maxRemainingResults--;
+            } else {
+              break;
+            }
           }
         }
       }
+
+      numResults = listedObjects.size() + listedPrefixes.size();
+      maxRemainingResults = maxResults - numResults;
+      if (maxResults > 0 && maxRemainingResults <= 0) {
+        break;
+      }
+
       pageToken = items.getNextPageToken();
     } while (pageToken != null);
   }
 
   /**
-   * See {@link GoogleCloudStorage#listObjectNames(String, String, String)} for details about
-   * expected behavior.
+   * See {@link GoogleCloudStorage#listObjectNames(String, String, String)}
+   * for details about expected behavior.
    */
   @Override
   public List<String> listObjectNames(
       String bucketName, String objectNamePrefix, String delimiter)
       throws IOException {
-    log.debug("listObjectNames(%s, %s, %s)", bucketName, objectNamePrefix, delimiter);
+    return listObjectNames(bucketName, objectNamePrefix, delimiter,
+        GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+  }
+
+  /**
+   * See {@link GoogleCloudStorage#listObjectNames(String, String, String, long)}
+   * for details about expected behavior.
+   */
+  @Override
+  public List<String> listObjectNames(
+      String bucketName, String objectNamePrefix, String delimiter,
+      long maxResults)
+      throws IOException {
+    log.debug("listObjectNames(%s, %s, %s, %d)",
+        bucketName, objectNamePrefix, delimiter, maxResults);
 
     // Helper will handle going through pages of list results and accumulating them.
     List<StorageObject> listedObjects = new ArrayList<>();
     List<String> listedPrefixes = new ArrayList<>();
     listStorageObjectsAndPrefixes(
-        bucketName, objectNamePrefix, delimiter, listedObjects, listedPrefixes);
+        bucketName, objectNamePrefix, delimiter, maxResults,
+        listedObjects, listedPrefixes);
 
     // Just use the prefix list as a starting point, and extract all the names from the
     // StorageObjects, adding them to the list.
@@ -1047,20 +1106,35 @@ public class GoogleCloudStorageImpl
   }
 
   /**
-   * See {@link GoogleCloudStorage#listObjectInfo(String, String, String)} for details about
-   * expected behavior.
+   * See {@link GoogleCloudStorage#listObjectInfo(String, String, String)}
+   * for details about expected behavior.
    */
   @Override
   public List<GoogleCloudStorageItemInfo> listObjectInfo(
       final String bucketName, String objectNamePrefix, String delimiter)
       throws IOException {
-    log.debug("listObjectInfo(%s, %s, %s)", bucketName, objectNamePrefix, delimiter);
+    return listObjectInfo(bucketName, objectNamePrefix, delimiter,
+        GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+  }
+
+  /**
+   * See {@link GoogleCloudStorage#listObjectInfo(String, String, String, long)}
+   * for details about expected behavior.
+   */
+  @Override
+  public List<GoogleCloudStorageItemInfo> listObjectInfo(
+      final String bucketName, String objectNamePrefix, String delimiter,
+      long maxResults)
+      throws IOException {
+    log.debug("listObjectInfo(%s, %s, %s, %d)",
+        bucketName, objectNamePrefix, delimiter, maxResults);
 
     // Helper will handle going through pages of list results and accumulating them.
     List<StorageObject> listedObjects = new ArrayList<>();
     List<String> listedPrefixes = new ArrayList<>();
     listStorageObjectsAndPrefixes(
-        bucketName, objectNamePrefix, delimiter, listedObjects, listedPrefixes);
+        bucketName, objectNamePrefix, delimiter, maxResults,
+        listedObjects, listedPrefixes);
 
     // For the listedObjects, we simply parse each item into a GoogleCloudStorageItemInfo without
     // further work.
@@ -1501,7 +1575,9 @@ public class GoogleCloudStorageImpl
     int maxRetries = BUCKET_EMPTY_MAX_RETRIES;
     int waitTime = BUCKET_EMPTY_WAIT_TIME_MS;  // milliseconds
     for (int i = 0; i < maxRetries; i++) {
-      List<String> objectNames = listObjectNames(bucketName, null, PATH_DELIMITER);
+      // We only need one item to see the bucket is not yet empty.
+      List<String> objectNames = listObjectNames(bucketName, null,
+          PATH_DELIMITER, 1);
       if (objectNames.size() == 0) {
         return;
       }

@@ -37,6 +37,11 @@ public interface GoogleCloudStorage {
   public static final String PATH_DELIMITER = "/";
 
   /**
+   * Value indicating all objects should be returned from GCS, no limit.
+   */
+  public static final long MAX_RESULTS_UNLIMITED = -1;
+
+  /**
    * Creates and opens an object for writing. The bucket must already exist.
    * If the object already exists, it is deleted.
    *
@@ -169,18 +174,22 @@ public interface GoogleCloudStorage {
   /**
    * Gets names of objects contained in the given bucket and whose names begin with
    * the given prefix.
-   *
+   * <p>
    * Note:
    * Although GCS does not implement a file system, it treats objects that contain
    * a delimiter as different from other objects when listing objects.
    * This will be clearer with an example.
-   *
+   * <p>
    * Consider a bucket with objects: o1, d1/, d1/o1, d1/o2
    * With prefix == null and delimiter == /,    we get: d1/, o1
    * With prefix == null and delimiter == null, we get: o1, d1/, d1/o1, d1/o2
-   *
+   * <p>
    * Thus when delimiter is null, the entire key name is considered an opaque string,
    * otherwise only the part up to the first delimiter is considered.
+   * <p>
+   * The default implementation of this method should turn around and call
+   * the version that takes {@code maxResults} so that inheriting classes
+   * need only implement that version.
    *
    * @param bucketName bucket name
    * @param objectNamePrefix object name prefix or null if all objects in the bucket are desired
@@ -193,11 +202,46 @@ public interface GoogleCloudStorage {
       throws IOException;
 
   /**
-   * Same name-matching semantics as {@link listObjectNames} except this method retrieves the full
-   * GoogleCloudStorageFileInfo for each item as well; generally the info is already available from
+   * Gets names of objects contained in the given bucket and whose names begin with
+   * the given prefix.
+   * <p>
+   * Note:
+   * Although GCS does not implement a file system, it treats objects that contain
+   * a delimiter as different from other objects when listing objects.
+   * This will be clearer with an example.
+   * <p>
+   * Consider a bucket with objects: o1, d1/, d1/o1, d1/o2
+   * With prefix == null and delimiter == /,    we get: d1/, o1
+   * With prefix == null and delimiter == null, we get: o1, d1/, d1/o1, d1/o2
+   * <p>
+   * Thus when delimiter is null, the entire key name is considered an opaque string,
+   * otherwise only the part up to the first delimiter is considered.
+   *
+   * @param bucketName bucket name
+   * @param objectNamePrefix object name prefix or null if all objects in the bucket are desired
+   * @param delimiter delimiter to use (typically "/"), otherwise null
+   * @param maxResults maximum number of results to return,
+   *        unlimited if negative or zero
+   * @return list of object names
+   * @throws IOException on IO error
+   */
+  List<String> listObjectNames(
+      String bucketName, String objectNamePrefix, String delimiter,
+      long maxResults)
+      throws IOException;
+
+  /**
+   * Same name-matching semantics as {@link listObjectNames} except this method
+   * retrieves the full GoogleCloudStorageFileInfo for each item as well.
+   * <p>
+   * Generally the info is already available from
    * the same "list()" calls, so the only additional cost is dispatching an extra batch request to
    * retrieve object metadata for all listed *directories*, since these are originally listed as
    * String prefixes without attached metadata.
+   * <p>
+   * The default implementation of this method should turn around and call
+   * the version that takes {@code maxResults} so that inheriting classes
+   * need only implement that version.
    *
    * @param bucketName bucket name
    * @param objectNamePrefix object name prefix or null if all objects in the bucket are desired
@@ -207,6 +251,28 @@ public interface GoogleCloudStorage {
    */
   List<GoogleCloudStorageItemInfo> listObjectInfo(
       final String bucketName, String objectNamePrefix, String delimiter)
+      throws IOException;
+
+  /**
+   * Same name-matching semantics as {@link listObjectNames} except this method
+   * retrieves the full GoogleCloudStorageFileInfo for each item as well.
+   * <p>
+   * Generally the info is already available from
+   * the same "list()" calls, so the only additional cost is dispatching an extra batch request to
+   * retrieve object metadata for all listed *directories*, since these are originally listed as
+   * String prefixes without attached metadata.
+   *
+   * @param bucketName bucket name
+   * @param objectNamePrefix object name prefix or null if all objects in the bucket are desired
+   * @param delimiter delimiter to use (typically "/"), otherwise null
+   * @param maxResults maximum number of results to return,
+   *        unlimited if negative or zero
+   * @return list of object info
+   * @throws IOException on IO error
+   */
+  List<GoogleCloudStorageItemInfo> listObjectInfo(
+      final String bucketName, String objectNamePrefix, String delimiter,
+      long maxResults)
       throws IOException;
 
   /**

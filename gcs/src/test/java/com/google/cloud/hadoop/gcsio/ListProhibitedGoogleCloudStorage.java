@@ -105,8 +105,16 @@ public class ListProhibitedGoogleCloudStorage implements GoogleCloudStorage {
   }
 
   @Override
-  public List<String> listObjectNames(String bucketName, String objectNamePrefix,
-      String delimiter) throws IOException {
+  public List<String> listObjectNames(String bucketName,
+      String objectNamePrefix, String delimiter) throws IOException {
+    return listObjectNames(bucketName, objectNamePrefix, delimiter,
+        GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+  }
+
+  @Override
+  public List<String> listObjectNames(String bucketName,
+      String objectNamePrefix, String delimiter, long maxResults)
+      throws IOException {
     throw new UnsupportedOperationException(
         "Operation not supported in ListProhibitedGoogleCloudStorage.");
   }
@@ -114,6 +122,14 @@ public class ListProhibitedGoogleCloudStorage implements GoogleCloudStorage {
   @Override
   public List<GoogleCloudStorageItemInfo> listObjectInfo(String bucketName,
       String objectNamePrefix, String delimiter) throws IOException {
+    return listObjectInfo(bucketName, objectNamePrefix, delimiter,
+        GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+  }
+
+  @Override
+  public List<GoogleCloudStorageItemInfo> listObjectInfo(String bucketName,
+      String objectNamePrefix, String delimiter, long maxResults)
+      throws IOException {
     throw new UnsupportedOperationException(
         "Operation not supported in ListProhibitedGoogleCloudStorage.");
   }

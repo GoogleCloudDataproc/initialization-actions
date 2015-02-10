@@ -179,17 +179,37 @@ public class ThrottledGoogleCloudStorage implements GoogleCloudStorage {
   }
 
   @Override
-  public List<String> listObjectNames(String bucketName, String objectNamePrefix,
-      String delimiter) throws IOException {
+  public List<String> listObjectNames(String bucketName,
+      String objectNamePrefix, String delimiter)
+      throws IOException {
+    return listObjectNames(bucketName, objectNamePrefix, delimiter,
+        GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+  }
+
+  @Override
+  public List<String> listObjectNames(String bucketName,
+      String objectNamePrefix, String delimiter, long maxResults)
+      throws IOException {
     throttle(StorageOperation.LIST_OBJECTS);
-    return wrappedGcs.listObjectNames(bucketName, objectNamePrefix, delimiter);
+    return wrappedGcs.listObjectNames(
+        bucketName, objectNamePrefix, delimiter, maxResults);
   }
 
   @Override
   public List<GoogleCloudStorageItemInfo> listObjectInfo(String bucketName,
-      String objectNamePrefix, String delimiter) throws IOException {
+      String objectNamePrefix, String delimiter)
+      throws IOException {
+    return listObjectInfo(bucketName, objectNamePrefix, delimiter,
+        GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+  }
+
+  @Override
+  public List<GoogleCloudStorageItemInfo> listObjectInfo(String bucketName,
+      String objectNamePrefix, String delimiter, long maxResults)
+      throws IOException {
     throttle(StorageOperation.LIST_OBJECTS);
-    return wrappedGcs.listObjectInfo(bucketName, objectNamePrefix, delimiter);
+    return wrappedGcs.listObjectInfo(
+        bucketName, objectNamePrefix, delimiter, maxResults);
   }
 
   @Override

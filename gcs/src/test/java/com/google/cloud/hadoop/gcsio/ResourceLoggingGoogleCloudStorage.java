@@ -123,15 +123,33 @@ public class ResourceLoggingGoogleCloudStorage implements GoogleCloudStorage {
   }
 
   @Override
-  public List<String> listObjectNames(String bucketName, String objectNamePrefix,
-      String delimiter) throws IOException {
-    return delegateGcs.listObjectNames(bucketName, objectNamePrefix, delimiter);
+  public List<String> listObjectNames(String bucketName,
+      String objectNamePrefix, String delimiter) throws IOException {
+    return listObjectNames(bucketName, objectNamePrefix, delimiter,
+        GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+  }
+
+  @Override
+  public List<String> listObjectNames(String bucketName,
+      String objectNamePrefix, String delimiter, long maxResults)
+      throws IOException {
+    return delegateGcs.listObjectNames(bucketName, objectNamePrefix,
+        delimiter, maxResults);
   }
 
   @Override
   public List<GoogleCloudStorageItemInfo> listObjectInfo(String bucketName,
       String objectNamePrefix, String delimiter) throws IOException {
-    return delegateGcs.listObjectInfo(bucketName, objectNamePrefix, delimiter);
+    return listObjectInfo(bucketName, objectNamePrefix, delimiter,
+        GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+  }
+
+  @Override
+  public List<GoogleCloudStorageItemInfo> listObjectInfo(String bucketName,
+      String objectNamePrefix, String delimiter, long maxResults)
+      throws IOException {
+    return delegateGcs.listObjectInfo(bucketName, objectNamePrefix,
+        delimiter, maxResults);
   }
 
   @Override

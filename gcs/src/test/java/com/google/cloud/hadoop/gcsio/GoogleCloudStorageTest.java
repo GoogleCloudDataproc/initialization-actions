@@ -2091,7 +2091,8 @@ public class GoogleCloudStorageTest {
                 new StorageObject().setName("foo/bar/baz/obj1")))
             .setNextPageToken(null));
 
-    List<String> objectNames = gcs.listObjectNames(BUCKET_NAME, objectPrefix, delimiter);
+    List<String> objectNames =
+        gcs.listObjectNames(BUCKET_NAME, objectPrefix, delimiter);
     assertEquals(4, objectNames.size());
     assertEquals("foo/bar/baz/dir0/", objectNames.get(0));
     assertEquals("foo/bar/baz/dir1/", objectNames.get(1));
@@ -2102,6 +2103,47 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjects).list(eq(BUCKET_NAME));
     verify(mockStorageObjectsList)
         .setMaxResults(eq(GoogleCloudStorageOptions.MAX_LIST_ITEMS_PER_CALL_DEFAULT));
+    verify(mockStorageObjectsList).setDelimiter(eq(delimiter));
+    verify(mockStorageObjectsList).setPrefix(eq(objectPrefix));
+    verify(mockStorageObjectsList).setPageToken("token0");
+    verify(mockStorageObjectsList, times(2)).execute();
+  }
+
+  /**
+   * Test GoogleCloudStorage.listObjectNames(3) with maxResults set.
+   */
+  @Test
+  public void testListObjectNamesPrefixLimited()
+      throws IOException {
+    String objectPrefix = "foo/bar/baz/";
+    String delimiter = "/";
+    long maxResults = 3;
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.list(eq(BUCKET_NAME)))
+        .thenReturn(mockStorageObjectsList);
+    when(mockStorageObjectsList.execute())
+        .thenReturn(new Objects()
+            .setPrefixes(ImmutableList.of(
+                "foo/bar/baz/dir0/",
+                "foo/bar/baz/dir1/"))
+            .setNextPageToken("token0"))
+        .thenReturn(new Objects()
+            .setItems(ImmutableList.of(
+                new StorageObject().setName("foo/bar/baz/"),
+                new StorageObject().setName("foo/bar/baz/obj0"),
+                new StorageObject().setName("foo/bar/baz/obj1")))
+            .setNextPageToken(null));
+
+    List<String> objectNames =
+        gcs.listObjectNames(BUCKET_NAME, objectPrefix, delimiter, maxResults);
+    assertEquals(maxResults, objectNames.size());
+    assertEquals("foo/bar/baz/dir0/", objectNames.get(0));
+    assertEquals("foo/bar/baz/dir1/", objectNames.get(1));
+    assertEquals("foo/bar/baz/obj0", objectNames.get(2));
+
+    verify(mockStorage).objects();
+    verify(mockStorageObjects).list(eq(BUCKET_NAME));
+    verify(mockStorageObjectsList).setMaxResults(eq(maxResults + 1));
     verify(mockStorageObjectsList).setDelimiter(eq(delimiter));
     verify(mockStorageObjectsList).setPrefix(eq(objectPrefix));
     verify(mockStorageObjectsList).setPageToken("token0");
@@ -2132,7 +2174,8 @@ public class GoogleCloudStorageTest {
         .thenReturn(false);
 
     // First time should just return empty list.
-    List<String> objectNames = gcs.listObjectNames(BUCKET_NAME, objectPrefix, delimiter);
+    List<String> objectNames =
+        gcs.listObjectNames(BUCKET_NAME, objectPrefix, delimiter);
     assertTrue(objectNames.isEmpty());
 
     // Second time throws.
@@ -3179,8 +3222,7 @@ public class GoogleCloudStorageTest {
 
     verify(mockStorage, times(2)).objects();
     verify(mockStorageObjects, times(2)).list(eq(BUCKET_NAME));
-    verify(mockStorageObjectsList, times(2))
-        .setMaxResults(eq(GoogleCloudStorageOptions.MAX_LIST_ITEMS_PER_CALL_DEFAULT));
+    verify(mockStorageObjectsList, times(2)).setMaxResults(eq(2L));
     verify(mockStorageObjectsList, times(2)).setDelimiter(eq(GoogleCloudStorage.PATH_DELIMITER));
     verify(mockStorageObjectsList, times(2)).execute();
     verify(mockSleeper, times(1)).sleep(
@@ -3227,8 +3269,7 @@ public class GoogleCloudStorageTest {
     VerificationMode retryTimes = times(GoogleCloudStorageImpl.BUCKET_EMPTY_MAX_RETRIES);
     verify(mockStorage, retryTimes).objects();
     verify(mockStorageObjects, retryTimes).list(eq(BUCKET_NAME));
-    verify(mockStorageObjectsList, retryTimes)
-        .setMaxResults(eq(GoogleCloudStorageOptions.MAX_LIST_ITEMS_PER_CALL_DEFAULT));
+    verify(mockStorageObjectsList, retryTimes).setMaxResults(eq(2L));
     verify(mockStorageObjectsList, retryTimes).setDelimiter(eq(GoogleCloudStorage.PATH_DELIMITER));
     verify(mockStorageObjectsList, retryTimes).execute();
     verify(mockSleeper, retryTimes).sleep(

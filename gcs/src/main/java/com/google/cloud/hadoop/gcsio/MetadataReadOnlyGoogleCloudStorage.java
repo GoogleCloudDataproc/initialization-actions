@@ -159,9 +159,19 @@ public class MetadataReadOnlyGoogleCloudStorage
   public List<String> listObjectNames(
       String bucketName, String objectNamePrefix, String delimiter)
       throws IOException {
-    log.debug("listObjectNames(%s, %s, %s)", bucketName, objectNamePrefix, delimiter);
+    return listObjectNames(bucketName, objectNamePrefix, delimiter,
+        GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+  }
+
+  @Override
+  public List<String> listObjectNames(
+      String bucketName, String objectNamePrefix, String delimiter,
+      long maxResults)
+      throws IOException {
+    log.debug("listObjectNames(%s, %s, %s, %d)",
+        bucketName, objectNamePrefix, delimiter, maxResults);
     return Lists.transform(
-        listObjectInfo(bucketName, objectNamePrefix, delimiter),
+        listObjectInfo(bucketName, objectNamePrefix, delimiter, maxResults),
         ITEM_INFO_TO_NAME);
   }
 
@@ -174,7 +184,22 @@ public class MetadataReadOnlyGoogleCloudStorage
   public List<GoogleCloudStorageItemInfo> listObjectInfo(
       final String bucketName, String objectNamePrefix, String delimiter)
       throws IOException {
-    log.debug("listObjectInfo(%s, %s, %s)", bucketName, objectNamePrefix, delimiter);
+    return listObjectInfo(bucketName, objectNamePrefix, delimiter,
+        GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+  }
+
+  /**
+   * Uses shared prefix-matching logic to filter entries from the metadata cache. For implicit
+   * prefix matches with no corresponding real directory object, adds a fake directory object
+   * with creationTime == 0.
+   */
+  @Override
+  public List<GoogleCloudStorageItemInfo> listObjectInfo(
+      final String bucketName, String objectNamePrefix, String delimiter,
+      long maxResults)
+      throws IOException {
+    log.debug("listObjectInfo(%s, %s, %s, %d)",
+        bucketName, objectNamePrefix, delimiter, maxResults);
     List<GoogleCloudStorageItemInfo> allObjectInfos = new ArrayList<>();
     Set<String> retrievedNames = new HashSet<>();
     Set<String> prefixes = new HashSet<>();

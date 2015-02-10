@@ -223,24 +223,34 @@ public class GoogleCloudStorageTest {
   // @Parameterized with @Parameters.
   @Parameters
   public static Collection<Object[]> getConstructorArguments() throws IOException {
-    GoogleCloudStorage gcs = new InMemoryGoogleCloudStorage();
+    GoogleCloudStorage gcs =
+        new InMemoryGoogleCloudStorage();
+    GoogleCloudStorage zeroLaggedGcs =
+        new LaggedGoogleCloudStorage(
+            new InMemoryGoogleCloudStorage(),
+            Clock.SYSTEM,
+            ListVisibilityCalculator.IMMEDIATELY_VISIBLE);
     GoogleCloudStorage cachedGcs =
         new CacheSupplementedGoogleCloudStorage(
-            new InMemoryGoogleCloudStorage(), InMemoryDirectoryListCache.getInstance());
-    GoogleCloudStorage cachedLaggedGcs = new CacheSupplementedGoogleCloudStorage(
-        new LaggedGoogleCloudStorage(
             new InMemoryGoogleCloudStorage(),
-            Clock.SYSTEM,
-            ListVisibilityCalculator.DEFAULT_LAGGED),
-        InMemoryDirectoryListCache.getInstance());
-    GoogleCloudStorage cachedFilebackedLaggedGcs = new CacheSupplementedGoogleCloudStorage(
-        new LaggedGoogleCloudStorage(
-            new InMemoryGoogleCloudStorage(),
-            Clock.SYSTEM,
-            ListVisibilityCalculator.DEFAULT_LAGGED),
-        fileBackedCache);
+            InMemoryDirectoryListCache.getInstance());
+    GoogleCloudStorage cachedLaggedGcs =
+        new CacheSupplementedGoogleCloudStorage(
+          new LaggedGoogleCloudStorage(
+              new InMemoryGoogleCloudStorage(),
+              Clock.SYSTEM,
+              ListVisibilityCalculator.DEFAULT_LAGGED),
+          InMemoryDirectoryListCache.getInstance());
+    GoogleCloudStorage cachedFilebackedLaggedGcs =
+        new CacheSupplementedGoogleCloudStorage(
+          new LaggedGoogleCloudStorage(
+              new InMemoryGoogleCloudStorage(),
+              Clock.SYSTEM,
+              ListVisibilityCalculator.DEFAULT_LAGGED),
+          fileBackedCache);
     return Arrays.asList(new Object[][]{
         {gcs},
+        {zeroLaggedGcs},
         {cachedGcs},
         {cachedLaggedGcs},
         {cachedFilebackedLaggedGcs}
@@ -785,6 +795,53 @@ public class GoogleCloudStorageTest {
   }
 
   @Test
+  public void testListObjectNamesLimited() throws IOException {
+    try (TestBucketScope scope =
+        new UniqueBucketScope(rawStorage, "list_limited")) {
+      String bucketName = scope.getBucketName();
+      GoogleCloudStorage gcs = scope.getStorageInstance();
+      List<StorageResourceId> testOjects = new ArrayList<>();
+
+      String[] names = { "a", "b", "c", "d" };
+      for (String name : names) {
+        StorageResourceId id = new StorageResourceId(bucketName, name);
+        gcs.createEmptyObject(id);
+        testOjects.add(id);
+      }
+
+      List<String> gcsNames = gcs.listObjectNames(bucketName, null, "/", 2);
+
+      assertEquals(2, gcsNames.size());
+
+      cleanupTestObjects(ImmutableList.<String>of(), testOjects);
+    }
+  }
+
+  @Test
+  public void testListObjectInfoLimited() throws IOException {
+    try (TestBucketScope scope =
+        new UniqueBucketScope(rawStorage, "list_limited")) {
+      String bucketName = scope.getBucketName();
+      GoogleCloudStorage gcs = scope.getStorageInstance();
+      List<StorageResourceId> testOjects = new ArrayList<>();
+
+      String[] names = { "x", "y", "z" };
+      for (String name : names) {
+        StorageResourceId id = new StorageResourceId(bucketName, name);
+        gcs.createEmptyObject(id);
+        testOjects.add(id);
+      }
+
+      List<GoogleCloudStorageItemInfo> info =
+          gcs.listObjectInfo(bucketName, null, "/", 2);
+
+      assertEquals(2, info.size());
+
+      cleanupTestObjects(ImmutableList.<String>of(), testOjects);
+    }
+  }
+
+  @Test
   public void testListObjectInfoWithDirectoryRepair() throws IOException {
     try (TestBucketScope scope = new UniqueBucketScope(rawStorage, "list_repair")) {
       String bucketName = scope.getBucketName();
@@ -812,7 +869,9 @@ public class GoogleCloudStorageTest {
           gcs.getItemInfo(new StorageResourceId(bucketName, "d2/"));
       assertFalse(itemInfo.exists());
 
-      List<GoogleCloudStorageItemInfo> rootInfo = gcs.listObjectInfo(bucketName, null, "/");
+      List<GoogleCloudStorageItemInfo> rootInfo =
+          gcs.listObjectInfo(bucketName, null, "/",
+              GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
 
       // Specifying any exact values seems like it's begging for this test to become flaky.
       assertFalse("Infos not expected to be empty", rootInfo.isEmpty());
@@ -822,11 +881,15 @@ public class GoogleCloudStorageTest {
       testOjects.add(d2);
       GoogleCloudStorageTestHelper.assertObjectContent(gcs, d2, new byte[0]);
 
-      List<GoogleCloudStorageItemInfo> d2ItemInfo = gcs.listObjectInfo(bucketName, "d2/d3/", "/");
+      List<GoogleCloudStorageItemInfo> d2ItemInfo =
+          gcs.listObjectInfo(bucketName, "d2/d3/", "/",
+              GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
       assertFalse("D2 item info not expected to be empty", d2ItemInfo.isEmpty());
 
       // Testing GCS treating object names as opaque blobs
-      List<GoogleCloudStorageItemInfo> blobNamesInfo = gcs.listObjectInfo(bucketName, null, null);
+      List<GoogleCloudStorageItemInfo> blobNamesInfo =
+          gcs.listObjectInfo(bucketName, null, null,
+              GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
       assertFalse("blobNamesInfo not expected to be empty", blobNamesInfo.isEmpty());
 
       // Used to clean up list objects / prefixes.

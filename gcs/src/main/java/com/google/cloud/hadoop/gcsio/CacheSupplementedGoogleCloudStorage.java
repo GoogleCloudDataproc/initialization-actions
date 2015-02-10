@@ -354,9 +354,30 @@ public class CacheSupplementedGoogleCloudStorage
   public List<String> listObjectNames(
       String bucketName, String objectNamePrefix, String delimiter)
       throws IOException {
-    log.debug("listObjectNames(%s, %s, %s)", bucketName, objectNamePrefix, delimiter);
-    List<String> allObjectNames =
-        gcsDelegate.listObjectNames(bucketName, objectNamePrefix, delimiter);
+    return listObjectNames(bucketName, objectNamePrefix, delimiter,
+        GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+  }
+
+  /**
+   * Supplements the list returned by the delegate with cached object names; won't trigger
+   * any fetching of metadata.
+   */
+  @Override
+  public List<String> listObjectNames(
+      String bucketName, String objectNamePrefix, String delimiter,
+      long maxResults)
+      throws IOException {
+    log.debug("listObjectNames(%s, %s, %s, %d)", bucketName, objectNamePrefix,
+        delimiter, maxResults);
+    List<String> allObjectNames = gcsDelegate.listObjectNames(
+        bucketName, objectNamePrefix, delimiter, maxResults);
+
+    if (maxResults > 0 && allObjectNames.size() >= maxResults) {
+      // Should not have allObjectNames.size() > maxResults, since we
+      // passed maxResults to delegate.
+      return allObjectNames;
+    }
+
     // We pass 'null' for 'prefixes' because for now, we won't try to supplement match "prefixes";
     // in normal operation, the cache will also contain the "parent directory" objects for each
     // file, so they would be supplemented as exact matches anyway (if we have gs://bucket/foo/ and
@@ -384,6 +405,9 @@ public class CacheSupplementedGoogleCloudStorage
     for (CacheEntry supplement : missingCachedObjects) {
       log.info("Supplementing missing matched StorageResourceId: %s", supplement.getResourceId());
       allObjectNames.add(supplement.getResourceId().getObjectName());
+      if (maxResults > 0 && allObjectNames.size() >= maxResults) {
+        return allObjectNames;
+      }
     }
     return allObjectNames;
   }
@@ -398,9 +422,29 @@ public class CacheSupplementedGoogleCloudStorage
   public List<GoogleCloudStorageItemInfo> listObjectInfo(
       String bucketName, String objectNamePrefix, String delimiter)
       throws IOException {
-    log.debug("listObjectInfo(%s, %s, %s)", bucketName, objectNamePrefix, delimiter);
+    return listObjectInfo(bucketName, objectNamePrefix, delimiter,
+        GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+  }
+
+  /**
+   * Supplements the list returned by the delegate with cached object infos; may trigger fetching
+   * of any metadata not already available in the cache. If a delegate-returned item is also in the
+   * cache and the cache doesn't already have the metadata, it will be opportunistically updated
+   * with the retrieved metadata.
+   */
+  @Override
+  public List<GoogleCloudStorageItemInfo> listObjectInfo(
+      String bucketName, String objectNamePrefix, String delimiter,
+      long maxResults)
+      throws IOException {
+    log.debug("listObjectInfo(%s, %s, %s, %d)", bucketName, objectNamePrefix,
+        delimiter, maxResults);
     List<GoogleCloudStorageItemInfo> allObjectInfos =
-        gcsDelegate.listObjectInfo(bucketName, objectNamePrefix, delimiter);
+        gcsDelegate.listObjectInfo(bucketName, objectNamePrefix, delimiter,
+            maxResults);
+    if (maxResults > 0 && allObjectInfos.size() >= maxResults) {
+        return allObjectInfos;
+    }
     List<CacheEntry> cachedObjects = resourceCache.getObjectList(
         bucketName, objectNamePrefix, delimiter, null);
     if (cachedObjects == null || cachedObjects.isEmpty()) {
@@ -419,7 +463,18 @@ public class CacheSupplementedGoogleCloudStorage
     List<CacheEntry> missingCachedObjects = getSupplementalEntries(objectIdsSet, cachedObjects);
     List<GoogleCloudStorageItemInfo> supplementalInfos = extractItemInfos(missingCachedObjects);
 
-    allObjectInfos.addAll(supplementalInfos);
+    if (maxResults <= 0
+        || allObjectInfos.size() + supplementalInfos.size() <= maxResults) {
+      allObjectInfos.addAll(supplementalInfos);
+    } else {
+      for (GoogleCloudStorageItemInfo item : supplementalInfos) {
+        allObjectInfos.add(item);
+        if (allObjectInfos.size() >= maxResults) {
+          break;
+        }
+      }
+    }
+
     return allObjectInfos;
   }
 

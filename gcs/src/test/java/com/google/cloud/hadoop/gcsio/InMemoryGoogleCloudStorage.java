@@ -81,9 +81,9 @@ public class InMemoryGoogleCloudStorage
     // Validation as per https://developers.google.com/storage/docs/bucketnaming
     // Object names must be less than 1024 bytes and may not contain
     // CR or LF characters.
-    return !(objectName.length() > 1024 ||
-        objectName.indexOf((char) 0x0A) > -1 ||
-        objectName.indexOf((char) 0x0D) > -1);
+    return !(objectName.length() > 1024
+        || objectName.indexOf((char) 0x0A) > -1
+        || objectName.indexOf((char) 0x0D) > -1);
   }
 
   @Override
@@ -266,6 +266,15 @@ public class InMemoryGoogleCloudStorage
   public synchronized List<String> listObjectNames(
       String bucketName, String objectNamePrefix, String delimiter)
       throws IOException {
+    return listObjectNames(bucketName, objectNamePrefix, delimiter,
+        GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+  }
+
+  @Override
+  public synchronized List<String> listObjectNames(
+      String bucketName, String objectNamePrefix, String delimiter,
+      long maxResults)
+      throws IOException {
     // TODO(user): Add tests for behavior when bucket doesn't exist.
     InMemoryBucketEntry bucketEntry = bucketLookup.get(bucketName);
     if (bucketEntry == null) {
@@ -278,6 +287,9 @@ public class InMemoryGoogleCloudStorage
       if (processedName != null) {
         uniqueNames.add(processedName);
       }
+      if (maxResults > 0 && uniqueNames.size() >= maxResults) {
+        break;
+      }
     }
     return new ArrayList<>(uniqueNames);
   }
@@ -286,9 +298,19 @@ public class InMemoryGoogleCloudStorage
   public synchronized List<GoogleCloudStorageItemInfo> listObjectInfo(
       final String bucketName, String objectNamePrefix, String delimiter)
       throws IOException {
+    return listObjectInfo(bucketName, objectNamePrefix, delimiter,
+        GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+  }
+
+  @Override
+  public synchronized List<GoogleCloudStorageItemInfo> listObjectInfo(
+      final String bucketName, String objectNamePrefix, String delimiter,
+      long maxResults)
+      throws IOException {
     // Since we're just in memory, we can do the naive implementation of just listing names and
     // then calling getItemInfo for each.
-    List<String> listedNames = listObjectNames(bucketName, objectNamePrefix, delimiter);
+    List<String> listedNames = listObjectNames(bucketName, objectNamePrefix,
+        delimiter, GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
     List<GoogleCloudStorageItemInfo> listedInfo = new ArrayList<>();
     for (String objectName : listedNames) {
       GoogleCloudStorageItemInfo itemInfo =
@@ -302,6 +324,9 @@ public class InMemoryGoogleCloudStorage
         if (newInfo.exists()) {
           listedInfo.add(newInfo);
         }
+      }
+      if (maxResults > 0 && listedInfo.size() >= maxResults) {
+        break;
       }
     }
     return listedInfo;
@@ -322,8 +347,8 @@ public class InMemoryGoogleCloudStorage
       if (!validateObjectName(resourceId.getObjectName())) {
         throw new IOException("Error accessing");
       }
-      if (bucketLookup.containsKey(resourceId.getBucketName()) &&
-          bucketLookup.get(resourceId.getBucketName()).get(resourceId.getObjectName()) != null) {
+      if (bucketLookup.containsKey(resourceId.getBucketName())
+          && bucketLookup.get(resourceId.getBucketName()).get(resourceId.getObjectName()) != null) {
         return bucketLookup
             .get(resourceId.getBucketName())
             .get(resourceId.getObjectName())
