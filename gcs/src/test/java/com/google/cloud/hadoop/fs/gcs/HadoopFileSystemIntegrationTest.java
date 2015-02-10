@@ -17,7 +17,6 @@ package com.google.cloud.hadoop.fs.gcs;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -95,9 +94,8 @@ public class HadoopFileSystemIntegrationTest
       }
     };
 
-    statistics = FileSystemStatistics.IGNORE; // Multi-threaded code screws us up.
-    gcsit = new HadoopFileSystemIntegrationTest();
     postCreateInit();
+    ghfsHelper.setIgnoreStatistics(); // Multi-threaded code screws us up.
   }
 
   /**

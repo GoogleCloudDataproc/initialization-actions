@@ -15,7 +15,7 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageIntegrationTest;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageIntegrationHelper;
 import com.google.cloud.hadoop.gcsio.InMemoryGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
@@ -43,7 +43,7 @@ import java.util.List;
 /**
  * Integration tests for GoogleHadoopFileSystemBase class.
  *
- * We reuse test code from GoogleCloudStorageIntegrationTest and
+ * We reuse test code from GoogleCloudStorageIntegrationHelper and
  * GoogleCloudStorageFileSystemIntegrationTest. In addition, there are
  * some tests that test behavior that is only visible at GHFS level.
  */
@@ -64,12 +64,9 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     // Disable logging.
     Logger.getRootLogger().setLevel(Level.OFF);
 
-    gcsit = new GoogleHadoopGlobalRootedFileSystemIntegrationTest();
-
     GoogleHadoopFileSystemBase testInstance = new GoogleHadoopGlobalRootedFileSystem();
     ghfs = testInstance;
     ghfsFileSystemDescriptor = testInstance;
-    statistics = FileSystemStatistics.IGNORE; // Multi-threaded code screws us up.
     URI initUri;
     try {
       initUri = new URI("gsg://bucket-should-be-ignored");
@@ -79,6 +76,7 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     ghfs.initialize(initUri, loadConfig());
 
     HadoopFileSystemTestBase.postCreateInit();
+    ghfsHelper.setIgnoreStatistics(); // Multi-threaded code screws us up.
   }
 
   /**
@@ -92,11 +90,11 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     // TODO(user) : add helper to get multiple env vars in one
     // call and produce a friendlier message if value(s) are missing.
     String clientId =
-        System.getenv(GoogleCloudStorageIntegrationTest.GCS_TEST_CLIENT_ID);
+        System.getenv(GoogleCloudStorageIntegrationHelper.GCS_TEST_CLIENT_ID);
     String clientSecret =
-        System.getenv(GoogleCloudStorageIntegrationTest.GCS_TEST_CLIENT_SECRET);
+        System.getenv(GoogleCloudStorageIntegrationHelper.GCS_TEST_CLIENT_SECRET);
     String projectId =
-        System.getenv(GoogleCloudStorageIntegrationTest.GCS_TEST_PROJECT_ID);
+        System.getenv(GoogleCloudStorageIntegrationHelper.GCS_TEST_PROJECT_ID);
     Assert.assertNotNull(clientId);
     Assert.assertNotNull(clientSecret);
     Assert.assertNotNull(projectId);
@@ -107,7 +105,7 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     config.set(GoogleHadoopFileSystemBase.GCS_CLIENT_ID_KEY, clientId);
     config.set(GoogleHadoopFileSystemBase.GCS_CLIENT_SECRET_KEY, clientSecret);
     String systemBucketName =
-        GoogleCloudStorageIntegrationTest.getUniqueBucketName("-system-bucket");
+        ghfsHelper.getUniqueBucketName("-system-bucket");
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, systemBucketName);
     config.setBoolean(GoogleHadoopFileSystemBase.GCS_CREATE_SYSTEM_BUCKET_KEY, true);
     config.setBoolean(
@@ -192,7 +190,7 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     long blockSize = 1024;
     config.setLong(GoogleHadoopFileSystemBase.BLOCK_SIZE_KEY, blockSize);
     String systemBucketName =
-        GoogleCloudStorageIntegrationTest.getUniqueBucketName("-system-bucket");
+        ghfsHelper.getUniqueBucketName("-system-bucket");
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, systemBucketName);
 
     URI initUri = (new Path("gsg://bucket-should-be-ignored")).toUri();
@@ -220,8 +218,8 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     URI gsUri = new URI("gsg://foobar/");
     config.setBoolean(GoogleHadoopFileSystemBase.ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY, false);
     config.setBoolean(
-        HadoopCredentialConfiguration.BASE_KEY_PREFIX +
-            HadoopCredentialConfiguration.ENABLE_NULL_CREDENTIAL_SUFFIX,
+        HadoopCredentialConfiguration.BASE_KEY_PREFIX
+            + HadoopCredentialConfiguration.ENABLE_NULL_CREDENTIAL_SUFFIX,
         true);
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, existingBucket);
     // project ID is not set.
@@ -310,7 +308,7 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     // GCSFS and skip the portions of the config specific to GCSFS.
 
     String systemBucketName =
-        GoogleCloudStorageIntegrationTest.getUniqueBucketName("-system-bucket");
+        ghfsHelper.getUniqueBucketName("-system-bucket");
 
     GoogleCloudStorageFileSystem fakeGcsFs =
         new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());

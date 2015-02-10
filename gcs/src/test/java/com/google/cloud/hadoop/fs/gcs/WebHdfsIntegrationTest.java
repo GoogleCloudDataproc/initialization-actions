@@ -18,10 +18,8 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -29,7 +27,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -97,9 +94,8 @@ public class WebHdfsIntegrationTest
       }
     };
 
-    statistics = FileSystemStatistics.IGNORE;
-    gcsit = new WebHdfsIntegrationTest();
     postCreateInit();
+    ghfsHelper.setIgnoreStatistics();
   }
 
   /**
@@ -117,25 +113,6 @@ public class WebHdfsIntegrationTest
   public static void afterAllTests()
       throws IOException {
     HadoopFileSystemTestBase.afterAllTests();
-  }
-
-  // -----------------------------------------------------------------
-  // Overridden methods from GHFS test.
-  // -----------------------------------------------------------------
-
-  /**
-   * Lists status of file(s) at the given path.
-   */
-  @Override
-  protected FileStatus[] listStatus(Path hadoopPath)
-      throws IOException {
-    FileStatus[] status = null;
-    try {
-      status = ghfs.listStatus(hadoopPath);
-    } catch (FileNotFoundException e) {
-      // Catch and swallow FileNotFoundException to keep status == null.
-    }
-    return status;
   }
 
   // -----------------------------------------------------------------
@@ -185,7 +162,7 @@ public class WebHdfsIntegrationTest
   public void testAppend()
       throws IOException {
     URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
-    Path hadoopPath = castAsHadoopPath(path);
+    Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
     try {
       // For now, verify that append does not throw. We are not interested in
       // verifying that append() actually appends correctly. We will do that
@@ -214,7 +191,8 @@ public class WebHdfsIntegrationTest
   public void testOpenNonExistent()
       throws IOException {
     try {
-      readTextFile(getUniqueBucketName(), objectName, 0, 100, true);
+      ghfsHelper.readTextFile(
+          ghfsHelper.getUniqueBucketName(), objectName, 0, 100, true);
       Assert.fail("Expected IOException");
     } catch (IOException e) {
       Assert.assertTrue(e.getMessage().contains("Internal Server Error (error code=500)"));

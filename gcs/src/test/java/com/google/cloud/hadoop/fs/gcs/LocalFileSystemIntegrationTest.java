@@ -28,7 +28,6 @@ import org.junit.runners.JUnit4;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -81,10 +80,9 @@ public class LocalFileSystemIntegrationTest
 
     // The file:/// scheme will secretly use a ChecksumFileSystem under the hood, causing all
     // writes to actually write many more intermediate bytes than the number desired.
-    statistics = FileSystemStatistics.IGNORE;
 
-    gcsit = new LocalFileSystemIntegrationTest();
     postCreateInit();
+    ghfsHelper.setIgnoreStatistics();
   }
 
   /**
@@ -92,7 +90,8 @@ public class LocalFileSystemIntegrationTest
    */
   public static void postCreateInit()
       throws IOException {
-    HadoopFileSystemTestBase.postCreateInit();
+    HadoopFileSystemTestBase.postCreateInit(
+        new LocalFileSystemIntegrationHelper(ghfs, ghfsFileSystemDescriptor));
   }
 
   /**
@@ -189,8 +188,10 @@ public class LocalFileSystemIntegrationTest
       boolean hadUnexpectedError = false;
       List<Throwable> unexpectedErrors = new ArrayList<>();
       for (Throwable t : ae.getSuppressed()) {
-        if (!t.getMessage().matches(".*destination is a dir that exists and non-empty: 2.*") &&
-            !t.getMessage().matches(".*src is a directory with a multi-level subdirectory; "
+        if (!t.getMessage().matches(
+                ".*destination is a dir that exists and non-empty: 2.*")
+            && !t.getMessage().matches(
+                ".*src is a directory with a multi-level subdirectory; "
                 + "dst is a directory which exists..*")) {
           unexpectedErrors.add(t);
         }
@@ -202,22 +203,6 @@ public class LocalFileSystemIntegrationTest
         }
         throw errors;
       }
-    }
-  }
-
-  // -----------------------------------------------------------------
-
-  @Override
-  protected long getExpectedObjectSize(String objectName, boolean expectedToExist)
-      throws UnsupportedEncodingException {
-    // For file:/ scheme directories which are expected to exist, we have no idea what the
-    // filesystem will report; usually it's 4096 but memfs in /tmp can be any number of possible
-    // sizes; return Long.MIN_VALUE for "don't know". Otherwise, delegate to superclass.
-    boolean isDir = objectName == null || objectName.endsWith("/");
-    if (expectedToExist && isDir) {
-      return Long.MIN_VALUE;
-    } else {
-      return super.getExpectedObjectSize(objectName, expectedToExist);
     }
   }
 

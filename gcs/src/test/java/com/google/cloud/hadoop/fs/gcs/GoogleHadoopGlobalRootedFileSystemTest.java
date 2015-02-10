@@ -16,7 +16,6 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -39,7 +38,6 @@ public class GoogleHadoopGlobalRootedFileSystemTest
     // Disable logging.
     Logger.getRootLogger().setLevel(Level.OFF);
 
-    gcsit = new GoogleHadoopGlobalRootedFileSystemTest();
     ghfs = GoogleHadoopFileSystemTestHelper.createInMemoryGoogleHadoopGlobalRootedFileSystem();
     ghfsFileSystemDescriptor = (FileSystemDescriptor) ghfs;
 

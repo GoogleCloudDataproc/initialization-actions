@@ -59,8 +59,6 @@ public class GoogleCloudStorageFileSystemTest
               .setShouldIncludeInTimestampUpdatesPredicate(INCLUDE_SUBSTRINGS_PREDICATE)
               .build());
       gcsfs.setUpdateTimestampsExecutor(MoreExecutors.sameThreadExecutor());
-      gcsit = new GoogleCloudStorageFileSystemIntegrationTest();
-      gcs = null;
       GoogleCloudStorageFileSystemIntegrationTest.postCreateInit();
     }
   }
@@ -323,7 +321,7 @@ public class GoogleCloudStorageFileSystemTest
     };
 
     List<URI> actualPaths = new ArrayList<>();
-    for (URI inputPath :inputPaths) {
+    for (URI inputPath : inputPaths) {
       actualPaths.add(GoogleCloudStorageFileSystem.getParentPath(inputPath));
     }
     Assert.assertArrayEquals(expectedPaths, actualPaths.toArray(new URI[0]));

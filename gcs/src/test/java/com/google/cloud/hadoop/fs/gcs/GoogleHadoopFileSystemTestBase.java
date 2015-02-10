@@ -16,7 +16,7 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageIntegrationTest;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageIntegrationHelper;
 import com.google.cloud.hadoop.util.HadoopVersionInfo;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
@@ -58,11 +58,11 @@ public abstract class GoogleHadoopFileSystemTestBase
     // TODO(user) : add helper to get multiple env vars in one
     // call and produce a friendlier message if value(s) are missing.
     String clientId =
-        System.getenv(GoogleCloudStorageIntegrationTest.GCS_TEST_CLIENT_ID);
+        System.getenv(GoogleCloudStorageIntegrationHelper.GCS_TEST_CLIENT_ID);
     String clientSecret =
-        System.getenv(GoogleCloudStorageIntegrationTest.GCS_TEST_CLIENT_SECRET);
+        System.getenv(GoogleCloudStorageIntegrationHelper.GCS_TEST_CLIENT_SECRET);
     String projectId =
-        System.getenv(GoogleCloudStorageIntegrationTest.GCS_TEST_PROJECT_ID);
+        System.getenv(GoogleCloudStorageIntegrationHelper.GCS_TEST_PROJECT_ID);
     Assert.assertNotNull(clientId);
     Assert.assertNotNull(clientSecret);
     Assert.assertNotNull(projectId);
@@ -73,7 +73,7 @@ public abstract class GoogleHadoopFileSystemTestBase
     config.set(GoogleHadoopFileSystemBase.GCS_CLIENT_ID_KEY, clientId);
     config.set(GoogleHadoopFileSystemBase.GCS_CLIENT_SECRET_KEY, clientSecret);
     String systemBucketName =
-        GoogleCloudStorageIntegrationTest.getUniqueBucketName("-system-bucket");
+        ghfsHelper.getUniqueBucketName("-system-bucket");
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, systemBucketName);
     config.setBoolean(GoogleHadoopFileSystemBase.GCS_CREATE_SYSTEM_BUCKET_KEY, true);
     config.setBoolean(
@@ -168,7 +168,7 @@ public abstract class GoogleHadoopFileSystemTestBase
     GoogleHadoopFileSystemBase myghfs = (GoogleHadoopFileSystemBase) ghfs;
     GoogleCloudStorageFileSystem gcsfs = myghfs.getGcsFs();
     URI seedUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
-    Path parentPath = castAsHadoopPath(seedUri);
+    Path parentPath = ghfsHelper.castAsHadoopPath(seedUri);
     URI parentUri = myghfs.getGcsPath(parentPath);
 
     // A subdir path that looks like gs://<bucket>/<generated-tempdir>/foo-subdir where
@@ -190,7 +190,7 @@ public abstract class GoogleHadoopFileSystemTestBase
     Assert.assertTrue("Expected to exist: " + subdirUri, gcsfs.exists(subdirUri));
     Assert.assertTrue("Expected to exist: " + parentUri, gcsfs.exists(parentUri));
 
-    clearBucket(bucketName);
+    ghfsHelper.clearBucket(bucketName);
 
     // Reset for globStatus.
     gcsfs.mkdir(leafUri);
@@ -207,7 +207,7 @@ public abstract class GoogleHadoopFileSystemTestBase
     Assert.assertFalse("Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
     Assert.assertTrue("Expected to exist: " + parentUri, gcsfs.exists(parentUri));
 
-    clearBucket(bucketName);
+    ghfsHelper.clearBucket(bucketName);
 
     // Reset for globStatus(path/*)
     gcsfs.mkdir(leafUri);
@@ -238,7 +238,7 @@ public abstract class GoogleHadoopFileSystemTestBase
       }
     }
 
-    clearBucket(bucketName);
+    ghfsHelper.clearBucket(bucketName);
 
     // Reset for globStatus(path*)
     gcsfs.mkdir(leafUri);
@@ -258,7 +258,7 @@ public abstract class GoogleHadoopFileSystemTestBase
     if (versionInfo.isLessThan(2, 0) || versionInfo.isGreaterThan(2, 3)) {
       Assert.assertTrue("Expected to exist: " + parentUri, gcsfs.exists(parentUri));
     }
-    clearBucket(bucketName);
+    ghfsHelper.clearBucket(bucketName);
   }
 
  /**
@@ -412,14 +412,14 @@ public abstract class GoogleHadoopFileSystemTestBase
 
     // Temporary file in GHFS.
     URI tempFileUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
-    Path tempFilePath = castAsHadoopPath(tempFileUri);
+    Path tempFilePath = ghfsHelper.castAsHadoopPath(tempFileUri);
     Path tempDirPath = tempFilePath.getParent();
     String text = "Hello World!";
-    writeFile(tempFilePath, text, 1, false);
+    ghfsHelper.writeFile(tempFilePath, text, 1, false);
 
     // Another temporary file in GHFS.
     URI tempFileUri2 = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
-    Path tempFilePath2 = castAsHadoopPath(tempFileUri2);
+    Path tempFilePath2 = ghfsHelper.castAsHadoopPath(tempFileUri2);
 
     // Temporary file in local FS.
     File localTempFile = File.createTempFile("ghfs-test-", null);

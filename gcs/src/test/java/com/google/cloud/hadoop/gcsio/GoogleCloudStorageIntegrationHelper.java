@@ -15,8 +15,6 @@
 package com.google.cloud.hadoop.gcsio;
 
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
-import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Strings;
@@ -24,7 +22,6 @@ import com.google.common.base.Strings;
 import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.joda.time.Instant;
 import org.junit.Assert;
 
 import java.io.IOException;
@@ -47,15 +44,9 @@ import java.util.concurrent.TimeUnit;
 /**
  * Integration tests for GoogleCloudStorage class.
  */
-public abstract class GoogleCloudStorageIntegrationTest {
+public abstract class GoogleCloudStorageIntegrationHelper {
   // Logger.
-  protected static LogUtil log = new LogUtil(GoogleCloudStorageIntegrationTest.class);
-
-  // GCS access instance.
-  protected static GoogleCloudStorage gcs;
-
-  // GCS test instance. Allows calling helper methods polymorphically.
-  protected static GoogleCloudStorageIntegrationTest gcsit;
+  protected static LogUtil log = new LogUtil(GoogleCloudStorageIntegrationHelper.class);
 
   // Application name for OAuth.
   static final String APP_NAME = "GCS-test";
@@ -76,95 +67,22 @@ public abstract class GoogleCloudStorageIntegrationTest {
   public static final String TEST_BUCKET_NAME_PATTERN =
       "^" + TEST_BUCKET_NAME_PREFIX + UUID_PATTERN + ".*";
 
-  // Name of test buckets.
-  public static String bucketName;
-  public static String otherBucketName;
-
-  // Time when test started. Used for determining which objects got
-  // created after the test started.
-  public static Instant testStartTime;
-
   // Name of the test object.
-  protected static String objectName = "gcsio-test.txt";
+  //protected static String objectName = "gcsio-test.txt";
+
+  // Name of test buckets.
+  public String bucketName;
+  public String otherBucketName;
 
   // List of buckets to delete during post-test cleanup.
-  private static List<String> bucketsToDelete = new ArrayList<>();
-
-  private static String projectId;
-  private static Credential credential;
+  private List<String> bucketsToDelete = new ArrayList<>();
 
   /**
    * Perform initialization once before tests are run.
    */
-  public static void beforeAllTests()
-      throws IOException {
-    if (gcs == null) {
-      projectId = TestConfiguration.getInstance().getProjectId();
-      Assert.assertNotNull(projectId);
-      credential = GoogleCloudStorageTestHelper.getCredential();
-      GoogleCloudStorageOptions.Builder optionsBuilder =
-          GoogleCloudStorageOptions.newBuilder();
-      optionsBuilder
-          .setAppName(APP_NAME)
-          .setProjectId(projectId)
-          .getWriteChannelOptionsBuilder()
-          .setFileSizeLimitedTo250Gb(GoogleHadoopFileSystemBase.GCS_FILE_SIZE_LIMIT_250GB_DEFAULT)
-          .setUploadBufferSize(8 * 1024 * 1024); // 8MB upload buffer size for testing.
-
-      gcs = new GoogleCloudStorageImpl(optionsBuilder.build(), credential);
-      gcsit = new GoogleCloudStorageIntegrationTest() {
-        // TODO(user): Remove with gcsit global variable.
-        @Override
-        protected SeekableReadableByteChannel open(String bucketName, String objectName)
-            throws IOException {
-          throw new IllegalStateException("Not implemented");
-        }
-
-        @Override
-        protected WritableByteChannel create(
-            String bucketName, String objectName, CreateFileOptions options) throws IOException {
-          throw new IllegalStateException("Not implemented");
-        }
-
-        @Override
-        protected void mkdir(String bucketName, String objectName) throws IOException {
-          throw new IllegalStateException("Not implemented");
-        }
-
-        @Override
-        protected void mkdir(String bucketName) throws IOException {
-          throw new IllegalStateException("Not implemented");
-        }
-
-        @Override
-        protected void delete(String bucketName) throws IOException {
-          throw new IllegalStateException("Not implemented");
-        }
-
-        @Override
-        protected void delete(String bucketName, String objectName) throws IOException {
-          throw new IllegalStateException("Not implemented");
-        }
-
-        @Override
-        protected void clearBucket(String bucketName) throws IOException {
-          throw new IllegalStateException("Not implemented");
-        }
-      };
-      postCreateInit();
-    }
-  }
-
-  /**
-   * Perform initialization after creating test instances.
-   */
-  public static void postCreateInit()
-      throws IOException {
-
+  public void beforeAllTests() throws IOException {
     // Un-comment the following to enable logging during test run.
     //enableLogging();
-
-    testStartTime = Instant.now();
 
     // Create a couple of buckets. The first one is used by most tests.
     // The second one is used by some tests (eg, copy()).
@@ -177,16 +95,11 @@ public abstract class GoogleCloudStorageIntegrationTest {
   /**
    * Perform clean-up once after all tests are turn.
    */
-  public static void afterAllTests()
+  public void afterAllTests()
       throws IOException {
 
     // Delete buckets created during test.
     deleteBuckets();
-
-    if (gcs != null) {
-      gcs.close();
-      gcs = null;
-    }
   }
 
   /**
@@ -363,13 +276,13 @@ public abstract class GoogleCloudStorageIntegrationTest {
    * This function assumes a certain behavior when we create test objects.
    * See {@link createObjects()} for details.
    */
-  protected long getExpectedObjectSize(String objectName, boolean expectedToExist)
+  public long getExpectedObjectSize(String objectName, boolean expectedToExist)
       throws UnsupportedEncodingException {
     // Determine the expected size.
     long expectedSize;
     if (expectedToExist) {
-      if (Strings.isNullOrEmpty(objectName) ||
-          objectName.endsWith(GoogleCloudStorage.PATH_DELIMITER)) {
+      if (Strings.isNullOrEmpty(objectName)
+          || objectName.endsWith(GoogleCloudStorage.PATH_DELIMITER)) {
         expectedSize = 0;
       } else {
         expectedSize = objectName.getBytes("UTF-8").length;
@@ -386,7 +299,7 @@ public abstract class GoogleCloudStorageIntegrationTest {
    * @param objectName name of the object to inspect
    * @return whether the given object name looks like a directory path
    */
-  public static boolean objectHasDirectoryPath(String objectName) {
+  public boolean objectHasDirectoryPath(String objectName) {
     return FileInfo.objectHasDirectoryPath(objectName);
   }
 
@@ -497,8 +410,7 @@ public abstract class GoogleCloudStorageIntegrationTest {
         // We should already be done.
         future.get(10, TimeUnit.MILLISECONDS);
       } catch (Exception e) {
-        throw new IOException(
-            String.format("Creation of file %s failed with exception", objectName), e);
+        throw new IOException("Creation of file failed with exception", e);
       }
     }
   }
@@ -506,7 +418,7 @@ public abstract class GoogleCloudStorageIntegrationTest {
   /**
    * Gets the credential tests should use for accessing GCS.
    */
-  static Credential getCredential()
+  Credential getCredential()
       throws IOException {
     String clientId = System.getenv(GCS_TEST_CLIENT_ID);
     String clientSecret = System.getenv(GCS_TEST_CLIENT_SECRET);
@@ -528,7 +440,7 @@ public abstract class GoogleCloudStorageIntegrationTest {
    * The name is prefixed with an identifiable string. A bucket created by this method
    * can be identified by calling isTestBucketName() for that bucket.
    */
-  public static String getUniqueBucketName() {
+  public String getUniqueBucketName() {
     return getUniqueBucketName("");
   }
 
@@ -537,7 +449,7 @@ public abstract class GoogleCloudStorageIntegrationTest {
    * The name is prefixed with an identifiable string. A bucket created by this method
    * can be identified by calling isTestBucketName() for that bucket.
    */
-  public static String getUniqueBucketName(String suffix) {
+  public String getUniqueBucketName(String suffix) {
     UUID uuid = UUID.randomUUID();
     String uniqueBucketName = TEST_BUCKET_NAME_PREFIX + uuid.toString() + suffix;
     // In most cases, caller creates a bucket with this name therefore we proactively add the name
@@ -551,21 +463,21 @@ public abstract class GoogleCloudStorageIntegrationTest {
    * Indicates whether the given name matches the pattern used for
    * naming a test bucket.
    */
-  static boolean isTestBucketName(String bucketName) {
+  boolean isTestBucketName(String bucketName) {
     return bucketName.matches(TEST_BUCKET_NAME_PATTERN);
   }
 
   /**
    * Gets randomly generated name of a file like object.
    */
-  static String getUniqueFileObjectName() {
+  String getUniqueFileObjectName() {
     return "file-" + UUID.randomUUID().toString();
   }
 
   /**
    * Gets randomly generated name of a directory like object.
    */
-  static String getUniqueDirectoryObjectName() {
+  String getUniqueDirectoryObjectName() {
     return "dir-" + UUID.randomUUID().toString();
   }
 
@@ -573,9 +485,9 @@ public abstract class GoogleCloudStorageIntegrationTest {
    * Creates a bucket and adds it to the list of buckets to delete
    * at the end of tests.
    */
-  public static void createTempBucket(String tempBucketName)
+  public void createTempBucket(String tempBucketName)
       throws IOException {
-    gcsit.mkdir(tempBucketName);
+    mkdir(tempBucketName);
     addToDeleteBucketList(tempBucketName);
   }
 
@@ -583,7 +495,7 @@ public abstract class GoogleCloudStorageIntegrationTest {
    * Creates a bucket and adds it to the list of buckets to delete
    * at the end of tests.
    */
-  static String createTempBucket()
+  String createTempBucket()
       throws IOException {
     String tempBucketName = getUniqueBucketName();
     createTempBucket(tempBucketName);
@@ -594,7 +506,7 @@ public abstract class GoogleCloudStorageIntegrationTest {
    * Add the given bucket name to the list of buckets to delete
    * during post-test cleanup.
    */
-  static void addToDeleteBucketList(String bucketToDelete) {
+  void addToDeleteBucketList(String bucketToDelete) {
     // We do not create more than a few buckets during tests, therefore linear search
     // to find duplicates is ok.
     if (!bucketsToDelete.contains(bucketToDelete)) {
@@ -605,11 +517,11 @@ public abstract class GoogleCloudStorageIntegrationTest {
   /**
    * Delete buckets that were temporarily created during tests.
    */
-  static void deleteBuckets() {
+  public void deleteBuckets() {
     for (String bucket : bucketsToDelete) {
       try {
-        gcsit.clearBucket(bucket);
-        gcsit.delete(bucket);
+        clearBucket(bucket);
+        delete(bucket);
       } catch (IOException e) {
         log.warn("deleteBuckets: " + e.getLocalizedMessage());
       }
@@ -620,7 +532,7 @@ public abstract class GoogleCloudStorageIntegrationTest {
   /**
    * Enable debug logger.
    */
-  static void enableLogging() {
+  void enableLogging() {
     System.setProperty(
         "org.apache.commons.logging.Log",
         "org.apache.commons.logging.impl.Log4JLogger");

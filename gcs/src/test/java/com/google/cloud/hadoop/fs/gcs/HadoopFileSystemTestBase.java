@@ -14,10 +14,8 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
-import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
-import com.google.cloud.hadoop.gcsio.SeekableReadableByteChannel;
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 
@@ -26,7 +24,6 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.FsPermission;
 import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -39,8 +36,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
-import java.nio.channels.WritableByteChannel;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -65,37 +60,22 @@ public abstract class HadoopFileSystemTestBase
   static FileSystem ghfs;
   static FileSystemDescriptor ghfsFileSystemDescriptor;
 
-  /**
-   * FS statistics mode.
-   */
-  public enum FileSystemStatistics {
-    // No statistics available.
-    NONE,
+  protected static HadoopFileSystemIntegrationHelper ghfsHelper;
 
-    // Statistics matches number of bytes written/read by caller.
-    EXACT,
-
-    // Statistics values reported are often greater than number of bytes
-    // written/read by caller because of hidden underlying operations
-    // involving check-summing.
-    GREATER_OR_EQUAL,
-
-    // We skip all FS statistics tests
-    IGNORE,
+  public static void postCreateInit() throws IOException {
+    postCreateInit(
+        new HadoopFileSystemIntegrationHelper(ghfs, ghfsFileSystemDescriptor));
   }
-
-  // FS statistics mode of the FS tested by this class.
-  static FileSystemStatistics statistics = FileSystemStatistics.IGNORE;
 
   /**
    * Perform initialization after creating test instances.
    */
-  public static void postCreateInit()
+  public static void postCreateInit(HadoopFileSystemIntegrationHelper helper)
       throws IOException {
-    GoogleCloudStorageFileSystemIntegrationTest.postCreateInit();
+    ghfsHelper = helper;
+    GoogleCloudStorageFileSystemIntegrationTest.postCreateInit(ghfsHelper);
 
     // Ensures that we do not accidentally end up testing wrong functionality.
-    gcs = null;
     gcsfs = null;
   }
 
@@ -110,78 +90,6 @@ public abstract class HadoopFileSystemTestBase
       ghfs.close();
       ghfs = null;
       ghfsFileSystemDescriptor = null;
-    }
-  }
-
-  // -----------------------------------------------------------------
-  // Overridden methods from GCS FS test.
-  // -----------------------------------------------------------------
-
-  /**
-   * Renames src path to dst path.
-   */
-  @Override
-  protected boolean rename(URI src, URI dst)
-      throws IOException {
-    Path srcHadoopPath = castAsHadoopPath(src);
-    Path dstHadoopPath = castAsHadoopPath(dst);
-
-    return ghfs.rename(srcHadoopPath, dstHadoopPath);
-  }
-
-  /**
-   * Deletes the given path.
-   */
-  @Override
-  protected boolean delete(URI path, boolean recursive)
-      throws IOException {
-    Path hadoopPath = castAsHadoopPath(path);
-    if (recursive) {
-      // Allows delete(URI) to be covered by test.
-      // Note that delete(URI) calls delete(URI, true).
-      return ghfs.delete(hadoopPath);
-    } else {
-      return ghfs.delete(hadoopPath, recursive);
-    }
-  }
-
-  /**
-   * Creates the given directory and any non-existent parent directories.
-   */
-  @Override
-  protected boolean mkdirs(URI path)
-      throws IOException {
-    Path hadoopPath = castAsHadoopPath(path);
-    return ghfs.mkdirs(hadoopPath);
-  }
-
-  /**
-   * Indicates whether the given path exists.
-   */
-  @Override
-  protected boolean exists(URI path)
-      throws IOException {
-    Path hadoopPath = castAsHadoopPath(path);
-    try {
-      ghfs.getFileStatus(hadoopPath);
-      return true;
-    } catch (FileNotFoundException e) {
-      return false;
-    }
-  }
-
-  /**
-   * Indicates whether the given path is directory.
-   */
-  @Override
-  protected boolean isDirectory(URI path)
-      throws IOException {
-    Path hadoopPath = castAsHadoopPath(path);
-    try {
-      FileStatus status = ghfs.getFileStatus(hadoopPath);
-      return status.isDir();
-    } catch (FileNotFoundException e) {
-      return false;
     }
   }
 
@@ -204,13 +112,15 @@ public abstract class HadoopFileSystemTestBase
       // File/dir exists, check its attributes.
       String message = (fileStatus.getPath()).toString();
 
-      long expectedSize = getExpectedObjectSize(objectName, expectedToExist);
+      long expectedSize =
+          ghfsHelper.getExpectedObjectSize(objectName, expectedToExist);
       if (expectedSize != Long.MIN_VALUE) {
         Assert.assertEquals(message, expectedSize, fileStatus.getLen());
       }
 
       boolean expectedToBeDir =
-          Strings.isNullOrEmpty(objectName) || objectHasDirectoryPath(objectName);
+          Strings.isNullOrEmpty(objectName)
+          || ghfsHelper.objectHasDirectoryPath(objectName);
       Assert.assertEquals(message, expectedToBeDir, fileStatus.isDir());
 
       Instant currentTime = Instant.now();
@@ -245,7 +155,7 @@ public abstract class HadoopFileSystemTestBase
       String bucketName, String objectName, boolean expectedToExist)
       throws IOException {
     URI path = GoogleCloudStorageFileSystem.getPath(bucketName, objectName, true);
-    Path hadoopPath = castAsHadoopPath(path);
+    Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
     FileStatus fileStatus = null;
 
     try {
@@ -292,7 +202,7 @@ public abstract class HadoopFileSystemTestBase
           pathComponents[0] = bucketName;
           pathComponents[1] = expectedListedName;
         }
-        Path expectedPath = castAsHadoopPath(
+        Path expectedPath = ghfsHelper.castAsHadoopPath(
             GoogleCloudStorageFileSystem.getPath(pathComponents[0], pathComponents[1], true));
         expectedPaths.add(expectedPath);
         pathToComponents.put(expectedPath, pathComponents);
@@ -301,10 +211,10 @@ public abstract class HadoopFileSystemTestBase
 
     // Get list of actual paths.
     URI path = GoogleCloudStorageFileSystem.getPath(bucketName, objectNamePrefix, true);
-    Path hadoopPath = castAsHadoopPath(path);
+    Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
     FileStatus[] fileStatus = null;
     try {
-      fileStatus = listStatus(hadoopPath);
+      fileStatus = ghfsHelper.listStatus(hadoopPath);
     } catch (FileNotFoundException fnfe) {
       Assert.assertFalse(
           String.format("Hadoop path %s expected to exist", hadoopPath), pathExpectedToExist);
@@ -359,273 +269,6 @@ public abstract class HadoopFileSystemTestBase
     }
   }
 
-  /**
-   * Opens the given object for reading.
-   */
-  @Override
-  protected SeekableReadableByteChannel open(String bucketName, String objectName)
-      throws IOException {
-    return null;
-  }
-
-  /**
-   * Opens the given object for writing.
-   */
-  @Override
-  protected WritableByteChannel create(
-      String bucketName, String objectName, CreateFileOptions options) throws IOException {
-    return null;
-  }
-
-  /**
-   * Writes a file with the given buffer repeated numWrites times.
-   *
-   * @param bucketName Name of the bucket to create object in.
-   * @param objectName Name of the object to create.
-   * @param buffer Data to write
-   * @param numWrites Number of times to repeat the data.
-   * @return Number of bytes written.
-   */
-  @Override
-  protected int writeFile(String bucketName, String objectName, ByteBuffer buffer, int numWrites)
-      throws IOException {
-    Path hadoopPath = createSchemeCompatibleHadoopPath(bucketName, objectName);
-    return HadoopFileSystemTestBase.writeFile(
-        hadoopPath, buffer, numWrites, true);
-  }
-
-  /**
-   * Helper which reads the entire file as a String.
-   */
-  @Override
-  protected String readTextFile(String bucketName, String objectName)
-      throws IOException {
-    Path hadoopPath = createSchemeCompatibleHadoopPath(bucketName, objectName);
-    return readTextFile(hadoopPath);
-  }
-
-  /**
-   * Helper which reads the entire file as a String.
-   */
-  protected String readTextFile(Path hadoopPath)
-      throws IOException {
-    FSDataInputStream readStream = null;
-    byte[] readBuffer = new byte[1024];
-    StringBuffer returnBuffer = new StringBuffer();
-
-    try {
-      readStream = ghfs.open(hadoopPath, GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT);
-      int numBytesRead = readStream.read(readBuffer);
-      while (numBytesRead > 0) {
-        returnBuffer.append(new String(readBuffer, 0, numBytesRead, StandardCharsets.UTF_8));
-        numBytesRead = readStream.read(readBuffer);
-      }
-    } finally {
-      if (readStream != null) {
-        readStream.close();
-      }
-    }
-    return returnBuffer.toString();
-  }
-
-  /**
-   * Helper that reads text from the given bucket+object at the given offset
-   * and returns it. If checkOverflow is true, it will make sure that
-   * no more than 'len' bytes were read.
-   */
-  @Override
-  protected String readTextFile(
-      String bucketName, String objectName, int offset, int len, boolean checkOverflow)
-      throws IOException {
-    Path hadoopPath = createSchemeCompatibleHadoopPath(bucketName, objectName);
-    return readTextFile(hadoopPath, offset, len, checkOverflow);
-  }
-
-  /**
-   * Helper that reads text from the given file at the given offset
-   * and returns it. If checkOverflow is true, it will make sure that
-   * no more than 'len' bytes were read.
-   */
-  protected String readTextFile(
-      Path hadoopPath, int offset, int len, boolean checkOverflow)
-      throws IOException {
-    String text = null;
-    FSDataInputStream readStream = null;
-    long fileSystemBytesRead = 0;
-    FileSystem.Statistics stats = FileSystem.getStatistics(
-        ghfsFileSystemDescriptor.getScheme(), ghfs.getClass());
-    if (stats != null) {
-      // Let it be null in case no stats have been added for our scheme yet.
-      fileSystemBytesRead =
-          stats.getBytesRead();
-    }
-
-    try {
-      int bufferSize = len;
-      bufferSize += checkOverflow ? 1 : 0;
-      byte[] readBuffer = new byte[bufferSize];
-      readStream = ghfs.open(hadoopPath, GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT);
-      int numBytesRead;
-      if (offset > 0) {
-        numBytesRead = readStream.read(offset, readBuffer, 0, bufferSize);
-      } else {
-        numBytesRead = readStream.read(readBuffer);
-      }
-      Assert.assertEquals(len, numBytesRead);
-      text = new String(readBuffer, 0, numBytesRead, StandardCharsets.UTF_8);
-    } finally {
-      if (readStream != null) {
-        readStream.close();
-      }
-    }
-
-    // After the read, the stats better be non-null for our ghfs scheme.
-    stats = FileSystem.getStatistics(
-        ghfsFileSystemDescriptor.getScheme(), ghfs.getClass());
-    Assert.assertNotNull(stats);
-    long endFileSystemBytesRead = stats.getBytesRead();
-    int bytesReadStats = (int) (endFileSystemBytesRead - fileSystemBytesRead);
-    if (statistics == FileSystemStatistics.EXACT) {
-      Assert.assertEquals(
-          String.format("FS statistics mismatch fetched from class '%s'", ghfs.getClass()),
-          len, bytesReadStats);
-    } else if (statistics == FileSystemStatistics.GREATER_OR_EQUAL) {
-      Assert.assertTrue(String.format("Expected %d <= %d", len, bytesReadStats),
-          len <= bytesReadStats);
-    } else if (statistics == FileSystemStatistics.NONE) {
-      Assert.assertEquals("FS statistics expected to be 0", 0, fileSystemBytesRead);
-      Assert.assertEquals("FS statistics expected to be 0", 0, endFileSystemBytesRead);
-    } else if (statistics == FileSystemStatistics.IGNORE) {
-      // NO-OP
-    }
-
-    return text;
-  }
-
-  /**
-   * Creates a directory.
-   */
-  @Override
-  protected void mkdir(String bucketName, String objectName)
-      throws IOException {
-    Path path = createSchemeCompatibleHadoopPath(bucketName, objectName);
-    ghfs.mkdirs(path);
-  }
-
-  /**
-   * Creates a directory.
-   */
-  @Override
-  protected void mkdir(String bucketName)
-      throws IOException {
-    Path path = createSchemeCompatibleHadoopPath(bucketName, null);
-    ghfs.mkdirs(path);
-  }
-
-  /**
-   * Deletes the given item.
-   */
-  @Override
-  protected void delete(String bucketName)
-      throws IOException {
-    Path path = createSchemeCompatibleHadoopPath(bucketName, null);
-    ghfs.delete(path, false);
-  }
-
-  /**
-   * Deletes the given object.
-   */
-  @Override
-  protected void delete(String bucketName, String objectName)
-      throws IOException {
-    Path path = createSchemeCompatibleHadoopPath(bucketName, objectName);
-    ghfs.delete(path, false);
-  }
-
-  /**
-   * Deletes all objects from the given bucket.
-   */
-  @Override
-  protected void clearBucket(String bucketName)
-      throws IOException {
-    Path hadoopPath = createSchemeCompatibleHadoopPath(bucketName, null);
-    FileStatus[] statusList = ghfs.listStatus(hadoopPath);
-    if (statusList != null) {
-      for (FileStatus status : statusList) {
-        if (!ghfs.delete(status.getPath(), true)) {
-          System.err.println(String.format("Failed to delete path: '%s'", status.getPath()));
-        }
-      }
-    }
-  }
-
-  // -----------------------------------------------------------------
-  // Overridable methods added by this class.
-  // -----------------------------------------------------------------
-
-  /**
-   * Gets a Hadoop path using bucketName and objectName as components of a GCS URI, then casting
-   * to a no-authority Hadoop path which follows the scheme indicated by the
-   * ghfsFileSystemDescriptor.
-   */
-  protected Path createSchemeCompatibleHadoopPath(String bucketName, String objectName) {
-    URI gcsPath = getPath(bucketName, objectName);
-    return castAsHadoopPath(gcsPath);
-  }
-
-  /**
-   * Synthesizes a Hadoop path for the given GCS path by casting straight into the scheme indicated
-   * by the ghfsFileSystemDescriptor instance; if the URI contains an 'authority', the authority
-   * is re-interpreted as the topmost path component of a URI sitting inside the fileSystemRoot
-   * indicated by the ghfsFileSystemDescriptor.
-   * <p>
-   * Examples:
-   *   gs:/// -> gsg:/
-   *   gs://foo/bar -> gs://root-bucket/foo/bar
-   *   gs://foo/bar -> hdfs:/foo/bar
-   * <p>
-   * Note that it cannot be generally assumed that GCS-based filesystems will "invert" this path
-   * back into the same GCS path internally; for example, if a bucket-rooted filesystem is based
-   * in 'my-system-bucket', then this method will convert:
-   * <p>
-   *   gs://foo/bar -> gs:/foo/bar
-   * <p>
-   * which will then be converted internally:
-   * <p>
-   *   gs:/foo/bar -> gs://my-system-bucket/foo/bar
-   * <p>
-   * when the bucket-rooted FileSystem creates actual data in the underlying GcsFs.
-   */
-  protected Path castAsHadoopPath(URI gcsPath) {
-    String childPath = gcsPath.getRawPath();
-    if (childPath != null && childPath.startsWith("/")) {
-      childPath = childPath.substring(1);
-    }
-    String authority = gcsPath.getAuthority();
-    if (Strings.isNullOrEmpty(authority)) {
-      if (Strings.isNullOrEmpty(childPath)) {
-        return ghfsFileSystemDescriptor.getFileSystemRoot();
-      } else {
-        return new Path(ghfsFileSystemDescriptor.getFileSystemRoot(), childPath);
-      }
-    } else {
-      if (Strings.isNullOrEmpty(childPath)) {
-        return new Path(ghfsFileSystemDescriptor.getFileSystemRoot(), authority);
-      } else {
-        return new Path(ghfsFileSystemDescriptor.getFileSystemRoot(), new Path(
-            authority, childPath));
-      }
-    }
-  }
-
-  /**
-   * Lists status of file(s) at the given path.
-   */
-  protected FileStatus[] listStatus(Path hadoopPath)
-      throws IOException {
-    return ghfs.listStatus(hadoopPath);
-  }
-
   // -----------------------------------------------------------------
   // Tests that test behavior at GHFS layer.
 
@@ -636,8 +279,8 @@ public abstract class HadoopFileSystemTestBase
   public void testReadInvalidArgs()
       throws IOException {
     URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
-    Path hadoopPath = castAsHadoopPath(path);
-    writeFile(hadoopPath, "file text", 1, true);
+    Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
+    ghfsHelper.writeFile(hadoopPath, "file text", 1, true);
     FSDataInputStream readStream =
         ghfs.open(hadoopPath, GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT);
     byte[] buffer = new byte[1];
@@ -681,7 +324,7 @@ public abstract class HadoopFileSystemTestBase
     String text = "Hello World!";
     byte[] textBytes = text.getBytes("UTF-8");
     URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
-    Path hadoopPath = castAsHadoopPath(path);
+    Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
     FSDataOutputStream writeStream = null;
     writeStream = ghfs.create(hadoopPath);
 
@@ -692,7 +335,8 @@ public abstract class HadoopFileSystemTestBase
     writeStream.close();
 
     // Read the file back and verify contents.
-    String readText = readTextFile(hadoopPath, 0, textBytes.length, true);
+    String readText =
+        ghfsHelper.readTextFile(hadoopPath, 0, textBytes.length, true);
     Assert.assertEquals("testWrite1Byte: write-read mismatch", text, readText);
   }
 
@@ -732,7 +376,7 @@ public abstract class HadoopFileSystemTestBase
 
     // Get a temp path and ensure that it does not already exist.
     URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
-    Path hadoopPath = castAsHadoopPath(path);
+    Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
     try {
       ghfs.getFileStatus(hadoopPath);
       Assert.fail("Expected FileNotFoundException");
@@ -742,12 +386,12 @@ public abstract class HadoopFileSystemTestBase
 
     // Create a file.
     String text = "Hello World!";
-    int numBytesWritten = writeFile(hadoopPath, text, 1, false);
+    int numBytesWritten = ghfsHelper.writeFile(hadoopPath, text, 1, false);
     Assert.assertEquals(text.getBytes("UTF-8").length, numBytesWritten);
 
     // Try to create the same file again with overwrite == false.
     try {
-      writeFile(hadoopPath, text, 1, false);
+      ghfsHelper.writeFile(hadoopPath, text, 1, false);
       Assert.fail("Expected IOException");
     } catch (IOException expected) {
       // Expected.
@@ -761,7 +405,7 @@ public abstract class HadoopFileSystemTestBase
   public void testAppend()
       throws IOException {
     URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
-    Path hadoopPath = castAsHadoopPath(path);
+    Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
     try {
       ghfs.append(hadoopPath, GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT, null);
       Assert.fail("Expected IOException");
@@ -789,9 +433,9 @@ public abstract class HadoopFileSystemTestBase
 
     // Write an object.
     URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
-    Path hadoopPath = castAsHadoopPath(path);
+    Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
     String text = "Hello World!";
-    int numBytesWritten = writeFile(hadoopPath, text, 1, false);
+    int numBytesWritten = ghfsHelper.writeFile(hadoopPath, text, 1, false);
 
     // Verify that position is at 0 for a newly opened stream.
     try (FSDataInputStream readStream =
@@ -865,14 +509,15 @@ public abstract class HadoopFileSystemTestBase
       throws IOException {
     // Write an object.
     URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
-    Path hadoopPath = castAsHadoopPath(path);
+    Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
 
     byte[] testBytes = new byte[GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT * 3];
     // The value of each byte should be each to its integer index squared, cast as a byte.
     for (int i = 0; i < testBytes.length; ++i) {
       testBytes[i] = (byte) (i * i);
     }
-    int numBytesWritten = writeFile(hadoopPath, ByteBuffer.wrap(testBytes), 1, false);
+    int numBytesWritten =
+        ghfsHelper.writeFile(hadoopPath, ByteBuffer.wrap(testBytes), 1, false);
     Assert.assertEquals(testBytes.length, numBytesWritten);
 
     try (FSDataInputStream readStream =
@@ -967,10 +612,10 @@ public abstract class HadoopFileSystemTestBase
   public void testPreemptivelyEscapedPaths()
       throws IOException {
     URI parentUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
-    Path parentPath = castAsHadoopPath(parentUri);
+    Path parentPath = ghfsHelper.castAsHadoopPath(parentUri);
     Path escapedPath = new Path(parentPath, new Path("foo%3Abar"));
 
-    writeFile(escapedPath, "foo", 1, true);
+    ghfsHelper.writeFile(escapedPath, "foo", 1, true);
     Assert.assertTrue(ghfs.exists(escapedPath));
 
     FileStatus status = ghfs.getFileStatus(escapedPath);
@@ -1011,11 +656,11 @@ public abstract class HadoopFileSystemTestBase
      * Similarly the expectedObjectName is also converted to an absolute path.
      */
     static WorkingDirData absolute(
-        HadoopFileSystemTestBase ghfsit,
+        HadoopFileSystemIntegrationHelper ghfsHelper,
         String objectName, String expectedObjectName) {
       return new WorkingDirData(
-          ghfsit.createSchemeCompatibleHadoopPath(bucketName, objectName),
-          ghfsit.createSchemeCompatibleHadoopPath(bucketName, expectedObjectName));
+          ghfsHelper.createSchemeCompatibleHadoopPath(bucketName, objectName),
+          ghfsHelper.createSchemeCompatibleHadoopPath(bucketName, expectedObjectName));
     }
 
     /**
@@ -1025,10 +670,9 @@ public abstract class HadoopFileSystemTestBase
      * the default test bucket. The resulting path is passed to setWorkingDirectory().
      */
     static WorkingDirData absolute(
-        HadoopFileSystemTestBase ghfsit,
-        String objectName) {
+        HadoopFileSystemIntegrationHelper ghfsHelper, String objectName) {
       return new WorkingDirData(
-          ghfsit.createSchemeCompatibleHadoopPath(bucketName, objectName),
+          ghfsHelper.createSchemeCompatibleHadoopPath(bucketName, objectName),
           null);
     }
 
@@ -1059,8 +703,8 @@ public abstract class HadoopFileSystemTestBase
 
     // -------------------------------------------------------
     // Create test objects.
-    clearBucket(bucketName);
-    createObjectsWithSubdirs(bucketName, objectNames);
+    ghfsHelper.clearBucket(bucketName);
+    ghfsHelper.createObjectsWithSubdirs(bucketName, objectNames);
 
     // -------------------------------------------------------
     // Initialize test data.
@@ -1071,17 +715,18 @@ public abstract class HadoopFileSystemTestBase
     wddList.add(WorkingDirData.any(rootPath, rootPath));
 
     // Set working directory to an existing directory (empty).
-    wddList.add(WorkingDirData.absolute(this, "d0/", "d0/"));
+    wddList.add(WorkingDirData.absolute(ghfsHelper, "d0/", "d0/"));
 
     // Set working directory to an existing directory (non-empty).
-    wddList.add(WorkingDirData.absolute(this, "d1/", "d1/"));
+    wddList.add(WorkingDirData.absolute(ghfsHelper, "d1/", "d1/"));
 
 
     // Set working directory to an existing directory (multi-level).
-    wddList.add(WorkingDirData.absolute(this, "d1/d11/", "d1/d11/"));
+    wddList.add(WorkingDirData.absolute(ghfsHelper, "d1/d11/", "d1/d11/"));
 
     // Set working directory to an existing directory (bucket).
-    wddList.add(WorkingDirData.absolute(this, (String) null, (String) null));
+    wddList.add(WorkingDirData.absolute(
+        ghfsHelper, (String) null, (String) null));
 
     return wddList;
   }
@@ -1118,102 +763,6 @@ public abstract class HadoopFileSystemTestBase
   @Test @Override
   public void testGetFileInfos()
       throws IOException {
-  }
-
-  // -----------------------------------------------------------------
-  // Misc test helpers.
-
-  /**
-   * Writes a file with the given buffer repeated numWrites times.
-   *
-   * @param hadoopPath Path of the file to create.
-   * @param text Text data to write.
-   * @param numWrites Number of times to repeat the data.
-   * @param overwrite If true, overwrite any existing file.
-   * @return Number of bytes written.
-   */
-  static int writeFile(Path hadoopPath, String text, int numWrites, boolean overwrite)
-      throws IOException {
-    return writeFile(hadoopPath, ByteBuffer.wrap(text.getBytes("UTF-8")), numWrites, overwrite);
-  }
-
-  /**
-   * Writes a file with the given buffer repeated numWrites times.
-   *
-   * @param hadoopPath Path of the file to create.
-   * @param buffer Data to write.
-   * @param numWrites Number of times to repeat the data.
-   * @param overwrite If true, overwrite any existing file.
-   * @return Number of bytes written.
-   */
-  static int writeFile(Path hadoopPath, ByteBuffer buffer, int numWrites, boolean overwrite)
-      throws IOException {
-    int numBytesWritten = -1;
-    int totalBytesWritten = 0;
-
-    long fileSystemBytesWritten = 0;
-    FileSystem.Statistics stats = FileSystem.getStatistics(
-        ghfsFileSystemDescriptor.getScheme(), ghfs.getClass());
-    if (stats != null) {
-      // Let it be null in case no stats have been added for our scheme yet.
-      fileSystemBytesWritten =
-          stats.getBytesWritten();
-    }
-    FSDataOutputStream writeStream = null;
-    boolean allWritesSucceeded = false;
-
-    try {
-      writeStream = ghfs.create(hadoopPath,
-          FsPermission.getDefault(),
-          overwrite,
-          GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT,
-          GoogleHadoopFileSystemBase.REPLICATION_FACTOR_DEFAULT,
-          GoogleHadoopFileSystemBase.BLOCK_SIZE_DEFAULT,
-          null);  // progressable
-
-      for (int i = 0; i < numWrites; i++) {
-        buffer.clear();
-        writeStream.write(buffer.array(), 0, buffer.capacity());
-        numBytesWritten = buffer.capacity();
-        totalBytesWritten += numBytesWritten;
-      }
-      allWritesSucceeded = true;
-    } finally {
-      if (writeStream != null) {
-        try {
-          writeStream.close();
-        } catch (IOException e) {
-          // Ignore IO exceptions while closing if write failed otherwise the
-          // exception that caused the write to fail gets superseded.
-          // On the other hand, if all writes succeeded then we need to know about the exception
-          // that was thrown during closing.
-          if (allWritesSucceeded) {
-            throw e;
-          }
-        }
-      }
-    }
-
-    // After the write, the stats better be non-null for our ghfs scheme.
-    stats = FileSystem.getStatistics(ghfsFileSystemDescriptor.getScheme(), ghfs.getClass());
-    Assert.assertNotNull(stats);
-    long endFileSystemBytesWritten =
-        stats.getBytesWritten();
-    int bytesWrittenStats = (int) (endFileSystemBytesWritten - fileSystemBytesWritten);
-    if (statistics == FileSystemStatistics.EXACT) {
-      Assert.assertEquals(
-          String.format("FS statistics mismatch fetched from class '%s'", ghfs.getClass()),
-          totalBytesWritten, bytesWrittenStats);
-    } else if (statistics == FileSystemStatistics.GREATER_OR_EQUAL) {
-      Assert.assertTrue(String.format("Expected %d <= %d", totalBytesWritten, bytesWrittenStats),
-          totalBytesWritten <= bytesWrittenStats);
-    } else if (statistics == FileSystemStatistics.NONE) {
-      // Do not perform any check because stats are either not maintained or are erratic.
-    } else if (statistics == FileSystemStatistics.IGNORE) {
-      // NO-OP
-    }
-
-    return totalBytesWritten;
   }
 
   @Override

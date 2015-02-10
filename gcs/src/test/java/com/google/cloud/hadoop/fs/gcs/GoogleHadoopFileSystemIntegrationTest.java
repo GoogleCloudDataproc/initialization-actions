@@ -15,7 +15,6 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageIntegrationTest;
 import com.google.cloud.hadoop.gcsio.InMemoryGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
@@ -56,8 +55,6 @@ public class GoogleHadoopFileSystemIntegrationTest
   @BeforeClass
   public static void beforeAllTests()
       throws IOException {
-    gcsit = new GoogleHadoopFileSystemIntegrationTest();
-
     GoogleHadoopFileSystem testInstance = new GoogleHadoopFileSystem();
     ghfs = testInstance;
     ghfsFileSystemDescriptor = testInstance;
@@ -228,9 +225,9 @@ public class GoogleHadoopFileSystemIntegrationTest
     long blockSize = 1024;
     config.setLong(GoogleHadoopFileSystemBase.BLOCK_SIZE_KEY, blockSize);
     String systemBucketName =
-        GoogleCloudStorageIntegrationTest.getUniqueBucketName("-system-bucket");
+        ghfsHelper.getUniqueBucketName("-system-bucket");
     String rootBucketName =
-        GoogleCloudStorageIntegrationTest.getUniqueBucketName("-root-bucket");
+        ghfsHelper.getUniqueBucketName("-root-bucket");
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, systemBucketName);
 
     URI initUri = (new Path("gs://" + rootBucketName)).toUri();
@@ -274,8 +271,8 @@ public class GoogleHadoopFileSystemIntegrationTest
     URI gsUri = new URI("gs://foobar/");
     config.setBoolean(GoogleHadoopFileSystemBase.ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY, false);
     config.setBoolean(
-        HadoopCredentialConfiguration.BASE_KEY_PREFIX +
-            HadoopCredentialConfiguration.ENABLE_NULL_CREDENTIAL_SUFFIX,
+        HadoopCredentialConfiguration.BASE_KEY_PREFIX
+            + HadoopCredentialConfiguration.ENABLE_NULL_CREDENTIAL_SUFFIX,
         true);
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, existingBucket);
     // project ID is not set.
@@ -369,9 +366,9 @@ public class GoogleHadoopFileSystemIntegrationTest
     GoogleHadoopFileSystem fs = null;
     
     String systemBucketName =
-        GoogleCloudStorageIntegrationTest.getUniqueBucketName("-system-bucket");
+        ghfsHelper.getUniqueBucketName("-system-bucket");
     String rootBucketName =
-        GoogleCloudStorageIntegrationTest.getUniqueBucketName("-root-bucket");
+        ghfsHelper.getUniqueBucketName("-root-bucket");
 
     URI initUri = (new Path(rootBucketName)).toUri();
     
