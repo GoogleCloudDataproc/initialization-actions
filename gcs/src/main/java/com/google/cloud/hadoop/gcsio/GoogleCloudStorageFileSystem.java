@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -71,10 +72,10 @@ public class GoogleCloudStorageFileSystem {
   // FS options
   private final GoogleCloudStorageFileSystemOptions options;
 
-  // Executor for updating directory timestamps
+  // Executor for updating directory timestamps.
   private ExecutorService updateTimestampsExecutor = new ThreadPoolExecutor(
-      0 /* base thread count */, 5 /* max thread count */, 2 /* keepAliveTime */,
-      TimeUnit.SECONDS /* keepAliveTime unit */, new LinkedBlockingQueue<Runnable>(),
+      2 /* core thread count */, 2 /* max thread count */, 2 /* keepAliveTime */,
+      TimeUnit.SECONDS /* keepAliveTime unit */, new LinkedBlockingQueue<Runnable>(1000),
       new ThreadFactoryBuilder()
           .setNameFormat("gcsfs-timestamp-updates-%d")
           .setDaemon(true)
@@ -1223,16 +1224,20 @@ public class GoogleCloudStorageFileSystem {
 
     // If we're calling tryUpdateTimestamps, we don't actually care about the results. Submit
     // these requests via a background thread and continue on.
-    updateTimestampsExecutor.submit(new Runnable() {
-      @Override
-      public void run() {
-        try {
-          updateTimestampsForParentDirectories(modifiedObjects, excludedParents);
-        } catch (IOException ioe) {
-          log.debug("Exception caught when trying to update parent directory timestamps.", ioe);
+    try {
+      updateTimestampsExecutor.submit(new Runnable() {
+        @Override
+        public void run() {
+          try {
+            updateTimestampsForParentDirectories(modifiedObjects, excludedParents);
+          } catch (IOException ioe) {
+            log.debug("Exception caught when trying to update parent directory timestamps.", ioe);
+          }
         }
-      }
-    });
+      });
+    } catch (RejectedExecutionException ree) {
+      log.debug("Exhausted threadpool and queue space while updating parent timestamps", ree);
+    }
   }
 
   /**
