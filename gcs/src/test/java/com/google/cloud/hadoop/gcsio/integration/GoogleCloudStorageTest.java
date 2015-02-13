@@ -356,6 +356,24 @@ public class GoogleCloudStorageTest {
   }
 
   @Test
+  public void testCreateInvalidObject() throws IOException {
+    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
+      String bucketName = scope.getBucketName();
+      GoogleCloudStorage gcs = scope.getStorageInstance();
+
+      byte[] bytesToWrite = "SomeText".getBytes(StandardCharsets.UTF_8);
+      // Verify the bucket exist by creating an object
+      StorageResourceId objectToCreate =
+          new StorageResourceId(bucketName, "testCreateObject_CreateInvalidTestObject\n");
+      // gcs.create should throw:
+      expectedException.expect(IOException.class);
+      try (WritableByteChannel channel = gcs.create(objectToCreate)) {
+        channel.write(ByteBuffer.wrap(bytesToWrite));
+      }
+    }
+  }
+
+  @Test
   public void testCreateZeroLengthObjectUsingCreate() throws IOException {
     try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
       String bucketName = scope.getBucketName();
@@ -580,7 +598,8 @@ public class GoogleCloudStorageTest {
     }
   }
 
-  @Test
+  // TODO(user): Re-enable once a new method of inducing errors is devised.
+  @Test @Ignore
   public void testGetMultipleItemInfoWithSomeInvalid() throws IOException {
     try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
       String bucketName = scope.getBucketName();
@@ -603,7 +622,8 @@ public class GoogleCloudStorageTest {
     }
   }
 
-  @Test
+  // TODO(user): Re-enable once a new method of inducing errors is devised.
+  @Test @Ignore
   public void testOneInvalidGetItemInfo() throws IOException {
     try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
       String bucketName = scope.getBucketName();
@@ -661,7 +681,8 @@ public class GoogleCloudStorageTest {
     }
   }
 
-  @Test
+  // TODO(user): Re-enable once a new method of inducing errors is devised.
+  @Test @Ignore
   public void testSomeInvalidObjectsDelete() throws IOException {
     try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
       String bucketName = scope.getBucketName();
@@ -1454,7 +1475,7 @@ public class GoogleCloudStorageTest {
       Map<String, byte[]> deletionMap = new HashMap<>();
       deletionMap.put("key1", null);
       gcs.updateItems(ImmutableList.of(new UpdatableItemInfo(objectToCreate, deletionMap)));
-      
+
       itemInfo = gcs.getItemInfo(objectToCreate);
       // Ensure that only key2:value2 still exists:
       assertMapsEqual(
