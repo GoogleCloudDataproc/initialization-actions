@@ -26,7 +26,7 @@ export GCS_TEST_SERVICE_ACCOUNT=$4
 export GCS_TEST_PRIVATE_KEYFILE=$5
 
 function print_usage() {
-  echo -n "$0 [project ID] [clinet ID] [client secret] [service_account_email] [path_to_p12]"
+  echo -n "$0 [project ID] [client ID] [client secret] [service_account_email] [path_to_p12]"
 }
 
 function check_required_params () {

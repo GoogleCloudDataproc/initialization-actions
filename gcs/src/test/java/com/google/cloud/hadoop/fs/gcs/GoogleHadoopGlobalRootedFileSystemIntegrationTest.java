@@ -73,6 +73,11 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     } catch (URISyntaxException e) {
       throw new IllegalArgumentException(e);
     }
+
+    // loadConfig needs ghfsHelper, which is normally created in
+    // postCreateInit. Create one here for it to use.
+    ghfsHelper = new HadoopFileSystemIntegrationHelper(
+        ghfs, ghfsFileSystemDescriptor);
     ghfs.initialize(initUri, loadConfig());
 
     HadoopFileSystemTestBase.postCreateInit();

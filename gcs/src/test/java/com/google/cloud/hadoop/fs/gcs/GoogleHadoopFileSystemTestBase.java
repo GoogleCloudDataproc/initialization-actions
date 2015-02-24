@@ -57,15 +57,21 @@ public abstract class GoogleHadoopFileSystemTestBase
     // through a Configuration object instance.
     // TODO(user) : add helper to get multiple env vars in one
     // call and produce a friendlier message if value(s) are missing.
-    String clientId =
-        System.getenv(GoogleCloudStorageIntegrationHelper.GCS_TEST_CLIENT_ID);
-    String clientSecret =
-        System.getenv(GoogleCloudStorageIntegrationHelper.GCS_TEST_CLIENT_SECRET);
-    String projectId =
-        System.getenv(GoogleCloudStorageIntegrationHelper.GCS_TEST_PROJECT_ID);
-    Assert.assertNotNull(clientId);
-    Assert.assertNotNull(clientSecret);
-    Assert.assertNotNull(projectId);
+    String clientId = System.getenv(
+        GoogleCloudStorageIntegrationHelper.GCS_TEST_CLIENT_ID);
+    String clientSecret = System.getenv(
+        GoogleCloudStorageIntegrationHelper.GCS_TEST_CLIENT_SECRET);
+    String projectId = System.getenv(
+        GoogleCloudStorageIntegrationHelper.GCS_TEST_PROJECT_ID);
+    Assert.assertNotNull("Expected value for env var "
+        + GoogleCloudStorageIntegrationHelper.GCS_TEST_CLIENT_ID,
+        clientId);
+    Assert.assertNotNull("Expected value for env var "
+        + GoogleCloudStorageIntegrationHelper.GCS_TEST_CLIENT_SECRET,
+        clientSecret);
+    Assert.assertNotNull("Expected value for env var "
+        + GoogleCloudStorageIntegrationHelper.GCS_TEST_PROJECT_ID,
+        projectId);
     Configuration config = new Configuration();
     config.setBoolean(
         GoogleHadoopFileSystemBase.ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY, false);
