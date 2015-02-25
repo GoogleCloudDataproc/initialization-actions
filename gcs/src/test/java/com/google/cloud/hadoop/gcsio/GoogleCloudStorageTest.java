@@ -732,6 +732,59 @@ public class GoogleCloudStorageTest {
   }
 
   @Test
+  public void testOpenAndReadWithPrematureEndOfStream()
+      throws IOException, InterruptedException {
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
+        .thenReturn(mockStorageObjectsGet);
+    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsGet)))
+        .thenReturn(mockHeaders);
+    when(mockStorageObjectsGet.execute())
+        .thenReturn(new StorageObject()
+            .setBucket(BUCKET_NAME)
+            .setName(OBJECT_NAME)
+            .setUpdated(new DateTime(11L))
+            .setSize(BigInteger.valueOf(111L))
+            .setGeneration(1L)
+            .setMetageneration(1L));
+
+    // We'll claim a Content-Length of testData.length, but then only return a stream containing
+    // truncatedData. The channel should throw an exception upon detecting this premature
+    // end-of-stream.
+    byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
+    byte[] truncatedData = { 0x01, 0x02, 0x03 };
+    when(mockStorageObjectsGet.executeMedia())
+        .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(truncatedData)));
+
+    GoogleCloudStorageReadChannel readChannel =
+        (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
+    readChannel.setSleeper(mockSleeper);
+    readChannel.setNanoClock(mockClock);
+    readChannel.setBackOff(mockBackOff);
+    readChannel.setMaxRetries(3);
+    assertTrue(readChannel.isOpen());
+    assertEquals(0, readChannel.position());
+
+    byte[] actualData = new byte[testData.length];
+    try {
+      int bytesRead;
+      do {
+        bytesRead = readChannel.read(ByteBuffer.wrap(actualData));
+      } while (bytesRead != -1);
+      fail("Expected IllegalStateException, got bytesRead: " + bytesRead);
+    } catch (IllegalStateException ise) {
+      // Expected.
+    }
+
+    verify(mockStorage, atLeastOnce()).objects();
+    verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockClientRequestHelper, times(1)).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders, times(1)).setRange(eq("bytes=0-"));
+    verify(mockStorageObjectsGet).execute();
+    verify(mockStorageObjectsGet, times(1)).executeMedia();
+  }
+
+  @Test
   public void testOpenExceptionsDuringReadTotalElapsedTimeTooGreat()
       throws IOException, InterruptedException {
     when(mockStorage.objects()).thenReturn(mockStorageObjects);

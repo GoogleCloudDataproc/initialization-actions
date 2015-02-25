@@ -268,7 +268,9 @@ public class GoogleCloudStorageReadChannel
           // actual size of the data stream when stream compression is used, so we can only ignore
           // this case here.
           Preconditions.checkState(isCompressedStream || currentPosition == size,
-              "Received end of stream result before all the file data has been received");
+              "Received end of stream result before all the file data has been received; "
+              + "totalBytesRead: %s, currentPosition: %s, size: %s",
+              totalBytesRead, currentPosition, size);
           break;
         }
         totalBytesRead += numBytesRead;
@@ -366,7 +368,8 @@ public class GoogleCloudStorageReadChannel
       // read against the stream size. Unfortunately we don't have information about the actual size
       // of the data stream when stream compression is used, so we can only ignore this case here.
       Preconditions.checkState(isCompressedStream || currentPosition == size,
-          "Failed to read any data before all the file data has been received");
+          "Failed to read any data before all the file data has been received; "
+          + "currentPosition: %s, size: %s", currentPosition, size);
       return -1;
     } else {
       return totalBytesRead;

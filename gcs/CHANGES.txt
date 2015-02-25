@@ -5,6 +5,10 @@
      waiting for performLazySeek() to do it, so that SSLException can be
      caught and ignored; broken SSL sockets cannot be closed normally,
      and are responsible for already cleaning up on error.
+  2. Added explicit check of currentPosition == size when -1 is read from
+     underlying stream in GoogleCloudStorageReadChannel, in case the
+     stream fails to identify an error case and prematurely reaches
+     end-of-stream.
 
 
 1.3.2 - 2015-01-22
