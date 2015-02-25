@@ -110,6 +110,21 @@ public class GoogleCloudStorageFileSystem {
   };
 
   /**
+   * Helper for creating a "found" GoogleCloudStorageItemInfo
+   * for an inferred directory.
+   */
+  @VisibleForTesting
+  static GoogleCloudStorageItemInfo createItemInfoForInferredDirectory(
+      StorageResourceId resourceId) {
+    Preconditions.checkArgument(resourceId != null,
+        "resourceId must not be null");
+
+    // Return size == 0, creationTime == 0,
+    // location == storageClass == null for an inferred directory object.
+    return new GoogleCloudStorageItemInfo(resourceId, 0, 0, null, null);
+  }
+
+  /**
    * Constructs an instance of GoogleCloudStorageFileSystem.
    *
    * @param credential OAuth2 credential that allows access to GCS.
@@ -951,8 +966,16 @@ public class GoogleCloudStorageFileSystem {
 
     // The second element is definitely a directory-path FileInfo.
     FileInfo dirInfo = baseAndDirInfos.get(1);
-    if (!dirInfo.exists() && enableAutoRepair) {
-      dirInfo = repairPossibleImplicitDirectory(dirInfo);
+    if (!dirInfo.exists()) {
+      if (enableAutoRepair) {
+        dirInfo = repairPossibleImplicitDirectory(dirInfo);
+      } else if (options.isInferImplicitDirectoriesEnabled()) {
+        StorageResourceId dirId = dirInfo.getItemInfo().getResourceId();
+        if (!dirInfo.isDirectory()) {
+          dirId = FileInfo.convertToDirectoryPath(dirId);
+        }
+        dirInfo = FileInfo.fromItemInfo(getInferredItemInfo(dirId));
+      }
     }
 
     // Still doesn't exist after attempted repairs (or repairs were disabled).
@@ -996,17 +1019,37 @@ public class GoogleCloudStorageFileSystem {
     if (!itemInfo.exists() && !FileInfo.isDirectory(itemInfo)) {
       // If the given file does not exist, see if a directory of
       // the same name exists.
-      resourceId = FileInfo.convertToDirectoryPath(resourceId);
-      log.debug("getFileInfo(%s) : not found. trying: %s", path, resourceId.toString());
-      GoogleCloudStorageItemInfo newItemInfo = gcs.getItemInfo(resourceId);
+      StorageResourceId newResourceId = FileInfo.convertToDirectoryPath(resourceId);
+      log.debug("getFileInfo(%s) : not found. trying: %s", path, newResourceId.toString());
+      GoogleCloudStorageItemInfo newItemInfo = gcs.getItemInfo(newResourceId);
       // Only swap out the old not-found itemInfo if the "converted" itemInfo actually exists; if
       // both forms do not exist, we will just go with the original non-converted itemInfo.
       if (newItemInfo.exists()) {
-        log.debug("getFileInfo: swapping not-found info: %s for converted info: %s",
+        log.debug(
+            "getFileInfo: swapping not-found info: %s for converted info: %s",
             itemInfo, newItemInfo);
         itemInfo = newItemInfo;
+        resourceId = newResourceId;
       }
     }
+
+    if (!itemInfo.exists() && options.isInferImplicitDirectoriesEnabled()) {
+      StorageResourceId newResourceId = resourceId;
+      if (!FileInfo.isDirectory(itemInfo)) {
+        newResourceId = FileInfo.convertToDirectoryPath(resourceId);
+      }
+      log.debug("getFileInfo(%s) : still not found, trying inferred: %s",
+          path, newResourceId.toString());
+      GoogleCloudStorageItemInfo newItemInfo = getInferredItemInfo(resourceId);
+      if (newItemInfo.exists()) {
+        log.debug(
+            "getFileInfo: swapping not-found info: %s for inferred info: %s",
+            itemInfo, newItemInfo);
+        itemInfo = newItemInfo;
+        resourceId = newResourceId;
+      }
+    }
+
     FileInfo fileInfo = FileInfo.fromItemInfo(itemInfo);
     log.debug("getFileInfo: %s", fileInfo);
     return fileInfo;
@@ -1069,6 +1112,41 @@ public class GoogleCloudStorageFileSystem {
       }
     }
 
+    // If we are inferring directories and we still have some items that
+    // are not found, run through the items again looking for inferred
+    // directories.
+    if (options.isInferImplicitDirectoriesEnabled()) {
+      Map<StorageResourceId, Integer> inferredIdsToIndex = new HashMap<>();
+      for (int i = 0; i < itemInfos.size(); ++i) {
+        if (!itemInfos.get(i).exists()) {
+          StorageResourceId inferredId = itemInfos.get(i).getResourceId();
+          if (!FileInfo.isDirectory(itemInfos.get(i))) {
+            inferredId = FileInfo.convertToDirectoryPath(inferredId);
+          }
+          log.debug("getFileInfos(%s) : still not found, trying inferred: %s",
+              itemInfos.get(i).getResourceId(), inferredId);
+          inferredIdsToIndex.put(inferredId, i);
+        }
+      }
+
+      if (!inferredIdsToIndex.isEmpty()) {
+        List<StorageResourceId> inferredResourceIds =
+             new ArrayList<>(inferredIdsToIndex.keySet());
+        List<GoogleCloudStorageItemInfo> inferredInfos =
+            getInferredItemInfos(inferredResourceIds);
+        for (int i = 0; i < inferredResourceIds.size(); ++i) {
+          if (inferredInfos.get(i).exists()) {
+            int replaceIndex =
+                inferredIdsToIndex.get(inferredResourceIds.get(i));
+            log.debug("getFileInfos: swapping not-found info: "
+                + "%s for inferred info: %s",
+                itemInfos.get(replaceIndex), inferredInfos.get(i));
+            itemInfos.set(replaceIndex, inferredInfos.get(i));
+          }
+        }
+      }
+    }
+
     // Finally, plug each GoogleCloudStorageItemInfo into a respective FileInfo before returning.
     return FileInfo.fromItemInfos(itemInfos);
   }
@@ -1098,6 +1176,54 @@ public class GoogleCloudStorageFileSystem {
 
     // Finally, plug each GoogleCloudStorageItemInfo into a respective FileInfo before returning.
     return FileInfo.fromItemInfos(itemInfos);
+  }
+
+  /**
+   * Gets information about an inferred object that represents a directory
+   * but which is not explicitly represented in GCS.
+   *
+   * @param dirId identifies either root, a Bucket, or a StorageObject
+   * @return information about the given item
+   * @throws IOException on IO error
+   */
+  private GoogleCloudStorageItemInfo getInferredItemInfo(
+      StorageResourceId dirId) throws IOException {
+    dirId = FileInfo.convertToDirectoryPath(dirId);
+
+    String bucketName = dirId.getBucketName();
+    // We have ensured that the path ends in the delimited,
+    // so now we can just use that path as the prefix.
+    String objectNamePrefix = dirId.getObjectName();
+    String delimiter = GoogleCloudStorage.PATH_DELIMITER;
+
+    List<String> objectNames = gcs.listObjectNames(
+        bucketName, objectNamePrefix, delimiter, 1);
+
+    if (objectNames.size() > 0) {
+      // At least one object with that prefix exists, so infer a directory.
+      return createItemInfoForInferredDirectory(dirId);
+    } else {
+      return GoogleCloudStorageImpl.createItemInfoForNotFound(dirId);
+    }
+  }
+
+  /**
+   * Gets information about multiple inferred objects and/or buckets.
+   * Items which are "not found" will still have an entry in the returned list;
+   * exists() will return false for these entries.
+   *
+   * @param resourceIds names of the GCS StorageObjects or
+   *        Buckets for which to retrieve info.
+   * @return information about the given resourceIds.
+   * @throws IOException on IO error
+   */
+  private List<GoogleCloudStorageItemInfo> getInferredItemInfos(
+      List<StorageResourceId> resourceIds) throws IOException {
+    List<GoogleCloudStorageItemInfo> itemInfos = new ArrayList<>();
+    for (int i = 0; i < resourceIds.size(); ++i) {
+      itemInfos.add(getInferredItemInfo(resourceIds.get(i)));
+    }
+    return itemInfos;
   }
 
   /**
@@ -1508,5 +1634,13 @@ public class GoogleCloudStorageFileSystem {
   static FileNotFoundException getFileNotFoundException(URI path) {
     return new FileNotFoundException(
         String.format("Item not found: %s", path));
+  }
+
+  /**
+   * Retrieve our internal gcs, for testing purposes only.
+   */
+  @VisibleForTesting
+  GoogleCloudStorage getGcs() {
+    return gcs;
   }
 }
