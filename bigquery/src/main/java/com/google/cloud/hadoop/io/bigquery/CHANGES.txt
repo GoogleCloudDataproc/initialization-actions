@@ -1,4 +1,4 @@
-0.5.2 - 2015-xx-xx
+0.6.0 - 2015-02-26
 
   1. Fixed a bug in BigQueryOutputFormat which can occasionally cause extraneous
      records to be written due to low-level retries not be de-duplicated on the
