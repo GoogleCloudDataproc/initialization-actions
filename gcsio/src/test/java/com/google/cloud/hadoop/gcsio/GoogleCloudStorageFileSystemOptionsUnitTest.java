@@ -121,18 +121,23 @@ public class GoogleCloudStorageFileSystemOptionsUnitTest
       createGcsfsWithAutoRepairWithInferDirectories(
       boolean autoRepairEnabled, boolean inferDirectories)
       throws IOException {
-    GoogleCloudStorageOptions options = GoogleCloudStorageOptions.newBuilder()
+    // Use the GcsOptions builder from the GcsFsOptions builder
+    // so that we can get to the GcsOptions from the GcsFsOptions
+    // in order to ensure we have the right value for
+    // isInferImplicitDirectoriesEnabled in gcsfs.
+    GoogleCloudStorageFileSystemOptions.Builder fsOptionsBuilder =
+        GoogleCloudStorageFileSystemOptions.newBuilder();
+            //.setShouldIncludeInTimestampUpdatesPredicate(
+                //INCLUDE_SUBSTRINGS_PREDICATE)
+    GoogleCloudStorageOptions.Builder gcsOptionsBuilder =
+        fsOptionsBuilder.getCloudStorageOptionsBuilder();
+    GoogleCloudStorageOptions gcsOptions = gcsOptionsBuilder
         .setAutoRepairImplicitDirectoriesEnabled(autoRepairEnabled)
+        .setInferImplicitDirectoriesEnabled(inferDirectories)
         .build();
-    GoogleCloudStorage gcs = this.gcsCreator.createGcs(options);
+    GoogleCloudStorage gcs = this.gcsCreator.createGcs(gcsOptions);
     GoogleCloudStorageFileSystem gcsfs =
-        new GoogleCloudStorageFileSystem(gcs,
-            GoogleCloudStorageFileSystemOptions
-                .newBuilder()
-                //.setShouldIncludeInTimestampUpdatesPredicate(
-                    //INCLUDE_SUBSTRINGS_PREDICATE)
-                .setInferImplicitDirectoriesEnabled(inferDirectories)
-                .build());
+        new GoogleCloudStorageFileSystem(gcs, fsOptionsBuilder.build());
     gcsfs.setUpdateTimestampsExecutor(MoreExecutors.sameThreadExecutor());
     return gcsfs;
   }

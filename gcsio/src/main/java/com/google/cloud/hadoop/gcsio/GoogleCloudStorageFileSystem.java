@@ -110,21 +110,6 @@ public class GoogleCloudStorageFileSystem {
   };
 
   /**
-   * Helper for creating a "found" GoogleCloudStorageItemInfo
-   * for an inferred directory.
-   */
-  @VisibleForTesting
-  static GoogleCloudStorageItemInfo createItemInfoForInferredDirectory(
-      StorageResourceId resourceId) {
-    Preconditions.checkArgument(resourceId != null,
-        "resourceId must not be null");
-
-    // Return size == 0, creationTime == 0,
-    // location == storageClass == null for an inferred directory object.
-    return new GoogleCloudStorageItemInfo(resourceId, 0, 0, null, null);
-  }
-
-  /**
    * Constructs an instance of GoogleCloudStorageFileSystem.
    *
    * @param credential OAuth2 credential that allows access to GCS.
@@ -969,7 +954,8 @@ public class GoogleCloudStorageFileSystem {
     if (!dirInfo.exists()) {
       if (enableAutoRepair) {
         dirInfo = repairPossibleImplicitDirectory(dirInfo);
-      } else if (options.isInferImplicitDirectoriesEnabled()) {
+      } else if (options.getCloudStorageOptions()
+                  .isInferImplicitDirectoriesEnabled()) {
         StorageResourceId dirId = dirInfo.getItemInfo().getResourceId();
         if (!dirInfo.isDirectory()) {
           dirId = FileInfo.convertToDirectoryPath(dirId);
@@ -1033,7 +1019,9 @@ public class GoogleCloudStorageFileSystem {
       }
     }
 
-    if (!itemInfo.exists() && options.isInferImplicitDirectoriesEnabled()) {
+    if (!itemInfo.exists()
+        && options.getCloudStorageOptions()
+            .isInferImplicitDirectoriesEnabled()) {
       StorageResourceId newResourceId = resourceId;
       if (!FileInfo.isDirectory(itemInfo)) {
         newResourceId = FileInfo.convertToDirectoryPath(resourceId);
@@ -1115,7 +1103,7 @@ public class GoogleCloudStorageFileSystem {
     // If we are inferring directories and we still have some items that
     // are not found, run through the items again looking for inferred
     // directories.
-    if (options.isInferImplicitDirectoriesEnabled()) {
+    if (options.getCloudStorageOptions().isInferImplicitDirectoriesEnabled()) {
       Map<StorageResourceId, Integer> inferredIdsToIndex = new HashMap<>();
       for (int i = 0; i < itemInfos.size(); ++i) {
         if (!itemInfos.get(i).exists()) {
@@ -1201,7 +1189,7 @@ public class GoogleCloudStorageFileSystem {
 
     if (objectNames.size() > 0) {
       // At least one object with that prefix exists, so infer a directory.
-      return createItemInfoForInferredDirectory(dirId);
+      return GoogleCloudStorageImpl.createItemInfoForInferredDirectory(dirId);
     } else {
       return GoogleCloudStorageImpl.createItemInfoForNotFound(dirId);
     }

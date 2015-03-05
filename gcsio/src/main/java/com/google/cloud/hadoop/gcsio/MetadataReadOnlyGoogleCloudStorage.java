@@ -218,6 +218,9 @@ public class MetadataReadOnlyGoogleCloudStorage
 
       // Check whether each raw prefix already had a valid real entry; if not, we'll add a fake
       // directory object, but we'll keep track of it.
+      // We add these inferred directories without requiring options in which
+      // isInferImplicitDirectoriesEnabled() is true
+      // (to maintain historical behavior).
       for (String prefix : prefixes) {
         if (!retrievedNames.contains(prefix)) {
           log.debug("Found implicit directory '%s'. Adding fake entry for it.", prefix);

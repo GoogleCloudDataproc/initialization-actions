@@ -14,12 +14,14 @@
 
 package com.google.cloud.hadoop.gcsio.integration;
 
-
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.fail;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
@@ -34,6 +36,7 @@ import org.junit.runners.JUnit4;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.util.List;
 
 /**
  * Tests that require a particular configuration of GoogleCloudStorageImpl.
@@ -63,6 +66,19 @@ public class GoogleCloudStorageImplTest {
         GoogleCloudStorageTestHelper.getStandardOptionBuilder();
 
     builder.setCreateMarkerObjects(createMarkerFiles);
+
+    Credential credential = GoogleCloudStorageTestHelper.getCredential();
+
+    return new GoogleCloudStorageImpl(builder.build(), credential);
+  }
+
+  protected GoogleCloudStorageImpl makeStorageWithInferImplicit()
+      throws IOException {
+    GoogleCloudStorageOptions.Builder builder =
+        GoogleCloudStorageTestHelper.getStandardOptionBuilder();
+
+    builder.setAutoRepairImplicitDirectoriesEnabled(false);
+    builder.setInferImplicitDirectoriesEnabled(true);
 
     Credential credential = GoogleCloudStorageTestHelper.getCredential();
 
@@ -156,6 +172,33 @@ public class GoogleCloudStorageImplTest {
       expectedException.expectMessage("412 Precondition Failed");
       byteChannel2.close();
       fail("Closing the second byte channel should fail.");
+    } finally {
+      GoogleCloudStorageTestHelper.cleanupTestObjects(
+          gcs,
+          ImmutableList.of(bucketName),
+          ImmutableList.of(resourceId));
+    }
+  }
+
+  @Test
+  public void testInferImplicitDirectories() throws IOException {
+    String bucketName = bucketHelper.getUniqueBucketName("infer_implicit");
+    StorageResourceId resourceId = new StorageResourceId(bucketName, "d0/o1");
+
+    GoogleCloudStorageImpl gcs = makeStorageWithInferImplicit();
+
+    try {
+      gcs.create(bucketName);
+      gcs.createEmptyObject(resourceId);
+
+      GoogleCloudStorageItemInfo itemInfo =
+          gcs.getItemInfo(new StorageResourceId(bucketName, "d0/"));
+      assertFalse(itemInfo.exists());
+
+       List<GoogleCloudStorageItemInfo> d0ItemInfo =
+           gcs.listObjectInfo(bucketName, "d0/", "/");
+       assertEquals("d0 length", 1, d0ItemInfo.size());
+
     } finally {
       GoogleCloudStorageTestHelper.cleanupTestObjects(
           gcs,

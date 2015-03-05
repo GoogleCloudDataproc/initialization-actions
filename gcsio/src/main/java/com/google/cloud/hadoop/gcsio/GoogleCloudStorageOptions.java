@@ -14,7 +14,6 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -34,6 +33,11 @@ public class GoogleCloudStorageOptions {
   public static final boolean AUTO_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT = true;
 
   /**
+   * Default setting for enabling inferring of implicit directories.
+   */
+  public static final boolean INFER_IMPLICIT_DIRECTORIES_DEFAULT = false;
+
+  /**
    * Default setting for maximum number of requests per GCS batch.
    */
   public static final long MAX_REQUESTS_PER_BATCH_DEFAULT = 1000;
@@ -49,6 +53,8 @@ public class GoogleCloudStorageOptions {
   public static class Builder {
     private boolean autoRepairImplicitDirectoriesEnabled =
         AUTO_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT;
+    private boolean inferImplicitDirectoriesEnabled =
+        INFER_IMPLICIT_DIRECTORIES_DEFAULT;
     private String projectId = null;
     private String appName = null;
     private long maxListItemsPerCall = MAX_LIST_ITEMS_PER_CALL_DEFAULT;
@@ -65,6 +71,12 @@ public class GoogleCloudStorageOptions {
     public Builder setAutoRepairImplicitDirectoriesEnabled(
         boolean autoRepairImplicitDirectoriesEnabled) {
       this.autoRepairImplicitDirectoriesEnabled = autoRepairImplicitDirectoriesEnabled;
+      return this;
+    }
+
+    public Builder setInferImplicitDirectoriesEnabled(
+        boolean inferImplicitDirectoriesEnabled) {
+      this.inferImplicitDirectoriesEnabled = inferImplicitDirectoriesEnabled;
       return this;
     }
 
@@ -106,6 +118,7 @@ public class GoogleCloudStorageOptions {
     public GoogleCloudStorageOptions build() {
       return new GoogleCloudStorageOptions(
           autoRepairImplicitDirectoriesEnabled,
+          inferImplicitDirectoriesEnabled,
           projectId,
           appName,
           maxListItemsPerCall,
@@ -120,6 +133,7 @@ public class GoogleCloudStorageOptions {
   }
 
   private final boolean autoRepairImplicitDirectoriesEnabled;
+  private final boolean inferImplicitDirectoriesEnabled;
   private final String projectId;
   private final String appName;
   private final AsyncWriteChannelOptions writeChannelOptions;
@@ -127,11 +141,14 @@ public class GoogleCloudStorageOptions {
   private final long maxRequestsPerBatch;
   private final boolean createMarkerFile;
 
-  public GoogleCloudStorageOptions(boolean autoRepairImplicitDirectoriesEnabled,
+  public GoogleCloudStorageOptions(
+      boolean autoRepairImplicitDirectoriesEnabled,
+      boolean inferImplicitDirectoriesEnabled,
       String projectId, String appName, long maxListItemsPerCall,
       long maxRequestsPerBatch, boolean createMarkerFile,
       AsyncWriteChannelOptions writeChannelOptions) {
     this.autoRepairImplicitDirectoriesEnabled = autoRepairImplicitDirectoriesEnabled;
+    this.inferImplicitDirectoriesEnabled = inferImplicitDirectoriesEnabled;
     this.projectId = projectId;
     this.appName = appName;
     this.writeChannelOptions = writeChannelOptions;
@@ -142,6 +159,10 @@ public class GoogleCloudStorageOptions {
 
   public boolean isAutoRepairImplicitDirectoriesEnabled() {
     return autoRepairImplicitDirectoriesEnabled;
+  }
+
+  public boolean isInferImplicitDirectoriesEnabled() {
+    return inferImplicitDirectoriesEnabled;
   }
 
   public String getProjectId() {

@@ -323,7 +323,17 @@ public class InMemoryGoogleCloudStorage
         GoogleCloudStorageItemInfo newInfo = getItemInfo(itemInfo.getResourceId());
         if (newInfo.exists()) {
           listedInfo.add(newInfo);
+        } else if (storageOptions.isInferImplicitDirectoriesEnabled()) {
+          // If we fail to do the repair, but inferImplicit is enabled,
+          // then we silently add the implicit (as opposed to silently
+          // ignoring the failure, which is what we used to do).
+          listedInfo.add(GoogleCloudStorageImpl
+              .createItemInfoForInferredDirectory(itemInfo.getResourceId()));
         }
+      } else if (itemInfo.getResourceId().isStorageObject()
+                 && storageOptions.isInferImplicitDirectoriesEnabled()) {
+        listedInfo.add(GoogleCloudStorageImpl
+            .createItemInfoForInferredDirectory(itemInfo.getResourceId()));
       }
       if (maxResults > 0 && listedInfo.size() >= maxResults) {
         break;

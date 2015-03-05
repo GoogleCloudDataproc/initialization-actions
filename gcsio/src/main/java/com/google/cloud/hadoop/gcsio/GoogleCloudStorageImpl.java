@@ -1165,6 +1165,9 @@ public class GoogleCloudStorageImpl
           if (storageOptions.isAutoRepairImplicitDirectoriesEnabled()) {
             log.debug(errorBase + "Attempting to repair missing directory.");
             repairList.add(prefixInfo.getResourceId());
+          } else if (storageOptions.isInferImplicitDirectoriesEnabled()) {
+            objectInfos.add(createItemInfoForInferredDirectory(
+                prefixInfo.getResourceId()));
           } else {
             log.error(errorBase + "Giving up on retrieving missing directory.");
           }
@@ -1190,6 +1193,10 @@ public class GoogleCloudStorageImpl
               ++numRepaired;
             } else {
               log.warn("Somehow the repair for '%s' failed quietly", repairedInfo.getResourceId());
+              if (storageOptions.isInferImplicitDirectoriesEnabled()) {
+                objectInfos.add(createItemInfoForInferredDirectory(
+                    repairedInfo.getResourceId()));
+              }
             }
           }
           log.warn("Successfully repaired %d/%d implicit directories.",
@@ -1198,6 +1205,27 @@ public class GoogleCloudStorageImpl
           // Don't totally fail the listObjectInfo call, since auto-repair is best-effort
           // anyways.
           log.error("Failed to repair some missing directories.", ioe);
+          if (storageOptions.isInferImplicitDirectoriesEnabled()) {
+            // If we have both auto-repair and auto-infer set, and we fail
+            // to repair everything, then infer what was not repaired.
+            List<GoogleCloudStorageItemInfo> repairedInfos = getItemInfos(repairList);
+            int numRepaired = 0;
+            for (GoogleCloudStorageItemInfo repairedInfo : repairedInfos) {
+              if (repairedInfo.exists()) {
+                objectInfos.add(repairedInfo);
+                ++numRepaired;
+              } else {
+                log.info("Repair for '%s' failed, using inferred directory",
+                    repairedInfo.getResourceId());
+                objectInfos.add(createItemInfoForInferredDirectory(
+                    repairedInfo.getResourceId()));
+              }
+            }
+            if (numRepaired > 0) {
+              log.info("Successfully repaired %d/%d implicit directories.",
+                  numRepaired, repairList.size());
+            }
+          }
         }
       }
     }
@@ -1259,9 +1287,24 @@ public class GoogleCloudStorageImpl
   }
 
   /**
+   * Helper for creating a "found" GoogleCloudStorageItemInfo
+   * for an inferred directory.
+   */
+  protected static GoogleCloudStorageItemInfo
+      createItemInfoForInferredDirectory(
+          StorageResourceId resourceId) {
+    Preconditions.checkArgument(resourceId != null,
+        "resourceId must not be null");
+
+    // Return size == 0, creationTime == 0,
+    // location == storageClass == null for an inferred directory object.
+    return new GoogleCloudStorageItemInfo(resourceId, 0, 0, null, null);
+  }
+
+  /**
    * Helper for creating a "not found" GoogleCloudStorageItemInfo for a StorageResourceId.
    */
-  @VisibleForTesting
+  protected
   static GoogleCloudStorageItemInfo createItemInfoForNotFound(StorageResourceId resourceId) {
     Preconditions.checkArgument(resourceId != null, "resourceId must not be null");
 

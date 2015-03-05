@@ -24,11 +24,6 @@ import com.google.common.base.Predicates;
 public class GoogleCloudStorageFileSystemOptions {
 
   /**
-   * Default setting for enabling inferring of implicit directories.
-   */
-  public static final boolean INFER_IMPLICIT_DIRECTORIES_DEFAULT = false;
-
-  /**
    * Mutable builder for GoogleCloudStorageFileSystemOptions.
    */
   public static class Builder {
@@ -36,8 +31,6 @@ public class GoogleCloudStorageFileSystemOptions {
     protected DirectoryListCache.Type cacheType = DirectoryListCache.Type.IN_MEMORY;
     protected String cacheBasePath = null;
     protected Predicate<String> shouldIncludeInTimestampUpdatesPredicate = Predicates.alwaysTrue();
-    private boolean inferImplicitDirectoriesEnabled =
-        INFER_IMPLICIT_DIRECTORIES_DEFAULT;
 
     private GoogleCloudStorageOptions.Builder cloudStorageOptionsBuilder =
         new GoogleCloudStorageOptions.Builder();
@@ -67,20 +60,13 @@ public class GoogleCloudStorageFileSystemOptions {
       return this;
     }
 
-    public Builder setInferImplicitDirectoriesEnabled(
-        boolean inferImplicitDirectoriesEnabled) {
-      this.inferImplicitDirectoriesEnabled = inferImplicitDirectoriesEnabled;
-      return this;
-    }
-
     public GoogleCloudStorageFileSystemOptions build() {
       return new GoogleCloudStorageFileSystemOptions(
           cloudStorageOptionsBuilder.build(),
           metadataCacheEnabled,
           cacheType,
           cacheBasePath,
-          shouldIncludeInTimestampUpdatesPredicate,
-          inferImplicitDirectoriesEnabled);
+          shouldIncludeInTimestampUpdatesPredicate);
     }
   }
 
@@ -93,21 +79,18 @@ public class GoogleCloudStorageFileSystemOptions {
   private final DirectoryListCache.Type cacheType;
   private final String cacheBasePath;  // Only used if cacheType == FILESYSTEM_BACKED.
   private final Predicate<String> shouldIncludeInTimestampUpdatesPredicate;
-  private final boolean inferImplicitDirectoriesEnabled;
 
   public GoogleCloudStorageFileSystemOptions(
       GoogleCloudStorageOptions cloudStorageOptions,
       boolean metadataCacheEnabled,
       DirectoryListCache.Type cacheType,
       String cacheBasePath,
-      Predicate<String> shouldIncludeInTimestampUpdatesPredicate,
-      boolean inferImplicitDirectoriesEnabled) {
+      Predicate<String> shouldIncludeInTimestampUpdatesPredicate) {
     this.cloudStorageOptions = cloudStorageOptions;
     this.metadataCacheEnabled = metadataCacheEnabled;
     this.cacheType = cacheType;
     this.cacheBasePath = cacheBasePath;
     this.shouldIncludeInTimestampUpdatesPredicate = shouldIncludeInTimestampUpdatesPredicate;
-    this.inferImplicitDirectoriesEnabled = inferImplicitDirectoriesEnabled;
   }
 
   public GoogleCloudStorageOptions getCloudStorageOptions() {
@@ -128,10 +111,6 @@ public class GoogleCloudStorageFileSystemOptions {
 
   public Predicate<String> getShouldIncludeInTimestampUpdatesPredicate() {
     return shouldIncludeInTimestampUpdatesPredicate;
-  }
-
-  public boolean isInferImplicitDirectoriesEnabled() {
-    return inferImplicitDirectoriesEnabled;
   }
 
   public void throwIfNotValid() {
