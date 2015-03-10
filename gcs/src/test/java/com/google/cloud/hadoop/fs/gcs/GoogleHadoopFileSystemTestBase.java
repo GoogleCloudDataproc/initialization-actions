@@ -63,6 +63,15 @@ public abstract class GoogleHadoopFileSystemTestBase
         GoogleCloudStorageIntegrationHelper.GCS_TEST_CLIENT_SECRET);
     String projectId = System.getenv(
         GoogleCloudStorageIntegrationHelper.GCS_TEST_PROJECT_ID);
+    return loadConfig(clientId, clientSecret, projectId);
+  }
+
+  /**
+   * Helper to load GHFS-specific config values other than those from
+   * the environment.
+   */
+  protected static Configuration loadConfig(
+      String clientId, String clientSecret, String projectId) {
     Assert.assertNotNull("Expected value for env var "
         + GoogleCloudStorageIntegrationHelper.GCS_TEST_CLIENT_ID,
         clientId);
@@ -84,6 +93,8 @@ public abstract class GoogleHadoopFileSystemTestBase
     config.setBoolean(GoogleHadoopFileSystemBase.GCS_CREATE_SYSTEM_BUCKET_KEY, true);
     config.setBoolean(
         GoogleHadoopFileSystemBase.GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY, true);
+    config.setBoolean(
+        GoogleHadoopFileSystemBase.GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY, false);
     return config;
   }
 

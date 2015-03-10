@@ -115,6 +115,8 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     config.setBoolean(GoogleHadoopFileSystemBase.GCS_CREATE_SYSTEM_BUCKET_KEY, true);
     config.setBoolean(
         GoogleHadoopFileSystemBase.GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY, true);
+    config.setBoolean(
+        GoogleHadoopFileSystemBase.GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY, false);
     return config;
   }
 

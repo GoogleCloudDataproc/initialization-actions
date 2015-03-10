@@ -15,6 +15,8 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.InMemoryGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
@@ -211,6 +213,38 @@ public class GoogleHadoopFileSystemIntegrationTest
     } catch (IllegalArgumentException expected) {
       Assert.assertTrue(expected.getMessage().startsWith("Authority of URI"));
     }
+  }
+
+  /**
+   * Validates that we correctly build our Options object
+   * from a Hadoop config.
+   */
+  @Test
+  public void testBuildOptionsFromConfig() throws IOException {
+    GoogleHadoopFileSystem fs = new GoogleHadoopFileSystem();
+    Configuration config = loadConfig(
+        "clientId", "clientSecret", "projectId");
+
+    GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
+        fs.createOptionsBuilderFromConfig(config);
+    GoogleCloudStorageFileSystemOptions options = optionsBuilder.build();
+    GoogleCloudStorageOptions gcsOptions = options.getCloudStorageOptions();
+
+    Assert.assertTrue(gcsOptions.isAutoRepairImplicitDirectoriesEnabled());
+    Assert.assertFalse(gcsOptions.isInferImplicitDirectoriesEnabled());
+
+    config.setBoolean(
+        GoogleHadoopFileSystemBase.GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY,
+        false);
+    config.setBoolean(
+        GoogleHadoopFileSystemBase.GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY,
+        true);
+    optionsBuilder = fs.createOptionsBuilderFromConfig(config);
+    options = optionsBuilder.build();
+    gcsOptions = options.getCloudStorageOptions();
+
+    Assert.assertFalse(gcsOptions.isAutoRepairImplicitDirectoriesEnabled());
+    Assert.assertTrue(gcsOptions.isInferImplicitDirectoriesEnabled());
   }
 
   /**

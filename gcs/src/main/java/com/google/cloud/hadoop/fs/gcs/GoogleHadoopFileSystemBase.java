@@ -276,6 +276,23 @@ public abstract class GoogleHadoopFileSystemBase
   private boolean enableAutoRepairImplicitDirectories =
       GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT;
 
+  // Configuration key for enabling automatic inference of implicit directories.
+  // If set, we create and return in-memory directory objects on the fly when
+  // no backing object exists, but we know there are files with the same prefix.
+  // The ENABLE_REPAIR flag takes precedence over this flag: if both are set,
+  // the repair is attempted, and only if it fails does the setting of this
+  // flag kick in.
+  public static final String GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY =
+      "fs.gs.implicit.dir.infer.enable";
+
+  // Default value for fs.gs.implicit.dir.infer.enable.
+  public static final boolean GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_DEFAULT = true;
+
+  // Instance value of fs.gs.implicit.dir.infer.enable
+  // based on the initial Configuration.
+  private boolean enableInferImplicitDirectories =
+      GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_DEFAULT;
+
   // Configuration key for enabling the use of a large flat listing to pre-populate possible
   // glob matches in a single API call before running the core globbing logic in-memory rather
   // than sequentially and recursively performing API calls.
@@ -1493,7 +1510,6 @@ public abstract class GoogleHadoopFileSystemBase
 
       copyDeprecatedConfigurationOptions(config);
 
-      String projectId;
       Credential credential;
       try {
          credential = HadoopCredentialConfiguration
@@ -1507,89 +1523,7 @@ public abstract class GoogleHadoopFileSystemBase
       }
 
       GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
-          GoogleCloudStorageFileSystemOptions.newBuilder();
-
-      boolean enableMetadataCache = config.getBoolean(
-          GCS_ENABLE_METADATA_CACHE_KEY,
-          GCS_ENABLE_METADATA_CACHE_DEFAULT);
-      log.debug("%s = %s", GCS_ENABLE_METADATA_CACHE_KEY, enableMetadataCache);
-      optionsBuilder.setIsMetadataCacheEnabled(enableMetadataCache);
-
-      DirectoryListCache.Type cacheType = DirectoryListCache.Type.valueOf(config.get(
-          GCS_METADATA_CACHE_TYPE_KEY, GCS_METADATA_CACHE_TYPE_DEFAULT));
-      log.debug("%s = %s", GCS_METADATA_CACHE_TYPE_KEY, cacheType);
-      optionsBuilder.setCacheType(cacheType);
-
-      String cacheBasePath = config.get(
-          GCS_METADATA_CACHE_DIRECTORY_KEY, GCS_METADATA_CACHE_DIRECTORY_DEFAULT);
-      log.debug("%s = %s", GCS_METADATA_CACHE_DIRECTORY_KEY, cacheBasePath);
-      optionsBuilder.setCacheBasePath(cacheBasePath);
-
-      Predicate<String> shouldIncludeInTimestampUpdatesPredicate =
-          ParentTimestampUpdateIncludePredicate.create(config);
-      optionsBuilder.setShouldIncludeInTimestampUpdatesPredicate(
-          shouldIncludeInTimestampUpdatesPredicate);
-
-      enableAutoRepairImplicitDirectories = config.getBoolean(
-          GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY,
-          GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT);
-      log.debug("%s = %s", GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY,
-                enableAutoRepairImplicitDirectories);
-
-      enableFlatGlob = config.getBoolean(
-          GCS_ENABLE_FLAT_GLOB_KEY,
-          GCS_ENABLE_FLAT_GLOB_DEFAULT);
-      log.debug("%s = %s", GCS_ENABLE_FLAT_GLOB_KEY, enableFlatGlob);
-
-      optionsBuilder
-          .getCloudStorageOptionsBuilder()
-          .setAutoRepairImplicitDirectoriesEnabled(enableAutoRepairImplicitDirectories);
-
-      boolean enableMarkerFileCreation = config.getBoolean(
-          GCS_ENABLE_MARKER_FILE_CREATION_KEY,
-          GCS_ENABLE_MARKER_FILE_CREATION_DEFAULT);
-      log.debug("%s = %s", GCS_ENABLE_MARKER_FILE_CREATION_KEY, enableMarkerFileCreation);
-
-      optionsBuilder
-          .getCloudStorageOptionsBuilder()
-          .setCreateMarkerObjects(enableMarkerFileCreation);
-
-      projectId = ConfigurationUtil.getMandatoryConfig(config, GCS_PROJECT_ID_KEY);
-
-      optionsBuilder.getCloudStorageOptionsBuilder().setProjectId(projectId);
-
-      // Configuration for setting 250GB upper limit on file size to gain higher write throughput.
-      boolean limitFileSizeTo250Gb =
-          config.getBoolean(GCS_FILE_SIZE_LIMIT_250GB, GCS_FILE_SIZE_LIMIT_250GB_DEFAULT);
-
-      optionsBuilder
-          .getCloudStorageOptionsBuilder()
-          .getWriteChannelOptionsBuilder()
-          .setFileSizeLimitedTo250Gb(limitFileSizeTo250Gb);
-
-      // Configuration for setting GoogleCloudStorageWriteChannel upload buffer size.
-      int uploadBufferSize = config.getInt(WRITE_BUFFERSIZE_KEY, WRITE_BUFFERSIZE_DEFAULT);
-      log.debug("%s = %d", WRITE_BUFFERSIZE_KEY, uploadBufferSize);
-
-      optionsBuilder.
-          getCloudStorageOptionsBuilder().
-          getWriteChannelOptionsBuilder().
-          setUploadBufferSize(uploadBufferSize);
-
-      String applicationNameSuffix = config.get(
-          GCS_APPLICATION_NAME_SUFFIX_KEY, GCS_APPLICATION_NAME_SUFFIX_DEFAULT);
-      log.debug("%s = %s", GCS_APPLICATION_NAME_SUFFIX_KEY, applicationNameSuffix);
-
-      String applicationName = GHFS_ID;
-      if (!Strings.isNullOrEmpty(applicationNameSuffix)) {
-        applicationName = applicationName + applicationNameSuffix;
-      }
-
-      log.debug("Setting GCS application name to %s", applicationName);
-      optionsBuilder
-          .getCloudStorageOptionsBuilder()
-          .setAppName(applicationName);
-
+          createOptionsBuilderFromConfig(config);
       gcsfs = new GoogleCloudStorageFileSystem(credential, optionsBuilder.build());
     }
 
@@ -1840,5 +1774,103 @@ public abstract class GoogleHadoopFileSystemBase
     log.debug("GHFS.setTimes: path: %s, mtime: %d, atime: %d", p, mtime, atime);
     super.setTimes(p, mtime, atime);
     log.debug("GHFS.setTimes:=> ");
+  }
+
+  @VisibleForTesting
+  GoogleCloudStorageFileSystemOptions.Builder
+      createOptionsBuilderFromConfig(Configuration config) throws IOException {
+    GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
+        GoogleCloudStorageFileSystemOptions.newBuilder();
+
+    boolean enableMetadataCache = config.getBoolean(
+        GCS_ENABLE_METADATA_CACHE_KEY,
+        GCS_ENABLE_METADATA_CACHE_DEFAULT);
+    log.debug("%s = %s", GCS_ENABLE_METADATA_CACHE_KEY, enableMetadataCache);
+    optionsBuilder.setIsMetadataCacheEnabled(enableMetadataCache);
+
+    DirectoryListCache.Type cacheType = DirectoryListCache.Type.valueOf(config.get(
+        GCS_METADATA_CACHE_TYPE_KEY, GCS_METADATA_CACHE_TYPE_DEFAULT));
+    log.debug("%s = %s", GCS_METADATA_CACHE_TYPE_KEY, cacheType);
+    optionsBuilder.setCacheType(cacheType);
+
+    String cacheBasePath = config.get(
+        GCS_METADATA_CACHE_DIRECTORY_KEY, GCS_METADATA_CACHE_DIRECTORY_DEFAULT);
+    log.debug("%s = %s", GCS_METADATA_CACHE_DIRECTORY_KEY, cacheBasePath);
+    optionsBuilder.setCacheBasePath(cacheBasePath);
+
+    Predicate<String> shouldIncludeInTimestampUpdatesPredicate =
+        ParentTimestampUpdateIncludePredicate.create(config);
+    optionsBuilder.setShouldIncludeInTimestampUpdatesPredicate(
+        shouldIncludeInTimestampUpdatesPredicate);
+
+    enableAutoRepairImplicitDirectories = config.getBoolean(
+        GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY,
+        GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT);
+    log.debug("%s = %s", GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY,
+              enableAutoRepairImplicitDirectories);
+
+    enableInferImplicitDirectories = config.getBoolean(
+        GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY,
+        GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_DEFAULT);
+    log.debug("%s = %s", GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY,
+              enableInferImplicitDirectories);
+
+    enableFlatGlob = config.getBoolean(
+        GCS_ENABLE_FLAT_GLOB_KEY,
+        GCS_ENABLE_FLAT_GLOB_DEFAULT);
+    log.debug("%s = %s", GCS_ENABLE_FLAT_GLOB_KEY, enableFlatGlob);
+
+    optionsBuilder
+        .getCloudStorageOptionsBuilder()
+        .setAutoRepairImplicitDirectoriesEnabled(enableAutoRepairImplicitDirectories)
+        .setInferImplicitDirectoriesEnabled(enableInferImplicitDirectories);
+
+    boolean enableMarkerFileCreation = config.getBoolean(
+        GCS_ENABLE_MARKER_FILE_CREATION_KEY,
+        GCS_ENABLE_MARKER_FILE_CREATION_DEFAULT);
+    log.debug("%s = %s", GCS_ENABLE_MARKER_FILE_CREATION_KEY, enableMarkerFileCreation);
+
+    optionsBuilder
+        .getCloudStorageOptionsBuilder()
+        .setCreateMarkerObjects(enableMarkerFileCreation);
+
+    String projectId =
+        ConfigurationUtil.getMandatoryConfig(config, GCS_PROJECT_ID_KEY);
+
+    optionsBuilder.getCloudStorageOptionsBuilder().setProjectId(projectId);
+
+    // Configuration for setting 250GB upper limit on file size to gain higher write throughput.
+    boolean limitFileSizeTo250Gb =
+        config.getBoolean(GCS_FILE_SIZE_LIMIT_250GB, GCS_FILE_SIZE_LIMIT_250GB_DEFAULT);
+
+    optionsBuilder
+        .getCloudStorageOptionsBuilder()
+        .getWriteChannelOptionsBuilder()
+        .setFileSizeLimitedTo250Gb(limitFileSizeTo250Gb);
+
+    // Configuration for setting GoogleCloudStorageWriteChannel upload buffer size.
+    int uploadBufferSize = config.getInt(WRITE_BUFFERSIZE_KEY, WRITE_BUFFERSIZE_DEFAULT);
+    log.debug("%s = %d", WRITE_BUFFERSIZE_KEY, uploadBufferSize);
+
+    optionsBuilder.
+        getCloudStorageOptionsBuilder().
+        getWriteChannelOptionsBuilder().
+        setUploadBufferSize(uploadBufferSize);
+
+    String applicationNameSuffix = config.get(
+        GCS_APPLICATION_NAME_SUFFIX_KEY, GCS_APPLICATION_NAME_SUFFIX_DEFAULT);
+    log.debug("%s = %s", GCS_APPLICATION_NAME_SUFFIX_KEY, applicationNameSuffix);
+
+    String applicationName = GHFS_ID;
+    if (!Strings.isNullOrEmpty(applicationNameSuffix)) {
+      applicationName = applicationName + applicationNameSuffix;
+    }
+
+    log.debug("Setting GCS application name to %s", applicationName);
+    optionsBuilder
+        .getCloudStorageOptionsBuilder()
+        .setAppName(applicationName);
+
+    return optionsBuilder;
   }
 }
