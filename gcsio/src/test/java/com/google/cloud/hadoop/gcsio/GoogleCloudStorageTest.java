@@ -31,6 +31,7 @@ import static org.mockito.Matchers.startsWith;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -787,17 +788,20 @@ public class GoogleCloudStorageTest {
       do {
         bytesRead = readChannel.read(ByteBuffer.wrap(actualData));
       } while (bytesRead != -1);
-      fail("Expected IllegalStateException, got bytesRead: " + bytesRead);
-    } catch (IllegalStateException ise) {
+      fail("Expected IOException, got bytesRead: " + bytesRead);
+    } catch (IOException ioe) {
       // Expected.
     }
 
-    verify(mockStorage, atLeastOnce()).objects();
-    verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
-    verify(mockClientRequestHelper, times(1)).getRequestHeaders(any(Storage.Objects.Get.class));
-    verify(mockHeaders, times(1)).setRange(eq("bytes=0-"));
-    verify(mockStorageObjectsGet).execute();
-    verify(mockStorageObjectsGet, times(1)).executeMedia();
+    verify(mockBackOff).reset();
+    verify(mockBackOff, times(3)).nextBackOffMillis();
+    verify(mockSleeper, times(3)).sleep(anyLong());
+    verify(mockStorage, times(5)).objects();
+    verify(mockStorageObjects, times(5)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockClientRequestHelper, times(4)).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders, times(4)).setRange(matches("bytes=\\d+-"));
+    verify(mockStorageObjectsGet, times(1)).execute();
+    verify(mockStorageObjectsGet, times(4)).executeMedia();
   }
 
   @Test
