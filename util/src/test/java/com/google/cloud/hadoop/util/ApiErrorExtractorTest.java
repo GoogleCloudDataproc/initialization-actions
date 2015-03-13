@@ -176,6 +176,30 @@ public class ApiErrorExtractorTest {
     Assert.assertFalse(errorExtractor.rateLimited(e));
   }
 
+
+  /**
+   * Validates rateLimited() with BigQuery domain / reason codes
+   */
+  @Test
+  public void testBigQueryRateLimited() {
+    // Check success case.
+    errorExtractor.errorInfo = new ErrorInfo();
+    errorExtractor.errorInfo.setReason(
+        ApiErrorExtractor.RATE_LIMITED_REASON_CODE);
+    errorExtractor.errorInfo.setDomain(
+        ApiErrorExtractor.GLOBAL_DOMAIN);
+
+    Assert.assertTrue(errorExtractor.rateLimited(e));
+
+    // Check failure cases.
+    Assert.assertFalse(errorExtractor.rateLimited(new IOException(e)));
+    errorExtractor.errorInfo = new ErrorInfo();
+    errorExtractor.errorInfo.setReason(
+        ApiErrorExtractor.RATE_LIMITED_REASON_CODE);
+    Assert.assertFalse(errorExtractor.rateLimited(e));
+  }
+
+
   /**
    * Validates readTimedOut().
    */

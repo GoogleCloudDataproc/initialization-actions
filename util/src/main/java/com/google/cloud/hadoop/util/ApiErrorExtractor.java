@@ -33,6 +33,7 @@ public class ApiErrorExtractor {
   // TODO(user): Move this into HttpStatusCodes.java.
   public static final int STATUS_CODE_RANGE_NOT_SATISFIABLE = 416;
   public static final int STATUS_CODE_PRECONDITION_FAILED = 412;
+  public static final String GLOBAL_DOMAIN = "global";
   public static final String USAGE_LIMITS_DOMAIN = "usageLimits";
   public static final String RATE_LIMITED_REASON_CODE = "rateLimitExceeded";
 
@@ -124,9 +125,12 @@ public class ApiErrorExtractor {
    */
   public boolean rateLimited(GoogleJsonError e) {
     ErrorInfo errorInfo = getErrorInfo(e);
-    return errorInfo != null
-        && USAGE_LIMITS_DOMAIN.equals(errorInfo.getDomain())
-        && RATE_LIMITED_REASON_CODE.equals(errorInfo.getReason());
+    if (errorInfo != null) {
+      String domain = errorInfo.getDomain();
+      return (USAGE_LIMITS_DOMAIN.equals(domain) || GLOBAL_DOMAIN.equals(domain))
+          && RATE_LIMITED_REASON_CODE.equals(errorInfo.getReason());
+    }
+    return false;
   }
 
   /**

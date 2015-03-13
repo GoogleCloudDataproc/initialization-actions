@@ -12,12 +12,11 @@
  * limitations under the License.
  */
 
-package com.google.cloud.hadoop.gcsio;
+package com.google.cloud.hadoop.util;
 
+import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
-import com.google.api.services.storage.StorageRequest;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Predicate;
 
 import java.io.IOException;
@@ -28,7 +27,20 @@ import java.io.IOException;
  * @param <T> The StorageRequest class
  * @param <S> The result of the StorageRequest
  */
-public class OperationWithRetry<T extends StorageRequest<S>, S> {
+public class OperationWithRetry<T extends AbstractGoogleClientRequest<S>, S> {
+
+  /**
+   * Create a Predicate to determine whether a given exception is due to rate limiting.
+   */
+  public static Predicate<IOException> createRateLimitedExceptionPredicate(
+      final ApiErrorExtractor errorExtractor) {
+    return new Predicate<IOException>() {
+      @Override
+      public boolean apply(IOException e) {
+        return errorExtractor.rateLimited(e);
+      }
+    };
+  }
 
   // Logger.
   private static final LogUtil log = new LogUtil(OperationWithRetry.class);

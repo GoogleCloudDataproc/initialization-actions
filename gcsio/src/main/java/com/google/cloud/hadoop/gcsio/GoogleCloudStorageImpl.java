@@ -38,6 +38,7 @@ import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.LogUtil;
+import com.google.cloud.hadoop.util.OperationWithRetry;
 import com.google.cloud.hadoop.util.RetryHttpInitializer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
@@ -100,14 +101,6 @@ public class GoogleCloudStorageImpl
 
   // Maximum number of times to retry deletes in the case of precondition failures.
   private static final int MAXIMUM_PRECONDITION_FAILURES_IN_DELETE = 4;
-
-  // Determine if a given IOException is due to rate-limiting.
-  private final Predicate<IOException> isRateLimitedException = new Predicate<IOException>() {
-    @Override
-    public boolean apply(IOException e) {
-      return errorExtractor.rateLimited(e);
-    }
-  };
 
   // A function to encode metadata map values
   private static final Function<byte[], String> ENCODE_METADATA_VALUES =
@@ -191,6 +184,10 @@ public class GoogleCloudStorageImpl
   // BackOff objects are per-request, use this to make new ones.
   private BackOffFactory backOffFactory = BackOffFactory.DEFAULT;
 
+  // Determine if a given IOException is due to rate-limiting.
+  private Predicate<IOException> isRateLimitedException =
+      OperationWithRetry.createRateLimitedExceptionPredicate(errorExtractor);
+
   /**
    * Constructs an instance of GoogleCloudStorageImpl.
    *
@@ -259,6 +256,8 @@ public class GoogleCloudStorageImpl
   @VisibleForTesting
   void setErrorExtractor(ApiErrorExtractor errorExtractor) {
     this.errorExtractor = errorExtractor;
+    this.isRateLimitedException =
+        OperationWithRetry.createRateLimitedExceptionPredicate(errorExtractor);
   }
 
   @VisibleForTesting

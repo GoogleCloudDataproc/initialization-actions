@@ -1,10 +1,16 @@
 package com.google.cloud.hadoop.io.bigquery;
 
+import com.google.api.client.util.BackOff;
+import com.google.api.client.util.ExponentialBackOff;
+import com.google.api.client.util.Sleeper;
 import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.bigquery.Bigquery.Jobs.Get;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableFieldSchema;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.LogUtil;
+import com.google.cloud.hadoop.util.OperationWithRetry;
 import com.google.common.base.Preconditions;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -16,6 +22,7 @@ import org.apache.hadoop.util.Progressable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Helper methods to interact with BigQuery.
@@ -24,13 +31,21 @@ public class BigQueryUtils {
   // Logger.
   public static final LogUtil log = new LogUtil(BigQueryUtils.class);
 
-  // Time to wait between polling.
-  public static final long POLL_WAIT_DURATION = 3000;
+  // Initial wait interval
+  public static final int POLL_WAIT_INITIAL_MILLIS =
+      (int) TimeUnit.MILLISECONDS.convert(10, TimeUnit.SECONDS);
+  // Maximum interval:
+  public static final int POLL_WAIT_INTERVAL_MAX_MILLIS =
+      (int) TimeUnit.MILLISECONDS.convert(180, TimeUnit.SECONDS);
+  // Maximum time to wait for a job to complete. This value has
+  // no basis in reality. The intention of using this value was to
+  // pick a value greater than the default backoff max elapsed
+  // time of 900 seconds.
+  public static final int POLL_WAIT_MAX_ELAPSED_MILLIS =
+      (int) TimeUnit.MILLISECONDS.convert(1, TimeUnit.DAYS);
 
   /**
    * Polls job until it is completed.
-   *
-   * TODO(user): implement exponential back-off and/or configurable polling.
    *
    * @param bigquery the Bigquery instance to poll.
    * @param projectId the project that is polling.
@@ -47,6 +62,15 @@ public class BigQueryUtils {
       Progressable progressable)
       throws IOException, InterruptedException {
 
+    Sleeper sleeper = Sleeper.DEFAULT;
+    BackOff pollBackOff =
+        new ExponentialBackOff.Builder()
+            .setMaxIntervalMillis(POLL_WAIT_INTERVAL_MAX_MILLIS)
+            .setInitialIntervalMillis(POLL_WAIT_INITIAL_MILLIS)
+            .setMaxElapsedTimeMillis(POLL_WAIT_MAX_ELAPSED_MILLIS)
+            .build();
+    ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+
     // Get starting time.
     long startTime = System.currentTimeMillis();
     long elapsedTime = 0;
@@ -54,7 +78,16 @@ public class BigQueryUtils {
 
     // While job is incomplete continue to poll.
     while (notDone) {
-      Job pollJob = bigquery.jobs().get(projectId, jobReference.getJobId()).execute();
+      BackOff operationBackOff = new ExponentialBackOff.Builder().build();
+      Get get = bigquery.jobs().get(projectId, jobReference.getJobId());
+      OperationWithRetry<Get, Job> pollJobOperation =
+          new OperationWithRetry<>(
+              sleeper,
+              operationBackOff,
+              get,
+              OperationWithRetry.createRateLimitedExceptionPredicate(errorExtractor));
+
+      Job pollJob = pollJobOperation.execute();
       elapsedTime = System.currentTimeMillis() - startTime;
       log.debug("Job status (%d ms) %s: %s", elapsedTime, jobReference.getJobId(),
           pollJob.getStatus().getState());
@@ -64,8 +97,16 @@ public class BigQueryUtils {
           throw new IOException(pollJob.getStatus().getErrorResult().getMessage());
         }
       } else {
+        long millisToWait = pollBackOff.nextBackOffMillis();
+        if (millisToWait == BackOff.STOP) {
+          throw new IOException(
+              String.format(
+                  "Job %s failed to complete after %s millis.",
+                  jobReference.getJobId(),
+                  elapsedTime));
+        }
         // Pause execution for the configured duration before polling job status again.
-        Thread.sleep(POLL_WAIT_DURATION);
+        Thread.sleep(millisToWait);
         // Call progress to ensure task doesn't time out.
         progressable.progress();
       }
