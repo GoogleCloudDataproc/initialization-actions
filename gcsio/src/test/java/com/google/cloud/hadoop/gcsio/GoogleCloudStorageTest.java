@@ -31,7 +31,6 @@ import static org.mockito.Matchers.startsWith;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -614,6 +613,42 @@ public class GoogleCloudStorageTest {
   }
 
   /**
+   * Helper for the shared boilerplate of setting up the low-level "API objects" like
+   * mockStorage.objects(), etc., that is common between test cases targetting
+   * {@code GoogleCloudStorage.open(StorageResourceId)}.
+   */
+  private void setUpBasicMockBehaviorForOpeningReadChannel() throws IOException {
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
+        .thenReturn(mockStorageObjectsGet);
+    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsGet)))
+        .thenReturn(mockHeaders);
+    when(mockStorageObjectsGet.execute())
+        .thenReturn(new StorageObject()
+            .setBucket(BUCKET_NAME)
+            .setName(OBJECT_NAME)
+            .setUpdated(new DateTime(11L))
+            .setSize(BigInteger.valueOf(111L))
+            .setGeneration(1L)
+            .setMetageneration(1L));
+  }
+
+  /**
+   * Helper for test cases involving {@code GoogleCloudStorage.open(StorageResourceId)} to set up
+   * the shared sleeper/clock/backoff mocks and set {@code maxRetries}. Also checks basic invariants
+   * of a fresh readChannel, such as its position() and isOpen().
+   */
+  private void setUpAndValidateReadChannelMocksAndSetMaxRetries(
+      GoogleCloudStorageReadChannel readChannel, int maxRetries) throws IOException {
+    readChannel.setSleeper(mockSleeper);
+    readChannel.setNanoClock(mockClock);
+    readChannel.setBackOff(mockBackOff);
+    readChannel.setMaxRetries(maxRetries);
+    assertTrue(readChannel.isOpen());
+    assertEquals(0, readChannel.position());
+  }
+
+  /**
    * Test argument sanitization for GoogleCloudStorage.open(2).
    */
   @Test
@@ -632,19 +667,7 @@ public class GoogleCloudStorageTest {
   @Test
   public void testOpenWithSomeExceptionsDuringRead()
       throws IOException, InterruptedException {
-    when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
-        .thenReturn(mockStorageObjectsGet);
-    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsGet)))
-        .thenReturn(mockHeaders);
-    when(mockStorageObjectsGet.execute())
-        .thenReturn(new StorageObject()
-            .setBucket(BUCKET_NAME)
-            .setName(OBJECT_NAME)
-            .setUpdated(new DateTime(11L))
-            .setSize(BigInteger.valueOf(111L))
-            .setGeneration(1L)
-            .setMetageneration(1L));
+    setUpBasicMockBehaviorForOpeningReadChannel();
 
     // First returned timeout stream will timout; we'll expect a re-opening where we'll return the
     // real input stream.
@@ -668,15 +691,10 @@ public class GoogleCloudStorageTest {
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    readChannel.setSleeper(mockSleeper);
-    readChannel.setNanoClock(mockClock);
-    readChannel.setBackOff(mockBackOff);
-    readChannel.setMaxRetries(3);
-    assertTrue(readChannel.isOpen());
-    assertEquals(0, readChannel.position());
+    setUpAndValidateReadChannelMocksAndSetMaxRetries(readChannel, 3);
 
     byte[] actualData = new byte[testData.length];
-    assertEquals(testData.length, readChannel.read(ByteBuffer.wrap(actualData)));
+    int bytesRead = readChannel.read(ByteBuffer.wrap(actualData));
 
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
@@ -689,24 +707,15 @@ public class GoogleCloudStorageTest {
     verify(mockSleeper).sleep(eq(111L));
     verify(mockSleeper).sleep(eq(222L));
     verify(mockSleeper).sleep(eq(333L));
+
+    assertEquals(testData.length, bytesRead);
+    assertArrayEquals(testData, actualData);
   }
 
   @Test
   public void testOpenWithExceptionDuringReadAndCloseForRetry()
       throws IOException, InterruptedException {
-    when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
-        .thenReturn(mockStorageObjectsGet);
-    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsGet)))
-        .thenReturn(mockHeaders);
-    when(mockStorageObjectsGet.execute())
-        .thenReturn(new StorageObject()
-            .setBucket(BUCKET_NAME)
-            .setName(OBJECT_NAME)
-            .setUpdated(new DateTime(11L))
-            .setSize(BigInteger.valueOf(111L))
-            .setGeneration(1L)
-            .setMetageneration(1L));
+    setUpBasicMockBehaviorForOpeningReadChannel();
 
     // First returned timeout stream will timout; we'll expect a re-opening where we'll return the
     // real input stream.
@@ -727,15 +736,10 @@ public class GoogleCloudStorageTest {
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    readChannel.setSleeper(mockSleeper);
-    readChannel.setNanoClock(mockClock);
-    readChannel.setBackOff(mockBackOff);
-    readChannel.setMaxRetries(3);
-    assertTrue(readChannel.isOpen());
-    assertEquals(0, readChannel.position());
+    setUpAndValidateReadChannelMocksAndSetMaxRetries(readChannel, 3);
 
     byte[] actualData = new byte[testData.length];
-    assertEquals(testData.length, readChannel.read(ByteBuffer.wrap(actualData)));
+    int bytesRead = readChannel.read(ByteBuffer.wrap(actualData));
 
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
@@ -746,41 +750,38 @@ public class GoogleCloudStorageTest {
     verify(mockBackOff).reset();
     verify(mockBackOff).nextBackOffMillis();
     verify(mockSleeper).sleep(eq(111L));
+
+    assertEquals(testData.length, bytesRead);
+    assertArrayEquals(testData, actualData);
   }
 
   @Test
-  public void testOpenAndReadWithPrematureEndOfStream()
+  public void testOpenAndReadWithPrematureEndOfStreamRetriesFail()
       throws IOException, InterruptedException {
-    when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
-        .thenReturn(mockStorageObjectsGet);
-    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsGet)))
-        .thenReturn(mockHeaders);
-    when(mockStorageObjectsGet.execute())
-        .thenReturn(new StorageObject()
-            .setBucket(BUCKET_NAME)
-            .setName(OBJECT_NAME)
-            .setUpdated(new DateTime(11L))
-            .setSize(BigInteger.valueOf(111L))
-            .setGeneration(1L)
-            .setMetageneration(1L));
+    setUpBasicMockBehaviorForOpeningReadChannel();
 
     // We'll claim a Content-Length of testData.length, but then only return a stream containing
     // truncatedData. The channel should throw an exception upon detecting this premature
     // end-of-stream.
     byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
     byte[] truncatedData = { 0x01, 0x02, 0x03 };
+    byte[] truncatedRetryData = { 0x05 };
     when(mockStorageObjectsGet.executeMedia())
-        .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(truncatedData)));
+        // First time: Claim  we'll provide 5 bytes, but only give 3.
+        .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(truncatedData)))
+        // Second time: Claim we'll provide the 2 remaining bytes, but only give one byte.
+        // This retry counts toward the maxRetries of the "first" attempt, but the nonzero bytes
+        // returned resets the counter; when this ends prematurely we'll expect yet another "retry"
+        // even though we'll set maxRetries == 1.
+        .thenReturn(createFakeResponse(2, new ByteArrayInputStream(truncatedRetryData)))
+        // Third time, we claim we'll deliver the one remaining byte, but give none. Since no
+        // progress is made, the retry counter does not get reset and we've exhausted all retries.
+        .thenReturn(createFakeResponse(1, new ByteArrayInputStream(new byte[0])));
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    readChannel.setSleeper(mockSleeper);
-    readChannel.setNanoClock(mockClock);
-    readChannel.setBackOff(mockBackOff);
-    readChannel.setMaxRetries(3);
-    assertTrue(readChannel.isOpen());
-    assertEquals(0, readChannel.position());
+    // Only allow one retry for this test.
+    setUpAndValidateReadChannelMocksAndSetMaxRetries(readChannel, 1);
 
     byte[] actualData = new byte[testData.length];
     try {
@@ -793,33 +794,75 @@ public class GoogleCloudStorageTest {
       // Expected.
     }
 
-    verify(mockBackOff).reset();
-    verify(mockBackOff, times(3)).nextBackOffMillis();
-    verify(mockSleeper, times(3)).sleep(anyLong());
-    verify(mockStorage, times(5)).objects();
-    verify(mockStorageObjects, times(5)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
-    verify(mockClientRequestHelper, times(4)).getRequestHeaders(any(Storage.Objects.Get.class));
-    verify(mockHeaders, times(4)).setRange(matches("bytes=\\d+-"));
+    // Both "retries" reset the mockBackOff, since they are "independent" retries with progress
+    // in-between.
+    verify(mockBackOff, times(2)).reset();
+    verify(mockBackOff, times(2)).nextBackOffMillis();
+    verify(mockSleeper, times(2)).sleep(anyLong());
+    verify(mockStorage, times(4)).objects();
+    verify(mockStorageObjects, times(4)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders, times(1)).setRange(eq("bytes=0-"));
+    verify(mockHeaders, times(1)).setRange(eq("bytes=3-"));
+    verify(mockHeaders, times(1)).setRange(eq("bytes=4-"));
     verify(mockStorageObjectsGet, times(1)).execute();
-    verify(mockStorageObjectsGet, times(4)).executeMedia();
+    verify(mockStorageObjectsGet, times(3)).executeMedia();
+  }
+
+  @Test
+  public void testOpenAndReadWithPrematureEndOfStreamRetriesSucceed()
+      throws IOException, InterruptedException {
+    setUpBasicMockBehaviorForOpeningReadChannel();
+
+    // We'll claim a Content-Length of testData.length, but then only return a stream containing
+    // truncatedData. The channel should throw an exception upon detecting this premature
+    // end-of-stream.
+    byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
+    byte[] truncatedData = { 0x01, 0x02, 0x03 };
+    byte[] truncatedRetryData = { 0x05 };
+    byte[] finalRetryData = { 0x08 };
+    when(mockStorageObjectsGet.executeMedia())
+        // First time: Claim  we'll provide 5 bytes, but only give 3.
+        .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(truncatedData)))
+        // Second time: Claim we'll provide the 2 remaining bytes, but only give one byte.
+        // This retry counts toward the maxRetries of the "first" attempt, but the nonzero bytes
+        // returned resets the counter; when this ends prematurely we'll expect yet another "retry"
+        // even though we'll set maxRetries == 1.
+        .thenReturn(createFakeResponse(2, new ByteArrayInputStream(truncatedRetryData)))
+        // Third time, we claim we'll deliver the one remaining byte, but give none. Since no
+        // progress is made, the retry counter does not get reset and we've exhausted all retries.
+        .thenReturn(createFakeResponse(1, new ByteArrayInputStream(finalRetryData)));
+
+    GoogleCloudStorageReadChannel readChannel =
+        (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
+    // Only allow one retry for this test.
+    setUpAndValidateReadChannelMocksAndSetMaxRetries(readChannel, 1);
+
+    byte[] actualData = new byte[testData.length];
+    int bytesRead = readChannel.read(ByteBuffer.wrap(actualData));
+
+    // Both "retries" reset the mockBackOff, since they are "independent" retries with progress
+    // in-between.
+    verify(mockBackOff, times(2)).reset();
+    verify(mockBackOff, times(2)).nextBackOffMillis();
+    verify(mockSleeper, times(2)).sleep(anyLong());
+    verify(mockStorage, times(4)).objects();
+    verify(mockStorageObjects, times(4)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders, times(1)).setRange(eq("bytes=0-"));
+    verify(mockHeaders, times(1)).setRange(eq("bytes=3-"));
+    verify(mockHeaders, times(1)).setRange(eq("bytes=4-"));
+    verify(mockStorageObjectsGet, times(1)).execute();
+    verify(mockStorageObjectsGet, times(3)).executeMedia();
+
+    assertEquals(testData.length, bytesRead);
+    assertArrayEquals(testData, actualData);
   }
 
   @Test
   public void testOpenExceptionsDuringReadTotalElapsedTimeTooGreat()
       throws IOException, InterruptedException {
-    when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
-        .thenReturn(mockStorageObjectsGet);
-    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsGet)))
-        .thenReturn(mockHeaders);
-    when(mockStorageObjectsGet.execute())
-        .thenReturn(new StorageObject()
-            .setBucket(BUCKET_NAME)
-            .setName(OBJECT_NAME)
-            .setUpdated(new DateTime(11L))
-            .setSize(BigInteger.valueOf(111L))
-            .setGeneration(1L)
-            .setMetageneration(1L));
+    setUpBasicMockBehaviorForOpeningReadChannel();
 
     InputStream mockExceptionStream = mock(InputStream.class);
     byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
@@ -835,11 +878,8 @@ public class GoogleCloudStorageTest {
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    readChannel.setSleeper(mockSleeper);
-    readChannel.setNanoClock(mockClock);
-    readChannel.setMaxRetries(3);
-    assertTrue(readChannel.isOpen());
-    assertEquals(0, readChannel.position());
+    setUpAndValidateReadChannelMocksAndSetMaxRetries(readChannel, 3);
+    readChannel.setBackOff(null);
 
     try {
       byte[] actualData = new byte[testData.length];
@@ -862,19 +902,7 @@ public class GoogleCloudStorageTest {
   @Test
   public void testOpenExceptionsDuringReadInterruptedDuringSleep()
       throws IOException, InterruptedException {
-    when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
-        .thenReturn(mockStorageObjectsGet);
-    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsGet)))
-        .thenReturn(mockHeaders);
-    when(mockStorageObjectsGet.execute())
-        .thenReturn(new StorageObject()
-            .setBucket(BUCKET_NAME)
-            .setName(OBJECT_NAME)
-            .setUpdated(new DateTime(11L))
-            .setSize(BigInteger.valueOf(111L))
-            .setGeneration(1L)
-            .setMetageneration(1L));
+    setUpBasicMockBehaviorForOpeningReadChannel();
 
     InputStream mockExceptionStream = mock(InputStream.class);
     byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
@@ -891,12 +919,7 @@ public class GoogleCloudStorageTest {
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    readChannel.setSleeper(mockSleeper);
-    readChannel.setNanoClock(mockClock);
-    readChannel.setBackOff(mockBackOff);
-    readChannel.setMaxRetries(3);
-    assertTrue(readChannel.isOpen());
-    assertEquals(0, readChannel.position());
+    setUpAndValidateReadChannelMocksAndSetMaxRetries(readChannel, 3);
 
     try {
       byte[] actualData = new byte[testData.length];
@@ -924,19 +947,7 @@ public class GoogleCloudStorageTest {
   @Test
   public void testOpenTooManyExceptionsDuringRead()
       throws IOException, InterruptedException {
-    when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
-        .thenReturn(mockStorageObjectsGet);
-    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsGet)))
-        .thenReturn(mockHeaders);
-    when(mockStorageObjectsGet.execute())
-        .thenReturn(new StorageObject()
-            .setBucket(BUCKET_NAME)
-            .setName(OBJECT_NAME)
-            .setUpdated(new DateTime(11L))
-            .setSize(BigInteger.valueOf(111L))
-            .setGeneration(1L)
-            .setMetageneration(1L));
+    setUpBasicMockBehaviorForOpeningReadChannel();
 
     InputStream mockExceptionStream = mock(InputStream.class);
     byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
@@ -956,12 +967,7 @@ public class GoogleCloudStorageTest {
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    readChannel.setSleeper(mockSleeper);
-    readChannel.setNanoClock(mockClock);
-    readChannel.setBackOff(mockBackOff);
-    readChannel.setMaxRetries(2);
-    assertTrue(readChannel.isOpen());
-    assertEquals(0, readChannel.position());
+    setUpAndValidateReadChannelMocksAndSetMaxRetries(readChannel, 2);
 
     try {
       byte[] actualData = new byte[testData.length];
@@ -987,19 +993,7 @@ public class GoogleCloudStorageTest {
   @Test
   public void testOpenTwoTimeoutsWithIntermittentProgress()
       throws IOException, InterruptedException {
-    when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
-        .thenReturn(mockStorageObjectsGet);
-    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsGet)))
-        .thenReturn(mockHeaders);
-    when(mockStorageObjectsGet.execute())
-        .thenReturn(new StorageObject()
-            .setBucket(BUCKET_NAME)
-            .setName(OBJECT_NAME)
-            .setUpdated(new DateTime(11L))
-            .setSize(BigInteger.valueOf(111L))
-            .setGeneration(1L)
-            .setMetageneration(1L));
+    setUpBasicMockBehaviorForOpeningReadChannel();
 
     // This stream will immediately timeout.
     InputStream mockTimeoutStream = mock(InputStream.class);
@@ -1052,12 +1046,7 @@ public class GoogleCloudStorageTest {
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    readChannel.setSleeper(mockSleeper);
-    readChannel.setNanoClock(mockClock);
-    readChannel.setBackOff(mockBackOff);
-    readChannel.setMaxRetries(1);
-    assertTrue(readChannel.isOpen());
-    assertEquals(0, readChannel.position());
+    setUpAndValidateReadChannelMocksAndSetMaxRetries(readChannel, 1);
 
     // Should succeed even though, in total, there were more retries than maxRetries, since we
     // made progress between errors.
@@ -1083,19 +1072,7 @@ public class GoogleCloudStorageTest {
   @Test
   public void testOpenObjectNormalOperation()
       throws IOException {
-    when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
-        .thenReturn(mockStorageObjectsGet);
-    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsGet)))
-        .thenReturn(mockHeaders);
-    when(mockStorageObjectsGet.execute())
-        .thenReturn(new StorageObject()
-            .setBucket(BUCKET_NAME)
-            .setName(OBJECT_NAME)
-            .setUpdated(new DateTime(11L))
-            .setSize(BigInteger.valueOf(111L))
-            .setGeneration(1L)
-            .setMetageneration(1L));
+    setUpBasicMockBehaviorForOpeningReadChannel();
 
     // Make the response return some fake data, prepare for a second API call when we call
     // 'position' on the returned channel.
