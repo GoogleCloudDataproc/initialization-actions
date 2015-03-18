@@ -39,6 +39,12 @@ public class GoogleCloudStorageFileSystemOptions {
       return cloudStorageOptionsBuilder;
     }
 
+    public Builder setCloudStorageOptionsBuilder(
+        GoogleCloudStorageOptions.Builder cloudStorageOptionsBuilder) {
+      this.cloudStorageOptionsBuilder = cloudStorageOptionsBuilder;
+      return this;
+    }
+
     public Builder setIsMetadataCacheEnabled(boolean isMetadataCacheEnabled) {
       this.metadataCacheEnabled = isMetadataCacheEnabled;
       return this;

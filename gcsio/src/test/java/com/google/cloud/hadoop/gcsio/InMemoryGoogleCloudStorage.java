@@ -55,6 +55,11 @@ public class InMemoryGoogleCloudStorage
     this.clock = clock;
   }
 
+  @Override
+  public GoogleCloudStorageOptions getOptions() {
+    return storageOptions;
+  }
+
   private boolean validateBucketName(String bucketName) throws IOException {
     // Validation as per https://developers.google.com/storage/docs/bucketnaming
     if (Strings.isNullOrEmpty(bucketName)) {

@@ -42,6 +42,11 @@ public interface GoogleCloudStorage {
   public static final long MAX_RESULTS_UNLIMITED = -1;
 
   /**
+   * Retrieve the options that were used to create this GoogleCloudStorage.
+   */
+  GoogleCloudStorageOptions getOptions();
+
+  /**
    * Creates and opens an object for writing. The bucket must already exist.
    * If the object already exists, it is deleted.
    *

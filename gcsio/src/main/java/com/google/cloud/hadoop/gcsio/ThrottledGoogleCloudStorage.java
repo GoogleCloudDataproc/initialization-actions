@@ -91,6 +91,11 @@ public class ThrottledGoogleCloudStorage implements GoogleCloudStorage {
   }
 
   @Override
+  public GoogleCloudStorageOptions getOptions() {
+    return wrappedGcs.getOptions();
+  }
+
+  @Override
   public WritableByteChannel create(StorageResourceId resourceId) throws IOException {
     throttle(StorageOperation.CREATE_OBJECT);
     return wrappedGcs.create(resourceId);

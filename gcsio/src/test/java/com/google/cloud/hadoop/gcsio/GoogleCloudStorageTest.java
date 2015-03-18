@@ -216,6 +216,22 @@ public class GoogleCloudStorageTest {
   }
 
   /**
+   * Creates an instance of GoogleCloudStorage using GoogleCloudStorageImpl
+   * as the concrete type and setting up the proper mocks,
+   * with the specified autoRepairImplicitDirectories and
+   * inferImplicitDirectories.
+   */
+  private GoogleCloudStorage createTestInstanceWithAutoRepairWithInferImplicit(
+      boolean autoRepairImplicitDirectories, boolean inferImplicitDirectories) {
+    GoogleCloudStorageOptions.Builder optionsBuilder =
+        createDefaultCloudStorageOptionsBuilder();
+    optionsBuilder
+        .setAutoRepairImplicitDirectoriesEnabled(autoRepairImplicitDirectories)
+        .setInferImplicitDirectoriesEnabled(inferImplicitDirectories);
+    return createTestInstance(optionsBuilder.build());
+  }
+
+  /**
    * Creates an instance of GoogleCloudStorage with the specified options,
    * using GoogleCloudStorageImpl as the concrete type,
    * and setting up the proper mocks.
@@ -2585,9 +2601,21 @@ public class GoogleCloudStorageTest {
   }
 
   @Test
-  public void testListObjectInfoNoAutoRepair()
+  public void testListObjectInfoNoAutoRepairWithInferImplicit()
       throws IOException {
-    GoogleCloudStorage gcsNoAutoRepair = createTestInstance(false);
+    runTestListObjectInfoNoAutoRepair(true);
+  }
+
+  @Test
+  public void testListObjectInfoNoAutoRepairWithoutInferImplicit()
+      throws IOException {
+    runTestListObjectInfoNoAutoRepair(false);
+  }
+
+  private void runTestListObjectInfoNoAutoRepair(boolean inferImplicit)
+      throws IOException {
+    GoogleCloudStorage gcsNoAutoRepair =
+        createTestInstanceWithAutoRepairWithInferImplicit(false, inferImplicit);
 
     String objectPrefix = "foo/bar/baz/";
     String delimiter = "/";
@@ -2728,14 +2756,22 @@ public class GoogleCloudStorageTest {
     // mock verifications won't be executed and we'll have misleading
     // "NoInteractionsWanted" errors.
 
-    // Only one of our three directory objects existed.
-    assertEquals(1, objectInfos.size());
+    if (gcsNoAutoRepair.getOptions().isInferImplicitDirectoriesEnabled()) {
+      assertEquals(3, objectInfos.size());
 
-    GoogleCloudStorageItemInfo listedInfo = objectInfos.get(0);
-    assertEquals(fakeObject1.getName(), listedInfo.getObjectName());
-    assertEquals(fakeObject1.getUpdated().getValue(),
-        listedInfo.getCreationTime());
-    assertEquals(fakeObject1.getSize().longValue(), listedInfo.getSize());
+      GoogleCloudStorageItemInfo listedInfo = objectInfos.get(0);
+      assertEquals(fakeObject0.getName(), listedInfo.getObjectName());
+      assertEquals(0, listedInfo.getCreationTime());
+      assertEquals(0, listedInfo.getSize());
+    } else {
+      assertEquals(1, objectInfos.size());
+
+      GoogleCloudStorageItemInfo listedInfo = objectInfos.get(0);
+      assertEquals(fakeObject1.getName(), listedInfo.getObjectName());
+      assertEquals(fakeObject1.getUpdated().getValue(),
+          listedInfo.getCreationTime());
+      assertEquals(fakeObject1.getSize().longValue(), listedInfo.getSize());
+    }
   }
 
   @Test

@@ -15,7 +15,9 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageIntegrationHelper;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.InMemoryGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
@@ -317,8 +319,14 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     String systemBucketName =
         ghfsHelper.getUniqueBucketName("-system-bucket");
 
-    GoogleCloudStorageFileSystem fakeGcsFs =
-        new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
+    GoogleCloudStorageOptions.Builder gcsOptionsBuilder =
+        GoogleHadoopFileSystemTestHelper.defaultStorageOptionsBuilder();
+    GoogleCloudStorageFileSystemOptions.Builder fsOptionsBuilder =
+        GoogleCloudStorageFileSystemOptions.newBuilder()
+        .setCloudStorageOptionsBuilder(gcsOptionsBuilder);
+    GoogleCloudStorageFileSystem fakeGcsFs = new GoogleCloudStorageFileSystem(
+        new InMemoryGoogleCloudStorage(gcsOptionsBuilder.build()),
+        fsOptionsBuilder.build());
 
     try {
       fs = new GoogleHadoopGlobalRootedFileSystem(fakeGcsFs);
@@ -334,8 +342,14 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
 
   @Test
   public void testConfigureBucketsThrowsWhenBucketNotFound() throws IOException {
-    GoogleCloudStorageFileSystem fakeGcsFs =
-        new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
+    GoogleCloudStorageOptions.Builder gcsOptionsBuilder =
+        GoogleHadoopFileSystemTestHelper.defaultStorageOptionsBuilder();
+    GoogleCloudStorageFileSystemOptions.Builder fsOptionsBuilder =
+        GoogleCloudStorageFileSystemOptions.newBuilder()
+        .setCloudStorageOptionsBuilder(gcsOptionsBuilder);
+    GoogleCloudStorageFileSystem fakeGcsFs = new GoogleCloudStorageFileSystem(
+        new InMemoryGoogleCloudStorage(gcsOptionsBuilder.build()),
+        fsOptionsBuilder.build());
 
     // Non-existent system bucket with GCS_CREATE_SYSTEM_BUCKET_KEY set to false.
     boolean createSystemBuckets = false;
@@ -348,8 +362,14 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
 
   @Test
   public void testConfigureBucketsThrowsWhenInvalidBucketName() throws IOException {
-    GoogleCloudStorageFileSystem fakeGcsFs =
-        new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
+    GoogleCloudStorageOptions.Builder gcsOptionsBuilder =
+        GoogleHadoopFileSystemTestHelper.defaultStorageOptionsBuilder();
+    GoogleCloudStorageFileSystemOptions.Builder fsOptionsBuilder =
+        GoogleCloudStorageFileSystemOptions.newBuilder()
+        .setCloudStorageOptionsBuilder(gcsOptionsBuilder);
+    GoogleCloudStorageFileSystem fakeGcsFs = new GoogleCloudStorageFileSystem(
+        new InMemoryGoogleCloudStorage(gcsOptionsBuilder.build()),
+        fsOptionsBuilder.build());
 
     boolean createSystemBuckets = true;
     String systemBucketName = "this-bucket-has-illegal-char^";
@@ -361,8 +381,14 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
 
   @Test
   public void testConfigureBucketsThrowsWhenSubdirSpecified() throws IOException {
-    GoogleCloudStorageFileSystem fakeGcsFs =
-        new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
+    GoogleCloudStorageOptions.Builder gcsOptionsBuilder =
+        GoogleHadoopFileSystemTestHelper.defaultStorageOptionsBuilder();
+    GoogleCloudStorageFileSystemOptions.Builder fsOptionsBuilder =
+        GoogleCloudStorageFileSystemOptions.newBuilder()
+        .setCloudStorageOptionsBuilder(gcsOptionsBuilder);
+    GoogleCloudStorageFileSystem fakeGcsFs = new GoogleCloudStorageFileSystem(
+        new InMemoryGoogleCloudStorage(gcsOptionsBuilder.build()),
+        fsOptionsBuilder.build());
 
     boolean createSystemBuckets = true;
     String systemBucketName = "bucket/with-subdir";

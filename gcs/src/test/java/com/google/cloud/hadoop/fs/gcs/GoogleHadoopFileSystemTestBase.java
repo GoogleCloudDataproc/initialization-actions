@@ -197,9 +197,21 @@ public abstract class GoogleHadoopFileSystemTestBase
     URI leafUri = myghfs.getGcsPath(leafPath);
     gcsfs.mkdir(leafUri);
 
+    boolean inferImplicitDirectories = gcsfs.getOptions()
+        .getCloudStorageOptions().isInferImplicitDirectoriesEnabled();
+
     Assert.assertTrue("Expected to exist: " + leafUri, gcsfs.exists(leafUri));
-    Assert.assertFalse("Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
-    Assert.assertFalse("Expected to !exist: " + parentUri, gcsfs.exists(parentUri));
+    if (inferImplicitDirectories) {
+      Assert.assertTrue(
+          "Expected to exist: " + subdirUri, gcsfs.exists(subdirUri));
+      Assert.assertTrue(
+          "Expected to exist: " + parentUri, gcsfs.exists(parentUri));
+    } else {
+      Assert.assertFalse(
+          "Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
+      Assert.assertFalse(
+          "Expected to !exist: " + parentUri, gcsfs.exists(parentUri));
+    }
 
     myghfs.listStatus(parentPath);
 
@@ -213,15 +225,30 @@ public abstract class GoogleHadoopFileSystemTestBase
     gcsfs.mkdir(leafUri);
 
     Assert.assertTrue("Expected to exist: " + leafUri, gcsfs.exists(leafUri));
-    Assert.assertFalse("Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
-    Assert.assertFalse("Expected to !exist: " + parentUri, gcsfs.exists(parentUri));
+    if (inferImplicitDirectories) {
+      Assert.assertTrue(
+          "Expected to exist: " + subdirUri, gcsfs.exists(subdirUri));
+      Assert.assertTrue(
+          "Expected to exist: " + parentUri, gcsfs.exists(parentUri));
+    } else {
+      Assert.assertFalse(
+          "Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
+      Assert.assertFalse(
+          "Expected to !exist: " + parentUri, gcsfs.exists(parentUri));
+    }
 
     myghfs.globStatus(parentPath);
 
     // Globbing the single directory only repairs that top-level directory; it is *not* the same
     // as listStatus.
     Assert.assertTrue("Expected to exist: " + leafUri, gcsfs.exists(leafUri));
-    Assert.assertFalse("Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
+    if (inferImplicitDirectories) {
+      Assert.assertTrue(
+          "Expected to exist: " + subdirUri, gcsfs.exists(subdirUri));
+    } else {
+      Assert.assertFalse(
+          "Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
+    }
     Assert.assertTrue("Expected to exist: " + parentUri, gcsfs.exists(parentUri));
 
     ghfsHelper.clearBucket(bucketName);
@@ -230,8 +257,17 @@ public abstract class GoogleHadoopFileSystemTestBase
     gcsfs.mkdir(leafUri);
 
     Assert.assertTrue("Expected to exist: " + leafUri, gcsfs.exists(leafUri));
-    Assert.assertFalse("Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
-    Assert.assertFalse("Expected to !exist: " + parentUri, gcsfs.exists(parentUri));
+    if (inferImplicitDirectories) {
+      Assert.assertTrue(
+          "Expected to exist: " + subdirUri, gcsfs.exists(subdirUri));
+      Assert.assertTrue(
+          "Expected to exist: " + parentUri, gcsfs.exists(parentUri));
+    } else {
+      Assert.assertFalse(
+          "Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
+      Assert.assertFalse(
+          "Expected to !exist: " + parentUri, gcsfs.exists(parentUri));
+    }
 
     // When globbing children, the parent will only be repaired if flat-globbing is not enabled.
     Path globChildrenPath = new Path(parentPath.toString() + "/*");
@@ -247,7 +283,7 @@ public abstract class GoogleHadoopFileSystemTestBase
     if (versionInfo.isLessThan(2, 0) || versionInfo.isGreaterThan(2, 3)) {
       Assert.assertTrue("Expected to exist: " + subdirUri, gcsfs.exists(subdirUri));
 
-      if (expectParentRepair) {
+      if (expectParentRepair || inferImplicitDirectories) {
         Assert.assertTrue("Expected to exist: " + parentUri, gcsfs.exists(parentUri));
       } else {
         Assert.assertFalse(
@@ -261,8 +297,17 @@ public abstract class GoogleHadoopFileSystemTestBase
     gcsfs.mkdir(leafUri);
 
     Assert.assertTrue("Expected to exist: " + leafUri, gcsfs.exists(leafUri));
-    Assert.assertFalse("Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
-    Assert.assertFalse("Expected to !exist: " + parentUri, gcsfs.exists(parentUri));
+    if (inferImplicitDirectories) {
+      Assert.assertTrue(
+          "Expected to exist: " + subdirUri, gcsfs.exists(subdirUri));
+      Assert.assertTrue(
+          "Expected to exist: " + parentUri, gcsfs.exists(parentUri));
+    } else {
+      Assert.assertFalse(
+          "Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
+      Assert.assertFalse(
+          "Expected to !exist: " + parentUri, gcsfs.exists(parentUri));
+    }
 
     // Globbing with a wildcard in the parentUri itself also only repairs one level, but for
     // a different reason than globbing with no wildcard. Globbing with no wildcard requires
@@ -271,7 +316,13 @@ public abstract class GoogleHadoopFileSystemTestBase
     myghfs.globStatus(new Path(parentPath.toString() + "*"));
 
     Assert.assertTrue("Expected to exist: " + leafUri, gcsfs.exists(leafUri));
-    Assert.assertFalse("Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
+    if (inferImplicitDirectories) {
+      Assert.assertTrue(
+          "Expected to exist: " + subdirUri, gcsfs.exists(subdirUri));
+    } else {
+      Assert.assertFalse(
+          "Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
+    }
     if (versionInfo.isLessThan(2, 0) || versionInfo.isGreaterThan(2, 3)) {
       Assert.assertTrue("Expected to exist: " + parentUri, gcsfs.exists(parentUri));
     }

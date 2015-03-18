@@ -174,6 +174,14 @@ public class GoogleCloudStorageFileSystem {
 
 
   /**
+   * Retrieve the options that were used to create this
+   * GoogleCloudStorageFileSystem.
+   */
+  public GoogleCloudStorageFileSystemOptions getOptions() {
+    return options;
+  }
+
+  /**
    * Creates and opens an object for writing.
    * If the object already exists, it is deleted.
    *
@@ -1020,8 +1028,9 @@ public class GoogleCloudStorageFileSystem {
     }
 
     if (!itemInfo.exists()
-        && options.getCloudStorageOptions()
-            .isInferImplicitDirectoriesEnabled()) {
+        && options.getCloudStorageOptions().isInferImplicitDirectoriesEnabled()
+        && !itemInfo.isRoot()
+        && !itemInfo.isBucket()) {
       StorageResourceId newResourceId = resourceId;
       if (!FileInfo.isDirectory(itemInfo)) {
         newResourceId = FileInfo.convertToDirectoryPath(resourceId);
@@ -1176,10 +1185,21 @@ public class GoogleCloudStorageFileSystem {
    */
   private GoogleCloudStorageItemInfo getInferredItemInfo(
       StorageResourceId dirId) throws IOException {
+
+    if (dirId.isRoot() || dirId.isBucket()) {
+      return GoogleCloudStorageImpl.createItemInfoForNotFound(dirId);
+    }
+
+    StorageResourceId bucketId = new StorageResourceId(dirId.getBucketName());
+    if (!gcs.getItemInfo(bucketId).exists()) {
+      // If the bucket does not exist, don't try to look for children.
+      return GoogleCloudStorageImpl.createItemInfoForNotFound(dirId);
+    }
+
     dirId = FileInfo.convertToDirectoryPath(dirId);
 
     String bucketName = dirId.getBucketName();
-    // We have ensured that the path ends in the delimited,
+    // We have ensured that the path ends in the delimiter,
     // so now we can just use that path as the prefix.
     String objectNamePrefix = dirId.getObjectName();
     String delimiter = GoogleCloudStorage.PATH_DELIMITER;

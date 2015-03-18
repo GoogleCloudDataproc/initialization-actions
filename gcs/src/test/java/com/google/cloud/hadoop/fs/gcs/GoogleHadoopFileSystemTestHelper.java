@@ -15,6 +15,8 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.InMemoryGoogleCloudStorage;
 
 import org.apache.hadoop.conf.Configuration;
@@ -35,8 +37,14 @@ public class GoogleHadoopFileSystemTestHelper {
    */
   public static FileSystem createInMemoryGoogleHadoopFileSystem()
       throws IOException {
-    GoogleCloudStorageFileSystem memoryGcsFs =
-        new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
+    GoogleCloudStorageOptions.Builder gcsOptionsBuilder =
+        defaultStorageOptionsBuilder();
+    GoogleCloudStorageFileSystemOptions.Builder fsOptionsBuilder =
+        GoogleCloudStorageFileSystemOptions.newBuilder()
+        .setCloudStorageOptionsBuilder(gcsOptionsBuilder);
+    GoogleCloudStorageFileSystem memoryGcsFs = new GoogleCloudStorageFileSystem(
+        new InMemoryGoogleCloudStorage(gcsOptionsBuilder.build()),
+        fsOptionsBuilder.build());
     GoogleHadoopFileSystem ghfs = new GoogleHadoopFileSystem(memoryGcsFs);
     initializeInMemoryFileSystem(ghfs, "gs:/");
     return ghfs;
@@ -48,11 +56,28 @@ public class GoogleHadoopFileSystemTestHelper {
    */
   public static FileSystem createInMemoryGoogleHadoopGlobalRootedFileSystem()
       throws IOException {
-    GoogleCloudStorageFileSystem memoryGcsFs =
-        new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
-    GoogleHadoopFileSystemBase ghfs = new GoogleHadoopGlobalRootedFileSystem(memoryGcsFs);
+    GoogleCloudStorageOptions.Builder gcsOptionsBuilder =
+        defaultStorageOptionsBuilder();
+    GoogleCloudStorageFileSystemOptions.Builder fsOptionsBuilder =
+        GoogleCloudStorageFileSystemOptions.newBuilder()
+        .setCloudStorageOptionsBuilder(gcsOptionsBuilder);
+    GoogleCloudStorageFileSystem memoryGcsFs = new GoogleCloudStorageFileSystem(
+        new InMemoryGoogleCloudStorage(gcsOptionsBuilder.build()),
+        fsOptionsBuilder.build());
+    GoogleHadoopFileSystemBase ghfs =
+        new GoogleHadoopGlobalRootedFileSystem(memoryGcsFs);
     initializeInMemoryFileSystem(ghfs, "gsg://bucket-should-be-ignored");
     return ghfs;
+  }
+
+  /**
+   * Get the options we want to use for our GCS instances.
+   */
+  public static GoogleCloudStorageOptions.Builder
+      defaultStorageOptionsBuilder() {
+    GoogleCloudStorageOptions.Builder optionsBuilder =
+        GoogleCloudStorageOptions.newBuilder();
+    return optionsBuilder;
   }
 
   /**

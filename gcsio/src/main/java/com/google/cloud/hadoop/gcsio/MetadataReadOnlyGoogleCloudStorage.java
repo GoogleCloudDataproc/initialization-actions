@@ -48,6 +48,8 @@ public class MetadataReadOnlyGoogleCloudStorage
   // Immutable cache of all metadata held by this instance, populated at construction time.
   private final DirectoryListCache resourceCache = new InMemoryDirectoryListCache();
 
+  private GoogleCloudStorageOptions options;
+
   // TODO(user): Consolidate this with the equivalent object in LaggedGoogleCloudStorage.java.
   private static final Function<GoogleCloudStorageItemInfo, String> ITEM_INFO_TO_NAME =
       new Function<GoogleCloudStorageItemInfo, String>() {
@@ -74,6 +76,12 @@ public class MetadataReadOnlyGoogleCloudStorage
     for (GoogleCloudStorageItemInfo itemInfo : itemInfos) {
       resourceCache.putResourceId(itemInfo.getResourceId()).setItemInfo(itemInfo);
     }
+    options = GoogleCloudStorageOptions.newBuilder().build(); // for getOptions
+  }
+
+  @Override
+  public GoogleCloudStorageOptions getOptions() {
+    return options;
   }
 
   @Override

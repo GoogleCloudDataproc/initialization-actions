@@ -69,6 +69,11 @@ public class CacheSupplementedGoogleCloudStorage
     this.resourceCache = resourceCache;
   }
 
+  @Override
+  public GoogleCloudStorageOptions getOptions() {
+    return gcsDelegate.getOptions();
+  }
+
   /**
    * Wraps the delegate's returned WritableByteChannel in a helper which will update the
    * resourceCache when close() is called.

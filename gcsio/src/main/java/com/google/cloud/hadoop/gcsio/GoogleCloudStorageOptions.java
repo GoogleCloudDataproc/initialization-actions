@@ -35,7 +35,7 @@ public class GoogleCloudStorageOptions {
   /**
    * Default setting for enabling inferring of implicit directories.
    */
-  public static final boolean INFER_IMPLICIT_DIRECTORIES_DEFAULT = false;
+  public static final boolean INFER_IMPLICIT_DIRECTORIES_DEFAULT = true;
 
   /**
    * Default setting for maximum number of requests per GCS batch.

@@ -30,6 +30,11 @@ public class ListProhibitedGoogleCloudStorage implements GoogleCloudStorage {
   }
 
   @Override
+  public GoogleCloudStorageOptions getOptions() {
+    return delegateGcs.getOptions();
+  }
+
+  @Override
   public WritableByteChannel create(StorageResourceId resourceId) throws IOException {
     return delegateGcs.create(resourceId);
   }

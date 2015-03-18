@@ -80,6 +80,11 @@ public class LaggedGoogleCloudStorage implements GoogleCloudStorage  {
   }
 
   @Override
+  public GoogleCloudStorageOptions getOptions() {
+    return delegate.getOptions();
+  }
+
+  @Override
   public WritableByteChannel create(StorageResourceId resourceId) throws IOException {
     return delegate.create(resourceId);
   }

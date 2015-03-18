@@ -33,6 +33,11 @@ public class ResourceLoggingGoogleCloudStorage implements GoogleCloudStorage {
     this.delegateGcs = delegateGcs;
   }
 
+  @Override
+  public GoogleCloudStorageOptions getOptions() {
+    return delegateGcs.getOptions();
+  }
+
   public List<StorageResourceId> getCreatedResources() {
      return ImmutableList.copyOf(createdResources);
   }

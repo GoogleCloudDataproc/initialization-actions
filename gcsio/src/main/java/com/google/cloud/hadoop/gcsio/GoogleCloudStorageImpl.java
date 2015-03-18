@@ -238,6 +238,11 @@ public class GoogleCloudStorageImpl
     this.httpRequestInitializer = null;
   }
 
+  @Override
+  public GoogleCloudStorageOptions getOptions() {
+    return storageOptions;
+  }
+
   @VisibleForTesting
   protected GoogleCloudStorageImpl() {
     this.storageOptions = GoogleCloudStorageOptions.newBuilder().build();
