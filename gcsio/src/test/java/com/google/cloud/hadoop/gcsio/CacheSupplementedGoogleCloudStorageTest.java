@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -340,20 +341,26 @@ public class CacheSupplementedGoogleCloudStorageTest {
     List<String> supplementedList = new ArrayList<>(objectList);
     supplementedList.add("foo/dir3");
     supplementedList.add("foo/dir4/");
-    assertEquals(supplementedList, gcs.listObjectNames(bucketName, prefix, "/",
-        GoogleCloudStorage.MAX_RESULTS_UNLIMITED));
+    List<String> actualObjects = new ArrayList<>(
+        gcs.listObjectNames(bucketName, prefix, "/", GoogleCloudStorage.MAX_RESULTS_UNLIMITED));
+    Collections.sort(actualObjects);
+    assertEquals(supplementedList, actualObjects);
 
     // Even after info-expiration-age, the entries still get supplemented.
     long nextTime = MAX_INFO_AGE + 1;
     when(mockClock.currentTimeMillis()).thenReturn(nextTime);
-    assertEquals(supplementedList, gcs.listObjectNames(bucketName, prefix, "/",
-        GoogleCloudStorage.MAX_RESULTS_UNLIMITED));
+    actualObjects = new ArrayList<>(
+        gcs.listObjectNames(bucketName, prefix, "/", GoogleCloudStorage.MAX_RESULTS_UNLIMITED));
+    Collections.sort(actualObjects);
+    assertEquals(supplementedList, actualObjects);
 
     // After expiration, supplementation no longer adds anything; back to original objectList.
     nextTime += MAX_ENTRY_AGE + 1;
     when(mockClock.currentTimeMillis()).thenReturn(nextTime);
-    assertEquals(objectList, gcs.listObjectNames(bucketName, prefix, "/",
-        GoogleCloudStorage.MAX_RESULTS_UNLIMITED));
+    actualObjects = new ArrayList<>(
+        gcs.listObjectNames(bucketName, prefix, "/", GoogleCloudStorage.MAX_RESULTS_UNLIMITED));
+    Collections.sort(actualObjects);
+    assertEquals(objectList, actualObjects);
 
     verify(mockGcsDelegate, times(5)).listObjectNames(eq(bucketName),
         eq(prefix), eq("/"),
