@@ -78,13 +78,14 @@
     <build.java.source.version>7</build.java.source.version>
     <build.java.target.version>7</build.java.target.version>
     <gpg.skip>true</gpg.skip>
+    <hadoop.one.version>1.2.1</hadoop.one.version>
+    <hadoop.two.version>2.4.1</hadoop.two.version>
   </properties>
 
   <profiles>
     <profile>
       <id>hadoop1</id>
       <properties>
-        <hadoop.version>1.2.1</hadoop.version>
         <hadoop.identifier>hadoop1</hadoop.identifier>
       </properties>
       <modules>
@@ -92,27 +93,10 @@
         <module>gcs/gcs-hadoop1.pom.xml</module>
         <module>bigquery/bigquery-hadoop1.pom.xml</module>
       </modules>
-      <dependencyManagement>
-        <dependencies>
-          <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-core</artifactId>
-            <version>${hadoop.version}</version>
-            <scope>provided</scope>
-          </dependency>
-          <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-test</artifactId>
-            <version>${hadoop.version}</version>
-            <scope>test</scope>
-          </dependency>
-        </dependencies>
-      </dependencyManagement>
     </profile>
     <profile>
       <id>hadoop2</id>
       <properties>
-        <hadoop.version>2.4.1</hadoop.version>
         <hadoop.identifier>hadoop2</hadoop.identifier>
       </properties>
       <modules>
@@ -120,29 +104,6 @@
         <module>gcs/gcs-hadoop2.pom.xml</module>
         <module>bigquery/bigquery-hadoop2.pom.xml</module>
       </modules>
-      <dependencyManagement>
-        <dependencies>
-          <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-common</artifactId>
-            <version>${hadoop.version}</version>
-            <scope>provided</scope>
-          </dependency>
-          <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-common</artifactId>
-            <version>${hadoop.version}</version>
-            <classifier>tests</classifier>
-            <scope>test</scope>
-          </dependency>
-          <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-mapreduce-client-core</artifactId>
-            <version>${hadoop.version}</version>
-            <scope>provided</scope>
-          </dependency>
-        </dependencies>
-      </dependencyManagement>
     </profile>
     <profile>
       <id>release</id>
@@ -323,6 +284,43 @@
         <groupId>org.apache.avro</groupId>
         <artifactId>avro</artifactId>
         <version>1.7.7</version>
+      </dependency>
+
+      <!-- Hadoop 1 version specific dependencies -->
+      <!-- These should only be referenced from *-hadoop1.pom.xml POMS -->
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-core</artifactId>
+        <version>${hadoop.one.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-test</artifactId>
+        <version>${hadoop.one.version}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <!-- Hadoop 2 version specific dependencies -->
+      <!-- These should only be referenced from *-hadoop2.pom.xml POMS -->
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-common</artifactId>
+        <version>${hadoop.two.version}</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-common</artifactId>
+        <version>${hadoop.two.version}</version>
+        <classifier>tests</classifier>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.hadoop</groupId>
+        <artifactId>hadoop-mapreduce-client-core</artifactId>
+        <version>${hadoop.two.version}</version>
+        <scope>provided</scope>
       </dependency>
     </dependencies>
   </dependencyManagement>
