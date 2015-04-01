@@ -108,7 +108,7 @@ public abstract class DirectoryListCache {
 
   /**
    * Implementations should indicate whether or not CacheEntry objects returned from methods are
-   * intended to be shared references which are authoritative cache state regarding metadata
+   * intended to be shared references that are authoritative cache state regarding metadata
    * like cached GoogleCloudStorageItemInfo, etc. If true, then the implementation implicitly
    * supports caching of GoogleCloudStorageItemInfo, and if false, the implication is that info
    * caching is *not* supported. Likewise, if 'true', CacheEntries are implied to be shared
@@ -169,7 +169,7 @@ public abstract class DirectoryListCache {
   public abstract List<CacheEntry> getBucketList() throws IOException;
 
   /**
-   * @return List of *all* Bucket CacheEntries, including ones which might be expired. Doesn't
+   * @return List of *all* Bucket CacheEntries, including ones that might be expired. Doesn't
    *     actively invalidate, set expiration, or delete expired entries. Can be used when the
    *     internal bucket list is needed without wanting to cause any mutations in the cache.
    */
@@ -180,14 +180,14 @@ public abstract class DirectoryListCache {
    * @param objectNamePrefix The prefix to be used to match object names to return.
    * @param delimiter The character for specifying 'directory' boundaries, or null.
    * @param returnedPrefixes A container to be populated with implied "directory objects" that
-   *     come from some object which includes the prefix, followed by some string, then followed
+   *     come from some object that includes the prefix, followed by some string, then followed
    *     by the 'delimiter'. This may or may not be a duplicate of one of the actual returned
    *     directory objects. For example, if gs://foo/bar/baz.txt exists and we query with parameters
    *     ("foo", "ba", "/", {}) then the returnedPrefixes will be populated with the string
    *     "bar/" by virtue of existence of the "bar/baz.txt" file. May be null if the caller doesn't
    *     desire fetching such returnedPrefixes.
    *
-   * @return List of CacheEntrys for StorageObjects residing in bucket {@code bucketName} which
+   * @return List of CacheEntrys for StorageObjects residing in bucket {@code bucketName} that
    *     match the provided objectNamePrefix and delimiter, or possibly null if no such objects
    *     are present. May also return an empty list.
    */
@@ -241,7 +241,7 @@ public abstract class DirectoryListCache {
 
 
   /**
-   * Helper to validate {@code resourceId} which may be a Bucket or StorageObject.
+   * Helper to validate {@code resourceId} that may be a Bucket or StorageObject.
    */
   protected static void validateResourceId(StorageResourceId resourceId) {
     Preconditions.checkArgument(resourceId != null,

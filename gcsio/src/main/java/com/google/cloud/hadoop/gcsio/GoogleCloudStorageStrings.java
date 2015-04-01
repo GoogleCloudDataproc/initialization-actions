@@ -1,12 +1,12 @@
 /**
  * Copyright 2013 Google Inc. All Rights Reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- *    
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -24,14 +24,14 @@ import com.google.common.base.Strings;
  */
 public class GoogleCloudStorageStrings {
   /**
-   * Helper which mimics the GCS API behavior for taking an existing objectName and checking if it
+   * Helper that mimics the GCS API behavior for taking an existing objectName and checking if it
    * matches a user-supplied prefix with an optional directory "delimiter". If it matches, either
-   * the full objectName will be returned unmodified, or the return value will be a String which
+   * the full objectName will be returned unmodified, or the return value will be a String that
    * is a prefix of the objectName inclusive of the matching prefix but truncating any suffix past
    * the first appearance of the delimiter after the full prefix. The returned prefix includes
    * the delimiter String at which the objectName was truncated.
    *
-   * @param objectNamePrefix The prefix which {@code objectName} must match to be returned in any
+   * @param objectNamePrefix The prefix that {@code objectName} must match to be returned in any
    *     form. May be null; then an objectName will always be returned, just possibly truncated.
    * @param delimiter The delimiter (usually a directory separator, e.g. '/') at which to truncate
    *     the returned objectName after including the matched prefix. May be null for no truncation.
@@ -45,7 +45,7 @@ public class GoogleCloudStorageStrings {
         String.format("objectName must not be null or empty, had args %s/%s/%s: ",
             objectNamePrefix, delimiter, objectName));
 
-    // The suffix which we'll use to check for the delimiter is just the whole name if no prefix
+    // The suffix that we'll use to check for the delimiter is just the whole name if no prefix
     // was supplied.
     String suffix = objectName;
     int suffixIndex = 0;

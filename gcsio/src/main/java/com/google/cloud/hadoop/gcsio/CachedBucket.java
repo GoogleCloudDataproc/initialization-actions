@@ -29,7 +29,7 @@ import java.util.Map;
  * serving as the container for retrieving CachedObjects from their respective cached buckets.
  *
  * Other than direct Bucket creation, a CachedBucket may also come into existence when generating
- * a CachedObject which inherently implies the existence of its parent bucket. Such an entry may
+ * a CachedObject that inherently implies the existence of its parent bucket. Such an entry may
  * not have associated GoogleCloudStorageItemInfo available. The caller is responsible for fetching
  * or updating such stale/nonexistent metadata if it is desired; for name-listing operations,
  * cached bucket/object names may be used directly without lazily populating associated metadata.
@@ -39,7 +39,7 @@ public class CachedBucket extends CacheEntry {
   private final Map<String, CacheEntry> objectLookup = new HashMap<>();
 
   /**
-   * Constructs a CachedBucket which has no associated GoogleCloudStorageItemInfo for the bucket.
+   * Constructs a CachedBucket that has no associated GoogleCloudStorageItemInfo for the bucket.
    *
    * @param bucketName Must be non-null and non-empty.
    */
@@ -66,8 +66,8 @@ public class CachedBucket extends CacheEntry {
   }
 
   /**
-   * Helper to be called by all methods which take a resourceId which corresponds to a
-   * StorageObject which resides in this bucket; validates that the {@code resourceId} is indeed
+   * Helper to be called by all methods that take a resourceId that corresponds to a
+   * StorageObject that resides in this bucket; validates that the {@code resourceId} is indeed
    * a StorageObject and that its bucket matches this CachedBucket's bucketName.
    */
   private void validateStorageObjectId(StorageResourceId resourceId) {
@@ -81,7 +81,7 @@ public class CachedBucket extends CacheEntry {
   }
 
   /**
-   * Returns the CacheEntry entry corresponding to {@code resourceId} which must be a StorageObject
+   * Returns the CacheEntry entry corresponding to {@code resourceId} that must be a StorageObject
    * residing inside this CachedBucket, or null if one doesn't exist. The CacheEntry is the shared
    * reference, so that any mutations to the CacheEntry made by the caller will be reflected
    * for future callers retrieving the same CacheEntry.
@@ -94,7 +94,7 @@ public class CachedBucket extends CacheEntry {
   }
 
   /**
-   * Removes the CacheEntry entry corresponding to {@code resourceId} which must be a StorageObject
+   * Removes the CacheEntry entry corresponding to {@code resourceId} that must be a StorageObject
    * residing inside this CachedBucket, if it exists.
    *
    * @param resourceId identifies a StorageObject. Bucket must match this CachedBucket's name.
@@ -109,7 +109,7 @@ public class CachedBucket extends CacheEntry {
    * {@code resourceId}.
    *
    * @param resourceId identifies a StorageObject. Bucket must match this CachedBucket's name.
-   * @return The CacheEntry which got added, *or* the pre-existing entry.
+   * @return The CacheEntry that got added, *or* the pre-existing entry.
    */
   public synchronized CacheEntry put(StorageResourceId resourceId) {
     validateStorageObjectId(resourceId);

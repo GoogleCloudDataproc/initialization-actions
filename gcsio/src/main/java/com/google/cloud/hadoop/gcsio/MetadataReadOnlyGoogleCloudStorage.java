@@ -60,7 +60,7 @@ public class MetadataReadOnlyGoogleCloudStorage
       };
 
   /**
-   * Constructs a MetadataReadOnlyGoogleCloudStorage which can be used for temporary contexts
+   * Constructs a MetadataReadOnlyGoogleCloudStorage that can be used for temporary contexts
    * where only object metadata read operations will be used through the GoogleCloudStorage
    * interface.
    *

@@ -43,7 +43,7 @@ import java.util.Set;
  * tree of directories + empty files inside a configured local filesystem, as accessed via
  * java.nio.Path and java.io.File, all under a base directory configured at construction-time.
  * If a regular local filesystem path is used, then this cache thus enables immediate list
- * consistency for all processes which use cooperating GCS-connector classes on the same machine;
+ * consistency for all processes that use cooperating GCS-connector classes on the same machine;
  * alternatively, if the path is an NFS mount point, then it is possible to enforce cluster-wide
  * immediate list consistency as long as all cooperating nodes configure the same NFS directory.
  * <p>
@@ -81,10 +81,10 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
   // designed to prevent accidentally escaping up to any parent or sibling directory of this
   // basePath.
   // Generally not mutable, except some test setups need to have a single long-lived instance
-  // which can reconfigured across different tests.
+  // that can reconfigured across different tests.
   private Path basePath = null;
 
-  // Allows a user of this class to inject a listener which gets called immediately prior
+  // Allows a user of this class to inject a listener that gets called immediately prior
   // to any createNewFile() or mkdir() invocation.
   private Function<StorageResourceId, Void> createMirrorFileListener = null;
 
@@ -105,7 +105,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
   }
 
   /**
-   * No-arg constructor which should only ever be used in tests.
+   * No-arg constructor that should only ever be used in tests.
    */
   private FileSystemBackedDirectoryListCache() {
   }
@@ -156,7 +156,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
         "Normalized path '%s' doesn't match raw resolved path '%s', resolvedPath; "
         + "relative components are not allowed.", normalizedPath, resolvedPath);
     Preconditions.checkState(normalizedPath.startsWith(basePath),
-        "Somehow got a normalized resolved path '%s' which no longer starts with '%s'!",
+        "Somehow got a normalized resolved path '%s' that no longer starts with '%s'!",
         normalizedPath, basePath);
 
     return normalizedPath;
@@ -231,11 +231,12 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
   }
 
   /**
-   * Helper to check for existence of one-level-up parent directory, and if it doesn't exist,
-   * explicitly putResourceId with the StorageResourceId corresponding to that parent directory,
-   * which will itself recursively ensure parent directories until all parent directories are
-   * created. We use this instead of a simple "mkdirs" because we need to control lastModifiedTime
-   * at every level.
+   * Helper to check for existence of one-level-up parent directory, and if it
+   * doesn't exist, explicitly putResourceId with the StorageResourceId
+   * corresponding to that parent directory, which will itself recursively
+   * ensure parent directories until all parent directories are created. We use
+   * this instead of a simple "mkdirs" because we need to control
+   * lastModifiedTime at every level.
    *
    * @throws IOException if any general IOException occurs or if the parent exists already as
    *     a non-directory file.
@@ -438,7 +439,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
       long parentLastModified = mirrorFile.getParentFile().lastModified();
       // File.delete() (unlike Files.delete(Path)) returns false rather than throwing any
       // exception for nonexistent files or non-empty directories; instead of making multiple
-      // calls to check for e.g. exists() && isDirectory() && isDirectoryEmpty() which would
+      // calls to check for, e.g., exists() && isDirectory() && isDirectoryEmpty(), which would
       // be non-atomic anyways, we'll just call delete() and let it fail if it already no longer
       // exists or is a nonempty directory.
       if (!mirrorFile.delete()) {

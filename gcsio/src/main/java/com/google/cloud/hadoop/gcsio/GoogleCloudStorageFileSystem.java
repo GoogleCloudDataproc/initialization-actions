@@ -336,7 +336,7 @@ public class GoogleCloudStorageFileSystem {
 
     // Delete children before their parents.
     //
-    // Note: we modify the input list which is ok for current usage.
+    // Note: we modify the input list, which is ok for current usage.
     // We should make a copy in case that changes in future.
     Collections.sort(paths, pathComparator);
     Collections.reverse(paths);
@@ -837,7 +837,7 @@ public class GoogleCloudStorageFileSystem {
   /**
    * Checks that {@code path} doesn't already exist as a directory object, and if so, performs
    * an object listing using the full path as the match prefix so that if there are any objects
-   * which imply {@code path} is a parent directory, we will discover its existence as a returned
+   * that imply {@code path} is a parent directory, we will discover its existence as a returned
    * GCS 'prefix'. In such a case, the directory object will be explicitly created.
    *
    * @return true if a repair was successfully made, false if a repair was unnecessary or failed.
@@ -1074,8 +1074,8 @@ public class GoogleCloudStorageFileSystem {
     // Call the bulk getItemInfos method to retrieve per-id info.
     List<GoogleCloudStorageItemInfo> itemInfos = gcs.getItemInfos(resourceIdsForPaths);
 
-    // Possibly re-fetch for "not found" items which may require implicit casting to directory
-    // paths (e.g. StorageObject which lacks a trailing slash). Hold mapping from post-conversion
+    // Possibly re-fetch for "not found" items, which may require implicit casting to directory
+    // paths (e.g., StorageObject that lacks a trailing slash). Hold mapping from post-conversion
     // StorageResourceId to the index of itemInfos the new item will replace.
     // NB: HashMap here is required; if we wish to use TreeMap we must implement Comparable in
     // StorageResourceId.
@@ -1217,7 +1217,7 @@ public class GoogleCloudStorageFileSystem {
 
   /**
    * Gets information about multiple inferred objects and/or buckets.
-   * Items which are "not found" will still have an entry in the returned list;
+   * Items that are "not found" will still have an entry in the returned list;
    * exists() will return false for these entries.
    *
    * @param resourceIds names of the GCS StorageObjects or
@@ -1410,7 +1410,7 @@ public class GoogleCloudStorageFileSystem {
    *
    * @param path The GCS URI to validate.
    * @param allowEmptyObjectName If true, a missing object name is not considered invalid.
-   * @return a StorageResourceId which may be the GCS root, a Bucket, or a StorageObject.
+   * @return a StorageResourceId that may be the GCS root, a Bucket, or a StorageObject.
    */
   public static StorageResourceId validatePathAndGetId(URI path, boolean allowEmptyObjectName) {
     log.debug("validatePathAndGetId('%s', %s)", path, allowEmptyObjectName);

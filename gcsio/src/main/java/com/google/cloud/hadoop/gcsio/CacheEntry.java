@@ -22,7 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 /**
- * Container for various pieces of metadata for a single cache entry which may be either a Bucket
+ * Container for various pieces of metadata for a single cache entry, which may be either a Bucket
  * or a StorageObject; includes GCS API metadata such as StorageResourceId and
  * GoogleCloudStorageItemInfo as well as cache-specific metadata, such as creation time,
  * and last-updated time.

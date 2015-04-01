@@ -67,7 +67,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Provides read/write access to Google Cloud Storage (GCS), using Java nio channel semantics.
- * This is a basic implementation of the GoogleCloudStorage interface which mostly delegates through
+ * This is a basic implementation of the GoogleCloudStorage interface that mostly delegates through
  * to the appropriate API call(s) via the generated JSON API client, while adding reliability and
  * performance features such as setting up low-level retries, translating low-level exceptions,
  * and request batching.
@@ -305,7 +305,7 @@ public class GoogleCloudStorageImpl
      * 1) Perform mutation M1 on object O1, which results in an HTTP 503 error,
      *    but can be any 5XX class error.
      * 2) Retry mutation M1, which yields a 200 OK
-     * 3) Perform mutation M2 on O1 which yields a 200 OK
+     * 3) Perform mutation M2 on O1, which yields a 200 OK
      * 4) Some time later, get O1 and see M1 and not M2, even though M2 appears to have happened
      *    later.
      *
@@ -513,7 +513,7 @@ public class GoogleCloudStorageImpl
     Preconditions.checkArgument(resourceId.isStorageObject(),
         "Expected full StorageObject id, got " + resourceId);
 
-    // The underlying channel doesn't initially read data which means that we won't see a
+    // The underlying channel doesn't initially read data, which means that we won't see a
     // FileNotFoundException until read is called. As a result, in order to find out if the object
     // exists, we'll need to do an RPC (metadata or data). A metadata check should be a less
     // expensive operation than a read data operation.
@@ -716,7 +716,7 @@ public class GoogleCloudStorageImpl
    * properties such as location and storage-class.
    * @param gcsImpl A GoogleCloudStorage for retrieving bucket info via getItemInfo, but only if
    *     srcBucketName != dstBucketName; passed as a parameter so that this static method can be
-   *     used by other implementations of GoogleCloudStorage which want to preserve the validation
+   *     used by other implementations of GoogleCloudStorage that want to preserve the validation
    *     behavior of GoogleCloudStorageImpl, including disallowing cross-location copies.
    */
   static void validateCopyArguments(String srcBucketName, List<String> srcObjectNames,
@@ -927,7 +927,7 @@ public class GoogleCloudStorageImpl
   }
 
   /**
-   * Helper for both listObjectNames and listObjectInfo, which executes the actual API calls to
+   * Helper for both listObjectNames and listObjectInfo that executes the actual API calls to
    * get paginated lists, accumulating the StorageObjects and String prefixes into the params
    * {@code listedObjects} and {@code listedPrefixes}.
    *

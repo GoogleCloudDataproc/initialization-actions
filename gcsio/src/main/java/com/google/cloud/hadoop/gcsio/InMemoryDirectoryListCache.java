@@ -55,7 +55,7 @@ public class InMemoryDirectoryListCache extends DirectoryListCache {
   private static final InMemoryDirectoryListCache singletonInstance =
       new InMemoryDirectoryListCache();
 
-  // Mapping from bucketName to data structure which holds both the CacheEntry corresponding to
+  // Mapping from bucketName to data structure that holds both the CacheEntry corresponding to
   // the bucket itself as well as mappings to CacheEntry values for StorageObjects residing in
   // the bucket. Existence of CacheEntrys is solely handled through synchronized methods of
   // DirectoryListCache. However, the handling of GoogleCloudStorageItemInfos within each CacheEntry
@@ -151,7 +151,7 @@ public class InMemoryDirectoryListCache extends DirectoryListCache {
       // an expired CachedBucket.
     } else {
       if (bucket.getNumObjects() > 0) {
-        log.warn("Explicitly removing non-empty Bucket: '%s' which contains %d items",
+        log.warn("Explicitly removing non-empty Bucket: '%s', which contains %d items",
             resourceId, bucket.getNumObjects());
       } else {
         log.debug("Explicitly removing empty Bucket: '%s'", resourceId);

@@ -38,12 +38,12 @@ public class CacheSupplementedGoogleCloudStorage
   // Logger.
   private static final LogUtil log = new LogUtil(CacheSupplementedGoogleCloudStorage.class);
 
-  // An actual implementation of GoogleCloudStorage which will be used for the actual logic of
+  // An actual implementation of GoogleCloudStorage that will be used for the actual logic of
   // GCS operations, while this class adds book-keeping around the delegated calls.
   private final GoogleCloudStorage gcsDelegate;
 
   // Cache of freshly created Buckets or StorageObjects to be updated on create/copy/delete to
-  // supplement "list" calls with GCS resources which may not have appeared in the Cloud list
+  // supplement "list" calls with GCS resources that may not have appeared in the Cloud list
   // index yet.
   // TODO(user): Add support for perf-boosting use-cases, such as serving getItemInfo directly
   // from cache once we have plumbing in-place to pre-populate metadata on create/copy. Also,
@@ -52,9 +52,9 @@ public class CacheSupplementedGoogleCloudStorage
   private DirectoryListCache resourceCache;
 
   /**
-   * Constructs a CacheSupplementedGoogleCloudStorage which should be usable anywhere a
-   * GoogleCloudStorage interface is used and which supplements missing listObject/listBucket
-   * results from an in-memory cache of known GCS resources which may not have propagated into
+   * Constructs a CacheSupplementedGoogleCloudStorage that should be usable anywhere a
+   * GoogleCloudStorage interface is used and that supplements missing listObject/listBucket
+   * results from an in-memory cache of known GCS resources that may not have propagated into
    * the eventually-consistent remote "list" index yet.
    *
    * @param gcsDelegate The GoogleCloudStorage to be used for normal API interactions, before
@@ -75,7 +75,7 @@ public class CacheSupplementedGoogleCloudStorage
   }
 
   /**
-   * Wraps the delegate's returned WritableByteChannel in a helper which will update the
+   * Wraps the delegate's returned WritableByteChannel in a helper that will update the
    * resourceCache when close() is called.
    */
   @Override
@@ -92,7 +92,7 @@ public class CacheSupplementedGoogleCloudStorage
 
     final WritableByteChannel innerChannel = gcsDelegate.create(resourceId, options);
 
-    // Wrap the delegate's channel in our own channel which simply adds the additional book-keeping
+    // Wrap the delegate's channel in our own channel that simply adds the additional book-keeping
     // hook to close().
     return new WritableByteChannel() {
       @Override
@@ -226,7 +226,7 @@ public class CacheSupplementedGoogleCloudStorage
     // TODO(user): Maybe catch exceptions and check their inner exceptions for
     // FileNotFoundExceptions and update the DirectoryListCache accordingly. For partial failures,
     // we probably still want to add the successful ones to the list cache.
-    // TODO(user): Make GCS.copy return the list of destination StorageObjects which were
+    // TODO(user): Make GCS.copy return the list of destination StorageObjects that were
     // successfully created, so that we can pre-emptively populate the metadata into the cache.
     gcsDelegate.copy(srcBucketName, srcObjectNames, dstBucketName, dstObjectNames);
     for (String dstObjectName : dstObjectNames) {
@@ -240,7 +240,7 @@ public class CacheSupplementedGoogleCloudStorage
    * This method will modify {@code originalIds} as it goes to include the StorageResourceIds
    * of CacheEntrys being returned.
    *
-   * @return A list of CacheEntry which is a subset of {@code candidateEntries}, whose elements
+   * @return A list of CacheEntry that is a subset of {@code candidateEntries}, whose elements
    *     are not in the set of resourceIds corresponding to {@code originalIds}.
    */
   private List<CacheEntry> getSupplementalEntries(
@@ -259,7 +259,7 @@ public class CacheSupplementedGoogleCloudStorage
   /**
    * Helper for either pulling the existing GoogleCloudStorageItemInfo from each element of
    * {@code cacheEntries} or fetching the associated GoogleCloudStorageItemInfo on-demand, updating
-   * the cache entry, then appending the new result to the return list. Items which fail to be
+   * the cache entry, then appending the new result to the return list. Items that fail to be
    * fetched will not be returned.
    */
   private List<GoogleCloudStorageItemInfo> extractItemInfos(List<CacheEntry> cacheEntries)
