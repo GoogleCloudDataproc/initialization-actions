@@ -71,6 +71,7 @@
 
   <properties>
     <bigdataoss.util.version>1.3.4-SNAPSHOT</bigdataoss.util.version>
+    <bigdataoss.util-hadoop.version>1.3.4-SNAPSHOT</bigdataoss.util-hadoop.version>
     <bigdataoss.gcs.version>1.3.4-SNAPSHOT</bigdataoss.gcs.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <google.api.version>1.19.0</google.api.version>
@@ -89,7 +90,8 @@
         <hadoop.identifier>hadoop1</hadoop.identifier>
       </properties>
       <modules>
-        <module>util/util-hadoop1.pom.xml</module>
+        <module>util/pom.xml</module>
+        <module>util-hadoop/util-hadoop-hadoop1.pom.xml</module>
         <module>gcs/gcs-hadoop1.pom.xml</module>
         <module>bigquery/bigquery-hadoop1.pom.xml</module>
       </modules>
@@ -100,7 +102,8 @@
         <hadoop.identifier>hadoop2</hadoop.identifier>
       </properties>
       <modules>
-        <module>util/util-hadoop2.pom.xml</module>
+        <module>util/pom.xml</module>
+        <module>util-hadoop/util-hadoop-hadoop2.pom.xml</module>
         <module>gcs/gcs-hadoop2.pom.xml</module>
         <module>bigquery/bigquery-hadoop2.pom.xml</module>
       </modules>

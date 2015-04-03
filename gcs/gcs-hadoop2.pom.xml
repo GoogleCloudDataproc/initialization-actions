@@ -48,8 +48,8 @@
     </dependency>
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
-      <artifactId>util</artifactId>
-      <version>${bigdataoss.util.version}-hadoop2</version>
+      <artifactId>util-hadoop</artifactId>
+      <version>${bigdataoss.util-hadoop.version}-hadoop2</version>
     </dependency>
   </dependencies>
 

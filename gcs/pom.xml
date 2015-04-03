@@ -166,6 +166,11 @@
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
     </dependency>
+    <dependency>
+      <groupId>com.google.cloud.bigdataoss</groupId>
+      <artifactId>util</artifactId>
+      <version>${bigdataoss.util.version}</version>
+    </dependency>
   </dependencies>
   <build>
     <resources>
@@ -207,6 +212,7 @@
                     <include>com.google.api-client:*</include>
                     <include>com.google.apis:*</include>
                     <include>com.google.cloud.bigdataoss:util</include>
+                    <include>com.google.cloud.bigdataoss:util-hadoop</include>
                     <include>com.google.guava:*</include>
                     <include>com.google.http-client:google-http-client</include>
                     <include>com.google.http-client:google-http-client-jackson2</include>

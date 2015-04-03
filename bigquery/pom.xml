@@ -101,6 +101,11 @@
       <groupId>org.apache.avro</groupId>
       <artifactId>avro</artifactId>
     </dependency>
+    <dependency>
+      <groupId>com.google.cloud.bigdataoss</groupId>
+      <artifactId>util</artifactId>
+      <version>${bigdataoss.util.version}</version>
+    </dependency>
   </dependencies>
   <build>
     <resources>

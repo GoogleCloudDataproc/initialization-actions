@@ -19,19 +19,24 @@
 
   <parent>
     <groupId>com.google.cloud.bigdataoss</groupId>
-    <artifactId>util-parent</artifactId>
+    <artifactId>util-hadoop-parent</artifactId>
     <version>1.3.4-SNAPSHOT</version>
     <relativePath>pom.xml</relativePath>
   </parent>
 
   <packaging>jar</packaging>
-  <artifactId>util</artifactId>
-  <version>1.3.4-SNAPSHOT-hadoop1</version>
+  <artifactId>util-hadoop</artifactId>
+  <version>1.3.4-SNAPSHOT-hadoop2</version>
 
   <dependencies>
     <dependency>
       <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-core</artifactId>
+      <artifactId>hadoop-common</artifactId>
+    </dependency>
+    <!-- HadoopToStringUtil requires InputSplit -->
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-mapreduce-client-core</artifactId>
     </dependency>
   </dependencies>
 </project>
