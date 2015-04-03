@@ -80,7 +80,7 @@
     <build.java.target.version>7</build.java.target.version>
     <gpg.skip>true</gpg.skip>
     <hadoop.one.version>1.2.1</hadoop.one.version>
-    <hadoop.two.version>2.4.1</hadoop.two.version>
+    <hadoop.two.version>2.6.0</hadoop.two.version>
   </properties>
 
   <profiles>

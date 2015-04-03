@@ -15,6 +15,7 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
+import com.google.cloud.hadoop.util.HadoopVersionInfo;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -138,6 +139,9 @@ public class LocalFileSystemIntegrationTest
   @Test @Override
   public void testRename()
       throws IOException {
+
+    final HadoopVersionInfo versionInfo = new HadoopVersionInfo();
+
     try {
       renameHelper(new HdfsBehavior() {
           @Override
@@ -169,9 +173,14 @@ public class LocalFileSystemIntegrationTest
 
           @Override
           public MethodOutcome nonExistentDestinationFileParentOutcome() {
-            // LocalFileSystem throws FileNotFoundException if a parent of a file dst doesn't exist.
-            return new MethodOutcome(
-                MethodOutcome.Type.THROWS_EXCEPTION, FileNotFoundException.class);
+            // Fixed in Hadoop 2.5.0
+            if (versionInfo.isLessThan(2, 5)) {
+              // LocalFileSystem throws FileNotFoundException if a parent of a file dst doesn't
+              // exist.
+              return new MethodOutcome(
+                  MethodOutcome.Type.THROWS_EXCEPTION, FileNotFoundException.class);
+            }
+            return super.nonExistentDestinationFileParentOutcome();
           }
 
           @Override
@@ -185,7 +194,6 @@ public class LocalFileSystemIntegrationTest
       // and src is a directory with a file underneath it. GHFS places the src directory
       // as a subdirectory into dst; LocalFileSystem just clobbers dst directly.
       // NB: This is *not* how command-line "mv" works; "mv" works like GHFS.
-      boolean hadUnexpectedError = false;
       List<Throwable> unexpectedErrors = new ArrayList<>();
       for (Throwable t : ae.getSuppressed()) {
         if (!t.getMessage().matches(
