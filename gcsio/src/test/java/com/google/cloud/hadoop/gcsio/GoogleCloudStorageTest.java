@@ -681,6 +681,13 @@ public class GoogleCloudStorageTest {
   }
 
   @Test
+  public void testGcsReadChannelCloseIdempotent() throws IOException {
+    GoogleCloudStorageReadChannel channel = new GoogleCloudStorageReadChannel();
+    channel.close();
+    channel.close();
+  }
+
+  @Test
   public void testOpenWithSomeExceptionsDuringRead()
       throws IOException, InterruptedException {
     setUpBasicMockBehaviorForOpeningReadChannel();
@@ -1159,14 +1166,7 @@ public class GoogleCloudStorageTest {
     GoogleCloudStorageReadChannel castedReadChannel = (GoogleCloudStorageReadChannel) readChannel;
     assertNull(castedReadChannel.getBackOff());
 
-    // After closing the channel, future reads or calls to close() should throw a
-    // ClosedChannelException.
-    try {
-      readChannel.close();
-      fail("Expected ClosedChannelException");
-    } catch (ClosedChannelException ioe) {
-      // Expected.
-    }
+    // After closing the channel, future reads should throw a ClosedChannelException.
     try {
       readChannel.read(ByteBuffer.wrap(actualData));
       fail("Expected ClosedChannelException");

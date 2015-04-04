@@ -395,7 +395,12 @@ public class GoogleCloudStorageReadChannel
   @Override
   public void close()
       throws IOException {
-    throwIfNotOpen();
+    if (!channelIsOpen) {
+      log.warn(
+          "Channel for '%s' is not open.",
+          StorageResourceId.createReadableString(bucketName, objectName));
+      return;
+    }
     channelIsOpen = false;
     if (readChannel != null) {
       readChannel.close();
