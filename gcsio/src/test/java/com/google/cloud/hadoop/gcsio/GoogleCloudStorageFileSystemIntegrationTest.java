@@ -15,7 +15,6 @@
 package com.google.cloud.hadoop.gcsio;
 
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
 import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Predicate;
@@ -100,6 +99,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   // Name of the test object.
   protected static String objectName = "gcsio-test.txt";
 
+  protected static final boolean GCS_FILE_SIZE_LIMIT_250GB_DEFAULT = true;
+  protected static final int WRITE_BUFFERSIZE_DEFAULT = 64 * 1024 * 1024;
+
   /**
    * Perform initialization once before tests are run.
    */
@@ -122,8 +124,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
           .setAppName(appName)
           .setProjectId(projectId)
           .getWriteChannelOptionsBuilder()
-          .setFileSizeLimitedTo250Gb(GoogleHadoopFileSystemBase.GCS_FILE_SIZE_LIMIT_250GB_DEFAULT)
-          .setUploadBufferSize(GoogleHadoopFileSystemBase.WRITE_BUFFERSIZE_DEFAULT);
+          .setFileSizeLimitedTo250Gb(GCS_FILE_SIZE_LIMIT_250GB_DEFAULT)
+          .setUploadBufferSize(WRITE_BUFFERSIZE_DEFAULT);
 
       gcsfs = new GoogleCloudStorageFileSystem(
           credential,

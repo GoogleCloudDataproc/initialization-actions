@@ -16,7 +16,6 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
-import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import org.apache.log4j.Level;
@@ -84,8 +83,8 @@ public class GoogleCloudStorageFileSystemTest
         .setAppName("appName")
         .setProjectId("projectId")
         .getWriteChannelOptionsBuilder()
-        .setFileSizeLimitedTo250Gb(GoogleHadoopFileSystemBase.GCS_FILE_SIZE_LIMIT_250GB_DEFAULT)
-        .setUploadBufferSize(GoogleHadoopFileSystemBase.WRITE_BUFFERSIZE_DEFAULT);
+        .setFileSizeLimitedTo250Gb(GCS_FILE_SIZE_LIMIT_250GB_DEFAULT)
+        .setUploadBufferSize(WRITE_BUFFERSIZE_DEFAULT);
 
     // Verify that projectId == null or empty throws IllegalArgumentException.
     optionsBuilder.getCloudStorageOptionsBuilder().setProjectId(null);
@@ -141,8 +140,8 @@ public class GoogleCloudStorageFileSystemTest
         .setAppName("appName")
         .setProjectId("projectId")
         .getWriteChannelOptionsBuilder()
-        .setFileSizeLimitedTo250Gb(GoogleHadoopFileSystemBase.GCS_FILE_SIZE_LIMIT_250GB_DEFAULT)
-        .setUploadBufferSize(GoogleHadoopFileSystemBase.WRITE_BUFFERSIZE_DEFAULT);
+        .setFileSizeLimitedTo250Gb(GCS_FILE_SIZE_LIMIT_250GB_DEFAULT)
+        .setUploadBufferSize(WRITE_BUFFERSIZE_DEFAULT);
 
     new GoogleCloudStorageFileSystem(cred, optionsBuilder.build());
   }
