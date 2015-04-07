@@ -332,6 +332,7 @@ public class GoogleCloudStorageImpl
             throw new IOException(String.format(
                 "Interrupted while sleeping for backoff in create of %s", resourceId));
           }
+          info = getItemInfo(resourceId);
         }
 
         backOffSleep = backOff.nextBackOffMillis();
