@@ -106,6 +106,13 @@
       <artifactId>util</artifactId>
       <version>${bigdataoss.util.version}</version>
     </dependency>
+    <dependency>
+       <groupId>com.google.cloud.bigdataoss</groupId>
+       <artifactId>gcsio</artifactId>
+       <version>${bigdataoss.gcsio.version}</version>
+       <scope>test</scope>
+       <type>test-jar</type>
+     </dependency>
   </dependencies>
   <build>
     <resources>
