@@ -23,6 +23,7 @@ import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
+import com.google.cloud.hadoop.util.LoggingMediaHttpUploaderProgressListener;
 
 import java.io.IOException;
 import java.util.Map;
@@ -39,6 +40,7 @@ public class GoogleCloudStorageWriteChannel
   private final String objectName;
   private final ObjectWriteConditions writeConditions;
   private final Map<String, String> metadata;
+  private static final long MIN_LOGGING_INTERVAL_MS = 60000L;
 
   /**
    * Constructs an instance of GoogleCloudStorageWriteChannel.
@@ -75,6 +77,10 @@ public class GoogleCloudStorageWriteChannel
 
     Insert insert = gcs.objects().insert(bucketName, object, inputStream);
     writeConditions.apply(insert);
+    if (insert.getMediaHttpUploader() != null) {
+      insert.getMediaHttpUploader().setProgressListener(
+        new LoggingMediaHttpUploaderProgressListener(this.objectName, MIN_LOGGING_INTERVAL_MS));
+    }
     return insert;
   }
 }
