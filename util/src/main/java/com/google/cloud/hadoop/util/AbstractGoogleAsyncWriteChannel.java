@@ -52,7 +52,9 @@ public abstract class AbstractGoogleAsyncWriteChannel
   public static final int GCS_UPLOAD_GRANULARITY = 8 * 1024 * 1024;
 
   // Chunk size to use.
-  public static final int UPLOAD_CHUNK_SIZE_DEFAULT = 8 * GCS_UPLOAD_GRANULARITY;
+  public static final int UPLOAD_CHUNK_SIZE_DEFAULT =
+      Runtime.getRuntime().totalMemory() < 512 * 1024 * 1024
+           ? GCS_UPLOAD_GRANULARITY : 8 * GCS_UPLOAD_GRANULARITY;
 
   /**
    * Sets the ClientRequestHelper to be used instead of calling final methods in client requests.
@@ -61,6 +63,10 @@ public abstract class AbstractGoogleAsyncWriteChannel
   public void setClientRequestHelper(ClientRequestHelper<S> helper) {
     clientRequestHelper = helper;
   }
+
+  // Content type
+  private String contentType;
+
 
   // Upper limit on object size.
   // We use less than 250GB limit to avoid potential boundary errors
@@ -104,7 +110,7 @@ public abstract class AbstractGoogleAsyncWriteChannel
   // size = UPLOAD_CHUNK_SIZE_DEFAULT (64 MB)
 
   // A pipe that connects write channel used by caller to the input stream used by GCS uploader.
-  // The uploader reads from input stream which blocks till a caller writes some data to the
+  // The uploader reads from input stream, which blocks till a caller writes some data to the
   // write channel (pipeSinkChannel below). The pipe is formed by connecting pipeSink to pipeSource
   private PipedOutputStream pipeSink;
   private PipedInputStream pipeSource;
@@ -124,7 +130,6 @@ public abstract class AbstractGoogleAsyncWriteChannel
   // Upload operation that takes place on a separate thread.
   private UploadOperation uploadOperation;
 
-
   // If true, we get very high write throughput but writing files larger than UPLOAD_MAX_SIZE
   // will not succeed. Set it to false to allow larger files at lower throughput.
   @VisibleForTesting
@@ -133,6 +138,7 @@ public abstract class AbstractGoogleAsyncWriteChannel
   /**
    * Construct a new channel using the given ExecutorService to run background uploads.
    * @param threadPool
+   * @param options
    */
   public AbstractGoogleAsyncWriteChannel(
       ExecutorService threadPool,
@@ -140,6 +146,7 @@ public abstract class AbstractGoogleAsyncWriteChannel
     this.threadPool = threadPool;
     enableFileSizeLimit250Gb(options.isFileSizeLimitedTo250Gb());
     setUploadBufferSize(options.getUploadBufferSize());
+    setContentType("application/octet-stream");
   }
 
   /**
@@ -200,7 +207,7 @@ public abstract class AbstractGoogleAsyncWriteChannel
   /**
    * Writes contents of the given buffer to this channel.
    *
-   * Note: The data that one writes gets written to a pipe which may not block
+   * Note: The data that one writes gets written to a pipe which must not block
    * if the pipe has sufficient buffer space. A success code returned from this method
    * does not mean that the specific data was successfully written to the underlying
    * storage. It simply means that there is no error at present. The data upload
@@ -276,7 +283,7 @@ public abstract class AbstractGoogleAsyncWriteChannel
 
     // Connect pipe-source to the stream used by uploader.
     InputStreamContent objectContentStream =
-        new InputStreamContent("application/octet-stream", pipeSource);
+        new InputStreamContent(contentType, pipeSource);
     // Indicate that we do not know length of file in advance.
     objectContentStream.setLength(-1);
     objectContentStream.setCloseInputStream(false);
@@ -381,6 +388,16 @@ public abstract class AbstractGoogleAsyncWriteChannel
     }
 
   }
+
+  /**
+   * Sets the contentType. This must be called before initialize()
+   * for any effect.
+   *
+   */
+  protected void setContentType(String contentType) {
+    this.contentType = contentType;
+  }
+
 
   /**
    * Throws if this channel is not currently open.

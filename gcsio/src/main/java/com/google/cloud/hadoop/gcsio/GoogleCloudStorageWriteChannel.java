@@ -67,13 +67,35 @@ public class GoogleCloudStorageWriteChannel
     this.metadata = objectMetadata;
   }
 
+  /**
+   * Constructs an instance of GoogleCloudStorageWriteChannel.
+   *
+   * @param threadPool thread pool to use for running the upload operation
+   * @param gcs storage object instance
+   * @param requestHelper a ClientRequestHelper to set extra headers
+   * @param bucketName name of the bucket to create object in
+   * @param objectName name of the object to create
+   * @param objectMetadata metadata to apply to the newly created object
+   * @param contentType content type
+   * @throws IOException on IO error
+   */
+  public GoogleCloudStorageWriteChannel(
+      ExecutorService threadPool, Storage gcs, ClientRequestHelper<StorageObject> requestHelper,
+      String bucketName, String objectName,
+      AsyncWriteChannelOptions options, ObjectWriteConditions writeConditions,
+      Map<String, String> objectMetadata, String contentType) {
+    this(threadPool, gcs, requestHelper, bucketName, objectName, options,
+        writeConditions, objectMetadata);
+    setContentType(contentType);
+  }
+
   @Override
   public Insert createRequest(InputStreamContent inputStream) throws IOException {
     // Create object with the given name and metadata.
     StorageObject object =
         new StorageObject()
-            .setName(objectName)
-            .setMetadata(metadata);
+            .setMetadata(metadata)
+            .setName(objectName);
 
     Insert insert = gcs.objects().insert(bucketName, object, inputStream);
     writeConditions.apply(insert);
@@ -81,6 +103,7 @@ public class GoogleCloudStorageWriteChannel
       insert.getMediaHttpUploader().setProgressListener(
         new LoggingMediaHttpUploaderProgressListener(this.objectName, MIN_LOGGING_INTERVAL_MS));
     }
+    insert.setName(objectName);
     return insert;
   }
 }

@@ -378,6 +378,7 @@ public class GoogleCloudStorageTest {
         eq(BUCKET_NAME), storageObjectCaptor.capture(), inputStreamCaptor.capture());
     verify(mockStorageObjects, times(1)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockStorageObjectsGet, times(1)).execute();
+    verify(mockStorageObjectsInsert, times(1)).setName(eq(OBJECT_NAME));
     verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(0L));
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(1L));
@@ -459,6 +460,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorage, times(3)).objects();
     verify(mockStorageObjects, times(2)).insert(
         eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
+    verify(mockStorageObjectsInsert, times(1)).setName(eq(OBJECT_NAME));
     verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
     verify(mockHeaders, times(2)).set(startsWith("X-Goog-Upload-"), anyInt());
     verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Insert.class));
@@ -521,6 +523,7 @@ public class GoogleCloudStorageTest {
     verify(mockBackOffFactory, atLeastOnce()).newBackOff();
     verify(mockBackOff, times(1)).nextBackOffMillis();
     verify(mockStorageObjectsGet, times(1)).execute();
+    verify(mockStorageObjectsInsert, times(1)).setName(eq(OBJECT_NAME));
     verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
     verify(mockStorageObjects, times(1)).get(anyString(), anyString());
     verify(mockHeaders, times(2)).set(startsWith("X-Goog-Upload-"), anyInt());
@@ -572,6 +575,7 @@ public class GoogleCloudStorageTest {
         eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
     verify(mockStorageObjects).get(BUCKET_NAME, OBJECT_NAME);
     verify(mockStorageObjectsGet).execute();
+    verify(mockStorageObjectsInsert, times(1)).setName(eq(OBJECT_NAME));
     verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(0L));
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(1L));

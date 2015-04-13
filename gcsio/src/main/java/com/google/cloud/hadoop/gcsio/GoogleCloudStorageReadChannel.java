@@ -139,7 +139,7 @@ public class GoogleCloudStorageReadChannel
    * @throws FileNotFoundException if the given object does not exist
    * @throws IOException on IO error
    */
-  GoogleCloudStorageReadChannel(
+  public GoogleCloudStorageReadChannel(
       Storage gcs,
       String bucketName,
       String objectName,
