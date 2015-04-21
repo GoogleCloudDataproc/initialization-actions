@@ -58,7 +58,6 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.StorageRequest;
 import com.google.api.services.storage.model.Bucket;
-import com.google.api.services.storage.model.BucketAccessControl;
 import com.google.api.services.storage.model.Buckets;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
@@ -92,13 +91,18 @@ import java.io.InputStream;
 import java.math.BigInteger;
 import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.WritableByteChannel;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import javax.net.ssl.SSLException;
 
@@ -117,6 +121,8 @@ public class GoogleCloudStorageTest {
   };
   private static final Map<String, byte[]> EMPTY_METADATA = ImmutableMap.of();
 
+  private ExecutorService executorService;
+
   @Mock private Storage mockStorage;
   @Mock private Storage.Objects mockStorageObjects;
   @Mock private Storage.Objects.Insert mockStorageObjectsInsert;
@@ -131,7 +137,6 @@ public class GoogleCloudStorageTest {
   @Mock private Storage.Buckets.Get mockStorageBucketsGet2;
   @Mock private Storage.Buckets.List mockStorageBucketsList;
   @Mock private ApiErrorExtractor mockErrorExtractor;
-  @Mock private ExecutorService mockExecutorService;
   @Mock private BatchHelper.Factory mockBatchFactory;
   @Mock private BatchHelper mockBatchHelper;
   @Mock private HttpHeaders mockHeaders;
@@ -158,6 +163,7 @@ public class GoogleCloudStorageTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
+    executorService = Executors.newCachedThreadPool();
     gcs = createTestInstance();
   }
 
@@ -240,7 +246,7 @@ public class GoogleCloudStorageTest {
       GoogleCloudStorageOptions options) {
     GoogleCloudStorageImpl gcsTestInstance =
         new GoogleCloudStorageImpl(options, mockStorage);
-    gcsTestInstance.setThreadPool(mockExecutorService);
+    gcsTestInstance.setThreadPool(executorService);
     gcsTestInstance.setErrorExtractor(mockErrorExtractor);
     gcsTestInstance.setClientRequestHelper(mockClientRequestHelper);
     gcsTestInstance.setBatchFactory(mockBatchFactory);
@@ -249,7 +255,17 @@ public class GoogleCloudStorageTest {
     return gcsTestInstance;
   }
 
-  protected void setupNonConflictedSuccessfulWrite() throws IOException {
+  protected void setupNonConflictedWrite(final Throwable t) throws IOException {
+    setupNonConflictedWrite(new Answer<StorageObject>() {
+      @Override
+      public StorageObject answer(InvocationOnMock invocation) throws Throwable {
+        throw t;
+      }
+    });
+  }
+
+  protected void setupNonConflictedWrite(Answer<StorageObject> answer)
+      throws IOException {
     when(mockBackOffFactory.newBackOff()).thenReturn(mockBackOff);
     when(mockStorageObjects.get(BUCKET_NAME, OBJECT_NAME)).thenReturn(mockStorageObjectsGet);
     when(mockStorageObjectsGet.execute()).thenThrow(new IOException("NotFound"));
@@ -259,7 +275,7 @@ public class GoogleCloudStorageTest {
             .setBucket(BUCKET_NAME)
             .setName(OBJECT_NAME)
             .setGeneration(1L)
-            .setMetageneration(1L));
+            .setMetageneration(1L)).thenAnswer(answer);
   }
 
   /**
@@ -282,7 +298,6 @@ public class GoogleCloudStorageTest {
     verifyNoMoreInteractions(mockStorageBucketsGet2);
     verifyNoMoreInteractions(mockStorageBucketsList);
     verifyNoMoreInteractions(mockErrorExtractor);
-    verifyNoMoreInteractions(mockExecutorService);
     verifyNoMoreInteractions(mockBatchFactory);
     verifyNoMoreInteractions(mockBatchHelper);
     verifyNoMoreInteractions(mockHeaders);
@@ -352,30 +367,54 @@ public class GoogleCloudStorageTest {
    */
   @Test
   public void testCreateObjectNormalOperation()
-      throws IOException {
+      throws Exception {
     // Prepare the mock return values before invoking the method being tested.
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
 
-    setupNonConflictedSuccessfulWrite();
-
+    // Setup the argument captor so we can get back the data that we write.
+    final ArgumentCaptor<AbstractInputStreamContent> inputStreamCaptor =
+        ArgumentCaptor.forClass(AbstractInputStreamContent.class);
+    byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
+    final CountDownLatch waitTillWritesAreDoneLatch = new CountDownLatch(1);
+    final byte[] readData = new byte[testData.length];
+    setupNonConflictedWrite(new Answer<StorageObject>() {
+      @Override
+      public StorageObject answer(InvocationOnMock unused) throws Throwable {
+        synchronized (readData) {
+          waitTillWritesAreDoneLatch.await();
+          inputStreamCaptor.getValue().getInputStream().read(readData);
+          return null;
+        }
+      }
+    });
     when(mockStorageObjects.insert(
         eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
         .thenReturn(mockStorageObjectsInsert);
     when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsInsert)))
         .thenReturn(mockHeaders);
 
-    // Get a channel, don't run the async Runnable it created yet.
+    // Get a channel which will execute the insert object.
     WritableByteChannel writeChannel = gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     assertTrue(writeChannel.isOpen());
 
-    // Verify the initial setup of the insert; capture the API objects and async task for later.
+    // Verify the initial setup of the insert; capture the input stream.
     ArgumentCaptor<StorageObject> storageObjectCaptor =
         ArgumentCaptor.forClass(StorageObject.class);
-    final ArgumentCaptor<AbstractInputStreamContent> inputStreamCaptor =
-        ArgumentCaptor.forClass(AbstractInputStreamContent.class);
     verify(mockStorage, times(3)).objects();
     verify(mockStorageObjects, times(2)).insert(
         eq(BUCKET_NAME), storageObjectCaptor.capture(), inputStreamCaptor.capture());
+
+    writeChannel.write(ByteBuffer.wrap(testData));
+
+    // The writes are now done, we can return from the execute method.
+    // There is an issue with how PipedInputStream functions since it checks
+    // to see if the sending and receiving threads are alive.
+    waitTillWritesAreDoneLatch.countDown();
+
+    // Flush, make sure the data made it out the other end.
+    writeChannel.close();
+
+    assertFalse(writeChannel.isOpen());
     verify(mockStorageObjects, times(1)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockStorageObjectsGet, times(1)).execute();
     verify(mockStorageObjectsInsert, times(1)).setName(eq(OBJECT_NAME));
@@ -390,34 +429,10 @@ public class GoogleCloudStorageTest {
     verify(mockErrorExtractor).itemNotFound(any(IOException.class));
     verify(mockBackOffFactory).newBackOff();
     verify(mockBackOff).nextBackOffMillis();
-
-    ArgumentCaptor<Runnable> runCaptor = ArgumentCaptor.forClass(Runnable.class);
-    verify(mockExecutorService).execute(runCaptor.capture());
-
-    // Now write some data into the channel before running the captured Runnable; set up our
-    // mock Insert to stash away the bytes upon execute().
-    byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
-    writeChannel.write(ByteBuffer.wrap(testData));
-    final byte[] readData = new byte[testData.length];
-    when(mockStorageObjectsInsert.execute())
-        .thenAnswer(new Answer<BucketAccessControl>() {
-          @Override
-          public BucketAccessControl answer(InvocationOnMock unused) {
-            try {
-              inputStreamCaptor.getValue().getInputStream().read(readData);
-            } catch (IOException ioe) {
-              fail(ioe.getMessage());
-            }
-            return null;
-          }
-        });
-    runCaptor.getValue().run();
-
-    // Flush, make sure the data made it out the other end.
-    writeChannel.close();
-    assertFalse(writeChannel.isOpen());
     verify(mockStorageObjectsInsert, times(2)).execute();
-    assertArrayEquals(testData, readData);
+    synchronized (readData) {
+      assertArrayEquals(testData, readData);
+    }
 
     // After closing the channel, future writes or calls to close() should throw a
     // ClosedChannelException.
@@ -433,6 +448,86 @@ public class GoogleCloudStorageTest {
     } catch (ClosedChannelException ioe) {
       // Expected.
     }
+  }
+
+  /**
+   * Test handling when the parent thread waiting for the write to finish via
+   * the close call is interrupted, that the actual write is cancelled and interrupted
+   * as well.
+   */
+  @Test
+  public void testCreateObjectApiInterruptedException()
+      throws Exception {
+    // Prepare the mock return values before invoking the method being tested.
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+
+    when(mockStorageObjects.insert(
+        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
+        .thenReturn(mockStorageObjectsInsert);
+
+    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsInsert)))
+        .thenReturn(mockHeaders);
+
+    // Set up the mock Insert to wait forever.
+    final CountDownLatch waitForEverLatch = new CountDownLatch(1);
+    final CountDownLatch writeStartedLatch = new CountDownLatch(2);
+    final CountDownLatch threadsDoneLatch = new CountDownLatch(2);
+    setupNonConflictedWrite(new Answer<StorageObject>() {
+      @Override
+      public StorageObject answer(InvocationOnMock invocation) throws Throwable {
+        try {
+          writeStartedLatch.countDown();
+          waitForEverLatch.await();
+          fail("Unexpected to get here.");
+          return null;
+        } finally {
+          threadsDoneLatch.countDown();
+        }
+      }
+    });
+
+    final WritableByteChannel writeChannel =
+        gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
+    assertTrue(writeChannel.isOpen());
+
+    Future<?> write = executorService.submit(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          writeStartedLatch.countDown();
+          writeChannel.close();
+          fail("Expected IOException");
+        } catch (IOException ioe) {
+          assertEquals(ClosedByInterruptException.class, ioe.getClass());
+        } finally {
+          threadsDoneLatch.countDown();
+        }
+      }
+    });
+    // Wait for the insert object to be executed, then cancel the writing thread, and finally wait
+    // for the two threads to finish.
+    assertTrue("Neither thread started.", writeStartedLatch.await(5000, TimeUnit.MILLISECONDS));
+    write.cancel(true /* interrupt */);
+    assertTrue("Failed to wait for tasks to get interrupted.",
+        threadsDoneLatch.await(5000, TimeUnit.MILLISECONDS));
+
+    verify(mockStorage, times(3)).objects();
+    verify(mockStorageObjects, times(2)).insert(
+        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
+    verify(mockStorageObjectsInsert, times(1)).setName(eq(OBJECT_NAME));
+    verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
+    verify(mockHeaders, times(2)).set(startsWith("X-Goog-Upload-"), anyInt());
+    verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Insert.class));
+    verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
+    verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
+    verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(0L));
+    verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(1L));
+    verify(mockStorageObjects, times(1)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorageObjectsGet, times(1)).execute();
+    verify(mockErrorExtractor).itemNotFound(any(IOException.class));
+    verify(mockBackOffFactory).newBackOff();
+    verify(mockBackOff).nextBackOffMillis();
+    verify(mockStorageObjectsInsert, times(2)).execute();
   }
 
   /**
@@ -452,10 +547,19 @@ public class GoogleCloudStorageTest {
     when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsInsert)))
         .thenReturn(mockHeaders);
 
-    setupNonConflictedSuccessfulWrite();
+    // Set up the mock Insert to throw an exception when execute() is called.
+    IOException fakeException = new IOException("Fake IOException");
+    setupNonConflictedWrite(fakeException);
 
     WritableByteChannel writeChannel = gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     assertTrue(writeChannel.isOpen());
+
+    try {
+      writeChannel.close();
+      fail("Expected IOException");
+    } catch (IOException ioe) {
+      assertEquals(fakeException, ioe.getCause());
+    }
 
     verify(mockStorage, times(3)).objects();
     verify(mockStorageObjects, times(2)).insert(
@@ -473,23 +577,6 @@ public class GoogleCloudStorageTest {
     verify(mockErrorExtractor).itemNotFound(any(IOException.class));
     verify(mockBackOffFactory).newBackOff();
     verify(mockBackOff).nextBackOffMillis();
-
-
-    ArgumentCaptor<Runnable> runCaptor = ArgumentCaptor.forClass(Runnable.class);
-    verify(mockExecutorService).execute(runCaptor.capture());
-
-    // Set up the mock Insert to throw an exception when execute() is called.
-    IOException fakeException = new IOException("Fake IOException");
-    when(mockStorageObjectsInsert.execute())
-        .thenThrow(fakeException);
-    runCaptor.getValue().run();
-
-    try {
-      writeChannel.close();
-      fail("Expected IOException");
-    } catch (IOException ioe) {
-      assertEquals(fakeException, ioe.getCause());
-    }
     verify(mockStorageObjectsInsert, times(2)).execute();
   }
 
@@ -503,18 +590,28 @@ public class GoogleCloudStorageTest {
     // Prepare the mock return values before invoking the method being tested.
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
 
-    setupNonConflictedSuccessfulWrite();
-
     when(mockStorageObjects.insert(
         eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
         .thenReturn(mockStorageObjectsInsert);
-    when(mockStorageObjectsInsert.execute()).thenReturn(new StorageObject().setGeneration(10L));
+
     when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsInsert)))
         .thenReturn(mockHeaders);
+
+    // Set up the mock Insert to throw an exception when execute() is called.
+    RuntimeException fakeException = new RuntimeException("Fake exception");
+    setupNonConflictedWrite(fakeException);
 
     WritableByteChannel writeChannel = gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     assertTrue(writeChannel.isOpen());
 
+    try {
+      writeChannel.close();
+      fail("Expected IOException");
+    } catch (IOException ioe) {
+      assertEquals(fakeException, ioe.getCause());
+    }
+
+    verify(mockStorageObjectsInsert, times(2)).execute();
     verify(mockStorage, times(3)).objects();
     verify(mockStorageObjects, times(2)).insert(
         eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
@@ -531,22 +628,7 @@ public class GoogleCloudStorageTest {
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
     verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
     verify(mockStorageObjectsInsert, times(2)).setIfGenerationMatch(anyLong());
-    ArgumentCaptor<Runnable> runCaptor = ArgumentCaptor.forClass(Runnable.class);
-    verify(mockExecutorService).execute(runCaptor.capture());
 
-    // Set up the mock Insert to throw an exception when execute() is called.
-    RuntimeException fakeException = new RuntimeException("Fake exception");
-    when(mockStorageObjectsInsert.execute())
-        .thenThrow(fakeException);
-    runCaptor.getValue().run();
-
-    try {
-      writeChannel.close();
-      fail("Expected IOException");
-    } catch (IOException ioe) {
-      assertEquals(fakeException, ioe.getCause());
-    }
-    verify(mockStorageObjectsInsert, times(2)).execute();
   }
 
   /**
@@ -559,7 +641,9 @@ public class GoogleCloudStorageTest {
     // Prepare the mock return values before invoking the method being tested.
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
 
-    setupNonConflictedSuccessfulWrite();
+    // Set up the mock Insert to throw an exception when execute() is called.
+    Error fakeError = new Error("Fake error");
+    setupNonConflictedWrite(fakeError);
 
     when(mockStorageObjects.insert(
         eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
@@ -569,6 +653,13 @@ public class GoogleCloudStorageTest {
 
     WritableByteChannel writeChannel = gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     assertTrue(writeChannel.isOpen());
+
+    try {
+      writeChannel.close();
+      fail("Expected Error");
+    } catch (Error error) {
+      assertEquals(fakeError, error);
+    }
 
     verify(mockStorage, times(3)).objects();
     verify(mockStorageObjects, times(2)).insert(
@@ -586,22 +677,6 @@ public class GoogleCloudStorageTest {
     verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Insert.class));
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
     verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
-
-    ArgumentCaptor<Runnable> runCaptor = ArgumentCaptor.forClass(Runnable.class);
-    verify(mockExecutorService).execute(runCaptor.capture());
-
-    // Set up the mock Insert to throw an exception when execute() is called.
-    Error fakeError = new Error("Fake error");
-    when(mockStorageObjectsInsert.execute())
-        .thenThrow(fakeError);
-    runCaptor.getValue().run();
-
-    try {
-      writeChannel.close();
-      fail("Expected Error");
-    } catch (Error error) {
-      assertEquals(fakeError, error);
-    }
     verify(mockStorageObjectsInsert, times(2)).execute();
   }
 
@@ -2542,17 +2617,6 @@ public class GoogleCloudStorageTest {
         eq(mockStorageObjectsGet), Matchers.<JsonBatchCallback<StorageObject>>anyObject());
     when(mockErrorExtractor.itemNotFound(eq(notFoundError)))
         .thenReturn(true);
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocation) {
-        Object[] args = invocation.getArguments();
-        Runnable callback = (Runnable) args[0];
-        callback.run();
-        return null;
-      }
-    })
-    .when(mockExecutorService).execute(any(Runnable.class));
-
 
     // Set up the "create" for auto-repair after a failed getItemInfos.
     when(mockStorageObjects.insert(
@@ -2719,16 +2783,6 @@ public class GoogleCloudStorageTest {
         Matchers.<JsonBatchCallback<StorageObject>>anyObject());
     when(mockErrorExtractor.itemNotFound(eq(notFoundError)))
         .thenReturn(true);
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocation) {
-        Object[] args = invocation.getArguments();
-        Runnable callback = (Runnable) args[0];
-        callback.run();
-        return null;
-      }
-    })
-    .when(mockExecutorService).execute(any(Runnable.class));
 
     // List the objects, without attempting any auto-repair
     List<GoogleCloudStorageItemInfo> objectInfos =
@@ -2882,16 +2936,6 @@ public class GoogleCloudStorageTest {
         Matchers.<JsonBatchCallback<StorageObject>>anyObject());
     when(mockErrorExtractor.itemNotFound(eq(notFoundError)))
         .thenReturn(true);
-    doAnswer(new Answer<Void>() {
-      @Override
-      public Void answer(InvocationOnMock invocation) {
-        Object[] args = invocation.getArguments();
-        Runnable callback = (Runnable) args[0];
-        callback.run();
-        return null;
-      }
-    })
-    .when(mockExecutorService).execute(any(Runnable.class));
 
     // List the objects, without attempting any auto-repair
     List<GoogleCloudStorageItemInfo> objectInfos =
@@ -3429,7 +3473,7 @@ public class GoogleCloudStorageTest {
   @Test
   public void testClose() {
     gcs.close();
-    verify(mockExecutorService).shutdown();
+    assertTrue(executorService.isShutdown());
   }
 
   /**

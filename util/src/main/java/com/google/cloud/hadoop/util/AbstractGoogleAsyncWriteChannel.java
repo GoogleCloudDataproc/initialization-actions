@@ -27,10 +27,13 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
+import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.WritableByteChannel;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 /**
  * Abstract base class for streaming uploads to Google Cloud Services.
@@ -128,7 +131,7 @@ public abstract class AbstractGoogleAsyncWriteChannel
   private WritableByteChannel pipeSinkChannel;
 
   // Upload operation that takes place on a separate thread.
-  private UploadOperation uploadOperation;
+  private Future<S> uploadOperation;
 
   // If true, we get very high write throughput but writing files larger than UPLOAD_MAX_SIZE
   // will not succeed. Set it to false to allow larger files at lower throughput.
@@ -228,7 +231,9 @@ public abstract class AbstractGoogleAsyncWriteChannel
     throwIfNotOpen();
 
     // No point in writing further if upload failed on another thread.
-    throwIfUploadFailed();
+    if (uploadOperation.isDone()) {
+      waitForCompletionAndThrowIfUploadFailed();
+    }
 
     return pipeSinkChannel.write(buffer);
   }
@@ -258,9 +263,7 @@ public abstract class AbstractGoogleAsyncWriteChannel
     throwIfNotOpen();
     try {
       pipeSinkChannel.close();
-      uploadOperation.waitForCompletion();
-      throwIfUploadFailed();
-      handleResponse(uploadOperation.getResponse());
+      handleResponse(waitForCompletionAndThrowIfUploadFailed());
     } finally {
       pipeSinkChannel = null;
       pipeSink = null;
@@ -304,22 +307,14 @@ public abstract class AbstractGoogleAsyncWriteChannel
 
     // Given that the two ends of the pipe must operate asynchronous relative
     // to each other, we need to start the upload operation on a separate thread.
-    uploadOperation = new UploadOperation(request, pipeSource);
-    threadPool.execute(uploadOperation);
+    uploadOperation = threadPool.submit(new UploadOperation(request, pipeSource));
 
     isInitialized = true;
   }
 
-  class UploadOperation implements Runnable {
+  class UploadOperation implements Callable<S> {
     // Object to be uploaded. This object declared final for safe object publishing.
     private final T uploadObject;
-    private S response;
-    // Exception/error encountered during upload.
-    Throwable exception;
-
-    // Allows other threads to wait for this operation to be complete. This object declared final
-    // for safe object publishing.
-    final CountDownLatch uploadDone = new CountDownLatch(1);
 
     // Read end of the pipe. This object declared final for safe object publishing.
     private final InputStream pipeSource;
@@ -332,61 +327,40 @@ public abstract class AbstractGoogleAsyncWriteChannel
       this.pipeSource = pipeSource;
     }
 
-    /**
-     * Gets throwable (exception/error) encountered during upload or null.
-     */
-    public Throwable exception() {
-      return exception;
-    }
-
     @Override
-    public void run() {
+    public S call() throws Exception {
+      Exception exception = null;
       try {
-        response = uploadObject.execute();
+        return uploadObject.execute();
       } catch (IOException ioe) {
-        response = createResponseFromException(ioe);
+        exception = ioe;
+        S response = createResponseFromException(ioe);
         if (response != null) {
           log.warn(String.format(
               "Received IOException, but successfully converted to response '%s'.", response),
               ioe);
-        } else {
-          exception = ioe;
-          log.error("Exception not convertible into handled response", ioe);
+          return response;
         }
-      } catch (Throwable t) {
-        exception = t;
-        log.error(t);
+        log.error("Exception not convertible into handled response", ioe);
+      } catch (Exception e) {
+        exception = e;
+        log.error(e);
       } finally {
-        uploadDone.countDown();
         try {
           // Close this end of the pipe so that the writer at the other end
           // will not hang indefinitely.
           pipeSource.close();
         } catch (IOException ioe) {
           log.error("Error trying to close pipe.source()", ioe);
-          // Log and ignore IOException while trying to close the channel,
-          // as there is not much we can do about it.
+          if (exception != null) {
+            exception.addSuppressed(ioe);
+          } else {
+            exception = ioe;
+          }
         }
       }
+      throw exception;
     }
-
-    public void waitForCompletion() {
-      do {
-        try {
-          uploadDone.await();
-        } catch (InterruptedException e) {
-          // Ignore it and continue to wait.
-        }
-      } while(uploadDone.getCount() > 0);
-    }
-
-    public S getResponse() {
-      if (exception != null) {
-        throw new IllegalStateException("Upload ended in a failure state. Cannot fetch response.");
-      }
-      return response;
-    }
-
   }
 
   /**
@@ -416,13 +390,22 @@ public abstract class AbstractGoogleAsyncWriteChannel
    *
    * @throws IOException on IO error
    */
-  private void throwIfUploadFailed()
+  private S waitForCompletionAndThrowIfUploadFailed()
       throws IOException {
-    if ((uploadOperation != null) && (uploadOperation.exception() != null)) {
-      if (uploadOperation.exception() instanceof Error) {
-        throw (Error) uploadOperation.exception();
+    try {
+      return uploadOperation.get();
+    } catch (InterruptedException e) {
+      // If we were interrupted, we need to cancel the upload operation.
+      uploadOperation.cancel(true);
+      IOException exception = new ClosedByInterruptException();
+      exception.addSuppressed(e);
+      throw exception;
+    } catch (ExecutionException e) {
+      if (e.getCause() instanceof Error) {
+        throw (Error) e.getCause();
+      } else {
+        throw new IOException(e.getCause());
       }
-      throw new IOException(uploadOperation.exception());
     }
   }
 

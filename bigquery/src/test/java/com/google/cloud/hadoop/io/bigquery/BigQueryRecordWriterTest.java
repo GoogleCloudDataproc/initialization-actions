@@ -1,9 +1,10 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.eq;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -47,8 +48,11 @@ import org.mockito.stubbing.Answer;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Unit tests for BigQueryRecordWriter.
@@ -92,6 +96,9 @@ public class BigQueryRecordWriterTest {
   // Fake TaskAttemptID String.
   private String taskIdentifier;
 
+  // Executor that is used by the other end of the pipe within the channel.
+  private ExecutorService executorService;
+
   @Mock private Insert mockInsert;
   @Mock private BigQueryFactory mockFactory;
   @Mock private Bigquery mockBigQuery;
@@ -100,7 +107,6 @@ public class BigQueryRecordWriterTest {
   @Mock private Bigquery.Jobs mockBigQueryJobs;
   @Mock private Bigquery.Jobs.Get mockJobsGet;
   @Mock private Progressable progressable;
-  @Mock private ExecutorService mockExecutorService;
   @Mock private ClientRequestHelper<Job> mockClientRequestHelper;
   @Mock private HttpHeaders mockHeaders;
   @Mock private ApiErrorExtractor mockErrorExtractor;
@@ -115,6 +121,9 @@ public class BigQueryRecordWriterTest {
     
     // Create Gson to parse Json.
     gson = new Gson();
+
+    // Calls the .run/.call method on the future when the future is first accessed.
+    executorService = Executors.newCachedThreadPool();
 
     // Set input parameters for testing.
     fields = BigQueryUtils.getSchemaFromString(
@@ -174,7 +183,6 @@ public class BigQueryRecordWriterTest {
     verifyNoMoreInteractions(mockBigQuery);
     verifyNoMoreInteractions(mockBigQueryJobs);
     verifyNoMoreInteractions(mockJobsGet);
-    verifyNoMoreInteractions(mockExecutorService);
   }
 
   private void initializeRecordWriter() throws IOException {
@@ -182,7 +190,7 @@ public class BigQueryRecordWriterTest {
         .thenReturn(jobReference);
     recordWriter = new BigQueryRecordWriter<>(
         mockFactory,
-        mockExecutorService,
+        executorService,
         mockClientRequestHelper,
         new Configuration(),
         progressable,
@@ -200,33 +208,37 @@ public class BigQueryRecordWriterTest {
    */
   @Test
   public void testSingleWrite() throws IOException, GeneralSecurityException {
-    initializeRecordWriter();
-
     final ArgumentCaptor<AbstractInputStreamContent> inputStreamCaptor =
         ArgumentCaptor.forClass(AbstractInputStreamContent.class);
-    verify(mockBigQueryJobs).insert(
-        eq(jobProjectId), eq(getExpectedJob()), inputStreamCaptor.capture());
-
-    ArgumentCaptor<Runnable> runCaptor = ArgumentCaptor.forClass(Runnable.class);
-    verify(mockExecutorService).execute(runCaptor.capture());
-
-    // Write the key, value pair.
-    callWrite(recordWriter, 1);
-
-    final byte[] readData = new byte[(int) recordWriter.getBytesWritten()];
+    final byte[] readData = new byte[4096];
+    final CountDownLatch waitTillWritesAreDoneLatch = new CountDownLatch(1);
     when(mockInsert.execute())
         .thenAnswer(new Answer<Job>() {
           @Override
-          public Job answer(InvocationOnMock unused) {
-            try {
-              inputStreamCaptor.getValue().getInputStream().read(readData);
-            } catch (IOException ioe) {
-              fail(ioe.getMessage());
+          public Job answer(InvocationOnMock unused) throws Throwable {
+            // We want to make sure we have a consistent update of the read data which is
+            // why we synchronize on it.
+            synchronized (readData) {
+              waitTillWritesAreDoneLatch.await();
+              inputStreamCaptor.getValue().getInputStream()
+                .read(readData, 0, (int) recordWriter.getBytesWritten());
             }
             return jobReturn;
           }
         });
-    runCaptor.getValue().run();
+
+    initializeRecordWriter();
+
+    // Write the key, value pair.
+    callWrite(recordWriter, 1);
+
+    verify(mockBigQueryJobs).insert(
+        eq(jobProjectId), eq(getExpectedJob()), inputStreamCaptor.capture());
+
+    // The writes are now done, we can return from the execute method.
+    // This is an issue with how PipedInputStream functions since it checks
+    // to see if the sending and receiving threads are alive.
+    waitTillWritesAreDoneLatch.countDown();
 
     // Close the RecordWriter.
     recordWriter.close(mockContext);
@@ -236,10 +248,16 @@ public class BigQueryRecordWriterTest {
     verify(mockBigQuery, times(2)).jobs();
     verify(mockJobsGet, times(1)).execute();
     verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), eq(jobReference.getJobId()));
-    verify(mockExecutorService).shutdown();
+    assertTrue(executorService.isShutdown());
 
-    String readDataString = new String(readData, StandardCharsets.UTF_8);
-    assertEquals("{\"Name\":\"test name\",\"Number\":\"123\"}\n", readDataString);
+    // We want to make sure we have a consistent view of the read data which is
+    // why we synchronize on it.
+    synchronized (readData) {
+      String readDataString = new String(
+          Arrays.copyOfRange(readData, 0, (int) recordWriter.getBytesWritten()),
+          StandardCharsets.UTF_8);
+      assertEquals("{\"Name\":\"test name\",\"Number\":\"123\"}\n", readDataString);
+    }
   }
 
   /**
@@ -247,30 +265,34 @@ public class BigQueryRecordWriterTest {
    */
   @Test
   public void testNoWrites() throws IOException, GeneralSecurityException {
-    initializeRecordWriter();
-
     final ArgumentCaptor<AbstractInputStreamContent> inputStreamCaptor =
         ArgumentCaptor.forClass(AbstractInputStreamContent.class);
-    verify(mockBigQueryJobs).insert(
-        eq(jobProjectId), eq(getExpectedJob()), inputStreamCaptor.capture());
-
-    ArgumentCaptor<Runnable> runCaptor = ArgumentCaptor.forClass(Runnable.class);
-    verify(mockExecutorService).execute(runCaptor.capture());
-
-    final byte[] readData = new byte[(int) recordWriter.getBytesWritten()];
+    final byte[] readData = new byte[4096];
+    final CountDownLatch waitTillWritesAreDoneLatch = new CountDownLatch(1);
     when(mockInsert.execute())
         .thenAnswer(new Answer<Job>() {
           @Override
-          public Job answer(InvocationOnMock unused) {
-            try {
-              inputStreamCaptor.getValue().getInputStream().read(readData);
-            } catch (IOException ioe) {
-              fail(ioe.getMessage());
+          public Job answer(InvocationOnMock unused) throws Throwable {
+            // We want to make sure we have a consistent update of the read data which is
+            // why we synchronize on it.
+            synchronized (readData) {
+              waitTillWritesAreDoneLatch.await();
+              inputStreamCaptor.getValue().getInputStream()
+                .read(readData, 0, (int) recordWriter.getBytesWritten());
             }
             return jobReturn;
           }
         });
-    runCaptor.getValue().run();
+
+    initializeRecordWriter();
+
+    verify(mockBigQueryJobs).insert(
+        eq(jobProjectId), eq(getExpectedJob()), inputStreamCaptor.capture());
+
+    // The writes are now done, we can return from the execute method.
+    // This is an issue with how PipedInputStream functions since it checks
+    // to see if the sending and receiving threads are alive.
+    waitTillWritesAreDoneLatch.countDown();
 
     // Close the RecordWriter.
     recordWriter.close(mockContext);
@@ -280,10 +302,16 @@ public class BigQueryRecordWriterTest {
     verify(mockBigQuery, times(2)).jobs();
     verify(mockJobsGet, times(1)).execute();
     verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), eq(jobReference.getJobId()));
-    verify(mockExecutorService).shutdown();
+    assertTrue(executorService.isShutdown());
 
-    String readDataString = new String(readData, StandardCharsets.UTF_8);
-    assertEquals("", readDataString);
+    // We want to make sure we have a consistent view of the read data which is
+    // why we synchronize on it.
+    synchronized (readData) {
+      String readDataString = new String(
+          Arrays.copyOfRange(readData, 0, (int) recordWriter.getBytesWritten()),
+          StandardCharsets.UTF_8);
+      assertEquals("", readDataString);
+    }
   }
 
   /**
@@ -292,20 +320,13 @@ public class BigQueryRecordWriterTest {
    */
   @Test
   public void testConflictExceptionOnCreate() throws IOException, GeneralSecurityException {
-    initializeRecordWriter();
-
-    verify(mockBigQueryJobs).insert(
-        eq(jobProjectId), eq(getExpectedJob()), any(AbstractInputStreamContent.class));
-
-    ArgumentCaptor<Runnable> runCaptor = ArgumentCaptor.forClass(Runnable.class);
-    verify(mockExecutorService).execute(runCaptor.capture());
-
     IOException fakeConflictException = new IOException("fake 409 conflict");
     when(mockInsert.execute())
         .thenThrow(fakeConflictException);
     when(mockErrorExtractor.itemAlreadyExists(any(IOException.class)))
         .thenReturn(true);
-    runCaptor.getValue().run();
+
+    initializeRecordWriter();
 
     // Close the RecordWriter.
     recordWriter.close(mockContext);
@@ -315,7 +336,9 @@ public class BigQueryRecordWriterTest {
     verify(mockBigQuery, times(2)).jobs();
     verify(mockJobsGet, times(1)).execute();
     verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), eq(jobReference.getJobId()));
-    verify(mockExecutorService).shutdown();
+    verify(mockBigQueryJobs).insert(
+        eq(jobProjectId), eq(getExpectedJob()), any(AbstractInputStreamContent.class));
+    assertTrue(executorService.isShutdown());
   }
 
   /**
@@ -324,22 +347,13 @@ public class BigQueryRecordWriterTest {
    */
   @Test
   public void testUnhandledExceptionOnCreate() throws IOException, GeneralSecurityException {
-    initializeRecordWriter();
-
-    verify(mockBigQueryJobs).insert(
-        eq(jobProjectId), eq(getExpectedJob()), any(AbstractInputStreamContent.class));
-
-    ArgumentCaptor<Runnable> runCaptor = ArgumentCaptor.forClass(Runnable.class);
-    verify(mockExecutorService).execute(runCaptor.capture());
-
     IOException fakeUnhandledException = new IOException("fake unhandled exception");
     when(mockInsert.execute())
         .thenThrow(fakeUnhandledException);
     when(mockErrorExtractor.itemAlreadyExists(any(IOException.class)))
         .thenReturn(false);
 
-    // Exception gets stashed away, *not* thrown in the runner.
-    runCaptor.getValue().run();
+    initializeRecordWriter();
 
     // Close the RecordWriter; the stored exception finally propagates out.
     try {
@@ -352,38 +366,44 @@ public class BigQueryRecordWriterTest {
     // Check that the proper calls were sent to the BigQuery.
     verify(mockFactory).getBigQueryHelper(any(Configuration.class));
     verify(mockBigQuery, times(1)).jobs();
-    verify(mockExecutorService).shutdown();
+    verify(mockBigQueryJobs).insert(
+        eq(jobProjectId), eq(getExpectedJob()), any(AbstractInputStreamContent.class));
+    assertTrue(executorService.isShutdown());
   }
 
   @Test
   public void testMultipleWrites() throws IOException, GeneralSecurityException {
-    initializeRecordWriter();
-
     final ArgumentCaptor<AbstractInputStreamContent> inputStreamCaptor =
         ArgumentCaptor.forClass(AbstractInputStreamContent.class);
-    verify(mockBigQueryJobs).insert(
-        eq(jobProjectId), eq(getExpectedJob()), inputStreamCaptor.capture());
-
-    ArgumentCaptor<Runnable> runCaptor = ArgumentCaptor.forClass(Runnable.class);
-    verify(mockExecutorService).execute(runCaptor.capture());
-
-    // Write the key, value pair.
-    callWrite(recordWriter, 2);
-
-    final byte[] readData = new byte[(int) recordWriter.getBytesWritten()];
+    final byte[] readData = new byte[4096];
+    final CountDownLatch waitTillWritesAreDoneLatch = new CountDownLatch(1);
     when(mockInsert.execute())
         .thenAnswer(new Answer<Job>() {
           @Override
-          public Job answer(InvocationOnMock unused) {
-            try {
-              inputStreamCaptor.getValue().getInputStream().read(readData);
-            } catch (IOException ioe) {
-              fail(ioe.getMessage());
+          public Job answer(InvocationOnMock unused) throws Throwable {
+            // We want to make sure we have a consistent update of the read data which is
+            // why we synchronize on it.
+            synchronized (readData) {
+              waitTillWritesAreDoneLatch.await();
+              inputStreamCaptor.getValue().getInputStream()
+                .read(readData, 0, (int) recordWriter.getBytesWritten());
             }
             return jobReturn;
           }
         });
-    runCaptor.getValue().run();
+
+    initializeRecordWriter();
+
+    // Write the key, value pair.
+    callWrite(recordWriter, 2);
+
+    verify(mockBigQueryJobs).insert(
+        eq(jobProjectId), eq(getExpectedJob()), inputStreamCaptor.capture());
+
+    // The writes are now done, we can return from the execute method.
+    // This is an issue with how PipedInputStream functions since it checks
+    // to see if the sending and receiving threads are alive.
+    waitTillWritesAreDoneLatch.countDown();
 
     // Close the RecordWriter.
     recordWriter.close(mockContext);
@@ -393,13 +413,19 @@ public class BigQueryRecordWriterTest {
     verify(mockBigQuery, times(2)).jobs();
     verify(mockJobsGet, times(1)).execute();
     verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), eq(jobReference.getJobId()));
-    verify(mockExecutorService).shutdown();
+    assertTrue(executorService.isShutdown());
 
-    String readDataString = new String(readData, StandardCharsets.UTF_8);
-    assertEquals(
-        "{\"Name\":\"test name\",\"Number\":\"123\"}\n"
-        + "{\"Name\":\"test name\",\"Number\":\"123\"}\n",
-        readDataString);
+    // We want to make sure we have a consistent view of the read data which is
+    // why we synchronize on it.
+    synchronized (readData) {
+      String readDataString = new String(
+          Arrays.copyOfRange(readData, 0, (int) recordWriter.getBytesWritten()),
+          StandardCharsets.UTF_8);
+      assertEquals(
+          "{\"Name\":\"test name\",\"Number\":\"123\"}\n"
+          + "{\"Name\":\"test name\",\"Number\":\"123\"}\n",
+          readDataString);
+    }
   }
 
   /**
