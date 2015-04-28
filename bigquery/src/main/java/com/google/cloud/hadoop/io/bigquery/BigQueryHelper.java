@@ -10,11 +10,12 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import org.apache.hadoop.util.Progressable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
@@ -31,7 +32,7 @@ public class BigQueryHelper {
   public static final int BIGQUERY_JOB_ID_MAX_LENGTH = 1024;
 
   // Logger.
-  protected static final LogUtil log = new LogUtil(BigQueryHelper.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(BigQueryHelper.class);
 
   // Used for specialized handling of various API-defined exceptions.
   private ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
@@ -63,9 +64,9 @@ public class BigQueryHelper {
    */
   public void exportBigQueryToGcs(String projectId, TableReference tableRef, List<String> gcsPaths,
       boolean awaitCompletion) throws IOException, InterruptedException {
-    log.debug("exportBigQueryToGcs(bigquery, '%s', '%s', '%s', '%s')", projectId,
+    LOG.debug("exportBigQueryToGcs(bigquery, '{}', '{}', '{}', '{}')", projectId,
         BigQueryStrings.toString(tableRef), gcsPaths, awaitCompletion);
-    log.info("Exporting table '%s' to %d paths; path[0] is '%s'; awaitCompletion: %s",
+    LOG.info("Exporting table '{}' to {} paths; path[0] is '{}'; awaitCompletion: {}",
         BigQueryStrings.toString(tableRef), gcsPaths.size(), gcsPaths.get(0), awaitCompletion);
 
     // Create job and configuration.
@@ -111,7 +112,7 @@ public class BigQueryHelper {
     try {
       Table fetchedTable = service.tables().get(
           tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()).execute();
-      log.debug("Successfully fetched table '%s' for tableRef '%s'", fetchedTable, tableRef);
+      LOG.debug("Successfully fetched table '{}' for tableRef '{}'", fetchedTable, tableRef);
       return true;
     } catch (IOException ioe) {
       if (errorExtractor.itemNotFound(ioe)) {
@@ -200,15 +201,15 @@ public class BigQueryHelper {
     Job response = null;
     try {
       response = insert.execute();
-      log.debug("Successfully inserted job '%s'. Response: '%s'", job, response);
+      LOG.debug("Successfully inserted job '{}'. Response: '{}'", job, response);
     } catch (IOException ioe) {
       if (errorExtractor.itemAlreadyExists(ioe)) {
-        log.info(String.format(
+        LOG.info(String.format(
             "Fetching existing job after catching exception for duplicate jobId '%s'",
             job.getJobReference().getJobId(), ioe));
         response = service.jobs().get(projectId, job.getJobReference().getJobId()).execute();
       } else {
-        log.info(String.format(
+        LOG.info(String.format(
             "Unhandled exception trying to insert job '%s'", job), ioe);
         throw ioe;
       }

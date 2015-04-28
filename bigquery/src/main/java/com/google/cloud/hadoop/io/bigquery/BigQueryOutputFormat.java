@@ -2,7 +2,6 @@ package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.gson.JsonObject;
@@ -13,6 +12,8 @@ import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.text.NumberFormat;
@@ -39,7 +40,7 @@ public class BigQueryOutputFormat<K, V extends JsonObject>
   public static final String TEMP_NAME = "_hadoop_temporary";
 
   // Logger.
-  protected static final LogUtil log = new LogUtil(BigQueryOutputFormat.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputFormat.class);
 
   /**
    * Checks for validity of the output-specification for the job. Typically checks that it does not
@@ -95,7 +96,7 @@ public class BigQueryOutputFormat<K, V extends JsonObject>
     TableReference tempTableRef = getTempTableReference(configuration, taskAttemptId);
     TableReference finalTableRef = getFinalTableReference(configuration);
 
-    log.debug("Returning BigQueryOutputCommitter('%s', '%s', '%s'",
+    LOG.debug("Returning BigQueryOutputCommitter('{}', '{}', '{}'",
         projectId, BigQueryStrings.toString(tempTableRef), BigQueryStrings.toString(finalTableRef));
     return new BigQueryOutputCommitter(projectId, tempTableRef, finalTableRef, configuration);
   }
@@ -123,8 +124,8 @@ public class BigQueryOutputFormat<K, V extends JsonObject>
     TableReference tempTableRef =
         getTempTableReference(context.getConfiguration(), context.getTaskAttemptID());
 
-    log.debug(
-        "Returning new BigqueryRecordWriter for fields: '%s', project: '%s', table: '%s'",
+    LOG.debug(
+        "Returning new BigqueryRecordWriter for fields: '{}', project: '{}', table: '{}'",
         tableSchema, jobProjectId, BigQueryStrings.toString(tempTableRef));
     // Return a new BigQueryRecordWriter.
     return new BigQueryRecordWriter<>(

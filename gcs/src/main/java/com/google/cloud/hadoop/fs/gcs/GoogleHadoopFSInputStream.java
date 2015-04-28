@@ -17,11 +17,12 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.SeekableReadableByteChannel;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Preconditions;
 
 import org.apache.hadoop.fs.FSInputStream;
 import org.apache.hadoop.fs.FileSystem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
@@ -34,7 +35,7 @@ class GoogleHadoopFSInputStream
     extends FSInputStream {
 
   // Logging helper.
-  private static LogUtil log = new LogUtil(GoogleHadoopFSInputStream.class);
+  private static final Logger LOG = LoggerFactory.getLogger(GoogleHadoopFSInputStream.class);
 
   // Instance of GoogleHadoopFileSystemBase.
   private GoogleHadoopFileSystemBase ghfs;
@@ -71,7 +72,7 @@ class GoogleHadoopFSInputStream
       GoogleHadoopFileSystemBase ghfs, URI gcsPath, int bufferSize,
       FileSystem.Statistics statistics)
       throws IOException {
-    log.debug("GoogleHadoopFSInputStream(%s, %d)", gcsPath, bufferSize);
+    LOG.debug("GoogleHadoopFSInputStream({}, {})", gcsPath, bufferSize);
     this.ghfs = ghfs;
     this.gcsPath = gcsPath;
     this.statistics = statistics;
@@ -224,7 +225,7 @@ class GoogleHadoopFSInputStream
   public synchronized long getPos()
       throws IOException {
     long pos = channel.position() - buffer.remaining();
-    log.debug("getPos: %d", pos);
+    LOG.debug("getPos: {}", pos);
     return pos;
   }
 
@@ -238,10 +239,10 @@ class GoogleHadoopFSInputStream
   public synchronized void seek(long pos)
       throws IOException {
     long startTime = System.nanoTime();
-    log.debug("seek: %d", pos);
+    LOG.debug("seek: {}", pos);
     long curPos = getPos();
     if (curPos == pos) {
-      log.debug("Skipping no-op seek.");
+      LOG.debug("Skipping no-op seek.");
     } else if (pos < curPos && curPos - pos <= buffer.position()) {
       // Skip backwards few enough bytes that our current buffer still has those bytes around
       // so that we simply need to reposition the buffer backwards a bit.
@@ -250,7 +251,7 @@ class GoogleHadoopFSInputStream
       // Guaranteed safe to cast as an (int) because curPos - pos is <= buffer.position(), and
       // position() is itself an int.
       int newBufferPosition = buffer.position() - (int) skipBack;
-      log.debug("Skipping backward %d bytes in-place from buffer pos %s to new pos %s",
+      LOG.debug("Skipping backward {} bytes in-place from buffer pos {} to new pos {}",
           skipBack, buffer.position(), newBufferPosition);
       buffer.position(newBufferPosition);
     } else if (curPos < pos && pos < channel.position()) {
@@ -265,12 +266,12 @@ class GoogleHadoopFSInputStream
       // overflowing an int, since we at least assert that skipBytes < buffer.remaining(),
       // which is itself less than Integer.MAX_VALUE.
       int newBufferPosition = buffer.position() + (int) skipBytes;
-      log.debug("Skipping %d bytes in-place from buffer pos %d to new pos %d",
+      LOG.debug("Skipping {} bytes in-place from buffer pos {} to new pos {}",
           skipBytes, buffer.position(), newBufferPosition);
       buffer.position(newBufferPosition);
     } else {
-      log.debug("New position '%d' out of range of inplace buffer, with curPos (%d), "
-         + "buffer.position() (%d) and buffer.remaining() (%d).",
+      LOG.debug("New position '{}' out of range of inplace buffer, with curPos ({}), "
+         + "buffer.position() ({}) and buffer.remaining() ({}).",
           pos, curPos, buffer.position(), buffer.remaining());
       try {
         channel.position(pos);
@@ -307,7 +308,7 @@ class GoogleHadoopFSInputStream
     if (channel != null) {
     long startTime = System.nanoTime();
       try {
-        log.debug("close: file: %s, totalBytesRead: %d", gcsPath, totalBytesRead);
+        LOG.debug("close: file: {}, totalBytesRead: {}", gcsPath, totalBytesRead);
         channel.close();
         long duration = System.nanoTime() - startTime;
         ghfs.increment(GoogleHadoopFileSystemBase.Counter.READ_CLOSE);

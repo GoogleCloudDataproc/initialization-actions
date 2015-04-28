@@ -28,12 +28,13 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.slf4j.Logger;
 
 /** Unit tests for {@link LoggingMediaHttpUploaderProgressListener}. */
 @RunWith(JUnit4.class)
 public class LoggingMediaHttpUploaderProgressListenerTest {
   @Mock
-  private LogUtil mockLogger;
+  private Logger mockLogger;
   private LoggingMediaHttpUploaderProgressListener listener;
 
   @Before
@@ -45,7 +46,7 @@ public class LoggingMediaHttpUploaderProgressListenerTest {
   @Test
   public void testLoggingInitiation() {
     listener.progressChanged(mockLogger, UploadState.INITIATION_STARTED, 0L, 0L);
-    verify(mockLogger).debug("Uploading: %s", "NAME");
+    verify(mockLogger).debug("Uploading: {}", "NAME");
     verifyNoMoreInteractions(mockLogger);
   }
 
@@ -69,7 +70,7 @@ public class LoggingMediaHttpUploaderProgressListenerTest {
   @Test
   public void testLoggingCompletion() {
     listener.progressChanged(mockLogger, UploadState.MEDIA_COMPLETE, 104857600L, 60000L);
-    verify(mockLogger).debug("Finished Uploading: %s", "NAME");
+    verify(mockLogger).debug("Finished Uploading: {}", "NAME");
     verifyNoMoreInteractions(mockLogger);
   }
 

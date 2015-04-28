@@ -18,9 +18,10 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.collect.ImmutableList;
 
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -76,7 +77,7 @@ public class BigQueryHelperTest {
   @Before
   public void setUp() throws IOException {
     MockitoAnnotations.initMocks(this);
-    GsonBigQueryInputFormat.log.setLevel(LogUtil.Level.DEBUG);
+    Logger.getLogger(GsonBigQueryInputFormat.class).setLevel(Level.DEBUG);
 
     // Create fake job reference.
     JobReference fakeJobReference = new JobReference();

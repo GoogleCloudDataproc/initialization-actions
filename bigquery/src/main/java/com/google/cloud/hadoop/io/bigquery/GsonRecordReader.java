@@ -1,7 +1,6 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.cloud.hadoop.util.HadoopToStringUtil;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Preconditions;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -13,6 +12,8 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.input.LineRecordReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -24,7 +25,7 @@ import java.io.IOException;
  */
 public class GsonRecordReader extends RecordReader<LongWritable, JsonObject> {
   // Logger.
-  protected static final LogUtil log = new LogUtil(GsonRecordReader.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(GsonRecordReader.class);
 
   // A LineRecordReader which handles most calls. The GsonRecordReader just provides a wrapper which
   // translates the results of LineRecordReader into Json objects.
@@ -52,12 +53,12 @@ public class GsonRecordReader extends RecordReader<LongWritable, JsonObject> {
   @Override
   public void initialize(InputSplit genericSplit, TaskAttemptContext context)
       throws IOException {
-    if (log.isDebugEnabled()) {
+    if (LOG.isDebugEnabled()) {
       try {
-        log.debug("initialize('%s', '%s')",
+        LOG.debug("initialize('{}', '{}')",
             HadoopToStringUtil.toString(genericSplit), HadoopToStringUtil.toString(context));
       } catch (InterruptedException ie) {
-        log.debug("InterruptedException during HadoopToStringUtil.toString", ie);
+        LOG.debug("InterruptedException during HadoopToStringUtil.toString", ie);
       }
     }
     Preconditions.checkArgument(genericSplit instanceof FileSplit,
@@ -84,7 +85,7 @@ public class GsonRecordReader extends RecordReader<LongWritable, JsonObject> {
     // Different Hadoop recordreaders have different behavior for calling current key and value
     // after nextKeyValue returns false.
     if (!lineReader.nextKeyValue()) {
-      log.debug("All values read: record reader read %d key, value pairs.", count);
+      LOG.debug("All values read: record reader read {} key, value pairs.", count);
       return false;
     }
     // Get the next line.

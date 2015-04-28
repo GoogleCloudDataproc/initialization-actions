@@ -2,12 +2,13 @@ package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 
 import org.apache.hadoop.conf.Configuration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
@@ -117,7 +118,7 @@ public class BigQueryConfiguration {
   public static final boolean ENABLE_ASYNC_WRITE_DEFAULT = true;
 
   // Logger.
-  protected static final LogUtil log = new LogUtil(BigQueryConfiguration.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(BigQueryConfiguration.class);
 
   /**
    * Sets the Bigquery access related fields in the JobConf for input connector.
@@ -141,20 +142,20 @@ public class BigQueryConfiguration {
 
     // Project is optional, if not set use default project.
     if (!Strings.isNullOrEmpty(projectId)) {
-      log.info("Using specified project-id '%s' for input", projectId);
+      LOG.info("Using specified project-id '{}' for input", projectId);
       config.set(INPUT_PROJECT_ID_KEY, projectId);
 
       // For user-friendliness, we'll helpfully backfill the input-specific projectId into the
       // "global" projectId for now.
       // TODO(user): Maybe don't try to be user-friendly here.
       if (Strings.isNullOrEmpty(config.get(PROJECT_ID_KEY))) {
-        log.warn("No job-level projectId specified in '%s', using '%s' for it.",
+        LOG.warn("No job-level projectId specified in '{}', using '{}' for it.",
             PROJECT_ID_KEY, projectId);
         config.set(PROJECT_ID_KEY, projectId);
       }
     } else {
       String defaultProjectId = ConfigurationUtil.getMandatoryConfig(config, PROJECT_ID_KEY);
-      log.info("Using default project-id '%s' since none specified for input.", defaultProjectId);
+      LOG.info("Using default project-id '{}' since none specified for input.", defaultProjectId);
       config.set(INPUT_PROJECT_ID_KEY, defaultProjectId);
     }
     config.set(INPUT_DATASET_ID_KEY, datasetId);
@@ -202,20 +203,20 @@ public class BigQueryConfiguration {
 
     // Project is optional, if not set use default project.
     if (!Strings.isNullOrEmpty(projectId)) {
-      log.info("Using specified project-id '%s' for output", projectId);
+      LOG.info("Using specified project-id '{}' for output", projectId);
       config.set(OUTPUT_PROJECT_ID_KEY, projectId);
 
       // For user-friendliness, we'll helpfully backfill the input-specific projectId into the
       // "global" projectId for now.
       // TODO(user): Maybe don't try to be user-friendly here.
       if (Strings.isNullOrEmpty(config.get(PROJECT_ID_KEY))) {
-        log.warn("No job-level projectId specified in '%s', using '%s' for it.",
+        LOG.warn("No job-level projectId specified in '{}', using '{}' for it.",
             PROJECT_ID_KEY, projectId);
         config.set(PROJECT_ID_KEY, projectId);
       }
     } else {
       String defaultProjectId = ConfigurationUtil.getMandatoryConfig(config, PROJECT_ID_KEY);
-      log.info("Using default project-id '%s' since none specified for output.", defaultProjectId);
+      LOG.info("Using default project-id '{}' since none specified for output.", defaultProjectId);
       config.set(OUTPUT_PROJECT_ID_KEY, defaultProjectId);
     }
     config.set(OUTPUT_DATASET_ID_KEY, datasetId);

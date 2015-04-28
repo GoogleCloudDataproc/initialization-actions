@@ -19,8 +19,10 @@ import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.common.base.Predicate;
 
-import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 
 /**
  * Implements application level operation retries.
@@ -43,7 +45,7 @@ public class OperationWithRetry<T extends AbstractGoogleClientRequest<S>, S> {
   }
 
   // Logger.
-  private static final LogUtil log = new LogUtil(OperationWithRetry.class);
+  private static final Logger LOG = LoggerFactory.getLogger(OperationWithRetry.class);
 
   private final Sleeper sleeper;
   private final BackOff backOff;
@@ -75,7 +77,7 @@ public class OperationWithRetry<T extends AbstractGoogleClientRequest<S>, S> {
         return request.execute();
       } catch (IOException ioe) {
         if (shouldRetryPredicate.apply(ioe)) {
-          log.debug("Retrying after catching exception", ioe);
+          LOG.debug("Retrying after catching exception", ioe);
           lastException = ioe;
           nextRetryBackoff = backOff.nextBackOffMillis();
           try {
@@ -84,13 +86,13 @@ public class OperationWithRetry<T extends AbstractGoogleClientRequest<S>, S> {
             throw new IOException(ie);
           }
         } else {
-          log.debug("Not retrying after catching exception", ioe);
+          LOG.debug("Not retrying after catching exception", ioe);
           throw ioe;
         }
       }
     } while (nextRetryBackoff != BackOff.STOP);
 
-    log.debug("Exhausted retries. lastException was: ", lastException);
+    LOG.debug("Exhausted retries. lastException was: ", lastException);
     throw lastException;
   }
 }

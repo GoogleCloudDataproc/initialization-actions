@@ -16,7 +16,6 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.util.CredentialFactory;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Strings;
 
 import org.apache.log4j.ConsoleAppender;
@@ -46,7 +45,8 @@ import java.util.concurrent.TimeUnit;
  */
 public abstract class GoogleCloudStorageIntegrationHelper {
   // Logger.
-  protected static LogUtil log = new LogUtil(GoogleCloudStorageIntegrationHelper.class);
+  protected static final org.slf4j.Logger LOG =
+      org.slf4j.LoggerFactory.getLogger(GoogleCloudStorageIntegrationHelper.class);
 
   // Application name for OAuth.
   static final String APP_NAME = "GCS-test";
@@ -523,7 +523,7 @@ public abstract class GoogleCloudStorageIntegrationHelper {
         clearBucket(bucket);
         delete(bucket);
       } catch (IOException e) {
-        log.warn("deleteBuckets: " + e.getLocalizedMessage());
+        LOG.warn("deleteBuckets: " + e.getLocalizedMessage());
       }
     }
     bucketsToDelete.clear();

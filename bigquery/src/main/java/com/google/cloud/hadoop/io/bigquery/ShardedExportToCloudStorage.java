@@ -2,12 +2,13 @@ package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.cloud.hadoop.util.LogUtil;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.JobContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -19,7 +20,7 @@ import java.util.List;
  * as soon as the export begins.
  */
 public class ShardedExportToCloudStorage extends AbstractExportToCloudStorage {
-  private static final LogUtil log = new LogUtil(ShardedExportToCloudStorage.class);
+  private static final Logger LOG = LoggerFactory.getLogger(ShardedExportToCloudStorage.class);
 
   // Configuration key for 'hint' of number of desired map tasks.
   public static final String NUM_MAP_TASKS_HINT_KEY = "mapred.map.tasks";
@@ -65,7 +66,7 @@ public class ShardedExportToCloudStorage extends AbstractExportToCloudStorage {
 
   @Override
   public void waitForUsableMapReduceInput() throws IOException, InterruptedException {
-    log.debug("Using sharded input. waitForUsableMapReduceInput is a no-op.");
+    LOG.debug("Using sharded input. waitForUsableMapReduceInput is a no-op.");
   }
 
   @Override
@@ -91,14 +92,14 @@ public class ShardedExportToCloudStorage extends AbstractExportToCloudStorage {
     long numTableBytes = tableMetadata.getNumBytes();
 
     int numShards = computeNumShards(numTableBytes);
-    log.info("Computed '%d' shards for sharded BigQuery export.", numShards);
+    LOG.info("Computed '{}' shards for sharded BigQuery export.", numShards);
     for (int i = 0; i < numShards; ++i) {
       String exportPattern = String.format(
           "%s/shard-%d/%s", gcsPath, i, fileFormat.getFilePattern());
       paths.add(exportPattern);
     }
 
-    log.info("Table '%s' to be exported has %d rows and %d bytes",
+    LOG.info("Table '{}' to be exported has {} rows and {} bytes",
         BigQueryStrings.toString(tableToExport), numTableRows, numTableBytes);
 
     return paths;
@@ -110,21 +111,21 @@ public class ShardedExportToCloudStorage extends AbstractExportToCloudStorage {
    */
   private int computeNumShards(long numTableBytes) {
     int desiredNumMaps = configuration.getInt(NUM_MAP_TASKS_HINT_KEY, NUM_MAP_TASKS_HINT_DEFAULT);
-    log.debug("Fetched desiredNumMaps from '%s': %d", NUM_MAP_TASKS_HINT_KEY, desiredNumMaps);
+    LOG.debug("Fetched desiredNumMaps from '{}': {}", NUM_MAP_TASKS_HINT_KEY, desiredNumMaps);
 
     int estimatedNumFiles = (int) Math.min(
         Math.max(MIN_SHARDS_FOR_SHARDED_EXPORT, numTableBytes / APPROXIMATE_EXPORT_FILE_SIZE),
         APPROXIMATE_MAX_EXPORT_FILES);
-    log.debug("estimatedNumFiles: %d", estimatedNumFiles);
+    LOG.debug("estimatedNumFiles: {}", estimatedNumFiles);
 
     // Maximum number of shards is either equal to the number of files (such that each shard has
     // exactly one file) or the service-enforced maximum.
     int serviceMaxShards = configuration.getInt(MAX_EXPORT_SHARDS_KEY, MAX_EXPORT_SHARDS_DEFAULT);
-    log.debug("Fetched serviceMaxShards from '%s': %d", MAX_EXPORT_SHARDS_KEY, serviceMaxShards);
+    LOG.debug("Fetched serviceMaxShards from '{}': {}", MAX_EXPORT_SHARDS_KEY, serviceMaxShards);
 
     int maxShards = Math.min(estimatedNumFiles, serviceMaxShards);
     if (maxShards < desiredNumMaps) {
-      log.warn("Estimated max shards < desired num maps (%d < %d); clipping to %d.",
+      LOG.warn("Estimated max shards < desired num maps ({} < {}); clipping to {}.",
           maxShards, desiredNumMaps, maxShards);
       // TODO(user): Add config settings for whether to clip or not.
       return maxShards;

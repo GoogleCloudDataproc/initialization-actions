@@ -16,7 +16,8 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import com.google.cloud.hadoop.util.LogUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,7 +50,7 @@ import java.util.Set;
  * This class is thread-safe.
  */
 public class InMemoryDirectoryListCache extends DirectoryListCache {
-  private static final LogUtil log = new LogUtil(InMemoryDirectoryListCache.class);
+  private static final Logger LOG = LoggerFactory.getLogger(InMemoryDirectoryListCache.class);
 
   // The shared singleton instance of DirectoryListCache.
   private static final InMemoryDirectoryListCache singletonInstance =
@@ -138,23 +139,23 @@ public class InMemoryDirectoryListCache extends DirectoryListCache {
 
     CachedBucket bucket = bucketLookup.get(resourceId.getBucketName());
     if (bucket == null) {
-      log.debug("Tried to remove resourceId '%s' from nonexistent bucket '%s'",
+      LOG.debug("Tried to remove resourceId '{}' from nonexistent bucket '{}'",
           resourceId, resourceId.getBucketName());
       return;
     }
 
     if (resourceId.isStorageObject()) {
-      log.debug("Explicitly removing StorageObject from CachedBucket: '%s'", resourceId);
+      LOG.debug("Explicitly removing StorageObject from CachedBucket: '{}'", resourceId);
       bucket.remove(resourceId);
 
       // TODO(user): Maybe proactively check for whether this removal now lets us fully remove
       // an expired CachedBucket.
     } else {
       if (bucket.getNumObjects() > 0) {
-        log.warn("Explicitly removing non-empty Bucket: '%s', which contains %d items",
+        LOG.warn("Explicitly removing non-empty Bucket: '{}', which contains {} items",
             resourceId, bucket.getNumObjects());
       } else {
-        log.debug("Explicitly removing empty Bucket: '%s'", resourceId);
+        LOG.debug("Explicitly removing empty Bucket: '{}'", resourceId);
       }
       bucketLookup.remove(resourceId.getBucketName());
     }
@@ -162,7 +163,7 @@ public class InMemoryDirectoryListCache extends DirectoryListCache {
 
   @Override
   public synchronized List<CacheEntry> getBucketList() {
-    log.debug("getBucketList()");
+    LOG.debug("getBucketList()");
     List<CacheEntry> bucketEntries = new ArrayList<>();
     List<CachedBucket> expiredBuckets = new ArrayList<>();
     for (CachedBucket bucket : bucketLookup.values()) {
@@ -183,7 +184,7 @@ public class InMemoryDirectoryListCache extends DirectoryListCache {
     // returns getNumObjects() == 0 immediately prior.
     for (CachedBucket expiredBucket : expiredBuckets) {
       if (expiredBucket.getNumObjects() == 0) {
-        log.debug("Removing empty expired CachedBucket: '%s'", expiredBucket.getName());
+        LOG.debug("Removing empty expired CachedBucket: '{}'", expiredBucket.getName());
         bucketLookup.remove(expiredBucket.getName());
       }
     }
@@ -193,14 +194,14 @@ public class InMemoryDirectoryListCache extends DirectoryListCache {
 
   @Override
   public synchronized List<CacheEntry> getRawBucketList() {
-    log.debug("getRawBucketList()");
+    LOG.debug("getRawBucketList()");
     return new ArrayList<CacheEntry>(bucketLookup.values());
   }
 
   @Override
   public synchronized List<CacheEntry> getObjectList(
       String bucketName, String objectNamePrefix, String delimiter, Set<String> returnedPrefixes) {
-    log.debug("getObjectList(%s, %s, %s)", bucketName, objectNamePrefix, delimiter);
+    LOG.debug("getObjectList({}, {}, {})", bucketName, objectNamePrefix, delimiter);
     CachedBucket bucket = bucketLookup.get(bucketName);
     if (bucket == null) {
       return null;
@@ -214,7 +215,7 @@ public class InMemoryDirectoryListCache extends DirectoryListCache {
       if (isCacheEntryExpired(objectEntry)) {
         // We can remove items from the bucket mid-iteration because we are iterating over a
         // *copy* of the bucket contents.
-        log.debug("Removing expired CacheEntry: '%s'", objectEntry.getResourceId());
+        LOG.debug("Removing expired CacheEntry: '{}'", objectEntry.getResourceId());
         bucket.remove(objectEntry.getResourceId());
         removedExpiredEntries = true;
       } else {
@@ -241,7 +242,7 @@ public class InMemoryDirectoryListCache extends DirectoryListCache {
     if (removedExpiredEntries
         && bucket.getNumObjects() == 0
         && isCacheEntryExpired(bucket)) {
-      log.debug("Removing empty expired CachedBucket: '%s'", bucket.getName());
+      LOG.debug("Removing empty expired CachedBucket: '{}'", bucket.getName());
       bucketLookup.remove(bucket.getName());
     }
     return matchingObjectEntries;

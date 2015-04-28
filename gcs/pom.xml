@@ -149,10 +149,6 @@
       <artifactId>junit</artifactId>
     </dependency>
     <dependency>
-      <groupId>log4j</groupId>
-      <artifactId>log4j</artifactId>
-    </dependency>
-    <dependency>
       <groupId>org.hamcrest</groupId>
       <artifactId>hamcrest-core</artifactId>
     </dependency>
@@ -180,6 +176,18 @@
       <version>${bigdataoss.gcsio.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
+    </dependency>
+    <dependency>
+      <groupId>log4j</groupId>
+      <artifactId>log4j</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-log4j12</artifactId>
     </dependency>
   </dependencies>
   <build>
@@ -223,6 +231,7 @@
                     <include>com.google.apis:*</include>
                     <include>com.google.cloud.bigdataoss:util</include>
                     <include>com.google.cloud.bigdataoss:util-hadoop</include>
+                    <include>com.google.cloud.bigdataoss:gcsio</include>
                     <include>com.google.guava:*</include>
                     <include>com.google.http-client:google-http-client</include>
                     <include>com.google.http-client:google-http-client-jackson2</include>

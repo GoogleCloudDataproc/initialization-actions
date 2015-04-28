@@ -33,6 +33,8 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 
 import org.apache.http.HttpStatus;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Set;
@@ -40,7 +42,7 @@ import java.util.Set;
 public class RetryHttpInitializer
     implements HttpRequestInitializer {
   // Logger.
-  private static final LogUtil log = new LogUtil(RetryHttpInitializer.class);
+  private static final Logger LOG = LoggerFactory.getLogger(RetryHttpInitializer.class);
 
   // To be used as a request interceptor for filling in the "Authorization" header field, as well
   // as a response handler for certain unsuccessful error codes wherein the Credential must refresh
@@ -83,7 +85,7 @@ public class RetryHttpInitializer
         HttpRequest httpRequest, HttpResponse httpResponse, boolean supportsRetry)
         throws IOException {
       if (responseCodesToLog.contains(httpResponse.getStatusCode())) {
-        log.info("Encountered status code %s when accessing URL %s. "
+        LOG.info("Encountered status code {} when accessing URL {}. "
             + "Delegating to response handler for possible retry.",
             httpResponse.getStatusCode(),
             httpRequest.getUrl());
@@ -97,7 +99,7 @@ public class RetryHttpInitializer
         throws IOException {
       // We sadly don't get anything helpful to see if this is something we want to log. As a result
       // we'll turn down the logging level to debug.
-      log.debug("Encountered an IOException when accessing URL %s", httpRequest.getUrl());
+      LOG.debug("Encountered an IOException when accessing URL {}", httpRequest.getUrl());
       return delegateIOExceptionHandler.handleIOException(httpRequest, supportsRetry);
     }
   }
@@ -143,7 +145,7 @@ public class RetryHttpInitializer
         String redirectLocation = response.getHeaders().getLocation();
         if (redirectLocation.indexOf('+') != -1) {
           String escapedLocation = redirectLocation.replaceAll("\\+", "%2B");
-          log.debug("Redirect path '%s' contains unescaped '+', replacing with '%%2B': '%s'",
+          LOG.debug("Redirect path '{}' contains unescaped '+', replacing with '%2B': '{}'",
                     redirectLocation, escapedLocation);
           response.getHeaders().setLocation(escapedLocation);
         }
@@ -190,7 +192,7 @@ public class RetryHttpInitializer
     request.setIOExceptionHandler(loggingResponseHandler);
 
     if (Strings.isNullOrEmpty(request.getHeaders().getUserAgent())) {
-      log.debug("Request is missing a user-agent, adding default value of '%s'", defaultUserAgent);
+      LOG.debug("Request is missing a user-agent, adding default value of '{}'", defaultUserAgent);
       request.getHeaders().setUserAgent(defaultUserAgent);
     }
   }

@@ -22,7 +22,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 
@@ -31,6 +30,8 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -44,7 +45,8 @@ import java.nio.file.Path;
  */
 @RunWith(JUnit4.class)
 public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTest {
-  private static final LogUtil log = new LogUtil(FileSystemBackedDirectoryListCacheTest.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(FileSystemBackedDirectoryListCacheTest.class);
 
   @Rule
   public TemporaryFolder tempDirectoryProvider = new TemporaryFolder();
@@ -154,8 +156,8 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
 
       @Override
       public Void apply(StorageResourceId resourceId) {
-        log.info("Intercepting creation of '%s', count is %d, clobberCountForFile is %d, "
-            + "clobberCountForDirectory is %d",
+        LOG.info("Intercepting creation of '{}', count is {}, clobberCountForFile is {}, "
+            + "clobberCountForDirectory is {}",
             resourceId, count[0], clobberCountForFile[0], clobberCountForDirectory[0]);
         ++count[0];
         Path mirrorPath = fileBackedCache.getMirrorPath(resourceId);
@@ -224,17 +226,17 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
 
       @Override
       public Void apply(StorageResourceId resourceId) {
-        log.info("Intercepting creation of '%s', count is %d", resourceId, count[0]);
+        LOG.info("Intercepting creation of '{}', count is {}", resourceId, count[0]);
         ++count[0];
         Path mirrorPath = fileBackedCache.getMirrorPath(resourceId);
         if (resourceId.equals(fileToCreate) || resourceId.equals(dirToCreate)) {
           try {
             if (resourceId.isDirectory()) {
-              log.info("Pre-emptively creating dir '%s' for resourceId '%s'",
+              LOG.info("Pre-emptively creating dir '{}' for resourceId '{}'",
                   mirrorPath, resourceId);
               Files.createDirectory(mirrorPath);
             } else {
-              log.info("Pre-emptively creating file '%s' for resourceId '%s'",
+              LOG.info("Pre-emptively creating file '{}' for resourceId '{}'",
                   mirrorPath, resourceId);
               Files.createFile(mirrorPath);
             }
@@ -278,17 +280,17 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
 
       @Override
       public Void apply(StorageResourceId resourceId) {
-        log.info("Intercepting creation of '%s', count is %d", resourceId, count[0]);
+        LOG.info("Intercepting creation of '{}', count is {}", resourceId, count[0]);
         ++count[0];
         Path mirrorPath = fileBackedCache.getMirrorPath(resourceId);
         if (resourceId.equals(fileToCreate) || resourceId.equals(dirToCreate)) {
           try {
             if (resourceId.isDirectory()) {
-              log.info("Pre-emptively creating colliding file '%s' for resourceId '%s'",
+              LOG.info("Pre-emptively creating colliding file '{}' for resourceId '{}'",
                   mirrorPath, resourceId);
               Files.createFile(mirrorPath);
             } else {
-              log.info("Pre-emptively creating colliding dir '%s' for resourceId '%s'",
+              LOG.info("Pre-emptively creating colliding dir '{}' for resourceId '{}'",
                   mirrorPath, resourceId);
               Files.createDirectory(mirrorPath);
             }
@@ -336,7 +338,7 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
 
       @Override
       public Void apply(StorageResourceId resourceId) {
-        log.info("Intercepting creation of '%s', clobberCountForFile is %d",
+        LOG.info("Intercepting creation of '{}', clobberCountForFile is {}",
             resourceId, clobberCountForFile[0]);
         Path mirrorPath = fileBackedCache.getMirrorPath(resourceId);
         File parentFile = mirrorPath.toFile().getParentFile();

@@ -19,12 +19,13 @@ package com.google.cloud.hadoop.fs.gcs;
 import com.google.cloud.hadoop.gcsio.CacheEntry;
 import com.google.cloud.hadoop.gcsio.DirectoryListCache;
 import com.google.cloud.hadoop.gcsio.FileSystemBackedDirectoryListCache;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.util.GenericOptionsParser;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -35,7 +36,8 @@ import java.nio.file.Paths;
  * A tool that will perform GC on {@link FileSystemBackedDirectoryListCache} backing stores.
  */
 public class GoogleHadoopFileSystemCacheCleaner {
-  public static final LogUtil log = new LogUtil(GoogleHadoopFileSystemCacheCleaner.class);
+  public static final Logger LOG =
+      LoggerFactory.getLogger(GoogleHadoopFileSystemCacheCleaner.class);
 
   /**
    * Iterates over items in {@code cache}, object-first then buckets, allowing the list operations
@@ -44,7 +46,7 @@ public class GoogleHadoopFileSystemCacheCleaner {
   public static void cleanCache(DirectoryListCache cache) throws IOException {
     for (CacheEntry bucket : cache.getRawBucketList()) {
       String bucketName = bucket.getResourceId().getBucketName();
-      log.info("Performing GC on cache bucket %s", bucketName);
+      LOG.info("Performing GC on cache bucket {}", bucketName);
 
       cache.getObjectList(bucketName, "", null, null);
     }
@@ -63,7 +65,7 @@ public class GoogleHadoopFileSystemCacheCleaner {
     if ("FILESYSTEM_BACKED".equals(configuration.get("fs.gs.metadata.cache.type", "IN_MEMORY"))) {
       String fsStringPath = configuration.get("fs.gs.metadata.cache.directory", "");
       Preconditions.checkState(!Strings.isNullOrEmpty(fsStringPath));
-      log.info("Performing GC on cache directory %s", fsStringPath);
+      LOG.info("Performing GC on cache directory {}", fsStringPath);
 
       Path path = Paths.get(fsStringPath);
       if (Files.exists(path)) {
@@ -73,6 +75,6 @@ public class GoogleHadoopFileSystemCacheCleaner {
       }
     }
 
-    log.info("Done with GC.");
+    LOG.info("Done with GC.");
   }
 }

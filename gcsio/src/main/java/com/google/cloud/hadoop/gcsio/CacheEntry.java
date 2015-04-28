@@ -17,9 +17,11 @@
 package com.google.cloud.hadoop.gcsio;
 
 import com.google.api.client.util.Clock;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Container for various pieces of metadata for a single cache entry, which may be either a Bucket
@@ -29,7 +31,7 @@ import com.google.common.base.Preconditions;
  */
 public class CacheEntry {
   // Logger.
-  private static final LogUtil log = new LogUtil(CacheEntry.class);
+  private static final Logger LOG = LoggerFactory.getLogger(CacheEntry.class);
 
   // Clock instance used for calculating cache creation time and updated time.
   private static Clock clock = Clock.SYSTEM;
@@ -183,9 +185,9 @@ public class CacheEntry {
     if (itemInfo != null) {
       // TODO(user): Maybe skip the update if the newItemInfo has an older creationTime than
       // the existing itemInfo.
-      log.debug("Replacing existing itemInfo '%s' with newItemInfo '%s'", itemInfo, newItemInfo);
+      LOG.debug("Replacing existing itemInfo '{}' with newItemInfo '{}'", itemInfo, newItemInfo);
     } else {
-      log.debug("Setting itemInfo for first time for cache entry: '%s'", newItemInfo);
+      LOG.debug("Setting itemInfo for first time for cache entry: '{}'", newItemInfo);
     }
     GoogleCloudStorageItemInfo oldInfo = itemInfo;
     itemInfo = newItemInfo;

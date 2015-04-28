@@ -20,6 +20,9 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.List;
@@ -28,7 +31,7 @@ import java.util.List;
  * Configuration for how components should obtain Credentials.
  */
 public class CredentialConfiguration {
-  protected static final LogUtil log = new LogUtil(CredentialConfiguration.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(CredentialConfiguration.class);
   private Optional<Boolean> isServiceAccountEnabled = Optional.absent();
   private String serviceAccountEmail = null;
   private String serviceAccountKeyFile = null;
@@ -60,10 +63,10 @@ public class CredentialConfiguration {
     // By default, we want to use service accounts with the meta-data service (assuming we're
     // running in GCE).
     if (isServiceAccountEnabled()) {
-      log.debug("Using service account credentials");
+      LOG.debug("Using service account credentials");
 
       if (shouldUseMetadataService()) {
-        log.debug("Getting service account credentials from meta data service.");
+        LOG.debug("Getting service account credentials from meta data service.");
         //TODO(user): Validate the returned credential has access to the given scopes.
         return credentialFactory.getCredentialFromMetadataServiceAccount();
       }
@@ -71,23 +74,23 @@ public class CredentialConfiguration {
       // A keyfile is specified, use email-address and p12 based authentication.
       Preconditions.checkState(!Strings.isNullOrEmpty(serviceAccountEmail),
           "Email must be set if using service account auth and a key file is specified.");
-      log.debug("Using service account email %s and private key file %s",
+      LOG.debug("Using service account email {} and private key file {}",
           serviceAccountEmail, serviceAccountKeyFile);
 
       return credentialFactory.getCredentialFromPrivateKeyServiceAccount(serviceAccountEmail,
           serviceAccountKeyFile, scopes);
     } else if (oAuthCredentialFile != null && clientId != null && clientSecret != null) {
-      log.debug("Using installed app credentials in file %s", oAuthCredentialFile);
+      LOG.debug("Using installed app credentials in file {}", oAuthCredentialFile);
 
       return credentialFactory.getCredentialFromFileCredentialStoreForInstalledApp(clientId,
           clientSecret, oAuthCredentialFile, scopes);
     } else if (nullCredentialEnabled) {
-      log.warn("Allowing null credentials for unit testing. This should not be used in production");
+      LOG.warn("Allowing null credentials for unit testing. This should not be used in production");
 
       return null;
     }
 
-    log.error("Credential configuration is not valid. Configuration: %s", this);
+    LOG.error("Credential configuration is not valid. Configuration: {}", this);
     throw new IllegalStateException("No valid credential configuration discovered.");
   }
 

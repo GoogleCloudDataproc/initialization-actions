@@ -26,7 +26,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
@@ -59,8 +58,6 @@ import java.util.concurrent.Executors;
  */
 @RunWith(JUnit4.class)
 public class BigQueryRecordWriterTest {
-  // Logger.
-  protected static final LogUtil log = new LogUtil(BigQueryRecordWriter.class);
 
   // Sample LongWritable and JsonObject for testing.
   private LongWritable bigqueryKey;

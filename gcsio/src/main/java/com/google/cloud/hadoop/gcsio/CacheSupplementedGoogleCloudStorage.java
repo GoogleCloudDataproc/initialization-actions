@@ -16,8 +16,10 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Preconditions;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -36,7 +38,8 @@ import java.util.Set;
 public class CacheSupplementedGoogleCloudStorage
     implements GoogleCloudStorage {
   // Logger.
-  private static final LogUtil log = new LogUtil(CacheSupplementedGoogleCloudStorage.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(CacheSupplementedGoogleCloudStorage.class);
 
   // An actual implementation of GoogleCloudStorage that will be used for the actual logic of
   // GCS operations, while this class adds book-keeping around the delegated calls.
@@ -81,14 +84,14 @@ public class CacheSupplementedGoogleCloudStorage
   @Override
   public WritableByteChannel create(final StorageResourceId resourceId)
       throws IOException {
-    log.debug("create(%s)", resourceId);
+    LOG.debug("create({})", resourceId);
     return create(resourceId, CreateObjectOptions.DEFAULT);
   }
 
   @Override
   public WritableByteChannel create(final StorageResourceId resourceId, CreateObjectOptions options)
       throws IOException {
-    log.debug("create(%s, %s)", resourceId, options);
+    LOG.debug("create({}, {})", resourceId, options);
 
     final WritableByteChannel innerChannel = gcsDelegate.create(resourceId, options);
 
@@ -124,7 +127,7 @@ public class CacheSupplementedGoogleCloudStorage
   @Override
   public void createEmptyObject(StorageResourceId resourceId)
       throws IOException {
-    log.debug("createEmptyObject(%s)", resourceId);
+    LOG.debug("createEmptyObject({})", resourceId);
     gcsDelegate.createEmptyObject(resourceId);
     resourceCache.putResourceId(resourceId);
   }
@@ -132,7 +135,7 @@ public class CacheSupplementedGoogleCloudStorage
   @Override
   public void createEmptyObject(StorageResourceId resourceId, CreateObjectOptions options)
       throws IOException {
-    log.debug("createEmptyObject(%s, %s)", resourceId, options);
+    LOG.debug("createEmptyObject({}, {})", resourceId, options);
     gcsDelegate.createEmptyObject(resourceId, options);
     resourceCache.putResourceId(resourceId);
   }
@@ -143,7 +146,7 @@ public class CacheSupplementedGoogleCloudStorage
   @Override
   public void createEmptyObjects(List<StorageResourceId> resourceIds)
       throws IOException {
-    log.debug("createEmptyObjects(%s)", resourceIds);
+    LOG.debug("createEmptyObjects({})", resourceIds);
     gcsDelegate.createEmptyObjects(resourceIds);
     for (StorageResourceId resourceId : resourceIds) {
       resourceCache.putResourceId(resourceId);
@@ -153,7 +156,7 @@ public class CacheSupplementedGoogleCloudStorage
   @Override
   public void createEmptyObjects(List<StorageResourceId> resourceIds, CreateObjectOptions options)
       throws IOException {
-    log.debug("createEmptyObjects(%s, %s)", resourceIds, options);
+    LOG.debug("createEmptyObjects({}, {})", resourceIds, options);
     gcsDelegate.createEmptyObjects(resourceIds, options);
     for (StorageResourceId resourceId : resourceIds) {
       resourceCache.putResourceId(resourceId);
@@ -166,7 +169,7 @@ public class CacheSupplementedGoogleCloudStorage
   @Override
   public SeekableReadableByteChannel open(StorageResourceId resourceId)
       throws IOException {
-    log.debug("open(%s)", resourceId);
+    LOG.debug("open({})", resourceId);
     return gcsDelegate.open(resourceId);
   }
 
@@ -176,7 +179,7 @@ public class CacheSupplementedGoogleCloudStorage
   @Override
   public void create(String bucketName)
       throws IOException {
-    log.debug("create(%s)", bucketName);
+    LOG.debug("create({})", bucketName);
     // TODO(user): Make create() return the Bucket so that we can pre-emptively populate the
     // metadata in the CachedBucket.
     gcsDelegate.create(bucketName);
@@ -189,7 +192,7 @@ public class CacheSupplementedGoogleCloudStorage
   @Override
   public void deleteBuckets(List<String> bucketNames)
       throws IOException {
-    log.debug("deleteBuckets(%s)", bucketNames);
+    LOG.debug("deleteBuckets({})", bucketNames);
     // TODO(user): Potentially include as blacklist entry in cache along with timestamp to clobber
     // incorrect/stale "list" results from GCS as long as their returned timestamp is older than
     // the blacklist entry.
@@ -205,7 +208,7 @@ public class CacheSupplementedGoogleCloudStorage
   @Override
   public void deleteObjects(List<StorageResourceId> fullObjectNames)
       throws IOException {
-    log.debug("deleteObjects(%s)", fullObjectNames);
+    LOG.debug("deleteObjects({})", fullObjectNames);
     // TODO(user): Potentially include as blacklist entry in cache along with timestamp to clobber
     // incorrect/stale "list" results from GCS as long as their returned timestamp is older than
     // the blacklist entry.
@@ -270,17 +273,17 @@ public class CacheSupplementedGoogleCloudStorage
       GoogleCloudStorageItemInfo itemInfo = entry.getItemInfo();
       if (itemInfo != null) {
         // The detailed info is already available; supplement it directly.
-        log.info("Supplementing missing itemInfo with already-cached info: %s", itemInfo);
+        LOG.info("Supplementing missing itemInfo with already-cached info: {}", itemInfo);
         supplementalInfos.add(itemInfo);
       } else {
         // We need to fetch the associated info from the gcsDelegate; in addition to
         // supplementing, we must update the cache with the fetched info.
-        log.info("Populating missing itemInfo on-demand for entry: %s", entry.getResourceId());
+        LOG.info("Populating missing itemInfo on-demand for entry: {}", entry.getResourceId());
         itemInfo = gcsDelegate.getItemInfo(entry.getResourceId());
         if (!itemInfo.exists()) {
           // TODO(user): Change to info.toString() after adding a good toString().
           // TODO(user): Update the cache by removing it.
-          log.error("Failed to fetch item info for a CacheEntry: %s", entry.getResourceId());
+          LOG.error("Failed to fetch item info for a CacheEntry: {}", entry.getResourceId());
         } else {
           entry.setItemInfo(itemInfo);
           supplementalInfos.add(itemInfo);
@@ -297,7 +300,7 @@ public class CacheSupplementedGoogleCloudStorage
   @Override
   public List<String> listBucketNames()
       throws IOException {
-    log.debug("listBucketNames()");
+    LOG.debug("listBucketNames()");
     List<String> allBucketNames = gcsDelegate.listBucketNames();
     List<CacheEntry> cachedBuckets = resourceCache.getBucketList();
     if (cachedBuckets.isEmpty()) {
@@ -314,7 +317,7 @@ public class CacheSupplementedGoogleCloudStorage
 
     List<CacheEntry> missingCachedBuckets = getSupplementalEntries(bucketIds, cachedBuckets);
     for (CacheEntry supplement : missingCachedBuckets) {
-      log.info("Supplementing missing matched StorageResourceId: %s", supplement.getResourceId());
+      LOG.info("Supplementing missing matched StorageResourceId: {}", supplement.getResourceId());
       allBucketNames.add(supplement.getResourceId().getBucketName());
     }
     return allBucketNames;
@@ -329,7 +332,7 @@ public class CacheSupplementedGoogleCloudStorage
   @Override
   public List<GoogleCloudStorageItemInfo> listBucketInfo()
       throws IOException {
-    log.debug("listBucketInfo()");
+    LOG.debug("listBucketInfo()");
     List<GoogleCloudStorageItemInfo> allBucketInfos = gcsDelegate.listBucketInfo();
     List<CacheEntry> cachedBuckets = resourceCache.getBucketList();
     if (cachedBuckets.isEmpty()) {
@@ -372,7 +375,7 @@ public class CacheSupplementedGoogleCloudStorage
       String bucketName, String objectNamePrefix, String delimiter,
       long maxResults)
       throws IOException {
-    log.debug("listObjectNames(%s, %s, %s, %d)", bucketName, objectNamePrefix,
+    LOG.debug("listObjectNames({}, {}, {}, {})", bucketName, objectNamePrefix,
         delimiter, maxResults);
     List<String> allObjectNames = gcsDelegate.listObjectNames(
         bucketName, objectNamePrefix, delimiter, maxResults);
@@ -408,7 +411,7 @@ public class CacheSupplementedGoogleCloudStorage
 
     List<CacheEntry> missingCachedObjects = getSupplementalEntries(objectIds, cachedObjects);
     for (CacheEntry supplement : missingCachedObjects) {
-      log.info("Supplementing missing matched StorageResourceId: %s", supplement.getResourceId());
+      LOG.info("Supplementing missing matched StorageResourceId: {}", supplement.getResourceId());
       allObjectNames.add(supplement.getResourceId().getObjectName());
       if (maxResults > 0 && allObjectNames.size() >= maxResults) {
         return allObjectNames;
@@ -442,7 +445,7 @@ public class CacheSupplementedGoogleCloudStorage
       String bucketName, String objectNamePrefix, String delimiter,
       long maxResults)
       throws IOException {
-    log.debug("listObjectInfo(%s, %s, %s, %d)", bucketName, objectNamePrefix,
+    LOG.debug("listObjectInfo({}, {}, {}, {})", bucketName, objectNamePrefix,
         delimiter, maxResults);
     List<GoogleCloudStorageItemInfo> allObjectInfos =
         gcsDelegate.listObjectInfo(bucketName, objectNamePrefix, delimiter,
@@ -489,14 +492,14 @@ public class CacheSupplementedGoogleCloudStorage
   @Override
   public List<GoogleCloudStorageItemInfo> getItemInfos(List<StorageResourceId> resourceIds)
       throws IOException {
-    log.debug("getItemInfos(%s)", resourceIds.toString());
+    LOG.debug("getItemInfos({})", resourceIds.toString());
     return gcsDelegate.getItemInfos(resourceIds);
   }
 
   @Override
   public List<GoogleCloudStorageItemInfo> updateItems(List<UpdatableItemInfo> itemInfoList)
       throws IOException {
-    log.debug("updateItems(%s)", itemInfoList);
+    LOG.debug("updateItems({})", itemInfoList);
     return gcsDelegate.updateItems(itemInfoList);
   }
 
@@ -506,7 +509,7 @@ public class CacheSupplementedGoogleCloudStorage
   @Override
   public GoogleCloudStorageItemInfo getItemInfo(StorageResourceId resourceId)
       throws IOException {
-    log.debug("getItemInfo(%s)", resourceId);
+    LOG.debug("getItemInfo({})", resourceId);
     // TODO(user): Maybe opportunistically update the cache with any retrieved info; it would take
     // more memory but potentially improve cache coherence. Here and in getItemInfos.
     return gcsDelegate.getItemInfo(resourceId);

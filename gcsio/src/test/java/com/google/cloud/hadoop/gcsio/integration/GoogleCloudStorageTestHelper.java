@@ -25,10 +25,11 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions.Builder;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.TestConfiguration;
 import com.google.cloud.hadoop.util.CredentialFactory;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Strings;
 
 import org.junit.Assert;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -46,7 +47,8 @@ public class GoogleCloudStorageTestHelper {
   // Application name for OAuth.
   public static final String APP_NAME = "GHFS/test";
 
-  protected static LogUtil log = new LogUtil(GoogleCloudStorageTestHelper.class);
+  protected static final Logger LOG =
+      LoggerFactory.getLogger(GoogleCloudStorageTestHelper.class);
 
   public static Credential getCredential() throws IOException {
     String serviceAccount = TestConfiguration.getInstance().getServiceAccount();
@@ -165,7 +167,7 @@ public class GoogleCloudStorageTestHelper {
       }
     }
     long endTime = System.currentTimeMillis();
-    log.info("Took %d milliseconds to write %d", (endTime - startTime), repetitions * patternSize);
+    LOG.info("Took {} milliseconds to write {}", (endTime - startTime), repetitions * patternSize);
 
     startTime = System.currentTimeMillis();
     try (ReadableByteChannel channel = storage.open(objectToCreate)) {
@@ -182,14 +184,14 @@ public class GoogleCloudStorageTestHelper {
       }
     }
     endTime = System.currentTimeMillis();
-    log.info("Took %d milliseconds to read %d", (endTime - startTime), repetitions * patternSize);
+    LOG.info("Took {} milliseconds to read {}", (endTime - startTime), repetitions * patternSize);
   }
 
   /**
    * Helper for dealing with buckets in GCS integration tests.
    */
   public static class TestBucketHelper {
-    protected static LogUtil log = new LogUtil(TestBucketHelper.class);
+    protected static final Logger LOG = LoggerFactory.getLogger(TestBucketHelper.class);
     protected final String testBucketPrefix;
 
     public TestBucketHelper(String bucketPrefix) {
@@ -240,7 +242,7 @@ public class GoogleCloudStorageTestHelper {
         // Stop the tests from failing on IOException (FNFE or composite) when trying to delete
         // objects or buckets tafter having been previously deleted, but list inconsistencies
         // make appear in the above lists).
-        log.warn("Exception encountered when cleaning up test buckets / objects", ioe);
+        LOG.warn("Exception encountered when cleaning up test buckets / objects", ioe);
       }
     }
   }

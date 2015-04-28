@@ -19,6 +19,10 @@ package com.google.cloud.hadoop.util;
 import com.google.api.client.googleapis.media.MediaHttpUploader;
 import com.google.api.client.googleapis.media.MediaHttpUploader.UploadState;
 import com.google.api.client.googleapis.media.MediaHttpUploaderProgressListener;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 
 /**
@@ -29,8 +33,8 @@ import java.io.IOException;
  * A new instance of this progress listener should be used for each MediaHttpUploader.
  */
 public class LoggingMediaHttpUploaderProgressListener implements MediaHttpUploaderProgressListener {
-  private static LogUtil log =
-      new LogUtil(MediaHttpUploaderProgressListener.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(MediaHttpUploaderProgressListener.class);
   private static final double BYTES_IN_MB = (double) (1024 * 1024);
   private final long minLoggingInterval;
   private final String name;
@@ -51,18 +55,18 @@ public class LoggingMediaHttpUploaderProgressListener implements MediaHttpUpload
 
   @Override
   public void progressChanged(MediaHttpUploader uploader) throws IOException {
-    progressChanged(log,
+    progressChanged(LOG,
         uploader.getUploadState(),
         uploader.getNumBytesUploaded(),
         System.currentTimeMillis());
   }
 
-  void progressChanged(LogUtil log, UploadState uploadState, long bytesUploaded, long currentTime) {
+  void progressChanged(Logger log, UploadState uploadState, long bytesUploaded, long currentTime) {
     switch (uploadState) {
       case INITIATION_STARTED:
         startTime = currentTime;
         prevTime = currentTime;
-        log.debug("Uploading: %s", name);
+        log.debug("Uploading: {}", name);
         break;
       case MEDIA_IN_PROGRESS:
         // Limit messages to be emitted for in progress uploads.
@@ -79,7 +83,7 @@ public class LoggingMediaHttpUploaderProgressListener implements MediaHttpUpload
         }
         break;
       case MEDIA_COMPLETE:
-        log.debug("Finished Uploading: %s", name);
+        log.debug("Finished Uploading: {}", name);
         break;
       default:
     }

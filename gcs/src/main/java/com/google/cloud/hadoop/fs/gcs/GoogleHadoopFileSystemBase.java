@@ -26,7 +26,6 @@ import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.HadoopVersionInfo;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.cloud.hadoop.util.PropertyUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -48,6 +47,8 @@ import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.Progressable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -86,7 +87,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public abstract class GoogleHadoopFileSystemBase
     extends FileSystem implements FileSystemDescriptor {
   // Logger.
-  public static final LogUtil log = new LogUtil(GoogleHadoopFileSystemBase.class);
+  public static final Logger LOG = LoggerFactory.getLogger(GoogleHadoopFileSystemBase.class);
 
   // Default value of replication factor.
   public static final short REPLICATION_FACTOR_DEFAULT = 3;
@@ -342,7 +343,7 @@ public abstract class GoogleHadoopFileSystemBase
   static {
     VERSION = PropertyUtil.getPropertyOrDefault(
         GoogleHadoopFileSystemBase.class, PROPERTIES_FILE, VERSION_PROPERTY, UNKNOWN_VERSION);
-    log.info("GHFS version: %s", VERSION);
+    LOG.info("GHFS version: {}", VERSION);
     GHFS_ID = String.format("GHFS/%s", VERSION);
   }
 
@@ -506,20 +507,20 @@ public abstract class GoogleHadoopFileSystemBase
       boolean enableDirectoryTimestampUpdating = config.getBoolean(
           GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY,
           GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_DEFAULT);
-      log.debug("%s = %s", GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY,
+      LOG.debug("{} = {}", GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY,
           enableDirectoryTimestampUpdating);
 
       String includedParentPaths = config.get(
           GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY,
           GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_DEFAULT);
-      log.debug("%s = %s", GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY, includedParentPaths);
+      LOG.debug("{} = {}", GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY, includedParentPaths);
       List<String> splitIncludedParentPaths =
           CONFIGURATION_SPLITTER.splitToList(includedParentPaths);
 
       String excludedParentPaths = config.get(
           GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY,
           GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_DEFAULT);
-      log.debug("%s = %s", GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY, excludedParentPaths);
+      LOG.debug("{} = {}", GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY, excludedParentPaths);
       List<String> splitExcludedParentPaths =
           CONFIGURATION_SPLITTER.splitToList(excludedParentPaths);
 
@@ -551,13 +552,13 @@ public abstract class GoogleHadoopFileSystemBase
     @Override
     public boolean apply(String path) {
       if (!enableTimestampUpdates) {
-        log.debug("Timestamp updating disabled. Not updating path %s", path);
+        LOG.debug("Timestamp updating disabled. Not updating path {}", path);
         return false;
       }
 
       for (String include : includeSubstrings) {
         if (path.contains(include)) {
-          log.debug(
+          LOG.debug(
               "Path %s matched included path %s. Updating timestamps.", path, include);
           return true;
         }
@@ -565,7 +566,7 @@ public abstract class GoogleHadoopFileSystemBase
 
       for (String exclude : excludeSubstrings) {
         if (path.contains(exclude)) {
-          log.debug(
+          LOG.debug(
               "Path %s matched excluded path %s. Not updating timestamps.", path, exclude);
           return false;
         }
@@ -642,7 +643,7 @@ public abstract class GoogleHadoopFileSystemBase
    */
   @Override
   public Path makeQualified(Path path) {
-    log.debug("GHFS.makeQualified: path: %s", path);
+    LOG.debug("GHFS.makeQualified: path: {}", path);
     Path qualifiedPath = super.makeQualified(path);
 
     URI uri = qualifiedPath.toUri();
@@ -667,7 +668,7 @@ public abstract class GoogleHadoopFileSystemBase
     }
 
     Path result = new Path(uri.getScheme(), uri.getAuthority(), strippedPath);
-    log.debug("GHFS.makeQualified:=> %s", result);
+    LOG.debug("GHFS.makeQualified:=> {}", result);
     return result;
   }
 
@@ -724,12 +725,12 @@ public abstract class GoogleHadoopFileSystemBase
       throw new IllegalArgumentException("URI scheme not supported: " + path);
     }
     initUri = path;
-    log.debug("GHFS.initialize: %s", path);
+    LOG.debug("GHFS.initialize: {}", path);
 
     if (initSuperclass) {
       super.initialize(path, config);
     } else {
-      log.debug(
+      LOG.debug(
           "Initializing 'statistics' as an instance not attached to the static FileSystem map");
       // Provide an ephemeral Statistics object to avoid NPE, but still avoid registering a global
       // statistics object.
@@ -755,9 +756,9 @@ public abstract class GoogleHadoopFileSystemBase
    */
   @Override
   protected int getDefaultPort() {
-    log.debug("GHFS.getDefaultPort:");
+    LOG.debug("GHFS.getDefaultPort:");
     int result = -1;
-    log.debug("GHFS.getDefaultPort:=> %d", result);
+    LOG.debug("GHFS.getDefaultPort:=> {}", result);
     return result;
   }
 
@@ -795,7 +796,7 @@ public abstract class GoogleHadoopFileSystemBase
 
     checkOpen();
 
-    log.debug("GHFS.open: %s, bufferSize: %d (override: %d)",
+    LOG.debug("GHFS.open: {}, bufferSize: {} (override: {})",
         hadoopPath, bufferSize, bufferSizeOverride);
     bufferSize = bufferSizeOverride;
     URI gcsPath = getGcsPath(hadoopPath);
@@ -849,7 +850,7 @@ public abstract class GoogleHadoopFileSystemBase
 
     checkOpen();
 
-    log.debug("GHFS.create: %s, overwrite: %s, bufferSize: %d (override: %d)",
+    LOG.debug("GHFS.create: {}, overwrite: {}, bufferSize: {} (override: {})",
         hadoopPath, overwrite, bufferSize, bufferSizeOverride);
     bufferSize = bufferSizeOverride;
 
@@ -888,7 +889,7 @@ public abstract class GoogleHadoopFileSystemBase
     Preconditions.checkArgument(bufferSize > 0,
         "bufferSize must be a positive integer: %s", bufferSize);
 
-    log.debug("GHFS.append: %s, bufferSize: %d (override: %d)",
+    LOG.debug("GHFS.append: {}, bufferSize: {} (override: {})",
         hadoopPath, bufferSize, bufferSizeOverride);
     bufferSize = bufferSizeOverride;
 
@@ -914,7 +915,7 @@ public abstract class GoogleHadoopFileSystemBase
     // root happens to equal the global root, we want to explicitly check it here since derived
     // classes may not have filesystem roots equal to the global root.
     if (src.makeQualified(this).equals(getFileSystemRoot())) {
-      log.debug("GHFS.rename: src is root: '%s'", src);
+      LOG.debug("GHFS.rename: src is root: '{}'", src);
       return false;
     }
 
@@ -925,13 +926,13 @@ public abstract class GoogleHadoopFileSystemBase
     checkOpen();
 
     try {
-      log.debug("GHFS.rename: %s -> %s", src, dst);
+      LOG.debug("GHFS.rename: {} -> {}", src, dst);
 
       URI srcPath = getGcsPath(src);
       URI dstPath = getGcsPath(dst);
       gcsfs.rename(srcPath, dstPath);
     } catch (IOException e) {
-      log.debug("GHFS.rename", e);
+      LOG.debug("GHFS.rename", e);
       return false;
     }
 
@@ -970,14 +971,14 @@ public abstract class GoogleHadoopFileSystemBase
 
     checkOpen();
 
-    log.debug("GHFS.delete: %s, recursive: %s", hadoopPath, recursive);
+    LOG.debug("GHFS.delete: {}, recursive: {}", hadoopPath, recursive);
     URI gcsPath = getGcsPath(hadoopPath);
     try {
       gcsfs.delete(gcsPath, recursive);
     } catch (DirectoryNotEmptyException e) {
       throw e;
     } catch (IOException e) {
-      log.debug("GHFS.delete", e);
+      LOG.debug("GHFS.delete", e);
       return false;
     }
 
@@ -1003,7 +1004,7 @@ public abstract class GoogleHadoopFileSystemBase
 
     checkOpen();
 
-    log.debug("GHFS.listStatus: %s", hadoopPath);
+    LOG.debug("GHFS.listStatus: {}", hadoopPath);
 
     URI gcsPath = getGcsPath(hadoopPath);
     List<FileStatus> status = new ArrayList<>();
@@ -1015,7 +1016,7 @@ public abstract class GoogleHadoopFileSystemBase
         status.add(getFileStatus(fileInfo));
       }
     } catch (FileNotFoundException fnfe) {
-      log.debug("Got fnfe: ", fnfe);
+      LOG.debug("Got fnfe: ", fnfe);
       return listStatusFileNotFoundBehavior.handle(gcsPath.toString());
     }
 
@@ -1035,7 +1036,7 @@ public abstract class GoogleHadoopFileSystemBase
     long startTime = System.nanoTime();
     Preconditions.checkArgument(hadoopPath != null, "hadoopPath must not be null");
 
-    log.debug("GHFS.setWorkingDirectory: %s", hadoopPath);
+    LOG.debug("GHFS.setWorkingDirectory: {}", hadoopPath);
     URI gcsPath = getGcsPath(hadoopPath);
     gcsPath = FileInfo.convertToDirectoryPath(gcsPath);
     Path newPath = getHadoopPath(gcsPath);
@@ -1046,7 +1047,7 @@ public abstract class GoogleHadoopFileSystemBase
     // better performance.
 
     workingDirectory = newPath;
-    log.debug("GHFS.setWorkingDirectory: => %s", workingDirectory);
+    LOG.debug("GHFS.setWorkingDirectory: => {}", workingDirectory);
 
     long duration = System.nanoTime() - startTime;
     increment(Counter.SET_WD);
@@ -1060,7 +1061,7 @@ public abstract class GoogleHadoopFileSystemBase
    */
   @Override
   public Path getWorkingDirectory() {
-    log.debug("GHFS.getWorkingDirectory: %s", workingDirectory);
+    LOG.debug("GHFS.getWorkingDirectory: {}", workingDirectory);
     return workingDirectory;
   }
 
@@ -1082,7 +1083,7 @@ public abstract class GoogleHadoopFileSystemBase
 
     checkOpen();
 
-    log.debug("GHFS.mkdirs: %s, perm: %s", hadoopPath, permission);
+    LOG.debug("GHFS.mkdirs: {}, perm: {}", hadoopPath, permission);
     URI gcsPath = getGcsPath(hadoopPath);
     gcsfs.mkdirs(gcsPath);
 
@@ -1118,11 +1119,11 @@ public abstract class GoogleHadoopFileSystemBase
 
     checkOpen();
 
-    log.debug("GHFS.getFileStatus: %s", hadoopPath);
+    LOG.debug("GHFS.getFileStatus: {}", hadoopPath);
     URI gcsPath = getGcsPath(hadoopPath);
     FileInfo fileInfo = gcsfs.getFileInfo(gcsPath);
     if (!fileInfo.exists()) {
-      log.debug("GHFS.getFileStatus: not found: %s", gcsPath);
+      LOG.debug("GHFS.getFileStatus: not found: {}", gcsPath);
       String msg = fileInfo.isDirectory() ? "Directory not found : " : "File not found : ";
       msg += hadoopPath.toString();
       throw new FileNotFoundException(msg);
@@ -1150,8 +1151,8 @@ public abstract class GoogleHadoopFileSystemBase
     // Only works for filesystems where the base Hadoop Path scheme matches the underlying URI
     // scheme for GCS.
     if (!getUri().getScheme().equals(GoogleCloudStorageFileSystem.SCHEME)) {
-      log.debug(
-          "Flat glob is on, but doesn't work for scheme '%s'; usig default behavior.",
+      LOG.debug(
+          "Flat glob is on, but doesn't work for scheme '{}'; usig default behavior.",
           getUri().getScheme());
       return false;
     }
@@ -1159,16 +1160,16 @@ public abstract class GoogleHadoopFileSystemBase
     // The full pattern should have a wildcard, otherwise there's no point doing the flat glob.
     GlobPattern fullPattern = new GlobPattern(fixedPath.toString());
     if (!fullPattern.hasWildcard()) {
-      log.debug(
-          "Flat glob is on, but Path '%s' has no wildcard; using default behavior.",
+      LOG.debug(
+          "Flat glob is on, but Path '{}' has no wildcard; using default behavior.",
           fixedPath);
       return false;
     }
 
     // To use a flat glob, there must be an authority defined.
     if (Strings.isNullOrEmpty(fixedPath.toUri().getAuthority())) {
-      log.info(
-          "Flat glob is on, but Path '%s' has a empty authority, using default behavior.",
+      LOG.info(
+          "Flat glob is on, but Path '{}' has a empty authority, using default behavior.",
           fixedPath);
       return false;
     }
@@ -1176,8 +1177,8 @@ public abstract class GoogleHadoopFileSystemBase
     // And the authority must not contain a wildcard.
     GlobPattern authorityPattern = new GlobPattern(fixedPath.toUri().getAuthority());
     if (authorityPattern.hasWildcard()) {
-      log.info(
-          "Flat glob is on, but Path '%s' has a wildcard authority, using default behavior.",
+      LOG.info(
+          "Flat glob is on, but Path '{}' has a wildcard authority, using default behavior.",
           fixedPath);
       return false;
     }
@@ -1235,11 +1236,11 @@ public abstract class GoogleHadoopFileSystemBase
 
     checkOpen();
 
-    log.debug("GHFS.globStatus: %s", pathPattern);
+    LOG.debug("GHFS.globStatus: {}", pathPattern);
     // We convert pathPattern to GCS path and then to Hadoop path to ensure that it ends up in
     // the correct format. See note in getHadoopPath for more information.
     Path fixedPath = getHadoopPath(getGcsPath(pathPattern));
-    log.debug("GHFS.globStatus fixedPath: %s => %s", pathPattern, fixedPath);
+    LOG.debug("GHFS.globStatus fixedPath: {} => {}", pathPattern, fixedPath);
 
     if (shouldUseFlatGlob(fixedPath)) {
       String pathString = fixedPath.toString();
@@ -1255,7 +1256,7 @@ public abstract class GoogleHadoopFileSystemBase
       }
 
       // Get everything matching the non-glob prefix.
-      log.debug("Listing everything with prefix '%s'", prefixUri);
+      LOG.debug("Listing everything with prefix '{}'", prefixUri);
       List<FileInfo> fileInfos = gcsfs.listAllFileInfoForPrefix(prefixUri);
       if (fileInfos.isEmpty()) {
         // Let the superclass define the proper logic for finding no matches.
@@ -1277,7 +1278,7 @@ public abstract class GoogleHadoopFileSystemBase
           }
         }
         if (!toRepair.isEmpty()) {
-          log.warn("Discovered %d implicit directories to repair within return values.",
+          LOG.warn("Discovered {} implicit directories to repair within return values.",
                    toRepair.size());
           gcsfs.repairDirs(toRepair);
         }
@@ -1287,10 +1288,10 @@ public abstract class GoogleHadoopFileSystemBase
       FileStatus[] ret = super.globStatus(fixedPath, filter);
       if (ret == null) {
         if (enableAutoRepairImplicitDirectories) {
-          log.debug("GHFS.globStatus returned null for '%s', attempting possible repair.",
+          LOG.debug("GHFS.globStatus returned null for '{}', attempting possible repair.",
                     pathPattern);
           if (gcsfs.repairPossibleImplicitDirectory(getGcsPath(fixedPath))) {
-            log.warn("Success repairing '%s', re-globbing.", pathPattern);
+            LOG.warn("Success repairing '{}', re-globbing.", pathPattern);
             ret = super.globStatus(fixedPath, filter);
           }
         }
@@ -1308,7 +1309,7 @@ public abstract class GoogleHadoopFileSystemBase
   @Override
   public Path getHomeDirectory() {
     Path result = new Path(getFileSystemRoot(), getHomeDirectorySubpath());
-    log.debug("GHFS.getHomeDirectory:=> %s", result);
+    LOG.debug("GHFS.getHomeDirectory:=> {}", result);
     return result;
   }
 
@@ -1330,7 +1331,7 @@ public abstract class GoogleHadoopFileSystemBase
             USER_NAME,
             USER_NAME,
             getHadoopPath(fileInfo.getPath()));
-    log.debug("GHFS.getFileStatus: %s => %s", fileInfo.getPath(), fileStatusToString(status));
+    LOG.debug("GHFS.getFileStatus: {} => {}", fileInfo.getPath(), fileStatusToString(status));
     return status;
   }
 
@@ -1378,8 +1379,8 @@ public abstract class GoogleHadoopFileSystemBase
    */
   @Override
   public String getCanonicalServiceName() {
-    log.debug("GHFS.getCanonicalServiceName:");
-    log.debug("GHFS.getCanonicalServiceName:=> null");
+    LOG.debug("GHFS.getCanonicalServiceName:");
+    LOG.debug("GHFS.getCanonicalServiceName:=> null");
     return null;
   }
 
@@ -1442,7 +1443,7 @@ public abstract class GoogleHadoopFileSystemBase
    * Logs values of all counters.
    */
   private void logCounters() {
-    log.debug(countersToString());
+    LOG.debug(countersToString());
   }
 
   /**
@@ -1452,8 +1453,8 @@ public abstract class GoogleHadoopFileSystemBase
   private static void copyIfNotPresent(Configuration config, String deprecatedKey, String newKey) {
     String deprecatedValue = config.get(deprecatedKey);
     if (config.get(newKey) == null && deprecatedValue != null) {
-      log.warn(
-          "Key %s is deprecated. Copying the value of key %s to new key %s",
+      LOG.warn(
+          "Key {} is deprecated. Copying the value of key {} to new key {}",
           deprecatedKey,
           deprecatedKey,
           newKey);
@@ -1503,8 +1504,8 @@ public abstract class GoogleHadoopFileSystemBase
    */
   private synchronized void configure(Configuration config)
       throws IOException {
-    log.debug("GHFS.configure");
-    log.debug("GHFS_ID = %s", GHFS_ID);
+    LOG.debug("GHFS.configure");
+    LOG.debug("GHFS_ID = {}", GHFS_ID);
 
     if (gcsfs == null) {
 
@@ -1528,17 +1529,17 @@ public abstract class GoogleHadoopFileSystemBase
     }
 
     bufferSizeOverride = config.getInt(BUFFERSIZE_KEY, BUFFERSIZE_DEFAULT);
-    log.debug("%s = %d", BUFFERSIZE_KEY, bufferSizeOverride);
+    LOG.debug("{} = {}", BUFFERSIZE_KEY, bufferSizeOverride);
 
     defaultBlockSize = config.getLong(BLOCK_SIZE_KEY, BLOCK_SIZE_DEFAULT);
-    log.debug("%s = %d", BLOCK_SIZE_KEY, defaultBlockSize);
+    LOG.debug("{} = {}", BLOCK_SIZE_KEY, defaultBlockSize);
 
     String systemBucketName = config.get(GCS_SYSTEM_BUCKET_KEY, null);
-    log.debug("%s = %s", GCS_SYSTEM_BUCKET_KEY, systemBucketName);
+    LOG.debug("{} = {}", GCS_SYSTEM_BUCKET_KEY, systemBucketName);
 
     boolean createSystemBucket =
         config.getBoolean(GCS_CREATE_SYSTEM_BUCKET_KEY, GCS_CREATE_SYSTEM_BUCKET_DEFAULT);
-    log.debug("%s = %s", GCS_CREATE_SYSTEM_BUCKET_KEY, createSystemBucket);
+    LOG.debug("{} = {}", GCS_CREATE_SYSTEM_BUCKET_KEY, createSystemBucket);
 
     configureBuckets(systemBucketName, createSystemBucket);
 
@@ -1550,8 +1551,8 @@ public abstract class GoogleHadoopFileSystemBase
     String configWorkingDirectory = config.get(GCS_WORKING_DIRECTORY_KEY);
     if (Strings.isNullOrEmpty(configWorkingDirectory)) {
       newWorkingDirectory = getDefaultWorkingDirectory();
-      log.warn(
-          "No working directory configured, using default: '%s'", newWorkingDirectory);
+      LOG.warn(
+          "No working directory configured, using default: '{}'", newWorkingDirectory);
     } else {
       newWorkingDirectory = new Path(configWorkingDirectory);
     }
@@ -1559,12 +1560,12 @@ public abstract class GoogleHadoopFileSystemBase
     // Use the public method to ensure proper behavior of normalizing and resolving the new
     // working directory relative to the initial filesystem-root directory.
     setWorkingDirectory(newWorkingDirectory);
-    log.debug("%s = %s", GCS_WORKING_DIRECTORY_KEY, getWorkingDirectory());
+    LOG.debug("{} = {}", GCS_WORKING_DIRECTORY_KEY, getWorkingDirectory());
 
     // Set this configuration as the default config for this instance.
     setConf(config);
 
-    log.debug("GHFS.configure: done");
+    LOG.debug("GHFS.configure: done");
   }
 
   /**
@@ -1581,12 +1582,12 @@ public abstract class GoogleHadoopFileSystemBase
   public void configureBuckets(String systemBucketName, boolean createSystemBucket)
       throws IOException {
 
-    log.debug("GHFS.configureBuckets: %s, %s", systemBucketName, createSystemBucket);
+    LOG.debug("GHFS.configureBuckets: {}, {}", systemBucketName, createSystemBucket);
 
     systemBucket = systemBucketName;
 
     if (systemBucket != null) {
-      log.debug("GHFS.configureBuckets: Warning fs.gs.system.bucket is deprecated.");
+      LOG.debug("GHFS.configureBuckets: Warning fs.gs.system.bucket is deprecated.");
       // Ensure that system bucket exists. It really must be a bucket, not a GCS path.
       URI systemBucketPath = GoogleCloudStorageFileSystem.getPath(systemBucket);
 
@@ -1603,7 +1604,7 @@ public abstract class GoogleHadoopFileSystemBase
       }
     }
 
-    log.debug("GHFS.configureBuckets:=>");
+    LOG.debug("GHFS.configureBuckets:=>");
   }
 
   /**
@@ -1627,33 +1628,33 @@ public abstract class GoogleHadoopFileSystemBase
 
     checkOpen();
 
-    log.debug("GHFS.deleteOnExit: %s", f);
+    LOG.debug("GHFS.deleteOnExit: {}", f);
     boolean result = super.deleteOnExit(f);
-    log.debug("GHFS.deleteOnExit:=> %s", result);
+    LOG.debug("GHFS.deleteOnExit:=> {}", result);
     return result;
   }
 
   @Override
   protected void processDeleteOnExit() {
-    log.debug("GHFS.processDeleteOnExit:");
+    LOG.debug("GHFS.processDeleteOnExit:");
     super.processDeleteOnExit();
   }
 
   @Override
   public ContentSummary getContentSummary(Path f)
       throws IOException {
-    log.debug("GHFS.getContentSummary: %s", f);
+    LOG.debug("GHFS.getContentSummary: {}", f);
     ContentSummary result = super.getContentSummary(f);
-    log.debug("GHFS.getContentSummary:=> %s", result);
+    LOG.debug("GHFS.getContentSummary:=> {}", result);
     return result;
   }
 
   @Override
   public Token<?> getDelegationToken(String renewer)
       throws IOException {
-    log.debug("GHFS.getDelegationToken: renewer: %s", renewer);
+    LOG.debug("GHFS.getDelegationToken: renewer: {}", renewer);
     Token<?> result = super.getDelegationToken(renewer);
-    log.debug("GHFS.getDelegationToken:=> %s", result);
+    LOG.debug("GHFS.getDelegationToken:=> {}", result);
     return result;
   }
 
@@ -1661,51 +1662,51 @@ public abstract class GoogleHadoopFileSystemBase
   public void copyFromLocalFile(boolean delSrc, boolean overwrite,
       Path[] srcs, Path dst)
       throws IOException {
-    log.debug("GHFS.copyFromLocalFile: delSrc: %s, overwrite: %s, #srcs: %d, dst: %s",
+    LOG.debug("GHFS.copyFromLocalFile: delSrc: {}, overwrite: {}, #srcs: {}, dst: {}",
         delSrc, overwrite, srcs.length, dst);
     super.copyFromLocalFile(delSrc, overwrite, srcs, dst);
-    log.debug("GHFS.copyFromLocalFile:=> ");
+    LOG.debug("GHFS.copyFromLocalFile:=> ");
   }
 
   @Override
   public void copyFromLocalFile(boolean delSrc, boolean overwrite,
       Path src, Path dst)
       throws IOException {
-    log.debug("GHFS.copyFromLocalFile: delSrc: %s, overwrite: %s, src: %s, dst: %s",
+    LOG.debug("GHFS.copyFromLocalFile: delSrc: {}, overwrite: {}, src: {}, dst: {}",
         delSrc, overwrite, src, dst);
     super.copyFromLocalFile(delSrc, overwrite, src, dst);
-    log.debug("GHFS.copyFromLocalFile:=> ");
+    LOG.debug("GHFS.copyFromLocalFile:=> ");
   }
 
   @Override
   public void copyToLocalFile(boolean delSrc, Path src, Path dst)
       throws IOException {
-    log.debug("GHFS.copyToLocalFile: delSrc: %s, src: %s, dst: %s", delSrc, src, dst);
+    LOG.debug("GHFS.copyToLocalFile: delSrc: {}, src: {}, dst: {}", delSrc, src, dst);
     super.copyToLocalFile(delSrc, src, dst);
-    log.debug("GHFS.copyToLocalFile:=> ");
+    LOG.debug("GHFS.copyToLocalFile:=> ");
   }
 
   @Override
   public Path startLocalOutput(Path fsOutputFile, Path tmpLocalFile)
       throws IOException {
-    log.debug("GHFS.startLocalOutput: out: %s, tmp: %s", fsOutputFile, tmpLocalFile);
+    LOG.debug("GHFS.startLocalOutput: out: {}, tmp: {}", fsOutputFile, tmpLocalFile);
     Path result = super.startLocalOutput(fsOutputFile, tmpLocalFile);
-    log.debug("GHFS.startLocalOutput:=> %s", result);
+    LOG.debug("GHFS.startLocalOutput:=> {}", result);
     return result;
   }
 
   @Override
   public void completeLocalOutput(Path fsOutputFile, Path tmpLocalFile)
       throws IOException {
-    log.debug("GHFS.startLocalOutput: out: %s, tmp: %s", fsOutputFile, tmpLocalFile);
+    LOG.debug("GHFS.startLocalOutput: out: {}, tmp: {}", fsOutputFile, tmpLocalFile);
     super.completeLocalOutput(fsOutputFile, tmpLocalFile);
-    log.debug("GHFS.completeLocalOutput:=> ");
+    LOG.debug("GHFS.completeLocalOutput:=> ");
   }
 
   @Override
   public void close()
       throws IOException {
-    log.debug("GHFS.close:");
+    LOG.debug("GHFS.close:");
     super.close();
 
     // NB: We must *first* have the superclass close() before we close the underlying gcsfs since
@@ -1716,64 +1717,64 @@ public abstract class GoogleHadoopFileSystemBase
       gcsfs = null;
     }
     logCounters();
-    log.debug("GHFS.close:=> ");
+    LOG.debug("GHFS.close:=> ");
   }
 
   @Override
   public long getUsed()
       throws IOException{
-    log.debug("GHFS.getUsed:");
+    LOG.debug("GHFS.getUsed:");
     long result = super.getUsed();
-    log.debug("GHFS.getUsed:=> %d", result);
+    LOG.debug("GHFS.getUsed:=> {}", result);
     return result;
   }
 
   @Override
   public long getDefaultBlockSize() {
-    log.debug("GHFS.getDefaultBlockSize:");
+    LOG.debug("GHFS.getDefaultBlockSize:");
     long result = defaultBlockSize;
-    log.debug("GHFS.getDefaultBlockSize:=> %s", result);
+    LOG.debug("GHFS.getDefaultBlockSize:=> {}", result);
     return result;
   }
 
   @Override
   public FileChecksum getFileChecksum(Path f)
       throws IOException {
-    log.debug("GHFS.getFileChecksum:");
+    LOG.debug("GHFS.getFileChecksum:");
     FileChecksum result = super.getFileChecksum(f);
-    log.debug("GHFS.getFileChecksum:=> %s", result);
+    LOG.debug("GHFS.getFileChecksum:=> {}", result);
     return result;
   }
 
   @Override
   public void setVerifyChecksum(boolean verifyChecksum) {
-    log.debug("GHFS.setVerifyChecksum:");
+    LOG.debug("GHFS.setVerifyChecksum:");
     super.setVerifyChecksum(verifyChecksum);
-    log.debug("GHFS.setVerifyChecksum:=> ");
+    LOG.debug("GHFS.setVerifyChecksum:=> ");
   }
 
   @Override
   public void setPermission(Path p, FsPermission permission)
       throws IOException {
-    log.debug("GHFS.setPermission: path: %s, perm: %s", p, permission);
+    LOG.debug("GHFS.setPermission: path: {}, perm: {}", p, permission);
     super.setPermission(p, permission);
-    log.debug("GHFS.setPermission:=> ");
+    LOG.debug("GHFS.setPermission:=> ");
   }
 
   @Override
   public void setOwner(Path p, String username, String groupname)
       throws IOException {
-    log.debug("GHFS.setOwner: path: %s, user: %s, group: %s", p, username, groupname);
+    LOG.debug("GHFS.setOwner: path: {}, user: {}, group: {}", p, username, groupname);
     super.setOwner(p, username, groupname);
-    log.debug("GHFS.setOwner:=> ");
+    LOG.debug("GHFS.setOwner:=> ");
   }
 
   @Override
   public void setTimes(Path p, long mtime, long atime)
       throws IOException {
-    log.debug("GHFS.setTimes: path: %s, mtime: %d, atime: %d", p, mtime, atime);
+    LOG.debug("GHFS.setTimes: path: {}, mtime: {}, atime: {}", p, mtime, atime);
     super.setTimes(p, mtime, atime);
-    log.debug("GHFS.setTimes:=> ");
+    LOG.debug("GHFS.setTimes:=> ");
   }
 
   @VisibleForTesting
@@ -1785,17 +1786,17 @@ public abstract class GoogleHadoopFileSystemBase
     boolean enableMetadataCache = config.getBoolean(
         GCS_ENABLE_METADATA_CACHE_KEY,
         GCS_ENABLE_METADATA_CACHE_DEFAULT);
-    log.debug("%s = %s", GCS_ENABLE_METADATA_CACHE_KEY, enableMetadataCache);
+    LOG.debug("{} = {}", GCS_ENABLE_METADATA_CACHE_KEY, enableMetadataCache);
     optionsBuilder.setIsMetadataCacheEnabled(enableMetadataCache);
 
     DirectoryListCache.Type cacheType = DirectoryListCache.Type.valueOf(config.get(
         GCS_METADATA_CACHE_TYPE_KEY, GCS_METADATA_CACHE_TYPE_DEFAULT));
-    log.debug("%s = %s", GCS_METADATA_CACHE_TYPE_KEY, cacheType);
+    LOG.debug("{} = {}", GCS_METADATA_CACHE_TYPE_KEY, cacheType);
     optionsBuilder.setCacheType(cacheType);
 
     String cacheBasePath = config.get(
         GCS_METADATA_CACHE_DIRECTORY_KEY, GCS_METADATA_CACHE_DIRECTORY_DEFAULT);
-    log.debug("%s = %s", GCS_METADATA_CACHE_DIRECTORY_KEY, cacheBasePath);
+    LOG.debug("{} = {}", GCS_METADATA_CACHE_DIRECTORY_KEY, cacheBasePath);
     optionsBuilder.setCacheBasePath(cacheBasePath);
 
     Predicate<String> shouldIncludeInTimestampUpdatesPredicate =
@@ -1806,19 +1807,19 @@ public abstract class GoogleHadoopFileSystemBase
     enableAutoRepairImplicitDirectories = config.getBoolean(
         GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY,
         GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT);
-    log.debug("%s = %s", GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY,
+    LOG.debug("{} = {}", GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY,
               enableAutoRepairImplicitDirectories);
 
     enableInferImplicitDirectories = config.getBoolean(
         GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY,
         GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_DEFAULT);
-    log.debug("%s = %s", GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY,
+    LOG.debug("{} = {}", GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY,
               enableInferImplicitDirectories);
 
     enableFlatGlob = config.getBoolean(
         GCS_ENABLE_FLAT_GLOB_KEY,
         GCS_ENABLE_FLAT_GLOB_DEFAULT);
-    log.debug("%s = %s", GCS_ENABLE_FLAT_GLOB_KEY, enableFlatGlob);
+    LOG.debug("{} = {}", GCS_ENABLE_FLAT_GLOB_KEY, enableFlatGlob);
 
     optionsBuilder
         .getCloudStorageOptionsBuilder()
@@ -1828,7 +1829,7 @@ public abstract class GoogleHadoopFileSystemBase
     boolean enableMarkerFileCreation = config.getBoolean(
         GCS_ENABLE_MARKER_FILE_CREATION_KEY,
         GCS_ENABLE_MARKER_FILE_CREATION_DEFAULT);
-    log.debug("%s = %s", GCS_ENABLE_MARKER_FILE_CREATION_KEY, enableMarkerFileCreation);
+    LOG.debug("{} = {}", GCS_ENABLE_MARKER_FILE_CREATION_KEY, enableMarkerFileCreation);
 
     optionsBuilder
         .getCloudStorageOptionsBuilder()
@@ -1850,7 +1851,7 @@ public abstract class GoogleHadoopFileSystemBase
 
     // Configuration for setting GoogleCloudStorageWriteChannel upload buffer size.
     int uploadBufferSize = config.getInt(WRITE_BUFFERSIZE_KEY, WRITE_BUFFERSIZE_DEFAULT);
-    log.debug("%s = %d", WRITE_BUFFERSIZE_KEY, uploadBufferSize);
+    LOG.debug("{} = {}", WRITE_BUFFERSIZE_KEY, uploadBufferSize);
 
     optionsBuilder.
         getCloudStorageOptionsBuilder().
@@ -1859,14 +1860,14 @@ public abstract class GoogleHadoopFileSystemBase
 
     String applicationNameSuffix = config.get(
         GCS_APPLICATION_NAME_SUFFIX_KEY, GCS_APPLICATION_NAME_SUFFIX_DEFAULT);
-    log.debug("%s = %s", GCS_APPLICATION_NAME_SUFFIX_KEY, applicationNameSuffix);
+    LOG.debug("{} = {}", GCS_APPLICATION_NAME_SUFFIX_KEY, applicationNameSuffix);
 
     String applicationName = GHFS_ID;
     if (!Strings.isNullOrEmpty(applicationNameSuffix)) {
       applicationName = applicationName + applicationNameSuffix;
     }
 
-    log.debug("Setting GCS application name to %s", applicationName);
+    LOG.debug("Setting GCS application name to {}", applicationName);
     optionsBuilder
         .getCloudStorageOptionsBuilder()
         .setAppName(applicationName);

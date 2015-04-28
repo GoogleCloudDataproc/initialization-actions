@@ -1,7 +1,6 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
@@ -13,6 +12,8 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.util.Progressable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
@@ -22,7 +23,7 @@ import java.util.List;
  * all content to be written (the export complete) before we begin execution of the MapReduce.
  */
 public class UnshardedExportToCloudStorage extends AbstractExportToCloudStorage {
-  private static final LogUtil log = new LogUtil(UnshardedExportToCloudStorage.class);
+  private static final Logger LOG = LoggerFactory.getLogger(UnshardedExportToCloudStorage.class);
   private final InputFormat<LongWritable, Text> delegateInputFormat;
 
   public UnshardedExportToCloudStorage(
@@ -50,7 +51,7 @@ public class UnshardedExportToCloudStorage extends AbstractExportToCloudStorage 
 
   @Override
   public List<InputSplit> getSplits(JobContext context) throws IOException, InterruptedException {
-    log.info("Setting FileInputFormat's inputPath to '%s'", gcsPath);
+    LOG.info("Setting FileInputFormat's inputPath to '{}'", gcsPath);
     configuration.set("mapred.input.dir", gcsPath);
 
     // Now that the FileInputFormat's path is pointed to the export directory, construct splits
@@ -60,7 +61,7 @@ public class UnshardedExportToCloudStorage extends AbstractExportToCloudStorage 
 
   @Override
   public List<String> getExportPaths() throws IOException {
-    log.debug("Using unsharded splits");
+    LOG.debug("Using unsharded splits");
     String exportPattern = gcsPath + "/" + fileFormat.getFilePattern();
     return ImmutableList.of(exportPattern);
   }

@@ -16,7 +16,6 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -31,6 +30,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -53,15 +54,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 // TODO(user): add tests for multi-threaded reads/writes
-
 /**
  * Integration tests for GoogleCloudStorageFileSystem class.
  */
 @RunWith(JUnit4.class)
 public class GoogleCloudStorageFileSystemIntegrationTest {
   // Logger.
-  protected static LogUtil log =
-      new LogUtil(GoogleCloudStorageFileSystemIntegrationTest.class);
+  protected static final Logger LOG =
+      LoggerFactory.getLogger(GoogleCloudStorageFileSystemIntegrationTest.class);
 
   // GCS FS test access instance.
   protected static GoogleCloudStorageFileSystem gcsfs;
@@ -1815,7 +1815,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     Date today = cal.getTime();
     cal.add(Calendar.HOUR_OF_DAY, -24);
     Date yesterday = cal.getTime();
-    log.debug("Current time: %s, deleting buckets older than: %s ", today, yesterday);
+    LOG.debug("Current time: {}, deleting buckets older than: {} ", today, yesterday);
 
     // Iterate over all buckets to find the old ones.
     List<FileInfo> topLevelDirInfos =
@@ -1827,7 +1827,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
       if (gcsiHelper.isTestBucketName(resourceId.getBucketName())
           && (dirInfo.getCreationTime() < yesterday.getTime())) {
-        log.debug("...deleting : %s", dirInfo);
+        LOG.debug("...deleting : {}", dirInfo);
         try {
           gcsfs.delete(dirPath, true);
           // If we successfully deleted a bucket then sleep for some time so that we do not
@@ -1839,11 +1839,10 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
           }
         } catch (IOException e) {
           // Log and ignore so that we can delete as many as we can.
-          log.error("... error deleting : %s", dirInfo);
-          log.error(e);
+          LOG.error("... error deleting : {}", dirInfo, e);
         }
       } else {
-        log.debug("...skipped  : %s", dirInfo);
+        LOG.debug("...skipped  : {}", dirInfo);
       }
     }
   }

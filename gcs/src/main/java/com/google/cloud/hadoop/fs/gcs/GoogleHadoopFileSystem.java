@@ -74,14 +74,14 @@ public class GoogleHadoopFileSystem
       // Validate root bucket name
       GoogleCloudStorageFileSystem.getPath(rootBucket);
     } else if (systemBucket != null) {
-      log.warn("GHFS.configureBuckets: Warning. No GCS bucket provided. "
+      LOG.warn("GHFS.configureBuckets: Warning. No GCS bucket provided. "
           + "Falling back on deprecated fs.gs.system.bucket.");
       rootBucket = systemBucket;
     } else {
       String msg = String.format("No bucket specified in GCS URI: %s", initUri);
       throw new IllegalArgumentException(msg);
     }
-    log.debug("GHFS.configureBuckets: GoogleHadoopFileSystem root in bucket: ", rootBucket);
+    LOG.debug("GHFS.configureBuckets: GoogleHadoopFileSystem root in bucket: ", rootBucket);
   }
 
   @Override
@@ -123,7 +123,7 @@ public class GoogleHadoopFileSystem
    */
   @Override
   public Path getHadoopPath(URI gcsPath) {
-    log.debug("GHFS.getHadoopPath: %s", gcsPath);
+    LOG.debug("GHFS.getHadoopPath: {}", gcsPath);
 
     // Handle root. Delegate to getGcsPath on "gs:/" to resolve the appropriate gs://<bucket> URI.
     if (gcsPath.equals(getGcsPath(getFileSystemRoot()))) {
@@ -146,7 +146,7 @@ public class GoogleHadoopFileSystem
 
     Path hadoopPath = new Path(getScheme() + "://"
         + rootBucket + '/' + resourceId.getObjectName());
-    log.debug("GHFS.getHadoopPath: %s -> %s", gcsPath, hadoopPath);
+    LOG.debug("GHFS.getHadoopPath: {} -> {}", gcsPath, hadoopPath);
     return hadoopPath;
   }
 
@@ -156,7 +156,7 @@ public class GoogleHadoopFileSystem
    */
   @Override
   public URI getGcsPath(Path hadoopPath) {
-    log.debug("GHFS.getGcsPath: %s", hadoopPath);
+    LOG.debug("GHFS.getGcsPath: {}", hadoopPath);
 
     // Convert to fully qualified absolute path; the Path object will callback to get our current
     // workingDirectory as part of fully resolving the path.
@@ -172,7 +172,7 @@ public class GoogleHadoopFileSystem
     // Construct GCS path uri.
     URI gcsPath = GoogleCloudStorageFileSystem.getPath(
         rootBucket, objectName, true);
-    log.debug("GHFS.getGcsPath: %s -> %s", hadoopPath, gcsPath);
+    LOG.debug("GHFS.getGcsPath: {} -> {}", hadoopPath, gcsPath);
     return gcsPath;
   }
 

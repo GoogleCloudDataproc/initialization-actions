@@ -1,11 +1,11 @@
 package com.google.cloud.hadoop.io.bigquery;
 
-import com.google.cloud.hadoop.util.LogUtil;
-
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.InputSplit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -19,7 +19,7 @@ import java.io.IOException;
 public class ShardedInputSplit
     extends InputSplit implements Writable {
   // Logger.
-  protected static final LogUtil log = new LogUtil(ShardedInputSplit.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(ShardedInputSplit.class);
 
   // Directory/file-pattern whose files will be read by the reader created from this split.
   // The file-pattern portion is the glob expression of the file basename, e.g. data-*.json.

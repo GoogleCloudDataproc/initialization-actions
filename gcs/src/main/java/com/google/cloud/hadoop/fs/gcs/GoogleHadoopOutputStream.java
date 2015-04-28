@@ -17,9 +17,10 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
-import com.google.cloud.hadoop.util.LogUtil;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -35,7 +36,8 @@ class GoogleHadoopOutputStream
     extends OutputStream {
 
   // Logging helper.
-  private static LogUtil log = new LogUtil(GoogleHadoopOutputStream.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(GoogleHadoopOutputStream.class);
 
   // Instance of GoogleHadoopFileSystemBase.
   private GoogleHadoopFileSystemBase ghfs;
@@ -69,7 +71,7 @@ class GoogleHadoopOutputStream
       GoogleHadoopFileSystemBase ghfs, URI gcsPath, int bufferSize,
       FileSystem.Statistics statistics, CreateFileOptions createFileOptions)
       throws IOException {
-    log.debug("GoogleHadoopOutputStream(%s, %d)", gcsPath, bufferSize);
+    LOG.debug("GoogleHadoopOutputStream({}, {})", gcsPath, bufferSize);
     this.ghfs = ghfs;
     this.gcsPath = gcsPath;
     this.statistics = statistics;
@@ -124,7 +126,7 @@ class GoogleHadoopOutputStream
         ghfs.increment(GoogleHadoopFileSystemBase.Counter.OUTPUT_STREAM);
         ghfs.increment(
             GoogleHadoopFileSystemBase.Counter.OUTPUT_STREAM_TIME, streamDuration);
-        log.debug("close(%s)", gcsPath);
+        LOG.debug("close({})", gcsPath);
       } finally {
         out = null;
         channel = null;

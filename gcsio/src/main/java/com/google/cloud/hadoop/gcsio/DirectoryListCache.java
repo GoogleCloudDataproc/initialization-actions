@@ -17,9 +17,11 @@
 package com.google.cloud.hadoop.gcsio;
 
 import com.google.api.client.util.Clock;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
@@ -42,7 +44,7 @@ public abstract class DirectoryListCache {
   // TODO(user): Actually add support for delete-followed-by-list, cache-removal on 404, and
   // cache-blacklist-removal on non-404 of what we think is a "deleted" entry.
   // Logger.
-  private static final LogUtil log = new LogUtil(DirectoryListCache.class);
+  private static final Logger LOG = LoggerFactory.getLogger(DirectoryListCache.class);
 
   // Clock instance used for calculating expiration times.
   protected Clock clock = Clock.SYSTEM;
@@ -269,7 +271,7 @@ public abstract class DirectoryListCache {
       long lastUpdated = entry.getItemInfoUpdateTimeMillis();
       long infoAge = currentTimeMillis - lastUpdated;
       if (lastUpdated > 0 && infoAge > maxInfoAgeMillis) {
-        log.debug("Clearing itemInfo for CacheEntry '%s' with infoAge: %d ms",
+        LOG.debug("Clearing itemInfo for CacheEntry '{}' with infoAge: {} ms",
             entry.getResourceId(), infoAge);
         entry.clearItemInfo();
       }

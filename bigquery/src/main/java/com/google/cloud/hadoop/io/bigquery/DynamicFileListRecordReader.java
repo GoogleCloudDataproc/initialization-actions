@@ -2,7 +2,6 @@ package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.api.client.util.Sleeper;
 import com.google.cloud.hadoop.util.HadoopToStringUtil;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
@@ -13,6 +12,8 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayDeque;
@@ -35,7 +36,7 @@ import java.util.regex.Pattern;
 public class DynamicFileListRecordReader<K, V>
     extends RecordReader<K, V> {
   // Logger.
-  public static final LogUtil log = new LogUtil(DynamicFileListRecordReader.class);
+  public static final Logger LOG = LoggerFactory.getLogger(DynamicFileListRecordReader.class);
 
   // Directory/file-pattern which will contain all the files we read with this reader.
   private Path inputDirectoryAndPattern;
@@ -91,10 +92,10 @@ public class DynamicFileListRecordReader<K, V>
   public void initialize(InputSplit genericSplit, TaskAttemptContext context)
       throws IOException {
     try {
-      log.info("Initializing DynamicFileListRecordReader with split '%s', task context '%s'",
+      LOG.info("Initializing DynamicFileListRecordReader with split '{}', task context '{}'",
           HadoopToStringUtil.toString(genericSplit), HadoopToStringUtil.toString(context));
     } catch (InterruptedException ie) {
-      log.warn("InterruptedException when logging InputSplit.", ie);
+      LOG.warn("InterruptedException when logging InputSplit.", ie);
     }
     Preconditions.checkArgument(genericSplit instanceof ShardedInputSplit,
         "InputSplit genericSplit should be an instance of ShardedInputSplit.");
@@ -106,7 +107,7 @@ public class DynamicFileListRecordReader<K, V>
     inputDirectoryAndPattern = shardedSplit.getShardDirectoryAndPattern();
     estimatedNumRecords = shardedSplit.getLength();
     if (estimatedNumRecords <= 0) {
-      log.warn("Non-positive estimatedNumRecords '%d'; clipping to 1.", estimatedNumRecords);
+      LOG.warn("Non-positive estimatedNumRecords '{}'; clipping to 1.", estimatedNumRecords);
       estimatedNumRecords = 1;
     }
 
@@ -149,16 +150,16 @@ public class DynamicFileListRecordReader<K, V>
 
     boolean needRefresh = !isNextFileReady() && shouldExpectMoreFiles();
     while (needRefresh) {
-      log.debug("No files available, but more are expected; refreshing...");
+      LOG.debug("No files available, but more are expected; refreshing...");
       refreshFileList();
       needRefresh = !isNextFileReady() && shouldExpectMoreFiles();
       if (needRefresh) {
-        log.debug("No new files found, sleeping before trying again...");
+        LOG.debug("No new files found, sleeping before trying again...");
         try {
           sleeper.sleep(pollIntervalMs);
           context.progress();
         } catch (InterruptedException ie) {
-          log.warn("Interrupted while sleeping.", ie);
+          LOG.warn("Interrupted while sleeping.", ie);
         }
       }
     }
@@ -166,7 +167,7 @@ public class DynamicFileListRecordReader<K, V>
     if (isNextFileReady()) {
       // Open the file and see if it's the 0-record end of dataset marker:
       FileStatus newFile = moveToNextFile();
-      log.info("Moving to next file '%s' which has %d bytes. Records read so far: %d",
+      LOG.info("Moving to next file '{}' which has {} bytes. Records read so far: {}",
           newFile.getPath(), newFile.getLen(), recordsRead);
 
       InputSplit split = new FileSplit(newFile.getPath(), 0, newFile.getLen(), new String[0]);
@@ -234,7 +235,7 @@ public class DynamicFileListRecordReader<K, V>
   public void close()
       throws IOException {
     if (delegateReader != null) {
-      log.warn("Got non-null delegateReader during close(); possible premature close() call.");
+      LOG.warn("Got non-null delegateReader during close(); possible premature close() call.");
       delegateReader.close();
       delegateReader = null;
     }
@@ -320,7 +321,7 @@ public class DynamicFileListRecordReader<K, V>
     if (endFileNumber == -1) {
       // First time finding the end-marker file.
       endFileNumber = fileIndex;
-      log.info("Found end-marker file '%s' with index %d", fileName, endFileNumber);
+      LOG.info("Found end-marker file '{}' with index {}", fileName, endFileNumber);
 
       // Sanity-check known filenames against the endFileNumber.
       for (String knownFile : knownFileSet) {
@@ -357,7 +358,7 @@ public class DynamicFileListRecordReader<K, V>
               fileName, newFileIndex, endFileNumber);
         }
 
-        log.info("Adding new file '%s' of size %d to knownFileSet.", fileName, file.getLen());
+        LOG.info("Adding new file '{}' of size {} to knownFileSet.", fileName, file.getLen());
         knownFileSet.add(fileName);
         fileQueue.add(file);
       }

@@ -16,10 +16,12 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
@@ -43,7 +45,8 @@ import java.util.Set;
 public class MetadataReadOnlyGoogleCloudStorage
     implements GoogleCloudStorage {
   // Logger.
-  public static final LogUtil log = new LogUtil(MetadataReadOnlyGoogleCloudStorage.class);
+  public static final Logger LOG =
+      LoggerFactory.getLogger(MetadataReadOnlyGoogleCloudStorage.class);
 
   // Immutable cache of all metadata held by this instance, populated at construction time.
   private final DirectoryListCache resourceCache = new InMemoryDirectoryListCache();
@@ -72,7 +75,7 @@ public class MetadataReadOnlyGoogleCloudStorage
     resourceCache.getMutableConfig().setMaxEntryAgeMillis(Long.MAX_VALUE);
     resourceCache.getMutableConfig().setMaxInfoAgeMillis(Long.MAX_VALUE);
 
-    log.debug("Populating cache with %d entries.", itemInfos.size());
+    LOG.debug("Populating cache with {} entries.", itemInfos.size());
     for (GoogleCloudStorageItemInfo itemInfo : itemInfos) {
       resourceCache.putResourceId(itemInfo.getResourceId()).setItemInfo(itemInfo);
     }
@@ -176,7 +179,7 @@ public class MetadataReadOnlyGoogleCloudStorage
       String bucketName, String objectNamePrefix, String delimiter,
       long maxResults)
       throws IOException {
-    log.debug("listObjectNames(%s, %s, %s, %d)",
+    LOG.debug("listObjectNames({}, {}, {}, {})",
         bucketName, objectNamePrefix, delimiter, maxResults);
     return Lists.transform(
         listObjectInfo(bucketName, objectNamePrefix, delimiter, maxResults),
@@ -206,7 +209,7 @@ public class MetadataReadOnlyGoogleCloudStorage
       final String bucketName, String objectNamePrefix, String delimiter,
       long maxResults)
       throws IOException {
-    log.debug("listObjectInfo(%s, %s, %s, %d)",
+    LOG.debug("listObjectInfo({}, {}, {}, {})",
         bucketName, objectNamePrefix, delimiter, maxResults);
     List<GoogleCloudStorageItemInfo> allObjectInfos = new ArrayList<>();
     Set<String> retrievedNames = new HashSet<>();
@@ -231,7 +234,7 @@ public class MetadataReadOnlyGoogleCloudStorage
       // (to maintain historical behavior).
       for (String prefix : prefixes) {
         if (!retrievedNames.contains(prefix)) {
-          log.debug("Found implicit directory '%s'. Adding fake entry for it.", prefix);
+          LOG.debug("Found implicit directory '{}'. Adding fake entry for it.", prefix);
           GoogleCloudStorageItemInfo fakeInfo = new GoogleCloudStorageItemInfo(
               new StorageResourceId(bucketName, prefix), 0, 0, null, null);
           allObjectInfos.add(fakeInfo);
@@ -252,7 +255,7 @@ public class MetadataReadOnlyGoogleCloudStorage
   @Override
   public List<GoogleCloudStorageItemInfo> getItemInfos(List<StorageResourceId> resourceIds)
       throws IOException {
-    log.debug("getItemInfos(%s)", resourceIds.toString());
+    LOG.debug("getItemInfos({})", resourceIds.toString());
     List<GoogleCloudStorageItemInfo> infos = new ArrayList<>();
     for (StorageResourceId resourceId : resourceIds) {
       infos.add(getItemInfo(resourceId));
@@ -272,7 +275,7 @@ public class MetadataReadOnlyGoogleCloudStorage
   @Override
   public GoogleCloudStorageItemInfo getItemInfo(StorageResourceId resourceId)
       throws IOException {
-    log.debug("getItemInfo(%s)", resourceId);
+    LOG.debug("getItemInfo({})", resourceId);
     CacheEntry entry = resourceCache.getCacheEntry(resourceId);
     if (entry == null) {
       // TODO(user): Move the createItemInfoForNotFound method into GoogleCloudStorageItemInfo.
@@ -287,7 +290,7 @@ public class MetadataReadOnlyGoogleCloudStorage
 
   @Override
   public void close() {
-    log.debug("close()");
+    LOG.debug("close()");
   }
 
   @Override

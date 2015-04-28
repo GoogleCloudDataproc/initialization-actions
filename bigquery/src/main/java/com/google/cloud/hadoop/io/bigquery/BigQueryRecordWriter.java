@@ -14,7 +14,6 @@ import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.HadoopToStringUtil;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -26,6 +25,8 @@ import org.apache.hadoop.mapred.Counters;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.util.Progressable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -51,7 +52,7 @@ import java.util.concurrent.TimeUnit;
 public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<K, V> {
 
   // Logger.
-  public static final LogUtil log = new LogUtil(BigQueryRecordWriter.class);
+  public static final Logger LOG = LoggerFactory.getLogger(BigQueryRecordWriter.class);
 
   // Holds collection of counters used by this instance.
   private static Counters counters = new Counters();
@@ -134,7 +135,7 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
         BigQueryUtils.waitForJobCompletion(
             bigQueryHelper.getRawBigquery(), projectId, jobReference, progressable);
       } catch (InterruptedException e) {
-        log.error(e.getMessage());
+        LOG.error(e.getMessage());
         throw new IOException(e);
       }
     }
@@ -180,7 +181,7 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
       TableReference tableRef,
       int writeBufferSize) throws IOException {
 
-    log.debug("Intialize with projectId: '%s', tableRef: '%s', writeBufferSize: %d",
+    LOG.debug("Intialize with projectId: '{}', tableRef: '{}', writeBufferSize: {}",
         projectId, BigQueryStrings.toString(tableRef), writeBufferSize);
 
     // Check Preconditions.
@@ -213,7 +214,7 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
     try {
       bigQueryHelper = factory.getBigQueryHelper(configuration);
     } catch (GeneralSecurityException e) {
-      log.error("Could not connect to BigQuery:", e);
+      LOG.error("Could not connect to BigQuery:", e);
       throw new IOException(e);
     }
 
@@ -299,10 +300,10 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
     if (configuration.getBoolean(
         BigQueryConfiguration.ENABLE_ASYNC_WRITE,
         BigQueryConfiguration.ENABLE_ASYNC_WRITE_DEFAULT)) {
-      log.debug("Using asynchronous write channel.");
+      LOG.debug("Using asynchronous write channel.");
     } else {
-      log.warn(
-          "Got 'false' for obsolete key '%s', using asynchronous write channel anyway.",
+      LOG.warn(
+          "Got 'false' for obsolete key '{}', using asynchronous write channel anyway.",
           BigQueryConfiguration.ENABLE_ASYNC_WRITE);
     }
     AsyncWriteChannelOptions options = AsyncWriteChannelOptions
@@ -352,8 +353,8 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
   @Override
   public void close(TaskAttemptContext context) throws IOException {
     long startTime = System.nanoTime();
-    if (log.isDebugEnabled()) {
-      log.debug("close(%s)", HadoopToStringUtil.toString(context));
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("close({})", HadoopToStringUtil.toString(context));
     }
     threadPool.shutdown();
     byteChannel.close();
@@ -435,7 +436,7 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
    * Logs values of all counters.
    */
   static void logCounters() {
-    log.debug(countersToString());
+    LOG.debug(countersToString());
   }
 
 }

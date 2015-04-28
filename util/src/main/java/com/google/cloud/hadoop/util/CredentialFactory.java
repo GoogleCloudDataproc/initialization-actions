@@ -44,6 +44,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -149,7 +152,7 @@ public class CredentialFactory {
                        "https://www.googleapis.com/auth/userinfo.email");
 
   // Logger.
-  private static final LogUtil log = new LogUtil(CredentialFactory.class);
+  private static final Logger LOG = LoggerFactory.getLogger(CredentialFactory.class);
 
   // JSON factory used for formatting credential-handling payloads.
   private static final JsonFactory JSON_FACTORY = new JacksonFactory();
@@ -178,7 +181,7 @@ public class CredentialFactory {
    */
   public Credential getCredentialFromMetadataServiceAccount()
       throws IOException, GeneralSecurityException {
-    log.debug("getCredentialFromMetadataServiceAccount()");
+    LOG.debug("getCredentialFromMetadataServiceAccount()");
     Credential cred = new ComputeCredentialWithRetry(
         new ComputeCredential.Builder(getHttpTransport(), JSON_FACTORY)
             .setRequestInitializer(new CredentialHttpRetryInitializer()));
@@ -203,7 +206,7 @@ public class CredentialFactory {
   public Credential getCredentialFromPrivateKeyServiceAccount(
       String serviceAccountEmail, String privateKeyFile, List<String> scopes)
       throws IOException, GeneralSecurityException {
-    log.debug("getCredentialFromPrivateKeyServiceAccount(%s, %s, %s)",
+    LOG.debug("getCredentialFromPrivateKeyServiceAccount({}, {}, {})",
         serviceAccountEmail, privateKeyFile, scopes);
 
     return new GoogleCredentialWithRetry(
@@ -230,7 +233,7 @@ public class CredentialFactory {
   public Credential getCredentialFromFileCredentialStoreForInstalledApp(
       String clientId, String clientSecret, String filePath, List<String> scopes)
       throws IOException, GeneralSecurityException {
-    log.debug("getCredentialFromFileCredentialStoreForInstalledApp(%s, %s, %s, %s)",
+    LOG.debug("getCredentialFromFileCredentialStoreForInstalledApp({}, {}, {}, {})",
         clientId, clientSecret, filePath, scopes);
     Preconditions.checkArgument(!Strings.isNullOrEmpty(clientId),
         "clientId must not be null or empty");
@@ -277,7 +280,7 @@ public class CredentialFactory {
    */
   public Credential getStorageCredential(String clientId, String clientSecret)
       throws IOException, GeneralSecurityException {
-    log.debug("getStorageCredential(%s, %s)", clientId, clientSecret);
+    LOG.debug("getStorageCredential({}, {})", clientId, clientSecret);
     String filePath = System.getProperty("user.home") + "/.credentials/storage.json";
     return getCredentialFromFileCredentialStoreForInstalledApp(
         clientId, clientSecret, filePath, GCS_SCOPES);
@@ -292,7 +295,7 @@ public class CredentialFactory {
    */
   public Credential getDatastoreCredential(String clientId, String clientSecret)
       throws IOException, GeneralSecurityException {
-    log.debug("getStorageCredential(%s, %s)", clientId, clientSecret);
+    LOG.debug("getStorageCredential({}, {})", clientId, clientSecret);
     String filePath = System.getProperty("user.home") + "/.credentials/datastore.json";
     return getCredentialFromFileCredentialStoreForInstalledApp(
         clientId, clientSecret, filePath, DATASTORE_SCOPES);

@@ -16,12 +16,14 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -62,7 +64,8 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
     void run(File file) throws IOException;
   }
 
-  private static final LogUtil log = new LogUtil(FileSystemBackedDirectoryListCache.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(FileSystemBackedDirectoryListCache.class);
 
   // Instead of opting for explicitly file-locking, we recognize that garbage-collection only
   // occurs rarely compared to cache additions, and that in general overwriting existing
@@ -192,7 +195,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
           + "'%s' (dir: '%s') vs '%s' (dir: '%s')",
           mirrorFile, mirrorIsDirectory, resourceId, resourceIdIsDirectory);
       if (allowDirectoryMismatch) {
-        log.info(errorMessage);
+        LOG.info(errorMessage);
         return null;
       } else {
         throw new IOException(errorMessage);
@@ -267,7 +270,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
 
       // Putting the parentResourceId also creates the parent directory so that we can actually
       // add the child object.
-      log.debug("Caching nonexistent parent resourceId '%s', which is path '%s'",
+      LOG.debug("Caching nonexistent parent resourceId '{}', which is path '{}'",
           parentResourceId, parentFile);
       putResourceId(parentResourceId);
     }
@@ -300,12 +303,12 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
     // representation to indicate whether we're dealing with a directory.
     if (resourceId.isDirectory()) {
       try {
-        log.debug("Creating directory '%s' for resourceId '%s'", mirrorFile, resourceId);
+        LOG.debug("Creating directory '{}' for resourceId '{}'", mirrorFile, resourceId);
         Files.createDirectory(mirrorFile.toPath());
-        log.debug("Successfully created directory '%s' for resourceId '%s'",
+        LOG.debug("Successfully created directory '{}' for resourceId '{}'",
             mirrorFile, resourceId);
       } catch (FileAlreadyExistsException faee) {
-        log.debug("Directory '%s' already exists, with FileAlreadyExistsException message: '%s'",
+        LOG.debug("Directory '{}' already exists, with FileAlreadyExistsException message: '{}'",
             mirrorFile, faee.getMessage());
         if (!mirrorFile.isDirectory()) {
           throw new IOException(String.format(
@@ -315,17 +318,17 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
       } catch (Throwable t) {
         // Log and throw because things like 'hadoop fs' like to silently swallow the useful bits
         // of exceptions.
-        log.debug("Exception thrown during creation", t);
+        LOG.debug("Exception thrown during creation", t);
         throw t;
       }
     } else {
       try {
-        log.debug("Creating empty file '%s' for resourceId '%s'", mirrorFile, resourceId);
+        LOG.debug("Creating empty file '{}' for resourceId '{}'", mirrorFile, resourceId);
         Files.createFile(mirrorFile.toPath());
-        log.debug("Successfully created empty file '%s' for resourceId '%s'",
+        LOG.debug("Successfully created empty file '{}' for resourceId '{}'",
             mirrorFile, resourceId);
       } catch (FileAlreadyExistsException faee) {
-        log.debug("File '%s' already exists, with FileAlreadyExistsException message: '%s'",
+        LOG.debug("File '{}' already exists, with FileAlreadyExistsException message: '{}'",
             mirrorFile, faee.getMessage());
         if (mirrorFile.isDirectory()) {
           throw new IOException(String.format(
@@ -335,19 +338,19 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
       } catch (Throwable t) {
         // Log and throw because things like 'hadoop fs' like to silently swallow the useful bits
         // of exceptions.
-        log.debug("Exception thrown during creation", t);
+        LOG.debug("Exception thrown during creation", t);
         throw t;
       }
     }
 
     long currentTime = clock.currentTimeMillis();
-    log.debug("Setting lastModified on '%s' to '%d'", mirrorFile, currentTime);
+    LOG.debug("Setting lastModified on '{}' to '{}'", mirrorFile, currentTime);
     mirrorFile.setLastModified(currentTime);
   }
 
   @Override
   public CacheEntry putResourceId(StorageResourceId resourceId) throws IOException {
-    log.debug("putResourceId(%s)", resourceId);
+    LOG.debug("putResourceId({})", resourceId);
     validateResourceId(resourceId);
 
     Path mirrorPath = getMirrorPath(resourceId);
@@ -362,7 +365,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
         createdOrExistingEntry =
             getCacheEntryInternal(resourceId, mirrorFile, allowDirectoryMismatch);
         if (createdOrExistingEntry != null) {
-          log.debug("Returning immediately with pre-existing file '%s' for resourceId '%s'",
+          LOG.debug("Returning immediately with pre-existing file '{}' for resourceId '{}'",
               mirrorFile, resourceId);
         } else {
           // Make sure parent directories are ready.
@@ -392,7 +395,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
 
           // Restore parent's lastModified time.
           if (!basePath.equals(parentFile.toPath())) {
-            log.debug("Restoring parentLastModified to '%s' for '%s'",
+            LOG.debug("Restoring parentLastModified to '{}' for '{}'",
                 parentLastModified, parentFile);
             parentFile.setLastModified(parentLastModified);
           }
@@ -400,7 +403,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
           createdOrExistingEntry = new CacheEntry(resourceId, mirrorFile.lastModified());
         }
       } catch (NoSuchFileException nsfe) {
-        log.info(String.format(
+        LOG.info(String.format(
             "Possible concurrently deleted parent dir for file '%s', id '%s', retrying...",
             mirrorFile, resourceId), nsfe);
         lastException = nsfe;
@@ -417,7 +420,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
 
   @Override
   public CacheEntry getCacheEntry(StorageResourceId resourceId) throws IOException {
-    log.debug("getCacheEntry(%s)", resourceId);
+    LOG.debug("getCacheEntry({})", resourceId);
     validateResourceId(resourceId);
 
     Path mirrorPath = getMirrorPath(resourceId);
@@ -428,7 +431,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
 
   @Override
   public void removeResourceId(StorageResourceId resourceId) throws IOException {
-    log.debug("removeResourceId(%s)", resourceId);
+    LOG.debug("removeResourceId({})", resourceId);
     validateResourceId(resourceId);
 
     Path mirrorPath = getMirrorPath(resourceId);
@@ -443,23 +446,23 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
       // be non-atomic anyways, we'll just call delete() and let it fail if it already no longer
       // exists or is a nonempty directory.
       if (!mirrorFile.delete()) {
-        log.debug("Failed to delete file '%s' for resourceId '%s'",
+        LOG.debug("Failed to delete file '{}' for resourceId '{}'",
             mirrorFile, resourceId);
       }
       if (!basePath.equals(mirrorFile.getParentFile().toPath())) {
-        log.debug("Restoring parentListModified to '%s' for '%s'",
+        LOG.debug("Restoring parentListModified to '{}' for '{}'",
             parentLastModified, mirrorFile.getParentFile());
         mirrorFile.getParentFile().setLastModified(parentLastModified);
       }
     } else {
-      log.debug("Tried to remove nonexistent file '%s' for resourceId '%s'",
+      LOG.debug("Tried to remove nonexistent file '{}' for resourceId '{}'",
           mirrorFile, resourceId);
     }
   }
 
   @Override
   public List<CacheEntry> getBucketList() throws IOException {
-    log.debug("getBucketList()");
+    LOG.debug("getBucketList()");
     // Get initial listing of everything in our basePath to represent buckets.
     File[] bucketList = basePath.toFile().listFiles();
 
@@ -467,7 +470,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
     Set<StorageResourceId> expiredBuckets = new HashSet<>();
     for (File bucket : bucketList) {
       if (!bucket.isDirectory()) {
-        log.error("Found non-directory file '%s' in bucket listing! Ignoring it.", bucket);
+        LOG.error("Found non-directory file '{}' in bucket listing! Ignoring it.", bucket);
         continue;
       }
       StorageResourceId bucketId = new StorageResourceId(bucket.getName());
@@ -486,7 +489,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
     // TODO(user): Explore possibly offloading this to a separate threadpool so we can return more
     // quickly.
     for (StorageResourceId expiredBucket : expiredBuckets) {
-      log.debug("About to delete expired entry for resourceId '%s'", expiredBucket);
+      LOG.debug("About to delete expired entry for resourceId '{}'", expiredBucket);
       removeResourceId(expiredBucket);
     }
     return bucketEntries;
@@ -494,7 +497,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
 
   @Override
   public List<CacheEntry> getRawBucketList() throws IOException {
-    log.debug("getRawBucketList()");
+    LOG.debug("getRawBucketList()");
 
     // Get initial listing of everything in our basePath to represent buckets.
     File[] bucketList = basePath.toFile().listFiles();
@@ -502,7 +505,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
     List<CacheEntry> bucketEntries = new ArrayList<>();
     for (File bucket : bucketList) {
       if (!bucket.isDirectory()) {
-        log.error("Found non-directory file '%s' in bucket listing! Ignoring it.", bucket);
+        LOG.error("Found non-directory file '{}' in bucket listing! Ignoring it.", bucket);
         continue;
       }
       StorageResourceId bucketId = new StorageResourceId(bucket.getName());
@@ -517,7 +520,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
       final String bucketName, final String objectNamePrefix, final String delimiter,
       Set<String> returnedPrefixes)
       throws IOException {
-    log.debug("getObjectList(%s, %s, %s)", bucketName, objectNamePrefix, delimiter);
+    LOG.debug("getObjectList({}, {}, {})", bucketName, objectNamePrefix, delimiter);
     Preconditions.checkArgument(delimiter == null || "/".equals(delimiter),
         "Only null or '/' are supported as delimiters for file-backed caching, got '%s'.",
         delimiter);
@@ -540,7 +543,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
       }
     }
 
-    log.debug("Using '%s' as the listBase", listBase);
+    LOG.debug("Using '{}' as the listBase", listBase);
     Preconditions.checkState(
         listBase != null, "Somehow listBase is null after all conditional branches!");
     validateResourceId(listBase);
@@ -548,7 +551,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
     File listBaseFile = listBasePath.toFile();
 
     if (!listBaseFile.exists()) {
-      log.debug("listBaseFile '%s' corresponding to lastBase '%s' doesn't exist; returning null",
+      LOG.debug("listBaseFile '{}' corresponding to lastBase '{}' doesn't exist; returning null",
           listBaseFile, listBase);
       return null;
     }
@@ -579,7 +582,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
         if (isCacheEntryExpired(entry)) {
           // Handle entry expiration; try to delete it, and delete will return false if the
           // directory is non-empty.
-          log.debug("About to delete expired entry for resourceId '%s'", objectId);
+          LOG.debug("About to delete expired entry for resourceId '{}'", objectId);
           removeResourceId(objectId);
         } else {
           String objectName = objectId.getObjectName();
@@ -590,7 +593,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
             // would be if we had listed *recursively* in the presence of a delimiter. Since we
             // already handled the presence of a delimiter by doing a flat list instead of a
             // recursive walkFileTree, we won't need to deal with prefix matches here.
-            log.debug("Adding matching entry '%s'", objectId);
+            LOG.debug("Adding matching entry '{}'", objectId);
             cacheEntries.add(entry);
           }
         }
@@ -607,7 +610,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
       } else {
         // A race condition can occur in rare cases if another client deletes listBaseFile between
         // the time we checked listBaseFile.exists() and calling listBaseFile.listFiles().
-        log.warn("Got null fileList for listBaseFile '%s' even though exists() was true!",
+        LOG.warn("Got null fileList for listBaseFile '{}' even though exists() was true!",
                  listBaseFile);
         return null;
       }
@@ -646,7 +649,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
       public FileVisitResult postVisitDirectory(Path dir, IOException ioe) throws IOException {
         if (!basePath.equals(dir) && !basePath.equals(dir.getParent())) {
           // Don't count basePath nor buckets (detected as dir.getParent() equaling basePath).
-          log.debug("Counting '%s'", dir);
+          LOG.debug("Counting '{}'", dir);
           count[0]++;
         }
         return FileVisitResult.CONTINUE;
@@ -654,7 +657,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
 
       @Override
       public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-        log.debug("Counting '%s'", file);
+        LOG.debug("Counting '{}'", file);
         count[0]++;
         return FileVisitResult.CONTINUE;
       }
@@ -683,7 +686,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
         basePath.isAbsolute(), "basePathStr '%s' must be absolute!", basePathStr);
 
     if (!basePath.toFile().exists()) {
-      log.info("Creating '%s' with createDirectories()...", basePath);
+      LOG.info("Creating '{}' with createDirectories()...", basePath);
       try {
         Files.createDirectories(basePath);
       } catch (IOException ioe) {

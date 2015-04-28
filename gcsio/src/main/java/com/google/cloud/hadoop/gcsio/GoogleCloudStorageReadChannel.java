@@ -26,9 +26,11 @@ import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -38,6 +40,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ReadableByteChannel;
 import java.util.regex.Pattern;
+
 import javax.net.ssl.SSLException;
 
 /**
@@ -46,7 +49,8 @@ import javax.net.ssl.SSLException;
 public class GoogleCloudStorageReadChannel
     implements SeekableReadableByteChannel {
   // Logger.
-  private static LogUtil log = new LogUtil(GoogleCloudStorageReadChannel.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(GoogleCloudStorageReadChannel.class);
 
   // Used to separate elements of a Content-Range
   private static final Pattern SLASH = Pattern.compile("/");
@@ -283,7 +287,7 @@ public class GoogleCloudStorageReadChannel
       } catch (IOException ioe) {
         // TODO(user): Refactor any reusable logic for retries into a separate RetryHelper class.
         if (retriesAttempted == maxRetries) {
-          log.error(
+          LOG.error(
               "Already attempted max of %d retries while reading '%s'; throwing exception.",
               maxRetries, StorageResourceId.createReadableString(bucketName, objectName));
           throw ioe;
@@ -299,31 +303,31 @@ public class GoogleCloudStorageReadChannel
           }
 
           ++retriesAttempted;
-          log.warn("Got exception: %s while reading '%s'; retry # %d. Sleeping...",
+          LOG.warn("Got exception: {} while reading '{}'; retry # {}. Sleeping...",
               ioe.getMessage(), StorageResourceId.createReadableString(bucketName, objectName),
               retriesAttempted);
 
           try {
             boolean backOffSuccessful = BackOffUtils.next(sleeper, backOff);
             if (!backOffSuccessful) {
-              log.error("BackOff returned false; maximum total elapsed time exhausted. Giving up "
-                  + "after %d retries for '%s'", retriesAttempted,
+              LOG.error("BackOff returned false; maximum total elapsed time exhausted. Giving up "
+                  + "after {} retries for '{}'", retriesAttempted,
                   StorageResourceId.createReadableString(bucketName, objectName));
               throw ioe;
             }
           } catch (InterruptedException ie) {
-            log.error("Interrupted while sleeping before retry. Giving up "
-                + "after %d retries for '%s'", retriesAttempted,
+            LOG.error("Interrupted while sleeping before retry. Giving up "
+                + "after {} retries for '{}'", retriesAttempted,
                 StorageResourceId.createReadableString(bucketName, objectName));
             ioe.addSuppressed(ie);
             throw ioe;
           }
-          log.info("Done sleeping before retry for '%s'; retry # %d.",
+          LOG.info("Done sleeping before retry for '{}'; retry # {}.",
               StorageResourceId.createReadableString(bucketName, objectName), retriesAttempted);
 
           if (buffer.remaining() != remainingBeforeRead) {
             int partialRead = remainingBeforeRead - buffer.remaining();
-            log.info("Despite exception, had partial read of %d bytes; resetting retry count.",
+            LOG.info("Despite exception, had partial read of {} bytes; resetting retry count.",
                 partialRead);
             retriesAttempted = 0;
             totalBytesRead += partialRead;
@@ -348,7 +352,7 @@ public class GoogleCloudStorageReadChannel
               readChannel.close();
               readChannel = null;
             } catch (SSLException ssle) {
-              log.debug("Got SSLException on readChannel.close() before retry; ignoring it.", ssle);
+              LOG.debug("Got SSLException on readChannel.close() before retry; ignoring it.", ssle);
               readChannel = null;
             }
             // For "other" exceptions, we'll let it propagate out without setting readChannel to
@@ -396,8 +400,8 @@ public class GoogleCloudStorageReadChannel
   public void close()
       throws IOException {
     if (!channelIsOpen) {
-      log.warn(
-          "Channel for '%s' is not open.",
+      LOG.warn(
+          "Channel for '{}' is not open.",
           StorageResourceId.createReadableString(bucketName, objectName));
       return;
     }
@@ -541,7 +545,7 @@ public class GoogleCloudStorageReadChannel
                  && size == -1) {
         // We don't know the size yet (size == -1) and we're seeking to byte 0, but got 'range
         // not satisfiable'; the object must be empty.
-        log.info("Got 'range not satisfiable' for reading %s at position 0; assuming empty.",
+        LOG.info("Got 'range not satisfiable' for reading {} at position 0; assuming empty.",
             StorageResourceId.createReadableString(bucketName, objectName));
         size = 0;
         return new ByteArrayInputStream(new byte[0]);

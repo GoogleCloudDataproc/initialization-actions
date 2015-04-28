@@ -1,12 +1,10 @@
 package com.google.cloud.hadoop.io.bigquery;
 
-
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.cloud.hadoop.util.HadoopToStringUtil;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
@@ -20,6 +18,8 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -36,7 +36,8 @@ import java.util.Map;
 public abstract class AbstractBigQueryInputFormat<K, V>
     extends InputFormat<K, V> implements DelegateRecordReaderFactory<K, V> {
 
-  protected static final LogUtil log = new LogUtil(AbstractBigQueryInputFormat.class);
+  protected static final Logger LOG =
+      LoggerFactory.getLogger(AbstractBigQueryInputFormat.class);
   /**
    * Configuration key for InputFormat class name.
    */
@@ -91,7 +92,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
   @Override
   public List<InputSplit> getSplits(JobContext context)
       throws IOException, InterruptedException {
-    log.debug("getSplits(%s)", HadoopToStringUtil.toString(context));
+    LOG.debug("getSplits({})", HadoopToStringUtil.toString(context));
     Preconditions.checkNotNull(context.getJobID(), "getSplits requires a jobID");
 
     final Configuration configuration = context.getConfiguration();
@@ -100,7 +101,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
     try {
       bigQueryHelper = getBigQueryHelper(configuration);
     } catch (GeneralSecurityException gse) {
-      log.error("Failed to create BigQuery client", gse);
+      LOG.error("Failed to create BigQuery client", gse);
       throw new IOException("Failed to create BigQuery client", gse);
     }
 
@@ -119,19 +120,19 @@ public abstract class AbstractBigQueryInputFormat<K, V>
       export.beginExport();
       export.waitForUsableMapReduceInput();
     } catch (IOException | InterruptedException ie) {
-      log.error("Error while exporting", ie);
+      LOG.error("Error while exporting", ie);
       throw new IOException("Error while exporting", ie);
     }
 
     List<InputSplit> splits = export.getSplits(context);
 
-    if (log.isDebugEnabled()) {
+    if (LOG.isDebugEnabled()) {
       try {
         // Stringifying a really big list of splits can be expensive, so we guard with
         // isDebugEnabled().
-        log.debug("getSplits -> %s", HadoopToStringUtil.toString(splits));
+        LOG.debug("getSplits -> {}", HadoopToStringUtil.toString(splits));
       } catch (InterruptedException e) {
-        log.debug("getSplits -> %s", "*exception on toString()*");
+        LOG.debug("getSplits -> {}", "*exception on toString()*");
       }
     }
     return splits;
@@ -151,13 +152,13 @@ public abstract class AbstractBigQueryInputFormat<K, V>
       Preconditions.checkArgument(
           inputSplit instanceof ShardedInputSplit,
           "Split should be instance of ShardedInputSplit.");
-      log.debug("createRecordReader -> DynamicFileListRecordReader");
+      LOG.debug("createRecordReader -> DynamicFileListRecordReader");
       return new DynamicFileListRecordReader<>(this);
     } else {
       Preconditions.checkArgument(
           inputSplit instanceof UnshardedInputSplit,
           "Split should be instance of UnshardedInputSplit.");
-      log.debug("createRecordReader -> createDelegateRecordReader()");
+      LOG.debug("createRecordReader -> createDelegateRecordReader()");
       return createDelegateRecordReader(inputSplit, configuration);
     }
   }
@@ -166,7 +167,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
       Configuration configuration, ExportFileFormat format, String exportPath,
       BigQueryHelper bigQueryHelper)
       throws IOException {
-    log.debug("contructExport() with export path %s", exportPath);
+    LOG.debug("contructExport() with export path {}", exportPath);
 
     // Extract relevant configuration settings.
     Map<String, String> mandatoryConfig = ConfigurationUtil.getMandatoryConfig(
@@ -186,7 +187,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
         BigQueryConfiguration.DELETE_INTERMEDIATE_TABLE_DEFAULT);
     String query = configuration.get(BigQueryConfiguration.INPUT_QUERY_KEY);
 
-    log.debug(
+    LOG.debug(
         "isShardedExportEnabled = %s, deleteTableOnExit = %s, tableReference = %s, query = %s",
         enableShardedExport,
         deleteTableOnExit,
@@ -231,15 +232,15 @@ public abstract class AbstractBigQueryInputFormat<K, V>
       throws IOException {
     String exportPathRoot = configuration.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY);
     if (Strings.isNullOrEmpty(exportPathRoot)) {
-      log.info("Fetching mandatory field '%s' since '%s' isn't set explicitly",
+      LOG.info("Fetching mandatory field '{}' since '{}' isn't set explicitly",
           BigQueryConfiguration.GCS_BUCKET_KEY, BigQueryConfiguration.TEMP_GCS_PATH_KEY);
       String gcsBucket = ConfigurationUtil.getMandatoryConfig(
           configuration, BigQueryConfiguration.GCS_BUCKET_KEY);
       exportPathRoot = String.format(
           "gs://%s/hadoop/tmp/bigquery/%s", gcsBucket, jobId);
-      log.info("Resolved GCS export path: '%s'", exportPathRoot);
+      LOG.info("Resolved GCS export path: '{}'", exportPathRoot);
     } else {
-      log.info("Using user-provided custom export path: '%s'", exportPathRoot);
+      LOG.info("Using user-provided custom export path: '{}'", exportPathRoot);
     }
 
     Path exportPath = new Path(exportPathRoot);
@@ -300,7 +301,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
    */
   public static void cleanupJob(BigQueryHelper bigQueryHelper, Configuration config)
       throws IOException {
-    log.debug("cleanupJob(Bigquery, Configuration)");
+    LOG.debug("cleanupJob(Bigquery, Configuration)");
 
     String gcsPath = ConfigurationUtil.getMandatoryConfig(
         config, BigQueryConfiguration.TEMP_GCS_PATH_KEY);
@@ -314,7 +315,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
       // Error is swallowed as job has completed successfully and the only failure is deleting
       // temporary data.
       // This matches the FileOutputCommitter pattern.
-      log.warn(
+      LOG.warn(
           "Could not delete intermediate data from BigQuery export", ioe);
     }
   }

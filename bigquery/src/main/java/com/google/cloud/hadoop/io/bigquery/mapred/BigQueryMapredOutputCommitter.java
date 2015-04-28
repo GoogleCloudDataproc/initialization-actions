@@ -1,7 +1,6 @@
 package com.google.cloud.hadoop.io.bigquery.mapred;
 
 import com.google.cloud.hadoop.io.bigquery.BigQueryOutputFormat;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -12,9 +11,10 @@ import org.apache.hadoop.mapred.JobStatus;
 import org.apache.hadoop.mapred.OutputCommitter;
 import org.apache.hadoop.mapred.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.JobStatus.State;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-
 
 /**
  * OutputCommitter that uses the old mapred API so that we can do
@@ -34,8 +34,8 @@ class BigQueryMapredOutputCommitter extends OutputCommitter {
           .put(JobStatus.KILLED, State.KILLED)
           .build();
 
-  protected static final LogUtil log =
-      new LogUtil(BigQueryMapredOutputCommitter.class);
+  protected static final Logger LOG =
+      LoggerFactory.getLogger(BigQueryMapredOutputCommitter.class);
 
   private org.apache.hadoop.mapreduce.OutputCommitter mapreduceOutputCommitter;
 
@@ -43,14 +43,14 @@ class BigQueryMapredOutputCommitter extends OutputCommitter {
     // We need to create a BigQueryOutputCommitter, but we don't have
     // enough info to do that until we have the TaskAttemptContext,
     // so wait until then to create it.
-    log.debug("BigQueryMapredOutputCommitter created");
+    LOG.debug("BigQueryMapredOutputCommitter created");
   }
 
   // OutputCommitter methods
 
   @Override
   public void abortJob(JobContext jobContext, int status) throws IOException {
-    log.debug("abortJob");
+    LOG.debug("abortJob");
     Preconditions.checkState(mapreduceOutputCommitter != null,
         "mapreduceOutputCommitter must be initialized before abortJob");
     State state;
@@ -64,14 +64,14 @@ class BigQueryMapredOutputCommitter extends OutputCommitter {
 
   @Override
   public void abortTask(TaskAttemptContext taskContext) throws IOException {
-    log.debug("abortTask");
+    LOG.debug("abortTask");
     initMapreduceOutputCommitter(taskContext);
     mapreduceOutputCommitter.abortTask(taskContext);
   }
 
   @Override
   public void cleanupJob(JobContext jobContext) throws IOException {
-    log.debug("cleanupJob");
+    LOG.debug("cleanupJob");
     Preconditions.checkState(mapreduceOutputCommitter != null,
         "mapreduceOutputCommitter must be initialized before cleanupJob");
     mapreduceOutputCommitter.cleanupJob(jobContext);
@@ -79,7 +79,7 @@ class BigQueryMapredOutputCommitter extends OutputCommitter {
 
   @Override
   public void commitJob(JobContext jobContext) throws IOException {
-    log.debug("commitJob");
+    LOG.debug("commitJob");
     Preconditions.checkState(mapreduceOutputCommitter != null,
         "mapreduceOutputCommitter must be initialized before commitJob");
     mapreduceOutputCommitter.commitJob(jobContext);
@@ -87,7 +87,7 @@ class BigQueryMapredOutputCommitter extends OutputCommitter {
 
   @Override
   public void commitTask(TaskAttemptContext taskContext) throws IOException {
-    log.debug("commitTask");
+    LOG.debug("commitTask");
     initMapreduceOutputCommitter(taskContext);
     mapreduceOutputCommitter.commitTask(taskContext);
   }
@@ -95,14 +95,14 @@ class BigQueryMapredOutputCommitter extends OutputCommitter {
   @Override
   public boolean needsTaskCommit(TaskAttemptContext taskContext)
       throws IOException {
-    log.debug("needsTaskCommit");
+    LOG.debug("needsTaskCommit");
     initMapreduceOutputCommitter(taskContext);
     return mapreduceOutputCommitter.needsTaskCommit(taskContext);
   }
 
   @Override
   public void setupJob(JobContext jobContext) throws IOException {
-    log.debug("setupJob");
+    LOG.debug("setupJob");
     Preconditions.checkState(mapreduceOutputCommitter != null,
         "mapreduceOutputCommitter must be initialized before setupJob");
     mapreduceOutputCommitter.setupJob(jobContext);
@@ -110,7 +110,7 @@ class BigQueryMapredOutputCommitter extends OutputCommitter {
 
   @Override
   public void setupTask(TaskAttemptContext taskContext) throws IOException {
-    log.debug("setupTask");
+    LOG.debug("setupTask");
     initMapreduceOutputCommitter(taskContext);
     mapreduceOutputCommitter.setupTask(taskContext);
   }
@@ -119,21 +119,21 @@ class BigQueryMapredOutputCommitter extends OutputCommitter {
   private void initMapreduceOutputCommitter(TaskAttemptContext taskContext)
       throws IOException {
     if (mapreduceOutputCommitter != null) {
-      log.debug("Using existing mapreduceOutputCommitter");
+      LOG.debug("Using existing mapreduceOutputCommitter");
       return;
     }
 
     // It would be nice to use the BigQueryOutputFormat that already exists
     // (there is one wrapped inside our BigQueryMapredOutputFormat), but
     // there does not seem to be an easy way to do that. So make another one.
-    log.debug("Creating BigQueryOutputFormat");
+    LOG.debug("Creating BigQueryOutputFormat");
     BigQueryOutputFormat<Object, JsonObject> mapreduceOutputFormat =
         new BigQueryOutputFormat<Object, JsonObject>();
 
     // Fortunately, mapred.TaskAttemptContext is a subclass of
     // mapreduce.TaskAttemptContext, so we can use it directly.
     try {
-      log.debug("Creating mapreduce OutputCommit");
+      LOG.debug("Creating mapreduce OutputCommit");
       mapreduceOutputCommitter = mapreduceOutputFormat.getOutputCommitter(
           taskContext);
     } catch (InterruptedException ex) {

@@ -1,13 +1,13 @@
 package com.google.cloud.hadoop.io.bigquery;
 
-import com.google.cloud.hadoop.util.LogUtil;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.lib.input.LineRecordReader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -16,12 +16,12 @@ import java.io.IOException;
  * by BigQuery.
  */
 public class JsonTextBigQueryInputFormat extends AbstractBigQueryInputFormat<LongWritable, Text> {
-  protected static final LogUtil log = new LogUtil(JsonTextBigQueryInputFormat.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(JsonTextBigQueryInputFormat.class);
 
   @Override
   public RecordReader<LongWritable, Text> createDelegateRecordReader(
       InputSplit split, Configuration configuration) throws IOException, InterruptedException {
-    log.debug("createDelegateRecordReader -> new LineRecordReader");
+    LOG.debug("createDelegateRecordReader -> new LineRecordReader");
     return new LineRecordReader();
   }
 

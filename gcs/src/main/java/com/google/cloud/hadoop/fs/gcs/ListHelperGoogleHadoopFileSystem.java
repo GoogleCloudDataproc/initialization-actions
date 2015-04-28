@@ -77,7 +77,7 @@ class ListHelperGoogleHadoopFileSystem
       URI parentPath = GoogleCloudStorageFileSystem.getParentPath(info.getPath());
       while (parentPath != null && !parentPath.equals(GoogleCloudStorageFileSystem.GCS_ROOT)) {
         if (!providedPaths.contains(parentPath)) {
-          log.debug("Adding fake entry for missing parent path '%s'", parentPath);
+          LOG.debug("Adding fake entry for missing parent path '{}'", parentPath);
           GoogleCloudStorageItemInfo fakeInfo = new GoogleCloudStorageItemInfo(
               GoogleCloudStorageFileSystem.validatePathAndGetId(parentPath, true),
               0, 0, null, null);

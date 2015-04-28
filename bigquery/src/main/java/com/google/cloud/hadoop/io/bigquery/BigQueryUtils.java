@@ -9,7 +9,6 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.cloud.hadoop.util.OperationWithRetry;
 import com.google.common.base.Preconditions;
 import com.google.gson.JsonArray;
@@ -18,6 +17,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import org.apache.hadoop.util.Progressable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -29,7 +30,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class BigQueryUtils {
   // Logger.
-  public static final LogUtil log = new LogUtil(BigQueryUtils.class);
+  public static final Logger LOG = LoggerFactory.getLogger(BigQueryUtils.class);
 
   // Initial wait interval
   public static final int POLL_WAIT_INITIAL_MILLIS =
@@ -89,7 +90,7 @@ public class BigQueryUtils {
 
       Job pollJob = pollJobOperation.execute();
       elapsedTime = System.currentTimeMillis() - startTime;
-      log.debug("Job status (%d ms) %s: %s", elapsedTime, jobReference.getJobId(),
+      LOG.debug("Job status ({} ms) {}: {}", elapsedTime, jobReference.getJobId(),
           pollJob.getStatus().getState());
       if (pollJob.getStatus().getState().equals("DONE")) {
         notDone = false;
@@ -120,7 +121,7 @@ public class BigQueryUtils {
    * @return the List of TableFieldSchema described by the string fields.
    */
   public static List<TableFieldSchema> getSchemaFromString(String fields) {
-    log.debug("getSchemaFromString('%s')", fields);
+    LOG.debug("getSchemaFromString('{}')", fields);
 
     // Parse the output schema for Json from fields.
     JsonParser jsonParser = new JsonParser();

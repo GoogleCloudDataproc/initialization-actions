@@ -1,7 +1,6 @@
 package com.google.cloud.hadoop.io.bigquery.mapred;
 
 import com.google.cloud.hadoop.io.bigquery.GsonBigQueryInputFormat;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.gson.JsonObject;
@@ -17,6 +16,8 @@ import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.TaskID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
@@ -28,8 +29,8 @@ import java.util.List;
 public class BigQueryMapredInputFormat
     implements InputFormat<LongWritable, JsonObject> {
 
-  protected static final LogUtil log =
-      new LogUtil(BigQueryMapredInputFormat.class);
+  protected static final Logger LOG =
+      LoggerFactory.getLogger(BigQueryMapredInputFormat.class);
 
   private org.apache.hadoop.mapreduce.InputFormat<LongWritable, JsonObject>
       mapreduceInputFormat = new GsonBigQueryInputFormat();
@@ -47,10 +48,10 @@ public class BigQueryMapredInputFormat
         job.getBoolean("mapred.bq.inputformat.configuration.dump", false);
 
     if (dumpConfiguration) {
-      log.debug("getSplits has this JobConf: %s", job);
+      LOG.debug("getSplits has this JobConf: {}", job);
       java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
       job.writeXml(baos);
-      log.debug("Dump of job: %s", baos);
+      LOG.debug("Dump of job: {}", baos);
     }
 
     JobContext jobContext = BigQueryMapredJobContext.from(job);
@@ -74,7 +75,7 @@ public class BigQueryMapredInputFormat
     int ii = 0;
     for (org.apache.hadoop.mapreduce.InputSplit mapreduceSplit :
         mapreduceSplits) {
-      log.debug("Split[%d] = %s", ii, mapreduceSplit);
+      LOG.debug("Split[{}] = {}", ii, mapreduceSplit);
       splits[ii++] = new BigQueryMapredInputSplit(mapreduceSplit);
     }
     return splits;
@@ -98,7 +99,7 @@ public class BigQueryMapredInputFormat
           ReflectedTaskAttemptContextFactory.getContext(conf, taskAttemptId);
       org.apache.hadoop.mapreduce.InputSplit mapreduceInputSplit =
           ((BigQueryMapredInputSplit) inputSplit).getMapreduceInputSplit();
-      log.debug("mapreduceInputSplit is %s, class is %s",
+      LOG.debug("mapreduceInputSplit is {}, class is {}",
           mapreduceInputSplit,
           mapreduceInputSplit.getClass().getName());
       org.apache.hadoop.mapreduce.RecordReader<LongWritable, JsonObject>

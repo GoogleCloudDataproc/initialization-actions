@@ -1,6 +1,5 @@
 package com.google.cloud.hadoop.io.bigquery;
 
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Preconditions;
 
 import org.apache.avro.Schema;
@@ -18,6 +17,8 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -25,7 +26,7 @@ import java.io.IOException;
  * RecordReader for avro BigQuery exports.
  */
 public class AvroRecordReader extends RecordReader<LongWritable, GenericData.Record> {
-  protected static final LogUtil LOG = new LogUtil(AvroRecordReader.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(AvroRecordReader.class);
 
   final LongWritable currentKey = new LongWritable();
   FileReader<GenericData.Record> dataFileReader;

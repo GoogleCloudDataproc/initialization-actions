@@ -1,7 +1,6 @@
 package com.google.cloud.hadoop.io.bigquery.mapred;
 
 import com.google.cloud.hadoop.io.bigquery.BigQueryOutputFormat;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.gson.JsonObject;
@@ -14,6 +13,8 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.util.Progressable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
@@ -23,19 +24,19 @@ import java.io.IOException;
  */
 class BigQueryMapredOutputFormat<K, V> implements OutputFormat<K, V> {
 
-  protected static final LogUtil log =
-      new LogUtil(BigQueryMapredOutputFormat.class);
+  protected static final Logger LOG =
+      LoggerFactory.getLogger(BigQueryMapredOutputFormat.class);
 
   private org.apache.hadoop.mapreduce.OutputFormat<K, JsonObject>
       mapreduceOutputFormat = new BigQueryOutputFormat<K, JsonObject>();
 
   public BigQueryMapredOutputFormat() {
-    log.debug("BigQueryMapredOutputFormat created");
+    LOG.debug("BigQueryMapredOutputFormat created");
   }
 
   public void checkOutputSpecs(FileSystem ignored, JobConf job)
       throws IOException {
-    log.debug("checkOutputSpecs");
+    LOG.debug("checkOutputSpecs");
     JobContext jobContext = BigQueryMapredJobContext.from(job);
     try {
       mapreduceOutputFormat.checkOutputSpecs(jobContext);
@@ -49,9 +50,9 @@ class BigQueryMapredOutputFormat<K, V> implements OutputFormat<K, V> {
     // We assume the name is the task ID.
     String taskId = job.get("mapred.task.id");
     Preconditions.checkArgument(taskId != null, "mapred.task.id must be set");
-    log.debug("getRecordWriter name=%s, mapred.task.id=%s", name, taskId);
+    LOG.debug("getRecordWriter name={}, mapred.task.id={}", name, taskId);
     TaskAttemptID taskAttemptId = TaskAttemptID.forName(taskId);
-    log.debug("TaskAttemptId=%s", taskAttemptId);
+    LOG.debug("TaskAttemptId={}", taskAttemptId);
     TaskAttemptContext context =
         ReflectedTaskAttemptContextFactory.getContext(job, taskAttemptId);
     org.apache.hadoop.mapreduce.RecordWriter<K, JsonObject>

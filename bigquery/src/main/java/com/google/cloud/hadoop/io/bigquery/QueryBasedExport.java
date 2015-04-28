@@ -6,13 +6,14 @@ import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.util.Progressable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
@@ -22,7 +23,7 @@ import java.util.List;
  */
 public class QueryBasedExport implements Export {
 
-  protected static final LogUtil log = new LogUtil(QueryBasedExport.class);
+  protected static final Logger LOG = LoggerFactory.getLogger(QueryBasedExport.class);
 
   private final String query;
   private final BigQueryHelper bigQueryHelper;
@@ -69,7 +70,7 @@ public class QueryBasedExport implements Export {
   @Override
   public void prepare() throws IOException {
     if (!Strings.isNullOrEmpty(query)) {
-      log.info("Invoking query '%s' and saving to '%s' before beginning export/read.",
+      LOG.info("Invoking query '{}' and saving to '{}' before beginning export/read.",
           query, BigQueryStrings.toString(tableToExport));
       try {
         runQuery(bigQueryHelper, projectId, tableToExport, query);
@@ -85,8 +86,8 @@ public class QueryBasedExport implements Export {
   @Override
   public void cleanupExport() throws IOException {
     if (deleteIntermediateTable) {
-      log.info(
-          "Deleting input intermediate table: %s:%s.%s",
+      LOG.info(
+          "Deleting input intermediate table: {}:{}.{}",
           tableToExport.getProjectId(),
           tableToExport.getDatasetId(),
           tableToExport.getTableId());
@@ -114,7 +115,7 @@ public class QueryBasedExport implements Export {
   static void runQuery(
       BigQueryHelper bigQueryHelper, String projectId, TableReference tableRef, String query)
       throws IOException, InterruptedException {
-    log.debug("runQuery(bigquery, '%s', '%s', '%s')",
+    LOG.debug("runQuery(bigquery, '{}', '{}', '{}')",
         projectId, BigQueryStrings.toString(tableRef), query);
 
     // Create a query statement and query request object.
@@ -139,7 +140,7 @@ public class QueryBasedExport implements Export {
 
     // Run the job.
     Job response = bigQueryHelper.insertJobOrFetchDuplicate(projectId, job);
-    log.debug("Got response '%s'", response);
+    LOG.debug("Got response '{}'", response);
 
     // Create anonymous Progressable object
     Progressable progressable = new Progressable() {

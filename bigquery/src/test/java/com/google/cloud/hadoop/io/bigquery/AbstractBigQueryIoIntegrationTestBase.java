@@ -10,7 +10,6 @@ import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
 import com.google.cloud.hadoop.gcsio.TestConfiguration;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
-import com.google.cloud.hadoop.util.LogUtil;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
@@ -31,6 +30,8 @@ import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.TaskID;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -56,7 +57,8 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
   protected static final String COMPANY_NAME_FIELD_NAME = "CompanyName";
 
   // Logger.
-  private static final LogUtil log = new LogUtil(AbstractBigQueryIoIntegrationTestBase.class);
+  private static final org.slf4j.Logger LOG =
+      org.slf4j.LoggerFactory.getLogger(AbstractBigQueryIoIntegrationTestBase.class);
 
   // Populated by command-line projectId and falls back to env.
   private String projectIdvalue;
@@ -151,14 +153,12 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
 
     TestConfiguration configuration = TestConfiguration.getInstance();
 
-    // For our test purposes, it's well worth it to have DEBUG-level logging for the BigQuery
-    // connector classes.
-    GsonBigQueryInputFormat.log.setLevel(LogUtil.Level.DEBUG);
-    BigQueryOutputCommitter.log.setLevel(LogUtil.Level.DEBUG);
-    BigQueryOutputFormat.log.setLevel(LogUtil.Level.DEBUG);
-    BigQueryRecordWriter.log.setLevel(LogUtil.Level.DEBUG);
-    BigQueryUtils.log.setLevel(LogUtil.Level.DEBUG);
-    GsonRecordReader.log.setLevel(LogUtil.Level.DEBUG);
+    Logger.getLogger(GsonBigQueryInputFormat.class).setLevel(Level.DEBUG);
+    Logger.getLogger(BigQueryOutputCommitter.class).setLevel(Level.DEBUG);
+    Logger.getLogger(BigQueryOutputFormat.class).setLevel(Level.DEBUG);
+    Logger.getLogger(BigQueryRecordWriter.class).setLevel(Level.DEBUG);
+    Logger.getLogger(BigQueryUtils.class).setLevel(Level.DEBUG);
+    Logger.getLogger(GsonRecordReader.class).setLevel(Level.DEBUG);
 
     // Use current time to label the test run.
     // TODO(user): Use a date formatter.
@@ -190,12 +190,12 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
 
     Bigquery.Datasets datasets = bigqueryInstance.datasets();
     outputDataset.setDatasetReference(datasetReference);
-    log.info("Creating temporary dataset '%s' for project '%s'", testDataset, projectIdvalue);
+    LOG.info("Creating temporary dataset '{}' for project '{}'", testDataset, projectIdvalue);
     datasets.insert(projectIdvalue, outputDataset).execute();
 
     Path toCreate = new Path(String.format("gs://%s", testBucket));
     FileSystem fs = toCreate.getFileSystem(config);
-    log.info("Creating temporary test bucket '%s'", toCreate);
+    LOG.info("Creating temporary test bucket '{}'", toCreate);
     fs.mkdirs(toCreate);
 
     // Since the TaskAttemptContext and JobContexts are mostly used just to access a
@@ -232,14 +232,14 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     // Delete the test dataset along with all tables inside it.
     // TODO(user): Move this into library shared by BigQueryOutputCommitter.
     Bigquery.Datasets datasets = bigqueryInstance.datasets();
-    log.info("Deleting temporary test dataset '%s' for project '%s'", testDataset, projectIdvalue);
+    LOG.info("Deleting temporary test dataset '{}' for project '{}'", testDataset, projectIdvalue);
     datasets.delete(projectIdvalue, testDataset).setDeleteContents(true).execute();
 
     // Recursively delete the testBucket.
     setConfigForGcsFromBigquerySettings();
     Path toDelete = new Path(String.format("gs://%s", testBucket));
     FileSystem fs = toDelete.getFileSystem(config);
-    log.info("Deleting temporary test bucket '%s'", toDelete);
+    LOG.info("Deleting temporary test bucket '{}'", toDelete);
     fs.delete(toDelete, true);
   }
 

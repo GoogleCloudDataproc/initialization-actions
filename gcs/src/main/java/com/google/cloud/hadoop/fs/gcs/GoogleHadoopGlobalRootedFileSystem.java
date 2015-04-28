@@ -91,7 +91,7 @@ public class GoogleHadoopGlobalRootedFileSystem
    */
   @Override
   public Path getHadoopPath(URI gcsPath) {
-    log.debug("GHFS.getHadoopPath: %s", gcsPath);
+    LOG.debug("GHFS.getHadoopPath: {}", gcsPath);
 
     // Handle root.
     if (gcsPath.equals(getGcsPath(getFileSystemRoot()))) {
@@ -112,7 +112,7 @@ public class GoogleHadoopGlobalRootedFileSystem
 
     StorageResourceId resourceId = GoogleCloudStorageFileSystem.validatePathAndGetId(gcsPath, true);
     Path hadoopPath = getHadoopPathFromResourceId(resourceId);
-    log.debug("GHFS.getHadoopPath: %s -> %s", gcsPath, hadoopPath);
+    LOG.debug("GHFS.getHadoopPath: {} -> {}", gcsPath, hadoopPath);
     return hadoopPath;
   }
 
@@ -150,7 +150,7 @@ public class GoogleHadoopGlobalRootedFileSystem
 
   @Override
   public URI getGcsPath(Path hadoopPath) {
-    log.debug("GHFS.getGcsPath: %s", hadoopPath);
+    LOG.debug("GHFS.getGcsPath: {}", hadoopPath);
 
     // Convert to fully qualified absolute path; the Path object will callback to get our current
     // workingDirectory as part of fully resolving the path.
@@ -179,7 +179,7 @@ public class GoogleHadoopGlobalRootedFileSystem
       throw new IllegalArgumentException(msg, e);
     }
 
-    log.debug("GHFS.getGcsPath: %s -> %s", hadoopPath, gcsPath);
+    LOG.debug("GHFS.getGcsPath: {} -> {}", hadoopPath, gcsPath);
     return gcsPath;
   }
 
