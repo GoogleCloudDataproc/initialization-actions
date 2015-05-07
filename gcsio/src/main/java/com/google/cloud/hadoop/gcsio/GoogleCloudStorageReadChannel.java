@@ -36,12 +36,11 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channel;
 import java.nio.channels.Channels;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ReadableByteChannel;
 import java.util.regex.Pattern;
-
-import javax.net.ssl.SSLException;
 
 /**
  * Provides seekable read access to GCS.
@@ -65,7 +64,8 @@ public class GoogleCloudStorageReadChannel
   private String objectName;
 
   // Read channel.
-  private ReadableByteChannel readChannel;
+  @VisibleForTesting
+  ReadableByteChannel readChannel;
 
   // True if this channel is open, false otherwise.
   private boolean channelIsOpen;
@@ -238,6 +238,8 @@ public class GoogleCloudStorageReadChannel
   /**
    * Reads from this channel and stores read data in the given buffer.
    *
+   * <p> On unexpected failure, will attempt to close the channel and clean up state.
+   *
    * @param buffer buffer to read data into
    * @return number of bytes read or -1 on end-of-stream
    * @throws IOException on IO error
@@ -339,28 +341,15 @@ public class GoogleCloudStorageReadChannel
           currentPosition = -1;
           position(newPosition);
 
-          // Before performing lazy seek, explicitly close the underlying channel if necessary,
-          // catching and ignoring SSLException since the retry indicates an error occurred, so
-          // there's a high probability that SSL connections would be broken in a way that
-          // causes close() itself to throw an exception, even though underlying sockets have
-          // already been cleaned up; close() on an SSLSocketImpl requires a shutdown handshake
-          // in order to shutdown cleanly, and if the connection has been broken already, then
-          // this is not possible, and the SSLSocketImpl was already responsible for performing
-          // local cleanup at the time the exception was raised.
+          // Before performing lazy seek, explicitly close the underlying channel if necessary.
           if (lazySeekPending && readChannel != null) {
-            try {
-              readChannel.close();
-              readChannel = null;
-            } catch (SSLException ssle) {
-              LOG.debug("Got SSLException on readChannel.close() before retry; ignoring it.", ssle);
-              readChannel = null;
-            }
-            // For "other" exceptions, we'll let it propagate out without setting readChannel to
-            // null, in case the caller is able to handle it and then properly try to close()
-            // again.
+            closeReadChannel();
           }
           performLazySeek();
         }
+      } catch (RuntimeException r) {
+        closeReadChannel();
+        throw r;
       }
     } while (buffer.remaining() > 0);
 
@@ -391,6 +380,30 @@ public class GoogleCloudStorageReadChannel
     return channelIsOpen;
   }
 
+ /**
+   * Closes the underlying {@link ReadableByteChannel}.
+   *
+   * <p>Catches and ignores all exceptions as there is not a lot the user can do to fix errors here
+   * and a new connection will be needed. Especially SSLExceptions since the there's a high
+   * probability that SSL connections would be broken in a way that causes
+   * {@link Channel#close()} itself to throw an exception, even though underlying
+   * sockets have already been cleaned up; close() on an SSLSocketImpl requires a shutdown
+   * handshake in order to shutdown cleanly, and if the connection has been broken already, then
+   * this is not possible, and the SSLSocketImpl was already responsible for performing local
+   * cleanup at the time the exception was raised.
+   */
+  private void closeReadChannel() {
+    if (readChannel != null) {
+      try {
+        readChannel.close();
+      } catch (Exception e) {
+        LOG.debug("Got an exception on readChannel.close(); ignoring it.", e);
+      } finally {
+        readChannel = null;
+      }
+    }
+  }
+
   /**
    * Closes this channel.
    *
@@ -406,9 +419,7 @@ public class GoogleCloudStorageReadChannel
       return;
     }
     channelIsOpen = false;
-    if (readChannel != null) {
-      readChannel.close();
-    }
+    closeReadChannel();
   }
 
   /**
@@ -510,9 +521,7 @@ public class GoogleCloudStorageReadChannel
     }
 
     // Close the underlying channel if it is open.
-    if (readChannel != null) {
-      readChannel.close();
-    }
+    closeReadChannel();
 
     InputStream objectContentStream = openStreamAndSetSize(currentPosition);
     readChannel = Channels.newChannel(objectContentStream);

@@ -858,6 +858,84 @@ public class GoogleCloudStorageTest {
   }
 
   @Test
+  public void testClosesWithRuntimeExceptionDuringReadAndClose()
+      throws IOException, InterruptedException {
+    setUpBasicMockBehaviorForOpeningReadChannel();
+
+    // First returned timeout stream will timout;
+    InputStream mockExceptionStream = mock(InputStream.class);
+    byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
+    when(mockStorageObjectsGet.executeMedia())
+        .thenReturn(createFakeResponse(testData.length, mockExceptionStream));
+
+    when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
+        .thenThrow(new RuntimeException("fake RuntimeException"));
+    doThrow(new SSLException("fake SSLException on close()"))
+        .when(mockExceptionStream).close();
+
+
+    GoogleCloudStorageReadChannel readChannel =
+        (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
+    setUpAndValidateReadChannelMocksAndSetMaxRetries(readChannel, 3);
+
+    try {
+      byte[] actualData = new byte[testData.length];
+      readChannel.read(ByteBuffer.wrap(actualData));
+      fail();
+    } catch (RuntimeException expected) {
+    }
+
+    assertEquals(readChannel.readChannel, null);
+    verify(mockStorage, atLeastOnce()).objects();
+    verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockClientRequestHelper, times(1)).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders, times(1)).setRange(eq("bytes=0-"));
+    verify(mockStorageObjectsGet, times(1)).execute();
+    verify(mockStorageObjectsGet, times(1)).executeMedia();
+  }
+
+  @Test
+  public void testCloseWithExceptionDuringClose()
+      throws IOException, InterruptedException {
+    setUpBasicMockBehaviorForOpeningReadChannel();
+
+    // First returned timeout stream will timout;
+    InputStream mockExceptionStream = mock(InputStream.class);
+    byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
+    when(mockStorageObjectsGet.executeMedia())
+        .thenReturn(createFakeResponse(testData.length, mockExceptionStream));
+
+    when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
+        .thenThrow(new SSLException("fake SSLException"));
+    doThrow(new SSLException("fake SSLException on close()"))
+        .when(mockExceptionStream).close();
+
+    GoogleCloudStorageReadChannel readChannel =
+        (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
+    setUpAndValidateReadChannelMocksAndSetMaxRetries(readChannel, 0);
+
+    try {
+      byte[] actualData = new byte[testData.length];
+      readChannel.read(ByteBuffer.wrap(actualData));
+      fail();
+    } catch (IOException expected) {
+    }
+
+    assertTrue(readChannel.readChannel != null);
+
+    // Should not throw exception. If it does, it will be caught by the test harness.
+    readChannel.close();
+
+    assertEquals(readChannel.readChannel, null);
+    verify(mockStorage, atLeastOnce()).objects();
+    verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockClientRequestHelper, times(1)).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders, times(1)).setRange(eq("bytes=0-"));
+    verify(mockStorageObjectsGet, times(1)).execute();
+    verify(mockStorageObjectsGet, times(1)).executeMedia();
+  }
+
+  @Test
   public void testOpenAndReadWithPrematureEndOfStreamRetriesFail()
       throws IOException, InterruptedException {
     setUpBasicMockBehaviorForOpeningReadChannel();
@@ -1185,12 +1263,13 @@ public class GoogleCloudStorageTest {
         .thenReturn(createFakeResponseForRange(
             testData2.length, new ByteArrayInputStream(testData2)));
 
-    SeekableReadableByteChannel readChannel =
-        gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
+   GoogleCloudStorageReadChannel readChannel =
+        (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     assertTrue(readChannel.isOpen());
     assertEquals(0, readChannel.position());
     byte[] actualData = new byte[testData.length];
     assertEquals(testData.length, readChannel.read(ByteBuffer.wrap(actualData)));
+    assertTrue(readChannel.readChannel != null);
     assertArrayEquals(testData, actualData);
     assertEquals(testData.length, readChannel.position());
 
