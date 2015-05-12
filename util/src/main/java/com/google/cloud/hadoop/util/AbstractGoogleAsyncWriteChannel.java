@@ -59,7 +59,7 @@ public abstract class AbstractGoogleAsyncWriteChannel
 
   // Chunk size to use.
   public static final int UPLOAD_CHUNK_SIZE_DEFAULT =
-      Runtime.getRuntime().totalMemory() < 512 * 1024 * 1024
+      Runtime.getRuntime().maxMemory() < 512 * 1024 * 1024
            ? GCS_UPLOAD_GRANULARITY : 8 * GCS_UPLOAD_GRANULARITY;
 
   /**
