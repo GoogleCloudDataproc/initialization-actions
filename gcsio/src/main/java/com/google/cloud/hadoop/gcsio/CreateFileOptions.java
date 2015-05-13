@@ -16,6 +16,7 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 import java.util.Map;
@@ -24,28 +25,59 @@ import java.util.Map;
  * Options that can be specified when creating a file in the {@code GoogleCloudFileSystem}.
  */
 public class CreateFileOptions {
-
   public static final Map<String, byte[]> EMPTY_ATTRIBUTES = ImmutableMap.of();
-  public static final CreateFileOptions DEFAULT = new CreateFileOptions(true, EMPTY_ATTRIBUTES);
+  public static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
+  public static final CreateFileOptions DEFAULT =
+      new CreateFileOptions(true, DEFAULT_CONTENT_TYPE, EMPTY_ATTRIBUTES);
 
   private final boolean overwriteExisting;
+  private final String contentType;
   private final Map<String, byte[]> attributes;
 
   /**
    * Create a file with empty attributes and optionally overwriting any existing file.
+   *
    * @param overwriteExisting True to overwrite an existing file with the same name
    */
   public CreateFileOptions(boolean overwriteExisting) {
-    this(overwriteExisting, EMPTY_ATTRIBUTES);
+    this(overwriteExisting, DEFAULT_CONTENT_TYPE, EMPTY_ATTRIBUTES);
+  }
+
+  /**
+   * Create a file with empty attributes, and optionally overwriting any existing file with one
+   * having the given content-type.
+   *
+   * @param overwriteExisting True to overwrite an existing file with the same name
+   * @param contentType content-type for the created file
+   */
+  public CreateFileOptions(boolean overwriteExisting, String contentType) {
+    this(overwriteExisting, contentType, EMPTY_ATTRIBUTES);
   }
 
   /**
    * Create a file with specified attributes and optionally overwriting an existing file.
+   *
    * @param overwriteExisting True to overwrite an existing file with the same name
    * @param attributes File attributes to apply to the file at creation
    */
   public CreateFileOptions(boolean overwriteExisting, Map<String, byte[]> attributes) {
+    this(overwriteExisting, DEFAULT_CONTENT_TYPE, attributes);
+  }
+
+  /**
+   * Create a file with specified attributes, and optionally overwriting an existing file with one
+   * having the given content-type.
+   *
+   * @param overwriteExisting True to overwrite an existing file with the same name
+   * @param contentType content-type for the created file
+   * @param attributes File attributes to apply to the file at creation
+   */
+  public CreateFileOptions(boolean overwriteExisting, String contentType,
+      Map<String, byte[]> attributes) {
+    Preconditions.checkArgument(!attributes.containsKey("Content-Type"),
+        "The Content-Type attribute must be provided explicitly via the 'contentType' parameter");
     this.overwriteExisting = overwriteExisting;
+    this.contentType = contentType;
     this.attributes = attributes;
   }
 
@@ -54,6 +86,13 @@ public class CreateFileOptions {
    */
   public boolean overwriteExisting() {
     return overwriteExisting;
+  }
+
+  /**
+   * Content-type to set when creating a file.
+   */
+  public String getContentType() {
+    return contentType;
   }
 
   /**

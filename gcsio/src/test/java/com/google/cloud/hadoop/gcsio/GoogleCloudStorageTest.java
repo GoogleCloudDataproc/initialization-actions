@@ -3177,6 +3177,7 @@ public class GoogleCloudStorageTest {
             .setName(OBJECT_NAME)
             .setUpdated(new DateTime(1234L))
             .setSize(BigInteger.valueOf(42L))
+            .setContentType("text/plain")
             .setGeneration(1L)
             .setMetageneration(1L));
     GoogleCloudStorageItemInfo info =
@@ -3187,6 +3188,7 @@ public class GoogleCloudStorageTest {
         42L,
         null,
         null,
+        "text/plain",
         EMPTY_METADATA,
         1L,
         1L);
@@ -3271,6 +3273,7 @@ public class GoogleCloudStorageTest {
         -1L,
         null,
         null,
+        null,
         EMPTY_METADATA,
         0 /* Content Generation */,
         0 /* Meta generation */);
@@ -3338,6 +3341,7 @@ public class GoogleCloudStorageTest {
                   .setName(OBJECT_NAME)
                   .setUpdated(new DateTime(1234L))
                   .setSize(BigInteger.valueOf(42L))
+                  .setContentType("image/png")
                   .setGeneration(1L)
                   .setMetageneration(1L),
               new HttpHeaders());
@@ -3361,6 +3365,7 @@ public class GoogleCloudStorageTest {
         42L,
         null,
         null,
+        "image/png",
         EMPTY_METADATA,
         1 /* Content Generation */,
         1 /* Meta generation */);

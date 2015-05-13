@@ -201,7 +201,8 @@ public class GoogleCloudStorageFileSystem {
    * Convert {@code CreateFileOptions} to {@code CreateObjectOptions}.
    */
   public static CreateObjectOptions objectOptionsFromFileOptions(CreateFileOptions options) {
-    return new CreateObjectOptions(options.overwriteExisting(), options.getAttributes());
+    return new CreateObjectOptions(options.overwriteExisting(), options.getContentType(),
+        options.getAttributes());
   }
 
   /**

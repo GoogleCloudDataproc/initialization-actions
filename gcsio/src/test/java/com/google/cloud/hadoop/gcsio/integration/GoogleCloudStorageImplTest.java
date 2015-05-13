@@ -206,4 +206,35 @@ public class GoogleCloudStorageImplTest {
           ImmutableList.of(resourceId));
     }
   }
+
+  @Test
+  public void testCreateCorrectlySetsContentType() throws IOException {
+    GoogleCloudStorageOptions.Builder builder =
+        GoogleCloudStorageTestHelper.getStandardOptionBuilder();
+    Credential credential = GoogleCloudStorageTestHelper.getCredential();
+    GoogleCloudStorageImpl gcs = new GoogleCloudStorageImpl(builder.build(), credential);
+
+    String bucketName = bucketHelper.getUniqueBucketName("my_bucket");
+    StorageResourceId resourceId1 = new StorageResourceId(bucketName, "obj1");
+    StorageResourceId resourceId2 = new StorageResourceId(bucketName, "obj2");
+    StorageResourceId resourceId3 = new StorageResourceId(bucketName, "obj3");
+
+    try {
+      gcs.create(bucketName);
+      gcs.createEmptyObject(resourceId1,
+          new CreateObjectOptions(true, "text/plain", CreateObjectOptions.EMPTY_METADATA));
+      gcs.create(resourceId2,
+          new CreateObjectOptions(true, "image/png", CreateObjectOptions.EMPTY_METADATA)).close();
+      gcs.create(resourceId3).close(); // default content-type: "application/octet-stream"
+
+      assertEquals("text/plain", gcs.getItemInfo(resourceId1).getContentType());
+      assertEquals("image/png", gcs.getItemInfo(resourceId2).getContentType());
+      assertEquals("application/octet-stream", gcs.getItemInfo(resourceId3).getContentType());
+    } finally {
+      GoogleCloudStorageTestHelper.cleanupTestObjects(
+          gcs,
+          ImmutableList.of(bucketName),
+          ImmutableList.of(resourceId1, resourceId2, resourceId3));
+    }
+  }
 }

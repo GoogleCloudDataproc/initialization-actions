@@ -40,6 +40,7 @@ public class FileInfoTest {
             200L /* size */,
             "location",
             "storage class",
+            "text/plain",
             metadata,
             0L,
             0L);
@@ -61,6 +62,7 @@ public class FileInfoTest {
             200L /* size */,
             "location",
             "storage class",
+            "text/plain",
             metadata,
             0L,
             0L);

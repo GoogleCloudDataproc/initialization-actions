@@ -50,7 +50,7 @@ class InMemoryObjectEntry {
   private GoogleCloudStorageItemInfo info;
 
   public InMemoryObjectEntry(String bucketName, String objectName, long createTimeMillis,
-      Map<String, byte[]> metadata) {
+      String contentType, Map<String, byte[]> metadata) {
     // Override close() to commit its completed byte array into completedContents to reflect
     // the behavior that any readable contents are only well-defined if the writeStream is closed.
     writeStream = new ByteArrayOutputStream() {
@@ -66,6 +66,7 @@ class InMemoryObjectEntry {
               completedContents.length,
               null,
               null,
+              info.getContentType(),
               info.getMetadata(),
               0L,
               0L);
@@ -105,6 +106,7 @@ class InMemoryObjectEntry {
         0,
         null,
         null,
+        contentType,
         ImmutableMap.copyOf(metadata),
         0L,
         0L);
@@ -161,6 +163,7 @@ class InMemoryObjectEntry {
         info.getSize(),
         null,
         null,
+        info.getContentType(),
         info.getMetadata(),
         0L,
         0L);
@@ -235,6 +238,7 @@ class InMemoryObjectEntry {
         completedContents.length,
         null,
         null,
+        info.getContentType(),
         mergedMetadata,
         0L,
         0L);

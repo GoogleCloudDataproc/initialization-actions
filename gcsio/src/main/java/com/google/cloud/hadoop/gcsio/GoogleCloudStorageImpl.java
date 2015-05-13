@@ -98,9 +98,6 @@ public class GoogleCloudStorageImpl
   // Logger.
   private static final Logger LOG = LoggerFactory.getLogger(GoogleCloudStorage.class);
 
-  // com.google.common.net cannot be imported here for various dependency reasons.
-  private static final String OCTECT_STREAM_MEDIA_TYPE = "application/octet-stream";
-
   // Maximum number of times to retry deletes in the case of precondition failures.
   private static final int MAXIMUM_PRECONDITION_FAILURES_IN_DELETE = 4;
 
@@ -404,7 +401,8 @@ public class GoogleCloudStorageImpl
         resourceId.getObjectName(),
         storageOptions.getWriteChannelOptions(),
         writeConditions,
-        rewrittenMetadata);
+        rewrittenMetadata,
+        options.getContentType());
 
     channel.initialize();
 
@@ -917,7 +915,7 @@ public class GoogleCloudStorageImpl
     // Ideally we'd use EmptyContent, but Storage requires an AbstractInputStreamContent and not
     // just an HttpContent, so we'll just use the next easiest thing.
     ByteArrayContent emptyContent =
-        new ByteArrayContent(OCTECT_STREAM_MEDIA_TYPE, new byte[0]);
+        new ByteArrayContent(createObjectOptions.getContentType(), new byte[0]);
     Storage.Objects.Insert insertObject = gcs.objects().insert(
         resourceId.getBucketName(), object, emptyContent);
     insertObject.setDisableGZipContent(true);
@@ -1288,6 +1286,7 @@ public class GoogleCloudStorageImpl
         object.getSize().longValue(),
         null,
         null,
+        object.getContentType(),
         decodedMetadata,
         object.getGeneration(),
         object.getMetageneration());

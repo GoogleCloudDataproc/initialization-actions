@@ -51,6 +51,9 @@ public class GoogleCloudStorageItemInfo {
   // Storage class of this item.
   private final String storageClass;
 
+  // Content-Type of this item
+  private final String contentType;
+
   // User-supplied metadata.
   private final Map<String, byte[]> metadata;
   private final long contentGeneration;
@@ -71,6 +74,7 @@ public class GoogleCloudStorageItemInfo {
         size,
         location,
         storageClass,
+        null,
         ImmutableMap.<String, byte[]>of(),
         0 /* content generation */,
         0 /* meta generation */);
@@ -90,6 +94,7 @@ public class GoogleCloudStorageItemInfo {
       long size,
       String location,
       String storageClass,
+      String contentType,
       Map<String, byte[]> metadata,
       long contentGeneration,
       long metaGeneration) {
@@ -100,6 +105,7 @@ public class GoogleCloudStorageItemInfo {
     this.size = size;
     this.location = location;
     this.storageClass = storageClass;
+    this.contentType = contentType;
     if (metadata == null) {
       this.metadata = EMPTY_METADATA;
     } else {
@@ -163,6 +169,15 @@ public class GoogleCloudStorageItemInfo {
    */
   public String getStorageClass() {
     return storageClass;
+  }
+
+  /**
+   * Gets the content-type of this item, or null if unknown or inapplicable.
+   *
+   * Note: content-type is only supported for objects, and will always be null for buckets.
+   */
+  public String getContentType() {
+    return contentType;
   }
 
   /**

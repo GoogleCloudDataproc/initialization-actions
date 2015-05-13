@@ -117,6 +117,7 @@ public class InMemoryGoogleCloudStorage
         resourceId.getBucketName(),
         resourceId.getObjectName(),
         clock.currentTimeMillis(),
+        options.getContentType(),
         options.getMetadata());
     bucketLookup.get(resourceId.getBucketName()).add(entry);
     return entry.getWriteChannel();
@@ -370,8 +371,8 @@ public class InMemoryGoogleCloudStorage
             .getInfo();
       }
     }
-    GoogleCloudStorageItemInfo notFoundItemInfo = new GoogleCloudStorageItemInfo(
-        resourceId, 0, -1, null, null);
+    GoogleCloudStorageItemInfo notFoundItemInfo =
+        new GoogleCloudStorageItemInfo(resourceId, 0, -1, null, null);
     return notFoundItemInfo;
   }
 
