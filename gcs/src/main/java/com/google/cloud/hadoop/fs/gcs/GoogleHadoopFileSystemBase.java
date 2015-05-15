@@ -26,6 +26,7 @@ import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.HadoopVersionInfo;
+import com.google.cloud.hadoop.util.HttpTransportFactory;
 import com.google.cloud.hadoop.util.PropertyUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -310,6 +311,20 @@ public abstract class GoogleHadoopFileSystemBase
 
   // Default value for fs.gs.create.marker.files.enable
   public static final boolean GCS_ENABLE_MARKER_FILE_CREATION_DEFAULT = false;
+
+  // Configuration key for setting a proxy for the connector to use to connect to GCS.
+  // The proxy must be an HTTP proxy of the form "host:port".
+  public static final String GCS_PROXY_ADDRESS_KEY = "fs.gs.proxy.address";
+
+  // Default to no proxy.
+  public static final String GCS_PROXY_ADDRESS_DEFAULT = null;
+
+  // Configuration key for the name of HttpTransport class to use for connecting to GCS.
+  // Must be the name of an HttpTransportFactory.HttpTransportType (APACHE or JAVA_NET).
+  public static final String GCS_HTTP_TRANSPORT_KEY = "fs.gs.http.transport.type";
+
+  // Default to the default specified in HttpTransportFactory.
+  public static final String GCS_HTTP_TRANSPORT_DEFAULT = null;
 
   // Configuration key for adding a suffix to the GHFS application name sent to GCS.
   public static final String GCS_APPLICATION_NAME_SUFFIX_KEY = "fs.gs.application.name.suffix";
@@ -1790,13 +1805,13 @@ public abstract class GoogleHadoopFileSystemBase
         GoogleCloudStorageFileSystemOptions.newBuilder();
 
     boolean enableMetadataCache = config.getBoolean(
-        GCS_ENABLE_METADATA_CACHE_KEY,
-        GCS_ENABLE_METADATA_CACHE_DEFAULT);
+        GCS_ENABLE_METADATA_CACHE_KEY, GCS_ENABLE_METADATA_CACHE_DEFAULT);
     LOG.debug("{} = {}", GCS_ENABLE_METADATA_CACHE_KEY, enableMetadataCache);
     optionsBuilder.setIsMetadataCacheEnabled(enableMetadataCache);
 
-    DirectoryListCache.Type cacheType = DirectoryListCache.Type.valueOf(config.get(
-        GCS_METADATA_CACHE_TYPE_KEY, GCS_METADATA_CACHE_TYPE_DEFAULT));
+    DirectoryListCache.Type cacheType = DirectoryListCache.Type.valueOf(
+        config.get(
+            GCS_METADATA_CACHE_TYPE_KEY, GCS_METADATA_CACHE_TYPE_DEFAULT));
     LOG.debug("{} = {}", GCS_METADATA_CACHE_TYPE_KEY, cacheType);
     optionsBuilder.setCacheType(cacheType);
 
@@ -1841,6 +1856,16 @@ public abstract class GoogleHadoopFileSystemBase
         .getCloudStorageOptionsBuilder()
         .setCreateMarkerObjects(enableMarkerFileCreation);
 
+    String transportTypeString = config.get(GCS_HTTP_TRANSPORT_KEY, GCS_HTTP_TRANSPORT_DEFAULT);
+    String proxyAddress = config.get(GCS_PROXY_ADDRESS_KEY, GCS_PROXY_ADDRESS_DEFAULT);
+    HttpTransportFactory.HttpTransportType transportType = HttpTransportFactory.getTransportTypeOf(
+        transportTypeString);
+
+    optionsBuilder
+        .getCloudStorageOptionsBuilder()
+        .setTransportType(transportType)
+        .setProxyAddress(proxyAddress);
+
     String projectId =
         ConfigurationUtil.getMandatoryConfig(config, GCS_PROJECT_ID_KEY);
 
@@ -1859,10 +1884,10 @@ public abstract class GoogleHadoopFileSystemBase
     int uploadBufferSize = config.getInt(WRITE_BUFFERSIZE_KEY, WRITE_BUFFERSIZE_DEFAULT);
     LOG.debug("{} = {}", WRITE_BUFFERSIZE_KEY, uploadBufferSize);
 
-    optionsBuilder.
-        getCloudStorageOptionsBuilder().
-        getWriteChannelOptionsBuilder().
-        setUploadBufferSize(uploadBufferSize);
+    optionsBuilder
+        .getCloudStorageOptionsBuilder()
+        .getWriteChannelOptionsBuilder()
+        .setUploadBufferSize(uploadBufferSize);
 
     String applicationNameSuffix = config.get(
         GCS_APPLICATION_NAME_SUFFIX_KEY, GCS_APPLICATION_NAME_SUFFIX_DEFAULT);

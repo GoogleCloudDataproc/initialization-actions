@@ -15,6 +15,7 @@
 package com.google.cloud.hadoop.gcsio;
 
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
+import com.google.cloud.hadoop.util.HttpTransportFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
@@ -57,6 +58,9 @@ public class GoogleCloudStorageOptions {
         INFER_IMPLICIT_DIRECTORIES_DEFAULT;
     private String projectId = null;
     private String appName = null;
+    private HttpTransportFactory.HttpTransportType transportType =
+        HttpTransportFactory.DEFAULT_TRANSPORT_TYPE;
+    private String proxyAddress = null;
     private long maxListItemsPerCall = MAX_LIST_ITEMS_PER_CALL_DEFAULT;
     private boolean createMarkerObjects = CREATE_EMPTY_MARKER_OBJECT_DEFAULT;
 
@@ -105,6 +109,16 @@ public class GoogleCloudStorageOptions {
       return this;
     }
 
+    public Builder setTransportType(HttpTransportFactory.HttpTransportType transportType) {
+      this.transportType = transportType;
+      return this;
+    }
+
+    public Builder setProxyAddress(String proxyAddress) {
+      this.proxyAddress = proxyAddress;
+      return this;
+    }
+
     public Builder setWriteChannelOptionsBuilder(
         AsyncWriteChannelOptions.Builder builder) {
       writeChannelOptionsBuilder = builder;
@@ -124,6 +138,8 @@ public class GoogleCloudStorageOptions {
           maxListItemsPerCall,
           maxRequestsPerBatch,
           createMarkerObjects,
+          transportType,
+          proxyAddress,
           writeChannelOptionsBuilder.build());
     }
   }
@@ -136,6 +152,8 @@ public class GoogleCloudStorageOptions {
   private final boolean inferImplicitDirectoriesEnabled;
   private final String projectId;
   private final String appName;
+  private final HttpTransportFactory.HttpTransportType transportType;
+  private final String proxyAddress;
   private final AsyncWriteChannelOptions writeChannelOptions;
   private final long maxListItemsPerCall;
   private final long maxRequestsPerBatch;
@@ -144,8 +162,13 @@ public class GoogleCloudStorageOptions {
   public GoogleCloudStorageOptions(
       boolean autoRepairImplicitDirectoriesEnabled,
       boolean inferImplicitDirectoriesEnabled,
-      String projectId, String appName, long maxListItemsPerCall,
-      long maxRequestsPerBatch, boolean createMarkerFile,
+      String projectId,
+      String appName,
+      long maxListItemsPerCall,
+      long maxRequestsPerBatch,
+      boolean createMarkerFile,
+      HttpTransportFactory.HttpTransportType transportType,
+      String proxyAddress,
       AsyncWriteChannelOptions writeChannelOptions) {
     this.autoRepairImplicitDirectoriesEnabled = autoRepairImplicitDirectoriesEnabled;
     this.inferImplicitDirectoriesEnabled = inferImplicitDirectoriesEnabled;
@@ -155,6 +178,8 @@ public class GoogleCloudStorageOptions {
     this.maxListItemsPerCall = maxListItemsPerCall;
     this.maxRequestsPerBatch = maxRequestsPerBatch;
     this.createMarkerFile = createMarkerFile;
+    this.transportType = transportType;
+    this.proxyAddress = proxyAddress;
   }
 
   public boolean isAutoRepairImplicitDirectoriesEnabled() {
@@ -171,6 +196,14 @@ public class GoogleCloudStorageOptions {
 
   public String getAppName() {
     return appName;
+  }
+
+  public HttpTransportFactory.HttpTransportType getTransportType() {
+    return transportType;
+  }
+
+  public String getProxyAddress() {
+    return proxyAddress;
   }
 
   public long getMaxListItemsPerCall() {

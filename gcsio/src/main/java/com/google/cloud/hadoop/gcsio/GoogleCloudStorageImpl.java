@@ -23,7 +23,6 @@ import com.google.api.client.http.ByteArrayContent;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpTransport;
-import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.BackOff;
@@ -37,6 +36,7 @@ import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
+import com.google.cloud.hadoop.util.HttpTransportFactory;
 import com.google.cloud.hadoop.util.OperationWithRetry;
 import com.google.cloud.hadoop.util.RetryHttpInitializer;
 import com.google.common.annotations.VisibleForTesting;
@@ -88,9 +88,6 @@ public class GoogleCloudStorageImpl
 
   // Duration of wait (in milliseconds) per retry for a bucket to be empty.
   public static final int BUCKET_EMPTY_WAIT_TIME_MS = 500;
-
-  // Default HTTP transport used for interacting with Google APIs.
-  private static final HttpTransport DEFAULT_HTTP_TRANSPORT = new NetHttpTransport();
 
   // JSON factory used for formatting GCS JSON API payloads.
   private static final JsonFactory JSON_FACTORY = new JacksonFactory();
@@ -207,9 +204,12 @@ public class GoogleCloudStorageImpl
 
     this.httpRequestInitializer = new RetryHttpInitializer(credential, options.getAppName());
 
+    HttpTransport httpTransport = HttpTransportFactory.createHttpTransport(
+        options.getTransportType(), options.getProxyAddress());
+
     // Create GCS instance.
     this.gcs = new Storage.Builder(
-        DEFAULT_HTTP_TRANSPORT, JSON_FACTORY, httpRequestInitializer)
+        httpTransport, JSON_FACTORY, httpRequestInitializer)
         .setApplicationName(options.getAppName())
         .build();
   }

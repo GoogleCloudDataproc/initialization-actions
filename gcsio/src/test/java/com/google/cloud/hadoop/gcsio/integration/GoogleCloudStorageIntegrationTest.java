@@ -23,6 +23,8 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.InMemoryDirectoryListCache;
 import com.google.cloud.hadoop.gcsio.ThrottledGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.ThrottledGoogleCloudStorage.StorageOperation;
+import com.google.cloud.hadoop.util.HttpTransportFactory;
+import com.google.common.base.Optional;
 import com.google.common.util.concurrent.RateLimiter;
 
 import org.junit.runner.RunWith;
@@ -44,12 +46,21 @@ public class GoogleCloudStorageIntegrationTest extends GoogleCloudStorageTest {
         getGoogleCloudStorage(), InMemoryDirectoryListCache.getInstance());
     GoogleCloudStorage cachedFileBackedGcs = new CacheSupplementedGoogleCloudStorage(
         getGoogleCloudStorage(), fileBackedCache);
+    GoogleCloudStorage apacheTransportGcs = getApacheGoogleCloudStorage();
 
     return Arrays.asList(new Object[][]{
         {gcs},
         {cachedGcs},
-        {cachedFileBackedGcs}
+        {cachedFileBackedGcs},
+        {apacheTransportGcs},
     });
+  }
+
+  private static GoogleCloudStorage getApacheGoogleCloudStorage() throws IOException {
+    GoogleCloudStorageOptions.Builder builder = GoogleCloudStorageTestHelper
+        .getStandardOptionBuilder();
+    builder.setTransportType(HttpTransportFactory.HttpTransportType.APACHE);
+    return getGoogleCloudStorage(Optional.of(builder));
   }
 
   public GoogleCloudStorageIntegrationTest(GoogleCloudStorage gcs) {
@@ -57,10 +68,14 @@ public class GoogleCloudStorageIntegrationTest extends GoogleCloudStorageTest {
   }
 
   private static GoogleCloudStorage getGoogleCloudStorage() throws IOException {
+    return getGoogleCloudStorage(Optional.<GoogleCloudStorageOptions.Builder>absent());
+  }
+  private static GoogleCloudStorage getGoogleCloudStorage(
+      Optional<GoogleCloudStorageOptions.Builder> optionalBuilder) throws IOException {
     Credential credential = GoogleCloudStorageTestHelper.getCredential();
 
-    GoogleCloudStorageOptions.Builder builder =
-        GoogleCloudStorageTestHelper.getStandardOptionBuilder();
+    GoogleCloudStorageOptions.Builder builder = optionalBuilder.or(
+        GoogleCloudStorageTestHelper.getStandardOptionBuilder());
 
     return new ThrottledGoogleCloudStorage(
         // Allow 2 create or delete bucket operation every second. This will hit rate limits,
