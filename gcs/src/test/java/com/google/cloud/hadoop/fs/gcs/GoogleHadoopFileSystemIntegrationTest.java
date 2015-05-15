@@ -159,7 +159,7 @@ public class GoogleHadoopFileSystemIntegrationTest
         Assert.assertTrue(e.getLocalizedMessage().startsWith("Wrong FS scheme:"));
       }
     }
-    
+
     List<String> invalidBucketPaths = new ArrayList<>();
     String notRootBucket = "not-" + rootBucket;
     invalidBucketPaths.add("gs://" + notRootBucket);
@@ -397,20 +397,20 @@ public class GoogleHadoopFileSystemIntegrationTest
 
   /**
    * Validates success path in configureBuckets().
-   * @throws URISyntaxException 
-   * @throws IOException 
+   * @throws URISyntaxException
+   * @throws IOException
    */
   @Test @Override
   public void testConfigureBucketsSuccess() throws URISyntaxException, IOException {
     GoogleHadoopFileSystem fs = null;
-    
+
     String systemBucketName =
         ghfsHelper.getUniqueBucketName("-system-bucket");
     String rootBucketName =
         ghfsHelper.getUniqueBucketName("-root-bucket");
 
     URI initUri = (new Path(rootBucketName)).toUri();
-    
+
     // To test configureBuckets which occurs after GCSFS initialization in configure(), while
     // still being reusable by derived unittests (we can't call loadConfig in a test case which
     // is inherited by a derived test), we will use the constructor which already provides a (fake)
@@ -418,7 +418,7 @@ public class GoogleHadoopFileSystemIntegrationTest
 
     GoogleCloudStorageFileSystem fakeGcsFs =
         new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
-    
+
     try {
       fs = new GoogleHadoopFileSystem(fakeGcsFs);
       fs.initUri = initUri;
@@ -566,5 +566,27 @@ public class GoogleHadoopFileSystemIntegrationTest
     Assert.assertEquals(2, subDirectory2Files.length);
     Assert.assertEquals("file1", subDirectory2Files[0].getPath().getName());
     Assert.assertEquals("file2", subDirectory2Files[1].getPath().getName());
+
+    FileStatus[] subDirectory2Files2 = ghfs.globStatus(new Path("/directory1/subdirectory2/file?"));
+    Assert.assertEquals(2, subDirectory2Files2.length);
+    Assert.assertEquals("file1", subDirectory2Files2[0].getPath().getName());
+    Assert.assertEquals("file2", subDirectory2Files2[1].getPath().getName());
+
+    FileStatus[] subDirectory2Files3 =
+        ghfs.globStatus(new Path("/directory1/subdirectory2/file[0-9]"));
+    Assert.assertEquals(2, subDirectory2Files3.length);
+    Assert.assertEquals("file1", subDirectory2Files3[0].getPath().getName());
+    Assert.assertEquals("file2", subDirectory2Files3[1].getPath().getName());
+
+    FileStatus[] subDirectory2Files4 =
+        ghfs.globStatus(new Path("/directory1/subdirectory2/file[^1]"));
+    Assert.assertEquals(1, subDirectory2Files4.length);
+    Assert.assertEquals("file2", subDirectory2Files4[0].getPath().getName());
+
+    FileStatus[] subDirectory2Files5 =
+        ghfs.globStatus(new Path("/directory1/subdirectory2/file{1,2}"));
+    Assert.assertEquals(2, subDirectory2Files5.length);
+    Assert.assertEquals("file1", subDirectory2Files5[0].getPath().getName());
+    Assert.assertEquals("file2", subDirectory2Files5[1].getPath().getName());
   }
 }

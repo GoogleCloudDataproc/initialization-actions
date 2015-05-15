@@ -1237,9 +1237,15 @@ public abstract class GoogleHadoopFileSystemBase
     checkOpen();
 
     LOG.debug("GHFS.globStatus: {}", pathPattern);
+    // URI does not handle glob expressions nicely, for the purpose of
+    // fully-qualifying a path we can URI-encode them.
+    // Using toString() to avoid Path(URI) constructor.
+    Path encodedPath = new Path(pathPattern.toUri().toString());
     // We convert pathPattern to GCS path and then to Hadoop path to ensure that it ends up in
     // the correct format. See note in getHadoopPath for more information.
-    Path fixedPath = getHadoopPath(getGcsPath(pathPattern));
+    Path fixedPath = getHadoopPath(getGcsPath(encodedPath));
+    // Decode URI-encoded path back into a glob path.
+    fixedPath = new Path(URI.create(fixedPath.toString()));
     LOG.debug("GHFS.globStatus fixedPath: {} => {}", pathPattern, fixedPath);
 
     if (shouldUseFlatGlob(fixedPath)) {
