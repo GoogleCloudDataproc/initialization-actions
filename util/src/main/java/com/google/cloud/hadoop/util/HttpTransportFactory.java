@@ -1,15 +1,15 @@
 /**
  * Copyright 2015 Google Inc. All Rights Reserved.
  *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
  *
- *  http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- *  Unless required by applicable law or agreed to in writing, software distributed under the
- * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
- * express or implied. See the License for the specific language governing permissions and
- * limitations under the License.
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
  */
 
 package com.google.cloud.hadoop.util;
@@ -18,6 +18,7 @@ import com.google.api.client.googleapis.GoogleUtils;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.apache.ApacheHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 
 import org.apache.http.HttpHost;
@@ -25,6 +26,8 @@ import org.apache.http.HttpHost;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
 
@@ -63,8 +66,7 @@ public class HttpTransportFactory {
         throw new IllegalArgumentException(
             String.format(
                 "Invalid HttpTransport type '%s'. Must be one of %s.", typeName,
-                Arrays.toString(HttpTransportType.values())),
-            e);
+                Arrays.toString(HttpTransportType.values())), e);
       }
     }
     return type;
@@ -77,25 +79,25 @@ public class HttpTransportFactory {
    * @param proxyAddress The HTTP proxy to use with the transport. Of the form hostname:port. If
    * empty no proxy will be used.
    * @return The resulting HttpTransport.
+   * @throws IllegalArgumentException If the proxy address is invalid.
    * @throws IOException If there is an issue connecting to Google's Certification server.
-   * @throws GeneralSecurityException If there is a security issue with the keystore.
    */
   public static HttpTransport createHttpTransport(
       HttpTransportType type, @Nullable String proxyAddress) throws IOException {
-    HttpHost proxyHost = null;
-    if (!Strings.isNullOrEmpty(proxyAddress)) {
-      proxyHost = new HttpHost(proxyAddress);
-    }
     try {
+      URI proxyUri = parseProxyAddress(proxyAddress);
       switch (type) {
         case APACHE:
+          HttpHost proxyHost = null;
+          if (proxyUri != null) {
+            proxyHost = new HttpHost(proxyUri.getHost(), proxyUri.getPort());
+          }
           return createApacheHttpTransport(proxyHost);
         case JAVA_NET:
           Proxy proxy = null;
-          if (proxyHost != null) {
+          if (proxyUri != null) {
             proxy = new Proxy(
-                Proxy.Type.HTTP,
-                new InetSocketAddress(proxyHost.getHostName(), proxyHost.getPort()));
+                Proxy.Type.HTTP, new InetSocketAddress(proxyUri.getHost(), proxyUri.getPort()));
           }
           return createNetHttpTransport(proxy);
         default:
@@ -137,5 +139,46 @@ public class HttpTransportFactory {
     builder.trustCertificates(GoogleUtils.getCertificateTrustStore());
     builder.setProxy(proxy);
     return builder.build();
+  }
+
+  /**
+   * Parse an HTTP proxy from a String address.
+   * @param proxyAddress The address of the proxy of the form (https?://)HOST:PORT.
+   * @return The URI of the proxy.
+   * @throws IllegalArgumentException If the address is invalid.
+   */
+  @VisibleForTesting
+  static URI parseProxyAddress(@Nullable String proxyAddress) {
+    if (Strings.isNullOrEmpty(proxyAddress)) {
+      return null;
+    }
+    String uriString = proxyAddress;
+    if (!uriString.contains("//")) {
+      uriString = "//" + uriString;
+    }
+    try {
+      URI uri = new URI(uriString);
+      String scheme = uri.getScheme();
+      String host = uri.getHost();
+      int port = uri.getPort();
+      if (!Strings.isNullOrEmpty(scheme) && !scheme.matches("https?")) {
+        throw new IllegalArgumentException(
+            String.format(
+                "HTTP proxy address '%s' has invalid scheme '%s'.", proxyAddress, scheme));
+      } else if (Strings.isNullOrEmpty(host)) {
+        throw new IllegalArgumentException(
+            String.format("Proxy address '%s' has no host.", proxyAddress));
+      } else if (port == -1) {
+        throw new IllegalArgumentException(
+            String.format("Proxy address '%s' has no port.", proxyAddress));
+      } else if (!uri.equals(new URI(scheme, null, host, port, null, null, null))) {
+        throw new IllegalArgumentException(
+            String.format("Invalid proxy address '%s'.", proxyAddress));
+      }
+      return uri;
+    } catch (URISyntaxException e) {
+      throw new IllegalArgumentException(
+          String.format("Invalid proxy address '%s'.", proxyAddress), e);
+    }
   }
 }
