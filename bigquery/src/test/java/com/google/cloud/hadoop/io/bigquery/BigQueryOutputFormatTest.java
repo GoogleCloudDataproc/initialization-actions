@@ -259,9 +259,11 @@ public class BigQueryOutputFormatTest {
     conf.set(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY, datasetId);
     // Create the job and context.
     Job job = new Job(conf, "testGetOutputCommitter");
-    TaskAttemptID taskAttemptId = new TaskAttemptID();
-    String tempDataset = BigQueryOutputFormat.getTempDataset(conf);
-    Assert.assertEquals(datasetId + BigQueryOutputFormat.TEMP_NAME, tempDataset);
+    TaskAttemptID taskAttemptId = new TaskAttemptID("foojob12345", 42, true, 55, 1);
+    String tempDataset = BigQueryOutputFormat.getTempDataset(conf, taskAttemptId);
+    Assert.assertEquals(
+        datasetId + BigQueryOutputFormat.TEMP_NAME + "job_foojob12345_0042",
+        tempDataset);
   }
 
   /**

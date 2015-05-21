@@ -36,8 +36,9 @@ public class BigQueryOutputFormat<K, V extends JsonObject>
     NUMBER_FORMAT.setGroupingUsed(false);
   }
 
-  // Suffix to add to output datasetId to get the temporary working datasetId.
-  public static final String TEMP_NAME = "_hadoop_temporary";
+  // Suffix to add to output datasetId to get the temporary working datasetId before also
+  // appending the JobID as the final suffix for the temporary datasetId.
+  public static final String TEMP_NAME = "_hadoop_temporary_";
 
   // Logger.
   protected static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputFormat.class);
@@ -165,7 +166,7 @@ public class BigQueryOutputFormat<K, V extends JsonObject>
     String outputTableId =
         configuration.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY);
 
-    String outputTempDatasetId = getTempDataset(configuration);
+    String outputTempDatasetId = getTempDataset(configuration, taskAttemptId);
     String outputTempTable = getUniqueTable(taskAttemptId.toString(), outputTableId);
 
     TableReference tempTableRef = new TableReference()
@@ -180,8 +181,9 @@ public class BigQueryOutputFormat<K, V extends JsonObject>
    *
    * @return a temporary datasetId for the working directory.
    */
-  static String getTempDataset(Configuration configuration) {
-    return configuration.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY) + TEMP_NAME;
+  static String getTempDataset(Configuration configuration, TaskAttemptID taskAttemptId) {
+    return configuration.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY) + TEMP_NAME
+        + taskAttemptId.getJobID().toString();
   }
 
   /**
