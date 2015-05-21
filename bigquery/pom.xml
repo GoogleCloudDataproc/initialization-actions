@@ -161,6 +161,7 @@
                     <include>com.google.api-client:*</include>
                     <include>com.google.apis:*</include>
                     <include>com.google.cloud.bigdataoss:util</include>
+                    <include>com.google.cloud.bigdataoss:util-hadoop</include>
                     <include>com.google.guava:*</include>
                     <include>com.google.code.gson:*</include>
                     <include>com.google.http-client:google-http-client</include>
