@@ -31,6 +31,8 @@ public class GoogleCloudStorageFileSystemOptions {
     protected DirectoryListCache.Type cacheType = DirectoryListCache.Type.IN_MEMORY;
     protected String cacheBasePath = null;
     protected Predicate<String> shouldIncludeInTimestampUpdatesPredicate = Predicates.alwaysTrue();
+    protected long cacheMaxEntryAgeMillis = DirectoryListCache.Config.MAX_ENTRY_AGE_MILLIS_DEFAULT;
+    protected long cacheMaxInfoAgeMillis = DirectoryListCache.Config.MAX_INFO_AGE_MILLIS_DEFAULT;
 
     private GoogleCloudStorageOptions.Builder cloudStorageOptionsBuilder =
         new GoogleCloudStorageOptions.Builder();
@@ -66,13 +68,25 @@ public class GoogleCloudStorageFileSystemOptions {
       return this;
     }
 
+    public Builder setCacheMaxEntryAgeMillis(long cacheMaxEntryAgeMillis) {
+      this.cacheMaxEntryAgeMillis = cacheMaxEntryAgeMillis;
+      return this;
+    }
+
+    public Builder setCacheMaxInfoAgeMillis(long cacheMaxInfoAgeMillis) {
+      this.cacheMaxInfoAgeMillis = cacheMaxInfoAgeMillis;
+      return this;
+    }
+
     public GoogleCloudStorageFileSystemOptions build() {
       return new GoogleCloudStorageFileSystemOptions(
           cloudStorageOptionsBuilder.build(),
           metadataCacheEnabled,
           cacheType,
           cacheBasePath,
-          shouldIncludeInTimestampUpdatesPredicate);
+          shouldIncludeInTimestampUpdatesPredicate,
+          cacheMaxEntryAgeMillis,
+          cacheMaxInfoAgeMillis);
     }
   }
 
@@ -85,18 +99,24 @@ public class GoogleCloudStorageFileSystemOptions {
   private final DirectoryListCache.Type cacheType;
   private final String cacheBasePath;  // Only used if cacheType == FILESYSTEM_BACKED.
   private final Predicate<String> shouldIncludeInTimestampUpdatesPredicate;
+  private final long cacheMaxEntryAgeMillis;
+  private final long cacheMaxInfoAgeMillis;
 
   public GoogleCloudStorageFileSystemOptions(
       GoogleCloudStorageOptions cloudStorageOptions,
       boolean metadataCacheEnabled,
       DirectoryListCache.Type cacheType,
       String cacheBasePath,
-      Predicate<String> shouldIncludeInTimestampUpdatesPredicate) {
+      Predicate<String> shouldIncludeInTimestampUpdatesPredicate,
+      long cacheMaxEntryAgeMillis,
+      long cacheMaxInfoAgeMillis) {
     this.cloudStorageOptions = cloudStorageOptions;
     this.metadataCacheEnabled = metadataCacheEnabled;
     this.cacheType = cacheType;
     this.cacheBasePath = cacheBasePath;
     this.shouldIncludeInTimestampUpdatesPredicate = shouldIncludeInTimestampUpdatesPredicate;
+    this.cacheMaxEntryAgeMillis = cacheMaxEntryAgeMillis;
+    this.cacheMaxInfoAgeMillis = cacheMaxInfoAgeMillis;
   }
 
   public GoogleCloudStorageOptions getCloudStorageOptions() {
@@ -117,6 +137,14 @@ public class GoogleCloudStorageFileSystemOptions {
 
   public Predicate<String> getShouldIncludeInTimestampUpdatesPredicate() {
     return shouldIncludeInTimestampUpdatesPredicate;
+  }
+
+  public long getCacheMaxEntryAgeMillis() {
+    return cacheMaxEntryAgeMillis;
+  }
+
+  public long getCacheMaxInfoAgeMillis() {
+    return cacheMaxInfoAgeMillis;
   }
 
   public void throwIfNotValid() {

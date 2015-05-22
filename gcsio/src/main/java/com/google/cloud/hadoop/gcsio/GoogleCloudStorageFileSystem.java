@@ -148,6 +148,8 @@ public class GoogleCloudStorageFileSystem {
           throw new IllegalArgumentException(String.format(
               "DirectoryListCache.Type '%s' not supported.", options.getCacheType()));
       }
+      resourceCache.getMutableConfig().setMaxEntryAgeMillis(options.getCacheMaxEntryAgeMillis());
+      resourceCache.getMutableConfig().setMaxInfoAgeMillis(options.getCacheMaxInfoAgeMillis());
       gcs = new CacheSupplementedGoogleCloudStorage(gcs, resourceCache);
     }
   }

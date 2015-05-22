@@ -69,6 +69,24 @@ public class GoogleCloudStorageFileSystemTest
   }
 
   /**
+   * Helper to fill out some default valid options after which the caller may want to reset a few
+   * invalid options for individual items for particular tests.
+   */
+  private static void setDefaultValidOptions(
+      GoogleCloudStorageFileSystemOptions.Builder optionsBuilder) {
+    optionsBuilder
+        .setIsMetadataCacheEnabled(true)
+        .setCacheMaxEntryAgeMillis(12345L)
+        .setCacheMaxInfoAgeMillis(42L)
+        .getCloudStorageOptionsBuilder()
+            .setAppName("appName")
+            .setProjectId("projectId")
+            .getWriteChannelOptionsBuilder()
+                .setFileSizeLimitedTo250Gb(GCS_FILE_SIZE_LIMIT_250GB_DEFAULT)
+                .setUploadBufferSize(WRITE_BUFFERSIZE_DEFAULT);
+  }
+
+  /**
    * Validates constructor.
    */
   @Test
@@ -77,14 +95,7 @@ public class GoogleCloudStorageFileSystemTest
     GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
         GoogleCloudStorageFileSystemOptions.newBuilder();
 
-    optionsBuilder
-        .setIsMetadataCacheEnabled(true)
-        .getCloudStorageOptionsBuilder()
-        .setAppName("appName")
-        .setProjectId("projectId")
-        .getWriteChannelOptionsBuilder()
-        .setFileSizeLimitedTo250Gb(GCS_FILE_SIZE_LIMIT_250GB_DEFAULT)
-        .setUploadBufferSize(WRITE_BUFFERSIZE_DEFAULT);
+    setDefaultValidOptions(optionsBuilder);
 
     // Verify that projectId == null or empty throws IllegalArgumentException.
     optionsBuilder.getCloudStorageOptionsBuilder().setProjectId(null);
@@ -134,16 +145,19 @@ public class GoogleCloudStorageFileSystemTest
     }
 
     // Verify that fake projectId/appName and empty cred does not throw.
-    optionsBuilder
-        .setIsMetadataCacheEnabled(true)
-        .getCloudStorageOptionsBuilder()
-        .setAppName("appName")
-        .setProjectId("projectId")
-        .getWriteChannelOptionsBuilder()
-        .setFileSizeLimitedTo250Gb(GCS_FILE_SIZE_LIMIT_250GB_DEFAULT)
-        .setUploadBufferSize(WRITE_BUFFERSIZE_DEFAULT);
+    setDefaultValidOptions(optionsBuilder);
 
-    new GoogleCloudStorageFileSystem(cred, optionsBuilder.build());
+    GoogleCloudStorageFileSystem tmpGcsFs =
+        new GoogleCloudStorageFileSystem(cred, optionsBuilder.build());
+
+    // White-box testing; check a few internal outcomes of our options.
+    Assert.assertTrue(tmpGcsFs.getGcs() instanceof CacheSupplementedGoogleCloudStorage);
+    CacheSupplementedGoogleCloudStorage cacheGcs =
+        (CacheSupplementedGoogleCloudStorage) tmpGcsFs.getGcs();
+    Assert.assertEquals(
+        12345L, cacheGcs.getResourceCache().getMutableConfig().getMaxEntryAgeMillis());
+    Assert.assertEquals(
+        42L, cacheGcs.getResourceCache().getMutableConfig().getMaxInfoAgeMillis());
   }
 
   /**

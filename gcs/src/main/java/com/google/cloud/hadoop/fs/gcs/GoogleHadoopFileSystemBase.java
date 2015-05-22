@@ -234,6 +234,28 @@ public abstract class GoogleHadoopFileSystemBase
   public static final String GCS_METADATA_CACHE_DIRECTORY_DEFAULT =
       "/tmp/gcs_connector_metadata_cache";
 
+  // Maximum number of milliseconds a cache entry will remain in the list-consistency cache, even
+  // as an id-only entry (no risk of stale GoogleCloudStorageItemInfo). In general, entries should
+  // be allowed to expire fully from the cache once reasonably certain the remote GCS API's
+  // list-index is up-to-date to save memory and computation when trying to supplement new results
+  // using the cache.
+  public static final String GCS_METADATA_CACHE_MAX_ENTRY_AGE_KEY =
+      "fs.gs.metadata.cache.max.age.entry.ms";
+
+  // Default value for fs.gs.metadata.cache.max.age.entry.ms.
+  public static final long GCS_METADATA_CACHE_MAX_ENTRY_AGE_DEFAULT =
+      DirectoryListCache.Config.MAX_ENTRY_AGE_MILLIS_DEFAULT;
+
+  // Maximum number of milliseconds a GoogleCloudStorageItemInfo will remain "valid" in the
+  // list-consistency cache, after which the next attempt to fetch the itemInfo will require
+  // fetching fresh info from a GoogleCloudStorage instance.
+  public static final String GCS_METADATA_CACHE_MAX_INFO_AGE_KEY =
+      "fs.gs.metadata.cache.max.age.info.ms";
+
+  // Default value for fs.gs.metadata.cache.max.age.info.ms.
+  public static final long GCS_METADATA_CACHE_MAX_INFO_AGE_DEFAULT =
+      DirectoryListCache.Config.MAX_INFO_AGE_MILLIS_DEFAULT;
+
   // Configuration key containing a comma-separated list of sub-strings that when matched will
   // cause a particular directory to not have its modification timestamp updated.
   // Includes take precedence over excludes.
@@ -1819,6 +1841,16 @@ public abstract class GoogleHadoopFileSystemBase
         GCS_METADATA_CACHE_DIRECTORY_KEY, GCS_METADATA_CACHE_DIRECTORY_DEFAULT);
     LOG.debug("{} = {}", GCS_METADATA_CACHE_DIRECTORY_KEY, cacheBasePath);
     optionsBuilder.setCacheBasePath(cacheBasePath);
+
+    long cacheMaxEntryAgeMillis = config.getLong(
+        GCS_METADATA_CACHE_MAX_ENTRY_AGE_KEY, GCS_METADATA_CACHE_MAX_ENTRY_AGE_DEFAULT);
+    LOG.debug("{} = {}", GCS_METADATA_CACHE_MAX_ENTRY_AGE_KEY, cacheMaxEntryAgeMillis);
+    optionsBuilder.setCacheMaxEntryAgeMillis(cacheMaxEntryAgeMillis);
+
+    long cacheMaxInfoAgeMillis = config.getLong(
+        GCS_METADATA_CACHE_MAX_INFO_AGE_KEY, GCS_METADATA_CACHE_MAX_INFO_AGE_DEFAULT);
+    LOG.debug("{} = {}", GCS_METADATA_CACHE_MAX_INFO_AGE_KEY, cacheMaxInfoAgeMillis);
+    optionsBuilder.setCacheMaxInfoAgeMillis(cacheMaxInfoAgeMillis);
 
     Predicate<String> shouldIncludeInTimestampUpdatesPredicate =
         ParentTimestampUpdateIncludePredicate.create(config);

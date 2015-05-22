@@ -62,12 +62,15 @@ public abstract class DirectoryListCache {
     // to expire fully from the cache once reasonably certain the remote GCS API's list-index
     // is up-to-date to save memory and computation when trying to supplement new results using
     // the cache.
-    private long maxEntryAgeMillis = 30 * 60 * 1000L;
+    public static final long MAX_ENTRY_AGE_MILLIS_DEFAULT = 4 * 60 * 60 * 1000L;
 
     // Maximum number of milliseconds a GoogleCloudStorageItemInfo will remain "valid" in the cache,
     // after which the next attempt to fetch the itemInfo will require fetching fresh info from
     // a GoogleCloudStorage instance.
-    private long maxInfoAgeMillis = 10 * 1000L;
+    public static final long MAX_INFO_AGE_MILLIS_DEFAULT = 10 * 1000L;
+
+    private long maxEntryAgeMillis = MAX_ENTRY_AGE_MILLIS_DEFAULT;
+    private long maxInfoAgeMillis = MAX_INFO_AGE_MILLIS_DEFAULT;
 
     /**
      * Getter for maxEntryAgeMillis.

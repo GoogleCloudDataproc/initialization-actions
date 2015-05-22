@@ -16,6 +16,7 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import org.slf4j.Logger;
@@ -530,5 +531,13 @@ public class CacheSupplementedGoogleCloudStorage
   public void waitForBucketEmpty(String bucketName)
       throws IOException {
     gcsDelegate.waitForBucketEmpty(bucketName);
+  }
+
+  /**
+   * Retrieve our internal DirectoryListCache, for testing purposes only.
+   */
+  @VisibleForTesting
+  DirectoryListCache getResourceCache() {
+    return resourceCache;
   }
 }
