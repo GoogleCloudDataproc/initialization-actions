@@ -1,4 +1,4 @@
-1.3.x - xxxx-xx-xx
+1.4.0 - 2015-05-27
 
   1. The new inferImplicitDirectories option to GoogleCloudStorage tells
      it to infer the existence of a directory (such as foo) when that
@@ -11,8 +11,26 @@
      The default value is true.
   2. Increased Hadoop dependency version to 2.6.0.
   3. Fixed a bug introduced in 1.3.2 where, during marker file creation,
-     file info was not proeprly updated between attempts. This lead
-     to backoff-retry-exhaustion with 412-preconditon-net-met errors.
+     file info was not properly updated between attempts. This lead
+     to backoff-retry-exhaustion with 412-preconditon-not-met errors.
+  4. Added support for changing the HttpTransport implementation to use,
+     via fs.gs.http.transport.type = [APACHE | JAVA_NET]
+  5. Added support for setting a proxy of the form "host:port" via
+     fs.gs.proxy.address, which works for both APACHE and JAVA_NET
+     HttpTransport options.
+  6. All logging converted to use slf4j instead of the previous
+     org.apache.commons.logging.Log; removed the LogUtil wrapper which
+     previously wrapped org.apache.commons.logging.Log.
+  7. Automatic retries for premature end-of-stream errors; the previous
+     behavior was to throw an unrecoverable exception in such cases.
+  8. Made close() idempotent for GoogleCloudStorageReadChannel
+  9. Added a low-level method for setting Content-Type metadata in the
+     GoogleCloudStorage interface.
+  10.Increased default DirectoryListCache TTL to 4 hours, wired out TTL
+     settings as top-level config params:
+     fs.gs.metadata.cache.max.age.entry.ms
+     fs.gs.metadata.cache.max.age.info.ms
+
 
 1.3.3 - 2015-02-26
 

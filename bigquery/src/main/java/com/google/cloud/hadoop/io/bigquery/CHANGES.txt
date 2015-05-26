@@ -1,3 +1,13 @@
+0.7.0 - 2015-05-27
+
+  1. All logging converted to use slf4j instead of the previous
+     org.apache.commons.logging.Log; removed the LogUtil wrapper which
+     previously wrapped org.apache.commons.logging.Log.
+  2. Added exponential-backoff automatic retries in waitForJobCompletion.
+  3. Added support for running multiple concurrent jobs writing to the same
+     output dataset by including the JobID as part of the temporary datasetId.
+
+
 0.6.0 - 2015-02-26
 
   1. Fixed a bug in BigQueryOutputFormat which can occasionally cause extraneous
