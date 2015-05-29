@@ -20,13 +20,13 @@
   <parent>
     <groupId>com.google.cloud.bigdataoss</groupId>
     <artifactId>bigdataoss-parent</artifactId>
-    <version>1.4.0</version>
+    <version>1.4.1-SNAPSHOT-20150528-r0</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
   <packaging>jar</packaging>
   <artifactId>util</artifactId>
-  <version>1.4.0</version>
+  <version>1.4.1-SNAPSHOT-20150528-r0</version>
 
   <dependencies>
     <dependency>

@@ -20,7 +20,7 @@
 
   <groupId>com.google.cloud.bigdataoss</groupId>
   <artifactId>bigdataoss-parent</artifactId>
-  <version>1.4.0</version>
+  <version>1.4.1-SNAPSHOT-20150528-r0</version>
   <name>BigDataOSS Parent</name>
   <description>
     Parent project for Google Cloud Platform Big-Data connectors.
@@ -70,10 +70,10 @@
   </prerequisites>
 
   <properties>
-    <bigdataoss.util.version>1.4.0</bigdataoss.util.version>
-    <bigdataoss.util-hadoop.version>1.4.0</bigdataoss.util-hadoop.version>
-    <bigdataoss.gcs.version>1.4.0</bigdataoss.gcs.version>
-    <bigdataoss.gcsio.version>1.4.0</bigdataoss.gcsio.version>
+    <bigdataoss.util.version>1.4.1-SNAPSHOT-20150528-r0</bigdataoss.util.version>
+    <bigdataoss.util-hadoop.version>1.4.1-SNAPSHOT-20150528-r0</bigdataoss.util-hadoop.version>
+    <bigdataoss.gcs.version>1.4.1-SNAPSHOT-20150528-r0</bigdataoss.gcs.version>
+    <bigdataoss.gcsio.version>1.4.1-SNAPSHOT-20150528-r0</bigdataoss.gcsio.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <google.api.version>1.19.0</google.api.version>
     <google.guava.version>17.0</google.guava.version>
