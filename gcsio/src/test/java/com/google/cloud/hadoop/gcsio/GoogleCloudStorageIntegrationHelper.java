@@ -26,6 +26,7 @@ import org.junit.Assert;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
@@ -164,7 +165,7 @@ public abstract class GoogleCloudStorageIntegrationHelper {
    */
   protected String readTextFile(String bucketName, String objectName)
       throws IOException {
-    SeekableReadableByteChannel readChannel = null;
+    SeekableByteChannel readChannel = null;
     ByteBuffer readBuffer = ByteBuffer.allocate(1024);
     StringBuffer returnBuffer = new StringBuffer();
 
@@ -194,7 +195,7 @@ public abstract class GoogleCloudStorageIntegrationHelper {
       String bucketName, String objectName, int offset, int len, boolean checkOverflow)
       throws IOException {
     String text = null;
-    SeekableReadableByteChannel readChannel = null;
+    SeekableByteChannel readChannel = null;
 
     try {
       int bufferSize = len;
@@ -220,7 +221,7 @@ public abstract class GoogleCloudStorageIntegrationHelper {
   /**
    * Opens the given object for reading.
    */
-  protected abstract SeekableReadableByteChannel open(String bucketName, String objectName)
+  protected abstract SeekableByteChannel open(String bucketName, String objectName)
       throws IOException;
 
 

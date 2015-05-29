@@ -54,6 +54,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -508,7 +509,7 @@ public class GoogleCloudStorageImpl
    * See {@link GoogleCloudStorage#open(StorageResourceId)} for details about expected behavior.
    */
   @Override
-  public SeekableReadableByteChannel open(StorageResourceId resourceId)
+  public SeekableByteChannel open(StorageResourceId resourceId)
       throws IOException {
     LOG.debug("open({})", resourceId);
     Preconditions.checkArgument(resourceId.isStorageObject(),

@@ -40,13 +40,14 @@ import java.nio.channels.Channel;
 import java.nio.channels.Channels;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.SeekableByteChannel;
 import java.util.regex.Pattern;
 
 /**
  * Provides seekable read access to GCS.
  */
 public class GoogleCloudStorageReadChannel
-    implements SeekableReadableByteChannel {
+    implements SeekableByteChannel {
   // Logger.
   private static final Logger LOG =
       LoggerFactory.getLogger(GoogleCloudStorageReadChannel.class);
@@ -370,6 +371,16 @@ public class GoogleCloudStorageReadChannel
     }
   }
 
+  @Override
+  public SeekableByteChannel truncate(long size) throws IOException {
+    throw new UnsupportedOperationException("Cannot mutate read-only channel");
+  }
+  
+  @Override
+  public int write(ByteBuffer src) throws IOException {
+    throw new UnsupportedOperationException("Cannot mutate read-only channel");
+  }
+  
   /**
    * Tells whether this channel is open.
    *
@@ -443,7 +454,7 @@ public class GoogleCloudStorageReadChannel
    * @throws IOException on IO error
    */
   @Override
-  public SeekableReadableByteChannel position(long newPosition)
+  public SeekableByteChannel position(long newPosition)
       throws IOException {
     throwIfNotOpen();
 

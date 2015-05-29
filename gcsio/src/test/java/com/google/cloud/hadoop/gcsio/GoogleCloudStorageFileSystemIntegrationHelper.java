@@ -18,6 +18,7 @@ package com.google.cloud.hadoop.gcsio;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.List;
 
@@ -35,7 +36,7 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
    * Opens the given object for reading.
    */
   @Override
-  protected SeekableReadableByteChannel open(String bucketName, String objectName)
+  protected SeekableByteChannel open(String bucketName, String objectName)
       throws IOException {
     URI path = getPath(bucketName, objectName);
     return gcsfs.open(path);

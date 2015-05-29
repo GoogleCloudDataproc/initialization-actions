@@ -19,6 +19,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 
 import java.io.IOException;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
@@ -96,7 +97,7 @@ public class LaggedGoogleCloudStorage implements GoogleCloudStorage  {
   }
 
   @Override
-  public SeekableReadableByteChannel open(
+  public SeekableByteChannel open(
       StorageResourceId resourceId) throws IOException {
     return delegate.open(resourceId);
   }

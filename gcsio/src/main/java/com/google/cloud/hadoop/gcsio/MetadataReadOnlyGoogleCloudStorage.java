@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -124,7 +125,7 @@ public class MetadataReadOnlyGoogleCloudStorage
   }
 
   @Override
-  public SeekableReadableByteChannel open(StorageResourceId resourceId)
+  public SeekableByteChannel open(StorageResourceId resourceId)
       throws IOException {
     throw new UnsupportedOperationException();
   }

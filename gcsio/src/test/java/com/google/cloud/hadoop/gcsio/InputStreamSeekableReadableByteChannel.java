@@ -22,6 +22,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.SeekableByteChannel;
 
 /**
  * InputStreamSeekableReadableByteChannel is an adaptor from any InputStream which returns true
@@ -31,7 +32,7 @@ import java.nio.channels.ReadableByteChannel;
  * random access.
  */
 public class InputStreamSeekableReadableByteChannel
-    implements SeekableReadableByteChannel {
+    implements SeekableByteChannel {
   // Underlying InputStream provided at construction time; must return true for markSupported().
   private final InputStream readStream;
 
@@ -80,7 +81,7 @@ public class InputStreamSeekableReadableByteChannel
   }
 
   @Override
-  public SeekableReadableByteChannel position(long newPosition)
+  public SeekableByteChannel position(long newPosition)
       throws IOException {
     throwIfNotOpen();
 
@@ -129,6 +130,16 @@ public class InputStreamSeekableReadableByteChannel
     return numRead;
   }
 
+  @Override
+  public SeekableByteChannel truncate(long size) throws IOException {
+    throw new UnsupportedOperationException("Cannot mutate read-only channel");
+  }
+  
+  @Override
+  public int write(ByteBuffer src) throws IOException {
+    throw new UnsupportedOperationException("Cannot mutate read-only channel");
+  }
+  
   @Override
   public void close() throws IOException {
     readChannelDelegate.close();
