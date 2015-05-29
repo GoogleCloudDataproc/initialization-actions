@@ -267,7 +267,8 @@ public class CacheSupplementedGoogleCloudStorage
    * the cache entry, then appending the new result to the return list. Items that fail to be
    * fetched will not be returned.
    */
-  private List<GoogleCloudStorageItemInfo> extractItemInfos(List<CacheEntry> cacheEntries)
+  private List<GoogleCloudStorageItemInfo> extractOrRevalidateItemInfos(
+      List<CacheEntry> cacheEntries)
       throws IOException {
     // TODO(user): Batch these.
     List<GoogleCloudStorageItemInfo> supplementalInfos = new ArrayList<>();
@@ -283,9 +284,10 @@ public class CacheSupplementedGoogleCloudStorage
         LOG.info("Populating missing itemInfo on-demand for entry: {}", entry.getResourceId());
         itemInfo = gcsDelegate.getItemInfo(entry.getResourceId());
         if (!itemInfo.exists()) {
-          // TODO(user): Change to info.toString() after adding a good toString().
-          // TODO(user): Update the cache by removing it.
-          LOG.error("Failed to fetch item info for a CacheEntry: {}", entry.getResourceId());
+          LOG.warn(
+              "Possible stale CacheEntry; failed to fetch item info for: {} - removing from cache",
+              entry.getResourceId());
+          resourceCache.removeResourceId(entry.getResourceId());
         } else {
           entry.setItemInfo(itemInfo);
           supplementalInfos.add(itemInfo);
@@ -350,15 +352,16 @@ public class CacheSupplementedGoogleCloudStorage
       bucketIdsSet.add(itemInfo.getResourceId());
     }
     List<CacheEntry> missingCachedBuckets = getSupplementalEntries(bucketIdsSet, cachedBuckets);
-    List<GoogleCloudStorageItemInfo> supplementalInfos = extractItemInfos(missingCachedBuckets);
+    List<GoogleCloudStorageItemInfo> supplementalInfos =
+        extractOrRevalidateItemInfos(missingCachedBuckets);
 
     allBucketInfos.addAll(supplementalInfos);
     return allBucketInfos;
   }
 
   /**
-   * Supplements the list returned by the delegate with cached object names; won't trigger
-   * any fetching of metadata.
+   * Supplements the list returned by the delegate with cached object names; will try to fetch
+   * metadata for supplemental entries which were missing from the delegate's returned list.
    */
   @Override
   public List<String> listObjectNames(
@@ -369,8 +372,8 @@ public class CacheSupplementedGoogleCloudStorage
   }
 
   /**
-   * Supplements the list returned by the delegate with cached object names; won't trigger
-   * any fetching of metadata.
+   * Supplements the list returned by the delegate with cached object names; will try to fetch
+   * metadata for supplemental entries which were missing from the delegate's returned list.
    */
   @Override
   public List<String> listObjectNames(
@@ -412,11 +415,13 @@ public class CacheSupplementedGoogleCloudStorage
     }
 
     List<CacheEntry> missingCachedObjects = getSupplementalEntries(objectIds, cachedObjects);
-    for (CacheEntry supplement : missingCachedObjects) {
-      LOG.info("Supplementing missing matched StorageResourceId: {}", supplement.getResourceId());
-      allObjectNames.add(supplement.getResourceId().getObjectName());
+    List<GoogleCloudStorageItemInfo> supplementalInfos =
+        extractOrRevalidateItemInfos(missingCachedObjects);
+    for (GoogleCloudStorageItemInfo item : supplementalInfos) {
+      LOG.info("Supplementing missing matched StorageResourceId: {}", item.getResourceId());
+      allObjectNames.add(item.getResourceId().getObjectName());
       if (maxResults > 0 && allObjectNames.size() >= maxResults) {
-        return allObjectNames;
+        break;
       }
     }
     return allObjectNames;
@@ -471,7 +476,8 @@ public class CacheSupplementedGoogleCloudStorage
     }
 
     List<CacheEntry> missingCachedObjects = getSupplementalEntries(objectIdsSet, cachedObjects);
-    List<GoogleCloudStorageItemInfo> supplementalInfos = extractItemInfos(missingCachedObjects);
+    List<GoogleCloudStorageItemInfo> supplementalInfos =
+        extractOrRevalidateItemInfos(missingCachedObjects);
 
     if (maxResults <= 0
         || allObjectInfos.size() + supplementalInfos.size() <= maxResults) {
