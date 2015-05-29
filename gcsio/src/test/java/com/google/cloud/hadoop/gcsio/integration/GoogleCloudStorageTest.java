@@ -34,7 +34,6 @@ import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage.ListVisibilityCalculator;
 import com.google.cloud.hadoop.gcsio.ListProhibitedGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.ResourceLoggingGoogleCloudStorage;
-import com.google.cloud.hadoop.gcsio.SeekableReadableByteChannel;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.UpdatableItemInfo;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
@@ -63,6 +62,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -1253,7 +1253,7 @@ public class GoogleCloudStorageTest {
 
       byte[] readBackingArray = new byte[totalBytes];
       ByteBuffer readBuffer = ByteBuffer.wrap(readBackingArray);
-      try (SeekableReadableByteChannel readChannel = gcs.open(resourceId)) {
+      try (SeekableByteChannel readChannel = gcs.open(resourceId)) {
         assertEquals("Expected new file to open at position 0", 0, readChannel.position());
         assertEquals("Unexpected readChannel.size()", totalBytes, readChannel.size());
 
@@ -1329,7 +1329,7 @@ public class GoogleCloudStorageTest {
       }
 
       byte[][] readSegments = new byte[segmentCount][segmentSize];
-      try (SeekableReadableByteChannel readChannel = gcs.open(resourceId)) {
+      try (SeekableByteChannel readChannel = gcs.open(resourceId)) {
         for (int i = 0; i < segmentCount; i++) {
           ByteBuffer segmentBuffer = ByteBuffer.wrap(readSegments[i]);
           int bytesRead = readChannel.read(segmentBuffer);
@@ -1370,7 +1370,7 @@ public class GoogleCloudStorageTest {
       }
 
         byte[] readArray = new byte[totalBytes];
-        SeekableReadableByteChannel readableByteChannel = gcs.open(resourceId);
+        SeekableByteChannel readableByteChannel = gcs.open(resourceId);
         ByteBuffer readBuffer = ByteBuffer.wrap(readArray);
         readBuffer.limit(5);
         readableByteChannel.read(readBuffer);

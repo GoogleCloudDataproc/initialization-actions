@@ -34,6 +34,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.DirectoryNotEmptyException;
 import java.util.ArrayList;
@@ -263,7 +264,7 @@ public class GoogleCloudStorageFileSystem {
    * @throws FileNotFoundException if the given path does not exist.
    * @throws IOException if object exists but cannot be opened.
    */
-  public SeekableReadableByteChannel open(URI path)
+  public SeekableByteChannel open(URI path)
       throws IOException {
 
     LOG.debug("open({})", path);

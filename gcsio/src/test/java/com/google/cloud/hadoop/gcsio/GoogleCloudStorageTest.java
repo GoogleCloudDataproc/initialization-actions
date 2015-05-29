@@ -93,6 +93,7 @@ import java.net.SocketTimeoutException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.ClosedChannelException;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Date;
 import java.util.HashMap;
@@ -1389,7 +1390,7 @@ public class GoogleCloudStorageTest {
         .thenReturn(false);
 
     // First time is the notFoundException.
-    SeekableReadableByteChannel readChannel;
+    SeekableByteChannel readChannel;
     try {
       readChannel = gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
       fail("Expected FileNotFoundException");

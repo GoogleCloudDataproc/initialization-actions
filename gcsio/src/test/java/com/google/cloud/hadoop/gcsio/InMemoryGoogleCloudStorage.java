@@ -20,6 +20,7 @@ import com.google.common.base.Strings;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -154,7 +155,7 @@ public class InMemoryGoogleCloudStorage
   }
 
   @Override
-  public synchronized SeekableReadableByteChannel open(StorageResourceId resourceId)
+  public synchronized SeekableByteChannel open(StorageResourceId resourceId)
       throws IOException {
     if (!getItemInfo(resourceId).exists()) {
       throw GoogleCloudStorageExceptions.getFileNotFoundException(
