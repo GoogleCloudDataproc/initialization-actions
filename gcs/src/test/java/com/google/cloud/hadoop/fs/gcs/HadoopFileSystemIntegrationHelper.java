@@ -18,6 +18,7 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationHelper;
+import com.google.cloud.hadoop.gcsio.SeekableReadableByteChannel;
 import com.google.common.base.Strings;
 
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -32,7 +33,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 
@@ -150,7 +150,7 @@ public class HadoopFileSystemIntegrationHelper
    * Opens the given object for reading.
    */
   @Override
-  protected SeekableByteChannel open(String bucketName, String objectName)
+  protected SeekableReadableByteChannel open(String bucketName, String objectName)
       throws IOException {
     return null;
   }

@@ -17,7 +17,6 @@ package com.google.cloud.hadoop.gcsio;
 import com.google.common.util.concurrent.RateLimiter;
 
 import java.io.IOException;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.EnumSet;
 import java.util.List;
@@ -137,7 +136,7 @@ public class ThrottledGoogleCloudStorage implements GoogleCloudStorage {
   }
 
   @Override
-  public SeekableByteChannel open(
+  public SeekableReadableByteChannel open(
       StorageResourceId resourceId) throws IOException {
     throttle(StorageOperation.OPEN_OBJECT);
     return wrappedGcs.open(resourceId);

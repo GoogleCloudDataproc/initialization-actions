@@ -24,7 +24,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -169,7 +168,7 @@ public class CacheSupplementedGoogleCloudStorage
    * Pure pass-through.
    */
   @Override
-  public SeekableByteChannel open(StorageResourceId resourceId)
+  public SeekableReadableByteChannel open(StorageResourceId resourceId)
       throws IOException {
     LOG.debug("open({})", resourceId);
     return gcsDelegate.open(resourceId);

@@ -39,7 +39,6 @@ import org.mockito.MockitoAnnotations;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -129,7 +128,7 @@ public class CacheSupplementedGoogleCloudStorageTest {
   @Test
   public void testOpenObject()
       throws IOException {
-    SeekableByteChannel mockChannel = mock(SeekableByteChannel.class);
+    SeekableReadableByteChannel mockChannel = mock(SeekableReadableByteChannel.class);
     when(mockGcsDelegate.open(eq(objectResourceId)))
         .thenReturn(mockChannel);
     assertEquals(mockChannel, gcs.open(objectResourceId));

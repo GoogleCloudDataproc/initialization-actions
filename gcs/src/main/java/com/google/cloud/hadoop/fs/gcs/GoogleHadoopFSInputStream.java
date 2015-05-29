@@ -16,6 +16,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import com.google.cloud.hadoop.gcsio.SeekableReadableByteChannel;
 import com.google.common.base.Preconditions;
 
 import org.apache.hadoop.fs.FSInputStream;
@@ -26,7 +27,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.nio.channels.SeekableByteChannel;
 
 /**
  * A seekable and positionable FSInputStream that provides read access to a file.
@@ -41,7 +41,7 @@ class GoogleHadoopFSInputStream
   private GoogleHadoopFileSystemBase ghfs;
 
   // All store IO access goes through this.
-  private SeekableByteChannel channel;
+  private SeekableReadableByteChannel channel;
 
   // Internal buffer.
   private ByteBuffer buffer;

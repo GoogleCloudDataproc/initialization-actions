@@ -15,7 +15,6 @@
 package com.google.cloud.hadoop.gcsio;
 
 import java.io.IOException;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.List;
 
@@ -71,7 +70,7 @@ public class ListProhibitedGoogleCloudStorage implements GoogleCloudStorage {
   }
 
   @Override
-  public SeekableByteChannel open(
+  public SeekableReadableByteChannel open(
       StorageResourceId resourceId) throws IOException {
     return delegateGcs.open(resourceId);
   }

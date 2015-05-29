@@ -17,7 +17,6 @@
 package com.google.cloud.hadoop.gcsio;
 
 import java.io.IOException;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.List;
 
@@ -114,7 +113,7 @@ public interface GoogleCloudStorage {
    * @throws FileNotFoundException if the given object does not exist
    * @throws IOException if object exists but cannot be opened
    */
-  SeekableByteChannel open(StorageResourceId resourceId)
+  SeekableReadableByteChannel open(StorageResourceId resourceId)
       throws IOException;
 
   /**

@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * A SeekableByteChannel based on GoogleCloudStorageReadChannel that supports reading
+ * A SeekableReadableByteChannel based on GoogleCloudStorageReadChannel that supports reading
  * from in-memory byte stream.
  */
 public class InMemoryObjectReadChannel

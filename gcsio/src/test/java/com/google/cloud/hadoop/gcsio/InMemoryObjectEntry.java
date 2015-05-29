@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.ClosedChannelException;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
 
@@ -184,11 +183,11 @@ class InMemoryObjectEntry {
   }
 
   /**
-   * Returns a SeekableByteChannel pointing at this InMemoryObjectEntry's byte contents;
+   * Returns a SeekableReadableByteChannel pointing at this InMemoryObjectEntry's byte contents;
    * a previous writer must have already closed the associated WritableByteChannel to commit
    * the byte contents and make them available for reading.
    */
-  public synchronized SeekableByteChannel getReadChannel() throws IOException {
+  public synchronized SeekableReadableByteChannel getReadChannel() throws IOException {
     if (!isCompleted()) {
       throw new IOException(
           String.format("Cannot getReadChannel() before writes have been committed! Object = %s",
