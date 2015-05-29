@@ -281,7 +281,12 @@ public class CacheSupplementedGoogleCloudStorageTest {
 
     // No supplement yet, despite one call to getItemInfo so far.
     assertEquals(bucketList, gcs.listBucketInfo());
-    assertNull(cache.getCacheEntry(supplementedId).getItemInfo());
+
+    // Since the call to getItemInfo returned NOT_FOUND, we'll expect the item to be entirely
+    // removed from the cache. We'll then add it back in as a StorageResourceId-only entry
+    // for the next part of this test method.
+    assertNull(cache.getCacheEntry(supplementedId));
+    cache.putResourceId(supplementedId);
     verify(mockGcsDelegate).getItemInfo(eq(supplementedId));
 
     // Second call succeeds.
@@ -342,6 +347,18 @@ public class CacheSupplementedGoogleCloudStorageTest {
     List<String> supplementedList = new ArrayList<>(objectList);
     supplementedList.add("foo/dir3");
     supplementedList.add("foo/dir4/");
+
+    // Set up retrieval of itemInfos.
+    GoogleCloudStorageItemInfo supplementedDir3 =
+        DirectoryListCacheTestUtils.createObjectInfo(bucketName, "foo/dir3");
+    GoogleCloudStorageItemInfo supplementedDir4 =
+        DirectoryListCacheTestUtils.createObjectInfo(bucketName, "foo/dir4/");
+    when(mockGcsDelegate.getItemInfo(eq(supplementedDir3.getResourceId())))
+        .thenReturn(supplementedDir3);
+    when(mockGcsDelegate.getItemInfo(eq(supplementedDir4.getResourceId())))
+        .thenReturn(supplementedDir4);
+
+    // Before info-expiration, no revalidation occurs with getItemInfo.
     List<String> actualObjects = new ArrayList<>(
         gcs.listObjectNames(bucketName, prefix, "/", GoogleCloudStorage.MAX_RESULTS_UNLIMITED));
     Collections.sort(actualObjects);
@@ -354,6 +371,10 @@ public class CacheSupplementedGoogleCloudStorageTest {
         gcs.listObjectNames(bucketName, prefix, "/", GoogleCloudStorage.MAX_RESULTS_UNLIMITED));
     Collections.sort(actualObjects);
     assertEquals(supplementedList, actualObjects);
+
+    // Infos are revalidated.
+    verify(mockGcsDelegate).getItemInfo(eq(supplementedDir3.getResourceId()));
+    verify(mockGcsDelegate).getItemInfo(eq(supplementedDir4.getResourceId()));
 
     // After expiration, supplementation no longer adds anything; back to original objectList.
     nextTime += MAX_ENTRY_AGE + 1;
@@ -405,7 +426,12 @@ public class CacheSupplementedGoogleCloudStorageTest {
     // No supplement yet, despite one call to getItemInfo so far.
     assertEquals(objectList, gcs.listObjectInfo(bucketName, prefix, "/",
         GoogleCloudStorage.MAX_RESULTS_UNLIMITED));
-    assertNull(cache.getCacheEntry(supplementedId).getItemInfo());
+
+    // Since the call to getItemInfo returned NOT_FOUND, we'll expect the item to be entirely
+    // removed from the cache. We'll then add it back in as a StorageResourceId-only entry
+    // for the next part of this test method.
+    assertNull(cache.getCacheEntry(supplementedId));
+    cache.putResourceId(supplementedId);
     verify(mockGcsDelegate).getItemInfo(eq(supplementedId));
 
     // Second call succeeds.
