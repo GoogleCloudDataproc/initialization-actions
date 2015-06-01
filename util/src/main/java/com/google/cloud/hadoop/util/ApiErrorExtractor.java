@@ -1,5 +1,5 @@
 /**
- * Copyright 2013 Google Inc. All Rights Reserved.
+ * Copyright 2015 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,8 +31,9 @@ import java.util.List;
  */
 public class ApiErrorExtractor {
   // TODO(user): Move this into HttpStatusCodes.java.
-  public static final int STATUS_CODE_RANGE_NOT_SATISFIABLE = 416;
+  public static final int STATUS_CODE_CONFLICT = 409;
   public static final int STATUS_CODE_PRECONDITION_FAILED = 412;
+  public static final int STATUS_CODE_RANGE_NOT_SATISFIABLE = 416;
   public static final String GLOBAL_DOMAIN = "global";
   public static final String USAGE_LIMITS_DOMAIN = "usageLimits";
   public static final String RATE_LIMITED_REASON_CODE = "rateLimitExceeded";
@@ -58,19 +59,20 @@ public class ApiErrorExtractor {
   }
 
   /**
-   * True if the exception is a GoogleJsonResponseException with
-   * an http response code 409, which we assume only happens
-   * when the error reason is "alreadyExists".
+   * Checks if HTTP status code indicates the error specified.
+   */
+  private boolean hasHttpCode(IOException e, int code) {
+    if (e instanceof GoogleJsonResponseException) {
+      return getHttpStatusCode((GoogleJsonResponseException) e) == code;
+    }
+    return false;
+  }
+
+  /**
+   * Determines if the given exception indicates 'item already exists'.
    */
   public boolean itemAlreadyExists(IOException e) {
-    ErrorInfo eInfo = getErrorInfo(e);
-    if (eInfo == null) {
-      return false;
-    } else {
-      GoogleJsonResponseException gjre = (GoogleJsonResponseException) e;
-      return (getHttpStatusCode(gjre) == 409);   // HTTP 409 is "Conflict"
-        // We assume this only happens when eInfo.reason=="alreadyExists"
-    }
+      return hasHttpCode(e, STATUS_CODE_CONFLICT);
   }
 
   /**
@@ -84,11 +86,7 @@ public class ApiErrorExtractor {
    * Determines if the given exception indicates 'item not found'.
    */
   public boolean itemNotFound(IOException e) {
-    if (e instanceof GoogleJsonResponseException) {
-      return (getHttpStatusCode((GoogleJsonResponseException) e))
-          == HttpStatusCodes.STATUS_CODE_NOT_FOUND;
-    }
-    return false;
+    return hasHttpCode(e, HttpStatusCodes.STATUS_CODE_NOT_FOUND);
   }
 
   /**
@@ -102,19 +100,14 @@ public class ApiErrorExtractor {
    * Determine if the given IOException indicates 'precondition not met'
    */
   public boolean preconditionNotMet(IOException e) {
-    return e instanceof GoogleJsonResponseException
-        && getHttpStatusCode((GoogleJsonResponseException) e) == STATUS_CODE_PRECONDITION_FAILED;
+    return hasHttpCode(e, STATUS_CODE_PRECONDITION_FAILED);
   }
 
   /**
    * Determines if the given exception indicates 'range not satisfiable'.
    */
   public boolean rangeNotSatisfiable(IOException e) {
-    if (e instanceof GoogleJsonResponseException) {
-      return (getHttpStatusCode((GoogleJsonResponseException) e))
-          == STATUS_CODE_RANGE_NOT_SATISFIABLE;
-    }
-    return false;
+    return hasHttpCode(e, STATUS_CODE_RANGE_NOT_SATISFIABLE);
   }
 
   /**
@@ -160,7 +153,7 @@ public class ApiErrorExtractor {
   /**
    * Returns HTTP status code from the given exception.
    *
-   * Note: GoogleJsonResponseException.getStatusCode() method is marked final
+   * <p> Note: GoogleJsonResponseException.getStatusCode() method is marked final
    * therefore it cannot be mocked using Mockito. We use this helper so that
    * we can override it in tests.
    */
