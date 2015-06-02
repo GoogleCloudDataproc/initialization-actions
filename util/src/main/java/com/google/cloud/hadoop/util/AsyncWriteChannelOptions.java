@@ -30,11 +30,17 @@ public class AsyncWriteChannelOptions {
   public static final int UPLOAD_BUFFER_SIZE_DEFAULT = 64 * 1024 * 1024;
 
   /**
+   * Default of whether to use direct upload.
+   */
+  public static final boolean DIRECT_UPLOAD_ENABLED_DEFAULT = false;
+
+  /**
    * Mutable builder for the GoogleCloudStorageWriteChannelOptions class.
    */
   public static class Builder {
     private boolean fileSizeLimitedTo250Gb = LIMIT_FILESIZE_TO_250GB_DEFAULT;
     private int uploadBufferSize = UPLOAD_BUFFER_SIZE_DEFAULT;
+    private boolean useDirectUpload = DIRECT_UPLOAD_ENABLED_DEFAULT;
 
     public Builder setFileSizeLimitedTo250Gb(boolean fileSizeLimitedTo250Gb) {
       this.fileSizeLimitedTo250Gb = fileSizeLimitedTo250Gb;
@@ -46,8 +52,14 @@ public class AsyncWriteChannelOptions {
       return this;
     }
 
+    public Builder setDirectUploadEnabled(boolean useDirectUpload) {
+      this.useDirectUpload = useDirectUpload;
+      return this;
+    }
+
     public AsyncWriteChannelOptions build() {
-      return new AsyncWriteChannelOptions(fileSizeLimitedTo250Gb, uploadBufferSize);
+      return new AsyncWriteChannelOptions(
+          fileSizeLimitedTo250Gb, uploadBufferSize, useDirectUpload);
     }
   }
 
@@ -58,14 +70,16 @@ public class AsyncWriteChannelOptions {
     return new Builder();
   }
 
-
   private final boolean fileSizeLimitedTo250Gb;
   private final int uploadBufferSize;
+  private final boolean directUploadEnabled;
 
   public AsyncWriteChannelOptions(boolean fileSizeLimitedTo250Gb,
-      int uploadBufferSize) {
+      int uploadBufferSize,
+      boolean useDirectUpload) {
     this.fileSizeLimitedTo250Gb = fileSizeLimitedTo250Gb;
     this.uploadBufferSize = uploadBufferSize;
+    this.directUploadEnabled = useDirectUpload;
   }
 
   public boolean isFileSizeLimitedTo250Gb() {
@@ -74,4 +88,9 @@ public class AsyncWriteChannelOptions {
 
   public int getUploadBufferSize() {
     return uploadBufferSize;
-  }}
+  }
+
+  public boolean isDirectUploadEnabled() {
+    return directUploadEnabled;
+  }
+}
