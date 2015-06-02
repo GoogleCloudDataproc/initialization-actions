@@ -141,6 +141,9 @@ public abstract class AbstractGoogleAsyncWriteChannel
   @VisibleForTesting
   private boolean limitFileSizeTo250Gb = true;
 
+  // When enabled, we get higher throughput for writing small files.
+  private boolean directUploadEnabled = false;
+
   /**
    * Construct a new channel using the given ExecutorService to run background uploads.
    * @param threadPool
@@ -152,6 +155,7 @@ public abstract class AbstractGoogleAsyncWriteChannel
     this.threadPool = threadPool;
     enableFileSizeLimit250Gb(options.isFileSizeLimitedTo250Gb());
     setUploadBufferSize(options.getUploadBufferSize());
+    setDirectUploadEnabled(options.isDirectUploadEnabled());
     setContentType("application/octet-stream");
   }
 
@@ -208,6 +212,22 @@ public abstract class AbstractGoogleAsyncWriteChannel
    */
   public void enableFileSizeLimit250Gb(boolean enableLimit) {
     limitFileSizeTo250Gb = enableLimit;
+  }
+
+  /**
+   * Enables or disables direct uploads.
+   *
+   * @see MediaHttpUploader#setDirectUploadEnabled(boolean)
+   */
+  public void setDirectUploadEnabled(boolean enableDirectUpload) {
+    directUploadEnabled = enableDirectUpload;
+  }
+
+  /**
+   * Returns true if direct media uploads are enabled.
+   */
+  public boolean isDirectUploadEnabled() {
+    return directUploadEnabled;
   }
 
   /**

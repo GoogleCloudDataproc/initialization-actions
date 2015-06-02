@@ -51,7 +51,6 @@ public class GoogleCloudStorageWriteChannel
    * @param bucketName name of the bucket to create object in
    * @param objectName name of the object to create
    * @param objectMetadata metadata to apply to the newly created object
-   * @throws IOException on IO error
    */
   public GoogleCloudStorageWriteChannel(
       ExecutorService threadPool, Storage gcs, ClientRequestHelper<StorageObject> requestHelper,
@@ -77,7 +76,6 @@ public class GoogleCloudStorageWriteChannel
    * @param objectName name of the object to create
    * @param objectMetadata metadata to apply to the newly created object
    * @param contentType content type
-   * @throws IOException on IO error
    */
   public GoogleCloudStorageWriteChannel(
       ExecutorService threadPool, Storage gcs, ClientRequestHelper<StorageObject> requestHelper,
@@ -100,6 +98,7 @@ public class GoogleCloudStorageWriteChannel
     Insert insert = gcs.objects().insert(bucketName, object, inputStream);
     writeConditions.apply(insert);
     if (insert.getMediaHttpUploader() != null) {
+      insert.getMediaHttpUploader().setDirectUploadEnabled(isDirectUploadEnabled());
       insert.getMediaHttpUploader().setProgressListener(
         new LoggingMediaHttpUploaderProgressListener(this.objectName, MIN_LOGGING_INTERVAL_MS));
     }
