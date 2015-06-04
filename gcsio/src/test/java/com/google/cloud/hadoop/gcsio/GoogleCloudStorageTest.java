@@ -807,7 +807,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper, times(4)).getRequestHeaders(any(Storage.Objects.Get.class));
     verify(mockHeaders, times(4)).setRange(eq("bytes=0-"));
-    verify(mockStorageObjectsGet, times(5)).execute();
+    verify(mockStorageObjectsGet, times(2)).execute();
     verify(mockStorageObjectsGet, times(4)).executeMedia();
     verify(mockBackOff).reset();
     verify(mockBackOff, times(3)).nextBackOffMillis();
@@ -852,7 +852,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper, times(2)).getRequestHeaders(any(Storage.Objects.Get.class));
     verify(mockHeaders, times(2)).setRange(eq("bytes=0-"));
-    verify(mockStorageObjectsGet, times(3)).execute();
+    verify(mockStorageObjectsGet, times(2)).execute();
     verify(mockStorageObjectsGet, times(2)).executeMedia();
     verify(mockBackOff).reset();
     verify(mockBackOff).nextBackOffMillis();
@@ -984,13 +984,13 @@ public class GoogleCloudStorageTest {
     verify(mockBackOff, times(2)).reset();
     verify(mockBackOff, times(2)).nextBackOffMillis();
     verify(mockSleeper, times(2)).sleep(anyLong());
-    verify(mockStorage, times(7)).objects();
-    verify(mockStorageObjects, times(7)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorage, times(5)).objects();
+    verify(mockStorageObjects, times(5)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
     verify(mockHeaders, times(1)).setRange(eq("bytes=0-"));
     verify(mockHeaders, times(1)).setRange(eq("bytes=3-"));
     verify(mockHeaders, times(1)).setRange(eq("bytes=4-"));
-    verify(mockStorageObjectsGet, times(4)).execute();
+    verify(mockStorageObjectsGet, times(2)).execute();
     verify(mockStorageObjectsGet, times(3)).executeMedia();
   }
 
@@ -1031,13 +1031,13 @@ public class GoogleCloudStorageTest {
     verify(mockBackOff, times(2)).reset();
     verify(mockBackOff, times(2)).nextBackOffMillis();
     verify(mockSleeper, times(2)).sleep(anyLong());
-    verify(mockStorage, times(7)).objects();
-    verify(mockStorageObjects, times(7)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorage, times(5)).objects();
+    verify(mockStorageObjects, times(5)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
     verify(mockHeaders, times(1)).setRange(eq("bytes=0-"));
     verify(mockHeaders, times(1)).setRange(eq("bytes=3-"));
     verify(mockHeaders, times(1)).setRange(eq("bytes=4-"));
-    verify(mockStorageObjectsGet, times(4)).execute();
+    verify(mockStorageObjectsGet, times(2)).execute();
     verify(mockStorageObjectsGet, times(3)).executeMedia();
 
     assertEquals(testData.length, bytesRead);
@@ -1168,7 +1168,7 @@ public class GoogleCloudStorageTest {
     verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
     verify(mockHeaders, times(3)).setRange(eq("bytes=0-"));
     verify(mockStorageObjectsGet, times(3)).executeMedia();
-    verify(mockStorageObjectsGet, times(4)).execute();
+    verify(mockStorageObjectsGet, times(2)).execute();
     verify(mockBackOff).reset();
     verify(mockBackOff, times(2)).nextBackOffMillis();
     verify(mockSleeper).sleep(eq(111L));
@@ -1242,7 +1242,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockStorageObjectsGet, times(3)).executeMedia();
-    verify(mockStorageObjectsGet, times(4)).execute();
+    verify(mockStorageObjectsGet, times(2)).execute();
     verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
     verify(mockHeaders, times(2)).setRange(eq("bytes=0-"));
     verify(mockHeaders).setRange(eq("bytes=3-"));
@@ -1333,10 +1333,10 @@ public class GoogleCloudStorageTest {
     assertArrayEquals(partialData, actualData);
     assertEquals(testData.length, readChannel.position());
 
-    verify(mockStorage, times(7)).objects();
-    verify(mockStorageObjects, times(7)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorage, times(5)).objects();
+    verify(mockStorageObjects, times(5)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockStorageObjectsGet, times(3)).executeMedia();
-    verify(mockStorageObjectsGet, times(4)).execute();
+    verify(mockStorageObjectsGet, times(2)).execute();
     verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
     verify(mockHeaders, times(3)).setRange(eq("bytes=0-"));
   }
@@ -1429,10 +1429,10 @@ public class GoogleCloudStorageTest {
     assertEquals(testData.length, readChannel.read(ByteBuffer.wrap(actualData)));
     assertEquals(testData.length, readChannel.position());
 
-    verify(mockStorage, times(7)).objects();
-    verify(mockStorageObjects, times(7)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorage, times(5)).objects();
+    verify(mockStorageObjects, times(5)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockStorageObjectsGet, times(3)).executeMedia();
-    verify(mockStorageObjectsGet, times(4)).execute();
+    verify(mockStorageObjectsGet, times(2)).execute();
     verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
     verify(mockHeaders, times(3)).setRange(eq("bytes=0-"));
     verify(mockBackOff, times(2)).reset();
@@ -1521,7 +1521,7 @@ public class GoogleCloudStorageTest {
     verify(mockHeaders).setRange(eq("bytes=0-"));
     verify(mockHeaders).setRange(eq("bytes=2-"));
     verify(mockStorageObjectsGet, times(2)).executeMedia();
-    verify(mockStorageObjectsGet, times(3)).execute();
+    verify(mockStorageObjectsGet, times(2)).execute();
 
     readChannel.close();
     assertFalse(readChannel.isOpen());
