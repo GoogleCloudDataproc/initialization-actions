@@ -150,6 +150,12 @@ public class ThrottledGoogleCloudStorage implements GoogleCloudStorage {
   }
 
   @Override
+  public void create(String bucketName, CreateBucketOptions options) throws IOException {
+    throttle(StorageOperation.CREATE_BUCKET);
+    wrappedGcs.create(bucketName, options);
+  }
+
+  @Override
   public void deleteBuckets(List<String> bucketNames) throws IOException {
     // We're quota'd on delete, and base impl does a batch operation. We should
     // really wait once per bucket or something similar. BUT since this is used

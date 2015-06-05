@@ -189,6 +189,19 @@ public class CacheSupplementedGoogleCloudStorage
   }
 
   /**
+   * Updates cache with bucketName.
+   */
+  @Override
+  public void create(String bucketName, CreateBucketOptions options)
+      throws IOException {
+    LOG.debug("create({})", bucketName);
+    // TODO(user): Make create() return the Bucket so that we can pre-emptively populate the
+    // metadata in the CachedBucket.
+    gcsDelegate.create(bucketName, options);
+    resourceCache.putResourceId(new StorageResourceId(bucketName));
+  }
+
+  /**
    * Removes buckets from cache, if they exist.
    */
   @Override

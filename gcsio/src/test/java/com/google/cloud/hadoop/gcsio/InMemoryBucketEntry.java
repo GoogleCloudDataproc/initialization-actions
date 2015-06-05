@@ -14,6 +14,8 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import com.google.common.base.MoreObjects;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -36,10 +38,11 @@ class InMemoryBucketEntry {
    * @param bucketName The name representing the bucketName portion of a GCS path, e.g.
    *     gs://<bucketName>/<objectName>.
    */
-  public InMemoryBucketEntry(String bucketName) {
+  public InMemoryBucketEntry(String bucketName, CreateBucketOptions options) {
     info = new GoogleCloudStorageItemInfo(
-        new StorageResourceId(bucketName), System.currentTimeMillis(), 0, "us-central",
-        "inmemory-class");
+        new StorageResourceId(bucketName), System.currentTimeMillis(), 0,
+        MoreObjects.firstNonNull(options.getLocation(), "us-central"),
+        MoreObjects.firstNonNull(options.getStorageClass(), "inmemory-class"));
   }
 
   /**

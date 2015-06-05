@@ -304,7 +304,7 @@ public class GoogleCloudStorageReadChannel
         // TODO(user): Refactor any reusable logic for retries into a separate RetryHelper class.
         if (retriesAttempted == maxRetries) {
           LOG.error(
-              "Already attempted max of %d retries while reading '%s'; throwing exception.",
+              "Already attempted max of {} retries while reading '{}'; throwing exception.",
               maxRetries, StorageResourceId.createReadableString(bucketName, objectName));
           throw ioe;
         } else {
