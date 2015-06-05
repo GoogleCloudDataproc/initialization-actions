@@ -99,6 +99,12 @@ public class ResourceLoggingGoogleCloudStorage implements GoogleCloudStorage {
   }
 
   @Override
+  public void create(String bucketName, CreateBucketOptions options) throws IOException {
+    delegateGcs.create(bucketName, options);
+    createdResources.add(new StorageResourceId(bucketName));
+  }
+
+  @Override
   public void deleteBuckets(List<String> bucketNames) throws IOException {
     delegateGcs.deleteBuckets(bucketNames);
   }

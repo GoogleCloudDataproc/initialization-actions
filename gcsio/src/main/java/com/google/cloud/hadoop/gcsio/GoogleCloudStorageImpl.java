@@ -533,17 +533,31 @@ public class GoogleCloudStorageImpl
   }
 
   /**
-   * See {@link GoogleCloudStorage#create(String)} for details about expected behavior.
+   * See {@link GoogleCloudStorage#create(String)} for details about expected
+   * behavior.
    */
   @Override
   public void create(String bucketName)
       throws IOException {
+    create(bucketName, CreateBucketOptions.DEFAULT);
+  }
+
+  /**
+   * See {@link GoogleCloudStorage#create(String, CreateBucketOptions)} for
+   * details about expected behavior.
+   */
+  @Override
+  public void create(String bucketName, CreateBucketOptions options)
+      throws IOException {
     LOG.debug("create({})", bucketName);
     Preconditions.checkArgument(!Strings.isNullOrEmpty(bucketName),
         "bucketName must not be null or empty");
+    Preconditions.checkNotNull(options, "options must not be null");
 
     Bucket bucket = new Bucket();
     bucket.setName(bucketName);
+    bucket.setLocation(options.getLocation());
+    bucket.setStorageClass(options.getStorageClass());
     Storage.Buckets.Insert insertBucket =
         gcs.buckets().insert(storageOptions.getProjectId(), bucket);
     // TODO(user): To match the behavior of throwing FileNotFoundException for 404, we probably

@@ -170,16 +170,21 @@ public class InMemoryGoogleCloudStorage
   @Override
   public synchronized void create(String bucketName)
       throws IOException {
+    create(bucketName, CreateBucketOptions.DEFAULT);
+  }
+
+  @Override
+  public synchronized void create(String bucketName, CreateBucketOptions options)
+      throws IOException {
     if (!validateBucketName(bucketName)) {
       throw new IOException("Error creating bucket");
     }
     if (!bucketLookup.containsKey(bucketName)) {
-      bucketLookup.put(bucketName, new InMemoryBucketEntry(bucketName));
+      bucketLookup.put(bucketName, new InMemoryBucketEntry(bucketName, options));
     } else {
       throw new IOException("Bucket already exists");
     }
   }
-
 
   @Override
   public synchronized void deleteBuckets(List<String> bucketNames)

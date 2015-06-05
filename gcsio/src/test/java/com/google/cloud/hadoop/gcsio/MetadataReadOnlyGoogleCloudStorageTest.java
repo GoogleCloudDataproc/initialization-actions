@@ -130,6 +130,12 @@ public class MetadataReadOnlyGoogleCloudStorageTest {
   }
 
   @Test
+  public void testCreateBucketWithOptionsIsUnsupported() throws IOException {
+    expectedException.expect(UnsupportedOperationException.class);
+    emptyGcs.create("bucketName", CreateBucketOptions.DEFAULT);
+  }
+
+  @Test
   public void testDeleteBucketsIsUnsupported() throws IOException {
     expectedException.expect(UnsupportedOperationException.class);
     emptyGcs.deleteBuckets(ImmutableList.of("bucketName"));

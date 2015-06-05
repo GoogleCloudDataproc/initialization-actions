@@ -137,6 +137,12 @@ public class MetadataReadOnlyGoogleCloudStorage
   }
 
   @Override
+  public void create(String bucketName, CreateBucketOptions options)
+      throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void deleteBuckets(List<String> bucketNames)
       throws IOException {
     throw new UnsupportedOperationException();

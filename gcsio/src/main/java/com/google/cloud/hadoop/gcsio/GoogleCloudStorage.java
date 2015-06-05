@@ -16,6 +16,7 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -99,7 +100,7 @@ public interface GoogleCloudStorage {
       throws IOException;
 
   /**
-   Creates a list of empty objects; see {@link #createEmptyObject(StorageResourceId)} for
+   * Creates a list of empty objects; see {@link #createEmptyObject(StorageResourceId)} for
    * the single-item version of this method. Implementations may use different flow than the
    * single-item version for greater efficiency.
    */
@@ -124,6 +125,16 @@ public interface GoogleCloudStorage {
    * @throws IOException on IO error
    */
   void create(String bucketName)
+      throws IOException;
+
+  /**
+   * Creates a bucket.
+   *
+   * @param bucketName name of the bucket to create
+   * @param options options to use when creating bucket
+   * @throws IOException on IO error
+   */
+  void create(String bucketName, CreateBucketOptions options)
       throws IOException;
 
   /**

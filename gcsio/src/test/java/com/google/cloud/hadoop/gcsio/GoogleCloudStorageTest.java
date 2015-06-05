@@ -1667,6 +1667,34 @@ public class GoogleCloudStorageTest {
   }
 
   /**
+   * Test successful operation of GoogleCloudStorage.create(String, CreateBucketOptions).
+   */
+  @Test
+  public void testCreateBucketWithOptionsNormalOperation()
+      throws IOException {
+    final Bucket[] bucketWithOptions = new Bucket[1];
+    when(mockStorage.buckets()).thenReturn(mockStorageBuckets);
+
+    final Storage.Buckets.Insert finalMockInsert = mockStorageBucketsInsert;
+    when(mockStorageBuckets.insert(eq(PROJECT_ID), any(Bucket.class)))
+        .thenAnswer(new Answer<Storage.Buckets.Insert>() {
+          @Override public Storage.Buckets.Insert answer(InvocationOnMock invocation) {
+            bucketWithOptions[0] = (Bucket) invocation.getArguments()[1];
+            return finalMockInsert;
+          }});
+    gcs.create(BUCKET_NAME, new CreateBucketOptions("some-location", "storage-class"));
+
+    assertEquals(bucketWithOptions[0].getName(), BUCKET_NAME);
+    assertEquals(bucketWithOptions[0].getLocation(), "some-location");
+    assertEquals(bucketWithOptions[0].getStorageClass(), "storage-class");
+
+    verify(mockStorage).buckets();
+    verify(mockBackOffFactory).newBackOff();
+    verify(mockStorageBuckets).insert(eq(PROJECT_ID), any(Bucket.class));
+    verify(mockStorageBucketsInsert).execute();
+  }
+
+  /**
    * Test handling of various types of exceptions thrown during JSON API call for
    * GoogleCloudStorage.create(String).
    */

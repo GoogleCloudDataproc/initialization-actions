@@ -141,8 +141,9 @@ public class CacheSupplementedGoogleCloudStorageTest {
       throws IOException {
     gcs.create("bucket1");
     gcs.create("bucket2");
-    gcs.create("bucket3");
-    verify(mockGcsDelegate, times(3)).create(any(String.class));
+    gcs.create("bucket3", CreateBucketOptions.DEFAULT);
+    verify(mockGcsDelegate, times(2)).create(any(String.class));
+    verify(mockGcsDelegate, times(1)).create(any(String.class), any(CreateBucketOptions.class));
     assertNotNull(cache.getCacheEntry(new StorageResourceId("bucket1")));
     assertNotNull(cache.getCacheEntry(new StorageResourceId("bucket2")));
     assertNotNull(cache.getCacheEntry(new StorageResourceId("bucket3")));
