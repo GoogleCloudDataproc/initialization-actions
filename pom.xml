@@ -20,7 +20,7 @@
 
   <groupId>com.google.cloud.bigdataoss</groupId>
   <artifactId>bigdataoss-parent</artifactId>
-  <version>1.4.1-SNAPSHOT-20150528-r0</version>
+  <version>1.4.1-SNAPSHOT</version>
   <name>BigDataOSS Parent</name>
   <description>
     Parent project for Google Cloud Platform Big-Data connectors.
@@ -70,13 +70,13 @@
   </prerequisites>
 
   <properties>
-    <bigdataoss.util.version>1.4.1-SNAPSHOT-20150528-r0</bigdataoss.util.version>
-    <bigdataoss.util-hadoop.version>1.4.1-SNAPSHOT-20150528-r0</bigdataoss.util-hadoop.version>
-    <bigdataoss.gcs.version>1.4.1-SNAPSHOT-20150528-r0</bigdataoss.gcs.version>
-    <bigdataoss.gcsio.version>1.4.1-SNAPSHOT-20150528-r0</bigdataoss.gcsio.version>
+    <bigdataoss.util.version>1.4.1-SNAPSHOT</bigdataoss.util.version>
+    <bigdataoss.util-hadoop.version>1.4.1-SNAPSHOT</bigdataoss.util-hadoop.version>
+    <bigdataoss.gcs.version>1.4.1-SNAPSHOT</bigdataoss.gcs.version>
+    <bigdataoss.gcsio.version>1.4.1-SNAPSHOT</bigdataoss.gcsio.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <google.api.version>1.19.0</google.api.version>
-    <google.guava.version>17.0</google.guava.version>
+    <google.guava.version>18.0</google.guava.version>
     <build.java.source.version>7</build.java.source.version>
     <build.java.target.version>7</build.java.target.version>
     <gpg.skip>true</gpg.skip>
