@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.google.cloud.bigdataoss</groupId>
     <artifactId>gcs-connector-parent</artifactId>
-    <version>1.4.1-SNAPSHOT-20150528-r0</version>
+    <version>1.4.1-SNAPSHOT</version>
     <relativePath>pom.xml</relativePath>
   </parent>
 
@@ -30,7 +30,7 @@
   <description>
     An implementation of org.apache.hadoop.fs.FileSystem targeting Google Cloud Storage
   </description>
-  <version>1.4.1-SNAPSHOT-20150528-r0-hadoop2</version>
+  <version>1.4.1-SNAPSHOT-hadoop2</version>
 
   <dependencies>
     <dependency>

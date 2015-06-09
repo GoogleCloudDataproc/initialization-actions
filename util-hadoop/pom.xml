@@ -20,13 +20,13 @@
   <parent>
     <groupId>com.google.cloud.bigdataoss</groupId>
     <artifactId>bigdataoss-parent</artifactId>
-    <version>1.4.1-SNAPSHOT-20150528-r0</version>
+    <version>1.4.1-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
   <packaging>pom</packaging>
   <artifactId>util-hadoop-parent</artifactId>
-  <version>1.4.1-SNAPSHOT-20150528-r0</version>
+  <version>1.4.1-SNAPSHOT</version>
 
   <profiles>
     <profile>
