@@ -14,16 +14,21 @@
 
 package com.google.cloud.hadoop.util;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Options for the GoogleCloudStorageWriteChannel.
  */
 public class AsyncWriteChannelOptions {
+  
+  // Logger.
+  private static final Logger LOG = LoggerFactory.getLogger(AsyncWriteChannelOptions.class);
 
   /**
    * Default of whether to limit files to 250GB by default.
    */
-  public static final boolean LIMIT_FILESIZE_TO_250GB_DEFAULT = true;
+  public static final boolean LIMIT_FILESIZE_TO_250GB_DEFAULT = false;
   /**
    * Default upload buffer size.
    */
@@ -42,6 +47,7 @@ public class AsyncWriteChannelOptions {
     private int uploadBufferSize = UPLOAD_BUFFER_SIZE_DEFAULT;
     private boolean useDirectUpload = DIRECT_UPLOAD_ENABLED_DEFAULT;
 
+    @Deprecated
     public Builder setFileSizeLimitedTo250Gb(boolean fileSizeLimitedTo250Gb) {
       this.fileSizeLimitedTo250Gb = fileSizeLimitedTo250Gb;
       return this;
@@ -80,8 +86,13 @@ public class AsyncWriteChannelOptions {
     this.fileSizeLimitedTo250Gb = fileSizeLimitedTo250Gb;
     this.uploadBufferSize = uploadBufferSize;
     this.directUploadEnabled = useDirectUpload;
+    if (fileSizeLimitedTo250Gb) {
+      LOG.warn("fileSizeLimitedTo250Gb now defaults to false. It is deprecated and will soon be "
+          + "removed. Files greater than 250Gb are allowed by default.");
+    }
   }
 
+  @Deprecated
   public boolean isFileSizeLimitedTo250Gb() {
     return fileSizeLimitedTo250Gb;
   }

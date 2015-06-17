@@ -197,7 +197,7 @@ public abstract class GoogleHadoopFileSystemBase
   public static final String GCS_FILE_SIZE_LIMIT_250GB = "fs.gs.file.size.limit.250gb";
 
   // Default value of fs.gs.file.size.limit.250gb.
-  public static final boolean GCS_FILE_SIZE_LIMIT_250GB_DEFAULT = true;
+  public static final boolean GCS_FILE_SIZE_LIMIT_250GB_DEFAULT = false;
 
   // Configuration key for using a local metadata cache to supplement GCS API "list" results;
   // this allows same-client create() to immediately be visible to a subsequent list() call.

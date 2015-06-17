@@ -427,8 +427,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(0L));
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(1L));
     assertEquals(OBJECT_NAME, storageObjectCaptor.getValue().getName());
-    verify(mockHeaders, times(2)).set(startsWith("X-Goog-Upload-"), anyInt());
-    verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Insert.class));
+    verify(mockHeaders, times(0)).set(startsWith("X-Goog-Upload-"), anyInt());
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
     verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
     verify(mockErrorExtractor).itemNotFound(any(IOException.class));
@@ -521,8 +520,7 @@ public class GoogleCloudStorageTest {
         eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
     verify(mockStorageObjectsInsert, times(1)).setName(eq(OBJECT_NAME));
     verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
-    verify(mockHeaders, times(2)).set(startsWith("X-Goog-Upload-"), anyInt());
-    verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Insert.class));
+    verify(mockHeaders, times(0)).set(startsWith("X-Goog-Upload-"), anyInt());
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
     verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(0L));
@@ -571,8 +569,7 @@ public class GoogleCloudStorageTest {
         eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
     verify(mockStorageObjectsInsert, times(1)).setName(eq(OBJECT_NAME));
     verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
-    verify(mockHeaders, times(2)).set(startsWith("X-Goog-Upload-"), anyInt());
-    verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Insert.class));
+    verify(mockHeaders, times(0)).set(startsWith("X-Goog-Upload-"), anyInt());
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
     verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(0L));
@@ -628,8 +625,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsInsert, times(1)).setName(eq(OBJECT_NAME));
     verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
     verify(mockStorageObjects, times(1)).get(anyString(), anyString());
-    verify(mockHeaders, times(2)).set(startsWith("X-Goog-Upload-"), anyInt());
-    verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Insert.class));
+    verify(mockHeaders, times(0)).set(startsWith("X-Goog-Upload-"), anyInt());
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
     verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
     verify(mockStorageObjectsInsert, times(2)).setIfGenerationMatch(anyLong());
@@ -678,8 +674,7 @@ public class GoogleCloudStorageTest {
     verify(mockErrorExtractor, times(1)).itemNotFound(any(IOException.class));
     verify(mockBackOff, atLeastOnce()).nextBackOffMillis();
     verify(mockBackOffFactory, atLeastOnce()).newBackOff();
-    verify(mockHeaders, times(2)).set(startsWith("X-Goog-Upload-"), anyInt());
-    verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Insert.class));
+    verify(mockHeaders, times(0)).set(startsWith("X-Goog-Upload-"), anyInt());
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
     verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
     verify(mockStorageObjectsInsert, times(2)).execute();
