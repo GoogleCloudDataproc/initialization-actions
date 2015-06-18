@@ -16,10 +16,13 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.base.Strings;
 
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Data struct representing either a GCS StorageObject, a GCS Bucket or the GCS root (gs://).
@@ -28,6 +31,18 @@ import java.util.Objects;
  * if bucketName and objectName are both non-null, this refers to a GCS StorageObject.
  */
 public class StorageResourceId {
+
+  // Pattern that parses out bucket and object names.
+  // Given 'gs://foo-bucket/foo/bar/baz', matcher.group(x) will return:
+  // 0 = gs://foo-bucket/foo/bar/baz
+  // 1 = foo-bucket/foo/bar/baz
+  // 2 = foo-bucket
+  // 3 = /foo/bar/baz
+  // 4 = foo/bar/baz
+  // Groups 2 and 4 can be used to create an instance.
+  private static final Pattern OBJECT_NAME_IN_GCS_PATTERN =
+      Pattern.compile("gs://(([^/]+)(/((.+))?)?)?");
+
   // The singleton instance identifying the GCS root (gs://). Both getObjectName() and
   // getBucketName() will return null.
   public static final StorageResourceId ROOT = new StorageResourceId();
@@ -58,7 +73,7 @@ public class StorageResourceId {
    * @param bucketName The bucket name of the resource. Must be non-empty and non-null.
    */
   public StorageResourceId(String bucketName) {
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(bucketName),
+    checkArgument(!Strings.isNullOrEmpty(bucketName),
         "bucketName must not be null or empty");
 
     this.bucketName = bucketName;
@@ -74,9 +89,9 @@ public class StorageResourceId {
    * @param objectName The object name of the resource. Must be non-empty and non-null.
    */
   public StorageResourceId(String bucketName, String objectName) {
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(bucketName),
+    checkArgument(!Strings.isNullOrEmpty(bucketName),
         "bucketName must not be null or empty");
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(objectName),
+    checkArgument(!Strings.isNullOrEmpty(objectName),
         "objectName must not be null or empty");
 
     this.bucketName = bucketName;
@@ -200,5 +215,22 @@ public class StorageResourceId {
       }
     }
     return objectName;
+  }
+
+  /**
+   * Parses {@link StorageResourceId} from specified string.
+   */
+  public static StorageResourceId fromObjectName(String objectName) {
+    Matcher matcher = OBJECT_NAME_IN_GCS_PATTERN.matcher(objectName);
+    checkArgument(matcher.matches(), "'%s' is not a valid GCS object name.", objectName);
+
+    String bucketName = matcher.group(2);
+    String relativePath = matcher.group(4);
+    if (bucketName == null) {
+      return ROOT;
+    } else if (relativePath != null) {
+      return new StorageResourceId(bucketName, relativePath);
+    }
+    return new StorageResourceId(bucketName);
   }
 }
