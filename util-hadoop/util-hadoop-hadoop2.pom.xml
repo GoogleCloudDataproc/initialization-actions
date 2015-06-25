@@ -26,7 +26,7 @@
 
   <packaging>jar</packaging>
   <artifactId>util-hadoop</artifactId>
-  <version>1.4.1-SNAPSHOT-hadoop2</version>
+  <version>1.4.1-hadoop2-SNAPSHOT</version>
 
   <dependencies>
     <dependency>

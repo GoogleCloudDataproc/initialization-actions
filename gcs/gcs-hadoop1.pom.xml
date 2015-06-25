@@ -30,7 +30,7 @@
   <description>
     An implementation of org.apache.hadoop.fs.FileSystem targeting Google Cloud Storage
   </description>
-  <version>1.4.1-SNAPSHOT-hadoop1</version>
+  <version>1.4.1-hadoop1-SNAPSHOT</version>
 
   <dependencies>
     <dependency>
@@ -45,7 +45,7 @@
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>util-hadoop</artifactId>
-      <version>${bigdataoss.util-hadoop.version}-hadoop1</version>
+      <version>${bigdataoss.util-hadoop.one.version}</version>
     </dependency>
   </dependencies>
 

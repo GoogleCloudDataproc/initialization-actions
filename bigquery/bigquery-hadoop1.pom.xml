@@ -30,7 +30,7 @@
   <description>
     Hadoop 2 MapReduce input and output formats for use with BigQuery
   </description>
-  <version>0.7.1-SNAPSHOT-hadoop1</version>
+  <version>0.7.1-hadoop1-SNAPSHOT</version>
 
   <dependencies>
     <dependency>
@@ -45,17 +45,17 @@
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>util-hadoop</artifactId>
-      <version>${bigdataoss.util-hadoop.version}-hadoop1</version>
+      <version>${bigdataoss.util-hadoop.one.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>gcs-connector</artifactId>
-      <version>${bigdataoss.gcs.version}-hadoop1</version>
+      <version>${bigdataoss.gcs.hadoop.one.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>gcs-connector</artifactId>
-      <version>${bigdataoss.gcs.version}-hadoop1</version>
+      <version>${bigdataoss.gcs.hadoop.one.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
     </dependency>
