@@ -37,13 +37,13 @@ import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
-import com.google.cloud.hadoop.util.OperationWithRetry;
+import com.google.cloud.hadoop.util.ResilientOperation;
+import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.cloud.hadoop.util.RetryHttpInitializer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.common.io.BaseEncoding;
@@ -182,8 +182,8 @@ public class GoogleCloudStorageImpl
   private BackOffFactory backOffFactory = BackOffFactory.DEFAULT;
 
   // Determine if a given IOException is due to rate-limiting.
-  private Predicate<IOException> isRateLimitedException =
-      OperationWithRetry.createRateLimitedExceptionPredicate(errorExtractor);
+  private RetryDeterminer<IOException> rateLimitedRetryDeterminer =
+      RetryDeterminer.createRateLimitedRetryDeterminer(errorExtractor);
 
   /**
    * Constructs an instance of GoogleCloudStorageImpl.
@@ -261,8 +261,8 @@ public class GoogleCloudStorageImpl
   @VisibleForTesting
   void setErrorExtractor(ApiErrorExtractor errorExtractor) {
     this.errorExtractor = errorExtractor;
-    this.isRateLimitedException =
-        OperationWithRetry.createRateLimitedExceptionPredicate(errorExtractor);
+    this.rateLimitedRetryDeterminer = RetryDeterminer.createRateLimitedRetryDeterminer(
+        errorExtractor);
   }
 
   @VisibleForTesting
@@ -562,15 +562,16 @@ public class GoogleCloudStorageImpl
         gcs.buckets().insert(storageOptions.getProjectId(), bucket);
     // TODO(user): To match the behavior of throwing FileNotFoundException for 404, we probably
     // want to throw org.apache.commons.io.FileExistsException for 409 here.
-
-    OperationWithRetry<Storage.Buckets.Insert, Bucket> operation =
-        new OperationWithRetry<>(
-            sleeper,
-            backOffFactory.newBackOff(),
-            insertBucket,
-            isRateLimitedException);
-
-    operation.execute();
+    try {
+      ResilientOperation.retry(
+          ResilientOperation.getGoogleRequestCallable(insertBucket),
+          backOffFactory.newBackOff(),
+          rateLimitedRetryDeterminer,
+          IOException.class,
+          sleeper);
+    } catch (InterruptedException e) {
+      throw new IOException(e);  // From sleep
+    }
   }
 
   /**
@@ -592,15 +593,14 @@ public class GoogleCloudStorageImpl
 
     for (final String bucketName : bucketNames) {
       final Storage.Buckets.Delete deleteBucket = gcs.buckets().delete(bucketName);
-      OperationWithRetry<Storage.Buckets.Delete, Void> bucketDeleteOperation =
-          new OperationWithRetry<> (
-              sleeper,
-              backOffFactory.newBackOff(),
-              deleteBucket,
-              isRateLimitedException);
 
       try {
-        bucketDeleteOperation.execute();
+        ResilientOperation.retry(
+            ResilientOperation.getGoogleRequestCallable(deleteBucket),
+            backOffFactory.newBackOff(),
+            rateLimitedRetryDeterminer,
+            IOException.class,
+            sleeper);
       } catch (IOException ioe) {
         if (errorExtractor.itemNotFound(ioe)) {
           LOG.debug("delete({}) : not found", bucketName);
@@ -610,6 +610,8 @@ public class GoogleCloudStorageImpl
           innerExceptions.add(wrapException(
               new IOException(ioe.toString()), "Error deleting", bucketName, null));
         }
+      } catch (InterruptedException e) {
+        throw new IOException(e);  // From sleep
       }
     }
     if (innerExceptions.size() > 0) {

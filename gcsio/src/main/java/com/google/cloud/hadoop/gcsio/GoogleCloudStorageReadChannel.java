@@ -26,6 +26,9 @@ import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
+import com.google.cloud.hadoop.util.ResilientOperation;
+import com.google.cloud.hadoop.util.RetryBoundedBackOff;
+import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
@@ -226,17 +229,23 @@ public class GoogleCloudStorageReadChannel
   }
 
   /**
-   * Helper for initializing the BackOff used for retries.
+   * Helper for reseting the BackOff used for retries. If no backoff is given, a generic
+   * one is initialized.
    */
-  private BackOff createBackOff() {
-    return new ExponentialBackOff.Builder()
-        .setInitialIntervalMillis(DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS)
-        .setRandomizationFactor(DEFAULT_BACKOFF_RANDOMIZATION_FACTOR)
-        .setMultiplier(DEFAULT_BACKOFF_MULTIPLIER)
-        .setMaxIntervalMillis(DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS)
-        .setMaxElapsedTimeMillis(DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS)
-        .setNanoClock(clock)
-        .build();
+  private BackOff resetOrCreateBackOff() throws IOException{
+    if (backOff != null){
+      backOff.reset();
+    } else {
+      backOff = new ExponentialBackOff.Builder()
+          .setInitialIntervalMillis(DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS)
+          .setRandomizationFactor(DEFAULT_BACKOFF_RANDOMIZATION_FACTOR)
+          .setMultiplier(DEFAULT_BACKOFF_MULTIPLIER)
+          .setMaxIntervalMillis(DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS)
+          .setMaxElapsedTimeMillis(DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS)
+          .setNanoClock(clock)
+          .build();
+    }
+    return backOff;
   }
 
   /**
@@ -311,18 +320,13 @@ public class GoogleCloudStorageReadChannel
           if (retriesAttempted == 0) {
             // If this is the first of a series of retries, we also want to reset the backOff
             // to have fresh initial values.
-            if (backOff == null) {
-              backOff = createBackOff();
-            } else {
-              backOff.reset();
-            }
+            resetOrCreateBackOff();
           }
 
           ++retriesAttempted;
           LOG.warn("Got exception: {} while reading '{}'; retry # {}. Sleeping...",
               ioe.getMessage(), StorageResourceId.createReadableString(bucketName, objectName),
               retriesAttempted);
-
           try {
             boolean backOffSuccessful = BackOffUtils.next(sleeper, backOff);
             if (!backOffSuccessful) {
@@ -564,8 +568,10 @@ public class GoogleCloudStorageReadChannel
   protected StorageObject getMetadata() throws IOException {
     Storage.Objects.Get getObject = gcs.objects().get(bucketName, objectName);
     try {
-      StorageObject response = getObject.execute();
-      return response;
+      return ResilientOperation.retry(
+          ResilientOperation.getGoogleRequestCallable(getObject),
+          new RetryBoundedBackOff(3, resetOrCreateBackOff()),
+          RetryDeterminer.SOCKET_ERRORS, IOException.class, sleeper);
     } catch (IOException e) {
       if (errorExtractor.itemNotFound(e)) {
         throw GoogleCloudStorageExceptions.getFileNotFoundException(bucketName, objectName);
@@ -573,6 +579,8 @@ public class GoogleCloudStorageReadChannel
       String msg =
           "Error reading " + StorageResourceId.createReadableString(bucketName, objectName);
       throw new IOException(msg, e);
+    } catch (InterruptedException e) {  // From the sleep
+      throw new IOException("Thread interrupt received.", e);
     }
   }
 

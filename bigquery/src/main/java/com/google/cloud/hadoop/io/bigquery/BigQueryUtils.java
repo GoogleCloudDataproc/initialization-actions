@@ -8,8 +8,8 @@ import com.google.api.services.bigquery.Bigquery.Jobs.Get;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.cloud.hadoop.util.ApiErrorExtractor;
-import com.google.cloud.hadoop.util.OperationWithRetry;
+import com.google.cloud.hadoop.util.ResilientOperation;
+import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.base.Preconditions;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -70,7 +70,6 @@ public class BigQueryUtils {
             .setInitialIntervalMillis(POLL_WAIT_INITIAL_MILLIS)
             .setMaxElapsedTimeMillis(POLL_WAIT_MAX_ELAPSED_MILLIS)
             .build();
-    ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
 
     // Get starting time.
     long startTime = System.currentTimeMillis();
@@ -81,14 +80,14 @@ public class BigQueryUtils {
     while (notDone) {
       BackOff operationBackOff = new ExponentialBackOff.Builder().build();
       Get get = bigquery.jobs().get(projectId, jobReference.getJobId());
-      OperationWithRetry<Get, Job> pollJobOperation =
-          new OperationWithRetry<>(
-              sleeper,
-              operationBackOff,
-              get,
-              OperationWithRetry.createRateLimitedExceptionPredicate(errorExtractor));
+      
+      Job pollJob = ResilientOperation.retry(
+          ResilientOperation.getGoogleRequestCallable(get),
+          operationBackOff,
+          RetryDeterminer.RATE_LIMIT_ERRORS,
+          IOException.class,
+          sleeper);
 
-      Job pollJob = pollJobOperation.execute();
       elapsedTime = System.currentTimeMillis() - startTime;
       LOG.debug("Job status ({} ms) {}: {}", elapsedTime, jobReference.getJobId(),
           pollJob.getStatus().getState());
