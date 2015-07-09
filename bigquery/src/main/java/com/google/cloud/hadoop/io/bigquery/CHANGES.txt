@@ -1,3 +1,12 @@
+0.7.1 - 2015-07-09
+
+  1. Misc updates in library dependencies; google.api.version
+     (com.google.http-client, com.google.api-client) updated from 1.19.0 to
+     1.20.0, google-api-services-storage from v1-rev16-1.19.0 to
+     v1-rev35-1.20.0, and google-api-services-bigquery from v2-rev171-1.19.0
+     to v2-rev217-1.20.0, and Guava from 17.0 to 18.0.
+
+
 0.7.0 - 2015-05-27
 
   1. All logging converted to use slf4j instead of the previous

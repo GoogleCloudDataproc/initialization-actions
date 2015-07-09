@@ -1,3 +1,35 @@
+1.4.1 - 2015-07-09
+
+  1. Switched from the custom SeekableReadableByteChannel to
+     Java 7's java.nio.channels.SeekableByteChannel.
+  2. Removed the configurable but default-constrained 250GB upload limit;
+     uploads can now exceed 250GB without needing to modify config settings.
+  3. Added helper classes related to GCS retries.
+  4. Added workaround support for read retries on objects with content-encoding
+     set to gzip; such content encoding isn't generally correct to use since
+     it means filesystem reported bytes will not match actual read bytes, but
+     for cases which accept byte mismatches, the read channel can now manually
+     seek to where it left off on retry rather than having a GZIPInputStream
+     throw an exception for a malformed partial stream.
+  5. Added an option for enabling "direct uploads" in
+     GoogleCloudStorageWriteChannel which is not directly used by the Hadoop
+     layer, but can be used by clients which directly access the lower
+     GoogleCloudStorage layer.
+  6. Added CreateBucketOptions to the GoogleCloudStorage interface so that
+     clients using the low-level GoogleCloudStorage directly can create buckets
+     with different locations and storage classes.
+  7. Fixed https://github.com/GoogleCloudPlatform/bigdata-interop/issues/5 where
+     stale cache entries caused stuck phantom directories if the directories
+     were deleted using non-Hadoop-based GCS clients.
+  8. Fixed a bug which prevented the Apache HTTP transport from working with
+     Hadoop 2 when no proxy was set.
+  9. Misc updates in library dependencies; google.api.version
+     (com.google.http-client, com.google.api-client) updated from 1.19.0 to
+     1.20.0, google-api-services-storage from v1-rev16-1.19.0 to
+     v1-rev35-1.20.0, and google-api-services-bigquery from v2-rev171-1.19.0
+     to v2-rev217-1.20.0, and Guava from 17.0 to 18.0.
+
+
 1.4.0 - 2015-05-27
 
   1. The new inferImplicitDirectories option to GoogleCloudStorage tells
