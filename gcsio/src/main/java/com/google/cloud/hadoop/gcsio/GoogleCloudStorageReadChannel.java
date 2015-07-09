@@ -84,7 +84,8 @@ public class GoogleCloudStorageReadChannel
   // of this instance in cases where caller intends to start reading at some other offset.
   // If lazySeekPending is set to true, it indicates that a target position has been set
   // but the actual seek operation is still pending.
-  private boolean lazySeekPending;
+  @VisibleForTesting
+  boolean lazySeekPending;
 
   // Size of the object being read.
   private long size = -1;
@@ -277,9 +278,6 @@ public class GoogleCloudStorageReadChannel
       return 0;
     }
 
-    // Perform a lazy seek if not done already.
-    performLazySeek();
-
     int totalBytesRead = 0;
     int retriesAttempted = 0;
 
@@ -287,6 +285,8 @@ public class GoogleCloudStorageReadChannel
     // in the first read. Therefore, loop till we either read the required number of
     // bytes or we reach end-of-stream.
     do {
+      // Perform a lazy seek if not done already.
+      performLazySeek();
       int remainingBeforeRead = buffer.remaining();
       try {
         int numBytesRead = readChannel.read(buffer);
@@ -315,6 +315,7 @@ public class GoogleCloudStorageReadChannel
           LOG.error(
               "Already attempted max of {} retries while reading '{}'; throwing exception.",
               maxRetries, StorageResourceId.createReadableString(bucketName, objectName));
+          closeReadChannel();
           throw ioe;
         } else {
           if (retriesAttempted == 0) {
@@ -333,6 +334,7 @@ public class GoogleCloudStorageReadChannel
               LOG.error("BackOff returned false; maximum total elapsed time exhausted. Giving up "
                   + "after {} retries for '{}'", retriesAttempted,
                   StorageResourceId.createReadableString(bucketName, objectName));
+              closeReadChannel();
               throw ioe;
             }
           } catch (InterruptedException ie) {
@@ -340,6 +342,7 @@ public class GoogleCloudStorageReadChannel
                 + "after {} retries for '{}'", retriesAttempted,
                 StorageResourceId.createReadableString(bucketName, objectName));
             ioe.addSuppressed(ie);
+            closeReadChannel();
             throw ioe;
           }
           LOG.info("Done sleeping before retry for '{}'; retry # {}.",
@@ -354,16 +357,9 @@ public class GoogleCloudStorageReadChannel
             currentPosition += partialRead;
           }
 
-          // Force the stream to be reopened by seeking to the current position.
-          long newPosition = currentPosition;
-          currentPosition = -1;
-          position(newPosition);
-
-          // Before performing lazy seek, explicitly close the underlying channel if necessary.
-          if (lazySeekPending && readChannel != null) {
-            closeReadChannel();
-          }
-          performLazySeek();
+          // Close the channel and mark it to be reopened on next performLazySeek.
+          closeReadChannel();
+          lazySeekPending = true;
         }
       } catch (RuntimeException r) {
         closeReadChannel();
@@ -420,7 +416,7 @@ public class GoogleCloudStorageReadChannel
    * this is not possible, and the SSLSocketImpl was already responsible for performing local
    * cleanup at the time the exception was raised.
    */
-  private void closeReadChannel() {
+  protected void closeReadChannel() {
     if (readChannel != null) {
       try {
         readChannel.close();
@@ -544,7 +540,8 @@ public class GoogleCloudStorageReadChannel
    * @throws FileNotFoundException if the underlying object does not exist.
    * @throws IOException on IO error
    */
-  private void performLazySeek()
+  @VisibleForTesting
+  void performLazySeek()
       throws IOException {
 
     // Return quickly if there is no pending seek operation.
@@ -670,15 +667,27 @@ public class GoogleCloudStorageReadChannel
         throw new IOException(msg, e);
       }
     }
+    InputStream content = null;
+    try {
+      content = response.getContent();
 
-    InputStream content = response.getContent();
-    // If the file is gzip encoded, we requested the entire file and need to seek in the content
-    // to the desired position. If it is not, we only requested the bytes we haven't read.
-    setSize(response, fileEncoding == FileEncoding.GZIPPED ? 0 : newPosition);
-    if (fileEncoding == FileEncoding.GZIPPED) {
-      content.skip(newPosition);
+      // If the file is gzip encoded, we requested the entire file and need to seek in the content
+      // to the desired position. If it is not, we only requested the bytes we haven't read.
+      setSize(response, fileEncoding == FileEncoding.GZIPPED ? 0 : newPosition);
+      if (fileEncoding == FileEncoding.GZIPPED) {
+        content.skip(newPosition);
+      }
+    } catch (IOException e) {
+      try {
+        if (content != null) {
+          content.close();
+        }
+      } catch (IOException closeException) {  // ignore error on close
+        LOG.debug("Caught exception on close after IOException thrown.", closeException);
+        e.addSuppressed(closeException);
+      }
+      throw e;
     }
-
     return content;
   }
 

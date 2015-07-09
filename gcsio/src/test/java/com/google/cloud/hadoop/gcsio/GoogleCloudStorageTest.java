@@ -885,6 +885,7 @@ public class GoogleCloudStorageTest {
     }
 
     assertEquals(readChannel.readChannel, null);
+    assertEquals(readChannel.lazySeekPending, false);
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper, times(1)).getRequestHeaders(any(Storage.Objects.Get.class));
@@ -905,23 +906,14 @@ public class GoogleCloudStorageTest {
     when(mockStorageObjectsGet.executeMedia())
         .thenReturn(createFakeResponse(testData.length, mockExceptionStream));
 
-    when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
-        .thenThrow(new SSLException("fake SSLException"));
     doThrow(new SSLException("fake SSLException on close()"))
         .when(mockExceptionStream).close();
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     setUpAndValidateReadChannelMocksAndSetMaxRetries(readChannel, 0);
-
-    try {
-      byte[] actualData = new byte[testData.length];
-      readChannel.read(ByteBuffer.wrap(actualData));
-      fail();
-    } catch (IOException expected) {
-    }
-
-    assertTrue(readChannel.readChannel != null);
+    readChannel.performLazySeek();
+    assert(readChannel.readChannel != null);
 
     // Should not throw exception. If it does, it will be caught by the test harness.
     readChannel.close();
@@ -1108,7 +1100,6 @@ public class GoogleCloudStorageTest {
     verify(mockHeaders).setRange(eq("bytes=0-"));
     verify(mockStorageObjectsGet).executeMedia();
     verify(mockStorageObjectsGet, times(2)).execute();
-
   }
 
   @Test
@@ -1483,7 +1474,6 @@ public class GoogleCloudStorageTest {
     when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsGet)))
         .thenReturn(mockHeaders);
     when(mockBackOffFactory.newBackOff()).thenReturn(mockBackOff);
-
     when(mockStorageObjectsGet.execute())
         .thenReturn(
             new StorageObject()
