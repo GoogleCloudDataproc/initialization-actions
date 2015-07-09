@@ -1,0 +1,8 @@
+target/
+bin/
+
+# Ignore IntelliJ files.
+.idea/
+*.iml
+*.ipr
+*.iws
