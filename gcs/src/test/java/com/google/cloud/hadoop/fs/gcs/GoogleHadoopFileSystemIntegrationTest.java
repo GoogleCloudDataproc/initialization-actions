@@ -15,6 +15,7 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.InMemoryGoogleCloudStorage;
@@ -27,6 +28,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -348,11 +350,9 @@ public class GoogleHadoopFileSystemIntegrationTest
       throws URISyntaxException, IOException {
     String fakeClientId = "fooclient";
     String existingBucket = bucketName;
-
-    Configuration config = new Configuration();
     URI gsUri = new URI("gs://foobar/");
     String fakeProjectId = "123456";
-    config = new Configuration();
+    Configuration config = new Configuration();
     config.setBoolean(
         GoogleHadoopFileSystemBase.ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY, false);
     // Set project ID and client ID but no client secret.
@@ -597,5 +597,26 @@ public class GoogleHadoopFileSystemIntegrationTest
     Assert.assertEquals(2, subDirectory2Files5.length);
     Assert.assertEquals("file1", subDirectory2Files5[0].getPath().getName());
     Assert.assertEquals("file2", subDirectory2Files5[1].getPath().getName());
+  }
+
+  /**
+   * Tests getFileStatus() with non-default permissions.
+   */
+  @Test
+  public void testConfigurablePermissions() throws IOException {
+    String testPermissions = "777";
+    Configuration conf = getConfigurationWtihImplementation();
+    conf.set(GoogleHadoopFileSystemBase.PERMISSIONS_TO_REPORT_KEY, testPermissions);
+    GoogleHadoopFileSystem myGhfs = new GoogleHadoopFileSystem();
+    myGhfs.initialize(ghfs.getUri(), conf);
+    URI fileUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
+    Path filePath = ghfsHelper.castAsHadoopPath(fileUri);
+    ghfsHelper.writeFile(filePath, "foo", 1, true);
+
+    FileStatus status = myGhfs.getFileStatus(filePath);
+    Assert.assertEquals(new FsPermission(testPermissions), status.getPermission());
+
+    // Cleanup.
+    Assert.assertTrue(ghfs.delete(filePath, true));
   }
 }

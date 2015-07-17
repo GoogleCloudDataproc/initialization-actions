@@ -106,4 +106,9 @@ public class GoogleHadoopFileSystemTest
   public void testFileSystemIsRemovedFromCacheOnClose()
       throws IOException, URISyntaxException {
   }
+
+  @Test @Override
+  public void testConfigurablePermissions()
+      throws IOException {
+  }
 }

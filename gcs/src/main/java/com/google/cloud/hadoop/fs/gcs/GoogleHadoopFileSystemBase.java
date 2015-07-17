@@ -93,14 +93,6 @@ public abstract class GoogleHadoopFileSystemBase
   // Default value of replication factor.
   public static final short REPLICATION_FACTOR_DEFAULT = 3;
 
-  // Permissions that we report a file or directory to have.
-  // Note:
-  // We do not really support file/dir permissions but we need to
-  // report some permission value when Hadoop calls getFileStatus().
-  // A MapReduce job fails if we report permissions more relaxed than
-  // the value below.
-  private static final FsPermission PERMISSIONS_TO_REPORT = FsPermission.valueOf("-rwx------");
-
   // We report this value as a file's owner/group name.
   private static final String USER_NAME = System.getProperty("user.name");
 
@@ -109,6 +101,18 @@ public abstract class GoogleHadoopFileSystemBase
 
   // -----------------------------------------------------------------
   // Configuration settings.
+
+  // Key for the permissions that we report a file or directory to have.
+  // Can either be octal or symbolic mode accepted by {@link FsPermission#FromString(String)}
+  public static final String PERMISSIONS_TO_REPORT_KEY = "fs.gs.reported.permissions";
+
+  // Default value for the permissions that we report a file or directory to have.
+  // Note:
+  // We do not really support file/dir permissions but we need to
+  // report some permission value when Hadoop calls getFileStatus().
+  // A MapReduce job fails if we report permissions more relaxed than
+  // the value below and this is the default File System.
+  public static final String PERMISSIONS_TO_REPORT_DEFAULT = "700";
 
   // Configuration key for setting IO buffer size.
   // TODO(user): rename the following to indicate that it is read buffer size.
@@ -411,6 +415,9 @@ public abstract class GoogleHadoopFileSystemBase
   // Modifying this value allows one to control how many mappers are used
   // to process a given file.
   protected long defaultBlockSize = BLOCK_SIZE_DEFAULT;
+
+  // The fixed reported permission of all files.
+  private FsPermission reportedPermissions;
 
   // Map of counter values
   protected final ImmutableMap<Counter, AtomicLong> counters = createCounterMap();
@@ -1370,7 +1377,7 @@ public abstract class GoogleHadoopFileSystemBase
             defaultBlockSize,
             fileInfo.getModificationTime(), /* Last modification time */
             fileInfo.getModificationTime(), /* Last access time */
-            PERMISSIONS_TO_REPORT,
+            reportedPermissions,
             USER_NAME,
             USER_NAME,
             getHadoopPath(fileInfo.getPath()));
@@ -1583,6 +1590,10 @@ public abstract class GoogleHadoopFileSystemBase
     boolean createSystemBucket =
         config.getBoolean(GCS_CREATE_SYSTEM_BUCKET_KEY, GCS_CREATE_SYSTEM_BUCKET_DEFAULT);
     LOG.debug("{} = {}", GCS_CREATE_SYSTEM_BUCKET_KEY, createSystemBucket);
+
+    reportedPermissions = new FsPermission(
+        config.get(PERMISSIONS_TO_REPORT_KEY, PERMISSIONS_TO_REPORT_DEFAULT));
+    LOG.debug("{} = {}", PERMISSIONS_TO_REPORT_KEY, reportedPermissions);
 
     configureBuckets(systemBucketName, createSystemBucket);
 
