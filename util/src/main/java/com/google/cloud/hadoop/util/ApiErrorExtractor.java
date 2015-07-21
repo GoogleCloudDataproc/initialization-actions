@@ -40,39 +40,23 @@ public class ApiErrorExtractor {
 
   // Public methods here are in alphabetical order.
 
-  /**
-   * Determines if the given exception indicates 'access denied'.
-   */
-  public boolean accessDenied(GoogleJsonResponseException e) {
-    return getHttpStatusCode(e) == HttpStatusCodes.STATUS_CODE_FORBIDDEN;
-  }
 
   /**
-   * Determines if the given exception indicates 'access denied',
-   * recursively checking inner getCause() if outer exception isn't
+   * Determines if the given exception indicates 'access denied'.
+   * Recursively checks getCause() if outer exception isn't
    * an instance of the correct class.
    */
   public boolean accessDenied(IOException e) {
-    return (e.getCause() != null)
-        && (e.getCause() instanceof GoogleJsonResponseException)
-        && accessDenied((GoogleJsonResponseException) e.getCause());
-  }
-
-  /**
-   * Checks if HTTP status code indicates the error specified.
-   */
-  private boolean hasHttpCode(IOException e, int code) {
-    if (e instanceof GoogleJsonResponseException) {
-      return getHttpStatusCode((GoogleJsonResponseException) e) == code;
-    }
-    return false;
+    return recursiveCheckForCode(e, HttpStatusCodes.STATUS_CODE_FORBIDDEN);
   }
 
   /**
    * Determines if the given exception indicates 'item already exists'.
+   * Recursively checks getCause() if outer exception isn't
+   * an instance of the correct class.
    */
   public boolean itemAlreadyExists(IOException e) {
-      return hasHttpCode(e, STATUS_CODE_CONFLICT);
+      return recursiveCheckForCode(e, STATUS_CODE_CONFLICT);
   }
 
   /**
@@ -84,9 +68,11 @@ public class ApiErrorExtractor {
 
   /**
    * Determines if the given exception indicates 'item not found'.
+   * Recursively checks getCause() if outer exception isn't
+   * an instance of the correct class.
    */
   public boolean itemNotFound(IOException e) {
-    return hasHttpCode(e, HttpStatusCodes.STATUS_CODE_NOT_FOUND);
+    return recursiveCheckForCode(e, HttpStatusCodes.STATUS_CODE_NOT_FOUND);
   }
 
   /**
@@ -98,16 +84,20 @@ public class ApiErrorExtractor {
 
   /**
    * Determine if the given IOException indicates 'precondition not met'
+   * Recursively checks getCause() if outer exception isn't
+   * an instance of the correct class.
    */
   public boolean preconditionNotMet(IOException e) {
-    return hasHttpCode(e, STATUS_CODE_PRECONDITION_FAILED);
+    return recursiveCheckForCode(e, STATUS_CODE_PRECONDITION_FAILED);
   }
 
   /**
    * Determines if the given exception indicates 'range not satisfiable'.
+   * Recursively checks getCause() if outer exception isn't
+   * an instance of the correct class.
    */
   public boolean rangeNotSatisfiable(IOException e) {
-    return hasHttpCode(e, STATUS_CODE_RANGE_NOT_SATISFIABLE);
+    return recursiveCheckForCode(e, STATUS_CODE_RANGE_NOT_SATISFIABLE);
   }
 
   /**
@@ -128,16 +118,16 @@ public class ApiErrorExtractor {
 
   /**
    * Determine if a given IOException is caused by a rate limit being applied.
-   * @param ioe The IOException to check.
-   * @return True if the IOException is a result of rate limiting being applied.
+   * Recursively checks getCause() if outer exception isn't
+   * an instance of the correct class.
+   * @param throwable The Throwable to check.
+   * @return True if the Throwable is a result of rate limiting being applied.
    */
-  public boolean rateLimited(IOException ioe) {
-    if (ioe instanceof GoogleJsonResponseException) {
-      GoogleJsonResponseException googleJsonResponseException =
-          (GoogleJsonResponseException) ioe;
-      return rateLimited(getDetails(googleJsonResponseException));
+  public boolean rateLimited(Throwable throwable) {
+    if (throwable instanceof GoogleJsonResponseException) {
+      return rateLimited(getDetails((GoogleJsonResponseException) throwable));
     }
-    return false;
+    return throwable.getCause() != null && rateLimited(throwable.getCause());
   }
 
   /**
@@ -169,9 +159,8 @@ public class ApiErrorExtractor {
     GoogleJsonError gjre = getDetails(e);
     if (gjre != null) {
       return getErrorInfo(gjre);
-    } else {
-      return null;
     }
+    return null;
   }
 
   /**
@@ -201,5 +190,15 @@ public class ApiErrorExtractor {
     } else {
       return errors.get(0);
     }
+  }
+  /**
+   * Recursively checks getCause() if outer exception isn't
+   * an instance of the correct class.
+   */
+  private boolean recursiveCheckForCode(Throwable e, int code) {
+    if (e instanceof GoogleJsonResponseException) {
+      return getHttpStatusCode((GoogleJsonResponseException) e) == code;
+    }
+    return e.getCause() != null && recursiveCheckForCode(e.getCause(), code);
   }
 }
