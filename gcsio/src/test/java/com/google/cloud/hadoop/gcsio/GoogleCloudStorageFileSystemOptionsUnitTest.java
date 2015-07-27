@@ -138,7 +138,7 @@ public class GoogleCloudStorageFileSystemOptionsUnitTest
     GoogleCloudStorage gcs = this.gcsCreator.createGcs(gcsOptions);
     GoogleCloudStorageFileSystem gcsfs =
         new GoogleCloudStorageFileSystem(gcs, fsOptionsBuilder.build());
-    gcsfs.setUpdateTimestampsExecutor(MoreExecutors.sameThreadExecutor());
+    gcsfs.setUpdateTimestampsExecutor(MoreExecutors.newDirectExecutorService());
     return gcsfs;
   }
 }
