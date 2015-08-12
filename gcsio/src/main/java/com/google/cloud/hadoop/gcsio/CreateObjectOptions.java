@@ -28,29 +28,49 @@ import java.util.Map;
 public class CreateObjectOptions {
   public static final Map<String, byte[]> EMPTY_METADATA = ImmutableMap.<String, byte[]>of();
   public static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
-  public static final CreateObjectOptions DEFAULT = new CreateObjectOptions(true, EMPTY_METADATA);
+  public static final CreateObjectOptions DEFAULT = new CreateObjectOptions(true);
 
   private final boolean overwriteExisting;
   private final String contentType;
   private final Map<String, byte[]> metadata;
+  private final boolean requireMetadataMatchForEmptyObjects;
 
   /**
    * Construct a new CreateObjectOptions with empty metadata and the default content-type.
+   * Since no metadata was explicitly provided, we will set metadata-match for
+   * empty objects to false.
    *
    * @param overwriteExisting True to overwrite any existing objects with the same name.
    */
   public CreateObjectOptions(boolean overwriteExisting) {
-    this(overwriteExisting, DEFAULT_CONTENT_TYPE, EMPTY_METADATA);
+    this(overwriteExisting, DEFAULT_CONTENT_TYPE, EMPTY_METADATA, false);
   }
 
   /**
    * Construct a new CreateObjectOptions with the specified metadata, and default content-type.
+   * Since metadata was explicitly provided, even if empty, we will set metadata-match for
+   * empty objects to true.
+   * 
    *
    * @param overwriteExisting True to overwrite any existing objects with the same name.
    * @param metadata A dictionary of metadata to apply to created objects.
    */
   public CreateObjectOptions(boolean overwriteExisting, Map<String, byte[]> metadata) {
-    this(overwriteExisting, DEFAULT_CONTENT_TYPE, metadata);
+    this(overwriteExisting, DEFAULT_CONTENT_TYPE, metadata, true);
+  }
+
+  /**
+   * Construct a new CreateObjectOptions with the spec metadata and content-type.
+   * Since metadata was explicitly provided, even if empty, we will set metadata-match for
+   * empty objects to true.
+   *
+   * @param overwriteExisting True to overwrite any existing objects with the same name
+   * @param contentType content-type for the created file
+   * @param metadata A dictionary of metadata to apply to created objects
+   */
+  public CreateObjectOptions(
+      boolean overwriteExisting, String contentType, Map<String, byte[]> metadata) {
+    this(overwriteExisting, contentType, metadata, true);
   }
 
   /**
@@ -59,14 +79,23 @@ public class CreateObjectOptions {
    * @param overwriteExisting True to overwrite any existing objects with the same name
    * @param contentType content-type for the created file
    * @param metadata A dictionary of metadata to apply to created objects
+   * @param requireMetadataMatchForEmptyObjects if true, when creating an empty object and
+   *     certain types of errors occur, any existing object is checked for an exact metadata
+   *     match to the metadata in this CreateObjectOptions before accepting the creation as
+   *     successful. If false, then on error for creating empty objects, as long as an
+   *     appropriate empty object already exists, even if it holds different metadata than
+   *     provided in this CreateObjectOptions instance, it may be considered created
+   *     successfully.
    */
-  public CreateObjectOptions(boolean overwriteExisting, String contentType,
-      Map<String, byte[]> metadata) {
+  public CreateObjectOptions(
+      boolean overwriteExisting, String contentType, Map<String, byte[]> metadata,
+      boolean requireMetadataMatchForEmptyObjects) {
     Preconditions.checkArgument(!metadata.containsKey("Content-Type"),
         "The Content-Type metadata must be provided explicitly via the 'contentType' parameter");
     this.overwriteExisting = overwriteExisting;
     this.contentType = contentType;
     this.metadata = metadata;
+    this.requireMetadataMatchForEmptyObjects = requireMetadataMatchForEmptyObjects;
   }
 
   /**
@@ -88,5 +117,12 @@ public class CreateObjectOptions {
    */
   public Map<String, byte[]> getMetadata() {
     return metadata;
+  }
+
+  /**
+   * See constructor param for details.
+   */
+  public boolean getRequireMetadataMatchForEmptyObjects() {
+    return requireMetadataMatchForEmptyObjects;
   }
 }

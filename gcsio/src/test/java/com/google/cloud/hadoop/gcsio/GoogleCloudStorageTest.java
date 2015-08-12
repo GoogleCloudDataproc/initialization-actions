@@ -71,7 +71,9 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
@@ -101,6 +103,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.TreeMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -116,6 +119,9 @@ import javax.net.ssl.SSLException;
  */
 @RunWith(JUnit4.class)
 public class GoogleCloudStorageTest {
+  @Rule
+  public ExpectedException expectedException = ExpectedException.none();
+
   private static final String APP_NAME = "GCS-Unit-Test";
   private static final String PROJECT_ID = "google.com:foo-project";
   private static final String BUCKET_NAME = "foo-bucket";
@@ -280,6 +286,26 @@ public class GoogleCloudStorageTest {
             .setName(OBJECT_NAME)
             .setGeneration(1L)
             .setMetageneration(1L)).thenAnswer(answer);
+  }
+
+  protected StorageObject getStorageObjectForEmptyObjectWithMetadata(
+      Map<String, byte[]> metadata) {
+    return new StorageObject()
+        .setBucket(BUCKET_NAME)
+        .setName(OBJECT_NAME)
+        .setGeneration(1L)
+        .setMetageneration(1L)
+        .setSize(BigInteger.ZERO)
+        .setUpdated(new DateTime(11L))
+        .setMetadata(
+            metadata == null ? null : GoogleCloudStorageImpl.encodeMetadata(metadata));
+  }
+
+  protected GoogleCloudStorageItemInfo getItemInfoForEmptyObjectWithMetadata(
+      Map<String, byte[]> metadata) {
+    return GoogleCloudStorageImpl.createItemInfoForStorageObject(
+        new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
+        getStorageObjectForEmptyObjectWithMetadata(metadata));
   }
 
   /**
@@ -3978,5 +4004,234 @@ public class GoogleCloudStorageTest {
   @Test
   public void testCoverDefaultConstructor() {
     new GoogleCloudStorageImpl();
+  }
+
+  /**
+   * Coverage for GoogleCloudStorageItemInfo.metadataEquals.
+   */
+  @Test
+  public void testItemInfoMetadataEquals() {
+    assertTrue(getItemInfoForEmptyObjectWithMetadata(EMPTY_METADATA).metadataEquals(
+        EMPTY_METADATA));
+
+    // The factory method changes 'null' to the empty map, but that doesn't mean an empty
+    // metadata setting equals 'null' as the parameter passed to metadataEquals.
+    assertTrue(getItemInfoForEmptyObjectWithMetadata(null).metadataEquals(
+        EMPTY_METADATA));
+    assertFalse(getItemInfoForEmptyObjectWithMetadata(null).metadataEquals(
+        null));
+
+    //  Basic equality case.
+    assertTrue(getItemInfoForEmptyObjectWithMetadata(
+        ImmutableMap.of("foo", new byte[] { 0x01 }, "bar", new byte[] { 0x02 })).metadataEquals(
+        ImmutableMap.of("foo", new byte[] { 0x01 }, "bar", new byte[] { 0x02 })));
+
+    // Equality across different map implementations.
+    assertTrue(
+        getItemInfoForEmptyObjectWithMetadata(
+            new HashMap<String, byte[]>(
+                ImmutableMap.of("foo", new byte[] { 0x01 }, "bar", new byte[] { 0x02 })))
+        .metadataEquals(
+            new TreeMap<String, byte[]>(
+                ImmutableMap.of("foo", new byte[] { 0x01 }, "bar", new byte[] { 0x02 }))));
+
+    // Even though the keySet() is equal for the two and the set of values() is equal for the two,
+    // since we inverted which key points to which value, they should not be deemed equal.
+    assertFalse(getItemInfoForEmptyObjectWithMetadata(
+        ImmutableMap.of("foo", new byte[] { 0x01 }, "bar", new byte[] { 0x02 })).metadataEquals(
+        ImmutableMap.of("foo", new byte[] { 0x02 }, "bar", new byte[] { 0x01 })));
+
+    // Only a subset is equal.
+    assertFalse(getItemInfoForEmptyObjectWithMetadata(
+        ImmutableMap.of("foo", new byte[] { 0x01 }, "bar", new byte[] { 0x02 })).metadataEquals(
+        ImmutableMap.of("foo", new byte[] { 0x01 })));
+  }
+
+  @Test
+  public void testItemInfoEqualityIncludesMetadata() {
+    assertFalse(
+        getItemInfoForEmptyObjectWithMetadata(
+            ImmutableMap.of("foo", new byte[] { 0x01 }, "bar", new byte[] { 0x02 })).equals(
+        getItemInfoForEmptyObjectWithMetadata(null)));
+  }
+
+  @Test
+  public void testIgnoreExceptionsOnCreateEmptyObject() throws IOException {
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.insert(
+        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
+        .thenReturn(mockStorageObjectsInsert);
+    when(mockStorageObjectsInsert.execute())
+        .thenThrow(new IOException("rateLimitExceeded"));
+    when(mockErrorExtractor.rateLimited(any(IOException.class))).thenReturn(true);
+    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
+        .thenReturn(mockStorageObjectsGet);
+    when(mockStorageObjectsGet.execute())
+        .thenReturn(getStorageObjectForEmptyObjectWithMetadata(
+            ImmutableMap.<String, byte[]>of("foo", new byte[0])));
+
+    gcs.createEmptyObject(
+        new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
+        new CreateObjectOptions(true, ImmutableMap.<String, byte[]>of("foo", new byte[0])));
+
+    verify(mockStorage, times(2)).objects();
+    verify(mockStorageObjects).insert(
+        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
+    verify(mockStorageObjectsInsert).setDisableGZipContent(eq(true));
+    verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
+    verify(mockStorageObjectsInsert).execute();
+    verify(mockErrorExtractor).rateLimited(any(IOException.class));
+    verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorageObjectsGet).execute();
+  }
+
+  @Test
+  public void testIgnoreExceptionsOnCreateEmptyObjectMismatchMetadata() throws IOException {
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.insert(
+        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
+        .thenReturn(mockStorageObjectsInsert);
+    when(mockStorageObjectsInsert.execute())
+        .thenThrow(new IOException("rateLimitExceeded"));
+    when(mockErrorExtractor.rateLimited(any(IOException.class))).thenReturn(true);
+    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
+        .thenReturn(mockStorageObjectsGet);
+    when(mockStorageObjectsGet.execute())
+        .thenReturn(getStorageObjectForEmptyObjectWithMetadata(EMPTY_METADATA));
+
+    expectedException.expect(IOException.class);
+    expectedException.expectMessage("rateLimitExceeded");
+    try {
+      gcs.createEmptyObject(
+          new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
+          new CreateObjectOptions(true, ImmutableMap.<String, byte[]>of("foo", new byte[0])));
+    } finally {
+      verify(mockStorage, times(2)).objects();
+      verify(mockStorageObjects).insert(
+          eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
+      verify(mockStorageObjectsInsert).setDisableGZipContent(eq(true));
+      verify(mockClientRequestHelper).setDirectUploadEnabled(
+          eq(mockStorageObjectsInsert), eq(true));
+      verify(mockStorageObjectsInsert).execute();
+      verify(mockErrorExtractor).rateLimited(any(IOException.class));
+      verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+      verify(mockStorageObjectsGet).execute();
+    }
+  }
+
+  @Test
+  public void testIgnoreExceptionsOnCreateEmptyObjectMismatchMetadataButOptionsHasNoMetadata()
+      throws IOException {
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.insert(
+        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
+        .thenReturn(mockStorageObjectsInsert);
+    when(mockStorageObjectsInsert.execute())
+        .thenThrow(new IOException("rateLimitExceeded"));
+    when(mockErrorExtractor.rateLimited(any(IOException.class))).thenReturn(true);
+    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
+        .thenReturn(mockStorageObjectsGet);
+    when(mockStorageObjectsGet.execute())
+        .thenReturn(getStorageObjectForEmptyObjectWithMetadata(
+            ImmutableMap.<String, byte[]>of("foo", new byte[0])));
+
+    // The fetch will "mismatch" with more metadata than our default EMPTY_METADATA used in the
+    // default CreateObjectOptions, but we won't care because the metadata-check requirement
+    // will be false, so the call will complete successfully.
+    gcs.createEmptyObject(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
+
+    verify(mockStorage, times(2)).objects();
+    verify(mockStorageObjects).insert(
+        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
+    verify(mockStorageObjectsInsert).setDisableGZipContent(eq(true));
+    verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
+    verify(mockStorageObjectsInsert).execute();
+    verify(mockErrorExtractor).rateLimited(any(IOException.class));
+    verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorageObjectsGet).execute();
+  }
+
+  @Test
+  public void testIgnoreExceptionsOnCreateEmptyObjects() throws IOException {
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.insert(
+        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
+        .thenReturn(mockStorageObjectsInsert);
+    when(mockStorageObjectsInsert.execute())
+        .thenThrow(new IOException("rateLimitExceeded"));
+    when(mockErrorExtractor.rateLimited(any(IOException.class))).thenReturn(true);
+    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
+        .thenReturn(mockStorageObjectsGet);
+    when(mockStorageObjectsGet.execute())
+        .thenReturn(getStorageObjectForEmptyObjectWithMetadata(EMPTY_METADATA));
+
+    gcs.createEmptyObjects(ImmutableList.of(new StorageResourceId(BUCKET_NAME, OBJECT_NAME)));
+
+    verify(mockStorage, times(2)).objects();
+    verify(mockStorageObjects).insert(
+        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
+    verify(mockStorageObjectsInsert).setDisableGZipContent(eq(true));
+    verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
+    verify(mockStorageObjectsInsert).execute();
+    verify(mockErrorExtractor).rateLimited(any(IOException.class));
+    verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorageObjectsGet).execute();
+  }
+
+  @Test
+  public void testIgnoreExceptionsOnCreateEmptyObjectsNonIgnorableException() throws IOException {
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.insert(
+        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
+        .thenReturn(mockStorageObjectsInsert);
+    when(mockStorageObjectsInsert.execute())
+        .thenThrow(new IOException("forbidden"));
+    when(mockErrorExtractor.rateLimited(any(IOException.class))).thenReturn(false);
+
+    expectedException.expect(IOException.class);
+    try {
+      gcs.createEmptyObjects(ImmutableList.of(new StorageResourceId(BUCKET_NAME, OBJECT_NAME)));
+    } finally {
+      verify(mockStorage).objects();
+      verify(mockStorageObjects).insert(
+          eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
+      verify(mockStorageObjectsInsert).setDisableGZipContent(eq(true));
+      verify(mockClientRequestHelper).setDirectUploadEnabled(
+          eq(mockStorageObjectsInsert), eq(true));
+      verify(mockStorageObjectsInsert).execute();
+      verify(mockErrorExtractor).rateLimited(any(IOException.class));
+    }
+  }
+
+  @Test
+  public void testIgnoreExceptionsOnCreateEmptyObjectsErrorOnRefetch() throws IOException {
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.insert(
+        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
+        .thenReturn(mockStorageObjectsInsert);
+    when(mockStorageObjectsInsert.execute())
+        .thenThrow(new IOException("rateLimitExceeded"));
+    when(mockErrorExtractor.rateLimited(any(IOException.class))).thenReturn(true);
+    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
+        .thenReturn(mockStorageObjectsGet);
+    when(mockStorageObjectsGet.execute())
+        .thenThrow(new RuntimeException("error while fetching"));
+
+    expectedException.expect(IOException.class);
+    expectedException.expectMessage("Multiple IOExceptions");
+    try {
+      gcs.createEmptyObjects(ImmutableList.of(new StorageResourceId(BUCKET_NAME, OBJECT_NAME)));
+    } finally {
+      verify(mockStorage, times(2)).objects();
+      verify(mockStorageObjects).insert(
+          eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
+      verify(mockStorageObjectsInsert).setDisableGZipContent(eq(true));
+      verify(mockClientRequestHelper).setDirectUploadEnabled(
+          eq(mockStorageObjectsInsert), eq(true));
+      verify(mockStorageObjectsInsert).execute();
+      verify(mockErrorExtractor).rateLimited(any(IOException.class));
+      verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+      verify(mockStorageObjectsGet).execute();
+    }
   }
 }

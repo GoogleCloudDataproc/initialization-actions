@@ -19,6 +19,7 @@ package com.google.cloud.hadoop.gcsio;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
 import java.util.Objects;
@@ -225,6 +226,34 @@ public class GoogleCloudStorageItemInfo {
   }
 
   /**
+   * Helper for checking logical equality of metadata maps, checking equality of keySet() between
+   * this.metadata and otherMetadata, and then using Arrays.equals to compare contents of
+   * corresponding byte arrays.
+   */
+  public boolean metadataEquals(Map<String, byte[]> otherMetadata) {
+    if (metadata == otherMetadata) {
+      // Fast-path for common cases where the same actual default metadata instance may be used in
+      // multiple different item infos.
+      return true;
+    }
+    if ((metadata == null && otherMetadata != null)
+        || (metadata != null && otherMetadata == null)) {
+      return false;
+    }
+    if (!metadata.keySet().equals(otherMetadata.keySet())) {
+      return false;
+    }
+
+    // Compare each byte[] with Arrays.equals.
+    for (String key : metadata.keySet()) {
+      if (!Arrays.equals(metadata.get(key), otherMetadata.get(key))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
    * Gets string representation of this instance.
    */
   @Override
@@ -247,7 +276,8 @@ public class GoogleCloudStorageItemInfo {
           && Objects.equals(location, other.location) 
           && Objects.equals(storageClass, other.storageClass)
           && metaGeneration == other.metaGeneration
-          && contentGeneration == other.contentGeneration;
+          && contentGeneration == other.contentGeneration
+          && metadataEquals(other.getMetadata());
     }
     return false;
   }

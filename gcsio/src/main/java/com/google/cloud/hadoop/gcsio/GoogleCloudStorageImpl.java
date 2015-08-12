@@ -391,8 +391,7 @@ public class GoogleCloudStorageImpl
     ObjectWriteConditions writeConditions =
         new ObjectWriteConditions(overwriteGeneration, Optional.<Long>absent());
 
-    Map<String, String> rewrittenMetadata =
-        Maps.transformValues(options.getMetadata(), ENCODE_METADATA_VALUES);
+    Map<String, String> rewrittenMetadata = encodeMetadata(options.getMetadata());
 
     GoogleCloudStorageWriteChannel channel = new GoogleCloudStorageWriteChannel(
         threadPool,
@@ -430,7 +429,16 @@ public class GoogleCloudStorageImpl
         "Expected full StorageObject id, got " + resourceId);
 
     Storage.Objects.Insert insertObject = prepareEmptyInsert(resourceId, options);
-    insertObject.execute();
+    try {
+      insertObject.execute();
+    } catch (IOException ioe) {
+      if (canIgnoreExceptionForEmptyObject(ioe, resourceId, options)) {
+        LOG.info(
+            "Ignoring exception; verified object already exists with desired state.", ioe);
+      } else {
+        throw ioe;
+      }
+    }
   }
 
   /**
@@ -447,7 +455,8 @@ public class GoogleCloudStorageImpl
   }
 
   @Override
-  public void createEmptyObjects(List<StorageResourceId> resourceIds, CreateObjectOptions options)
+  public void createEmptyObjects(
+      List<StorageResourceId> resourceIds, final CreateObjectOptions options)
       throws IOException {
     // TODO(user): This method largely follows a pattern similar to
     // deleteObjects(List<StorageResourceId>); extract a generic method for both.
@@ -472,8 +481,26 @@ public class GoogleCloudStorageImpl
             insertObject.execute();
             LOG.debug("Successfully inserted {}", resourceId.toString());
           } catch (IOException ioe) {
-            innerExceptions.add(wrapException(ioe, "Error inserting",
-                resourceId.getBucketName(), resourceId.getObjectName()));
+            boolean canIgnoreException = false;
+            try {
+              canIgnoreException = canIgnoreExceptionForEmptyObject(ioe, resourceId, options);
+            } catch (Throwable t) {
+              // Make sure to catch Throwable instead of only IOException so that we can
+              // correctly wrap other such throwables and propagate them out cleanly inside
+              // innerExceptions; common sources of non-IOExceptions include Preconditions
+              // checks which get enforced at varous layers in the library stack.
+              IOException toWrap =
+                  (t instanceof IOException ? (IOException) t : new IOException(t));
+              innerExceptions.add(wrapException(toWrap, "Error re-fetching after rate-limit error",
+                  resourceId.getBucketName(), resourceId.getObjectName()));
+            }
+            if (canIgnoreException) {
+              LOG.info(
+                  "Ignoring exception; verified object already exists with desired state.", ioe);
+            } else {
+              innerExceptions.add(wrapException(ioe, "Error inserting",
+                  resourceId.getBucketName(), resourceId.getObjectName()));
+            }
           } catch (Throwable t) {
             innerExceptions.add(wrapException(new IOException(t), "Error inserting",
                 resourceId.getBucketName(), resourceId.getObjectName()));
@@ -925,8 +952,7 @@ public class GoogleCloudStorageImpl
       CreateObjectOptions createObjectOptions) throws IOException {
     StorageObject object = new StorageObject();
     object.setName(resourceId.getObjectName());
-    Map<String, String> rewrittenMetadata =
-        Maps.transformValues(createObjectOptions.getMetadata(), ENCODE_METADATA_VALUES);
+    Map<String, String> rewrittenMetadata = encodeMetadata(createObjectOptions.getMetadata());
     object.setMetadata(rewrittenMetadata);
 
     // Ideally we'd use EmptyContent, but Storage requires an AbstractInputStreamContent and not
@@ -1291,8 +1317,7 @@ public class GoogleCloudStorageImpl
             resourceId.getObjectName(), object.getName()));
 
     Map<String, byte[]> decodedMetadata =
-        object.getMetadata() == null ? null
-            : Maps.transformValues(object.getMetadata(), DECODE_METADATA_VALUES);
+        object.getMetadata() == null ? null : decodeMetadata(object.getMetadata());
 
     // GCS API does not make available location and storage class at object level at present
     // (it is same for all objects in a bucket). Further, we do not use the values for objects.
@@ -1307,6 +1332,24 @@ public class GoogleCloudStorageImpl
         decodedMetadata,
         object.getGeneration(),
         object.getMetageneration());
+  }
+
+  /**
+   * Helper for converting from a Map&lt;String, byte[]&gt; metadata map that may be in a
+   * StorageObject into a Map&lt;String, String&gt; suitable for placement inside a
+   * GoogleCloudStorageItemInfo.
+   */
+  @VisibleForTesting
+  static Map<String, String> encodeMetadata(Map<String, byte[]> metadata) {
+    return Maps.transformValues(metadata, ENCODE_METADATA_VALUES);
+  }
+
+  /**
+   * Inverse function of {@link #encodeMetadata(Map)}.
+   */
+  @VisibleForTesting
+  static Map<String, byte[]> decodeMetadata(Map<String, String> metadata) {
+    return Maps.transformValues(metadata, DECODE_METADATA_VALUES);
   }
 
   /**
@@ -1450,8 +1493,7 @@ public class GoogleCloudStorageImpl
       final String objectName = resourceId.getObjectName();
 
       Map<String, byte[]> originalMetadata = itemInfo.getMetadata();
-      Map<String, String> rewrittenMetadata =
-          Maps.transformValues(originalMetadata, ENCODE_METADATA_VALUES);
+      Map<String, String> rewrittenMetadata = encodeMetadata(originalMetadata);
 
       Storage.Objects.Patch patch =
           gcs.objects().patch(
@@ -1627,6 +1669,34 @@ public class GoogleCloudStorageImpl
       }
     }
     return object;
+  }
+
+  /**
+   * Helper to check whether an empty object already exists with the expected metadata specified
+   * in {@code options}, to be used to determine whether it's safe to ignore an exception that
+   * was thrown when trying to create the object, {@code exceptionOnCreate}.
+   */
+  private boolean canIgnoreExceptionForEmptyObject(
+      IOException exceptionOnCreate, StorageResourceId resourceId, CreateObjectOptions options)
+      throws IOException {
+    // TODO(user): Maybe also add 5xx, 409, and even 412 errors if they pop up in this use case.
+    if (errorExtractor.rateLimited(exceptionOnCreate)) {
+      // Try to re-fetch to see if our work might already be done.
+      GoogleCloudStorageItemInfo existingInfo = getItemInfo(resourceId);
+
+      // Compare existence, size, and metadata; for 429 errors creating an empty object,
+      // we don't care about metaGeneration/contentGeneration as long as the metadata
+      // matches, since we don't know for sure whether our low-level request succeeded
+      // first or some other client succeeded first.
+      if (existingInfo.exists() && existingInfo.getSize() == 0) {
+        if (!options.getRequireMetadataMatchForEmptyObjects()) {
+          return true;
+        } else if (existingInfo.metadataEquals(options.getMetadata())) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   /**

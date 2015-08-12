@@ -1,3 +1,12 @@
+1.4.2 - 2015-xx-xx
+
+  1. Added checking in GoogleCloudStorageImpl.createEmptyObject(s) to handle
+     rateLimitExceeded (429) errors by fetching the fresh underlying info
+     and ignoring the error if the object already exists with the intended
+     metadata and size. This fixes an issue which mostly affects Spark:
+     https://github.com/GoogleCloudPlatform/bigdata-interop/issues/10
+
+
 1.4.1 - 2015-07-09
 
   1. Switched from the custom SeekableReadableByteChannel to
