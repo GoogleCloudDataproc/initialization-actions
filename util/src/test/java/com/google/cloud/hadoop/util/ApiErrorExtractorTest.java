@@ -21,10 +21,8 @@ import static org.junit.Assert.assertTrue;
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
-import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
-import com.google.api.client.http.HttpResponseException;
 import com.google.api.client.http.HttpStatusCodes;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.LowLevelHttpRequest;
@@ -87,11 +85,11 @@ public class ApiErrorExtractorTest {
     // This works because googleJsonResponseException takes final ErrorInfo
     ErrorInfo errorInfo = new ErrorInfo();
     errorInfo.setReason(ApiErrorExtractor.RATE_LIMITED_REASON_CODE);
-    notRateLimited = googleJsonResponseException(POSSIBLE_RATE_LIMIT, errorInfo);
+    notRateLimited = googleJsonResponseException(POSSIBLE_RATE_LIMIT, errorInfo, "");
     errorInfo.setDomain(ApiErrorExtractor.USAGE_LIMITS_DOMAIN);
-    rateLimited = googleJsonResponseException(POSSIBLE_RATE_LIMIT, errorInfo);
+    rateLimited = googleJsonResponseException(POSSIBLE_RATE_LIMIT, errorInfo, "");
     errorInfo.setDomain(ApiErrorExtractor.GLOBAL_DOMAIN);
-    bigqueryRateLimited = googleJsonResponseException(POSSIBLE_RATE_LIMIT, errorInfo);
+    bigqueryRateLimited = googleJsonResponseException(POSSIBLE_RATE_LIMIT, errorInfo, "");
   }
 
   /**
@@ -281,44 +279,50 @@ public class ApiErrorExtractorTest {
   }
 
   @Test
-  public void testGetErrorMessage() {
-    GoogleJsonError jsonDetails = new GoogleJsonError();
-    jsonDetails.setMessage("bar");
-    IOException withJsonError = new GoogleJsonResponseException(
-        new HttpResponseException.Builder(42, null, new HttpHeaders()).setMessage("foo"),
-        jsonDetails);  // jsonDetails.getMessage() supercedes HttpResponseException.getMessage().
-    assertEquals("bar", errorExtractor.getErrorMessage(withJsonError));
+  public void testGetErrorMessage() throws IOException {
+    IOException withJsonError = googleJsonResponseException(
+        42, "Detail Reason", "Detail message", "Top Level HTTP Message");
+    assertEquals("Top Level HTTP Message", errorExtractor.getErrorMessage(withJsonError));
 
-    IOException nullJsonError = new GoogleJsonResponseException(
-        new HttpResponseException.Builder(42, null, new HttpHeaders()).setMessage("foo"),
-        null);  // null for inner GoogleJsonError 'details'.
-    assertEquals("foo", errorExtractor.getErrorMessage(nullJsonError));
+    IOException nullJsonError = googleJsonResponseException(
+        42, null, null, "Top Level HTTP Message");
+    assertEquals("Top Level HTTP Message", errorExtractor.getErrorMessage(nullJsonError));
   }
 
   /**
    * Builds a fake GoogleJsonResponseException for testing API error handling.
    */
   private static GoogleJsonResponseException googleJsonResponseException(
-      final int status, final String reason, final String message) throws IOException {
+      int httpStatus, String reason, String message) throws IOException {
+    return googleJsonResponseException(httpStatus, reason, message, message);
+  }
+
+  /**
+   * Builds a fake GoogleJsonResponseException for testing API error handling.
+   */
+  private static GoogleJsonResponseException googleJsonResponseException(
+      int httpStatus, String reason, String message, String httpStatusString) throws IOException {
     ErrorInfo errorInfo = new ErrorInfo();
     errorInfo.setReason(reason);
     errorInfo.setMessage(message);
-    return googleJsonResponseException(status, errorInfo);
+    return googleJsonResponseException(httpStatus, errorInfo, httpStatusString);
   }
 
   private static GoogleJsonResponseException googleJsonResponseException(
-      final int status, final ErrorInfo errorInfo) throws IOException {
+      final int status, final ErrorInfo errorInfo, final String httpStatusString)
+      throws IOException {
     final JsonFactory jsonFactory = new JacksonFactory();
     HttpTransport transport = new MockHttpTransport() {
       @Override
       public LowLevelHttpRequest buildRequest(String method, String url) throws IOException {
         errorInfo.setFactory(jsonFactory);
-        GenericJson error = new GenericJson();
-        error.set("code", status);
-        error.set("errors", Arrays.asList(errorInfo));
-        error.setFactory(jsonFactory);
+        GoogleJsonError jsonError = new GoogleJsonError();
+        jsonError.setCode(status);
+        jsonError.setErrors(Arrays.asList(errorInfo));
+        jsonError.setMessage(httpStatusString);
+        jsonError.setFactory(jsonFactory);
         GenericJson errorResponse = new GenericJson();
-        errorResponse.set("error", error);
+        errorResponse.set("error", jsonError);
         errorResponse.setFactory(jsonFactory);
         return new MockLowLevelHttpRequest().setResponse(
             new MockLowLevelHttpResponse().setContent(errorResponse.toPrettyString())
