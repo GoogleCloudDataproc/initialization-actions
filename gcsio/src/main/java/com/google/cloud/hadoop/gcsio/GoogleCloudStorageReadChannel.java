@@ -306,6 +306,11 @@ public class GoogleCloudStorageReadChannel
         totalBytesRead += numBytesRead;
         currentPosition += numBytesRead;
 
+        if (retriesAttempted != 0) {
+          LOG.info("Success after {} retries on reading '{}'",
+              retriesAttempted,
+              StorageResourceId.createReadableString(bucketName, objectName));
+        }
         // The count of retriesAttempted is per low-level readChannel.read call; each time we make
         // progress we reset the retry counter.
         retriesAttempted = 0;
