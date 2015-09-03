@@ -32,6 +32,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.IOException;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 
 import javax.net.ssl.SSLException;
@@ -62,6 +63,9 @@ public class RetryDeterminerTest {
   @Test
   public void defaultRetriesCorrectly() throws Exception {
     assertTrue(RetryDeterminer.DEFAULT.shouldRetry(new SocketTimeoutException()));
+    assertTrue(RetryDeterminer.SOCKET_ERRORS.shouldRetry(
+        new SSLException("test", new SocketException())));
+    assertFalse(RetryDeterminer.SOCKET_ERRORS.shouldRetry(new SSLException("invalid certificate")));
     assertFalse(RetryDeterminer.DEFAULT.shouldRetry(new IllegalArgumentException()));
     assertFalse(RetryDeterminer.DEFAULT.shouldRetry(new InterruptedException()));
     assertFalse(RetryDeterminer.DEFAULT.shouldRetry(makeHttpException(300)));
@@ -74,7 +78,9 @@ public class RetryDeterminerTest {
   @Test
   public void socketRetriesCorrectly() throws IOException {
     assertTrue(RetryDeterminer.SOCKET_ERRORS.shouldRetry(new SocketTimeoutException()));
-    assertTrue(RetryDeterminer.SOCKET_ERRORS.shouldRetry(new SSLException("test")));
+    assertTrue(RetryDeterminer.SOCKET_ERRORS.shouldRetry(
+        new SSLException("test", new SocketException())));
+    assertFalse(RetryDeterminer.SOCKET_ERRORS.shouldRetry(new SSLException("invalid certificate")));
     assertFalse(RetryDeterminer.SOCKET_ERRORS.shouldRetry(new IOException("Hey")));
     assertFalse(RetryDeterminer.SOCKET_ERRORS.shouldRetry(makeHttpException(300)));
     assertFalse(RetryDeterminer.SOCKET_ERRORS.shouldRetry(makeHttpException(504)));

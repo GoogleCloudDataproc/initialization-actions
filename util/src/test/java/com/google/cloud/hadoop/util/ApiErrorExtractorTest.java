@@ -40,6 +40,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.io.IOException;
+import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.Arrays;
 
@@ -179,6 +180,28 @@ public class ApiErrorExtractorTest {
 
     // Check failure cases.
     assertFalse(errorExtractor.rateLimited(notRateLimited));
+  }
+
+  /**
+   * Validates socketError().
+   */
+  @Test
+  public void testSocketError() {
+    // Check true cases.
+    Throwable socketError1 = new SocketTimeoutException("socket error 1");
+    assertTrue(errorExtractor.socketError(socketError1));
+    assertTrue(errorExtractor.socketError(new Exception(socketError1)));
+    assertTrue(errorExtractor.socketError(new IOException(new IOException(socketError1))));
+
+    Throwable socketError2 = new SocketException("socket error 2");
+    assertTrue(errorExtractor.socketError(socketError2));
+    assertTrue(errorExtractor.socketError(new Exception(socketError2)));
+    assertTrue(errorExtractor.socketError(new IOException(new IOException(socketError2))));
+
+    // Check false cases.
+    Throwable notSocketError = new Exception("not socket error");
+    assertFalse(errorExtractor.socketError(notSocketError));
+    assertFalse(errorExtractor.socketError(new IOException(notSocketError)));
   }
 
   /**

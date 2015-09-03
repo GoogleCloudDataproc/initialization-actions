@@ -20,10 +20,6 @@ package com.google.cloud.hadoop.util;
 import com.google.api.client.http.HttpResponseException;
 
 import java.io.IOException;
-import java.net.SocketException;
-import java.net.SocketTimeoutException;
-
-import javax.net.ssl.SSLException;
 
 /**
  * This abstract class is designed to tell if an exception is transient and should result in a
@@ -48,23 +44,10 @@ public abstract class RetryDeterminer<X extends Exception> {
   };
 
   /**
-   * Socket errors retry determiner retries on socket exceptions and ssl exceptions. Note:
-   * Assumes that the new SSL connection would be re-established inside the retry. If this is not
-   * true, then retrying after a failed SSL connection would not help.
+   * Socket errors retry determiner retries on socket exceptions.
    */
   public static final RetryDeterminer<IOException> SOCKET_ERRORS =
-      new RetryDeterminer<IOException>() {
-    @Override
-    public boolean shouldRetry(IOException e) {
-      /* Assumes that the ssl connection happens within the retry. This is true for the {@link
-       * AbstractGoogleClientRequest} execute functions. SocketTimeoutExceptions are thrown only
-       * for timeouts and it is safe to retry on them even if connect isn't new. We want to pass
-       * any other exceptions back up including InterruptedExceptions.
-       */
-      return e instanceof SSLException || e instanceof SocketException
-          || e instanceof SocketTimeoutException;
-    }
-  };
+      createSocketErrorRetryDeterminer(new ApiErrorExtractor());
 
   /**
    *  Server errors RetryDeterminer decides to retry on HttpResponseExceptions that return a 500.
@@ -87,8 +70,8 @@ public abstract class RetryDeterminer<X extends Exception> {
    */
   public static final RetryDeterminer<IOException> RATE_LIMIT_ERRORS =
       createRateLimitedRetryDeterminer(new ApiErrorExtractor());
-  
-  /** 
+
+  /**
    * Determines if we should attempt a retry depending on the caught exception.
    * <p>
    * To indicate that no retry should be made, return false. If no retry,
@@ -111,6 +94,23 @@ public abstract class RetryDeterminer<X extends Exception> {
       @Override
       public boolean shouldRetry(IOException e) {
         return errorExtractor.rateLimited(e);
+      }
+    };
+  }
+
+  /**
+   * A {@link RetryDeterminer} that retries on socket errors as determined by the
+   * provided {@link ApiErrorExtractor}.
+   *
+   * @param errorExtractor The {@link ApiErrorExtractor} that will determine
+   * if it is a socket error.
+   */
+  private static RetryDeterminer<IOException> createSocketErrorRetryDeterminer(
+      final ApiErrorExtractor errorExtractor) {
+    return new RetryDeterminer<IOException>() {
+      @Override
+      public boolean shouldRetry(IOException e) {
+        return errorExtractor.socketError(e);
       }
     };
   }
