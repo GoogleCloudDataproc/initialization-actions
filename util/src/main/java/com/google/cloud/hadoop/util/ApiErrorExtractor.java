@@ -52,6 +52,26 @@ public class ApiErrorExtractor {
   }
 
   /**
+   * Determines if the exception is a client error.
+   */
+  public boolean isClientError(IOException e) {
+    if (e instanceof GoogleJsonResponseException) {
+      return (getHttpStatusCode((GoogleJsonResponseException) e)) / 100 == 4;
+    }
+    return false;
+  }
+
+  /**
+   * Determines if the exception is an internal server error.
+   */
+  public boolean isInternalServerError(IOException e) {
+    if (e instanceof GoogleJsonResponseException) {
+      return (getHttpStatusCode((GoogleJsonResponseException) e)) / 100 == 5;
+    }
+    return false;
+  }
+
+  /**
    * Determines if the given exception indicates 'item already exists'.
    * Recursively checks getCause() if outer exception isn't
    * an instance of the correct class.
@@ -153,6 +173,16 @@ public class ApiErrorExtractor {
       return false;
     }
     return (ex.getMessage().equals("Read timed out"));
+  }
+
+  /**
+   * Extracts the error message.
+   */
+  public String getErrorMessage(IOException e) {
+    if (e instanceof GoogleJsonResponseException) {
+      return ((GoogleJsonResponseException) e).getDetails().getMessage();
+    }
+    return e.getMessage();
   }
 
   /**
