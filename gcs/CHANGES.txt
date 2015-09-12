@@ -1,10 +1,19 @@
-1.4.2 - 2015-xx-xx
+1.4.2 - 2015-09-15
 
   1. Added checking in GoogleCloudStorageImpl.createEmptyObject(s) to handle
      rateLimitExceeded (429) errors by fetching the fresh underlying info
      and ignoring the error if the object already exists with the intended
      metadata and size. This fixes an issue which mostly affects Spark:
      https://github.com/GoogleCloudPlatform/bigdata-interop/issues/10
+  2. Added logging in GoogleCloudStorageReadChannel for high-level retries.
+  3. Added support for configuring the permissions reported to the Hadoop
+     FileSystem layer; the permissions are still fixed per FileSystem instance
+     and aren't actually enforced, but can now be set with:
+
+        fs.gs.reported.permissions [default = "700"]
+
+    This allows working around some clients like Hive-related daemons and tools
+    which pre-emptively check for certain assumptions about permissions.
 
 
 1.4.1 - 2015-07-09
