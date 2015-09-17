@@ -338,4 +338,18 @@ public interface GoogleCloudStorage {
    */
   void waitForBucketEmpty(String bucketName)
       throws IOException;
+
+  /**
+   * Composes inputs into a single GCS object. This performs a GCS Compose. Objects will be composed
+   * according to the order they appear in the input. The destination object, if already present,
+   * will be overwritten. Sources and destination are assumed to be in the same bucket.
+   *
+   * @param bucketName name of the bucket containing the sources and the destination
+   * @param sources names of the objects to be composed
+   * @param destination name of the resulting object
+   * @param contentType content-type of composed object
+   * @throws IOException if the Compose operation was unsuccessful
+   */
+  void compose(String bucketName, List<String> sources, String destination, String contentType)
+      throws IOException;
 }

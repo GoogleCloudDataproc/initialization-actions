@@ -15,11 +15,14 @@
 package com.google.cloud.hadoop.gcsio;
 
 import com.google.api.client.util.Clock;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
@@ -430,5 +433,33 @@ public class InMemoryGoogleCloudStorage
   @Override
   public void waitForBucketEmpty(String bucketName)
       throws IOException {
+  }
+
+  @Override
+  public void compose(
+      final String bucketName, List<String> sources, String destination, String contentType)
+      throws IOException {
+    List<StorageResourceId> sourceResourcesIds =
+        Lists.transform(
+            sources,
+            new Function<String, StorageResourceId>() {
+              @Override
+              public StorageResourceId apply(String s) {
+                return new StorageResourceId(bucketName, s);
+              }
+            });
+    WritableByteChannel destChannel =
+        create(
+            new StorageResourceId(bucketName, destination),
+            new CreateObjectOptions(true, contentType, CreateObjectOptions.EMPTY_METADATA));
+    for (StorageResourceId sourceId : sourceResourcesIds) {
+      try (SeekableByteChannel sourceChannel = open(sourceId)) {
+        ByteBuffer reader = ByteBuffer.allocate((int) sourceChannel.size());
+        sourceChannel.read(reader);
+        reader.flip();
+        destChannel.write(reader);
+      }
+    }
+    destChannel.close();
   }
 }

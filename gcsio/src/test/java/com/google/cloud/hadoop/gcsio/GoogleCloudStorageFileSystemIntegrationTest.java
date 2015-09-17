@@ -37,6 +37,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -1752,6 +1754,37 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
         destinationDirectoryInfo.getCreationTime()
             - updatedDestinationDirectoryInfo.getModificationTime();
     Assert.assertTrue(Math.abs(destinationTimeDelta) < TimeUnit.MINUTES.toMillis(10));
+  }
+
+  @Test
+  public void testComposeSuccess() throws IOException {
+    URI directory = gcsiHelper.getPath(bucketName, "test-compose/");
+    URI object1 = directory.resolve("object1");
+    URI object2 = directory.resolve("object2");
+    URI destination = directory.resolve("destination");
+    gcsfs.mkdirs(directory);
+
+    // Create the source objects
+    try (WritableByteChannel channel1 = gcsfs.create(object1)) {
+      Assert.assertNotNull(channel1);
+      channel1.write(ByteBuffer.wrap("content1".getBytes()));
+    }
+    try (WritableByteChannel channel2 = gcsfs.create(object2)) {
+      Assert.assertNotNull(channel2);
+      channel2.write(ByteBuffer.wrap("content2".getBytes()));
+    }
+    Assert.assertTrue(gcsfs.exists(object1) && gcsfs.exists(object2));
+
+    gcsfs.compose(
+        ImmutableList.of(object1, object2), destination, CreateFileOptions.DEFAULT_CONTENT_TYPE);
+
+    byte[] expectedOutput = "content1content2".getBytes();
+    ByteBuffer actualOutput = ByteBuffer.allocate(expectedOutput.length);
+    try (SeekableByteChannel destinationChannel =
+            gcsiHelper.open(bucketName, "test-compose/destination")) {
+      destinationChannel.read(actualOutput);
+    }
+    Assert.assertArrayEquals(expectedOutput, actualOutput.array());
   }
 
   /**

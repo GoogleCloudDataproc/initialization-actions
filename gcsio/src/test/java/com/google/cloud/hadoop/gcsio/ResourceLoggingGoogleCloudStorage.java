@@ -191,4 +191,12 @@ public class ResourceLoggingGoogleCloudStorage implements GoogleCloudStorage {
   public void waitForBucketEmpty(String bucketName) throws IOException {
     delegateGcs.waitForBucketEmpty(bucketName);
   }
+
+  @Override
+  public void compose(
+      String bucketName, List<String> sources, String destination, String contentType)
+      throws IOException {
+    delegateGcs.compose(bucketName, sources, destination, contentType);
+    createdResources.add(new StorageResourceId(bucketName, destination));
+  }
 }

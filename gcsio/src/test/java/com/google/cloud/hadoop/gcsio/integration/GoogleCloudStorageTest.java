@@ -23,6 +23,7 @@ import static org.junit.Assert.fail;
 
 import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.gcsio.CacheSupplementedGoogleCloudStorage;
+import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
 import com.google.cloud.hadoop.gcsio.FileSystemBackedDirectoryListCache;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
@@ -1483,6 +1484,42 @@ public class GoogleCloudStorageTest {
               "key2", "value2".getBytes(StandardCharsets.UTF_8)),
           itemInfo.getMetadata(),
           BYTE_ARRAY_EQUIVALENCE);
+    }
+  }
+
+  @Test
+  public void testCompose() throws Exception {
+    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
+      String bucketName = scope.getBucketName();
+      GoogleCloudStorage gcs = scope.getStorageInstance();
+      StorageResourceId destinationObject =
+          new StorageResourceId(bucketName, "testCompose_DestinationObject");
+
+      // Create source objects
+      String content1 = "Content 1";
+      String content2 = "Content 2";
+      StorageResourceId sourceObject1 =
+          new StorageResourceId(bucketName, "testCompose_SourceObject1");
+      StorageResourceId sourceObject2 =
+          new StorageResourceId(bucketName, "testCompose_SourceObject2");
+      try (WritableByteChannel channel = gcs.create(sourceObject1)) {
+        channel.write(ByteBuffer.wrap(content1.getBytes()));
+      }
+      try (WritableByteChannel channel = gcs.create(sourceObject2)) {
+        channel.write(ByteBuffer.wrap(content2.getBytes()));
+      }
+      GoogleCloudStorageTestHelper.assertObjectContent(gcs, sourceObject1, content1.getBytes());
+      GoogleCloudStorageTestHelper.assertObjectContent(gcs, sourceObject2, content2.getBytes());
+
+      // Do the compose
+      gcs.compose(
+          bucketName,
+          ImmutableList.of("testCompose_SourceObject1", "testCompose_SourceObject2"),
+          destinationObject.getObjectName(),
+          CreateFileOptions.DEFAULT_CONTENT_TYPE);
+
+      GoogleCloudStorageTestHelper.assertObjectContent(
+          gcs, destinationObject, content1.concat(content2).getBytes());
     }
   }
 

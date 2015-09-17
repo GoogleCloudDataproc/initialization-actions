@@ -35,6 +35,7 @@ public class ThrottledGoogleCloudStorage implements GoogleCloudStorage {
     CREATE_BUCKET,
     DELETE_BUCKETS,
     CREATE_OBJECT,
+    COMPOSE_OBJECTS,
     DELETE_OBJECTS,
     OPEN_OBJECT,
     COPY_OBJECT,
@@ -254,5 +255,14 @@ public class ThrottledGoogleCloudStorage implements GoogleCloudStorage {
   public void waitForBucketEmpty(String bucketName) throws IOException {
     throttle(StorageOperation.LIST_OBJECTS);
     wrappedGcs.waitForBucketEmpty(bucketName);
+  }
+
+  @Override
+  public void compose(
+      String bucketName, List<String> sources, String destination, String contentType)
+      throws IOException {
+    throttle(StorageOperation.GET_ITEMINFO, sources.size());
+    throttle(StorageOperation.COMPOSE_OBJECTS);
+    wrappedGcs.compose(bucketName, sources, destination, contentType);
   }
 }

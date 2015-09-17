@@ -173,4 +173,11 @@ public class ListProhibitedGoogleCloudStorage implements GoogleCloudStorage {
     throw new UnsupportedOperationException(
         "Operation not supported in ListProhibitedGoogleCloudStorage.");
   }
+
+  @Override
+  public void compose(
+      String bucketName, List<String> sources, String destination, String contentType)
+      throws IOException {
+    delegateGcs.compose(bucketName, sources, destination, contentType);
+  }
 }

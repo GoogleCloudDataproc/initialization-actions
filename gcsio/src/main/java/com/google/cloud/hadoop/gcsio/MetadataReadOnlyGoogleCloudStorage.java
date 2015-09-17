@@ -305,4 +305,11 @@ public class MetadataReadOnlyGoogleCloudStorage
       throws IOException {
     throw new UnsupportedOperationException();
   }
+
+  @Override
+  public void compose(
+      String bucketName, List<String> sources, String destination, String contentType)
+      throws IOException {
+    throw new UnsupportedOperationException();
+  }
 }

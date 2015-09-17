@@ -173,6 +173,16 @@ public class MetadataReadOnlyGoogleCloudStorageTest {
   }
 
   @Test
+  public void testComposeIsUnsupported() throws IOException {
+    expectedException.expect(UnsupportedOperationException.class);
+    emptyGcs.compose(
+        "bucket",
+        ImmutableList.of("object1", "object2"),
+        "destination",
+        CreateFileOptions.DEFAULT_CONTENT_TYPE);
+  }
+
+  @Test
   public void testCallingGcsCloseIsAllowed() throws IOException {
     GoogleCloudStorage gcsToClose = new MetadataReadOnlyGoogleCloudStorage(
         new ArrayList<GoogleCloudStorageItemInfo>());

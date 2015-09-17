@@ -253,6 +253,17 @@ public class CacheSupplementedGoogleCloudStorage
   }
 
   /**
+   * Adds destination to the cache.
+   */
+  @Override
+  public void compose(
+      String bucketName, List<String> sources, String destination, String contentType)
+      throws IOException {
+    gcsDelegate.compose(bucketName, sources, destination, contentType);
+    resourceCache.putResourceId(new StorageResourceId(bucketName, destination));
+  }
+
+  /**
    * Helper for checking the list of {@code candidateEntries} against a {@code originalIds} to
    * possibly retrieve supplemental results from the DirectoryListCache.
    * This method will modify {@code originalIds} as it goes to include the StorageResourceIds

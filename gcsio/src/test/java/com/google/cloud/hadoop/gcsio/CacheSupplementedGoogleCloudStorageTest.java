@@ -512,4 +512,17 @@ public class CacheSupplementedGoogleCloudStorageTest {
     gcs.waitForBucketEmpty(bucketResourceId.getBucketName());
     verify(mockGcsDelegate).waitForBucketEmpty(eq(bucketResourceId.getBucketName()));
   }
+
+  @Test
+  public void testCompose() throws IOException {
+    List<String> sources = ImmutableList.of("object1", "object2");
+    String destination = "composedObject";
+    String contentType = CreateFileOptions.DEFAULT_CONTENT_TYPE;
+
+    gcs.compose(bucketResourceId.getBucketName(), sources, destination, contentType);
+
+    verify(mockGcsDelegate)
+        .compose(
+            eq(bucketResourceId.getBucketName()), eq(sources), eq(destination), eq(contentType));
+  }
 }

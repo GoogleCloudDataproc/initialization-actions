@@ -793,4 +793,7 @@ public abstract class HadoopFileSystemTestBase
   public void testPredicateIsConsultedForModificationTimestamps()
       throws IOException, InterruptedException {
   }
+
+  @Override
+  public void testComposeSuccess() throws IOException {}
 }

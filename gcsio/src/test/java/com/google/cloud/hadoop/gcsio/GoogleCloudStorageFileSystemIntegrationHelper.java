@@ -138,6 +138,15 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
   }
 
   /**
+   * Creates the given directory.
+   */
+  protected boolean compose(List<URI> sources, URI destination, String contentType)
+      throws IOException {
+    gcsfs.compose(sources, destination, contentType);
+    return true;
+  }
+
+  /**
    * Indicates whether the given path exists.
    */
   protected boolean exists(URI path)

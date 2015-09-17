@@ -164,6 +164,13 @@ public class LaggedGoogleCloudStorage implements GoogleCloudStorage  {
   }
 
   @Override
+  public void compose(
+      String bucketName, List<String> sources, String destination, String contentType)
+      throws IOException {
+    delegate.compose(bucketName, sources, destination, contentType);
+  }
+
+  @Override
   public void deleteBuckets(List<String> bucketNames) throws IOException {
     delegate.deleteBuckets(bucketNames);
   }

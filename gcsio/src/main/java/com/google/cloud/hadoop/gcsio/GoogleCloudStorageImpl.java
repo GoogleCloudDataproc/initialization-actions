@@ -30,8 +30,11 @@ import com.google.api.client.util.Data;
 import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
+import com.google.api.services.storage.Storage.Objects.Compose;
 import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Buckets;
+import com.google.api.services.storage.model.ComposeRequest;
+import com.google.api.services.storage.model.ComposeRequest.SourceObjects;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
@@ -45,6 +48,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.BaseEncoding;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -320,7 +324,6 @@ public class GoogleCloudStorageImpl
     // TODO(user): Have createEmptyObject return enough information to use that instead.
     Optional<Long> overwriteGeneration = Optional.absent();
     long backOffSleep = 0L;
-    GoogleCloudStorageItemInfo info = getItemInfo(resourceId);
 
     if (storageOptions.isMarkerFileCreationEnabled()) {
       BackOff backOff = backOffFactory.newBackOff();
@@ -332,23 +335,13 @@ public class GoogleCloudStorageImpl
             throw new IOException(String.format(
                 "Interrupted while sleeping for backoff in create of %s", resourceId));
           }
-          info = getItemInfo(resourceId);
         }
 
         backOffSleep = backOff.nextBackOffMillis();
 
         Storage.Objects.Insert insertObject = prepareEmptyInsert(resourceId, options);
-
-        if (!info.exists()) {
-          insertObject.setIfGenerationMatch(0L);
-        } else if (info.exists() && options.overwriteExisting()) {
-          long generation = info.getContentGeneration();
-          Preconditions.checkState(
-              generation != 0, "Generation should not be 0 for an existing item");
-          insertObject.setIfGenerationMatch(generation);
-        } else {
-          throw new IOException(String.format("Object %s already exists", resourceId.toString()));
-        }
+        insertObject.setIfGenerationMatch(
+            getWriteGeneration(resourceId, options.overwriteExisting()));
 
         try {
           StorageObject result = insertObject.execute();
@@ -372,20 +365,8 @@ public class GoogleCloudStorageImpl
       }
     } else {
       // Do not use a marker-file
-      if (!info.exists()) {
-        overwriteGeneration = Optional.of(0L);
-      } else if (info.exists() && options.overwriteExisting()) {
-        long generation = info.getContentGeneration();
-        Preconditions.checkState(
-            generation != 0, "Generation should not be 0 for an existing item");
-        overwriteGeneration = Optional.of(generation);
-      } else {
-        throw new IOException(String.format("Object %s already exists.", resourceId.toString()));
-      }
-
-      Preconditions.checkState(
-          overwriteGeneration.isPresent(),
-          "Marker file creation is disabled, we should have a generation to overwrite.");
+      overwriteGeneration =
+          Optional.of(getWriteGeneration(resourceId, options.overwriteExisting()));
     }
 
     ObjectWriteConditions writeConditions =
@@ -1626,6 +1607,27 @@ public class GoogleCloudStorageImpl
   }
 
   /**
+   * Gets the object generation for a Write operation
+   *
+   * @param resourceId object for which generation info is requested
+   * @return the generation of the object
+   * @throws IOException if the object already exists and cannot be overwritten
+   */
+  private long getWriteGeneration(StorageResourceId resourceId, boolean overwritable)
+      throws IOException {
+    GoogleCloudStorageItemInfo info = getItemInfo(resourceId);
+    if (!info.exists()) {
+      return 0L;
+    } else if (info.exists() && overwritable) {
+      long generation = info.getContentGeneration();
+      Preconditions.checkState(generation != 0, "Generation should not be 0 for an existing item");
+      return generation;
+    } else {
+      throw new IOException(String.format("Object %s already exists.", resourceId.toString()));
+    }
+  }
+
+  /**
    * Wraps the given IOException into another IOException,
    * adding the given error message and a reference to the supplied
    * bucket and object. It allows one to know which bucket and object
@@ -1724,5 +1726,32 @@ public class GoogleCloudStorageImpl
       }
     }
     throw new IOException("Internal error: bucket not empty: " + bucketName);
+  }
+
+  @Override
+  public void compose(
+      String bucketName, List<String> sources, String destination, String contentType)
+      throws IOException {
+    List<SourceObjects> sourceObjects =
+        Lists.transform(
+            sources,
+            new Function<String, SourceObjects>() {
+              @Override
+              public SourceObjects apply(String input) {
+                return new SourceObjects().setName(input);
+              }
+            });
+    Compose compose =
+        gcs
+            .objects()
+            .compose(
+                bucketName,
+                destination,
+                new ComposeRequest()
+                    .setSourceObjects(sourceObjects)
+                    .setDestination(new StorageObject().setContentType(contentType)));
+    compose.setIfGenerationMatch(
+        getWriteGeneration(new StorageResourceId(bucketName, destination), true));
+    compose.execute();
   }
 }

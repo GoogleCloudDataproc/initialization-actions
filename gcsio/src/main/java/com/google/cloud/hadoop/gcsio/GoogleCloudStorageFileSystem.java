@@ -675,6 +675,31 @@ public class GoogleCloudStorageFileSystem {
   }
 
   /**
+   * Composes inputs into a single GCS object. This performs a GCS Compose. Objects will be composed
+   * according to the order they appear in the input. The destination object, if already present,
+   * will be overwritten. Sources and destination are assumed to be in the same bucket.
+   *
+   * @param sources the list of URIs to be composed
+   * @param destination the resulting URI with composed sources
+   * @param contentType content-type of the composed object
+   * @throws IOException if the Compose operation was unsuccessful
+   */
+  public void compose(List<URI> sources, URI destination, String contentType) throws IOException {
+    StorageResourceId destResource = StorageResourceId.fromObjectName(destination.toString());
+    List<String> sourceObjects =
+        Lists.transform(
+            sources,
+            new Function<URI, String>() {
+              @Override
+              public String apply(URI uri) {
+                return StorageResourceId.fromObjectName(uri.toString()).getObjectName();
+              }
+            });
+    gcs.compose(
+        destResource.getBucketName(), sourceObjects, destResource.getObjectName(), contentType);
+  }
+
+  /**
    * Renames the given path without checking any parameters.
    *
    * GCS does not support atomic renames therefore a rename is

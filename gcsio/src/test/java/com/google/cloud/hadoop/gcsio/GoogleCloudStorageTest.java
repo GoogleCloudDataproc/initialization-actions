@@ -58,6 +58,7 @@ import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.StorageRequest;
 import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Buckets;
+import com.google.api.services.storage.model.ComposeRequest;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl.BackOffFactory;
@@ -139,6 +140,7 @@ public class GoogleCloudStorageTest {
   @Mock private Storage.Objects.Delete mockStorageObjectsDelete;
   @Mock private Storage.Objects.Get mockStorageObjectsGet;
   @Mock private Storage.Objects.Copy mockStorageObjectsCopy;
+  @Mock private Storage.Objects.Compose mockStorageObjectsCompose;
   @Mock private Storage.Objects.List mockStorageObjectsList;
   @Mock private Storage.Buckets mockStorageBuckets;
   @Mock private Storage.Buckets.Insert mockStorageBucketsInsert;
@@ -320,6 +322,7 @@ public class GoogleCloudStorageTest {
     verifyNoMoreInteractions(mockStorageObjectsDelete);
     verifyNoMoreInteractions(mockStorageObjectsGet);
     verifyNoMoreInteractions(mockStorageObjectsCopy);
+    verifyNoMoreInteractions(mockStorageObjectsCompose);
     verifyNoMoreInteractions(mockStorageObjectsList);
     verifyNoMoreInteractions(mockStorageBuckets);
     verifyNoMoreInteractions(mockStorageBucketsInsert);
@@ -3933,6 +3936,25 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsList, retryTimes).execute();
     verify(mockSleeper, retryTimes).sleep(
         eq((long) GoogleCloudStorageImpl.BUCKET_EMPTY_WAIT_TIME_MS));
+  }
+
+  @Test
+  public void testComposeSuccess() throws Exception {
+    String destination = "composedObject";
+    List<String> sources = ImmutableList.of("object1", "object2");
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.get(BUCKET_NAME, destination)).thenReturn(mockStorageObjectsGet);
+    when(mockStorageObjects.compose(eq(BUCKET_NAME), eq(destination), any(ComposeRequest.class)))
+        .thenReturn(mockStorageObjectsCompose);
+
+    gcs.compose(BUCKET_NAME, sources, destination, CreateFileOptions.DEFAULT_CONTENT_TYPE);
+
+    verify(mockStorage, times(2)).objects();
+    verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(destination));
+    verify(mockStorageObjectsGet).execute();
+    verify(mockStorageObjects).compose(eq(BUCKET_NAME), eq(destination), any(ComposeRequest.class));
+    verify(mockStorageObjectsCompose).setIfGenerationMatch(0L);
+    verify(mockStorageObjectsCompose).execute();
   }
 
   /**
