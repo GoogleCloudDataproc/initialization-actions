@@ -186,6 +186,24 @@ public class ApiErrorExtractor {
   }
 
   /**
+   * Converts the exception to a user-presentable error message. Specifically,
+   * extracts message field for HTTP 4xx codes, and creates a generic
+   * "Internal Server Error" for HTTP 5xx codes.
+   *
+   * @param ioe the exception
+   * @param action the description of the action being performed at the time of error.
+   */
+  public IOException toUserPresentableException(IOException ioe, String action) throws IOException {
+    String message = "Internal server error";
+    if (isClientError(ioe)) {
+      message = getErrorMessage(ioe);
+    }
+
+    throw new IOException(
+        String.format("Encountered an error while %s: %s", action, message), ioe);
+  }
+
+  /**
    * Returns HTTP status code from the given exception.
    *
    * <p> Note: GoogleJsonResponseException.getStatusCode() method is marked final
