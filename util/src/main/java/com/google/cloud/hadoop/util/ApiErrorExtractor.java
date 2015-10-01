@@ -21,10 +21,13 @@ import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpStatusCodes;
 
+import java.io.IOError;
 import java.io.IOException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.List;
+
+import javax.net.ssl.SSLException;
 
 /**
  * Translates exceptions from API calls into higher-level meaning, while allowing injectability
@@ -152,6 +155,22 @@ public class ApiErrorExtractor {
   }
 
   /**
+   * Determine if a given Throwable is caused by an IO error.
+   * Recursively checks getCause() if outer exception isn't an instance of the
+   * correct class.
+   *
+   * @param throwable The Throwable to check.
+   * @return True if the Throwable is a result of an IO error.
+   */
+
+  public boolean ioError(Throwable throwable) {
+    if (throwable instanceof IOException || throwable instanceof IOError) {
+      return true;
+    }
+    return throwable.getCause() != null && ioError(throwable.getCause());
+  }
+
+  /**
    * Determine if a given Throwable is caused by a socket error.
    * Recursively checks getCause() if outer exception isn't
    * an instance of the correct class.
@@ -162,7 +181,13 @@ public class ApiErrorExtractor {
     if (throwable instanceof SocketException || throwable instanceof SocketTimeoutException) {
       return true;
     }
-    return throwable.getCause() != null && socketError(throwable.getCause());
+    Throwable cause = throwable.getCause();
+    // Subset of SSL exceptions that are caused by IO errors (e.g. SSLHandshakeException due to
+    // unexpected connection closure) is also a socket error.
+    if (throwable instanceof SSLException && cause != null && ioError(cause)) {
+      return true;
+    }
+    return cause != null && socketError(cause);
   }
 
   /**

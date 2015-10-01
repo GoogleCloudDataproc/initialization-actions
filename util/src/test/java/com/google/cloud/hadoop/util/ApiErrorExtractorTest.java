@@ -39,10 +39,14 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.io.EOFException;
+import java.io.IOError;
 import java.io.IOException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.Arrays;
+
+import javax.net.ssl.SSLException;
 
 /**
  * Unit-tests for ApiErrorExtractor class.
@@ -183,6 +187,33 @@ public class ApiErrorExtractorTest {
   }
 
   /**
+   * Validates ioError().
+   */
+  @Test
+  public void testIOError() {
+    // Check true cases.
+    Throwable ioError1 = new EOFException("io error 1");
+    assertTrue(errorExtractor.ioError(ioError1));
+    assertTrue(errorExtractor.ioError(new Exception(ioError1)));
+    assertTrue(errorExtractor.ioError(new RuntimeException(new RuntimeException(ioError1))));
+
+    Throwable ioError2 = new IOException("io error 2");
+    assertTrue(errorExtractor.ioError(ioError2));
+    assertTrue(errorExtractor.ioError(new Exception(ioError2)));
+    assertTrue(errorExtractor.ioError(new RuntimeException(new RuntimeException(ioError2))));
+
+    Throwable ioError3 = new IOError(new Exception("io error 3"));
+    assertTrue(errorExtractor.ioError(ioError3));
+    assertTrue(errorExtractor.ioError(new Exception(ioError3)));
+    assertTrue(errorExtractor.ioError(new RuntimeException(new RuntimeException(ioError3))));
+
+    // Check false cases.
+    Throwable notIOError = new Exception("not io error");
+    assertFalse(errorExtractor.ioError(notIOError));
+    assertFalse(errorExtractor.ioError(new RuntimeException(notIOError)));
+  }
+
+  /**
    * Validates socketError().
    */
   @Test
@@ -198,10 +229,17 @@ public class ApiErrorExtractorTest {
     assertTrue(errorExtractor.socketError(new Exception(socketError2)));
     assertTrue(errorExtractor.socketError(new IOException(new IOException(socketError2))));
 
+    Throwable socketError3 = new SSLException("ssl exception", new EOFException("eof"));
+    assertTrue(errorExtractor.socketError(socketError2));
+    assertTrue(errorExtractor.socketError(new Exception(socketError2)));
+    assertTrue(errorExtractor.socketError(new IOException(new IOException(socketError2))));
+
     // Check false cases.
     Throwable notSocketError = new Exception("not socket error");
+    Throwable notIOError = new Exception("not io error");
     assertFalse(errorExtractor.socketError(notSocketError));
     assertFalse(errorExtractor.socketError(new IOException(notSocketError)));
+    assertFalse(errorExtractor.socketError(new SSLException("handshake failed", notIOError)));
   }
 
   /**
