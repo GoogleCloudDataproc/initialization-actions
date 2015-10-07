@@ -197,7 +197,7 @@ public abstract class AbstractGoogleAsyncWriteChannel
         "Upload buffer size must be great than 0.");
     Preconditions.checkArgument(bufferSize % MediaHttpUploader.MINIMUM_CHUNK_SIZE == 0,
         "Upload buffer size must be a multiple of MediaHttpUploader.MINIMUM_CHUNK_SIZE");
-    if (bufferSize % GCS_UPLOAD_GRANULARITY != 0) {
+    if ((bufferSize > GCS_UPLOAD_GRANULARITY) && (bufferSize % GCS_UPLOAD_GRANULARITY != 0)) {
       LOG.warn("Upload buffer size should be a multiple of {} for best performance, got {}",
           GCS_UPLOAD_GRANULARITY, bufferSize);
     }
