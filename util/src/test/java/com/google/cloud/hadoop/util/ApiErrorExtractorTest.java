@@ -14,14 +14,17 @@
 
 package com.google.cloud.hadoop.util;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
+import com.google.api.client.http.HttpResponseException;
 import com.google.api.client.http.HttpStatusCodes;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.LowLevelHttpRequest;
@@ -256,6 +259,21 @@ public class ApiErrorExtractorTest {
     assertFalse(errorExtractor.readTimedOut(x));
     x = new SocketTimeoutException("not the right kind of timeout");
     assertFalse(errorExtractor.readTimedOut(x));
+  }
+
+  @Test
+  public void testGetErrorMessage() {
+    GoogleJsonError jsonDetails = new GoogleJsonError();
+    jsonDetails.setMessage("bar");
+    IOException withJsonError = new GoogleJsonResponseException(
+        new HttpResponseException.Builder(42, null, new HttpHeaders()).setMessage("foo"),
+        jsonDetails);  // jsonDetails.getMessage() supercedes HttpResponseException.getMessage().
+    assertEquals("bar", errorExtractor.getErrorMessage(withJsonError));
+
+    IOException nullJsonError = new GoogleJsonResponseException(
+        new HttpResponseException.Builder(42, null, new HttpHeaders()).setMessage("foo"),
+        null);  // null for inner GoogleJsonError 'details'.
+    assertEquals("foo", errorExtractor.getErrorMessage(nullJsonError));
   }
 
   /**

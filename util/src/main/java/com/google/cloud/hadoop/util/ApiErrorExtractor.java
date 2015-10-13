@@ -205,7 +205,10 @@ public class ApiErrorExtractor {
    */
   public String getErrorMessage(IOException e) {
     if (e instanceof GoogleJsonResponseException) {
-      return ((GoogleJsonResponseException) e).getDetails().getMessage();
+      GoogleJsonResponseException gjre = ((GoogleJsonResponseException) e);
+      if (gjre.getDetails() != null) {
+        return gjre.getDetails().getMessage();
+      }
     }
     return e.getMessage();
   }
