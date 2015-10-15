@@ -41,6 +41,7 @@ public class ApiErrorExtractor {
   public static final String GLOBAL_DOMAIN = "global";
   public static final String USAGE_LIMITS_DOMAIN = "usageLimits";
   public static final String RATE_LIMITED_REASON_CODE = "rateLimitExceeded";
+  public static final String USER_RATE_LIMITED_REASON_CODE = "userRateLimitExceeded";
 
   // Public methods here are in alphabetical order.
 
@@ -134,8 +135,12 @@ public class ApiErrorExtractor {
     ErrorInfo errorInfo = getErrorInfo(e);
     if (errorInfo != null) {
       String domain = errorInfo.getDomain();
-      return (USAGE_LIMITS_DOMAIN.equals(domain) || GLOBAL_DOMAIN.equals(domain))
-          && RATE_LIMITED_REASON_CODE.equals(errorInfo.getReason());
+      String reason = errorInfo.getReason();
+      boolean isRateLimitedOrGlobalDomain =
+          USAGE_LIMITS_DOMAIN.equals(domain) || GLOBAL_DOMAIN.equals(domain);
+      boolean isRateLimitedReason =
+          RATE_LIMITED_REASON_CODE.equals(reason) || USER_RATE_LIMITED_REASON_CODE.equals(reason);
+      return isRateLimitedOrGlobalDomain && isRateLimitedReason;
     }
     return false;
   }
