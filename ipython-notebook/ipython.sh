@@ -17,7 +17,7 @@
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 if [[ "${ROLE}" == 'Master' ]]; then
 	
-	# Install dependancies needed for iPython Notebook
+	# Install dependencies needed for iPython Notebook
 	apt-get install build-essential python-dev libpng-dev libfreetype6-dev libxft-dev pkg-config python-matplotlib python-requests python-numpy -y
 	curl https://bootstrap.pypa.io/get-pip.py | python
 	
