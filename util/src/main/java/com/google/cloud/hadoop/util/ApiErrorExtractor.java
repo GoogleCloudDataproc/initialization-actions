@@ -43,6 +43,12 @@ public class ApiErrorExtractor {
   public static final String RATE_LIMITED_REASON_CODE = "rateLimitExceeded";
   public static final String USER_RATE_LIMITED_REASON_CODE = "userRateLimitExceeded";
 
+  // These come with "The account for ... has been disabled" message.
+  public static final String ACCOUNT_DISABLED_REASON_CODE = "accountDisabled";
+
+  // These come with "Project marked for deletion" message.
+  public static final String ACCESS_NOT_CONFIGURED_REASON_CODE = "accessNotConfigured";
+
   // Public methods here are in alphabetical order.
 
 
@@ -71,6 +77,33 @@ public class ApiErrorExtractor {
   public boolean isInternalServerError(IOException e) {
     if (e instanceof GoogleJsonResponseException) {
       return (getHttpStatusCode((GoogleJsonResponseException) e)) / 100 == 5;
+    }
+    return false;
+  }
+
+  /**
+   * Determine if a given Throwable is caused by a account error (such as
+   * account closed or marked for deletion).
+   * Recursively checks getCause() if outer exception isn't an instance of
+   * the correct class.
+   */
+  public boolean accessDenied(Throwable throwable) {
+    if (throwable instanceof GoogleJsonResponseException) {
+      return accessDenied(getDetails((GoogleJsonResponseException) throwable));
+    }
+    return throwable.getCause() != null && accessDenied(throwable.getCause());
+  }
+
+  /**
+   * Determine if a given GoogleJsonError is caused by, and only by,
+   * account disabled error.
+   */
+  public boolean accessDenied(GoogleJsonError e) {
+    ErrorInfo errorInfo = getErrorInfo(e);
+    if (errorInfo != null) {
+      String reason = errorInfo.getReason();
+      return ACCOUNT_DISABLED_REASON_CODE.equals(reason)
+          || ACCESS_NOT_CONFIGURED_REASON_CODE.equals(reason);
     }
     return false;
   }
