@@ -43,12 +43,6 @@ public class ApiErrorExtractor {
   public static final String RATE_LIMITED_REASON_CODE = "rateLimitExceeded";
   public static final String USER_RATE_LIMITED_REASON_CODE = "userRateLimitExceeded";
 
-  // These come with "The account for ... has been disabled" message.
-  public static final String ACCOUNT_DISABLED_REASON_CODE = "accountDisabled";
-
-  // These come with "Project marked for deletion" message.
-  public static final String ACCESS_NOT_CONFIGURED_REASON_CODE = "accessNotConfigured";
-
   // Public methods here are in alphabetical order.
 
 
@@ -57,55 +51,28 @@ public class ApiErrorExtractor {
    * Recursively checks getCause() if outer exception isn't
    * an instance of the correct class.
    */
-  public boolean accessDenied(IOException e) {
-    return recursiveCheckForCode(e, HttpStatusCodes.STATUS_CODE_FORBIDDEN);
+  public boolean accessDenied(Throwable throwable) {
+    return recursiveCheckForCode(throwable, HttpStatusCodes.STATUS_CODE_FORBIDDEN);
   }
 
   /**
    * Determines if the exception is a client error.
    */
-  public boolean isClientError(IOException e) {
-    if (e instanceof GoogleJsonResponseException) {
-      return (getHttpStatusCode((GoogleJsonResponseException) e)) / 100 == 4;
+  public boolean isClientError(Throwable throwable) {
+    if (throwable instanceof GoogleJsonResponseException) {
+      return (getHttpStatusCode((GoogleJsonResponseException) throwable)) / 100 == 4;
     }
-    return false;
+    return throwable.getCause() != null && isClientError(throwable);
   }
 
   /**
    * Determines if the exception is an internal server error.
    */
-  public boolean isInternalServerError(IOException e) {
-    if (e instanceof GoogleJsonResponseException) {
-      return (getHttpStatusCode((GoogleJsonResponseException) e)) / 100 == 5;
-    }
-    return false;
-  }
-
-  /**
-   * Determine if a given Throwable is caused by a account error (such as
-   * account closed or marked for deletion).
-   * Recursively checks getCause() if outer exception isn't an instance of
-   * the correct class.
-   */
-  public boolean accessDenied(Throwable throwable) {
+  public boolean isInternalServerError(Throwable throwable) {
     if (throwable instanceof GoogleJsonResponseException) {
-      return accessDenied(getDetails((GoogleJsonResponseException) throwable));
+      return (getHttpStatusCode((GoogleJsonResponseException) throwable)) / 100 == 5;
     }
-    return throwable.getCause() != null && accessDenied(throwable.getCause());
-  }
-
-  /**
-   * Determine if a given GoogleJsonError is caused by, and only by,
-   * account disabled error.
-   */
-  public boolean accessDenied(GoogleJsonError e) {
-    ErrorInfo errorInfo = getErrorInfo(e);
-    if (errorInfo != null) {
-      String reason = errorInfo.getReason();
-      return ACCOUNT_DISABLED_REASON_CODE.equals(reason)
-          || ACCESS_NOT_CONFIGURED_REASON_CODE.equals(reason);
-    }
-    return false;
+    return throwable.getCause() != null && isInternalServerError(throwable);
   }
 
   /**
@@ -113,8 +80,8 @@ public class ApiErrorExtractor {
    * Recursively checks getCause() if outer exception isn't
    * an instance of the correct class.
    */
-  public boolean itemAlreadyExists(IOException e) {
-      return recursiveCheckForCode(e, STATUS_CODE_CONFLICT);
+  public boolean itemAlreadyExists(Throwable throwable) {
+    return recursiveCheckForCode(throwable, STATUS_CODE_CONFLICT);
   }
 
   /**
@@ -129,8 +96,8 @@ public class ApiErrorExtractor {
    * Recursively checks getCause() if outer exception isn't
    * an instance of the correct class.
    */
-  public boolean itemNotFound(IOException e) {
-    return recursiveCheckForCode(e, HttpStatusCodes.STATUS_CODE_NOT_FOUND);
+  public boolean itemNotFound(Throwable throwable) {
+    return recursiveCheckForCode(throwable, HttpStatusCodes.STATUS_CODE_NOT_FOUND);
   }
 
   /**
@@ -145,8 +112,8 @@ public class ApiErrorExtractor {
    * Recursively checks getCause() if outer exception isn't
    * an instance of the correct class.
    */
-  public boolean preconditionNotMet(IOException e) {
-    return recursiveCheckForCode(e, STATUS_CODE_PRECONDITION_FAILED);
+  public boolean preconditionNotMet(Throwable throwable) {
+    return recursiveCheckForCode(throwable, STATUS_CODE_PRECONDITION_FAILED);
   }
 
   /**
@@ -154,8 +121,8 @@ public class ApiErrorExtractor {
    * Recursively checks getCause() if outer exception isn't
    * an instance of the correct class.
    */
-  public boolean rangeNotSatisfiable(IOException e) {
-    return recursiveCheckForCode(e, STATUS_CODE_RANGE_NOT_SATISFIABLE);
+  public boolean rangeNotSatisfiable(Throwable throwable) {
+    return recursiveCheckForCode(throwable, STATUS_CODE_RANGE_NOT_SATISFIABLE);
   }
 
   /**
@@ -187,7 +154,7 @@ public class ApiErrorExtractor {
    */
   public boolean rateLimited(Throwable throwable) {
     if (throwable instanceof GoogleJsonResponseException) {
-      return rateLimited(getDetails((GoogleJsonResponseException) throwable));
+      return rateLimited(getDetails(throwable));
     }
     return throwable.getCause() != null && rateLimited(throwable.getCause());
   }
@@ -232,23 +199,25 @@ public class ApiErrorExtractor {
    * True if the exception is a "read timed out".
    */
   public boolean readTimedOut(IOException ex) {
-    if (!(ex instanceof SocketTimeoutException)) {
-      return false;
+    if (ex instanceof SocketTimeoutException) {
+      return ex.getMessage().equals("Read timed out");
     }
-    return (ex.getMessage().equals("Read timed out"));
+    return false;
   }
 
   /**
-   * Extracts the error message.
+   * Extracts the error message. If the throwable or one of its causes
+   * is {@link GoogleJsonResponseException} then extracts the message
+   * from JSON error details field. Otherwise returns the exception message.
    */
-  public String getErrorMessage(IOException e) {
-    if (e instanceof GoogleJsonResponseException) {
-      GoogleJsonResponseException gjre = ((GoogleJsonResponseException) e);
+  public String getErrorMessage(Throwable throwable) {
+    if (throwable instanceof GoogleJsonResponseException) {
+      GoogleJsonResponseException gjre = ((GoogleJsonResponseException) throwable);
       if (gjre.getDetails() != null) {
         return gjre.getDetails().getMessage();
       }
     }
-    return e.getMessage();
+    return throwable.getMessage();
   }
 
   /**
@@ -284,8 +253,8 @@ public class ApiErrorExtractor {
    * Get the first ErrorInfo from an IOException if it is an instance of
    * GoogleJsonResponseException, otherwise return null.
    */
-  protected ErrorInfo getErrorInfo(IOException e) {
-    GoogleJsonError gjre = getDetails(e);
+  protected ErrorInfo getErrorInfo(Throwable throwable) {
+    GoogleJsonError gjre = getDetails(throwable);
     if (gjre != null) {
       return getErrorInfo(gjre);
     }
@@ -296,9 +265,9 @@ public class ApiErrorExtractor {
    * If the exception is a GoogleJsonResponseException, get the
    * error details, else return null.
    */
-  protected GoogleJsonError getDetails(IOException e) {
-    if (e instanceof GoogleJsonResponseException) {
-      GoogleJsonResponseException ex = (GoogleJsonResponseException) e;
+  protected GoogleJsonError getDetails(Throwable throwable) {
+    if (throwable instanceof GoogleJsonResponseException) {
+      GoogleJsonResponseException ex = (GoogleJsonResponseException) throwable;
       return ex.getDetails();
     } else {
       return null;
