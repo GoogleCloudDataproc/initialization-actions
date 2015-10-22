@@ -62,7 +62,7 @@ public class ApiErrorExtractor {
     if (throwable instanceof GoogleJsonResponseException) {
       return (getHttpStatusCode((GoogleJsonResponseException) throwable)) / 100 == 4;
     }
-    return throwable.getCause() != null && isClientError(throwable);
+    return throwable.getCause() != null && isClientError(throwable.getCause());
   }
 
   /**
@@ -72,7 +72,7 @@ public class ApiErrorExtractor {
     if (throwable instanceof GoogleJsonResponseException) {
       return (getHttpStatusCode((GoogleJsonResponseException) throwable)) / 100 == 5;
     }
-    return throwable.getCause() != null && isInternalServerError(throwable);
+    return throwable.getCause() != null && isInternalServerError(throwable.getCause());
   }
 
   /**
