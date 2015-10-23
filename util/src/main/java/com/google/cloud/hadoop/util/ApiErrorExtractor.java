@@ -258,15 +258,24 @@ public class ApiErrorExtractor {
    *
    * @param ioe the exception
    * @param action the description of the action being performed at the time of error.
+   * @see #toUserPresentableMessage(IOException, String)
    */
   public IOException toUserPresentableException(IOException ioe, String action) throws IOException {
+    throw new IOException(toUserPresentableMessage(ioe, action), ioe);
+  }
+
+  /**
+   * Converts the exception to a user-presentable error message. Specifically,
+   * extracts message field for HTTP 4xx codes, and creates a generic
+   * "Internal Server Error" for HTTP 5xx codes.
+   */
+  public String toUserPresentableMessage(IOException ioe, String action) {
     String message = "Internal server error";
     if (isClientError(ioe)) {
       message = getErrorMessage(ioe);
     }
 
-    throw new IOException(
-        String.format("Encountered an error while %s: %s", action, message), ioe);
+    return String.format("Encountered an error while %s: %s", action, message);
   }
 
   /**
