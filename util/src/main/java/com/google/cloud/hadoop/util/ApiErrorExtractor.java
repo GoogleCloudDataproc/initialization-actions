@@ -27,6 +27,7 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.List;
 
+import javax.annotation.Nullable;
 import javax.net.ssl.SSLException;
 
 /**
@@ -56,9 +57,40 @@ public class ApiErrorExtractor {
    * Determines if the given exception indicates 'access denied'.
    * Recursively checks getCause() if outer exception isn't
    * an instance of the correct class.
+   *
+   * <p> Warning: this method only checks for access denied status code,
+   * however this may include potentially recoverable reason codes such as
+   * rate limiting. For alternative, see
+   * {@link #accessDeniedNonRecoverable(IOException)}.
    */
   public boolean accessDenied(IOException e) {
     return recursiveCheckForCode(e, HttpStatusCodes.STATUS_CODE_FORBIDDEN);
+  }
+
+  /**
+   * Determine if the exception is a non-recoverable access denied code
+   * (such as account closed or marked for deletion).
+   */
+  public boolean accessDeniedNonRecoverable(IOException e) {
+    GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(e);
+    if (jsonException != null) {
+      return accessDeniedNonRecoverable(getDetails(jsonException));
+    }
+    return false;
+  }
+
+  /**
+   * Determine if a given GoogleJsonError is caused by, and only by,
+   * account disabled error.
+   */
+  public boolean accessDeniedNonRecoverable(GoogleJsonError e) {
+    ErrorInfo errorInfo = getErrorInfo(e);
+    if (errorInfo != null) {
+      String reason = errorInfo.getReason();
+      return ACCOUNT_DISABLED_REASON_CODE.equals(reason)
+          || ACCESS_NOT_CONFIGURED_REASON_CODE.equals(reason);
+    }
+    return false;
   }
 
   /**
@@ -77,33 +109,6 @@ public class ApiErrorExtractor {
   public boolean isInternalServerError(IOException e) {
     if (e instanceof GoogleJsonResponseException) {
       return (getHttpStatusCode((GoogleJsonResponseException) e)) / 100 == 5;
-    }
-    return false;
-  }
-
-  /**
-   * Determine if a given Throwable is caused by a account error (such as
-   * account closed or marked for deletion).
-   * Recursively checks getCause() if outer exception isn't an instance of
-   * the correct class.
-   */
-  public boolean accessDenied(Throwable throwable) {
-    if (throwable instanceof GoogleJsonResponseException) {
-      return accessDenied(getDetails((GoogleJsonResponseException) throwable));
-    }
-    return throwable.getCause() != null && accessDenied(throwable.getCause());
-  }
-
-  /**
-   * Determine if a given GoogleJsonError is caused by, and only by,
-   * account disabled error.
-   */
-  public boolean accessDenied(GoogleJsonError e) {
-    ErrorInfo errorInfo = getErrorInfo(e);
-    if (errorInfo != null) {
-      String reason = errorInfo.getReason();
-      return ACCOUNT_DISABLED_REASON_CODE.equals(reason)
-          || ACCESS_NOT_CONFIGURED_REASON_CODE.equals(reason);
     }
     return false;
   }
@@ -338,5 +343,17 @@ public class ApiErrorExtractor {
       return getHttpStatusCode((GoogleJsonResponseException) e) == code;
     }
     return e.getCause() != null && recursiveCheckForCode(e.getCause(), code);
+  }
+
+  @Nullable
+  private static GoogleJsonResponseException getJsonResponseExceptionOrNull(Throwable t) {
+    Throwable cause = t;
+    while (cause != null) {
+      if (cause instanceof GoogleJsonResponseException) {
+        return (GoogleJsonResponseException) cause;
+      }
+      cause = cause.getCause();
+    }
+    return null;
   }
 }
