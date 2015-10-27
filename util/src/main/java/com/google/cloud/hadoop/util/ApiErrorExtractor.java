@@ -105,8 +105,9 @@ public class ApiErrorExtractor {
    * Determines if the exception is a client error.
    */
   public boolean isClientError(IOException e) {
-    if (e instanceof GoogleJsonResponseException) {
-      return (getHttpStatusCode((GoogleJsonResponseException) e)) / 100 == 4;
+    GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(e);
+    if (jsonException != null) {
+      return (getHttpStatusCode(jsonException)) / 100 == 4;
     }
     return false;
   }
@@ -115,8 +116,9 @@ public class ApiErrorExtractor {
    * Determines if the exception is an internal server error.
    */
   public boolean isInternalServerError(IOException e) {
-    if (e instanceof GoogleJsonResponseException) {
-      return (getHttpStatusCode((GoogleJsonResponseException) e)) / 100 == 5;
+    GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(e);
+    if (jsonException != null) {
+      return (getHttpStatusCode(jsonException)) / 100 == 5;
     }
     return false;
   }
@@ -223,11 +225,13 @@ public class ApiErrorExtractor {
    * @param throwable The Throwable to check.
    * @return True if the Throwable is a result of rate limiting being applied.
    */
+  // TODO(user): change to accept IOException, in line with other methods.
   public boolean rateLimited(Throwable throwable) {
-    if (throwable instanceof GoogleJsonResponseException) {
-      return rateLimited(getDetails((GoogleJsonResponseException) throwable));
+    GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(throwable);
+    if (jsonException != null) {
+      return rateLimited(getDetails(jsonException));
     }
-    return throwable.getCause() != null && rateLimited(throwable.getCause());
+    return false;
   }
 
   /**
@@ -367,15 +371,17 @@ public class ApiErrorExtractor {
       return errors.get(0);
     }
   }
+
   /**
    * Recursively checks getCause() if outer exception isn't
    * an instance of the correct class.
    */
   private boolean recursiveCheckForCode(Throwable e, int code) {
-    if (e instanceof GoogleJsonResponseException) {
-      return getHttpStatusCode((GoogleJsonResponseException) e) == code;
+    GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(e);
+    if (jsonException != null) {
+      return getHttpStatusCode(jsonException) == code;
     }
-    return e.getCause() != null && recursiveCheckForCode(e.getCause(), code);
+    return false;
   }
 
   @Nullable
