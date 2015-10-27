@@ -50,6 +50,14 @@ public class ApiErrorExtractor {
   // These come with "Project marked for deletion" message.
   public static final String ACCESS_NOT_CONFIGURED_REASON_CODE = "accessNotConfigured";
 
+  // These are 400 error codes with "resource 'xyz' is not ready" message.
+  // These sometimes happens when create operation is still in-flight but resource
+  // representation is already available via get call.
+  // Only explanation I could find for this is described here:
+  //    java/com/google/cloud/cluster/data/cognac/cognac.proto
+  // with an example "because resource is being created in reconciler."
+  public static final String RESOURCE_NOT_READY_REASON_CODE = "resourceNotReady";
+
   // Public methods here are in alphabetical order.
 
 
@@ -136,6 +144,31 @@ public class ApiErrorExtractor {
    */
   public boolean itemNotFound(IOException e) {
     return recursiveCheckForCode(e, HttpStatusCodes.STATUS_CODE_NOT_FOUND);
+  }
+
+  /**
+   * Determines if the given GoogleJsonError indicates 'resource not ready'.
+   */
+  public boolean resourceNotReady(GoogleJsonError e) {
+    ErrorInfo errorInfo = getErrorInfo(e);
+    if (errorInfo != null) {
+      String reason = errorInfo.getReason();
+      return RESOURCE_NOT_READY_REASON_CODE.equals(reason);
+    }
+    return false;
+  }
+
+  /**
+   * Determines if the given exception indicates 'resource not ready'.
+   * Recursively checks getCause() if outer exception isn't
+   * an instance of the correct class.
+   */
+  public boolean resourceNotReady(IOException e) {
+    GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(e);
+    if (jsonException != null) {
+      return resourceNotReady(getDetails(jsonException));
+    }
+    return false;
   }
 
   /**

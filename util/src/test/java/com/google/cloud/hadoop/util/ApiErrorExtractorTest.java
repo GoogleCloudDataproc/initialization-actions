@@ -63,6 +63,7 @@ public class ApiErrorExtractorTest {
   private GoogleJsonResponseException alreadyExists;  // STATUS_CODE_CONFLICT
   private GoogleJsonResponseException rateLimited;  // rate limited
   private GoogleJsonResponseException notRateLimited;  // not rate limited because of domain
+  private GoogleJsonResponseException resourceNotReady;
   private GoogleJsonResponseException bigqueryRateLimited;  // bigquery rate limited
   private static final int POSSIBLE_RATE_LIMIT = 429;  // Can be many things, but not STATUS_CODE_OK
 
@@ -80,6 +81,8 @@ public class ApiErrorExtractorTest {
         ApiErrorExtractor.STATUS_CODE_RANGE_NOT_SATISFIABLE, "Bad range", "Bad range");
     alreadyExists = googleJsonResponseException(
         409, "409", "409");
+    resourceNotReady = googleJsonResponseException(
+        400, ApiErrorExtractor.RESOURCE_NOT_READY_REASON_CODE, "Resource not ready");
 
     // This works because googleJsonResponseException takes final ErrorInfo
     ErrorInfo errorInfo = new ErrorInfo();
@@ -259,6 +262,22 @@ public class ApiErrorExtractorTest {
     assertFalse(errorExtractor.readTimedOut(x));
     x = new SocketTimeoutException("not the right kind of timeout");
     assertFalse(errorExtractor.readTimedOut(x));
+  }
+
+  /**
+   * Validates resourceNotReady().
+   */
+  @Test
+  public void testResourceNotReady() {
+    // Check success case.
+    assertTrue(errorExtractor.resourceNotReady(resourceNotReady));
+    assertTrue(errorExtractor.resourceNotReady(new IOException(resourceNotReady)));
+    assertTrue(errorExtractor.resourceNotReady(
+        new IOException(new IOException(resourceNotReady))));
+
+    // Check failure case.
+    assertFalse(errorExtractor.resourceNotReady(statusOk));
+    assertFalse(errorExtractor.resourceNotReady(new IOException(statusOk)));
   }
 
   @Test
