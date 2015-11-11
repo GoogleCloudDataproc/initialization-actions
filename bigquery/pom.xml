@@ -186,6 +186,10 @@
                     <shadedPattern>com.google.cloud.hadoop.repackaged.com.fasterxml</shadedPattern>
                   </relocation>
                   <relocation>
+                    <pattern>org.apache.http</pattern>
+                    <shadedPattern>com.google.cloud.hadoop.repackaged.org.apache.http</shadedPattern>
+                  </relocation>
+                  <relocation>
                     <pattern>org.apache.commons.codec</pattern>
                     <shadedPattern>com.google.cloud.hadoop.repackaged.org.apache.commons.codec</shadedPattern>
                   </relocation>
