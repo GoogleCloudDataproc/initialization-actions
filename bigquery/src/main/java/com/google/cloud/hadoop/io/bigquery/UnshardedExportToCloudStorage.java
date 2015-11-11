@@ -10,12 +10,14 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.util.Progressable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -56,7 +58,17 @@ public class UnshardedExportToCloudStorage extends AbstractExportToCloudStorage 
 
     // Now that the FileInputFormat's path is pointed to the export directory, construct splits
     // using a TextInputFormat instance.
-    return delegateInputFormat.getSplits(context);
+    List<InputSplit> splits = new ArrayList<>();
+    for (InputSplit split : delegateInputFormat.getSplits(context)) {
+      FileSplit fileSplit = (FileSplit) split;
+      splits.add(
+          new UnshardedInputSplit(
+              fileSplit.getPath(),
+              fileSplit.getStart(),
+              fileSplit.getLength(),
+              fileSplit.getLocations()));
+    }
+    return splits;
   }
 
   @Override
