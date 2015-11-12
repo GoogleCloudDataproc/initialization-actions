@@ -58,6 +58,9 @@ public class ApiErrorExtractor {
   // with an example "because resource is being created in reconciler."
   public static final String RESOURCE_NOT_READY_REASON_CODE = "resourceNotReady";
 
+  // HTTP 413 with message "Value for field 'foo' is too large".
+  public static final String FIELD_SIZE_TOO_LARGE = "fieldSizeTooLarge";
+
   // Public methods here are in alphabetical order.
 
 
@@ -146,6 +149,31 @@ public class ApiErrorExtractor {
    */
   public boolean itemNotFound(IOException e) {
     return recursiveCheckForCode(e, HttpStatusCodes.STATUS_CODE_NOT_FOUND);
+  }
+
+  /**
+   * Determines if the given GoogleJsonError indicates 'field size too large'.
+   */
+  public boolean fieldSizeTooLarge(GoogleJsonError e) {
+    ErrorInfo errorInfo = getErrorInfo(e);
+    if (errorInfo != null) {
+      String reason = errorInfo.getReason();
+      return FIELD_SIZE_TOO_LARGE.equals(reason);
+    }
+    return false;
+  }
+
+  /**
+   * Determines if the given exception indicates 'field size too large'.
+   * Recursively checks getCause() if outer exception isn't
+   * an instance of the correct class.
+   */
+  public boolean fieldSizeTooLarge(IOException e) {
+    GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(e);
+    if (jsonException != null) {
+      return fieldSizeTooLarge(getDetails(jsonException));
+    }
+    return false;
   }
 
   /**
