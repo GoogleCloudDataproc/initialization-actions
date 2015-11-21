@@ -44,6 +44,7 @@ EOF
 
 cat > presto-server-${PRESTO_VERSION}/etc/catalog/hive.properties <<EOF
 connector.name=hive-hadoop2
+# TODO - Inspect /etc/hive/conf/hite-site.xml to pull this uri
 hive.metastore.uri=thrift://localhost:9083
 EOF
 
