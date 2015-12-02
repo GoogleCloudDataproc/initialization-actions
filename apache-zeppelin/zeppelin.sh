@@ -31,12 +31,12 @@ if [[ "${ROLE}" == 'Master' ]]; then
         ln -s /usr/lib/apache-maven/bin/mvn /usr/bin/mvn
 
         # Install dependencies
-        sudo apt-get install -y git vim emacs nodejs npm
-        sudo ln -s /usr/bin/nodejs /usr/bin/node
-        sudo npm update -g npm
-        sudo npm install -g grunt-cli
-        sudo npm install -g grunt
-        sudo npm install -g bower
+        apt-get install -y git vim emacs nodejs npm
+        ln -s /usr/bin/nodejs /usr/bin/node
+        npm update -g npm
+        npm install -g grunt-cli
+        npm install -g grunt
+        npm install -g bower
 
         # Install zeppelin
         cd /usr/lib/
