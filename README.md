@@ -21,6 +21,9 @@ This repository presently offers the following actions for use with Cloud Datapr
   * Apache ZooKeeper
   * IPython
   * Presto
+* Configure the cluster
+  * Configure a *nice* shell environment  
+  * Share NFS consistency cache
 
 ## For more information
 For more information, review the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions). You can also pose questions to the [Stack Overflow](http://www.stackoverflow.com) comminity with the tag `google-cloud-dataproc`.
