@@ -48,6 +48,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.List;
@@ -82,6 +83,23 @@ public class CredentialFactory {
   public static class GoogleCredentialWithRetry extends GoogleCredential {
 
     private static final int DEFAULT_TOKEN_EXPIRATION_SECONDS = 3600;
+
+    /**
+     * Create a new GoogleCredentialWithRetry from a GoogleCredential.
+     */
+    public static GoogleCredentialWithRetry fromGoogleCredential(GoogleCredential credential) {
+      GoogleCredential.Builder builder = new GoogleCredential.Builder()
+          .setServiceAccountPrivateKey(credential.getServiceAccountPrivateKey())
+          .setServiceAccountPrivateKeyId(credential.getServiceAccountPrivateKeyId())
+          .setServiceAccountId(credential.getServiceAccountId())
+          .setServiceAccountUser(credential.getServiceAccountUser())
+          .setServiceAccountScopes(credential.getServiceAccountScopes())
+          .setTokenServerEncodedUrl(credential.getTokenServerEncodedUrl())
+          .setTransport(credential.getTransport())
+          .setJsonFactory(credential.getJsonFactory())
+          .setClock(credential.getClock());
+        return new GoogleCredentialWithRetry(builder);
+    }
 
     public GoogleCredentialWithRetry(Builder builder) {
       super(builder);
@@ -217,6 +235,23 @@ public class CredentialFactory {
           .setServiceAccountScopes(scopes)
           .setServiceAccountPrivateKeyFromP12File(new File(privateKeyFile))
           .setRequestInitializer(new CredentialHttpRetryInitializer()));
+  }
+
+  /***
+   * Get credentials listed in a JSON file.
+   * @param serviceAccountJsonKeyFile A file path pointing to a JSON file containing credentials.
+   * @param scopes The OAuth scopes that the credential should be valid for.
+   */
+  public Credential getCredentialFromJsonKeyFile(
+      String serviceAccountJsonKeyFile, List<String> scopes)
+      throws IOException, GeneralSecurityException {
+    LOG.debug("getCredentialFromJsonKeyFile({}, {})",
+        serviceAccountJsonKeyFile, scopes);
+
+    try (FileInputStream fis = new FileInputStream(serviceAccountJsonKeyFile)) {
+      return GoogleCredentialWithRetry.fromGoogleCredential(
+          GoogleCredential.fromStream(fis, getHttpTransport(), JSON_FACTORY));
+    }
   }
 
   /**

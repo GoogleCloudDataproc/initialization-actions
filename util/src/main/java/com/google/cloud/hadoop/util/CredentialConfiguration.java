@@ -35,6 +35,7 @@ public class CredentialConfiguration {
   private Optional<Boolean> isServiceAccountEnabled = Optional.absent();
   private String serviceAccountEmail = null;
   private String serviceAccountKeyFile = null;
+  private String serviceAccountJsonKeyFile = null;
   private String clientId = null;
   private String clientSecret = null;
   private String oAuthCredentialFile = null;
@@ -71,6 +72,17 @@ public class CredentialConfiguration {
         return credentialFactory.getCredentialFromMetadataServiceAccount();
       }
 
+      if (!Strings.isNullOrEmpty(serviceAccountJsonKeyFile)) {
+        LOG.debug("Using JSON keyfile {}", serviceAccountJsonKeyFile);
+        Preconditions.checkArgument(
+            Strings.isNullOrEmpty(serviceAccountKeyFile),
+            "A P12 key file may not be specified at the same time as a JSON key file.");
+        Preconditions.checkArgument(
+            Strings.isNullOrEmpty(serviceAccountEmail),
+            "Service account email may not be specified at the same time as a JSON key file.");
+        return credentialFactory.getCredentialFromJsonKeyFile(serviceAccountJsonKeyFile, scopes);
+      }
+
       // A keyfile is specified, use email-address and p12 based authentication.
       Preconditions.checkState(!Strings.isNullOrEmpty(serviceAccountEmail),
           "Email must be set if using service account auth and a key file is specified.");
@@ -95,7 +107,7 @@ public class CredentialConfiguration {
   }
 
   public boolean shouldUseMetadataService() {
-    return serviceAccountKeyFile == null;
+    return serviceAccountKeyFile == null && serviceAccountJsonKeyFile == null;
   }
 
   public String getOAuthCredentialFile() {
@@ -136,6 +148,14 @@ public class CredentialConfiguration {
 
   public void setServiceAccountKeyFile(String serviceAccountKeyFile) {
     this.serviceAccountKeyFile = serviceAccountKeyFile;
+  }
+
+  public String getServiceAccountJsonKeyFile() {
+    return serviceAccountJsonKeyFile;
+  }
+
+  public void setServiceAccountJsonKeyFile(String serviceAccountJsonKeyFile) {
+    this.serviceAccountJsonKeyFile = serviceAccountJsonKeyFile;
   }
 
   public String getClientId() {

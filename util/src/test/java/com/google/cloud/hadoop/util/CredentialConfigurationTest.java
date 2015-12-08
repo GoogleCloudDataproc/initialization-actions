@@ -74,7 +74,6 @@ public class CredentialConfigurationTest {
     configuration.getCredential(TEST_SCOPES);
   }
 
-
   @Test
   public void metadataServiceIsUsedByDefault() throws IOException, GeneralSecurityException {
     CredentialFactory mockCredentialFactory = mock(CredentialFactory.class);
@@ -89,7 +88,6 @@ public class CredentialConfigurationTest {
 
   @Test
   public void p12KeyfileUsedWhenConfigured() throws IOException, GeneralSecurityException  {
-
     CredentialFactory mockCredentialFactory = mock(CredentialFactory.class);
 
     CredentialConfiguration configuration = new CredentialConfiguration();
@@ -107,9 +105,24 @@ public class CredentialConfigurationTest {
   }
 
   @Test
+  public void jsonKeyFileUsedWhenConfigured() throws IOException, GeneralSecurityException {
+    CredentialFactory mockCredentialFactory = mock(CredentialFactory.class);
+
+    CredentialConfiguration configuration = new CredentialConfiguration();
+    configuration.setCredentialFactory(mockCredentialFactory);
+    configuration.setServiceAccountJsonKeyFile("jsonExampleKeyFile");
+
+    configuration.getCredential(TEST_SCOPES);
+
+    verify(mockCredentialFactory, times(1)).getCredentialFromJsonKeyFile(
+        "jsonExampleKeyFile",
+        TEST_SCOPES);
+    verifyNoMoreInteractions(mockCredentialFactory);
+  }
+
+  @Test
   public void installedAppWorkflowUsedWhenConfigurred()
       throws IOException, GeneralSecurityException  {
-
     CredentialFactory mockCredentialFactory = mock(CredentialFactory.class);
 
     CredentialConfiguration configuration = new CredentialConfiguration();

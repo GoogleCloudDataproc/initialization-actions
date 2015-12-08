@@ -69,6 +69,12 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
    */
   public static final String SERVICE_ACCOUNT_KEYFILE_SUFFIX = ".auth.service.account.keyfile";
   /**
+   * Key suffix used to indicate the path to a JSON file containing a Service Account key and
+   * identifier (email). Technically, this could be a JSON containing a non-service account user,
+   * but this setting is only used in the service account flow and is namespaced as such.
+   */
+  public static final String JSON_KEYFILE_SUFFIX = ".auth.service.account.json.keyfile";
+  /**
    * For OAuth-based Installed App authentication, the key suffix specifying the client ID for
    * the credentials.
    */
@@ -198,6 +204,9 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
       if (getServiceAccountKeyFile() != null) {
         configuration.set(prefix + SERVICE_ACCOUNT_KEYFILE_SUFFIX, getServiceAccountKeyFile());
       }
+      if (getServiceAccountJsonKeyFile() != null) {
+        configuration.set(prefix + JSON_KEYFILE_SUFFIX, getServiceAccountJsonKeyFile());
+      }
       if (getClientId() != null) {
         configuration.set(prefix + CLIENT_ID_SUFFIX, getClientId());
       }
@@ -234,6 +243,11 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
       String serviceAccountKeyFile = entries.get(prefix + SERVICE_ACCOUNT_KEYFILE_SUFFIX);
       if (serviceAccountKeyFile != null) {
         setServiceAccountKeyFile(serviceAccountKeyFile);
+      }
+
+      String serviceAccountJsonKeyFile = entries.get(prefix + JSON_KEYFILE_SUFFIX);
+      if (serviceAccountJsonKeyFile != null) {
+        setServiceAccountJsonKeyFile(serviceAccountJsonKeyFile);
       }
 
       String clientId = entries.get(prefix + CLIENT_ID_SUFFIX);

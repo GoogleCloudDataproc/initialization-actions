@@ -80,6 +80,10 @@ public class HadoopCredentialConfigurationTest {
         "aKeyFile");
     setConfigurationKey(
         conf,
+        HadoopCredentialConfiguration.JSON_KEYFILE_SUFFIX,
+        "aJsonFile");
+    setConfigurationKey(
+        conf,
         HadoopCredentialConfiguration.CLIENT_SECRET_SUFFIX,
         "aClientSecret");
     setConfigurationKey(
@@ -106,6 +110,7 @@ public class HadoopCredentialConfigurationTest {
 
     assertEquals("anEmail", credentialConfiguration.getServiceAccountEmail());
     assertEquals("aKeyFile", credentialConfiguration.getServiceAccountKeyFile());
+    assertEquals("aJsonFile", credentialConfiguration.getServiceAccountJsonKeyFile());
     assertEquals("aClientSecret", credentialConfiguration.getClientSecret());
     assertEquals("aClientId", credentialConfiguration.getClientId());
     assertEquals("aClientOAuthFile", credentialConfiguration.getOAuthCredentialFile());
@@ -114,7 +119,7 @@ public class HadoopCredentialConfigurationTest {
   }
 
   @Test
-  public void getConfigurationSetsValuesAsAxpected() {
+  public void getConfigurationSetsValuesAsExpected() {
     List<String> prefixes = ImmutableList.of(HadoopCredentialConfiguration.BASE_KEY_PREFIX);
 
     HadoopCredentialConfiguration credentialConfiguration =
@@ -133,6 +138,13 @@ public class HadoopCredentialConfigurationTest {
         conf,
         HadoopCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX);
     assertEquals("aKeyFile", writtenValue);
+
+    credentialConfiguration.setServiceAccountJsonKeyFile("aJsonFile");
+    conf = credentialConfiguration.getConf();
+    writtenValue = getConfigurationKey(
+        conf,
+        HadoopCredentialConfiguration.JSON_KEYFILE_SUFFIX);
+    assertEquals("aJsonFile", writtenValue);
 
     credentialConfiguration.setClientSecret("clientSecret");
     conf = credentialConfiguration.getConf();
