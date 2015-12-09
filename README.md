@@ -16,11 +16,12 @@ These samples are provided to show how various packages and components can be in
 This repository presently offers the following actions for use with Cloud Dataproc clusters.
 
 * Install packages/software on the cluster
-  * Apache Kafka
-  * Apache Zeppelin
-  * Apache ZooKeeper
-  * IPython
-  * Presto
+  * [Apache Kafka](http://kafka.apache.org)
+  * [Apache Oozie](http://oozie.apache.org)
+  * [Apache Zeppelin](http://zeppelin.apache.org)
+  * [Apache ZooKeeper](http://zookeeper.apache.org)
+  * [IPython](http://ipython.org)
+  * [Presto](http://prestodb.io)
 * Configure the cluster
   * Configure a *nice* shell environment  
   * Share NFS consistency cache
