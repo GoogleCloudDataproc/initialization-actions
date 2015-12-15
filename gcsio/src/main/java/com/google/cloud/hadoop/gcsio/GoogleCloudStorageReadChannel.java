@@ -184,7 +184,7 @@ public class GoogleCloudStorageReadChannel
    * @throws IOException on IO error
    */
   @VisibleForTesting
-  GoogleCloudStorageReadChannel()
+  protected GoogleCloudStorageReadChannel()
       throws IOException {
     this.clientRequestHelper = null;
     this.errorExtractor = null;

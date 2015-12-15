@@ -745,7 +745,8 @@ public class GoogleCloudStorageImpl
    *     used by other implementations of GoogleCloudStorage that want to preserve the validation
    *     behavior of GoogleCloudStorageImpl, including disallowing cross-location copies.
    */
-  static void validateCopyArguments(String srcBucketName, List<String> srcObjectNames,
+  @VisibleForTesting
+  public static void validateCopyArguments(String srcBucketName, List<String> srcObjectNames,
       String dstBucketName, List<String> dstObjectNames, GoogleCloudStorage gcsImpl)
       throws IOException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(srcBucketName),
@@ -1337,7 +1338,8 @@ public class GoogleCloudStorageImpl
    * Helper for creating a "found" GoogleCloudStorageItemInfo
    * for an inferred directory.
    */
-  protected static GoogleCloudStorageItemInfo
+  @VisibleForTesting
+  public static GoogleCloudStorageItemInfo
       createItemInfoForInferredDirectory(
           StorageResourceId resourceId) {
     Preconditions.checkArgument(resourceId != null,
