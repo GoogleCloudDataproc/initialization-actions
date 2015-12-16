@@ -15,7 +15,7 @@ This folder contains initialization actions for getting up and going using [Mini
 - downloads and installs to the `$HOME` directory
 - performs an md5sum hash check (failing quickly is always better)
 - updates current `$PATH` and subsequent definitions in `.bashrc`
-- updates `conda`
+- updates `conda` and install `pip` in root environment (allowing pip installations)
 - installs some powerful extensions:
     - [`conda-env`](https://github.com/conda/conda-env)
     - [`conda-build`](https://github.com/conda/conda-build)
@@ -24,6 +24,11 @@ This folder contains initialization actions for getting up and going using [Mini
  
 All of this can be changed with little effort.
 
-## bootstrap-conda-env.sh
+## install-conda-env.sh
 
-(coming)
+`install-conda-env.sh` contains logic for creating a conda environment and installing conda (and pip) packages. Sane defaults include:
+
+- installs some common libraries (pandas, scikit-learn, bokeh, plotly, Jupyter) 
+- if no conda environment name is specified, uses `root`.
+- detects if conda environment has already been created.
+- updates `.bashrc` to activate the created environment at login
