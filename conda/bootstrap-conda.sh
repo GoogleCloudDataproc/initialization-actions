@@ -9,17 +9,17 @@
 # 0. Specify Miniconda version
 # 0.1 A few parameters
 # specify base operating system
-baseOS="Linux-x86_64.sh"
+OS_TYPE="Linux-x86_64.sh"
 # specify Miniconda release
-miniconda_release='3.18.3'
+MINICONDA_VER='3.18.3'
 ## Python 2 or 3?
-#miniconda_version="Miniconda2"  #for Python 2.7.x
+#MINICONDA_VARIANT="Miniconda2"  #for Python 2.7.x
 #expectedHash="3f1d3e33dd154aacd7367931d595a74c"
-miniconda_version="Miniconda3"  #for Python 3.5.x
+MINICONDA_VARIANT="Miniconda3"  #for Python 3.5.x
 expectedHash="245a839794fe2c3e7a35691ae1d3033f"
 
 ## 0.2 Compute Miniconda version
-miniconda="$miniconda_version-$miniconda_release-$baseOS"
+miniconda="$MINICONDA_VARIANT-$MINICONDA_VER-$OS_TYPE"
 
 # 1. Setup Miniconda Install
 ## 1.1 Define Miniconda install directory
@@ -27,16 +27,16 @@ echo "Working direcotry: $PWD"
 if [ $# -eq 0 ]
     then
     echo "No path argument specified, setting install directory as working directory: $PWD."
-    proj_dir=$PWD
+    PROJ_DIR=$PWD
 
 else
     echo "Path argument specified, installing to: $1"
-    proj_dir=$1
+    PROJ_DIR=$1
 fi
 
 ## 1.2 Setup Miniconda
-cd $proj_dir
-PATH_INSTALL_BIN_DIR="$proj_dir/vm/shared/bin"
+cd $PROJ_DIR
+PATH_INSTALL_BIN_DIR="$PROJ_DIR/vm/shared/bin"
 PATH_CONDA_SCRIPT="$PATH_INSTALL_BIN_DIR/$miniconda"
 echo "Defined miniconda script path: $PATH_CONDA_SCRIPT"
 
@@ -59,17 +59,17 @@ fi
 
 # 2. Install Miniconda
 ## 2.1 Via bootstrap
-PATH_CONDA="$proj_dir/miniconda-$miniconda_version"
+PATH_CONDA="$PROJ_DIR/miniconda-$MINICONDA_VARIANT"
 if [[ ! -d $PATH_CONDA ]]; then
     #blow away old symlink / default miniconda install
-    rm -rf "$proj_dir/miniconda"
+    rm -rf "$PROJ_DIR/miniconda"
     # Install Miniconda
     echo "Installing $miniconda to $PATH_CONDA..."
     bash $PATH_CONDA_SCRIPT -b -p $PATH_CONDA -f
     chmod 755 $PATH_CONDA
     #create symlink
-    ln -sf $PATH_CONDA "$proj_dir/miniconda"
-    chmod 755 "$proj_dir/miniconda"
+    ln -sf $PATH_CONDA "$PROJ_DIR/miniconda"
+    chmod 755 "$PROJ_DIR/miniconda"
 else
     echo "Existing directory at path: $PATH_CONDA, skipping install!"
 fi
