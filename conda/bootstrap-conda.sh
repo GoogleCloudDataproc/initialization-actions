@@ -1,10 +1,11 @@
 #!/bin/bash
+set -e
 
-# Only run on the master node
+# Run on BOTH 'Master' and 'Worker' nodes
 #ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 #if [[ "${ROLE}" == 'Master' ]]; then
 
-# Run on BOTH 'Master' and 'Worker' nodes
+CONDA_INSTALL_PATH="/usr/local/bin/miniconda"
 
 # 0. Specify Miniconda version
 # 0.1 A few parameters
@@ -23,7 +24,7 @@ miniconda="$MINICONDA_VARIANT-$MINICONDA_VER-$OS_TYPE"
 
 # 1. Setup Miniconda Install
 ## 1.1 Define Miniconda install directory
-echo "Working direcotry: $PWD"
+echo "Working directory: $PWD"
 if [ $# -eq 0 ]
     then
     echo "No path argument specified, setting install directory as working directory: $PWD."
@@ -36,48 +37,47 @@ fi
 
 ## 1.2 Setup Miniconda
 cd $PROJ_DIR
-PATH_INSTALL_BIN_DIR="$PROJ_DIR/vm/shared/bin"
-PATH_CONDA_SCRIPT="$PATH_INSTALL_BIN_DIR/$miniconda"
-echo "Defined miniconda script path: $PATH_CONDA_SCRIPT"
+MINICONDA_SCRIPT_PATH="$PROJ_DIR/$miniconda"
+echo "Defined miniconda script path: $MINICONDA_SCRIPT_PATH"
 
-if [[ -f "$PATH_CONDA_SCRIPT" ]]; then
-  echo "Found existing Miniconda script at: $PATH_CONDA_SCRIPT"
+if [[ -f "$MINICONDA_SCRIPT_PATH" ]]; then
+  echo "Found existing Miniconda script at: $MINICONDA_SCRIPT_PATH"
 else
-  echo "Downloading Miniconda script to: $PATH_CONDA_SCRIPT ..."
-  wget http://repo.continuum.io/miniconda/$miniconda -P "$PATH_INSTALL_BIN_DIR"
+  echo "Downloading Miniconda script to: $MINICONDA_SCRIPT_PATH ..."
+  wget http://repo.continuum.io/miniconda/$miniconda -P "$PROJ_DIR"
   echo "Downloaded $miniconda!"
-  ls -al $PATH_CONDA_SCRIPT
-  chmod 755 $PATH_CONDA_SCRIPT
+  ls -al $MINICONDA_SCRIPT_PATH
+  chmod 755 $MINICONDA_SCRIPT_PATH
 fi
 
 # 1.3 #md5sum hash check of miniconda installer
-md5Output=$(md5sum $PATH_CONDA_SCRIPT | awk '{print $1}')
+md5Output=$(md5sum $MINICONDA_SCRIPT_PATH | awk '{print $1}')
 if [ "$expectedHash" != "$md5Output" ]; then
     echo "Unexpected md5sum $md5Output for $miniconda"
     exit 1
 fi
 
-# 2. Install Miniconda
+# 2. Install Conda
 ## 2.1 Via bootstrap
-PATH_CONDA="$PROJ_DIR/miniconda-$MINICONDA_VARIANT"
-if [[ ! -d $PATH_CONDA ]]; then
-    #blow away old symlink / default miniconda install
+LOCAL_CONDA_PATH="$PROJ_DIR/miniconda"
+if [[ ! -d $LOCAL_CONDA_PATH ]]; then
+    #blow away old symlink / default Miniconda install
     rm -rf "$PROJ_DIR/miniconda"
     # Install Miniconda
-    echo "Installing $miniconda to $PATH_CONDA..."
-    bash $PATH_CONDA_SCRIPT -b -p $PATH_CONDA -f
-    chmod 755 $PATH_CONDA
+    echo "Installing $miniconda to $CONDA_INSTALL_PATH..."
+    bash $MINICONDA_SCRIPT_PATH -b -p $CONDA_INSTALL_PATH -f
+    chmod 755 $CONDA_INSTALL_PATH
     #create symlink
-    ln -sf $PATH_CONDA "$PROJ_DIR/miniconda"
+    ln -sf $CONDA_INSTALL_PATH "$PROJ_DIR/miniconda"
     chmod 755 "$PROJ_DIR/miniconda"
 else
-    echo "Existing directory at path: $PATH_CONDA, skipping install!"
+    echo "Existing directory at path: $LOCAL_CONDA_PATH, skipping install!"
 fi
 
 # 2.2 Update PATH and conda...
 echo "Setting environment variables..."
-PATH_CONDA_BIN="$PATH_CONDA/bin"
-export PATH="$PATH_CONDA_BIN:$PATH"
+CONDA_BIN_PATH="$CONDA_INSTALL_PATH/bin"
+export PATH="$CONDA_BIN_PATH:$PATH"
 echo "Updated PATH: $PATH"
 echo "And also HOME: $HOME"
 hash -r
@@ -91,18 +91,23 @@ conda update -q conda
 conda info -a
 
 # Install useful conda utilities in root env
+echo "Installing useful conda utilities in root env..."
 conda install pip anaconda-client conda-build conda-env
 conda install -n root -c conda conda-env
 
 # 2.3 Update .bashrc profile to add the miniconda location to PATH.
-if grep -ir "PATH_CONDA_BIN=" /$HOME/.bashrc
+echo "Updating .bashrc profile to export miniconda bin location to PATH env var..."
+if grep -ir "CONDA_BIN_PATH=$CONDA_BIN_PATH" /root/.bashrc  #/$HOME/.bashrc
     then
     echo "Path environment variable definition found in .bashrc, skipping..."
 else
     echo "Adding path definintion to .bashrc..."
-    echo "export PATH_CONDA_BIN=$PATH_CONDA_BIN"        >> $HOME/.bashrc
-    sudo echo 'export PATH=$PATH:$PATH_CONDA_BIN'       >> $HOME/.bashrc
+    echo "export CONDA_BIN_PATH=$CONDA_BIN_PATH"        >> /root/.bashrc  #/$HOME/.bashrc
+    sudo echo 'export PATH=$CONDA_BIN_PATH:$PATH'       >> /root/.bashrc  #/$HOME/.bashrc
 fi
-echo "Updated PATH: $PATH"
+
+echo "Finished bootstrapping via Miniconda, sourcing .bashrc.."
+source ~/.bashrc
+
 
 #fi

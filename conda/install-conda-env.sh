@@ -7,6 +7,8 @@ CONDA_PACKAGES='numpy pandas scikit-learn seaborn bokeh ipython Jupyter pytables
 ## 0.2 pip packages to be installed
 PIP_PACKAGES='plotly'
 
+source /root/.bashrc
+
 # 1. Specify conda environment name
 if [ $# -eq 0 ]
     then
