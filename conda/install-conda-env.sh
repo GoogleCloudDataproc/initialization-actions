@@ -3,9 +3,9 @@ set -e
 
 # 0. Specify Packages to be installed
 ## 0.1 conda packages to be installed
-CONDA_PACKAGES='numpy pandas scikit-learn seaborn bokeh ipython Jupyter pytables'
+CONDA_PACKAGES='numpy pandas scikit-learn networkx seaborn bokeh ipython Jupyter pytables'
 ## 0.2 pip packages to be installed
-PIP_PACKAGES='plotly'
+PIP_PACKAGES='plotly py4j gcloud'
 
 source /root/.bashrc
 
