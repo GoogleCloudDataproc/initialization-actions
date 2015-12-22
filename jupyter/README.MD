@@ -4,11 +4,17 @@ This folder contains initialization action to quickly setup and launch [Jupyter 
 
 ## setup-jupyter.sh
 
-
 `setup-jupyter.sh` sets sane defaults for configuring and running Jupyter on the Dataproc master node by:
 
-- targeting a default notebooks directory 
-- ensuring a Jupyter startup configuration for PySpark exists, and then 
+- targets a default notebooks directory 
+- ensures a Jupyter startup configuration for PySpark exists, and then 
 - launches the Jupyter kernel on port 8123.
 
+## launch-jupyter-interface.sh
+
+`launch-jupyter-interface.sh` launches a web interface to Jupyter proces running on master node. 
+
+- sets a path for the local OS to the Chrome executable
+- setup an ssh tunnel and socks proxy to the master node
+- launch a Chrome instance that uses this ssh tunnel and references the Jupyter port.
 
