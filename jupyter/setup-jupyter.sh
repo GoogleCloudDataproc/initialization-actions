@@ -3,13 +3,13 @@ set -x -e
 
 # 0. Set parameters
 # TODO: Detect if directory exists in working directory
-NOTEBOOK_DIR="./notebooks"
+NOTEBOOK_DIR="root/notebooks"
 source /root/.bashrc
 
 
 # 1. Ensure PySpark configuration exists
 #  /root/.ipython/profile_default/startup/00-pyspark-setup.py
-IPYTHON_STARTUP_CONFIG_PATH="/dataproc_intialization_actions/jupyter/00_setup_pyspark.py"
+IPYTHON_STARTUP_CONFIG_PATH="/dataproc-initialization-actions/jupyter/00_setup_pyspark.py"
 IPYTHON_STARTUP_PATH="/root/.ipython/profile_default/startup/"
 
 # 2. Install and launch Jupyter (only run on the master node)
