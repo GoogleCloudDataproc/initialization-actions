@@ -2,7 +2,7 @@
 set -e
 
 # NOTE: Ensure that Jupyter notebook is running on cluster master node
-# TODO: detect the following cluster name using gcloud tools
+# TODO: detect the project cluster name using gcloud tools
 DATAPROC_CLUSTER_NAME="spark-cluster"
 GCP_ZONE="us-east1-b"
 
@@ -24,7 +24,7 @@ gcloud compute ssh  --zone=$GCP_ZONE \
 # TODO: Parameterize the chrome app path
 # eval $CHROME_APP_PATH \
 /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
-    "http://$CLUSTER_NAME-m:8123" \
+    "http://$DATAPROC_CLUSTER_NAME-m:8123" \
     --proxy-server="socks5://localhost:1080" \
     --host-resolver-rules="MAP * 0.0.0.0 , EXCLUDE localhost" \
     --user-data-dir=/tmp/
