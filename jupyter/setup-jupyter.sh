@@ -23,7 +23,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
     # 2. Ensure PySpark is configured
     if [[ ! -d $IPYTHON_STARTUP_PATH ]]; then
         echo "IPython startup config path not detected, creating..."
-        mkdir -p $IPYTHON_STARTUP_CONFIG_PATH
+        mkdir -p $IPYTHON_STARTUP_PATH
         echo "Copying IPython config from data proc init action repo..."
         cp -p $IPYTHON_STARTUP_CONFIG_PATH $IPYTHON_STARTUP_PATH
     else
