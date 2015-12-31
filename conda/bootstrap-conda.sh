@@ -106,8 +106,10 @@ else
     sudo echo 'export PATH=$CONDA_BIN_PATH:$PATH'       >> /root/.bashrc  #/$HOME/.bashrc
 fi
 
-echo "Finished bootstrapping via Miniconda, sourcing .bashrc.."
+## 3. Ensure that Anaconda Python and PySpark play nice
+### http://blog.cloudera.com/blog/2015/09/how-to-prepare-your-apache-hadoop-cluster-for-pyspark-jobs/
+echo "Ensure that Anaconda Python and PySpark play nice by all pointing to same Python distro..."
+if [[ ! -v PYSPARK_PYTHON ]]; then  echo "export PYSPARK_PYTHON=$CONDA_BIN_PATH/python"  >> /root/.bashrc; fi
+
+echo "Finished bootstrapping via Miniconda, sourcing .bashrc..."
 source ~/.bashrc
-
-
-#fi
