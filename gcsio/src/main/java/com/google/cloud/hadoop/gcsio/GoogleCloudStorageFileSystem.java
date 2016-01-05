@@ -1451,7 +1451,7 @@ public class GoogleCloudStorageFileSystem {
     if (!SCHEME.equals(path.getScheme())) {
       throw new IllegalArgumentException(
           "Google Cloud Storage path supports only '" + SCHEME + "' scheme, instead got '"
-          + path.getScheme() + "'.");
+          + path.getScheme() + "' from '" + path + "'.");
     }
 
     String bucketName;
