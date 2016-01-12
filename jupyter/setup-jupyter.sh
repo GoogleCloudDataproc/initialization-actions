@@ -35,15 +35,13 @@ if [[ "${ROLE}" == 'Master' ]]; then
         nohup jupyter notebook \
             --no-browser \
             --ip=* \
-            --port=8123 \
-            > /var/log/python_notebook.log &
+            --port=8123 > /var/log/jupyter_notebook.log &
     else
 	    nohup jupyter notebook \
 	        --notebook-dir=$NOTEBOOK_DIR \
 	        --no-browser \
 	        --ip=* \
-	        --port=8123 \
-	        > /var/log/python_notebook.log &
+	        --port=8123 > /var/log/jupyter_notebook.log &
     fi
 
 fi
