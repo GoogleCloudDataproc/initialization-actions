@@ -18,7 +18,10 @@ This repository presently offers the following actions for use with Cloud Datapr
 * Install packages/software on the cluster
   * [Apache Kafka](http://kafka.apache.org)
   * [Apache Oozie](http://oozie.apache.org)
+<<<<<<< HEAD
   * [Apache Tez](http://tez.apache.org)
+=======
+>>>>>>> GoogleCloudPlatform/master
   * [Apache Zeppelin](http://zeppelin.apache.org)
   * [Apache ZooKeeper](http://zookeeper.apache.org)
   * [IPython](http://ipython.org)
