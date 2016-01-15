@@ -1,11 +1,7 @@
 #!/bin/bash
 set -x -e
 
-# 0. Set parameters
-# TODO: Detect if directory exists in working directory
-NOTEBOOK_DIR="root/notebooks"
 source /root/.bashrc
-
 
 # 1. Ensure PySpark configuration exists
 #  /root/.ipython/profile_default/startup/00-pyspark-setup.py
@@ -17,8 +13,10 @@ ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 if [[ "${ROLE}" == 'Master' ]]; then
 
     # 1. Install Jupyter
-    # Assumes conda is already installed and available in $PATH
+    #TODO: Detect of conda env is running, select proper install command.
+    # Assumes conda or pip is already installed and available in $PATH
     conda install jupyter
+    #pip install jupyter
 
     # 2. Ensure PySpark is configured
     if [[ ! -d $IPYTHON_STARTUP_PATH ]]; then
@@ -29,23 +27,8 @@ if [[ "${ROLE}" == 'Master' ]]; then
     else
         echo "IPython startup path detected, skipping..."
     fi
-
-	# 2. Launch Jupyter notebook on port 8123
-	if [[ ! -d $NOTEBOOK_DIR ]]; then
-        nohup jupyter notebook \
-            --no-browser \
-            --ip=* \
-            --port=8123 > /var/log/jupyter_notebook.log &
-    else
-	    nohup jupyter notebook \
-	        --notebook-dir=$NOTEBOOK_DIR \
-	        --no-browser \
-	        --ip=* \
-	        --port=8123 > /var/log/jupyter_notebook.log &
-    fi
-
 fi
+echo "Jupyter setup...!"
 
-echo "Jupyter notebook launched on port 8123!"
 
 
