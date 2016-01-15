@@ -237,9 +237,9 @@ public class GoogleCloudStorageImpl
 
     this.gcs = gcs;
 
-    // Normally used for batch requests, but not necessary for correctness.
-    // TODO(user): Support custom initializers without Credentials.
-    this.httpRequestInitializer = null;
+    if (gcs != null && gcs.getRequestFactory() != null) {
+      this.httpRequestInitializer = gcs.getRequestFactory().getInitializer();
+    }
   }
 
   @Override
