@@ -5,6 +5,9 @@ set -e
 #ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 #if [[ "${ROLE}" == 'Master' ]]; then
 
+# Update gcloud SDK command line
+gcloud components update -q
+
 CONDA_INSTALL_PATH="/usr/local/bin/miniconda"
 
 # 0. Specify Miniconda version
@@ -94,6 +97,7 @@ conda info -a
 echo "Installing useful conda utilities in root env..."
 conda install pip anaconda-client conda-build conda-env
 conda install -n root -c conda conda-env
+pip install py4j
 
 # 2.3 Update .bashrc profile to add the miniconda location to PATH.
 echo "Updating .bashrc profile to export miniconda bin location to PATH env var..."
