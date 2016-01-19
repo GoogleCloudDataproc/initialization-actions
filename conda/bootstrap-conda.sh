@@ -107,20 +107,20 @@ if [[ -f "/etc/profile.d/conda_config.sh" ]]
     echo "conda_config.sh found in /etc/profile.d/, skipping..."
 else
     echo "Adding path definition to profiles..."
-    echo "export CONDA_BIN_PATH=$CONDA_BIN_PATH" | tee -a /etc/profile.d/conda_config.sh  /etc/*bashrc
-    echo 'export PATH=$CONDA_BIN_PATH:$PATH' | tee -a /etc/profile.d/conda_config.sh  /etc/*bashrc
+    echo "export CONDA_BIN_PATH=$CONDA_BIN_PATH" | tee -a /etc/profile.d/conda_config.sh  /etc/*bashrc /etc/environment
+    echo 'export PATH=$CONDA_BIN_PATH:$PATH' | tee -a /etc/profile.d/conda_config.sh  /etc/*bashrc /etc/environment
     # Fix issue with Python3 hash seed.
     # Issue here: https://issues.apache.org/jira/browse/SPARK-12100
     # Fix here: http://blog.stuart.axelbrooke.com/python-3-on-spark-return-of-the-pythonhashseed/
     echo "Adding PYTHONHASHSEED=123 to profiles..."
-    echo "export PYTHONHASHSEED=123" | tee -a  /etc/profile.d/conda_config.sh  /etc/*bashrc /usr/lib/spark/conf/spark-env.sh
+    echo "export PYTHONHASHSEED=123" | tee -a  /etc/profile.d/conda_config.sh  /etc/*bashrc  /etc/environment /usr/lib/spark/conf/spark-env.sh
 
 fi
 
 ## 3. Ensure that Anaconda Python and PySpark play nice
 ### http://blog.cloudera.com/blog/2015/09/how-to-prepare-your-apache-hadoop-cluster-for-pyspark-jobs/
 echo "Ensure that Anaconda Python and PySpark play nice by all pointing to same Python distro..."
-if [[ ! -v PYSPARK_PYTHON ]]; then  echo "export PYSPARK_PYTHON=$CONDA_BIN_PATH/python" | tee -a  /etc/profile.d/conda_config.sh  /etc/*bashrc /usr/lib/spark/conf/spark-env.sh; fi
+if [[ ! -v PYSPARK_PYTHON ]]; then  echo "export PYSPARK_PYTHON=$CONDA_BIN_PATH/python" | tee -a  /etc/profile.d/conda_config.sh  /etc/*bashrc /etc/environment /usr/lib/spark/conf/spark-env.sh; fi
 
 echo "Finished bootstrapping via Miniconda, sourcing .bashrc..."
 source ~/.bashrc
