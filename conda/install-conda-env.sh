@@ -7,7 +7,14 @@ CONDA_PACKAGES='numpy pandas scikit-learn networkx seaborn bokeh ipython Jupyter
 ## 0.2 pip packages to be installed
 PIP_PACKAGES='plotly py4j gcloud'
 
+echo "echo \$USER: $USER"
+echo "echo \$PWD: $PWD"
+echo "echo \$PATH: $PATH"
+
 source /root/.bashrc
+echo "echo \$USER: $USER"
+echo "echo \$PWD: $PWD"
+echo "echo \$PATH: $PATH"
 
 # 1. Specify conda environment name
 if [ $# -eq 0 ]
