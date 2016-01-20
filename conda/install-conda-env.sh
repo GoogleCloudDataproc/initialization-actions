@@ -10,11 +10,16 @@ PIP_PACKAGES='plotly py4j gcloud'
 echo "echo \$USER: $USER"
 echo "echo \$PWD: $PWD"
 echo "echo \$PATH: $PATH"
+echo "echo \$CONDA_BIN_PATH: $CONDA_BIN_PATH"
 
-source /root/.bashrc
+if [[ ! -v CONDA_BIN_PATH ]]; then
+    source /etc/profile.d/conda_config.sh  #/$HOME/.bashrc
+fi
+
 echo "echo \$USER: $USER"
 echo "echo \$PWD: $PWD"
 echo "echo \$PATH: $PATH"
+echo "echo \$CONDA_BIN_PATH: $CONDA_BIN_PATH"
 
 # 1. Specify conda environment name
 if [ $# -eq 0 ]
