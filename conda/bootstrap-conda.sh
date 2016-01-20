@@ -100,6 +100,9 @@ conda install -n root -c conda conda-env
 pip install py4j
 
 # 2.3 Update global profiles to add the miniconda location to PATH and PYTHONHASHSEED
+# based on: http://stackoverflow.com/questions/14637979/how-to-permanently-set-path-on-linux
+# and also: http://askubuntu.com/questions/391515/changing-etc-environment-did-not-affect-my-environemtn-variables
+# and this: http://askubuntu.com/questions/128413/setting-the-path-so-it-applies-to-all-users-including-root-sudo
 echo "Updating global profiles to export miniconda bin location to PATH and set PYTHONHASHSEED ..."
 #if grep -ir "CONDA_BIN_PATH=$CONDA_BIN_PATH" /root/.bashrc  #/$HOME/.bashrc
 if [[ -f "/etc/profile.d/conda_config.sh" ]]
@@ -107,13 +110,13 @@ if [[ -f "/etc/profile.d/conda_config.sh" ]]
     echo "conda_config.sh found in /etc/profile.d/, skipping..."
 else
     echo "Adding path definition to profiles..."
-    echo "export CONDA_BIN_PATH=$CONDA_BIN_PATH" | tee -a /etc/profile.d/conda_config.sh  /etc/*bashrc /etc/environment /etc/profile
-    echo 'export PATH=$CONDA_BIN_PATH:$PATH' | tee -a /etc/profile.d/conda_config.sh  /etc/*bashrc /etc/environment /etc/profile
+    echo "export CONDA_BIN_PATH=$CONDA_BIN_PATH" | tee -a /etc/profile.d/conda_config.sh  /etc/*bashrc /etc/profile #/etc/environment
+    echo 'export PATH=$CONDA_BIN_PATH:$PATH' | tee -a /etc/profile.d/conda_config.sh  /etc/*bashrc /etc/profile #/etc/environment
     # Fix issue with Python3 hash seed.
     # Issue here: https://issues.apache.org/jira/browse/SPARK-12100
     # Fix here: http://blog.stuart.axelbrooke.com/python-3-on-spark-return-of-the-pythonhashseed/
     echo "Adding PYTHONHASHSEED=123 to profiles..."
-    echo "export PYTHONHASHSEED=123" | tee -a  /etc/profile.d/conda_config.sh  /etc/*bashrc  /etc/environment /usr/lib/spark/conf/spark-env.sh
+    echo "export PYTHONHASHSEED=123" | tee -a  /etc/profile.d/conda_config.sh  /etc/*bashrc  /usr/lib/spark/conf/spark-env.sh #/etc/environment
 
 fi
 
