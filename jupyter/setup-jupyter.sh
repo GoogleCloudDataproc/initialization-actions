@@ -15,8 +15,12 @@ if [[ "${ROLE}" == 'Master' ]]; then
     # 1. Install Jupyter
     #TODO: Detect of conda env is running, select proper install command.
     # Assumes conda or pip is already installed and available in $PATH
-    conda install jupyter
     #pip install jupyter
+
+    if [[ ! -v CONDA_BIN_PATH ]]; then
+        source /etc/profile.d/conda_config.sh  #/$HOME/.bashrc
+    fi
+    conda install jupyter
 
     # 2. Ensure PySpark is configured
     if [[ ! -d $IPYTHON_STARTUP_PATH ]]; then
