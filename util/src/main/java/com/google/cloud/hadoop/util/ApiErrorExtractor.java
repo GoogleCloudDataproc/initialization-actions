@@ -404,7 +404,7 @@ public class ApiErrorExtractor {
    * Recursively checks getCause() if outer exception isn't
    * an instance of the correct class.
    */
-  private boolean recursiveCheckForCode(Throwable e, int code) {
+  protected boolean recursiveCheckForCode(Throwable e, int code) {
     GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(e);
     if (jsonException != null) {
       return getHttpStatusCode(jsonException) == code;
