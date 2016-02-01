@@ -109,6 +109,7 @@ EOF
 
   # Let Zeppelin create the conf/interpreter.json file
   /usr/lib/incubator-zeppelin/bin/zeppelin-daemon.sh start
+  sleep 20s
   /usr/lib/incubator-zeppelin/bin/zeppelin-daemon.sh stop
 
   # Force the spark.executor.memory to be inherited from the environment
