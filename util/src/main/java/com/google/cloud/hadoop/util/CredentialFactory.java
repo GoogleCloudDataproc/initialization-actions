@@ -250,7 +250,8 @@ public class CredentialFactory {
 
     try (FileInputStream fis = new FileInputStream(serviceAccountJsonKeyFile)) {
       return GoogleCredentialWithRetry.fromGoogleCredential(
-          GoogleCredential.fromStream(fis, getHttpTransport(), JSON_FACTORY));
+          GoogleCredential.fromStream(fis, getHttpTransport(), JSON_FACTORY)
+              .createScoped(scopes));
     }
   }
 
