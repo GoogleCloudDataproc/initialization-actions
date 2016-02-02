@@ -273,6 +273,12 @@
         <scope>test</scope>
       </dependency>
       <dependency>
+        <groupId>com.google.truth</groupId>
+        <artifactId>truth</artifactId>
+        <version>0.28</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
         <groupId>org.apache.httpcomponents</groupId>
         <artifactId>httpclient</artifactId>
         <version>${apache.httpcomponents.version}</version>
