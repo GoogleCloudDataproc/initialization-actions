@@ -1,3 +1,9 @@
+1.4.4 - 2016-02-02
+
+  1. Add support for JSON keyfiles via a new configuration key:
+     google.cloud.auth.service.account.json.keyfile. This key should
+     point to a file that is available locally to jobs to clusters.
+
 1.4.3 - 2015-11-12
 
   1. Minor bug fixes and enhancements.
