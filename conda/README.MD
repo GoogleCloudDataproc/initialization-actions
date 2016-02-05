@@ -10,7 +10,7 @@ This folder contains initialization actions for getting up and going using [Mini
 
 `bootstrap-conda.sh` contains logic for quickly configuring and installing Miniconda, with point-and-shoot defaults, including:
 
-- the Python 3 variant
+- the Python 2 variant (*note*: Python >= 3.3 not supported by PySpark in Dataproc, see [#25](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/issues/25))
 - the most recent Miniconda version (`3.18.3`)
 - downloads and installs to the `$HOME` directory
 - performs an md5sum hash check (failing quickly is always better)
@@ -32,3 +32,32 @@ All of this can be changed with little effort.
 - if no conda environment name is specified, uses `root`.
 - detects if conda environment has already been created.
 - updates `.bashrc` to activate the created environment at login
+
+
+## Testing Installation
+
+A quick test to ensure installation of conda is working, we can submit jobs that collect distinct paths to the python distribution across all Spark executors. For both local (e.g., running form dataproc cluster master node) and remote (e.g. submitting a job via the dataproc API) jobs, the result should be a list with a single path: `['/usr/local/bin/miniconda/bin/python']`. See more
+
+
+### Local Job Test
+
+After sshing to master node (e.g., `gcloud compute ssh $DATAPROC_CLUSTER_NAME-m`), run the `get-sys-exec.py` script contained in this directory:
+
+```bash
+> spark-submit get-sys-exec.py
+... # Lots of output
+['/usr/local/bin/miniconda/bin/python']
+...
+```
+
+### Remote Job Test
+
+From command line of local / host machine, one can submit remote job:
+
+```bash
+> gcloud beta dataproc jobs submit pyspark --cluster $DATAPROC_CLUSTER_NAME get-sys-exec.py
+... # Lots of output
+['/usr/local/bin/miniconda/bin/python']
+...
+```
+
