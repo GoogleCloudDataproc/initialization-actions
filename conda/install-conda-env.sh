@@ -5,7 +5,7 @@ set -e
 ## 0.1 conda packages to be installed
 CONDA_PACKAGES='numpy pandas scikit-learn networkx seaborn bokeh ipython Jupyter pytables'
 ## 0.2 pip packages to be installed
-PIP_PACKAGES='plotly py4j gcloud'
+PIP_PACKAGES='plotly py4j'
 
 echo "echo \$USER: $USER"
 echo "echo \$PWD: $PWD"
