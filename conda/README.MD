@@ -10,7 +10,7 @@ This folder contains initialization actions for getting up and going using [Mini
 
 `bootstrap-conda.sh` contains logic for quickly configuring and installing Miniconda, with point-and-shoot defaults, including:
 
-- the Python 2 variant (*note*: Python >= 3.3 not supported by PySpark in Dataproc, see [#25](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/issues/25))
+- a choice of either Python 2 or Python 3 (defaults to Python 2; users can uncomment the appropriate lines near the top of `boostrap-conda.sh` to select Python 3)
 - the most recent Miniconda version (`3.18.3`)
 - downloads and installs to the `$HOME` directory
 - performs an md5sum hash check (failing quickly is always better)
@@ -33,6 +33,15 @@ All of this can be changed with little effort.
 - detects if conda environment has already been created.
 - updates `.bashrc` to activate the created environment at login
 
+## Notes on running Python 3
+
+Starting with Python 3.3, hash randomization is enabled by default (see docs for [object.\__hash__](https://docs.python.org/3/reference/datamodel.html#object.__hash__)). Spark attempts to correct this by setting the `PYTHONHASHSEED` environment variable, but a [small bug in Spark](https://issues.apache.org/jira/browse/SPARK-13330) keeps the env var from propogating to all executors.
+
+The `boostrap-conda.sh` initialization action fixes this issue; users will not have to take any additional actions to use Python 3 on DataProc. Alternatively, users can pass the following `properties` argument when creating a DataProc cluster:
+```
+gcloud dataproc clusters create --properties spark:spark.executorEnv.PYTHONHASHSEED=0 ...
+```
+Note that at this time Dataproc will NOT accept the property value when submitting a job; it must be passed when the cluster is created.
 
 ## Testing Installation
 
@@ -60,4 +69,3 @@ From command line of local / host machine, one can submit remote job:
 ['/usr/local/bin/miniconda/bin/python']
 ...
 ```
-

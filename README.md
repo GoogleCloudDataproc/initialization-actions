@@ -23,6 +23,7 @@ This repository presently offers the following actions for use with Cloud Datapr
   * [Apache ZooKeeper](http://zookeeper.apache.org)
   * [IPython](http://ipython.org)
   * [Presto](http://prestodb.io)
+  * [Anaconda](https://www.continuum.io/why-anaconda)
 * Configure the cluster
   * Configure a *nice* shell environment  
   * Share NFS consistency cache
