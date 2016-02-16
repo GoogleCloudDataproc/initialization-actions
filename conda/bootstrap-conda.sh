@@ -115,8 +115,9 @@ else
     # Fix issue with Python3 hash seed.
     # Issue here: https://issues.apache.org/jira/browse/SPARK-12100
     # Fix here: http://blog.stuart.axelbrooke.com/python-3-on-spark-return-of-the-pythonhashseed/
-    echo "Adding PYTHONHASHSEED=123 to profiles..."
-    echo "export PYTHONHASHSEED=123" | tee -a  /etc/profile.d/conda_config.sh  /etc/*bashrc  /usr/lib/spark/conf/spark-env.sh #/etc/environment
+    echo "Adding PYTHONHASHSEED=0 to profiles and spark-defaults.conf..."
+    echo "export PYTHONHASHSEED=0" | tee -a  /etc/profile.d/conda_config.sh  /etc/*bashrc  /usr/lib/spark/conf/spark-env.sh #/etc/environment
+    echo "spark.executorEnv.PYTHONHASHSEED=0" >> spark-defaults.conf
 
 fi
 
