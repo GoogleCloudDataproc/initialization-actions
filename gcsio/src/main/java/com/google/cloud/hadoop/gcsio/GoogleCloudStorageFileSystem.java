@@ -513,7 +513,7 @@ public class GoogleCloudStorageFileSystem {
     // Ensure that the path looks like a directory path.
     if (resourceId.isStorageObject()) {
       resourceId = FileInfo.convertToDirectoryPath(resourceId);
-      path = getPath(resourceId.getBucketName(), resourceId.getObjectName());
+      path = pathCodec.getPath(resourceId.getBucketName(), resourceId.getObjectName(), false);
     }
 
     // Create a list of all intermediate paths.
@@ -543,7 +543,7 @@ public class GoogleCloudStorageFileSystem {
     }
 
     // Add the bucket portion.
-    URI bucketPath = getPath(resourceId.getBucketName());
+    URI bucketPath = pathCodec.getPath(resourceId.getBucketName(), null, true);
     subDirPaths.add(bucketPath);
     LOG.debug("mkdirs: sub-path: {}", bucketPath);
 
@@ -604,7 +604,7 @@ public class GoogleCloudStorageFileSystem {
         Lists.transform(dirsToCreate, new Function<StorageResourceId, URI>() {
           @Override
           public URI apply(StorageResourceId resourceId) {
-            return getPath(resourceId.getBucketName(), resourceId.getObjectName());
+            return pathCodec.getPath(resourceId.getBucketName(), resourceId.getObjectName(), false);
           }
         });
 
@@ -715,7 +715,7 @@ public class GoogleCloudStorageFileSystem {
 
       if (dstInfo.exists()) {
         if (dst.equals(GCS_ROOT)) {
-          dst = getPath(srcItemName);
+          dst = pathCodec.getPath(srcItemName, null, true);
         } else {
           dst = dst.resolve(srcItemName);
         }
@@ -843,7 +843,7 @@ public class GoogleCloudStorageFileSystem {
       // So far, only the destination directories are updated. Only do those now:
       List<URI> destinationUris = new ArrayList<>(dstObjectNames.size());
       for (String dstObjectName : dstObjectNames) {
-        destinationUris.add(getPath(dstBucketName, dstObjectName));
+        destinationUris.add(pathCodec.getPath(dstBucketName, dstObjectName, false));
       }
       tryUpdateTimestampsForParentDirectories(destinationUris, destinationUris);
     }
@@ -904,7 +904,7 @@ public class GoogleCloudStorageFileSystem {
 
           // Obtain path for each child.
           for (String childName : childNames) {
-            URI childPath = getPath(childName);
+            URI childPath = pathCodec.getPath(childName, null, true);
             paths.add(childPath);
             LOG.debug("listFileNames: added: {}", childPath);
           }
@@ -924,7 +924,8 @@ public class GoogleCloudStorageFileSystem {
 
           // Obtain path for each child.
           for (String childName : childNames) {
-            URI childPath = getPath(fileInfo.getItemInfo().getBucketName(), childName);
+            URI childPath = pathCodec
+                .getPath(fileInfo.getItemInfo().getBucketName(), childName, false);
             paths.add(childPath);
             LOG.debug("listFileNames: added: {}", childPath);
           }
@@ -1587,20 +1588,6 @@ public class GoogleCloudStorageFileSystem {
   }
 
   /**
-   * Constructs and returns full path for the given bucket name.
-   */
-  public URI getPath(String bucketName) {
-    return pathCodec.getPath(bucketName, null, true);
-  }
-
-  /**
-   * Constructs and returns full path for the given object name.
-   */
-  public URI getPath(String bucketName, String objectName) {
-    return pathCodec.getPath(bucketName, objectName, false);
-  }
-
-  /**
    * Gets the leaf item of the given path.
    */
   String getItemName(URI path) {
@@ -1658,10 +1645,10 @@ public class GoogleCloudStorageFileSystem {
         index = resourceId.getObjectName().lastIndexOf(GoogleCloudStorage.PATH_DELIMITER);
       }
       if (index < 0) {
-        return getPath(resourceId.getBucketName());
+        return pathCodec.getPath(resourceId.getBucketName(), null, true);
       } else {
-        return getPath(
-            resourceId.getBucketName(), resourceId.getObjectName().substring(0, index + 1));
+        return pathCodec.getPath(resourceId.getBucketName(),
+            resourceId.getObjectName().substring(0, index + 1), false);
       }
     }
   }
@@ -1684,5 +1671,27 @@ public class GoogleCloudStorageFileSystem {
 
   public PathCodec getPathCodec() {
     return pathCodec;
+  }
+
+  /**
+   * Validate a URI using the legacy path codec and return a StorageResourceId.
+   *
+   * @deprecated This method is deprecated as each instance of GCS FS can be configured
+   *             with a codec.
+   */
+  @Deprecated
+  public static StorageResourceId validatePathAndGetId(URI uri, boolean allowEmptyObjectNames) {
+    return LEGACY_PATH_CODEC.validatePathAndGetId(uri, allowEmptyObjectNames);
+  }
+
+  /**
+   * Construct a URI using the legacy path codec.
+   *
+   * @deprecated This method is deprecated as each instance of GCS FS can be configured
+   *             with a codec.
+   */
+  @Deprecated
+  public static URI getPath(String bucketName, String objectName, boolean allowEmptyObjectName) {
+    return LEGACY_PATH_CODEC.getPath(bucketName, objectName, allowEmptyObjectName);
   }
 }

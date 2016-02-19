@@ -72,7 +72,7 @@ public class GoogleHadoopFileSystem
     rootBucket = initUri.getAuthority();
     if (rootBucket != null) {
       // Validate root bucket name
-      gcsfs.getPath(rootBucket);
+      gcsfs.getPathCodec().getPath(rootBucket, null, true);
     } else if (systemBucket != null) {
       LOG.warn("GHFS.configureBuckets: Warning. No GCS bucket provided. "
           + "Falling back on deprecated fs.gs.system.bucket.");
