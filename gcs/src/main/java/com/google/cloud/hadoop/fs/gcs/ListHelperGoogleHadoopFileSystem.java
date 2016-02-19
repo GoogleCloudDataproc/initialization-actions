@@ -50,7 +50,8 @@ class ListHelperGoogleHadoopFileSystem
    * ListHelperGoogleHadoopFileSystem which is ready to list/get FileStatus entries corresponding
    * to {@code fileInfos}.
    */
-  public static GoogleHadoopFileSystem createInstance(Collection<FileInfo> fileInfos)
+  public static GoogleHadoopFileSystem createInstance(
+      GoogleCloudStorageFileSystem gcsfs, Collection<FileInfo> fileInfos)
       throws IOException {
     Preconditions.checkState(!fileInfos.isEmpty(),
         "Cannot construct ListHelperGoogleHadoopFileSystem with empty fileInfos list!");
@@ -72,19 +73,18 @@ class ListHelperGoogleHadoopFileSystem
     // directories but we know the parent directories are expected to exist, so we'll just
     // populate the missing entries explicitly here. Necessary for getFileStatus(parentOfInfo)
     // to work when using an instance of this class.
-    Set<URI> missingParents = new HashSet<>();
     for (FileInfo info : fileInfos) {
-      URI parentPath = GoogleCloudStorageFileSystem.getParentPath(info.getPath());
+      URI parentPath = gcsfs.getParentPath(info.getPath());
       while (parentPath != null && !parentPath.equals(GoogleCloudStorageFileSystem.GCS_ROOT)) {
         if (!providedPaths.contains(parentPath)) {
           LOG.debug("Adding fake entry for missing parent path '{}'", parentPath);
           GoogleCloudStorageItemInfo fakeInfo = new GoogleCloudStorageItemInfo(
-              GoogleCloudStorageFileSystem.validatePathAndGetId(parentPath, true),
+              gcsfs.getPathCodec().validatePathAndGetId(parentPath, true),
               0, 0, null, null);
           infos.add(fakeInfo);
           providedPaths.add(parentPath);
         }
-        parentPath = GoogleCloudStorageFileSystem.getParentPath(parentPath);
+        parentPath = gcsfs.getParentPath(parentPath);
       }
     }
 

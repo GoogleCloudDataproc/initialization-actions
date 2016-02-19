@@ -36,6 +36,7 @@ public class GoogleCloudStorageFileSystemOptions {
 
     private GoogleCloudStorageOptions.Builder cloudStorageOptionsBuilder =
         new GoogleCloudStorageOptions.Builder();
+    private PathCodec pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
 
     public GoogleCloudStorageOptions.Builder getCloudStorageOptionsBuilder() {
       return cloudStorageOptionsBuilder;
@@ -78,6 +79,11 @@ public class GoogleCloudStorageFileSystemOptions {
       return this;
     }
 
+    public Builder setPathCodec(PathCodec pathCodec) {
+      this.pathCodec = pathCodec;
+      return this;
+    }
+
     public GoogleCloudStorageFileSystemOptions build() {
       return new GoogleCloudStorageFileSystemOptions(
           cloudStorageOptionsBuilder.build(),
@@ -86,7 +92,8 @@ public class GoogleCloudStorageFileSystemOptions {
           cacheBasePath,
           shouldIncludeInTimestampUpdatesPredicate,
           cacheMaxEntryAgeMillis,
-          cacheMaxInfoAgeMillis);
+          cacheMaxInfoAgeMillis,
+          pathCodec);
     }
   }
 
@@ -101,6 +108,7 @@ public class GoogleCloudStorageFileSystemOptions {
   private final Predicate<String> shouldIncludeInTimestampUpdatesPredicate;
   private final long cacheMaxEntryAgeMillis;
   private final long cacheMaxInfoAgeMillis;
+  private final PathCodec pathCodec;
 
   public GoogleCloudStorageFileSystemOptions(
       GoogleCloudStorageOptions cloudStorageOptions,
@@ -109,7 +117,8 @@ public class GoogleCloudStorageFileSystemOptions {
       String cacheBasePath,
       Predicate<String> shouldIncludeInTimestampUpdatesPredicate,
       long cacheMaxEntryAgeMillis,
-      long cacheMaxInfoAgeMillis) {
+      long cacheMaxInfoAgeMillis,
+      PathCodec pathCodec) {
     this.cloudStorageOptions = cloudStorageOptions;
     this.metadataCacheEnabled = metadataCacheEnabled;
     this.cacheType = cacheType;
@@ -117,6 +126,7 @@ public class GoogleCloudStorageFileSystemOptions {
     this.shouldIncludeInTimestampUpdatesPredicate = shouldIncludeInTimestampUpdatesPredicate;
     this.cacheMaxEntryAgeMillis = cacheMaxEntryAgeMillis;
     this.cacheMaxInfoAgeMillis = cacheMaxInfoAgeMillis;
+    this.pathCodec = pathCodec;
   }
 
   public GoogleCloudStorageOptions getCloudStorageOptions() {
@@ -145,6 +155,10 @@ public class GoogleCloudStorageFileSystemOptions {
 
   public long getCacheMaxInfoAgeMillis() {
     return cacheMaxInfoAgeMillis;
+  }
+
+  public PathCodec getPathCodec() {
+    return pathCodec;
   }
 
   public void throwIfNotValid() {

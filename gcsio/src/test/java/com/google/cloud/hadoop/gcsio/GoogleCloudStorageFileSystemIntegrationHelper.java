@@ -16,6 +16,8 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import com.google.common.base.Preconditions;
+
 import java.io.IOException;
 import java.net.URI;
 import java.nio.channels.SeekableByteChannel;
@@ -29,7 +31,7 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
 
   public GoogleCloudStorageFileSystemIntegrationHelper(
       GoogleCloudStorageFileSystem gcsfs) {
-    this.gcsfs = gcsfs;
+    this.gcsfs = Preconditions.checkNotNull(gcsfs);
   }
 
   /**
@@ -171,7 +173,15 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
    */
   protected URI getPath(String bucketName, String objectName) {
     // 'true' for allowEmptyObjectName.
-    URI path = GoogleCloudStorageFileSystem.getPath(bucketName, objectName, true);
+    URI path = gcsfs.getPathCodec().getPath(bucketName, objectName, true);
     return path;
+  }
+
+  public StorageResourceId validatePathAndGetId(URI path, boolean allowEmpty) {
+    return gcsfs.getPathCodec().validatePathAndGetId(path, allowEmpty);
+  }
+
+  public String getItemName(URI src) {
+    return gcsfs.getItemName(src);
   }
 }

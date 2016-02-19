@@ -43,7 +43,8 @@ public class FileInfo {
   private static final Logger LOG = LoggerFactory.getLogger(FileInfo.class);
 
   // Info about the root path.
-  public static final FileInfo ROOT_INFO = new FileInfo(GoogleCloudStorageItemInfo.ROOT_INFO);
+  public static final FileInfo ROOT_INFO = new FileInfo(
+      GoogleCloudStorageFileSystem.GCS_ROOT, GoogleCloudStorageItemInfo.ROOT_INFO);
 
   // The metadata key used for storing a custom modification time.
   // The name and value of this attribute count towards storage pricing.
@@ -63,13 +64,11 @@ public class FileInfo {
    *
    * @param itemInfo Information about the underlying item.
    */
-  private FileInfo(GoogleCloudStorageItemInfo itemInfo) {
+  private FileInfo(URI path, GoogleCloudStorageItemInfo itemInfo) {
     this.itemInfo = itemInfo;
 
     // Construct the path once.
-    this.path = GoogleCloudStorageFileSystem.getPath(
-        itemInfo.getBucketName(), itemInfo.getObjectName(), true);
-
+    this.path = path;
     Preconditions.checkArgument(itemInfo.getMetadata() != null);
 
     this.attributes = itemInfo.getMetadata();
@@ -245,11 +244,14 @@ public class FileInfo {
    * Handy factory method for constructing a FileInfo from a GoogleCloudStorageItemInfo while
    * potentially returning a singleton instead of really constructing an object for cases like ROOT.
    */
-  public static FileInfo fromItemInfo(GoogleCloudStorageItemInfo itemInfo) {
+  public static FileInfo fromItemInfo(
+      PathCodec pathCodec, GoogleCloudStorageItemInfo itemInfo) {
     if (itemInfo.isRoot()) {
       return ROOT_INFO;
     } else {
-      return new FileInfo(itemInfo);
+      URI path = pathCodec.getPath(
+          itemInfo.getBucketName(), itemInfo.getObjectName(), true);
+      return new FileInfo(path, itemInfo);
     }
   }
 
@@ -257,10 +259,11 @@ public class FileInfo {
    * Handy factory method for constructing a list of FileInfo from a list of
    * GoogleCloudStorageItemInfo.
    */
-  public static List<FileInfo> fromItemInfos(List<GoogleCloudStorageItemInfo> itemInfos) {
+  public static List<FileInfo> fromItemInfos(
+      PathCodec pathCodec, List<GoogleCloudStorageItemInfo> itemInfos) {
     List<FileInfo> fileInfos = new ArrayList<>();
     for (GoogleCloudStorageItemInfo itemInfo : itemInfos) {
-      fileInfos.add(fromItemInfo(itemInfo));
+      fileInfos.add(fromItemInfo(pathCodec, itemInfo));
     }
     return fileInfos;
   }
@@ -302,14 +305,14 @@ public class FileInfo {
    * @param path Path to convert.
    * @return Directory path for the given path.
    */
-  public static URI convertToDirectoryPath(URI path) {
-    StorageResourceId resourceId = GoogleCloudStorageFileSystem.validatePathAndGetId(path, true);
+  public static URI convertToDirectoryPath(PathCodec pathCodec, URI path) {
+    StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, true);
 
     if (resourceId.isStorageObject()) {
       if (!objectHasDirectoryPath(resourceId.getObjectName())) {
         resourceId = convertToDirectoryPath(resourceId);
-        path = GoogleCloudStorageFileSystem.getPath(
-            resourceId.getBucketName(), resourceId.getObjectName());
+        path = pathCodec.getPath(
+            resourceId.getBucketName(), resourceId.getObjectName(), false /* allow empty name */);
       }
     }
     return path;

@@ -1082,7 +1082,7 @@ public abstract class GoogleHadoopFileSystemBase
 
     LOG.debug("GHFS.setWorkingDirectory: {}", hadoopPath);
     URI gcsPath = getGcsPath(hadoopPath);
-    gcsPath = FileInfo.convertToDirectoryPath(gcsPath);
+    gcsPath = FileInfo.convertToDirectoryPath(gcsfs.getPathCodec(), gcsPath);
     Path newPath = getHadoopPath(gcsPath);
 
     // Ideally we should check (as we did earlier) if the given path really points to an existing
@@ -1302,7 +1302,7 @@ public abstract class GoogleHadoopFileSystemBase
         // Path strips a trailing slash unless it's the 'root' path. We want to keep the trailing
         // slash so that we don't wastefully list sibling files which may match the directory-name
         // as a strict prefix but would've been omitted due to not containing the '/' at the end.
-        prefixUri = FileInfo.convertToDirectoryPath(prefixUri);
+        prefixUri = FileInfo.convertToDirectoryPath(gcsfs.getPathCodec(), prefixUri);
       }
 
       // Get everything matching the non-glob prefix.
@@ -1315,7 +1315,7 @@ public abstract class GoogleHadoopFileSystemBase
 
       // Perform the core globbing logic in the helper filesystem.
       GoogleHadoopFileSystem helperFileSystem =
-          ListHelperGoogleHadoopFileSystem.createInstance(fileInfos);
+          ListHelperGoogleHadoopFileSystem.createInstance(gcsfs, fileInfos);
       FileStatus[] returnList = helperFileSystem.globStatus(pathPattern, filter);
 
       // If the return list contains directories, we should repair them if they're 'implicit'.
@@ -1643,7 +1643,7 @@ public abstract class GoogleHadoopFileSystemBase
     if (systemBucket != null) {
       LOG.debug("GHFS.configureBuckets: Warning fs.gs.system.bucket is deprecated.");
       // Ensure that system bucket exists. It really must be a bucket, not a GCS path.
-      URI systemBucketPath = GoogleCloudStorageFileSystem.getPath(systemBucket);
+      URI systemBucketPath = gcsfs.getPath(systemBucket);
 
       checkOpen();
 

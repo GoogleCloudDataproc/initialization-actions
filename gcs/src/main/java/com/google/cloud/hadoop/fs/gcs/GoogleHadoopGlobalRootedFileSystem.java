@@ -110,7 +110,7 @@ public class GoogleHadoopGlobalRootedFileSystem
     // convert a Hadoop path to GCS path (in getGcsPath()) when calling
     // the GCS FS layer.
 
-    StorageResourceId resourceId = GoogleCloudStorageFileSystem.validatePathAndGetId(gcsPath, true);
+    StorageResourceId resourceId = gcsfs.getPathCodec().validatePathAndGetId(gcsPath, true);
     Path hadoopPath = getHadoopPathFromResourceId(resourceId);
     LOG.debug("GHFS.getHadoopPath: {} -> {}", gcsPath, hadoopPath);
     return hadoopPath;
@@ -204,6 +204,7 @@ public class GoogleHadoopGlobalRootedFileSystem
   /**
    * Gets the default value of working directory.
    */
+  @Override
   public Path getDefaultWorkingDirectory() {
     return new Path(getFileSystemRoot(), systemBucket);
   }

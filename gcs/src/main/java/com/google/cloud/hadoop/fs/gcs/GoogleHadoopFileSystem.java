@@ -72,7 +72,7 @@ public class GoogleHadoopFileSystem
     rootBucket = initUri.getAuthority();
     if (rootBucket != null) {
       // Validate root bucket name
-      GoogleCloudStorageFileSystem.getPath(rootBucket);
+      gcsfs.getPath(rootBucket);
     } else if (systemBucket != null) {
       LOG.warn("GHFS.configureBuckets: Warning. No GCS bucket provided. "
           + "Falling back on deprecated fs.gs.system.bucket.");
@@ -130,7 +130,7 @@ public class GoogleHadoopFileSystem
       return getFileSystemRoot();
     }
 
-    StorageResourceId resourceId = GoogleCloudStorageFileSystem.validatePathAndGetId(gcsPath, true);
+    StorageResourceId resourceId = gcsfs.getPathCodec().validatePathAndGetId(gcsPath, true);
 
     // Unlike the global-rooted GHFS, gs:// has no meaning in the bucket-rooted world.
     if (resourceId.isRoot()) {
@@ -170,8 +170,7 @@ public class GoogleHadoopFileSystem
     }
 
     // Construct GCS path uri.
-    URI gcsPath = GoogleCloudStorageFileSystem.getPath(
-        rootBucket, objectName, true);
+    URI gcsPath = gcsfs.getPathCodec().getPath(rootBucket, objectName, true);
     LOG.debug("GHFS.getGcsPath: {} -> {}", hadoopPath, gcsPath);
     return gcsPath;
   }

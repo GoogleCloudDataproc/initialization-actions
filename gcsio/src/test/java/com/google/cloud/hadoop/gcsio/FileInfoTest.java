@@ -22,11 +22,24 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
 @RunWith(JUnit4.class)
 public class FileInfoTest {
+
+  PathCodec simplePathCodec = new PathCodec() {
+    @Override
+    public StorageResourceId validatePathAndGetId(URI path, boolean allowEmptyObjectName) {
+      return new StorageResourceId(path.getAuthority(), path.getPath());
+    }
+
+    @Override
+    public URI getPath(String bucketName, String objectName, boolean allowEmptyObjectName) {
+      return URI.create(String.format("gs://%s/%s", bucketName, objectName));
+    }
+  };
 
   @Test
   public void nullModificationTimeResultInCreationTimeBeingReturned() {
@@ -45,7 +58,7 @@ public class FileInfoTest {
             0L,
             0L);
 
-    FileInfo fileInfo = FileInfo.fromItemInfo(itemInfo);
+    FileInfo fileInfo = FileInfo.fromItemInfo(simplePathCodec, itemInfo);
 
     Assert.assertEquals(10L, fileInfo.getModificationTime());
   }
@@ -67,7 +80,7 @@ public class FileInfoTest {
             0L,
             0L);
 
-    FileInfo fileInfo = FileInfo.fromItemInfo(itemInfo);
+    FileInfo fileInfo = FileInfo.fromItemInfo(simplePathCodec, itemInfo);
 
     Assert.assertEquals(10L, fileInfo.getModificationTime());
   }

@@ -18,13 +18,14 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import org.apache.hadoop.fs.FileSystem;
 
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 
 public class LocalFileSystemIntegrationHelper
   extends HadoopFileSystemIntegrationHelper {
 
   public LocalFileSystemIntegrationHelper(
-      FileSystem ghfs, FileSystemDescriptor ghfsFileSystemDescriptor) {
+      FileSystem ghfs, FileSystemDescriptor ghfsFileSystemDescriptor) throws IOException {
     super(ghfs, ghfsFileSystemDescriptor);
   }
 

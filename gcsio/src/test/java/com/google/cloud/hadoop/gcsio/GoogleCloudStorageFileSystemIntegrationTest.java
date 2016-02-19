@@ -515,8 +515,11 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     // Tests for listObjectNames().
     // -------------------------------------------------------
     validateListNamesAndInfo(null, null, true, bucketName, otherBucketName);
+  }
 
-    // Validate one special case.
+  @Test @SuppressWarnings("EqualsIncompatibleType")
+  public void testGoogleCloudStorageItemInfoNegativeEquality() {
+    // Assert that .equals with an incorrect type returns false and does not throw.
     Assert.assertTrue(!GoogleCloudStorageItemInfo.ROOT_INFO.equals("non-item-info"));
   }
 
@@ -1393,7 +1396,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
                 // If both bucket and object names are null that means the destination
                 // of the rename is root path. In that case, the leaf directory
                 // of the source path becomes the destination bucket.
-                String srcDirName = GoogleCloudStorageFileSystem.getItemName(src);
+                String srcDirName = gcsiHelper.getItemName(src);
                 dstBucketName = srcDirName;
               } else {
                 dstBucketName = rd.dstBucketName;
@@ -1803,8 +1806,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
    * @param path Path to get sub-paths of.
    * @return List of sub-directory paths.
    */
-  private static List<URI> getSubDirPaths(URI path) {
-    StorageResourceId resourceId = GoogleCloudStorageFileSystem.validatePathAndGetId(path, true);
+  private List<URI> getSubDirPaths(URI path) {
+    StorageResourceId resourceId = gcsiHelper.validatePathAndGetId(path, true);
 
     List<URI> subDirPaths = new ArrayList<>();
     List<String> subdirs = GoogleCloudStorageFileSystem.getSubDirs(resourceId.getObjectName());
@@ -1856,7 +1859,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     for (FileInfo dirInfo : topLevelDirInfos) {
       URI dirPath = dirInfo.getPath();
       StorageResourceId resourceId =
-          GoogleCloudStorageFileSystem.validatePathAndGetId(dirPath, true);
+          gcsfs.getPathCodec().validatePathAndGetId(dirPath, true);
 
       if (gcsiHelper.isTestBucketName(resourceId.getBucketName())
           && (dirInfo.getCreationTime() < yesterday.getTime())) {

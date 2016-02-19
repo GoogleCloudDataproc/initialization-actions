@@ -17,7 +17,9 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationHelper;
+import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
 import com.google.common.base.Strings;
 
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -42,6 +44,7 @@ public class HadoopFileSystemIntegrationHelper
   FileSystem ghfs;
   FileSystemDescriptor ghfsFileSystemDescriptor;
 
+
   /**
    * FS statistics mode.
    */
@@ -65,8 +68,8 @@ public class HadoopFileSystemIntegrationHelper
   FileSystemStatistics statistics = FileSystemStatistics.IGNORE;
 
   public HadoopFileSystemIntegrationHelper(
-      FileSystem hfs, FileSystemDescriptor ghfsFileSystemDescriptor) {
-    super(null);    // No gcsfs
+      FileSystem hfs, FileSystemDescriptor ghfsFileSystemDescriptor) throws IOException {
+    super(new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage()));
     this.ghfs = hfs;
     this.ghfsFileSystemDescriptor = ghfsFileSystemDescriptor;
   }
@@ -508,4 +511,7 @@ public class HadoopFileSystemIntegrationHelper
     return totalBytesWritten;
   }
 
+  public URI getPath(String bucketName, String objectName, boolean allowEmpty) {
+    return gcsfs.getPathCodec().getPath(bucketName, objectName, allowEmpty);
+  }
 }

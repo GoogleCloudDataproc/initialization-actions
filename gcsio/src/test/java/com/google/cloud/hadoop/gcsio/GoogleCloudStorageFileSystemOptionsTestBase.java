@@ -190,7 +190,7 @@ public abstract class GoogleCloudStorageFileSystemOptionsTestBase {
     // List each directory so that auto-repair kicks in.
     for (String inputFile : inputFiles) {
       URI parentPathUri =
-          GoogleCloudStorageFileSystem.getParentPath(new URI(inputFile));
+          gcsfs.getParentPath(new URI(inputFile));
       gcsfs.repairPossibleImplicitDirectory(parentPathUri);
     }
   }
@@ -205,7 +205,7 @@ public abstract class GoogleCloudStorageFileSystemOptionsTestBase {
       GoogleCloudStorage gcs, String path)
       throws IOException, URISyntaxException {
     StorageResourceId id =
-        GoogleCloudStorageFileSystem.validatePathAndGetId(new URI(path), false);
+        gcsfs.getPathCodec().validatePathAndGetId(new URI(path), false);
     gcs.createEmptyObject(id);
   }
 }

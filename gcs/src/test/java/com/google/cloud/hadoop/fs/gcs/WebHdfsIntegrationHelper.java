@@ -27,7 +27,7 @@ class WebHdfsIntegrationHelper
   extends HadoopFileSystemIntegrationHelper {
 
   public WebHdfsIntegrationHelper(
-      FileSystem ghfs, FileSystemDescriptor ghfsFileSystemDescriptor) {
+      FileSystem ghfs, FileSystemDescriptor ghfsFileSystemDescriptor) throws IOException {
     super(ghfs, ghfsFileSystemDescriptor);
   }
 

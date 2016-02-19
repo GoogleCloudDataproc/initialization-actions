@@ -14,7 +14,6 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
@@ -154,7 +153,7 @@ public abstract class HadoopFileSystemTestBase
   protected void validateGetItemInfo(
       String bucketName, String objectName, boolean expectedToExist)
       throws IOException {
-    URI path = GoogleCloudStorageFileSystem.getPath(bucketName, objectName, true);
+    URI path = ghfsHelper.getPath(bucketName, objectName, true);
     Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
     FileStatus fileStatus = null;
 
@@ -203,14 +202,14 @@ public abstract class HadoopFileSystemTestBase
           pathComponents[1] = expectedListedName;
         }
         Path expectedPath = ghfsHelper.castAsHadoopPath(
-            GoogleCloudStorageFileSystem.getPath(pathComponents[0], pathComponents[1], true));
+            ghfsHelper.getPath(pathComponents[0], pathComponents[1], true));
         expectedPaths.add(expectedPath);
         pathToComponents.put(expectedPath, pathComponents);
       }
     }
 
     // Get list of actual paths.
-    URI path = GoogleCloudStorageFileSystem.getPath(bucketName, objectNamePrefix, true);
+    URI path = ghfsHelper.getPath(bucketName, objectNamePrefix, true);
     Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
     FileStatus[] fileStatus = null;
     try {

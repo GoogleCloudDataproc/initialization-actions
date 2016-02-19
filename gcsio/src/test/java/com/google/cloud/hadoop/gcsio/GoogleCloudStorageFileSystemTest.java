@@ -238,7 +238,7 @@ public class GoogleCloudStorageFileSystemTest
 
     for (String invalidPath : invalidPaths) {
       try {
-        GoogleCloudStorageFileSystem.validatePathAndGetId(new URI(invalidPath), false);
+        gcsfs.getPathCodec().validatePathAndGetId(new URI(invalidPath), false);
         Assert.fail(String.format("Expected path to be invalid: %s", invalidPath));
       } catch (IllegalArgumentException expected) {
         // Expected.
@@ -254,7 +254,7 @@ public class GoogleCloudStorageFileSystemTest
 
     for (String validPath : validPaths) {
       try {
-        GoogleCloudStorageFileSystem.validatePathAndGetId(new URI(validPath), false);
+        gcsfs.getPathCodec().validatePathAndGetId(new URI(validPath), false);
       } catch (IllegalArgumentException expected) {
         Assert.fail(String.format("Expected path to be valid: %s", validPath));
       }
@@ -265,7 +265,7 @@ public class GoogleCloudStorageFileSystemTest
       // through directly to GCSFS.getPath instead of GCSFS.validatePathAndGetId like above;
       // there's no way to create the invalid URI beforehand to pass through to GCSFS.
       String invalidBucketName = "bucket-name-has-invalid-char^";
-      GoogleCloudStorageFileSystem.getPath(invalidBucketName, null, true);
+      gcsfs.getPathCodec().getPath(invalidBucketName, null, true);
       Assert.fail(String.format("Expected getPath to be invalid: gs://%s", invalidBucketName));
     } catch (IllegalArgumentException expected) {
       // Expected.
@@ -302,7 +302,7 @@ public class GoogleCloudStorageFileSystemTest
 
     List<String> actualNames = new ArrayList<>();
     for (String inputPath : inputPaths) {
-      actualNames.add(GoogleCloudStorageFileSystem.getItemName(new URI(inputPath)));
+      actualNames.add(gcsfs.getItemName(new URI(inputPath)));
     }
     Assert.assertArrayEquals(expectedNames, actualNames.toArray(new String[0]));
   }
@@ -335,7 +335,7 @@ public class GoogleCloudStorageFileSystemTest
 
     List<URI> actualPaths = new ArrayList<>();
     for (URI inputPath : inputPaths) {
-      actualPaths.add(GoogleCloudStorageFileSystem.getParentPath(inputPath));
+      actualPaths.add(gcsfs.getParentPath(inputPath));
     }
     Assert.assertArrayEquals(expectedPaths, actualPaths.toArray(new URI[0]));
   }
