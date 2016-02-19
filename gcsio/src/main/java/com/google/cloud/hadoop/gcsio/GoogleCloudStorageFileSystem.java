@@ -1625,6 +1625,87 @@ public class GoogleCloudStorageFileSystem {
    * @return Path of parent directory of the given item or null for root path.
    */
   public URI getParentPath(URI path) {
+    return getParentPath(getPathCodec(), path);
+  }
+
+  /**
+   * Creates FileNotFoundException with a suitable message.
+   */
+  static FileNotFoundException getFileNotFoundException(URI path) {
+    return new FileNotFoundException(
+        String.format("Item not found: %s", path));
+  }
+
+  /**
+   * Retrieve our internal gcs, for testing purposes only.
+   */
+  @VisibleForTesting
+  GoogleCloudStorage getGcs() {
+    return gcs;
+  }
+
+  /**
+   * The PathCodec in use by this file system.
+   */
+  public PathCodec getPathCodec() {
+    return pathCodec;
+  }
+
+  /**
+   * Validate a URI using the legacy path codec and return a StorageResourceId.
+   *
+   * @deprecated This method is deprecated as each instance of GCS FS can be configured
+   *             with a codec.
+   */
+  @Deprecated
+  public static StorageResourceId validatePathAndGetId(URI uri, boolean allowEmptyObjectNames) {
+    return LEGACY_PATH_CODEC.validatePathAndGetId(uri, allowEmptyObjectNames);
+  }
+
+  /**
+   * Construct a URI using the legacy path codec.
+   *
+   * @deprecated This method is deprecated as each instance of GCS FS can be configured
+   *             with a codec.
+   */
+  @Deprecated
+  public static URI getPath(String bucketName, String objectName, boolean allowEmptyObjectName) {
+    return LEGACY_PATH_CODEC.getPath(bucketName, objectName, allowEmptyObjectName);
+  }
+
+  /**
+   * Construct a URI using the legacy path codec.
+   *
+   * @deprecated This method is deprecated as each instance of GCS FS can be configured
+   *             with a codec.
+   */
+  @Deprecated
+  public static URI getPath(String bucketName) {
+    return LEGACY_PATH_CODEC.getPath(
+        bucketName, null, true /* allow empty object name */);
+  }
+  /**
+   * Construct a URI using the legacy path codec.
+   *
+   * @deprecated This method is deprecated as each instance of GCS FS can be configured
+   *             with a codec.
+   */
+  @Deprecated
+  public static URI getPath(String bucketName, String objectName) {
+    return LEGACY_PATH_CODEC.getPath(
+        bucketName, objectName, false /* do not allow empty object */);
+  }
+
+  /**
+   * Gets the parent directory of the given path.
+   *
+   * @deprecated This static method is included as a transitional utility and the
+   *             instance method variant should be preferred.
+   * @param path Path to convert.
+   * @return Path of parent directory of the given item or null for root path.
+   */
+  @Deprecated
+  public static URI getParentPath(PathCodec pathCodec, URI path) {
     Preconditions.checkNotNull(path);
 
     // Root path has no parent.
@@ -1651,47 +1732,5 @@ public class GoogleCloudStorageFileSystem {
             resourceId.getObjectName().substring(0, index + 1), false);
       }
     }
-  }
-
-  /**
-   * Creates FileNotFoundException with a suitable message.
-   */
-  static FileNotFoundException getFileNotFoundException(URI path) {
-    return new FileNotFoundException(
-        String.format("Item not found: %s", path));
-  }
-
-  /**
-   * Retrieve our internal gcs, for testing purposes only.
-   */
-  @VisibleForTesting
-  GoogleCloudStorage getGcs() {
-    return gcs;
-  }
-
-  public PathCodec getPathCodec() {
-    return pathCodec;
-  }
-
-  /**
-   * Validate a URI using the legacy path codec and return a StorageResourceId.
-   *
-   * @deprecated This method is deprecated as each instance of GCS FS can be configured
-   *             with a codec.
-   */
-  @Deprecated
-  public static StorageResourceId validatePathAndGetId(URI uri, boolean allowEmptyObjectNames) {
-    return LEGACY_PATH_CODEC.validatePathAndGetId(uri, allowEmptyObjectNames);
-  }
-
-  /**
-   * Construct a URI using the legacy path codec.
-   *
-   * @deprecated This method is deprecated as each instance of GCS FS can be configured
-   *             with a codec.
-   */
-  @Deprecated
-  public static URI getPath(String bucketName, String objectName, boolean allowEmptyObjectName) {
-    return LEGACY_PATH_CODEC.getPath(bucketName, objectName, allowEmptyObjectName);
   }
 }
