@@ -1,6 +1,6 @@
 # Jupyter Notebook
 
-This folder contains the initialization action `jupyter.sh` to quickly setup and launch [Jupyter Notebook](http://jupyter.org/), (the successor of IPython notebook) and a script to be run on the user's local machine to access the Jupyter notebook server.
+This folder contains initialization action to quickly setup and launch [Jupyter Notebook](http://jupyter.org/), (the successor of IPython notebook) along with [notebook extensions](https://github.com/ipython-contrib/IPython-notebook-extensions), and [RISE](https://github.com/damianavila/RISE). Jupyter is configured to run on port `8123` on the master node in the Dataproc cluster. To connect to the Jupyter Notebook web interface, you can simply configure and launch using `launch-jupyter-interface.sh` from your local machine.
 
 A real-world example of how to use this from within a bash script, using the default dataproc-initialization-actions repo/branch:
 
@@ -24,7 +24,7 @@ gcloud dataproc clusters create my-dataproc-cluster \
 - clones the dataproc-initialization-actions git repo/branch specified in the `INIT_ACTIONS_REPO` and `INIT_ACTIONS_BRANCH` metadata keys
   - if these two metadata keys are not set during cluster creation, the default values `https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git` and `master` are used
   - this is provided so that a fork/branch of the main repo can easily be used, eg, during development
-- executes `conda/bootstrap-conda.sh` and `conda/install-conda.sh` from said repo/branch to ensure `miniconda` is available
+- executes `conda/bootstrap-conda.sh` from said repo/branch to ensure `miniconda` is available
 - executes `jupyter/internal/setup-jupyter-kernel.sh` and `jupyter/internal/launch-jupyter-kernel.sh` from said repo/branch
   - configures `jupyter` to use the *PySpark* kernel found at `jupyter/kernels/pyspark/kernel.json`
   - configures `jupyter` to listen on the port specified by the metadata key `JUPYTER_PORT`, with a default value of `8123`
@@ -43,3 +43,4 @@ gcloud dataproc clusters create my-dataproc-cluster \
 - launch a Chrome instance that uses this ssh tunnel and references the Jupyter port.
 
 **NOTE**: to be run from a local machine
+ 

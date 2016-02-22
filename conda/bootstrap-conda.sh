@@ -16,12 +16,13 @@ CONDA_INSTALL_PATH="/usr/local/bin/miniconda"
 OS_TYPE="Linux-x86_64.sh"
 # specify Miniconda release
 MINICONDA_VER='3.19.0'
-## Python 2 or 3?
-MINICONDA_VARIANT="Miniconda2"  #for Python 2.7.x
-expectedHash="628f158791daf7d634fb6894045a6be1"
-#MINICONDA_VARIANT="Miniconda3"  #for Python 3.5.x
-#expectedHash="b834b525d3f42add8f2af0153d13f498"
-
+##
+if [[ ! -v MINICONDA_VARIANT ]]; then
+    #MINICONDA_VARIANT="Miniconda2"  #for Python 2.7.x
+    #expectedHash="628f158791daf7d634fb6894045a6be1"
+    MINICONDA_VARIANT="Miniconda3"  #for Python 3.5.x
+    expectedHash="b834b525d3f42add8f2af0153d13f498"
+fi
 ## 0. Compute Miniconda version
 miniconda="$MINICONDA_VARIANT-$MINICONDA_VER-$OS_TYPE"
 
