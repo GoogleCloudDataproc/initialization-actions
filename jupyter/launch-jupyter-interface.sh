@@ -5,9 +5,9 @@ set -e
 # TODO: detect the project cluster name using gcloud tools
 #DATAPROC_CLUSTER_NAME="spark-cluster"
 #GCP_ZONE="us-east1-b"
-if [[ ! -v JUPYTER_PORT ]]; then
-    JUPYTER_PORT=8123
-fi
+#if [[ ! -v JUPYTER_PORT ]]; then
+#    JUPYTER_PORT=8123
+#fi
 
 # 0. Set default path to Chrome application (by operating system type).
 # OS X
