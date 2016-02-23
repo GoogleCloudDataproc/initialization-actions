@@ -24,7 +24,7 @@
 # This script should run in under a few minutes
 
 # Determine the role of this node
-ROLE=$(/usr/share/google/get_metadata_value attributes/role)
+ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 
 # Only run on the master node of the cluster
 if [[ "${ROLE}" == 'Master' ]]; then

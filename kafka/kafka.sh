@@ -16,7 +16,7 @@ set -x -e
 
 
 # Only run this on worker nodes
-if [[ $(/usr/share/google/get_metadata_value attributes/role) == 'Master' ]]; then
+if [[ $(/usr/share/google/get_metadata_value attributes/dataproc-role) == 'Master' ]]; then
 	exit 0
 fi
 

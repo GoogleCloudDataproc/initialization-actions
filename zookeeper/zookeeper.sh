@@ -16,7 +16,7 @@ set -x -e
 
 # Variables for this script
 ZOOKEEPER_VERSION="3.4.6"
-ROLE=$(/usr/share/google/get_metadata_value attributes/role)
+ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 CLUSTER_NAME=$(hostname | sed -r 's/(.*)-[w|m](-[0-9]+)?$/\1/')
 
 # Download and extract ZooKeeper
