@@ -33,7 +33,6 @@ import org.slf4j.LoggerFactory;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.DirectoryNotEmptyException;
@@ -115,72 +114,16 @@ public class GoogleCloudStorageFileSystem {
     }
   };
 
-  public static final PathCodec LEGACY_PATH_CODEC = new PathCodec() {
-    @Override
-    public StorageResourceId validatePathAndGetId(URI path, boolean allowEmptyObjectName) {
-      LOG.debug("validatePathAndGetId('{}', {})", path, allowEmptyObjectName);
-      Preconditions.checkNotNull(path);
+  /**
+   * A PathCodec that maintains compatibility with versions of GCS FS < 1.4.5.
+   */
+  public static final PathCodec LEGACY_PATH_CODEC = new LegacyPathCodec();
 
-      if (!SCHEME.equals(path.getScheme())) {
-        throw new IllegalArgumentException(
-            "Google Cloud Storage path supports only '" + SCHEME + "' scheme, instead got '"
-                + path.getScheme() + "' from '" + path + "'.");
-      }
-
-      String bucketName;
-      String objectName;
-
-      if (path.equals(GCS_ROOT)) {
-        return StorageResourceId.ROOT;
-      } else {
-        bucketName = path.getAuthority();
-
-        // We want not only the raw path, but also any "query" or "fragment" at the end; URI doesn't
-        // have a method for "everything past the authority", so instead we start with the entire
-        // scheme-specific part and strip off the authority.
-        String schemeSpecificPart = path.getRawSchemeSpecificPart();
-        Preconditions.checkState(schemeSpecificPart.startsWith("//" + bucketName),
-            "Expected schemeSpecificStart to start with '//%s', instead got '%s'",
-            bucketName, schemeSpecificPart);
-        objectName = schemeSpecificPart.substring(2 + bucketName.length());
-
-        bucketName = validateBucketName(bucketName);
-        objectName = validateObjectName(objectName, allowEmptyObjectName);
-
-        // TODO(user): Pull the logic for checking empty object name out of validateObjectName into
-        // here.
-        if (Strings.isNullOrEmpty(objectName)) {
-          return new StorageResourceId(bucketName);
-        } else {
-          return new StorageResourceId(bucketName, objectName);
-        }
-      }
-    }
-
-    @Override
-    public URI getPath(String bucketName, String objectName, boolean allowEmptyObjectName) {
-      if (allowEmptyObjectName && (bucketName == null) && (objectName == null)) {
-        return GCS_ROOT;
-      }
-
-      bucketName = validateBucketName(bucketName);
-      objectName = validateObjectName(objectName, allowEmptyObjectName);
-
-      URI pathUri = null;
-      String path = SCHEME + "://" + bucketName + GoogleCloudStorage.PATH_DELIMITER + objectName;
-      try {
-        pathUri = new URI(path);
-      } catch (URISyntaxException e) {
-        // This should be very rare given the earlier checks.
-        String msg = String.format("Invalid bucket name (%s) or object name (%s)",
-            bucketName, objectName);
-        LOG.error(msg, e);
-        throw new IllegalArgumentException(msg, e);
-      }
-
-      return pathUri;
-    }
-  };
+  /**
+   * A PathCodec that expects URIs to be of the form:
+   * gs://authority/properly/encoded/path.
+   */
+  public static final PathCodec URI_ENCODED_PATH_CODEC = new UriEncodingPathCodec();
 
   /**
    * Constructs an instance of GoogleCloudStorageFileSystem.
