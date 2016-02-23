@@ -15,7 +15,7 @@
 set -x -e
 
 # Variables for running this script
-ROLE=$(/usr/share/google/get_metadata_value attributes/role)
+ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 HOSTNAME=$(hostname)
 DNSNAME=$(dnsdomainname)
 FQDN=${HOSTNAME}.$DNSNAME
