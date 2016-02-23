@@ -116,7 +116,9 @@ public class BigQueryOutputCommitterTest {
     expectedTempDataset = new Dataset()
         .setDatasetReference(new DatasetReference()
             .setProjectId(TEMP_PROJECT_ID)
-            .setDatasetId(TEMP_DATASET_ID));
+            .setDatasetId(TEMP_DATASET_ID))
+        .setLocation(conf.get(BigQueryConfiguration.DATA_LOCATION_KEY,
+                              BigQueryConfiguration.DATA_LOCATION_DEFAULT));
     CredentialConfigurationUtil.addTestConfigurationSettings(conf);
 
     // Create job context.

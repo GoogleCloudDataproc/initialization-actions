@@ -91,8 +91,11 @@ public class BigQueryOutputCommitter
     datasetReference.setProjectId(tempTableRef.getProjectId());
     datasetReference.setDatasetId(tempTableRef.getDatasetId());
 
+    Configuration config = context.getConfiguration();
     Dataset tempDataset = new Dataset();
     tempDataset.setDatasetReference(datasetReference);
+    tempDataset.setLocation(config.get(BigQueryConfiguration.DATA_LOCATION_KEY,
+                                       BigQueryConfiguration.DATA_LOCATION_DEFAULT));
 
     // Insert dataset into Bigquery.
     Bigquery.Datasets datasets = bigQueryHelper.getRawBigquery().datasets();

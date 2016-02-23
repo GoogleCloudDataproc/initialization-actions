@@ -101,6 +101,15 @@ public class BigQueryConfiguration {
   /** 64MB default write buffer size. */
   public static final int OUTPUT_WRITE_BUFFER_SIZE_DEFAULT = 64 * 1024 * 1024;
 
+  /**
+   * Configure the location of the temporary dataset.
+   * Currently supported values are "US" and "EU".
+   */
+  public static final String DATA_LOCATION_KEY = "mapred.bq.output.location";
+
+    /** The default dataset location is US */
+  public static final String DATA_LOCATION_DEFAULT = "US";
+
   /** A list of all necessary Configuration keys. */
   public static final List<String> MANDATORY_CONFIG_PROPERTIES_OUTPUT =
       ImmutableList.of(
