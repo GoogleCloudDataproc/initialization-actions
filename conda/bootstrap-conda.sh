@@ -117,8 +117,7 @@ else
     # Fix here: http://blog.stuart.axelbrooke.com/python-3-on-spark-return-of-the-pythonhashseed/
     echo "Adding PYTHONHASHSEED=0 to profiles and spark-defaults.conf..."
     echo "export PYTHONHASHSEED=0" | tee -a  /etc/profile.d/conda_config.sh  /etc/*bashrc  /usr/lib/spark/conf/spark-env.sh #/etc/environment
-    echo "spark.executorEnv.PYTHONHASHSEED=0" >> spark-defaults.conf
-
+    echo "spark.executorEnv.PYTHONHASHSEED=0" >> /etc/spark/conf/spark-defaults.conf
 fi
 
 ## 3. Ensure that Anaconda Python and PySpark play nice
