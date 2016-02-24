@@ -22,8 +22,8 @@ set -x -e
 EXECUTOR_MEMORY="$(grep spark.executor.memory /etc/spark/conf/spark-defaults.conf | awk '{print $2}')"
 
 # Set these Spark and Hadoop versions based on your Dataproc version
-SPARK_VERSION="1.5.2"
-HADOOP_VERSION="2.7.1"
+SPARK_VERSION="1.6.0"
+HADOOP_VERSION="2.7.2"
 
 # Only run on the master node
 ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
@@ -49,7 +49,8 @@ if [[ "${ROLE}" == 'Master' ]]; then
   cd /usr/lib/
   git clone https://github.com/apache/incubator-zeppelin.git
   cd incubator-zeppelin
-  mvn clean install -DskipTests "-Dspark.version=$SPARK_VERSION" "-Dhadoop.version=$HADOOP_VERSION" -Pyarn -Phadoop-2.6 -Pspark-1.5 -Ppyspark
+  # Even with Hadoop 2.7, -Phadoop-2.6 should be used.
+  mvn clean install -DskipTests "-Dspark.version=$SPARK_VERSION" "-Dhadoop.version=$HADOOP_VERSION" -Pyarn -Phadoop-2.6 -Pspark-1.6 -Ppyspark
   mkdir -p logs run conf
   cat > conf/zeppelin-env.sh <<EOF
 #!/bin/bash
@@ -71,7 +72,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
 #
 
 export MASTER="yarn-client" # Spark master url. eg. spark://master_addr:7077. Leave empty if you want to use local mode.
-export ZEPPELIN_JAVA_OPTS="-Dhdp.version=2.7.1" # Additional jvm options. for example, export ZEPPELIN_JAVA_OPTS="-Dspark.executor.memory=8g -Dspark.cores.max=16"
+export ZEPPELIN_JAVA_OPTS="-Dhdp.version=2.7.2" # Additional jvm options. for example, export ZEPPELIN_JAVA_OPTS="-Dspark.executor.memory=8g -Dspark.cores.max=16"
 export ZEPPELIN_MEM=" "  # Zeppelin jvm mem options Default -Xmx1024m -XX:MaxPermSize=512m
 
 
