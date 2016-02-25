@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 DIR="${BASH_SOURCE%/*}"
@@ -15,8 +15,9 @@ function usage {
     echo "line arguments are not given, then the usage message will be displayed and the "
     echo "script will exit."
     echo ""
-    echo "usage: $0 [-h] [-c=cluster-name]"
+    echo "usage: $0 [-h] [-c=cluster-name] [-z=zone]"
     echo "    -h                 display help"
+    echo "    -z=zone            specify cloud zone for cluster"
     echo "    -c=cluster-name    specify unique dataproc cluster name to launch"
     exit 1
 }
@@ -24,6 +25,10 @@ function usage {
 for i in "$@"
 do
     case $i in
+        -z=*)
+            ZONE="${i#*=}"
+            shift # past argument=value
+            ;;
         -c=*)
             DATAPROC_CLUSTER_NAME="${i#*=}"
             shift # past argument=value
@@ -37,12 +42,14 @@ do
 done
 
 [[ -z $DATAPROC_CLUSTER_NAME ]] && usage
-JUPYTER_PORT=$(get_metadata_property $DATAPROC_CLUSTER_NAME JUPYTER_PORT || true)
+[[ -z $ZONE ]] && usage
+JUPYTER_PORT=$(get_metadata_property $DATAPROC_CLUSTER_NAME JUPYTER_PORT)
 [[ ! $JUPYTER_PORT =~ ^[0-9]+$ ]] && throw "metadata must contain a valid 'JUPYTER_PORT' value, but instead has the value \"$JUPYTER_PORT\""
 
 # TODO: Ensure that Jupyter notebook is running on cluster master node
 
 echo "Using following cluster name: $DATAPROC_CLUSTER_NAME"
+echo "Using following cluster zone: $ZONE"
 echo "Using following remote dataproc jupyter port: $JUPYTER_PORT"
 echo ""
 
@@ -57,7 +64,9 @@ CHROME_APP_PATH="/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome"
 # Following configuration at:
 # https://cloud.google.com/dataproc/cluster-web-interfaces
 # 1. Setup ssh tunnel and socks proxy
-gcloud compute ssh --ssh-flag="-D 10000" --ssh-flag="-N" --ssh-flag="-n" "$DATAPROC_CLUSTER_NAME-m" &
+ZONE_FLAG=""
+[[ -v ZONE ]] && ZONE_FLAG="--zone=$ZONE"
+gcloud compute ssh $ZONE_FLAG --ssh-flag="-D 10000" --ssh-flag="-N" --ssh-flag="-n" "$DATAPROC_CLUSTER_NAME-m" &
 sleep 5 # Wait for tunnel to be ready before opening browser...
 
 # 2.Launch Chrome instance, referencing the proxy server.

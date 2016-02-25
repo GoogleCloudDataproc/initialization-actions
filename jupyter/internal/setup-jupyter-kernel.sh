@@ -8,7 +8,7 @@ source "$DIR/../../util/utils.sh"
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 JUPYTER_KERNEL_DIR="/dataproc-initialization-actions/jupyter/kernels/pyspark"
 JUPYTER_NOTEBOOK_DIR="/root/notebooks"
-JUPYTER_PORT=$(/usr/share/google/get_metadata_value attributes/JUPYTER_PORT || true)
+JUPYTER_PORT=$(/usr/share/google/get_metadata_value attributes/JUPYTER_PORT)
 [[ ! $JUPYTER_PORT =~ ^[0-9]+$ ]] && JUPYTER_PORT=8123
 JUPYTER_IP=*
 

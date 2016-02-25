@@ -10,18 +10,32 @@ DATAPROC_BUCKET=$(/usr/share/google/get_metadata_value attributes/dataproc-bucke
 
 echo "Cloning fresh dataproc-initialization-actions from repo $INIT_ACTIONS_REPO and branch $INIT_ACTIONS_BRANCH..."
 git clone -b "$INIT_ACTIONS_BRANCH" --single-branch $INIT_ACTIONS_REPO
+# Ensure we have conda installed.
 ./dataproc-initialization-actions/conda/bootstrap-conda.sh
-./dataproc-initialization-actions/conda/install-conda-env.sh
+#./dataproc-initialization-actions/conda/install-conda-env.sh
+
 source /etc/profile.d/conda_config.sh
 if [[ "${ROLE}" == 'Master' ]]; then
-    if gsutil -q stat gs://$DATAPROC_BUCKET/notebooks/; then
+    conda install jupyter
+    if gsutil -q stat "gs://$DATAPROC_BUCKET/notebooks/**"; then
         echo "Pulling notebooks directory to cluster master node..."
         gsutil -m cp -r gs://$DATAPROC_BUCKET/notebooks /root/
     fi
-
     ./dataproc-initialization-actions/jupyter/internal/setup-jupyter-kernel.sh
-    #./dataproc-initialization-actions/jupyter/internal/bootstrap-jupyter-ext.sh
     ./dataproc-initialization-actions/jupyter/internal/launch-jupyter-kernel.sh
 fi
-echo "Completed bootstrapping dataproc cluster!"
+echo "Completed installing Jupyter!"
+
+# Install Jupyter extensions (if desired)
+# TODO: document this in readme
+if [[ ! -v $INSTALL_JUPYTER_EXT ]]
+    then
+    INSTALL_JUPYTER_EXT=false
+fi
+if [[ "$INSTALL_JUPYTER_EXT" = true ]]
+then
+    echo "Installing Jupyter Notebook extensions..."
+    ./dataproc-initialization-actions/jupyter/internal/bootstrap-jupyter-ext.sh
+    echo "Jupyter Notebook extensions installed!"
+fi
 

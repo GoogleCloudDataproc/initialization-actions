@@ -13,7 +13,8 @@ sudo apt-get install -y git
 # > Command failed: /bin/bash -x -e
 # > /home/vagrant/miniconda-3.18.3/conda-bld/work/conda_build.sh
 # If directory doesn't exist, attempt to create it.
-if [ ! -d "~/.local/share/jupyter/" ]; then
+if [[ ! -d "~/.local/share/jupyter/" ]]
+then
   echo "~/.local/share/jupyter/ directory does not exist, creating..."
   mkdir -p ~/.local/share/jupyter/
   echo "~/.local/share/jupyter/ directory created, continuing..."
@@ -21,7 +22,8 @@ fi
 
 # 1. Install IPyNB extensions:
 nbext_path='IPython-notebook-extensions'
-if [[ ! -d $nbext_path ]]; then
+if [[ ! -d $nbext_path ]]
+then
     echo "Installing $nbext_path"
     git clone https://github.com/ipython-contrib/IPython-notebook-extensions.git
     conda build IPython-notebook-extensions
@@ -32,7 +34,8 @@ fi
 
 # 2. Install RISE (http://github.com/damianavila/RISE)
 rise_path='RISE'
-if [[ ! -d $rise_path ]]; then
+if [[ ! -d $rise_path ]]
+then
     echo "Installing $rise_path"
     git clone https://github.com/damianavila/RISE.git
     cd RISE && python setup.py install

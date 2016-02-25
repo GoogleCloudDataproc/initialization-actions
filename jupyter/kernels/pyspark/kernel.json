@@ -7,7 +7,7 @@
     "SPARK_HOME": "/usr/lib/spark/",
     "PYTHONPATH": "/usr/lib/spark/python/:/usr/lib/spark/python/lib/py4j-0.9-src.zip",
     "PYTHONSTARTUP": "/usr/lib/spark/python/pyspark/shell.py",
-    "PYSPARK_SUBMIT_ARGS": "--master yarn --deploy-mode client pyspark-shell"
+    "PYSPARK_SUBMIT_ARGS": "--master yarn --deploy-mode client --packages com.databricks:spark-csv_2.10:1.3.0 pyspark-shell"
  }
 }
 
