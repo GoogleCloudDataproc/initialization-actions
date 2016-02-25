@@ -8,6 +8,7 @@ JUPYTER_PORT=8123
 JUPYTER_IP=*
 
 # 2. Launch Jupyter notebook on port 8123
+echo "Current PATH: $PATH"
 if [[ ! -d $NOTEBOOK_DIR ]]; then
     nohup jupyter notebook --no-browser --ip=$JUPYTER_IP --port=$JUPYTER_PORT > /var/log/jupyter_notebook.log &
 else
