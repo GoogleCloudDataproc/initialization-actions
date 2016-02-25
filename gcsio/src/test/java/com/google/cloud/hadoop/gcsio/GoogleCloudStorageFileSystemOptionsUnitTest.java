@@ -17,6 +17,7 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage.ListVisibilityCalculator;
+import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
 import com.google.common.util.concurrent.MoreExecutors;
 
 import org.junit.BeforeClass;
