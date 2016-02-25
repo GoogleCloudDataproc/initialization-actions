@@ -1,32 +1,45 @@
 # Jupyter Notebook
 
-This folder contains initialization action to quickly setup and launch [Jupyter Notebook](http://jupyter.org/), (the successor of IPython notebook) along with [notebook extensions](https://github.com/ipython-contrib/IPython-notebook-extensions), and [RISE](https://github.com/damianavila/RISE). Jupyter is configured to run on port `8123` on the master node in the Dataproc cluster. To connect to the Jupyter Notebook web interface, you can simply configure and launch using `launch-jupyter-interface.sh` from your local machine.
+This folder contains the initialization action `jupyter.sh` to quickly setup and launch [Jupyter Notebook](http://jupyter.org/), (the successor of IPython notebook) and a script to be run on the user's local machine to access the Jupyter notebook server.
 
-## setup-jupyter.sh
+A real-world example of how to use this from within a bash script, using the default dataproc-initialization-actions repo/branch:
 
-`setup-jupyter.sh` sets sane defaults for configuring and running Jupyter on the Dataproc master node
+```bash
+# Override the Jupyter port with 8124 (default is 8123)
+gcloud dataproc clusters create my-dataproc-cluster \
+    --metadata "JUPYTER_PORT=8124" \
+    --initialization-actions \
+        gs://dataproc-initialization-actions/jupyter/jupyter.sh \
+    --bucket my-dataproc-bucket \
+    --num-workers 12 \
+    --properties spark:spark.executorEnv.PYTHONHASHSEED=0,spark:spark.yarn.am.memory=1024m \
+    --worker-machine-type=n1-standard-4 \
+    --master-machine-type=n1-standard-4
+```
 
-- targets a default notebooks directory 
-- ensures a Jupyter startup configuration for PySpark exists, and then 
-- launches the Jupyter kernel on port 8123.
+## jupyter.sh
 
-**NOTE**: to be run as an init action.
+`jupyter.sh` handles configuring and running Jupyter on the Dataproc master node by doing the following:
 
-
-## bootstrap-jupyter-ext.sh
-
-`bootstrap-jupyter-ext.sh` sets up and installs notebook extensions and RISE. 
+- clones the dataproc-initialization-actions git repo/branch specified in the `INIT_ACTIONS_REPO` and `INIT_ACTIONS_BRANCH` metadata keys
+  - if these two metadata keys are not set during cluster creation, the default values `https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git` and `master` are used
+  - this is provided so that a fork/branch of the main repo can easily be used, eg, during development
+- executes `conda/bootstrap-conda.sh` and `conda/install-conda.sh` from said repo/branch to ensure `miniconda` is available
+- executes `jupyter/internal/setup-jupyter-kernel.sh` and `jupyter/internal/launch-jupyter-kernel.sh` from said repo/branch
+  - configures `jupyter` to use the *PySpark* kernel found at `jupyter/kernels/pyspark/kernel.json`
+  - configures `jupyter` to listen on the port specified by the metadata key `JUPYTER_PORT`, with a default value of `8123`
+  - targets a default notebooks directory `/root/notebooks`, into which the directory found at `gs://$DATAPROC_BUCKET/notebooks/` is copied, where `$DATAPROC_BUCKET` is the value stored in the metadata key `dataproc-bucket` (set by default upon cluster creation and overridable)
+  - launches the `jupyter notebook` process
 
 **NOTE**: to be run as an init action.
 
 
 ## launch-jupyter-interface.sh
 
-`launch-jupyter-interface.sh`  launches a web interface to connect to Jupyter notebook process running on master node. 
+`launch-jupyter-interface.sh` launches a web interface to connect to Jupyter notebook process running on master node.
 
 - sets a path for the local OS to the Chrome executable
 - setup an ssh tunnel and socks proxy to the master node
 - launch a Chrome instance that uses this ssh tunnel and references the Jupyter port.
 
 **NOTE**: to be run from a local machine
- 
