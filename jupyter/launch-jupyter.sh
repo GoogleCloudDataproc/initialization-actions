@@ -7,6 +7,10 @@ NOTEBOOK_DIR="/root/notebooks"
 JUPYTER_PORT=8123
 JUPYTER_IP=*
 
+if [[ ! -v CONDA_BIN_PATH ]]; then
+    source /etc/profile.d/conda_config.sh  #/$HOME/.bashrc
+fi
+
 # 2. Launch Jupyter notebook on port 8123
 echo "Current PATH: $PATH"
 if [[ ! -d $NOTEBOOK_DIR ]]; then
