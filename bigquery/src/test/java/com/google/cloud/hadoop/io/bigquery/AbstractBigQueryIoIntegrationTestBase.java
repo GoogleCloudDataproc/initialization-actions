@@ -8,7 +8,7 @@ import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
-import com.google.cloud.hadoop.gcsio.TestConfiguration;
+import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;

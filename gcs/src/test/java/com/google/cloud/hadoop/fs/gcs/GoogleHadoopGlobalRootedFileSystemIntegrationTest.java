@@ -16,10 +16,10 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageIntegrationHelper;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.InMemoryGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
+import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 
 import org.apache.hadoop.conf.Configuration;
@@ -96,21 +96,16 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     // through a Configuration object instance.
     // TODO(user) : add helper to get multiple env vars in one
     // call and produce a friendlier message if value(s) are missing.
-    String clientId =
-        System.getenv(GoogleCloudStorageIntegrationHelper.GCS_TEST_CLIENT_ID);
-    String clientSecret =
-        System.getenv(GoogleCloudStorageIntegrationHelper.GCS_TEST_CLIENT_SECRET);
-    String projectId =
-        System.getenv(GoogleCloudStorageIntegrationHelper.GCS_TEST_PROJECT_ID);
-    Assert.assertNotNull(clientId);
-    Assert.assertNotNull(clientSecret);
+    String serviceAccount = TestConfiguration.getInstance().getServiceAccount();
+    String privateKey = TestConfiguration.getInstance().getPrivateKeyFile();
+    String projectId = TestConfiguration.getInstance().getProjectId();
+    Assert.assertNotNull(serviceAccount);
+    Assert.assertNotNull(privateKey);
     Assert.assertNotNull(projectId);
     Configuration config = new Configuration();
-    config.setBoolean(
-        GoogleHadoopFileSystemBase.ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY, false);
     config.set(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY, projectId);
-    config.set(GoogleHadoopFileSystemBase.GCS_CLIENT_ID_KEY, clientId);
-    config.set(GoogleHadoopFileSystemBase.GCS_CLIENT_SECRET_KEY, clientSecret);
+    config.set(GoogleHadoopFileSystemBase.SERVICE_ACCOUNT_AUTH_EMAIL_KEY, serviceAccount);
+    config.set(GoogleHadoopFileSystemBase.SERVICE_ACCOUNT_AUTH_KEYFILE_KEY, privateKey);
     String systemBucketName =
         ghfsHelper.getUniqueBucketName("-system-bucket");
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, systemBucketName);

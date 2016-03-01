@@ -16,6 +16,7 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
+import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -1083,6 +1084,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     // -------------------------------------------------------
     // Create test objects.
     gcsiHelper.clearBucket(bucketName);
+    gcsiHelper.clearBucket(otherBucketName);
     gcsiHelper.createObjectsWithSubdirs(bucketName, objectNames);
     gcsiHelper.createObjectsWithSubdirs(otherBucketName, otherObjectNames);
 

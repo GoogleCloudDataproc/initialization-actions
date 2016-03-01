@@ -16,7 +16,7 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageIntegrationHelper;
+import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.HadoopVersionInfo;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
@@ -53,17 +53,13 @@ public abstract class GoogleHadoopFileSystemTestBase
    */
   protected static Configuration loadConfig()
       throws IOException {
-    // Supply client-id, client-secret and project-id to GHFS
-    // through a Configuration object instance.
-    // TODO(user) : add helper to get multiple env vars in one
-    // call and produce a friendlier message if value(s) are missing.
-    String clientId = System.getenv(
-        GoogleCloudStorageIntegrationHelper.GCS_TEST_CLIENT_ID);
-    String clientSecret = System.getenv(
-        GoogleCloudStorageIntegrationHelper.GCS_TEST_CLIENT_SECRET);
-    String projectId = System.getenv(
-        GoogleCloudStorageIntegrationHelper.GCS_TEST_PROJECT_ID);
-    return loadConfig(clientId, clientSecret, projectId);
+    TestConfiguration testConfiguration = TestConfiguration.getInstance();
+
+    String projectId = testConfiguration.getProjectId();
+    String privateKeyFile = testConfiguration.getPrivateKeyFile();
+    String serviceAccount = testConfiguration.getServiceAccount();
+
+    return loadConfig(projectId, serviceAccount, privateKeyFile);
   }
 
   /**
@@ -71,22 +67,17 @@ public abstract class GoogleHadoopFileSystemTestBase
    * the environment.
    */
   protected static Configuration loadConfig(
-      String clientId, String clientSecret, String projectId) {
-    Assert.assertNotNull("Expected value for env var "
-        + GoogleCloudStorageIntegrationHelper.GCS_TEST_CLIENT_ID,
-        clientId);
-    Assert.assertNotNull("Expected value for env var "
-        + GoogleCloudStorageIntegrationHelper.GCS_TEST_CLIENT_SECRET,
-        clientSecret);
-    Assert.assertNotNull("Expected value for env var "
-        + GoogleCloudStorageIntegrationHelper.GCS_TEST_PROJECT_ID,
-        projectId);
+      String projectId, String serviceAccount, String privateKeyFile) {
+    Assert.assertNotNull(
+        "Expected value for env var " + TestConfiguration.GCS_TEST_PROJECT_ID, projectId);
+    Assert.assertNotNull(
+        "Expected value for env var " + TestConfiguration.GCS_TEST_SERVICE_ACCOUNT, serviceAccount);
+    Assert.assertNotNull(
+        "Expected value for env var " + TestConfiguration.GCS_TEST_PRIVATE_KEYFILE, privateKeyFile);
     Configuration config = new Configuration();
-    config.setBoolean(
-        GoogleHadoopFileSystemBase.ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY, false);
     config.set(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY, projectId);
-    config.set(GoogleHadoopFileSystemBase.GCS_CLIENT_ID_KEY, clientId);
-    config.set(GoogleHadoopFileSystemBase.GCS_CLIENT_SECRET_KEY, clientSecret);
+    config.set(GoogleHadoopFileSystemBase.SERVICE_ACCOUNT_AUTH_EMAIL_KEY, serviceAccount);
+    config.set(GoogleHadoopFileSystemBase.SERVICE_ACCOUNT_AUTH_KEYFILE_KEY, privateKeyFile);
     String systemBucketName =
         ghfsHelper.getUniqueBucketName("-system-bucket");
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, systemBucketName);

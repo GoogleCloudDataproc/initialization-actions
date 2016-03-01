@@ -14,13 +14,17 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import com.google.common.base.Strings;
+
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -55,6 +59,9 @@ public class HadoopFileSystemIntegrationTest
   // HDFS path (passed to the test through environment var).
   static String hdfsRoot;
 
+  @ClassRule
+  public static TemporaryFolder folder = new TemporaryFolder();
+
   /**
    * Performs initialization once before tests are run.
    */
@@ -64,7 +71,10 @@ public class HadoopFileSystemIntegrationTest
 
     // Get info about the HDFS instance against which we run tests.
     hdfsRoot = System.getenv(HDFS_ROOT);
-    Assert.assertNotNull(hdfsRoot);
+
+    if (Strings.isNullOrEmpty(hdfsRoot)) {
+      hdfsRoot = "file://" + folder.newFolder("hdfs_root").getAbsolutePath();
+    }
 
     // Create a FileSystem instance to access the given HDFS.
     URI hdfsUri = null;

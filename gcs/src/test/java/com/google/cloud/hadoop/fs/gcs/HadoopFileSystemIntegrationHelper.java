@@ -338,7 +338,14 @@ public class HadoopFileSystemIntegrationHelper
   protected void clearBucket(String bucketName)
       throws IOException {
     Path hadoopPath = createSchemeCompatibleHadoopPath(bucketName, null);
-    FileStatus[] statusList = ghfs.listStatus(hadoopPath);
+    FileStatus[] statusList = null;
+    try {
+      // Hadoop1 returns null on listStatus FileNotFound, Hadoop2 throws:
+      statusList = ghfs.listStatus(hadoopPath);
+    } catch (IOException ioe) {
+      // Ignored.
+    }
+
     if (statusList != null) {
       for (FileStatus status : statusList) {
         if (!ghfs.delete(status.getPath(), true)) {

@@ -20,7 +20,6 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
-import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 
 import org.apache.hadoop.conf.Configuration;
@@ -225,7 +224,7 @@ public class GoogleHadoopFileSystemIntegrationTest
   public void testBuildOptionsFromConfig() throws IOException {
     GoogleHadoopFileSystem fs = new GoogleHadoopFileSystem();
     Configuration config = loadConfig(
-        "clientId", "clientSecret", "projectId");
+        "projectId", "serviceAccount", "priveKeyFile");
 
     GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
         fs.createOptionsBuilderFromConfig(config);
@@ -495,7 +494,6 @@ public class GoogleHadoopFileSystemIntegrationTest
 
   private Configuration getConfigurationWtihImplementation() throws IOException {
     Configuration conf = loadConfig();
-    CredentialConfigurationUtil.addTestConfigurationSettings(conf);
     conf.set("fs.gs.impl", GoogleHadoopFileSystem.class.getCanonicalName());
     return conf;
   }
