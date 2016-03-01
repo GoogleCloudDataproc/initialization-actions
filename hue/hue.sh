@@ -37,11 +37,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
 EOF
   sed -i '/<\/configuration>/e cat core-site-patch.xml' \
      /etc/hadoop/conf/core-site.xml
-     
-  sed -i '/<\/configuration>/e cat core-site-patch.xml' \
-     /etc/hive/conf/hive-site.xml
-    
-
+  
  
 cat > hdfs-site-patch.xml <<EOF
 <property>
@@ -64,7 +60,6 @@ sed -i '/<\/configuration>/e cat hdfs-site-patch.xml' \
      /etc/hadoop/conf/hdfs-site.xml
 
 cat > hue-patch.ini <<EOF
-      webhdfs_url=http://localhost:50070/webhdfs/v1
 
       # Defaults to $HADOOP_MR1_HOME or /usr/lib/hadoop-0.20-mapreduce
       hadoop_mapred_home=/usr/lib/hadoop-mapreduce 
