@@ -23,7 +23,7 @@ ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 # Only run on the master node of the cluster
 if [[ "${ROLE}" == 'Master' ]]; then
   apt-get update
-  apt-get install hue
+  apt-get install hue -y
 
  cat > core-site-patch.xml <<EOF
   <property> 
