@@ -17,7 +17,8 @@
 set -x -e
 
 # Determine the role of this node
-ROLE=$(/usr/share/google/get_metadata_value attributes/role)
+ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
+
 
 # Only run on the master node of the cluster
 if [[ "${ROLE}" == 'Master' ]]; then
@@ -35,7 +36,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
   </property> 
 EOF
   sed -i '/<\/configuration>/e cat core-site-patch.xml' \
-     core-site.xml
+     /etc/hadoop/conf/core-site.xml
     
 
  
@@ -57,7 +58,7 @@ cat > hdfs-site-patch.xml <<EOF
 EOF
 
 sed -i '/<\/configuration>/e cat hdfs-site-patch.xml' \
-     hdfs-site.xml
+     /etc/hadoop/conf/hdfs-site.xml
 
 cat > hue-patch.ini <<EOF
       webhdfs_url=http://localhost:50070/webhdfs/v1
@@ -82,5 +83,5 @@ rm -rf hdfs-site-patch.xml core-site-patch.xml hue-patch.ini
 service hue stop
 service hue start
 
-#fi
+fi
 set +x +e
