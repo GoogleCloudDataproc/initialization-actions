@@ -68,7 +68,7 @@ cat > hue-patch.ini <<EOF
 EOF
 
 sed -i '/# Change this if your HDFS cluster is Kerberos-secured/e cat hue-patch.ini' \
-    hue.ini
+    /etc/hue/conf/hue.ini
 
 # Replace localhost with hostname.
 sed -i "s/#*\([^#]*=.*\)localhost/\1$(hostname --fqdn)/" /etc/hue/conf/hue.ini
