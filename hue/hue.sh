@@ -68,6 +68,17 @@ EOF
 sed -i '/# Change this if your HDFS cluster is Kerberos-secured/e cat hue-patch.ini' \
     /etc/hue/conf/hue.ini
 
+# Configure Hive Metastore
+if dpkg -s hive-metastore > /dev/null; then
+  # Configure Hive metastorea
+  bdconfig set_property \
+      --configuration_file /etc/hive/conf/hive-site.xml \
+      --name 'hive.metastore.uris' \
+      --value "thrift://$(hostname --fqdn):9083" \
+      --clobber
+fi
+
+
 # Replace localhost with hostname.
 sed -i "s/#*\([^#]*=.*\)localhost/\1$(hostname --fqdn)/" /etc/hue/conf/hue.ini
 
