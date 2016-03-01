@@ -77,7 +77,7 @@ sed -i "s/#*\([^#]*=.*\)localhost/\1$(hostname --fqdn)/" /etc/hue/conf/hue.ini
 rm -rf hdfs-site-patch.xml core-site-patch.xml hue-patch.ini
 
 # Restart HDFS
-./usr/lib/hadoop/libexec/init-hdfs.sh
+/usr/lib/hadoop/libexec/init-hdfs.sh
 
 # Restart Hue
 service hue stop
