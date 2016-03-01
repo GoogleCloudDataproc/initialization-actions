@@ -37,6 +37,9 @@ if [[ "${ROLE}" == 'Master' ]]; then
 EOF
   sed -i '/<\/configuration>/e cat core-site-patch.xml' \
      /etc/hadoop/conf/core-site.xml
+     
+  sed -i '/<\/configuration>/e cat core-site-patch.xml' \
+     /etc/hive/conf/hive-site.xml
     
 
  
