@@ -16,9 +16,6 @@
 
 set -x -e
 
-hadoop_conf_dir="/etc/hadoop/conf"
-
-
 # Determine the role of this node
 ROLE=$(/usr/share/google/get_metadata_value attributes/role)
 
@@ -27,30 +24,56 @@ if [[ "${ROLE}" == 'Master' ]]; then
   apt-get update
   apt-get install hue
 
+ cat > core-site-patch.xml <<EOF
+  <property> 
+      <name>hadoop.proxyuser.hue.hosts</name> 
+      <value>*</value> 
+  </property> 
+  <property> 
+      <name>hadoop.proxyuser.hue.groups</name> 
+      <value>*</value> 
+  </property> 
+EOF
+  sed -i '/<\/configuration>/e cat core-site-patch.xml' \
+     core-site.xml
+    
+
  
-  cat > hdfs-site-patch.xml <<EOF
-  <property>
-   <name>dfs.webhdfs.enabled</name>
-   <value>true</value>
-  </property>
- 
-  <property>
-   <name>hadoop.proxyuser.hue.hosts</name>
-   <value>*</value>
-  </property>
- 
-  <property>
-   <name>hadoop.proxyuser.hue.groups</name>
-   <value>*</value>
-  </property>
+cat > hdfs-site-patch.xml <<EOF
+<property>
+ <name>dfs.webhdfs.enabled</name>
+ <value>true</value>
+</property>
+
+<property>
+ <name>hadoop.proxyuser.hue.hosts</name>
+ <value>*</value>
+</property>
+
+<property>
+ <name>hadoop.proxyuser.hue.groups</name>
+ <value>*</value>
+</property>
 EOF
 
-  sed -i '/<\/configuration>/e cat hdfs-site-patch.xml' \
-      ${hadoop_conf_dir}/hdfs-site.xml
+sed -i '/<\/configuration>/e cat hdfs-site-patch.xml' \
+     hdfs-site.xml
 
+cat > hue-patch.ini <<EOF
+      webhdfs_url=http://localhost:50070/webhdfs/v1
+
+      # Defaults to $HADOOP_MR1_HOME or /usr/lib/hadoop-0.20-mapreduce
+      hadoop_mapred_home=/usr/lib/hadoop-mapreduce 
+EOF
+
+sed -i '/# Change this if your HDFS cluster is Kerberos-secured/e cat hue-patch.ini' \
+    hue.ini
+
+# Replace localhost with hostname.
+sed -i "s/#*\([^#]*=.*\)localhost/\1$(hostname --fqdn)/" /etc/hue/conf/hue.ini
 
 # Clean up temporary fles
-rm -rf hdfs-site-patch.xml
+rm -rf hdfs-site-patch.xml core-site-patch.xml hue-patch.ini
 
 # Restart HDFS
 ./usr/lib/hadoop/libexec/init-hdfs.sh
@@ -59,5 +82,5 @@ rm -rf hdfs-site-patch.xml
 service hue stop
 service hue start
 
-
+#fi
 set +x +e
