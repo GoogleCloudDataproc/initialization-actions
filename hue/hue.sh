@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-## TODO: complete doc
-
 set -x -e
 
 # Determine the role of this node
@@ -25,72 +23,60 @@ if [[ "${ROLE}" == 'Master' ]]; then
   apt-get update
   apt-get install hue -y
 
- cat > core-site-patch.xml <<EOF
+  cat > core-site-patch.xml <<EOF
   <property> 
-      <name>hadoop.proxyuser.hue.hosts</name> 
-      <value>*</value> 
+    <name>hadoop.proxyuser.hue.hosts</name> 
+    <value>*</value> 
   </property> 
   <property> 
-      <name>hadoop.proxyuser.hue.groups</name> 
-      <value>*</value> 
+    <name>hadoop.proxyuser.hue.groups</name> 
+    <value>*</value> 
   </property> 
 EOF
   sed -i '/<\/configuration>/e cat core-site-patch.xml' \
      /etc/hadoop/conf/core-site.xml
   
  
-cat > hdfs-site-patch.xml <<EOF
-<property>
- <name>dfs.webhdfs.enabled</name>
- <value>true</value>
-</property>
-
-<property>
- <name>hadoop.proxyuser.hue.hosts</name>
- <value>*</value>
-</property>
-
-<property>
- <name>hadoop.proxyuser.hue.groups</name>
- <value>*</value>
-</property>
+  cat > hdfs-site-patch.xml <<EOF
+  <property>
+    <name>dfs.webhdfs.enabled</name>
+    <value>true</value>
+  </property>
+  
+  <property>
+    <name>hadoop.proxyuser.hue.hosts</name>
+    <value>*</value>
+  </property>
+  
+  <property>
+    <name>hadoop.proxyuser.hue.groups</name>
+    <value>*</value>
+  </property>
 EOF
 
-sed -i '/<\/configuration>/e cat hdfs-site-patch.xml' \
-     /etc/hadoop/conf/hdfs-site.xml
+  sed -i '/<\/configuration>/e cat hdfs-site-patch.xml' \
+       /etc/hadoop/conf/hdfs-site.xml
 
-cat > hue-patch.ini <<EOF
-
-      # Defaults to $HADOOP_MR1_HOME or /usr/lib/hadoop-0.20-mapreduce
-      hadoop_mapred_home=/usr/lib/hadoop-mapreduce 
+  cat > hue-patch.ini <<EOF
+    # Defaults to $HADOOP_MR1_HOME or /usr/lib/hadoop-0.20-mapreduce
+    hadoop_mapred_home=/usr/lib/hadoop-mapreduce 
 EOF
 
-sed -i '/# Change this if your HDFS cluster is Kerberos-secured/e cat hue-patch.ini' \
-    /etc/hue/conf/hue.ini
+  sed -i '/# Change this if your HDFS cluster is Kerberos-secured/e cat hue-patch.ini' \
+       /etc/hue/conf/hue.ini
 
-# Configure Hive Metastore
-if dpkg -s hive-metastore > /dev/null; then
-  # Configure Hive metastorea
-  bdconfig set_property \
-      --configuration_file /etc/hive/conf/hive-site.xml \
-      --name 'hive.metastore.uris' \
-      --value "thrift://$(hostname --fqdn):9083" \
-      --clobber
+  # Replace localhost with hostname.
+  sed -i "s/#*\([^#]*=.*\)localhost/\1$(hostname --fqdn)/" /etc/hue/conf/hue.ini
+
+  # Clean up temporary fles
+  rm -rf hdfs-site-patch.xml core-site-patch.xml hue-patch.ini
+
+  # Restart HDFS
+  /usr/lib/hadoop/libexec/init-hdfs.sh
+
+  # Restart Hue
+  service hue stop
+  service hue start
 fi
 
-
-# Replace localhost with hostname.
-sed -i "s/#*\([^#]*=.*\)localhost/\1$(hostname --fqdn)/" /etc/hue/conf/hue.ini
-
-# Clean up temporary fles
-rm -rf hdfs-site-patch.xml core-site-patch.xml hue-patch.ini
-
-# Restart HDFS
-/usr/lib/hadoop/libexec/init-hdfs.sh
-
-# Restart Hue
-service hue stop
-service hue start
-
-fi
 set +x +e
