@@ -1,19 +1,21 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
+
+source ../util/utils.sh
+source ../util/strings.sh
 
 function usage {
     echo "Creates an SSH tunnel and socks proxy and launches Chrome, using the environment "
-    echo "variables DATAPROC_CLUSTER_NAME and, if it's set, DATAPROC_JUPYTER_PORT for the "
-    echo "unique cluster name and remote dataproc jupyter port, respectively."
+    echo "variable DATAPROC_CLUSTER_NAME for the unique cluster name. The cluster metadata "
+    echo "must contain a value for the key 'JUPYTER_PORT'."
     echo ""
-    echo "If the appropriate environment variables are not set and the appropriate "
-    echo "command line arguments are not given, then the usage message will "
-    echo "be displayed and the script will exit."
+    echo "If the appropriate environment variables are not set and the appropriate command"
+    echo "line arguments are not given, then the usage message will be displayed and the "
+    echo "script will exit."
     echo ""
-    echo "usage: $0 [-h] [-c=cluster-name] [-p=dataproc-jupyter-port]"
-    echo "	-h			display help"
-    echo "	-c=cluster-name		specify unique dataproc cluster name to launch"
-    echo "	-p=dataproc-jupyter-port	specify remote dataproc jupyter port (defaults to 8123)"
+    echo "usage: $0 [-h] [-c=cluster-name]"
+    echo "    -h                 display help"
+    echo "    -c=cluster-name    specify unique dataproc cluster name to launch"
     exit 1
 }
 
@@ -24,10 +26,6 @@ do
             DATAPROC_CLUSTER_NAME="${i#*=}"
             shift # past argument=value
             ;;
-        -p=*)
-            DATAPROC_JUPYTER_PORT="${i#*=}"
-            shift # past argument=value
-            ;;
         -h)
             usage
             ;;
@@ -36,9 +34,10 @@ do
     esac
 done
 
-DATAPROC_JUPYTER_PORT="${DATAPROC_JUPYTER_PORT:-8123}"
+[[ -z $DATAPROC_CLUSTER_NAME ]] && usage
 
-[[ -z ${DATAPROC_CLUSTER_NAME+x} ]] && usage
+JUPYTER_PORT=trim_ws $(gcloud dataproc clusters describe $DATAPROC_CLUSTER_NAME | grep JUPYTER_PORT | cut -d : -f 2)
+[[ ! $JUPYTER_PORT =~ ^[0-9]+$ ]] && throw "metadata must contain a valid 'JUPITER_PORT' value, but instead has the value \"$JUPYTER_PORT\""
 
 # TODO: Ensure that Jupyter notebook is running on cluster master node
 
