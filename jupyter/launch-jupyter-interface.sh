@@ -35,14 +35,13 @@ do
 done
 
 [[ -z $DATAPROC_CLUSTER_NAME ]] && usage
-
-JUPYTER_PORT=trim_ws $(gcloud dataproc clusters describe $DATAPROC_CLUSTER_NAME | grep JUPYTER_PORT | cut -d : -f 2)
+JUPYTER_PORT=$(trim_qt $(trim_ws $(gcloud dataproc clusters describe $DATAPROC_CLUSTER_NAME | grep JUPYTER_PORT | cut -d : -f 2)))
 [[ ! $JUPYTER_PORT =~ ^[0-9]+$ ]] && throw "metadata must contain a valid 'JUPITER_PORT' value, but instead has the value \"$JUPYTER_PORT\""
 
 # TODO: Ensure that Jupyter notebook is running on cluster master node
 
 echo "Using following cluster name: $DATAPROC_CLUSTER_NAME"
-echo "Using following remote dataproc jupyter port: $DATAPROC_JUPYTER_PORT"
+echo "Using following remote dataproc jupyter port: $JUPYTER_PORT"
 echo ""
 
 # 0. Set default path to Chrome application (by operating system type).
@@ -57,12 +56,13 @@ CHROME_APP_PATH="/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome"
 # https://cloud.google.com/dataproc/cluster-web-interfaces
 # 1. Setup ssh tunnel and socks proxy
 gcloud compute ssh --ssh-flag="-D 10000" --ssh-flag="-N" --ssh-flag="-n" "$DATAPROC_CLUSTER_NAME-m" &
+sleep 5 # Wait for tunnel to be ready before opening browser...
 
 # 2.Launch Chrome instance, referencing the proxy server.
 # TODO: Parameterize the chrome app path
 # eval $CHROME_APP_PATH \
 /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
-    "http://$DATAPROC_CLUSTER_NAME-m:$DATAPROC_JUPYTER_PORT" \
+    "http://$DATAPROC_CLUSTER_NAME-m:$JUPYTER_PORT" \
     --proxy-server="socks5://localhost:10000" \
     --host-resolver-rules="MAP * 0.0.0.0 , EXCLUDE localhost" \
     --user-data-dir=/tmp/
