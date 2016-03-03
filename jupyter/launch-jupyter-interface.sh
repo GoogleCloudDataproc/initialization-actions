@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
-source ../util/utils.sh
-source ../util/strings.sh
+DIR="${BASH_SOURCE%/*}"
+[[ ! -d "$DIR" ]] && DIR="$PWD"
+
+source "$DIR/../util/strings.sh"
+source "$DIR/../util/utils.sh"
 
 function usage {
     echo "Creates an SSH tunnel and socks proxy and launches Chrome, using the environment "
