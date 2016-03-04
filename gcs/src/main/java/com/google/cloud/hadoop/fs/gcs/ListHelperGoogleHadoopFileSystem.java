@@ -94,7 +94,8 @@ class ListHelperGoogleHadoopFileSystem
     infos.add(new GoogleCloudStorageItemInfo(new StorageResourceId(tempBucket), 0, 0, "", ""));
 
     MetadataReadOnlyGoogleCloudStorage tempGcs = new MetadataReadOnlyGoogleCloudStorage(infos);
-    GoogleCloudStorageFileSystem tempGcsFs = new GoogleCloudStorageFileSystem(tempGcs);
+    GoogleCloudStorageFileSystem tempGcsFs =
+        new GoogleCloudStorageFileSystem(tempGcs, gcsfs.getOptions());
     GoogleHadoopFileSystem tempGhfs = new ListHelperGoogleHadoopFileSystem(tempGcsFs);
 
     Configuration tempConfig = new Configuration();

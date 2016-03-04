@@ -22,6 +22,7 @@ import com.google.cloud.hadoop.gcsio.DirectoryListCache;
 import com.google.cloud.hadoop.gcsio.FileInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
+import com.google.cloud.hadoop.gcsio.PathCodec;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
@@ -299,6 +300,15 @@ public abstract class GoogleHadoopFileSystemBase
 
   // Default value for fs.gs.implicit.dir.repair.enable.
   public static final boolean GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT = true;
+
+  // Configuration key for changing the path codec from legacy to 'uri path encoding'.
+  public static final String PATH_CODEC_KEY = "fs.gs.path.encoding";
+  // Use new URI_ENCODED_PATH_CODEC
+  public static final String PATH_CODEC_USE_URI_ENCODING = "uri-path";
+  // Use LEGACY_PATH_CODEC
+  public static final String PATH_CODEC_USE_LEGACY_ENCODING = "legacy";
+  // Use the default path codec.
+  public static final String PATH_CODEC_DEFAULT = PATH_CODEC_USE_LEGACY_ENCODING;
 
   // Instance value of fs.gs.implicit.dir.repair.enable based on the initial Configuration.
   private boolean enableAutoRepairImplicitDirectories =
@@ -1575,6 +1585,19 @@ public abstract class GoogleHadoopFileSystemBase
 
       GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
           createOptionsBuilderFromConfig(config);
+
+      PathCodec pathCodec;
+      String specifiedPathCodec = config.get(PATH_CODEC_KEY, PATH_CODEC_DEFAULT).toLowerCase();
+      LOG.debug("{} = {}", PATH_CODEC_KEY, specifiedPathCodec);
+      if (specifiedPathCodec.equals(PATH_CODEC_USE_LEGACY_ENCODING)) {
+        pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
+      } else if (specifiedPathCodec.equals(PATH_CODEC_USE_URI_ENCODING)) {
+        pathCodec = GoogleCloudStorageFileSystem.URI_ENCODED_PATH_CODEC;
+      } else {
+        pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
+        LOG.warn("Unknwon path codec specified {}. Using default / legacy.", specifiedPathCodec);
+      }
+      optionsBuilder.setPathCodec(pathCodec);
       gcsfs = new GoogleCloudStorageFileSystem(credential, optionsBuilder.build());
     }
 
