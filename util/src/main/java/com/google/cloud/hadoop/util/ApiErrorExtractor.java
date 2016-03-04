@@ -339,13 +339,24 @@ public class ApiErrorExtractor {
    * extracts message field for HTTP 4xx codes, and creates a generic
    * "Internal Server Error" for HTTP 5xx codes.
    */
-  public String toUserPresentableMessage(IOException ioe, String action) {
+  public String toUserPresentableMessage(IOException ioe, @Nullable String action) {
     String message = "Internal server error";
     if (isClientError(ioe)) {
       message = getErrorMessage(ioe);
     }
 
-    return String.format("Encountered an error while %s: %s", action, message);
+    if (action == null) {
+      return message;
+    } else {
+      return String.format("Encountered an error while %s: %s", action, message);
+    }
+  }
+
+  /**
+   * @see #toUserPresentableMessage(IOException, String)
+   */
+  public String toUserPresentableMessage(IOException ioe) {
+    return toUserPresentableMessage(ioe, null);
   }
 
   /**
