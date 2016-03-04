@@ -7,12 +7,11 @@ on a master node within a [Google Cloud Dataproc](https://cloud.google.com/datap
 You can use this initialization action to create a new Dataproc cluster with Hue installed by:
 
 1. Uploading a copy of this initialization action (`hue.sh`) to [Google Cloud Storage](https://cloud.google.com/storage).
-2. Using the `gcloud` command to create a new cluster with this initialization action. **Note** - you will need to increase the `initialization-action-timeout` to at least 10 minutes to allow for Hue to compile and install. The following command will create a new cluster named `<CLUSTER_NAME>`, specify the initialization action stored in `<GCS_BUCKET>`, and increase the timeout to 10 minutes.
+2. Using the `gcloud` command to create a new cluster with this initialization action.  The following command will create a new cluster named `<CLUSTER_NAME>` and specify the initialization action stored in `<GCS_BUCKET>`
    
     ```bash
     gcloud beta dataproc clusters create <CLUSTER_NAME> \
     --initialization-actions gs://<GCS_BUCKET>/hue.sh   
-    --initialization-action-timeout 10m
     ```
 Alternatively, you can start a regular dataproc cluster, [ssh to the master node]  (https://cloud.google.com/dataproc/submit-job) (see SSH into instance), clone this repository and run ./hue.sh (as sudo) 
 
