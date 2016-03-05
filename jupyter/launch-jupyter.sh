@@ -4,7 +4,7 @@ set -e
 DIR="${BASH_SOURCE%/*}"
 [[ ! -d "$DIR" ]] && DIR="$PWD"
 
-source "$DIR/util/utils.sh"
+source "$DIR/../util/utils.sh"
 
 # 0. Set parameters
 # TODO: Detect if directory exists in working directory

@@ -4,7 +4,6 @@ set -e
 DIR="${BASH_SOURCE%/*}"
 [[ ! -d "$DIR" ]] && DIR="$PWD"
 
-source "$DIR/../util/strings.sh"
 source "$DIR/../util/utils.sh"
 
 function usage {
@@ -38,7 +37,7 @@ do
 done
 
 [[ -z $DATAPROC_CLUSTER_NAME ]] && usage
-JUPYTER_PORT=$(trim_qt $(trim_ws $(gcloud dataproc clusters describe $DATAPROC_CLUSTER_NAME | grep JUPYTER_PORT | cut -d : -f 2)))
+JUPYTER_PORT=$(get_metadata_property $DATAPROC_CLUSTER_NAME JUPYTER_PORT)
 [[ ! $JUPYTER_PORT =~ ^[0-9]+$ ]] && throw "metadata must contain a valid 'JUPITER_PORT' value, but instead has the value \"$JUPYTER_PORT\""
 
 # TODO: Ensure that Jupyter notebook is running on cluster master node
