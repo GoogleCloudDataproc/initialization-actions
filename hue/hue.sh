@@ -56,15 +56,12 @@ EOF
 
   sed -i '/<\/configuration>/e cat hdfs-site-patch.xml' \
        /etc/hadoop/conf/hdfs-site.xml
-
-  cat > hue-patch.ini <<EOF
+       
+  cat >> /etc/hue/conf/hue.ini <<EOF
     # Defaults to $HADOOP_MR1_HOME or /usr/lib/hadoop-0.20-mapreduce
     hadoop_mapred_home=/usr/lib/hadoop-mapreduce 
 EOF
-
-  sed -i '/# Change this if your HDFS cluster is Kerberos-secured/e cat hue-patch.ini' \
-       /etc/hue/conf/hue.ini
-
+       
   # Replace localhost with hostname.
   sed -i "s/#*\([^#]*=.*\)localhost/\1$(hostname --fqdn)/" /etc/hue/conf/hue.ini
 
@@ -75,8 +72,7 @@ EOF
   /usr/lib/hadoop/libexec/init-hdfs.sh
 
   # Restart Hue
-  service hue stop
-  service hue start
+  service hue restart
 fi
 
 set +x +e
