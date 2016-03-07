@@ -1,0 +1,10 @@
+{
+ "argv": [
+    "python", "-m", "ipykernel", "-f", "{connection_file}"],
+ "display_name": "PySpark",
+ "language": "python",
+ "env": {
+    "PYTHONSTARTUP": "/dataproc-initialization-actions/jupyter/start_pyspark_for_kernel.py"
+    }
+}
+
