@@ -6,9 +6,10 @@ DIR="${BASH_SOURCE%/*}"
 
 source "$DIR/../util/utils.sh"
 source /root/.bashrc
+[[ ! -v CONDA_BIN_PATH ]] && source /etc/profile.d/conda_config.sh
 
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
-JUPYTER_KERNEL_DIR="/dataproc-initialization-actions/jupyter/kernels"
+JUPYTER_KERNEL_DIR="/dataproc-initialization-actions/jupyter/kernels/pyspark"
 JUPYTER_NOTEBOOK_DIR="/root/notebooks"
 JUPYTER_PORT=$(/usr/share/google/get_metadata_value attributes/JUPYTER_PORT)
 JUPYTER_IP=*
