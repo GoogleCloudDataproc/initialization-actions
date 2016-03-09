@@ -5,6 +5,7 @@
  "language": "python",
  "env": {
     "SPARK_HOME": "/usr/lib/spark/",
+    "HADOOP_CONF_DIR": "/etc/hadoop/conf/",
     "PYTHONSTARTUP": "/dataproc-initialization-actions/jupyter/start_pyspark_for_kernel.py"
     }
 }
