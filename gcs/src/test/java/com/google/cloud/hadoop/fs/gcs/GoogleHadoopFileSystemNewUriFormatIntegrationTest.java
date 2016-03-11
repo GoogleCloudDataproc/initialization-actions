@@ -85,9 +85,8 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
 
   @Test
   public void testGlobStatusWithNewUriScheme() throws IOException {
-    GoogleHadoopFileSystem typedFs = (GoogleHadoopFileSystem) ghfs;
-
-    ghfs.mkdirs(new Path("/newuriencoding_globs/"));
+    Path globRoot = new Path("/newuriencoding_globs/");
+    ghfs.mkdirs(globRoot);
     ghfs.mkdirs(new Path("/newuriencoding_globs/subdirectory1"));
     ghfs.mkdirs(new Path("/newuriencoding_globs/#this#is#a&subdir/"));
 
@@ -156,15 +155,18 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
     Assert.assertEquals(2, subDirectory2Files5.length);
     Assert.assertEquals("file1", subDirectory2Files5[0].getPath().getName());
     Assert.assertEquals("file2", subDirectory2Files5[1].getPath().getName());
+
+    ghfs.delete(globRoot, true);
   }
 
   @Test
   public void testPathsOnlyValidInNewUriScheme() throws IOException {
     GoogleHadoopFileSystem typedFs = (GoogleHadoopFileSystem) ghfs;
 
-    Path p = new Path(
+    Path directory = new Path(
         String.format(
-            "gs://%s/testPathsOnlyValidInNewUriScheme/foo#bar#baz", typedFs.getRootBucketName()));
+            "gs://%s/testPathsOnlyValidInNewUriScheme/", typedFs.getRootBucketName()));
+    Path p = new Path(directory, "foo#bar#baz");
     try {
       ghfs.getFileStatus(p);
       Assert.fail("Expected FileNotFoundException.");
@@ -176,7 +178,7 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
 
     FileStatus status = ghfs.getFileStatus(p);
     Assert.assertEquals(p, status.getPath());
-    ghfs.delete(p);
+    ghfs.delete(directory, true);
   }
 
   @Test
@@ -195,6 +197,7 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
 
     Path compatPath3 = new Path(compatTestRoot, "simple!@$().foo");
     verifyCompat(uriPathEncodedFS, legacyEncodedFS,  compatPath3);
+    ghfs.delete(compatTestRoot, true);
   }
 
   private static void verifyCompat(

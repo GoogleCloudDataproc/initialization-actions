@@ -543,7 +543,8 @@ public class GoogleHadoopFileSystemIntegrationTest
 
   @Test
   public void testGlobStatus() throws IOException {
-    ghfs.mkdirs(new Path("/directory1"));
+    Path testRoot = new Path("/directory1/");
+    ghfs.mkdirs(testRoot);
     ghfs.mkdirs(new Path("/directory1/subdirectory1"));
     ghfs.mkdirs(new Path("/directory1/subdirectory2"));
 
@@ -595,6 +596,8 @@ public class GoogleHadoopFileSystemIntegrationTest
     Assert.assertEquals(2, subDirectory2Files5.length);
     Assert.assertEquals("file1", subDirectory2Files5[0].getPath().getName());
     Assert.assertEquals("file2", subDirectory2Files5[1].getPath().getName());
+
+    ghfs.delete(testRoot, true);
   }
 
   /**
