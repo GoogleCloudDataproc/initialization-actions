@@ -166,7 +166,12 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
       throws IOException {
     gcsiHelper.afterAllTests();
     if (gcsfs != null) {
-      deleteOldTestBuckets();
+      try {
+        deleteOldTestBuckets();
+      } catch (IllegalArgumentException iae) {
+        // New URI objects can't be deleted by FileSystems with the Legacy path codec.
+        // Ignore errors so the entire test suite isn't failed.
+      }
       gcsfs.close();
       gcsfs = null;
     }
@@ -422,9 +427,6 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
    *
    * The data required for the 2 tests is expensive to create therefore
    * we combine the tests into one.
-   *
-   * TODO(user) : move test init code into @BeforeClass. Create data for
-   * these 2 tests in its own bucket after createBucket() support is available.
    */
   @Test
   public void testListObjectNamesAndGetItemInfo()
@@ -448,8 +450,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
     // -------------------------------------------------------
     // Create test objects.
-    gcsiHelper.clearBucket(bucketName);
-    gcsiHelper.createObjectsWithSubdirs(bucketName, objectNames);
+    String tempTestBucket = gcsiHelper.getUniqueBucketName("list-test");
+    gcsiHelper.createTempBucket(tempTestBucket);
+    gcsiHelper.createObjectsWithSubdirs(tempTestBucket, objectNames);
 
     // -------------------------------------------------------
     // Tests for getItemInfo().
@@ -457,17 +460,17 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
     // Verify that getItemInfo() returns correct info for each object.
     for (String objectName : objectNames) {
-      validateGetItemInfo(bucketName, objectName, true);
+      validateGetItemInfo(tempTestBucket, objectName, true);
     }
 
     // Verify that getItemInfo() returns correct info for bucket.
-    validateGetItemInfo(bucketName, null, true);
+    validateGetItemInfo(tempTestBucket, null, true);
 
     // Verify that getItemInfo() returns correct info for a non-existent object.
-    validateGetItemInfo(bucketName, dirDoesNotExist, false);
+    validateGetItemInfo(tempTestBucket, dirDoesNotExist, false);
 
     // Verify that getItemInfo() returns correct info for a non-existent bucket.
-    validateGetItemInfo(bucketName, objDoesNotExist, false);
+    validateGetItemInfo(tempTestBucket, objDoesNotExist, false);
 
     // -------------------------------------------------------
     // Tests for listObjectNames().
@@ -476,46 +479,46 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     // Verify that listObjectNames() returns correct names for each case below.
 
     // At root.
-    validateListNamesAndInfo(bucketName, null, true, "o1", "o2", "d0/", "d1/", "d2/");
-    validateListNamesAndInfo(bucketName, "", true, "o1", "o2", "d0/", "d1/", "d2/");
+    validateListNamesAndInfo(tempTestBucket, null, true, "o1", "o2", "d0/", "d1/", "d2/");
+    validateListNamesAndInfo(tempTestBucket, "", true, "o1", "o2", "d0/", "d1/", "d2/");
 
     // At d0.
-    validateListNamesAndInfo(bucketName, "d0/", true);
+    validateListNamesAndInfo(tempTestBucket, "d0/", true);
 
     // At o1.
-    validateListNamesAndInfo(bucketName, "o1", true, "o1");
+    validateListNamesAndInfo(tempTestBucket, "o1", true, "o1");
 
     // TODO(user) : bug in GCS? fails only when running gcsfs tests?
     // validateListNamesAndInfo(bucketName, "d0", true, "d0/");
 
     // At d1.
-    validateListNamesAndInfo(bucketName, "d1/", true, "d1/o11", "d1/o12", "d1/d10/", "d1/d11/");
+    validateListNamesAndInfo(tempTestBucket, "d1/", true, "d1/o11", "d1/o12", "d1/d10/", "d1/d11/");
 
     // TODO(user) : bug in GCS? fails only when running gcsfs tests?
     // validateListNamesAndInfo(bucketName, "d1", true, "d1/");
 
     // At d1/d11.
-    validateListNamesAndInfo(bucketName, "d1/d11/", true, "d1/d11/o111");
+    validateListNamesAndInfo(tempTestBucket, "d1/d11/", true, "d1/d11/o111");
 
     // TODO(user) : bug in GCS? fails only when running gcsfs tests?
     // validateListNamesAndInfo(bucketName, "d1/d11", true, "d1/d11/");
 
     // At d2.
-    validateListNamesAndInfo(bucketName, "d2/", true, "d2/o21", "d2/o22");
+    validateListNamesAndInfo(tempTestBucket, "d2/", true, "d2/o21", "d2/o22");
 
     // TODO(user) : bug in GCS? fails only when running gcsfs tests?
     // validateListNamesAndInfo(bucketName, "d2", true, "d2/");
 
     // At non-existent path.
-    validateListNamesAndInfo(bucketName, dirDoesNotExist, false);
-    validateListNamesAndInfo(bucketName, objDoesNotExist, false);
+    validateListNamesAndInfo(tempTestBucket, dirDoesNotExist, false);
+    validateListNamesAndInfo(tempTestBucket, objDoesNotExist, false);
     validateListNamesAndInfo(objDoesNotExist, objDoesNotExist, false);
 
 
     // -------------------------------------------------------
     // Tests for listObjectNames().
     // -------------------------------------------------------
-    validateListNamesAndInfo(null, null, true, bucketName, otherBucketName);
+    validateListNamesAndInfo(null, null, true, bucketName, otherBucketName, tempTestBucket);
   }
 
   @Test @SuppressWarnings("EqualsIncompatibleType")
