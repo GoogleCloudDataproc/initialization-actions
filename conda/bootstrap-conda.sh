@@ -86,7 +86,6 @@ echo "And also HOME: $HOME"
 hash -r
 which conda
 conda config --set always_yes yes --set changeps1 no
-source ~/.bashrc
 
 echo "Updating conda..."
 conda update -q conda
@@ -125,5 +124,4 @@ fi
 echo "Ensure that Anaconda Python and PySpark play nice by all pointing to same Python distro..."
 if [[ ! -v PYSPARK_PYTHON ]]; then  echo "export PYSPARK_PYTHON=$CONDA_BIN_PATH/python" | tee -a  /etc/profile.d/conda_config.sh  /etc/*bashrc /etc/environment /usr/lib/spark/conf/spark-env.sh; fi
 
-echo "Finished bootstrapping via Miniconda, sourcing .bashrc..."
-source ~/.bashrc
+echo "Finished bootstrapping via Miniconda..."
