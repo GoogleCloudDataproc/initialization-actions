@@ -11,6 +11,7 @@ ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 JUPYTER_KERNEL_DIR="/dataproc-initialization-actions/jupyter/kernels/pyspark"
 JUPYTER_NOTEBOOK_DIR="/root/notebooks"
 JUPYTER_PORT=$(/usr/share/google/get_metadata_value attributes/JUPYTER_PORT)
+[[ ! $JUPYTER_PORT =~ ^[0-9]+$ ]] && JUPYTER_PORT=8123
 JUPYTER_IP=*
 
 [[ "${ROLE}" != 'Master' ]] && throw "$0 should only be run on the Master node!"
