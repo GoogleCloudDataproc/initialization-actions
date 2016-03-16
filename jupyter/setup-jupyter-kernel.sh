@@ -5,7 +5,6 @@ DIR="${BASH_SOURCE%/*}"
 [[ ! -d "$DIR" ]] && DIR="$PWD"
 
 source "$DIR/../util/utils.sh"
-source /root/.bashrc
 [[ ! -v CONDA_BIN_PATH ]] && source /etc/profile.d/conda_config.sh
 
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
