@@ -21,6 +21,7 @@ This repository presently offers the following actions for use with Cloud Datapr
   * [Apache Tez](http://tez.apache.org)
   * [Apache Zeppelin](http://zeppelin.apache.org)
   * [Apache ZooKeeper](http://zookeeper.apache.org)
+  * [Hue](http://gethue.com)
   * [IPython](http://ipython.org)
   * [Presto](http://prestodb.io)
   * [Anaconda](https://www.continuum.io/why-anaconda)
