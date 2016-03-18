@@ -9,6 +9,12 @@ Initialization actions are stored in a [Google Cloud Storage](https://cloud.goog
     [--initialization-actions [GCS_URI,...]]
     [--initialization-action-timeout TIMEOUT]
 
+For convenience, a copy of initialization actions in this repository are stored in the following Cloud Storage bucket which is publicly-accessible:
+
+    gs://dataproc-initialization-actions
+    
+The folder structure of this Cloud Storage bucket mirrors this repository. You should be able to use this Cloud Storage bucket (and the initialization scripts within it) for your clusters.
+
 ## Why these samples are provided
 These samples are provided to show how various packages and components can be installed on Cloud Dataproc clusters. You should understand how these samples work before running them on your clusters. The initialization actions provided in this repository are provided **without support** and you **use them at your own risk**.
 
