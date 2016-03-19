@@ -1,7 +1,5 @@
 package com.google.cloud.hadoop.io.bigquery.mapred;
 
-import com.google.common.base.Throwables;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -52,7 +50,7 @@ public class ReflectedTaskAttemptContextFactory {
     try {
       return (TaskAttemptContext) constructor.newInstance(configuration, taskAttemptID);
     } catch (InstantiationException | InvocationTargetException | IllegalAccessException e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
   }
 }

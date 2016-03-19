@@ -23,7 +23,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.common.base.Function;
-import com.google.common.base.Throwables;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -218,35 +217,40 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
     // Keep a count of how many times we intercept a create call.
     final int[] count = new int[1];
 
-    fileBackedCache.setCreateMirrorFileListener(new Function<StorageResourceId, Void>() {
-      @Override
-      public boolean equals(Object obj) {
-        return false;
-      }
-
-      @Override
-      public Void apply(StorageResourceId resourceId) {
-        LOG.info("Intercepting creation of '{}', count is {}", resourceId, count[0]);
-        ++count[0];
-        Path mirrorPath = fileBackedCache.getMirrorPath(resourceId);
-        if (resourceId.equals(fileToCreate) || resourceId.equals(dirToCreate)) {
-          try {
-            if (resourceId.isDirectory()) {
-              LOG.info("Pre-emptively creating dir '{}' for resourceId '{}'",
-                  mirrorPath, resourceId);
-              Files.createDirectory(mirrorPath);
-            } else {
-              LOG.info("Pre-emptively creating file '{}' for resourceId '{}'",
-                  mirrorPath, resourceId);
-              Files.createFile(mirrorPath);
-            }
-          } catch (IOException ioe) {
-            Throwables.propagate(ioe);
+    fileBackedCache.setCreateMirrorFileListener(
+        new Function<StorageResourceId, Void>() {
+          @Override
+          public boolean equals(Object obj) {
+            return false;
           }
-        }
-        return null;
-      }
-    });
+
+          @Override
+          public Void apply(StorageResourceId resourceId) {
+            LOG.info("Intercepting creation of '{}', count is {}", resourceId, count[0]);
+            ++count[0];
+            Path mirrorPath = fileBackedCache.getMirrorPath(resourceId);
+            if (resourceId.equals(fileToCreate) || resourceId.equals(dirToCreate)) {
+              try {
+                if (resourceId.isDirectory()) {
+                  LOG.info(
+                      "Pre-emptively creating dir '{}' for resourceId '{}'",
+                      mirrorPath,
+                      resourceId);
+                  Files.createDirectory(mirrorPath);
+                } else {
+                  LOG.info(
+                      "Pre-emptively creating file '{}' for resourceId '{}'",
+                      mirrorPath,
+                      resourceId);
+                  Files.createFile(mirrorPath);
+                }
+              } catch (IOException ioe) {
+                throw new RuntimeException(ioe);
+              }
+            }
+            return null;
+          }
+        });
 
     cache.putResourceId(fileToCreate);
     cache.putResourceId(dirToCreate);
@@ -272,35 +276,40 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
     // Keep a count of how many times we intercept a create call.
     final int[] count = new int[1];
 
-    fileBackedCache.setCreateMirrorFileListener(new Function<StorageResourceId, Void>() {
-      @Override
-      public boolean equals(Object obj) {
-        return false;
-      }
-
-      @Override
-      public Void apply(StorageResourceId resourceId) {
-        LOG.info("Intercepting creation of '{}', count is {}", resourceId, count[0]);
-        ++count[0];
-        Path mirrorPath = fileBackedCache.getMirrorPath(resourceId);
-        if (resourceId.equals(fileToCreate) || resourceId.equals(dirToCreate)) {
-          try {
-            if (resourceId.isDirectory()) {
-              LOG.info("Pre-emptively creating colliding file '{}' for resourceId '{}'",
-                  mirrorPath, resourceId);
-              Files.createFile(mirrorPath);
-            } else {
-              LOG.info("Pre-emptively creating colliding dir '{}' for resourceId '{}'",
-                  mirrorPath, resourceId);
-              Files.createDirectory(mirrorPath);
-            }
-          } catch (IOException ioe) {
-            Throwables.propagate(ioe);
+    fileBackedCache.setCreateMirrorFileListener(
+        new Function<StorageResourceId, Void>() {
+          @Override
+          public boolean equals(Object obj) {
+            return false;
           }
-        }
-        return null;
-      }
-    });
+
+          @Override
+          public Void apply(StorageResourceId resourceId) {
+            LOG.info("Intercepting creation of '{}', count is {}", resourceId, count[0]);
+            ++count[0];
+            Path mirrorPath = fileBackedCache.getMirrorPath(resourceId);
+            if (resourceId.equals(fileToCreate) || resourceId.equals(dirToCreate)) {
+              try {
+                if (resourceId.isDirectory()) {
+                  LOG.info(
+                      "Pre-emptively creating colliding file '{}' for resourceId '{}'",
+                      mirrorPath,
+                      resourceId);
+                  Files.createFile(mirrorPath);
+                } else {
+                  LOG.info(
+                      "Pre-emptively creating colliding dir '{}' for resourceId '{}'",
+                      mirrorPath,
+                      resourceId);
+                  Files.createDirectory(mirrorPath);
+                }
+              } catch (IOException ioe) {
+                throw new RuntimeException(ioe);
+              }
+            }
+            return null;
+          }
+        });
 
     try {
       cache.putResourceId(fileToCreate);

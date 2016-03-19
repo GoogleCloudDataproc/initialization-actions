@@ -14,8 +14,6 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import com.google.common.base.Throwables;
-
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
@@ -84,7 +82,7 @@ public class CacheSupplementedGoogleCloudStorageInheritedTest
           resourceCache =
               new FileSystemBackedDirectoryListCache(basePathFile.toString());
         } catch (IOException ioe) {
-          Throwables.propagate(ioe);
+            throw new RuntimeException(ioe);
         }
         break;
       }

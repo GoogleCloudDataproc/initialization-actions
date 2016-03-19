@@ -7,7 +7,6 @@ import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.cloud.hadoop.util.HadoopToStringUtil;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -337,7 +336,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
       AbstractBigQueryInputFormat<?, ?> format = clazz.newInstance();
       return format.getExportFileFormat();
     } catch (InstantiationException | IllegalAccessException e) {
-      throw Throwables.propagate(e);
+      throw new RuntimeException(e);
     }
   }
 
