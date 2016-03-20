@@ -64,7 +64,7 @@ After sshing to master node (e.g., `gcloud compute ssh $DATAPROC_CLUSTER_NAME-m`
 From command line of local / host machine, one can submit remote job:
 
 ```bash
-> gcloud beta dataproc jobs submit pyspark --cluster $DATAPROC_CLUSTER_NAME get-sys-exec.py
+> gcloud dataproc jobs submit pyspark --cluster $DATAPROC_CLUSTER_NAME get-sys-exec.py
 ... # Lots of output
 ['/usr/local/bin/miniconda/bin/python']
 ...
