@@ -10,7 +10,7 @@ You can use this initialization action to create a new Dataproc cluster with Hue
 2. Using the `gcloud` command to create a new cluster with this initialization action.  The following command will create a new cluster named `<CLUSTER_NAME>` and specify the initialization action stored in `<GCS_BUCKET>`
    
     ```bash
-    gcloud beta dataproc clusters create <CLUSTER_NAME> \
+    gcloud dataproc clusters create <CLUSTER_NAME> \
     --initialization-actions gs://<GCS_BUCKET>/hue.sh   
     ```
 Alternatively, you can start a regular dataproc cluster, [ssh to the master node]  (https://cloud.google.com/dataproc/submit-job) (see SSH into instance), clone this repository and run ./hue.sh (as sudo) 
