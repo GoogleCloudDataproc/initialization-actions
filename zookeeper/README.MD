@@ -15,7 +15,7 @@ You can use this initialization action to create a new Dataproc cluster with Zoo
 1. Using the `gcloud` command to create a new cluster with this initialization action. **Note** - you may need to increase the `initialization-action-timeout` if this script takes a long time to run. The following command will create a new cluster named `<CLUSTER_NAME>`, and specify the initialization action stored in `<GCS_BUCKET>`.
    
     ```bash
-    gcloud beta dataproc clusters create <CLUSTER_NAME> \
+    gcloud dataproc clusters create <CLUSTER_NAME> \
     --initialization-actions gs://<GCS_BUCKET>/zookeeper.sh
     ```
     Since ZooKeeper installs quickly, it's unlikely you will need to increase the `initialization-action-timeout` unless you have a very large cluster or are running more than one initialization action.
