@@ -9,7 +9,7 @@ You can use this initialization action to create a new Dataproc cluster with Apa
 1. Using the `gcloud` command to create a new cluster with this initialization action. **Note** - you will need to increase the `initialization-action-timeout` to at least 15 minutes to allow for Zeppelin to compile and install. The following command will create a new cluster named `<CLUSTER_NAME>`, specify the initialization action stored in `<GCS_BUCKET>`, and increase the timeout to 15 minutes.
    
     ```bash
-    gcloud beta dataproc clusters create <CLUSTER_NAME> \
+    gcloud dataproc clusters create <CLUSTER_NAME> \
     --initialization-actions gs://<GCS_BUCKET>/zeppelin.sh   
     --initialization-action-timeout 15m
     ```
