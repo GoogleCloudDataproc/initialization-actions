@@ -11,5 +11,5 @@ You can use this initialization action by:
 1. Using the `gcloud` command to create a new cluster with this initialization action. The following command will create a new cluster named `<CLUSTER_NAME>`, specify the initialization action stored in `<GCS_BUCKET>`:
    
     ```bash
-    gcloud beta dataproc clusters create <CLUSTER_NAME> \
+    gcloud dataproc clusters create <CLUSTER_NAME> \
     --initialization-actions gs://<GCS_BUCKET>/user-environment
