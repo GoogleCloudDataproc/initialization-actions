@@ -5,7 +5,7 @@ When creating a [Google Cloud Dataproc](https://cloud.google.com/dataproc/) clus
 ## How are initialization actions used?
 Initialization actions are stored in a [Google Cloud Storage](https://cloud.google.com/storage) bucket and can be passed as a paramater to the `gcloud` command or the `clusters.create` API when creating a Dataproc cluster. For example, to specify an initialization action when creating a cluster with the `gcloud` command, you can run:
 
-    gcloud beta dataproc clusters create CLUSTER-NAME
+    gcloud dataproc clusters create CLUSTER-NAME
     [--initialization-actions [GCS_URI,...]]
     [--initialization-action-timeout TIMEOUT]
 
