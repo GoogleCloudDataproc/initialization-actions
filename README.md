@@ -12,7 +12,7 @@ Initialization actions are stored in a [Google Cloud Storage](https://cloud.goog
 For convenience, a copy of initialization actions in this repository are stored in the following Cloud Storage bucket which is publicly-accessible:
 
     gs://dataproc-initialization-actions
-    
+
 The folder structure of this Cloud Storage bucket mirrors this repository. You should be able to use this Cloud Storage bucket (and the initialization scripts within it) for your clusters.
 
 ## Why these samples are provided
@@ -32,8 +32,9 @@ This repository presently offers the following actions for use with Cloud Datapr
   * [Presto](http://prestodb.io)
   * [Anaconda](https://www.continuum.io/why-anaconda)
 * Configure the cluster
-  * Configure a *nice* shell environment  
-  * Share NFS consistency cache
+  * Configure a *nice* shell environment
+  * Share a NFS consistency cache
+  * Share a [Google Cloud SQL](https://cloud.google.com/sql/) Hive Metastore.
 
 ## For more information
 For more information, review the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions). You can also pose questions to the [Stack Overflow](http://www.stackoverflow.com) comminity with the tag `google-cloud-dataproc`.
