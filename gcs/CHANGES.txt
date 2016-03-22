@@ -1,3 +1,16 @@
+1.4.5 - 2016-03-24
+
+  1. Add support for paths that cannot be parsed by Java's URI.create method.
+     This support is off by default, but can be enabled by setting Hadoop
+     configuration key fs.gs.path.encoding to the string uri-path. The
+     current behavior, and default value of fs.gs.path.encoding, is 'legacy'.
+     The new path encoding scheme will become the default in a future release.
+  2. VerificationAttributes are now exposed in GoogleCloudStorageItemInfo. The
+     current support is limited to reading these attributes from what was
+     computed by GCS server side. A future release will add support for
+     specifying VerificationAttributes in CreateOptions when creating new
+     objects.
+
 1.4.4 - 2016-02-02
 
   1. Add support for JSON keyfiles via a new configuration key:

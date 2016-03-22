@@ -59,6 +59,7 @@ public class GoogleCloudStorageItemInfo {
   private final Map<String, byte[]> metadata;
   private final long contentGeneration;
   private final long metaGeneration;
+  private final VerificationAttributes verificationAttributes;
 
   /**
    * Constructs an instance of GoogleCloudStorageItemInfo.
@@ -99,6 +100,37 @@ public class GoogleCloudStorageItemInfo {
       Map<String, byte[]> metadata,
       long contentGeneration,
       long metaGeneration) {
+    this(resourceId,
+        creationTime,
+        size,
+        location,
+        storageClass,
+        contentType,
+        metadata,
+        contentGeneration,
+        metaGeneration,
+        new VerificationAttributes(null, null));
+  }
+
+  /**
+   * Constructs an instance of GoogleCloudStorageItemInfo.
+   *
+   * @param resourceId identifies either root, a Bucket, or a StorageObject
+   * @param creationTime Time when object was created (milliseconds since January 1, 1970 UTC).
+   * @param size Size of the given object (number of bytes) or -1 if the object does not exist.
+   * @param metadata User-supplied object metadata for this object.
+   */
+  public GoogleCloudStorageItemInfo(
+      StorageResourceId resourceId,
+      long creationTime,
+      long size,
+      String location,
+      String storageClass,
+      String contentType,
+      Map<String, byte[]> metadata,
+      long contentGeneration,
+      long metaGeneration,
+      VerificationAttributes verificationAttributes) {
     Preconditions.checkArgument(resourceId != null,
         "resourceId must not be null! Use StorageResourceId.ROOT to represent GCS root.");
     this.resourceId = resourceId;
@@ -114,6 +146,7 @@ public class GoogleCloudStorageItemInfo {
     }
     this.contentGeneration = contentGeneration;
     this.metaGeneration = metaGeneration;
+    this.verificationAttributes = verificationAttributes;
   }
 
   /**
@@ -226,6 +259,13 @@ public class GoogleCloudStorageItemInfo {
   }
 
   /**
+   * Get object validation attributes.
+   */
+  public VerificationAttributes getVerificationAttributes() {
+    return verificationAttributes;
+  }
+
+  /**
    * Helper for checking logical equality of metadata maps, checking equality of keySet() between
    * this.metadata and otherMetadata, and then using Arrays.equals to compare contents of
    * corresponding byte arrays.
@@ -275,6 +315,7 @@ public class GoogleCloudStorageItemInfo {
           && size == other.size 
           && Objects.equals(location, other.location) 
           && Objects.equals(storageClass, other.storageClass)
+          && Objects.equals(verificationAttributes, other.verificationAttributes)
           && metaGeneration == other.metaGeneration
           && contentGeneration == other.contentGeneration
           && metadataEquals(other.getMetadata());

@@ -1301,6 +1301,17 @@ public class GoogleCloudStorageImpl
     Map<String, byte[]> decodedMetadata =
         object.getMetadata() == null ? null : decodeMetadata(object.getMetadata());
 
+    byte[] md5Hash = null;
+    byte[] crc32c = null;
+
+    if (!Strings.isNullOrEmpty(object.getCrc32c())) {
+      crc32c = BaseEncoding.base64().decode(object.getCrc32c());
+    }
+
+    if (!Strings.isNullOrEmpty(object.getMd5Hash())) {
+      md5Hash = BaseEncoding.base64().decode(object.getMd5Hash());
+    }
+
     // GCS API does not make available location and storage class at object level at present
     // (it is same for all objects in a bucket). Further, we do not use the values for objects.
     // The GoogleCloudStorageItemInfo thus has 'null' for location and storage class.
@@ -1313,7 +1324,8 @@ public class GoogleCloudStorageImpl
         object.getContentType(),
         decodedMetadata,
         object.getGeneration(),
-        object.getMetageneration());
+        object.getMetageneration(),
+        new VerificationAttributes(md5Hash, crc32c));
   }
 
   /**

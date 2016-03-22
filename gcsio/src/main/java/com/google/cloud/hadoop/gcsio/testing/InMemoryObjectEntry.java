@@ -16,8 +16,12 @@ package com.google.cloud.hadoop.gcsio.testing;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
+import com.google.cloud.hadoop.gcsio.VerificationAttributes;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
+import com.google.common.primitives.Ints;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -61,6 +65,8 @@ public class InMemoryObjectEntry {
       public synchronized void close() throws IOException {
         synchronized (InMemoryObjectEntry.this) {
           completedContents = toByteArray();
+          HashCode md5 = Hashing.md5().hashBytes(completedContents);
+          HashCode crc32c = Hashing.crc32c().hashBytes(completedContents);
           writeStream = null;
           writeChannel = null;
           info = new GoogleCloudStorageItemInfo(
@@ -72,7 +78,10 @@ public class InMemoryObjectEntry {
               info.getContentType(),
               info.getMetadata(),
               0L,
-              0L);
+              0L,
+              new VerificationAttributes(
+                  md5.asBytes(),
+                  Ints.toByteArray(crc32c.asInt())));
         }
       }
     };

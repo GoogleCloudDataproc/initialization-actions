@@ -36,6 +36,7 @@ import com.google.cloud.hadoop.gcsio.ListProhibitedGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.ResourceLoggingGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.UpdatableItemInfo;
+import com.google.cloud.hadoop.gcsio.VerificationAttributes;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
 import com.google.common.base.Equivalence;
@@ -45,9 +46,13 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
+import com.google.common.primitives.Ints;
 
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -1520,6 +1525,51 @@ public class GoogleCloudStorageTest {
 
       GoogleCloudStorageTestHelper.assertObjectContent(
           gcs, destinationObject, content1.concat(content2).getBytes());
+    }
+  }
+
+  @Test
+  public void testObjectVerificationAttributes() throws IOException {
+    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
+      String bucketName = scope.getBucketName();
+      GoogleCloudStorage gcs = scope.getStorageInstance();
+      StorageResourceId testObject =
+          new StorageResourceId(bucketName, "testObjectValidationAttributes");
+      byte[] objectBytes = new byte[1024];
+      GoogleCloudStorageTestHelper.fillBytes(objectBytes);
+      HashCode originalMd5 = Hashing.md5().hashBytes(objectBytes);
+      HashCode originalCrc32c = Hashing.crc32c().hashBytes(objectBytes);
+      // Note that HashCode#asBytes returns a little-endian encoded array while
+      // GCS uses big-endian. We avoid that by grabbing the int value of the CRC32c
+      // and running it through Ints.toByteArray which encodes using big-endian.
+      byte[] bigEndianCrc32c = Ints.toByteArray(originalCrc32c.asInt());
+
+      // Don't use hashes in object creation, just validate the round trip. This of course
+      // could lead to flaky looking tests due to bit flip errors.
+      try (WritableByteChannel channel = gcs.create(testObject)) {
+        channel.write(ByteBuffer.wrap(objectBytes));
+      }
+
+      GoogleCloudStorageItemInfo itemInfo = gcs.getItemInfo(testObject);
+
+      GoogleCloudStorageTestHelper.assertByteArrayEquals(
+          originalMd5.asBytes(), itemInfo.getVerificationAttributes().getMd5hash());
+      // These string versions are slightly easier to debug (used when trying to
+      // replicate GCS crc32c values in InMemoryGoogleCloudStorage).
+      String originalCrc32cString =
+          Integer.toHexString(
+              Ints.fromByteArray(bigEndianCrc32c));
+      String newCrc32cString =
+          Integer.toHexString(
+              Ints.fromByteArray(itemInfo.getVerificationAttributes().getCrc32c()));
+      assertEquals(originalCrc32cString, newCrc32cString);
+      GoogleCloudStorageTestHelper.assertByteArrayEquals(
+          bigEndianCrc32c, itemInfo.getVerificationAttributes().getCrc32c());
+
+      VerificationAttributes expectedAttributes =
+          new VerificationAttributes(originalMd5.asBytes(), bigEndianCrc32c);
+
+      Assert.assertEquals(expectedAttributes, itemInfo.getVerificationAttributes());
     }
   }
 
