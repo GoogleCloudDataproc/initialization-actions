@@ -1,5 +1,5 @@
 #!/bin/bash
-set -x -e
+set -e
 
 DIR="${BASH_SOURCE%/*}"
 [[ ! -d "$DIR" ]] && DIR="$PWD"
