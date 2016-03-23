@@ -81,7 +81,7 @@ EOF
 	$(wget https://repo1.maven.org/maven2/com/facebook/presto/presto-cli/${PRESTO_VERSION}/presto-cli-${PRESTO_VERSION}-executable.jar -O /usr/bin/presto)
 	$(chmod a+x /usr/bin/presto)
 else
-	MASTER_NODE_NAME=$(hostname | sed 's/\(.*\)-w-[0-9]*.*/\1/g')
+	MASTER_NODE_NAME=$(hostname | sed 's/\(.*\)-s\?w-[a-z0-9]*.*/\1/g')
 	PRESTO_MASTER_FQDN=${MASTER_NODE_NAME}-m.${DNSNAME}
 	cat > presto-server-${PRESTO_VERSION}/etc/config.properties <<EOF
 coordinator=false
