@@ -4,16 +4,13 @@ This folder contains the initialization action `jupyter.sh` to quickly setup and
 
 A real-world example of how to use this from within a bash script, using the default dataproc-initialization-actions repo/branch:
 
-```
-DATAPROC_BUCKET=my-dataproc-bucket
-git clone https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git
-gsutil -m cp -r "./dataproc-initialization-actions/jupyter/jupyter.sh" "gs://$DATAPROC_BUCKET/dataproc-initialization-actions/"
+```bash
 # Override the Jupyter port with 8124 (default is 8123)
 gcloud dataproc clusters create my-dataproc-cluster \
     --metadata "JUPYTER_PORT=8124" \
     --initialization-actions \
-        gs://$DATAPROC_BUCKET/dataproc-initialization-actions/jupyter.sh \
-    --bucket $DATAPROC_BUCKET \
+        gs://dataproc-initialization-actions/jupyter/jupyter.sh \
+    --bucket my-dataproc-bucket \
     --num-workers 12 \
     --properties spark:spark.executorEnv.PYTHONHASHSEED=0,spark:spark.yarn.am.memory=1024m \
     --worker-machine-type=n1-standard-4 \
