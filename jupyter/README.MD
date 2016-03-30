@@ -11,7 +11,7 @@ gcloud dataproc clusters create my-dataproc-cluster \
     --initialization-actions \
         gs://dataproc-initialization-actions/jupyter/jupyter.sh \
     --bucket my-dataproc-bucket \
-    --num-workers 12 \
+    --num-workers 2 \
     --properties spark:spark.executorEnv.PYTHONHASHSEED=0,spark:spark.yarn.am.memory=1024m \
     --worker-machine-type=n1-standard-4 \
     --master-machine-type=n1-standard-4

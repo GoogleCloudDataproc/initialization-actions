@@ -37,8 +37,8 @@ do
 done
 
 [[ -z $DATAPROC_CLUSTER_NAME ]] && usage
-JUPYTER_PORT=$(get_metadata_property $DATAPROC_CLUSTER_NAME JUPYTER_PORT)
-[[ ! $JUPYTER_PORT =~ ^[0-9]+$ ]] && throw "metadata must contain a valid 'JUPITER_PORT' value, but instead has the value \"$JUPYTER_PORT\""
+JUPYTER_PORT=$(get_metadata_property $DATAPROC_CLUSTER_NAME JUPYTER_PORT || true)
+[[ ! $JUPYTER_PORT =~ ^[0-9]+$ ]] && throw "metadata must contain a valid 'JUPYTER_PORT' value, but instead has the value \"$JUPYTER_PORT\""
 
 # TODO: Ensure that Jupyter notebook is running on cluster master node
 

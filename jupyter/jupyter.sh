@@ -2,9 +2,9 @@
 set -e
 
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
-INIT_ACTIONS_REPO=$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_REPO)
+INIT_ACTIONS_REPO=$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_REPO || true)
 INIT_ACTIONS_REPO="${INIT_ACTIONS_REPO:-https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git}"
-INIT_ACTIONS_BRANCH=$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_BRANCH)
+INIT_ACTIONS_BRANCH=$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_BRANCH || true)
 INIT_ACTIONS_BRANCH="${INIT_ACTIONS_BRANCH:-master}"
 DATAPROC_BUCKET=$(/usr/share/google/get_metadata_value attributes/dataproc-bucket)
 
