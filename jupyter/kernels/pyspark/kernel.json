@@ -1,0 +1,13 @@
+{
+ "argv": [
+    "python", "-m", "ipykernel", "-f", "{connection_file}"],
+ "display_name": "PySpark",
+ "language": "python",
+ "env": {
+    "SPARK_HOME": "/usr/lib/spark/",
+    "PYTHONPATH": "/usr/lib/spark/python/:/usr/lib/spark/python/lib/py4j-0.9-src.zip",
+    "PYTHONSTARTUP": "/usr/lib/spark/python/pyspark/shell.py",
+    "PYSPARK_SUBMIT_ARGS": "--master yarn --deploy-mode client pyspark-shell"
+ }
+}
+
