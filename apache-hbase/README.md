@@ -10,7 +10,7 @@ You can use this initialization action to create a new Dataproc cluster with Apa
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-    --initialization-actions gs://<GCS_BUCKET>/hbase.sh   
+    --initialization-actions gs://<GCS_BUCKET>/zookeeper.sh,gs://<GCS_BUCKET>/hbase.sh   
     --initialization-action-timeout 15m
     ```
 1. Once the cluster has been created, HBase is configured to run on port `60010` on the master node in a Dataproc cluster. To connect to the Apache HBase web interface, you will need to create an SSH tunnel and use a SOCKS 5 Proxy as described in the [dataproc web interfaces](https://cloud.google.com/dataproc/cluster-web-interfaces) documentation.

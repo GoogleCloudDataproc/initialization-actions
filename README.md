@@ -12,7 +12,7 @@ Initialization actions are stored in a [Google Cloud Storage](https://cloud.goog
 For convenience, a copy of initialization actions in this repository are stored in the following Cloud Storage bucket which is publicly-accessible:
 
     gs://dataproc-initialization-actions
-    
+
 The folder structure of this Cloud Storage bucket mirrors this repository. You should be able to use this Cloud Storage bucket (and the initialization scripts within it) for your clusters.
 
 ## Why these samples are provided
@@ -27,6 +27,7 @@ This repository presently offers the following actions for use with Cloud Datapr
   * [Apache Tez](http://tez.apache.org)
   * [Apache Zeppelin](http://zeppelin.apache.org)
   * [Apache ZooKeeper](http://zookeeper.apache.org)
+  * [Apache Hbase](http://hbase.apache.org)
   * [Hue](http://gethue.com)
   * [IPython](http://ipython.org)
   * [Presto](http://prestodb.io)
