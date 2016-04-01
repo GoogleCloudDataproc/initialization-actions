@@ -76,8 +76,10 @@ public abstract class GoogleCloudStorageFileSystemOptionsTestBase {
 
   @After
   public void tearDown() throws IOException, URISyntaxException {
-    // Clean up our test files.
-    gcsfs.delete(new URI("gs://" + testBucketName), true);
+    if (gcsfs != null) {
+      // Clean up our test files.
+      gcsfs.delete(new URI("gs://" + testBucketName), true);
+    }
   }
 
   /**

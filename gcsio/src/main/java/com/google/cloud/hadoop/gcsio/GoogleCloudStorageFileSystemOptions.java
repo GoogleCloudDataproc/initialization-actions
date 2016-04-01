@@ -36,15 +36,39 @@ public class GoogleCloudStorageFileSystemOptions {
 
     private GoogleCloudStorageOptions.Builder cloudStorageOptionsBuilder =
         new GoogleCloudStorageOptions.Builder();
+    private GoogleCloudStorageOptions immutableCloudStorageOptions = null;
+
     private PathCodec pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
 
     public GoogleCloudStorageOptions.Builder getCloudStorageOptionsBuilder() {
       return cloudStorageOptionsBuilder;
     }
 
+    /**
+     * Mutually exclusive with setImmutableCloudStorageOptions; if setting this builder, then
+     * any subsequent changes made to the inner GCS options builder will be reflected at the
+     * time GoogleCloudStorageFileSystemOptions.Builder.build() is called. If this is called
+     * after calling setImmutableCloudStorageOptions, then the previous value of the
+     * immutabelCloudStorageOptions is discarded, in the same way setting other single-element
+     * fields is overridden by the last call to the builder.
+     */
     public Builder setCloudStorageOptionsBuilder(
         GoogleCloudStorageOptions.Builder cloudStorageOptionsBuilder) {
       this.cloudStorageOptionsBuilder = cloudStorageOptionsBuilder;
+      this.immutableCloudStorageOptions = null;
+      return this;
+    }
+
+    /**
+     * Mutually exclusive with setCloudStorageOptionsBuilder If this is called
+     * after calling setCloudStorageOptionsBuilder, then the previous value of the
+     * cloudStorageOptionsBuilder is discarded, in the same way setting other single-element
+     * fields is overridden by the last call to the builder.
+     */
+    public Builder setImmutableCloudStorageOptions(
+        GoogleCloudStorageOptions immutableCloudStorageOptions) {
+      this.immutableCloudStorageOptions = immutableCloudStorageOptions;
+      this.cloudStorageOptionsBuilder = new GoogleCloudStorageOptions.Builder();
       return this;
     }
 
@@ -86,7 +110,9 @@ public class GoogleCloudStorageFileSystemOptions {
 
     public GoogleCloudStorageFileSystemOptions build() {
       return new GoogleCloudStorageFileSystemOptions(
-          cloudStorageOptionsBuilder.build(),
+          immutableCloudStorageOptions != null
+              ? immutableCloudStorageOptions
+              : cloudStorageOptionsBuilder.build(),
           metadataCacheEnabled,
           cacheType,
           cacheBasePath,

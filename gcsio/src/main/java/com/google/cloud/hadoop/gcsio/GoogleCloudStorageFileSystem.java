@@ -173,7 +173,9 @@ public class GoogleCloudStorageFileSystem {
    * GoogleCloudStorage {@code gcs}.
    */
   public GoogleCloudStorageFileSystem(GoogleCloudStorage gcs) throws IOException {
-    this(gcs, GoogleCloudStorageFileSystemOptions.newBuilder().build());
+    this(gcs, GoogleCloudStorageFileSystemOptions.newBuilder()
+        .setImmutableCloudStorageOptions(gcs.getOptions())
+        .build());
   }
 
   /**
