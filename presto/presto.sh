@@ -69,13 +69,6 @@ PRESTO_JVM_MB=$(( ${SPARK_CONTAINER_MB} * ${SPARK_EXECUTOR_COUNT} ))
 PRESTO_QUERY_NODE_MB=$(( ${PRESTO_JVM_MB} * 6 / 10 - ${SPARK_EXECUTOR_OVERHEAD_MB} ))
 PRESTO_RESERVED_SYSTEM_MB=$(( ${PRESTO_JVM_MB} * 4 / 10 - ${SPARK_EXECUTOR_OVERHEAD_MB} ))
 
-# Compute the distributed max-memory by multiplying worker count by the
-# per-worker memory allocations.
-# TODO(dhuo): Maybe just set distributed MB cap to some infinite value so that
-# scaling up works.
-WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
-PRESTO_QUERY_DISTIBUTED_MB=$(( ${WORKER_COUNT} * ${PRESTO_QUERY_NODE_MB} ))
-
 cat > presto-server-${PRESTO_VERSION}/etc/jvm.config <<EOF
 -server
 -Xmx${PRESTO_JVM_MB}m
@@ -89,7 +82,7 @@ cat > presto-server-${PRESTO_VERSION}/etc/jvm.config <<EOF
 -XX:+HeapDumpOnOutOfMemoryError
 -XX:OnOutOfMemoryError=kill -9 %p
 -Dhive.config.resources=/etc/hadoop/conf/core-site.xml,/etc/hadoop/conf/hdfs-site.xml
--Djava.library.path=/usr/lib/hadoop/lib/
+-Djava.library.path=/usr/lib/hadoop/lib/native/:/usr/lib/
 EOF
 
 if [[ "${ROLE}" == 'Master' ]]; then
@@ -99,7 +92,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
 coordinator=true
 node-scheduler.include-coordinator=false
 http-server.http.port=${HTTP_PORT}
-query.max-memory=${PRESTO_QUERY_DISTIBUTED_MB}MB
+query.max-memory=999TB
 query.max-memory-per-node=${PRESTO_QUERY_NODE_MB}MB
 resources.reserved-system-memory=${PRESTO_RESERVED_SYSTEM_MB}MB
 discovery-server.enabled=true
@@ -115,7 +108,7 @@ else
 	cat > presto-server-${PRESTO_VERSION}/etc/config.properties <<EOF
 coordinator=false
 http-server.http.port=${HTTP_PORT}
-query.max-memory=${PRESTO_QUERY_DISTIBUTED_MB}MB
+query.max-memory=999TB
 query.max-memory-per-node=${PRESTO_QUERY_NODE_MB}MB
 resources.reserved-system-memory=${PRESTO_RESERVED_SYSTEM_MB}MB
 discovery.uri=http://${PRESTO_MASTER_FQDN}:${HTTP_PORT}
