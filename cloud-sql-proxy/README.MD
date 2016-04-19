@@ -5,12 +5,14 @@ This initialization action installs a [Google Cloud SQL proxy](https://cloud.goo
 ## Using this initialization action
 You can use this initialization action to create a Dataproc cluster using a shared hive metastore.:
 
-1. Using the `gcloud` command to create a new Cloud SQL intance (or use a previously created instance)
+1. Using the `gcloud` command to create a new 2nd generation Cloud SQL intance (or use a previously created instance)
 
     ```bash
-    gcloud sql instances create <INSTANCE_NAME>
+    gcloud sql instances create <INSTANCE_NAME> \
+        --tier db-n1-standard1 \
+        --activation-policy=ALWAYS
     ```
-  a. Optionally create (or already have) other instances, which you wish to be accessible.
+  a. Optionally create (or already have) other 2nd generation instances, which you wish to be accessible.
 2. Uploading a copy of this initialization action (`cloud-sql-proxy.sh`) to [Google Cloud Storage](https://cloud.google.com/storage).
 3. Using the `gcloud` command to create a new cluster with this initialization action.
 
