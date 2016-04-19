@@ -18,7 +18,7 @@ You can use this initialization action to create a Dataproc cluster using a shar
     gcloud dataproc clusters create <CLUSTER_NAME> \
     --scopes sql-admin \
     --initialization-actions gs://<GCS_BUCKET>/cloud-sql-proxy.sh \
-    --properties hive:hive.metstore.warehouse.dir=gs://<GCS_BUCKET>/hive-warehouse \
+    --properties hive:hive.metastore.warehouse.dir=gs://<GCS_BUCKET>/hive-warehouse \
     --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>"
     ```
   a. Optionally add other instances, paired with distict TCP ports for further I/O.
@@ -41,7 +41,7 @@ You can use this initialization action to create a Dataproc cluster using a shar
 6. The two clusters should now be sharing Hive Tables and Spark SQL Dataframes saved as tables.
 
 ## Important notes
-* Hive stores the metadata of all tables in it's metastore. It stores the contents of (non-external) tables in a HCFS directory, which is by default on HDFS. If you want to perist your tables beyond the life of the cluster, set "hive.metstore.warehouse.dir" to a shared locations (such as the Cloud Storage directory in the example above). This directory get's baked into the Cloud SQL metastore, so it is recommended to set even if you intend to mostly use external tables. If you place this direcotry in Cloud Storage. You may want to use the shared NFS consistency cache as well.
+* Hive stores the metadata of all tables in it's metastore. It stores the contents of (non-external) tables in a HCFS directory, which is by default on HDFS. If you want to perist your tables beyond the life of the cluster, set "hive.metastore.warehouse.dir" to a shared locations (such as the Cloud Storage directory in the example above). This directory get's baked into the Cloud SQL metastore, so it is recommended to set even if you intend to mostly use external tables. If you place this direcotry in Cloud Storage. You may want to use the shared NFS consistency cache as well.
 * This initalization action can be reconfigured to only install a proxy on the master, if you only wish to have a shared metastore. Set `ENABLE_PROXY_ON_WORKERS` to 0.
 * It can be also be reconfigured to istall proxies without changing the Hive metasore, if you only wish to have the proxies. Set `ENABLE_CLOUD_SQL_METASTORE` to 0 and do not set the `hive-metastore-instance` metadata key.
 * The initialization action creates a `hive` user and `hive_metastore` database in the SQL instance if they don't already exist. It does this by logging in as root with an empty password. You can reconfigure all of this in the script.
