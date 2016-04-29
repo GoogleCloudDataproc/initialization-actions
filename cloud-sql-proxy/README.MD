@@ -9,7 +9,7 @@ You can use this initialization action to create a Dataproc cluster using a shar
 
     ```bash
     gcloud sql instances create <INSTANCE_NAME> \
-        --tier db-n1-standard1 \
+        --tier db-n1-standard-1 \
         --activation-policy=ALWAYS
     ```
   a. Optionally create (or already have) other 2nd generation instances, which you wish to be accessible.
