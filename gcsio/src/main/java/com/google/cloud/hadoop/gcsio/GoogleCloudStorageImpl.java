@@ -1613,7 +1613,7 @@ public class GoogleCloudStorageImpl
       if (errorExtractor.itemNotFound(e)) {
         LOG.debug("getBucket({}) : not found", bucketName);
       } else {
-        LOG.debug(String.format("getBucket({}) threw exception: ", bucketName), e);
+        LOG.debug(String.format("getBucket(%s) threw exception: ", bucketName), e);
         throw wrapException(e, "Error accessing", bucketName, null);
       }
     }
@@ -1680,7 +1680,7 @@ public class GoogleCloudStorageImpl
       if (errorExtractor.itemNotFound(e)) {
         LOG.debug("getObject({}) : not found", resourceId);
       } else {
-        LOG.debug(String.format("getObject({}) threw exception: ", resourceId), e);
+        LOG.debug(String.format("getObject(%s) threw exception: ", resourceId), e);
         throw wrapException(e, "Error accessing", bucketName, objectName);
       }
     }
