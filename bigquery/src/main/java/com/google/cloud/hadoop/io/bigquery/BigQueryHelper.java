@@ -206,7 +206,7 @@ public class BigQueryHelper {
       if (errorExtractor.itemAlreadyExists(ioe)) {
         LOG.info(String.format(
             "Fetching existing job after catching exception for duplicate jobId '%s'",
-            job.getJobReference().getJobId(), ioe));
+            job.getJobReference().getJobId()), ioe);
         response = service.jobs().get(projectId, job.getJobReference().getJobId()).execute();
       } else {
         LOG.info(String.format(
