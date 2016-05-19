@@ -28,31 +28,12 @@ HADOOP_VERSION="2.7.2"
 # Only run on the master node
 ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 if [[ "${ROLE}" == 'Master' ]]; then
-	
-  # Install Maven 3
-  mkdir -p /tmp/maven
-  cd /tmp/maven
-  wget "ftp://mirror.reverse.net/pub/apache/maven/maven-3/3.3.3/binaries/apache-maven-3.3.3-bin.tar.gz" -P /tmp/
-  tar -xf /tmp/apache-maven-3.3.3-bin.tar.gz -C /usr/lib/
-  ln -s /usr/lib/apache-maven-3.3.3 /usr/lib/apache-maven
-  ln -s /usr/lib/apache-maven/bin/mvn /usr/bin/mvn
-
-  # Install dependencies
-  apt-get install -y git vim emacs nodejs npm
-  ln -s /usr/bin/nodejs /usr/bin/node
-  npm update -g npm
-  npm install -g grunt-cli
-  npm install -g grunt
-  npm install -g bower
-
   # Install zeppelin
-  cd /usr/lib/
-  git clone https://github.com/apache/incubator-zeppelin.git
-  cd incubator-zeppelin
-  # Even with Hadoop 2.7, -Phadoop-2.6 should be used.
-  mvn clean install -DskipTests "-Dspark.version=$SPARK_VERSION" "-Dhadoop.version=$HADOOP_VERSION" -Pyarn -Phadoop-2.6 -Pspark-1.6 -Ppyspark
-  mkdir -p logs run conf
-  cat > conf/zeppelin-env.sh <<EOF
+  apt-get install -y zeppelin
+  /usr/lib/zeppelin/bin/zeppelin-daemon.sh stop
+  cd /usr/lib/zeppelin
+  mkdir -p logs run
+  cat > /etc/zeppelin/conf/zeppelin-env.sh <<EOF
 #!/bin/bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
@@ -109,13 +90,13 @@ EOF
   chmod -R a+w conf logs run
 
   # Let Zeppelin create the conf/interpreter.json file
-  /usr/lib/incubator-zeppelin/bin/zeppelin-daemon.sh start
+  /usr/lib/zeppelin/bin/zeppelin-daemon.sh start
   sleep 20s
-  /usr/lib/incubator-zeppelin/bin/zeppelin-daemon.sh stop
+  /usr/lib/zeppelin/bin/zeppelin-daemon.sh stop
 
   # Force the spark.executor.memory to be inherited from the environment
-  sed -i 's/"spark.executor.memory": "512m",/"spark.executor.memory": "",/' /usr/lib/incubator-zeppelin/conf/interpreter.json
-  /usr/lib/incubator-zeppelin/bin/zeppelin-daemon.sh start
+  sed -i 's/"spark.executor.memory": "512m",/"spark.executor.memory": "",/' /usr/lib/zeppelin/conf/interpreter.json
+  /usr/lib/zeppelin/bin/zeppelin-daemon.sh start
 fi
 
 set +x +e
