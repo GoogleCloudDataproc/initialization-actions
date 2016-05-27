@@ -22,7 +22,7 @@ set -x -e
 EXECUTOR_MEMORY="$(grep spark.executor.memory /etc/spark/conf/spark-defaults.conf | awk '{print $2}')"
 
 # Set these Spark and Hadoop versions based on your Dataproc version
-SPARK_VERSION="1.6.0"
+SPARK_VERSION="1.6.1"
 HADOOP_VERSION="2.7.2"
 
 # Only run on the master node
@@ -64,7 +64,7 @@ export ZEPPELIN_MEM=" "  # Zeppelin jvm mem options Default -Xmx1024m -XX:MaxPer
 ##
 
 export SPARK_HOME="/usr/lib/spark" # (required) When it is defined, load it instead of Zeppelin embedded Spark libraries
-export SPARK_SUBMIT_OPTIONS="--executor-memory $EXECUTOR_MEMORY"                   # (optional) extra options to pass to spark submit. eg) "--driver-memory 512M --executor-memory 1G".
+export SPARK_SUBMIT_OPTIONS="--executor-memory $EXECUTOR_MEMORY --packages com.spotify:spark-bigquery_2.10:0.1.0" # (optional) extra options to pass to spark submit. eg) "--driver-memory 512M --executor-memory 1G".
 
 ## Use embedded spark binaries ##
 ## without SPARK_HOME defined, Zeppelin still able to run spark interpreter process using embedded spark binaries.
