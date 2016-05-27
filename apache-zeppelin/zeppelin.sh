@@ -22,7 +22,7 @@ set -x -e
 EXECUTOR_MEMORY="$(grep spark.executor.memory /etc/spark/conf/spark-defaults.conf | awk '{print $2}')"
 
 # Set these Spark and Hadoop versions based on your Dataproc version
-SPARK_VERSION="1.6.0"
+SPARK_VERSION="1.6.1"
 HADOOP_VERSION="2.7.2"
 
 # Only run on the master node
