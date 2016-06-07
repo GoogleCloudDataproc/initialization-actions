@@ -283,15 +283,16 @@ public abstract class AbstractGoogleAsyncWriteChannel
   @Override
   public void close() throws IOException {
     throwIfNotInitialized();
-    throwIfNotOpen();
-    try {
-      pipeSinkChannel.close();
-      handleResponse(waitForCompletionAndThrowIfUploadFailed());
-    } finally {
-      pipeSinkChannel = null;
-      pipeSink = null;
-      pipeSource = null;
-      uploadOperation = null;
+    if (isOpen()) {
+      try {
+        pipeSinkChannel.close();
+        handleResponse(waitForCompletionAndThrowIfUploadFailed());
+      } finally {
+        pipeSinkChannel = null;
+        pipeSink = null;
+        pipeSource = null;
+        uploadOperation = null;
+      }
     }
   }
 

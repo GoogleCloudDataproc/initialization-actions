@@ -466,14 +466,10 @@ public class GoogleCloudStorageTest {
       assertArrayEquals(testData, readData);
     }
 
-    // After closing the channel, future writes or calls to close() should throw a
-    // ClosedChannelException.
-    try {
-      writeChannel.close();
-      fail("Expected ClosedChannelException");
-    } catch (ClosedChannelException ioe) {
-      // Expected.
-    }
+    // Closing the closed channel should have no effect.
+    writeChannel.close();
+
+    // Further writes to a closed channel should throw a ClosedChannelException.
     try {
       writeChannel.write(ByteBuffer.wrap(testData));
       fail("Expected ClosedChannelException");
