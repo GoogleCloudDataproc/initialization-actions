@@ -1,19 +1,9 @@
 #!/bin/bash
 set -e
 
-# 0. Specify Packages to be installed
-## 0.1 conda packages to be installed
-CONDA_PACKAGES='numpy pandas scikit-learn networkx seaborn bokeh ipython Jupyter pytables'
-## 0.2 pip packages to be installed
-PIP_PACKAGES='plotly py4j'
-
-echo "echo \$USER: $USER"
-echo "echo \$PWD: $PWD"
-echo "echo \$PATH: $PATH"
-echo "echo \$CONDA_BIN_PATH: $CONDA_BIN_PATH"
-
+# 0.1 Ensure we have conda installed and available on the PATH
 if [[ ! -v CONDA_BIN_PATH ]]; then
-    source /etc/profile.d/conda_config.sh  #/$HOME/.bashrc
+    source /etc/profile.d/conda_config.sh
 fi
 
 echo "echo \$USER: $USER"
@@ -21,47 +11,68 @@ echo "echo \$PWD: $PWD"
 echo "echo \$PATH: $PATH"
 echo "echo \$CONDA_BIN_PATH: $CONDA_BIN_PATH"
 
-# 1. Specify conda environment name
-if [ $# -eq 0 ]
-    then
+# 0.2. Specify conda environment name (recommend leaving as root)
+if [[ ! -v CONDA_ENV_NAME ]]; then
     echo "No conda environment name specified, setting to 'root' env..."
     CONDA_ENV_NAME='root'
 else
-    echo "conda environment name specified, setting to: $1"
-    CONDA_ENV_NAME=$1
+    echo "conda environment $CONDA_ENV_NAME set!"
 fi
 
-# 1. Create conda env and install conda packages
+conda update --all
+# 1. Create conda environment
+# 1.1 Update conda env from conda environment.yml (if specified)
+# For Dataproc provisioning, we should install to root conda env.
+if [[ -v CONDA_ENV_YAML ]]; then
+    #CONDA_ENV_NAME=$(grep 'name: ' $CONDA_ENV_YAML | awk '{print $2}')
+    conda env update --name=$CONDA_ENV_NAME --file=$CONDA_ENV_YAML #coral/env/env_coral__core.yml
+fi
+
+# 1. Or create conda env manually.
 echo "Attempting to create conda environment: $CONDA_ENV_NAME"
 if conda info --envs | grep -q $CONDA_ENV_NAME
     then
     echo "conda environment $CONDA_ENV_NAME detected, skipping env creation..."
+else
+    echo "Creating conda environment directly..."
+    conda create --quiet --yes --name=$CONDA_ENV_NAME python || true
+    echo "conda environment $CONDA_ENV_NAME created..."
+fi
+if [[ ! $CONDA_ENV_NAME == 'root' ]]
+    then
     echo "Activating $CONDA_ENV_NAME environment..."
     source activate $CONDA_ENV_NAME
-    echo "Installing / updating conda packages: $CONDA_PACKAGES"
-    conda install $CONDA_PACKAGES
-    pip install $PIP_PACKAGES
-else
-    echo "Creating conda environment and installing conda packages..."
-    echo "Installing CONDA_PACKAGES for $CONDA_ENV_NAME..."
+fi
+
+# 3. Install conda and pip packages (if specified)
+if [[ -v CONDA_PACKAGES ]]; then
+    echo "Installing conda packages for $CONDA_ENV_NAME..."
     echo "conda packages requested: $CONDA_PACKAGES"
-    conda create -q -n $CONDA_ENV_NAME $CONDA_PACKAGES || true
-    echo "conda environment $CONDA_ENV_NAME created..."
+    conda install $CONDA_PACKAGES
+fi
+if [[ -v PIP_PACKAGES ]]; then
+    echo "Installing pip packages for $CONDA_ENV_NAME..."
+    echo "conda packages requested: $PIP_PACKAGES"
     pip install $PIP_PACKAGES
 fi
 
-# 2. Append .bashrc with source activate
-echo "Attempting to append .bashrc to activate conda env at login..."
-if grep -ir "source activate $CONDA_ENV_NAME" /$HOME/.bashrc
+# 2. Append profiles with conda env source activate
+echo "Attempting to append /etc/profile.d/conda_config.sh to activate conda env at login..."
+if [[ -f "/etc/profile.d/conda_config.sh"  ]]  && [[ ! $CONDA_ENV_NAME == 'root' ]]
     then
-    echo "conda env activation found in .bashrc, skipping..."
+    if grep -ir "source activate $CONDA_ENV_NAME" /etc/profile.d/conda_config.sh
+        then
+        echo "conda env activation found in /etc/profile.d/conda_config.sh, skipping..."
+    else
+        echo "Appending /etc/profile.d/conda_config.sh to activate conda env $CONDA_ENV_NAME for shell..."
+        sudo echo "source activate $CONDA_ENV_NAME" | tee -a /etc/profile.d/conda_config.sh
+        echo "./etc/profile.d/conda_config.sh successfully appended!"
+    fi
+elif [[ $CONDA_ENV_NAME == 'root' ]]
+    then
+    echo "The conda env specified is 'root', the default environment, no need to activate, skipping..."
 else
-    echo "Appending .bashrc to activate conda env at login.."
-    sudo echo "source activate $CONDA_ENV_NAME"         >> $HOME/.bashrc
-    echo ".bashrc successfully appended!"
+    echo "No file detected at /etc/profile.d/conda_config.sh..."
+    echo "Are you sure you installed conda via bootstrap-conda.sh?"
+    exit 1
 fi
-
-echo "Activating $CONDA_ENV_NAME environment..."
-source activate $CONDA_ENV_NAME
-
-
