@@ -1,42 +1,53 @@
 #!/bin/bash
 set -e
+# Modified from bootstrap-conda.sh script, see:
+# https://gist.github.com/nehalecky/aea2100ca8bad83fe974
 
 # Run on BOTH 'Master' and 'Worker' nodes
 #ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 #if [[ "${ROLE}" == 'Master' ]]; then
 
-# Update gcloud SDK command line
-gcloud components update -q
-
-CONDA_INSTALL_PATH="/usr/local/bin/miniconda"
-
-# 0. Specify Miniconda version
-# 0.1 A few parameters
-# specify base operating system
-OS_TYPE="Linux-x86_64.sh"
-# specify Miniconda release
-MINICONDA_VER='3.19.0'
-##
-if [[ ! -v MINICONDA_VARIANT ]]; then
-    #MINICONDA_VARIANT="Miniconda2"  #for Python 2.7.x
-    #expectedHash="628f158791daf7d634fb6894045a6be1"
-    MINICONDA_VARIANT="Miniconda3"  #for Python 3.5.x
-    expectedHash="b834b525d3f42add8f2af0153d13f498"
+if [[ ! -v CONDA_INSTALL_PATH ]]; then
+    echo "CONDA_INSTALL_PATH not set, setting ..."
+    CONDA_INSTALL_PATH="/usr/local/bin/miniconda"
+    echo "Set CONDA_INSTALL_PATH to $CONDA_INSTALL_PATH"
 fi
-## 0. Compute Miniconda version
+# 0. Specify Miniconda version
+## 0.1 A few parameters
+## specify base operating system
+if [[ ! -v OS_TYPE ]]; then
+    echo "OS_TYPE not set, setting  ..."
+    OS_TYPE="Linux-x86_64.sh"
+    echo "Set OS_TYPE to $OS_TYPE"
+fi
+## Python 2 or 3?
+if [[ ! -v MINICONDA_VARIANT ]]; then
+    echo "MINICONDA_VARIANT not set, setting ... "
+    MINICONDA_VARIANT="Miniconda3"  #for Python 3.5.x
+    echo "Set MINICONDA_VARIANT to $MINICONDA_VARIANT"
+else
+    MINICONDA_VARIANT="Miniconda$MINICONDA_VARIANT"
+fi
+
+## specify Miniconda release (e.g., MINICONDA_VER='4.0.5')
+if [[ ! -v MINICONDA_VER ]]; then
+    echo "MINICONDA_VER not set, setting ..."
+    MINICONDA_VER='latest'
+    set "Set MINICONDA_VER to $MINICONDA_VER"
+fi
+
+## 0.2 Compute Miniconda version
 miniconda="$MINICONDA_VARIANT-$MINICONDA_VER-$OS_TYPE"
+echo "Miniconda version specified: $miniconda"
+## 0.3 Set MD5 hash for check (if desired)
+#expectedHash="b1b15a3436bb7de1da3ccc6e08c7a5df"
 
 # 1. Setup Miniconda Install
 ## 1.1 Define Miniconda install directory
 echo "Working directory: $PWD"
-if [ $# -eq 0 ]
-    then
+if [[ ! -v $PROJ_DIR ]]; then
     echo "No path argument specified, setting install directory as working directory: $PWD."
     PROJ_DIR=$PWD
-
-else
-    echo "Path argument specified, installing to: $1"
-    PROJ_DIR=$1
 fi
 
 ## 1.2 Setup Miniconda
@@ -54,14 +65,16 @@ else
   chmod 755 $MINICONDA_SCRIPT_PATH
 fi
 
-# 1.3 #md5sum hash check of miniconda installer
-md5Output=$(md5sum $MINICONDA_SCRIPT_PATH | awk '{print $1}')
-if [ "$expectedHash" != "$md5Output" ]; then
-    echo "Unexpected md5sum $md5Output for $miniconda"
-    exit 1
+## 1.3 #md5sum hash check of miniconda installer
+if [[ -v expectedHash ]]; then
+    md5Output=$(md5sum $MINICONDA_SCRIPT_PATH | awk '{print $1}')
+    if [ "$expectedHash" != "$md5Output" ]; then
+        echo "Unexpected md5sum $md5Output for $miniconda"
+        exit 1
+    fi
 fi
 
-# 2. Install Conda
+# 2. Install conda
 ## 2.1 Via bootstrap
 LOCAL_CONDA_PATH="$PROJ_DIR/miniconda"
 if [[ ! -d $LOCAL_CONDA_PATH ]]; then
@@ -78,7 +91,7 @@ else
     echo "Existing directory at path: $LOCAL_CONDA_PATH, skipping install!"
 fi
 
-# 2.2 Update PATH and conda...
+## 2.2 Update PATH and conda...
 echo "Setting environment variables..."
 CONDA_BIN_PATH="$CONDA_INSTALL_PATH/bin"
 export PATH="$CONDA_BIN_PATH:$PATH"
@@ -86,7 +99,7 @@ echo "Updated PATH: $PATH"
 echo "And also HOME: $HOME"
 hash -r
 which conda
-conda config --set always_yes yes --set changeps1 no
+conda config --set always_yes true --set changeps1 false
 
 echo "Updating conda..."
 conda update -q conda
@@ -95,9 +108,9 @@ conda info -a
 
 # Install useful conda utilities in root env
 echo "Installing useful conda utilities in root env..."
-conda install pip anaconda-client conda-build conda-env
-conda install -n root -c conda conda-env
-pip install py4j
+conda install anaconda-client conda-build
+
+conda update --all
 
 # 2.3 Update global profiles to add the miniconda location to PATH and PYTHONHASHSEED
 # based on: http://stackoverflow.com/questions/14637979/how-to-permanently-set-path-on-linux
@@ -110,13 +123,13 @@ if [[ -f "/etc/profile.d/conda_config.sh" ]]
     echo "conda_config.sh found in /etc/profile.d/, skipping..."
 else
     echo "Adding path definition to profiles..."
-    echo "export CONDA_BIN_PATH=$CONDA_BIN_PATH" | tee -a /etc/profile.d/conda_config.sh  /etc/*bashrc /etc/profile #/etc/environment
-    echo 'export PATH=$CONDA_BIN_PATH:$PATH' | tee -a /etc/profile.d/conda_config.sh  /etc/*bashrc /etc/profile #/etc/environment
+    echo "export CONDA_BIN_PATH=$CONDA_BIN_PATH" | tee -a /etc/profile.d/conda_config.sh  /etc/*bashrc /etc/profile
+    echo 'export PATH=$CONDA_BIN_PATH:$PATH' | tee -a /etc/profile.d/conda_config.sh  /etc/*bashrc /etc/profile
     # Fix issue with Python3 hash seed.
     # Issue here: https://issues.apache.org/jira/browse/SPARK-12100
     # Fix here: http://blog.stuart.axelbrooke.com/python-3-on-spark-return-of-the-pythonhashseed/
     echo "Adding PYTHONHASHSEED=0 to profiles and spark-defaults.conf..."
-    echo "export PYTHONHASHSEED=0" | tee -a  /etc/profile.d/conda_config.sh  /etc/*bashrc  /usr/lib/spark/conf/spark-env.sh #/etc/environment
+    echo "export PYTHONHASHSEED=0" | tee -a  /etc/profile.d/conda_config.sh  /etc/*bashrc  /usr/lib/spark/conf/spark-env.sh
     echo "spark.executorEnv.PYTHONHASHSEED=0" >> /etc/spark/conf/spark-defaults.conf
 fi
 
@@ -125,4 +138,5 @@ fi
 echo "Ensure that Anaconda Python and PySpark play nice by all pointing to same Python distro..."
 if [[ ! -v PYSPARK_PYTHON ]]; then  echo "export PYSPARK_PYTHON=$CONDA_BIN_PATH/python" | tee -a  /etc/profile.d/conda_config.sh  /etc/*bashrc /etc/environment /usr/lib/spark/conf/spark-env.sh; fi
 
-echo "Finished bootstrapping via Miniconda..."
+echo "Finished bootstrapping via Miniconda, sourcing /etc/profile ..."
+source /etc/profile
