@@ -21,7 +21,18 @@ gcloud dataproc clusters create my-dataproc-cluster \
     --master-machine-type=n1-standard-4
 ```
 
-Where `create-my-cluster.sh` could look like
+Where `create-my-cluster.sh` specifies a list of conda and / or pip packages to install:
+
+```
+# Install Miniconda / conda
+./dataproc-initialization-actions/conda/bootstrap-conda.sh
+# Update conda root environment with specific packages in pip and conda
+CONDA_PACKAGES='pandas dash scikit-learn'
+PIP_PACKAGES='plotly cufflinks'
+CONDA_PACKAGES=$CONDA_PACKAGES PIP_PACKAGES=$PIP_PACKAGES ./dataproc-initialization-actions/conda/install-conda-env.sh
+```
+
+Similarly, one can also specify a [conda environment yml file](https://github.com/conda/conda-env):
 
 ```
 #!/usr/bin/env bash
@@ -33,10 +44,11 @@ gsutil -m cp -r $CORAL_ENV_YAML_GSC_LOC $CONDA_ENV_YAML_PATH
 
 # Install Miniconda / conda
 ./dataproc-initialization-actions/conda/bootstrap-conda.sh
-# Create conda environment via conda yaml
+# Create / Update conda environment via conda yaml
 CONDA_ENV_YAML=$CONDA_ENV_YAML_PATH ./dataproc-initialization-actions/conda/install-conda-env.sh
 
 ```
+
 
 ## Details 
 
