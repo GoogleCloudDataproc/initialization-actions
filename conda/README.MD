@@ -2,15 +2,16 @@
 
 ## Overview
 
-This folder contains initialization actions for getting up and going using Miniconda, providing use of both:
+This folder contains initialization actions for use Miniconda / conda, who can be introduced as:
  
 - [Minconda](http://conda.pydata.org/miniconda.html), a barebones version of [Anaconda](https://www.continuum.io/why-anaconda) of an open source (and totally legit) Python distro from Continuum Analytics, alongside,
-- [conda](http://conda.pydata.org/docs/), an open source (and amazing) package management system and environment management system.
+- [conda](http://conda.pydata.org/docs/), an open source (and amazing) package and environment management system.
 
-This allows Dataproc users to quickly and easily provision a Dataproc cluster leveraging conda's powerful package and environment management capabilities, including use of [conda environment definitions](https://github.com/conda/conda-env#environment-file-example).
+This allows Dataproc users to quickly and easily provision a Dataproc cluster leveraging conda's powerful management capabilities, by specifying a list of conda and / or pip packages along with use of [conda environment definitions](https://github.com/conda/conda-env#environment-file-example). All configuration is exposed via environment variables set to sane point-and-shoot defaults.
 
-A real world example of this, to be used in a bash shell script, is as follows:
+An example, to be used in a bash shell script:
 
+```
 gcloud dataproc clusters create my-dataproc-cluster \
     --initialization-actions \
         gs://dataproc-initialization-actions/jupyter/create-my-cluster.sh \
@@ -31,47 +32,49 @@ echo "Downloading conda environment at $CONDA_ENV_YAML_GSC_LOC to $CONDA_ENV_YAM
 gsutil -m cp -r $CORAL_ENV_YAML_GSC_LOC $CONDA_ENV_YAML_PATH
 
 # Install Miniconda / conda
-./dataproc-initialization-actions/conda/install-conda-env.sh
-# Install conda environment (provides dependencies)
+./dataproc-initialization-actions/conda/bootstrap-conda.sh
+# Create conda environment via conda yaml
 CONDA_ENV_YAML=$CONDA_ENV_YAML_PATH ./dataproc-initialization-actions/conda/install-conda-env.sh
+
 ```
 
 ## Details 
 
 ### bootstrap-conda.sh
 
-`bootstrap-conda.sh` contains logic for quickly configuring and installing Miniconda across the dataproc cluster, with configuration exposed via sane environment variables with point-and-shoot defaults, including:
-
-- Miniconda version, defaults to Python 3 version, [`Miniconda3-latest-Linux-x86_64.sh`](https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh), however, users can easily config for targeted versions via th following env vars (see script source for all options):
+`bootstrap-conda.sh` contains logic for quickly configuring and installing Miniconda across the dataproc cluster. Defaults to [`Miniconda3-latest-Linux-x86_64.sh`](https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh) package (e.g., Python 3), however, users can easily config for targeted versions via the following env vars (see script source for all options):
     - `MINICONDA_VARIANT`: the Python version can be `2` or `3`
     - `MINICONDA_VER`: the Miniconda version (e.g., `4.0.5`)
- 
-- downloads and installs to the `$HOME` directory
-- updates `$PATH`, across all shell processes (for both interactive and batch sessions)
-- installs some powerful extensions:
+In addition, the script:
+- downloads and installs Miniconda to the `$HOME` directory
+- updates `$PATH`, exposing conda across all shell processes (for both interactive and batch sessions)
+- installs some useful extensions:
     - [`conda-build`](https://github.com/conda/conda-build)
     - [`anaconda-client`](https://github.com/Anaconda-Server/anaconda-client)
     
- 
-A majority of this (and additional) functionality is configurable, see the script source for options. :)
+See the script source for more options on configuration. :)
 
 ### install-conda-env.sh
 
-`install-conda-env.sh` contains logic for creating a conda environment and installing conda and/or pip packages. Sane defaults include:
+`install-conda-env.sh` contains logic for creating a conda environment and installing conda and/or pip packages. Defaults include:
 
 - if no conda environment name is specified, uses `root` (recommended).
 - detects if conda environment has already been created.
 - updates `/etc/profile` to activate the created environment at login (if needed)
 
+Note: When creating a conda environment using an environment.yml (set by `CONDA_ENV_YAML`), default configuration simply *updates the root environment* with dependencies specified in the file (ignoring the `name:` key). To set a specific name to the conda environment, users *must* set an additional env var, `CONDA_ENV_NAME`.
+
+
 ### Notes on running Python 3
 
 Starting with Python 3.3, hash randomization is enabled by default (see docs for [object.\__hash__](https://docs.python.org/3/reference/datamodel.html#object.__hash__)). Spark attempts to correct this by setting the `PYTHONHASHSEED` environment variable, but a [small bug in Spark](https://issues.apache.org/jira/browse/SPARK-13330) keeps the env var from propogating to all executors.
 
-The `boostrap-conda.sh` initialization action fixes this issue; users will not have to take any additional actions to use Python 3 on DataProc. Alternatively, users can pass the following `properties` argument when creating a DataProc cluster:
+The `boostrap-conda.sh` initialization action fixes this issue; users will not have to take any additional actions to use Python 3 on Dataproc. Alternatively, users can pass the following `properties` argument when creating a DataProc cluster:
 ```
 gcloud dataproc clusters create --properties spark:spark.executorEnv.PYTHONHASHSEED=0 ...
 ```
 Note that at this time Dataproc will *NOT* accept the property value when submitting a job; it must be passed when the cluster is created.
+
 
 ## Testing Installation
 

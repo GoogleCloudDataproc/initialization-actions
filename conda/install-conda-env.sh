@@ -25,7 +25,20 @@ conda update --all
 # For Dataproc provisioning, we should install to root conda env.
 if [[ -v CONDA_ENV_YAML ]]; then
     #CONDA_ENV_NAME=$(grep 'name: ' $CONDA_ENV_YAML | awk '{print $2}')
-    conda env update --name=$CONDA_ENV_NAME --file=$CONDA_ENV_YAML #coral/env/env_coral__core.yml
+    # if conda environment name is root, we *update* the root environment with env yaml
+    if [[ $CONDA_ENV_NAME == 'root' ]]
+        then
+        echo "Updating root environment with file $CONDA_ENV_YAML"
+        conda env update --name=$CONDA_ENV_NAME --file=$CONDA_ENV_YAML
+        echo "Root environment updated..."
+
+    # otherwise, perform a typical environment creation via install
+    else
+        echo "Creating $CONDA_ENV_NAME environment with file $CONDA_ENV_YAML"
+        conda env create --name=$CONDA_ENV_NAME --file=$CONDA_ENV_YAML
+        echo "conda environment $CONDA_ENV_NAME created..."
+
+    fi
 fi
 
 # 1. Or create conda env manually.
