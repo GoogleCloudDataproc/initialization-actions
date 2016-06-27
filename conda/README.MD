@@ -62,7 +62,7 @@ See the script source for more options on configuration. :)
 - detects if conda environment has already been created.
 - updates `/etc/profile` to activate the created environment at login (if needed)
 
-Note: When creating a conda environment using an environment.yml (set by `CONDA_ENV_YAML`), default configuration simply *updates the root environment* with dependencies specified in the file (ignoring the `name:` key). To set a specific name to the conda environment, users *must* set an additional env var, `CONDA_ENV_NAME`.
+Note: When creating a conda environment using an environment.yml (via setting .yml path in `CONDA_ENV_YAML`), the `install-conda-env.sh` script simply *updates the **root** environment* with dependencies specified in the file (i.e., ignoring the `name:` key). This sidesteps some conda issues in `source activate`ing, while still providing all dependencies across the Dataproc cluster.
 
 
 ### Notes on running Python 3

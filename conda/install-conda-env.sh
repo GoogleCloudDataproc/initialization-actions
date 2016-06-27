@@ -15,8 +15,16 @@ echo "echo \$CONDA_BIN_PATH: $CONDA_BIN_PATH"
 if [[ ! -v CONDA_ENV_NAME ]]; then
     echo "No conda environment name specified, setting to 'root' env..."
     CONDA_ENV_NAME='root'
+# Force conda env name to be set to root for now, until a braver soul manages the complexity of environment activation
+# across the cluster.
 else
-    echo "conda environment $CONDA_ENV_NAME set!"
+    echo "conda environment name is set to $CONDA_ENV_NAME"
+    if [[ ! $CONDA_ENV_NAME == 'root' ]]
+        then
+        echo "Custom conda environment names not supported at this time."
+        echo "Force setting conda env to 'root'..."
+    fi
+    CONDA_ENV_NAME='root'
 fi
 
 conda update --all
@@ -31,13 +39,11 @@ if [[ -v CONDA_ENV_YAML ]]; then
         echo "Updating root environment with file $CONDA_ENV_YAML"
         conda env update --name=$CONDA_ENV_NAME --file=$CONDA_ENV_YAML
         echo "Root environment updated..."
-
     # otherwise, perform a typical environment creation via install
     else
         echo "Creating $CONDA_ENV_NAME environment with file $CONDA_ENV_YAML"
         conda env create --name=$CONDA_ENV_NAME --file=$CONDA_ENV_YAML
         echo "conda environment $CONDA_ENV_NAME created..."
-
     fi
 fi
 
