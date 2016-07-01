@@ -15,14 +15,11 @@
 set -x -e
 
 # Variables for this script
-ZOOKEEPER_VERSION="3.4.6"
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 CLUSTER_NAME=$(hostname | sed -r 's/(.*)-[w|m](-[0-9]+)?$/\1/')
 
 # Download and extract ZooKeeper
-cd ~
-wget http://www.us.apache.org/dist/zookeeper/zookeeper-${ZOOKEEPER_VERSION}/zookeeper-${ZOOKEEPER_VERSION}.tar.gz
-tar zxvf zookeeper-${ZOOKEEPER_VERSION}.tar.gz
+apt-get install -y zookeeper
 mkdir -p /var/lib/zookeeper
 
 # Configure ZooKeeper node ID
@@ -33,7 +30,7 @@ fi
 echo ${NODE_NUMBER} > /var/lib/zookeeper/myid
 
 # Write ZooKeeper configuration file
-cat > zookeeper-${ZOOKEEPER_VERSION}/conf/zoo.cfg <<EOF
+cat > /etc/zookeeper/conf/zoo.cfg <<EOF
 tickTime=2000
 dataDir=/var/lib/zookeeper
 clientPort=2181
@@ -45,4 +42,4 @@ server.3=${CLUSTER_NAME}-w-1:2888:3888
 EOF
 
 # Start ZooKeeper
-zookeeper-${ZOOKEEPER_VERSION}/bin/zkServer.sh start
+ZOO_LOG_DIR=/var/log/zookeeper /usr/lib/zookeeper/bin/zkServer.sh start
