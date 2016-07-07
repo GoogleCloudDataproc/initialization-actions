@@ -406,4 +406,15 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
       // Expected.
     }
   }
+
+  /**
+   * Disable test cases which are too expensive to always run in global-rooted mode.
+   */
+  @Override
+  public void testListObjectNamesAndGetItemInfo() {
+  }
+
+  @Override
+  public void provideCoverageForUnmodifiedMethods() {
+  }
 }
