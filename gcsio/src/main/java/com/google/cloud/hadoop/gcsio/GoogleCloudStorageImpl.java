@@ -1629,6 +1629,7 @@ public class GoogleCloudStorageImpl
    */
   private long getWriteGeneration(StorageResourceId resourceId, boolean overwritable)
       throws IOException {
+    LOG.debug("getWriteGeneration({}, {})", resourceId, overwritable);
     GoogleCloudStorageItemInfo info = getItemInfo(resourceId);
     if (!info.exists()) {
       return 0L;
@@ -1746,6 +1747,7 @@ public class GoogleCloudStorageImpl
   public void compose(
       String bucketName, List<String> sources, String destination, String contentType)
       throws IOException {
+    LOG.debug("compose({}, {}, {}, {})", bucketName, sources, destination, contentType);
     List<SourceObjects> sourceObjects =
         Lists.transform(
             sources,
@@ -1766,6 +1768,9 @@ public class GoogleCloudStorageImpl
                     .setDestination(new StorageObject().setContentType(contentType)));
     compose.setIfGenerationMatch(
         getWriteGeneration(new StorageResourceId(bucketName, destination), true));
+
+    LOG.debug("compose.execute()");
     compose.execute();
+    LOG.debug("compose() done");
   }
 }

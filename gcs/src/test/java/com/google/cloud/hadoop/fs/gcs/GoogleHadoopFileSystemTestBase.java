@@ -126,6 +126,15 @@ public abstract class GoogleHadoopFileSystemTestBase
   public abstract void testConfigureBucketsSuccess()
       throws URISyntaxException, IOException;
 
+  // -----------------------------------------------------------------------------------------
+  // Tests that aren't supported by all configurations of GHFS.
+  // -----------------------------------------------------------------------------------------
+
+  @Test @Override
+  public void testHsync() throws IOException {
+    // hsync() is not supported in the default setup.
+  }
+
   /**
    * Tests getGcsPath().
    */
@@ -489,7 +498,6 @@ public abstract class GoogleHadoopFileSystemTestBase
     // Call methods to provide coverage for. Note that we do not attempt to
     // test their functionality as we are not testing Hadoop engine here.
     try {
-      ghfs.globStatus(tempFilePath);
       ghfs.deleteOnExit(tempFilePath);
       ghfs.getContentSummary(tempFilePath);
       ghfs.getDelegationToken("foo");

@@ -54,6 +54,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.DirectoryNotEmptyException;
 import java.security.GeneralSecurityException;
@@ -367,6 +368,27 @@ public abstract class GoogleHadoopFileSystemBase
 
   // Default suffix to add to the application name.
   public static final String GCS_APPLICATION_NAME_SUFFIX_DEFAULT = "";
+
+  // Configuration key for which type of output stream to use; different options may have different
+  // degrees of support for advanced features like hsync() and different performance
+  // characteristics. Options:
+  // BASIC: Stream is closest analogue to direct wrapper around low-level HTTP stream into GCS.
+  // SYNCABLE_COMPOSITE: Stream behaves similarly to BASIC when used with basic create/write/close
+  //     patterns, but supports hsync() by creating discrete temporary GCS objects which are
+  //     composed onto the destination object. Has a hard upper limit of number of components
+  //     which can be composed onto the destination object.
+  public static final String GCS_OUTPUTSTREAM_TYPE_KEY = "fs.gs.outputstream.type";
+
+  // Default value for fs.gs.outputstream.type.
+  public static final String GCS_OUTPUTSTREAM_TYPE_DEFAULT = "BASIC";
+
+  /**
+   * Available types for use with fs.gs.outputstream.type.
+   */
+  public static enum OutputStreamType {
+    BASIC,
+    SYNCABLE_COMPOSITE
+  }
 
   // Default PathFilter that accepts all paths.
   public static final PathFilter DEFAULT_FILTER = new PathFilter() {
@@ -910,12 +932,31 @@ public abstract class GoogleHadoopFileSystemBase
 
     URI gcsPath = getGcsPath(hadoopPath);
 
-    GoogleHadoopOutputStream out = new GoogleHadoopOutputStream(
-        this,
-        gcsPath,
-        bufferSize,
-        statistics,
-        new CreateFileOptions(overwrite));
+    OutputStreamType type = OutputStreamType.valueOf(
+        getConf().get(GCS_OUTPUTSTREAM_TYPE_KEY, GCS_OUTPUTSTREAM_TYPE_DEFAULT));
+    OutputStream out;
+    switch (type) {
+      case BASIC:
+        out = new GoogleHadoopOutputStream(
+          this,
+          gcsPath,
+          bufferSize,
+          statistics,
+          new CreateFileOptions(overwrite));
+        break;
+      case SYNCABLE_COMPOSITE:
+        out = new GoogleHadoopSyncableOutputStream(
+          this,
+          gcsPath,
+          bufferSize,
+          statistics,
+          new CreateFileOptions(overwrite));
+        break;
+      default:
+        throw new IOException(String.format(
+            "Unsupported output stream type given for key '%s': '%s'",
+            GCS_OUTPUTSTREAM_TYPE_KEY, type));
+    }
 
     long duration = System.nanoTime() - startTime;
     increment(Counter.CREATE);
@@ -1449,7 +1490,7 @@ public abstract class GoogleHadoopFileSystemBase
   /**
    * Gets GCS FS instance.
    */
-  GoogleCloudStorageFileSystem getGcsFs() {
+  public GoogleCloudStorageFileSystem getGcsFs() {
     return gcsfs;
   }
 

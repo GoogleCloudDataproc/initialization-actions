@@ -30,6 +30,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -458,18 +459,21 @@ public class InMemoryGoogleCloudStorage
                 return new StorageResourceId(bucketName, s);
               }
             });
+    ByteArrayOutputStream tempOutput = new ByteArrayOutputStream();
+    for (StorageResourceId sourceId : sourceResourcesIds) {
+      try (SeekableByteChannel sourceChannel = open(sourceId)) {
+        byte[] buf = new byte[(int) sourceChannel.size()];
+        ByteBuffer reader = ByteBuffer.wrap(buf);
+        sourceChannel.read(reader);
+        tempOutput.write(buf, 0, buf.length);
+      }
+    }
+
     WritableByteChannel destChannel =
         create(
             new StorageResourceId(bucketName, destination),
             new CreateObjectOptions(true, contentType, CreateObjectOptions.EMPTY_METADATA));
-    for (StorageResourceId sourceId : sourceResourcesIds) {
-      try (SeekableByteChannel sourceChannel = open(sourceId)) {
-        ByteBuffer reader = ByteBuffer.allocate((int) sourceChannel.size());
-        sourceChannel.read(reader);
-        reader.flip();
-        destChannel.write(reader);
-      }
-    }
+    destChannel.write(ByteBuffer.wrap(tempOutput.toByteArray()));
     destChannel.close();
   }
 }

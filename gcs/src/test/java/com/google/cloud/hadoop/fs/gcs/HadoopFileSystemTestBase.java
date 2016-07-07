@@ -754,6 +754,54 @@ public abstract class HadoopFileSystemTestBase
     }
   }
 
+  @Test
+  public void testHsync() throws IOException {
+    internalTestHsync();
+  }
+
+  protected void internalTestHsync() throws IOException {
+    String line1 = "hello\n";
+    byte[] line1Bytes = line1.getBytes("UTF-8");
+    String line2 = "world\n";
+    byte[] line2Bytes = line2.getBytes("UTF-8");
+    String line3 = "foobar\n";
+    byte[] line3Bytes = line3.getBytes("UTF-8");
+
+    URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
+    Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
+    FSDataOutputStream writeStream = ghfs.create(hadoopPath);
+
+    StringBuilder expected = new StringBuilder();
+
+    // Write first line one byte at a time.
+    for (byte b : line1Bytes) {
+      writeStream.write(b);
+    }
+    expected.append(line1);
+
+    // Use the deprecated sync() for Hadoop 1 compatibility.
+    writeStream.sync();
+
+    String readText = ghfsHelper.readTextFile(hadoopPath);
+    Assert.assertEquals("Expected line1 after first sync()", expected.toString(), readText);
+
+    // Write second line, sync() again.
+    writeStream.write(line2Bytes, 0, line2Bytes.length);
+    expected.append(line2);
+    writeStream.sync();
+    readText = ghfsHelper.readTextFile(hadoopPath);
+    Assert.assertEquals(
+        "Expected line1 + line2 after second sync()", expected.toString(), readText);
+
+    // Write third line, close() without sync().
+    writeStream.write(line3Bytes, 0, line3Bytes.length);
+    expected.append(line3);
+    writeStream.close();
+    readText = ghfsHelper.readTextFile(hadoopPath);
+    Assert.assertEquals(
+        "Expected line1 + line2 + line3 after close()", expected.toString(), readText);
+  }
+
   // -----------------------------------------------------------------
   // Inherited tests that we suppress because they do not make sense
   // in the context of this layer.

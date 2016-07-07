@@ -1582,10 +1582,9 @@ public class GoogleCloudStorageFileSystem {
   }
 
   /**
-   * Retrieve our internal gcs, for testing purposes only.
+   * Retrieve our internal gcs.
    */
-  @VisibleForTesting
-  GoogleCloudStorage getGcs() {
+  public GoogleCloudStorage getGcs() {
     return gcs;
   }
 
