@@ -41,8 +41,18 @@ import java.util.Set;
 
 public class RetryHttpInitializer
     implements HttpRequestInitializer {
+  // HTTP status code indicating too many requests in a given amount of time.
+  public static final int STATUS_CODE_TOO_MANY_REQUESTS = 429;
+
   // Logger.
   private static final Logger LOG = LoggerFactory.getLogger(RetryHttpInitializer.class);
+
+  // Base impl of BackOffRequired determining the default set of cases where we'll retry on
+  // unsuccessful HTTP responses; we'll mix in additional retriable response cases on top
+  // of the bases cases defined by this instance.
+  private static final HttpBackOffUnsuccessfulResponseHandler.BackOffRequired
+      BASE_HTTP_BACKOFF_REQUIRED =
+          HttpBackOffUnsuccessfulResponseHandler.BackOffRequired.ON_SERVER_ERROR;
 
   // To be used as a request interceptor for filling in the "Authorization" header field, as well
   // as a response handler for certain unsuccessful error codes wherein the Credential must refresh
@@ -117,6 +127,14 @@ public class RetryHttpInitializer
     public CredentialOrBackoffResponseHandler() {
       HttpBackOffUnsuccessfulResponseHandler errorCodeHandler =
           new HttpBackOffUnsuccessfulResponseHandler(new ExponentialBackOff());
+      errorCodeHandler.setBackOffRequired(
+          new HttpBackOffUnsuccessfulResponseHandler.BackOffRequired() {
+            @Override
+            public boolean isRequired(HttpResponse response) {
+              return BASE_HTTP_BACKOFF_REQUIRED.isRequired(response)
+                  || response.getStatusCode() == STATUS_CODE_TOO_MANY_REQUESTS;
+            }
+          });
       if (sleeperOverride != null) {
         errorCodeHandler.setSleeper(sleeperOverride);
       }

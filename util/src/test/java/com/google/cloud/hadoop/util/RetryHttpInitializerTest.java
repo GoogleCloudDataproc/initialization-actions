@@ -184,6 +184,18 @@ public class RetryHttpInitializerTest {
 
   @Test
   public void testErrorCodeTransientServerError() throws IOException, InterruptedException {
+    testRetriesForErrorCode(503);
+  }
+
+  @Test
+  public void testErrorCodeRateLimitExceeded() throws IOException, InterruptedException {
+    testRetriesForErrorCode(429);
+  }
+
+  /**
+   * Helper for test cases wanting to test retries kicking in for particular error codes.
+   */
+  private void testRetriesForErrorCode(int code) throws IOException, InterruptedException {
     final String authHeaderValue = "Bearer a1b2c3d4";
     final HttpRequest req = requestFactory.buildGetRequest(new GenericUrl("http://fake-url.com"));
     assertEquals("foo-user-agent", req.getHeaders().getUserAgent());
@@ -210,7 +222,7 @@ public class RetryHttpInitializerTest {
         .thenReturn(mockLowLevelResponse)
         .thenReturn(mockLowLevelResponse);
     when(mockLowLevelResponse.getStatusCode())
-        .thenReturn(503)
+        .thenReturn(code)
         .thenReturn(200);
     when(mockCredential.handleResponse(eq(req), any(HttpResponse.class), eq(true)))
         .thenReturn(false);

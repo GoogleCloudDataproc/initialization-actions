@@ -4,6 +4,8 @@
      GoogleCloudStorageFileSystem(GoogleCloudStorage) to inherit the inner
      GoogleCloudStorageOptions from the passed-in GoogleCloudStorage rather
      than simply falling back to default GoogleCloudStorageFileSystemOptions.
+  2. Changed RetryHttpInitializer to treat HTTP code 429 as a retriable
+     error with exponential backoff instead of erroring out.
 
 
 1.4.5 - 2016-03-24
