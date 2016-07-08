@@ -466,4 +466,51 @@ public class GoogleCloudStorageFileSystemTest
       // Expected.
     }
   }
+
+  @Test
+  public void testCreateNoParentDirectories()
+      throws URISyntaxException, IOException {
+    gcsfs.create(
+        new URI("gs://" + bucketName + "/no/parent/dirs/exist/a.txt"),
+        new CreateFileOptions(
+            false,  // overwriteExisting
+            CreateFileOptions.DEFAULT_CONTENT_TYPE,
+            CreateFileOptions.EMPTY_ATTRIBUTES,
+            true,  // checkNoDirectoryConflict
+            false))  // ensureParentDirectoriesExist
+        .close();
+    Assert.assertTrue(
+        gcsfs.getGcs().getItemInfo(new StorageResourceId(bucketName, "no/parent/dirs/exist/a.txt"))
+            .exists());
+    Assert.assertFalse(
+        gcsfs.getGcs().getItemInfo(new StorageResourceId(bucketName, "no/parent/dirs/exist/"))
+            .exists());
+    Assert.assertFalse(
+        gcsfs.getGcs().getItemInfo(new StorageResourceId(bucketName, "no/parent/dirs/"))
+            .exists());
+  }
+
+  @Test
+  public void testCreateAllowConflictWithExistingDirectory()
+      throws URISyntaxException, IOException {
+    gcsfs.mkdirs(new URI("gs://" + bucketName + "/conflicting-dirname"));
+    gcsfs.create(
+        new URI("gs://" + bucketName + "/conflicting-dirname"),
+        new CreateFileOptions(
+            false,  // overwriteExisting
+            CreateFileOptions.DEFAULT_CONTENT_TYPE,
+            CreateFileOptions.EMPTY_ATTRIBUTES,
+            false,  // checkNoDirectoryConflict
+            true))  // ensureParentDirectoriesExist
+        .close();
+
+    // This is a "shoot yourself in the foot" use case, but working as intended if
+    // checkNoDirectoryConflict is disabled; object and directory have same basename.
+    Assert.assertTrue(
+        gcsfs.getGcs().getItemInfo(new StorageResourceId(bucketName, "conflicting-dirname"))
+            .exists());
+    Assert.assertTrue(
+        gcsfs.getGcs().getItemInfo(new StorageResourceId(bucketName, "conflicting-dirname/"))
+            .exists());
+  }
 }

@@ -33,6 +33,8 @@ public class CreateFileOptions {
   private final boolean overwriteExisting;
   private final String contentType;
   private final Map<String, byte[]> attributes;
+  private final boolean checkNoDirectoryConflict;
+  private final boolean ensureParentDirectoriesExist;
 
   /**
    * Create a file with empty attributes and optionally overwriting any existing file.
@@ -74,11 +76,39 @@ public class CreateFileOptions {
    */
   public CreateFileOptions(boolean overwriteExisting, String contentType,
       Map<String, byte[]> attributes) {
+    this(overwriteExisting, contentType, attributes, true, true);
+  }
+
+  /**
+   * Create a file with specified attributes, and optionally overwriting an existing file with one
+   * having the given content-type.
+   *
+   * @param overwriteExisting True to overwrite an existing file with the same name
+   * @param contentType content-type for the created file
+   * @param attributes File attributes to apply to the file at creation
+   * @param checkNoDirectoryConflict If true, makes sure there isn't already a directory object
+   *     of the same name. If false, you run the risk of creating hard-to-cleanup/access files
+   *     whose names collide with directory names. If already sure no such directory exists,
+   *     then this is safe to set for improved performance.
+   * @param ensureParentDirectoriesExist If true, ensures parent directories exist, creating
+   *     them on-demand if they don't. If false, you run the risk of creating objects without
+   *     parent directories, which may degrade or break the behavior of some filesystem
+   *     functionality. If already sure parent directories exist, then this is safe to set for
+   *     improved performance.
+   */
+  public CreateFileOptions(
+      boolean overwriteExisting,
+      String contentType,
+      Map<String, byte[]> attributes,
+      boolean checkNoDirectoryConflict,
+      boolean ensureParentDirectoriesExist) {
     Preconditions.checkArgument(!attributes.containsKey("Content-Type"),
         "The Content-Type attribute must be provided explicitly via the 'contentType' parameter");
     this.overwriteExisting = overwriteExisting;
     this.contentType = contentType;
     this.attributes = attributes;
+    this.checkNoDirectoryConflict = checkNoDirectoryConflict;
+    this.ensureParentDirectoriesExist = ensureParentDirectoriesExist;
   }
 
   /**
@@ -100,5 +130,25 @@ public class CreateFileOptions {
    */
   public Map<String, byte[]> getAttributes() {
     return attributes;
+  }
+
+  /**
+   * If true, makes sure there isn't already a directory object of the same name.
+   * If false, you run the risk of creating hard-to-cleanup/access files whose names collide with
+   * directory names. If already sure no such directory exists, then this is safe to set for
+   * improved performance.
+   */
+  public boolean checkNoDirectoryConflict() {
+    return checkNoDirectoryConflict;
+  }
+
+  /**
+   * If true, ensures parent directories exist, creating them on-demand if they don't.
+   * If false, you run the risk of creating objects without parent directories, which may degrade
+   * or break the behavior of some filesystem functionality. If already sure parent directories
+   * exist, then this is safe to set for improved performance.
+   */
+  public boolean ensureParentDirectoriesExist() {
+    return ensureParentDirectoriesExist;
   }
 }

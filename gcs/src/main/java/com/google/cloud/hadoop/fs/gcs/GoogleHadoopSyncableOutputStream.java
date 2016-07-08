@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
+import java.util.UUID;
 
 /**
  * GoogleHadoopSyncableOutputStream implements the {@code Syncable} interface by composing
@@ -71,6 +72,17 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
 
   private static final Logger LOG =
       LoggerFactory.getLogger(GoogleHadoopSyncableOutputStream.class);
+
+  // Temporary files don't need to contain the desired attributes of the final destination file
+  // since metadata settings get clobbered on final compose() anyways; additionally, due to
+  // the way we pick temp file names and already ensured directories for the destination file,
+  // we can optimize tempfile creation by skipping various directory checks.
+  private static final CreateFileOptions TEMPFILE_CREATE_OPTIONS = new CreateFileOptions(
+      false,  // overwriteExisting
+      CreateFileOptions.DEFAULT_CONTENT_TYPE,
+      CreateFileOptions.EMPTY_ATTRIBUTES,
+      false,  // checkNoDirectoryConflict
+      false);  // ensureParentDirectoriesExist
 
   // Instance of GoogleHadoopFileSystemBase.
   private final GoogleHadoopFileSystemBase ghfs;
@@ -125,7 +137,7 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
 
     // TODO(user): Make sure to initialize this to the correct value if a new stream is created to
     // "append" to an existing file.
-    this.curComponentIndex = 1;
+    this.curComponentIndex = 0;
   }
 
   @Override
@@ -185,7 +197,7 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
     LOG.debug("hsync(): Opening next temporary tail file {} as component number {}",
         curGcsPath, curComponentIndex);
     curDelegate = new GoogleHadoopOutputStream(
-        ghfs, curGcsPath, bufferSize, statistics, fileOptions);
+        ghfs, curGcsPath, bufferSize, statistics, TEMPFILE_CREATE_OPTIONS);
     long endTime = System.nanoTime();
     LOG.debug("Took {} ns to hsync()", endTime - startTime);
   }
@@ -223,13 +235,12 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
    * Returns URI to be used for the next "tail" file in the series.
    */
   private URI getNextTemporaryPath() {
-    // TODO(user): Use generation ids and/or byte-offsets in the suffix instead of just the
-    // component number.
     Path basePath = ghfs.getHadoopPath(finalGcsPath);
     Path baseDir = basePath.getParent();
     Path tempPath = new Path(
         baseDir,
-        String.format("%s%s.%d", TEMPFILE_PREFIX, basePath.getName(), curComponentIndex));
+        String.format("%s%s.%d.%s",
+            TEMPFILE_PREFIX, basePath.getName(), curComponentIndex, UUID.randomUUID().toString()));
     return ghfs.getGcsPath(tempPath);
   }
 }

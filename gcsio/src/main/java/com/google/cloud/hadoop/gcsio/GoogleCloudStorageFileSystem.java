@@ -240,15 +240,19 @@ public class GoogleCloudStorageFileSystem {
         "Cannot create a file whose name looks like a directory.");
 
     // Check if a directory of that name exists.
-    URI dirPath = FileInfo.convertToDirectoryPath(pathCodec, path);
-    if (exists(dirPath)) {
-      throw new IOException("A directory with that name exists: " + path);
+    if (options.checkNoDirectoryConflict()) {
+      URI dirPath = FileInfo.convertToDirectoryPath(pathCodec, path);
+      if (exists(dirPath)) {
+        throw new IOException("A directory with that name exists: " + path);
+      }
     }
 
     // Ensure that parent directories exist.
-    URI parentPath = getParentPath(path);
-    if (parentPath != null) {
-      mkdirs(parentPath);
+    if (options.ensureParentDirectoriesExist()) {
+      URI parentPath = getParentPath(path);
+      if (parentPath != null) {
+        mkdirs(parentPath);
+      }
     }
 
     return createInternal(path, options);
