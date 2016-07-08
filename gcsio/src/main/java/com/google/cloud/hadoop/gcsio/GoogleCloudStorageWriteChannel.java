@@ -33,7 +33,8 @@ import java.util.concurrent.ExecutorService;
  * Implements WritableByteChannel to provide write access to GCS.
  */
 public class GoogleCloudStorageWriteChannel
-    extends AbstractGoogleAsyncWriteChannel<Insert, StorageObject> {
+    extends AbstractGoogleAsyncWriteChannel<Insert, StorageObject>
+    implements GoogleCloudStorageItemInfo.Provider {
 
   private final Storage gcs;
   private final String bucketName;
@@ -41,6 +42,8 @@ public class GoogleCloudStorageWriteChannel
   private final ObjectWriteConditions writeConditions;
   private final Map<String, String> metadata;
   private static final long MIN_LOGGING_INTERVAL_MS = 60000L;
+
+  private GoogleCloudStorageItemInfo completedItemInfo = null;
 
   /**
    * Constructs an instance of GoogleCloudStorageWriteChannel.
@@ -104,5 +107,20 @@ public class GoogleCloudStorageWriteChannel
     }
     insert.setName(objectName);
     return insert;
+  }
+
+  @Override
+  public void handleResponse(StorageObject response) {
+    this.completedItemInfo = GoogleCloudStorageImpl.createItemInfoForStorageObject(
+        new StorageResourceId(bucketName, objectName), response);
+  }
+
+  /**
+   * Returns non-null only if close() has been called and the underlying object has been
+   * successfully committed.
+   */
+  @Override
+  public GoogleCloudStorageItemInfo getItemInfo() {
+    return this.completedItemInfo;
   }
 }

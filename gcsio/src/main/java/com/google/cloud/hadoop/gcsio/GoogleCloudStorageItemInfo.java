@@ -28,6 +28,15 @@ import java.util.Objects;
  * Contains information about an item in Google Cloud Storage.
  */
 public class GoogleCloudStorageItemInfo {
+  /**
+   * Convenience interface for classes which want to implement Provider of
+   * GoogleCloudStorageItemInfo for callers which may not know the concrete type of an object, but
+   * want to check if the object happens to be an instance of this InfoProvider.
+   */
+  public static interface Provider {
+    GoogleCloudStorageItemInfo getItemInfo();
+  }
+
   // Info about the root of GCS namespace.
   public static final GoogleCloudStorageItemInfo ROOT_INFO =
       new GoogleCloudStorageItemInfo(StorageResourceId.ROOT, 0, 0, null, null);

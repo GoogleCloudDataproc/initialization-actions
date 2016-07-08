@@ -39,6 +39,49 @@ import java.util.Map;
  * class.
  */
 public class InMemoryObjectEntry {
+  /**
+   * We have to delegate because we can't extend from the inner class returned by,
+   * Channels.newChannel, and the default version doesn't enforce ClosedChannelException
+   * when trying to write to a closed channel; probably because it relies on the underlying
+   * output stream throwing when closed. The ByteArrayOutputStream doesn't enforce throwing
+   * when closed, so we have to manually do it.
+   */
+  private class WritableByteChannelImpl
+      implements WritableByteChannel, GoogleCloudStorageItemInfo.Provider {
+    private final WritableByteChannel delegateWriteChannel;
+
+    public WritableByteChannelImpl(WritableByteChannel delegateWriteChannel) {
+      this.delegateWriteChannel = delegateWriteChannel;
+    }
+
+    @Override
+    public int write(ByteBuffer src) throws IOException {
+      if (!isOpen()) {
+        throw new ClosedChannelException();
+      }
+      return delegateWriteChannel.write(src);
+    }
+
+    @Override
+    public void close() throws IOException {
+      delegateWriteChannel.close();
+    }
+
+    @Override
+    public boolean isOpen() {
+      return delegateWriteChannel.isOpen();
+    }
+
+    @Override
+    public GoogleCloudStorageItemInfo getItemInfo() {
+      if (!isOpen()) {
+        // Only return the info from the outer class if closed.
+        return info;
+      }
+      return null;
+    }
+  }
+
   // This will become non-null only once the associated writeStream has been closed.
   private byte[] completedContents = null;
 
@@ -91,26 +134,9 @@ public class InMemoryObjectEntry {
     // when trying to write to a closed channel; probably because it relies on the underlying
     // output stream throwing when closed. The ByteArrayOutputStream doesn't enforce throwing
     // when closed, so we have to manually do it.
-    final WritableByteChannel delegateWriteChannel = Channels.newChannel(writeStream);
-    writeChannel = new WritableByteChannel() {
-      @Override
-      public int write(ByteBuffer src) throws IOException {
-        if (!isOpen()) {
-          throw new ClosedChannelException();
-        }
-        return delegateWriteChannel.write(src);
-      }
+    WritableByteChannel delegateWriteChannel = Channels.newChannel(writeStream);
+    writeChannel = new WritableByteChannelImpl(delegateWriteChannel);
 
-      @Override
-      public void close() throws IOException {
-        delegateWriteChannel.close();
-      }
-
-      @Override
-      public boolean isOpen() {
-        return delegateWriteChannel.isOpen();
-      }
-    };
     // Size 0 initially because this object exists, but contains no data.
     info = new GoogleCloudStorageItemInfo(
         new StorageResourceId(bucketName, objectName),

@@ -43,6 +43,56 @@ public class CacheSupplementedGoogleCloudStorage
   private static final Logger LOG =
       LoggerFactory.getLogger(CacheSupplementedGoogleCloudStorage.class);
 
+  /**
+   * Wrapper around an internal WritableByteChannel which additionally performs some book-keeping
+   * on close. The getItemInfo() method should be considered best-effort; if the inner channel
+   * correctly implements GoogleCloudStorageItemInfo.Provider, then getItemInfo() will delegate
+   * through, but if not, it will return null even after close() has been called.
+   */
+  private class WritableByteChannelImpl
+      implements WritableByteChannel, GoogleCloudStorageItemInfo.Provider {
+    private final StorageResourceId resourceId;
+    private final WritableByteChannel innerChannel;
+
+    public WritableByteChannelImpl(StorageResourceId resourceId, WritableByteChannel innerChannel) {
+      this.resourceId = resourceId;
+      this.innerChannel = innerChannel;
+    }
+
+    @Override
+    public int write(ByteBuffer buffer)
+        throws IOException {
+      return innerChannel.write(buffer);
+    }
+
+    @Override
+    public boolean isOpen() {
+      return innerChannel.isOpen();
+    }
+
+    @Override
+    public void close()
+        throws IOException {
+      innerChannel.close();
+      CacheEntry entry = resourceCache.putResourceId(resourceId);
+      if (innerChannel instanceof GoogleCloudStorageItemInfo.Provider) {
+        GoogleCloudStorageItemInfo innerInfo =
+            ((GoogleCloudStorageItemInfo.Provider) innerChannel).getItemInfo();
+        if (innerInfo != null) {
+          entry.setItemInfo(innerInfo);
+        }
+      }
+    }
+
+    @Override
+    public GoogleCloudStorageItemInfo getItemInfo() {
+      if (innerChannel instanceof GoogleCloudStorageItemInfo.Provider) {
+        return ((GoogleCloudStorageItemInfo.Provider) innerChannel).getItemInfo();
+      }
+      return null;
+    }
+  }
+
   // An actual implementation of GoogleCloudStorage that will be used for the actual logic of
   // GCS operations, while this class adds book-keeping around the delegated calls.
   private final GoogleCloudStorage gcsDelegate;
@@ -91,36 +141,12 @@ public class CacheSupplementedGoogleCloudStorage
   }
 
   @Override
-  public WritableByteChannel create(final StorageResourceId resourceId, CreateObjectOptions options)
+  public WritableByteChannel create(StorageResourceId resourceId, CreateObjectOptions options)
       throws IOException {
     LOG.debug("create({}, {})", resourceId, options);
 
-    final WritableByteChannel innerChannel = gcsDelegate.create(resourceId, options);
-
-    // Wrap the delegate's channel in our own channel that simply adds the additional book-keeping
-    // hook to close().
-    return new WritableByteChannel() {
-      @Override
-      public int write(ByteBuffer buffer)
-          throws IOException {
-        return innerChannel.write(buffer);
-      }
-
-      @Override
-      public boolean isOpen() {
-        return innerChannel.isOpen();
-      }
-
-      @Override
-      public void close()
-          throws IOException {
-        innerChannel.close();
-        // TODO(user): Make create() somehow wire the StorageObject through to the caller,
-        // possibly through an onClose() handler so that we can pre-emptively populate the
-        // metadata in the CacheEntry.
-        resourceCache.putResourceId(resourceId);
-      }
-    };
+    WritableByteChannel innerChannel = gcsDelegate.create(resourceId, options);
+    return new WritableByteChannelImpl(resourceId, innerChannel);
   }
 
   /**

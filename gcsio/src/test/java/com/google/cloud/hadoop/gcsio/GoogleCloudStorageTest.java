@@ -416,7 +416,13 @@ public class GoogleCloudStorageTest {
         synchronized (readData) {
           waitTillWritesAreDoneLatch.await();
           inputStreamCaptor.getValue().getInputStream().read(readData);
-          return null;
+          return new StorageObject()
+              .setBucket(BUCKET_NAME)
+              .setName(OBJECT_NAME)
+              .setUpdated(new DateTime(11L))
+              .setSize(BigInteger.valueOf(5L))
+              .setGeneration(12345L)
+              .setMetageneration(1L);
         }
       }
     });
@@ -468,6 +474,14 @@ public class GoogleCloudStorageTest {
 
     // Closing the closed channel should have no effect.
     writeChannel.close();
+
+    // On close(), it should have stashed away the completed ItemInfo based on the returned
+    // StorageObject.
+    GoogleCloudStorageItemInfo finishedInfo =
+        ((GoogleCloudStorageItemInfo.Provider) writeChannel).getItemInfo();
+    assertEquals(BUCKET_NAME, finishedInfo.getBucketName());
+    assertEquals(OBJECT_NAME, finishedInfo.getObjectName());
+    assertEquals(12345L, finishedInfo.getContentGeneration());
 
     // Further writes to a closed channel should throw a ClosedChannelException.
     try {

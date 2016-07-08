@@ -1265,8 +1265,7 @@ public class GoogleCloudStorageImpl
   /**
    * Helper for converting a StorageResourceId + Bucket into a GoogleCloudStorageItemInfo.
    */
-  @VisibleForTesting
-  static GoogleCloudStorageItemInfo createItemInfoForBucket(
+  public static GoogleCloudStorageItemInfo createItemInfoForBucket(
       StorageResourceId resourceId, Bucket bucket) {
     Preconditions.checkArgument(resourceId != null, "resourceId must not be null");
     Preconditions.checkArgument(bucket != null, "bucket must not be null");
@@ -1284,8 +1283,7 @@ public class GoogleCloudStorageImpl
   /**
    * Helper for converting a StorageResourceId + StorageObject into a GoogleCloudStorageItemInfo.
    */
-  @VisibleForTesting
-  static GoogleCloudStorageItemInfo createItemInfoForStorageObject(
+  public static GoogleCloudStorageItemInfo createItemInfoForStorageObject(
       StorageResourceId resourceId, StorageObject object) {
     Preconditions.checkArgument(resourceId != null, "resourceId must not be null");
     Preconditions.checkArgument(object != null, "object must not be null");
