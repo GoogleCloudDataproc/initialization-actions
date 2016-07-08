@@ -19,6 +19,7 @@ package com.google.cloud.hadoop.fs.gcs;
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.common.collect.ImmutableList;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -29,7 +30,14 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * GoogleHadoopSyncableOutputStream implements the {@code Syncable} interface by composing
@@ -84,6 +92,15 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
       false,  // checkNoDirectoryConflict
       false);  // ensureParentDirectoriesExist
 
+  // Deletion of temporary files occurs asynchronously for performance reasons, but in-flight
+  // deletions are awaited on close() so as long as all output streams are closed, there should
+  // be no remaining in-flight work occuring inside this threadpool.
+  private static final ExecutorService TEMPFILE_CLEANUP_THREADPOOL = Executors.newCachedThreadPool(
+      new ThreadFactoryBuilder()
+          .setNameFormat("gcs-syncable-output-stream-cleanup-pool-%d")
+          .setDaemon(true)
+          .build());
+
   // Instance of GoogleHadoopFileSystemBase.
   private final GoogleHadoopFileSystemBase ghfs;
 
@@ -99,6 +116,11 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
 
   // Metadata/overwrite options to use on final file.
   private final CreateFileOptions fileOptions;
+
+  // List of file-deletion futures accrued during the lifetime of this output stream.
+  private final List<Future<Void>> deletionFutures;
+
+  private final ExecutorService cleanupThreadpool;
 
   // Current GCS path pointing at the "tail" file which will be appended to the destination
   // on each hsync() call.
@@ -121,12 +143,22 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
       GoogleHadoopFileSystemBase ghfs, URI gcsPath, int bufferSize,
       FileSystem.Statistics statistics, CreateFileOptions createFileOptions)
       throws IOException {
+    this(ghfs, gcsPath, bufferSize, statistics, createFileOptions, TEMPFILE_CLEANUP_THREADPOOL);
+  }
+
+  GoogleHadoopSyncableOutputStream(
+      GoogleHadoopFileSystemBase ghfs, URI gcsPath, int bufferSize,
+      FileSystem.Statistics statistics, CreateFileOptions createFileOptions,
+      ExecutorService cleanupThreadpool)
+      throws IOException {
     LOG.debug("GoogleHadoopSyncableOutputStream({}, {})", gcsPath, bufferSize);
     this.ghfs = ghfs;
     this.finalGcsPath = gcsPath;
     this.bufferSize = bufferSize;
     this.statistics = statistics;
     this.fileOptions = createFileOptions;
+    this.deletionFutures = new ArrayList<>();
+    this.cleanupThreadpool = cleanupThreadpool;
 
     // The first component of the stream will go straight to the destination filename to optimize
     // the case where no hsync() or a single hsync() is called during the lifetime of the stream;
@@ -160,6 +192,20 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
     // closed stream, except for multiple calls to close(), which should behave as no-ops.
     curGcsPath = null;
     curDelegate = null;
+
+    LOG.debug("close(): Awaiting {} deletionFutures", deletionFutures.size());
+    for (Future<?> deletion : deletionFutures) {
+      try {
+        deletion.get();
+      } catch (ExecutionException | InterruptedException ee) {
+        if (ee.getCause() instanceof IOException) {
+          throw (IOException) ee.getCause();
+        } else {
+          throw new IOException(ee);
+        }
+      }
+    }
+    LOG.debug("close(): done");
   }
 
   @Override
@@ -212,7 +258,8 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
     // the temporary object.
     if (!finalGcsPath.equals(curGcsPath)) {
       StorageResourceId destResourceId = StorageResourceId.fromObjectName(finalGcsPath.toString());
-      StorageResourceId tempResourceId = StorageResourceId.fromObjectName(curGcsPath.toString());
+      final StorageResourceId tempResourceId =
+          StorageResourceId.fromObjectName(curGcsPath.toString());
       if (!destResourceId.getBucketName().equals(tempResourceId.getBucketName())) {
         throw new IllegalStateException(String.format(
             "Destination bucket in path '%s' doesn't match temp file bucket in path '%s'",
@@ -226,8 +273,13 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
           ImmutableList.of(destResourceId.getObjectName(), tempResourceId.getObjectName()),
           destResourceId.getObjectName(),
           CreateFileOptions.DEFAULT_CONTENT_TYPE);
-
-      ghfs.delete(ghfs.getHadoopPath(curGcsPath), false);
+      deletionFutures.add(cleanupThreadpool.submit(new Callable<Void>() {
+        @Override
+        public Void call() throws IOException {
+          ghfs.getGcsFs().getGcs().deleteObjects(ImmutableList.of(tempResourceId));
+          return null;
+        }
+      }));
     }
   }
 
