@@ -21,7 +21,7 @@
   <parent>
     <groupId>com.google.cloud.bigdataoss</groupId>
     <artifactId>bigdataoss-parent</artifactId>
-    <version>1.4.5</version>
+    <version>1.4.6-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -30,7 +30,7 @@
   <description>
     MapReduce input and output formats for use with BigQuery
   </description>
-  <version>0.7.5</version>
+  <version>0.7.6-SNAPSHOT</version>
 
   <dependencies>
     <dependency>
