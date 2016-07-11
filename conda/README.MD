@@ -90,7 +90,7 @@ Note that at this time Dataproc will *NOT* accept the property value when submit
 
 ## Testing Installation
 
-A quick test to ensure a correct installation of conda, we can submit jobs that collect distinct paths to the Python distribution across all Spark executors. For both local (e.g., running form dataproc cluster master node) and remote (e.g. submitting a job via the dataproc API) jobs, the result should be a list with a single path: `['/usr/local/bin/miniconda/bin/python']`. For example
+A quick test to ensure a correct installation of conda, we can submit jobs that collect distinct paths to the Python distribution across all Spark executors. For both local (e.g., running from dataproc cluster master node) and remote (e.g. submitting a job via the dataproc API) jobs, the result should be a list with a single path: `['/usr/local/bin/miniconda/bin/python']`. For example
 
 
 ### Local Job Test
