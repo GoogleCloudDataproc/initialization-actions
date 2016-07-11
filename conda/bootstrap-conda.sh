@@ -6,6 +6,7 @@ set -e
 # Run on BOTH 'Master' and 'Worker' nodes
 #ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 #if [[ "${ROLE}" == 'Master' ]]; then
+MINICONDA_VARIANT=$(/usr/share/google/get_metadata_value attributes/MINICONDA_VARIANT || true)
 
 if [[ ! -v CONDA_INSTALL_PATH ]]; then
     echo "CONDA_INSTALL_PATH not set, setting ..."
