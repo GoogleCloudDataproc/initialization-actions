@@ -35,6 +35,7 @@ public class CreateFileOptions {
   private final Map<String, byte[]> attributes;
   private final boolean checkNoDirectoryConflict;
   private final boolean ensureParentDirectoriesExist;
+  private final long existingGenerationId;
 
   /**
    * Create a file with empty attributes and optionally overwriting any existing file.
@@ -76,7 +77,8 @@ public class CreateFileOptions {
    */
   public CreateFileOptions(boolean overwriteExisting, String contentType,
       Map<String, byte[]> attributes) {
-    this(overwriteExisting, contentType, attributes, true, true);
+    this(overwriteExisting, contentType, attributes, true, true,
+        StorageResourceId.UNKNOWN_GENERATION_ID);
   }
 
   /**
@@ -95,13 +97,18 @@ public class CreateFileOptions {
    *     parent directories, which may degrade or break the behavior of some filesystem
    *     functionality. If already sure parent directories exist, then this is safe to set for
    *     improved performance.
+   * @param existingGenerationId Ignored if set to StorageResourceId.UNKNOWN_GENERATION_ID, but
+   *     otherwise this is used instead of {@code overwriteExisting}, where 0 indicates no
+   *     existing object, and otherwise an existing object will only be overwritten by the newly
+   *     created file if its generation matches this provided generationId.
    */
   public CreateFileOptions(
       boolean overwriteExisting,
       String contentType,
       Map<String, byte[]> attributes,
       boolean checkNoDirectoryConflict,
-      boolean ensureParentDirectoriesExist) {
+      boolean ensureParentDirectoriesExist,
+      long existingGenerationId) {
     Preconditions.checkArgument(!attributes.containsKey("Content-Type"),
         "The Content-Type attribute must be provided explicitly via the 'contentType' parameter");
     this.overwriteExisting = overwriteExisting;
@@ -109,6 +116,7 @@ public class CreateFileOptions {
     this.attributes = attributes;
     this.checkNoDirectoryConflict = checkNoDirectoryConflict;
     this.ensureParentDirectoriesExist = ensureParentDirectoriesExist;
+    this.existingGenerationId = existingGenerationId;
   }
 
   /**
@@ -150,5 +158,15 @@ public class CreateFileOptions {
    */
   public boolean ensureParentDirectoriesExist() {
     return ensureParentDirectoriesExist;
+  }
+
+  /**
+   * Generation of existing object. Ignored if set to StorageResourceId.UNKNOWN_GENERATION_ID, but
+   * otherwise this is used instead of {@code overwriteExisting}, where 0 indicates no
+   * existing object, and otherwise an existing object will only be overwritten by the newly
+   * created file if its generation matches this provided generationId.
+   */
+  public long getExistingGenerationId() {
+    return existingGenerationId;
   }
 }

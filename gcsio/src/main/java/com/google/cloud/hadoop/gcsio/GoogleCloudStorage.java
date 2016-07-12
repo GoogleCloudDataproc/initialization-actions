@@ -50,7 +50,10 @@ public interface GoogleCloudStorage {
 
   /**
    * Creates and opens an object for writing. The bucket must already exist.
-   * If the object already exists, it is deleted.
+   * If the object already exists and {@code resourceId} doesn't have a explicit generationId set,
+   * it is deleted. If a generationId is provided in {@code resourceId}, that is used in place
+   * of normal overwrite semantics (overwrite will only succeed if the provided generationId
+   * matches the existing object, where a generationId of 0 indicates no existing object expected).
    *
    * @param resourceId identifies a StorageObject
    * @return a channel for writing to the given object
@@ -60,7 +63,11 @@ public interface GoogleCloudStorage {
       throws IOException;
 
   /**
-   * Creates and opens an object for writing. The bucket must already exist.
+   * Creates and opens an object for writing. The bucket must already exist. If {@code resourceId}
+   * contains a known generationId or a generationId of 0, it is used instead of any "overwrite"
+   * settings in the provided {@code CreateObjectOptions} (overwrite will only succeed if the
+   * provided generationId matches the existing object, where a generationId of 0 indicates no
+   * existing object expected).
    *
    * @param resourceId identifies a StorageObject
    * @param options Options to use when creating the object
@@ -73,6 +80,8 @@ public interface GoogleCloudStorage {
   /**
    * Creates an empty object, useful for placeholders representing, for example, directories.
    * The bucket must already exist. If the object already exists, it is overwritten.
+   * See {@link #create(StorageResourceId)} for the behavior if StorageResourceId.getGenerationId()
+   * is explicitly set.
    *
    * @param resourceId identifies a StorageObject
    * @throws IOException on IO error
@@ -83,6 +92,8 @@ public interface GoogleCloudStorage {
   /**
    * Creates an empty object, useful for placeholders representing, for example, directories.
    * The bucket must already exist. If the object already exists, it is overwritten.
+   * See {@link #create(StorageResourceId)} for the behavior if StorageResourceId.getGenerationId()
+   * is explicitly set.
    *
    * @param resourceId identifies a StorageObject
    * @param options options to use when creating the object
@@ -95,6 +106,8 @@ public interface GoogleCloudStorage {
    * Creates a list of empty objects; see {@link #createEmptyObject(StorageResourceId)} for
    * the single-item version of this method. Implementations may use different flow than the
    * single-item version for greater efficiency.
+   * See {@link #create(StorageResourceId)} for the behavior if StorageResourceId.getGenerationId()
+   * is explicitly set.
    */
   void createEmptyObjects(List<StorageResourceId> resourceIds)
       throws IOException;
@@ -103,6 +116,8 @@ public interface GoogleCloudStorage {
    * Creates a list of empty objects; see {@link #createEmptyObject(StorageResourceId)} for
    * the single-item version of this method. Implementations may use different flow than the
    * single-item version for greater efficiency.
+   * See {@link #create(StorageResourceId)} for the behavior if StorageResourceId.getGenerationId()
+   * is explicitly set.
    */
   void createEmptyObjects(List<StorageResourceId> resourceIds, CreateObjectOptions options)
       throws IOException;
@@ -351,5 +366,17 @@ public interface GoogleCloudStorage {
    * @throws IOException if the Compose operation was unsuccessful
    */
   void compose(String bucketName, List<String> sources, String destination, String contentType)
+      throws IOException;
+
+  /**
+   * Composes inputs into a single GCS object. This performs a GCS Compose. Objects will be composed
+   * according to the order they appear in the input. The destination object will have metadata set
+   * according to {@code options}. Overwrite semantics for the destination object will follow the
+   * same semantics as {@link create(StorageResourceId, CreateObjectOptions)}.
+   * See {@link #create(StorageResourceId)} for the behavior if StorageResourceId.getGenerationId()
+   * is explicitly set. The bucket must be the same for all sources and the destination.
+   */
+  GoogleCloudStorageItemInfo composeObjects(
+      List<StorageResourceId> sources, StorageResourceId destination, CreateObjectOptions options)
       throws IOException;
 }

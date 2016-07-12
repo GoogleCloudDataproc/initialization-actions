@@ -271,6 +271,12 @@ public class GoogleCloudStorageFileSystem {
 
     // Validate the given path. false == do not allow empty object name.
     StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, false);
+    if (options.getExistingGenerationId() != StorageResourceId.UNKNOWN_GENERATION_ID) {
+      resourceId = new StorageResourceId(
+          resourceId.getBucketName(),
+          resourceId.getObjectName(),
+          options.getExistingGenerationId());
+    }
     WritableByteChannel channel = gcs.create(resourceId, objectOptionsFromFileOptions(options));
     tryUpdateTimestampsForParentDirectories(ImmutableList.of(path), ImmutableList.<URI>of());
     return channel;

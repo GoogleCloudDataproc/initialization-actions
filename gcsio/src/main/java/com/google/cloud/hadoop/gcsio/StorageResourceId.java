@@ -31,6 +31,10 @@ import java.util.regex.Pattern;
  * if bucketName and objectName are both non-null, this refers to a GCS StorageObject.
  */
 public class StorageResourceId {
+  // The generationId used to denote "unknown"; if given to a method expecting generationId
+  // constraints, the method may perform extra low-level GETs to determine an existing generationId
+  // if idempotency constraints require doing so.
+  public static final long UNKNOWN_GENERATION_ID = -1L;
 
   // Pattern that parses out bucket and object names.
   // Given 'gs://foo-bucket/foo/bar/baz', matcher.group(x) will return:
@@ -56,6 +60,10 @@ public class StorageResourceId {
   // Human-readable String to be returned by toString(); kept as 'final' member for efficiency.
   private final String readableString;
 
+  // The generationId to be used with precondition checks when using this StorageResourceId
+  // as an identifier for mutation requests.
+  private final long generationId;
+
   /**
    * Constructor for a StorageResourceId that refers to the GCS root (gs://). Private because
    * all external users should just use the singleton StorageResourceId.ROOT.
@@ -64,6 +72,7 @@ public class StorageResourceId {
     this.bucketName = null;
     this.objectName = null;
     this.readableString = createReadableString(bucketName, objectName);
+    this.generationId = UNKNOWN_GENERATION_ID;
   }
 
   /**
@@ -79,6 +88,7 @@ public class StorageResourceId {
     this.bucketName = bucketName;
     this.objectName = null;
     this.readableString = createReadableString(bucketName, objectName);
+    this.generationId = UNKNOWN_GENERATION_ID;
   }
 
   /**
@@ -97,6 +107,28 @@ public class StorageResourceId {
     this.bucketName = bucketName;
     this.objectName = objectName;
     this.readableString = createReadableString(bucketName, objectName);
+    this.generationId = UNKNOWN_GENERATION_ID;
+  }
+
+  /**
+   * Constructor for a StorageResourceId representing a full StorageObject, including bucketName
+   * and objectName.
+   *
+   * @param bucketName The bucket name of the resource. Must be non-empty and non-null.
+   * @param objectName The object name of the resource. Must be non-empty and non-null.
+   * @param generationId The generationId to be used with precondition checks when using
+   *     this StorageResourceId as an identifier for mutation requests.
+   */
+  public StorageResourceId(String bucketName, String objectName, long generationId) {
+    checkArgument(!Strings.isNullOrEmpty(bucketName),
+        "bucketName must not be null or empty");
+    checkArgument(!Strings.isNullOrEmpty(objectName),
+        "objectName must not be null or empty");
+
+    this.bucketName = bucketName;
+    this.objectName = objectName;
+    this.readableString = createReadableString(bucketName, objectName);
+    this.generationId = generationId;
   }
 
   /**
@@ -144,6 +176,22 @@ public class StorageResourceId {
    */
   public String getObjectName() {
     return objectName;
+  }
+
+  /**
+   * The generationId to be used with precondition checks when using this StorageResourceId as
+   * an identifier for mutation requests. The generationId is *not* used when determining
+   * equals() or hashCode().
+   */
+  public long getGenerationId() {
+    return generationId;
+  }
+
+  /**
+   * Returns true if generationId is not UNKNOWN_GENERATION_ID.
+   */
+  public boolean hasGenerationId() {
+    return generationId != UNKNOWN_GENERATION_ID;
   }
 
   /**
@@ -221,16 +269,27 @@ public class StorageResourceId {
    * Parses {@link StorageResourceId} from specified string.
    */
   public static StorageResourceId fromObjectName(String objectName) {
+    return fromObjectName(objectName, UNKNOWN_GENERATION_ID);
+  }
+
+  /**
+   * Parses {@link StorageResourceId} from specified string and generationId.
+   */
+  public static StorageResourceId fromObjectName(String objectName, long generationId) {
     Matcher matcher = OBJECT_NAME_IN_GCS_PATTERN.matcher(objectName);
     checkArgument(matcher.matches(), "'%s' is not a valid GCS object name.", objectName);
 
     String bucketName = matcher.group(2);
     String relativePath = matcher.group(4);
     if (bucketName == null) {
+      checkArgument(generationId == UNKNOWN_GENERATION_ID,
+          "Cannot specify generationId '%s' for root object '%s'", generationId, objectName);
       return ROOT;
     } else if (relativePath != null) {
-      return new StorageResourceId(bucketName, relativePath);
+      return new StorageResourceId(bucketName, relativePath, generationId);
     }
+    checkArgument(generationId == UNKNOWN_GENERATION_ID,
+        "Cannot specify generationId '%s' for bucket '%s'", generationId, objectName);
     return new StorageResourceId(bucketName);
   }
 }

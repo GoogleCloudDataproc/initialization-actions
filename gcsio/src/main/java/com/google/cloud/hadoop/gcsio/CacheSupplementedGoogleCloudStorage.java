@@ -290,6 +290,22 @@ public class CacheSupplementedGoogleCloudStorage
   }
 
   /**
+   * Adds destination to the cache.
+   */
+  @Override
+  public GoogleCloudStorageItemInfo composeObjects(
+      List<StorageResourceId> sources,
+      final StorageResourceId destination,
+      CreateObjectOptions options)
+      throws IOException {
+    GoogleCloudStorageItemInfo composed =
+        gcsDelegate.composeObjects(sources, destination, options);
+    resourceCache.putResourceId(destination)
+        .setItemInfo(composed);
+    return composed;
+  }
+
+  /**
    * Helper for checking the list of {@code candidateEntries} against a {@code originalIds} to
    * possibly retrieve supplemental results from the DirectoryListCache.
    * This method will modify {@code originalIds} as it goes to include the StorageResourceIds

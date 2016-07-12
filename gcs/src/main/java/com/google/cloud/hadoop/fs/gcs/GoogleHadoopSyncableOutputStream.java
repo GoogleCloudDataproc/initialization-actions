@@ -17,6 +17,8 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -30,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
+import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -69,10 +72,9 @@ import java.util.concurrent.Future;
  * and require manual intervention to discover and delete any such unused files. Data written
  * prior to the most recent successful hsync() is persistent and safe in such a case.
  * <p>
- * WORK IN PROGRESS: If multiple writers are attempting to write to the same destination file,
- * generation ids used with low-level precondition checks will cause all but a one writer to
- * fail their precondition checks during writes, and a single remaining writer will safely occupy
- * the stream.
+ * If multiple writers are attempting to write to the same destination file, generation ids used
+ * with low-level precondition checks will cause all but a one writer to fail their precondition
+ * checks during writes, and a single remaining writer will safely occupy the stream.
  */
 public class GoogleHadoopSyncableOutputStream extends OutputStream implements Syncable {
   // Prefix used for all temporary files created by this stream.
@@ -90,7 +92,8 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
       CreateFileOptions.DEFAULT_CONTENT_TYPE,
       CreateFileOptions.EMPTY_ATTRIBUTES,
       false,  // checkNoDirectoryConflict
-      false);  // ensureParentDirectoriesExist
+      false,  // ensureParentDirectoriesExist
+      0L);  // existingGenerationId
 
   // Deletion of temporary files occurs asynchronously for performance reasons, but in-flight
   // deletions are awaited on close() so as long as all output streams are closed, there should
@@ -128,11 +131,15 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
 
   // Current OutputStream pointing at the "tail" file which will be appended to the destination
   // on each hsync() call.
-  private OutputStream curDelegate;
+  private GoogleHadoopOutputStream curDelegate;
 
   // Stores the current component index corresponding curGcsPath. If close() is called, the total
   // number of components in the finalGcsPath will be curComponentIndex + 1.
   private int curComponentIndex;
+
+  // The last known generationId of the final destination file, or possibly
+  // StorageResourceId.UNKNOWN_GENERATION_ID if unknown.
+  private long curDestGenerationId;
 
   /**
    * Creates a new GoogleHadoopSyncableOutputStream with initial stream initialized and expected
@@ -170,6 +177,8 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
     // TODO(user): Make sure to initialize this to the correct value if a new stream is created to
     // "append" to an existing file.
     this.curComponentIndex = 0;
+
+    this.curDestGenerationId = StorageResourceId.UNKNOWN_GENERATION_ID;
   }
 
   @Override
@@ -238,8 +247,6 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
     ++curComponentIndex;
     curGcsPath = getNextTemporaryPath();
 
-    // TODO(user): Modify fileOptions here; the temp file should actually never have
-    // overwrite == true.
     LOG.debug("hsync(): Opening next temporary tail file {} as component number {}",
         curGcsPath, curComponentIndex);
     curDelegate = new GoogleHadoopOutputStream(
@@ -251,28 +258,38 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
   private void commitCurrentFile() throws IOException {
     // TODO(user): Optimize the case where 0 bytes have been written in the current component
     // to return early.
+    WritableByteChannel innerChannel = curDelegate.getInternalChannel();
     curDelegate.close();
+
+    long generationId = StorageResourceId.UNKNOWN_GENERATION_ID;
+    if (innerChannel instanceof GoogleCloudStorageItemInfo.Provider) {
+      generationId = ((GoogleCloudStorageItemInfo.Provider) innerChannel)
+          .getItemInfo().getContentGeneration();
+      LOG.debug(
+          "innerChannel is GoogleCloudStorageItemInfo.Provider; closed generationId {}.",
+          generationId);
+    } else {
+      LOG.debug("innerChannel NOT instanceof provider: {}", innerChannel.getClass());
+    }
 
     // On the first component, curGcsPath will equal finalGcsPath, and no compose() call is
     // necessary. Otherwise, we compose in-place into the destination object and then delete
     // the temporary object.
     if (!finalGcsPath.equals(curGcsPath)) {
-      StorageResourceId destResourceId = StorageResourceId.fromObjectName(finalGcsPath.toString());
+      StorageResourceId destResourceId =
+          StorageResourceId.fromObjectName(finalGcsPath.toString(), curDestGenerationId);
       final StorageResourceId tempResourceId =
-          StorageResourceId.fromObjectName(curGcsPath.toString());
+          StorageResourceId.fromObjectName(curGcsPath.toString(), generationId);
       if (!destResourceId.getBucketName().equals(tempResourceId.getBucketName())) {
         throw new IllegalStateException(String.format(
             "Destination bucket in path '%s' doesn't match temp file bucket in path '%s'",
             finalGcsPath, curGcsPath));
       }
-      // TODO(user): Wire through the full CreateFileOptions provided at construction time.
-      // TODO(user): Store and pass in a source and destination generation id instead of having
-      // the compose() call fetch a new generation id which may be vulnerable to race conditions.
-      ghfs.getGcsFs().getGcs().compose(
-          destResourceId.getBucketName(),
-          ImmutableList.of(destResourceId.getObjectName(), tempResourceId.getObjectName()),
-          destResourceId.getObjectName(),
-          CreateFileOptions.DEFAULT_CONTENT_TYPE);
+      GoogleCloudStorageItemInfo composedObject = ghfs.getGcsFs().getGcs().composeObjects(
+          ImmutableList.of(destResourceId, tempResourceId),
+          destResourceId,
+          GoogleCloudStorageFileSystem.objectOptionsFromFileOptions(fileOptions));
+      curDestGenerationId = composedObject.getContentGeneration();
       deletionFutures.add(cleanupThreadpool.submit(new Callable<Void>() {
         @Override
         public Void call() throws IOException {
@@ -280,6 +297,10 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
           return null;
         }
       }));
+    } else {
+      // First commit was direct to the destination; the generationId of the object we just
+      // committed will be used as the destination generation id for future compose calls.
+      curDestGenerationId = generationId;
     }
   }
 

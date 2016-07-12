@@ -199,4 +199,14 @@ public class ResourceLoggingGoogleCloudStorage implements GoogleCloudStorage {
     delegateGcs.compose(bucketName, sources, destination, contentType);
     createdResources.add(new StorageResourceId(bucketName, destination));
   }
+
+  @Override
+  public GoogleCloudStorageItemInfo composeObjects(
+      List<StorageResourceId> sources,
+      final StorageResourceId destination,
+      CreateObjectOptions options)
+      throws IOException {
+    createdResources.add(destination);
+    return delegateGcs.composeObjects(sources, destination, options);
+  }
 }

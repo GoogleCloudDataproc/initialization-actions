@@ -123,7 +123,15 @@ public class InMemoryGoogleCloudStorage
           resourceId.getObjectName(), resourceId.getBucketName()));
     }
     validateObjectName(resourceId.getObjectName());
-    if (!options.overwriteExisting()) {
+    if (resourceId.hasGenerationId() && resourceId.getGenerationId() != 0L) {
+      if (getItemInfo(resourceId).getContentGeneration() != resourceId.getGenerationId()) {
+        throw new IOException(String.format(
+            "Required generationId '%d' doesn't match existing '%d' for '%s'",
+            resourceId.getGenerationId(), getItemInfo(resourceId).getContentGeneration(),
+            resourceId));
+      }
+    }
+    if (!options.overwriteExisting() || resourceId.getGenerationId() == 0L) {
       if (getItemInfo(resourceId).exists()) {
         throw new IOException(String.format("%s exists.", resourceId));
       }
@@ -233,6 +241,16 @@ public class InMemoryGoogleCloudStorage
     for (StorageResourceId fullObjectName : fullObjectNames) {
       String bucketName = fullObjectName.getBucketName();
       String objectName = fullObjectName.getObjectName();
+      if (fullObjectName.hasGenerationId()) {
+        GoogleCloudStorageItemInfo existingInfo = getItemInfo(fullObjectName);
+        if (existingInfo.getContentGeneration() != fullObjectName.getGenerationId()) {
+          throw new IOException(String.format(
+            "Required generationId '%d' doesn't match existing '%d' for '%s'",
+            fullObjectName.getGenerationId(),
+            existingInfo.getContentGeneration(),
+            fullObjectName));
+        }
+      }
       bucketLookup.get(bucketName).remove(objectName);
     }
   }
@@ -459,8 +477,22 @@ public class InMemoryGoogleCloudStorage
                 return new StorageResourceId(bucketName, s);
               }
             });
+    StorageResourceId destinationId = new StorageResourceId(bucketName, destination);
+    CreateObjectOptions options = new CreateObjectOptions(
+        true, contentType, CreateObjectOptions.EMPTY_METADATA);
+    composeObjects(sourceResourcesIds, destinationId, options);
+  }
+
+  @Override
+  public GoogleCloudStorageItemInfo composeObjects(
+      List<StorageResourceId> sources,
+      final StorageResourceId destination,
+      CreateObjectOptions options)
+      throws IOException {
     ByteArrayOutputStream tempOutput = new ByteArrayOutputStream();
-    for (StorageResourceId sourceId : sourceResourcesIds) {
+    for (StorageResourceId sourceId : sources) {
+      // TODO(user): If we change to also set generationIds for source objects in the base
+      // GoogleCloudStorageImpl, make sure to also add a generationId check here.
       try (SeekableByteChannel sourceChannel = open(sourceId)) {
         byte[] buf = new byte[(int) sourceChannel.size()];
         ByteBuffer reader = ByteBuffer.wrap(buf);
@@ -469,11 +501,11 @@ public class InMemoryGoogleCloudStorage
       }
     }
 
-    WritableByteChannel destChannel =
-        create(
-            new StorageResourceId(bucketName, destination),
-            new CreateObjectOptions(true, contentType, CreateObjectOptions.EMPTY_METADATA));
+    // If destination.hasGenerationId(), it'll automatically get enforced here by the create()
+    // implementation.
+    WritableByteChannel destChannel = create(destination, options);
     destChannel.write(ByteBuffer.wrap(tempOutput.toByteArray()));
     destChannel.close();
+    return getItemInfo(destination);
   }
 }

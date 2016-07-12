@@ -133,4 +133,8 @@ class GoogleHadoopOutputStream
       }
     }
   }
+
+  WritableByteChannel getInternalChannel() {
+    return channel;
+  }
 }

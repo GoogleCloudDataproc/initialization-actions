@@ -477,8 +477,9 @@ public class GoogleCloudStorageFileSystemTest
             CreateFileOptions.DEFAULT_CONTENT_TYPE,
             CreateFileOptions.EMPTY_ATTRIBUTES,
             true,  // checkNoDirectoryConflict
-            false))  // ensureParentDirectoriesExist
-        .close();
+            false,  // ensureParentDirectoriesExist
+            StorageResourceId.UNKNOWN_GENERATION_ID))
+      .close();
     Assert.assertTrue(
         gcsfs.getGcs().getItemInfo(new StorageResourceId(bucketName, "no/parent/dirs/exist/a.txt"))
             .exists());
@@ -501,7 +502,8 @@ public class GoogleCloudStorageFileSystemTest
             CreateFileOptions.DEFAULT_CONTENT_TYPE,
             CreateFileOptions.EMPTY_ATTRIBUTES,
             false,  // checkNoDirectoryConflict
-            true))  // ensureParentDirectoriesExist
+            true,  // ensureParentDirectoriesExist
+            StorageResourceId.UNKNOWN_GENERATION_ID))
         .close();
 
     // This is a "shoot yourself in the foot" use case, but working as intended if

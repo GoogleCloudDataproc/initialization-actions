@@ -120,7 +120,7 @@ public class InMemoryObjectEntry {
               null,
               info.getContentType(),
               info.getMetadata(),
-              0L,
+              info.getContentGeneration(),
               0L,
               new VerificationAttributes(
                   md5.asBytes(),
@@ -146,7 +146,7 @@ public class InMemoryObjectEntry {
         null,
         contentType,
         ImmutableMap.copyOf(metadata),
-        0L,
+        System.currentTimeMillis(),
         0L);
   }
 
@@ -203,7 +203,7 @@ public class InMemoryObjectEntry {
         null,
         info.getContentType(),
         info.getMetadata(),
-        0L,
+        info.getContentGeneration(),
         0L);
     return copy;
   }

@@ -493,6 +493,102 @@ public class GoogleCloudStorageTest {
   }
 
   /**
+   * Test successful operation of GoogleCloudStorage.create(2) with generationId.
+   */
+  @Test
+  public void testCreateObjectWithGenerationId()
+      throws Exception {
+    // Prepare the mock return values before invoking the method being tested.
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+
+    // Setup the argument captor so we can get back the data that we write.
+    final ArgumentCaptor<AbstractInputStreamContent> inputStreamCaptor =
+        ArgumentCaptor.forClass(AbstractInputStreamContent.class);
+    byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
+    final CountDownLatch waitTillWritesAreDoneLatch = new CountDownLatch(1);
+    final byte[] readData = new byte[testData.length];
+    setupNonConflictedWrite(new Answer<StorageObject>() {
+      @Override
+      public StorageObject answer(InvocationOnMock unused) throws Throwable {
+        synchronized (readData) {
+          waitTillWritesAreDoneLatch.await();
+          inputStreamCaptor.getValue().getInputStream().read(readData);
+          return new StorageObject()
+              .setBucket(BUCKET_NAME)
+              .setName(OBJECT_NAME)
+              .setUpdated(new DateTime(11L))
+              .setSize(BigInteger.valueOf(5L))
+              .setGeneration(12345L)
+              .setMetageneration(1L);
+        }
+      }
+    });
+    when(mockStorageObjects.insert(
+        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
+        .thenReturn(mockStorageObjectsInsert);
+    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsInsert)))
+        .thenReturn(mockHeaders);
+
+    // Get a channel which will execute the insert object with an existing generationId to
+    // overwrite.
+    WritableByteChannel writeChannel =
+        gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME, 222L));
+    assertTrue(writeChannel.isOpen());
+
+    // Verify the initial setup of the insert; capture the input stream.
+    ArgumentCaptor<StorageObject> storageObjectCaptor =
+        ArgumentCaptor.forClass(StorageObject.class);
+    verify(mockStorage, times(2)).objects();
+    verify(mockStorageObjects, times(2)).insert(
+        eq(BUCKET_NAME), storageObjectCaptor.capture(), inputStreamCaptor.capture());
+
+    writeChannel.write(ByteBuffer.wrap(testData));
+
+    // The writes are now done, we can return from the execute method.
+    // There is an issue with how PipedInputStream functions since it checks
+    // to see if the sending and receiving threads are alive.
+    waitTillWritesAreDoneLatch.countDown();
+
+    // Flush, make sure the data made it out the other end.
+    writeChannel.close();
+
+    assertFalse(writeChannel.isOpen());
+    verify(mockStorageObjectsInsert, times(1)).setName(eq(OBJECT_NAME));
+    verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
+    verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(222L));
+    verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(1L));
+    assertEquals(OBJECT_NAME, storageObjectCaptor.getValue().getName());
+    verify(mockHeaders, times(0)).set(startsWith("X-Goog-Upload-"), anyInt());
+    verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
+    verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
+    verify(mockBackOffFactory).newBackOff();
+    verify(mockBackOff).nextBackOffMillis();
+    verify(mockStorageObjectsInsert, times(2)).execute();
+    synchronized (readData) {
+      assertArrayEquals(testData, readData);
+    }
+
+    // Closing the closed channel should have no effect.
+    writeChannel.close();
+
+    // On close(), it should have stashed away the completed ItemInfo based on the returned
+    // StorageObject.
+    GoogleCloudStorageItemInfo finishedInfo =
+        ((GoogleCloudStorageItemInfo.Provider) writeChannel).getItemInfo();
+    assertEquals(BUCKET_NAME, finishedInfo.getBucketName());
+    assertEquals(OBJECT_NAME, finishedInfo.getObjectName());
+    assertEquals(12345L, finishedInfo.getContentGeneration());
+
+    // Further writes to a closed channel should throw a ClosedChannelException.
+    try {
+      writeChannel.write(ByteBuffer.wrap(testData));
+      fail("Expected ClosedChannelException");
+    } catch (ClosedChannelException ioe) {
+      // Expected.
+    }
+  }
+
+  /**
    * Test handling when the parent thread waiting for the write to finish via
    * the close call is interrupted, that the actual write is cancelled and interrupted
    * as well.
@@ -1998,6 +2094,48 @@ public class GoogleCloudStorageTest {
     verify(mockBatchHelper, times(2)).isEmpty();
     verify(mockBatchHelper, times(2)).flush();
     verify(mockBatchHelper, times(2))
+        .queue(
+            Matchers.<StorageRequest<Object>>anyObject(),
+            Matchers.<JsonBatchCallback<Object>>anyObject());
+  }
+
+  /**
+   * Test successful operation of GoogleCloudStorage.delete(2) with generationId.
+   */
+  @Test
+  public void testDeleteObjectWithGenerationId()
+      throws IOException {
+    when(mockBatchFactory.newBatchHelper(any(HttpRequestInitializer.class),
+        any(Storage.class), any(Long.class))).thenReturn(mockBatchHelper);
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.delete(eq(BUCKET_NAME), eq(OBJECT_NAME)))
+        .thenReturn(mockStorageObjectsDelete);
+
+    doAnswer(new Answer() {
+      @Override
+      public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
+        JsonBatchCallback<Void> callback =
+            (JsonBatchCallback<Void>) invocationOnMock.getArguments()[1];
+        callback.onSuccess(null, new HttpHeaders());
+        return null;
+      }
+    }).when(mockBatchHelper).queue(
+        Matchers.<StorageRequest<Object>>anyObject(),
+        Matchers.<JsonBatchCallback<Object>>anyObject());
+
+    when(mockBatchHelper.isEmpty())
+        .thenReturn(true);
+
+    gcs.deleteObjects(Lists.newArrayList(new StorageResourceId(BUCKET_NAME, OBJECT_NAME, 222L)));
+
+    verify(mockBatchFactory).newBatchHelper(any(HttpRequestInitializer.class),
+        eq(mockStorage), any(Long.class));
+    verify(mockStorage, atLeastOnce()).objects();
+    verify(mockStorageObjects).delete(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorageObjectsDelete).setIfGenerationMatch(eq(222L));
+    verify(mockBatchHelper, times(1)).isEmpty();
+    verify(mockBatchHelper, times(1)).flush();
+    verify(mockBatchHelper, times(1))
         .queue(
             Matchers.<StorageRequest<Object>>anyObject(),
             Matchers.<JsonBatchCallback<Object>>anyObject());
@@ -3956,6 +4094,14 @@ public class GoogleCloudStorageTest {
     when(mockStorageObjects.get(BUCKET_NAME, destination)).thenReturn(mockStorageObjectsGet);
     when(mockStorageObjects.compose(eq(BUCKET_NAME), eq(destination), any(ComposeRequest.class)))
         .thenReturn(mockStorageObjectsCompose);
+    when(mockStorageObjectsCompose.execute())
+        .thenReturn(new StorageObject()
+            .setBucket(BUCKET_NAME)
+            .setName(destination)
+            .setUpdated(new DateTime(11L))
+            .setSize(BigInteger.valueOf(5L))
+            .setGeneration(12345L)
+            .setMetageneration(1L));
 
     gcs.compose(BUCKET_NAME, sources, destination, CreateFileOptions.DEFAULT_CONTENT_TYPE);
 
@@ -3965,6 +4111,50 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjects).compose(eq(BUCKET_NAME), eq(destination), any(ComposeRequest.class));
     verify(mockStorageObjectsCompose).setIfGenerationMatch(0L);
     verify(mockStorageObjectsCompose).execute();
+  }
+
+  @Test
+  public void testComposeObjectsWithGenerationId() throws Exception {
+    String destination = "composedObject";
+    StorageResourceId destinationId = new StorageResourceId(BUCKET_NAME, destination, 222L);
+    List<StorageResourceId> sources = ImmutableList.of(
+        new StorageResourceId(BUCKET_NAME, "object1"),
+        new StorageResourceId(BUCKET_NAME, "object2"));
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.compose(eq(BUCKET_NAME), eq(destination), any(ComposeRequest.class)))
+        .thenReturn(mockStorageObjectsCompose);
+    when(mockStorageObjectsCompose.execute())
+        .thenReturn(new StorageObject()
+            .setBucket(BUCKET_NAME)
+            .setName(destination)
+            .setUpdated(new DateTime(11L))
+            .setSize(BigInteger.valueOf(5L))
+            .setGeneration(12345L)
+            .setMetageneration(1L));
+
+    Map<String, byte[]> rawMetadata =
+        ImmutableMap.of("foo", new byte[] { 0x01 }, "bar", new byte[] { 0x02 });
+    GoogleCloudStorageItemInfo returnedInfo =
+        gcs.composeObjects(sources, destinationId, new CreateObjectOptions(
+            false, "text-content", rawMetadata));
+
+    ArgumentCaptor<ComposeRequest> composeCaptor = ArgumentCaptor.forClass(ComposeRequest.class);
+    verify(mockStorage, times(1)).objects();
+    verify(mockStorageObjects).compose(eq(BUCKET_NAME), eq(destination), composeCaptor.capture());
+    verify(mockStorageObjectsCompose).setIfGenerationMatch(222L);
+    verify(mockStorageObjectsCompose).execute();
+
+    assertEquals(2, composeCaptor.getValue().getSourceObjects().size());
+    assertEquals(
+        sources.get(0).getObjectName(),
+        composeCaptor.getValue().getSourceObjects().get(0).getName());
+    assertEquals(
+        sources.get(1).getObjectName(),
+        composeCaptor.getValue().getSourceObjects().get(1).getName());
+    assertEquals("text-content", composeCaptor.getValue().getDestination().getContentType());
+    assertEquals(
+        GoogleCloudStorageImpl.encodeMetadata(rawMetadata),
+        composeCaptor.getValue().getDestination().getMetadata());
   }
 
   /**

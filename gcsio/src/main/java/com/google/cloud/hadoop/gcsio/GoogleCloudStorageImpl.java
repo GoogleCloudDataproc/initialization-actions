@@ -340,8 +340,13 @@ public class GoogleCloudStorageImpl
         backOffSleep = backOff.nextBackOffMillis();
 
         Storage.Objects.Insert insertObject = prepareEmptyInsert(resourceId, options);
-        insertObject.setIfGenerationMatch(
-            getWriteGeneration(resourceId, options.overwriteExisting()));
+        // If resourceId.hasHasGenerationId(), we'll expect the underlying prepareEmptyInsert
+        // to already set the setIfGenerationMatch; otherwise we must explicitly fetch the
+        // current generationId here.
+        if (!resourceId.hasGenerationId()) {
+          insertObject.setIfGenerationMatch(
+              getWriteGeneration(resourceId, options.overwriteExisting()));
+        }
 
         try {
           StorageObject result = insertObject.execute();
@@ -365,8 +370,12 @@ public class GoogleCloudStorageImpl
       }
     } else {
       // Do not use a marker-file
-      overwriteGeneration =
-          Optional.of(getWriteGeneration(resourceId, options.overwriteExisting()));
+      if (resourceId.hasGenerationId()) {
+        overwriteGeneration = Optional.of(resourceId.getGenerationId());
+      } else {
+        overwriteGeneration =
+            Optional.of(getWriteGeneration(resourceId, options.overwriteExisting()));
+      }
     }
 
     ObjectWriteConditions writeConditions =
@@ -662,6 +671,53 @@ public class GoogleCloudStorageImpl
     }
   }
 
+  /**
+   * Helper to create a callback for a particular deletion request.
+   */
+  private JsonBatchCallback<Void> getDeletionCallback(
+      final StorageResourceId fullObjectName,
+      final List<IOException> innerExceptions,
+      final BatchHelper batchHelper,
+      final int attempt,
+      final long generation) {
+    final String bucketName = fullObjectName.getBucketName();
+    final String objectName = fullObjectName.getObjectName();
+    return new JsonBatchCallback<Void>() {
+      @Override
+      public void onSuccess(Void obj, HttpHeaders responseHeaders) {
+        LOG.debug(
+            "Successfully deleted {} at generation {}", fullObjectName.toString(), generation);
+      }
+
+      @Override
+      public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
+        if (errorExtractor.itemNotFound(e)) {
+          // Ignore item-not-found errors. We do not have to delete what we cannot find. This
+          // error typically shows up when we make a request to delete something and the server
+          // receives the request but we get a retry-able error before we get a response.
+          // During a retry, we no longer find the item because the server had deleted
+          // it already.
+          LOG.debug("deleteObjects({}) : delete not found", fullObjectName.toString());
+        } else if (errorExtractor.preconditionNotMet(e)
+            && attempt <= MAXIMUM_PRECONDITION_FAILURES_IN_DELETE) {
+          LOG.info(
+              "Precondition not met while deleting {} at generation {}. Attempt {}. Retrying.",
+              fullObjectName.toString(),
+              generation,
+              attempt);
+          queueSingleObjectDelete(
+              fullObjectName, innerExceptions, batchHelper, attempt + 1);
+        } else {
+          innerExceptions.add(wrapException(
+              new IOException(e.toString()),
+              String.format("Error deleting, stage 2 with generation %s", generation),
+              bucketName,
+              objectName));
+        }
+      }
+    };
+  }
+
   private void queueSingleObjectDelete(
       final StorageResourceId fullObjectName,
       final List<IOException> innerExceptions,
@@ -671,69 +727,48 @@ public class GoogleCloudStorageImpl
     final String bucketName = fullObjectName.getBucketName();
     final String objectName = fullObjectName.getObjectName();
 
-    // We first need to get the current object version to issue a safe delete for only the
-    // latest version of the object.
-    Storage.Objects.Get getObject = gcs.objects().get(bucketName, objectName);
-    batchHelper.queue(getObject, new JsonBatchCallback<StorageObject>() {
-      @Override
-      public void onSuccess(StorageObject storageObject, HttpHeaders httpHeaders)
-          throws IOException {
-        final Long generation = storageObject.getGeneration();
-        Storage.Objects.Delete deleteObject =
-            gcs.objects().delete(bucketName, objectName)
-                .setIfGenerationMatch(generation);
+    if (fullObjectName.hasGenerationId()) {
+      // We can go direct to the deletion request instead of first fetching generation id.
+      Storage.Objects.Delete deleteObject =
+          gcs.objects().delete(bucketName, objectName)
+              .setIfGenerationMatch(fullObjectName.getGenerationId());
+      batchHelper.queue(deleteObject, getDeletionCallback(
+          fullObjectName, innerExceptions, batchHelper, attempt, fullObjectName.getGenerationId()));
+    } else {
+      // We first need to get the current object version to issue a safe delete for only the
+      // latest version of the object.
+      Storage.Objects.Get getObject = gcs.objects().get(bucketName, objectName);
+      batchHelper.queue(getObject, new JsonBatchCallback<StorageObject>() {
+        @Override
+        public void onSuccess(StorageObject storageObject, HttpHeaders httpHeaders)
+            throws IOException {
+          final Long generation = storageObject.getGeneration();
+          Storage.Objects.Delete deleteObject =
+              gcs.objects().delete(bucketName, objectName)
+                  .setIfGenerationMatch(generation);
 
-        batchHelper.queue(deleteObject, new JsonBatchCallback<Void>() {
-          @Override
-          public void onSuccess(Void obj, HttpHeaders responseHeaders) {
-            LOG.debug(
-                "Successfully deleted {} at generation {}", fullObjectName.toString(), generation);
-          }
-
-          @Override
-          public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
-            if (errorExtractor.itemNotFound(e)) {
-              // Ignore item-not-found errors. We do not have to delete what we cannot find. This
-              // error typically shows up when we make a request to delete something and the server
-              // receives the request but we get a retry-able error before we get a response.
-              // During a retry, we no longer find the item because the server had deleted
-              // it already.
-              LOG.debug("deleteObjects({}) : delete not found", fullObjectName.toString());
-            } else if (errorExtractor.preconditionNotMet(e)
-                && attempt <= MAXIMUM_PRECONDITION_FAILURES_IN_DELETE) {
-              LOG.info(
-                  "Precondition not met while deleting {} at generation {}. Attempt {}. Retrying.",
-                  fullObjectName.toString(),
-                  generation,
-                  attempt);
-              queueSingleObjectDelete(
-                  fullObjectName, innerExceptions, batchHelper, attempt + 1);
-            } else {
-              innerExceptions.add(wrapException(
-                  new IOException(e.toString()),
-                  String.format("Error deleting, stage 2 with generation %s", generation),
-                  bucketName,
-                  objectName));
-            }
-          }
-        });
-      }
-      @Override
-      public void onFailure(GoogleJsonError googleJsonError, HttpHeaders httpHeaders)
-          throws IOException {
-        if (errorExtractor.itemNotFound(googleJsonError)) {
-          // If the the item isn't found, treat it the same as if it's not found in the delete
-          // case: assume the user wanted the object gone and now it is.
-          LOG.debug("deleteObjects({}) : get not found", fullObjectName.toString());
-        } else {
-          innerExceptions.add(wrapException(
-              new IOException(googleJsonError.toString()),
-              "Error deleting, stage 1",
-              bucketName,
-              objectName));
+          batchHelper.queue(
+              deleteObject,
+              getDeletionCallback(
+                  fullObjectName, innerExceptions, batchHelper, attempt, generation));
         }
-      }
-    });
+        @Override
+        public void onFailure(GoogleJsonError googleJsonError, HttpHeaders httpHeaders)
+            throws IOException {
+          if (errorExtractor.itemNotFound(googleJsonError)) {
+            // If the the item isn't found, treat it the same as if it's not found in the delete
+            // case: assume the user wanted the object gone and now it is.
+            LOG.debug("deleteObjects({}) : get not found", fullObjectName.toString());
+          } else {
+            innerExceptions.add(wrapException(
+                new IOException(googleJsonError.toString()),
+                "Error deleting, stage 1",
+                bucketName,
+                objectName));
+          }
+        }
+      });
+    }
   }
 
   /**
@@ -946,7 +981,9 @@ public class GoogleCloudStorageImpl
     insertObject.setDisableGZipContent(true);
     clientRequestHelper.setDirectUploadEnabled(insertObject, true);
 
-    if (!createObjectOptions.overwriteExisting()) {
+    if (resourceId.hasGenerationId()) {
+      insertObject.setIfGenerationMatch(resourceId.getGenerationId());
+    } else if (!createObjectOptions.overwriteExisting()) {
       insertObject.setIfGenerationMatch(0L);
     }
     return insertObject;
@@ -1743,32 +1780,63 @@ public class GoogleCloudStorageImpl
 
   @Override
   public void compose(
-      String bucketName, List<String> sources, String destination, String contentType)
+      final String bucketName, List<String> sources, String destination, String contentType)
       throws IOException {
     LOG.debug("compose({}, {}, {}, {})", bucketName, sources, destination, contentType);
-    List<SourceObjects> sourceObjects =
-        Lists.transform(
-            sources,
-            new Function<String, SourceObjects>() {
-              @Override
-              public SourceObjects apply(String input) {
-                return new SourceObjects().setName(input);
-              }
-            });
-    Compose compose =
-        gcs
-            .objects()
-            .compose(
-                bucketName,
-                destination,
-                new ComposeRequest()
-                    .setSourceObjects(sourceObjects)
-                    .setDestination(new StorageObject().setContentType(contentType)));
-    compose.setIfGenerationMatch(
-        getWriteGeneration(new StorageResourceId(bucketName, destination), true));
+    List<StorageResourceId> sourceIds = Lists.transform(
+        sources, new Function<String, StorageResourceId>() {
+          @Override
+          public StorageResourceId apply(String objectName) {
+            return new StorageResourceId(bucketName, objectName);
+          }
+        });
+    StorageResourceId destinationId = new StorageResourceId(bucketName, destination);
+    CreateObjectOptions options = new CreateObjectOptions(
+        true, contentType, CreateObjectOptions.EMPTY_METADATA);
+    composeObjects(sourceIds, destinationId, options);
+  }
 
-    LOG.debug("compose.execute()");
-    compose.execute();
-    LOG.debug("compose() done");
+  @Override
+  public GoogleCloudStorageItemInfo composeObjects(
+      List<StorageResourceId> sources,
+      final StorageResourceId destination,
+      CreateObjectOptions options)
+      throws IOException {
+    LOG.debug("composeObjects({}, {}, {})", sources, destination, options);
+    for (StorageResourceId inputId : sources) {
+      if (!destination.getBucketName().equals(inputId.getBucketName())) {
+        throw new IOException(String.format(
+            "Bucket doesn't match for source '%s' and destination '%s'!",
+            inputId, destination));
+      }
+    }
+    List<SourceObjects> sourceObjects = Lists.transform(
+        sources,
+        new Function<StorageResourceId, SourceObjects>() {
+          @Override
+          public SourceObjects apply(StorageResourceId input) {
+            // TODO(user): Maybe set generationIds for source objects as well here.
+            return new SourceObjects().setName(input.getObjectName());
+          }
+        });
+    Compose compose = gcs.objects().compose(
+        destination.getBucketName(),
+        destination.getObjectName(),
+        new ComposeRequest()
+            .setSourceObjects(sourceObjects)
+            .setDestination(new StorageObject()
+                .setContentType(options.getContentType())
+                .setMetadata(encodeMetadata(options.getMetadata()))));
+    if (destination.hasGenerationId()) {
+      compose.setIfGenerationMatch(destination.getGenerationId());
+    } else {
+      compose.setIfGenerationMatch(getWriteGeneration(destination, true));
+    }
+
+    LOG.debug("composeObjects.execute()");
+    GoogleCloudStorageItemInfo compositeInfo =
+        createItemInfoForStorageObject(destination, compose.execute());
+    LOG.debug("composeObjects() done, returning: {}", compositeInfo);
+    return compositeInfo;
   }
 }

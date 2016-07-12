@@ -265,4 +265,15 @@ public class ThrottledGoogleCloudStorage implements GoogleCloudStorage {
     throttle(StorageOperation.COMPOSE_OBJECTS);
     wrappedGcs.compose(bucketName, sources, destination, contentType);
   }
+
+  @Override
+  public GoogleCloudStorageItemInfo composeObjects(
+      List<StorageResourceId> sources,
+      final StorageResourceId destination,
+      CreateObjectOptions options)
+      throws IOException {
+    throttle(StorageOperation.GET_ITEMINFO, sources.size());
+    throttle(StorageOperation.COMPOSE_OBJECTS);
+    return wrappedGcs.composeObjects(sources, destination, options);
+  }
 }

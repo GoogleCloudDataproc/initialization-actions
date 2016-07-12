@@ -312,4 +312,13 @@ public class MetadataReadOnlyGoogleCloudStorage
       throws IOException {
     throw new UnsupportedOperationException();
   }
+
+  @Override
+  public GoogleCloudStorageItemInfo composeObjects(
+      List<StorageResourceId> sources,
+      final StorageResourceId destination,
+      CreateObjectOptions options)
+      throws IOException {
+    throw new UnsupportedOperationException();
+  }
 }

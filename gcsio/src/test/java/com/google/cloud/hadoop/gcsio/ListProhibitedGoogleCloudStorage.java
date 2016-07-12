@@ -180,4 +180,13 @@ public class ListProhibitedGoogleCloudStorage implements GoogleCloudStorage {
       throws IOException {
     delegateGcs.compose(bucketName, sources, destination, contentType);
   }
+
+  @Override
+  public GoogleCloudStorageItemInfo composeObjects(
+      List<StorageResourceId> sources,
+      final StorageResourceId destination,
+      CreateObjectOptions options)
+      throws IOException {
+    return delegateGcs.composeObjects(sources, destination, options);
+  }
 }
