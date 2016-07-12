@@ -4,7 +4,7 @@ This initialization action installs a binary release of [Apache Flink](http://fl
 Flink and start a Flink session running on YARN.
 
 ## Using this initialization action
-To use this initialization action, you will likely need to configure a few settings in the initialization action. Specifically, you shoud modify the following variables to match your desired setup:
+To use this initialization action, you will likely need to configure a few settings in the initialization action. Specifically, you should modify the following variables to match your desired setup:
 
 * `SCALA_VERSION` - The Scala version installed on the Cloud Dataproc cluster
 * `HADOOP_VERSION` - The Hadoop version installed on the Cloud Dataproc cluster
