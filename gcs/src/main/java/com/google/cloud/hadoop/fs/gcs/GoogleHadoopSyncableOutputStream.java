@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
@@ -79,6 +80,13 @@ import java.util.concurrent.Future;
 public class GoogleHadoopSyncableOutputStream extends OutputStream implements Syncable {
   // Prefix used for all temporary files created by this stream.
   public static final String TEMPFILE_PREFIX = "_GCS_SYNCABLE_TEMPFILE_";
+
+  // Maximum number of components a composite object can have; any attempts to compose onto
+  // an object already having this many components will fail. This OutputStream will enforce
+  // the limit before attempting the compose operation at all, so that the stream can be
+  // considered still safe to use and eventually close() without losing data even if
+  // intermediate attempts to hsync() throw exceptions due to the component limit.
+  public static final int MAX_COMPOSITE_COMPONENTS = 1024;
 
   private static final Logger LOG =
       LoggerFactory.getLogger(GoogleHadoopSyncableOutputStream.class);
@@ -183,17 +191,23 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
 
   @Override
   public void write(int b) throws IOException {
+    throwIfNotOpen();
     curDelegate.write(b);
   }
 
   @Override
   public void write(byte[] b, int offset, int len) throws IOException {
+    throwIfNotOpen();
     curDelegate.write(b, offset, len);
   }
 
   @Override
   public void close() throws IOException {
     LOG.debug("close(): Current tail file: {} final destination: {}", curGcsPath, finalGcsPath);
+    if (!isOpen()) {
+      LOG.debug("close(): Ignoring; stream already closed.");
+      return;
+    }
     commitCurrentFile();
 
     // null denotes stream closed.
@@ -231,15 +245,33 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
   public void hflush() throws IOException {
     LOG.warn(
         "hflush() is a no-op; readers will *not* yet see flushed data for {}", finalGcsPath);
+    throwIfNotOpen();
   }
 
   /**
    * This overrides Syncable.hsync(), but is not annotated as such because the method doesn't
    * exist in Hadoop 1.
+   *
+   * @throws CompositeLimitExceededException if this hsync() call would require any future close()
+   *     call to exceed the component limit. If CompositeLimitExceededException is thrown, no
+   *     actual GCS operations are taken and it's safe to subsequently call close() on this
+   *     stream as normal; it just means data written since the last successful hsync() has not
+   *     yet been committed.
    */
   public void hsync() throws IOException {
     LOG.debug("hsync(): Committing tail file {} to final destination {}", curGcsPath, finalGcsPath);
+    throwIfNotOpen();
     long startTime = System.nanoTime();
+
+    // If we were to call close() instead of hsync() right now, the final object would have this
+    // many components.
+    int curNumComponents = curComponentIndex + 1;
+    if (curNumComponents >= MAX_COMPOSITE_COMPONENTS) {
+      throw new CompositeLimitExceededException(String.format(
+          "Cannot hsync() '%s' because subsequent component count would exceed limit of %d",
+          finalGcsPath, MAX_COMPOSITE_COMPONENTS));
+    }
+
     commitCurrentFile();
 
     // Use a different temporary path for each temporary component to reduce the possible avenues of
@@ -315,5 +347,15 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
         String.format("%s%s.%d.%s",
             TEMPFILE_PREFIX, basePath.getName(), curComponentIndex, UUID.randomUUID().toString()));
     return ghfs.getGcsPath(tempPath);
+  }
+
+  private boolean isOpen() {
+    return curDelegate != null;
+  }
+
+  private void throwIfNotOpen() throws IOException {
+    if (!isOpen()) {
+      throw new ClosedChannelException();
+    }
   }
 }

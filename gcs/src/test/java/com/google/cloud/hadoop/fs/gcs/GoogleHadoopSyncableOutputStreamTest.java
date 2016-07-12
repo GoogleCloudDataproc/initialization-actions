@@ -38,6 +38,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.io.IOException;
+import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -160,5 +161,83 @@ public class GoogleHadoopSyncableOutputStreamTest {
       verify(mockExecutorService, times(2)).submit(any(Callable.class));
       verify(mockFuture).get();
     }
+  }
+
+  @Test
+  public void testCloseTwice() throws IOException {
+    Path objectPath = new Path(ghfs.getFileSystemRoot(), "dir/object.txt");
+    FSDataOutputStream fout = ghfs.create(objectPath);
+    fout.close();
+    fout.close();  // Fine to close twice.
+  }
+
+  @Test
+  public void testWrite1AfterClose() throws IOException {
+    Path objectPath = new Path(ghfs.getFileSystemRoot(), "dir/object.txt");
+    FSDataOutputStream fout = ghfs.create(objectPath);
+
+    expectedException.expect(ClosedChannelException.class);
+    fout.close();
+    fout.write(42);
+  }
+
+  @Test
+  public void testWriteAfterClose() throws IOException {
+    Path objectPath = new Path(ghfs.getFileSystemRoot(), "dir/object.txt");
+    FSDataOutputStream fout = ghfs.create(objectPath);
+
+    expectedException.expect(ClosedChannelException.class);
+    fout.close();
+    fout.write(new byte[] { 0x01 }, 0, 1);
+  }
+
+  @Test
+  public void testSyncAfterClose() throws IOException {
+    Path objectPath = new Path(ghfs.getFileSystemRoot(), "dir/object.txt");
+    FSDataOutputStream fout = ghfs.create(objectPath);
+
+    expectedException.expect(ClosedChannelException.class);
+    fout.close();
+    fout.sync();
+  }
+
+  @Test
+  public void testSyncCompositeLimitException() throws IOException {
+    Path objectPath = new Path(ghfs.getFileSystemRoot(), "dir/object.txt");
+    FSDataOutputStream fout = ghfs.create(objectPath);
+
+    byte[] expected = new byte[GoogleHadoopSyncableOutputStream.MAX_COMPOSITE_COMPONENTS + 1];
+    byte[] buf = new byte[1];
+    for (int i = 0; i < GoogleHadoopSyncableOutputStream.MAX_COMPOSITE_COMPONENTS - 1; ++i) {
+      buf[0] = (byte) i;
+      expected[i] = buf[0];
+      fout.write(buf, 0, 1);
+      fout.sync();
+    }
+
+    // If the limit is N, then the Nth attempt to call sync() will fail, since it means the
+    // base object already has N - 1 components, and we have 1 temporary object in-progress,
+    // and a call to close() at this point brings the base object up to the limit of N.
+    try {
+      // Despite the exception we're expecting, the data here should still be safe.
+      fout.write(new byte[] { 0x42 });
+      expected[GoogleHadoopSyncableOutputStream.MAX_COMPOSITE_COMPONENTS - 1] = 0x42;
+
+      fout.sync();
+      Assert.fail("Expected CompositeLimitExceededException");
+    } catch (CompositeLimitExceededException clee) {
+      // Expected.
+    }
+
+    // Despite having thrown an exception, the stream is still safe to use and even write more data.
+    fout.write(new byte[] { 0x11 });
+    expected[GoogleHadoopSyncableOutputStream.MAX_COMPOSITE_COMPONENTS] = 0x11;
+    fout.close();
+
+    byte[] actual = new byte[expected.length];
+    FSDataInputStream fin = ghfs.open(objectPath);
+    fin.read(actual);
+    fin.close();
+    Assert.assertArrayEquals(expected, actual);
   }
 }
