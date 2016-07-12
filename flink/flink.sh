@@ -16,20 +16,21 @@
 # Dataproc cluster. This script is based on previous scripts:
 # https://github.com/GoogleCloudPlatform/bdutil/tree/master/extensions/flink
 #
-# To use this script, you will need to configure the following variables to
-# match your cluster. For information about which software components
+# To use this script, you will need to configure some of the following variables
+# to match your cluster. For information about which software components
 # (and their version) are included in Cloud Dataproc clusters, see the
 # Cloud Dataproc Image Version informayion:
 # https://cloud.google.com/dataproc/concepts/dataproc-versions
 
-# Number of worker nodes in your cluster
-NUM_WORKERS=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 # Scala version on the cluster see the following side for details
 SCALA_VERSION="2.10"
 # Hadoop version on the cluster see the following side for details
 HADOOP_VERSION="2.7"
 # Flink version to be installed on the cluster
 FLINK_VERSION="1.0.3"
+
+# Number of worker nodes in your cluster (do not change)
+NUM_WORKERS=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 
 # Location of the FLink binary archive
 CONCAT_HADOOP_VERSION=$(echo $HADOOP_VERSION | sed 's/\.//g')
