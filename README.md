@@ -22,6 +22,7 @@ These samples are provided to show how various packages and components can be in
 This repository presently offers the following actions for use with Cloud Dataproc clusters.
 
 * Install packages/software on the cluster
+  * [Apache Flink](http://flink.apache.org)
   * [Apache Kafka](http://kafka.apache.org)
   * [Apache Oozie](http://oozie.apache.org)
   * [Apache Tez](http://tez.apache.org)
