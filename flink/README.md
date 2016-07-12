@@ -6,7 +6,6 @@ Flink and start a Flink session running on YARN.
 ## Using this initialization action
 To use this initialization action, you will likely need to configure a few settings in the initialization action. Specifically, you shoud modify the following variables to match your desired setup:
 
-* `NUM_WORKERS` - The number of workers in your Cloud Dataproc cluster
 * `SCALA_VERSION` - The Scala version installed on the Cloud Dataproc cluster
 * `HADOOP_VERSION` - The Hadoop version installed on the Cloud Dataproc cluster
 * `FLINK_VERSION` - The Flink version to be installed

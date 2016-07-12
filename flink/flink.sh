@@ -23,9 +23,9 @@
 # https://cloud.google.com/dataproc/concepts/dataproc-versions
 
 # Number of worker nodes in your cluster
-NUM_WORKERS='2'
+NUM_WORKERS=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 # Scala version on the cluster see the following side for details
-SCALA_VERSION="2.10" 
+SCALA_VERSION="2.10"
 # Hadoop version on the cluster see the following side for details
 HADOOP_VERSION="2.7"
 # Flink version to be installed on the cluster
