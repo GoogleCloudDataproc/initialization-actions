@@ -76,6 +76,9 @@ See the script source for more options on configuration. :)
 
 Note: When creating a conda environment using an environment.yml (via setting .yml path in `CONDA_ENV_YAML`), the `install-conda-env.sh` script simply *updates the **root** environment* with dependencies specified in the file (i.e., ignoring the `name:` key). This sidesteps some conda issues in `source activate`ing, while still providing all dependencies across the Dataproc cluster.
 
+If nothing else you need to include the bootstrap file as well eg.: 
+gcloud dataproc clusters create foo --initialization-actions gs://dataproc-initialization-actions/conda/bootstrap-conda.sh,gs://dataproc-initialization-actions/conda/install-conda-env.sh
+
 
 ### Notes on running Python 3
 
