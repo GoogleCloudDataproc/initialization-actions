@@ -309,7 +309,7 @@ public abstract class GoogleHadoopFileSystemBase
   // Use LEGACY_PATH_CODEC
   public static final String PATH_CODEC_USE_LEGACY_ENCODING = "legacy";
   // Use the default path codec.
-  public static final String PATH_CODEC_DEFAULT = PATH_CODEC_USE_LEGACY_ENCODING;
+  public static final String PATH_CODEC_DEFAULT = PATH_CODEC_USE_URI_ENCODING;
 
   // Instance value of fs.gs.implicit.dir.repair.enable based on the initial Configuration.
   private boolean enableAutoRepairImplicitDirectories =
