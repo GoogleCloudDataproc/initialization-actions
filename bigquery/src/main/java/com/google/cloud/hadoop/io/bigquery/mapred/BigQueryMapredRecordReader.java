@@ -3,13 +3,11 @@ package com.google.cloud.hadoop.io.bigquery.mapred;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-
-import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.mapred.RecordReader;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Map;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.mapred.RecordReader;
 
 /**
  * Wrap our mapreduce RecordReader so it can be called

@@ -18,14 +18,12 @@ package com.google.cloud.hadoop.util;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
-
-import org.apache.hadoop.conf.Configuration;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.hadoop.conf.Configuration;
 
 /**
  * Helpers for checking the validity of Hadoop configurations.

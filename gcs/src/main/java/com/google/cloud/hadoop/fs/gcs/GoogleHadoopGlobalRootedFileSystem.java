@@ -21,11 +21,9 @@ import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-
-import org.apache.hadoop.fs.Path;
-
 import java.net.URI;
 import java.net.URISyntaxException;
+import org.apache.hadoop.fs.Path;
 
 /**
  * This class provides a Hadoop compatible File System on top of Google Cloud Storage (GCS).

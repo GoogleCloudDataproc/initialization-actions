@@ -19,13 +19,11 @@ package com.google.cloud.hadoop.gcsio;
 import com.google.api.client.util.Clock;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * DirectoryListCache is an abstract class providing supplemental accounting of full paths for

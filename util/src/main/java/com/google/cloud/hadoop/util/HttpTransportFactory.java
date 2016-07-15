@@ -20,9 +20,6 @@ import com.google.api.client.http.apache.ApacheHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
-
-import org.apache.http.HttpHost;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
@@ -30,8 +27,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
-
 import javax.annotation.Nullable;
+import org.apache.http.HttpHost;
 
 /**
  * Factory for creating HttpTransport types.

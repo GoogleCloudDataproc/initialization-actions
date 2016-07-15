@@ -31,13 +31,11 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
-
+import java.io.IOException;
+import java.util.Set;
 import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.Set;
 
 public class RetryHttpInitializer
     implements HttpRequestInitializer {

@@ -19,11 +19,9 @@ package com.google.cloud.hadoop.fs.gcs;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.common.annotations.VisibleForTesting;
-
-import org.apache.hadoop.fs.Path;
-
 import java.io.IOException;
 import java.net.URI;
+import org.apache.hadoop.fs.Path;
 
 /**
  * GoogleHadoopFileSystem is a version of GoogleHadoopFileSystemBase which is rooted in a single

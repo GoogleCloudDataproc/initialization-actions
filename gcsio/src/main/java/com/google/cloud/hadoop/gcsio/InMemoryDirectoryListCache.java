@@ -16,14 +16,13 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * InMemoryDirectoryListCache provides in-memory accounting of full paths for directories and files

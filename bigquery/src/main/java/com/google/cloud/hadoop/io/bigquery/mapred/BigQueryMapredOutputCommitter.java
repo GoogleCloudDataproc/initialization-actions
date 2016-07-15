@@ -5,7 +5,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonObject;
-
+import java.io.IOException;
 import org.apache.hadoop.mapred.JobContext;
 import org.apache.hadoop.mapred.JobStatus;
 import org.apache.hadoop.mapred.OutputCommitter;
@@ -13,8 +13,6 @@ import org.apache.hadoop.mapred.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.JobStatus.State;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 
 /**
  * OutputCommitter that uses the old mapred API so that we can do

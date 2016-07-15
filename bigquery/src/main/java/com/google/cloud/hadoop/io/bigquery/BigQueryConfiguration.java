@@ -5,13 +5,11 @@ import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
-
+import java.io.IOException;
+import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.List;
 
 /**
  * A container for configuration property names for jobs with BigQuery input/output.

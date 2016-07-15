@@ -1,11 +1,10 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 
+import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.JobID;
-
-import java.io.IOException;
 
 /**
  * A shim class that allows us to construct a Job object with a Configuration object and

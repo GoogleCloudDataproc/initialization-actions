@@ -1,7 +1,7 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.common.base.Preconditions;
-
+import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
 import org.apache.avro.file.FileReader;
@@ -20,8 +20,6 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 
 /**
  * RecordReader for avro BigQuery exports.

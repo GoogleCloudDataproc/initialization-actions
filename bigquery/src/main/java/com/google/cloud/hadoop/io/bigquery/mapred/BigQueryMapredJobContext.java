@@ -2,15 +2,13 @@ package com.google.cloud.hadoop.io.bigquery.mapred;
 
 import com.google.cloud.hadoop.io.bigquery.BigQueryJobWrapper;
 import com.google.common.base.Preconditions;
-
+import java.io.File;
+import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.File;
-import java.io.IOException;
 
 /**
  * Utility to create a JobContext for use with our MRV1 wrapper.

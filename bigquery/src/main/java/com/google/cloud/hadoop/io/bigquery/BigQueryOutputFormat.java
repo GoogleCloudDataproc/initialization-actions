@@ -5,7 +5,9 @@ import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.gson.JsonObject;
-
+import java.io.IOException;
+import java.text.NumberFormat;
+import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.OutputFormat;
@@ -14,10 +16,6 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.text.NumberFormat;
-import java.util.Map;
 
 /**
  * An OutputFormat that sends the output of a Hadoop job to BigQuery. BigQueryOutputFormat accepts

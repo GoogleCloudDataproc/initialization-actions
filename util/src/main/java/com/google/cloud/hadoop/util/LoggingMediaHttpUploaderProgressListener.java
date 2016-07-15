@@ -19,11 +19,9 @@ package com.google.cloud.hadoop.util;
 import com.google.api.client.googleapis.media.MediaHttpUploader;
 import com.google.api.client.googleapis.media.MediaHttpUploader.UploadState;
 import com.google.api.client.googleapis.media.MediaHttpUploaderProgressListener;
-
+import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 
 /**
  * Logs the status of uploads. At the beginning, during, and

@@ -2,14 +2,12 @@ package com.google.cloud.hadoop.io.bigquery.mapred;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-
+import java.io.IOException;
 import org.apache.hadoop.mapred.RecordWriter;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 
 /**
  * Wrap our mapreduce RecordWriter so it can be called

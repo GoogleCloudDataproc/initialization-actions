@@ -1,10 +1,9 @@
 package com.google.cloud.hadoop.io.bigquery;
 
+import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
-
-import java.io.IOException;
 
 /**
  * Interface to produce delegate RecordReader instances.

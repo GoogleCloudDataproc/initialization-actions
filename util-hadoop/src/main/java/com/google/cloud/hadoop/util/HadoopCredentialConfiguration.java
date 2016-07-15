@@ -14,10 +14,9 @@
 
 package com.google.cloud.hadoop.util;
 
+import java.util.List;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
-
-import java.util.List;
 
 /**
  * CredentialConfiguration based on Hadoop Configuration objects.

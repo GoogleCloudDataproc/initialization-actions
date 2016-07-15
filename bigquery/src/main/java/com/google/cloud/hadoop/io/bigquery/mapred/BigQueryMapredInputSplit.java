@@ -2,13 +2,11 @@ package com.google.cloud.hadoop.io.bigquery.mapred;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-
-import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.mapred.InputSplit;
-
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.mapred.InputSplit;
 
 /**
  * Wrap our {@link com.google.cloud.hadoop.io.bigquery.UnshardedInputSplit} class.

@@ -3,7 +3,9 @@ package com.google.cloud.hadoop.io.bigquery;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -15,10 +17,6 @@ import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.util.Progressable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * An Export to GCS that provides a single directory for BigQuery to export to and requires

@@ -15,7 +15,11 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.common.base.Preconditions;
-
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.EnumSet;
+import java.util.StringTokenizer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.AbstractFileSystem;
 import org.apache.hadoop.fs.BlockLocation;
@@ -32,12 +36,6 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.Progressable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.EnumSet;
-import java.util.StringTokenizer;
 
 /**
  * GoogleHadoopFS provides a YARN compatible Abstract File System on top of

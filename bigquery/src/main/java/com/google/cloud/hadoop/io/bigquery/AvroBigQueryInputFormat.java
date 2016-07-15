@@ -1,15 +1,13 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.common.base.Preconditions;
-
+import java.io.IOException;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
-
-import java.io.IOException;
 
 /**
  * InputFormat to generate and ingest Avro-based BigQuery exports.

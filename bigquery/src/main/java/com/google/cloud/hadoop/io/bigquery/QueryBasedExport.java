@@ -8,15 +8,13 @@ import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
-
+import java.io.IOException;
+import java.util.List;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.util.Progressable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.List;
 
 /**
  * A Export decorator that will attempt to perform a query during the export prepare phase.

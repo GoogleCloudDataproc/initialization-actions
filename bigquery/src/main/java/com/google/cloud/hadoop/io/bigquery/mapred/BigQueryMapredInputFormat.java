@@ -4,7 +4,8 @@ import com.google.cloud.hadoop.io.bigquery.GsonBigQueryInputFormat;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.gson.JsonObject;
-
+import java.io.IOException;
+import java.util.List;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.InputSplit;
@@ -18,9 +19,6 @@ import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.TaskID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.util.List;
 
 /**
  * InputFormat that uses the old mapred API so that we can do

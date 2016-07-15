@@ -11,7 +11,8 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.HadoopToStringUtil;
 import com.google.common.annotations.VisibleForTesting;
-
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.OutputCommitter;
@@ -19,9 +20,6 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.security.GeneralSecurityException;
 
 /**
  * An OutputCommitter that commits tables specified in job output dataset in Bigquery. This is

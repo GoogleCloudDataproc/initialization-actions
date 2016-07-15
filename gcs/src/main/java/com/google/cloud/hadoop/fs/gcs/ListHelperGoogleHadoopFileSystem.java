@@ -21,10 +21,6 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.MetadataReadOnlyGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.common.base.Preconditions;
-
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
-
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -32,6 +28,8 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 
 /**
  * ListHelperGoogleHadoopFileSystem overrides the behavior of GoogleHadoopFileSystem to manifest
