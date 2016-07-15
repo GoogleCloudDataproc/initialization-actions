@@ -200,6 +200,17 @@ public class CacheSupplementedGoogleCloudStorage
   }
 
   /**
+   * Pure pass-through.
+   */
+  @Override
+  public SeekableByteChannel open(
+      StorageResourceId resourceId, GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
+    LOG.debug("open({}, {})", resourceId, readOptions);
+    return gcsDelegate.open(resourceId, readOptions);
+  }
+
+  /**
    * Updates cache with bucketName.
    */
   @Override

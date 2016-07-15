@@ -103,6 +103,13 @@ public class LaggedGoogleCloudStorage implements GoogleCloudStorage  {
   }
 
   @Override
+  public SeekableByteChannel open(
+      StorageResourceId resourceId, GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
+    return delegate.open(resourceId, readOptions);
+  }
+
+  @Override
   public void deleteObjects(
       List<StorageResourceId> fullObjectNames) throws IOException {
     delegate.deleteObjects(fullObjectNames);

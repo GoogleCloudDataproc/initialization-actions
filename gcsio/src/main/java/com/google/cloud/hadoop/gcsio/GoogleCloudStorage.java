@@ -134,6 +134,18 @@ public interface GoogleCloudStorage {
       throws IOException;
 
   /**
+   * Opens an object for reading.
+   *
+   * @param resourceId identifies a StorageObject
+   * @param readOptions Fine-grained options for behaviors of retries, buffering, etc.
+   * @return a channel for reading from the given object
+   * @throws FileNotFoundException if the given object does not exist
+   * @throws IOException if object exists but cannot be opened
+   */
+  SeekableByteChannel open(StorageResourceId resourceId, GoogleCloudStorageReadOptions readOptions)
+      throws IOException;
+
+  /**
    * Creates a bucket.
    *
    * @param bucketName name of the bucket to create

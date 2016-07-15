@@ -31,6 +31,7 @@ import com.google.cloud.hadoop.util.RetryBoundedBackOff;
 import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -50,6 +51,18 @@ import org.slf4j.LoggerFactory;
  */
 public class GoogleCloudStorageReadChannel
     implements SeekableByteChannel {
+  // Defaults kept here for legacy compatibility; see GoogleCloudStorageReadOptions for details.
+  public static final int DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS =
+      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS;
+  public static final double DEFAULT_BACKOFF_RANDOMIZATION_FACTOR =
+      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_RANDOMIZATION_FACTOR;
+  public static final double DEFAULT_BACKOFF_MULTIPLIER =
+      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_MULTIPLIER;
+  public static final int DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS =
+      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS;
+  public static final int DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS =
+      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS;
+
   // Logger.
   private static final Logger LOG =
       LoggerFactory.getLogger(GoogleCloudStorageReadChannel.class);
@@ -102,6 +115,9 @@ public class GoogleCloudStorageReadChannel
   // Request helper to use to set extra headers
   private final ClientRequestHelper<StorageObject> clientRequestHelper;
 
+  // Fine-grained options.
+  private final GoogleCloudStorageReadOptions readOptions;
+
   // Sleeper used for waiting between retries.
   private Sleeper sleeper = Sleeper.DEFAULT;
 
@@ -112,29 +128,6 @@ public class GoogleCloudStorageReadChannel
   // Lazily initialized BackOff for sleeping between retries; only ever initialized if a retry is
   // necessary.
   private BackOff backOff = null;
-
-  // Settings used for instantiating the default BackOff used for determining wait time between
-  // retries. TODO(user): Wire these out to be settable by the Hadoop configs.
-  // The number of milliseconds to wait before the very first retry in a series of retries.
-  public static final int DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS = 200;
-
-  // The amount of jitter introduced when computing the next retry sleep interval so that when
-  // many clients are retrying, they don't all retry at the same time.
-  public static final double DEFAULT_BACKOFF_RANDOMIZATION_FACTOR = 0.5;
-
-  // The base of the exponent used for exponential backoff; each subsequent sleep interval is
-  // roughly this many times the previous interval.
-  public static final double DEFAULT_BACKOFF_MULTIPLIER = 1.5;
-
-  // The maximum amount of sleep between retries; at this point, there will be no further
-  // exponential backoff. This prevents intervals from growing unreasonably large.
-  public static final int DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS = 10 * 1000;
-
-  // The maximum total time elapsed since the first retry over the course of a series of retries.
-  // This makes it easier to bound the maximum time it takes to respond to a permanent failure
-  // without having to calculate the summation of a series of exponentiated intervals while
-  // accounting for the randomization of backoff intervals.
-  public static final int DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS = 2 * 60 * 1000;
 
   // For files that have Content-Encoding: gzip set in the file metadata, the size of the response
   // from GCS is the size of the compressed file. However, the HTTP client wraps the content
@@ -166,13 +159,48 @@ public class GoogleCloudStorageReadChannel
       ApiErrorExtractor errorExtractor,
       ClientRequestHelper<StorageObject> requestHelper)
       throws IOException {
+    this(
+        gcs,
+        bucketName,
+        objectName,
+        errorExtractor,
+        requestHelper,
+        GoogleCloudStorageReadOptions.DEFAULT);
+  }
+
+  /**
+   * Constructs an instance of GoogleCloudStorageReadChannel.
+   *
+   * @param gcs storage object instance
+   * @param bucketName name of the bucket containing the object to read
+   * @param objectName name of the object to read
+   * @param requestHelper a ClientRequestHelper used to set any extra headers
+   * @param readOptions fine-grained options specifying things like retry settings, buffering, etc.
+   * @throws FileNotFoundException if the given object does not exist
+   * @throws IOException on IO error
+   */
+  public GoogleCloudStorageReadChannel(
+      Storage gcs,
+      String bucketName,
+      String objectName,
+      ApiErrorExtractor errorExtractor,
+      ClientRequestHelper<StorageObject> requestHelper,
+      GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
     this.gcs = gcs;
     this.clientRequestHelper = requestHelper;
     this.bucketName = bucketName;
     this.objectName = objectName;
     this.errorExtractor = errorExtractor;
+    this.readOptions = readOptions;
     channelIsOpen = true;
     position(0);
+
+    if (!readOptions.getSupportContentEncoding()) {
+      // If we don't need to support nonstandard content-encodings, we'll just proceed assuming
+      // the content-encoding is the standard/safe FileEncoding.OTHER.
+      fileEncoding = FileEncoding.OTHER;
+    }
   }
 
   /**
@@ -186,6 +214,7 @@ public class GoogleCloudStorageReadChannel
       throws IOException {
     this.clientRequestHelper = null;
     this.errorExtractor = null;
+    this.readOptions = GoogleCloudStorageReadOptions.DEFAULT;
     channelIsOpen = true;
     position(0);
   }
@@ -236,11 +265,11 @@ public class GoogleCloudStorageReadChannel
       backOff.reset();
     } else {
       backOff = new ExponentialBackOff.Builder()
-          .setInitialIntervalMillis(DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS)
-          .setRandomizationFactor(DEFAULT_BACKOFF_RANDOMIZATION_FACTOR)
-          .setMultiplier(DEFAULT_BACKOFF_MULTIPLIER)
-          .setMaxIntervalMillis(DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS)
-          .setMaxElapsedTimeMillis(DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS)
+          .setInitialIntervalMillis(readOptions.getBackoffInitialIntervalMillis())
+          .setRandomizationFactor(readOptions.getBackoffRandomizationFactor())
+          .setMultiplier(readOptions.getBackoffMultiplier())
+          .setMaxIntervalMillis(readOptions.getBackoffMaxIntervalMillis())
+          .setMaxElapsedTimeMillis(readOptions.getBackoffMaxElapsedTimeMillis())
           .setNanoClock(clock)
           .build();
     }
@@ -673,6 +702,13 @@ public class GoogleCloudStorageReadChannel
     InputStream content = null;
     try {
       content = response.getContent();
+
+      if (readOptions.getBufferSize() > 0) {
+        LOG.debug(
+            "Wrapping response content in BufferedInputStream of size {}",
+            readOptions.getBufferSize());
+        content = new BufferedInputStream(content, readOptions.getBufferSize());
+      }
 
       // If the file is gzip encoded, we requested the entire file and need to seek in the content
       // to the desired position. If it is not, we only requested the bytes we haven't read.

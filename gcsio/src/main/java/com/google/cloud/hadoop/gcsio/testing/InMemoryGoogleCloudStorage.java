@@ -22,6 +22,7 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageExceptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageStrings;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.UpdatableItemInfo;
@@ -179,9 +180,66 @@ public class InMemoryGoogleCloudStorage
   @Override
   public synchronized SeekableByteChannel open(StorageResourceId resourceId)
       throws IOException {
+    return open(resourceId, GoogleCloudStorageReadOptions.DEFAULT);
+  }
+
+  @Override
+  public SeekableByteChannel open(
+      StorageResourceId resourceId, GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
     if (!getItemInfo(resourceId).exists()) {
-      throw GoogleCloudStorageExceptions.getFileNotFoundException(
+      final IOException notFoundException = GoogleCloudStorageExceptions.getFileNotFoundException(
           resourceId.getBucketName(), resourceId.getObjectName());
+      if (readOptions.getFastFailOnNotFound()) {
+        throw notFoundException;
+      } else {
+        // We'll need to simulate a lazy-evaluating byte channel which only detects nonexistence
+        // on size() and read(ByteBuffer) calls.
+        return new SeekableByteChannel() {
+          private long position = 0;
+          private boolean isOpen = true;
+          @Override
+          public long position() {
+            return position;
+          }
+
+          @Override
+          public SeekableByteChannel position(long newPosition) {
+            position = newPosition;
+            return this;
+          }
+
+          @Override
+          public int read(ByteBuffer dst) throws IOException {
+            throw notFoundException;
+          }
+
+          @Override
+          public long size() throws IOException {
+            throw notFoundException;
+          }
+
+          @Override
+          public SeekableByteChannel truncate(long size) {
+            throw new UnsupportedOperationException("Cannot mutate read-only channel");
+          }
+
+          @Override
+          public int write(ByteBuffer src) throws IOException {
+            throw new UnsupportedOperationException("Cannot mutate read-only channel");
+          }
+
+          @Override
+          public void close() {
+            isOpen = false;
+          }
+
+          @Override
+          public boolean isOpen() {
+            return isOpen;
+          }
+        };
+      }
     }
     return bucketLookup
         .get(resourceId.getBucketName())

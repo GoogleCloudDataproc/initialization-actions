@@ -145,6 +145,14 @@ public class ThrottledGoogleCloudStorage implements GoogleCloudStorage {
   }
 
   @Override
+  public SeekableByteChannel open(
+      StorageResourceId resourceId, GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
+    throttle(StorageOperation.OPEN_OBJECT);
+    return wrappedGcs.open(resourceId, readOptions);
+  }
+
+  @Override
   public void create(String bucketName) throws IOException {
     throttle(StorageOperation.CREATE_BUCKET);
     wrappedGcs.create(bucketName);

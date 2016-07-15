@@ -1495,6 +1495,40 @@ public class GoogleCloudStorageTest {
   }
 
   /**
+   * If we disable the supportContentEncoding option when opening a channel, and disable
+   * failing fast on nonexistent objects we should expect no extraneous metadata-GET calls at all.
+   */
+  @Test
+  public void testOpenNoSupportContentEncodingAndNoFailFastOnNotFound() throws Exception {
+    setUpBasicMockBehaviorForOpeningReadChannel();
+
+    InputStream mockExceptionStream = mock(InputStream.class);
+    byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
+    when(mockStorageObjectsGet.executeMedia())
+        .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(testData)));
+    when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
+        .thenReturn(testData.length);
+    GoogleCloudStorageReadChannel readChannel =
+        (GoogleCloudStorageReadChannel) gcs.open(
+            new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
+            new GoogleCloudStorageReadOptions.Builder()
+                .setFastFailOnNotFound(false)
+                .setSupportContentEncoding(false)
+                .build());
+
+    byte[] actualData = new byte[testData.length];
+    int bytesRead = readChannel.read(ByteBuffer.wrap(actualData));
+    verify(mockStorage).objects();
+    verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders).setRange(eq("bytes=0-"));
+    verify(mockStorageObjectsGet).executeMedia();
+
+    assertEquals(testData.length, bytesRead);
+    assertArrayEquals(testData, actualData);
+  }
+
+  /**
    * Test operation of GoogleCloudStorage.open(2) with Content-Encoding: gzip files when exceptions
    * occur during reading.
    */

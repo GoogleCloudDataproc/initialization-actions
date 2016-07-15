@@ -93,6 +93,13 @@ public class ResourceLoggingGoogleCloudStorage implements GoogleCloudStorage {
   }
 
   @Override
+  public SeekableByteChannel open(
+      StorageResourceId resourceId, GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
+    return delegateGcs.open(resourceId, readOptions);
+  }
+
+  @Override
   public void create(String bucketName) throws IOException {
     delegateGcs.create(bucketName);
     createdResources.add(new StorageResourceId(bucketName));

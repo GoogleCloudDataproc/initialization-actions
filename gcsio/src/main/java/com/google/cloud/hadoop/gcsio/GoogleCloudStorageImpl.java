@@ -526,7 +526,17 @@ public class GoogleCloudStorageImpl
   @Override
   public SeekableByteChannel open(StorageResourceId resourceId)
       throws IOException {
-    LOG.debug("open({})", resourceId);
+    return open(resourceId, GoogleCloudStorageReadOptions.DEFAULT);
+  }
+
+  /**
+   * See {@link GoogleCloudStorage#open(StorageResourceId)} for details about expected behavior.
+   */
+  @Override
+  public SeekableByteChannel open(
+      StorageResourceId resourceId, GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
+    LOG.debug("open({}, {})", resourceId, readOptions);
     Preconditions.checkArgument(resourceId.isStorageObject(),
         "Expected full StorageObject id, got " + resourceId);
 
@@ -534,9 +544,11 @@ public class GoogleCloudStorageImpl
     // FileNotFoundException until read is called. As a result, in order to find out if the object
     // exists, we'll need to do an RPC (metadata or data). A metadata check should be a less
     // expensive operation than a read data operation.
-    if (!getItemInfo(resourceId).exists()) {
-      throw GoogleCloudStorageExceptions.getFileNotFoundException(
-          resourceId.getBucketName(), resourceId.getObjectName());
+    if (readOptions.getFastFailOnNotFound()) {
+      if (!getItemInfo(resourceId).exists()) {
+        throw GoogleCloudStorageExceptions.getFileNotFoundException(
+            resourceId.getBucketName(), resourceId.getObjectName());
+      }
     }
 
     return new GoogleCloudStorageReadChannel(
@@ -544,7 +556,8 @@ public class GoogleCloudStorageImpl
         resourceId.getBucketName(),
         resourceId.getObjectName(),
         errorExtractor,
-        clientRequestHelper);
+        clientRequestHelper,
+        readOptions);
   }
 
   /**

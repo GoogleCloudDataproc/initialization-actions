@@ -290,15 +290,28 @@ public class GoogleCloudStorageFileSystem {
    */
   public SeekableByteChannel open(URI path)
       throws IOException {
+    return open(path, GoogleCloudStorageReadOptions.DEFAULT);
+  }
 
-    LOG.debug("open({})", path);
+  /**
+   * Opens an object for reading.
+   *
+   * @param path Object full path of the form gs://bucket/object-path.
+   * @param readOptions Fine-grained options for behaviors of retries, buffering, etc.
+   * @return A channel for reading from the given object.
+   * @throws FileNotFoundException if the given path does not exist.
+   * @throws IOException if object exists but cannot be opened.
+   */
+  public SeekableByteChannel open(URI path, GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
+    LOG.debug("open({}, {})", path, readOptions);
     Preconditions.checkNotNull(path);
     Preconditions.checkArgument(!FileInfo.isDirectoryPath(path),
         "Cannot open a directory for reading: " + path);
 
     // Validate the given path. false == do not allow empty object name.
     StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, false);
-    return gcs.open(resourceId);
+    return gcs.open(resourceId, readOptions);
   }
 
   /**

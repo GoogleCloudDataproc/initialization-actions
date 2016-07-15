@@ -129,6 +129,13 @@ public class MetadataReadOnlyGoogleCloudStorage
   }
 
   @Override
+  public SeekableByteChannel open(
+      StorageResourceId resourceId, GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void create(String bucketName)
       throws IOException {
     throw new UnsupportedOperationException();
