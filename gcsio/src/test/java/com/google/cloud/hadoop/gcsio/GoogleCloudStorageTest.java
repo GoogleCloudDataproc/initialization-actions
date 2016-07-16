@@ -1529,6 +1529,100 @@ public class GoogleCloudStorageTest {
   }
 
   /**
+   * Test in-place forward seeks smaller than seek buffer, smaller than limit.
+   */
+  @Test
+  public void testInplaceSeekSmallerThanSeekBuffer() throws Exception {
+    setUpBasicMockBehaviorForOpeningReadChannel();
+
+    InputStream mockExceptionStream = mock(InputStream.class);
+    byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
+    when(mockStorageObjectsGet.executeMedia())
+        .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(testData)));
+    when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
+        .thenReturn(testData.length);
+    GoogleCloudStorageReadChannel readChannel =
+        (GoogleCloudStorageReadChannel) gcs.open(
+            new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
+            new GoogleCloudStorageReadOptions.Builder()
+                .setFastFailOnNotFound(false)
+                .setSupportContentEncoding(false)
+                .setInplaceSeekLimit(2)
+                .build());
+
+    byte[] actualData1 = new byte[1];
+    int bytesRead1 = readChannel.read(ByteBuffer.wrap(actualData1));
+
+    // Jump 2 bytes forwards; this should be done in-place without any new executeMedia() call.
+    readChannel.position(3);
+    assertEquals(3, readChannel.position());
+
+    byte[] actualData2 = new byte[2];
+    int bytesRead2 = readChannel.read(ByteBuffer.wrap(actualData2));
+
+    verify(mockStorage).objects();
+    verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders).setRange(eq("bytes=0-"));
+    verify(mockStorageObjectsGet).executeMedia();
+
+    assertEquals(1, bytesRead1);
+    assertEquals(2, bytesRead2);
+    assertArrayEquals(new byte[] { 0x01 }, actualData1);
+    assertArrayEquals(new byte[] { 0x05, 0x08 }, actualData2);
+  }
+
+  /**
+   * Test in-place forward seeks larger than seek buffer but smaller than limit.
+   */
+  @Test
+  public void testInplaceSeekLargerThanSeekBuffer() throws Exception {
+    setUpBasicMockBehaviorForOpeningReadChannel();
+
+    InputStream mockExceptionStream = mock(InputStream.class);
+    byte[] testData = new byte[GoogleCloudStorageReadChannel.SKIP_BUFFER_SIZE + 5];
+    testData[0] = 0x01;
+    testData[testData.length - 4] = 0x02;
+    testData[testData.length - 3] = 0x03;
+    testData[testData.length - 2] = 0x05;
+    testData[testData.length - 1] = 0x08;
+    when(mockStorageObjectsGet.executeMedia())
+        .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(testData)));
+    when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
+        .thenReturn(testData.length);
+    GoogleCloudStorageReadChannel readChannel =
+        (GoogleCloudStorageReadChannel) gcs.open(
+            new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
+            new GoogleCloudStorageReadOptions.Builder()
+                .setFastFailOnNotFound(false)
+                .setSupportContentEncoding(false)
+                .setInplaceSeekLimit(2 * GoogleCloudStorageReadChannel.SKIP_BUFFER_SIZE)
+                .build());
+
+    byte[] actualData1 = new byte[1];
+    int bytesRead1 = readChannel.read(ByteBuffer.wrap(actualData1));
+
+    // Jump 2 bytes + SKIP_BUFFER_SIZE forwards; this should be done in-place without any
+    // new executeMedia() call.
+    readChannel.position(GoogleCloudStorageReadChannel.SKIP_BUFFER_SIZE + 3);
+    assertEquals(GoogleCloudStorageReadChannel.SKIP_BUFFER_SIZE + 3, readChannel.position());
+
+    byte[] actualData2 = new byte[2];
+    int bytesRead2 = readChannel.read(ByteBuffer.wrap(actualData2));
+
+    verify(mockStorage).objects();
+    verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders).setRange(eq("bytes=0-"));
+    verify(mockStorageObjectsGet).executeMedia();
+
+    assertEquals(1, bytesRead1);
+    assertEquals(2, bytesRead2);
+    assertArrayEquals(new byte[] { 0x01 }, actualData1);
+    assertArrayEquals(new byte[] { 0x05, 0x08 }, actualData2);
+  }
+
+  /**
    * Test operation of GoogleCloudStorage.open(2) with Content-Encoding: gzip files when exceptions
    * occur during reading.
    */

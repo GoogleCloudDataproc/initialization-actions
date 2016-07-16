@@ -2,6 +2,9 @@
 
   1. Changed RetryHttpInitializer to treat HTTP code 429 as a retriable
      error with exponential backoff instead of erroring out.
+  2. Misc updates in gcs-related library dependencies.
+  3. Added location support for temporary dataset, configured with the key
+     'mapred.bq.output.location'. Default is 'US'.
 
 
 0.7.5 - 2016-03-24

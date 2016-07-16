@@ -388,6 +388,55 @@ public abstract class GoogleHadoopFileSystemBase
     SYNCABLE_COMPOSITE
   }
 
+  // If true, the returned FSDataInputStream from the open(Path) method will hold an internal
+  // ByteBuffer of size fs.gs.io.buffersize which it pre-fills on each read, and can efficiently
+  // seek within the internal buffer. Otherwise, calls are delegated straight through to a lower
+  // level channel and the value of fs.gs.io.buffersize is passed through for the lower-level
+  // channel to interpret as it sees fit.
+  public static final String GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_KEY =
+      "fs.gs.inputstream.internalbuffer.enable";
+
+  // Default value for fs.gs.inputstream.internalbuffer.enable.
+  public static final boolean GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_DEFAULT = false;
+
+  // If true, input streams will proactively check the "content-encoding" header of underlying
+  // objects during reads for special handling of cases where content-encoding causes the
+  // reported object sizes to not match the actual number of read bytes due to the content
+  // being decoded in-transit; such encoded objects also aren't suitable for splitting or
+  // resuming on failure, so the underlying channel will restart from byte 0 and discard the
+  // requisite number of bytes to seek to a desired position or resume in such cases. In
+  // general, content-encoded objects are *not* well-suited for FileSystem-style access, and
+  // will break most of the split computations in the Hadoop subsystem anyways. To avoid
+  // paying the cost of an extra metadata GET on every single opened channel in the usual case
+  // where no content-encoded objects are present, it may be desirable to set this to 'false'.
+  public static final String GCS_INPUTSTREAM_SUPPORT_CONTENT_ENCODING_ENABLE_KEY =
+      "fs.gs.inputstream.support.content.encoding.enable";
+
+  // Default value for fs.gs.inputstream.support.content.encoding.enable.
+  public static final boolean GCS_INPUTSTREAM_SUPPORT_CONTENT_ENCODING_ENABLE_DEFAULT = true;
+
+  // If true, on opening a file we will proactively perform a metadata GET to check whether
+  // the object exists, even though the underlying channel will not open a data stream
+  // until read() is actually called so that streams can seek to nonzero file positions
+  // without incurring an extra stream creation. This is necessary to technically match the
+  // expected behavior of Hadoop filesystems, but incurs extra latency overhead on open().
+  // If the calling code can handle late failures on not-found errors, or has independently
+  // already ensured that a file exists before calling open(), then set this to false for
+  // more efficient reads.
+  public static final String GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY =
+      "fs.gs.inputstream.fast.fail.on.not.found.enable";
+
+  // Default value for fs.gs.inputstream.fast.fail.on.not.found.enable.
+  public static final boolean GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_DEFAULT = true;
+
+  // If forward seeks are within this many bytes of the current position, seeks are performed
+  // by reading and discarding bytes in-place rather than opening a new underlying stream.
+  public static final String GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY =
+      "fs.gs.inputstream.inplace.seek.limit";
+
+  // Default value for fs.gs.inputstream.inplace.seek.limit.
+  public static final long GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_DEFAULT = 8 * 1024 * 1024L;
+
   // Default PathFilter that accepts all paths.
   public static final PathFilter DEFAULT_FILTER = new PathFilter() {
     @Override

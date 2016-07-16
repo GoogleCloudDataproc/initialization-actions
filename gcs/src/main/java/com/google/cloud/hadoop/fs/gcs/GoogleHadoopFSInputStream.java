@@ -1,12 +1,12 @@
 /**
  * Copyright 2013 Google Inc. All Rights Reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- *    
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,6 +16,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.net.URI;
@@ -57,6 +58,9 @@ class GoogleHadoopFSInputStream
   // Time of initialization
   private long initTime;
 
+  // Used for single-byte reads.
+  private final byte[] singleReadBuf = new byte[1];
+
   /**
    * Constructs an instance of GoogleHadoopFSInputStream object.
    *
@@ -76,10 +80,44 @@ class GoogleHadoopFSInputStream
     this.statistics = statistics;
     initTime = System.nanoTime();
     totalBytesRead = 0;
-    channel = ghfs.getGcsFs().open(gcsPath);
-    buffer = ByteBuffer.allocate(bufferSize);
-    buffer.limit(0);
-    buffer.rewind();
+
+    boolean enableInternalBuffer = ghfs.getConf().getBoolean(
+        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_KEY,
+        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_DEFAULT);
+    LOG.debug("enableInternalBuffer: {}", enableInternalBuffer);
+
+    boolean supportContentEncoding = ghfs.getConf().getBoolean(
+        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_SUPPORT_CONTENT_ENCODING_ENABLE_KEY,
+        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_SUPPORT_CONTENT_ENCODING_ENABLE_DEFAULT);
+    LOG.debug("supportContentEncoding: {}", supportContentEncoding);
+
+    boolean fastFailOnNotFound = ghfs.getConf().getBoolean(
+        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY,
+        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_DEFAULT);
+    LOG.debug("fastFailOnNotFound: {}", fastFailOnNotFound);
+
+    long inplaceSeekLimit = ghfs.getConf().getLong(
+        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY,
+        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_DEFAULT);
+    LOG.debug("inplaceSeekLimit: {}", inplaceSeekLimit);
+
+    GoogleCloudStorageReadOptions.Builder readOptions = new GoogleCloudStorageReadOptions.Builder()
+        .setSupportContentEncoding(supportContentEncoding)
+        .setFastFailOnNotFound(fastFailOnNotFound)
+        .setInplaceSeekLimit(inplaceSeekLimit);
+    if (enableInternalBuffer) {
+      buffer = ByteBuffer.allocate(bufferSize);
+      buffer.limit(0);
+      buffer.rewind();
+      // If we're using a buffer in this layer, skip the lower-level buffer.
+      readOptions.setBufferSize(0);
+    } else {
+      buffer = null;
+      // If not using internal buffer, let the lower-level channel figure out how to do buffering.
+      readOptions.setBufferSize(bufferSize);
+    }
+
+    channel = ghfs.getGcsFs().open(gcsPath, readOptions.build());
   }
 
   /**
@@ -93,20 +131,35 @@ class GoogleHadoopFSInputStream
       throws IOException {
     long startTime = System.nanoTime();
 
-    // Refill the internal buffer if necessary.
-    if (!buffer.hasRemaining()) {
-      buffer.clear();
-      int numBytesRead = channel.read(buffer);
-      if (numBytesRead <= 0) {
-        buffer.limit(0);
-        buffer.rewind();
+    byte b;
+    if (buffer == null) {
+      // TODO(user): Wrap this in a while-loop if we ever introduce a non-blocking mode for the
+      // underlying channel.
+      int numRead = channel.read(ByteBuffer.wrap(singleReadBuf));
+      if (numRead == -1) {
         return -1;
+      } else if (numRead != 1) {
+        throw new IOException(String.format(
+            "Somehow read %d bytes using single-byte buffer for path %s ending in position %d!",
+            numRead, gcsPath, channel.position()));
+      }
+      b = singleReadBuf[0];
+    } else {
+      // Refill the internal buffer if necessary.
+      if (!buffer.hasRemaining()) {
+        buffer.clear();
+        int numBytesRead = channel.read(buffer);
+        if (numBytesRead <= 0) {
+          buffer.limit(0);
+          buffer.rewind();
+          return -1;
+        }
+
+        buffer.flip();
       }
 
-      buffer.flip();
+      b = buffer.get();
     }
-
-    byte b = buffer.get();
     totalBytesRead++;
     statistics.incrementBytesRead(1);
     long duration = System.nanoTime() - startTime;
@@ -137,41 +190,45 @@ class GoogleHadoopFSInputStream
     }
 
     int numRead = 0;
-    while (numRead < length) {
-      int needToRead = length - numRead;
-      if (buffer.remaining() >= needToRead) {
-        // There are sufficient bytes, we'll only read a (not-necessarily-proper) subset of the
-        // internal buffer.
-        buffer.get(buf, offset + numRead, needToRead);
-        numRead += needToRead;
-      } else if (buffer.hasRemaining()) {
-        // We must take everything from the buffer and loop again.
-        int singleRead = buffer.remaining();
-        buffer.get(buf, offset + numRead, singleRead);
-        numRead += singleRead;
-      } else {
-        // Buffer is empty AND we still need more bytes to be read.
-        long channelTime = System.nanoTime();
-        buffer.clear();
-        int numNewBytes = channel.read(buffer);
-        long channelDuration = System.nanoTime() - channelTime;
-        ghfs.increment(GoogleHadoopFileSystemBase.Counter.READ_FROM_CHANNEL);
-        ghfs.increment(
-            GoogleHadoopFileSystemBase.Counter.READ_FROM_CHANNEL_TIME, channelDuration);
-        if (numNewBytes <= 0) {
-          // Ran out of underlying channel bytes.
-          buffer.limit(0);
-          buffer.rewind();
-
-          if (numRead == 0) {
-            // Never read anything at all; return -1 to indicate EOF. Otherwise, we'll leave
-            // numRead untouched and return the number of bytes we did manage to retrieve.
-            numRead = -1;
-          }
-          break;
+    if (buffer == null) {
+      numRead = channel.read(ByteBuffer.wrap(buf, offset, length));
+    } else {
+      while (numRead < length) {
+        int needToRead = length - numRead;
+        if (buffer.remaining() >= needToRead) {
+          // There are sufficient bytes, we'll only read a (not-necessarily-proper) subset of the
+          // internal buffer.
+          buffer.get(buf, offset + numRead, needToRead);
+          numRead += needToRead;
+        } else if (buffer.hasRemaining()) {
+          // We must take everything from the buffer and loop again.
+          int singleRead = buffer.remaining();
+          buffer.get(buf, offset + numRead, singleRead);
+          numRead += singleRead;
         } else {
-          // Successfully got some new bytes from the channel; keep looping.
-          buffer.flip();
+          // Buffer is empty AND we still need more bytes to be read.
+          long channelTime = System.nanoTime();
+          buffer.clear();
+          int numNewBytes = channel.read(buffer);
+          long channelDuration = System.nanoTime() - channelTime;
+          ghfs.increment(GoogleHadoopFileSystemBase.Counter.READ_FROM_CHANNEL);
+          ghfs.increment(
+              GoogleHadoopFileSystemBase.Counter.READ_FROM_CHANNEL_TIME, channelDuration);
+          if (numNewBytes <= 0) {
+            // Ran out of underlying channel bytes.
+            buffer.limit(0);
+            buffer.rewind();
+
+            if (numRead == 0) {
+              // Never read anything at all; return -1 to indicate EOF. Otherwise, we'll leave
+              // numRead untouched and return the number of bytes we did manage to retrieve.
+              numRead = -1;
+            }
+            break;
+          } else {
+            // Successfully got some new bytes from the channel; keep looping.
+            buffer.flip();
+          }
         }
       }
     }
@@ -222,7 +279,8 @@ class GoogleHadoopFSInputStream
   @Override
   public synchronized long getPos()
       throws IOException {
-    long pos = channel.position() - buffer.remaining();
+    int bufRemaining = (buffer == null ? 0 : buffer.remaining());
+    long pos = channel.position() - bufRemaining;
     LOG.debug("getPos: {}", pos);
     return pos;
   }
@@ -238,46 +296,54 @@ class GoogleHadoopFSInputStream
       throws IOException {
     long startTime = System.nanoTime();
     LOG.debug("seek: {}", pos);
-    long curPos = getPos();
-    if (curPos == pos) {
-      LOG.debug("Skipping no-op seek.");
-    } else if (pos < curPos && curPos - pos <= buffer.position()) {
-      // Skip backwards few enough bytes that our current buffer still has those bytes around
-      // so that we simply need to reposition the buffer backwards a bit.
-      long skipBack = curPos - pos;
-
-      // Guaranteed safe to cast as an (int) because curPos - pos is <= buffer.position(), and
-      // position() is itself an int.
-      int newBufferPosition = buffer.position() - (int) skipBack;
-      LOG.debug("Skipping backward {} bytes in-place from buffer pos {} to new pos {}",
-          skipBack, buffer.position(), newBufferPosition);
-      buffer.position(newBufferPosition);
-    } else if (curPos < pos && pos < channel.position()) {
-      // Skip forwards--between curPos and channel.position() are the bytes we already have
-      // available in the buffer.
-      long skipBytes = pos - curPos;
-      Preconditions.checkState(skipBytes < buffer.remaining(),
-          "skipBytes (%s) must be less than buffer.remaining() (%s)",
-          skipBytes, buffer.remaining());
-
-      // We know skipBytes is castable as (int) even if the top-level position is capable of
-      // overflowing an int, since we at least assert that skipBytes < buffer.remaining(),
-      // which is itself less than Integer.MAX_VALUE.
-      int newBufferPosition = buffer.position() + (int) skipBytes;
-      LOG.debug("Skipping {} bytes in-place from buffer pos {} to new pos {}",
-          skipBytes, buffer.position(), newBufferPosition);
-      buffer.position(newBufferPosition);
-    } else {
-      LOG.debug("New position '{}' out of range of inplace buffer, with curPos ({}), "
-         + "buffer.position() ({}) and buffer.remaining() ({}).",
-          pos, curPos, buffer.position(), buffer.remaining());
+    if (buffer == null) {
       try {
         channel.position(pos);
       } catch (IllegalArgumentException e) {
         throw new IOException(e);
       }
-      buffer.limit(0);
-      buffer.rewind();
+    } else {
+      long curPos = getPos();
+      if (curPos == pos) {
+        LOG.debug("Skipping no-op seek.");
+      } else if (pos < curPos && curPos - pos <= buffer.position()) {
+        // Skip backwards few enough bytes that our current buffer still has those bytes around
+        // so that we simply need to reposition the buffer backwards a bit.
+        long skipBack = curPos - pos;
+
+        // Guaranteed safe to cast as an (int) because curPos - pos is <= buffer.position(), and
+        // position() is itself an int.
+        int newBufferPosition = buffer.position() - (int) skipBack;
+        LOG.debug("Skipping backward {} bytes in-place from buffer pos {} to new pos {}",
+            skipBack, buffer.position(), newBufferPosition);
+        buffer.position(newBufferPosition);
+      } else if (curPos < pos && pos < channel.position()) {
+        // Skip forwards--between curPos and channel.position() are the bytes we already have
+        // available in the buffer.
+        long skipBytes = pos - curPos;
+        Preconditions.checkState(skipBytes < buffer.remaining(),
+            "skipBytes (%s) must be less than buffer.remaining() (%s)",
+            skipBytes, buffer.remaining());
+
+        // We know skipBytes is castable as (int) even if the top-level position is capable of
+        // overflowing an int, since we at least assert that skipBytes < buffer.remaining(),
+        // which is itself less than Integer.MAX_VALUE.
+        int newBufferPosition = buffer.position() + (int) skipBytes;
+        LOG.debug("Skipping {} bytes in-place from buffer pos {} to new pos {}",
+            skipBytes, buffer.position(), newBufferPosition);
+        buffer.position(newBufferPosition);
+      } else {
+        LOG.debug("New position '{}' out of range of inplace buffer, with curPos ({}), "
+           + "buffer.position() ({}) and buffer.remaining() ({}).",
+            pos, curPos, buffer.position(), buffer.remaining());
+        try {
+          channel.position(pos);
+        } catch (IllegalArgumentException e) {
+          throw new IOException(e);
+        }
+        buffer.limit(0);
+        buffer.rewind();
+      }
     }
     long duration = System.nanoTime() - startTime;
     ghfs.increment(GoogleHadoopFileSystemBase.Counter.SEEK);

@@ -16,9 +16,11 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import com.google.common.base.Preconditions;
+
 /**
- * Advanced options for reading GoogleCloudStorage objects. Immutable; to incrementally set options
- * use the inner Builder class.
+ * Advanced options for reading GoogleCloudStorage objects. Immutable; callers must use the
+ * inner Builder class to construct instances.
  */
 public class GoogleCloudStorageReadOptions {
   public static final GoogleCloudStorageReadOptions DEFAULT = new Builder().build();
@@ -31,6 +33,7 @@ public class GoogleCloudStorageReadOptions {
   public static final boolean DEFAULT_SUPPORT_CONTENT_ENCODING = true;
   public static final boolean DEFAULT_FAST_FAIL_ON_NOT_FOUND = true;
   public static final int DEFAULT_BUFFER_SIZE = 0;
+  public static final long DEFAULT_INPLACE_SEEK_LIMIT = 0L;
 
   /**
    * Mutable builder for GoogleCloudStorageReadOptions.
@@ -44,6 +47,7 @@ public class GoogleCloudStorageReadOptions {
     private boolean supportContentEncoding = DEFAULT_SUPPORT_CONTENT_ENCODING;
     private boolean fastFailOnNotFound = DEFAULT_FAST_FAIL_ON_NOT_FOUND;
     private int bufferSize = DEFAULT_BUFFER_SIZE;
+    private long inplaceSeekLimit = DEFAULT_INPLACE_SEEK_LIMIT;
 
     /**
      * On exponential backoff, the initial delay before the first retry; subsequent retries then
@@ -130,6 +134,18 @@ public class GoogleCloudStorageReadOptions {
       return this;
     }
 
+    /**
+     * If seeking to a new position which is within this number of bytes in front of the current
+     * position, then we will skip forward by reading and discarding the necessary amount of bytes
+     * rather than trying to open a brand-new underlying stream.
+     */
+    public Builder setInplaceSeekLimit(long inplaceSeekLimit) {
+      Preconditions.checkArgument(inplaceSeekLimit >= 0,
+          "inplaceSeekLimit must be non-negative! Got %s", inplaceSeekLimit);
+      this.inplaceSeekLimit = inplaceSeekLimit;
+      return this;
+    }
+
     public GoogleCloudStorageReadOptions build() {
       return new GoogleCloudStorageReadOptions(
           backoffInitialIntervalMillis,
@@ -139,7 +155,8 @@ public class GoogleCloudStorageReadOptions {
           backoffMaxElapsedTimeMillis,
           supportContentEncoding,
           fastFailOnNotFound,
-          bufferSize);
+          bufferSize,
+          inplaceSeekLimit);
     }
   }
 
@@ -151,8 +168,13 @@ public class GoogleCloudStorageReadOptions {
   private final boolean supportContentEncoding;
   private final boolean fastFailOnNotFound;
   private final int bufferSize;
+  private final long inplaceSeekLimit;
 
-  public GoogleCloudStorageReadOptions(
+  /**
+   * Should only be used by Builder to protect callers from changing constructor signatures when
+   * new options are added.
+   */
+  private GoogleCloudStorageReadOptions(
       int backoffInitialIntervalMillis,
       double backoffRandomizationFactor,
       double backoffMultiplier,
@@ -160,7 +182,8 @@ public class GoogleCloudStorageReadOptions {
       int backoffMaxElapsedTimeMillis,
       boolean supportContentEncoding,
       boolean fastFailOnNotFound,
-      int bufferSize) {
+      int bufferSize,
+      long inplaceSeekLimit) {
     this.backoffInitialIntervalMillis = backoffInitialIntervalMillis;
     this.backoffRandomizationFactor = backoffRandomizationFactor;
     this.backoffMultiplier = backoffMultiplier;
@@ -169,64 +192,71 @@ public class GoogleCloudStorageReadOptions {
     this.supportContentEncoding = supportContentEncoding;
     this.fastFailOnNotFound = fastFailOnNotFound;
     this.bufferSize = bufferSize;
+    this.inplaceSeekLimit = inplaceSeekLimit;
   }
 
   /**
-   * See {@link #setBackoffInitialIntervalMillis}.
+   * See {@link #Builder.setBackoffInitialIntervalMillis}.
    */
   public int getBackoffInitialIntervalMillis() {
     return backoffInitialIntervalMillis;
   }
 
   /**
-   * See {@link #setBackoffRandomizationFactor}.
+   * See {@link #Builder.setBackoffRandomizationFactor}.
    */
   public double getBackoffRandomizationFactor() {
     return backoffRandomizationFactor;
   }
 
   /**
-   * See {@link #setBackoffMultiplier}.
+   * See {@link #Builder.setBackoffMultiplier}.
    */
   public double getBackoffMultiplier() {
     return backoffMultiplier;
   }
 
   /**
-   * See {@link #setBackoffMaxIntervalMillis}.
+   * See {@link #Builder.setBackoffMaxIntervalMillis}.
    */
   public int getBackoffMaxIntervalMillis() {
     return backoffMaxIntervalMillis;
   }
 
   /**
-   * See {@link #setBackoffMaxElapsedTimeMillis}.
+   * See {@link #Builder.setBackoffMaxElapsedTimeMillis}.
    */
   public int getBackoffMaxElapsedTimeMillis() {
     return backoffMaxElapsedTimeMillis;
   }
 
   /**
-   * See {@link #setSupportContentEncoding}.
+   * See {@link #Builder.setSupportContentEncoding}.
    */
   public boolean getSupportContentEncoding() {
     return supportContentEncoding;
   }
 
   /**
-   * See {@link #setFastFailOnNotFound}.
+   * See {@link #Builder.setFastFailOnNotFound}.
    */
   public boolean getFastFailOnNotFound() {
     return fastFailOnNotFound;
   }
 
   /**
-   * See {@link #setBufferSize}.
+   * See {@link #Builder.setBufferSize}.
    */
   public int getBufferSize() {
     return bufferSize;
   }
 
+  /**
+   * See {@link #Builder.setInplaceSeekLimit}.
+   */
+  public long getInplaceSeekLimit() {
+    return inplaceSeekLimit;
+  }
 
   /**
    * Summary of options.
@@ -241,6 +271,7 @@ public class GoogleCloudStorageReadOptions {
     sb.append("supportContentEncoding=" + supportContentEncoding + " ");
     sb.append("fastFailOnNotFound=" + fastFailOnNotFound + " ");
     sb.append("bufferSize=" + bufferSize + " ");
+    sb.append("inplaceSeekLimit=" + inplaceSeekLimit + " ");
     return sb.toString();
   }
 }

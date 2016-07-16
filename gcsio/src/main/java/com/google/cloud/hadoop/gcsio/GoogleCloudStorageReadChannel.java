@@ -63,6 +63,10 @@ public class GoogleCloudStorageReadChannel
   public static final int DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS =
       GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS;
 
+  // Size of buffer to allocate for skipping bytes in-place when performing in-place seeks.
+  @VisibleForTesting
+  static final int SKIP_BUFFER_SIZE = 8192;
+
   // Logger.
   private static final Logger LOG =
       LoggerFactory.getLogger(GoogleCloudStorageReadChannel.class);
@@ -128,6 +132,10 @@ public class GoogleCloudStorageReadChannel
   // Lazily initialized BackOff for sleeping between retries; only ever initialized if a retry is
   // necessary.
   private BackOff backOff = null;
+
+  // Used as scratch space when reading bytes just to discard them when trying to perform small
+  // in-place seeks.
+  private byte[] skipBuffer = null;
 
   // For files that have Content-Encoding: gzip set in the file metadata, the size of the response
   // from GCS is the size of the compressed file. However, the HTTP client wraps the content
@@ -509,8 +517,31 @@ public class GoogleCloudStorageReadChannel
     }
 
     validatePosition(newPosition);
+
+    long seekDistance = newPosition - currentPosition;
+    if (readChannel != null
+        && seekDistance > 0
+        && seekDistance <= readOptions.getInplaceSeekLimit()) {
+      LOG.debug("Seeking forward {} bytes (limit is {}) in-place to position {}",
+          seekDistance, readOptions.getInplaceSeekLimit(), newPosition);
+      if (skipBuffer == null) {
+        skipBuffer = new byte[SKIP_BUFFER_SIZE];
+      }
+      while (seekDistance > 0) {
+        int bytesRead = readChannel.read(
+            ByteBuffer.wrap(skipBuffer, 0, (int) Math.min(skipBuffer.length, seekDistance)));
+        if (bytesRead < 0) {
+          // Shouldn't happen since we called validatePosition prior to this loop.
+          throw new IOException(String.format(
+              "Somehow read %d bytes trying to skip %d more bytes to seek to position %d, size: %d",
+              bytesRead, seekDistance, newPosition, size));
+        }
+        seekDistance -= bytesRead;
+      }
+    } else {
+      lazySeekPending = true;
+    }
     currentPosition = newPosition;
-    lazySeekPending = true;
     return this;
   }
 

@@ -6,6 +6,53 @@
      than simply falling back to default GoogleCloudStorageFileSystemOptions.
   2. Changed RetryHttpInitializer to treat HTTP code 429 as a retriable
      error with exponential backoff instead of erroring out.
+  3. Added a new output stream type which can be used by setting:
+     
+         fs.gs.outputstream.type=SYNCABLE_COMPOSITE
+     
+     With the SYNCABLE_COMPOSITE type, output streams obtained with a call
+     to FileSystem.create(Path) will have (limited) support for Hadoop's
+     Syncable interface, where calling hsync() will commit the data written
+     so far into persistent storage without closing the output stream; once
+     a writer calls hsync(), readers will be able to discover and read the
+     contents of the file written up to the last successful hsync() call
+     immediately. This feature is implemented using "composite objects" in
+     Google Cloud Storage, and thus has a current hard limit of 1023 calls
+     to hsync() over the lifetime of the stream after which subsequent hsync()
+     calls will throw a CompositeLimitExceededException, but will still
+     allow writing additional data and closing the stream without losing data
+     despite a failed hsync().
+  4. Added several optimizations and options controlling the behavior of
+     the GoogleHadoopFSInputStream:
+
+     -Removed internal prepopulated ByteBuffer inside GoogleHadoopFSInputStream
+      in favor of non-blocking buffering in the lower layer channel; this
+      improves performance for independent small reads without noticeable
+      impact on large reads. Old behavior can be specified by setting
+
+         fs.gs.inputstream.internalbuffer.enable=true (default=false)
+
+     -Added option to save an extra metadata GET on first read of a channel
+      if objects are known not to use the 'Content-Encoding' header. To
+      use this optimization set:
+
+         fs.gs.inputstream.support.content.encoding.enable=false (default=true)
+
+     -Added option to save an extra metadata GET on FileSystem.open(Path) if
+      objects are known to exist already, or the caller is resilient to delayed
+      errors for nonexistent objects which occur at read time, rather than
+      immediately on open(). To use this optimization set:
+
+         fs.gs.inputstream.fast.fail.on.not.found.enable=false (default=true)
+
+     -Added support for "in-place" small seeks by defining a byte limit where
+      forward seeks smaller than the limit will be done by reading/discarding
+      bytes rather than opening a brand-new channel. This is set to 8MB by
+      default, which is approximately the point where the cost of opening a
+      new channel is equal to the cost of reading/discarding the bytes in-place.
+      Disable by setting the value to 0, or adjust to other thresholds:
+
+         fs.gs.inputstream.inplace.seek.limit=0 (default=8388608)
 
 
 1.4.5 - 2016-03-24
