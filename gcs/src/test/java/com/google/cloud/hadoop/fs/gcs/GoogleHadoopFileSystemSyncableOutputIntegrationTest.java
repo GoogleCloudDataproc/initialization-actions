@@ -14,12 +14,11 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import java.io.IOException;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.IOException;
 
 @RunWith(JUnit4.class)
 public class GoogleHadoopFileSystemSyncableOutputIntegrationTest

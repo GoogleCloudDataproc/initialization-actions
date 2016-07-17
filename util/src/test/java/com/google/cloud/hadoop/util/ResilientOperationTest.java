@@ -22,16 +22,14 @@ import static org.junit.Assert.assertEquals;
 import com.google.api.client.testing.util.MockSleeper;
 import com.google.api.client.util.BackOff;
 import com.google.cloud.hadoop.util.ResilientOperation.CheckedCallable;
-
+import java.io.IOException;
+import java.net.SocketTimeoutException;
+import java.util.ArrayList;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.IOException;
-import java.net.SocketTimeoutException;
-import java.util.ArrayList;
 
 /** Unit tests for {@link ResilientOperation}. */
 @RunWith(JUnit4.class)

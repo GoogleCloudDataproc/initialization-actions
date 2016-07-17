@@ -16,18 +16,16 @@
 package com.google.cloud.hadoop.gcsio;
 
 import com.google.common.collect.ObjectArrays;
-
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.List;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.List;
 
 /**
  * A base class with tests for GoogleCloudStorageFileSystem with

@@ -17,12 +17,6 @@ package com.google.cloud.hadoop.gcsio;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.common.base.Strings;
-
-import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.junit.Assert;
-
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
@@ -40,6 +34,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import org.apache.log4j.ConsoleAppender;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.junit.Assert;
 
 /**
  * Integration tests for GoogleCloudStorage class.

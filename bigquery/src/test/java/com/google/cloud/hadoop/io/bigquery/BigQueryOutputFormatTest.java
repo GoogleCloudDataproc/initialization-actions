@@ -4,7 +4,7 @@ import static org.junit.Assert.fail;
 
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
 import com.google.gson.JsonObject;
-
+import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapred.JobConf;
@@ -21,8 +21,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
-
-import java.io.IOException;
 
 /**
  * Unit tests for BigQueryOutputFormat.

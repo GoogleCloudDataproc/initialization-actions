@@ -15,12 +15,10 @@
 package com.google.cloud.hadoop.fs.gcs.hcfs;
 
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemTestHelper;
-
+import java.io.IOException;
 import org.apache.hadoop.fs.FileSystemContractBaseTest;
 import org.apache.hadoop.fs.Path;
 import org.junit.Before;
-
-import java.io.IOException;
 
 /**
  * Runs the Hadoop tests in FileSystemContractBaseTest over the GoogleHadoopGlobalRootedFileSystem.

@@ -24,18 +24,15 @@ import com.google.api.client.http.HttpResponseException;
 import com.google.api.client.testing.http.HttpTesting;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpResponse;
-
+import java.io.IOException;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
+import javax.net.ssl.SSLException;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.IOException;
-import java.net.SocketException;
-import java.net.SocketTimeoutException;
-
-import javax.net.ssl.SSLException;
 
 /** Unit tests for {@link ResilientOperation}. */
 @RunWith(JUnit4.class)

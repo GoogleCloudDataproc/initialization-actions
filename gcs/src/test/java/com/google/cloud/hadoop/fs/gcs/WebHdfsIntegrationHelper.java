@@ -16,12 +16,11 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-
-import java.io.FileNotFoundException;
-import java.io.IOException;
 
 class WebHdfsIntegrationHelper
   extends HadoopFileSystemIntegrationHelper {

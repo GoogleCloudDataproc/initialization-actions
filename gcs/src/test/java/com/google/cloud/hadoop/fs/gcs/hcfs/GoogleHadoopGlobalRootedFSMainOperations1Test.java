@@ -18,7 +18,7 @@ import static org.apache.hadoop.fs.FileSystemTestHelper.exists;
 import static org.apache.hadoop.fs.FileSystemTestHelper.getTestRootPath;
 
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemTestHelper;
-
+import java.io.IOException;
 import org.apache.hadoop.fs.FSMainOperationsBaseTest;
 import org.apache.hadoop.fs.Path;
 import org.junit.Assert;
@@ -26,8 +26,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.IOException;
 
 /**
  * Runs the Hadoop tests in FSMainOperationsBaseTest over the GoogleHadoopFileSystem.

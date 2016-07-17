@@ -18,15 +18,13 @@ package com.google.cloud.hadoop.gcsio;
 
 
 import com.google.common.truth.Truth;
-
+import java.net.URI;
+import java.net.URISyntaxException;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.net.URI;
-import java.net.URISyntaxException;
 
 @RunWith(JUnit4.class)
 public class LegacyPathCodecTest {

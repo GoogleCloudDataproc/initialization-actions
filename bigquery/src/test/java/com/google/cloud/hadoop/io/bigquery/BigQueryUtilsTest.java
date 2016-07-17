@@ -16,7 +16,8 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.TableFieldSchema;
-
+import java.io.IOException;
+import java.util.List;
 import org.apache.hadoop.util.Progressable;
 import org.junit.Before;
 import org.junit.Rule;
@@ -24,9 +25,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.IOException;
-import java.util.List;
 
 /**
  * Unit tests for BigQueryUtils.

@@ -15,16 +15,14 @@
 package com.google.cloud.hadoop.util;
 
 import com.google.common.collect.Lists;
-
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Unit tests for ConfigurationUtil class.

@@ -26,15 +26,13 @@ import com.google.cloud.hadoop.gcsio.ThrottledGoogleCloudStorage.StorageOperatio
 import com.google.cloud.hadoop.util.HttpTransportFactory;
 import com.google.common.base.Optional;
 import com.google.common.util.concurrent.RateLimiter;
-
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameters;
-
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 
 @RunWith(Parameterized.class)
 public class GoogleCloudStorageIntegrationTest extends GoogleCloudStorageTest {

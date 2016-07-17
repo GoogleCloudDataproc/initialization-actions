@@ -2,6 +2,7 @@ package com.google.cloud.hadoop.io.bigquery.mapred;
 
 import static org.junit.Assert.assertEquals;
 
+import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -10,8 +11,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.IOException;
 
 /**
  * Unit tests for {@link BigQueryMapredJobContext}.

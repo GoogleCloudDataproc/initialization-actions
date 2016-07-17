@@ -15,16 +15,13 @@
 package com.google.cloud.hadoop.gcsio;
 
 import com.google.common.collect.ImmutableMap;
-
-import junit.framework.Assert;
-
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
+import junit.framework.Assert;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class FileInfoTest {

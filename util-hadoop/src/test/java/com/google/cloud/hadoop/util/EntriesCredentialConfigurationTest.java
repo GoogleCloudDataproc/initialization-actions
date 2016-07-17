@@ -22,12 +22,10 @@ import com.google.cloud.hadoop.testing.EntriesCredentialConfigurationUtil;
 import com.google.cloud.hadoop.testing.EntriesCredentialConfigurationUtil.TestEntries;
 import com.google.cloud.hadoop.util.EntriesCredentialConfiguration.Entries;
 import com.google.common.collect.ImmutableList;
-
+import java.util.List;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.util.List;
 
 @RunWith(JUnit4.class)
 public class EntriesCredentialConfigurationTest {

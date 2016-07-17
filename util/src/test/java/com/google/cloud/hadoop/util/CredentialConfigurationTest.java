@@ -20,18 +20,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import com.google.common.collect.ImmutableList;
-
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+import java.util.List;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.IOException;
-import java.security.GeneralSecurityException;
-import java.util.List;
-
 
 @RunWith(JUnit4.class)
 public class CredentialConfigurationTest {

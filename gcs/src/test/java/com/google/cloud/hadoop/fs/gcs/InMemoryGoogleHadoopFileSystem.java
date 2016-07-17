@@ -16,13 +16,11 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
-
-import org.apache.hadoop.conf.Configuration;
-import org.junit.Assert;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import org.apache.hadoop.conf.Configuration;
+import org.junit.Assert;
 
 /**
  * Helper class to create an in-memory GHFS from an in-memory GcsFs instance for testing only.

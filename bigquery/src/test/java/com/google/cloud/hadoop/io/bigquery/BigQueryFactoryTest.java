@@ -4,15 +4,13 @@ import static org.junit.Assert.assertEquals;
 
 import com.google.api.services.bigquery.Bigquery;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
-
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.IOException;
-import java.security.GeneralSecurityException;
 
 /**
  * Unit tests for BigQueryFactory.

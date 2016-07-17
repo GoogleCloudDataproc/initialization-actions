@@ -7,7 +7,11 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.hadoop.io.bigquery.ShardedInputSplit;
 import com.google.gson.JsonObject;
-
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Writable;
@@ -25,12 +29,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Unit tests for {@link BigQueryMapredInputFormat}.

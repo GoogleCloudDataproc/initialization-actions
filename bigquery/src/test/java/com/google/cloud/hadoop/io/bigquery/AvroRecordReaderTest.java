@@ -2,7 +2,10 @@ package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.truth.Truth;
-
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.file.DataFileWriter;
@@ -18,11 +21,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 @RunWith(JUnit4.class)
 public class AvroRecordReaderTest {

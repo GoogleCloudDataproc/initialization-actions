@@ -20,14 +20,12 @@ package com.google.cloud.hadoop.util;
 import static org.junit.Assert.assertEquals;
 
 import com.google.api.client.util.BackOff;
-
+import java.io.IOException;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.IOException;
 
 /** Unit tests for {@link RetryBoundedBackOff}. */
 @RunWith(JUnit4.class)

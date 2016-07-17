@@ -14,16 +14,15 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collection;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
 
 /**
  * Base unittests inherited from GoogleCloudStorageTest for CacheSupplementedGoogleCloudStorage.
