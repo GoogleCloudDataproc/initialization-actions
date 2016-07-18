@@ -1,4 +1,4 @@
-0.7.6 - 2016-xx-xx
+0.7.6 - 2016-07-15
 
   1. Changed RetryHttpInitializer to treat HTTP code 429 as a retriable
      error with exponential backoff instead of erroring out.
