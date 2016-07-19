@@ -28,6 +28,9 @@ HADOOP_VERSION="2.7.2"
 # Only run on the master node
 ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 if [[ "${ROLE}" == 'Master' ]]; then
+  # Install usefull python libraries
+  apt-get install -y python-pip python-matplotlib libfreetype6-dev pkg-config
+  pip install -U ipython matplotlib jsonschema jinja2 terminado tornado protobuf pandas palettable pylab seaborn scikit-learn
   # Install zeppelin
   apt-get install -y zeppelin
   /usr/lib/zeppelin/bin/zeppelin-daemon.sh stop
