@@ -25,12 +25,24 @@ EXECUTOR_MEMORY="$(grep spark.executor.memory /etc/spark/conf/spark-defaults.con
 SPARK_VERSION="1.6.0"
 HADOOP_VERSION="2.7.2"
 
-# Only run on the master node
-ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
+INIT_ACTIONS_REPO=$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_REPO || true)
+INIT_ACTIONS_REPO="${INIT_ACTIONS_REPO:-https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git}"
+INIT_ACTIONS_BRANCH=$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_BRANCH || true)
+INIT_ACTIONS_BRANCH="${INIT_ACTIONS_BRANCH:-master}"
+DATAPROC_BUCKET=$(/usr/share/google/get_metadata_value attributes/dataproc-bucket)
+
+echo "Cloning fresh dataproc-initialization-actions from repo $INIT_ACTIONS_REPO and branch $INIT_ACTIONS_BRANCH..."
+git clone -b "$INIT_ACTIONS_BRANCH" --single-branch $INIT_ACTIONS_REPO
+# Ensure we have conda installed.
+./dataproc-initialization-actions/conda/bootstrap-conda.sh
+#./dataproc-initialization-actions/conda/install-conda-env.sh
+
+source /etc/profile.d/conda_config.sh
 if [[ "${ROLE}" == 'Master' ]]; then
-  # Install usefull python libraries
-  apt-get install -y python-pip python-matplotlib libfreetype6-dev pkg-config
-  pip install -U ipython matplotlib jsonschema jinja2 terminado tornado protobuf pandas palettable pylab seaborn scikit-learn
+  apt-get install -y python-matplotlib libfreetype6-dev pkg-config
+  conda install ipython matplotlib jsonschema jinja2 terminado tornado protobuf pandas seaborn scikit-learn
+  pip install -U palettable pylab 
   # Install zeppelin
   apt-get install -y zeppelin
   /usr/lib/zeppelin/bin/zeppelin-daemon.sh stop

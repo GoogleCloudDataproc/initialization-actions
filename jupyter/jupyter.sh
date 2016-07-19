@@ -17,7 +17,8 @@ git clone -b "$INIT_ACTIONS_BRANCH" --single-branch $INIT_ACTIONS_REPO
 source /etc/profile.d/conda_config.sh
 if [[ "${ROLE}" == 'Master' ]]; then
     apt-get install -y python-matplotlib libfreetype6-dev pkg-config
-    conda install jupyter ipython matplotlib jsonschema jinja2 terminado tornado protobuf pandas palettable pylab seaborn scikit-learn
+    conda install jupyter ipython matplotlib jsonschema jinja2 terminado tornado protobuf pandas seaborn scikit-learn
+    pip install -U palettable pylab 
     if gsutil -q stat "gs://$DATAPROC_BUCKET/notebooks/**"; then
         echo "Pulling notebooks directory to cluster master node..."
         gsutil -m cp -r gs://$DATAPROC_BUCKET/notebooks /root/
