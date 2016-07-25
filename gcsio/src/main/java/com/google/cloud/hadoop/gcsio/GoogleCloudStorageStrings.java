@@ -42,8 +42,8 @@ public class GoogleCloudStorageStrings {
   public static String matchListPrefix(
       String objectNamePrefix, String delimiter, String objectName) {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(objectName),
-        String.format("objectName must not be null or empty, had args %s/%s/%s: ",
-            objectNamePrefix, delimiter, objectName));
+        "objectName must not be null or empty, had args %s/%s/%s: ",
+            objectNamePrefix, delimiter, objectName);
 
     // The suffix that we'll use to check for the delimiter is just the whole name if no prefix
     // was supplied.

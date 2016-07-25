@@ -17,11 +17,11 @@
 package com.google.cloud.hadoop.gcsio;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
-
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 /**
  * A cache entry for the relevant metadata of a single GCS Bucket, used by {@code
@@ -36,7 +36,7 @@ import java.util.Map;
  */
 public class CachedBucket extends CacheEntry {
   // Mapping from objectNames to cache entries for GCS StorageObjects.
-  private final Map<String, CacheEntry> objectLookup = new HashMap<>();
+  private final SortedMap<String, CacheEntry> objectLookup = new TreeMap<>();
 
   /**
    * Constructs a CachedBucket that has no associated GoogleCloudStorageItemInfo for the bucket.
@@ -131,6 +131,21 @@ public class CachedBucket extends CacheEntry {
    */
   public synchronized List<CacheEntry> getObjectList() {
     return ImmutableList.copyOf(objectLookup.values());
+  }
+
+  /**
+   * Gets sublist of all objects which match {@code prefix}; the returned list will be in
+   * lexicographical order. NB: This will omit objects containing '\uFFFF' in the position
+   * immediately after {@code prefix}.
+   *
+   * @param prefix a prefix for all returned objects to share; if null or empty this is
+   *     the same as calling {@link #getObjectList()} without any prefix.
+   */
+  public synchronized List<CacheEntry> getObjectList(String prefix) {
+    if (Strings.isNullOrEmpty(prefix)) {
+      return getObjectList();
+    }
+    return ImmutableList.copyOf(objectLookup.subMap(prefix, prefix + Character.MAX_VALUE).values());
   }
 
   /**

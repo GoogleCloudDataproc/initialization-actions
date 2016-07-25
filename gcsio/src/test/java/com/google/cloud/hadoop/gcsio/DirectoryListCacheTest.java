@@ -661,4 +661,47 @@ public abstract class DirectoryListCacheTest {
       assertTrue(prefixes.contains("foo/baz/"));
     }
   }
+
+  @Test
+  public void testListPrefixAsSubrange() throws IOException {
+    cache.putResourceId(createId("fo"));
+    cache.putResourceId(createId("fon"));
+    cache.putResourceId(createId("foo/"));
+    cache.putResourceId(createId("foo/data1.txt"));
+    cache.putResourceId(createId("foo/brt/"));
+    cache.putResourceId(createId("fop"));
+    cache.putResourceId(createId("fopa"));
+
+    // Directory match.
+    List<CacheEntry> listedObjects = cache.getObjectList(BUCKET_NAME, "foo", null, null);
+    Set<StorageResourceId> listedSet = extractResourceIdSet(listedObjects);
+    assertEquals(String.format(
+        "Expected 3 items in '%s'", listedObjects), 3, listedObjects.size());
+    assertTrue(listedSet.contains(createId("foo/")));
+    assertTrue(listedSet.contains(createId("foo/data1.txt")));
+    assertTrue(listedSet.contains(createId("foo/brt/")));
+
+    // Single-object match.
+    listedObjects = cache.getObjectList(BUCKET_NAME, "fon", "/", null);
+    listedSet = extractResourceIdSet(listedObjects);
+    assertEquals(String.format(
+        "Expected 1 items in '%s'", listedObjects), 1, listedObjects.size());
+    assertTrue(listedSet.contains(createId("fon")));
+
+    // Multi-object no-directory match.
+    listedObjects = cache.getObjectList(BUCKET_NAME, "fop", "/", null);
+    listedSet = extractResourceIdSet(listedObjects);
+    assertEquals(String.format(
+        "Expected 2 items in '%s'", listedObjects), 2, listedObjects.size());
+    assertTrue(listedSet.contains(createId("fop")));
+    assertTrue(listedSet.contains(createId("fopa")));
+
+    // No match, prefix is beyond the head of the map.
+    listedObjects = cache.getObjectList(BUCKET_NAME, "fn", null, null);
+    assertEquals(0, listedObjects.size());
+
+    // No match, prefix is beyond the tail of the map.
+    listedObjects = cache.getObjectList(BUCKET_NAME, "fp", null, null);
+    assertEquals(0, listedObjects.size());
+  }
 }

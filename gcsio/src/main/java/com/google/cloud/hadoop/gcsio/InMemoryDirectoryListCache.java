@@ -208,7 +208,7 @@ public class InMemoryDirectoryListCache extends DirectoryListCache {
 
     List<CacheEntry> matchingObjectEntries = new ArrayList<>();
     boolean removedExpiredEntries = false;
-    for (CacheEntry objectEntry : bucket.getObjectList()) {
+    for (CacheEntry objectEntry : bucket.getObjectList(objectNamePrefix)) {
       maybeInvalidateExpiredInfo(objectEntry);
 
       if (isCacheEntryExpired(objectEntry)) {

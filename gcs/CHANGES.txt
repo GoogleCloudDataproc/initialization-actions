@@ -1,3 +1,12 @@
+1.x.x - 2016-xx-xx
+
+  1. Optimized InMemoryDirectoryListCache to use a TreeMap internally instead
+     of a HashMap, since most of its usage is "listing by prefix"; aside
+     from some benefits for normal list-supplementation, glob listings
+     with a large number of subdirectories should be orders of magnitude
+     faster.
+
+
 1.5.0 - 2016-07-15
 
   1. Changed the single-argument constructor
