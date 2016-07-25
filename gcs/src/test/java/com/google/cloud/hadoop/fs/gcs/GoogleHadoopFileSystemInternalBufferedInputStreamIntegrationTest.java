@@ -14,12 +14,11 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import java.io.IOException;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-
-import java.io.IOException;
 
 /**
  * Unittest inheriting from GoogleHadoopFileSystemTest which provides coverage for the
