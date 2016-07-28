@@ -35,7 +35,8 @@ This repository presently offers the following actions for use with Cloud Datapr
 * Configure the cluster
   * Configure a *nice* shell environment
   * Share a NFS consistency cache
-  * Share a [Google Cloud SQL](https://cloud.google.com/sql/) Hive Metastore.
+  * Share a [Google Cloud SQL](https://cloud.google.com/sql/) Hive Metastore
+  * Setup [Google Stackdriver](https://cloud.google.com/stackdriver/) monitoring for a cluster
 
 ## For more information
 For more information, review the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions). You can also pose questions to the [Stack Overflow](http://www.stackoverflow.com) comminity with the tag `google-cloud-dataproc`.
