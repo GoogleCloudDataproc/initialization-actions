@@ -1,3 +1,8 @@
+0.7.7 - 2016-07-29
+
+  1.  Misc updates in gcs-related library dependencies.
+
+
 0.7.6 - 2016-07-15
 
   1. Changed RetryHttpInitializer to treat HTTP code 429 as a retriable
