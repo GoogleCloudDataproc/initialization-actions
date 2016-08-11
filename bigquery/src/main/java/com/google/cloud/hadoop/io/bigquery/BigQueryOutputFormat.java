@@ -193,6 +193,6 @@ public class BigQueryOutputFormat<K, V extends JsonObject>
    */
   static String getUniqueTable(String taskAttemptId, String tableId) {
     return String.format(
-        "%s_%s", tableId, taskAttemptId.toString());
+        "%s_%s", tableId.replace("$", "__"), taskAttemptId.toString());
   }
 }

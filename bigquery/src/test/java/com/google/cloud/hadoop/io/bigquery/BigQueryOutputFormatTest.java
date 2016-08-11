@@ -239,6 +239,14 @@ public class BigQueryOutputFormatTest {
         String.format("test_tableId_attempt_%s_%04d_r_%06d_%d",
             jobIdString, jobNumber, taskNumber, taskAttempt),
         uniqueTable);
+
+    tableId = "test_tableId$20160808";
+    uniqueTable = BigQueryOutputFormat.getUniqueTable(taskAttemptId.toString(), tableId);
+    Assert.assertEquals(
+            String.format("test_tableId__20160808_attempt_%s_%04d_r_%06d_%d",
+                    jobIdString, jobNumber, taskNumber, taskAttempt),
+            uniqueTable);
+
   }
 
 

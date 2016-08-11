@@ -10,7 +10,7 @@ import com.google.common.base.Strings;
  */
 public class BigQueryStrings {
   // Regular expression for validating a datasetId.tableId pair.
-  public static final String DATASET_AND_TABLE_REGEX = "[a-zA-Z0-9_]+\\.[a-zA-Z0-9_]+";
+  public static final String DATASET_AND_TABLE_REGEX = "[a-zA-Z0-9_]+\\.[a-zA-Z0-9_$]+";
 
   /**
    * Returns a String representation of the TableReference suitable for interop with other bigquery
