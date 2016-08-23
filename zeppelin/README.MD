@@ -15,3 +15,12 @@ You can use this initialization action to create a new Dataproc cluster with Apa
 1. Once the cluster has been created, Zeppelin is configured to run on port `8080` on the master node in a Dataproc cluster. To connect to the Apache Zeppelin web interface, you will need to create an SSH tunnel and use a SOCKS 5 Proxy as described in the [dataproc web interfaces](https://cloud.google.com/dataproc/cluster-web-interfaces) documentation.
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
+
+## Important notes & Known issues
+* This installs Zeppelin 0.5.6 in Dataproc 1.0 and Zeppelin 0.6.1 in Dataproc 1.1.
+* It configures the BigQuery interpreter in 0.6.1.
+* It makes no attempt to install or configure matplotlib, because it [requires an XServer](https://github.com/apache/zeppelin/blob/master/docs/interpreter/python.md#matplotlib-integration).
+* By default it only install Rs graphing libraries that ship with Debian 8 (ggplot2, knitr, and googlevis).
+  * To install the other required R libraries (mplot and rCharts), uncomment some lines of zeppelin.sh.
+  * There are still some issues with examples in the R Tutorial (under investation).
+* The Hive interpreter in missing in Dataproc 1.1 (under investigation).
