@@ -316,11 +316,13 @@ public abstract class AbstractGoogleAsyncWriteChannel
     T request = createRequest(objectContentStream);
     request.setDisableGZipContent(true);
 
+    // Set a larger backend upload-chunk granularity than system defaults.
+    HttpHeaders headers = clientRequestHelper.getRequestHeaders(request);
+    headers.set("X-Goog-Upload-Desired-Chunk-Granularity",
+        Math.min(GCS_UPLOAD_GRANULARITY, uploadBufferSize));
+
     // Legacy check. Will be phased out.
     if (limitFileSizeTo250Gb) {
-      HttpHeaders headers = clientRequestHelper.getRequestHeaders(request);
-      headers.set("X-Goog-Upload-Desired-Chunk-Granularity",
-          Math.min(GCS_UPLOAD_GRANULARITY, uploadBufferSize));
       headers.set("X-Goog-Upload-Max-Raw-Size", UPLOAD_MAX_SIZE);
     }
 
