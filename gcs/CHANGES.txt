@@ -1,3 +1,11 @@
+1.5.2 - 2016-08-23
+
+  1. Updated AbstractGoogleAsyncWriteChannel to always set the
+     X-Goog-Upload-Desired-Chunk-Granularity header independently from the
+     deprecated X-Goog-Upload-Max-Raw-Size; in general this improves
+     performance of large uploads.
+
+
 1.5.1 - 2016-07-29
 
   1. Optimized InMemoryDirectoryListCache to use a TreeMap internally instead
