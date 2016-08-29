@@ -21,6 +21,6 @@ You can find more information about using initialization actions with Dataproc i
 * It configures the BigQuery interpreter in 0.6.1.
 * It makes no attempt to install or configure matplotlib, because it [requires an XServer](https://github.com/apache/zeppelin/blob/master/docs/interpreter/python.md#matplotlib-integration).
 * By default it only install Rs graphing libraries that ship with Debian 8 (ggplot2, knitr, and googlevis).
-  * To install the other required R libraries (mplot and rCharts), uncomment some lines of zeppelin.sh.
+  * To install the other required R libraries (mplot and rCharts), uncomment lines after "Uncomment here" in zeppelin.sh.
   * There are still some issues with examples in the R Tutorial (under investation).
 * The Hive interpreter in missing in Dataproc 1.1 (under investigation).

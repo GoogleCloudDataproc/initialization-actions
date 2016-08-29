@@ -56,7 +56,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
     # TODO(pmkc): Add googlevis to Zeppelin Package recommendations
     apt-get install -y r-cran-googlevis
 
-## Uncomment to compile and install 'mplot' and 'rCharts'.
+## Uncomment here to compile and install 'mplot' and 'rCharts'.
 #    # Install compile dependencies
 #    apt-get install -y \
 #      r-cran-doparallel r-cran-httr r-cran-memoise r-cran-openssl \
