@@ -5,12 +5,21 @@ DIR="${BASH_SOURCE%/*}"
 [[ ! -d "$DIR" ]] && DIR="$PWD"
 source "$DIR/../../util/utils.sh"
 
+CLUSTER_NAME=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)
+DATAPROC_VERSION=$(gcloud dataproc clusters describe $CLUSTER_NAME | grep imageVersion | tr -d "'" | awk '{print $2}')
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
-JUPYTER_KERNEL_DIR="/dataproc-initialization-actions/jupyter/kernels/pyspark"
 JUPYTER_NOTEBOOK_DIR="/root/notebooks"
 JUPYTER_PORT=$(/usr/share/google/get_metadata_value attributes/JUPYTER_PORT || true)
 [[ ! $JUPYTER_PORT =~ ^[0-9]+$ ]] && JUPYTER_PORT=8123
 JUPYTER_IP=*
+
+
+if [[ "${DATAPROC_VERSION}" = "1.1" ]]; then
+  JUPYTER_KERNEL_DIR="/dataproc-initialization-actions/jupyter/dataproc-1-1/kernels/pyspark"
+else
+  JUPYTER_KERNEL_DIR="/dataproc-initialization-actions/jupyter/kernels/pyspark"
+fi
+readonly JUPYTER_KERNEL_DIR
 
 [[ "${ROLE}" != 'Master' ]] && throw "$0 should only be run on the Master node!"
 
