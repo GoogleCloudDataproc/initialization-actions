@@ -13,8 +13,7 @@ JUPYTER_PORT=$(/usr/share/google/get_metadata_value attributes/JUPYTER_PORT || t
 [[ ! $JUPYTER_PORT =~ ^[0-9]+$ ]] && JUPYTER_PORT=8123
 JUPYTER_IP=*
 
-
-if [[ "${DATAPROC_VERSION}" = "1.1" ]]; then
+if [[ $(echo -e "1.1\n$DATAPROC_VERSION" | sort -rV | head -n 1) == $DATAPROC_VERSION ]]; then
   JUPYTER_KERNEL_DIR="/dataproc-initialization-actions/jupyter/dataproc-1-1/kernels/pyspark"
 else
   JUPYTER_KERNEL_DIR="/dataproc-initialization-actions/jupyter/kernels/pyspark"
