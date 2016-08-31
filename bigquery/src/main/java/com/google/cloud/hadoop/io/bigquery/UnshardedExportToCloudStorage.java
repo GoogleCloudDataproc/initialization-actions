@@ -1,11 +1,12 @@
 package com.google.cloud.hadoop.io.bigquery;
 
-import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.Table;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import javax.annotation.Nullable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -24,7 +25,7 @@ import org.slf4j.LoggerFactory;
  */
 public class UnshardedExportToCloudStorage extends AbstractExportToCloudStorage {
   private static final Logger LOG = LoggerFactory.getLogger(UnshardedExportToCloudStorage.class);
-  private final InputFormat<LongWritable, Text> delegateInputFormat;
+  private InputFormat<LongWritable, Text> delegateInputFormat;
 
   public UnshardedExportToCloudStorage(
       Configuration configuration,
@@ -32,21 +33,14 @@ public class UnshardedExportToCloudStorage extends AbstractExportToCloudStorage 
       ExportFileFormat fileFormat,
       BigQueryHelper bigQueryHelper,
       String projectId,
-      TableReference tableToExport) {
-    this(configuration, gcsPath, fileFormat, bigQueryHelper, projectId, tableToExport,
-        new TextInputFormat());
-  }
-
-  public UnshardedExportToCloudStorage(
-      Configuration configuration,
-      String gcsPath,
-      ExportFileFormat fileFormat,
-      BigQueryHelper bigQueryHelper,
-      String projectId,
-      TableReference tableToExport,
-      InputFormat delegateInputFormat) {
+      Table tableToExport,
+      @Nullable InputFormat<LongWritable, Text> delegateInputFormat) {
     super(configuration, gcsPath, fileFormat, bigQueryHelper, projectId, tableToExport);
-    this.delegateInputFormat = delegateInputFormat;
+    if (delegateInputFormat == null) {
+      this.delegateInputFormat = new TextInputFormat();
+    } else {
+      this.delegateInputFormat = delegateInputFormat;
+    }
   }
 
   @Override
@@ -92,5 +86,4 @@ public class UnshardedExportToCloudStorage extends AbstractExportToCloudStorage 
             }
           });
     }
-
 }

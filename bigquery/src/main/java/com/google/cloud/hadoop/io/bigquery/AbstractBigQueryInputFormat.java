@@ -1,10 +1,12 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.cloud.hadoop.util.HadoopToStringUtil;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import java.io.IOException;
@@ -14,6 +16,8 @@ import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -39,6 +43,14 @@ public abstract class AbstractBigQueryInputFormat<K, V>
    * Configuration key for InputFormat class name.
    */
   public static final String INPUT_FORMAT_CLASS_KEY = "mapreduce.inputformat.class";
+
+  /**
+   * The keyword for the type of BigQueryTable store externally.
+   */
+  public static final String EXTERNAL_TABLE_TYPE = "EXTERNAL";
+
+  // Used by UnshardedExportToCloudStorage
+  private InputFormat<LongWritable, Text> delegateInputFormat;
 
   /**
    * Configure the BigQuery input table for a job
@@ -109,7 +121,8 @@ public abstract class AbstractBigQueryInputFormat<K, V>
         configuration,
         getExportFileFormat(),
         exportPath,
-        bigQueryHelper);
+        bigQueryHelper,
+        delegateInputFormat);
     export.prepare();
 
     // Invoke the export, maybe wait for it to complete.
@@ -162,7 +175,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
 
   private static Export constructExport(
       Configuration configuration, ExportFileFormat format, String exportPath,
-      BigQueryHelper bigQueryHelper)
+      BigQueryHelper bigQueryHelper, InputFormat delegateInputFormat)
       throws IOException {
     LOG.debug("contructExport() with export path {}", exportPath);
 
@@ -178,11 +191,26 @@ public abstract class AbstractBigQueryInputFormat<K, V>
         .setDatasetId(datasetId)
         .setProjectId(inputProjectId)
         .setTableId(tableName);
+    Table table = bigQueryHelper.getTable(exportTableReference);
+
+    String query = configuration.get(BigQueryConfiguration.INPUT_QUERY_KEY);
+
+    if (EXTERNAL_TABLE_TYPE.equals(table.getType())) {
+      if (Strings.isNullOrEmpty(query)) {
+        LOG.info("Table is already external, so skipping export");
+        // Otherwise getSplits gets confused.
+        setEnableShardedExport(configuration, false);
+        return new NoopFederatedExportToCloudStorage(
+            configuration, format, bigQueryHelper, jobProjectId, table, delegateInputFormat);
+      } else {
+        LOG.info("Ignoring use of federated data source, because a query was specified.");
+      }
+    }
+
     boolean enableShardedExport = isShardedExportEnabled(configuration);
     boolean deleteTableOnExit = configuration.getBoolean(
         BigQueryConfiguration.DELETE_INTERMEDIATE_TABLE_KEY,
         BigQueryConfiguration.DELETE_INTERMEDIATE_TABLE_DEFAULT);
-    String query = configuration.get(BigQueryConfiguration.INPUT_QUERY_KEY);
 
     LOG.debug(
         "isShardedExportEnabled = %s, deleteTableOnExit = %s, tableReference = %s, query = %s",
@@ -192,7 +220,6 @@ public abstract class AbstractBigQueryInputFormat<K, V>
         query);
 
     Export export;
-
     if (enableShardedExport) {
       export = new ShardedExportToCloudStorage(
           configuration,
@@ -200,7 +227,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
           format,
           bigQueryHelper,
           jobProjectId,
-          exportTableReference);
+          table);
     } else {
       export = new UnshardedExportToCloudStorage(
           configuration,
@@ -208,7 +235,8 @@ public abstract class AbstractBigQueryInputFormat<K, V>
           format,
           bigQueryHelper,
           jobProjectId,
-          exportTableReference);
+          table,
+          delegateInputFormat);
     }
 
     if (!Strings.isNullOrEmpty(query)) {
@@ -304,7 +332,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
         config, BigQueryConfiguration.TEMP_GCS_PATH_KEY);
 
     Export export = constructExport(
-        config, getExportFileFormat(config), gcsPath, bigQueryHelper);
+        config, getExportFileFormat(config), gcsPath, bigQueryHelper, null);
 
     try {
       export.cleanupExport();
@@ -358,5 +386,10 @@ public abstract class AbstractBigQueryInputFormat<K, V>
       throws GeneralSecurityException, IOException {
     BigQueryFactory factory = new BigQueryFactory();
     return factory.getBigQueryHelper(config);
+  }
+
+  @VisibleForTesting
+  void setDelegateInputFormat(InputFormat inputFormat) {
+    delegateInputFormat = inputFormat;
   }
 }

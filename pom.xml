@@ -217,7 +217,7 @@
       <dependency>
         <groupId>com.google.apis</groupId>
         <artifactId>google-api-services-bigquery</artifactId>
-        <version>v2-rev217-${google.api.version}</version>
+        <version>v2-rev319-${google.api.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.code.gson</groupId>

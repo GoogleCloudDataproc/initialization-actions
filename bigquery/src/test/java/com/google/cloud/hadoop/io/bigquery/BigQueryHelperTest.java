@@ -174,7 +174,7 @@ public class BigQueryHelperTest {
     // Verify correct calls to BigQuery.Jobs.Insert are made.
     verify(mockBigqueryJobsInsert, times(1)).execute();
   }
-  
+
   /**
    * Tests getTable method of BigQueryHelper.
    *
@@ -193,24 +193,6 @@ public class BigQueryHelperTest {
     assertEquals(table, fakeTable);
   }
 
-  /**
-   * Tests getTableSchema method of BigQueryHelper.
-   *
-   * @throws IOException
-   */
-  @Test
-  public void testGetTableSchema() throws IOException {
-    when(mockBigqueryTablesGet.execute()).thenReturn(fakeTable);
-
-    TableSchema tableSchema = helper.getTableSchema(tableRef);
-
-    // Verify correct calls are made.
-    verify(mockBigquery, times(1)).tables();
-    verify(mockBigqueryTables, times(1)).get(eq(projectId), eq(datasetId), eq(tableId));
-    verify(mockBigqueryTablesGet, times(1)).execute();
-    assertEquals(tableSchema, fakeTableSchema);
-  }
-  
   @Test
   public void testTableExistsTrue() throws IOException {
     when(mockBigqueryTablesGet.execute()).thenReturn(fakeTable);

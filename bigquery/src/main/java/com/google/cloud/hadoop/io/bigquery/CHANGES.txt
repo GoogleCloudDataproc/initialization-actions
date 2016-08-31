@@ -1,3 +1,9 @@
+0.7.9 - 2016-XX-XX
+
+  1. Upgraded BigQuery library dependency to rev319.
+  2. Added support for reading pre-existing federated Avro and JSON tables
+  stored ing Google Cloud Storage.
+
 0.7.8 - 2016-08-23
 
   1. Updated AbstractGoogleAsyncWriteChannel to always set the

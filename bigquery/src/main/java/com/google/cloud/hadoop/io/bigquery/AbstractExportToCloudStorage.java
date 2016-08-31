@@ -4,7 +4,7 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobReference;
-import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.Table;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
 import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
@@ -27,7 +27,7 @@ public abstract class AbstractExportToCloudStorage implements Export {
   protected final ExportFileFormat fileFormat;
   protected final BigQueryHelper bigQueryHelper;
   protected final String projectId;
-  protected final TableReference tableToExport;
+  protected final Table tableToExport;
   protected JobReference exportJobReference;
 
   public AbstractExportToCloudStorage(
@@ -36,7 +36,7 @@ public abstract class AbstractExportToCloudStorage implements Export {
       ExportFileFormat fileFormat,
       BigQueryHelper bigQueryHelper,
       String projectId,
-      TableReference tableToExport) {
+      Table tableToExport) {
     this.configuration = configuration;
     this.gcsPath = gcsPath;
     this.fileFormat = fileFormat;
@@ -65,7 +65,7 @@ public abstract class AbstractExportToCloudStorage implements Export {
     JobConfigurationExtract extractConfig = new JobConfigurationExtract();
 
     // Set source.
-    extractConfig.setSourceTable(tableToExport);
+    extractConfig.setSourceTable(tableToExport.getTableReference());
 
     // Set destination.
     extractConfig.setDestinationUris(getExportPaths());
@@ -88,7 +88,8 @@ public abstract class AbstractExportToCloudStorage implements Export {
       exportJobReference = response.getJobReference();
     } catch (IOException e) {
       String error = String.format(
-          "Error while exporting table %s", BigQueryStrings.toString(tableToExport));
+          "Error while exporting table %s",
+          BigQueryStrings.toString(tableToExport.getTableReference()));
       LOG.error(error, e);
       throw new IOException(error, e);
     }

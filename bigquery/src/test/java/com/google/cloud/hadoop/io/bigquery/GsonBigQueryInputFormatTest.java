@@ -1,5 +1,6 @@
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.sun.org.apache.xalan.internal.xsltc.compiler.util.Type.Text;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -12,6 +13,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.bigquery.model.ExternalDataConfiguration;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
@@ -20,7 +22,6 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
 import com.google.common.collect.ImmutableList;
-import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
@@ -80,7 +81,7 @@ public class GsonBigQueryInputFormatTest {
   @Mock private Bigquery.Tables mockBigqueryTables;
   @Mock private Bigquery.Tables.Get mockBigqueryTablesGet;
   @Mock private Bigquery.Tables.Delete mockBigqueryTablesDelete;
-  @Mock private InputFormat<LongWritable, JsonObject> mockInputFormat;
+  @Mock private InputFormat<LongWritable, Text> mockInputFormat;
   @Mock private TaskAttemptContext mockTaskAttemptContext;
   @Mock private BigQueryHelper mockBigQueryHelper;
 
@@ -93,13 +94,15 @@ public class GsonBigQueryInputFormatTest {
   // Sample TableReference for BigQuery.
   private TableReference tableRef;
 
+  private Table table;
+
   /**
    * Creates an in-memory GHFS.
    *
    * @throws IOException on IOError.
    */
   @Before
-  public void setUp() 
+  public void setUp()
       throws IOException {
     MockitoAnnotations.initMocks(this);
     Logger.getLogger(GsonBigQueryInputFormat.class).setLevel(Level.DEBUG);
@@ -138,6 +141,15 @@ public class GsonBigQueryInputFormatTest {
     jobHandle.setStatus(jobStatus);
     jobHandle.setJobReference(fakeJobReference);
 
+    // Create table reference.
+    tableRef = new TableReference();
+    tableRef.setProjectId(dataProjectId);
+    tableRef.setDatasetId("test_dataset");
+    tableRef.setTableId("test_table");
+
+    table = new Table()
+        .setTableReference(tableRef);
+
     when(mockBigQueryHelper.getRawBigquery())
         .thenReturn(mockBigquery);
 
@@ -164,17 +176,16 @@ public class GsonBigQueryInputFormatTest {
     // Mocks for getting Bigquery table.
     when(mockBigqueryTables.get(any(String.class), any(String.class), any(String.class)))
         .thenReturn(mockBigqueryTablesGet);
+    when(mockBigqueryTablesGet.execute())
+        .thenReturn(table);
+
+    when(mockBigQueryHelper.getTable(any(TableReference.class)))
+        .thenReturn(table);
 
     when(mockBigQueryHelper.createJobReference(any(String.class), any(String.class)))
         .thenReturn(fakeJobReference);
     when(mockBigQueryHelper.insertJobOrFetchDuplicate(any(String.class), any(Job.class)))
         .thenReturn(jobHandle);
-
-    // Create table reference.
-    tableRef = new TableReference();
-    tableRef.setProjectId(dataProjectId);
-    tableRef.setDatasetId("test_dataset");
-    tableRef.setTableId("test_table");
   }
 
   @After
@@ -189,7 +200,7 @@ public class GsonBigQueryInputFormatTest {
    * Tests createRecordReader method of GsonBigQueryInputFormat.
    */
   @Test
-  public void testCreateRecordReader() 
+  public void testCreateRecordReader()
       throws IOException, InterruptedException {
 
     when(mockTaskAttemptContext.getConfiguration()).thenReturn(config);
@@ -242,11 +253,8 @@ public class GsonBigQueryInputFormatTest {
     config.setBoolean(BigQueryConfiguration.ENABLE_SHARDED_EXPORT_KEY, true);
 
     // Make the bytes large enough that we will estimate a large number of shards.
-    Table fakeTable = new Table()
-        .setNumRows(BigInteger.valueOf(99999L))
+    table.setNumRows(BigInteger.valueOf(99999L))
         .setNumBytes(1024L * 1024 * 1024 * 8);
-    when(mockBigQueryHelper.getTable(any(TableReference.class)))
-        .thenReturn(fakeTable);
 
     // If the hinted map.tasks is smaller than the estimated number of files, then we defer
     // to the hint.
@@ -303,11 +311,8 @@ public class GsonBigQueryInputFormatTest {
     config.setBoolean(BigQueryConfiguration.ENABLE_SHARDED_EXPORT_KEY, true);
 
     // Make the bytes as small as possible.
-    Table fakeTable = new Table()
-        .setNumRows(BigInteger.valueOf(2L))
+    table.setNumRows(BigInteger.valueOf(2L))
         .setNumBytes(1L);
-    when(mockBigQueryHelper.getTable(any(TableReference.class)))
-        .thenReturn(fakeTable);
 
     // If the hinted map.tasks is smaller than the estimated number of files, then we defer
     // to the hint.
@@ -347,12 +352,9 @@ public class GsonBigQueryInputFormatTest {
       throws IOException, InterruptedException {
     config.setBoolean(BigQueryConfiguration.ENABLE_SHARDED_EXPORT_KEY, true);
 
-    // Make the bytes large enough that we will estimate a large number of shards.
-    Table fakeTable = new Table()
-        .setNumRows(BigInteger.valueOf(9999999L))
+    // Make the bytes large enough that we will estimate a large number of shards
+    table.setNumRows(BigInteger.valueOf(9999999L))
         .setNumBytes(1024L * 1024 * 1024 * 1024 * 8);
-    when(mockBigQueryHelper.getTable(any(TableReference.class)))
-        .thenReturn(fakeTable);
 
     // Set the hint to a value larger than the maximum number of shards allowed by the service.
     config.setInt(ShardedExportToCloudStorage.NUM_MAP_TASKS_HINT_KEY, 2400);
@@ -384,12 +386,14 @@ public class GsonBigQueryInputFormatTest {
   }
 
   /**
-   * Tests getSplits method of GsonBigQueryInputFormat in sharded-export mode.
+   * Tests getSplits method of GsonBigQueryInputFormat in unsharded-export mode.
    */
   @Test
   public void testGetSplitsUnshardedBlocking()
       throws IOException, InterruptedException {
     config.setBoolean(BigQueryConfiguration.ENABLE_SHARDED_EXPORT_KEY, false);
+    // Why are we still setting this??
+    //config.unset(BigQueryConfiguration.INPUT_QUERY_KEY);
 
     BigQueryJobWrapper wrapper = new BigQueryJobWrapper(config);
     wrapper.setJobID(new JobID());
@@ -397,36 +401,18 @@ public class GsonBigQueryInputFormatTest {
     when(mockInputFormat.getSplits(eq(wrapper)))
         .thenReturn(ImmutableList.<InputSplit>of(
             new FileSplit(new Path("file1"), 0, 100, new String[0])));
+    GsonBigQueryInputFormat gsonBigQueryInputFormat = new GsonBigQueryInputFormatForTest();
+    gsonBigQueryInputFormat.setDelegateInputFormat(mockInputFormat);
 
-    // TODO (angusdavis): Inject a ExportProvider or something similar to allow us to inject a
-    // mock export and actually test getSplits instead of what getSplits calls.
-    // Running GsonBigQueryInputFomrat#getSplits doesn't allow us to inject a mockInputFormat.
-    // We'll cut out the middle man.
-    UnshardedExportToCloudStorage exportToCloudStorage =
-        new UnshardedExportToCloudStorage(
-            config,
-            AbstractBigQueryInputFormat.extractExportPathRoot(config, new JobID()),
-            ExportFileFormat.LINE_DELIMITED_JSON,
-            mockBigQueryHelper,
-            jobProjectId,
-            tableRef,
-            mockInputFormat);
+    // Run getSplits method.
+    List<InputSplit> splits = gsonBigQueryInputFormat.getSplits(wrapper);
 
-    QueryBasedExport queryBasedExport =
-        new QueryBasedExport(
-            exportToCloudStorage,
-            config.get(BigQueryConfiguration.INPUT_QUERY_KEY),
-            jobProjectId,
-            mockBigQueryHelper,
-            tableRef,
-            false /* Dont delete intermediate */);
+    // The base export path should've gotten created.
+    Path baseExportPath = new Path(config.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY));
+    FileStatus baseStatus = baseExportPath.getFileSystem(config).getFileStatus(baseExportPath);
+    assertTrue(baseStatus.isDir());
 
-    queryBasedExport.prepare();
-    queryBasedExport.beginExport();
-    queryBasedExport.waitForUsableMapReduceInput();
-    List<InputSplit> splits = exportToCloudStorage.getSplits(wrapper);
-
-    splits.size();
+    assertEquals("file1", ((FileSplit) splits.get(0)).getPath().getName());
     assertEquals(config.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY),
         config.get("mapred.input.dir"));
 
@@ -435,9 +421,41 @@ public class GsonBigQueryInputFormatTest {
         eq(jobProjectId), any(String.class));
     verify(mockBigQueryHelper, times(2))
         .insertJobOrFetchDuplicate(eq(jobProjectId), any(Job.class));
-
     verifyNoMoreInteractions(mockBigqueryTables);
+    verify(mockBigQueryHelper, times(1)).getTable(eq(tableRef));
     verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
+  }
+
+  /**
+   * Tests getSplits method of GsonBigQueryInputFormat with federated data.
+   */
+  @Test
+  public void testGetSplitsFederated()
+      throws IOException, InterruptedException {
+    BigQueryJobWrapper wrapper = new BigQueryJobWrapper(config);
+    wrapper.setJobID(new JobID());
+    config.unset(BigQueryConfiguration.INPUT_QUERY_KEY);
+
+    table.setType("EXTERNAL")
+        .setExternalDataConfiguration(
+            new ExternalDataConfiguration()
+                .setSourceFormat("NEWLINE_DELIMITED_JSON")
+                .setSourceUris(ImmutableList.of("gs://foo-bucket/bar.json")));
+
+    FileSplit split = new FileSplit(new Path("gs://foo-bucket/bar.json"), 0, 100, new String[0]);
+    when(mockInputFormat.getSplits(eq(wrapper))).thenReturn(ImmutableList.<InputSplit>of(split));
+
+    GsonBigQueryInputFormat gsonBigQueryInputFormat = new GsonBigQueryInputFormatForTest();
+    gsonBigQueryInputFormat.setDelegateInputFormat(mockInputFormat);
+
+    // Run getSplits method.
+    List<InputSplit> splits = gsonBigQueryInputFormat.getSplits(wrapper);
+
+    assertEquals(1, splits.size());
+    assertEquals(split.getPath(), ((FileSplit) splits.get(0)).getPath());
+    assertEquals("gs://foo-bucket/bar.json", config.get("mapred.input.dir"));
+    verify(mockBigQueryHelper, times(1)).getTable(eq(tableRef));
+    verifyNoMoreInteractions(mockBigquery);
   }
 
   /**
@@ -471,7 +489,7 @@ public class GsonBigQueryInputFormatTest {
    * Tests the cleanupJob method of GsonBigQueryInputFormat with intermediate delete.
    */
   @Test
-  public void testCleanupJobWithIntermediateDeleteAndGcsDelete() 
+  public void testCleanupJobWithIntermediateDeleteAndGcsDelete()
       throws IOException {
     // Set intermediate table for deletion.
     config.setBoolean(BigQueryConfiguration.DELETE_INTERMEDIATE_TABLE_KEY, true);
@@ -516,7 +534,7 @@ public class GsonBigQueryInputFormatTest {
    * Tests the cleanupJob method of GsonBigQueryInputFormat with intermediate delete.
    */
   @Test
-  public void testCleanupJobWithIntermediateDeleteNoGcsDelete() 
+  public void testCleanupJobWithIntermediateDeleteNoGcsDelete()
       throws IOException {
     // Set intermediate table for deletion.
     config.setBoolean(BigQueryConfiguration.DELETE_INTERMEDIATE_TABLE_KEY, true);
@@ -561,7 +579,7 @@ public class GsonBigQueryInputFormatTest {
    * Tests the cleanupJob method of GsonBigQueryInputFormat with no intermediate delete.
    */
   @Test
-  public void testCleanupJobWithNoIntermediateDelete() 
+  public void testCleanupJobWithNoIntermediateDelete()
       throws IOException {
     // Set intermediate table for deletion.
     config.setBoolean(BigQueryConfiguration.DELETE_INTERMEDIATE_TABLE_KEY, false);
@@ -585,18 +603,17 @@ public class GsonBigQueryInputFormatTest {
     assertTrue(!fs.exists(tempPath));
     assertTrue(!fs.exists(dataFile));
 
-    // The getTable in constructor of ShardedExportToCloudStorage.
     verify(mockBigQueryHelper, times(1)).getTable(eq(tableRef));
 
     verifyNoMoreInteractions(mockBigquery, mockBigqueryTables);
   }
-  
+
   /**
    * Tests the cleanupJob method of GsonBigQueryInputFormat with intermediate delete but no sharded
    * export.
    */
   @Test
-  public void testCleanupJobWithIntermediateDeleteNoShardedExport() 
+  public void testCleanupJobWithIntermediateDeleteNoShardedExport()
       throws IOException {
     // Set intermediate table for deletion.
     config.setBoolean(BigQueryConfiguration.DELETE_INTERMEDIATE_TABLE_KEY, true);
@@ -632,6 +649,7 @@ public class GsonBigQueryInputFormatTest {
     // To make the low-level "delete" call.
     verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
 
+    verify(mockBigQueryHelper, times(1)).getTable(eq(tableRef));
     verifyNoMoreInteractions(mockBigquery);
   }
 
@@ -640,6 +658,7 @@ public class GsonBigQueryInputFormatTest {
    */
   class GsonBigQueryInputFormatForTest
     extends GsonBigQueryInputFormat {
+
     @Override
     public Bigquery getBigQuery(Configuration config)
         throws GeneralSecurityException, IOException {

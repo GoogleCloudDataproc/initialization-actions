@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -31,8 +32,8 @@ public class UnshardedExportToCloudStorageTest {
             ExportFileFormat.AVRO,
             new BigQueryHelper(null),
             "project-id",
-            null /* table reference */,
-            new InputFormat<Text, Text>() {
+            null, /* table */
+            new InputFormat<LongWritable, Text>() {
               @Override
               public List<InputSplit> getSplits(JobContext jobContext)
                   throws IOException, InterruptedException {
@@ -43,7 +44,8 @@ public class UnshardedExportToCloudStorageTest {
               }
 
               @Override
-              public RecordReader<Text, Text> createRecordReader(InputSplit inputSplit,
+              public RecordReader<LongWritable, Text> createRecordReader(
+                  InputSplit inputSplit,
                   TaskAttemptContext taskAttemptContext) throws IOException, InterruptedException {
                 throw new UnsupportedOperationException("Not implemented.");
               }

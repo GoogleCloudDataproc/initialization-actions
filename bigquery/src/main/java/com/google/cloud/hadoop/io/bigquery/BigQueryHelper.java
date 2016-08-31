@@ -8,7 +8,6 @@ import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -135,19 +134,6 @@ public class BigQueryHelper {
     Bigquery.Tables.Get getTablesReply = service.tables().get(
         tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId());
     return getTablesReply.execute();
-  }
-
-  /**
-   * Gets the schema of this table.
-   *
-   * @param tableRef The BigQuery table reference.
-   * @return value or null for none
-   * @throws IOException
-   */
-  public TableSchema getTableSchema(TableReference tableRef)
-      throws IOException {
-    Table table = getTable(tableRef);
-    return table.getSchema();
   }
 
   /**

@@ -28,7 +28,7 @@ public enum ExportFileFormat {
   /**
    * Get the file pattern to use when exporting
    */
-  public String getFilePattern() {
+public String getFilePattern() {
     return filePattern;
   }
 
