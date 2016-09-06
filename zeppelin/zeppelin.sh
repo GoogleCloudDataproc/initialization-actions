@@ -47,7 +47,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
 
   if [[ -n "${ZEPPELIN_PORT}" ]]; then
     echo "export ZEPPELIN_PORT=${ZEPPELIN_PORT}" \
-        >> /etc/zeppelin/conf/zeppelin_env.sh
+        >> /etc/zeppelin/conf/zeppeline-env.sh
   fi
 
   # Install R libraries and configure BigQuery for Zeppelin 0.6.1+

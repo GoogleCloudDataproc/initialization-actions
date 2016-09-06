@@ -30,6 +30,14 @@ if [[ "${ROLE}" == 'Master' ]]; then
   fi
   gcloud docker pull ${DOCKER_IMAGE}
 
+  # For some reason Spark has issues resolving the user's directory inside of
+  # Datalab.
+  # TODO(pmkc) consider fixing in Dataproc proper.
+  SPARK_CONF='/etc/spark/conf/spark-defaults.conf'
+  if ! grep -q '^spark\.sql\.warehouse\.dir=' "${SPARK_CONF}" then
+    echo 'spark.sql.warehouse.dir=/root/spark-warehouse' >> "${SPARK_CONF}"
+  fi
+
   # Expose every possbile spark libary to the container.
   VOLUME_FLAGS=$(echo {/usr/bin,/usr/lib,/etc,/etc/alternatives,/var/log}/{hadoop*,hive*,*spark*} \
       /hadoop* /usr/lib/jvm/ /usr/share/java/ /usr/lib/bigtop* \
