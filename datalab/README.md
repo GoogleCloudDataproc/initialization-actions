@@ -22,4 +22,5 @@ You can find more information about using initialization actions with Dataproc i
 * PySpark's [`DataFrame.toPandas()`](http://spark.apache.org/docs/latest/api/python/pyspark.sql.html#pyspark.sql.DataFrame.toPandas) method is useful for integrating with Datalab APIs.
   * Remember that Panda's DataFrames must fit on the master, whereas Spark's can fill a cluster.
   * Datalab has a number of notebooks documenting its [Pandas](http://pandas.pydata.org/)' integrations.
+* This script requires that Datalab run on port `:8080`. If you normally run another server on that port (e.g. Zeppelin), consider moving it. Note running multiple Spark sessions can consume a lot of cluster resources and can cause problems on moderately small clusters.
 * If you [build your own Datalab images](https://github.com/googledatalab/datalab/wiki/Development-Environment), you can specify `--metadata=docker-image=gcr.io/<PROJECT>/<IMAGE>` to point to your gateway image.
