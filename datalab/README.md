@@ -1,0 +1,25 @@
+# Datalab Initialization Action
+
+This initialization action downloads and runs a [Google Cloud Datalab](https://cloud.google.com/datalab/) Docker container on a Dataproc cluster. You will need to connect to Datalab using a local Docker container on your machine.
+
+Once you have configured a copy of this script, you can use this initialization action to create a new Dataproc cluster with the Datalab agent installed by:
+
+1. Uploading a copy of the initialization action (`datalab.sh`) to [Google Cloud Storage](https://cloud.google.com/storage).
+1. Using the `gcloud` command to create a new cluster with this initialization action. The following command will create a new cluster named `<CLUSTER_NAME>` and specify the initialization action stored in `<GCS_BUCKET>`.
+
+    ```bash
+    gcloud dataproc clusters create <CLUSTER_NAME> \
+        --initialization-actions gs://<GCS_BUCKET>/datalab/datalab.sh
+    ```
+1. Once the cluster is online, follow [these Datalab instructions](https://cloud.google.com/datalab/docs/quickstarts/quickstart-gce#install_the_datalab_docker_container_on_your_computer) to connect to the Datalab container on your master node (`<CLUSTER_NAME>-m`).
+1. Once you bring up a notebook, you should have the normal PySpark
+   environment configured with `sc`, `sqlContext`, and `spark` predefined.
+
+You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
+
+## Useful Tips
+
+* PySpark's [`DataFrame.toPandas()`](http://spark.apache.org/docs/latest/api/python/pyspark.sql.html#pyspark.sql.DataFrame.toPandas) method is useful for integrating with Datalab APIs.
+  * Remember that Panda's DataFrames must fit on the master, whereas Spark's can fill a cluster.
+  * Datalab has a number of notebooks documenting its [Pandas](http://pandas.pydata.org/)' integrations.
+* If you [build your own Datalab images](https://github.com/googledatalab/datalab/wiki/Development-Environment), you can specify `--metadata=docker-image=gcr.io/<PROJECT>/<IMAGE>` to point to your gateway image.
