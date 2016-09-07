@@ -34,7 +34,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
   # Datalab.
   # TODO(pmkc) consider fixing in Dataproc proper.
   SPARK_CONF='/etc/spark/conf/spark-defaults.conf'
-  if ! grep -q '^spark\.sql\.warehouse\.dir=' "${SPARK_CONF}" then
+  if ! grep -q '^spark\.sql\.warehouse\.dir=' "${SPARK_CONF}"; then
     echo 'spark.sql.warehouse.dir=/root/spark-warehouse' >> "${SPARK_CONF}"
   fi
 

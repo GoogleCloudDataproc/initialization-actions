@@ -9,7 +9,8 @@ Once you have configured a copy of this script, you can use this initialization 
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://<GCS_BUCKET>/datalab/datalab.sh
+        --initialization-actions gs://<GCS_BUCKET>/datalab/datalab.sh \
+        --scopes cloud-platform
     ```
 1. Once the cluster is online, follow [these Datalab instructions](https://cloud.google.com/datalab/docs/quickstarts/quickstart-gce#install_the_datalab_docker_container_on_your_computer) to connect to the Datalab container on your master node (`<CLUSTER_NAME>-m`).
 1. Once you bring up a notebook, you should have the normal PySpark
@@ -17,10 +18,11 @@ Once you have configured a copy of this script, you can use this initialization 
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
 
-## Useful Tips
+## Notes
 
 * PySpark's [`DataFrame.toPandas()`](http://spark.apache.org/docs/latest/api/python/pyspark.sql.html#pyspark.sql.DataFrame.toPandas) method is useful for integrating with Datalab APIs.
   * Remember that Panda's DataFrames must fit on the master, whereas Spark's can fill a cluster.
   * Datalab has a number of notebooks documenting its [Pandas](http://pandas.pydata.org/)' integrations.
 * This script requires that Datalab run on port `:8080`. If you normally run another server on that port (e.g. Zeppelin), consider moving it. Note running multiple Spark sessions can consume a lot of cluster resources and can cause problems on moderately small clusters.
+* Datalab requires the `cloud-platform` scope even to access Google Cloud Storage and BigQuery.
 * If you [build your own Datalab images](https://github.com/googledatalab/datalab/wiki/Development-Environment), you can specify `--metadata=docker-image=gcr.io/<PROJECT>/<IMAGE>` to point to your gateway image.
