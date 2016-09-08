@@ -105,7 +105,8 @@ public class CredentialConfiguration {
   }
 
   public boolean shouldUseMetadataService() {
-    return serviceAccountKeyFile == null && serviceAccountJsonKeyFile == null;
+    return Strings.isNullOrEmpty(serviceAccountKeyFile)
+        && Strings.isNullOrEmpty(serviceAccountJsonKeyFile);
   }
 
   public String getOAuthCredentialFile() {
