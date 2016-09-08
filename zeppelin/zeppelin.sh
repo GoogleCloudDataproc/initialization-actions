@@ -25,8 +25,8 @@ INTERPRETER_FILE='/etc/zeppelin/conf/interpreter.json'
 ZEPPELIN_PORT="$(/usr/share/google/get_metadata_value attributes/zeppelin-port || true)"
 
 if [[ "${ROLE}" == 'Master' ]]; then
-  # Install zeppelin
-  apt-get install -y zeppelin
+  # Install zeppelin. Don't mind if it fails to start the first time.
+  apt-get install -y zeppelin || dpkg -l zeppelin
 
   for i in {1..6}; do
     if [[ -r "${INTERPRETER_FILE}" ]]; then
