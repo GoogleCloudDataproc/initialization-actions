@@ -1,3 +1,8 @@
+1.5.3 - 2016-09-21
+
+  1. Misc updates in credential acquisition on GCE.
+
+
 1.5.2 - 2016-08-23
 
   1. Updated AbstractGoogleAsyncWriteChannel to always set the
