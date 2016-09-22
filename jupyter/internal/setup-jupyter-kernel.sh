@@ -6,7 +6,6 @@ DIR="${BASH_SOURCE%/*}"
 source "$DIR/../../util/utils.sh"
 
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
-JUPYTER_KERNEL_DIR="/dataproc-initialization-actions/jupyter/kernels/pyspark"
 JUPYTER_NOTEBOOK_DIR="/root/notebooks"
 JUPYTER_PORT=$(/usr/share/google/get_metadata_value attributes/JUPYTER_PORT || true)
 [[ ! $JUPYTER_PORT =~ ^[0-9]+$ ]] && JUPYTER_PORT=8123
@@ -26,6 +25,11 @@ echo "c.NotebookApp.port = $JUPYTER_PORT" >> ~/.jupyter/jupyter_notebook_config.
 echo "c.NotebookApp.notebook_dir = '$JUPYTER_NOTEBOOK_DIR'" >> ~/.jupyter/jupyter_notebook_config.py
 
 echo "Installing pyspark Kernel..."
+JUPYTER_KERNEL_DIR='/dataproc-initialization-actions/jupyter/kernels/pyspark'
+KERNEL_GENERATOR='/dataproc-initialization-actions/jupyter/kernels/generate_pyspark.sh'
+chmod 750 ${KERNEL_GENERATOR}
+mkdir -p ${JUPYTER_KERNEL_DIR}
+${KERNEL_GENERATOR} > "${JUPYTER_KERNEL_DIR}/kernel.json"
 jupyter kernelspec install $JUPYTER_KERNEL_DIR
 echo "c.MappingKernelManager.default_kernel_name = 'pyspark'" >> ~/.jupyter/jupyter_notebook_config.py
 
