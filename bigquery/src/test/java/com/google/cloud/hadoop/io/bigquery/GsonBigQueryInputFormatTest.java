@@ -1,6 +1,5 @@
 package com.google.cloud.hadoop.io.bigquery;
 
-import static com.sun.org.apache.xalan.internal.xsltc.compiler.util.Type.Text;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
