@@ -11,20 +11,22 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License.set -x -e
+# limitations under the License.
 
 # This init script installs Apache Zeppelin on the master node of a Cloud
 # Dataproc cluster. Zeppelin is also configured based on the size of your
 # cluster and the versions of Spark/Hadoop which are installed.
+
 set -x -e
 
 # Only run on the master node
 ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 INTERPRETER_FILE='/etc/zeppelin/conf/interpreter.json'
+ZEPPELIN_PORT="$(/usr/share/google/get_metadata_value attributes/zeppelin-port || true)"
 
 if [[ "${ROLE}" == 'Master' ]]; then
-  # Install zeppelin
-  apt-get install -y zeppelin
+  # Install zeppelin. Don't mind if it fails to start the first time.
+  apt-get install -y zeppelin || dpkg -l zeppelin
 
   for i in {1..6}; do
     if [[ -r "${INTERPRETER_FILE}" ]]; then
@@ -41,8 +43,11 @@ if [[ "${ROLE}" == 'Master' ]]; then
       "${INTERPRETER_FILE}"
 
   # Link in hive configuration.
-  if [[ ! -r  /etc/zeppelin/conf ]]; then
-    ln -s /etc/hive/conf/hive-site.xml /etc/zeppelin/conf
+  ln -s /etc/hive/conf/hive-site.xml /etc/zeppelin/conf
+
+  if [[ -n "${ZEPPELIN_PORT}" ]]; then
+    echo "export ZEPPELIN_PORT=${ZEPPELIN_PORT}" \
+        >> /etc/zeppelin/conf/zeppeline-env.sh
   fi
 
   # Install R libraries and configure BigQuery for Zeppelin 0.6.1+
