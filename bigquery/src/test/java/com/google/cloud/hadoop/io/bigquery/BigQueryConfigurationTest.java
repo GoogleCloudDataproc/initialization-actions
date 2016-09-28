@@ -1,14 +1,20 @@
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.when;
 
+import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.JobConf;
+import org.apache.hadoop.mapreduce.JobID;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 /**
  * Unit tests for BigQueryConfigurationTest.
@@ -39,14 +45,27 @@ public class BigQueryConfigurationTest {
   // Sample query for testing for output.
   private static String outputTableSchema;
 
+  // Sample gcs bucket for io.
+  private static String gcsBucket;
+
+  // Sample gcs temporary path for io.
+  private static String gcsTempPath;
+
   // The Job Configuration for testing.
   private static JobConf conf;
 
+  @Mock private JobID mockJobID;
+
   /**
    * Set up before all classes.
+   *
+   * @throws IOException on IOError.
    */
   @Before
-  public void setUp() {
+  public void setUp() throws IOException {
+    // Generate Mocks.
+    MockitoAnnotations.initMocks(this);
+
     jobProjectId = "google.com:foo-project";
 
     // Set input parameters for testing.
@@ -60,9 +79,43 @@ public class BigQueryConfigurationTest {
     outputTableId = "test_output_table";
     outputTableSchema = "test_schema";
 
-    Configuration config = new Configuration();
+    // Set GSC io parameters for testing.
+    gcsBucket = "test";
+    gcsTempPath = "gs://test";
+
+    // Generate a sample configuration to properly handle gs:// paths.
+    Configuration config = InMemoryGoogleHadoopFileSystem.getSampleConfiguration();
     conf = new JobConf(config);
     new BigQueryConfiguration();
+  }
+
+  /**
+   * Tests the BigQueryConfiguration getTemporaryPathRoot method's response for a custom path.
+   *
+   * @throws IOException on IOError.
+   */
+  @Test
+  public void testGetTemporaryPathRootSpecific() throws IOException {
+    // Set an explicit path.
+    conf.set(BigQueryConfiguration.TEMP_GCS_PATH_KEY, gcsTempPath);
+
+    assertEquals(gcsTempPath, BigQueryConfiguration.getTemporaryPathRoot(conf, mockJobID));
+  }
+
+  /**
+   * Tests the BigQueryConfiguration getTemporaryPathRoot method's default response.
+   *
+   * @throws IOException on IOError.
+   */
+  @Test
+  public void testGetTemporaryPathRootDefault() throws IOException {
+    // Set the bucket for the default path.
+    conf.set(BigQueryConfiguration.GCS_BUCKET_KEY, gcsBucket);
+
+    // Mock the JobID's toString which is used to generate the temporary path.
+    when(mockJobID.toString()).thenReturn("test_job_id");
+
+    checkNotNull(BigQueryConfiguration.getTemporaryPathRoot(conf, mockJobID));
   }
 
   /**
