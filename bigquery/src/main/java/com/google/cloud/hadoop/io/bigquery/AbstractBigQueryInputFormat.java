@@ -3,7 +3,6 @@ package com.google.cloud.hadoop.io.bigquery;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.cloud.hadoop.util.HadoopToStringUtil;
 import com.google.common.annotations.VisibleForTesting;
@@ -14,8 +13,6 @@ import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -114,7 +111,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
       throw new IOException("Failed to create BigQuery client", gse);
     }
 
-    String exportPath = extractExportPathRoot(configuration, jobId);
+    String exportPath = BigQueryConfiguration.getTemporaryPathRoot(configuration, jobId);
     configuration.set(BigQueryConfiguration.TEMP_GCS_PATH_KEY, exportPath);
 
     Export export = constructExport(
@@ -250,34 +247,6 @@ public abstract class AbstractBigQueryInputFormat<K, V>
   }
 
   /**
-   * Either resolves an export path based on GCS_BUCKET_KEY and JobID, or defers to a pre-provided
-   * BigQueryConfiguration.TEMP_GCS_PATH_KEY.
-   */
-  protected static String extractExportPathRoot(Configuration configuration, JobID jobId)
-      throws IOException {
-    String exportPathRoot = configuration.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY);
-    if (Strings.isNullOrEmpty(exportPathRoot)) {
-      LOG.info("Fetching mandatory field '{}' since '{}' isn't set explicitly",
-          BigQueryConfiguration.GCS_BUCKET_KEY, BigQueryConfiguration.TEMP_GCS_PATH_KEY);
-      String gcsBucket = ConfigurationUtil.getMandatoryConfig(
-          configuration, BigQueryConfiguration.GCS_BUCKET_KEY);
-      exportPathRoot = String.format(
-          "gs://%s/hadoop/tmp/bigquery/%s", gcsBucket, jobId);
-      LOG.info("Resolved GCS export path: '{}'", exportPathRoot);
-    } else {
-      LOG.info("Using user-provided custom export path: '{}'", exportPathRoot);
-    }
-
-    Path exportPath = new Path(exportPathRoot);
-
-    FileSystem fs = exportPath.getFileSystem(configuration);
-    Preconditions.checkState(
-        fs instanceof GoogleHadoopFileSystemBase,
-        "Export FS must derive from GoogleHadoopFileSystemBase.");
-    return exportPathRoot;
-  }
-
-  /**
    * Cleans up relevant temporary resources associated with a job which used the
    * GsonBigQueryInputFormat; this should be called explicitly after the completion of the entire
    * job. Possibly cleans up intermediate export tables if configured to use one due to
@@ -306,7 +275,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
    * exported its files for reading.
    */
   public static void cleanupJob(Configuration configuration, JobID jobId) throws IOException {
-    String exportPathRoot = extractExportPathRoot(configuration, jobId);
+    String exportPathRoot = BigQueryConfiguration.getTemporaryPathRoot(configuration, jobId);
     configuration.set(BigQueryConfiguration.TEMP_GCS_PATH_KEY, exportPathRoot);
     Bigquery bigquery = null;
     try {
@@ -359,9 +328,9 @@ public abstract class AbstractBigQueryInputFormat<K, V>
   protected static ExportFileFormat getExportFileFormat(
       Class<? extends AbstractBigQueryInputFormat<?, ?>> clazz) {
     try {
-      AbstractBigQueryInputFormat<?, ?> format = clazz.newInstance();
+      AbstractBigQueryInputFormat<?, ?> format = clazz.getConstructor().newInstance();
       return format.getExportFileFormat();
-    } catch (InstantiationException | IllegalAccessException e) {
+    } catch (ReflectiveOperationException e) {
       throw new RuntimeException(e);
     }
   }

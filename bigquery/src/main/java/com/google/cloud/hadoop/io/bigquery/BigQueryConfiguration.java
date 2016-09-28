@@ -1,6 +1,7 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -8,6 +9,9 @@ import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.JobID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -246,5 +250,40 @@ public class BigQueryConfiguration {
     configureBigQueryOutput(
         config, parsedTable.getProjectId(), parsedTable.getDatasetId(), parsedTable.getTableId(),
         tableSchema);
+  }
+
+  /**
+   * Either resolves a temporary path based on GCS_BUCKET_KEY and JobID, or defers to a pre-provided
+   * BigQueryConfiguration.TEMP_GCS_PATH_KEY.
+   *
+   * @param configuration the configuration to fetch the keys from.
+   * @param jobId the id of the job requesting a working path.
+   * @return the temporary directory path.
+   * @throws IOException if the file system of the derived working path isn't a derivative of
+   *     GoogleHadoopFileSystemBase.
+   */
+  protected static String getTemporaryPathRoot(
+      Configuration configuration, JobID jobId) throws IOException {
+    String pathRoot = configuration.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY);
+    if (Strings.isNullOrEmpty(pathRoot)) {
+      LOG.info(
+          "Fetching mandatory field '{}' since '{}' isn't set explicitly",
+          BigQueryConfiguration.GCS_BUCKET_KEY,
+          BigQueryConfiguration.TEMP_GCS_PATH_KEY);
+      String gcsBucket =
+          ConfigurationUtil.getMandatoryConfig(configuration, BigQueryConfiguration.GCS_BUCKET_KEY);
+      pathRoot = String.format("gs://%s/hadoop/tmp/bigquery/%s", gcsBucket, jobId);
+      LOG.info("Resolved GCS temporary path: '{}'", pathRoot);
+    } else {
+      LOG.info("Using user-provided custom working path: '{}'", pathRoot);
+    }
+
+    Path workingPath = new Path(pathRoot);
+
+    FileSystem fs = workingPath.getFileSystem(configuration);
+    Preconditions.checkState(
+        fs instanceof GoogleHadoopFileSystemBase,
+        "Export FS must derive from GoogleHadoopFileSystemBase.");
+    return pathRoot;
   }
 }

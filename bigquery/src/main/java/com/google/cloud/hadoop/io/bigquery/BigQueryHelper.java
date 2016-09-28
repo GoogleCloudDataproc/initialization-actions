@@ -5,9 +5,11 @@ import com.google.api.services.bigquery.Bigquery.Jobs.Insert;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
+import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -45,6 +47,63 @@ public class BigQueryHelper {
    */
   public Bigquery getRawBigquery() {
     return service;
+  }
+
+  /**
+   * Imports data from GCS into BigQuery via a load job. Optionally polls for completion before
+   * returning.
+   *
+   * @param projectId the project on whose behalf to perform the load.
+   * @param tableRef the reference to the destination table.
+   * @param schema the schema of the source data to populate the destination table by.
+   * @param sourceFormat the file format of the source data.
+   * @param gcsPaths the location of the source data in GCS.
+   * @param awaitCompletion if true, block and poll until job completes, otherwise return as soon as
+   *     the job has been successfully dispatched.
+   * @throws IOException
+   * @throws InterruptedException
+   */
+  public void importBigQueryFromGcs(
+      String projectId,
+      TableReference tableRef,
+      TableSchema schema,
+      BigQueryFileFormat sourceFormat,
+      List<String> gcsPaths,
+      boolean awaitCompletion)
+      throws IOException, InterruptedException {
+
+    // Create load conf with minimal requirements.
+    JobConfigurationLoad loadConfig = new JobConfigurationLoad();
+    loadConfig.setSchema(schema);
+    loadConfig.setSourceFormat(sourceFormat.getFormatIdentifier());
+    loadConfig.setSourceUris(gcsPaths);
+    loadConfig.setDestinationTable(tableRef);
+
+    JobConfiguration config = new JobConfiguration();
+    config.setLoad(loadConfig);
+
+    JobReference jobReference = createJobReference(projectId, "direct-bigqueryhelper-import");
+
+    // TODO(user): A lot of this code is reusable, clean up BigQueryHelper.
+    Job job = new Job();
+    job.setConfiguration(config);
+    job.setJobReference(jobReference);
+
+    // Insert and run job.
+    insertJobOrFetchDuplicate(projectId, job);
+
+    Progressable progressable =
+        new Progressable() {
+          @Override
+          public void progress() {
+            // TODO(user): ensure task doesn't time out
+          }
+        };
+
+    if (awaitCompletion) {
+      // Poll until job is complete.
+      BigQueryUtils.waitForJobCompletion(getRawBigquery(), projectId, jobReference, progressable);
+    }
   }
 
   /**
