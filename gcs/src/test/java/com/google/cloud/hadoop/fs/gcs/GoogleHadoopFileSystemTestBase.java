@@ -16,9 +16,9 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions.TimestampUpdatePredicate;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.HadoopVersionInfo;
-import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileWriter;
@@ -532,7 +532,7 @@ public abstract class GoogleHadoopFileSystemTestBase
   }
 
   @Test
-  public void testIncludedParentPathPredicates() {
+  public void testIncludedParentPathPredicates() throws URISyntaxException {
     Configuration configuration = new Configuration();
     // 1 Disable all updates and then try to include all paths
     configuration.setBoolean(
@@ -540,11 +540,11 @@ public abstract class GoogleHadoopFileSystemTestBase
     configuration.set(GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY, "/");
     configuration.set(GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY, "");
 
-    Predicate<String> predicate =
+    TimestampUpdatePredicate predicate =
         GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate.create(configuration);
 
-    Assert.assertFalse("Should be ignored", predicate.apply("/foobar"));
-    Assert.assertFalse("Should be ignored", predicate.apply(""));
+    Assert.assertFalse("Should be ignored", predicate.shouldUpdateTimestamp(new URI("/foobar")));
+    Assert.assertFalse("Should be ignored", predicate.shouldUpdateTimestamp(new URI("")));
 
     // 2 Enable updates, set include to everything and exclude to everything
     configuration.setBoolean(
@@ -555,8 +555,8 @@ public abstract class GoogleHadoopFileSystemTestBase
     predicate = GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate
         .create(configuration);
 
-    Assert.assertTrue("Should be included", predicate.apply("/foobar"));
-    Assert.assertTrue("Should be included", predicate.apply("/"));
+    Assert.assertTrue("Should be included", predicate.shouldUpdateTimestamp(new URI("/foobar")));
+    Assert.assertTrue("Should be included", predicate.shouldUpdateTimestamp(new URI("")));
 
     // 3 Enable specific paths, exclude everything:
     configuration.set(
@@ -567,10 +567,14 @@ public abstract class GoogleHadoopFileSystemTestBase
     predicate = GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate
         .create(configuration);
 
-    Assert.assertTrue("Should be included", predicate.apply("asdf/foobar"));
-    Assert.assertTrue("Should be included", predicate.apply("asdf/baz"));
-    Assert.assertFalse("Should be ignored", predicate.apply("/anythingElse"));
-    Assert.assertFalse("Should be ignored", predicate.apply("/"));
+    Assert.assertTrue(
+        "Should be included", predicate.shouldUpdateTimestamp(new URI("asdf/foobar")));
+    Assert.assertTrue(
+        "Should be included",  predicate.shouldUpdateTimestamp(new URI("asdf/baz")));
+    Assert.assertFalse(
+        "Should be ignored",  predicate.shouldUpdateTimestamp(new URI("/anythingElse")));
+    Assert.assertFalse(
+        "Should be ignored",  predicate.shouldUpdateTimestamp(new URI("/")));
 
     // 4 set to defaults, set job history paths
     configuration.set(
@@ -586,8 +590,8 @@ public abstract class GoogleHadoopFileSystemTestBase
         GoogleHadoopFileSystemBase.MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY,
         "/tmp/hadoop-yarn/staging/done");
 
-    predicate = GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate
-        .create(configuration);
+    predicate =
+        GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate.create(configuration);
 
     Assert.assertEquals(
         "/tmp/hadoop-yarn/staging/done,/tmp/hadoop-yarn/done",
@@ -595,10 +599,55 @@ public abstract class GoogleHadoopFileSystemTestBase
 
     Assert.assertTrue(
         "Should be included",
-        predicate.apply("gs://bucket/tmp/hadoop-yarn/staging/done/"));
-    Assert.assertTrue("Should be included", predicate.apply("gs://bucket/tmp/hadoop-yarn/done/"));
-    Assert.assertFalse("Should be ignored", predicate.apply("asdf/baz"));
-    Assert.assertFalse("Should be ignored", predicate.apply("/anythingElse"));
-    Assert.assertFalse("Should be ignored", predicate.apply("/"));
+        predicate.shouldUpdateTimestamp(new URI("gs://bucket/tmp/hadoop-yarn/staging/done/")));
+    Assert.assertTrue(
+        "Should be included",
+        predicate.shouldUpdateTimestamp(new URI("gs://bucket/tmp/hadoop-yarn/done/")));
+    Assert.assertFalse(
+        "Should be ignored",
+        predicate.shouldUpdateTimestamp(new URI("asdf/baz")));
+    Assert.assertFalse(
+        "Should be ignored",
+        predicate.shouldUpdateTimestamp(new URI("/anythingElse")));
+    Assert.assertFalse(
+        "Should be ignored",
+        predicate.shouldUpdateTimestamp(new URI("/")));
+
+    // 5 set to defaults, set job history paths with gs:// scheme
+    configuration.set(
+        GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY,
+        GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_DEFAULT);
+    configuration.set(
+        GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY,
+        GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_DEFAULT);
+    configuration.set(
+        GoogleHadoopFileSystemBase.MR_JOB_HISTORY_DONE_DIR_KEY,
+        "gs://foo-bucket/tmp/hadoop-yarn/done");
+    configuration.set(
+        GoogleHadoopFileSystemBase.MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY,
+        "gs://foo-bucket/tmp/hadoop-yarn/staging/done");
+
+    predicate =
+        GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate.create(configuration);
+
+    Assert.assertEquals(
+        "gs://foo-bucket/tmp/hadoop-yarn/staging/done,gs://foo-bucket/tmp/hadoop-yarn/done",
+        configuration.get(GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY));
+
+    Assert.assertTrue(
+        "Should be included",
+        predicate.shouldUpdateTimestamp(new URI("gs://foo-bucket/tmp/hadoop-yarn/staging/done/")));
+    Assert.assertTrue(
+        "Should be included",
+        predicate.shouldUpdateTimestamp(new URI("gs://foo-bucket/tmp/hadoop-yarn/done/")));
+    Assert.assertFalse(
+        "Should be ignored",
+        predicate.shouldUpdateTimestamp(new URI("asdf/baz")));
+    Assert.assertFalse(
+        "Should be ignored",
+        predicate.shouldUpdateTimestamp(new URI("/anythingElse")));
+    Assert.assertFalse(
+        "Should be ignored",
+        predicate.shouldUpdateTimestamp(new URI("/")));
   }
 }

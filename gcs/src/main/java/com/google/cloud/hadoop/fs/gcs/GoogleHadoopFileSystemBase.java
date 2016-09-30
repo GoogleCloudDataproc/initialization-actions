@@ -31,7 +31,6 @@ import com.google.cloud.hadoop.util.HttpTransportFactory;
 import com.google.cloud.hadoop.util.PropertyUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -620,13 +619,14 @@ public abstract class GoogleHadoopFileSystemBase
    * when running directory timestamp updates. If no match is found in either include or
    * exclude and updates are enabled, the directory timestamp will be updated.
    */
-  public static class ParentTimestampUpdateIncludePredicate implements Predicate<String> {
+  public static class ParentTimestampUpdateIncludePredicate
+      implements GoogleCloudStorageFileSystemOptions.TimestampUpdatePredicate {
 
     /**
      * Create a new ParentTimestampUpdateIncludePredicate from the passed Hadoop configuration
      * object.
      */
-    public static Predicate<String> create(Configuration config) {
+    public static ParentTimestampUpdateIncludePredicate create(Configuration config) {
       boolean enableDirectoryTimestampUpdating = config.getBoolean(
           GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY,
           GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_DEFAULT);
@@ -648,7 +648,9 @@ public abstract class GoogleHadoopFileSystemBase
           CONFIGURATION_SPLITTER.splitToList(excludedParentPaths);
 
       return new ParentTimestampUpdateIncludePredicate(
-          enableDirectoryTimestampUpdating, splitIncludedParentPaths, splitExcludedParentPaths);
+          enableDirectoryTimestampUpdating,
+          splitIncludedParentPaths,
+          splitExcludedParentPaths);
     }
 
     // Include and exclude lists are intended to be small N and checked relatively
@@ -673,24 +675,24 @@ public abstract class GoogleHadoopFileSystemBase
      * be updated.
      */
     @Override
-    public boolean apply(String path) {
+    public boolean shouldUpdateTimestamp(URI uri) {
       if (!enableTimestampUpdates) {
-        LOG.debug("Timestamp updating disabled. Not updating path {}", path);
+        LOG.debug("Timestamp updating disabled. Not updating uri {}", uri);
         return false;
       }
 
       for (String include : includeSubstrings) {
-        if (path.contains(include)) {
+        if (uri.toString().contains(include)) {
           LOG.debug(
-              "Path %s matched included path %s. Updating timestamps.", path, include);
+              "Path %s matched included path %s. Updating timestamps.", uri, include);
           return true;
         }
       }
 
       for (String exclude : excludeSubstrings) {
-        if (path.contains(exclude)) {
+        if (uri.toString().contains(exclude)) {
           LOG.debug(
-              "Path %s matched excluded path %s. Not updating timestamps.", path, exclude);
+              "Path %s matched excluded path %s. Not updating timestamps.", uri, exclude);
           return false;
         }
       }
@@ -1974,10 +1976,9 @@ public abstract class GoogleHadoopFileSystemBase
     LOG.debug("{} = {}", GCS_METADATA_CACHE_MAX_INFO_AGE_KEY, cacheMaxInfoAgeMillis);
     optionsBuilder.setCacheMaxInfoAgeMillis(cacheMaxInfoAgeMillis);
 
-    Predicate<String> shouldIncludeInTimestampUpdatesPredicate =
+    GoogleCloudStorageFileSystemOptions.TimestampUpdatePredicate updatePredicate =
         ParentTimestampUpdateIncludePredicate.create(config);
-    optionsBuilder.setShouldIncludeInTimestampUpdatesPredicate(
-        shouldIncludeInTimestampUpdatesPredicate);
+    optionsBuilder.setShouldIncludeInTimestampUpdatesPredicate(updatePredicate);
 
     enableAutoRepairImplicitDirectories = config.getBoolean(
         GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY,

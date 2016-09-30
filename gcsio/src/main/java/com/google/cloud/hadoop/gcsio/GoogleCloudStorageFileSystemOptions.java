@@ -16,12 +16,28 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
+import java.net.URI;
+
 
 /**
  * Configurable options for the GoogleCloudStorageFileSystem class.
  */
 public class GoogleCloudStorageFileSystemOptions {
+
+  /**
+   * Callback interface that allows applications to control which directory timestamps should be
+   * modified after entries are added or removed from the directory.
+   * <p>
+   * This is provided as a performance optimization as directory timestamps end up updating
+   * object metadata which is rate-limited to 1QPS.
+   */
+  public interface TimestampUpdatePredicate {
+
+    /**
+     * Called to determine if the given URI should be updated.
+     */
+    boolean shouldUpdateTimestamp(URI item);
+  }
 
   /**
    * Mutable builder for GoogleCloudStorageFileSystemOptions.
@@ -30,7 +46,14 @@ public class GoogleCloudStorageFileSystemOptions {
     protected boolean metadataCacheEnabled = true;
     protected DirectoryListCache.Type cacheType = DirectoryListCache.Type.IN_MEMORY;
     protected String cacheBasePath = null;
-    protected Predicate<String> shouldIncludeInTimestampUpdatesPredicate = Predicates.alwaysTrue();
+    protected TimestampUpdatePredicate shouldIncludeInTimestampUpdatesPredicate =
+        new TimestampUpdatePredicate() {
+      @Override
+      public boolean shouldUpdateTimestamp(URI item) {
+        return true;
+      }
+    };
+
     protected long cacheMaxEntryAgeMillis = DirectoryListCache.Config.MAX_ENTRY_AGE_MILLIS_DEFAULT;
     protected long cacheMaxInfoAgeMillis = DirectoryListCache.Config.MAX_INFO_AGE_MILLIS_DEFAULT;
 
@@ -87,8 +110,21 @@ public class GoogleCloudStorageFileSystemOptions {
       return this;
     }
 
+    /** Set a Predicate to be applied to item paths to determine if the item should
+     * have its timestamps updated */
     public Builder setShouldIncludeInTimestampUpdatesPredicate(
-        Predicate<String> shouldIncludeInTimestampUpdatesPredicate) {
+        final Predicate<String> shouldIncludeInTimestampUpdatesPredicate) {
+      this.shouldIncludeInTimestampUpdatesPredicate = new TimestampUpdatePredicate() {
+        @Override
+        public boolean shouldUpdateTimestamp(URI item) {
+          return shouldIncludeInTimestampUpdatesPredicate.apply(item.getPath());
+        }
+      };
+      return this;
+    }
+
+    public Builder setShouldIncludeInTimestampUpdatesPredicate(
+        TimestampUpdatePredicate shouldIncludeInTimestampUpdatesPredicate) {
       this.shouldIncludeInTimestampUpdatesPredicate = shouldIncludeInTimestampUpdatesPredicate;
       return this;
     }
@@ -131,7 +167,7 @@ public class GoogleCloudStorageFileSystemOptions {
   private final boolean metadataCacheEnabled;
   private final DirectoryListCache.Type cacheType;
   private final String cacheBasePath;  // Only used if cacheType == FILESYSTEM_BACKED.
-  private final Predicate<String> shouldIncludeInTimestampUpdatesPredicate;
+  private final TimestampUpdatePredicate shouldIncludeInTimestampUpdatesPredicate;
   private final long cacheMaxEntryAgeMillis;
   private final long cacheMaxInfoAgeMillis;
   private final PathCodec pathCodec;
@@ -141,7 +177,7 @@ public class GoogleCloudStorageFileSystemOptions {
       boolean metadataCacheEnabled,
       DirectoryListCache.Type cacheType,
       String cacheBasePath,
-      Predicate<String> shouldIncludeInTimestampUpdatesPredicate,
+      TimestampUpdatePredicate shouldIncludeInTimestampUpdatesPredicate,
       long cacheMaxEntryAgeMillis,
       long cacheMaxInfoAgeMillis,
       PathCodec pathCodec) {
@@ -171,7 +207,7 @@ public class GoogleCloudStorageFileSystemOptions {
     return cacheBasePath;
   }
 
-  public Predicate<String> getShouldIncludeInTimestampUpdatesPredicate() {
+  public TimestampUpdatePredicate getShouldIncludeInTimestampUpdatesPredicate() {
     return shouldIncludeInTimestampUpdatesPredicate;
   }
 

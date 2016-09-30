@@ -18,10 +18,10 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.util.Clock;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions.TimestampUpdatePredicate;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -1383,7 +1383,7 @@ public class GoogleCloudStorageFileSystem {
       List<URI> modifiedObjects, List<URI> excludedParents) throws IOException {
     LOG.debug("updateTimestampsForParentDirectories({}, {})", modifiedObjects, excludedParents);
 
-    Predicate<String> shouldIncludeInTimestampUpdatesPredicate =
+    TimestampUpdatePredicate updatePredicate =
         options.getShouldIncludeInTimestampUpdatesPredicate();
     Set<URI> excludedParentPathsSet = new HashSet<>(excludedParents);
 
@@ -1391,7 +1391,7 @@ public class GoogleCloudStorageFileSystem {
     for (URI modifiedObjectUri : modifiedObjects) {
       URI parentPathUri = getParentPath(modifiedObjectUri);
       if (!excludedParentPathsSet.contains(parentPathUri)
-          && shouldIncludeInTimestampUpdatesPredicate.apply(parentPathUri.getPath())) {
+          && updatePredicate.shouldUpdateTimestamp(parentPathUri)) {
         parentUrisToUpdate.add(parentPathUri);
       }
     }
