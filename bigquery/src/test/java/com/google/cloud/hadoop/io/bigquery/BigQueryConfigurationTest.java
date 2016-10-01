@@ -21,37 +21,37 @@ import org.mockito.MockitoAnnotations;
  */
 @RunWith(JUnit4.class)
 public class BigQueryConfigurationTest {
-  // Sample jobProjectId.
-  private static String jobProjectId;
+  /** Sample jobProjectId. */
+  private static final String JOB_PROJECT_ID = "google.com:foo-project";
 
-  // Sample projectId for input.
-  private static String inputProjectId;
+  /** Sample projectId for input. */
+  private static final String INPUT_PROJECT_ID = "google.com:input-project";
 
-  // Sample datasetId for input.
-  private static String inputDatasetId;
+  /** Sample datasetId for input. */
+  private static final String INPUT_DATASET_ID = "test_input_dataset";
 
-  // Sample tableId for input.
-  private static String inputTableId;
+  /** Sample tableId for input. */
+  private static final String INPUT_TABLE_ID = "test_input_table";
 
-  // Sample projectId for output.
-  private static String outputProjectId;
+  /** Sample projectId for output. */
+  private static final String OUTPUT_PROJECT_ID = "google.com:output-project";
 
-  // Sample datasetId for output.
-  private static String outputDatasetId;
+  /** Sample datasetId for output. */
+  private static final String OUTPUT_DATASET_ID = "test_output_dataset";
 
-  // Sample tableId for output.
-  private static String outputTableId;
+  /** Sample tableId for output. */
+  private static final String OUTPUT_TABLE_ID = "test_output_table";
 
-  // Sample query for testing for output.
-  private static String outputTableSchema;
+  /** Sample query for testing for output. */
+  private static final String OUTPUT_TABLE_SCHEMA = "test_schema";
 
-  // Sample gcs bucket for io.
-  private static String gcsBucket;
+  /** Sample gcs bucket for io. */
+  private static final String GCS_BUCKET = "test";
 
-  // Sample gcs temporary path for io.
-  private static String gcsTempPath;
+  /** Sample gcs temporary path for io. */
+  private static final String GCS_TEMP_PATH = "gs://test";
 
-  // The Job Configuration for testing.
+  /** The Job Configuration for testing. */
   private static JobConf conf;
 
   @Mock private JobID mockJobID;
@@ -65,23 +65,6 @@ public class BigQueryConfigurationTest {
   public void setUp() throws IOException {
     // Generate Mocks.
     MockitoAnnotations.initMocks(this);
-
-    jobProjectId = "google.com:foo-project";
-
-    // Set input parameters for testing.
-    inputProjectId = "google.com:input-project";
-    inputDatasetId = "test_input_dataset";
-    inputTableId = "test_input_table";
-
-    // Set output parameters for testing.
-    outputProjectId = "google.com:output-project";
-    outputDatasetId = "test_output_dataset";
-    outputTableId = "test_output_table";
-    outputTableSchema = "test_schema";
-
-    // Set GSC io parameters for testing.
-    gcsBucket = "test";
-    gcsTempPath = "gs://test";
 
     // Generate a sample configuration to properly handle gs:// paths.
     Configuration config = InMemoryGoogleHadoopFileSystem.getSampleConfiguration();
@@ -97,9 +80,9 @@ public class BigQueryConfigurationTest {
   @Test
   public void testGetTemporaryPathRootSpecific() throws IOException {
     // Set an explicit path.
-    conf.set(BigQueryConfiguration.TEMP_GCS_PATH_KEY, gcsTempPath);
+    conf.set(BigQueryConfiguration.TEMP_GCS_PATH_KEY, GCS_TEMP_PATH);
 
-    assertEquals(gcsTempPath, BigQueryConfiguration.getTemporaryPathRoot(conf, mockJobID));
+    assertEquals(GCS_TEMP_PATH, BigQueryConfiguration.getTemporaryPathRoot(conf, mockJobID));
   }
 
   /**
@@ -110,7 +93,7 @@ public class BigQueryConfigurationTest {
   @Test
   public void testGetTemporaryPathRootDefault() throws IOException {
     // Set the bucket for the default path.
-    conf.set(BigQueryConfiguration.GCS_BUCKET_KEY, gcsBucket);
+    conf.set(BigQueryConfiguration.GCS_BUCKET_KEY, GCS_BUCKET);
 
     // Mock the JobID's toString which is used to generate the temporary path.
     when(mockJobID.toString()).thenReturn("test_job_id");
@@ -125,15 +108,15 @@ public class BigQueryConfigurationTest {
   public void testConfigureBigQueryInput() throws IOException {
     BigQueryConfiguration.configureBigQueryInput(
         conf,
-        inputProjectId,
-        inputDatasetId,
-        inputTableId);
-    assertEquals(inputProjectId, conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY));
-    assertEquals(inputDatasetId, conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY));
-    assertEquals(inputTableId, conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY));
+        INPUT_PROJECT_ID,
+        INPUT_DATASET_ID,
+        INPUT_TABLE_ID);
+    assertEquals(INPUT_PROJECT_ID, conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY));
+    assertEquals(INPUT_DATASET_ID, conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY));
+    assertEquals(INPUT_TABLE_ID, conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY));
 
     // By default, the job-level projectId inherits the input projectId if it's not already set.
-    assertEquals(inputProjectId, conf.get(BigQueryConfiguration.PROJECT_ID_KEY));
+    assertEquals(INPUT_PROJECT_ID, conf.get(BigQueryConfiguration.PROJECT_ID_KEY));
   }
 
   /**
@@ -143,122 +126,122 @@ public class BigQueryConfigurationTest {
   public void testConfigureBigQueryOutput() throws IOException {
     BigQueryConfiguration.configureBigQueryOutput(
         conf,
-        outputProjectId,
-        outputDatasetId,
-        outputTableId,
-        outputTableSchema);
-    assertEquals(outputProjectId, conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY));
-    assertEquals(outputDatasetId, conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY));
-    assertEquals(outputTableId, conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY));
-    assertEquals(outputTableSchema, conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY));
+        OUTPUT_PROJECT_ID,
+        OUTPUT_DATASET_ID,
+        OUTPUT_TABLE_ID,
+        OUTPUT_TABLE_SCHEMA);
+    assertEquals(OUTPUT_PROJECT_ID, conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY));
+    assertEquals(OUTPUT_DATASET_ID, conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY));
+    assertEquals(OUTPUT_TABLE_ID, conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY));
+    assertEquals(OUTPUT_TABLE_SCHEMA, conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY));
 
     // By default, the job-level projectId inherits the output projectId if it's not already set.
-    assertEquals(outputProjectId, conf.get(BigQueryConfiguration.PROJECT_ID_KEY));
+    assertEquals(OUTPUT_PROJECT_ID, conf.get(BigQueryConfiguration.PROJECT_ID_KEY));
   }
 
   @Test
   public void testConfigureBigQueryInputThenOutput() throws IOException {
     BigQueryConfiguration.configureBigQueryInput(
         conf,
-        inputProjectId,
-        inputDatasetId,
-        inputTableId);
+        INPUT_PROJECT_ID,
+        INPUT_DATASET_ID,
+        INPUT_TABLE_ID);
     BigQueryConfiguration.configureBigQueryOutput(
         conf,
-        outputProjectId,
-        outputDatasetId,
-        outputTableId,
-        outputTableSchema);
+        OUTPUT_PROJECT_ID,
+        OUTPUT_DATASET_ID,
+        OUTPUT_TABLE_ID,
+        OUTPUT_TABLE_SCHEMA);
 
-    assertEquals(inputProjectId, conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY));
-    assertEquals(inputDatasetId, conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY));
-    assertEquals(inputTableId, conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY));
-    assertEquals(outputProjectId, conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY));
-    assertEquals(outputDatasetId, conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY));
-    assertEquals(outputTableId, conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY));
-    assertEquals(outputTableSchema, conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY));
+    assertEquals(INPUT_PROJECT_ID, conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY));
+    assertEquals(INPUT_DATASET_ID, conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY));
+    assertEquals(INPUT_TABLE_ID, conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY));
+    assertEquals(OUTPUT_PROJECT_ID, conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY));
+    assertEquals(OUTPUT_DATASET_ID, conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY));
+    assertEquals(OUTPUT_TABLE_ID, conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY));
+    assertEquals(OUTPUT_TABLE_SCHEMA, conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY));
 
     // Job level projectId got the inputProjectId just because we called it first.
-    assertEquals(inputProjectId, conf.get(BigQueryConfiguration.PROJECT_ID_KEY));
+    assertEquals(INPUT_PROJECT_ID, conf.get(BigQueryConfiguration.PROJECT_ID_KEY));
   }
 
   @Test
   public void testConfigureBigQueryInputThenOutputWithPresetJobProject() throws IOException {
-    conf.set(BigQueryConfiguration.PROJECT_ID_KEY, jobProjectId);
+    conf.set(BigQueryConfiguration.PROJECT_ID_KEY, JOB_PROJECT_ID);
     BigQueryConfiguration.configureBigQueryInput(
         conf,
-        inputProjectId,
-        inputDatasetId,
-        inputTableId);
+        INPUT_PROJECT_ID,
+        INPUT_DATASET_ID,
+        INPUT_TABLE_ID);
     BigQueryConfiguration.configureBigQueryOutput(
         conf,
-        outputProjectId,
-        outputDatasetId,
-        outputTableId,
-        outputTableSchema);
+        OUTPUT_PROJECT_ID,
+        OUTPUT_DATASET_ID,
+        OUTPUT_TABLE_ID,
+        OUTPUT_TABLE_SCHEMA);
 
-    assertEquals(inputProjectId, conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY));
-    assertEquals(inputDatasetId, conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY));
-    assertEquals(inputTableId, conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY));
-    assertEquals(outputProjectId, conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY));
-    assertEquals(outputDatasetId, conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY));
-    assertEquals(outputTableId, conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY));
-    assertEquals(outputTableSchema, conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY));
+    assertEquals(INPUT_PROJECT_ID, conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY));
+    assertEquals(INPUT_DATASET_ID, conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY));
+    assertEquals(INPUT_TABLE_ID, conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY));
+    assertEquals(OUTPUT_PROJECT_ID, conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY));
+    assertEquals(OUTPUT_DATASET_ID, conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY));
+    assertEquals(OUTPUT_TABLE_ID, conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY));
+    assertEquals(OUTPUT_TABLE_SCHEMA, conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY));
 
     // Job level projectId remains unaltered by setting input/output projects.
-    assertEquals(jobProjectId, conf.get(BigQueryConfiguration.PROJECT_ID_KEY));
+    assertEquals(JOB_PROJECT_ID, conf.get(BigQueryConfiguration.PROJECT_ID_KEY));
   }
 
   @Test
   public void testConfigureBigQueryDefaultToJobProject() throws IOException {
-    conf.set(BigQueryConfiguration.PROJECT_ID_KEY, jobProjectId);
+    conf.set(BigQueryConfiguration.PROJECT_ID_KEY, JOB_PROJECT_ID);
 
     BigQueryConfiguration.configureBigQueryInput(
         conf,
         "",
-        inputDatasetId,
-        inputTableId);
+        INPUT_DATASET_ID,
+        INPUT_TABLE_ID);
 
-    assertEquals(jobProjectId, conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY));
-    assertEquals(inputDatasetId, conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY));
-    assertEquals(inputTableId, conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY));
+    assertEquals(JOB_PROJECT_ID, conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY));
+    assertEquals(INPUT_DATASET_ID, conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY));
+    assertEquals(INPUT_TABLE_ID, conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY));
 
     BigQueryConfiguration.configureBigQueryOutput(
         conf,
         null,
-        outputDatasetId,
-        outputTableId,
-        outputTableSchema);
+        OUTPUT_DATASET_ID,
+        OUTPUT_TABLE_ID,
+        OUTPUT_TABLE_SCHEMA);
 
-    assertEquals(jobProjectId, conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY));
-    assertEquals(outputDatasetId, conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY));
-    assertEquals(outputTableId, conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY));
-    assertEquals(outputTableSchema, conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY));
+    assertEquals(JOB_PROJECT_ID, conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY));
+    assertEquals(OUTPUT_DATASET_ID, conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY));
+    assertEquals(OUTPUT_TABLE_ID, conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY));
+    assertEquals(OUTPUT_TABLE_SCHEMA, conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY));
 
     // Job level projectId remains unaltered by setting input/output projects.
-    assertEquals(jobProjectId, conf.get(BigQueryConfiguration.PROJECT_ID_KEY));
+    assertEquals(JOB_PROJECT_ID, conf.get(BigQueryConfiguration.PROJECT_ID_KEY));
   }
 
   @Test
   public void testConfigureBigQueryDefaultToJobProjectFullyQualifiedNames() throws IOException {
-    conf.set(BigQueryConfiguration.PROJECT_ID_KEY, jobProjectId);
+    conf.set(BigQueryConfiguration.PROJECT_ID_KEY, JOB_PROJECT_ID);
 
     BigQueryConfiguration.configureBigQueryInput(
-        conf, String.format("%s.%s", inputDatasetId, inputTableId));
+        conf, String.format("%s.%s", INPUT_DATASET_ID, INPUT_TABLE_ID));
 
-    assertEquals(jobProjectId, conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY));
-    assertEquals(inputDatasetId, conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY));
-    assertEquals(inputTableId, conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY));
+    assertEquals(JOB_PROJECT_ID, conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY));
+    assertEquals(INPUT_DATASET_ID, conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY));
+    assertEquals(INPUT_TABLE_ID, conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY));
 
     BigQueryConfiguration.configureBigQueryOutput(
-        conf, String.format("%s.%s", outputDatasetId, outputTableId), outputTableSchema);
+        conf, String.format("%s.%s", OUTPUT_DATASET_ID, OUTPUT_TABLE_ID), OUTPUT_TABLE_SCHEMA);
 
-    assertEquals(jobProjectId, conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY));
-    assertEquals(outputDatasetId, conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY));
-    assertEquals(outputTableId, conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY));
-    assertEquals(outputTableSchema, conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY));
+    assertEquals(JOB_PROJECT_ID, conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY));
+    assertEquals(OUTPUT_DATASET_ID, conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY));
+    assertEquals(OUTPUT_TABLE_ID, conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY));
+    assertEquals(OUTPUT_TABLE_SCHEMA, conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY));
 
     // Job level projectId remains unaltered by setting input/output projects.
-    assertEquals(jobProjectId, conf.get(BigQueryConfiguration.PROJECT_ID_KEY));
+    assertEquals(JOB_PROJECT_ID, conf.get(BigQueryConfiguration.PROJECT_ID_KEY));
   }
 }
