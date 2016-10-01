@@ -4,6 +4,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
@@ -31,7 +32,16 @@ public class IndirectBigQueryOutputCommitter extends FileOutputCommitter {
   private final TableReference destinationTable;
   private final TableSchema destinationSchema;
   private final BigQueryFileFormat sourceFormat;
+  private BigQueryHelper bigQueryHelper;
 
+  /**
+   * Creates a new IndirectBigQueryOutputCommitter.
+   *
+   * @param path the GCS path where the files are committed to before being loaded into BigQuery.
+   * @param context the context of the task.
+   * @param sourceFormat the file format of the files that will be uploaded.
+   * @throws IOException if an IOError is thrown.
+   */
   public IndirectBigQueryOutputCommitter(
       Path path, TaskAttemptContext context, BigQueryFileFormat sourceFormat) throws IOException {
     super(path, context);
@@ -43,6 +53,13 @@ public class IndirectBigQueryOutputCommitter extends FileOutputCommitter {
     } else {
       throw new IOException(
           "Unable to resolve output path and file system. Is the configuration correct?");
+    }
+
+    // Create a big query reference
+    try {
+      bigQueryHelper = new BigQueryFactory().getBigQueryHelper(context.getConfiguration());
+    } catch (GeneralSecurityException gse) {
+      throw new IOException("Failed to create BigQuery client", gse);
     }
 
     // Ensure the configuration options are present before they're retrieved.
@@ -86,17 +103,14 @@ public class IndirectBigQueryOutputCommitter extends FileOutputCommitter {
     ArrayList<String> sourceUris = new ArrayList<String>(outputFiles.length);
     for (int i = 0; i < outputFiles.length; i++) {
       FileStatus fileStatus = outputFiles[i];
-      sourceUris.add(fileStatus.getPath().toString());
+      // Skip the success file as it's not relevant to BigQuery.
+      if (!fileStatus.getPath().getName().equals(FileOutputCommitter.SUCCEEDED_FILE_NAME)) {
+        sourceUris.add(fileStatus.getPath().toString());
+      }
     }
 
-    BigQueryHelper helper = null;
     try {
-      helper = new BigQueryFactory().getBigQueryHelper(context.getConfiguration());
-    } catch (GeneralSecurityException gse) {
-      throw new IOException("Failed to create BigQuery client", gse);
-    }
-    try {
-      helper.importBigQueryFromGcs(
+      bigQueryHelper.importBigQueryFromGcs(
           projectId, destinationTable, destinationSchema, sourceFormat, sourceUris, true);
     } catch (InterruptedException e) {
       throw new IOException("Failed to import GCS into BigQuery", e);
@@ -127,5 +141,15 @@ public class IndirectBigQueryOutputCommitter extends FileOutputCommitter {
             "Failed to delete temporary GCS output at '{}', retrying on shutdown.", outputPath);
       }
     }
+  }
+
+  /**
+   * Sets BigQuery for testing purposes.
+   *
+   * @param bigQueryHelper the bigQueryHelper to set.
+   */
+  @VisibleForTesting
+  void setBigQueryHelper(BigQueryHelper bigQueryHelper) {
+    this.bigQueryHelper = bigQueryHelper;
   }
 }
