@@ -770,11 +770,11 @@ public abstract class HadoopFileSystemTestBase
     try (FSDataInputStream input = ghfs.open(hadoopPath)) {
       byte[] readBuffer1 = new byte[512];
       input.seek(511);
-      input.read(readBuffer1, 0, 512);
+      Assert.assertEquals(512, input.read(readBuffer1, 0, 512));
       input.seek(0);
 
       input.seek(511);
-      input.read(readBuffer1, 0, 512);
+      Assert.assertEquals(512, input.read(readBuffer1, 0, 512));
     } finally {
       ghfs.delete(hadoopPath);
     }

@@ -15,6 +15,7 @@
 package com.google.cloud.hadoop.gcsio.testing;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.VerificationAttributes;
 import com.google.common.collect.ImmutableMap;
@@ -226,12 +227,22 @@ public class InMemoryObjectEntry {
    * the byte contents and make them available for reading.
    */
   public synchronized SeekableByteChannel getReadChannel() throws IOException {
+    return getReadChannel(GoogleCloudStorageReadOptions.DEFAULT);
+  }
+
+  /**
+   * Returns a SeekableByteChannel pointing at this InMemoryObjectEntry's byte contents;
+   * a previous writer must have already closed the associated WritableByteChannel to commit
+   * the byte contents and make them available for reading.
+   */
+  public synchronized SeekableByteChannel getReadChannel(GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
     if (!isCompleted()) {
       throw new IOException(
           String.format("Cannot getReadChannel() before writes have been committed! Object = %s",
               this.getObjectName()));
     }
-    return new InMemoryObjectReadChannel(completedContents);
+    return new InMemoryObjectReadChannel(completedContents, readOptions);
   }
 
   /**

@@ -220,9 +220,21 @@ public class GoogleCloudStorageReadChannel
   @VisibleForTesting
   protected GoogleCloudStorageReadChannel()
       throws IOException {
+    this(GoogleCloudStorageReadOptions.DEFAULT);
+  }
+
+  /**
+   * Constructs an instance of GoogleCloudStorageReadChannel.
+   * Used for unit testing only. Do not use elsewhere.
+   *
+   * @throws IOException on IO error
+   */
+  @VisibleForTesting
+  protected GoogleCloudStorageReadChannel(GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
     this.clientRequestHelper = null;
     this.errorExtractor = null;
-    this.readOptions = GoogleCloudStorageReadOptions.DEFAULT;
+    this.readOptions = readOptions;
     channelIsOpen = true;
     position(0);
   }

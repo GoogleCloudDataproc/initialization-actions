@@ -244,7 +244,7 @@ public class InMemoryGoogleCloudStorage
     return bucketLookup
         .get(resourceId.getBucketName())
         .get(resourceId.getObjectName())
-        .getReadChannel();
+        .getReadChannel(readOptions);
   }
 
   @Override

@@ -15,6 +15,7 @@
 package com.google.cloud.hadoop.gcsio.testing;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.common.base.Preconditions;
 
 import java.io.ByteArrayInputStream;
@@ -36,6 +37,17 @@ public class InMemoryObjectReadChannel
    */
   public InMemoryObjectReadChannel(byte[] channelContents)
       throws IOException {
+    this(channelContents, GoogleCloudStorageReadOptions.DEFAULT);
+  }
+
+  /**
+   * Creates a new instance of InMemoryObjectReadChannel with {@code readOptions} plumbed into
+   * the base class.
+   */
+  public InMemoryObjectReadChannel(
+      byte[] channelContents, GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
+    super(readOptions);
     Preconditions.checkArgument(channelContents != null);
     this.channelContents = channelContents;
   }

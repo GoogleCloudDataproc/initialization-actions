@@ -1,3 +1,11 @@
+1.5.4 - 2016-xx-xx
+
+  1. Fixed a bug in GoogleCloudStorageReadChannel where multiple in-place
+     seeks without any "read" in between could throw a range exception.
+  2. Fixed plumbing of GoogleCloudStorageReadOptions into the in-memory
+     test helpers to improve unittest alignment with integration tests.
+
+
 1.5.3 - 2016-09-21
 
   1. Misc updates in credential acquisition on GCE.
