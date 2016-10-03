@@ -4,6 +4,9 @@
      seeks without any "read" in between could throw a range exception.
   2. Fixed plumbing of GoogleCloudStorageReadOptions into the in-memory
      test helpers to improve unittest alignment with integration tests.
+  3. Fixed handling of parent timestamp updating when a full URI is provided
+     as a path for which timestamps should be updated. This allows specifying
+     gs://bucket/p1/p2/object instead of simply p1/p2/object.
 
 
 1.5.3 - 2016-09-21
