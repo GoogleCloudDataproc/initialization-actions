@@ -757,6 +757,29 @@ public abstract class HadoopFileSystemTestBase
     internalTestHsync();
   }
 
+  @Test
+  public void testReadToEOFAndRewind() throws IOException {
+    URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
+
+    Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
+    byte[] byteBuffer = new byte[1024];
+    for (int i = 0; i < byteBuffer.length; i++) {
+      byteBuffer[i] = (byte) (i % 255);
+    }
+    ghfsHelper.writeFile(hadoopPath, ByteBuffer.wrap(byteBuffer), 1, false /* overwrite */);
+    try (FSDataInputStream input = ghfs.open(hadoopPath)) {
+      byte[] readBuffer1 = new byte[512];
+      input.seek(511);
+      input.read(readBuffer1, 0, 512);
+      input.seek(0);
+
+      input.seek(511);
+      input.read(readBuffer1, 0, 512);
+    } finally {
+      ghfs.delete(hadoopPath);
+    }
+  }
+
   protected void internalTestHsync() throws IOException {
     String line1 = "hello\n";
     byte[] line1Bytes = line1.getBytes("UTF-8");

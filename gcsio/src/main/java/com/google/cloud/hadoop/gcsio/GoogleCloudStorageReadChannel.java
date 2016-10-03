@@ -539,6 +539,8 @@ public class GoogleCloudStorageReadChannel
         seekDistance -= bytesRead;
       }
     } else {
+      // Close the read channel. If anything tries to read on it, it's an error and should fail.
+      closeReadChannel();
       lazySeekPending = true;
     }
     currentPosition = newPosition;
