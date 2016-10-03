@@ -1,7 +1,13 @@
 package com.google.cloud.hadoop.io.bigquery;
 
+import org.apache.hadoop.classification.InterfaceStability;
+
 // TODO(user): Redirect ExportFileFormat to this
-/** An enum to describe file formats supported by the BigQuery api. */
+/**
+ * Experimental, API subject to change.<br>
+ * An enum to describe file formats supported by the BigQuery api.
+ */
+@InterfaceStability.Unstable
 public enum BigQueryFileFormat {
   /** Comma separated value exports */
   CSV(".csv", "CSV"),

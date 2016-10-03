@@ -3,6 +3,7 @@ package com.google.cloud.hadoop.io.bigquery;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.common.base.Strings;
 import java.io.IOException;
+import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.FileAlreadyExistsException;
@@ -15,7 +16,11 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Abstract output format to write to Google Cloud Storage and then load that into Bigquery. */
+/**
+ * Experimental, API subject to change.<br>
+ * Abstract output format to write to Google Cloud Storage and then load that into Bigquery.
+ */
+@InterfaceStability.Unstable
 public abstract class AbstractIndirectBigQueryOutputFormat<T extends FileOutputFormat<K, V>, K, V>
     extends FileOutputFormat<K, V> {
 

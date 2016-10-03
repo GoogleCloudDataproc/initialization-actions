@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -20,7 +21,11 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** OutputCommitter to load files from GCS into BigQuery. */
+/**
+ * Experimental, API subject to change.<br>
+ * OutputCommitter to load files from GCS into BigQuery.
+ */
+@InterfaceStability.Unstable
 public class IndirectBigQueryOutputCommitter extends FileOutputCommitter {
   // Logger
   protected static final Logger LOG =
