@@ -26,7 +26,7 @@
 
   <property>
     <name>fs.contract.rename-remove-dest-if-empty-dir</name>
-    <value>true</value>
+    <value>false</value>
   </property>
 
   <property>
@@ -86,6 +86,6 @@
 
   <property>
     <name>fs.contract.rename-overwrites-dest</name>
-    <value>true</value>
+    <value>false</value>
   </property>
 </configuration>
