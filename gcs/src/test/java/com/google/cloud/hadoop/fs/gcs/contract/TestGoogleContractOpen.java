@@ -15,16 +15,16 @@
 package com.google.cloud.hadoop.fs.gcs.contract;
 
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.contract.AbstractContractMkdirTest;
+import org.apache.hadoop.fs.contract.AbstractContractOpenTest;
 import org.apache.hadoop.fs.contract.AbstractFSContract;
 
 /**
- * GCS contract tests covering file mkdir using in-memory fakes.
+ * GCS contract tests covering file open.
  */
-public class TestInMemoryGoogleContractMkdir extends AbstractContractMkdirTest {
+public class TestGoogleContractOpen extends AbstractContractOpenTest {
 
   @Override
   protected AbstractFSContract createContract(Configuration conf) {
-    return new InMemoryGoogleContract(conf);
+    return new GoogleContract(conf);
   }
 }

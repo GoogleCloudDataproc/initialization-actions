@@ -19,7 +19,7 @@ import org.apache.hadoop.fs.contract.AbstractContractMkdirTest;
 import org.apache.hadoop.fs.contract.AbstractFSContract;
 
 /**
- * GCS contract tests covering file seek.
+ * GCS contract tests covering file mkdir.
  */
 public class TestGoogleContractMkdir extends AbstractContractMkdirTest {
 
