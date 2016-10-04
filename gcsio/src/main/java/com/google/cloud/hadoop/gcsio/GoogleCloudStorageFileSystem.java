@@ -32,6 +32,7 @@ import java.net.URI;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.DirectoryNotEmptyException;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -241,7 +242,7 @@ public class GoogleCloudStorageFileSystem {
     if (options.checkNoDirectoryConflict()) {
       URI dirPath = FileInfo.convertToDirectoryPath(pathCodec, path);
       if (exists(dirPath)) {
-        throw new IOException("A directory with that name exists: " + path);
+        throw new FileAlreadyExistsException("A directory with that name exists: " + path);
       }
     }
 

@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.gcsio.testing;
 
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
@@ -251,10 +252,7 @@ public class InMemoryObjectEntry {
    */
   public synchronized GoogleCloudStorageItemInfo getInfo() throws IOException {
     if (!isCompleted()) {
-      throw new IOException(
-          String.format(
-              "Cannot getInfo() before writes have been committed! Object = %s",
-              this.getObjectName()));
+      return GoogleCloudStorageImpl.createItemInfoForNotFound(info.getResourceId());
     }
     return info;
   }

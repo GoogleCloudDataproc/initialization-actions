@@ -56,6 +56,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -1411,8 +1412,7 @@ public class GoogleCloudStorageImpl
   /**
    * Helper for creating a "not found" GoogleCloudStorageItemInfo for a StorageResourceId.
    */
-  protected
-  static GoogleCloudStorageItemInfo createItemInfoForNotFound(StorageResourceId resourceId) {
+  public static GoogleCloudStorageItemInfo createItemInfoForNotFound(StorageResourceId resourceId) {
     Preconditions.checkArgument(resourceId != null, "resourceId must not be null");
 
     // Return size == -1, creationTime == 0, location == storageClass == null for a not-found
@@ -1684,7 +1684,8 @@ public class GoogleCloudStorageImpl
       Preconditions.checkState(generation != 0, "Generation should not be 0 for an existing item");
       return generation;
     } else {
-      throw new IOException(String.format("Object %s already exists.", resourceId.toString()));
+      throw new FileAlreadyExistsException(
+          String.format("Object %s already exists.", resourceId.toString()));
     }
   }
 

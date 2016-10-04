@@ -23,6 +23,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,7 +75,13 @@ class GoogleHadoopOutputStream
     this.gcsPath = gcsPath;
     this.statistics = statistics;
     initTime = System.nanoTime();
-    channel = ghfs.getGcsFs().create(gcsPath, createFileOptions);
+    try {
+      channel = ghfs.getGcsFs().create(gcsPath, createFileOptions);
+    } catch (java.nio.file.FileAlreadyExistsException faee) {
+      // Need to convert to the Hadoop flavor of FileAlreadyExistsException.
+      throw (FileAlreadyExistsException)
+          (new FileAlreadyExistsException(faee.getMessage()).initCause(faee));
+    }
     OutputStream rawStream = Channels.newOutputStream(channel);
     out = new BufferedOutputStream(rawStream, bufferSize);
   }

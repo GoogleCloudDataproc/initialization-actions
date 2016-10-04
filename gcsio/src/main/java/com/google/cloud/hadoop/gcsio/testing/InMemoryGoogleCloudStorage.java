@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -134,7 +135,7 @@ public class InMemoryGoogleCloudStorage
     }
     if (!options.overwriteExisting() || resourceId.getGenerationId() == 0L) {
       if (getItemInfo(resourceId).exists()) {
-        throw new IOException(String.format("%s exists.", resourceId));
+        throw new FileAlreadyExistsException(String.format("%s exists.", resourceId));
       }
     }
     InMemoryObjectEntry entry = new InMemoryObjectEntry(
