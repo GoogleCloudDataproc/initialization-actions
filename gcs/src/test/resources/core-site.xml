@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+<configuration>
+    <property>
+        <name>hadoop.tmp.dir</name>
+        <value>target/build/test</value>
+        <description>A base for other temporary directories.</description>
+        <final>true</final>
+    </property>
+    <!-- Turn security off for tests by default -->
+    <property>
+        <name>hadoop.security.authentication</name>
+        <value>simple</value>
+    </property>
+    <property>
+      <name>fs.gs.impl</name>
+      <value>com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem</value>
+    </property>
+    <property>
+      <name>fs.AbstractFileSystem.gs.impl</name>
+      <value>com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS</value>
+    </property>
+
+    <!--
+    To run these tests:
+    # Create a file auth-keys.xml  - DO NOT ADD TO REVISION CONTROL
+    # Add the property fs.contract.test.fs.gs.name to point to a GCS bucket
+    # like "gs://my-bucket"
+    # Add the credentials/settings for Google Cloud Storage with the three
+    # keys: fs.gs.auth.service.account.email, fs.gs.auth.service.account.keyfile
+    # and fs.gs.project.id.
+    # Uncomment out the following include.
+    <include xmlns="http://www.w3.org/2001/XInclude"
+             href="auth-keys.xml"/>
+    -->
+
+    <!--
+    Example:
+    <property>
+      <name>fs.contract.test.fs.gs</name>
+      <value>gs://YOUR_BUCKET_HERE</value>
+    </property>
+    <property>
+      <name>fs.gs.auth.service.account.email</name>
+      <value>YOUR_SERVICE_ACCOUNT_EMAIL_HERE</value>
+    </property>
+    <property>
+      <name>fs.gs.auth.service.account.keyfile</name>
+      <value>PATH_TO_YOUR_P12_FILE_HERE</value>
+    </property>
+    <property>
+      <name>fs.gs.project.id</name>
+      <value>YOUR_PROJECT_ID_HERE</value>
+    </property>
+    -->
+
+</configuration>

@@ -70,6 +70,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -1484,7 +1485,7 @@ public class GoogleCloudStorageTest {
     try {
       readChannel.position(-1);
       fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException iae) {
+    } catch (EOFException eofe) {
       // Expected
     }
 
@@ -1791,13 +1792,13 @@ public class GoogleCloudStorageTest {
     try {
       readChannel.position(-1);
       fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException iae) {
+    } catch (EOFException eofe) {
       // Expected.
     }
     try {
       readChannel.position(testData.length);
       fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException iae) {
+    } catch (EOFException eofe) {
       // Expected.
     }
 
@@ -1927,7 +1928,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsGet, times(5)).execute();
     verify(mockStorageObjectsGet, times(2)).executeMedia();
     verify(mockErrorExtractor, times(3)).itemNotFound(any(IOException.class));
-    verify(mockErrorExtractor, times(2)).rangeNotSatisfiable(any(IOException.class));
+    verify(mockErrorExtractor, atLeastOnce()).rangeNotSatisfiable(any(IOException.class));
   }
 
   /**

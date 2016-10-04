@@ -48,6 +48,7 @@
               <testExcludes>
                 <!-- Exclude hadoop 2 specific tests -->
                 <exclude>**/hcfs/*2Test.java</exclude>
+                <exclude>**/contract/*.java</exclude>
               </testExcludes>
             </configuration>
           </plugin>

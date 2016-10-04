@@ -21,6 +21,7 @@ import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SeekableByteChannel;
 import org.apache.hadoop.fs.FSInputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -40,7 +41,7 @@ class GoogleHadoopFSInputStream
   private GoogleHadoopFileSystemBase ghfs;
 
   // All store IO access goes through this.
-  private SeekableByteChannel channel;
+  private final SeekableByteChannel channel;
 
   // Internal buffer.
   private ByteBuffer buffer;
@@ -370,20 +371,16 @@ class GoogleHadoopFSInputStream
   public synchronized void close()
       throws IOException {
     if (channel != null) {
-    long startTime = System.nanoTime();
-      try {
-        LOG.debug("close: file: {}, totalBytesRead: {}", gcsPath, totalBytesRead);
-        channel.close();
-        long duration = System.nanoTime() - startTime;
-        ghfs.increment(GoogleHadoopFileSystemBase.Counter.READ_CLOSE);
-        ghfs.increment(GoogleHadoopFileSystemBase.Counter.READ_CLOSE_TIME, duration);
-        long streamDuration = System.nanoTime() - initTime;
-        ghfs.increment(GoogleHadoopFileSystemBase.Counter.INPUT_STREAM);
-        ghfs.increment(
-            GoogleHadoopFileSystemBase.Counter.INPUT_STREAM_TIME, streamDuration);
-      } finally {
-        channel = null;
-      }
+      long startTime = System.nanoTime();
+      LOG.debug("close: file: {}, totalBytesRead: {}", gcsPath, totalBytesRead);
+      channel.close();
+      long duration = System.nanoTime() - startTime;
+      ghfs.increment(GoogleHadoopFileSystemBase.Counter.READ_CLOSE);
+      ghfs.increment(GoogleHadoopFileSystemBase.Counter.READ_CLOSE_TIME, duration);
+      long streamDuration = System.nanoTime() - initTime;
+      ghfs.increment(GoogleHadoopFileSystemBase.Counter.INPUT_STREAM);
+      ghfs.increment(
+          GoogleHadoopFileSystemBase.Counter.INPUT_STREAM_TIME, streamDuration);
     }
   }
 
@@ -396,5 +393,13 @@ class GoogleHadoopFSInputStream
   public boolean markSupported() {
     // HDFS does not support it either and most Hadoop tools do not expect it.
     return false;
+  }
+
+  @Override
+  public int available() throws IOException {
+    if (!channel.isOpen()) {
+      throw new ClosedChannelException();
+    }
+    return super.available();
   }
 }

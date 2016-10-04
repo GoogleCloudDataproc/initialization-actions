@@ -49,6 +49,7 @@ import com.google.common.collect.Maps;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.primitives.Ints;
+import java.io.EOFException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -1300,14 +1301,14 @@ public class GoogleCloudStorageTest {
         try {
           readChannel.position(-1);
           fail("Expected IllegalArgumentException");
-        } catch (IllegalArgumentException expected) {
+        } catch (EOFException eofe) {
           // Expected.
         }
 
         try {
           readChannel.position(totalBytes);
           fail("Expected IllegalArgumentException");
-        } catch (IllegalArgumentException expected) {
+        } catch (EOFException eofe) {
           // Expected.
         }
       }

@@ -33,6 +33,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
+import java.io.EOFException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -584,10 +585,10 @@ public class GoogleCloudStorageReadChannel
   /**
    * Validates that the given position is valid for this channel.
    */
-  protected void validatePosition(long newPosition) {
+  protected void validatePosition(long newPosition) throws IOException {
     // Validate: 0 <= newPosition
     if (newPosition < 0) {
-      throw new IllegalArgumentException(
+      throw new EOFException(
           String.format("Invalid seek offset: position value (%d) must be >= 0", newPosition));
     }
 
@@ -602,7 +603,7 @@ public class GoogleCloudStorageReadChannel
     // If not, the size of the response is the number of bytes that can be read and we throw
     // an exception for an invalid seek.
     if ((size >= 0) && (newPosition >= size) && (fileEncoding != FileEncoding.GZIPPED)) {
-      throw new IllegalArgumentException(
+      throw new EOFException(
           String.format(
               "Invalid seek offset: position value (%d) must be between 0 and %d",
               newPosition, size));
@@ -741,7 +742,11 @@ public class GoogleCloudStorageReadChannel
       } else {
         String msg = String.format("Error reading %s at position %d",
             StorageResourceId.createReadableString(bucketName, objectName), newPosition);
-        throw new IOException(msg, e);
+        if (errorExtractor.rangeNotSatisfiable(e)) {
+          throw (EOFException) (new EOFException(msg).initCause(e));
+        } else {
+          throw new IOException(msg, e);
+        }
       }
     }
     InputStream content = null;
