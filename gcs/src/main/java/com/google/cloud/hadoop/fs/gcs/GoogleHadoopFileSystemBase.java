@@ -48,6 +48,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileChecksum;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -1230,7 +1231,13 @@ public abstract class GoogleHadoopFileSystemBase
 
     LOG.debug("GHFS.mkdirs: {}, perm: {}", hadoopPath, permission);
     URI gcsPath = getGcsPath(hadoopPath);
-    gcsfs.mkdirs(gcsPath);
+    try {
+      gcsfs.mkdirs(gcsPath);
+    } catch (java.nio.file.FileAlreadyExistsException faee) {
+      // Need to convert to the Hadoop flavor of FileAlreadyExistsException.
+      throw (FileAlreadyExistsException)
+          (new FileAlreadyExistsException(faee.getMessage()).initCause(faee));
+    }
 
     long duration = System.nanoTime() - startTime;
     increment(Counter.MKDIRS);

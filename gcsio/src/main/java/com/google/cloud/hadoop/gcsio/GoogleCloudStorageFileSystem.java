@@ -528,7 +528,7 @@ public class GoogleCloudStorageFileSystem {
     // good faith effort and not a guarantee.
     for (FileInfo fileInfo : subDirInfos) {
       if (fileInfo.exists() && !fileInfo.isDirectory()) {
-        throw new IOException(
+        throw new FileAlreadyExistsException(
             "Cannot create directories because of existing file: "
             + fileInfo.getPath());
       }
