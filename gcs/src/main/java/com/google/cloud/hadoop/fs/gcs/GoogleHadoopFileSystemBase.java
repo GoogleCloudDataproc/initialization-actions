@@ -197,6 +197,7 @@ public abstract class GoogleHadoopFileSystemBase
   public static final String GCS_WORKING_DIRECTORY_KEY = "fs.gs.working.dir";
 
   // Configuration key for setting 250GB upper limit on file size to gain higher write throughput.
+  // TODO(user): remove it once blobstore supports high throughput without limiting size.
   public static final String GCS_FILE_SIZE_LIMIT_250GB = "fs.gs.file.size.limit.250gb";
 
   // Default value of fs.gs.file.size.limit.250gb.

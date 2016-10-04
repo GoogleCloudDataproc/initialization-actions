@@ -1,3 +1,11 @@
+0.8.0 - 2016-xx-xx
+
+  1. Added new still-experimental versions of BigQuery output which buffer to
+     GCS before issuing the BigQuery load jobs, rather than using temporary
+     BigQuery tables.
+  2. Updated Hadoop 2 dependency to 2.7.2.
+
+
 0.7.9 - 2016-09-21
 
   1. Upgraded BigQuery library dependency to rev319.
