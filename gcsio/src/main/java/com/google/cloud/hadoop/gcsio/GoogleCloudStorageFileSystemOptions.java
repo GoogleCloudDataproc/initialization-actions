@@ -62,6 +62,7 @@ public class GoogleCloudStorageFileSystemOptions {
     private GoogleCloudStorageOptions immutableCloudStorageOptions = null;
 
     private PathCodec pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
+    private boolean enableBucketDelete = false;
 
     public GoogleCloudStorageOptions.Builder getCloudStorageOptionsBuilder() {
       return cloudStorageOptionsBuilder;
@@ -144,6 +145,11 @@ public class GoogleCloudStorageFileSystemOptions {
       return this;
     }
 
+    public Builder setEnableBucketDelete(boolean enableBucketDelete) {
+      this.enableBucketDelete = enableBucketDelete;
+      return this;
+    }
+
     public GoogleCloudStorageFileSystemOptions build() {
       return new GoogleCloudStorageFileSystemOptions(
           immutableCloudStorageOptions != null
@@ -155,7 +161,8 @@ public class GoogleCloudStorageFileSystemOptions {
           shouldIncludeInTimestampUpdatesPredicate,
           cacheMaxEntryAgeMillis,
           cacheMaxInfoAgeMillis,
-          pathCodec);
+          pathCodec,
+          enableBucketDelete);
     }
   }
 
@@ -171,6 +178,7 @@ public class GoogleCloudStorageFileSystemOptions {
   private final long cacheMaxEntryAgeMillis;
   private final long cacheMaxInfoAgeMillis;
   private final PathCodec pathCodec;
+  private final boolean enableBucketDelete;
 
   public GoogleCloudStorageFileSystemOptions(
       GoogleCloudStorageOptions cloudStorageOptions,
@@ -180,7 +188,8 @@ public class GoogleCloudStorageFileSystemOptions {
       TimestampUpdatePredicate shouldIncludeInTimestampUpdatesPredicate,
       long cacheMaxEntryAgeMillis,
       long cacheMaxInfoAgeMillis,
-      PathCodec pathCodec) {
+      PathCodec pathCodec,
+      boolean enableBucketDelete) {
     this.cloudStorageOptions = cloudStorageOptions;
     this.metadataCacheEnabled = metadataCacheEnabled;
     this.cacheType = cacheType;
@@ -189,6 +198,7 @@ public class GoogleCloudStorageFileSystemOptions {
     this.cacheMaxEntryAgeMillis = cacheMaxEntryAgeMillis;
     this.cacheMaxInfoAgeMillis = cacheMaxInfoAgeMillis;
     this.pathCodec = pathCodec;
+    this.enableBucketDelete = enableBucketDelete;
   }
 
   public GoogleCloudStorageOptions getCloudStorageOptions() {
@@ -221,6 +231,10 @@ public class GoogleCloudStorageFileSystemOptions {
 
   public PathCodec getPathCodec() {
     return pathCodec;
+  }
+
+  public boolean enableBucketDelete() {
+    return enableBucketDelete;
   }
 
   public void throwIfNotValid() {

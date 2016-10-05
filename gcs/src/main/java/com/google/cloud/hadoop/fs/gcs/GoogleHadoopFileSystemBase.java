@@ -438,6 +438,18 @@ public abstract class GoogleHadoopFileSystemBase
   // Default value for fs.gs.inputstream.inplace.seek.limit.
   public static final long GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_DEFAULT = 8 * 1024 * 1024L;
 
+  // If true, recursive delete on a path that refers to a GCS bucket itself ('/' for
+  // any bucket-rooted GoogleHadoopFileSystem) or delete on that path when it's empty
+  // will result in fully deleting the GCS bucket. If false, any operation that normally
+  // would have deleted the bucket will be ignored instead. Setting to 'false' preserves
+  // the typical behavior of "rm -rf /" which translates to deleting everything inside
+  // of root, but without clobbering the filesystem authority corresponding to that root
+  // path in the process.
+  public static final String GCE_BUCKET_DELETE_ENABLE_KEY = "fs.gs.bucket.delete.enable";
+
+  // Default value for fs.gs.bucket.delete.enable.
+  public static final boolean GCE_BUCKET_DELETE_ENABLE_DEFAULT = false;
+
   // Default PathFilter that accepts all paths.
   public static final PathFilter DEFAULT_FILTER = new PathFilter() {
     @Override
@@ -1962,6 +1974,11 @@ public abstract class GoogleHadoopFileSystemBase
         GCS_ENABLE_METADATA_CACHE_KEY, GCS_ENABLE_METADATA_CACHE_DEFAULT);
     LOG.debug("{} = {}", GCS_ENABLE_METADATA_CACHE_KEY, enableMetadataCache);
     optionsBuilder.setIsMetadataCacheEnabled(enableMetadataCache);
+
+    boolean enableBucketDelete = config.getBoolean(
+        GCE_BUCKET_DELETE_ENABLE_KEY, GCE_BUCKET_DELETE_ENABLE_DEFAULT);
+    LOG.debug("{} = {}", GCE_BUCKET_DELETE_ENABLE_KEY, enableBucketDelete);
+    optionsBuilder.setEnableBucketDelete(enableBucketDelete);
 
     DirectoryListCache.Type cacheType = DirectoryListCache.Type.valueOf(
         config.get(

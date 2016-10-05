@@ -453,7 +453,7 @@ public class GoogleCloudStorageFileSystemTest
     try {
       gcsfs.create(dirPath);
       Assert.fail(String.format("Writing to directory should not be allowed: %s", dirPath));
-    } catch (IllegalArgumentException expected) {
+    } catch (IOException expected) {
       // Expected.
     }
 

@@ -235,8 +235,10 @@ public class GoogleCloudStorageFileSystem {
 
     LOG.debug("create({})", path);
     Preconditions.checkNotNull(path);
-    Preconditions.checkArgument(!FileInfo.isDirectoryPath(path),
-        "Cannot create a file whose name looks like a directory.");
+    if (FileInfo.isDirectoryPath(path)) {
+      throw new IOException(String.format(
+          "Cannot create a file whose name looks like a directory. Got '%s'", path));
+    }
 
     // Check if a directory of that name exists.
     if (options.checkNoDirectoryConflict()) {
@@ -404,7 +406,12 @@ public class GoogleCloudStorageFileSystem {
         gcs.waitForBucketEmpty(resourceId.getBucketName());
         bucketsToDelete.add(resourceId.getBucketName());
       }
-      gcs.deleteBuckets(bucketsToDelete);
+      if (options.enableBucketDelete()) {
+        gcs.deleteBuckets(bucketsToDelete);
+      } else {
+        LOG.info("Skipping deletion of buckets because enableBucketDelete is false: {}",
+            bucketsToDelete);
+      }
     }
   }
 
