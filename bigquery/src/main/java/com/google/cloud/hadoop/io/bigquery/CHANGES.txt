@@ -1,4 +1,4 @@
-0.8.0 - 2016-xx-xx
+0.8.0 - 2016-10-05
 
   1. Added new still-experimental versions of BigQuery output which buffer to
      GCS before issuing the BigQuery load jobs, rather than using temporary

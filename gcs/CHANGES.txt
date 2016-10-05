@@ -1,4 +1,4 @@
-1.5.4 - 2016-xx-xx
+1.5.4 - 2016-10-05
 
   1. Fixed a bug in GoogleCloudStorageReadChannel where multiple in-place
      seeks without any "read" in between could throw a range exception.
@@ -8,6 +8,22 @@
      as a path for which timestamps should be updated. This allows specifying
      gs://bucket/p1/p2/object instead of simply p1/p2/object.
   4. Updated Hadoop 2 dependency to 2.7.2.
+  5. Imported full set of Hadoop FileSystem contract tests, except for the
+     currently-unsupported Concat and Append tests. Minor changes to pass
+     all the tests:
+
+     -available() now throws ClosedChannelException if called after close()
+      instead of returning 0.
+     -read() and seek() throw ClosedChannelException if called after close()
+      instead of NullPointerException.
+     -Out-of-bounds seeks now throw EOFException instead of
+      IllegalArgumentException.
+     -Blocked overwrites throw org.apache.hadoop.fs.FileAlreadyExistsException
+      instead of generic IOException.
+     -Deleting root '/' recursively or non-recursively when empty will no
+      longer delete the underlying GCS bucket by default. To re-enable
+      deletion of GCS buckets when recursively deleting root, set
+      'fs.gs.bucket.delete.enable' = true.
 
 
 1.5.3 - 2016-09-21
