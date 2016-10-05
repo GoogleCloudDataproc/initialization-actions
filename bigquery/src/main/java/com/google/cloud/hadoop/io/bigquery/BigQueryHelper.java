@@ -61,7 +61,7 @@ public class BigQueryHelper {
    * @param awaitCompletion if true, block and poll until job completes, otherwise return as soon as
    *     the job has been successfully dispatched.
    * @throws IOException
-   * @throws InterruptedException
+   * @throws InterruptedException if interrupted while waiting for job completion.
    */
   public void importBigQueryFromGcs(
       String projectId,
