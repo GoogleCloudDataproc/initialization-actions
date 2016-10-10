@@ -34,6 +34,12 @@ public class TestGoogleContractRootDirectory extends AbstractContractRootDirecto
   }
 
   @Override
+  public void testMkDirDepth1() throws Throwable {
+    ContractTestUtils.skip(
+        "disabled due to not being friendly for concurrent tests");
+  }
+
+  @Override
   public void testRmEmptyRootDirNonRecursive() throws Throwable {
     ContractTestUtils.skip(
         "disabled due to not being friendly for concurrent tests");
