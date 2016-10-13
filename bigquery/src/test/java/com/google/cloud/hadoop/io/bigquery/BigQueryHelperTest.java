@@ -163,7 +163,7 @@ public class BigQueryHelperTest {
         jobProjectId,
         tableRef,
         fakeTableSchema,
-        BigQueryFileFormat.LINE_DELIMITED_JSON,
+        BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
         ImmutableList.of("test-import-path"),
         true);
 

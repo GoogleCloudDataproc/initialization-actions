@@ -71,13 +71,26 @@ public class BigQueryHelper {
       List<String> gcsPaths,
       boolean awaitCompletion)
       throws IOException, InterruptedException {
+    LOG.info(
+        "Importing into table '{}' from {} paths; path[0] is '{}'; awaitCompletion: {}",
+        BigQueryStrings.toString(tableRef),
+        gcsPaths.size(),
+        gcsPaths.get(0),
+        awaitCompletion);
 
     // Create load conf with minimal requirements.
     JobConfigurationLoad loadConfig = new JobConfigurationLoad();
-    loadConfig.setSchema(schema);
     loadConfig.setSourceFormat(sourceFormat.getFormatIdentifier());
     loadConfig.setSourceUris(gcsPaths);
     loadConfig.setDestinationTable(tableRef);
+    // Auto detect the schema if we're not given one, otherwise use the passed schema.
+    if (schema == null) {
+      LOG.info("No import schema provided, auto detecting schema.");
+      loadConfig.setAutodetect(true);
+    } else {
+      LOG.info("Using provided import schema '{}'.", schema.toString());
+      loadConfig.setSchema(schema);
+    }
 
     JobConfiguration config = new JobConfiguration();
     config.setLoad(loadConfig);

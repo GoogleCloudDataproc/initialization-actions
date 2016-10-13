@@ -48,6 +48,12 @@
       <version>${bigdataoss.util-hadoop.one.version}</version>
     </dependency>
     <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro-mapred</artifactId>
+      <version>${avro-mapred.version}</version>
+      <classifier>hadoop1</classifier>
+    </dependency>
+    <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>gcs-connector</artifactId>
       <version>${bigdataoss.gcs.hadoop.one.version}</version>

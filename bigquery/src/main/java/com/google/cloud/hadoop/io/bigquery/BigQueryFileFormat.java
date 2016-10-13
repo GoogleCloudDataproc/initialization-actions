@@ -1,20 +1,39 @@
 package com.google.cloud.hadoop.io.bigquery;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.StringJoiner;
 import org.apache.hadoop.classification.InterfaceStability;
 
-// TODO(user): Redirect ExportFileFormat to this
-/**
- * Experimental, API subject to change.<br>
- * An enum to describe file formats supported by the BigQuery api.
- */
+/** An enum to describe file formats supported by the BigQuery api. */
 @InterfaceStability.Unstable
 public enum BigQueryFileFormat {
+
   /** Comma separated value exports */
   CSV(".csv", "CSV"),
+
   /** Newline delimited JSON */
-  LINE_DELIMITED_JSON(".json", "NEWLINE_DELIMITED_JSON"),
+  NEWLINE_DELIMITED_JSON(".json", "NEWLINE_DELIMITED_JSON"),
+
   /** Avro container files */
   AVRO(".avro", "AVRO");
+
+  /** Map used for simple deserialization of strings into BigQueryFileFormats. */
+  private static final Map<String, BigQueryFileFormat> NAMES_MAP =
+      new HashMap<String, BigQueryFileFormat>();
+
+  /** A formatted string of the accepted file formats. */
+  private static final String ACCEPTED_FORMATS;
+
+  static {
+    StringJoiner joiner = new StringJoiner(",", "[", "]");
+    for (BigQueryFileFormat format : BigQueryFileFormat.values()) {
+      NAMES_MAP.put(format.name(), format);
+      joiner.add(format.name());
+    }
+
+    ACCEPTED_FORMATS = joiner.toString();
+  }
 
   private final String extension;
   private final String formatIdentifier;
@@ -32,5 +51,25 @@ public enum BigQueryFileFormat {
   /** Get the identifier to specify in API requests. */
   public String getFormatIdentifier() {
     return formatIdentifier;
+  }
+
+  /**
+   * Deserializes the name of a BigQueryFileFormat. If there is no matching BigQueryFileFormat for
+   * the given name, an IllegalArugmentException is thrown.
+   *
+   * @param name the name of the BigQueryFileFormat as returned from {@link
+   *     BigQueryFileFormat#name()}.
+   * @return the associated BigQueryFileFormat.
+   */
+  public static BigQueryFileFormat fromName(String name) {
+    BigQueryFileFormat entry = NAMES_MAP.get(name);
+    if (entry == null) {
+      throw new IllegalArgumentException(
+          "Unable to find BigQueryFileFormat for '"
+              + name
+              + "'. Accepted formats are: "
+              + ACCEPTED_FORMATS);
+    }
+    return entry;
   }
 }

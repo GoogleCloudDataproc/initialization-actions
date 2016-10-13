@@ -87,6 +87,7 @@
     <slf4j.version>1.7.5</slf4j.version>
     <log4j.version>1.2.17</log4j.version>
     <apache.httpcomponents.version>4.0.1<!--Keep in sync with google-api-client dependency--></apache.httpcomponents.version>
+    <avro-mapred.version>1.7.7</avro-mapred.version>
   </properties>
 
   <profiles>
@@ -329,6 +330,12 @@
       <!-- Hadoop 1 version specific dependencies -->
       <!-- These should only be referenced from *-hadoop1.pom.xml POMS -->
       <dependency>
+        <groupId>org.apache.avro</groupId>
+        <artifactId>avro-mapred</artifactId>
+        <version>${avro-mapred.version}</version>
+        <classifier>hadoop1</classifier>
+      </dependency>
+      <dependency>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-core</artifactId>
         <version>${hadoop.one.version}</version>
@@ -343,6 +350,12 @@
 
       <!-- Hadoop 2 version specific dependencies -->
       <!-- These should only be referenced from *-hadoop2.pom.xml POMS -->
+      <dependency>
+        <groupId>org.apache.avro</groupId>
+        <artifactId>avro-mapred</artifactId>
+        <version>${avro-mapred.version}</version>
+        <classifier>hadoop2</classifier>
+      </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-common</artifactId>

@@ -1,4 +1,4 @@
-package com.google.cloud.hadoop.io.bigquery;
+package com.google.cloud.hadoop.io.bigquery.output;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
@@ -15,16 +15,21 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
+import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
+import com.google.cloud.hadoop.io.bigquery.BigQueryHelper;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapreduce.JobContext;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.TaskID;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -36,21 +41,37 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/** Unit tests for BigQueryOutputCommitter. */
+/** Unit tests for IndirectBigQueryOutputCommitter. */
 @RunWith(JUnit4.class)
 public class IndirectBigQueryOutputCommitterTest {
-  /** Sample output projectId for the destination table. */
-  private static final String OUTPUT_PROJECT_ID = "final-project";
 
-  /** Sample output datasetId for the destination table. */
-  private static final String OUTPUT_DATASET_ID = "test_final_dataset";
+  /** Sample projectId for output. */
+  private static final String TEST_PROJECT_ID = "domain:project";
 
-  /** Sample output tableId for the destination table. */
-  private static final String OUTPUT_TABLE_ID = "test_final_table";
+  /** Sample datasetId for output. */
+  private static final String TEST_DATASET_ID = "dataset";
 
-  /** Sample output table schema for the destination table. */
-  private static final String OUTPUT_TABLE_SCHEMA =
-      "[{'name': 'Word','type': 'STRING'},{'name': 'Count','type': 'INTEGER'}]";
+  /** Sample tableId for output. */
+  private static final String TEST_TABLE_ID = "table";
+
+  /** Sample output file format for the committer. */
+  private static final BigQueryFileFormat TEST_FILE_FORMAT =
+      BigQueryFileFormat.NEWLINE_DELIMITED_JSON;
+
+  /** Sample output format class for the configuration. */
+  @SuppressWarnings("rawtypes")
+  private static final Class<? extends FileOutputFormat> TEST_OUTPUT_CLASS = TextOutputFormat.class;
+
+  /** Sample table schema used for output. */
+  private static final TableSchema TEST_TABLE_SCHEMA =
+      new TableSchema()
+          .setFields(
+              new ArrayList<TableFieldSchema>() {
+                {
+                  add(new TableFieldSchema().setName("Word").setType("STRING"));
+                  add(new TableFieldSchema().setName("Count").setType("INTEGER"));
+                }
+              });
 
   /** Sample GCS temporary path for IO. */
   private static final String GCS_TEMP_PATH = "gs://test_bucket/indirect/path/";
@@ -58,18 +79,11 @@ public class IndirectBigQueryOutputCommitterTest {
   /** Sample GCS temporary file in the GCS_TEMP_PATH. */
   private static final String GCS_SAMPLE_FILE_PATH = GCS_TEMP_PATH + "test_file";
 
-  /** Sample output file format for the committer. */
-  private static final BigQueryFileFormat OUTPUT_FILE_FORMAT =
-      BigQueryFileFormat.LINE_DELIMITED_JSON;
-
-  /** Verify exceptions are being thrown. */
-  @Rule public final ExpectedException expectedException = ExpectedException.none();
+  /** GoogleHadoopGlobalRootedFileSystem to use. */
+  private InMemoryGoogleHadoopFileSystem ghfs;
 
   /** The expected table reference being derived. */
   private TableReference outputTableRef;
-
-  /** The expected table schema being derived. */
-  private TableSchema outputTableSchema;
 
   /** In memory file system for testing. */
   private Configuration conf;
@@ -81,16 +95,20 @@ public class IndirectBigQueryOutputCommitterTest {
   private Path outputSampleFilePath;
 
   /** Sample Job context for testing. */
-  private JobContext jobContext;
+  private Job job;
 
   /** A sample task ID for the mock TaskAttemptContext. */
   private TaskAttemptID taskAttemptId;
 
   /** Instance of the output committer being tested. */
-  private IndirectBigQueryOutputCommitter committer;
+  private IndirectBigQueryOutputCommitterWrapper committer;
 
   @Mock private BigQueryHelper mockBigQueryHelper;
   @Mock private TaskAttemptContext mockTaskAttemptContext;
+  @Mock private OutputCommitter mockCommitter;
+
+  /** Verify exceptions are being thrown. */
+  @Rule public final ExpectedException expectedException = ExpectedException.none();
 
   /** Sets up common objects for testing before each test. */
   @Before
@@ -98,56 +116,54 @@ public class IndirectBigQueryOutputCommitterTest {
     // Generate Mocks.
     MockitoAnnotations.initMocks(this);
 
-    // Generate the configuration.
-    conf = InMemoryGoogleHadoopFileSystem.getSampleConfiguration();
+    // Create the file system.
+    ghfs = new InMemoryGoogleHadoopFileSystem();
+
+    // Setup the configuration.
+    job = Job.getInstance(InMemoryGoogleHadoopFileSystem.getSampleConfiguration());
+    conf = job.getConfiguration();
     CredentialConfigurationUtil.addTestConfigurationSettings(conf);
-    BigQueryConfiguration.configureBigQueryOutput(
-        conf, OUTPUT_PROJECT_ID, OUTPUT_DATASET_ID, OUTPUT_TABLE_ID, OUTPUT_TABLE_SCHEMA);
-    conf.set(BigQueryConfiguration.TEMP_GCS_PATH_KEY, GCS_TEMP_PATH);
+    IndirectBigQueryOutputConfiguration.configure(
+        conf,
+        TEST_PROJECT_ID,
+        TEST_DATASET_ID,
+        TEST_TABLE_ID,
+        TEST_FILE_FORMAT,
+        TEST_OUTPUT_CLASS,
+        TEST_TABLE_SCHEMA);
+    FileOutputFormat.setOutputPath(job, new Path(GCS_TEMP_PATH));
 
     // Setup sample data.
-    outputTableRef =
-        new TableReference()
-            .setProjectId(OUTPUT_PROJECT_ID)
-            .setDatasetId(OUTPUT_DATASET_ID)
-            .setTableId(OUTPUT_TABLE_ID);
-
-    List<TableFieldSchema> fieldSchema = BigQueryUtils.getSchemaFromString(OUTPUT_TABLE_SCHEMA);
-    outputTableSchema = new TableSchema();
-    outputTableSchema.setFields(fieldSchema);
-
+    outputTableRef = IndirectBigQueryOutputConfiguration.getTable(conf);
     outputPath = new Path(GCS_TEMP_PATH);
     outputSampleFilePath = new Path(GCS_SAMPLE_FILE_PATH);
-    jobContext = org.apache.hadoop.mapreduce.Job.getInstance(conf);
     taskAttemptId = new TaskAttemptID(new TaskID("sample_task", 100, false, 200), 1);
 
     // Configure mocks.
     when(mockTaskAttemptContext.getConfiguration()).thenReturn(conf);
     when(mockTaskAttemptContext.getTaskAttemptID()).thenReturn(taskAttemptId);
 
-    // Setup committer
+    // Setup committer.
     committer =
-        new IndirectBigQueryOutputCommitter(outputPath, mockTaskAttemptContext, OUTPUT_FILE_FORMAT);
+        new IndirectBigQueryOutputCommitterWrapper(
+            mockCommitter, outputPath, mockTaskAttemptContext);
     committer.setBigQueryHelper(mockBigQueryHelper);
   }
 
   @After
-  public void tearDown() {
+  public void tearDown() throws IOException {
     verifyNoMoreInteractions(mockBigQueryHelper);
+    verifyNoMoreInteractions(mockCommitter);
+
+    // Delete files after use as they're not cleaned up automatically.
+    ghfs.delete(outputPath, true);
   }
 
   /** Helper method to create basic valid output based. */
   public void generateSampleFiles() throws IOException {
-    // Create the files to test with.
-    FileSystem fs = outputPath.getFileSystem(conf);
-    // Workaround for a FileOutputCommitter quirk.
-    // Because of backwards Hadoop compatibility, this URI is hard coded.
-    Path attemptPath = new Path(GCS_TEMP_PATH + "_temporary/0");
-    fs.mkdirs(attemptPath);
-    fs.createNewFile(outputSampleFilePath);
-    fs.createNewFile(attemptPath);
-    assertTrue(fs.exists(outputPath));
-    assertTrue(fs.exists(outputSampleFilePath));
+    ghfs.createNewFile(outputSampleFilePath);
+    assertTrue(ghfs.exists(outputPath));
+    assertTrue(ghfs.exists(outputSampleFilePath));
   }
 
   /**
@@ -158,7 +174,7 @@ public class IndirectBigQueryOutputCommitterTest {
     // Setup the sample directory.
     generateSampleFiles();
 
-    committer.commitJob(jobContext);
+    committer.commitJob(job);
 
     // Setup a captor for the GCS paths argument
     @SuppressWarnings({"rawtypes", "unchecked", "cast"})
@@ -169,12 +185,15 @@ public class IndirectBigQueryOutputCommitterTest {
     // Verify we're making the BigQuery import call.
     verify(mockBigQueryHelper)
         .importBigQueryFromGcs(
-            eq(OUTPUT_PROJECT_ID),
+            eq(TEST_PROJECT_ID),
             eq(outputTableRef),
-            eq(outputTableSchema),
-            eq(OUTPUT_FILE_FORMAT),
+            eq(TEST_TABLE_SCHEMA),
+            eq(TEST_FILE_FORMAT),
             gcsOutputFileCaptor.capture(),
             eq(true));
+
+    // Verify the delegate is being called.
+    verify(mockCommitter).commitJob(eq(job));
 
     // Assert the passed files contains our sample file.
     assertThat(gcsOutputFileCaptor.getValue(), containsInAnyOrder(GCS_SAMPLE_FILE_PATH));
@@ -204,17 +223,20 @@ public class IndirectBigQueryOutputCommitterTest {
             eq(true));
 
     try {
-      committer.commitJob(jobContext);
+      committer.commitJob(job);
     } finally {
       // Verify we're making the BigQuery import call.
       verify(mockBigQueryHelper)
           .importBigQueryFromGcs(
-              eq(OUTPUT_PROJECT_ID),
+              eq(TEST_PROJECT_ID),
               eq(outputTableRef),
-              eq(outputTableSchema),
-              eq(OUTPUT_FILE_FORMAT),
+              eq(TEST_TABLE_SCHEMA),
+              eq(TEST_FILE_FORMAT),
               any(List.class), // Tested, no need to capture
               eq(true));
+
+      // Verify the delegate is being called.
+      verify(mockCommitter).commitJob(eq(job));
     }
   }
 
@@ -223,12 +245,55 @@ public class IndirectBigQueryOutputCommitterTest {
   public void testCleanup() throws IOException {
     // Setup the sample directory.
     generateSampleFiles();
-    FileSystem fs = outputPath.getFileSystem(conf);
 
     committer.cleanup();
 
     // Ensure files are deleted by cleanup.
-    assertTrue(!fs.exists(outputPath));
-    assertTrue(!fs.exists(outputSampleFilePath));
+    assertTrue(!ghfs.exists(outputPath));
+    assertTrue(!ghfs.exists(outputSampleFilePath));
+  }
+
+  /** Test to ensure the underlying delegate is being passed the abortTask call. */
+  @Test
+  public void testAbortTask() throws IOException {
+    committer.abortTask(mockTaskAttemptContext);
+
+    verify(mockCommitter).abortTask(eq(mockTaskAttemptContext));
+  }
+
+  /** Test to ensure the underlying delegate is being passed the commitTask call. */
+  @Test
+  public void testCommitTask() throws IOException {
+    committer.commitTask(mockTaskAttemptContext);
+
+    verify(mockCommitter).commitTask(eq(mockTaskAttemptContext));
+  }
+
+  /** Test to ensure the underlying delegate is being passed the needsTaskCommit call. */
+  @Test
+  public void testNeedsTaskCommit() throws IOException {
+    // Mock sample return.
+    when(mockCommitter.needsTaskCommit(mockTaskAttemptContext)).thenReturn(false);
+
+    boolean result = committer.needsTaskCommit(mockTaskAttemptContext);
+
+    verify(mockCommitter).needsTaskCommit(eq(mockTaskAttemptContext));
+    assertThat(result, is(false));
+  }
+
+  /** Test to ensure the underlying delegate is being passed the setupJob call. */
+  @Test
+  public void testSetupJob() throws IOException {
+    committer.setupJob(mockTaskAttemptContext);
+
+    verify(mockCommitter).setupJob(eq(mockTaskAttemptContext));
+  }
+
+  /** Test to ensure the underlying delegate is being passed the setupTask call. */
+  @Test
+  public void testSetupTask() throws IOException {
+    committer.setupTask(mockTaskAttemptContext);
+
+    verify(mockCommitter).setupTask(eq(mockTaskAttemptContext));
   }
 }

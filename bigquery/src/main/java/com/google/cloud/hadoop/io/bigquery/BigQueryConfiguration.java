@@ -262,7 +262,7 @@ public class BigQueryConfiguration {
    * @throws IOException if the file system of the derived working path isn't a derivative of
    *     GoogleHadoopFileSystemBase.
    */
-  protected static String getTemporaryPathRoot(
+  public static String getTemporaryPathRoot(
       Configuration configuration, JobID jobId) throws IOException {
     String pathRoot = configuration.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY);
     if (Strings.isNullOrEmpty(pathRoot)) {
