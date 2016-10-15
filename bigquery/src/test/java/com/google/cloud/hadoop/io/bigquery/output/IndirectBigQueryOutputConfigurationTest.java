@@ -86,6 +86,8 @@ public class IndirectBigQueryOutputConfigurationTest {
 
     // Create the configuration.
     conf = new JobConf();
+    
+    new IndirectBigQueryOutputConfiguration();
   }
 
   /** Test the configure function correctly sets the configuration keys. */
@@ -112,7 +114,29 @@ public class IndirectBigQueryOutputConfigurationTest {
         conf.get(IndirectBigQueryOutputConfiguration.TABLE_SCHEMA), is(TEST_TABLE_SCHEMA_STRING));
   }
 
-  /** Test an exception is thrown if a required parameter is missing for configureF. */
+  /** Test the configure function correctly sets the configuration keys. */
+  @Test
+  public void testConfigureHelper() {
+    IndirectBigQueryOutputConfiguration.configure(
+        conf,
+        TEST_PROJECT_ID + ":" + TEST_DATASET_ID + "." + TEST_TABLE_ID,
+        TEST_FILE_FORMAT,
+        TEST_OUTPUT_CLASS,
+        TEST_TABLE_SCHEMA);
+
+    assertThat(conf.get(IndirectBigQueryOutputConfiguration.PROJECT_ID), is(TEST_PROJECT_ID));
+    assertThat(conf.get(IndirectBigQueryOutputConfiguration.DATASET_ID), is(TEST_DATASET_ID));
+    assertThat(conf.get(IndirectBigQueryOutputConfiguration.TABLE_ID), is(TEST_TABLE_ID));
+    assertThat(
+        conf.get(IndirectBigQueryOutputConfiguration.FILE_FORMAT), is(TEST_FILE_FORMAT.name()));
+    assertThat(
+        conf.get(IndirectBigQueryOutputConfiguration.OUTPUT_FORMAT_CLASS),
+        is(TEST_OUTPUT_CLASS.getName()));
+    assertThat(
+        conf.get(IndirectBigQueryOutputConfiguration.TABLE_SCHEMA), is(TEST_TABLE_SCHEMA_STRING));
+  }
+
+  /** Test an exception is thrown if a required parameter is missing for configure. */
   @Test
   public void testConfigureMissing() {
     expectedException.expect(IllegalArgumentException.class);

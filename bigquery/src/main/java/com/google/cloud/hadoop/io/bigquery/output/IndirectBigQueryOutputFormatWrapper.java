@@ -1,5 +1,6 @@
 package com.google.cloud.hadoop.io.bigquery.output;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
@@ -104,5 +105,15 @@ public class IndirectBigQueryOutputFormatWrapper<K, V> extends OutputFormat<K, V
       LOG.info("Delegating functionality to '{}'.", delegate.getClass().getSimpleName());
     }
     return delegate;
+  }
+
+  /**
+   * Sets delegate for testing purposes.
+   *
+   * @param delegate the delegate to set.
+   */
+  @VisibleForTesting
+  void setDelegate(FileOutputFormat<K, V> delegate) {
+    this.delegate = delegate;
   }
 }

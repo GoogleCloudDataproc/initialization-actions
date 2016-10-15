@@ -178,12 +178,18 @@ public class IndirectBigQueryOutputCommitterWrapper extends OutputCommitter {
   }
 
   /**
-   * Sets BigQuery for testing purposes.
+   * Sets helper for testing purposes.
    *
    * @param bigQueryHelper the bigQueryHelper to set.
    */
   @VisibleForTesting
   void setBigQueryHelper(BigQueryHelper bigQueryHelper) {
     this.bigQueryHelper = bigQueryHelper;
+  }
+
+  /** Sets gets the delegate for testing purposes. */
+  @VisibleForTesting
+  OutputCommitter getDelegate() {
+    return delegate;
   }
 }

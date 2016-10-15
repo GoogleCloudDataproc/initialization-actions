@@ -24,6 +24,7 @@ import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.JobStatus.State;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
@@ -251,6 +252,21 @@ public class IndirectBigQueryOutputCommitterTest {
     // Ensure files are deleted by cleanup.
     assertTrue(!ghfs.exists(outputPath));
     assertTrue(!ghfs.exists(outputSampleFilePath));
+  }
+
+  /** Test that cleanup actually cleans up. */
+  @Test
+  public void testAbortJob() throws IOException {
+    // Setup the sample directory.
+    generateSampleFiles();
+
+    committer.abortJob(mockTaskAttemptContext, State.KILLED);
+
+    // Ensure files are deleted by cleanup.
+    assertTrue(!ghfs.exists(outputPath));
+    assertTrue(!ghfs.exists(outputSampleFilePath));
+
+    verify(mockCommitter).abortJob(eq(mockTaskAttemptContext), eq(State.KILLED));
   }
 
   /** Test to ensure the underlying delegate is being passed the abortTask call. */
