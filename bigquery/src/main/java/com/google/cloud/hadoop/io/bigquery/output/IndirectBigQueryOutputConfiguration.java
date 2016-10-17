@@ -35,7 +35,7 @@ public class IndirectBigQueryOutputConfiguration {
 
   /**
    * Configuration key for the file format of the files outputted by the wrapped FileOutputFormat.
-   * This key is stored as a {@link BigQueryFileFormat}.
+   * This key is stored as a string derived from {@link BigQueryFileFormat#name()}.
    */
   public static final String FILE_FORMAT = "mapreduce.bigquery.indirect.output.fileformat";
 
@@ -61,7 +61,7 @@ public class IndirectBigQueryOutputConfiguration {
    * Sets the required output keys in the given configuration.
    *
    * @param conf the configuration to set the keys on.
-   * @param fullTableId the fully qualified table id of the form: [projectId]:[datasetId].[tableId]
+   * @param fullTableId the fully qualified table id of the form: [projectId]:[datasetId].[tableId].
    * @param fileformat the file format that the wrapped FileOutputFormat will write files as.
    * @param outputFormatClass the FileOutputFormat to wrap and delegate functionality to.
    * @param tableSchema the output table schema for the table being written to. If this is null, the
@@ -182,7 +182,7 @@ public class IndirectBigQueryOutputConfiguration {
         schemaParser.parseAndClose(schema);
         return schema;
       } catch (IOException e) {
-        throw new IOException("Unable to parse key 'TABLE_SCHEMA'.", e);
+        throw new IOException("Unable to parse key '" + TABLE_SCHEMA + "'.", e);
       }
     }
     return null;
@@ -205,7 +205,7 @@ public class IndirectBigQueryOutputConfiguration {
     // Fail if the default value was used, or the class isn't a FileOutputFormat.
     if (confClass == null) {
       throw new IOException(
-          "Unable to resolve value for the configuration key 'OUTPUT_FORMAT_CLASS'.");
+          "Unable to resolve value for the configuration key '" + OUTPUT_FORMAT_CLASS + "'.");
     } else if (!FileOutputFormat.class.isAssignableFrom(confClass)) {
       throw new IOException("The class " + confClass.getName() + " is not a FileOutputFormat.");
     }
