@@ -122,7 +122,7 @@ public class IndirectBigQueryOutputCommitterWrapper extends OutputCommitter {
     }
 
     // Make an explicit call to cleanup.
-    cleanup();
+    cleanup(context);
   }
 
   @Override
@@ -130,17 +130,24 @@ public class IndirectBigQueryOutputCommitterWrapper extends OutputCommitter {
     delegate.abortJob(context, state);
 
     // Make an explicit call to cleanup.
-    cleanup();
+    cleanup(context);
   }
 
   /**
    * Attempts to manually delete data in the temporary output path. If this fails, another delete
    * attempt is made on JVM shutdown.
    *
+   * @param context the job content to cleanup.
    * @throws IOException if a FileSystem exception is encountered.
    */
-  public void cleanup() throws IOException {
-    if (outputFileSystem.exists(outputPath)) {
+  @VisibleForTesting
+  void cleanup(JobContext context) throws IOException {
+    boolean delete =
+        context
+            .getConfiguration()
+            .getBoolean(IndirectBigQueryOutputConfiguration.DELETE_TEMPORARY_DATA, true);
+
+    if (delete && outputFileSystem.exists(outputPath)) {
       LOG.info("Found temporary GCS output data at '{}', attempting to clean up.", outputPath);
       if (outputFileSystem.delete(outputPath, true)) {
         LOG.info("Successfully deleted temporary GCS output path '{}'.", outputPath);

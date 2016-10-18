@@ -24,34 +24,50 @@ import org.apache.hadoop.util.ReflectionUtils;
 @InterfaceStability.Unstable
 public class IndirectBigQueryOutputConfiguration {
 
-  /** Configuration key for project ID of the dataset accessed by this output connector. */
-  public static final String PROJECT_ID = "mapreduce.bigquery.indirect.output.projectid";
-
-  /** Configuration key for numeric ID of the dataset accessed by this output connector. */
-  public static final String DATASET_ID = "mapreduce.bigquery.indirect.output.datasetid";
-
-  /** Configuration key for numeric ID of the table written by this output connector. */
-  public static final String TABLE_ID = "mapreduce.bigquery.indirect.output.tableid";
+  /**
+   * Configuration key for project ID of the dataset accessed by this output connector. This key is
+   * stored as a {@link String}.
+   */
+  public static final String PROJECT_ID = "mapreduce.bigquery.indirect.output.project.id";
 
   /**
-   * Configuration key for the file format of the files outputted by the wrapped FileOutputFormat.
-   * This key is stored as a string derived from {@link BigQueryFileFormat#name()}.
+   * Configuration key for numeric ID of the dataset accessed by this output connector. This key is
+   * stored as a {@link String}.
    */
-  public static final String FILE_FORMAT = "mapreduce.bigquery.indirect.output.fileformat";
+  public static final String DATASET_ID = "mapreduce.bigquery.indirect.output.dataset.id";
 
   /**
-   * Configuration key for the FileOutputFormat class that's going to be wrapped. This key is stored
-   * as a {@link Class}.
+   * Configuration key for numeric ID of the table written by this output connector. This key is
+   * stored as a {@link String}.
    */
-  public static final String OUTPUT_FORMAT_CLASS =
-      "mapreduce.bigquery.indirect.output.outputformatclass";
+  public static final String TABLE_ID = "mapreduce.bigquery.indirect.output.table.id";
 
   /**
    * Configuration key for the output table schema used by this output connector. If this key isn't
    * configured, the schema is auto detected. This key is stored as a serialized {@link
    * TableSchema}.
    */
-  public static final String TABLE_SCHEMA = "mapreduce.bigquery.indirect.output.tableschema";
+  public static final String TABLE_SCHEMA = "mapreduce.bigquery.indirect.output.table.schema";
+
+  /**
+   * Configuration key for the file format of the files outputted by the wrapped FileOutputFormat.
+   * This key is stored as a serialized {@link BigQueryFileFormat}.
+   */
+  public static final String FILE_FORMAT = "mapreduce.bigquery.indirect.output.fileformat";
+
+  /**
+   * Configuration key indicating whether temporary data stored in GCS should be deleted after the
+   * job is complete. This is true by default. This key is stored as a {@link Boolean}.
+   */
+  public static final String DELETE_TEMPORARY_DATA =
+      "mapreduce.bigquery.indirect.output.gcs.delete";
+
+  /**
+   * Configuration key for the FileOutputFormat class that's going to be wrapped. This key is stored
+   * as a {@link Class}.
+   */
+  public static final String OUTPUT_FORMAT_CLASS =
+      "mapreduce.bigquery.indirect.output.gcs.outputformatclass";
 
   /** A list of keys that are required for this output connector. */
   public static final List<String> REQUIRED_KEYS =

@@ -247,7 +247,7 @@ public class IndirectBigQueryOutputCommitterTest {
     // Setup the sample directory.
     generateSampleFiles();
 
-    committer.cleanup();
+    committer.cleanup(job);
 
     // Ensure files are deleted by cleanup.
     assertTrue(!ghfs.exists(outputPath));
