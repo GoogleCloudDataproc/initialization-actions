@@ -4,6 +4,7 @@ import com.google.api.client.json.JsonParser;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.BigQueryStrings;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
@@ -22,7 +23,7 @@ import org.apache.hadoop.util.ReflectionUtils;
  * the properties can be set in the configuration xml files with proper values.
  */
 @InterfaceStability.Unstable
-public class IndirectBigQueryOutputConfiguration {
+public class BigQueryOutputConfiguration {
 
   /**
    * Configuration key for project ID of the dataset accessed by this output connector. This key is
@@ -59,8 +60,7 @@ public class IndirectBigQueryOutputConfiguration {
    * Configuration key indicating whether temporary data stored in GCS should be deleted after the
    * job is complete. This is true by default. This key is stored as a {@link Boolean}.
    */
-  public static final String DELETE_TEMPORARY_DATA =
-      "mapreduce.bigquery.indirect.output.gcs.delete";
+  public static final String DELETE_ON_COMPLETE = "mapreduce.bigquery.indirect.output.gcs.delete";
 
   /**
    * Configuration key for the FileOutputFormat class that's going to be wrapped. This key is stored
@@ -71,7 +71,7 @@ public class IndirectBigQueryOutputConfiguration {
 
   /** A list of keys that are required for this output connector. */
   public static final List<String> REQUIRED_KEYS =
-      ImmutableList.of(PROJECT_ID, DATASET_ID, TABLE_ID, FILE_FORMAT, OUTPUT_FORMAT_CLASS);
+      ImmutableList.of(DATASET_ID, TABLE_ID, FILE_FORMAT, OUTPUT_FORMAT_CLASS);
 
   /**
    * Sets the required output keys in the given configuration.
@@ -123,6 +123,11 @@ public class IndirectBigQueryOutputConfiguration {
       Class<? extends FileOutputFormat> outputFormatClass,
       TableSchema tableSchema) {
 
+    // Use the default project ID as a backup.
+    if (Strings.isNullOrEmpty(projectId)) {
+      projectId = conf.get(BigQueryConfiguration.PROJECT_ID_KEY);
+    }
+
     // Check preconditions.
     Preconditions.checkArgument(
         !Strings.isNullOrEmpty(projectId), "projectId must not be null or empty.");
@@ -160,9 +165,26 @@ public class IndirectBigQueryOutputConfiguration {
     ConfigurationUtil.getMandatoryConfig(conf, REQUIRED_KEYS);
 
     // Run through the individual getters as they manage error handling.
+    getProjectId(conf);
     getTableSchema(conf);
     getFileFormat(conf);
     getFileOutputFormat(conf);
+  }
+
+  /**
+   * Gets the project id based on the given configuration.
+   *
+   * @param conf the configuration to reference the keys from.
+   * @return the project id based on the given configuration.
+   * @throws IOException if a required key is missing.
+   */
+  public static String getProjectId(Configuration conf) throws IOException {
+    // Reference the default project ID as a backup.
+    String projectId = conf.get(PROJECT_ID, "${" + BigQueryConfiguration.PROJECT_ID_KEY + "}");
+    if (Strings.isNullOrEmpty(projectId)) {
+      throw new IOException("Must supply a value for configuration setting: " + PROJECT_ID);
+    }
+    return projectId;
   }
 
   /**
@@ -172,9 +194,9 @@ public class IndirectBigQueryOutputConfiguration {
    * @return a reference to the derived output table.
    * @throws IOException if a required key is missing.
    */
-  protected static TableReference getTable(Configuration conf) throws IOException {
+  public static TableReference getTableReference(Configuration conf) throws IOException {
     // Ensure the BigQuery output information is valid.
-    String projectId = ConfigurationUtil.getMandatoryConfig(conf, PROJECT_ID);
+    String projectId = getProjectId(conf);
     String datasetId = ConfigurationUtil.getMandatoryConfig(conf, DATASET_ID);
     String tableId = ConfigurationUtil.getMandatoryConfig(conf, TABLE_ID);
 
@@ -188,7 +210,7 @@ public class IndirectBigQueryOutputConfiguration {
    * @return the derived table schema, null if no table schema exists in the configuration.
    * @throws IOException if a table schema was set in the configuration but couldn't be parsed.
    */
-  protected static TableSchema getTableSchema(Configuration conf) throws IOException {
+  public static TableSchema getTableSchema(Configuration conf) throws IOException {
     String outputSchema = conf.get(TABLE_SCHEMA);
     if (!Strings.isNullOrEmpty(outputSchema)) {
       try {
@@ -204,15 +226,30 @@ public class IndirectBigQueryOutputConfiguration {
     return null;
   }
 
-  protected static BigQueryFileFormat getFileFormat(Configuration conf) throws IOException {
+  /**
+   * Gets the stored output {@link BigQueryFileFormat} in the configuration.
+   *
+   * @param conf the configuration to reference the keys from.
+   * @return the stored output {@link BigQueryFileFormat} in the configuration.
+   * @throws IOException if file format value is missing from the configuration.
+   */
+  public static BigQueryFileFormat getFileFormat(Configuration conf) throws IOException {
     // Ensure the BigQuery output information is valid.
     String fileFormatName = ConfigurationUtil.getMandatoryConfig(conf, FILE_FORMAT);
 
     return BigQueryFileFormat.fromName(fileFormatName);
   }
 
+  /**
+   * Gets a configured instance of the stored {@link FileOutputFormat} in the configuration.
+   *
+   * @param conf the configuration to reference the keys from.
+   * @return a configured instance of the stored {@link FileOutputFormat} in the configuration.
+   * @throws IOException if there's an issue getting an instance of a FileOutputFormat from the
+   *     configuration.
+   */
   @SuppressWarnings("rawtypes")
-  protected static FileOutputFormat getFileOutputFormat(Configuration conf) throws IOException {
+  public static FileOutputFormat getFileOutputFormat(Configuration conf) throws IOException {
     // Ensure the BigQuery output information is valid.
     ConfigurationUtil.getMandatoryConfig(conf, OUTPUT_FORMAT_CLASS);
 

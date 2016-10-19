@@ -4,19 +4,15 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
-import com.google.cloud.hadoop.io.bigquery.BigQueryHelper;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -38,12 +34,11 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 @RunWith(JUnit4.class)
-public class IndirectBigQueryOutputCommitterTest {
+public class BigQueryFileOutputCommitterWrapperTest {
 
   /** Sample projectId for output. */
   private static final String TEST_PROJECT_ID = "domain:project";
@@ -73,7 +68,7 @@ public class IndirectBigQueryOutputCommitterTest {
                 }
               });
 
-  /** A sample task ID for the mock TaskAttemptContext. */
+  /** Sample task ID for the mock TaskAttemptContext. */
   private static final TaskAttemptID TEST_TASK_ATTEMPT_ID =
       new TaskAttemptID(new TaskID("sample_task", 100, false, 200), 1);
 
@@ -85,9 +80,6 @@ public class IndirectBigQueryOutputCommitterTest {
 
   /** GoogleHadoopGlobalRootedFileSystem to use. */
   private InMemoryGoogleHadoopFileSystem ghfs;
-
-  /** The expected table reference being derived. */
-  private TableReference outputTableRef;
 
   /** In memory file system for testing. */
   private Configuration conf;
@@ -102,9 +94,8 @@ public class IndirectBigQueryOutputCommitterTest {
   private Job job;
 
   /** Instance of the output committer being tested. */
-  private IndirectBigQueryOutputCommitter committer;
+  private BigQueryFileOutputCommitterWrapper committer;
 
-  @Mock private BigQueryHelper mockBigQueryHelper;
   @Mock private TaskAttemptContext mockTaskAttemptContext;
   @Mock private OutputCommitter mockCommitter;
 
@@ -135,7 +126,6 @@ public class IndirectBigQueryOutputCommitterTest {
     FileOutputFormat.setOutputPath(job, new Path(GCS_TEMP_PATH));
 
     // Setup sample data.
-    outputTableRef = BigQueryOutputConfiguration.getTableReference(conf);
     outputPath = FileOutputFormat.getOutputPath(job);
     outputSampleFilePath = new Path(GCS_SAMPLE_FILE_PATH);
 
@@ -144,13 +134,11 @@ public class IndirectBigQueryOutputCommitterTest {
     when(mockTaskAttemptContext.getTaskAttemptID()).thenReturn(TEST_TASK_ATTEMPT_ID);
 
     // Setup committer.
-    committer = new IndirectBigQueryOutputCommitter(mockTaskAttemptContext, mockCommitter);
-    committer.setBigQueryHelper(mockBigQueryHelper);
+    committer = new BigQueryFileOutputCommitterWrapper(mockTaskAttemptContext, mockCommitter);
   }
 
   @After
   public void tearDown() throws IOException {
-    verifyNoMoreInteractions(mockBigQueryHelper);
     verifyNoMoreInteractions(mockCommitter);
 
     // Delete files after use as they're not cleaned up automatically.
@@ -160,96 +148,101 @@ public class IndirectBigQueryOutputCommitterTest {
   /** Helper method to create basic valid output based. */
   public void generateSampleFiles() throws IOException {
     ghfs.createNewFile(outputSampleFilePath);
+
+    // Verify the files were created.
     assertTrue(ghfs.exists(outputPath));
     assertTrue(ghfs.exists(outputSampleFilePath));
   }
 
-  /**
-   * Test that a BigQuery import request is made with the correct files under normal circumstances.
-   */
+  /** Test to ensure the underlying delegate is being passed the commitJob call. */
   @Test
-  public void testCommitJob() throws IOException, InterruptedException {
-    // Setup the sample directory.
-    generateSampleFiles();
-
+  public void testCommitJob() throws IOException {
     committer.commitJob(job);
-
-    // Setup a captor for the GCS paths argument
-    @SuppressWarnings({"rawtypes", "unchecked", "cast"})
-    // Class<List> is neither a sub/supertype of Class<List<String>>, the latter doesn't even exist.
-    Class<List<String>> listClass = (Class<List<String>>) (Class) List.class;
-    ArgumentCaptor<List<String>> gcsOutputFileCaptor = ArgumentCaptor.forClass(listClass);
-
-    // Verify we're making the BigQuery import call.
-    verify(mockBigQueryHelper)
-        .importBigQueryFromGcs(
-            eq(TEST_PROJECT_ID),
-            eq(outputTableRef),
-            eq(TEST_TABLE_SCHEMA),
-            eq(TEST_FILE_FORMAT),
-            gcsOutputFileCaptor.capture(),
-            eq(true));
 
     // Verify the delegate is being called.
     verify(mockCommitter).commitJob(eq(job));
-
-    // Assert the passed files contains our sample file.
-    assertThat(gcsOutputFileCaptor.getValue(), containsInAnyOrder(GCS_SAMPLE_FILE_PATH));
   }
 
-  /** Test to make sure an IOException is thrown on interrupt of the BigQuery import call. */
-  @SuppressWarnings("unchecked")
+  /** Test to ensure the underlying delegate is being passed the abortJob call. */
   @Test
-  public void testCommitJobInterrupt() throws IOException, InterruptedException {
+  public void testAbortJob() throws IOException {
+    committer.abortJob(mockTaskAttemptContext, State.KILLED);
+
+    // Verify the delegate is being called.
+    verify(mockCommitter).abortJob(eq(mockTaskAttemptContext), eq(State.KILLED));
+  }
+
+  /** Test to ensure the underlying delegate is being passed the abortTask call. */
+  @Test
+  public void testAbortTask() throws IOException {
+    committer.abortTask(mockTaskAttemptContext);
+
+    // Verify the delegate is being called.
+    verify(mockCommitter).abortTask(eq(mockTaskAttemptContext));
+  }
+
+  /** Test to ensure the underlying delegate is being passed the commitTask call. */
+  @Test
+  public void testCommitTask() throws IOException {
+    committer.commitTask(mockTaskAttemptContext);
+
+    // Verify the delegate is being called.
+    verify(mockCommitter).commitTask(eq(mockTaskAttemptContext));
+  }
+
+  /** Test to ensure the underlying delegate is being passed the needsTaskCommit call. */
+  @Test
+  public void testNeedsTaskCommit() throws IOException {
+    // Mock sample return.
+    when(mockCommitter.needsTaskCommit(mockTaskAttemptContext)).thenReturn(false);
+
+    boolean result = committer.needsTaskCommit(mockTaskAttemptContext);
+
+    // Verify the delegate is being called and returns the correct data.
+    verify(mockCommitter).needsTaskCommit(eq(mockTaskAttemptContext));
+    assertThat(result, is(false));
+  }
+
+  /** Test to ensure the underlying delegate is being passed the setupJob call. */
+  @Test
+  public void testSetupJob() throws IOException {
+    committer.setupJob(mockTaskAttemptContext);
+
+    // Verify the delegate is being called.
+    verify(mockCommitter).setupJob(eq(mockTaskAttemptContext));
+  }
+
+  /** Test to ensure the underlying delegate is being passed the setupTask call. */
+  @Test
+  public void testSetupTask() throws IOException {
+    committer.setupTask(mockTaskAttemptContext);
+
+    // Verify the delegate is being called.
+    verify(mockCommitter).setupTask(eq(mockTaskAttemptContext));
+  }
+
+  /** Test that getOutputFileURIs returns the correct data. */
+  @Test
+  public void testGetOutputFileURIs() throws IOException {
     // Setup the sample directory.
     generateSampleFiles();
 
-    // Setup the expected exception
-    InterruptedException helperInterruptedException = new InterruptedException("Test exception");
-    expectedException.expect(IOException.class);
-    expectedException.expectCause(is(helperInterruptedException));
+    List<String> outputFileURIs = committer.getOutputFileURIs();
 
-    // Configure special case mock.
-    doThrow(helperInterruptedException)
-        .when(mockBigQueryHelper)
-        .importBigQueryFromGcs(
-            any(String.class),
-            any(TableReference.class),
-            any(TableSchema.class),
-            any(BigQueryFileFormat.class),
-            any(List.class),
-            eq(true));
-
-    try {
-      committer.commitJob(job);
-    } finally {
-      // Verify we're making the BigQuery import call.
-      verify(mockBigQueryHelper)
-          .importBigQueryFromGcs(
-              eq(TEST_PROJECT_ID),
-              eq(outputTableRef),
-              eq(TEST_TABLE_SCHEMA),
-              eq(TEST_FILE_FORMAT),
-              any(List.class), // Tested, no need to capture
-              eq(true));
-
-      // Verify the delegate is being called.
-      verify(mockCommitter).commitJob(eq(job));
-    }
+    // Verify the file in the output path is being returFned.
+    assertThat(outputFileURIs, containsInAnyOrder(GCS_SAMPLE_FILE_PATH));
   }
 
   /** Test that cleanup actually cleans up. */
   @Test
-  public void testAbortJob() throws IOException {
+  public void testCleanup() throws IOException {
     // Setup the sample directory.
     generateSampleFiles();
 
-    committer.abortJob(mockTaskAttemptContext, State.KILLED);
+    committer.cleanup(job);
 
     // Ensure files are deleted by cleanup.
     assertTrue(!ghfs.exists(outputPath));
     assertTrue(!ghfs.exists(outputSampleFilePath));
-
-    verify(mockCommitter).abortJob(eq(mockTaskAttemptContext), eq(State.KILLED));
   }
 }

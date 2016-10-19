@@ -1,7 +1,9 @@
 package com.google.cloud.hadoop.io.bigquery.output;
 
+import com.google.cloud.hadoop.io.bigquery.BigQueryFactory;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -17,16 +19,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An output format to write to Google Cloud Storage and then load that into BigQuery. This acts as
- * a wrapper around a FileOutputFormat, ensuring data is imported into BigQuery and cleaned up
- * locally.
+ * An OutputFormat to interact with Google Cloud Storage and BigQuery. This acts as a wrapper around
+ * an existing FileOutputFormat.
  */
 @InterfaceStability.Unstable
-public class IndirectBigQueryOutputFormatWrapper<K, V> extends OutputFormat<K, V> {
+public class BigQueryFileOutputFormatWrapper<K, V> extends OutputFormat<K, V> {
 
   /** Logger. */
-  private static final Logger LOG =
-      LoggerFactory.getLogger(IndirectBigQueryOutputFormatWrapper.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BigQueryFileOutputFormatWrapper.class);
 
   /**
    * Cached reference to the delegate, this may be null at any time. Use getDelegate to get a
@@ -38,14 +38,18 @@ public class IndirectBigQueryOutputFormatWrapper<K, V> extends OutputFormat<K, V
    * Cached reference to the committer, this may be null at any time. Use getOutputCommitter to get
    * a non-null reference.
    */
-  private IndirectBigQueryOutputCommitterWrapper committer = null;
+  private OutputCommitter committer = null;
 
+  /**
+   * Checks to make sure the configuration is valid, the output path doesn't already exist, and that
+   * a connection to BigQuery can be established.
+   */
   @Override
   public void checkOutputSpecs(JobContext job) throws FileAlreadyExistsException, IOException {
     Configuration conf = job.getConfiguration();
 
     // Validate the output configuration.
-    IndirectBigQueryOutputConfiguration.validateConfiguration(conf);
+    BigQueryOutputConfiguration.validateConfiguration(conf);
 
     // Error if the output path is missing.
     Path outputPath = FileOutputFormat.getOutputPath(job);
@@ -66,24 +70,29 @@ public class IndirectBigQueryOutputFormatWrapper<K, V> extends OutputFormat<K, V
       throw new IOException("Compression isn't supported for this OutputFormat.");
     }
 
+    // Error if unable to create a BigQuery helper.
+    try {
+      new BigQueryFactory().getBigQueryHelper(conf);
+    } catch (GeneralSecurityException gse) {
+      throw new IOException("Failed to create BigQuery client", gse);
+    }
+
     // Let delegate process its checks.
     getDelegate(conf).checkOutputSpecs(job);
   }
 
+  /** Gets the cached OutputCommitter, creating a new one if it doesn't exist. */
   @Override
   public synchronized OutputCommitter getOutputCommitter(TaskAttemptContext context)
       throws IOException {
+    // Cache the committer.
     if (committer == null) {
-      Configuration conf = context.getConfiguration();
-      OutputCommitter delegateCommitter = getDelegate(conf).getOutputCommitter(context);
-      Path output = FileOutputFormat.getOutputPath(context);
-
-      // Wrap the delegate's OutputCommitter.
-      committer = new IndirectBigQueryOutputCommitterWrapper(delegateCommitter, output, context);
+      committer = createCommitter(context);
     }
     return committer;
   }
 
+  /** Gets the RecordWriter from the wrapped FileOutputFormat. */
   @Override
   public RecordWriter<K, V> getRecordWriter(TaskAttemptContext context)
       throws IOException, InterruptedException {
@@ -92,7 +101,19 @@ public class IndirectBigQueryOutputFormatWrapper<K, V> extends OutputFormat<K, V
   }
 
   /**
-   * Gets a reference to the underlying wrapped delegate used by this output format.
+   * Create a new OutputCommitter for this OutputFormat.
+   *
+   * @param context the context to create the OutputCommitter from.
+   * @return the new OutputCommitter for this format.
+   * @throws IOException if there's an issue while creating the OutputCommitter.
+   */
+  protected OutputCommitter createCommitter(TaskAttemptContext context) throws IOException {
+    Configuration conf = context.getConfiguration();
+    return getDelegate(conf).getOutputCommitter(context);
+  }
+
+  /**
+   * Gets a reference to the underlying delegate used by this OutputFormat.
    *
    * @param conf the configuration to derive the delegate from.
    * @return the underlying wrapped delegate.
@@ -101,16 +122,16 @@ public class IndirectBigQueryOutputFormatWrapper<K, V> extends OutputFormat<K, V
   @SuppressWarnings("unchecked")
   protected synchronized FileOutputFormat<K, V> getDelegate(Configuration conf) throws IOException {
     if (delegate == null) {
-      delegate = IndirectBigQueryOutputConfiguration.getFileOutputFormat(conf);
+      delegate = BigQueryOutputConfiguration.getFileOutputFormat(conf);
       LOG.info("Delegating functionality to '{}'.", delegate.getClass().getSimpleName());
     }
     return delegate;
   }
 
   /**
-   * Sets delegate for testing purposes.
+   * Sets delegate that this OutputFormat will wrap. This is exposed for testing purposes.
    *
-   * @param delegate the delegate to set.
+   * @param delegate that this OutputFormat will wrap.
    */
   @VisibleForTesting
   void setDelegate(FileOutputFormat<K, V> delegate) {

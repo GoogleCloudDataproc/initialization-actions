@@ -2,6 +2,7 @@ package com.google.cloud.hadoop.io.bigquery.output;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -33,7 +34,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 @RunWith(JUnit4.class)
-public class IndirectBigQueryOutputFormatTest {
+public class BigQueryFileOutputFormatWrapperTest {
 
   /** Sample projectId for output. */
   private static final String TEST_PROJECT_ID = "domain:project";
@@ -69,7 +70,7 @@ public class IndirectBigQueryOutputFormatTest {
   private Job job;
 
   /** The output format being tested. */
-  private IndirectBigQueryOutputFormat<Text, Text> outputFormat;
+  private BigQueryFileOutputFormatWrapper<Text, Text> outputFormat;
 
   // Mocks.
   @Mock private TaskAttemptContext mockTaskAttemptContext;
@@ -111,7 +112,7 @@ public class IndirectBigQueryOutputFormatTest {
         .thenReturn(mockRecordWriter);
 
     // Create and setup the output format.
-    outputFormat = new IndirectBigQueryOutputFormat<Text, Text>();
+    outputFormat = new BigQueryFileOutputFormatWrapper<Text, Text>();
     outputFormat.setDelegate(mockFileOutputFormat);
   }
 
@@ -124,16 +125,91 @@ public class IndirectBigQueryOutputFormatTest {
     ghfs.delete(GCS_TEMP_PATH, true);
   }
 
-  /** Test the correct committer is returned. */
+  /** Test normal expected use of the function. */
   @Test
-  public void testCreateCommitter() throws IOException {
+  public void testCheckOutputSpecs() throws IOException {
     // Setup configuration.
     FileOutputFormat.setOutputPath(job, GCS_TEMP_PATH);
 
-    IndirectBigQueryOutputCommitter committer =
-        (IndirectBigQueryOutputCommitter) outputFormat.createCommitter(mockTaskAttemptContext);
+    outputFormat.checkOutputSpecs(mockTaskAttemptContext);
 
-    assertThat(committer.getDelegate(), is(mockOutputCommitter));
+    verify(mockFileOutputFormat).checkOutputSpecs(eq(mockTaskAttemptContext));
+  }
+
+  /** Test an error is thrown when the output path isn't set. */
+  @Test
+  public void testCheckOutputSpecsPathNotSet() throws IOException {
+    expectedException.expect(IOException.class);
+    expectedException.expectMessage("FileOutputFormat output path not set.");
+
+    outputFormat.checkOutputSpecs(mockTaskAttemptContext);
+  }
+
+  /** Test an error is thrown when the output format's directory already exists. */
+  @Test
+  public void testCheckOutputSpecsAlreadyExists() throws IOException {
+    // Setup configuration.
+    FileOutputFormat.setOutputPath(job, GCS_TEMP_PATH);
+    ghfs.mkdirs(GCS_TEMP_PATH);
+
+    expectedException.expect(IOException.class);
+    expectedException.expectMessage("The output path '" + GCS_TEMP_PATH + "' already exists.");
+
+    outputFormat.checkOutputSpecs(mockTaskAttemptContext);
+  }
+
+  /** Test an error is throw when the user wants their output compressed. */
+  @Test
+  public void testCheckOutputSpecsCompressedOutput() throws IOException {
+    // Setup configuration.
+    FileOutputFormat.setOutputPath(job, GCS_TEMP_PATH);
+    FileOutputFormat.setCompressOutput(job, true);
+
+    expectedException.expect(IOException.class);
+    expectedException.expectMessage("Compression isn't supported for this OutputFormat.");
+
+    outputFormat.checkOutputSpecs(mockTaskAttemptContext);
+  }
+
+  /** Test getOutputCommitter is calling the delegate and the mock OutputCommitter is returned. */
+  @Test
+  public void testGetOutputCommitter() throws IOException {
+    OutputCommitter committer = outputFormat.getOutputCommitter(mockTaskAttemptContext);
+
+    // Verify the delegate is being called and the mock OutputCommitter is returned.
+    assertThat(committer, is(mockOutputCommitter));
     verify(mockFileOutputFormat).getOutputCommitter(eq(mockTaskAttemptContext));
+  }
+
+  /** Test getRecordWriter is returning the mock RecordWriter. */
+  @Test
+  public void testGetRecordWriter() throws IOException, InterruptedException {
+    RecordWriter<Text, Text> recordWriter = outputFormat.getRecordWriter(mockTaskAttemptContext);
+
+    // Verify the delegate is being called and the mock RecordWriter is returned.
+    assertThat(recordWriter, is(mockRecordWriter));
+    verify(mockFileOutputFormat).getRecordWriter(eq(mockTaskAttemptContext));
+  }
+
+  /** Test createCommitter is calling the delegate and the mock OutputCommitter is returned. */
+  @Test
+  public void testCreateCommitter() throws IOException {
+    OutputCommitter committer = outputFormat.createCommitter(mockTaskAttemptContext);
+
+    // Verify the delegate is being called and the mock OutputCommitter is returned.
+    assertThat(committer, is(mockOutputCommitter));
+    verify(mockFileOutputFormat).getOutputCommitter(eq(mockTaskAttemptContext));
+  }
+
+  /** Test getDelegate is returning the correct delegate. */
+  @Test
+  public void testGetDelegate() throws IOException {
+    // Setup configuration.
+    outputFormat.setDelegate(null);
+
+    FileOutputFormat<Text, Text> delegate = outputFormat.getDelegate(conf);
+
+    // Verify the delegate is the correct type.
+    assertTrue(delegate instanceof TextOutputFormat);
   }
 }

@@ -6,6 +6,7 @@ import static org.junit.Assert.assertThat;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.sun.org.apache.xml.internal.serialize.OutputFormat;
 import java.io.IOException;
@@ -23,9 +24,8 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/** Unit tests for ConfiguredTextOutputFormat. */
 @RunWith(JUnit4.class)
-public class IndirectBigQueryOutputConfigurationTest {
+public class BigQueryOutputConfigurationTest {
 
   /** Sample projectId for the configuration. */
   private static final String TEST_PROJECT_ID = "domain:project";
@@ -86,14 +86,14 @@ public class IndirectBigQueryOutputConfigurationTest {
 
     // Create the configuration.
     conf = new JobConf();
-    
-    new IndirectBigQueryOutputConfiguration();
+
+    new BigQueryOutputConfiguration();
   }
 
   /** Test the configure function correctly sets the configuration keys. */
   @Test
   public void testConfigure() {
-    IndirectBigQueryOutputConfiguration.configure(
+    BigQueryOutputConfiguration.configure(
         conf,
         TEST_PROJECT_ID,
         TEST_DATASET_ID,
@@ -102,38 +102,32 @@ public class IndirectBigQueryOutputConfigurationTest {
         TEST_OUTPUT_CLASS,
         TEST_TABLE_SCHEMA);
 
-    assertThat(conf.get(IndirectBigQueryOutputConfiguration.PROJECT_ID), is(TEST_PROJECT_ID));
-    assertThat(conf.get(IndirectBigQueryOutputConfiguration.DATASET_ID), is(TEST_DATASET_ID));
-    assertThat(conf.get(IndirectBigQueryOutputConfiguration.TABLE_ID), is(TEST_TABLE_ID));
+    assertThat(conf.get(BigQueryOutputConfiguration.PROJECT_ID), is(TEST_PROJECT_ID));
+    assertThat(conf.get(BigQueryOutputConfiguration.DATASET_ID), is(TEST_DATASET_ID));
+    assertThat(conf.get(BigQueryOutputConfiguration.TABLE_ID), is(TEST_TABLE_ID));
+    assertThat(conf.get(BigQueryOutputConfiguration.FILE_FORMAT), is(TEST_FILE_FORMAT.name()));
     assertThat(
-        conf.get(IndirectBigQueryOutputConfiguration.FILE_FORMAT), is(TEST_FILE_FORMAT.name()));
-    assertThat(
-        conf.get(IndirectBigQueryOutputConfiguration.OUTPUT_FORMAT_CLASS),
-        is(TEST_OUTPUT_CLASS.getName()));
-    assertThat(
-        conf.get(IndirectBigQueryOutputConfiguration.TABLE_SCHEMA), is(TEST_TABLE_SCHEMA_STRING));
+        conf.get(BigQueryOutputConfiguration.OUTPUT_FORMAT_CLASS), is(TEST_OUTPUT_CLASS.getName()));
+    assertThat(conf.get(BigQueryOutputConfiguration.TABLE_SCHEMA), is(TEST_TABLE_SCHEMA_STRING));
   }
 
   /** Test the configure function correctly sets the configuration keys. */
   @Test
   public void testConfigureHelper() {
-    IndirectBigQueryOutputConfiguration.configure(
+    BigQueryOutputConfiguration.configure(
         conf,
         TEST_PROJECT_ID + ":" + TEST_DATASET_ID + "." + TEST_TABLE_ID,
         TEST_FILE_FORMAT,
         TEST_OUTPUT_CLASS,
         TEST_TABLE_SCHEMA);
 
-    assertThat(conf.get(IndirectBigQueryOutputConfiguration.PROJECT_ID), is(TEST_PROJECT_ID));
-    assertThat(conf.get(IndirectBigQueryOutputConfiguration.DATASET_ID), is(TEST_DATASET_ID));
-    assertThat(conf.get(IndirectBigQueryOutputConfiguration.TABLE_ID), is(TEST_TABLE_ID));
+    assertThat(conf.get(BigQueryOutputConfiguration.PROJECT_ID), is(TEST_PROJECT_ID));
+    assertThat(conf.get(BigQueryOutputConfiguration.DATASET_ID), is(TEST_DATASET_ID));
+    assertThat(conf.get(BigQueryOutputConfiguration.TABLE_ID), is(TEST_TABLE_ID));
+    assertThat(conf.get(BigQueryOutputConfiguration.FILE_FORMAT), is(TEST_FILE_FORMAT.name()));
     assertThat(
-        conf.get(IndirectBigQueryOutputConfiguration.FILE_FORMAT), is(TEST_FILE_FORMAT.name()));
-    assertThat(
-        conf.get(IndirectBigQueryOutputConfiguration.OUTPUT_FORMAT_CLASS),
-        is(TEST_OUTPUT_CLASS.getName()));
-    assertThat(
-        conf.get(IndirectBigQueryOutputConfiguration.TABLE_SCHEMA), is(TEST_TABLE_SCHEMA_STRING));
+        conf.get(BigQueryOutputConfiguration.OUTPUT_FORMAT_CLASS), is(TEST_OUTPUT_CLASS.getName()));
+    assertThat(conf.get(BigQueryOutputConfiguration.TABLE_SCHEMA), is(TEST_TABLE_SCHEMA_STRING));
   }
 
   /** Test an exception is thrown if a required parameter is missing for configure. */
@@ -142,7 +136,7 @@ public class IndirectBigQueryOutputConfigurationTest {
     expectedException.expect(IllegalArgumentException.class);
 
     // Missing the PROJECT_ID.
-    IndirectBigQueryOutputConfiguration.configure(
+    BigQueryOutputConfiguration.configure(
         conf,
         null,
         TEST_DATASET_ID,
@@ -155,14 +149,14 @@ public class IndirectBigQueryOutputConfigurationTest {
   /** Test the validateConfiguration function doesn't error on expected input. */
   @Test
   public void testValidateConfiguration() throws IOException {
-    conf.set(IndirectBigQueryOutputConfiguration.PROJECT_ID, TEST_PROJECT_ID);
-    conf.set(IndirectBigQueryOutputConfiguration.DATASET_ID, TEST_DATASET_ID);
-    conf.set(IndirectBigQueryOutputConfiguration.TABLE_ID, TEST_TABLE_ID);
-    conf.set(IndirectBigQueryOutputConfiguration.FILE_FORMAT, TEST_FILE_FORMAT.name());
-    conf.set(IndirectBigQueryOutputConfiguration.OUTPUT_FORMAT_CLASS, TEST_OUTPUT_CLASS.getName());
-    conf.set(IndirectBigQueryOutputConfiguration.TABLE_SCHEMA, TEST_TABLE_SCHEMA_STRING);
+    conf.set(BigQueryOutputConfiguration.PROJECT_ID, TEST_PROJECT_ID);
+    conf.set(BigQueryOutputConfiguration.DATASET_ID, TEST_DATASET_ID);
+    conf.set(BigQueryOutputConfiguration.TABLE_ID, TEST_TABLE_ID);
+    conf.set(BigQueryOutputConfiguration.FILE_FORMAT, TEST_FILE_FORMAT.name());
+    conf.set(BigQueryOutputConfiguration.OUTPUT_FORMAT_CLASS, TEST_OUTPUT_CLASS.getName());
+    conf.set(BigQueryOutputConfiguration.TABLE_SCHEMA, TEST_TABLE_SCHEMA_STRING);
 
-    IndirectBigQueryOutputConfiguration.validateConfiguration(conf);
+    BigQueryOutputConfiguration.validateConfiguration(conf);
   }
 
   /** Test the validateConfiguration throws an exception on a missing required key. */
@@ -170,14 +164,14 @@ public class IndirectBigQueryOutputConfigurationTest {
   public void testValidateConfigurationMissingKey() throws IOException {
     expectedException.expect(IOException.class);
 
-    conf.set(IndirectBigQueryOutputConfiguration.PROJECT_ID, TEST_PROJECT_ID);
-    conf.set(IndirectBigQueryOutputConfiguration.TABLE_ID, TEST_TABLE_ID);
-    conf.set(IndirectBigQueryOutputConfiguration.FILE_FORMAT, TEST_FILE_FORMAT.name());
-    conf.set(IndirectBigQueryOutputConfiguration.OUTPUT_FORMAT_CLASS, TEST_OUTPUT_CLASS.getName());
-    conf.set(IndirectBigQueryOutputConfiguration.TABLE_SCHEMA, TEST_TABLE_SCHEMA_STRING);
+    conf.set(BigQueryOutputConfiguration.PROJECT_ID, TEST_PROJECT_ID);
+    conf.set(BigQueryOutputConfiguration.TABLE_ID, TEST_TABLE_ID);
+    conf.set(BigQueryOutputConfiguration.FILE_FORMAT, TEST_FILE_FORMAT.name());
+    conf.set(BigQueryOutputConfiguration.OUTPUT_FORMAT_CLASS, TEST_OUTPUT_CLASS.getName());
+    conf.set(BigQueryOutputConfiguration.TABLE_SCHEMA, TEST_TABLE_SCHEMA_STRING);
     // Missing DATASET_ID
 
-    IndirectBigQueryOutputConfiguration.validateConfiguration(conf);
+    BigQueryOutputConfiguration.validateConfiguration(conf);
   }
 
   /** Test the validateConfiguration throws an exception for a malformed schema. */
@@ -185,14 +179,14 @@ public class IndirectBigQueryOutputConfigurationTest {
   public void testValidateConfigurationBadSchema() throws IOException {
     expectedException.expect(IOException.class);
 
-    conf.set(IndirectBigQueryOutputConfiguration.PROJECT_ID, TEST_PROJECT_ID);
-    conf.set(IndirectBigQueryOutputConfiguration.DATASET_ID, TEST_DATASET_ID);
-    conf.set(IndirectBigQueryOutputConfiguration.TABLE_ID, TEST_TABLE_ID);
-    conf.set(IndirectBigQueryOutputConfiguration.FILE_FORMAT, TEST_FILE_FORMAT.name());
-    conf.set(IndirectBigQueryOutputConfiguration.OUTPUT_FORMAT_CLASS, TEST_OUTPUT_CLASS.getName());
-    conf.set(IndirectBigQueryOutputConfiguration.TABLE_SCHEMA, TEST_BAD_TABLE_SCHEMA_STRING);
+    conf.set(BigQueryOutputConfiguration.PROJECT_ID, TEST_PROJECT_ID);
+    conf.set(BigQueryOutputConfiguration.DATASET_ID, TEST_DATASET_ID);
+    conf.set(BigQueryOutputConfiguration.TABLE_ID, TEST_TABLE_ID);
+    conf.set(BigQueryOutputConfiguration.FILE_FORMAT, TEST_FILE_FORMAT.name());
+    conf.set(BigQueryOutputConfiguration.OUTPUT_FORMAT_CLASS, TEST_OUTPUT_CLASS.getName());
+    conf.set(BigQueryOutputConfiguration.TABLE_SCHEMA, TEST_BAD_TABLE_SCHEMA_STRING);
 
-    IndirectBigQueryOutputConfiguration.validateConfiguration(conf);
+    BigQueryOutputConfiguration.validateConfiguration(conf);
   }
 
   /** Test the validateConfiguration throws an exception for a malformed file format. */
@@ -200,15 +194,14 @@ public class IndirectBigQueryOutputConfigurationTest {
   public void testValidateConfigurationBadFileformat() throws IOException {
     expectedException.expect(IllegalArgumentException.class);
 
-    conf.set(IndirectBigQueryOutputConfiguration.PROJECT_ID, TEST_PROJECT_ID);
-    conf.set(IndirectBigQueryOutputConfiguration.DATASET_ID, TEST_DATASET_ID);
-    conf.set(IndirectBigQueryOutputConfiguration.TABLE_ID, TEST_TABLE_ID);
-    conf.set(
-        IndirectBigQueryOutputConfiguration.FILE_FORMAT, TEST_FILE_FORMAT.name().toLowerCase());
-    conf.set(IndirectBigQueryOutputConfiguration.OUTPUT_FORMAT_CLASS, TEST_OUTPUT_CLASS.getName());
-    conf.set(IndirectBigQueryOutputConfiguration.TABLE_SCHEMA, TEST_TABLE_SCHEMA_STRING);
+    conf.set(BigQueryOutputConfiguration.PROJECT_ID, TEST_PROJECT_ID);
+    conf.set(BigQueryOutputConfiguration.DATASET_ID, TEST_DATASET_ID);
+    conf.set(BigQueryOutputConfiguration.TABLE_ID, TEST_TABLE_ID);
+    conf.set(BigQueryOutputConfiguration.FILE_FORMAT, TEST_FILE_FORMAT.name().toLowerCase());
+    conf.set(BigQueryOutputConfiguration.OUTPUT_FORMAT_CLASS, TEST_OUTPUT_CLASS.getName());
+    conf.set(BigQueryOutputConfiguration.TABLE_SCHEMA, TEST_TABLE_SCHEMA_STRING);
 
-    IndirectBigQueryOutputConfiguration.validateConfiguration(conf);
+    BigQueryOutputConfiguration.validateConfiguration(conf);
   }
 
   /** Test the validateConfiguration throws an exception for an incorrect output format class. */
@@ -216,24 +209,24 @@ public class IndirectBigQueryOutputConfigurationTest {
   public void testValidateConfigurationWrongOutputClass() throws IOException {
     expectedException.expect(IOException.class);
 
-    conf.set(IndirectBigQueryOutputConfiguration.PROJECT_ID, TEST_PROJECT_ID);
-    conf.set(IndirectBigQueryOutputConfiguration.DATASET_ID, TEST_DATASET_ID);
-    conf.set(IndirectBigQueryOutputConfiguration.TABLE_ID, TEST_TABLE_ID);
-    conf.set(IndirectBigQueryOutputConfiguration.FILE_FORMAT, TEST_FILE_FORMAT.name());
-    conf.set(IndirectBigQueryOutputConfiguration.OUTPUT_FORMAT_CLASS, OutputFormat.class.getName());
-    conf.set(IndirectBigQueryOutputConfiguration.TABLE_SCHEMA, TEST_TABLE_SCHEMA_STRING);
+    conf.set(BigQueryOutputConfiguration.PROJECT_ID, TEST_PROJECT_ID);
+    conf.set(BigQueryOutputConfiguration.DATASET_ID, TEST_DATASET_ID);
+    conf.set(BigQueryOutputConfiguration.TABLE_ID, TEST_TABLE_ID);
+    conf.set(BigQueryOutputConfiguration.FILE_FORMAT, TEST_FILE_FORMAT.name());
+    conf.set(BigQueryOutputConfiguration.OUTPUT_FORMAT_CLASS, OutputFormat.class.getName());
+    conf.set(BigQueryOutputConfiguration.TABLE_SCHEMA, TEST_TABLE_SCHEMA_STRING);
 
-    IndirectBigQueryOutputConfiguration.validateConfiguration(conf);
+    BigQueryOutputConfiguration.validateConfiguration(conf);
   }
 
   /** Test the getTable returns the correct data. */
   @Test
   public void testGetTable() throws IOException {
-    conf.set(IndirectBigQueryOutputConfiguration.PROJECT_ID, TEST_PROJECT_ID);
-    conf.set(IndirectBigQueryOutputConfiguration.DATASET_ID, TEST_DATASET_ID);
-    conf.set(IndirectBigQueryOutputConfiguration.TABLE_ID, TEST_TABLE_ID);
+    conf.set(BigQueryOutputConfiguration.PROJECT_ID, TEST_PROJECT_ID);
+    conf.set(BigQueryOutputConfiguration.DATASET_ID, TEST_DATASET_ID);
+    conf.set(BigQueryOutputConfiguration.TABLE_ID, TEST_TABLE_ID);
 
-    assertThat(IndirectBigQueryOutputConfiguration.getTable(conf), is(TEST_TABLE_REF));
+    assertThat(BigQueryOutputConfiguration.getTableReference(conf), is(TEST_TABLE_REF));
   }
 
   /** Test the getTable throws an exception when a key is missing. */
@@ -241,19 +234,29 @@ public class IndirectBigQueryOutputConfigurationTest {
   public void testGetTableMissingKey() throws IOException {
     expectedException.expect(IOException.class);
 
-    conf.set(IndirectBigQueryOutputConfiguration.DATASET_ID, TEST_DATASET_ID);
-    conf.set(IndirectBigQueryOutputConfiguration.TABLE_ID, TEST_TABLE_ID);
-    // Missing PROJECT_ID
+    conf.set(BigQueryOutputConfiguration.PROJECT_ID, TEST_PROJECT_ID);
+    conf.set(BigQueryOutputConfiguration.DATASET_ID, TEST_DATASET_ID);
+    // Missing TABLE_ID
 
-    IndirectBigQueryOutputConfiguration.getTable(conf);
+    BigQueryOutputConfiguration.getTableReference(conf);
+  }
+
+  /** Test the getTable does not throw an exception when a backup project id is found. */
+  @Test
+  public void testGetTableBackupProjectId() throws IOException {
+    conf.set(BigQueryConfiguration.PROJECT_ID_KEY, TEST_PROJECT_ID);
+    conf.set(BigQueryOutputConfiguration.DATASET_ID, TEST_DATASET_ID);
+    conf.set(BigQueryOutputConfiguration.TABLE_ID, TEST_PROJECT_ID);
+
+    BigQueryOutputConfiguration.getTableReference(conf);
   }
 
   /** Test the getTableSchema returns the correct data. */
   @Test
   public void testGetTableSchema() throws IOException {
-    conf.set(IndirectBigQueryOutputConfiguration.TABLE_SCHEMA, TEST_TABLE_SCHEMA_STRING);
+    conf.set(BigQueryOutputConfiguration.TABLE_SCHEMA, TEST_TABLE_SCHEMA_STRING);
 
-    assertThat(IndirectBigQueryOutputConfiguration.getTableSchema(conf), is(TEST_TABLE_SCHEMA));
+    assertThat(BigQueryOutputConfiguration.getTableSchema(conf), is(TEST_TABLE_SCHEMA));
   }
 
   /** Test the getTableSchema throws an exception when the schema is malformed. */
@@ -261,8 +264,8 @@ public class IndirectBigQueryOutputConfigurationTest {
   public void testGetTableSchemaBadSchema() throws IOException {
     expectedException.expect(IOException.class);
 
-    conf.set(IndirectBigQueryOutputConfiguration.TABLE_SCHEMA, TEST_BAD_TABLE_SCHEMA_STRING);
+    conf.set(BigQueryOutputConfiguration.TABLE_SCHEMA, TEST_BAD_TABLE_SCHEMA_STRING);
 
-    IndirectBigQueryOutputConfiguration.getTableSchema(conf);
+    BigQueryOutputConfiguration.getTableSchema(conf);
   }
 }
