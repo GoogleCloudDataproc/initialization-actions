@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
+import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -24,6 +25,7 @@ import org.slf4j.LoggerFactory;
  * This class acts as a wrapper which delegates calls to another OutputCommitter whose
  * responsibility is to generate files in the defined output path.
  */
+@InterfaceStability.Unstable
 public class BigQueryFileOutputCommitterWrapper extends OutputCommitter {
 
   /** Logger. */
@@ -70,7 +72,7 @@ public class BigQueryFileOutputCommitterWrapper extends OutputCommitter {
 
     // Create a big query reference
     try {
-      bigQueryHelper = new BigQueryFactory().getBigQueryHelper(conf);
+      bigQueryHelper = BigQueryFactory.INSTANCE.getBigQueryHelper(conf);
     } catch (GeneralSecurityException gse) {
       throw new IOException("Failed to create BigQuery client", gse);
     }

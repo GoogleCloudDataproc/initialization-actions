@@ -2,6 +2,7 @@ package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Jobs.Insert;
+import com.google.api.services.bigquery.model.ExternalDataConfiguration;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
@@ -16,6 +17,7 @@ import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
+import javax.annotation.Nullable;
 import org.apache.hadoop.util.Progressable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +39,13 @@ public class BigQueryHelper {
   private ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
 
   private Bigquery service;
+  
+  /** A progressable that does nothing. */
+  private static final Progressable NOP_PROGRESSABLE =
+      new Progressable() {
+        @Override
+        public void progress() {}
+      };
 
   public BigQueryHelper(Bigquery service) {
     this.service = service;
@@ -47,6 +56,49 @@ public class BigQueryHelper {
    */
   public Bigquery getRawBigquery() {
     return service;
+  }
+
+  /**
+   * Performs a federated import on data from GCS into BigQuery via a table insert.
+   *
+   * @param projectId the project on whose behalf to perform the load.
+   * @param tableRef the reference to the destination table.
+   * @param schema the schema of the source data to populate the destination table by.
+   * @param sourceFormat the file format of the source data.
+   * @param gcsPaths the location of the source data in GCS.
+   * @throws IOException
+   */
+  public void importFederatedFromGcs(
+      String projectId,
+      TableReference tableRef,
+      @Nullable TableSchema schema,
+      BigQueryFileFormat sourceFormat,
+      List<String> gcsPaths)
+      throws IOException {
+    LOG.info(
+        "Importing into federated table '{}' from {} paths; path[0] is '{}'",
+        BigQueryStrings.toString(tableRef),
+        gcsPaths.size(),
+        gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0));
+
+    ExternalDataConfiguration externalConf = new ExternalDataConfiguration();
+    externalConf.setSchema(schema);
+    externalConf.setSourceUris(gcsPaths);
+    externalConf.setSourceFormat(sourceFormat.getFormatIdentifier());
+
+    // Auto detect the schema if we're not given one, otherwise use the passed schema.
+    if (schema == null) {
+      LOG.info("No federated import schema provided, auto detecting schema.");
+      externalConf.setAutodetect(true);
+    } else {
+      LOG.info("Using provided federated import schema '{}'.", schema.toString());
+    }
+
+    Table table = new Table();
+    table.setTableReference(tableRef);
+    table.setExternalDataConfiguration(externalConf);
+
+    service.tables().insert(projectId, tableRef.getDatasetId(), table).execute();
   }
 
   /**
@@ -63,10 +115,10 @@ public class BigQueryHelper {
    * @throws IOException
    * @throws InterruptedException if interrupted while waiting for job completion.
    */
-  public void importBigQueryFromGcs(
+  public void importFromGcs(
       String projectId,
       TableReference tableRef,
-      TableSchema schema,
+      @Nullable TableSchema schema,
       BigQueryFileFormat sourceFormat,
       List<String> gcsPaths,
       boolean awaitCompletion)
@@ -75,29 +127,28 @@ public class BigQueryHelper {
         "Importing into table '{}' from {} paths; path[0] is '{}'; awaitCompletion: {}",
         BigQueryStrings.toString(tableRef),
         gcsPaths.size(),
-        gcsPaths.get(0),
+        gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0),
         awaitCompletion);
 
     // Create load conf with minimal requirements.
     JobConfigurationLoad loadConfig = new JobConfigurationLoad();
+    loadConfig.setSchema(schema);
     loadConfig.setSourceFormat(sourceFormat.getFormatIdentifier());
     loadConfig.setSourceUris(gcsPaths);
     loadConfig.setDestinationTable(tableRef);
+
     // Auto detect the schema if we're not given one, otherwise use the passed schema.
     if (schema == null) {
       LOG.info("No import schema provided, auto detecting schema.");
       loadConfig.setAutodetect(true);
     } else {
       LOG.info("Using provided import schema '{}'.", schema.toString());
-      loadConfig.setSchema(schema);
     }
 
     JobConfiguration config = new JobConfiguration();
     config.setLoad(loadConfig);
 
     JobReference jobReference = createJobReference(projectId, "direct-bigqueryhelper-import");
-
-    // TODO(user): A lot of this code is reusable, clean up BigQueryHelper.
     Job job = new Job();
     job.setConfiguration(config);
     job.setJobReference(jobReference);
@@ -105,17 +156,10 @@ public class BigQueryHelper {
     // Insert and run job.
     insertJobOrFetchDuplicate(projectId, job);
 
-    Progressable progressable =
-        new Progressable() {
-          @Override
-          public void progress() {
-            // TODO(user): ensure task doesn't time out
-          }
-        };
-
     if (awaitCompletion) {
       // Poll until job is complete.
-      BigQueryUtils.waitForJobCompletion(getRawBigquery(), projectId, jobReference, progressable);
+      BigQueryUtils.waitForJobCompletion(
+          getRawBigquery(), projectId, jobReference, NOP_PROGRESSABLE);
     }
   }
 
@@ -133,10 +177,18 @@ public class BigQueryHelper {
    */
   public void exportBigQueryToGcs(String projectId, TableReference tableRef, List<String> gcsPaths,
       boolean awaitCompletion) throws IOException, InterruptedException {
-    LOG.debug("exportBigQueryToGcs(bigquery, '{}', '{}', '{}', '{}')", projectId,
-        BigQueryStrings.toString(tableRef), gcsPaths, awaitCompletion);
-    LOG.info("Exporting table '{}' to {} paths; path[0] is '{}'; awaitCompletion: {}",
-        BigQueryStrings.toString(tableRef), gcsPaths.size(), gcsPaths.get(0), awaitCompletion);
+    LOG.debug(
+        "exportBigQueryToGcs(bigquery, '{}', '{}', '{}', '{}')",
+        projectId,
+        BigQueryStrings.toString(tableRef),
+        gcsPaths,
+        awaitCompletion);
+    LOG.info(
+        "Exporting table '{}' to {} paths; path[0] is '{}'; awaitCompletion: {}",
+        BigQueryStrings.toString(tableRef),
+        gcsPaths.size(),
+        gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0),
+        awaitCompletion);
 
     // Create job and configuration.
     JobConfigurationExtract extractConfig = new JobConfigurationExtract();
@@ -160,17 +212,9 @@ public class BigQueryHelper {
     // Insert and run job.
     insertJobOrFetchDuplicate(projectId, job);
 
-    // Create anonymous Progressable object
-    Progressable progressable = new Progressable() {
-      @Override
-      public void progress() {
-        // TODO(user): ensure task doesn't time out
-      }
-    };
-
     if (awaitCompletion) {
       // Poll until job is complete.
-      BigQueryUtils.waitForJobCompletion(service, projectId, jobReference, progressable);
+      BigQueryUtils.waitForJobCompletion(service, projectId, jobReference, NOP_PROGRESSABLE);
     }
   }
 

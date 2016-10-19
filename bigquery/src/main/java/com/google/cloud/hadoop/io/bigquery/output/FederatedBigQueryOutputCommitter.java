@@ -14,30 +14,30 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
  * This class acts as a wrapper which delegates calls to another OutputCommitter whose
- * responsibility is to generate files in the defined output path. This class will ensure that those
- * file are imported into BigQuery and cleaned up locally.
+ * responsibility is to generate files in the defined output path. This class will ensure that a
+ * federated BigQuery table is created linking to those files.
  */
 @InterfaceStability.Unstable
-public class IndirectBigQueryOutputCommitter extends BigQueryFileOutputCommitterWrapper {
+public class FederatedBigQueryOutputCommitter extends BigQueryFileOutputCommitterWrapper {
 
   /**
    * This class acts as a wrapper which delegates calls to another OutputCommitter whose
-   * responsibility is to generate files in the defined output path. This class will ensure that
-   * those file are imported into BigQuery and cleaned up locally.
+   * responsibility is to generate files in the defined output path. This class will ensure that a
+   * federated BigQuery table is created linking to those files.
    *
    * @param context the context of the task.
    * @param delegate the OutputCommitter that this will delegate functionality to.
    * @throws IOException if there's an exception while validating the output path or getting the
    *     BigQueryHelper.
    */
-  public IndirectBigQueryOutputCommitter(TaskAttemptContext context, OutputCommitter delegate)
+  public FederatedBigQueryOutputCommitter(TaskAttemptContext context, OutputCommitter delegate)
       throws IOException {
     super(context, delegate);
   }
 
   /**
-   * Runs an import job on BigQuery for the data in the output path in addition to calling the
-   * delegate's commitJob.
+   * Runs a federated import job on BigQuery for the data in the output path in addition to calling
+   * the delegate's commitJob.
    */
   @Override
   public void commitJob(JobContext context) throws IOException {
@@ -51,15 +51,8 @@ public class IndirectBigQueryOutputCommitter extends BigQueryFileOutputCommitter
     BigQueryFileFormat outputFileFormat = BigQueryOutputConfiguration.getFileFormat(conf);
     List<String> sourceUris = getOutputFileURIs();
 
-    try {
-      getBigQueryHelper()
-          .importFromGcs(
-              destProjectId, destTable, destSchema, outputFileFormat, sourceUris, true);
-    } catch (InterruptedException e) {
-      throw new IOException("Failed to import GCS into BigQuery", e);
-    }
-
-    cleanup(context);
+    getBigQueryHelper()
+        .importFederatedFromGcs(destProjectId, destTable, destSchema, outputFileFormat, sourceUris);
   }
 
   /**

@@ -159,7 +159,7 @@ public class BigQueryHelperTest {
     when(mockBigqueryJobsGet.execute()).thenReturn(jobHandle);
 
     // Run importBigQueryFromGcs method.
-    helper.importBigQueryFromGcs(
+    helper.importFromGcs(
         jobProjectId,
         tableRef,
         fakeTableSchema,

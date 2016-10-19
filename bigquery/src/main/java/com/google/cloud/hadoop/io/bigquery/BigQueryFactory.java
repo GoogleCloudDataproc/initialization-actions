@@ -52,6 +52,9 @@ public class BigQueryFactory {
   // Identifies this version of the Hadoop BigQuery Connector library.
   public static final String BQC_ID;
 
+  /** Static instance of the BigQueryFactory. */
+  public static final BigQueryFactory INSTANCE = new BigQueryFactory();
+
   static {
     VERSION = PropertyUtil.getPropertyOrDefault(
         BigQueryFactory.class, PROPERTIES_FILE, VERSION_PROPERTY, UNKNOWN_VERSION);

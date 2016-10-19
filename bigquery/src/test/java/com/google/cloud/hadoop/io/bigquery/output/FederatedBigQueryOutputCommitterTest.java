@@ -1,12 +1,9 @@
 package com.google.cloud.hadoop.io.bigquery.output;
 
-import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -43,7 +40,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 @RunWith(JUnit4.class)
-public class IndirectBigQueryOutputCommitterTest {
+public class FederatedBigQueryOutputCommitterTest {
 
   /** Sample projectId for output. */
   private static final String TEST_PROJECT_ID = "domain:project";
@@ -102,7 +99,7 @@ public class IndirectBigQueryOutputCommitterTest {
   private Job job;
 
   /** Instance of the output committer being tested. */
-  private IndirectBigQueryOutputCommitter committer;
+  private FederatedBigQueryOutputCommitter committer;
 
   @Mock private BigQueryHelper mockBigQueryHelper;
   @Mock private TaskAttemptContext mockTaskAttemptContext;
@@ -144,7 +141,7 @@ public class IndirectBigQueryOutputCommitterTest {
     when(mockTaskAttemptContext.getTaskAttemptID()).thenReturn(TEST_TASK_ATTEMPT_ID);
 
     // Setup committer.
-    committer = new IndirectBigQueryOutputCommitter(mockTaskAttemptContext, mockCommitter);
+    committer = new FederatedBigQueryOutputCommitter(mockTaskAttemptContext, mockCommitter);
     committer.setBigQueryHelper(mockBigQueryHelper);
   }
 
@@ -168,7 +165,7 @@ public class IndirectBigQueryOutputCommitterTest {
    * Test that a BigQuery import request is made with the correct files under normal circumstances.
    */
   @Test
-  public void testCommitJob() throws IOException, InterruptedException {
+  public void testCommitJob() throws IOException {
     // Setup the sample directory.
     generateSampleFiles();
 
@@ -182,60 +179,18 @@ public class IndirectBigQueryOutputCommitterTest {
 
     // Verify we're making the BigQuery import call.
     verify(mockBigQueryHelper)
-        .importFromGcs(
+        .importFederatedFromGcs(
             eq(TEST_PROJECT_ID),
             eq(outputTableRef),
             eq(TEST_TABLE_SCHEMA),
             eq(TEST_FILE_FORMAT),
-            gcsOutputFileCaptor.capture(),
-            eq(true));
+            gcsOutputFileCaptor.capture());
 
     // Verify the delegate is being called.
     verify(mockCommitter).commitJob(eq(job));
 
     // Assert the passed files contains our sample file.
     assertThat(gcsOutputFileCaptor.getValue(), containsInAnyOrder(GCS_SAMPLE_FILE_PATH));
-  }
-
-  /** Test to make sure an IOException is thrown on interrupt of the BigQuery import call. */
-  @SuppressWarnings("unchecked")
-  @Test
-  public void testCommitJobInterrupt() throws IOException, InterruptedException {
-    // Setup the sample directory.
-    generateSampleFiles();
-
-    // Setup the expected exception
-    InterruptedException helperInterruptedException = new InterruptedException("Test exception");
-    expectedException.expect(IOException.class);
-    expectedException.expectCause(is(helperInterruptedException));
-
-    // Configure special case mock.
-    doThrow(helperInterruptedException)
-        .when(mockBigQueryHelper)
-        .importFromGcs(
-            any(String.class),
-            any(TableReference.class),
-            any(TableSchema.class),
-            any(BigQueryFileFormat.class),
-            any(List.class),
-            eq(true));
-
-    try {
-      committer.commitJob(job);
-    } finally {
-      // Verify we're making the BigQuery import call.
-      verify(mockBigQueryHelper)
-          .importFromGcs(
-              eq(TEST_PROJECT_ID),
-              eq(outputTableRef),
-              eq(TEST_TABLE_SCHEMA),
-              eq(TEST_FILE_FORMAT),
-              any(List.class), // Tested, no need to capture
-              eq(true));
-
-      // Verify the delegate is being called.
-      verify(mockCommitter).commitJob(eq(job));
-    }
   }
 
   /** Test that cleanup actually cleans up. */
