@@ -23,10 +23,11 @@ import org.slf4j.LoggerFactory;
  * an existing FileOutputFormat.
  */
 @InterfaceStability.Unstable
-public class BigQueryFileOutputFormatWrapper<K, V> extends OutputFormat<K, V> {
+public class ForwardingBigQueryFileOutputFormat<K, V> extends OutputFormat<K, V> {
 
   /** Logger. */
-  private static final Logger LOG = LoggerFactory.getLogger(BigQueryFileOutputFormatWrapper.class);
+  private static final Logger LOG =
+      LoggerFactory.getLogger(ForwardingBigQueryFileOutputFormat.class);
 
   /**
    * Cached reference to the delegate, this may be null at any time. Use getDelegate to get a

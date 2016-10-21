@@ -12,7 +12,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * to the generated data.
  */
 @InterfaceStability.Unstable
-public class FederatedBigQueryOutputFormat<K, V> extends BigQueryFileOutputFormatWrapper<K, V> {
+public class FederatedBigQueryOutputFormat<K, V> extends ForwardingBigQueryFileOutputFormat<K, V> {
 
   /** Wraps the delegate's committer in a {@link IndirectBigQueryOutputCommitter}. */
   @Override

@@ -18,7 +18,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * file are imported into BigQuery and cleaned up locally.
  */
 @InterfaceStability.Unstable
-public class IndirectBigQueryOutputCommitter extends BigQueryFileOutputCommitterWrapper {
+public class IndirectBigQueryOutputCommitter extends ForwardingBigQueryFileOutputCommitter {
 
   /**
    * This class acts as a wrapper which delegates calls to another OutputCommitter whose

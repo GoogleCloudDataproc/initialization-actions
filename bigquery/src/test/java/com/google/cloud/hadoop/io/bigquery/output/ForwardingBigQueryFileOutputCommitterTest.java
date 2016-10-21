@@ -38,7 +38,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 @RunWith(JUnit4.class)
-public class BigQueryFileOutputCommitterWrapperTest {
+public class ForwardingBigQueryFileOutputCommitterTest {
 
   /** Sample projectId for output. */
   private static final String TEST_PROJECT_ID = "domain:project";
@@ -94,7 +94,7 @@ public class BigQueryFileOutputCommitterWrapperTest {
   private Job job;
 
   /** Instance of the output committer being tested. */
-  private BigQueryFileOutputCommitterWrapper committer;
+  private ForwardingBigQueryFileOutputCommitter committer;
 
   @Mock private TaskAttemptContext mockTaskAttemptContext;
   @Mock private OutputCommitter mockCommitter;
@@ -134,7 +134,7 @@ public class BigQueryFileOutputCommitterWrapperTest {
     when(mockTaskAttemptContext.getTaskAttemptID()).thenReturn(TEST_TASK_ATTEMPT_ID);
 
     // Setup committer.
-    committer = new BigQueryFileOutputCommitterWrapper(mockTaskAttemptContext, mockCommitter);
+    committer = new ForwardingBigQueryFileOutputCommitter(mockTaskAttemptContext, mockCommitter);
   }
 
   @After

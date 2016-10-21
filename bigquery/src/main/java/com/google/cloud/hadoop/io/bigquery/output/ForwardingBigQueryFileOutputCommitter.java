@@ -26,11 +26,11 @@ import org.slf4j.LoggerFactory;
  * responsibility is to generate files in the defined output path.
  */
 @InterfaceStability.Unstable
-public class BigQueryFileOutputCommitterWrapper extends OutputCommitter {
+public class ForwardingBigQueryFileOutputCommitter extends OutputCommitter {
 
   /** Logger. */
   private static final Logger LOG =
-      LoggerFactory.getLogger(BigQueryFileOutputCommitterWrapper.class);
+      LoggerFactory.getLogger(ForwardingBigQueryFileOutputCommitter.class);
 
   /** The delegate OutputCommitter being wrapped. */
   private final OutputCommitter delegate;
@@ -53,7 +53,7 @@ public class BigQueryFileOutputCommitterWrapper extends OutputCommitter {
    * @throws IOException if there's an exception while validating the output path or getting the
    *     BigQueryHelper.
    */
-  public BigQueryFileOutputCommitterWrapper(TaskAttemptContext context, OutputCommitter delegate)
+  public ForwardingBigQueryFileOutputCommitter(TaskAttemptContext context, OutputCommitter delegate)
       throws IOException {
     this.delegate = delegate;
 

@@ -34,7 +34,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 @RunWith(JUnit4.class)
-public class BigQueryFileOutputFormatWrapperTest {
+public class ForwardingBigQueryFileOutputFormatTest {
 
   /** Sample projectId for output. */
   private static final String TEST_PROJECT_ID = "domain:project";
@@ -70,7 +70,7 @@ public class BigQueryFileOutputFormatWrapperTest {
   private Job job;
 
   /** The output format being tested. */
-  private BigQueryFileOutputFormatWrapper<Text, Text> outputFormat;
+  private ForwardingBigQueryFileOutputFormat<Text, Text> outputFormat;
 
   // Mocks.
   @Mock private TaskAttemptContext mockTaskAttemptContext;
@@ -112,7 +112,7 @@ public class BigQueryFileOutputFormatWrapperTest {
         .thenReturn(mockRecordWriter);
 
     // Create and setup the output format.
-    outputFormat = new BigQueryFileOutputFormatWrapper<Text, Text>();
+    outputFormat = new ForwardingBigQueryFileOutputFormat<Text, Text>();
     outputFormat.setDelegate(mockFileOutputFormat);
   }
 

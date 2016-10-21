@@ -18,7 +18,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * federated BigQuery table is created linking to those files.
  */
 @InterfaceStability.Unstable
-public class FederatedBigQueryOutputCommitter extends BigQueryFileOutputCommitterWrapper {
+public class FederatedBigQueryOutputCommitter extends ForwardingBigQueryFileOutputCommitter {
 
   /**
    * This class acts as a wrapper which delegates calls to another OutputCommitter whose
