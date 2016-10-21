@@ -1,26 +1,22 @@
 /**
  * Copyright 2013 Google Inc. All Rights Reserved.
  *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
+ * <p>Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file
+ * except in compliance with the License. You may obtain a copy of the License at
  *
- *    http://www.apache.org/licenses/LICENSE-2.0
+ * <p>http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
+ * <p>Unless required by applicable law or agreed to in writing, software distributed under the
+ * License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either
+ * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.google.cloud.hadoop.gcsio;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -35,15 +31,15 @@ import org.slf4j.LoggerFactory;
  * immediate same-client consistency for "list" operations following a "create/copy/delete". See
  * {@code DirectoryListCache} for details of consistency semantics.
  */
-public class CacheSupplementedGoogleCloudStorage
-    implements GoogleCloudStorage {
-  // Logger.
+public class CacheSupplementedGoogleCloudStorage extends ForwardingGoogleCloudStorage {
+
+  /** Logger. */
   private static final Logger LOG =
       LoggerFactory.getLogger(CacheSupplementedGoogleCloudStorage.class);
 
   /**
-   * Wrapper around an internal WritableByteChannel which additionally performs some book-keeping
-   * on close. The getItemInfo() method should be considered best-effort; if the inner channel
+   * Wrapper around an internal WritableByteChannel which additionally performs some book-keeping on
+   * close. The getItemInfo() method should be considered best-effort; if the inner channel
    * correctly implements GoogleCloudStorageItemInfo.Provider, then getItemInfo() will delegate
    * through, but if not, it will return null even after close() has been called.
    */
@@ -58,8 +54,7 @@ public class CacheSupplementedGoogleCloudStorage
     }
 
     @Override
-    public int write(ByteBuffer buffer)
-        throws IOException {
+    public int write(ByteBuffer buffer) throws IOException {
       return innerChannel.write(buffer);
     }
 
@@ -69,8 +64,7 @@ public class CacheSupplementedGoogleCloudStorage
     }
 
     @Override
-    public void close()
-        throws IOException {
+    public void close() throws IOException {
       innerChannel.close();
       CacheEntry entry = resourceCache.putResourceId(resourceId);
       if (innerChannel instanceof GoogleCloudStorageItemInfo.Provider) {
@@ -91,10 +85,6 @@ public class CacheSupplementedGoogleCloudStorage
     }
   }
 
-  // An actual implementation of GoogleCloudStorage that will be used for the actual logic of
-  // GCS operations, while this class adds book-keeping around the delegated calls.
-  private final GoogleCloudStorage gcsDelegate;
-
   // Cache of freshly created Buckets or StorageObjects to be updated on create/copy/delete to
   // supplement "list" calls with GCS resources that may not have appeared in the Cloud list
   // index yet.
@@ -106,25 +96,20 @@ public class CacheSupplementedGoogleCloudStorage
 
   /**
    * Constructs a CacheSupplementedGoogleCloudStorage that should be usable anywhere a
-   * GoogleCloudStorage interface is used and that supplements missing listObject/listBucket
-   * results from an in-memory cache of known GCS resources that may not have propagated into
-   * the eventually-consistent remote "list" index yet.
+   * GoogleCloudStorage interface is used and that supplements missing listObject/listBucket results
+   * from an in-memory cache of known GCS resources that may not have propagated into the
+   * eventually-consistent remote "list" index yet.
    *
    * @param gcsDelegate The GoogleCloudStorage to be used for normal API interactions, before
    *     supplementing with in-memory info.
    */
   public CacheSupplementedGoogleCloudStorage(
       GoogleCloudStorage gcsDelegate, DirectoryListCache resourceCache) {
-    Preconditions.checkArgument(gcsDelegate != null, "gcsDelegate must not be null");
+    super(gcsDelegate);
+
     Preconditions.checkArgument(resourceCache != null, "resourceCache must not be null");
 
-    this.gcsDelegate = gcsDelegate;
     this.resourceCache = resourceCache;
-  }
-
-  @Override
-  public GoogleCloudStorageOptions getOptions() {
-    return gcsDelegate.getOptions();
   }
 
   /**
@@ -132,48 +117,35 @@ public class CacheSupplementedGoogleCloudStorage
    * resourceCache when close() is called.
    */
   @Override
-  public WritableByteChannel create(final StorageResourceId resourceId)
-      throws IOException {
-    LOG.debug("create({})", resourceId);
+  public WritableByteChannel create(final StorageResourceId resourceId) throws IOException {
     return create(resourceId, CreateObjectOptions.DEFAULT);
   }
 
   @Override
   public WritableByteChannel create(StorageResourceId resourceId, CreateObjectOptions options)
       throws IOException {
-    LOG.debug("create({}, {})", resourceId, options);
-
-    WritableByteChannel innerChannel = gcsDelegate.create(resourceId, options);
+    WritableByteChannel innerChannel = super.create(resourceId, options);
     return new WritableByteChannelImpl(resourceId, innerChannel);
   }
 
-  /**
-   * Records the resourceId after delegating.
-   */
+  /** Records the resourceId after delegating. */
   @Override
-  public void createEmptyObject(StorageResourceId resourceId)
-      throws IOException {
-    LOG.debug("createEmptyObject({})", resourceId);
-    gcsDelegate.createEmptyObject(resourceId);
+  public void createEmptyObject(StorageResourceId resourceId) throws IOException {
+    super.createEmptyObject(resourceId);
     resourceCache.putResourceId(resourceId);
   }
 
   @Override
   public void createEmptyObject(StorageResourceId resourceId, CreateObjectOptions options)
       throws IOException {
-    LOG.debug("createEmptyObject({}, {})", resourceId, options);
-    gcsDelegate.createEmptyObject(resourceId, options);
+    super.createEmptyObject(resourceId, options);
     resourceCache.putResourceId(resourceId);
   }
 
-  /**
-   * Records the resourceIds after delegating.
-   */
+  /** Records the resourceIds after delegating. */
   @Override
-  public void createEmptyObjects(List<StorageResourceId> resourceIds)
-      throws IOException {
-    LOG.debug("createEmptyObjects({})", resourceIds);
-    gcsDelegate.createEmptyObjects(resourceIds);
+  public void createEmptyObjects(List<StorageResourceId> resourceIds) throws IOException {
+    super.createEmptyObjects(resourceIds);
     for (StorageResourceId resourceId : resourceIds) {
       resourceCache.putResourceId(resourceId);
     }
@@ -182,87 +154,49 @@ public class CacheSupplementedGoogleCloudStorage
   @Override
   public void createEmptyObjects(List<StorageResourceId> resourceIds, CreateObjectOptions options)
       throws IOException {
-    LOG.debug("createEmptyObjects({}, {})", resourceIds, options);
-    gcsDelegate.createEmptyObjects(resourceIds, options);
+    super.createEmptyObjects(resourceIds, options);
     for (StorageResourceId resourceId : resourceIds) {
       resourceCache.putResourceId(resourceId);
     }
   }
 
-  /**
-   * Pure pass-through.
-   */
+  /** Updates cache with bucketName. */
   @Override
-  public SeekableByteChannel open(StorageResourceId resourceId)
-      throws IOException {
-    LOG.debug("open({})", resourceId);
-    return gcsDelegate.open(resourceId);
-  }
-
-  /**
-   * Pure pass-through.
-   */
-  @Override
-  public SeekableByteChannel open(
-      StorageResourceId resourceId, GoogleCloudStorageReadOptions readOptions)
-      throws IOException {
-    LOG.debug("open({}, {})", resourceId, readOptions);
-    return gcsDelegate.open(resourceId, readOptions);
-  }
-
-  /**
-   * Updates cache with bucketName.
-   */
-  @Override
-  public void create(String bucketName)
-      throws IOException {
-    LOG.debug("create({})", bucketName);
+  public void create(String bucketName) throws IOException {
     // TODO(user): Make create() return the Bucket so that we can pre-emptively populate the
     // metadata in the CachedBucket.
-    gcsDelegate.create(bucketName);
+    super.create(bucketName);
     resourceCache.putResourceId(new StorageResourceId(bucketName));
   }
 
-  /**
-   * Updates cache with bucketName.
-   */
+  /** Updates cache with bucketName. */
   @Override
-  public void create(String bucketName, CreateBucketOptions options)
-      throws IOException {
-    LOG.debug("create({})", bucketName);
+  public void create(String bucketName, CreateBucketOptions options) throws IOException {
     // TODO(user): Make create() return the Bucket so that we can pre-emptively populate the
     // metadata in the CachedBucket.
-    gcsDelegate.create(bucketName, options);
+    super.create(bucketName, options);
     resourceCache.putResourceId(new StorageResourceId(bucketName));
   }
 
-  /**
-   * Removes buckets from cache, if they exist.
-   */
+  /** Removes buckets from cache, if they exist. */
   @Override
-  public void deleteBuckets(List<String> bucketNames)
-      throws IOException {
-    LOG.debug("deleteBuckets({})", bucketNames);
+  public void deleteBuckets(List<String> bucketNames) throws IOException {
     // TODO(user): Potentially include as blacklist entry in cache along with timestamp to clobber
     // incorrect/stale "list" results from GCS as long as their returned timestamp is older than
     // the blacklist entry.
-    gcsDelegate.deleteBuckets(bucketNames);
+    super.deleteBuckets(bucketNames);
     for (String bucketName : bucketNames) {
       resourceCache.removeResourceId(new StorageResourceId(bucketName));
     }
   }
 
-  /**
-   * Removes objects from cache, if they exist.
-   */
+  /** Removes objects from cache, if they exist. */
   @Override
-  public void deleteObjects(List<StorageResourceId> fullObjectNames)
-      throws IOException {
-    LOG.debug("deleteObjects({})", fullObjectNames);
+  public void deleteObjects(List<StorageResourceId> fullObjectNames) throws IOException {
     // TODO(user): Potentially include as blacklist entry in cache along with timestamp to clobber
     // incorrect/stale "list" results from GCS as long as their returned timestamp is older than
     // the blacklist entry.
-    gcsDelegate.deleteObjects(fullObjectNames);
+    super.deleteObjects(fullObjectNames);
     for (StorageResourceId resourceId : fullObjectNames) {
       resourceCache.removeResourceId(resourceId);
     }
@@ -273,55 +207,51 @@ public class CacheSupplementedGoogleCloudStorage
    * supplementing with the cache will have to populate the metadata on-demand.
    */
   @Override
-  public void copy(String srcBucketName, List<String> srcObjectNames,
-      String dstBucketName, List<String> dstObjectNames)
+  public void copy(
+      String srcBucketName,
+      List<String> srcObjectNames,
+      String dstBucketName,
+      List<String> dstObjectNames)
       throws IOException {
     // TODO(user): Maybe catch exceptions and check their inner exceptions for
     // FileNotFoundExceptions and update the DirectoryListCache accordingly. For partial failures,
     // we probably still want to add the successful ones to the list cache.
     // TODO(user): Make GCS.copy return the list of destination StorageObjects that were
     // successfully created, so that we can pre-emptively populate the metadata into the cache.
-    gcsDelegate.copy(srcBucketName, srcObjectNames, dstBucketName, dstObjectNames);
+    super.copy(srcBucketName, srcObjectNames, dstBucketName, dstObjectNames);
     for (String dstObjectName : dstObjectNames) {
       resourceCache.putResourceId(new StorageResourceId(dstBucketName, dstObjectName));
     }
   }
 
-  /**
-   * Adds destination to the cache.
-   */
+  /** Adds destination to the cache. */
   @Override
   public void compose(
       String bucketName, List<String> sources, String destination, String contentType)
       throws IOException {
-    gcsDelegate.compose(bucketName, sources, destination, contentType);
+    super.compose(bucketName, sources, destination, contentType);
     resourceCache.putResourceId(new StorageResourceId(bucketName, destination));
   }
 
-  /**
-   * Adds destination to the cache.
-   */
+  /** Adds destination to the cache. */
   @Override
   public GoogleCloudStorageItemInfo composeObjects(
       List<StorageResourceId> sources,
       final StorageResourceId destination,
       CreateObjectOptions options)
       throws IOException {
-    GoogleCloudStorageItemInfo composed =
-        gcsDelegate.composeObjects(sources, destination, options);
-    resourceCache.putResourceId(destination)
-        .setItemInfo(composed);
+    GoogleCloudStorageItemInfo composed = super.composeObjects(sources, destination, options);
+    resourceCache.putResourceId(destination).setItemInfo(composed);
     return composed;
   }
 
   /**
    * Helper for checking the list of {@code candidateEntries} against a {@code originalIds} to
-   * possibly retrieve supplemental results from the DirectoryListCache.
-   * This method will modify {@code originalIds} as it goes to include the StorageResourceIds
-   * of CacheEntrys being returned.
+   * possibly retrieve supplemental results from the DirectoryListCache. This method will modify
+   * {@code originalIds} as it goes to include the StorageResourceIds of CacheEntrys being returned.
    *
-   * @return A list of CacheEntry that is a subset of {@code candidateEntries}, whose elements
-   *     are not in the set of resourceIds corresponding to {@code originalIds}.
+   * @return A list of CacheEntry that is a subset of {@code candidateEntries}, whose elements are
+   *     not in the set of resourceIds corresponding to {@code originalIds}.
    */
   private List<CacheEntry> getSupplementalEntries(
       Set<StorageResourceId> originalIds, List<CacheEntry> candidateEntries) {
@@ -337,14 +267,13 @@ public class CacheSupplementedGoogleCloudStorage
   }
 
   /**
-   * Helper for either pulling the existing GoogleCloudStorageItemInfo from each element of
-   * {@code cacheEntries} or fetching the associated GoogleCloudStorageItemInfo on-demand, updating
-   * the cache entry, then appending the new result to the return list. Items that fail to be
-   * fetched will not be returned.
+   * Helper for either pulling the existing GoogleCloudStorageItemInfo from each element of {@code
+   * cacheEntries} or fetching the associated GoogleCloudStorageItemInfo on-demand, updating the
+   * cache entry, then appending the new result to the return list. Items that fail to be fetched
+   * will not be returned.
    */
   private List<GoogleCloudStorageItemInfo> extractOrRevalidateItemInfos(
-      List<CacheEntry> cacheEntries)
-      throws IOException {
+      List<CacheEntry> cacheEntries) throws IOException {
     // TODO(user): Batch these.
     List<GoogleCloudStorageItemInfo> supplementalInfos = new ArrayList<>();
     for (CacheEntry entry : cacheEntries) {
@@ -357,7 +286,7 @@ public class CacheSupplementedGoogleCloudStorage
         // We need to fetch the associated info from the gcsDelegate; in addition to
         // supplementing, we must update the cache with the fetched info.
         LOG.info("Populating missing itemInfo on-demand for entry: {}", entry.getResourceId());
-        itemInfo = gcsDelegate.getItemInfo(entry.getResourceId());
+        itemInfo = super.getItemInfo(entry.getResourceId());
         if (!itemInfo.exists()) {
           LOG.warn(
               "Possible stale CacheEntry; failed to fetch item info for: {} - removing from cache",
@@ -373,14 +302,12 @@ public class CacheSupplementedGoogleCloudStorage
   }
 
   /**
-   * Supplements the list returned by the delegate with cached bucket names; won't trigger
-   * any fetching of metadata.
+   * Supplements the list returned by the delegate with cached bucket names; won't trigger any
+   * fetching of metadata.
    */
   @Override
-  public List<String> listBucketNames()
-      throws IOException {
-    LOG.debug("listBucketNames()");
-    List<String> allBucketNames = gcsDelegate.listBucketNames();
+  public List<String> listBucketNames() throws IOException {
+    List<String> allBucketNames = super.listBucketNames();
     List<CacheEntry> cachedBuckets = resourceCache.getBucketList();
     if (cachedBuckets.isEmpty()) {
       return allBucketNames;
@@ -403,16 +330,14 @@ public class CacheSupplementedGoogleCloudStorage
   }
 
   /**
-   * Supplements the list returned by the delegate with cached bucket infos; may trigger fetching
-   * of any metadata not already available in the cache. If a delegate-returned item is also in the
+   * Supplements the list returned by the delegate with cached bucket infos; may trigger fetching of
+   * any metadata not already available in the cache. If a delegate-returned item is also in the
    * cache and the cache doesn't already have the metadata, it will be opportunistically updated
    * with the retrieved metadata.
    */
   @Override
-  public List<GoogleCloudStorageItemInfo> listBucketInfo()
-      throws IOException {
-    LOG.debug("listBucketInfo()");
-    List<GoogleCloudStorageItemInfo> allBucketInfos = gcsDelegate.listBucketInfo();
+  public List<GoogleCloudStorageItemInfo> listBucketInfo() throws IOException {
+    List<GoogleCloudStorageItemInfo> allBucketInfos = super.listBucketInfo();
     List<CacheEntry> cachedBuckets = resourceCache.getBucketList();
     if (cachedBuckets.isEmpty()) {
       return allBucketInfos;
@@ -420,7 +345,6 @@ public class CacheSupplementedGoogleCloudStorage
       // Make a copy in case the delegate returned an immutable list.
       allBucketInfos = new ArrayList<>(allBucketInfos);
     }
-
 
     Set<StorageResourceId> bucketIdsSet = new HashSet<>();
     for (GoogleCloudStorageItemInfo itemInfo : allBucketInfos) {
@@ -439,11 +363,10 @@ public class CacheSupplementedGoogleCloudStorage
    * metadata for supplemental entries which were missing from the delegate's returned list.
    */
   @Override
-  public List<String> listObjectNames(
-      String bucketName, String objectNamePrefix, String delimiter)
+  public List<String> listObjectNames(String bucketName, String objectNamePrefix, String delimiter)
       throws IOException {
-    return listObjectNames(bucketName, objectNamePrefix, delimiter,
-        GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+    return listObjectNames(
+        bucketName, objectNamePrefix, delimiter, GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
   }
 
   /**
@@ -452,13 +375,10 @@ public class CacheSupplementedGoogleCloudStorage
    */
   @Override
   public List<String> listObjectNames(
-      String bucketName, String objectNamePrefix, String delimiter,
-      long maxResults)
+      String bucketName, String objectNamePrefix, String delimiter, long maxResults)
       throws IOException {
-    LOG.debug("listObjectNames({}, {}, {}, {})", bucketName, objectNamePrefix,
-        delimiter, maxResults);
-    List<String> allObjectNames = gcsDelegate.listObjectNames(
-        bucketName, objectNamePrefix, delimiter, maxResults);
+    List<String> allObjectNames =
+        super.listObjectNames(bucketName, objectNamePrefix, delimiter, maxResults);
 
     if (maxResults > 0 && allObjectNames.size() >= maxResults) {
       // Should not have allObjectNames.size() > maxResults, since we
@@ -475,8 +395,8 @@ public class CacheSupplementedGoogleCloudStorage
     // the local client created the file without creating the directory objects, and then
     // the list API fails to list either object. This is a case of cross-client inconsistency
     // not solved by this cache.
-    List<CacheEntry> cachedObjects = resourceCache.getObjectList(
-        bucketName, objectNamePrefix, delimiter, null);
+    List<CacheEntry> cachedObjects =
+        resourceCache.getObjectList(bucketName, objectNamePrefix, delimiter, null);
     if (cachedObjects == null || cachedObjects.isEmpty()) {
       return allObjectNames;
     } else {
@@ -503,40 +423,35 @@ public class CacheSupplementedGoogleCloudStorage
   }
 
   /**
-   * Supplements the list returned by the delegate with cached object infos; may trigger fetching
-   * of any metadata not already available in the cache. If a delegate-returned item is also in the
+   * Supplements the list returned by the delegate with cached object infos; may trigger fetching of
+   * any metadata not already available in the cache. If a delegate-returned item is also in the
    * cache and the cache doesn't already have the metadata, it will be opportunistically updated
    * with the retrieved metadata.
    */
   @Override
   public List<GoogleCloudStorageItemInfo> listObjectInfo(
-      String bucketName, String objectNamePrefix, String delimiter)
-      throws IOException {
-    return listObjectInfo(bucketName, objectNamePrefix, delimiter,
-        GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+      String bucketName, String objectNamePrefix, String delimiter) throws IOException {
+    return listObjectInfo(
+        bucketName, objectNamePrefix, delimiter, GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
   }
 
   /**
-   * Supplements the list returned by the delegate with cached object infos; may trigger fetching
-   * of any metadata not already available in the cache. If a delegate-returned item is also in the
+   * Supplements the list returned by the delegate with cached object infos; may trigger fetching of
+   * any metadata not already available in the cache. If a delegate-returned item is also in the
    * cache and the cache doesn't already have the metadata, it will be opportunistically updated
    * with the retrieved metadata.
    */
   @Override
   public List<GoogleCloudStorageItemInfo> listObjectInfo(
-      String bucketName, String objectNamePrefix, String delimiter,
-      long maxResults)
+      String bucketName, String objectNamePrefix, String delimiter, long maxResults)
       throws IOException {
-    LOG.debug("listObjectInfo({}, {}, {}, {})", bucketName, objectNamePrefix,
-        delimiter, maxResults);
     List<GoogleCloudStorageItemInfo> allObjectInfos =
-        gcsDelegate.listObjectInfo(bucketName, objectNamePrefix, delimiter,
-            maxResults);
+        super.listObjectInfo(bucketName, objectNamePrefix, delimiter, maxResults);
     if (maxResults > 0 && allObjectInfos.size() >= maxResults) {
-        return allObjectInfos;
+      return allObjectInfos;
     }
-    List<CacheEntry> cachedObjects = resourceCache.getObjectList(
-        bucketName, objectNamePrefix, delimiter, null);
+    List<CacheEntry> cachedObjects =
+        resourceCache.getObjectList(bucketName, objectNamePrefix, delimiter, null);
     if (cachedObjects == null || cachedObjects.isEmpty()) {
       return allObjectInfos;
     } else {
@@ -554,8 +469,7 @@ public class CacheSupplementedGoogleCloudStorage
     List<GoogleCloudStorageItemInfo> supplementalInfos =
         extractOrRevalidateItemInfos(missingCachedObjects);
 
-    if (maxResults <= 0
-        || allObjectInfos.size() + supplementalInfos.size() <= maxResults) {
+    if (maxResults <= 0 || allObjectInfos.size() + supplementalInfos.size() <= maxResults) {
       allObjectInfos.addAll(supplementalInfos);
     } else {
       for (GoogleCloudStorageItemInfo item : supplementalInfos) {
@@ -569,55 +483,7 @@ public class CacheSupplementedGoogleCloudStorage
     return allObjectInfos;
   }
 
-  /**
-   * Pure pass-through.
-   */
-  @Override
-  public List<GoogleCloudStorageItemInfo> getItemInfos(List<StorageResourceId> resourceIds)
-      throws IOException {
-    LOG.debug("getItemInfos({})", resourceIds.toString());
-    return gcsDelegate.getItemInfos(resourceIds);
-  }
-
-  @Override
-  public List<GoogleCloudStorageItemInfo> updateItems(List<UpdatableItemInfo> itemInfoList)
-      throws IOException {
-    LOG.debug("updateItems({})", itemInfoList);
-    return gcsDelegate.updateItems(itemInfoList);
-  }
-
-  /**
-   * Pure pass-through.
-   */
-  @Override
-  public GoogleCloudStorageItemInfo getItemInfo(StorageResourceId resourceId)
-      throws IOException {
-    LOG.debug("getItemInfo({})", resourceId);
-    // TODO(user): Maybe opportunistically update the cache with any retrieved info; it would take
-    // more memory but potentially improve cache coherence. Here and in getItemInfos.
-    return gcsDelegate.getItemInfo(resourceId);
-  }
-
-  /**
-   * Pure pass-through.
-   */
-  @Override
-  public void close() {
-    gcsDelegate.close();
-  }
-
-  /**
-   * Pure pass-through.
-   */
-  @Override
-  public void waitForBucketEmpty(String bucketName)
-      throws IOException {
-    gcsDelegate.waitForBucketEmpty(bucketName);
-  }
-
-  /**
-   * Retrieve our internal DirectoryListCache, for testing purposes only.
-   */
+  /** Retrieve our internal DirectoryListCache, for testing purposes only. */
   @VisibleForTesting
   DirectoryListCache getResourceCache() {
     return resourceCache;
