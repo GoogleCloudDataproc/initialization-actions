@@ -1,3 +1,20 @@
+0.9.0 - 2016-11-04
+
+  1. Added temporary-path resolution to BigQueryConfiguration to
+     automatically default to the GCS-specified system bucket if the BigQuery
+     specific GCS bucket isn't specified and an explicit temporary GCS
+     path for BigQuery isn't specified.
+  2. Refactored the new IndirectBigQueryOutputFormat class hierarchy
+     to require less boilerplate in format-specific implementations.
+  3. Added support for federated BigQuery table outputs using the
+     IndirectBigQueryOutputFormat.
+
+
+0.8.1 - 2016-10-10
+
+  1. Misc minor refactoring.
+
+
 0.8.0 - 2016-10-05
 
   1. Added new still-experimental versions of BigQuery output which buffer to

@@ -1,3 +1,10 @@
+1.5.5 - 2016-11-04
+
+  1. Minor refactoring of logic in CacheSupplementedGoogleCloudStorage to
+     extract a reusable ForwardingGoogleCloudStorage that can be used
+     for other GCS-delegating implementations.
+
+
 1.5.4 - 2016-10-05
 
   1. Fixed a bug in GoogleCloudStorageReadChannel where multiple in-place
