@@ -53,8 +53,11 @@ public class ForwardingBigQueryFileOutputFormatTest {
   @SuppressWarnings("rawtypes")
   private static final Class<? extends FileOutputFormat> TEST_OUTPUT_CLASS = TextOutputFormat.class;
 
-  /** Sample GCS temporary path for IO. */
-  private static final Path GCS_TEMP_PATH = new Path("gs://test_bucket/indirect/path/");
+  /** Sample raw output path for data. */
+  private static final String TEST_OUTPUT_PATH_STRING = "gs://test_bucket/test_directory/";
+
+  /** Sample output path for data. */
+  private static final Path TEST_OUTPUT_PATH = new Path(TEST_OUTPUT_PATH_STRING);
 
   /** A sample task ID for the mock TaskAttemptContext. */
   private static final TaskAttemptID TEST_TASK_ATTEMPT_ID =
@@ -99,9 +102,10 @@ public class ForwardingBigQueryFileOutputFormatTest {
         TEST_PROJECT_ID,
         TEST_DATASET_ID,
         TEST_TABLE_ID,
+        null,
+        TEST_OUTPUT_PATH_STRING,
         TEST_FILE_FORMAT,
-        TEST_OUTPUT_CLASS,
-        null);
+        TEST_OUTPUT_CLASS);
 
     // Configure mocks.
     when(mockTaskAttemptContext.getConfiguration()).thenReturn(conf);
@@ -122,38 +126,25 @@ public class ForwardingBigQueryFileOutputFormatTest {
     verifyNoMoreInteractions(mockOutputCommitter);
 
     // File system changes leak between tests, always clean up.
-    ghfs.delete(GCS_TEMP_PATH, true);
+    ghfs.delete(TEST_OUTPUT_PATH, true);
   }
 
   /** Test normal expected use of the function. */
   @Test
   public void testCheckOutputSpecs() throws IOException {
-    // Setup configuration.
-    FileOutputFormat.setOutputPath(job, GCS_TEMP_PATH);
-
     outputFormat.checkOutputSpecs(mockTaskAttemptContext);
 
     verify(mockFileOutputFormat).checkOutputSpecs(eq(mockTaskAttemptContext));
-  }
-
-  /** Test an error is thrown when the output path isn't set. */
-  @Test
-  public void testCheckOutputSpecsPathNotSet() throws IOException {
-    expectedException.expect(IOException.class);
-    expectedException.expectMessage("FileOutputFormat output path not set.");
-
-    outputFormat.checkOutputSpecs(mockTaskAttemptContext);
   }
 
   /** Test an error is thrown when the output format's directory already exists. */
   @Test
   public void testCheckOutputSpecsAlreadyExists() throws IOException {
     // Setup configuration.
-    FileOutputFormat.setOutputPath(job, GCS_TEMP_PATH);
-    ghfs.mkdirs(GCS_TEMP_PATH);
+    ghfs.mkdirs(TEST_OUTPUT_PATH);
 
     expectedException.expect(IOException.class);
-    expectedException.expectMessage("The output path '" + GCS_TEMP_PATH + "' already exists.");
+    expectedException.expectMessage("The output path '" + TEST_OUTPUT_PATH + "' already exists.");
 
     outputFormat.checkOutputSpecs(mockTaskAttemptContext);
   }
@@ -162,7 +153,6 @@ public class ForwardingBigQueryFileOutputFormatTest {
   @Test
   public void testCheckOutputSpecsCompressedOutput() throws IOException {
     // Setup configuration.
-    FileOutputFormat.setOutputPath(job, GCS_TEMP_PATH);
     FileOutputFormat.setCompressOutput(job, true);
 
     expectedException.expect(IOException.class);

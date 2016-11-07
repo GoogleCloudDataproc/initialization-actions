@@ -85,17 +85,48 @@ public class BigQueryConfiguration {
 
   // Configuration keys for output connector.
 
-  /** Configuration key for project ID of the dataset accessed by this output connector. */
+  /**
+   * Configuration key for the output project ID of the dataset accessed by the output format. This
+   * key is stored as a {@link String}.
+   */
   public static final String OUTPUT_PROJECT_ID_KEY = "mapred.bq.output.project.id";
 
-  /** Configuration key for numeric ID of the dataset accessed by this output connector. */
+  /**
+   * Configuration key for numeric ID of the output dataset accessed by the output format. This key
+   * is stored as a {@link String}.
+   */
   public static final String OUTPUT_DATASET_ID_KEY = "mapred.bq.output.dataset.id";
 
-  /** Configuration key for numeric ID of the table written by this output connector. */
+  /**
+   * Configuration key for numeric ID of the output table written by the output format. This key is
+   * stored as a {@link String}.
+   */
   public static final String OUTPUT_TABLE_ID_KEY = "mapred.bq.output.table.id";
 
-  /** Configuration key for the output table schema used by this output connector. */
+  /**
+   * Configuration key for the output table schema used by the output format. This key is stored as
+   * a {@link String}.
+   */
   public static final String OUTPUT_TABLE_SCHEMA_KEY = "mapred.bq.output.table.schema";
+
+  /**
+   * Configuration key for the file format of the files outputted by the wrapped FileOutputFormat.
+   * This key is stored as a serialized {@link BigQueryFileFormat}.
+   */
+  public static final String OUTPUT_FILE_FORMAT_KEY = "mapred.bq.output.gcs.fileformat";
+
+  /**
+   * Configuration key for the FileOutputFormat class that's going to be wrapped by the output
+   * format. This key is stored as a {@link Class}.
+   */
+  public static final String OUTPUT_FORMAT_CLASS_KEY = "mapred.bq.output.gcs.outputformatclass";
+
+  /**
+   * Configuration key indicating whether temporary data stored in GCS should be deleted after the
+   * output job is complete. This is true by default. This key is ignored when using federated
+   * storage. This key is stored as a {@link Boolean}.
+   */
+  public static final String OUTPUT_CLEANUP_TEMP_KEY = "mapred.bq.output.gcs.cleanup";
 
   /** Size of the output buffer, in bytes, to use for BigQuery output. */
   public static final String OUTPUT_WRITE_BUFFER_SIZE_KEY = "mapred.bq.output.buffer.size";

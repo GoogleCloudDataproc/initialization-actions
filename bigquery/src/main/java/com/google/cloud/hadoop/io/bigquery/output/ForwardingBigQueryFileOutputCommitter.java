@@ -17,7 +17,6 @@ import org.apache.hadoop.mapreduce.JobStatus.State;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,13 +61,9 @@ public class ForwardingBigQueryFileOutputCommitter extends OutputCommitter {
     BigQueryOutputConfiguration.validateConfiguration(conf);
 
     // Resolve the output path.
-    Path path = FileOutputFormat.getOutputPath(context);
-    if (path != null) {
-      outputFileSystem = path.getFileSystem(conf);
-      outputPath = outputFileSystem.makeQualified(path);
-    } else {
-      throw new IOException("Unable to resolve output path and file system.");
-    }
+    Path path = BigQueryOutputConfiguration.getGcsOutputPath(conf);
+    outputFileSystem = path.getFileSystem(conf);
+    outputPath = outputFileSystem.makeQualified(path);
 
     // Create a big query reference
     try {
@@ -154,7 +149,7 @@ public class ForwardingBigQueryFileOutputCommitter extends OutputCommitter {
    */
   protected void cleanup(JobContext context) throws IOException {
     boolean delete =
-        context.getConfiguration().getBoolean(BigQueryOutputConfiguration.DELETE_ON_COMPLETE, true);
+        BigQueryOutputConfiguration.getCleanupTemporaryDataFlag(context.getConfiguration());
 
     if (delete && outputFileSystem.exists(outputPath)) {
       LOG.info("Found GCS output data at '{}', attempting to clean up.", outputPath);

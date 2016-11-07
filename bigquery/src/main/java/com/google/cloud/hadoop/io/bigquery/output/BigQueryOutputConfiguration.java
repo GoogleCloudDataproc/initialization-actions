@@ -2,19 +2,26 @@ package com.google.cloud.hadoop.io.bigquery.output;
 
 import com.google.api.client.json.JsonParser;
 import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.BigQueryStrings;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.ReflectionUtils;
 
@@ -25,129 +32,107 @@ import org.apache.hadoop.util.ReflectionUtils;
 @InterfaceStability.Unstable
 public class BigQueryOutputConfiguration {
 
-  /**
-   * Configuration key for project ID of the dataset accessed by this output connector. This key is
-   * stored as a {@link String}.
-   */
-  public static final String PROJECT_ID = "mapreduce.bigquery.indirect.output.project.id";
-
-  /**
-   * Configuration key for numeric ID of the dataset accessed by this output connector. This key is
-   * stored as a {@link String}.
-   */
-  public static final String DATASET_ID = "mapreduce.bigquery.indirect.output.dataset.id";
-
-  /**
-   * Configuration key for numeric ID of the table written by this output connector. This key is
-   * stored as a {@link String}.
-   */
-  public static final String TABLE_ID = "mapreduce.bigquery.indirect.output.table.id";
-
-  /**
-   * Configuration key for the output table schema used by this output connector. If this key isn't
-   * configured, the schema is auto detected. This key is stored as a serialized {@link
-   * TableSchema}.
-   */
-  public static final String TABLE_SCHEMA = "mapreduce.bigquery.indirect.output.table.schema";
-
-  /**
-   * Configuration key for the file format of the files outputted by the wrapped FileOutputFormat.
-   * This key is stored as a serialized {@link BigQueryFileFormat}.
-   */
-  public static final String FILE_FORMAT = "mapreduce.bigquery.indirect.output.fileformat";
-
-  /**
-   * Configuration key indicating whether temporary data stored in GCS should be deleted after the
-   * job is complete. This is true by default. This key is stored as a {@link Boolean}.
-   */
-  public static final String DELETE_ON_COMPLETE = "mapreduce.bigquery.indirect.output.gcs.delete";
-
-  /**
-   * Configuration key for the FileOutputFormat class that's going to be wrapped. This key is stored
-   * as a {@link Class}.
-   */
-  public static final String OUTPUT_FORMAT_CLASS =
-      "mapreduce.bigquery.indirect.output.gcs.outputformatclass";
-
   /** A list of keys that are required for this output connector. */
   public static final List<String> REQUIRED_KEYS =
-      ImmutableList.of(DATASET_ID, TABLE_ID, FILE_FORMAT, OUTPUT_FORMAT_CLASS);
+      ImmutableList.of(
+          BigQueryConfiguration.OUTPUT_DATASET_ID_KEY,
+          BigQueryConfiguration.OUTPUT_TABLE_ID_KEY,
+          BigQueryConfiguration.OUTPUT_FILE_FORMAT_KEY,
+          BigQueryConfiguration.OUTPUT_FORMAT_CLASS_KEY);
 
   /**
-   * Sets the required output keys in the given configuration.
+   * A helper function to set the required output keys in the given configuration.
    *
    * @param conf the configuration to set the keys on.
-   * @param fullTableId the fully qualified table id of the form: [projectId]:[datasetId].[tableId].
-   * @param fileformat the file format that the wrapped FileOutputFormat will write files as.
-   * @param outputFormatClass the FileOutputFormat to wrap and delegate functionality to.
-   * @param tableSchema the output table schema for the table being written to. If this is null, the
-   *     schema is auto-detected.
+   * @param qualifiedOutputTableId the qualified id of the output table in the form: <code>(Optional
+   *     ProjectId):[DatasetId].[TableId]</code>. If the project id is missing, the default project
+   *     id is attempted {@link BigQueryConfiguration#PROJECT_ID_KEY}.
+   * @param outputTableSchema the schema of the BigQuery output table. If the schema is null,
+   *     BigQuery will attempt to auto detect the schema. When using avro formatted data, a schema
+   *     is not required as avro stores the schema in the file.
+   * @param outputGcsPath the path in GCS to stage data in. Example: 'gs://bucket/job'.
+   * @param outputFileFormat the formatting of the data being written by the output format class.
+   * @param outputFormatClass the file output format that will write files to GCS.
+   * @throws IOException
    */
   @SuppressWarnings("rawtypes")
   public static void configure(
       Configuration conf,
-      String fullTableId,
-      BigQueryFileFormat fileformat,
-      Class<? extends FileOutputFormat> outputFormatClass,
-      TableSchema tableSchema) {
-    TableReference parsedTable = BigQueryStrings.parseTableReference(fullTableId);
+      String qualifiedOutputTableId,
+      TableSchema outputTableSchema,
+      String outputGcsPath,
+      BigQueryFileFormat outputFileFormat,
+      Class<? extends FileOutputFormat> outputFormatClass)
+      throws IOException {
+    TableReference outputTable = BigQueryStrings.parseTableReference(qualifiedOutputTableId);
     configure(
         conf,
-        parsedTable.getProjectId(),
-        parsedTable.getDatasetId(),
-        parsedTable.getTableId(),
-        fileformat,
-        outputFormatClass,
-        tableSchema);
+        outputTable.getProjectId(),
+        outputTable.getDatasetId(),
+        outputTable.getTableId(),
+        outputTableSchema,
+        outputGcsPath,
+        outputFileFormat,
+        outputFormatClass);
   }
 
   /**
-   * Sets the required output keys in the given configuration.
+   * A helper function to set the required output keys in the given configuration.
    *
    * @param conf the configuration to set the keys on.
-   * @param projectId the project containing the table to write the results to.
-   * @param datasetId the dataset to write the results to.
-   * @param tableId the table to write the results to.
-   * @param fileformat the file format that the wrapped FileOutputFormat will write files as.
-   * @param outputFormatClass the FileOutputFormat to wrap and delegate functionality to.
-   * @param tableSchema the output table schema for the table being written to. If this is null, the
-   *     schema is auto-detected.
+   * @param outputProjectId the id of the output project. If the project id is null, the default
+   *     project id is attempted {@link BigQueryConfiguration#PROJECT_ID_KEY}.
+   * @param outputDatasetId the id of the output dataset.
+   * @param outputTableId the id of the output table.
+   * @param outputTableSchema the schema of the BigQuery output table. If the schema is null,
+   *     BigQuery will attempt to auto detect the schema. When using avro formatted data, a schema
+   *     is not required as avro stores the schema in the file.
+   * @param outputGcsPath the path in GCS to stage data in. Example: 'gs://bucket/job'.
+   * @param outputFileFormat the formatting of the data being written by the output format class.
+   * @param outputFormatClass the file output format that will write files to GCS.
+   * @throws IOException
    */
   @SuppressWarnings("rawtypes")
   public static void configure(
       Configuration conf,
-      String projectId,
-      String datasetId,
-      String tableId,
-      BigQueryFileFormat fileformat,
-      Class<? extends FileOutputFormat> outputFormatClass,
-      TableSchema tableSchema) {
+      String outputProjectId,
+      String outputDatasetId,
+      String outputTableId,
+      TableSchema outputTableSchema,
+      String outputGcsPath,
+      BigQueryFileFormat outputFileFormat,
+      Class<? extends FileOutputFormat> outputFormatClass)
+      throws IOException {
 
     // Use the default project ID as a backup.
-    if (Strings.isNullOrEmpty(projectId)) {
-      projectId = conf.get(BigQueryConfiguration.PROJECT_ID_KEY);
+    if (Strings.isNullOrEmpty(outputProjectId)) {
+      outputProjectId = conf.get(BigQueryConfiguration.PROJECT_ID_KEY);
     }
 
-    // Check preconditions.
     Preconditions.checkArgument(
-        !Strings.isNullOrEmpty(projectId), "projectId must not be null or empty.");
+        !Strings.isNullOrEmpty(outputProjectId), "outputProjectId must not be null or empty.");
     Preconditions.checkArgument(
-        !Strings.isNullOrEmpty(datasetId), "datasetId must not be null or empty.");
+        !Strings.isNullOrEmpty(outputDatasetId), "outputDatasetId must not be null or empty.");
     Preconditions.checkArgument(
-        !Strings.isNullOrEmpty(tableId), "tableId must not be null or empty.");
-    Preconditions.checkArgument(fileformat != null, "fileformat must not be null.");
-    Preconditions.checkArgument(outputFormatClass != null, "outputFormatClass must not be null.");
+        !Strings.isNullOrEmpty(outputTableId), "outputTableId must not be null or empty.");
+    Preconditions.checkArgument(
+        !Strings.isNullOrEmpty(outputGcsPath), "outputGcsPath must not be null or empty.");
+    Preconditions.checkNotNull(outputFileFormat, "outputFileFormat must not be null.");
+    Preconditions.checkNotNull(outputFormatClass, "outputFormatClass must not be null.");
 
-    conf.set(PROJECT_ID, projectId);
-    conf.set(DATASET_ID, datasetId);
-    conf.set(TABLE_ID, tableId);
-    conf.set(FILE_FORMAT, fileformat.name());
-    conf.setClass(OUTPUT_FORMAT_CLASS, outputFormatClass, FileOutputFormat.class);
+    conf.set(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY, outputProjectId);
+    conf.set(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY, outputDatasetId);
+    conf.set(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY, outputTableId);
+    conf.set(BigQueryConfiguration.OUTPUT_FILE_FORMAT_KEY, outputFileFormat.name());
+    conf.setClass(
+        BigQueryConfiguration.OUTPUT_FORMAT_CLASS_KEY, outputFormatClass, FileOutputFormat.class);
+
+    setFileOutputFormatOutputPath(conf, outputGcsPath);
 
     // If a schema is provided, serialize it.
-    if (tableSchema != null) {
-      tableSchema.setFactory(JacksonFactory.getDefaultInstance());
-      conf.set(TABLE_SCHEMA, tableSchema.toString());
+    if (outputTableSchema != null) {
+      String fields = JacksonFactory.getDefaultInstance().toString(outputTableSchema.getFields());
+      conf.set(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY, fields);
     }
   }
 
@@ -169,10 +154,23 @@ public class BigQueryOutputConfiguration {
     getTableSchema(conf);
     getFileFormat(conf);
     getFileOutputFormat(conf);
+    getGcsOutputPath(conf);
   }
 
   /**
-   * Gets the project id based on the given configuration.
+   * Gets if the configuration flag to cleanup temporary data in GCS is enabled or not.
+   *
+   * @param conf the configuration to reference the key from.
+   * @return true if the flag is enabled or missing, false otherwise.
+   */
+  public static boolean getCleanupTemporaryDataFlag(Configuration conf) {
+    return conf.getBoolean(BigQueryConfiguration.OUTPUT_CLEANUP_TEMP_KEY, true);
+  }
+
+  /**
+   * Gets the project id based on the given configuration. If the {@link
+   * BigQueryConfiguration#OUTPUT_PROJECT_ID_KEY} is missing, this resolves to referencing the
+   * {@link BigQueryConfiguration#PROJECT_ID_KEY} key.
    *
    * @param conf the configuration to reference the keys from.
    * @return the project id based on the given configuration.
@@ -180,15 +178,22 @@ public class BigQueryOutputConfiguration {
    */
   public static String getProjectId(Configuration conf) throws IOException {
     // Reference the default project ID as a backup.
-    String projectId = conf.get(PROJECT_ID, "${" + BigQueryConfiguration.PROJECT_ID_KEY + "}");
+    String projectId = conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY);
     if (Strings.isNullOrEmpty(projectId)) {
-      throw new IOException("Must supply a value for configuration setting: " + PROJECT_ID);
+      projectId = conf.get(BigQueryConfiguration.PROJECT_ID_KEY);
+    }
+    if (Strings.isNullOrEmpty(projectId)) {
+      throw new IOException(
+          "Must supply a value for configuration setting: "
+              + BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY);
     }
     return projectId;
   }
 
   /**
-   * Gets the output table reference based on the given configuration.
+   * Gets the output table reference based on the given configuration. If the {@link
+   * BigQueryConfiguration#OUTPUT_PROJECT_ID_KEY} is missing, this resolves to referencing the
+   * {@link BigQueryConfiguration#PROJECT_ID_KEY} key.
    *
    * @param conf the configuration to reference the keys from.
    * @return a reference to the derived output table.
@@ -197,8 +202,10 @@ public class BigQueryOutputConfiguration {
   public static TableReference getTableReference(Configuration conf) throws IOException {
     // Ensure the BigQuery output information is valid.
     String projectId = getProjectId(conf);
-    String datasetId = ConfigurationUtil.getMandatoryConfig(conf, DATASET_ID);
-    String tableId = ConfigurationUtil.getMandatoryConfig(conf, TABLE_ID);
+    String datasetId =
+        ConfigurationUtil.getMandatoryConfig(conf, BigQueryConfiguration.OUTPUT_DATASET_ID_KEY);
+    String tableId =
+        ConfigurationUtil.getMandatoryConfig(conf, BigQueryConfiguration.OUTPUT_TABLE_ID_KEY);
 
     return new TableReference().setProjectId(projectId).setDatasetId(datasetId).setTableId(tableId);
   }
@@ -211,16 +218,17 @@ public class BigQueryOutputConfiguration {
    * @throws IOException if a table schema was set in the configuration but couldn't be parsed.
    */
   public static TableSchema getTableSchema(Configuration conf) throws IOException {
-    String outputSchema = conf.get(TABLE_SCHEMA);
+    String outputSchema = conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY);
     if (!Strings.isNullOrEmpty(outputSchema)) {
       try {
-        TableSchema schema = new TableSchema();
-        JsonParser schemaParser =
-            JacksonFactory.getDefaultInstance().createJsonParser(outputSchema);
-        schemaParser.parseAndClose(schema);
-        return schema;
+        List<TableFieldSchema> fields = new ArrayList<TableFieldSchema>();
+        JsonParser parser = JacksonFactory.getDefaultInstance().createJsonParser(outputSchema);
+        parser.parseArrayAndClose(fields, TableFieldSchema.class);
+
+        return new TableSchema().setFields(fields);
       } catch (IOException e) {
-        throw new IOException("Unable to parse key '" + TABLE_SCHEMA + "'.", e);
+        throw new IOException(
+            "Unable to parse key '" + BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY + "'.", e);
       }
     }
     return null;
@@ -235,7 +243,8 @@ public class BigQueryOutputConfiguration {
    */
   public static BigQueryFileFormat getFileFormat(Configuration conf) throws IOException {
     // Ensure the BigQuery output information is valid.
-    String fileFormatName = ConfigurationUtil.getMandatoryConfig(conf, FILE_FORMAT);
+    String fileFormatName =
+        ConfigurationUtil.getMandatoryConfig(conf, BigQueryConfiguration.OUTPUT_FILE_FORMAT_KEY);
 
     return BigQueryFileFormat.fromName(fileFormatName);
   }
@@ -251,14 +260,16 @@ public class BigQueryOutputConfiguration {
   @SuppressWarnings("rawtypes")
   public static FileOutputFormat getFileOutputFormat(Configuration conf) throws IOException {
     // Ensure the BigQuery output information is valid.
-    ConfigurationUtil.getMandatoryConfig(conf, OUTPUT_FORMAT_CLASS);
+    ConfigurationUtil.getMandatoryConfig(conf, BigQueryConfiguration.OUTPUT_FORMAT_CLASS_KEY);
 
-    Class<?> confClass = conf.getClass(OUTPUT_FORMAT_CLASS, null);
+    Class<?> confClass = conf.getClass(BigQueryConfiguration.OUTPUT_FORMAT_CLASS_KEY, null);
 
     // Fail if the default value was used, or the class isn't a FileOutputFormat.
     if (confClass == null) {
       throw new IOException(
-          "Unable to resolve value for the configuration key '" + OUTPUT_FORMAT_CLASS + "'.");
+          "Unable to resolve value for the configuration key '"
+              + BigQueryConfiguration.OUTPUT_FORMAT_CLASS_KEY
+              + "'.");
     } else if (!FileOutputFormat.class.isAssignableFrom(confClass)) {
       throw new IOException("The class " + confClass.getName() + " is not a FileOutputFormat.");
     }
@@ -268,5 +279,67 @@ public class BigQueryOutputConfiguration {
 
     // Create a new instance and configure it if it's configurable.
     return ReflectionUtils.newInstance(fileOutputClass, conf);
+  }
+
+  /**
+   * Gets the stored GCS output path in the configuration.
+   *
+   * @param conf the configuration to reference the keys from.
+   * @return the stored output path in the configuration.
+   * @throws IOException if the output path isn't set in the configuration, or the output path's
+   *     file system isn't derived from GoogleHadoopFileSystemBase.
+   */
+  public static Path getGcsOutputPath(Configuration conf) throws IOException {
+    Job tempJob = new JobConfigurationAdapter(conf);
+
+    // Error if the output path is missing.
+    Path outputPath = FileOutputFormat.getOutputPath(tempJob);
+    if (outputPath == null) {
+      throw new IOException("FileOutputFormat output path not set.");
+    }
+
+    // Error if the output file system isn't GCS.
+    FileSystem fs = outputPath.getFileSystem(conf);
+    if (!(fs instanceof GoogleHadoopFileSystemBase)) {
+      throw new IOException("Output FileSystem must derive from GoogleHadoopFileSystemBase.");
+    }
+
+    return outputPath;
+  }
+
+  /**
+   * Sets the output path for FileOutputFormat.
+   *
+   * @param conf the configuration to pass to FileOutputFormat.
+   * @param outputPath the path to set as the output path.
+   * @throws IOException
+   */
+  @VisibleForTesting
+  static void setFileOutputFormatOutputPath(Configuration conf, String outputPath)
+      throws IOException {
+    Job tempJob = new JobConfigurationAdapter(conf);
+    FileOutputFormat.setOutputPath(tempJob, new Path(outputPath));
+  }
+
+  /**
+   * This class provides a workaround for setting FileOutputFormat's output path. Creating a job
+   * with a configuration creates a defensive copy of the configuration for the job, meaning changes
+   * in either configuration will not be reflected in the other. Because FileOutputFormat requires a
+   * job for the API to set an output path, this adapter is used to ensure changes are propagated
+   * out to the wrapped configuration.
+   */
+  private static class JobConfigurationAdapter extends Job {
+
+    private final Configuration config;
+
+    public JobConfigurationAdapter(Configuration config) throws IOException {
+      super();
+      this.config = config;
+    }
+
+    @Override
+    public Configuration getConfiguration() {
+      return config;
+    }
   }
 }

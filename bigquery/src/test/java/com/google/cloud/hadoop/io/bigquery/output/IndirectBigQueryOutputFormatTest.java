@@ -52,8 +52,11 @@ public class IndirectBigQueryOutputFormatTest {
   @SuppressWarnings("rawtypes")
   private static final Class<? extends FileOutputFormat> TEST_OUTPUT_CLASS = TextOutputFormat.class;
 
-  /** Sample GCS temporary path for IO. */
-  private static final Path GCS_TEMP_PATH = new Path("gs://test_bucket/indirect/path/");
+  /** Sample raw output path for data. */
+  private static final String TEST_OUTPUT_PATH_STRING = "gs://test_bucket/test_directory/";
+
+  /** Sample output path for data. */
+  private static final Path TEST_OUTPUT_PATH = new Path(TEST_OUTPUT_PATH_STRING);
 
   /** A sample task ID for the mock TaskAttemptContext. */
   private static final TaskAttemptID TEST_TASK_ATTEMPT_ID =
@@ -98,9 +101,10 @@ public class IndirectBigQueryOutputFormatTest {
         TEST_PROJECT_ID,
         TEST_DATASET_ID,
         TEST_TABLE_ID,
+        null,
+        TEST_OUTPUT_PATH_STRING,
         TEST_FILE_FORMAT,
-        TEST_OUTPUT_CLASS,
-        null);
+        TEST_OUTPUT_CLASS);
 
     // Configure mocks.
     when(mockTaskAttemptContext.getConfiguration()).thenReturn(conf);
@@ -121,15 +125,12 @@ public class IndirectBigQueryOutputFormatTest {
     verifyNoMoreInteractions(mockOutputCommitter);
 
     // File system changes leak between tests, always clean up.
-    ghfs.delete(GCS_TEMP_PATH, true);
+    ghfs.delete(TEST_OUTPUT_PATH, true);
   }
 
   /** Test the correct committer is returned. */
   @Test
   public void testCreateCommitter() throws IOException {
-    // Setup configuration.
-    FileOutputFormat.setOutputPath(job, GCS_TEMP_PATH);
-
     IndirectBigQueryOutputCommitter committer =
         (IndirectBigQueryOutputCommitter) outputFormat.createCommitter(mockTaskAttemptContext);
 

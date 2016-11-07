@@ -72,11 +72,11 @@ public class ForwardingBigQueryFileOutputCommitterTest {
   private static final TaskAttemptID TEST_TASK_ATTEMPT_ID =
       new TaskAttemptID(new TaskID("sample_task", 100, false, 200), 1);
 
-  /** Sample GCS temporary path for IO. */
-  private static final String GCS_TEMP_PATH = "gs://test_bucket/indirect/path/";
+  /** Sample raw output path for data. */
+  private static final String TEST_OUTPUT_PATH_STRING = "gs://test_bucket/test_directory/";
 
-  /** Sample GCS temporary file in the GCS_TEMP_PATH. */
-  private static final String GCS_SAMPLE_FILE_PATH = GCS_TEMP_PATH + "test_file";
+  /** Sample output file. */
+  private static final String TEST_OUTPUT_FILE_STRING = TEST_OUTPUT_PATH_STRING + "test_file";
 
   /** GoogleHadoopGlobalRootedFileSystem to use. */
   private InMemoryGoogleHadoopFileSystem ghfs;
@@ -120,14 +120,14 @@ public class ForwardingBigQueryFileOutputCommitterTest {
         TEST_PROJECT_ID,
         TEST_DATASET_ID,
         TEST_TABLE_ID,
+        TEST_TABLE_SCHEMA,
+        TEST_OUTPUT_PATH_STRING,
         TEST_FILE_FORMAT,
-        TEST_OUTPUT_CLASS,
-        TEST_TABLE_SCHEMA);
-    FileOutputFormat.setOutputPath(job, new Path(GCS_TEMP_PATH));
+        TEST_OUTPUT_CLASS);
 
     // Setup sample data.
-    outputPath = FileOutputFormat.getOutputPath(job);
-    outputSampleFilePath = new Path(GCS_SAMPLE_FILE_PATH);
+    outputPath = BigQueryOutputConfiguration.getGcsOutputPath(conf);
+    outputSampleFilePath = new Path(TEST_OUTPUT_FILE_STRING);
 
     // Configure mocks.
     when(mockTaskAttemptContext.getConfiguration()).thenReturn(conf);
@@ -230,7 +230,7 @@ public class ForwardingBigQueryFileOutputCommitterTest {
     List<String> outputFileURIs = committer.getOutputFileURIs();
 
     // Verify the file in the output path is being returFned.
-    assertThat(outputFileURIs, containsInAnyOrder(GCS_SAMPLE_FILE_PATH));
+    assertThat(outputFileURIs, containsInAnyOrder(TEST_OUTPUT_FILE_STRING));
   }
 
   /** Test that cleanup actually cleans up. */

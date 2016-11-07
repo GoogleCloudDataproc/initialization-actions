@@ -52,13 +52,9 @@ public class ForwardingBigQueryFileOutputFormat<K, V> extends OutputFormat<K, V>
     // Validate the output configuration.
     BigQueryOutputConfiguration.validateConfiguration(conf);
 
-    // Error if the output path is missing.
-    Path outputPath = FileOutputFormat.getOutputPath(job);
-    if (outputPath == null) {
-      throw new IOException("FileOutputFormat output path not set.");
-    } else {
-      LOG.info("Using output path '{}'.", outputPath);
-    }
+    // Get the output path.
+    Path outputPath = BigQueryOutputConfiguration.getGcsOutputPath(conf);
+    LOG.info("Using output path '{}'.", outputPath);
 
     // Error if the output path already exists.
     FileSystem outputFileSystem = outputPath.getFileSystem(conf);

@@ -14,7 +14,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 @InterfaceStability.Unstable
 public class FederatedBigQueryOutputFormat<K, V> extends ForwardingBigQueryFileOutputFormat<K, V> {
 
-  /** Wraps the delegate's committer in a {@link IndirectBigQueryOutputCommitter}. */
+  /** Wraps the delegate's committer in a {@link FederatedBigQueryOutputCommitter}. */
   @Override
   public OutputCommitter createCommitter(TaskAttemptContext context) throws IOException {
     Configuration conf = context.getConfiguration();
