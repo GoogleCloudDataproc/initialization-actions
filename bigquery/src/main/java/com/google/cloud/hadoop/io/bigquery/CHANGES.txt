@@ -1,3 +1,10 @@
+0.10.0 - 2016-11-07
+
+  1. Update output configuration keys to conform to the format in
+     BigQueryConfiguration and have BigQueryOutputConfiguration handle
+     the output path resolution and configuration.
+
+
 0.9.0 - 2016-11-04
 
   1. Added temporary-path resolution to BigQueryConfiguration to

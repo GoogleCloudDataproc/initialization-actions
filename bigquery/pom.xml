@@ -30,7 +30,7 @@
   <description>
     MapReduce input and output formats for use with BigQuery
   </description>
-  <version>0.9.0</version>
+  <version>0.10.0</version>
 
   <dependencies>
     <dependency>
