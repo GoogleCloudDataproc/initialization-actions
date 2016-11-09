@@ -26,7 +26,7 @@ public class PerformanceCachingGoogleCloudStorageOptions {
   }
 
   /** Gets the max age of an item in cache in milliseconds. */
-  public long getMaxEntryAge() {
+  public long getMaxEntryAgeMills() {
     return maxEntryAgeMills;
   }
 
