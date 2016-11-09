@@ -165,6 +165,10 @@ public class GoogleCloudStorageFileSystem {
       resourceCache.getMutableConfig().setMaxInfoAgeMillis(options.getCacheMaxInfoAgeMillis());
       gcs = new CacheSupplementedGoogleCloudStorage(gcs, resourceCache);
     }
+
+    if (options.isPerformanceCacheEnabled()) {
+      gcs = new PerformanceCachingGoogleCloudStorage(gcs, options.getPerformanceCacheOptions());
+    }
   }
 
   /**

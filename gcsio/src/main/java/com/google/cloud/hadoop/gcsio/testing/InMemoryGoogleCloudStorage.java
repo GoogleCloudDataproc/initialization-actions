@@ -261,7 +261,8 @@ public class InMemoryGoogleCloudStorage
       throw new IOException("Error creating bucket");
     }
     if (!bucketLookup.containsKey(bucketName)) {
-      bucketLookup.put(bucketName, new InMemoryBucketEntry(bucketName, options));
+      bucketLookup.put(
+          bucketName, new InMemoryBucketEntry(bucketName, clock.currentTimeMillis(), options));
     } else {
       throw new IOException("Bucket already exists");
     }

@@ -41,9 +41,10 @@ public class InMemoryBucketEntry {
    * @param bucketName The name representing the bucketName portion of a GCS path, e.g.
    *     gs://<bucketName>/<objectName>.
    */
-  public InMemoryBucketEntry(String bucketName, CreateBucketOptions options) {
+  public InMemoryBucketEntry(
+      String bucketName, long createTimeMillis, CreateBucketOptions options) {
     info = new GoogleCloudStorageItemInfo(
-        new StorageResourceId(bucketName), System.currentTimeMillis(), 0,
+        new StorageResourceId(bucketName), createTimeMillis, 0,
         MoreObjects.firstNonNull(options.getLocation(), "us-central"),
         MoreObjects.firstNonNull(options.getStorageClass(), "inmemory-class"));
   }

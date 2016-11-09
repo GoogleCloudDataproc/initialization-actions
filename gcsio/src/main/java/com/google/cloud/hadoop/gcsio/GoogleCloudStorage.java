@@ -330,8 +330,9 @@ public interface GoogleCloudStorage {
       throws IOException;
 
   /**
-   * Gets information about multiple objects and/or buckets. Items that are "not found" will
-   * still have an entry in the returned list; exists() will return false for these entries.
+   * Gets information about multiple objects and/or buckets. Items that are "not found" will still
+   * have an entry in the returned list; exists() will return false for these entries. The return
+   * list will have the same ordering as the input arguments.
    *
    * @param resourceIds names of the GCS StorageObjects or Buckets for which to retrieve info.
    * @return information about the given resourceIds.

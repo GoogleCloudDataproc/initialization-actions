@@ -148,7 +148,7 @@ public class InMemoryObjectEntry {
         null,
         contentType,
         ImmutableMap.copyOf(metadata),
-        System.currentTimeMillis(),
+        createTimeMillis,
         0L);
   }
 
@@ -250,7 +250,7 @@ public class InMemoryObjectEntry {
    * Gets the {@code GoogleCloudStorageItemInfo} associated with this InMemoryObjectEntry, whose
    * 'size' is only updated when the initial writer has finished closing the channel.
    */
-  public synchronized GoogleCloudStorageItemInfo getInfo() throws IOException {
+  public synchronized GoogleCloudStorageItemInfo getInfo() {
     if (!isCompleted()) {
       return GoogleCloudStorageImpl.createItemInfoForNotFound(info.getResourceId());
     }

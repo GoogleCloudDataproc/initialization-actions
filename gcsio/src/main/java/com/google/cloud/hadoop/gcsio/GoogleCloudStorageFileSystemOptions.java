@@ -43,6 +43,11 @@ public class GoogleCloudStorageFileSystemOptions {
    * Mutable builder for GoogleCloudStorageFileSystemOptions.
    */
   public static class Builder {
+    private boolean performanceCacheEnabled = false;
+    private PerformanceCachingGoogleCloudStorageOptions.Builder performanceCacheOptionsBuilder =
+        PerformanceCachingGoogleCloudStorageOptions.newBuilder();
+    private PerformanceCachingGoogleCloudStorageOptions immutablePerformanceCacheOptions = null;
+
     protected boolean metadataCacheEnabled = true;
     protected DirectoryListCache.Type cacheType = DirectoryListCache.Type.IN_MEMORY;
     protected String cacheBasePath = null;
@@ -63,6 +68,40 @@ public class GoogleCloudStorageFileSystemOptions {
 
     private PathCodec pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
     private boolean enableBucketDelete = false;
+
+    public Builder setIsPerformanceCacheEnabled(boolean performanceCacheEnabled) {
+      this.performanceCacheEnabled = performanceCacheEnabled;
+      return this;
+    }
+    
+    /**
+     * Mutually exclusive with setImmutablePerformanceCachingOptions; if setting this builder, then
+     * any subsequent changes made to the inner PerformanceCaching options builder will be reflected
+     * at the time PerformanceCachingGoogleCloudStorageOptions.Builder.build() is called. If this is
+     * called after calling setImmutablePerformanceCachingOptions, then the previous value of the
+     * immutablePerformanceCacheOptions is discarded, in the same way setting other single-element
+     * fields is overridden by the last call to the builder.
+     */
+    public Builder setPerformanceCachingOptionsBuilder(
+        PerformanceCachingGoogleCloudStorageOptions.Builder performanceCacheOptionsBuilder) {
+      this.performanceCacheOptionsBuilder = performanceCacheOptionsBuilder;
+      this.immutablePerformanceCacheOptions = null;
+      return this;
+    }
+    
+    /**
+     * Mutually exclusive with setPerformanceCachingOptionsBuilder If this is called after calling
+     * setPerformanceCachingOptionsBuilder, then the previous value of the
+     * performanceCacheOptionsBuilder is discarded, in the same way setting other single-element
+     * fields is overridden by the last call to the builder.
+     */
+    public Builder setImmutablePerformanceCachingOptions(
+        PerformanceCachingGoogleCloudStorageOptions immutablePerformanceCacheOptions) {
+      this.immutablePerformanceCacheOptions = immutablePerformanceCacheOptions;
+      this.performanceCacheOptionsBuilder =
+          PerformanceCachingGoogleCloudStorageOptions.newBuilder();
+      return this;
+    }
 
     public GoogleCloudStorageOptions.Builder getCloudStorageOptionsBuilder() {
       return cloudStorageOptionsBuilder;
@@ -152,6 +191,10 @@ public class GoogleCloudStorageFileSystemOptions {
 
     public GoogleCloudStorageFileSystemOptions build() {
       return new GoogleCloudStorageFileSystemOptions(
+          immutablePerformanceCacheOptions != null
+              ? immutablePerformanceCacheOptions
+              : performanceCacheOptionsBuilder.build(),
+          performanceCacheEnabled,
           immutableCloudStorageOptions != null
               ? immutableCloudStorageOptions
               : cloudStorageOptionsBuilder.build(),
@@ -170,6 +213,8 @@ public class GoogleCloudStorageFileSystemOptions {
     return new Builder();
   }
 
+  private final PerformanceCachingGoogleCloudStorageOptions performanceCacheOptions;
+  private final boolean performanceCacheEnabled;
   private final GoogleCloudStorageOptions cloudStorageOptions;
   private final boolean metadataCacheEnabled;
   private final DirectoryListCache.Type cacheType;
@@ -181,6 +226,8 @@ public class GoogleCloudStorageFileSystemOptions {
   private final boolean enableBucketDelete;
 
   public GoogleCloudStorageFileSystemOptions(
+      PerformanceCachingGoogleCloudStorageOptions performanceCacheOptions,
+      boolean performanceCacheEnabled,
       GoogleCloudStorageOptions cloudStorageOptions,
       boolean metadataCacheEnabled,
       DirectoryListCache.Type cacheType,
@@ -190,6 +237,8 @@ public class GoogleCloudStorageFileSystemOptions {
       long cacheMaxInfoAgeMillis,
       PathCodec pathCodec,
       boolean enableBucketDelete) {
+    this.performanceCacheOptions = performanceCacheOptions;
+    this.performanceCacheEnabled = performanceCacheEnabled;
     this.cloudStorageOptions = cloudStorageOptions;
     this.metadataCacheEnabled = metadataCacheEnabled;
     this.cacheType = cacheType;
@@ -199,6 +248,14 @@ public class GoogleCloudStorageFileSystemOptions {
     this.cacheMaxInfoAgeMillis = cacheMaxInfoAgeMillis;
     this.pathCodec = pathCodec;
     this.enableBucketDelete = enableBucketDelete;
+  }
+
+  public PerformanceCachingGoogleCloudStorageOptions getPerformanceCacheOptions() {
+    return performanceCacheOptions;
+  }
+
+  public boolean isPerformanceCacheEnabled() {
+    return performanceCacheEnabled;
   }
 
   public GoogleCloudStorageOptions getCloudStorageOptions() {
