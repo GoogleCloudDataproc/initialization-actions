@@ -2,14 +2,11 @@
 project: goeuro-data
 tags:
   - dataproc-initialization-actions
-env:
-  GC_PROJECT_PROD: centered-radius-89610
-  GC_PROJECT_DEV: dataproc-dev
 tasks:
   _deploy_prod:
     cmd: gsutil -mq cp -r . gs://spark_jobs/dataproc-initialization-actions
   _deploy_dev:
-    cmd: gsutil -mq cp -r gs://spark_jobs/dataproc-initialization-actions gs://dataproc-dev/dataproc-initialization-actions
+    cmd: gsutil -mq cp -r gs://spark_jobs/dataproc-initialization-actions gs://dataproc-dev/
   deploy:
     before:
       - _deploy_prod

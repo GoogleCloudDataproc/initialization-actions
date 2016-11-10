@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -e
 
-ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
-INIT_ACTIONS_REPO=$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_REPO || true)
+ROLE=$(curl -f -s -H Metadata-Flavor:Google http://metadata/computeMetadata/v1/instance/attributes/dataproc-role)
+INIT_ACTIONS_REPO=$(curl -f -s -H Metadata-Flavor:Google http://metadata/computeMetadata/v1/instance/attributes/INIT_ACTIONS_REPO || true)
 INIT_ACTIONS_REPO="${INIT_ACTIONS_REPO:-https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git}"
-INIT_ACTIONS_BRANCH=$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_BRANCH || true)
+INIT_ACTIONS_BRANCH=$(curl -f -s -H Metadata-Flavor:Google http://metadata/computeMetadata/v1/instance/attributes/INIT_ACTIONS_BRANCH || true)
 INIT_ACTIONS_BRANCH="${INIT_ACTIONS_BRANCH:-master}"
-DATAPROC_BUCKET=$(/usr/share/google/get_metadata_value attributes/dataproc-bucket)
+DATAPROC_BUCKET=$(curl -f -s -H Metadata-Flavor:Google http://metadata/computeMetadata/v1/instance/attributes/dataproc-bucket)
 
 echo "Cloning fresh dataproc-initialization-actions from repo $INIT_ACTIONS_REPO and branch $INIT_ACTIONS_BRANCH..."
 git clone -b "$INIT_ACTIONS_BRANCH" --single-branch $INIT_ACTIONS_REPO
@@ -16,7 +16,9 @@ git clone -b "$INIT_ACTIONS_BRANCH" --single-branch $INIT_ACTIONS_REPO
 
 source /etc/profile.d/conda_config.sh
 if [[ "${ROLE}" == 'Master' ]]; then
-    conda install jupyter
+    apt-get install -y python-matplotlib libfreetype6-dev pkg-config
+    conda install jupyter ipython matplotlib jsonschema jinja2 terminado tornado protobuf pandas seaborn scikit-learn
+    pip install -U palettable pylab 
     if gsutil -q stat "gs://$DATAPROC_BUCKET/notebooks/**"; then
         echo "Pulling notebooks directory to cluster master node..."
         gsutil -m cp -r gs://$DATAPROC_BUCKET/notebooks /root/
