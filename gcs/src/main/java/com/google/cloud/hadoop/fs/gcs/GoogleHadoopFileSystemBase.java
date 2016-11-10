@@ -64,454 +64,539 @@ import org.slf4j.LoggerFactory;
 /**
  * This class provides a Hadoop compatible File System on top of Google Cloud Storage (GCS).
  *
- * It is implemented as a thin abstraction layer on top of GCS.
- * The layer hides any specific characteristics of the underlying store and exposes FileSystem
- * interface understood by the Hadoop engine.
- * <p>
- * Users interact with the files in the storage using fully qualified URIs.
- * The file system exposed by this class is identified using the 'gs' scheme.
- * For example, {@code gs://dir1/dir2/file1.txt}.
- * <p>
- * This implementation translates paths between hadoop Path and GCS URI with the convention that
+ * <p>It is implemented as a thin abstraction layer on top of GCS. The layer hides any specific
+ * characteristics of the underlying store and exposes FileSystem interface understood by the Hadoop
+ * engine.
+ *
+ * <p>Users interact with the files in the storage using fully qualified URIs. The file system
+ * exposed by this class is identified using the 'gs' scheme. For example, {@code
+ * gs://dir1/dir2/file1.txt}.
+ *
+ * <p>This implementation translates paths between hadoop Path and GCS URI with the convention that
  * the Hadoop root directly corresponds to the GCS "root", e.g. gs:/. This is convenient for many
  * reasons, such as data portability and close equivalence to gsutil paths, but imposes certain
  * inherited constraints, such as files not being allowed in root (only 'directories' can be placed
  * in root), and directory names inside root have a more limited set of allowed characters.
- * <p>
- * One of the main goals of this implementation is to maintain compatibility
- * with behavior of HDFS implementation when accessed through FileSystem interface.
- * HDFS implementation is not very consistent about the cases when it throws versus
- * the cases when methods return false. We run GHFS tests and HDFS tests against the
- * same test data and use that as a guide to decide whether to throw or to
- * return false.
+ *
+ * <p>One of the main goals of this implementation is to maintain compatibility with behavior of
+ * HDFS implementation when accessed through FileSystem interface. HDFS implementation is not very
+ * consistent about the cases when it throws versus the cases when methods return false. We run GHFS
+ * tests and HDFS tests against the same test data and use that as a guide to decide whether to
+ * throw or to return false.
  */
-public abstract class GoogleHadoopFileSystemBase
-    extends FileSystem implements FileSystemDescriptor {
-  // Logger.
+public abstract class GoogleHadoopFileSystemBase extends FileSystem
+    implements FileSystemDescriptor {
+  /** Logger. */
   public static final Logger LOG = LoggerFactory.getLogger(GoogleHadoopFileSystemBase.class);
 
-  // Default value of replication factor.
+  /** Default value of replication factor. */
   public static final short REPLICATION_FACTOR_DEFAULT = 3;
 
-  // We report this value as a file's owner/group name.
+  /** We report this value as a file's owner/group name. */
   private static final String USER_NAME = System.getProperty("user.name");
 
-  // Splitter for list values stored in a single configuration value
+  /** Splitter for list values stored in a single configuration value */
   private static final Splitter CONFIGURATION_SPLITTER = Splitter.on(',');
 
   // -----------------------------------------------------------------
   // Configuration settings.
+  //-----------------------------------------------------------------
 
-  // Key for the permissions that we report a file or directory to have.
-  // Can either be octal or symbolic mode accepted by {@link FsPermission#FromString(String)}
+  /**
+   * Key for the permissions that we report a file or directory to have. Can either be octal or
+   * symbolic mode accepted by {@link FsPermission#FromString(String)}
+   */
   public static final String PERMISSIONS_TO_REPORT_KEY = "fs.gs.reported.permissions";
 
-  // Default value for the permissions that we report a file or directory to have.
-  // Note:
-  // We do not really support file/dir permissions but we need to
-  // report some permission value when Hadoop calls getFileStatus().
-  // A MapReduce job fails if we report permissions more relaxed than
-  // the value below and this is the default File System.
+  /**
+   * Default value for the permissions that we report a file or directory to have. Note: We do not
+   * really support file/dir permissions but we need to report some permission value when Hadoop
+   * calls getFileStatus(). A MapReduce job fails if we report permissions more relaxed than the
+   * value below and this is the default File System.
+   */
   public static final String PERMISSIONS_TO_REPORT_DEFAULT = "700";
 
-  // Configuration key for setting IO buffer size.
+  /** Configuration key for setting IO buffer size. */
   // TODO(user): rename the following to indicate that it is read buffer size.
   public static final String BUFFERSIZE_KEY = "fs.gs.io.buffersize";
 
-  // Hadoop passes 4096 bytes as buffer size which causes poor perf.
-  // Default value of fs.gs.io.buffersize.
+  /**
+   * Hadoop passes 4096 bytes as buffer size which causes poor perf. Default value of {@link
+   * GoogleHadoopFileSystemBase#BUFFERSIZE_KEY}.
+   */
   public static final int BUFFERSIZE_DEFAULT = 8 * 1024 * 1024;
 
-  // Configuration key for setting write buffer size.
+  /** Configuration key for setting write buffer size. */
   public static final String WRITE_BUFFERSIZE_KEY = "fs.gs.io.buffersize.write";
 
-  // Default value of fs.gs.io.buffersize.write.
+  /** Default value of {@link GoogleHadoopFileSystemBase#WRITE_BUFFERSIZE_KEY}. */
   // chunk size etc. Get the following value from GCSWC class in a better way. For now, we hard code
   // it to a known good value.
   public static final int WRITE_BUFFERSIZE_DEFAULT = 64 * 1024 * 1024;
 
-  // Configuration key for default block size of a file.
+  /** Configuration key for default block size of a file. */
   public static final String BLOCK_SIZE_KEY = "fs.gs.block.size";
 
-  // Default value of fs.gs.block.size.
+  /** Default value of {@link GoogleHadoopFileSystemBase#BLOCK_SIZE_KEY}. */
   public static final int BLOCK_SIZE_DEFAULT = 64 * 1024 * 1024;
 
-  // Prefix to use for common authentication keys
+  /** Prefix to use for common authentication keys. */
   public static final String AUTHENTICATION_PREFIX = "fs.gs";
 
-  // Configuration key for enabling GCE service account authentication.
-  // This key is deprecated. See HadoopCredentialConfiguration for current key names.
-  public static final String ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY  =
+  /**
+   * Configuration key for enabling GCE service account authentication. This key is deprecated. See
+   * {@link HadoopCredentialConfiguration} for current key names.
+   */
+  public static final String ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY =
       "fs.gs.enable.service.account.auth";
 
-  // Configuration key specifying the email address of the service-account with which to
-  // authenticate. Only required if fs.gs.enable.service.account.auth is true AND we're using
-  // fs.gs.service.account.auth.keyfile to authenticate with a private keyfile.
-  // NB: Once GCE supports setting multiple service account email addresses for metadata auth,
-  // this key will also be used in the metadata auth flow.
-  // This key is deprecated. See HadoopCredentialConfiguration for current key names.
-  public static final String SERVICE_ACCOUNT_AUTH_EMAIL_KEY  =
-      "fs.gs.service.account.auth.email";
+  /**
+   * Configuration key specifying the email address of the service-account with which to
+   * authenticate. Only required if {@link
+   * GoogleHadoopFileSystemBase#ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY} is true AND we're using
+   * fs.gs.service.account.auth.keyfile to authenticate with a private keyfile. NB: Once GCE
+   * supports setting multiple service account email addresses for metadata auth, this key will also
+   * be used in the metadata auth flow. This key is deprecated. See {@link
+   * HadoopCredentialConfiguration} for current key names.
+   */
+  public static final String SERVICE_ACCOUNT_AUTH_EMAIL_KEY = "fs.gs.service.account.auth.email";
 
-  // Configuration key specifying local file containing a service-account private .p12 keyfile.
-  // Only used if fs.gs.enable.service.account.auth is true; if provided, the keyfile will be used
-  // for service-account authentication. Otherwise, it is assumed that we are on a GCE VM with
-  // metadata-authentication for service-accounts enabled, and the metadata server will be used
-  // instead.
-  // Default value: none
-  // This key is deprecated. See HadoopCredentialConfiguration for current key names.
-  public static final String SERVICE_ACCOUNT_AUTH_KEYFILE_KEY  =
+  /**
+   * Configuration key specifying local file containing a service-account private .p12 keyfile. Only
+   * used if {@link GoogleHadoopFileSystemBase#ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY} is true; if
+   * provided, the keyfile will be used for service-account authentication. Otherwise, it is assumed
+   * that we are on a GCE VM with metadata-authentication for service-accounts enabled, and the
+   * metadata server will be used instead. Default value: none This key is deprecated. See {@link
+   * HadoopCredentialConfiguration} for current key names.
+   */
+  public static final String SERVICE_ACCOUNT_AUTH_KEYFILE_KEY =
       "fs.gs.service.account.auth.keyfile";
 
-  // Configuration key for GCS project ID.
-  // Default value: none
-  public static final String GCS_PROJECT_ID_KEY  = "fs.gs.project.id";
+  /** Configuration key for GCS project ID. Default value: none */
+  public static final String GCS_PROJECT_ID_KEY = "fs.gs.project.id";
 
-  // Configuration key for GCS client ID.
-  // Required if fs.gs.enable.service.account.auth == false.
-  // Default value: none
-  // This key is deprecated. See HadoopCredentialConfiguration for current key names.
+  /**
+   * Configuration key for GCS client ID. Required if {@link
+   * GoogleHadoopFileSystemBase#ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY} == false. Default value: none
+   * This key is deprecated. See {@link HadoopCredentialConfiguration} for current key names.
+   */
   public static final String GCS_CLIENT_ID_KEY = "fs.gs.client.id";
 
-  // Configuration key for GCS client secret.
-  // Required if fs.gs.enable.service.account.auth == false.
-  // Default value: none
-  // This key is deprecated. See HadoopCredentialConfiguration for current key names.
+  /**
+   * Configuration key for GCS client secret. Required if {@link
+   * GoogleHadoopFileSystemBase#ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY} == false. Default value: none
+   * This key is deprecated. See HadoopCredentialConfiguration for current key names.
+   */
   public static final String GCS_CLIENT_SECRET_KEY = "fs.gs.client.secret";
 
-  // Configuration key for system bucket name. It is a fall back for the
-  // rootBucket of GoogleHadoopFileSystem in gs:///path URIs .
-  // Default value: none
-  // This key is deprecated. Always init the FileSystem with a bucket.
+  /**
+   * Configuration key for system bucket name. It is a fall back for the rootBucket of
+   * GoogleHadoopFileSystem in gs:///path URIs . Default value: none This key is deprecated. Always
+   * init the FileSystem with a bucket.
+   */
   public static final String GCS_SYSTEM_BUCKET_KEY = "fs.gs.system.bucket";
 
-  // Configuration key for flag to indicate whether system bucket should be created
-  // if it does not exist.
-  // This key is deprecated. See GCS_SYSTEM_BUCKET_KEY.
+  /**
+   * Configuration key for flag to indicate whether system bucket should be created if it does not
+   * exist. This key is deprecated. See {@link GoogleHadoopFileSystemBase#GCS_SYSTEM_BUCKET_KEY}.
+   */
   public static final String GCS_CREATE_SYSTEM_BUCKET_KEY = "fs.gs.system.bucket.create";
 
-  // Default value of fs.gs.system.bucket.create.
+  /** Default value of {@link GoogleHadoopFileSystemBase#GCS_CREATE_SYSTEM_BUCKET_KEY}. */
   public static final boolean GCS_CREATE_SYSTEM_BUCKET_DEFAULT = true;
 
-  // Configuration key for initial working directory of a GHFS instance.
-  // Default value: '/'
+  /** Configuration key for initial working directory of a GHFS instance. Default value: '/' */
   public static final String GCS_WORKING_DIRECTORY_KEY = "fs.gs.working.dir";
 
-  // Configuration key for setting 250GB upper limit on file size to gain higher write throughput.
+  /**
+   * Configuration key for setting 250GB upper limit on file size to gain higher write throughput.
+   */
   // TODO(user): remove it once blobstore supports high throughput without limiting size.
   public static final String GCS_FILE_SIZE_LIMIT_250GB = "fs.gs.file.size.limit.250gb";
 
-  // Default value of fs.gs.file.size.limit.250gb.
+  /** Default value of {@link GoogleHadoopFileSystemBase#GCS_FILE_SIZE_LIMIT_250GB}. */
   public static final boolean GCS_FILE_SIZE_LIMIT_250GB_DEFAULT = false;
 
-  // Configuration key for using a local metadata cache to supplement GCS API "list" results;
-  // this allows same-client create() to immediately be visible to a subsequent list() call.
+  /**
+   * Configuration key for using a local metadata cache to supplement GCS API "list" results; this
+   * allows same-client create() to immediately be visible to a subsequent list() call.
+   */
   public static final String GCS_ENABLE_METADATA_CACHE_KEY = "fs.gs.metadata.cache.enable";
 
-  // Default value for fs.gs.metadata.cache.enable.
+  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_ENABLE_METADATA_CACHE_KEY}. */
   public static final boolean GCS_ENABLE_METADATA_CACHE_DEFAULT = true;
 
-  // Configuration key for whether or not we should update timestamps for parent directories
-  // when we create new files in them.
+  /**
+   * Configuration key for whether or not we should update timestamps for parent directories when we
+   * create new files in them.
+   */
   public static final String GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY =
       "fs.gs.parent.timestamp.update.enable";
 
-  // Default value for fs.gs.parent.timestamp.update.enable.
+  /**
+   * Default value for {@link GoogleHadoopFileSystemBase#GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY}.
+   */
   public static final boolean GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_DEFAULT = true;
 
-  // Configuration key for specifying which implementation of DirectoryListCache to use for
-  // supplementing GCS API "list" results. Supported implementations:
-  // IN_MEMORY: Enforces immediate consistency within same Java process.
-  // FILESYSTEM_BACKED: Enforces consistency across all cooperating processes pointed at the same
-  //     local mirror directory, which may be an NFS directory for distributed coordination.
+  /**
+   * Configuration key for specifying which implementation of DirectoryListCache to use for
+   * supplementing GCS API "list" results. Supported implementations:
+   *
+   * <p>IN_MEMORY: Enforces immediate consistency within same Java process.
+   *
+   * <p>FILESYSTEM_BACKED: Enforces consistency across all cooperating processes pointed at the same
+   * local mirror directory, which may be an NFS directory for distributed coordination.
+   */
   public static final String GCS_METADATA_CACHE_TYPE_KEY = "fs.gs.metadata.cache.type";
 
-  // Default value for fs.gs.metadata.cache.type.
+  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_METADATA_CACHE_TYPE_KEY}. */
   public static final String GCS_METADATA_CACHE_TYPE_DEFAULT = "IN_MEMORY";
 
-  // Only used if fs.gs.metadata.cache.type is FILESYSTEM_BACKED, specifies the local path to
-  // use as the base path for storing mirrored GCS metadata. Must be an absolute path, must be
-  // a directory, and must be fully readable/writable/executable by any user running processes
-  // which use the GCS connector.
+  /**
+   * Only used if fs.gs.metadata.cache.type is FILESYSTEM_BACKED, specifies the local path to use as
+   * the base path for storing mirrored GCS metadata. Must be an absolute path, must be a directory,
+   * and must be fully readable/writable/executable by any user running processes which use the GCS
+   * connector.
+   */
   public static final String GCS_METADATA_CACHE_DIRECTORY_KEY = "fs.gs.metadata.cache.directory";
 
-  // Default value for fs.gs.metadata.cache.directory.
+  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_METADATA_CACHE_DIRECTORY_KEY}. */
   public static final String GCS_METADATA_CACHE_DIRECTORY_DEFAULT =
       "/tmp/gcs_connector_metadata_cache";
 
-  // Maximum number of milliseconds a cache entry will remain in the list-consistency cache, even
-  // as an id-only entry (no risk of stale GoogleCloudStorageItemInfo). In general, entries should
-  // be allowed to expire fully from the cache once reasonably certain the remote GCS API's
-  // list-index is up-to-date to save memory and computation when trying to supplement new results
-  // using the cache.
+  /**
+   * Maximum number of milliseconds a cache entry will remain in the list-consistency cache, even as
+   * an id-only entry (no risk of stale GoogleCloudStorageItemInfo). In general, entries should be
+   * allowed to expire fully from the cache once reasonably certain the remote GCS API's list-index
+   * is up-to-date to save memory and computation when trying to supplement new results using the
+   * cache.
+   */
   public static final String GCS_METADATA_CACHE_MAX_ENTRY_AGE_KEY =
       "fs.gs.metadata.cache.max.age.entry.ms";
 
-  // Default value for fs.gs.metadata.cache.max.age.entry.ms.
+  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_METADATA_CACHE_MAX_ENTRY_AGE_KEY}. */
   public static final long GCS_METADATA_CACHE_MAX_ENTRY_AGE_DEFAULT =
       DirectoryListCache.Config.MAX_ENTRY_AGE_MILLIS_DEFAULT;
 
-  // Maximum number of milliseconds a GoogleCloudStorageItemInfo will remain "valid" in the
-  // list-consistency cache, after which the next attempt to fetch the itemInfo will require
-  // fetching fresh info from a GoogleCloudStorage instance.
+  /**
+   * Maximum number of milliseconds a GoogleCloudStorageItemInfo will remain "valid" in the
+   * list-consistency cache, after which the next attempt to fetch the itemInfo will require
+   * fetching fresh info from a GoogleCloudStorage instance.
+   */
   public static final String GCS_METADATA_CACHE_MAX_INFO_AGE_KEY =
       "fs.gs.metadata.cache.max.age.info.ms";
 
-  // Default value for fs.gs.metadata.cache.max.age.info.ms.
+  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_METADATA_CACHE_MAX_INFO_AGE_KEY}. */
   public static final long GCS_METADATA_CACHE_MAX_INFO_AGE_DEFAULT =
       DirectoryListCache.Config.MAX_INFO_AGE_MILLIS_DEFAULT;
 
-  // Configuration key containing a comma-separated list of sub-strings that when matched will
-  // cause a particular directory to not have its modification timestamp updated.
-  // Includes take precedence over excludes.
+  /**
+   * Configuration key containing a comma-separated list of sub-strings that when matched will cause
+   * a particular directory to not have its modification timestamp updated. Includes take precedence
+   * over excludes.
+   */
   public static final String GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY =
       "fs.gs.parent.timestamp.update.substrings.excludes";
 
-  // Default value for fs.gs.parent.timestamp.updating.substrings.exclude
-  public static final String GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_DEFAULT =
-      "/";
+  /**
+   * Default value for {@link GoogleHadoopFileSystemBase#GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY}.
+   */
+  public static final String GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_DEFAULT = "/";
 
-  // Configuration key for the MR intermediate done dir.
+  /** Configuration key for the MR intermediate done dir. */
   public static final String MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY =
       "mapreduce.jobhistory.intermediate-done-dir";
 
-  // Configuration key of the MR done directory.
-  public static final String MR_JOB_HISTORY_DONE_DIR_KEY =
-      "mapreduce.jobhistory.done-dir";
+  /** Configuration key of the MR done directory. */
+  public static final String MR_JOB_HISTORY_DONE_DIR_KEY = "mapreduce.jobhistory.done-dir";
 
-  // Configuration key containing a comma-separated list of sub-strings that when matched will
-  // cause a particular directory to have its modification timestamp updated.
-  // Includes take precedence over excludes.
+  /**
+   * Configuration key containing a comma-separated list of sub-strings that when matched will cause
+   * a particular directory to have its modification timestamp updated. Includes take precedence
+   * over excludes.
+   */
   public static final String GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY =
       "fs.gs.parent.timestamp.update.substrings.includes";
 
-  // Default value for fs.gs.parent.timestamp.updating.substrings.include
+  /**
+   * Default value for {@link GoogleHadoopFileSystemBase#GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY}.
+   */
   public static final String GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_DEFAULT =
       String.format(
-          "${%s},${%s}",
-          MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY,
-          MR_JOB_HISTORY_DONE_DIR_KEY);
+          "${%s},${%s}", MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY, MR_JOB_HISTORY_DONE_DIR_KEY);
 
-  // Configuration key for enabling automatic repair of implicit directories whenever detected
-  // inside listStatus and globStatus calls, or other methods which may indirectly call listStatus
-  // and/or globaStatus.
+  /**
+   * Configuration key for enabling automatic repair of implicit directories whenever detected
+   * inside listStatus and globStatus calls, or other methods which may indirectly call listStatus
+   * and/or globaStatus.
+   */
   public static final String GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY =
       "fs.gs.implicit.dir.repair.enable";
 
-  // Default value for fs.gs.implicit.dir.repair.enable.
+  /**
+   * Default value for {@link
+   * GoogleHadoopFileSystemBase#GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY}.
+   */
   public static final boolean GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT = true;
 
-  // Configuration key for changing the path codec from legacy to 'uri path encoding'.
+  /** Configuration key for changing the path codec from legacy to 'uri path encoding'. */
   public static final String PATH_CODEC_KEY = "fs.gs.path.encoding";
-  // Use new URI_ENCODED_PATH_CODEC
+
+  /** Use new URI_ENCODED_PATH_CODEC. */
   public static final String PATH_CODEC_USE_URI_ENCODING = "uri-path";
-  // Use LEGACY_PATH_CODEC
+
+  /** Use LEGACY_PATH_CODEC. */
   public static final String PATH_CODEC_USE_LEGACY_ENCODING = "legacy";
-  // Use the default path codec.
+
+  /** Use the default path codec. */
   public static final String PATH_CODEC_DEFAULT = PATH_CODEC_USE_LEGACY_ENCODING;
 
-  // Instance value of fs.gs.implicit.dir.repair.enable based on the initial Configuration.
+  /**
+   * Instance value of {@link GoogleHadoopFileSystemBase#GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY}
+   * based on the initial Configuration.
+   */
   private boolean enableAutoRepairImplicitDirectories =
       GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT;
 
-  // Configuration key for enabling automatic inference of implicit directories.
-  // If set, we create and return in-memory directory objects on the fly when
-  // no backing object exists, but we know there are files with the same prefix.
-  // The ENABLE_REPAIR flag takes precedence over this flag: if both are set,
-  // the repair is attempted, and only if it fails does the setting of this
-  // flag kick in.
+  /**
+   * Configuration key for enabling automatic inference of implicit directories. If set, we create
+   * and return in-memory directory objects on the fly when no backing object exists, but we know
+   * there are files with the same prefix. The ENABLE_REPAIR flag takes precedence over this flag:
+   * if both are set, the repair is attempted, and only if it fails does the setting of this flag
+   * kick in.
+   */
   public static final String GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY =
       "fs.gs.implicit.dir.infer.enable";
 
-  // Default value for fs.gs.implicit.dir.infer.enable.
+  /**
+   * Default value for {@link GoogleHadoopFileSystemBase#GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY}.
+   */
   public static final boolean GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_DEFAULT = true;
 
-  // Instance value of fs.gs.implicit.dir.infer.enable
-  // based on the initial Configuration.
-  private boolean enableInferImplicitDirectories =
-      GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_DEFAULT;
+  /**
+   * Instance value of {@link GoogleHadoopFileSystemBase#GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY}
+   * based on the initial Configuration.
+   */
+  private boolean enableInferImplicitDirectories = GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_DEFAULT;
 
-  // Configuration key for enabling the use of a large flat listing to pre-populate possible
-  // glob matches in a single API call before running the core globbing logic in-memory rather
-  // than sequentially and recursively performing API calls.
+  /**
+   * Configuration key for enabling the use of a large flat listing to pre-populate possible glob
+   * matches in a single API call before running the core globbing logic in-memory rather than
+   * sequentially and recursively performing API calls.
+   */
   public static final String GCS_ENABLE_FLAT_GLOB_KEY = "fs.gs.glob.flatlist.enable";
 
-  // Default value for fs.gs.glob.flatlist.enable.
+  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_ENABLE_FLAT_GLOB_KEY}. */
   public static final boolean GCS_ENABLE_FLAT_GLOB_DEFAULT = true;
 
-  // Configuration key for enabling the use of marker files during file creation. When running
-  // non-MR applications that make use of the FileSystem, it is a idea to enable marker files
-  // to better mimic HDFS overwrite and locking behavior.
+  /**
+   * Configuration key for enabling the use of marker files during file creation. When running
+   * non-MR applications that make use of the FileSystem, it is a idea to enable marker files to
+   * better mimic HDFS overwrite and locking behavior.
+   */
   public static final String GCS_ENABLE_MARKER_FILE_CREATION_KEY =
       "fs.gs.create.marker.files.enable";
 
-  // Default value for fs.gs.create.marker.files.enable
+  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_ENABLE_MARKER_FILE_CREATION_KEY}. */
   public static final boolean GCS_ENABLE_MARKER_FILE_CREATION_DEFAULT = false;
 
-  // Configuration key for setting a proxy for the connector to use to connect to GCS.
-  // The proxy must be an HTTP proxy of the form "host:port".
+  /**
+   * Configuration key for setting a proxy for the connector to use to connect to GCS. The proxy
+   * must be an HTTP proxy of the form "host:port".
+   */
   public static final String GCS_PROXY_ADDRESS_KEY = "fs.gs.proxy.address";
 
-  // Default to no proxy.
+  /** Default to no proxy. */
   public static final String GCS_PROXY_ADDRESS_DEFAULT = null;
 
-  // Configuration key for the name of HttpTransport class to use for connecting to GCS.
-  // Must be the name of an HttpTransportFactory.HttpTransportType (APACHE or JAVA_NET).
+  /**
+   * Configuration key for the name of HttpTransport class to use for connecting to GCS. Must be the
+   * name of an HttpTransportFactory.HttpTransportType (APACHE or JAVA_NET).
+   */
   public static final String GCS_HTTP_TRANSPORT_KEY = "fs.gs.http.transport.type";
 
-  // Default to the default specified in HttpTransportFactory.
+  /** Default to the default specified in HttpTransportFactory. */
   public static final String GCS_HTTP_TRANSPORT_DEFAULT = null;
 
-  // Configuration key for adding a suffix to the GHFS application name sent to GCS.
+  /** Configuration key for adding a suffix to the GHFS application name sent to GCS. */
   public static final String GCS_APPLICATION_NAME_SUFFIX_KEY = "fs.gs.application.name.suffix";
 
-  // Default suffix to add to the application name.
+  /** Default suffix to add to the application name. */
   public static final String GCS_APPLICATION_NAME_SUFFIX_DEFAULT = "";
 
-  // Configuration key for which type of output stream to use; different options may have different
-  // degrees of support for advanced features like hsync() and different performance
-  // characteristics. Options:
-  // BASIC: Stream is closest analogue to direct wrapper around low-level HTTP stream into GCS.
-  // SYNCABLE_COMPOSITE: Stream behaves similarly to BASIC when used with basic create/write/close
-  //     patterns, but supports hsync() by creating discrete temporary GCS objects which are
-  //     composed onto the destination object. Has a hard upper limit of number of components
-  //     which can be composed onto the destination object.
+  /**
+   * Configuration key for which type of output stream to use; different options may have different
+   * degrees of support for advanced features like hsync() and different performance
+   * characteristics. Options:
+   *
+   * <p>BASIC: Stream is closest analogue to direct wrapper around low-level HTTP stream into GCS.
+   *
+   * <p>SYNCABLE_COMPOSITE: Stream behaves similarly to BASIC when used with basic
+   * create/write/close patterns, but supports hsync() by creating discrete temporary GCS objects
+   * which are composed onto the destination object. Has a hard upper limit of number of components
+   * which can be composed onto the destination object.
+   */
   public static final String GCS_OUTPUTSTREAM_TYPE_KEY = "fs.gs.outputstream.type";
 
-  // Default value for fs.gs.outputstream.type.
+  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_OUTPUTSTREAM_TYPE_KEY}. */
   public static final String GCS_OUTPUTSTREAM_TYPE_DEFAULT = "BASIC";
 
-  /**
-   * Available types for use with fs.gs.outputstream.type.
-   */
+  /** Available types for use with {@link GoogleHadoopFileSystemBase#GCS_OUTPUTSTREAM_TYPE_KEY}. */
   public static enum OutputStreamType {
     BASIC,
     SYNCABLE_COMPOSITE
   }
 
-  // If true, the returned FSDataInputStream from the open(Path) method will hold an internal
-  // ByteBuffer of size fs.gs.io.buffersize which it pre-fills on each read, and can efficiently
-  // seek within the internal buffer. Otherwise, calls are delegated straight through to a lower
-  // level channel and the value of fs.gs.io.buffersize is passed through for the lower-level
-  // channel to interpret as it sees fit.
+  /**
+   * If true, the returned FSDataInputStream from the open(Path) method will hold an internal
+   * ByteBuffer of size fs.gs.io.buffersize which it pre-fills on each read, and can efficiently
+   * seek within the internal buffer. Otherwise, calls are delegated straight through to a lower
+   * level channel and the value of {@link GoogleHadoopFileSystemBase#BUFFERSIZE_KEY} is passed
+   * through for the lower-level channel to interpret as it sees fit.
+   */
   public static final String GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_KEY =
       "fs.gs.inputstream.internalbuffer.enable";
 
-  // Default value for fs.gs.inputstream.internalbuffer.enable.
+  /**
+   * Default value for {@link GoogleHadoopFileSystemBase#GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_KEY}.
+   */
   public static final boolean GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_DEFAULT = false;
 
-  // If true, input streams will proactively check the "content-encoding" header of underlying
-  // objects during reads for special handling of cases where content-encoding causes the
-  // reported object sizes to not match the actual number of read bytes due to the content
-  // being decoded in-transit; such encoded objects also aren't suitable for splitting or
-  // resuming on failure, so the underlying channel will restart from byte 0 and discard the
-  // requisite number of bytes to seek to a desired position or resume in such cases. In
-  // general, content-encoded objects are *not* well-suited for FileSystem-style access, and
-  // will break most of the split computations in the Hadoop subsystem anyways. To avoid
-  // paying the cost of an extra metadata GET on every single opened channel in the usual case
-  // where no content-encoded objects are present, it may be desirable to set this to 'false'.
+  /**
+   * If true, input streams will proactively check the "content-encoding" header of underlying
+   * objects during reads for special handling of cases where content-encoding causes the reported
+   * object sizes to not match the actual number of read bytes due to the content being decoded
+   * in-transit; such encoded objects also aren't suitable for splitting or resuming on failure, so
+   * the underlying channel will restart from byte 0 and discard the requisite number of bytes to
+   * seek to a desired position or resume in such cases. In general, content-encoded objects are
+   * *not* well-suited for FileSystem-style access, and will break most of the split computations in
+   * the Hadoop subsystem anyways. To avoid paying the cost of an extra metadata GET on every single
+   * opened channel in the usual case where no content-encoded objects are present, it may be
+   * desirable to set this to 'false'.
+   */
   public static final String GCS_INPUTSTREAM_SUPPORT_CONTENT_ENCODING_ENABLE_KEY =
       "fs.gs.inputstream.support.content.encoding.enable";
 
-  // Default value for fs.gs.inputstream.support.content.encoding.enable.
+  /**
+   * Default value for {@link
+   * GoogleHadoopFileSystemBase#GCS_INPUTSTREAM_SUPPORT_CONTENT_ENCODING_ENABLE_KEY}.
+   */
   public static final boolean GCS_INPUTSTREAM_SUPPORT_CONTENT_ENCODING_ENABLE_DEFAULT = true;
 
-  // If true, on opening a file we will proactively perform a metadata GET to check whether
-  // the object exists, even though the underlying channel will not open a data stream
-  // until read() is actually called so that streams can seek to nonzero file positions
-  // without incurring an extra stream creation. This is necessary to technically match the
-  // expected behavior of Hadoop filesystems, but incurs extra latency overhead on open().
-  // If the calling code can handle late failures on not-found errors, or has independently
-  // already ensured that a file exists before calling open(), then set this to false for
-  // more efficient reads.
+  /**
+   * If true, on opening a file we will proactively perform a metadata GET to check whether the
+   * object exists, even though the underlying channel will not open a data stream until read() is
+   * actually called so that streams can seek to nonzero file positions without incurring an extra
+   * stream creation. This is necessary to technically match the expected behavior of Hadoop
+   * filesystems, but incurs extra latency overhead on open(). If the calling code can handle late
+   * failures on not-found errors, or has independently already ensured that a file exists before
+   * calling open(), then set this to false for more efficient reads.
+   */
   public static final String GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY =
       "fs.gs.inputstream.fast.fail.on.not.found.enable";
 
-  // Default value for fs.gs.inputstream.fast.fail.on.not.found.enable.
+  /**
+   * Default value for {@link
+   * GoogleHadoopFileSystemBase#GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY}.
+   */
   public static final boolean GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_DEFAULT = true;
 
-  // If forward seeks are within this many bytes of the current position, seeks are performed
-  // by reading and discarding bytes in-place rather than opening a new underlying stream.
+  /**
+   * If forward seeks are within this many bytes of the current position, seeks are performed by
+   * reading and discarding bytes in-place rather than opening a new underlying stream.
+   */
   public static final String GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY =
       "fs.gs.inputstream.inplace.seek.limit";
 
-  // Default value for fs.gs.inputstream.inplace.seek.limit.
+  /**
+   * Default value for {@link GoogleHadoopFileSystemBase#GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY}.
+   */
   public static final long GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_DEFAULT = 8 * 1024 * 1024L;
 
-  // If true, recursive delete on a path that refers to a GCS bucket itself ('/' for
-  // any bucket-rooted GoogleHadoopFileSystem) or delete on that path when it's empty
-  // will result in fully deleting the GCS bucket. If false, any operation that normally
-  // would have deleted the bucket will be ignored instead. Setting to 'false' preserves
-  // the typical behavior of "rm -rf /" which translates to deleting everything inside
-  // of root, but without clobbering the filesystem authority corresponding to that root
-  // path in the process.
+  /**
+   * If true, recursive delete on a path that refers to a GCS bucket itself ('/' for any
+   * bucket-rooted GoogleHadoopFileSystem) or delete on that path when it's empty will result in
+   * fully deleting the GCS bucket. If false, any operation that normally would have deleted the
+   * bucket will be ignored instead. Setting to 'false' preserves the typical behavior of "rm -rf /"
+   * which translates to deleting everything inside of root, but without clobbering the filesystem
+   * authority corresponding to that root path in the process.
+   */
   public static final String GCE_BUCKET_DELETE_ENABLE_KEY = "fs.gs.bucket.delete.enable";
 
-  // Default value for fs.gs.bucket.delete.enable.
+  /** Default value for {@link GoogleHadoopFileSystemBase#GCE_BUCKET_DELETE_ENABLE_KEY}. */
   public static final boolean GCE_BUCKET_DELETE_ENABLE_DEFAULT = false;
 
-  // Default PathFilter that accepts all paths.
-  public static final PathFilter DEFAULT_FILTER = new PathFilter() {
-    @Override
-    public boolean accept(Path path) {
-      return true;
-    }
-  };
+  /** Default PathFilter that accepts all paths. */
+  public static final PathFilter DEFAULT_FILTER =
+      new PathFilter() {
+        @Override
+        public boolean accept(Path path) {
+          return true;
+        }
+      };
 
-  // A resource file containing GCS related build properties.
+  /** A resource file containing GCS related build properties. */
   public static final String PROPERTIES_FILE = "gcs.properties";
 
-  // The key in the PROPERTIES_FILE that contains the version built.
+  /** The key in the PROPERTIES_FILE that contains the version built. */
   public static final String VERSION_PROPERTY = "gcs.connector.version";
 
-  // The version returned when one cannot be found in properties.
+  /** The version returned when one cannot be found in properties. */
   public static final String UNKNOWN_VERSION = "0.0.0";
 
-  // Current version.
+  /** Current version. */
   public static final String VERSION;
 
-  // Identifies this version of the GoogleHadoopFileSystemBase library.
+  /** Identifies this version of the GoogleHadoopFileSystemBase library. */
   public static final String GHFS_ID;
 
   static {
-    VERSION = PropertyUtil.getPropertyOrDefault(
-        GoogleHadoopFileSystemBase.class, PROPERTIES_FILE, VERSION_PROPERTY, UNKNOWN_VERSION);
+    VERSION =
+        PropertyUtil.getPropertyOrDefault(
+            GoogleHadoopFileSystemBase.class, PROPERTIES_FILE, VERSION_PROPERTY, UNKNOWN_VERSION);
     LOG.info("GHFS version: {}", VERSION);
     GHFS_ID = String.format("GHFS/%s", VERSION);
   }
 
-  // Instance value of fs.gs.glob.flatlist.enable based on the initial Configuration.
+  /**
+   * Instance value of {@link GoogleHadoopFileSystemBase#GCS_ENABLE_FLAT_GLOB_KEY} based on the
+   * initial Configuration.
+   */
   private boolean enableFlatGlob = GCS_ENABLE_FLAT_GLOB_DEFAULT;
 
-  //The URI the File System is passed in initialize.
+  /** The URI the File System is passed in initialize. */
   protected URI initUri;
 
-  // The retrieved configuration value for fs.gs.system.bucket.
-  // Used as a fallback for a root bucket, when required.
-  @Deprecated
-  protected String systemBucket;
+  /**
+   * The retrieved configuration value for {@link GoogleHadoopFileSystemBase#GCS_SYSTEM_BUCKET_KEY}.
+   * Used as a fallback for a root bucket, when required.
+   */
+  @Deprecated protected String systemBucket;
 
-  // Underlying GCS file system object.
+  /** Underlying GCS file system object. */
   protected GoogleCloudStorageFileSystem gcsfs;
 
-  // Current working directory; overridden in initialize() if fs.gs.working.dir is set.
+  /**
+   * Current working directory; overridden in initialize() if {@link
+   * GoogleHadoopFileSystemBase#GCS_WORKING_DIRECTORY_KEY} is set.
+   */
   private Path workingDirectory;
 
-  // Buffer size to use instead of what Hadoop passed.
+  /** Buffer size to use instead of what Hadoop passed. */
   private int bufferSizeOverride = BUFFERSIZE_DEFAULT;
 
-  // Default block size.
-  // Note that this is the size that is reported to Hadoop FS clients.
-  // It does not modify the actual block size of an underlying GCS object,
-  // because GCS JSON API does not allow modifying or querying the value.
-  // Modifying this value allows one to control how many mappers are used
-  // to process a given file.
+  /**
+   * Default block size. Note that this is the size that is reported to Hadoop FS clients. It does
+   * not modify the actual block size of an underlying GCS object, because GCS JSON API does not
+   * allow modifying or querying the value. Modifying this value allows one to control how many
+   * mappers are used to process a given file.
+   */
   protected long defaultBlockSize = BLOCK_SIZE_DEFAULT;
 
-  // The fixed reported permission of all files.
+  /** The fixed reported permission of all files. */
   private FsPermission reportedPermissions;
 
-  // Map of counter values
+  /** Map of counter values */
   protected final ImmutableMap<Counter, AtomicLong> counters = createCounterMap();
 
   protected ImmutableMap<Counter, AtomicLong> createCounterMap() {
