@@ -15,7 +15,7 @@
 
 set -x -e
 
-apt-get install -y ganglia-monitor
+apt-get update && apt-get install -y ganglia-monitor
 
 MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
