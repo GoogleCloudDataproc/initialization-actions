@@ -23,6 +23,7 @@ import com.google.cloud.hadoop.gcsio.FileInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.PathCodec;
+import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorageOptions;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
@@ -225,6 +226,30 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
 
   /** Default value for {@link GoogleHadoopFileSystemBase#GCS_ENABLE_METADATA_CACHE_KEY}. */
   public static final boolean GCS_ENABLE_METADATA_CACHE_DEFAULT = true;
+
+  /**
+   * Configuration key for using a local item cache to supplement GCS API "getFile" results. This
+   * provides faster access to recently queried data. Because the data is cached, modifications made
+   * outside of this instance may not be immediately reflected. The performance cache can be used in
+   * conjunction with other caching options.
+   */
+  public static final String GCS_ENABLE_PERFORMANCE_CACHE_KEY = "fs.gs.performance.cache.enable";
+
+  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_ENABLE_PERFORMANCE_CACHE_KEY}. */
+  public static final boolean GCS_ENABLE_PERFORMANCE_CACHE_DEFAULT = false;
+
+  /**
+   * Configuration key for maximum number of milliseconds a GoogleCloudStorageItemInfo will remain
+   * "valid" in the performance cache before it's invalidated.
+   */
+  public static final String GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLS_KEY =
+      "fs.gs.performance.cache.max.entry.age.ms";
+
+  /**
+   * Default value for {@link
+   * GoogleHadoopFileSystemBase#GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLS_KEY}.
+   */
+  public static final long GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLS_DEFAULT = 3000L;
 
   /**
    * Configuration key for whether or not we should update timestamps for parent directories when we
@@ -2054,6 +2079,23 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
       createOptionsBuilderFromConfig(Configuration config) throws IOException {
     GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
         GoogleCloudStorageFileSystemOptions.newBuilder();
+
+    PerformanceCachingGoogleCloudStorageOptions.Builder performanceCacheOptions =
+        PerformanceCachingGoogleCloudStorageOptions.newBuilder();
+    optionsBuilder.setPerformanceCachingOptionsBuilder(performanceCacheOptions);
+
+    boolean enablePerformanceCache =
+        config.getBoolean(GCS_ENABLE_PERFORMANCE_CACHE_KEY, GCS_ENABLE_PERFORMANCE_CACHE_DEFAULT);
+    LOG.debug("{} = {}", GCS_ENABLE_PERFORMANCE_CACHE_KEY, enablePerformanceCache);
+    optionsBuilder.setIsPerformanceCacheEnabled(enablePerformanceCache);
+
+    long performanceCacheMaxEntryAgeMills =
+        config.getLong(
+            GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLS_KEY,
+            GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLS_DEFAULT);
+    LOG.debug(
+        "{} = {}", GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLS_KEY, performanceCacheMaxEntryAgeMills);
+    performanceCacheOptions.setMaxEntryAgeMills(performanceCacheMaxEntryAgeMills);
 
     boolean enableMetadataCache = config.getBoolean(
         GCS_ENABLE_METADATA_CACHE_KEY, GCS_ENABLE_METADATA_CACHE_DEFAULT);
