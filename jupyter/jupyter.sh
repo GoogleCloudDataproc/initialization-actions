@@ -18,7 +18,7 @@ source /etc/profile.d/conda_config.sh
 if [[ "${ROLE}" == 'Master' ]]; then
     apt-get install -y python-matplotlib libfreetype6-dev pkg-config
     conda install jupyter ipython matplotlib jsonschema jinja2 terminado tornado protobuf pandas seaborn scikit-learn
-    pip install -U palettable pylab 
+    conda install -c conda-forge palettable=2.1.1
     if gsutil -q stat "gs://$DATAPROC_BUCKET/notebooks/**"; then
         echo "Pulling notebooks directory to cluster master node..."
         gsutil -m cp -r gs://$DATAPROC_BUCKET/notebooks /root/
