@@ -110,6 +110,19 @@ public class BigQueryConfiguration {
   public static final String OUTPUT_TABLE_SCHEMA_KEY = "mapred.bq.output.table.schema";
 
   /**
+   * Configuration key for the write disposition of the output table. This specifies the action that
+   * occurs if the destination table already exists. This key is stored as a {@link String}.
+   */
+  public static final String OUTPUT_TABLE_WRITE_DISPOSITION_KEY =
+      "mapred.bq.output.table.writedisposition";
+
+  /**
+   * The default write disposition for the output table. By default, if the table already exists,
+   * BigQuery appends data to the output table.
+   */
+  public static final String OUTPUT_TABLE_WRITE_DISPOSITION_DEFAULT = "WRITE_APPEND";
+
+  /**
    * Configuration key for the file format of the files outputted by the wrapped FileOutputFormat.
    * This key is stored as a serialized {@link BigQueryFileFormat}.
    */

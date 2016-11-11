@@ -308,6 +308,20 @@ public class BigQueryOutputConfiguration {
   }
 
   /**
+   * Gets the write disposition of the output table. This specifies the action that occurs if the
+   * destination table already exists. By default, if the table already exists, BigQuery appends
+   * data to the output table.
+   *
+   * @param conf the configuration to reference the keys from.
+   * @return the write disposition of the output table.
+   */
+  public static String getWriteDisposition(Configuration conf) {
+    return conf.get(
+        BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_KEY,
+        BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_DEFAULT);
+  }
+
+  /**
    * Sets the output path for FileOutputFormat.
    *
    * @param conf the configuration to pass to FileOutputFormat.

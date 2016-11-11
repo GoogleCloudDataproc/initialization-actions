@@ -15,6 +15,7 @@ import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
+import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.BigQueryHelper;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
@@ -57,6 +58,10 @@ public class IndirectBigQueryOutputCommitterTest {
   /** Sample output file format for the committer. */
   private static final BigQueryFileFormat TEST_FILE_FORMAT =
       BigQueryFileFormat.NEWLINE_DELIMITED_JSON;
+
+  /** Sample write disposition. */
+  private static final String TEST_WRITE_DISPOSITION =
+      BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_DEFAULT;
 
   /** Sample output format class for the configuration. */
   @SuppressWarnings("rawtypes")
@@ -187,6 +192,7 @@ public class IndirectBigQueryOutputCommitterTest {
             eq(outputTableRef),
             eq(TEST_TABLE_SCHEMA),
             eq(TEST_FILE_FORMAT),
+            eq(TEST_WRITE_DISPOSITION),
             gcsOutputFileCaptor.capture(),
             eq(true));
 
@@ -217,6 +223,7 @@ public class IndirectBigQueryOutputCommitterTest {
             any(TableReference.class),
             any(TableSchema.class),
             any(BigQueryFileFormat.class),
+            any(String.class),
             any(List.class),
             eq(true));
 
@@ -230,6 +237,7 @@ public class IndirectBigQueryOutputCommitterTest {
               eq(outputTableRef),
               eq(TEST_TABLE_SCHEMA),
               eq(TEST_FILE_FORMAT),
+              eq(TEST_WRITE_DISPOSITION),
               any(List.class), // Tested, no need to capture
               eq(true));
 

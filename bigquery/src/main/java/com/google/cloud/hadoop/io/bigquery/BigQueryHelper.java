@@ -109,6 +109,7 @@ public class BigQueryHelper {
    * @param tableRef the reference to the destination table.
    * @param schema the schema of the source data to populate the destination table by.
    * @param sourceFormat the file format of the source data.
+   * @param writeDisposition the write disposition of the output table.
    * @param gcsPaths the location of the source data in GCS.
    * @param awaitCompletion if true, block and poll until job completes, otherwise return as soon as
    *     the job has been successfully dispatched.
@@ -120,6 +121,7 @@ public class BigQueryHelper {
       TableReference tableRef,
       @Nullable TableSchema schema,
       BigQueryFileFormat sourceFormat,
+      String writeDisposition,
       List<String> gcsPaths,
       boolean awaitCompletion)
       throws IOException, InterruptedException {
@@ -136,6 +138,7 @@ public class BigQueryHelper {
     loadConfig.setSourceFormat(sourceFormat.getFormatIdentifier());
     loadConfig.setSourceUris(gcsPaths);
     loadConfig.setDestinationTable(tableRef);
+    loadConfig.setWriteDisposition(writeDisposition);
 
     // Auto detect the schema if we're not given one, otherwise use the passed schema.
     if (schema == null) {

@@ -164,6 +164,7 @@ public class BigQueryHelperTest {
         tableRef,
         fakeTableSchema,
         BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
+        BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_DEFAULT,
         ImmutableList.of("test-import-path"),
         true);
 
