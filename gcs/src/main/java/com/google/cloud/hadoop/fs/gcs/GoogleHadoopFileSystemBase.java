@@ -425,6 +425,12 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   /** Default value for {@link GoogleHadoopFileSystemBase#GCS_ENABLE_MARKER_FILE_CREATION_KEY}. */
   public static final boolean GCS_ENABLE_MARKER_FILE_CREATION_DEFAULT = false;
 
+  /** Configuration key for number of items to return per call to the list* GCS RPCs. */
+  public static final String GCS_MAX_LIST_ITEMS_PER_CALL = "fs.gs.list.max.items.per.call";
+
+  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_MAX_LIST_ITEMS_PER_CALL}. */
+  public static final long GCS_MAX_LIST_ITEMS_PER_CALL_DEFAULT = 1024;
+
   /**
    * Configuration key for setting a proxy for the connector to use to connect to GCS. The proxy
    * must be an HTTP proxy of the form "host:port".
@@ -2177,6 +2183,11 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
         ConfigurationUtil.getMandatoryConfig(config, GCS_PROJECT_ID_KEY);
 
     optionsBuilder.getCloudStorageOptionsBuilder().setProjectId(projectId);
+
+    long maxListItemsPerCall =
+        config.getLong(GCS_MAX_LIST_ITEMS_PER_CALL, GCS_MAX_LIST_ITEMS_PER_CALL_DEFAULT);
+
+    optionsBuilder.getCloudStorageOptionsBuilder().setMaxListItemsPerCall(maxListItemsPerCall);
 
     // Configuration for setting 250GB upper limit on file size to gain higher write throughput.
     boolean limitFileSizeTo250Gb =
