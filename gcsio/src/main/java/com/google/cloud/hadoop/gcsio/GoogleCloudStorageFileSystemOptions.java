@@ -73,7 +73,18 @@ public class GoogleCloudStorageFileSystemOptions {
       this.performanceCacheEnabled = performanceCacheEnabled;
       return this;
     }
-    
+
+    /**
+     * Gets the stored {@link PerformanceCachingGoogleCloudStorageOptions.Builder}. Note: the
+     * returned builder isn't referenced if an immutable PerformanceCachingOptions instance was set
+     * previously using {@link
+     * Builder#setImmutablePerformanceCachingOptions(PerformanceCachingGoogleCloudStorageOptions)}.
+     */
+    public PerformanceCachingGoogleCloudStorageOptions.Builder
+        getPerformanceCachingOptionsBuilder() {
+      return performanceCacheOptionsBuilder;
+    }
+
     /**
      * Mutually exclusive with setImmutablePerformanceCachingOptions; if setting this builder, then
      * any subsequent changes made to the inner PerformanceCaching options builder will be reflected
@@ -88,7 +99,7 @@ public class GoogleCloudStorageFileSystemOptions {
       this.immutablePerformanceCacheOptions = null;
       return this;
     }
-    
+
     /**
      * Mutually exclusive with setPerformanceCachingOptionsBuilder If this is called after calling
      * setPerformanceCachingOptionsBuilder, then the previous value of the
@@ -103,6 +114,11 @@ public class GoogleCloudStorageFileSystemOptions {
       return this;
     }
 
+    /**
+     * Gets the stored {@link GoogleCloudStorageOptions.Builder}. Note: the returned builder isn't
+     * referenced if an immutable GoogleCloudStorageOptions instance was set previously using {@link
+     * Builder#setImmutableCloudStorageOptions(GoogleCloudStorageOptions)}.
+     */
     public GoogleCloudStorageOptions.Builder getCloudStorageOptionsBuilder() {
       return cloudStorageOptionsBuilder;
     }

@@ -23,7 +23,6 @@ import com.google.cloud.hadoop.gcsio.FileInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.PathCodec;
-import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorageOptions;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
@@ -2086,10 +2085,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
         GoogleCloudStorageFileSystemOptions.newBuilder();
 
-    PerformanceCachingGoogleCloudStorageOptions.Builder performanceCacheOptions =
-        PerformanceCachingGoogleCloudStorageOptions.newBuilder();
-    optionsBuilder.setPerformanceCachingOptionsBuilder(performanceCacheOptions);
-
     boolean enablePerformanceCache =
         config.getBoolean(GCS_ENABLE_PERFORMANCE_CACHE_KEY, GCS_ENABLE_PERFORMANCE_CACHE_DEFAULT);
     LOG.debug("{} = {}", GCS_ENABLE_PERFORMANCE_CACHE_KEY, enablePerformanceCache);
@@ -2101,7 +2096,9 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
             GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLS_DEFAULT);
     LOG.debug(
         "{} = {}", GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLS_KEY, performanceCacheMaxEntryAgeMills);
-    performanceCacheOptions.setMaxEntryAgeMills(performanceCacheMaxEntryAgeMills);
+    optionsBuilder
+        .getPerformanceCachingOptionsBuilder()
+        .setMaxEntryAgeMills(performanceCacheMaxEntryAgeMills);
 
     boolean enableMetadataCache = config.getBoolean(
         GCS_ENABLE_METADATA_CACHE_KEY, GCS_ENABLE_METADATA_CACHE_DEFAULT);
