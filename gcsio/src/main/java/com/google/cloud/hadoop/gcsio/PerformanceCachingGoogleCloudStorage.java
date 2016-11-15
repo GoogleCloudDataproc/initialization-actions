@@ -58,7 +58,7 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
         delegate,
         CacheBuilder.newBuilder()
             .expireAfterWrite(options.getMaxEntryAgeMills(), TimeUnit.MILLISECONDS)
-            .build());
+            .<StorageResourceId, GoogleCloudStorageItemInfo>build());
   }
 
   /**

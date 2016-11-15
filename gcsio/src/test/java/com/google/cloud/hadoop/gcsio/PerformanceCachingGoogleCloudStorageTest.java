@@ -37,6 +37,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Matchers;
 import org.mockito.MockitoAnnotations;
 
 @RunWith(JUnit4.class)
@@ -186,7 +187,8 @@ public class PerformanceCachingGoogleCloudStorageTest {
     List<GoogleCloudStorageItemInfo> result = gcs.listObjectInfo(TEST_BUCKET_A, null, null);
 
     // Verify the delegate call.
-    verify(gcsDelegate).listObjectInfo(eq(TEST_BUCKET_A), eq(null), eq(null));
+    verify(gcsDelegate)
+        .listObjectInfo(eq(TEST_BUCKET_A), Matchers.<String>eq(null), Matchers.<String>eq(null));
     assertContainsInAnyOrder(result, expected);
     // Verify the cache was updated.
     assertEquals(cache.getIfPresent(TEST_ITEM_A_A.getResourceId()), TEST_ITEM_A_A);
@@ -201,7 +203,9 @@ public class PerformanceCachingGoogleCloudStorageTest {
     List<GoogleCloudStorageItemInfo> result = gcs.listObjectInfo(TEST_BUCKET_B, null, null, 0L);
 
     // Verify the delegate call.
-    verify(gcsDelegate).listObjectInfo(eq(TEST_BUCKET_B), eq(null), eq(null), eq(0L));
+    verify(gcsDelegate)
+        .listObjectInfo(
+            eq(TEST_BUCKET_B), Matchers.<String>eq(null), Matchers.<String>eq(null), eq(0L));
     assertContainsInAnyOrder(result, expected);
     // Verify the cache was updated.
     assertEquals(cache.getIfPresent(TEST_ITEM_B_A.getResourceId()), TEST_ITEM_B_A);
