@@ -26,7 +26,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
   apt-get update
   apt-get install -y -q docker.io
   if [[ -z "${DOCKER_IMAGE}" ]]; then
-    DOCKER_IMAGE="gcr.io/cloud-datalab/datalab-gateway"
+    DOCKER_IMAGE="gcr.io/cloud-datalab/datalab:local"
   fi
   gcloud docker pull ${DOCKER_IMAGE}
 
@@ -55,7 +55,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
         -e "PYTHONSTARTUP=/usr/lib/spark/python/pyspark/shell.py" \
         -e "DATALAB_ENV=GCE" \
         ${DOCKER_IMAGE}; then
-      echo 'Cloud Datalab Jupyter gateway successfully deployed.'
+      echo 'Cloud Datalab Jupyter server successfully deployed.'
       exit
     fi
     sleep 1
