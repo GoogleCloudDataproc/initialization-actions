@@ -20,18 +20,19 @@ import static org.mockito.Mockito.verify;
 
 import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
+import com.google.common.base.Joiner;
 import com.google.common.base.Ticker;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.StringJoiner;
 import java.util.concurrent.TimeUnit;
 import org.junit.Before;
 import org.junit.Test;
@@ -404,8 +405,8 @@ public class PerformanceCachingGoogleCloudStorageTest {
     HashMap<StorageResourceId, GoogleCloudStorageItemInfo> expectedHash =
         new HashMap<StorageResourceId, GoogleCloudStorageItemInfo>();
 
-    StringJoiner missingString = new StringJoiner(",", "[", "]");
-    StringJoiner expectedString = new StringJoiner(",", "[", "]");
+    List<String> missingString = new ArrayList<String>();
+    List<String> expectedString = new ArrayList<String>();
     boolean missing = false;
 
     for (GoogleCloudStorageItemInfo expectedItem : expectedItems) {
@@ -424,8 +425,8 @@ public class PerformanceCachingGoogleCloudStorageTest {
     if (missing) {
       throw new AssertionError(
           String.format(
-              "\nExpected: %s in any order\n     but: %s were not matched",
-              expectedString, missingString));
+              "\nExpected: [ %s ] in any order\n     but: [ %s ] were not matched",
+              Joiner.on(',').join(expectedString), Joiner.on(',').join(missingString)));
     }
   }
 
