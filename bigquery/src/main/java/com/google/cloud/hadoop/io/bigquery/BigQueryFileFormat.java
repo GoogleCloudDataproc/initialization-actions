@@ -1,8 +1,10 @@
 package com.google.cloud.hadoop.io.bigquery;
 
+import com.google.common.base.Joiner;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.StringJoiner;
 import org.apache.hadoop.classification.InterfaceStability;
 
 /** An enum to describe file formats supported by the BigQuery api. */
@@ -26,13 +28,13 @@ public enum BigQueryFileFormat {
   private static final String ACCEPTED_FORMATS;
 
   static {
-    StringJoiner joiner = new StringJoiner(",", "[", "]");
+    List<String> formats = new ArrayList<String>();
     for (BigQueryFileFormat format : BigQueryFileFormat.values()) {
       NAMES_MAP.put(format.name(), format);
-      joiner.add(format.name());
+      formats.add(format.name());
     }
 
-    ACCEPTED_FORMATS = joiner.toString();
+    ACCEPTED_FORMATS = Joiner.on(',').join(formats);
   }
 
   private final String extension;
@@ -67,8 +69,9 @@ public enum BigQueryFileFormat {
       throw new IllegalArgumentException(
           "Unable to find BigQueryFileFormat for '"
               + name
-              + "'. Accepted formats are: "
-              + ACCEPTED_FORMATS);
+              + "'. Accepted formats are: [ "
+              + ACCEPTED_FORMATS
+              + " ]");
     }
     return entry;
   }
