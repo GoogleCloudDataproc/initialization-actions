@@ -13,31 +13,48 @@
  */
 package com.google.cloud.hadoop.gcsio;
 
-/** Configurable options for CachingGoogleCloudStorage. */
+/** Configurable options for {@link PerformanceCachingGoogleCloudStorage}. */
 public class PerformanceCachingGoogleCloudStorageOptions {
 
   /** Max age of an item in cache in milliseconds. */
-  public static final long MAX_ENTRY_AGE_MILLS_DEFAULT = 3000;
+  public static final long MAX_ENTRY_AGE_MILLIS_DEFAULT = 3000L;
 
-  private final long maxEntryAgeMills;
+  private final long maxEntryAgeMillis;
+
+  private final boolean inferImplicitDirectoriesEnabled;
 
   private PerformanceCachingGoogleCloudStorageOptions(Builder builder) {
-    this.maxEntryAgeMills = builder.maxEntryAgeMills;
+    this.maxEntryAgeMillis = builder.maxEntryAgeMillis;
+    this.inferImplicitDirectoriesEnabled = builder.inferImplicitDirectoriesEnabled;
   }
 
   /** Gets the max age of an item in cache in milliseconds. */
-  public long getMaxEntryAgeMills() {
-    return maxEntryAgeMills;
+  public long getMaxEntryAgeMillis() {
+    return maxEntryAgeMillis;
   }
 
-  /** Builder class for CachingGoogleCloudStorageOptions. */
+  /** Gets if implicit directories are inferred. */
+  public boolean isInferImplicitDirectoriesEnabled() {
+    return inferImplicitDirectoriesEnabled;
+  }
+
+  /** Builder class for PerformanceCachingGoogleCloudStorageOptions. */
   public static class Builder {
 
-    private long maxEntryAgeMills = MAX_ENTRY_AGE_MILLS_DEFAULT;
+    private long maxEntryAgeMillis = MAX_ENTRY_AGE_MILLIS_DEFAULT;
+
+    private boolean inferImplicitDirectoriesEnabled =
+        GoogleCloudStorageOptions.INFER_IMPLICIT_DIRECTORIES_DEFAULT;
 
     /** Sets the max age of an item in cache in milliseconds. */
-    public Builder setMaxEntryAgeMills(long maxEntryAgeMills) {
-      this.maxEntryAgeMills = maxEntryAgeMills;
+    public Builder setMaxEntryAgeMillis(long maxEntryAgeMillis) {
+      this.maxEntryAgeMillis = maxEntryAgeMillis;
+      return this;
+    }
+
+    /** Setting for enabling inferring of implicit directories. */
+    public Builder setInferImplicitDirectoriesEnabled(boolean inferImplicitDirectoriesEnabled) {
+      this.inferImplicitDirectoriesEnabled = inferImplicitDirectoriesEnabled;
       return this;
     }
 

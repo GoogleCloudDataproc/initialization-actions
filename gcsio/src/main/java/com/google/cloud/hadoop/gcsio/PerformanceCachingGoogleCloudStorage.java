@@ -13,33 +13,33 @@
  */
 package com.google.cloud.hadoop.gcsio;
 
+import com.google.api.client.util.Strings;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map.Entry;
-import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 
 /**
- * This class adds a caching layer in-between a GoogleCloudStorage instance, caching calls that
- * create, update, remove, and query for GoogleCloudStorageItemInfo. Those cached copies are
- * returned when requesting data through {@link GoogleCloudStorage#getItemInfo(StorageResourceId)}
- * and {@link GoogleCloudStorage#getItemInfo(StorageResourceId)}. This provides faster access to
- * recently queried data in the scope of this instance. Because the data is cached, modifications
- * made outside of this instance may not be immediately reflected.
+ * This class adds a caching layer around a GoogleCloudStorage instance, caching calls that create,
+ * update, remove, and query for GoogleCloudStorageItemInfo. Those cached copies are returned when
+ * requesting data through {@link GoogleCloudStorage#getItemInfo(StorageResourceId)} and {@link
+ * GoogleCloudStorage#getItemInfo(StorageResourceId)}. This provides faster access to recently
+ * queried data in the scope of this instance. Because the data is cached, modifications made
+ * outside of this instance may not be immediately reflected.
  *
  * <p>Unlike {@link CacheSupplementedGoogleCloudStorage}, this class does not guarantee list
  * consistency. It can be composed with a CacheSupplementedGoogleCloudStorage in any order to
  * provide list consistency without conflict.
  */
 public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudStorage {
-
   /** Cache to hold item info and manage invalidation. */
-  private final Cache<StorageResourceId, GoogleCloudStorageItemInfo> cache;
+  private final PrefixMappedItemCache cache;
+
+  /** Setting for enabling inferring of implicit directories. */
+  private final boolean inferImplicitDirectoriesEnabled;
 
   /**
    * Creates a wrapper around a GoogleCloudStorage instance, caching calls that create, update,
@@ -54,31 +54,23 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
    */
   public PerformanceCachingGoogleCloudStorage(
       GoogleCloudStorage delegate, PerformanceCachingGoogleCloudStorageOptions options) {
-    this(
-        delegate,
-        CacheBuilder.newBuilder()
-            .expireAfterWrite(options.getMaxEntryAgeMills(), TimeUnit.MILLISECONDS)
-            .<StorageResourceId, GoogleCloudStorageItemInfo>build());
-  }
-
-  /**
-   * Creates a wrapper around a GoogleCloudStorage instance, caching calls that create, update,
-   * remove, and query for GoogleCloudStorageItemInfo. Those cached copies are returned when
-   * requesting data through {@link GoogleCloudStorage#getItemInfo(StorageResourceId)} and {@link
-   * GoogleCloudStorage#getItemInfo(StorageResourceId)}. This provides faster access to recently
-   * queried data in the scope of this instance. Because the data is cached, modifications made
-   * outside of this instance may not be immediately reflected.
-   *
-   * <p>This is visible for testing.
-   *
-   * @param delegate the {@link GoogleCloudStorage} instance to wrap and delegate calls to.
-   * @param cache the {@link Cache} to store recently queried data in.
-   */
-  @VisibleForTesting
-  PerformanceCachingGoogleCloudStorage(
-      GoogleCloudStorage delegate, Cache<StorageResourceId, GoogleCloudStorageItemInfo> cache) {
     super(delegate);
 
+    this.inferImplicitDirectoriesEnabled = options.isInferImplicitDirectoriesEnabled();
+
+    // Create the cache configuration.
+    PrefixMappedItemCache.Config config = new PrefixMappedItemCache.Config();
+    config.setMaxEntryAgeMillis(options.getMaxEntryAgeMillis());
+    this.cache = new PrefixMappedItemCache(config);
+  }
+
+  @VisibleForTesting
+  PerformanceCachingGoogleCloudStorage(
+      GoogleCloudStorage delegate,
+      PerformanceCachingGoogleCloudStorageOptions options,
+      PrefixMappedItemCache cache) {
+    super(delegate);
+    this.inferImplicitDirectoriesEnabled = options.isInferImplicitDirectoriesEnabled();
     this.cache = cache;
   }
 
@@ -87,14 +79,8 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
     super.deleteBuckets(bucketNames);
 
     // Remove objects that reside in deleted buckets.
-    HashSet<String> bucketsHash = new HashSet<String>(bucketNames);
-    Iterator<Entry<StorageResourceId, GoogleCloudStorageItemInfo>> iterator =
-        cache.asMap().entrySet().iterator();
-    while (iterator.hasNext()) {
-      Entry<StorageResourceId, GoogleCloudStorageItemInfo> entry = iterator.next();
-      if (bucketsHash.contains(entry.getKey().getBucketName())) {
-        iterator.remove();
-      }
+    for (String bucket : bucketNames) {
+      cache.invalidateBucket(bucket);
     }
   }
 
@@ -103,8 +89,8 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
     super.deleteObjects(fullObjectNames);
 
     // Remove the deleted objects from cache.
-    for (StorageResourceId resourceId : fullObjectNames) {
-      cache.invalidate(resourceId);
+    for (StorageResourceId id : fullObjectNames) {
+      cache.removeItem(id);
     }
   }
 
@@ -114,36 +100,7 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
 
     // Add the results to the cache.
     for (GoogleCloudStorageItemInfo item : result) {
-      cache.put(item.getResourceId(), item);
-    }
-
-    return result;
-  }
-
-  @Override
-  public List<GoogleCloudStorageItemInfo> listObjectInfo(
-      String bucketName, String objectNamePrefix, String delimiter) throws IOException {
-    List<GoogleCloudStorageItemInfo> result =
-        super.listObjectInfo(bucketName, objectNamePrefix, delimiter);
-
-    // Add the results to the cache.
-    for (GoogleCloudStorageItemInfo item : result) {
-      cache.put(item.getResourceId(), item);
-    }
-
-    return result;
-  }
-
-  @Override
-  public List<GoogleCloudStorageItemInfo> listObjectInfo(
-      String bucketName, String objectNamePrefix, String delimiter, long maxResults)
-      throws IOException {
-    List<GoogleCloudStorageItemInfo> result =
-        super.listObjectInfo(bucketName, objectNamePrefix, delimiter, maxResults);
-
-    // Add the results to the cache.
-    for (GoogleCloudStorageItemInfo item : result) {
-      cache.put(item.getResourceId(), item);
+      cache.putItem(item);
     }
 
     return result;
@@ -151,14 +108,95 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
 
   /** This function may return cached copies of GoogleCloudStorageItemInfo. */
   @Override
+  public List<GoogleCloudStorageItemInfo> listObjectInfo(
+      String bucketName, String objectNamePrefix, String delimiter) throws IOException {
+
+    return this.listObjectInfo(
+        bucketName, objectNamePrefix, delimiter, GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+  }
+
+  /** This function may return cached copies of GoogleCloudStorageItemInfo. */
+  @Override
+  public List<GoogleCloudStorageItemInfo> listObjectInfo(
+      String bucketName, String objectNamePrefix, String delimiter, long maxResults)
+      throws IOException {
+    List<GoogleCloudStorageItemInfo> result = cache.getList(bucketName, objectNamePrefix);
+
+    if (result == null) {
+      result = super.listObjectInfo(bucketName, objectNamePrefix, null);
+      cache.putList(bucketName, objectNamePrefix, result);
+    }
+
+    if (GoogleCloudStorage.PATH_DELIMITER.equals(delimiter)) {
+      filter(result, bucketName, objectNamePrefix, delimiter);
+    }
+
+    return result;
+  }
+
+  /**
+   * Matches Google Cloud Storage's delimiter filtering.
+   *
+   * @param items the mutable list of items to filter. Items matching the filter conditions will be
+   *     removed from this list.
+   * @param bucketName the bucket name to filter for.
+   * @param prefix the object name prefix to filter for.
+   * @param delimiter the delimiter to filter on.
+   */
+  private void filter(
+      List<GoogleCloudStorageItemInfo> items,
+      String bucketName,
+      @Nullable String prefix,
+      @Nullable String delimiter) {
+    prefix = prefix == null ? "" : prefix;
+    if (Strings.isNullOrEmpty(delimiter)) {
+      return;
+    }
+
+    HashSet<String> dirs = new HashSet<String>();
+    Iterator<GoogleCloudStorageItemInfo> itr = items.iterator();
+    while (itr.hasNext()) {
+      String objectName = itr.next().getObjectName();
+
+      // Remove if doesn't start with the prefix.
+      if (!objectName.startsWith(prefix)) {
+        itr.remove();
+      } else {
+        // Retain if missing the delimiter after the prefix.
+        int firstIndex = objectName.indexOf(delimiter, prefix.length());
+        if (firstIndex != -1) {
+          // Remove if the first occurrence of the delimiter after the prefix isn't the last.
+          // Remove if the last occurrence of the delimiter isn't the end of the string.
+          int lastIndex = objectName.lastIndexOf(delimiter);
+          if (firstIndex != lastIndex) {
+            itr.remove();
+            dirs.add(objectName.substring(0, firstIndex + 1));
+          } else if (lastIndex != objectName.length() - 1) {
+            itr.remove();
+            dirs.add(objectName.substring(0, firstIndex + 1));
+          }
+        }
+      }
+    }
+    if (inferImplicitDirectoriesEnabled) {
+      for (String dir : dirs) {
+        items.add(
+            GoogleCloudStorageImpl.createItemInfoForInferredDirectory(
+                new StorageResourceId(bucketName, dir)));
+      }
+    }
+  }
+
+  /** This function may return cached copies of GoogleCloudStorageItemInfo. */
+  @Override
   public GoogleCloudStorageItemInfo getItemInfo(StorageResourceId resourceId) throws IOException {
     // Get the item from cache.
-    GoogleCloudStorageItemInfo item = cache.getIfPresent(resourceId);
+    GoogleCloudStorageItemInfo item = cache.getItem(resourceId);
 
     // If it wasn't in the cache, request it then add it.
     if (item == null) {
       item = super.getItemInfo(resourceId);
-      cache.put(item.getResourceId(), item);
+      cache.putItem(item);
     }
 
     return item;
@@ -175,7 +213,7 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
     // Populate the result list with items in the cache, and the request list with resources that
     // still need to be resolved. Null items are added to the result list to preserve ordering.
     for (StorageResourceId resourceId : resourceIds) {
-      GoogleCloudStorageItemInfo item = cache.getIfPresent(resourceId);
+      GoogleCloudStorageItemInfo item = cache.getItem(resourceId);
       if (item == null) {
         request.add(resourceId);
       }
@@ -194,7 +232,7 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
       for (int i = 0; i < result.size() && responseIterator.hasNext(); i++) {
         if (result.get(i) == null) {
           GoogleCloudStorageItemInfo item = responseIterator.next();
-          cache.put(item.getResourceId(), item);
+          cache.putItem(item);
           result.set(i, item);
         }
       }
@@ -211,7 +249,7 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
     // Update the cache with the returned items. This overwrites the originals as the
     // StorageResourceIds of the items do not change in an update.
     for (GoogleCloudStorageItemInfo item : result) {
-      cache.put(item.getResourceId(), item);
+      cache.putItem(item);
     }
 
     return result;
@@ -232,7 +270,7 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
     GoogleCloudStorageItemInfo item = super.composeObjects(sources, destination, options);
 
     // Cache the composed object.
-    cache.put(item.getResourceId(), item);
+    cache.putItem(item);
 
     return item;
   }

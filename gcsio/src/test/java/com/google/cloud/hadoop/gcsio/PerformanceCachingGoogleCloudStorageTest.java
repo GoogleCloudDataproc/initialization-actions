@@ -22,8 +22,6 @@ import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
 import com.google.common.base.Joiner;
 import com.google.common.base.Ticker;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import java.io.IOException;
@@ -33,7 +31,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,8 +40,7 @@ import org.mockito.MockitoAnnotations;
 
 @RunWith(JUnit4.class)
 public class PerformanceCachingGoogleCloudStorageTest {
-
-  /** Sample empty metdata. */
+  /** Sample empty metadata. */
   private static final Map<String, byte[]> TEST_METADATA =
       ImmutableMap.of("test_key", new byte[] {2});
 
@@ -54,53 +50,37 @@ public class PerformanceCachingGoogleCloudStorageTest {
   private static final CreateObjectOptions CREATE_OBJECT_OPTIONS =
       new CreateObjectOptions(true, "test_content_type", TEST_METADATA, true);
 
-  /** Sample bucket name. */
+  /* Sample bucket names. */
   private static final String TEST_BUCKET_A = "test_bucket_a";
-
-  /** Sample bucket name. */
   private static final String TEST_BUCKET_B = "test_bucket_b";
 
-  /** Sample object name. */
+  /* Sample object names. */
   private static final String TEST_OBJECT_NAME_A = "test_object_name_a";
-
-  /** Sample object name. */
   private static final String TEST_OBJECT_NAME_B = "test_object_name_b";
-
-  /** Sample object name. */
   private static final String TEST_OBJECT_NAME_C = "test_object_name_c";
 
-  /** Sample bucket item info. */
+  /* Sample bucket item info. */
   private static final GoogleCloudStorageItemInfo TEST_ITEM_A = createBucketItemInfo(TEST_BUCKET_A);
-
-  /** Sample bucket item info. */
   private static final GoogleCloudStorageItemInfo TEST_ITEM_B = createBucketItemInfo(TEST_BUCKET_B);
 
-  /** Sample item info. */
+  /* Sample item info. */
   private static final GoogleCloudStorageItemInfo TEST_ITEM_A_A =
       createObjectItemInfo(TEST_BUCKET_A, TEST_OBJECT_NAME_A);
-
-  /** Sample item info. */
   private static final GoogleCloudStorageItemInfo TEST_ITEM_A_B =
       createObjectItemInfo(TEST_BUCKET_A, TEST_OBJECT_NAME_B);
-
-  /** Sample item info. */
   private static final GoogleCloudStorageItemInfo TEST_ITEM_B_A =
       createObjectItemInfo(TEST_BUCKET_B, TEST_OBJECT_NAME_A);
-
-  /** Sample item info. */
   private static final GoogleCloudStorageItemInfo TEST_ITEM_B_B =
       createObjectItemInfo(TEST_BUCKET_B, TEST_OBJECT_NAME_B);
-
-  /** Sample item info. */
   private static final GoogleCloudStorageItemInfo TEST_ITEM_B_C =
       createObjectItemInfo(TEST_BUCKET_B, TEST_OBJECT_NAME_C);
 
   /** Clock implementation for testing the GCS delegate. */
   private TestClock clock;
-  /** CachingGoogleCloudStorage instance being tested. */
+  /** {@link PerformanceCachingGoogleCloudStorage} instance being tested. */
   private PerformanceCachingGoogleCloudStorage gcs;
   /** Cache implementation to back the GCS instance being tested. */
-  private Cache<StorageResourceId, GoogleCloudStorageItemInfo> cache;
+  private PrefixMappedItemCache cache;
   /** GoogleCloudStorage implementation to back the GCS instance being tested. */
   private GoogleCloudStorage gcsDelegate;
 
@@ -109,16 +89,23 @@ public class PerformanceCachingGoogleCloudStorageTest {
     // Setup mocks.
     MockitoAnnotations.initMocks(this);
 
+    // Create the cache configuration.
+    PrefixMappedItemCache.Config cacheConfig = new PrefixMappedItemCache.Config();
+    cacheConfig.setMaxEntryAgeMillis(10);
+    cacheConfig.setTicker(new TestTicker());
+    cache = new PrefixMappedItemCache(cacheConfig);
+
+    // Create the cache configuration.
+    PerformanceCachingGoogleCloudStorageOptions options =
+        new PerformanceCachingGoogleCloudStorageOptions.Builder().build();
+
+    // Setup the delegate
     clock = new TestClock();
-    cache =
-        CacheBuilder.newBuilder()
-            .expireAfterWrite(10, TimeUnit.NANOSECONDS)
-            .ticker(new TestTicker())
-            .build();
     GoogleCloudStorage gcsImpl =
         new InMemoryGoogleCloudStorage(GoogleCloudStorageOptions.newBuilder().build(), clock);
     gcsDelegate = spy(gcsImpl);
-    gcs = new PerformanceCachingGoogleCloudStorage(gcsDelegate, cache);
+
+    gcs = new PerformanceCachingGoogleCloudStorage(gcsDelegate, options, cache);
 
     // Prepare the delegate.
     gcsDelegate.create(TEST_BUCKET_A, CREATE_BUCKET_OPTIONS);
@@ -135,16 +122,16 @@ public class PerformanceCachingGoogleCloudStorageTest {
     List<String> buckets = Lists.newArrayList(TEST_BUCKET_A);
 
     // Prepare the cache.
-    cache.put(TEST_ITEM_A_A.getResourceId(), TEST_ITEM_A_A); // Deleted.
-    cache.put(TEST_ITEM_B_A.getResourceId(), TEST_ITEM_B_A); // Not deleted.
+    cache.putItem(TEST_ITEM_A_A); // Deleted.
+    cache.putItem(TEST_ITEM_B_A); // Not deleted.
 
     gcs.deleteBuckets(buckets);
 
     // Verify the delegate call.
     verify(gcsDelegate).deleteBuckets(eq(buckets));
     // Verify the cache was updated.
-    assertNull(cache.getIfPresent(TEST_ITEM_A_A.getResourceId()));
-    assertEquals(cache.getIfPresent(TEST_ITEM_B_A.getResourceId()), TEST_ITEM_B_A);
+    assertNull(cache.getItem(TEST_ITEM_A_A.getResourceId()));
+    assertEquals(cache.getItem(TEST_ITEM_B_A.getResourceId()), TEST_ITEM_B_A);
   }
 
   @Test
@@ -153,18 +140,18 @@ public class PerformanceCachingGoogleCloudStorageTest {
         Lists.newArrayList(TEST_ITEM_A_A.getResourceId(), TEST_ITEM_B_A.getResourceId());
 
     // Prepare the cache.
-    cache.put(TEST_ITEM_A_A.getResourceId(), TEST_ITEM_A_A); // Deleted.
-    cache.put(TEST_ITEM_B_A.getResourceId(), TEST_ITEM_B_A); // Deleted.
-    cache.put(TEST_ITEM_B_B.getResourceId(), TEST_ITEM_B_B); // Not deleted.
+    cache.putItem(TEST_ITEM_A_A); // Deleted.
+    cache.putItem(TEST_ITEM_B_A); // Deleted.
+    cache.putItem(TEST_ITEM_B_B); // Not deleted.
 
     gcs.deleteObjects(ids);
 
     // Verify the delegate call.
     verify(gcsDelegate).deleteObjects(eq(ids));
     // Verify the cache was updated.
-    assertNull(cache.getIfPresent(TEST_ITEM_A_A.getResourceId()));
-    assertNull(cache.getIfPresent(TEST_ITEM_B_A.getResourceId()));
-    assertEquals(cache.getIfPresent(TEST_ITEM_B_B.getResourceId()), TEST_ITEM_B_B);
+    assertNull(cache.getItem(TEST_ITEM_A_A.getResourceId()));
+    assertNull(cache.getItem(TEST_ITEM_B_A.getResourceId()));
+    assertEquals(cache.getItem(TEST_ITEM_B_B.getResourceId()), TEST_ITEM_B_B);
   }
 
   @Test
@@ -177,8 +164,8 @@ public class PerformanceCachingGoogleCloudStorageTest {
     verify(gcsDelegate).listBucketInfo();
     assertContainsInAnyOrder(result, expected);
     // Verify the cache was updated.
-    assertEquals(cache.getIfPresent(TEST_ITEM_A.getResourceId()), TEST_ITEM_A);
-    assertEquals(cache.getIfPresent(TEST_ITEM_B.getResourceId()), TEST_ITEM_B);
+    assertEquals(cache.getItem(TEST_ITEM_A.getResourceId()), TEST_ITEM_A);
+    assertEquals(cache.getItem(TEST_ITEM_B.getResourceId()), TEST_ITEM_B);
   }
 
   @Test
@@ -192,8 +179,8 @@ public class PerformanceCachingGoogleCloudStorageTest {
         .listObjectInfo(eq(TEST_BUCKET_A), Matchers.<String>eq(null), Matchers.<String>eq(null));
     assertContainsInAnyOrder(result, expected);
     // Verify the cache was updated.
-    assertEquals(cache.getIfPresent(TEST_ITEM_A_A.getResourceId()), TEST_ITEM_A_A);
-    assertEquals(cache.getIfPresent(TEST_ITEM_A_B.getResourceId()), TEST_ITEM_A_B);
+    assertEquals(cache.getItem(TEST_ITEM_A_A.getResourceId()), TEST_ITEM_A_A);
+    assertEquals(cache.getItem(TEST_ITEM_A_B.getResourceId()), TEST_ITEM_A_B);
   }
 
   @Test
@@ -201,23 +188,27 @@ public class PerformanceCachingGoogleCloudStorageTest {
     List<GoogleCloudStorageItemInfo> expected =
         Lists.newArrayList(TEST_ITEM_B_A, TEST_ITEM_B_B, TEST_ITEM_B_C);
 
-    List<GoogleCloudStorageItemInfo> result = gcs.listObjectInfo(TEST_BUCKET_B, null, null, 0L);
+    List<GoogleCloudStorageItemInfo> result =
+        gcs.listObjectInfo(TEST_BUCKET_B, null, null, GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
 
     // Verify the delegate call.
     verify(gcsDelegate)
         .listObjectInfo(
-            eq(TEST_BUCKET_B), Matchers.<String>eq(null), Matchers.<String>eq(null), eq(0L));
+            eq(TEST_BUCKET_B),
+            Matchers.<String>eq(null),
+            Matchers.<String>eq(null),
+            eq(GoogleCloudStorage.MAX_RESULTS_UNLIMITED));
     assertContainsInAnyOrder(result, expected);
     // Verify the cache was updated.
-    assertEquals(cache.getIfPresent(TEST_ITEM_B_A.getResourceId()), TEST_ITEM_B_A);
-    assertEquals(cache.getIfPresent(TEST_ITEM_B_B.getResourceId()), TEST_ITEM_B_B);
-    assertEquals(cache.getIfPresent(TEST_ITEM_B_C.getResourceId()), TEST_ITEM_B_C);
+    assertEquals(cache.getItem(TEST_ITEM_B_A.getResourceId()), TEST_ITEM_B_A);
+    assertEquals(cache.getItem(TEST_ITEM_B_B.getResourceId()), TEST_ITEM_B_B);
+    assertEquals(cache.getItem(TEST_ITEM_B_C.getResourceId()), TEST_ITEM_B_C);
   }
 
   @Test
   public void testGetItemInfo() throws IOException {
     // Prepare the cache.
-    cache.put(TEST_ITEM_A_A.getResourceId(), TEST_ITEM_A_A);
+    cache.putItem(TEST_ITEM_A_A);
 
     GoogleCloudStorageItemInfo result = gcs.getItemInfo(TEST_ITEM_A_A.getResourceId());
 
@@ -233,7 +224,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
     verify(gcsDelegate).getItemInfo(eq(TEST_ITEM_A_A.getResourceId()));
     assertEquals(result, TEST_ITEM_A_A);
     // Verify the cache was updated.
-    assertEquals(cache.getIfPresent(TEST_ITEM_A_A.getResourceId()), TEST_ITEM_A_A);
+    assertEquals(cache.getItem(TEST_ITEM_A_A.getResourceId()), TEST_ITEM_A_A);
   }
 
   @Test
@@ -243,8 +234,8 @@ public class PerformanceCachingGoogleCloudStorageTest {
     List<GoogleCloudStorageItemInfo> expected = Lists.newArrayList(TEST_ITEM_A_A, TEST_ITEM_A_B);
 
     // Prepare the cache.
-    cache.put(TEST_ITEM_A_A.getResourceId(), TEST_ITEM_A_A);
-    cache.put(TEST_ITEM_A_B.getResourceId(), TEST_ITEM_A_B);
+    cache.putItem(TEST_ITEM_A_A);
+    cache.putItem(TEST_ITEM_A_B);
 
     List<GoogleCloudStorageItemInfo> result = gcs.getItemInfos(requestedIds);
 
@@ -269,8 +260,8 @@ public class PerformanceCachingGoogleCloudStorageTest {
         Lists.newArrayList(TEST_ITEM_A_A, TEST_ITEM_A_B, TEST_ITEM_B_A, TEST_ITEM_B_B);
 
     // Prepare the cache.
-    cache.put(TEST_ITEM_A_B.getResourceId(), TEST_ITEM_A_B);
-    cache.put(TEST_ITEM_B_B.getResourceId(), TEST_ITEM_B_B);
+    cache.putItem(TEST_ITEM_A_B);
+    cache.putItem(TEST_ITEM_B_B);
 
     List<GoogleCloudStorageItemInfo> result = gcs.getItemInfos(requestedIds);
 
@@ -283,10 +274,10 @@ public class PerformanceCachingGoogleCloudStorageTest {
     assertEquals(result.get(2), TEST_ITEM_B_A);
     assertEquals(result.get(3), TEST_ITEM_B_B);
     // Verify the cache was updated.
-    assertEquals(cache.getIfPresent(TEST_ITEM_A_A.getResourceId()), TEST_ITEM_A_A);
-    assertEquals(cache.getIfPresent(TEST_ITEM_A_B.getResourceId()), TEST_ITEM_A_B);
-    assertEquals(cache.getIfPresent(TEST_ITEM_B_A.getResourceId()), TEST_ITEM_B_A);
-    assertEquals(cache.getIfPresent(TEST_ITEM_B_B.getResourceId()), TEST_ITEM_B_B);
+    assertEquals(cache.getItem(TEST_ITEM_A_A.getResourceId()), TEST_ITEM_A_A);
+    assertEquals(cache.getItem(TEST_ITEM_A_B.getResourceId()), TEST_ITEM_A_B);
+    assertEquals(cache.getItem(TEST_ITEM_B_A.getResourceId()), TEST_ITEM_B_A);
+    assertEquals(cache.getItem(TEST_ITEM_B_B.getResourceId()), TEST_ITEM_B_B);
   }
 
   @Test
@@ -304,8 +295,8 @@ public class PerformanceCachingGoogleCloudStorageTest {
     assertEquals(result.get(0), TEST_ITEM_A_A);
     assertEquals(result.get(1), TEST_ITEM_A_B);
     // Verify the cache was updated.
-    assertEquals(cache.getIfPresent(TEST_ITEM_A_A.getResourceId()), TEST_ITEM_A_A);
-    assertEquals(cache.getIfPresent(TEST_ITEM_A_B.getResourceId()), TEST_ITEM_A_B);
+    assertEquals(cache.getItem(TEST_ITEM_A_A.getResourceId()), TEST_ITEM_A_A);
+    assertEquals(cache.getItem(TEST_ITEM_A_B.getResourceId()), TEST_ITEM_A_B);
   }
 
   @Test
@@ -320,20 +311,20 @@ public class PerformanceCachingGoogleCloudStorageTest {
     verify(gcsDelegate).updateItems(eq(updateItems));
     assertContainsInAnyOrder(result, expected);
     // Verify the cache was updated.
-    assertEquals(cache.getIfPresent(TEST_ITEM_A_A.getResourceId()), TEST_ITEM_A_A);
+    assertEquals(cache.getItem(TEST_ITEM_A_A.getResourceId()), TEST_ITEM_A_A);
   }
 
   @Test
   public void testClose() {
     // Prepare the cache.
-    cache.put(TEST_ITEM_A_A.getResourceId(), TEST_ITEM_A_A);
+    cache.putItem(TEST_ITEM_A_A);
 
     gcs.close();
 
     // Verify the delegate call was made.
     verify(gcsDelegate).close();
     // Verify the cache was updated.
-    assertEquals(cache.getIfPresent(TEST_ITEM_A_A.getResourceId()), null);
+    assertEquals(cache.getItem(TEST_ITEM_A_A.getResourceId()), null);
   }
 
   @Test
@@ -349,7 +340,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
         .composeObjects(eq(ids), eq(TEST_ITEM_B_C.getResourceId()), eq(CREATE_OBJECT_OPTIONS));
     assertEquals(result, TEST_ITEM_B_C);
     // Verify the cache was updated.
-    assertEquals(cache.getIfPresent(TEST_ITEM_B_C.getResourceId()), TEST_ITEM_B_C);
+    assertEquals(cache.getItem(TEST_ITEM_B_C.getResourceId()), TEST_ITEM_B_C);
   }
 
   /**
@@ -358,7 +349,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
    * @param bucketName the name of the bucket.
    * @return the generated item.
    */
-  private static GoogleCloudStorageItemInfo createBucketItemInfo(String bucketName) {
+  public static GoogleCloudStorageItemInfo createBucketItemInfo(String bucketName) {
     GoogleCloudStorageItemInfo item =
         new GoogleCloudStorageItemInfo(
             new StorageResourceId(bucketName),
@@ -376,7 +367,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
    * @param objectName the object name of the generated item.
    * @return the generated item.
    */
-  private static GoogleCloudStorageItemInfo createObjectItemInfo(
+  public static GoogleCloudStorageItemInfo createObjectItemInfo(
       String bucketName, String objectName) {
     GoogleCloudStorageItemInfo item =
         new GoogleCloudStorageItemInfo(
@@ -399,7 +390,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
    * @param actualItems the actual collect of GoogleCloudStorageItemInfo.
    * @param expectedItems the collection of GoogleCloudStorageItemInfo that was expected.
    */
-  private static void assertContainsInAnyOrder(
+  public static void assertContainsInAnyOrder(
       Collection<GoogleCloudStorageItemInfo> actualItems,
       Collection<GoogleCloudStorageItemInfo> expectedItems) {
     HashMap<StorageResourceId, GoogleCloudStorageItemInfo> expectedHash =
@@ -438,7 +429,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
    * @param expected the expected object.
    * @throws AssertionError if the objects are not equal.
    */
-  private static void assertEquals(
+  public static void assertEquals(
       GoogleCloudStorageItemInfo actual, GoogleCloudStorageItemInfo expected) {
     if (!equals(actual, expected)) {
       throw new AssertionError(String.format("\nExpected: %s\n but was: %s ", expected, actual));
@@ -453,7 +444,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
    * @param b a GoogleCloudStorageItemInfo to be compared with a.
    * @return true of the arguments are equal, false otherwise.
    */
-  private static boolean equals(GoogleCloudStorageItemInfo a, GoogleCloudStorageItemInfo b) {
+  public static boolean equals(GoogleCloudStorageItemInfo a, GoogleCloudStorageItemInfo b) {
     if (a == b) {
       return true;
     } else if (a == null || b == null) {

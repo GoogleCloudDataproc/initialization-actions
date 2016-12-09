@@ -241,14 +241,14 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
    * Configuration key for maximum number of milliseconds a GoogleCloudStorageItemInfo will remain
    * "valid" in the performance cache before it's invalidated.
    */
-  public static final String GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLS_KEY =
+  public static final String GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY =
       "fs.gs.performance.cache.max.entry.age.ms";
 
   /**
    * Default value for {@link
-   * GoogleHadoopFileSystemBase#GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLS_KEY}.
+   * GoogleHadoopFileSystemBase#GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY}.
    */
-  public static final long GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLS_DEFAULT = 3000L;
+  public static final long GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_DEFAULT = 3000L;
 
   /**
    * Configuration key for whether or not we should update timestamps for parent directories when we
@@ -2085,21 +2085,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
         GoogleCloudStorageFileSystemOptions.newBuilder();
 
-    boolean enablePerformanceCache =
-        config.getBoolean(GCS_ENABLE_PERFORMANCE_CACHE_KEY, GCS_ENABLE_PERFORMANCE_CACHE_DEFAULT);
-    LOG.debug("{} = {}", GCS_ENABLE_PERFORMANCE_CACHE_KEY, enablePerformanceCache);
-    optionsBuilder.setIsPerformanceCacheEnabled(enablePerformanceCache);
-
-    long performanceCacheMaxEntryAgeMills =
-        config.getLong(
-            GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLS_KEY,
-            GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLS_DEFAULT);
-    LOG.debug(
-        "{} = {}", GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLS_KEY, performanceCacheMaxEntryAgeMills);
-    optionsBuilder
-        .getPerformanceCachingOptionsBuilder()
-        .setMaxEntryAgeMills(performanceCacheMaxEntryAgeMills);
-
     boolean enableMetadataCache = config.getBoolean(
         GCS_ENABLE_METADATA_CACHE_KEY, GCS_ENABLE_METADATA_CACHE_DEFAULT);
     LOG.debug("{} = {}", GCS_ENABLE_METADATA_CACHE_KEY, enableMetadataCache);
@@ -2217,6 +2202,24 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     optionsBuilder
         .getCloudStorageOptionsBuilder()
         .setAppName(applicationName);
+
+    boolean enablePerformanceCache =
+        config.getBoolean(GCS_ENABLE_PERFORMANCE_CACHE_KEY, GCS_ENABLE_PERFORMANCE_CACHE_DEFAULT);
+    LOG.debug("{} = {}", GCS_ENABLE_PERFORMANCE_CACHE_KEY, enablePerformanceCache);
+    optionsBuilder.setIsPerformanceCacheEnabled(enablePerformanceCache);
+
+    long performanceCacheMaxEntryAgeMillis =
+        config.getLong(
+            GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY,
+            GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_DEFAULT);
+    LOG.debug(
+        "{} = {}",
+        GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY,
+        performanceCacheMaxEntryAgeMillis);
+    optionsBuilder
+        .getPerformanceCachingOptionsBuilder()
+        .setMaxEntryAgeMillis(performanceCacheMaxEntryAgeMillis)
+        .setInferImplicitDirectoriesEnabled(enableInferImplicitDirectories);
 
     return optionsBuilder;
   }
