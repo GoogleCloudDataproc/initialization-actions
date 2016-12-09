@@ -262,7 +262,8 @@ public class PrefixMappedItemCache {
    * Extracts all the cached values in a map.
    *
    * @param map the map to extract the cached values from.
-   * @return a list of references to cached values in the map.
+   * @return a list of references to cached values in the map. If the is empty, and empty list is
+   *     returned.
    */
   private static <K, V> List<V> aggregateCacheValues(Map<K, CacheValue<V>> map) {
     List<V> values = new ArrayList<V>(map.size());

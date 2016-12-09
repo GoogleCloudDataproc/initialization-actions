@@ -356,7 +356,7 @@ public class PrefixMappedItemCacheTest {
 
     // Verify the state of the cache.
     assertContainsInAnyOrder(
-        cache.getAllItemsRaw(), Lists.newArrayList(ITEM_A_A, ITEM_A_AA, ITEM_A_ABA));
+        cache.getAllItemsRaw(), Lists.newArrayList(ITEM_A_A, ITEM_A_AA));
     assertTrue(cache.containsListRaw(BUCKET_A, ""));
     assertTrue(cache.containsListRaw(BUCKET_A, PREFIX_A));
     assertFalse(cache.containsListRaw(BUCKET_B, ""));
