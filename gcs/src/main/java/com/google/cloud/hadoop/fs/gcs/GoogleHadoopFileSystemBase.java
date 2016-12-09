@@ -250,6 +250,16 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
    */
   public static final long GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_DEFAULT = 3000L;
 
+  /** Configuration key for whether or not to enable list caching for the performance cache. */
+  public static final String GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY =
+      "fs.gs.performance.cache.list.caching.enable";
+
+  /**
+   * Default value for {@link
+   * GoogleHadoopFileSystemBase#GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY}.
+   */
+  public static final boolean GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_DEFAULT = true;
+
   /**
    * Configuration key for whether or not we should update timestamps for parent directories when we
    * create new files in them.
@@ -2216,10 +2226,17 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
         "{} = {}",
         GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY,
         performanceCacheMaxEntryAgeMillis);
+
+    boolean listCachingEnabled =
+        config.getBoolean(
+            GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY,
+            GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_DEFAULT);
+    LOG.debug("{} = {}", GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY, listCachingEnabled);
     optionsBuilder
         .getPerformanceCachingOptionsBuilder()
         .setMaxEntryAgeMillis(performanceCacheMaxEntryAgeMillis)
-        .setInferImplicitDirectoriesEnabled(enableInferImplicitDirectories);
+        .setInferImplicitDirectoriesEnabled(enableInferImplicitDirectories)
+        .setListCachingEnabled(listCachingEnabled);
 
     return optionsBuilder;
   }

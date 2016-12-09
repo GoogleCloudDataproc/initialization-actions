@@ -19,13 +19,19 @@ public class PerformanceCachingGoogleCloudStorageOptions {
   /** Max age of an item in cache in milliseconds. */
   public static final long MAX_ENTRY_AGE_MILLIS_DEFAULT = 3000L;
 
+  /** Flag to enable list caching. */
+  public static final boolean LIST_CACHING_ENABLED = true;
+
   private final long maxEntryAgeMillis;
 
   private final boolean inferImplicitDirectoriesEnabled;
 
+  private final boolean listCachingEnabled;
+
   private PerformanceCachingGoogleCloudStorageOptions(Builder builder) {
     this.maxEntryAgeMillis = builder.maxEntryAgeMillis;
     this.inferImplicitDirectoriesEnabled = builder.inferImplicitDirectoriesEnabled;
+    this.listCachingEnabled = builder.listCachingEnabled;
   }
 
   /** Gets the max age of an item in cache in milliseconds. */
@@ -38,6 +44,11 @@ public class PerformanceCachingGoogleCloudStorageOptions {
     return inferImplicitDirectoriesEnabled;
   }
 
+  /** Gets if list caching is enabled. */
+  public boolean isListCachingEnabled() {
+    return listCachingEnabled;
+  }
+
   /** Builder class for PerformanceCachingGoogleCloudStorageOptions. */
   public static class Builder {
 
@@ -45,6 +56,8 @@ public class PerformanceCachingGoogleCloudStorageOptions {
 
     private boolean inferImplicitDirectoriesEnabled =
         GoogleCloudStorageOptions.INFER_IMPLICIT_DIRECTORIES_DEFAULT;
+
+    private boolean listCachingEnabled = LIST_CACHING_ENABLED;
 
     /** Sets the max age of an item in cache in milliseconds. */
     public Builder setMaxEntryAgeMillis(long maxEntryAgeMillis) {
@@ -55,6 +68,12 @@ public class PerformanceCachingGoogleCloudStorageOptions {
     /** Setting for enabling inferring of implicit directories. */
     public Builder setInferImplicitDirectoriesEnabled(boolean inferImplicitDirectoriesEnabled) {
       this.inferImplicitDirectoriesEnabled = inferImplicitDirectoriesEnabled;
+      return this;
+    }
+
+    /** Setting for list caching. */
+    public Builder setListCachingEnabled(boolean listCachingEnabled) {
+      this.listCachingEnabled = listCachingEnabled;
       return this;
     }
 

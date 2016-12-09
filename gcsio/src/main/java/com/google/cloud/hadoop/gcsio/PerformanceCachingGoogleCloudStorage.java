@@ -41,6 +41,9 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
   /** Setting for enabling inferring of implicit directories. */
   private final boolean inferImplicitDirectoriesEnabled;
 
+  /** Setting for enabling list caching. */
+  private final boolean listCachingEnabled;
+
   /**
    * Creates a wrapper around a GoogleCloudStorage instance, caching calls that create, update,
    * remove, and query for GoogleCloudStorageItemInfo. Those cached copies are returned when
@@ -57,6 +60,7 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
     super(delegate);
 
     this.inferImplicitDirectoriesEnabled = options.isInferImplicitDirectoriesEnabled();
+    this.listCachingEnabled = options.isListCachingEnabled();
 
     // Create the cache configuration.
     PrefixMappedItemCache.Config config = new PrefixMappedItemCache.Config();
@@ -71,6 +75,7 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
       PrefixMappedItemCache cache) {
     super(delegate);
     this.inferImplicitDirectoriesEnabled = options.isInferImplicitDirectoriesEnabled();
+    this.listCachingEnabled = options.isListCachingEnabled();
     this.cache = cache;
   }
 
@@ -120,15 +125,22 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
   public List<GoogleCloudStorageItemInfo> listObjectInfo(
       String bucketName, String objectNamePrefix, String delimiter, long maxResults)
       throws IOException {
-    List<GoogleCloudStorageItemInfo> result = cache.getList(bucketName, objectNamePrefix);
+    List<GoogleCloudStorageItemInfo> result;
 
-    if (result == null) {
+    if (listCachingEnabled) {
+      result = cache.getList(bucketName, objectNamePrefix);
+
+      if (result == null) {
+        result = super.listObjectInfo(bucketName, objectNamePrefix, null);
+        cache.putList(bucketName, objectNamePrefix, result);
+      }
+
+      if (GoogleCloudStorage.PATH_DELIMITER.equals(delimiter)) {
+        filter(result, bucketName, objectNamePrefix, delimiter);
+      }
+    } else {
       result = super.listObjectInfo(bucketName, objectNamePrefix, null);
       cache.putList(bucketName, objectNamePrefix, result);
-    }
-
-    if (GoogleCloudStorage.PATH_DELIMITER.equals(delimiter)) {
-      filter(result, bucketName, objectNamePrefix, delimiter);
     }
 
     return result;
