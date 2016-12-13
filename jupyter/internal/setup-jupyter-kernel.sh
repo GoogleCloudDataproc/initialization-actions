@@ -9,6 +9,7 @@ ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 JUPYTER_NOTEBOOK_DIR="/root/notebooks"
 JUPYTER_PORT=$(/usr/share/google/get_metadata_value attributes/JUPYTER_PORT || true)
 [[ ! $JUPYTER_PORT =~ ^[0-9]+$ ]] && JUPYTER_PORT=8123
+JUPYTER_AUTH_TOKEN=$(/usr/share/google/get_metadata_value attributes/JUPYTER_AUTH_TOKEN || true)
 JUPYTER_IP=*
 
 [[ "${ROLE}" != 'Master' ]] && throw "$0 should only be run on the Master node!"
@@ -23,6 +24,7 @@ echo "c.NotebookApp.ip = '*'" >> ~/.jupyter/jupyter_notebook_config.py
 echo "c.NotebookApp.open_browser = False" >> ~/.jupyter/jupyter_notebook_config.py
 echo "c.NotebookApp.port = $JUPYTER_PORT" >> ~/.jupyter/jupyter_notebook_config.py
 echo "c.NotebookApp.notebook_dir = '$JUPYTER_NOTEBOOK_DIR'" >> ~/.jupyter/jupyter_notebook_config.py
+echo "c.NotebookApp.token = u'$JUPYTER_AUTH_TOKEN'" >> ~/.jupyter/jupyter_notebook_config.py
 
 echo "Installing pyspark Kernel..."
 JUPYTER_KERNEL_DIR='/dataproc-initialization-actions/jupyter/kernels/pyspark'
