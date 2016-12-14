@@ -19,7 +19,7 @@ git clone -b "$INIT_ACTIONS_BRANCH" --single-branch $INIT_ACTIONS_REPO
 
 source /etc/profile.d/conda_config.sh
 
-if [ -n ${JUPYTER_CONDA_PACKAGES} ]; then
+if [ -n "${JUPYTER_CONDA_PACKAGES}" ]; then
   echo "Installing custom conda packages '$(echo ${JUPYTER_CONDA_PACKAGES} | tr ':' ' ')'"
   conda install $(echo ${JUPYTER_CONDA_PACKAGES} | tr ':' ' ')
 fi
