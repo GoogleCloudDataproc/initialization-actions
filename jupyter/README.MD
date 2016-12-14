@@ -5,12 +5,36 @@ This folder contains the initialization action `jupyter.sh` to quickly setup and
 A real-world example of how to use this from within a bash script, using the default dataproc-initialization-actions repo/branch:
 
 ```bash
+# Simple one-liner; just use all default settings for your cluster. Jupyter will run on port 8123
+# of your master node.
+gcloud dataproc clusters create my-dataproc-cluster \
+    --initialization-actions \
+        gs://dataproc-initialization-actions/jupyter/jupyter.sh \
+```
+
+There are various options for customizing your Jupyter installation. For example to change the port
+on which the Jupyter server runs, you can set the metadata key `JUPYTER_PORT`. You may also want
+to change the number of workers and machine type of your cluster:
+
+```bash
 # Override the Jupyter port with 8124 (default is 8123)
 gcloud dataproc clusters create my-dataproc-cluster \
     --metadata "JUPYTER_PORT=8124" \
     --initialization-actions \
         gs://dataproc-initialization-actions/jupyter/jupyter.sh \
-    --bucket my-dataproc-bucket \
+    --num-workers 2 \
+    --properties spark:spark.executorEnv.PYTHONHASHSEED=0,spark:spark.yarn.am.memory=1024m \
+    --worker-machine-type=n1-standard-4 \
+    --master-machine-type=n1-standard-4
+```
+You can pre-install various Python packages through `conda` by specifying a colon-separated
+list in the metadata entry `JUPYTER_CONDA_PACKAGES`:
+
+```bash
+gcloud dataproc clusters create my-dataproc-cluster \
+    --metadata "JUPYTER_PORT=8124,JUPYTER_CONDA_PACKAGES=numpy:pandas:scikit-learn" \
+    --initialization-actions \
+        gs://dataproc-initialization-actions/jupyter/jupyter.sh \
     --num-workers 2 \
     --properties spark:spark.executorEnv.PYTHONHASHSEED=0,spark:spark.yarn.am.memory=1024m \
     --worker-machine-type=n1-standard-4 \

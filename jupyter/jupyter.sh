@@ -8,6 +8,9 @@ INIT_ACTIONS_BRANCH=$(curl -f -s -H Metadata-Flavor:Google http://metadata/compu
 INIT_ACTIONS_BRANCH="${INIT_ACTIONS_BRANCH:-master}"
 DATAPROC_BUCKET=$(curl -f -s -H Metadata-Flavor:Google http://metadata/computeMetadata/v1/instance/attributes/dataproc-bucket)
 
+# Colon-separated list of conda packages to install, for example 'numpy:pandas'
+JUPYTER_CONDA_PACKAGES=$(curl -f -s -H Metadata-Flavor:Google http://metadata/computeMetadata/v1/instance/attributes/JUPYTER_CONDA_PACKAGES || true)
+
 echo "Cloning fresh dataproc-initialization-actions from repo $INIT_ACTIONS_REPO and branch $INIT_ACTIONS_BRANCH..."
 git clone -b "$INIT_ACTIONS_BRANCH" --single-branch $INIT_ACTIONS_REPO
 # Ensure we have conda installed.
@@ -15,6 +18,12 @@ git clone -b "$INIT_ACTIONS_BRANCH" --single-branch $INIT_ACTIONS_REPO
 #./dataproc-initialization-actions/conda/install-conda-env.sh
 
 source /etc/profile.d/conda_config.sh
+
+if [ -n ${JUPYTER_CONDA_PACKAGES} ]; then
+  echo "Installing custom conda packages '$(echo ${JUPYTER_CONDA_PACKAGES} | tr ':' ' ')'"
+  conda install $(echo ${JUPYTER_CONDA_PACKAGES} | tr ':' ' ')
+fi
+
 if [[ "${ROLE}" == 'Master' ]]; then
     conda install jupyter
     if gsutil -q stat "gs://$DATAPROC_BUCKET/notebooks/**"; then
