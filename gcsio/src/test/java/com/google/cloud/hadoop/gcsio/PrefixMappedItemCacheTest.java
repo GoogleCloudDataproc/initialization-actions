@@ -89,7 +89,8 @@ public class PrefixMappedItemCacheTest {
 
     assertNull(actualItem);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList());
+    assertContainsInAnyOrder(
+        cache.getAllItemsRaw(), Lists.<GoogleCloudStorageItemInfo>newArrayList());
   }
 
   /** Test expired items cannot be retrieved. */
@@ -208,7 +209,8 @@ public class PrefixMappedItemCacheTest {
 
     assertNull(actualItems);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList());
+    assertContainsInAnyOrder(
+        cache.getAllItemsRaw(), Lists.<GoogleCloudStorageItemInfo>newArrayList());
   }
 
   /** Test missing lists cannot be retrieved. */
@@ -289,7 +291,8 @@ public class PrefixMappedItemCacheTest {
 
     assertEquals(actualItem, ITEM_A_A);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList());
+    assertContainsInAnyOrder(
+        cache.getAllItemsRaw(), Lists.<GoogleCloudStorageItemInfo>newArrayList());
   }
 
   /** Test missing items can be removed. */
@@ -312,7 +315,8 @@ public class PrefixMappedItemCacheTest {
 
     assertNull(actualItem);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList());
+    assertContainsInAnyOrder(
+        cache.getAllItemsRaw(), Lists.<GoogleCloudStorageItemInfo>newArrayList());
   }
 
   /** Test missing items can be removed. */
@@ -326,7 +330,8 @@ public class PrefixMappedItemCacheTest {
 
     assertEquals(actualItem, null);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList());
+    assertContainsInAnyOrder(
+        cache.getAllItemsRaw(), Lists.<GoogleCloudStorageItemInfo>newArrayList());
     assertFalse(cache.containsListRaw(BUCKET_A, ""));
     assertTrue(cache.containsListRaw(BUCKET_A, PREFIX_AA));
   }
@@ -371,7 +376,8 @@ public class PrefixMappedItemCacheTest {
     cache.invalidateAll();
 
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList());
+    assertContainsInAnyOrder(
+        cache.getAllItemsRaw(), Lists.<GoogleCloudStorageItemInfo>newArrayList());
     assertFalse(cache.containsListRaw(BUCKET_A, ""));
     assertFalse(cache.containsListRaw(BUCKET_A, PREFIX_AA));
   }

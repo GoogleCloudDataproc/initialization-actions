@@ -339,7 +339,8 @@ public class PerformanceCachingGoogleCloudStorageTest {
     // Verify the delegate call was made.
     verify(gcsDelegate).close();
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList());
+    assertContainsInAnyOrder(
+        cache.getAllItemsRaw(), Lists.<GoogleCloudStorageItemInfo>newArrayList());
   }
 
   @Test
