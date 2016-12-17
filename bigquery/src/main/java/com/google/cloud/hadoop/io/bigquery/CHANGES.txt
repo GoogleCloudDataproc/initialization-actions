@@ -1,7 +1,8 @@
-x.x.x - 2016-xx-xx
+0.10.1 - 2016-12-16
 
   1. Added a configurable write disposition when using 
      IndirectBigQueryOutputFormat with "WRITE_APPEND" as the default.
+
 
 0.10.0 - 2016-11-07
 

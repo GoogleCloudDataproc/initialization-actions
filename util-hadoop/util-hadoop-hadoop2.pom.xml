@@ -20,13 +20,13 @@
   <parent>
     <groupId>com.google.cloud.bigdataoss</groupId>
     <artifactId>util-hadoop-parent</artifactId>
-    <version>1.5.6-SNAPSHOT</version>
+    <version>1.6.0</version>
     <relativePath>pom.xml</relativePath>
   </parent>
 
   <packaging>jar</packaging>
   <artifactId>util-hadoop</artifactId>
-  <version>1.5.6-hadoop2-SNAPSHOT</version>
+  <version>1.6.0-hadoop2</version>
 
   <dependencies>
     <dependency>

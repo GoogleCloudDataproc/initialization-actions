@@ -1,3 +1,33 @@
+1.6.0 - 2016-12-16
+
+  1. Added new PerformanceCachingGoogleCloudStorage; unlike the existing
+     CacheSupplementedGoogleCloudStorage which only serves as an advisory
+     cache for enforcement of list consistency, the new optional caching
+     layer is able to serving certain metadata and listing requests purely
+     out of a short-lived in-memory cache to enhance performance of
+     some workloads. By default this feature is disabled, and can be
+     controlled with the config settings:
+
+       fs.gs.performance.cache.enable=true (default=false)
+       fs.gs.performance.cache.list.caching.enable=true (default=false)
+
+     The first option enables the cache to serve getFileStatus requests,
+     while the second option additionally enables serving listStatus. The
+     duration of cache entries can be controlled with:
+
+       fs.gs.performance.cache.max.entry.age.ms (default=3000)
+
+     It is not recommended to always run with this feature enabled; it should
+     be used specifically to address cases where frameworks perform redundant
+     sequential list/stat operations in a non-distributed manner, and on
+     datasets which are not frequently changing. It is additionally advised
+     to validate data integrity separately whenever using this feature. There
+     is no cooperative cache invalidation between different processes when
+     using this feature, so concurrent mutations to a location from multiple
+     clients *will* produce inconsistent/stale results if this feature is
+     enabled.
+
+
 1.5.5 - 2016-11-04
 
   1. Minor refactoring of logic in CacheSupplementedGoogleCloudStorage to
