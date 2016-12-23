@@ -33,9 +33,9 @@ FLINK_VERSION="1.0.3"
 
 # Location of the FLink binary archive
 CONCAT_HADOOP_VERSION=$(echo $HADOOP_VERSION | sed 's/\.//g')
-FLINK_TARBALL_URI="http://www-us.apache.org/dist/flink/flink-${FLINK_VERSION}\
-	/flink-${FLINK_VERSION}-bin-hadoop${CONCAT_HADOOP_VERSION}-\
-	scala_${SCALA_VERSION}.tgz"
+FLINK_HADOOP_URI="flink-${FLINK_VERSION}-bin-hadoop${CONCAT_HADOOP_VERSION}"
+SCALA_URI="scala_${SCALA_VERSION}.tgz"
+FLINK_TARBALL_URI="http://www-us.apache.org/dist/flink/flink-${FLINK_VERSION}/${FLINK_HADOOP_URI}-${SCALA_URI}"
 
 # Install directories for Flink and Hadoop
 FLINK_INSTALL_DIR='/usr/lib/flink'
