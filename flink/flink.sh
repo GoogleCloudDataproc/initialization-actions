@@ -73,8 +73,7 @@ FLINK_TASKMANAGER_MEMORY=$(python -c \
     "print int(${TOTAL_MEM} * ${FLINK_TASKMANAGER_MEMORY_FRACTION})")
 
 # Install Flink and tidy things up
-FLINK_TARBALL_NAME="flink-${FLINK_VERSION}-bin-hadoop${CONCAT_HADOOP_VERSION}-\
-	scala_${SCALA_VERSION}.tgz"
+FLINK_TARBALL_NAME="flink-${FLINK_VERSION}-bin-hadoop${CONCAT_HADOOP_VERSION}-scala_${SCALA_VERSION}.tgz"
 FLINK_EXTRACT_DIRECTORY="flink-${FLINK_VERSION}"
 mkdir ${FLINK_INSTALL_DIR}
 cd ${FLINK_INSTALL_DIR}
@@ -97,5 +96,4 @@ fs.hdfs.hadoopconf: ${HADOOP_CONF_DIR}
 EOF
 
 # Start a Flink YARN session
-HADOOP_CONF_DIR=/etc/hadoop/conf ./bin/yarn-session.sh -n \
-	${FLINK_TASKMANAGER_SLOTS} --detached
+HADOOP_CONF_DIR=/etc/hadoop/conf ./bin/yarn-session.sh -n ${FLINK_TASKMANAGER_SLOTS} --detached
