@@ -23,6 +23,8 @@
 #
 # This script should run in under a few minutes
 
+set -x -e
+
 # Determine the role of this node
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 
