@@ -28,6 +28,7 @@ This repository presently offers the following actions for use with Cloud Datapr
   * [Apache Tez](http://tez.apache.org)
   * [Apache Zeppelin](http://zeppelin.apache.org)
   * [Apache ZooKeeper](http://zookeeper.apache.org)
+  * [Google Cloud Bigtable](https://cloud.google.com/bigtable/) [Apache HBase](http://hbase.apache.org) [Client](https://github.com/GoogleCloudPlatform/cloud-bigtable-client)
   * [Google Cloud Datalab](https://cloud.google.com/datalab/)
   * [Hue](http://gethue.com)
   * [IPython](http://ipython.org)
