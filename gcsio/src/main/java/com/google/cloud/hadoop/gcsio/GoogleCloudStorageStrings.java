@@ -62,7 +62,7 @@ public class GoogleCloudStorageStrings {
         suffix = objectName.substring(suffixIndex);
       }
     }
-    if ((delimiter != null) && (suffix.indexOf(delimiter) >= 0)) {
+    if (!Strings.isNullOrEmpty(delimiter) && suffix.contains(delimiter)) {
       // Return the full prefix and suffix up through first occurrence of delimiter after
       // the prefix, inclusive of the delimiter.
       objectName = objectName.substring(

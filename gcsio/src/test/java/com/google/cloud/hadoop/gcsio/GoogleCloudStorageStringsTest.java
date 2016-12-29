@@ -86,6 +86,7 @@ public class GoogleCloudStorageStringsTest {
     /**
      * Useful formatted String summarizing this expectation.
      */
+    @Override
     public String toString() {
       return String.format("Expect '%s' for args (%s, %s, %s)",
           returnValue, objectNamePrefix, delimiter, objectName);
@@ -113,6 +114,12 @@ public class GoogleCloudStorageStringsTest {
           .willReturn("/"),
 
       new MatchResultExpectation(null, null, "foo/bar")
+          .willReturn("foo/bar"),
+
+      new MatchResultExpectation(null, "", "foo/bar")
+          .willReturn("foo/bar"),
+
+      new MatchResultExpectation("", "", "foo/bar")
           .willReturn("foo/bar"),
     };
 
