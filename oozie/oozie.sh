@@ -28,9 +28,17 @@ ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 
 # Only run on the master node of the cluster
 if [[ "${ROLE}" == 'Master' ]]; then
-  # Upgrade the repository and install Oozie
+  # Upgrade the repository and install Tomcat
   apt-get update
-  apt-get install oozie oozie-client -y
+  apt-get install bigtop-tomcat -y
+
+  # install Oozie from remote repository url
+  wget http://dataproc-bigtop-repo.storage.googleapis.com/v1.0-RC0/contrib/o/oozie/oozie_4.2.0-1_all.deb
+  wget http://dataproc-bigtop-repo.storage.googleapis.com/v1.0-RC0/contrib/o/oozie/oozie-client_4.2.0-1_all.deb
+
+  # install with force
+  dpkg --force-all -i oozie-client_4.2.0-1_all.deb
+  dpkg --force-all -i oozie_4.2.0-1_all.deb
   
   # The ext library is needed to enable the Oozie web console
   wget http://archive.cloudera.com/gplextras/misc/ext-2.2.zip
@@ -41,7 +49,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
   sudo -u oozie /usr/lib/oozie/bin/ooziedb.sh create -run
   
   # Hadoop must allow impersonation for Oozie to work properly
-  cat > core-site-patch.xml <<EOF
+  cat > core-site-patch.xml <<'EOF'
   <property>
     <name>hadoop.proxyuser.oozie.hosts</name>
     <value>*</value>
@@ -56,15 +64,20 @@ if [[ "${ROLE}" == 'Master' ]]; then
   </property>
   <property>
     <name>hadoop.proxyuser.${user.name}.groups</name>
-	<value>*</value>
+    <value>*</value>
   </property>
 EOF
   sed -i '/<\/configuration>/e cat core-site-patch.xml' \
-	  /etc/hadoop/conf/core-site.xml
+      /etc/hadoop/conf/core-site.xml
   
   # Clean up temporary fles
   rm -rf ext-2.2 ext-2.2.zip core-site-patch.xml
   
   # HDFS and MapReduce must be cycled; restart to clean things up
-  reboot
+  service hadoop-hdfs-namenode restart
+  service hadoop-hdfs-secondarynamenode restart
+  service hadoop-mapreduce-historyserver restart
+  service hadoop-yarn-resourcemanager restart
+  service hive-server2 restart
+  service oozie start
 fi
