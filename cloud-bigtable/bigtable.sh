@@ -31,7 +31,7 @@ NETTY_TCNATIVE_VERSION='1.1.33.Fork25'
 apt-get update
 apt-get install hbase -y
 HBASE_VERSION=$(dpkg-query --showformat='${Version}' --show hbase)
-HBASE_VERSION=${HBASE_VERSION:0:3}
+HBASE_VERSION=${HBASE_VERSION%.*}
 
 wget -P /usr/lib/hbase/lib \
   "${MVN_REPO}/com/google/cloud/bigtable/bigtable-hbase-shaded/${BIGTABLE_CLIENT_VERSION}/bigtable-hbase-shaded-${BIGTABLE_CLIENT_VERSION}.jar"
