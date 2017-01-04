@@ -25,6 +25,7 @@
 
 # Determine the role of this node
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
+HOSTNAME=$(hostname)
 
 # Only run on the master node of the cluster
 if [[ "${ROLE}" == 'Master' ]]; then
@@ -73,6 +74,11 @@ EOF
   # Clean up temporary fles
   rm -rf ext-2.2 ext-2.2.zip core-site-patch.xml
   
+  # Required for Oozie sharedlib setup
+  # throws ClassNotFoundException about org.apache.commons.io.Charsets
+  wget http://central.maven.org/maven2/commons-io/commons-io/2.3/commons-io-2.3.jar
+  mv commons-io-2.3 /usr/lib/oozie/lib/
+
   # HDFS and MapReduce must be cycled; restart to clean things up
   service hadoop-hdfs-namenode restart
   service hadoop-hdfs-secondarynamenode restart
@@ -80,4 +86,10 @@ EOF
   service hadoop-yarn-resourcemanager restart
   service hive-server2 restart
   service oozie start
+
+  # Create sharedlib
+  oozie-setup sharelib create -fs hdfs://${HOSTNAME}
+
+  # Update available sharedlist
+  oozie admin -sharelibupdate -oozie http://localhost:11000/oozie
 fi
