@@ -77,7 +77,7 @@ EOF
   # Required for Oozie sharedlib setup
   # throws ClassNotFoundException about org.apache.commons.io.Charsets
   wget http://central.maven.org/maven2/commons-io/commons-io/2.3/commons-io-2.3.jar
-  mv commons-io-2.3 /usr/lib/oozie/lib/
+  mv commons-io-2.3.jar /usr/lib/oozie/lib/
 
   # HDFS and MapReduce must be cycled; restart to clean things up
   service hadoop-hdfs-namenode restart
