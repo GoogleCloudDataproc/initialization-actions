@@ -42,6 +42,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -1442,16 +1443,20 @@ public class GoogleCloudStorageFileSystem {
     // If we're calling tryUpdateTimestamps, we don't actually care about the results. Submit
     // these requests via a background thread and continue on.
     try {
-      updateTimestampsExecutor.submit(new Runnable() {
-        @Override
-        public void run() {
-          try {
-            updateTimestampsForParentDirectories(modifiedObjects, excludedParents);
-          } catch (IOException ioe) {
-            LOG.debug("Exception caught when trying to update parent directory timestamps.", ioe);
-          }
-        }
-      });
+      @SuppressWarnings("unused") // go/futurereturn-lsc
+      Future<?> possiblyIgnoredError =
+          updateTimestampsExecutor.submit(
+              new Runnable() {
+                @Override
+                public void run() {
+                  try {
+                    updateTimestampsForParentDirectories(modifiedObjects, excludedParents);
+                  } catch (IOException ioe) {
+                    LOG.debug(
+                        "Exception caught when trying to update parent directory timestamps.", ioe);
+                  }
+                }
+              });
     } catch (RejectedExecutionException ree) {
       LOG.debug("Exhausted threadpool and queue space while updating parent timestamps", ree);
     }

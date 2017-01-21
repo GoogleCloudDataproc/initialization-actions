@@ -43,6 +43,7 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.joda.time.Instant;
 import org.junit.AfterClass;
@@ -1295,22 +1296,25 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
       final List<Throwable> errorList = new ArrayList<>();
       final CountDownLatch checkStartCounter = new CountDownLatch(renameData.size());
       for (final RenameData rd : renameData) {
-        threadPool.submit(new Runnable() {
-          @Override
-          public void run() {
-            try {
-              // Verify that items that we expect to rename are present before the operation.
-              assertPathsExist(
-                  rd.description, rd.srcBucketName, rd.objectsExpectedToBeDeleted, true);
-            } catch (Throwable t) {
-              synchronized (errorList) {
-                errorList.add(t);
-              }
-            } finally {
-              checkStartCounter.countDown();
-            }
-          }
-        });
+        @SuppressWarnings("unused") // go/futurereturn-lsc
+        Future<?> possiblyIgnoredError =
+            threadPool.submit(
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    try {
+                      // Verify that items that we expect to rename are present before the operation.
+                      assertPathsExist(
+                          rd.description, rd.srcBucketName, rd.objectsExpectedToBeDeleted, true);
+                    } catch (Throwable t) {
+                      synchronized (errorList) {
+                        errorList.add(t);
+                      }
+                    } finally {
+                      checkStartCounter.countDown();
+                    }
+                  }
+                });
       }
       try {
         checkStartCounter.await();
@@ -1328,46 +1332,57 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
       // Do a loop to do all the renames.
       final CountDownLatch renameCounter = new CountDownLatch(renameData.size());
       for (final RenameData rd : renameData) {
-        threadPool.submit(new Runnable() {
-          @Override
-          public void run() {
-            try {
-              URI src = gcsiHelper.getPath(rd.srcBucketName, rd.srcObjectName);
-              URI dst = gcsiHelper.getPath(rd.dstBucketName, rd.dstObjectName);
-              boolean result = false;
+        @SuppressWarnings("unused") // go/futurereturn-lsc
+        Future<?> possiblyIgnoredError =
+            threadPool.submit(
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    try {
+                      URI src = gcsiHelper.getPath(rd.srcBucketName, rd.srcObjectName);
+                      URI dst = gcsiHelper.getPath(rd.dstBucketName, rd.dstObjectName);
+                      boolean result = false;
 
-              String desc = src.toString() + " -> " + dst.toString();
-              try {
-                // Perform the rename operation.
-                result = gcsiHelper.rename(src, dst);
+                      String desc = src.toString() + " -> " + dst.toString();
+                      try {
+                        // Perform the rename operation.
+                        result = gcsiHelper.rename(src, dst);
 
-                if (result) {
-                  Assert.assertEquals(String.format(
-                      "Unexpected result for: %s : %s :: expected %s, actually returned true.",
-                      desc, rd.description, rd.expectedOutcome.toString()),
-                      rd.expectedOutcome.getType(), MethodOutcome.Type.RETURNS_TRUE);
-                } else {
-                  Assert.assertEquals(String.format(
-                      "Unexpected result for: %s : %s :: expected %s, actually returned false.",
-                      desc, rd.description, rd.expectedOutcome.toString()),
-                      rd.expectedOutcome.getType(), MethodOutcome.Type.RETURNS_FALSE);
-                }
-              } catch (Exception e) {
-                Assert.assertEquals(String.format(
-                    "Unexpected result for: %s : %s :: expected %s, actually threw %s.",
-                    desc, rd.description, rd.expectedOutcome.toString(),
-                    Throwables.getStackTraceAsString(e)),
-                    rd.expectedOutcome.getType(), MethodOutcome.Type.THROWS_EXCEPTION);
-              }
-            } catch (Throwable t) {
-              synchronized (errorList) {
-                errorList.add(t);
-              }
-            } finally {
-              renameCounter.countDown();
-            }
-          }
-        });
+                        if (result) {
+                          Assert.assertEquals(
+                              String.format(
+                                  "Unexpected result for: %s : %s :: expected %s, actually returned true.",
+                                  desc, rd.description, rd.expectedOutcome.toString()),
+                              rd.expectedOutcome.getType(),
+                              MethodOutcome.Type.RETURNS_TRUE);
+                        } else {
+                          Assert.assertEquals(
+                              String.format(
+                                  "Unexpected result for: %s : %s :: expected %s, actually returned false.",
+                                  desc, rd.description, rd.expectedOutcome.toString()),
+                              rd.expectedOutcome.getType(),
+                              MethodOutcome.Type.RETURNS_FALSE);
+                        }
+                      } catch (Exception e) {
+                        Assert.assertEquals(
+                            String.format(
+                                "Unexpected result for: %s : %s :: expected %s, actually threw %s.",
+                                desc,
+                                rd.description,
+                                rd.expectedOutcome.toString(),
+                                Throwables.getStackTraceAsString(e)),
+                            rd.expectedOutcome.getType(),
+                            MethodOutcome.Type.THROWS_EXCEPTION);
+                      }
+                    } catch (Throwable t) {
+                      synchronized (errorList) {
+                        errorList.add(t);
+                      }
+                    } finally {
+                      renameCounter.countDown();
+                    }
+                  }
+                });
       }
       try {
         renameCounter.await();
@@ -1385,39 +1400,43 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
       // Finally, check the existence of final destination files.
       final CountDownLatch checkDestCounter = new CountDownLatch(renameData.size());
       for (final RenameData rd : renameData) {
-        threadPool.submit(new Runnable() {
-          @Override
-          public void run() {
-            try {
-              URI src = gcsiHelper.getPath(rd.srcBucketName, rd.srcObjectName);
+        @SuppressWarnings("unused") // go/futurereturn-lsc
+        Future<?> possiblyIgnoredError =
+            threadPool.submit(
+                new Runnable() {
+                  @Override
+                  public void run() {
+                    try {
+                      URI src = gcsiHelper.getPath(rd.srcBucketName, rd.srcObjectName);
 
-              // Verify that items that we expect to exist are present.
-              assertPathsExist(
-                  rd.description, rd.srcBucketName, rd.objectsExpectedToExistSrc, true);
-              String dstBucketName;
-              if ((rd.dstBucketName == null) && (rd.dstObjectName == null)) {
-                // If both bucket and object names are null that means the destination
-                // of the rename is root path. In that case, the leaf directory
-                // of the source path becomes the destination bucket.
-                String srcDirName = gcsiHelper.getItemName(src);
-                dstBucketName = srcDirName;
-              } else {
-                dstBucketName = rd.dstBucketName;
-              }
-              assertPathsExist(rd.description, dstBucketName, rd.objectsExpectedToExistDst, true);
+                      // Verify that items that we expect to exist are present.
+                      assertPathsExist(
+                          rd.description, rd.srcBucketName, rd.objectsExpectedToExistSrc, true);
+                      String dstBucketName;
+                      if ((rd.dstBucketName == null) && (rd.dstObjectName == null)) {
+                        // If both bucket and object names are null that means the destination
+                        // of the rename is root path. In that case, the leaf directory
+                        // of the source path becomes the destination bucket.
+                        String srcDirName = gcsiHelper.getItemName(src);
+                        dstBucketName = srcDirName;
+                      } else {
+                        dstBucketName = rd.dstBucketName;
+                      }
+                      assertPathsExist(
+                          rd.description, dstBucketName, rd.objectsExpectedToExistDst, true);
 
-              // Verify that items that we expect to be deleted are not present.
-              assertPathsExist(
-                  rd.description, rd.srcBucketName, rd.objectsExpectedToBeDeleted, false);
-            } catch (Throwable t) {
-              synchronized (errorList) {
-                errorList.add(t);
-              }
-            } finally {
-              checkDestCounter.countDown();
-            }
-          }
-        });
+                      // Verify that items that we expect to be deleted are not present.
+                      assertPathsExist(
+                          rd.description, rd.srcBucketName, rd.objectsExpectedToBeDeleted, false);
+                    } catch (Throwable t) {
+                      synchronized (errorList) {
+                        errorList.add(t);
+                      }
+                    } finally {
+                      checkDestCounter.countDown();
+                    }
+                  }
+                });
       }
       try {
         checkDestCounter.await();
