@@ -146,7 +146,7 @@ public class ForwardingBigQueryFileOutputCommitterTest {
   }
 
   /** Helper method to create basic valid output based. */
-  public void generateSampleFiles() throws IOException {
+  private void generateSampleFiles() throws IOException {
     ghfs.createNewFile(outputSampleFilePath);
 
     // Verify the files were created.
