@@ -60,7 +60,7 @@ if [[ -f "$MINICONDA_SCRIPT_PATH" ]]; then
   echo "Found existing Miniconda script at: $MINICONDA_SCRIPT_PATH"
 else
   echo "Downloading Miniconda script to: $MINICONDA_SCRIPT_PATH ..."
-  wget http://repo.continuum.io/miniconda/$miniconda -P "$PROJ_DIR"
+  wget https://repo.continuum.io/miniconda/$miniconda -P "$PROJ_DIR"
   echo "Downloaded $miniconda!"
   ls -al $MINICONDA_SCRIPT_PATH
   chmod 755 $MINICONDA_SCRIPT_PATH
