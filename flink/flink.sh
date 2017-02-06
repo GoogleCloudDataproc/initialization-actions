@@ -29,13 +29,15 @@ SCALA_VERSION="2.10"
 # Hadoop version on the cluster see the following side for details
 HADOOP_VERSION="2.7"
 # Flink version to be installed on the cluster
-FLINK_VERSION="1.0.3"
+FLINK_VERSION="1.1.4"
 
 # Location of the FLink binary archive
 CONCAT_HADOOP_VERSION=$(echo $HADOOP_VERSION | sed 's/\.//g')
-FLINK_TARBALL_URI="http://www-us.apache.org/dist/flink/flink-${FLINK_VERSION}\
-	/flink-${FLINK_VERSION}-bin-hadoop${CONCAT_HADOOP_VERSION}-\
-	scala_${SCALA_VERSION}.tgz"
+FLINK_HADOOP_URI="flink-${FLINK_VERSION}-bin-hadoop${CONCAT_HADOOP_VERSION}"
+SCALA_URI="scala_${SCALA_VERSION}.tgz"
+FLINK_TARBALL_URI="http://www-us.apache.org/dist/flink/flink-${FLINK_VERSION}/${FLINK_HADOOP_URI}-${SCALA_URI}"
+
+echo $FLINK_TARBALL_URI
 
 # Install directories for Flink and Hadoop
 FLINK_INSTALL_DIR='/usr/lib/flink'
@@ -73,8 +75,7 @@ FLINK_TASKMANAGER_MEMORY=$(python -c \
     "print int(${TOTAL_MEM} * ${FLINK_TASKMANAGER_MEMORY_FRACTION})")
 
 # Install Flink and tidy things up
-FLINK_TARBALL_NAME="flink-${FLINK_VERSION}-bin-hadoop${CONCAT_HADOOP_VERSION}-\
-	scala_${SCALA_VERSION}.tgz"
+FLINK_TARBALL_NAME="flink-${FLINK_VERSION}-bin-hadoop${CONCAT_HADOOP_VERSION}-scala_${SCALA_VERSION}.tgz"
 FLINK_EXTRACT_DIRECTORY="flink-${FLINK_VERSION}"
 mkdir ${FLINK_INSTALL_DIR}
 cd ${FLINK_INSTALL_DIR}
@@ -97,5 +98,4 @@ fs.hdfs.hadoopconf: ${HADOOP_CONF_DIR}
 EOF
 
 # Start a Flink YARN session
-HADOOP_CONF_DIR=/etc/hadoop/conf ./bin/yarn-session.sh -n \
-	${FLINK_TASKMANAGER_SLOTS} --detached
+HADOOP_CONF_DIR=/etc/hadoop/conf ./bin/yarn-session.sh -n ${FLINK_TASKMANAGER_SLOTS} --detached
