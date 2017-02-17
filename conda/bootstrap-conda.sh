@@ -1,12 +1,18 @@
 #!/bin/bash
 set -e
 # Modified from bootstrap-conda.sh script, see:
-# https://gist.github.com/nehalecky/aea2100ca8bad83fe974
+# https://bitbucket.org/bombora-datascience/bootstrap-conda
 
 # Run on BOTH 'Master' and 'Worker' nodes
 #ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 #if [[ "${ROLE}" == 'Master' ]]; then
-MINICONDA_VARIANT=$(/usr/share/google/get_metadata_value attributes/MINICONDA_VARIANT || true)
+
+
+if [[ -f "/etc/profile.d/conda.sh" ]]; then
+    echo "file /etc/profile.d/conda.sh exists! Dataproc has installed conda previously. Skipping install!"
+    command -v conda >/dev/null && echo "conda command detected in $PATH"
+    exit 0
+fi
 
 if [[ ! -v CONDA_INSTALL_PATH ]]; then
     echo "CONDA_INSTALL_PATH not set, setting ..."
@@ -102,42 +108,34 @@ hash -r
 which conda
 conda config --set always_yes true --set changeps1 false
 
-echo "Updating conda..."
-conda update -q conda
 # Useful for debugging any issues with conda
 conda info -a
 
-# Install useful conda utilities in root env
-echo "Installing useful conda utilities in root env..."
-conda install anaconda-client conda-build
-
-conda update --all
 
 # 2.3 Update global profiles to add the miniconda location to PATH and PYTHONHASHSEED
 # based on: http://stackoverflow.com/questions/14637979/how-to-permanently-set-path-on-linux
 # and also: http://askubuntu.com/questions/391515/changing-etc-environment-did-not-affect-my-environemtn-variables
 # and this: http://askubuntu.com/questions/128413/setting-the-path-so-it-applies-to-all-users-including-root-sudo
 echo "Updating global profiles to export miniconda bin location to PATH and set PYTHONHASHSEED ..."
-#if grep -ir "CONDA_BIN_PATH=$CONDA_BIN_PATH" /root/.bashrc  #/$HOME/.bashrc
-if [[ -f "/etc/profile.d/conda_config.sh" ]]
+if [[ -f "/etc/profile.d/conda.sh" ]]
     then
-    echo "conda_config.sh found in /etc/profile.d/, skipping..."
+    echo "file /etc/profile.d/conda.sh exists, skipping..."
 else
     echo "Adding path definition to profiles..."
-    echo "export CONDA_BIN_PATH=$CONDA_BIN_PATH" | tee -a /etc/profile.d/conda_config.sh  /etc/*bashrc /etc/profile
-    echo 'export PATH=$CONDA_BIN_PATH:$PATH' | tee -a /etc/profile.d/conda_config.sh  /etc/*bashrc /etc/profile
+    echo "export CONDA_BIN_PATH=$CONDA_BIN_PATH" | tee -a /etc/profile.d/conda.sh  #/etc/*bashrc /etc/profile
+    echo 'export PATH=$CONDA_BIN_PATH:$PATH' | tee -a /etc/profile.d/conda.sh  #/etc/*bashrc /etc/profile
     # Fix issue with Python3 hash seed.
-    # Issue here: https://issues.apache.org/jira/browse/SPARK-12100
+    # Issue here: https://issues.apache.org/jira/browse/SPARK-13330 (fixed in Spark 2.2.0 release)
     # Fix here: http://blog.stuart.axelbrooke.com/python-3-on-spark-return-of-the-pythonhashseed/
     echo "Adding PYTHONHASHSEED=0 to profiles and spark-defaults.conf..."
-    echo "export PYTHONHASHSEED=0" | tee -a  /etc/profile.d/conda_config.sh  /etc/*bashrc  /usr/lib/spark/conf/spark-env.sh
+    echo "export PYTHONHASHSEED=0" | tee -a  /etc/profile.d/conda.sh  #/etc/*bashrc  /usr/lib/spark/conf/spark-env.sh
     echo "spark.executorEnv.PYTHONHASHSEED=0" >> /etc/spark/conf/spark-defaults.conf
 fi
 
 ## 3. Ensure that Anaconda Python and PySpark play nice
 ### http://blog.cloudera.com/blog/2015/09/how-to-prepare-your-apache-hadoop-cluster-for-pyspark-jobs/
 echo "Ensure that Anaconda Python and PySpark play nice by all pointing to same Python distro..."
-if [[ ! -v PYSPARK_PYTHON ]]; then  echo "export PYSPARK_PYTHON=$CONDA_BIN_PATH/python" | tee -a  /etc/profile.d/conda_config.sh  /etc/*bashrc /etc/environment /usr/lib/spark/conf/spark-env.sh; fi
+if [[ ! -v PYSPARK_PYTHON ]]; then  echo "export PYSPARK_PYTHON=$CONDA_BIN_PATH/python" | tee -a  /etc/profile.d/conda.sh  /etc/*bashrc /etc/environment /usr/lib/spark/conf/spark-env.sh; fi
 
 echo "Finished bootstrapping via Miniconda, sourcing /etc/profile ..."
 source /etc/profile
