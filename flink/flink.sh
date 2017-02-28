@@ -34,12 +34,11 @@ readonly FLINK_NETWORK_NUM_BUFFERS=2048
 
 # Heap memory used by the job manager (master) determined by the physical (free) memory of the server
 # Flink config entry: jobmanager.heap.mb
-# TODO: Consider tuning this.
-readonly FLINK_JOBMANAGER_MEMORY_FRACTION='0.8'
+readonly FLINK_JOBMANAGER_MEMORY_FRACTION='1.0'
 
 # Heap memory used by the task managers (slaves) determined by the physical (free) memory of the servers
 # Flink config entry: taskmanager.heap.mb
-readonly FLINK_TASKMANAGER_MEMORY_FRACTION='0.8'
+readonly FLINK_TASKMANAGER_MEMORY_FRACTION='1.0'
 
 # Set this to true to start a flink yarn session at initialization time.
 readonly START_FLINK_YARN_SESSION="true"
