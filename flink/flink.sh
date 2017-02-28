@@ -49,8 +49,17 @@ function configure_flink() {
   local num_workers=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 
   # Determine the number of task slots per worker.
-  local flink_taskmanager_slots="$(hdfs getconf \
-    -confKey yarn.nodemanager.resource.cpu-vcores)"
+  # TODO: Dataproc does not currently set the number of worker cores on the
+  # master node. However, the spark configuration sets the number of executors
+  # to be half the number of CPU cores per worker. We use this value to
+  # determine the number of worker cores. Fix this hack when
+  # yarn.nodemanager.resource.cpu-vcores is correctly populated.
+  local spark_executor_cores=$(\
+    grep 'spark\.executor\.cores' /etc/spark/conf/spark-defaults.conf \
+    | tail -n1 | cut -d'=' -f2)
+  local flink_taskmanager_slots="$(($spark_executor_cores * 2))"
+  # local flink_taskmanager_slots="$(hdfs getconf \
+  #   -confKey yarn.nodemanager.resource.cpu-vcores)"
 
   # Determine the default parallelism
   local flink_parallelism=$(python -c \
@@ -78,9 +87,12 @@ fs.hdfs.hadoopconf: ${HADOOP_CONF_DIR}
 EOF
 
   if [ "${START_FLINK_YARN_SESSION}" = 'true' ] ; then
+    # NB: yarn-session.sh ignores taskmanager.numberOfTaskSlots for some reason.
+    # We specify it manually below.
     env HADOOP_CONF_DIR="$HADOOP_CONF_DIR" \
       "$FLINK_INSTALL_DIR/bin/yarn-session.sh" \
       -n "${num_workers}" \
+      -s "${flink_taskmanager_slots}" \
       --detached
   fi
 
