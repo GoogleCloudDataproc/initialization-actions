@@ -48,6 +48,10 @@ function configure_flink() {
   # Number of worker nodes in your cluster
   local num_workers=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 
+  # Number of Flink TaskManagers to use. Reserve 1 node for the JobManager.
+  # NB: This assumes > 1 worker node.
+  local num_taskmanagers="$(($num_workers - 1))"
+
   # Determine the number of task slots per worker.
   # TODO: Dataproc does not currently set the number of worker cores on the
   # master node. However, the spark configuration sets the number of executors
@@ -63,7 +67,7 @@ function configure_flink() {
 
   # Determine the default parallelism
   local flink_parallelism=$(python -c \
-      "print ${num_workers} * ${flink_taskmanager_slots}")
+      "print ${num_taskmanagers} * ${flink_taskmanager_slots}")
 
   # Get worker memory from yarn config.
   local worker_total_mem="$(hdfs getconf \
@@ -90,8 +94,10 @@ EOF
     # We specify it manually below.
     env HADOOP_CONF_DIR="$HADOOP_CONF_DIR" \
       "$FLINK_INSTALL_DIR/bin/yarn-session.sh" \
-      -n "${num_workers}" \
+      -n "${num_taskmanagers}" \
       -s "${flink_taskmanager_slots}" \
+      -jm "${flink_jobmanager_memory}" \
+      -tm "${flink_taskmanager_memory}" \
       --detached
   fi
 
