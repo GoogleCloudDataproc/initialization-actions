@@ -66,7 +66,6 @@ function configure_flink() {
       "print ${num_workers} * ${flink_taskmanager_slots}")
 
   # Get worker memory from yarn config.
-  # NOTE: This should really be the memory per worker (rather than per master).
   local worker_total_mem="$(hdfs getconf \
     -confKey yarn.nodemanager.resource.memory-mb)"
   local flink_jobmanager_memory=$(python -c \
