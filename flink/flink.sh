@@ -44,26 +44,28 @@ readonly FLINK_TASKMANAGER_MEMORY_FRACTION='0.8'
 readonly START_FLINK_YARN_SESSION="true"
 
 function configure_flink() {
-# Number of worker nodes in your cluster
-local num_workers=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
+  # Number of worker nodes in your cluster
+  local num_workers=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 
-# Determine the number of task slots
-local flink_taskmanager_slots=`grep -c processor /proc/cpuinfo`
+  # Determine the number of task slots per worker.
+  local flink_taskmanager_slots="$(hdfs getconf \
+    -confKey yarn.nodemanager.resource.cpu-vcores)"
 
-# Determine the default parallelism
-local flink_parallelism=$(python -c \
-    "print ${num_workers} * ${flink_taskmanager_slots}")
+  # Determine the default parallelism
+  local flink_parallelism=$(python -c \
+      "print ${num_workers} * ${flink_taskmanager_slots}")
 
-# Calculate the memory allocations, MB, using 'free -m'. Floor to nearest MB.
-# NOTE: This should really be the memory per worker (rather than per master).
-local total_mem=$(free -m | awk '/^Mem:/{print $2}')
-local flink_jobmanager_memory=$(python -c \
-    "print int(${total_mem} * ${FLINK_JOBMANAGER_MEMORY_FRACTION})")
-local flink_taskmanager_memory=$(python -c \
-    "print int(${total_mem} * ${FLINK_TASKMANAGER_MEMORY_FRACTION})")
+  # Calculate the memory allocations, MB, using 'free -m'. Floor to nearest MB.
+  # NOTE: This should really be the memory per worker (rather than per master).
+  local worker_total_mem="$(hdfs getconf \
+    -confKey yarn.nodemanager.resource.memory-mb)"
+  local flink_jobmanager_memory=$(python -c \
+      "print int(${worker_total_mem} * ${FLINK_JOBMANAGER_MEMORY_FRACTION})")
+  local flink_taskmanager_memory=$(python -c \
+      "print int(${worker_total_mem} * ${FLINK_TASKMANAGER_MEMORY_FRACTION})")
 
-# Apply Flink settings by appending them to the default config
-cat << EOF >> ${FLINK_INSTALL_DIR}/conf/flink-conf.yaml
+  # Apply Flink settings by appending them to the default config
+  cat << EOF >> ${FLINK_INSTALL_DIR}/conf/flink-conf.yaml
 # Settings applied by Cloud Dataproc initialization action
 jobmanager.rpc.address: ${MASTER_HOSTNAME}
 jobmanager.heap.mb: ${flink_jobmanager_memory}
@@ -74,12 +76,12 @@ taskmanager.network.numberOfBuffers: ${FLINK_NETWORK_NUM_BUFFERS}
 fs.hdfs.hadoopconf: ${HADOOP_CONF_DIR}
 EOF
 
-if [ "$START_FLINK_YARN_SESSION" = "true" ] ; then
-  env HADOOP_CONF_DIR="$HADOOP_CONF_DIR" \
-    "$FLINK_INSTALL_DIR/bin/yarn-session.sh" \
-    -n "${num_workers}" \
-    --detached
-fi
+  if [ "${START_FLINK_YARN_SESSION}" = 'true' ] ; then
+    env HADOOP_CONF_DIR="$HADOOP_CONF_DIR" \
+      "$FLINK_INSTALL_DIR/bin/yarn-session.sh" \
+      -n "${num_workers}" \
+      --detached
+  fi
 
 }
 
