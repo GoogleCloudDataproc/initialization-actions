@@ -34,6 +34,7 @@ readonly FLINK_NETWORK_NUM_BUFFERS=2048
 
 # Heap memory used by the job manager (master) determined by the physical (free) memory of the server
 # Flink config entry: jobmanager.heap.mb
+# TODO: Consider tuning this.
 readonly FLINK_JOBMANAGER_MEMORY_FRACTION='0.8'
 
 # Heap memory used by the task managers (slaves) determined by the physical (free) memory of the servers
@@ -55,7 +56,7 @@ function configure_flink() {
   local flink_parallelism=$(python -c \
       "print ${num_workers} * ${flink_taskmanager_slots}")
 
-  # Calculate the memory allocations, MB, using 'free -m'. Floor to nearest MB.
+  # Get worker memory from yarn config.
   # NOTE: This should really be the memory per worker (rather than per master).
   local worker_total_mem="$(hdfs getconf \
     -confKey yarn.nodemanager.resource.memory-mb)"
