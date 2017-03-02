@@ -38,6 +38,9 @@ if [[ "${ROLE}" == 'Master' ]]; then
     echo 'spark.sql.warehouse.dir=/root/spark-warehouse' >> "${SPARK_CONF}"
   fi
 
+  DATALAB_DIR="${HOME}/datalab"
+  mkdir -p "${DATALAB_DIR}"
+
   # Expose every possbile spark libary to the container.
   VOLUME_FLAGS=$(echo {/usr/bin,/usr/lib,/etc,/etc/alternatives,/var/log}/{hadoop*,hive*,*spark*} \
       /hadoop* /usr/lib/jvm/ /usr/share/java/ /usr/lib/bigtop* \
@@ -48,7 +51,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
   # Using this many volumes, each containing symlinks, often gives a "too many
   # symlinks" error. Just retry till it works.
   for i in {1..10}; do
-    if docker run -d --net=host ${VOLUME_FLAGS} \
+    if docker run -d --net=host -v "${DATALAB_DIR}:/content/datalab" ${VOLUME_FLAGS} \
         -e "SPARK_HOME=/usr/lib/spark" \
         -e "JAVA_HOME=${JAVA_HOME}" \
         -e "PYTHONPATH=${PYTHONPATH}" \
