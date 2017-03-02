@@ -33,7 +33,7 @@ import org.apache.hadoop.util.ReflectionUtils;
 public class BigQueryOutputConfiguration {
 
   /** A list of keys that are required for this output connector. */
-  public static final List<String> REQUIRED_KEYS =
+  public static final ImmutableList<String> REQUIRED_KEYS =
       ImmutableList.of(
           BigQueryConfiguration.OUTPUT_DATASET_ID_KEY,
           BigQueryConfiguration.OUTPUT_TABLE_ID_KEY,

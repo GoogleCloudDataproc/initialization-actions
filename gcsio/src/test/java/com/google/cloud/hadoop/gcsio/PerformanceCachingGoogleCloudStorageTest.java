@@ -27,7 +27,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import org.junit.Before;
 import org.junit.Test;
@@ -39,7 +38,7 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class PerformanceCachingGoogleCloudStorageTest {
   /** Sample empty metadata. */
-  private static final Map<String, byte[]> TEST_METADATA =
+  private static final ImmutableMap<String, byte[]> TEST_METADATA =
       ImmutableMap.of("test_key", new byte[] {2});
 
   private static final CreateBucketOptions CREATE_BUCKET_OPTIONS =

@@ -19,14 +19,14 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-
 import java.util.Map;
 
 /**
  * Options for creating objects in GCS.
  */
 public class CreateObjectOptions {
-  public static final Map<String, byte[]> EMPTY_METADATA = ImmutableMap.<String, byte[]>of();
+  public static final ImmutableMap<String, byte[]> EMPTY_METADATA =
+      ImmutableMap.<String, byte[]>of();
   public static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
   public static final CreateObjectOptions DEFAULT = new CreateObjectOptions(true);
 

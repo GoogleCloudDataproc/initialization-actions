@@ -160,12 +160,13 @@ public class CredentialFactory {
   }
 
   // List of GCS scopes to specify when obtaining a credential.
-  public static final List<String> GCS_SCOPES =
+  public static final ImmutableList<String> GCS_SCOPES =
       ImmutableList.of(StorageScopes.DEVSTORAGE_FULL_CONTROL);
 
-  public static final List<String> DATASTORE_SCOPES =
-      ImmutableList.of("https://www.googleapis.com/auth/datastore",
-                       "https://www.googleapis.com/auth/userinfo.email");
+  public static final ImmutableList<String> DATASTORE_SCOPES =
+      ImmutableList.of(
+          "https://www.googleapis.com/auth/datastore",
+          "https://www.googleapis.com/auth/userinfo.email");
 
   // Logger.
   private static final Logger LOG = LoggerFactory.getLogger(CredentialFactory.class);

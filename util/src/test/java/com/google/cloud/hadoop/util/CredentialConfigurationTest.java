@@ -22,7 +22,6 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.List;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -33,7 +32,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CredentialConfigurationTest {
 
-  public static final List<String> TEST_SCOPES = ImmutableList.of("scope1", "scope2");
+  public static final ImmutableList<String> TEST_SCOPES = ImmutableList.of("scope1", "scope2");
 
   @Rule
   public ExpectedException expectedException = ExpectedException.none();

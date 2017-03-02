@@ -129,7 +129,7 @@ public class GoogleCloudStorageTest {
   private static final String[][] ILLEGAL_OBJECTS = {
       {null, "bar-object"}, {"foo-bucket", null}, {"", "bar-object"}, {"foo-bucket", ""}
   };
-  private static final Map<String, byte[]> EMPTY_METADATA = ImmutableMap.of();
+  private static final ImmutableMap<String, byte[]> EMPTY_METADATA = ImmutableMap.of();
 
   private ExecutorService executorService;
 

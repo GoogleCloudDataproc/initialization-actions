@@ -18,7 +18,6 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
@@ -42,7 +41,7 @@ public class GoogleCloudStorageItemInfo {
       new GoogleCloudStorageItemInfo(StorageResourceId.ROOT, 0, 0, null, null);
 
   // Instead of returning null metadata, we'll return this map.
-  private static final Map<String, byte[]> EMPTY_METADATA = ImmutableMap.of();
+  private static final ImmutableMap<String, byte[]> EMPTY_METADATA = ImmutableMap.of();
 
   // The Bucket and maybe StorageObject names of the GCS "item" referenced by this object. Not null.
   private final StorageResourceId resourceId;

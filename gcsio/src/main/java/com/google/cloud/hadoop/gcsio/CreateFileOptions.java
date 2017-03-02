@@ -18,14 +18,13 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-
 import java.util.Map;
 
 /**
  * Options that can be specified when creating a file in the {@code GoogleCloudFileSystem}.
  */
 public class CreateFileOptions {
-  public static final Map<String, byte[]> EMPTY_ATTRIBUTES = ImmutableMap.of();
+  public static final ImmutableMap<String, byte[]> EMPTY_ATTRIBUTES = ImmutableMap.of();
   public static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
   public static final CreateFileOptions DEFAULT =
       new CreateFileOptions(true, DEFAULT_CONTENT_TYPE, EMPTY_ATTRIBUTES);

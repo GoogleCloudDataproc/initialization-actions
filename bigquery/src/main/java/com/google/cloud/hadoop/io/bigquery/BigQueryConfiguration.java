@@ -7,7 +7,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
-import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -80,8 +79,9 @@ public class BigQueryConfiguration {
   public static final int DYNAMIC_FILE_LIST_RECORD_READER_POLL_INTERVAL_MS_DEFAULT = 10000;
 
   /** A list of all necessary Configuration keys for input connector. */
-  public static final List<String> MANDATORY_CONFIG_PROPERTIES_INPUT = ImmutableList.of(
-      PROJECT_ID_KEY, INPUT_PROJECT_ID_KEY, INPUT_DATASET_ID_KEY, INPUT_TABLE_ID_KEY);
+  public static final ImmutableList<String> MANDATORY_CONFIG_PROPERTIES_INPUT =
+      ImmutableList.of(
+          PROJECT_ID_KEY, INPUT_PROJECT_ID_KEY, INPUT_DATASET_ID_KEY, INPUT_TABLE_ID_KEY);
 
   // Configuration keys for output connector.
 
@@ -157,9 +157,12 @@ public class BigQueryConfiguration {
   public static final String DATA_LOCATION_DEFAULT = "US";
 
   /** A list of all necessary Configuration keys. */
-  public static final List<String> MANDATORY_CONFIG_PROPERTIES_OUTPUT =
+  public static final ImmutableList<String> MANDATORY_CONFIG_PROPERTIES_OUTPUT =
       ImmutableList.of(
-          PROJECT_ID_KEY, OUTPUT_PROJECT_ID_KEY, OUTPUT_DATASET_ID_KEY, OUTPUT_TABLE_ID_KEY,
+          PROJECT_ID_KEY,
+          OUTPUT_PROJECT_ID_KEY,
+          OUTPUT_DATASET_ID_KEY,
+          OUTPUT_TABLE_ID_KEY,
           OUTPUT_TABLE_SCHEMA_KEY);
 
   /**
