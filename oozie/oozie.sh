@@ -15,7 +15,7 @@
 # Initialization action for installing Apache Oozie on a Google Cloud
 # Dataproc cluster. This script will install and configure Oozie to run on the
 # master node of a Dataproc cluster. The version of Oozie which is installed
-# comes from the BigTop repository. 
+# comes from the BigTop repository.
 #
 # You can find more information about Oozie at http://oozie.apache.org/
 # For more information in init actions and Google Cloud Dataproc see the Cloud
@@ -32,6 +32,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
   # Upgrade the repository and install Tomcat
   apt-get update
   apt-get install bigtop-tomcat -y
+  apt-get install libssl-dev -y
 
   # install Oozie from remote repository url
   wget http://dataproc-bigtop-repo.storage.googleapis.com/v1.0-RC0/contrib/o/oozie/oozie_4.2.0-1_all.deb
@@ -40,15 +41,15 @@ if [[ "${ROLE}" == 'Master' ]]; then
   # install with force
   dpkg --force-all -i oozie-client_4.2.0-1_all.deb
   dpkg --force-all -i oozie_4.2.0-1_all.deb
-  
+
   # The ext library is needed to enable the Oozie web console
   wget http://archive.cloudera.com/gplextras/misc/ext-2.2.zip
   unzip ext-2.2.zip
   cp -ax ext-2.2 /usr/lib/oozie/libext/
-  
+
   # Create the Oozie database
   sudo -u oozie /usr/lib/oozie/bin/ooziedb.sh create -run
-  
+
   # Hadoop must allow impersonation for Oozie to work properly
   cat > core-site-patch.xml <<'EOF'
   <property>
@@ -70,14 +71,25 @@ if [[ "${ROLE}" == 'Master' ]]; then
 EOF
   sed -i '/<\/configuration>/e cat core-site-patch.xml' \
       /etc/hadoop/conf/core-site.xml
-  
+
   # Clean up temporary fles
   rm -rf ext-2.2 ext-2.2.zip core-site-patch.xml
-  
+
   # Required for Oozie sharedlib setup
   # throws ClassNotFoundException about org.apache.commons.io.Charsets
   wget http://central.maven.org/maven2/commons-io/commons-io/2.3/commons-io-2.3.jar
+  wget http://central.maven.org/maven2/org/apache/htrace/htrace-core4/4.2.0-incubating/htrace-core4-4.2.0-incubating.jar
+
+  # Remove HTrace 3.1.0
+  rm /usr/lib/oozie/lib/htrace-core-3.1.0-incubating.jar
+
+  # Copy Commons-IO and new HTrace
   mv commons-io-2.3.jar /usr/lib/oozie/lib/
+  mv htrace-core4-4.2.0-incubating.jar /usr/lib/oozie/lib/
+
+  # Delete the invalid Hadoop HDFS library
+  rm /usr/lib/oozie/lib/hadoop-hdfs.jar
+  ln -s /usr/lib/hadoop/client/hadoop-hdfs-client-2.8.0-SNAPSHOT.jar /usr/lib/oozie/lib/hadoop-hdfs-client.jar
 
   # HDFS and MapReduce must be cycled; restart to clean things up
   service hadoop-hdfs-namenode restart
@@ -90,6 +102,7 @@ EOF
   # Create sharedlib
   oozie-setup sharelib create -fs hdfs://${HOSTNAME}
 
-  # Update available sharedlist
-  oozie admin -sharelibupdate -oozie http://localhost:11000/oozie
+  # Update available sharedlib
+  oozie admin -sharelibupdate -oozie http://${HOSTNAME}:11000/oozie
 fi
+
