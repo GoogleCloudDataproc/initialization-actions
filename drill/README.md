@@ -8,12 +8,13 @@ Check the variables set in the script to ensure they're to your liking.
 
 Once you have configured a copy of this script, you can use this initialization action to create a new Dataproc cluster with Drill installed by:
 
-1. Uploading a copy of the initialization action (`drill.sh`) to [Google Cloud Storage](https://cloud.google.com/storage).
-1. Using the `gcloud` command to create a new cluster with this initialization action. The following command will create a new cluster named `<CLUSTER_NAME>`, specify the initialization action stored in `<GCS_BUCKET>`, and increase the timeout to 5 minutes.
+1. Uploading a copy of the [initialization action for zookeeper](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/zookeeper) to [Google Cloud Storage](https://cloud.google.com/storage).
+1. Uploading a copy of the initialization action (`drill.sh`) to GCS.
+1. Using the `gcloud` command to create a new cluster with zookeeper and this initialization action. The following command will create a new cluster named `<CLUSTER_NAME>`, specify the initialization action stored in `<GCS_BUCKET>`, and increase the timeout to 5 minutes.
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-    --initialization-actions gs://<GCS_BUCKET>/drill.sh   
+    --initialization-actions gs://<GCS_BUCKET>/zookeeper.sh,gs://<GCS_BUCKET>/drill.sh
     --initialization-action-timeout 5m
     ```
 1. Once the cluster has been created, Drillbits will start on all nodes. You can log into any node of the cluster to run Drill queries. Drill is installed in `/usr/lib/drill` (unless you change the setting) which contains a `bin` directory with `sqlline`.
@@ -27,3 +28,4 @@ You can find more information about using initialization actions with Dataproc i
 ## Important notes
 * This script must be updated based on which Drill version you wish you install
 * This script must be updated based on your Cloud Dataproc cluster
+* Access to the Drill UI is possible via SSH forwarding to port 8047 on any drillbit, or with a [SOCKS proxy via SSH](https://cloud.google.com/solutions/connecting-securely#socks-proxy-over-ssh).

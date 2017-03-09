@@ -46,6 +46,12 @@ ln -sf /usr/lib/hadoop/lib/gcs-connector-1.6.0-hadoop2.jar $DRILL_HOME/jars/3rdp
 # Symlink core-site.xml to $DRILL_HOME/conf
 ln -sf /etc/hadoop/conf/core-site.xml /etc/drill/conf
 
+# Set ZK PStore to use a GCS Bucket
+# Makes all Drill profiles available from any drillbit
+cat >> $DRILL_HOME/conf/drill-override.conf <<EOF
+drill.exec: { sys.store.provider.zk.blobroot: "$DATAPROC_BUCKET/pstore/" }
+EOF
+
 # Start drillbit
 sudo -u $DRILL_USER $DRILL_HOME/bin/drillbit.sh status ||\
 	sudo -u $DRILL_USER $DRILL_HOME/bin/drillbit.sh start && sleep 10
