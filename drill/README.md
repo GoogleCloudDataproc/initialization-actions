@@ -28,7 +28,7 @@ You can find more information about using initialization actions with Dataproc i
 ## Important notes
 * This script must be updated based on which Drill version you wish you install
 * This script must be updated based on your Cloud Dataproc cluster
-* Access to the Drill UI is possible via SSH forwarding to port 8047 on any drillbit, or with a [SOCKS proxy via SSH](https://cloud.google.com/solutions/connecting-securely#socks-proxy-over-ssh). Pro-tip: You can run an incognito window of Chrome with your SOCKS proxy like this: 
+* Access to the Drill UI is possible via SSH forwarding to port 8047 on any drillbit, or with a [SOCKS proxy via SSH](https://cloud.google.com/solutions/connecting-securely#socks-proxy-over-ssh). Pro-tip: You can run an incognito window of Chrome on macOS with your SOCKS proxy like this: 
 
 ```
 /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --args --incognito --proxy-server=localhost:1080
