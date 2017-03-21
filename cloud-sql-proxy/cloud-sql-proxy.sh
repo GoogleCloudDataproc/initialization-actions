@@ -79,12 +79,12 @@ if (( ENABLE_CLOUD_SQL_METASTORE )); then
   else
     METASTORE_PROXY_PORT="${METASTORE_INSTANCE##*:}"
   fi
-  PROXY_INSTANCES_FLAGS+=" --instances ${METASTORE_INSTANCE}"
+  PROXY_INSTANCES_FLAGS+=" -instances=${METASTORE_INSTANCE}"
 fi
 
 if [[ -n "${ADDITIONAL_INSTANCES}" ]]; then
   # Pass additional instances straight to the proxy.
-  PROXY_INSTANCES_FLAGS+=" --instances_metadata=${ADDITIONAL_INSTANCES_KEY}"
+  PROXY_INSTANCES_FLAGS+=" -instances_metadata=${ADDITIONAL_INSTANCES_KEY}"
 fi
 
 # Disable Hive Metastore and MySql Server
@@ -113,7 +113,7 @@ Before=shutdown.target
 [Service]
 Type=simple
 ExecStart=${PROXY_BIN} \
-  -dir ${PROXY_DIR} \
+  -dir=${PROXY_DIR} \
   ${PROXY_INSTANCES_FLAGS}
 
 [Install]
