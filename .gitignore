@@ -6,3 +6,6 @@ bin/
 *.iml
 *.ipr
 *.iws
+
+# MacOS filder files
+.DS_Store
