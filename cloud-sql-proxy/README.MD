@@ -12,8 +12,10 @@ You can use this initialization action to create a Dataproc cluster using a shar
         --tier db-n1-standard-1 \
         --activation-policy=ALWAYS
     ```
-  a. Optionally create (or already have) other 2nd generation instances, which you wish to be accessible.
+    a. Optionally create (or already have) other 2nd generation instances, which you wish to be accessible.
+
 2. Uploading a copy of this initialization action (`cloud-sql-proxy.sh`) to [Google Cloud Storage](https://cloud.google.com/storage).
+
 3. Using the `gcloud` command to create a new cluster with this initialization action.
 
     ```bash
@@ -23,16 +25,18 @@ You can use this initialization action to create a Dataproc cluster using a shar
     --properties hive:hive.metastore.warehouse.dir=gs://<GCS_BUCKET>/hive-warehouse \
     --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>"
     ```
-  a. Optionally add other instances, paired with distict TCP ports for further I/O.
+    a. Optionally add other instances, paired with distict TCP ports for further I/O.
 
     ```bash
     --metadata "additional-cloud-sql-instances=<PROJECT_ID>:<REGION>:<ANOTHER_INSTANCE_NAME>=tcp<PORT_#>[,...]"
     ```
+
 4. Submit pyspark_metastore_test.py to the cluster to validate the metatstore and SQL proxies.
     ```bash
     gcloud dataproc jobs submit pyspark --cluster <CLUSTER_NAME> pyspark_metastore_test.py
     ```
     a. You can test connections to your other instance(s) using the url `"jdbc:mysql//localhost:<PORT_#>?user=root"`
+
 5. Create another dataproc cluster with the same Cloud SQL metastore.
     ```bash
     gcloud dataproc clusters create <ANOTHER_CLUSTER_NAME> \
@@ -40,6 +44,7 @@ You can use this initialization action to create a Dataproc cluster using a shar
     --initialization-actions gs://<GCS_BUCKET>/cloud-sql-proxy.sh \
     --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>"
     ```
+
 6. The two clusters should now be sharing Hive Tables and Spark SQL Dataframes saved as tables.
 
 ## Important notes
