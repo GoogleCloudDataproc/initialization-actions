@@ -13,7 +13,11 @@ DRILL_VERSION="1.9.0"
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 # Determine the cluster name
 CLUSTER=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)
-DATAPROC_BUCKET=gs://$(/usr/share/google/get_metadata_value attributes/dataproc-bucket)
+
+# Change these if you have a GCS bucket you'd like to use instead.
+DATAPROC_BUCKET=$(/usr/share/google/get_metadata_value attributes/dataproc-bucket)
+PROFILE_STORE="gs://$DATAPROC_BUCKET/profiles"
+GS_PLUGIN_BUCKET="gs://$DATAPROC_BUCKET"
 
 # naively generate the zookeeper string
 ZK=$CLUSTER-m:2181,$CLUSTER-w-0:2181,$CLUSTER-w-1:2181
@@ -49,7 +53,7 @@ ln -sf /etc/hadoop/conf/core-site.xml /etc/drill/conf
 # Set ZK PStore to use a GCS Bucket
 # Makes all Drill profiles available from any drillbit
 cat >> $DRILL_HOME/conf/drill-override.conf <<EOF
-drill.exec: { sys.store.provider.zk.blobroot: "$DATAPROC_BUCKET/pstore/" }
+drill.exec: { sys.store.provider.zk.blobroot: "$PROFILE_STORE" }
 EOF
 
 # Start drillbit
@@ -76,7 +80,75 @@ EOF
 cat > /tmp/gcs_plugin.json <<EOF
 {
     "config": {
-        "connection": "$DATAPROC_BUCKET",
+        "connection": "$GS_PLUGIN_BUCKET",
+        "enabled": true,
+        "formats": {
+            "avro": {
+                "type": "avro"
+            },
+            "csv": {
+                "delimiter": ",",
+                "extensions": [
+                    "csv"
+                ],
+                "type": "text"
+            },
+            "csvh": {
+                "delimiter": ",",
+                "extensions": [
+                    "csvh"
+                ],
+                "extractHeader": true,
+                "type": "text"
+            },
+            "json": {
+                "extensions": [
+                    "json"
+                ],
+                "type": "json"
+            },
+            "parquet": {
+                "type": "parquet"
+            },
+            "psv": {
+                "delimiter": "|",
+                "extensions": [
+                    "tbl"
+                ],
+                "type": "text"
+            },
+            "sequencefile": {
+                "extensions": [
+                    "seq"
+                ],
+                "type": "sequencefile"
+            },
+            "tsv": {
+                "delimiter": "\t",
+                "extensions": [
+                    "tsv"
+                ],
+                "type": "text"
+            }
+        },
+        "type": "file",
+        "workspaces": {
+            "root": {
+                "defaultInputFormat": null,
+                "location": "/",
+                "writable": true
+            }
+        }
+    },
+    "name": "gs"
+}
+EOF
+
+# Create/Update hdfs storage plugin
+cat > /tmp/hdfs_plugin.json <<EOF
+{
+    "config": {
+        "connection": "hdfs://$CLUSTER-m",
         "enabled": true,
         "formats": {
             "avro": {
@@ -141,12 +213,13 @@ cat > /tmp/gcs_plugin.json <<EOF
             }
         }
     },
-    "name": "gs"
+    "name": "hdfs"
 }
 EOF
 
 curl -d@/tmp/hive_plugin.json -H "Content-Type: application/json" -X POST http://localhost:8047/storage/hive.json
 curl -d@/tmp/gcs_plugin.json -H "Content-Type: application/json" -X POST http://localhost:8047/storage/gs.json
+curl -d@/tmp/hdfs_plugin.json -H "Content-Type: application/json" -X POST http://localhost:8047/storage/hdfs.json
 
 # Clean up
 rm -f /tmp/*_plugin.json
