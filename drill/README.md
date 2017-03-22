@@ -27,10 +27,37 @@ If you prefer to run drill as your user, set `DRILL_LOG_DIR` to someplace you ha
 
 `DRILL_LOG_DIR=~/logs /usr/lib/drill/bin/sqlline -u jdbc:drill:`
 
+Once in sqlline, you can see what storage plugins are available. Out of the box, this initialization action supports GCS (gs), HDFS (hdfs), local linux file system (dfs) and Hive (hive):
+
+```
+$ DRILL_LOG_DIR=~/logs /usr/lib/drill/bin/sqlline -u jdbc:drill:
+OpenJDK 64-Bit Server VM warning: ignoring option MaxPermSize=512M; support was removed in 8.0
+apache drill 1.9.0
+"just drill it"
+0: jdbc:drill:> show databases;
++---------------------+
+|     SCHEMA_NAME     |
++---------------------+
+| INFORMATION_SCHEMA  |
+| cp.default          |
+| dfs.default         |
+| dfs.root            |
+| dfs.tmp             |
+| gs.default          |
+| gs.root             |
+| hdfs.default        |
+| hdfs.root           |
+| hdfs.tmp            |
+| hive.default        |
+| sys                 |
++---------------------+
+12 rows selected (3.943 seconds)
+```
+
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
 
 ## Important notes
 * This script must be updated based on which Drill version you wish you install
 * This script must be updated based on your Cloud Dataproc cluster
 * Access to the Drill UI is possible via SSH forwarding to port 8047 on any drillbit, or with a [SOCKS proxy via SSH](https://cloud.google.com/solutions/connecting-securely#socks-proxy-over-ssh).
-
+* By default your Drill query profiles are stored in GCS in your cluster's dataproc bucket, as returned by `/usr/share/google/get_metadata_value attributes/dataproc-bucket`. You can change this in `drill.sh`.
