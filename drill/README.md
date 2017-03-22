@@ -23,9 +23,14 @@ You can run the following to get into sqlline, the Drill CLI query tool:
 
 `sudo -u drill /usr/lib/drill/bin/sqlline -u jdbc:drill:`
 
+If you prefer to run drill as your user, set `DRILL_LOG_DIR` to someplace you have permission to write to:
+
+`DRILL_LOG_DIR=~/logs /usr/lib/drill/bin/sqlline -u jdbc:drill:`
+
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
 
 ## Important notes
 * This script must be updated based on which Drill version you wish you install
 * This script must be updated based on your Cloud Dataproc cluster
 * Access to the Drill UI is possible via SSH forwarding to port 8047 on any drillbit, or with a [SOCKS proxy via SSH](https://cloud.google.com/solutions/connecting-securely#socks-proxy-over-ssh).
+
