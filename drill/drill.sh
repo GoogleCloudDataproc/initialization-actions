@@ -12,15 +12,27 @@ DRILL_VERSION="1.9.0"
 # Determine the role of this node
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 # Determine the cluster name
-CLUSTER=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)
+CLUSTER_NAME=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)
+
+# Determine the cluster uuid
+CLUSTER_UUID=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-uuid)
 
 # Change these if you have a GCS bucket you'd like to use instead.
 DATAPROC_BUCKET=$(/usr/share/google/get_metadata_value attributes/dataproc-bucket)
-PROFILE_STORE="gs://$DATAPROC_BUCKET/profiles"
+
+# Use a GCS bucket for Drill profiles, partitioned by cluster name and uuid.
+PROFILE_STORE="gs://$DATAPROC_BUCKET/profiles/$CLUSTER_NAME/$CLUSTER_UUID"
 GS_PLUGIN_BUCKET="gs://$DATAPROC_BUCKET"
 
-# naively generate the zookeeper string
-ZK=$CLUSTER-m:2181,$CLUSTER-w-0:2181,$CLUSTER-w-1:2181
+# intelligently generate the zookeeper string
+ZOOKEEPER_CLIENT_PORT=$(grep clientPort /etc/zookeeper/conf/zoo.cfg | cut -d '=' -f 2)
+ZOOKEEPER_LIST=$(grep "^server\." /etc/zookeeper/conf/zoo.cfg | \
+        cut -d '=' -f 2 | cut -d ':' -f 1 | sed "s/$/:${ZOOKEEPER_CLIENT_PORT}/" | \
+        xargs echo | sed "s/ /,/g")
+
+# Get hive metastore thrift and HDFS URIs
+HIVEMETA=$(bdconfig get_property_value --configuration_file /etc/hive/conf/hive-site.xml --name hive.metastore.uris 2>/dev/null)
+HDFS=$(bdconfig get_property_value --configuration_file /etc/hadoop/conf/core-site.xml --name fs.default.name 2>/dev/null)
 
 # Create drill pseudo-user.
 useradd -r -m -d $DRILL_USER_HOME $DRILL_USER || echo
@@ -32,8 +44,8 @@ mkdir -p $DRILL_HOME && chown $DRILL_USER:$DRILL_USER $DRILL_HOME
 curl -L http://apache.mirrors.lucidnetworks.net/drill/drill-$DRILL_VERSION/apache-drill-$DRILL_VERSION.tar.gz | sudo -u $DRILL_USER tar --strip-components=1 -C $DRILL_HOME -vxzf -
 
 # Replace default configuration with cluster-specific.
-sed -i "s/drillbits1/$CLUSTER/" $DRILL_HOME/conf/drill-override.conf
-sed -i "s/localhost:2181/$ZK/" $DRILL_HOME/conf/drill-override.conf
+sed -i "s/drillbits1/$CLUSTER_NAME/" $DRILL_HOME/conf/drill-override.conf
+sed -i "s/localhost:2181/$ZOOKEEPER_LIST/" $DRILL_HOME/conf/drill-override.conf
 
 # Make the log directory
 mkdir -p $DRILL_LOG_DIR && chown $DRILL_USER:$DRILL_USER $DRILL_LOG_DIR
@@ -44,14 +56,15 @@ mkdir -p /etc/drill && ln -sf $DRILL_HOME/conf /etc/drill/
 # Point drill logs to $DRILL_LOG_DIR
 echo DRILL_LOG_DIR=$DRILL_LOG_DIR >> $DRILL_HOME/conf/drill-env.sh
 
-# Copy GCS connector to drill jars
-ln -sf /usr/lib/hadoop/lib/gcs-connector-1.6.0-hadoop2.jar $DRILL_HOME/jars/3rdparty
+# Link GCS connector to drill 3rdparty jars
+ln -sf /usr/lib/hadoop/lib/gcs-connector-*.jar $DRILL_HOME/jars/3rdparty
 
 # Symlink core-site.xml to $DRILL_HOME/conf
 ln -sf /etc/hadoop/conf/core-site.xml /etc/drill/conf
 
 # Set ZK PStore to use a GCS Bucket
-# Makes all Drill profiles available from any drillbit
+# Using GCS makes all Drill profiles available from any drillbit, and also
+# persists the profiles past the lifetime of a cluster.
 cat >> $DRILL_HOME/conf/drill-override.conf <<EOF
 drill.exec: { sys.store.provider.zk.blobroot: "$PROFILE_STORE" }
 EOF
@@ -68,9 +81,9 @@ cat > /tmp/hive_plugin.json <<EOF
     "type": "hive",
     "enabled": true,
     "configProps": {
-    "hive.metastore.uris": "thrift://$CLUSTER-m:9083",
+    "hive.metastore.uris": "$HIVEMETA",
     "hive.metastore.sasl.enabled": "false",
-    "fs.default.name": "hdfs://$CLUSTER-m/"
+    "fs.default.name": "$HDFS"
     }
   }
 }
@@ -148,7 +161,7 @@ EOF
 cat > /tmp/hdfs_plugin.json <<EOF
 {
     "config": {
-        "connection": "hdfs://$CLUSTER-m",
+        "connection": "$HDFS",
         "enabled": true,
         "formats": {
             "avro": {
