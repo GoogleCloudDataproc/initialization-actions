@@ -69,6 +69,7 @@ cat >> $DRILL_HOME/conf/drill-override.conf <<EOF
 drill.exec: { sys.store.provider.zk.blobroot: "$PROFILE_STORE" }
 EOF
 
+(
 # Start drillbit
 sudo -u $DRILL_USER $DRILL_HOME/bin/drillbit.sh status ||\
 	sudo -u $DRILL_USER $DRILL_HOME/bin/drillbit.sh start && sleep 10
@@ -233,6 +234,7 @@ EOF
 curl -d@/tmp/hive_plugin.json -H "Content-Type: application/json" -X POST http://localhost:8047/storage/hive.json
 curl -d@/tmp/gcs_plugin.json -H "Content-Type: application/json" -X POST http://localhost:8047/storage/gs.json
 curl -d@/tmp/hdfs_plugin.json -H "Content-Type: application/json" -X POST http://localhost:8047/storage/hdfs.json
+) || for i in /var/log/drill/*; do echo ">>> $i"; cat "$i" ; done
 
 # Clean up
 rm -f /tmp/*_plugin.json
