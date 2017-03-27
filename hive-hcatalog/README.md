@@ -1,4 +1,4 @@
-# Apache Drill Initialization Action
+# HCatalog initialization action
 
 This initialization action installs [Hive HCatalog](https://cwiki.apache.org/confluence/display/Hive/HCatalog) on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster. The script will also configure Pig to use HCatalog.
 
