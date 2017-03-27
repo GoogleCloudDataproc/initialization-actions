@@ -28,7 +28,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
   if [[ -z "${DOCKER_IMAGE}" ]]; then
     DOCKER_IMAGE="gcr.io/cloud-datalab/datalab:local"
   fi
-  gcloud docker pull ${DOCKER_IMAGE}
+  gcloud docker -- pull ${DOCKER_IMAGE}
 
   # For some reason Spark has issues resolving the user's directory inside of
   # Datalab.
