@@ -19,7 +19,7 @@
 # To use this script, you will need to configure the following variables to
 # match your cluster. For information about which software components
 # (and their version) are included in Cloud Dataproc clusters, see the
-# Cloud Dataproc Image Version informayion:
+# Cloud Dataproc Image Version information:
 # https://cloud.google.com/dataproc/concepts/dataproc-versions
 
 set -x -e

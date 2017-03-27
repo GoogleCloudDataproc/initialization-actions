@@ -30,6 +30,7 @@ This repository presently offers the following actions for use with Cloud Datapr
   * [Apache Zeppelin](http://zeppelin.apache.org)
   * [Apache ZooKeeper](http://zookeeper.apache.org)
   * [Google Cloud Datalab](https://cloud.google.com/datalab/)
+  * [Hive HCatalog](https://cwiki.apache.org/confluence/display/Hive/HCatalog)
   * [Hue](http://gethue.com)
   * [IPython](http://ipython.org)
   * [Presto](http://prestodb.io)
