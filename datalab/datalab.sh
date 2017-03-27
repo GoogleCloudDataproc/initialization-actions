@@ -20,6 +20,7 @@ set -e -x
 
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 PROJECT=$(/usr/share/google/get_metadata_value ../project/project-id)
+SPARK_PACKAGES=$(/usr/share/google/get_metadata_value spark-packages || true)
 DOCKER_IMAGE=$(/usr/share/google/get_metadata_value attributes/docker-image || true)
 
 if [[ "${ROLE}" == 'Master' ]]; then
@@ -41,23 +42,54 @@ if [[ "${ROLE}" == 'Master' ]]; then
   DATALAB_DIR="${HOME}/datalab"
   mkdir -p "${DATALAB_DIR}"
 
-  # Expose every possbile spark libary to the container.
-  VOLUME_FLAGS=$(echo {/usr/bin,/usr/lib,/etc,/etc/alternatives,/var/log}/{hadoop*,hive*,*spark*} \
-      /hadoop* /usr/lib/jvm/ /usr/share/java/ /usr/lib/bigtop* \
-      | sed 's/\S*/-v &:&/g')
+  # Expose every possbile spark configuration to the container.
+  VOLUME_FLAGS=$(echo /etc/{hadoop*,hive*,*spark*} \
+    /usr/lib/hadoop/lib/{gcs,bigquery}* \
+    | sed 's/\S*/-v &:&/g')
   echo "VOLUME_FLAGS: ${VOLUME_FLAGS}"
 
   PYTHONPATH="/env/python:$(find /usr/lib/spark/python/lib -name '*.zip' | paste -sd:)"
+
+  PYSPARK_SUBMIT_ARGS=''
+  # Build PySpark Submit Arguments
+  for package in $(echo ${SPARK_PACKAGES} | tr ',' ' '); do
+    PYSPARK_SUBMIT_ARGS+="--packages ${package} "
+  done
+  PYSPARK_SUBMIT_ARGS+='pyspark-shell'
+
+  # Java is too complicated to simply volume mount into the image, so we need
+  # to install it in a child image.
+  mkdir -p datalab-pyspark
+  pushd datalab-pyspark
+  cp -r /etc/apt/{trusted.gpg,sources.list.d} .
+  cat << EOF > Dockerfile
+FROM ${DOCKER_IMAGE}
+# Verify the image is Debian 8 based
+RUN grep -q 'Debian GNU/Linux 8' /etc/issue
+
+ADD sources.list.d/backports.list /etc/apt/sources.list.d/
+ADD sources.list.d/dataproc.list /etc/apt/sources.list.d/
+ADD trusted.gpg /tmp/vm_trusted.gpg
+
+RUN apt-key add /tmp/vm_trusted.gpg
+RUN apt-get update
+RUN apt-get install -y -t jessie-backports hive spark-python openjdk-8-jre-headless
+
+ENV SPARK_HOME='/usr/lib/spark'
+ENV JAVA_HOME='${JAVA_HOME}'
+ENV PYTHONPATH='${PYTHONPATH}'
+ENV PYTHONSTARTUP='/usr/lib/spark/python/pyspark/shell.py'
+ENV PYSPARK_SUBMIT_ARGS='${PYSPARK_SUBMIT_ARGS}'
+ENV DATALAB_ENV='GCE'
+EOF
+  docker build -t datalab-pyspark .
+  popd
+
   # Using this many volumes, each containing symlinks, often gives a "too many
   # symlinks" error. Just retry till it works.
   for i in {1..10}; do
     if docker run -d --net=host -v "${DATALAB_DIR}:/content/datalab" ${VOLUME_FLAGS} \
-        -e "SPARK_HOME=/usr/lib/spark" \
-        -e "JAVA_HOME=${JAVA_HOME}" \
-        -e "PYTHONPATH=${PYTHONPATH}" \
-        -e "PYTHONSTARTUP=/usr/lib/spark/python/pyspark/shell.py" \
-        -e "DATALAB_ENV=GCE" \
-        ${DOCKER_IMAGE}; then
+        datalab-pyspark; then
       echo 'Cloud Datalab Jupyter server successfully deployed.'
       exit
     fi
