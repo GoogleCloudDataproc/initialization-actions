@@ -20,8 +20,8 @@ set -e -x
 
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 PROJECT=$(/usr/share/google/get_metadata_value ../project/project-id)
-SPARK_PACKAGES=$(/usr/share/google/get_metadata_value spark-packages || true)
 DOCKER_IMAGE=$(/usr/share/google/get_metadata_value attributes/docker-image || true)
+SPARK_PACKAGES=$(/usr/share/google/get_metadata_value attributes/spark-packages || true)
 
 if [[ "${ROLE}" == 'Master' ]]; then
   apt-get update
