@@ -18,7 +18,7 @@ echo "Creating notebook directory $JUPYTER_NOTEBOOK_DIR if necessary..."
 [[ ! -d $JUPYTER_NOTEBOOK_DIR ]] && mkdir -p $JUPYTER_NOTEBOOK_DIR
 
 echo "Creating Jupyter config..."
-jupyter notebook --generate-config -y --ip=127.0.0.1
+jupyter notebook --allow-root --generate-config -y --ip=127.0.0.1
 echo "c.Application.log_level = 'DEBUG'" >> ~/.jupyter/jupyter_notebook_config.py
 echo "c.NotebookApp.ip = '*'" >> ~/.jupyter/jupyter_notebook_config.py
 echo "c.NotebookApp.open_browser = False" >> ~/.jupyter/jupyter_notebook_config.py
