@@ -27,7 +27,7 @@ tables = sqlContext.read.jdbc(
     'jdbc:mysql:///{}?user={}&password={}'.format(
         METASTORE_DB, HIVE_USER, HIVE_USER_PASSWORD),
     'TBLS')
-test_table = tables.where(TBL_NAME == test_table_name).collect()[0]
+test_table = tables.where(tables.TBL_NAME == test_table_name).collect()[0]
 
 print 'Successfully found table {} in Cloud SQL Hive metastore'.format(
     test_table.TBL_NAME)
