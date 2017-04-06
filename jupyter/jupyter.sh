@@ -15,9 +15,8 @@ echo "Cloning fresh dataproc-initialization-actions from repo $INIT_ACTIONS_REPO
 git clone -b "$INIT_ACTIONS_BRANCH" --single-branch $INIT_ACTIONS_REPO
 # Ensure we have conda installed.
 ./dataproc-initialization-actions/conda/bootstrap-conda.sh
-#./dataproc-initialization-actions/conda/install-conda-env.sh
 
-source /etc/profile.d/conda_config.sh
+source /etc/profile.d/conda.sh
 
 if [ -n "${JUPYTER_CONDA_PACKAGES}" ]; then
   echo "Installing custom conda packages '$(echo ${JUPYTER_CONDA_PACKAGES} | tr ':' ' ')'"

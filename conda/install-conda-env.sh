@@ -3,7 +3,7 @@ set -e
 
 # 0.1 Ensure we have conda installed and available on the PATH
 if [[ ! -v CONDA_BIN_PATH ]]; then
-    source /etc/profile.d/conda_config.sh
+    source /etc/profile.d/conda.sh
 fi
 
 echo "echo \$USER: $USER"
@@ -27,7 +27,7 @@ else
     CONDA_ENV_NAME='root'
 fi
 
-conda update --all
+#conda update --all
 # 1. Create conda environment
 # 1.1 Update conda env from conda environment.yml (if specified)
 # For Dataproc provisioning, we should install to root conda env.
@@ -76,22 +76,22 @@ if [[ -v PIP_PACKAGES ]]; then
 fi
 
 # 2. Append profiles with conda env source activate
-echo "Attempting to append /etc/profile.d/conda_config.sh to activate conda env at login..."
-if [[ -f "/etc/profile.d/conda_config.sh"  ]]  && [[ ! $CONDA_ENV_NAME == 'root' ]]
+echo "Attempting to append /etc/profile.d/conda.sh to activate conda env at login..."
+if [[ -f "/etc/profile.d/conda.sh"  ]]  && [[ ! $CONDA_ENV_NAME == 'root' ]]
     then
-    if grep -ir "source activate $CONDA_ENV_NAME" /etc/profile.d/conda_config.sh
+    if grep -ir "source activate $CONDA_ENV_NAME" /etc/profile.d/conda.sh
         then
-        echo "conda env activation found in /etc/profile.d/conda_config.sh, skipping..."
+        echo "conda env activation found in /etc/profile.d/conda.sh, skipping..."
     else
-        echo "Appending /etc/profile.d/conda_config.sh to activate conda env $CONDA_ENV_NAME for shell..."
-        sudo echo "source activate $CONDA_ENV_NAME" | tee -a /etc/profile.d/conda_config.sh
-        echo "./etc/profile.d/conda_config.sh successfully appended!"
+        echo "Appending /etc/profile.d/conda.sh to activate conda env $CONDA_ENV_NAME for shell..."
+        sudo echo "source activate $CONDA_ENV_NAME" | tee -a /etc/profile.d/conda.sh
+        echo "./etc/profile.d/conda.sh successfully appended!"
     fi
 elif [[ $CONDA_ENV_NAME == 'root' ]]
     then
     echo "The conda env specified is 'root', the default environment, no need to activate, skipping..."
 else
-    echo "No file detected at /etc/profile.d/conda_config.sh..."
+    echo "No file detected at /etc/profile.d/conda.sh..."
     echo "Are you sure you installed conda via bootstrap-conda.sh?"
     exit 1
 fi
