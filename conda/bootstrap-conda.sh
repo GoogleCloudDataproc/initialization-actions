@@ -7,6 +7,9 @@ set -e
 #ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 #if [[ "${ROLE}" == 'Master' ]]; then
 
+MINICONDA_VARIANT=$(/usr/share/google/get_metadata_value attributes/MINICONDA_VARIANT || true)
+MINICONDA_VERSION=$(/usr/share/google/get_metadata_value attributes/MINICONDA_VERSION || true)
+
 if [[ ! -v CONDA_INSTALL_PATH ]]; then
     echo "CONDA_INSTALL_PATH not set, setting ..."
     CONDA_INSTALL_PATH="/opt/conda"
@@ -27,20 +30,22 @@ else
         echo "Set OS_TYPE to $OS_TYPE"
     fi
     ## Python 2 or 3 based miniconda?
-    if [[ ! -v MINICONDA_VARIANT ]]; then
+    if [[ -z "${MINICONDA_VARIANT}" ]]; then
         echo "MINICONDA_VARIANT not set, setting ... "
         MINICONDA_VARIANT="3"  #for Python 3.5.x
         echo "Set MINICONDA_VARIANT to $MINICONDA_VARIANT"
     fi
-    ## specify Miniconda release (e.g., MINICONDA_VER='4.0.5')
-    if [[ ! -v MINICONDA_VER ]]; then
-        echo "MINICONDA_VER not set, setting ..."
-        MINICONDA_VER='latest'
-        set "Set MINICONDA_VER to $MINICONDA_VER"
+    ## specify Miniconda release (e.g., MINICONDA_VERSION='4.0.5')
+    if [[ -z "${MINICONDA_VERSION}" ]]; then
+        echo "MINICONDA_VERSION not set, setting ..."
+        # Pin to 4.2.12 by default until Spark default is 2.2.0.
+        # https://issues.apache.org/jira/browse/SPARK-19019
+        MINICONDA_VERSION='4.2.12'
+        set "Set MINICONDA_VERSION to $MINICONDA_VERSION"
     fi
 
     ## 0.2 Compute Miniconda version
-    MINICONDA_FULL_NAME="Miniconda$MINICONDA_VARIANT-$MINICONDA_VER-$OS_TYPE"
+    MINICONDA_FULL_NAME="Miniconda$MINICONDA_VARIANT-$MINICONDA_VERSION-$OS_TYPE"
     echo "Complete Miniconda version resolved to: $MINICONDA_FULL_NAME"
     ## 0.3 Set MD5 hash for check (if desired)
     #expectedHash="b1b15a3436bb7de1da3ccc6e08c7a5df"
