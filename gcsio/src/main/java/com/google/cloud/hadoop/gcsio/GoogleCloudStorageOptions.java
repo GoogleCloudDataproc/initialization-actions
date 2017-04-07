@@ -49,6 +49,12 @@ public class GoogleCloudStorageOptions {
   public static final boolean CREATE_EMPTY_MARKER_OBJECT_DEFAULT = false;
 
   /**
+   * Default setting for the length of time to wait for empty objects to appear if we believe
+   * we are in a race with multiple workers.
+   */
+  public static final int MAX_WAIT_MILLIS_FOR_EMPTY_OBJECT_CREATION = 3_000;
+
+  /**
    * Mutable builder for the GoogleCloudStorageOptions class.
    */
   public static class Builder {
@@ -63,6 +69,7 @@ public class GoogleCloudStorageOptions {
     private String proxyAddress = null;
     private long maxListItemsPerCall = MAX_LIST_ITEMS_PER_CALL_DEFAULT;
     private boolean createMarkerObjects = CREATE_EMPTY_MARKER_OBJECT_DEFAULT;
+    private int maxWaitMillisForEmptyObjectCreation = MAX_WAIT_MILLIS_FOR_EMPTY_OBJECT_CREATION;
 
     // According to https://developers.google.com/storage/docs/json_api/v1/how-tos/batch, there is a
     // maximum of 1000 requests per batch; it should not generally be necessary to modify this value
@@ -129,18 +136,14 @@ public class GoogleCloudStorageOptions {
       return writeChannelOptionsBuilder;
     }
 
+    public Builder setMaxWaitMillisForEmptyObjectCreation(
+        int maxWaitMillisForEmptyObjectCreation) {
+      this.maxWaitMillisForEmptyObjectCreation = maxWaitMillisForEmptyObjectCreation;
+      return this;
+    }
+
     public GoogleCloudStorageOptions build() {
-      return new GoogleCloudStorageOptions(
-          autoRepairImplicitDirectoriesEnabled,
-          inferImplicitDirectoriesEnabled,
-          projectId,
-          appName,
-          maxListItemsPerCall,
-          maxRequestsPerBatch,
-          createMarkerObjects,
-          transportType,
-          proxyAddress,
-          writeChannelOptionsBuilder.build());
+      return new GoogleCloudStorageOptions(this);
     }
   }
 
@@ -158,6 +161,21 @@ public class GoogleCloudStorageOptions {
   private final long maxListItemsPerCall;
   private final long maxRequestsPerBatch;
   private final boolean createMarkerFile;
+  private final int maxWaitMillisForEmptyObjectCreation;
+
+  protected GoogleCloudStorageOptions(Builder builder) {
+    this.autoRepairImplicitDirectoriesEnabled = builder.autoRepairImplicitDirectoriesEnabled;
+    this.inferImplicitDirectoriesEnabled = builder.inferImplicitDirectoriesEnabled;
+    this.projectId = builder.projectId;
+    this.appName = builder.appName;
+    this.writeChannelOptions = builder.getWriteChannelOptionsBuilder().build();
+    this.maxListItemsPerCall = builder.maxListItemsPerCall;
+    this.maxRequestsPerBatch = builder.maxRequestsPerBatch;
+    this.createMarkerFile = builder.createMarkerObjects;
+    this.transportType = builder.transportType;
+    this.proxyAddress = builder.proxyAddress;
+    this.maxWaitMillisForEmptyObjectCreation = builder.maxWaitMillisForEmptyObjectCreation;
+  }
 
   public GoogleCloudStorageOptions(
       boolean autoRepairImplicitDirectoriesEnabled,
@@ -170,16 +188,20 @@ public class GoogleCloudStorageOptions {
       HttpTransportFactory.HttpTransportType transportType,
       String proxyAddress,
       AsyncWriteChannelOptions writeChannelOptions) {
-    this.autoRepairImplicitDirectoriesEnabled = autoRepairImplicitDirectoriesEnabled;
-    this.inferImplicitDirectoriesEnabled = inferImplicitDirectoriesEnabled;
-    this.projectId = projectId;
-    this.appName = appName;
-    this.writeChannelOptions = writeChannelOptions;
-    this.maxListItemsPerCall = maxListItemsPerCall;
-    this.maxRequestsPerBatch = maxRequestsPerBatch;
-    this.createMarkerFile = createMarkerFile;
-    this.transportType = transportType;
-    this.proxyAddress = proxyAddress;
+    this(new Builder()
+        .setProjectId(projectId)
+        .setAppName(appName)
+        .setWriteChannelOptionsBuilder(
+            new AsyncWriteChannelOptions.Builder()
+                .setUploadBufferSize(writeChannelOptions.getUploadBufferSize())
+                .setDirectUploadEnabled(writeChannelOptions.isDirectUploadEnabled()))
+        .setAutoRepairImplicitDirectoriesEnabled(autoRepairImplicitDirectoriesEnabled)
+        .setInferImplicitDirectoriesEnabled(inferImplicitDirectoriesEnabled)
+        .setMaxListItemsPerCall(maxListItemsPerCall)
+        .setMaxRequestsPerBatch(maxRequestsPerBatch)
+        .setTransportType(transportType)
+        .setCreateMarkerObjects(createMarkerFile)
+        .setProxyAddress(proxyAddress));
   }
 
   public boolean isAutoRepairImplicitDirectoriesEnabled() {
@@ -220,6 +242,10 @@ public class GoogleCloudStorageOptions {
 
   public boolean isMarkerFileCreationEnabled() {
     return createMarkerFile;
+  }
+
+  public int getMaxWaitMillisForEmptyObjectCreation() {
+    return maxWaitMillisForEmptyObjectCreation;
   }
 
   public void throwIfNotValid() {

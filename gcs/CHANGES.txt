@@ -1,3 +1,27 @@
+1.6.1 - 2017-XX-XX
+
+  1. Added a polling loop when determining if a createEmptyObjects error can
+     safely be ignored and expanded the cases in which we will attempt to
+     determine if an empty object already exists.
+
+     Previously, if a rate limiting exception was encountered while creating
+     empty objects the connector would issue a single get request for that
+     object. If the object exists and is zero length we would consider the
+     createEmptyObjects call successful and suppress the rate limit exception.
+
+     The new implementation will poll for the existence of the object, up to
+     a user-configurable maximum, and will poll when either a rate limiting
+     error occurs or when a 500-level error occurs. The maximum can be
+     configured by the following setting:
+
+     fs.gs.max.wait.for.empty.object.creation.ms
+
+     Any positive value for this setting will be interpreted to mean "poll
+     for up to this many milliseconds before making a final determination".
+     The default value will cause a maximum wait of 3 seconds. Polling can
+     be disabled by setting this key to 0.
+
+
 1.6.0 - 2016-12-16
 
   1. Added new PerformanceCachingGoogleCloudStorage; unlike the existing

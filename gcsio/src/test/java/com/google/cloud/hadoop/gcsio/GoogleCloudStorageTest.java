@@ -4560,6 +4560,7 @@ public class GoogleCloudStorageTest {
     when(mockStorageObjectsInsert.execute())
         .thenThrow(new IOException("forbidden"));
     when(mockErrorExtractor.rateLimited(any(IOException.class))).thenReturn(false);
+    when(mockErrorExtractor.isInternalServerError(any(IOException.class))).thenReturn(false);
 
     expectedException.expect(IOException.class);
     try {
@@ -4573,6 +4574,7 @@ public class GoogleCloudStorageTest {
           eq(mockStorageObjectsInsert), eq(true));
       verify(mockStorageObjectsInsert).execute();
       verify(mockErrorExtractor).rateLimited(any(IOException.class));
+      verify(mockErrorExtractor).isInternalServerError(any(IOException.class));
     }
   }
 
@@ -4606,5 +4608,40 @@ public class GoogleCloudStorageTest {
       verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
       verify(mockStorageObjectsGet).execute();
     }
+  }
+
+  @Test
+  public void testIgnoreExceptionsOnCreateEmptyObjectsWithMultipleRetries()
+      throws IOException, InterruptedException {
+    IOException notFoundException = new IOException("NotFound");
+    IOException rateLimitException = new IOException("RateLimited");
+    when(mockStorage.objects()).thenReturn(mockStorageObjects);
+    when(mockStorageObjects.insert(
+        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
+        .thenReturn(mockStorageObjectsInsert);
+    when(mockStorageObjectsInsert.execute())
+        .thenThrow(rateLimitException);
+    when(mockErrorExtractor.rateLimited(eq(rateLimitException))).thenReturn(true);
+    when(mockErrorExtractor.itemNotFound(eq(notFoundException))).thenReturn(true);
+    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
+        .thenReturn(mockStorageObjectsGet);
+    when(mockStorageObjectsGet.execute())
+        .thenThrow(notFoundException)
+        .thenThrow(notFoundException)
+        .thenReturn(getStorageObjectForEmptyObjectWithMetadata(EMPTY_METADATA));
+
+    gcs.createEmptyObjects(ImmutableList.of(new StorageResourceId(BUCKET_NAME, OBJECT_NAME)));
+
+    verify(mockStorage, times(4)).objects(); // 1 insert, 3 gets
+    verify(mockStorageObjects).insert(
+        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
+    verify(mockStorageObjectsInsert).setDisableGZipContent(eq(true));
+    verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
+    verify(mockStorageObjectsInsert).execute();
+    verify(mockErrorExtractor).rateLimited(any(IOException.class));
+    verify(mockErrorExtractor, times(2)).itemNotFound(eq(notFoundException));
+    verify(mockStorageObjects, times(3)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorageObjectsGet, times(3)).execute();
+    verify(mockSleeper, times(2)).sleep(any(Long.class));
   }
 }

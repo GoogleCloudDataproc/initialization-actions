@@ -465,6 +465,15 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   public static final String GCS_APPLICATION_NAME_SUFFIX_DEFAULT = "";
 
   /**
+   * Configuration key for modifying the maximum amount of time to wait for empty object creation.
+   */
+  public static final String GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_KEY =
+      "fs.gs.max.wait.for.empty.object.creation.ms";
+
+  /** Default to 3 seconds. */
+  public static final int GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_DEFAULT = 3_000;
+
+  /**
    * Configuration key for which type of output stream to use; different options may have different
    * degrees of support for advanced features like hsync() and different performance
    * characteristics. Options:
@@ -2212,6 +2221,18 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     optionsBuilder
         .getCloudStorageOptionsBuilder()
         .setAppName(applicationName);
+
+    int maxWaitMillisForEmptyObjectCreation =
+        config.getInt(
+            GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_KEY,
+            GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_DEFAULT);
+    LOG.debug(
+        "{} = {}",
+        GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_KEY,
+        maxWaitMillisForEmptyObjectCreation);
+    optionsBuilder
+        .getCloudStorageOptionsBuilder()
+        .setMaxWaitMillisForEmptyObjectCreation(maxWaitMillisForEmptyObjectCreation);
 
     boolean enablePerformanceCache =
         config.getBoolean(GCS_ENABLE_PERFORMANCE_CACHE_KEY, GCS_ENABLE_PERFORMANCE_CACHE_DEFAULT);

@@ -480,18 +480,19 @@ public class GoogleCloudStorageImpl
               // checks which get enforced at varous layers in the library stack.
               IOException toWrap =
                   (t instanceof IOException ? (IOException) t : new IOException(t));
-              innerExceptions.add(wrapException(toWrap, "Error re-fetching after rate-limit error",
+              innerExceptions.add(wrapException(toWrap,
+                  "Error re-fetching after rate-limit error.",
                   resourceId.getBucketName(), resourceId.getObjectName()));
             }
             if (canIgnoreException) {
               LOG.info(
                   "Ignoring exception; verified object already exists with desired state.", ioe);
             } else {
-              innerExceptions.add(wrapException(ioe, "Error inserting",
+              innerExceptions.add(wrapException(ioe, "Error inserting.",
                   resourceId.getBucketName(), resourceId.getObjectName()));
             }
           } catch (Throwable t) {
-            innerExceptions.add(wrapException(new IOException(t), "Error inserting",
+            innerExceptions.add(wrapException(new IOException(t), "Error inserting.",
                 resourceId.getBucketName(), resourceId.getObjectName()));
           } finally {
             latch.countDown();
@@ -1743,10 +1744,43 @@ public class GoogleCloudStorageImpl
   private boolean canIgnoreExceptionForEmptyObject(
       IOException exceptionOnCreate, StorageResourceId resourceId, CreateObjectOptions options)
       throws IOException {
-    // TODO(user): Maybe also add 5xx, 409, and even 412 errors if they pop up in this use case.
-    if (errorExtractor.rateLimited(exceptionOnCreate)) {
-      // Try to re-fetch to see if our work might already be done.
-      GoogleCloudStorageItemInfo existingInfo = getItemInfo(resourceId);
+    // TODO(user): Maybe also add 409 and even 412 errors if they pop up in this use case.
+    // 500 ISE and 503 Service Unavailable tend to be raised when spamming GCS with create requests:
+    if (errorExtractor.rateLimited(exceptionOnCreate)
+        || errorExtractor.isInternalServerError(exceptionOnCreate)) {
+      // We know that this is an error that is most often associated with trying to create an empty
+      // object from multiple workers at the same time. We perform the following assuming that we
+      // will eventually succeed and find an existing object. This will add up to a user-defined
+      // maximum delay that caller will wait to receive an exception in the case of an incorrect
+      // assumption and this being a scenario other than the multiple workers racing situation.
+      GoogleCloudStorageItemInfo existingInfo;
+      BackOff backOff;
+      int maxWaitMillis = storageOptions.getMaxWaitMillisForEmptyObjectCreation();
+      if (maxWaitMillis > 0) {
+        backOff = new ExponentialBackOff.Builder()
+            .setMaxElapsedTimeMillis(maxWaitMillis)
+            .setMaxIntervalMillis(500)
+            .setInitialIntervalMillis(100)
+            .setMultiplier(1.5)
+            .setRandomizationFactor(0.15)
+            .build();
+      } else {
+        backOff = BackOff.STOP_BACKOFF;
+      }
+      long nextSleep = 0L;
+      do {
+        if (nextSleep > 0) {
+          try {
+            sleeper.sleep(nextSleep);
+          } catch (InterruptedException e) {
+            // We caught an InterruptedException, we should set the interrupted bit on this thread.
+            Thread.currentThread().interrupt();
+            nextSleep = BackOff.STOP;
+          }
+        }
+        existingInfo = getItemInfo(resourceId);
+        nextSleep = nextSleep == BackOff.STOP ? BackOff.STOP : backOff.nextBackOffMillis();
+      } while (!existingInfo.exists() && nextSleep != BackOff.STOP);
 
       // Compare existence, size, and metadata; for 429 errors creating an empty object,
       // we don't care about metaGeneration/contentGeneration as long as the metadata
