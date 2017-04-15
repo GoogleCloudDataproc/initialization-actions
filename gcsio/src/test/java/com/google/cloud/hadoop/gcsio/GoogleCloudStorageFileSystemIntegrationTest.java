@@ -121,6 +121,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
       optionsBuilder
           .setIsMetadataCacheEnabled(true)
+          .setEnableBucketDelete(true)
           .setShouldIncludeInTimestampUpdatesPredicate(INCLUDE_SUBSTRINGS_PREDICATE)
           .getCloudStorageOptionsBuilder()
           .setAppName(appName)

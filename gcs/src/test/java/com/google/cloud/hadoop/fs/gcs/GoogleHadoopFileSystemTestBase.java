@@ -84,6 +84,9 @@ public abstract class GoogleHadoopFileSystemTestBase
         GoogleHadoopFileSystemBase.GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY, true);
     config.setBoolean(
         GoogleHadoopFileSystemBase.GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY, false);
+    // Allow buckets to be deleted in test cleanup:
+    config.setBoolean(
+        GoogleHadoopFileSystemBase.GCE_BUCKET_DELETE_ENABLE_KEY, true);
     return config;
   }
 
