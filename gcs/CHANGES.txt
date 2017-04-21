@@ -1,4 +1,4 @@
-1.6.1 - 2017-XX-XX
+1.6.1 - 2017-04-14
 
   1. Added a polling loop when determining if a createEmptyObjects error can
      safely be ignored and expanded the cases in which we will attempt to
