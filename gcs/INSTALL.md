@@ -15,7 +15,9 @@ Placing the connector jar in the appropriate subdirectory of the Hadoop installa
 
 ## Configure Hadoop
 
-Based on the steps in configuring the connector, you must add the following two properties to `core-site.xml`.
+To begin, you will need a JSON keyfile so the connector can authenticate to Google Cloud Storage. You can follow [these directions](https://cloud.google.com/storage/docs/authentication#service_accounts) to obtain a JSON keyfile.
+
+Once you have the JSON key file, you must add the following properties to `core-site.xml` on your server.
 
     <property>
       <name>fs.gs.impl</name>
@@ -29,8 +31,35 @@ Based on the steps in configuring the connector, you must add the following two 
         The AbstractFileSystem for gs: (GCS) uris. Only necessary for use with Hadoop 2.
       </description>
     </property>
+    <property>
+      <name>fs.gs.project.id</name>
+      <value></value>
+      <description>
+        Required. Google Cloud Project ID with access to configured GCS buckets.
+      </description>
+    </property>
+    <property>
+      <name>google.cloud.auth.service.account.enable</name>
+      <value>true</value>
+      <description>
+        Whether to use a service account for GCS authorizaiton. If an email and
+        keyfile are provided (see google.cloud.auth.service.account.email and
+        google.cloud.auth.service.account.keyfile), then that service account
+        willl be used. Otherwise the connector will look to see if it running on
+        a GCE VM with some level of GCS access in it's service account scope, and
+        use that service account.
+      </description>
+    </property>
+    <property>
+      <name>google.cloud.auth.service.account.json.keyfile</name>
+      <value></value>
+      <description>
+        The JSON key file of the service account used for GCS
+        access when google.cloud.auth.service.account.enable is true.
+      </description>
+    </property>
 
-If you chose to use a private key for Cloud Storage Authorizaton, make sure to set the necessary `google.cloud.auth` values documented in [gcs-core-default.xml](/conf/gcs-core-default.xml) inside the `conf` directory.
+Additional properties can be specified for the Cloud Storage connector, including alternative authentication options. For more information, see the values documented in the [gcs-core-default.xml](/conf/gcs-core-default.xml) file inside the `conf` directory.
 
 ## Test the installation
 

@@ -73,7 +73,8 @@
     <value></value>
     <description>
       The email address is associated with the service account used for GCS
-      access when google.cloud.auth.service.account.enable is true.
+      access when google.cloud.auth.service.account.enable is true. Required
+      when a PKCS12 certificate is being used.
     </description>
   </property>
   <property>
