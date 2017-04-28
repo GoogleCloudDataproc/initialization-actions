@@ -59,7 +59,7 @@ Once you have the JSON key file, you must add the following properties to `core-
       </description>
     </property>
 
-Additional properties can be specified for the Cloud Storage connector, including alternative authentication options. For more information, see the values documented in the [gcs-core-default.xml](/conf/gcs-core-default.xml) file inside the `conf` directory.
+Additional properties can be specified for the Cloud Storage connector, including alternative authentication options. For more information, see the values documented in the [gcs-core-default.xml](/gcs/conf/gcs-core-default.xml) file inside the `conf` directory.
 
 ## Test the installation
 
