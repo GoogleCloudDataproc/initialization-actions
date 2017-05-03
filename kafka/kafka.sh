@@ -32,11 +32,14 @@ cd ~
 wget http://www.us.apache.org/dist/kafka/${KAFKA_VERSION}/kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz
 tar zxvf kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz
 
+mkdir -p /var/lib/kafka-logs
+
 # Configure Kafka
 ZOOKEEPER_INSTANCES=
 for h in "m" "w-0" "w-1"; do
 	ZOOKEEPER_INSTANCES+=${CLUSTER_NAME}-$h.${DNS_NAME}:2181,
 done
+sed -i 's|log.dirs=/tmp/kafka-logs|log.dirs=/var/lib/kafka-logs|' kafka_${SCALA_VERSION}-${KAFKA_VERSION}/config/server.properties
 sed -i 's|^\(zookeeper\.connect=\).*|\1'${ZOOKEEPER_INSTANCES}'|' kafka_${SCALA_VERSION}-${KAFKA_VERSION}/config/server.properties
 sed -i 's,^\(broker\.id=\).*,\1'${BROKER_ID}',' kafka_${SCALA_VERSION}-${KAFKA_VERSION}/config/server.properties
 echo 'delete.topic.enable = true' >> kafka_${SCALA_VERSION}-${KAFKA_VERSION}/config/server.properties
