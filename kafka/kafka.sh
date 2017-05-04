@@ -15,34 +15,47 @@
 set -x -e
 
 
-# Only run this on worker nodes
+# Only run the installation on workers; verify zookeeper on master(s)
 if [[ $(/usr/share/google/get_metadata_value attributes/dataproc-role) == 'Master' ]]; then
-	exit 0
+  service zookeeper-server status || \
+      (echo 'Required zookeeper-server not running on master!' && exit 1)
+  # On master nodes, just install kafka libs but not kafka-server.
+  apt-get install -y kafka
+  exit 0
 fi
 
-# Variables for this script
-SCALA_VERSION="2.11"
-KAFKA_VERSION="0.9.0.0"
-CLUSTER_NAME=$(hostname | sed 's/\(.*\)-[m|w]-[0-9]*.*/\1/g')
-BROKER_ID=$(hostname | sed 's/.*-w-\([0-9]\)*.*/\1/g')
-DNS_NAME=$(dnsdomainname)
+# Find zookeeper list first, before attempting any installation.
+ZOOKEEPER_CLIENT_PORT=$(grep clientPort /etc/zookeeper/conf/zoo.cfg | cut -d '=' -f 2)
+ZOOKEEPER_LIST=$(grep "^server\." /etc/zookeeper/conf/zoo.cfg | \
+        cut -d '=' -f 2 | cut -d ':' -f 1 | sed "s/$/:${ZOOKEEPER_CLIENT_PORT}/" | \
+        xargs echo | sed "s/ /,/g")
+if [[ -z "${ZOOKEEPER_LIST}" ]]; then
+  # Didn't find zookeeper quorum in zoo.cfg, but possibly workers just didn't
+  # bother to populate it. Check if YARN HA is configured.
+  ZOOKEEPER_LIST=$(bdconfig get_property_value --configuration_file \
+      /etc/hadoop/conf/yarn-site.xml \
+      --name yarn.resourcemanager.zk-address 2>/dev/null)
+fi
 
-# Download and extract Kafka
-cd ~
-wget http://www.us.apache.org/dist/kafka/${KAFKA_VERSION}/kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz
-tar zxvf kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz
+# If all attempts failed, error out.
+if [[ -z "${ZOOKEEPER_LIST}" ]]; then
+  echo 'Failed to find configured Zookeeper list; try --num-masters=3 for HA'
+  exit 1
+fi
+
+# Install Kafka from Dataproc distro.
+apt-get install -y kafka-server || dpkg -l kafka-server
 
 mkdir -p /var/lib/kafka-logs
+chown kafka:kafka -R /var/lib/kafka-logs
 
-# Configure Kafka
-ZOOKEEPER_INSTANCES=
-for h in "m" "w-0" "w-1"; do
-	ZOOKEEPER_INSTANCES+=${CLUSTER_NAME}-$h.${DNS_NAME}:2181,
-done
-sed -i 's|log.dirs=/tmp/kafka-logs|log.dirs=/var/lib/kafka-logs|' kafka_${SCALA_VERSION}-${KAFKA_VERSION}/config/server.properties
-sed -i 's|^\(zookeeper\.connect=\).*|\1'${ZOOKEEPER_INSTANCES}'|' kafka_${SCALA_VERSION}-${KAFKA_VERSION}/config/server.properties
-sed -i 's,^\(broker\.id=\).*,\1'${BROKER_ID}',' kafka_${SCALA_VERSION}-${KAFKA_VERSION}/config/server.properties
-echo 'delete.topic.enable = true' >> kafka_${SCALA_VERSION}-${KAFKA_VERSION}/config/server.properties
+# Note: If modified to also run brokers on master nodes, this logic for
+# generating BROKER_ID will need to be changed.
+BROKER_ID=$(hostname | sed 's/.*-w-\([0-9]\)*.*/\1/g')
+sed -i 's|log.dirs=/tmp/kafka-logs|log.dirs=/var/lib/kafka-logs|' /etc/kafka/conf/server.properties
+sed -i 's|^\(zookeeper\.connect=\).*|\1'${ZOOKEEPER_LIST}'|' /etc/kafka/conf/server.properties
+sed -i 's,^\(broker\.id=\).*,\1'${BROKER_ID}',' /etc/kafka/conf/server.properties
+echo 'delete.topic.enable = true' >> /etc/kafka/conf/server.properties
 
 # Start Kafka
-nohup kafka_${SCALA_VERSION}-${KAFKA_VERSION}/bin/kafka-server-start.sh kafka_${SCALA_VERSION}-${KAFKA_VERSION}/config/server.properties > /var/log/kafka.log 2>&1 &
+service kafka-server restart
