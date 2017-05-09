@@ -22,7 +22,11 @@ chmod a+rw ${INIT_SCRIPT}
 echo "Starting Jupyter notebook..."
 
 systemctl daemon-reload
+echo "Reloaded..."
+systemctl status jupyter-notebook
+echo "Status..."
 systemctl enable jupyter-notebook
+echo "Enable..."
 systemctl start jupyter-notebook
 
 echo "Jupyter installation succeeded" >&2
