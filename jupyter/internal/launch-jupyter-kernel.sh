@@ -11,7 +11,7 @@ Description=Start Jupyter Notebook Server at reboot
 
 [Service]
 Type=simple
-ExecStart=jupyter notebook --allow-root  --no-browser > /var/log/jupyter_notebook.log 2>&1
+ExecStart=jupyter notebook --allow-root  --no-browser
 
 [Install]
 WantedBy=multi-user.target
