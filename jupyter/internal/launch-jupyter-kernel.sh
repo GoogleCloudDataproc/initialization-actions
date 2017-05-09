@@ -20,6 +20,7 @@ EOF
 chmod a+rw ${INIT_SCRIPT}
 
 echo "Starting Jupyter notebook..."
+which jupyter
 
 systemctl daemon-reload
 echo "Reloaded..."
