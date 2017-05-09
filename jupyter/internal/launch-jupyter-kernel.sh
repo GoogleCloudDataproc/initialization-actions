@@ -11,7 +11,8 @@ Description=Start Jupyter Notebook Server at reboot
 
 [Service]
 Type=simple
-ExecStart=/opt/conda/bin/jupyter notebook --allow-root  --no-browser
+ExecStart=/opt/conda/bin/jupyter notebook --allow-root  --no-browser \
+  > /var/log/jupyter_notebook.log 2>&1
 
 [Install]
 WantedBy=multi-user.target
@@ -20,12 +21,9 @@ EOF
 chmod a+rw ${INIT_SCRIPT}
 
 echo "Starting Jupyter notebook..."
-which jupyter
 
 systemctl daemon-reload
-echo "Reloaded..."
 systemctl enable jupyter-notebook
-echo "Enable..."
 systemctl start jupyter-notebook
 
 echo "Jupyter installation succeeded" >&2
