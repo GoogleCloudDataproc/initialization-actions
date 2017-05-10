@@ -145,35 +145,44 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
     final int[] clobberCountForFile = new int[1];
     final int[] clobberCountForDirectory = new int[1];
 
-    fileBackedCache.setCreateMirrorFileListener(new Function<StorageResourceId, Void>() {
-      @Override
-      public boolean equals(Object obj) {
-        return false;
-      }
+    fileBackedCache.setCreateMirrorFileListener(
+        new Function<StorageResourceId, Void>() {
+          // TODO(b/37774152): implement hashCode() (go/equals-hashcode-lsc)
+          @SuppressWarnings("EqualsHashCode")
+          @Override
+          public boolean equals(Object obj) {
+            return false;
+          }
 
-      @Override
-      public Void apply(StorageResourceId resourceId) {
-        LOG.info("Intercepting creation of '{}', count is {}, clobberCountForFile is {}, "
-            + "clobberCountForDirectory is {}",
-            resourceId, count[0], clobberCountForFile[0], clobberCountForDirectory[0]);
-        ++count[0];
-        Path mirrorPath = fileBackedCache.getMirrorPath(resourceId);
-        File parentFile = mirrorPath.toFile().getParentFile();
-        assertTrue(parentFile.exists());
-        if (resourceId.equals(fileToCreate) && clobberCountForFile[0] < 2) {
-          // Only on the final object creation, clobber the parentFile just after the cache thinks
-          // it successfully checked for its existence and before it creates the child object.
-          assertTrue(parentFile.delete());
-          ++clobberCountForFile[0];
-        } else if (resourceId.equals(dirToCreate) && clobberCountForDirectory[0] < 2) {
-          // Only on the final object creation, clobber the parentFile just after the cache thinks
-          // it successfully checked for its existence and before it creates the child object.
-          assertTrue(parentFile.delete());
-          ++clobberCountForDirectory[0];
-        }
-        return null;
-      }
-    });
+          @Override
+          public Void apply(StorageResourceId resourceId) {
+            LOG.info(
+                "Intercepting creation of '{}', count is {}, clobberCountForFile is {}, "
+                    + "clobberCountForDirectory is {}",
+                resourceId,
+                count[0],
+                clobberCountForFile[0],
+                clobberCountForDirectory[0]);
+            ++count[0];
+            Path mirrorPath = fileBackedCache.getMirrorPath(resourceId);
+            File parentFile = mirrorPath.toFile().getParentFile();
+            assertTrue(parentFile.exists());
+            if (resourceId.equals(fileToCreate) && clobberCountForFile[0] < 2) {
+              // Only on the final object creation, clobber the parentFile just after the cache
+              // thinks
+              // it successfully checked for its existence and before it creates the child object.
+              assertTrue(parentFile.delete());
+              ++clobberCountForFile[0];
+            } else if (resourceId.equals(dirToCreate) && clobberCountForDirectory[0] < 2) {
+              // Only on the final object creation, clobber the parentFile just after the cache
+              // thinks
+              // it successfully checked for its existence and before it creates the child object.
+              assertTrue(parentFile.delete());
+              ++clobberCountForDirectory[0];
+            }
+            return null;
+          }
+        });
 
     // Put the file.
     cache.putResourceId(fileToCreate);
@@ -217,6 +226,8 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
 
     fileBackedCache.setCreateMirrorFileListener(
         new Function<StorageResourceId, Void>() {
+          // TODO(b/37774152): implement hashCode() (go/equals-hashcode-lsc)
+          @SuppressWarnings("EqualsHashCode")
           @Override
           public boolean equals(Object obj) {
             return false;
@@ -276,6 +287,8 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
 
     fileBackedCache.setCreateMirrorFileListener(
         new Function<StorageResourceId, Void>() {
+          // TODO(b/37774152): implement hashCode() (go/equals-hashcode-lsc)
+          @SuppressWarnings("EqualsHashCode")
           @Override
           public boolean equals(Object obj) {
             return false;
@@ -337,29 +350,35 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
     // Number of times we clobbered the parent directory in our interceptor.
     final int[] clobberCountForFile = new int[1];
 
-    fileBackedCache.setCreateMirrorFileListener(new Function<StorageResourceId, Void>() {
-      @Override
-      public boolean equals(Object obj) {
-        return false;
-      }
+    fileBackedCache.setCreateMirrorFileListener(
+        new Function<StorageResourceId, Void>() {
+          // TODO(b/37774152): implement hashCode() (go/equals-hashcode-lsc)
+          @SuppressWarnings("EqualsHashCode")
+          @Override
+          public boolean equals(Object obj) {
+            return false;
+          }
 
-      @Override
-      public Void apply(StorageResourceId resourceId) {
-        LOG.info("Intercepting creation of '{}', clobberCountForFile is {}",
-            resourceId, clobberCountForFile[0]);
-        Path mirrorPath = fileBackedCache.getMirrorPath(resourceId);
-        File parentFile = mirrorPath.toFile().getParentFile();
-        assertTrue(parentFile.exists());
-        int maxRetries = FileSystemBackedDirectoryListCache.MAX_RETRIES_FOR_CREATE;
-        if (resourceId.equals(fileToCreate) && clobberCountForFile[0] <= maxRetries) {
-          // Only on the final object creation, clobber the parentFile just after the cache thinks
-          // it successfully checked for its existence and before it creates the child object.
-          assertTrue(parentFile.delete());
-          ++clobberCountForFile[0];
-        }
-        return null;
-      }
-    });
+          @Override
+          public Void apply(StorageResourceId resourceId) {
+            LOG.info(
+                "Intercepting creation of '{}', clobberCountForFile is {}",
+                resourceId,
+                clobberCountForFile[0]);
+            Path mirrorPath = fileBackedCache.getMirrorPath(resourceId);
+            File parentFile = mirrorPath.toFile().getParentFile();
+            assertTrue(parentFile.exists());
+            int maxRetries = FileSystemBackedDirectoryListCache.MAX_RETRIES_FOR_CREATE;
+            if (resourceId.equals(fileToCreate) && clobberCountForFile[0] <= maxRetries) {
+              // Only on the final object creation, clobber the parentFile just after the cache
+              // thinks
+              // it successfully checked for its existence and before it creates the child object.
+              assertTrue(parentFile.delete());
+              ++clobberCountForFile[0];
+            }
+            return null;
+          }
+        });
 
     expectedException.expect(IOException.class);
     expectedException.expectMessage("Exhausted all retries");

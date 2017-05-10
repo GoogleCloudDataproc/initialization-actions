@@ -448,6 +448,8 @@ public class PerformanceCachingGoogleCloudStorageTest {
       this.item = item;
     }
 
+    // TODO(b/37774152): implement hashCode() (go/equals-hashcode-lsc)
+    @SuppressWarnings("EqualsHashCode")
     @Override
     public boolean equals(Object obj) {
       return PerformanceCachingGoogleCloudStorageTest.equals(item, ((WrappedItem) obj).item);

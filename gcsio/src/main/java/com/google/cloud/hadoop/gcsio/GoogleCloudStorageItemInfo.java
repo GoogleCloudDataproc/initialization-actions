@@ -314,6 +314,8 @@ public class GoogleCloudStorageItemInfo {
     }
   }
 
+  // TODO(b/37774152): implement hashCode() (go/equals-hashcode-lsc)
+  @SuppressWarnings("EqualsHashCode")
   @Override
   public boolean equals(Object obj) {
     if (obj instanceof GoogleCloudStorageItemInfo) {
