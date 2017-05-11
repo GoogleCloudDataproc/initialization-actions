@@ -7,12 +7,12 @@ INIT_SCRIPT="/usr/lib/systemd/system/jupyter-notebook.service"
 
 cat << EOF > ${INIT_SCRIPT}
 [Unit]
-Description=Start Jupyter Notebook Server at reboot
+Description=Jupyter Notebook Server
 
 [Service]
 Type=simple
-ExecStart=/opt/conda/bin/jupyter notebook --allow-root  --no-browser \
-  > /var/log/jupyter_notebook.log 2>&1
+ExecStart=/bin/bash -c 'exec /opt/conda/bin/jupyter notebook --allow-root  --no-browser \
+  &> /var/log/jupyter_notebook.log'
 
 [Install]
 WantedBy=multi-user.target
