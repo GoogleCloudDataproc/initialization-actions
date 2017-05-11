@@ -20,6 +20,7 @@ protobuf_version="2.5.0"
 tez_hdfs_path="/apps/tez"
 tez_jars="/usr/lib/tez"
 tez_conf_dir="/etc/tez/conf"
+hive_conf_dir="/etc/hive/conf"
 role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 
 if [[ "${role}" == 'Master' ]]; then
@@ -37,5 +38,12 @@ if [[ "${role}" == 'Master' ]]; then
     echo "HADOOP_CLASSPATH=\$HADOOP_CLASSPATH:${tez_conf_dir}:${tez_jars}/*:${tez_jars}/lib/*"
   } >> /etc/hadoop/conf/hadoop-env.sh
 fi
+
+# Update hive to use tez as execution engine
+bdconfig set_property \
+  --configuration_file "${hive_conf_dir}/hive-site.xml" \
+  --name 'hive.execution.engine' --value 'tez' \
+  --clobber
+systemctl restart hive-server2
 
 set +x +e
