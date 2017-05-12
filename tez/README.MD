@@ -16,7 +16,6 @@ You can use this initialization action to create a new Dataproc cluster with Apa
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
     --initialization-actions gs://<GCS_BUCKET>/tez.sh
-    --initialization-action-timeout 15m
     ```
 1. Once the cluster is created, Tez should work with your Cloud Dataproc jobs.
 1. Hive should be configured to use Tez, rather than Mapreduce, as its execution engine. This can significantly speed up some Hive queries. Read more in the [Hive on Tez documentation](https://cwiki.apache.org/confluence/display/Hive/Hive+on+Tez).
