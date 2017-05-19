@@ -440,8 +440,8 @@ public abstract class HadoopFileSystemTestBase
       Assert.assertEquals(0, readStream.getPos());
 
       // Verify that position advances by 2 after reading 2 bytes.
-      Assert.assertEquals(readStream.read(), (int) 'H');
-      Assert.assertEquals(readStream.read(), (int) 'e');
+      Assert.assertEquals((int) 'H', readStream.read());
+      Assert.assertEquals((int) 'e', readStream.read());
       Assert.assertEquals(2, readStream.getPos());
 
       // Verify that setting position to the same value is a no-op.
@@ -453,7 +453,7 @@ public abstract class HadoopFileSystemTestBase
       // Verify that position can be set to a valid position.
       readStream.seek(6);
       Assert.assertEquals(6, readStream.getPos());
-      Assert.assertEquals(readStream.read(), (int) 'W');
+      Assert.assertEquals((int) 'W', readStream.read());
 
       // Verify that position can be set to end of file.
       long posEOF = numBytesWritten - 1;
@@ -463,7 +463,7 @@ public abstract class HadoopFileSystemTestBase
       val = readStream.read();
       Assert.assertTrue(val != -1);
       val = readStream.read();
-      Assert.assertEquals(val, -1);
+      Assert.assertEquals(-1, val);
       readStream.seek(0);
       Assert.assertEquals(0, readStream.getPos());
 

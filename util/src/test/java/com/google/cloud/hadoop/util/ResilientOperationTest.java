@@ -16,7 +16,6 @@
 
 package com.google.cloud.hadoop.util;
 
-
 import static org.junit.Assert.assertEquals;
 
 import com.google.api.client.testing.util.MockSleeper;
@@ -44,8 +43,8 @@ public class ResilientOperationTest {
     BackOff backoff = new RetryBoundedBackOff(3, new BackOffTester());
     ResilientOperation.retry(callTester, backoff, RetryDeterminer.DEFAULT, Exception.class,
         sleeper);
-    assertEquals(callTester.timesCalled(), 1);
-    assertEquals(sleeper.getCount(), 0);
+    assertEquals(1, callTester.timesCalled());
+    assertEquals(0, sleeper.getCount());
   }
 
   @Test
@@ -61,7 +60,7 @@ public class ResilientOperationTest {
       ResilientOperation.retry(callTester, backoff, RetryDeterminer.DEFAULT, Exception.class,
           sleeper);
     } finally {
-      assertEquals(callTester.timesCalled(), 1);
+      assertEquals(1, callTester.timesCalled());
       verifySleeper(sleeper, 0);
     }
   }
@@ -129,7 +128,7 @@ public class ResilientOperationTest {
       ResilientOperation.retry(callTester, backoff, RetryDeterminer.DEFAULT, Exception.class,
           sleeper);
     } finally {
-      assertEquals(callTester.timesCalled(), 3);
+      assertEquals(3, callTester.timesCalled());
       verifySleeper(sleeper, 2);
     }
   }
@@ -147,7 +146,7 @@ public class ResilientOperationTest {
         3,
         ResilientOperation.retry(callTester, backoff, RetryDeterminer.DEFAULT, Exception.class,
             sleeper).intValue());
-    assertEquals(callTester.timesCalled(), 4);
+    assertEquals(4, callTester.timesCalled());
     verifySleeper(sleeper, 3);
   }
   

@@ -1043,7 +1043,7 @@ public class GoogleCloudStorageTest {
     }
 
     assertEquals(readChannel.readChannel, null);
-    assertEquals(readChannel.lazySeekPending, false);
+    assertEquals(false, readChannel.lazySeekPending);
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper, times(1)).getRequestHeaders(any(Storage.Objects.Get.class));
@@ -1987,9 +1987,9 @@ public class GoogleCloudStorageTest {
           }});
     gcs.create(BUCKET_NAME, new CreateBucketOptions("some-location", "storage-class"));
 
-    assertEquals(bucketWithOptions[0].getName(), BUCKET_NAME);
-    assertEquals(bucketWithOptions[0].getLocation(), "some-location");
-    assertEquals(bucketWithOptions[0].getStorageClass(), "storage-class");
+    assertEquals(BUCKET_NAME, bucketWithOptions[0].getName());
+    assertEquals("some-location", bucketWithOptions[0].getLocation());
+    assertEquals("storage-class", bucketWithOptions[0].getStorageClass());
 
     verify(mockStorage).buckets();
     verify(mockBackOffFactory).newBackOff();

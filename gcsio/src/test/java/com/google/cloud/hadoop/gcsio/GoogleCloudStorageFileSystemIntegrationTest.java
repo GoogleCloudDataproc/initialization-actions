@@ -694,22 +694,30 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
         boolean result = gcsiHelper.delete(path, dd.recursive);
 
         if (result) {
-          Assert.assertEquals(String.format(
-              "Unexpected result for path: %s : %s :: expected %s, actually returned true.",
-              path, dd.description, dd.expectedOutcome.toString()),
-              dd.expectedOutcome.getType(), MethodOutcome.Type.RETURNS_TRUE);
+          Assert.assertEquals(
+              String.format(
+                  "Unexpected result for path: %s : %s :: expected %s, actually returned true.",
+                  path, dd.description, dd.expectedOutcome.toString()),
+              MethodOutcome.Type.RETURNS_TRUE,
+              dd.expectedOutcome.getType());
         } else {
-          Assert.assertEquals(String.format(
-              "Unexpected result for path: %s : %s :: expected %s, actually returned false.",
-              path, dd.description, dd.expectedOutcome.toString()),
-              dd.expectedOutcome.getType(), MethodOutcome.Type.RETURNS_FALSE);
+          Assert.assertEquals(
+              String.format(
+                  "Unexpected result for path: %s : %s :: expected %s, actually returned false.",
+                  path, dd.description, dd.expectedOutcome.toString()),
+              MethodOutcome.Type.RETURNS_FALSE,
+              dd.expectedOutcome.getType());
         }
       } catch (Exception e) {
-        Assert.assertEquals(String.format(
-            "Unexpected result for path: %s : %s :: expected %s, actually threw exception %s.",
-            path, dd.description, dd.expectedOutcome.toString(),
-            Throwables.getStackTraceAsString(e)),
-            dd.expectedOutcome.getType(), MethodOutcome.Type.THROWS_EXCEPTION);
+        Assert.assertEquals(
+            String.format(
+                "Unexpected result for path: %s : %s :: expected %s, actually threw exception %s.",
+                path,
+                dd.description,
+                dd.expectedOutcome.toString(),
+                Throwables.getStackTraceAsString(e)),
+            MethodOutcome.Type.THROWS_EXCEPTION,
+            dd.expectedOutcome.getType());
       }
 
       // Verify that items that we expect to exist are present.
@@ -835,10 +843,12 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
       try {
         boolean result = gcsiHelper.mkdirs(path);
         if (result) {
-          Assert.assertEquals(String.format(
-              "Unexpected result for path: %s : expected %s, actually returned true.",
-              path, expectedOutcome.toString()),
-              expectedOutcome.getType(), MethodOutcome.Type.RETURNS_TRUE);
+          Assert.assertEquals(
+              String.format(
+                  "Unexpected result for path: %s : expected %s, actually returned true.",
+                  path, expectedOutcome.toString()),
+              MethodOutcome.Type.RETURNS_TRUE,
+              expectedOutcome.getType());
 
           // Assert that all of the sub-dirs have been created.
           List<URI> subDirPaths = getSubDirPaths(path);
@@ -851,17 +861,20 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
                   && gcsiHelper.isDirectory(subDirPath));
           }
         } else {
-          Assert.assertEquals(String.format(
-              "Unexpected result for path: %s : expected %s, actually returned false.",
-              path, expectedOutcome.toString()),
-              expectedOutcome.getType(), MethodOutcome.Type.RETURNS_FALSE);
+          Assert.assertEquals(
+              String.format(
+                  "Unexpected result for path: %s : expected %s, actually returned false.",
+                  path, expectedOutcome.toString()),
+              MethodOutcome.Type.RETURNS_FALSE,
+              expectedOutcome.getType());
         }
       } catch (Exception e) {
-        Assert.assertEquals(String.format(
-            "Unexpected result for path: %s : expected %s, actually threw exception %s.",
-            path, expectedOutcome.toString(),
-            Throwables.getStackTraceAsString(e)),
-            expectedOutcome.getType(), MethodOutcome.Type.THROWS_EXCEPTION);
+        Assert.assertEquals(
+            String.format(
+                "Unexpected result for path: %s : expected %s, actually threw exception %s.",
+                path, expectedOutcome.toString(), Throwables.getStackTraceAsString(e)),
+            MethodOutcome.Type.THROWS_EXCEPTION,
+            expectedOutcome.getType());
       }
     }
   }
@@ -1354,15 +1367,15 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
                               String.format(
                                   "Unexpected result for: %s : %s :: expected %s, actually returned true.",
                                   desc, rd.description, rd.expectedOutcome.toString()),
-                              rd.expectedOutcome.getType(),
-                              MethodOutcome.Type.RETURNS_TRUE);
+                              MethodOutcome.Type.RETURNS_TRUE,
+                              rd.expectedOutcome.getType());
                         } else {
                           Assert.assertEquals(
                               String.format(
                                   "Unexpected result for: %s : %s :: expected %s, actually returned false.",
                                   desc, rd.description, rd.expectedOutcome.toString()),
-                              rd.expectedOutcome.getType(),
-                              MethodOutcome.Type.RETURNS_FALSE);
+                              MethodOutcome.Type.RETURNS_FALSE,
+                              rd.expectedOutcome.getType());
                         }
                       } catch (Exception e) {
                         Assert.assertEquals(
@@ -1372,8 +1385,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
                                 rd.description,
                                 rd.expectedOutcome.toString(),
                                 Throwables.getStackTraceAsString(e)),
-                            rd.expectedOutcome.getType(),
-                            MethodOutcome.Type.THROWS_EXCEPTION);
+                            MethodOutcome.Type.THROWS_EXCEPTION,
+                            rd.expectedOutcome.getType());
                       }
                     } catch (Throwable t) {
                       synchronized (errorList) {

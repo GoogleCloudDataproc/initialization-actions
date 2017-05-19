@@ -47,8 +47,8 @@ public class RetryBoundedBackOffTest {
     for (int i = 0; i < 5; i++) {
       assertEquals(backoff.nextBackOffMillis(), i + 1);
     }
-    assertEquals(backoff.nextBackOffMillis(), BackOff.STOP);
-    assertEquals(backoff.nextBackOffMillis(), BackOff.STOP);
+    assertEquals(BackOff.STOP, backoff.nextBackOffMillis());
+    assertEquals(BackOff.STOP, backoff.nextBackOffMillis());
   }
 
   @Test
@@ -57,8 +57,8 @@ public class RetryBoundedBackOffTest {
     for (int i = 0; i < 5; i++) {
       assertEquals(backoff.nextBackOffMillis(), i + 1);
     }
-    assertEquals(backoff.nextBackOffMillis(), BackOff.STOP);
-    assertEquals(backoff.nextBackOffMillis(), BackOff.STOP);
+    assertEquals(BackOff.STOP, backoff.nextBackOffMillis());
+    assertEquals(BackOff.STOP, backoff.nextBackOffMillis());
     backoff.reset();
     for (int i = 0; i < 3; i++) {
       assertEquals(backoff.nextBackOffMillis(), i + 1);
@@ -67,8 +67,8 @@ public class RetryBoundedBackOffTest {
     for (int i = 0; i < 5; i++) {
       assertEquals(backoff.nextBackOffMillis(), i + 1);
     }
-    assertEquals(backoff.nextBackOffMillis(), BackOff.STOP);
-    assertEquals(backoff.nextBackOffMillis(), BackOff.STOP);
+    assertEquals(BackOff.STOP, backoff.nextBackOffMillis());
+    assertEquals(BackOff.STOP, backoff.nextBackOffMillis());
   }
 
   /** A simple {@link BackOff} to help with testing. */
