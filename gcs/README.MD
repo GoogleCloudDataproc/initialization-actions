@@ -22,7 +22,7 @@ This repository contains the Hadoop 1.x compatible and the Hadoop 2.x compatible
 
 When you set up a Hadoop cluster by following the directions in `INSTALL.md`, the cluster is automatically configured for optimal use with the connector. Typically, there is no need for further configuration.
 
-To customize the connector, specify configuration values in `core-site.xml`  based on how you set yoir cluster:
+To customize the connector, specify configuration values in `core-site.xml`  based on how you set up your cluster:
 * **[`bdutil`](https://github.com/GoogleCloudPlatform/bdutil)** - in `conf/hadoop<version>gcs-core-template.xml` in the bdutil package directory, before deploying a cluster with bdutil
 * **other existing clusters** - the Hadoop configuration directory on the machine on which the connector is installed
 
