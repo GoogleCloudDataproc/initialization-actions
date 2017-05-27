@@ -19,8 +19,9 @@ ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 HOSTNAME=$(hostname)
 DNSNAME=$(dnsdomainname)
 FQDN=${HOSTNAME}.$DNSNAME
+CLUSTER_NAME=$(hostname | sed -r 's/(.*)-[w|m](-[0-9]+)?$/\1/')
 CONNECTOR_JAR=$(find /usr/lib/hadoop/lib -name 'gcs-connector-*.jar')
-PRESTO_VERSION="0.144.1"
+PRESTO_VERSION="0.177"
 HTTP_PORT="8080"
 
 # Download and unpack Presto server
@@ -45,7 +46,7 @@ EOF
 # TODO - Inspect /etc/hive/conf/hite-site.xml to pull this uri
 cat > presto-server-${PRESTO_VERSION}/etc/catalog/hive.properties <<EOF
 connector.name=hive-hadoop2
-hive.metastore.uri=thrift://localhost:9083
+hive.metastore.uri=thrift://${CLUSTER_NAME}-m:9083
 EOF
 
 # Compute memory settings based on Spark's settings.
