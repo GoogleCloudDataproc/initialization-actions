@@ -41,7 +41,7 @@ readonly FLINK_JOBMANAGER_MEMORY_FRACTION='1.0'
 readonly FLINK_TASKMANAGER_MEMORY_FRACTION='1.0'
 
 # Set this to true to start a flink yarn session at initialization time.
-readonly START_FLINK_YARN_SESSION="true"
+readonly START_FLINK_YARN_SESSION="false"
 
 function configure_flink() {
   # Number of worker nodes in your cluster
