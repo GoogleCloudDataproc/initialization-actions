@@ -8,6 +8,8 @@ INIT_ACTIONS_BRANCH=$(curl -f -s -H Metadata-Flavor:Google http://metadata/compu
 INIT_ACTIONS_BRANCH="${INIT_ACTIONS_BRANCH:-master}"
 DATAPROC_BUCKET=$(curl -f -s -H Metadata-Flavor:Google http://metadata/computeMetadata/v1/instance/attributes/dataproc-bucket)
 
+# Colon-separated list of conda channels to add before installing packages
+JUPYTER_CONDA_CHANNELS=$(curl -f -s -H Metadata-Flavor:Google http://metadata/computeMetadata/v1/instance/attributes/JUPYTER_CONDA_CHANNELS || true)
 # Colon-separated list of conda packages to install, for example 'numpy:pandas'
 JUPYTER_CONDA_PACKAGES=$(curl -f -s -H Metadata-Flavor:Google http://metadata/computeMetadata/v1/instance/attributes/JUPYTER_CONDA_PACKAGES || true)
 
@@ -17,6 +19,11 @@ git clone -b "$INIT_ACTIONS_BRANCH" --single-branch $INIT_ACTIONS_REPO
 ./dataproc-initialization-actions/conda/bootstrap-conda.sh
 
 source /etc/profile.d/conda.sh
+
+if [ -n "${JUPYTER_CONDA_CHANNELS}" ]; then
+  echo "Adding custom conda channels '$(echo ${JUPYTER_CONDA_CHANNELS} | tr ':' ' ')'"
+  conda config --add channels $(echo ${JUPYTER_CONDA_CHANNELS} | tr ':' ',')
+fi
 
 if [ -n "${JUPYTER_CONDA_PACKAGES}" ]; then
   echo "Installing custom conda packages '$(echo ${JUPYTER_CONDA_PACKAGES} | tr ':' ' ')'"
