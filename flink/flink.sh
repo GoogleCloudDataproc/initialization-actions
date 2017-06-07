@@ -22,7 +22,7 @@
 # Cloud Dataproc Image Version information:
 # https://cloud.google.com/dataproc/concepts/dataproc-versions
 
-set -x -e
+set -euxo pipefail
 
 # Install directories for Flink and Hadoop
 readonly FLINK_INSTALL_DIR='/usr/lib/flink'
@@ -40,8 +40,9 @@ readonly FLINK_JOBMANAGER_MEMORY_FRACTION='1.0'
 # Flink config entry: taskmanager.heap.mb
 readonly FLINK_TASKMANAGER_MEMORY_FRACTION='1.0'
 
+readonly START_FLINK_YARN_SESSION_METADATA_KEY="flink-start-yarn-session"
 # Set this to true to start a flink yarn session at initialization time.
-readonly START_FLINK_YARN_SESSION="true"
+readonly START_FLINK_YARN_SESSION_DEFAULT="true"
 
 function configure_flink() {
   # Number of worker nodes in your cluster
@@ -76,10 +77,17 @@ function configure_flink() {
   local flink_taskmanager_memory=$(python -c \
       "print int(${worker_total_mem} * ${FLINK_TASKMANAGER_MEMORY_FRACTION})")
 
+  # Fetch the master name from metadata.
+  local master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
+
+  # Determine whether to start a detached YARN session.
+  local start_flink_yarn_session="$(/usr/share/google/get_metadata_value "attributes/${START_FLINK_YARN_SESSION_METADATA_KEY}")"
+  start_flink_yarn_session="${start_flink_yarn_session:-${START_FLINK_YARN_SESSION_DEFAULT}}"
+
   # Apply Flink settings by appending them to the default config
   cat << EOF >> ${FLINK_INSTALL_DIR}/conf/flink-conf.yaml
 # Settings applied by Cloud Dataproc initialization action
-jobmanager.rpc.address: ${MASTER_HOSTNAME}
+jobmanager.rpc.address: ${master_hostname}
 jobmanager.heap.mb: ${flink_jobmanager_memory}
 taskmanager.heap.mb: ${flink_taskmanager_memory}
 taskmanager.numberOfTaskSlots: ${flink_taskmanager_slots}
@@ -88,7 +96,7 @@ taskmanager.network.numberOfBuffers: ${FLINK_NETWORK_NUM_BUFFERS}
 fs.hdfs.hadoopconf: ${HADOOP_CONF_DIR}
 EOF
 
-  if [ "${START_FLINK_YARN_SESSION}" = 'true' ] ; then
+  if [ "${start_flink_yarn_session}" = 'true' ] ; then
     # NB: yarn-session.sh ignores taskmanager.numberOfTaskSlots for some reason.
     # We specify it manually below.
     env HADOOP_CONF_DIR="$HADOOP_CONF_DIR" \
