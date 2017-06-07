@@ -22,12 +22,24 @@ Once you have configured a copy of this script, you can use this initialization 
     --initialization-actions gs://<GCS_BUCKET>/flink.sh   
     --initialization-action-timeout 5m
     ```
-1. Once the cluster has been created, Flink will start a session on YARN. You can log into the master node of the cluster to submit jobs to Flink. Flink is installed in `/usr/lib/flink` (unless you change the setting) which contains a `bin` directory with Flink. **Note** - you need to specify `HADOOP_CONF_DIR=/etc/hadoop/conf` before your Flink commands for them to execute properly.
+1. 1. You can log into the master node of the cluster to submit jobs to Flink. Flink is installed in `/usr/lib/flink` (unless you change the setting) which contains a `bin` directory with Flink. **Note** - you need to specify `HADOOP_CONF_DIR=/etc/hadoop/conf` before your Flink commands for them to execute properly. By default, a detached Flink YARN session is started for you. To find its application id, run `yarn application -list`.
 
-For example, this command will run a word count sample (as root):
+To run a job on the default session, run:
 
-`sudo su -
-HADOOP_CONF_DIR=/etc/hadoop/conf /usr/lib/flink/bin/flink run -m yarn-cluster examples/streaming/WordCount.jar`
+```bash
+HADOOP_CONF_DIR=/etc/hadoop/conf /usr/lib/flink/bin/flink run -m yarn-cluster -yid <session application id> <job jar>
+```
+
+To run a job on a transient session using `N` containers:
+
+```bash
+HADOOP_CONF_DIR=/etc/hadoop/conf /usr/lib/flink/bin/flink run -m yarn-cluster -yn N <job jar>
+```
+
+For example, this command will run a word count sample (as root) on the default session:
+```bash
+sudo su - HADOOP_CONF_DIR=/etc/hadoop/conf /usr/lib/flink/bin/flink run -m yarn-cluster -yid <session application id> examples/streaming/WordCount.jar
+```
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
 
