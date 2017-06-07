@@ -22,9 +22,9 @@ Once you have configured a copy of this script, you can use this initialization 
     --initialization-actions gs://<GCS_BUCKET>/flink.sh   
     --initialization-action-timeout 5m
     ```
-1. 1. You can log into the master node of the cluster to submit jobs to Flink. Flink is installed in `/usr/lib/flink` (unless you change the setting) which contains a `bin` directory with Flink. **Note** - you need to specify `HADOOP_CONF_DIR=/etc/hadoop/conf` before your Flink commands for them to execute properly. By default, a detached Flink YARN session is started for you. To find its application id, run `yarn application -list`.
+1. 1. You can log into the master node of the cluster to submit jobs to Flink. Flink is installed in `/usr/lib/flink` (unless you change the setting) which contains a `bin` directory with Flink. **Note** - you need to specify `HADOOP_CONF_DIR=/etc/hadoop/conf` before your Flink commands for them to execute properly. 
 
-To run a job on the default session, run:
+To run a job on an existing YARN session, run:
 
 ```bash
 HADOOP_CONF_DIR=/etc/hadoop/conf /usr/lib/flink/bin/flink run -m yarn-cluster -yid <session application id> <job jar>
@@ -36,7 +36,7 @@ To run a job on a transient session using `N` containers:
 HADOOP_CONF_DIR=/etc/hadoop/conf /usr/lib/flink/bin/flink run -m yarn-cluster -yn N <job jar>
 ```
 
-For example, this command will run a word count sample (as root) on the default session:
+For example, this command will run a word count sample (as root) on an existing YARN session:
 ```bash
 sudo su - HADOOP_CONF_DIR=/etc/hadoop/conf /usr/lib/flink/bin/flink run -m yarn-cluster -yid <session application id> examples/streaming/WordCount.jar
 ```
@@ -44,5 +44,5 @@ sudo su - HADOOP_CONF_DIR=/etc/hadoop/conf /usr/lib/flink/bin/flink run -m yarn-
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
 
 ## Important notes
-* This script must be updated based on which Flink version you wish you install
-* This script must be updated based on your Cloud Dataproc cluster
+* By default, a detached Flink YARN session is started for you. To find its application id, run `yarn application -list`.
+* The default session is configured to consume all YARN resources. If you want to submit multiple jobs in parallel or use transient sessions, you'll need to disable this default session. You can either fork this init script and set START_FLINK_YARN_SESSION_DEFAULT to `false`, or set the cluster metadata key `flink-start-yarn-session` to `false` when you create your cluster.
