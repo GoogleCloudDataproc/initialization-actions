@@ -112,7 +112,9 @@ EOF
 
 function main() {
 local role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-if [[ "${role}" == 'Master' ]]; then
+local hostname="$(hostname)"
+local master_name="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
+if [[ "${role}" == 'Master' && "${hostname}" == "${master_name}" ]]; then
   apt-get install -y flink
   configure_flink
 fi
