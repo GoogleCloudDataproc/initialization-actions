@@ -26,7 +26,8 @@ ZEPPELIN_PORT="$(/usr/share/google/get_metadata_value attributes/zeppelin-port |
 
 if [[ "${ROLE}" == 'Master' ]]; then
   # Install zeppelin. Don't mind if it fails to start the first time.
-  apt-get install -y zeppelin || dpkg -l zeppelin
+  apt-get update || true
+  apt-get install -y -t jessie-backports zeppelin || dpkg -l zeppelin
 
   for i in {1..6}; do
     if [[ -r "${INTERPRETER_FILE}" ]]; then
