@@ -77,12 +77,19 @@ function configure_flink() {
   local flink_taskmanager_memory=$(python -c \
       "print int(${worker_total_mem} * ${FLINK_TASKMANAGER_MEMORY_FRACTION})")
 
-  # Fetch the master name from metadata.
+  # Fetch the primary master name from metadata.
   local master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
+  local hostname="$(hostname)"
 
-  # Determine whether to start a detached YARN session.
-  local start_flink_yarn_session="$(/usr/share/google/get_metadata_value "attributes/${START_FLINK_YARN_SESSION_METADATA_KEY}")"
-  start_flink_yarn_session="${start_flink_yarn_session:-${START_FLINK_YARN_SESSION_DEFAULT}}"
+  local start_flink_yarn_session
+  if [[ "${hostname}" == "${master_hostname}" ]] ; then
+    # Determine whether to start a detached session.
+    start_flink_yarn_session="$(/usr/share/google/get_metadata_value "attributes/${START_FLINK_YARN_SESSION_METADATA_KEY}")"
+    start_flink_yarn_session="${start_flink_yarn_session:-${START_FLINK_YARN_SESSION_DEFAULT}}"
+  else
+    # We only start a session on the primary master.
+    start_flink_yarn_session='false'
+  fi
 
   # Apply Flink settings by appending them to the default config
   cat << EOF >> ${FLINK_INSTALL_DIR}/conf/flink-conf.yaml
@@ -112,12 +119,10 @@ EOF
 
 function main() {
 local role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-if [[ "${role}" == 'Master' ]]; then
+if [[ "${role}" == 'Master' ]] ; then
   apt-get install -y flink
   configure_flink
 fi
 }
 
 main
-
-set +x +e
