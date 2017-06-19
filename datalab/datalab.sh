@@ -42,10 +42,9 @@ if [[ "${ROLE}" == 'Master' ]]; then
   DATALAB_DIR="${HOME}/datalab"
   mkdir -p "${DATALAB_DIR}"
 
-  # Expose every possbile spark configuration to the container.
-  VOLUME_FLAGS=$(echo /etc/{hadoop*,hive*,*spark*} \
-    /usr/lib/hadoop/lib/{gcs,bigquery}* \
-    | sed 's/\S*/-v &:&/g')
+  # Expose every possible spark configuration to the container.
+  VOLUMES=$(echo /etc/{hadoop*,hive*,*spark*} /usr/lib/hadoop/lib/{gcs,bigquery}*)
+  VOLUME_FLAGS=$(echo ${VOLUMES} | sed 's/\S*/-v &:&/g')
   echo "VOLUME_FLAGS: ${VOLUME_FLAGS}"
 
   PYTHONPATH="/env/python:$(find /usr/lib/spark/python/lib -name '*.zip' | paste -sd:)"
@@ -85,16 +84,14 @@ EOF
   docker build -t datalab-pyspark .
   popd
 
-  # Using this many volumes, each containing symlinks, often gives a "too many
-  # symlinks" error. Just retry till it works.
-  for i in {1..10}; do
-    if docker run -d --net=host -v "${DATALAB_DIR}:/content/datalab" ${VOLUME_FLAGS} \
-        datalab-pyspark; then
-      echo 'Cloud Datalab Jupyter server successfully deployed.'
-      exit
-    fi
-    sleep 1
-  done
+  # Docker gives a "too many symlinks" error if volumes are not yet automounted.
+  # Ensure that the volumes are mounted to avoid the error.
+  touch ${VOLUMES}
+  if docker run -d --net=host -v "${DATALAB_DIR}:/content/datalab" ${VOLUME_FLAGS} \
+      datalab-pyspark; then
+    echo 'Cloud Datalab Jupyter server successfully deployed.'
+    exit
+  fi
 
   echo 'Failed to run Cloud Datalab' >&2
   exit 1
