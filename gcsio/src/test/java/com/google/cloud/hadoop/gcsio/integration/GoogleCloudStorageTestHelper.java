@@ -18,6 +18,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.http.HttpTransport;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
@@ -25,6 +26,7 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions.Builder;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.CredentialFactory;
+import com.google.cloud.hadoop.util.HttpTransportFactory;
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -57,11 +59,13 @@ public class GoogleCloudStorageTestHelper {
     Credential credential;
     try {
       CredentialFactory credentialFactory = new CredentialFactory();
+      HttpTransport transport = HttpTransportFactory.newTrustedTransport();
       credential =
           credentialFactory.getCredentialFromPrivateKeyServiceAccount(
               serviceAccount,
               privateKeyfile,
-              CredentialFactory.GCS_SCOPES);
+              CredentialFactory.GCS_SCOPES,
+              transport);
     } catch (GeneralSecurityException gse) {
       throw new IOException(gse);
     }

@@ -17,12 +17,13 @@ package com.google.cloud.hadoop.util;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 
+import com.google.api.client.http.HttpTransport;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -37,9 +38,19 @@ public class CredentialConfigurationTest {
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
+  private CredentialFactory mockCredentialFactory = mock(CredentialFactory.class);
+  private HttpTransport mockTransport = mock(HttpTransport.class);
+  private CredentialConfiguration configuration;
+
+  @Before
+  public void setUp() {
+    configuration = new CredentialConfiguration();
+    configuration.setCredentialFactory(mockCredentialFactory);
+    configuration.setTransport(mockTransport);
+  }
+
   @Test
   public void nullCredentialsAreCreatedForTesting() throws IOException, GeneralSecurityException {
-    CredentialConfiguration configuration = new CredentialConfiguration();
     configuration.setEnableServiceAccounts(false);
     configuration.setNullCredentialEnabled(true);
 
@@ -49,9 +60,7 @@ public class CredentialConfigurationTest {
   @Test
   public void exceptionIsThrownForNoServiceAccountEmail()
       throws IOException, GeneralSecurityException {
-
     // No email set, keyfile doesn't exist, but that's OK.
-    CredentialConfiguration configuration = new CredentialConfiguration();
     configuration.setServiceAccountKeyFile("aFile");
 
     expectedException.expect(IllegalStateException.class);
@@ -61,7 +70,6 @@ public class CredentialConfigurationTest {
   @Test
   public void exceptionIsThrownForNoCredentialOptions()
       throws IOException, GeneralSecurityException {
-    CredentialConfiguration configuration = new CredentialConfiguration();
     configuration.setEnableServiceAccounts(false);
 
     expectedException.expect(IllegalStateException.class);
@@ -72,22 +80,13 @@ public class CredentialConfigurationTest {
 
   @Test
   public void metadataServiceIsUsedByDefault() throws IOException, GeneralSecurityException {
-    CredentialFactory mockCredentialFactory = mock(CredentialFactory.class);
-
-    CredentialConfiguration configuration = new CredentialConfiguration();
-    configuration.setCredentialFactory(mockCredentialFactory);
     configuration.getCredential(TEST_SCOPES);
 
     verify(mockCredentialFactory, times(1)).getCredentialFromMetadataServiceAccount();
-    verifyNoMoreInteractions(mockCredentialFactory);
   }
 
   @Test
   public void p12KeyfileUsedWhenConfigured() throws IOException, GeneralSecurityException  {
-    CredentialFactory mockCredentialFactory = mock(CredentialFactory.class);
-
-    CredentialConfiguration configuration = new CredentialConfiguration();
-    configuration.setCredentialFactory(mockCredentialFactory);
     configuration.setServiceAccountEmail("foo@example.com");
     configuration.setServiceAccountKeyFile("exampleKeyfile");
 
@@ -96,33 +95,23 @@ public class CredentialConfigurationTest {
     verify(mockCredentialFactory, times(1)).getCredentialFromPrivateKeyServiceAccount(
         "foo@example.com",
         "exampleKeyfile",
-        TEST_SCOPES);
-    verifyNoMoreInteractions(mockCredentialFactory);
+        TEST_SCOPES, mockTransport);
   }
 
   @Test
   public void jsonKeyFileUsedWhenConfigured() throws IOException, GeneralSecurityException {
-    CredentialFactory mockCredentialFactory = mock(CredentialFactory.class);
-
-    CredentialConfiguration configuration = new CredentialConfiguration();
-    configuration.setCredentialFactory(mockCredentialFactory);
     configuration.setServiceAccountJsonKeyFile("jsonExampleKeyFile");
 
     configuration.getCredential(TEST_SCOPES);
 
     verify(mockCredentialFactory, times(1)).getCredentialFromJsonKeyFile(
         "jsonExampleKeyFile",
-        TEST_SCOPES);
-    verifyNoMoreInteractions(mockCredentialFactory);
+        TEST_SCOPES, mockTransport);
   }
 
   @Test
   public void installedAppWorkflowUsedWhenConfigurred()
       throws IOException, GeneralSecurityException  {
-    CredentialFactory mockCredentialFactory = mock(CredentialFactory.class);
-
-    CredentialConfiguration configuration = new CredentialConfiguration();
-    configuration.setCredentialFactory(mockCredentialFactory);
     configuration.setEnableServiceAccounts(false);
     configuration.setClientSecret("aClientSecret");
     configuration.setClientId("aClientId");
@@ -131,7 +120,6 @@ public class CredentialConfigurationTest {
     configuration.getCredential(TEST_SCOPES);
 
     verify(mockCredentialFactory, times(1)).getCredentialFromFileCredentialStoreForInstalledApp(
-        "aClientId", "aClientSecret", "aCredentialFile", TEST_SCOPES);
-    verifyNoMoreInteractions(mockCredentialFactory);
+        "aClientId", "aClientSecret", "aCredentialFile", TEST_SCOPES, mockTransport);
   }
 }

@@ -15,6 +15,7 @@
 package com.google.cloud.hadoop.util;
 
 import com.google.api.client.googleapis.GoogleUtils;
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.apache.ApacheHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -136,6 +137,14 @@ public class HttpTransportFactory {
     builder.trustCertificates(GoogleUtils.getCertificateTrustStore());
     builder.setProxy(proxy);
     return builder.build();
+  }
+
+  /**
+   * Convenience method equivalent to {@link GoogleNetHttpTransport#newTrustedTransport()}.
+   */
+  public static HttpTransport newTrustedTransport()
+      throws GeneralSecurityException, IOException {
+    return createNetHttpTransport(null);
   }
 
   /**

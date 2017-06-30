@@ -21,6 +21,7 @@ import static org.junit.Assert.assertTrue;
 import com.google.cloud.hadoop.testing.EntriesCredentialConfigurationUtil;
 import com.google.cloud.hadoop.testing.EntriesCredentialConfigurationUtil.TestEntries;
 import com.google.cloud.hadoop.util.EntriesCredentialConfiguration.Entries;
+import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.junit.Test;
@@ -105,6 +106,12 @@ public class EntriesCredentialConfigurationTest {
         conf,
         EntriesCredentialConfiguration.ENABLE_NULL_CREDENTIAL_SUFFIX,
         "true");
+    conf.set(
+        EntriesCredentialConfiguration.PROXY_ADDRESS_KEY,
+        "foo.bar:1234");
+    conf.set(
+        EntriesCredentialConfiguration.HTTP_TRANSPORT_KEY,
+        "APACHE");
 
     CredentialConfiguration credentialConfiguration =
         EntriesCredentialConfiguration
@@ -121,6 +128,8 @@ public class EntriesCredentialConfigurationTest {
         credentialConfiguration.getOAuthCredentialFile());
     assertFalse(credentialConfiguration.isServiceAccountEnabled());
     assertTrue(credentialConfiguration.isNullCredentialEnabled());
+    assertEquals("foo.bar:1234", credentialConfiguration.getProxyAddress());
+    assertEquals(HttpTransportType.APACHE, credentialConfiguration.getTransportType());
   }
 
   @Test
@@ -140,6 +149,8 @@ public class EntriesCredentialConfigurationTest {
     assertEquals("anEmail", writtenValue);
 
     credentialConfiguration.setServiceAccountKeyFile("aKeyFile");
+    credentialConfiguration.setProxyAddress("foo.bar:1234");
+    credentialConfiguration.setTransportType(HttpTransportType.APACHE);
     credentialConfiguration.getConfigurationInto(conf);
     writtenValue = getConfigurationKey(
         conf,
@@ -173,5 +184,7 @@ public class EntriesCredentialConfigurationTest {
         conf,
         EntriesCredentialConfiguration.ENABLE_NULL_CREDENTIAL_SUFFIX);
     assertEquals("true", writtenValue);
+    assertEquals("foo.bar:1234", conf.get(EntriesCredentialConfiguration.PROXY_ADDRESS_KEY));
+    assertEquals("APACHE", conf.get(EntriesCredentialConfiguration.HTTP_TRANSPORT_KEY));
   }
 }

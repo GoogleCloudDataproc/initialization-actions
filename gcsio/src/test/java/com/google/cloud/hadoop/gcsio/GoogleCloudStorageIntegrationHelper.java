@@ -417,6 +417,7 @@ public abstract class GoogleCloudStorageIntegrationHelper {
   /**
    * Gets the credential tests should use for accessing GCS.
    */
+  @Deprecated
   Credential getCredential()
       throws IOException {
     String clientId = System.getenv(GCS_TEST_CLIENT_ID);

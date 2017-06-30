@@ -1,3 +1,6 @@
+1.6.2 - 2017-XX-XX
+  1. Wire HTTP transport settings into Credential logic.
+
 1.6.1 - 2017-04-14
 
   1. Added a polling loop when determining if a createEmptyObjects error can
@@ -118,9 +121,9 @@
   2. Changed RetryHttpInitializer to treat HTTP code 429 as a retriable
      error with exponential backoff instead of erroring out.
   3. Added a new output stream type which can be used by setting:
-     
+
          fs.gs.outputstream.type=SYNCABLE_COMPOSITE
-     
+
      With the SYNCABLE_COMPOSITE type, output streams obtained with a call
      to FileSystem.create(Path) will have (limited) support for Hadoop's
      Syncable interface, where calling hsync() will commit the data written

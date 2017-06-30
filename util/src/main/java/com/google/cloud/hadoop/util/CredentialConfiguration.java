@@ -15,6 +15,8 @@
 package com.google.cloud.hadoop.util;
 
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.http.HttpTransport;
+import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -39,6 +41,9 @@ public class CredentialConfiguration {
   private String oAuthCredentialFile = null;
   private boolean nullCredentialEnabled = false;
   private CredentialFactory credentialFactory = new CredentialFactory();
+  private HttpTransportType transportType = HttpTransportType.JAVA_NET;
+  private String proxyAddress = null;
+  private HttpTransport transport;
 
   /**
    * Get the credential as configured.
@@ -78,7 +83,8 @@ public class CredentialConfiguration {
         Preconditions.checkArgument(
             Strings.isNullOrEmpty(serviceAccountEmail),
             "Service account email may not be specified at the same time as a JSON key file.");
-        return credentialFactory.getCredentialFromJsonKeyFile(serviceAccountJsonKeyFile, scopes);
+        return credentialFactory.getCredentialFromJsonKeyFile(
+            serviceAccountJsonKeyFile, scopes, getTransport());
       }
 
       // A keyfile is specified, use email-address and p12 based authentication.
@@ -88,12 +94,12 @@ public class CredentialConfiguration {
           serviceAccountEmail, serviceAccountKeyFile);
 
       return credentialFactory.getCredentialFromPrivateKeyServiceAccount(serviceAccountEmail,
-          serviceAccountKeyFile, scopes);
+          serviceAccountKeyFile, scopes, getTransport());
     } else if (oAuthCredentialFile != null && clientId != null && clientSecret != null) {
       LOG.debug("Using installed app credentials in file {}", oAuthCredentialFile);
 
       return credentialFactory.getCredentialFromFileCredentialStoreForInstalledApp(clientId,
-          clientSecret, oAuthCredentialFile, scopes);
+          clientSecret, oAuthCredentialFile, scopes, getTransport());
     } else if (nullCredentialEnabled) {
       LOG.warn("Allowing null credentials for unit testing. This should not be used in production");
 
@@ -103,6 +109,7 @@ public class CredentialConfiguration {
     LOG.error("Credential configuration is not valid. Configuration: {}", this);
     throw new IllegalStateException("No valid credential configuration discovered.");
   }
+
 
   public boolean shouldUseMetadataService() {
     return Strings.isNullOrEmpty(serviceAccountKeyFile)
@@ -173,6 +180,23 @@ public class CredentialConfiguration {
     this.clientSecret = clientSecret;
   }
 
+  public HttpTransportType getTransportType() {
+    return transportType;
+  }
+
+  public void setTransportType(
+      HttpTransportType transportType) {
+    this.transportType = transportType;
+  }
+
+  public String getProxyAddress() {
+    return proxyAddress;
+  }
+
+  public void setProxyAddress(String proxyAddress) {
+    this.proxyAddress = proxyAddress;
+  }
+
   @VisibleForTesting
   void setCredentialFactory(CredentialFactory factory) {
     this.credentialFactory = factory;
@@ -192,8 +216,21 @@ public class CredentialConfiguration {
     }
     builder.append('\n');
     builder.append("oAuthCredentialFile: ").append(getOAuthCredentialFile()).append('\n');
-    builder.append("isNullCredentialEnabled: ").append(isNullCredentialEnabled());
+    builder.append("isNullCredentialEnabled: ").append(isNullCredentialEnabled()).append('\n');
+    builder.append("transportType: ").append(getTransportType()).append('\n');
+    builder.append("proxyAddress: ").append(getProxyAddress());
     return builder.toString();
   }
 
+  private HttpTransport getTransport() throws IOException {
+    if (transport == null) {
+      transport = HttpTransportFactory.createHttpTransport(getTransportType(), getProxyAddress());
+    }
+    return transport;
+  }
+
+  @VisibleForTesting
+  void setTransport(HttpTransport transport) {
+    this.transport = transport;
+  }
 }

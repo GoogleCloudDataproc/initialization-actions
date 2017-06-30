@@ -1,12 +1,12 @@
 /**
  * Copyright 2013 Google Inc. All Rights Reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- *    
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -25,7 +25,6 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.compute.ComputeCredential;
 import com.google.api.client.googleapis.extensions.java6.auth.oauth2.GooglePromptReceiver;
-import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpBackOffIOExceptionHandler;
 import com.google.api.client.http.HttpBackOffUnsuccessfulResponseHandler;
@@ -61,6 +60,7 @@ public class CredentialFactory {
    * IO Exceptions with an exponential backoff.
    */
   public static class CredentialHttpRetryInitializer implements HttpRequestInitializer {
+
     @Override
     public void initialize(HttpRequest httpRequest) throws IOException {
       httpRequest.setIOExceptionHandler(
@@ -96,7 +96,7 @@ public class CredentialFactory {
           .setTransport(credential.getTransport())
           .setJsonFactory(credential.getJsonFactory())
           .setClock(credential.getClock());
-        return new GoogleCredentialWithRetry(builder);
+      return new GoogleCredentialWithRetry(builder);
     }
 
     public GoogleCredentialWithRetry(Builder builder) {
@@ -142,6 +142,7 @@ public class CredentialFactory {
    * A subclass of ComputeCredential that properly sets request initializers.
    */
   public static class ComputeCredentialWithRetry extends ComputeCredential {
+
     public ComputeCredentialWithRetry(Builder builder) {
       super(builder);
     }
@@ -177,18 +178,19 @@ public class CredentialFactory {
   // HTTP transport used for created credentials to perform token-refresh handshakes with remote
   // credential servers. Initialized lazily to move the possibility of throwing
   // GeneralSecurityException to the time a caller actually tries to get a credential.
-  private static HttpTransport httpTransport = null;
+  // Should only be used for Metadata Auth.
+  private static HttpTransport staticHttpTransport = null;
 
   /**
-   * Returns shared httpTransport instance; initializes httpTransport if it hasn't already been
-   * initialized.
+   * Returns shared staticHttpTransport instance; initializes staticHttpTransport if it hasn't
+   * already been initialized.
    */
-  private static synchronized HttpTransport getHttpTransport()
+  private static synchronized HttpTransport getStaticHttpTransport()
       throws IOException, GeneralSecurityException {
-    if (httpTransport == null) {
-      httpTransport = GoogleNetHttpTransport.newTrustedTransport();
+    if (staticHttpTransport == null) {
+      staticHttpTransport = HttpTransportFactory.newTrustedTransport();
     }
-    return httpTransport;
+    return staticHttpTransport;
   }
 
   /**
@@ -200,7 +202,7 @@ public class CredentialFactory {
       throws IOException, GeneralSecurityException {
     LOG.debug("getCredentialFromMetadataServiceAccount()");
     Credential cred = new ComputeCredentialWithRetry(
-        new ComputeCredential.Builder(getHttpTransport(), JSON_FACTORY)
+        new ComputeCredential.Builder(getStaticHttpTransport(), JSON_FACTORY)
             .setRequestInitializer(new CredentialHttpRetryInitializer()));
     try {
       cred.refreshToken();
@@ -215,41 +217,45 @@ public class CredentialFactory {
    * Initializes OAuth2 credential from a private keyfile, as described in
    * <a href="https://code.google.com/p/google-api-java-client/wiki/OAuth2#Service_Accounts"
    * > OAuth2 Service Accounts</a>.
-   *
    * @param serviceAccountEmail Email address of the service account associated with the keyfile.
    * @param privateKeyFile Full local path to private keyfile.
    * @param scopes List of well-formed desired scopes to use with the credential.
+   * @param transport The HttpTransport used for authorization
    */
   public Credential getCredentialFromPrivateKeyServiceAccount(
-      String serviceAccountEmail, String privateKeyFile, List<String> scopes)
+      String serviceAccountEmail,
+      String privateKeyFile,
+      List<String> scopes,
+      HttpTransport transport)
       throws IOException, GeneralSecurityException {
     LOG.debug("getCredentialFromPrivateKeyServiceAccount({}, {}, {})",
         serviceAccountEmail, privateKeyFile, scopes);
 
     return new GoogleCredentialWithRetry(
         new GoogleCredential.Builder()
-          .setTransport(getHttpTransport())
-          .setJsonFactory(JSON_FACTORY)
-          .setServiceAccountId(serviceAccountEmail)
-          .setServiceAccountScopes(scopes)
-          .setServiceAccountPrivateKeyFromP12File(new File(privateKeyFile))
-          .setRequestInitializer(new CredentialHttpRetryInitializer()));
+            .setTransport(transport)
+            .setJsonFactory(JSON_FACTORY)
+            .setServiceAccountId(serviceAccountEmail)
+            .setServiceAccountScopes(scopes)
+            .setServiceAccountPrivateKeyFromP12File(new File(privateKeyFile))
+            .setRequestInitializer(new CredentialHttpRetryInitializer()));
   }
 
   /***
    * Get credentials listed in a JSON file.
    * @param serviceAccountJsonKeyFile A file path pointing to a JSON file containing credentials.
    * @param scopes The OAuth scopes that the credential should be valid for.
+   * @param transport The HttpTransport used for authorization
    */
   public Credential getCredentialFromJsonKeyFile(
-      String serviceAccountJsonKeyFile, List<String> scopes)
+      String serviceAccountJsonKeyFile, List<String> scopes, HttpTransport transport)
       throws IOException, GeneralSecurityException {
     LOG.debug("getCredentialFromJsonKeyFile({}, {})",
         serviceAccountJsonKeyFile, scopes);
 
     try (FileInputStream fis = new FileInputStream(serviceAccountJsonKeyFile)) {
       return GoogleCredentialWithRetry.fromGoogleCredential(
-          GoogleCredential.fromStream(fis, getHttpTransport(), JSON_FACTORY)
+          GoogleCredential.fromStream(fis, transport, JSON_FACTORY)
               .createScoped(scopes));
     }
   }
@@ -262,11 +268,16 @@ public class CredentialFactory {
    * @param clientSecret OAuth2 client secret
    * @param filePath full path to a ".json" file for storing the credential
    * @param scopes list of well-formed scopes desired in the credential
+   * @param transport The HttpTransport used for authorization
    * @return credential with desired scopes, possibly obtained from loading {@code filePath}.
    * @throws IOException on IO error
    */
   public Credential getCredentialFromFileCredentialStoreForInstalledApp(
-      String clientId, String clientSecret, String filePath, List<String> scopes)
+      String clientId,
+      String clientSecret,
+      String filePath,
+      List<String> scopes,
+      HttpTransport transport)
       throws IOException, GeneralSecurityException {
     LOG.debug("getCredentialFromFileCredentialStoreForInstalledApp({}, {}, {}, {})",
         clientId, clientSecret, filePath, scopes);
@@ -293,13 +304,13 @@ public class CredentialFactory {
     // Set up authorization code flow.
     GoogleAuthorizationCodeFlow flow =
         new GoogleAuthorizationCodeFlow.Builder(
-            getHttpTransport(),
+            transport,
             JSON_FACTORY,
             clientSecrets,
             scopes)
-        .setCredentialStore(credentialStore)
-        .setRequestInitializer(new CredentialHttpRetryInitializer())
-        .build();
+            .setCredentialStore(credentialStore)
+            .setRequestInitializer(new CredentialHttpRetryInitializer())
+            .build();
 
     // Authorize access.
     return new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver()).authorize("user");
@@ -313,13 +324,15 @@ public class CredentialFactory {
    * @return credential that allows access to GCS
    * @throws IOException on IO error
    */
+  @Deprecated
   public Credential getStorageCredential(String clientId, String clientSecret)
       throws IOException, GeneralSecurityException {
     LOG.debug("getStorageCredential({}, {})", clientId, clientSecret);
     String filePath = System.getProperty("user.home") + "/.credentials/storage.json";
     return getCredentialFromFileCredentialStoreForInstalledApp(
-        clientId, clientSecret, filePath, GCS_SCOPES);
+        clientId, clientSecret, filePath, GCS_SCOPES, getStaticHttpTransport());
   }
+
   /**
    * Initializes OAuth2 credential and obtains authorization to access Datastore.
    *
@@ -328,11 +341,46 @@ public class CredentialFactory {
    * @return credential that allows access to Datastore
    * @throws IOException on IO error
    */
+  @Deprecated
   public Credential getDatastoreCredential(String clientId, String clientSecret)
       throws IOException, GeneralSecurityException {
     LOG.debug("getStorageCredential({}, {})", clientId, clientSecret);
     String filePath = System.getProperty("user.home") + "/.credentials/datastore.json";
     return getCredentialFromFileCredentialStoreForInstalledApp(
         clientId, clientSecret, filePath, DATASTORE_SCOPES);
+  }
+
+  /**
+   * @deprecated
+   * Caller should provide HttpTransport
+   */
+  @Deprecated
+  public Credential getCredentialFromPrivateKeyServiceAccount(
+      String serviceAccountEmail, String privateKeyFile, List<String> scopes)
+      throws IOException, GeneralSecurityException {
+    return getCredentialFromPrivateKeyServiceAccount(
+        serviceAccountEmail, privateKeyFile, scopes, getStaticHttpTransport());
+  }
+
+  /**
+   * @deprecated
+   * Caller should provide HttpTransport
+   */
+  @Deprecated
+  public Credential getCredentialFromJsonKeyFile(String file, List<String> scopes)
+      throws IOException, GeneralSecurityException {
+    return getCredentialFromJsonKeyFile(file, scopes, getStaticHttpTransport());
+  }
+
+  /**
+   * @deprecated
+   * Caller should provide HttpTransport
+   */
+  @Deprecated
+  public Credential getCredentialFromFileCredentialStoreForInstalledApp(
+      String clientId, String clientSecret, String filePath, List<String> scopes)
+      throws IOException, GeneralSecurityException {
+    return getCredentialFromFileCredentialStoreForInstalledApp(
+        clientId, clientSecret, filePath, scopes, getStaticHttpTransport());
   }
 }

@@ -96,6 +96,24 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
   public static final String ENABLE_NULL_CREDENTIAL_SUFFIX = ".auth.null.enable";
 
   /**
+   * Configuration key for setting a proxy for the connector to use to connect to GCS. The proxy
+   * must be an HTTP proxy of the form "host:port".
+   */
+  public static final String PROXY_ADDRESS_KEY = "fs.gs.proxy.address";
+
+  /** Default to no proxy. */
+  public static final String PROXY_ADDRESS_DEFAULT = null;
+
+  /**
+   * Configuration key for the name of HttpTransport class to use for connecting to GCS.
+   * Must be the name of an HttpTransportFactory.HttpTransportType (APACHE or JAVA_NET).
+   */
+  public static final String HTTP_TRANSPORT_KEY = "fs.gs.http.transport.type";
+
+  /** Default to the default specified in HttpTransportFactory. */
+  public static final String HTTP_TRANSPORT_DEFAULT = null;
+
+  /**
    * Builder for constructing CredentialConfiguration instances.
    */
   public abstract static class Builder<B extends Builder<B, T>,
@@ -197,7 +215,6 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
   public void getConfigurationInto(Entries configuration) {
     for (String prefix : prefixes) {
       configuration.setBoolean(prefix + ENABLE_SERVICE_ACCOUNTS_SUFFIX, isServiceAccountEnabled());
-
       if (getServiceAccountEmail() != null) {
         configuration.set(prefix + SERVICE_ACCOUNT_EMAIL_SUFFIX, getServiceAccountEmail());
       }
@@ -216,9 +233,13 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
       if (getOAuthCredentialFile() != null) {
         configuration.set(prefix + OAUTH_CLIENT_FILE_SUFFIX, getOAuthCredentialFile());
       }
-
       configuration.setBoolean(prefix + ENABLE_NULL_CREDENTIAL_SUFFIX, isNullCredentialEnabled());
     }
+    // Transport configuration does not use prefixes
+    if (getProxyAddress() != null) {
+      configuration.set(PROXY_ADDRESS_KEY, getProxyAddress());
+    }
+    configuration.set(HTTP_TRANSPORT_KEY, getTransportType().name());
   }
 
   /**
@@ -270,6 +291,17 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
       if (enableNullCredential.isPresent()) {
         setNullCredentialEnabled(enableNullCredential.get());
       }
+    }
+
+    // Transport configuration does not use prefixes
+    String proxyAddress = entries.get(PROXY_ADDRESS_KEY);
+    if (proxyAddress != null) {
+      setProxyAddress(proxyAddress);
+    }
+
+    String transportType = entries.get(HTTP_TRANSPORT_KEY);
+    if (transportType != null) {
+      setTransportType(HttpTransportFactory.getTransportTypeOf(transportType));
     }
   }
 }
