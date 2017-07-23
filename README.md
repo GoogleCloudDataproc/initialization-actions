@@ -1,15 +1,15 @@
-# Dataproc Initialization Actions
+# Cloud Dataproc Initialization Actions
 
 When creating a [Google Cloud Dataproc](https://cloud.google.com/dataproc/) cluster, you can specify [initialization actions](https://cloud.google.com/dataproc/init-actions) in executables and/or scripts that Cloud Dataproc will run on all nodes in your Cloud Dataproc cluster immediately after the cluster is set up.
 
-## How are initialization actions used?
-Initialization actions are stored in a [Google Cloud Storage](https://cloud.google.com/storage) bucket and can be passed as a paramater to the `gcloud` command or the `clusters.create` API when creating a Dataproc cluster. For example, to specify an initialization action when creating a cluster with the `gcloud` command, you can run:
+## How initialization actions are used
+Initialization actions are stored in a [Google Cloud Storage](https://cloud.google.com/storage) bucket and can be passed as a parameter to the `gcloud` command or the `clusters.create` API when creating a Cloud Dataproc cluster. For example, to specify an initialization action when creating a cluster with the `gcloud` command, you can run:
 
     gcloud dataproc clusters create CLUSTER-NAME
     [--initialization-actions [GCS_URI,...]]
     [--initialization-action-timeout TIMEOUT]
 
-For convenience, a copy of initialization actions in this repository are stored in the following Cloud Storage bucket which is publicly-accessible:
+For convenience, copies of initialization actions in this repository are stored in the following Cloud Storage bucket, which is publicly accessible:
 
     gs://dataproc-initialization-actions
 
@@ -21,7 +21,7 @@ These samples are provided to show how various packages and components can be in
 ## Actions provided
 This repository presently offers the following actions for use with Cloud Dataproc clusters.
 
-* Install packages/software on the cluster
+* Install packages/software on the cluster:
   * [Apache Drill](http://drill.apache.org)
   * [Apache Flink](http://flink.apache.org)
   * [Apache Kafka](http://kafka.apache.org)
@@ -35,14 +35,14 @@ This repository presently offers the following actions for use with Cloud Datapr
   * [IPython](http://ipython.org)
   * [Presto](http://prestodb.io)
   * [Anaconda](https://www.continuum.io/why-anaconda)
-* Configure the cluster
+* Configure the cluster:
   * Configure a *nice* shell environment
   * Share a NFS consistency cache
   * Share a [Google Cloud SQL](https://cloud.google.com/sql/) Hive Metastore
   * Setup [Google Stackdriver](https://cloud.google.com/stackdriver/) monitoring for a cluster
 
 ## For more information
-For more information, review the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions). You can also pose questions to the [Stack Overflow](http://www.stackoverflow.com) comminity with the tag `google-cloud-dataproc`.
+For more information, review the [Cloud Dataproc documentation](https://cloud.google.com/dataproc/init-actions). You can also pose questions to the [Stack Overflow](http://www.stackoverflow.com) community with the tag `google-cloud-dataproc`.
 See our other [Google Cloud Platform github
 repos](https://github.com/GoogleCloudPlatform) for sample applications and
 scaffolding for other frameworks and use cases.
@@ -55,3 +55,4 @@ scaffolding for other frameworks and use cases.
 ## Licensing
 
 * See [LICENSE](LICENSE)
+
