@@ -52,6 +52,9 @@ gcloud dataproc clusters create my-dataproc-cluster \
 - executes `jupyter/internal/setup-jupyter-kernel.sh` and `jupyter/internal/launch-jupyter-kernel.sh` from said repo/branch
   - configures `jupyter` to use the *PySpark* kernel found at `jupyter/kernels/pyspark/kernel.json`
   - configures `jupyter` to listen on the port specified by the metadata key `JUPYTER_PORT`, with a default value of `8123`
+  - configures `jupyter` to use auth token `JUPYTER_AUTH_TOKEN`, with a default of none.
+      - Dataproc does not recommend opening firewall ports to access Jupyter, but rather using a proxy. See [connecting to web interfaces](https://cloud.google.com/dataproc/docs/concepts/cluster-web-interfaces)
+      - This proxy access is automated by [launch-jupyter-interfaces.sh](#launch-jupyter-interfacesh).
   - targets a default notebooks directory `/root/notebooks`, into which the directory found at `gs://$DATAPROC_BUCKET/notebooks/` is copied, where `$DATAPROC_BUCKET` is the value stored in the metadata key `dataproc-bucket` (set by default upon cluster creation and overridable)
   - launches the `jupyter notebook` process
 
@@ -67,4 +70,4 @@ gcloud dataproc clusters create my-dataproc-cluster \
 - launch a Chrome instance that uses this ssh tunnel and references the Jupyter port.
 
 **NOTE**: to be run from a local machine
- 
+
