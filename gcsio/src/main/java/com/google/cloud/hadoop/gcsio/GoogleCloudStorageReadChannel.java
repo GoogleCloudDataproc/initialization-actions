@@ -34,11 +34,9 @@ import com.google.common.base.Preconditions;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.EOFException;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channel;
 import java.nio.channels.Channels;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ReadableByteChannel;
@@ -158,7 +156,7 @@ public class GoogleCloudStorageReadChannel
    * @param bucketName name of the bucket containing the object to read
    * @param objectName name of the object to read
    * @param requestHelper a ClientRequestHelper used to set any extra headers
-   * @throws FileNotFoundException if the given object does not exist
+   * @throws java.io.FileNotFoundException if the given object does not exist
    * @throws IOException on IO error
    */
   public GoogleCloudStorageReadChannel(
@@ -185,7 +183,7 @@ public class GoogleCloudStorageReadChannel
    * @param objectName name of the object to read
    * @param requestHelper a ClientRequestHelper used to set any extra headers
    * @param readOptions fine-grained options specifying things like retry settings, buffering, etc.
-   * @throws FileNotFoundException if the given object does not exist
+   * @throws java.io.FileNotFoundException if the given object does not exist
    * @throws IOException on IO error
    */
   public GoogleCloudStorageReadChannel(
@@ -457,17 +455,17 @@ public class GoogleCloudStorageReadChannel
     return channelIsOpen;
   }
 
- /**
+  /**
    * Closes the underlying {@link ReadableByteChannel}.
    *
    * <p>Catches and ignores all exceptions as there is not a lot the user can do to fix errors here
    * and a new connection will be needed. Especially SSLExceptions since the there's a high
-   * probability that SSL connections would be broken in a way that causes
-   * {@link Channel#close()} itself to throw an exception, even though underlying
-   * sockets have already been cleaned up; close() on an SSLSocketImpl requires a shutdown
-   * handshake in order to shutdown cleanly, and if the connection has been broken already, then
-   * this is not possible, and the SSLSocketImpl was already responsible for performing local
-   * cleanup at the time the exception was raised.
+   * probability that SSL connections would be broken in a way that causes {@link
+   * java.nio.channels.Channel#close()} itself to throw an exception, even though underlying sockets
+   * have already been cleaned up; close() on an SSLSocketImpl requires a shutdown handshake in
+   * order to shutdown cleanly, and if the connection has been broken already, then this is not
+   * possible, and the SSLSocketImpl was already responsible for performing local cleanup at the
+   * time the exception was raised.
    */
   protected void closeReadChannel() {
     if (readChannel != null) {
@@ -516,12 +514,11 @@ public class GoogleCloudStorageReadChannel
    *
    * @param newPosition the new position, counting the number of bytes from the beginning.
    * @return this channel instance
-   * @throws FileNotFoundException if the underlying object does not exist.
+   * @throws java.io.FileNotFoundException if the underlying object does not exist.
    * @throws IOException on IO error
    */
   @Override
-  public SeekableByteChannel position(long newPosition)
-      throws IOException {
+  public SeekableByteChannel position(long newPosition) throws IOException {
     throwIfNotOpen();
 
     // If the position has not changed, avoid the expensive operation.
@@ -615,12 +612,11 @@ public class GoogleCloudStorageReadChannel
    *
    * <p>Note: Seek is an expensive operation because a new stream is opened each time.
    *
-   * @throws FileNotFoundException if the underlying object does not exist.
+   * @throws java.io.FileNotFoundException if the underlying object does not exist.
    * @throws IOException on IO error
    */
   @VisibleForTesting
-  void performLazySeek()
-      throws IOException {
+  void performLazySeek() throws IOException {
 
     // Return quickly if there is no pending seek operation.
     if (!lazySeekPending) {

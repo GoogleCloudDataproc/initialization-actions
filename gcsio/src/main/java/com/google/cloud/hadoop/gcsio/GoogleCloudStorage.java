@@ -16,7 +16,6 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -127,11 +126,10 @@ public interface GoogleCloudStorage {
    *
    * @param resourceId identifies a StorageObject
    * @return a channel for reading from the given object
-   * @throws FileNotFoundException if the given object does not exist
+   * @throws java.io.FileNotFoundException if the given object does not exist
    * @throws IOException if object exists but cannot be opened
    */
-  SeekableByteChannel open(StorageResourceId resourceId)
-      throws IOException;
+  SeekableByteChannel open(StorageResourceId resourceId) throws IOException;
 
   /**
    * Opens an object for reading.
@@ -139,7 +137,7 @@ public interface GoogleCloudStorage {
    * @param resourceId identifies a StorageObject
    * @param readOptions Fine-grained options for behaviors of retries, buffering, etc.
    * @return a channel for reading from the given object
-   * @throws FileNotFoundException if the given object does not exist
+   * @throws java.io.FileNotFoundException if the given object does not exist
    * @throws IOException if object exists but cannot be opened
    */
   SeekableByteChannel open(StorageResourceId resourceId, GoogleCloudStorageReadOptions readOptions)
@@ -168,37 +166,38 @@ public interface GoogleCloudStorage {
    * Deletes a list of buckets. Does not throw any exception for "bucket not found" errors.
    *
    * @param bucketNames name of the buckets to delete
-   * @throws FileNotFoundException if the given bucket does not exist
+   * @throws java.io.FileNotFoundException if the given bucket does not exist
    * @throws IOException on IO error
    */
-  void deleteBuckets(List<String> bucketNames)
-      throws IOException;
+  void deleteBuckets(List<String> bucketNames) throws IOException;
 
   /**
    * Deletes the given objects. Does not throw any exception for "object not found" errors.
    *
    * @param fullObjectNames names of objects to delete with their respective bucketNames.
-   * @throws FileNotFoundException if the given object does not exist
+   * @throws java.io.FileNotFoundException if the given object does not exist
    * @throws IOException if object exists but cannot be deleted
    */
-  void deleteObjects(List<StorageResourceId> fullObjectNames)
-      throws IOException;
+  void deleteObjects(List<StorageResourceId> fullObjectNames) throws IOException;
 
   /**
-   * Copies metadata of the given objects. After the copy is successfully complete,
-   * each object blob is reachable by two different names.
-   * Copying between two different locations or between two different storage classes
-   * is not allowed.
+   * Copies metadata of the given objects. After the copy is successfully complete, each object blob
+   * is reachable by two different names. Copying between two different locations or between two
+   * different storage classes is not allowed.
    *
    * @param srcBucketName name of the bucket containing the objects to copy
    * @param srcObjectNames names of the objects to copy
    * @param dstBucketName name of the bucket to copy to
    * @param dstObjectNames names of the objects after copy
-   * @throws FileNotFoundException if the source object or the destination bucket does not exist
+   * @throws java.io.FileNotFoundException if the source object or the destination bucket does not
+   *     exist
    * @throws IOException in all other error cases
    */
-  void copy(String srcBucketName, List<String> srcObjectNames,
-      String dstBucketName, List<String> dstObjectNames)
+  void copy(
+      String srcBucketName,
+      List<String> srcObjectNames,
+      String dstBucketName,
+      List<String> dstObjectNames)
       throws IOException;
 
   /**

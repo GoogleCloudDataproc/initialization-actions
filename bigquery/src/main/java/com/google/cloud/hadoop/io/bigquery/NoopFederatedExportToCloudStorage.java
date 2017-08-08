@@ -11,14 +11,13 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputFormat;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 
 /**
- * This class represents the logical "export" of BigQuery federated data source stored in
- * Google Cloud Storage.
+ * This class represents the logical "export" of BigQuery federated data source stored in Google
+ * Cloud Storage.
  *
- * It extends {@link UnshardedExportToCloudStorage} to share the {@link FileInputFormat}
- * delegating logic.
+ * <p>It extends {@link UnshardedExportToCloudStorage} to share the {@link
+ * org.apache.hadoop.mapreduce.lib.input.FileInputFormat} delegating logic.
  */
 public class NoopFederatedExportToCloudStorage extends UnshardedExportToCloudStorage {
 
