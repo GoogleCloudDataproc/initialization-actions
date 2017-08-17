@@ -78,6 +78,15 @@ public class ApiErrorExtractor {
     return recursiveCheckForCode(e, HttpStatusCodes.STATUS_CODE_FORBIDDEN);
   }
 
+
+  /**
+   * Determine if the given exception indicates the request was unauthenticated.
+   * This can be caused by attaching invalid credentials to a request.
+   */
+  public boolean unauthorized(IOException e) {
+    return recursiveCheckForCode(e, HttpStatusCodes.STATUS_CODE_UNAUTHORIZED);
+  }
+
   /**
    * Determine if the exception is a non-recoverable access denied code
    * (such as account closed or marked for deletion).
