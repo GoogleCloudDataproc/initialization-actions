@@ -64,16 +64,13 @@ if [[ "${ROLE}" == 'Master' ]]; then
   cp -r /etc/apt/{trusted.gpg,sources.list.d} .
   cat << EOF > Dockerfile
 FROM ${DOCKER_IMAGE}
-# Verify the image is Debian 8 based
-RUN grep -q 'Debian GNU/Linux 8' /etc/issue
-
 ADD sources.list.d/backports.list /etc/apt/sources.list.d/
 ADD sources.list.d/dataproc.list /etc/apt/sources.list.d/
 ADD trusted.gpg /tmp/vm_trusted.gpg
 
 RUN apt-key add /tmp/vm_trusted.gpg
 RUN apt-get update
-RUN apt-get install -y -t jessie-backports hive spark-python openjdk-8-jre-headless
+RUN apt-get install -y hive spark-python openjdk-8-jre-headless
 
 ENV SPARK_HOME='/usr/lib/spark'
 ENV JAVA_HOME='${JAVA_HOME}'
