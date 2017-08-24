@@ -72,12 +72,12 @@ public class CachedBucket extends CacheEntry {
    */
   private void validateStorageObjectId(StorageResourceId resourceId) {
     Preconditions.checkArgument(resourceId != null, "resourceId must not be null.");
-    Preconditions.checkArgument(resourceId.isStorageObject(),
-        String.format("resourceId must be a StorageObject, got: %s", resourceId));
+    Preconditions.checkArgument(
+        resourceId.isStorageObject(), "resourceId must be a StorageObject, got: %s", resourceId);
     Preconditions.checkArgument(
         resourceId.getBucketName().equals(getName()),
-        String.format("resourceId.getBucketName() (%s) doesn't match this.getName() (%s)",
-            resourceId.getBucketName(), getName()));
+        "resourceId.getBucketName() (%s) doesn't match this.getName() (%s)",
+        resourceId.getBucketName(), getName());
   }
 
   /**

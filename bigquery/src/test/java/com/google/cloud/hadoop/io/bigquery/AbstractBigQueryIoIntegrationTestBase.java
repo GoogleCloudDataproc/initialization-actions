@@ -168,8 +168,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     }
 
     Preconditions.checkArgument(
-        !Strings.isNullOrEmpty(projectIdvalue),
-        String.format("Must provide %s", BIGQUERY_PROJECT_ID_ENVVARNAME));
+        !Strings.isNullOrEmpty(projectIdvalue), "Must provide %s", BIGQUERY_PROJECT_ID_ENVVARNAME);
     testDataset = testId + "_dataset";
     testBucket = testId + "_bucket";
 

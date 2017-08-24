@@ -314,8 +314,8 @@ public class GoogleCloudStorageFileSystem {
       throws IOException {
     LOG.debug("open({}, {})", path, readOptions);
     Preconditions.checkNotNull(path);
-    Preconditions.checkArgument(!FileInfo.isDirectoryPath(path),
-        "Cannot open a directory for reading: " + path);
+    Preconditions.checkArgument(
+        !FileInfo.isDirectoryPath(path), "Cannot open a directory for reading: %s", path);
 
     // Validate the given path. false == do not allow empty object name.
     StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, false);

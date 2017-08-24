@@ -19,7 +19,6 @@ package com.google.cloud.hadoop.gcsio;
 import com.google.api.client.util.Clock;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -178,9 +177,10 @@ public class CacheEntry {
   public synchronized GoogleCloudStorageItemInfo setItemInfo(
       GoogleCloudStorageItemInfo newItemInfo) {
     validateItemInfo(newItemInfo);
-    Preconditions.checkArgument(newItemInfo.getResourceId().equals(resourceId),
-        String.format("newItemInfo's resourceId (%s) doesn't match existing resourceId (%s)!",
-            newItemInfo.getResourceId(), resourceId));
+    Preconditions.checkArgument(
+        newItemInfo.getResourceId().equals(resourceId),
+        "newItemInfo's resourceId (%s) doesn't match existing resourceId (%s)!",
+        newItemInfo.getResourceId(), resourceId);
 
     if (itemInfo != null) {
       // TODO(user): Maybe skip the update if the newItemInfo has an older creationTime than

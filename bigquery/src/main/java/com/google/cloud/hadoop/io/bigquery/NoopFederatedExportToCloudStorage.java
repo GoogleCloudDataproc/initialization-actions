@@ -37,9 +37,10 @@ public class NoopFederatedExportToCloudStorage extends UnshardedExportToCloudSto
     String inputType = fileFormat.getFormatIdentifier();
     String tableType = table.getExternalDataConfiguration().getSourceFormat();
     Preconditions.checkArgument(
-        inputType.equals(tableType), String.format(
-            "MapReduce fileFormat '%s' does not match BigQuery sourceFormat '%s'. Use the "
-                + "appropriate InputFormat.", inputType, tableType));
+        inputType.equals(tableType),
+        "MapReduce fileFormat '%s' does not match BigQuery sourceFormat '%s'. Use the "
+            + "appropriate InputFormat.",
+        inputType, tableType);
     gcsPaths = table.getExternalDataConfiguration().getSourceUris();
   }
 
@@ -47,8 +48,7 @@ public class NoopFederatedExportToCloudStorage extends UnshardedExportToCloudSto
   static String getCommaSeparatedGcsPathList(final Table table) {
     Preconditions.checkNotNull(table.getExternalDataConfiguration());
     for (String uri : table.getExternalDataConfiguration().getSourceUris()) {
-      Preconditions.checkArgument(
-          uri.startsWith("gs://"), String.format("Invalid GCS resource: '%s'", uri));
+      Preconditions.checkArgument(uri.startsWith("gs://"), "Invalid GCS resource: '%s'", uri);
     }
     // FileInputFormat accepts a comma separated list of potentially globbed paths.
     return Joiner.on(",").join(table.getExternalDataConfiguration().getSourceUris());

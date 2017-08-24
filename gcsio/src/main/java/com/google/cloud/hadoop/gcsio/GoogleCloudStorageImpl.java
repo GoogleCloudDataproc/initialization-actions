@@ -298,8 +298,8 @@ public class GoogleCloudStorageImpl
   public WritableByteChannel create(StorageResourceId resourceId, CreateObjectOptions options)
       throws IOException {
     LOG.debug("create({})", resourceId);
-    Preconditions.checkArgument(resourceId.isStorageObject(),
-        "Expected full StorageObject id, got " + resourceId);
+    Preconditions.checkArgument(
+        resourceId.isStorageObject(), "Expected full StorageObject id, got %s", resourceId);
 
     /*
      * When performing mutations in GCS, even when we aren't concerned with parallel writers,
@@ -405,8 +405,8 @@ public class GoogleCloudStorageImpl
   public WritableByteChannel create(StorageResourceId resourceId)
       throws IOException {
     LOG.debug("create({})", resourceId);
-    Preconditions.checkArgument(resourceId.isStorageObject(),
-        "Expected full StorageObject id, got " + resourceId);
+    Preconditions.checkArgument(
+        resourceId.isStorageObject(), "Expected full StorageObject id, got %s", resourceId);
 
     return create(resourceId, CreateObjectOptions.DEFAULT);
   }
@@ -414,8 +414,8 @@ public class GoogleCloudStorageImpl
   @Override
   public void createEmptyObject(StorageResourceId resourceId, CreateObjectOptions options)
       throws IOException {
-    Preconditions.checkArgument(resourceId.isStorageObject(),
-        "Expected full StorageObject id, got " + resourceId);
+    Preconditions.checkArgument(
+        resourceId.isStorageObject(), "Expected full StorageObject id, got %s", resourceId);
 
     Storage.Objects.Insert insertObject = prepareEmptyInsert(resourceId, options);
     try {
@@ -438,8 +438,8 @@ public class GoogleCloudStorageImpl
   public void createEmptyObject(StorageResourceId resourceId)
       throws IOException {
     LOG.debug("createEmptyObject({})", resourceId);
-    Preconditions.checkArgument(resourceId.isStorageObject(),
-        "Expected full StorageObject id, got " + resourceId);
+    Preconditions.checkArgument(
+        resourceId.isStorageObject(), "Expected full StorageObject id, got %s", resourceId);
     createEmptyObject(resourceId, CreateObjectOptions.DEFAULT);
   }
 
@@ -552,8 +552,8 @@ public class GoogleCloudStorageImpl
       StorageResourceId resourceId, GoogleCloudStorageReadOptions readOptions)
       throws IOException {
     LOG.debug("open({}, {})", resourceId, readOptions);
-    Preconditions.checkArgument(resourceId.isStorageObject(),
-        "Expected full StorageObject id, got " + resourceId);
+    Preconditions.checkArgument(
+        resourceId.isStorageObject(), "Expected full StorageObject id, got %s", resourceId);
 
     // The underlying channel doesn't initially read data, which means that we won't see a
     // FileNotFoundException until read is called. As a result, in order to find out if the object
@@ -674,8 +674,10 @@ public class GoogleCloudStorageImpl
 
     // Validate that all the elements represent StorageObjects.
     for (StorageResourceId fullObjectName : fullObjectNames) {
-      Preconditions.checkArgument(fullObjectName.isStorageObject(),
-          "Expected full StorageObject names only, got: " + fullObjectName.toString());
+      Preconditions.checkArgument(
+          fullObjectName.isStorageObject(),
+          "Expected full StorageObject names only, got: %s",
+          fullObjectName);
     }
 
     // Gather exceptions to wrap in a composite exception at the end.
@@ -1335,11 +1337,12 @@ public class GoogleCloudStorageImpl
       StorageResourceId resourceId, Bucket bucket) {
     Preconditions.checkArgument(resourceId != null, "resourceId must not be null");
     Preconditions.checkArgument(bucket != null, "bucket must not be null");
-    Preconditions.checkArgument(resourceId.isBucket(),
-        String.format("resourceId must be a Bucket. resourceId: %s", resourceId));
-    Preconditions.checkArgument(resourceId.getBucketName().equals(bucket.getName()),
-        String.format("resourceId.getBucketName() must equal bucket.getName(): '%s' vs '%s'",
-            resourceId.getBucketName(), bucket.getName()));
+    Preconditions.checkArgument(
+        resourceId.isBucket(), "resourceId must be a Bucket. resourceId: %s", resourceId);
+    Preconditions.checkArgument(
+        resourceId.getBucketName().equals(bucket.getName()),
+        "resourceId.getBucketName() must equal bucket.getName(): '%s' vs '%s'",
+        resourceId.getBucketName(), bucket.getName());
 
     // For buckets, size is 0.
     return new GoogleCloudStorageItemInfo(resourceId, bucket.getTimeCreated().getValue(),
@@ -1353,14 +1356,18 @@ public class GoogleCloudStorageImpl
       StorageResourceId resourceId, StorageObject object) {
     Preconditions.checkArgument(resourceId != null, "resourceId must not be null");
     Preconditions.checkArgument(object != null, "object must not be null");
-    Preconditions.checkArgument(resourceId.isStorageObject(),
-        String.format("resourceId must be a StorageObject. resourceId: %s", resourceId));
-    Preconditions.checkArgument(resourceId.getBucketName().equals(object.getBucket()),
-        String.format("resourceId.getBucketName() must equal object.getBucket(): '%s' vs '%s'",
-            resourceId.getBucketName(), object.getBucket()));
-    Preconditions.checkArgument(resourceId.getObjectName().equals(object.getName()),
-        String.format("resourceId.getObjectName() must equal object.getName(): '%s' vs '%s'",
-            resourceId.getObjectName(), object.getName()));
+    Preconditions.checkArgument(
+        resourceId.isStorageObject(),
+        "resourceId must be a StorageObject. resourceId: %s",
+        resourceId);
+    Preconditions.checkArgument(
+        resourceId.getBucketName().equals(object.getBucket()),
+        "resourceId.getBucketName() must equal object.getBucket(): '%s' vs '%s'",
+        resourceId.getBucketName(), object.getBucket());
+    Preconditions.checkArgument(
+        resourceId.getObjectName().equals(object.getName()),
+        "resourceId.getObjectName() must equal object.getName(): '%s' vs '%s'",
+        resourceId.getObjectName(), object.getName());
 
     Map<String, byte[]> decodedMetadata =
         object.getMetadata() == null ? null : decodeMetadata(object.getMetadata());
@@ -1515,15 +1522,18 @@ public class GoogleCloudStorageImpl
     // Assemble the return list in the same order as the input arguments.
     List<GoogleCloudStorageItemInfo> sortedItemInfos = new ArrayList<>();
     for (StorageResourceId resourceId : resourceIds) {
-      Preconditions.checkState(itemInfos.containsKey(resourceId),
-          String.format("Somehow missing resourceId '%s' from map: %s", resourceId, itemInfos));
+      Preconditions.checkState(
+          itemInfos.containsKey(resourceId),
+          "Somehow missing resourceId '%s' from map: %s",
+          resourceId, itemInfos);
       sortedItemInfos.add(itemInfos.get(resourceId));
     }
 
     // We expect the return list to be the same size, even if some entries were "not found".
-    Preconditions.checkState(sortedItemInfos.size() == resourceIds.size(), String.format(
-        "sortedItemInfos.size() (%d) != resourceIds.size() (%d). infos: %s, ids: %s",
-        sortedItemInfos.size(), resourceIds.size(),  sortedItemInfos, resourceIds));
+    Preconditions.checkState(
+        sortedItemInfos.size() == resourceIds.size(),
+        "sortedItemInfos.size() (%s) != resourceIds.size() (%s). infos: %s, ids: %s",
+        sortedItemInfos.size(), resourceIds.size(), sortedItemInfos, resourceIds);
     return sortedItemInfos;
   }
 
@@ -1589,18 +1599,18 @@ public class GoogleCloudStorageImpl
     // Assemble the return list in the same order as the input arguments.
     List<GoogleCloudStorageItemInfo> sortedItemInfos = new ArrayList<>();
     for (UpdatableItemInfo itemInfo : itemInfoList) {
-      Preconditions.checkState(resultItemInfos.containsKey(itemInfo.getStorageResourceId()),
-          String.format(
-              "Missing resourceId '%s' from map: %s",
-              itemInfo.getStorageResourceId(),
-              resultItemInfos));
+      Preconditions.checkState(
+          resultItemInfos.containsKey(itemInfo.getStorageResourceId()),
+          "Missing resourceId '%s' from map: %s",
+          itemInfo.getStorageResourceId(), resultItemInfos);
       sortedItemInfos.add(resultItemInfos.get(itemInfo.getStorageResourceId()));
     }
 
     // We expect the return list to be the same size, even if some entries were "not found".
-    Preconditions.checkState(sortedItemInfos.size() == itemInfoList.size(), String.format(
-        "sortedItemInfos.size() (%d) != resourceIds.size() (%d). infos: %s, updateItemInfos: %s",
-        sortedItemInfos.size(), itemInfoList.size(), sortedItemInfos, itemInfoList));
+    Preconditions.checkState(
+        sortedItemInfos.size() == itemInfoList.size(),
+        "sortedItemInfos.size() (%s) != resourceIds.size() (%s). infos: %s, updateItemInfos: %s",
+        sortedItemInfos.size(), itemInfoList.size(), sortedItemInfos, itemInfoList);
     return sortedItemInfos;
   }
 
@@ -1733,8 +1743,8 @@ public class GoogleCloudStorageImpl
   private StorageObject getObject(StorageResourceId resourceId)
       throws IOException {
     LOG.debug("getObject({})", resourceId);
-    Preconditions.checkArgument(resourceId.isStorageObject(),
-        "Expected full StorageObject id, got " + resourceId);
+    Preconditions.checkArgument(
+        resourceId.isStorageObject(), "Expected full StorageObject id, got %s", resourceId);
     String bucketName = resourceId.getBucketName();
     String objectName = resourceId.getObjectName();
     StorageObject object = null;
