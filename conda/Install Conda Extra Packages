@@ -1,0 +1,11 @@
+# Install Miniconda / conda
+gsutil -m cp gs://<Your Bucket>/bootstrap-conda.sh ./
+gsutil -m cp gs://<Your Bucket>/install-conda-env.sh ./
+chmod 755 bootstrap-conda.sh install-conda-env.sh
+./bootstrap-conda.sh
+
+# Update conda root environment with specific packages in pip and conda
+CONDA_PACKAGES='pandas scikit-learn'
+PIP_PACKAGES='plotly cufflinks'
+CONDA_PACKAGES=$CONDA_PACKAGES PIP_PACKAGES=$PIP_PACKAGES ./install-conda-env.sh
+
