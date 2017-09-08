@@ -1,5 +1,16 @@
-1.6.2 - 2017-XX-XX
+1.7.0 - 2017-XX-XX
+
   1. Wire HTTP transport settings into Credential logic.
+
+  2. Fixed an issue where JSON auth files containing user auth e.g.
+     application_default_credentials.json does not work with
+     google.cloud.auth.service.account.json.keyfile
+
+  3. Honor GOOGLE_APPLICATION_DEFAULT_CREDENTIALS environment variable. For
+     Google Application Default Credentials (but not other defaults).
+
+  4. Make fs.gs.project.id optional. It is still required for listing buckets,
+     creating buckets, and entire BigQuery connector.
 
 1.6.1 - 2017-04-14
 

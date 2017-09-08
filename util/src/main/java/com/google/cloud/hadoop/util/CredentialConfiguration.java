@@ -64,11 +64,11 @@ public class CredentialConfiguration {
   public Credential getCredential(List<String> scopes)
       throws IOException, GeneralSecurityException {
 
-    // By default, we want to use service accounts with the meta-data service (assuming we're
-    // running in GCE).
     if (isServiceAccountEnabled()) {
       LOG.debug("Using service account credentials");
 
+      // By default, we want to use service accounts with the meta-data service (assuming we're
+      // running in GCE).
       if (shouldUseMetadataService()) {
         LOG.debug("Getting service account credentials from meta data service.");
         //TODO(user): Validate the returned credential has access to the given scopes.
@@ -87,14 +87,21 @@ public class CredentialConfiguration {
             serviceAccountJsonKeyFile, scopes, getTransport());
       }
 
-      // A keyfile is specified, use email-address and p12 based authentication.
-      Preconditions.checkState(!Strings.isNullOrEmpty(serviceAccountEmail),
-          "Email must be set if using service account auth and a key file is specified.");
-      LOG.debug("Using service account email {} and private key file {}",
-          serviceAccountEmail, serviceAccountKeyFile);
+      if (!Strings.isNullOrEmpty(serviceAccountKeyFile)) {
+        // A keyfile is specified, use email-address and p12 based authentication.
+        Preconditions.checkState(!Strings.isNullOrEmpty(serviceAccountEmail),
+            "Email must be set if using service account auth and a key file is specified.");
+        LOG.debug("Using service account email {} and private key file {}",
+            serviceAccountEmail, serviceAccountKeyFile);
 
-      return credentialFactory.getCredentialFromPrivateKeyServiceAccount(serviceAccountEmail,
-          serviceAccountKeyFile, scopes, getTransport());
+        return credentialFactory.getCredentialFromPrivateKeyServiceAccount(serviceAccountEmail,
+            serviceAccountKeyFile, scopes, getTransport());
+      }
+
+      if (shouldUseApplicationDefaultCredentials()) {
+        LOG.debug("Getting Application Default Credentials");
+        return credentialFactory.getApplicationDefaultCredentials(scopes, getTransport());
+      }
     } else if (oAuthCredentialFile != null && clientId != null && clientSecret != null) {
       LOG.debug("Using installed app credentials in file {}", oAuthCredentialFile);
 
@@ -110,10 +117,14 @@ public class CredentialConfiguration {
     throw new IllegalStateException("No valid credential configuration discovered.");
   }
 
+  private boolean shouldUseApplicationDefaultCredentials() {
+    return credentialFactory.hasApplicationDefaultCredentialsConfigured();
+  }
 
   public boolean shouldUseMetadataService() {
     return Strings.isNullOrEmpty(serviceAccountKeyFile)
-        && Strings.isNullOrEmpty(serviceAccountJsonKeyFile);
+        && Strings.isNullOrEmpty(serviceAccountJsonKeyFile)
+        && !shouldUseApplicationDefaultCredentials();
   }
 
   public String getOAuthCredentialFile() {

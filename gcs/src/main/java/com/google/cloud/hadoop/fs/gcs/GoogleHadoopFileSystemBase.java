@@ -2181,8 +2181,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
         .setTransportType(transportType)
         .setProxyAddress(proxyAddress);
 
-    String projectId =
-        ConfigurationUtil.getMandatoryConfig(config, GCS_PROJECT_ID_KEY);
+    String projectId = config.get(GCS_PROJECT_ID_KEY);
 
     optionsBuilder.getCloudStorageOptionsBuilder().setProjectId(projectId);
 

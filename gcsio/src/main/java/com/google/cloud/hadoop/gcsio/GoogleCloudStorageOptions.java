@@ -18,6 +18,7 @@ import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import javax.annotation.Nullable;
 
 /**
  * Configuration options for the GoogleCloudStorage class.
@@ -212,6 +213,7 @@ public class GoogleCloudStorageOptions {
     return inferImplicitDirectoriesEnabled;
   }
 
+  @Nullable
   public String getProjectId() {
     return projectId;
   }
@@ -249,8 +251,6 @@ public class GoogleCloudStorageOptions {
   }
 
   public void throwIfNotValid() {
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(projectId),
-        "projectId must not be null or empty");
     Preconditions.checkArgument(!Strings.isNullOrEmpty(appName),
         "appName must not be null or empty");
   }

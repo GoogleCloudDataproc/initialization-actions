@@ -55,6 +55,8 @@ import org.slf4j.LoggerFactory;
  */
 public class CredentialFactory {
 
+  static final String CREDENTIAL_ENV_VAR = "GOOGLE_APPLICATION_CREDENTIALS";
+
   /**
    * Simple HttpRequestInitializer that retries requests that result in 5XX response codes and
    * IO Exceptions with an exponential backoff.
@@ -94,9 +96,15 @@ public class CredentialFactory {
           .setServiceAccountScopes(credential.getServiceAccountScopes())
           .setTokenServerEncodedUrl(credential.getTokenServerEncodedUrl())
           .setTransport(credential.getTransport())
+          .setClientAuthentication(credential.getClientAuthentication())
           .setJsonFactory(credential.getJsonFactory())
           .setClock(credential.getClock());
-      return new GoogleCredentialWithRetry(builder);
+      GoogleCredentialWithRetry withRetry = new GoogleCredentialWithRetry(builder);
+      // Setting a refresh token requires validation even if it is null.
+      if(credential.getRefreshToken() != null) {
+        withRetry.setRefreshToken(credential.getRefreshToken());
+      }
+      return withRetry;
     }
 
     public GoogleCredentialWithRetry(Builder builder) {
@@ -382,5 +390,32 @@ public class CredentialFactory {
       throws IOException, GeneralSecurityException {
     return getCredentialFromFileCredentialStoreForInstalledApp(
         clientId, clientSecret, filePath, scopes, getStaticHttpTransport());
+  }
+
+  /**
+   * Determines whether Application Default Credentials have been configured as an evironment
+   * variable.
+   *
+   * In this class for testability.
+   */
+  boolean hasApplicationDefaultCredentialsConfigured() {
+    return System.getenv(CREDENTIAL_ENV_VAR) != null;
+  }
+
+  /**
+   * Get Google Application Default Credentials as described in
+   * <a href="https://developers.google.com/identity/protocols/application-default-credentials#callingjava"
+   * >Google Application Default Credentials</a>
+   * @param scopes The OAuth scopes that the credential should be valid for.
+   */
+  public Credential getApplicationDefaultCredentials(
+      List<String> scopes, HttpTransport transport)
+      throws IOException, GeneralSecurityException {
+    LOG.debug("getApplicationDefaultCredential({})", scopes);
+    // GoogleCredentialWithRetry will not properly retry for all application default credentials e.g.
+    // AppEngine, or GCE metadata. But this should properly retry for known JSON key Credentials.
+    return GoogleCredentialWithRetry.fromGoogleCredential(
+        GoogleCredential.getApplicationDefault(transport, JSON_FACTORY)
+            .createScoped(scopes));
   }
 }

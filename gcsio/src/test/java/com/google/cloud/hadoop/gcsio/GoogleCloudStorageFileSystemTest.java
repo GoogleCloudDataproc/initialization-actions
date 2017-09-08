@@ -96,22 +96,12 @@ public class GoogleCloudStorageFileSystemTest
 
     setDefaultValidOptions(optionsBuilder);
 
-    // Verify that projectId == null or empty throws IllegalArgumentException.
+    // Verify that projectId == null or empty does not throw.
     optionsBuilder.getCloudStorageOptionsBuilder().setProjectId(null);
-    try {
-      new GoogleCloudStorageFileSystem(cred, optionsBuilder.build());
-      Assert.fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException iae) {
-      // Expected.
-    }
+    new GoogleCloudStorageFileSystem(cred, optionsBuilder.build());
 
     optionsBuilder.getCloudStorageOptionsBuilder().setProjectId("");
-    try {
-      new GoogleCloudStorageFileSystem(cred, optionsBuilder.build());
-      Assert.fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException iae) {
-      // Expected.
-    }
+    new GoogleCloudStorageFileSystem(cred, optionsBuilder.build());
 
     optionsBuilder.getCloudStorageOptionsBuilder().setProjectId("projectId");
 

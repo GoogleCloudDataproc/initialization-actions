@@ -17,6 +17,7 @@ package com.google.cloud.hadoop.util;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.api.client.http.HttpTransport;
 import com.google.common.collect.ImmutableList;
@@ -81,8 +82,20 @@ public class CredentialConfigurationTest {
   @Test
   public void metadataServiceIsUsedByDefault() throws IOException, GeneralSecurityException {
     configuration.getCredential(TEST_SCOPES);
+    when(mockCredentialFactory.hasApplicationDefaultCredentialsConfigured()).thenReturn(false);
 
     verify(mockCredentialFactory, times(1)).getCredentialFromMetadataServiceAccount();
+  }
+
+  @Test
+  public void applicationDefaultServiceAccountWhenConfigured()
+      throws IOException, GeneralSecurityException {
+    when(mockCredentialFactory.hasApplicationDefaultCredentialsConfigured()).thenReturn(true);
+
+    configuration.getCredential(TEST_SCOPES);
+
+    verify(mockCredentialFactory, times(1))
+        .getApplicationDefaultCredentials(TEST_SCOPES, mockTransport);
   }
 
   @Test

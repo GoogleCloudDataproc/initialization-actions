@@ -4323,22 +4323,12 @@ public class GoogleCloudStorageTest {
     // Verify that fake projectId/appName and mock storage does not throw.
     new GoogleCloudStorageImpl(optionsBuilder.build(), mockStorage);
 
-    // Verify that projectId == null or empty throws IllegalArgumentException.
+    // Verify that projectId == null or empty does not throw.
     optionsBuilder.setProjectId(null);
-    try {
-      new GoogleCloudStorageImpl(optionsBuilder.build(), mockStorage);
-      Assert.fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException iae) {
-      // Expected.
-    }
+    new GoogleCloudStorageImpl(optionsBuilder.build(), mockStorage);
 
     optionsBuilder.setProjectId("");
-    try {
-      new GoogleCloudStorageImpl(optionsBuilder.build(), mockStorage);
-      Assert.fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException iae) {
-      // Expected.
-    }
+    new GoogleCloudStorageImpl(optionsBuilder.build(), mockStorage);
 
     optionsBuilder.setProjectId("projectId");
 

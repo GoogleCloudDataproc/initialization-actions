@@ -583,6 +583,7 @@ public class GoogleCloudStorageImpl
     Preconditions.checkArgument(!Strings.isNullOrEmpty(bucketName),
         "bucketName must not be null or empty");
     Preconditions.checkNotNull(options, "options must not be null");
+    Preconditions.checkNotNull(storageOptions.getProjectId(), "projectId must not be null");
 
     Bucket bucket = new Bucket();
     bucket.setName(bucketName);
@@ -909,9 +910,9 @@ public class GoogleCloudStorageImpl
    * results; these can then be used to either extract just their names, or to parse into full
    * GoogleCloudStorageItemInfos.
    */
-  private List<Bucket> listBucketsInternal()
-      throws IOException {
+  private List<Bucket> listBucketsInternal() throws IOException {
     LOG.debug("listBucketsInternal()");
+    Preconditions.checkNotNull(storageOptions.getProjectId(), "projectId must not be null");
     List<Bucket> allBuckets = new ArrayList<>();
     Storage.Buckets.List listBucket = gcs.buckets().list(storageOptions.getProjectId());
 

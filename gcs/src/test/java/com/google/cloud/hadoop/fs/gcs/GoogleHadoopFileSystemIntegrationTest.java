@@ -309,24 +309,13 @@ public class GoogleHadoopFileSystemIntegrationTest
   }
 
   @Test
-  public void testInitializeThrowsWhenNoProjectIdConfigured()
+  public void testInitializeSucceedsWhenNoProjectIdConfigured()
       throws URISyntaxException, IOException {
-    // Verify that incomplete config raises exception.
-    String existingBucket = bucketName;
+    Configuration config = loadConfig();
+    // Unset Project ID
+    config.set(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY, null);
 
-    Configuration config = new Configuration();
-    URI gsUri = new URI("gs://foobar/");
-    config.setBoolean(GoogleHadoopFileSystemBase.ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY, false);
-    config.setBoolean(
-        HadoopCredentialConfiguration.BASE_KEY_PREFIX
-            + HadoopCredentialConfiguration.ENABLE_NULL_CREDENTIAL_SUFFIX,
-        true);
-    config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, existingBucket);
-    // project ID is not set.
-
-    expectedException.expect(IOException.class);
-    expectedException.expectMessage(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY);
-
+    URI gsUri = (new Path("gs://foo")).toUri();
     new GoogleHadoopFileSystem().initialize(gsUri, config);
   }
 

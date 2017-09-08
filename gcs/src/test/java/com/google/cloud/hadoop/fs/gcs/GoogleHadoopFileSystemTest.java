@@ -91,6 +91,11 @@ public class GoogleHadoopFileSystemTest
   }
 
   @Test @Override
+  public void testInitializeSucceedsWhenNoProjectIdConfigured()
+      throws IOException, URISyntaxException {
+  }
+
+  @Test @Override
   public void testInitializeWithWorkingDirectory()
       throws IOException, URISyntaxException {
   }
