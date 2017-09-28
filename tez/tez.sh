@@ -24,6 +24,12 @@ hadoop_conf_dir="/etc/hadoop/conf"
 hive_conf_dir="/etc/hive/conf"
 role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 
+# Let spark continue using the existing hive configuration, as it will
+# not want to use hive on tez.
+cp /etc/hive/conf/* /etc/spark/conf/
+# Remove lines containing /etc/hive/conf from spark-env.sh
+sudo sed -i '/\/etc\/hive\/conf/d' /etc/spark/conf/spark-env.sh
+
 if [[ "${role}" == 'Master' ]]; then
   # Install Tez and YARN Application Timeline Server.
   # Install node/npm to run HTTP server for Tez UI.
