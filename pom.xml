@@ -65,10 +65,6 @@
     </repository>
   </distributionManagement>
 
-  <prerequisites>
-    <maven>3.0.3</maven>
-  </prerequisites>
-
   <properties>
     <bigdataoss.util.version>1.7.0-SNAPSHOT</bigdataoss.util.version>
     <bigdataoss.gcsio.version>1.7.0-SNAPSHOT</bigdataoss.gcsio.version>
@@ -398,6 +394,25 @@
       </plugins>
     </pluginManagement>
     <plugins>
+      <plugin>
+        <artifactId>maven-enforcer-plugin</artifactId>
+        <version>1.4.1</version>
+        <executions>
+          <execution>
+            <id>enforce-tools</id>
+            <goals>
+              <goal>enforce</goal>
+            </goals>
+            <configuration>
+              <rules>
+                <requireMavenVersion>
+                  <version>[3.3.9,)</version>
+                </requireMavenVersion>
+              </rules>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
