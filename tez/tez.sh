@@ -28,7 +28,7 @@ role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 # not want to use hive on tez.
 cp /etc/hive/conf/* /etc/spark/conf/
 # Remove lines containing /etc/hive/conf from spark-env.sh
-sudo sed -i '#CLASSPATH=.*/etc/hive/conf#d' /etc/spark/conf/spark-env.sh
+sudo sed -i '\#CLASSPATH=.*/etc/hive/conf#d' /etc/spark/conf/spark-env.sh
 
 if [[ "${role}" == 'Master' ]]; then
   # Install Tez and YARN Application Timeline Server.
