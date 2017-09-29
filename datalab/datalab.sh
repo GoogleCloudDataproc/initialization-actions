@@ -84,7 +84,7 @@ EOF
   # Docker gives a "too many symlinks" error if volumes are not yet automounted.
   # Ensure that the volumes are mounted to avoid the error.
   touch ${VOLUMES}
-  if docker run -d --net=host -v "${DATALAB_DIR}:/content/datalab" ${VOLUME_FLAGS} \
+  if docker run -d --restart always --net=host -v "${DATALAB_DIR}:/content/datalab" ${VOLUME_FLAGS} \
       datalab-pyspark; then
     echo 'Cloud Datalab Jupyter server successfully deployed.'
     exit
