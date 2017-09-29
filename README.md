@@ -43,7 +43,7 @@ This repository presently offers the following actions for use with Cloud Datapr
 
 ## Initialization actions on single node clusters
 
-[Single Node clusters](https://cloud.google.com/dataproc/docs/concepts/single-node-clusters) always have their dataproc-role set to `Master`. Most of the initialization actions in this repository should work out of the box, as they run only on the master. Examples include notebooks (such as Apache Zeppelin) and libraries (such as Apache Tez). Actions that run on all nodes of the cluster (such as cloud-sql-proxy) similarly work out of the box.
+[Single Node clusters](https://cloud.google.com/dataproc/docs/concepts/single-node-clusters) have `dataproc-role` set to `Master` and `dataproc-worker-count` set to `0`. Most of the initialization actions in this repository should work out of the box, as they run only on the master. Examples include notebooks (such as Apache Zeppelin) and libraries (such as Apache Tez). Actions that run on all nodes of the cluster (such as cloud-sql-proxy) similarly work out of the box.
 
 Some initialization actions are known **not to work** on Single Node clusters. All of these expect to have daemons on multiple nodes.
 
