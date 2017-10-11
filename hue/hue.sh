@@ -17,12 +17,12 @@ set -x -e
 # Determine the role of this node
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 
-
 # Only run on the master node of the cluster
 if [[ "${ROLE}" != 'Master' ]]; then
   set +x +e
   exit 0
 fi
+
 # Install hue
 apt-get update
 apt-get install -t jessie-backports hue -y
@@ -78,9 +78,6 @@ sed -i '0,/resourcemanager_api_url/! s/resourcemanager_api_url/## resourcemanage
 # Clean up temporary fles
 rm -rf hdfs-site-patch.xml core-site-patch.xml hue-patch.ini
 
-# Restart HDFS, yarn resource manager
-systemctl restart hadoop-hdfs-namenode hadoop-yarn-resourcemanager
-
 # Make hive warehouse directory
 hdfs dfs -mkdir /user/hive/warehouse
 
@@ -110,7 +107,7 @@ systemctl restart hue mysql
 /usr/lib/hue/build/env/bin/hue syncdb --noinput
 /usr/lib/hue/build/env/bin/hue migrate
 
-# Restart hue, mysql
-systemctl restart hue mysql
+# Restart servers
+systemctl restart hadoop-hdfs-namenode hadoop-yarn-resourcemanager hue mysql
 
 set +x +e
