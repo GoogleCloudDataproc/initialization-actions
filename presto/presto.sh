@@ -51,9 +51,17 @@ EOF
 
 # Compute memory settings based on Spark's settings.
 # We use "tail -n 1" since overrides are applied just by order of appearance.
-SPARK_EXECUTOR_MB=$(grep spark.executor.memory /etc/spark/conf/spark-defaults.conf | tail -n 1 | cut -d '=' -f 2 | cut -d 'm' -f 1)
-SPARK_EXECUTOR_CORES=$(grep spark.executor.cores /etc/spark/conf/spark-defaults.conf | tail -n 1 | cut -d '=' -f 2)
-SPARK_EXECUTOR_OVERHEAD_MB=$(grep spark.yarn.executor.memoryOverhead /etc/spark/conf/spark-defaults.conf | tail -n 1 | cut -d '=' -f 2)
+SPARK_EXECUTOR_MB=$(grep spark.executor.memory /etc/spark/conf/spark-defaults.conf | tail -n 1 | sed 's/.*[[:space:]=]\+\([[:digit:]]\+\).*/\1/')
+SPARK_EXECUTOR_CORES=$(grep spark.executor.cores /etc/spark/conf/spark-defaults.conf | tail -n 1 | sed 's/.*[[:space:]=]\+\([[:digit:]]\+\).*/\1/')
+SPARK_EXECUTOR_OVERHEAD_MB=$(grep spark.yarn.executor.memoryOverhead /etc/spark/conf/spark-defaults.conf | tail -n 1 | sed 's/.*[[:space:]=]\+\([[:digit:]]\+\).*/\1/')
+if [[ -z "${SPARK_EXECUTOR_OVERHEAD_MB}" ]]; then
+  # When spark.yarn.executor.memoryOverhead couldnt't be found in
+  # spark-defaults.conf, use Spark default properties:
+  # executorMemory * 0.10, with minimum of 384
+  MIN_EXECUTOR_OVERHEAD=384
+  SPARK_EXECUTOR_OVERHEAD_MB=$(( ${SPARK_EXECUTOR_MB} / 10 ))
+  SPARK_EXECUTOR_OVERHEAD_MB=$(( ${SPARK_EXECUTOR_OVERHEAD_MB}>${MIN_EXECUTOR_OVERHEAD}?${SPARK_EXECUTOR_OVERHEAD_MB}:${MIN_EXECUTOR_OVERHEAD} ))
+fi
 SPARK_EXECUTOR_COUNT=$(( $(nproc) / ${SPARK_EXECUTOR_CORES} ))
 
 # Add up overhead and allocated executor MB for container size.
