@@ -34,6 +34,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -131,8 +132,8 @@ public abstract class HadoopFileSystemTestBase
           String.format(
               "Stale file? testStartTime: %s modificationTime: %s bucket: '%s' object: '%s'",
               testStartTime.toString(), modificationTime.toString(), bucketName, objectName),
-          modificationTime.isEqual(testStartTime.minus(1000))
-              || modificationTime.isAfter(testStartTime.minus(1000)));
+          modificationTime.isEqual(testStartTime.minus(Duration.millis(1000)))
+              || modificationTime.isAfter(testStartTime.minus(Duration.millis(1000))));
       Assert.assertTrue(
           String.format(
               "Clock skew? currentTime: %s modificationTime: %s bucket: '%s' object: '%s'",
