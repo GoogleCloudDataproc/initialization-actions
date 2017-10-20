@@ -68,6 +68,28 @@ cat >> /etc/hue/conf/hue.ini <<EOF
   hadoop_mapred_home=/usr/lib/hadoop-mapreduce
 EOF
 
+# If oozie installed, add hue as proxy user for oozie
+if [ -f /etc/oozie/conf/oozie-site.xml ]
+then
+	cat > oozie-site-patch.xml <<EOF
+<property>
+  <name>oozie.service.ProxyUserService.proxyuser.hue.hosts</name>
+  <value>*</value>
+</property>
+
+<property>
+  <name>oozie.service.ProxyUserService.proxyuser.hue.groups</name>
+  <value>*</value>
+</property>
+EOF
+
+	sed -i '/<\/configuration>/e cat oozie-site-patch.xml' \
+		  /etc/oozie/conf/oozie-site.xml
+
+  rm -rf oozie-site-patch.xml
+  systemctl restart oozie
+fi
+
 # Fix webhdfs_url
 OLD_HDFS_URL='## webhdfs_url\=http:\/\/localhost:50070'
 NEW_HDFS_URL='webhdfs_url\=http:\/\/'"$(hdfs getconf -confKey  dfs.namenode.http-address)"
