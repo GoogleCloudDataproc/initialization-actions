@@ -86,7 +86,7 @@ EOF
 	sed -i '/<\/configuration>/e cat oozie-site-patch.xml' \
 		  /etc/oozie/conf/oozie-site.xml
 
-  rm -rf oozie-site-patch.xml
+  rm oozie-site-patch.xml
   systemctl restart oozie
 fi
 
