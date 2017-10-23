@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2013 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -88,20 +88,21 @@ public class CredentialFactory {
      * Create a new GoogleCredentialWithRetry from a GoogleCredential.
      */
     public static GoogleCredentialWithRetry fromGoogleCredential(GoogleCredential credential) {
-      GoogleCredential.Builder builder = new GoogleCredential.Builder()
-          .setServiceAccountPrivateKey(credential.getServiceAccountPrivateKey())
-          .setServiceAccountPrivateKeyId(credential.getServiceAccountPrivateKeyId())
-          .setServiceAccountId(credential.getServiceAccountId())
-          .setServiceAccountUser(credential.getServiceAccountUser())
-          .setServiceAccountScopes(credential.getServiceAccountScopes())
-          .setTokenServerEncodedUrl(credential.getTokenServerEncodedUrl())
-          .setTransport(credential.getTransport())
-          .setClientAuthentication(credential.getClientAuthentication())
-          .setJsonFactory(credential.getJsonFactory())
-          .setClock(credential.getClock());
+      GoogleCredential.Builder builder =
+          new GoogleCredential.Builder()
+              .setServiceAccountPrivateKey(credential.getServiceAccountPrivateKey())
+              .setServiceAccountPrivateKeyId(credential.getServiceAccountPrivateKeyId())
+              .setServiceAccountId(credential.getServiceAccountId())
+              .setServiceAccountUser(credential.getServiceAccountUser())
+              .setServiceAccountScopes(credential.getServiceAccountScopes())
+              .setTokenServerEncodedUrl(credential.getTokenServerEncodedUrl())
+              .setTransport(credential.getTransport())
+              .setClientAuthentication(credential.getClientAuthentication())
+              .setJsonFactory(credential.getJsonFactory())
+              .setClock(credential.getClock());
       GoogleCredentialWithRetry withRetry = new GoogleCredentialWithRetry(builder);
       // Setting a refresh token requires validation even if it is null.
-      if(credential.getRefreshToken() != null) {
+      if (credential.getRefreshToken() != null) {
         withRetry.setRefreshToken(credential.getRefreshToken());
       }
       return withRetry;
@@ -209,22 +210,24 @@ public class CredentialFactory {
   public Credential getCredentialFromMetadataServiceAccount()
       throws IOException, GeneralSecurityException {
     LOG.debug("getCredentialFromMetadataServiceAccount()");
-    Credential cred = new ComputeCredentialWithRetry(
-        new ComputeCredential.Builder(getStaticHttpTransport(), JSON_FACTORY)
-            .setRequestInitializer(new CredentialHttpRetryInitializer()));
+    Credential cred =
+        new ComputeCredentialWithRetry(
+            new ComputeCredential.Builder(getStaticHttpTransport(), JSON_FACTORY)
+                .setRequestInitializer(new CredentialHttpRetryInitializer()));
     try {
       cred.refreshToken();
     } catch (IOException e) {
-      throw new IOException("Error getting access token from metadata server at: " +
-          ComputeCredential.TOKEN_SERVER_ENCODED_URL, e);
+      throw new IOException("Error getting access token from metadata server at: "
+          + ComputeCredential.TOKEN_SERVER_ENCODED_URL, e);
     }
     return cred;
   }
 
   /**
-   * Initializes OAuth2 credential from a private keyfile, as described in
-   * <a href="https://code.google.com/p/google-api-java-client/wiki/OAuth2#Service_Accounts"
-   * > OAuth2 Service Accounts</a>.
+   * Initializes OAuth2 credential from a private keyfile, as described in <a
+   * href="https://code.google.com/p/google-api-java-client/wiki/OAuth2#Service_Accounts" > OAuth2
+   * Service Accounts</a>.
+   *
    * @param serviceAccountEmail Email address of the service account associated with the keyfile.
    * @param privateKeyFile Full local path to private keyfile.
    * @param scopes List of well-formed desired scopes to use with the credential.
@@ -249,8 +252,9 @@ public class CredentialFactory {
             .setRequestInitializer(new CredentialHttpRetryInitializer()));
   }
 
-  /***
+  /**
    * Get credentials listed in a JSON file.
+   *
    * @param serviceAccountJsonKeyFile A file path pointing to a JSON file containing credentials.
    * @param scopes The OAuth scopes that the credential should be valid for.
    * @param transport The HttpTransport used for authorization
@@ -263,15 +267,15 @@ public class CredentialFactory {
 
     try (FileInputStream fis = new FileInputStream(serviceAccountJsonKeyFile)) {
       return GoogleCredentialWithRetry.fromGoogleCredential(
-          GoogleCredential.fromStream(fis, transport, JSON_FACTORY)
-              .createScoped(scopes));
+          GoogleCredential.fromStream(fis, transport, JSON_FACTORY).createScoped(scopes));
     }
   }
 
   /**
    * Initialized OAuth2 credential for the "installed application" flow; where the credential
-   * typically represents an actual end user (instead of a service account), and is stored
-   * as a refresh token in a local FileCredentialStore.
+   * typically represents an actual end user (instead of a service account), and is stored as a
+   * refresh token in a local FileCredentialStore.
+   *
    * @param clientId OAuth2 client ID identifying the 'installed app'
    * @param clientSecret OAuth2 client secret
    * @param filePath full path to a ".json" file for storing the credential
@@ -311,11 +315,7 @@ public class CredentialFactory {
 
     // Set up authorization code flow.
     GoogleAuthorizationCodeFlow flow =
-        new GoogleAuthorizationCodeFlow.Builder(
-            transport,
-            JSON_FACTORY,
-            clientSecrets,
-            scopes)
+        new GoogleAuthorizationCodeFlow.Builder(transport, JSON_FACTORY, clientSecrets, scopes)
             .setCredentialStore(credentialStore)
             .setRequestInitializer(new CredentialHttpRetryInitializer())
             .build();
@@ -358,10 +358,7 @@ public class CredentialFactory {
         clientId, clientSecret, filePath, DATASTORE_SCOPES);
   }
 
-  /**
-   * @deprecated
-   * Caller should provide HttpTransport
-   */
+  /** @deprecated Caller should provide HttpTransport */
   @Deprecated
   public Credential getCredentialFromPrivateKeyServiceAccount(
       String serviceAccountEmail, String privateKeyFile, List<String> scopes)
@@ -370,20 +367,14 @@ public class CredentialFactory {
         serviceAccountEmail, privateKeyFile, scopes, getStaticHttpTransport());
   }
 
-  /**
-   * @deprecated
-   * Caller should provide HttpTransport
-   */
+  /** @deprecated Caller should provide HttpTransport */
   @Deprecated
   public Credential getCredentialFromJsonKeyFile(String file, List<String> scopes)
       throws IOException, GeneralSecurityException {
     return getCredentialFromJsonKeyFile(file, scopes, getStaticHttpTransport());
   }
 
-  /**
-   * @deprecated
-   * Caller should provide HttpTransport
-   */
+  /** @deprecated Caller should provide HttpTransport */
   @Deprecated
   public Credential getCredentialFromFileCredentialStoreForInstalledApp(
       String clientId, String clientSecret, String filePath, List<String> scopes)
@@ -396,26 +387,26 @@ public class CredentialFactory {
    * Determines whether Application Default Credentials have been configured as an evironment
    * variable.
    *
-   * In this class for testability.
+   * <p>In this class for testability.
    */
   boolean hasApplicationDefaultCredentialsConfigured() {
     return System.getenv(CREDENTIAL_ENV_VAR) != null;
   }
 
   /**
-   * Get Google Application Default Credentials as described in
-   * <a href="https://developers.google.com/identity/protocols/application-default-credentials#callingjava"
+   * Get Google Application Default Credentials as described in <a
+   * href="https://developers.google.com/identity/protocols/application-default-credentials#callingjava"
    * >Google Application Default Credentials</a>
+   *
    * @param scopes The OAuth scopes that the credential should be valid for.
    */
-  public Credential getApplicationDefaultCredentials(
-      List<String> scopes, HttpTransport transport)
+  public Credential getApplicationDefaultCredentials(List<String> scopes, HttpTransport transport)
       throws IOException, GeneralSecurityException {
     LOG.debug("getApplicationDefaultCredential({})", scopes);
-    // GoogleCredentialWithRetry will not properly retry for all application default credentials e.g.
+    // GoogleCredentialWithRetry will not properly retry for all application default credentials
+    // e.g.
     // AppEngine, or GCE metadata. But this should properly retry for known JSON key Credentials.
     return GoogleCredentialWithRetry.fromGoogleCredential(
-        GoogleCredential.getApplicationDefault(transport, JSON_FACTORY)
-            .createScoped(scopes));
+        GoogleCredential.getApplicationDefault(transport, JSON_FACTORY).createScoped(scopes));
   }
 }

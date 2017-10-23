@@ -7,5 +7,5 @@ bin/
 *.ipr
 *.iws
 
-# MacOS filder files
+# MacOS folder files
 .DS_Store

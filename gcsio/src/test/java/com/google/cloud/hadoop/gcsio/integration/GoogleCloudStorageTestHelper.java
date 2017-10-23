@@ -62,10 +62,7 @@ public class GoogleCloudStorageTestHelper {
       HttpTransport transport = HttpTransportFactory.newTrustedTransport();
       credential =
           credentialFactory.getCredentialFromPrivateKeyServiceAccount(
-              serviceAccount,
-              privateKeyfile,
-              CredentialFactory.GCS_SCOPES,
-              transport);
+              serviceAccount, privateKeyfile, CredentialFactory.GCS_SCOPES, transport);
     } catch (GeneralSecurityException gse) {
       throw new IOException(gse);
     }

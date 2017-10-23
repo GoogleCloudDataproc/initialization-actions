@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -812,7 +813,7 @@ public class GoogleCloudStorageTest {
       writeChannel.close();
       fail("Expected Error");
     } catch (Error error) {
-      assertEquals(fakeError, error);
+      assertThat(error).isEqualTo(fakeError);
     }
 
     verify(mockStorage, times(3)).objects();
@@ -1071,7 +1072,7 @@ public class GoogleCloudStorageTest {
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     setUpAndValidateReadChannelMocksAndSetMaxRetries(readChannel, 0);
     readChannel.performLazySeek();
-    assert(readChannel.readChannel != null);
+    assertThat(readChannel.readChannel).isNotNull();
 
     // Should not throw exception. If it does, it will be caught by the test harness.
     readChannel.close();

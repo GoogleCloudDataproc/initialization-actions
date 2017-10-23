@@ -139,11 +139,8 @@ public class HttpTransportFactory {
     return builder.build();
   }
 
-  /**
-   * Convenience method equivalent to {@link GoogleNetHttpTransport#newTrustedTransport()}.
-   */
-  public static HttpTransport newTrustedTransport()
-      throws GeneralSecurityException, IOException {
+  /** Convenience method equivalent to {@link GoogleNetHttpTransport#newTrustedTransport()}. */
+  public static HttpTransport newTrustedTransport() throws GeneralSecurityException, IOException {
     return createNetHttpTransport(null);
   }
 

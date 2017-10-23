@@ -89,13 +89,16 @@ public class CredentialConfiguration {
 
       if (!Strings.isNullOrEmpty(serviceAccountKeyFile)) {
         // A keyfile is specified, use email-address and p12 based authentication.
-        Preconditions.checkState(!Strings.isNullOrEmpty(serviceAccountEmail),
+        Preconditions.checkState(
+            !Strings.isNullOrEmpty(serviceAccountEmail),
             "Email must be set if using service account auth and a key file is specified.");
-        LOG.debug("Using service account email {} and private key file {}",
-            serviceAccountEmail, serviceAccountKeyFile);
+        LOG.debug(
+            "Using service account email {} and private key file {}",
+            serviceAccountEmail,
+            serviceAccountKeyFile);
 
-        return credentialFactory.getCredentialFromPrivateKeyServiceAccount(serviceAccountEmail,
-            serviceAccountKeyFile, scopes, getTransport());
+        return credentialFactory.getCredentialFromPrivateKeyServiceAccount(
+            serviceAccountEmail, serviceAccountKeyFile, scopes, getTransport());
       }
 
       if (shouldUseApplicationDefaultCredentials()) {
@@ -105,8 +108,8 @@ public class CredentialConfiguration {
     } else if (oAuthCredentialFile != null && clientId != null && clientSecret != null) {
       LOG.debug("Using installed app credentials in file {}", oAuthCredentialFile);
 
-      return credentialFactory.getCredentialFromFileCredentialStoreForInstalledApp(clientId,
-          clientSecret, oAuthCredentialFile, scopes, getTransport());
+      return credentialFactory.getCredentialFromFileCredentialStoreForInstalledApp(
+          clientId, clientSecret, oAuthCredentialFile, scopes, getTransport());
     } else if (nullCredentialEnabled) {
       LOG.warn("Allowing null credentials for unit testing. This should not be used in production");
 
@@ -195,8 +198,7 @@ public class CredentialConfiguration {
     return transportType;
   }
 
-  public void setTransportType(
-      HttpTransportType transportType) {
+  public void setTransportType(HttpTransportType transportType) {
     this.transportType = transportType;
   }
 

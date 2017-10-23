@@ -165,7 +165,7 @@ public abstract class GoogleCloudStorageIntegrationHelper {
       throws IOException {
     SeekableByteChannel readChannel = null;
     ByteBuffer readBuffer = ByteBuffer.allocate(1024);
-    StringBuffer returnBuffer = new StringBuffer();
+    StringBuilder returnBuffer = new StringBuilder();
 
     try {
       readChannel = open(bucketName, objectName);
@@ -414,12 +414,9 @@ public abstract class GoogleCloudStorageIntegrationHelper {
     }
   }
 
-  /**
-   * Gets the credential tests should use for accessing GCS.
-   */
+  /** Gets the credential tests should use for accessing GCS. */
   @Deprecated
-  Credential getCredential()
-      throws IOException {
+  Credential getCredential() throws IOException {
     String clientId = System.getenv(GCS_TEST_CLIENT_ID);
     String clientSecret = System.getenv(GCS_TEST_CLIENT_SECRET);
     Assert.assertNotNull("clientId must not be null", clientId);

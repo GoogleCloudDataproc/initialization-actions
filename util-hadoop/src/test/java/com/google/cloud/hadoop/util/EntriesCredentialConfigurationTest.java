@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.util;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -106,12 +107,8 @@ public class EntriesCredentialConfigurationTest {
         conf,
         EntriesCredentialConfiguration.ENABLE_NULL_CREDENTIAL_SUFFIX,
         "true");
-    conf.set(
-        EntriesCredentialConfiguration.PROXY_ADDRESS_KEY,
-        "foo.bar:1234");
-    conf.set(
-        EntriesCredentialConfiguration.HTTP_TRANSPORT_KEY,
-        "APACHE");
+    conf.set(EntriesCredentialConfiguration.PROXY_ADDRESS_KEY, "foo.bar:1234");
+    conf.set(EntriesCredentialConfiguration.HTTP_TRANSPORT_KEY, "APACHE");
 
     CredentialConfiguration credentialConfiguration =
         EntriesCredentialConfiguration
@@ -128,8 +125,8 @@ public class EntriesCredentialConfigurationTest {
         credentialConfiguration.getOAuthCredentialFile());
     assertFalse(credentialConfiguration.isServiceAccountEnabled());
     assertTrue(credentialConfiguration.isNullCredentialEnabled());
-    assertEquals("foo.bar:1234", credentialConfiguration.getProxyAddress());
-    assertEquals(HttpTransportType.APACHE, credentialConfiguration.getTransportType());
+    assertThat(credentialConfiguration.getProxyAddress()).isEqualTo("foo.bar:1234");
+    assertThat(credentialConfiguration.getTransportType()).isEqualTo(HttpTransportType.APACHE);
   }
 
   @Test
@@ -184,7 +181,8 @@ public class EntriesCredentialConfigurationTest {
         conf,
         EntriesCredentialConfiguration.ENABLE_NULL_CREDENTIAL_SUFFIX);
     assertEquals("true", writtenValue);
-    assertEquals("foo.bar:1234", conf.get(EntriesCredentialConfiguration.PROXY_ADDRESS_KEY));
-    assertEquals("APACHE", conf.get(EntriesCredentialConfiguration.HTTP_TRANSPORT_KEY));
+    assertThat(conf.get(EntriesCredentialConfiguration.PROXY_ADDRESS_KEY))
+        .isEqualTo("foo.bar:1234");
+    assertThat(conf.get(EntriesCredentialConfiguration.HTTP_TRANSPORT_KEY)).isEqualTo("APACHE");
   }
 }

@@ -39,8 +39,8 @@ public class CredentialConfigurationTest {
   @Rule
   public ExpectedException expectedException = ExpectedException.none();
 
-  private CredentialFactory mockCredentialFactory = mock(CredentialFactory.class);
-  private HttpTransport mockTransport = mock(HttpTransport.class);
+  private final CredentialFactory mockCredentialFactory = mock(CredentialFactory.class);
+  private final HttpTransport mockTransport = mock(HttpTransport.class);
   private CredentialConfiguration configuration;
 
   @Before
@@ -99,16 +99,15 @@ public class CredentialConfigurationTest {
   }
 
   @Test
-  public void p12KeyfileUsedWhenConfigured() throws IOException, GeneralSecurityException  {
+  public void p12KeyfileUsedWhenConfigured() throws IOException, GeneralSecurityException {
     configuration.setServiceAccountEmail("foo@example.com");
     configuration.setServiceAccountKeyFile("exampleKeyfile");
 
     configuration.getCredential(TEST_SCOPES);
 
-    verify(mockCredentialFactory, times(1)).getCredentialFromPrivateKeyServiceAccount(
-        "foo@example.com",
-        "exampleKeyfile",
-        TEST_SCOPES, mockTransport);
+    verify(mockCredentialFactory, times(1))
+        .getCredentialFromPrivateKeyServiceAccount(
+            "foo@example.com", "exampleKeyfile", TEST_SCOPES, mockTransport);
   }
 
   @Test
@@ -117,9 +116,8 @@ public class CredentialConfigurationTest {
 
     configuration.getCredential(TEST_SCOPES);
 
-    verify(mockCredentialFactory, times(1)).getCredentialFromJsonKeyFile(
-        "jsonExampleKeyFile",
-        TEST_SCOPES, mockTransport);
+    verify(mockCredentialFactory, times(1))
+        .getCredentialFromJsonKeyFile("jsonExampleKeyFile", TEST_SCOPES, mockTransport);
   }
 
   @Test
@@ -132,7 +130,8 @@ public class CredentialConfigurationTest {
 
     configuration.getCredential(TEST_SCOPES);
 
-    verify(mockCredentialFactory, times(1)).getCredentialFromFileCredentialStoreForInstalledApp(
-        "aClientId", "aClientSecret", "aCredentialFile", TEST_SCOPES, mockTransport);
+    verify(mockCredentialFactory, times(1))
+        .getCredentialFromFileCredentialStoreForInstalledApp(
+            "aClientId", "aClientSecret", "aCredentialFile", TEST_SCOPES, mockTransport);
   }
 }

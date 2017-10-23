@@ -20,7 +20,6 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
-import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -313,7 +312,10 @@ public class GoogleHadoopFileSystemIntegrationTest
       throws URISyntaxException, IOException {
     Configuration config = loadConfig();
     // Unset Project ID
-    config.set(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY, null);
+    config.unset(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY);
+    // Unset system bucket, because it will be created during initialization (requires project id)
+    config.unset(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY);
+    config.unset(GoogleHadoopFileSystemBase.GCS_CREATE_SYSTEM_BUCKET_KEY);
 
     URI gsUri = (new Path("gs://foo")).toUri();
     new GoogleHadoopFileSystem().initialize(gsUri, config);

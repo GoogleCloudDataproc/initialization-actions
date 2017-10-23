@@ -752,36 +752,39 @@ public class GoogleCloudStorageImpl
       // We first need to get the current object version to issue a safe delete for only the
       // latest version of the object.
       Storage.Objects.Get getObject = gcs.objects().get(bucketName, objectName);
-      batchHelper.queue(getObject, new JsonBatchCallback<StorageObject>() {
-        @Override
-        public void onSuccess(StorageObject storageObject, HttpHeaders httpHeaders)
-            throws IOException {
-          final Long generation = storageObject.getGeneration();
-          Storage.Objects.Delete deleteObject =
-              gcs.objects().delete(bucketName, objectName)
-                  .setIfGenerationMatch(generation);
+      batchHelper.queue(
+          getObject,
+          new JsonBatchCallback<StorageObject>() {
+            @Override
+            public void onSuccess(StorageObject storageObject, HttpHeaders httpHeaders)
+                throws IOException {
+              final Long generation = storageObject.getGeneration();
+              Storage.Objects.Delete deleteObject =
+                  gcs.objects().delete(bucketName, objectName).setIfGenerationMatch(generation);
 
-          batchHelper.queue(
-              deleteObject,
-              getDeletionCallback(
-                  fullObjectName, innerExceptions, batchHelper, attempt, generation));
-        }
-        @Override
-        public void onFailure(GoogleJsonError googleJsonError, HttpHeaders httpHeaders)
-            throws IOException {
-          if (errorExtractor.itemNotFound(googleJsonError)) {
-            // If the the item isn't found, treat it the same as if it's not found in the delete
-            // case: assume the user wanted the object gone and now it is.
-            LOG.debug("deleteObjects({}) : get not found", fullObjectName.toString());
-          } else {
-            innerExceptions.add(wrapException(
-                new IOException(googleJsonError.toString()),
-                "Error deleting, stage 1",
-                bucketName,
-                objectName));
-          }
-        }
-      });
+              batchHelper.queue(
+                  deleteObject,
+                  getDeletionCallback(
+                      fullObjectName, innerExceptions, batchHelper, attempt, generation));
+            }
+
+            @Override
+            public void onFailure(GoogleJsonError googleJsonError, HttpHeaders httpHeaders)
+                throws IOException {
+              if (errorExtractor.itemNotFound(googleJsonError)) {
+                // If the item isn't found, treat it the same as if it's not found in the delete
+                // case: assume the user wanted the object gone and now it is.
+                LOG.debug("deleteObjects({}) : get not found", fullObjectName.toString());
+              } else {
+                innerExceptions.add(
+                    wrapException(
+                        new IOException(googleJsonError.toString()),
+                        "Error deleting, stage 1",
+                        bucketName,
+                        objectName));
+              }
+            }
+          });
     }
   }
 
@@ -1058,7 +1061,7 @@ public class GoogleCloudStorageImpl
     String pageToken = null;
     Objects items;
 
-    long numResults = listedObjects.size() + listedPrefixes.size();
+    long numResults = (long) listedObjects.size() + listedPrefixes.size();
     long maxRemainingResults = maxResults - numResults;
 
     do {
@@ -1084,7 +1087,7 @@ public class GoogleCloudStorageImpl
       List<String> prefixes = items.getPrefixes();
       if (prefixes != null) {
         LOG.debug("listed {} prefixes", prefixes.size());
-        numResults = listedObjects.size() + listedPrefixes.size();
+        numResults = (long) listedObjects.size() + listedPrefixes.size();
         maxRemainingResults = maxResults - numResults;
         if (maxResults <= 0 || maxRemainingResults >= prefixes.size()) {
           listedPrefixes.addAll(prefixes);
@@ -1095,7 +1098,7 @@ public class GoogleCloudStorageImpl
         }
       }
 
-      numResults = listedObjects.size() + listedPrefixes.size();
+      numResults = (long) listedObjects.size() + listedPrefixes.size();
       maxRemainingResults = maxResults - numResults;
       if (maxResults > 0 && maxRemainingResults <= 0) {
         break;
@@ -1135,7 +1138,7 @@ public class GoogleCloudStorageImpl
         }
       }
 
-      numResults = listedObjects.size() + listedPrefixes.size();
+      numResults = (long) listedObjects.size() + listedPrefixes.size();
       maxRemainingResults = maxResults - numResults;
       if (maxResults > 0 && maxRemainingResults <= 0) {
         break;

@@ -90,10 +90,10 @@ public class GoogleHadoopFileSystemTest
       throws IOException, URISyntaxException {
   }
 
-  @Test @Override
+  @Test
+  @Override
   public void testInitializeSucceedsWhenNoProjectIdConfigured()
-      throws IOException, URISyntaxException {
-  }
+      throws IOException, URISyntaxException {}
 
   @Test @Override
   public void testInitializeWithWorkingDirectory()

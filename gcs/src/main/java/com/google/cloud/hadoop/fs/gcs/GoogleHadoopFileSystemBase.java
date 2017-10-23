@@ -23,7 +23,6 @@ import com.google.cloud.hadoop.gcsio.FileInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.PathCodec;
-import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.EntriesCredentialConfiguration;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
@@ -445,19 +444,23 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
    * Configuration key for setting a proxy for the connector to use to connect to GCS. The proxy
    * must be an HTTP proxy of the form "host:port".
    */
-  public static final String GCS_PROXY_ADDRESS_KEY = EntriesCredentialConfiguration.PROXY_ADDRESS_KEY;
+  public static final String GCS_PROXY_ADDRESS_KEY =
+      EntriesCredentialConfiguration.PROXY_ADDRESS_KEY;
 
   /** Default to no proxy. */
-  public static final String GCS_PROXY_ADDRESS_DEFAULT = EntriesCredentialConfiguration.PROXY_ADDRESS_DEFAULT;
+  public static final String GCS_PROXY_ADDRESS_DEFAULT =
+      EntriesCredentialConfiguration.PROXY_ADDRESS_DEFAULT;
 
   /**
    * Configuration key for the name of HttpTransport class to use for connecting to GCS. Must be the
    * name of an HttpTransportFactory.HttpTransportType (APACHE or JAVA_NET).
    */
-  public static final String GCS_HTTP_TRANSPORT_KEY = EntriesCredentialConfiguration.HTTP_TRANSPORT_KEY;
+  public static final String GCS_HTTP_TRANSPORT_KEY =
+      EntriesCredentialConfiguration.HTTP_TRANSPORT_KEY;
 
   /** Default to the default specified in HttpTransportFactory. */
-  public static final String GCS_HTTP_TRANSPORT_DEFAULT = EntriesCredentialConfiguration.PROXY_ADDRESS_DEFAULT;
+  public static final String GCS_HTTP_TRANSPORT_DEFAULT =
+      EntriesCredentialConfiguration.PROXY_ADDRESS_DEFAULT;
 
   /** Configuration key for adding a suffix to the GHFS application name sent to GCS. */
   public static final String GCS_APPLICATION_NAME_SUFFIX_KEY = "fs.gs.application.name.suffix";
@@ -1490,7 +1493,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     char[] wildcardChars = "*?{[".toCharArray();
     int trimIndex = path.length();
 
-    // Find the first occurence of any one of the wildcard characters, or just path.length()
+    // Find the first occurrence of any one of the wildcard characters, or just path.length()
     // if none are found.
     for (char wildcard : wildcardChars) {
       int wildcardIndex = path.indexOf(wildcard);

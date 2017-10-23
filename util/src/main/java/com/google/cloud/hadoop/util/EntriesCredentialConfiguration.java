@@ -17,7 +17,6 @@ package com.google.cloud.hadoop.util;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -105,8 +104,8 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
   public static final String PROXY_ADDRESS_DEFAULT = null;
 
   /**
-   * Configuration key for the name of HttpTransport class to use for connecting to GCS.
-   * Must be the name of an HttpTransportFactory.HttpTransportType (APACHE or JAVA_NET).
+   * Configuration key for the name of HttpTransport class to use for connecting to GCS. Must be the
+   * name of an HttpTransportFactory.HttpTransportType (APACHE or JAVA_NET).
    */
   public static final String HTTP_TRANSPORT_KEY = "fs.gs.http.transport.type";
 
