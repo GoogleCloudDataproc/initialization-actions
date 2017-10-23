@@ -29,51 +29,52 @@ set -x -e
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 
 # Only run on the master node of the cluster
-if [[ "${ROLE}" == 'Master' ]]; then
+if [[ "${ROLE}" != 'Master' ]]; then
+  exit 0
+fi
 
-  # Upgrade the repository and install Oozie
-  apt-get update
-  apt-get install oozie oozie-client -y
+# Upgrade the repository and install Oozie
+apt-get update
+apt-get install oozie oozie-client -y
 
-  # The ext library is needed to enable the Oozie web console
-  wget http://archive.cloudera.com/gplextras/misc/ext-2.2.zip
-  unzip ext-2.2.zip
-  cp -ax ext-2.2 /var/lib/oozie/ext-2.2
+# The ext library is needed to enable the Oozie web console
+wget http://archive.cloudera.com/gplextras/misc/ext-2.2.zip
+unzip ext-2.2.zip
+cp -ax ext-2.2 /var/lib/oozie/ext-2.2
 
-  # Create the Oozie database
-  sudo -u oozie /usr/lib/oozie/bin/ooziedb.sh create -run
+# Create the Oozie database
+sudo -u oozie /usr/lib/oozie/bin/ooziedb.sh create -run
 
-  # Hadoop must allow impersonation for Oozie to work properly
-  cat > core-site-patch.xml <<'EOF'
-  <property>
-    <name>hadoop.proxyuser.oozie.hosts</name>
-    <value>*</value>
-  </property>
-  <property>
-    <name>hadoop.proxyuser.oozie.groups</name>
-    <value>*</value>
-  </property>
-  <property>
-    <name>hadoop.proxyuser.${user.name}.hosts</name>
-    <value>*</value>
-  </property>
-  <property>
-    <name>hadoop.proxyuser.${user.name}.groups</name>
-    <value>*</value>
-  </property>
+# Hadoop must allow impersonation for Oozie to work properly
+cat > core-site-patch.xml <<'EOF'
+<property>
+  <name>hadoop.proxyuser.oozie.hosts</name>
+  <value>*</value>
+</property>
+<property>
+  <name>hadoop.proxyuser.oozie.groups</name>
+  <value>*</value>
+</property>
+<property>
+  <name>hadoop.proxyuser.${user.name}.hosts</name>
+  <value>*</value>
+</property>
+<property>
+  <name>hadoop.proxyuser.${user.name}.groups</name>
+  <value>*</value>
+</property>
 EOF
-  sed -i '/<\/configuration>/e cat core-site-patch.xml' \
+sed -i '/<\/configuration>/e cat core-site-patch.xml' \
     /etc/hadoop/conf/core-site.xml
 
-  # Install share lib
-  tar -xvzf /usr/lib/oozie/oozie-sharelib.tar.gz
-  cp -ax share /usr/lib/oozie/
-  hadoop fs -mkdir -p /user/oozie/
-  hadoop fs -put share/ /user/oozie/
+# Install share lib
+tar -xvzf /usr/lib/oozie/oozie-sharelib.tar.gz
+cp -ax share /usr/lib/oozie/
+hadoop fs -mkdir -p /user/oozie/
+hadoop fs -put share/ /user/oozie/
 
-  # Clean up temporary fles
-  rm -rf ext-2.2 ext-2.2.zip core-site-patch.xml share oozie-sharelib.tar.gz
+# Clean up temporary fles
+rm -rf ext-2.2 ext-2.2.zip core-site-patch.xml share oozie-sharelib.tar.gz
 
-  # HDFS and MapReduce must be cycled; restart to clean things up
-  systemctl restart hadoop-hdfs-namenode
-fi
+# HDFS must be cycled; restart to clean things up
+systemctl restart hadoop-hdfs-namenode oozie

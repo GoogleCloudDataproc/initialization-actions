@@ -69,9 +69,9 @@ cat >> /etc/hue/conf/hue.ini <<EOF
 EOF
 
 # If oozie installed, add hue as proxy user for oozie
-if [ -f /etc/oozie/conf/oozie-site.xml ]
+if [[ -f /etc/oozie/conf/oozie-site.xml ]];
 then
-	cat > oozie-site-patch.xml <<EOF
+  cat > oozie-site-patch.xml <<EOF
 <property>
   <name>oozie.service.ProxyUserService.proxyuser.hue.hosts</name>
   <value>*</value>
@@ -83,8 +83,8 @@ then
 </property>
 EOF
 
-	sed -i '/<\/configuration>/e cat oozie-site-patch.xml' \
-		  /etc/oozie/conf/oozie-site.xml
+  sed -i '/<\/configuration>/e cat oozie-site-patch.xml' \
+      /etc/oozie/conf/oozie-site.xml
 
   rm oozie-site-patch.xml
   systemctl restart oozie
