@@ -75,8 +75,8 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <google.api.version>1.20.0</google.api.version>
     <google.guava.version>18.0</google.guava.version>
-    <build.java.source.version>7</build.java.source.version>
-    <build.java.target.version>7</build.java.target.version>
+    <build.java.source.version>8</build.java.source.version>
+    <build.java.target.version>8</build.java.target.version>
     <gpg.skip>true</gpg.skip>
     <hadoop.one.version>1.2.1</hadoop.one.version>
     <hadoop.two.version>2.7.2</hadoop.two.version>
