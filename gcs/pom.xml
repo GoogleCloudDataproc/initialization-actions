@@ -14,7 +14,9 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <packaging>pom</packaging>
 
@@ -75,7 +77,9 @@
     <profile>
       <id>integration-test</id>
       <activation>
-        <property><name>env.RUN_INTEGRATION_TESTS</name></property>
+        <property>
+          <name>env.RUN_INTEGRATION_TESTS</name>
+        </property>
       </activation>
       <build>
         <plugins>
@@ -95,7 +99,9 @@
                   </excludes>
                   <includes>
                     <include>**/fs/gcs/GoogleHadoopFileSystemIntegrationTest.java</include>
-                    <include>**/fs/gcs/GoogleHadoopGlobalRootedFileSystemIntegrationTest.java</include>
+                    <include>
+                      **/fs/gcs/GoogleHadoopGlobalRootedFileSystemIntegrationTest.java
+                    </include>
                     <include>**/fs/gcs/LocalFileSystemIntegrationTest.java</include>
                   </includes>
                   <reuseForks>false</reuseForks>
@@ -211,7 +217,7 @@
           <reuseForks>false</reuseForks>
         </configuration>
       </plugin>
-      </plugins>
+    </plugins>
     <pluginManagement>
       <plugins>
         <plugin>

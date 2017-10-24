@@ -14,7 +14,9 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <packaging>pom</packaging>
 
@@ -119,12 +121,12 @@
       <version>${bigdataoss.util.version}</version>
     </dependency>
     <dependency>
-       <groupId>com.google.cloud.bigdataoss</groupId>
-       <artifactId>gcsio</artifactId>
-       <version>${bigdataoss.gcsio.version}</version>
-       <scope>test</scope>
-       <type>test-jar</type>
-     </dependency>
+      <groupId>com.google.cloud.bigdataoss</groupId>
+      <artifactId>gcsio</artifactId>
+      <version>${bigdataoss.gcsio.version}</version>
+      <scope>test</scope>
+      <type>test-jar</type>
+    </dependency>
   </dependencies>
   <build>
     <resources>
@@ -145,7 +147,7 @@
           <reuseForks>false</reuseForks>
         </configuration>
       </plugin>
-      </plugins>
+    </plugins>
     <pluginManagement>
       <plugins>
         <plugin>
