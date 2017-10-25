@@ -114,7 +114,6 @@
     </resources>
     <plugins>
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <excludes>
@@ -125,57 +124,5 @@
         </configuration>
       </plugin>
     </plugins>
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-shade-plugin</artifactId>
-          <version>2.3</version>
-          <executions>
-            <execution>
-              <phase>package</phase>
-              <goals>
-                <goal>shade</goal>
-              </goals>
-              <configuration>
-                <artifactSet>
-                  <includes>
-                    <include>com.fasterxml.jackson.core:jackson-core</include>
-                    <include>com.google.api-client:*</include>
-                    <include>com.google.apis:*</include>
-                    <include>com.google.cloud.bigdataoss:util</include>
-                    <include>com.google.guava:*</include>
-                    <include>com.google.http-client:google-http-client</include>
-                    <include>com.google.http-client:google-http-client-jackson2</include>
-                    <include>com.google.oauth-client:google-oauth-client</include>
-                    <include>com.google.oauth-client:google-oauth-client-java6</include>
-                    <include>org.apache.httpcomponents:httpclient</include>
-                    <include>org.apache.httpcomponents:httpcore</include>
-                    <!-- needed by http client and versions conflict -->
-                    <include>commons-codec:commons-codec</include>
-                  </includes>
-                </artifactSet>
-                <minimizeJar>true</minimizeJar>
-                <relocations>
-                  <relocation>
-                    <pattern>com.google.common</pattern>
-                    <shadedPattern>com.google.cloud.hadoop.repackaged.com.google.common</shadedPattern>
-                  </relocation>
-                  <relocation>
-                    <pattern>com.fasterxml</pattern>
-                    <shadedPattern>com.google.cloud.hadoop.repackaged.com.fasterxml</shadedPattern>
-                  </relocation>
-                  <relocation>
-                    <pattern>org.apache.commons.codec</pattern>
-                    <shadedPattern>com.google.cloud.hadoop.repackaged.org.apache.commons.codec</shadedPattern>
-                  </relocation>
-                </relocations>
-                <shadedArtifactAttached>true</shadedArtifactAttached>
-              </configuration>
-            </execution>
-          </executions>
-        </plugin>
-      </plugins>
-    </pluginManagement>
   </build>
 </project>
