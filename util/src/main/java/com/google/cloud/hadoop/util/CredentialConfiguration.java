@@ -18,12 +18,12 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.HttpTransport;
 import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.List;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  */
 public class CredentialConfiguration {
   protected static final Logger LOG = LoggerFactory.getLogger(CredentialConfiguration.class);
-  private Optional<Boolean> isServiceAccountEnabled = Optional.absent();
+  private Optional<Boolean> isServiceAccountEnabled = Optional.empty();
   private String serviceAccountEmail = null;
   private String serviceAccountKeyFile = null;
   private String serviceAccountJsonKeyFile = null;

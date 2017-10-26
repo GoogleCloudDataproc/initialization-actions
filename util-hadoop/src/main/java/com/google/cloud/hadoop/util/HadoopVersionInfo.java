@@ -16,8 +16,7 @@
 
 package com.google.cloud.hadoop.util;
 
-import com.google.common.base.Optional;
-
+import java.util.Optional;
 import org.apache.hadoop.util.VersionInfo;
 
 /**
@@ -30,9 +29,9 @@ public class HadoopVersionInfo {
     return INSTANCE;
   }
 
-  private Optional<Integer> majorVersion = Optional.absent();
-  private Optional<Integer> minorVersion = Optional.absent();
-  private Optional<Integer> patchLevel = Optional.absent();
+  private Optional<Integer> majorVersion = Optional.empty();
+  private Optional<Integer> minorVersion = Optional.empty();
+  private Optional<Integer> patchLevel = Optional.empty();
 
   /**
    * Construct a HadoopVersionInfo using the version string contained in
@@ -113,7 +112,7 @@ public class HadoopVersionInfo {
       }
     }
 
-    return Optional.absent();
+    return Optional.empty();
   }
 
   protected void discardSeparator(ParseState state) {

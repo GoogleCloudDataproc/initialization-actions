@@ -24,12 +24,12 @@ import com.google.cloud.hadoop.gcsio.InMemoryDirectoryListCache;
 import com.google.cloud.hadoop.gcsio.ThrottledGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.ThrottledGoogleCloudStorage.StorageOperation;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
-import com.google.common.base.Optional;
 import com.google.common.util.concurrent.RateLimiter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.Optional;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
@@ -66,13 +66,13 @@ public class GoogleCloudStorageIntegrationTest extends GoogleCloudStorageTest {
   }
 
   private static GoogleCloudStorage getGoogleCloudStorage() throws IOException {
-    return getGoogleCloudStorage(Optional.<GoogleCloudStorageOptions.Builder>absent());
+    return getGoogleCloudStorage(Optional.empty());
   }
   private static GoogleCloudStorage getGoogleCloudStorage(
       Optional<GoogleCloudStorageOptions.Builder> optionalBuilder) throws IOException {
     Credential credential = GoogleCloudStorageTestHelper.getCredential();
 
-    GoogleCloudStorageOptions.Builder builder = optionalBuilder.or(
+    GoogleCloudStorageOptions.Builder builder = optionalBuilder.orElse(
         GoogleCloudStorageTestHelper.getStandardOptionBuilder());
 
     return new ThrottledGoogleCloudStorage(

@@ -17,7 +17,7 @@
 package com.google.cloud.hadoop.gcsio;
 
 import com.google.api.services.storage.Storage.Objects.Insert;
-import com.google.common.base.Optional;
+import java.util.Optional;
 
 /**
  * Conditions on which a object write should be allowed to continue. Corresponds to
@@ -34,8 +34,8 @@ public class ObjectWriteConditions {
   private final Optional<Long> metaGenerationMatch;
 
   public ObjectWriteConditions() {
-    metaGenerationMatch = Optional.absent();
-    contentGenerationMatch = Optional.absent();
+    metaGenerationMatch = Optional.empty();
+    contentGenerationMatch = Optional.empty();
   }
 
   public ObjectWriteConditions(Optional<Long> contentGenerationMatch,
