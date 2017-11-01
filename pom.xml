@@ -203,10 +203,10 @@
         <artifactId>google-api-client-java6</artifactId>
         <version>${google.api.version}</version>
         <exclusions>
+          <!-- this version hides too many things -->
           <exclusion>
-            <!-- this version hides too many things -->
-            <artifactId>guava-jdk5</artifactId>
             <groupId>com.google.guava</groupId>
+            <artifactId>guava-jdk5</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
