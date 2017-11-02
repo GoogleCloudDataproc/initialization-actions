@@ -35,6 +35,21 @@
   <version>0.11.0-SNAPSHOT-hadoop1</version>
 
   <dependencies>
+    <!--
+      Hadoop 1 does not ship with Avro and Gson, that's why
+      they should be in `compile` scope to be included in fat jar
+    -->
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+      <scope>compile</scope>
+    </dependency>
+
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-core</artifactId>
@@ -48,12 +63,6 @@
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>util-hadoop</artifactId>
       <version>${bigdataoss.util-hadoop.one.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.avro</groupId>
-      <artifactId>avro-mapred</artifactId>
-      <version>${apache.avro.version}</version>
-      <classifier>hadoop1</classifier>
     </dependency>
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
