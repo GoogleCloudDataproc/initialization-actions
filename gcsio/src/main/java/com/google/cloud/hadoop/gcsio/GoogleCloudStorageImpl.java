@@ -45,6 +45,7 @@ import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.cloud.hadoop.util.RetryHttpInitializer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -61,7 +62,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -301,7 +301,7 @@ public class GoogleCloudStorageImpl
     Preconditions.checkArgument(resourceId.isStorageObject(),
         "Expected full StorageObject id, got " + resourceId);
 
-    /**
+    /*
      * When performing mutations in GCS, even when we aren't concerned with parallel writers,
      * we need to protect ourselves from what appear to be out-of-order writes to the writer. These
      * most commonly manifest themselves as a sequence of:
@@ -321,7 +321,7 @@ public class GoogleCloudStorageImpl
      */
 
     // TODO(user): Have createEmptyObject return enough information to use that instead.
-    Optional<Long> overwriteGeneration = Optional.empty();
+    Optional<Long> overwriteGeneration = Optional.absent();
     long backOffSleep = 0L;
 
     if (storageOptions.isMarkerFileCreationEnabled()) {
@@ -378,7 +378,7 @@ public class GoogleCloudStorageImpl
     }
 
     ObjectWriteConditions writeConditions =
-        new ObjectWriteConditions(overwriteGeneration, Optional.empty());
+        new ObjectWriteConditions(overwriteGeneration, Optional.<Long>absent());
 
     Map<String, String> rewrittenMetadata = encodeMetadata(options.getMetadata());
 

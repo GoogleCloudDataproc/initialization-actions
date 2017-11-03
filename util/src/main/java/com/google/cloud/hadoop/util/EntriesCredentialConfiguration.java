@@ -15,10 +15,10 @@
 package com.google.cloud.hadoop.util;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * CredentialConfiguration based on configuration objects that implement our Entries interface.
@@ -197,7 +197,7 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
   private static Optional<Boolean> maybeGetBoolean(Entries config, String key) {
     String value = config.get(key);
     if (value == null) {
-      return Optional.empty();
+      return Optional.absent();
     }
     return Optional.of(Boolean.valueOf(value));
   }

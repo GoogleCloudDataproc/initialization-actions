@@ -16,7 +16,7 @@
 
 package com.google.cloud.hadoop.util;
 
-import java.util.Optional;
+import com.google.common.base.Optional;
 import org.apache.hadoop.util.VersionInfo;
 
 /**
@@ -29,9 +29,9 @@ public class HadoopVersionInfo {
     return INSTANCE;
   }
 
-  private Optional<Integer> majorVersion = Optional.empty();
-  private Optional<Integer> minorVersion = Optional.empty();
-  private Optional<Integer> patchLevel = Optional.empty();
+  private Optional<Integer> majorVersion = Optional.absent();
+  private Optional<Integer> minorVersion = Optional.absent();
+  private Optional<Integer> patchLevel = Optional.absent();
 
   /**
    * Construct a HadoopVersionInfo using the version string contained in
@@ -112,7 +112,7 @@ public class HadoopVersionInfo {
       }
     }
 
-    return Optional.empty();
+    return Optional.absent();
   }
 
   protected void discardSeparator(ParseState state) {
@@ -153,9 +153,11 @@ public class HadoopVersionInfo {
    *    the given major and minor version numbers.
    */
   public boolean isGreaterThan(int major, int minor) {
-    return majorVersion.isPresent() && majorVersion.get() > major
-         || (majorVersion.isPresent() && majorVersion.get() == major
-             && minorVersion.isPresent() && minorVersion.get() > minor);
+    return (majorVersion.isPresent() && majorVersion.get() > major)
+        || (majorVersion.isPresent()
+            && majorVersion.get() == major
+            && minorVersion.isPresent()
+            && minorVersion.get() > minor);
   }
 
   /**
@@ -168,9 +170,11 @@ public class HadoopVersionInfo {
    *    the given major and minor version numbers.
    */
   public boolean isLessThan(int major, int minor) {
-    return majorVersion.isPresent() && majorVersion.get() < major
-        || (majorVersion.isPresent() && majorVersion.get() ==  major
-            && minorVersion.isPresent() && minorVersion.get() < minor);
+    return (majorVersion.isPresent() && majorVersion.get() < major)
+        || (majorVersion.isPresent()
+            && majorVersion.get() == major
+            && minorVersion.isPresent()
+            && minorVersion.get() < minor);
   }
 
   /**
