@@ -695,7 +695,9 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
      * @param hadoopVersionInfo The hadoop version.
      */
     public static ListStatusFileNotFoundBehavior get(HadoopVersionInfo hadoopVersionInfo) {
-      if (hadoopVersionInfo.isGreaterThan(2, 0) || hadoopVersionInfo.isEqualTo(0, 23)) {
+      if (hadoopVersionInfo.isGreaterThan(2, 0)
+          || hadoopVersionInfo.isEqualTo(2, 0)
+          || hadoopVersionInfo.isEqualTo(0, 23)) {
         return Hadoop2;
       }
       return Hadoop1;
@@ -1050,10 +1052,8 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   /**
    * Opens the given file for reading.
    *
-   * Note:
-   * This function overrides the given bufferSize value with a higher
-   * number unless further overridden using configuration
-   * parameter fs.gs.io.buffersize.
+   * <p>Note: This function overrides the given bufferSize value with a higher number unless further
+   * overridden using configuration parameter fs.gs.io.buffersize.
    *
    * @param hadoopPath File to open.
    * @param bufferSize Size of buffer to use for IO.
@@ -1062,8 +1062,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
    * @throws IOException if an error occurs.
    */
   @Override
-  public FSDataInputStream open(Path hadoopPath, int bufferSize)
-      throws IOException {
+  public FSDataInputStream open(Path hadoopPath, int bufferSize) throws IOException {
 
     long startTime = System.nanoTime();
     Preconditions.checkArgument(hadoopPath != null,
@@ -1679,11 +1678,10 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     return systemBucket;
   }
 
-
   /**
    * {@inheritDoc}
    *
-   * Returns null, because GHFS does not use security tokens.
+   * <p>Returns null, because GHFS does not use security tokens.
    */
   @Override
   public String getCanonicalServiceName() {
@@ -1899,8 +1897,8 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
    *
    * @param systemBucketName Name of system bucket
    * @param createSystemBucket Whether or not to create systemBucketName if it does not exist.
-   * @throws IOException if systemBucketName is invalid or cannot be found.
-   *     and createSystemBucket is false.
+   * @throws IOException if systemBucketName is invalid or cannot be found and createSystemBucket
+   *     is false.
    */
   @VisibleForTesting
   // TODO(user): Refactor to make protected
