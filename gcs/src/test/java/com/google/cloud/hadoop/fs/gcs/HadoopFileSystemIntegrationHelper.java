@@ -198,7 +198,7 @@ public class HadoopFileSystemIntegrationHelper
       throws IOException {
     FSDataInputStream readStream = null;
     byte[] readBuffer = new byte[1024];
-    StringBuffer returnBuffer = new StringBuffer();
+    StringBuilder returnBuffer = new StringBuilder();
 
     try {
       readStream = ghfs.open(hadoopPath, GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT);
