@@ -98,7 +98,7 @@
     <google.guava.version>23.3-android</google.guava.version>
     <google.truth.version>0.36</google.truth.version>
     <hadoop.one.version>1.2.1</hadoop.one.version>
-    <hadoop.two.version>2.7.4</hadoop.two.version>
+    <hadoop.two.version>2.8.2</hadoop.two.version>
     <hamcrest.version>1.3</hamcrest.version>
     <joda-time.version>2.9.9</joda-time.version>
     <junit.version>4.12</junit.version>
