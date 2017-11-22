@@ -35,6 +35,9 @@ if [[ "${ROLE}" == 'Master' ]]; then
     if gsutil -q stat "gs://$DATAPROC_BUCKET/notebooks/**"; then
         echo "Pulling notebooks directory to cluster master node..."
         gsutil -m cp -r gs://$DATAPROC_BUCKET/notebooks /root/
+        touch empty_crontab
+        crontab empty_crontab
+        echo "* * * * * find /root/notebooks/*.ipynb -mmin -1 -type f | xargs -n 1 -I \% gsutil -m cp -r \% gs://$DATAPROC_BUCKET/notebooks/" | crontab -
     fi
     ./dataproc-initialization-actions/jupyter/internal/setup-jupyter-kernel.sh
     ./dataproc-initialization-actions/jupyter/internal/launch-jupyter-kernel.sh
