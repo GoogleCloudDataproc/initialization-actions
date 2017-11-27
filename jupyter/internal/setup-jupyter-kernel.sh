@@ -14,6 +14,10 @@ JUPYTER_IP=*
 
 [[ "${ROLE}" != 'Master' ]] && throw "$0 should only be run on the Master node!"
 
+# Must not include gs:// and must exist
+NOTEBOOK_DIR="$DATAPROC_BUCKET/notebooks"
+hadoop fs -mkdir "gs://$NOTEBOOK_DIR" || true
+
 echo "Creating Jupyter config..."
 jupyter notebook --allow-root --generate-config -y --ip=127.0.0.1
 echo "c.Application.log_level = 'DEBUG'" >> ~/.jupyter/jupyter_notebook_config.py
@@ -21,8 +25,7 @@ echo "c.NotebookApp.ip = '*'" >> ~/.jupyter/jupyter_notebook_config.py
 echo "c.NotebookApp.open_browser = False" >> ~/.jupyter/jupyter_notebook_config.py
 echo "c.NotebookApp.port = $JUPYTER_PORT" >> ~/.jupyter/jupyter_notebook_config.py
 echo "c.NotebookApp.contents_manager_class = 'jgscm.GoogleStorageContentManager'" >> ~/.jupyter/jupyter_notebook_config.py
-# Must not include gs://
-echo "c.GoogleStorageContentManager.default_path = '$DATAPROC_BUCKET/notebooks'" >> ~/.jupyter/jupyter_notebook_config.py
+echo "c.GoogleStorageContentManager.default_path = '$NOTEBOOK_DIR'" >> ~/.jupyter/jupyter_notebook_config.py
 echo "c.NotebookApp.token = u'$JUPYTER_AUTH_TOKEN'" >> ~/.jupyter/jupyter_notebook_config.py
 
 echo "Installing pyspark Kernel..."
