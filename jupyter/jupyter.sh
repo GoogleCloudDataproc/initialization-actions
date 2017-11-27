@@ -6,7 +6,6 @@ INIT_ACTIONS_REPO=$(curl -f -s -H Metadata-Flavor:Google http://metadata/compute
 INIT_ACTIONS_REPO="${INIT_ACTIONS_REPO:-https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git}"
 INIT_ACTIONS_BRANCH=$(curl -f -s -H Metadata-Flavor:Google http://metadata/computeMetadata/v1/instance/attributes/INIT_ACTIONS_BRANCH || true)
 INIT_ACTIONS_BRANCH="${INIT_ACTIONS_BRANCH:-master}"
-DATAPROC_BUCKET=$(curl -f -s -H Metadata-Flavor:Google http://metadata/computeMetadata/v1/instance/attributes/dataproc-bucket)
 
 # Colon-separated list of conda channels to add before installing packages
 JUPYTER_CONDA_CHANNELS=$(curl -f -s -H Metadata-Flavor:Google http://metadata/computeMetadata/v1/instance/attributes/JUPYTER_CONDA_CHANNELS || true)
@@ -32,10 +31,10 @@ fi
 
 if [[ "${ROLE}" == 'Master' ]]; then
     conda install jupyter
-    if gsutil -q stat "gs://$DATAPROC_BUCKET/notebooks/**"; then
-        echo "Pulling notebooks directory to cluster master node..."
-        gsutil -m cp -r gs://$DATAPROC_BUCKET/notebooks /root/
-    fi
+
+    # For storing notebooks on GCS
+    pip install jgscm
+
     ./dataproc-initialization-actions/jupyter/internal/setup-jupyter-kernel.sh
     ./dataproc-initialization-actions/jupyter/internal/launch-jupyter-kernel.sh
 fi
