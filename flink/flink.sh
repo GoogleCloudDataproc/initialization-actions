@@ -84,8 +84,9 @@ function configure_flink() {
   local start_flink_yarn_session
   if [[ "${hostname}" == "${master_hostname}" ]] ; then
     # Determine whether to start a detached session.
-    start_flink_yarn_session="$(/usr/share/google/get_metadata_value "attributes/${START_FLINK_YARN_SESSION_METADATA_KEY}")"
-    start_flink_yarn_session="${start_flink_yarn_session:-${START_FLINK_YARN_SESSION_DEFAULT}}"
+    start_flink_yarn_session="$(/usr/share/google/get_metadata_value \
+      "attributes/${START_FLINK_YARN_SESSION_METADATA_KEY}" || \
+      echo "${START_FLINK_YARN_SESSION_DEFAULT}")"
   else
     # We only start a session on the primary master.
     start_flink_yarn_session='false'
