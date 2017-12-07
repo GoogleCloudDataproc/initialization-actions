@@ -32,8 +32,8 @@ fi
 if [[ "${ROLE}" == 'Master' ]]; then
     conda install jupyter
 
-    # For storing notebooks on GCS
-    pip install jgscm
+    # For storing notebooks on GCS. Pin version to make this script hermetic.
+    pip install jgscm==0.1.7
 
     ./dataproc-initialization-actions/jupyter/internal/setup-jupyter-kernel.sh
     ./dataproc-initialization-actions/jupyter/internal/launch-jupyter-kernel.sh
