@@ -16,7 +16,7 @@ JUPYTER_IP=*
 
 # Must not include gs:// and must exist
 NOTEBOOK_DIR="$DATAPROC_BUCKET/notebooks"
-hadoop fs -mkdir "gs://$NOTEBOOK_DIR" || true
+hadoop fs -mkdir -p "gs://$NOTEBOOK_DIR"
 
 echo "Creating Jupyter config..."
 jupyter notebook --allow-root --generate-config -y --ip=127.0.0.1
