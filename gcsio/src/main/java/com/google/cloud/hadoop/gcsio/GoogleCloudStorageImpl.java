@@ -463,42 +463,55 @@ public class GoogleCloudStorageImpl
     final CountDownLatch latch = new CountDownLatch(resourceIds.size());
     for (final StorageResourceId resourceId : resourceIds) {
       final Storage.Objects.Insert insertObject = prepareEmptyInsert(resourceId, options);
-      manualBatchingThreadPool.execute(new Runnable() {
-        @Override
-        public void run() {
-          try {
-            insertObject.execute();
-            LOG.debug("Successfully inserted {}", resourceId.toString());
-          } catch (IOException ioe) {
-            boolean canIgnoreException = false;
-            try {
-              canIgnoreException = canIgnoreExceptionForEmptyObject(ioe, resourceId, options);
-            } catch (Throwable t) {
-              // Make sure to catch Throwable instead of only IOException so that we can
-              // correctly wrap other such throwables and propagate them out cleanly inside
-              // innerExceptions; common sources of non-IOExceptions include Preconditions
-              // checks which get enforced at varous layers in the library stack.
-              IOException toWrap =
-                  (t instanceof IOException ? (IOException) t : new IOException(t));
-              innerExceptions.add(wrapException(toWrap,
-                  "Error re-fetching after rate-limit error.",
-                  resourceId.getBucketName(), resourceId.getObjectName()));
+      manualBatchingThreadPool.execute(
+          new Runnable() {
+            @Override
+            public void run() {
+              try {
+                insertObject.execute();
+                LOG.debug("Successfully inserted {}", resourceId);
+              } catch (IOException ioe) {
+                boolean canIgnoreException = false;
+                try {
+                  canIgnoreException = canIgnoreExceptionForEmptyObject(ioe, resourceId, options);
+                } catch (Throwable t) {
+                  // Make sure to catch Throwable instead of only IOException so that we can
+                  // correctly wrap other such throwables and propagate them out cleanly inside
+                  // innerExceptions; common sources of non-IOExceptions include Preconditions
+                  // checks which get enforced at varous layers in the library stack.
+                  IOException toWrap =
+                      (t instanceof IOException ? (IOException) t : new IOException(t));
+                  innerExceptions.add(
+                      wrapException(
+                          toWrap,
+                          "Error re-fetching after rate-limit error.",
+                          resourceId.getBucketName(),
+                          resourceId.getObjectName()));
+                }
+                if (canIgnoreException) {
+                  LOG.info(
+                      "Ignoring exception; verified object already exists with desired state.",
+                      ioe);
+                } else {
+                  innerExceptions.add(
+                      wrapException(
+                          ioe,
+                          "Error inserting.",
+                          resourceId.getBucketName(),
+                          resourceId.getObjectName()));
+                }
+              } catch (Throwable t) {
+                innerExceptions.add(
+                    wrapException(
+                        new IOException(t),
+                        "Error inserting.",
+                        resourceId.getBucketName(),
+                        resourceId.getObjectName()));
+              } finally {
+                latch.countDown();
+              }
             }
-            if (canIgnoreException) {
-              LOG.info(
-                  "Ignoring exception; verified object already exists with desired state.", ioe);
-            } else {
-              innerExceptions.add(wrapException(ioe, "Error inserting.",
-                  resourceId.getBucketName(), resourceId.getObjectName()));
-            }
-          } catch (Throwable t) {
-            innerExceptions.add(wrapException(new IOException(t), "Error inserting.",
-                resourceId.getBucketName(), resourceId.getObjectName()));
-          } finally {
-            latch.countDown();
-          }
-        }
-      });
+          });
     }
 
     try {
@@ -611,7 +624,7 @@ public class GoogleCloudStorageImpl
   @Override
   public void deleteBuckets(List<String> bucketNames)
       throws IOException {
-    LOG.debug("deleteBuckets({})", bucketNames.toString());
+    LOG.debug("deleteBuckets({})", bucketNames);
 
     // Validate all the inputs first.
     for (String bucketName : bucketNames) {
@@ -657,7 +670,7 @@ public class GoogleCloudStorageImpl
   @Override
   public void deleteObjects(List<StorageResourceId> fullObjectNames)
       throws IOException {
-    LOG.debug("deleteObjects({})", fullObjectNames.toString());
+    LOG.debug("deleteObjects({})", fullObjectNames);
 
     // Validate that all the elements represent StorageObjects.
     for (StorageResourceId fullObjectName : fullObjectNames) {
@@ -699,8 +712,7 @@ public class GoogleCloudStorageImpl
     return new JsonBatchCallback<Void>() {
       @Override
       public void onSuccess(Void obj, HttpHeaders responseHeaders) {
-        LOG.debug(
-            "Successfully deleted {} at generation {}", fullObjectName.toString(), generation);
+        LOG.debug("Successfully deleted {} at generation {}", fullObjectName, generation);
       }
 
       @Override
@@ -711,7 +723,7 @@ public class GoogleCloudStorageImpl
           // receives the request but we get a retry-able error before we get a response.
           // During a retry, we no longer find the item because the server had deleted
           // it already.
-          LOG.debug("deleteObjects({}) : delete not found", fullObjectName.toString());
+          LOG.debug("deleteObjects({}) : delete not found", fullObjectName);
         } else if (errorExtractor.preconditionNotMet(e)
             && attempt <= MAXIMUM_PRECONDITION_FAILURES_IN_DELETE) {
           LOG.info(
@@ -719,14 +731,14 @@ public class GoogleCloudStorageImpl
               fullObjectName.toString(),
               generation,
               attempt);
-          queueSingleObjectDelete(
-              fullObjectName, innerExceptions, batchHelper, attempt + 1);
+          queueSingleObjectDelete(fullObjectName, innerExceptions, batchHelper, attempt + 1);
         } else {
-          innerExceptions.add(wrapException(
-              new IOException(e.toString()),
-              String.format("Error deleting, stage 2 with generation %s", generation),
-              bucketName,
-              objectName));
+          innerExceptions.add(
+              wrapException(
+                  new IOException(e.toString()),
+                  String.format("Error deleting, stage 2 with generation %s", generation),
+                  bucketName,
+                  objectName));
         }
       }
     };
@@ -774,7 +786,7 @@ public class GoogleCloudStorageImpl
               if (errorExtractor.itemNotFound(googleJsonError)) {
                 // If the item isn't found, treat it the same as if it's not found in the delete
                 // case: assume the user wanted the object gone and now it is.
-                LOG.debug("deleteObjects({}) : get not found", fullObjectName.toString());
+                LOG.debug("deleteObjects({}) : get not found", fullObjectName);
               } else {
                 innerExceptions.add(
                     wrapException(
@@ -1432,7 +1444,7 @@ public class GoogleCloudStorageImpl
   @Override
   public List<GoogleCloudStorageItemInfo> getItemInfos(List<StorageResourceId> resourceIds)
       throws IOException {
-    LOG.debug("getItemInfos({})", resourceIds.toString());
+    LOG.debug("getItemInfos({})", resourceIds);
 
     final Map<StorageResourceId, GoogleCloudStorageItemInfo> itemInfos = new HashMap<>();
     final List<IOException> innerExceptions = new ArrayList<>();
@@ -1518,7 +1530,7 @@ public class GoogleCloudStorageImpl
   @Override
   public List<GoogleCloudStorageItemInfo> updateItems(List<UpdatableItemInfo> itemInfoList)
       throws IOException {
-    LOG.debug("updateItems({})", itemInfoList.toString());
+    LOG.debug("updateItems({})", itemInfoList);
 
     final Map<StorageResourceId, GoogleCloudStorageItemInfo> resultItemInfos = new HashMap<>();
     final List<IOException> innerExceptions = new ArrayList<>();

@@ -267,7 +267,7 @@ public class MetadataReadOnlyGoogleCloudStorage
   @Override
   public List<GoogleCloudStorageItemInfo> getItemInfos(List<StorageResourceId> resourceIds)
       throws IOException {
-    LOG.debug("getItemInfos({})", resourceIds.toString());
+    LOG.debug("getItemInfos({})", resourceIds);
     List<GoogleCloudStorageItemInfo> infos = new ArrayList<>();
     for (StorageResourceId resourceId : resourceIds) {
       infos.add(getItemInfo(resourceId));

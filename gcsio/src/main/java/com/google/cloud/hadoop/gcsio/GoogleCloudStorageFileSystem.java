@@ -1098,7 +1098,7 @@ public class GoogleCloudStorageFileSystem {
       // If the given file does not exist, see if a directory of
       // the same name exists.
       StorageResourceId newResourceId = FileInfo.convertToDirectoryPath(resourceId);
-      LOG.debug("getFileInfo({}) : not found. trying: {}", path, newResourceId.toString());
+      LOG.debug("getFileInfo({}) : not found. trying: {}", path, newResourceId);
       GoogleCloudStorageItemInfo newItemInfo = gcs.getItemInfo(newResourceId);
       // Only swap out the old not-found itemInfo if the "converted" itemInfo actually exists; if
       // both forms do not exist, we will just go with the original non-converted itemInfo.
@@ -1119,8 +1119,7 @@ public class GoogleCloudStorageFileSystem {
       if (!FileInfo.isDirectory(itemInfo)) {
         newResourceId = FileInfo.convertToDirectoryPath(resourceId);
       }
-      LOG.debug("getFileInfo({}) : still not found, trying inferred: {}",
-          path, newResourceId.toString());
+      LOG.debug("getFileInfo({}) : still not found, trying inferred: {}", path, newResourceId);
       GoogleCloudStorageItemInfo newItemInfo = getInferredItemInfo(resourceId);
       if (newItemInfo.exists()) {
         LOG.debug(
@@ -1243,7 +1242,7 @@ public class GoogleCloudStorageFileSystem {
    */
   private List<FileInfo> getFileInfosRaw(List<URI> paths)
       throws IOException {
-    LOG.debug("getFileInfosRaw({})", paths.toString());
+    LOG.debug("getFileInfosRaw({})", paths);
     Preconditions.checkArgument(paths != null, "paths must not be null");
 
     // First, parse all the URIs into StorageResourceIds while validating them.
