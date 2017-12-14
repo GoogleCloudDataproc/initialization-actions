@@ -34,6 +34,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -41,6 +44,8 @@ import java.net.URI;
 import java.nio.file.DirectoryNotEmptyException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -653,11 +658,11 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   protected final ImmutableMap<Counter, AtomicLong> counters = createCounterMap();
 
   protected ImmutableMap<Counter, AtomicLong> createCounterMap() {
-    ImmutableMap.Builder<Counter, AtomicLong> builder = ImmutableMap.builder();
-    for (Counter counter : Counter.values()) {
-      builder.put(counter, new AtomicLong());
+    EnumMap<Counter, AtomicLong> countersMap = new EnumMap<>(Counter.class);
+    for (Counter counter : ALL_COUNTERS) {
+      countersMap.put(counter, new AtomicLong());
     }
-    return builder.build();
+    return Maps.immutableEnumMap(countersMap);
   }
 
   /**
@@ -765,6 +770,15 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     WRITE_CLOSE,
     WRITE_CLOSE_TIME,
   }
+
+  /**
+   * Set of all counters.
+   *
+   * <p>It is used for performance optimization instead of `Counter.values`, because
+   * `Counter.values` returns new array on each invocation.
+   */
+  private static final ImmutableSet<Counter> ALL_COUNTERS =
+      Sets.immutableEnumSet(EnumSet.allOf(Counter.class));
 
   /**
    * A predicate that processes individual directory paths and evaluates the conditions set in
@@ -1690,8 +1704,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     return null;
   }
 
-
-
   /**
    * Gets GCS FS instance.
    */
@@ -1749,7 +1761,9 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
    * Logs values of all counters.
    */
   private void logCounters() {
-    LOG.debug(countersToString());
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(countersToString());
+    }
   }
 
   /**
