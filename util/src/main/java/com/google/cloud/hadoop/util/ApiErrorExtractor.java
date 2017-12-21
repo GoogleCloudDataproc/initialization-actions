@@ -317,15 +317,13 @@ public class ApiErrorExtractor {
     return (ex.getMessage().equals("Read timed out"));
   }
 
-  /**
-   * Extracts the error message.
-   */
+  /** Extracts the error message. */
   public String getErrorMessage(IOException e) {
-    if (e instanceof GoogleJsonResponseException) {
-      GoogleJsonResponseException gjre = ((GoogleJsonResponseException) e);
-      if (gjre.getDetails() != null) {
-        return gjre.getDetails().getMessage();
-      }
+    // Prefer to use message from GJRE.
+    GoogleJsonResponseException gjre = getJsonResponseExceptionOrNull(e);
+
+    if (gjre != null && gjre.getDetails() != null) {
+      return gjre.getDetails().getMessage();
     }
     return e.getMessage();
   }
