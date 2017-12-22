@@ -431,7 +431,7 @@ public class ApiErrorExtractor {
   }
 
   @Nullable
-  private static GoogleJsonResponseException getJsonResponseExceptionOrNull(Throwable t) {
+  protected static GoogleJsonResponseException getJsonResponseExceptionOrNull(Throwable t) {
     Throwable cause = t;
     while (cause != null) {
       if (cause instanceof GoogleJsonResponseException) {
