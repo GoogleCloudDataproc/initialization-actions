@@ -1,8 +1,22 @@
+/*
+ * Copyright (c) 2017 Google Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied. See the License for the specific language governing permissions and limitations under
+ * the License.
+ */
+
 package com.google.cloud.spark.pubsub
 
 import com.google.api.core.ApiService
 import com.google.api.core.ApiService.State
-import com.google.cloud.pubsub.spi.v1.{AckReplyConsumer, MessageReceiver, Subscriber}
+import com.google.cloud.pubsub.v1.{AckReplyConsumer, MessageReceiver, Subscriber}
 import com.google.common.util.concurrent.MoreExecutors
 import com.google.pubsub.v1.{PubsubMessage, SubscriptionName}
 import org.apache.spark.storage.StorageLevel
@@ -10,13 +24,12 @@ import org.apache.spark.streaming.receiver.Receiver
 import org.slf4j.LoggerFactory
 
 /**
-  * Manages custom Spark receiver logic
-  *
-  * This is where the bulk of the receiver logic would be implemented
-  * specifically managing the creation of a client to Pub/Sub and then
-  * storing those messages to Spark
+ * Manages custom Spark receiver logic
+ *
+ * This is where the bulk of the receiver logic would be implemented
+ * specifically managing the creation of a client to Pub/Sub and then
+ * storing those messages to Spark
  */
-
 class PubsubReceiver(options: PubsubStreamOptions,
                      buildSubscriber: (SubscriptionName, MessageReceiver) => Subscriber)
   extends Receiver[PubsubMessage](StorageLevel.MEMORY_AND_DISK_2) {
@@ -73,9 +86,10 @@ class PubsubMessageReceiver(pubsubReceiver: PubsubReceiver)
 
   private val log = LoggerFactory.getLogger(getClass)
 
-  override def receiveMessage(pubsubMessage: PubsubMessage, ackReplyConsumer: AckReplyConsumer) = {
+  override def receiveMessage(
+    pubsubMessage: PubsubMessage,
+    ackReplyConsumer: AckReplyConsumer): Unit = {
     pubsubReceiver.store(pubsubMessage) // (TODO) Store as batch for reliable receiver
     ackReplyConsumer.ack()
   }
-
 }
