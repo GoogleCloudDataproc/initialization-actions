@@ -314,16 +314,14 @@ public class GoogleCloudStorageItemInfo {
     }
   }
 
-  // TODO(b/37774152): implement hashCode() (go/equals-hashcode-lsc)
-  @SuppressWarnings("EqualsHashCode")
   @Override
   public boolean equals(Object obj) {
     if (obj instanceof GoogleCloudStorageItemInfo) {
       GoogleCloudStorageItemInfo other = (GoogleCloudStorageItemInfo) obj;
-      return resourceId.equals(other.resourceId) 
-          && creationTime == other.creationTime 
-          && size == other.size 
-          && Objects.equals(location, other.location) 
+      return resourceId.equals(other.resourceId)
+          && creationTime == other.creationTime
+          && size == other.size
+          && Objects.equals(location, other.location)
           && Objects.equals(storageClass, other.storageClass)
           && Objects.equals(verificationAttributes, other.verificationAttributes)
           && metaGeneration == other.metaGeneration
@@ -331,5 +329,21 @@ public class GoogleCloudStorageItemInfo {
           && metadataEquals(other.getMetadata());
     }
     return false;
+  }
+
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = 1;
+    result = prime * result + resourceId.hashCode();
+    result = prime * result + (int) creationTime;
+    result = prime * result + (int) size;
+    result = prime * result + Objects.hashCode(location);
+    result = prime * result + Objects.hashCode(storageClass);
+    result = prime * result + Objects.hashCode(verificationAttributes);
+    result = prime * result + (int) metaGeneration;
+    result = prime * result + (int) contentGeneration;
+    result = prime * result + metadata.hashCode();
+    return result;
   }
 }
