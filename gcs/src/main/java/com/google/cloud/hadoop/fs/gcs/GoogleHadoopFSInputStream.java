@@ -182,7 +182,7 @@ class GoogleHadoopFSInputStream
    * @throws IOException if an IO error occurs.
    */
   @Override
-  public int read(byte[] buf, int offset, int length)
+  public synchronized int read(byte[] buf, int offset, int length)
       throws IOException {
     long startTime = System.nanoTime();
     Preconditions.checkNotNull(buf, "buf must not be null");
@@ -261,10 +261,17 @@ class GoogleHadoopFSInputStream
    * @throws IOException if an IO error occurs.
    */
   @Override
-  public int read(long position, byte[] buf, int offset, int length)
-    throws IOException {
+  public synchronized int read(long position, byte[] buf, int offset, int length)
+      throws IOException {
     long startTime = System.nanoTime();
     int result = super.read(position, buf, offset, length);
+
+    if (result > 0) {
+      // -1 means we actually read 0 bytes, but requested at least one byte.
+      statistics.incrementBytesRead(result);
+      totalBytesRead += result;
+    }
+
     long duration = System.nanoTime() - startTime;
     ghfs.increment(GoogleHadoopFileSystemBase.Counter.READ_POS);
     ghfs.increment(GoogleHadoopFileSystemBase.Counter.READ_POS_TIME, duration);
@@ -335,7 +342,7 @@ class GoogleHadoopFSInputStream
         buffer.position(newBufferPosition);
       } else {
         LOG.debug("New position '{}' out of range of inplace buffer, with curPos ({}), "
-           + "buffer.position() ({}) and buffer.remaining() ({}).",
+            + "buffer.position() ({}) and buffer.remaining() ({}).",
             pos, curPos, buffer.position(), buffer.remaining());
         try {
           channel.position(pos);
