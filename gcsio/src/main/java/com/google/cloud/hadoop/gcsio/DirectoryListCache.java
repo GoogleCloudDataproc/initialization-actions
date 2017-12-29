@@ -236,10 +236,7 @@ public abstract class DirectoryListCache {
   protected synchronized boolean isCacheEntryExpired(CacheEntry entry) {
     long creationTime = entry.getCreationTimeMillis();
     long entryAge = clock.currentTimeMillis() - creationTime;
-    if (entryAge > cacheConfig.getMaxEntryAgeMillis()) {
-      return true;
-    }
-    return false;
+    return entryAge > cacheConfig.getMaxEntryAgeMillis();
   }
 
 

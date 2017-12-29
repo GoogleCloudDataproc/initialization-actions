@@ -147,11 +147,7 @@ public class GoogleCloudStorageItemInfo {
     this.location = location;
     this.storageClass = storageClass;
     this.contentType = contentType;
-    if (metadata == null) {
-      this.metadata = EMPTY_METADATA;
-    } else {
-      this.metadata = metadata;
-    }
+    this.metadata = (metadata == null) ? EMPTY_METADATA : metadata;
     this.contentGeneration = contentGeneration;
     this.metaGeneration = metaGeneration;
     this.verificationAttributes = verificationAttributes;
@@ -284,8 +280,9 @@ public class GoogleCloudStorageItemInfo {
       // multiple different item infos.
       return true;
     }
-    if ((metadata == null && otherMetadata != null)
-        || (metadata != null && otherMetadata == null)) {
+    // No need to check if other `metadata` is not null,
+    // because previous `if` checks if both of them are null.
+    if (metadata == null || otherMetadata == null) {
       return false;
     }
     if (!metadata.keySet().equals(otherMetadata.keySet())) {
@@ -293,8 +290,8 @@ public class GoogleCloudStorageItemInfo {
     }
 
     // Compare each byte[] with Arrays.equals.
-    for (String key : metadata.keySet()) {
-      if (!Arrays.equals(metadata.get(key), otherMetadata.get(key))) {
+    for (Map.Entry<String, byte[]> metadataEntry : metadata.entrySet()) {
+      if (!Arrays.equals(metadataEntry.getValue(), otherMetadata.get(metadataEntry.getKey()))) {
         return false;
       }
     }

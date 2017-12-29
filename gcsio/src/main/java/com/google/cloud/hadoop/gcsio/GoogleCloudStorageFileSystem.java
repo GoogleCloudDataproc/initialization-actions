@@ -114,6 +114,15 @@ public class GoogleCloudStorageFileSystem {
     }
   };
 
+  private static final Comparator<FileInfo> STRING_LENGTH_COMPARATOR =
+      new Comparator<FileInfo>() {
+        @Override
+        public int compare(FileInfo file1, FileInfo file2) {
+          return Integer.compare(
+              file1.getPath().toString().length(), file2.getPath().toString().length());
+        }
+      };
+
   /**
    * A PathCodec that maintains compatibility with versions of GCS FS < 1.4.5.
    */
@@ -547,13 +556,7 @@ public class GoogleCloudStorageFileSystem {
     }
 
     // Create missing sub-directories in order of shortest prefix first.
-    Collections.sort(subDirInfos, new Comparator<FileInfo> () {
-      @Override
-      public int compare(FileInfo file1, FileInfo file2) {
-        return Integer.valueOf(file1.getPath().toString().length())
-            .compareTo(file2.getPath().toString().length());
-      }
-    });
+    Collections.sort(subDirInfos, STRING_LENGTH_COMPARATOR);
 
     // Make buckets immediately, otherwise collect directories into a list for batch creation.
     List<StorageResourceId> dirsToCreate = new ArrayList<>();
@@ -1179,8 +1182,7 @@ public class GoogleCloudStorageFileSystem {
     // If we found potential items needing re-fetch after converting to a directory path, we issue
     // a new bulk fetch and then patch the returned items into their respective indices in the list.
     if (!convertedIdsToIndex.isEmpty()) {
-      List<StorageResourceId> convertedResourceIds =
-           new ArrayList<>(convertedIdsToIndex.keySet());
+      List<StorageResourceId> convertedResourceIds = new ArrayList<>(convertedIdsToIndex.keySet());
       List<GoogleCloudStorageItemInfo> convertedInfos = gcs.getItemInfos(convertedResourceIds);
       for (int i = 0; i < convertedResourceIds.size(); ++i) {
         if (convertedInfos.get(i).exists()) {
@@ -1210,8 +1212,7 @@ public class GoogleCloudStorageFileSystem {
       }
 
       if (!inferredIdsToIndex.isEmpty()) {
-        List<StorageResourceId> inferredResourceIds =
-             new ArrayList<>(inferredIdsToIndex.keySet());
+        List<StorageResourceId> inferredResourceIds = new ArrayList<>(inferredIdsToIndex.keySet());
         List<GoogleCloudStorageItemInfo> inferredInfos =
             getInferredItemInfos(inferredResourceIds);
         for (int i = 0; i < inferredResourceIds.size(); ++i) {
@@ -1457,7 +1458,7 @@ public class GoogleCloudStorageFileSystem {
                 }
               });
     } catch (RejectedExecutionException ree) {
-      LOG.debug("Exhausted threadpool and queue space while updating parent timestamps", ree);
+      LOG.debug("Exhausted thread pool and queue space while updating parent timestamps", ree);
     }
   }
 

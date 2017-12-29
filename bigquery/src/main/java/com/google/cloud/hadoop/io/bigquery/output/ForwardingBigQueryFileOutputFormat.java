@@ -144,7 +144,7 @@ public class ForwardingBigQueryFileOutputFormat<K, V> extends OutputFormat<K, V>
    * @param delegate that this OutputFormat will wrap.
    */
   @VisibleForTesting
-  void setDelegate(FileOutputFormat<K, V> delegate) {
+  synchronized void setDelegate(FileOutputFormat<K, V> delegate) {
     this.delegate = delegate;
   }
 }

@@ -67,7 +67,7 @@ public class RetryHttpInitializer
   /**
    * A HttpUnsuccessfulResponseHandler logs the URL that generated certain failures.
    */
-  private class LoggingResponseHandler
+  private static class LoggingResponseHandler
       implements HttpUnsuccessfulResponseHandler, HttpIOExceptionHandler {
     private final HttpUnsuccessfulResponseHandler delegateResponseHandler;
     private final HttpIOExceptionHandler delegateIOExceptionHandler;

@@ -22,9 +22,9 @@ import com.google.api.services.bigquery.Bigquery;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.PropertyUtil;
 import com.google.cloud.hadoop.util.RetryHttpInitializer;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.Arrays;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
@@ -38,7 +38,7 @@ public class BigQueryFactory {
   public static final String BIGQUERY_CONFIG_PREFIX = "mapred.bq";
   // BigQuery scopes for OAUTH.
   public static final List<String> BIGQUERY_OAUTH_SCOPES =
-      Arrays.asList("https://www.googleapis.com/auth/bigquery");
+      ImmutableList.of("https://www.googleapis.com/auth/bigquery");
 
   // Service account environment variable name for BigQuery Authentication.
   public static final String BIGQUERY_SERVICE_ACCOUNT = "BIGQUERY_SERVICE_ACCOUNT";
@@ -128,7 +128,7 @@ public class BigQueryFactory {
           .Builder(HTTP_TRANSPORT, JSON_FACTORY, new RetryHttpInitializer(credential, appName))
           .setApplicationName(appName).build();
     }
-    return new Bigquery.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
+    return new Bigquery.Builder(HTTP_TRANSPORT, JSON_FACTORY, null)
         .setApplicationName(appName).build();
   }
 }

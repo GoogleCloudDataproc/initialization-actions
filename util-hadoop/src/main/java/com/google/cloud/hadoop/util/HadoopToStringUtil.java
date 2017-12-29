@@ -43,13 +43,13 @@ public class HadoopToStringUtil {
       return "null";
     }
 
-    String result = "List<InputSplit>::";
-    result += " size:" + input.size() + " elements: [";
+    StringBuilder result = new StringBuilder("List<InputSplit>::");
+    result.append(" size:").append(input.size()).append(" elements: [");
     for (InputSplit is : input) {
-      result += toString(is) + ", ";
+      result.append(toString(is)).append(", ");
     }
-    result += "]";
-    return result;
+    result.append("]");
+    return result.toString();
   }
 
   public static String toString(TaskAttemptContext input) {

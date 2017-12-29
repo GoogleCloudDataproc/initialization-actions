@@ -124,7 +124,9 @@ public class InMemoryGoogleCloudStorage
           "Tried to insert object '%s' into nonexistent bucket '%s'",
           resourceId.getObjectName(), resourceId.getBucketName()));
     }
-    validateObjectName(resourceId.getObjectName());
+    if (!validateObjectName(resourceId.getObjectName())) {
+      throw new IOException("Error creating object. Invalid name: " + resourceId.getObjectName());
+    }
     if (resourceId.hasGenerationId() && resourceId.getGenerationId() != 0L) {
       if (getItemInfo(resourceId).getContentGeneration() != resourceId.getGenerationId()) {
         throw new IOException(String.format(
@@ -258,13 +260,13 @@ public class InMemoryGoogleCloudStorage
   public synchronized void create(String bucketName, CreateBucketOptions options)
       throws IOException {
     if (!validateBucketName(bucketName)) {
-      throw new IOException("Error creating bucket");
+      throw new IOException("Error creating bucket. Invalid name: " + bucketName);
     }
     if (!bucketLookup.containsKey(bucketName)) {
       bucketLookup.put(
           bucketName, new InMemoryBucketEntry(bucketName, clock.currentTimeMillis(), options));
     } else {
-      throw new IOException("Bucket already exists");
+      throw new IOException("Bucket '" + bucketName + "'already exists");
     }
   }
 
@@ -294,7 +296,7 @@ public class InMemoryGoogleCloudStorage
 
     for (StorageResourceId resourceId : fullObjectNames) {
       if (!validateObjectName(resourceId.getObjectName())) {
-        throw new IOException("Error deleting");
+        throw new IOException("Error deleting object. Invalid name: " + resourceId.getObjectName());
       }
     }
 

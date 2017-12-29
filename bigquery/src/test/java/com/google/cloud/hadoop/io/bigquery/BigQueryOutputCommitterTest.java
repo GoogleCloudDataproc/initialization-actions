@@ -30,11 +30,9 @@ import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
-import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
-import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -99,7 +97,6 @@ public class BigQueryOutputCommitterTest {
 
   private JobReference jobReference;
 
-  @Mock private ApiErrorExtractor mockErrorExtractor;
   @Mock private Bigquery mockBigquery;
   @Mock private Bigquery.Datasets mockBigqueryDatasets;
   @Mock private Bigquery.Datasets.Delete mockBigqueryDatasetsDelete;
@@ -165,7 +162,6 @@ public class BigQueryOutputCommitterTest {
     committerInstance =
         new BigQueryOutputCommitter(JOB_PROJECT_ID, tempTableRef, finalTableRef, conf);
     committerInstance.setBigQueryHelper(mockBigQueryHelper);
-    committerInstance.setErrorExtractor(mockErrorExtractor);
   }
 
   /**
@@ -180,7 +176,6 @@ public class BigQueryOutputCommitterTest {
     verifyNoMoreInteractions(mockBigqueryDatasets);
     verifyNoMoreInteractions(mockBigqueryDatasetsInsert);
     verifyNoMoreInteractions(mockBigqueryDatasetsDelete);
-    verifyNoMoreInteractions(mockErrorExtractor);
     verifyNoMoreInteractions(mockBigQueryHelper);
   }
   
@@ -534,10 +529,6 @@ public class BigQueryOutputCommitterTest {
   @Test
   public void testNeedsTaskCommit() 
       throws IOException {
-    // Create a list of tables to mock the current Bigquery state.
-    Table tableToReturn = new Table()
-        .setId(TEMP_TABLE_ID);
-
     when(mockBigQueryHelper.tableExists(any(TableReference.class)))
         .thenReturn(false)
         .thenReturn(true);

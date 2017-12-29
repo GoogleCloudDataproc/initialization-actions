@@ -56,7 +56,6 @@ public class GoogleHadoopFileSystemCacheCleaner {
 
   public static void main(String[] args) throws IOException {
     GenericOptionsParser parser = new GenericOptionsParser(args);
-    args = parser.getRemainingArgs();
     Configuration configuration = parser.getConfiguration();
 
     // TODO: Wire out constants and defaults through GoogleHadoopFileSystemBase once submitted.

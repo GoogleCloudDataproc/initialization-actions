@@ -21,7 +21,6 @@ import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationTableCopy;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.HadoopToStringUtil;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
@@ -39,13 +38,9 @@ import org.slf4j.LoggerFactory;
  * called before job start, after task completion, job completion, task cancellation, and job
  * abortion.
  */
-public class BigQueryOutputCommitter
-    extends OutputCommitter {
+public class BigQueryOutputCommitter extends OutputCommitter {
   // Logger.
   protected static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputCommitter.class);
-
-  // Used for specialized handling of various API-defined exceptions.
-  private ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
 
   // Id of project used to describe the project under which all connector operations occur.
   private String projectId;
@@ -92,8 +87,7 @@ public class BigQueryOutputCommitter
    * @throws IOException on IO Error.
    */
   @Override
-  public void setupJob(JobContext context)
-      throws IOException {
+  public void setupJob(JobContext context) throws IOException {
     if (LOG.isDebugEnabled()) {
       LOG.debug("setupJob({})", HadoopToStringUtil.toString(context));
     }
@@ -127,13 +121,11 @@ public class BigQueryOutputCommitter
    * @throws IOException
    */
   @Override
-  public void cleanupJob(JobContext context)
-      throws IOException {
+  public void cleanupJob(JobContext context) throws IOException {
     if (LOG.isDebugEnabled()) {
       LOG.debug("cleanupJob({})", HadoopToStringUtil.toString(context));
     }
     Bigquery.Datasets datasets = bigQueryHelper.getRawBigquery().datasets();
-    Configuration config = context.getConfiguration();
     try {
       LOG.debug("cleanupJob: Deleting dataset '{}' from project '{}'",
           tempTableRef.getDatasetId(), tempTableRef.getProjectId());
@@ -155,8 +147,7 @@ public class BigQueryOutputCommitter
    * @param status Final run state of the job, should be JobStatus.KILLED or JobStatus.FAILED.
    * @throws IOException on IO Error.
    */
-  public void abortJob(JobContext jobContext, int status)
-      throws IOException {
+  public void abortJob(JobContext jobContext, int status) throws IOException {
     if (LOG.isDebugEnabled()) {
       LOG.debug("abortJob({}, {})", HadoopToStringUtil.toString(jobContext), status);
     }
@@ -171,8 +162,7 @@ public class BigQueryOutputCommitter
    * @throws IOException on IO Error.
    */
   @Override
-  public void commitJob(JobContext jobContext)
-      throws IOException {
+  public void commitJob(JobContext jobContext) throws IOException {
     if (LOG.isDebugEnabled()) {
       LOG.debug("commitJob({})", HadoopToStringUtil.toString(jobContext));
     }
@@ -185,8 +175,7 @@ public class BigQueryOutputCommitter
    * @throws IOException on IO Error.
    */
   @Override
-  public void setupTask(TaskAttemptContext context)
-      throws IOException {
+  public void setupTask(TaskAttemptContext context) throws IOException {
     if (LOG.isDebugEnabled()) {
       LOG.debug("setupTask({})", HadoopToStringUtil.toString(context));
     }
@@ -202,8 +191,7 @@ public class BigQueryOutputCommitter
    * @throws IOException on IO Error.
    */
   @Override
-  public void commitTask(TaskAttemptContext context)
-      throws IOException {
+  public void commitTask(TaskAttemptContext context) throws IOException {
     if (LOG.isDebugEnabled()) {
       LOG.debug("commitTask({})", HadoopToStringUtil.toString(context));
     }
@@ -267,8 +255,7 @@ public class BigQueryOutputCommitter
    * @throws IOException on IO Error.
    */
   @Override
-  public boolean needsTaskCommit(TaskAttemptContext context)
-      throws IOException {
+  public boolean needsTaskCommit(TaskAttemptContext context) throws IOException {
     return needsTaskCommit(context.getTaskAttemptID());
   }
 
@@ -297,10 +284,5 @@ public class BigQueryOutputCommitter
   @VisibleForTesting
   void setBigQueryHelper(BigQueryHelper helper) {
     this.bigQueryHelper = helper;
-  }
-
-  @VisibleForTesting
-  void setErrorExtractor(ApiErrorExtractor errorExtractor) {
-    this.errorExtractor = errorExtractor;
   }
 }

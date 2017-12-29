@@ -973,12 +973,11 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     // validated later.
     if (scheme == null || scheme.equalsIgnoreCase(getScheme())) {
       return;
-    } else {
-      String msg = String.format(
-          "Wrong FS scheme: %s, in path: %s, expected scheme: %s",
-          scheme, path, getScheme());
-      throw new IllegalArgumentException(msg);
     }
+    String msg = String.format(
+        "Wrong FS scheme: %s, in path: %s, expected scheme: %s",
+        scheme, path, getScheme());
+    throw new IllegalArgumentException(msg);
   }
 
   /**
@@ -1251,8 +1250,10 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     return true;
   }
 
-  /** Delete a file. */
-  /** @deprecated Use {@code delete(Path, boolean)} instead */
+  /**
+   * Delete a file.
+   * @deprecated Use {@code delete(Path, boolean)} instead
+   */
   @Deprecated
   @Override
   public boolean delete(Path f)
@@ -1467,7 +1468,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     // scheme for GCS.
     if (!getUri().getScheme().equals(GoogleCloudStorageFileSystem.SCHEME)) {
       LOG.debug(
-          "Flat glob is on, but doesn't work for scheme '{}'; usig default behavior.",
+          "Flat glob is on, but doesn't work for scheme '{}'; using default behavior.",
           getUri().getScheme());
       return false;
     }
@@ -1833,7 +1834,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
 
       Credential credential;
       try {
-         credential = HadoopCredentialConfiguration
+        credential = HadoopCredentialConfiguration
             .newBuilder()
             .withConfiguration(config)
             .withOverridePrefix(AUTHENTICATION_PREFIX)
@@ -1855,7 +1856,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
         pathCodec = GoogleCloudStorageFileSystem.URI_ENCODED_PATH_CODEC;
       } else {
         pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
-        LOG.warn("Unknwon path codec specified {}. Using default / legacy.", specifiedPathCodec);
+        LOG.warn("Unknown path codec specified {}. Using default / legacy.", specifiedPathCodec);
       }
       optionsBuilder.setPathCodec(pathCodec);
       gcsfs = new GoogleCloudStorageFileSystem(credential, optionsBuilder.build());
@@ -2115,8 +2116,8 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   }
 
   @VisibleForTesting
-  GoogleCloudStorageFileSystemOptions.Builder
-      createOptionsBuilderFromConfig(Configuration config) throws IOException {
+  GoogleCloudStorageFileSystemOptions.Builder createOptionsBuilderFromConfig(Configuration config)
+      throws IOException {
     GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
         GoogleCloudStorageFileSystemOptions.newBuilder();
 

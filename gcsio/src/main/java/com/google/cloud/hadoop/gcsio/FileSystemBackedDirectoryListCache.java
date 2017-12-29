@@ -20,6 +20,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
@@ -463,6 +464,14 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
     // Get initial listing of everything in our basePath to represent buckets.
     File[] bucketList = basePath.toFile().listFiles();
 
+    if (bucketList == null) {
+      throw new IOException("Failed to list buckets: " + basePath);
+    }
+
+    if (bucketList.length == 0) {
+      return ImmutableList.of();
+    }
+
     List<CacheEntry> bucketEntries = new ArrayList<>();
     Set<StorageResourceId> expiredBuckets = new HashSet<>();
     for (File bucket : bucketList) {
@@ -499,6 +508,14 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
     // Get initial listing of everything in our basePath to represent buckets.
     File[] bucketList = basePath.toFile().listFiles();
 
+    if (bucketList == null) {
+      throw new IOException("Failed to list buckets: " + basePath);
+    }
+
+    if (bucketList.length == 0) {
+      return ImmutableList.of();
+    }
+
     List<CacheEntry> bucketEntries = new ArrayList<>();
     for (File bucket : bucketList) {
       if (!bucket.isDirectory()) {
@@ -524,7 +541,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
 
     // Compute the 'parent' StorageResourceId in which we will list before doing the shared
     // match logic.
-    StorageResourceId listBase = null;
+    StorageResourceId listBase;
     if (Strings.isNullOrEmpty(objectNamePrefix)) {
       // If no prefix provided, then we'll do initial listing in just the bucket itself.
       listBase = new StorageResourceId(bucketName);
@@ -541,8 +558,6 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
     }
 
     LOG.debug("Using '{}' as the listBase", listBase);
-    Preconditions.checkState(
-        listBase != null, "Somehow listBase is null after all conditional branches!");
     validateResourceId(listBase);
     final Path listBasePath = getMirrorPath(listBase);
     File listBaseFile = listBasePath.toFile();
@@ -563,6 +578,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
     // Handler for visiting each file in-place, possibly deleting it due to expiration or otherwise
     // matching against our list prefix and possibly adding an entry to return.
     final FileCallback fileVisitor = new FileCallback() {
+      @Override
       public void run(File candidateFile) throws IOException {
         // This should chop off the entire prefix up to the bucket base.
         Path objectNamePath = bucketBasePath.relativize(candidateFile.toPath());
@@ -634,7 +650,11 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
 
   @Override
   public int getInternalNumBuckets() throws IOException {
-    return basePath.toFile().listFiles().length;
+    File[] bucketList = basePath.toFile().listFiles();
+    if (bucketList == null) {
+      throw new IOException("Failed to list buckets: " + basePath);
+    }
+    return bucketList.length;
   }
 
   @Override
