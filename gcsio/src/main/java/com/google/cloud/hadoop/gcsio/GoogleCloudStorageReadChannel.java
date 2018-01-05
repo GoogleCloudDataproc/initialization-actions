@@ -718,8 +718,12 @@ public class GoogleCloudStorageReadChannel
     Storage.Objects.Get getObject = gcs.objects().get(bucketName, objectName);
     // Set the range on the existing request headers that may have been initialized with things
     // like user-agent already. If the file is gzip encoded, request the entire file.
-    clientRequestHelper.getRequestHeaders(getObject).setRange(
-        String.format("bytes=%d-", fileEncoding == FileEncoding.GZIPPED ? 0 : newPosition));
+    clientRequestHelper
+        .getRequestHeaders(getObject)
+        .setRange(
+            fileEncoding == FileEncoding.GZIPPED
+                ? "bytes=0-"
+                : String.format("bytes=%d-", newPosition));
     HttpResponse response;
     try {
       response = getObject.executeMedia();
