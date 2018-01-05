@@ -187,7 +187,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
       Configuration configuration, ExportFileFormat format, String exportPath,
       BigQueryHelper bigQueryHelper, InputFormat delegateInputFormat)
       throws IOException {
-    LOG.debug("contructExport() with export path {}", exportPath);
+    LOG.debug("constructExport() with export path {}", exportPath);
 
     // Extract relevant configuration settings.
     Map<String, String> mandatoryConfig = ConfigurationUtil.getMandatoryConfig(
@@ -222,12 +222,14 @@ public abstract class AbstractBigQueryInputFormat<K, V>
         BigQueryConfiguration.DELETE_INTERMEDIATE_TABLE_KEY,
         BigQueryConfiguration.DELETE_INTERMEDIATE_TABLE_DEFAULT);
 
-    LOG.debug(
-        "isShardedExportEnabled = %s, deleteTableOnExit = %s, tableReference = %s, query = %s",
-        enableShardedExport,
-        deleteTableOnExit,
-        BigQueryStrings.toString(exportTableReference),
-        query);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(
+          "isShardedExportEnabled = {}, deleteTableOnExit = {}, tableReference = {}, query = {}",
+          enableShardedExport,
+          deleteTableOnExit,
+          BigQueryStrings.toString(exportTableReference),
+          query);
+    }
 
     Export export;
     if (enableShardedExport) {
