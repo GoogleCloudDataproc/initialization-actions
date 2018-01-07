@@ -236,6 +236,9 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   /** Default value of {@link GoogleHadoopFileSystemBase#GCS_FILE_SIZE_LIMIT_250GB}. */
   public static final boolean GCS_FILE_SIZE_LIMIT_250GB_DEFAULT = false;
 
+  /** Configuration key for marker file pattern. Default value: none */
+  public static final String GCS_MARKER_FILE_PATTERN_KEY = "fs.gs.marker.file.pattern";
+
   /**
    * Configuration key for using a local metadata cache to supplement GCS API "list" results; this
    * allows same-client create() to immediately be visible to a subsequent list() call.
@@ -2236,6 +2239,11 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
         .getCloudStorageOptionsBuilder()
         .getWriteChannelOptionsBuilder()
         .setFileSizeLimitedTo250Gb(limitFileSizeTo250Gb);
+
+    String markerFilePattern = config.get(GCS_MARKER_FILE_PATTERN_KEY);
+    LOG.debug("{} = {}", GCS_MARKER_FILE_PATTERN_KEY, markerFilePattern);
+
+    optionsBuilder.setMarkerFilePattern(markerFilePattern);
 
     // Configuration for setting GoogleCloudStorageWriteChannel upload buffer size.
     int uploadBufferSize = config.getInt(WRITE_BUFFERSIZE_KEY, WRITE_BUFFERSIZE_DEFAULT);

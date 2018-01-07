@@ -151,6 +151,13 @@
       performance somewhat.
     </description>
   </property>
+  <property>
+    <name>fs.gs.marker.file.pattern</name>
+    <value></value>
+    <description>
+      If set, files that match specified pattern are copied last during folder rename operation.
+    </description>
+  </property>
 
   <!-- GCS Requester Pays feature configuration:
     https://cloud.google.com/storage/docs/requester-pays

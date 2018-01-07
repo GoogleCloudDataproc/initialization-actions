@@ -59,6 +59,7 @@ public class GoogleCloudStorageFileSystemTest
                     new InMemoryGoogleCloudStorage(),
                     GoogleCloudStorageFileSystemOptions.newBuilder()
                         .setShouldIncludeInTimestampUpdatesPredicate(INCLUDE_SUBSTRINGS_PREDICATE)
+                        .setMarkerFilePattern("_(FAILURE|SUCCESS)")
                         .build());
             gcsfs.setUpdateTimestampsExecutor(MoreExecutors.newDirectExecutorService());
             gcs = gcsfs.getGcs();
@@ -144,12 +145,9 @@ public class GoogleCloudStorageFileSystemTest
     assertThat(cacheGcs.getResourceCache().getMutableConfig().getMaxInfoAgeMillis()).isEqualTo(42L);
   }
 
-  /**
-   * Verify that pathComparator produces correct sorting order.
-   */
+  /** Verify that PATH_COMPARATOR produces correct sorting order. */
   @Test
-  public void testPathComparator()
-      throws URISyntaxException {
+  public void testPathComparator() throws URISyntaxException {
     String[] paths = {
       "gs://aa",
       "gs://abcdefghij",
@@ -195,8 +193,8 @@ public class GoogleCloudStorageFileSystemTest
     Collections.sort(expectedUrisNaturalSorted);
     assertThat(pathUrisNaturalSorted.toArray()).isEqualTo(expectedUrisNaturalSorted.toArray());
 
-    // Sort the paths with the GCSFS-supplied pathComparator and verify.
-    Collections.sort(pathUris, GoogleCloudStorageFileSystem.pathComparator);
+    // Sort the paths with the GCSFS-supplied PATH_COMPARATOR and verify.
+    Collections.sort(pathUris, GoogleCloudStorageFileSystem.PATH_COMPARATOR);
     assertThat(pathUris.toArray()).isEqualTo(expectedUris.toArray());
   }
 

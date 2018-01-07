@@ -9,6 +9,12 @@
 
   2. Change relocation package in shaded jar to be connector-specific.
 
+  3. Add support for specifying marker files pattern that should be copied
+     last during folder rename operation. Pattern is configured with property:
+
+       fs.gs.marker.file.pattern
+
+
 1.7.0 - 2018-02-22
 
   1. Fixed an issue where JSON auth files containing user auth e.g.

@@ -14,10 +14,11 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.common.base.Predicate;
 import java.net.URI;
-
+import java.util.regex.Pattern;
 
 /**
  * Configurable options for the GoogleCloudStorageFileSystem class.
@@ -53,11 +54,11 @@ public class GoogleCloudStorageFileSystemOptions {
     protected String cacheBasePath = null;
     protected TimestampUpdatePredicate shouldIncludeInTimestampUpdatesPredicate =
         new TimestampUpdatePredicate() {
-      @Override
-      public boolean shouldUpdateTimestamp(URI item) {
-        return true;
-      }
-    };
+          @Override
+          public boolean shouldUpdateTimestamp(URI item) {
+            return true;
+          }
+        };
 
     protected long cacheMaxEntryAgeMillis = DirectoryListCache.Config.MAX_ENTRY_AGE_MILLIS_DEFAULT;
     protected long cacheMaxInfoAgeMillis = DirectoryListCache.Config.MAX_INFO_AGE_MILLIS_DEFAULT;
@@ -68,6 +69,7 @@ public class GoogleCloudStorageFileSystemOptions {
 
     private PathCodec pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
     private boolean enableBucketDelete = false;
+    private String markerFilePattern = null;
 
     public Builder setIsPerformanceCacheEnabled(boolean performanceCacheEnabled) {
       this.performanceCacheEnabled = performanceCacheEnabled;
@@ -205,6 +207,11 @@ public class GoogleCloudStorageFileSystemOptions {
       return this;
     }
 
+    public Builder setMarkerFilePattern(String markerFilePattern) {
+      this.markerFilePattern = markerFilePattern;
+      return this;
+    }
+
     public GoogleCloudStorageFileSystemOptions build() {
       return new GoogleCloudStorageFileSystemOptions(
           immutablePerformanceCacheOptions != null
@@ -221,7 +228,8 @@ public class GoogleCloudStorageFileSystemOptions {
           cacheMaxEntryAgeMillis,
           cacheMaxInfoAgeMillis,
           pathCodec,
-          enableBucketDelete);
+          enableBucketDelete,
+          markerFilePattern);
     }
   }
 
@@ -240,6 +248,7 @@ public class GoogleCloudStorageFileSystemOptions {
   private final long cacheMaxInfoAgeMillis;
   private final PathCodec pathCodec;
   private final boolean enableBucketDelete;
+  private final Pattern markerFilePattern;
 
   public GoogleCloudStorageFileSystemOptions(
       PerformanceCachingGoogleCloudStorageOptions performanceCacheOptions,
@@ -252,7 +261,8 @@ public class GoogleCloudStorageFileSystemOptions {
       long cacheMaxEntryAgeMillis,
       long cacheMaxInfoAgeMillis,
       PathCodec pathCodec,
-      boolean enableBucketDelete) {
+      boolean enableBucketDelete,
+      String markerFilePattern) {
     this.performanceCacheOptions = performanceCacheOptions;
     this.performanceCacheEnabled = performanceCacheEnabled;
     this.cloudStorageOptions = cloudStorageOptions;
@@ -264,6 +274,7 @@ public class GoogleCloudStorageFileSystemOptions {
     this.cacheMaxInfoAgeMillis = cacheMaxInfoAgeMillis;
     this.pathCodec = pathCodec;
     this.enableBucketDelete = enableBucketDelete;
+    this.markerFilePattern = Pattern.compile("^(.+/)?" + markerFilePattern + "$");
   }
 
   public PerformanceCachingGoogleCloudStorageOptions getPerformanceCacheOptions() {
@@ -310,11 +321,15 @@ public class GoogleCloudStorageFileSystemOptions {
     return enableBucketDelete;
   }
 
+  public Pattern getMarkerFilePattern() {
+    return markerFilePattern;
+  }
+
   public void throwIfNotValid() {
-    Preconditions.checkArgument(
-        shouldIncludeInTimestampUpdatesPredicate != null,
-        "Predicate for ignored directory updates should not be null. "
-            + "Consider Predicates.alwasyTrue");
+    checkNotNull(
+        shouldIncludeInTimestampUpdatesPredicate,
+        "Predicate for ignored directory updates should not be null."
+            + " Consider Predicates.alwasyTrue");
     cloudStorageOptions.throwIfNotValid();
   }
 }

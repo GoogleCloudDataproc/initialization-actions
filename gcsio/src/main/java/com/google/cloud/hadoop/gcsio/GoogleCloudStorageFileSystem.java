@@ -16,6 +16,7 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -43,12 +44,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -96,25 +99,27 @@ public class GoogleCloudStorageFileSystem {
   // within paths of the same length (this is not strictly required but helps when
   // debugging/testing).
   @VisibleForTesting
-  static Comparator<URI> pathComparator = new Comparator<URI>() {
-    @Override
-    public int compare(URI a, URI b) {
-      String as = a.toString();
-      String bs = b.toString();
-      return (as.length() == bs.length())
-          ? as.compareTo(bs)
-          : Integer.compare(as.length(), bs.length());
-    }
-  };
+  static final Comparator<URI> PATH_COMPARATOR =
+      new Comparator<URI>() {
+        @Override
+        public int compare(URI a, URI b) {
+          String as = a.toString();
+          String bs = b.toString();
+          return (as.length() == bs.length())
+              ? as.compareTo(bs)
+              : Integer.compare(as.length(), bs.length());
+        }
+      };
 
   // Comparator used for sorting a collection of FileInfo items based on path comparison.
   @VisibleForTesting
-  static Comparator<FileInfo> fileInfoPathComparator = new Comparator<FileInfo> () {
-    @Override
-    public int compare(FileInfo file1, FileInfo file2) {
-      return pathComparator.compare(file1.getPath(), file2.getPath());
-    }
-  };
+  static final Comparator<FileInfo> FILE_INFO_PATH_COMPARATOR =
+      new Comparator<FileInfo>() {
+        @Override
+        public int compare(FileInfo file1, FileInfo file2) {
+          return PATH_COMPARATOR.compare(file1.getPath(), file2.getPath());
+        }
+      };
 
   private static final Comparator<FileInfo> STRING_LENGTH_COMPARATOR =
       new Comparator<FileInfo>() {
@@ -150,7 +155,7 @@ public class GoogleCloudStorageFileSystem {
     LOG.debug("GCSFS({})", options.getCloudStorageOptions().getAppName());
     options.throwIfNotValid();
 
-    Preconditions.checkArgument(credential != null, "credential must not be null");
+    checkArgument(credential != null, "credential must not be null");
 
     this.options = options;
     this.gcs = new GoogleCloudStorageImpl(options.getCloudStorageOptions(), credential);
@@ -164,7 +169,7 @@ public class GoogleCloudStorageFileSystem {
           break;
         }
         case FILESYSTEM_BACKED: {
-          Preconditions.checkArgument(!Strings.isNullOrEmpty(options.getCacheBasePath()),
+          checkArgument(!Strings.isNullOrEmpty(options.getCacheBasePath()),
               "When using FILESYSTEM_BACKED DirectoryListCache, cacheBasePath must not be null.");
           resourceCache = new FileSystemBackedDirectoryListCache(options.getCacheBasePath());
           break;
@@ -325,8 +330,7 @@ public class GoogleCloudStorageFileSystem {
       throws IOException {
     LOG.debug("open({}, {})", path, readOptions);
     Preconditions.checkNotNull(path);
-    Preconditions.checkArgument(
-        !FileInfo.isDirectoryPath(path), "Cannot open a directory for reading: %s", path);
+    checkArgument(!FileInfo.isDirectoryPath(path), "Cannot open a directory for reading: %s", path);
 
     // Validate the given path. false == do not allow empty object name.
     StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, false);
@@ -357,7 +361,7 @@ public class GoogleCloudStorageFileSystem {
 
     LOG.debug("delete({}, {})", path, recursive);
     Preconditions.checkNotNull(path);
-    Preconditions.checkArgument(!path.equals(GCS_ROOT), "Cannot delete root path.");
+    checkArgument(!path.equals(GCS_ROOT), "Cannot delete root path.");
 
     // Throw FileNotFoundException if the path does not exist.
     FileInfo fileInfo = getFileInfo(path);
@@ -387,13 +391,16 @@ public class GoogleCloudStorageFileSystem {
     }
 
     deleteInternal(itemsToDelete, bucketsToDelete);
+
+    // if we deleted a bucket, then there no need to update timestamps
+    if (bucketsToDelete.isEmpty()) {
+      // Any path that was deleted, we should update the parent except for parents we also deleted
+      tryUpdateTimestampsForParentDirectories(itemsToDelete, itemsToDelete);
+    }
   }
 
-  /**
-   * Deletes all items in the given path list followed by all bucket items.
-   */
-  private void deleteInternal(List<URI> paths, List<URI> bucketPaths)
-      throws IOException {
+  /** Deletes all items in the given path list followed by all bucket items. */
+  private void deleteInternal(List<URI> paths, List<URI> bucketPaths) throws IOException {
     // TODO(user): We might need to separate out children into separate batches from parents to
     // avoid deleting a parent before somehow failing to delete a child.
 
@@ -401,8 +408,7 @@ public class GoogleCloudStorageFileSystem {
     //
     // Note: we modify the input list, which is ok for current usage.
     // We should make a copy in case that changes in future.
-    Collections.sort(paths, pathComparator);
-    Collections.reverse(paths);
+    Collections.sort(paths, PATH_COMPARATOR.reversed());
 
     if (paths.size() > 0) {
       List<StorageResourceId> objectsToDelete = new ArrayList<>();
@@ -411,8 +417,6 @@ public class GoogleCloudStorageFileSystem {
         objectsToDelete.add(resourceId);
       }
       gcs.deleteObjects(objectsToDelete);
-      // Any path that was deleted, we should update the parent except for parents we also deleted
-      tryUpdateTimestampsForParentDirectories(paths, paths);
     }
 
     if (bucketPaths.size() > 0) {
@@ -565,7 +569,7 @@ public class GoogleCloudStorageFileSystem {
     for (FileInfo fileInfo : subDirInfos) {
       if (fileInfo.isDirectory() && !fileInfo.exists()) {
         StorageResourceId dirId = fileInfo.getItemInfo().getResourceId();
-        Preconditions.checkArgument(!dirId.isRoot(), "Cannot create root directory.");
+        checkArgument(!dirId.isRoot(), "Cannot create root directory.");
         if (dirId.isBucket()) {
           gcs.create(dirId.getBucketName());
           continue;
@@ -631,7 +635,7 @@ public class GoogleCloudStorageFileSystem {
     LOG.debug("rename({}, {})", src, dst);
     Preconditions.checkNotNull(src);
     Preconditions.checkNotNull(dst);
-    Preconditions.checkArgument(!src.equals(GCS_ROOT), "Root path cannot be renamed.");
+    checkArgument(!src.equals(GCS_ROOT), "Root path cannot be renamed.");
 
     // Leaf item of the source path.
     String srcItemName = getItemName(src);
@@ -758,94 +762,135 @@ public class GoogleCloudStorageFileSystem {
   /**
    * Renames the given path without checking any parameters.
    *
-   * GCS does not support atomic renames therefore a rename is
-   * implemented as copying source metadata to destination and then
-   * deleting source metadata. Note that only the metadata is copied
-   * and not the content of any file.
+   * <p>GCS does not support atomic renames therefore a rename is implemented as copying source
+   * metadata to destination and then deleting source metadata. Note that only the metadata is
+   * copied and not the content of any file.
    */
-  private void renameInternal(FileInfo srcInfo, URI dst)
-      throws IOException {
+  private void renameInternal(FileInfo srcInfo, URI dst) throws IOException {
+    if (srcInfo.isDirectory()) {
+      renameDirectoryInternal(srcInfo, dst);
+    } else {
+      URI src = srcInfo.getPath();
+      StorageResourceId srcResourceId = pathCodec.validatePathAndGetId(src, true);
+      StorageResourceId dstResourceId = pathCodec.validatePathAndGetId(dst, true);
 
-    // List of individual paths to rename; we will try to carry out the copies in this list's
-    // order.
-    List<URI> srcItemNames = new ArrayList<>();
+      gcs.copy(
+          srcResourceId.getBucketName(),
+          ImmutableList.of(srcResourceId.getObjectName()),
+          dstResourceId.getBucketName(),
+          ImmutableList.of(dstResourceId.getObjectName()));
+
+      tryUpdateTimestampsForParentDirectories(ImmutableList.of(dst), ImmutableList.<URI>of());
+
+      gcs.deleteObjects(ImmutableList.of(srcResourceId));
+
+      // Any path that was deleted, we should update the parent except for parents we also deleted
+      tryUpdateTimestampsForParentDirectories(ImmutableList.of(src), ImmutableList.<URI>of());
+    }
+  }
+
+  /**
+   * Renames given directory.
+   *
+   * @see #renameInternal
+   */
+  private void renameDirectoryInternal(FileInfo srcInfo, URI dst) throws IOException {
+    checkArgument(srcInfo.isDirectory(), "'%s' should be a directory", srcInfo);
+
+    Pattern markerFilePattern = options.getMarkerFilePattern();
 
     // Mapping from each src to its respective dst.
-    Map<URI, URI> dstItemNames = new HashMap<>();
+    // Sort src items so that parent directories appear before their children.
+    // That allows us to copy parent directories before we copy their children.
+    Map<URI, URI> srcToDstItemNames = new TreeMap<>(PATH_COMPARATOR);
+    Map<URI, URI> srcToDstMarkerItemNames = new TreeMap<>(PATH_COMPARATOR);
 
-    if (srcInfo.isDirectory()) {
-      srcItemNames = listFileNames(srcInfo, true);
+    // List of individual paths to rename;
+    // we will try to carry out the copies in this list's order.
+    List<URI> srcItemNames = listFileNames(srcInfo, true);
 
-      // Sort src items so that parent directories appear before their children.
-      // That allows us to copy parent directories before we copy their children.
-      Collections.sort(srcItemNames, pathComparator);
+    // Create the destination directory.
+    dst = FileInfo.convertToDirectoryPath(pathCodec, dst);
+    mkdir(dst);
 
-      // Create the destination directory.
-      dst = FileInfo.convertToDirectoryPath(pathCodec, dst);
-      mkdir(dst);
-
-      // Create a list of sub-items to copy.
-      String prefix = srcInfo.getPath().toString();
-      for (URI srcItemName : srcItemNames) {
-        String relativeItemName = srcItemName.toString().substring(prefix.length());
-        URI dstItemName = dst.resolve(relativeItemName);
-        dstItemNames.put(srcItemName, dstItemName);
-      }
-
-    } else {
-      srcItemNames.add(srcInfo.getPath());
-      dstItemNames.put(srcInfo.getPath(), dst);
-    }
-    Preconditions.checkState(srcItemNames.size() == dstItemNames.size(),
-        "srcItemNames.size() != dstItemNames.size(), '%s' vs '%s'", srcItemNames, dstItemNames);
-
-    if (srcItemNames.size() > 0) {
-
-      String srcBucketName = null;
-      String dstBucketName = null;
-      List<String> srcObjectNames = new ArrayList<>();
-      List<String> dstObjectNames = new ArrayList<>();
-
-      // Prepare list of items to copy.
-      for (URI srcItemName : srcItemNames) {
-        StorageResourceId resourceId;
-
-        resourceId = pathCodec.validatePathAndGetId(srcItemName, true);
-        srcBucketName = resourceId.getBucketName();
-        String srcObjectName = resourceId.getObjectName();
-        srcObjectNames.add(srcObjectName);
-
-        resourceId = pathCodec.validatePathAndGetId(dstItemNames.get(srcItemName), true);
-        dstBucketName = resourceId.getBucketName();
-        String dstObjectName = resourceId.getObjectName();
-        dstObjectNames.add(dstObjectName);
-      }
-
-      // Perform copy.
-      gcs.copy(srcBucketName, srcObjectNames, dstBucketName, dstObjectNames);
-
-      // So far, only the destination directories are updated. Only do those now:
-      List<URI> destinationUris = new ArrayList<>(dstObjectNames.size());
-      for (String dstObjectName : dstObjectNames) {
-        destinationUris.add(pathCodec.getPath(dstBucketName, dstObjectName, false));
-      }
-      tryUpdateTimestampsForParentDirectories(destinationUris, destinationUris);
-    }
-
-    List<URI> bucketsToDelete = new ArrayList<>();
-
-    if (srcInfo.isDirectory()) {
-      if (srcInfo.getItemInfo().isBucket()) {
-        bucketsToDelete.add(srcInfo.getPath());
+    // Create a list of sub-items to copy.
+    String prefix = srcInfo.getPath().toString();
+    for (URI srcItemName : srcItemNames) {
+      String relativeItemName = srcItemName.toString().substring(prefix.length());
+      URI dstItemName = dst.resolve(relativeItemName);
+      if (markerFilePattern != null && markerFilePattern.matcher(relativeItemName).matches()) {
+        srcToDstMarkerItemNames.put(srcItemName, dstItemName);
       } else {
-        // If src is a directory then srcItemNames does not contain its own name,
-        // therefore add it to the list before we delete items in the list.
-        srcItemNames.add(srcInfo.getPath());
+        srcToDstItemNames.put(srcItemName, dstItemName);
       }
     }
 
-    // Delete the items we successfully copied.
-    deleteInternal(srcItemNames, bucketsToDelete);
+    // First, copy all items excpet marker items
+    copyInternal(srcToDstItemNames);
+    // Finally, copy marker items (if any) to mark rename operation success
+    copyInternal(srcToDstMarkerItemNames);
+
+    // So far, only the destination directories are updated. Only do those now:
+    if (!srcToDstItemNames.isEmpty() || !srcToDstMarkerItemNames.isEmpty()) {
+      List<URI> allDestinationUris =
+          new ArrayList<>(srcToDstItemNames.size() + srcToDstMarkerItemNames.size());
+      allDestinationUris.addAll(srcToDstItemNames.values());
+      allDestinationUris.addAll(srcToDstMarkerItemNames.values());
+
+      tryUpdateTimestampsForParentDirectories(allDestinationUris, allDestinationUris);
+    }
+
+    List<URI> bucketsToDelete = new ArrayList<>(1);
+    List<URI> srcItemsToDelete = new ArrayList<>(srcToDstItemNames.size() + 1);
+    srcItemsToDelete.addAll(srcToDstItemNames.keySet());
+    if (srcInfo.getItemInfo().isBucket()) {
+      bucketsToDelete.add(srcInfo.getPath());
+    } else {
+      // If src is a directory then srcItemNames does not contain its own name,
+      // therefore add it to the list before we delete items in the list.
+      srcItemsToDelete.add(srcInfo.getPath());
+    }
+
+    // First delete marker files from the src
+    deleteInternal(new ArrayList<>(srcToDstMarkerItemNames.keySet()), new ArrayList<URI>());
+    // Then delete rest of the items that we successfully copied.
+    deleteInternal(srcItemsToDelete, bucketsToDelete);
+
+    // if we deleted a bucket, then there no need to update timestamps
+    if (bucketsToDelete.isEmpty()) {
+      // Any path that was deleted, we should update the parent except for parents we also deleted
+      tryUpdateTimestampsForParentDirectories(srcItemNames, srcItemNames);
+    }
+  }
+
+  /** Copies items in given map that maps source items to destination items. */
+  private void copyInternal(Map<URI, URI> srcToDstItemNames) throws IOException {
+    if (srcToDstItemNames.isEmpty()) {
+      return;
+    }
+
+    String srcBucketName = null;
+    String dstBucketName = null;
+    List<String> srcObjectNames = new ArrayList<>(srcToDstItemNames.size());
+    List<String> dstObjectNames = new ArrayList<>(srcToDstItemNames.size());
+
+    // Prepare list of items to copy.
+    for (Map.Entry<URI, URI> srcToDstItemName : srcToDstItemNames.entrySet()) {
+      StorageResourceId srcResourceId =
+          pathCodec.validatePathAndGetId(srcToDstItemName.getKey(), true);
+      srcBucketName = srcResourceId.getBucketName();
+      String srcObjectName = srcResourceId.getObjectName();
+      srcObjectNames.add(srcObjectName);
+
+      StorageResourceId dstResourceId =
+          pathCodec.validatePathAndGetId(srcToDstItemName.getValue(), true);
+      dstBucketName = dstResourceId.getBucketName();
+      String dstObjectName = dstResourceId.getObjectName();
+      dstObjectNames.add(dstObjectName);
+    }
+
+    // Perform copy.
+    gcs.copy(srcBucketName, srcObjectNames, dstBucketName, dstObjectNames);
   }
 
   /**
@@ -1008,7 +1053,7 @@ public class GoogleCloudStorageFileSystem {
     List<GoogleCloudStorageItemInfo> itemInfos = gcs.listObjectInfo(
         prefixId.getBucketName(), prefixId.getObjectName(), null);
     List<FileInfo> fileInfos = FileInfo.fromItemInfos(pathCodec, itemInfos);
-    Collections.sort(fileInfos, fileInfoPathComparator);
+    Collections.sort(fileInfos, FILE_INFO_PATH_COMPARATOR);
     return fileInfos;
   }
 
@@ -1076,7 +1121,7 @@ public class GoogleCloudStorageFileSystem {
           GoogleCloudStorage.PATH_DELIMITER);
     }
     List<FileInfo> fileInfos = FileInfo.fromItemInfos(pathCodec, itemInfos);
-    Collections.sort(fileInfos, fileInfoPathComparator);
+    Collections.sort(fileInfos, FILE_INFO_PATH_COMPARATOR);
     return fileInfos;
   }
 
@@ -1090,7 +1135,7 @@ public class GoogleCloudStorageFileSystem {
   public FileInfo getFileInfo(URI path)
       throws IOException {
     LOG.debug("getFileInfo({})", path);
-    Preconditions.checkArgument(path != null, "path must not be null");
+    checkArgument(path != null, "path must not be null");
 
     // Validate the given path. true == allow empty object name.
     // One should be able to get info about top level directory (== bucket),
@@ -1151,10 +1196,10 @@ public class GoogleCloudStorageFileSystem {
   public List<FileInfo> getFileInfos(List<URI> paths)
       throws IOException {
     LOG.debug("getFileInfos(list)");
-    Preconditions.checkArgument(paths != null, "paths must not be null");
+    checkArgument(paths != null, "paths must not be null");
 
     // First, parse all the URIs into StorageResourceIds while validating them.
-    List<StorageResourceId> resourceIdsForPaths = new ArrayList<>();
+    List<StorageResourceId> resourceIdsForPaths = new ArrayList<>(paths.size());
     for (URI path : paths) {
       resourceIdsForPaths.add(pathCodec.validatePathAndGetId(path, true));
     }
@@ -1246,7 +1291,7 @@ public class GoogleCloudStorageFileSystem {
   private List<FileInfo> getFileInfosRaw(List<URI> paths)
       throws IOException {
     LOG.debug("getFileInfosRaw({})", paths);
-    Preconditions.checkArgument(paths != null, "paths must not be null");
+    checkArgument(paths != null, "paths must not be null");
 
     // First, parse all the URIs into StorageResourceIds while validating them.
     List<StorageResourceId> resourceIdsForPaths = new ArrayList<>();
@@ -1369,7 +1414,7 @@ public class GoogleCloudStorageFileSystem {
 
     LOG.debug("mkdir({})", path);
     Preconditions.checkNotNull(path);
-    Preconditions.checkArgument(!path.equals(GCS_ROOT), "Cannot create root directory.");
+    checkArgument(!path.equals(GCS_ROOT), "Cannot create root directory.");
 
     StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, true);
 

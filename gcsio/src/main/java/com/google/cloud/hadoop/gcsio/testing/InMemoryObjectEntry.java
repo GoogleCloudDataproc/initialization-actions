@@ -24,7 +24,6 @@ import com.google.common.collect.Maps;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import com.google.common.primitives.Ints;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -196,17 +195,17 @@ public class InMemoryObjectEntry {
     copy.completedContents = completedContents;
     copy.writeStream = writeStream;
     copy.writeChannel = writeChannel;
-    // TODO(user): Check if the creation time should change too, add copy constructor.
-    copy.info = new GoogleCloudStorageItemInfo(
-        new StorageResourceId(bucketName, objectName),
-        info.getCreationTime(),
-        info.getSize(),
-        null,
-        null,
-        info.getContentType(),
-        info.getMetadata(),
-        info.getContentGeneration(),
-        0L);
+    copy.info =
+        new GoogleCloudStorageItemInfo(
+            new StorageResourceId(bucketName, objectName),
+            System.currentTimeMillis(),
+            info.getSize(),
+            null,
+            null,
+            info.getContentType(),
+            info.getMetadata(),
+            info.getContentGeneration(),
+            0L);
     return copy;
   }
 

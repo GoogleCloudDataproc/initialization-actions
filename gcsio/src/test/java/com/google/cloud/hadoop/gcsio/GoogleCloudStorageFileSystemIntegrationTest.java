@@ -17,6 +17,7 @@ package com.google.cloud.hadoop.gcsio;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.assertThrows;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -26,6 +27,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.FileNotFoundException;
@@ -150,7 +152,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
             assertThat(projectId).isNotNull();
 
             GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
-                GoogleCloudStorageFileSystemOptions.newBuilder();
+                GoogleCloudStorageFileSystemOptions.newBuilder()
+                    .setMarkerFilePattern("_(FAILURE|SUCCESS)");
 
             optionsBuilder
                 .setIsMetadataCacheEnabled(true)
@@ -1747,8 +1750,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   }
 
   @Test
-  public void testRenameUpdatesParentDirectoryModificationTimestamps()
-      throws IOException, InterruptedException {
+  public void testRenameUpdatesParentDirectoryModificationTimestamps() throws Exception {
     URI directory =
         gcsiHelper.getPath(sharedBucketName1, "test-modification-timestamps/rename-dir/");
     URI sourceDirectory = directory.resolve("src-directory/");
@@ -1806,6 +1808,44 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
         destinationDirectoryInfo.getCreationTime()
             - updatedDestinationDirectoryInfo.getModificationTime();
     assertThat(Math.abs(destinationTimeDelta)).isLessThan(TimeUnit.MINUTES.toMillis(10));
+  }
+
+  @Test
+  public void renameDirectoryShouldCopyMarkerFilesLast() throws Exception {
+    URI dir = gcsiHelper.getPath(sharedBucketName1, "test-marker-files/rename-dir/");
+
+    String subDir = "subdirectory/";
+
+    List<String> files = ImmutableList.of("file", subDir + "file");
+    List<String> markerFiles = ImmutableList.of("_SUCCESS", subDir + "_FAILURE");
+
+    URI srcDir = dir.resolve("src-directory/");
+    // gcsfs.mkdirs(srcDir.resolve(subDir));
+    gcsfs.mkdirs(srcDir);
+    // Create a test objects in our source directory:
+    for (String file : Iterables.concat(markerFiles, files)) {
+      try (WritableByteChannel channel = gcsfs.create(srcDir.resolve(file))) {
+        assertThat(channel).isNotNull();
+      }
+    }
+
+    Thread.sleep(100);
+
+    URI dstDir = dir.resolve("dst-directory/");
+
+    gcsfs.rename(srcDir, dstDir);
+
+    List<FileInfo> fileInfos =
+        gcsfs.getFileInfos(files.stream().map(dstDir::resolve).collect(toList()));
+    List<FileInfo> markerFileInfos =
+        gcsfs.getFileInfos(markerFiles.stream().map(dstDir::resolve).collect(toList()));
+
+    // assert that marker files were copied last, e.g. marker files modification timestamp
+    // should be less than regular files modification timestamp
+    for (FileInfo mf : markerFileInfos) {
+      fileInfos.forEach(
+          f -> assertThat(f.getModificationTime()).isLessThan(mf.getModificationTime()));
+    }
   }
 
   @Test

@@ -836,6 +836,10 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
   }
 
   @Override
+  public void renameDirectoryShouldCopyMarkerFilesLast() {
+  }
+
+  @Override
   public void testRenameUpdatesParentDirectoryModificationTimestamps()
       throws IOException, InterruptedException {
   }
