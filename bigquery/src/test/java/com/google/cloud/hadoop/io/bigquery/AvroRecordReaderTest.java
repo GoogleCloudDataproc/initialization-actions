@@ -27,7 +27,6 @@ import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -68,7 +67,7 @@ public class AvroRecordReaderTest {
       String key = String.format("key-%s", idx);
       record.put("key", key);
       record.put("value1", String.format("value-%s", idx));
-      record.put("value2", new Integer(idx * RECORD_COUNT));
+      record.put("value2", idx * RECORD_COUNT);
       dataFileWriter.append(record);
       addedKeysBuilder.add(key);
     }
@@ -106,7 +105,7 @@ public class AvroRecordReaderTest {
             new String[0]);
     AvroRecordReader recordReader = new AvroRecordReader();
     recordReader.initializeInternal(fileSplit, new Configuration());
-    Assert.assertEquals(RECORD_COUNT, remainingRecordCount(recordReader));
+    Truth.assertThat(remainingRecordCount(recordReader)).isEqualTo(RECORD_COUNT);
     recordReader.close();
   }
 
@@ -136,6 +135,6 @@ public class AvroRecordReaderTest {
     }
 
     Truth.assertThat(allRecordKeys).containsExactlyElementsIn(allAddedKeys);
-    Assert.assertEquals(RECORD_COUNT, totalFileRecords);
+    Truth.assertThat(totalFileRecords).isEqualTo(RECORD_COUNT);
   }
 }
