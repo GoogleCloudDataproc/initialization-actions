@@ -42,6 +42,8 @@ if [[ "${ROLE}" == 'Master' ]]; then
   # Set spark.yarn.isPython to fix Zeppelin pyspark in Dataproc 1.0.
   sed -i 's/\(\s*\)"spark\.app\.name[^,}]*/&,\n\1"spark.yarn.isPython": "true"/' \
       "${INTERPRETER_FILE}"
+  # Unset Spark Executor memory to let the spark-defaults.conf set it.
+  sed -i '/spark\.executor\.memory/d' "${INTERPRETER_FILE}"
 
   # Link in hive configuration.
   ln -s /etc/hive/conf/hive-site.xml /etc/zeppelin/conf
