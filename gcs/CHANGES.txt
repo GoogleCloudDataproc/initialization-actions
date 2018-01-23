@@ -1,4 +1,4 @@
-1.7.0 - 2017-XX-XX
+1.7.0 - 2018-XX-XX
 
   1. Fixed an issue where JSON auth files containing user auth e.g.
      application_default_credentials.json does not work with
@@ -9,6 +9,10 @@
 
   3. Make fs.gs.project.id optional. It is still required for listing buckets,
      creating buckets, and entire BigQuery connector.
+
+  4. Relocate all dependencies in shaded jar.
+
+  5. Update all dependencies to latest versions.
 
 
 1.6.2 - 2017-11-21
