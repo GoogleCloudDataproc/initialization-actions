@@ -28,6 +28,12 @@ To run a job on a transient session using `N` containers:
 HADOOP_CONF_DIR=/etc/hadoop/conf /usr/lib/flink/bin/flink run -m yarn-cluster -yn N <job jar>
 ```
 
+The above command creates a transient cluster with the default, pre-configured amount of JobManager and TaskManager memory. If you're using a non-standard deployment (e.g., a single-node cluster) or want to run multiple transient sessions concurrently on the same cluster, you will need to specify an appropriate memory allocation. Note that `N`, the number of containers, corresponds to the number of TaskManagers that will be created. An additional container will be created for the JobManager.
+
+```bash
+HADOOP_CONF_DIR=/etc/hadoop/conf /usr/lib/flink/bin/flink run -m yarn-cluster -yn N  -ynm <job manager memory (MB)> -ytm <task manager memory (MB)> <job jar>
+```
+
 For example, this command will run a word count sample (as root) on an existing YARN session:
 ```bash
 sudo su - HADOOP_CONF_DIR=/etc/hadoop/conf /usr/lib/flink/bin/flink run -m yarn-cluster -yid <session application id> examples/streaming/WordCount.jar
