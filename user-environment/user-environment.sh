@@ -17,12 +17,22 @@ set -o errexit
 set -o nounset
 set -o xtrace
 
+function update_apt_get() {
+  for ((i = 0; i < 10; i++)); do
+    if apt-get update; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
 ## Only install customize master node by default.
 ## Delete to customize all nodes.
-[[ "${HOSTNAME}" =~ -m$ ]] || exit
+[[ "${HOSTNAME}" =~ -m$ ]] || exit 0
 
 ## Make global changes here
-apt-get update || true
+update_apt_get
 apt-get install -y vim
 update-alternatives --set editor /usr/bin/vim.basic
 #apt-get install -y tmux sl

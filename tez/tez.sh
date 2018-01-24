@@ -14,6 +14,16 @@
 #  limitations under the License.
 set -x -e
 
+function update_apt_get() {
+  for ((i = 0; i < 10; i++)); do
+    if apt-get update; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
 #  Define important variables
 tez_version="0.7.0"
 protobuf_version="2.5.0"
@@ -34,6 +44,7 @@ if [[ "${role}" == 'Master' ]]; then
   # Install Tez and YARN Application Timeline Server.
   # Install node/npm to run HTTP server for Tez UI.
   curl -sL https://deb.nodesource.com/setup_8.x | bash -
+  update_apt_get
   apt-get install tez hadoop-yarn-timelineserver nodejs -y
 
   # Stage Tez

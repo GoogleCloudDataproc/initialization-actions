@@ -25,6 +25,16 @@
 
 set -x -e
 
+function update_apt_get() {
+  for ((i = 0; i < 10; i++)); do
+    if apt-get update; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
 # Determine the role of this node
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 
@@ -34,7 +44,7 @@ if [[ "${ROLE}" != 'Master' ]]; then
 fi
 
 # Upgrade the repository and install Oozie
-apt-get update
+update_apt_get
 apt-get install oozie oozie-client -y
 
 # The ext library is needed to enable the Oozie web console

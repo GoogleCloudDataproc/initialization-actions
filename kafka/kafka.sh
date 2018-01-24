@@ -14,6 +14,17 @@
 #    limitations under the License.
 set -x -e
 
+function update_apt_get() {
+  for ((i = 0; i < 10; i++)); do
+    if apt-get update; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
+update_apt_get
 
 # Only run the installation on workers; verify zookeeper on master(s)
 if [[ $(/usr/share/google/get_metadata_value attributes/dataproc-role) == 'Master' ]]; then
