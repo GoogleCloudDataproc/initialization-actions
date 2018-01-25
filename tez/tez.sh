@@ -33,7 +33,8 @@ sudo sed -i '\#CLASSPATH=.*/etc/hive/conf#d' /etc/spark/conf/spark-env.sh
 if [[ "${role}" == 'Master' ]]; then
   # Install Tez and YARN Application Timeline Server.
   # Install node/npm to run HTTP server for Tez UI.
-  apt-get install tez hadoop-yarn-timelineserver nodejs-legacy npm -y
+  curl -sL https://deb.nodesource.com/setup_8.x | bash -
+  apt-get install tez hadoop-yarn-timelineserver nodejs -y
 
   # Stage Tez
   hadoop fs -mkdir -p ${tez_hdfs_path}
@@ -91,7 +92,7 @@ if [[ "${role}" == 'Master' ]]; then
   # Set up service for Tez UI on port 9999 at the path /tez-ui
   npm install -g http-server forever forever-service
   unzip /usr/lib/tez/tez-ui-*.war -d /usr/lib/tez/tez-ui
-  forever-service install tez-ui --script /usr/local/bin/http-server -o "/usr/lib/tez/ -p 9999"
+  forever-service install tez-ui --script /usr/bin/http-server -o "/usr/lib/tez/ -p 9999"
 
   # Restart daemons
 
