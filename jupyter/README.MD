@@ -55,7 +55,7 @@ gcloud dataproc clusters create my-dataproc-cluster \
   - configures `jupyter` to use auth token `JUPYTER_AUTH_TOKEN`, with a default of none.
       - Dataproc does not recommend opening firewall ports to access Jupyter, but rather using a proxy. See [connecting to web interfaces](https://cloud.google.com/dataproc/docs/concepts/cluster-web-interfaces)
       - This proxy access is automated by [launch-jupyter-interfaces.sh](#launch-jupyter-interfacesh).
-  - targets a default notebooks directory `/root/notebooks`, into which the directory found at `gs://$DATAPROC_BUCKET/notebooks/` is copied, where `$DATAPROC_BUCKET` is the value stored in the metadata key `dataproc-bucket` (set by default upon cluster creation and overridable)
+  - loads and saves notebooks to `gs://$DATAPROC_BUCKET/notebooks/`, where `$DATAPROC_BUCKET` is the value stored in the metadata key `dataproc-bucket` (set by default upon cluster creation and overridable). Note that all clusters sharing a $DATAPROC_BUCKET will share notebooks.
   - launches the `jupyter notebook` process
 
 **NOTE**: to be run as an init action.
