@@ -229,7 +229,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   public static final String GCS_ENABLE_METADATA_CACHE_KEY = "fs.gs.metadata.cache.enable";
 
   /** Default value for {@link GoogleHadoopFileSystemBase#GCS_ENABLE_METADATA_CACHE_KEY}. */
-  public static final boolean GCS_ENABLE_METADATA_CACHE_DEFAULT = true;
+  public static final boolean GCS_ENABLE_METADATA_CACHE_DEFAULT = false;
 
   /**
    * Configuration key for using a local item cache to supplement GCS API "getFile" results. This
@@ -2124,6 +2124,10 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     boolean enableMetadataCache = config.getBoolean(
         GCS_ENABLE_METADATA_CACHE_KEY, GCS_ENABLE_METADATA_CACHE_DEFAULT);
     LOG.debug("{} = {}", GCS_ENABLE_METADATA_CACHE_KEY, enableMetadataCache);
+    if (enableMetadataCache) {
+      LOG.info("GCS Metadata Cache is enabled:"
+          + " this isn't necessary and in fact is probably detrimental to your job!");
+    }
     optionsBuilder.setIsMetadataCacheEnabled(enableMetadataCache);
 
     boolean enableBucketDelete = config.getBoolean(
