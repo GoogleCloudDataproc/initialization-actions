@@ -80,9 +80,10 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class GoogleCloudStorageTest {
 
-  /**
-   * An Equivalence for byte arrays.
-   */
+  // This string is used to prefix all bucket names that are created for GCS IO integration testing
+  private static final String BUCKET_NAME_PREFIX = "gcsio-it";
+
+  /** An Equivalence for byte arrays. */
   public static final Equivalence<byte[]> BYTE_ARRAY_EQUIVALENCE = new Equivalence<byte[]>() {
     @Override
     protected boolean doEquivalent(byte[] bytes, byte[] bytes2) {
@@ -155,7 +156,7 @@ public class GoogleCloudStorageTest {
         synchronized (createdBucketMap) {
           if (!createdBucketMap.containsKey(rawStorage)) {
             String name = String.format("%s-%s",
-                TestBucketHelper.makeBucketName("gcs_it"),
+                TestBucketHelper.makeBucketName(BUCKET_NAME_PREFIX),
                 "shared");
             rawStorage.create(name);
             createdBucketMap.put(rawStorage, name);
@@ -191,7 +192,7 @@ public class GoogleCloudStorageTest {
         throws IOException {
       this.gcs = new ResourceLoggingGoogleCloudStorage(gcs);
       this.bucketName = String.format("%s-%s",
-          TestBucketHelper.makeBucketName("gcs_it"),
+          TestBucketHelper.makeBucketName(BUCKET_NAME_PREFIX),
           bucketSuffix);
       gcs.create(bucketName);
     }
@@ -268,7 +269,7 @@ public class GoogleCloudStorageTest {
   private final TestBucketHelper bucketHelper;
 
   public GoogleCloudStorageTest(GoogleCloudStorage rawStorage) {
-    this.bucketHelper = new TestBucketHelper("gcs_it");
+    this.bucketHelper = new TestBucketHelper(BUCKET_NAME_PREFIX);
     this.rawStorage = rawStorage;
   }
 

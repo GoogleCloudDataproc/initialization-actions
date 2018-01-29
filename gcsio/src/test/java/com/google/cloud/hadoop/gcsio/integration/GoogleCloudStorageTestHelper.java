@@ -27,7 +27,6 @@ import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
-import com.google.common.base.Strings;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
@@ -198,19 +197,14 @@ public class GoogleCloudStorageTestHelper {
     }
 
     public static String makeBucketName(String prefix) {
-      String username = System.getProperty("user.name");
-      if (Strings.isNullOrEmpty(username)) {
-        username = "UNKNOWN";
-      }
-      return String.format(
-          "%s-%s-%s",
-          username,
-          prefix,
-          UUID.randomUUID().toString().substring(0, 4));
+      String username = System.getProperty("user.name", "unknown");
+      username = username.substring(0, Math.min(username.length(), 10));
+      String uuidSuffix = UUID.randomUUID().toString().substring(0, 8);
+      return String.format("%s_%s_%s", prefix, username, uuidSuffix);
     }
 
     public String getUniqueBucketName(String suffix) {
-      return testBucketPrefix + "-" + suffix;
+      return testBucketPrefix + "_" + suffix;
     }
 
     public String getTestBucketPrefix() {
@@ -239,7 +233,7 @@ public class GoogleCloudStorageTestHelper {
         storage.deleteBuckets(bucketsToDelete);
       } catch (IOException ioe) {
         // Stop the tests from failing on IOException (FNFE or composite) when trying to delete
-        // objects or buckets tafter having been previously deleted, but list inconsistencies
+        // objects or buckets after having been previously deleted, but list inconsistencies
         // make appear in the above lists).
         LOG.warn("Exception encountered when cleaning up test buckets / objects", ioe);
       }
