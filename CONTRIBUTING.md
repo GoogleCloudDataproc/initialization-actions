@@ -42,10 +42,10 @@ actions are less likely to break from one Dataproc version to another, and
 most likely to support different single-node, high-availability, and
 standard cluster modes.
 
-1. Where possible, install from Dataproc's prebuilt Debian packages (built
-   using Apache Bigtop) instead of installing from tarballs. Dataproc packages
-   can be found under /var/lib/apt/lists/*dataproc-bigtop-repo_*Packages on
-   any Dataproc cluster.
+1. Where possible, use `apt-get install` to install from Dataproc's prebuilt
+   Debian packages (built using Apache Bigtop) instead of installing from
+   tarballs. The list of Dataproc packages can be found under
+   `/var/lib/apt/lists/*dataproc-bigtop-repo_*Packages` on any Dataproc cluster.
 1. Do not string-replace or string-grep fields out of Hadoop XML files;
    instead, use `bdconfig` which is a Python utility available on Dataproc
    clusters to interact with the XML files.
