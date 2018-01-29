@@ -966,8 +966,8 @@ public class GoogleCloudStorageImpl
   public List<String> listBucketNames()
       throws IOException {
     LOG.debug("listBucketNames()");
-    List<String> bucketNames = new ArrayList<>();
     List<Bucket> allBuckets = listBucketsInternal();
+    List<String> bucketNames = new ArrayList<>(allBuckets.size());
     for (Bucket bucket : allBuckets) {
       bucketNames.add(bucket.getName());
     }
@@ -981,8 +981,8 @@ public class GoogleCloudStorageImpl
   public List<GoogleCloudStorageItemInfo> listBucketInfo()
       throws IOException {
     LOG.debug("listBucketInfo()");
-    List<GoogleCloudStorageItemInfo> bucketInfos = new ArrayList<>();
     List<Bucket> allBuckets = listBucketsInternal();
+    List<GoogleCloudStorageItemInfo> bucketInfos = new ArrayList<>(allBuckets.size());
     for (Bucket bucket : allBuckets) {
       bucketInfos.add(new GoogleCloudStorageItemInfo(
           new StorageResourceId(bucket.getName()), bucket.getTimeCreated().getValue(), 0,
