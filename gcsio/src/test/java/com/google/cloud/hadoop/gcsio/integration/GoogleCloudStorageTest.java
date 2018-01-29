@@ -14,6 +14,8 @@
 
 package com.google.cloud.hadoop.gcsio.integration;
 
+import static com.google.common.truth.Truth.assertThat;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -54,7 +56,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
-import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
@@ -71,7 +72,6 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -115,9 +115,8 @@ public class GoogleCloudStorageTest {
      */
     String getBucketName();
 
-    /**
-     * Cleanup resources used by this scope.
-     */
+    /** Cleanup resources used by this scope. */
+    @Override
     void close() throws IOException;
   }
 
@@ -263,9 +262,6 @@ public class GoogleCloudStorageTest {
   }
 
   @Rule
-  public ExpectedException expectedException = ExpectedException.none();
-
-  @Rule
   public TemporaryFolder tempDirectoryProvider = new TemporaryFolder();
 
   private final GoogleCloudStorage rawStorage;
@@ -323,10 +319,11 @@ public class GoogleCloudStorageTest {
     String bucketName = bucketHelper.getUniqueBucketName("create_existing");
     rawStorage.create(bucketName);
 
-    expectedException.expect(IOException.class);
-
     try {
       rawStorage.create(bucketName);
+      fail();
+    } catch (IOException e) {
+      // expected
     } finally {
       rawStorage.deleteBuckets(ImmutableList.of(bucketName));
     }
@@ -337,9 +334,12 @@ public class GoogleCloudStorageTest {
     // Buckets must start with a letter or number
     String bucketName = "--" + bucketHelper.getUniqueBucketName("create_invalid");
 
-    expectedException.expect(IOException.class);
-
-    rawStorage.create(bucketName);
+    try {
+      rawStorage.create(bucketName);
+      fail();
+    } catch (IOException e) {
+      // expected
+    }
   }
 
   @Test
@@ -370,10 +370,14 @@ public class GoogleCloudStorageTest {
       // Verify the bucket exist by creating an object
       StorageResourceId objectToCreate =
           new StorageResourceId(bucketName, "testCreateObject_CreateInvalidTestObject\n");
-      // gcs.create should throw:
-      expectedException.expect(IOException.class);
-      try (WritableByteChannel channel = gcs.create(objectToCreate)) {
-        channel.write(ByteBuffer.wrap(bytesToWrite));
+
+      try {
+        try (WritableByteChannel channel = gcs.create(objectToCreate)) {
+          channel.write(ByteBuffer.wrap(bytesToWrite));
+        }
+        fail();
+      } catch (IOException e) {
+        // expected
       }
     }
   }
@@ -620,10 +624,12 @@ public class GoogleCloudStorageTest {
           bucketName, "testGetMultipleItemInfoWithSomeInvalid_InvalidObject\n");
       resourceIdList.add(invalidObject);
 
-      expectedException.expect(IOException.class);
-      expectedException.expectMessage("Error getting StorageObject");
-
-      List<GoogleCloudStorageItemInfo> infoList = gcs.getItemInfos(resourceIdList);
+      try {
+        gcs.getItemInfos(resourceIdList);
+        fail();
+      } catch (IOException e) {
+        assertThat(e).hasMessageThat().isEqualTo("Error getting StorageObject");
+      }
     }
   }
 
@@ -634,11 +640,13 @@ public class GoogleCloudStorageTest {
       String bucketName = scope.getBucketName();
       GoogleCloudStorage gcs = scope.getStorageInstance();
 
-      expectedException.expect(IOException.class);
-      expectedException.expectMessage("Error accessing");
-
-      gcs.getItemInfo(
-          new StorageResourceId(bucketName, "testOneInvalidGetItemInfo_InvalidObject\n"));
+      try {
+        gcs.getItemInfo(
+            new StorageResourceId(bucketName, "testOneInvalidGetItemInfo_InvalidObject\n"));
+        fail();
+      } catch (IOException e) {
+        assertThat(e).hasMessageThat().isEqualTo("Error accessing");
+      }
     }
   }
 
@@ -706,10 +714,12 @@ public class GoogleCloudStorageTest {
       assertTrue(gcs.getItemInfo(resource).exists());
       assertFalse(gcs.getItemInfo(secondResource).exists());
 
-      expectedException.expect(IOException.class);
-      expectedException.expectMessage("Error deleting");
-
-      gcs.deleteObjects(ImmutableList.of(resource, secondResource, invalidName));
+      try {
+        gcs.deleteObjects(ImmutableList.of(resource, secondResource, invalidName));
+        fail();
+      } catch (IOException e) {
+        assertThat(e).hasMessageThat().isEqualTo("Error deleting");
+      }
     }
   }
 
@@ -729,9 +739,14 @@ public class GoogleCloudStorageTest {
   @Test
   public void testDeleteNonExistingBucket() throws IOException {
     // Composite exception thrown, not a FileNotFoundException.
-    expectedException.expect(IOException.class);
     String bucketName = bucketHelper.getUniqueBucketName("delete_ne_bucket");
-    rawStorage.deleteBuckets(ImmutableList.of(bucketName));
+
+    try {
+      rawStorage.deleteBuckets(ImmutableList.of(bucketName));
+      fail();
+    } catch (IOException e) {
+      // expected
+    }
   }
 
   @Test
@@ -1046,14 +1061,16 @@ public class GoogleCloudStorageTest {
       GoogleCloudStorageTestHelper.assertObjectContent(
           gcs, objectToCopy, bytesToWrite);
 
-      expectedException.expect(IllegalArgumentException.class);
-      expectedException.expectMessage("Copy destination must be different");
-
-      gcs.copy(
-          bucketName,
-          ImmutableList.of(objectToCopy.getObjectName()),
-          bucketName,
-          ImmutableList.of(objectToCopy.getObjectName()));
+      try {
+        gcs.copy(
+            bucketName,
+            ImmutableList.of(objectToCopy.getObjectName()),
+            bucketName,
+            ImmutableList.of(objectToCopy.getObjectName()));
+        fail();
+      } catch (IllegalArgumentException e) {
+        assertThat(e).hasMessageThat().startsWith("Copy destination must be different");
+      }
     }
   }
 
@@ -1142,13 +1159,16 @@ public class GoogleCloudStorageTest {
       GoogleCloudStorage gcs = scope.getStorageInstance();
       String notExistentName = "IDontExist";
 
-      expectedException.expect(FileNotFoundException.class);
-
-      gcs.copy(
-          bucketName,
-          ImmutableList.of(notExistentName),
-          bucketName,
-          ImmutableList.of("Some_destination"));
+      try {
+        gcs.copy(
+            bucketName,
+            ImmutableList.of(notExistentName),
+            bucketName,
+            ImmutableList.of("Some_destination"));
+        fail();
+      } catch (FileNotFoundException e) {
+        // expected
+      }
     }
   }
 
@@ -1158,16 +1178,16 @@ public class GoogleCloudStorageTest {
       String bucketName = scope.getBucketName();
       GoogleCloudStorage gcs = scope.getStorageInstance();
 
-      expectedException.expect(IllegalArgumentException.class);
-      expectedException.expectMessage("Must supply same number of elements");
-
-      gcs.copy(
-          bucketName,
-          ImmutableList.of("SomeSource", "SomeSource2"),
-          bucketName,
-          ImmutableList.of("Some_destination"));
-
+      try {
+        gcs.copy(
+            bucketName,
+            ImmutableList.of("SomeSource", "SomeSource2"),
+            bucketName,
+            ImmutableList.of("Some_destination"));
       fail("Copying multiple items to a single source should fail.");
+      } catch (IllegalArgumentException e) {
+        assertThat(e).hasMessageThat().startsWith("Must supply same number of elements");
+      }
     }
   }
 
@@ -1194,12 +1214,13 @@ public class GoogleCloudStorageTest {
     try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
       String bucketName = scope.getBucketName();
       GoogleCloudStorage gcs = scope.getStorageInstance();
-      expectedException.expect(FileNotFoundException.class);
 
-      ReadableByteChannel channel =
-          gcs.open(new StorageResourceId(bucketName, "testOpenNonExistentItem_AnObject"));
-
-      fail("Exception expected from opening an non-existent object");
+      try {
+        gcs.open(new StorageResourceId(bucketName, "testOpenNonExistentItem_AnObject"));
+        fail("Exception expected from opening an non-existent object");
+      } catch (FileNotFoundException e) {
+        // expected
+      }
     }
   }
 
@@ -1355,8 +1376,12 @@ public class GoogleCloudStorageTest {
         GoogleCloudStorageItemInfo.ROOT_INFO,
         rawStorage.getItemInfo(StorageResourceId.ROOT));
 
-    expectedException.expect(IllegalArgumentException.class);
-    StorageResourceId.createReadableString(null, "objectName");
+    try {
+      StorageResourceId.createReadableString(null, "objectName");
+      fail();
+    } catch (IllegalArgumentException e) {
+      // expected
+    }
   }
 
   @Test
@@ -1374,18 +1399,22 @@ public class GoogleCloudStorageTest {
         channel.write(ByteBuffer.wrap(data));
       }
 
-        byte[] readArray = new byte[totalBytes];
-        SeekableByteChannel readableByteChannel = gcs.open(resourceId);
-        ByteBuffer readBuffer = ByteBuffer.wrap(readArray);
-        readBuffer.limit(5);
-        readableByteChannel.read(readBuffer);
-        assertEquals(readBuffer.position(), readableByteChannel.position());
+      byte[] readArray = new byte[totalBytes];
+      SeekableByteChannel readableByteChannel = gcs.open(resourceId);
+      ByteBuffer readBuffer = ByteBuffer.wrap(readArray);
+      readBuffer.limit(5);
+      readableByteChannel.read(readBuffer);
+      assertThat(readableByteChannel.position()).isEqualTo(readBuffer.position());
 
-        expectedException.expect(ClosedChannelException.class);
+      readableByteChannel.close();
+      readBuffer.clear();
 
-        readableByteChannel.close();
-        readBuffer.clear();
+      try {
         readableByteChannel.read(readBuffer);
+        fail();
+      } catch (ClosedChannelException e) {
+        // expected
+      }
     }
   }
 
@@ -1507,13 +1536,15 @@ public class GoogleCloudStorageTest {
       StorageResourceId sourceObject2 =
           new StorageResourceId(bucketName, "testCompose_SourceObject2");
       try (WritableByteChannel channel = gcs.create(sourceObject1)) {
-        channel.write(ByteBuffer.wrap(content1.getBytes()));
+        channel.write(ByteBuffer.wrap(content1.getBytes(UTF_8)));
       }
       try (WritableByteChannel channel = gcs.create(sourceObject2)) {
-        channel.write(ByteBuffer.wrap(content2.getBytes()));
+        channel.write(ByteBuffer.wrap(content2.getBytes(UTF_8)));
       }
-      GoogleCloudStorageTestHelper.assertObjectContent(gcs, sourceObject1, content1.getBytes());
-      GoogleCloudStorageTestHelper.assertObjectContent(gcs, sourceObject2, content2.getBytes());
+      GoogleCloudStorageTestHelper.assertObjectContent(
+          gcs, sourceObject1, content1.getBytes(UTF_8));
+      GoogleCloudStorageTestHelper.assertObjectContent(
+          gcs, sourceObject2, content2.getBytes(UTF_8));
 
       // Do the compose
       gcs.compose(
@@ -1523,7 +1554,7 @@ public class GoogleCloudStorageTest {
           CreateFileOptions.DEFAULT_CONTENT_TYPE);
 
       GoogleCloudStorageTestHelper.assertObjectContent(
-          gcs, destinationObject, content1.concat(content2).getBytes());
+          gcs, destinationObject, content1.concat(content2).getBytes(UTF_8));
     }
   }
 
