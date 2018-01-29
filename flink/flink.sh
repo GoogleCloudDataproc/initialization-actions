@@ -24,6 +24,16 @@
 
 set -euxo pipefail
 
+function update_apt_get() {
+  for ((i = 0; i < 10; i++)); do
+    if apt-get update; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
 # Install directories for Flink and Hadoop
 readonly FLINK_INSTALL_DIR='/usr/lib/flink'
 readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
@@ -121,6 +131,7 @@ EOF
 function main() {
 local role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 if [[ "${role}" == 'Master' ]] ; then
+  update_apt_get
   apt-get install -y flink
   configure_flink
 fi

@@ -19,6 +19,16 @@
 
 set -x -e
 
+function update_apt_get() {
+  for ((i = 0; i < 10; i++)); do
+    if apt-get update; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
 # Only run on the master node
 ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 INTERPRETER_FILE='/etc/zeppelin/conf/interpreter.json'
@@ -26,7 +36,7 @@ ZEPPELIN_PORT="$(/usr/share/google/get_metadata_value attributes/zeppelin-port |
 
 if [[ "${ROLE}" == 'Master' ]]; then
   # Install zeppelin. Don't mind if it fails to start the first time.
-  apt-get update || true
+  update_apt_get
   apt-get install -y -t jessie-backports zeppelin || dpkg -l zeppelin
 
   for i in {1..6}; do

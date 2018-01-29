@@ -1,5 +1,17 @@
 #!/bin/bash
 set -e
+
+function update_apt_get() {
+  for ((i = 0; i < 10; i++)); do
+    if apt-get update; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
+update_apt_get
 sudo apt-get install -y git
 
 # Installs Jupyter notebook extensions and RISE
