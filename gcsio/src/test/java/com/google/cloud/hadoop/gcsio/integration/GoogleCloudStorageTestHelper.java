@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.gcsio.integration;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -27,6 +28,9 @@ import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
+import com.google.common.base.Function;
+import com.google.common.base.Stopwatch;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
@@ -35,19 +39,19 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Helper methods for GCS integration tests.
- */
+/** Helper methods for GCS integration tests. */
 public class GoogleCloudStorageTestHelper {
+  private static final Logger LOG = LoggerFactory.getLogger(GoogleCloudStorageTestHelper.class);
+
   // Application name for OAuth.
   public static final String APP_NAME = "GHFS/test";
-
-  protected static final Logger LOG =
-      LoggerFactory.getLogger(GoogleCloudStorageTestHelper.class);
 
   public static Credential getCredential() throws IOException {
     String serviceAccount = TestConfiguration.getInstance().getServiceAccount();
@@ -70,7 +74,7 @@ public class GoogleCloudStorageTestHelper {
 
   public static Builder getStandardOptionBuilder() {
     String projectId = TestConfiguration.getInstance().getProjectId();
-    Assert.assertNotNull(projectId);
+    assertThat(projectId).isNotNull();
     GoogleCloudStorageOptions.Builder builder = GoogleCloudStorageOptions.newBuilder();
     builder.setAppName(GoogleCloudStorageTestHelper.APP_NAME)
         .setProjectId(projectId)
@@ -174,7 +178,7 @@ public class GoogleCloudStorageTestHelper {
       for (int i = 0; i < repetitions; i++) {
         int read = channel.read(buffer);
         // Possible flake?
-        assertEquals(patternSize, read);
+        assertThat(read).isEqualTo(patternSize);
         // Writing to the buffer will write tot he destination bytes array.
         assertByteArrayEquals(bytePattern, destinationBytes);
         // Set the buffer back to the beginning
@@ -185,58 +189,75 @@ public class GoogleCloudStorageTestHelper {
     LOG.info("Took {} milliseconds to read {}", (endTime - startTime), repetitions * patternSize);
   }
 
-  /**
-   * Helper for dealing with buckets in GCS integration tests.
-   */
+  /** Helper for dealing with buckets in GCS integration tests. */
   public static class TestBucketHelper {
-    protected static final Logger LOG = LoggerFactory.getLogger(TestBucketHelper.class);
-    protected final String testBucketPrefix;
+    private static final String DELIMITER = "_";
+
+    // If bucket created before this time, it considered leaked
+    private static final long LEAKED_BUCKETS_CUTOFF_TIME =
+        Instant.now().minus(Duration.standardHours(6)).getMillis();
+
+    private static final Function<GoogleCloudStorageItemInfo, StorageResourceId>
+        INFO_TO_RESOURCE_ID_FN =
+            new Function<GoogleCloudStorageItemInfo, StorageResourceId>() {
+              @Override
+              public StorageResourceId apply(GoogleCloudStorageItemInfo info) {
+                return info.getResourceId();
+              }
+            };
+
+    private final String bucketPrefix;
+    private final String uniqueBucketPrefix;
 
     public TestBucketHelper(String bucketPrefix) {
-      this.testBucketPrefix = makeBucketName(bucketPrefix);
+      this.bucketPrefix = bucketPrefix + DELIMITER;
+      this.uniqueBucketPrefix = makeBucketName(bucketPrefix);
     }
 
-    public static String makeBucketName(String prefix) {
+    private static String makeBucketName(String prefix) {
       String username = System.getProperty("user.name", "unknown");
       username = username.substring(0, Math.min(username.length(), 10));
       String uuidSuffix = UUID.randomUUID().toString().substring(0, 8);
-      return String.format("%s_%s_%s", prefix, username, uuidSuffix);
+      return prefix + DELIMITER + username + DELIMITER + uuidSuffix;
     }
 
     public String getUniqueBucketName(String suffix) {
-      return testBucketPrefix + "_" + suffix;
+      return uniqueBucketPrefix + DELIMITER + suffix;
     }
 
-    public String getTestBucketPrefix() {
-      return testBucketPrefix;
+    public String getUniqueBucketPrefix() {
+      return uniqueBucketPrefix;
     }
 
-    public void cleanupTestObjects(GoogleCloudStorage storage) throws IOException {
+    public void cleanup(GoogleCloudStorage storage) throws IOException {
+      Stopwatch storageStopwatch = Stopwatch.createStarted();
+      LOG.info("Cleaning up GCS buckets that start with {} unique prefix", uniqueBucketPrefix);
+
       List<String> bucketsToDelete = new ArrayList<>();
-
-      for (GoogleCloudStorageItemInfo itemInfo : storage.listBucketInfo()) {
-        if (itemInfo.getBucketName().startsWith(testBucketPrefix)) {
-          bucketsToDelete.add(itemInfo.getBucketName());
+      for (GoogleCloudStorageItemInfo bucketInfo : storage.listBucketInfo()) {
+        String bucketName = bucketInfo.getBucketName();
+        if (bucketName.startsWith(bucketPrefix)
+            && (bucketName.startsWith(uniqueBucketPrefix)
+                || bucketInfo.getCreationTime() < LEAKED_BUCKETS_CUTOFF_TIME)) {
+          bucketsToDelete.add(bucketName);
         }
       }
+      LOG.info("GCS has {} buckets to clean up:\n\t{}", bucketsToDelete.size(), bucketsToDelete);
 
-      List<StorageResourceId> allResourcesToDelete = new ArrayList<>();
-      for (String bucketName : bucketsToDelete) {
-        List<String> allObjects = storage.listObjectNames(bucketName, null, null);
-        for (String objectName : allObjects) {
-          allResourcesToDelete.add(new StorageResourceId(bucketName, objectName));
-        }
+      List<GoogleCloudStorageItemInfo> objectsToDelete = new ArrayList<>();
+      for (String bucket : bucketsToDelete) {
+        objectsToDelete.addAll(storage.listObjectInfo(bucket, null, null));
       }
+      LOG.info("GCS has {} objects to clean up:\n\t{}", objectsToDelete.size(), objectsToDelete);
 
       try {
-        storage.deleteObjects(allResourcesToDelete);
+        storage.deleteObjects(Lists.transform(objectsToDelete, INFO_TO_RESOURCE_ID_FN));
         storage.deleteBuckets(bucketsToDelete);
       } catch (IOException ioe) {
-        // Stop the tests from failing on IOException (FNFE or composite) when trying to delete
-        // objects or buckets after having been previously deleted, but list inconsistencies
-        // make appear in the above lists).
-        LOG.warn("Exception encountered when cleaning up test buckets / objects", ioe);
+        LOG.warn("Caught exception during GCS clean up", storage, ioe);
       }
+
+      LOG.info("GCS cleaned up in {} seconds", storageStopwatch.elapsed(TimeUnit.SECONDS));
     }
   }
 }

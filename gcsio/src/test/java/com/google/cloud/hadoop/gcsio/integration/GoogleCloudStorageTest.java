@@ -15,12 +15,8 @@
 package com.google.cloud.hadoop.gcsio.integration;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import com.google.api.client.util.Clock;
@@ -34,8 +30,6 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageWriteChannel;
 import com.google.cloud.hadoop.gcsio.InMemoryDirectoryListCache;
 import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage.ListVisibilityCalculator;
-import com.google.cloud.hadoop.gcsio.ListProhibitedGoogleCloudStorage;
-import com.google.cloud.hadoop.gcsio.ResourceLoggingGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.UpdatableItemInfo;
 import com.google.cloud.hadoop.gcsio.VerificationAttributes;
@@ -43,8 +37,14 @@ import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.Te
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
 import com.google.common.base.Equivalence;
 import com.google.common.base.Function;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.Maps;
@@ -65,9 +65,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -83,6 +81,36 @@ public class GoogleCloudStorageTest {
   // This string is used to prefix all bucket names that are created for GCS IO integration testing
   private static final String BUCKET_NAME_PREFIX = "gcsio-it";
 
+  private static final Supplier<TestBucketHelper> BUCKET_HELPER =
+      Suppliers.memoize(
+          new Supplier<TestBucketHelper>() {
+            @Override
+            public TestBucketHelper get() {
+              return new TestBucketHelper(BUCKET_NAME_PREFIX);
+            }
+          });
+
+  private static final LoadingCache<GoogleCloudStorage, String> SHARED_BUCKETS =
+      CacheBuilder.newBuilder()
+          .build(
+              new CacheLoader<GoogleCloudStorage, String>() {
+                @Override
+                public String load(GoogleCloudStorage gcs) throws Exception {
+                  return createUniqueBucket(gcs, "shared");
+                }
+              });
+
+  private static String createUniqueBucket(GoogleCloudStorage gcs, String suffix)
+      throws IOException {
+    String bucketName = getUniqueBucketName(suffix) + "_" + gcs.hashCode();
+    gcs.create(bucketName);
+    return bucketName;
+  }
+
+  private static String getUniqueBucketName(String suffix) {
+    return BUCKET_HELPER.get().getUniqueBucketName(suffix);
+  }
+
   /** An Equivalence for byte arrays. */
   public static final Equivalence<byte[]> BYTE_ARRAY_EQUIVALENCE = new Equivalence<byte[]>() {
     @Override
@@ -95,126 +123,6 @@ public class GoogleCloudStorageTest {
       return Arrays.hashCode(bytes);
     }
   };
-
-  /**
-   * A method for defining a scope / block of code that should share a single bucket for tests
-   * and that when the scope is exited the resources should be freed or deleted. The TestbucketScope
-   * is not appropriate for all use cases; e.g., when the test requires multiple buckets or when
-   * the test is around creating and deleting buckets.
-   */
-  public static interface TestBucketScope extends AutoCloseable {
-
-    /**
-     * The @{link GoogleCloudStorage} instance to use when interfacing with this scope. Each
-     * scope may wrap the raw implementation of GoogleCloudStorage in order to record resources
-     * created or prevent certain methods from executing.
-     */
-    GoogleCloudStorage getStorageInstance();
-
-    /**
-     * Get the unique bucket name for use in this scope.
-     */
-    String getBucketName();
-
-    /** Cleanup resources used by this scope. */
-    @Override
-    void close() throws IOException;
-  }
-
-  /**
-   * A @{link TestBucketScope} that shares a single bucket for all instance in the same JVM. Due
-   * to the shared nature of this scope, the GCS instance returned by getStorageInstance will not
-   * permit the use of any inconsistent List methods or methods that depend on inconsistent lists.
-   * The shared bucket to be used by all instances will be created when the first instance is
-   * created. Note that these shared buckets will remain until cleanupTestBuckets is invoked,
-   */
-  public static class SharedBucketScope implements TestBucketScope {
-    static Map<GoogleCloudStorage, String> createdBucketMap = new HashMap<>();
-
-    public static void cleanupTestBuckets() throws IOException {
-      for (Map.Entry<GoogleCloudStorage, String> toCleanup : createdBucketMap.entrySet()) {
-        try {
-          toCleanup.getKey().deleteBuckets(ImmutableList.of(toCleanup.getValue()));
-        } catch (IOException ioe) {
-          // List inconsistency can cause bucket delete to fail.
-        }
-      }
-    }
-
-    protected final ResourceLoggingGoogleCloudStorage gcs;
-    protected final GoogleCloudStorage rawStorage;
-    protected String sharedBucketName;
-
-    public SharedBucketScope(GoogleCloudStorage gcs) throws IOException {
-      this.rawStorage = gcs;
-      this.gcs = new ResourceLoggingGoogleCloudStorage(new ListProhibitedGoogleCloudStorage(gcs));
-      this.sharedBucketName = createSharedBucketIfRequired(rawStorage);
-    }
-
-    private static String createSharedBucketIfRequired(GoogleCloudStorage rawStorage)
-        throws IOException {
-        synchronized (createdBucketMap) {
-          if (!createdBucketMap.containsKey(rawStorage)) {
-            String name = String.format("%s-%s",
-                TestBucketHelper.makeBucketName(BUCKET_NAME_PREFIX),
-                "shared");
-            rawStorage.create(name);
-            createdBucketMap.put(rawStorage, name);
-          }
-
-          return createdBucketMap.get(rawStorage);
-        }
-    }
-
-    @Override
-    public GoogleCloudStorage getStorageInstance() {
-      return gcs;
-    }
-
-    @Override
-    public String getBucketName() {
-      return sharedBucketName;
-    }
-
-    @Override
-    public void close() throws IOException {
-      List<StorageResourceId> createdResources = gcs.getCreatedResources();
-      GoogleCloudStorageTestHelper.cleanupTestObjects(
-          gcs, ImmutableList.<String>of(), createdResources);
-    }
-  }
-
-  public static class UniqueBucketScope implements TestBucketScope {
-    protected final ResourceLoggingGoogleCloudStorage gcs;
-    private final String bucketName;
-
-    public UniqueBucketScope(GoogleCloudStorage gcs, String bucketSuffix)
-        throws IOException {
-      this.gcs = new ResourceLoggingGoogleCloudStorage(gcs);
-      this.bucketName = String.format("%s-%s",
-          TestBucketHelper.makeBucketName(BUCKET_NAME_PREFIX),
-          bucketSuffix);
-      gcs.create(bucketName);
-    }
-
-    @Override
-    public GoogleCloudStorage getStorageInstance() {
-      return gcs;
-    }
-
-    @Override
-    public String getBucketName() {
-      return bucketName;
-    }
-
-    @Override
-    public void close() throws IOException {
-      GoogleCloudStorageTestHelper.cleanupTestObjects(
-          gcs,
-          ImmutableList.of(bucketName),
-          gcs.getCreatedResources());
-    }
-  }
 
   /**
    * Static instance which we can use inside long-lived GoogleCloudStorage instances, but still
@@ -266,10 +174,8 @@ public class GoogleCloudStorageTest {
   public TemporaryFolder tempDirectoryProvider = new TemporaryFolder();
 
   private final GoogleCloudStorage rawStorage;
-  private final TestBucketHelper bucketHelper;
 
   public GoogleCloudStorageTest(GoogleCloudStorage rawStorage) {
-    this.bucketHelper = new TestBucketHelper(BUCKET_NAME_PREFIX);
     this.rawStorage = rawStorage;
   }
 
@@ -279,61 +185,45 @@ public class GoogleCloudStorageTest {
     fileBackedCache.setBasePath(tempDirectoryProvider.newFolder("gcs-metadata").toString());
   }
 
-  private void cleanupTestObjects(String bucketName, StorageResourceId object) throws IOException {
-    cleanupTestObjects(bucketName, ImmutableList.of(object));
-  }
-
-  private void cleanupTestObjects(String bucketName, List<StorageResourceId> resources)
-      throws IOException {
-    cleanupTestObjects(ImmutableList.of(bucketName), resources);
-  }
-
-  private void cleanupTestObjects(List<String> bucketNames, List<StorageResourceId> resources)
-      throws IOException {
-    GoogleCloudStorageTestHelper.cleanupTestObjects(rawStorage, bucketNames, resources);
-  }
-
-  @After
-  public void cleanup() throws IOException {
-    bucketHelper.cleanupTestObjects(rawStorage);
-  }
-
   @AfterClass
-  public static void cleanupSharedBuckets() throws IOException {
-    SharedBucketScope.cleanupTestBuckets();
+  public static void cleanupBuckets() throws IOException {
+    // Use any GCS object (from tested ones) for clean up
+    BUCKET_HELPER.get().cleanup(Iterables.getLast(SHARED_BUCKETS.asMap().keySet()));
+  }
+
+  private String createUniqueBucket(String suffix) throws IOException {
+    return createUniqueBucket(rawStorage, suffix);
+  }
+
+  private String getSharedBucketName() {
+    return SHARED_BUCKETS.getUnchecked(rawStorage);
   }
 
   @Test
   public void testCreateSuccessfulBucket() throws IOException {
-    String bucketName = bucketHelper.getUniqueBucketName("create_successful");
-    rawStorage.create(bucketName);
+    String bucketName = createUniqueBucket("create_successful");
 
     // Verify the bucket exist by creating an object
     StorageResourceId objectToCreate = new StorageResourceId(bucketName, "CreateTestObject");
     rawStorage.createEmptyObject(objectToCreate);
-
-    cleanupTestObjects(bucketName, objectToCreate);
   }
 
   @Test
   public void testCreateExistingBucket() throws IOException {
-    String bucketName = bucketHelper.getUniqueBucketName("create_existing");
-    rawStorage.create(bucketName);
+    String bucketName = createUniqueBucket("create_existing");
 
     try {
       rawStorage.create(bucketName);
       fail();
     } catch (IOException e) {
       // expected
-    } finally {
-      rawStorage.deleteBuckets(ImmutableList.of(bucketName));
     }
   }
 
   @Test
   public void testCreateInvalidBucket() throws IOException {
     // Buckets must start with a letter or number
-    String bucketName = "--" + bucketHelper.getUniqueBucketName("create_invalid");
+    String bucketName = "--" + getUniqueBucketName("create_invalid");
 
     try {
       rawStorage.create(bucketName);
@@ -345,402 +235,360 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testCreateObject() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      byte[] bytesToWrite = "SomeText".getBytes(StandardCharsets.UTF_8);
-      // Verify the bucket exist by creating an object
-      StorageResourceId objectToCreate =
-          new StorageResourceId(bucketName, "testCreateObject_CreateTestObject");
-      try (WritableByteChannel channel = gcs.create(objectToCreate)) {
-        channel.write(ByteBuffer.wrap(bytesToWrite));
-      }
-
-      GoogleCloudStorageTestHelper.assertObjectContent(gcs, objectToCreate, bytesToWrite);
+    byte[] bytesToWrite = "SomeText".getBytes(StandardCharsets.UTF_8);
+    // Verify the bucket exist by creating an object
+    StorageResourceId objectToCreate =
+        new StorageResourceId(bucketName, "testCreateObject_CreateTestObject");
+    try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
+      channel.write(ByteBuffer.wrap(bytesToWrite));
     }
+
+    GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, objectToCreate, bytesToWrite);
   }
 
   @Test
   public void testCreateInvalidObject() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      byte[] bytesToWrite = "SomeText".getBytes(StandardCharsets.UTF_8);
-      // Verify the bucket exist by creating an object
-      StorageResourceId objectToCreate =
-          new StorageResourceId(bucketName, "testCreateObject_CreateInvalidTestObject\n");
+    byte[] bytesToWrite = "SomeText".getBytes(StandardCharsets.UTF_8);
+    // Verify the bucket exist by creating an object
+    StorageResourceId objectToCreate =
+        new StorageResourceId(bucketName, "testCreateObject_CreateInvalidTestObject\n");
 
-      try {
-        try (WritableByteChannel channel = gcs.create(objectToCreate)) {
-          channel.write(ByteBuffer.wrap(bytesToWrite));
-        }
-        fail();
-      } catch (IOException e) {
-        // expected
+    try {
+      try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
+        channel.write(ByteBuffer.wrap(bytesToWrite));
       }
+      fail();
+    } catch (IOException e) {
+      // expected
     }
   }
 
   @Test
   public void testCreateZeroLengthObjectUsingCreate() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      byte[] bytesToWrite = new byte[0];
+    byte[] bytesToWrite = new byte[0];
 
-      StorageResourceId objectToCreate = new StorageResourceId(
-          bucketName, "testCreateZeroLengthObjectUsingCreate_CreateEmptyTestObject");
-      try (WritableByteChannel channel = gcs.create(objectToCreate)) {
-        channel.write(ByteBuffer.wrap(bytesToWrite));
-      }
-
-      GoogleCloudStorageTestHelper.assertObjectContent(gcs, objectToCreate, bytesToWrite);
+    StorageResourceId objectToCreate =
+        new StorageResourceId(
+            bucketName, "testCreateZeroLengthObjectUsingCreate_CreateEmptyTestObject");
+    try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
+      channel.write(ByteBuffer.wrap(bytesToWrite));
     }
+
+    GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, objectToCreate, bytesToWrite);
   }
 
   @Test
   public void testCreate1PageLengthObjectUsingCreate() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
-      byte[] bytesToWrite =
-          new byte[GoogleCloudStorageWriteChannel.UPLOAD_PIPE_BUFFER_SIZE_DEFAULT];
-      GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
+    String bucketName = getSharedBucketName();
+    byte[] bytesToWrite = new byte[GoogleCloudStorageWriteChannel.UPLOAD_PIPE_BUFFER_SIZE_DEFAULT];
+    GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
 
-      StorageResourceId objectToCreate = new StorageResourceId(
-          bucketName, "testCreate1PageLengthObjectUsingCreate_Create1PageTestObject");
-      try (WritableByteChannel channel = gcs.create(objectToCreate)) {
-        channel.write(ByteBuffer.wrap(bytesToWrite));
-      }
-
-      GoogleCloudStorageTestHelper.assertObjectContent(gcs, objectToCreate, bytesToWrite);
+    StorageResourceId objectToCreate =
+        new StorageResourceId(
+            bucketName, "testCreate1PageLengthObjectUsingCreate_Create1PageTestObject");
+    try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
+      channel.write(ByteBuffer.wrap(bytesToWrite));
     }
+
+    GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, objectToCreate, bytesToWrite);
   }
 
   @Test
   public void testCreate1PageLengthPlus1byteObjectUsingCreate() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
-      byte[] bytesToWrite =
-          new byte[GoogleCloudStorageWriteChannel.UPLOAD_PIPE_BUFFER_SIZE_DEFAULT + 1];
-      GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
+    String bucketName = getSharedBucketName();
+    byte[] bytesToWrite =
+        new byte[GoogleCloudStorageWriteChannel.UPLOAD_PIPE_BUFFER_SIZE_DEFAULT + 1];
+    GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
 
-      StorageResourceId objectToCreate = new StorageResourceId(
-          bucketName,
-          "testCreate1PageLengthPlus1byteObjectUsingCreate_Create1PagePlusOneTestObject");
+    StorageResourceId objectToCreate =
+        new StorageResourceId(
+            bucketName,
+            "testCreate1PageLengthPlus1byteObjectUsingCreate_Create1PagePlusOneTestObject");
 
-      try (WritableByteChannel channel = gcs.create(objectToCreate)) {
-        channel.write(ByteBuffer.wrap(bytesToWrite));
-      }
-
-      GoogleCloudStorageTestHelper.assertObjectContent(gcs, objectToCreate, bytesToWrite);
+    try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
+      channel.write(ByteBuffer.wrap(bytesToWrite));
     }
+
+    GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, objectToCreate, bytesToWrite);
   }
 
   @Test
   public void testCreateExistingObject() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
-      byte[] bytesToWrite = "SomeText".getBytes(StandardCharsets.UTF_8);
+    String bucketName = getSharedBucketName();
+    byte[] bytesToWrite = "SomeText".getBytes(StandardCharsets.UTF_8);
 
-      StorageResourceId objectToCreate =
-          new StorageResourceId(bucketName, "testCreateExistingObject_CreateExistingObject");
+    StorageResourceId objectToCreate =
+        new StorageResourceId(bucketName, "testCreateExistingObject_CreateExistingObject");
 
-      try (WritableByteChannel channel = gcs.create(objectToCreate)) {
-        channel.write(ByteBuffer.wrap(bytesToWrite));
-      }
-
-      byte[] overwriteBytesToWrite = "OverwriteText".getBytes(StandardCharsets.UTF_8);
-
-      // We need to write data and close to trigger an IOException.
-      try (WritableByteChannel channel2 = gcs.create(objectToCreate)) {
-        channel2.write(ByteBuffer.wrap(overwriteBytesToWrite));
-      }
-
-      GoogleCloudStorageTestHelper.assertObjectContent(gcs, objectToCreate, overwriteBytesToWrite);
+    try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
+      channel.write(ByteBuffer.wrap(bytesToWrite));
     }
+
+    byte[] overwriteBytesToWrite = "OverwriteText".getBytes(StandardCharsets.UTF_8);
+
+    // We need to write data and close to trigger an IOException.
+    try (WritableByteChannel channel2 = rawStorage.create(objectToCreate)) {
+      channel2.write(ByteBuffer.wrap(overwriteBytesToWrite));
+    }
+
+    GoogleCloudStorageTestHelper.assertObjectContent(
+        rawStorage, objectToCreate, overwriteBytesToWrite);
   }
 
   @Test
   public void testCreateEmptyObject() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
-      StorageResourceId objectToCreate =
-          new StorageResourceId(bucketName, "testCreateEmptyObject_CreateEmptyObject");
+    String bucketName = getSharedBucketName();
 
-      gcs.createEmptyObject(objectToCreate);
+    StorageResourceId objectToCreate =
+        new StorageResourceId(bucketName, "testCreateEmptyObject_CreateEmptyObject");
 
-      GoogleCloudStorageItemInfo itemInfo = gcs.getItemInfo(objectToCreate);
+    rawStorage.createEmptyObject(objectToCreate);
 
-      assertTrue(itemInfo.exists());
-      assertEquals(0, itemInfo.getSize());
-    }
+    GoogleCloudStorageItemInfo itemInfo = rawStorage.getItemInfo(objectToCreate);
+
+    assertThat(itemInfo.exists()).isTrue();
+    assertThat(itemInfo.getSize()).isEqualTo(0);
   }
 
   @Test
   public void testCreateEmptyExistingObject() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      StorageResourceId objectToCreate = new StorageResourceId(
-          bucketName, "testCreateEmptyExistingObject_CreateEmptyExistingObject");
+    StorageResourceId objectToCreate =
+        new StorageResourceId(
+            bucketName, "testCreateEmptyExistingObject_CreateEmptyExistingObject");
 
-      gcs.createEmptyObject(objectToCreate);
+    rawStorage.createEmptyObject(objectToCreate);
 
-      GoogleCloudStorageItemInfo itemInfo = gcs.getItemInfo(objectToCreate);
+    GoogleCloudStorageItemInfo itemInfo = rawStorage.getItemInfo(objectToCreate);
 
-      assertTrue(itemInfo.exists());
-      assertEquals(0, itemInfo.getSize());
+    assertThat(itemInfo.exists()).isTrue();
+    assertThat(itemInfo.getSize()).isEqualTo(0);
 
-      gcs.createEmptyObject(objectToCreate);
+    rawStorage.createEmptyObject(objectToCreate);
 
-      GoogleCloudStorageItemInfo secondItemInfo = gcs.getItemInfo(objectToCreate);
+    GoogleCloudStorageItemInfo secondItemInfo = rawStorage.getItemInfo(objectToCreate);
 
-      assertTrue(secondItemInfo.exists());
-      assertEquals(0, secondItemInfo.getSize());
-      assertNotSame(itemInfo.getCreationTime(), secondItemInfo.getCreationTime());
-    }
+    assertThat(secondItemInfo.exists()).isTrue();
+    assertThat(secondItemInfo.getSize()).isEqualTo(0);
+    assertThat(secondItemInfo.getCreationTime()).isNotSameAs(itemInfo.getCreationTime());
   }
 
   @Test
   public void testGetSingleItemInfo() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      StorageResourceId objectToCreate =
-          new StorageResourceId(bucketName, "testGetSingleItemInfo_GetSingleItemInfoObject");
+    StorageResourceId objectToCreate =
+        new StorageResourceId(bucketName, "testGetSingleItemInfo_GetSingleItemInfoObject");
 
-      gcs.createEmptyObject(objectToCreate);
+    rawStorage.createEmptyObject(objectToCreate);
 
-      GoogleCloudStorageItemInfo itemInfo = gcs.getItemInfo(objectToCreate);
+    GoogleCloudStorageItemInfo itemInfo = rawStorage.getItemInfo(objectToCreate);
 
-      assertTrue(itemInfo.exists());
-      assertEquals(0, itemInfo.getSize());
+    assertThat(itemInfo.exists()).isTrue();
+    assertThat(itemInfo.getSize()).isEqualTo(0);
 
-      StorageResourceId secondObjectToCreate =
-          new StorageResourceId(bucketName, "testGetSingleItemInfo_GetSingleItemInfoObject2");
+    StorageResourceId secondObjectToCreate =
+        new StorageResourceId(bucketName, "testGetSingleItemInfo_GetSingleItemInfoObject2");
 
-      byte[] bytesToWrite = new byte[100];
-      GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
+    byte[] bytesToWrite = new byte[100];
+    GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
 
-      try (WritableByteChannel channel = gcs.create(secondObjectToCreate)) {
-        channel.write(ByteBuffer.wrap(bytesToWrite));
-      }
-
-      GoogleCloudStorageItemInfo secondItemInfo = gcs.getItemInfo(secondObjectToCreate);
-
-      assertTrue(secondItemInfo.exists());
-      assertEquals(100, secondItemInfo.getSize());
-      assertFalse(secondItemInfo.isBucket());
-      assertFalse(secondItemInfo.isRoot());
-
-      GoogleCloudStorageItemInfo nonExistentItemInfo =
-          gcs.getItemInfo(
-              new StorageResourceId(bucketName, "testGetSingleItemInfo_SomethingThatDoesntExist"));
-
-      assertFalse(nonExistentItemInfo.exists());
-      assertFalse(nonExistentItemInfo.isBucket());
-      assertFalse(nonExistentItemInfo.isRoot());
-
-      // Test bucket get item info
-      GoogleCloudStorageItemInfo bucketInfo = gcs.getItemInfo(new StorageResourceId(bucketName));
-      assertTrue(bucketInfo.exists());
-      assertTrue(bucketInfo.isBucket());
-
-      GoogleCloudStorageItemInfo rootInfo =
-          gcs.getItemInfo(StorageResourceId.ROOT);
-      assertTrue(rootInfo.exists());
-      assertTrue(rootInfo.isRoot());
+    try (WritableByteChannel channel = rawStorage.create(secondObjectToCreate)) {
+      channel.write(ByteBuffer.wrap(bytesToWrite));
     }
+
+    GoogleCloudStorageItemInfo secondItemInfo = rawStorage.getItemInfo(secondObjectToCreate);
+
+    assertThat(secondItemInfo.exists()).isTrue();
+    assertThat(secondItemInfo.getSize()).isEqualTo(100);
+    assertThat(secondItemInfo.isBucket()).isFalse();
+    assertThat(secondItemInfo.isRoot()).isFalse();
+
+    GoogleCloudStorageItemInfo nonExistentItemInfo =
+        rawStorage.getItemInfo(
+            new StorageResourceId(bucketName, "testGetSingleItemInfo_SomethingThatDoesntExist"));
+
+    assertThat(nonExistentItemInfo.exists()).isFalse();
+    assertThat(nonExistentItemInfo.isBucket()).isFalse();
+    assertThat(nonExistentItemInfo.isRoot()).isFalse();
+
+    // Test bucket get item info
+    GoogleCloudStorageItemInfo bucketInfo =
+        rawStorage.getItemInfo(new StorageResourceId(bucketName));
+    assertThat(bucketInfo.exists()).isTrue();
+    assertThat(bucketInfo.isBucket()).isTrue();
+
+    GoogleCloudStorageItemInfo rootInfo = rawStorage.getItemInfo(StorageResourceId.ROOT);
+    assertThat(rootInfo.exists()).isTrue();
+    assertThat(rootInfo.isRoot()).isTrue();
   }
 
   @Test
   public void testGetMultipleItemInfo() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      List<StorageResourceId> objectsCreated = new ArrayList<>();
+    List<StorageResourceId> objectsCreated = new ArrayList<>();
 
-      for (int i = 0; i < 3; i++) {
-        StorageResourceId objectToCreate = new StorageResourceId(
-            bucketName, String.format("testGetMultipleItemInfo_GetMultiItemInfoObject_%s", i));
-        gcs.createEmptyObject(objectToCreate);
-        objectsCreated.add(objectToCreate);
-      }
-
-      StorageResourceId bucketResourceId = new StorageResourceId(bucketName);
-      StorageResourceId nonExistentResourceId =
-          new StorageResourceId(bucketName, "testGetMultipleItemInfo_IDontExist");
-
-      List<StorageResourceId> allResources = Lists.newArrayList();
-      allResources.addAll(objectsCreated);
-      allResources.add(nonExistentResourceId);
-      allResources.add(bucketResourceId);
-
-      List<GoogleCloudStorageItemInfo> allInfo = gcs.getItemInfos(allResources);
-
-      for (int i = 0; i < objectsCreated.size(); i++) {
-        StorageResourceId resourceId = objectsCreated.get(i);
-        GoogleCloudStorageItemInfo info = allInfo.get(i);
-
-        assertEquals(resourceId, info.getResourceId());
-        assertEquals(0, info.getSize());
-        assertTrue("Item should exist", info.exists());
-        assertNotSame(0, info.getCreationTime());
-        assertFalse(info.isBucket());
-      }
-
-      GoogleCloudStorageItemInfo nonExistentItemInfo = allInfo.get(allInfo.size() - 2);
-      assertFalse(nonExistentItemInfo.exists());
-
-      GoogleCloudStorageItemInfo bucketInfo = allInfo.get(allInfo.size() - 1);
-      assertTrue(bucketInfo.exists());
-      assertTrue(bucketInfo.isBucket());
+    for (int i = 0; i < 3; i++) {
+      StorageResourceId objectToCreate =
+          new StorageResourceId(
+              bucketName, String.format("testGetMultipleItemInfo_GetMultiItemInfoObject_%s", i));
+      rawStorage.createEmptyObject(objectToCreate);
+      objectsCreated.add(objectToCreate);
     }
+
+    StorageResourceId bucketResourceId = new StorageResourceId(bucketName);
+    StorageResourceId nonExistentResourceId =
+        new StorageResourceId(bucketName, "testGetMultipleItemInfo_IDontExist");
+
+    List<StorageResourceId> allResources = Lists.newArrayList();
+    allResources.addAll(objectsCreated);
+    allResources.add(nonExistentResourceId);
+    allResources.add(bucketResourceId);
+
+    List<GoogleCloudStorageItemInfo> allInfo = rawStorage.getItemInfos(allResources);
+
+    for (int i = 0; i < objectsCreated.size(); i++) {
+      StorageResourceId resourceId = objectsCreated.get(i);
+      GoogleCloudStorageItemInfo info = allInfo.get(i);
+
+      assertThat(info.getResourceId()).isEqualTo(resourceId);
+      assertThat(info.getSize()).isEqualTo(0);
+      assertWithMessage("Item should exist").that(info.exists()).isTrue();
+      assertThat(info.getCreationTime()).isNotEqualTo(0);
+      assertThat(info.isBucket()).isFalse();
+    }
+
+    GoogleCloudStorageItemInfo nonExistentItemInfo = allInfo.get(allInfo.size() - 2);
+    assertThat(nonExistentItemInfo.exists()).isFalse();
+
+    GoogleCloudStorageItemInfo bucketInfo = allInfo.get(allInfo.size() - 1);
+    assertThat(bucketInfo.exists()).isTrue();
+    assertThat(bucketInfo.isBucket()).isTrue();
   }
 
   // TODO(user): Re-enable once a new method of inducing errors is devised.
   @Test @Ignore
   public void testGetMultipleItemInfoWithSomeInvalid() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      List<StorageResourceId> resourceIdList = new ArrayList<>();
-      StorageResourceId newOject =
-          new StorageResourceId(bucketName, "testGetMultipleItemInfoWithSomeInvalid_CreatedObject");
-      resourceIdList.add(newOject);
-      gcs.createEmptyObject(newOject);
+    List<StorageResourceId> resourceIdList = new ArrayList<>();
+    StorageResourceId newObject =
+        new StorageResourceId(bucketName, "testGetMultipleItemInfoWithSomeInvalid_CreatedObject");
+    resourceIdList.add(newObject);
+    rawStorage.createEmptyObject(newObject);
 
-      StorageResourceId invalidObject = new StorageResourceId(
-          bucketName, "testGetMultipleItemInfoWithSomeInvalid_InvalidObject\n");
-      resourceIdList.add(invalidObject);
+    StorageResourceId invalidObject =
+        new StorageResourceId(bucketName, "testGetMultipleItemInfoWithSomeInvalid_InvalidObject\n");
+    resourceIdList.add(invalidObject);
 
-      try {
-        gcs.getItemInfos(resourceIdList);
-        fail();
-      } catch (IOException e) {
-        assertThat(e).hasMessageThat().isEqualTo("Error getting StorageObject");
-      }
+    try {
+      rawStorage.getItemInfos(resourceIdList);
+      fail();
+    } catch (IOException e) {
+      assertThat(e).hasMessageThat().isEqualTo("Error getting StorageObject");
     }
   }
 
   // TODO(user): Re-enable once a new method of inducing errors is devised.
   @Test @Ignore
   public void testOneInvalidGetItemInfo() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      try {
-        gcs.getItemInfo(
-            new StorageResourceId(bucketName, "testOneInvalidGetItemInfo_InvalidObject\n"));
-        fail();
-      } catch (IOException e) {
-        assertThat(e).hasMessageThat().isEqualTo("Error accessing");
-      }
+    try {
+      rawStorage.getItemInfo(
+          new StorageResourceId(bucketName, "testOneInvalidGetItemInfo_InvalidObject\n"));
+      fail();
+    } catch (IOException e) {
+      assertThat(e).hasMessageThat().isEqualTo("Error accessing");
     }
   }
 
   @Test
   public void testSingleObjectDelete() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      StorageResourceId resource =
-          new StorageResourceId(bucketName, "testSingleObjectDelete_SomeItem");
-      gcs.createEmptyObject(resource);
+    StorageResourceId resource =
+        new StorageResourceId(bucketName, "testSingleObjectDelete_SomeItem");
+    rawStorage.createEmptyObject(resource);
 
-      GoogleCloudStorageItemInfo info = gcs.getItemInfo(resource);
-      assertTrue(info.exists());
+    GoogleCloudStorageItemInfo info = rawStorage.getItemInfo(resource);
+    assertThat(info.exists()).isTrue();
 
-      gcs.deleteObjects(ImmutableList.of(resource));
+    rawStorage.deleteObjects(ImmutableList.of(resource));
 
-      GoogleCloudStorageItemInfo deletedInfo = gcs.getItemInfo(resource);
-      assertFalse(deletedInfo.exists());
-    }
+    GoogleCloudStorageItemInfo deletedInfo = rawStorage.getItemInfo(resource);
+    assertThat(deletedInfo.exists()).isFalse();
   }
 
   @Test
   public void testMultipleObjectDelete() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      StorageResourceId resource =
-          new StorageResourceId(bucketName, "testMultipleObjectDelete_MultiDeleteSomeItem1");
-      gcs.createEmptyObject(resource);
+    StorageResourceId resource =
+        new StorageResourceId(bucketName, "testMultipleObjectDelete_MultiDeleteSomeItem1");
+    rawStorage.createEmptyObject(resource);
 
-      StorageResourceId secondResource =
-          new StorageResourceId(bucketName, "testMultipleObjectDelete_MultiDeleteSecondItem");
-      gcs.createEmptyObject(secondResource);
+    StorageResourceId secondResource =
+        new StorageResourceId(bucketName, "testMultipleObjectDelete_MultiDeleteSecondItem");
+    rawStorage.createEmptyObject(secondResource);
 
-      assertTrue(gcs.getItemInfo(resource).exists());
-      assertTrue(gcs.getItemInfo(secondResource).exists());
+    assertThat(rawStorage.getItemInfo(resource).exists()).isTrue();
+    assertThat(rawStorage.getItemInfo(secondResource).exists()).isTrue();
 
-      gcs.deleteObjects(ImmutableList.of(resource, secondResource));
+    rawStorage.deleteObjects(ImmutableList.of(resource, secondResource));
 
-      assertFalse(gcs.getItemInfo(resource).exists());
-      assertFalse(gcs.getItemInfo(secondResource).exists());
-    }
+    assertThat(rawStorage.getItemInfo(resource).exists()).isFalse();
+    assertThat(rawStorage.getItemInfo(secondResource).exists()).isFalse();
   }
 
   // TODO(user): Re-enable once a new method of inducing errors is devised.
   @Test @Ignore
   public void testSomeInvalidObjectsDelete() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      StorageResourceId resource =
-          new StorageResourceId(bucketName, "testSomeInvalidObjectsDelete_SomeItem");
-      gcs.createEmptyObject(resource);
+    StorageResourceId resource =
+        new StorageResourceId(bucketName, "testSomeInvalidObjectsDelete_SomeItem");
+    rawStorage.createEmptyObject(resource);
 
-      // Don't actually create a GCS object for this resource.
-      StorageResourceId secondResource =
-          new StorageResourceId(bucketName, "testSomeInvalidObjectsDelete_DoesntExit");
-      StorageResourceId invalidName =
-          new StorageResourceId(bucketName, "testSomeInvalidObjectsDelete_InvalidObject\n");
+    // Don't actually create a GCS object for this resource.
+    StorageResourceId secondResource =
+        new StorageResourceId(bucketName, "testSomeInvalidObjectsDelete_DoesntExit");
+    StorageResourceId invalidName =
+        new StorageResourceId(bucketName, "testSomeInvalidObjectsDelete_InvalidObject\n");
 
-      assertTrue(gcs.getItemInfo(resource).exists());
-      assertFalse(gcs.getItemInfo(secondResource).exists());
+    assertThat(rawStorage.getItemInfo(resource).exists()).isTrue();
+    assertThat(rawStorage.getItemInfo(secondResource).exists()).isFalse();
 
-      try {
-        gcs.deleteObjects(ImmutableList.of(resource, secondResource, invalidName));
-        fail();
-      } catch (IOException e) {
-        assertThat(e).hasMessageThat().isEqualTo("Error deleting");
-      }
+    try {
+      rawStorage.deleteObjects(ImmutableList.of(resource, secondResource, invalidName));
+      fail();
+    } catch (IOException e) {
+      assertThat(e).hasMessageThat().isEqualTo("Error deleting");
     }
   }
 
   @Test
   public void testDeleteNonExistingObject() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      StorageResourceId resource = new StorageResourceId(
-          bucketName, "testDeleteNonExistingObject_DeleteNonExistantItemTest");
+    StorageResourceId resource =
+        new StorageResourceId(bucketName, "testDeleteNonExistingObject_DeleteNonExistantItemTest");
 
-      gcs.deleteObjects(ImmutableList.of(resource));
-    }
+    rawStorage.deleteObjects(ImmutableList.of(resource));
   }
 
   @Test
   public void testDeleteNonExistingBucket() throws IOException {
     // Composite exception thrown, not a FileNotFoundException.
-    String bucketName = bucketHelper.getUniqueBucketName("delete_ne_bucket");
+    String bucketName = getUniqueBucketName("delete_ne_bucket");
 
     try {
       rawStorage.deleteBuckets(ImmutableList.of(bucketName));
@@ -752,25 +600,21 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testSingleDeleteBucket() throws IOException {
-    String bucketName = bucketHelper.getUniqueBucketName("delete_1_bucket");
-    rawStorage.create(bucketName);
+    String bucketName = createUniqueBucket("delete_1_bucket");
+
     rawStorage.deleteBuckets(ImmutableList.of(bucketName));
 
     GoogleCloudStorageItemInfo info = rawStorage.getItemInfo(new StorageResourceId(bucketName));
-    assertFalse(info.exists());
+    assertThat(info.exists()).isFalse();
 
     // Create the bucket again to assure that the previous one was deleted...
     rawStorage.create(bucketName);
-    rawStorage.deleteBuckets(ImmutableList.of(bucketName));
   }
 
   @Test
   public void testMultipleDeleteBucket() throws IOException {
-    String bucketName = bucketHelper.getUniqueBucketName("delete_multi_bucket");
-    String bucketName2 = bucketHelper.getUniqueBucketName("delete_multi_bucket2");
-
-    rawStorage.create(bucketName);
-    rawStorage.create(bucketName2);
+    String bucketName = createUniqueBucket("delete_multi_bucket");
+    String bucketName2 = createUniqueBucket("delete_multi_bucket2");
 
     rawStorage.deleteBuckets(ImmutableList.of(bucketName, bucketName2));
 
@@ -778,18 +622,15 @@ public class GoogleCloudStorageTest {
         new StorageResourceId(bucketName), new StorageResourceId(bucketName2)));
 
     for (GoogleCloudStorageItemInfo info : infoList) {
-      assertFalse(info.exists());
+      assertThat(info.exists()).isFalse();
     }
   }
 
   @Test
   public void testSomeInvalidDeleteBucket() throws IOException {
-    String bucketName = bucketHelper.getUniqueBucketName("delete_multi_bucket");
-    String bucketName2 = bucketHelper.getUniqueBucketName("delete_multi_bucket2");
+    String bucketName = createUniqueBucket("delete_multi_bucket");
+    String bucketName2 = createUniqueBucket("delete_multi_bucket2");
     String invalidBucketName = "--invalid_delete_multi_bucket";
-
-    rawStorage.create(bucketName);
-    rawStorage.create(bucketName2);
 
     try {
       rawStorage.deleteBuckets(ImmutableList.of(bucketName, bucketName2, invalidBucketName));
@@ -803,181 +644,145 @@ public class GoogleCloudStorageTest {
         new StorageResourceId(bucketName), new StorageResourceId(bucketName2)));
 
     for (GoogleCloudStorageItemInfo info : infoList) {
-      assertFalse(info.exists());
+      assertThat(info.exists()).isFalse();
     }
   }
 
   @Test
   public void testListBucketInfo() throws IOException {
-    String bucketName = bucketHelper.getUniqueBucketName("test_list_bucketinfo");
-    rawStorage.create(bucketName);
-    List<GoogleCloudStorageItemInfo> infoList = rawStorage.listBucketInfo();
+    String bucketName = getSharedBucketName();
+
     // This has potential to become flaky...
-    assertTrue("At least one bucket should exist", infoList.size() > 0);
+    List<GoogleCloudStorageItemInfo> infoList = rawStorage.listBucketInfo();
 
+    assertWithMessage("At least one bucket should exist").that(infoList).isNotEmpty();
+    boolean bucketListed = false;
     for (GoogleCloudStorageItemInfo info : infoList) {
-      assertTrue(info.exists());
-      assertTrue(info.isBucket());
-      assertFalse(info.isRoot());
+      assertThat(info.exists()).isTrue();
+      assertThat(info.isBucket()).isTrue();
+      assertThat(info.isRoot()).isFalse();
+      bucketListed |= info.getBucketName().equals(bucketName);
     }
-
-    cleanupTestObjects(bucketName, ImmutableList.<StorageResourceId>of());
+    assertThat(bucketListed).isTrue();
   }
 
   @Test
   public void testListBucketNames() throws IOException {
-    String bucketName = bucketHelper.getUniqueBucketName("test_list_bucketinfo");
-    rawStorage.create(bucketName);
+    String bucketName = getSharedBucketName();
 
+    // This has potential to become flaky...
     List<String> bucketNames = rawStorage.listBucketNames();
 
-    assertFalse("Bucket names should not be empty", bucketNames.isEmpty());
-
-    cleanupTestObjects(bucketName, ImmutableList.<StorageResourceId>of());
+    assertWithMessage("Bucket names should not be empty").that(bucketNames).isNotEmpty();
+    assertThat(bucketNames).contains(bucketName);
   }
 
   @Test
   public void testListObjectNamesLimited() throws IOException {
-    try (TestBucketScope scope =
-        new UniqueBucketScope(rawStorage, "list_limited")) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
-      List<StorageResourceId> testOjects = new ArrayList<>();
+    String bucketName = createUniqueBucket("list_object_names_limited");
 
-      String[] names = { "a", "b", "c", "d" };
-      for (String name : names) {
-        StorageResourceId id = new StorageResourceId(bucketName, name);
-        gcs.createEmptyObject(id);
-        testOjects.add(id);
-      }
-
-      List<String> gcsNames = gcs.listObjectNames(bucketName, null, "/", 2);
-
-      assertEquals(2, gcsNames.size());
-
-      cleanupTestObjects(ImmutableList.<String>of(), testOjects);
+    String[] names = {"a", "b", "c", "d"};
+    for (String name : names) {
+      StorageResourceId id = new StorageResourceId(bucketName, name);
+      rawStorage.createEmptyObject(id);
     }
+
+    List<String> gcsNames = rawStorage.listObjectNames(bucketName, null, "/", 2);
+
+    assertThat(gcsNames).hasSize(2);
   }
 
   @Test
   public void testListObjectInfoLimited() throws IOException {
-    try (TestBucketScope scope =
-        new UniqueBucketScope(rawStorage, "list_limited")) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
-      List<StorageResourceId> testOjects = new ArrayList<>();
+    String bucketName = createUniqueBucket("list_object_info_limited");
 
-      String[] names = { "x", "y", "z" };
-      for (String name : names) {
-        StorageResourceId id = new StorageResourceId(bucketName, name);
-        gcs.createEmptyObject(id);
-        testOjects.add(id);
-      }
-
-      List<GoogleCloudStorageItemInfo> info =
-          gcs.listObjectInfo(bucketName, null, "/", 2);
-
-      assertEquals(2, info.size());
-
-      cleanupTestObjects(ImmutableList.<String>of(), testOjects);
+    String[] names = {"x", "y", "z"};
+    for (String name : names) {
+      StorageResourceId id = new StorageResourceId(bucketName, name);
+      rawStorage.createEmptyObject(id);
     }
+
+    List<GoogleCloudStorageItemInfo> info = rawStorage.listObjectInfo(bucketName, null, "/", 2);
+
+    assertThat(info).hasSize(2);
   }
 
   @Test
   public void testListObjectInfoWithDirectoryRepair() throws IOException {
-    try (TestBucketScope scope = new UniqueBucketScope(rawStorage, "list_repair")) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
-      List<StorageResourceId> testOjects = new ArrayList<>();
+    String bucketName = createUniqueBucket("list_repair");
 
-      StorageResourceId d1 = new StorageResourceId(bucketName, "d1/");
-      gcs.createEmptyObject(d1);
-      testOjects.add(d1);
+    StorageResourceId d1 = new StorageResourceId(bucketName, "d1/");
+    rawStorage.createEmptyObject(d1);
 
-      StorageResourceId o1 = new StorageResourceId(bucketName, "d1/o1");
-      gcs.createEmptyObject(o1);
-      testOjects.add(o1);
+    StorageResourceId o1 = new StorageResourceId(bucketName, "d1/o1");
+    rawStorage.createEmptyObject(o1);
 
-      // No empty d2/ prefix:
-      StorageResourceId d3 = new StorageResourceId(bucketName, "d2/d3/");
-      gcs.createEmptyObject(d3);
-      testOjects.add(d3);
+    // No empty d2/ prefix:
+    StorageResourceId d3 = new StorageResourceId(bucketName, "d2/d3/");
+    rawStorage.createEmptyObject(d3);
 
-      StorageResourceId o2 = new StorageResourceId(bucketName, "d2/d3/o2");
-      gcs.createEmptyObject(o2);
-      testOjects.add(o2);
+    StorageResourceId o2 = new StorageResourceId(bucketName, "d2/d3/o2");
+    rawStorage.createEmptyObject(o2);
 
-      GoogleCloudStorageItemInfo itemInfo =
-          gcs.getItemInfo(new StorageResourceId(bucketName, "d2/"));
-      assertFalse(itemInfo.exists());
+    GoogleCloudStorageItemInfo itemInfo =
+        rawStorage.getItemInfo(new StorageResourceId(bucketName, "d2/"));
+    assertThat(itemInfo.exists()).isFalse();
 
-      List<GoogleCloudStorageItemInfo> rootInfo =
-          gcs.listObjectInfo(bucketName, null, "/",
-              GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+    List<GoogleCloudStorageItemInfo> rootInfo =
+        rawStorage.listObjectInfo(bucketName, null, "/", GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
 
-      // Specifying any exact values seems like it's begging for this test to become flaky.
-      assertFalse("Infos not expected to be empty", rootInfo.isEmpty());
+    // Specifying any exact values seems like it's begging for this test to become flaky.
+    assertWithMessage("Infos not expected to be empty").that(rootInfo.isEmpty()).isFalse();
 
-      // Directory repair should have created an empty object for us:
-      StorageResourceId d2 = new StorageResourceId(bucketName, "d2/");
-      testOjects.add(d2);
-      GoogleCloudStorageTestHelper.assertObjectContent(gcs, d2, new byte[0]);
+    // Directory repair should have created an empty object for us:
+    StorageResourceId d2 = new StorageResourceId(bucketName, "d2/");
+    GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, d2, new byte[0]);
 
-      List<GoogleCloudStorageItemInfo> d2ItemInfo =
-          gcs.listObjectInfo(bucketName, "d2/d3/", "/",
-              GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
-      assertFalse("D2 item info not expected to be empty", d2ItemInfo.isEmpty());
+    List<GoogleCloudStorageItemInfo> d2ItemInfo =
+        rawStorage.listObjectInfo(
+            bucketName, "d2/d3/", "/", GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+    assertWithMessage("D2 item info not expected to be empty").that(d2ItemInfo.isEmpty()).isFalse();
 
-      // Testing GCS treating object names as opaque blobs
-      List<GoogleCloudStorageItemInfo> blobNamesInfo =
-          gcs.listObjectInfo(bucketName, null, null,
-              GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
-      assertFalse("blobNamesInfo not expected to be empty", blobNamesInfo.isEmpty());
-
-      // Used to clean up list objects / prefixes.
-      cleanupTestObjects(ImmutableList.<String>of(), testOjects);
-    }
+    // Testing GCS treating object names as opaque blobs
+    List<GoogleCloudStorageItemInfo> blobNamesInfo =
+        rawStorage.listObjectInfo(bucketName, null, null, GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+    assertWithMessage("blobNamesInfo not expected to be empty")
+        .that(blobNamesInfo.isEmpty())
+        .isFalse();
   }
 
   @Test
   public void testCopySingleItem() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
-      byte[] bytesToWrite = new byte[4096];
-      GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
+    String bucketName = getSharedBucketName();
 
-      // Verify the bucket exist by creating an object
-      StorageResourceId objectToCreate =
-          new StorageResourceId(bucketName, "testCopySingleItem_CopySingleItemCopySourceObject");
-      try (WritableByteChannel channel = gcs.create(objectToCreate)) {
-        channel.write(ByteBuffer.wrap(bytesToWrite));
-      }
+    byte[] bytesToWrite = new byte[4096];
+    GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
 
-      GoogleCloudStorageTestHelper.assertObjectContent(
-          gcs, objectToCreate, bytesToWrite);
-
-      StorageResourceId copiedResourceId =
-          new StorageResourceId(bucketName, "testCopySingleItem_CopySingleItemDestinationObject");
-      // Do the copy:
-      gcs.copy(
-          bucketName,
-          ImmutableList.of(objectToCreate.getObjectName()),
-          bucketName,
-          ImmutableList.of(copiedResourceId.getObjectName()));
-
-      GoogleCloudStorageTestHelper.assertObjectContent(gcs, copiedResourceId, bytesToWrite);
+    // Verify the bucket exist by creating an object
+    StorageResourceId objectToCreate =
+        new StorageResourceId(bucketName, "testCopySingleItem_CopySingleItemCopySourceObject");
+    try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
+      channel.write(ByteBuffer.wrap(bytesToWrite));
     }
-  }
 
+    GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, objectToCreate, bytesToWrite);
+
+    StorageResourceId copiedResourceId =
+        new StorageResourceId(bucketName, "testCopySingleItem_CopySingleItemDestinationObject");
+    // Do the copy:
+    rawStorage.copy(
+        bucketName,
+        ImmutableList.of(objectToCreate.getObjectName()),
+        bucketName,
+        ImmutableList.of(copiedResourceId.getObjectName()));
+
+    GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, copiedResourceId, bytesToWrite);
+  }
 
   @Test
   public void testCopyToDifferentBucket() throws IOException {
-    String sourceBucketName = bucketHelper.getUniqueBucketName("copy_src_bucket");
-    String destinationBucketName = bucketHelper.getUniqueBucketName("copy_dst_bucket");
-
-    rawStorage.create(sourceBucketName);
-    rawStorage.create(destinationBucketName);
+    String sourceBucketName = createUniqueBucket("copy_src_bucket");
+    String destinationBucketName = createUniqueBucket("copy_dst_bucket");
 
     byte[] bytesToWrite = new byte[4096];
     GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
@@ -1001,77 +806,66 @@ public class GoogleCloudStorageTest {
         ImmutableList.of(copiedResourceId.getObjectName()));
 
     GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, copiedResourceId, bytesToWrite);
-
-    cleanupTestObjects(
-        ImmutableList.of(sourceBucketName, destinationBucketName),
-        ImmutableList.of(objectToCreate, copiedResourceId));
   }
 
   @Test
   public void testCopySingleItemOverExistingItem() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      byte[] bytesToWrite = new byte[4096];
-      GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
+    byte[] bytesToWrite = new byte[4096];
+    GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
 
-      StorageResourceId objectToCopy =
-          new StorageResourceId(bucketName, "testCopySingleItemOverExistingItem_CopyTestObject");
-      try (WritableByteChannel channel = gcs.create(objectToCopy)) {
-        channel.write(ByteBuffer.wrap(bytesToWrite));
-      }
-
-      GoogleCloudStorageTestHelper.assertObjectContent(gcs, objectToCopy, bytesToWrite);
-
-      StorageResourceId secondObject =
-          new StorageResourceId(bucketName, "testCopySingleItemOverExistingItem_CopyTestObject2");
-      byte[] secondObjectBytes = new byte[2046];
-      GoogleCloudStorageTestHelper.fillBytes(secondObjectBytes);
-      try (WritableByteChannel channel = gcs.create(secondObject)) {
-        channel.write(ByteBuffer.wrap(secondObjectBytes));
-      }
-
-      GoogleCloudStorageTestHelper.assertObjectContent(gcs, secondObject, secondObjectBytes);
-
-      gcs.copy(
-          bucketName,
-          ImmutableList.of(objectToCopy.getObjectName()),
-          bucketName,
-          ImmutableList.of(secondObject.getObjectName()));
-
-      // Second object should now have the bytes of the first.
-      GoogleCloudStorageTestHelper.assertObjectContent(gcs, secondObject, bytesToWrite);
+    StorageResourceId objectToCopy =
+        new StorageResourceId(bucketName, "testCopySingleItemOverExistingItem_CopyTestObject");
+    try (WritableByteChannel channel = rawStorage.create(objectToCopy)) {
+      channel.write(ByteBuffer.wrap(bytesToWrite));
     }
+
+    GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, objectToCopy, bytesToWrite);
+
+    StorageResourceId secondObject =
+        new StorageResourceId(bucketName, "testCopySingleItemOverExistingItem_CopyTestObject2");
+    byte[] secondObjectBytes = new byte[2046];
+    GoogleCloudStorageTestHelper.fillBytes(secondObjectBytes);
+    try (WritableByteChannel channel = rawStorage.create(secondObject)) {
+      channel.write(ByteBuffer.wrap(secondObjectBytes));
+    }
+
+    GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, secondObject, secondObjectBytes);
+
+    rawStorage.copy(
+        bucketName,
+        ImmutableList.of(objectToCopy.getObjectName()),
+        bucketName,
+        ImmutableList.of(secondObject.getObjectName()));
+
+    // Second object should now have the bytes of the first.
+    GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, secondObject, bytesToWrite);
   }
 
   @Test
   public void testCopySingleItemOverItself() throws IOException {
-    try (TestBucketScope scope = new UniqueBucketScope(rawStorage, "copy_item_1_1")) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = createUniqueBucket("copy_item_1_1");
 
-      byte[] bytesToWrite = new byte[4096];
-      GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
+    byte[] bytesToWrite = new byte[4096];
+    GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
 
-      StorageResourceId objectToCopy = new StorageResourceId(bucketName, "CopyTestObject");
-      try (WritableByteChannel channel = gcs.create(objectToCopy)) {
-        channel.write(ByteBuffer.wrap(bytesToWrite));
-      }
+    StorageResourceId objectToCopy = new StorageResourceId(bucketName, "CopyTestObject");
+    try (WritableByteChannel channel = rawStorage.create(objectToCopy)) {
+      channel.write(ByteBuffer.wrap(bytesToWrite));
+    }
 
-      GoogleCloudStorageTestHelper.assertObjectContent(
-          gcs, objectToCopy, bytesToWrite);
+    GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, objectToCopy, bytesToWrite);
 
-      try {
-        gcs.copy(
-            bucketName,
-            ImmutableList.of(objectToCopy.getObjectName()),
-            bucketName,
-            ImmutableList.of(objectToCopy.getObjectName()));
-        fail();
-      } catch (IllegalArgumentException e) {
-        assertThat(e).hasMessageThat().startsWith("Copy destination must be different");
-      }
+    try {
+      rawStorage.copy(
+          bucketName,
+          ImmutableList.of(objectToCopy.getObjectName()),
+          bucketName,
+          ImmutableList.of(objectToCopy.getObjectName()));
+      fail();
+    } catch (IllegalArgumentException e) {
+      assertThat(e).hasMessageThat().startsWith("Copy destination must be different");
     }
   }
 
@@ -1092,174 +886,149 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testCopyMultipleItems() throws IOException {
-    try (TestBucketScope scope = new UniqueBucketScope(rawStorage, "copy_multi_item")) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
-      final int copyObjectCount = 3;
+    String bucketName = createUniqueBucket("copy_multi_item");
 
-      List<CopyObjectData> objectsToCopy = new ArrayList<>();
-      for (int i = 0; i < copyObjectCount; i++) {
-        String sourceObjectName = "sourceObject_" + i;
-        String destinationObjectName = "destinationObject_" + i;
-        byte[] objectBytes = new byte[1024 * i];
-        GoogleCloudStorageTestHelper.fillBytes(objectBytes);
+    final int copyObjectCount = 3;
 
-        try (WritableByteChannel channel =
-            gcs.create(new StorageResourceId(bucketName, sourceObjectName))) {
-          channel.write(ByteBuffer.wrap(objectBytes));
-        }
+    List<CopyObjectData> objectsToCopy = new ArrayList<>();
+    for (int i = 0; i < copyObjectCount; i++) {
+      String sourceObjectName = "sourceObject_" + i;
+      String destinationObjectName = "destinationObject_" + i;
+      byte[] objectBytes = new byte[1024 * i];
+      GoogleCloudStorageTestHelper.fillBytes(objectBytes);
 
-        objectsToCopy.add(
-            new CopyObjectData(
-                new StorageResourceId(bucketName, sourceObjectName),
-                new StorageResourceId(bucketName, destinationObjectName),
-                objectBytes));
+      try (WritableByteChannel channel =
+          rawStorage.create(new StorageResourceId(bucketName, sourceObjectName))) {
+        channel.write(ByteBuffer.wrap(objectBytes));
       }
 
-      List<String> sourceObjects =
-          Lists.transform(objectsToCopy, new Function<CopyObjectData, String>(){
-            @Override
-            public String apply(CopyObjectData copyObjectData) {
-              return copyObjectData.sourceResourceId.getObjectName();
-            }
-          });
+      objectsToCopy.add(
+          new CopyObjectData(
+              new StorageResourceId(bucketName, sourceObjectName),
+              new StorageResourceId(bucketName, destinationObjectName),
+              objectBytes));
+    }
 
-      List<String> destinationObjects =
-          Lists.transform(objectsToCopy, new Function<CopyObjectData, String>(){
-            @Override
-            public String apply(CopyObjectData copyObjectData) {
-              return copyObjectData.destinationResourceId.getObjectName();
-            }
-          });
+    List<String> sourceObjects =
+        Lists.transform(
+            objectsToCopy,
+            new Function<CopyObjectData, String>() {
+              @Override
+              public String apply(CopyObjectData copyObjectData) {
+                return copyObjectData.sourceResourceId.getObjectName();
+              }
+            });
 
-      gcs.copy(bucketName, sourceObjects, bucketName, destinationObjects);
+    List<String> destinationObjects =
+        Lists.transform(
+            objectsToCopy,
+            new Function<CopyObjectData, String>() {
+              @Override
+              public String apply(CopyObjectData copyObjectData) {
+                return copyObjectData.destinationResourceId.getObjectName();
+              }
+            });
 
-      for (CopyObjectData copyObjectData : objectsToCopy) {
-        GoogleCloudStorageTestHelper.assertObjectContent(
-            gcs,
-            copyObjectData.sourceResourceId,
-            copyObjectData.objectBytes);
-        GoogleCloudStorageTestHelper.assertObjectContent(
-            gcs,
-            copyObjectData.destinationResourceId,
-            copyObjectData.objectBytes);
-      }
+    rawStorage.copy(bucketName, sourceObjects, bucketName, destinationObjects);
 
-      List<StorageResourceId> objectsToCleanup = new ArrayList<>(copyObjectCount * 2);
-      for (CopyObjectData copyObjectData : objectsToCopy) {
-        objectsToCleanup.add(copyObjectData.sourceResourceId);
-        objectsToCleanup.add(copyObjectData.destinationResourceId);
-      }
+    for (CopyObjectData copyObjectData : objectsToCopy) {
+      GoogleCloudStorageTestHelper.assertObjectContent(
+          rawStorage, copyObjectData.sourceResourceId, copyObjectData.objectBytes);
+      GoogleCloudStorageTestHelper.assertObjectContent(
+          rawStorage, copyObjectData.destinationResourceId, copyObjectData.objectBytes);
+    }
+
+    List<StorageResourceId> objectsToCleanup = new ArrayList<>(copyObjectCount * 2);
+    for (CopyObjectData copyObjectData : objectsToCopy) {
+      objectsToCleanup.add(copyObjectData.sourceResourceId);
+      objectsToCleanup.add(copyObjectData.destinationResourceId);
     }
   }
 
   @Test
   public void testCopyNonExistentItem() throws IOException {
-    try (TestBucketScope scope = new UniqueBucketScope(rawStorage, "copy_item_ne")) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
-      String notExistentName = "IDontExist";
+    String bucketName = createUniqueBucket("copy_item_ne");
+    String notExistentName = "IDontExist";
 
-      try {
-        gcs.copy(
-            bucketName,
-            ImmutableList.of(notExistentName),
-            bucketName,
-            ImmutableList.of("Some_destination"));
-        fail();
-      } catch (FileNotFoundException e) {
-        // expected
-      }
+    try {
+      rawStorage.copy(
+          bucketName,
+          ImmutableList.of(notExistentName),
+          bucketName,
+          ImmutableList.of("Some_destination"));
+      fail();
+    } catch (FileNotFoundException e) {
+      // expected
     }
   }
 
   @Test
   public void testCopyMultipleItemsToSingleDestination() throws IOException {
-    try (TestBucketScope scope = new UniqueBucketScope(rawStorage, "copy_mutli_2_1")) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = createUniqueBucket("copy_mutli_2_1");
 
-      try {
-        gcs.copy(
-            bucketName,
-            ImmutableList.of("SomeSource", "SomeSource2"),
-            bucketName,
-            ImmutableList.of("Some_destination"));
+    try {
+      rawStorage.copy(
+          bucketName,
+          ImmutableList.of("SomeSource", "SomeSource2"),
+          bucketName,
+          ImmutableList.of("Some_destination"));
       fail("Copying multiple items to a single source should fail.");
-      } catch (IllegalArgumentException e) {
-        assertThat(e).hasMessageThat().startsWith("Must supply same number of elements");
-      }
+    } catch (IllegalArgumentException e) {
+      assertThat(e).hasMessageThat().startsWith("Must supply same number of elements");
     }
   }
 
   @Test
   public void testOpen() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      byte[] bytesToWrite = new byte[100];
+    byte[] bytesToWrite = new byte[100];
 
-      StorageResourceId objectToCreate =
-          new StorageResourceId(bucketName, "testOpen_OpenTestObject");
-      try (WritableByteChannel channel = gcs.create(objectToCreate)) {
-        channel.write(ByteBuffer.wrap(bytesToWrite));
-      }
-
-      GoogleCloudStorageTestHelper.assertObjectContent(gcs, objectToCreate, bytesToWrite);
+    StorageResourceId objectToCreate = new StorageResourceId(bucketName, "testOpen_OpenTestObject");
+    try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
+      channel.write(ByteBuffer.wrap(bytesToWrite));
     }
+
+    GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, objectToCreate, bytesToWrite);
   }
 
   @Test
   public void testOpenNonExistentItem() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      try {
-        gcs.open(new StorageResourceId(bucketName, "testOpenNonExistentItem_AnObject"));
-        fail("Exception expected from opening an non-existent object");
-      } catch (FileNotFoundException e) {
-        // expected
-      }
+    try {
+      rawStorage.open(new StorageResourceId(bucketName, "testOpenNonExistentItem_AnObject"));
+      fail("Exception expected from opening an non-existent object");
+    } catch (FileNotFoundException e) {
+      // expected
     }
   }
 
   @Test
   public void testOpenEmptyObject() throws IOException {
-    String bucketName = bucketHelper.getUniqueBucketName("open_empty");
-    rawStorage.create(bucketName);
+    String bucketName = createUniqueBucket("open_empty");
 
     StorageResourceId resourceId = new StorageResourceId(bucketName, "EmptyObject");
     rawStorage.createEmptyObject(resourceId);
     GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, resourceId, new byte[0]);
-
-    cleanupTestObjects(bucketName, resourceId);
   }
 
   @Test
   public void testOpenLargeObject() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
-      StorageResourceId objectToCreate =
-          new StorageResourceId(bucketName, "testOpenLargeObject_LargeObject");
-      GoogleCloudStorageTestHelper.readAndWriteLargeObject(objectToCreate, gcs);
-    }
+    String bucketName = getSharedBucketName();
+    StorageResourceId objectToCreate =
+        new StorageResourceId(bucketName, "testOpenLargeObject_LargeObject");
+    GoogleCloudStorageTestHelper.readAndWriteLargeObject(objectToCreate, rawStorage);
   }
 
   @Test
   public void testPlusInObjectNames() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      StorageResourceId resourceId =
-          new StorageResourceId(bucketName, "testPlusInObjectNames_an+object");
-      gcs.createEmptyObject(resourceId);
-      GoogleCloudStorageTestHelper.assertObjectContent(
-          gcs, resourceId, new byte[0]);
-    }
+    StorageResourceId resourceId =
+        new StorageResourceId(bucketName, "testPlusInObjectNames_an+object");
+    rawStorage.createEmptyObject(resourceId);
+    GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, resourceId, new byte[0]);
   }
 
   @Test
@@ -1268,73 +1037,73 @@ public class GoogleCloudStorageTest {
     byte[] data = new byte[totalBytes];
     GoogleCloudStorageTestHelper.fillBytes(data);
 
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      StorageResourceId resourceId =
-          new StorageResourceId(bucketName, "testObjectPosition_SeekTestObject");
-      try (WritableByteChannel channel = gcs.create(resourceId)) {
-        channel.write(ByteBuffer.wrap(data));
+    StorageResourceId resourceId =
+        new StorageResourceId(bucketName, "testObjectPosition_SeekTestObject");
+    try (WritableByteChannel channel = rawStorage.create(resourceId)) {
+      channel.write(ByteBuffer.wrap(data));
+    }
+
+    byte[] readBackingArray = new byte[totalBytes];
+    ByteBuffer readBuffer = ByteBuffer.wrap(readBackingArray);
+    try (SeekableByteChannel readChannel = rawStorage.open(resourceId)) {
+      assertWithMessage("Expected new file to open at position 0")
+          .that(readChannel.position())
+          .isEqualTo(0);
+      assertWithMessage("Unexpected readChannel.size()")
+          .that(readChannel.size())
+          .isEqualTo(totalBytes);
+
+      readBuffer.limit(4);
+      int bytesRead = readChannel.read(readBuffer);
+      assertWithMessage("Unexpected number of bytes read").that(bytesRead).isEqualTo(4);
+      assertWithMessage("Unexpected position after read()")
+          .that(readChannel.position())
+          .isEqualTo(4);
+
+      readChannel.position(4);
+      assertWithMessage("Unexpected position after no-op")
+          .that(readChannel.position())
+          .isEqualTo(4);
+
+      readChannel.position(6);
+      assertWithMessage("Unexpected position after explicit position(6)")
+          .that(readChannel.position())
+          .isEqualTo(6);
+
+      readChannel.position(data.length - 1);
+      assertWithMessage("Unexpected position after seek to EOF - 1")
+          .that(readChannel.position())
+          .isEqualTo(data.length - 1);
+      readBuffer.clear();
+      bytesRead = readChannel.read(readBuffer);
+      assertWithMessage("Expected to read 1 byte").that(bytesRead).isEqualTo(1);
+      assertWithMessage("Unexpected data read for last byte")
+          .that(readBackingArray[0])
+          .isEqualTo(data[data.length - 1]);
+
+      bytesRead = readChannel.read(readBuffer);
+      assertWithMessage("Expected to read -1 bytes for EOF marker").that(bytesRead).isEqualTo(-1);
+
+      readChannel.position(0);
+      assertWithMessage("Unexpected position after reset to 0")
+          .that(readChannel.position())
+          .isEqualTo(0);
+
+      try {
+        readChannel.position(-1);
+        fail("Expected IllegalArgumentException");
+      } catch (EOFException eofe) {
+        // Expected.
       }
 
-      byte[] readBackingArray = new byte[totalBytes];
-      ByteBuffer readBuffer = ByteBuffer.wrap(readBackingArray);
-      try (SeekableByteChannel readChannel = gcs.open(resourceId)) {
-        assertEquals("Expected new file to open at position 0", 0, readChannel.position());
-        assertEquals("Unexpected readChannel.size()", totalBytes, readChannel.size());
-
-        readBuffer.limit(4);
-        int bytesRead = readChannel.read(readBuffer);
-        assertEquals("Unexpected number of bytes read", 4, bytesRead);
-        assertEquals("Unexpected position after read()", 4, readChannel.position());
-
-        readChannel.position(4);
-        assertEquals("Unexpected position after no-op", 4, readChannel.position());
-
-        readChannel.position(6);
-        assertEquals("Unexpected position after explicit position(6)", 6, readChannel.position());
-
-        readChannel.position(data.length - 1);
-        assertEquals(
-            "Unexpected position after seek to EOF - 1",
-            data.length - 1,
-            readChannel.position());
-        readBuffer.clear();
-        bytesRead = readChannel.read(readBuffer);
-        assertEquals("Expected to read 1 byte", 1, bytesRead);
-        assertEquals(
-            "Unexpected data read for last byte",
-            data[data.length - 1],
-            readBackingArray[0]);
-
-        bytesRead = readChannel.read(readBuffer);
-        assertEquals(
-            "Expected to read -1 bytes for EOF marker",
-            -1,
-            bytesRead);
-
-        readChannel.position(0);
-        assertEquals(
-            "Unexpected position after reset to 0",
-            0,
-            readChannel.position());
-
-        try {
-          readChannel.position(-1);
-          fail("Expected IllegalArgumentException");
-        } catch (EOFException eofe) {
-          // Expected.
-        }
-
-        try {
-          readChannel.position(totalBytes);
-          fail("Expected IllegalArgumentException");
-        } catch (EOFException eofe) {
-          // Expected.
-        }
+      try {
+        readChannel.position(totalBytes);
+        fail("Expected IllegalArgumentException");
+      } catch (EOFException eofe) {
+        // Expected.
       }
-
     }
   }
 
@@ -1345,37 +1114,37 @@ public class GoogleCloudStorageTest {
     byte[] data = new byte[segmentCount * segmentSize];
     GoogleCloudStorageTestHelper.fillBytes(data);
 
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      StorageResourceId resourceId =
-          new StorageResourceId(bucketName, "testReadPartialObjects_ReadPartialTest");
-      try (WritableByteChannel channel = gcs.create(resourceId)) {
-        channel.write(ByteBuffer.wrap(data));
-      }
+    StorageResourceId resourceId =
+        new StorageResourceId(bucketName, "testReadPartialObjects_ReadPartialTest");
+    try (WritableByteChannel channel = rawStorage.create(resourceId)) {
+      channel.write(ByteBuffer.wrap(data));
+    }
 
-      byte[][] readSegments = new byte[segmentCount][segmentSize];
-      try (SeekableByteChannel readChannel = gcs.open(resourceId)) {
-        for (int i = 0; i < segmentCount; i++) {
-          ByteBuffer segmentBuffer = ByteBuffer.wrap(readSegments[i]);
-          int bytesRead = readChannel.read(segmentBuffer);
-          assertEquals(segmentSize, bytesRead);
-          byte[] expectedSegment = Arrays.copyOfRange(
-              data,
-              i * segmentSize, /* from index */
-              (i * segmentSize) + segmentSize /* to index */);
-          assertArrayEquals("Unexpected segment data read.", expectedSegment, readSegments[i]);
-        }
+    byte[][] readSegments = new byte[segmentCount][segmentSize];
+    try (SeekableByteChannel readChannel = rawStorage.open(resourceId)) {
+      for (int i = 0; i < segmentCount; i++) {
+        ByteBuffer segmentBuffer = ByteBuffer.wrap(readSegments[i]);
+        int bytesRead = readChannel.read(segmentBuffer);
+        assertThat(bytesRead).isEqualTo(segmentSize);
+        byte[] expectedSegment =
+            Arrays.copyOfRange(
+                data,
+                i * segmentSize, /* from index */
+                (i * segmentSize) + segmentSize /* to index */);
+        assertWithMessage("Unexpected segment data read.")
+            .that(readSegments[i])
+            .isEqualTo(expectedSegment);
       }
     }
   }
 
   @Test
   public void testSpecialResourceIds() throws IOException {
-    assertEquals("Unexpected ROOT item info returned",
-        GoogleCloudStorageItemInfo.ROOT_INFO,
-        rawStorage.getItemInfo(StorageResourceId.ROOT));
+    assertWithMessage("Unexpected ROOT item info returned")
+        .that(rawStorage.getItemInfo(StorageResourceId.ROOT))
+        .isEqualTo(GoogleCloudStorageItemInfo.ROOT_INFO);
 
     try {
       StorageResourceId.createReadableString(null, "objectName");
@@ -1390,32 +1159,29 @@ public class GoogleCloudStorageTest {
     final int totalBytes = 1200;
     byte[] data = new byte[totalBytes];
     GoogleCloudStorageTestHelper.fillBytes(data);
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      StorageResourceId resourceId =
-          new StorageResourceId(bucketName, "testChannelClosedException_ReadClosedChannelTest");
-      try (WritableByteChannel channel = gcs.create(resourceId)) {
-        channel.write(ByteBuffer.wrap(data));
-      }
+    StorageResourceId resourceId =
+        new StorageResourceId(bucketName, "testChannelClosedException_ReadClosedChannelTest");
+    try (WritableByteChannel channel = rawStorage.create(resourceId)) {
+      channel.write(ByteBuffer.wrap(data));
+    }
 
-      byte[] readArray = new byte[totalBytes];
-      SeekableByteChannel readableByteChannel = gcs.open(resourceId);
-      ByteBuffer readBuffer = ByteBuffer.wrap(readArray);
-      readBuffer.limit(5);
+    byte[] readArray = new byte[totalBytes];
+    SeekableByteChannel readableByteChannel = rawStorage.open(resourceId);
+    ByteBuffer readBuffer = ByteBuffer.wrap(readArray);
+    readBuffer.limit(5);
+    readableByteChannel.read(readBuffer);
+    assertThat(readableByteChannel.position()).isEqualTo(readBuffer.position());
+
+    readableByteChannel.close();
+    readBuffer.clear();
+
+    try {
       readableByteChannel.read(readBuffer);
-      assertThat(readableByteChannel.position()).isEqualTo(readBuffer.position());
-
-      readableByteChannel.close();
-      readBuffer.clear();
-
-      try {
-        readableByteChannel.read(readBuffer);
-        fail();
-      } catch (ClosedChannelException e) {
-        // expected
-      }
+      fail();
+    } catch (ClosedChannelException e) {
+      // expected
     }
   }
 
@@ -1426,182 +1192,170 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testMetadataIsWrittenWhenCreatingObjects() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      byte[] bytesToWrite = new byte[100];
-      GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
+    byte[] bytesToWrite = new byte[100];
+    GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
 
-      Map<String, byte[]> metadata = ImmutableMap.of(
-          "key1", "value1".getBytes(StandardCharsets.UTF_8),
-          "key2", "value2".getBytes(StandardCharsets.UTF_8));
+    Map<String, byte[]> metadata =
+        ImmutableMap.of(
+            "key1", "value1".getBytes(StandardCharsets.UTF_8),
+            "key2", "value2".getBytes(StandardCharsets.UTF_8));
 
-      // Verify the bucket exist by creating an object
-      StorageResourceId objectToCreate =
-          new StorageResourceId(bucketName, "testUpdateItemInfoUpdatesMetadata");
-      try (WritableByteChannel channel = gcs.create(
-          objectToCreate, new CreateObjectOptions(false, metadata))) {
-        channel.write(ByteBuffer.wrap(bytesToWrite));
-      }
-
-      // Verify metadata was set on create.
-      GoogleCloudStorageItemInfo itemInfo = gcs.getItemInfo(objectToCreate);
-      assertMapsEqual(metadata, itemInfo.getMetadata(), BYTE_ARRAY_EQUIVALENCE);
+    // Verify the bucket exist by creating an object
+    StorageResourceId objectToCreate =
+        new StorageResourceId(bucketName, "testUpdateItemInfoUpdatesMetadata");
+    try (WritableByteChannel channel =
+        rawStorage.create(objectToCreate, new CreateObjectOptions(false, metadata))) {
+      channel.write(ByteBuffer.wrap(bytesToWrite));
     }
+
+    // Verify metadata was set on create.
+    GoogleCloudStorageItemInfo itemInfo = rawStorage.getItemInfo(objectToCreate);
+    assertMapsEqual(metadata, itemInfo.getMetadata(), BYTE_ARRAY_EQUIVALENCE);
   }
 
   @Test
   public void testMetdataIsWrittenWhenCreatingEmptyObjects() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      Map<String, byte[]> metadata = ImmutableMap.of(
-          "key1", "value1".getBytes(StandardCharsets.UTF_8),
-          "key2", "value2".getBytes(StandardCharsets.UTF_8));
+    Map<String, byte[]> metadata =
+        ImmutableMap.of(
+            "key1", "value1".getBytes(StandardCharsets.UTF_8),
+            "key2", "value2".getBytes(StandardCharsets.UTF_8));
 
-      // Verify the bucket exist by creating an object
-      StorageResourceId objectToCreate =
-          new StorageResourceId(bucketName, "testMetdataIsWrittenWhenCreatingEmptyObjects");
-      gcs.createEmptyObject(objectToCreate, new CreateObjectOptions(false, metadata));
+    // Verify the bucket exist by creating an object
+    StorageResourceId objectToCreate =
+        new StorageResourceId(bucketName, "testMetdataIsWrittenWhenCreatingEmptyObjects");
+    rawStorage.createEmptyObject(objectToCreate, new CreateObjectOptions(false, metadata));
 
-      // Verify we get metadata from getItemInfo
-      GoogleCloudStorageItemInfo itemInfo = gcs.getItemInfo(objectToCreate);
-      assertMapsEqual(metadata, itemInfo.getMetadata(), BYTE_ARRAY_EQUIVALENCE);
-    }
+    // Verify we get metadata from getItemInfo
+    GoogleCloudStorageItemInfo itemInfo = rawStorage.getItemInfo(objectToCreate);
+    assertMapsEqual(metadata, itemInfo.getMetadata(), BYTE_ARRAY_EQUIVALENCE);
   }
 
   @Test
   public void testUpdateItemInfoUpdatesMetadata() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
+    String bucketName = getSharedBucketName();
 
-      byte[] bytesToWrite = new byte[100];
-      GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
+    byte[] bytesToWrite = new byte[100];
+    GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
 
-      Map<String, byte[]> metadata = ImmutableMap.of(
-          "key1", "value1".getBytes(StandardCharsets.UTF_8),
-          "key2", "value2".getBytes(StandardCharsets.UTF_8));
+    Map<String, byte[]> metadata =
+        ImmutableMap.of(
+            "key1", "value1".getBytes(StandardCharsets.UTF_8),
+            "key2", "value2".getBytes(StandardCharsets.UTF_8));
 
-      // Verify the bucket exist by creating an object
-      StorageResourceId objectToCreate =
-          new StorageResourceId(bucketName, "testUpdateItemInfoUpdatesMetadata");
-      try (WritableByteChannel channel = gcs.create(objectToCreate)) {
-        channel.write(ByteBuffer.wrap(bytesToWrite));
-      }
-
-      GoogleCloudStorageItemInfo itemInfo = gcs.getItemInfo(objectToCreate);
-      assertEquals("iniital metadata should be empty", 0, itemInfo.getMetadata().size());
-
-      // Verify we can update metadata:
-      List<GoogleCloudStorageItemInfo> results =
-          gcs.updateItems(ImmutableList.of(new UpdatableItemInfo(objectToCreate, metadata)));
-
-      assertEquals(1, results.size());
-      assertMapsEqual(metadata, results.get(0).getMetadata(), BYTE_ARRAY_EQUIVALENCE);
-
-      // Verify we get metadata from getItemInfo
-      itemInfo = gcs.getItemInfo(objectToCreate);
-      assertMapsEqual(metadata, itemInfo.getMetadata(), BYTE_ARRAY_EQUIVALENCE);
-
-      // Delete key1 from metadata:
-      Map<String, byte[]> deletionMap = new HashMap<>();
-      deletionMap.put("key1", null);
-      gcs.updateItems(ImmutableList.of(new UpdatableItemInfo(objectToCreate, deletionMap)));
-
-      itemInfo = gcs.getItemInfo(objectToCreate);
-      // Ensure that only key2:value2 still exists:
-      assertMapsEqual(
-          ImmutableMap.of(
-              "key2", "value2".getBytes(StandardCharsets.UTF_8)),
-          itemInfo.getMetadata(),
-          BYTE_ARRAY_EQUIVALENCE);
+    // Verify the bucket exist by creating an object
+    StorageResourceId objectToCreate =
+        new StorageResourceId(bucketName, "testUpdateItemInfoUpdatesMetadata");
+    try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
+      channel.write(ByteBuffer.wrap(bytesToWrite));
     }
+
+    GoogleCloudStorageItemInfo itemInfo = rawStorage.getItemInfo(objectToCreate);
+    assertWithMessage("iniital metadata should be empty")
+        .that(itemInfo.getMetadata().size())
+        .isEqualTo(0);
+
+    // Verify we can update metadata:
+    List<GoogleCloudStorageItemInfo> results =
+        rawStorage.updateItems(ImmutableList.of(new UpdatableItemInfo(objectToCreate, metadata)));
+
+    assertThat(results).hasSize(1);
+    assertMapsEqual(metadata, results.get(0).getMetadata(), BYTE_ARRAY_EQUIVALENCE);
+
+    // Verify we get metadata from getItemInfo
+    itemInfo = rawStorage.getItemInfo(objectToCreate);
+    assertMapsEqual(metadata, itemInfo.getMetadata(), BYTE_ARRAY_EQUIVALENCE);
+
+    // Delete key1 from metadata:
+    Map<String, byte[]> deletionMap = new HashMap<>();
+    deletionMap.put("key1", null);
+    rawStorage.updateItems(ImmutableList.of(new UpdatableItemInfo(objectToCreate, deletionMap)));
+
+    itemInfo = rawStorage.getItemInfo(objectToCreate);
+    // Ensure that only key2:value2 still exists:
+    assertMapsEqual(
+        ImmutableMap.of("key2", "value2".getBytes(StandardCharsets.UTF_8)),
+        itemInfo.getMetadata(),
+        BYTE_ARRAY_EQUIVALENCE);
   }
 
   @Test
   public void testCompose() throws Exception {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
-      StorageResourceId destinationObject =
-          new StorageResourceId(bucketName, "testCompose_DestinationObject");
+    String bucketName = getSharedBucketName();
 
-      // Create source objects
-      String content1 = "Content 1";
-      String content2 = "Content 2";
-      StorageResourceId sourceObject1 =
-          new StorageResourceId(bucketName, "testCompose_SourceObject1");
-      StorageResourceId sourceObject2 =
-          new StorageResourceId(bucketName, "testCompose_SourceObject2");
-      try (WritableByteChannel channel = gcs.create(sourceObject1)) {
-        channel.write(ByteBuffer.wrap(content1.getBytes(UTF_8)));
-      }
-      try (WritableByteChannel channel = gcs.create(sourceObject2)) {
-        channel.write(ByteBuffer.wrap(content2.getBytes(UTF_8)));
-      }
-      GoogleCloudStorageTestHelper.assertObjectContent(
-          gcs, sourceObject1, content1.getBytes(UTF_8));
-      GoogleCloudStorageTestHelper.assertObjectContent(
-          gcs, sourceObject2, content2.getBytes(UTF_8));
+    StorageResourceId destinationObject =
+        new StorageResourceId(bucketName, "testCompose_DestinationObject");
 
-      // Do the compose
-      gcs.compose(
-          bucketName,
-          ImmutableList.of("testCompose_SourceObject1", "testCompose_SourceObject2"),
-          destinationObject.getObjectName(),
-          CreateFileOptions.DEFAULT_CONTENT_TYPE);
-
-      GoogleCloudStorageTestHelper.assertObjectContent(
-          gcs, destinationObject, content1.concat(content2).getBytes(UTF_8));
+    // Create source objects
+    String content1 = "Content 1";
+    String content2 = "Content 2";
+    StorageResourceId sourceObject1 =
+        new StorageResourceId(bucketName, "testCompose_SourceObject1");
+    StorageResourceId sourceObject2 =
+        new StorageResourceId(bucketName, "testCompose_SourceObject2");
+    try (WritableByteChannel channel = rawStorage.create(sourceObject1)) {
+      channel.write(ByteBuffer.wrap(content1.getBytes(UTF_8)));
     }
+    try (WritableByteChannel channel = rawStorage.create(sourceObject2)) {
+      channel.write(ByteBuffer.wrap(content2.getBytes(UTF_8)));
+    }
+    GoogleCloudStorageTestHelper.assertObjectContent(
+        rawStorage, sourceObject1, content1.getBytes(UTF_8));
+    GoogleCloudStorageTestHelper.assertObjectContent(
+        rawStorage, sourceObject2, content2.getBytes(UTF_8));
+
+    // Do the compose
+    rawStorage.compose(
+        bucketName,
+        ImmutableList.of("testCompose_SourceObject1", "testCompose_SourceObject2"),
+        destinationObject.getObjectName(),
+        CreateFileOptions.DEFAULT_CONTENT_TYPE);
+
+    GoogleCloudStorageTestHelper.assertObjectContent(
+        rawStorage, destinationObject, content1.concat(content2).getBytes(UTF_8));
   }
 
   @Test
   public void testObjectVerificationAttributes() throws IOException {
-    try (TestBucketScope scope = new SharedBucketScope(rawStorage)) {
-      String bucketName = scope.getBucketName();
-      GoogleCloudStorage gcs = scope.getStorageInstance();
-      StorageResourceId testObject =
-          new StorageResourceId(bucketName, "testObjectValidationAttributes");
-      byte[] objectBytes = new byte[1024];
-      GoogleCloudStorageTestHelper.fillBytes(objectBytes);
-      HashCode originalMd5 = Hashing.md5().hashBytes(objectBytes);
-      HashCode originalCrc32c = Hashing.crc32c().hashBytes(objectBytes);
-      // Note that HashCode#asBytes returns a little-endian encoded array while
-      // GCS uses big-endian. We avoid that by grabbing the int value of the CRC32c
-      // and running it through Ints.toByteArray which encodes using big-endian.
-      byte[] bigEndianCrc32c = Ints.toByteArray(originalCrc32c.asInt());
+    String bucketName = getSharedBucketName();
 
-      // Don't use hashes in object creation, just validate the round trip. This of course
-      // could lead to flaky looking tests due to bit flip errors.
-      try (WritableByteChannel channel = gcs.create(testObject)) {
-        channel.write(ByteBuffer.wrap(objectBytes));
-      }
+    StorageResourceId testObject =
+        new StorageResourceId(bucketName, "testObjectValidationAttributes");
+    byte[] objectBytes = new byte[1024];
+    GoogleCloudStorageTestHelper.fillBytes(objectBytes);
+    HashCode originalMd5 = Hashing.md5().hashBytes(objectBytes);
+    HashCode originalCrc32c = Hashing.crc32c().hashBytes(objectBytes);
+    // Note that HashCode#asBytes returns a little-endian encoded array while
+    // GCS uses big-endian. We avoid that by grabbing the int value of the CRC32c
+    // and running it through Ints.toByteArray which encodes using big-endian.
+    byte[] bigEndianCrc32c = Ints.toByteArray(originalCrc32c.asInt());
 
-      GoogleCloudStorageItemInfo itemInfo = gcs.getItemInfo(testObject);
-
-      GoogleCloudStorageTestHelper.assertByteArrayEquals(
-          originalMd5.asBytes(), itemInfo.getVerificationAttributes().getMd5hash());
-      // These string versions are slightly easier to debug (used when trying to
-      // replicate GCS crc32c values in InMemoryGoogleCloudStorage).
-      String originalCrc32cString =
-          Integer.toHexString(
-              Ints.fromByteArray(bigEndianCrc32c));
-      String newCrc32cString =
-          Integer.toHexString(
-              Ints.fromByteArray(itemInfo.getVerificationAttributes().getCrc32c()));
-      assertEquals(originalCrc32cString, newCrc32cString);
-      GoogleCloudStorageTestHelper.assertByteArrayEquals(
-          bigEndianCrc32c, itemInfo.getVerificationAttributes().getCrc32c());
-
-      VerificationAttributes expectedAttributes =
-          new VerificationAttributes(originalMd5.asBytes(), bigEndianCrc32c);
-
-      Assert.assertEquals(expectedAttributes, itemInfo.getVerificationAttributes());
+    // Don't use hashes in object creation, just validate the round trip. This of course
+    // could lead to flaky looking tests due to bit flip errors.
+    try (WritableByteChannel channel = rawStorage.create(testObject)) {
+      channel.write(ByteBuffer.wrap(objectBytes));
     }
+
+    GoogleCloudStorageItemInfo itemInfo = rawStorage.getItemInfo(testObject);
+
+    GoogleCloudStorageTestHelper.assertByteArrayEquals(
+        originalMd5.asBytes(), itemInfo.getVerificationAttributes().getMd5hash());
+    // These string versions are slightly easier to debug (used when trying to
+    // replicate GCS crc32c values in InMemoryGoogleCloudStorage).
+    String originalCrc32cString = Integer.toHexString(Ints.fromByteArray(bigEndianCrc32c));
+    String newCrc32cString =
+        Integer.toHexString(Ints.fromByteArray(itemInfo.getVerificationAttributes().getCrc32c()));
+    assertThat(newCrc32cString).isEqualTo(originalCrc32cString);
+    GoogleCloudStorageTestHelper.assertByteArrayEquals(
+        bigEndianCrc32c, itemInfo.getVerificationAttributes().getCrc32c());
+
+    VerificationAttributes expectedAttributes =
+        new VerificationAttributes(originalMd5.asBytes(), bigEndianCrc32c);
+
+    assertThat(itemInfo.getVerificationAttributes()).isEqualTo(expectedAttributes);
   }
 
   static <K, V> void assertMapsEqual(
