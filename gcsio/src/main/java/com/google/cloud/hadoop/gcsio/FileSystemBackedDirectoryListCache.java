@@ -462,11 +462,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
   public List<CacheEntry> getBucketList() throws IOException {
     LOG.debug("getBucketList()");
     // Get initial listing of everything in our basePath to represent buckets.
-    File[] bucketList = basePath.toFile().listFiles();
-
-    if (bucketList == null) {
-      throw new IOException("Failed to list buckets: " + basePath);
-    }
+    File[] bucketList = listBuckets();
 
     if (bucketList.length == 0) {
       return ImmutableList.of();
@@ -504,13 +500,8 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
   @Override
   public List<CacheEntry> getRawBucketList() throws IOException {
     LOG.debug("getRawBucketList()");
-
     // Get initial listing of everything in our basePath to represent buckets.
-    File[] bucketList = basePath.toFile().listFiles();
-
-    if (bucketList == null) {
-      throw new IOException("Failed to list buckets: " + basePath);
-    }
+    File[] bucketList = listBuckets();
 
     if (bucketList.length == 0) {
       return ImmutableList.of();
@@ -527,6 +518,18 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
       bucketEntries.add(entry);
     }
     return bucketEntries;
+  }
+
+  private File[] listBuckets() throws IOException {
+    File baseFile = basePath.toFile();
+    File[] bucketList = baseFile.listFiles();
+    if (bucketList == null && baseFile.exists()) {
+      throw new IOException(
+          String.format(
+              "Failed to list buckets: %s [exists: %s, directory: %s]",
+              basePath, baseFile.exists(), baseFile.isDirectory()));
+    }
+    return bucketList == null ? new File[0] : bucketList;
   }
 
   @Override
@@ -650,11 +653,7 @@ public class FileSystemBackedDirectoryListCache extends DirectoryListCache {
 
   @Override
   public int getInternalNumBuckets() throws IOException {
-    File[] bucketList = basePath.toFile().listFiles();
-    if (bucketList == null) {
-      throw new IOException("Failed to list buckets: " + basePath);
-    }
-    return bucketList.length;
+    return listBuckets().length;
   }
 
   @Override
