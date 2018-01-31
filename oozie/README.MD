@@ -2,6 +2,9 @@
 
 This initialization action installs the [Oozie](http://oozie.apache.org) workflow scheduler on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster. The Oozie server, client, and web interface are installed. 
 
+**Note:** Google Cloud Dataproc provides native support for executing DAG of jobs via
+[Workflow Templates](https://cloud.google.com/dataproc/docs/concepts/workflows/overview)
+
 ## Using this initialization action
 You can use this initialization action to create a new Dataproc cluster with Oozie installed by:
 
