@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.gcsio.integration;
 
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorage.MAX_RESULTS_UNLIMITED;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -201,7 +202,7 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testCreateSuccessfulBucket() throws IOException {
-    String bucketName = createUniqueBucket("create_successful");
+    String bucketName = createUniqueBucket("create-successful");
 
     // Verify the bucket exist by creating an object
     StorageResourceId objectToCreate = new StorageResourceId(bucketName, "CreateTestObject");
@@ -210,7 +211,7 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testCreateExistingBucket() throws IOException {
-    String bucketName = createUniqueBucket("create_existing");
+    String bucketName = getSharedBucketName();
 
     try {
       rawStorage.create(bucketName);
@@ -223,7 +224,7 @@ public class GoogleCloudStorageTest {
   @Test
   public void testCreateInvalidBucket() throws IOException {
     // Buckets must start with a letter or number
-    String bucketName = "--" + getUniqueBucketName("create_invalid");
+    String bucketName = "--" + getUniqueBucketName("create-invalid");
 
     try {
       rawStorage.create(bucketName);
@@ -239,8 +240,7 @@ public class GoogleCloudStorageTest {
 
     byte[] bytesToWrite = "SomeText".getBytes(StandardCharsets.UTF_8);
     // Verify the bucket exist by creating an object
-    StorageResourceId objectToCreate =
-        new StorageResourceId(bucketName, "testCreateObject_CreateTestObject");
+    StorageResourceId objectToCreate = new StorageResourceId(bucketName, "testCreateObject_Object");
     try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
       channel.write(ByteBuffer.wrap(bytesToWrite));
     }
@@ -255,7 +255,7 @@ public class GoogleCloudStorageTest {
     byte[] bytesToWrite = "SomeText".getBytes(StandardCharsets.UTF_8);
     // Verify the bucket exist by creating an object
     StorageResourceId objectToCreate =
-        new StorageResourceId(bucketName, "testCreateObject_CreateInvalidTestObject\n");
+        new StorageResourceId(bucketName, "testCreateInvalidObject_InvalidObject\n");
 
     try {
       try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
@@ -274,8 +274,7 @@ public class GoogleCloudStorageTest {
     byte[] bytesToWrite = new byte[0];
 
     StorageResourceId objectToCreate =
-        new StorageResourceId(
-            bucketName, "testCreateZeroLengthObjectUsingCreate_CreateEmptyTestObject");
+        new StorageResourceId(bucketName, "testCreateZeroLengthObjectUsingCreate_Object");
     try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
       channel.write(ByteBuffer.wrap(bytesToWrite));
     }
@@ -290,8 +289,7 @@ public class GoogleCloudStorageTest {
     GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
 
     StorageResourceId objectToCreate =
-        new StorageResourceId(
-            bucketName, "testCreate1PageLengthObjectUsingCreate_Create1PageTestObject");
+        new StorageResourceId(bucketName, "testCreate1PageLengthObjectUsingCreate_Object");
     try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
       channel.write(ByteBuffer.wrap(bytesToWrite));
     }
@@ -307,9 +305,7 @@ public class GoogleCloudStorageTest {
     GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
 
     StorageResourceId objectToCreate =
-        new StorageResourceId(
-            bucketName,
-            "testCreate1PageLengthPlus1byteObjectUsingCreate_Create1PagePlusOneTestObject");
+        new StorageResourceId(bucketName, "testCreate1PageLengthPlus1byteObjectUsingCreate_Object");
 
     try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
       channel.write(ByteBuffer.wrap(bytesToWrite));
@@ -324,7 +320,7 @@ public class GoogleCloudStorageTest {
     byte[] bytesToWrite = "SomeText".getBytes(StandardCharsets.UTF_8);
 
     StorageResourceId objectToCreate =
-        new StorageResourceId(bucketName, "testCreateExistingObject_CreateExistingObject");
+        new StorageResourceId(bucketName, "testCreateExistingObject_Object");
 
     try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
       channel.write(ByteBuffer.wrap(bytesToWrite));
@@ -346,7 +342,7 @@ public class GoogleCloudStorageTest {
     String bucketName = getSharedBucketName();
 
     StorageResourceId objectToCreate =
-        new StorageResourceId(bucketName, "testCreateEmptyObject_CreateEmptyObject");
+        new StorageResourceId(bucketName, "testCreateEmptyObject_Object");
 
     rawStorage.createEmptyObject(objectToCreate);
 
@@ -361,8 +357,7 @@ public class GoogleCloudStorageTest {
     String bucketName = getSharedBucketName();
 
     StorageResourceId objectToCreate =
-        new StorageResourceId(
-            bucketName, "testCreateEmptyExistingObject_CreateEmptyExistingObject");
+        new StorageResourceId(bucketName, "testCreateEmptyExistingObject_Object");
 
     rawStorage.createEmptyObject(objectToCreate);
 
@@ -385,7 +380,7 @@ public class GoogleCloudStorageTest {
     String bucketName = getSharedBucketName();
 
     StorageResourceId objectToCreate =
-        new StorageResourceId(bucketName, "testGetSingleItemInfo_GetSingleItemInfoObject");
+        new StorageResourceId(bucketName, "testGetSingleItemInfo_Object1");
 
     rawStorage.createEmptyObject(objectToCreate);
 
@@ -395,7 +390,7 @@ public class GoogleCloudStorageTest {
     assertThat(itemInfo.getSize()).isEqualTo(0);
 
     StorageResourceId secondObjectToCreate =
-        new StorageResourceId(bucketName, "testGetSingleItemInfo_GetSingleItemInfoObject2");
+        new StorageResourceId(bucketName, "testGetSingleItemInfo_Object2");
 
     byte[] bytesToWrite = new byte[100];
     GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
@@ -413,7 +408,7 @@ public class GoogleCloudStorageTest {
 
     GoogleCloudStorageItemInfo nonExistentItemInfo =
         rawStorage.getItemInfo(
-            new StorageResourceId(bucketName, "testGetSingleItemInfo_SomethingThatDoesntExist"));
+            new StorageResourceId(bucketName, "testGetSingleItemInfo_IDontExist"));
 
     assertThat(nonExistentItemInfo.exists()).isFalse();
     assertThat(nonExistentItemInfo.isBucket()).isFalse();
@@ -438,8 +433,7 @@ public class GoogleCloudStorageTest {
 
     for (int i = 0; i < 3; i++) {
       StorageResourceId objectToCreate =
-          new StorageResourceId(
-              bucketName, String.format("testGetMultipleItemInfo_GetMultiItemInfoObject_%s", i));
+          new StorageResourceId(bucketName, "testGetMultipleItemInfo_Object" + i);
       rawStorage.createEmptyObject(objectToCreate);
       objectsCreated.add(objectToCreate);
     }
@@ -481,7 +475,7 @@ public class GoogleCloudStorageTest {
 
     List<StorageResourceId> resourceIdList = new ArrayList<>();
     StorageResourceId newObject =
-        new StorageResourceId(bucketName, "testGetMultipleItemInfoWithSomeInvalid_CreatedObject");
+        new StorageResourceId(bucketName, "testGetMultipleItemInfoWithSomeInvalid_Object");
     resourceIdList.add(newObject);
     rawStorage.createEmptyObject(newObject);
 
@@ -515,8 +509,7 @@ public class GoogleCloudStorageTest {
   public void testSingleObjectDelete() throws IOException {
     String bucketName = getSharedBucketName();
 
-    StorageResourceId resource =
-        new StorageResourceId(bucketName, "testSingleObjectDelete_SomeItem");
+    StorageResourceId resource = new StorageResourceId(bucketName, "testSingleObjectDelete_Object");
     rawStorage.createEmptyObject(resource);
 
     GoogleCloudStorageItemInfo info = rawStorage.getItemInfo(resource);
@@ -533,11 +526,11 @@ public class GoogleCloudStorageTest {
     String bucketName = getSharedBucketName();
 
     StorageResourceId resource =
-        new StorageResourceId(bucketName, "testMultipleObjectDelete_MultiDeleteSomeItem1");
+        new StorageResourceId(bucketName, "testMultipleObjectDelete_Object1");
     rawStorage.createEmptyObject(resource);
 
     StorageResourceId secondResource =
-        new StorageResourceId(bucketName, "testMultipleObjectDelete_MultiDeleteSecondItem");
+        new StorageResourceId(bucketName, "testMultipleObjectDelete_Object2");
     rawStorage.createEmptyObject(secondResource);
 
     assertThat(rawStorage.getItemInfo(resource).exists()).isTrue();
@@ -555,12 +548,12 @@ public class GoogleCloudStorageTest {
     String bucketName = getSharedBucketName();
 
     StorageResourceId resource =
-        new StorageResourceId(bucketName, "testSomeInvalidObjectsDelete_SomeItem");
+        new StorageResourceId(bucketName, "testSomeInvalidObjectsDelete_Object");
     rawStorage.createEmptyObject(resource);
 
     // Don't actually create a GCS object for this resource.
     StorageResourceId secondResource =
-        new StorageResourceId(bucketName, "testSomeInvalidObjectsDelete_DoesntExit");
+        new StorageResourceId(bucketName, "testSomeInvalidObjectsDelete_IDontExist");
     StorageResourceId invalidName =
         new StorageResourceId(bucketName, "testSomeInvalidObjectsDelete_InvalidObject\n");
 
@@ -580,7 +573,7 @@ public class GoogleCloudStorageTest {
     String bucketName = getSharedBucketName();
 
     StorageResourceId resource =
-        new StorageResourceId(bucketName, "testDeleteNonExistingObject_DeleteNonExistantItemTest");
+        new StorageResourceId(bucketName, "testDeleteNonExistingObject_IDontExist");
 
     rawStorage.deleteObjects(ImmutableList.of(resource));
   }
@@ -600,7 +593,7 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testSingleDeleteBucket() throws IOException {
-    String bucketName = createUniqueBucket("delete_1_bucket");
+    String bucketName = createUniqueBucket("delete-single");
 
     rawStorage.deleteBuckets(ImmutableList.of(bucketName));
 
@@ -613,13 +606,15 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testMultipleDeleteBucket() throws IOException {
-    String bucketName = createUniqueBucket("delete_multi_bucket");
-    String bucketName2 = createUniqueBucket("delete_multi_bucket2");
+    String bucketName1 = createUniqueBucket("delete-multi-1");
+    String bucketName2 = createUniqueBucket("delete-multi-2");
 
-    rawStorage.deleteBuckets(ImmutableList.of(bucketName, bucketName2));
+    rawStorage.deleteBuckets(ImmutableList.of(bucketName1, bucketName2));
 
-    List<GoogleCloudStorageItemInfo> infoList = rawStorage.getItemInfos(ImmutableList.of(
-        new StorageResourceId(bucketName), new StorageResourceId(bucketName2)));
+    List<GoogleCloudStorageItemInfo> infoList =
+        rawStorage.getItemInfos(
+            ImmutableList.of(
+                new StorageResourceId(bucketName1), new StorageResourceId(bucketName2)));
 
     for (GoogleCloudStorageItemInfo info : infoList) {
       assertThat(info.exists()).isFalse();
@@ -628,20 +623,22 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testSomeInvalidDeleteBucket() throws IOException {
-    String bucketName = createUniqueBucket("delete_multi_bucket");
-    String bucketName2 = createUniqueBucket("delete_multi_bucket2");
-    String invalidBucketName = "--invalid_delete_multi_bucket";
+    String bucketName1 = createUniqueBucket("delete-multi-valid-1");
+    String bucketName2 = createUniqueBucket("delete-multi-valid-2");
+    String invalidBucketName = "--" + getUniqueBucketName("delete-multi-invalid");
 
     try {
-      rawStorage.deleteBuckets(ImmutableList.of(bucketName, bucketName2, invalidBucketName));
+      rawStorage.deleteBuckets(ImmutableList.of(bucketName1, bucketName2, invalidBucketName));
       // Expected exception would be a bit more awkward than Assert.fail() with a catch here...
       fail("Delete buckets with an invalid bucket should throw.");
     } catch (IOException ioe) {
       // Expected.
     }
 
-    List<GoogleCloudStorageItemInfo> infoList = rawStorage.getItemInfos(ImmutableList.of(
-        new StorageResourceId(bucketName), new StorageResourceId(bucketName2)));
+    List<GoogleCloudStorageItemInfo> infoList =
+        rawStorage.getItemInfos(
+            ImmutableList.of(
+                new StorageResourceId(bucketName1), new StorageResourceId(bucketName2)));
 
     for (GoogleCloudStorageItemInfo info : infoList) {
       assertThat(info.exists()).isFalse();
@@ -679,73 +676,84 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testListObjectNamesLimited() throws IOException {
-    String bucketName = createUniqueBucket("list_object_names_limited");
+    String bucketName = getSharedBucketName();
 
     String[] names = {"a", "b", "c", "d"};
     for (String name : names) {
-      StorageResourceId id = new StorageResourceId(bucketName, name);
+      StorageResourceId id =
+          new StorageResourceId(bucketName, "testListObjectNamesLimited_" + name);
       rawStorage.createEmptyObject(id);
     }
 
-    List<String> gcsNames = rawStorage.listObjectNames(bucketName, null, "/", 2);
+    List<String> gcsNames =
+        rawStorage.listObjectNames(bucketName, "testListObjectNamesLimited_", "/", 2);
 
     assertThat(gcsNames).hasSize(2);
   }
 
   @Test
   public void testListObjectInfoLimited() throws IOException {
-    String bucketName = createUniqueBucket("list_object_info_limited");
+    String bucketName = getSharedBucketName();
 
     String[] names = {"x", "y", "z"};
     for (String name : names) {
-      StorageResourceId id = new StorageResourceId(bucketName, name);
+      StorageResourceId id = new StorageResourceId(bucketName, "testListObjectInfoLimited_" + name);
       rawStorage.createEmptyObject(id);
     }
 
-    List<GoogleCloudStorageItemInfo> info = rawStorage.listObjectInfo(bucketName, null, "/", 2);
+    List<GoogleCloudStorageItemInfo> info =
+        rawStorage.listObjectInfo(bucketName, "testListObjectInfoLimited_", "/", 2);
 
     assertThat(info).hasSize(2);
   }
 
   @Test
   public void testListObjectInfoWithDirectoryRepair() throws IOException {
-    String bucketName = createUniqueBucket("list_repair");
+    String bucketName = getSharedBucketName();
 
-    StorageResourceId d1 = new StorageResourceId(bucketName, "d1/");
+    StorageResourceId d1 =
+        new StorageResourceId(bucketName, "testListObjectInfoWithDirectoryRepair_d1/");
     rawStorage.createEmptyObject(d1);
 
-    StorageResourceId o1 = new StorageResourceId(bucketName, "d1/o1");
+    StorageResourceId o1 =
+        new StorageResourceId(bucketName, "testListObjectInfoWithDirectoryRepair_d1/o1");
     rawStorage.createEmptyObject(o1);
 
     // No empty d2/ prefix:
-    StorageResourceId d3 = new StorageResourceId(bucketName, "d2/d3/");
+    StorageResourceId d3 =
+        new StorageResourceId(bucketName, "testListObjectInfoWithDirectoryRepair_d2/d3/");
     rawStorage.createEmptyObject(d3);
 
-    StorageResourceId o2 = new StorageResourceId(bucketName, "d2/d3/o2");
+    StorageResourceId o2 =
+        new StorageResourceId(bucketName, "testListObjectInfoWithDirectoryRepair_d2/d3/o2");
     rawStorage.createEmptyObject(o2);
 
     GoogleCloudStorageItemInfo itemInfo =
-        rawStorage.getItemInfo(new StorageResourceId(bucketName, "d2/"));
+        rawStorage.getItemInfo(
+            new StorageResourceId(bucketName, "testListObjectInfoWithDirectoryRepair_d2/"));
     assertThat(itemInfo.exists()).isFalse();
 
     List<GoogleCloudStorageItemInfo> rootInfo =
-        rawStorage.listObjectInfo(bucketName, null, "/", GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+        rawStorage.listObjectInfo(
+            bucketName, "testListObjectInfoWithDirectoryRepair_", "/", MAX_RESULTS_UNLIMITED);
 
     // Specifying any exact values seems like it's begging for this test to become flaky.
     assertWithMessage("Infos not expected to be empty").that(rootInfo.isEmpty()).isFalse();
 
     // Directory repair should have created an empty object for us:
-    StorageResourceId d2 = new StorageResourceId(bucketName, "d2/");
+    StorageResourceId d2 =
+        new StorageResourceId(bucketName, "testListObjectInfoWithDirectoryRepair_d2/");
     GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, d2, new byte[0]);
 
     List<GoogleCloudStorageItemInfo> d2ItemInfo =
         rawStorage.listObjectInfo(
-            bucketName, "d2/d3/", "/", GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+            bucketName, "testListObjectInfoWithDirectoryRepair_d2/d3/", "/", MAX_RESULTS_UNLIMITED);
     assertWithMessage("D2 item info not expected to be empty").that(d2ItemInfo.isEmpty()).isFalse();
 
     // Testing GCS treating object names as opaque blobs
     List<GoogleCloudStorageItemInfo> blobNamesInfo =
-        rawStorage.listObjectInfo(bucketName, null, null, GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+        rawStorage.listObjectInfo(
+            bucketName, "testListObjectInfoWithDirectoryRepair_", null, MAX_RESULTS_UNLIMITED);
     assertWithMessage("blobNamesInfo not expected to be empty")
         .that(blobNamesInfo.isEmpty())
         .isFalse();
@@ -760,7 +768,7 @@ public class GoogleCloudStorageTest {
 
     // Verify the bucket exist by creating an object
     StorageResourceId objectToCreate =
-        new StorageResourceId(bucketName, "testCopySingleItem_CopySingleItemCopySourceObject");
+        new StorageResourceId(bucketName, "testCopySingleItem_SourceObject");
     try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
       channel.write(ByteBuffer.wrap(bytesToWrite));
     }
@@ -768,7 +776,7 @@ public class GoogleCloudStorageTest {
     GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, objectToCreate, bytesToWrite);
 
     StorageResourceId copiedResourceId =
-        new StorageResourceId(bucketName, "testCopySingleItem_CopySingleItemDestinationObject");
+        new StorageResourceId(bucketName, "testCopySingleItem_DestinationObject");
     // Do the copy:
     rawStorage.copy(
         bucketName,
@@ -781,14 +789,15 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testCopyToDifferentBucket() throws IOException {
-    String sourceBucketName = createUniqueBucket("copy_src_bucket");
-    String destinationBucketName = createUniqueBucket("copy_dst_bucket");
+    String sourceBucketName = getSharedBucketName();
+    String destinationBucketName = createUniqueBucket("copy-destination");
 
     byte[] bytesToWrite = new byte[4096];
     GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
 
     // Verify the bucket exist by creating an object
-    StorageResourceId objectToCreate = new StorageResourceId(sourceBucketName, "CopyTestObject");
+    StorageResourceId objectToCreate =
+        new StorageResourceId(sourceBucketName, "testCopyToDifferentBucket_SourceObject");
     try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
       channel.write(ByteBuffer.wrap(bytesToWrite));
     }
@@ -796,7 +805,7 @@ public class GoogleCloudStorageTest {
     GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, objectToCreate, bytesToWrite);
 
     StorageResourceId copiedResourceId =
-        new StorageResourceId(destinationBucketName, "CopiedObject");
+        new StorageResourceId(destinationBucketName, "testCopyToDifferentBucket_DestinationObject");
 
     // Do the copy:
     rawStorage.copy(
@@ -816,7 +825,7 @@ public class GoogleCloudStorageTest {
     GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
 
     StorageResourceId objectToCopy =
-        new StorageResourceId(bucketName, "testCopySingleItemOverExistingItem_CopyTestObject");
+        new StorageResourceId(bucketName, "testCopySingleItemOverExistingItem_Object1");
     try (WritableByteChannel channel = rawStorage.create(objectToCopy)) {
       channel.write(ByteBuffer.wrap(bytesToWrite));
     }
@@ -824,7 +833,7 @@ public class GoogleCloudStorageTest {
     GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, objectToCopy, bytesToWrite);
 
     StorageResourceId secondObject =
-        new StorageResourceId(bucketName, "testCopySingleItemOverExistingItem_CopyTestObject2");
+        new StorageResourceId(bucketName, "testCopySingleItemOverExistingItem_Object2");
     byte[] secondObjectBytes = new byte[2046];
     GoogleCloudStorageTestHelper.fillBytes(secondObjectBytes);
     try (WritableByteChannel channel = rawStorage.create(secondObject)) {
@@ -845,12 +854,13 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testCopySingleItemOverItself() throws IOException {
-    String bucketName = createUniqueBucket("copy_item_1_1");
+    String bucketName = getSharedBucketName();
 
     byte[] bytesToWrite = new byte[4096];
     GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
 
-    StorageResourceId objectToCopy = new StorageResourceId(bucketName, "CopyTestObject");
+    StorageResourceId objectToCopy =
+        new StorageResourceId(bucketName, "testCopySingleItemOverItself_Object");
     try (WritableByteChannel channel = rawStorage.create(objectToCopy)) {
       channel.write(ByteBuffer.wrap(bytesToWrite));
     }
@@ -886,14 +896,14 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testCopyMultipleItems() throws IOException {
-    String bucketName = createUniqueBucket("copy_multi_item");
+    String bucketName = getSharedBucketName();
 
     final int copyObjectCount = 3;
 
     List<CopyObjectData> objectsToCopy = new ArrayList<>();
     for (int i = 0; i < copyObjectCount; i++) {
-      String sourceObjectName = "sourceObject_" + i;
-      String destinationObjectName = "destinationObject_" + i;
+      String sourceObjectName = "testCopyMultipleItems_SourceObject" + i;
+      String destinationObjectName = "testCopyMultipleItems_DestinationObject" + i;
       byte[] objectBytes = new byte[1024 * i];
       GoogleCloudStorageTestHelper.fillBytes(objectBytes);
 
@@ -947,15 +957,15 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testCopyNonExistentItem() throws IOException {
-    String bucketName = createUniqueBucket("copy_item_ne");
-    String notExistentName = "IDontExist";
+    String bucketName = getSharedBucketName();
+    String notExistentName = "testCopyNonExistentItem_IDontExist";
 
     try {
       rawStorage.copy(
           bucketName,
           ImmutableList.of(notExistentName),
           bucketName,
-          ImmutableList.of("Some_destination"));
+          ImmutableList.of("testCopyNonExistentItem_DestinationObject"));
       fail();
     } catch (FileNotFoundException e) {
       // expected
@@ -964,14 +974,16 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testCopyMultipleItemsToSingleDestination() throws IOException {
-    String bucketName = createUniqueBucket("copy_mutli_2_1");
+    String bucketName = getSharedBucketName();
 
     try {
       rawStorage.copy(
           bucketName,
-          ImmutableList.of("SomeSource", "SomeSource2"),
+          ImmutableList.of(
+              "testCopyMultipleItemsToSingleDestination_SourceObject1",
+              "testCopyMultipleItemsToSingleDestination_SourceObject2"),
           bucketName,
-          ImmutableList.of("Some_destination"));
+          ImmutableList.of("testCopyMultipleItemsToSingleDestination_DestinationObject"));
       fail("Copying multiple items to a single source should fail.");
     } catch (IllegalArgumentException e) {
       assertThat(e).hasMessageThat().startsWith("Must supply same number of elements");
@@ -984,7 +996,7 @@ public class GoogleCloudStorageTest {
 
     byte[] bytesToWrite = new byte[100];
 
-    StorageResourceId objectToCreate = new StorageResourceId(bucketName, "testOpen_OpenTestObject");
+    StorageResourceId objectToCreate = new StorageResourceId(bucketName, "testOpen_Object");
     try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
       channel.write(ByteBuffer.wrap(bytesToWrite));
     }
@@ -997,7 +1009,7 @@ public class GoogleCloudStorageTest {
     String bucketName = getSharedBucketName();
 
     try {
-      rawStorage.open(new StorageResourceId(bucketName, "testOpenNonExistentItem_AnObject"));
+      rawStorage.open(new StorageResourceId(bucketName, "testOpenNonExistentItem_Object"));
       fail("Exception expected from opening an non-existent object");
     } catch (FileNotFoundException e) {
       // expected
@@ -1006,9 +1018,9 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testOpenEmptyObject() throws IOException {
-    String bucketName = createUniqueBucket("open_empty");
+    String bucketName = getSharedBucketName();
 
-    StorageResourceId resourceId = new StorageResourceId(bucketName, "EmptyObject");
+    StorageResourceId resourceId = new StorageResourceId(bucketName, "testOpenEmptyObject_Object");
     rawStorage.createEmptyObject(resourceId);
     GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, resourceId, new byte[0]);
   }
@@ -1017,7 +1029,7 @@ public class GoogleCloudStorageTest {
   public void testOpenLargeObject() throws IOException {
     String bucketName = getSharedBucketName();
     StorageResourceId objectToCreate =
-        new StorageResourceId(bucketName, "testOpenLargeObject_LargeObject");
+        new StorageResourceId(bucketName, "testOpenLargeObject_Object");
     GoogleCloudStorageTestHelper.readAndWriteLargeObject(objectToCreate, rawStorage);
   }
 
@@ -1026,7 +1038,7 @@ public class GoogleCloudStorageTest {
     String bucketName = getSharedBucketName();
 
     StorageResourceId resourceId =
-        new StorageResourceId(bucketName, "testPlusInObjectNames_an+object");
+        new StorageResourceId(bucketName, "testPlusInObjectNames_An+Object");
     rawStorage.createEmptyObject(resourceId);
     GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, resourceId, new byte[0]);
   }
@@ -1039,8 +1051,7 @@ public class GoogleCloudStorageTest {
 
     String bucketName = getSharedBucketName();
 
-    StorageResourceId resourceId =
-        new StorageResourceId(bucketName, "testObjectPosition_SeekTestObject");
+    StorageResourceId resourceId = new StorageResourceId(bucketName, "testObjectPosition_Object");
     try (WritableByteChannel channel = rawStorage.create(resourceId)) {
       channel.write(ByteBuffer.wrap(data));
     }
@@ -1117,7 +1128,7 @@ public class GoogleCloudStorageTest {
     String bucketName = getSharedBucketName();
 
     StorageResourceId resourceId =
-        new StorageResourceId(bucketName, "testReadPartialObjects_ReadPartialTest");
+        new StorageResourceId(bucketName, "testReadPartialObjects_Object");
     try (WritableByteChannel channel = rawStorage.create(resourceId)) {
       channel.write(ByteBuffer.wrap(data));
     }
@@ -1162,7 +1173,7 @@ public class GoogleCloudStorageTest {
     String bucketName = getSharedBucketName();
 
     StorageResourceId resourceId =
-        new StorageResourceId(bucketName, "testChannelClosedException_ReadClosedChannelTest");
+        new StorageResourceId(bucketName, "testChannelClosedException_Object");
     try (WritableByteChannel channel = rawStorage.create(resourceId)) {
       channel.write(ByteBuffer.wrap(data));
     }
@@ -1204,7 +1215,7 @@ public class GoogleCloudStorageTest {
 
     // Verify the bucket exist by creating an object
     StorageResourceId objectToCreate =
-        new StorageResourceId(bucketName, "testUpdateItemInfoUpdatesMetadata");
+        new StorageResourceId(bucketName, "testUpdateItemInfoUpdatesMetadata_Object");
     try (WritableByteChannel channel =
         rawStorage.create(objectToCreate, new CreateObjectOptions(false, metadata))) {
       channel.write(ByteBuffer.wrap(bytesToWrite));
@@ -1216,7 +1227,7 @@ public class GoogleCloudStorageTest {
   }
 
   @Test
-  public void testMetdataIsWrittenWhenCreatingEmptyObjects() throws IOException {
+  public void testMetadataIsWrittenWhenCreatingEmptyObjects() throws IOException {
     String bucketName = getSharedBucketName();
 
     Map<String, byte[]> metadata =
@@ -1226,7 +1237,7 @@ public class GoogleCloudStorageTest {
 
     // Verify the bucket exist by creating an object
     StorageResourceId objectToCreate =
-        new StorageResourceId(bucketName, "testMetdataIsWrittenWhenCreatingEmptyObjects");
+        new StorageResourceId(bucketName, "testMetadataIsWrittenWhenCreatingEmptyObjects_Object");
     rawStorage.createEmptyObject(objectToCreate, new CreateObjectOptions(false, metadata));
 
     // Verify we get metadata from getItemInfo
@@ -1248,7 +1259,7 @@ public class GoogleCloudStorageTest {
 
     // Verify the bucket exist by creating an object
     StorageResourceId objectToCreate =
-        new StorageResourceId(bucketName, "testUpdateItemInfoUpdatesMetadata");
+        new StorageResourceId(bucketName, "testUpdateItemInfoUpdatesMetadata_Object");
     try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
       channel.write(ByteBuffer.wrap(bytesToWrite));
     }
@@ -1323,7 +1334,7 @@ public class GoogleCloudStorageTest {
     String bucketName = getSharedBucketName();
 
     StorageResourceId testObject =
-        new StorageResourceId(bucketName, "testObjectValidationAttributes");
+        new StorageResourceId(bucketName, "testObjectValidationAttributes_Object");
     byte[] objectBytes = new byte[1024];
     GoogleCloudStorageTestHelper.fillBytes(objectBytes);
     HashCode originalMd5 = Hashing.md5().hashBytes(objectBytes);
