@@ -86,5 +86,6 @@ hadoop fs -put share/ /user/oozie/
 # Clean up temporary fles
 rm -rf ext-2.2 ext-2.2.zip core-site-patch.xml share oozie-sharelib.tar.gz
 
-# HDFS must be cycled; restart to clean things up
-systemctl restart hadoop-hdfs-namenode oozie
+# HDFS and YARN must be cycled; restart to clean things up
+systemctl restart hadoop-hdfs-namenode hadoop-hdfs-secondarynamenode \
+    hadoop-yarn-resourcemanager oozie
