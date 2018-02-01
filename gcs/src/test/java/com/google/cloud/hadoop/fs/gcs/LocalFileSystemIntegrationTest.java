@@ -26,7 +26,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -54,7 +53,7 @@ public class LocalFileSystemIntegrationTest
     try {
       uri = new URI(ROOT);
     } catch (URISyntaxException e) {
-      Assert.fail("Invalid ROOT path: " + ROOT);
+      throw new AssertionError("Invalid ROOT path: " + ROOT, e);
     }
     Configuration config = new Configuration();
     config.set("fs.default.name", ROOT);
@@ -138,7 +137,7 @@ public class LocalFileSystemIntegrationTest
   public void testRename()
       throws IOException {
 
-    final HadoopVersionInfo versionInfo = new HadoopVersionInfo();
+    final HadoopVersionInfo versionInfo = HadoopVersionInfo.getInstance();
 
     try {
       renameHelper(new HdfsBehavior() {

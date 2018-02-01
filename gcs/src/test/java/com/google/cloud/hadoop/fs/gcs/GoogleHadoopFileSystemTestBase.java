@@ -279,7 +279,7 @@ public abstract class GoogleHadoopFileSystemTestBase
     // levels of subdirectories.
     Assert.assertTrue("Expected to exist: " + leafUri, gcsfs.exists(leafUri));
 
-    HadoopVersionInfo versionInfo = new HadoopVersionInfo();
+    HadoopVersionInfo versionInfo = HadoopVersionInfo.getInstance();
 
     if (versionInfo.isLessThan(2, 0) || versionInfo.isGreaterThan(2, 3)) {
       Assert.assertTrue("Expected to exist: " + subdirUri, gcsfs.exists(subdirUri));

@@ -14,7 +14,9 @@
 
 package com.google.cloud.hadoop.util;
 
-import org.junit.Assert;
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -22,156 +24,98 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class HadoopVersionInfoTest {
 
-  public static void assertVersionComponents(
-      HadoopVersionInfo version, int major, int minor, int patchLevel) {
+  @Test
+  public void normalVersionString_isParsed() {
+    assertVersion(new HadoopVersionInfo("2.1.0"), 2, 1, 0);
+    assertVersion(new HadoopVersionInfo("1.2.1-dev"), 1, 2, 1);
+    assertVersion(new HadoopVersionInfo("0.20.205"), 0, 20, 205);
+    assertVersion(new HadoopVersionInfo("0.20.205-dev"), 0, 20, 205);
+  }
 
-    Assert.assertTrue(
-        "Expected major version to be present.",
-        version.getMajorVersion().isPresent());
-    Assert.assertEquals(major, version.getMajorVersion().get().intValue());
-
-    Assert.assertTrue(
-        "Expected minor version to be present.",
-        version.getMinorVersion().isPresent());
-    Assert.assertEquals(minor, version.getMinorVersion().get().intValue());
-
-    Assert.assertTrue(
-        "Expected patch level to be present.",
-        version.getPatchLevel().isPresent());
-    Assert.assertEquals(patchLevel, version.getPatchLevel().get().intValue());
+  private static void assertVersion(HadoopVersionInfo version, int major, int minor, int subminor) {
+    assertThat(version.getMajorVersion()).hasValue(major);
+    assertThat(version.getMinorVersion()).hasValue(minor);
+    assertThat(version.getSubminorVersion()).hasValue(subminor);
   }
 
   @Test
-  public void normalVersionStringParsed() {
-    HadoopVersionInfo versionInfo = new HadoopVersionInfo("2.1.0");
-    assertVersionComponents(versionInfo, 2, 1, 0);
+  public void defaultVersion_isParsed() {
+    HadoopVersionInfo version = HadoopVersionInfo.getInstance();
 
-    versionInfo = new HadoopVersionInfo("1.2.1-dev");
-    assertVersionComponents(versionInfo, 1, 2, 1);
-
-    versionInfo = new HadoopVersionInfo("0.20.205");
-    assertVersionComponents(versionInfo, 0, 20, 205);
-
-    versionInfo = new HadoopVersionInfo("0.20.205-dev");
-    assertVersionComponents(versionInfo, 0, 20, 205);
+    assertThat(version.getMajorVersion()).isPresent();
+    assertThat(version.getMinorVersion()).isPresent();
+    assertThat(version.getSubminorVersion()).isPresent();
   }
 
   @Test
-  public void defaultVersionParsed() {
-    HadoopVersionInfo versionInfo = new HadoopVersionInfo();
-    Assert.assertTrue(
-        "Expected major version to be present.",
-        versionInfo.getMajorVersion().isPresent());
+  public void majorOnlyVersion_isParsed() {
+    HadoopVersionInfo version = new HadoopVersionInfo("2");
 
-    Assert.assertTrue(
-        "Expected minor version to be present.",
-        versionInfo.getMinorVersion().isPresent());
-
-    Assert.assertTrue(
-        "Expected patch level to be present.",
-        versionInfo.getPatchLevel().isPresent());
+    assertThat(version.getMajorVersion()).hasValue(2);
+    assertThat(version.getMinorVersion()).isAbsent();
+    assertThat(version.getSubminorVersion()).isAbsent();
   }
 
   @Test
-  public void majorOnlyVersionStringParsed() {
-    HadoopVersionInfo versionInfo = new HadoopVersionInfo("2");
-
-    Assert.assertTrue(
-        "Expected major version to be present.",
-        versionInfo.getMajorVersion().isPresent());
-    Assert.assertEquals(2, versionInfo.getMajorVersion().get().intValue());
-
-    Assert.assertFalse(
-        "Did not expect minor version to be present.",
-        versionInfo.getMinorVersion().isPresent());
-
-    Assert.assertFalse(
-        "Did not expect patch level to be present.",
-        versionInfo.getPatchLevel().isPresent());
+  public void emptyVersion_isParsed() {
+    assertAllInfoAbsent(new HadoopVersionInfo(""));
+    assertAllInfoAbsent(new HadoopVersionInfo("ThisIsAJunkString"));
+    assertAllInfoAbsent(new HadoopVersionInfo(".1.2.3"));
   }
 
-  public void assertAllInfoAbsent(HadoopVersionInfo version) {
-    Assert.assertFalse(
-        "Did not expect major version to be present.",
-        version.getMajorVersion().isPresent());
-
-    Assert.assertFalse(
-        "Did not expect minor version to be present.",
-        version.getMinorVersion().isPresent());
-
-    Assert.assertFalse(
-        "Did not expect patch level to be present.",
-        version.getPatchLevel().isPresent());
-  }
-
-  @Test
-  public void junkStringResultsInAbsentVersions() {
-    HadoopVersionInfo versionInfo = new HadoopVersionInfo("ThisIsAJunkString");
-    assertAllInfoAbsent(versionInfo);
-
-    versionInfo = new HadoopVersionInfo(".1.2.3");
-    assertAllInfoAbsent(versionInfo);
+  private static void assertAllInfoAbsent(HadoopVersionInfo version) {
+    assertThat(version.getMajorVersion()).isAbsent();
+    assertThat(version.getMinorVersion()).isAbsent();
+    assertThat(version.getSubminorVersion()).isAbsent();
   }
 
   @Test
   public void testIsGreaterThan() {
-    HadoopVersionInfo versionInfo = new HadoopVersionInfo("2.3.0");
-    Assert.assertTrue(
-        "Expected 2.3.0 to be greater than 2.1.0",
-        versionInfo.isGreaterThan(2, 1));
+    assertWithMessage("Expected 2.3.0 to be greater than 2.1")
+        .that(new HadoopVersionInfo("2.3.0").isGreaterThan(2, 1))
+        .isTrue();
 
-    Assert.assertFalse(
-        "Did NOT expect 2.3 to be greater than 3.1",
-        versionInfo.isGreaterThan(3, 1));
+    assertWithMessage("Did NOT expect 2.3.0 to be greater than 3.1")
+        .that(new HadoopVersionInfo("2.3.0").isGreaterThan(3, 1))
+        .isFalse();
 
-    versionInfo = new HadoopVersionInfo("3.2.0");
-    Assert.assertTrue(
-        "Expected 3.2.0 to be greater than 2.1.0",
-        versionInfo.isGreaterThan(2, 1));
+    assertWithMessage("Expected 3.2.0 to be greater than 2.1")
+        .that(new HadoopVersionInfo("3.2.0").isGreaterThan(2, 1))
+        .isTrue();
 
-    versionInfo = new HadoopVersionInfo("1.2.1");
-    Assert.assertFalse(
-        "Expected 1.2.1 to be NOT greater than 2.3.0",
-        versionInfo.isGreaterThan(2, 3));
-
-    versionInfo = new HadoopVersionInfo("Junk");
-    Assert.assertFalse(
-        "Nothing should be greater than an unknown version",
-        versionInfo.isGreaterThan(0, 0));
+    assertWithMessage("Expected 1.2.1 to be NOT greater than 2.3")
+        .that(new HadoopVersionInfo("1.2.1").isGreaterThan(2, 3))
+        .isFalse();
   }
 
   @Test
   public void testIsLessThan() {
-    HadoopVersionInfo versionInfo = new HadoopVersionInfo("2.3.0");
-    Assert.assertTrue(
-        "Expected 2.3.0 to be less than 2.4.0",
-        versionInfo.isLessThan(2, 4));
+    assertWithMessage("Expected 2.3.0 to be less than 2.4")
+        .that(new HadoopVersionInfo("2.3.0").isLessThan(2, 4))
+        .isTrue();
 
-    Assert.assertFalse(
-        "Did NOT expect 2.3 to be less than 1.2",
-        versionInfo.isLessThan(1, 2));
+    assertWithMessage("Did NOT expect 2.3.0 to be less than 1.2")
+        .that(new HadoopVersionInfo("2.3.0").isLessThan(1, 2))
+        .isFalse();
 
-    versionInfo = new HadoopVersionInfo("1.2.0");
-    Assert.assertTrue(
-        "Expected 1.2.0 to be less than 2.1.0",
-        versionInfo.isLessThan(2, 1));
+    assertWithMessage("Expected 1.2.0 to be less than 2.1")
+        .that(new HadoopVersionInfo("1.2.0").isLessThan(2, 1))
+        .isTrue();
 
-    versionInfo = new HadoopVersionInfo("2.2.0");
-    Assert.assertFalse(
-        "Expected 2.2.0 to be NOT less than 1.2.0",
-        versionInfo.isLessThan(1, 2));
-
-    versionInfo = new HadoopVersionInfo("Junk");
-    Assert.assertFalse(
-        "Nothing should be less than an unknown version",
-        versionInfo.isLessThan(Integer.MAX_VALUE, Integer.MAX_VALUE));
+    assertWithMessage("Expected 2.2.0 to be NOT less than 1.2")
+        .that(new HadoopVersionInfo("2.2.0").isLessThan(1, 2))
+        .isFalse();
   }
 
   @Test
   public void testIsEqualTo() {
     HadoopVersionInfo versionInfo = new HadoopVersionInfo("2.3.0");
-    Assert.assertTrue("Expected 2.3.0 to equal 2.3", versionInfo.isEqualTo(2, 3));
-    Assert.assertFalse("Did not expect 2.3.0 to equal 2.2", versionInfo.isEqualTo(2, 2));
-    Assert.assertFalse("Did not expect 2.3.0 to equal 1.3", versionInfo.isEqualTo(1, 3));
+    assertWithMessage("Expected 2.3.0 to equal 2.3").that(versionInfo.isEqualTo(2, 3)).isTrue();
+    assertWithMessage("Did not expect 2.3.0 to equal 2.2")
+        .that(versionInfo.isEqualTo(2, 2))
+        .isFalse();
+    assertWithMessage("Did not expect 2.3.0 to equal 1.3")
+        .that(versionInfo.isEqualTo(1, 3))
+        .isFalse();
   }
 }
