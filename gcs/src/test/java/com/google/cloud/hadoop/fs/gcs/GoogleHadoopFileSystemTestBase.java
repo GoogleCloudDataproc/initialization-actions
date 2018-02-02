@@ -33,17 +33,13 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /**
- * Abstract base class for test suites targeting variants of GoogleHadoopFileSystem via the
- * Hadoop FileSystem interface. Includes general HadoopFileSystemTestBase cases plus some
- * behavior only visible at the GHFS level.
+ * Abstract base class for test suites targeting variants of GoogleHadoopFileSystem via the Hadoop
+ * FileSystem interface. Includes general HadoopFileSystemTestBase cases plus some behavior only
+ * visible at the GHFS level.
  */
-@RunWith(JUnit4.class)
-public abstract class GoogleHadoopFileSystemTestBase
-    extends HadoopFileSystemTestBase {
+public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTestBase {
 
   /**
    * Helper to load all the GHFS-specific config values from environment variables, such as those
@@ -76,8 +72,7 @@ public abstract class GoogleHadoopFileSystemTestBase
     config.set(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY, projectId);
     config.set(GoogleHadoopFileSystemBase.SERVICE_ACCOUNT_AUTH_EMAIL_KEY, serviceAccount);
     config.set(GoogleHadoopFileSystemBase.SERVICE_ACCOUNT_AUTH_KEYFILE_KEY, privateKeyFile);
-    String systemBucketName =
-        ghfsHelper.getUniqueBucketName("-system-bucket");
+    String systemBucketName = ghfsHelper.getUniqueBucketName("system");
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, systemBucketName);
     config.setBoolean(GoogleHadoopFileSystemBase.GCS_CREATE_SYSTEM_BUCKET_KEY, true);
     config.setBoolean(
@@ -183,6 +178,7 @@ public abstract class GoogleHadoopFileSystemTestBase
   @Test
   public void testRepairImplicitDirectory()
       throws IOException, URISyntaxException {
+    String bucketName = sharedBucketName1;
     GoogleHadoopFileSystemBase myghfs = (GoogleHadoopFileSystemBase) ghfs;
     GoogleCloudStorageFileSystem gcsfs = myghfs.getGcsFs();
     URI seedUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();

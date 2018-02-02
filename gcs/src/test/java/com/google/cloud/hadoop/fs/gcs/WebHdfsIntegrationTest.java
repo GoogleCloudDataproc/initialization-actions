@@ -32,20 +32,19 @@ import org.junit.runners.JUnit4;
 /**
  * Integration tests for HDFS.
  *
- * This class allows running all tests in GoogleHadoopGlobalRootedFileSystemIntegrationTest against
- * HDFS through WebHDFS protocol. This allows us to determine if HDFS behavior is different from
- * GHFS behavior and if so, fix GHFS to match HDFS behavior.
+ * <p>This class allows running all tests in GoogleHadoopGlobalRootedFileSystemIntegrationTest
+ * against HDFS through WebHDFS protocol. This allows us to determine if HDFS behavior is different
+ * from GHFS behavior and if so, fix GHFS to match HDFS behavior.
  *
- * We enable it by mapping paths used by GHFS tests to HDFS paths.
+ * <p>We enable it by mapping paths used by GHFS tests to HDFS paths.
  *
- * This class overrides the initial setup of the FileSystem under test to inject an actual
- * HDFS implementation, as well as injecting a version of FileSystemDescriptor which properly
- * describes the behavior of HDFS. The FileSystemDescriptor thus reroutes all the test methods
- * through the proper HDFS instance using webhdfs:/ paths.
+ * <p>This class overrides the initial setup of the FileSystem under test to inject an actual HDFS
+ * implementation, as well as injecting a version of FileSystemDescriptor which properly describes
+ * the behavior of HDFS. The FileSystemDescriptor thus reroutes all the test methods through the
+ * proper HDFS instance using webhdfs:/ paths.
  */
 @RunWith(JUnit4.class)
-public class WebHdfsIntegrationTest
-    extends HadoopFileSystemTestBase {
+public class WebHdfsIntegrationTest extends HadoopFileSystemTestBase {
 
   // Environment variable from which to get HDFS access info.
   public static final String WEBHDFS_ROOT = "WEBHDFS_ROOT";
@@ -57,20 +56,14 @@ public class WebHdfsIntegrationTest
    * Performs initialization once before tests are run.
    */
   @BeforeClass
-  public static void beforeAllTests()
-      throws IOException {
+  public static void beforeAllTests() throws Exception {
 
     // Get info about the HDFS instance against which we run tests.
     hdfsRoot = System.getenv(WEBHDFS_ROOT);
     Assert.assertNotNull(hdfsRoot);
 
     // Create a FileSystem instance to access the given HDFS.
-    URI hdfsUri = null;
-    try {
-      hdfsUri = new URI(hdfsRoot);
-    } catch (URISyntaxException e) {
-      Assert.fail("Invalid HDFS path: " + hdfsRoot);
-    }
+    URI hdfsUri = new URI(hdfsRoot);
     Configuration config = new Configuration();
     config.set("fs.default.name", hdfsRoot);
     ghfs = FileSystem.get(hdfsUri, config);
@@ -161,14 +154,10 @@ public class WebHdfsIntegrationTest
       throws IOException {
     URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
     Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
-    try {
-      // For now, verify that append does not throw. We are not interested in
-      // verifying that append() actually appends correctly. We will do that
-      // once GHFS also starts supporting appends.
-      ghfs.append(hadoopPath, GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT, null);
-    } catch (IOException e) {
-      Assert.fail("Unexpected IOException");
-    }
+    // For now, verify that append does not throw. We are not interested in
+    // verifying that append() actually appends correctly. We will do that
+    // once GHFS also starts supporting appends.
+    ghfs.append(hadoopPath, GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT, null);
   }
 
   /**
@@ -188,9 +177,9 @@ public class WebHdfsIntegrationTest
   @Test @Override
   public void testOpenNonExistent()
       throws IOException {
+    String bucketName = ghfsHelper.getUniqueBucketName("open-non-existent");
     try {
-      ghfsHelper.readTextFile(
-          ghfsHelper.getUniqueBucketName(), objectName, 0, 100, true);
+      ghfsHelper.readTextFile(bucketName, objectName, 0, 100, true);
       Assert.fail("Expected IOException");
     } catch (IOException e) {
       Assert.assertTrue(e.getMessage().contains("Internal Server Error (error code=500)"));

@@ -62,8 +62,7 @@ public class GoogleCloudStorageFileSystemTest
   }
 
   @AfterClass
-  public static void afterAllTests()
-      throws IOException {
+  public static void afterAllTests() throws IOException {
     GoogleCloudStorageFileSystemIntegrationTest.afterAllTests();
   }
 
@@ -205,12 +204,9 @@ public class GoogleCloudStorageFileSystemTest
     Assert.assertArrayEquals(expectedUris.toArray(), pathUris.toArray());
   }
 
-  /**
-   * Verify that we cannot pass invalid path to GoogleCloudStorageFileSystem.
-   */
+  /** Verify that we cannot pass invalid path to GoogleCloudStorageFileSystem. */
   @Test
-  public void testInvalidPath()
-      throws IOException, URISyntaxException {
+  public void testInvalidPath() throws IOException, URISyntaxException {
     String[] invalidPaths = {
 
       // Path with a scheme other than gs.
@@ -242,11 +238,7 @@ public class GoogleCloudStorageFileSystemTest
     };
 
     for (String validPath : validPaths) {
-      try {
-        gcsfs.getPathCodec().validatePathAndGetId(new URI(validPath), false);
-      } catch (IllegalArgumentException expected) {
-        Assert.fail(String.format("Expected path to be valid: %s", validPath));
-      }
+      gcsfs.getPathCodec().validatePathAndGetId(new URI(validPath), false);
     }
 
     try {
@@ -329,9 +321,7 @@ public class GoogleCloudStorageFileSystemTest
     Assert.assertArrayEquals(expectedPaths, actualPaths.toArray(new URI[0]));
   }
 
-  /**
-   * Verify validateBucketName().
-   */
+  /** Verify validateBucketName(). */
   @Test
   public void testValidateBucketName() {
     String[] invalidBucketNames = {
@@ -360,17 +350,11 @@ public class GoogleCloudStorageFileSystemTest
     };
 
     for (String bucketName : validBucketNames) {
-      try {
-        GoogleCloudStorageFileSystem.validateBucketName(bucketName);
-      } catch (IllegalArgumentException expected) {
-        Assert.fail(String.format("Expected bucket name to be valid: %s", bucketName));
-      }
+      GoogleCloudStorageFileSystem.validateBucketName(bucketName);
     }
   }
 
-  /**
-   * Verify validateObjectName().
-   */
+  /** Verify validateObjectName(). */
   @Test
   public void testValidateObjectName() {
     String[] invalidObjectNames = {
@@ -411,11 +395,7 @@ public class GoogleCloudStorageFileSystemTest
     };
 
     for (String objectName : validObjectNames) {
-      try {
-        GoogleCloudStorageFileSystem.validateObjectName(objectName, false);
-      } catch (IllegalArgumentException expected) {
-        Assert.fail(String.format("Expected object name to be valid: %s", objectName));
-      }
+      GoogleCloudStorageFileSystem.validateObjectName(objectName, false);
     }
   }
 
@@ -458,6 +438,7 @@ public class GoogleCloudStorageFileSystemTest
   @Test
   public void testCreateNoParentDirectories()
       throws URISyntaxException, IOException {
+    String bucketName = sharedBucketName1;
     gcsfs.create(
         new URI("gs://" + bucketName + "/no/parent/dirs/exist/a.txt"),
         new CreateFileOptions(
@@ -482,6 +463,7 @@ public class GoogleCloudStorageFileSystemTest
   @Test
   public void testCreateAllowConflictWithExistingDirectory()
       throws URISyntaxException, IOException {
+    String bucketName = sharedBucketName1;
     gcsfs.mkdirs(new URI("gs://" + bucketName + "/conflicting-dirname"));
     gcsfs.create(
         new URI("gs://" + bucketName + "/conflicting-dirname"),

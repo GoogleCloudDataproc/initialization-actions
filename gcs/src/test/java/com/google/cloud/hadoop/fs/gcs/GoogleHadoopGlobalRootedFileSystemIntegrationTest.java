@@ -103,8 +103,7 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     config.set(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY, projectId);
     config.set(GoogleHadoopFileSystemBase.SERVICE_ACCOUNT_AUTH_EMAIL_KEY, serviceAccount);
     config.set(GoogleHadoopFileSystemBase.SERVICE_ACCOUNT_AUTH_KEYFILE_KEY, privateKey);
-    String systemBucketName =
-        ghfsHelper.getUniqueBucketName("-system-bucket");
+    String systemBucketName = ghfsHelper.getUniqueBucketName("system");
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, systemBucketName);
     config.setBoolean(GoogleHadoopFileSystemBase.GCS_CREATE_SYSTEM_BUCKET_KEY, true);
     config.setBoolean(
@@ -190,17 +189,12 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     config.setInt(GoogleHadoopFileSystemBase.BUFFERSIZE_KEY, bufferSize);
     long blockSize = 1024;
     config.setLong(GoogleHadoopFileSystemBase.BLOCK_SIZE_KEY, blockSize);
-    String systemBucketName =
-        ghfsHelper.getUniqueBucketName("-system-bucket");
+    String systemBucketName = ghfsHelper.getUniqueBucketName("initialize-system");
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, systemBucketName);
 
     URI initUri = (new Path("gsg://bucket-should-be-ignored")).toUri();
-    try {
-      fs = new GoogleHadoopGlobalRootedFileSystem();
-      fs.initialize(initUri, config);
-    } catch (IOException e) {
-      Assert.fail("Unexpected exception");
-    }
+    fs = new GoogleHadoopGlobalRootedFileSystem();
+    fs.initialize(initUri, config);
 
     // Verify that config settings were set correctly.
     Assert.assertEquals(bufferSize, fs.getBufferSizeOverride());
@@ -225,7 +219,7 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
   public void testInitializeThrowsWhenCredentialsNotFound()
       throws URISyntaxException, IOException {
     String fakeClientId = "fooclient";
-    String existingBucket = bucketName;
+    String existingBucket = sharedBucketName1;
 
     Configuration config = new Configuration();
     URI gsUri = new URI("gsg://foobar/");
@@ -250,6 +244,7 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
   @Test @Override
   public void testInitializeWithWorkingDirectory()
       throws IOException, URISyntaxException {
+    String bucketName = sharedBucketName1;
     // We can just test by calling initialize multiple times (for each test condition) because
     // there is nothing in initialize() which must be run only once. If this changes, this test
     // method will need to resort to using a new GoogleHadoopGlobalRootedFileSystem() for each item
@@ -286,8 +281,7 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     // is inherited by a derived test), we will use the constructor which already provides a (fake)
     // GCSFS and skip the portions of the config specific to GCSFS.
 
-    String systemBucketName =
-        ghfsHelper.getUniqueBucketName("-system-bucket");
+    String systemBucketName = ghfsHelper.getUniqueBucketName("configure-system");
 
     GoogleCloudStorageOptions.Builder gcsOptionsBuilder =
         GoogleHadoopFileSystemTestHelper.defaultStorageOptionsBuilder();
@@ -298,12 +292,8 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
         new InMemoryGoogleCloudStorage(gcsOptionsBuilder.build()),
         fsOptionsBuilder.build());
 
-    try {
-      fs = new GoogleHadoopGlobalRootedFileSystem(fakeGcsFs);
-      fs.configureBuckets(systemBucketName, true);
-    } catch (IOException e) {
-      Assert.fail("Unexpected exception");
-    }
+    fs = new GoogleHadoopGlobalRootedFileSystem(fakeGcsFs);
+    fs.configureBuckets(systemBucketName, true);
 
     // Verify that config settings were set correctly.
     Assert.assertEquals(systemBucketName, fs.getSystemBucketName());

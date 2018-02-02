@@ -39,20 +39,16 @@ import org.joda.time.Instant;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /**
- * Abstract base class with extended tests against the base Hadoop FileSystem interface but
- * with coverage of tricky edge cases relevant to GoogleHadoopFileSystem. Tests here are intended
- * to be useful for all different FileSystem implementations.
+ * Abstract base class with extended tests against the base Hadoop FileSystem interface but with
+ * coverage of tricky edge cases relevant to GoogleHadoopFileSystem. Tests here are intended to be
+ * useful for all different FileSystem implementations.
  *
- * We reuse test code from GoogleCloudStorageIntegrationTest and
+ * <p>We reuse test code from GoogleCloudStorageIntegrationTest and
  * GoogleCloudStorageFileSystemIntegrationTest.
  */
-@RunWith(JUnit4.class)
-public abstract class HadoopFileSystemTestBase
-    extends GoogleCloudStorageFileSystemIntegrationTest {
+public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSystemIntegrationTest {
 
   // GHFS access instance.
   static FileSystem ghfs;
@@ -77,12 +73,9 @@ public abstract class HadoopFileSystemTestBase
     gcsfs = null;
   }
 
-  /**
-   * Perform clean-up once after all tests are turn.
-   */
+  /** Perform clean-up once after all tests are turn. */
   @AfterClass
-  public static void afterAllTests()
-      throws IOException {
+  public static void afterAllTests() throws IOException {
     if (ghfs != null) {
       GoogleCloudStorageFileSystemIntegrationTest.afterAllTests();
       ghfs.close();
@@ -657,8 +650,8 @@ public abstract class HadoopFileSystemTestBase
         HadoopFileSystemIntegrationHelper ghfsHelper,
         String objectName, String expectedObjectName) {
       return new WorkingDirData(
-          ghfsHelper.createSchemeCompatibleHadoopPath(bucketName, objectName),
-          ghfsHelper.createSchemeCompatibleHadoopPath(bucketName, expectedObjectName));
+          ghfsHelper.createSchemeCompatibleHadoopPath(sharedBucketName1, objectName),
+          ghfsHelper.createSchemeCompatibleHadoopPath(sharedBucketName1, expectedObjectName));
     }
 
     /**
@@ -670,8 +663,7 @@ public abstract class HadoopFileSystemTestBase
     static WorkingDirData absolute(
         HadoopFileSystemIntegrationHelper ghfsHelper, String objectName) {
       return new WorkingDirData(
-          ghfsHelper.createSchemeCompatibleHadoopPath(bucketName, objectName),
-          null);
+          ghfsHelper.createSchemeCompatibleHadoopPath(sharedBucketName1, objectName), null);
     }
 
     /**
@@ -701,8 +693,8 @@ public abstract class HadoopFileSystemTestBase
 
     // -------------------------------------------------------
     // Create test objects.
-    ghfsHelper.clearBucket(bucketName);
-    ghfsHelper.createObjectsWithSubdirs(bucketName, objectNames);
+    ghfsHelper.clearBucket(sharedBucketName1);
+    ghfsHelper.createObjectsWithSubdirs(sharedBucketName1, objectNames);
 
     // -------------------------------------------------------
     // Initialize test data.

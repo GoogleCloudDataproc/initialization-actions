@@ -36,13 +36,12 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -98,8 +97,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   // created after the test started.
   protected static Instant testStartTime;
 
-  protected static String bucketName;
-  protected static String otherBucketName;
+  protected static String sharedBucketName1;
+  protected static String sharedBucketName2;
 
   // Name of the test object.
   protected static String objectName = "gcsio-test.txt";
@@ -111,8 +110,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
    * Perform initialization once before tests are run.
    */
   @BeforeClass
-  public static void beforeAllTests()
-      throws IOException {
+  public static void beforeAllTests() throws Exception {
     if (gcsfs == null) {
       Credential credential = GoogleCloudStorageTestHelper.getCredential();
       String appName = GoogleCloudStorageIntegrationHelper.APP_NAME;
@@ -157,24 +155,15 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
     gcsiHelper = helper;
     gcsiHelper.beforeAllTests();
-    bucketName = gcsiHelper.bucketName;
-    otherBucketName = gcsiHelper.otherBucketName;
+    sharedBucketName1 = gcsiHelper.sharedBucketName1;
+    sharedBucketName2 = gcsiHelper.sharedBucketName2;
   }
 
-  /**
-   * Perform clean-up once after all tests are turn.
-   */
+  /** Perform clean-up once after all tests are turn. */
   @AfterClass
-  public static void afterAllTests()
-      throws IOException {
-    gcsiHelper.afterAllTests();
+  public static void afterAllTests() throws IOException {
     if (gcsfs != null) {
-      try {
-        deleteOldTestBuckets();
-      } catch (IllegalArgumentException iae) {
-        // New URI objects can't be deleted by FileSystems with the Legacy path codec.
-        // Ignore errors so the entire test suite isn't failed.
-      }
+      gcsiHelper.afterAllTests(gcsfs.getGcs());
       gcsfs.close();
       gcsfs = null;
     }
@@ -445,8 +434,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
     // -------------------------------------------------------
     // Create test objects.
-    String tempTestBucket = gcsiHelper.getUniqueBucketName("list-test");
-    gcsiHelper.createTempBucket(tempTestBucket);
+    String tempTestBucket = gcsiHelper.createUniqueBucket("list");
     gcsiHelper.createObjectsWithSubdirs(tempTestBucket, objectNames);
 
     // -------------------------------------------------------
@@ -509,11 +497,11 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     validateListNamesAndInfo(tempTestBucket, objDoesNotExist, false);
     validateListNamesAndInfo(objDoesNotExist, objDoesNotExist, false);
 
-
     // -------------------------------------------------------
     // Tests for listObjectNames().
     // -------------------------------------------------------
-    validateListNamesAndInfo(null, null, true, bucketName, otherBucketName, tempTestBucket);
+    validateListNamesAndInfo(
+        null, null, true, sharedBucketName1, sharedBucketName2, tempTestBucket);
   }
 
   @Test @SuppressWarnings("EqualsIncompatibleType")
@@ -528,6 +516,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   @Test
   public void testWriteAndReadObject()
       throws IOException {
+    String bucketName = sharedBucketName1;
     String message = "Hello world!\n";
 
     // Write an object.
@@ -548,6 +537,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   @Test
   public void testReadPartialObject()
       throws IOException {
+    String bucketName = sharedBucketName1;
     String message = "Hello world!\n";
 
     // Write an object.
@@ -573,9 +563,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   @Test
   public void testOpenNonExistent()
       throws IOException {
+    String bucketName = gcsiHelper.getUniqueBucketName("open-non-existent");
     try {
-      gcsiHelper.readTextFile(
-          gcsiHelper.getUniqueBucketName(), objectName, 0, 100, true);
+      gcsiHelper.readTextFile(bucketName, objectName, 0, 100, true);
       Assert.fail("Expected FileNotFoundException");
     } catch (FileNotFoundException expected) {
       // Expected.
@@ -587,6 +577,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
    */
   public void deleteHelper(DeletionBehavior behavior)
       throws IOException {
+    String bucketName = sharedBucketName1;
 
     // Objects created for this test.
     String[] objectNames = {
@@ -604,7 +595,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
     // The same set of objects are also created under a bucket that
     // we will delete as a part of the test.
-    String tempBucket = gcsiHelper.createTempBucket();
+    String tempBucket = gcsiHelper.createUniqueBucket("delete");
     gcsiHelper.createObjectsWithSubdirs(tempBucket, objectNames);
 
     // -------------------------------------------------------
@@ -732,7 +723,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   @Test
   public void testMkdirAndCreateFileOfSameName()
       throws IOException, URISyntaxException {
-    String uniqueDirName = gcsiHelper.getUniqueDirectoryObjectName();
+    String bucketName = sharedBucketName1;
+    String uniqueDirName = "dir-" + UUID.randomUUID();
     gcsiHelper.mkdir(
         bucketName, uniqueDirName + GoogleCloudStorage.PATH_DELIMITER);
     try {
@@ -772,6 +764,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
    */
   public void mkdirsHelper(MkdirsBehavior behavior)
       throws IOException, URISyntaxException {
+    String bucketName = sharedBucketName1;
 
     // Objects created for this test.
     String[] objectNames = {
@@ -819,8 +812,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
                 new MethodOutcome(MethodOutcome.Type.RETURNS_TRUE));
 
     // Make paths that include making a top-level directory (bucket).
-    String uniqueBucketName = gcsiHelper.getUniqueBucketName();
-    gcsiHelper.addToDeleteBucketList(uniqueBucketName);
+    String uniqueBucketName = gcsiHelper.getUniqueBucketName("mkdir-1");
     dirData.put(gcsiHelper.getPath(uniqueBucketName, null),
                 new MethodOutcome(MethodOutcome.Type.RETURNS_TRUE));
 
@@ -829,8 +821,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
                 new MethodOutcome(MethodOutcome.Type.RETURNS_TRUE));
 
     // Make a path where the bucket is a non-existent parent directory.
-    String uniqueBucketName2 = gcsiHelper.getUniqueBucketName();
-    gcsiHelper.addToDeleteBucketList(uniqueBucketName2);
+    String uniqueBucketName2 = gcsiHelper.getUniqueBucketName("mkdir-2");
     dirData.put(gcsiHelper.getPath(uniqueBucketName2, "foo/bar"),
                 new MethodOutcome(MethodOutcome.Type.RETURNS_TRUE));
 
@@ -882,6 +873,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   @Test
   public void testGetFileInfos()
       throws IOException, URISyntaxException {
+    String bucketName = sharedBucketName1;
     // Objects created for this test.
     String[] objectNames = {
       "f1",
@@ -1052,9 +1044,10 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
    */
   protected void renameHelper(RenameBehavior behavior)
       throws IOException {
+    String bucketName = sharedBucketName1;
+    String otherBucketName = sharedBucketName2;
 
-    String uniqueDir = gcsiHelper.getUniqueDirectoryObjectName()
-        + GoogleCloudStorage.PATH_DELIMITER;
+    String uniqueDir = "dir-" + UUID.randomUUID() + GoogleCloudStorage.PATH_DELIMITER;
     String uniqueFile = uniqueDir + "f1";
 
     // Objects created for this test.
@@ -1476,6 +1469,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   @Test
   public void testRenameWithContentChecking()
       throws IOException {
+    String bucketName = sharedBucketName1;
     // TODO(user): Split out separate test cases, extract a suitable variant of RenameData to
     // follow same pattern of iterating over subcases.
     String[] fileNames = {
@@ -1556,8 +1550,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
             false /* overwrite existing */,
             ImmutableMap.of("key1", "value1".getBytes(StandardCharsets.UTF_8)));
 
-    URI testFilePath =
-        gcsiHelper.getPath(bucketName, "test-file-creation-attributes.txt");
+    URI testFilePath = gcsiHelper.getPath(sharedBucketName1, "test-file-creation-attributes.txt");
     try (WritableByteChannel channel =
         gcsfs.create(testFilePath, createFileOptions)) {
       Assert.assertNotNull(channel);
@@ -1574,8 +1567,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   @Test
   public void testFileCreationUpdatesParentDirectoryModificationTimestamp()
       throws IOException, InterruptedException {
-    URI directory = gcsiHelper.getPath(
-        bucketName, "test-modification-timestamps/create-dir/");
+    URI directory =
+        gcsiHelper.getPath(sharedBucketName1, "test-modification-timestamps/create-dir/");
 
     gcsfs.mkdirs(directory);
 
@@ -1607,8 +1600,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   @Test
   public void testPredicateIsConsultedForModificationTimestamps()
       throws IOException, InterruptedException {
-    URI directory = gcsiHelper.getPath(
-        bucketName, "test-modification-predicates/mkdirs-dir/");
+    URI directory =
+        gcsiHelper.getPath(sharedBucketName1, "test-modification-predicates/mkdirs-dir/");
     URI directoryToUpdate = directory.resolve("subdirectory-1/");
     URI directoryToIncludeAlways = directory.resolve(INCLUDED_TIMESTAMP_SUBSTRING);
     URI directoryToExcludeAlways = directory.resolve(EXCLUDED_TIMESTAMP_SUBSTRING);
@@ -1651,8 +1644,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   @Test
   public void testMkdirsUpdatesParentDirectoryModificationTimestamp()
       throws IOException, InterruptedException {
-    URI directory = gcsiHelper.getPath(
-        bucketName, "test-modification-timestamps/mkdirs-dir/");
+    URI directory =
+        gcsiHelper.getPath(sharedBucketName1, "test-modification-timestamps/mkdirs-dir/");
     URI directoryToUpdate = directory.resolve("subdirectory-1/");
 
     gcsfs.mkdirs(directoryToUpdate);
@@ -1693,8 +1686,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   @Test
   public void testDeleteUpdatesDirectoryModificationTimestamps()
       throws IOException, InterruptedException {
-    URI directory = gcsiHelper.getPath(
-        bucketName, "test-modification-timestamps/delete-dir/");
+    URI directory =
+        gcsiHelper.getPath(sharedBucketName1, "test-modification-timestamps/delete-dir/");
 
     gcsfs.mkdirs(directory);
 
@@ -1732,8 +1725,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   @Test
   public void testRenameUpdatesParentDirectoryModificationTimestamps()
       throws IOException, InterruptedException {
-    URI directory = gcsiHelper.getPath(
-        bucketName, "test-modification-timestamps/rename-dir/");
+    URI directory =
+        gcsiHelper.getPath(sharedBucketName1, "test-modification-timestamps/rename-dir/");
     URI sourceDirectory = directory.resolve("src-directory/");
     URI destinationDirectory = directory.resolve("destination-directory/");
     gcsfs.mkdirs(sourceDirectory);
@@ -1792,6 +1785,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
   @Test
   public void testComposeSuccess() throws IOException {
+    String bucketName = sharedBucketName1;
     URI directory = gcsiHelper.getPath(bucketName, "test-compose/");
     URI object1 = directory.resolve("object1");
     URI object2 = directory.resolve("object2");
@@ -1825,7 +1819,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
    * Gets a unique path of a non-existent file.
    */
   public static URI getTempFilePath() {
-    return gcsiHelper.getPath(bucketName, gcsiHelper.getUniqueFileObjectName());
+    return gcsiHelper.getPath(sharedBucketName1, "file-" + UUID.randomUUID());
   }
 
   /**
@@ -1867,49 +1861,6 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
                 : "Path expected to not exist but found"),
             path.toString());
         Assert.assertEquals(msg, expectedToExist, gcsiHelper.exists(path));
-      }
-    }
-  }
-
-  /**
-   * Deletes test buckets that are more than 24 hour old.
-   */
-  private static void deleteOldTestBuckets()
-      throws IOException {
-
-    // Get time to compare with.
-    Calendar cal = Calendar.getInstance();
-    Date today = cal.getTime();
-    cal.add(Calendar.HOUR_OF_DAY, -24);
-    Date yesterday = cal.getTime();
-    LOG.debug("Current time: {}, deleting buckets older than: {} ", today, yesterday);
-
-    // Iterate over all buckets to find the old ones.
-    List<FileInfo> topLevelDirInfos =
-        gcsfs.listFileInfo(GoogleCloudStorageFileSystem.GCS_ROOT, false);
-    for (FileInfo dirInfo : topLevelDirInfos) {
-      URI dirPath = dirInfo.getPath();
-      StorageResourceId resourceId =
-          gcsfs.getPathCodec().validatePathAndGetId(dirPath, true);
-
-      if (gcsiHelper.isTestBucketName(resourceId.getBucketName())
-          && (dirInfo.getCreationTime() < yesterday.getTime())) {
-        LOG.debug("...deleting : {}", dirInfo);
-        try {
-          gcsfs.delete(dirPath, true);
-          // If we successfully deleted a bucket then sleep for some time so that we do not
-          // exceed rate limit for creating/deleting buckets.
-          try {
-            Thread.sleep(TimeUnit.SECONDS.toMillis(1));
-          } catch (InterruptedException ignored) {
-            // Ignore InterruptedException and continue to delete next bucket.
-          }
-        } catch (IOException e) {
-          // Log and ignore so that we can delete as many as we can.
-          LOG.error("... error deleting : {}", dirInfo, e);
-        }
-      } else {
-        LOG.debug("...skipped  : {}", dirInfo);
       }
     }
   }

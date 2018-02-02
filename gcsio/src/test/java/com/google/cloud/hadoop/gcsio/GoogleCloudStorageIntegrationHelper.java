@@ -16,6 +16,7 @@ package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.truth.Truth.assertWithMessage;
 
+import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -27,7 +28,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -55,49 +55,28 @@ public abstract class GoogleCloudStorageIntegrationHelper {
   public static final String GCS_TEST_CLIENT_SECRET = "GCS_TEST_CLIENT_SECRET";
 
   // Prefix used for naming test buckets.
-  public static final String TEST_BUCKET_NAME_PREFIX = "gcsio-test-";
+  private static final String TEST_BUCKET_NAME_PREFIX = "gcsio-test";
 
-  // Regex pattern to match UUID string.
-  public static final String UUID_PATTERN =
-      "\\p{XDigit}{8}+-\\p{XDigit}{4}+-\\p{XDigit}{4}+-\\p{XDigit}{4}+-\\p{XDigit}{12}+";
-
-  // Regex that matches a test bucket name.
-  public static final String TEST_BUCKET_NAME_PATTERN =
-      "^" + TEST_BUCKET_NAME_PREFIX + UUID_PATTERN + ".*";
-
-  // Name of the test object.
-  //protected static String objectName = "gcsio-test.txt";
+  private final TestBucketHelper bucketHelper = new TestBucketHelper(TEST_BUCKET_NAME_PREFIX);
 
   // Name of test buckets.
-  public String bucketName;
-  public String otherBucketName;
+  public String sharedBucketName1;
+  public String sharedBucketName2;
 
-  // List of buckets to delete during post-test cleanup.
-  private List<String> bucketsToDelete = new ArrayList<>();
-
-  /**
-   * Perform initialization once before tests are run.
-   */
+  /** Perform initialization once before tests are run. */
   public void beforeAllTests() throws IOException {
     // Un-comment the following to enable logging during test run.
     //enableLogging();
 
     // Create a couple of buckets. The first one is used by most tests.
     // The second one is used by some tests (eg, copy()).
-    // TODO(user): bucketName and otherBucketName are too generic names.
-    // They should be renamed to testBucketName and otherTestBucketName.
-    bucketName = createTempBucket();
-    otherBucketName = createTempBucket();
+    sharedBucketName1 = createUniqueBucket("shared-1");
+    sharedBucketName2 = createUniqueBucket("shared-2");
   }
 
-  /**
-   * Perform clean-up once after all tests are turn.
-   */
-  public void afterAllTests()
-      throws IOException {
-
-    // Delete buckets created during test.
-    deleteBuckets();
+  /** Perform clean-up once after all tests are turn. */
+  public void afterAllTests(GoogleCloudStorage gcs) throws IOException {
+    bucketHelper.cleanup(gcs);
   }
 
   /**
@@ -270,7 +249,7 @@ public abstract class GoogleCloudStorageIntegrationHelper {
    * @param objectName name of the object to inspect
    * @return whether the given object name looks like a directory path
    */
-  public boolean objectHasDirectoryPath(String objectName) {
+  public static boolean objectHasDirectoryPath(String objectName) {
     return FileInfo.objectHasDirectoryPath(objectName);
   }
 
@@ -396,83 +375,14 @@ public abstract class GoogleCloudStorageIntegrationHelper {
    * can be identified by calling isTestBucketName() for that bucket.
    */
   public String getUniqueBucketName(String suffix) {
-    UUID uuid = UUID.randomUUID();
-    String uniqueBucketName = TEST_BUCKET_NAME_PREFIX + uuid.toString() + suffix;
-    // In most cases, caller creates a bucket with this name therefore we proactively add the name
-    // to the list of buckets to be deleted. It is ok even if a bucket is not created with
-    // this name because deleteBuckets() will ignore non-existent buckets.
-    addToDeleteBucketList(uniqueBucketName);
-    return uniqueBucketName;
+    return bucketHelper.getUniqueBucketName(suffix);
   }
 
-  /**
-   * Indicates whether the given name matches the pattern used for
-   * naming a test bucket.
-   */
-  boolean isTestBucketName(String bucketName) {
-    return bucketName.matches(TEST_BUCKET_NAME_PATTERN);
-  }
-
-  /**
-   * Gets randomly generated name of a file like object.
-   */
-  String getUniqueFileObjectName() {
-    return "file-" + UUID.randomUUID().toString();
-  }
-
-  /**
-   * Gets randomly generated name of a directory like object.
-   */
-  String getUniqueDirectoryObjectName() {
-    return "dir-" + UUID.randomUUID().toString();
-  }
-
-  /**
-   * Creates a bucket and adds it to the list of buckets to delete
-   * at the end of tests.
-   */
-  public void createTempBucket(String tempBucketName)
-      throws IOException {
-    mkdir(tempBucketName);
-    addToDeleteBucketList(tempBucketName);
-  }
-
-  /**
-   * Creates a bucket and adds it to the list of buckets to delete
-   * at the end of tests.
-   */
-  String createTempBucket()
-      throws IOException {
-    String tempBucketName = getUniqueBucketName();
-    createTempBucket(tempBucketName);
-    return tempBucketName;
-  }
-
-  /**
-   * Add the given bucket name to the list of buckets to delete
-   * during post-test cleanup.
-   */
-  void addToDeleteBucketList(String bucketToDelete) {
-    // We do not create more than a few buckets during tests, therefore linear search
-    // to find duplicates is ok.
-    if (!bucketsToDelete.contains(bucketToDelete)) {
-      bucketsToDelete.add(bucketToDelete);
-    }
-  }
-
-  /**
-   * Delete buckets that were temporarily created during tests.
-   */
-  public void deleteBuckets() {
-    for (String bucket : bucketsToDelete) {
-      try {
-        clearBucket(bucket);
-        delete(bucket);
-      } catch (IOException e) {
-        LOG.warn("deleteBuckets: " + e.getLocalizedMessage());
-      }
-    }
-    bucketsToDelete.clear();
+  /** Creates a bucket and adds it to the list of buckets to delete at the end of tests. */
+  String createUniqueBucket(String suffix) throws IOException {
+    String bucketName = getUniqueBucketName(suffix);
+    mkdir(bucketName);
+    return bucketName;
   }
 
   /**
