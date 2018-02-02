@@ -14,6 +14,10 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
@@ -33,7 +37,6 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -189,36 +192,38 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   private void validateFileInfoInternal(
       String bucketName, String objectName, boolean expectedToExist, FileInfo fileInfo)
       throws IOException {
-    Assert.assertEquals(expectedToExist, fileInfo.exists());
+    assertThat(fileInfo.exists()).isEqualTo(expectedToExist);
 
-    long expectedSize =
-        gcsiHelper.getExpectedObjectSize(objectName, expectedToExist);
+    long expectedSize = gcsiHelper.getExpectedObjectSize(objectName, expectedToExist);
     if (expectedSize != Long.MIN_VALUE) {
-      Assert.assertEquals(expectedSize, fileInfo.getSize());
+      assertThat(fileInfo.getSize()).isEqualTo(expectedSize);
     }
 
     boolean expectedDirectory =
         (objectName == null) || FileInfo.objectHasDirectoryPath(objectName);
-    Assert.assertEquals(
-        String.format("isDirectory for bucketName '%s' objectName '%s'", bucketName, objectName),
-        expectedDirectory, fileInfo.isDirectory());
+    assertWithMessage("isDirectory for bucketName '%s' objectName '%s'", bucketName, objectName)
+        .that(fileInfo.isDirectory())
+        .isEqualTo(expectedDirectory);
+
     if (expectedToExist) {
       Instant currentTime = Instant.now();
       Instant fileCreationTime = new Instant(fileInfo.getCreationTime());
 
-      // Check !isBefore and !isAfter to allow the timestamp to allow for "0 milliseconds elapsed".
-      Assert.assertFalse(String.format(
-          "stale file? testStartTime: %s, fileCreationTime: %s",
-          testStartTime.toString(), fileCreationTime.toString()),
-          fileCreationTime.isBefore(testStartTime));
-      Assert.assertFalse(String.format(
-          "unexpected creation-time: clock skew? currentTime: %s, fileCreationTime: %s",
-          currentTime.toString(), fileCreationTime.toString()),
-          fileCreationTime.isAfter(currentTime));
+      assertWithMessage(
+              "stale file? testStartTime: %s, fileCreationTime: %s",
+              testStartTime, fileCreationTime)
+          .that(fileCreationTime)
+          .isGreaterThan(testStartTime);
+      assertWithMessage(
+              "unexpected creation-time: clock skew? currentTime: %s, fileCreationTime: %s",
+              currentTime, fileCreationTime)
+          .that(fileCreationTime)
+          .isLessThan(currentTime);
     } else {
-      Assert.assertEquals(0, fileInfo.getCreationTime());
+      assertThat(fileInfo.getCreationTime()).isEqualTo(0);
     }
-    Assert.assertTrue(fileInfo.toString().length() > 0);
+
+    assertThat(fileInfo.toString()).isNotEmpty();
   }
 
   /**
@@ -264,13 +269,11 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
         if (listRoot) {
           pathComponents[0] = expectedListedName;
           pathComponents[1] = null;
-          expectedPaths.add(gcsiHelper.getPath(expectedListedName, null));
         } else {
           pathComponents[0] = bucketName;
           pathComponents[1] = expectedListedName;
         }
-        URI expectedPath =
-            gcsiHelper.getPath(pathComponents[0], pathComponents[1]);
+        URI expectedPath = gcsiHelper.getPath(pathComponents[0], pathComponents[1]);
         expectedPaths.add(expectedPath);
         pathToComponents.put(expectedPath, pathComponents);
       }
@@ -308,16 +311,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     }
 
     if (listRoot) {
-      Set<URI> actualPathsSet = new HashSet<>(actualPaths);
-      for (URI expectedPath : expectedPaths) {
-        Assert.assertTrue(
-            String.format("expected: <%s> in: <%s>", expectedPath, actualPathsSet),
-            actualPathsSet.contains(expectedPath));
-      }
+      assertThat(actualPaths).containsAllIn(expectedPaths);
     } else {
-      Collections.sort(expectedPaths);
-      Collections.sort(actualPaths);
-      Assert.assertArrayEquals(expectedPaths.toArray(), actualPaths.toArray());
+      assertThat(actualPaths).containsExactlyElementsIn(expectedPaths);
     }
 
     // Now re-verify using listFileNames instead of listFileInfo.
@@ -339,13 +335,12 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
       // So, we just check that the expectedPaths are at least a subset of the listed ones.
       Set<URI> actualPathsSet = new HashSet<>(listedUris);
       for (URI expectedPath : expectedPaths) {
-        Assert.assertTrue(
-            String.format("expected: <%s> in: <%s>", expectedPath, actualPathsSet),
-            actualPathsSet.contains(expectedPath));
+        assertWithMessage("expected: <%s> in: <%s>", expectedPath, actualPathsSet)
+            .that(actualPathsSet)
+            .contains(expectedPath);
       }
     } else {
-      Collections.sort(listedUris);
-      Assert.assertArrayEquals(expectedPaths.toArray(), listedUris.toArray());
+      assertThat(expectedPaths).containsExactlyElementsIn(listedUris);
     }
   }
 
@@ -544,7 +539,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
         bucketName, objectName, 0, numBytesWritten, true);
 
     // Verify we read what we wrote.
-    Assert.assertEquals(message, message2);
+    assertThat(message2).isEqualTo(message);
   }
 
   /**
@@ -566,8 +561,10 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
         bucketName, objectName, offset, message.length() - offset, true);
 
     // Verify we read what we wrote.
-    Assert.assertEquals("partial read mismatch", message.substring(0, offset), message1);
-    Assert.assertEquals("partial read mismatch", message.substring(offset), message2);
+    assertWithMessage("partial read mismatch")
+        .that(message1)
+        .isEqualTo(message.substring(0, offset));
+    assertWithMessage("partial read mismatch").that(message2).isEqualTo(message.substring(offset));
   }
 
   /**
@@ -1211,15 +1208,14 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     }
 
 
-    // This test case fails for LocalFileSystem; it clobbers the destination intead.
+    // This test case fails for LocalFileSystem; it clobbers the destination instead.
     // TODO(user): Make the MethodOutcome able to encompass high-level behaviors.
     renameData.add(new RenameData(
         "destination is a dir that exists and non-empty: 2",
         bucketName, "d1-h/",
         bucketName, "td0-a",
         new MethodOutcome(MethodOutcome.Type.RETURNS_TRUE),  // expected outcome
-        Lists.newArrayList("td0-a/", "td0-a/d1-h/",
-            "td0-a/d1-h/f1"),  // expected to exist in src
+        Lists.newArrayList("td0-a/", "td0-a/d1-h/", "td0-a/d1-h/f1"),  // expected to exist in src
         null,  // expected to exist in dst
         Lists.newArrayList("d1-h/", "d1-h/f1")));  // expected to be deleted
 
@@ -1597,13 +1593,13 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
     FileInfo newDirectoryInfo = gcsfs.getFileInfo(directory);
 
-    Assert.assertFalse(
-        "Modificaiton times should not be equal",
-        directoryInfo.getModificationTime() == newDirectoryInfo.getModificationTime());
+    assertWithMessage("Modification times should not be equal")
+        .that(newDirectoryInfo.getModificationTime())
+        .isNotEqualTo(directoryInfo.getModificationTime());
 
     // This is prone to flake. Creation time is set by GCS while modification time is set
     // client side. We'll only assert that A) creation time is different from modification time and
-    // B) that they are within 10 minutes of eachother.
+    // B) that they are within 10 minutes of each other.
     long timeDelta = directoryInfo.getCreationTime() - newDirectoryInfo.getModificationTime();
     Assert.assertTrue(Math.abs(timeDelta) < TimeUnit.MINUTES.toMillis(10));
   }
@@ -1675,10 +1671,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
     FileInfo newDirectoryToUpdateInfo = gcsfs.getFileInfo(directoryToUpdate);
 
-    Assert.assertFalse(
-        "Modificaiton times should not be equal",
-        directoryToUpdateInfo.getModificationTime()
-            == newDirectoryToUpdateInfo.getModificationTime());
+    assertWithMessage("Modification times should not be equal")
+        .that(newDirectoryToUpdateInfo.getModificationTime())
+        .isNotEqualTo(directoryToUpdateInfo.getModificationTime());
 
     // This is prone to flake. Creation time is set by GCS while modification time is set
     // client side. We'll only assert that A) creation time is different from modification time and
@@ -1722,9 +1717,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     gcsfs.delete(sourceFile, false);
 
     FileInfo updatedDirectoryInfo = gcsfs.getFileInfo(directory);
-    Assert.assertFalse(
-        "Modificaiton times should not be equal",
-        directoryInfo.getModificationTime() == updatedDirectoryInfo.getModificationTime());
+    assertWithMessage("Modification times should not be equal")
+        .that(updatedDirectoryInfo.getModificationTime())
+        .isNotEqualTo(directoryInfo.getModificationTime());
 
     // This is prone to flake. Creation time is set by GCS while modification time is set
     // client side. We'll only assert that A) creation time is different from modification time and
@@ -1806,18 +1801,18 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     // Create the source objects
     try (WritableByteChannel channel1 = gcsfs.create(object1)) {
       Assert.assertNotNull(channel1);
-      channel1.write(ByteBuffer.wrap("content1".getBytes()));
+      channel1.write(ByteBuffer.wrap("content1".getBytes(UTF_8)));
     }
     try (WritableByteChannel channel2 = gcsfs.create(object2)) {
       Assert.assertNotNull(channel2);
-      channel2.write(ByteBuffer.wrap("content2".getBytes()));
+      channel2.write(ByteBuffer.wrap("content2".getBytes(UTF_8)));
     }
     Assert.assertTrue(gcsfs.exists(object1) && gcsfs.exists(object2));
 
     gcsfs.compose(
         ImmutableList.of(object1, object2), destination, CreateFileOptions.DEFAULT_CONTENT_TYPE);
 
-    byte[] expectedOutput = "content1content2".getBytes();
+    byte[] expectedOutput = "content1content2".getBytes(UTF_8);
     ByteBuffer actualOutput = ByteBuffer.allocate(expectedOutput.length);
     try (SeekableByteChannel destinationChannel =
             gcsiHelper.open(bucketName, "test-compose/destination")) {
@@ -1845,8 +1840,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   private List<URI> getSubDirPaths(URI path) {
     StorageResourceId resourceId = gcsiHelper.validatePathAndGetId(path, true);
 
-    List<URI> subDirPaths = new ArrayList<>();
     List<String> subdirs = GoogleCloudStorageFileSystem.getSubDirs(resourceId.getObjectName());
+    List<URI> subDirPaths = new ArrayList<>(subdirs.size());
     for (String subdir : subdirs) {
       subDirPaths.add(gcsiHelper.getPath(resourceId.getBucketName(), subdir));
     }

@@ -14,8 +14,8 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import com.google.api.client.auth.oauth2.Credential;
-import com.google.cloud.hadoop.util.CredentialFactory;
+import static com.google.common.truth.Truth.assertWithMessage;
+
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -23,7 +23,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -116,11 +115,9 @@ public abstract class GoogleCloudStorageIntegrationHelper {
    */
   protected int writeTextFile(String bucketName, String objectName, String text)
       throws IOException {
-    int numBytesWritten = -1;
     byte[] textBytes = text.getBytes("UTF-8");
     ByteBuffer writeBuffer = ByteBuffer.wrap(textBytes);
-    numBytesWritten = writeFile(bucketName, objectName, writeBuffer, 1);
-    return numBytesWritten;
+    return writeFile(bucketName, objectName, writeBuffer, 1);
   }
 
   /**
@@ -134,24 +131,17 @@ public abstract class GoogleCloudStorageIntegrationHelper {
    */
   protected int writeFile(String bucketName, String objectName, ByteBuffer buffer, int numWrites)
       throws IOException {
-    int numBytesWritten = -1;
     int totalBytesWritten = 0;
-    WritableByteChannel writeChannel = null;
 
-    try {
-      writeChannel = create(
-          bucketName, objectName, new CreateFileOptions(false /* overwrite existing */));
+    try (WritableByteChannel writeChannel =
+        create(bucketName, objectName, new CreateFileOptions(false /* overwrite existing */))) {
       for (int i = 0; i < numWrites; i++) {
         buffer.clear();
-        numBytesWritten = writeChannel.write(buffer);
-        Assert.assertEquals("could not write the entire buffer",
-            buffer.capacity(), numBytesWritten);
+        int numBytesWritten = writeChannel.write(buffer);
+        assertWithMessage("could not write the entire buffer")
+            .that(numBytesWritten)
+            .isEqualTo(buffer.capacity());
         totalBytesWritten += numBytesWritten;
-      }
-
-    } finally {
-      if (writeChannel != null) {
-        writeChannel.close();
       }
     }
 
@@ -163,12 +153,10 @@ public abstract class GoogleCloudStorageIntegrationHelper {
    */
   protected String readTextFile(String bucketName, String objectName)
       throws IOException {
-    SeekableByteChannel readChannel = null;
     ByteBuffer readBuffer = ByteBuffer.allocate(1024);
     StringBuilder returnBuffer = new StringBuilder();
 
-    try {
-      readChannel = open(bucketName, objectName);
+    try (SeekableByteChannel readChannel = open(bucketName, objectName)) {
       int numBytesRead = readChannel.read(readBuffer);
       while (numBytesRead > 0) {
         readBuffer.flip();
@@ -176,11 +164,8 @@ public abstract class GoogleCloudStorageIntegrationHelper {
         readBuffer.clear();
         numBytesRead = readChannel.read(readBuffer);
       }
-    } finally {
-      if (readChannel != null) {
-        readChannel.close();
-      }
     }
+
     return returnBuffer.toString();
   }
 
@@ -192,28 +177,19 @@ public abstract class GoogleCloudStorageIntegrationHelper {
   protected String readTextFile(
       String bucketName, String objectName, int offset, int len, boolean checkOverflow)
       throws IOException {
-    String text = null;
-    SeekableByteChannel readChannel = null;
+    int bufferSize = len + (checkOverflow ? 1 : 0);
+    ByteBuffer readBuffer = ByteBuffer.allocate(bufferSize);
 
-    try {
-      int bufferSize = len;
-      bufferSize += checkOverflow ? 1 : 0;
-      ByteBuffer readBuffer = ByteBuffer.allocate(bufferSize);
-      readChannel = open(bucketName, objectName);
+    try (SeekableByteChannel readChannel = open(bucketName, objectName)) {
       if (offset > 0) {
         readChannel.position(offset);
       }
       int numBytesRead = readChannel.read(readBuffer);
       Assert.assertEquals("readTextFile: read size mismatch", len, numBytesRead);
-      readBuffer.flip();
-      text = StandardCharsets.UTF_8.decode(readBuffer).toString();
-    } finally {
-      if (readChannel != null) {
-        readChannel.close();
-      }
     }
 
-    return text;
+    readBuffer.flip();
+    return StandardCharsets.UTF_8.decode(readBuffer).toString();
   }
 
   /**
@@ -272,24 +248,20 @@ public abstract class GoogleCloudStorageIntegrationHelper {
    * Gets the expected size of a test object. Subclasses are allowed to return Long.MIN_VALUE to
    * denote "don't care" or "don't know".
    *
-   * This function assumes a certain behavior when we create test objects.
-   * See {@link createObjects()} for details.
+   * <p>This function assumes a certain behavior when we create test objects. See {@link
+   * createObjects()} for details.
    */
   public long getExpectedObjectSize(String objectName, boolean expectedToExist)
       throws UnsupportedEncodingException {
     // Determine the expected size.
-    long expectedSize;
     if (expectedToExist) {
       if (Strings.isNullOrEmpty(objectName)
           || objectName.endsWith(GoogleCloudStorage.PATH_DELIMITER)) {
-        expectedSize = 0;
-      } else {
-        expectedSize = objectName.getBytes("UTF-8").length;
+        return 0;
       }
-    } else {
-      expectedSize = -1;
+      return objectName.getBytes("UTF-8").length;
     }
-    return expectedSize;
+    return -1;
   }
 
   /**
@@ -303,22 +275,17 @@ public abstract class GoogleCloudStorageIntegrationHelper {
   }
 
   /**
-   * Creates objects in the given bucket.
-   * For objects whose name looks like a path (foo/bar/zoo), creates
-   * objects for intermediate sub-paths.
-   * for example,
-   * foo/bar/zoo => creates: foo/, foo/bar/, foo/bar/zoo.
+   * Creates objects in the given bucket. For objects whose name looks like a path (foo/bar/zoo),
+   * creates objects for intermediate sub-paths.
+   *
+   * <p>For example, foo/bar/zoo => creates: foo/, foo/bar/, foo/bar/zoo.
    */
-  public void createObjectsWithSubdirs(String bucketName, String[] objectNames)
-      throws IOException {
+  public void createObjectsWithSubdirs(String bucketName, String[] objectNames) throws IOException {
     List<String> allNames = new ArrayList<>();
-    List<String> subdirs;
     Set<String> created = new HashSet<>();
     for (String objectName : objectNames) {
-      subdirs = getSubdirs(objectName);
-      for (String subdir : subdirs) {
-        if (!created.contains(subdir)) {
-          created.add(subdir);
+      for (String subdir : getSubdirs(objectName)) {
+        if (created.add(subdir)) {
           allNames.add(subdir);
         }
       }
@@ -412,24 +379,6 @@ public abstract class GoogleCloudStorageIntegrationHelper {
         throw new IOException("Creation of file failed with exception", e);
       }
     }
-  }
-
-  /** Gets the credential tests should use for accessing GCS. */
-  @Deprecated
-  Credential getCredential() throws IOException {
-    String clientId = System.getenv(GCS_TEST_CLIENT_ID);
-    String clientSecret = System.getenv(GCS_TEST_CLIENT_SECRET);
-    Assert.assertNotNull("clientId must not be null", clientId);
-    Assert.assertNotNull("clientSecret must not be null", clientSecret);
-    Credential credential;
-    try {
-      CredentialFactory credentialFactory = new CredentialFactory();
-      credential =
-          credentialFactory.getStorageCredential(clientId, clientSecret);
-    } catch (GeneralSecurityException gse) {
-      throw new IOException(gse);
-    }
-    return credential;
   }
 
   /**
