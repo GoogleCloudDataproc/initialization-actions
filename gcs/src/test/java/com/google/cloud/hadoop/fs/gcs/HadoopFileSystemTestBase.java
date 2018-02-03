@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
@@ -77,6 +78,9 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
   @AfterClass
   public static void afterAllTests() throws IOException {
     if (ghfs != null) {
+      if (ghfs instanceof GoogleHadoopFileSystemBase) {
+        gcs = ((GoogleHadoopFileSystemBase) ghfs).getGcsFs().getGcs();
+      }
       GoogleCloudStorageFileSystemIntegrationTest.afterAllTests();
       ghfs.close();
       ghfs = null;

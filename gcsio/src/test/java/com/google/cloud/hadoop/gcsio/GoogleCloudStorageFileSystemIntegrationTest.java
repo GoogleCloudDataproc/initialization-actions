@@ -70,6 +70,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   // GCS FS test access instance.
   protected static GoogleCloudStorageFileSystem gcsfs;
 
+  // GCS instance used for cleanup
+  protected static GoogleCloudStorage gcs;
+
   // My sister was once bitten by a moose, let's not update those paths
   protected static final String EXCLUDED_TIMESTAMP_SUBSTRING = "moose/";
 
@@ -137,6 +140,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
       gcsfs.setUpdateTimestampsExecutor(MoreExecutors.newDirectExecutorService());
 
+      gcs = gcsfs.getGcs();
+
       postCreateInit();
     }
   }
@@ -162,8 +167,10 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   /** Perform clean-up once after all tests are turn. */
   @AfterClass
   public static void afterAllTests() throws IOException {
+    if (gcs != null) {
+      gcsiHelper.afterAllTests(gcs);
+    }
     if (gcsfs != null) {
-      gcsiHelper.afterAllTests(gcsfs.getGcs());
       gcsfs.close();
       gcsfs = null;
     }

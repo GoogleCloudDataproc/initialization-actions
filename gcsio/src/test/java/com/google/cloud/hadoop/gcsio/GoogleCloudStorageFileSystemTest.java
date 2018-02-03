@@ -57,6 +57,7 @@ public class GoogleCloudStorageFileSystemTest
               .setShouldIncludeInTimestampUpdatesPredicate(INCLUDE_SUBSTRINGS_PREDICATE)
               .build());
       gcsfs.setUpdateTimestampsExecutor(MoreExecutors.newDirectExecutorService());
+      gcs = gcsfs.getGcs();
       GoogleCloudStorageFileSystemIntegrationTest.postCreateInit();
     }
   }
