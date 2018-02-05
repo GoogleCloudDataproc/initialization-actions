@@ -15,6 +15,7 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.truth.Truth.assertWithMessage;
+import static org.slf4j.LoggerFactory.getLogger;
 
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
 import com.google.common.base.Strings;
@@ -33,18 +34,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import org.apache.log4j.ConsoleAppender;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.junit.Assert;
+import org.slf4j.Logger;
 
 /**
  * Integration tests for GoogleCloudStorage class.
  */
 public abstract class GoogleCloudStorageIntegrationHelper {
-  // Logger.
-  protected static final org.slf4j.Logger LOG =
-      org.slf4j.LoggerFactory.getLogger(GoogleCloudStorageIntegrationHelper.class);
+  protected static final Logger LOG = getLogger(GoogleCloudStorageIntegrationHelper.class);
 
   // Application name for OAuth.
   static final String APP_NAME = "GCS-test";
@@ -65,9 +62,6 @@ public abstract class GoogleCloudStorageIntegrationHelper {
 
   /** Perform initialization once before tests are run. */
   public void beforeAllTests() throws IOException {
-    // Un-comment the following to enable logging during test run.
-    //enableLogging();
-
     // Create a couple of buckets. The first one is used by most tests.
     // The second one is used by some tests (eg, copy()).
     sharedBucketName1 = createUniqueBucket("shared-1");
@@ -383,18 +377,5 @@ public abstract class GoogleCloudStorageIntegrationHelper {
     String bucketName = getUniqueBucketName(suffix);
     mkdir(bucketName);
     return bucketName;
-  }
-
-  /**
-   * Enable debug logger.
-   */
-  void enableLogging() {
-    System.setProperty(
-        "org.apache.commons.logging.Log",
-        "org.apache.commons.logging.impl.Log4JLogger");
-    ConsoleAppender consoleAppender = new ConsoleAppender();
-    Logger rootLogger = Logger.getRootLogger();
-    rootLogger.addAppender(consoleAppender);
-    rootLogger.setLevel(Level.DEBUG);
   }
 }
