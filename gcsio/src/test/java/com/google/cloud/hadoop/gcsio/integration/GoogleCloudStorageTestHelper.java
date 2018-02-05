@@ -191,6 +191,9 @@ public class GoogleCloudStorageTestHelper {
 
   /** Helper for dealing with buckets in GCS integration tests. */
   public static class TestBucketHelper {
+
+    private static final int MAX_CLEANUP_BUCKETS = 1000;
+
     private static final String DELIMITER = "_";
 
     // If bucket created before this time, it considered leaked
@@ -231,7 +234,7 @@ public class GoogleCloudStorageTestHelper {
 
     public void cleanup(GoogleCloudStorage storage) throws IOException {
       Stopwatch storageStopwatch = Stopwatch.createStarted();
-      LOG.info("Cleaning up GCS buckets that start with {} unique prefix", uniqueBucketPrefix);
+      LOG.info("Cleaning up GCS buckets that start with {} prefix or leaked", uniqueBucketPrefix);
 
       List<String> bucketsToDelete = new ArrayList<>();
       for (GoogleCloudStorageItemInfo bucketInfo : storage.listBucketInfo()) {
@@ -242,19 +245,25 @@ public class GoogleCloudStorageTestHelper {
           bucketsToDelete.add(bucketName);
         }
       }
-      LOG.info("GCS has {} buckets to clean up:\n\t{}", bucketsToDelete.size(), bucketsToDelete);
+      if (bucketsToDelete.size() > MAX_CLEANUP_BUCKETS) {
+        LOG.info("GCS has {} buckets to cleanup. It's too many, will cleanup only {} buckets: {}",
+            bucketsToDelete.size(), MAX_CLEANUP_BUCKETS, bucketsToDelete);
+        bucketsToDelete = bucketsToDelete.subList(0, MAX_CLEANUP_BUCKETS);
+      } else {
+        LOG.info("GCS has {} buckets to cleanup: {}", bucketsToDelete.size(), bucketsToDelete);
+      }
 
       List<GoogleCloudStorageItemInfo> objectsToDelete = new ArrayList<>();
       for (String bucket : bucketsToDelete) {
         objectsToDelete.addAll(storage.listObjectInfo(bucket, null, null));
       }
-      LOG.info("GCS has {} objects to clean up:\n\t{}", objectsToDelete.size(), objectsToDelete);
+      LOG.info("GCS has {} objects to cleanup: {}", objectsToDelete.size(), objectsToDelete);
 
       try {
         storage.deleteObjects(Lists.transform(objectsToDelete, INFO_TO_RESOURCE_ID_FN));
         storage.deleteBuckets(bucketsToDelete);
       } catch (IOException ioe) {
-        LOG.warn("Caught exception during GCS clean up", storage, ioe);
+        LOG.warn("Caught exception during GCS buckets cleanup", storage, ioe);
       }
 
       LOG.info("GCS cleaned up in {} seconds", storageStopwatch.elapsed(TimeUnit.SECONDS));
