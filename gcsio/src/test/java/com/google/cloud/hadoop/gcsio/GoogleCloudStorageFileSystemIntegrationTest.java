@@ -209,12 +209,12 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
               "stale file? testStartTime: %s, fileCreationTime: %s",
               testStartTime, fileCreationTime)
           .that(fileCreationTime)
-          .isGreaterThan(testStartTime);
+          .isAtLeast(testStartTime);
       assertWithMessage(
               "unexpected creation-time: clock skew? currentTime: %s, fileCreationTime: %s",
               currentTime, fileCreationTime)
           .that(fileCreationTime)
-          .isLessThan(currentTime);
+          .isAtMost(currentTime);
     } else {
       assertThat(fileInfo.getCreationTime()).isEqualTo(0);
     }
