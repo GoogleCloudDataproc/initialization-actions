@@ -14,15 +14,12 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.util.Clock;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -195,17 +192,17 @@ public class CachedBucketTest {
       GoogleCloudStorageItemInfo itemInfo, long creationTime, long lastUpdatedTime,
       CachedBucket bucket) {
     // Info on the bucket itself.
-    assertEquals(resourceId.getBucketName(), bucket.getName());
-    assertEquals(creationTime, bucket.getCreationTimeMillis());
-    assertEquals(lastUpdatedTime, bucket.getItemInfoUpdateTimeMillis());
+    assertThat(bucket.getName()).isEqualTo(resourceId.getBucketName());
+    assertThat(bucket.getCreationTimeMillis()).isEqualTo(creationTime);
+    assertThat(bucket.getItemInfoUpdateTimeMillis()).isEqualTo(lastUpdatedTime);
     assertEquals(itemInfo, bucket.getItemInfo());
 
     // Even when empty, getObjecList() doesn't return null.
-    assertEquals(0, bucket.getNumObjects());
-    assertNotNull(bucket.getObjectList());
+    assertThat(bucket.getNumObjects()).isEqualTo(0);
+    assertThat(bucket.getObjectList()).isNotNull();
 
     // It's fine to get/remove an non-existent StorageObject.
-    assertNull(bucket.get(objectResourceId));
+    assertThat(bucket.get(objectResourceId)).isNull();
     bucket.remove(objectResourceId);
 
     // Now add a StorageObject within the bucket.
@@ -213,23 +210,23 @@ public class CachedBucketTest {
     when(mockClock.currentTimeMillis()).thenReturn(addTime);
     bucket.put(objectResourceId);
     CacheEntry objectEntry = bucket.get(objectResourceId);
-    assertNotNull(objectEntry);
+    assertThat(objectEntry).isNotNull();
 
     // Check the added object's CacheEntry info.
-    assertEquals(addTime, objectEntry.getCreationTimeMillis());
-    assertEquals(0, objectEntry.getItemInfoUpdateTimeMillis());
-    assertNull(objectEntry.getItemInfo());
-    assertEquals(1, bucket.getObjectList().size());
-    assertEquals(1, bucket.getNumObjects());
+    assertThat(objectEntry.getCreationTimeMillis()).isEqualTo(addTime);
+    assertThat(objectEntry.getItemInfoUpdateTimeMillis()).isEqualTo(0);
+    assertThat(objectEntry.getItemInfo()).isNull();
+    assertThat(bucket.getObjectList()).hasSize(1);
+    assertThat(bucket.getNumObjects()).isEqualTo(1);
     assertEquals(objectEntry, bucket.getObjectList().get(0));
 
     // Populate the object's info.
     long objectUpdateTime = 67L;
     when(mockClock.currentTimeMillis()).thenReturn(objectUpdateTime);
-    assertTrue(objectUpdateTime != addTime);
+    assertThat(objectUpdateTime != addTime).isTrue();
     objectEntry.setItemInfo(objectInfo);
-    assertEquals(addTime, objectEntry.getCreationTimeMillis());
-    assertEquals(objectUpdateTime, objectEntry.getItemInfoUpdateTimeMillis());
+    assertThat(objectEntry.getCreationTimeMillis()).isEqualTo(addTime);
+    assertThat(objectEntry.getItemInfoUpdateTimeMillis()).isEqualTo(objectUpdateTime);
     assertEquals(objectInfo, objectEntry.getItemInfo());
 
     // Adding the same thing doesn't modify the existing cache entry at all or invalidate
@@ -240,19 +237,19 @@ public class CachedBucketTest {
 
     // Check for true reference equality, not just ".equals()"; we expect the CacheEntry to really
     // be the exact same object.
-    assertTrue(returnedEntry == objectEntry);
-    assertEquals(addTime, objectEntry.getCreationTimeMillis());
-    assertEquals(objectUpdateTime, objectEntry.getItemInfoUpdateTimeMillis());
+    assertThat(returnedEntry == objectEntry).isTrue();
+    assertThat(objectEntry.getCreationTimeMillis()).isEqualTo(addTime);
+    assertThat(objectEntry.getItemInfoUpdateTimeMillis()).isEqualTo(objectUpdateTime);
     assertEquals(objectInfo, objectEntry.getItemInfo());
 
     // Make sure the returned list doesn't start giving us duplicate entries.
-    assertEquals(1, bucket.getObjectList().size());
-    assertEquals(1, bucket.getNumObjects());
+    assertThat(bucket.getObjectList()).hasSize(1);
+    assertThat(bucket.getNumObjects()).isEqualTo(1);
 
     // Now remove the object.
     bucket.remove(objectResourceId);
-    assertEquals(0, bucket.getObjectList().size());
-    assertEquals(0, bucket.getNumObjects());
+    assertThat(bucket.getObjectList()).isEmpty();
+    assertThat(bucket.getNumObjects()).isEqualTo(0);
   }
 
   @Test
@@ -261,14 +258,14 @@ public class CachedBucketTest {
     when(mockClock.currentTimeMillis()).thenReturn(constructorTime);
     CachedBucket bucket = new CachedBucket(bucketResourceId.getBucketName());
 
-    assertEquals(bucketResourceId.getBucketName(), bucket.getName());
-    assertEquals(0, bucket.getNumObjects());
+    assertThat(bucket.getName()).isEqualTo(bucketResourceId.getBucketName());
+    assertThat(bucket.getNumObjects()).isEqualTo(0);
 
     // We update the CacheEntry directly; it will be reflected in the actual CacheEntry instance
     // such that future calls to bucket.getItemInfo() will reflect the new data.
     long updateTime = 1010L;
     when(mockClock.currentTimeMillis()).thenReturn(updateTime);
-    assertTrue(constructorTime != updateTime);
+    assertThat(constructorTime != updateTime).isTrue();
     bucket.setItemInfo(bucketInfo);
 
     validateBasicInteractions(bucketResourceId, bucketInfo, constructorTime, updateTime, bucket);

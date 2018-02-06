@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -89,35 +90,35 @@ public class GoogleHadoopSyncableOutputStreamTest {
     fout.write(data1, 0, data1.length);
     fout.sync();
 
-    Assert.assertEquals(4, ghfs.getFileStatus(objectPath).getLen());
+    assertThat(ghfs.getFileStatus(objectPath).getLen()).isEqualTo(4);
     FSDataInputStream fin = ghfs.open(objectPath);
     fin.read(data1Read);
     fin.close();
-    Assert.assertArrayEquals(data1, data1Read);
+    assertThat(data1Read).isEqualTo(data1);
 
     fout.write(data2, 0, data2.length);
     fout.sync();
 
-    Assert.assertEquals(8, ghfs.getFileStatus(objectPath).getLen());
+    assertThat(ghfs.getFileStatus(objectPath).getLen()).isEqualTo(8);
     fin = ghfs.open(objectPath);
     fin.read(data1Read);
     fin.read(data2Read);
     fin.close();
-    Assert.assertArrayEquals(data1, data1Read);
-    Assert.assertArrayEquals(data2, data2Read);
+    assertThat(data1Read).isEqualTo(data1);
+    assertThat(data2Read).isEqualTo(data2);
 
     fout.write(data3, 0, data3.length);
     fout.close();
 
-    Assert.assertEquals(10, ghfs.getFileStatus(objectPath).getLen());
+    assertThat(ghfs.getFileStatus(objectPath).getLen()).isEqualTo(10);
     fin = ghfs.open(objectPath);
     fin.read(data1Read);
     fin.read(data2Read);
     fin.read(data3Read);
     fin.close();
-    Assert.assertArrayEquals(data1, data1Read);
-    Assert.assertArrayEquals(data2, data2Read);
-    Assert.assertArrayEquals(data3, data3Read);
+    assertThat(data1Read).isEqualTo(data1);
+    assertThat(data2Read).isEqualTo(data2);
+    assertThat(data3Read).isEqualTo(data3);
   }
 
   @Test
@@ -236,6 +237,6 @@ public class GoogleHadoopSyncableOutputStreamTest {
     FSDataInputStream fin = ghfs.open(objectPath);
     fin.read(actual);
     fin.close();
-    Assert.assertArrayEquals(expected, actual);
+    assertThat(actual).isEqualTo(expected);
   }
 }

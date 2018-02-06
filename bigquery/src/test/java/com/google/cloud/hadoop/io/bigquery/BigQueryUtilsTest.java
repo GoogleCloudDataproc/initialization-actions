@@ -13,8 +13,7 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
@@ -192,13 +191,13 @@ public class BigQueryUtilsTest {
         "[{'name': 'MyName', 'type': 'STRING'},"
         + "{'name': 'Number', 'type': 'INTEGER', 'mode': 'sample'}]";
     List<TableFieldSchema> list = BigQueryUtils.getSchemaFromString(fields);
-    assertEquals(2, list.size());
-    assertEquals("MyName", list.get(0).getName());
-    assertEquals("STRING", list.get(0).getType());
+    assertThat(list).hasSize(2);
+    assertThat(list.get(0).getName()).isEqualTo("MyName");
+    assertThat(list.get(0).getType()).isEqualTo("STRING");
 
-    assertEquals("Number", list.get(1).getName());
-    assertEquals("INTEGER", list.get(1).getType());
-    assertEquals("sample", list.get(1).getMode());
+    assertThat(list.get(1).getName()).isEqualTo("Number");
+    assertThat(list.get(1).getType()).isEqualTo("INTEGER");
+    assertThat(list.get(1).getMode()).isEqualTo("sample");
   }
 
   /**
@@ -213,22 +212,22 @@ public class BigQueryUtilsTest {
             + "{'name': 'field1', 'type': 'INTEGER'}, {'name': 'field2', 'type': 'STRING'}"
         + "]}]";
     List<TableFieldSchema> list = BigQueryUtils.getSchemaFromString(fields);
-    assertEquals(2, list.size());
-    assertEquals("MyName", list.get(0).getName());
-    assertEquals("STRING", list.get(0).getType());
+    assertThat(list).hasSize(2);
+    assertThat(list.get(0).getName()).isEqualTo("MyName");
+    assertThat(list.get(0).getType()).isEqualTo("STRING");
 
-    assertEquals("MyNestedField", list.get(1).getName());
-    assertEquals("RECORD", list.get(1).getType());
-    assertEquals("repeated", list.get(1).getMode());
+    assertThat(list.get(1).getName()).isEqualTo("MyNestedField");
+    assertThat(list.get(1).getType()).isEqualTo("RECORD");
+    assertThat(list.get(1).getMode()).isEqualTo("repeated");
 
     List<TableFieldSchema> nestedList = list.get(1).getFields();
-    assertNotNull(nestedList);
-    assertEquals(2, nestedList.size());
+    assertThat(nestedList).isNotNull();
+    assertThat(nestedList).hasSize(2);
 
-    assertEquals("field1", nestedList.get(0).getName());
-    assertEquals("INTEGER", nestedList.get(0).getType());
-    assertEquals("field2", nestedList.get(1).getName());
-    assertEquals("STRING", nestedList.get(1).getType());
+    assertThat(nestedList.get(0).getName()).isEqualTo("field1");
+    assertThat(nestedList.get(0).getType()).isEqualTo("INTEGER");
+    assertThat(nestedList.get(1).getName()).isEqualTo("field2");
+    assertThat(nestedList.get(1).getType()).isEqualTo("STRING");
   }
 
   /**

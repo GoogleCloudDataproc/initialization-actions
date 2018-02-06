@@ -13,10 +13,10 @@
  */
 package com.google.cloud.hadoop.io.bigquery.output;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -27,8 +27,8 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -74,12 +74,9 @@ public class ForwardingBigQueryFileOutputCommitterTest {
   private static final TableSchema TEST_TABLE_SCHEMA =
       new TableSchema()
           .setFields(
-              new ArrayList<TableFieldSchema>() {
-                {
-                  add(new TableFieldSchema().setName("Word").setType("STRING"));
-                  add(new TableFieldSchema().setName("Count").setType("INTEGER"));
-                }
-              });
+              ImmutableList.of(
+                  new TableFieldSchema().setName("Word").setType("STRING"),
+                  new TableFieldSchema().setName("Count").setType("INTEGER")));
 
   /** Sample task ID for the mock TaskAttemptContext. */
   private static final TaskAttemptID TEST_TASK_ATTEMPT_ID =
@@ -163,8 +160,8 @@ public class ForwardingBigQueryFileOutputCommitterTest {
     ghfs.createNewFile(outputSampleFilePath);
 
     // Verify the files were created.
-    assertTrue(ghfs.exists(outputPath));
-    assertTrue(ghfs.exists(outputSampleFilePath));
+    assertThat(ghfs.exists(outputPath)).isTrue();
+    assertThat(ghfs.exists(outputSampleFilePath)).isTrue();
   }
 
   /** Test to ensure the underlying delegate is being passed the commitJob call. */
@@ -255,7 +252,7 @@ public class ForwardingBigQueryFileOutputCommitterTest {
     committer.cleanup(job);
 
     // Ensure files are deleted by cleanup.
-    assertTrue(!ghfs.exists(outputPath));
-    assertTrue(!ghfs.exists(outputSampleFilePath));
+    assertThat(!ghfs.exists(outputPath)).isTrue();
+    assertThat(!ghfs.exists(outputSampleFilePath)).isTrue();
   }
 }

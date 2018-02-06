@@ -13,6 +13,7 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
@@ -73,12 +74,9 @@ public class BigQueryOutputFormatTest {
     outputFormat = new BigQueryOutputFormat<>();
   }
 
-  /**
-   * Tests the checkOutputSpecs method of BigQueryOutputFormat.
-   */
+  /** Tests the checkOutputSpecs method of BigQueryOutputFormat. */
   @Test
-  public void testCheckOutputSpecs() 
-      throws IOException {
+  public void testCheckOutputSpecs() throws IOException {
     // Initialize the jobs.
     JobContext goodContext = getJobContext(
         tableSchema, jobProjectId, outputProjectId, tableId, datasetId, bufferSize);
@@ -110,12 +108,8 @@ public class BigQueryOutputFormatTest {
         getJobContext(tableSchema, jobProjectId, outputProjectId, tableId, datasetId, "-1");
 
     // Assert checkOutputSpecs succeeds.
-    try {
-      outputFormat.checkOutputSpecs(goodContext);
-      outputFormat.checkOutputSpecs(nullNumRecords);
-    } catch (IllegalArgumentException e) {
-      fail("Valid OutputSpecs should not fail.");
-    }
+    outputFormat.checkOutputSpecs(goodContext);
+    outputFormat.checkOutputSpecs(nullNumRecords);
 
     // Assert checkOutputSpecs fails with empty fields.
     assertCheckOutputSpecsFailure(
@@ -215,7 +209,7 @@ public class BigQueryOutputFormatTest {
     Mockito.when(context.getConfiguration()).thenReturn(conf);
     Mockito.when(context.getTaskAttemptID()).thenReturn(taskAttemptId);
     RecordWriter<LongWritable, JsonObject> recordWriter = outputFormat.getRecordWriter(context);
-    Assert.assertTrue(recordWriter instanceof BigQueryRecordWriter);
+    assertThat(recordWriter).isInstanceOf(BigQueryRecordWriter.class);
   }
 
   /**
@@ -248,18 +242,19 @@ public class BigQueryOutputFormatTest {
         new TaskAttemptID(new TaskID(jobId, false, taskNumber), taskAttempt);
 
     String uniqueTable = BigQueryOutputFormat.getUniqueTable(taskAttemptId.toString(), tableId);
-    Assert.assertEquals(
-        String.format("test_tableId_attempt_%s_%04d_r_%06d_%d",
-            jobIdString, jobNumber, taskNumber, taskAttempt),
-        uniqueTable);
+    assertThat(uniqueTable)
+        .isEqualTo(
+            String.format(
+                "test_tableId_attempt_%s_%04d_r_%06d_%d",
+                jobIdString, jobNumber, taskNumber, taskAttempt));
 
     tableId = "test_tableId$20160808";
     uniqueTable = BigQueryOutputFormat.getUniqueTable(taskAttemptId.toString(), tableId);
-    Assert.assertEquals(
-            String.format("test_tableId__20160808_attempt_%s_%04d_r_%06d_%d",
-                    jobIdString, jobNumber, taskNumber, taskAttempt),
-            uniqueTable);
-
+    assertThat(uniqueTable)
+        .isEqualTo(
+            String.format(
+                "test_tableId__20160808_attempt_%s_%04d_r_%06d_%d",
+                jobIdString, jobNumber, taskNumber, taskAttempt));
   }
 
 
@@ -280,9 +275,8 @@ public class BigQueryOutputFormatTest {
     Job job = new Job(conf, "testGetOutputCommitter");
     TaskAttemptID taskAttemptId = new TaskAttemptID("foojob12345", 42, true, 55, 1);
     String tempDataset = BigQueryOutputFormat.getTempDataset(conf, taskAttemptId);
-    Assert.assertEquals(
-        datasetId + BigQueryOutputFormat.TEMP_NAME + "job_foojob12345_0042",
-        tempDataset);
+    assertThat(tempDataset)
+        .isEqualTo(datasetId + BigQueryOutputFormat.TEMP_NAME + "job_foojob12345_0042");
   }
 
   /**

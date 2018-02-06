@@ -14,12 +14,11 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.fail;
 
 import com.google.common.collect.Lists;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -52,7 +51,7 @@ public class GoogleCloudStorageStringsTest {
         fail(String.format(
             "Expected IllegalArgumentException for objectName args: %s", Lists.newArrayList(args)));
       } catch (IllegalArgumentException iae) {
-        assertTrue(iae.getMessage().matches(".*objectName.*"));
+        assertThat(iae).hasMessageThat().matches(".*objectName.*");
       }
     }
   }
@@ -100,9 +99,10 @@ public class GoogleCloudStorageStringsTest {
     for (MatchResultExpectation expectation : expectations) {
       String actualReturn = GoogleCloudStorageStrings.matchListPrefix(
           expectation.objectNamePrefix, expectation.delimiter, expectation.objectName);
-      assertEquals(
-          String.format("Got returnValue '%s' for expectation: %s", actualReturn, expectation),
-          expectation.returnValue, actualReturn);
+      assertWithMessage(
+              String.format("Got returnValue '%s' for expectation: %s", actualReturn, expectation))
+          .that(actualReturn)
+          .isEqualTo(expectation.returnValue);
     }
   }
 
@@ -164,7 +164,7 @@ public class GoogleCloudStorageStringsTest {
       new MatchResultExpectation(null, "/", "/")
           .willReturn("/"),
 
-      // Truncates to the first occurence of the delimiter.
+      // Truncates to the first occurrence of the delimiter.
       new MatchResultExpectation(null, "/", "foo/bar")
           .willReturn("foo/"),
 
@@ -178,7 +178,7 @@ public class GoogleCloudStorageStringsTest {
       new MatchResultExpectation(null, "/", "foo")
           .willReturn("foo"),
 
-      // "First occurence" includes index 0.
+      // "First occurrence" includes index 0.
       new MatchResultExpectation(null, "/", "/foo/bar")
           .willReturn("/"),
     };

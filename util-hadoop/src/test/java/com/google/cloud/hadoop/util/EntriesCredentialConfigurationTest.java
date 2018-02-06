@@ -15,9 +15,6 @@
 package com.google.cloud.hadoop.util;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.hadoop.testing.EntriesCredentialConfigurationUtil;
 import com.google.cloud.hadoop.testing.EntriesCredentialConfigurationUtil.TestEntries;
@@ -69,10 +66,9 @@ public class EntriesCredentialConfigurationTest {
           .withOverridePrefix("testing.")
           .build();
 
-    assertEquals("aClientId", credentialConfiguration.getClientId());
-    assertEquals("aClientSecret", credentialConfiguration.getClientSecret());
-    assertEquals("aCredentialFile",
-        credentialConfiguration.getOAuthCredentialFile());
+    assertThat(credentialConfiguration.getClientId()).isEqualTo("aClientId");
+    assertThat(credentialConfiguration.getClientSecret()).isEqualTo("aClientSecret");
+    assertThat(credentialConfiguration.getOAuthCredentialFile()).isEqualTo("aCredentialFile");
   }
 
   @Test
@@ -116,15 +112,13 @@ public class EntriesCredentialConfigurationTest {
           .withConfiguration(conf)
           .build();
 
-    assertEquals("anEmail", credentialConfiguration.getServiceAccountEmail());
-    assertEquals("aKeyFile",
-        credentialConfiguration.getServiceAccountKeyFile());
-    assertEquals("aClientSecret", credentialConfiguration.getClientSecret());
-    assertEquals("aClientId", credentialConfiguration.getClientId());
-    assertEquals("aClientOAuthFile",
-        credentialConfiguration.getOAuthCredentialFile());
-    assertFalse(credentialConfiguration.isServiceAccountEnabled());
-    assertTrue(credentialConfiguration.isNullCredentialEnabled());
+    assertThat(credentialConfiguration.getServiceAccountEmail()).isEqualTo("anEmail");
+    assertThat(credentialConfiguration.getServiceAccountKeyFile()).isEqualTo("aKeyFile");
+    assertThat(credentialConfiguration.getClientSecret()).isEqualTo("aClientSecret");
+    assertThat(credentialConfiguration.getClientId()).isEqualTo("aClientId");
+    assertThat(credentialConfiguration.getOAuthCredentialFile()).isEqualTo("aClientOAuthFile");
+    assertThat(credentialConfiguration.isServiceAccountEnabled()).isFalse();
+    assertThat(credentialConfiguration.isNullCredentialEnabled()).isTrue();
     assertThat(credentialConfiguration.getProxyAddress()).isEqualTo("foo.bar:1234");
     assertThat(credentialConfiguration.getTransportType()).isEqualTo(HttpTransportType.APACHE);
   }
@@ -143,7 +137,7 @@ public class EntriesCredentialConfigurationTest {
     String writtenValue = getConfigurationKey(
         conf,
         EntriesCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX);
-    assertEquals("anEmail", writtenValue);
+    assertThat(writtenValue).isEqualTo("anEmail");
 
     credentialConfiguration.setServiceAccountKeyFile("aKeyFile");
     credentialConfiguration.setProxyAddress("foo.bar:1234");
@@ -152,35 +146,35 @@ public class EntriesCredentialConfigurationTest {
     writtenValue = getConfigurationKey(
         conf,
         EntriesCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX);
-    assertEquals("aKeyFile", writtenValue);
+    assertThat(writtenValue).isEqualTo("aKeyFile");
 
     credentialConfiguration.setClientSecret("clientSecret");
     credentialConfiguration.getConfigurationInto(conf);
     writtenValue = getConfigurationKey(
         conf,
         EntriesCredentialConfiguration.CLIENT_SECRET_SUFFIX);
-    assertEquals("clientSecret", writtenValue);
+    assertThat(writtenValue).isEqualTo("clientSecret");
 
     credentialConfiguration.setClientId("clientId");
     credentialConfiguration.getConfigurationInto(conf);
     writtenValue = getConfigurationKey(
         conf,
         EntriesCredentialConfiguration.CLIENT_ID_SUFFIX);
-    assertEquals("clientId", writtenValue);
+    assertThat(writtenValue).isEqualTo("clientId");
 
     credentialConfiguration.setEnableServiceAccounts(false);
     credentialConfiguration.getConfigurationInto(conf);
     writtenValue = getConfigurationKey(
         conf,
         EntriesCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX);
-    assertEquals("false", writtenValue);
+    assertThat(writtenValue).isEqualTo("false");
 
     credentialConfiguration.setNullCredentialEnabled(true);
     credentialConfiguration.getConfigurationInto(conf);
     writtenValue = getConfigurationKey(
         conf,
         EntriesCredentialConfiguration.ENABLE_NULL_CREDENTIAL_SUFFIX);
-    assertEquals("true", writtenValue);
+    assertThat(writtenValue).isEqualTo("true");
     assertThat(conf.get(EntriesCredentialConfiguration.PROXY_ADDRESS_KEY))
         .isEqualTo("foo.bar:1234");
     assertThat(conf.get(EntriesCredentialConfiguration.HTTP_TRANSPORT_KEY)).isEqualTo("APACHE");

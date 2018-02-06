@@ -14,9 +14,7 @@
 
 package com.google.cloud.hadoop.util;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static com.google.common.truth.Truth.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import java.util.List;
@@ -59,9 +57,9 @@ public class HadoopCredentialConfigurationTest {
         .withOverridePrefix("testing.")
         .build();
 
-    assertEquals("aClientId", credentialConfiguration.getClientId());
-    assertEquals("aClientSecret", credentialConfiguration.getClientSecret());
-    assertEquals("aCredentialFile", credentialConfiguration.getOAuthCredentialFile());
+    assertThat(credentialConfiguration.getClientId()).isEqualTo("aClientId");
+    assertThat(credentialConfiguration.getClientSecret()).isEqualTo("aClientSecret");
+    assertThat(credentialConfiguration.getOAuthCredentialFile()).isEqualTo("aCredentialFile");
   }
 
   @Test
@@ -106,14 +104,14 @@ public class HadoopCredentialConfigurationTest {
         .withConfiguration(conf)
         .build();
 
-    assertEquals("anEmail", credentialConfiguration.getServiceAccountEmail());
-    assertEquals("aKeyFile", credentialConfiguration.getServiceAccountKeyFile());
-    assertEquals("aJsonFile", credentialConfiguration.getServiceAccountJsonKeyFile());
-    assertEquals("aClientSecret", credentialConfiguration.getClientSecret());
-    assertEquals("aClientId", credentialConfiguration.getClientId());
-    assertEquals("aClientOAuthFile", credentialConfiguration.getOAuthCredentialFile());
-    assertFalse(credentialConfiguration.isServiceAccountEnabled());
-    assertTrue(credentialConfiguration.isNullCredentialEnabled());
+    assertThat(credentialConfiguration.getServiceAccountEmail()).isEqualTo("anEmail");
+    assertThat(credentialConfiguration.getServiceAccountKeyFile()).isEqualTo("aKeyFile");
+    assertThat(credentialConfiguration.getServiceAccountJsonKeyFile()).isEqualTo("aJsonFile");
+    assertThat(credentialConfiguration.getClientSecret()).isEqualTo("aClientSecret");
+    assertThat(credentialConfiguration.getClientId()).isEqualTo("aClientId");
+    assertThat(credentialConfiguration.getOAuthCredentialFile()).isEqualTo("aClientOAuthFile");
+    assertThat(credentialConfiguration.isServiceAccountEnabled()).isFalse();
+    assertThat(credentialConfiguration.isNullCredentialEnabled()).isTrue();
   }
 
   @Test
@@ -128,48 +126,48 @@ public class HadoopCredentialConfigurationTest {
     String writtenValue = getConfigurationKey(
         conf,
         HadoopCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX);
-    assertEquals("anEmail", writtenValue);
+    assertThat(writtenValue).isEqualTo("anEmail");
 
     credentialConfiguration.setServiceAccountKeyFile("aKeyFile");
     conf = credentialConfiguration.getConf();
     writtenValue = getConfigurationKey(
         conf,
         HadoopCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX);
-    assertEquals("aKeyFile", writtenValue);
+    assertThat(writtenValue).isEqualTo("aKeyFile");
 
     credentialConfiguration.setServiceAccountJsonKeyFile("aJsonFile");
     conf = credentialConfiguration.getConf();
     writtenValue = getConfigurationKey(
         conf,
         HadoopCredentialConfiguration.JSON_KEYFILE_SUFFIX);
-    assertEquals("aJsonFile", writtenValue);
+    assertThat(writtenValue).isEqualTo("aJsonFile");
 
     credentialConfiguration.setClientSecret("clientSecret");
     conf = credentialConfiguration.getConf();
     writtenValue = getConfigurationKey(
         conf,
         HadoopCredentialConfiguration.CLIENT_SECRET_SUFFIX);
-    assertEquals("clientSecret", writtenValue);
+    assertThat(writtenValue).isEqualTo("clientSecret");
 
     credentialConfiguration.setClientId("clientId");
     conf = credentialConfiguration.getConf();
     writtenValue = getConfigurationKey(
         conf,
         HadoopCredentialConfiguration.CLIENT_ID_SUFFIX);
-    assertEquals("clientId", writtenValue);
+    assertThat(writtenValue).isEqualTo("clientId");
 
     credentialConfiguration.setEnableServiceAccounts(false);
     conf = credentialConfiguration.getConf();
     writtenValue = getConfigurationKey(
         conf,
         HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX);
-    assertEquals("false", writtenValue);
+    assertThat(writtenValue).isEqualTo("false");
 
     credentialConfiguration.setNullCredentialEnabled(true);
     conf = credentialConfiguration.getConf();
     writtenValue = getConfigurationKey(
         conf,
         HadoopCredentialConfiguration.ENABLE_NULL_CREDENTIAL_SUFFIX);
-    assertEquals("true", writtenValue);
+    assertThat(writtenValue).isEqualTo("true");
   }
 }

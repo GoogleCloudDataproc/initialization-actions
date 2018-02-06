@@ -13,14 +13,13 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
-import static org.junit.Assert.assertEquals;
+import static com.google.common.truth.Truth.assertThat;
 
 import com.google.api.services.bigquery.Bigquery;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import org.apache.hadoop.conf.Configuration;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -41,14 +40,13 @@ public class BigQueryFactoryTest {
     BigQueryFactory factory = new BigQueryFactory();
     Configuration configuration = CredentialConfigurationUtil.getTestConfiguration();
     Bigquery bigquery = factory.getBigQuery(configuration);
-    Assert.assertTrue(bigquery != null);
-    assertEquals("https://www.googleapis.com/", bigquery.getRootUrl());
+    assertThat(bigquery != null).isTrue();
+    assertThat(bigquery.getRootUrl()).isEqualTo("https://www.googleapis.com/");
   }
 
   @Test
   public void testVersionString() {
-    Assert.assertNotNull(BigQueryFactory.VERSION);
-    Assert.assertFalse(
-        BigQueryFactory.UNKNOWN_VERSION.equals(BigQueryFactory.VERSION));
+    assertThat(BigQueryFactory.VERSION).isNotNull();
+    assertThat(BigQueryFactory.UNKNOWN_VERSION.equals(BigQueryFactory.VERSION)).isFalse();
   }
 }

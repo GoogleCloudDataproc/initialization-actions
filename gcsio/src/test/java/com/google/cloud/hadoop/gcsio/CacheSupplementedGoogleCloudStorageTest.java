@@ -14,10 +14,8 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
@@ -109,14 +107,14 @@ public class CacheSupplementedGoogleCloudStorageTest {
         .thenReturn(true);
 
     WritableByteChannel channel = gcs.create(objectResourceId);
-    assertEquals(42, channel.write(ByteBuffer.allocate(123)));
-    assertTrue(channel.isOpen());
+    assertThat(channel.write(ByteBuffer.allocate(123))).isEqualTo(42);
+    assertThat(channel.isOpen()).isTrue();
 
     // After creating the channel but before closing, the DirectoryListCache will not have been
     // updated yet.
-    assertNull(cache.getCacheEntry(objectResourceId));
+    assertThat(cache.getCacheEntry(objectResourceId)).isNull();
     channel.close();
-    assertNotNull(cache.getCacheEntry(objectResourceId));
+    assertThat(cache.getCacheEntry(objectResourceId)).isNotNull();
 
     verify(mockGcsDelegate).create(eq(objectResourceId), eq(CreateObjectOptions.DEFAULT));
     verify(mockWriteChannel).write(any(ByteBuffer.class));
@@ -142,18 +140,18 @@ public class CacheSupplementedGoogleCloudStorageTest {
     gcs.create("bucket3", CreateBucketOptions.DEFAULT);
     verify(mockGcsDelegate, times(2)).create(any(String.class));
     verify(mockGcsDelegate, times(1)).create(any(String.class), any(CreateBucketOptions.class));
-    assertNotNull(cache.getCacheEntry(new StorageResourceId("bucket1")));
-    assertNotNull(cache.getCacheEntry(new StorageResourceId("bucket2")));
-    assertNotNull(cache.getCacheEntry(new StorageResourceId("bucket3")));
+    assertThat(cache.getCacheEntry(new StorageResourceId("bucket1"))).isNotNull();
+    assertThat(cache.getCacheEntry(new StorageResourceId("bucket2"))).isNotNull();
+    assertThat(cache.getCacheEntry(new StorageResourceId("bucket3"))).isNotNull();
 
-    assertEquals(3, cache.getBucketList().size());
+    assertThat(cache.getBucketList()).hasSize(3);
 
     List<String> bucketsToDelete = ImmutableList.of("bucket2", "bucket3", "bucket4");
     gcs.deleteBuckets(bucketsToDelete);
     verify(mockGcsDelegate).deleteBuckets(eq(bucketsToDelete));
 
-    assertEquals(1, cache.getBucketList().size());
-    assertEquals("bucket1", cache.getBucketList().get(0).getResourceId().getBucketName());
+    assertThat(cache.getBucketList()).hasSize(1);
+    assertThat(cache.getBucketList().get(0).getResourceId().getBucketName()).isEqualTo("bucket1");
   }
 
   @Test
@@ -170,9 +168,9 @@ public class CacheSupplementedGoogleCloudStorageTest {
         any(StorageResourceId.class), any(CreateObjectOptions.class));
     verify(mockWriteChannel, times(3)).close();
 
-    assertEquals(1, cache.getObjectList("foo-bucket", "", null, null).size());
-    assertEquals(2, cache.getObjectList("foo-bucket2", "", null, null).size());
-    assertEquals(2, cache.getBucketList().size());
+    assertThat(cache.getObjectList("foo-bucket", "", null, null)).hasSize(1);
+    assertThat(cache.getObjectList("foo-bucket2", "", null, null)).hasSize(2);
+    assertThat(cache.getBucketList()).hasSize(2);
 
     List<StorageResourceId> toDelete = ImmutableList.of(
         new StorageResourceId("foo-bucket2", "obj2"),
@@ -181,9 +179,9 @@ public class CacheSupplementedGoogleCloudStorageTest {
     gcs.deleteObjects(toDelete);
     verify(mockGcsDelegate).deleteObjects(eq(toDelete));
 
-    assertEquals(1, cache.getObjectList("foo-bucket", "", null, null).size());
-    assertEquals(0, cache.getObjectList("foo-bucket2", "", null, null).size());
-    assertEquals(2, cache.getBucketList().size());
+    assertThat(cache.getObjectList("foo-bucket", "", null, null)).hasSize(1);
+    assertThat(cache.getObjectList("foo-bucket2", "", null, null)).isEmpty();
+    assertThat(cache.getBucketList()).hasSize(2);
   }
 
   @Test
@@ -203,14 +201,15 @@ public class CacheSupplementedGoogleCloudStorageTest {
         eq("dst-bucket"), eq(dstObjectNames));
 
     // Srcs still exist in cache.
-    assertNotNull(cache.getCacheEntry(objectResourceId));
-    assertNotNull(cache.getCacheEntry(new StorageResourceId(objectResourceId.getBucketName())));
+    assertThat(cache.getCacheEntry(objectResourceId)).isNotNull();
+    assertThat(cache.getCacheEntry(new StorageResourceId(objectResourceId.getBucketName())))
+        .isNotNull();
 
     // All destination resources cached.
-    assertNotNull(cache.getCacheEntry(new StorageResourceId("dst-bucket")));
-    assertNotNull(cache.getCacheEntry(new StorageResourceId("dst-bucket", "dst1")));
-    assertNotNull(cache.getCacheEntry(new StorageResourceId("dst-bucket", "dst2")));
-    assertNotNull(cache.getCacheEntry(new StorageResourceId("dst-bucket", "dst3")));
+    assertThat(cache.getCacheEntry(new StorageResourceId("dst-bucket"))).isNotNull();
+    assertThat(cache.getCacheEntry(new StorageResourceId("dst-bucket", "dst1"))).isNotNull();
+    assertThat(cache.getCacheEntry(new StorageResourceId("dst-bucket", "dst2"))).isNotNull();
+    assertThat(cache.getCacheEntry(new StorageResourceId("dst-bucket", "dst3"))).isNotNull();
   }
 
   @Test
@@ -284,7 +283,7 @@ public class CacheSupplementedGoogleCloudStorageTest {
     // Since the call to getItemInfo returned NOT_FOUND, we'll expect the item to be entirely
     // removed from the cache. We'll then add it back in as a StorageResourceId-only entry
     // for the next part of this test method.
-    assertNull(cache.getCacheEntry(supplementedId));
+    assertThat(cache.getCacheEntry(supplementedId)).isNull();
     cache.putResourceId(supplementedId);
     verify(mockGcsDelegate).getItemInfo(eq(supplementedId));
 
@@ -297,7 +296,7 @@ public class CacheSupplementedGoogleCloudStorageTest {
     // Check its presence in the cache.
     GoogleCloudStorageItemInfo cacheInfo =
         cache.getCacheEntry(supplementedId).getItemInfo();
-    assertNotNull(cacheInfo);
+    assertThat(cacheInfo).isNotNull();
     assertEquals(supplementedInfo, cacheInfo);
 
     // Immediate-following call to listBucketInfo doesn't require a new getItemInfo.
@@ -429,7 +428,7 @@ public class CacheSupplementedGoogleCloudStorageTest {
     // Since the call to getItemInfo returned NOT_FOUND, we'll expect the item to be entirely
     // removed from the cache. We'll then add it back in as a StorageResourceId-only entry
     // for the next part of this test method.
-    assertNull(cache.getCacheEntry(supplementedId));
+    assertThat(cache.getCacheEntry(supplementedId)).isNull();
     cache.putResourceId(supplementedId);
     verify(mockGcsDelegate).getItemInfo(eq(supplementedId));
 
@@ -443,7 +442,7 @@ public class CacheSupplementedGoogleCloudStorageTest {
     // Check its presence in the cache.
     GoogleCloudStorageItemInfo cacheInfo =
         cache.getCacheEntry(supplementedId).getItemInfo();
-    assertNotNull(cacheInfo);
+    assertThat(cacheInfo).isNotNull();
     assertEquals(supplementedInfo, cacheInfo);
 
     // Immediate-following call to listBucketInfo doesn't require a new getItemInfo.
@@ -481,8 +480,8 @@ public class CacheSupplementedGoogleCloudStorageTest {
     verify(mockGcsDelegate).getItemInfos(eq(ids));
 
     // For now, we do not opportunistically update the cache.
-    assertEquals(0, cache.getInternalNumBuckets());
-    assertEquals(0, cache.getInternalNumObjects());
+    assertThat(cache.getInternalNumBuckets()).isEqualTo(0);
+    assertThat(cache.getInternalNumObjects()).isEqualTo(0);
   }
 
   @Test
@@ -494,7 +493,7 @@ public class CacheSupplementedGoogleCloudStorageTest {
     verify(mockGcsDelegate).getItemInfo(eq(objectResourceId));
 
     // For now, we do not opportunistically update the cache.
-    assertNull(cache.getCacheEntry(objectResourceId));
+    assertThat(cache.getCacheEntry(objectResourceId)).isNull();
   }
 
   @Test

@@ -14,6 +14,8 @@
 
 package com.google.cloud.hadoop.util;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.HashMap;
@@ -59,7 +61,7 @@ public class ConfigurationUtilTest {
 
     // Test proper setting.
     config.set(KEY_ONE, VALUE_ONE);
-    Assert.assertEquals(VALUE_ONE, ConfigurationUtil.getMandatoryConfig(config, KEY_ONE));
+    assertThat(ConfigurationUtil.getMandatoryConfig(config, KEY_ONE)).isEqualTo(VALUE_ONE);
   }
 
   /**
@@ -92,7 +94,7 @@ public class ConfigurationUtilTest {
     expectedMap.put(KEY_ONE, VALUE_ONE);
     expectedMap.put(KEY_TWO, VALUE_TWO);
 
-    Assert.assertEquals(expectedMap,
-        ConfigurationUtil.getMandatoryConfig(config, Lists.newArrayList(KEY_ONE, KEY_TWO)));
+    assertThat(ConfigurationUtil.getMandatoryConfig(config, Lists.newArrayList(KEY_ONE, KEY_TWO)))
+        .isEqualTo(expectedMap);
   }
 }

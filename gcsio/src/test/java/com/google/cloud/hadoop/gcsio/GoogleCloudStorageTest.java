@@ -15,11 +15,8 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertArrayEquals;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -434,7 +431,7 @@ public class GoogleCloudStorageTest {
 
     // Get a channel which will execute the insert object.
     WritableByteChannel writeChannel = gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    assertTrue(writeChannel.isOpen());
+    assertThat(writeChannel.isOpen()).isTrue();
 
     // Verify the initial setup of the insert; capture the input stream.
     ArgumentCaptor<StorageObject> storageObjectCaptor =
@@ -453,14 +450,14 @@ public class GoogleCloudStorageTest {
     // Flush, make sure the data made it out the other end.
     writeChannel.close();
 
-    assertFalse(writeChannel.isOpen());
+    assertThat(writeChannel.isOpen()).isFalse();
     verify(mockStorageObjects, times(1)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockStorageObjectsGet, times(1)).execute();
     verify(mockStorageObjectsInsert, times(1)).setName(eq(OBJECT_NAME));
     verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(0L));
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(1L));
-    assertEquals(OBJECT_NAME, storageObjectCaptor.getValue().getName());
+    assertThat(storageObjectCaptor.getValue().getName()).isEqualTo(OBJECT_NAME);
     verify(mockHeaders, times(1)).set(
         eq("X-Goog-Upload-Desired-Chunk-Granularity"),
         eq(AbstractGoogleAsyncWriteChannel.GCS_UPLOAD_GRANULARITY));
@@ -473,7 +470,7 @@ public class GoogleCloudStorageTest {
     verify(mockBackOff).nextBackOffMillis();
     verify(mockStorageObjectsInsert, times(2)).execute();
     synchronized (readData) {
-      assertArrayEquals(testData, readData);
+      assertThat(readData).isEqualTo(testData);
     }
 
     // Closing the closed channel should have no effect.
@@ -483,9 +480,9 @@ public class GoogleCloudStorageTest {
     // StorageObject.
     GoogleCloudStorageItemInfo finishedInfo =
         ((GoogleCloudStorageItemInfo.Provider) writeChannel).getItemInfo();
-    assertEquals(BUCKET_NAME, finishedInfo.getBucketName());
-    assertEquals(OBJECT_NAME, finishedInfo.getObjectName());
-    assertEquals(12345L, finishedInfo.getContentGeneration());
+    assertThat(finishedInfo.getBucketName()).isEqualTo(BUCKET_NAME);
+    assertThat(finishedInfo.getObjectName()).isEqualTo(OBJECT_NAME);
+    assertThat(finishedInfo.getContentGeneration()).isEqualTo(12345L);
 
     // Further writes to a closed channel should throw a ClosedChannelException.
     try {
@@ -537,7 +534,7 @@ public class GoogleCloudStorageTest {
     // overwrite.
     WritableByteChannel writeChannel =
         gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME, 222L));
-    assertTrue(writeChannel.isOpen());
+    assertThat(writeChannel.isOpen()).isTrue();
 
     // Verify the initial setup of the insert; capture the input stream.
     ArgumentCaptor<StorageObject> storageObjectCaptor =
@@ -556,12 +553,12 @@ public class GoogleCloudStorageTest {
     // Flush, make sure the data made it out the other end.
     writeChannel.close();
 
-    assertFalse(writeChannel.isOpen());
+    assertThat(writeChannel.isOpen()).isFalse();
     verify(mockStorageObjectsInsert, times(1)).setName(eq(OBJECT_NAME));
     verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(222L));
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(1L));
-    assertEquals(OBJECT_NAME, storageObjectCaptor.getValue().getName());
+    assertThat(storageObjectCaptor.getValue().getName()).isEqualTo(OBJECT_NAME);
     verify(mockHeaders, times(1)).set(
         eq("X-Goog-Upload-Desired-Chunk-Granularity"),
         eq(AbstractGoogleAsyncWriteChannel.GCS_UPLOAD_GRANULARITY));
@@ -573,7 +570,7 @@ public class GoogleCloudStorageTest {
     verify(mockBackOff).nextBackOffMillis();
     verify(mockStorageObjectsInsert, times(2)).execute();
     synchronized (readData) {
-      assertArrayEquals(testData, readData);
+      assertThat(readData).isEqualTo(testData);
     }
 
     // Closing the closed channel should have no effect.
@@ -583,9 +580,9 @@ public class GoogleCloudStorageTest {
     // StorageObject.
     GoogleCloudStorageItemInfo finishedInfo =
         ((GoogleCloudStorageItemInfo.Provider) writeChannel).getItemInfo();
-    assertEquals(BUCKET_NAME, finishedInfo.getBucketName());
-    assertEquals(OBJECT_NAME, finishedInfo.getObjectName());
-    assertEquals(12345L, finishedInfo.getContentGeneration());
+    assertThat(finishedInfo.getBucketName()).isEqualTo(BUCKET_NAME);
+    assertThat(finishedInfo.getObjectName()).isEqualTo(OBJECT_NAME);
+    assertThat(finishedInfo.getContentGeneration()).isEqualTo(12345L);
 
     // Further writes to a closed channel should throw a ClosedChannelException.
     try {
@@ -634,7 +631,7 @@ public class GoogleCloudStorageTest {
 
     final WritableByteChannel writeChannel =
         gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    assertTrue(writeChannel.isOpen());
+    assertThat(writeChannel.isOpen()).isTrue();
 
     Future<?> write = executorService.submit(new Runnable() {
       @Override
@@ -652,10 +649,13 @@ public class GoogleCloudStorageTest {
     });
     // Wait for the insert object to be executed, then cancel the writing thread, and finally wait
     // for the two threads to finish.
-    assertTrue("Neither thread started.", writeStartedLatch.await(5000, TimeUnit.MILLISECONDS));
+    assertWithMessage("Neither thread started.")
+        .that(writeStartedLatch.await(5000, TimeUnit.MILLISECONDS))
+        .isTrue();
     write.cancel(true /* interrupt */);
-    assertTrue("Failed to wait for tasks to get interrupted.",
-        threadsDoneLatch.await(5000, TimeUnit.MILLISECONDS));
+    assertWithMessage("Failed to wait for tasks to get interrupted.")
+        .that(threadsDoneLatch.await(5000, TimeUnit.MILLISECONDS))
+        .isTrue();
 
     verify(mockStorage, times(3)).objects();
     verify(mockStorageObjects, times(2)).insert(
@@ -701,7 +701,7 @@ public class GoogleCloudStorageTest {
     setupNonConflictedWrite(fakeException);
 
     WritableByteChannel writeChannel = gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    assertTrue(writeChannel.isOpen());
+    assertThat(writeChannel.isOpen()).isTrue();
 
     try {
       writeChannel.close();
@@ -754,7 +754,7 @@ public class GoogleCloudStorageTest {
     setupNonConflictedWrite(fakeException);
 
     WritableByteChannel writeChannel = gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    assertTrue(writeChannel.isOpen());
+    assertThat(writeChannel.isOpen()).isTrue();
 
     try {
       writeChannel.close();
@@ -807,7 +807,7 @@ public class GoogleCloudStorageTest {
         .thenReturn(mockHeaders);
 
     WritableByteChannel writeChannel = gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    assertTrue(writeChannel.isOpen());
+    assertThat(writeChannel.isOpen()).isTrue();
 
     try {
       writeChannel.close();
@@ -861,8 +861,8 @@ public class GoogleCloudStorageTest {
     verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
     verify(mockStorageObjectsInsert).execute();
 
-    assertEquals(OBJECT_NAME, storageObjectCaptor.getValue().getName());
-    assertEquals(0, inputStreamCaptor.getValue().getLength());
+    assertThat(storageObjectCaptor.getValue().getName()).isEqualTo(OBJECT_NAME);
+    assertThat(inputStreamCaptor.getValue().getLength()).isEqualTo(0);
   }
 
   /**
@@ -897,8 +897,8 @@ public class GoogleCloudStorageTest {
     readChannel.setNanoClock(mockClock);
     readChannel.setBackOff(mockBackOff);
     readChannel.setMaxRetries(maxRetries);
-    assertTrue(readChannel.isOpen());
-    assertEquals(0, readChannel.position());
+    assertThat(readChannel.isOpen()).isTrue();
+    assertThat(readChannel.position()).isEqualTo(0);
   }
 
   /**
@@ -968,8 +968,8 @@ public class GoogleCloudStorageTest {
     verify(mockSleeper).sleep(eq(222L));
     verify(mockSleeper).sleep(eq(333L));
 
-    assertEquals(testData.length, bytesRead);
-    assertArrayEquals(testData, actualData);
+    assertThat(bytesRead).isEqualTo(testData.length);
+    assertThat(actualData).isEqualTo(testData);
   }
 
   @Test
@@ -1011,8 +1011,8 @@ public class GoogleCloudStorageTest {
     verify(mockBackOff).nextBackOffMillis();
     verify(mockSleeper).sleep(eq(111L));
 
-    assertEquals(testData.length, bytesRead);
-    assertArrayEquals(testData, actualData);
+    assertThat(bytesRead).isEqualTo(testData.length);
+    assertThat(actualData).isEqualTo(testData);
   }
 
   @Test
@@ -1044,7 +1044,7 @@ public class GoogleCloudStorageTest {
     }
 
     assertEquals(readChannel.readChannel, null);
-    assertEquals(false, readChannel.lazySeekPending);
+    assertThat(readChannel.lazySeekPending).isFalse();
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper, times(1)).getRequestHeaders(any(Storage.Objects.Get.class));
@@ -1103,8 +1103,9 @@ public class GoogleCloudStorageTest {
       readChannel.getMetadata();
       fail("Expected SocketException");
     } catch (IOException ioe) {
-      Assert.assertEquals("Expected " + socketException + " inside IOException",
-          socketException, ioe.getCause());
+      assertWithMessage("Expected " + socketException + " inside IOException")
+          .that(ioe.getCause())
+          .isEqualTo(socketException);
     }
 
     verify(mockBackOff, times(1)).reset();
@@ -1216,8 +1217,8 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsGet, times(2)).execute();
     verify(mockStorageObjectsGet, times(3)).executeMedia();
 
-    assertEquals(testData.length, bytesRead);
-    assertArrayEquals(testData, actualData);
+    assertThat(bytesRead).isEqualTo(testData.length);
+    assertThat(actualData).isEqualTo(testData);
   }
 
   @Test
@@ -1249,7 +1250,7 @@ public class GoogleCloudStorageTest {
       fail("Expected to throw SocketTimeoutException, but nothing was thrown.");
     } catch (IOException ste) {
       // Throws the last one.
-      assertEquals("fake generic IOException", ste.getMessage());
+      assertThat(ste).hasMessageThat().isEqualTo("fake generic IOException");
     }
 
     verify(mockStorage, atLeastOnce()).objects();
@@ -1290,8 +1291,8 @@ public class GoogleCloudStorageTest {
     } catch (IOException ste) {
       // Throws the last one, with the underlying interrupted exception added as the supressed
       // exception.
-      assertEquals("fake generic IOException", ste.getMessage());
-      assertEquals(1, ste.getSuppressed().length);
+      assertThat(ste).hasMessageThat().isEqualTo("fake generic IOException");
+      assertThat(ste.getSuppressed()).hasLength(1);
       assertEquals(interrupt, ste.getSuppressed()[0]);
     }
 
@@ -1337,7 +1338,7 @@ public class GoogleCloudStorageTest {
       fail("Expected to throw SocketTimeoutException, but nothing was thrown.");
     } catch (IOException ste) {
       // Throws the last one.
-      assertEquals("fake generic IOException", ste.getMessage());
+      assertThat(ste).hasMessageThat().isEqualTo("fake generic IOException");
     }
 
     verify(mockStorage, atLeastOnce()).objects();
@@ -1413,8 +1414,8 @@ public class GoogleCloudStorageTest {
     // Should succeed even though, in total, there were more retries than maxRetries, since we
     // made progress between errors.
     byte[] actualData = new byte[testData.length];
-    assertEquals(testData.length, readChannel.read(ByteBuffer.wrap(actualData)));
-    assertEquals(5, readChannel.position());
+    assertThat(readChannel.read(ByteBuffer.wrap(actualData))).isEqualTo(testData.length);
+    assertThat(readChannel.position()).isEqualTo(5);
 
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
@@ -1473,14 +1474,14 @@ public class GoogleCloudStorageTest {
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    assertTrue(readChannel.isOpen());
-    assertEquals(0, readChannel.position());
-    assertEquals(compressedData.length, readChannel.size());
+    assertThat(readChannel.isOpen()).isTrue();
+    assertThat(readChannel.position()).isEqualTo(0);
+    assertThat(readChannel.size()).isEqualTo(compressedData.length);
     byte[] actualData = new byte[testData.length];
-    assertEquals(testData.length, readChannel.read(ByteBuffer.wrap(actualData)));
-    assertTrue(readChannel.readChannel != null);
-    assertArrayEquals(testData, actualData);
-    assertEquals(testData.length, readChannel.position());
+    assertThat(readChannel.read(ByteBuffer.wrap(actualData))).isEqualTo(testData.length);
+    assertThat(readChannel.readChannel != null).isTrue();
+    assertThat(actualData).isEqualTo(testData);
+    assertThat(readChannel.position()).isEqualTo(testData.length);
 
     // Repositioning to an invalid position fails.
     try {
@@ -1492,23 +1493,23 @@ public class GoogleCloudStorageTest {
 
     // Repositioning to a position both before and after size() succeeds.
     readChannel.position(2);
-    assertTrue(readChannel.isOpen());
-    assertEquals(2, readChannel.position());
+    assertThat(readChannel.isOpen()).isTrue();
+    assertThat(readChannel.position()).isEqualTo(2);
     byte[] partialData = Arrays.copyOfRange(testData, 2, testData.length);
     actualData = new byte[partialData.length];
-    assertEquals(partialData.length, readChannel.read(ByteBuffer.wrap(actualData)));
-    assertArrayEquals(partialData, actualData);
-    assertEquals(testData.length, readChannel.position());
+    assertThat(readChannel.read(ByteBuffer.wrap(actualData))).isEqualTo(partialData.length);
+    assertThat(actualData).isEqualTo(partialData);
+    assertThat(readChannel.position()).isEqualTo(testData.length);
 
     int compressedLength = compressedData.length;
     readChannel.position(compressedLength);
-    assertTrue(readChannel.isOpen());
-    assertEquals(compressedLength, readChannel.position());
+    assertThat(readChannel.isOpen()).isTrue();
+    assertThat(readChannel.position()).isEqualTo(compressedLength);
     partialData = Arrays.copyOfRange(testData, compressedLength, testData.length);
     actualData = new byte[partialData.length];
-    assertEquals(partialData.length, readChannel.read(ByteBuffer.wrap(actualData)));
-    assertArrayEquals(partialData, actualData);
-    assertEquals(testData.length, readChannel.position());
+    assertThat(readChannel.read(ByteBuffer.wrap(actualData))).isEqualTo(partialData.length);
+    assertThat(actualData).isEqualTo(partialData);
+    assertThat(readChannel.position()).isEqualTo(testData.length);
 
     verify(mockStorage, times(5)).objects();
     verify(mockStorageObjects, times(5)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
@@ -1548,8 +1549,8 @@ public class GoogleCloudStorageTest {
     verify(mockHeaders).setRange(eq("bytes=0-"));
     verify(mockStorageObjectsGet).executeMedia();
 
-    assertEquals(testData.length, bytesRead);
-    assertArrayEquals(testData, actualData);
+    assertThat(bytesRead).isEqualTo(testData.length);
+    assertThat(actualData).isEqualTo(testData);
   }
 
   /**
@@ -1579,7 +1580,7 @@ public class GoogleCloudStorageTest {
 
     // Jump 2 bytes forwards; this should be done in-place without any new executeMedia() call.
     readChannel.position(3);
-    assertEquals(3, readChannel.position());
+    assertThat(readChannel.position()).isEqualTo(3);
 
     byte[] actualData2 = new byte[2];
     int bytesRead2 = readChannel.read(ByteBuffer.wrap(actualData2));
@@ -1590,10 +1591,10 @@ public class GoogleCloudStorageTest {
     verify(mockHeaders).setRange(eq("bytes=0-"));
     verify(mockStorageObjectsGet).executeMedia();
 
-    assertEquals(1, bytesRead1);
-    assertEquals(2, bytesRead2);
-    assertArrayEquals(new byte[] { 0x01 }, actualData1);
-    assertArrayEquals(new byte[] { 0x05, 0x08 }, actualData2);
+    assertThat(bytesRead1).isEqualTo(1);
+    assertThat(bytesRead2).isEqualTo(2);
+    assertThat(actualData1).isEqualTo(new byte[] {0x01});
+    assertThat(actualData2).isEqualTo(new byte[] {0x05, 0x08});
   }
 
   /**
@@ -1629,7 +1630,8 @@ public class GoogleCloudStorageTest {
     // Jump 2 bytes + SKIP_BUFFER_SIZE forwards; this should be done in-place without any
     // new executeMedia() call.
     readChannel.position(GoogleCloudStorageReadChannel.SKIP_BUFFER_SIZE + 3);
-    assertEquals(GoogleCloudStorageReadChannel.SKIP_BUFFER_SIZE + 3, readChannel.position());
+    assertThat(readChannel.position())
+        .isEqualTo(GoogleCloudStorageReadChannel.SKIP_BUFFER_SIZE + 3);
 
     byte[] actualData2 = new byte[2];
     int bytesRead2 = readChannel.read(ByteBuffer.wrap(actualData2));
@@ -1640,10 +1642,10 @@ public class GoogleCloudStorageTest {
     verify(mockHeaders).setRange(eq("bytes=0-"));
     verify(mockStorageObjectsGet).executeMedia();
 
-    assertEquals(1, bytesRead1);
-    assertEquals(2, bytesRead2);
-    assertArrayEquals(new byte[] { 0x01 }, actualData1);
-    assertArrayEquals(new byte[] { 0x05, 0x08 }, actualData2);
+    assertThat(bytesRead1).isEqualTo(1);
+    assertThat(bytesRead2).isEqualTo(2);
+    assertThat(actualData1).isEqualTo(new byte[] {0x01});
+    assertThat(actualData2).isEqualTo(new byte[] {0x05, 0x08});
   }
 
   /**
@@ -1731,8 +1733,8 @@ public class GoogleCloudStorageTest {
     setUpAndValidateReadChannelMocksAndSetMaxRetries(readChannel, 3);
 
     byte[] actualData = new byte[testData.length];
-    assertEquals(testData.length, readChannel.read(ByteBuffer.wrap(actualData)));
-    assertEquals(testData.length, readChannel.position());
+    assertThat(readChannel.read(ByteBuffer.wrap(actualData))).isEqualTo(testData.length);
+    assertThat(readChannel.position()).isEqualTo(testData.length);
 
     verify(mockStorage, times(5)).objects();
     verify(mockStorageObjects, times(5)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
@@ -1777,17 +1779,17 @@ public class GoogleCloudStorageTest {
 
    GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    assertTrue(readChannel.isOpen());
-    assertEquals(0, readChannel.position());
+    assertThat(readChannel.isOpen()).isTrue();
+    assertThat(readChannel.position()).isEqualTo(0);
     byte[] actualData = new byte[testData.length];
-    assertEquals(testData.length, readChannel.read(ByteBuffer.wrap(actualData)));
-    assertTrue(readChannel.readChannel != null);
-    assertArrayEquals(testData, actualData);
-    assertEquals(testData.length, readChannel.position());
+    assertThat(readChannel.read(ByteBuffer.wrap(actualData))).isEqualTo(testData.length);
+    assertThat(readChannel.readChannel != null).isTrue();
+    assertThat(actualData).isEqualTo(testData);
+    assertThat(readChannel.position()).isEqualTo(testData.length);
 
     readChannel.position(2);
-    assertTrue(readChannel.isOpen());
-    assertEquals(2, readChannel.position());
+    assertThat(readChannel.isOpen()).isTrue();
+    assertThat(readChannel.position()).isEqualTo(2);
 
     // Repositioning to invalid position fails.
     try {
@@ -1805,20 +1807,20 @@ public class GoogleCloudStorageTest {
 
     // Repositioning to current position should result in no API calls.
     readChannel.position(2);
-    assertTrue(readChannel.isOpen());
-    assertEquals(2, readChannel.position());
+    assertThat(readChannel.isOpen()).isTrue();
+    assertThat(readChannel.position()).isEqualTo(2);
 
     // Reading into a buffer with no room should have no effect.
-    assertEquals(0, readChannel.read(ByteBuffer.wrap(new byte[0])));
-    assertTrue(readChannel.isOpen());
-    assertEquals(2, readChannel.position());
+    assertThat(readChannel.read(ByteBuffer.wrap(new byte[0]))).isEqualTo(0);
+    assertThat(readChannel.isOpen()).isTrue();
+    assertThat(readChannel.position()).isEqualTo(2);
 
     byte[] actualData2 = new byte[testData2.length];
-    assertEquals(testData2.length, readChannel.read(ByteBuffer.wrap(actualData2)));
-    assertArrayEquals(testData2, actualData2);
+    assertThat(readChannel.read(ByteBuffer.wrap(actualData2))).isEqualTo(testData2.length);
+    assertThat(actualData2).isEqualTo(testData2);
 
     // Note that position will be testData.length, *not* testData2.length (5, not 3).
-    assertEquals(testData.length, readChannel.position());
+    assertThat(readChannel.position()).isEqualTo(testData.length);
 
     // Verify the request being made.
     verify(mockStorage, atLeastOnce()).objects();
@@ -1830,7 +1832,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsGet, times(2)).execute();
 
     readChannel.close();
-    assertFalse(readChannel.isOpen());
+    assertThat(readChannel.isOpen()).isFalse();
 
     // After closing the channel, future reads should throw a ClosedChannelException.
     try {
@@ -1910,7 +1912,7 @@ public class GoogleCloudStorageTest {
 
     // Second time is the rangeNotSatisfiableException.
     readChannel = gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    assertEquals(0, readChannel.size());
+    assertThat(readChannel.size()).isEqualTo(0);
 
     // Third time is the unexpectedException.
     readChannel = gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
@@ -1988,9 +1990,9 @@ public class GoogleCloudStorageTest {
           }});
     gcs.create(BUCKET_NAME, new CreateBucketOptions("some-location", "storage-class"));
 
-    assertEquals(BUCKET_NAME, bucketWithOptions[0].getName());
-    assertEquals("some-location", bucketWithOptions[0].getLocation());
-    assertEquals("storage-class", bucketWithOptions[0].getStorageClass());
+    assertThat(bucketWithOptions[0].getName()).isEqualTo(BUCKET_NAME);
+    assertThat(bucketWithOptions[0].getLocation()).isEqualTo("some-location");
+    assertThat(bucketWithOptions[0].getStorageClass()).isEqualTo("storage-class");
 
     verify(mockStorage).buckets();
     verify(mockBackOffFactory).newBackOff();
@@ -2693,7 +2695,7 @@ public class GoogleCloudStorageTest {
       fail("Expected FileNotFoundException");
     } catch (FileNotFoundException e) {
       // Expected.
-      assertTrue(e.getMessage().indexOf(BUCKET_NAME) >= 0);
+      assertThat(e.getMessage().indexOf(BUCKET_NAME)).isAtLeast(0);
     } catch (Exception e) {
       // Make the test output a little more friendly in case the exception class differs.
       fail("Expected FileNotFoundException, got " + e.getClass().getName());
@@ -2703,7 +2705,7 @@ public class GoogleCloudStorageTest {
                dstBucketName, ImmutableList.of(dstObjectName));
       fail("Expected unexpectedException");
     } catch (IOException e) {
-      assertEquals(wrappedUnexpectedException1.getMessage(), e.getMessage());
+      assertThat(e).hasMessageThat().isEqualTo(wrappedUnexpectedException1.getMessage());
       assertEquals(unexpectedException, e.getCause());
     }
     try {
@@ -2712,7 +2714,7 @@ public class GoogleCloudStorageTest {
       fail("Expected FileNotFoundException");
     } catch (FileNotFoundException e) {
       // Expected.
-      assertTrue(e.getMessage().indexOf(dstBucketName) >= 0);
+      assertThat(e.getMessage().indexOf(dstBucketName)).isAtLeast(0);
     } catch (Exception e) {
       // Make the test output a little more friendly in case the exception class differs.
       e.printStackTrace();
@@ -2723,7 +2725,7 @@ public class GoogleCloudStorageTest {
                dstBucketName, ImmutableList.of(dstObjectName));
       fail("Expected unexpectedException");
     } catch (IOException e) {
-      assertEquals(wrappedUnexpectedException2.getMessage(), e.getMessage());
+      assertThat(e).hasMessageThat().isEqualTo(wrappedUnexpectedException2.getMessage());
       assertEquals(unexpectedException, e.getCause());
     }
 
@@ -2777,16 +2779,20 @@ public class GoogleCloudStorageTest {
                dstBucketName, ImmutableList.of(dstObjectName));
       fail("Expected UnsupportedOperationException");
     } catch (UnsupportedOperationException e) {
-      assertTrue(e.getMessage().indexOf("not supported") >= 0
-                 && e.getMessage().indexOf("storage location") >= 0);
+      assertThat(
+              e.getMessage().contains("not supported")
+                  && e.getMessage().contains("storage location"))
+          .isTrue();
     }
     try {
       gcs.copy(BUCKET_NAME, ImmutableList.of(OBJECT_NAME),
                dstBucketName, ImmutableList.of(dstObjectName));
       fail("Expected UnsupportedOperationException");
     } catch (UnsupportedOperationException e) {
-      assertTrue(e.getMessage().indexOf("not supported") >= 0
-                 && e.getMessage().indexOf("storage class") >= 0);
+      assertThat(
+              e.getMessage().contains("not supported")
+                  && e.getMessage().contains("storage class"))
+          .isTrue();
     }
 
     verify(mockStorage, times(4)).buckets();
@@ -2804,10 +2810,10 @@ public class GoogleCloudStorageTest {
     setupMocksForListBuckets();
 
     List<String> bucketNames = gcs.listBucketNames();
-    assertEquals(3, bucketNames.size());
-    assertEquals("bucket0", bucketNames.get(0));
-    assertEquals("bucket1", bucketNames.get(1));
-    assertEquals("bucket2", bucketNames.get(2));
+    assertThat(bucketNames).hasSize(3);
+    assertThat(bucketNames.get(0)).isEqualTo("bucket0");
+    assertThat(bucketNames.get(1)).isEqualTo("bucket1");
+    assertThat(bucketNames.get(2)).isEqualTo("bucket2");
 
     verifyMocksForListBuckets();
   }
@@ -2821,10 +2827,10 @@ public class GoogleCloudStorageTest {
     setupMocksForListBuckets();
 
     List<GoogleCloudStorageItemInfo> bucketInfos = gcs.listBucketInfo();
-    assertEquals(3, bucketInfos.size());
-    assertEquals("bucket0", bucketInfos.get(0).getBucketName());
-    assertEquals("bucket1", bucketInfos.get(1).getBucketName());
-    assertEquals("bucket2", bucketInfos.get(2).getBucketName());
+    assertThat(bucketInfos).hasSize(3);
+    assertThat(bucketInfos.get(0).getBucketName()).isEqualTo("bucket0");
+    assertThat(bucketInfos.get(1).getBucketName()).isEqualTo("bucket1");
+    assertThat(bucketInfos.get(2).getBucketName()).isEqualTo("bucket2");
 
     verifyMocksForListBuckets();
   }
@@ -2900,11 +2906,11 @@ public class GoogleCloudStorageTest {
 
     List<String> objectNames =
         gcs.listObjectNames(BUCKET_NAME, objectPrefix, delimiter);
-    assertEquals(4, objectNames.size());
-    assertEquals("foo/bar/baz/dir0/", objectNames.get(0));
-    assertEquals("foo/bar/baz/dir1/", objectNames.get(1));
-    assertEquals("foo/bar/baz/obj0", objectNames.get(2));
-    assertEquals("foo/bar/baz/obj1", objectNames.get(3));
+    assertThat(objectNames).hasSize(4);
+    assertThat(objectNames.get(0)).isEqualTo("foo/bar/baz/dir0/");
+    assertThat(objectNames.get(1)).isEqualTo("foo/bar/baz/dir1/");
+    assertThat(objectNames.get(2)).isEqualTo("foo/bar/baz/obj0");
+    assertThat(objectNames.get(3)).isEqualTo("foo/bar/baz/obj1");
 
     verify(mockStorage).objects();
     verify(mockStorageObjects).list(eq(BUCKET_NAME));
@@ -2943,10 +2949,10 @@ public class GoogleCloudStorageTest {
 
     List<String> objectNames =
         gcs.listObjectNames(BUCKET_NAME, objectPrefix, delimiter, maxResults);
-    assertEquals(maxResults, objectNames.size());
-    assertEquals("foo/bar/baz/dir0/", objectNames.get(0));
-    assertEquals("foo/bar/baz/dir1/", objectNames.get(1));
-    assertEquals("foo/bar/baz/obj0", objectNames.get(2));
+    assertThat(objectNames.size()).isEqualTo(maxResults);
+    assertThat(objectNames.get(0)).isEqualTo("foo/bar/baz/dir0/");
+    assertThat(objectNames.get(1)).isEqualTo("foo/bar/baz/dir1/");
+    assertThat(objectNames.get(2)).isEqualTo("foo/bar/baz/obj0");
 
     verify(mockStorage).objects();
     verify(mockStorageObjects).list(eq(BUCKET_NAME));
@@ -2983,7 +2989,7 @@ public class GoogleCloudStorageTest {
     // First time should just return empty list.
     List<String> objectNames =
         gcs.listObjectNames(BUCKET_NAME, objectPrefix, delimiter);
-    assertTrue(objectNames.isEmpty());
+    assertThat(objectNames).isEmpty();
 
     // Second time throws.
     try {
@@ -3042,17 +3048,15 @@ public class GoogleCloudStorageTest {
         gcs.listObjectInfo(BUCKET_NAME, objectPrefix, delimiter);
 
     // The item exactly matching the input objectPrefix will be discarded.
-    assertEquals(2, objectInfos.size());
-    assertEquals(fakeObjectList.get(1).getName(), objectInfos.get(0).getObjectName());
-    assertEquals(fakeObjectList.get(1).getUpdated().getValue(),
-                 objectInfos.get(0).getCreationTime());
-    assertEquals(fakeObjectList.get(1).getSize().longValue(),
-                 objectInfos.get(0).getSize());
-    assertEquals(fakeObjectList.get(2).getName(), objectInfos.get(1).getObjectName());
-    assertEquals(fakeObjectList.get(2).getUpdated().getValue(),
-                 objectInfos.get(1).getCreationTime());
-    assertEquals(fakeObjectList.get(2).getSize().longValue(),
-                 objectInfos.get(1).getSize());
+    assertThat(objectInfos).hasSize(2);
+    assertThat(objectInfos.get(0).getObjectName()).isEqualTo(fakeObjectList.get(1).getName());
+    assertThat(objectInfos.get(0).getCreationTime())
+        .isEqualTo(fakeObjectList.get(1).getUpdated().getValue());
+    assertThat(objectInfos.get(0).getSize()).isEqualTo(fakeObjectList.get(1).getSize().longValue());
+    assertThat(objectInfos.get(1).getObjectName()).isEqualTo(fakeObjectList.get(2).getName());
+    assertThat(objectInfos.get(1).getCreationTime())
+        .isEqualTo(fakeObjectList.get(2).getUpdated().getValue());
+    assertThat(objectInfos.get(1).getSize()).isEqualTo(fakeObjectList.get(2).getSize().longValue());
 
     verify(mockStorage).objects();
     verify(mockStorageObjects).list(eq(BUCKET_NAME));
@@ -3130,17 +3134,15 @@ public class GoogleCloudStorageTest {
     List<GoogleCloudStorageItemInfo> objectInfos =
         gcs.listObjectInfo(BUCKET_NAME, objectPrefix, delimiter);
 
-    assertEquals(2, objectInfos.size());
-    assertEquals(fakeObjectList.get(0).getName(), objectInfos.get(0).getObjectName());
-    assertEquals(fakeObjectList.get(0).getUpdated().getValue(),
-                 objectInfos.get(0).getCreationTime());
-    assertEquals(fakeObjectList.get(0).getSize().longValue(),
-                 objectInfos.get(0).getSize());
-    assertEquals(fakeObjectList.get(1).getName(), objectInfos.get(1).getObjectName());
-    assertEquals(fakeObjectList.get(1).getUpdated().getValue(),
-                 objectInfos.get(1).getCreationTime());
-    assertEquals(fakeObjectList.get(1).getSize().longValue(),
-                 objectInfos.get(1).getSize());
+    assertThat(objectInfos).hasSize(2);
+    assertThat(objectInfos.get(0).getObjectName()).isEqualTo(fakeObjectList.get(0).getName());
+    assertThat(objectInfos.get(0).getCreationTime())
+        .isEqualTo(fakeObjectList.get(0).getUpdated().getValue());
+    assertThat(objectInfos.get(0).getSize()).isEqualTo(fakeObjectList.get(0).getSize().longValue());
+    assertThat(objectInfos.get(1).getObjectName()).isEqualTo(fakeObjectList.get(1).getName());
+    assertThat(objectInfos.get(1).getCreationTime())
+        .isEqualTo(fakeObjectList.get(1).getUpdated().getValue());
+    assertThat(objectInfos.get(1).getSize()).isEqualTo(fakeObjectList.get(1).getSize().longValue());
 
     verify(mockStorage, times(3)).objects();
     verify(mockStorageObjects).list(eq(BUCKET_NAME));
@@ -3316,7 +3318,7 @@ public class GoogleCloudStorageTest {
 
     // Check logical contents after all the "verify" calls, otherwise the mock verifications won't
     // be executed and we'll have misleading "NoInteractionsWanted" errors.
-    assertEquals(fakeObjectList.size(), objectInfos.size());
+    assertThat(objectInfos).hasSize(fakeObjectList.size());
 
     Map<String, GoogleCloudStorageItemInfo> itemLookup = new HashMap<>();
     for (GoogleCloudStorageItemInfo item : objectInfos) {
@@ -3324,9 +3326,9 @@ public class GoogleCloudStorageTest {
     }
     for (StorageObject fakeObject : fakeObjectList) {
       GoogleCloudStorageItemInfo listedInfo = itemLookup.get(fakeObject.getName());
-      assertEquals(fakeObject.getName(), listedInfo.getObjectName());
-      assertEquals(fakeObject.getUpdated().getValue(), listedInfo.getCreationTime());
-      assertEquals(fakeObject.getSize().longValue(), listedInfo.getSize());
+      assertThat(listedInfo.getObjectName()).isEqualTo(fakeObject.getName());
+      assertThat(listedInfo.getCreationTime()).isEqualTo(fakeObject.getUpdated().getValue());
+      assertThat(listedInfo.getSize()).isEqualTo(fakeObject.getSize().longValue());
     }
   }
 
@@ -3477,20 +3479,19 @@ public class GoogleCloudStorageTest {
     // "NoInteractionsWanted" errors.
 
     if (gcsNoAutoRepair.getOptions().isInferImplicitDirectoriesEnabled()) {
-      assertEquals(3, objectInfos.size());
+      assertThat(objectInfos).hasSize(3);
 
       GoogleCloudStorageItemInfo listedInfo = objectInfos.get(0);
-      assertEquals(fakeObject0.getName(), listedInfo.getObjectName());
-      assertEquals(0, listedInfo.getCreationTime());
-      assertEquals(0, listedInfo.getSize());
+      assertThat(listedInfo.getObjectName()).isEqualTo(fakeObject0.getName());
+      assertThat(listedInfo.getCreationTime()).isEqualTo(0);
+      assertThat(listedInfo.getSize()).isEqualTo(0);
     } else {
-      assertEquals(1, objectInfos.size());
+      assertThat(objectInfos).hasSize(1);
 
       GoogleCloudStorageItemInfo listedInfo = objectInfos.get(0);
-      assertEquals(fakeObject1.getName(), listedInfo.getObjectName());
-      assertEquals(fakeObject1.getUpdated().getValue(),
-          listedInfo.getCreationTime());
-      assertEquals(fakeObject1.getSize().longValue(), listedInfo.getSize());
+      assertThat(listedInfo.getObjectName()).isEqualTo(fakeObject1.getName());
+      assertThat(listedInfo.getCreationTime()).isEqualTo(fakeObject1.getUpdated().getValue());
+      assertThat(listedInfo.getSize()).isEqualTo(fakeObject1.getSize().longValue());
     }
   }
 
@@ -3630,19 +3631,18 @@ public class GoogleCloudStorageTest {
     // "NoInteractionsWanted" errors.
 
     // Only one of our three directory objects existed.
-    assertEquals(3, objectInfos.size());
+    assertThat(objectInfos).hasSize(3);
 
     GoogleCloudStorageItemInfo listedInfo0 = objectInfos.get(0);
-    assertEquals(fakeObject0.getName(), listedInfo0.getObjectName());
+    assertThat(listedInfo0.getObjectName()).isEqualTo(fakeObject0.getName());
     // Inferred directories have timestanp and size set to zero.
-    assertEquals(0L, listedInfo0.getCreationTime());
-    assertEquals(0L, listedInfo0.getSize());
+    assertThat(listedInfo0.getCreationTime()).isEqualTo(0L);
+    assertThat(listedInfo0.getSize()).isEqualTo(0L);
 
     GoogleCloudStorageItemInfo listedInfo1 = objectInfos.get(1);
-    assertEquals(fakeObject1.getName(), listedInfo1.getObjectName());
-    assertEquals(fakeObject1.getUpdated().getValue(),
-        listedInfo1.getCreationTime());
-    assertEquals(fakeObject1.getSize().longValue(), listedInfo1.getSize());
+    assertThat(listedInfo1.getObjectName()).isEqualTo(fakeObject1.getName());
+    assertThat(listedInfo1.getCreationTime()).isEqualTo(fakeObject1.getUpdated().getValue());
+    assertThat(listedInfo1.getSize()).isEqualTo(fakeObject1.getSize().longValue());
   }
 
   /**
@@ -4114,8 +4114,8 @@ public class GoogleCloudStorageTest {
       fail(String.format("Expected IOException to get thrown, instead returned: %s", itemInfos));
     } catch (IOException ioe) {
       // Expected composite exception.
-      assertNotNull(ioe.getSuppressed());
-      assertEquals(2, ioe.getSuppressed().length);
+      assertThat(ioe.getSuppressed()).isNotNull();
+      assertThat(ioe.getSuppressed()).hasLength(2);
     }
 
     // All invocations still should have been attempted; the exception should have been thrown
@@ -4140,7 +4140,7 @@ public class GoogleCloudStorageTest {
   @Test
   public void testClose() {
     gcs.close();
-    assertTrue(executorService.isShutdown());
+    assertThat(executorService.isShutdown()).isTrue();
   }
 
   /**
@@ -4225,7 +4225,7 @@ public class GoogleCloudStorageTest {
       gcs.waitForBucketEmpty(BUCKET_NAME);
       fail("Expected IOException");
     } catch (IOException e) {
-      assertTrue(e.getMessage().indexOf("not empty") >= 0);
+      assertThat(e.getMessage().indexOf("not empty")).isAtLeast(0);
     }
 
     VerificationMode retryTimes = times(GoogleCloudStorageImpl.BUCKET_EMPTY_MAX_RETRIES);
@@ -4296,14 +4296,13 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsCompose).setIfGenerationMatch(222L);
     verify(mockStorageObjectsCompose).execute();
 
-    assertEquals(2, composeCaptor.getValue().getSourceObjects().size());
-    assertEquals(
-        sources.get(0).getObjectName(),
-        composeCaptor.getValue().getSourceObjects().get(0).getName());
-    assertEquals(
-        sources.get(1).getObjectName(),
-        composeCaptor.getValue().getSourceObjects().get(1).getName());
-    assertEquals("text-content", composeCaptor.getValue().getDestination().getContentType());
+    assertThat(composeCaptor.getValue().getSourceObjects()).hasSize(2);
+    assertThat(composeCaptor.getValue().getSourceObjects().get(0).getName())
+        .isEqualTo(sources.get(0).getObjectName());
+    assertThat(composeCaptor.getValue().getSourceObjects().get(1).getName())
+        .isEqualTo(sources.get(1).getObjectName());
+    assertThat(composeCaptor.getValue().getDestination().getContentType())
+        .isEqualTo("text-content");
     assertEquals(
         GoogleCloudStorageImpl.encodeMetadata(rawMetadata),
         composeCaptor.getValue().getDestination().getMetadata());
@@ -4375,48 +4374,56 @@ public class GoogleCloudStorageTest {
    */
   @Test
   public void testItemInfoMetadataEquals() {
-    assertTrue(getItemInfoForEmptyObjectWithMetadata(EMPTY_METADATA).metadataEquals(
-        EMPTY_METADATA));
+    assertThat(getItemInfoForEmptyObjectWithMetadata(EMPTY_METADATA).metadataEquals(EMPTY_METADATA))
+        .isTrue();
 
     // The factory method changes 'null' to the empty map, but that doesn't mean an empty
     // metadata setting equals 'null' as the parameter passed to metadataEquals.
-    assertTrue(getItemInfoForEmptyObjectWithMetadata(null).metadataEquals(
-        EMPTY_METADATA));
-    assertFalse(getItemInfoForEmptyObjectWithMetadata(null).metadataEquals(
-        null));
+    assertThat(getItemInfoForEmptyObjectWithMetadata(null).metadataEquals(EMPTY_METADATA)).isTrue();
+    assertThat(getItemInfoForEmptyObjectWithMetadata(null).metadataEquals(null)).isFalse();
 
     //  Basic equality case.
-    assertTrue(getItemInfoForEmptyObjectWithMetadata(
-        ImmutableMap.of("foo", new byte[] { 0x01 }, "bar", new byte[] { 0x02 })).metadataEquals(
-        ImmutableMap.of("foo", new byte[] { 0x01 }, "bar", new byte[] { 0x02 })));
+    assertThat(
+            getItemInfoForEmptyObjectWithMetadata(
+                    ImmutableMap.of("foo", new byte[] {0x01}, "bar", new byte[] {0x02}))
+                .metadataEquals(
+                    ImmutableMap.of("foo", new byte[] {0x01}, "bar", new byte[] {0x02})))
+        .isTrue();
 
     // Equality across different map implementations.
-    assertTrue(
-        getItemInfoForEmptyObjectWithMetadata(
-            new HashMap<String, byte[]>(
-                ImmutableMap.of("foo", new byte[] { 0x01 }, "bar", new byte[] { 0x02 })))
-        .metadataEquals(
-            new TreeMap<String, byte[]>(
-                ImmutableMap.of("foo", new byte[] { 0x01 }, "bar", new byte[] { 0x02 }))));
+    assertThat(
+            getItemInfoForEmptyObjectWithMetadata(
+                    new HashMap<String, byte[]>(
+                        ImmutableMap.of("foo", new byte[] {0x01}, "bar", new byte[] {0x02})))
+                .metadataEquals(
+                    new TreeMap<String, byte[]>(
+                        ImmutableMap.of("foo", new byte[] {0x01}, "bar", new byte[] {0x02}))))
+        .isTrue();
 
     // Even though the keySet() is equal for the two and the set of values() is equal for the two,
     // since we inverted which key points to which value, they should not be deemed equal.
-    assertFalse(getItemInfoForEmptyObjectWithMetadata(
-        ImmutableMap.of("foo", new byte[] { 0x01 }, "bar", new byte[] { 0x02 })).metadataEquals(
-        ImmutableMap.of("foo", new byte[] { 0x02 }, "bar", new byte[] { 0x01 })));
+    assertThat(
+            getItemInfoForEmptyObjectWithMetadata(
+                    ImmutableMap.of("foo", new byte[] {0x01}, "bar", new byte[] {0x02}))
+                .metadataEquals(
+                    ImmutableMap.of("foo", new byte[] {0x02}, "bar", new byte[] {0x01})))
+        .isFalse();
 
     // Only a subset is equal.
-    assertFalse(getItemInfoForEmptyObjectWithMetadata(
-        ImmutableMap.of("foo", new byte[] { 0x01 }, "bar", new byte[] { 0x02 })).metadataEquals(
-        ImmutableMap.of("foo", new byte[] { 0x01 })));
+    assertThat(
+            getItemInfoForEmptyObjectWithMetadata(
+                    ImmutableMap.of("foo", new byte[] {0x01}, "bar", new byte[] {0x02}))
+                .metadataEquals(ImmutableMap.of("foo", new byte[] {0x01})))
+        .isFalse();
   }
 
   @Test
   public void testItemInfoEqualityIncludesMetadata() {
-    assertFalse(
-        getItemInfoForEmptyObjectWithMetadata(
-            ImmutableMap.of("foo", new byte[] { 0x01 }, "bar", new byte[] { 0x02 })).equals(
-        getItemInfoForEmptyObjectWithMetadata(null)));
+    assertThat(
+            getItemInfoForEmptyObjectWithMetadata(
+                    ImmutableMap.of("foo", new byte[] {0x01}, "bar", new byte[] {0x02}))
+                .equals(getItemInfoForEmptyObjectWithMetadata(null)))
+        .isFalse();
   }
 
   @Test

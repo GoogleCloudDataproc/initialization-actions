@@ -14,7 +14,7 @@
 
 package com.google.cloud.hadoop.util;
 
-import static org.junit.Assert.assertEquals;
+import static com.google.common.truth.Truth.assertThat;
 
 import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import java.net.URI;
@@ -34,18 +34,18 @@ public class HttpTransportFactoryTest {
   @Test
   public void testGetTransportTypeOfDefault() throws Exception {
     HttpTransportFactory.HttpTransportType type = HttpTransportFactory.getTransportTypeOf(null);
-    assertEquals(HttpTransportType.JAVA_NET, type);
+    assertThat(type).isEqualTo(HttpTransportType.JAVA_NET);
     type = HttpTransportFactory.getTransportTypeOf("");
-    assertEquals(HttpTransportType.JAVA_NET, type);
+    assertThat(type).isEqualTo(HttpTransportType.JAVA_NET);
   }
 
   @Test
   public void testGetTransportTypeOf() throws Exception {
     HttpTransportFactory.HttpTransportType type = HttpTransportFactory.getTransportTypeOf(
         "JAVA_NET");
-    assertEquals(HttpTransportFactory.HttpTransportType.JAVA_NET, type);
+    assertThat(type).isEqualTo(HttpTransportFactory.HttpTransportType.JAVA_NET);
     type = HttpTransportFactory.getTransportTypeOf("APACHE");
-    assertEquals(HttpTransportType.APACHE, type);
+    assertThat(type).isEqualTo(HttpTransportType.APACHE);
   }
 
   @Test
@@ -63,7 +63,7 @@ public class HttpTransportFactoryTest {
     String address = "foo-host:1234";
     URI expectedUri = getURI(null, "foo-host", 1234);
     URI uri = HttpTransportFactory.parseProxyAddress(address);
-    assertEquals(expectedUri, uri);
+    assertThat(uri).isEqualTo(expectedUri);
   }
 
   @Test
@@ -71,7 +71,7 @@ public class HttpTransportFactoryTest {
     String address = "http://foo-host:1234";
     URI expectedUri = getURI("http", "foo-host", 1234);
     URI uri = HttpTransportFactory.parseProxyAddress(address);
-    assertEquals(expectedUri, uri);
+    assertThat(uri).isEqualTo(expectedUri);
   }
 
   @Test
@@ -79,7 +79,7 @@ public class HttpTransportFactoryTest {
     String address = "https://foo-host:1234";
     URI expectedUri = getURI("https", "foo-host", 1234);
     URI uri = HttpTransportFactory.parseProxyAddress(address);
-    assertEquals(expectedUri, uri);
+    assertThat(uri).isEqualTo(expectedUri);
   }
 
   @Test

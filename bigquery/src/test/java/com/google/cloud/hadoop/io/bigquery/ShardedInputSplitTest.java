@@ -13,9 +13,7 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static com.google.common.truth.Truth.assertThat;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -56,22 +54,22 @@ public class ShardedInputSplitTest {
   public void testGetLocations()
       throws IOException {
     // No notion of locations for now; return empty but non-null array.
-    assertNotNull(split1.getLocations());
-    assertEquals(0, split1.getLocations().length);
+    assertThat(split1.getLocations()).isNotNull();
+    assertThat(split1.getLocations()).isEmpty();
   }
 
   @Test
   public void testBasicFields()
       throws IOException {
-    assertEquals(shardPath1, split1.getShardDirectoryAndPattern());
-    assertEquals(numRecords1, split1.getLength());
+    assertThat(split1.getShardDirectoryAndPattern()).isEqualTo(shardPath1);
+    assertThat(split1.getLength()).isEqualTo(numRecords1);
   }
 
   @Test
   public void testToString()
       throws IOException {
-    assertTrue(split1.toString().contains(shardPath1.toString()));
-    assertTrue(split1.toString().contains(Long.toString(numRecords1)));
+    assertThat(split1.toString()).contains(shardPath1.toString());
+    assertThat(split1.toString()).contains(Long.toString(numRecords1));
   }
 
   @Test
@@ -89,8 +87,8 @@ public class ShardedInputSplitTest {
 
     ShardedInputSplit recoveredSplit = new ShardedInputSplit();
     recoveredSplit.readFields(dataIn);
-    assertEquals(shardPath1, recoveredSplit.getShardDirectoryAndPattern());
-    assertEquals(numRecords1, recoveredSplit.getLength());
+    assertThat(recoveredSplit.getShardDirectoryAndPattern()).isEqualTo(shardPath1);
+    assertThat(recoveredSplit.getLength()).isEqualTo(numRecords1);
   }
 
   @Test
@@ -109,12 +107,12 @@ public class ShardedInputSplitTest {
 
     ShardedInputSplit recoveredSplit = new ShardedInputSplit();
     recoveredSplit.readFields(dataIn);
-    assertEquals(shardPath1, recoveredSplit.getShardDirectoryAndPattern());
-    assertEquals(numRecords1, recoveredSplit.getLength());
+    assertThat(recoveredSplit.getShardDirectoryAndPattern()).isEqualTo(shardPath1);
+    assertThat(recoveredSplit.getLength()).isEqualTo(numRecords1);
 
     // Same InputSplit can be reused to read a second deserialization.
     recoveredSplit.readFields(dataIn);
-    assertEquals(shardPath2, recoveredSplit.getShardDirectoryAndPattern());
-    assertEquals(numRecords2, recoveredSplit.getLength());
+    assertThat(recoveredSplit.getShardDirectoryAndPattern()).isEqualTo(shardPath2);
+    assertThat(recoveredSplit.getLength()).isEqualTo(numRecords2);
   }
 }

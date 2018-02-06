@@ -13,8 +13,7 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -256,7 +255,7 @@ public class BigQueryRecordWriterTest {
     verify(mockBigQuery, times(2)).jobs();
     verify(mockJobsGet, times(1)).execute();
     verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), eq(jobReference.getJobId()));
-    assertTrue(executorService.isShutdown());
+    assertThat(executorService.isShutdown()).isTrue();
 
     // We want to make sure we have a consistent view of the read data which is
     // why we synchronize on it.
@@ -264,7 +263,7 @@ public class BigQueryRecordWriterTest {
       String readDataString = new String(
           Arrays.copyOfRange(readData, 0, (int) recordWriter.getBytesWritten()),
           StandardCharsets.UTF_8);
-      assertEquals("{\"Name\":\"test name\",\"Number\":\"123\"}\n", readDataString);
+      assertThat(readDataString).isEqualTo("{\"Name\":\"test name\",\"Number\":\"123\"}\n");
     }
   }
 
@@ -310,7 +309,7 @@ public class BigQueryRecordWriterTest {
     verify(mockBigQuery, times(2)).jobs();
     verify(mockJobsGet, times(1)).execute();
     verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), eq(jobReference.getJobId()));
-    assertTrue(executorService.isShutdown());
+    assertThat(executorService.isShutdown()).isTrue();
 
     // We want to make sure we have a consistent view of the read data which is
     // why we synchronize on it.
@@ -318,7 +317,7 @@ public class BigQueryRecordWriterTest {
       String readDataString = new String(
           Arrays.copyOfRange(readData, 0, (int) recordWriter.getBytesWritten()),
           StandardCharsets.UTF_8);
-      assertEquals("", readDataString);
+      assertThat(readDataString).isEmpty();
     }
   }
 
@@ -346,7 +345,7 @@ public class BigQueryRecordWriterTest {
     verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), eq(jobReference.getJobId()));
     verify(mockBigQueryJobs).insert(
         eq(jobProjectId), eq(getExpectedJob()), any(AbstractInputStreamContent.class));
-    assertTrue(executorService.isShutdown());
+    assertThat(executorService.isShutdown()).isTrue();
   }
 
   /**
@@ -368,7 +367,7 @@ public class BigQueryRecordWriterTest {
       recordWriter.close(mockContext);
       fail("Expected IOException on close, got no exception.");
     } catch (IOException ioe) {
-      assertEquals(fakeUnhandledException, ioe.getCause());
+      assertThat(ioe).hasCauseThat().isEqualTo(fakeUnhandledException);
     }
 
     // Check that the proper calls were sent to the BigQuery.
@@ -376,7 +375,7 @@ public class BigQueryRecordWriterTest {
     verify(mockBigQuery, times(1)).jobs();
     verify(mockBigQueryJobs).insert(
         eq(jobProjectId), eq(getExpectedJob()), any(AbstractInputStreamContent.class));
-    assertTrue(executorService.isShutdown());
+    assertThat(executorService.isShutdown()).isTrue();
   }
 
   @Test
@@ -421,7 +420,7 @@ public class BigQueryRecordWriterTest {
     verify(mockBigQuery, times(2)).jobs();
     verify(mockJobsGet, times(1)).execute();
     verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), eq(jobReference.getJobId()));
-    assertTrue(executorService.isShutdown());
+    assertThat(executorService.isShutdown()).isTrue();
 
     // We want to make sure we have a consistent view of the read data which is
     // why we synchronize on it.
@@ -429,10 +428,10 @@ public class BigQueryRecordWriterTest {
       String readDataString = new String(
           Arrays.copyOfRange(readData, 0, (int) recordWriter.getBytesWritten()),
           StandardCharsets.UTF_8);
-      assertEquals(
-          "{\"Name\":\"test name\",\"Number\":\"123\"}\n"
-          + "{\"Name\":\"test name\",\"Number\":\"123\"}\n",
-          readDataString);
+      assertThat(readDataString)
+          .isEqualTo(
+              "{\"Name\":\"test name\",\"Number\":\"123\"}\n"
+                  + "{\"Name\":\"test name\",\"Number\":\"123\"}\n");
     }
   }
 

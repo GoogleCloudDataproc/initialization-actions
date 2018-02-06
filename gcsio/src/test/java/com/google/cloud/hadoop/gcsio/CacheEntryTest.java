@@ -14,14 +14,12 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.util.Clock;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -104,27 +102,27 @@ public class CacheEntryTest {
 
     // The 'creationTimeMillis' of the CacheEntry is the time it was constructed, *not* the
     // lastUpdated or timeCreated of the GoogleCloudStorageItemInfo within.
-    assertEquals(creationTime, entry.getCreationTimeMillis());
-    assertEquals(lastUpdatedTime, entry.getItemInfoUpdateTimeMillis());
+    assertThat(entry.getCreationTimeMillis()).isEqualTo(creationTime);
+    assertThat(entry.getItemInfoUpdateTimeMillis()).isEqualTo(lastUpdatedTime);
     assertEquals(itemInfo, entry.getItemInfo());
 
     // Re-set the itemInfo without changing it.
     long newUpdateTime = lastUpdatedTime + 1010;
     when(mockClock.currentTimeMillis()).thenReturn(newUpdateTime);
-    assertTrue(lastUpdatedTime != newUpdateTime);
+    assertThat(lastUpdatedTime != newUpdateTime).isTrue();
     entry.setItemInfo(itemInfo);
 
     // No change in creationTime.
-    assertEquals(creationTime, entry.getCreationTimeMillis());
-    assertEquals(newUpdateTime, entry.getItemInfoUpdateTimeMillis());
+    assertThat(entry.getCreationTimeMillis()).isEqualTo(creationTime);
+    assertThat(entry.getItemInfoUpdateTimeMillis()).isEqualTo(newUpdateTime);
     assertEquals(itemInfo, entry.getItemInfo());
 
     // After clearing itemInfo, the StorageResourceId should still remain inside and creationTime
     // doesn't change.
     entry.clearItemInfo();
-    assertNull(entry.getItemInfo());
-    assertEquals(creationTime, entry.getCreationTimeMillis());
-    assertEquals(0, entry.getItemInfoUpdateTimeMillis());
+    assertThat(entry.getItemInfo()).isNull();
+    assertThat(entry.getCreationTimeMillis()).isEqualTo(creationTime);
+    assertThat(entry.getItemInfoUpdateTimeMillis()).isEqualTo(0);
     assertEquals(resourceId, entry.getResourceId());
   }
 
@@ -135,9 +133,9 @@ public class CacheEntryTest {
     CacheEntry entry = new CacheEntry(bucketResourceId);
 
     assertEquals(bucketResourceId, entry.getResourceId());
-    assertEquals(constructorTime, entry.getCreationTimeMillis());
-    assertEquals(0, entry.getItemInfoUpdateTimeMillis());
-    assertNull(entry.getItemInfo());
+    assertThat(entry.getCreationTimeMillis()).isEqualTo(constructorTime);
+    assertThat(entry.getItemInfoUpdateTimeMillis()).isEqualTo(0);
+    assertThat(entry.getItemInfo()).isNull();
 
     long updateTime = 20L;
     when(mockClock.currentTimeMillis()).thenReturn(updateTime);
@@ -162,9 +160,9 @@ public class CacheEntryTest {
     CacheEntry entry = new CacheEntry(objectResourceId);
 
     assertEquals(objectResourceId, entry.getResourceId());
-    assertEquals(constructorTime, entry.getCreationTimeMillis());
-    assertEquals(0, entry.getItemInfoUpdateTimeMillis());
-    assertNull(entry.getItemInfo());
+    assertThat(entry.getCreationTimeMillis()).isEqualTo(constructorTime);
+    assertThat(entry.getItemInfoUpdateTimeMillis()).isEqualTo(0);
+    assertThat(entry.getItemInfo()).isNull();
 
     long updateTime = 31L;
     when(mockClock.currentTimeMillis()).thenReturn(updateTime);

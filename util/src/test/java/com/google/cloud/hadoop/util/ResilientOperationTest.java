@@ -16,7 +16,7 @@
 
 package com.google.cloud.hadoop.util;
 
-import static org.junit.Assert.assertEquals;
+import static com.google.common.truth.Truth.assertThat;
 
 import com.google.api.client.testing.util.MockSleeper;
 import com.google.api.client.util.BackOff;
@@ -43,8 +43,8 @@ public class ResilientOperationTest {
     BackOff backoff = new RetryBoundedBackOff(3, new BackOffTester());
     ResilientOperation.retry(callTester, backoff, RetryDeterminer.DEFAULT, Exception.class,
         sleeper);
-    assertEquals(1, callTester.timesCalled());
-    assertEquals(0, sleeper.getCount());
+    assertThat(callTester.timesCalled()).isEqualTo(1);
+    assertThat(sleeper.getCount()).isEqualTo(0);
   }
 
   @Test
@@ -60,7 +60,7 @@ public class ResilientOperationTest {
       ResilientOperation.retry(callTester, backoff, RetryDeterminer.DEFAULT, Exception.class,
           sleeper);
     } finally {
-      assertEquals(1, callTester.timesCalled());
+      assertThat(callTester.timesCalled()).isEqualTo(1);
       verifySleeper(sleeper, 0);
     }
   }
@@ -80,7 +80,7 @@ public class ResilientOperationTest {
       ResilientOperation.retry(callTester, backoff, RetryDeterminer.DEFAULT, Exception.class,
           sleeper);
     } finally {
-      assertEquals(3, callTester.timesCalled());
+      assertThat(callTester.timesCalled()).isEqualTo(3);
       verifySleeper(sleeper, 2);
     }
   }
@@ -100,17 +100,17 @@ public class ResilientOperationTest {
       ResilientOperation.retry(callTester, backoff, RetryDeterminer.SOCKET_ERRORS,
           IOException.class, sleeper);
     } finally {
-      assertEquals(3, callTester.timesCalled());
+      assertThat(callTester.timesCalled()).isEqualTo(3);
       verifySleeper(sleeper, 2);
     }
   }
 
   public void verifySleeper(MockSleeper sleeper, int retry) {
-    assertEquals(sleeper.getCount(), retry);
+    assertThat(retry).isEqualTo(sleeper.getCount());
     if (retry == 0) {
       return;
     }
-    assertEquals(sleeper.getLastMillis(), (long) Math.pow(2, retry));
+    assertThat((long) Math.pow(2, retry)).isEqualTo(sleeper.getLastMillis());
   }
 
   @Test
@@ -128,7 +128,7 @@ public class ResilientOperationTest {
       ResilientOperation.retry(callTester, backoff, RetryDeterminer.DEFAULT, Exception.class,
           sleeper);
     } finally {
-      assertEquals(3, callTester.timesCalled());
+      assertThat(callTester.timesCalled()).isEqualTo(3);
       verifySleeper(sleeper, 2);
     }
   }
@@ -142,11 +142,12 @@ public class ResilientOperationTest {
     exceptions.add(new SocketTimeoutException("socket3"));
     CallableTester<Exception> callTester = new CallableTester<>(exceptions);
     BackOff backoff = new RetryBoundedBackOff(3, new BackOffTester());
-    assertEquals(
-        3,
-        ResilientOperation.retry(callTester, backoff, RetryDeterminer.DEFAULT, Exception.class,
-            sleeper).intValue());
-    assertEquals(4, callTester.timesCalled());
+    assertThat(
+            ResilientOperation.retry(
+                    callTester, backoff, RetryDeterminer.DEFAULT, Exception.class, sleeper)
+                .intValue())
+        .isEqualTo(3);
+    assertThat(callTester.timesCalled()).isEqualTo(4);
     verifySleeper(sleeper, 3);
   }
   

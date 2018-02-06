@@ -118,7 +118,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
       Credential credential = GoogleCloudStorageTestHelper.getCredential();
       String appName = GoogleCloudStorageIntegrationHelper.APP_NAME;
       String projectId = TestConfiguration.getInstance().getProjectId();
-      Assert.assertNotNull(projectId);
+      assertThat(projectId).isNotNull();
 
       GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
           GoogleCloudStorageFileSystemOptions.newBuilder();
@@ -235,7 +235,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
       throws IOException {
     URI path = gcsiHelper.getPath(bucketName, objectName);
     FileInfo fileInfo = gcsfs.getFileInfo(path);
-    Assert.assertEquals(path, fileInfo.getPath());
+    assertThat(fileInfo.getPath()).isEqualTo(path);
     validateFileInfoInternal(bucketName, objectName, expectedToExist, fileInfo);
   }
 
@@ -293,9 +293,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
     List<URI> actualPaths = new ArrayList<>();
     for (FileInfo fileInfo : fileInfos) {
-      Assert.assertEquals(
-          "File exists? : " + fileInfo.getPath(),
-          childPathsExpectedToExist, fileInfo.exists());
+      assertWithMessage("File exists? : " + fileInfo.getPath())
+          .that(fileInfo.exists())
+          .isEqualTo(childPathsExpectedToExist);
       if (fileInfo.exists()) {
         actualPaths.add(fileInfo.getPath());
         String[] uriComponents = pathToComponents.get(fileInfo.getPath());
@@ -514,7 +514,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   @Test @SuppressWarnings("EqualsIncompatibleType")
   public void testGoogleCloudStorageItemInfoNegativeEquality() {
     // Assert that .equals with an incorrect type returns false and does not throw.
-    Assert.assertTrue(!GoogleCloudStorageItemInfo.ROOT_INFO.equals("non-item-info"));
+    assertThat(!GoogleCloudStorageItemInfo.ROOT_INFO.equals("non-item-info")).isTrue();
   }
 
   /**
@@ -689,30 +689,24 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
         boolean result = gcsiHelper.delete(path, dd.recursive);
 
         if (result) {
-          Assert.assertEquals(
-              String.format(
-                  "Unexpected result for path: %s : %s :: expected %s, actually returned true.",
-                  path, dd.description, dd.expectedOutcome.toString()),
-              MethodOutcome.Type.RETURNS_TRUE,
-              dd.expectedOutcome.getType());
+          assertWithMessage(
+                  "Unexpected result for '%s' path: %s :: expected %s, actually returned true.",
+                  path, dd.description, dd.expectedOutcome)
+              .that(dd.expectedOutcome.getType())
+              .isEqualTo(MethodOutcome.Type.RETURNS_TRUE);
         } else {
-          Assert.assertEquals(
-              String.format(
-                  "Unexpected result for path: %s : %s :: expected %s, actually returned false.",
-                  path, dd.description, dd.expectedOutcome.toString()),
-              MethodOutcome.Type.RETURNS_FALSE,
-              dd.expectedOutcome.getType());
+          assertWithMessage(
+                  "Unexpected result for '%s' path: %s :: expected %s, actually returned false.",
+                  path, dd.description, dd.expectedOutcome)
+              .that(dd.expectedOutcome.getType())
+              .isEqualTo(MethodOutcome.Type.RETURNS_FALSE);
         }
       } catch (Exception e) {
-        Assert.assertEquals(
-            String.format(
-                "Unexpected result for path: %s : %s :: expected %s, actually threw exception %s.",
-                path,
-                dd.description,
-                dd.expectedOutcome.toString(),
-                Throwables.getStackTraceAsString(e)),
-            MethodOutcome.Type.THROWS_EXCEPTION,
-            dd.expectedOutcome.getType());
+        assertWithMessage(
+                "Unexpected result for '%s' path: %s :: expected %s, actually threw exception %s",
+                path, dd.description, dd.expectedOutcome, Throwables.getStackTraceAsString(e))
+            .that(dd.expectedOutcome.getType())
+            .isEqualTo(MethodOutcome.Type.THROWS_EXCEPTION);
       }
 
       // Verify that items that we expect to exist are present.
@@ -740,9 +734,12 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
           "Expected IOException for create() of object with same name as existing directory.");
     } catch (IOException ioe) {
 
-      Assert.assertTrue(String.format("unexpected exception: %s\n%s",
-              ioe.getMessage(), Throwables.getStackTraceAsString(ioe)),
-          ioe.getMessage().matches(".*(A directory with that name exists|Is a directory).*"));
+      assertWithMessage(
+              String.format(
+                  "unexpected exception: %s\n%s",
+                  ioe.getMessage(), Throwables.getStackTraceAsString(ioe)))
+          .that(ioe.getMessage().matches(".*(A directory with that name exists|Is a directory).*"))
+          .isTrue();
     }
     gcsiHelper.delete(bucketName, uniqueDirName);
   }
@@ -838,38 +835,37 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
       try {
         boolean result = gcsiHelper.mkdirs(path);
         if (result) {
-          Assert.assertEquals(
-              String.format(
-                  "Unexpected result for path: %s : expected %s, actually returned true.",
-                  path, expectedOutcome.toString()),
-              MethodOutcome.Type.RETURNS_TRUE,
-              expectedOutcome.getType());
+          assertWithMessage(
+                  String.format(
+                      "Unexpected result for path: %s : expected %s, actually returned true.",
+                      path, expectedOutcome.toString()))
+              .that(expectedOutcome.getType())
+              .isEqualTo(MethodOutcome.Type.RETURNS_TRUE);
 
           // Assert that all of the sub-dirs have been created.
           List<URI> subDirPaths = getSubDirPaths(path);
           for (URI subDirPath : subDirPaths) {
-            Assert.assertTrue(
-                String.format(
-                  "Sub-path %s of path %s not found or not a dir",
-                  subDirPath, path),
-                gcsiHelper.exists(subDirPath)
-                  && gcsiHelper.isDirectory(subDirPath));
+            assertWithMessage(
+                    String.format(
+                        "Sub-path %s of path %s not found or not a dir", subDirPath, path))
+                .that(gcsiHelper.exists(subDirPath) && gcsiHelper.isDirectory(subDirPath))
+                .isTrue();
           }
         } else {
-          Assert.assertEquals(
-              String.format(
-                  "Unexpected result for path: %s : expected %s, actually returned false.",
-                  path, expectedOutcome.toString()),
-              MethodOutcome.Type.RETURNS_FALSE,
-              expectedOutcome.getType());
+          assertWithMessage(
+                  String.format(
+                      "Unexpected result for path: %s : expected %s, actually returned false.",
+                      path, expectedOutcome.toString()))
+              .that(expectedOutcome.getType())
+              .isEqualTo(MethodOutcome.Type.RETURNS_FALSE);
         }
       } catch (Exception e) {
-        Assert.assertEquals(
-            String.format(
-                "Unexpected result for path: %s : expected %s, actually threw exception %s.",
-                path, expectedOutcome.toString(), Throwables.getStackTraceAsString(e)),
-            MethodOutcome.Type.THROWS_EXCEPTION,
-            expectedOutcome.getType());
+        assertWithMessage(
+                String.format(
+                    "Unexpected result for path: %s : expected %s, actually threw exception %s.",
+                    path, expectedOutcome.toString(), Throwables.getStackTraceAsString(e)))
+            .that(expectedOutcome.getType())
+            .isEqualTo(MethodOutcome.Type.THROWS_EXCEPTION);
       }
     }
   }
@@ -904,33 +900,33 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     List<FileInfo> fileInfos = gcsfs.getFileInfos(pathsToGet);
 
     // First one doesn't exist.
-    Assert.assertFalse(fileInfos.get(0).exists());
-    Assert.assertEquals(new StorageResourceId(bucketName, "nonexistent"),
-        fileInfos.get(0).getItemInfo().getResourceId());
+    assertThat(fileInfos.get(0).exists()).isFalse();
+    assertThat(fileInfos.get(0).getItemInfo().getResourceId())
+        .isEqualTo(new StorageResourceId(bucketName, "nonexistent"));
 
     // Second one exists and is a StorageObject.
-    Assert.assertTrue(fileInfos.get(1).exists());
-    Assert.assertTrue(fileInfos.get(1).getItemInfo().getResourceId().isStorageObject());
-    Assert.assertEquals(new StorageResourceId(bucketName, "f1"),
-        fileInfos.get(1).getItemInfo().getResourceId());
+    assertThat(fileInfos.get(1).exists()).isTrue();
+    assertThat(fileInfos.get(1).getItemInfo().getResourceId().isStorageObject()).isTrue();
+    assertThat(fileInfos.get(1).getItemInfo().getResourceId())
+        .isEqualTo(new StorageResourceId(bucketName, "f1"));
 
     // Third one exists and is root.
-    Assert.assertTrue(fileInfos.get(2).exists());
-    Assert.assertTrue(fileInfos.get(2).isGlobalRoot());
+    assertThat(fileInfos.get(2).exists()).isTrue();
+    assertThat(fileInfos.get(2).isGlobalRoot()).isTrue();
 
     // Fourth one exists, but had to be auto-converted into a directory path.
-    Assert.assertTrue(fileInfos.get(3).exists());
-    Assert.assertTrue(fileInfos.get(3).isDirectory());
-    Assert.assertTrue(fileInfos.get(3).getItemInfo().getResourceId().isStorageObject());
-    Assert.assertEquals(new StorageResourceId(bucketName, "d0/"),
-        fileInfos.get(3).getItemInfo().getResourceId());
+    assertThat(fileInfos.get(3).exists()).isTrue();
+    assertThat(fileInfos.get(3).isDirectory()).isTrue();
+    assertThat(fileInfos.get(3).getItemInfo().getResourceId().isStorageObject()).isTrue();
+    assertThat(fileInfos.get(3).getItemInfo().getResourceId())
+        .isEqualTo(new StorageResourceId(bucketName, "d0/"));
 
     // Fifth one is a bucket.
-    Assert.assertTrue(fileInfos.get(4).exists());
-    Assert.assertTrue(fileInfos.get(4).isDirectory());
-    Assert.assertTrue(fileInfos.get(4).getItemInfo().getResourceId().isBucket());
-    Assert.assertEquals(new StorageResourceId(bucketName),
-        fileInfos.get(4).getItemInfo().getResourceId());
+    assertThat(fileInfos.get(4).exists()).isTrue();
+    assertThat(fileInfos.get(4).isDirectory()).isTrue();
+    assertThat(fileInfos.get(4).getItemInfo().getResourceId().isBucket()).isTrue();
+    assertThat(fileInfos.get(4).getItemInfo().getResourceId())
+        .isEqualTo(new StorageResourceId(bucketName));
   }
 
   /**
@@ -1313,7 +1309,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
                   @Override
                   public void run() {
                     try {
-                      // Verify that items that we expect to rename are present before the operation.
+                      // Verify that items that we expect to rename are present before the operation
                       assertPathsExist(
                           rd.description, rd.srcBucketName, rd.objectsExpectedToBeDeleted, true);
                     } catch (Throwable t) {
@@ -1359,30 +1355,29 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
                         result = gcsiHelper.rename(src, dst);
 
                         if (result) {
-                          Assert.assertEquals(
-                              String.format(
-                                  "Unexpected result for: %s : %s :: expected %s, actually returned true.",
-                                  desc, rd.description, rd.expectedOutcome.toString()),
-                              MethodOutcome.Type.RETURNS_TRUE,
-                              rd.expectedOutcome.getType());
+                          assertWithMessage(
+                                  "Unexpected result for '%s': %s :: expected %s,"
+                                      + " actually returned true.",
+                                  desc, rd.description, rd.expectedOutcome)
+                              .that(rd.expectedOutcome.getType())
+                              .isEqualTo(MethodOutcome.Type.RETURNS_TRUE);
                         } else {
-                          Assert.assertEquals(
-                              String.format(
-                                  "Unexpected result for: %s : %s :: expected %s, actually returned false.",
-                                  desc, rd.description, rd.expectedOutcome.toString()),
-                              MethodOutcome.Type.RETURNS_FALSE,
-                              rd.expectedOutcome.getType());
+                          assertWithMessage(
+                                  "Unexpected result for '%s': %s :: expected %s,"
+                                      + " actually returned false.",
+                                  desc, rd.description, rd.expectedOutcome)
+                              .that(rd.expectedOutcome.getType())
+                              .isEqualTo(MethodOutcome.Type.RETURNS_FALSE);
                         }
                       } catch (Exception e) {
-                        Assert.assertEquals(
-                            String.format(
-                                "Unexpected result for: %s : %s :: expected %s, actually threw %s.",
+                        assertWithMessage(
+                                "Unexpected result for '%s': %s :: expected %s, actually threw %s.",
                                 desc,
                                 rd.description,
-                                rd.expectedOutcome.toString(),
-                                Throwables.getStackTraceAsString(e)),
-                            MethodOutcome.Type.THROWS_EXCEPTION,
-                            rd.expectedOutcome.getType());
+                                rd.expectedOutcome,
+                                Throwables.getStackTraceAsString(e))
+                            .that(rd.expectedOutcome.getType())
+                            .isEqualTo(MethodOutcome.Type.THROWS_EXCEPTION);
                       }
                     } catch (Throwable t) {
                       synchronized (errorList) {
@@ -1504,21 +1499,21 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
     // Check original file content.
     for (String originalName : fileNames) {
-      Assert.assertEquals(originalName, gcsiHelper.readTextFile(bucketName, originalName));
+      assertThat(gcsiHelper.readTextFile(bucketName, originalName)).isEqualTo(originalName);
     }
 
     // Do rename oldA -> newA in test-recursive.
     {
       URI src = gcsiHelper.getPath(bucketName, "test-recursive/oldA");
       URI dst = gcsiHelper.getPath(bucketName, "test-recursive/newA");
-      Assert.assertTrue(gcsiHelper.rename(src, dst));
+      assertThat(gcsiHelper.rename(src, dst)).isTrue();
     }
 
     // Do rename oldA -> newA in test-flat.
     {
       URI src = gcsiHelper.getPath(bucketName, "test-flat/oldA");
       URI dst = gcsiHelper.getPath(bucketName, "test-flat/newA");
-      Assert.assertTrue(gcsiHelper.rename(src, dst));
+      assertThat(gcsiHelper.rename(src, dst)).isTrue();
     }
 
     // Check resulting file existence.
@@ -1535,8 +1530,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     // Check resulting file content.
     for (String originalName : fileNames) {
       String resultingName = originalName.replaceFirst("oldA", "newA");
-      Assert.assertEquals(originalName,
-          gcsiHelper.readTextFile(bucketName, resultingName));
+      assertThat(gcsiHelper.readTextFile(bucketName, resultingName)).isEqualTo(originalName);
     }
 
     // Things which mustn't exist anymore.
@@ -1560,15 +1554,15 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     URI testFilePath = gcsiHelper.getPath(sharedBucketName1, "test-file-creation-attributes.txt");
     try (WritableByteChannel channel =
         gcsfs.create(testFilePath, createFileOptions)) {
-      Assert.assertNotNull(channel);
+      assertThat(channel).isNotNull();
     }
 
     FileInfo info = gcsfs.getFileInfo(testFilePath);
 
-    Assert.assertEquals(1, info.getAttributes().size());
-    Assert.assertTrue(info.getAttributes().containsKey("key1"));
-    Assert.assertArrayEquals(
-        "value1".getBytes(StandardCharsets.UTF_8), info.getAttributes().get("key1"));
+    assertThat(info.getAttributes()).hasSize(1);
+    assertThat(info.getAttributes()).containsKey("key1");
+    assertThat(info.getAttributes().get("key1"))
+        .isEqualTo("value1".getBytes(StandardCharsets.UTF_8));
   }
 
   @Test
@@ -1581,14 +1575,14 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
     FileInfo directoryInfo = gcsfs.getFileInfo(directory);
 
-    Assert.assertTrue(directoryInfo.isDirectory());
-    Assert.assertTrue(directoryInfo.exists());
+    assertThat(directoryInfo.isDirectory()).isTrue();
+    assertThat(directoryInfo.exists()).isTrue();
     Thread.sleep(100);
 
     URI childFile = directory.resolve("file.txt");
 
     try (WritableByteChannel channel = gcsfs.create(childFile)) {
-      Assert.assertNotNull(channel);
+      assertThat(channel).isNotNull();
     }
 
     FileInfo newDirectoryInfo = gcsfs.getFileInfo(directory);
@@ -1601,7 +1595,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     // client side. We'll only assert that A) creation time is different from modification time and
     // B) that they are within 10 minutes of each other.
     long timeDelta = directoryInfo.getCreationTime() - newDirectoryInfo.getModificationTime();
-    Assert.assertTrue(Math.abs(timeDelta) < TimeUnit.MINUTES.toMillis(10));
+    assertThat(Math.abs(timeDelta)).isLessThan(TimeUnit.MINUTES.toMillis(10));
   }
 
   @Test
@@ -1622,17 +1616,17 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     FileInfo includeAlwaysInfo = gcsfs.getFileInfo(directoryToIncludeAlways);
     FileInfo excludeAlwaysInfo = gcsfs.getFileInfo(directoryToExcludeAlways);
 
-    Assert.assertTrue(directoryInfo.isDirectory() && directoryToUpdateInfo.isDirectory());
-    Assert.assertTrue(directoryToUpdateInfo.isDirectory() && directoryToUpdateInfo.exists());
-    Assert.assertTrue(includeAlwaysInfo.isDirectory() && includeAlwaysInfo.exists());
-    Assert.assertTrue(excludeAlwaysInfo.isDirectory() && excludeAlwaysInfo.exists());
+    assertThat(directoryInfo.isDirectory() && directoryToUpdateInfo.isDirectory()).isTrue();
+    assertThat(directoryToUpdateInfo.isDirectory() && directoryToUpdateInfo.exists()).isTrue();
+    assertThat(includeAlwaysInfo.isDirectory() && includeAlwaysInfo.exists()).isTrue();
+    assertThat(excludeAlwaysInfo.isDirectory() && excludeAlwaysInfo.exists()).isTrue();
 
     Thread.sleep(100);
 
     for (URI parentDirectory : new URI[]{directoryToExcludeAlways, directoryToIncludeAlways}) {
       URI sourceFile = parentDirectory.resolve("child-file");
       try (WritableByteChannel channel = gcsfs.create(sourceFile)) {
-        Assert.assertNotNull(channel);
+        assertThat(channel).isNotNull();
       }
     }
 
@@ -1641,11 +1635,11 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
     long updatedTimeDelta =
         includeAlwaysInfo.getCreationTime() - updatedIncludeAlways.getModificationTime();
-    Assert.assertTrue(Math.abs(updatedTimeDelta) < TimeUnit.MINUTES.toMillis(10));
+    assertThat(Math.abs(updatedTimeDelta)).isLessThan(TimeUnit.MINUTES.toMillis(10));
 
     // Despite having a new file, modification time should not be updated.
-    Assert.assertEquals(
-        updatedExcludeAlwaysInfo.getModificationTime(), excludeAlwaysInfo.getModificationTime());
+    assertThat(excludeAlwaysInfo.getModificationTime())
+        .isEqualTo(updatedExcludeAlwaysInfo.getModificationTime());
   }
 
   @Test
@@ -1660,8 +1654,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     FileInfo directoryInfo = gcsfs.getFileInfo(directory);
     FileInfo directoryToUpdateInfo = gcsfs.getFileInfo(directoryToUpdate);
 
-    Assert.assertTrue(directoryInfo.isDirectory() && directoryToUpdateInfo.isDirectory());
-    Assert.assertTrue(directoryToUpdateInfo.isDirectory() && directoryToUpdateInfo.exists());
+    assertThat(directoryInfo.isDirectory() && directoryToUpdateInfo.isDirectory()).isTrue();
+    assertThat(directoryToUpdateInfo.isDirectory() && directoryToUpdateInfo.exists()).isTrue();
 
     Thread.sleep(100);
 
@@ -1680,14 +1674,13 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     // B) that they are within 10 minutes of each other.
     long timeDelta =
         directoryToUpdateInfo.getCreationTime() - newDirectoryToUpdateInfo.getModificationTime();
-    Assert.assertTrue(Math.abs(timeDelta) < TimeUnit.MINUTES.toMillis(10));
+    assertThat(Math.abs(timeDelta)).isLessThan(TimeUnit.MINUTES.toMillis(10));
 
     // The root (/test-modification-timestamps/mkdirs-dir/) should *not* have had its timestamp
     // updated, only subdirectory-1 should have:
     FileInfo nonUpdatedDirectoryInfo = gcsfs.getFileInfo(directory);
-    Assert.assertEquals(
-        directoryInfo.getModificationTime(),
-        nonUpdatedDirectoryInfo.getModificationTime());
+    assertThat(nonUpdatedDirectoryInfo.getModificationTime())
+        .isEqualTo(directoryInfo.getModificationTime());
   }
 
   @Test
@@ -1701,16 +1694,14 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     URI sourceFile = directory.resolve("child-file");
     // Create a test object in our source directory:
     try (WritableByteChannel channel = gcsfs.create(sourceFile)) {
-      Assert.assertNotNull(channel);
+      assertThat(channel).isNotNull();
     }
 
     FileInfo directoryInfo = gcsfs.getFileInfo(directory);
     FileInfo sourceFileInfo = gcsfs.getFileInfo(sourceFile);
 
-    Assert.assertTrue(directoryInfo.isDirectory());
-    Assert.assertTrue(
-        directoryInfo.exists()
-            && sourceFileInfo.exists());
+    assertThat(directoryInfo.isDirectory()).isTrue();
+    assertThat(directoryInfo.exists() && sourceFileInfo.exists()).isTrue();
 
     Thread.sleep(100);
 
@@ -1726,7 +1717,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     // B) that they are within 10 minutes of eachother.
     long timeDelta =
         directoryInfo.getCreationTime() - updatedDirectoryInfo.getModificationTime();
-    Assert.assertTrue(Math.abs(timeDelta) < TimeUnit.MINUTES.toMillis(10));
+    assertThat(Math.abs(timeDelta)).isLessThan(TimeUnit.MINUTES.toMillis(10));
   }
 
   @Test
@@ -1742,7 +1733,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     URI sourceFile = sourceDirectory.resolve("child-file");
     // Create a test object in our source directory:
     try (WritableByteChannel channel = gcsfs.create(sourceFile)) {
-      Assert.assertNotNull(channel);
+      assertThat(channel).isNotNull();
     }
 
     FileInfo directoryInfo = gcsfs.getFileInfo(directory);
@@ -1750,15 +1741,17 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     FileInfo destinationDirectoryInfo = gcsfs.getFileInfo(destinationDirectory);
     FileInfo sourceFileInfo = gcsfs.getFileInfo(sourceFile);
 
-    Assert.assertTrue(
-        directoryInfo.isDirectory()
-            && destinationDirectoryInfo.isDirectory()
-            && sourceDirectoryInfo.isDirectory());
-    Assert.assertTrue(
-        directoryInfo.exists()
-            && destinationDirectoryInfo.exists()
-            && sourceDirectoryInfo.exists()
-            && sourceFileInfo.exists());
+    assertThat(
+            directoryInfo.isDirectory()
+                && destinationDirectoryInfo.isDirectory()
+                && sourceDirectoryInfo.isDirectory())
+        .isTrue();
+    assertThat(
+            directoryInfo.exists()
+                && destinationDirectoryInfo.exists()
+                && sourceDirectoryInfo.exists()
+                && sourceFileInfo.exists())
+        .isTrue();
 
     Thread.sleep(100);
 
@@ -1766,10 +1759,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
     // The root (/test-modification-timestamps/rename-dir/) directory's time stamp shouldn't change:
     FileInfo updatedDirectoryInfo = gcsfs.getFileInfo(directory);
-    Assert.assertEquals(
-        "Modification time should NOT have changed",
-        directoryInfo.getModificationTime(),
-        updatedDirectoryInfo.getModificationTime());
+    assertWithMessage("Modification time should NOT have changed")
+        .that(updatedDirectoryInfo.getModificationTime())
+        .isEqualTo(directoryInfo.getModificationTime());
 
     // Timestamps for both source and destination *should* change:
     FileInfo updatedSourceDirectoryInfo = gcsfs.getFileInfo(sourceDirectory);
@@ -1779,7 +1771,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     // B) that they are within 10 minutes of eachother.
     long sourceTimeDelta =
         sourceDirectoryInfo.getCreationTime() - updatedSourceDirectoryInfo.getModificationTime();
-    Assert.assertTrue(Math.abs(sourceTimeDelta) < TimeUnit.MINUTES.toMillis(10));
+    assertThat(Math.abs(sourceTimeDelta)).isLessThan(TimeUnit.MINUTES.toMillis(10));
 
     // This is prone to flake. Creation time is set by GCS while modification time is set
     // client side. We'll only assert that A) creation time is different from modification time and
@@ -1787,7 +1779,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     long destinationTimeDelta =
         destinationDirectoryInfo.getCreationTime()
             - updatedDestinationDirectoryInfo.getModificationTime();
-    Assert.assertTrue(Math.abs(destinationTimeDelta) < TimeUnit.MINUTES.toMillis(10));
+    assertThat(Math.abs(destinationTimeDelta)).isLessThan(TimeUnit.MINUTES.toMillis(10));
   }
 
   @Test
@@ -1801,14 +1793,14 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
     // Create the source objects
     try (WritableByteChannel channel1 = gcsfs.create(object1)) {
-      Assert.assertNotNull(channel1);
+      assertThat(channel1).isNotNull();
       channel1.write(ByteBuffer.wrap("content1".getBytes(UTF_8)));
     }
     try (WritableByteChannel channel2 = gcsfs.create(object2)) {
-      Assert.assertNotNull(channel2);
+      assertThat(channel2).isNotNull();
       channel2.write(ByteBuffer.wrap("content2".getBytes(UTF_8)));
     }
-    Assert.assertTrue(gcsfs.exists(object1) && gcsfs.exists(object2));
+    assertThat(gcsfs.exists(object1) && gcsfs.exists(object2)).isTrue();
 
     gcsfs.compose(
         ImmutableList.of(object1, object2), destination, CreateFileOptions.DEFAULT_CONTENT_TYPE);
@@ -1819,7 +1811,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
             gcsiHelper.open(bucketName, "test-compose/destination")) {
       destinationChannel.read(actualOutput);
     }
-    Assert.assertArrayEquals(expectedOutput, actualOutput.array());
+    assertThat(actualOutput.array()).isEqualTo(expectedOutput);
   }
 
   /**
@@ -1867,7 +1859,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
                 ? "Path expected to exist but not found"
                 : "Path expected to not exist but found"),
             path.toString());
-        Assert.assertEquals(msg, expectedToExist, gcsiHelper.exists(path));
+        assertWithMessage(msg).that(gcsiHelper.exists(path)).isEqualTo(expectedToExist);
       }
     }
   }

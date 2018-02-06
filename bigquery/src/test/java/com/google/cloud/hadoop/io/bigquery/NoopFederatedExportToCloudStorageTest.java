@@ -14,7 +14,7 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.cloud.hadoop.io.bigquery.ExportFileFormat.AVRO;
-import static org.junit.Assert.assertEquals;
+import static com.google.common.truth.Truth.assertThat;
 
 import com.google.api.services.bigquery.model.ExternalDataConfiguration;
 import com.google.api.services.bigquery.model.Table;
@@ -64,7 +64,8 @@ public class NoopFederatedExportToCloudStorageTest {
   @Test
   public void testGetCommaSeparatedGcsPathList() throws Exception {
     String result = NoopFederatedExportToCloudStorage.getCommaSeparatedGcsPathList(table);
-    assertEquals("gs://foo-bucket/bar-dir/glob-*.avro,gs://foo-bucket/bar-dir/file.avro", result);
+    assertThat(result)
+        .isEqualTo("gs://foo-bucket/bar-dir/glob-*.avro,gs://foo-bucket/bar-dir/file.avro");
   }
 
   @Test
@@ -118,15 +119,14 @@ public class NoopFederatedExportToCloudStorageTest {
 
     List<InputSplit> splits = export.getSplits(null);
     // Verify configuration
-    assertEquals(
-        "gs://foo-bucket/bar-dir/glob-*.avro,gs://foo-bucket/bar-dir/file.avro",
-        conf.get("mapred.input.dir"));
+    assertThat(conf.get("mapred.input.dir"))
+        .isEqualTo("gs://foo-bucket/bar-dir/glob-*.avro,gs://foo-bucket/bar-dir/file.avro");
 
     UnshardedInputSplit split1 = (UnshardedInputSplit) splits.get(0);
-    assertEquals("gs://foo-bucket/bar-dir/glob-1.avro", split1.getPath().toString());
+    assertThat(split1.getPath().toString()).isEqualTo("gs://foo-bucket/bar-dir/glob-1.avro");
     UnshardedInputSplit split2 = (UnshardedInputSplit) splits.get(1);
-    assertEquals("gs://foo-bucket/bar-dir/glob-2.avro", split2.getPath().toString());
+    assertThat(split2.getPath().toString()).isEqualTo("gs://foo-bucket/bar-dir/glob-2.avro");
     UnshardedInputSplit split3 = (UnshardedInputSplit) splits.get(2);
-    assertEquals("gs://foo-bucket/bar-dir/file.avro", split3.getPath().toString());
+    assertThat(split3.getPath().toString()).isEqualTo("gs://foo-bucket/bar-dir/file.avro");
   }
 }

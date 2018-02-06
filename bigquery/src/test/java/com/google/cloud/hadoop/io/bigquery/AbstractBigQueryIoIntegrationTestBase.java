@@ -13,8 +13,7 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.bigquery.Bigquery;
@@ -292,7 +291,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
 
     // Run the "commit" methods in order of task, then job. These should copy from the temporary
     // table into the final destination.
-    assertTrue(committer.needsTaskCommit(mockTaskAttemptContext));
+    assertThat(committer.needsTaskCommit(mockTaskAttemptContext)).isTrue();
     committer.commitTask(mockTaskAttemptContext);
     committer.commitJob(mockJobContext);
 
@@ -308,7 +307,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
 
     // Invoke the export/read flow by calling getSplits and createRecordReader.
     List<InputSplit> splits = inputFormat.getSplits(mockJobContext);
-    assertEquals(2, splits.size());
+    assertThat(splits).hasSize(2);
     RecordReader<?, T> reader =
         inputFormat.createRecordReader(splits.get(0), mockTaskAttemptContext);
 
@@ -317,15 +316,15 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     Map<String, Integer> readValues = Maps.newHashMap();
     while (reader.nextKeyValue()) {
       Map<String, Object> record = readReacord(reader);
-      assertTrue(record.containsKey(COMPANY_NAME_FIELD_NAME));
-      assertTrue(record.containsKey(MARKET_CAP_FIELD_NAME));
+      assertThat(record).containsKey(COMPANY_NAME_FIELD_NAME);
+      assertThat(record).containsKey(MARKET_CAP_FIELD_NAME);
       readValues.put(
           (String) record.get(COMPANY_NAME_FIELD_NAME),
           (int) record.get(MARKET_CAP_FIELD_NAME));
     }
-    assertEquals(3, readValues.size());
-    assertEquals(409, readValues.get("Google").intValue());
-    assertEquals(314, readValues.get("Microsoft").intValue());
-    assertEquals(175, readValues.get("Facebook").intValue());
+    assertThat(readValues).hasSize(3);
+    assertThat(readValues.get("Google").intValue()).isEqualTo(409);
+    assertThat(readValues.get("Microsoft").intValue()).isEqualTo(314);
+    assertThat(readValues.get("Facebook").intValue()).isEqualTo(175);
   }
 }

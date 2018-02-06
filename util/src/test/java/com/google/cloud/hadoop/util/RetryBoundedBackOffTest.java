@@ -17,7 +17,7 @@
 
 package com.google.cloud.hadoop.util;
 
-import static org.junit.Assert.assertEquals;
+import static com.google.common.truth.Truth.assertThat;
 
 import com.google.api.client.util.BackOff;
 import java.io.IOException;
@@ -45,30 +45,30 @@ public class RetryBoundedBackOffTest {
   public void stopsAfterAttempts() throws Exception {
     BackOff backoff = new RetryBoundedBackOff(5, new BackOffTester());
     for (int i = 0; i < 5; i++) {
-      assertEquals(backoff.nextBackOffMillis(), i + 1);
+      assertThat(i + 1).isEqualTo(backoff.nextBackOffMillis());
     }
-    assertEquals(BackOff.STOP, backoff.nextBackOffMillis());
-    assertEquals(BackOff.STOP, backoff.nextBackOffMillis());
+    assertThat(backoff.nextBackOffMillis()).isEqualTo(BackOff.STOP);
+    assertThat(backoff.nextBackOffMillis()).isEqualTo(BackOff.STOP);
   }
 
   @Test
   public void resetsCorrectly() throws Exception {
     BackOff backoff = new RetryBoundedBackOff(5, new BackOffTester());
     for (int i = 0; i < 5; i++) {
-      assertEquals(backoff.nextBackOffMillis(), i + 1);
+      assertThat(i + 1).isEqualTo(backoff.nextBackOffMillis());
     }
-    assertEquals(BackOff.STOP, backoff.nextBackOffMillis());
-    assertEquals(BackOff.STOP, backoff.nextBackOffMillis());
+    assertThat(backoff.nextBackOffMillis()).isEqualTo(BackOff.STOP);
+    assertThat(backoff.nextBackOffMillis()).isEqualTo(BackOff.STOP);
     backoff.reset();
     for (int i = 0; i < 3; i++) {
-      assertEquals(backoff.nextBackOffMillis(), i + 1);
+      assertThat(i + 1).isEqualTo(backoff.nextBackOffMillis());
     }
     backoff.reset();
     for (int i = 0; i < 5; i++) {
-      assertEquals(backoff.nextBackOffMillis(), i + 1);
+      assertThat(i + 1).isEqualTo(backoff.nextBackOffMillis());
     }
-    assertEquals(BackOff.STOP, backoff.nextBackOffMillis());
-    assertEquals(BackOff.STOP, backoff.nextBackOffMillis());
+    assertThat(backoff.nextBackOffMillis()).isEqualTo(BackOff.STOP);
+    assertThat(backoff.nextBackOffMillis()).isEqualTo(BackOff.STOP);
   }
 
   /** A simple {@link BackOff} to help with testing. */

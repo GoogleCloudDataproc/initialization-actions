@@ -13,8 +13,8 @@
  */
 package com.google.cloud.hadoop.io.bigquery.mapred;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 
@@ -108,12 +108,12 @@ public class BigQueryMapredInputFormatTest {
     jobConf.set("mapreduce.job.dir", "/a/path/job_1_2");
     int numSplits = 0;  // not used by the code under test
     InputSplit[] splits = inputFormat.getSplits(jobConf, numSplits);
-    assertEquals(2, splits.length);
-    assertEquals(123, splits[0].getLength());
-    assertEquals(2, splits[0].getLocations().length);
-    assertEquals("a", splits[0].getLocations()[0]);
-    assertEquals(456, splits[1].getLength());
-    assertEquals(3, splits[1].getLocations().length);
+    assertThat(splits).hasLength(2);
+    assertThat(splits[0].getLength()).isEqualTo(123);
+    assertThat(splits[0].getLocations()).hasLength(2);
+    assertThat(splits[0].getLocations()[0]).isEqualTo("a");
+    assertThat(splits[1].getLength()).isEqualTo(456);
+    assertThat(splits[1].getLocations()).hasLength(3);
   }
 
   @Test public void testGetSplitsNull()
@@ -155,7 +155,7 @@ public class BigQueryMapredInputFormatTest {
     Reporter reporter = null; // not used by the code under test
     RecordReader<LongWritable, JsonObject> recordReader =
         inputFormat.getRecordReader(inputSplit, jobConf, reporter);
-    assertTrue(recordReader instanceof BigQueryMapredRecordReader);
+    assertThat(recordReader).isInstanceOf(BigQueryMapredRecordReader.class);
   }
 
   @Test public void testGetRecordReaderException()

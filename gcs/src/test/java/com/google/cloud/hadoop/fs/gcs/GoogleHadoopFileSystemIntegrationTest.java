@@ -14,6 +14,9 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
+
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
@@ -154,7 +157,7 @@ public class GoogleHadoopFileSystemIntegrationTest
         Assert.fail(msg);
       } catch (IllegalArgumentException e) {
         // Expected
-        Assert.assertTrue(e.getLocalizedMessage().startsWith("Wrong FS scheme:"));
+        assertThat(e.getLocalizedMessage()).startsWith("Wrong FS scheme:");
       }
     }
 
@@ -171,7 +174,7 @@ public class GoogleHadoopFileSystemIntegrationTest
         Assert.fail(msg);
       } catch (IllegalArgumentException e) {
         // Expected
-        Assert.assertTrue(e.getLocalizedMessage().startsWith("Wrong bucket:"));
+        assertThat(e.getLocalizedMessage()).startsWith("Wrong bucket:");
       }
     }
   }
@@ -192,11 +195,13 @@ public class GoogleHadoopFileSystemIntegrationTest
     String scheme = homeDir.getScheme();
     String bucket = homeDir.getAuthority();
     String path = homeDir.getPath();
-    Assert.assertEquals("Unexpected home directory scheme: " + scheme, "gs", scheme);
-    Assert.assertEquals(
-        "Unexpected home directory bucket: " + bucket,
-        ((GoogleHadoopFileSystem) ghfs).getRootBucketName(), bucket);
-    Assert.assertTrue("Unexpected home directory path: " + path, path.startsWith("/user/"));
+    assertWithMessage("Unexpected home directory scheme: " + scheme).that(scheme).isEqualTo("gs");
+    assertWithMessage("Unexpected home directory bucket: " + bucket)
+        .that(bucket)
+        .isEqualTo(((GoogleHadoopFileSystem) ghfs).getRootBucketName());
+    assertWithMessage("Unexpected home directory path: " + path)
+        .that(path.startsWith("/user/"))
+        .isTrue();
   }
 
   /**
@@ -209,7 +214,7 @@ public class GoogleHadoopFileSystemIntegrationTest
       ((GoogleHadoopFileSystem) ghfs).getHadoopPath(new URI("gs://foobucket/bar"));
       Assert.fail("Expected IllegalArgumentException");
     } catch (IllegalArgumentException expected) {
-      Assert.assertTrue(expected.getMessage().startsWith("Authority of URI"));
+      assertThat(expected).hasMessageThat().startsWith("Authority of URI");
     }
   }
 
@@ -228,8 +233,8 @@ public class GoogleHadoopFileSystemIntegrationTest
     GoogleCloudStorageFileSystemOptions options = optionsBuilder.build();
     GoogleCloudStorageOptions gcsOptions = options.getCloudStorageOptions();
 
-    Assert.assertTrue(gcsOptions.isAutoRepairImplicitDirectoriesEnabled());
-    Assert.assertFalse(gcsOptions.isInferImplicitDirectoriesEnabled());
+    assertThat(gcsOptions.isAutoRepairImplicitDirectoriesEnabled()).isTrue();
+    assertThat(gcsOptions.isInferImplicitDirectoriesEnabled()).isFalse();
 
     config.setBoolean(
         GoogleHadoopFileSystemBase.GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY,
@@ -246,12 +251,12 @@ public class GoogleHadoopFileSystemIntegrationTest
 
     optionsBuilder = fs.createOptionsBuilderFromConfig(config);
     options = optionsBuilder.build();
-    Assert.assertEquals(2222L, options.getCacheMaxEntryAgeMillis());
-    Assert.assertEquals(1111L, options.getCacheMaxInfoAgeMillis());
+    assertThat(options.getCacheMaxEntryAgeMillis()).isEqualTo(2222L);
+    assertThat(options.getCacheMaxInfoAgeMillis()).isEqualTo(1111L);
 
     gcsOptions = options.getCloudStorageOptions();
-    Assert.assertFalse(gcsOptions.isAutoRepairImplicitDirectoriesEnabled());
-    Assert.assertTrue(gcsOptions.isInferImplicitDirectoriesEnabled());
+    assertThat(gcsOptions.isAutoRepairImplicitDirectoriesEnabled()).isFalse();
+    assertThat(gcsOptions.isInferImplicitDirectoriesEnabled()).isTrue();
   }
 
   /**
@@ -279,22 +284,22 @@ public class GoogleHadoopFileSystemIntegrationTest
     fs.initialize(initUri, config);
 
     // Verify that config settings were set correctly.
-    Assert.assertEquals(bufferSize, fs.getBufferSizeOverride());
-    Assert.assertEquals(blockSize, fs.getDefaultBlockSize());
-    Assert.assertEquals(systemBucketName, fs.getSystemBucketName());
-    Assert.assertEquals(initUri, fs.initUri);
-    Assert.assertEquals(rootBucketName, fs.getRootBucketName());
+    assertThat(fs.getBufferSizeOverride()).isEqualTo(bufferSize);
+    assertThat(fs.getDefaultBlockSize()).isEqualTo(blockSize);
+    assertThat(fs.getSystemBucketName()).isEqualTo(systemBucketName);
+    assertThat(fs.initUri).isEqualTo(initUri);
+    assertThat(fs.getRootBucketName()).isEqualTo(rootBucketName);
 
     initUri = (new Path("gs:/foo")).toUri();
     fs = new GoogleHadoopFileSystem();
     fs.initialize(initUri, config);
 
     // Verify that config settings were set correctly.
-    Assert.assertEquals(bufferSize, fs.getBufferSizeOverride());
-    Assert.assertEquals(blockSize, fs.getDefaultBlockSize());
-    Assert.assertEquals(systemBucketName, fs.getSystemBucketName());
-    Assert.assertEquals(initUri, fs.initUri);
-    Assert.assertEquals(systemBucketName, fs.getRootBucketName());
+    assertThat(fs.getBufferSizeOverride()).isEqualTo(bufferSize);
+    assertThat(fs.getDefaultBlockSize()).isEqualTo(blockSize);
+    assertThat(fs.getSystemBucketName()).isEqualTo(systemBucketName);
+    assertThat(fs.initUri).isEqualTo(initUri);
+    assertThat(fs.getRootBucketName()).isEqualTo(systemBucketName);
   }
 
   @Test
@@ -374,12 +379,12 @@ public class GoogleHadoopFileSystemIntegrationTest
       ghfs.initialize(myGhfs.initUri, config);
       Path newWorkingDir = ghfs.getWorkingDirectory();
       if (expectedWorkingDir != null) {
-        Assert.assertEquals(expectedWorkingDir, newWorkingDir);
+        assertThat(newWorkingDir).isEqualTo(expectedWorkingDir);
       } else {
-        Assert.assertEquals(currentWorkingDir, newWorkingDir);
+        assertThat(newWorkingDir).isEqualTo(currentWorkingDir);
       }
     }
-    Assert.assertTrue(ghfs.getHomeDirectory().toString().startsWith("gs://" + rootBucketName));
+    assertThat(ghfs.getHomeDirectory().toString()).startsWith("gs://" + rootBucketName);
   }
 
   /**
@@ -409,8 +414,8 @@ public class GoogleHadoopFileSystemIntegrationTest
     fs.configureBuckets(systemBucketName, true);
 
     // Verify that config settings were set correctly.
-    Assert.assertEquals(systemBucketName, fs.getSystemBucketName());
-    Assert.assertEquals(initUri, fs.initUri);
+    assertThat(fs.getSystemBucketName()).isEqualTo(systemBucketName);
+    assertThat(fs.initUri).isEqualTo(initUri);
 
     initUri = (new Path("gs:/foo")).toUri();
     fs = new GoogleHadoopFileSystem(fakeGcsFs);
@@ -418,9 +423,9 @@ public class GoogleHadoopFileSystemIntegrationTest
     fs.configureBuckets(systemBucketName, true);
 
     // Verify that config settings were set correctly.
-    Assert.assertEquals(systemBucketName, fs.getSystemBucketName());
-    Assert.assertEquals(initUri, fs.initUri);
-    Assert.assertEquals(systemBucketName, fs.getRootBucketName());
+    assertThat(fs.getSystemBucketName()).isEqualTo(systemBucketName);
+    assertThat(fs.initUri).isEqualTo(initUri);
+    assertThat(fs.getRootBucketName()).isEqualTo(systemBucketName);
   }
 
   @Test
@@ -476,12 +481,12 @@ public class GoogleHadoopFileSystemIntegrationTest
     FileSystem fs1 = FileSystem.get(fsUri, conf);
     FileSystem fs2 = FileSystem.get(fsUri, conf);
 
-    Assert.assertSame(fs1, fs2);
+    assertThat(fs2).isSameAs(fs1);
 
     fs1.close();
 
     FileSystem fs3 = FileSystem.get(fsUri, conf);
-    Assert.assertNotSame(fs1, fs3);
+    assertThat(fs3).isNotSameAs(fs1);
 
     fs3.close();
   }
@@ -495,7 +500,7 @@ public class GoogleHadoopFileSystemIntegrationTest
     FileSystem fs1 = FileSystem.get(fsUri, conf);
     FileSystem fs2 = FileSystem.get(fsUri, conf);
 
-    junit.framework.Assert.assertSame(fs1, fs2);
+    assertThat(fs2).isSameAs(fs1);
 
     fs1.close();
 
@@ -528,43 +533,43 @@ public class GoogleHadoopFileSystemIntegrationTest
     createFile(new Path("/directory1/subdirectory2/file2"), data);
 
     FileStatus[] rootDirectories = ghfs.globStatus(new Path("/d*"));
-    Assert.assertEquals(1, rootDirectories.length);
-    Assert.assertEquals("directory1", rootDirectories[0].getPath().getName());
+    assertThat(rootDirectories).hasLength(1);
+    assertThat(rootDirectories[0].getPath().getName()).isEqualTo("directory1");
 
     FileStatus[] subDirectories = ghfs.globStatus(new Path("/directory1/s*"));
-    Assert.assertEquals(2, subDirectories.length);
+    assertThat(subDirectories).hasLength(2);
 
     FileStatus[] subDirectory1Files = ghfs.globStatus(new Path("/directory1/subdirectory1/*"));
-    Assert.assertEquals(2, subDirectory1Files.length);
-    Assert.assertEquals("file1", subDirectory1Files[0].getPath().getName());
-    Assert.assertEquals("file2", subDirectory1Files[1].getPath().getName());
+    assertThat(subDirectory1Files).hasLength(2);
+    assertThat(subDirectory1Files[0].getPath().getName()).isEqualTo("file1");
+    assertThat(subDirectory1Files[1].getPath().getName()).isEqualTo("file2");
 
     FileStatus[] subDirectory2Files = ghfs.globStatus(new Path("/directory1/subdirectory2/f*"));
-    Assert.assertEquals(2, subDirectory2Files.length);
-    Assert.assertEquals("file1", subDirectory2Files[0].getPath().getName());
-    Assert.assertEquals("file2", subDirectory2Files[1].getPath().getName());
+    assertThat(subDirectory2Files).hasLength(2);
+    assertThat(subDirectory2Files[0].getPath().getName()).isEqualTo("file1");
+    assertThat(subDirectory2Files[1].getPath().getName()).isEqualTo("file2");
 
     FileStatus[] subDirectory2Files2 = ghfs.globStatus(new Path("/directory1/subdirectory2/file?"));
-    Assert.assertEquals(2, subDirectory2Files2.length);
-    Assert.assertEquals("file1", subDirectory2Files2[0].getPath().getName());
-    Assert.assertEquals("file2", subDirectory2Files2[1].getPath().getName());
+    assertThat(subDirectory2Files2).hasLength(2);
+    assertThat(subDirectory2Files2[0].getPath().getName()).isEqualTo("file1");
+    assertThat(subDirectory2Files2[1].getPath().getName()).isEqualTo("file2");
 
     FileStatus[] subDirectory2Files3 =
         ghfs.globStatus(new Path("/directory1/subdirectory2/file[0-9]"));
-    Assert.assertEquals(2, subDirectory2Files3.length);
-    Assert.assertEquals("file1", subDirectory2Files3[0].getPath().getName());
-    Assert.assertEquals("file2", subDirectory2Files3[1].getPath().getName());
+    assertThat(subDirectory2Files3).hasLength(2);
+    assertThat(subDirectory2Files3[0].getPath().getName()).isEqualTo("file1");
+    assertThat(subDirectory2Files3[1].getPath().getName()).isEqualTo("file2");
 
     FileStatus[] subDirectory2Files4 =
         ghfs.globStatus(new Path("/directory1/subdirectory2/file[^1]"));
-    Assert.assertEquals(1, subDirectory2Files4.length);
-    Assert.assertEquals("file2", subDirectory2Files4[0].getPath().getName());
+    assertThat(subDirectory2Files4).hasLength(1);
+    assertThat(subDirectory2Files4[0].getPath().getName()).isEqualTo("file2");
 
     FileStatus[] subDirectory2Files5 =
         ghfs.globStatus(new Path("/directory1/subdirectory2/file{1,2}"));
-    Assert.assertEquals(2, subDirectory2Files5.length);
-    Assert.assertEquals("file1", subDirectory2Files5[0].getPath().getName());
-    Assert.assertEquals("file2", subDirectory2Files5[1].getPath().getName());
+    assertThat(subDirectory2Files5).hasLength(2);
+    assertThat(subDirectory2Files5[0].getPath().getName()).isEqualTo("file1");
+    assertThat(subDirectory2Files5[1].getPath().getName()).isEqualTo("file2");
 
     ghfs.delete(testRoot, true);
   }
@@ -584,9 +589,9 @@ public class GoogleHadoopFileSystemIntegrationTest
     ghfsHelper.writeFile(filePath, "foo", 1, true);
 
     FileStatus status = myGhfs.getFileStatus(filePath);
-    Assert.assertEquals(new FsPermission(testPermissions), status.getPermission());
+    assertThat(status.getPermission()).isEqualTo(new FsPermission(testPermissions));
 
     // Cleanup.
-    Assert.assertTrue(ghfs.delete(filePath, true));
+    assertThat(ghfs.delete(filePath, true)).isTrue();
   }
 }

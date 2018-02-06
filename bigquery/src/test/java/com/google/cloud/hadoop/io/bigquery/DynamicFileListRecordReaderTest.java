@@ -13,10 +13,7 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
@@ -160,7 +157,7 @@ public class DynamicFileListRecordReaderTest {
       recordReader.nextKeyValue();
       fail("nextKeyValue should have thrown");
     } catch (RuntimeException re) {
-      assertTrue(re.getMessage().contains("test-sleep-id-12345"));
+      assertThat(re).hasMessageThat().contains("test-sleep-id-12345");
     }
   }
 
@@ -184,17 +181,17 @@ public class DynamicFileListRecordReaderTest {
   public void testInitializeCreatesShardDirectory()
       throws IOException {
     fileSystem.delete(shardPath.getParent(), true);
-    assertFalse(fileSystem.exists(shardPath.getParent()));
+    assertThat(fileSystem.exists(shardPath.getParent())).isFalse();
     resetRecordReader();
-    assertTrue(fileSystem.exists(shardPath.getParent()));
+    assertThat(fileSystem.exists(shardPath.getParent())).isTrue();
   }
 
   @Test
   public void testGetCurrentBeforeFirstRecord()
       throws IOException {
-    assertNull(recordReader.getCurrentKey());
-    assertNull(recordReader.getCurrentValue());
-    assertEquals(0.0f, recordReader.getProgress(), 0.0f);
+    assertThat(recordReader.getCurrentKey()).isNull();
+    assertThat(recordReader.getCurrentValue()).isNull();
+    assertThat(recordReader.getProgress()).isWithin(0.0f).of(0.0f);
   }
 
   @Test
@@ -203,7 +200,7 @@ public class DynamicFileListRecordReaderTest {
     inputSplit = new ShardedInputSplit(shardPath, 0);
     recordReader = createReader();
     recordReader.initialize(inputSplit, mockTaskContext);
-    assertEquals(0.0f, recordReader.getProgress(), 0.0f);
+    assertThat(recordReader.getProgress()).isWithin(0.0f).of(0.0f);
   }
 
   @Test
@@ -211,9 +208,9 @@ public class DynamicFileListRecordReaderTest {
       throws IOException, InterruptedException {
     checkNextKeyValueWouldBlock();
     fileSystem.createNewFile(new Path(shardPath.getParent(), "data-000.json"));
-    assertFalse(recordReader.nextKeyValue());
-    assertNull(recordReader.getCurrentKey());
-    assertNull(recordReader.getCurrentValue());
+    assertThat(recordReader.nextKeyValue()).isFalse();
+    assertThat(recordReader.getCurrentKey()).isNull();
+    assertThat(recordReader.getCurrentValue()).isNull();
   }
 
   @Test
@@ -236,11 +233,11 @@ public class DynamicFileListRecordReaderTest {
     checkNextKeyValueWouldBlock();
 
     writeFile(new Path(shardPath.getParent(), "data-000.json"), ImmutableList.of(RECORD_0));
-    assertTrue(recordReader.nextKeyValue());
-    assertEquals(new LongWritable(0), recordReader.getCurrentKey());
-    assertEquals(jsonParser.parse(RECORD_0), recordReader.getCurrentValue());
+    assertThat(recordReader.nextKeyValue()).isTrue();
+    assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(0));
+    assertThat(recordReader.getCurrentValue()).isEqualTo(jsonParser.parse(RECORD_0));
 
-    assertFalse(recordReader.nextKeyValue());
+    assertThat(recordReader.nextKeyValue()).isFalse();
   }
 
   @Test
@@ -248,16 +245,16 @@ public class DynamicFileListRecordReaderTest {
       throws IOException, InterruptedException {
     writeFile(new Path(shardPath.getParent(), "data-000.json"), ImmutableList.of(RECORD_0));
     writeFile(new Path(shardPath.getParent(), "data-002.json"), ImmutableList.of(RECORD_1));
-    assertTrue(recordReader.nextKeyValue());
-    assertEquals(new LongWritable(0), recordReader.getCurrentKey());
-    assertEquals(jsonParser.parse(RECORD_0), recordReader.getCurrentValue());
+    assertThat(recordReader.nextKeyValue()).isTrue();
+    assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(0));
+    assertThat(recordReader.getCurrentValue()).isEqualTo(jsonParser.parse(RECORD_0));
 
     fileSystem.createNewFile(new Path(shardPath.getParent(), "data-001.json"));
 
     // We will successfully read the remaining available file before discovering the bad one.
-    assertTrue(recordReader.nextKeyValue());
-    assertEquals(new LongWritable(0), recordReader.getCurrentKey());
-    assertEquals(jsonParser.parse(RECORD_1), recordReader.getCurrentValue());
+    assertThat(recordReader.nextKeyValue()).isTrue();
+    assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(0));
+    assertThat(recordReader.getCurrentValue()).isEqualTo(jsonParser.parse(RECORD_1));
 
     expectedException.expect(IllegalStateException.class);
     recordReader.nextKeyValue();
@@ -268,9 +265,9 @@ public class DynamicFileListRecordReaderTest {
       throws IOException, InterruptedException {
     writeFile(new Path(shardPath.getParent(), "data-000.json"), ImmutableList.of(RECORD_0));
     fileSystem.createNewFile(new Path(shardPath.getParent(), "data-002.json"));
-    assertTrue(recordReader.nextKeyValue());
-    assertEquals(new LongWritable(0), recordReader.getCurrentKey());
-    assertEquals(jsonParser.parse(RECORD_0), recordReader.getCurrentValue());
+    assertThat(recordReader.nextKeyValue()).isTrue();
+    assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(0));
+    assertThat(recordReader.getCurrentValue()).isEqualTo(jsonParser.parse(RECORD_0));
 
     writeFile(new Path(shardPath.getParent(), "data-003.json"), ImmutableList.of(RECORD_1));
 
@@ -283,21 +280,20 @@ public class DynamicFileListRecordReaderTest {
       throws IOException, InterruptedException {
     writeFile(new Path(shardPath.getParent(), "data-000.json"),
               ImmutableList.of(RECORD_0, RECORD_1, RECORD_2));
-    assertTrue(recordReader.nextKeyValue());
-    assertEquals(new LongWritable(0), recordReader.getCurrentKey());
-    assertEquals(jsonParser.parse(RECORD_0), recordReader.getCurrentValue());
-    assertTrue(recordReader.nextKeyValue());
-    assertEquals(new LongWritable(RECORD_0.length() + 1), recordReader.getCurrentKey());
-    assertEquals(jsonParser.parse(RECORD_1), recordReader.getCurrentValue());
-    assertTrue(recordReader.nextKeyValue());
-    assertEquals(
-        new LongWritable(RECORD_0.length() + RECORD_1.length() + 2),
-        recordReader.getCurrentKey());
-    assertEquals(jsonParser.parse(RECORD_2), recordReader.getCurrentValue());
+    assertThat(recordReader.nextKeyValue()).isTrue();
+    assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(0));
+    assertThat(recordReader.getCurrentValue()).isEqualTo(jsonParser.parse(RECORD_0));
+    assertThat(recordReader.nextKeyValue()).isTrue();
+    assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(RECORD_0.length() + 1));
+    assertThat(recordReader.getCurrentValue()).isEqualTo(jsonParser.parse(RECORD_1));
+    assertThat(recordReader.nextKeyValue()).isTrue();
+    assertThat(recordReader.getCurrentKey())
+        .isEqualTo(new LongWritable(RECORD_0.length() + RECORD_1.length() + 2));
+    assertThat(recordReader.getCurrentValue()).isEqualTo(jsonParser.parse(RECORD_2));
 
     checkNextKeyValueWouldBlock();
     fileSystem.createNewFile(new Path(shardPath.getParent(), "data-001.json"));
-    assertFalse(recordReader.nextKeyValue());
+    assertThat(recordReader.nextKeyValue()).isFalse();
   }
 
   @Test
@@ -308,16 +304,16 @@ public class DynamicFileListRecordReaderTest {
               ImmutableList.of(RECORD_1, RECORD_2));
     fileSystem.createNewFile(new Path(shardPath.getParent(), "data-002.json"));
 
-    assertTrue(recordReader.nextKeyValue());
-    assertEquals(new LongWritable(0), recordReader.getCurrentKey());
-    assertEquals(jsonParser.parse(RECORD_0), recordReader.getCurrentValue());
-    assertTrue(recordReader.nextKeyValue());
-    assertEquals(new LongWritable(0), recordReader.getCurrentKey());
-    assertEquals(jsonParser.parse(RECORD_1), recordReader.getCurrentValue());
-    assertTrue(recordReader.nextKeyValue());
-    assertEquals(new LongWritable(RECORD_1.length() + 1), recordReader.getCurrentKey());
-    assertEquals(jsonParser.parse(RECORD_2), recordReader.getCurrentValue());
-    assertFalse(recordReader.nextKeyValue());
+    assertThat(recordReader.nextKeyValue()).isTrue();
+    assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(0));
+    assertThat(recordReader.getCurrentValue()).isEqualTo(jsonParser.parse(RECORD_0));
+    assertThat(recordReader.nextKeyValue()).isTrue();
+    assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(0));
+    assertThat(recordReader.getCurrentValue()).isEqualTo(jsonParser.parse(RECORD_1));
+    assertThat(recordReader.nextKeyValue()).isTrue();
+    assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(RECORD_1.length() + 1));
+    assertThat(recordReader.getCurrentValue()).isEqualTo(jsonParser.parse(RECORD_2));
+    assertThat(recordReader.nextKeyValue()).isFalse();
   }
 
   @Test
@@ -326,16 +322,16 @@ public class DynamicFileListRecordReaderTest {
     writeFile(new Path(shardPath.getParent(), "data-000.json"), ImmutableList.of(RECORD_0));
     writeFile(new Path(shardPath.getParent(), "data-001.json"), ImmutableList.of(RECORD_1));
 
-    assertTrue(recordReader.nextKeyValue());
-    assertEquals(new LongWritable(0), recordReader.getCurrentKey());
-    assertEquals(jsonParser.parse(RECORD_0), recordReader.getCurrentValue());
-    assertTrue(recordReader.nextKeyValue());
-    assertEquals(new LongWritable(0), recordReader.getCurrentKey());
-    assertEquals(jsonParser.parse(RECORD_1), recordReader.getCurrentValue());
+    assertThat(recordReader.nextKeyValue()).isTrue();
+    assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(0));
+    assertThat(recordReader.getCurrentValue()).isEqualTo(jsonParser.parse(RECORD_0));
+    assertThat(recordReader.nextKeyValue()).isTrue();
+    assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(0));
+    assertThat(recordReader.getCurrentValue()).isEqualTo(jsonParser.parse(RECORD_1));
 
     checkNextKeyValueWouldBlock();
     fileSystem.createNewFile(new Path(shardPath.getParent(), "data-002.json"));
-    assertFalse(recordReader.nextKeyValue());
+    assertThat(recordReader.nextKeyValue()).isFalse();
   }
 
   @Test
@@ -344,9 +340,9 @@ public class DynamicFileListRecordReaderTest {
     writeFile(new Path(shardPath.getParent(), "data-000.json"),
               ImmutableList.of(RECORD_0, RECORD_1));
 
-    assertTrue(recordReader.nextKeyValue());
-    assertEquals(new LongWritable(0), recordReader.getCurrentKey());
-    assertEquals(jsonParser.parse(RECORD_0), recordReader.getCurrentValue());
+    assertThat(recordReader.nextKeyValue()).isTrue();
+    assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(0));
+    assertThat(recordReader.getCurrentValue()).isEqualTo(jsonParser.parse(RECORD_0));
 
     recordReader.close();
   }
@@ -355,24 +351,24 @@ public class DynamicFileListRecordReaderTest {
   public void testThreeBatchesEndFileInMiddleBatch()
       throws IOException, InterruptedException {
     writeFile(new Path(shardPath.getParent(), "data-000.json"), ImmutableList.of(RECORD_0));
-    assertTrue(recordReader.nextKeyValue());
-    assertEquals(new LongWritable(0), recordReader.getCurrentKey());
-    assertEquals(jsonParser.parse(RECORD_0), recordReader.getCurrentValue());
+    assertThat(recordReader.nextKeyValue()).isTrue();
+    assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(0));
+    assertThat(recordReader.getCurrentValue()).isEqualTo(jsonParser.parse(RECORD_0));
     checkNextKeyValueWouldBlock();
 
     writeFile(new Path(shardPath.getParent(), "data-001.json"), ImmutableList.of(RECORD_1));
     fileSystem.createNewFile(new Path(shardPath.getParent(), "data-003.json"));
-    assertTrue(recordReader.nextKeyValue());
-    assertEquals(new LongWritable(0), recordReader.getCurrentKey());
-    assertEquals(jsonParser.parse(RECORD_1), recordReader.getCurrentValue());
+    assertThat(recordReader.nextKeyValue()).isTrue();
+    assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(0));
+    assertThat(recordReader.getCurrentValue()).isEqualTo(jsonParser.parse(RECORD_1));
     checkNextKeyValueWouldBlock();
     checkNextKeyValueWouldBlock();
 
     writeFile(new Path(shardPath.getParent(), "data-002.json"), ImmutableList.of(RECORD_2));
-    assertTrue(recordReader.nextKeyValue());
-    assertEquals(new LongWritable(0), recordReader.getCurrentKey());
-    assertEquals(jsonParser.parse(RECORD_2), recordReader.getCurrentValue());
-    assertFalse(recordReader.nextKeyValue());
+    assertThat(recordReader.nextKeyValue()).isTrue();
+    assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(0));
+    assertThat(recordReader.getCurrentValue()).isEqualTo(jsonParser.parse(RECORD_2));
+    assertThat(recordReader.nextKeyValue()).isFalse();
   }
 
   @Test

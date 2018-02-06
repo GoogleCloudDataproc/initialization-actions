@@ -13,8 +13,8 @@
  */
 package com.google.cloud.hadoop.io.bigquery.mapred;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.hadoop.io.bigquery.UnshardedInputSplit;
@@ -70,12 +70,12 @@ public class BigQueryMapredInputSplitTest {
 
     org.apache.hadoop.mapreduce.InputSplit newMapreduceInputSplit =
         newInputSplit.getMapreduceInputSplit();
-    assertEquals(mapreduceInputSplit.getClass().getName(),
-        newMapreduceInputSplit.getClass().getName());
-    assertTrue(newMapreduceInputSplit instanceof UnshardedInputSplit);
+    assertThat(newMapreduceInputSplit.getClass().getName())
+        .isEqualTo(mapreduceInputSplit.getClass().getName());
+    assertThat(newMapreduceInputSplit).isInstanceOf(UnshardedInputSplit.class);
     UnshardedInputSplit bqInputSplit =
         (UnshardedInputSplit) newMapreduceInputSplit;
-    assertEquals(path, bqInputSplit.getPath());
+    assertThat(bqInputSplit.getPath()).isEqualTo(path);
   }
 
   @Test public void testGetLength()
@@ -85,7 +85,7 @@ public class BigQueryMapredInputSplitTest {
 
     when(mockInputSplit.getLength()).thenReturn(135L);
     long length = inputSplit.getLength();
-    assertEquals(135L, length);
+    assertThat(length).isEqualTo(135L);
   }
 
   @Test public void testGetLocations()

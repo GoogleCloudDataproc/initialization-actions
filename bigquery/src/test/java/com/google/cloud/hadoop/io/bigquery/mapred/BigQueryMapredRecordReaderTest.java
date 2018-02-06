@@ -13,10 +13,7 @@
  */
 package com.google.cloud.hadoop.io.bigquery.mapred;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -68,10 +65,10 @@ public class BigQueryMapredRecordReaderTest {
         new BigQueryMapredRecordReader(mockRecordReader, 0);
 
     LongWritable w = recordReader.createKey();
-    assertNotNull(w);
+    assertThat(w).isNotNull();
 
     JsonObject json = recordReader.createValue();
-    assertNotNull(json);
+    assertThat(json).isNotNull();
   }
 
   @Test public void testGetPos() throws IOException, InterruptedException {
@@ -80,7 +77,7 @@ public class BigQueryMapredRecordReaderTest {
 
     when(mockRecordReader.getProgress()).thenReturn(256.0F);
     float f = recordReader.getPos();
-    assertEquals(256.0F, f, 0.000001F);
+    assertThat(f).isWithin(0.000001F).of(256.0F);
 
     verify(mockRecordReader).getProgress();
   }
@@ -112,9 +109,9 @@ public class BigQueryMapredRecordReaderTest {
         .thenReturn(jsonObject);
     LongWritable key = new LongWritable(0);
     JsonObject value = new JsonObject();
-    assertTrue(recordReader.next(key, value));
-    assertEquals(new LongWritable(123), key);
-    assertEquals(jsonObject, value);
+    assertThat(recordReader.next(key, value)).isTrue();
+    assertThat(key).isEqualTo(new LongWritable(123));
+    assertThat(value).isEqualTo(jsonObject);
 
     verify(mockRecordReader).nextKeyValue();
     verify(mockRecordReader).getCurrentKey();
@@ -136,7 +133,7 @@ public class BigQueryMapredRecordReaderTest {
         .thenReturn(false);
     LongWritable key = new LongWritable(0);
     JsonObject value = new JsonObject();
-    assertFalse(recordReader.next(key, value));
+    assertThat(recordReader.next(key, value)).isFalse();
 
     verify(mockRecordReader).nextKeyValue();
   }
@@ -151,14 +148,14 @@ public class BigQueryMapredRecordReaderTest {
     destination.addProperty("key1", "different value");
     destination.addProperty("key4", "a value");
 
-    assertTrue(destination.has("key4"));
-    assertFalse(source.equals(destination));
+    assertThat(destination.has("key4")).isTrue();
+    assertThat(source.equals(destination)).isFalse();
 
     BigQueryMapredRecordReader recordReader =
         new BigQueryMapredRecordReader(null, 0);
     recordReader.copyJsonObject(source, destination);
 
-    assertFalse(destination.has("key4"));
-    assertTrue(source.equals(destination));
+    assertThat(destination.has("key4")).isFalse();
+    assertThat(source.equals(destination)).isTrue();
   }
 }

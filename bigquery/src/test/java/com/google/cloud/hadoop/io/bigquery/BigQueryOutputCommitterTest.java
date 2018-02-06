@@ -13,7 +13,7 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
-import static org.junit.Assert.assertEquals;
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
@@ -40,7 +40,6 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.TaskID;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -429,8 +428,9 @@ public class BigQueryOutputCommitterTest {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     verify(mockBigQueryHelper).insertJobOrFetchDuplicate(eq(JOB_PROJECT_ID), jobCaptor.capture());
     Job capturedJob = jobCaptor.getValue();
-    assertEquals(tempTableRef, capturedJob.getConfiguration().getCopy().getSourceTable());
-    assertEquals(finalTableRef, capturedJob.getConfiguration().getCopy().getDestinationTable());
+    assertThat(capturedJob.getConfiguration().getCopy().getSourceTable()).isEqualTo(tempTableRef);
+    assertThat(capturedJob.getConfiguration().getCopy().getDestinationTable())
+        .isEqualTo(finalTableRef);
 
     verify(mockBigqueryJobs).get(JOB_PROJECT_ID, jobReference.getJobId());
     verify(mockBigqueryJobsGet).execute();
@@ -498,7 +498,7 @@ public class BigQueryOutputCommitterTest {
       committerInstance.commitTask(mockTaskAttemptContext);
       fail("Expected IOException on commitTask, got no exception");
     } catch (IOException ioe) {
-      assertEquals(fakeUnhandledException, ioe);
+      assertThat(ioe).isEqualTo(fakeUnhandledException);
     }
 
     verify(mockBigQueryHelper).insertJobOrFetchDuplicate(eq(JOB_PROJECT_ID), any(Job.class));
@@ -534,8 +534,8 @@ public class BigQueryOutputCommitterTest {
         .thenReturn(true);
 
     // Run method and verify calls.
-    Assert.assertEquals(false, committerInstance.needsTaskCommit(mockTaskAttemptContext));
-    Assert.assertEquals(true, committerInstance.needsTaskCommit(mockTaskAttemptContext));
+    assertThat(committerInstance.needsTaskCommit(mockTaskAttemptContext)).isFalse();
+    assertThat(committerInstance.needsTaskCommit(mockTaskAttemptContext)).isTrue();
 
     verify(mockBigQueryHelper, times(2)).tableExists(eq(tempTableRef));
     verify(mockBigQueryHelper, never()).getRawBigquery();

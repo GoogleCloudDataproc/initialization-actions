@@ -13,9 +13,9 @@
  */
 package com.google.cloud.hadoop.io.bigquery.output;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -28,8 +28,8 @@ import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.BigQueryHelper;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -76,12 +76,9 @@ public class FederatedBigQueryOutputCommitterTest {
   private static final TableSchema TEST_TABLE_SCHEMA =
       new TableSchema()
           .setFields(
-              new ArrayList<TableFieldSchema>() {
-                {
-                  add(new TableFieldSchema().setName("Word").setType("STRING"));
-                  add(new TableFieldSchema().setName("Count").setType("INTEGER"));
-                }
-              });
+              ImmutableList.of(
+                  new TableFieldSchema().setName("Word").setType("STRING"),
+                  new TableFieldSchema().setName("Count").setType("INTEGER")));
 
   /** A sample task ID for the mock TaskAttemptContext. */
   private static final TaskAttemptID TEST_TASK_ATTEMPT_ID =
@@ -170,8 +167,8 @@ public class FederatedBigQueryOutputCommitterTest {
   /** Helper method to create basic valid output based. */
   private void generateSampleFiles() throws IOException {
     ghfs.createNewFile(outputSampleFilePath);
-    assertTrue(ghfs.exists(outputPath));
-    assertTrue(ghfs.exists(outputSampleFilePath));
+    assertThat(ghfs.exists(outputPath)).isTrue();
+    assertThat(ghfs.exists(outputSampleFilePath)).isTrue();
   }
 
   /**
@@ -215,8 +212,8 @@ public class FederatedBigQueryOutputCommitterTest {
     committer.abortJob(mockTaskAttemptContext, State.KILLED);
 
     // Ensure files are deleted by cleanup.
-    assertTrue(!ghfs.exists(outputPath));
-    assertTrue(!ghfs.exists(outputSampleFilePath));
+    assertThat(!ghfs.exists(outputPath)).isTrue();
+    assertThat(!ghfs.exists(outputSampleFilePath)).isTrue();
 
     verify(mockCommitter).abortJob(eq(mockTaskAttemptContext), eq(State.KILLED));
   }

@@ -16,6 +16,9 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
+
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationHelper;
@@ -34,7 +37,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.junit.Assert;
 
 public class HadoopFileSystemIntegrationHelper
     extends GoogleCloudStorageFileSystemIntegrationHelper {
@@ -258,7 +260,7 @@ public class HadoopFileSystemIntegrationHelper
       } else {
         numBytesRead = readStream.read(readBuffer);
       }
-      Assert.assertEquals(len, numBytesRead);
+      assertThat(numBytesRead).isEqualTo(len);
       text = new String(readBuffer, 0, numBytesRead, StandardCharsets.UTF_8);
     } finally {
       if (readStream != null) {
@@ -269,19 +271,21 @@ public class HadoopFileSystemIntegrationHelper
     // After the read, the stats better be non-null for our ghfs scheme.
     stats = FileSystem.getStatistics(
         ghfsFileSystemDescriptor.getScheme(), ghfs.getClass());
-    Assert.assertNotNull(stats);
+    assertThat(stats).isNotNull();
     long endFileSystemBytesRead = stats.getBytesRead();
     int bytesReadStats = (int) (endFileSystemBytesRead - fileSystemBytesRead);
     if (statistics == FileSystemStatistics.EXACT) {
-      Assert.assertEquals(
-          String.format("FS statistics mismatch fetched from class '%s'", ghfs.getClass()),
-          len, bytesReadStats);
+      assertWithMessage(
+              String.format("FS statistics mismatch fetched from class '%s'", ghfs.getClass()))
+          .that(bytesReadStats)
+          .isEqualTo(len);
     } else if (statistics == FileSystemStatistics.GREATER_OR_EQUAL) {
-      Assert.assertTrue(String.format("Expected %d <= %d", len, bytesReadStats),
-          len <= bytesReadStats);
+      assertWithMessage(String.format("Expected %d <= %d", len, bytesReadStats))
+          .that(len <= bytesReadStats)
+          .isTrue();
     } else if (statistics == FileSystemStatistics.NONE) {
-      Assert.assertEquals("FS statistics expected to be 0", 0, fileSystemBytesRead);
-      Assert.assertEquals("FS statistics expected to be 0", 0, endFileSystemBytesRead);
+      assertWithMessage("FS statistics expected to be 0").that(fileSystemBytesRead).isEqualTo(0);
+      assertWithMessage("FS statistics expected to be 0").that(endFileSystemBytesRead).isEqualTo(0);
     } else if (statistics == FileSystemStatistics.IGNORE) {
       // NO-OP
     }
@@ -496,17 +500,19 @@ public class HadoopFileSystemIntegrationHelper
 
     // After the write, the stats better be non-null for our ghfs scheme.
     stats = FileSystem.getStatistics(ghfsFileSystemDescriptor.getScheme(), ghfs.getClass());
-    Assert.assertNotNull(stats);
+    assertThat(stats).isNotNull();
     long endFileSystemBytesWritten =
         stats.getBytesWritten();
     int bytesWrittenStats = (int) (endFileSystemBytesWritten - fileSystemBytesWritten);
     if (statistics == FileSystemStatistics.EXACT) {
-      Assert.assertEquals(
-          String.format("FS statistics mismatch fetched from class '%s'", ghfs.getClass()),
-          totalBytesWritten, bytesWrittenStats);
+      assertWithMessage(
+              String.format("FS statistics mismatch fetched from class '%s'", ghfs.getClass()))
+          .that(bytesWrittenStats)
+          .isEqualTo(totalBytesWritten);
     } else if (statistics == FileSystemStatistics.GREATER_OR_EQUAL) {
-      Assert.assertTrue(String.format("Expected %d <= %d", totalBytesWritten, bytesWrittenStats),
-          totalBytesWritten <= bytesWrittenStats);
+      assertWithMessage(String.format("Expected %d <= %d", totalBytesWritten, bytesWrittenStats))
+          .that(totalBytesWritten <= bytesWrittenStats)
+          .isTrue();
     } else if (statistics == FileSystemStatistics.NONE) {
       // Do not perform any check because stats are either not maintained or are erratic.
     } else if (statistics == FileSystemStatistics.IGNORE) {

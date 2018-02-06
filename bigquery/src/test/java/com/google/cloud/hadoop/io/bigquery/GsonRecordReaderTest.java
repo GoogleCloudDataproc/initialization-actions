@@ -13,6 +13,7 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
@@ -93,9 +94,9 @@ public class GsonRecordReaderTest {
     GsonRecordReader multipleRecordReader = getRecordReader(60);
 
     // Assert there are two records to read.
-    assertEquals(true, multipleRecordReader.nextKeyValue());
-    assertEquals(true, multipleRecordReader.nextKeyValue());
-    assertEquals(false, multipleRecordReader.nextKeyValue());
+    assertThat(multipleRecordReader.nextKeyValue()).isTrue();
+    assertThat(multipleRecordReader.nextKeyValue()).isTrue();
+    assertThat(multipleRecordReader.nextKeyValue()).isFalse();
 
     // Close RecordReader.
     multipleRecordReader.close();
@@ -104,8 +105,8 @@ public class GsonRecordReaderTest {
     GsonRecordReader smallRecordReader = getRecordReader(30);
 
     // Assert there is only one record to read.
-    assertEquals(true, smallRecordReader.nextKeyValue());
-    assertEquals(false, smallRecordReader.nextKeyValue());
+    assertThat(smallRecordReader.nextKeyValue()).isTrue();
+    assertThat(smallRecordReader.nextKeyValue()).isFalse();
 
     // Close RecordReader.
     multipleRecordReader.close();
@@ -126,12 +127,12 @@ public class GsonRecordReaderTest {
     GsonRecordReader multipleRecordReader = getRecordReader(60);
 
     // Assert RecordReader returns correct Json values.
-    assertEquals(true, multipleRecordReader.nextKeyValue());
-    assertEquals(json1, multipleRecordReader.getCurrentValue());
-    assertEquals(true, multipleRecordReader.nextKeyValue());
-    assertEquals(json2, multipleRecordReader.getCurrentValue());
-    assertEquals(false, multipleRecordReader.nextKeyValue());
-    assertEquals(json2, multipleRecordReader.getCurrentValue());
+    assertThat(multipleRecordReader.nextKeyValue()).isTrue();
+    assertThat(multipleRecordReader.getCurrentValue()).isEqualTo(json1);
+    assertThat(multipleRecordReader.nextKeyValue()).isTrue();
+    assertThat(multipleRecordReader.getCurrentValue()).isEqualTo(json2);
+    assertThat(multipleRecordReader.nextKeyValue()).isFalse();
+    assertThat(multipleRecordReader.getCurrentValue()).isEqualTo(json2);
 
     // Close RecordReader.
     multipleRecordReader.close();
@@ -147,12 +148,12 @@ public class GsonRecordReaderTest {
     GsonRecordReader multipleRecordReader = getRecordReader(60);
 
     // Assert RecordReader returns correct keys.
-    assertEquals(true, multipleRecordReader.nextKeyValue());
-    assertEquals(key1, multipleRecordReader.getCurrentKey());
-    assertEquals(true, multipleRecordReader.nextKeyValue());
-    assertEquals(key2, multipleRecordReader.getCurrentKey());
-    assertEquals(false, multipleRecordReader.nextKeyValue());
-    assertEquals(key2, multipleRecordReader.getCurrentKey());
+    assertThat(multipleRecordReader.nextKeyValue()).isTrue();
+    assertThat(multipleRecordReader.getCurrentKey()).isEqualTo(key1);
+    assertThat(multipleRecordReader.nextKeyValue()).isTrue();
+    assertThat(multipleRecordReader.getCurrentKey()).isEqualTo(key2);
+    assertThat(multipleRecordReader.nextKeyValue()).isFalse();
+    assertThat(multipleRecordReader.getCurrentKey()).isEqualTo(key2);
 
     // Close RecordReader.
     multipleRecordReader.close();
@@ -168,11 +169,11 @@ public class GsonRecordReaderTest {
     GsonRecordReader multipleRecordReader = getRecordReader(60);
 
     // Assert RecordReader returns correct progress.
-    assertEquals(true, multipleRecordReader.nextKeyValue());
+    assertThat(multipleRecordReader.nextKeyValue()).isTrue();
     assertEquals(.58, multipleRecordReader.getProgress(), .01);
-    assertEquals(true, multipleRecordReader.nextKeyValue());
+    assertThat(multipleRecordReader.nextKeyValue()).isTrue();
     assertEquals(1, multipleRecordReader.getProgress(), .01);
-    assertEquals(false, multipleRecordReader.nextKeyValue());
+    assertThat(multipleRecordReader.nextKeyValue()).isFalse();
     assertEquals(1, multipleRecordReader.getProgress(), .01);
 
     // Close RecordReader.

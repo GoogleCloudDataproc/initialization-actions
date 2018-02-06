@@ -15,7 +15,8 @@
  */
 package com.google.cloud.hadoop.util;
 
-import org.junit.Assert;
+import static com.google.common.truth.Truth.assertThat;
+
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -24,49 +25,47 @@ import org.junit.runners.JUnit4;
 public class PropertyUtilTest {
   @Test
   public void defaultValueIsReturnedWhenNoFile() {
-    Assert.assertEquals("NotFound",
-        PropertyUtil.getPropertyOrDefault(getClass(), "NonExistentFile", "testKey", "NotFound"));
+    assertThat(
+            PropertyUtil.getPropertyOrDefault(getClass(), "NonExistentFile", "testKey", "NotFound"))
+        .isEqualTo("NotFound");
   }
 
   @Test
   public void defaultValueIsReturnedWhenKeyNotFound() {
-    Assert.assertEquals("NotFound",
-        PropertyUtil.getPropertyOrDefault(getClass(), "test.properties", "testKey2", "NotFound"));
+    assertThat(
+            PropertyUtil.getPropertyOrDefault(
+                getClass(), "test.properties", "testKey2", "NotFound"))
+        .isEqualTo("NotFound");
   }
 
   @Test
   public void valueIsReturnedForFoundKeyAndFile() {
-    Assert.assertEquals("testValue",
-        PropertyUtil.getPropertyOrDefault(getClass(), "test.properties", "testKey", "NotFound"));
+    assertThat(
+            PropertyUtil.getPropertyOrDefault(getClass(), "test.properties", "testKey", "NotFound"))
+        .isEqualTo("testValue");
   }
 
   @Test
   public void valueWithWhitespaceIsReadProperly() {
-    Assert.assertEquals("test value with whitespace",
-        PropertyUtil.getPropertyOrDefault(
-            getClass(),
-            "test.properties",
-            "whitespaceKey",
-            "NotFound"));
+    assertThat(
+            PropertyUtil.getPropertyOrDefault(
+                getClass(), "test.properties", "whitespaceKey", "NotFound"))
+        .isEqualTo("test value with whitespace");
   }
 
   @Test
   public void valueWithEscapedCharactersIsReadUnescaped() {
-    Assert.assertEquals("http://www.example.com",
-        PropertyUtil.getPropertyOrDefault(
-            getClass(),
-            "test.properties",
-            "escapedValueKey",
-            "NotFound"));
+    assertThat(
+            PropertyUtil.getPropertyOrDefault(
+                getClass(), "test.properties", "escapedValueKey", "NotFound"))
+        .isEqualTo("http://www.example.com");
   }
 
   @Test
   public void keysAfterCommentsAreFound() {
-    Assert.assertEquals("postCommentValue",
-        PropertyUtil.getPropertyOrDefault(
-            getClass(),
-            "test.properties",
-            "postCommentKey",
-            "NotFound"));
+    assertThat(
+            PropertyUtil.getPropertyOrDefault(
+                getClass(), "test.properties", "postCommentKey", "NotFound"))
+        .isEqualTo("postCommentValue");
   }
 }

@@ -13,6 +13,8 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.List;
@@ -26,7 +28,6 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -66,9 +67,9 @@ public class UnshardedExportToCloudStorageTest {
 
     List<InputSplit> splits = export.getSplits(null);
     UnshardedInputSplit fooSplit = (UnshardedInputSplit) splits.get(0);
-    Assert.assertEquals("Foo", fooSplit.getPath().getName());
+    assertThat(fooSplit.getPath().getName()).isEqualTo("Foo");
 
     UnshardedInputSplit barSplit = (UnshardedInputSplit) splits.get(1);
-    Assert.assertEquals("Bar", barSplit.getPath().getName());
+    assertThat(barSplit.getPath().getName()).isEqualTo("Bar");
   }
 }

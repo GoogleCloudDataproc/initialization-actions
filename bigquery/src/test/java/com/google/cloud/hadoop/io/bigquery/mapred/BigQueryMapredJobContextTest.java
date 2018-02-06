@@ -13,7 +13,7 @@
  */
 package com.google.cloud.hadoop.io.bigquery.mapred;
 
-import static org.junit.Assert.assertEquals;
+import static com.google.common.truth.Truth.assertThat;
 
 import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
@@ -47,7 +47,7 @@ public class BigQueryMapredJobContextTest {
     jobConf.set("mapreduce.job.dir", jobDir);
     JobContext jobContext = BigQueryMapredJobContext.from(jobConf);
     String jobIdString = jobContext.getJobID().toString();
-    assertEquals(originalJobIdString, jobIdString);
+    assertThat(jobIdString).isEqualTo(originalJobIdString);
   }
 
   @Test public void testFromNoJobDir() throws IOException {

@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.util;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -23,7 +24,6 @@ import com.google.api.client.http.HttpTransport;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -55,7 +55,7 @@ public class CredentialConfigurationTest {
     configuration.setEnableServiceAccounts(false);
     configuration.setNullCredentialEnabled(true);
 
-    Assert.assertNull(configuration.getCredential(TEST_SCOPES));
+    assertThat(configuration.getCredential(TEST_SCOPES)).isNull();
   }
 
   @Test

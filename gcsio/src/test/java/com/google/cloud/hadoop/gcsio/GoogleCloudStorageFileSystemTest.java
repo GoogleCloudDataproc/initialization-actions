@@ -14,6 +14,8 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
@@ -140,13 +142,12 @@ public class GoogleCloudStorageFileSystemTest
         new GoogleCloudStorageFileSystem(cred, optionsBuilder.build());
 
     // White-box testing; check a few internal outcomes of our options.
-    Assert.assertTrue(tmpGcsFs.getGcs() instanceof CacheSupplementedGoogleCloudStorage);
+    assertThat(tmpGcsFs.getGcs()).isInstanceOf(CacheSupplementedGoogleCloudStorage.class);
     CacheSupplementedGoogleCloudStorage cacheGcs =
         (CacheSupplementedGoogleCloudStorage) tmpGcsFs.getGcs();
-    Assert.assertEquals(
-        12345L, cacheGcs.getResourceCache().getMutableConfig().getMaxEntryAgeMillis());
-    Assert.assertEquals(
-        42L, cacheGcs.getResourceCache().getMutableConfig().getMaxInfoAgeMillis());
+    assertThat(cacheGcs.getResourceCache().getMutableConfig().getMaxEntryAgeMillis())
+        .isEqualTo(12345L);
+    assertThat(cacheGcs.getResourceCache().getMutableConfig().getMaxInfoAgeMillis()).isEqualTo(42L);
   }
 
   /**
@@ -198,11 +199,11 @@ public class GoogleCloudStorageFileSystemTest
     Collections.sort(pathUrisNaturalSorted);
     List<URI> expectedUrisNaturalSorted = new ArrayList<>(expectedUris);
     Collections.sort(expectedUrisNaturalSorted);
-    Assert.assertArrayEquals(expectedUrisNaturalSorted.toArray(), pathUrisNaturalSorted.toArray());
+    assertThat(pathUrisNaturalSorted.toArray()).isEqualTo(expectedUrisNaturalSorted.toArray());
 
     // Sort the paths with the GCSFS-supplied pathComparator and verify.
     Collections.sort(pathUris, GoogleCloudStorageFileSystem.pathComparator);
-    Assert.assertArrayEquals(expectedUris.toArray(), pathUris.toArray());
+    assertThat(pathUris.toArray()).isEqualTo(expectedUris.toArray());
   }
 
   /** Verify that we cannot pass invalid path to GoogleCloudStorageFileSystem. */
@@ -286,7 +287,7 @@ public class GoogleCloudStorageFileSystemTest
     for (String inputPath : inputPaths) {
       actualNames.add(gcsfs.getItemName(new URI(inputPath)));
     }
-    Assert.assertArrayEquals(expectedNames, actualNames.toArray(new String[0]));
+    assertThat(actualNames.toArray(new String[0])).isEqualTo(expectedNames);
   }
 
   /**
@@ -319,7 +320,7 @@ public class GoogleCloudStorageFileSystemTest
     for (URI inputPath : inputPaths) {
       actualPaths.add(gcsfs.getParentPath(inputPath));
     }
-    Assert.assertArrayEquals(expectedPaths, actualPaths.toArray(new URI[0]));
+    assertThat(actualPaths.toArray(new URI[0])).isEqualTo(expectedPaths);
   }
 
   /** Verify validateBucketName(). */
@@ -450,15 +451,24 @@ public class GoogleCloudStorageFileSystemTest
             false,  // ensureParentDirectoriesExist
             StorageResourceId.UNKNOWN_GENERATION_ID))
       .close();
-    Assert.assertTrue(
-        gcsfs.getGcs().getItemInfo(new StorageResourceId(bucketName, "no/parent/dirs/exist/a.txt"))
-            .exists());
-    Assert.assertFalse(
-        gcsfs.getGcs().getItemInfo(new StorageResourceId(bucketName, "no/parent/dirs/exist/"))
-            .exists());
-    Assert.assertFalse(
-        gcsfs.getGcs().getItemInfo(new StorageResourceId(bucketName, "no/parent/dirs/"))
-            .exists());
+    assertThat(
+            gcsfs
+                .getGcs()
+                .getItemInfo(new StorageResourceId(bucketName, "no/parent/dirs/exist/a.txt"))
+                .exists())
+        .isTrue();
+    assertThat(
+            gcsfs
+                .getGcs()
+                .getItemInfo(new StorageResourceId(bucketName, "no/parent/dirs/exist/"))
+                .exists())
+        .isFalse();
+    assertThat(
+            gcsfs
+                .getGcs()
+                .getItemInfo(new StorageResourceId(bucketName, "no/parent/dirs/"))
+                .exists())
+        .isFalse();
   }
 
   @Test
@@ -479,11 +489,17 @@ public class GoogleCloudStorageFileSystemTest
 
     // This is a "shoot yourself in the foot" use case, but working as intended if
     // checkNoDirectoryConflict is disabled; object and directory have same basename.
-    Assert.assertTrue(
-        gcsfs.getGcs().getItemInfo(new StorageResourceId(bucketName, "conflicting-dirname"))
-            .exists());
-    Assert.assertTrue(
-        gcsfs.getGcs().getItemInfo(new StorageResourceId(bucketName, "conflicting-dirname/"))
-            .exists());
+    assertThat(
+            gcsfs
+                .getGcs()
+                .getItemInfo(new StorageResourceId(bucketName, "conflicting-dirname"))
+                .exists())
+        .isTrue();
+    assertThat(
+            gcsfs
+                .getGcs()
+                .getItemInfo(new StorageResourceId(bucketName, "conflicting-dirname/"))
+                .exists())
+        .isTrue();
   }
 }

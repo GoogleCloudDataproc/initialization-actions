@@ -14,13 +14,14 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -53,9 +54,10 @@ public class GoogleHadoopFileSystemTest
 
   @Test
   public void testVersionString() {
-    Assert.assertNotNull(GoogleHadoopFileSystemBase.VERSION);
-    Assert.assertFalse(
-        GoogleHadoopFileSystemBase.UNKNOWN_VERSION.equals(GoogleHadoopFileSystemBase.VERSION));
+    assertThat(GoogleHadoopFileSystemBase.VERSION).isNotNull();
+    assertThat(
+            GoogleHadoopFileSystemBase.UNKNOWN_VERSION.equals(GoogleHadoopFileSystemBase.VERSION))
+        .isFalse();
   }
 
   // -----------------------------------------------------------------

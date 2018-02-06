@@ -14,8 +14,7 @@
 
 package com.google.cloud.hadoop.util;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -111,8 +110,8 @@ public class RetryHttpInitializerTest {
   public void testBasicOperation() throws IOException {
     final String authHeaderValue = "Bearer a1b2c3d4";
     final HttpRequest req = requestFactory.buildGetRequest(new GenericUrl("http://fake-url.com"));
-    assertEquals("foo-user-agent", req.getHeaders().getUserAgent());
-    assertEquals(mockCredential, req.getInterceptor());
+    assertThat(req.getHeaders().getUserAgent()).isEqualTo("foo-user-agent");
+    assertThat(req.getInterceptor()).isEqualTo(mockCredential);
 
     // Simulate the actual behavior of inserting a header for the credential.
     doAnswer(new Answer<Void>() {
@@ -129,7 +128,7 @@ public class RetryHttpInitializerTest {
         .thenReturn(200);
 
     HttpResponse res = req.execute();
-    assertNotNull(res);
+    assertThat(res).isNotNull();
 
     verify(mockCredential).intercept(eq(req));
     verify(mockLowLevelRequest).addHeader(eq("Authorization"), eq(authHeaderValue));
@@ -141,8 +140,8 @@ public class RetryHttpInitializerTest {
   public void testErrorCodeForbidden() throws IOException {
     final String authHeaderValue = "Bearer a1b2c3d4";
     final HttpRequest req = requestFactory.buildGetRequest(new GenericUrl("http://fake-url.com"));
-    assertEquals("foo-user-agent", req.getHeaders().getUserAgent());
-    assertEquals(mockCredential, req.getInterceptor());
+    assertThat(req.getHeaders().getUserAgent()).isEqualTo("foo-user-agent");
+    assertThat(req.getInterceptor()).isEqualTo(mockCredential);
 
     // Simulate the actual behavior of inserting a header for the credential.
     doAnswer(new Answer<Void>() {
@@ -171,7 +170,7 @@ public class RetryHttpInitializerTest {
         .thenReturn(true);
 
     HttpResponse res = req.execute();
-    assertNotNull(res);
+    assertThat(res).isNotNull();
 
     verify(mockCredential, times(2)).intercept(eq(req));
     verify(mockLowLevelRequest, times(2)).addHeader(eq("Authorization"), eq(authHeaderValue));
@@ -196,8 +195,8 @@ public class RetryHttpInitializerTest {
   private void testRetriesForErrorCode(int code) throws IOException, InterruptedException {
     final String authHeaderValue = "Bearer a1b2c3d4";
     final HttpRequest req = requestFactory.buildGetRequest(new GenericUrl("http://fake-url.com"));
-    assertEquals("foo-user-agent", req.getHeaders().getUserAgent());
-    assertEquals(mockCredential, req.getInterceptor());
+    assertThat(req.getHeaders().getUserAgent()).isEqualTo("foo-user-agent");
+    assertThat(req.getInterceptor()).isEqualTo(mockCredential);
 
     // Simulate the actual behavior of inserting a header for the credential.
     doAnswer(new Answer<Void>() {
@@ -226,7 +225,7 @@ public class RetryHttpInitializerTest {
         .thenReturn(false);
 
     HttpResponse res = req.execute();
-    assertNotNull(res);
+    assertThat(res).isNotNull();
 
     verify(mockCredential, times(2)).intercept(eq(req));
     verify(mockLowLevelRequest, times(2)).addHeader(eq("Authorization"), eq(authHeaderValue));
@@ -240,8 +239,8 @@ public class RetryHttpInitializerTest {
   public void testThrowIOException() throws IOException, InterruptedException {
     final String authHeaderValue = "Bearer a1b2c3d4";
     final HttpRequest req = requestFactory.buildGetRequest(new GenericUrl("http://fake-url.com"));
-    assertEquals("foo-user-agent", req.getHeaders().getUserAgent());
-    assertEquals(mockCredential, req.getInterceptor());
+    assertThat(req.getHeaders().getUserAgent()).isEqualTo("foo-user-agent");
+    assertThat(req.getInterceptor()).isEqualTo(mockCredential);
 
     // Simulate the actual behavior of inserting a header for the credential.
     doAnswer(new Answer<Void>() {
@@ -269,7 +268,7 @@ public class RetryHttpInitializerTest {
         .thenReturn(false);
 
     HttpResponse res = req.execute();
-    assertNotNull(res);
+    assertThat(res).isNotNull();
 
     verify(mockCredential, times(2)).intercept(eq(req));
     verify(mockLowLevelRequest, times(2)).addHeader(eq("Authorization"), eq(authHeaderValue));

@@ -16,10 +16,7 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
 
 import com.google.common.base.Function;
@@ -87,8 +84,8 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
 
     // Calling getCacheEntry with the colliding names just results in not-found even though
     // under the hood a directory/file was indeed found, just with a mismatch.
-    assertNull(cache.getCacheEntry(fileCollision));
-    assertNull(cache.getCacheEntry(dirCollision));
+    assertThat(cache.getCacheEntry(fileCollision)).isNull();
+    assertThat(cache.getCacheEntry(dirCollision)).isNull();
   }
 
   @Test
@@ -166,18 +163,18 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
             ++count[0];
             Path mirrorPath = fileBackedCache.getMirrorPath(resourceId);
             File parentFile = mirrorPath.toFile().getParentFile();
-            assertTrue(parentFile.exists());
+            assertThat(parentFile.exists()).isTrue();
             if (resourceId.equals(fileToCreate) && clobberCountForFile[0] < 2) {
               // Only on the final object creation, clobber the parentFile just after the cache
               // thinks
               // it successfully checked for its existence and before it creates the child object.
-              assertTrue(parentFile.delete());
+              assertThat(parentFile.delete()).isTrue();
               ++clobberCountForFile[0];
             } else if (resourceId.equals(dirToCreate) && clobberCountForDirectory[0] < 2) {
               // Only on the final object creation, clobber the parentFile just after the cache
               // thinks
               // it successfully checked for its existence and before it creates the child object.
-              assertTrue(parentFile.delete());
+              assertThat(parentFile.delete()).isTrue();
               ++clobberCountForDirectory[0];
             }
             return null;
@@ -186,28 +183,28 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
 
     // Put the file.
     cache.putResourceId(fileToCreate);
-    assertEquals(2, clobberCountForFile[0]);
-    assertEquals(0, clobberCountForDirectory[0]);
+    assertThat(clobberCountForFile[0]).isEqualTo(2);
+    assertThat(clobberCountForDirectory[0]).isEqualTo(0);
 
     // 4 for the initial 3 parents and 1 child file.
     // +2 for re-creating foo-bucket/foo/bar/, then retrying baz.txt the first time.
     // +2 for re-creating foo-bucket/foo/bar/, then retrying baz.txt the second time.
-    assertEquals(8, count[0]);
-    assertNotNull(cache.getCacheEntry(fileToCreate));
+    assertThat(count[0]).isEqualTo(8);
+    assertThat(cache.getCacheEntry(fileToCreate)).isNotNull();
 
     // Reset the count.
     count[0] = 0;
 
     // Put the directory.
     cache.putResourceId(dirToCreate);
-    assertEquals(2, clobberCountForFile[0]);
-    assertEquals(2, clobberCountForDirectory[0]);
+    assertThat(clobberCountForFile[0]).isEqualTo(2);
+    assertThat(clobberCountForDirectory[0]).isEqualTo(2);
 
     // 2 for initial directory bat/ and bat/baf/.
     // +2 for creating parent, then baf/ the first time.
     // +2 for creating parent, then baf/ the second time.
-    assertEquals(6, count[0]);
-    assertNotNull(cache.getCacheEntry(dirToCreate));
+    assertThat(count[0]).isEqualTo(6);
+    assertThat(cache.getCacheEntry(dirToCreate)).isNotNull();
   }
 
   @Test
@@ -266,9 +263,9 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
 
     // No extraneous retries or creates; FileAlreadyExistsExceptions should've been caught and
     // treated as 'success'.
-    assertEquals(6, count[0]);
-    assertNotNull(cache.getCacheEntry(fileToCreate));
-    assertNotNull(cache.getCacheEntry(dirToCreate));
+    assertThat(count[0]).isEqualTo(6);
+    assertThat(cache.getCacheEntry(fileToCreate)).isNotNull();
+    assertThat(cache.getCacheEntry(dirToCreate)).isNotNull();
   }
 
   @Test
@@ -337,9 +334,9 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
     }
 
     // No extraneous retries or creates; exceptions should have caused immediate giving up.
-    assertEquals(6, count[0]);
-    assertNull(cache.getCacheEntry(fileToCreate));
-    assertNull(cache.getCacheEntry(dirToCreate));
+    assertThat(count[0]).isEqualTo(6);
+    assertThat(cache.getCacheEntry(fileToCreate)).isNull();
+    assertThat(cache.getCacheEntry(dirToCreate)).isNull();
   }
 
   @Test
@@ -367,13 +364,13 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
                 clobberCountForFile[0]);
             Path mirrorPath = fileBackedCache.getMirrorPath(resourceId);
             File parentFile = mirrorPath.toFile().getParentFile();
-            assertTrue(parentFile.exists());
+            assertThat(parentFile.exists()).isTrue();
             int maxRetries = FileSystemBackedDirectoryListCache.MAX_RETRIES_FOR_CREATE;
             if (resourceId.equals(fileToCreate) && clobberCountForFile[0] <= maxRetries) {
               // Only on the final object creation, clobber the parentFile just after the cache
               // thinks
               // it successfully checked for its existence and before it creates the child object.
-              assertTrue(parentFile.delete());
+              assertThat(parentFile.delete()).isTrue();
               ++clobberCountForFile[0];
             }
             return null;

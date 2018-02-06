@@ -13,9 +13,9 @@
  */
 package com.google.cloud.hadoop.io.bigquery.output;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -213,6 +213,6 @@ public class ForwardingBigQueryFileOutputFormatTest {
     FileOutputFormat<Text, Text> delegate = outputFormat.getDelegate(conf);
 
     // Verify the delegate is the correct type.
-    assertTrue(delegate instanceof TextOutputFormat);
+    assertThat(delegate).isInstanceOf(TextOutputFormat.class);
   }
 }

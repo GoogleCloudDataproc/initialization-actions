@@ -14,9 +14,8 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
@@ -215,9 +214,9 @@ public class MetadataReadOnlyGoogleCloudStorageTest {
     // Fetch them all at once.
     List<GoogleCloudStorageItemInfo> fetchedInfos =
         gcs.getItemInfos(new ArrayList<StorageResourceId>(initialMap.keySet()));
-    assertEquals(initialMap.size(), fetchedInfos.size());
+    assertThat(fetchedInfos).hasSize(initialMap.size());
     for (GoogleCloudStorageItemInfo fetchedInfo : fetchedInfos) {
-      assertEquals(initialMap.get(fetchedInfo.getResourceId()), fetchedInfo);
+      assertThat(initialMap).containsEntry(fetchedInfo.getResourceId(), fetchedInfo);
     }
   }
 
@@ -228,28 +227,28 @@ public class MetadataReadOnlyGoogleCloudStorageTest {
 
     // Should list everything.
     List<GoogleCloudStorageItemInfo> listedInfos = gcs.listObjectInfo(BUCKET_NAME, null, null);
-    assertEquals(initialMap.size(), listedInfos.size());
+    assertThat(listedInfos).hasSize(initialMap.size());
     for (GoogleCloudStorageItemInfo listedInfo : listedInfos) {
-      assertEquals(initialMap.get(listedInfo.getResourceId()), listedInfo);
+      assertThat(initialMap).containsEntry(listedInfo.getResourceId(), listedInfo);
     }
 
     List<String> listedNames = gcs.listObjectNames(BUCKET_NAME, null, null);
-    assertEquals(initialMap.size(), listedNames.size());
+    assertThat(listedNames).hasSize(initialMap.size());
     for (String listedName : listedNames) {
-      assertTrue(initialMap.containsKey(createId(listedName)));
+      assertThat(initialMap).containsKey(createId(listedName));
     }
 
     // Empty prefix same as null prefix.
     listedInfos = gcs.listObjectInfo(BUCKET_NAME, "", null);
-    assertEquals(initialMap.size(), listedInfos.size());
+    assertThat(listedInfos).hasSize(initialMap.size());
     for (GoogleCloudStorageItemInfo listedInfo : listedInfos) {
-      assertEquals(initialMap.get(listedInfo.getResourceId()), listedInfo);
+      assertThat(initialMap).containsEntry(listedInfo.getResourceId(), listedInfo);
     }
 
     listedNames = gcs.listObjectNames(BUCKET_NAME, "", null);
-    assertEquals(initialMap.size(), listedNames.size());
+    assertThat(listedNames).hasSize(initialMap.size());
     for (String listedName : listedNames) {
-      assertTrue(initialMap.containsKey(createId(listedName)));
+      assertThat(initialMap).containsKey(createId(listedName));
     }
   }
 
@@ -260,8 +259,8 @@ public class MetadataReadOnlyGoogleCloudStorageTest {
 
     // Should only list "foo/".
     List<GoogleCloudStorageItemInfo> listedInfos = gcs.listObjectInfo(BUCKET_NAME, null, "/");
-    assertEquals(1, listedInfos.size());
-    assertEquals(initialMap.get(createId("foo/")), listedInfos.get(0));
+    assertThat(listedInfos).hasSize(1);
+    assertThat(initialMap).containsEntry(createId("foo/"), listedInfos.get(0));
   }
 
   @Test
@@ -271,8 +270,8 @@ public class MetadataReadOnlyGoogleCloudStorageTest {
 
     // Should only list "foo/".
     List<GoogleCloudStorageItemInfo> listedInfos = gcs.listObjectInfo(BUCKET_NAME, "foo", "/");
-    assertEquals(1, listedInfos.size());
-    assertEquals(initialMap.get(createId("foo/")), listedInfos.get(0));
+    assertThat(listedInfos).hasSize(1);
+    assertThat(initialMap).containsEntry(createId("foo/"), listedInfos.get(0));
   }
 
   @Test
@@ -284,9 +283,9 @@ public class MetadataReadOnlyGoogleCloudStorageTest {
     List<GoogleCloudStorageItemInfo> listedInfos = gcs.listObjectInfo(BUCKET_NAME, "foo/", null);
 
     initialMap.remove(createId("foo/"));
-    assertEquals(initialMap.size(), listedInfos.size());
+    assertThat(listedInfos).hasSize(initialMap.size());
     for (GoogleCloudStorageItemInfo listedInfo : listedInfos) {
-      assertEquals(initialMap.get(listedInfo.getResourceId()), listedInfo);
+      assertThat(initialMap).containsEntry(listedInfo.getResourceId(), listedInfo);
     }
   }
 
@@ -300,9 +299,9 @@ public class MetadataReadOnlyGoogleCloudStorageTest {
 
     initialMap.remove(createId("foo/"));
     initialMap.remove(createId("foo/data2.txt"));
-    assertEquals(initialMap.size(), listedInfos.size());
+    assertThat(listedInfos).hasSize(initialMap.size());
     for (GoogleCloudStorageItemInfo listedInfo : listedInfos) {
-      assertEquals(initialMap.get(listedInfo.getResourceId()), listedInfo);
+      assertThat(initialMap).containsEntry(listedInfo.getResourceId(), listedInfo);
     }
   }
 
@@ -314,10 +313,10 @@ public class MetadataReadOnlyGoogleCloudStorageTest {
     // Only lists foo/bar/ and foo/baz/.
     List<GoogleCloudStorageItemInfo> listedInfos = gcs.listObjectInfo(BUCKET_NAME, "foo/ba", "/");
 
-    assertEquals(2, listedInfos.size());
+    assertThat(listedInfos).hasSize(2);
     Map<StorageResourceId, GoogleCloudStorageItemInfo> listedMap = createMap(listedInfos);
-    assertEquals(initialMap.get(createId("foo/bar/")), listedMap.get(createId("foo/bar/")));
-    assertEquals(initialMap.get(createId("foo/baz/")), listedMap.get(createId("foo/baz/")));
+    assertThat(listedMap).containsEntry(createId("foo/bar/"), initialMap.get(createId("foo/bar/")));
+    assertThat(listedMap).containsEntry(createId("foo/baz/"), initialMap.get(createId("foo/baz/")));
   }
 
   @Test
@@ -331,46 +330,48 @@ public class MetadataReadOnlyGoogleCloudStorageTest {
 
     // Parent directories don't exist; fetching their infos doesn't crash but does return a
     // !exists() info.
-    assertFalse(gcs.getItemInfo(createId("foo/")).exists());
-    assertFalse(gcs.getItemInfo(createId("foo/bar/")).exists());
-    assertFalse(gcs.getItemInfo(createId("foo/bar2/")).exists());
+    assertThat(gcs.getItemInfo(createId("foo/")).exists()).isFalse();
+    assertThat(gcs.getItemInfo(createId("foo/bar/")).exists()).isFalse();
+    assertThat(gcs.getItemInfo(createId("foo/bar2/")).exists()).isFalse();
 
-    assertTrue(gcs.getItemInfo(createId("foo/bar/baz/")).exists());
-    assertTrue(gcs.getItemInfo(createId("foo/bar2/data1.txt")).exists());
+    assertThat(gcs.getItemInfo(createId("foo/bar/baz/")).exists()).isTrue();
+    assertThat(gcs.getItemInfo(createId("foo/bar2/data1.txt")).exists()).isTrue();
 
     // Listing without delimiter doesn't "repair" the implicit directories.
     List<GoogleCloudStorageItemInfo> listedInfos = gcs.listObjectInfo(BUCKET_NAME, "foo/ba", null);
-    assertEquals(2, listedInfos.size());
+    assertThat(listedInfos).hasSize(2);
     for (GoogleCloudStorageItemInfo listedInfo : listedInfos) {
-      assertEquals(initialMap.get(listedInfo.getResourceId()), listedInfo);
+      assertThat(initialMap).containsEntry(listedInfo.getResourceId(), listedInfo);
     }
 
-    assertFalse(gcs.getItemInfo(createId("foo/")).exists());
-    assertFalse(gcs.getItemInfo(createId("foo/bar/")).exists());
-    assertFalse(gcs.getItemInfo(createId("foo/bar2/")).exists());
+    assertThat(gcs.getItemInfo(createId("foo/")).exists()).isFalse();
+    assertThat(gcs.getItemInfo(createId("foo/bar/")).exists()).isFalse();
+    assertThat(gcs.getItemInfo(createId("foo/bar2/")).exists()).isFalse();
 
     // Listing with a delimiter repairs precisely the directories at the listing level.
     listedInfos = gcs.listObjectInfo(BUCKET_NAME, "foo/ba", "/");
-    assertEquals(2, listedInfos.size());
+    assertThat(listedInfos).hasSize(2);
 
-    assertFalse(gcs.getItemInfo(createId("foo/")).exists());
-    assertTrue(gcs.getItemInfo(createId("foo/bar/")).exists());
-    assertTrue(gcs.getItemInfo(createId("foo/bar2/")).exists());
+    assertThat(gcs.getItemInfo(createId("foo/")).exists()).isFalse();
+    assertThat(gcs.getItemInfo(createId("foo/bar/")).exists()).isTrue();
+    assertThat(gcs.getItemInfo(createId("foo/bar2/")).exists()).isTrue();
 
     // The "repaired" items are directory objects with a creationTime == 0.
     Map<StorageResourceId, GoogleCloudStorageItemInfo> listedMap = createMap(listedInfos);
-    assertEquals(createDir("foo/bar/", 0), listedMap.get(createId("foo/bar/")));
-    assertEquals(createDir("foo/bar2/", 0), listedMap.get(createId("foo/bar2/")));
+    assertThat(listedMap).containsEntry(createId("foo/bar/"), createDir("foo/bar/", 0));
+    assertThat(listedMap).containsEntry(createId("foo/bar2/"), createDir("foo/bar2/", 0));
 
     // Listing again without a delimiter now finds the "repaired" directory objects as well.
     listedInfos = gcs.listObjectInfo(BUCKET_NAME, "foo/ba", null);
-    assertEquals(4, listedInfos.size());
+    assertThat(listedInfos).hasSize(4);
 
     listedMap = createMap(listedInfos);
-    assertEquals(createDir("foo/bar/", 0), listedMap.get(createId("foo/bar/")));
-    assertEquals(createDir("foo/bar2/", 0), listedMap.get(createId("foo/bar2/")));
-    assertEquals(initialMap.get(createId("foo/bar/baz/")), listedMap.get(createId("foo/bar/baz/")));
-    assertEquals(initialMap.get(createId("foo/bar2/data1.txt")),
-                 listedMap.get(createId("foo/bar2/data1.txt")));
+    assertThat(listedMap).containsEntry(createId("foo/bar/"), createDir("foo/bar/", 0));
+    assertThat(listedMap).containsEntry(createId("foo/bar2/"), createDir("foo/bar2/", 0));
+    assertThat(listedMap)
+        .containsEntry(createId("foo/bar/baz/"), initialMap.get(createId("foo/bar/baz/")));
+    assertThat(listedMap)
+        .containsEntry(
+            createId("foo/bar2/data1.txt"), initialMap.get(createId("foo/bar2/data1.txt")));
   }
 }

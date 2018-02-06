@@ -15,6 +15,9 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
+
 import com.google.common.collect.ObjectArrays;
 import java.io.IOException;
 import java.net.URI;
@@ -23,7 +26,6 @@ import java.util.List;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -102,12 +104,12 @@ public abstract class GoogleCloudStorageFileSystemOptionsTestBase {
     // The directory objects should now exist.
     for (String dir : impliedDirs0) {
       FileInfo dirInfo = gcsfs.getFileInfo(new URI(dir));
-      Assert.assertTrue(
-          "Directory " + dir + " should exist after repair.",
-          dirInfo.exists());
-      Assert.assertTrue(
-          "Creation time on repaired directory should be non-zero.",
-          dirInfo.getCreationTime() > 0);
+      assertWithMessage("Directory " + dir + " should exist after repair.")
+          .that(dirInfo.exists())
+          .isTrue();
+      assertWithMessage("Creation time on repaired directory should be non-zero.")
+          .that(dirInfo.getCreationTime() > 0)
+          .isTrue();
     }
   }
 
@@ -126,9 +128,9 @@ public abstract class GoogleCloudStorageFileSystemOptionsTestBase {
     // The directory objects should still not exist.
     for (String dir : impliedDirs) {
       FileInfo dirInfo = gcsfs.getFileInfo(new URI(dir));
-      Assert.assertFalse(
-          "Directory " + dir + " should not exist after (non-)repair.",
-          dirInfo.exists());
+      assertWithMessage("Directory " + dir + " should not exist after (non-)repair.")
+          .that(dirInfo.exists())
+          .isFalse();
     }
   }
 
@@ -145,19 +147,19 @@ public abstract class GoogleCloudStorageFileSystemOptionsTestBase {
     // The directory objects should exist (as inferred directories).
     for (String dir : impliedDirs) {
       FileInfo dirInfo = gcsfs.getFileInfo(new URI(dir));
-      Assert.assertTrue(
-          "Directory " + dir + " should exist (inferred)",
-          dirInfo.exists());
-      Assert.assertEquals(
-          "Creation time on inferred directory " + dir + " should be zero.",
-          0, dirInfo.getCreationTime());
+      assertWithMessage("Directory " + dir + " should exist (inferred)")
+          .that(dirInfo.exists())
+          .isTrue();
+      assertWithMessage("Creation time on inferred directory " + dir + " should be zero.")
+          .that(dirInfo.getCreationTime())
+          .isEqualTo(0);
     }
 
     String dir = impliedDirA;
     List<FileInfo> subInfo = gcsfs.listFileInfo(new URI(dir), false);
-    Assert.assertEquals(
-        "Implied directory " + dir + " should have 2 children",
-        2, subInfo.size());
+    assertWithMessage("Implied directory " + dir + " should have 2 children")
+        .that(subInfo.size())
+        .isEqualTo(2);
   }
 
   private void createTestFiles(GoogleCloudStorageFileSystem gcsfs)
@@ -171,7 +173,7 @@ public abstract class GoogleCloudStorageFileSystemOptionsTestBase {
     // Make sure the files we just created exist
     for (String inputFile : inputFiles) {
       FileInfo fileInfo = gcsfs.getFileInfo(new URI(inputFile));
-      Assert.assertTrue(fileInfo.exists());
+      assertThat(fileInfo.exists()).isTrue();
     }
   }
 
@@ -182,9 +184,9 @@ public abstract class GoogleCloudStorageFileSystemOptionsTestBase {
     // should not exist.
     for (String dir : impliedDirs) {
       FileInfo dirInfo = gcsfs.getFileInfo(new URI(dir));
-      Assert.assertFalse(
-          "Implied directory " + dir + " should not exist.",
-          dirInfo.exists());
+      assertWithMessage("Implied directory " + dir + " should not exist.")
+          .that(dirInfo.exists())
+          .isFalse();
     }
 
     // List each directory so that auto-repair kicks in.

@@ -13,9 +13,9 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -190,7 +190,7 @@ public class BigQueryHelperTest {
     Job job = jobCaptor.getValue();
     assertThat(
         job.getConfiguration().getLoad().getSourceUris(), containsInAnyOrder("test-import-path"));
-    assertEquals(tableRef, job.getConfiguration().getLoad().getDestinationTable());
+    assertThat(job.getConfiguration().getLoad().getDestinationTable()).isEqualTo(tableRef);
 
     // Verify correct calls to BigQuery.Jobs.Get are made.
     verify(mockBigqueryJobsGet, times(1)).execute();
@@ -228,9 +228,9 @@ public class BigQueryHelperTest {
     verify(mockBigqueryJobs, times(1))
         .get(eq(jobProjectId), eq(jobCaptor.getValue().getJobReference().getJobId()));
     Job job = jobCaptor.getValue();
-    assertEquals(
-        "test-export-path", job.getConfiguration().getExtract().getDestinationUris().get(0));
-    assertEquals(tableRef, job.getConfiguration().getExtract().getSourceTable());
+    assertThat(job.getConfiguration().getExtract().getDestinationUris().get(0))
+        .isEqualTo("test-export-path");
+    assertThat(job.getConfiguration().getExtract().getSourceTable()).isEqualTo(tableRef);
 
     // Verify correct calls to BigQuery.Jobs.Get are made.
     verify(mockBigqueryJobsGet, times(1)).execute();
@@ -254,7 +254,7 @@ public class BigQueryHelperTest {
     verify(mockBigquery, times(1)).tables();
     verify(mockBigqueryTables, times(1)).get(eq(projectId), eq(datasetId), eq(tableId));
     verify(mockBigqueryTablesGet, times(1)).execute();
-    assertEquals(table, fakeTable);
+    assertThat(fakeTable).isEqualTo(table);
   }
 
   @Test
@@ -268,7 +268,7 @@ public class BigQueryHelperTest {
     verify(mockBigqueryTables, times(1)).get(eq(projectId), eq(datasetId), eq(tableId));
     verify(mockBigqueryTablesGet, times(1)).execute();
 
-    assertEquals(true, exists);
+    assertThat(exists).isTrue();
   }
 
   @Test
@@ -285,7 +285,7 @@ public class BigQueryHelperTest {
     verify(mockBigqueryTablesGet, times(1)).execute();
     verify(mockErrorExtractor, times(1)).itemNotFound(eq(fakeNotFoundException));
 
-    assertEquals(false, exists);
+    assertThat(exists).isFalse();
   }
 
   @Test
@@ -311,13 +311,13 @@ public class BigQueryHelperTest {
   public void testInsertJobOrFetchDuplicateBasicInsert() throws IOException {
     when(mockBigqueryJobsInsert.execute()).thenReturn(jobHandle);
 
-    assertEquals(jobHandle, helper.insertJobOrFetchDuplicate(jobProjectId, jobHandle));
+    assertThat(helper.insertJobOrFetchDuplicate(jobProjectId, jobHandle)).isEqualTo(jobHandle);
 
     verify(mockBigquery, times(1)).jobs();
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     verify(mockBigqueryJobs, times(1)).insert(eq(jobProjectId), jobCaptor.capture());
     Job job = jobCaptor.getValue();
-    assertEquals(jobHandle, job);
+    assertThat(job).isEqualTo(jobHandle);
     verify(mockBigqueryJobsInsert, times(1)).execute();
   }
 
@@ -328,13 +328,13 @@ public class BigQueryHelperTest {
     when(mockErrorExtractor.itemAlreadyExists(any(IOException.class))).thenReturn(true);
     when(mockBigqueryJobsGet.execute()).thenReturn(jobHandle);
 
-    assertEquals(jobHandle, helper.insertJobOrFetchDuplicate(jobProjectId, jobHandle));
+    assertThat(helper.insertJobOrFetchDuplicate(jobProjectId, jobHandle)).isEqualTo(jobHandle);
 
     verify(mockBigquery, times(2)).jobs();
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     verify(mockBigqueryJobs, times(1)).insert(eq(jobProjectId), jobCaptor.capture());
     Job job = jobCaptor.getValue();
-    assertEquals(jobHandle, job);
+    assertThat(job).isEqualTo(jobHandle);
     verify(mockBigqueryJobsInsert, times(1)).execute();
     verify(mockBigqueryJobs, times(1)).get(eq(jobProjectId), eq(jobId));
     verify(mockBigqueryJobsGet, times(1)).execute();
@@ -356,7 +356,7 @@ public class BigQueryHelperTest {
       ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
       verify(mockBigqueryJobs, times(1)).insert(eq(jobProjectId), jobCaptor.capture());
       Job job = jobCaptor.getValue();
-      assertEquals(jobHandle, job);
+      assertThat(job).isEqualTo(jobHandle);
       verify(mockBigqueryJobsInsert, times(1)).execute();
       verify(mockErrorExtractor).itemAlreadyExists(eq(unhandledException));
     }

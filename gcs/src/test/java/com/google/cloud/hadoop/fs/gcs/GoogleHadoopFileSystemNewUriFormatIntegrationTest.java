@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.common.truth.Truth.assertThat;
 
 import com.google.common.truth.Truth;
 import java.io.BufferedReader;
@@ -101,58 +102,58 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
 
     FileStatus[] rootDirectories =
         ghfs.globStatus(new Path("/new*"));
-    Assert.assertEquals(1, rootDirectories.length);
-    Assert.assertEquals("newuriencoding_globs", rootDirectories[0].getPath().getName());
+    assertThat(rootDirectories).hasLength(1);
+    assertThat(rootDirectories[0].getPath().getName()).isEqualTo("newuriencoding_globs");
 
     FileStatus[] subDirectories =
         ghfs.globStatus(new Path("/newuriencoding_globs/s*"));
-    Assert.assertEquals(1, subDirectories.length);
-    Assert.assertEquals("subdirectory1", subDirectories[0].getPath().getName());
+    assertThat(subDirectories).hasLength(1);
+    assertThat(subDirectories[0].getPath().getName()).isEqualTo("subdirectory1");
 
     FileStatus[] subDirectories2 =
         ghfs.globStatus(new Path("/newuriencoding_globs/#this*"));
-    Assert.assertEquals(1, subDirectories2.length);
-    Assert.assertEquals("#this#is#a&subdir", subDirectories2[0].getPath().getName());
+    assertThat(subDirectories2).hasLength(1);
+    assertThat(subDirectories2[0].getPath().getName()).isEqualTo("#this#is#a&subdir");
 
     FileStatus[] subDirectories3 =
         ghfs.globStatus(new Path("/newuriencoding_globs/#this?is?a&*"));
-    Assert.assertEquals(1, subDirectories3.length);
-    Assert.assertEquals("#this#is#a&subdir", subDirectories3[0].getPath().getName());
+    assertThat(subDirectories3).hasLength(1);
+    assertThat(subDirectories3[0].getPath().getName()).isEqualTo("#this#is#a&subdir");
 
     FileStatus[] subDirectory1Files =
         ghfs.globStatus(new Path("/newuriencoding_globs/subdirectory1/*"));
-    Assert.assertEquals(2, subDirectory1Files.length);
-    Assert.assertEquals("file1", subDirectory1Files[0].getPath().getName());
-    Assert.assertEquals("file2", subDirectory1Files[1].getPath().getName());
+    assertThat(subDirectory1Files).hasLength(2);
+    assertThat(subDirectory1Files[0].getPath().getName()).isEqualTo("file1");
+    assertThat(subDirectory1Files[1].getPath().getName()).isEqualTo("file2");
 
     FileStatus[] subDirectory2Files =
         ghfs.globStatus(new Path("/newuriencoding_globs/#this#is#a&subdir/f*"));
-    Assert.assertEquals(2, subDirectory2Files.length);
-    Assert.assertEquals("file1", subDirectory2Files[0].getPath().getName());
-    Assert.assertEquals("file2", subDirectory2Files[1].getPath().getName());
+    assertThat(subDirectory2Files).hasLength(2);
+    assertThat(subDirectory2Files[0].getPath().getName()).isEqualTo("file1");
+    assertThat(subDirectory2Files[1].getPath().getName()).isEqualTo("file2");
 
     FileStatus[] subDirectory2Files2 =
         ghfs.globStatus(new Path("/newuriencoding_globs/#this#is#a&subdir/file?"));
-    Assert.assertEquals(2, subDirectory2Files2.length);
-    Assert.assertEquals("file1", subDirectory2Files2[0].getPath().getName());
-    Assert.assertEquals("file2", subDirectory2Files2[1].getPath().getName());
+    assertThat(subDirectory2Files2).hasLength(2);
+    assertThat(subDirectory2Files2[0].getPath().getName()).isEqualTo("file1");
+    assertThat(subDirectory2Files2[1].getPath().getName()).isEqualTo("file2");
 
     FileStatus[] subDirectory2Files3 =
         ghfs.globStatus(new Path("/newuriencoding_globs/#this#is#a&subdir/file[0-9]"));
-    Assert.assertEquals(2, subDirectory2Files3.length);
-    Assert.assertEquals("file1", subDirectory2Files3[0].getPath().getName());
-    Assert.assertEquals("file2", subDirectory2Files3[1].getPath().getName());
+    assertThat(subDirectory2Files3).hasLength(2);
+    assertThat(subDirectory2Files3[0].getPath().getName()).isEqualTo("file1");
+    assertThat(subDirectory2Files3[1].getPath().getName()).isEqualTo("file2");
 
     FileStatus[] subDirectory2Files4 =
         ghfs.globStatus(new Path("/newuriencoding_globs/#this#is#a&subdir/file[^1]"));
-    Assert.assertEquals(1, subDirectory2Files4.length);
-    Assert.assertEquals("file2", subDirectory2Files4[0].getPath().getName());
+    assertThat(subDirectory2Files4).hasLength(1);
+    assertThat(subDirectory2Files4[0].getPath().getName()).isEqualTo("file2");
 
     FileStatus[] subDirectory2Files5 =
         ghfs.globStatus(new Path("/newuriencoding_globs/#this#is#a&subdir/file{1,2}"));
-    Assert.assertEquals(2, subDirectory2Files5.length);
-    Assert.assertEquals("file1", subDirectory2Files5[0].getPath().getName());
-    Assert.assertEquals("file2", subDirectory2Files5[1].getPath().getName());
+    assertThat(subDirectory2Files5).hasLength(2);
+    assertThat(subDirectory2Files5[0].getPath().getName()).isEqualTo("file1");
+    assertThat(subDirectory2Files5[1].getPath().getName()).isEqualTo("file2");
 
     ghfs.delete(globRoot, true);
   }
@@ -175,7 +176,7 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
     ghfsHelper.writeFile(p, "SomeText", 100, false);
 
     FileStatus status = ghfs.getFileStatus(p);
-    Assert.assertEquals(p, status.getPath());
+    assertThat(status.getPath()).isEqualTo(p);
     ghfs.delete(directory, true);
   }
 
@@ -226,7 +227,7 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
     GoogleHadoopFileSystem myghfs = (GoogleHadoopFileSystem) ghfs;
     URI gcsPath = new URI("gs://" + myghfs.getRootBucketName() + "/dir/obj");
     URI convertedPath = myghfs.getGcsPath(new Path(gcsPath));
-    Assert.assertEquals(gcsPath, convertedPath);
+    assertThat(convertedPath).isEqualTo(gcsPath);
 
     // When using the LegacyPathCodec this will fail, but it's perfectly fine to encode
     // this in the UriPathCodec. Note that new Path("/buck^et", "object")

@@ -14,8 +14,8 @@
 
 package com.google.cloud.hadoop.gcsio.integration;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.fail;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -191,11 +191,11 @@ public class GoogleCloudStorageImplTest {
 
       GoogleCloudStorageItemInfo itemInfo =
           gcs.getItemInfo(new StorageResourceId(bucketName, "d0/"));
-      assertFalse(itemInfo.exists());
+      assertThat(itemInfo.exists()).isFalse();
 
        List<GoogleCloudStorageItemInfo> d0ItemInfo =
            gcs.listObjectInfo(bucketName, "d0/", "/");
-       assertEquals("d0 length", 1, d0ItemInfo.size());
+      assertWithMessage("d0 length").that(d0ItemInfo.size()).isEqualTo(1);
 
     } finally {
       GoogleCloudStorageTestHelper.cleanupTestObjects(
@@ -225,9 +225,10 @@ public class GoogleCloudStorageImplTest {
           new CreateObjectOptions(true, "image/png", CreateObjectOptions.EMPTY_METADATA)).close();
       gcs.create(resourceId3).close(); // default content-type: "application/octet-stream"
 
-      assertEquals("text/plain", gcs.getItemInfo(resourceId1).getContentType());
-      assertEquals("image/png", gcs.getItemInfo(resourceId2).getContentType());
-      assertEquals("application/octet-stream", gcs.getItemInfo(resourceId3).getContentType());
+      assertThat(gcs.getItemInfo(resourceId1).getContentType()).isEqualTo("text/plain");
+      assertThat(gcs.getItemInfo(resourceId2).getContentType()).isEqualTo("image/png");
+      assertThat(gcs.getItemInfo(resourceId3).getContentType())
+          .isEqualTo("application/octet-stream");
     } finally {
       GoogleCloudStorageTestHelper.cleanupTestObjects(
           gcs,

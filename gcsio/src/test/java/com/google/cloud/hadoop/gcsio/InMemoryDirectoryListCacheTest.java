@@ -16,9 +16,7 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static com.google.common.truth.Truth.assertThat;
 
 import java.io.IOException;
 import org.junit.Test;
@@ -42,7 +40,7 @@ public class InMemoryDirectoryListCacheTest extends DirectoryListCacheTest {
 
   @Test
   public void testGetInstance() {
-    assertNotNull(InMemoryDirectoryListCache.getInstance());
+    assertThat(InMemoryDirectoryListCache.getInstance()).isNotNull();
   }
 
   /**
@@ -52,16 +50,16 @@ public class InMemoryDirectoryListCacheTest extends DirectoryListCacheTest {
   @Test
   public void testRemoveNonEmptyBucket() throws IOException {
     CacheEntry objectEntry = cache.putResourceId(objectResourceId);
-    assertEquals(1, cache.getInternalNumBuckets());
-    assertEquals(1, cache.getInternalNumObjects());
-    assertEquals(1, cache.getBucketList().size());
-    assertEquals(1, cache.getObjectList(BUCKET_NAME, "", null, null).size());
+    assertThat(cache.getInternalNumBuckets()).isEqualTo(1);
+    assertThat(cache.getInternalNumObjects()).isEqualTo(1);
+    assertThat(cache.getBucketList()).hasSize(1);
+    assertThat(cache.getObjectList(BUCKET_NAME, "", null, null)).hasSize(1);
 
     // Removing the auto-created bucket will auto-remove all its children objects as well.
     cache.removeResourceId(bucketResourceId);
-    assertEquals(0, cache.getInternalNumBuckets());
-    assertEquals(0, cache.getInternalNumObjects());
-    assertEquals(0, cache.getBucketList().size());
-    assertNull(cache.getObjectList(BUCKET_NAME, "", null, null));
+    assertThat(cache.getInternalNumBuckets()).isEqualTo(0);
+    assertThat(cache.getInternalNumObjects()).isEqualTo(0);
+    assertThat(cache.getBucketList()).isEmpty();
+    assertThat(cache.getObjectList(BUCKET_NAME, "", null, null)).isNull();
   }
 }

@@ -16,10 +16,8 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -130,90 +128,90 @@ public abstract class DirectoryListCacheTest {
    */
   private void basicTestHelper(StorageResourceId resourceId, GoogleCloudStorageItemInfo itemInfo)
       throws IOException {
-    assertEquals(0, cache.getInternalNumBuckets());
-    assertEquals(0, cache.getInternalNumObjects());
+    assertThat(cache.getInternalNumBuckets()).isEqualTo(0);
+    assertThat(cache.getInternalNumObjects()).isEqualTo(0);
     CacheEntry entry = cache.putResourceId(resourceId);
-    assertNotNull(entry);
+    assertThat(entry).isNotNull();
 
     // A Bucket is always created.
-    assertEquals(1, cache.getInternalNumBuckets());
+    assertThat(cache.getInternalNumBuckets()).isEqualTo(1);
     if (resourceId.isStorageObject()) {
-      assertEquals(1, cache.getInternalNumObjects());
+      assertThat(cache.getInternalNumObjects()).isEqualTo(1);
     } else {
-      assertEquals(0, cache.getInternalNumObjects());
+      assertThat(cache.getInternalNumObjects()).isEqualTo(0);
     }
 
     // Verify that the entry started out without itemInfo, then set some info on the entry.
-    assertNull(entry.getItemInfo());
+    assertThat(entry.getItemInfo()).isNull();
 
     if (cache.supportsCacheEntryByReference()) {
       entry.setItemInfo(itemInfo);
-      assertNotNull(entry.getItemInfo());
-      assertEquals(itemInfo, entry.getItemInfo());
+      assertThat(entry.getItemInfo()).isNotNull();
+      assertThat(entry.getItemInfo()).isEqualTo(itemInfo);
     }
 
     // Adding the same thing again doesn't actually insert a new entry; the returned value should
     // be the exact same CacheEntry instance (test == instead of just equals()).
     CacheEntry newEntry = cache.putResourceId(resourceId);
-    assertNotNull(newEntry);
+    assertThat(newEntry).isNotNull();
     if (cache.supportsCacheEntryByReference()) {
-      assertTrue(newEntry == entry);
+      assertThat(newEntry == entry).isTrue();
     }
-    assertEquals(1, cache.getInternalNumBuckets());
+    assertThat(cache.getInternalNumBuckets()).isEqualTo(1);
     if (resourceId.isStorageObject()) {
-      assertEquals(1, cache.getInternalNumObjects());
+      assertThat(cache.getInternalNumObjects()).isEqualTo(1);
     } else {
-      assertEquals(0, cache.getInternalNumObjects());
+      assertThat(cache.getInternalNumObjects()).isEqualTo(0);
     }
 
     // The info is still in there. This will change if we make putResourceId invalidate existing
     // info.
     if (cache.supportsCacheEntryByReference()) {
-      assertNotNull(newEntry.getItemInfo());
-      assertEquals(itemInfo, newEntry.getItemInfo());
+      assertThat(newEntry.getItemInfo()).isNotNull();
+      assertThat(newEntry.getItemInfo()).isEqualTo(itemInfo);
     }
 
     // Retrieve the entry directly.
     CacheEntry retrievedEntry = cache.getCacheEntry(resourceId);
-    assertNotNull(retrievedEntry);
+    assertThat(retrievedEntry).isNotNull();
     if (cache.supportsCacheEntryByReference()) {
-      assertTrue(retrievedEntry == entry);
-      assertEquals(itemInfo, retrievedEntry.getItemInfo());
+      assertThat(retrievedEntry == entry).isTrue();
+      assertThat(retrievedEntry.getItemInfo()).isEqualTo(itemInfo);
     }
 
     // Now remove it. If it was a StorageObject, the implied bucket still hangs around.
     cache.removeResourceId(resourceId);
     if (resourceId.isStorageObject()) {
-      assertEquals(1, cache.getInternalNumBuckets());
-      assertEquals(0, cache.getInternalNumObjects());
+      assertThat(cache.getInternalNumBuckets()).isEqualTo(1);
+      assertThat(cache.getInternalNumObjects()).isEqualTo(0);
     } else {
-      assertEquals(0, cache.getInternalNumBuckets());
-      assertEquals(0, cache.getInternalNumObjects());
+      assertThat(cache.getInternalNumBuckets()).isEqualTo(0);
+      assertThat(cache.getInternalNumObjects()).isEqualTo(0);
     }
-    assertNull(cache.getCacheEntry(resourceId));
+    assertThat(cache.getCacheEntry(resourceId)).isNull();
 
     // Fine to remove nonexistent resourceId.
     cache.removeResourceId(resourceId);
     if (resourceId.isStorageObject()) {
-      assertEquals(1, cache.getInternalNumBuckets());
-      assertEquals(0, cache.getInternalNumObjects());
+      assertThat(cache.getInternalNumBuckets()).isEqualTo(1);
+      assertThat(cache.getInternalNumObjects()).isEqualTo(0);
     } else {
-      assertEquals(0, cache.getInternalNumBuckets());
-      assertEquals(0, cache.getInternalNumObjects());
+      assertThat(cache.getInternalNumBuckets()).isEqualTo(0);
+      assertThat(cache.getInternalNumObjects()).isEqualTo(0);
     }
 
     // Re-insert; the CacheEntry should now be different and will not contain any itemInfo.
     CacheEntry reinsertedEntry = cache.putResourceId(resourceId);
-    assertNotNull(reinsertedEntry);
+    assertThat(reinsertedEntry).isNotNull();
     if (cache.supportsCacheEntryByReference()) {
-      assertTrue(reinsertedEntry != entry);
-      assertNull(reinsertedEntry.getItemInfo());
+      assertThat(reinsertedEntry != entry).isTrue();
+      assertThat(reinsertedEntry.getItemInfo()).isNull();
     }
-    assertEquals(1, cache.getInternalNumBuckets());
+    assertThat(cache.getInternalNumBuckets()).isEqualTo(1);
     if (resourceId.isStorageObject()) {
-      assertEquals(1, cache.getInternalNumObjects());
+      assertThat(cache.getInternalNumObjects()).isEqualTo(1);
     } else {
-      assertEquals(0, cache.getInternalNumObjects());
+      assertThat(cache.getInternalNumObjects()).isEqualTo(0);
     }
   }
 
@@ -230,40 +228,40 @@ public abstract class DirectoryListCacheTest {
   @Test
   public void testExpirationBucketOnly() throws IOException {
     // Even with no buckets, we should still get an empty non-null list.
-    assertEquals(0, cache.getInternalNumBuckets());
+    assertThat(cache.getInternalNumBuckets()).isEqualTo(0);
     List<CacheEntry> listedBuckets = cache.getBucketList();
-    assertNotNull(listedBuckets);
+    assertThat(listedBuckets).isNotNull();
 
     CacheEntry bucketEntry = cache.putResourceId(bucketResourceId);
-    assertEquals(1, cache.getInternalNumBuckets());
-    assertEquals(0, cache.getInternalNumObjects());  // Buckets don't count as Objects.
-    assertNotNull(bucketEntry);
+    assertThat(cache.getInternalNumBuckets()).isEqualTo(1);
+    assertThat(cache.getInternalNumObjects()).isEqualTo(0); // Buckets don't count as Objects.
+    assertThat(bucketEntry).isNotNull();
     bucketEntry.setItemInfo(bucketInfo);
-    assertEquals(bucketInfo, bucketEntry.getItemInfo());
+    assertThat(bucketEntry.getItemInfo()).isEqualTo(bucketInfo);
 
     // With 0 time elapsed, the list should return our bucket just fine.
     listedBuckets = cache.getBucketList();
-    assertEquals(1, listedBuckets.size());
+    assertThat(listedBuckets).hasSize(1);
     if (cache.supportsCacheEntryByReference()) {
-      assertTrue(bucketEntry == listedBuckets.get(0));
+      assertThat(bucketEntry == listedBuckets.get(0)).isTrue();
     }
 
     // Elapse time to 1 millisecond before info expiration; info should still be there.
     long nextTime = BASE_TIME + MAX_INFO_AGE - 1;
     when(mockClock.currentTimeMillis()).thenReturn(nextTime);
     listedBuckets = cache.getBucketList();
-    assertEquals(1, listedBuckets.size());
+    assertThat(listedBuckets).hasSize(1);
     if (cache.supportsCacheEntryByReference()) {
-      assertEquals(bucketInfo, listedBuckets.get(0).getItemInfo());
+      assertThat(listedBuckets.get(0).getItemInfo()).isEqualTo(bucketInfo);
     }
 
     // At exactly MAX_INFO_AGE, the info hasn't expired yet (it is inclusive).
     nextTime += 1;
     when(mockClock.currentTimeMillis()).thenReturn(nextTime);
     listedBuckets = cache.getBucketList();
-    assertEquals(1, listedBuckets.size());
+    assertThat(listedBuckets).hasSize(1);
     if (cache.supportsCacheEntryByReference()) {
-      assertEquals(bucketInfo, listedBuckets.get(0).getItemInfo());
+      assertThat(listedBuckets.get(0).getItemInfo()).isEqualTo(bucketInfo);
     }
 
     // One millisecond later, it will have expired. However, getCacheEntry does not expire entries,
@@ -271,20 +269,20 @@ public abstract class DirectoryListCacheTest {
     nextTime += 1;
     when(mockClock.currentTimeMillis()).thenReturn(nextTime);
     CacheEntry retrieved = cache.getCacheEntry(bucketResourceId);
-    assertNotNull(retrieved);
+    assertThat(retrieved).isNotNull();
     if (cache.supportsCacheEntryByReference()) {
-      assertTrue(retrieved == bucketEntry);
-      assertEquals(bucketInfo, retrieved.getItemInfo());
+      assertThat(retrieved == bucketEntry).isTrue();
+      assertThat(retrieved.getItemInfo()).isEqualTo(bucketInfo);
     }
 
     // The list command will proactively remove the info; the removal will manifest in our other
     // CacheEntry references as well.
     listedBuckets = cache.getBucketList();
-    assertEquals(1, listedBuckets.size());
+    assertThat(listedBuckets).hasSize(1);
     if (cache.supportsCacheEntryByReference()) {
-      assertNull(listedBuckets.get(0).getItemInfo());
-      assertNull(retrieved.getItemInfo());
-      assertNull(bucketEntry.getItemInfo());
+      assertThat(listedBuckets.get(0).getItemInfo()).isNull();
+      assertThat(retrieved.getItemInfo()).isNull();
+      assertThat(bucketEntry.getItemInfo()).isNull();
     }
 
     // Now expire the entry entirely.
@@ -294,9 +292,9 @@ public abstract class DirectoryListCacheTest {
     // Since it was empty, the CachedBucket will truly get removed entirely; getCacheEntry will
     // not retrieve it any longer.
     listedBuckets = cache.getBucketList();
-    assertEquals(0, listedBuckets.size());
-    assertEquals(0, cache.getInternalNumBuckets());
-    assertNull(cache.getCacheEntry(bucketResourceId));
+    assertThat(listedBuckets).isEmpty();
+    assertThat(cache.getInternalNumBuckets()).isEqualTo(0);
+    assertThat(cache.getCacheEntry(bucketResourceId)).isNull();
   }
 
   @Test
@@ -309,13 +307,13 @@ public abstract class DirectoryListCacheTest {
 
     if (cache.supportsCacheEntryByReference()) {
       bucketEntry.setItemInfo(bucketInfo);
-      assertEquals(bucketInfo, bucketEntry.getItemInfo());
+      assertThat(bucketEntry.getItemInfo()).isEqualTo(bucketInfo);
     }
 
     List<CacheEntry> listedBuckets = cache.getBucketList();
-    assertEquals(1, listedBuckets.size());
+    assertThat(listedBuckets).hasSize(1);
     if (cache.supportsCacheEntryByReference()) {
-      assertEquals(bucketInfo, listedBuckets.get(0).getItemInfo());
+      assertThat(listedBuckets.get(0).getItemInfo()).isEqualTo(bucketInfo);
     }
 
     // Now expire it out of the cache; the entry will no longer get returned despite the inner
@@ -323,13 +321,13 @@ public abstract class DirectoryListCacheTest {
     nextTime += 1;
     when(mockClock.currentTimeMillis()).thenReturn(nextTime);
     listedBuckets = cache.getBucketList();
-    assertEquals(0, listedBuckets.size());
-    assertEquals(0, cache.getInternalNumBuckets());
-    assertNull(cache.getCacheEntry(bucketResourceId));
+    assertThat(listedBuckets).isEmpty();
+    assertThat(cache.getInternalNumBuckets()).isEqualTo(0);
+    assertThat(cache.getCacheEntry(bucketResourceId)).isNull();
 
     if (cache.supportsCacheEntryByReference()) {
       // However, our old reference to the CacheEntry is still alive, and still holding the info.
-      assertEquals(bucketInfo, bucketEntry.getItemInfo());
+      assertThat(bucketEntry.getItemInfo()).isEqualTo(bucketInfo);
     }
 
     // The cache no longer controls the reference we hold, therefore no matter how much more time
@@ -337,10 +335,10 @@ public abstract class DirectoryListCacheTest {
     nextTime += MAX_INFO_AGE + 1;
     when(mockClock.currentTimeMillis()).thenReturn(nextTime);
     listedBuckets = cache.getBucketList();
-    assertEquals(0, listedBuckets.size());
+    assertThat(listedBuckets).isEmpty();
 
     if (cache.supportsCacheEntryByReference()) {
-      assertEquals(bucketInfo, bucketEntry.getItemInfo());
+      assertThat(bucketEntry.getItemInfo()).isEqualTo(bucketInfo);
     }
   }
 
@@ -352,61 +350,61 @@ public abstract class DirectoryListCacheTest {
 
     CacheEntry objectEntry = cache.putResourceId(objectResourceId);
     objectEntry.setItemInfo(objectInfo);
-    assertEquals(1, cache.getRawBucketList().size());
-    assertEquals(1, cache.getInternalNumBuckets());
-    assertEquals(1, cache.getInternalNumObjects());
+    assertThat(cache.getRawBucketList()).hasSize(1);
+    assertThat(cache.getInternalNumBuckets()).isEqualTo(1);
+    assertThat(cache.getInternalNumObjects()).isEqualTo(1);
     List<CacheEntry> listedBuckets = cache.getBucketList();
-    assertEquals(1, listedBuckets.size());
+    assertThat(listedBuckets).hasSize(1);
 
     // Move time past the bucket expiration time. Should list 0 buckets, even though internally
     // there is still a bucket.
     nextTime += 1;
     when(mockClock.currentTimeMillis()).thenReturn(nextTime);
     listedBuckets = cache.getBucketList();
-    assertEquals(0, listedBuckets.size());
-    assertEquals(1, cache.getRawBucketList().size());
-    assertEquals(1, cache.getInternalNumBuckets());
-    assertEquals(1, cache.getInternalNumObjects());
+    assertThat(listedBuckets).isEmpty();
+    assertThat(cache.getRawBucketList()).hasSize(1);
+    assertThat(cache.getInternalNumBuckets()).isEqualTo(1);
+    assertThat(cache.getInternalNumObjects()).isEqualTo(1);
 
     // The child info is still there.
     if (cache.supportsCacheEntryByReference()) {
-      assertEquals(objectInfo, cache.getCacheEntry(objectResourceId).getItemInfo());
+      assertThat(cache.getCacheEntry(objectResourceId).getItemInfo()).isEqualTo(objectInfo);
     }
     List<CacheEntry> listedObjects = cache.getObjectList(
         BUCKET_NAME, "", null, null);
-    assertNotNull(listedObjects);
-    assertEquals(1, listedObjects.size());
+    assertThat(listedObjects).isNotNull();
+    assertThat(listedObjects).hasSize(1);
     if (cache.supportsCacheEntryByReference()) {
-      assertEquals(objectInfo, listedObjects.get(0).getItemInfo());
+      assertThat(listedObjects.get(0).getItemInfo()).isEqualTo(objectInfo);
     }
 
     // List of objects should be empty after we remove the object, but not null.
     cache.removeResourceId(objectResourceId);
     listedObjects = cache.getObjectList(BUCKET_NAME, "", null, null);
-    assertNotNull(listedObjects);
-    assertEquals(0, listedObjects.size());
+    assertThat(listedObjects).isNotNull();
+    assertThat(listedObjects).isEmpty();
 
-    assertEquals(1, cache.getRawBucketList().size());
-    assertEquals(1, cache.getInternalNumBuckets());
-    assertEquals(0, cache.getInternalNumObjects());
+    assertThat(cache.getRawBucketList()).hasSize(1);
+    assertThat(cache.getInternalNumBuckets()).isEqualTo(1);
+    assertThat(cache.getInternalNumObjects()).isEqualTo(0);
 
     // Next time we call getBucketList, the expired bucket will actually be fully removed.
     listedBuckets = cache.getBucketList();
-    assertEquals(0, cache.getRawBucketList().size());
-    assertEquals(0, cache.getInternalNumBuckets());
-    assertEquals(0, cache.getInternalNumObjects());
-    assertEquals(0, listedBuckets.size());
+    assertThat(cache.getRawBucketList()).isEmpty();
+    assertThat(cache.getInternalNumBuckets()).isEqualTo(0);
+    assertThat(cache.getInternalNumObjects()).isEqualTo(0);
+    assertThat(listedBuckets).isEmpty();
 
     // With the bucket removed, the listedObjects will now be null.
     listedObjects = cache.getObjectList(BUCKET_NAME, "", null, null);
-    assertNull(listedObjects);
+    assertThat(listedObjects).isNull();
   }
 
   @Test
   public void testExpirationBucketAndObject() throws IOException {
     CacheEntry objectEntry = cache.putResourceId(objectResourceId);
     CacheEntry bucketEntry = cache.getCacheEntry(bucketResourceId);
-    assertNotNull(bucketEntry);
+    assertThat(bucketEntry).isNotNull();
     if (cache.supportsCacheEntryByReference()) {
       bucketEntry.setItemInfo(bucketInfo);
       objectEntry.setItemInfo(objectInfo);
@@ -415,28 +413,30 @@ public abstract class DirectoryListCacheTest {
     List<CacheEntry> listedBuckets = cache.getBucketList();
     List<CacheEntry> listedObjects = cache.getObjectList(
         BUCKET_NAME, "", null, null);
-    assertEquals(1, listedBuckets.size());
-    assertEquals(1, listedObjects.size());
+    assertThat(listedBuckets).hasSize(1);
+    assertThat(listedObjects).hasSize(1);
 
     long nextTime = BASE_TIME + MAX_INFO_AGE + 1;
     when(mockClock.currentTimeMillis()).thenReturn(nextTime);
 
     // Listing buckets only affects info-invalidation for buckets.
     listedBuckets = cache.getBucketList();
-    assertEquals(1, listedBuckets.size());
+    assertThat(listedBuckets).hasSize(1);
 
     if (cache.supportsCacheEntryByReference()) {
-      assertNull(String.format("Expected null, got itemInfo: '%s'", bucketEntry.getItemInfo()),
-                 bucketEntry.getItemInfo());
-      assertEquals(objectInfo, objectEntry.getItemInfo());
+      assertWithMessage(
+              String.format("Expected null, got itemInfo: '%s'", bucketEntry.getItemInfo()))
+          .that(bucketEntry.getItemInfo())
+          .isNull();
+      assertThat(objectEntry.getItemInfo()).isEqualTo(objectInfo);
     }
 
     listedObjects = cache.getObjectList(BUCKET_NAME, "", null, null);
-    assertEquals(1, listedObjects.size());
+    assertThat(listedObjects).hasSize(1);
 
     if (cache.supportsCacheEntryByReference()) {
-      assertNull(bucketEntry.getItemInfo());
-      assertNull(objectEntry.getItemInfo());
+      assertThat(bucketEntry.getItemInfo()).isNull();
+      assertThat(objectEntry.getItemInfo()).isNull();
 
       // Reset the info.
       bucketEntry.setItemInfo(bucketInfo);
@@ -447,35 +447,36 @@ public abstract class DirectoryListCacheTest {
 
     // Listing objects only affects info-invalidation for objects.
     listedObjects = cache.getObjectList(BUCKET_NAME, "", null, null);
-    assertEquals(1, listedObjects.size());
+    assertThat(listedObjects).hasSize(1);
 
     if (cache.supportsCacheEntryByReference()) {
-      assertEquals(bucketInfo, bucketEntry.getItemInfo());
-      assertNull(objectEntry.getItemInfo());
+      assertThat(bucketEntry.getItemInfo()).isEqualTo(bucketInfo);
+      assertThat(objectEntry.getItemInfo()).isNull();
     }
 
     listedBuckets = cache.getBucketList();
-    assertEquals(1, listedBuckets.size());
+    assertThat(listedBuckets).hasSize(1);
 
     if (cache.supportsCacheEntryByReference()) {
-      assertNull(bucketEntry.getItemInfo());
-      assertNull(objectEntry.getItemInfo());
+      assertThat(bucketEntry.getItemInfo()).isNull();
+      assertThat(objectEntry.getItemInfo()).isNull();
     }
 
     // Listing objects can remove objects *and* buckets.
     nextTime += MAX_ENTRY_AGE + 1;
     when(mockClock.currentTimeMillis()).thenReturn(nextTime);
     listedObjects = cache.getObjectList(BUCKET_NAME, "", null, null);
-    assertEquals(0, listedObjects.size());
+    assertThat(listedObjects).isEmpty();
     listedBuckets = cache.getBucketList();
-    assertEquals(
-        String.format("Got listedBuckets: '%s'", listedBuckets), 0, listedBuckets.size());
-    assertEquals(0, cache.getInternalNumBuckets());
-    assertEquals(0, cache.getInternalNumObjects());
+    assertWithMessage(String.format("Got listedBuckets: '%s'", listedBuckets))
+        .that(listedBuckets.size())
+        .isEqualTo(0);
+    assertThat(cache.getInternalNumBuckets()).isEqualTo(0);
+    assertThat(cache.getInternalNumObjects()).isEqualTo(0);
 
     // The next call to getObjectList returns null since the bucket is gone.
     listedObjects = cache.getObjectList(BUCKET_NAME, "", null, null);
-    assertNull(listedObjects);
+    assertThat(listedObjects).isNull();
   }
 
   @Test
@@ -484,15 +485,15 @@ public abstract class DirectoryListCacheTest {
         "foo-bucket", "a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z"));
 
     if (cache.containsEntriesForImplicitDirectories()) {
-      assertEquals(26, cache.getInternalNumObjects());
+      assertThat(cache.getInternalNumObjects()).isEqualTo(26);
     } else {
-      assertEquals(1, cache.getInternalNumObjects());
+      assertThat(cache.getInternalNumObjects()).isEqualTo(1);
     }
     long nextTime = BASE_TIME + MAX_ENTRY_AGE + 1000L;
     when(mockClock.currentTimeMillis()).thenReturn(nextTime);
     List<CacheEntry> listedObjects = cache.getObjectList(BUCKET_NAME, "", null, null);
-    assertEquals(0, listedObjects.size());
-    assertEquals(0, cache.getInternalNumObjects());
+    assertThat(listedObjects).isEmpty();
+    assertThat(cache.getInternalNumObjects()).isEqualTo(0);
   }
 
   /**
@@ -504,7 +505,7 @@ public abstract class DirectoryListCacheTest {
     cache.putResourceId(createId("foo/bar/data1.txt"));
     cache.putResourceId(createId("foo/baz/"));
     cache.putResourceId(createId("foo/data2.txt"));
-    assertEquals(5, cache.getInternalNumObjects());
+    assertThat(cache.getInternalNumObjects()).isEqualTo(5);
   }
 
   /**
@@ -527,14 +528,14 @@ public abstract class DirectoryListCacheTest {
     List<CacheEntry> listedObjects = cache.getObjectList(BUCKET_NAME, null, "/", prefixes);
 
     Set<StorageResourceId> listedSet = extractResourceIdSet(listedObjects);
-    assertEquals(1, listedObjects.size());
-    assertTrue(listedSet.contains(createId("foo/")));
+    assertThat(listedObjects).hasSize(1);
+    assertThat(listedSet).contains(createId("foo/"));
 
     // Only check 'prefixes' logic for implementations which don't auto-create entries for implicit
     // directories.
     if (!cache.containsEntriesForImplicitDirectories()) {
-      assertEquals(1, prefixes.size());
-      assertTrue(prefixes.contains("foo/"));
+      assertThat(prefixes).hasSize(1);
+      assertThat(prefixes).contains("foo/");
     }
   }
 
@@ -546,14 +547,14 @@ public abstract class DirectoryListCacheTest {
     Set<String> prefixes = new HashSet<>();
     List<CacheEntry> listedObjects = cache.getObjectList(BUCKET_NAME, "foo", "/", prefixes);
     Set<StorageResourceId> listedSet = extractResourceIdSet(listedObjects);
-    assertEquals(1, listedObjects.size());
-    assertTrue(listedSet.contains(createId("foo/")));
+    assertThat(listedObjects).hasSize(1);
+    assertThat(listedSet).contains(createId("foo/"));
 
     // Only check 'prefixes' logic for implementations which don't auto-create entries for implicit
     // directories.
     if (!cache.containsEntriesForImplicitDirectories()) {
-      assertEquals(1, prefixes.size());
-      assertTrue(prefixes.contains("foo/"));
+      assertThat(prefixes).hasSize(1);
+      assertThat(prefixes).contains("foo/");
     }
   }
 
@@ -566,14 +567,14 @@ public abstract class DirectoryListCacheTest {
     List<CacheEntry> listedObjects = cache.getObjectList(BUCKET_NAME, "foo/", null, prefixes);
 
     Set<StorageResourceId> listedSet = extractResourceIdSet(listedObjects);
-    assertEquals(4, listedObjects.size());
-    assertTrue(listedSet.contains(createId("foo/bar/")));
-    assertTrue(listedSet.contains(createId("foo/bar/data1.txt")));
-    assertTrue(listedSet.contains(createId("foo/baz/")));
-    assertTrue(listedSet.contains(createId("foo/data2.txt")));
+    assertThat(listedObjects).hasSize(4);
+    assertThat(listedSet).contains(createId("foo/bar/"));
+    assertThat(listedSet).contains(createId("foo/bar/data1.txt"));
+    assertThat(listedSet).contains(createId("foo/baz/"));
+    assertThat(listedSet).contains(createId("foo/data2.txt"));
 
     // No prefixes if no delimiter.
-    assertEquals(0, prefixes.size());
+    assertThat(prefixes).isEmpty();
   }
 
   @Test
@@ -585,13 +586,13 @@ public abstract class DirectoryListCacheTest {
     List<CacheEntry> listedObjects = cache.getObjectList(BUCKET_NAME, "foo/ba", null, prefixes);
 
     Set<StorageResourceId> listedSet = extractResourceIdSet(listedObjects);
-    assertEquals(3, listedObjects.size());
-    assertTrue(listedSet.contains(createId("foo/bar/")));
-    assertTrue(listedSet.contains(createId("foo/bar/data1.txt")));
-    assertTrue(listedSet.contains(createId("foo/baz/")));
+    assertThat(listedObjects).hasSize(3);
+    assertThat(listedSet).contains(createId("foo/bar/"));
+    assertThat(listedSet).contains(createId("foo/bar/data1.txt"));
+    assertThat(listedSet).contains(createId("foo/baz/"));
 
     // No prefixes if no delimiter.
-    assertEquals(0, prefixes.size());
+    assertThat(prefixes).isEmpty();
   }
 
   @Test
@@ -603,10 +604,11 @@ public abstract class DirectoryListCacheTest {
     List<CacheEntry> listedObjects = cache.getObjectList(BUCKET_NAME, "foo/ba", "/", prefixes);
 
     Set<StorageResourceId> listedSet = extractResourceIdSet(listedObjects);
-    assertEquals(String.format(
-        "Expected 2 items in '%s'", listedObjects), 2, listedObjects.size());
-    assertTrue(listedSet.contains(createId("foo/bar/")));
-    assertTrue(listedSet.contains(createId("foo/baz/")));
+    assertWithMessage(String.format("Expected 2 items in '%s'", listedObjects))
+        .that(listedObjects.size())
+        .isEqualTo(2);
+    assertThat(listedSet).contains(createId("foo/bar/"));
+    assertThat(listedSet).contains(createId("foo/baz/"));
 
     // Only check 'prefixes' logic for implementations which don't auto-create entries for implicit
     // directories.
@@ -614,8 +616,8 @@ public abstract class DirectoryListCacheTest {
       // This one doesn't contain "foo/baz/" as a prefix, since "prefixes" are strictly generated
       // by an object whose name is of length strictly greatehr than the prefix that would be
       // generated; in our case, "foo/baz/" is the exact-match object, so no prefix is generated.
-      assertEquals(1, prefixes.size());
-      assertTrue(prefixes.contains("foo/bar/"));
+      assertThat(prefixes).hasSize(1);
+      assertThat(prefixes).contains("foo/bar/");
     }
   }
 
@@ -629,9 +631,9 @@ public abstract class DirectoryListCacheTest {
     cache.putResourceId(createId("foo/brt/"));
 
     if (cache.containsEntriesForImplicitDirectories()) {
-      assertEquals(7, cache.getInternalNumObjects());
+      assertThat(cache.getInternalNumObjects()).isEqualTo(7);
     } else {
-      assertEquals(4, cache.getInternalNumObjects());
+      assertThat(cache.getInternalNumObjects()).isEqualTo(4);
     }
 
     Set<String> prefixes = new HashSet<>();
@@ -643,22 +645,26 @@ public abstract class DirectoryListCacheTest {
       // for bar/ and baz/, and the implementation may or may not populated 'prefixes' but
       // we don't care since we got the directory entries corresponding to the prefixes
       // already.
-      assertEquals(String.format(
-          "Expected 3 items in '%s'", listedObjects), 3, listedObjects.size());
-      assertTrue(listedSet.contains(createId("foo/bar/")));
-      assertTrue(listedSet.contains(createId("foo/baz/")));
-      assertTrue(listedSet.contains(createId("foo/bat.txt")));
+      assertWithMessage(String.format("Expected 3 items in '%s'", listedObjects))
+          .that(listedObjects.size())
+          .isEqualTo(3);
+      assertThat(listedSet).contains(createId("foo/bar/"));
+      assertThat(listedSet).contains(createId("foo/baz/"));
+      assertThat(listedSet).contains(createId("foo/bat.txt"));
     } else {
       // Since the objects "foo/bar/" and "foo/baz/" don't actually exist, we won't list cache
       // entries for them.
-      assertEquals(String.format(
-          "Expected 1 items in '%s'", listedObjects), 1, listedObjects.size());
-      assertTrue(listedSet.contains(createId("foo/bat.txt")));
+      assertWithMessage(String.format("Expected 1 items in '%s'", listedObjects))
+          .that(listedObjects.size())
+          .isEqualTo(1);
+      assertThat(listedSet).contains(createId("foo/bat.txt"));
 
       // But we should still get them as prefixes.
-      assertEquals(String.format("Expected 2 items in '%s'", prefixes), 2, prefixes.size());
-      assertTrue(prefixes.contains("foo/bar/"));
-      assertTrue(prefixes.contains("foo/baz/"));
+      assertWithMessage(String.format("Expected 2 items in '%s'", prefixes))
+          .that(prefixes.size())
+          .isEqualTo(2);
+      assertThat(prefixes).contains("foo/bar/");
+      assertThat(prefixes).contains("foo/baz/");
     }
   }
 
@@ -675,33 +681,36 @@ public abstract class DirectoryListCacheTest {
     // Directory match.
     List<CacheEntry> listedObjects = cache.getObjectList(BUCKET_NAME, "foo", null, null);
     Set<StorageResourceId> listedSet = extractResourceIdSet(listedObjects);
-    assertEquals(String.format(
-        "Expected 3 items in '%s'", listedObjects), 3, listedObjects.size());
-    assertTrue(listedSet.contains(createId("foo/")));
-    assertTrue(listedSet.contains(createId("foo/data1.txt")));
-    assertTrue(listedSet.contains(createId("foo/brt/")));
+    assertWithMessage(String.format("Expected 3 items in '%s'", listedObjects))
+        .that(listedObjects.size())
+        .isEqualTo(3);
+    assertThat(listedSet).contains(createId("foo/"));
+    assertThat(listedSet).contains(createId("foo/data1.txt"));
+    assertThat(listedSet).contains(createId("foo/brt/"));
 
     // Single-object match.
     listedObjects = cache.getObjectList(BUCKET_NAME, "fon", "/", null);
     listedSet = extractResourceIdSet(listedObjects);
-    assertEquals(String.format(
-        "Expected 1 items in '%s'", listedObjects), 1, listedObjects.size());
-    assertTrue(listedSet.contains(createId("fon")));
+    assertWithMessage(String.format("Expected 1 items in '%s'", listedObjects))
+        .that(listedObjects.size())
+        .isEqualTo(1);
+    assertThat(listedSet).contains(createId("fon"));
 
     // Multi-object no-directory match.
     listedObjects = cache.getObjectList(BUCKET_NAME, "fop", "/", null);
     listedSet = extractResourceIdSet(listedObjects);
-    assertEquals(String.format(
-        "Expected 2 items in '%s'", listedObjects), 2, listedObjects.size());
-    assertTrue(listedSet.contains(createId("fop")));
-    assertTrue(listedSet.contains(createId("fopa")));
+    assertWithMessage(String.format("Expected 2 items in '%s'", listedObjects))
+        .that(listedObjects.size())
+        .isEqualTo(2);
+    assertThat(listedSet).contains(createId("fop"));
+    assertThat(listedSet).contains(createId("fopa"));
 
     // No match, prefix is beyond the head of the map.
     listedObjects = cache.getObjectList(BUCKET_NAME, "fn", null, null);
-    assertEquals(0, listedObjects.size());
+    assertThat(listedObjects).isEmpty();
 
     // No match, prefix is beyond the tail of the map.
     listedObjects = cache.getObjectList(BUCKET_NAME, "fp", null, null);
-    assertEquals(0, listedObjects.size());
+    assertThat(listedObjects).isEmpty();
   }
 }

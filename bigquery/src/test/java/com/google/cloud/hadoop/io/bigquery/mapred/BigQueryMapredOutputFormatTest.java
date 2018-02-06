@@ -13,7 +13,7 @@
  */
 package com.google.cloud.hadoop.io.bigquery.mapred;
 
-import static org.junit.Assert.assertNotNull;
+import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
@@ -92,7 +92,7 @@ public class BigQueryMapredOutputFormatTest {
         outputFormat.getRecordWriter(
             mockFileSystem, jobConf, name, mockProgressable);
 
-    assertNotNull(recordWriter);
+    assertThat(recordWriter).isNotNull();
     verify(mockOutputFormat).getRecordWriter(any(TaskAttemptContext.class));
   }
 }

@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.fs.gcs.hcfs;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.apache.hadoop.fs.FileSystemTestHelper.exists;
 import static org.apache.hadoop.fs.FileSystemTestHelper.getTestRootPath;
 
@@ -53,10 +54,10 @@ public class GoogleHadoopGlobalRootedFSMainOperations1Test
   @Test @Override
   public void testMkdirsFailsForSubdirectoryOfExistingFile() throws Exception {
     Path testDir = getTestRootPath(fSys, "test/hadoop");
-    Assert.assertFalse(exists(fSys, testDir));
+    assertThat(exists(fSys, testDir)).isFalse();
     fSys.mkdirs(testDir);
-    Assert.assertTrue(exists(fSys, testDir));
-    
+    assertThat(exists(fSys, testDir)).isTrue();
+
     createFile(getTestRootPath(fSys, "test/hadoop/file"));
     
     Path testSubDir = getTestRootPath(fSys, "test/hadoop/file/subdir");
@@ -66,17 +67,17 @@ public class GoogleHadoopGlobalRootedFSMainOperations1Test
     } catch (IOException e) {
       // expected
     }
-    Assert.assertFalse(exists(fSys, testSubDir));
-    
+    assertThat(exists(fSys, testSubDir)).isFalse();
+
     Path testDeepSubDir = getTestRootPath(fSys, "test/hadoop/file/deep/sub/dir");
-    Assert.assertFalse(exists(fSys, testSubDir));
+    assertThat(exists(fSys, testSubDir)).isFalse();
     try {
       fSys.mkdirs(testDeepSubDir);
       Assert.fail("Should throw IOException.");
     } catch (IOException e) {
       // expected
     }
-    Assert.assertFalse(exists(fSys, testDeepSubDir));
+    assertThat(exists(fSys, testDeepSubDir)).isFalse();
   }
 
   @Test @Override
@@ -86,8 +87,9 @@ public class GoogleHadoopGlobalRootedFSMainOperations1Test
     } catch (AssertionError ae) {
       // Only the last line of the superclass's test should fail; it fails simply because the
       // global-rooted case prefers no authority component.
-      Assert.assertEquals(
-          "expected:<gsg://test/existingDir> but was:<gsg:/test/existingDir>", ae.getMessage());
+      assertThat(ae)
+          .hasMessageThat()
+          .isEqualTo("expected:<gsg://test/existingDir> but was:<gsg:/test/existingDir>");
     }
   }
 }

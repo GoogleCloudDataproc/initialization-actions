@@ -13,7 +13,7 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
-import static org.junit.Assert.assertEquals;
+import static com.google.common.truth.Truth.assertThat;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -51,7 +51,7 @@ public class UnshardedInputSplitTest {
         new UnshardedInputSplit(PATH, START, START + LENGTH, new String[0]);
 
     // Test for correct construction
-    assertEquals(LENGTH, bqInputSplit.getLength());
+    assertThat(bqInputSplit.getLength()).isEqualTo(LENGTH);
   }
 
   /**
@@ -65,7 +65,7 @@ public class UnshardedInputSplitTest {
         new UnshardedInputSplit(PATH, START, START + LENGTH, new String[0]);
 
     // Test for correct construction
-    assertEquals(START, bqInputSplit.getLocations().length);
+    assertThat(bqInputSplit.getLocations()).hasLength(START);
   }
 
   /**
@@ -78,7 +78,7 @@ public class UnshardedInputSplitTest {
         new UnshardedInputSplit(PATH, START, START + LENGTH, new String[0]);
 
     // Test for correct construction
-    assertEquals(PATH, bqInputSplit.getPath());
+    assertThat(bqInputSplit.getPath()).isEqualTo(PATH);
   }
 
   /**
@@ -92,7 +92,7 @@ public class UnshardedInputSplitTest {
         PATH, START, START + LENGTH, new String[0]);
 
     // Test for correct construction
-    assertEquals(inputSplit.toString(), bqInputSplit.toString());
+    assertThat(bqInputSplit.toString()).isEqualTo(inputSplit.toString());
   }
 
   /**
@@ -124,8 +124,8 @@ public class UnshardedInputSplitTest {
     bqResultSplit.readFields(in);
 
     // Test for correct serialization
-    assertEquals(LENGTH, bqInputSplit.getLength());
-    assertEquals(START, bqInputSplit.getStart());
-    assertEquals(PATH, bqInputSplit.getPath());
+    assertThat(bqInputSplit.getLength()).isEqualTo(LENGTH);
+    assertThat(bqInputSplit.getStart()).isEqualTo(START);
+    assertThat(bqInputSplit.getPath()).isEqualTo(PATH);
   }
 }

@@ -14,9 +14,7 @@
 
 package com.google.cloud.hadoop.util;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static com.google.common.truth.Truth.assertThat;
 
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
@@ -95,14 +93,14 @@ public class ApiErrorExtractorTest {
   @Test
   public void testAccessDenied() {
     // Check success case.
-    assertTrue(errorExtractor.accessDenied(accessDenied));
-    assertTrue(errorExtractor.accessDenied(new IOException(accessDenied)));
-    assertTrue(errorExtractor.accessDenied(
-        new IOException(new IOException(accessDenied))));
+    assertThat(errorExtractor.accessDenied(accessDenied)).isTrue();
+    assertThat(errorExtractor.accessDenied(new IOException(accessDenied))).isTrue();
+    assertThat(errorExtractor.accessDenied(new IOException(new IOException(accessDenied))))
+        .isTrue();
 
     // Check failure case.
-    assertFalse(errorExtractor.accessDenied(statusOk));
-    assertFalse(errorExtractor.accessDenied(new IOException(statusOk)));
+    assertThat(errorExtractor.accessDenied(statusOk)).isFalse();
+    assertThat(errorExtractor.accessDenied(new IOException(statusOk))).isFalse();
   }
 
   /**
@@ -111,14 +109,14 @@ public class ApiErrorExtractorTest {
   @Test
   public void testItemAlreadyExists() {
     // Check success cases.
-    assertTrue(errorExtractor.itemAlreadyExists(alreadyExists));
-    assertTrue(errorExtractor.itemAlreadyExists(new IOException(alreadyExists)));
-    assertTrue(errorExtractor.itemAlreadyExists(
-        new IOException(new IOException(alreadyExists))));
+    assertThat(errorExtractor.itemAlreadyExists(alreadyExists)).isTrue();
+    assertThat(errorExtractor.itemAlreadyExists(new IOException(alreadyExists))).isTrue();
+    assertThat(errorExtractor.itemAlreadyExists(new IOException(new IOException(alreadyExists))))
+        .isTrue();
 
     // Check failure cases.
-    assertFalse(errorExtractor.itemAlreadyExists(statusOk));
-    assertFalse(errorExtractor.itemAlreadyExists(new IOException(statusOk)));
+    assertThat(errorExtractor.itemAlreadyExists(statusOk)).isFalse();
+    assertThat(errorExtractor.itemAlreadyExists(new IOException(statusOk))).isFalse();
   }
 
   /**
@@ -127,17 +125,17 @@ public class ApiErrorExtractorTest {
   @Test
   public void testItemNotFound() {
     // Check success cases.
-    assertTrue(errorExtractor.itemNotFound(notFound));
+    assertThat(errorExtractor.itemNotFound(notFound)).isTrue();
     GoogleJsonError gje = new GoogleJsonError();
     gje.setCode(HttpStatusCodes.STATUS_CODE_NOT_FOUND);
-    assertTrue(errorExtractor.itemNotFound(gje));
-    assertTrue(errorExtractor.itemNotFound(new IOException(notFound)));
-    assertTrue(errorExtractor.itemNotFound(new IOException(new IOException(notFound))));
+    assertThat(errorExtractor.itemNotFound(gje)).isTrue();
+    assertThat(errorExtractor.itemNotFound(new IOException(notFound))).isTrue();
+    assertThat(errorExtractor.itemNotFound(new IOException(new IOException(notFound)))).isTrue();
 
     // Check failure case.
-    assertFalse(errorExtractor.itemNotFound(statusOk));
-    assertFalse(errorExtractor.itemNotFound(new IOException()));
-    assertFalse(errorExtractor.itemNotFound(new IOException(new IOException())));
+    assertThat(errorExtractor.itemNotFound(statusOk)).isFalse();
+    assertThat(errorExtractor.itemNotFound(new IOException())).isFalse();
+    assertThat(errorExtractor.itemNotFound(new IOException(new IOException()))).isFalse();
   }
 
   /**
@@ -146,15 +144,15 @@ public class ApiErrorExtractorTest {
   @Test
   public void testRangeNotSatisfiable() {
     // Check success case.
-    assertTrue(errorExtractor.rangeNotSatisfiable(badRange));
-    assertTrue(errorExtractor.rangeNotSatisfiable(new IOException(badRange)));
-    assertTrue(errorExtractor.rangeNotSatisfiable(
-        new IOException(new IOException(badRange))));
+    assertThat(errorExtractor.rangeNotSatisfiable(badRange)).isTrue();
+    assertThat(errorExtractor.rangeNotSatisfiable(new IOException(badRange))).isTrue();
+    assertThat(errorExtractor.rangeNotSatisfiable(new IOException(new IOException(badRange))))
+        .isTrue();
 
     // Check failure case.
-    assertFalse(errorExtractor.rangeNotSatisfiable(statusOk));
-    assertFalse(errorExtractor.rangeNotSatisfiable(notFound));
-    assertFalse(errorExtractor.rangeNotSatisfiable(new IOException(notFound)));
+    assertThat(errorExtractor.rangeNotSatisfiable(statusOk)).isFalse();
+    assertThat(errorExtractor.rangeNotSatisfiable(notFound)).isFalse();
+    assertThat(errorExtractor.rangeNotSatisfiable(new IOException(notFound))).isFalse();
   }
 
   /**
@@ -163,13 +161,13 @@ public class ApiErrorExtractorTest {
   @Test
   public void testRateLimited() {
     // Check success case.
-    assertTrue(errorExtractor.rateLimited(rateLimited));
-    assertTrue(errorExtractor.rateLimited(new IOException(rateLimited)));
-    assertTrue(errorExtractor.rateLimited(new IOException(new IOException(rateLimited))));
+    assertThat(errorExtractor.rateLimited(rateLimited)).isTrue();
+    assertThat(errorExtractor.rateLimited(new IOException(rateLimited))).isTrue();
+    assertThat(errorExtractor.rateLimited(new IOException(new IOException(rateLimited)))).isTrue();
 
     // Check failure cases.
-    assertFalse(errorExtractor.rateLimited(notRateLimited));
-    assertFalse(errorExtractor.rateLimited(new IOException(notRateLimited)));
+    assertThat(errorExtractor.rateLimited(notRateLimited)).isFalse();
+    assertThat(errorExtractor.rateLimited(new IOException(notRateLimited))).isFalse();
   }
 
   /**
@@ -178,13 +176,13 @@ public class ApiErrorExtractorTest {
   @Test
   public void testBigQueryRateLimited() {
     // Check success case.
-    assertTrue(errorExtractor.rateLimited(bigqueryRateLimited));
-    assertTrue(errorExtractor.rateLimited(new IOException(bigqueryRateLimited)));
-    assertTrue(errorExtractor.rateLimited(
-        new IOException(new IOException(bigqueryRateLimited))));
+    assertThat(errorExtractor.rateLimited(bigqueryRateLimited)).isTrue();
+    assertThat(errorExtractor.rateLimited(new IOException(bigqueryRateLimited))).isTrue();
+    assertThat(errorExtractor.rateLimited(new IOException(new IOException(bigqueryRateLimited))))
+        .isTrue();
 
     // Check failure cases.
-    assertFalse(errorExtractor.rateLimited(notRateLimited));
+    assertThat(errorExtractor.rateLimited(notRateLimited)).isFalse();
   }
 
   /**
@@ -194,24 +192,27 @@ public class ApiErrorExtractorTest {
   public void testIOError() {
     // Check true cases.
     Throwable ioError1 = new EOFException("io error 1");
-    assertTrue(errorExtractor.ioError(ioError1));
-    assertTrue(errorExtractor.ioError(new Exception(ioError1)));
-    assertTrue(errorExtractor.ioError(new RuntimeException(new RuntimeException(ioError1))));
+    assertThat(errorExtractor.ioError(ioError1)).isTrue();
+    assertThat(errorExtractor.ioError(new Exception(ioError1))).isTrue();
+    assertThat(errorExtractor.ioError(new RuntimeException(new RuntimeException(ioError1))))
+        .isTrue();
 
     Throwable ioError2 = new IOException("io error 2");
-    assertTrue(errorExtractor.ioError(ioError2));
-    assertTrue(errorExtractor.ioError(new Exception(ioError2)));
-    assertTrue(errorExtractor.ioError(new RuntimeException(new RuntimeException(ioError2))));
+    assertThat(errorExtractor.ioError(ioError2)).isTrue();
+    assertThat(errorExtractor.ioError(new Exception(ioError2))).isTrue();
+    assertThat(errorExtractor.ioError(new RuntimeException(new RuntimeException(ioError2))))
+        .isTrue();
 
     Throwable ioError3 = new IOError(new Exception("io error 3"));
-    assertTrue(errorExtractor.ioError(ioError3));
-    assertTrue(errorExtractor.ioError(new Exception(ioError3)));
-    assertTrue(errorExtractor.ioError(new RuntimeException(new RuntimeException(ioError3))));
+    assertThat(errorExtractor.ioError(ioError3)).isTrue();
+    assertThat(errorExtractor.ioError(new Exception(ioError3))).isTrue();
+    assertThat(errorExtractor.ioError(new RuntimeException(new RuntimeException(ioError3))))
+        .isTrue();
 
     // Check false cases.
     Throwable notIOError = new Exception("not io error");
-    assertFalse(errorExtractor.ioError(notIOError));
-    assertFalse(errorExtractor.ioError(new RuntimeException(notIOError)));
+    assertThat(errorExtractor.ioError(notIOError)).isFalse();
+    assertThat(errorExtractor.ioError(new RuntimeException(notIOError))).isFalse();
   }
 
   /**
@@ -221,26 +222,27 @@ public class ApiErrorExtractorTest {
   public void testSocketError() {
     // Check true cases.
     Throwable socketError1 = new SocketTimeoutException("socket error 1");
-    assertTrue(errorExtractor.socketError(socketError1));
-    assertTrue(errorExtractor.socketError(new Exception(socketError1)));
-    assertTrue(errorExtractor.socketError(new IOException(new IOException(socketError1))));
+    assertThat(errorExtractor.socketError(socketError1)).isTrue();
+    assertThat(errorExtractor.socketError(new Exception(socketError1))).isTrue();
+    assertThat(errorExtractor.socketError(new IOException(new IOException(socketError1)))).isTrue();
 
     Throwable socketError2 = new SocketException("socket error 2");
-    assertTrue(errorExtractor.socketError(socketError2));
-    assertTrue(errorExtractor.socketError(new Exception(socketError2)));
-    assertTrue(errorExtractor.socketError(new IOException(new IOException(socketError2))));
+    assertThat(errorExtractor.socketError(socketError2)).isTrue();
+    assertThat(errorExtractor.socketError(new Exception(socketError2))).isTrue();
+    assertThat(errorExtractor.socketError(new IOException(new IOException(socketError2)))).isTrue();
 
     Throwable socketError3 = new SSLException("ssl exception", new EOFException("eof"));
-    assertTrue(errorExtractor.socketError(socketError2));
-    assertTrue(errorExtractor.socketError(new Exception(socketError2)));
-    assertTrue(errorExtractor.socketError(new IOException(new IOException(socketError2))));
+    assertThat(errorExtractor.socketError(socketError2)).isTrue();
+    assertThat(errorExtractor.socketError(new Exception(socketError2))).isTrue();
+    assertThat(errorExtractor.socketError(new IOException(new IOException(socketError2)))).isTrue();
 
     // Check false cases.
     Throwable notSocketError = new Exception("not socket error");
     Throwable notIOError = new Exception("not io error");
-    assertFalse(errorExtractor.socketError(notSocketError));
-    assertFalse(errorExtractor.socketError(new IOException(notSocketError)));
-    assertFalse(errorExtractor.socketError(new SSLException("handshake failed", notIOError)));
+    assertThat(errorExtractor.socketError(notSocketError)).isFalse();
+    assertThat(errorExtractor.socketError(new IOException(notSocketError))).isFalse();
+    assertThat(errorExtractor.socketError(new SSLException("handshake failed", notIOError)))
+        .isFalse();
   }
 
   /**
@@ -250,13 +252,13 @@ public class ApiErrorExtractorTest {
   public void testReadTimedOut() {
     // Check success case.
     IOException x = new SocketTimeoutException("Read timed out");
-    assertTrue(errorExtractor.readTimedOut(x));
+    assertThat(errorExtractor.readTimedOut(x)).isTrue();
 
     // Check failure cases.
     x = new IOException("not a SocketTimeoutException");
-    assertFalse(errorExtractor.readTimedOut(x));
+    assertThat(errorExtractor.readTimedOut(x)).isFalse();
     x = new SocketTimeoutException("not the right kind of timeout");
-    assertFalse(errorExtractor.readTimedOut(x));
+    assertThat(errorExtractor.readTimedOut(x)).isFalse();
   }
 
   /**
@@ -265,25 +267,25 @@ public class ApiErrorExtractorTest {
   @Test
   public void testResourceNotReady() {
     // Check success case.
-    assertTrue(errorExtractor.resourceNotReady(resourceNotReady));
-    assertTrue(errorExtractor.resourceNotReady(new IOException(resourceNotReady)));
-    assertTrue(errorExtractor.resourceNotReady(
-        new IOException(new IOException(resourceNotReady))));
+    assertThat(errorExtractor.resourceNotReady(resourceNotReady)).isTrue();
+    assertThat(errorExtractor.resourceNotReady(new IOException(resourceNotReady))).isTrue();
+    assertThat(errorExtractor.resourceNotReady(new IOException(new IOException(resourceNotReady))))
+        .isTrue();
 
     // Check failure case.
-    assertFalse(errorExtractor.resourceNotReady(statusOk));
-    assertFalse(errorExtractor.resourceNotReady(new IOException(statusOk)));
+    assertThat(errorExtractor.resourceNotReady(statusOk)).isFalse();
+    assertThat(errorExtractor.resourceNotReady(new IOException(statusOk))).isFalse();
   }
 
   @Test
   public void testGetErrorMessage() throws IOException {
     IOException withJsonError = googleJsonResponseException(
         42, "Detail Reason", "Detail message", "Top Level HTTP Message");
-    assertEquals("Top Level HTTP Message", errorExtractor.getErrorMessage(withJsonError));
+    assertThat(errorExtractor.getErrorMessage(withJsonError)).isEqualTo("Top Level HTTP Message");
 
     IOException nullJsonError = googleJsonResponseException(
         42, null, null, "Top Level HTTP Message");
-    assertEquals("Top Level HTTP Message", errorExtractor.getErrorMessage(nullJsonError));
+    assertThat(errorExtractor.getErrorMessage(nullJsonError)).isEqualTo("Top Level HTTP Message");
   }
 
   /**

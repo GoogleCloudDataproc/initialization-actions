@@ -14,6 +14,9 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
+
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
 import java.io.IOException;
@@ -60,7 +63,7 @@ public class WebHdfsIntegrationTest extends HadoopFileSystemTestBase {
 
     // Get info about the HDFS instance against which we run tests.
     hdfsRoot = System.getenv(WEBHDFS_ROOT);
-    Assert.assertNotNull(hdfsRoot);
+    assertThat(hdfsRoot).isNotNull();
 
     // Create a FileSystem instance to access the given HDFS.
     URI hdfsUri = new URI(hdfsRoot);
@@ -166,8 +169,9 @@ public class WebHdfsIntegrationTest extends HadoopFileSystemTestBase {
   @Test @Override
   public void testGetDefaultReplication()
       throws IOException {
-    Assert.assertTrue("Expected default replication factor >= 1",
-        ghfs.getDefaultReplication() >= 1);
+    assertWithMessage("Expected default replication factor >= 1")
+        .that(ghfs.getDefaultReplication() >= 1)
+        .isTrue();
   }
 
   /**
@@ -182,7 +186,7 @@ public class WebHdfsIntegrationTest extends HadoopFileSystemTestBase {
       ghfsHelper.readTextFile(bucketName, objectName, 0, 100, true);
       Assert.fail("Expected IOException");
     } catch (IOException e) {
-      Assert.assertTrue(e.getMessage().contains("Internal Server Error (error code=500)"));
+      assertThat(e).hasMessageThat().contains("Internal Server Error (error code=500)");
     }
   }
 

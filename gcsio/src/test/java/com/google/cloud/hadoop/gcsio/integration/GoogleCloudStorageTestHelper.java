@@ -15,7 +15,7 @@
 package com.google.cloud.hadoop.gcsio.integration;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertEquals;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.fail;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -42,7 +42,6 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,8 +56,8 @@ public class GoogleCloudStorageTestHelper {
     String serviceAccount = TestConfiguration.getInstance().getServiceAccount();
     String privateKeyfile = TestConfiguration.getInstance().getPrivateKeyFile();
 
-    Assert.assertNotNull("privateKeyfile must not be null", privateKeyfile);
-    Assert.assertNotNull("serviceAccount must not be null", serviceAccount);
+    assertWithMessage("privateKeyfile must not be null").that(privateKeyfile).isNotNull();
+    assertWithMessage("serviceAccount must not be null").that(serviceAccount).isNotNull();
     Credential credential;
     try {
       CredentialFactory credentialFactory = new CredentialFactory();
@@ -140,7 +139,7 @@ public class GoogleCloudStorageTestHelper {
         totalRead += read;
         read = channel.read(buffer);
       }
-      assertEquals("Bytes read mismatch", expectedBytes.length, totalRead);
+      assertWithMessage("Bytes read mismatch").that(totalRead).isEqualTo(expectedBytes.length);
       buffer.flip();
       byte[] bytesRead = new byte[buffer.limit()];
       buffer.get(bytesRead);

@@ -14,6 +14,8 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
@@ -96,9 +98,9 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     String serviceAccount = TestConfiguration.getInstance().getServiceAccount();
     String privateKey = TestConfiguration.getInstance().getPrivateKeyFile();
     String projectId = TestConfiguration.getInstance().getProjectId();
-    Assert.assertNotNull(serviceAccount);
-    Assert.assertNotNull(privateKey);
-    Assert.assertNotNull(projectId);
+    assertThat(serviceAccount).isNotNull();
+    assertThat(privateKey).isNotNull();
+    assertThat(projectId).isNotNull();
     Configuration config = new Configuration();
     config.set(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY, projectId);
     config.set(GoogleHadoopFileSystemBase.SERVICE_ACCOUNT_AUTH_EMAIL_KEY, serviceAccount);
@@ -168,7 +170,7 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
         Assert.fail(msg);
       } catch (IllegalArgumentException e) {
         // Expected
-        Assert.assertTrue(e.getLocalizedMessage().startsWith("Wrong FS scheme:"));
+        assertThat(e.getLocalizedMessage()).startsWith("Wrong FS scheme:");
       }
     }
   }
@@ -197,10 +199,10 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     fs.initialize(initUri, config);
 
     // Verify that config settings were set correctly.
-    Assert.assertEquals(bufferSize, fs.getBufferSizeOverride());
-    Assert.assertEquals(blockSize, fs.getDefaultBlockSize());
-    Assert.assertEquals(systemBucketName, fs.getSystemBucketName());
-    Assert.assertEquals(initUri, fs.initUri);
+    assertThat(fs.getBufferSizeOverride()).isEqualTo(bufferSize);
+    assertThat(fs.getDefaultBlockSize()).isEqualTo(blockSize);
+    assertThat(fs.getSystemBucketName()).isEqualTo(systemBucketName);
+    assertThat(fs.initUri).isEqualTo(initUri);
   }
 
   @Test
@@ -261,12 +263,12 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
       ghfs.initialize(gsUri, config);
       Path newWorkingDir = ghfs.getWorkingDirectory();
       if (expectedWorkingDir != null) {
-        Assert.assertEquals(expectedWorkingDir, newWorkingDir);
+        assertThat(newWorkingDir).isEqualTo(expectedWorkingDir);
       } else {
-        Assert.assertEquals(currentWorkingDir, newWorkingDir);
+        assertThat(newWorkingDir).isEqualTo(currentWorkingDir);
       }
     }
-    Assert.assertTrue(ghfs.getHomeDirectory().toString().startsWith("gsg:/" + bucketName));
+    assertThat(ghfs.getHomeDirectory().toString()).startsWith("gsg:/" + bucketName);
   }
 
   /**
@@ -296,7 +298,7 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     fs.configureBuckets(systemBucketName, true);
 
     // Verify that config settings were set correctly.
-    Assert.assertEquals(systemBucketName, fs.getSystemBucketName());
+    assertThat(fs.getSystemBucketName()).isEqualTo(systemBucketName);
   }
 
 

@@ -14,11 +14,12 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import com.google.common.collect.ImmutableMap;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
-import junit.framework.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -57,7 +58,7 @@ public class FileInfoTest {
 
     FileInfo fileInfo = FileInfo.fromItemInfo(simplePathCodec, itemInfo);
 
-    Assert.assertEquals(10L, fileInfo.getModificationTime());
+    assertThat(fileInfo.getModificationTime()).isEqualTo(10L);
   }
 
   @Test
@@ -79,6 +80,6 @@ public class FileInfoTest {
 
     FileInfo fileInfo = FileInfo.fromItemInfo(simplePathCodec, itemInfo);
 
-    Assert.assertEquals(10L, fileInfo.getModificationTime());
+    assertThat(fileInfo.getModificationTime()).isEqualTo(10L);
   }
 }

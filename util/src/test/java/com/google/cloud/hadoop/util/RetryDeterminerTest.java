@@ -16,8 +16,7 @@
 
 package com.google.cloud.hadoop.util;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static com.google.common.truth.Truth.assertThat;
 
 import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.HttpResponseException;
@@ -59,37 +58,43 @@ public class RetryDeterminerTest {
 
   @Test
   public void defaultRetriesCorrectly() throws Exception {
-    assertTrue(RetryDeterminer.DEFAULT.shouldRetry(new SocketTimeoutException()));
-    assertTrue(RetryDeterminer.SOCKET_ERRORS.shouldRetry(
-        new SSLException("test", new SocketException())));
-    assertFalse(RetryDeterminer.SOCKET_ERRORS.shouldRetry(new SSLException("invalid certificate")));
-    assertFalse(RetryDeterminer.DEFAULT.shouldRetry(new IllegalArgumentException()));
-    assertFalse(RetryDeterminer.DEFAULT.shouldRetry(new InterruptedException()));
-    assertFalse(RetryDeterminer.DEFAULT.shouldRetry(makeHttpException(300)));
-    assertTrue(RetryDeterminer.DEFAULT.shouldRetry(makeHttpException(504)));
-    assertTrue(RetryDeterminer.DEFAULT.shouldRetry(makeHttpException(500)));
-    assertTrue(RetryDeterminer.DEFAULT.shouldRetry(makeHttpException(599)));
-    assertFalse(RetryDeterminer.DEFAULT.shouldRetry(makeHttpException(499)));
+    assertThat(RetryDeterminer.DEFAULT.shouldRetry(new SocketTimeoutException())).isTrue();
+    assertThat(
+            RetryDeterminer.SOCKET_ERRORS.shouldRetry(
+                new SSLException("test", new SocketException())))
+        .isTrue();
+    assertThat(RetryDeterminer.SOCKET_ERRORS.shouldRetry(new SSLException("invalid certificate")))
+        .isFalse();
+    assertThat(RetryDeterminer.DEFAULT.shouldRetry(new IllegalArgumentException())).isFalse();
+    assertThat(RetryDeterminer.DEFAULT.shouldRetry(new InterruptedException())).isFalse();
+    assertThat(RetryDeterminer.DEFAULT.shouldRetry(makeHttpException(300))).isFalse();
+    assertThat(RetryDeterminer.DEFAULT.shouldRetry(makeHttpException(504))).isTrue();
+    assertThat(RetryDeterminer.DEFAULT.shouldRetry(makeHttpException(500))).isTrue();
+    assertThat(RetryDeterminer.DEFAULT.shouldRetry(makeHttpException(599))).isTrue();
+    assertThat(RetryDeterminer.DEFAULT.shouldRetry(makeHttpException(499))).isFalse();
   }
 
   @Test
   public void socketRetriesCorrectly() throws IOException {
-    assertTrue(RetryDeterminer.SOCKET_ERRORS.shouldRetry(new SocketTimeoutException()));
-    assertTrue(RetryDeterminer.SOCKET_ERRORS.shouldRetry(
-        new SSLException("test", new SocketException())));
-    assertFalse(RetryDeterminer.SOCKET_ERRORS.shouldRetry(new SSLException("invalid certificate")));
-    assertFalse(RetryDeterminer.SOCKET_ERRORS.shouldRetry(new IOException("Hey")));
-    assertFalse(RetryDeterminer.SOCKET_ERRORS.shouldRetry(makeHttpException(300)));
-    assertFalse(RetryDeterminer.SOCKET_ERRORS.shouldRetry(makeHttpException(504)));
+    assertThat(RetryDeterminer.SOCKET_ERRORS.shouldRetry(new SocketTimeoutException())).isTrue();
+    assertThat(
+            RetryDeterminer.SOCKET_ERRORS.shouldRetry(
+                new SSLException("test", new SocketException())))
+        .isTrue();
+    assertThat(RetryDeterminer.SOCKET_ERRORS.shouldRetry(new SSLException("invalid certificate")))
+        .isFalse();
+    assertThat(RetryDeterminer.SOCKET_ERRORS.shouldRetry(new IOException("Hey"))).isFalse();
+    assertThat(RetryDeterminer.SOCKET_ERRORS.shouldRetry(makeHttpException(300))).isFalse();
+    assertThat(RetryDeterminer.SOCKET_ERRORS.shouldRetry(makeHttpException(504))).isFalse();
   }
 
   @Test
   public void serverRetriesCorrectly() throws IOException {
-    assertFalse(RetryDeterminer.SERVER_ERRORS.shouldRetry(new SocketTimeoutException()));
-    assertFalse(RetryDeterminer.SERVER_ERRORS.shouldRetry(makeHttpException(300)));
-    assertTrue(RetryDeterminer.SERVER_ERRORS.shouldRetry(makeHttpException(504)));
-    assertTrue(RetryDeterminer.SERVER_ERRORS.shouldRetry(makeHttpException(500)));
-    assertTrue(RetryDeterminer.SERVER_ERRORS.shouldRetry(makeHttpException(599)));
-    assertFalse(RetryDeterminer.SERVER_ERRORS.shouldRetry(makeHttpException(499)));
+    assertThat(RetryDeterminer.SERVER_ERRORS.shouldRetry(new SocketTimeoutException())).isFalse();
+    assertThat(RetryDeterminer.SERVER_ERRORS.shouldRetry(makeHttpException(300))).isFalse();
+    assertThat(RetryDeterminer.SERVER_ERRORS.shouldRetry(makeHttpException(504))).isTrue();
+    assertThat(RetryDeterminer.SERVER_ERRORS.shouldRetry(makeHttpException(500))).isTrue();
+    assertThat(RetryDeterminer.SERVER_ERRORS.shouldRetry(makeHttpException(599))).isTrue();
+    assertThat(RetryDeterminer.SERVER_ERRORS.shouldRetry(makeHttpException(499))).isFalse();
   }
 }

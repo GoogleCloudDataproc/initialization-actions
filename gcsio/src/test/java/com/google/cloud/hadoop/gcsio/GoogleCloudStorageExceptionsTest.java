@@ -14,6 +14,8 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import java.io.FileNotFoundException;
@@ -57,11 +59,11 @@ public class GoogleCloudStorageExceptionsTest {
     // objectName is null or empty
     e = GoogleCloudStorageExceptions.getFileNotFoundException("bucket", null);
     e2 = GoogleCloudStorageExceptions.getFileNotFoundException("bucket", "");
-    Assert.assertEquals("Item not found: bucket/", e.getMessage());
-    Assert.assertEquals(e.getMessage(), e2.getMessage());
+    assertThat(e).hasMessageThat().isEqualTo("Item not found: bucket/");
+    assertThat(e2).hasMessageThat().isEqualTo(e.getMessage());
 
     e = GoogleCloudStorageExceptions.getFileNotFoundException("bucket", "obj");
-    Assert.assertEquals("Item not found: bucket/obj", e.getMessage());
+    assertThat(e).hasMessageThat().isEqualTo("Item not found: bucket/obj");
   }
 
   @Test
@@ -88,15 +90,15 @@ public class GoogleCloudStorageExceptionsTest {
     IOException inner1 = new IOException("inner1");
     compositeException =
         GoogleCloudStorageExceptions.createCompositeException(ImmutableList.of(inner1));
-    Assert.assertTrue(inner1 == compositeException);
+    assertThat(inner1 == compositeException).isTrue();
 
     // More than 1 inner exceptions should be wrapped.
     IOException inner2 = new IOException("inner2");
     compositeException =
         GoogleCloudStorageExceptions.createCompositeException(ImmutableList.of(inner1, inner2));
-    Assert.assertFalse(inner1 == compositeException);
-    Assert.assertFalse(inner2 == compositeException);
-    Assert.assertEquals("Multiple IOExceptions.", compositeException.getMessage());
+    assertThat(inner1 == compositeException).isFalse();
+    assertThat(inner2 == compositeException).isFalse();
+    assertThat(compositeException).hasMessageThat().isEqualTo("Multiple IOExceptions.");
   }
 
   /**
@@ -108,7 +110,7 @@ public class GoogleCloudStorageExceptionsTest {
     IOException inner1 = new IOException("inner1");
     String message = "I am wrapped";
     wrapped = GoogleCloudStorageExceptions.wrapException(inner1, message, "bucket", "object");
-    Assert.assertTrue(wrapped.getMessage().startsWith(message));
+    assertThat(wrapped).hasMessageThat().startsWith(message);
     Assert.assertEquals(inner1, wrapped.getCause());
   }
 

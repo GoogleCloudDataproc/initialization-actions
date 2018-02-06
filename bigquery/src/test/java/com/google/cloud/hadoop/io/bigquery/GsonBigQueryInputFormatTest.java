@@ -13,8 +13,7 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -233,9 +232,9 @@ public class GsonBigQueryInputFormatTest {
     recordReader.initialize(bqInputSplit, mockTaskAttemptContext);
 
     // Verify BigQueryRecordReader set as expected.
-    assertEquals(true, recordReader.nextKeyValue());
-    assertEquals(true, recordReader.nextKeyValue());
-    assertEquals(false, recordReader.nextKeyValue());
+    assertThat(recordReader.nextKeyValue()).isTrue();
+    assertThat(recordReader.nextKeyValue()).isTrue();
+    assertThat(recordReader.nextKeyValue()).isFalse();
   }
 
   /**
@@ -281,11 +280,11 @@ public class GsonBigQueryInputFormatTest {
     // The base export path should've gotten created.
     Path baseExportPath = new Path(config.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY));
     FileStatus baseStatus = baseExportPath.getFileSystem(config).getFileStatus(baseExportPath);
-    assertTrue(baseStatus.isDir());
+    assertThat(baseStatus.isDir()).isTrue();
 
-    assertEquals(3, splits.size());
+    assertThat(splits).hasSize(3);
     for (int i = 0; i < 3; ++i) {
-      assertTrue(splits.get(i) instanceof ShardedInputSplit);
+      assertThat(splits.get(i)).isInstanceOf(ShardedInputSplit.class);
       DynamicFileListRecordReader<LongWritable, Text> reader =
           new DynamicFileListRecordReader<>(new DelegateRecordReaderFactory<LongWritable, Text>() {
             @Override
@@ -301,7 +300,7 @@ public class GsonBigQueryInputFormatTest {
           .getShardDirectoryAndPattern()
           .getParent();
       FileStatus shardDirStatus = shardDir.getFileSystem(config).getFileStatus(shardDir);
-      assertTrue(shardDirStatus.isDir());
+      assertThat(shardDirStatus.isDir()).isTrue();
     }
 
     // Verify correct calls to BigQuery are made.
@@ -339,11 +338,11 @@ public class GsonBigQueryInputFormatTest {
     // The base export path should've gotten created.
     Path baseExportPath = new Path(config.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY));
     FileStatus baseStatus = baseExportPath.getFileSystem(config).getFileStatus(baseExportPath);
-    assertTrue(baseStatus.isDir());
+    assertThat(baseStatus.isDir()).isTrue();
 
-    assertEquals(2, splits.size());
+    assertThat(splits).hasSize(2);
     for (int i = 0; i < 2; ++i) {
-      assertTrue(splits.get(i) instanceof ShardedInputSplit);
+      assertThat(splits.get(i)).isInstanceOf(ShardedInputSplit.class);
     }
 
     // Verify correct calls to BigQuery are made.
@@ -381,11 +380,11 @@ public class GsonBigQueryInputFormatTest {
     // The base export path should've gotten created.
     Path baseExportPath = new Path(config.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY));
     FileStatus baseStatus = baseExportPath.getFileSystem(config).getFileStatus(baseExportPath);
-    assertTrue(baseStatus.isDir());
+    assertThat(baseStatus.isDir()).isTrue();
 
-    assertEquals(250, splits.size());
+    assertThat(splits).hasSize(250);
     for (int i = 0; i < 2; ++i) {
-      assertTrue(splits.get(i) instanceof ShardedInputSplit);
+      assertThat(splits.get(i)).isInstanceOf(ShardedInputSplit.class);
     }
 
     // Verify correct calls to BigQuery are made.
@@ -422,11 +421,11 @@ public class GsonBigQueryInputFormatTest {
     // The base export path should've gotten created.
     Path baseExportPath = new Path(config.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY));
     FileStatus baseStatus = baseExportPath.getFileSystem(config).getFileStatus(baseExportPath);
-    assertTrue(baseStatus.isDir());
+    assertThat(baseStatus.isDir()).isTrue();
 
-    assertEquals("file1", ((FileSplit) splits.get(0)).getPath().getName());
-    assertEquals(config.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY),
-        config.get("mapred.input.dir"));
+    assertThat(((FileSplit) splits.get(0)).getPath().getName()).isEqualTo("file1");
+    assertThat(config.get("mapred.input.dir"))
+        .isEqualTo(config.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY));
 
     // Verify correct calls to BigQuery are made.
     verify(mockBigQueryHelper, times(2)).createJobReference(
@@ -463,9 +462,9 @@ public class GsonBigQueryInputFormatTest {
     // Run getSplits method.
     List<InputSplit> splits = gsonBigQueryInputFormat.getSplits(wrapper);
 
-    assertEquals(1, splits.size());
-    assertEquals(split.getPath(), ((FileSplit) splits.get(0)).getPath());
-    assertEquals("gs://foo-bucket/bar.json", config.get("mapred.input.dir"));
+    assertThat(splits).hasSize(1);
+    assertThat(((FileSplit) splits.get(0)).getPath()).isEqualTo(split.getPath());
+    assertThat(config.get("mapred.input.dir")).isEqualTo("gs://foo-bucket/bar.json");
     verify(mockBigQueryHelper, times(1)).getTable(eq(tableRef));
     verifyNoMoreInteractions(mockBigquery);
   }
@@ -521,13 +520,13 @@ public class GsonBigQueryInputFormatTest {
     fs.createNewFile(dataFile);
 
     // Check file and directory exist.
-    assertTrue(fs.exists(tempPath));
-    assertTrue(fs.exists(dataFile));
+    assertThat(fs.exists(tempPath)).isTrue();
+    assertThat(fs.exists(dataFile)).isTrue();
 
     // Run method and verify calls.
     GsonBigQueryInputFormat.cleanupJob(mockBigQueryHelper, config);
-    assertTrue(!fs.exists(tempPath));
-    assertTrue(!fs.exists(dataFile));
+    assertThat(!fs.exists(tempPath)).isTrue();
+    assertThat(!fs.exists(dataFile)).isTrue();
 
     // Verify calls to delete temporary table.
     verify(mockBigquery, atLeastOnce()).tables();
@@ -566,13 +565,13 @@ public class GsonBigQueryInputFormatTest {
     fs.createNewFile(dataFile);
 
     // Check file and directory exist.
-    assertTrue(fs.exists(tempPath));
-    assertTrue(fs.exists(dataFile));
+    assertThat(fs.exists(tempPath)).isTrue();
+    assertThat(fs.exists(dataFile)).isTrue();
 
     // Run method and verify calls.
     GsonBigQueryInputFormat.cleanupJob(mockBigQueryHelper, config);
-    assertTrue(fs.exists(tempPath));
-    assertTrue(fs.exists(dataFile));
+    assertThat(fs.exists(tempPath)).isTrue();
+    assertThat(fs.exists(dataFile)).isTrue();
 
     // Verify calls to delete temporary table.
     verify(mockBigquery, times(1)).tables();
@@ -606,14 +605,14 @@ public class GsonBigQueryInputFormatTest {
     fs.mkdirs(tempPath);
     Path dataFile = new Path(tempPath.toString() + "/data-00000.json");
     fs.createNewFile(dataFile);
-    assertTrue(fs.exists(tempPath));
-    assertTrue(fs.exists(dataFile));
+    assertThat(fs.exists(tempPath)).isTrue();
+    assertThat(fs.exists(dataFile)).isTrue();
 
     // Run method and verify calls.
     GsonBigQueryInputFormat.cleanupJob(mockBigQueryHelper, config);
 
-    assertTrue(!fs.exists(tempPath));
-    assertTrue(!fs.exists(dataFile));
+    assertThat(!fs.exists(tempPath)).isTrue();
+    assertThat(!fs.exists(dataFile)).isTrue();
 
     verify(mockBigQueryHelper, times(1)).getTable(eq(tableRef));
 
@@ -638,8 +637,8 @@ public class GsonBigQueryInputFormatTest {
     fs.mkdirs(tempPath);
     Path dataFile = new Path(tempPath.toString() + "/data-00000.json");
     fs.createNewFile(dataFile);
-    assertTrue(fs.exists(tempPath));
-    assertTrue(fs.exists(dataFile));
+    assertThat(fs.exists(tempPath)).isTrue();
+    assertThat(fs.exists(dataFile)).isTrue();
 
     when(mockBigquery.tables()).thenReturn(mockBigqueryTables);
     when(mockBigqueryTables
@@ -650,8 +649,8 @@ public class GsonBigQueryInputFormatTest {
     // Run method and verify calls.
     GsonBigQueryInputFormat.cleanupJob(mockBigQueryHelper, config);
 
-    assertTrue(!fs.exists(tempPath));
-    assertTrue(!fs.exists(dataFile));
+    assertThat(!fs.exists(tempPath)).isTrue();
+    assertThat(!fs.exists(dataFile)).isTrue();
 
     verify(mockBigquery).tables();
     verify(mockBigqueryTables).delete(

@@ -14,7 +14,7 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
+import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
@@ -95,7 +95,8 @@ public class BigQueryConfigurationTest {
     // Set an explicit path.
     conf.set(BigQueryConfiguration.TEMP_GCS_PATH_KEY, GCS_TEMP_PATH);
 
-    assertEquals(GCS_TEMP_PATH, BigQueryConfiguration.getTemporaryPathRoot(conf, mockJobID));
+    assertThat(BigQueryConfiguration.getTemporaryPathRoot(conf, mockJobID))
+        .isEqualTo(GCS_TEMP_PATH);
   }
 
   /**
@@ -124,12 +125,12 @@ public class BigQueryConfigurationTest {
         INPUT_PROJECT_ID,
         INPUT_DATASET_ID,
         INPUT_TABLE_ID);
-    assertEquals(INPUT_PROJECT_ID, conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY));
-    assertEquals(INPUT_DATASET_ID, conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY));
-    assertEquals(INPUT_TABLE_ID, conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY));
+    assertThat(conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY)).isEqualTo(INPUT_PROJECT_ID);
+    assertThat(conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY)).isEqualTo(INPUT_DATASET_ID);
+    assertThat(conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY)).isEqualTo(INPUT_TABLE_ID);
 
     // By default, the job-level projectId inherits the input projectId if it's not already set.
-    assertEquals(INPUT_PROJECT_ID, conf.get(BigQueryConfiguration.PROJECT_ID_KEY));
+    assertThat(conf.get(BigQueryConfiguration.PROJECT_ID_KEY)).isEqualTo(INPUT_PROJECT_ID);
   }
 
   /**
@@ -143,13 +144,14 @@ public class BigQueryConfigurationTest {
         OUTPUT_DATASET_ID,
         OUTPUT_TABLE_ID,
         OUTPUT_TABLE_SCHEMA);
-    assertEquals(OUTPUT_PROJECT_ID, conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY));
-    assertEquals(OUTPUT_DATASET_ID, conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY));
-    assertEquals(OUTPUT_TABLE_ID, conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY));
-    assertEquals(OUTPUT_TABLE_SCHEMA, conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY));
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY)).isEqualTo(OUTPUT_PROJECT_ID);
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY)).isEqualTo(OUTPUT_DATASET_ID);
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY)).isEqualTo(OUTPUT_TABLE_ID);
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY))
+        .isEqualTo(OUTPUT_TABLE_SCHEMA);
 
     // By default, the job-level projectId inherits the output projectId if it's not already set.
-    assertEquals(OUTPUT_PROJECT_ID, conf.get(BigQueryConfiguration.PROJECT_ID_KEY));
+    assertThat(conf.get(BigQueryConfiguration.PROJECT_ID_KEY)).isEqualTo(OUTPUT_PROJECT_ID);
   }
 
   @Test
@@ -166,16 +168,17 @@ public class BigQueryConfigurationTest {
         OUTPUT_TABLE_ID,
         OUTPUT_TABLE_SCHEMA);
 
-    assertEquals(INPUT_PROJECT_ID, conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY));
-    assertEquals(INPUT_DATASET_ID, conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY));
-    assertEquals(INPUT_TABLE_ID, conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY));
-    assertEquals(OUTPUT_PROJECT_ID, conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY));
-    assertEquals(OUTPUT_DATASET_ID, conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY));
-    assertEquals(OUTPUT_TABLE_ID, conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY));
-    assertEquals(OUTPUT_TABLE_SCHEMA, conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY));
+    assertThat(conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY)).isEqualTo(INPUT_PROJECT_ID);
+    assertThat(conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY)).isEqualTo(INPUT_DATASET_ID);
+    assertThat(conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY)).isEqualTo(INPUT_TABLE_ID);
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY)).isEqualTo(OUTPUT_PROJECT_ID);
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY)).isEqualTo(OUTPUT_DATASET_ID);
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY)).isEqualTo(OUTPUT_TABLE_ID);
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY))
+        .isEqualTo(OUTPUT_TABLE_SCHEMA);
 
     // Job level projectId got the inputProjectId just because we called it first.
-    assertEquals(INPUT_PROJECT_ID, conf.get(BigQueryConfiguration.PROJECT_ID_KEY));
+    assertThat(conf.get(BigQueryConfiguration.PROJECT_ID_KEY)).isEqualTo(INPUT_PROJECT_ID);
   }
 
   @Test
@@ -193,16 +196,17 @@ public class BigQueryConfigurationTest {
         OUTPUT_TABLE_ID,
         OUTPUT_TABLE_SCHEMA);
 
-    assertEquals(INPUT_PROJECT_ID, conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY));
-    assertEquals(INPUT_DATASET_ID, conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY));
-    assertEquals(INPUT_TABLE_ID, conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY));
-    assertEquals(OUTPUT_PROJECT_ID, conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY));
-    assertEquals(OUTPUT_DATASET_ID, conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY));
-    assertEquals(OUTPUT_TABLE_ID, conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY));
-    assertEquals(OUTPUT_TABLE_SCHEMA, conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY));
+    assertThat(conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY)).isEqualTo(INPUT_PROJECT_ID);
+    assertThat(conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY)).isEqualTo(INPUT_DATASET_ID);
+    assertThat(conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY)).isEqualTo(INPUT_TABLE_ID);
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY)).isEqualTo(OUTPUT_PROJECT_ID);
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY)).isEqualTo(OUTPUT_DATASET_ID);
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY)).isEqualTo(OUTPUT_TABLE_ID);
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY))
+        .isEqualTo(OUTPUT_TABLE_SCHEMA);
 
     // Job level projectId remains unaltered by setting input/output projects.
-    assertEquals(JOB_PROJECT_ID, conf.get(BigQueryConfiguration.PROJECT_ID_KEY));
+    assertThat(conf.get(BigQueryConfiguration.PROJECT_ID_KEY)).isEqualTo(JOB_PROJECT_ID);
   }
 
   @Test
@@ -215,9 +219,9 @@ public class BigQueryConfigurationTest {
         INPUT_DATASET_ID,
         INPUT_TABLE_ID);
 
-    assertEquals(JOB_PROJECT_ID, conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY));
-    assertEquals(INPUT_DATASET_ID, conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY));
-    assertEquals(INPUT_TABLE_ID, conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY));
+    assertThat(conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY)).isEqualTo(JOB_PROJECT_ID);
+    assertThat(conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY)).isEqualTo(INPUT_DATASET_ID);
+    assertThat(conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY)).isEqualTo(INPUT_TABLE_ID);
 
     BigQueryConfiguration.configureBigQueryOutput(
         conf,
@@ -226,13 +230,14 @@ public class BigQueryConfigurationTest {
         OUTPUT_TABLE_ID,
         OUTPUT_TABLE_SCHEMA);
 
-    assertEquals(JOB_PROJECT_ID, conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY));
-    assertEquals(OUTPUT_DATASET_ID, conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY));
-    assertEquals(OUTPUT_TABLE_ID, conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY));
-    assertEquals(OUTPUT_TABLE_SCHEMA, conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY));
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY)).isEqualTo(JOB_PROJECT_ID);
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY)).isEqualTo(OUTPUT_DATASET_ID);
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY)).isEqualTo(OUTPUT_TABLE_ID);
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY))
+        .isEqualTo(OUTPUT_TABLE_SCHEMA);
 
     // Job level projectId remains unaltered by setting input/output projects.
-    assertEquals(JOB_PROJECT_ID, conf.get(BigQueryConfiguration.PROJECT_ID_KEY));
+    assertThat(conf.get(BigQueryConfiguration.PROJECT_ID_KEY)).isEqualTo(JOB_PROJECT_ID);
   }
 
   @Test
@@ -242,19 +247,20 @@ public class BigQueryConfigurationTest {
     BigQueryConfiguration.configureBigQueryInput(
         conf, String.format("%s.%s", INPUT_DATASET_ID, INPUT_TABLE_ID));
 
-    assertEquals(JOB_PROJECT_ID, conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY));
-    assertEquals(INPUT_DATASET_ID, conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY));
-    assertEquals(INPUT_TABLE_ID, conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY));
+    assertThat(conf.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY)).isEqualTo(JOB_PROJECT_ID);
+    assertThat(conf.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY)).isEqualTo(INPUT_DATASET_ID);
+    assertThat(conf.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY)).isEqualTo(INPUT_TABLE_ID);
 
     BigQueryConfiguration.configureBigQueryOutput(
         conf, String.format("%s.%s", OUTPUT_DATASET_ID, OUTPUT_TABLE_ID), OUTPUT_TABLE_SCHEMA);
 
-    assertEquals(JOB_PROJECT_ID, conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY));
-    assertEquals(OUTPUT_DATASET_ID, conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY));
-    assertEquals(OUTPUT_TABLE_ID, conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY));
-    assertEquals(OUTPUT_TABLE_SCHEMA, conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY));
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY)).isEqualTo(JOB_PROJECT_ID);
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY)).isEqualTo(OUTPUT_DATASET_ID);
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY)).isEqualTo(OUTPUT_TABLE_ID);
+    assertThat(conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY))
+        .isEqualTo(OUTPUT_TABLE_SCHEMA);
 
     // Job level projectId remains unaltered by setting input/output projects.
-    assertEquals(JOB_PROJECT_ID, conf.get(BigQueryConfiguration.PROJECT_ID_KEY));
+    assertThat(conf.get(BigQueryConfiguration.PROJECT_ID_KEY)).isEqualTo(JOB_PROJECT_ID);
   }
 }

@@ -15,6 +15,8 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage.ListVisibilityCalculator;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
@@ -22,7 +24,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -151,7 +152,7 @@ public class GoogleCloudStorageFileSystemOptionsUnitTest
         GoogleCloudStorageFileSystemOptions.newBuilder()
             .setCloudStorageOptionsBuilder(innerBuilder);
     innerBuilder.setProjectId("bar-project");
-    Assert.assertEquals("bar-project", builder.build().getCloudStorageOptions().getProjectId());
+    assertThat(builder.build().getCloudStorageOptions().getProjectId()).isEqualTo("bar-project");
   }
 
   @Test
@@ -164,7 +165,7 @@ public class GoogleCloudStorageFileSystemOptionsUnitTest
             .setImmutableCloudStorageOptions(GoogleCloudStorageOptions.newBuilder()
                 .setProjectId("bar-project")
                 .build());
-    Assert.assertEquals("bar-project", builder.build().getCloudStorageOptions().getProjectId());
+    assertThat(builder.build().getCloudStorageOptions().getProjectId()).isEqualTo("bar-project");
   }
 
   @Test
@@ -177,7 +178,7 @@ public class GoogleCloudStorageFileSystemOptionsUnitTest
                 .setProjectId("bar-project")
                 .build())
             .setCloudStorageOptionsBuilder(innerBuilder);
-    Assert.assertEquals("foo-project", builder.build().getCloudStorageOptions().getProjectId());
+    assertThat(builder.build().getCloudStorageOptions().getProjectId()).isEqualTo("foo-project");
   }
 
   @Test
@@ -191,7 +192,7 @@ public class GoogleCloudStorageFileSystemOptionsUnitTest
                 .build())
             .setCloudStorageOptionsBuilder(innerBuilder)
             .setImmutableCloudStorageOptions(null);
-    Assert.assertNull(builder.build().getCloudStorageOptions().getProjectId());
+    assertThat(builder.build().getCloudStorageOptions().getProjectId()).isNull();
   }
 
   @Test
@@ -202,7 +203,7 @@ public class GoogleCloudStorageFileSystemOptionsUnitTest
         .build();
     GoogleCloudStorage gcs = this.gcsCreator.createGcs(gcsOptions);
     GoogleCloudStorageFileSystem gcsfs = new GoogleCloudStorageFileSystem(gcs);
-    Assert.assertEquals("foo-project", gcsfs.getOptions().getCloudStorageOptions().getProjectId());
-    Assert.assertEquals("foo-app", gcsfs.getOptions().getCloudStorageOptions().getAppName());
+    assertThat(gcsfs.getOptions().getCloudStorageOptions().getProjectId()).isEqualTo("foo-project");
+    assertThat(gcsfs.getOptions().getCloudStorageOptions().getAppName()).isEqualTo("foo-app");
   }
 }

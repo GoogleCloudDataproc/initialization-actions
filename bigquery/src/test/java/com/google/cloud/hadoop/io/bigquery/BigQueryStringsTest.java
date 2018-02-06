@@ -13,11 +13,9 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static com.google.common.truth.Truth.assertThat;
 
 import com.google.api.services.bigquery.model.TableReference;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -37,11 +35,11 @@ public class BigQueryStringsTest {
     TableReference tableRef = new TableReference()
         .setDatasetId("foo")
         .setTableId("bar");
-    assertEquals("foo.bar", BigQueryStrings.toString(tableRef));
+    assertThat(BigQueryStrings.toString(tableRef)).isEqualTo("foo.bar");
 
     // Empty string doesn't cause a leading ':'.
     tableRef.setProjectId("");
-    assertEquals("foo.bar", BigQueryStrings.toString(tableRef));
+    assertThat(BigQueryStrings.toString(tableRef)).isEqualTo("foo.bar");
   }
 
   @Test
@@ -50,7 +48,7 @@ public class BigQueryStringsTest {
         .setProjectId("foo-proj")
         .setDatasetId("foo")
         .setTableId("bar");
-    assertEquals("foo-proj:foo.bar", BigQueryStrings.toString(tableRef));
+    assertThat(BigQueryStrings.toString(tableRef)).isEqualTo("foo-proj:foo.bar");
   }
 
   @Test
@@ -96,18 +94,18 @@ public class BigQueryStringsTest {
   @Test
   public void testParseTableReferenceNoProject() {
     TableReference tableRef = BigQueryStrings.parseTableReference("fooA1_.2bar");
-    assertNull(tableRef.getProjectId());
-    assertEquals("fooA1_", tableRef.getDatasetId());
-    assertEquals("2bar", tableRef.getTableId());
+    assertThat(tableRef.getProjectId()).isNull();
+    assertThat(tableRef.getDatasetId()).isEqualTo("fooA1_");
+    assertThat(tableRef.getTableId()).isEqualTo("2bar");
   }
 
   @Test
   public void testParseTableReferenceWithProject() {
     // ProjectId itself may contain '.' and ':'.
     TableReference tableRef = BigQueryStrings.parseTableReference("google.com:foo-proj:foo.bar");
-    assertEquals("google.com:foo-proj", tableRef.getProjectId());
-    assertEquals("foo", tableRef.getDatasetId());
-    assertEquals("bar", tableRef.getTableId());
+    assertThat(tableRef.getProjectId()).isEqualTo("google.com:foo-proj");
+    assertThat(tableRef.getDatasetId()).isEqualTo("foo");
+    assertThat(tableRef.getTableId()).isEqualTo("bar");
   }
 
   @Test
