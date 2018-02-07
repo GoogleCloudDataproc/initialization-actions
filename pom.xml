@@ -72,6 +72,9 @@
   <properties>
     <build.java.source.version>7</build.java.source.version>
     <build.java.target.version>7</build.java.target.version>
+    <build.java.testSource.version>8</build.java.testSource.version>
+    <build.java.testTarget.version>8</build.java.testTarget.version>
+
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
     <gpg.skip>true</gpg.skip>
@@ -94,7 +97,7 @@
     <google.api-bigquery.version>v2-rev375-${google.api.version}</google.api-bigquery.version>
     <google.api-storage.version>v1-rev120-${google.api.version}</google.api-storage.version>
     <google.findbugs.version>3.0.2</google.findbugs.version>
-    <!-- Guava recommends to use Android flavor for Java 7 compatability -->
+    <!-- Guava recommends to use Android flavor for Java 7 compatibility -->
     <google.guava.version>24.0-android</google.guava.version>
     <google.truth.version>0.39</google.truth.version>
     <hadoop.one.version>1.2.1</hadoop.one.version>
@@ -459,6 +462,8 @@
         <configuration>
           <source>${build.java.source.version}</source>
           <target>${build.java.target.version}</target>
+          <testSource>${build.java.testSource.version}</testSource>
+          <testTarget>${build.java.testTarget.version}</testTarget>
         </configuration>
       </plugin>
       <plugin>
