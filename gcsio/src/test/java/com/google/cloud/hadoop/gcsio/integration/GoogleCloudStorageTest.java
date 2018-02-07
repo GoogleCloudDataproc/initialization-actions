@@ -18,6 +18,8 @@ import static com.google.cloud.hadoop.gcsio.GoogleCloudStorage.MAX_RESULTS_UNLIM
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.expectThrows;
 import static org.junit.Assert.fail;
 
 import com.google.api.client.util.Clock;
@@ -213,12 +215,7 @@ public class GoogleCloudStorageTest {
   public void testCreateExistingBucket() throws IOException {
     String bucketName = getSharedBucketName();
 
-    try {
-      rawStorage.create(bucketName);
-      fail();
-    } catch (IOException e) {
-      // expected
-    }
+    assertThrows(IOException.class, () -> rawStorage.create(bucketName));
   }
 
   @Test
@@ -226,12 +223,7 @@ public class GoogleCloudStorageTest {
     // Buckets must start with a letter or number
     String bucketName = "--" + getUniqueBucketName("create-invalid");
 
-    try {
-      rawStorage.create(bucketName);
-      fail();
-    } catch (IOException e) {
-      // expected
-    }
+    assertThrows(IOException.class, () -> rawStorage.create(bucketName));
   }
 
   @Test
@@ -257,14 +249,13 @@ public class GoogleCloudStorageTest {
     StorageResourceId objectToCreate =
         new StorageResourceId(bucketName, "testCreateInvalidObject_InvalidObject\n");
 
-    try {
-      try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
-        channel.write(ByteBuffer.wrap(bytesToWrite));
-      }
-      fail();
-    } catch (IOException e) {
-      // expected
-    }
+    assertThrows(
+        IOException.class,
+        () -> {
+          try (WritableByteChannel channel = rawStorage.create(objectToCreate)) {
+            channel.write(ByteBuffer.wrap(bytesToWrite));
+          }
+        });
   }
 
   @Test
@@ -483,12 +474,8 @@ public class GoogleCloudStorageTest {
         new StorageResourceId(bucketName, "testGetMultipleItemInfoWithSomeInvalid_InvalidObject\n");
     resourceIdList.add(invalidObject);
 
-    try {
-      rawStorage.getItemInfos(resourceIdList);
-      fail();
-    } catch (IOException e) {
-      assertThat(e).hasMessageThat().isEqualTo("Error getting StorageObject");
-    }
+    IOException e = expectThrows(IOException.class, () -> rawStorage.getItemInfos(resourceIdList));
+    assertThat(e).hasMessageThat().isEqualTo("Error getting StorageObject");
   }
 
   // TODO(user): Re-enable once a new method of inducing errors is devised.
@@ -496,13 +483,14 @@ public class GoogleCloudStorageTest {
   public void testOneInvalidGetItemInfo() throws IOException {
     String bucketName = getSharedBucketName();
 
-    try {
-      rawStorage.getItemInfo(
-          new StorageResourceId(bucketName, "testOneInvalidGetItemInfo_InvalidObject\n"));
-      fail();
-    } catch (IOException e) {
-      assertThat(e).hasMessageThat().isEqualTo("Error accessing");
-    }
+    IOException e =
+        expectThrows(
+            IOException.class,
+            () ->
+                rawStorage.getItemInfo(
+                    new StorageResourceId(
+                        bucketName, "testOneInvalidGetItemInfo_InvalidObject\n")));
+    assertThat(e).hasMessageThat().isEqualTo("Error accessing");
   }
 
   @Test
@@ -560,12 +548,12 @@ public class GoogleCloudStorageTest {
     assertThat(rawStorage.getItemInfo(resource).exists()).isTrue();
     assertThat(rawStorage.getItemInfo(secondResource).exists()).isFalse();
 
-    try {
-      rawStorage.deleteObjects(ImmutableList.of(resource, secondResource, invalidName));
-      fail();
-    } catch (IOException e) {
-      assertThat(e).hasMessageThat().isEqualTo("Error deleting");
-    }
+    IOException e =
+        expectThrows(
+            IOException.class,
+            () ->
+                rawStorage.deleteObjects(ImmutableList.of(resource, secondResource, invalidName)));
+    assertThat(e).hasMessageThat().isEqualTo("Error deleting");
   }
 
   @Test
@@ -583,12 +571,7 @@ public class GoogleCloudStorageTest {
     // Composite exception thrown, not a FileNotFoundException.
     String bucketName = getUniqueBucketName("delete_ne_bucket");
 
-    try {
-      rawStorage.deleteBuckets(ImmutableList.of(bucketName));
-      fail();
-    } catch (IOException e) {
-      // expected
-    }
+    assertThrows(IOException.class, () -> rawStorage.deleteBuckets(ImmutableList.of(bucketName)));
   }
 
   @Test
@@ -627,13 +610,11 @@ public class GoogleCloudStorageTest {
     String bucketName2 = createUniqueBucket("delete-multi-valid-2");
     String invalidBucketName = "--" + getUniqueBucketName("delete-multi-invalid");
 
-    try {
-      rawStorage.deleteBuckets(ImmutableList.of(bucketName1, bucketName2, invalidBucketName));
-      // Expected exception would be a bit more awkward than Assert.fail() with a catch here...
-      fail("Delete buckets with an invalid bucket should throw.");
-    } catch (IOException ioe) {
-      // Expected.
-    }
+    assertThrows(
+        IOException.class,
+        () ->
+            rawStorage.deleteBuckets(
+                ImmutableList.of(bucketName1, bucketName2, invalidBucketName)));
 
     List<GoogleCloudStorageItemInfo> infoList =
         rawStorage.getItemInfos(
@@ -867,16 +848,16 @@ public class GoogleCloudStorageTest {
 
     GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, objectToCopy, bytesToWrite);
 
-    try {
-      rawStorage.copy(
-          bucketName,
-          ImmutableList.of(objectToCopy.getObjectName()),
-          bucketName,
-          ImmutableList.of(objectToCopy.getObjectName()));
-      fail();
-    } catch (IllegalArgumentException e) {
-      assertThat(e).hasMessageThat().startsWith("Copy destination must be different");
-    }
+    IllegalArgumentException e =
+        expectThrows(
+            IllegalArgumentException.class,
+            () ->
+                rawStorage.copy(
+                    bucketName,
+                    ImmutableList.of(objectToCopy.getObjectName()),
+                    bucketName,
+                    ImmutableList.of(objectToCopy.getObjectName())));
+    assertThat(e).hasMessageThat().startsWith("Copy destination must be different");
   }
 
   static class CopyObjectData {
@@ -960,34 +941,33 @@ public class GoogleCloudStorageTest {
     String bucketName = getSharedBucketName();
     String notExistentName = "testCopyNonExistentItem_IDontExist";
 
-    try {
-      rawStorage.copy(
-          bucketName,
-          ImmutableList.of(notExistentName),
-          bucketName,
-          ImmutableList.of("testCopyNonExistentItem_DestinationObject"));
-      fail();
-    } catch (FileNotFoundException e) {
-      // expected
-    }
+    assertThrows(
+        FileNotFoundException.class,
+        () ->
+            rawStorage.copy(
+                bucketName,
+                ImmutableList.of(notExistentName),
+                bucketName,
+                ImmutableList.of("testCopyNonExistentItem_DestinationObject")));
   }
 
   @Test
   public void testCopyMultipleItemsToSingleDestination() throws IOException {
     String bucketName = getSharedBucketName();
 
-    try {
-      rawStorage.copy(
-          bucketName,
-          ImmutableList.of(
-              "testCopyMultipleItemsToSingleDestination_SourceObject1",
-              "testCopyMultipleItemsToSingleDestination_SourceObject2"),
-          bucketName,
-          ImmutableList.of("testCopyMultipleItemsToSingleDestination_DestinationObject"));
-      fail("Copying multiple items to a single source should fail.");
-    } catch (IllegalArgumentException e) {
-      assertThat(e).hasMessageThat().startsWith("Must supply same number of elements");
-    }
+    IllegalArgumentException e =
+        expectThrows(
+            IllegalArgumentException.class,
+            () ->
+                rawStorage.copy(
+                    bucketName,
+                    ImmutableList.of(
+                        "testCopyMultipleItemsToSingleDestination_SourceObject1",
+                        "testCopyMultipleItemsToSingleDestination_SourceObject2"),
+                    bucketName,
+                    ImmutableList.of(
+                        "testCopyMultipleItemsToSingleDestination_DestinationObject")));
+    assertThat(e).hasMessageThat().startsWith("Must supply same number of elements");
   }
 
   @Test
@@ -1008,12 +988,9 @@ public class GoogleCloudStorageTest {
   public void testOpenNonExistentItem() throws IOException {
     String bucketName = getSharedBucketName();
 
-    try {
-      rawStorage.open(new StorageResourceId(bucketName, "testOpenNonExistentItem_Object"));
-      fail("Exception expected from opening an non-existent object");
-    } catch (FileNotFoundException e) {
-      // expected
-    }
+    assertThrows(
+        FileNotFoundException.class,
+        () -> rawStorage.open(new StorageResourceId(bucketName, "testOpenNonExistentItem_Object")));
   }
 
   @Test
@@ -1102,19 +1079,9 @@ public class GoogleCloudStorageTest {
           .that(readChannel.position())
           .isEqualTo(0);
 
-      try {
-        readChannel.position(-1);
-        fail("Expected IllegalArgumentException");
-      } catch (EOFException eofe) {
-        // Expected.
-      }
+      assertThrows(EOFException.class, () -> readChannel.position(-1));
 
-      try {
-        readChannel.position(totalBytes);
-        fail("Expected IllegalArgumentException");
-      } catch (EOFException eofe) {
-        // Expected.
-      }
+      assertThrows(EOFException.class, () -> readChannel.position(totalBytes));
     }
   }
 
@@ -1157,12 +1124,9 @@ public class GoogleCloudStorageTest {
         .that(rawStorage.getItemInfo(StorageResourceId.ROOT))
         .isEqualTo(GoogleCloudStorageItemInfo.ROOT_INFO);
 
-    try {
-      StorageResourceId.createReadableString(null, "objectName");
-      fail();
-    } catch (IllegalArgumentException e) {
-      // expected
-    }
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> StorageResourceId.createReadableString(null, "objectName"));
   }
 
   @Test
@@ -1188,12 +1152,7 @@ public class GoogleCloudStorageTest {
     readableByteChannel.close();
     readBuffer.clear();
 
-    try {
-      readableByteChannel.read(readBuffer);
-      fail();
-    } catch (ClosedChannelException e) {
-      // expected
-    }
+    assertThrows(ClosedChannelException.class, () -> readableByteChannel.read(readBuffer));
   }
 
   @Test @Ignore("Not implemented")

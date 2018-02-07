@@ -14,9 +14,7 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.expectThrows;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -39,9 +37,7 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
@@ -55,10 +51,9 @@ import org.mockito.stubbing.Answer;
 public class BigQueryHelperTest {
 
   /** Verify exceptions are being thrown. */
-  @Rule public final ExpectedException expectedException = ExpectedException.none();
-
   // Mocks for Bigquery API objects.
   @Mock private Bigquery mockBigquery;
+
   @Mock private Bigquery.Jobs mockBigqueryJobs;
   @Mock private Bigquery.Jobs.Get mockBigqueryJobsGet;
   @Mock private Bigquery.Jobs.Insert mockBigqueryJobsInsert;
@@ -188,8 +183,7 @@ public class BigQueryHelperTest {
     verify(mockBigqueryJobs, times(1))
         .get(eq(jobProjectId), eq(jobCaptor.getValue().getJobReference().getJobId()));
     Job job = jobCaptor.getValue();
-    assertThat(
-        job.getConfiguration().getLoad().getSourceUris(), containsInAnyOrder("test-import-path"));
+    assertThat(job.getConfiguration().getLoad().getSourceUris()).contains("test-import-path");
     assertThat(job.getConfiguration().getLoad().getDestinationTable()).isEqualTo(tableRef);
 
     // Verify correct calls to BigQuery.Jobs.Get are made.
@@ -291,20 +285,17 @@ public class BigQueryHelperTest {
   @Test
   public void testTableExistsUnhandledException() throws IOException {
     IOException fakeUnhandledException = new IOException("Fake unhandled exception");
-    expectedException.expect(is(fakeUnhandledException));
-
     when(mockBigqueryTablesGet.execute()).thenThrow(fakeUnhandledException);
     when(mockErrorExtractor.itemNotFound(any(IOException.class))).thenReturn(false);
 
-    try {
-      helper.tableExists(tableRef);
-    } finally {
-      // Verify correct calls are made.
-      verify(mockBigquery, times(1)).tables();
-      verify(mockBigqueryTables, times(1)).get(eq(projectId), eq(datasetId), eq(tableId));
-      verify(mockBigqueryTablesGet, times(1)).execute();
-      verify(mockErrorExtractor, times(1)).itemNotFound(eq(fakeUnhandledException));
-    }
+    IOException thrown = expectThrows(IOException.class, () -> helper.tableExists(tableRef));
+    assertThat(thrown).isEqualTo(fakeUnhandledException);
+
+    // Verify correct calls are made.
+    verify(mockBigquery, times(1)).tables();
+    verify(mockBigqueryTables, times(1)).get(eq(projectId), eq(datasetId), eq(tableId));
+    verify(mockBigqueryTablesGet, times(1)).execute();
+    verify(mockErrorExtractor, times(1)).itemNotFound(eq(fakeUnhandledException));
   }
 
   @Test
@@ -344,21 +335,20 @@ public class BigQueryHelperTest {
   @Test
   public void testInsertJobOrFetchDuplicateUnhandledException() throws IOException {
     IOException unhandledException = new IOException("unhandled exception");
-    expectedException.expect(is(unhandledException));
-
     when(mockBigqueryJobsInsert.execute()).thenThrow(unhandledException);
     when(mockErrorExtractor.itemAlreadyExists(any(IOException.class))).thenReturn(false);
 
-    try {
-      helper.insertJobOrFetchDuplicate(jobProjectId, jobHandle);
-    } finally {
-      verify(mockBigquery, times(1)).jobs();
-      ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
-      verify(mockBigqueryJobs, times(1)).insert(eq(jobProjectId), jobCaptor.capture());
-      Job job = jobCaptor.getValue();
-      assertThat(job).isEqualTo(jobHandle);
-      verify(mockBigqueryJobsInsert, times(1)).execute();
-      verify(mockErrorExtractor).itemAlreadyExists(eq(unhandledException));
-    }
+    IOException thrown =
+        expectThrows(
+            IOException.class, () -> helper.insertJobOrFetchDuplicate(jobProjectId, jobHandle));
+    assertThat(thrown).isEqualTo(unhandledException);
+
+    verify(mockBigquery, times(1)).jobs();
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    verify(mockBigqueryJobs, times(1)).insert(eq(jobProjectId), jobCaptor.capture());
+    Job job = jobCaptor.getValue();
+    assertThat(job).isEqualTo(jobHandle);
+    verify(mockBigqueryJobsInsert, times(1)).execute();
+    verify(mockErrorExtractor).itemAlreadyExists(eq(unhandledException));
   }
 }

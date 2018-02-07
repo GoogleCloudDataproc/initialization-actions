@@ -15,6 +15,7 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import com.google.common.truth.Truth;
 import java.io.BufferedReader;
@@ -32,7 +33,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -166,12 +166,7 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
         String.format(
             "gs://%s/testPathsOnlyValidInNewUriScheme/", typedFs.getRootBucketName()));
     Path p = new Path(directory, "foo#bar#baz");
-    try {
-      ghfs.getFileStatus(p);
-      Assert.fail("Expected FileNotFoundException.");
-    } catch (FileNotFoundException fnfe) {
-      // expected.
-    }
+    assertThrows(FileNotFoundException.class, () -> ghfs.getFileStatus(p));
 
     ghfsHelper.writeFile(p, "SomeText", 100, false);
 
@@ -235,11 +230,7 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
     myghfs.getGcsPath(new Path("/buck^et", "object"));
 
     // Validate that authorities can't be crazy:
-    try {
-      myghfs.getGcsPath(new Path("gs://buck^et/object"));
-      Assert.fail("Bad authorities should fail.");
-    } catch (IllegalArgumentException iae) {
-      // ignored.
-    }
+    assertThrows(
+        IllegalArgumentException.class, () -> myghfs.getGcsPath(new Path("gs://buck^et/object")));
   }
 }

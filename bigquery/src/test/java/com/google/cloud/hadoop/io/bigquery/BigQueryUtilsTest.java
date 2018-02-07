@@ -14,7 +14,7 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -32,9 +32,7 @@ import java.io.IOException;
 import java.util.List;
 import org.apache.hadoop.util.Progressable;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -74,17 +72,13 @@ public class BigQueryUtilsTest {
   private Job notDoneJob;
 
   // For exceptions expected per test method.
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
-
   /**
    * Mocks result of BigQuery for polling for job completion.
    *
    * @throws IOException on IOError.
    */
   @Before
-  public void setUp() 
-      throws IOException {
+  public void setUp() throws IOException {
 
     // Set mock JobReference
     mockJobReference = new JobReference();
@@ -172,13 +166,11 @@ public class BigQueryUtilsTest {
     jobStatus.setErrorResult(new ErrorProto());
 
     // Run waitForJobCompletion and assert failure.
-    try {
-      BigQueryUtils.waitForJobCompletion(
-          mockBigQuery, projectId, mockJobReference, mockProgressable);
-      fail("When job returns an error, pollBigQueryJob should return an error.");
-    } catch (IOException e) {
-      // Expected.
-    }
+    assertThrows(
+        IOException.class,
+        () ->
+            BigQueryUtils.waitForJobCompletion(
+                mockBigQuery, projectId, mockJobReference, mockProgressable));
   }
 
   /**
@@ -239,8 +231,7 @@ public class BigQueryUtilsTest {
     String fields =
         "[{'type': 'STRING'},"
         + "{'name': 'Number', 'type': 'INTEGER', 'mode': 'sample'}]";
-    expectedException.expect(IllegalArgumentException.class);
-    List<TableFieldSchema> list = BigQueryUtils.getSchemaFromString(fields);
+    assertThrows(IllegalArgumentException.class, () -> BigQueryUtils.getSchemaFromString(fields));
   }
 
   /**
@@ -252,8 +243,7 @@ public class BigQueryUtilsTest {
     String fields =
         "[{'name': 'MyName', 'type': 'STRING'},"
         + "{'name': 'Number', 'mode': 'sample'}]";
-    expectedException.expect(IllegalArgumentException.class);
-    List<TableFieldSchema> list = BigQueryUtils.getSchemaFromString(fields);
+    assertThrows(IllegalArgumentException.class, () -> BigQueryUtils.getSchemaFromString(fields));
   }
 
   /**
@@ -266,8 +256,7 @@ public class BigQueryUtilsTest {
         "[{'name': 'MyName', 'type': 'STRING'},"
         + "foo,"
         + "{'name': 'Number', 'type': 'INTEGER', 'mode': 'sample'}]";
-    expectedException.expect(IllegalArgumentException.class);
-    List<TableFieldSchema> list = BigQueryUtils.getSchemaFromString(fields);
+    assertThrows(IllegalArgumentException.class, () -> BigQueryUtils.getSchemaFromString(fields));
   }
 
   /**
@@ -279,7 +268,6 @@ public class BigQueryUtilsTest {
     String fields =
         "[{'name': 'MyName', 'type': 'STRING'},"
         + "{'name': 'MyNestedField', 'type': 'RECORD', 'mode': 'repeated'}]";
-    expectedException.expect(IllegalArgumentException.class);
-    List<TableFieldSchema> list = BigQueryUtils.getSchemaFromString(fields);
+    assertThrows(IllegalArgumentException.class, () -> BigQueryUtils.getSchemaFromString(fields));
   }
 }

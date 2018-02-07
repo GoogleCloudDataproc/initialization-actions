@@ -16,22 +16,19 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.expectThrows;
 
 import com.google.common.truth.Truth;
 import java.net.URI;
 import java.net.URISyntaxException;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class LegacyPathCodecTest {
-
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
-
   LegacyPathCodec codec = new LegacyPathCodec();
 
   @Test
@@ -48,33 +45,34 @@ public class LegacyPathCodecTest {
 
   @Test
   public void testGetPath_PathEncoding() {
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(
-        "Invalid bucket name (b1) or object name (path/to/!@#$%&*()_/my/resource)");
-    codec.getPath("b1", "/path/to/!@#$%&*()_/my/resource", false);
+    IllegalArgumentException thrown =
+        expectThrows(
+            IllegalArgumentException.class,
+            () -> codec.getPath("b1", "/path/to/!@#$%&*()_/my/resource", false));
+    assertThat(thrown)
+        .hasMessageThat()
+        .contains("Invalid bucket name (b1) or object name (path/to/!@#$%&*()_/my/resource)");
   }
 
   @Test
   public void testGetPath_BadFragments() {
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(
-        "Invalid bucket name (b1) or object name (path/to/segment1_#Foo#bar#123)");
-
-    codec.getPath("b1", "path/to/segment1_#Foo#bar#123", false);
+    IllegalArgumentException thrown =
+        expectThrows(
+            IllegalArgumentException.class,
+            () -> codec.getPath("b1", "path/to/segment1_#Foo#bar#123", false));
+    assertThat(thrown)
+        .hasMessageThat()
+        .contains("Invalid bucket name (b1) or object name (path/to/segment1_#Foo#bar#123)");
   }
 
   @Test
   public void testGetPath_InvalidObjectName() {
-    expectedException.expect(IllegalArgumentException.class);
-
-    codec.getPath("b1", "", false);
+    assertThrows(IllegalArgumentException.class, () -> codec.getPath("b1", "", false));
   }
 
   @Test
   public void testGetPath_InvalidBucketName() {
-    expectedException.expect(IllegalArgumentException.class);
-
-    codec.getPath("", "/foo/bar", false);
+    assertThrows(IllegalArgumentException.class, () -> codec.getPath("", "/foo/bar", false));
   }
 
   @Test

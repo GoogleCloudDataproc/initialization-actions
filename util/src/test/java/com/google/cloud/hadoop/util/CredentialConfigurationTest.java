@@ -15,6 +15,8 @@
 package com.google.cloud.hadoop.util;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.expectThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -25,9 +27,7 @@ import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -35,9 +35,6 @@ import org.junit.runners.JUnit4;
 public class CredentialConfigurationTest {
 
   public static final ImmutableList<String> TEST_SCOPES = ImmutableList.of("scope1", "scope2");
-
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
 
   private final CredentialFactory mockCredentialFactory = mock(CredentialFactory.class);
   private final HttpTransport mockTransport = mock(HttpTransport.class);
@@ -64,8 +61,7 @@ public class CredentialConfigurationTest {
     // No email set, keyfile doesn't exist, but that's OK.
     configuration.setServiceAccountKeyFile("aFile");
 
-    expectedException.expect(IllegalStateException.class);
-    configuration.getCredential(TEST_SCOPES);
+    assertThrows(IllegalStateException.class, () -> configuration.getCredential(TEST_SCOPES));
   }
 
   @Test
@@ -73,10 +69,9 @@ public class CredentialConfigurationTest {
       throws IOException, GeneralSecurityException {
     configuration.setEnableServiceAccounts(false);
 
-    expectedException.expect(IllegalStateException.class);
-    expectedException.expectMessage("No valid credential configuration discovered.");
-
-    configuration.getCredential(TEST_SCOPES);
+    IllegalStateException thrown =
+        expectThrows(IllegalStateException.class, () -> configuration.getCredential(TEST_SCOPES));
+    assertThat(thrown).hasMessageThat().contains("No valid credential configuration discovered.");
   }
 
   @Test

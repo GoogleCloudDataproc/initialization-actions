@@ -15,6 +15,7 @@ package com.google.cloud.hadoop.io.bigquery.mapred;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 
@@ -35,9 +36,7 @@ import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -84,9 +83,6 @@ public class BigQueryMapredInputFormatTest {
       }
     }
   }
-
-  @Rule public ExpectedException expectedException = ExpectedException.none();
-
   @Mock private org.apache.hadoop.mapreduce.InputFormat<
       LongWritable, JsonObject> mockInputFormat;
 
@@ -138,9 +134,10 @@ public class BigQueryMapredInputFormatTest {
     int numSplits = 0;  // not used by the code under test
     when(mockInputFormat.getSplits(any(JobContext.class)))
         .thenThrow(new InterruptedException("test"));
-    expectedException.expect(IOException.class);
+
     jobConf.set("mapred.bq.inputformat.configuration.dump", "true");
-    inputFormat.getSplits(jobConf, numSplits);
+
+    assertThrows(IOException.class, () -> inputFormat.getSplits(jobConf, numSplits));
   }
 
   @Test public void testGetRecordReader()
@@ -173,7 +170,7 @@ public class BigQueryMapredInputFormatTest {
             any(org.apache.hadoop.mapreduce.InputSplit.class),
             any(TaskAttemptContext.class)))
         .thenThrow(new InterruptedException("test"));
-    expectedException.expect(IOException.class);
-    inputFormat.getRecordReader(inputSplit, jobConf, reporter);
+    assertThrows(
+        IOException.class, () -> inputFormat.getRecordReader(inputSplit, jobConf, reporter));
   }
 }

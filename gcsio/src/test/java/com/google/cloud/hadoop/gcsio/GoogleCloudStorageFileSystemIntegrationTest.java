@@ -17,6 +17,8 @@ package com.google.cloud.hadoop.gcsio;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.expectThrows;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
@@ -571,12 +573,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   public void testOpenNonExistent()
       throws IOException {
     String bucketName = gcsiHelper.getUniqueBucketName("open-non-existent");
-    try {
-      gcsiHelper.readTextFile(bucketName, objectName, 0, 100, true);
-      Assert.fail("Expected FileNotFoundException");
-    } catch (FileNotFoundException expected) {
-      // Expected.
-    }
+    assertThrows(
+        FileNotFoundException.class,
+        () -> gcsiHelper.readTextFile(bucketName, objectName, 0, 100, true));
   }
 
   /**
@@ -728,19 +727,16 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     String uniqueDirName = "dir-" + UUID.randomUUID();
     gcsiHelper.mkdir(
         bucketName, uniqueDirName + GoogleCloudStorage.PATH_DELIMITER);
-    try {
-      gcsiHelper.writeTextFile(bucketName, uniqueDirName, "hello world");
-      Assert.fail(
-          "Expected IOException for create() of object with same name as existing directory.");
-    } catch (IOException ioe) {
-
-      assertWithMessage(
-              String.format(
-                  "unexpected exception: %s\n%s",
-                  ioe.getMessage(), Throwables.getStackTraceAsString(ioe)))
-          .that(ioe.getMessage().matches(".*(A directory with that name exists|Is a directory).*"))
-          .isTrue();
-    }
+    IOException ioe =
+        expectThrows(
+            IOException.class,
+            () -> gcsiHelper.writeTextFile(bucketName, uniqueDirName, "hello world"));
+    assertWithMessage(
+            String.format(
+                "unexpected exception: %s\n%s",
+                ioe.getMessage(), Throwables.getStackTraceAsString(ioe)))
+        .that(ioe.getMessage().matches(".*(A directory with that name exists|Is a directory).*"))
+        .isTrue();
     gcsiHelper.delete(bucketName, uniqueDirName);
   }
 

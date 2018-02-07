@@ -15,6 +15,7 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -22,9 +23,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 import org.junit.Assert;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -33,19 +32,18 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class GoogleCloudStorageExceptionsTest {
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
-
   @Test
   public void testGetFileNotFoundExceptionThrowsWhenBucketNameIsNull() {
-    expectedException.expect(IllegalArgumentException.class);
-    GoogleCloudStorageExceptions.getFileNotFoundException(null, "obj");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> GoogleCloudStorageExceptions.getFileNotFoundException(null, "obj"));
   }
 
   @Test
   public void testGetFileNotFoundExceptionThrowsWhenBucketNameIsEmpty() {
-    expectedException.expect(IllegalArgumentException.class);
-    GoogleCloudStorageExceptions.getFileNotFoundException("", "obj");
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> GoogleCloudStorageExceptions.getFileNotFoundException("", "obj"));
   }
 
   /**
@@ -69,14 +67,16 @@ public class GoogleCloudStorageExceptionsTest {
   @Test
   public void testConstructorThrowsWhenInnerExceptionsAreEmpty() {
     List<IOException> emptyList = Lists.newArrayList(new IOException[0]);
-    expectedException.expect(IllegalArgumentException.class);
-    GoogleCloudStorageExceptions.createCompositeException(emptyList);
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> GoogleCloudStorageExceptions.createCompositeException(emptyList));
   }
 
   @Test
   public void testConstructorThrowsWhenInnerExceptionsAreNull() {
-    expectedException.expect(IllegalArgumentException.class);
-    GoogleCloudStorageExceptions.createCompositeException(null);
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> GoogleCloudStorageExceptions.createCompositeException(null));
   }
 
   /**

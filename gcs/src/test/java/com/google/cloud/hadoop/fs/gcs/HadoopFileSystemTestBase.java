@@ -14,7 +14,9 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.expectThrows;
+
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
@@ -300,14 +302,10 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
   private void testReadInvalidArgsHelper(
       FSDataInputStream readStream, byte[] buffer, int offset, int length,
       Class<? extends Exception> exceptionClass) {
-    try {
-      readStream.read(buffer, offset, length);
-      Assert.fail("Expected " + exceptionClass.getName());
-    } catch (Exception e) {
-      if (e.getClass() != exceptionClass) {
+    Exception e = expectThrows(Exception.class, () -> readStream.read(buffer, offset, length));
+    if (e.getClass() != exceptionClass) {
         Assert.fail("Unexpected exception: " + e);
       }
-    }
   }
 
   /**
@@ -372,12 +370,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     // Get a temp path and ensure that it does not already exist.
     URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
     Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
-    try {
-      ghfs.getFileStatus(hadoopPath);
-      Assert.fail("Expected FileNotFoundException");
-    } catch (FileNotFoundException expected) {
-      // Expected.
-    }
+    assertThrows(FileNotFoundException.class, () -> ghfs.getFileStatus(hadoopPath));
 
     // Create a file.
     String text = "Hello World!";
@@ -385,12 +378,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     Assert.assertEquals(text.getBytes("UTF-8").length, numBytesWritten);
 
     // Try to create the same file again with overwrite == false.
-    try {
-      ghfsHelper.writeFile(hadoopPath, text, 1, false);
-      Assert.fail("Expected IOException");
-    } catch (IOException expected) {
-      // Expected.
-    }
+    assertThrows(IOException.class, () -> ghfsHelper.writeFile(hadoopPath, text, 1, false));
   }
 
   /**
@@ -401,12 +389,9 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       throws IOException {
     URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
     Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
-    try {
-      ghfs.append(hadoopPath, GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT, null);
-      Assert.fail("Expected IOException");
-    } catch (IOException expected) {
-      // Expected.
-    }
+    assertThrows(
+        IOException.class,
+        () -> ghfs.append(hadoopPath, GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT, null));
   }
 
   /**
@@ -478,12 +463,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       // }
 
       // Verify that position cannot be set beyond end of file.
-      try {
-        readStream.seek(numBytesWritten + 1);
-        Assert.fail("Expected IOException");
-      } catch (IOException expected) {
-        // Expected.
-      }
+      assertThrows(IOException.class, () -> readStream.seek(numBytesWritten + 1));
 
       // Perform some misc checks.
       // TODO(user): Make it no longer necessary to do instanceof.

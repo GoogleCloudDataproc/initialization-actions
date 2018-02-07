@@ -16,9 +16,8 @@ package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.expectThrows;
 
-import com.google.common.collect.Lists;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -44,15 +43,11 @@ public class GoogleCloudStorageStringsTest {
     };
 
     for (String[] args : invalidArgs) {
-      try {
-        GoogleCloudStorageStrings.matchListPrefix(args[0], args[1], args[2]);
-        // Wrap args in an ArrayList for the debug string because it will format better than just
-        // String[].toString().
-        fail(String.format(
-            "Expected IllegalArgumentException for objectName args: %s", Lists.newArrayList(args)));
-      } catch (IllegalArgumentException iae) {
-        assertThat(iae).hasMessageThat().matches(".*objectName.*");
-      }
+      IllegalArgumentException iae =
+          expectThrows(
+              IllegalArgumentException.class,
+              () -> GoogleCloudStorageStrings.matchListPrefix(args[0], args[1], args[2]));
+      assertThat(iae).hasMessageThat().matches(".*objectName.*");
     }
   }
 

@@ -13,6 +13,7 @@
  */
 package com.google.cloud.hadoop.io.bigquery.mapred;
 
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
@@ -27,9 +28,7 @@ import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapred.TaskAttemptContext;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -44,9 +43,6 @@ public class BigQueryMapredRecordWriterTest {
   @Mock private org.apache.hadoop.mapreduce.RecordWriter<
       LongWritable, JsonObject> mockRecordWriter;
   @Mock private TaskAttemptContext mockTaskAttemptContext;
-
-  @Rule public ExpectedException expectedException = ExpectedException.none();
-
   @Before public void setUp() {
     MockitoAnnotations.initMocks(this);
   }
@@ -65,14 +61,10 @@ public class BigQueryMapredRecordWriterTest {
     recordWriter.close(reporter);
     verify(mockRecordWriter).close(any(TaskAttemptContext.class));
 
-    doThrow(new IOException("test")).
-      when(mockRecordWriter).close(any(TaskAttemptContext.class));
-    expectedException.expect(IOException.class);
-    try {
-      recordWriter.close(reporter);
-    } finally {
-      verify(mockRecordWriter, times(2)).close(any(TaskAttemptContext.class));
-    }
+    doThrow(new IOException("test")).when(mockRecordWriter).close(any(TaskAttemptContext.class));
+    assertThrows(IOException.class, () -> recordWriter.close(reporter));
+
+    verify(mockRecordWriter, times(2)).close(any(TaskAttemptContext.class));
   }
 
   @Test public void testWrite() throws IOException, InterruptedException {
@@ -90,15 +82,11 @@ public class BigQueryMapredRecordWriterTest {
     verify(mockRecordWriter, times(2)).write(
         any(LongWritable.class), any(JsonObject.class));
 
-    doThrow(new IOException("test")).
-      when(mockRecordWriter).write(
-        any(LongWritable.class), any(JsonObject.class));
-    expectedException.expect(IOException.class);
-    try {
-      recordWriter.write(key, value);
-    } finally {
-      verify(mockRecordWriter, times(3)).write(
-        any(LongWritable.class), any(JsonObject.class));
-    }
+    doThrow(new IOException("test"))
+        .when(mockRecordWriter)
+        .write(any(LongWritable.class), any(JsonObject.class));
+    assertThrows(IOException.class, () -> recordWriter.write(key, value));
+
+    verify(mockRecordWriter, times(3)).write(any(LongWritable.class), any(JsonObject.class));
   }
 }

@@ -14,7 +14,7 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.expectThrows;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.eq;
@@ -494,12 +494,9 @@ public class BigQueryOutputCommitterTest {
         .thenThrow(fakeUnhandledException);
 
     // Run method and verify calls.
-    try {
-      committerInstance.commitTask(mockTaskAttemptContext);
-      fail("Expected IOException on commitTask, got no exception");
-    } catch (IOException ioe) {
-      assertThat(ioe).isEqualTo(fakeUnhandledException);
-    }
+    IOException ioe =
+        expectThrows(IOException.class, () -> committerInstance.commitTask(mockTaskAttemptContext));
+    assertThat(ioe).isEqualTo(fakeUnhandledException);
 
     verify(mockBigQueryHelper).insertJobOrFetchDuplicate(eq(JOB_PROJECT_ID), any(Job.class));
     verify(mockTaskAttemptContext, atLeastOnce()).getTaskAttemptID();

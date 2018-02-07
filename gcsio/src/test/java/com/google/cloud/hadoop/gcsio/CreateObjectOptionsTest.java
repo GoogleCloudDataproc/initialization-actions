@@ -14,25 +14,24 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import com.google.common.collect.ImmutableMap;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.Assert.assertThrows;
 
-import org.junit.Rule;
+import com.google.common.collect.ImmutableMap;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class CreateObjectOptionsTest {
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
-
   @Test
   public void testConstructorChecksForContentTypeAttributes() throws Exception {
     new CreateObjectOptions(true, "", ImmutableMap.<String, byte[]>of("Innocuous", "".getBytes()));
 
-    expectedException.expect(IllegalArgumentException.class);
-    new CreateObjectOptions(true, "",
-        ImmutableMap.<String, byte[]>of("Content-Type", "".getBytes()));
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            new CreateObjectOptions(
+                true, "", ImmutableMap.<String, byte[]>of("Content-Type", "".getBytes(UTF_8))));
   }
 }

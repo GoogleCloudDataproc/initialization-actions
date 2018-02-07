@@ -14,6 +14,7 @@
 package com.google.cloud.hadoop.io.bigquery.mapred;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -26,9 +27,7 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -39,9 +38,6 @@ import org.mockito.MockitoAnnotations;
  */
 @RunWith(JUnit4.class)
 public class BigQueryMapredRecordReaderTest {
-
-  @Rule public ExpectedException expectedException = ExpectedException.none();
-
   @Mock private RecordReader<LongWritable, JsonObject> mockRecordReader;
 
   @Before public void setUp() {
@@ -89,12 +85,9 @@ public class BigQueryMapredRecordReaderTest {
     // Happy-path is already tested by testGetPos
 
     when(mockRecordReader.getProgress()).thenThrow(new InterruptedException());
-    expectedException.expect(IOException.class);
-    try {
-      recordReader.getProgress();
-    } finally {
-      verify(mockRecordReader).getProgress();
-    }
+    assertThrows(IOException.class, () -> recordReader.getProgress());
+
+    verify(mockRecordReader).getProgress();
   }
 
   @Test public void testNextData() throws IOException, InterruptedException {
@@ -118,12 +111,9 @@ public class BigQueryMapredRecordReaderTest {
     verify(mockRecordReader).getCurrentValue();
 
     when(mockRecordReader.nextKeyValue()).thenThrow(new InterruptedException());
-    expectedException.expect(IOException.class);
-    try {
-      recordReader.next(key, value);
-    } finally {
-      verify(mockRecordReader, times(2)).nextKeyValue();
-    }
+    assertThrows(IOException.class, () -> recordReader.next(key, value));
+
+    verify(mockRecordReader, times(2)).nextKeyValue();
   }
 
   @Test public void testNextEof() throws IOException, InterruptedException {

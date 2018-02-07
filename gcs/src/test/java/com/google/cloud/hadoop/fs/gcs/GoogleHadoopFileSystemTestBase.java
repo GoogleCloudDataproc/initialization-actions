@@ -14,6 +14,8 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static org.junit.Assert.assertThrows;
+
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions.TimestampUpdatePredicate;
@@ -142,12 +144,8 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     URI convertedPath = myghfs.getGcsPath(new Path(gcsPath));
     Assert.assertEquals(gcsPath, convertedPath);
 
-    try {
-      myghfs.getGcsPath(new Path("/buck^et", "object"));
-      Assert.fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException expected) {
-      // Expected.
-    }
+    assertThrows(
+        IllegalArgumentException.class, () -> myghfs.getGcsPath(new Path("/buck^et", "object")));
   }
 
   /**

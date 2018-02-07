@@ -15,6 +15,7 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
@@ -110,30 +111,21 @@ public class GoogleCloudStorageFileSystemTest
     // Verify that appName == null or empty throws IllegalArgumentException.
 
     optionsBuilder.getCloudStorageOptionsBuilder().setAppName(null);
-    try {
-      new GoogleCloudStorageFileSystem(cred, optionsBuilder.build());
-      Assert.fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException iae) {
-      // Expected.
-    }
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new GoogleCloudStorageFileSystem(cred, optionsBuilder.build()));
 
     optionsBuilder.getCloudStorageOptionsBuilder().setAppName("");
-    try {
-      new GoogleCloudStorageFileSystem(cred, optionsBuilder.build());
-      Assert.fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException iae) {
-      // Expected.
-    }
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new GoogleCloudStorageFileSystem(cred, optionsBuilder.build()));
 
     optionsBuilder.getCloudStorageOptionsBuilder().setAppName("appName");
 
     // Verify that credential == null throws IllegalArgumentException.
-    try {
-      new GoogleCloudStorageFileSystem((Credential) null, optionsBuilder.build());
-      Assert.fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException iae) {
-      // Expected.
-    }
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new GoogleCloudStorageFileSystem((Credential) null, optionsBuilder.build()));
 
     // Verify that fake projectId/appName and empty cred does not throw.
     setDefaultValidOptions(optionsBuilder);
@@ -224,12 +216,9 @@ public class GoogleCloudStorageFileSystemTest
     };
 
     for (String invalidPath : invalidPaths) {
-      try {
-        gcsfs.getPathCodec().validatePathAndGetId(new URI(invalidPath), false);
-        Assert.fail(String.format("Expected path to be invalid: %s", invalidPath));
-      } catch (IllegalArgumentException expected) {
-        // Expected.
-      }
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> gcsfs.getPathCodec().validatePathAndGetId(new URI(invalidPath), false));
     }
 
     String[] validPaths = {
@@ -243,16 +232,10 @@ public class GoogleCloudStorageFileSystemTest
       gcsfs.getPathCodec().validatePathAndGetId(new URI(validPath), false);
     }
 
-    try {
-      // To verify the behavior when the GCSFS is the one creating an invalid URI, we must call
-      // through directly to GCSFS.getPath instead of GCSFS.validatePathAndGetId like above;
-      // there's no way to create the invalid URI beforehand to pass through to GCSFS.
-      String invalidBucketName = "bucket-name-has-invalid-char^";
-      gcsfs.getPathCodec().getPath(invalidBucketName, null, true);
-      Assert.fail(String.format("Expected getPath to be invalid: gs://%s", invalidBucketName));
-    } catch (IllegalArgumentException expected) {
-      // Expected.
-    }
+    String invalidBucketName = "bucket-name-has-invalid-char^";
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> gcsfs.getPathCodec().getPath(invalidBucketName, null, true));
   }
 
   /**
@@ -338,12 +321,9 @@ public class GoogleCloudStorageFileSystemTest
     };
 
     for (String bucketName : invalidBucketNames) {
-      try {
-        GoogleCloudStorageFileSystem.validateBucketName(bucketName);
-        Assert.fail(String.format("Expected bucket name to be invalid: %s", bucketName));
-      } catch (IllegalArgumentException expected) {
-        // Expected.
-      }
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> GoogleCloudStorageFileSystem.validateBucketName(bucketName));
     }
 
     String[] validBucketNames = {
@@ -378,12 +358,9 @@ public class GoogleCloudStorageFileSystemTest
     };
 
     for (String objectName : invalidObjectNames) {
-      try {
-        GoogleCloudStorageFileSystem.validateObjectName(objectName, false);
-        Assert.fail(String.format("Expected object name to be invalid: %s", objectName));
-      } catch (IllegalArgumentException expected) {
-        // Expected.
-      }
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> GoogleCloudStorageFileSystem.validateObjectName(objectName, false));
     }
 
     // Verify that an empty object name is allowed when explicitly allowed.
@@ -422,19 +399,9 @@ public class GoogleCloudStorageFileSystemTest
   public void testMiscCreateAndOpen()
       throws URISyntaxException, IOException {
     URI dirPath = new URI("gs://foo/bar/");
-    try {
-      gcsfs.create(dirPath);
-      Assert.fail(String.format("Writing to directory should not be allowed: %s", dirPath));
-    } catch (IOException expected) {
-      // Expected.
-    }
+    assertThrows(IOException.class, () -> gcsfs.create(dirPath));
 
-    try {
-      gcsfs.open(dirPath);
-      Assert.fail(String.format("Reading from directory should not be allowed: %s", dirPath));
-    } catch (IllegalArgumentException expected) {
-      // Expected.
-    }
+    assertThrows(IllegalArgumentException.class, () -> gcsfs.open(dirPath));
   }
 
   @Test

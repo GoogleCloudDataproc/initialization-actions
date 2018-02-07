@@ -16,6 +16,8 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.expectThrows;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
@@ -36,12 +38,9 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -51,9 +50,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class GoogleHadoopFileSystemIntegrationTest
     extends GoogleHadoopFileSystemTestBase {
-
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
 
   @BeforeClass
   public static void beforeAllTests()
@@ -150,15 +146,9 @@ public class GoogleHadoopFileSystemIntegrationTest
     invalidSchemePaths.add("gsg://" + rootBucket + "/bar");
     for (String invalidPath : invalidSchemePaths) {
       Path path = new Path(invalidPath);
-      try {
-        myGhfs.checkPath(path);
-        String msg = String.format(
-            "checkPath should have thrown IllegalArgumentException on path: %s", invalidPath);
-        Assert.fail(msg);
-      } catch (IllegalArgumentException e) {
-        // Expected
-        assertThat(e.getLocalizedMessage()).startsWith("Wrong FS scheme:");
-      }
+      IllegalArgumentException e =
+          expectThrows(IllegalArgumentException.class, () -> myGhfs.checkPath(path));
+      assertThat(e.getLocalizedMessage()).startsWith("Wrong FS scheme:");
     }
 
     List<String> invalidBucketPaths = new ArrayList<>();
@@ -167,15 +157,9 @@ public class GoogleHadoopFileSystemIntegrationTest
     invalidBucketPaths.add("gs://" + notRootBucket + "/bar");
     for (String invalidPath : invalidBucketPaths) {
       Path path = new Path(invalidPath);
-      try {
-        myGhfs.checkPath(path);
-        String msg = String.format(
-            "checkPath should have thrown IllegalArgumentException on path: %s", invalidPath);
-        Assert.fail(msg);
-      } catch (IllegalArgumentException e) {
-        // Expected
-        assertThat(e.getLocalizedMessage()).startsWith("Wrong bucket:");
-      }
+      IllegalArgumentException e =
+          expectThrows(IllegalArgumentException.class, () -> myGhfs.checkPath(path));
+      assertThat(e.getLocalizedMessage()).startsWith("Wrong bucket:");
     }
   }
   /**
@@ -210,12 +194,11 @@ public class GoogleHadoopFileSystemIntegrationTest
   @Test
   public void testGetHadoopPathInvalidArgs()
       throws URISyntaxException {
-    try {
-      ((GoogleHadoopFileSystem) ghfs).getHadoopPath(new URI("gs://foobucket/bar"));
-      Assert.fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException expected) {
-      assertThat(expected).hasMessageThat().startsWith("Authority of URI");
-    }
+    IllegalArgumentException expected =
+        expectThrows(
+            IllegalArgumentException.class,
+            () -> ((GoogleHadoopFileSystem) ghfs).getHadoopPath(new URI("gs://foobucket/bar")));
+    assertThat(expected).hasMessageThat().startsWith("Authority of URI");
   }
 
   /**
@@ -322,10 +305,11 @@ public class GoogleHadoopFileSystemIntegrationTest
     // Verify that we cannot initialize using URI with a wrong scheme.
     URI wrongScheme = new URI("http://foo/bar");
 
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("URI scheme not supported");
-
-    new GoogleHadoopFileSystem().initialize(wrongScheme, new Configuration());
+    IllegalArgumentException thrown =
+        expectThrows(
+            IllegalArgumentException.class,
+            () -> new GoogleHadoopFileSystem().initialize(wrongScheme, new Configuration()));
+    assertThat(thrown).hasMessageThat().contains("URI scheme not supported");
   }
 
   @Test
@@ -343,10 +327,11 @@ public class GoogleHadoopFileSystemIntegrationTest
     config.set(GoogleHadoopFileSystemBase.GCS_CLIENT_ID_KEY, fakeClientId);
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, existingBucket);
 
-    expectedException.expect(IllegalStateException.class);
-    expectedException.expectMessage("No valid credential configuration discovered");
-
-    new GoogleHadoopFileSystem().initialize(gsUri, config);
+    IllegalStateException thrown =
+        expectThrows(
+            IllegalStateException.class,
+            () -> new GoogleHadoopFileSystem().initialize(gsUri, config));
+    assertThat(thrown).hasMessageThat().contains("No valid credential configuration discovered");
   }
 
   /**
@@ -436,9 +421,13 @@ public class GoogleHadoopFileSystemIntegrationTest
     // Non-existent system bucket with GCS_CREATE_SYSTEM_BUCKET_KEY set to false.
     boolean createSystemBuckets = false;
     String systemBucketName = "this-bucket-doesnt-exist";
-    expectedException.expect(FileNotFoundException.class);
-    expectedException.expectMessage(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY);
-    new GoogleHadoopFileSystem(fakeGcsFs).configureBuckets(systemBucketName, createSystemBuckets);
+    FileNotFoundException thrown =
+        expectThrows(
+            FileNotFoundException.class,
+            () ->
+                new GoogleHadoopFileSystem(fakeGcsFs)
+                    .configureBuckets(systemBucketName, createSystemBuckets));
+    assertThat(thrown).hasMessageThat().contains(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY);
   }
 
   @Test
@@ -448,9 +437,13 @@ public class GoogleHadoopFileSystemIntegrationTest
 
     boolean createSystemBuckets = true;
     String systemBucketName = "this-bucket-has-illegal-char^";
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Invalid bucket name");
-    new GoogleHadoopFileSystem(fakeGcsFs).configureBuckets(systemBucketName, createSystemBuckets);
+    IllegalArgumentException thrown =
+        expectThrows(
+            IllegalArgumentException.class,
+            () ->
+                new GoogleHadoopFileSystem(fakeGcsFs)
+                    .configureBuckets(systemBucketName, createSystemBuckets));
+    assertThat(thrown).hasMessageThat().contains("Invalid bucket name");
   }
 
   @Test
@@ -460,9 +453,13 @@ public class GoogleHadoopFileSystemIntegrationTest
 
     boolean createSystemBuckets = true;
     String systemBucketName = "bucket/with-subdir";
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("must not contain '/'");
-    new GoogleHadoopFileSystem(fakeGcsFs).configureBuckets(systemBucketName, createSystemBuckets);
+    IllegalArgumentException thrown =
+        expectThrows(
+            IllegalArgumentException.class,
+            () ->
+                new GoogleHadoopFileSystem(fakeGcsFs)
+                    .configureBuckets(systemBucketName, createSystemBuckets));
+    assertThat(thrown).hasMessageThat().contains("must not contain '/'");
   }
 
 
@@ -504,9 +501,7 @@ public class GoogleHadoopFileSystemIntegrationTest
 
     fs1.close();
 
-    expectedException.expect(IOException.class);
-
-    fs2.exists(new Path("/SomePath/That/Doesnt/Matter"));
+    assertThrows(IOException.class, () -> fs2.exists(new Path("/SomePath/That/Doesnt/Matter")));
   }
 
   public void createFile(Path filePath, byte[] data) throws IOException {

@@ -27,18 +27,13 @@ import java.io.IOException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import javax.net.ssl.SSLException;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link ResilientOperation}. */
 @RunWith(JUnit4.class)
 public class RetryDeterminerTest {
-  @Rule
-  public ExpectedException exception = ExpectedException.none();
-  
   HttpResponseException makeHttpException(int status) throws IOException {
     MockHttpTransport.Builder builder = new MockHttpTransport.Builder();
     MockLowLevelHttpResponse resp = new MockLowLevelHttpResponse();

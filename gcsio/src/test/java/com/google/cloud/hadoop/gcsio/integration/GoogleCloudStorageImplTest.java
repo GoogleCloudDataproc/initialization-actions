@@ -16,7 +16,7 @@ package com.google.cloud.hadoop.gcsio.integration;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.expectThrows;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
@@ -30,9 +30,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.List;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -43,9 +41,6 @@ import org.junit.runners.JUnit4;
 public class GoogleCloudStorageImplTest {
 
   TestBucketHelper bucketHelper = new TestBucketHelper("gcs_impl");
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
-
   protected GoogleCloudStorageImpl makeStorageWithBufferSize(int bufferSize) throws IOException {
     GoogleCloudStorageOptions.Builder builder =
         GoogleCloudStorageTestHelper.getStandardOptionBuilder();
@@ -136,9 +131,10 @@ public class GoogleCloudStorageImplTest {
       byteChannel1.write(ByteBuffer.wrap(bytesToWrite));
 
       // This call should fail:
-      expectedException.expectMessage("already exists");
-      WritableByteChannel byteChannel2 = gcs.create(resourceId, new CreateObjectOptions(false));
-      fail("Creating the second byte channel should fail.");
+      Throwable thrown =
+          expectThrows(
+              Throwable.class, () -> gcs.create(resourceId, new CreateObjectOptions(false)));
+      assertThat(thrown).hasMessageThat().contains("already exists");
     } finally {
       GoogleCloudStorageTestHelper.cleanupTestObjects(
           gcs,
@@ -167,9 +163,8 @@ public class GoogleCloudStorageImplTest {
       byteChannel1.close();
 
       // Closing byte channel2 should fail:
-      expectedException.expectMessage("412 Precondition Failed");
-      byteChannel2.close();
-      fail("Closing the second byte channel should fail.");
+      Throwable thrown = expectThrows(Throwable.class, () -> byteChannel2.close());
+      assertThat(thrown).hasMessageThat().contains("412 Precondition Failed");
     } finally {
       GoogleCloudStorageTestHelper.cleanupTestObjects(
           gcs,

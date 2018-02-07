@@ -18,6 +18,7 @@ package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -27,9 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -44,10 +43,6 @@ public abstract class DirectoryListCacheTest {
   protected static final long BASE_TIME = 123000L;
 
   protected static final String BUCKET_NAME = "foo-bucket";
-
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
-
   protected Clock mockClock;
   protected StorageResourceId bucketResourceId;
   protected StorageResourceId objectResourceId;
@@ -88,38 +83,33 @@ public abstract class DirectoryListCacheTest {
 
   @Test
   public void testPutResourceIdThrowsWhenStorageResourceIdIsNull() throws IOException {
-    expectedException.expect(IllegalArgumentException.class);
-    cache.putResourceId(null);
+    assertThrows(IllegalArgumentException.class, () -> cache.putResourceId(null));
   }
 
   @Test
   public void testGetCacheEntryThrowsWhenStorageResourceIdIsNull() throws IOException {
-    expectedException.expect(IllegalArgumentException.class);
-    cache.getCacheEntry(null);
+    assertThrows(IllegalArgumentException.class, () -> cache.getCacheEntry(null));
   }
 
   @Test
   public void testRemoveResourceIdThrowsWhenStorageResourceIdIsNull() throws IOException {
-    expectedException.expect(IllegalArgumentException.class);
-    cache.removeResourceId(null);
+    assertThrows(IllegalArgumentException.class, () -> cache.removeResourceId(null));
   }
 
   @Test
   public void testPutResourceIdThrowsWhenStorageResourceIdIsRoot() throws IOException {
-    expectedException.expect(IllegalArgumentException.class);
-    cache.putResourceId(StorageResourceId.ROOT);
+    assertThrows(IllegalArgumentException.class, () -> cache.putResourceId(StorageResourceId.ROOT));
   }
 
   @Test
   public void testGetCacheEntryThrowsWhenStorageResourceIdIsRoot() throws IOException {
-    expectedException.expect(IllegalArgumentException.class);
-    cache.getCacheEntry(StorageResourceId.ROOT);
+    assertThrows(IllegalArgumentException.class, () -> cache.getCacheEntry(StorageResourceId.ROOT));
   }
 
   @Test
   public void testRemoveResourceIdThrowsWhenStorageResourceIdIsRoot() throws IOException {
-    expectedException.expect(IllegalArgumentException.class);
-    cache.removeResourceId(StorageResourceId.ROOT);
+    assertThrows(
+        IllegalArgumentException.class, () -> cache.removeResourceId(StorageResourceId.ROOT));
   }
 
   /**

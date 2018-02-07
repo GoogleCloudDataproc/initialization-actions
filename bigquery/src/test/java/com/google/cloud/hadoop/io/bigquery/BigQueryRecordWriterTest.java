@@ -14,7 +14,7 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.expectThrows;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.times;
@@ -363,12 +363,8 @@ public class BigQueryRecordWriterTest {
     initializeRecordWriter();
 
     // Close the RecordWriter; the stored exception finally propagates out.
-    try {
-      recordWriter.close(mockContext);
-      fail("Expected IOException on close, got no exception.");
-    } catch (IOException ioe) {
-      assertThat(ioe).hasCauseThat().isEqualTo(fakeUnhandledException);
-    }
+    IOException ioe = expectThrows(IOException.class, () -> recordWriter.close(mockContext));
+    assertThat(ioe).hasCauseThat().isEqualTo(fakeUnhandledException);
 
     // Check that the proper calls were sent to the BigQuery.
     verify(mockFactory).getBigQueryHelper(any(Configuration.class));

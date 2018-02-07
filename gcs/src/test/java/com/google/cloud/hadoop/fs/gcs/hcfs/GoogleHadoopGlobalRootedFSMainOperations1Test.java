@@ -17,12 +17,12 @@ package com.google.cloud.hadoop.fs.gcs.hcfs;
 import static com.google.common.truth.Truth.assertThat;
 import static org.apache.hadoop.fs.FileSystemTestHelper.exists;
 import static org.apache.hadoop.fs.FileSystemTestHelper.getTestRootPath;
+import static org.junit.Assert.assertThrows;
 
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemTestHelper;
 import java.io.IOException;
 import org.apache.hadoop.fs.FSMainOperationsBaseTest;
 import org.apache.hadoop.fs.Path;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -61,22 +61,12 @@ public class GoogleHadoopGlobalRootedFSMainOperations1Test
     createFile(getTestRootPath(fSys, "test/hadoop/file"));
     
     Path testSubDir = getTestRootPath(fSys, "test/hadoop/file/subdir");
-    try {
-      fSys.mkdirs(testSubDir);
-      Assert.fail("Should throw IOException.");
-    } catch (IOException e) {
-      // expected
-    }
+    assertThrows(IOException.class, () -> fSys.mkdirs(testSubDir));
     assertThat(exists(fSys, testSubDir)).isFalse();
 
     Path testDeepSubDir = getTestRootPath(fSys, "test/hadoop/file/deep/sub/dir");
     assertThat(exists(fSys, testSubDir)).isFalse();
-    try {
-      fSys.mkdirs(testDeepSubDir);
-      Assert.fail("Should throw IOException.");
-    } catch (IOException e) {
-      // expected
-    }
+    assertThrows(IOException.class, () -> fSys.mkdirs(testDeepSubDir));
     assertThat(exists(fSys, testDeepSubDir)).isFalse();
   }
 

@@ -16,22 +16,17 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static org.junit.Assert.assertThrows;
 
 import com.google.common.truth.Truth;
 import java.net.URI;
 import java.net.URISyntaxException;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class UriEncodingPathCodecTest {
-
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
-
   UriEncodingPathCodec codec = new UriEncodingPathCodec();
 
   @Test
@@ -60,14 +55,12 @@ public class UriEncodingPathCodecTest {
 
   @Test
   public void testGetPath_InvalidObjectName() {
-    expectedException.expect(IllegalArgumentException.class);
-    codec.getPath("b1", "", false);
+    assertThrows(IllegalArgumentException.class, () -> codec.getPath("b1", "", false));
   }
 
   @Test
   public void testGetPath_InvalidBucketName() {
-    expectedException.expect(IllegalArgumentException.class);
-    codec.getPath("", "/foo/bar", false);
+    assertThrows(IllegalArgumentException.class, () -> codec.getPath("", "/foo/bar", false));
   }
 
   @Test

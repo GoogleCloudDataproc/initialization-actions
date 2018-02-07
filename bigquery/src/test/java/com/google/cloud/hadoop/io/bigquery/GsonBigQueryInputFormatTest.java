@@ -14,7 +14,7 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
@@ -486,14 +486,11 @@ public class GsonBigQueryInputFormatTest {
     GsonBigQueryInputFormat gsonBigQueryInputFormat =
         new GsonBigQueryInputFormatForTestGeneralSecurityException();
     config.set("mapred.input.dir", "gs://test_bucket/path/test");
-    try {
-      BigQueryJobWrapper wrapper = new BigQueryJobWrapper(config);
-      wrapper.setJobID(new JobID());
-      List<InputSplit> splits = gsonBigQueryInputFormat.getSplits(wrapper);
-      fail("Expected IOException");
-    } catch (IOException e) {
-      // Expected.
-    }
+
+    BigQueryJobWrapper wrapper = new BigQueryJobWrapper(config);
+    wrapper.setJobID(new JobID());
+
+    assertThrows(IOException.class, () -> gsonBigQueryInputFormat.getSplits(wrapper));
   }
 
   /**

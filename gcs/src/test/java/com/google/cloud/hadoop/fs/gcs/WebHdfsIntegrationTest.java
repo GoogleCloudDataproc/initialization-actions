@@ -16,6 +16,7 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
+import static org.junit.Assert.expectThrows;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
@@ -26,7 +27,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -182,12 +182,10 @@ public class WebHdfsIntegrationTest extends HadoopFileSystemTestBase {
   public void testOpenNonExistent()
       throws IOException {
     String bucketName = ghfsHelper.getUniqueBucketName("open-non-existent");
-    try {
-      ghfsHelper.readTextFile(bucketName, objectName, 0, 100, true);
-      Assert.fail("Expected IOException");
-    } catch (IOException e) {
-      assertThat(e).hasMessageThat().contains("Internal Server Error (error code=500)");
-    }
+    IOException e =
+        expectThrows(
+            IOException.class, () -> ghfsHelper.readTextFile(bucketName, objectName, 0, 100, true));
+    assertThat(e).hasMessageThat().contains("Internal Server Error (error code=500)");
   }
 
   /**

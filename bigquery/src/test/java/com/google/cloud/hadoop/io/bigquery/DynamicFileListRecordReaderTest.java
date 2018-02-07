@@ -14,7 +14,9 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.expectThrows;
+
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
@@ -39,9 +41,7 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -52,9 +52,6 @@ import org.mockito.MockitoAnnotations;
  */
 @RunWith(JUnit4.class)
 public class DynamicFileListRecordReaderTest {
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
-
   // Data we will write and read back.
   private static final String RECORD_0 = "{'day':'Sunday','letters':'6'}";
   private static final String RECORD_1 = "{'day':'Monday','letters':'6'}";
@@ -153,12 +150,8 @@ public class DynamicFileListRecordReaderTest {
    * exception instead.
    */
   private void checkNextKeyValueWouldBlock() throws IOException, InterruptedException {
-    try {
-      recordReader.nextKeyValue();
-      fail("nextKeyValue should have thrown");
-    } catch (RuntimeException re) {
-      assertThat(re).hasMessageThat().contains("test-sleep-id-12345");
-    }
+    RuntimeException re = expectThrows(RuntimeException.class, () -> recordReader.nextKeyValue());
+    assertThat(re).hasMessageThat().contains("test-sleep-id-12345");
   }
 
   /**
@@ -220,8 +213,7 @@ public class DynamicFileListRecordReaderTest {
     checkNextKeyValueWouldBlock();
     fileSystem.createNewFile(new Path(shardPath.getParent(), "data-002.json"));
     // Second file-marker with different index causes IllegalStateException.
-    expectedException.expect(IllegalStateException.class);
-    recordReader.nextKeyValue();
+    assertThrows(IllegalStateException.class, () -> recordReader.nextKeyValue());
   }
 
   @Test
@@ -256,8 +248,7 @@ public class DynamicFileListRecordReaderTest {
     assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(0));
     assertThat(recordReader.getCurrentValue()).isEqualTo(jsonParser.parse(RECORD_1));
 
-    expectedException.expect(IllegalStateException.class);
-    recordReader.nextKeyValue();
+    assertThrows(IllegalStateException.class, () -> recordReader.nextKeyValue());
   }
 
   @Test
@@ -271,8 +262,7 @@ public class DynamicFileListRecordReaderTest {
 
     writeFile(new Path(shardPath.getParent(), "data-003.json"), ImmutableList.of(RECORD_1));
 
-    expectedException.expect(IllegalStateException.class);
-    recordReader.nextKeyValue();
+    assertThrows(IllegalStateException.class, () -> recordReader.nextKeyValue());
   }
 
   @Test
@@ -376,7 +366,6 @@ public class DynamicFileListRecordReaderTest {
       throws IOException, InterruptedException {
     String outOfBounds = String.format("data-%d.json", 1L + Integer.MAX_VALUE);
     fileSystem.createNewFile(new Path(shardPath.getParent(), outOfBounds));
-    expectedException.expect(IndexOutOfBoundsException.class);
-    recordReader.nextKeyValue();
+    assertThrows(IndexOutOfBoundsException.class, () -> recordReader.nextKeyValue());
   }
 }

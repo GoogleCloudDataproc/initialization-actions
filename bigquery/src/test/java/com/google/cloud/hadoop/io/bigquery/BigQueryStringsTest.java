@@ -14,11 +14,10 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import com.google.api.services.bigquery.model.TableReference;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -27,9 +26,6 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class BigQueryStringsTest {
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
-
   @Test
   public void testTableReferenceToStringWithNoProjectId() {
     TableReference tableRef = new TableReference()
@@ -57,8 +53,7 @@ public class BigQueryStringsTest {
         .setProjectId("foo-proj")
         .setDatasetId("foo")
         .setTableId(null);
-    expectedException.expect(IllegalArgumentException.class);
-    BigQueryStrings.toString(tableRef);
+    assertThrows(IllegalArgumentException.class, () -> BigQueryStrings.toString(tableRef));
   }
 
   @Test
@@ -67,8 +62,7 @@ public class BigQueryStringsTest {
         .setProjectId("foo-proj")
         .setDatasetId("foo")
         .setTableId("");
-    expectedException.expect(IllegalArgumentException.class);
-    BigQueryStrings.toString(tableRef);
+    assertThrows(IllegalArgumentException.class, () -> BigQueryStrings.toString(tableRef));
   }
 
   @Test
@@ -77,8 +71,7 @@ public class BigQueryStringsTest {
         .setProjectId("foo-proj")
         .setDatasetId(null)
         .setTableId("tableId");
-    expectedException.expect(IllegalArgumentException.class);
-    BigQueryStrings.toString(tableRef);
+    assertThrows(IllegalArgumentException.class, () -> BigQueryStrings.toString(tableRef));
   }
 
   @Test
@@ -87,8 +80,7 @@ public class BigQueryStringsTest {
         .setProjectId("foo-proj")
         .setDatasetId("")
         .setTableId("tableId");
-    expectedException.expect(IllegalArgumentException.class);
-    BigQueryStrings.toString(tableRef);
+    assertThrows(IllegalArgumentException.class, () -> BigQueryStrings.toString(tableRef));
   }
 
   @Test
@@ -110,32 +102,28 @@ public class BigQueryStringsTest {
 
   @Test
   public void testParseTableReferenceThrowsWhenDashesArePresent() {
-    expectedException.expect(IllegalArgumentException.class);
-    BigQueryStrings.parseTableReference("foo-o.bar");
+    assertThrows(
+        IllegalArgumentException.class, () -> BigQueryStrings.parseTableReference("foo-o.bar"));
   }
 
   @Test
   public void testParseTableReferenceThrowsWhenNoDotsPresent() {
-    expectedException.expect(IllegalArgumentException.class);
-    BigQueryStrings.parseTableReference("foo");
+    assertThrows(IllegalArgumentException.class, () -> BigQueryStrings.parseTableReference("foo"));
   }
 
   @Test
   public void testParseTableReferenceThrowsWhenOnlyOneDotPresent() {
-    expectedException.expect(IllegalArgumentException.class);
-    BigQueryStrings.parseTableReference("p.foo:bar");
-
+    assertThrows(
+        IllegalArgumentException.class, () -> BigQueryStrings.parseTableReference("p.foo:bar"));
   }
 
   @Test
   public void testParseTableReferenceThrowsWhenDatasetIsEmpty() {
-    expectedException.expect(IllegalArgumentException.class);
-    BigQueryStrings.parseTableReference("foo.");
+    assertThrows(IllegalArgumentException.class, () -> BigQueryStrings.parseTableReference("foo."));
   }
 
   @Test
   public void testParseTableReferenceThrowsWhenTableIsEmpty() {
-    expectedException.expect(IllegalArgumentException.class);
-    BigQueryStrings.parseTableReference(".bar");
+    assertThrows(IllegalArgumentException.class, () -> BigQueryStrings.parseTableReference(".bar"));
   }
 }

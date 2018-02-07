@@ -15,13 +15,13 @@
 package com.google.cloud.hadoop.util;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -43,21 +43,11 @@ public class ConfigurationUtilTest {
   public void testSingleStringGetMandatoryConfig() throws IOException {
     // Test null value.
     Configuration config = new Configuration();
-    try {
-      ConfigurationUtil.getMandatoryConfig(config, KEY_ONE);
-      Assert.fail();
-    } catch (IOException e) {
-      // Expected.
-    }
+    assertThrows(IOException.class, () -> ConfigurationUtil.getMandatoryConfig(config, KEY_ONE));
 
     // Test empty string.
     config.set(KEY_ONE, "");
-    try {
-      ConfigurationUtil.getMandatoryConfig(config, KEY_ONE);
-      Assert.fail();
-    } catch (IOException e) {
-      // Expected.
-    }
+    assertThrows(IOException.class, () -> ConfigurationUtil.getMandatoryConfig(config, KEY_ONE));
 
     // Test proper setting.
     config.set(KEY_ONE, VALUE_ONE);
@@ -71,22 +61,17 @@ public class ConfigurationUtilTest {
   public void testListGetMandatoryConfig() throws IOException {
     // Test one null value.
     Configuration config = new Configuration();
-    try {
-      config.set(KEY_ONE, VALUE_ONE);
-      ConfigurationUtil.getMandatoryConfig(config, Lists.newArrayList(KEY_ONE, KEY_TWO));
-      Assert.fail();
-    } catch (IOException e) {
-      // Expected.
-    }
+    config.set(KEY_ONE, VALUE_ONE);
+
+    assertThrows(
+        IOException.class,
+        () -> ConfigurationUtil.getMandatoryConfig(config, Lists.newArrayList(KEY_ONE, KEY_TWO)));
 
     // Test one empty string.
     config.set(KEY_TWO, "");
-    try {
-      ConfigurationUtil.getMandatoryConfig(config, Lists.newArrayList(KEY_ONE, KEY_TWO));
-      Assert.fail();
-    } catch (IOException e) {
-      // Expected.
-    }
+    assertThrows(
+        IOException.class,
+        () -> ConfigurationUtil.getMandatoryConfig(config, Lists.newArrayList(KEY_ONE, KEY_TWO)));
 
     // Test proper setting.
     config.set(KEY_TWO, VALUE_TWO);

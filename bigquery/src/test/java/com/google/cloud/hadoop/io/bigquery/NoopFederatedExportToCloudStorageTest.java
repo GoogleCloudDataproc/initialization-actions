@@ -15,6 +15,7 @@ package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.cloud.hadoop.io.bigquery.ExportFileFormat.AVRO;
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.expectThrows;
 
 import com.google.api.services.bigquery.model.ExternalDataConfiguration;
 import com.google.api.services.bigquery.model.Table;
@@ -32,18 +33,12 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class NoopFederatedExportToCloudStorageTest {
-
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
-
   private Table table;
   private Configuration conf;
   private final BigQueryHelper helper = new BigQueryHelper(null);
@@ -72,20 +67,29 @@ public class NoopFederatedExportToCloudStorageTest {
   public void testValidateGcsPaths() throws Exception {
     table.getExternalDataConfiguration().setSourceUris(ImmutableList.of(
         "https://drive.google.com/open?id=1234"));
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(
-        "Invalid GCS resource: 'https://drive.google.com/open?id=1234'");
-    new NoopFederatedExportToCloudStorage(conf, AVRO, helper, projectId, table, null);
+    IllegalArgumentException thrown =
+        expectThrows(
+            IllegalArgumentException.class,
+            () ->
+                new NoopFederatedExportToCloudStorage(conf, AVRO, helper, projectId, table, null));
+    assertThat(thrown)
+        .hasMessageThat()
+        .contains("Invalid GCS resource: 'https://drive.google.com/open?id=1234'");
   }
 
   @Test
   public void testFormatMismatch() throws Exception {
     table.getExternalDataConfiguration().setSourceFormat("CSV");
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(
-        "MapReduce fileFormat 'AVRO' does not match BigQuery sourceFormat 'CSV'. "
-            + "Use the appropriate InputFormat");
-    new NoopFederatedExportToCloudStorage(conf, AVRO, helper, projectId, table, null);
+    IllegalArgumentException thrown =
+        expectThrows(
+            IllegalArgumentException.class,
+            () ->
+                new NoopFederatedExportToCloudStorage(conf, AVRO, helper, projectId, table, null));
+    assertThat(thrown)
+        .hasMessageThat()
+        .contains(
+            "MapReduce fileFormat 'AVRO' does not match BigQuery sourceFormat 'CSV'. "
+                + "Use the appropriate InputFormat");
   }
 
   @Test

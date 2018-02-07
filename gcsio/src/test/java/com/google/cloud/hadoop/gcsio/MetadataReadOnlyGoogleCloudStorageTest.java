@@ -16,6 +16,7 @@ package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
@@ -24,9 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -36,9 +35,6 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class MetadataReadOnlyGoogleCloudStorageTest {
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
-
   private static final String BUCKET_NAME = "foo-bucket";
 
   // Test setup, initialized on demand depending on each test case.
@@ -95,88 +91,90 @@ public class MetadataReadOnlyGoogleCloudStorageTest {
   @Test
   public void testCreateIsUnsupported() throws IOException {
     StorageResourceId resourceId = new StorageResourceId("foo", "bar");
-    expectedException.expect(UnsupportedOperationException.class);
-    emptyGcs.create(resourceId);
+    assertThrows(UnsupportedOperationException.class, () -> emptyGcs.create(resourceId));
   }
 
   @Test
   public void testCreateEmptyObjectIsUnsupported() throws IOException {
     StorageResourceId resourceId = new StorageResourceId("foo", "bar");
-    expectedException.expect(UnsupportedOperationException.class);
-    emptyGcs.createEmptyObject(resourceId);
+    assertThrows(UnsupportedOperationException.class, () -> emptyGcs.createEmptyObject(resourceId));
   }
 
   @Test
   public void testCreateEmptyObjectsIsUnsupported() throws IOException {
     StorageResourceId resourceId = new StorageResourceId("foo", "bar");
-    expectedException.expect(UnsupportedOperationException.class);
-    emptyGcs.createEmptyObjects(ImmutableList.of(resourceId));
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> emptyGcs.createEmptyObjects(ImmutableList.of(resourceId)));
   }
 
   @Test
   public void testOpenIsUnsupported() throws IOException {
     StorageResourceId resourceId = new StorageResourceId("foo", "bar");
-    expectedException.expect(UnsupportedOperationException.class);
-    emptyGcs.open(resourceId);
+    assertThrows(UnsupportedOperationException.class, () -> emptyGcs.open(resourceId));
   }
 
   @Test
   public void testCreateBucketIsUnsupported() throws IOException {
-    expectedException.expect(UnsupportedOperationException.class);
-    emptyGcs.create("bucketName");
+    assertThrows(UnsupportedOperationException.class, () -> emptyGcs.create("bucketName"));
   }
 
   @Test
   public void testCreateBucketWithOptionsIsUnsupported() throws IOException {
-    expectedException.expect(UnsupportedOperationException.class);
-    emptyGcs.create("bucketName", CreateBucketOptions.DEFAULT);
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> emptyGcs.create("bucketName", CreateBucketOptions.DEFAULT));
   }
 
   @Test
   public void testDeleteBucketsIsUnsupported() throws IOException {
-    expectedException.expect(UnsupportedOperationException.class);
-    emptyGcs.deleteBuckets(ImmutableList.of("bucketName"));
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> emptyGcs.deleteBuckets(ImmutableList.of("bucketName")));
   }
 
   @Test
   public void testDeleteObjectsIsUnsupported() throws IOException {
     StorageResourceId resourceId = new StorageResourceId("foo", "bar");
-    expectedException.expect(UnsupportedOperationException.class);
-    emptyGcs.deleteObjects(ImmutableList.of(resourceId));
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> emptyGcs.deleteObjects(ImmutableList.of(resourceId)));
   }
 
   @Test
   public void testCopyIsUnsupported() throws IOException {
-    expectedException.expect(UnsupportedOperationException.class);
-    emptyGcs.copy("bucket", ImmutableList.of("objSrc"), "bucket", ImmutableList.of("objDst"));
+    assertThrows(
+        UnsupportedOperationException.class,
+        () ->
+            emptyGcs.copy(
+                "bucket", ImmutableList.of("objSrc"), "bucket", ImmutableList.of("objDst")));
   }
 
   @Test
   public void testListBucketNamesIsUnsupported() throws IOException {
-    expectedException.expect(UnsupportedOperationException.class);
-    emptyGcs.listBucketNames();
+    assertThrows(UnsupportedOperationException.class, () -> emptyGcs.listBucketNames());
   }
 
   @Test
   public void testListBucketInfoIsUnsupported() throws IOException {
-    expectedException.expect(UnsupportedOperationException.class);
-    emptyGcs.listBucketInfo();
+    assertThrows(UnsupportedOperationException.class, () -> emptyGcs.listBucketInfo());
   }
 
   @Test
   public void testWaitForBucketEmptyIsUnsupported() throws IOException {
-    expectedException.expect(UnsupportedOperationException.class);
-    emptyGcs.waitForBucketEmpty("bucket");
+    assertThrows(UnsupportedOperationException.class, () -> emptyGcs.waitForBucketEmpty("bucket"));
   }
 
   @Test
   public void testComposeIsUnsupported() throws IOException {
-    expectedException.expect(UnsupportedOperationException.class);
-    emptyGcs.compose(
-        "bucket",
-        ImmutableList.of("object1", "object2"),
-        "destination",
-        CreateFileOptions.DEFAULT_CONTENT_TYPE);
+    assertThrows(
+        UnsupportedOperationException.class,
+        () ->
+            emptyGcs.compose(
+                "bucket",
+                ImmutableList.of("object1", "object2"),
+                "destination",
+                CreateFileOptions.DEFAULT_CONTENT_TYPE));
   }
 
   @Test

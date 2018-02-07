@@ -18,27 +18,25 @@
 package com.google.cloud.hadoop.util;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.expectThrows;
 
 import com.google.api.client.util.BackOff;
 import java.io.IOException;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link RetryBoundedBackOff}. */
 @RunWith(JUnit4.class)
 public class RetryBoundedBackOffTest {
-  @Rule
-  public ExpectedException exception = ExpectedException.none();
-
   @Test
   public void testValidCallHasNoRetries() throws Exception {
-    exception.expect(IllegalArgumentException.class);
-    exception.expectMessage(
-        "Maximum number of retries must not be less than 0.");
-    new RetryBoundedBackOff(-7, new BackOffTester());
+    IllegalArgumentException thrown =
+        expectThrows(
+            IllegalArgumentException.class, () -> new RetryBoundedBackOff(-7, new BackOffTester()));
+    assertThat(thrown)
+        .hasMessageThat()
+        .contains("Maximum number of retries must not be less than 0.");
   }
 
   @Test

@@ -15,22 +15,17 @@
 package com.google.cloud.hadoop.util;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.expectThrows;
 
 import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import java.net.URI;
 import java.net.URISyntaxException;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class HttpTransportFactoryTest {
-
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
-
   @Test
   public void testGetTransportTypeOfDefault() throws Exception {
     HttpTransportFactory.HttpTransportType type = HttpTransportFactory.getTransportTypeOf(null);
@@ -50,12 +45,17 @@ public class HttpTransportFactoryTest {
 
   @Test
   public void testGetTransportTypeOfException() throws Exception {
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(
-        "Invalid HttpTransport type 'com.google.api.client.http.apache.ApacheHttpTransport'."
-            + " Must be one of [APACHE, JAVA_NET].");
-    HttpTransportFactory.getTransportTypeOf(
-        "com.google.api.client.http.apache.ApacheHttpTransport");
+    IllegalArgumentException thrown =
+        expectThrows(
+            IllegalArgumentException.class,
+            () ->
+                HttpTransportFactory.getTransportTypeOf(
+                    "com.google.api.client.http.apache.ApacheHttpTransport"));
+    assertThat(thrown)
+        .hasMessageThat()
+        .contains(
+            "Invalid HttpTransport type 'com.google.api.client.http.apache.ApacheHttpTransport'."
+                + " Must be one of [APACHE, JAVA_NET].");
   }
 
   @Test
@@ -84,43 +84,58 @@ public class HttpTransportFactoryTest {
 
   @Test
   public void testParseProxyAddressInvalidScheme() throws Exception {
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage(
-        "HTTP proxy address 'socks5://foo-host:1234' has invalid scheme 'socks5'.");
     String address = "socks5://foo-host:1234";
-    HttpTransportFactory.parseProxyAddress(address);
+
+    IllegalArgumentException thrown =
+        expectThrows(
+            IllegalArgumentException.class, () -> HttpTransportFactory.parseProxyAddress(address));
+    assertThat(thrown)
+        .hasMessageThat()
+        .contains("HTTP proxy address 'socks5://foo-host:1234' has invalid scheme 'socks5'.");
   }
 
   @Test
   public void testParseProxyAddressNoHost() throws Exception {
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Proxy address ':1234' has no host.");
     String address = ":1234";
-    HttpTransportFactory.parseProxyAddress(address);
+
+    IllegalArgumentException thrown =
+        expectThrows(
+            IllegalArgumentException.class, () -> HttpTransportFactory.parseProxyAddress(address));
+    assertThat(thrown).hasMessageThat().contains("Proxy address ':1234' has no host.");
   }
 
   @Test
   public void testParseProxyAddressNoPort() throws Exception {
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Proxy address 'foo-host' has no port.");
     String address = "foo-host";
-    HttpTransportFactory.parseProxyAddress(address);
+
+    IllegalArgumentException thrown =
+        expectThrows(
+            IllegalArgumentException.class, () -> HttpTransportFactory.parseProxyAddress(address));
+    assertThat(thrown).hasMessageThat().contains("Proxy address 'foo-host' has no port.");
   }
 
   @Test
   public void testParseProxyAddressInvalidSyntax() throws Exception {
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Invalid proxy address 'foo-host-with-illegal-char^:1234'.");
     String address = "foo-host-with-illegal-char^:1234";
-    HttpTransportFactory.parseProxyAddress(address);
+
+    IllegalArgumentException thrown =
+        expectThrows(
+            IllegalArgumentException.class, () -> HttpTransportFactory.parseProxyAddress(address));
+    assertThat(thrown)
+        .hasMessageThat()
+        .contains("Invalid proxy address 'foo-host-with-illegal-char^:1234'.");
   }
 
   @Test
   public void testParseProxyAddressWithPath() throws Exception {
-    expectedException.expect(IllegalArgumentException.class);
-    expectedException.expectMessage("Invalid proxy address 'foo-host:1234/some/path'.");
     String address = "foo-host:1234/some/path";
-    HttpTransportFactory.parseProxyAddress(address);
+
+    IllegalArgumentException thrown =
+        expectThrows(
+            IllegalArgumentException.class, () -> HttpTransportFactory.parseProxyAddress(address));
+    assertThat(thrown)
+        .hasMessageThat()
+        .contains("Invalid proxy address 'foo-host:1234/some/path'.");
   }
 
   private static URI getURI(String scheme, String host, int port) throws URISyntaxException {

@@ -16,6 +16,7 @@ package com.google.cloud.hadoop.io.bigquery.output;
 import static com.google.common.truth.Truth.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.expectThrows;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -38,9 +39,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -95,8 +94,6 @@ public class ForwardingBigQueryFileOutputFormatTest {
   @Mock private RecordWriter<Text, Text> mockRecordWriter;
 
   /** Verify exceptions are being thrown. */
-  @Rule public final ExpectedException expectedException = ExpectedException.none();
-
   /** Sets up common objects for testing before each test. */
   @Before
   public void setUp() throws IOException, InterruptedException {
@@ -156,10 +153,12 @@ public class ForwardingBigQueryFileOutputFormatTest {
     // Setup configuration.
     ghfs.mkdirs(TEST_OUTPUT_PATH);
 
-    expectedException.expect(IOException.class);
-    expectedException.expectMessage("The output path '" + TEST_OUTPUT_PATH + "' already exists.");
-
-    outputFormat.checkOutputSpecs(mockTaskAttemptContext);
+    IOException thrown =
+        expectThrows(
+            IOException.class, () -> outputFormat.checkOutputSpecs(mockTaskAttemptContext));
+    assertThat(thrown)
+        .hasMessageThat()
+        .contains("The output path '" + TEST_OUTPUT_PATH + "' already exists.");
   }
 
   /** Test an error is throw when the user wants their output compressed. */
@@ -168,10 +167,12 @@ public class ForwardingBigQueryFileOutputFormatTest {
     // Setup configuration.
     FileOutputFormat.setCompressOutput(job, true);
 
-    expectedException.expect(IOException.class);
-    expectedException.expectMessage("Compression isn't supported for this OutputFormat.");
-
-    outputFormat.checkOutputSpecs(mockTaskAttemptContext);
+    IOException thrown =
+        expectThrows(
+            IOException.class, () -> outputFormat.checkOutputSpecs(mockTaskAttemptContext));
+    assertThat(thrown)
+        .hasMessageThat()
+        .contains("Compression isn't supported for this OutputFormat.");
   }
 
   /** Test getOutputCommitter is calling the delegate and the mock OutputCommitter is returned. */

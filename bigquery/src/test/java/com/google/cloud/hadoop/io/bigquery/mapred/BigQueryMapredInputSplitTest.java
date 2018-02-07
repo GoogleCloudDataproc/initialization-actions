@@ -25,9 +25,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import org.apache.hadoop.fs.Path;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -38,8 +36,6 @@ import org.mockito.MockitoAnnotations;
  */
 @RunWith(JUnit4.class)
 public class BigQueryMapredInputSplitTest {
-
-  @Rule public ExpectedException expectedException = ExpectedException.none();
 
   @Mock private UnshardedInputSplit mockInputSplit;
 

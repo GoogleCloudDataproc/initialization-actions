@@ -17,7 +17,8 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.expectThrows;
 
 import com.google.common.base.Function;
 import java.io.File;
@@ -95,10 +96,8 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
 
     cache.putResourceId(fileToCreate);
 
-    expectedException.expect(IOException.class);
-    expectedException.expectMessage("isDirectory");
-
-    cache.putResourceId(fileCollision);
+    IOException thrown = expectThrows(IOException.class, () -> cache.putResourceId(fileCollision));
+    assertThat(thrown).hasMessageThat().contains("isDirectory");
   }
 
   @Test
@@ -108,10 +107,8 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
 
     cache.putResourceId(dirToCreate);
 
-    expectedException.expect(IOException.class);
-    expectedException.expectMessage("isDirectory");
-
-    cache.putResourceId(dirCollision);
+    IOException thrown = expectThrows(IOException.class, () -> cache.putResourceId(dirCollision));
+    assertThat(thrown).hasMessageThat().contains("isDirectory");
   }
 
   @Test
@@ -121,10 +118,8 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
 
     cache.putResourceId(dirCollision);
 
-    expectedException.expect(IOException.class);
-    expectedException.expectMessage("isn't a directory");
-
-    cache.putResourceId(fileToCreate);
+    IOException thrown = expectThrows(IOException.class, () -> cache.putResourceId(fileToCreate));
+    assertThat(thrown).hasMessageThat().contains("isn't a directory");
   }
 
   @Test
@@ -319,19 +314,9 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
           }
         });
 
-    try {
-      cache.putResourceId(fileToCreate);
-      fail("Expected IOException");
-    } catch (IOException ioe) {
-      // Expected.
-    }
+    assertThrows(IOException.class, () -> cache.putResourceId(fileToCreate));
 
-    try {
-      cache.putResourceId(dirToCreate);
-      fail("Expected IOException");
-    } catch (IOException ioe) {
-      // Expected.
-    }
+    assertThrows(IOException.class, () -> cache.putResourceId(dirToCreate));
 
     // No extraneous retries or creates; exceptions should have caused immediate giving up.
     assertThat(count[0]).isEqualTo(6);
@@ -377,10 +362,8 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
           }
         });
 
-    expectedException.expect(IOException.class);
-    expectedException.expectMessage("Exhausted all retries");
-
     // Put the file.
-    cache.putResourceId(fileToCreate);
+    IOException thrown = expectThrows(IOException.class, () -> cache.putResourceId(fileToCreate));
+    assertThat(thrown).hasMessageThat().contains("Exhausted all retries");
   }
 }

@@ -14,6 +14,7 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
@@ -29,7 +30,6 @@ import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.TaskID;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -178,12 +178,7 @@ public class BigQueryOutputFormatTest {
     // Get the OutputCommitter
     BigQueryOutputCommitter outputCommitter =
         outputFormat.getOutputCommitter(job.getConfiguration(), taskAttemptID);
-    try {
-      outputCommitter.needsTaskCommit(taskAttemptID);
-      Assert.fail();
-    } catch (IOException e) {
-      // Expected.
-    }
+    assertThrows(IOException.class, () -> outputCommitter.needsTaskCommit(taskAttemptID));
   }
 
   /**

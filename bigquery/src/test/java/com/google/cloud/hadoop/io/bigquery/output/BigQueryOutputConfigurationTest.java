@@ -15,6 +15,7 @@ package com.google.cloud.hadoop.io.bigquery.output;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
@@ -22,17 +23,15 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
-import java.util.ArrayList;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -72,12 +71,9 @@ public class BigQueryOutputConfigurationTest {
   private static final TableSchema TEST_TABLE_SCHEMA =
       new TableSchema()
           .setFields(
-              new ArrayList<TableFieldSchema>() {
-                {
-                  add(new TableFieldSchema().setName("A").setType("STRING"));
-                  add(new TableFieldSchema().setName("B").setType("INTEGER"));
-                }
-              });
+              ImmutableList.of(
+                  new TableFieldSchema().setName("A").setType("STRING"),
+                  new TableFieldSchema().setName("B").setType("INTEGER")));
 
   /** Sample expected serialized version of TEST_TABLE_SCHEMA. */
   private static final String TEST_TABLE_SCHEMA_STRING =
@@ -91,9 +87,6 @@ public class BigQueryOutputConfigurationTest {
   private static Configuration conf;
 
   @Mock private JobID mockJobID;
-
-  /** Verify exceptions are being thrown. */
-  @Rule public final ExpectedException expectedException = ExpectedException.none();
 
   /** Set up before all classes. */
   @Before
@@ -135,18 +128,19 @@ public class BigQueryOutputConfigurationTest {
   /** Test an exception is thrown if a required parameter is missing for configure. */
   @Test
   public void testConfigureMissing() throws IOException {
-    expectedException.expect(IllegalArgumentException.class);
-
     // Missing the PROJECT_ID.
-    BigQueryOutputConfiguration.configure(
-        conf,
-        null,
-        TEST_DATASET_ID,
-        TEST_TABLE_ID,
-        TEST_TABLE_SCHEMA,
-        TEST_OUTPUT_PATH_STRING,
-        TEST_FILE_FORMAT,
-        TEST_OUTPUT_CLASS);
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            BigQueryOutputConfiguration.configure(
+                conf,
+                null,
+                TEST_DATASET_ID,
+                TEST_TABLE_ID,
+                TEST_TABLE_SCHEMA,
+                TEST_OUTPUT_PATH_STRING,
+                TEST_FILE_FORMAT,
+                TEST_OUTPUT_CLASS));
   }
 
   /** Test the validateConfiguration function doesn't error on expected input. */
@@ -168,8 +162,6 @@ public class BigQueryOutputConfigurationTest {
   /** Test the validateConfiguration errors on missing project id. */
   @Test
   public void testValidateConfigurationMissingProjectId() throws IOException {
-    expectedException.expect(IOException.class);
-
     BigQueryOutputConfiguration.configure(
         conf,
         TEST_PROJECT_ID,
@@ -181,14 +173,12 @@ public class BigQueryOutputConfigurationTest {
         TEST_OUTPUT_CLASS);
     conf.unset(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY);
 
-    BigQueryOutputConfiguration.validateConfiguration(conf);
+    assertThrows(IOException.class, () -> BigQueryOutputConfiguration.validateConfiguration(conf));
   }
 
   /** Test the validateConfiguration errors on missing table schema. */
   @Test
   public void testValidateConfigurationBadSchema() throws IOException {
-    expectedException.expect(IOException.class);
-
     BigQueryOutputConfiguration.configure(
         conf,
         TEST_PROJECT_ID,
@@ -200,14 +190,12 @@ public class BigQueryOutputConfigurationTest {
         TEST_OUTPUT_CLASS);
     conf.set(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY, TEST_BAD_TABLE_SCHEMA_STRING);
 
-    BigQueryOutputConfiguration.validateConfiguration(conf);
+    assertThrows(IOException.class, () -> BigQueryOutputConfiguration.validateConfiguration(conf));
   }
 
   /** Test the validateConfiguration errors on missing file format. */
   @Test
   public void testValidateConfigurationMissingFileFormat() throws IOException {
-    expectedException.expect(IOException.class);
-
     BigQueryOutputConfiguration.configure(
         conf,
         TEST_PROJECT_ID,
@@ -219,14 +207,12 @@ public class BigQueryOutputConfigurationTest {
         TEST_OUTPUT_CLASS);
     conf.unset(BigQueryConfiguration.OUTPUT_FILE_FORMAT_KEY);
 
-    BigQueryOutputConfiguration.validateConfiguration(conf);
+    assertThrows(IOException.class, () -> BigQueryOutputConfiguration.validateConfiguration(conf));
   }
 
   /** Test the validateConfiguration errors on missing output format class. */
   @Test
   public void testValidateConfigurationMissingOutputFormat() throws IOException {
-    expectedException.expect(IOException.class);
-
     BigQueryOutputConfiguration.configure(
         conf,
         TEST_PROJECT_ID,
@@ -238,7 +224,7 @@ public class BigQueryOutputConfigurationTest {
         TEST_OUTPUT_CLASS);
     conf.unset(BigQueryConfiguration.OUTPUT_FORMAT_CLASS_KEY);
 
-    BigQueryOutputConfiguration.validateConfiguration(conf);
+    assertThrows(IOException.class, () -> BigQueryOutputConfiguration.validateConfiguration(conf));
   }
 
   /** Test the getProjectId returns the correct data. */
@@ -264,9 +250,7 @@ public class BigQueryOutputConfigurationTest {
   /** Test the getProjectId errors on missing data. */
   @Test
   public void testGetProjectIdMissing() throws IOException {
-    expectedException.expect(IOException.class);
-
-    BigQueryOutputConfiguration.getProjectId(conf);
+    assertThrows(IOException.class, () -> BigQueryOutputConfiguration.getProjectId(conf));
   }
 
   /** Test the getTable returns the correct data. */
@@ -284,13 +268,11 @@ public class BigQueryOutputConfigurationTest {
   /** Test the getTable throws an exception when a key is missing. */
   @Test
   public void testGetTableReferenceMissingKey() throws IOException {
-    expectedException.expect(IOException.class);
-
     conf.set(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY, TEST_PROJECT_ID);
     conf.set(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY, TEST_DATASET_ID);
     // Missing TABLE_ID
 
-    BigQueryOutputConfiguration.getTableReference(conf);
+    assertThrows(IOException.class, () -> BigQueryOutputConfiguration.getTableReference(conf));
   }
 
   /** Test the getTable does not throw an exception when a backup project id is found. */
@@ -316,11 +298,9 @@ public class BigQueryOutputConfigurationTest {
   /** Test the getTableSchema throws an exception when the schema is malformed. */
   @Test
   public void testGetTableReferenceSchemaBadSchema() throws IOException {
-    expectedException.expect(IOException.class);
-
     conf.set(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY, TEST_BAD_TABLE_SCHEMA_STRING);
 
-    BigQueryOutputConfiguration.getTableSchema(conf);
+    assertThrows(IOException.class, () -> BigQueryOutputConfiguration.getTableSchema(conf));
   }
 
   /** Test the getFileFormat returns the correct data. */
@@ -336,19 +316,16 @@ public class BigQueryOutputConfigurationTest {
   /** Test the getFileFormat errors when it's missing. */
   @Test
   public void testGetFileFormatMissing() throws IOException {
-    expectedException.expect(IOException.class);
-
-    BigQueryOutputConfiguration.getFileFormat(conf);
+    assertThrows(IOException.class, () -> BigQueryOutputConfiguration.getFileFormat(conf));
   }
 
   /** Test the getFileFormat errors when it's malformed. */
   @Test
   public void testGetFileFormatMalformed() throws IOException {
-    expectedException.expect(IllegalArgumentException.class);
-
     conf.set(BigQueryConfiguration.OUTPUT_FILE_FORMAT_KEY, TEST_FILE_FORMAT.name().toLowerCase());
 
-    BigQueryOutputConfiguration.getFileFormat(conf);
+    assertThrows(
+        IllegalArgumentException.class, () -> BigQueryOutputConfiguration.getFileFormat(conf));
   }
 
   /** Test the getGcsOutputPath returns the correct data. */
@@ -364,8 +341,6 @@ public class BigQueryOutputConfigurationTest {
   /** Test the getGcsOutputPath errors when it's missing. */
   @Test
   public void testGetGcsOutputPathMissing() throws IOException {
-    expectedException.expect(IOException.class);
-
-    BigQueryOutputConfiguration.getGcsOutputPath(conf);
+    assertThrows(IOException.class, () -> BigQueryOutputConfiguration.getGcsOutputPath(conf));
   }
 }

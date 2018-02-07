@@ -13,6 +13,7 @@
  */
 package com.google.cloud.hadoop.io.bigquery.mapred;
 
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -23,9 +24,7 @@ import org.apache.hadoop.mapred.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.JobStatus.State;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -36,9 +35,6 @@ import org.mockito.MockitoAnnotations;
  */
 @RunWith(JUnit4.class)
 public class BigQueryMapredOutputCommitterTest {
-
-  @Rule public ExpectedException expectedException = ExpectedException.none();
-
   @Mock private JobContext mockJobContext;
   @Mock private TaskAttemptContext mockTaskAttemptContext;
   @Mock private org.apache.hadoop.mapreduce.OutputCommitter mockOutputCommitter;
@@ -71,8 +67,8 @@ public class BigQueryMapredOutputCommitterTest {
     int status = -1;
     outputCommitter.setMapreduceOutputCommitter(mockOutputCommitter);
 
-    expectedException.expect(IllegalArgumentException.class);
-    outputCommitter.abortJob(mockJobContext, status);
+    assertThrows(
+        IllegalArgumentException.class, () -> outputCommitter.abortJob(mockJobContext, status));
   }
 
   @Test public void testAbortTask() throws IOException {

@@ -17,6 +17,7 @@
 package com.google.cloud.hadoop.util;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.expectThrows;
 
 import com.google.api.client.testing.util.MockSleeper;
 import com.google.api.client.util.BackOff;
@@ -24,18 +25,13 @@ import com.google.cloud.hadoop.util.ResilientOperation.CheckedCallable;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /** Unit tests for {@link ResilientOperation}. */
 @RunWith(JUnit4.class)
 public class ResilientOperationTest {
-  @Rule
-  public ExpectedException exception = ExpectedException.none();
-
   @Test
   public void testValidCallHasNoRetries() throws Exception {
     MockSleeper sleeper = new MockSleeper();
@@ -54,15 +50,17 @@ public class ResilientOperationTest {
     exceptions.add(new IllegalArgumentException("FakeException"));
     CallableTester<Exception> callTester = new CallableTester<>(exceptions);
     BackOff backoff = new RetryBoundedBackOff(3, new BackOffTester());
-    exception.expect(IllegalArgumentException.class);
-    exception.expectMessage("FakeException");
-    try {
-      ResilientOperation.retry(callTester, backoff, RetryDeterminer.DEFAULT, Exception.class,
-          sleeper);
-    } finally {
-      assertThat(callTester.timesCalled()).isEqualTo(1);
-      verifySleeper(sleeper, 0);
-    }
+
+    IllegalArgumentException thrown =
+        expectThrows(
+            IllegalArgumentException.class,
+            () ->
+                ResilientOperation.retry(
+                    callTester, backoff, RetryDeterminer.DEFAULT, Exception.class, sleeper));
+    assertThat(thrown).hasMessageThat().contains("FakeException");
+
+    assertThat(callTester.timesCalled()).isEqualTo(1);
+    verifySleeper(sleeper, 0);
   }
 
   @Test
@@ -74,15 +72,17 @@ public class ResilientOperationTest {
     exceptions.add(new IllegalArgumentException("FakeException"));
     CallableTester<Exception> callTester = new CallableTester<>(exceptions);
     BackOff backoff = new RetryBoundedBackOff(5, new BackOffTester());
-    exception.expect(IllegalArgumentException.class);
-    exception.expectMessage("FakeException");
-    try {
-      ResilientOperation.retry(callTester, backoff, RetryDeterminer.DEFAULT, Exception.class,
-          sleeper);
-    } finally {
-      assertThat(callTester.timesCalled()).isEqualTo(3);
-      verifySleeper(sleeper, 2);
-    }
+
+    IllegalArgumentException thrown =
+        expectThrows(
+            IllegalArgumentException.class,
+            () ->
+                ResilientOperation.retry(
+                    callTester, backoff, RetryDeterminer.DEFAULT, Exception.class, sleeper));
+    assertThat(thrown).hasMessageThat().contains("FakeException");
+
+    assertThat(callTester.timesCalled()).isEqualTo(3);
+    verifySleeper(sleeper, 2);
   }
   
   @Test
@@ -94,15 +94,21 @@ public class ResilientOperationTest {
     exceptions.add(new IOException("FakeException"));
     CallableTester<IOException> callTester = new CallableTester<>(exceptions);
     BackOff backoff = new RetryBoundedBackOff(5, new BackOffTester());
-    exception.expect(IOException.class);
-    exception.expectMessage("FakeException");
-    try {
-      ResilientOperation.retry(callTester, backoff, RetryDeterminer.SOCKET_ERRORS,
-          IOException.class, sleeper);
-    } finally {
-      assertThat(callTester.timesCalled()).isEqualTo(3);
-      verifySleeper(sleeper, 2);
-    }
+
+    IOException thrown =
+        expectThrows(
+            IOException.class,
+            () ->
+                ResilientOperation.retry(
+                    callTester,
+                    backoff,
+                    RetryDeterminer.SOCKET_ERRORS,
+                    IOException.class,
+                    sleeper));
+    assertThat(thrown).hasMessageThat().contains("FakeException");
+
+    assertThat(callTester.timesCalled()).isEqualTo(3);
+    verifySleeper(sleeper, 2);
   }
 
   public void verifySleeper(MockSleeper sleeper, int retry) {
@@ -122,15 +128,17 @@ public class ResilientOperationTest {
     exceptions.add(new SocketTimeoutException("socket3"));
     CallableTester<Exception> callTester = new CallableTester<>(exceptions);
     BackOff backoff = new RetryBoundedBackOff(2, new BackOffTester());
-    exception.expect(SocketTimeoutException.class);
-    exception.expectMessage("socket3");
-    try {
-      ResilientOperation.retry(callTester, backoff, RetryDeterminer.DEFAULT, Exception.class,
-          sleeper);
-    } finally {
-      assertThat(callTester.timesCalled()).isEqualTo(3);
-      verifySleeper(sleeper, 2);
-    }
+
+    SocketTimeoutException thrown =
+        expectThrows(
+            SocketTimeoutException.class,
+            () ->
+                ResilientOperation.retry(
+                    callTester, backoff, RetryDeterminer.DEFAULT, Exception.class, sleeper));
+    assertThat(thrown).hasMessageThat().contains("socket3");
+
+    assertThat(callTester.timesCalled()).isEqualTo(3);
+    verifySleeper(sleeper, 2);
   }
 
   @Test
@@ -150,7 +158,7 @@ public class ResilientOperationTest {
     assertThat(callTester.timesCalled()).isEqualTo(4);
     verifySleeper(sleeper, 3);
   }
-  
+
   private class CallableTester<X extends Exception> implements CheckedCallable<Integer, X> {
     int called = 0;
     ArrayList<X> exceptions = null;

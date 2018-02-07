@@ -14,14 +14,13 @@
 package com.google.cloud.hadoop.io.bigquery.mapred;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.JobContext;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -30,9 +29,6 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class BigQueryMapredJobContextTest {
-
-  @Rule public ExpectedException expectedException = ExpectedException.none();
-
   @Test public void testConstructor() {
     // This is a utility class, so there isn't a use for an instance,
     // but this test gives us 100% test coverage on the class, which is nice.
@@ -52,8 +48,7 @@ public class BigQueryMapredJobContextTest {
 
   @Test public void testFromNoJobDir() throws IOException {
     JobConf jobConf = new JobConf();
-    expectedException.expect(IllegalArgumentException.class);
-    BigQueryMapredJobContext.from(jobConf);
+    assertThrows(IllegalArgumentException.class, () -> BigQueryMapredJobContext.from(jobConf));
   }
 
   @Test public void testFromBadJobName() throws IOException {
@@ -61,7 +56,6 @@ public class BigQueryMapredJobContextTest {
     String originalJobIdString = "invalid_job_format";
     String jobDir = "//some/stuff/" + originalJobIdString;
     jobConf.set("mapreduce.job.dir", jobDir);
-    expectedException.expect(IllegalArgumentException.class);
-    BigQueryMapredJobContext.from(jobConf);
+    assertThrows(IllegalArgumentException.class, () -> BigQueryMapredJobContext.from(jobConf));
   }
 }

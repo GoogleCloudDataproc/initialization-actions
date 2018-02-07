@@ -15,6 +15,8 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.expectThrows;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -33,11 +35,8 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -48,9 +47,6 @@ import org.mockito.MockitoAnnotations;
  */
 @RunWith(JUnit4.class)
 public class GoogleHadoopSyncableOutputStreamTest {
-  @Rule
-  public ExpectedException expectedException = ExpectedException.none();
-
   @Mock private ExecutorService mockExecutorService;
   @Mock private Future<Void> mockFuture;
 
@@ -151,15 +147,11 @@ public class GoogleHadoopSyncableOutputStreamTest {
 
     verify(mockExecutorService).submit(any(Callable.class));
 
-    expectedException.expect(IOException.class);
-    expectedException.expectMessage(fakeIoException.getMessage());
+    IOException thrown = expectThrows(IOException.class, () -> fout.close());
+    assertThat(thrown).hasMessageThat().contains(fakeIoException.getMessage());
 
-    try {
-      fout.close();
-    } finally {
-      verify(mockExecutorService, times(2)).submit(any(Callable.class));
-      verify(mockFuture).get();
-    }
+    verify(mockExecutorService, times(2)).submit(any(Callable.class));
+    verify(mockFuture).get();
   }
 
   @Test
@@ -175,29 +167,26 @@ public class GoogleHadoopSyncableOutputStreamTest {
     Path objectPath = new Path(ghfs.getFileSystemRoot(), "dir/object.txt");
     FSDataOutputStream fout = ghfs.create(objectPath);
 
-    expectedException.expect(ClosedChannelException.class);
     fout.close();
-    fout.write(42);
+    assertThrows(ClosedChannelException.class, () -> fout.write(42));
   }
 
   @Test
   public void testWriteAfterClose() throws IOException {
     Path objectPath = new Path(ghfs.getFileSystemRoot(), "dir/object.txt");
     FSDataOutputStream fout = ghfs.create(objectPath);
-
-    expectedException.expect(ClosedChannelException.class);
     fout.close();
-    fout.write(new byte[] { 0x01 }, 0, 1);
+
+    assertThrows(ClosedChannelException.class, () -> fout.write(new byte[] {0x01}, 0, 1));
   }
 
   @Test
   public void testSyncAfterClose() throws IOException {
     Path objectPath = new Path(ghfs.getFileSystemRoot(), "dir/object.txt");
     FSDataOutputStream fout = ghfs.create(objectPath);
-
-    expectedException.expect(ClosedChannelException.class);
     fout.close();
-    fout.sync();
+
+    assertThrows(ClosedChannelException.class, () -> fout.sync());
   }
 
   @Test
@@ -217,16 +206,12 @@ public class GoogleHadoopSyncableOutputStreamTest {
     // If the limit is N, then the Nth attempt to call sync() will fail, since it means the
     // base object already has N - 1 components, and we have 1 temporary object in-progress,
     // and a call to close() at this point brings the base object up to the limit of N.
-    try {
-      // Despite the exception we're expecting, the data here should still be safe.
-      fout.write(new byte[] { 0x42 });
-      expected[GoogleHadoopSyncableOutputStream.MAX_COMPOSITE_COMPONENTS - 1] = 0x42;
 
-      fout.sync();
-      Assert.fail("Expected CompositeLimitExceededException");
-    } catch (CompositeLimitExceededException clee) {
-      // Expected.
-    }
+    // Despite the exception we're expecting, the data here should still be safe.
+    fout.write(new byte[] {0x42});
+    expected[GoogleHadoopSyncableOutputStream.MAX_COMPOSITE_COMPONENTS - 1] = 0x42;
+
+    assertThrows(CompositeLimitExceededException.class, () -> fout.sync());
 
     // Despite having thrown an exception, the stream is still safe to use and even write more data.
     fout.write(new byte[] { 0x11 });

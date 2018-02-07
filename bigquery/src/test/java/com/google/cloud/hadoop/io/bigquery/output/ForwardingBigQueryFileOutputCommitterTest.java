@@ -42,9 +42,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
@@ -108,9 +106,6 @@ public class ForwardingBigQueryFileOutputCommitterTest {
 
   @Mock private TaskAttemptContext mockTaskAttemptContext;
   @Mock private OutputCommitter mockCommitter;
-
-  /** Verify exceptions are being thrown. */
-  @Rule public final ExpectedException expectedException = ExpectedException.none();
 
   /** Sets up common objects for testing before each test. */
   @Before

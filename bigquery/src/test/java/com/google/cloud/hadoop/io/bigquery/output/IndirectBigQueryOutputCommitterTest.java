@@ -14,9 +14,7 @@
 package com.google.cloud.hadoop.io.bigquery.output;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.expectThrows;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -47,9 +45,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
@@ -124,8 +120,6 @@ public class IndirectBigQueryOutputCommitterTest {
   @Mock private OutputCommitter mockCommitter;
 
   /** Verify exceptions are being thrown. */
-  @Rule public final ExpectedException expectedException = ExpectedException.none();
-
   /** Sets up common objects for testing before each test. */
   @Before
   public void setUp() throws IOException {
@@ -210,7 +204,7 @@ public class IndirectBigQueryOutputCommitterTest {
     verify(mockCommitter).commitJob(eq(job));
 
     // Assert the passed files contains our sample file.
-    assertThat(gcsOutputFileCaptor.getValue(), containsInAnyOrder(TEST_OUTPUT_FILE_STRING));
+    assertThat(gcsOutputFileCaptor.getValue()).contains(TEST_OUTPUT_FILE_STRING);
   }
 
   /** Test to make sure an IOException is thrown on interrupt of the BigQuery import call. */
@@ -222,8 +216,6 @@ public class IndirectBigQueryOutputCommitterTest {
 
     // Setup the expected exception
     InterruptedException helperInterruptedException = new InterruptedException("Test exception");
-    expectedException.expect(IOException.class);
-    expectedException.expectCause(is(helperInterruptedException));
 
     // Configure special case mock.
     doThrow(helperInterruptedException)
@@ -237,23 +229,22 @@ public class IndirectBigQueryOutputCommitterTest {
             any(List.class),
             eq(true));
 
-    try {
-      committer.commitJob(job);
-    } finally {
-      // Verify we're making the BigQuery import call.
-      verify(mockBigQueryHelper)
-          .importFromGcs(
-              eq(TEST_PROJECT_ID),
-              eq(outputTableRef),
-              eq(TEST_TABLE_SCHEMA),
-              eq(TEST_FILE_FORMAT),
-              eq(TEST_WRITE_DISPOSITION),
-              any(List.class), // Tested, no need to capture
-              eq(true));
+    IOException thrown = expectThrows(IOException.class, () -> committer.commitJob(job));
+    assertThat(thrown).hasCauseThat().isEqualTo(helperInterruptedException);
 
-      // Verify the delegate is being called.
-      verify(mockCommitter).commitJob(eq(job));
-    }
+    // Verify we're making the BigQuery import call.
+    verify(mockBigQueryHelper)
+        .importFromGcs(
+            eq(TEST_PROJECT_ID),
+            eq(outputTableRef),
+            eq(TEST_TABLE_SCHEMA),
+            eq(TEST_FILE_FORMAT),
+            eq(TEST_WRITE_DISPOSITION),
+            any(List.class), // Tested, no need to capture
+            eq(true));
+
+    // Verify the delegate is being called.
+    verify(mockCommitter).commitJob(eq(job));
   }
 
   /** Test that cleanup actually cleans up. */
