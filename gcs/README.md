@@ -46,10 +46,11 @@ the cluster is automatically configured for optimal use with the connector.
 Typically, there is no need for further configuration.
 
 To customize the connector, specify configuration values in `core-site.xml`
-based on how you set up your cluster: *
-**[`bdutil`](https://github.com/GoogleCloudPlatform/bdutil)** - in
+based on how you set up your cluster:
+* **[`bdutil`](https://github.com/GoogleCloudPlatform/bdutil)** - in
 `conf/hadoop<version>gcs-core-template.xml` in the bdutil package directory,
-before deploying a cluster with bdutil * **other existing clusters** - the
+before deploying a cluster with bdutil
+* **other existing clusters** - the
 Hadoop configuration directory on the machine on which the connector is
 installed
 
