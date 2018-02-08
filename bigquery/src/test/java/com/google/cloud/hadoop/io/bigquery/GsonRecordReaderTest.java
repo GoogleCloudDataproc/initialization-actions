@@ -14,7 +14,6 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertEquals;
 
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import com.google.gson.JsonObject;
@@ -170,11 +169,11 @@ public class GsonRecordReaderTest {
 
     // Assert RecordReader returns correct progress.
     assertThat(multipleRecordReader.nextKeyValue()).isTrue();
-    assertEquals(.58, multipleRecordReader.getProgress(), .01);
+    assertThat(multipleRecordReader.getProgress()).isWithin(.01f).of(.58f);
     assertThat(multipleRecordReader.nextKeyValue()).isTrue();
-    assertEquals(1, multipleRecordReader.getProgress(), .01);
+    assertThat(multipleRecordReader.getProgress()).isWithin(.01f).of(1);
     assertThat(multipleRecordReader.nextKeyValue()).isFalse();
-    assertEquals(1, multipleRecordReader.getProgress(), .01);
+    assertThat(multipleRecordReader.getProgress()).isWithin(.01f).of(1);
 
     // Close RecordReader.
     multipleRecordReader.close();
@@ -230,15 +229,9 @@ public class GsonRecordReaderTest {
    */
   public static void writeFile(FileSystem ghfs, Path hadoopPath, ByteBuffer buffer)
       throws IOException {
-    FSDataOutputStream writeStream = null;
-    try {
-      writeStream = ghfs.create(hadoopPath, true);
+    try (FSDataOutputStream writeStream = ghfs.create(hadoopPath, true)) {
       buffer.clear();
       writeStream.write(buffer.array(), 0, buffer.capacity());
-    } finally {
-      if (writeStream != null) {
-        writeStream.close();
-      }
     }
   }
 }

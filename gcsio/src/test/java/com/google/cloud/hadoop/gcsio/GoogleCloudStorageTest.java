@@ -16,7 +16,6 @@ package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.expectThrows;
 import static org.junit.Assert.fail;
@@ -616,20 +615,22 @@ public class GoogleCloudStorageTest {
         gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     assertThat(writeChannel.isOpen()).isTrue();
 
-    Future<?> write = executorService.submit(new Runnable() {
-      @Override
-      public void run() {
-        try {
-          writeStartedLatch.countDown();
-          writeChannel.close();
-          fail("Expected IOException");
-        } catch (IOException ioe) {
-          assertEquals(ClosedByInterruptException.class, ioe.getClass());
-        } finally {
-          threadsDoneLatch.countDown();
-        }
-      }
-    });
+    Future<?> write =
+        executorService.submit(
+            new Runnable() {
+              @Override
+              public void run() {
+                try {
+                  writeStartedLatch.countDown();
+                  writeChannel.close();
+                  fail("Expected IOException");
+                } catch (IOException ioe) {
+                  assertThat(ioe.getClass()).isEqualTo(ClosedByInterruptException.class);
+                } finally {
+                  threadsDoneLatch.countDown();
+                }
+              }
+            });
     // Wait for the insert object to be executed, then cancel the writing thread, and finally wait
     // for the two threads to finish.
     assertWithMessage("Neither thread started.")
@@ -1008,7 +1009,7 @@ public class GoogleCloudStorageTest {
 
     assertThrows(RuntimeException.class, () -> readChannel.read(ByteBuffer.wrap(actualData)));
 
-    assertEquals(readChannel.readChannel, null);
+    assertThat(readChannel.readChannel).isNull();
     assertThat(readChannel.lazySeekPending).isFalse();
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
@@ -1042,7 +1043,7 @@ public class GoogleCloudStorageTest {
     // Should not throw exception. If it does, it will be caught by the test harness.
     readChannel.close();
 
-    assertEquals(readChannel.readChannel, null);
+    assertThat(readChannel.readChannel).isNull();
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper, times(1)).getRequestHeaders(any(Storage.Objects.Get.class));
@@ -3530,7 +3531,7 @@ public class GoogleCloudStorageTest {
   public void testGetItemInfoRoot()
       throws IOException {
     GoogleCloudStorageItemInfo info = gcs.getItemInfo(StorageResourceId.ROOT);
-    assertEquals(GoogleCloudStorageItemInfo.ROOT_INFO, info);
+    assertThat(info).isEqualTo(GoogleCloudStorageItemInfo.ROOT_INFO);
   }
 
   /**
@@ -3550,7 +3551,7 @@ public class GoogleCloudStorageTest {
     GoogleCloudStorageItemInfo info = gcs.getItemInfo(new StorageResourceId(BUCKET_NAME));
     GoogleCloudStorageItemInfo expected = new GoogleCloudStorageItemInfo(
         new StorageResourceId(BUCKET_NAME), 1234L, 0L, "us-west-123", "class-af4");
-    assertEquals(expected, info);
+    assertThat(info).isEqualTo(expected);
 
     verify(mockStorage).buckets();
     verify(mockStorageBuckets).get(eq(BUCKET_NAME));
@@ -3602,7 +3603,7 @@ public class GoogleCloudStorageTest {
     GoogleCloudStorageItemInfo info = gcs.getItemInfo(new StorageResourceId(BUCKET_NAME));
     GoogleCloudStorageItemInfo expected = new GoogleCloudStorageItemInfo(
         new StorageResourceId(BUCKET_NAME), 0L, -1L, null, null);
-    assertEquals(expected, info);
+    assertThat(info).isEqualTo(expected);
 
     // Throw.
     assertThrows(IOException.class, () -> gcs.getItemInfo(new StorageResourceId(BUCKET_NAME)));
@@ -3644,7 +3645,7 @@ public class GoogleCloudStorageTest {
         EMPTY_METADATA,
         1L,
         1L);
-    assertEquals(expected, info);
+    assertThat(info).isEqualTo(expected);
 
     verify(mockStorage).objects();
     verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
@@ -3723,7 +3724,7 @@ public class GoogleCloudStorageTest {
         EMPTY_METADATA,
         0 /* Content Generation */,
         0 /* Meta generation */);
-    assertEquals(expected, info);
+    assertThat(info).isEqualTo(expected);
 
     // Throw.
     assertThrows(
@@ -3815,9 +3816,9 @@ public class GoogleCloudStorageTest {
     GoogleCloudStorageItemInfo expectedBucket = new GoogleCloudStorageItemInfo(
         new StorageResourceId(BUCKET_NAME), 1234L, 0L, "us-west-123", "class-af4");
 
-    assertEquals(expectedObject, itemInfos.get(0));
-    assertEquals(expectedRoot, itemInfos.get(1));
-    assertEquals(expectedBucket, itemInfos.get(2));
+    assertThat(itemInfos.get(0)).isEqualTo(expectedObject);
+    assertThat(itemInfos.get(1)).isEqualTo(expectedRoot);
+    assertThat(itemInfos.get(2)).isEqualTo(expectedBucket);
 
     verify(mockBatchFactory).newBatchHelper(any(HttpRequestInitializer.class),
         eq(mockStorage), any(Long.class));
@@ -3895,9 +3896,9 @@ public class GoogleCloudStorageTest {
     GoogleCloudStorageItemInfo expectedBucket = GoogleCloudStorageImpl.createItemInfoForNotFound(
         new StorageResourceId(BUCKET_NAME));
 
-    assertEquals(expectedObject, itemInfos.get(0));
-    assertEquals(expectedRoot, itemInfos.get(1));
-    assertEquals(expectedBucket, itemInfos.get(2));
+    assertThat(itemInfos.get(0)).isEqualTo(expectedObject);
+    assertThat(itemInfos.get(1)).isEqualTo(expectedRoot);
+    assertThat(itemInfos.get(2)).isEqualTo(expectedBucket);
 
     verify(mockBatchFactory).newBatchHelper(any(HttpRequestInitializer.class), eq(mockStorage),
         any(Long.class));
@@ -4137,9 +4138,8 @@ public class GoogleCloudStorageTest {
         .isEqualTo(sources.get(1).getObjectName());
     assertThat(composeCaptor.getValue().getDestination().getContentType())
         .isEqualTo("text-content");
-    assertEquals(
-        GoogleCloudStorageImpl.encodeMetadata(rawMetadata),
-        composeCaptor.getValue().getDestination().getMetadata());
+    assertThat(composeCaptor.getValue().getDestination().getMetadata())
+        .isEqualTo(GoogleCloudStorageImpl.encodeMetadata(rawMetadata));
   }
 
   /**

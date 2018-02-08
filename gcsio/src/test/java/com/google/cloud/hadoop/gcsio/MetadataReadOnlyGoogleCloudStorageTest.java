@@ -15,7 +15,6 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableList;
@@ -206,7 +205,7 @@ public class MetadataReadOnlyGoogleCloudStorageTest {
 
     // Fetch each item individually.
     for (Map.Entry<StorageResourceId, GoogleCloudStorageItemInfo> entry : initialMap.entrySet()) {
-      assertEquals(entry.getValue(), gcs.getItemInfo(entry.getKey()));
+      assertThat(gcs.getItemInfo(entry.getKey())).isEqualTo(entry.getValue());
     }
 
     // Fetch them all at once.

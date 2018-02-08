@@ -30,7 +30,6 @@ import java.util.List;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -384,12 +383,10 @@ public class GoogleCloudStorageFileSystemTest
   @Test
   public void testFileInfo()
       throws IOException {
-    Assert.assertEquals(
-        GoogleCloudStorageFileSystem.GCS_ROOT,
-        gcsfs.getFileInfo(GoogleCloudStorageFileSystem.GCS_ROOT).getPath());
-    Assert.assertEquals(
-        GoogleCloudStorageItemInfo.ROOT_INFO,
-        gcsfs.getFileInfo(GoogleCloudStorageFileSystem.GCS_ROOT).getItemInfo());
+    assertThat(gcsfs.getFileInfo(GoogleCloudStorageFileSystem.GCS_ROOT).getPath())
+        .isEqualTo(GoogleCloudStorageFileSystem.GCS_ROOT);
+    assertThat(gcsfs.getFileInfo(GoogleCloudStorageFileSystem.GCS_ROOT).getItemInfo())
+        .isEqualTo(GoogleCloudStorageItemInfo.ROOT_INFO);
   }
 
   /**

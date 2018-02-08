@@ -22,7 +22,6 @@ import com.google.common.collect.Lists;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -111,7 +110,7 @@ public class GoogleCloudStorageExceptionsTest {
     String message = "I am wrapped";
     wrapped = GoogleCloudStorageExceptions.wrapException(inner1, message, "bucket", "object");
     assertThat(wrapped).hasMessageThat().startsWith(message);
-    Assert.assertEquals(inner1, wrapped.getCause());
+    assertThat(wrapped).hasCauseThat().isEqualTo(inner1);
   }
 
   /**

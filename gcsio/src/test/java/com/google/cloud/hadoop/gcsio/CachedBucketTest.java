@@ -15,7 +15,6 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -178,7 +177,7 @@ public class CachedBucketTest {
     assertThat(bucket.getName()).isEqualTo(resourceId.getBucketName());
     assertThat(bucket.getCreationTimeMillis()).isEqualTo(creationTime);
     assertThat(bucket.getItemInfoUpdateTimeMillis()).isEqualTo(lastUpdatedTime);
-    assertEquals(itemInfo, bucket.getItemInfo());
+    assertThat(bucket.getItemInfo()).isEqualTo(itemInfo);
 
     // Even when empty, getObjecList() doesn't return null.
     assertThat(bucket.getNumObjects()).isEqualTo(0);
@@ -201,7 +200,7 @@ public class CachedBucketTest {
     assertThat(objectEntry.getItemInfo()).isNull();
     assertThat(bucket.getObjectList()).hasSize(1);
     assertThat(bucket.getNumObjects()).isEqualTo(1);
-    assertEquals(objectEntry, bucket.getObjectList().get(0));
+    assertThat(bucket.getObjectList().get(0)).isEqualTo(objectEntry);
 
     // Populate the object's info.
     long objectUpdateTime = 67L;
@@ -210,7 +209,7 @@ public class CachedBucketTest {
     objectEntry.setItemInfo(objectInfo);
     assertThat(objectEntry.getCreationTimeMillis()).isEqualTo(addTime);
     assertThat(objectEntry.getItemInfoUpdateTimeMillis()).isEqualTo(objectUpdateTime);
-    assertEquals(objectInfo, objectEntry.getItemInfo());
+    assertThat(objectEntry.getItemInfo()).isEqualTo(objectInfo);
 
     // Adding the same thing doesn't modify the existing cache entry at all or invalidate
     // the entry's info. NB: This will change if we change the behavior to invalidate any existing
@@ -223,7 +222,7 @@ public class CachedBucketTest {
     assertThat(returnedEntry == objectEntry).isTrue();
     assertThat(objectEntry.getCreationTimeMillis()).isEqualTo(addTime);
     assertThat(objectEntry.getItemInfoUpdateTimeMillis()).isEqualTo(objectUpdateTime);
-    assertEquals(objectInfo, objectEntry.getItemInfo());
+    assertThat(objectEntry.getItemInfo()).isEqualTo(objectInfo);
 
     // Make sure the returned list doesn't start giving us duplicate entries.
     assertThat(bucket.getObjectList()).hasSize(1);
