@@ -48,4 +48,4 @@ To connect to the web interface you will need to create an SSH tunnel and use a 
 * HDFS is running on port `8020` and the (YARN) JobTracker is on port `8032` which may be useful information for some jobs.
 * The [`hive2` action](https://oozie.apache.org/docs/4.3.0/DG_Hive2ActionExtension.html) is recommended over the [`hive` action](https://oozie.apache.org/docs/4.3.0/DG_HiveActionExtension.html).
   * The `hive2` action connects to the clusters Hive Server 2 and behaves like Dataproc Hive jobs.
-  * The `hive` action uses Oozie's bundled version of Hive (1.2) and does not by default use the Clusters Hive metastore.
+  * The `hive` action uses Oozie's bundled version of Hive (1.2 in Oozie 4.3) and does not by default use the cluster's Hive metastore, which will cause tables metadata to be lost.
