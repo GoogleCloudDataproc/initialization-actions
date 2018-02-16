@@ -151,4 +151,34 @@
       performance somewhat.
     </description>
   </property>
+
+  <!-- GCS Requester Pays feature configuration:
+    https://cloud.google.com/storage/docs/requester-pays
+  -->
+
+  <property>
+    <name>fs.gs.requester.pays.mode</name>
+    <value>DISABLED</value>
+    <description>
+      Optional. Accepted values: CUSTOM, DISABLED, ENABLED.
+    </description>
+  </property>
+  <property>
+    <name>fs.gs.requester.pays.project.id</name>
+    <description>
+      Optional. Google Cloud Project ID that will be used for billing when
+      GCS Requester Pays feature is active (in CUSTOM or ENABLED mode). If not
+      specified and GCS Requester Pays is active then value of the
+      `fs.gs.project.id` property will be used.
+    </description>
+  </property>
+  <property>
+    <name>fs.gs.requester.pays.buckets</name>
+    <description>
+      Optional. Comma-separated list of Google Cloud Storage Buckets for which
+      GCS Requester Pays feature should be activated if
+      fs.gs.requester.pays.mode property value is set to CUSTOM.
+    </description>
+  </property>
+
 </configuration>

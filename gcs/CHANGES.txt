@@ -1,5 +1,12 @@
 1.7.1 - 2018-XX-XX
 
+  1. Support GCS Requester Pays feature that could be configured with new
+     properties:
+
+       fs.gs.requester.pays.mode (default=DISABLED)
+       fs.gs.requester.pays.project.id (no default value)
+       fs.gs.requester.pays.buckets (no default value)
+
 
 1.7.0 - 2018-02-22
 

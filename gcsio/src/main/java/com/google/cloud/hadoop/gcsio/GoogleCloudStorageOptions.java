@@ -14,16 +14,30 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableSet;
+import java.util.Collection;
 import javax.annotation.Nullable;
 
 /**
  * Configuration options for the GoogleCloudStorage class.
  */
 public class GoogleCloudStorageOptions {
+
+  /** Operational modes of GCS Requester Pays feature. */
+  public static enum RequesterPaysMode {
+    CUSTOM,
+    DISABLED,
+    ENABLED
+  }
+
+  /** Default value for {@link GoogleCloudStorageOptions#requesterPaysMode}. */
+  public static final RequesterPaysMode REQUESTER_PAYS_MODE_DEFAULT = RequesterPaysMode.DISABLED;
 
   /**
    * Default number of items to return per call to the list* GCS RPCs.
@@ -64,6 +78,9 @@ public class GoogleCloudStorageOptions {
     private boolean inferImplicitDirectoriesEnabled =
         INFER_IMPLICIT_DIRECTORIES_DEFAULT;
     private String projectId = null;
+    private RequesterPaysMode requesterPaysMode = REQUESTER_PAYS_MODE_DEFAULT;
+    private String requesterPaysProjectId = null;
+    private ImmutableSet<String> requesterPaysBuckets = ImmutableSet.of();
     private String appName = null;
     private HttpTransportFactory.HttpTransportType transportType =
         HttpTransportFactory.DEFAULT_TRANSPORT_TYPE;
@@ -94,6 +111,24 @@ public class GoogleCloudStorageOptions {
 
     public Builder setProjectId(String projectId) {
       this.projectId = projectId;
+      return this;
+    }
+
+    public Builder setRequesterPaysMode(RequesterPaysMode requesterPaysMode) {
+      this.requesterPaysMode = requesterPaysMode;
+      return this;
+    }
+
+    public Builder setRequesterPaysProjectId(String requesterPaysProjectId) {
+      this.requesterPaysProjectId = requesterPaysProjectId;
+      return this;
+    }
+
+    public Builder setRequesterPaysBuckets(Collection<String> requesterPaysBuckets) {
+      this.requesterPaysBuckets =
+          requesterPaysBuckets == null
+              ? ImmutableSet.of()
+              : ImmutableSet.copyOf(requesterPaysBuckets);
       return this;
     }
 
@@ -155,6 +190,9 @@ public class GoogleCloudStorageOptions {
   private final boolean autoRepairImplicitDirectoriesEnabled;
   private final boolean inferImplicitDirectoriesEnabled;
   private final String projectId;
+  private final RequesterPaysMode requesterPaysMode;
+  private final String requesterPaysProjectId;
+  private final ImmutableSet<String> requesterPaysBuckets;
   private final String appName;
   private final HttpTransportFactory.HttpTransportType transportType;
   private final String proxyAddress;
@@ -168,6 +206,10 @@ public class GoogleCloudStorageOptions {
     this.autoRepairImplicitDirectoriesEnabled = builder.autoRepairImplicitDirectoriesEnabled;
     this.inferImplicitDirectoriesEnabled = builder.inferImplicitDirectoriesEnabled;
     this.projectId = builder.projectId;
+    this.requesterPaysMode =
+        checkNotNull(builder.requesterPaysMode, "RequesterPaysMode could not be null");
+    this.requesterPaysProjectId = builder.requesterPaysProjectId;
+    this.requesterPaysBuckets = builder.requesterPaysBuckets;
     this.appName = builder.appName;
     this.writeChannelOptions = builder.getWriteChannelOptionsBuilder().build();
     this.maxListItemsPerCall = builder.maxListItemsPerCall;
@@ -216,6 +258,19 @@ public class GoogleCloudStorageOptions {
   @Nullable
   public String getProjectId() {
     return projectId;
+  }
+
+  public RequesterPaysMode getRequesterPaysMode() {
+    return requesterPaysMode;
+  }
+
+  @Nullable
+  public String getRequesterPaysProjectId() {
+    return requesterPaysProjectId;
+  }
+
+  public ImmutableSet<String> getRequesterPaysBuckets() {
+    return requesterPaysBuckets;
   }
 
   public String getAppName() {

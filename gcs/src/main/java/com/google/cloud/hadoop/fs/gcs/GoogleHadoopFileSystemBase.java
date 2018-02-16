@@ -16,12 +16,15 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions.REQUESTER_PAYS_MODE_DEFAULT;
+
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.cloud.hadoop.gcsio.DirectoryListCache;
 import com.google.cloud.hadoop.gcsio.FileInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions.RequesterPaysMode;
 import com.google.cloud.hadoop.gcsio.PathCodec;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.EntriesCredentialConfiguration;
@@ -44,6 +47,7 @@ import java.net.URI;
 import java.nio.file.DirectoryNotEmptyException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
@@ -179,6 +183,15 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
 
   /** Configuration key for GCS project ID. Default value: none */
   public static final String GCS_PROJECT_ID_KEY = "fs.gs.project.id";
+
+  /** Configuration key for GCS project ID. Default value: "DISABLED" */
+  public static final String GCS_REQUESTER_PAYS_MODE_KEY = "fs.gs.requester.pays.mode";
+
+  /** Configuration key for GCS Requester Pays Project ID. Default value: none */
+  public static final String GCS_REQUESTER_PAYS_PROJECT_ID_KEY = "fs.gs.requester.pays.project.id";
+
+  /** Configuration key for GCS Requester Pays Buckets. Default value: none */
+  public static final String GCS_REQUESTER_PAYS_BUCKETS_KEY = "fs.gs.requester.pays.buckets";
 
   /**
    * Configuration key for GCS client ID. Required if {@link
@@ -2192,7 +2205,9 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
         .setCreateMarkerObjects(enableMarkerFileCreation);
 
     String transportTypeString = config.get(GCS_HTTP_TRANSPORT_KEY, GCS_HTTP_TRANSPORT_DEFAULT);
+    LOG.debug("{} = {}", GCS_HTTP_TRANSPORT_KEY, transportTypeString);
     String proxyAddress = config.get(GCS_PROXY_ADDRESS_KEY, GCS_PROXY_ADDRESS_DEFAULT);
+    LOG.debug("{} = {}", GCS_PROXY_ADDRESS_KEY, proxyAddress);
     HttpTransportFactory.HttpTransportType transportType = HttpTransportFactory.getTransportTypeOf(
         transportTypeString);
 
@@ -2202,17 +2217,35 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
         .setProxyAddress(proxyAddress);
 
     String projectId = config.get(GCS_PROJECT_ID_KEY);
-
+    LOG.debug("{} = {}", GCS_PROJECT_ID_KEY, projectId);
     optionsBuilder.getCloudStorageOptionsBuilder().setProjectId(projectId);
+
+    RequesterPaysMode requesterPaysMode =
+        config.getEnum(GCS_REQUESTER_PAYS_MODE_KEY, REQUESTER_PAYS_MODE_DEFAULT);
+    LOG.debug("{} = {}", GCS_REQUESTER_PAYS_MODE_KEY, requesterPaysMode);
+    optionsBuilder.getCloudStorageOptionsBuilder().setRequesterPaysMode(requesterPaysMode);
+
+    String requesterPaysProjectId = config.get(GCS_REQUESTER_PAYS_PROJECT_ID_KEY);
+    LOG.debug("{} = {}", GCS_REQUESTER_PAYS_PROJECT_ID_KEY, requesterPaysProjectId);
+    optionsBuilder
+        .getCloudStorageOptionsBuilder()
+        .setRequesterPaysProjectId(requesterPaysProjectId);
+
+    Collection<String> requesterPaysBuckets =
+        config.getStringCollection(GCS_REQUESTER_PAYS_BUCKETS_KEY);
+    LOG.debug("{} = {}", GCS_REQUESTER_PAYS_BUCKETS_KEY, requesterPaysBuckets);
+    optionsBuilder.getCloudStorageOptionsBuilder().setRequesterPaysBuckets(requesterPaysBuckets);
 
     long maxListItemsPerCall =
         config.getLong(GCS_MAX_LIST_ITEMS_PER_CALL, GCS_MAX_LIST_ITEMS_PER_CALL_DEFAULT);
+    LOG.debug("{} = {}", GCS_MAX_LIST_ITEMS_PER_CALL, maxListItemsPerCall);
 
     optionsBuilder.getCloudStorageOptionsBuilder().setMaxListItemsPerCall(maxListItemsPerCall);
 
     // Configuration for setting 250GB upper limit on file size to gain higher write throughput.
     boolean limitFileSizeTo250Gb =
         config.getBoolean(GCS_FILE_SIZE_LIMIT_250GB, GCS_FILE_SIZE_LIMIT_250GB_DEFAULT);
+    LOG.debug("{} = {}", GCS_FILE_SIZE_LIMIT_250GB, limitFileSizeTo250Gb);
 
     optionsBuilder
         .getCloudStorageOptionsBuilder()

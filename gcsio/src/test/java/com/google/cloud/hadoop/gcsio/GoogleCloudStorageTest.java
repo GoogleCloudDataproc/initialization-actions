@@ -177,12 +177,10 @@ public class GoogleCloudStorageTest {
    */
   protected GoogleCloudStorageOptions.Builder
       createDefaultCloudStorageOptionsBuilder() {
-    GoogleCloudStorageOptions.Builder optionsBuilder =
-        GoogleCloudStorageOptions.newBuilder();
-    optionsBuilder.setAppName(APP_NAME);
-    optionsBuilder.setProjectId(PROJECT_ID);
-    optionsBuilder.setCreateMarkerObjects(true);
-    return optionsBuilder;
+    return GoogleCloudStorageOptions.newBuilder()
+        .setAppName(APP_NAME)
+        .setProjectId(PROJECT_ID)
+        .setCreateMarkerObjects(true);
   }
 
   /**
