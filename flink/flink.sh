@@ -24,6 +24,30 @@
 
 set -euxo pipefail
 
+# Install directories for Flink and Hadoop.
+readonly FLINK_INSTALL_DIR='/usr/lib/flink'
+readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
+
+# The number of buffers for the network stack.
+# Flink config entry: taskmanager.network.numberOfBuffers.
+readonly FLINK_NETWORK_NUM_BUFFERS=2048
+
+# Heap memory used by the job manager (master) determined by the physical (free) memory of the server.
+# Flink config entry: jobmanager.heap.mb.
+readonly FLINK_JOBMANAGER_MEMORY_FRACTION='1.0'
+
+# Heap memory used by the task managers (slaves) determined by the physical (free) memory of the servers.
+# Flink config entry: taskmanager.heap.mb.
+readonly FLINK_TASKMANAGER_MEMORY_FRACTION='1.0'
+
+readonly START_FLINK_YARN_SESSION_METADATA_KEY='flink-start-yarn-session'
+# Set this to true to start a flink yarn session at initialization time.
+readonly START_FLINK_YARN_SESSION_DEFAULT=true
+
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+}
+
 function update_apt_get() {
   for ((i = 0; i < 10; i++)); do
     if apt-get update; then
@@ -33,26 +57,6 @@ function update_apt_get() {
   done
   return 1
 }
-
-# Install directories for Flink and Hadoop
-readonly FLINK_INSTALL_DIR='/usr/lib/flink'
-readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
-
-# The number of buffers for the network stack
-# Flink config entry: taskmanager.network.numberOfBuffers
-readonly FLINK_NETWORK_NUM_BUFFERS=2048
-
-# Heap memory used by the job manager (master) determined by the physical (free) memory of the server
-# Flink config entry: jobmanager.heap.mb
-readonly FLINK_JOBMANAGER_MEMORY_FRACTION='1.0'
-
-# Heap memory used by the task managers (slaves) determined by the physical (free) memory of the servers
-# Flink config entry: taskmanager.heap.mb
-readonly FLINK_TASKMANAGER_MEMORY_FRACTION='1.0'
-
-readonly START_FLINK_YARN_SESSION_METADATA_KEY="flink-start-yarn-session"
-# Set this to true to start a flink yarn session at initialization time.
-readonly START_FLINK_YARN_SESSION_DEFAULT="true"
 
 function configure_flink() {
   # Number of worker nodes in your cluster
@@ -75,13 +79,14 @@ function configure_flink() {
   # local flink_taskmanager_slots="$(hdfs getconf \
   #   -confKey yarn.nodemanager.resource.cpu-vcores)"
 
-  # Determine the default parallelism
+  # Determine the default parallelism.
   local flink_parallelism=$(python -c \
       "print ${num_taskmanagers} * ${flink_taskmanager_slots}")
 
   # Get worker memory from yarn config.
-  local worker_total_mem="$(hdfs getconf \
-    -confKey yarn.nodemanager.resource.memory-mb)"
+  local worker_total_mem="$(bdconfig get_property_value --configuration_file \
+      /etc/hadoop/conf/yarn-site.xml \
+      --name yarn.nodemanager.resource.memory-mb 2>/dev/null)"
   local flink_jobmanager_memory=$(python -c \
       "print int(${worker_total_mem} * ${FLINK_JOBMANAGER_MEMORY_FRACTION})")
   local flink_taskmanager_memory=$(python -c \
@@ -91,6 +96,7 @@ function configure_flink() {
   local master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
   local hostname="$(hostname)"
 
+  # Variable for check if yarn session launch is required.
   local start_flink_yarn_session
   if [[ "${hostname}" == "${master_hostname}" ]] ; then
     # Determine whether to start a detached session.
@@ -99,10 +105,10 @@ function configure_flink() {
       echo "${START_FLINK_YARN_SESSION_DEFAULT}")"
   else
     # We only start a session on the primary master.
-    start_flink_yarn_session='false'
+    start_flink_yarn_session=false
   fi
 
-  # Apply Flink settings by appending them to the default config
+  # Apply Flink settings by appending them to the default config.
   cat << EOF >> ${FLINK_INSTALL_DIR}/conf/flink-conf.yaml
 # Settings applied by Cloud Dataproc initialization action
 jobmanager.rpc.address: ${master_hostname}
@@ -114,7 +120,7 @@ taskmanager.network.numberOfBuffers: ${FLINK_NETWORK_NUM_BUFFERS}
 fs.hdfs.hadoopconf: ${HADOOP_CONF_DIR}
 EOF
 
-  if [ "${start_flink_yarn_session}" = 'true' ] ; then
+  if ${start_flink_yarn_session} ; then
     # NB: yarn-session.sh ignores taskmanager.numberOfTaskSlots for some reason.
     # We specify it manually below.
     env HADOOP_CONF_DIR="$HADOOP_CONF_DIR" \
@@ -131,9 +137,9 @@ EOF
 function main() {
 local role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 if [[ "${role}" == 'Master' ]] ; then
-  update_apt_get
-  apt-get install -y flink
-  configure_flink
+  update_apt_get || err
+  apt-get install -y flink || err
+  configure_flink || err
 fi
 }
 
