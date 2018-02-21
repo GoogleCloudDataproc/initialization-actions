@@ -15,7 +15,6 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.expectThrows;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
 import com.google.common.base.Strings;
@@ -302,7 +301,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
   private void testReadInvalidArgsHelper(
       FSDataInputStream readStream, byte[] buffer, int offset, int length,
       Class<? extends Exception> exceptionClass) {
-    Exception e = expectThrows(Exception.class, () -> readStream.read(buffer, offset, length));
+    Exception e = assertThrows(Exception.class, () -> readStream.read(buffer, offset, length));
     if (e.getClass() != exceptionClass) {
         Assert.fail("Unexpected exception: " + e);
       }

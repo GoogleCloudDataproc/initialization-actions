@@ -16,7 +16,6 @@ package com.google.cloud.hadoop.util;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.expectThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -70,7 +69,7 @@ public class CredentialConfigurationTest {
     configuration.setEnableServiceAccounts(false);
 
     IllegalStateException thrown =
-        expectThrows(IllegalStateException.class, () -> configuration.getCredential(TEST_SCOPES));
+        assertThrows(IllegalStateException.class, () -> configuration.getCredential(TEST_SCOPES));
     assertThat(thrown).hasMessageThat().contains("No valid credential configuration discovered.");
   }
 

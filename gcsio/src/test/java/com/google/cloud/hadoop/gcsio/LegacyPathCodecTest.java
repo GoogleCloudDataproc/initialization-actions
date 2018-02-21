@@ -18,7 +18,6 @@ package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.expectThrows;
 
 import com.google.common.truth.Truth;
 import java.net.URI;
@@ -46,7 +45,7 @@ public class LegacyPathCodecTest {
   @Test
   public void testGetPath_PathEncoding() {
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class,
             () -> codec.getPath("b1", "/path/to/!@#$%&*()_/my/resource", false));
     assertThat(thrown)
@@ -57,7 +56,7 @@ public class LegacyPathCodecTest {
   @Test
   public void testGetPath_BadFragments() {
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class,
             () -> codec.getPath("b1", "path/to/segment1_#Foo#bar#123", false));
     assertThat(thrown)

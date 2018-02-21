@@ -18,7 +18,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.expectThrows;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
@@ -728,7 +727,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     gcsiHelper.mkdir(
         bucketName, uniqueDirName + GoogleCloudStorage.PATH_DELIMITER);
     IOException ioe =
-        expectThrows(
+        assertThrows(
             IOException.class,
             () -> gcsiHelper.writeTextFile(bucketName, uniqueDirName, "hello world"));
     assertWithMessage(

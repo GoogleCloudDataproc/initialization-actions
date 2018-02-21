@@ -16,7 +16,6 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.expectThrows;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
@@ -159,7 +158,7 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     for (String invalidPath : invalidPaths) {
       Path path = new Path(invalidPath);
       IllegalArgumentException e =
-          expectThrows(IllegalArgumentException.class, () -> myGhfs.checkPath(path));
+          assertThrows(IllegalArgumentException.class, () -> myGhfs.checkPath(path));
       assertThat(e.getLocalizedMessage()).startsWith("Wrong FS scheme:");
     }
   }
@@ -201,7 +200,7 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     URI wrongScheme = new URI("http://foo/bar");
 
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class,
             () ->
                 new GoogleHadoopGlobalRootedFileSystem()
@@ -226,7 +225,7 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, existingBucket);
 
     IllegalStateException thrown =
-        expectThrows(
+        assertThrows(
             IllegalStateException.class,
             () -> new GoogleHadoopGlobalRootedFileSystem().initialize(gsUri, config));
     assertThat(thrown).hasMessageThat().contains("No valid credential configuration discovered");
@@ -309,7 +308,7 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     boolean createSystemBuckets = false;
     String systemBucketName = "this-bucket-doesnt-exist";
     FileNotFoundException thrown =
-        expectThrows(
+        assertThrows(
             FileNotFoundException.class,
             () ->
                 new GoogleHadoopGlobalRootedFileSystem(fakeGcsFs)
@@ -331,7 +330,7 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     boolean createSystemBuckets = true;
     String systemBucketName = "this-bucket-has-illegal-char^";
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class,
             () ->
                 new GoogleHadoopGlobalRootedFileSystem(fakeGcsFs)
@@ -353,7 +352,7 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     boolean createSystemBuckets = true;
     String systemBucketName = "bucket/with-subdir";
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class,
             () ->
                 new GoogleHadoopGlobalRootedFileSystem(fakeGcsFs)

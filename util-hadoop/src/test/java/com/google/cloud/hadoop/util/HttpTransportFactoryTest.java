@@ -15,7 +15,7 @@
 package com.google.cloud.hadoop.util;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.expectThrows;
+import static org.junit.Assert.assertThrows;
 
 import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import java.net.URI;
@@ -46,7 +46,7 @@ public class HttpTransportFactoryTest {
   @Test
   public void testGetTransportTypeOfException() throws Exception {
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class,
             () ->
                 HttpTransportFactory.getTransportTypeOf(
@@ -87,7 +87,7 @@ public class HttpTransportFactoryTest {
     String address = "socks5://foo-host:1234";
 
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class, () -> HttpTransportFactory.parseProxyAddress(address));
     assertThat(thrown)
         .hasMessageThat()
@@ -99,7 +99,7 @@ public class HttpTransportFactoryTest {
     String address = ":1234";
 
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class, () -> HttpTransportFactory.parseProxyAddress(address));
     assertThat(thrown).hasMessageThat().contains("Proxy address ':1234' has no host.");
   }
@@ -109,7 +109,7 @@ public class HttpTransportFactoryTest {
     String address = "foo-host";
 
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class, () -> HttpTransportFactory.parseProxyAddress(address));
     assertThat(thrown).hasMessageThat().contains("Proxy address 'foo-host' has no port.");
   }
@@ -119,7 +119,7 @@ public class HttpTransportFactoryTest {
     String address = "foo-host-with-illegal-char^:1234";
 
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class, () -> HttpTransportFactory.parseProxyAddress(address));
     assertThat(thrown)
         .hasMessageThat()
@@ -131,7 +131,7 @@ public class HttpTransportFactoryTest {
     String address = "foo-host:1234/some/path";
 
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class, () -> HttpTransportFactory.parseProxyAddress(address));
     assertThat(thrown)
         .hasMessageThat()

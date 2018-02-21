@@ -17,7 +17,7 @@
 package com.google.cloud.hadoop.util;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.expectThrows;
+import static org.junit.Assert.assertThrows;
 
 import com.google.api.client.testing.util.MockSleeper;
 import com.google.api.client.util.BackOff;
@@ -52,7 +52,7 @@ public class ResilientOperationTest {
     BackOff backoff = new RetryBoundedBackOff(3, new BackOffTester());
 
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class,
             () ->
                 ResilientOperation.retry(
@@ -74,7 +74,7 @@ public class ResilientOperationTest {
     BackOff backoff = new RetryBoundedBackOff(5, new BackOffTester());
 
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class,
             () ->
                 ResilientOperation.retry(
@@ -96,7 +96,7 @@ public class ResilientOperationTest {
     BackOff backoff = new RetryBoundedBackOff(5, new BackOffTester());
 
     IOException thrown =
-        expectThrows(
+        assertThrows(
             IOException.class,
             () ->
                 ResilientOperation.retry(
@@ -130,7 +130,7 @@ public class ResilientOperationTest {
     BackOff backoff = new RetryBoundedBackOff(2, new BackOffTester());
 
     SocketTimeoutException thrown =
-        expectThrows(
+        assertThrows(
             SocketTimeoutException.class,
             () ->
                 ResilientOperation.retry(

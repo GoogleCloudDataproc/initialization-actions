@@ -18,7 +18,7 @@
 package com.google.cloud.hadoop.util;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.expectThrows;
+import static org.junit.Assert.assertThrows;
 
 import com.google.api.client.util.BackOff;
 import java.io.IOException;
@@ -32,7 +32,7 @@ public class RetryBoundedBackOffTest {
   @Test
   public void testValidCallHasNoRetries() throws Exception {
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class, () -> new RetryBoundedBackOff(-7, new BackOffTester()));
     assertThat(thrown)
         .hasMessageThat()

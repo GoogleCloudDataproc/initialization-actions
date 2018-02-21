@@ -14,7 +14,7 @@
 package com.google.cloud.hadoop.io.bigquery.output;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.expectThrows;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doThrow;
@@ -229,7 +229,7 @@ public class IndirectBigQueryOutputCommitterTest {
             any(List.class),
             eq(true));
 
-    IOException thrown = expectThrows(IOException.class, () -> committer.commitJob(job));
+    IOException thrown = assertThrows(IOException.class, () -> committer.commitJob(job));
     assertThat(thrown).hasCauseThat().isEqualTo(helperInterruptedException);
 
     // Verify we're making the BigQuery import call.

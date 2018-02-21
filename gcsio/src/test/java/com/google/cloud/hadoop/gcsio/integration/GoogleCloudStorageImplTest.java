@@ -16,7 +16,7 @@ package com.google.cloud.hadoop.gcsio.integration;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
-import static org.junit.Assert.expectThrows;
+import static org.junit.Assert.assertThrows;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
@@ -132,7 +132,7 @@ public class GoogleCloudStorageImplTest {
 
       // This call should fail:
       Throwable thrown =
-          expectThrows(
+          assertThrows(
               Throwable.class, () -> gcs.create(resourceId, new CreateObjectOptions(false)));
       assertThat(thrown).hasMessageThat().contains("already exists");
     } finally {
@@ -163,7 +163,7 @@ public class GoogleCloudStorageImplTest {
       byteChannel1.close();
 
       // Closing byte channel2 should fail:
-      Throwable thrown = expectThrows(Throwable.class, () -> byteChannel2.close());
+      Throwable thrown = assertThrows(Throwable.class, () -> byteChannel2.close());
       assertThat(thrown).hasMessageThat().contains("412 Precondition Failed");
     } finally {
       GoogleCloudStorageTestHelper.cleanupTestObjects(

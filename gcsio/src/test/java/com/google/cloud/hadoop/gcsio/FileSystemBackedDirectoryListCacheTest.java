@@ -18,7 +18,6 @@ package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.expectThrows;
 
 import com.google.common.base.Function;
 import java.io.File;
@@ -96,7 +95,7 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
 
     cache.putResourceId(fileToCreate);
 
-    IOException thrown = expectThrows(IOException.class, () -> cache.putResourceId(fileCollision));
+    IOException thrown = assertThrows(IOException.class, () -> cache.putResourceId(fileCollision));
     assertThat(thrown).hasMessageThat().contains("isDirectory");
   }
 
@@ -107,7 +106,7 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
 
     cache.putResourceId(dirToCreate);
 
-    IOException thrown = expectThrows(IOException.class, () -> cache.putResourceId(dirCollision));
+    IOException thrown = assertThrows(IOException.class, () -> cache.putResourceId(dirCollision));
     assertThat(thrown).hasMessageThat().contains("isDirectory");
   }
 
@@ -118,7 +117,7 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
 
     cache.putResourceId(dirCollision);
 
-    IOException thrown = expectThrows(IOException.class, () -> cache.putResourceId(fileToCreate));
+    IOException thrown = assertThrows(IOException.class, () -> cache.putResourceId(fileToCreate));
     assertThat(thrown).hasMessageThat().contains("isn't a directory");
   }
 
@@ -363,7 +362,7 @@ public class FileSystemBackedDirectoryListCacheTest extends DirectoryListCacheTe
         });
 
     // Put the file.
-    IOException thrown = expectThrows(IOException.class, () -> cache.putResourceId(fileToCreate));
+    IOException thrown = assertThrows(IOException.class, () -> cache.putResourceId(fileToCreate));
     assertThat(thrown).hasMessageThat().contains("Exhausted all retries");
   }
 }

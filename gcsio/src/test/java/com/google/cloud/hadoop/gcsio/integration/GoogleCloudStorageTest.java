@@ -19,7 +19,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.expectThrows;
 import static org.junit.Assert.fail;
 
 import com.google.api.client.util.Clock;
@@ -474,7 +473,7 @@ public class GoogleCloudStorageTest {
         new StorageResourceId(bucketName, "testGetMultipleItemInfoWithSomeInvalid_InvalidObject\n");
     resourceIdList.add(invalidObject);
 
-    IOException e = expectThrows(IOException.class, () -> rawStorage.getItemInfos(resourceIdList));
+    IOException e = assertThrows(IOException.class, () -> rawStorage.getItemInfos(resourceIdList));
     assertThat(e).hasMessageThat().isEqualTo("Error getting StorageObject");
   }
 
@@ -484,7 +483,7 @@ public class GoogleCloudStorageTest {
     String bucketName = getSharedBucketName();
 
     IOException e =
-        expectThrows(
+        assertThrows(
             IOException.class,
             () ->
                 rawStorage.getItemInfo(
@@ -549,7 +548,7 @@ public class GoogleCloudStorageTest {
     assertThat(rawStorage.getItemInfo(secondResource).exists()).isFalse();
 
     IOException e =
-        expectThrows(
+        assertThrows(
             IOException.class,
             () ->
                 rawStorage.deleteObjects(ImmutableList.of(resource, secondResource, invalidName)));
@@ -849,7 +848,7 @@ public class GoogleCloudStorageTest {
     GoogleCloudStorageTestHelper.assertObjectContent(rawStorage, objectToCopy, bytesToWrite);
 
     IllegalArgumentException e =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class,
             () ->
                 rawStorage.copy(
@@ -956,7 +955,7 @@ public class GoogleCloudStorageTest {
     String bucketName = getSharedBucketName();
 
     IllegalArgumentException e =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class,
             () ->
                 rawStorage.copy(

@@ -15,7 +15,7 @@ package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.cloud.hadoop.io.bigquery.ExportFileFormat.AVRO;
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.expectThrows;
+import static org.junit.Assert.assertThrows;
 
 import com.google.api.services.bigquery.model.ExternalDataConfiguration;
 import com.google.api.services.bigquery.model.Table;
@@ -68,7 +68,7 @@ public class NoopFederatedExportToCloudStorageTest {
     table.getExternalDataConfiguration().setSourceUris(ImmutableList.of(
         "https://drive.google.com/open?id=1234"));
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class,
             () ->
                 new NoopFederatedExportToCloudStorage(conf, AVRO, helper, projectId, table, null));
@@ -81,7 +81,7 @@ public class NoopFederatedExportToCloudStorageTest {
   public void testFormatMismatch() throws Exception {
     table.getExternalDataConfiguration().setSourceFormat("CSV");
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class,
             () ->
                 new NoopFederatedExportToCloudStorage(conf, AVRO, helper, projectId, table, null));

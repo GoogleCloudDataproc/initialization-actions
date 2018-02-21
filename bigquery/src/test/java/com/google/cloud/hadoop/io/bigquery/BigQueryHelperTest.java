@@ -14,7 +14,7 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.expectThrows;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -288,7 +288,7 @@ public class BigQueryHelperTest {
     when(mockBigqueryTablesGet.execute()).thenThrow(fakeUnhandledException);
     when(mockErrorExtractor.itemNotFound(any(IOException.class))).thenReturn(false);
 
-    IOException thrown = expectThrows(IOException.class, () -> helper.tableExists(tableRef));
+    IOException thrown = assertThrows(IOException.class, () -> helper.tableExists(tableRef));
     assertThat(thrown).isEqualTo(fakeUnhandledException);
 
     // Verify correct calls are made.
@@ -339,7 +339,7 @@ public class BigQueryHelperTest {
     when(mockErrorExtractor.itemAlreadyExists(any(IOException.class))).thenReturn(false);
 
     IOException thrown =
-        expectThrows(
+        assertThrows(
             IOException.class, () -> helper.insertJobOrFetchDuplicate(jobProjectId, jobHandle));
     assertThat(thrown).isEqualTo(unhandledException);
 

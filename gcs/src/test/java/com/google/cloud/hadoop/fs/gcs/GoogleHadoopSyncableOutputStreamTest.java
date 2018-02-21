@@ -16,7 +16,6 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.expectThrows;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -147,7 +146,7 @@ public class GoogleHadoopSyncableOutputStreamTest {
 
     verify(mockExecutorService).submit(any(Callable.class));
 
-    IOException thrown = expectThrows(IOException.class, () -> fout.close());
+    IOException thrown = assertThrows(IOException.class, () -> fout.close());
     assertThat(thrown).hasMessageThat().contains(fakeIoException.getMessage());
 
     verify(mockExecutorService, times(2)).submit(any(Callable.class));

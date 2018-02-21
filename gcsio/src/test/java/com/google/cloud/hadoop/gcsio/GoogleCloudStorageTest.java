@@ -17,7 +17,6 @@ package com.google.cloud.hadoop.gcsio;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.expectThrows;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyInt;
@@ -685,7 +684,7 @@ public class GoogleCloudStorageTest {
     WritableByteChannel writeChannel = gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     assertThat(writeChannel.isOpen()).isTrue();
 
-    IOException thrown = expectThrows(IOException.class, () -> writeChannel.close());
+    IOException thrown = assertThrows(IOException.class, () -> writeChannel.close());
     assertThat(thrown).hasCauseThat().isEqualTo(fakeException);
 
     verify(mockStorage, times(3)).objects();
@@ -734,7 +733,7 @@ public class GoogleCloudStorageTest {
     WritableByteChannel writeChannel = gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     assertThat(writeChannel.isOpen()).isTrue();
 
-    IOException thrown = expectThrows(IOException.class, () -> writeChannel.close());
+    IOException thrown = assertThrows(IOException.class, () -> writeChannel.close());
     assertThat(thrown).hasCauseThat().isEqualTo(fakeException);
 
     verify(mockStorageObjectsInsert, times(2)).execute();
@@ -783,7 +782,7 @@ public class GoogleCloudStorageTest {
     WritableByteChannel writeChannel = gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     assertThat(writeChannel.isOpen()).isTrue();
 
-    Error thrown = expectThrows(Error.class, () -> writeChannel.close());
+    Error thrown = assertThrows(Error.class, () -> writeChannel.close());
     assertThat(thrown).isEqualTo(fakeError);
 
     verify(mockStorage, times(3)).objects();
@@ -1063,7 +1062,7 @@ public class GoogleCloudStorageTest {
     readChannel.setBackOff(mockBackOff);
     readChannel.setSleeper(mockSleeper);
 
-    IOException thrown = expectThrows(IOException.class, () -> readChannel.getMetadata());
+    IOException thrown = assertThrows(IOException.class, () -> readChannel.getMetadata());
     assertWithMessage("Expected " + socketException + " inside IOException")
         .that(thrown)
         .hasCauseThat()
@@ -1198,7 +1197,7 @@ public class GoogleCloudStorageTest {
 
     byte[] actualData = new byte[testData.length];
     IOException thrown =
-        expectThrows(IOException.class, () -> readChannel.read(ByteBuffer.wrap(actualData)));
+        assertThrows(IOException.class, () -> readChannel.read(ByteBuffer.wrap(actualData)));
     assertThat(thrown).hasMessageThat().isEqualTo("fake generic IOException");
 
     verify(mockStorage, atLeastOnce()).objects();
@@ -1234,7 +1233,7 @@ public class GoogleCloudStorageTest {
 
     byte[] actualData = new byte[testData.length];
     IOException thrown =
-        expectThrows(IOException.class, () -> readChannel.read(ByteBuffer.wrap(actualData)));
+        assertThrows(IOException.class, () -> readChannel.read(ByteBuffer.wrap(actualData)));
     assertThat(thrown).hasMessageThat().isEqualTo("fake generic IOException");
     assertThat(thrown.getSuppressed()).hasLength(1);
     assertThat(thrown.getSuppressed()[0]).isEqualTo(interrupt);
@@ -1276,7 +1275,7 @@ public class GoogleCloudStorageTest {
 
     byte[] actualData = new byte[testData.length];
     IOException thrown =
-        expectThrows(IOException.class, () -> readChannel.read(ByteBuffer.wrap(actualData)));
+        assertThrows(IOException.class, () -> readChannel.read(ByteBuffer.wrap(actualData)));
     assertThat(thrown).hasMessageThat().isEqualTo("fake generic IOException");
 
     verify(mockStorage, atLeastOnce()).objects();
@@ -1828,7 +1827,7 @@ public class GoogleCloudStorageTest {
 
     // Third time is the unexpectedException.
     SeekableByteChannel readChannel3 = gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    IOException thrown = expectThrows(IOException.class, () -> readChannel3.size());
+    IOException thrown = assertThrows(IOException.class, () -> readChannel3.size());
     assertThat(thrown).hasCauseThat().isEqualTo(unexpectedException);
 
     verify(mockStorage, atLeastOnce()).objects();
@@ -2559,7 +2558,7 @@ public class GoogleCloudStorageTest {
     // Order of exceptions:
     // 1. Src 404
     FileNotFoundException srcFileNotFoundException =
-        expectThrows(
+        assertThrows(
             FileNotFoundException.class,
             () ->
                 gcs.copy(
@@ -2571,7 +2570,7 @@ public class GoogleCloudStorageTest {
 
     // 2. Src unexpected error
     IOException srcIOException =
-        expectThrows(
+        assertThrows(
             IOException.class,
             () ->
                 gcs.copy(
@@ -2584,7 +2583,7 @@ public class GoogleCloudStorageTest {
 
     // 3. Dst 404
     FileNotFoundException dstFileNotFoundException =
-        expectThrows(
+        assertThrows(
             FileNotFoundException.class,
             () ->
                 gcs.copy(
@@ -2596,7 +2595,7 @@ public class GoogleCloudStorageTest {
 
     // 4. Dst unexpected error
     IOException dstIOException =
-        expectThrows(
+        assertThrows(
             IOException.class,
             () ->
                 gcs.copy(
@@ -2653,7 +2652,7 @@ public class GoogleCloudStorageTest {
     // least do some checking that this is indeed the exception we intended to throw and now some
     // other generic IOException from unknown causes.
     UnsupportedOperationException e1 =
-        expectThrows(
+        assertThrows(
             UnsupportedOperationException.class,
             () ->
                 gcs.copy(
@@ -2665,7 +2664,7 @@ public class GoogleCloudStorageTest {
     assertThat(e1).hasMessageThat().contains("storage location");
 
     UnsupportedOperationException e2 =
-        expectThrows(
+        assertThrows(
             UnsupportedOperationException.class,
             () ->
                 gcs.copy(
@@ -3965,7 +3964,7 @@ public class GoogleCloudStorageTest {
 
     // Call in order of StorageObject, ROOT, Bucket.
     IOException ioe =
-        expectThrows(
+        assertThrows(
             IOException.class,
             () ->
                 gcs.getItemInfos(
@@ -4058,7 +4057,7 @@ public class GoogleCloudStorageTest {
           .setItems(ImmutableList.<StorageObject>of()));
     }
 
-    IOException e = expectThrows(IOException.class, () -> gcs.waitForBucketEmpty(BUCKET_NAME));
+    IOException e = assertThrows(IOException.class, () -> gcs.waitForBucketEmpty(BUCKET_NAME));
     assertThat(e).hasMessageThat().contains("not empty");
 
     VerificationMode retryTimes = times(GoogleCloudStorageImpl.BUCKET_EMPTY_MAX_RETRIES);
@@ -4294,7 +4293,7 @@ public class GoogleCloudStorageTest {
         .thenReturn(getStorageObjectForEmptyObjectWithMetadata(EMPTY_METADATA));
 
     IOException thrown =
-        expectThrows(
+        assertThrows(
             IOException.class,
             () ->
                 gcs.createEmptyObject(
@@ -4415,7 +4414,7 @@ public class GoogleCloudStorageTest {
         .thenThrow(new RuntimeException("error while fetching"));
 
     IOException thrown =
-        expectThrows(
+        assertThrows(
             IOException.class,
             () ->
                 gcs.createEmptyObjects(

@@ -17,7 +17,6 @@ package com.google.cloud.hadoop.fs.gcs;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.expectThrows;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
@@ -147,7 +146,7 @@ public class GoogleHadoopFileSystemIntegrationTest
     for (String invalidPath : invalidSchemePaths) {
       Path path = new Path(invalidPath);
       IllegalArgumentException e =
-          expectThrows(IllegalArgumentException.class, () -> myGhfs.checkPath(path));
+          assertThrows(IllegalArgumentException.class, () -> myGhfs.checkPath(path));
       assertThat(e.getLocalizedMessage()).startsWith("Wrong FS scheme:");
     }
 
@@ -158,7 +157,7 @@ public class GoogleHadoopFileSystemIntegrationTest
     for (String invalidPath : invalidBucketPaths) {
       Path path = new Path(invalidPath);
       IllegalArgumentException e =
-          expectThrows(IllegalArgumentException.class, () -> myGhfs.checkPath(path));
+          assertThrows(IllegalArgumentException.class, () -> myGhfs.checkPath(path));
       assertThat(e.getLocalizedMessage()).startsWith("Wrong bucket:");
     }
   }
@@ -195,7 +194,7 @@ public class GoogleHadoopFileSystemIntegrationTest
   public void testGetHadoopPathInvalidArgs()
       throws URISyntaxException {
     IllegalArgumentException expected =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class,
             () -> ((GoogleHadoopFileSystem) ghfs).getHadoopPath(new URI("gs://foobucket/bar")));
     assertThat(expected).hasMessageThat().startsWith("Authority of URI");
@@ -306,7 +305,7 @@ public class GoogleHadoopFileSystemIntegrationTest
     URI wrongScheme = new URI("http://foo/bar");
 
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class,
             () -> new GoogleHadoopFileSystem().initialize(wrongScheme, new Configuration()));
     assertThat(thrown).hasMessageThat().contains("URI scheme not supported");
@@ -328,7 +327,7 @@ public class GoogleHadoopFileSystemIntegrationTest
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, existingBucket);
 
     IllegalStateException thrown =
-        expectThrows(
+        assertThrows(
             IllegalStateException.class,
             () -> new GoogleHadoopFileSystem().initialize(gsUri, config));
     assertThat(thrown).hasMessageThat().contains("No valid credential configuration discovered");
@@ -422,7 +421,7 @@ public class GoogleHadoopFileSystemIntegrationTest
     boolean createSystemBuckets = false;
     String systemBucketName = "this-bucket-doesnt-exist";
     FileNotFoundException thrown =
-        expectThrows(
+        assertThrows(
             FileNotFoundException.class,
             () ->
                 new GoogleHadoopFileSystem(fakeGcsFs)
@@ -438,7 +437,7 @@ public class GoogleHadoopFileSystemIntegrationTest
     boolean createSystemBuckets = true;
     String systemBucketName = "this-bucket-has-illegal-char^";
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class,
             () ->
                 new GoogleHadoopFileSystem(fakeGcsFs)
@@ -454,7 +453,7 @@ public class GoogleHadoopFileSystemIntegrationTest
     boolean createSystemBuckets = true;
     String systemBucketName = "bucket/with-subdir";
     IllegalArgumentException thrown =
-        expectThrows(
+        assertThrows(
             IllegalArgumentException.class,
             () ->
                 new GoogleHadoopFileSystem(fakeGcsFs)

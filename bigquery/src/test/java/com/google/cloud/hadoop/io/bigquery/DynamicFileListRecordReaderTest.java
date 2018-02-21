@@ -15,8 +15,6 @@ package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.expectThrows;
-
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
@@ -150,7 +148,7 @@ public class DynamicFileListRecordReaderTest {
    * exception instead.
    */
   private void checkNextKeyValueWouldBlock() throws IOException, InterruptedException {
-    RuntimeException re = expectThrows(RuntimeException.class, () -> recordReader.nextKeyValue());
+    RuntimeException re = assertThrows(RuntimeException.class, () -> recordReader.nextKeyValue());
     assertThat(re).hasMessageThat().contains("test-sleep-id-12345");
   }
 
