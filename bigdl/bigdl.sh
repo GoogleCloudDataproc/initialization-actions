@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -x -e
+set -euxo pipefail
 
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
@@ -39,6 +39,10 @@ if [[ "${ROLE}" == "Master" ]]; then
     fi
     sleep 1
   done
+  if (( CURRENTLY_RUNNING_NODEMANAGERS == 0 )); then
+    echo "No node managers running. Cluster creation likely failed"
+    exit 1
+  fi
 
   ## N.B: BigDL requires that we provide the exact number of executors (no dynamic allocation)
   # for optimizations related to the Intel MKL library
@@ -54,7 +58,7 @@ if [[ "${ROLE}" == "Master" ]]; then
   # tl;dr this init action will work with default Dataproc configuration, but may break if users
   # provide other config properties.
 
-  CORES_PER_NODEMANAGER=$(yarn node -list -showDetails | grep "Configured Resources" | tail -n 1 | perl -ne '/vCores:(\d+)/ && print "$1\n";')
+  CORES_PER_NODEMANAGER=$(yarn node -list | tail -n 1 | cut -f 1 -d ' ' | xargs yarn node -status | perl -ne '/CPU-Capacity : (\d+) vcores/ && print "$1\n";')
   SPARK_EXECUTOR_CORES=$(grep spark.executor.cores /etc/spark/conf/spark-defaults.conf | tail -n 1 | sed 's/.*[[:space:]=]\+\([[:digit:]]\+\).*/\1/')
   SPARK_NUM_EXECUTORS_PER_NODE_MANAGER=$((CORES_PER_NODEMANAGER / SPARK_EXECUTOR_CORES))
   # Subtract one to account for the app master.
