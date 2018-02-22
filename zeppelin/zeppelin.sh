@@ -63,6 +63,12 @@ if [[ "${ROLE}" == 'Master' ]]; then
         >> /etc/zeppelin/conf/zeppelin-env.sh
   fi
 
+  # Install matplotlib. Note that this will work in Zeppelin, but not
+  # in a vanilla Python interpreter, as that requires an X server to be running
+  apt-get install -y python-dev python-tk
+  easy_install pip
+  pip install --upgrade matplotlib
+
   # Install R libraries and configure BigQuery for Zeppelin 0.6.1+
   ZEPPELIN_VERSION=$(dpkg-query --showformat='${Version}' --show zeppelin)
   if dpkg --compare-versions "${ZEPPELIN_VERSION}" '>=' 0.6.1; then
