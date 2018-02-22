@@ -74,23 +74,23 @@ function configure_flink() {
   # yarn.nodemanager.resource.cpu-vcores is correctly populated.
   local spark_executor_cores=$(\
     grep 'spark\.executor\.cores' /etc/spark/conf/spark-defaults.conf \
-    | tail -n1 | cut -d'=' -f2)
+      | tail -n1 | cut -d'=' -f2)
   local flink_taskmanager_slots="$(($spark_executor_cores * 2))"
   # local flink_taskmanager_slots="$(hdfs getconf \
   #   -confKey yarn.nodemanager.resource.cpu-vcores)"
 
   # Determine the default parallelism.
   local flink_parallelism=$(python -c \
-      "print ${num_taskmanagers} * ${flink_taskmanager_slots}")
+    "print ${num_taskmanagers} * ${flink_taskmanager_slots}")
 
   # Get worker memory from yarn config.
   local worker_total_mem="$(bdconfig get_property_value --configuration_file \
-      /etc/hadoop/conf/yarn-site.xml \
-      --name yarn.nodemanager.resource.memory-mb 2>/dev/null)"
+    /etc/hadoop/conf/yarn-site.xml \
+    --name yarn.nodemanager.resource.memory-mb 2>/dev/null)"
   local flink_jobmanager_memory=$(python -c \
-      "print int(${worker_total_mem} * ${FLINK_JOBMANAGER_MEMORY_FRACTION})")
+    "print int(${worker_total_mem} * ${FLINK_JOBMANAGER_MEMORY_FRACTION})")
   local flink_taskmanager_memory=$(python -c \
-      "print int(${worker_total_mem} * ${FLINK_TASKMANAGER_MEMORY_FRACTION})")
+    "print int(${worker_total_mem} * ${FLINK_TASKMANAGER_MEMORY_FRACTION})")
 
   # Fetch the primary master name from metadata.
   local master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
@@ -101,8 +101,8 @@ function configure_flink() {
   if [[ "${hostname}" == "${master_hostname}" ]] ; then
     # Determine whether to start a detached session.
     start_flink_yarn_session="$(/usr/share/google/get_metadata_value \
-      "attributes/${START_FLINK_YARN_SESSION_METADATA_KEY}" || \
-      echo "${START_FLINK_YARN_SESSION_DEFAULT}")"
+      "attributes/${START_FLINK_YARN_SESSION_METADATA_KEY}" \
+      || echo "${START_FLINK_YARN_SESSION_DEFAULT}")"
   else
     # We only start a session on the primary master.
     start_flink_yarn_session=false
@@ -137,9 +137,9 @@ EOF
 function main() {
 local role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 if [[ "${role}" == 'Master' ]] ; then
-  update_apt_get || err "Unable to update apt-get" | exit
-  apt-get install -y flink || err "Unable to install flink" | exit
-  configure_flink || err "Flink configuration failed" | exit
+  update_apt_get || (err "Unable to update apt-get" && exit 1)
+  apt-get install -y flink || (err "Unable to install flink" && exit 1)
+  configure_flink || (err "Flink configuration failed" && exit 1)
 fi
 }
 
