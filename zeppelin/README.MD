@@ -20,7 +20,7 @@ You can find more information about using initialization actions with Dataproc i
 * The port Zeppelin runs on is configurable by passing `--metadata=zeppelin-port=<PORT>' to `gcloud`.
 * This installs Zeppelin 0.5.6 in Dataproc 1.0 and Zeppelin 0.6.1 in Dataproc 1.1.
 * It configures the BigQuery interpreter in 0.6.1.
-* It makes no attempt to install or configure matplotlib, because it [requires an XServer](https://github.com/apache/zeppelin/blob/master/docs/interpreter/python.md#matplotlib-integration).
+* It installs `matplotlib`. More information about Zeppelin/matplotlib integration [here](https://zeppelin.apache.org/docs/latest/interpreter/python.html#matplotlib-integration).
 * By default it only install Rs graphing libraries that ship with Debian 8 (ggplot2, knitr, and googlevis).
   * To install the other required R libraries (mplot and rCharts), uncomment lines after "Uncomment here" in zeppelin.sh.
   * There are still some issues with examples in the R Tutorial (under investation).
