@@ -15,16 +15,15 @@ unzip *.zip
 JAR=`realpath lib/*.jar`
 PYTHON_ZIP=`realpath lib/*.zip`
 
-echo "SPARK_DIST_CLASSPATH=\"\$SPARK_DIST_CLASSPATH:$JAR\"" >> /etc/spark/conf/spark-env.sh
-echo "PYTHONPATH=\"\$PYTHONPATH:$PYTHON_ZIP\"" >> /etc/spark/conf/spark-env.sh
+cat << EOF >> /etc/spark/conf/spark-env.sh
+SPARK_DIST_CLASSPATH="\$SPARK_DIST_CLASSPATH:$JAR"
+PYTHONPATH="\$PYTHONPATH:$PYTHON_ZIP"
+EOF
 
 # Config changes only need to happen on the master.
 # This way we also avoid DOSing the resource manager when running yarn node -list
 
 if [[ "${ROLE}" == "Master" ]]; then
-  cat conf/spark-bigdl.conf >> /etc/spark/conf/spark-defaults.conf
-  echo "spark.dynamicAllocation.enabled=false" >> /etc/spark/conf/spark-defaults.conf
-
   NUM_NODEMANAGERS_TARGET="${WORKER_COUNT}"
   if (( "${WORKER_COUNT}" == 0 )); then
     # Single node clusters have one node manager
@@ -67,6 +66,11 @@ if [[ "${ROLE}" == "Master" ]]; then
   # will never come up.
   SPARK_NUM_EXECUTORS=$((SPARK_NUM_EXECUTORS_PER_NODE_MANAGER * CURRENTLY_RUNNING_NODEMANAGERS - 1))
 
-  echo "spark.executor.instances=${SPARK_NUM_EXECUTORS}" >> /etc/spark/conf/spark-defaults.conf
+  cat conf/spark-bigdl.conf >> /etc/spark/conf/spark-defaults.conf
+  cat << EOF >> /etc/spark/conf/spark-defaults.conf
+spark.dynamicAllocation.enabled=false
+spark.executor.instances=${SPARK_NUM_EXECUTORS}
+EOF
+
 fi
 
