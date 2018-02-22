@@ -46,9 +46,10 @@ standard cluster modes.
    Debian packages (built using Apache Bigtop) instead of installing from
    tarballs. The list of Dataproc packages can be found under
    `/var/lib/apt/lists/*dataproc-bigtop-repo_*Packages` on any Dataproc cluster.
-1. Do not string-replace or string-grep fields out of Hadoop XML files;
-   instead, use `bdconfig` which is a Python utility available on Dataproc
-   clusters to interact with the XML files.
+1. Do not string-replace or string-grep fields out of Hadoop XML files; instead,
+   use native Hadoop tooling (such as `hdfs getconf`) or `bdconfig`. `bdconfig`
+   is a Python utility available on Dataproc clusters to interact with the XML
+   files.
 1. If it's not possible to make the additional software inherit Hadoop
    classpaths and configuration via `/etc/hadoop/conf`, then where possible
    use symlinks to necessary jarfiles and conf files instead of copying
