@@ -137,9 +137,9 @@ EOF
 function main() {
 local role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 if [[ "${role}" == 'Master' ]] ; then
-  update_apt_get || (err "Unable to update apt-get" && exit 1)
-  apt-get install -y flink || (err "Unable to install flink" && exit 1)
-  configure_flink || (err "Flink configuration failed" && exit 1)
+  update_apt_get || err "Unable to update apt-get"
+  apt-get install -y flink || err "Unable to install flink"
+  configure_flink || err "Flink configuration failed"
 fi
 }
 
