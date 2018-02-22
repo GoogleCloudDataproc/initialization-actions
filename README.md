@@ -22,6 +22,7 @@ These samples are provided to show how various packages and components can be in
 This repository presently offers the following actions for use with Cloud Dataproc clusters.
 
 * Install packages/software on the cluster:
+  * [Anaconda](https://www.continuum.io/why-anaconda)
   * [Apache Drill](http://drill.apache.org)
   * [Apache Flink](http://flink.apache.org)
   * [Apache Kafka](http://kafka.apache.org)
@@ -32,12 +33,11 @@ This repository presently offers the following actions for use with Cloud Datapr
   * [Google Cloud Datalab](https://cloud.google.com/datalab/)
   * [Hive HCatalog](https://cwiki.apache.org/confluence/display/Hive/HCatalog)
   * [Hue](http://gethue.com)
-  * [IPython](http://ipython.org)
+  * [Intel BigDL](https://bigdl-project.github.io)
+  * [Jupyter](http://jupyter.org/)
   * [Presto](http://prestodb.io)
-  * [Anaconda](https://www.continuum.io/why-anaconda)
 * Configure the cluster:
   * Configure a *nice* shell environment
-  * Share a NFS consistency cache
   * Share a [Google Cloud SQL](https://cloud.google.com/sql/) Hive Metastore
   * Setup [Google Stackdriver](https://cloud.google.com/stackdriver/) monitoring for a cluster
 
