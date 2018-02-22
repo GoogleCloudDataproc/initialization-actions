@@ -1,4 +1,7 @@
-1.7.0 - 2018-XX-XX
+1.7.1 - 2018-XX-XX
+
+
+1.7.0 - 2018-02-22
 
   1. Fixed an issue where JSON auth files containing user auth e.g.
      application_default_credentials.json does not work with

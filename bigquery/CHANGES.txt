@@ -1,10 +1,16 @@
-0.11.0 - 2018-XX-XX
+0.11.1 - 2018-XX-XX
+
+  1. POM updates for GCS connector 1.7.1.
+
+
+0.11.0 - 2018-02-22
 
   1. Relocate all dependencies in shaded jar.
 
   2. Update all dependencies to latest versions.
 
   3. POM updates for GCS connector 1.7.0.
+
 
 0.10.3 - 2017-11-21
 
