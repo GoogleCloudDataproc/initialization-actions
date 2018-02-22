@@ -4,6 +4,7 @@
 
   2. Update all dependencies to latest versions.
 
+  3. POM updates for GCS connector 1.7.0.
 
 0.10.3 - 2017-11-21
 
