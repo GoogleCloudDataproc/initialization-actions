@@ -11,8 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# This script installs the latest version of HUE on a master node within a Google Cloud Dataproc cluster.
 
 set -x -e
+readonly OLD_HDFS_URL='## webhdfs_url\=http:\/\/localhost:50070'
+readonly NEW_HDFS_URL='webhdfs_url\=http:\/\/'"$(hdfs getconf -confKey  dfs.namenode.http-address)"
+readonly OLD_MYSQL_SETTINGS='## engine=sqlite3(\s+)## host=(\s+)## port=(\s+)## user=(\s+)## password='
+readonly NEW_MYSQL_SETTINGS='engine=mysql$1host=127.0.0.1$2port=3306$3user=hue$4password=hue-password'
+readonly MYSQL_PASSWORD='root-password'
+readonly HUE_PASSWORD='hue-password'
+
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+}
 
 function update_apt_get() {
   for ((i = 0; i < 10; i++)); do
@@ -24,104 +35,98 @@ function update_apt_get() {
   return 1
 }
 
-# Determine the role of this node
-ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
-
-# Only run on the master node of the cluster
-if [[ "${ROLE}" != 'Master' ]]; then
-  exit 0
-fi
-
+function install_hue_and_configure(){
 # Install hue
-update_apt_get
-apt-get install -t jessie-backports hue -y
+apt-get install -t jessie-backports hue -y || err "Failed to intall hue"
 
 # Stop hue
-systemctl stop hue
+systemctl stop hue || err "Hue stop action not performed"
 
-cat > core-site-patch.xml <<EOF
-<property>
-  <name>hadoop.proxyuser.hue.hosts</name>
-  <value>*</value>
-</property>
-<property>
-  <name>hadoop.proxyuser.hue.groups</name>
-  <value>*</value>
-</property>
-EOF
+bdconfig set_property \
+  --configuration_file 'core-site-patch.xml' \
+  --name 'hadoop.proxyuser.hue.hosts' --value '*' \
+  --clobber \
+  || err 'Unable to set hadoop.proxyuser.hue.hosts'
+
+bdconfig set_property \
+  --configuration_file 'core-site-patch.xml' \
+  --name 'hadoop.proxyuser.hue.groups' --value '*' \
+  --clobber \
+  || err 'Unable to set hadoop.proxyuser.hue.groups'
+
 sed -i '/<\/configuration>/e cat core-site-patch.xml' \
-   /etc/hadoop/conf/core-site.xml
+  /etc/hadoop/conf/core-site.xml
 
+bdconfig set_property \
+  --configuration_file 'hdfs-site-patch.xml' \
+  --name 'dfs.webhdfs.enabled' --value 'true' \
+  --clobber \
+  || err 'Unable to set dfs.webhdfs.enabled'
 
-cat > hdfs-site-patch.xml <<EOF
-<property>
-  <name>dfs.webhdfs.enabled</name>
-  <value>true</value>
-</property>
+bdconfig set_property \
+  --configuration_file 'hdfs-site-patch.xml' \
+  --name 'hadoop.proxyuser.hue.hosts' --value '*' \
+  --clobber \
+  || err 'Unable to set hadoop.proxyuser.hue.hosts'
 
-<property>
-  <name>hadoop.proxyuser.hue.hosts</name>
-  <value>*</value>
-</property>
-
-<property>
-  <name>hadoop.proxyuser.hue.groups</name>
-  <value>*</value>
-</property>
-EOF
+bdconfig set_property \
+  --configuration_file 'hdfs-site-patch.xml' \
+  --name 'hadoop.proxyuser.hue.groups' --value '*' \
+  --clobber \
+  || err 'nable to set hadoop.proxyuser.hue.groups'
 
 sed -i '/<\/configuration>/e cat hdfs-site-patch.xml' \
-     /etc/hadoop/conf/hdfs-site.xml
+  /etc/hadoop/conf/hdfs-site.xml
 
 cat >> /etc/hue/conf/hue.ini <<EOF
-  # Defaults to $HADOOP_MR1_HOME or /usr/lib/hadoop-0.20-mapreduce
+  # Defaults to ${HADOOP_MR1_HOME} or /usr/lib/hadoop-0.20-mapreduce
   hadoop_mapred_home=/usr/lib/hadoop-mapreduce
 EOF
 
 # If oozie installed, add hue as proxy user for oozie
 if [[ -f /etc/oozie/conf/oozie-site.xml ]];
 then
-  cat > oozie-site-patch.xml <<EOF
-<property>
-  <name>oozie.service.ProxyUserService.proxyuser.hue.hosts</name>
-  <value>*</value>
-</property>
+  bdconfig set_property \
+    --configuration_file 'oozie-site-patch.xml' \
+    --name 'oozie.service.ProxyUserService.proxyuser.hue.hosts' --value '*' \
+    --clobber \
+    || err 'Unable to set hadoop.proxyuser.hue.groups'
 
-<property>
-  <name>oozie.service.ProxyUserService.proxyuser.hue.groups</name>
-  <value>*</value>
-</property>
-EOF
+  bdconfig set_property \
+    --configuration_file 'oozie-site-patch.xml' \
+    --name 'oozie.service.ProxyUserService.proxyuser.hue.groups' --value '*' \
+    --clobber \
+    || err 'Unable to set hadoop.proxyuser.hue.groups'
 
   sed -i '/<\/configuration>/e cat oozie-site-patch.xml' \
-      /etc/oozie/conf/oozie-site.xml
+  /etc/oozie/conf/oozie-site.xml
 
   rm oozie-site-patch.xml
-  systemctl restart oozie
+  systemctl restart oozie || (err "Unable to restart oozie" && exit 1)
+else
+  echo "oozie not installed, skipped configuring hue as an user proxy"
 fi
 
 # Fix webhdfs_url
-OLD_HDFS_URL='## webhdfs_url\=http:\/\/localhost:50070'
-NEW_HDFS_URL='webhdfs_url\=http:\/\/'"$(hdfs getconf -confKey  dfs.namenode.http-address)"
-sed -i 's/'"$OLD_HDFS_URL"'/'"$NEW_HDFS_URL"'/' /etc/hue/conf/hue.ini
+sed -i 's/'"${OLD_HDFS_URL}"'/'"${NEW_HDFS_URL}"'/' /etc/hue/conf/hue.ini
 
 # Uncomment every line containing localhost, replacing localhost with the FQDN
 sed -i "s/#*\([^#]*=.*\)localhost/\1$(hostname --fqdn)/" /etc/hue/conf/hue.ini
 
 # Comment out any duplicate resourcemanager_api_url fields after the first one
 sed -i '0,/resourcemanager_api_url/! s/resourcemanager_api_url/## resourcemanager_api_url/' \
-    /etc/hue/conf/hue.ini
+  /etc/hue/conf/hue.ini
 
 # Clean up temporary fles
 rm -rf hdfs-site-patch.xml core-site-patch.xml hue-patch.ini
 
 # Make hive warehouse directory
-hdfs dfs -mkdir /user/hive/warehouse
+if [[ ! -d /user/hive/warehouse ]]; then
+  hdfs dfs -mkdir /user/hive/warehouse || (err "Unable to create folder" && exit 1)
+fi
 
 # Configure Desktop Database to use mysql
-OLD_SETTINGS='## engine=sqlite3(\s+)## host=(\s+)## port=(\s+)## user=(\s+)## password='
-NEW_SETTINGS='engine=mysql$1host=127.0.0.1$2port=3306$3user=hue$4password=hue-password'
-perl -i -0777 -pe 's/'"$OLD_SETTINGS"'/'"$NEW_SETTINGS"'/' /etc/hue/conf/hue.ini
+sed -i 's/'"${OLD_MYSQL_SETTINGS}"'/'"${NEW_MYSQL_SETTINGS}"'/' /etc/hue/conf/hue.ini
 
 # Comment out sqlite3 configuration
 sed -i 's/engine=sqlite3/## engine=sqlite3/' /etc/hue/conf/hue.ini
@@ -129,22 +134,37 @@ sed -i 's/engine=sqlite3/## engine=sqlite3/' /etc/hue/conf/hue.ini
 # Set database name to hue
 sed -i 's/name=\/var\/lib\/hue\/desktop.db/name=hue/' /etc/hue/conf/hue.ini
 
-# Export passwords
-export MYSQL_PASSWORD='root-password'
-export HUE_PASSWORD='hue-password'
-
 # Create database, give hue user permissions
 mysql -u root -proot-password -e " \
   CREATE DATABASE hue; \
-  CREATE USER 'hue'@'localhost' IDENTIFIED BY '$HUE_PASSWORD'; \
-  GRANT ALL PRIVILEGES ON hue.* TO 'hue'@'localhost';"
+  CREATE USER 'hue'@'localhost' IDENTIFIED BY '${HUE_PASSWORD}'; \
+  GRANT ALL PRIVILEGES ON hue.* TO 'hue'@'localhost';" \
+  || err "Unable to create database"
 
 # Restart mysql
-systemctl restart mysql
+systemctl restart mysql || err "Unable to restart mysql"
 
 # Hue creates all needed tables
-/usr/lib/hue/build/env/bin/hue syncdb --noinput
-/usr/lib/hue/build/env/bin/hue migrate
+/usr/lib/hue/build/env/bin/hue syncdb --noinput || (err "Database sync failed" && exit 1)
+/usr/lib/hue/build/env/bin/hue migrate || (err "Data migration failed" && exit 1)
 
 # Restart servers
-systemctl restart hadoop-hdfs-namenode hadoop-yarn-resourcemanager hue mysql
+systemctl restart hadoop-hdfs-namenode || (err "Unable to restart hadoop-hdfs-namenode" && exit 1)
+systemctl restart hadoop-yarn-resourcemanager || (err "Unable to restart hadoop-yarn-resourcemanager" && exit 1)
+systemctl restart hue || (err "Unable to restart hue" && exit 1)
+systemctl restart mysql || (err "Unable to restart mysql" && exit 1)
+}
+
+function main() {
+# Determine the role of this node
+local role=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
+# Only run on the master node of the cluster
+if [[ "${role}" != 'Master' ]]; then
+  exit 0 || (err "Hue can be installed only on master node - skipped for worker node" && exit 1)
+else
+  update_apt_get || (err "Unable to update apt-get" && exit 1)
+  install_hue_and_configure || (err "Hue install process failed" && exit 1)
+fi
+}
+
+main
