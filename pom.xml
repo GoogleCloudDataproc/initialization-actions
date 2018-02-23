@@ -22,7 +22,7 @@
 
   <groupId>com.google.cloud.bigdataoss</groupId>
   <artifactId>bigdataoss-parent</artifactId>
-  <version>1.7.0-SNAPSHOT</version>
+  <version>1.7.0</version>
   <name>BigDataOSS Parent</name>
   <description>
     Parent project for Google Cloud Platform Big-Data connectors.
@@ -76,12 +76,12 @@
 
     <gpg.skip>true</gpg.skip>
 
-    <bigdataoss.util.version>1.7.0-SNAPSHOT</bigdataoss.util.version>
-    <bigdataoss.gcsio.version>1.7.0-SNAPSHOT</bigdataoss.gcsio.version>
-    <bigdataoss.util-hadoop.one.version>1.7.0-SNAPSHOT-hadoop1</bigdataoss.util-hadoop.one.version>
-    <bigdataoss.util-hadoop.two.version>1.7.0-SNAPSHOT-hadoop2</bigdataoss.util-hadoop.two.version>
-    <bigdataoss.gcs.hadoop.one.version>1.7.0-SNAPSHOT-hadoop1</bigdataoss.gcs.hadoop.one.version>
-    <bigdataoss.gcs.hadoop.two.version>1.7.0-SNAPSHOT-hadoop2</bigdataoss.gcs.hadoop.two.version>
+    <bigdataoss.util.version>1.7.0</bigdataoss.util.version>
+    <bigdataoss.gcsio.version>1.7.0</bigdataoss.gcsio.version>
+    <bigdataoss.util-hadoop.one.version>1.7.0-hadoop1</bigdataoss.util-hadoop.one.version>
+    <bigdataoss.util-hadoop.two.version>1.7.0-hadoop2</bigdataoss.util-hadoop.two.version>
+    <bigdataoss.gcs.hadoop.one.version>1.7.0-hadoop1</bigdataoss.gcs.hadoop.one.version>
+    <bigdataoss.gcs.hadoop.two.version>1.7.0-hadoop2</bigdataoss.gcs.hadoop.two.version>
 
     <!-- Keep in sync with Hadoop dependencies -->
     <apache.avro.version>1.7.7</apache.avro.version>
