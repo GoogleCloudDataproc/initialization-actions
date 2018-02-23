@@ -46,6 +46,7 @@ readonly START_FLINK_YARN_SESSION_DEFAULT=true
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  return 1
 }
 
 function update_apt_get() {
@@ -74,19 +75,17 @@ function configure_flink() {
   # yarn.nodemanager.resource.cpu-vcores is correctly populated.
   local spark_executor_cores=$(\
     grep 'spark\.executor\.cores' /etc/spark/conf/spark-defaults.conf \
-      | tail -n1 | cut -d'=' -f2)
+      | tail -n1 \
+      | cut -d'=' -f2)
   local flink_taskmanager_slots="$(($spark_executor_cores * 2))"
-  # local flink_taskmanager_slots="$(hdfs getconf \
-  #   -confKey yarn.nodemanager.resource.cpu-vcores)"
 
   # Determine the default parallelism.
   local flink_parallelism=$(python -c \
     "print ${num_taskmanagers} * ${flink_taskmanager_slots}")
 
   # Get worker memory from yarn config.
-  local worker_total_mem="$(bdconfig get_property_value --configuration_file \
-    /etc/hadoop/conf/yarn-site.xml \
-    --name yarn.nodemanager.resource.memory-mb 2>/dev/null)"
+  local worker_total_mem="$(hdfs getconf \
+    -confKey yarn.nodemanager.resource.memory-mb)"
   local flink_jobmanager_memory=$(python -c \
     "print int(${worker_total_mem} * ${FLINK_JOBMANAGER_MEMORY_FRACTION})")
   local flink_taskmanager_memory=$(python -c \
@@ -96,7 +95,6 @@ function configure_flink() {
   local master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
   local hostname="$(hostname)"
 
-  # Variable for check if yarn session launch is required.
   local start_flink_yarn_session
   if [[ "${hostname}" == "${master_hostname}" ]] ; then
     # Determine whether to start a detached session.
@@ -106,6 +104,7 @@ function configure_flink() {
   else
     # We only start a session on the primary master.
     start_flink_yarn_session=false
+    echo 'Skipped Flink yarn session start on worker node'
   fi
 
   # Apply Flink settings by appending them to the default config.
