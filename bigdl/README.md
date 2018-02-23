@@ -10,7 +10,7 @@ You can use this initialization to create a new Dataproc cluster with BigDL's Sp
 
 ```
 gcloud dataproc clusters create <CLUSTER_NAME> \
-    --initialiation-actions gs://dataproc-initialization-actions/bigdl/bigdl.sh \
+    --initialization-actions gs://dataproc-initialization-actions/bigdl/bigdl.sh \
     --initialization-action-timeout 10m
 ```
 
@@ -20,7 +20,8 @@ For example, for Dataproc 1.0 (Spark 1.6 and Scala 2.10):
 
 ```
 gcloud dataproc clusters create <CLUSTER_NAME> \
-    --initialiation-actions gs://dataproc-initialization-actions/bigdl/bigdl.sh \
+    --image-version 1.0 \
+    --initialization-actions gs://dataproc-initialization-actions/bigdl/bigdl.sh \
     --initialization-action-timeout 10m \
     --metadata 'BIGDL_DOWNLOAD_URL=https://s3-ap-southeast-1.amazonaws.com/bigdl-download/dist-spark-1.6.2-scala-2.10.5-all-0.4.0-dist.zip'
 ```
