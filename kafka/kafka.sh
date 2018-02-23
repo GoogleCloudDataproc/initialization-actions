@@ -18,6 +18,8 @@
 
 set -euxo pipefail
 
+readonly KAFKA_PROP_FILE='/etc/kafka/conf/server.properties'
+
 function update_apt_get() {
   for ((i = 0; i < 10; i++)); do
     if apt-get update; then
@@ -30,17 +32,14 @@ function update_apt_get() {
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  return 1
 }
 
 function install_and_configure_kafka_server() {
   # Find zookeeper list first, before attempting any installation.
-  local ZOOKEEPER_CLIENT_PORT
-  local ZOOKEEPER_LIST
-  readonly KAFKA_PROP_FILE='/etc/kafka/conf/server.properties'
-
-  ZOOKEEPER_CLIENT_PORT=$(grep 'clientPort' /etc/zookeeper/conf/zoo.cfg \
+  local ZOOKEEPER_CLIENT_PORT=$(grep 'clientPort' /etc/zookeeper/conf/zoo.cfg \
     | cut -d '=' -f 2)
-  ZOOKEEPER_LIST=$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg \
+  local ZOOKEEPER_LIST=$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg \
     | cut -d '=' -f 2 \
     | cut -d ':' -f 1 \
     | sed "s/$/:${ZOOKEEPER_CLIENT_PORT}/" \
@@ -58,12 +57,11 @@ function install_and_configure_kafka_server() {
   # If all attempts failed, error out.
   if [[ -z "${ZOOKEEPER_LIST}" ]]; then
     err 'Failed to find configured Zookeeper list; try --num-masters=3 for HA'
-    exit 1
   fi
 
   # Install Kafka from Dataproc distro.
-  apt-get install -y kafka-server \
-    || (err 'Unable to install kafka-server' && exit 1)
+  apt-get install -y kafka-server || dpkg -l kafka-server \
+    || err 'Unable to install and find kafka-server on worker node.'
 
   mkdir -p /var/lib/kafka-logs
   chown kafka:kafka -R /var/lib/kafka-logs
@@ -85,20 +83,19 @@ function install_and_configure_kafka_server() {
 
 function main() {
   local ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-  update_apt_get || (err 'Unable to update packages lists.' && exit 1)
+  update_apt_get || err 'Unable to update packages lists.'
 
   # Only run the installation on workers; verify zookeeper on master(s).
   if [[ "${ROLE}" == 'Master' ]]; then
     service zookeeper-server status \
-      || (err 'Required zookeeper-server not running on master!' && exit 1)
+      || err 'Required zookeeper-server not running on master!'
     # On master nodes, just install kafka libs but not kafka-server.
     apt-get install -y kafka \
-      || (err 'Unable to install kafka libraries on master!' && exit 1)
-    exit 0
+      || err 'Unable to install kafka libraries on master!'
+  else
+    # Run installation on workers.
+    install_and_configure_kafka_server
   fi
-
-  # Run installation on workers.
-  install_and_configure_kafka_server
 
 }
 
