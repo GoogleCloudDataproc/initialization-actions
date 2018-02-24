@@ -83,7 +83,7 @@ public class InMemoryGoogleCloudStorage
       return false;
     }
 
-    if (bucketName.length() <= 3) {
+    if (bucketName.length() < 3) {
       return false;
     }
 
