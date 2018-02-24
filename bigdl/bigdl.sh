@@ -4,7 +4,7 @@ set -euxo pipefail
 
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
-BIGDL_DOWNLOAD_URL=$(/usr/share/google/get_metadata_value attributes/bidl-download-url || echo 'https://s3-ap-southeast-1.amazonaws.com/bigdl-download/dist-spark-2.2.0-scala-2.11.8-all-0.4.0-dist.zip')
+BIGDL_DOWNLOAD_URL=$(/usr/share/google/get_metadata_value attributes/bigdl-download-url || echo 'https://s3-ap-southeast-1.amazonaws.com/bigdl-download/dist-spark-2.2.0-scala-2.11.8-all-0.4.0-dist.zip')
 
 mkdir -p /opt/intel-bigdl
 cd /opt/intel-bigdl

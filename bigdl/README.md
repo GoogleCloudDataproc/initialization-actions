@@ -23,7 +23,7 @@ gcloud dataproc clusters create <CLUSTER_NAME> \
     --image-version 1.0 \
     --initialization-actions gs://dataproc-initialization-actions/bigdl/bigdl.sh \
     --initialization-action-timeout 10m \
-    --metadata 'BIGDL_DOWNLOAD_URL=https://s3-ap-southeast-1.amazonaws.com/bigdl-download/dist-spark-1.6.2-scala-2.10.5-all-0.4.0-dist.zip'
+    --metadata 'bigdl-download-url=https://s3-ap-southeast-1.amazonaws.com/bigdl-download/dist-spark-1.6.2-scala-2.10.5-all-0.4.0-dist.zip'
 ```
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
