@@ -37,7 +37,7 @@ function update_apt_get() {
 
 function install_hue_and_configure(){
 # Install hue
-apt-get install -t jessie-backports hue -y || err "Failed to intall hue"
+apt-get install -t jessie-backports hue -y || err "Failed to install hue"
 
 # Stop hue
 systemctl stop hue || err "Hue stop action not performed"
@@ -102,7 +102,7 @@ then
   /etc/oozie/conf/oozie-site.xml
 
   rm oozie-site-patch.xml
-  systemctl restart oozie || (err "Unable to restart oozie" && exit 1)
+  systemctl restart oozie || err "Unable to restart oozie"
 else
   echo "oozie not installed, skipped configuring hue as an user proxy"
 fi
@@ -122,7 +122,7 @@ rm -rf hdfs-site-patch.xml core-site-patch.xml hue-patch.ini
 
 # Make hive warehouse directory
 if [[ ! -d /user/hive/warehouse ]]; then
-  hdfs dfs -mkdir /user/hive/warehouse || (err "Unable to create folder" && exit 1)
+  hdfs dfs -mkdir /user/hive/warehouse || err "Unable to create folder"
 fi
 
 # Configure Desktop Database to use mysql
@@ -145,14 +145,14 @@ mysql -u root -proot-password -e " \
 systemctl restart mysql || err "Unable to restart mysql"
 
 # Hue creates all needed tables
-/usr/lib/hue/build/env/bin/hue syncdb --noinput || (err "Database sync failed" && exit 1)
-/usr/lib/hue/build/env/bin/hue migrate || (err "Data migration failed" && exit 1)
+/usr/lib/hue/build/env/bin/hue syncdb --noinput || err "Database sync failed"
+/usr/lib/hue/build/env/bin/hue migrate || err "Data migration failed"
 
 # Restart servers
-systemctl restart hadoop-hdfs-namenode || (err "Unable to restart hadoop-hdfs-namenode" && exit 1)
-systemctl restart hadoop-yarn-resourcemanager || (err "Unable to restart hadoop-yarn-resourcemanager" && exit 1)
-systemctl restart hue || (err "Unable to restart hue" && exit 1)
-systemctl restart mysql || (err "Unable to restart mysql" && exit 1)
+systemctl restart hadoop-hdfs-namenode || err "Unable to restart hadoop-hdfs-namenode"
+systemctl restart hadoop-yarn-resourcemanager || err "Unable to restart hadoop-yarn-resourcemanager"
+systemctl restart hue || err "Unable to restart hue"
+systemctl restart mysql || err "Unable to restart mysql"
 }
 
 function main() {
@@ -160,10 +160,10 @@ function main() {
 local role=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 # Only run on the master node of the cluster
 if [[ "${role}" != 'Master' ]]; then
-  exit 0 || (err "Hue can be installed only on master node - skipped for worker node" && exit 1)
+  exit 0 || err "Hue can be installed only on master node - skipped for worker node"
 else
-  update_apt_get || (err "Unable to update apt-get" && exit 1)
-  install_hue_and_configure || (err "Hue install process failed" && exit 1)
+  update_apt_get || err "Unable to update apt-get"
+  install_hue_and_configure || err "Hue install process failed"
 fi
 }
 
