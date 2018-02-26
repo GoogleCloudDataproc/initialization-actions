@@ -14,12 +14,6 @@
 # This script installs the latest version of HUE on a master node within a Google Cloud Dataproc cluster.
 
 set -x -e
-readonly OLD_HDFS_URL='## webhdfs_url\=http:\/\/localhost:50070'
-readonly NEW_HDFS_URL='webhdfs_url\=http:\/\/'"$(hdfs getconf -confKey  dfs.namenode.http-address)"
-readonly OLD_MYSQL_SETTINGS='## engine=sqlite3(\s+)## host=(\s+)## port=(\s+)## user=(\s+)## password='
-readonly NEW_MYSQL_SETTINGS='engine=mysql$1host=127.0.0.1$2port=3306$3user=hue$4password=hue-password'
-readonly MYSQL_PASSWORD='root-password'
-readonly HUE_PASSWORD='hue-password'
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
@@ -36,6 +30,12 @@ function update_apt_get() {
 }
 
 function install_hue_and_configure(){
+local old_hdfs_url='## webhdfs_url\=http:\/\/localhost:50070'
+local new_hdfs_url='webhdfs_url\=http:\/\/'"$(hdfs getconf -confKey  dfs.namenode.http-address)"
+local old_mysql_settings='## engine=sqlite3(\s+)## host=(\s+)## port=(\s+)## user=(\s+)## password='
+local new_mysql_settings='engine=mysql$1host=127.0.0.1$2port=3306$3user=hue$4password=hue-password'
+local mysql_password='root-password'
+local hue_password='hue-password'
 # Install hue
 apt-get install -t jessie-backports hue -y || err "Failed to install hue"
 
@@ -108,7 +108,7 @@ else
 fi
 
 # Fix webhdfs_url
-sed -i 's/'"${OLD_HDFS_URL}"'/'"${NEW_HDFS_URL}"'/' /etc/hue/conf/hue.ini
+sed -i 's/'"${old_hdfs_url}"'/'"${new_hdfs_url}"'/' /etc/hue/conf/hue.ini
 
 # Uncomment every line containing localhost, replacing localhost with the FQDN
 sed -i "s/#*\([^#]*=.*\)localhost/\1$(hostname --fqdn)/" /etc/hue/conf/hue.ini
@@ -126,7 +126,7 @@ if [[ ! -d /user/hive/warehouse ]]; then
 fi
 
 # Configure Desktop Database to use mysql
-sed -i 's/'"${OLD_MYSQL_SETTINGS}"'/'"${NEW_MYSQL_SETTINGS}"'/' /etc/hue/conf/hue.ini
+sed -i 's/'"${old_mysql_settings}"'/'"${new_mysql_settings}"'/' /etc/hue/conf/hue.ini
 
 # Comment out sqlite3 configuration
 sed -i 's/engine=sqlite3/## engine=sqlite3/' /etc/hue/conf/hue.ini
@@ -137,7 +137,7 @@ sed -i 's/name=\/var\/lib\/hue\/desktop.db/name=hue/' /etc/hue/conf/hue.ini
 # Create database, give hue user permissions
 mysql -u root -proot-password -e " \
   CREATE DATABASE hue; \
-  CREATE USER 'hue'@'localhost' IDENTIFIED BY '${HUE_PASSWORD}'; \
+  CREATE USER 'hue'@'localhost' IDENTIFIED BY '${hue_password}'; \
   GRANT ALL PRIVILEGES ON hue.* TO 'hue'@'localhost';" \
   || err "Unable to create database"
 
