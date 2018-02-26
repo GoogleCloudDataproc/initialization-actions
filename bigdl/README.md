@@ -14,7 +14,7 @@ gcloud dataproc clusters create <CLUSTER_NAME> \
     --initialization-action-timeout 10m
 ```
 
-This script downloads BigDL 0.4.0 for Dataproc 1.2 (Spark 2.2.0 and Scala 2.11.8). To download a different version of BigDL or one targeted to a different version of Spark/Scala, find the download URL from the [BigDL releases page](https://bigdl-project.github.io/master/#release-download), and set the metadata key `BIGDL_DOWNLOAD_URL`. The URL should end in `-dist.zip`.
+This script downloads BigDL 0.4.0 for Dataproc 1.2 (Spark 2.2.0 and Scala 2.11.8). To download a different version of BigDL or one targeted to a different version of Spark/Scala, find the download URL from the [BigDL releases page](https://bigdl-project.github.io/master/#release-download), and set the metadata key `bigdl-download-url`. The URL should end in `-dist.zip`.
 
 For example, for Dataproc 1.0 (Spark 1.6 and Scala 2.10):
 
