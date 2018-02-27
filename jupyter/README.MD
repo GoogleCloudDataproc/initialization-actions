@@ -2,6 +2,8 @@
 
 This folder contains the initialization action `jupyter.sh` to quickly setup and launch [Jupyter Notebook](http://jupyter.org/), (the successor of IPython notebook) and a script to be run on the user's local machine to access the Jupyter notebook server.
 
+Note: This init action uses Conda and Python 3. Python 2 and `pip` uesrs should consider using the [jupyter2 action](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/jupyter2).
+
 A real-world example of how to use this from within a bash script, using the default dataproc-initialization-actions repo/branch:
 
 ```bash
