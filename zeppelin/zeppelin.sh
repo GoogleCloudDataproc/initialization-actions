@@ -97,23 +97,7 @@ function configure_zeppelin(){
     # TODO(pmkc): Add googlevis to Zeppelin Package recommendations
     apt-get install -y r-cran-googlevis
 
-## Uncomment here to compile and install 'mplot' and 'rCharts'.
-#    # Install compile dependencies
-#    apt-get install -y \
-#      r-cran-doparallel r-cran-httr r-cran-memoise r-cran-openssl \
-#      r-cran-rcurl r-cran-plyr r-cran-shiny r-cran-glmnet r-cran-data.table \
-#      libssl-dev libcurl4-openssl-dev
-#
-#    cat << EOF > install_script.r
-#options('Ncpus'=10, repos = 'http://cran.us.r-project.org')
-#install.packages('devtools')
-#require('devtools')
-## Install version 0.7.7 to avoid dependency on glmulti and RJava
-#install_version('mplot', version = '0.7.7', upgrade_dependencies = FALSE)
-#install_github('ramnathv/rCharts', upgrade_dependencies = FALSE)
-#update.packages('ggplot', ask = FALSE)
-#EOF
-#    R -f install_script.r
+    # TODO(Aniszewski): Fix SparkR (GitHub issue #198)
   fi
 }
 
