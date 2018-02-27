@@ -127,7 +127,7 @@ public class GoogleCloudStorageOptions {
     public Builder setRequesterPaysBuckets(Collection<String> requesterPaysBuckets) {
       this.requesterPaysBuckets =
           requesterPaysBuckets == null
-              ? ImmutableSet.of()
+              ? ImmutableSet.<String>of()
               : ImmutableSet.copyOf(requesterPaysBuckets);
       return this;
     }
