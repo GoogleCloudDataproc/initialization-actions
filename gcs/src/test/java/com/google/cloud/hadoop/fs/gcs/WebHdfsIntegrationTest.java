@@ -26,8 +26,7 @@ import java.net.URISyntaxException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -55,42 +54,50 @@ public class WebHdfsIntegrationTest extends HadoopFileSystemTestBase {
   // HDFS path (passed to the test through environment var).
   static String hdfsRoot;
 
-  /**
-   * Performs initialization once before tests are run.
-   */
-  @BeforeClass
-  public static void beforeAllTests() throws Exception {
+  @ClassRule
+  public static NotInheritableExternalResource storageResource =
+      new NotInheritableExternalResource(WebHdfsIntegrationTest.class) {
+        /** Performs initialization once before tests are run. */
+        @Override
+        public void before() throws Throwable {
+          // Get info about the HDFS instance against which we run tests.
+          hdfsRoot = System.getenv(WEBHDFS_ROOT);
+          assertThat(hdfsRoot).isNotNull();
 
-    // Get info about the HDFS instance against which we run tests.
-    hdfsRoot = System.getenv(WEBHDFS_ROOT);
-    assertThat(hdfsRoot).isNotNull();
+          // Create a FileSystem instance to access the given HDFS.
+          URI hdfsUri = new URI(hdfsRoot);
+          Configuration config = new Configuration();
+          config.set("fs.default.name", hdfsRoot);
+          ghfs = FileSystem.get(hdfsUri, config);
+          ghfsFileSystemDescriptor =
+              new FileSystemDescriptor() {
+                @Override
+                public Path getFileSystemRoot() {
+                  return new Path(hdfsRoot);
+                }
 
-    // Create a FileSystem instance to access the given HDFS.
-    URI hdfsUri = new URI(hdfsRoot);
-    Configuration config = new Configuration();
-    config.set("fs.default.name", hdfsRoot);
-    ghfs = FileSystem.get(hdfsUri, config);
-    ghfsFileSystemDescriptor = new FileSystemDescriptor() {
-      @Override
-      public Path getFileSystemRoot() {
-        return new Path(hdfsRoot);
-      }
+                @Override
+                public String getScheme() {
+                  return getFileSystemRoot().toUri().getScheme();
+                }
 
-      @Override
-      public String getScheme() {
-        return getFileSystemRoot().toUri().getScheme();
-      }
+                @Deprecated
+                @Override
+                public String getHadoopScheme() {
+                  return getScheme();
+                }
+              };
 
-      @Deprecated
-      @Override
-      public String getHadoopScheme() {
-        return getScheme();
-      }
-    };
+          postCreateInit();
+          ghfsHelper.setIgnoreStatistics();
+        }
 
-    postCreateInit();
-    ghfsHelper.setIgnoreStatistics();
-  }
+        /** Perform clean-up once after all tests are turn. */
+        @Override
+        public void after() {
+          HadoopFileSystemTestBase.storageResource.after();
+        }
+      };
 
   /**
    * Perform initialization after creating test instances.
@@ -98,15 +105,6 @@ public class WebHdfsIntegrationTest extends HadoopFileSystemTestBase {
   public static void postCreateInit()
       throws IOException {
     HadoopFileSystemTestBase.postCreateInit();
-  }
-
-  /**
-   * Perform clean-up once after all tests are turn.
-   */
-  @AfterClass
-  public static void afterAllTests()
-      throws IOException {
-    HadoopFileSystemTestBase.afterAllTests();
   }
 
   // -----------------------------------------------------------------

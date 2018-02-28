@@ -29,8 +29,7 @@ import java.util.Collections;
 import java.util.List;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -44,30 +43,34 @@ import org.junit.runners.JUnit4;
 public class GoogleCloudStorageFileSystemTest
     extends GoogleCloudStorageFileSystemIntegrationTest {
 
-  @BeforeClass
-  public static void beforeAllTests()
-      throws IOException {
-    // Disable logging.
-    Logger.getRootLogger().setLevel(Level.OFF);
+  @ClassRule
+  public static NotInheritableExternalResource storageResource =
+      new NotInheritableExternalResource(GoogleCloudStorageFileSystemTest.class) {
+        @Override
+        public void before() throws IOException {
+          // Disable logging.
+          Logger.getRootLogger().setLevel(Level.OFF);
 
-    if (gcsfs == null) {
-      // TODO(user): Maybe switch to
-      // new CacheSupplementedGoogleCloudStorage(new InMemoryGoogleCloudStorage()).
-      gcsfs = new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage(),
-          GoogleCloudStorageFileSystemOptions
-              .newBuilder()
-              .setShouldIncludeInTimestampUpdatesPredicate(INCLUDE_SUBSTRINGS_PREDICATE)
-              .build());
-      gcsfs.setUpdateTimestampsExecutor(MoreExecutors.newDirectExecutorService());
-      gcs = gcsfs.getGcs();
-      GoogleCloudStorageFileSystemIntegrationTest.postCreateInit();
-    }
-  }
+          if (gcsfs == null) {
+            // TODO(user): Maybe switch to
+            // new CacheSupplementedGoogleCloudStorage(new InMemoryGoogleCloudStorage()).
+            gcsfs =
+                new GoogleCloudStorageFileSystem(
+                    new InMemoryGoogleCloudStorage(),
+                    GoogleCloudStorageFileSystemOptions.newBuilder()
+                        .setShouldIncludeInTimestampUpdatesPredicate(INCLUDE_SUBSTRINGS_PREDICATE)
+                        .build());
+            gcsfs.setUpdateTimestampsExecutor(MoreExecutors.newDirectExecutorService());
+            gcs = gcsfs.getGcs();
+            GoogleCloudStorageFileSystemIntegrationTest.postCreateInit();
+          }
+        }
 
-  @AfterClass
-  public static void afterAllTests() throws IOException {
-    GoogleCloudStorageFileSystemIntegrationTest.afterAllTests();
-  }
+        @Override
+        public void after() {
+          GoogleCloudStorageFileSystemIntegrationTest.storageResource.after();
+        }
+      };
 
   /**
    * Helper to fill out some default valid options after which the caller may want to reset a few

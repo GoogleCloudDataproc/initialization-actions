@@ -32,8 +32,8 @@ import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 /**
@@ -87,20 +87,21 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     return config;
   }
 
-  /**
-   * Perform clean-up once after all tests are turn.
-   */
-  @AfterClass
-  public static void afterAllTests()
-      throws IOException {
-    if (ghfs != null) {
-      // For GHFS tests, print the counter values to stdout.
-      // We cannot use ghfs.logCounters() because we disable logging for tests.
-      String countersStr = ((GoogleHadoopFileSystemBase) ghfs).countersToString();
-      System.out.println(countersStr);
-    }
-    HadoopFileSystemTestBase.afterAllTests();
-  }
+  @ClassRule
+  public static NotInheritableExternalResource storageResource =
+      new NotInheritableExternalResource(GoogleHadoopFileSystemTestBase.class) {
+        /** Perform clean-up once after all tests are turn. */
+        @Override
+        public void after() {
+          if (ghfs != null) {
+            // For GHFS tests, print the counter values to stdout.
+            // We cannot use ghfs.logCounters() because we disable logging for tests.
+            String countersStr = ((GoogleHadoopFileSystemBase) ghfs).countersToString();
+            System.out.println(countersStr);
+          }
+          HadoopFileSystemTestBase.storageResource.after();
+        }
+      };
 
   // -----------------------------------------------------------------------------------------
   // Tests that vary according to the GHFS variant, but which we want to make sure get tested.

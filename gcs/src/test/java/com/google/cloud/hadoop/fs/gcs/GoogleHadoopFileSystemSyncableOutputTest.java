@@ -15,7 +15,7 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import java.io.IOException;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -26,12 +26,22 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class GoogleHadoopFileSystemSyncableOutputTest extends GoogleHadoopFileSystemTest {
-  @BeforeClass
-  public static void beforeAllTests()
-      throws IOException {
-    GoogleHadoopFileSystemTest.beforeAllTests();
-    ghfs.getConf().set(GoogleHadoopFileSystemBase.GCS_OUTPUTSTREAM_TYPE_KEY, "SYNCABLE_COMPOSITE");
-  }
+
+  @ClassRule
+  public static NotInheritableExternalResource storageResource =
+      new NotInheritableExternalResource(GoogleHadoopFileSystemSyncableOutputTest.class) {
+        @Override
+        public void before() throws Throwable {
+          GoogleHadoopFileSystemTest.storageResource.before();
+          ghfs.getConf()
+              .set(GoogleHadoopFileSystemBase.GCS_OUTPUTSTREAM_TYPE_KEY, "SYNCABLE_COMPOSITE");
+        }
+
+        @Override
+        public void after() {
+          GoogleHadoopFileSystemTest.storageResource.after();
+        }
+      };
 
   @Test @Override
   public void testHsync() throws IOException {

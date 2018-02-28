@@ -33,8 +33,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -49,35 +48,40 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     extends GoogleHadoopFileSystemTestBase {
-  /**
-   * Performs initialization once before tests are run.
-   */
-  @BeforeClass
-  public static void beforeAllTests()
-      throws IOException {
 
-    // Disable logging.
-    Logger.getRootLogger().setLevel(Level.OFF);
+  @ClassRule
+  public static NotInheritableExternalResource storageResource =
+      new NotInheritableExternalResource(GoogleHadoopGlobalRootedFileSystemIntegrationTest.class) {
+        /** Performs initialization once before tests are run. */
+        @Override
+        public void before() throws Throwable {
+          // Disable logging.
+          Logger.getRootLogger().setLevel(Level.OFF);
 
-    GoogleHadoopFileSystemBase testInstance = new GoogleHadoopGlobalRootedFileSystem();
-    ghfs = testInstance;
-    ghfsFileSystemDescriptor = testInstance;
-    URI initUri;
-    try {
-      initUri = new URI("gsg://bucket-should-be-ignored");
-    } catch (URISyntaxException e) {
-      throw new IllegalArgumentException(e);
-    }
+          GoogleHadoopFileSystemBase testInstance = new GoogleHadoopGlobalRootedFileSystem();
+          ghfs = testInstance;
+          ghfsFileSystemDescriptor = testInstance;
+          URI initUri;
+          try {
+            initUri = new URI("gsg://bucket-should-be-ignored");
+          } catch (URISyntaxException e) {
+            throw new IllegalArgumentException(e);
+          }
 
-    // loadConfig needs ghfsHelper, which is normally created in
-    // postCreateInit. Create one here for it to use.
-    ghfsHelper = new HadoopFileSystemIntegrationHelper(
-        ghfs, ghfsFileSystemDescriptor);
-    ghfs.initialize(initUri, loadConfig());
+          // loadConfig needs ghfsHelper, which is normally created in
+          // postCreateInit. Create one here for it to use.
+          ghfsHelper = new HadoopFileSystemIntegrationHelper(ghfs, ghfsFileSystemDescriptor);
+          ghfs.initialize(initUri, loadConfig());
 
-    HadoopFileSystemTestBase.postCreateInit();
-    ghfsHelper.setIgnoreStatistics(); // Multi-threaded code screws us up.
-  }
+          HadoopFileSystemTestBase.postCreateInit();
+          ghfsHelper.setIgnoreStatistics(); // Multi-threaded code screws us up.
+        }
+
+        @Override
+        public void after() {
+          GoogleHadoopFileSystemTestBase.storageResource.after();
+        }
+      };
 
   /**
    * Helper to load all the GHFS-specific config values from environment variables, such as those
@@ -107,15 +111,6 @@ public class GoogleHadoopGlobalRootedFileSystemIntegrationTest
     config.setBoolean(
         GoogleHadoopFileSystemBase.GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY, false);
     return config;
-  }
-
-  /**
-   * Perform clean-up once after all tests are turn.
-   */
-  @AfterClass
-  public static void afterAllTests()
-      throws IOException {
-    GoogleHadoopFileSystemTestBase.afterAllTests();
   }
 
   /**

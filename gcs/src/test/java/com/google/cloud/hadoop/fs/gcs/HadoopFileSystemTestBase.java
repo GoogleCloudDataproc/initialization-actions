@@ -38,8 +38,8 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 /**
@@ -75,19 +75,26 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     gcsfs = null;
   }
 
-  /** Perform clean-up once after all tests are turn. */
-  @AfterClass
-  public static void afterAllTests() throws IOException {
-    if (ghfs != null) {
-      if (ghfs instanceof GoogleHadoopFileSystemBase) {
-        gcs = ((GoogleHadoopFileSystemBase) ghfs).getGcsFs().getGcs();
-      }
-      GoogleCloudStorageFileSystemIntegrationTest.afterAllTests();
-      ghfs.close();
-      ghfs = null;
-      ghfsFileSystemDescriptor = null;
-    }
-  }
+  @ClassRule
+  public static NotInheritableExternalResource storageResource =
+      new NotInheritableExternalResource(HadoopFileSystemTestBase.class) {
+        @Override
+        public void after() {
+          if (ghfs != null) {
+            if (ghfs instanceof GoogleHadoopFileSystemBase) {
+              gcs = ((GoogleHadoopFileSystemBase) ghfs).getGcsFs().getGcs();
+            }
+            GoogleCloudStorageFileSystemIntegrationTest.storageResource.after();
+            try {
+              ghfs.close();
+            } catch (IOException e) {
+              throw new RuntimeException("Unexpected exception", e);
+            }
+            ghfs = null;
+            ghfsFileSystemDescriptor = null;
+          }
+        }
+      };
 
   // -----------------------------------------------------------------
   // Overridden methods from GCS test.

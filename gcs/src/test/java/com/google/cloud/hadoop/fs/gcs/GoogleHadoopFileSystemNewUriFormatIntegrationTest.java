@@ -32,9 +32,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -46,40 +45,41 @@ import org.junit.runners.JUnit4;
 public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
     extends GoogleHadoopFileSystemIntegrationTest {
 
-  @BeforeClass
-  public static void beforeAllTests()
-      throws IOException {
-    GoogleHadoopFileSystem testInstance = new GoogleHadoopFileSystem();
-    ghfs = testInstance;
-    ghfsFileSystemDescriptor = testInstance;
-    URI initUri;
-    try {
-      initUri = new URI("gs:/");
-    } catch (URISyntaxException e) {
-      throw new IllegalArgumentException(e);
-    }
+  @ClassRule
+  public static NotInheritableExternalResource storageResource =
+      new NotInheritableExternalResource(GoogleHadoopFileSystemNewUriFormatIntegrationTest.class) {
+        @Override
+        public void before() throws Throwable {
+          GoogleHadoopFileSystem testInstance = new GoogleHadoopFileSystem();
+          ghfs = testInstance;
+          ghfsFileSystemDescriptor = testInstance;
+          URI initUri;
+          try {
+            initUri = new URI("gs:/");
+          } catch (URISyntaxException e) {
+            throw new IllegalArgumentException(e);
+          }
 
-    // loadConfig needs ghfsHelper, which is normally created in
-    // postCreateInit. Create one here for it to use.
-    ghfsHelper = new HadoopFileSystemIntegrationHelper(
-        ghfs, ghfsFileSystemDescriptor);
-    Configuration conf = loadConfig();
-    conf.set(
-        GoogleHadoopFileSystemBase.PATH_CODEC_KEY,
-        GoogleHadoopFileSystemBase.PATH_CODEC_USE_URI_ENCODING);
-    ghfs.initialize(initUri, conf);
-    HadoopFileSystemTestBase.postCreateInit();
-  }
+          // loadConfig needs ghfsHelper, which is normally created in
+          // postCreateInit. Create one here for it to use.
+          ghfsHelper = new HadoopFileSystemIntegrationHelper(ghfs, ghfsFileSystemDescriptor);
+          Configuration conf = loadConfig();
+          conf.set(
+              GoogleHadoopFileSystemBase.PATH_CODEC_KEY,
+              GoogleHadoopFileSystemBase.PATH_CODEC_USE_URI_ENCODING);
+          ghfs.initialize(initUri, conf);
+          HadoopFileSystemTestBase.postCreateInit();
+        }
+
+        @Override
+        public void after() {
+          GoogleHadoopFileSystemTestBase.storageResource.after();
+        }
+      };
 
   @Before
   public void clearFileSystemCache() throws IOException {
     FileSystem.closeAll();
-  }
-
-  @AfterClass
-  public static void afterAllTests()
-      throws IOException {
-    GoogleHadoopFileSystemTestBase.afterAllTests();
   }
 
   @Test

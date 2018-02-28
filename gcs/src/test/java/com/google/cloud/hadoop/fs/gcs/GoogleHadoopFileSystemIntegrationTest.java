@@ -36,9 +36,8 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -50,37 +49,38 @@ import org.junit.runners.JUnit4;
 public class GoogleHadoopFileSystemIntegrationTest
     extends GoogleHadoopFileSystemTestBase {
 
-  @BeforeClass
-  public static void beforeAllTests()
-      throws IOException {
-    GoogleHadoopFileSystem testInstance = new GoogleHadoopFileSystem();
-    ghfs = testInstance;
-    ghfsFileSystemDescriptor = testInstance;
-    URI initUri;
-    try {
-      initUri = new URI("gs:/");
-    } catch (URISyntaxException e) {
-      throw new IllegalArgumentException(e);
-    }
+  @ClassRule
+  public static NotInheritableExternalResource storageResource =
+      new NotInheritableExternalResource(GoogleHadoopFileSystemIntegrationTest.class) {
+        @Override
+        public void before() throws Throwable {
+          GoogleHadoopFileSystem testInstance = new GoogleHadoopFileSystem();
+          ghfs = testInstance;
+          ghfsFileSystemDescriptor = testInstance;
+          URI initUri;
+          try {
+            initUri = new URI("gs:/");
+          } catch (URISyntaxException e) {
+            throw new IllegalArgumentException(e);
+          }
 
-    // loadConfig needs ghfsHelper, which is normally created in
-    // postCreateInit. Create one here for it to use.
-    ghfsHelper = new HadoopFileSystemIntegrationHelper(
-        ghfs, ghfsFileSystemDescriptor);
-    ghfs.initialize(initUri, loadConfig());
+          // loadConfig needs ghfsHelper, which is normally created in
+          // postCreateInit. Create one here for it to use.
+          ghfsHelper = new HadoopFileSystemIntegrationHelper(ghfs, ghfsFileSystemDescriptor);
+          ghfs.initialize(initUri, loadConfig());
 
-    HadoopFileSystemTestBase.postCreateInit();
-  }
+          HadoopFileSystemTestBase.postCreateInit();
+        }
+
+        @Override
+        public void after() {
+          GoogleHadoopFileSystemTestBase.storageResource.after();
+        }
+      };
 
   @Before
   public void clearFileSystemCache() throws IOException {
     FileSystem.closeAll();
-  }
-
-  @AfterClass
-  public static void afterAllTests()
-      throws IOException {
-    GoogleHadoopFileSystemTestBase.afterAllTests();
   }
 
   // -----------------------------------------------------------------

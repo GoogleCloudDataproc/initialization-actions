@@ -14,8 +14,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
-import java.io.IOException;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -27,13 +26,24 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class GoogleHadoopFileSystemInternalBufferedInputStreamIntegrationTest
     extends GoogleHadoopFileSystemIntegrationTest {
-  @BeforeClass
-  public static void beforeAllTests()
-      throws IOException {
-    GoogleHadoopFileSystemIntegrationTest.beforeAllTests();
-    ghfs.getConf().setBoolean(
-        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_KEY, true);
-  }
+
+  @ClassRule
+  public static NotInheritableExternalResource storageResource =
+      new NotInheritableExternalResource(
+          GoogleHadoopFileSystemInternalBufferedInputStreamIntegrationTest.class) {
+        @Override
+        public void before() throws Throwable {
+          GoogleHadoopFileSystemIntegrationTest.storageResource.before();
+          ghfs.getConf()
+              .setBoolean(
+                  GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_KEY, true);
+        }
+
+        @Override
+        public void after() {
+          GoogleHadoopFileSystemIntegrationTest.storageResource.after();
+        }
+      };
 
   // -----------------------------------------------------------------------------------------
   // Tests that are expensive and not specific to the input stream; they're already covered

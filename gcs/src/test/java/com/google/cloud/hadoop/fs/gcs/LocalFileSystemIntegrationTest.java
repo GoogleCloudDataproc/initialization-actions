@@ -25,8 +25,7 @@ import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -41,47 +40,54 @@ public class LocalFileSystemIntegrationTest
   // Root of local FS.
   private static final String ROOT = "file:///tmp/gcs-test/";
 
-  /**
-   * Performs initialization once before tests are run.
-   */
-  @BeforeClass
-  public static void beforeAllTests()
-      throws IOException {
+  @ClassRule
+  public static NotInheritableExternalResource storageResource =
+      new NotInheritableExternalResource(LocalFileSystemIntegrationTest.class) {
+        /** Performs initialization once before tests are run. */
+        @Override
+        public void before() throws Throwable {
+          // Create a FileSystem instance to access the given HDFS.
+          URI uri;
+          try {
+            uri = new URI(ROOT);
+          } catch (URISyntaxException e) {
+            throw new AssertionError("Invalid ROOT path: " + ROOT, e);
+          }
+          Configuration config = new Configuration();
+          config.set("fs.default.name", ROOT);
+          ghfs = FileSystem.get(uri, config);
+          ghfsFileSystemDescriptor =
+              new FileSystemDescriptor() {
+                @Override
+                public Path getFileSystemRoot() {
+                  return new Path(ROOT);
+                }
 
-    // Create a FileSystem instance to access the given HDFS.
-    URI uri = null;
-    try {
-      uri = new URI(ROOT);
-    } catch (URISyntaxException e) {
-      throw new AssertionError("Invalid ROOT path: " + ROOT, e);
-    }
-    Configuration config = new Configuration();
-    config.set("fs.default.name", ROOT);
-    ghfs = FileSystem.get(uri, config);
-    ghfsFileSystemDescriptor = new FileSystemDescriptor() {
-      @Override
-      public Path getFileSystemRoot() {
-        return new Path(ROOT);
-      }
+                @Override
+                public String getScheme() {
+                  return getFileSystemRoot().toUri().getScheme();
+                }
 
-      @Override
-      public String getScheme() {
-        return getFileSystemRoot().toUri().getScheme();
-      }
+                @Deprecated
+                @Override
+                public String getHadoopScheme() {
+                  return getScheme();
+                }
+              };
 
-      @Deprecated
-      @Override
-      public String getHadoopScheme() {
-        return getScheme();
-      }
-    };
+          // The file:/// scheme will secretly use a ChecksumFileSystem under the hood, causing all
+          // writes to actually write many more intermediate bytes than the number desired.
 
-    // The file:/// scheme will secretly use a ChecksumFileSystem under the hood, causing all
-    // writes to actually write many more intermediate bytes than the number desired.
+          postCreateInit();
+          ghfsHelper.setIgnoreStatistics();
+        }
 
-    postCreateInit();
-    ghfsHelper.setIgnoreStatistics();
-  }
+        /** Perform clean-up once after all tests are turn. */
+        @Override
+        public void after() {
+          HadoopFileSystemTestBase.storageResource.after();
+        }
+      };
 
   /**
    * Perform initialization after creating test instances.
@@ -90,15 +96,6 @@ public class LocalFileSystemIntegrationTest
       throws IOException {
     HadoopFileSystemTestBase.postCreateInit(
         new LocalFileSystemIntegrationHelper(ghfs, ghfsFileSystemDescriptor));
-  }
-
-  /**
-   * Perform clean-up once after all tests are turn.
-   */
-  @AfterClass
-  public static void afterAllTests()
-      throws IOException {
-    HadoopFileSystemTestBase.afterAllTests();
   }
 
   // -----------------------------------------------------------------

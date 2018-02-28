@@ -18,8 +18,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -31,23 +30,26 @@ import org.junit.runners.JUnit4;
 public class GoogleHadoopGlobalRootedFileSystemTest
     extends GoogleHadoopGlobalRootedFileSystemIntegrationTest {
 
-  @BeforeClass
-  public static void beforeAllTests()
-      throws IOException {
-    // Disable logging.
-    Logger.getRootLogger().setLevel(Level.OFF);
+  @ClassRule
+  public static NotInheritableExternalResource storageResource =
+      new NotInheritableExternalResource(GoogleHadoopGlobalRootedFileSystemTest.class) {
+        @Override
+        public void before() throws Throwable {
+          // Disable logging.
+          Logger.getRootLogger().setLevel(Level.OFF);
 
-    ghfs = GoogleHadoopFileSystemTestHelper.createInMemoryGoogleHadoopGlobalRootedFileSystem();
-    ghfsFileSystemDescriptor = (FileSystemDescriptor) ghfs;
+          ghfs =
+              GoogleHadoopFileSystemTestHelper.createInMemoryGoogleHadoopGlobalRootedFileSystem();
+          ghfsFileSystemDescriptor = (FileSystemDescriptor) ghfs;
 
-    GoogleHadoopGlobalRootedFileSystemIntegrationTest.postCreateInit();
-  }
+          GoogleHadoopGlobalRootedFileSystemIntegrationTest.postCreateInit();
+        }
 
-  @AfterClass
-  public static void afterAllTests()
-      throws IOException {
-    GoogleHadoopGlobalRootedFileSystemIntegrationTest.afterAllTests();
-  }
+        @Override
+        public void after() {
+          GoogleHadoopGlobalRootedFileSystemIntegrationTest.storageResource.after();
+        }
+      };
 
   // -----------------------------------------------------------------
   // Inherited tests that we suppress because they do not make sense

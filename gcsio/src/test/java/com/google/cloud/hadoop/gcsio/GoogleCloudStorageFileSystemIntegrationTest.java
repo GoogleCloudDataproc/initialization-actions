@@ -49,12 +49,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.joda.time.Instant;
-import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.ExternalResource;
+import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.junit.runners.model.Statement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,6 +69,31 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   // Logger.
   protected static final Logger LOG =
       LoggerFactory.getLogger(GoogleCloudStorageFileSystemIntegrationTest.class);
+
+  // hack to make tests pass until JUnit 4.13 regression will be fixed:
+  // https://github.com/junit-team/junit4/issues/1509
+  // TODO: refactor or delete this hack
+  protected static class NotInheritableExternalResource extends ExternalResource {
+    private final Class<?> testClass;
+
+    public NotInheritableExternalResource(Class<?> testClass) {
+      this.testClass = testClass;
+    }
+
+    @Override
+    public Statement apply(Statement base, Description description) {
+      if (testClass.equals(description.getTestClass())) {
+        return super.apply(base, description);
+      }
+      return base;
+    }
+
+    @Override
+    public void before() throws Throwable {}
+
+    @Override
+    public void after() {}
+  }
 
   // GCS FS test access instance.
   protected static GoogleCloudStorageFileSystem gcsfs;
@@ -110,42 +137,58 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   protected static final boolean GCS_FILE_SIZE_LIMIT_250GB_DEFAULT = true;
   protected static final int WRITE_BUFFERSIZE_DEFAULT = 64 * 1024 * 1024;
 
-  /**
-   * Perform initialization once before tests are run.
-   */
-  @BeforeClass
-  public static void beforeAllTests() throws Exception {
-    if (gcsfs == null) {
-      Credential credential = GoogleCloudStorageTestHelper.getCredential();
-      String appName = GoogleCloudStorageIntegrationHelper.APP_NAME;
-      String projectId = TestConfiguration.getInstance().getProjectId();
-      assertThat(projectId).isNotNull();
+  @ClassRule
+  public static NotInheritableExternalResource storageResource =
+      new NotInheritableExternalResource(GoogleCloudStorageFileSystemIntegrationTest.class) {
+        /** Perform initialization once before tests are run. */
+        @Override
+        public void before() throws Throwable {
+          if (gcsfs == null) {
+            Credential credential = GoogleCloudStorageTestHelper.getCredential();
+            String appName = GoogleCloudStorageIntegrationHelper.APP_NAME;
+            String projectId = TestConfiguration.getInstance().getProjectId();
+            assertThat(projectId).isNotNull();
 
-      GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
-          GoogleCloudStorageFileSystemOptions.newBuilder();
+            GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
+                GoogleCloudStorageFileSystemOptions.newBuilder();
 
-      optionsBuilder
-          .setIsMetadataCacheEnabled(true)
-          .setEnableBucketDelete(true)
-          .setShouldIncludeInTimestampUpdatesPredicate(INCLUDE_SUBSTRINGS_PREDICATE)
-          .getCloudStorageOptionsBuilder()
-          .setAppName(appName)
-          .setProjectId(projectId)
-          .getWriteChannelOptionsBuilder()
-          .setFileSizeLimitedTo250Gb(GCS_FILE_SIZE_LIMIT_250GB_DEFAULT)
-          .setUploadBufferSize(WRITE_BUFFERSIZE_DEFAULT);
+            optionsBuilder
+                .setIsMetadataCacheEnabled(true)
+                .setEnableBucketDelete(true)
+                .setShouldIncludeInTimestampUpdatesPredicate(INCLUDE_SUBSTRINGS_PREDICATE)
+                .getCloudStorageOptionsBuilder()
+                .setAppName(appName)
+                .setProjectId(projectId)
+                .getWriteChannelOptionsBuilder()
+                .setFileSizeLimitedTo250Gb(GCS_FILE_SIZE_LIMIT_250GB_DEFAULT)
+                .setUploadBufferSize(WRITE_BUFFERSIZE_DEFAULT);
 
-      gcsfs = new GoogleCloudStorageFileSystem(
-          credential,
-          optionsBuilder.build());
+            gcsfs = new GoogleCloudStorageFileSystem(credential, optionsBuilder.build());
 
-      gcsfs.setUpdateTimestampsExecutor(MoreExecutors.newDirectExecutorService());
+            gcsfs.setUpdateTimestampsExecutor(MoreExecutors.newDirectExecutorService());
 
-      gcs = gcsfs.getGcs();
+            gcs = gcsfs.getGcs();
 
-      postCreateInit();
-    }
-  }
+            postCreateInit();
+          }
+        }
+
+        /** Perform clean-up once after all tests are turn. */
+        @Override
+        public void after() {
+          if (gcs != null) {
+            try {
+              gcsiHelper.afterAllTests(gcs);
+            } catch (IOException e) {
+              throw new RuntimeException("Unexpected exception", e);
+            }
+          }
+          if (gcsfs != null) {
+            gcsfs.close();
+            gcsfs = null;
+          }
+        }
+      };
 
   public static void postCreateInit() throws IOException {
     postCreateInit(new GoogleCloudStorageFileSystemIntegrationHelper(gcsfs));
@@ -163,18 +206,6 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     gcsiHelper.beforeAllTests();
     sharedBucketName1 = gcsiHelper.sharedBucketName1;
     sharedBucketName2 = gcsiHelper.sharedBucketName2;
-  }
-
-  /** Perform clean-up once after all tests are turn. */
-  @AfterClass
-  public static void afterAllTests() throws IOException {
-    if (gcs != null) {
-      gcsiHelper.afterAllTests(gcs);
-    }
-    if (gcsfs != null) {
-      gcsfs.close();
-      gcsfs = null;
-    }
   }
 
   // -----------------------------------------------------------------
