@@ -16,7 +16,17 @@
 # This init script installs Google Cloud Datalab on the master node of a
 # Dataproc cluster.
 
-set -e -x
+set -exo pipefail
+
+readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+readonly PROJECT="$(/usr/share/google/get_metadata_value ../project/project-id)"
+readonly SPARK_PACKAGES="$(/usr/share/google/get_metadata_value attributes/spark-packages || true)"
+readonly SPARK_CONF='/etc/spark/conf/spark-defaults.conf'
+readonly DATALAB_DIR="${HOME}/datalab"
+readonly PYTHONPATH="/env/python:$(find /usr/lib/spark/python/lib -name '*.zip' | paste -sd:)"
+
+DOCKER_IMAGE="$(/usr/share/google/get_metadata_value attributes/docker-image || true)"
+
 
 function update_apt_get() {
   for ((i = 0; i < 10; i++)); do
@@ -28,53 +38,65 @@ function update_apt_get() {
   return 1
 }
 
-ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
-PROJECT=$(/usr/share/google/get_metadata_value ../project/project-id)
-DOCKER_IMAGE=$(/usr/share/google/get_metadata_value attributes/docker-image || true)
-SPARK_PACKAGES=$(/usr/share/google/get_metadata_value attributes/spark-packages || true)
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  return 1
+}
 
 if [[ "${ROLE}" == 'Master' ]]; then
-  update_apt_get
+  update_apt_get || err 'Failed to update apt-get'
+  mkdir -p "${DATALAB_DIR}"
+
   apt-get install -y -q docker.io
+  if [ $? != 0 ]; then
+    err 'Failed to install Docker'
+  fi
+
   if [[ -z "${DOCKER_IMAGE}" ]]; then
     DOCKER_IMAGE="gcr.io/cloud-datalab/datalab:local"
   fi
+  readonly DOCKER_IMAGE
+
   gcloud docker -- pull ${DOCKER_IMAGE}
+  if [ $? != 0 ]; then
+    err 'Failed to pull ${DOCKER_IMAGE}'
+  fi
 
   # For some reason Spark has issues resolving the user's directory inside of
   # Datalab.
   # TODO(pmkc) consider fixing in Dataproc proper.
-  SPARK_CONF='/etc/spark/conf/spark-defaults.conf'
   if ! grep -q '^spark\.sql\.warehouse\.dir=' "${SPARK_CONF}"; then
     echo 'spark.sql.warehouse.dir=/root/spark-warehouse' >> "${SPARK_CONF}"
   fi
 
-  DATALAB_DIR="${HOME}/datalab"
-  mkdir -p "${DATALAB_DIR}"
-
   # Expose every possible spark configuration to the container.
   VOLUMES=$(echo /etc/{hadoop*,hive*,*spark*} /usr/lib/hadoop/lib/{gcs,bigquery}*)
-  VOLUME_FLAGS=$(echo ${VOLUMES} | sed 's/\S*/-v &:&/g')
+  VOLUME_FLAGS=$(echo "${VOLUMES}" | sed 's/\S*/-v &:&/g')
+  readonly VOLUME_FLAGS
   echo "VOLUME_FLAGS: ${VOLUME_FLAGS}"
 
-  PYTHONPATH="/env/python:$(find /usr/lib/spark/python/lib -name '*.zip' | paste -sd:)"
+  # Docker gives a "too many symlinks" error if volumes are not yet automounted.
+  # Ensure that the volumes are mounted to avoid the error.
+  touch ${VOLUMES}
 
-  PYSPARK_SUBMIT_ARGS=''
   # Build PySpark Submit Arguments
-  for package in $(echo ${SPARK_PACKAGES} | tr ',' ' '); do
-    PYSPARK_SUBMIT_ARGS+="--packages ${package} "
+  pyspark_submit_args=''
+  for package in ${SPARK_PACKAGES//','/' '}; do
+    pyspark_submit_args+="--packages ${package} "
   done
-  PYSPARK_SUBMIT_ARGS+='pyspark-shell'
+  pyspark_submit_args+='pyspark-shell'
 
   # Java is too complicated to simply volume mount into the image, so we need
   # to install it in a child image.
   mkdir -p datalab-pyspark
   pushd datalab-pyspark
-  cp -r /etc/apt/{trusted.gpg,sources.list.d} .
+  cp /etc/apt/trusted.gpg .
+  cp /etc/apt/sources.list.d/backports.list .
+  cp /etc/apt/sources.list.d/dataproc.list .
   cat << EOF > Dockerfile
 FROM ${DOCKER_IMAGE}
-ADD sources.list.d/backports.list /etc/apt/sources.list.d/
-ADD sources.list.d/dataproc.list /etc/apt/sources.list.d/
+ADD backports.list /etc/apt/sources.list.d/
+ADD dataproc.list /etc/apt/sources.list.d/
 ADD trusted.gpg /tmp/vm_trusted.gpg
 
 RUN apt-key add /tmp/vm_trusted.gpg
@@ -85,21 +107,17 @@ ENV SPARK_HOME='/usr/lib/spark'
 ENV JAVA_HOME='${JAVA_HOME}'
 ENV PYTHONPATH='${PYTHONPATH}'
 ENV PYTHONSTARTUP='/usr/lib/spark/python/pyspark/shell.py'
-ENV PYSPARK_SUBMIT_ARGS='${PYSPARK_SUBMIT_ARGS}'
+ENV PYSPARK_SUBMIT_ARGS='${pyspark_submit_args}'
 ENV DATALAB_ENV='GCE'
 EOF
   docker build -t datalab-pyspark .
   popd
 
-  # Docker gives a "too many symlinks" error if volumes are not yet automounted.
-  # Ensure that the volumes are mounted to avoid the error.
-  touch ${VOLUMES}
-  if docker run -d --restart always --net=host -v "${DATALAB_DIR}:/content/datalab" ${VOLUME_FLAGS} \
+  if docker run -d --restart always --net=host \
+      -v "${DATALAB_DIR}:/content/datalab" ${VOLUME_FLAGS} \
       datalab-pyspark; then
     echo 'Cloud Datalab Jupyter server successfully deployed.'
-    exit
+  else
+    err 'Failed to run Cloud Datalab'
   fi
-
-  echo 'Failed to run Cloud Datalab' >&2
-  exit 1
 fi
