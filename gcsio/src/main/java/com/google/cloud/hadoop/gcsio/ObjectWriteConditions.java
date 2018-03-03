@@ -20,8 +20,8 @@ import com.google.api.services.storage.Storage.Objects.Insert;
 import com.google.common.base.Optional;
 
 /**
- * Conditions on which a object write should be allowed to continue. Corresponds to
- * setting IfGenerationmatch and IfMetaGenerationMatch in API requests.
+ * Conditions on which a object write should be allowed to continue. Corresponds to setting
+ * IfGenerationMatch and IfMetaGenerationMatch in API requests.
  */
 public class ObjectWriteConditions {
 

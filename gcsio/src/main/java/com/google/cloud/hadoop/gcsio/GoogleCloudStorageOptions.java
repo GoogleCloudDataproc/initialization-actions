@@ -18,26 +18,15 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
+import com.google.cloud.hadoop.util.RequesterPaysOptions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableSet;
-import java.util.Collection;
 import javax.annotation.Nullable;
 
 /**
  * Configuration options for the GoogleCloudStorage class.
  */
 public class GoogleCloudStorageOptions {
-
-  /** Operational modes of GCS Requester Pays feature. */
-  public static enum RequesterPaysMode {
-    CUSTOM,
-    DISABLED,
-    ENABLED
-  }
-
-  /** Default value for {@link GoogleCloudStorageOptions#requesterPaysMode}. */
-  public static final RequesterPaysMode REQUESTER_PAYS_MODE_DEFAULT = RequesterPaysMode.DISABLED;
 
   /**
    * Default number of items to return per call to the list* GCS RPCs.
@@ -69,6 +58,9 @@ public class GoogleCloudStorageOptions {
    */
   public static final int MAX_WAIT_MILLIS_FOR_EMPTY_OBJECT_CREATION = 3_000;
 
+  public static final RequesterPaysOptions DEFAULT_REQUESTER_PAYS_OPTIONS =
+      RequesterPaysOptions.DEFAULT;
+
   /**
    * Mutable builder for the GoogleCloudStorageOptions class.
    */
@@ -78,9 +70,6 @@ public class GoogleCloudStorageOptions {
     private boolean inferImplicitDirectoriesEnabled =
         INFER_IMPLICIT_DIRECTORIES_DEFAULT;
     private String projectId = null;
-    private RequesterPaysMode requesterPaysMode = REQUESTER_PAYS_MODE_DEFAULT;
-    private String requesterPaysProjectId = null;
-    private ImmutableSet<String> requesterPaysBuckets = ImmutableSet.of();
     private String appName = null;
     private HttpTransportFactory.HttpTransportType transportType =
         HttpTransportFactory.DEFAULT_TRANSPORT_TYPE;
@@ -97,6 +86,8 @@ public class GoogleCloudStorageOptions {
     private AsyncWriteChannelOptions.Builder writeChannelOptionsBuilder =
         new AsyncWriteChannelOptions.Builder();
 
+    private RequesterPaysOptions requesterPaysOptions = DEFAULT_REQUESTER_PAYS_OPTIONS;
+
     public Builder setAutoRepairImplicitDirectoriesEnabled(
         boolean autoRepairImplicitDirectoriesEnabled) {
       this.autoRepairImplicitDirectoriesEnabled = autoRepairImplicitDirectoriesEnabled;
@@ -111,24 +102,6 @@ public class GoogleCloudStorageOptions {
 
     public Builder setProjectId(String projectId) {
       this.projectId = projectId;
-      return this;
-    }
-
-    public Builder setRequesterPaysMode(RequesterPaysMode requesterPaysMode) {
-      this.requesterPaysMode = requesterPaysMode;
-      return this;
-    }
-
-    public Builder setRequesterPaysProjectId(String requesterPaysProjectId) {
-      this.requesterPaysProjectId = requesterPaysProjectId;
-      return this;
-    }
-
-    public Builder setRequesterPaysBuckets(Collection<String> requesterPaysBuckets) {
-      this.requesterPaysBuckets =
-          requesterPaysBuckets == null
-              ? ImmutableSet.<String>of()
-              : ImmutableSet.copyOf(requesterPaysBuckets);
       return this;
     }
 
@@ -178,6 +151,11 @@ public class GoogleCloudStorageOptions {
       return this;
     }
 
+    public Builder setRequesterPaysOptions(RequesterPaysOptions requesterPaysOptions) {
+      this.requesterPaysOptions = requesterPaysOptions;
+      return this;
+    }
+
     public GoogleCloudStorageOptions build() {
       return new GoogleCloudStorageOptions(this);
     }
@@ -190,9 +168,6 @@ public class GoogleCloudStorageOptions {
   private final boolean autoRepairImplicitDirectoriesEnabled;
   private final boolean inferImplicitDirectoriesEnabled;
   private final String projectId;
-  private final RequesterPaysMode requesterPaysMode;
-  private final String requesterPaysProjectId;
-  private final ImmutableSet<String> requesterPaysBuckets;
   private final String appName;
   private final HttpTransportFactory.HttpTransportType transportType;
   private final String proxyAddress;
@@ -201,15 +176,12 @@ public class GoogleCloudStorageOptions {
   private final long maxRequestsPerBatch;
   private final boolean createMarkerFile;
   private final int maxWaitMillisForEmptyObjectCreation;
+  private final RequesterPaysOptions requesterPaysOptions;
 
   protected GoogleCloudStorageOptions(Builder builder) {
     this.autoRepairImplicitDirectoriesEnabled = builder.autoRepairImplicitDirectoriesEnabled;
     this.inferImplicitDirectoriesEnabled = builder.inferImplicitDirectoriesEnabled;
     this.projectId = builder.projectId;
-    this.requesterPaysMode =
-        checkNotNull(builder.requesterPaysMode, "RequesterPaysMode could not be null");
-    this.requesterPaysProjectId = builder.requesterPaysProjectId;
-    this.requesterPaysBuckets = builder.requesterPaysBuckets;
     this.appName = builder.appName;
     this.writeChannelOptions = builder.getWriteChannelOptionsBuilder().build();
     this.maxListItemsPerCall = builder.maxListItemsPerCall;
@@ -218,6 +190,8 @@ public class GoogleCloudStorageOptions {
     this.transportType = builder.transportType;
     this.proxyAddress = builder.proxyAddress;
     this.maxWaitMillisForEmptyObjectCreation = builder.maxWaitMillisForEmptyObjectCreation;
+    this.requesterPaysOptions =
+        checkNotNull(builder.requesterPaysOptions, "requesterPaysOptions could not be null");
   }
 
   public GoogleCloudStorageOptions(
@@ -260,19 +234,6 @@ public class GoogleCloudStorageOptions {
     return projectId;
   }
 
-  public RequesterPaysMode getRequesterPaysMode() {
-    return requesterPaysMode;
-  }
-
-  @Nullable
-  public String getRequesterPaysProjectId() {
-    return requesterPaysProjectId;
-  }
-
-  public ImmutableSet<String> getRequesterPaysBuckets() {
-    return requesterPaysBuckets;
-  }
-
   public String getAppName() {
     return appName;
   }
@@ -303,6 +264,10 @@ public class GoogleCloudStorageOptions {
 
   public int getMaxWaitMillisForEmptyObjectCreation() {
     return maxWaitMillisForEmptyObjectCreation;
+  }
+
+  public RequesterPaysOptions getRequesterPaysOptions() {
+    return requesterPaysOptions;
   }
 
   public void throwIfNotValid() {

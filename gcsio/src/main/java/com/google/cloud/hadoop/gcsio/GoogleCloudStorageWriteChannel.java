@@ -24,7 +24,6 @@ import com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.LoggingMediaHttpUploaderProgressListener;
-
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -36,12 +35,13 @@ public class GoogleCloudStorageWriteChannel
     extends AbstractGoogleAsyncWriteChannel<Insert, StorageObject>
     implements GoogleCloudStorageItemInfo.Provider {
 
+  private static final long MIN_LOGGING_INTERVAL_MS = 60000L;
+
   private final Storage gcs;
   private final String bucketName;
   private final String objectName;
   private final ObjectWriteConditions writeConditions;
   private final Map<String, String> metadata;
-  private static final long MIN_LOGGING_INTERVAL_MS = 60000L;
 
   private GoogleCloudStorageItemInfo completedItemInfo = null;
 
@@ -53,12 +53,17 @@ public class GoogleCloudStorageWriteChannel
    * @param requestHelper a ClientRequestHelper to set extra headers
    * @param bucketName name of the bucket to create object in
    * @param objectName name of the object to create
+   * @param writeConditions conditions on which write should be allowed to continue
    * @param objectMetadata metadata to apply to the newly created object
    */
   public GoogleCloudStorageWriteChannel(
-      ExecutorService threadPool, Storage gcs, ClientRequestHelper<StorageObject> requestHelper,
-      String bucketName, String objectName,
-      AsyncWriteChannelOptions options, ObjectWriteConditions writeConditions,
+      ExecutorService threadPool,
+      Storage gcs,
+      ClientRequestHelper<StorageObject> requestHelper,
+      String bucketName,
+      String objectName,
+      AsyncWriteChannelOptions options,
+      ObjectWriteConditions writeConditions,
       Map<String, String> objectMetadata) {
     super(threadPool, options);
     this.setClientRequestHelper(requestHelper);
@@ -77,16 +82,29 @@ public class GoogleCloudStorageWriteChannel
    * @param requestHelper a ClientRequestHelper to set extra headers
    * @param bucketName name of the bucket to create object in
    * @param objectName name of the object to create
+   * @param writeConditions conditions on which write should be allowed to continue
    * @param objectMetadata metadata to apply to the newly created object
    * @param contentType content type
    */
   public GoogleCloudStorageWriteChannel(
-      ExecutorService threadPool, Storage gcs, ClientRequestHelper<StorageObject> requestHelper,
-      String bucketName, String objectName,
-      AsyncWriteChannelOptions options, ObjectWriteConditions writeConditions,
-      Map<String, String> objectMetadata, String contentType) {
-    this(threadPool, gcs, requestHelper, bucketName, objectName, options,
-        writeConditions, objectMetadata);
+      ExecutorService threadPool,
+      Storage gcs,
+      ClientRequestHelper<StorageObject> requestHelper,
+      String bucketName,
+      String objectName,
+      AsyncWriteChannelOptions options,
+      ObjectWriteConditions writeConditions,
+      Map<String, String> objectMetadata,
+      String contentType) {
+    this(
+        threadPool,
+        gcs,
+        requestHelper,
+        bucketName,
+        objectName,
+        options,
+        writeConditions,
+        objectMetadata);
     setContentType(contentType);
   }
 

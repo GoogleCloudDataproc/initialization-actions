@@ -50,6 +50,7 @@ import org.slf4j.LoggerFactory;
  */
 public class GoogleCloudStorageReadChannel
     implements SeekableByteChannel {
+
   // Defaults kept here for legacy compatibility; see GoogleCloudStorageReadOptions for details.
   public static final int DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS =
       GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS;
@@ -62,13 +63,18 @@ public class GoogleCloudStorageReadChannel
   public static final int DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS =
       GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS;
 
+  // Logger.
+  private static final Logger LOG = LoggerFactory.getLogger(GoogleCloudStorageReadChannel.class);
+
+  private static enum FileEncoding {
+    UNINITIALIZED,
+    GZIPPED,
+    OTHER
+  }
+
   // Size of buffer to allocate for skipping bytes in-place when performing in-place seeks.
   @VisibleForTesting
   static final int SKIP_BUFFER_SIZE = 8192;
-
-  // Logger.
-  private static final Logger LOG =
-      LoggerFactory.getLogger(GoogleCloudStorageReadChannel.class);
 
   // Used to separate elements of a Content-Range
   private static final Pattern SLASH = Pattern.compile("/");
@@ -143,12 +149,6 @@ public class GoogleCloudStorageReadChannel
   // greater than the size of the response during the validation of the position.
   private FileEncoding fileEncoding = FileEncoding.UNINITIALIZED;
 
-  private static enum FileEncoding {
-    UNINITIALIZED,
-    GZIPPED,
-    OTHER
-  }
-
   /**
    * Constructs an instance of GoogleCloudStorageReadChannel.
    *
@@ -200,13 +200,13 @@ public class GoogleCloudStorageReadChannel
     this.objectName = objectName;
     this.errorExtractor = errorExtractor;
     this.readOptions = readOptions;
-    channelIsOpen = true;
+    this.channelIsOpen = true;
     position(0);
 
     if (!readOptions.getSupportContentEncoding()) {
       // If we don't need to support nonstandard content-encodings, we'll just proceed assuming
       // the content-encoding is the standard/safe FileEncoding.OTHER.
-      fileEncoding = FileEncoding.OTHER;
+      this.fileEncoding = FileEncoding.OTHER;
     }
   }
 
@@ -234,7 +234,7 @@ public class GoogleCloudStorageReadChannel
     this.clientRequestHelper = null;
     this.errorExtractor = null;
     this.readOptions = readOptions;
-    channelIsOpen = true;
+    this.channelIsOpen = true;
     position(0);
   }
 
@@ -637,7 +637,7 @@ public class GoogleCloudStorageReadChannel
    * @throws IOException on IO error.
    */
   protected StorageObject getMetadata() throws IOException {
-    Storage.Objects.Get getObject = gcs.objects().get(bucketName, objectName);
+    Storage.Objects.Get getObject = createRequest();
     try {
       return ResilientOperation.retry(
           ResilientOperation.getGoogleRequestCallable(getObject),
@@ -715,7 +715,7 @@ public class GoogleCloudStorageReadChannel
       fileEncoding = getEncoding(metadata);
     }
     validatePosition(newPosition);
-    Storage.Objects.Get getObject = gcs.objects().get(bucketName, objectName);
+    Storage.Objects.Get getObject = createRequest();
     // Set the range on the existing request headers that may have been initialized with things
     // like user-agent already. If the file is gzip encoded, request the entire file.
     clientRequestHelper
@@ -778,6 +778,10 @@ public class GoogleCloudStorageReadChannel
       throw e;
     }
     return content;
+  }
+
+  protected Storage.Objects.Get createRequest() throws IOException {
+    return gcs.objects().get(bucketName, objectName);
   }
 
   /**

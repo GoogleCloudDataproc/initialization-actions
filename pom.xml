@@ -113,6 +113,7 @@
     <google.findbugs.version>3.0.2</google.findbugs.version>
     <!-- Guava recommends to use Android flavor for Java 7 compatibility -->
     <google.guava.version>24.0-android</google.guava.version>
+    <google.auto-value.version>1.5.3</google.auto-value.version>
     <google.truth.version>0.39</google.truth.version>
     <hadoop.one.version>1.2.1</hadoop.one.version>
     <hadoop.two.version>2.8.2</hadoop.two.version>
@@ -273,6 +274,12 @@
         <artifactId>guava-testlib</artifactId>
         <scope>test</scope>
         <version>${google.guava.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.auto.value</groupId>
+        <artifactId>auto-value</artifactId>
+        <version>${google.auto-value.version}</version>
+        <scope>provided</scope>
       </dependency>
       <dependency>
         <groupId>joda-time</groupId>

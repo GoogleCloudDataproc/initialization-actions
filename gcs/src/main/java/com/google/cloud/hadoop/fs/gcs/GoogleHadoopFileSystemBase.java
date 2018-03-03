@@ -16,7 +16,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
-import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions.REQUESTER_PAYS_MODE_DEFAULT;
+import static com.google.cloud.hadoop.util.RequesterPaysOptions.REQUESTER_PAYS_MODE_DEFAULT;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
@@ -24,7 +24,6 @@ import com.google.cloud.hadoop.gcsio.DirectoryListCache;
 import com.google.cloud.hadoop.gcsio.FileInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions.RequesterPaysMode;
 import com.google.cloud.hadoop.gcsio.PathCodec;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.EntriesCredentialConfiguration;
@@ -32,6 +31,8 @@ import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.HadoopVersionInfo;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
 import com.google.cloud.hadoop.util.PropertyUtil;
+import com.google.cloud.hadoop.util.RequesterPaysOptions;
+import com.google.cloud.hadoop.util.RequesterPaysOptions.RequesterPaysMode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -2220,22 +2221,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     LOG.debug("{} = {}", GCS_PROJECT_ID_KEY, projectId);
     optionsBuilder.getCloudStorageOptionsBuilder().setProjectId(projectId);
 
-    RequesterPaysMode requesterPaysMode =
-        config.getEnum(GCS_REQUESTER_PAYS_MODE_KEY, REQUESTER_PAYS_MODE_DEFAULT);
-    LOG.debug("{} = {}", GCS_REQUESTER_PAYS_MODE_KEY, requesterPaysMode);
-    optionsBuilder.getCloudStorageOptionsBuilder().setRequesterPaysMode(requesterPaysMode);
-
-    String requesterPaysProjectId = config.get(GCS_REQUESTER_PAYS_PROJECT_ID_KEY);
-    LOG.debug("{} = {}", GCS_REQUESTER_PAYS_PROJECT_ID_KEY, requesterPaysProjectId);
-    optionsBuilder
-        .getCloudStorageOptionsBuilder()
-        .setRequesterPaysProjectId(requesterPaysProjectId);
-
-    Collection<String> requesterPaysBuckets =
-        config.getStringCollection(GCS_REQUESTER_PAYS_BUCKETS_KEY);
-    LOG.debug("{} = {}", GCS_REQUESTER_PAYS_BUCKETS_KEY, requesterPaysBuckets);
-    optionsBuilder.getCloudStorageOptionsBuilder().setRequesterPaysBuckets(requesterPaysBuckets);
-
     long maxListItemsPerCall =
         config.getLong(GCS_MAX_LIST_ITEMS_PER_CALL, GCS_MAX_LIST_ITEMS_PER_CALL_DEFAULT);
     LOG.debug("{} = {}", GCS_MAX_LIST_ITEMS_PER_CALL, maxListItemsPerCall);
@@ -2312,6 +2297,29 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
         .setInferImplicitDirectoriesEnabled(enableInferImplicitDirectories)
         .setListCachingEnabled(listCachingEnabled);
 
+    optionsBuilder
+        .getCloudStorageOptionsBuilder()
+        .setRequesterPaysOptions(getRequesterPaysOptions(config, projectId));
+
     return optionsBuilder;
+  }
+
+  private RequesterPaysOptions getRequesterPaysOptions(Configuration config, String projectId) {
+    RequesterPaysMode requesterPaysMode =
+        config.getEnum(GCS_REQUESTER_PAYS_MODE_KEY, REQUESTER_PAYS_MODE_DEFAULT);
+    LOG.debug("{} = {}", GCS_REQUESTER_PAYS_MODE_KEY, requesterPaysMode);
+
+    String requesterPaysProjectId = config.get(GCS_REQUESTER_PAYS_PROJECT_ID_KEY);
+    LOG.debug("{} = {}", GCS_REQUESTER_PAYS_PROJECT_ID_KEY, requesterPaysProjectId);
+
+    Collection<String> requesterPaysBuckets =
+        config.getStringCollection(GCS_REQUESTER_PAYS_BUCKETS_KEY);
+    LOG.debug("{} = {}", GCS_REQUESTER_PAYS_BUCKETS_KEY, requesterPaysBuckets);
+
+    return RequesterPaysOptions.builder()
+        .setMode(requesterPaysMode)
+        .setProjectId(requesterPaysProjectId == null ? projectId : requesterPaysProjectId)
+        .setBuckets(requesterPaysBuckets)
+        .build();
   }
 }

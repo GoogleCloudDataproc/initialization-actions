@@ -16,7 +16,6 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -26,6 +25,7 @@ import com.google.api.client.http.ByteArrayContent;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpTransport;
+import com.google.api.client.http.InputStreamContent;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.util.BackOff;
@@ -39,10 +39,11 @@ import com.google.api.services.storage.model.Buckets;
 import com.google.api.services.storage.model.ComposeRequest;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions.RequesterPaysMode;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
+import com.google.cloud.hadoop.util.RequesterPaysOptions;
+import com.google.cloud.hadoop.util.RequesterPaysOptions.RequesterPaysMode;
 import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.cloud.hadoop.util.RetryHttpInitializer;
@@ -247,11 +248,6 @@ public class GoogleCloudStorageImpl
     }
   }
 
-  @Override
-  public GoogleCloudStorageOptions getOptions() {
-    return storageOptions;
-  }
-
   @VisibleForTesting
   protected GoogleCloudStorageImpl() {
     this.storageOptions = GoogleCloudStorageOptions.newBuilder().build();
@@ -286,11 +282,6 @@ public class GoogleCloudStorageImpl
   }
 
   @VisibleForTesting
-  GoogleCloudStorageOptions getStorageOptions() {
-    return this.storageOptions;
-  }
-
-  @VisibleForTesting
   void setSleeper(Sleeper sleeper) {
     this.sleeper = sleeper;
   }
@@ -298,6 +289,11 @@ public class GoogleCloudStorageImpl
   @VisibleForTesting
   void setBackOffFactory(BackOffFactory factory) {
     backOffFactory = factory;
+  }
+
+  @Override
+  public GoogleCloudStorageOptions getOptions() {
+    return storageOptions;
   }
 
   @Override
@@ -388,16 +384,24 @@ public class GoogleCloudStorageImpl
 
     Map<String, String> rewrittenMetadata = encodeMetadata(options.getMetadata());
 
-    GoogleCloudStorageWriteChannel channel = new GoogleCloudStorageWriteChannel(
-        threadPool,
-        gcs,
-        clientRequestHelper,
-        resourceId.getBucketName(),
-        resourceId.getObjectName(),
-        storageOptions.getWriteChannelOptions(),
-        writeConditions,
-        rewrittenMetadata,
-        options.getContentType());
+    GoogleCloudStorageWriteChannel channel =
+        new GoogleCloudStorageWriteChannel(
+            threadPool,
+            gcs,
+            clientRequestHelper,
+            resourceId.getBucketName(),
+            resourceId.getObjectName(),
+            storageOptions.getWriteChannelOptions(),
+            writeConditions,
+            rewrittenMetadata,
+            options.getContentType()) {
+
+          @Override
+          public Storage.Objects.Insert createRequest(InputStreamContent inputStream)
+              throws IOException {
+            return configureRequest(super.createRequest(inputStream), resourceId.getBucketName());
+          }
+        };
 
     channel.initialize();
 
@@ -578,7 +582,13 @@ public class GoogleCloudStorageImpl
         resourceId.getObjectName(),
         errorExtractor,
         clientRequestHelper,
-        readOptions);
+        readOptions) {
+
+      @Override
+      protected Storage.Objects.Get createRequest() throws IOException {
+        return configureRequest(super.createRequest(), resourceId.getBucketName());
+      }
+    };
   }
 
   /**
@@ -1951,29 +1961,29 @@ public class GoogleCloudStorageImpl
 
   private <RequestT extends StorageRequest<?>> RequestT configureRequest(
       RequestT request, String bucketName) {
-    setUserProject(request, bucketName);
+    setRequesterPaysProject(request, bucketName);
     return request;
   }
 
-  private <RequestT extends StorageRequest<?>> void setUserProject(
+  private <RequestT extends StorageRequest<?>> void setRequesterPaysProject(
       RequestT request, String bucketName) {
-    if (bucketName == null || storageOptions.getRequesterPaysMode() == RequesterPaysMode.DISABLED) {
+    RequesterPaysOptions requesterPaysOptions = storageOptions.getRequesterPaysOptions();
+    if (bucketName == null || requesterPaysOptions.getMode() == RequesterPaysMode.DISABLED) {
       return;
     }
 
+    if (requesterPaysOptions.getMode() == RequesterPaysMode.ENABLED
+        || (requesterPaysOptions.getMode() == RequesterPaysMode.CUSTOM
+            && requesterPaysOptions.getBuckets().contains(bucketName))) {
+      setUserProject(request, requesterPaysOptions.getProjectId());
+    }
+  }
+
+  private static <RequestT extends StorageRequest<?>> void setUserProject(
+      RequestT request, String projectId) {
     Field userProjectField = request.getClassInfo().getField(USER_PROJECT_FIELD_NAME);
-    if (userProjectField == null) {
-      return;
-    }
-
-    if (storageOptions.getRequesterPaysMode() == RequesterPaysMode.ENABLED
-        || (storageOptions.getRequesterPaysMode() == RequesterPaysMode.CUSTOM
-            && storageOptions.getRequesterPaysBuckets().contains(bucketName))) {
-      String userProject =
-          firstNonNull(storageOptions.getRequesterPaysProjectId(), storageOptions.getProjectId());
-      if (userProject != null) {
-        request.set(USER_PROJECT_FIELD_NAME, userProject);
-      }
+    if (userProjectField != null) {
+      request.set(USER_PROJECT_FIELD_NAME, projectId);
     }
   }
 }
