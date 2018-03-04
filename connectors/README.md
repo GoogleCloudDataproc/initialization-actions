@@ -4,7 +4,7 @@ This initialization action installs specified versions of [BigQuery and Google C
 on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
 
 ## Using this initialization action
-You can use this initialization to create a new Dataproc cluster with specific BigQuery and/or GCS connectors installed.
+You can use this initialization to create a new Dataproc cluster with specific versions of BigQuery and/or GCS connectors installed.
 
 ```
 gcloud dataproc clusters create <CLUSTER_NAME> \
