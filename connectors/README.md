@@ -17,7 +17,7 @@ To specify connector version, find the needed released connector versions from t
 [BigQuery and GCS connectors releases page](https://github.com/GoogleCloudPlatform/bigdata-interop/releases),
 and set one or both metadata keys `gcs-connector-version` and/or `bigquery-connector-version`.
 If version is set only for one connector (BigQuery or GCS) then only this connector will be installed, but both old BigQuery and GCS connectors will be removed.
-If both versions are set then both connectors will be installed, and in this case coneectors versions should be from the same [release](https://github.com/GoogleCloudPlatform/bigdata-interop/releases).
+If both versions are set then both connectors will be installed, and in this case connectors versions should be from the same [release](https://github.com/GoogleCloudPlatform/bigdata-interop/releases).
 
 For example, for BigQuery connector 0.11.0 and GCS connector 1.7.0:
 ```
