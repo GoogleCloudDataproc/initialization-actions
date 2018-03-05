@@ -22,10 +22,28 @@
 # Cloud Dataproc Image Version information:
 # https://cloud.google.com/dataproc/concepts/dataproc-versions
 
-set -x -e
+set -euxo pipefail
+
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  return 1
+}
+
+function update_apt_get() {
+  for ((i = 0; i < 10; i++)); do
+    if apt-get update; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
+
+update_apt_get
 
 # Install the hive-hcatalog package
-apt-get -q -y install hive-hcatalog
+apt-get -q -y install hive-hcatalog || err 'Failed to install hive-hcatalog'
 
 # Configure Pig to use HCatalog
 cat >>/etc/pig/conf/pig-env.sh <<EOF
