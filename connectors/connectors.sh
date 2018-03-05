@@ -26,7 +26,7 @@ validate_version() {
   fi
 }
 
-upload_connector() {
+download_connector() {
   local name=$1    # connector name: "bigquery" or "gcs"
   local version=$2 # connector version
   if [[ $version ]]; then
@@ -51,5 +51,5 @@ fi
 
 rm -f ${VM_CONNECTORS_DIR}/{gcs,bigquery}-connector-*
 
-upload_connector "bigquery" "$BIGQUERY_CONNECTOR_VERSION"
-upload_connector "gcs" "$GCS_CONNECTOR_VERSION"
+download_connector "bigquery" "$BIGQUERY_CONNECTOR_VERSION"
+download_connector "gcs" "$GCS_CONNECTOR_VERSION"
