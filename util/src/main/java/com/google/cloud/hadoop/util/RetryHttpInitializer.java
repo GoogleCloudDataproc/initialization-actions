@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.google.cloud.hadoop.util;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -37,9 +36,9 @@ import org.apache.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class RetryHttpInitializer
-    implements HttpRequestInitializer {
-  // HTTP status code indicating too many requests in a given amount of time.
+public class RetryHttpInitializer implements HttpRequestInitializer {
+
+  /** HTTP status code indicating too many requests in a given amount of time. */
   public static final int STATUS_CODE_TOO_MANY_REQUESTS = 429;
 
   // Logger.
@@ -69,6 +68,7 @@ public class RetryHttpInitializer
    */
   private static class LoggingResponseHandler
       implements HttpUnsuccessfulResponseHandler, HttpIOExceptionHandler {
+
     private final HttpUnsuccessfulResponseHandler delegateResponseHandler;
     private final HttpIOExceptionHandler delegateIOExceptionHandler;
     private final ImmutableSet<Integer> responseCodesToLog;
@@ -93,8 +93,9 @@ public class RetryHttpInitializer
         HttpRequest httpRequest, HttpResponse httpResponse, boolean supportsRetry)
         throws IOException {
       if (responseCodesToLog.contains(httpResponse.getStatusCode())) {
-        LOG.info("Encountered status code {} when accessing URL {}. "
-            + "Delegating to response handler for possible retry.",
+        LOG.info(
+            "Encountered status code {} when accessing URL {}. "
+                + "Delegating to response handler for possible retry.",
             httpResponse.getStatusCode(),
             httpRequest.getUrl());
       }
@@ -146,29 +147,33 @@ public class RetryHttpInitializer
         // If credential decides it can handle it, the return code or message indicated something
         // specific to authentication, and no backoff is desired.
         return true;
-      } else if (delegateHandler.handleResponse(request, response, supportsRetry)) {
+      }
+
+      if (delegateHandler.handleResponse(request, response, supportsRetry)) {
         // Otherwise, we defer to the judgement of our internal backoff handler.
         return true;
-      } else if (HttpStatusCodes.isRedirect(response.getStatusCode())
-                 && request.getFollowRedirects()
-                 && response.getHeaders() != null
-                 && response.getHeaders().getLocation() != null) {
+      }
+
+      if (HttpStatusCodes.isRedirect(response.getStatusCode())
+          && request.getFollowRedirects()
+          && response.getHeaders() != null
+          && response.getHeaders().getLocation() != null) {
         // Hack: Reach in and fix any '+' in the URL but still report 'false'. The client library
         // incorrectly tries to decode '+' into ' ', even though the backend servers treat '+'
         // as a legitimate path character, and so do not encode it. This is safe to do whether
         // or not the client library fixes the bug, since %2B will correctly be decoded as '+'
         // even after the fix.
         String redirectLocation = response.getHeaders().getLocation();
-        if (redirectLocation.indexOf('+') != -1) {
-          String escapedLocation = redirectLocation.replaceAll("\\+", "%2B");
-          LOG.debug("Redirect path '{}' contains unescaped '+', replacing with '%2B': '{}'",
-                    redirectLocation, escapedLocation);
+        if (redirectLocation.contains("+")) {
+          String escapedLocation = redirectLocation.replace("+", "%2B");
+          LOG.debug(
+              "Redirect path '{}' contains unescaped '+', replacing with '%2B': '{}'",
+              redirectLocation, escapedLocation);
           response.getHeaders().setLocation(escapedLocation);
         }
-        return false;
-      } else {
-        return false;
       }
+
+      return false;
     }
   }
 
@@ -179,7 +184,7 @@ public class RetryHttpInitializer
    *     if the HttpRequest doesn't already have a user-agent header.
    */
   public RetryHttpInitializer(Credential credential, String defaultUserAgent) {
-    Preconditions.checkArgument(credential != null, "A valid Credential is required");
+    Preconditions.checkNotNull(credential, "A valid Credential is required");
     this.credential = credential;
     this.sleeperOverride = null;
     this.defaultUserAgent = defaultUserAgent;
@@ -201,9 +206,11 @@ public class RetryHttpInitializer
     // Supply a new composite handler for unsuccessful return codes. 401 Unauthorized will be
     // handled by the Credential, 410 Gone will be logged, and 5XX will be handled by a backoff
     // handler.
-    LoggingResponseHandler loggingResponseHandler = new LoggingResponseHandler(
-        new CredentialOrBackoffResponseHandler(), exceptionHandler,
-        ImmutableSet.of(HttpStatus.SC_GONE, HttpStatus.SC_SERVICE_UNAVAILABLE));
+    LoggingResponseHandler loggingResponseHandler =
+        new LoggingResponseHandler(
+            new CredentialOrBackoffResponseHandler(),
+            exceptionHandler,
+            ImmutableSet.of(HttpStatus.SC_GONE, HttpStatus.SC_SERVICE_UNAVAILABLE));
     request.setUnsuccessfulResponseHandler(loggingResponseHandler);
     request.setIOExceptionHandler(loggingResponseHandler);
 

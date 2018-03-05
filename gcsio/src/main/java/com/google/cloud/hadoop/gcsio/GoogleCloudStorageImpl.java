@@ -67,6 +67,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -203,7 +205,7 @@ public class GoogleCloudStorageImpl
    */
   public GoogleCloudStorageImpl(GoogleCloudStorageOptions options, Credential credential)
       throws IOException {
-    Preconditions.checkArgument(options != null, "options must not be null");
+    Preconditions.checkNotNull(options, "options must not be null");
 
     LOG.debug("GCS({})", options.getAppName());
 
@@ -211,7 +213,7 @@ public class GoogleCloudStorageImpl
 
     this.storageOptions = options;
 
-    Preconditions.checkArgument(credential != null, "credential must not be null");
+    Preconditions.checkNotNull(credential, "credential must not be null");
 
     this.httpRequestInitializer = new RetryHttpInitializer(credential, options.getAppName());
 
@@ -231,7 +233,7 @@ public class GoogleCloudStorageImpl
    * @param gcs Preconstructed Storage to use for I/O.
    */
   public GoogleCloudStorageImpl(GoogleCloudStorageOptions options, Storage gcs) {
-    Preconditions.checkArgument(options != null, "options must not be null");
+    Preconditions.checkNotNull(options, "options must not be null");
 
     LOG.debug("GCS({})", options.getAppName());
 
@@ -239,11 +241,11 @@ public class GoogleCloudStorageImpl
 
     this.storageOptions = options;
 
-    Preconditions.checkArgument(gcs != null, "gcs must not be null");
+    Preconditions.checkNotNull(gcs, "gcs must not be null");
 
     this.gcs = gcs;
 
-    if (gcs != null && gcs.getRequestFactory() != null) {
+    if (gcs.getRequestFactory() != null) {
       this.httpRequestInitializer = gcs.getRequestFactory().getInitializer();
     }
   }
@@ -297,7 +299,7 @@ public class GoogleCloudStorageImpl
   }
 
   @Override
-  public WritableByteChannel create(StorageResourceId resourceId, CreateObjectOptions options)
+  public WritableByteChannel create(final StorageResourceId resourceId, CreateObjectOptions options)
       throws IOException {
     LOG.debug("create({})", resourceId);
     Preconditions.checkArgument(
@@ -412,13 +414,50 @@ public class GoogleCloudStorageImpl
    * See {@link GoogleCloudStorage#create(StorageResourceId)} for details about expected behavior.
    */
   @Override
-  public WritableByteChannel create(StorageResourceId resourceId)
-      throws IOException {
+  public WritableByteChannel create(StorageResourceId resourceId) throws IOException {
     LOG.debug("create({})", resourceId);
     Preconditions.checkArgument(
         resourceId.isStorageObject(), "Expected full StorageObject id, got %s", resourceId);
 
     return create(resourceId, CreateObjectOptions.DEFAULT);
+  }
+
+  /** See {@link GoogleCloudStorage#create(String)} for details about expected behavior. */
+  @Override
+  public void create(String bucketName) throws IOException {
+    create(bucketName, CreateBucketOptions.DEFAULT);
+  }
+
+  /**
+   * See {@link GoogleCloudStorage#create(String, CreateBucketOptions)} for details about expected
+   * behavior.
+   */
+  @Override
+  public void create(String bucketName, CreateBucketOptions options) throws IOException {
+    LOG.debug("create({})", bucketName);
+    Preconditions.checkArgument(
+        !Strings.isNullOrEmpty(bucketName), "bucketName must not be null or empty");
+    checkNotNull(options, "options must not be null");
+    checkNotNull(storageOptions.getProjectId(), "projectId must not be null");
+
+    Bucket bucket = new Bucket();
+    bucket.setName(bucketName);
+    bucket.setLocation(options.getLocation());
+    bucket.setStorageClass(options.getStorageClass());
+    Storage.Buckets.Insert insertBucket =
+        configureRequest(gcs.buckets().insert(storageOptions.getProjectId(), bucket), bucketName);
+    // TODO(user): To match the behavior of throwing FileNotFoundException for 404, we probably
+    // want to throw org.apache.commons.io.FileExistsException for 409 here.
+    try {
+      ResilientOperation.retry(
+          ResilientOperation.getGoogleRequestCallable(insertBucket),
+          backOffFactory.newBackOff(),
+          rateLimitedRetryDeterminer,
+          IOException.class,
+          sleeper);
+    } catch (InterruptedException e) {
+      throw new IOException(e); // From sleep
+    }
   }
 
   @Override
@@ -468,8 +507,8 @@ public class GoogleCloudStorageImpl
     }
 
     // Gather exceptions to wrap in a composite exception at the end.
-    final List<IOException> innerExceptions =
-        Collections.synchronizedList(new ArrayList<IOException>());
+    final Set<IOException> innerExceptions =
+        Collections.newSetFromMap(new ConcurrentHashMap<IOException, Boolean>());
     final CountDownLatch latch = new CountDownLatch(resourceIds.size());
     for (final StorageResourceId resourceId : resourceIds) {
       final Storage.Objects.Insert insertObject = prepareEmptyInsert(resourceId, options);
@@ -554,12 +593,10 @@ public class GoogleCloudStorageImpl
     return open(resourceId, GoogleCloudStorageReadOptions.DEFAULT);
   }
 
-  /**
-   * See {@link GoogleCloudStorage#open(StorageResourceId)} for details about expected behavior.
-   */
+  /** See {@link GoogleCloudStorage#open(StorageResourceId)} for details about expected behavior. */
   @Override
   public SeekableByteChannel open(
-      StorageResourceId resourceId, GoogleCloudStorageReadOptions readOptions)
+      final StorageResourceId resourceId, GoogleCloudStorageReadOptions readOptions)
       throws IOException {
     LOG.debug("open({}, {})", resourceId, readOptions);
     Preconditions.checkArgument(
@@ -589,49 +626,6 @@ public class GoogleCloudStorageImpl
         return configureRequest(super.createRequest(), resourceId.getBucketName());
       }
     };
-  }
-
-  /**
-   * See {@link GoogleCloudStorage#create(String)} for details about expected
-   * behavior.
-   */
-  @Override
-  public void create(String bucketName)
-      throws IOException {
-    create(bucketName, CreateBucketOptions.DEFAULT);
-  }
-
-  /**
-   * See {@link GoogleCloudStorage#create(String, CreateBucketOptions)} for
-   * details about expected behavior.
-   */
-  @Override
-  public void create(String bucketName, CreateBucketOptions options)
-      throws IOException {
-    LOG.debug("create({})", bucketName);
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(bucketName),
-        "bucketName must not be null or empty");
-    checkNotNull(options, "options must not be null");
-    checkNotNull(storageOptions.getProjectId(), "projectId must not be null");
-
-    Bucket bucket = new Bucket();
-    bucket.setName(bucketName);
-    bucket.setLocation(options.getLocation());
-    bucket.setStorageClass(options.getStorageClass());
-    Storage.Buckets.Insert insertBucket =
-        configureRequest(gcs.buckets().insert(storageOptions.getProjectId(), bucket), bucketName);
-    // TODO(user): To match the behavior of throwing FileNotFoundException for 404, we probably
-    // want to throw org.apache.commons.io.FileExistsException for 409 here.
-    try {
-      ResilientOperation.retry(
-          ResilientOperation.getGoogleRequestCallable(insertBucket),
-          backOffFactory.newBackOff(),
-          rateLimitedRetryDeterminer,
-          IOException.class,
-          sleeper);
-    } catch (InterruptedException e) {
-      throw new IOException(e);  // From sleep
-    }
   }
 
   /**
@@ -1946,11 +1940,11 @@ public class GoogleCloudStorageImpl
                                 .setContentType(options.getContentType())
                                 .setMetadata(encodeMetadata(options.getMetadata())))),
             destination.getBucketName());
-    if (destination.hasGenerationId()) {
-      compose.setIfGenerationMatch(destination.getGenerationId());
-    } else {
-      compose.setIfGenerationMatch(getWriteGeneration(destination, true));
-    }
+
+    compose.setIfGenerationMatch(
+        destination.hasGenerationId()
+            ? destination.getGenerationId()
+            : getWriteGeneration(destination, true));
 
     LOG.debug("composeObjects.execute()");
     GoogleCloudStorageItemInfo compositeInfo =

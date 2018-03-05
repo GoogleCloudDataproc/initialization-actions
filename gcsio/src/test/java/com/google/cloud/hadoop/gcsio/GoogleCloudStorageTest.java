@@ -1811,15 +1811,9 @@ public class GoogleCloudStorageTest {
         .thenReturn(false);
 
     // First time is the notFoundException.
-    try {
-      SeekableByteChannel readChannel1 = gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-      fail("Expected FileNotFoundException");
-    } catch (FileNotFoundException e) {
-      // Expected.
-    } catch (Exception e) {
-      // Make the test output a little more friendly in case the exception class differs.
-      fail("Expected FileNotFoundException, got " + e.getClass().getName());
-    }
+    assertThrows(
+        FileNotFoundException.class,
+        () -> gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME)));
 
     // Second time is the rangeNotSatisfiableException.
     SeekableByteChannel readChannel2 = gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
@@ -1911,6 +1905,7 @@ public class GoogleCloudStorageTest {
         .thenThrow(new IOException("Fake exception"));
     when(mockErrorExtractor.rateLimited(any(IOException.class))).thenReturn(false);
 
+    // TODO(user): Switch to testing for FileExistsException once implemented.
     assertThrows(IOException.class, () -> gcs.create(BUCKET_NAME));
 
     verify(mockStorage).buckets();
@@ -4177,9 +4172,9 @@ public class GoogleCloudStorageTest {
 
     optionsBuilder.setAppName("appName");
 
-    // Verify that gcs == null throws IllegalArgumentException.
+    // Verify that gcs == null throws NullPointerException.
     assertThrows(
-        IllegalArgumentException.class,
+        NullPointerException.class,
         () -> new GoogleCloudStorageImpl(optionsBuilder.build(), (Storage) null));
   }
 

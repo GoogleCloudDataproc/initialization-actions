@@ -99,7 +99,7 @@ public class RetryHttpInitializerTest {
   @Test
   public void testConstructorNullCredential() {
     assertThrows(
-        IllegalArgumentException.class, () -> new RetryHttpInitializer(null, "foo-user-agent"));
+        NullPointerException.class, () -> new RetryHttpInitializer(null, "foo-user-agent"));
   }
 
   @Test
