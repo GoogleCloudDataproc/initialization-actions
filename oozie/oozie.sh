@@ -40,65 +40,64 @@ function err() {
 }
 
 function main() {
-# Determine the role of this node
-local role=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
-
-# Only run on the master node of the cluster
-if [[ "${role}" == 'Master' ]]; then
-  install_oozie
-fi
+  # Determine the role of this node
+  local role=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
+  # Only run on the master node of the cluster
+  if [[ "${role}" == 'Master' ]]; then
+    install_oozie
+  fi
 }
 
 function install_oozie(){
-# Upgrade the repository and install Oozie
-update_apt_get || err 'Failed to update apt-get'
-apt-get install oozie oozie-client -y || err 'Unable to install oozie-client'
+  # Upgrade the repository and install Oozie
+  update_apt_get || err 'Failed to update apt-get'
+  apt-get install oozie oozie-client -y || err 'Unable to install oozie-client'
 
-# The ext library is needed to enable the Oozie web console
-wget http://archive.cloudera.com/gplextras/misc/ext-2.2.zip || err 'Unable to download ext-2.2.zip'
-unzip ext-2.2.zip
-ln -s ext-2.2 /var/lib/oozie/ext-2.2/ext-2.2
+  # The ext library is needed to enable the Oozie web console
+  wget http://archive.cloudera.com/gplextras/misc/ext-2.2.zip || err 'Unable to download ext-2.2.zip'
+  unzip ext-2.2.zip
+  ln -s ext-2.2 /var/lib/oozie/ext-2.2/ext-2.2
 
-# Create the Oozie database
-sudo -u oozie /usr/lib/oozie/bin/ooziedb.sh create -run
+  # Create the Oozie database
+  sudo -u oozie /usr/lib/oozie/bin/ooziedb.sh create -run
 
-# Hadoop must allow impersonation for Oozie to work properly
-bdconfig set_property \
-  --configuration_file 'core-site-patch.xml' \
-  --name 'hadoop.proxyuser.oozie.hosts' --value '*' \
-  --clobber \
-  || err 'Unable to set hadoop.proxyuser.oozie.hosts'
-bdconfig set_property \
-  --configuration_file 'core-site-patch.xml' \
-  --name 'hadoop.proxyuser.oozie.groups' --value '*' \
-  --clobber \
-  || err 'Unable to set hadoop.proxyuser.oozie.groups'
-bdconfig set_property \
-  --configuration_file 'core-site-patch.xml' \
-  --name 'hadoop.proxyuser.${user.name}.hosts' --value '*' \
-  --clobber \
-  || err 'Unable to set hadoop.proxyuser.${user.name}.hosts'
-bdconfig set_property \
-  --configuration_file 'core-site-patch.xml' \
-  --name 'hadoop.proxyuser.${user.name}.groups' --value '*' \
-  --clobber \
-  || err 'hadoop.proxyuser.${user.name}.groups'
-sed -i '/<\/configuration>/e cat core-site-patch.xml' \
-  /etc/hadoop/conf/core-site.xml
+  # Hadoop must allow impersonation for Oozie to work properly
+  bdconfig set_property \
+    --configuration_file 'core-site-patch.xml' \
+    --name 'hadoop.proxyuser.oozie.hosts' --value '*' \
+    --clobber \
+    || err 'Unable to set hadoop.proxyuser.oozie.hosts'
+  bdconfig set_property \
+    --configuration_file 'core-site-patch.xml' \
+    --name 'hadoop.proxyuser.oozie.groups' --value '*' \
+    --clobber \
+    || err 'Unable to set hadoop.proxyuser.oozie.groups'
+  bdconfig set_property \
+    --configuration_file 'core-site-patch.xml' \
+    --name 'hadoop.proxyuser.${user.name}.hosts' --value '*' \
+    --clobber \
+    || err 'Unable to set hadoop.proxyuser.${user.name}.hosts'
+  bdconfig set_property \
+    --configuration_file 'core-site-patch.xml' \
+    --name 'hadoop.proxyuser.${user.name}.groups' --value '*' \
+    --clobber \
+    || err 'hadoop.proxyuser.${user.name}.groups'
+  sed -i '/<\/configuration>/e cat core-site-patch.xml' \
+    /etc/hadoop/conf/core-site.xml
 
-# Install share lib
-tar -xvzf /usr/lib/oozie/oozie-sharelib.tar.gz
-ln -s share /usr/lib/oozie/share
-hadoop fs -mkdir -p /user/oozie/
-hadoop fs -put share/ /user/oozie/
+  # Install share lib
+  tar -xvzf /usr/lib/oozie/oozie-sharelib.tar.gz
+  ln -s share /usr/lib/oozie/share
+  hadoop fs -mkdir -p /user/oozie/
+  hadoop fs -put share/ /user/oozie/
 
-# Clean up temporary fles
-rm -rf ext-2.2 ext-2.2.zip core-site-patch.xml share oozie-sharelib.tar.gz
+  # Clean up temporary fles
+  rm -rf ext-2.2 ext-2.2.zip core-site-patch.xml share oozie-sharelib.tar.gz
 
-# HDFS and YARN must be cycled; restart to clean things up
-systemctl restart hadoop-hdfs-namenode hadoop-hdfs-secondarynamenode \
-  hadoop-yarn-resourcemanager oozie \
-  || err 'HDFS and YARN restart actions failed'
+  # HDFS and YARN must be cycled; restart to clean things up
+  systemctl restart hadoop-hdfs-namenode hadoop-hdfs-secondarynamenode \
+    hadoop-yarn-resourcemanager oozie \
+    || err 'HDFS and YARN restart actions failed'
 }
 
 main
