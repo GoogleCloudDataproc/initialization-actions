@@ -25,11 +25,11 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
-import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.List;
+import org.junit.AfterClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -40,7 +40,20 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class GoogleCloudStorageImplTest {
 
-  TestBucketHelper bucketHelper = new TestBucketHelper("gcs_impl");
+  private static final TestBucketHelper BUCKET_HELPER = new TestBucketHelper("gcs-impl");
+
+  @AfterClass
+  public static void afterAll() throws IOException {
+    BUCKET_HELPER.cleanup(
+        makeStorage(GoogleCloudStorageTestHelper.getStandardOptionBuilder().build()));
+  }
+
+  private static GoogleCloudStorageImpl makeStorage(GoogleCloudStorageOptions options)
+      throws IOException {
+    Credential credential = GoogleCloudStorageTestHelper.getCredential();
+    return new GoogleCloudStorageImpl(options, credential);
+  }
+
   protected GoogleCloudStorageImpl makeStorageWithBufferSize(int bufferSize) throws IOException {
     GoogleCloudStorageOptions.Builder builder =
         GoogleCloudStorageTestHelper.getStandardOptionBuilder();
@@ -48,9 +61,7 @@ public class GoogleCloudStorageImplTest {
     builder.getWriteChannelOptionsBuilder()
         .setUploadBufferSize(bufferSize);
 
-    Credential credential = GoogleCloudStorageTestHelper.getCredential();
-
-    return new GoogleCloudStorageImpl(builder.build(), credential);
+    return makeStorage(builder.build());
   }
 
   protected GoogleCloudStorageImpl makeStorageWithMarkerFileCreation(
@@ -60,9 +71,7 @@ public class GoogleCloudStorageImplTest {
 
     builder.setCreateMarkerObjects(createMarkerFiles);
 
-    Credential credential = GoogleCloudStorageTestHelper.getCredential();
-
-    return new GoogleCloudStorageImpl(builder.build(), credential);
+    return makeStorage(builder.build());
   }
 
   protected GoogleCloudStorageImpl makeStorageWithInferImplicit()
@@ -73,162 +82,113 @@ public class GoogleCloudStorageImplTest {
     builder.setAutoRepairImplicitDirectoriesEnabled(false);
     builder.setInferImplicitDirectoriesEnabled(true);
 
-    Credential credential = GoogleCloudStorageTestHelper.getCredential();
-
-    return new GoogleCloudStorageImpl(builder.build(), credential);
+    return makeStorage(builder.build());
   }
 
   @Test
   public void testReadAndWriteLargeObjectWithSmallBuffer() throws IOException {
-    String bucketName = bucketHelper.getUniqueBucketName("write_large_obj");
+    String bucketName = BUCKET_HELPER.getUniqueBucketName("write-large-obj");
     StorageResourceId resourceId = new StorageResourceId(bucketName, "LargeObject");
 
     GoogleCloudStorageImpl gcs = makeStorageWithBufferSize(1 * 1024 * 1024);
 
-    try {
-      gcs.create(bucketName);
-      GoogleCloudStorageTestHelper.readAndWriteLargeObject(resourceId, gcs);
-
-    } finally {
-      GoogleCloudStorageTestHelper.cleanupTestObjects(
-          gcs,
-          ImmutableList.of(bucketName),
-          ImmutableList.of(resourceId));
-    }
+    gcs.create(bucketName);
+    GoogleCloudStorageTestHelper.readAndWriteLargeObject(resourceId, gcs);
   }
 
   @Test
   public void testNonAlignedWriteChannelBufferSize() throws IOException {
-    String bucketName = bucketHelper.getUniqueBucketName("write_3m_buff_obj");
+    String bucketName = BUCKET_HELPER.getUniqueBucketName("write-3m-buff-obj");
     StorageResourceId resourceId = new StorageResourceId(bucketName, "LargeObject");
 
     GoogleCloudStorageImpl gcs = makeStorageWithBufferSize(3 * 1024 * 1024);
 
-    try {
-      gcs.create(bucketName);
-      GoogleCloudStorageTestHelper.readAndWriteLargeObject(resourceId, gcs);
-
-    } finally {
-      GoogleCloudStorageTestHelper.cleanupTestObjects(
-          gcs,
-          ImmutableList.of(bucketName),
-          ImmutableList.of(resourceId));
-    }
+    gcs.create(bucketName);
+    GoogleCloudStorageTestHelper.readAndWriteLargeObject(resourceId, gcs);
   }
 
   @Test
   public void testConflictingWritesWithMarkerFiles() throws IOException {
-    String bucketName = bucketHelper.getUniqueBucketName("with_marker");
+    String bucketName = BUCKET_HELPER.getUniqueBucketName("with-marker");
     StorageResourceId resourceId = new StorageResourceId(bucketName, "obj1");
 
     GoogleCloudStorageImpl gcs = makeStorageWithMarkerFileCreation(true);
 
-    try {
-      gcs.create(bucketName);
-      byte[] bytesToWrite = new byte[1024];
-      GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
-      WritableByteChannel byteChannel1 = gcs.create(resourceId, new CreateObjectOptions(false));
-      byteChannel1.write(ByteBuffer.wrap(bytesToWrite));
+    gcs.create(bucketName);
+    byte[] bytesToWrite = new byte[1024];
+    GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
+    WritableByteChannel byteChannel1 = gcs.create(resourceId, new CreateObjectOptions(false));
+    byteChannel1.write(ByteBuffer.wrap(bytesToWrite));
 
-      // This call should fail:
-      Throwable thrown =
-          assertThrows(
-              Throwable.class, () -> gcs.create(resourceId, new CreateObjectOptions(false)));
-      assertThat(thrown).hasMessageThat().contains("already exists");
-    } finally {
-      GoogleCloudStorageTestHelper.cleanupTestObjects(
-          gcs,
-          ImmutableList.of(bucketName),
-          ImmutableList.of(resourceId));
-    }
+    // This call should fail:
+    Throwable thrown =
+        assertThrows(Throwable.class, () -> gcs.create(resourceId, new CreateObjectOptions(false)));
+    assertThat(thrown).hasMessageThat().contains("already exists");
   }
 
   @Test
   public void testConflictingWritesWithoutMarkerFiles() throws IOException {
-    String bucketName = bucketHelper.getUniqueBucketName("without_marker");
+    String bucketName = BUCKET_HELPER.getUniqueBucketName("without-marker");
     StorageResourceId resourceId = new StorageResourceId(bucketName, "obj1");
 
     GoogleCloudStorageImpl gcs = makeStorageWithMarkerFileCreation(false);
 
-    try {
-      gcs.create(bucketName);
-      byte[] bytesToWrite = new byte[1024];
-      GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
-      WritableByteChannel byteChannel1 = gcs.create(resourceId, new CreateObjectOptions(false));
-      byteChannel1.write(ByteBuffer.wrap(bytesToWrite));
+    gcs.create(bucketName);
+    byte[] bytesToWrite = new byte[1024];
+    GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
+    WritableByteChannel byteChannel1 = gcs.create(resourceId, new CreateObjectOptions(false));
+    byteChannel1.write(ByteBuffer.wrap(bytesToWrite));
 
-      // Creating this channel should succeed. Only when we close will an error bubble up.
-      WritableByteChannel byteChannel2 = gcs.create(resourceId, new CreateObjectOptions(false));
+    // Creating this channel should succeed. Only when we close will an error bubble up.
+    WritableByteChannel byteChannel2 = gcs.create(resourceId, new CreateObjectOptions(false));
 
-      byteChannel1.close();
+    byteChannel1.close();
 
-      // Closing byte channel2 should fail:
-      Throwable thrown = assertThrows(Throwable.class, () -> byteChannel2.close());
-      assertThat(thrown).hasMessageThat().contains("412 Precondition Failed");
-    } finally {
-      GoogleCloudStorageTestHelper.cleanupTestObjects(
-          gcs,
-          ImmutableList.of(bucketName),
-          ImmutableList.of(resourceId));
-    }
+    // Closing byte channel2 should fail:
+    Throwable thrown = assertThrows(Throwable.class, () -> byteChannel2.close());
+    assertThat(thrown).hasMessageThat().contains("412 Precondition Failed");
   }
 
   @Test
   public void testInferImplicitDirectories() throws IOException {
-    String bucketName = bucketHelper.getUniqueBucketName("infer_implicit");
+    String bucketName = BUCKET_HELPER.getUniqueBucketName("infer-implicit");
     StorageResourceId resourceId = new StorageResourceId(bucketName, "d0/o1");
 
     GoogleCloudStorageImpl gcs = makeStorageWithInferImplicit();
 
-    try {
-      gcs.create(bucketName);
-      gcs.createEmptyObject(resourceId);
+    gcs.create(bucketName);
+    gcs.createEmptyObject(resourceId);
 
-      GoogleCloudStorageItemInfo itemInfo =
-          gcs.getItemInfo(new StorageResourceId(bucketName, "d0/"));
-      assertThat(itemInfo.exists()).isFalse();
+    GoogleCloudStorageItemInfo itemInfo = gcs.getItemInfo(new StorageResourceId(bucketName, "d0/"));
+    assertThat(itemInfo.exists()).isFalse();
 
-       List<GoogleCloudStorageItemInfo> d0ItemInfo =
-           gcs.listObjectInfo(bucketName, "d0/", "/");
-      assertWithMessage("d0 length").that(d0ItemInfo.size()).isEqualTo(1);
-
-    } finally {
-      GoogleCloudStorageTestHelper.cleanupTestObjects(
-          gcs,
-          ImmutableList.of(bucketName),
-          ImmutableList.of(resourceId));
-    }
+    List<GoogleCloudStorageItemInfo> d0ItemInfo = gcs.listObjectInfo(bucketName, "d0/", "/");
+    assertWithMessage("d0 length").that(d0ItemInfo.size()).isEqualTo(1);
   }
 
   @Test
   public void testCreateCorrectlySetsContentType() throws IOException {
     GoogleCloudStorageOptions.Builder builder =
         GoogleCloudStorageTestHelper.getStandardOptionBuilder();
-    Credential credential = GoogleCloudStorageTestHelper.getCredential();
-    GoogleCloudStorageImpl gcs = new GoogleCloudStorageImpl(builder.build(), credential);
+    GoogleCloudStorageImpl gcs = makeStorage(builder.build());
 
-    String bucketName = bucketHelper.getUniqueBucketName("my_bucket");
+    String bucketName = BUCKET_HELPER.getUniqueBucketName("my-bucket");
     StorageResourceId resourceId1 = new StorageResourceId(bucketName, "obj1");
     StorageResourceId resourceId2 = new StorageResourceId(bucketName, "obj2");
     StorageResourceId resourceId3 = new StorageResourceId(bucketName, "obj3");
 
-    try {
-      gcs.create(bucketName);
-      gcs.createEmptyObject(resourceId1,
-          new CreateObjectOptions(true, "text/plain", CreateObjectOptions.EMPTY_METADATA));
-      gcs.create(resourceId2,
-          new CreateObjectOptions(true, "image/png", CreateObjectOptions.EMPTY_METADATA)).close();
-      gcs.create(resourceId3).close(); // default content-type: "application/octet-stream"
+    gcs.create(bucketName);
+    gcs.createEmptyObject(
+        resourceId1,
+        new CreateObjectOptions(true, "text/plain", CreateObjectOptions.EMPTY_METADATA));
+    gcs.create(
+            resourceId2,
+            new CreateObjectOptions(true, "image/png", CreateObjectOptions.EMPTY_METADATA))
+        .close();
+    gcs.create(resourceId3).close(); // default content-type: "application/octet-stream"
 
-      assertThat(gcs.getItemInfo(resourceId1).getContentType()).isEqualTo("text/plain");
-      assertThat(gcs.getItemInfo(resourceId2).getContentType()).isEqualTo("image/png");
-      assertThat(gcs.getItemInfo(resourceId3).getContentType())
-          .isEqualTo("application/octet-stream");
-    } finally {
-      GoogleCloudStorageTestHelper.cleanupTestObjects(
-          gcs,
-          ImmutableList.of(bucketName),
-          ImmutableList.of(resourceId1, resourceId2, resourceId3));
-    }
+    assertThat(gcs.getItemInfo(resourceId1).getContentType()).isEqualTo("text/plain");
+    assertThat(gcs.getItemInfo(resourceId2).getContentType()).isEqualTo("image/png");
+    assertThat(gcs.getItemInfo(resourceId3).getContentType()).isEqualTo("application/octet-stream");
   }
 }

@@ -82,27 +82,6 @@ public class GoogleCloudStorageTestHelper {
     return builder;
   }
 
-  public static void cleanupTestObjects(
-      GoogleCloudStorage gcs,
-      List<String> bucketNames,
-      List<StorageResourceId> resources) throws IOException {
-    List<StorageResourceId> objectsToDelete = new ArrayList<>();
-    List<String> bucketsToDelete = new ArrayList<>(bucketNames);
-    for (StorageResourceId resource : resources) {
-      if (resource.isBucket()) {
-        bucketsToDelete.add(resource.getBucketName());
-      } else {
-        objectsToDelete.add(resource);
-      }
-    }
-    gcs.deleteObjects(objectsToDelete);
-    try {
-      gcs.deleteBuckets(bucketsToDelete);
-    } catch (IOException ioe) {
-      // We'll cleanup again in @After
-    }
-  }
-
   /**
    * More efficient version of checking byte arrays than using Assert.assertArrayEquals.
    */
