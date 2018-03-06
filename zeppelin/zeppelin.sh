@@ -116,7 +116,7 @@ Description=Zeppelin Notebook
 
 [Service]
 Type=simple
-ExecStart=/usr/lib/zeppelin/bin/zeppelin-daemon.sh upstart
+ExecStart=/usr/lib/zeppelin/bin/zeppelin-daemon.sh restart
 ExecStop=/usr/lib/zeppelin/bin/zeppelin-daemon.sh stop
 Restart=on-failure
 
