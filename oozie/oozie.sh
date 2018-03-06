@@ -37,6 +37,7 @@ function update_apt_get() {
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  return 1
 }
 
 function main() {
@@ -56,32 +57,29 @@ function install_oozie(){
   # The ext library is needed to enable the Oozie web console
   wget http://archive.cloudera.com/gplextras/misc/ext-2.2.zip || err 'Unable to download ext-2.2.zip'
   unzip ext-2.2.zip
-  ln -s ext-2.2 /var/lib/oozie/ext-2.2/ext-2.2
+  ln -s ext-2.2 /var/lib/oozie/ext-2.2 || err 'Unable to create symbolic link'
 
   # Create the Oozie database
   sudo -u oozie /usr/lib/oozie/bin/ooziedb.sh create -run
-
   # Hadoop must allow impersonation for Oozie to work properly
-  bdconfig set_property \
-    --configuration_file 'core-site-patch.xml' \
-    --name 'hadoop.proxyuser.oozie.hosts' --value '*' \
-    --clobber \
-    || err 'Unable to set hadoop.proxyuser.oozie.hosts'
-  bdconfig set_property \
-    --configuration_file 'core-site-patch.xml' \
-    --name 'hadoop.proxyuser.oozie.groups' --value '*' \
-    --clobber \
-    || err 'Unable to set hadoop.proxyuser.oozie.groups'
-  bdconfig set_property \
-    --configuration_file 'core-site-patch.xml' \
-    --name 'hadoop.proxyuser.${user.name}.hosts' --value '*' \
-    --clobber \
-    || err 'Unable to set hadoop.proxyuser.${user.name}.hosts'
-  bdconfig set_property \
-    --configuration_file 'core-site-patch.xml' \
-    --name 'hadoop.proxyuser.${user.name}.groups' --value '*' \
-    --clobber \
-    || err 'hadoop.proxyuser.${user.name}.groups'
+  cat > core-site-patch.xml <<'EOF'
+<property>
+  <name>hadoop.proxyuser.oozie.hosts</name>
+  <value>*</value>
+</property>
+<property>
+  <name>hadoop.proxyuser.oozie.groups</name>
+  <value>*</value>
+</property>
+<property>
+  <name>hadoop.proxyuser.${user.name}.hosts</name>
+  <value>*</value>
+</property>
+<property>
+  <name>hadoop.proxyuser.${user.name}.groups</name>
+  <value>*</value>
+</property>
+EOF
   sed -i '/<\/configuration>/e cat core-site-patch.xml' \
     /etc/hadoop/conf/core-site.xml
 
@@ -96,8 +94,7 @@ function install_oozie(){
 
   # HDFS and YARN must be cycled; restart to clean things up
   systemctl restart hadoop-hdfs-namenode hadoop-hdfs-secondarynamenode \
-    hadoop-yarn-resourcemanager oozie \
-    || err 'HDFS and YARN restart actions failed'
+    hadoop-yarn-resourcemanager oozie
 }
 
 main
