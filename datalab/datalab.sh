@@ -24,9 +24,12 @@ readonly SPARK_PACKAGES="$(/usr/share/google/get_metadata_value attributes/spark
 readonly SPARK_CONF='/etc/spark/conf/spark-defaults.conf'
 readonly DATALAB_DIR="${HOME}/datalab"
 readonly PYTHONPATH="/env/python:$(find /usr/lib/spark/python/lib -name '*.zip' | paste -sd:)"
+readonly DOCKER_IMAGE="$(/usr/share/google/get_metadata_value attributes/docker-image || \
+  echo 'gcr.io/cloud-datalab/datalab:local')"
 
-DOCKER_IMAGE="$(/usr/share/google/get_metadata_value attributes/docker-image || true)"
-
+# Expose every possible spark configuration to the container.
+readonly VOLUMES="$(echo /etc/{hadoop*,hive*,*spark*} /usr/lib/hadoop/lib/{gcs,bigquery}*)"
+readonly VOLUME_FLAGS="$(echo "${VOLUMES}" | sed 's/\S*/-v &:&/g')"
 
 function update_apt_get() {
   for ((i = 0; i < 10; i++)); do
@@ -43,24 +46,13 @@ function err() {
   return 1
 }
 
-if [[ "${ROLE}" == 'Master' ]]; then
+function configure_master(){
   update_apt_get || err 'Failed to update apt-get'
   mkdir -p "${DATALAB_DIR}"
 
-  apt-get install -y -q docker.io
-  if [ $? != 0 ]; then
-    err 'Failed to install Docker'
-  fi
+  apt-get install -y -q docker.io || err 'Failed to install Docker'
 
-  if [[ -z "${DOCKER_IMAGE}" ]]; then
-    DOCKER_IMAGE="gcr.io/cloud-datalab/datalab:local"
-  fi
-  readonly DOCKER_IMAGE
-
-  gcloud docker -- pull ${DOCKER_IMAGE}
-  if [ $? != 0 ]; then
-    err 'Failed to pull ${DOCKER_IMAGE}'
-  fi
+  gcloud docker -- pull ${DOCKER_IMAGE} || err "Failed to pull ${DOCKER_IMAGE}"
 
   # For some reason Spark has issues resolving the user's directory inside of
   # Datalab.
@@ -68,12 +60,6 @@ if [[ "${ROLE}" == 'Master' ]]; then
   if ! grep -q '^spark\.sql\.warehouse\.dir=' "${SPARK_CONF}"; then
     echo 'spark.sql.warehouse.dir=/root/spark-warehouse' >> "${SPARK_CONF}"
   fi
-
-  # Expose every possible spark configuration to the container.
-  VOLUMES=$(echo /etc/{hadoop*,hive*,*spark*} /usr/lib/hadoop/lib/{gcs,bigquery}*)
-  VOLUME_FLAGS=$(echo "${VOLUMES}" | sed 's/\S*/-v &:&/g')
-  readonly VOLUME_FLAGS
-  echo "VOLUME_FLAGS: ${VOLUME_FLAGS}"
 
   # Docker gives a "too many symlinks" error if volumes are not yet automounted.
   # Ensure that the volumes are mounted to avoid the error.
@@ -113,11 +99,22 @@ EOF
   docker build -t datalab-pyspark .
   popd
 
+}
+
+function run_datalab(){
   if docker run -d --restart always --net=host \
-      -v "${DATALAB_DIR}:/content/datalab" ${VOLUME_FLAGS} \
-      datalab-pyspark; then
+      -v "${DATALAB_DIR}:/content/datalab" ${VOLUME_FLAGS} datalab-pyspark; then
     echo 'Cloud Datalab Jupyter server successfully deployed.'
   else
     err 'Failed to run Cloud Datalab'
   fi
-fi
+}
+
+function main(){
+  if [[ "${ROLE}" == 'Master' ]]; then
+    configure_master
+    run_datalab
+  fi
+}
+
+main
