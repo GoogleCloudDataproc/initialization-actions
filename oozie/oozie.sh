@@ -35,28 +35,34 @@ function update_apt_get() {
   return 1
 }
 
-# Determine the role of this node
-ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  return 1
+}
 
-# Only run on the master node of the cluster
-if [[ "${ROLE}" != 'Master' ]]; then
-  exit 0
-fi
+function main() {
+  # Determine the role of this node
+  local role=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
+  # Only run on the master node of the cluster
+  if [[ "${role}" == 'Master' ]]; then
+    install_oozie
+  fi
+}
 
-# Upgrade the repository and install Oozie
-update_apt_get
-apt-get install oozie oozie-client -y
+function install_oozie(){
+  # Upgrade the repository and install Oozie
+  update_apt_get || err 'Failed to update apt-get'
+  apt-get install oozie oozie-client -y || err 'Unable to install oozie-client'
 
-# The ext library is needed to enable the Oozie web console
-wget http://archive.cloudera.com/gplextras/misc/ext-2.2.zip
-unzip ext-2.2.zip
-cp -ax ext-2.2 /var/lib/oozie/ext-2.2
+  # The ext library is needed to enable the Oozie web console
+  wget http://archive.cloudera.com/gplextras/misc/ext-2.2.zip || err 'Unable to download ext-2.2.zip'
+  unzip ext-2.2.zip
+  ln -s ext-2.2 /var/lib/oozie/ext-2.2 || err 'Unable to create symbolic link'
 
-# Create the Oozie database
-sudo -u oozie /usr/lib/oozie/bin/ooziedb.sh create -run
-
-# Hadoop must allow impersonation for Oozie to work properly
-cat > core-site-patch.xml <<'EOF'
+  # Create the Oozie database
+  sudo -u oozie /usr/lib/oozie/bin/ooziedb.sh create -run
+  # Hadoop must allow impersonation for Oozie to work properly
+  cat > core-site-patch.xml <<'EOF'
 <property>
   <name>hadoop.proxyuser.oozie.hosts</name>
   <value>*</value>
@@ -74,18 +80,21 @@ cat > core-site-patch.xml <<'EOF'
   <value>*</value>
 </property>
 EOF
-sed -i '/<\/configuration>/e cat core-site-patch.xml' \
+  sed -i '/<\/configuration>/e cat core-site-patch.xml' \
     /etc/hadoop/conf/core-site.xml
 
-# Install share lib
-tar -xvzf /usr/lib/oozie/oozie-sharelib.tar.gz
-cp -ax share /usr/lib/oozie/
-hadoop fs -mkdir -p /user/oozie/
-hadoop fs -put share/ /user/oozie/
+  # Install share lib
+  tar -xvzf /usr/lib/oozie/oozie-sharelib.tar.gz
+  ln -s share /usr/lib/oozie/share
+  hadoop fs -mkdir -p /user/oozie/
+  hadoop fs -put share/ /user/oozie/
 
-# Clean up temporary fles
-rm -rf ext-2.2 ext-2.2.zip core-site-patch.xml share oozie-sharelib.tar.gz
+  # Clean up temporary fles
+  rm -rf ext-2.2 ext-2.2.zip core-site-patch.xml share oozie-sharelib.tar.gz
 
-# HDFS and YARN must be cycled; restart to clean things up
-systemctl restart hadoop-hdfs-namenode hadoop-hdfs-secondarynamenode \
+  # HDFS and YARN must be cycled; restart to clean things up
+  systemctl restart hadoop-hdfs-namenode hadoop-hdfs-secondarynamenode \
     hadoop-yarn-resourcemanager oozie
+}
+
+main
