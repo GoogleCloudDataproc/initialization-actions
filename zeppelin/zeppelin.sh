@@ -103,27 +103,10 @@ function configure_zeppelin(){
 
 function launch_zeppelin(){
   # Start Zeppelin as systemd job
-
-  cat << EOF > ${INIT_SCRIPT}
-[Unit]
-Description=Zeppelin Notebook
-
-[Service]
-Type=simple
-ExecStart=/usr/lib/zeppelin/bin/zeppelin-daemon.sh upstart
-ExecStop=/usr/lib/zeppelin/bin/zeppelin-daemon.sh stop
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-  chmod a+rw ${INIT_SCRIPT}
-
   systemctl daemon-reload
-  systemctl enable zeppelin-notebook
-  systemctl start zeppelin-notebook
-  systemctl status zeppelin-notebook
+  systemctl enable zeppelin
+  systemctl start zeppelin
+  systemctl status zeppelin
 }
 
 function main() {
