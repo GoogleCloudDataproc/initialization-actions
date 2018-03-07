@@ -1,30 +1,25 @@
-# BigQuery and Google Cloud Storage connectors
+# Google Cloud Storage and BigQuery connectors
 
-This initialization action installs specified versions of [BigQuery and Google Cloud Storage connectors](https://github.com/GoogleCloudPlatform/bigdata-interop)
-on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
+This initialization action installs specified versions of Google Cloud Storage connector and updates BigQuery connector
+to the matching version from the same [release](https://github.com/GoogleCloudPlatform/bigdata-interop) on a
+[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
 
 ## Using this initialization action
-You can use this initialization action to create a new Dataproc cluster with specific versions of BigQuery and/or GCS connectors installed.
-
+You can use this initialization action to create a new Dataproc cluster with specific version of GCS connector installed:
 ```
 gcloud dataproc clusters create <CLUSTER_NAME> \
     --initialization-actions gs://dataproc-initialization-actions/connectors/connectors.sh \
     --metadata 'gcs-connector-version=1.7.0'
 ```
 
-This script downloads specified versions of BigQuery and/or GCS connectors.
-To specify connector version, find the needed released connector versions from the
-[BigQuery and GCS connectors releases page](https://github.com/GoogleCloudPlatform/bigdata-interop/releases),
-and set one or both metadata keys `gcs-connector-version` and/or `bigquery-connector-version`.
-If version is set only for one connector (BigQuery or GCS) then only this connector will be installed, but both old BigQuery and GCS connectors will be removed.
-If both versions are set then both connectors will be installed, and in this case connectors versions should be from the same [release](https://github.com/GoogleCloudPlatform/bigdata-interop/releases).
+This script downloads specified versions of GCS connector and matching version of BigQuery connector (if BigQuery connector was installed before) from the same [release](https://github.com/GoogleCloudPlatform/bigdata-interop/releases).
 
-For example, for BigQuery connector 0.11.0 and GCS connector 1.7.0:
-```
-gcloud dataproc clusters create <CLUSTER_NAME> \
-    --initialization-actions gs://dataproc-initialization-actions/connectors/connectors.sh \
-    --metadata 'bigquery-connector-version=0.11.0' 
-    --metadata 'gcs-connector-version=1.7.0'
-```
+To specify connector version, find the needed released GCS connector version from the
+[connectors releases page](https://github.com/GoogleCloudPlatform/bigdata-interop/releases),
+and set it as `gcs-connector-version` metadata key value.
+
+If cluster already has BigQuery connector installed then it will be updated together with GCS connector.
+
+For example, if GCS connector 1.7.0 version will be specified then BigQuery connector will be updated to 0.11.0 version, because they are from the same [release](https://github.com/GoogleCloudPlatform/bigdata-interop/releases).
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
