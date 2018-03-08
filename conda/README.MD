@@ -61,9 +61,11 @@ CONDA_ENV_YAML=$CONDA_ENV_YAML_PATH ./install-conda-env.sh
 ### bootstrap-conda.sh
 
 `bootstrap-conda.sh` contains logic for quickly configuring and installing Miniconda across the dataproc cluster. Defaults to [`Miniconda3-latest-Linux-x86_64.sh`](https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh) package (e.g., Python 3), however, users can easily config for targeted versions via the following instance metadata keys:
-    - `MINICONDA_VARIANT`: the Python version can be `2` or `3`
-    - `MINICONDA_VER`: the Miniconda version (e.g., `4.0.5`)
+- `MINICONDA_VARIANT`: the Python version can be `2` or `3`
+- `MINICONDA_VER`: the Miniconda version (e.g., `4.0.5`)
+
 In addition, the script:
+
 - downloads and installs Miniconda to the `$HOME` directory
 - updates `$PATH`, exposing conda across all shell processes (for both interactive and batch sessions)
 - installs some useful extensions:
@@ -80,12 +82,12 @@ See the script source for more options on configuration. :)
 - detects if conda environment has already been created.
 - updates `/etc/profile` to activate the created environment at login (if needed)
 
-Note: When creating a conda environment using an environment.yml (via setting .yml path in `CONDA_ENV_YAML`), the `install-conda-env.sh` script simply *updates the **root** environment* with dependencies specified in the file (i.e., ignoring the `name:` key). This sidesteps some conda issues in `source activate`ing, while still providing all dependencies across the Dataproc cluster.
+Note: When creating a conda environment using an environment.yml (via setting .yml path in `CONDA_ENV_YAML`), the `install-conda-env.sh` script simply *updates the **root** environment* with dependencies specified in the file (i.e., ignoring the `name:` key). This sidesteps some conda issues with `source activate`, while still providing all dependencies across the Dataproc cluster.
 
 
 ## Testing Installation
 
-A quick test to ensure a correct installation of conda, we can submit jobs that collect distinct paths to the Python distribution across all Spark executors. For both local (e.g., running from dataproc cluster master node) and remote (e.g. submitting a job via the dataproc API) jobs, the result should be a list with a single path: `['/opt/conda/bin/python']`. For example
+A quick test to ensure a correct installation of conda, we can submit jobs that collect distinct paths to the Python distribution across all Spark executors. For both local (e.g., running from dataproc cluster master node) and remote (e.g. submitting a job via the dataproc API) jobs, the result should be a list with a single path: `['/opt/conda/bin/python']`. For example:
 
 
 ### Local Job Test

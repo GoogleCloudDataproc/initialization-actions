@@ -37,11 +37,18 @@ else
     fi
     ## specify Miniconda release (e.g., MINICONDA_VERSION='4.0.5')
     if [[ -z "${MINICONDA_VERSION}" ]]; then
-        echo "MINICONDA_VERSION not set, setting ..."
-        # Pin to 4.2.12 by default until Spark default is 2.2.0.
-        # https://issues.apache.org/jira/browse/SPARK-19019
+      # Pin to 4.2.12 by default until Spark default is 2.2.0, then use latest
+      # https://issues.apache.org/jira/browse/SPARK-19019
+      MIN_SPARK_VERSION="2.2.0"
+      SPARK_VERSION=`spark-submit --version 2>&1  | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\.[0-9]\+\+\).*/\1/p' | head -n1`
+      if dpkg --compare-versions ${SPARK_VERSION} ge ${MIN_SPARK_VERSION}; then
+        echo "MINICONDA_VERSION not set, Spark version >= ${MIN_SPARK_VERSION}, setting Miniconda version to latest ..."
+        MINICONDA_VERSION='latest'
+      else
+        echo "MINICONDA_VERSION not set, Spark version < ${MIN_SPARK_VERSION}, setting Miniconda to 4.2.12 ..."
         MINICONDA_VERSION='4.2.12'
-        set "Set MINICONDA_VERSION to $MINICONDA_VERSION"
+      fi
+      set "Set MINICONDA_VERSION to $MINICONDA_VERSION"
     fi
 
     ## 0.2 Compute Miniconda version
