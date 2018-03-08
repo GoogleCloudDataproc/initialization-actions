@@ -25,6 +25,7 @@ readonly TEZ_JARS='/usr/lib/tez'
 readonly TEZ_CONF_DIR='/etc/tez/conf'
 readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
 readonly HIVE_CONF_DIR='/etc/hive/conf'
+readonly SPARK_CONF_DIR='/etc/spark/conf'
 
 function update_apt_get() {
   for ((i = 0; i < 10; i++)); do
@@ -142,7 +143,7 @@ function main() {
 
   # Let spark continue using the existing hive configuration, as it will
   # not want to use hive on tez.
-  cp /etc/hive/conf/* /etc/spark/conf/
+  cp ${HIVE_CONF_DIR}/* ${SPARK_CONF_DIR}/
   # Remove lines containing /etc/hive/conf from spark-env.sh
   sudo sed -i '\#CLASSPATH=.*/etc/hive/conf#d' /etc/spark/conf/spark-env.sh
 
