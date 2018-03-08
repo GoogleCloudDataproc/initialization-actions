@@ -31,7 +31,7 @@ update_connector() {
   local version=$2 # connector version
   if [[ $version ]]; then
     # validate new connector version
-    validate_version "${name}" "$BIGQUERY_CONNECTOR_VERSION"
+    validate_version "$name" "$version"
 
     # remove old connector
     rm -f "${VM_CONNECTORS_DIR}/${name}-connector-*"
