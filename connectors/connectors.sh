@@ -34,7 +34,7 @@ update_connector() {
     validate_version "$name" "$version"
 
     # remove old connector
-    rm -f ${VM_CONNECTORS_DIR}/${name}-connector-*
+    rm -f "${VM_CONNECTORS_DIR}/${name}-connector-"*
 
     # download new connector
     local path=gs://hadoop-lib/${name}/${name}-connector-${version}-hadoop2.jar
