@@ -4,45 +4,45 @@ set -euxo pipefail
 
 VM_CONNECTORS_DIR=/usr/lib/hadoop/lib
 
-declare -A GCS_TO_BQ_VERSIONS_MAP
-GCS_TO_BQ_VERSIONS_MAP=(
-  ["1.7.0"]="0.11.0")
+declare -A MIN_CONNECTOR_VERSIONS
+MIN_CONNECTOR_VERSIONS=(
+  ["bigquery"]="0.11.0"
+  ["gcs"]="1.7.0")
 
+BIGQUERY_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/bigquery-connector-version || true)
 GCS_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/gcs-connector-version || true)
 
-validate_gcs_connector_version() {
-  local version=$1 # connector version
-  local -a valid_versions=("${!GCS_TO_BQ_VERSIONS_MAP[@]}")
-  if [[ $version ]] && [[ ! "${valid_versions[@]}" =~ "$version" ]]; then
-    local IFS=, # print versions concatenated by comma
-    echo "ERROR: gcs-connector version should be one of [${valid_versions[*]}], but was '$version'"
+min_version() {
+  echo -e "$1\n$2" | sort -r -t'.' -n -k1,1 -k2,2 -k3,3 | tail -n1
+}
+
+validate_version() {
+  local name=$1    # connector name: "bigquery" or "gcs"
+  local version=$2 # connector version
+  local min_valid_version=${MIN_CONNECTOR_VERSIONS[$name]}
+  if [[ $version ]] && [[ "$(min_version "$min_valid_version" "$version")" != "$min_valid_version" ]]; then
+    echo "ERROR: $name-connector version should be greater than or equal to $min_valid_version, but was $version"
     return 1
   fi
 }
 
-download_connector() {
+update_connector() {
   local name=$1    # connector name: "bigquery" or "gcs"
   local version=$2 # connector version
   if [[ $version ]]; then
+    rm -f "${VM_CONNECTORS_DIR}/${name}-connector-*"
     local path=gs://hadoop-lib/${name}/${name}-connector-${version}-hadoop2.jar
     gsutil cp "$path" "${VM_CONNECTORS_DIR}/"
   fi
 }
 
-if [[ -z $GCS_CONNECTOR_VERSION ]]; then
-  echo "ERROR: GCS connector versions not specified"
+if [[ -z $BIGQUERY_CONNECTOR_VERSION ]] && [[ -z $GCS_CONNECTOR_VERSION ]]; then
+  echo "ERROR: None of connector versions are specified"
   exit 1
 fi
 
-validate_gcs_connector_version "$GCS_CONNECTOR_VERSION"
+validate_version "bigquery" "$BIGQUERY_CONNECTOR_VERSION"
+validate_version "gcs" "$GCS_CONNECTOR_VERSION"
 
-BIGQUERY_CONNECTOR_VERSION=${GCS_TO_BQ_VERSIONS_MAP[$GCS_CONNECTOR_VERSION]}
-
-# Update BigQuery connector only if it already exists
-if compgen -G "${VM_CONNECTORS_DIR}/bigquery-connector-*" > /dev/null; then
-  rm -f ${VM_CONNECTORS_DIR}/bigquery-connector-*
-  download_connector "bigquery" "$BIGQUERY_CONNECTOR_VERSION"
-fi
-
-rm -f ${VM_CONNECTORS_DIR}/gcs-connector-*
-download_connector "gcs" "$GCS_CONNECTOR_VERSION"
+update_connector "bigquery" "$BIGQUERY_CONNECTOR_VERSION"
+update_connector "gcs" "$GCS_CONNECTOR_VERSION"
