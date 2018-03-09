@@ -7,6 +7,7 @@
        fs.gs.requester.pays.project.id (no default value)
        fs.gs.requester.pays.buckets (no default value)
 
+  2. Change relocation package in shaded jar to be connector-specific.
 
 1.7.0 - 2018-02-22
 

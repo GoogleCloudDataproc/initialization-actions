@@ -254,7 +254,7 @@
                 <relocations>
                   <relocation>
                     <pattern>com</pattern>
-                    <shadedPattern>com.google.cloud.hadoop.repackaged.com</shadedPattern>
+                    <shadedPattern>com.google.cloud.hadoop.repackaged.gcs.com</shadedPattern>
                     <includes>
                       <include>com.fasterxml.**</include>
                       <include>com.google.api.**</include>
@@ -265,7 +265,7 @@
                   </relocation>
                   <relocation>
                     <pattern>org</pattern>
-                    <shadedPattern>com.google.cloud.hadoop.repackaged.org</shadedPattern>
+                    <shadedPattern>com.google.cloud.hadoop.repackaged.gcs.org</shadedPattern>
                     <includes>
                       <include>org.apache.commons.codec.**</include>
                       <include>org.apache.http.**</include>

@@ -2,6 +2,7 @@
 
   1. POM updates for GCS connector 1.7.1.
 
+  2. Change relocation package in shaded jar to be connector-specific.
 
 0.11.0 - 2018-02-22
 
