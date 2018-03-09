@@ -1,4 +1,4 @@
-1.7.1 - 2018-XX-XX
+1.8.0 - 2018-XX-XX
 
   1. Support GCS Requester Pays feature that could be configured with new
      properties:
