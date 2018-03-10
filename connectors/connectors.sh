@@ -47,5 +47,15 @@ if [[ -z $BIGQUERY_CONNECTOR_VERSION ]] && [[ -z $GCS_CONNECTOR_VERSION ]]; then
   exit 1
 fi
 
+# because connectors from 1.7 branch are not compatible with previous connectors
+# versions (they have the same class relocation paths) we need to update both
+# of them, even if only one connector version is set
+if [[ -z $BIGQUERY_CONNECTOR_VERSION ]]  && [[ $GCS_CONNECTOR_VERSION = "1.7.0" ]]; then
+  BIGQUERY_CONNECTOR_VERSION="0.11.0"
+fi
+if [[ $BIGQUERY_CONNECTOR_VERSION = "0.11.0" ]]  && [[ -z $GCS_CONNECTOR_VERSION ]]; then
+  GCS_CONNECTOR_VERSION="1.7.0"
+fi
+
 update_connector "bigquery" "$BIGQUERY_CONNECTOR_VERSION"
 update_connector "gcs" "$GCS_CONNECTOR_VERSION"
