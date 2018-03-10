@@ -23,15 +23,25 @@ To specify connector version, find the needed released connector version on the
 and set it as the `gcs-connector-version` or `bigquery-connector-version` metadata key value.
 
 If only one connector version is specified (Google Cloud Storage or Bigquery) then only this connector
-will be updated.
+will be updated, but Google Cloud Storage connector 1.7.0 and BigQuery connector 0.11.0 are always
+updated together if only one of them is specified and another is not specified.
 
-For example, if Google Cloud Storage connector 1.7.0 version is specified and BigQuery connector version
-is not specified, then only Google Cloud Storage connector will be updated and BigQuery connector will be
-left intact:
+For example:
+ - if Google Cloud Storage connector 1.7.0 version is specified and BigQuery connector version is not
+ specified, then Google Cloud Storage connector will be updated to 1.7.0 and BigQuery connector will be
+ updated to 0.11.0:
 ```
 gcloud dataproc clusters create <CLUSTER_NAME> \
     --initialization-actions gs://dataproc-initialization-actions/connectors/connectors.sh \
     --metadata 'gcs-connector-version=1.7.0'
+```
+ - if Google Cloud Storage connector 1.8.0 version is specified and BigQuery connector version is not
+ specified, then only Google Cloud Storage connector will be updated and BigQuery connector will be
+ left intact:
+```
+gcloud dataproc clusters create <CLUSTER_NAME> \
+    --initialization-actions gs://dataproc-initialization-actions/connectors/connectors.sh \
+    --metadata 'gcs-connector-version=1.8.0'
 ```
 
 You can find more information about using initialization actions with Dataproc in the
