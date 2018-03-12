@@ -16,6 +16,8 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
+
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions.TimestampUpdatePredicate;
@@ -1535,35 +1537,29 @@ public class GoogleCloudStorageFileSystem {
   static String validateObjectName(String objectName, boolean allowEmptyObjectName) {
     LOG.debug("validateObjectName('{}', {})", objectName, allowEmptyObjectName);
 
-    String objectNameMessage = "Google Cloud Storage path must include non-empty object name.";
-
-    if (objectName == null) {
+    if (isNullOrEmpty(objectName) || objectName.equals(GoogleCloudStorage.PATH_DELIMITER)) {
       if (allowEmptyObjectName) {
         objectName = "";
       } else {
-        throw new IllegalArgumentException(objectNameMessage);
+        throw new IllegalArgumentException(
+            "Google Cloud Storage path must include non-empty object name.");
       }
     }
 
     // We want objectName to look like a traditional file system path,
     // therefore, disallow objectName with consecutive '/' chars.
     for (int i = 0; i < (objectName.length() - 1); i++) {
-      if (objectName.charAt(i) == '/') {
-        if (objectName.charAt(i + 1) == '/') {
-          throw new IllegalArgumentException(String.format(
-              "Google Cloud Storage path must not have consecutive '/' characters, got '%s'",
-              objectName));
-        }
+      if (objectName.charAt(i) == '/' && objectName.charAt(i + 1) == '/') {
+        throw new IllegalArgumentException(
+            String.format(
+                "Google Cloud Storage path must not have consecutive '/' characters, got '%s'",
+                objectName));
       }
     }
 
     // Remove leading '/' if it exists.
     if (objectName.startsWith(GoogleCloudStorage.PATH_DELIMITER)) {
       objectName = objectName.substring(1);
-    }
-
-    if ((objectName.length() == 0) && !allowEmptyObjectName) {
-      throw new IllegalArgumentException(objectNameMessage);
     }
 
     LOG.debug("validateObjectName -> '{}'", objectName);
