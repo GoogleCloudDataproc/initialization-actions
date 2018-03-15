@@ -108,12 +108,12 @@
     <apache.httpcomponents.version>4.0.1</apache.httpcomponents.version>
 
     <google.api.version>1.23.0</google.api.version>
-    <google.api-bigquery.version>v2-rev375-${google.api.version}</google.api-bigquery.version>
-    <google.api-storage.version>v1-rev120-${google.api.version}</google.api-storage.version>
+    <google.api-bigquery.version>v2-rev377-${google.api.version}</google.api-bigquery.version>
+    <google.api-storage.version>v1-rev122-${google.api.version}</google.api-storage.version>
+    <google.auto-value.version>1.5.4</google.auto-value.version>
     <google.findbugs.version>3.0.2</google.findbugs.version>
     <!-- Guava recommends to use Android flavor for Java 7 compatibility -->
-    <google.guava.version>24.0-android</google.guava.version>
-    <google.auto-value.version>1.5.3</google.auto-value.version>
+    <google.guava.version>24.1-android</google.guava.version>
     <google.truth.version>0.39</google.truth.version>
     <hadoop.one.version>1.2.1</hadoop.one.version>
     <hadoop.two.version>2.8.2</hadoop.two.version>
