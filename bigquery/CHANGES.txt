@@ -4,6 +4,9 @@
 
   2. Change relocation package in shaded jar to be connector-specific.
 
+  3. Min required Java version now is Java 8.
+
+
 0.11.0 - 2018-02-22
 
   1. Relocate all dependencies in shaded jar.

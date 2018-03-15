@@ -14,6 +14,8 @@
 
        fs.gs.marker.file.pattern
 
+  4. Min required Java version now is Java 8.
+
 
 1.7.0 - 2018-02-22
 

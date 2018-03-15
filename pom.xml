@@ -84,10 +84,8 @@
   </distributionManagement>
 
   <properties>
-    <build.java.source.version>7</build.java.source.version>
-    <build.java.target.version>7</build.java.target.version>
-    <build.java.testSource.version>8</build.java.testSource.version>
-    <build.java.testTarget.version>8</build.java.testTarget.version>
+    <build.java.source.version>8</build.java.source.version>
+    <build.java.target.version>8</build.java.target.version>
 
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
@@ -112,8 +110,7 @@
     <google.api-storage.version>v1-rev122-${google.api.version}</google.api-storage.version>
     <google.auto-value.version>1.5.4</google.auto-value.version>
     <google.findbugs.version>3.0.2</google.findbugs.version>
-    <!-- Guava recommends to use Android flavor for Java 7 compatibility -->
-    <google.guava.version>24.1-android</google.guava.version>
+    <google.guava.version>24.1-jre</google.guava.version>
     <google.truth.version>0.39</google.truth.version>
     <hadoop.one.version>1.2.1</hadoop.one.version>
     <hadoop.two.version>2.8.2</hadoop.two.version>
@@ -483,8 +480,6 @@
         <configuration>
           <source>${build.java.source.version}</source>
           <target>${build.java.target.version}</target>
-          <testSource>${build.java.testSource.version}</testSource>
-          <testTarget>${build.java.testTarget.version}</testTarget>
         </configuration>
       </plugin>
       <plugin>
