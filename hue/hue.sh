@@ -18,6 +18,7 @@ set -x -e
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  return 1
 }
 
 function update_apt_get() {
@@ -163,7 +164,7 @@ function main() {
     update_apt_get || err "Unable to update apt-get"
     install_hue_and_configure || err "Hue install process failed"
   else
-    exit 0 || err "Hue can be installed only on master node - skipped for worker node"
+    return 0 || err "Hue can be installed only on master node - skipped for worker node"
   fi
 }
 
