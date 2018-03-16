@@ -14,6 +14,8 @@
 
 package com.google.cloud.hadoop.gcsio.testing;
 
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
+
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
@@ -32,6 +34,7 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * InMemoryObjectEntry represents a GCS StorageObject in-memory by maintaining byte[] contents
@@ -195,6 +198,11 @@ public class InMemoryObjectEntry {
     copy.completedContents = completedContents;
     copy.writeStream = writeStream;
     copy.writeChannel = writeChannel;
+
+    // because currentTimeMillis() is not very precise
+    // we need to sleep to allow it to change between calls
+    sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
+
     copy.info =
         new GoogleCloudStorageItemInfo(
             new StorageResourceId(bucketName, objectName),
