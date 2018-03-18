@@ -12,7 +12,20 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-set -x -e
+#
+# This script installs Apache Tez (http://tez.apache.org) on a Google Cloud
+# Dataproc cluster.
+
+set -euxo pipefail
+
+readonly TEZ_VERSION='0.7.0'
+readonly PROTOBUF_VERSION='2.5.0'
+readonly TEZ_HDFS_PATH='/apps/tez'
+readonly TEZ_JARS='/usr/lib/tez'
+readonly TEZ_CONF_DIR='/etc/tez/conf'
+readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
+readonly HIVE_CONF_DIR='/etc/hive/conf'
+readonly SPARK_CONF_DIR='/etc/spark/conf'
 
 function update_apt_get() {
   for ((i = 0; i < 10; i++)); do
@@ -24,86 +37,82 @@ function update_apt_get() {
   return 1
 }
 
-#  Define important variables
-tez_version="0.7.0"
-protobuf_version="2.5.0"
-tez_hdfs_path="/apps/tez"
-tez_jars="/usr/lib/tez"
-tez_conf_dir="/etc/tez/conf"
-hadoop_conf_dir="/etc/hadoop/conf"
-hive_conf_dir="/etc/hive/conf"
-role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  return 1
+}
 
-# Let spark continue using the existing hive configuration, as it will
-# not want to use hive on tez.
-cp /etc/hive/conf/* /etc/spark/conf/
-# Remove lines containing /etc/hive/conf from spark-env.sh
-sudo sed -i '\#CLASSPATH=.*/etc/hive/conf#d' /etc/spark/conf/spark-env.sh
-
-if [[ "${role}" == 'Master' ]]; then
+function configure_master_node() {
   # Install Tez and YARN Application Timeline Server.
   # Install node/npm to run HTTP server for Tez UI.
-  curl -sL https://deb.nodesource.com/setup_8.x | bash -
-  update_apt_get
-  apt-get install tez hadoop-yarn-timelineserver nodejs -y
+  curl -sL 'https://deb.nodesource.com/setup_8.x' | bash - \
+    || err 'Failed to setup node 8.'
+  update_apt_get || err 'Unable to update packages lists.'
+  apt-get install tez hadoop-yarn-timelineserver nodejs -y \
+    || err 'Failed to install required packages.'
 
   # Stage Tez
-  hadoop fs -mkdir -p ${tez_hdfs_path}
-  hadoop fs -copyFromLocal ${tez_jars}/* ${tez_hdfs_path}/
+  hadoop fs -mkdir -p ${TEZ_HDFS_PATH}
+  hadoop fs -copyFromLocal ${TEZ_JARS}/* ${TEZ_HDFS_PATH}/ \
+    || err 'Unable to copy tez jars to hdfs destination.'
 
   # Update the hadoop-env.sh
   {
-    echo "export TEZ_CONF_DIR=/etc/tez/"
-    echo "export tez_jars=${tez_jars}"
-    echo "HADOOP_CLASSPATH=\$HADOOP_CLASSPATH:${tez_conf_dir}:${tez_jars}/*:${tez_jars}/lib/*"
+    echo 'export TEZ_CONF_DIR=/etc/tez/'
+    echo "export TEZ_JARS=${TEZ_JARS}"
+    echo "HADOOP_CLASSPATH=\$HADOOP_CLASSPATH:${TEZ_CONF_DIR}:${TEZ_JARS}/*:${TEZ_JARS}/lib/*"
   } >> /etc/hadoop/conf/hadoop-env.sh
 
   # Configure YARN to enable the Application Timeline Server,
   # and configure the Tez UI to push logs to the ATS.
   # See https://tez.apache.org/tez-ui.html for more information.
   bdconfig set_property \
-    --configuration_file "${hadoop_conf_dir}/core-site.xml" \
+    --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
     --name 'hadoop.http.filter.initializers' --value 'org.apache.hadoop.security.HttpCrossOriginFilterInitializer' \
     --clobber
   bdconfig set_property \
-    --configuration_file "${hadoop_conf_dir}/yarn-site.xml" \
+    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
     --name 'yarn.resourcemanager.webapp.cross-origin.enabled' --value 'true' \
     --clobber
   bdconfig set_property \
-    --configuration_file "${hadoop_conf_dir}/yarn-site.xml" \
+    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
     --name 'yarn.timeline-service.enabled' --value 'true' \
     --clobber
   bdconfig set_property \
-    --configuration_file "${hadoop_conf_dir}/yarn-site.xml" \
-    --name 'yarn.timeline-service.hostname' --value "$HOSTNAME" \
+    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
+    --name 'yarn.timeline-service.hostname' --value "${HOSTNAME}" \
     --clobber
   bdconfig set_property \
-    --configuration_file "${hadoop_conf_dir}/yarn-site.xml" \
+    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
     --name 'yarn.timeline-service.http-cross-origin.enabled' --value 'true' \
     --clobber
   bdconfig set_property \
-    --configuration_file "${hadoop_conf_dir}/yarn-site.xml" \
+    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
     --name 'yarn.resourcemanager.system-metrics-publisher.enabled' --value 'true' \
     --clobber
   bdconfig set_property \
-    --configuration_file "${tez_conf_dir}/tez-site.xml" \
+    --configuration_file "${TEZ_CONF_DIR}/tez-site.xml" \
     --name 'tez.history.logging.service.class' --value 'org.apache.tez.dag.history.logging.ats.ATSHistoryLoggingService' \
     --clobber
   bdconfig set_property \
-    --configuration_file "${tez_conf_dir}/tez-site.xml" \
-    --name 'tez.tez-ui.history-url.base' --value "http://$HOSTNAME:9999/tez-ui/" \
+    --configuration_file "${TEZ_CONF_DIR}/tez-site.xml" \
+    --name 'tez.tez-ui.history-url.base' --value "http://${HOSTNAME}:9999/tez-ui/" \
     --clobber
 
   # Update hive to use tez as execution engine
   bdconfig set_property \
-    --configuration_file "${hive_conf_dir}/hive-site.xml" \
+    --configuration_file "${HIVE_CONF_DIR}/hive-site.xml" \
     --name 'hive.execution.engine' --value 'tez' \
     --clobber
 
   # Set up service for Tez UI on port 9999 at the path /tez-ui
-  npm install -g http-server forever forever-service
-  unzip /usr/lib/tez/tez-ui-*.war -d /usr/lib/tez/tez-ui
-  forever-service install tez-ui --script /usr/bin/http-server -o "/usr/lib/tez/ -p 9999"
+  npm install -g http-server forever forever-service \
+    || err 'Unable to install kafka libraries on master!'
+  unzip ${TEZ_JARS}/tez-ui-*.war -d ${TEZ_JARS}/tez-ui \
+    || err 'Unzipping tez-ui jars failed!'
+  forever-service install tez-ui --script /usr/bin/http-server \
+    -o "${TEZ_JARS}/ -p 9999" \
+    || err 'Installation of tez-ui as a service failed!'
 
   # Restart daemons
 
@@ -126,6 +135,23 @@ if [[ "${role}" == 'Master' ]]; then
   # Restart hive server2
   systemctl restart hive-server2
   systemctl status hive-server2  # Ensure it started successfully
-fi
+}
 
-set +x +e
+function main() {
+  local role
+  role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+
+  # Let spark continue using the existing hive configuration, as it will
+  # not want to use hive on tez.
+  cp ${HIVE_CONF_DIR}/* ${SPARK_CONF_DIR}/
+  # Remove lines containing /etc/hive/conf from spark-env.sh
+  sudo sed -i '\#CLASSPATH=.*/etc/hive/conf#d' /etc/spark/conf/spark-env.sh
+
+  # Only run the installation on workers; verify zookeeper on master(s).
+  if [[ "${role}" == 'Master' ]]; then
+    configure_master_node
+  fi
+
+}
+
+main
