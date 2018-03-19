@@ -96,14 +96,14 @@ cat > presto-server-${PRESTO_VERSION}/etc/jvm.config <<EOF
 EOF
 
 if [[ "${ROLE}" == 'Master' ]]; then
-	# Configure master properties
-	if [[ $WORKER_COUNT == 0 ]]; then
-	  # master on single-node is also worker
-	  include_coordinator='true'
-	else
-	  include_coordinator='false'
-	fi
-	cat > presto-server-${PRESTO_VERSION}/etc/config.properties <<EOF
+  # Configure master properties
+  if [[ $WORKER_COUNT == 0 ]]; then
+    # master on single-node is also worker
+    include_coordinator='true'
+  else
+    include_coordinator='false'
+  fi
+  cat > presto-server-${PRESTO_VERSION}/etc/config.properties <<EOF
 coordinator=true
 node-scheduler.include-coordinator=${include_coordinator}
 http-server.http.port=${HTTP_PORT}
