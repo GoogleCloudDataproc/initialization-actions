@@ -41,6 +41,16 @@ function update_apt_get() {
   return 1
 }
 
+function docker_pull() {
+  for ((i = 0; i < 10; i++)); do
+    if (gcloud docker -- pull $1); then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
   return 1
@@ -52,7 +62,7 @@ function configure_master(){
 
   apt-get install -y -q docker.io || err 'Failed to install Docker'
 
-  gcloud docker -- pull ${DOCKER_IMAGE} || err "Failed to pull ${DOCKER_IMAGE}"
+  docker_pull ${DOCKER_IMAGE} || err "Failed to pull ${DOCKER_IMAGE}"
 
   # For some reason Spark has issues resolving the user's directory inside of
   # Datalab.
