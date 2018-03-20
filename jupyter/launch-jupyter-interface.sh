@@ -3,7 +3,7 @@
 # This script sets SSH tunnel and opens Chrome Browser with SOCKS proxy
 # configured for direct access to the Jupyter cluster.
 
-set -euxo pipefail
+set -euo pipefail
 
 DIR="${BASH_SOURCE%/*}"
 [[ ! -d "${DIR}" ]] && DIR="${PWD}"
@@ -12,18 +12,20 @@ readonly DIR
 source "${DIR}/../util/utils.sh"
 
 function usage {
-  echo "Creates an SSH tunnel and socks proxy and launches Chrome, using the environment "
-  echo "variable DATAPROC_CLUSTER_NAME for the unique cluster name. The cluster metadata "
-  echo "must contain a value for the key 'JUPYTER_PORT'."
-  echo ""
-  echo "If the appropriate environment variables are not set and the appropriate command"
-  echo "line arguments are not given, then the usage message will be displayed and the "
-  echo "script will exit."
-  echo ""
-  echo "usage: $0 [-h] [-c=cluster-name] [-z=zone]"
-  echo "    -h                 display help"
-  echo "    -z=zone            specify cloud zone for cluster"
-  echo "    -c=cluster-name    specify unique dataproc cluster name to launch"
+  cat << EOF
+Creates an SSH tunnel and socks proxy and launches Chrome, using the environment
+variable DATAPROC_CLUSTER_NAME for the unique cluster name. The cluster metadata
+must contain a value for the key 'JUPYTER_PORT'.
+
+If the appropriate environment variables are not set and the appropriate command"
+line arguments are not given, then the usage message will be displayed and the "
+script will exit."
+
+usage: $0 [-h] [-c=cluster-name] [-z=zone]"
+  -h                 display help"
+  -z=zone            specify cloud zone for cluster"
+  -c=cluster-name    specify unique dataproc cluster name to launch"
+EOF
   exit 1
 }
 
