@@ -24,6 +24,7 @@ public abstract class RequesterPaysOptions {
 
   /** Operational modes of GCS Requester Pays feature. */
   public static enum RequesterPaysMode {
+    AUTO,
     CUSTOM,
     DISABLED,
     ENABLED

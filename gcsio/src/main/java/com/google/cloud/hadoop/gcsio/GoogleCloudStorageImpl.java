@@ -52,6 +52,10 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.BaseEncoding;
@@ -150,6 +154,26 @@ public class GoogleCloudStorageImpl
 
     BackOff newBackOff();
   }
+
+  private final LoadingCache<String, Boolean> autoBuckets =
+      CacheBuilder.newBuilder()
+          .expireAfterWrite(1, TimeUnit.HOURS)
+          .build(
+              new CacheLoader<String, Boolean>() {
+                final List<String> iamPermissions = ImmutableList.of("storage.buckets.get");
+                @Override
+                public Boolean load(String bucketName) throws Exception {
+                  try {
+                    gcs.buckets()
+                        .testIamPermissions(bucketName, iamPermissions)
+                        .executeUnparsed()
+                        .disconnect();
+                  } catch (IOException e) {
+                    return errorExtractor.userProjectMissing(e);
+                  }
+                  return false;
+                }
+              });
 
   // GCS access instance.
   private Storage gcs;
@@ -1968,7 +1992,9 @@ public class GoogleCloudStorageImpl
 
     if (requesterPaysOptions.getMode() == RequesterPaysMode.ENABLED
         || (requesterPaysOptions.getMode() == RequesterPaysMode.CUSTOM
-            && requesterPaysOptions.getBuckets().contains(bucketName))) {
+            && requesterPaysOptions.getBuckets().contains(bucketName))
+        || (requesterPaysOptions.getMode() == RequesterPaysMode.AUTO
+            && autoBuckets.getUnchecked(bucketName))) {
       setUserProject(request, requesterPaysOptions.getProjectId());
     }
   }

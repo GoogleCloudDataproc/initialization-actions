@@ -16,17 +16,17 @@
 
 package com.google.cloud.hadoop.util;
 
+import static com.google.api.client.http.HttpStatusCodes.STATUS_CODE_BAD_REQUEST;
+
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpStatusCodes;
-
 import java.io.IOError;
 import java.io.IOException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.List;
-
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLException;
 
@@ -60,6 +60,10 @@ public class ApiErrorExtractor {
 
   // HTTP 413 with message "Value for field 'foo' is too large".
   public static final String FIELD_SIZE_TOO_LARGE = "fieldSizeTooLarge";
+
+  // HTTP 400 message for 'USER_PROJECT_MISSING' error.
+  public static final String USER_PROJECT_MISSING =
+      "Bucket is requester pays bucket but no user project provided.";
 
   // Public methods here are in alphabetical order.
 
@@ -271,6 +275,23 @@ public class ApiErrorExtractor {
     return false;
   }
 
+  /** Determines if the given GoogleJsonError indicates that 'userProject' is missing in request */
+  public boolean userProjectMissing(GoogleJsonError e) {
+    ErrorInfo errorInfo = getErrorInfo(e);
+    return errorInfo != null
+        && e.getCode() == STATUS_CODE_BAD_REQUEST
+        && USER_PROJECT_MISSING.equals(errorInfo.getMessage());
+  }
+
+  /**
+   * Determines if the given exception indicates that 'userProject' is missing in request.
+   * Recursively checks getCause() if outer exception isn't an instance of the correct class.
+   */
+  public boolean userProjectMissing(IOException e) {
+    GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(e);
+    return jsonException != null && userProjectMissing(jsonException.getDetails());
+  }
+
   /**
    * Determine if a given Throwable is caused by an IO error.
    * Recursively checks getCause() if outer exception isn't an instance of the
@@ -395,11 +416,9 @@ public class ApiErrorExtractor {
    */
   protected GoogleJsonError getDetails(IOException e) {
     if (e instanceof GoogleJsonResponseException) {
-      GoogleJsonResponseException ex = (GoogleJsonResponseException) e;
-      return ex.getDetails();
-    } else {
-      return null;
+      return ((GoogleJsonResponseException) e).getDetails();
     }
+    return null;
   }
 
   /**
@@ -411,11 +430,7 @@ public class ApiErrorExtractor {
       return null;
     }
     List<ErrorInfo> errors = details.getErrors();
-    if (errors.isEmpty()) {
-      return null;
-    } else {
-      return errors.get(0);
-    }
+    return errors.isEmpty() ? null : errors.get(0);
   }
 
   /**

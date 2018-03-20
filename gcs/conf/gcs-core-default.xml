@@ -167,15 +167,22 @@
     <name>fs.gs.requester.pays.mode</name>
     <value>DISABLED</value>
     <description>
-      Optional. Accepted values: CUSTOM, DISABLED, ENABLED.
+      Optional. Accepted values: AUTO, CUSTOM, DISABLED, ENABLED.
+      For each mode GCS connector functions as follow:
+        - AUTO - Requester Pays feature enabled only for GCS buckets that
+          require it;
+        - CUSTOM - Requester Pays feature enabled only for GCS buckets that are
+          specified in the `fs.gs.requester.pays.buckets`;
+        - DISABLED - Requester Pays feature disabled for all GCS buckets;
+        - ENABLED - Requester Pays feature enabled for all GCS buckets.
     </description>
   </property>
   <property>
     <name>fs.gs.requester.pays.project.id</name>
     <description>
       Optional. Google Cloud Project ID that will be used for billing when
-      GCS Requester Pays feature is active (in CUSTOM or ENABLED mode). If not
-      specified and GCS Requester Pays is active then value of the
+      GCS Requester Pays feature is active (in AUTO, CUSTOM or ENABLED mode).
+      If not specified and GCS Requester Pays is active then value of the
       `fs.gs.project.id` property will be used.
     </description>
   </property>
@@ -184,7 +191,7 @@
     <description>
       Optional. Comma-separated list of Google Cloud Storage Buckets for which
       GCS Requester Pays feature should be activated if
-      fs.gs.requester.pays.mode property value is set to CUSTOM.
+      `fs.gs.requester.pays.mode` property value is set to CUSTOM.
     </description>
   </property>
 
