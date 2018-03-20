@@ -127,7 +127,7 @@ EOF
   fi
 
   # Configure Desktop Database to use mysql
-  sed -i 's/'"${old_mysql_settings}"'/'"${new_mysql_settings}"'/' /etc/hue/conf/hue.ini
+  perl -i -0777 -pe 's/'"${old_mysql_settings}"'/'"${new_mysql_settings}"'/' /etc/hue/conf/hue.ini
 
   # Comment out sqlite3 configuration
   sed -i 's/engine=sqlite3/## engine=sqlite3/' /etc/hue/conf/hue.ini
