@@ -16,6 +16,7 @@ set -x -e
 
 # Variables for running this script
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
+HOSTNAME=$(hostname -s)
 PRESTO_MASTER_FQDN=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 CONNECTOR_JAR=$(find /usr/lib/hadoop/lib -name 'gcs-connector-*.jar')
@@ -95,7 +96,8 @@ cat > presto-server-${PRESTO_VERSION}/etc/jvm.config <<EOF
 -Djava.library.path=/usr/lib/hadoop/lib/native/:/usr/lib/
 EOF
 
-if [[ "${ROLE}" == 'Master' ]]; then
+# Start coordinator only on main Master
+if [[ "${HOSTNAME}" == "${PRESTO_MASTER_FQDN}" ]]; then
   # Configure master properties
   if [[ $WORKER_COUNT == 0 ]]; then
     # master on single-node is also worker
@@ -117,7 +119,11 @@ EOF
 	# Install cli
 	$(wget https://repo1.maven.org/maven2/com/facebook/presto/presto-cli/${PRESTO_VERSION}/presto-cli-${PRESTO_VERSION}-executable.jar -O /usr/bin/presto)
 	$(chmod a+x /usr/bin/presto)
-else
+  # Start presto
+  presto-server-${PRESTO_VERSION}/bin/launcher start
+fi
+
+if [[ "${ROLE}" == 'Worker' ]]; then
 	cat > presto-server-${PRESTO_VERSION}/etc/config.properties <<EOF
 coordinator=false
 http-server.http.port=${HTTP_PORT}
@@ -126,7 +132,7 @@ query.max-memory-per-node=${PRESTO_QUERY_NODE_MB}MB
 resources.reserved-system-memory=${PRESTO_RESERVED_SYSTEM_MB}MB
 discovery.uri=http://${PRESTO_MASTER_FQDN}:${HTTP_PORT}
 EOF
+  # Start presto
+  presto-server-${PRESTO_VERSION}/bin/launcher start
 fi
 
-# Start presto
-presto-server-${PRESTO_VERSION}/bin/launcher start
