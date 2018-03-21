@@ -19,7 +19,6 @@ package com.google.cloud.hadoop.gcsio;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.Strings;
-
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -222,17 +221,20 @@ public class StorageResourceId {
    * to a bucket/object pair.
    */
   public static String createReadableString(String bucketName, String objectName) {
-    if (bucketName == null && objectName == null) {
-      // TODO(user): Unify this method with other methods that convert bucketName/objectName
-      // to a URI; maybe use the single slash for compatibility.
-      return "gs://";
-    } else if (bucketName != null && objectName == null) {
-      return String.format("gs://%s", bucketName);
-    } else if (bucketName != null && objectName != null) {
-      return String.format("gs://%s/%s", bucketName, objectName);
+    if (bucketName == null && objectName != null) {
+      throw new IllegalArgumentException(
+          String.format("Invalid bucketName/objectName pair: gs://%s/%s", bucketName, objectName));
     }
-    throw new IllegalArgumentException(
-        String.format("Invalid bucketName/objectName pair: gs://%s/%s", bucketName, objectName));
+    // TODO(user): Unify this method with other methods that convert bucketName/objectName
+    // to a URI; maybe use the single slash for compatibility.
+    StringBuilder result = new StringBuilder("gs://");
+    if (bucketName != null) {
+      result.append(bucketName);
+    }
+    if (objectName != null) {
+      result.append('/').append(objectName);
+    }
+    return result.toString();
   }
 
   /**
