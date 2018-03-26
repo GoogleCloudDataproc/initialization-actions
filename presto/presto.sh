@@ -119,7 +119,7 @@ EOF
 	# Install cli
 	$(wget https://repo1.maven.org/maven2/com/facebook/presto/presto-cli/${PRESTO_VERSION}/presto-cli-${PRESTO_VERSION}-executable.jar -O /usr/bin/presto)
 	$(chmod a+x /usr/bin/presto)
-  # Start presto
+  # Start presto coordinator
   presto-server-${PRESTO_VERSION}/bin/launcher start
 fi
 
@@ -132,7 +132,7 @@ query.max-memory-per-node=${PRESTO_QUERY_NODE_MB}MB
 resources.reserved-system-memory=${PRESTO_RESERVED_SYSTEM_MB}MB
 discovery.uri=http://${PRESTO_MASTER_FQDN}:${HTTP_PORT}
 EOF
-  # Start presto
+  # Start presto worker
   presto-server-${PRESTO_VERSION}/bin/launcher start
 fi
 
