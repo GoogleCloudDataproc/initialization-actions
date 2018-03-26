@@ -7,7 +7,7 @@
 set -e
 
 SPARK_MAJOR_VERSION=$(spark-submit --version |& \
-    grep 'version' | head -n 1 | sed 's/.*version //' | cut -d '.' -f 1)
+  grep 'version' | head -n 1 | sed 's/.*version //' | cut -d '.' -f 1)
 echo "Determined SPARK_MAJOR_VERSION to be '${SPARK_MAJOR_VERSION}'" >&2
 
 # This will let us exit with error code if not found.
