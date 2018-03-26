@@ -13,7 +13,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-#  This initialization action installs Ganglia.
+#  This initialization action installs Ganglia, a distributed monitoring system.
 
 set -x -e
 
@@ -60,7 +60,7 @@ function main() {
 
   if [[ "${role}" == 'Master' ]]; then
     # Only run on the master node
-    install_ganglia_dependencies || err 'Ganglia install action failed'
+    install_ganglia_dependencies || err 'Installing dependencies for Ganglia failed'
   else
     sed -e "/udp_send_channel {/a\  host = ${master}" -i /etc/ganglia/gmond.conf
     sed -i '/udp_recv_channel {/,/}/d' /etc/ganglia/gmond.conf
