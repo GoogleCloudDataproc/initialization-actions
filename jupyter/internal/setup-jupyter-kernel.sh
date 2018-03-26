@@ -31,6 +31,7 @@ echo "c.NotebookApp.port = ${JUPYTER_PORT}" >> ~/.jupyter/jupyter_notebook_confi
 echo "c.NotebookApp.contents_manager_class = 'jgscm.GoogleStorageContentManager'" >> ~/.jupyter/jupyter_notebook_config.py
 echo "c.GoogleStorageContentManager.default_path = '${NOTEBOOK_DIR}'" >> ~/.jupyter/jupyter_notebook_config.py
 echo "c.NotebookApp.token = u'${JUPYTER_AUTH_TOKEN}'" >> ~/.jupyter/jupyter_notebook_config.py
+echo "c.NotebookApp.allow_origin = '*'" >> ~/.jupyter/jupyter_notebook_config.py
 
 echo "Installing pyspark Kernel..."
 chmod 750 "${KERNEL_GENERATOR}"
