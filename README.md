@@ -50,7 +50,6 @@ Some initialization actions are known **not to work** on Single Node clusters. A
 * Apache Drill
 * Apache Flink
 * Apache Kafka
-* Presto
 * Apache Zookeeper
 
 Feel free to send pull requests or file issues if you have a good use case for running one of these actions on a Single Node cluster.

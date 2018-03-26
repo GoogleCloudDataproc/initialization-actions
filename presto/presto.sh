@@ -16,10 +16,9 @@ set -x -e
 
 # Variables for running this script
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
-HOSTNAME=$(hostname)
-DNSNAME=$(dnsdomainname)
-FQDN=${HOSTNAME}.$DNSNAME
-CLUSTER_NAME=$(hostname | sed -r 's/(.*)-[w|m](-[0-9]+)?$/\1/')
+HOSTNAME=$(hostname -s)
+PRESTO_MASTER_FQDN=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 CONNECTOR_JAR=$(find /usr/lib/hadoop/lib -name 'gcs-connector-*.jar')
 PRESTO_VERSION="0.177"
 HTTP_PORT="8080"
@@ -43,10 +42,13 @@ node.id=$(uuidgen)
 node.data-dir=/var/presto/data
 EOF
 
-# TODO - Inspect /etc/hive/conf/hite-site.xml to pull this uri
+METASTORE_URI=$(bdconfig get_property_value \
+  --configuration_file /etc/hive/conf/hive-site.xml \
+  --name hive.metastore.uris 2>/dev/null)
+
 cat > presto-server-${PRESTO_VERSION}/etc/catalog/hive.properties <<EOF
 connector.name=hive-hadoop2
-hive.metastore.uri=thrift://${CLUSTER_NAME}-m:9083
+hive.metastore.uri=${METASTORE_URI}
 EOF
 
 # Compute memory settings based on Spark's settings.
@@ -94,12 +96,18 @@ cat > presto-server-${PRESTO_VERSION}/etc/jvm.config <<EOF
 -Djava.library.path=/usr/lib/hadoop/lib/native/:/usr/lib/
 EOF
 
-if [[ "${ROLE}" == 'Master' ]]; then
-	# Configure master properties
-	PRESTO_MASTER_FQDN=${FQDN}
-	cat > presto-server-${PRESTO_VERSION}/etc/config.properties <<EOF
+# Start coordinator only on main Master
+if [[ "${HOSTNAME}" == "${PRESTO_MASTER_FQDN}" ]]; then
+  # Configure master properties
+  if [[ $WORKER_COUNT == 0 ]]; then
+    # master on single-node is also worker
+    include_coordinator='true'
+  else
+    include_coordinator='false'
+  fi
+  cat > presto-server-${PRESTO_VERSION}/etc/config.properties <<EOF
 coordinator=true
-node-scheduler.include-coordinator=false
+node-scheduler.include-coordinator=${include_coordinator}
 http-server.http.port=${HTTP_PORT}
 query.max-memory=999TB
 query.max-memory-per-node=${PRESTO_QUERY_NODE_MB}MB
@@ -111,9 +119,11 @@ EOF
 	# Install cli
 	$(wget https://repo1.maven.org/maven2/com/facebook/presto/presto-cli/${PRESTO_VERSION}/presto-cli-${PRESTO_VERSION}-executable.jar -O /usr/bin/presto)
 	$(chmod a+x /usr/bin/presto)
-else
-	MASTER_NODE_NAME=$(hostname | sed 's/\(.*\)-s\?w-[a-z0-9]*.*/\1/g')
-	PRESTO_MASTER_FQDN=${MASTER_NODE_NAME}-m.${DNSNAME}
+  # Start presto coordinator
+  presto-server-${PRESTO_VERSION}/bin/launcher start
+fi
+
+if [[ "${ROLE}" == 'Worker' ]]; then
 	cat > presto-server-${PRESTO_VERSION}/etc/config.properties <<EOF
 coordinator=false
 http-server.http.port=${HTTP_PORT}
@@ -122,7 +132,7 @@ query.max-memory-per-node=${PRESTO_QUERY_NODE_MB}MB
 resources.reserved-system-memory=${PRESTO_RESERVED_SYSTEM_MB}MB
 discovery.uri=http://${PRESTO_MASTER_FQDN}:${HTTP_PORT}
 EOF
+  # Start presto worker
+  presto-server-${PRESTO_VERSION}/bin/launcher start
 fi
 
-# Start presto
-presto-server-${PRESTO_VERSION}/bin/launcher start

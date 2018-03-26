@@ -22,3 +22,4 @@ You can find more information about using initialization actions with Dataproc i
 * You may need to adjust the memory settings in `jvm.config` based on your needs
 * Presto is set to use HTTP port `8080` by default
 * Only the Hive connector is configured by default
+* High-Availability configuration is discouraged as coordinator is started only on `m-0` and other master nodes are idle
