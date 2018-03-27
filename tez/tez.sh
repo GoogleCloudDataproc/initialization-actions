@@ -51,10 +51,13 @@ function configure_master_node() {
   apt-get install tez hadoop-yarn-timelineserver nodejs -y \
     || err 'Failed to install required packages.'
 
-  # Stage Tez
-  hadoop fs -mkdir -p ${TEZ_HDFS_PATH}
-  hadoop fs -copyFromLocal ${TEZ_JARS}/* ${TEZ_HDFS_PATH}/ \
-    || err 'Unable to copy tez jars to hdfs destination.'
+  # Copy to hdfs from one master only to avoid race
+  if [[ "${HOSTNAME}" == "${master_hostname}" ]]; then
+    # Stage Tez
+    hadoop fs -mkdir -p ${TEZ_HDFS_PATH}
+    hadoop fs -copyFromLocal ${TEZ_JARS}/* ${TEZ_HDFS_PATH}/ \
+      || err 'Unable to copy tez jars to hdfs destination.'
+  fi
 
   # Update the hadoop-env.sh
   {
@@ -132,14 +135,18 @@ function configure_master_node() {
   systemctl restart hadoop-yarn-timelineserver
   systemctl status hadoop-yarn-timelineserver  # Ensure it started successfully
 
-  # Restart hive server2
-  systemctl restart hive-server2
-  systemctl status hive-server2  # Ensure it started successfully
+  if [[ "${HOSTNAME}" == "${master_hostname}" ]]; then
+    # Restart hive server2
+    systemctl restart hive-server2
+    systemctl status hive-server2  # Ensure it started successfully
+  fi
 }
 
 function main() {
   local role
   role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+  local master_hostname
+  master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 
   # Let spark continue using the existing hive configuration, as it will
   # not want to use hive on tez.
