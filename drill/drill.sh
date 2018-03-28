@@ -248,6 +248,9 @@ function main() {
   # Symlink core-site.xml to $DRILL_HOME/conf
   ln -sf /etc/hadoop/conf/core-site.xml /etc/drill/conf
 
+  # Symlink hdfs-site.xml to $DRILL_HOME/conf
+  ln -sf /etc/hadoop/conf/hdfs-site.xml /etc/drill/conf
+
   # Set ZK PStore to use a GCS Bucket
   # Using GCS makes all Drill profiles available from any drillbit, and also
   # persists the profiles past the lifetime of a cluster.
