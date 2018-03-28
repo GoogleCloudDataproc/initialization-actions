@@ -1,6 +1,6 @@
 # RStudio Server
 
-This initialization action installs the latest version of [RStudio Server](https://www.rstudio.com/products/rstudio/#Server) on a master node within a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
+This initialization action installs the Open Source Edition of [RStudio Server](https://www.rstudio.com/products/rstudio/#Server) on the master node of a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
 
 ## Using this initialization action
 You can use this initialization action to create a new Dataproc cluster with RStudio Server installed by:
@@ -16,6 +16,7 @@ You can use this initialization action to create a new Dataproc cluster with RSt
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
 
-## Important notes & Known issues
+## Important notes
+* RStudio is licensed under [AGPL v3](https://www.gnu.org/licenses/agpl-3.0-standalone.html)
 * This installs RStudio Server 1.1.422
 * Initial login is set to rstudio / rstudio
