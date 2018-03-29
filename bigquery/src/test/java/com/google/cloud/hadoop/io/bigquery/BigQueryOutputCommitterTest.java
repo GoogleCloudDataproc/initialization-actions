@@ -109,23 +109,20 @@ public class BigQueryOutputCommitterTest {
   @Mock private BigQueryHelper mockBigQueryHelper;
   @Mock private TaskAttemptContext mockTaskAttemptContext;
 
-  /**
-   * Sets up common objects for testing before each test.
-   */
+  /** Sets up common objects for testing before each test. */
   @Before
-  public void setUp() 
-      throws IOException {
+  public void setUp() throws IOException {
     // Generate Mocks.
     MockitoAnnotations.initMocks(this);
 
     // Generate the configuration.
     conf = InMemoryGoogleHadoopFileSystem.getSampleConfiguration();
-    expectedTempDataset = new Dataset()
-        .setDatasetReference(new DatasetReference()
-            .setProjectId(TEMP_PROJECT_ID)
-            .setDatasetId(TEMP_DATASET_ID))
-        .setLocation(conf.get(BigQueryConfiguration.DATA_LOCATION_KEY,
-                              BigQueryConfiguration.DATA_LOCATION_DEFAULT));
+    conf.set(BigQueryConfiguration.DATA_LOCATION_KEY, "test_location");
+    expectedTempDataset =
+        new Dataset()
+            .setDatasetReference(
+                new DatasetReference().setProjectId(TEMP_PROJECT_ID).setDatasetId(TEMP_DATASET_ID))
+            .setLocation("test_location");
     CredentialConfigurationUtil.addTestConfigurationSettings(conf);
 
     // Create job context.
@@ -177,13 +174,10 @@ public class BigQueryOutputCommitterTest {
     verifyNoMoreInteractions(mockBigqueryDatasetsDelete);
     verifyNoMoreInteractions(mockBigQueryHelper);
   }
-  
-  /**
-   * Tests the setupJob method of BigQueryOutputFormat.
-   */
+
+  /** Tests the setupJob method of BigQueryOutputFormat. */
   @Test
-  public void testSetupJob() 
-      throws IOException {
+  public void testSetupJob() throws IOException {
     // Mock method calls.
     when(mockBigquery.datasets()).thenReturn(mockBigqueryDatasets);
     when(mockBigqueryDatasets.insert(any(String.class), any(Dataset.class)))
@@ -197,12 +191,9 @@ public class BigQueryOutputCommitterTest {
     verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
   }
 
-  /**
-   * Tests the setupTask method of BigQueryOutputFormat.
-   */
+  /** Tests the setupTask method of BigQueryOutputFormat. */
   @Test
-  public void testSetupTask() 
-      throws IOException {
+  public void testSetupTask() throws IOException {
     // Mock method calls.
     when(mockBigquery.datasets()).thenReturn(mockBigqueryDatasets);
     when(mockBigqueryDatasets.insert(any(String.class), any(Dataset.class)))
@@ -213,12 +204,9 @@ public class BigQueryOutputCommitterTest {
     // Tear down verifies no calls are made.
   }
 
-  /**
-   * Tests the cleanupJob method of BigQueryOutputFormat.
-   */
+  /** Tests the cleanupJob method of BigQueryOutputFormat. */
   @Test
-  public void testCleanupJobWithIntermediateDelete() 
-      throws IOException {
+  public void testCleanupJobWithIntermediateDelete() throws IOException {
     // Set intermediate table for deletion.
     jobContext.getConfiguration().setBoolean(
         BigQueryConfiguration.DELETE_INTERMEDIATE_TABLE_KEY, true);
@@ -247,8 +235,7 @@ public class BigQueryOutputCommitterTest {
    * "intermediate delete" only refers to the InputFormat side.
    */
   @Test
-  public void testCleanupJobWithNoIntermediateDelete() 
-      throws IOException {
+  public void testCleanupJobWithNoIntermediateDelete() throws IOException {
     // Set intermediate table for deletion.
     jobContext.getConfiguration()
         .setBoolean(BigQueryConfiguration.DELETE_INTERMEDIATE_TABLE_KEY, false);
@@ -268,12 +255,9 @@ public class BigQueryOutputCommitterTest {
     verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
   }
 
-  /**
-   * Tests the cleanupJob method of BigQueryOutputFormat with error thrown.
-   */
+  /** Tests the cleanupJob method of BigQueryOutputFormat with error thrown. */
   @Test
-  public void testCleanupJobWithError() 
-      throws IOException {
+  public void testCleanupJobWithError() throws IOException {
     // Mock method calls to delete temporary table.
     when(mockBigquery.tables()).thenReturn(mockBigqueryTables);
 
@@ -289,12 +273,9 @@ public class BigQueryOutputCommitterTest {
     verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
   }
 
-  /**
-   * Tests the abortJob method of BigQueryOutputFormat with intermediate delete.
-   */
+  /** Tests the abortJob method of BigQueryOutputFormat with intermediate delete. */
   @Test
-  public void testAbortJobWithIntermediateDelete() 
-      throws IOException {
+  public void testAbortJobWithIntermediateDelete() throws IOException {
     // Mock method calls to delete temporary table.
     when(mockBigquery.tables()).thenReturn(mockBigqueryTables);
 
@@ -314,12 +295,9 @@ public class BigQueryOutputCommitterTest {
     verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
   }
 
-  /**
-   * Tests the abortJob method of BigQueryOutputFormat with no intermediate delete.
-   */
+  /** Tests the abortJob method of BigQueryOutputFormat with no intermediate delete. */
   @Test
-  public void testAbortJobWithNoIntermediateDelete() 
-      throws IOException {
+  public void testAbortJobWithNoIntermediateDelete() throws IOException {
     // Set intermediate table for deletion.
     jobContext.getConfiguration()
         .setBoolean(BigQueryConfiguration.DELETE_INTERMEDIATE_TABLE_KEY, false);
@@ -340,12 +318,9 @@ public class BigQueryOutputCommitterTest {
     verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
   }
 
-  /**
-   * Tests the abortJob method of BigQueryOutputFormat with intermediate delete.
-   */
+  /** Tests the abortJob method of BigQueryOutputFormat with intermediate delete. */
   @Test
-  public void testCommitJobWithIntermediateDelete() 
-      throws IOException {
+  public void testCommitJobWithIntermediateDelete() throws IOException {
     // Set intermediate table for deletion.
     jobContext.getConfiguration().setBoolean(
         BigQueryConfiguration.DELETE_INTERMEDIATE_TABLE_KEY, true);
@@ -369,12 +344,9 @@ public class BigQueryOutputCommitterTest {
     verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
   }
 
-  /**
-   * Tests the abortJob method of BigQueryOutputFormat with no intermediate delete.
-   */
+  /** Tests the abortJob method of BigQueryOutputFormat with no intermediate delete. */
   @Test
-  public void testCommitJobWithNoIntermediateDelete() 
-      throws IOException {
+  public void testCommitJobWithNoIntermediateDelete() throws IOException {
     // Set intermediate table for deletion.
     jobContext.getConfiguration()
         .setBoolean(BigQueryConfiguration.DELETE_INTERMEDIATE_TABLE_KEY, false);
@@ -395,12 +367,9 @@ public class BigQueryOutputCommitterTest {
     verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
   }
 
-  /**
-   * Tests the commitTask method of BigQueryOutputFormat.
-   */
+  /** Tests the commitTask method of BigQueryOutputFormat. */
   @Test
-  public void testCommitTask() 
-      throws IOException {
+  public void testCommitTask() throws IOException {
     // Create the job result to return.
     Job job = new Job();
     JobStatus jobStatus = new JobStatus();
@@ -414,7 +383,9 @@ public class BigQueryOutputCommitterTest {
 
     when(mockTaskAttemptContext.getTaskAttemptID())
         .thenReturn(fakeTaskId);
-    when(mockBigQueryHelper.createJobReference(any(String.class), any(String.class)))
+    when(mockTaskAttemptContext.getConfiguration()).thenReturn(conf);
+    when(mockBigQueryHelper.createJobReference(
+            any(String.class), any(String.class), any(String.class)))
         .thenReturn(jobReference);
     when(mockBigQueryHelper.insertJobOrFetchDuplicate(any(String.class), any(Job.class)))
         .thenReturn(job);
@@ -437,16 +408,13 @@ public class BigQueryOutputCommitterTest {
     verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
 
     verify(mockTaskAttemptContext, atLeastOnce()).getTaskAttemptID();
-    verify(mockBigQueryHelper).createJobReference(
-        eq(JOB_PROJECT_ID), eq(fakeTaskId.toString()));
+    verify(mockBigQueryHelper)
+        .createJobReference(eq(JOB_PROJECT_ID), eq(fakeTaskId.toString()), eq("test_location"));
   }
 
-  /**
-   * Tests the commitTask method of BigQueryOutputFormat with error set in JobStatus.
-   */
+  /** Tests the commitTask method of BigQueryOutputFormat with error set in JobStatus. */
   @Test
-  public void testCommitTaskError() 
-      throws IOException {
+  public void testCommitTaskError() throws IOException {
     // Create the job result to return.
     Job job = new Job();
     JobStatus jobStatus = new JobStatus();
@@ -460,7 +428,9 @@ public class BigQueryOutputCommitterTest {
 
     when(mockTaskAttemptContext.getTaskAttemptID())
         .thenReturn(fakeTaskId);
-    when(mockBigQueryHelper.createJobReference(any(String.class), any(String.class)))
+    when(mockTaskAttemptContext.getConfiguration()).thenReturn(conf);
+    when(mockBigQueryHelper.createJobReference(
+            any(String.class), any(String.class), any(String.class)))
         .thenReturn(jobReference);
     when(mockBigQueryHelper.insertJobOrFetchDuplicate(any(String.class), any(Job.class)))
         .thenReturn(job);
@@ -475,19 +445,20 @@ public class BigQueryOutputCommitterTest {
     verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
 
     verify(mockTaskAttemptContext, atLeastOnce()).getTaskAttemptID();
-    verify(mockBigQueryHelper).createJobReference(
-        eq(JOB_PROJECT_ID), eq(fakeTaskId.toString()));
+    verify(mockBigQueryHelper)
+        .createJobReference(eq(JOB_PROJECT_ID), eq(fakeTaskId.toString()), eq("test_location"));
   }
 
   /**
    * Tests the commitTask method of BigQueryOutputFormat with unhandled exception thrown on insert.
    */
   @Test
-  public void testCommitTaskUnhandledException() 
-      throws IOException {
+  public void testCommitTaskUnhandledException() throws IOException {
     when(mockTaskAttemptContext.getTaskAttemptID())
         .thenReturn(fakeTaskId);
-    when(mockBigQueryHelper.createJobReference(any(String.class), any(String.class)))
+    when(mockTaskAttemptContext.getConfiguration()).thenReturn(conf);
+    when(mockBigQueryHelper.createJobReference(
+            any(String.class), any(String.class), any(String.class)))
         .thenReturn(jobReference);
     IOException fakeUnhandledException = new IOException("fake unhandled exception");
     when(mockBigQueryHelper.insertJobOrFetchDuplicate(any(String.class), any(Job.class)))
@@ -500,16 +471,13 @@ public class BigQueryOutputCommitterTest {
 
     verify(mockBigQueryHelper).insertJobOrFetchDuplicate(eq(JOB_PROJECT_ID), any(Job.class));
     verify(mockTaskAttemptContext, atLeastOnce()).getTaskAttemptID();
-    verify(mockBigQueryHelper).createJobReference(
-        eq(JOB_PROJECT_ID), eq(fakeTaskId.toString()));
+    verify(mockBigQueryHelper)
+        .createJobReference(eq(JOB_PROJECT_ID), eq(fakeTaskId.toString()), eq("test_location"));
   }
 
-  /**
-   * Tests the abortTask method of BigQueryOutputFormat.
-   */
+  /** Tests the abortTask method of BigQueryOutputFormat. */
   @Test
-  public void testAbortTask() 
-      throws IOException {
+  public void testAbortTask() throws IOException {
     // Mock method calls.
     when(mockBigquery.tables()).thenReturn(mockBigqueryTables);
     when(mockBigqueryTables.delete(any(String.class), any(String.class), any(String.class)))
@@ -520,12 +488,9 @@ public class BigQueryOutputCommitterTest {
     // Tear down verifies no calls are made.
   }
 
-  /**
-   * Tests the needsTaskCommit method of BigQueryOutputFormat.
-   */
+  /** Tests the needsTaskCommit method of BigQueryOutputFormat. */
   @Test
-  public void testNeedsTaskCommit() 
-      throws IOException {
+  public void testNeedsTaskCommit() throws IOException {
     when(mockBigQueryHelper.tableExists(any(TableReference.class)))
         .thenReturn(false)
         .thenReturn(true);

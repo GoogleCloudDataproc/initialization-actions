@@ -88,7 +88,8 @@ public abstract class AbstractExportToCloudStorage implements Export {
     config.setExtract(extractConfig);
 
     JobReference jobReference =
-        bigQueryHelper.createJobReference(projectId, "exporttocloudstorage");
+        bigQueryHelper.createJobReference(
+            projectId, "exporttocloudstorage", tableToExport.getLocation());
 
     Job job = new Job();
     job.setConfiguration(config);

@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -121,7 +122,8 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
    * Helper method for grabbing service-account email and private keyfile name based on settings
    * intended for BigQueryFactory and adding them as GCS-equivalent credential settings.
    */
-  private void setConfigForGcsFromBigquerySettings() {
+  public static Configuration getConfigForGcsFromBigquerySettings(
+      String projectIdvalue, String testBucket) {
     TestConfiguration configuration = TestConfiguration.getInstance();
 
     String bigqueryServiceAccount = configuration.getServiceAccount();
@@ -133,7 +135,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     if (Strings.isNullOrEmpty(bigqueryPrivateKeyFile)) {
       bigqueryPrivateKeyFile = System.getenv(BigQueryFactory.BIGQUERY_PRIVATE_KEY_FILE);
     }
-
+    Configuration config = new Configuration();
     config.set(
         BigQueryFactory.BIGQUERY_CONFIG_PREFIX
             + HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX,
@@ -150,10 +152,18 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     config.set(GoogleHadoopFileSystemBase.SERVICE_ACCOUNT_AUTH_EMAIL_KEY, bigqueryServiceAccount);
     config.set(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY, projectIdvalue);
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, testBucket);
-    config.setBoolean(BigQueryConfiguration.ENABLE_ASYNC_WRITE, this.enableAsyncWrites);
 
     config.set("fs.gs.impl",
                "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
+    return config;
+  }
+
+  private void setConfigForGcsFromBigquerySettings() {
+    Configuration conf = getConfigForGcsFromBigquerySettings(projectIdvalue, testBucket);
+    for (Entry<String, String> entry : conf) {
+      config.set(entry.getKey(), entry.getValue());
+    }
+    config.setBoolean(BigQueryConfiguration.ENABLE_ASYNC_WRITE, enableAsyncWrites);
   }
 
   @Before
@@ -192,8 +202,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     datasetReference.setProjectId(projectIdvalue);
     datasetReference.setDatasetId(testDataset);
 
-    config = new Configuration();
-    setConfigForGcsFromBigquerySettings();
+    config = getConfigForGcsFromBigquerySettings(projectIdvalue, testBucket);
     BigQueryFactory factory = new BigQueryFactory();
     bigqueryInstance = factory.getBigQuery(config);
 

@@ -24,6 +24,8 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.bigquery.Bigquery.Datasets;
+import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
@@ -42,6 +44,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -118,14 +121,19 @@ public class BigQueryHelperTest {
 
     // Fake table.
     fakeTableSchema = new TableSchema();
-    fakeTable = new Table().setSchema(fakeTableSchema);
+    fakeTable = new Table().setSchema(fakeTableSchema).setLocation("test_location");
 
     // Mocks for Bigquery tables.
     when(mockBigquery.tables()).thenReturn(mockBigqueryTables);
-
-    // Mocks for getting Bigquery table.
     when(mockBigqueryTables.get(any(String.class), any(String.class), any(String.class)))
         .thenReturn(mockBigqueryTablesGet);
+
+    Datasets datasets = Mockito.mock(Datasets.class);
+    Datasets.Get datasetsGet = Mockito.mock(Datasets.Get.class);
+    Dataset dataset = new Dataset().setLocation("test_location");
+    when(mockBigquery.datasets()).thenReturn(datasets);
+    when(datasets.get(any(String.class), any(String.class))).thenReturn(datasetsGet);
+    when(datasetsGet.execute()).thenReturn(dataset);
 
     // Create table reference.
     tableRef = new TableReference();
@@ -185,12 +193,15 @@ public class BigQueryHelperTest {
     Job job = jobCaptor.getValue();
     assertThat(job.getConfiguration().getLoad().getSourceUris()).contains("test-import-path");
     assertThat(job.getConfiguration().getLoad().getDestinationTable()).isEqualTo(tableRef);
+    assertThat(job.getJobReference().getLocation()).isEqualTo("test_location");
 
     // Verify correct calls to BigQuery.Jobs.Get are made.
     verify(mockBigqueryJobsGet, times(1)).execute();
 
     // Verify correct calls to BigQuery.Jobs.Insert are made.
     verify(mockBigqueryJobsInsert, times(1)).execute();
+
+    verify(mockBigquery).datasets();
   }
 
   /** Tests exportBigQueryToGCS method of BigQueryHelper. */
@@ -225,12 +236,17 @@ public class BigQueryHelperTest {
     assertThat(job.getConfiguration().getExtract().getDestinationUris().get(0))
         .isEqualTo("test-export-path");
     assertThat(job.getConfiguration().getExtract().getSourceTable()).isEqualTo(tableRef);
+    assertThat(job.getJobReference().getLocation()).isEqualTo("test_location");
 
     // Verify correct calls to BigQuery.Jobs.Get are made.
     verify(mockBigqueryJobsGet, times(1)).execute();
 
     // Verify correct calls to BigQuery.Jobs.Insert are made.
     verify(mockBigqueryJobsInsert, times(1)).execute();
+
+    verify(mockBigquery).tables();
+    verify(mockBigqueryTables).get(eq(projectId), eq(datasetId), eq(tableId));
+    verify(mockBigqueryTablesGet).execute();
   }
 
   /**

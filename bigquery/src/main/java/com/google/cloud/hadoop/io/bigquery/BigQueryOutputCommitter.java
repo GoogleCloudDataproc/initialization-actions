@@ -96,11 +96,9 @@ public class BigQueryOutputCommitter extends OutputCommitter {
     datasetReference.setProjectId(tempTableRef.getProjectId());
     datasetReference.setDatasetId(tempTableRef.getDatasetId());
 
-    Configuration config = context.getConfiguration();
     Dataset tempDataset = new Dataset();
     tempDataset.setDatasetReference(datasetReference);
-    tempDataset.setLocation(config.get(BigQueryConfiguration.DATA_LOCATION_KEY,
-                                       BigQueryConfiguration.DATA_LOCATION_DEFAULT));
+    tempDataset.setLocation(getLocation(context));
 
     // Insert dataset into Bigquery.
     Bigquery.Datasets datasets = bigQueryHelper.getRawBigquery().datasets();
@@ -210,8 +208,9 @@ public class BigQueryOutputCommitter extends OutputCommitter {
     JobConfiguration config = new JobConfiguration();
     config.setCopy(copyTableConfig);
 
-    JobReference jobReference = bigQueryHelper.createJobReference(
-        projectId, context.getTaskAttemptID().toString());
+    JobReference jobReference =
+        bigQueryHelper.createJobReference(
+            projectId, context.getTaskAttemptID().toString(), getLocation(context));
 
     Job job = new Job();
     job.setConfiguration(config);
@@ -228,8 +227,8 @@ public class BigQueryOutputCommitter extends OutputCommitter {
       BigQueryUtils.waitForJobCompletion(
           bigQueryHelper.getRawBigquery(), projectId, jobReference, context);
     } catch (InterruptedException e) {
-      LOG.error("Could not check if results of task were transfered.", e);
-      throw new IOException("Could not check if results of task were transfered.", e);
+      LOG.error("Could not check if results of task were transferred.", e);
+      throw new IOException("Could not check if results of task were transferred.", e);
     }
     LOG.info("Saved output of task to table '{}' using project '{}'",
         BigQueryStrings.toString(finalTableRef), projectId);
@@ -284,5 +283,11 @@ public class BigQueryOutputCommitter extends OutputCommitter {
   @VisibleForTesting
   void setBigQueryHelper(BigQueryHelper helper) {
     this.bigQueryHelper = helper;
+  }
+
+  private String getLocation(JobContext context) {
+    Configuration config = context.getConfiguration();
+    return config.get(
+        BigQueryConfiguration.DATA_LOCATION_KEY, BigQueryConfiguration.DATA_LOCATION_DEFAULT);
   }
 }

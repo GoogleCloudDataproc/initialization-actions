@@ -192,8 +192,11 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
       TableReference tableRef,
       int writeBufferSize) throws IOException {
 
-    LOG.debug("Intialize with projectId: '{}', tableRef: '{}', writeBufferSize: {}",
-        projectId, BigQueryStrings.toString(tableRef), writeBufferSize);
+    LOG.debug(
+        "Initialize with projectId: '{}', tableRef: '{}', writeBufferSize: {}",
+        projectId,
+        BigQueryStrings.toString(tableRef),
+        writeBufferSize);
 
     // Check Preconditions.
     Preconditions.checkArgument(
@@ -252,7 +255,10 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
     jobConfig.setLoad(loadConfig);
 
     // Create Job reference.
-    JobReference jobRef = bigQueryHelper.createJobReference(projectId, taskIdentifier);
+    String location =
+        configuration.get(
+            BigQueryConfiguration.DATA_LOCATION_KEY, BigQueryConfiguration.DATA_LOCATION_DEFAULT);
+    JobReference jobRef = bigQueryHelper.createJobReference(projectId, taskIdentifier, location);
 
     // Set the output write job.
     Job outputJob = new Job();

@@ -158,8 +158,7 @@ public class GsonBigQueryInputFormatTest {
     tableRef.setDatasetId("test_dataset");
     tableRef.setTableId("test_table");
 
-    table = new Table()
-        .setTableReference(tableRef);
+    table = new Table().setTableReference(tableRef).setLocation("test_location");
 
     when(mockBigQueryHelper.getRawBigquery())
         .thenReturn(mockBigquery);
@@ -193,7 +192,8 @@ public class GsonBigQueryInputFormatTest {
     when(mockBigQueryHelper.getTable(any(TableReference.class)))
         .thenReturn(table);
 
-    when(mockBigQueryHelper.createJobReference(any(String.class), any(String.class)))
+    when(mockBigQueryHelper.createJobReference(
+            any(String.class), any(String.class), any(String.class)))
         .thenReturn(fakeJobReference);
     when(mockBigQueryHelper.insertJobOrFetchDuplicate(any(String.class), any(Job.class)))
         .thenReturn(jobHandle);
@@ -243,13 +243,15 @@ public class GsonBigQueryInputFormatTest {
   @Test
   public void testRunQuery()
       throws IOException, InterruptedException {
-
     // Run runQuery method.
     QueryBasedExport.runQuery(mockBigQueryHelper, jobProjectId, tableRef, "test");
 
     // Verify correct calls to BigQuery are made.
-    verify(mockBigQueryHelper, times(1)).createJobReference(
-        eq(jobProjectId), any(String.class));
+    verify(mockBigQueryHelper).getTable(any(TableReference.class));
+    verify(mockBigQueryHelper, times(1))
+        .createJobReference(eq(jobProjectId), any(String.class), eq("test_location"));
+    verify(mockBigQueryHelper, times(1))
+        .createJobReference(eq(jobProjectId), any(String.class), eq("test_location"));
     verify(mockBigQueryHelper, times(1))
         .insertJobOrFetchDuplicate(eq(jobProjectId), any(Job.class));
     verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
@@ -304,14 +306,14 @@ public class GsonBigQueryInputFormatTest {
     }
 
     // Verify correct calls to BigQuery are made.
-    verify(mockBigQueryHelper, times(2)).createJobReference(
-        eq(jobProjectId), any(String.class));
+    verify(mockBigQueryHelper, times(2))
+        .createJobReference(eq(jobProjectId), any(String.class), eq("test_location"));
     verify(mockBigQueryHelper, times(2))
         .insertJobOrFetchDuplicate(eq(jobProjectId), any(Job.class));
 
     // Make sure we didn't try to delete the table in sharded mode even though
     // DELETE_INTERMEDIATE_TABLE_KEY is true and we had a query.
-    verify(mockBigQueryHelper, times(1)).getTable(eq(tableRef));
+    verify(mockBigQueryHelper, times(2)).getTable(eq(tableRef));
     verifyNoMoreInteractions(mockBigqueryTables);
     verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
   }
@@ -346,14 +348,14 @@ public class GsonBigQueryInputFormatTest {
     }
 
     // Verify correct calls to BigQuery are made.
-    verify(mockBigQueryHelper, times(2)).createJobReference(
-        eq(jobProjectId), any(String.class));
+    verify(mockBigQueryHelper, times(2))
+        .createJobReference(eq(jobProjectId), any(String.class), eq("test_location"));
     verify(mockBigQueryHelper, times(2))
         .insertJobOrFetchDuplicate(eq(jobProjectId), any(Job.class));
 
     // Make sure we didn't try to delete the table in sharded mode even though
     // DELETE_INTERMEDIATE_TABLE_KEY is true and we had a query.
-    verify(mockBigQueryHelper, times(1)).getTable(eq(tableRef));
+    verify(mockBigQueryHelper, times(2)).getTable(eq(tableRef));
     verifyNoMoreInteractions(mockBigqueryTables);
     verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
   }
@@ -388,11 +390,11 @@ public class GsonBigQueryInputFormatTest {
     }
 
     // Verify correct calls to BigQuery are made.
-    verify(mockBigQueryHelper, times(2)).createJobReference(
-        eq(jobProjectId), any(String.class));
+    verify(mockBigQueryHelper, times(2))
+        .createJobReference(eq(jobProjectId), any(String.class), eq("test_location"));
     verify(mockBigQueryHelper, times(2))
         .insertJobOrFetchDuplicate(eq(jobProjectId), any(Job.class));
-    verify(mockBigQueryHelper, times(1)).getTable(eq(tableRef));
+    verify(mockBigQueryHelper, times(2)).getTable(eq(tableRef));
     verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
   }
 
@@ -428,12 +430,12 @@ public class GsonBigQueryInputFormatTest {
         .isEqualTo(config.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY));
 
     // Verify correct calls to BigQuery are made.
-    verify(mockBigQueryHelper, times(2)).createJobReference(
-        eq(jobProjectId), any(String.class));
+    verify(mockBigQueryHelper, times(2))
+        .createJobReference(eq(jobProjectId), any(String.class), eq("test_location"));
     verify(mockBigQueryHelper, times(2))
         .insertJobOrFetchDuplicate(eq(jobProjectId), any(Job.class));
     verifyNoMoreInteractions(mockBigqueryTables);
-    verify(mockBigQueryHelper, times(1)).getTable(eq(tableRef));
+    verify(mockBigQueryHelper, times(2)).getTable(eq(tableRef));
     verify(mockBigQueryHelper, atLeastOnce()).getRawBigquery();
   }
 

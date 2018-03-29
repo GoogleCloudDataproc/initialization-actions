@@ -38,7 +38,6 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
-import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -88,9 +87,6 @@ public class BigQueryRecordWriterTest {
   // Sample datasetId.
   private String datasetId;
 
-  // Gson to parse jsonValue.
-  private Gson gson;
-
   // Sample JobReference.
   private JobReference jobReference;
 
@@ -105,6 +101,8 @@ public class BigQueryRecordWriterTest {
 
   // Executor that is used by the other end of the pipe within the channel.
   private ExecutorService executorService;
+
+  private Configuration testConf;
 
   @Mock private Insert mockInsert;
   @Mock private BigQueryFactory mockFactory;
@@ -123,11 +121,8 @@ public class BigQueryRecordWriterTest {
 
   @Before
   public void setUp() throws IOException, GeneralSecurityException {
-    // Generate Mocks.  
+    // Generate Mocks.
     MockitoAnnotations.initMocks(this);
-    
-    // Create Gson to parse Json.
-    gson = new Gson();
 
     // Calls the .run/.call method on the future when the future is first accessed.
     executorService = Executors.newCachedThreadPool();
@@ -177,10 +172,11 @@ public class BigQueryRecordWriterTest {
         .thenReturn(mockHeaders);
 
     // Mock context result
-    when(mockContext.getConfiguration()).thenReturn(
-        CredentialConfigurationUtil.getTestConfiguration());
+    testConf = CredentialConfigurationUtil.getTestConfiguration();
+    testConf.set(BigQueryConfiguration.DATA_LOCATION_KEY, "test_location");
+    when(mockContext.getConfiguration()).thenReturn(testConf);
   }
-  
+
   /**
    * Verify no more mock interactions.
    */
@@ -193,23 +189,26 @@ public class BigQueryRecordWriterTest {
   }
 
   private void initializeRecordWriter() throws IOException {
-    when(mockBigQueryHelper.createJobReference(any(String.class), any(String.class)))
+    when(mockBigQueryHelper.createJobReference(
+            any(String.class), any(String.class), any(String.class)))
         .thenReturn(jobReference);
-    recordWriter = new BigQueryRecordWriter<>(
-        mockFactory,
-        executorService,
-        mockClientRequestHelper,
-        new Configuration(),
-        progressable,
-        taskIdentifier,
-        fields,
-        jobProjectId,
-        getSampleTableRef(),
-        64 * 1024 * 1024);
+    recordWriter =
+        new BigQueryRecordWriter<>(
+            mockFactory,
+            executorService,
+            mockClientRequestHelper,
+            testConf,
+            progressable,
+            taskIdentifier,
+            fields,
+            jobProjectId,
+            getSampleTableRef(),
+            64 * 1024 * 1024);
     recordWriter.setErrorExtractor(mockErrorExtractor);
-    verify(mockBigQueryHelper).createJobReference(eq(jobProjectId), eq(taskIdentifier));
+    verify(mockBigQueryHelper)
+        .createJobReference(eq(jobProjectId), eq(taskIdentifier), eq("test_location"));
   }
-  
+
   /**
    * Tests the write method of BigQueryRecordWriter for a single write.
    */

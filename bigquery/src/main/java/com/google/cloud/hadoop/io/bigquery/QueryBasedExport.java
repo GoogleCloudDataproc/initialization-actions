@@ -18,6 +18,7 @@ import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationQuery;
 import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
@@ -143,7 +144,10 @@ public class QueryBasedExport implements Export {
     JobConfiguration config = new JobConfiguration();
     config.setQuery(queryConfig);
 
-    JobReference jobReference = bigQueryHelper.createJobReference(projectId, "querybasedexport");
+    Table table = bigQueryHelper.getTable(tableRef);
+
+    JobReference jobReference =
+        bigQueryHelper.createJobReference(projectId, "querybasedexport", table.getLocation());
 
     Job job = new Job();
     job.setConfiguration(config);

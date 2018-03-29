@@ -15,6 +15,7 @@ package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Jobs.Insert;
+import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.ExternalDataConfiguration;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
@@ -52,7 +53,7 @@ public class BigQueryHelper {
   private ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
 
   private Bigquery service;
-  
+
   /** A progressable that does nothing. */
   private static final Progressable NOP_PROGRESSABLE =
       new Progressable() {
@@ -164,7 +165,12 @@ public class BigQueryHelper {
     JobConfiguration config = new JobConfiguration();
     config.setLoad(loadConfig);
 
-    JobReference jobReference = createJobReference(projectId, "direct-bigqueryhelper-import");
+    // Get the dataset to determine the location
+    Dataset dataset =
+        service.datasets().get(tableRef.getProjectId(), tableRef.getDatasetId()).execute();
+
+    JobReference jobReference =
+        createJobReference(projectId, "direct-bigqueryhelper-import", dataset.getLocation());
     Job job = new Job();
     job.setConfiguration(config);
     job.setJobReference(jobReference);
@@ -219,7 +225,11 @@ public class BigQueryHelper {
     JobConfiguration config = new JobConfiguration();
     config.setExtract(extractConfig);
 
-    JobReference jobReference = createJobReference(projectId, "direct-bigqueryhelper-export");
+    // Get the table to determine the location
+    Table table = getTable(tableRef);
+
+    JobReference jobReference =
+        createJobReference(projectId, "direct-bigqueryhelper-export", table.getLocation());
 
     Job job = new Job();
     job.setConfiguration(config);
@@ -272,7 +282,8 @@ public class BigQueryHelper {
    * Creates a new JobReference with a unique jobId generated from {@code jobIdPrefix} plus a
    * randomly generated UUID String.
    */
-  public JobReference createJobReference(String projectId, String jobIdPrefix) {
+  public JobReference createJobReference(
+      String projectId, String jobIdPrefix, @Nullable String location) {
     Preconditions.checkArgument(projectId != null, "projectId must not be null.");
     Preconditions.checkArgument(jobIdPrefix != null, "jobIdPrefix must not be null.");
     Preconditions.checkArgument(jobIdPrefix.matches(BIGQUERY_JOB_ID_PATTERN),
@@ -282,9 +293,7 @@ public class BigQueryHelper {
     Preconditions.checkArgument(fullJobId.length() <= BIGQUERY_JOB_ID_MAX_LENGTH,
         "fullJobId '%s' has length '%s'; must be less than or equal to %s",
         fullJobId, fullJobId.length(), BIGQUERY_JOB_ID_MAX_LENGTH);
-    return new JobReference()
-        .setProjectId(projectId)
-        .setJobId(fullJobId);
+    return new JobReference().setProjectId(projectId).setJobId(fullJobId).setLocation(location);
   }
 
   /**
