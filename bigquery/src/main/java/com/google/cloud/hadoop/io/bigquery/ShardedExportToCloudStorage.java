@@ -119,9 +119,8 @@ public class ShardedExportToCloudStorage extends AbstractExportToCloudStorage {
     int desiredNumMaps = configuration.getInt(NUM_MAP_TASKS_HINT_KEY, NUM_MAP_TASKS_HINT_DEFAULT);
     LOG.debug("Fetched desiredNumMaps from '{}': {}", NUM_MAP_TASKS_HINT_KEY, desiredNumMaps);
 
-    int estimatedNumFiles = (int) Math.min(
-        Math.max(MIN_SHARDS_FOR_SHARDED_EXPORT, numTableBytes / APPROXIMATE_EXPORT_FILE_SIZE),
-        APPROXIMATE_MAX_EXPORT_FILES);
+    int estimatedNumFiles =
+        (int) Math.min(numTableBytes / APPROXIMATE_EXPORT_FILE_SIZE, APPROXIMATE_MAX_EXPORT_FILES);
     LOG.debug("estimatedNumFiles: {}", estimatedNumFiles);
 
     // Maximum number of shards is either equal to the number of files (such that each shard has
@@ -129,14 +128,17 @@ public class ShardedExportToCloudStorage extends AbstractExportToCloudStorage {
     int serviceMaxShards = configuration.getInt(MAX_EXPORT_SHARDS_KEY, MAX_EXPORT_SHARDS_DEFAULT);
     LOG.debug("Fetched serviceMaxShards from '{}': {}", MAX_EXPORT_SHARDS_KEY, serviceMaxShards);
 
-    int maxShards = Math.min(estimatedNumFiles, serviceMaxShards);
-    if (maxShards < desiredNumMaps) {
-      LOG.warn("Estimated max shards < desired num maps ({} < {}); clipping to {}.",
-          maxShards, desiredNumMaps, maxShards);
+    int numShards = Math.min(estimatedNumFiles, serviceMaxShards);
+    if (numShards < desiredNumMaps) {
+      LOG.warn(
+          "Estimated number of shards < desired num maps ({} < {}); clipping to {}.",
+          numShards,
+          desiredNumMaps,
+          numShards);
       // TODO(user): Add config settings for whether to clip or not.
-      return maxShards;
     } else {
-      return desiredNumMaps;
+      numShards = desiredNumMaps;
     }
+    return Math.max(numShards, MIN_SHARDS_FOR_SHARDED_EXPORT);
   }
 }
