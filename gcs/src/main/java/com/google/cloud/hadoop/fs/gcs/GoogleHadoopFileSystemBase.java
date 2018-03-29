@@ -456,6 +456,16 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   /** Default value for {@link GoogleHadoopFileSystemBase#GCS_ENABLE_MARKER_FILE_CREATION_KEY}. */
   public static final boolean GCS_ENABLE_MARKER_FILE_CREATION_DEFAULT = false;
 
+  /**
+   * Configuration key for enabling the use of Rewrite requests for copy operations. Rewrite request
+   * has the same effect as Copy request, but it can handle moving large objects that may
+   * potentially timeout a Copy request.
+   */
+  public static final String GCS_ENABLE_COPY_WITH_REWRITE_KEY = "fs.gs.copy.with.rewrite.enable";
+
+  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_ENABLE_COPY_WITH_REWRITE_KEY}. */
+  public static final boolean GCS_ENABLE_COPY_WITH_REWRITE_DEFAULT = false;
+
   /** Configuration key for number of items to return per call to the list* GCS RPCs. */
   public static final String GCS_MAX_LIST_ITEMS_PER_CALL = "fs.gs.list.max.items.per.call";
 
@@ -2207,6 +2217,12 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     optionsBuilder
         .getCloudStorageOptionsBuilder()
         .setCreateMarkerObjects(enableMarkerFileCreation);
+
+    boolean enableCopyWithRewrite =
+        config.getBoolean(GCS_ENABLE_COPY_WITH_REWRITE_KEY, GCS_ENABLE_COPY_WITH_REWRITE_DEFAULT);
+    LOG.debug("{} = {}", GCS_ENABLE_COPY_WITH_REWRITE_KEY, enableCopyWithRewrite);
+
+    optionsBuilder.getCloudStorageOptionsBuilder().setCopyWithRewriteEnabled(enableCopyWithRewrite);
 
     String transportTypeString = config.get(GCS_HTTP_TRANSPORT_KEY, GCS_HTTP_TRANSPORT_DEFAULT);
     LOG.debug("{} = {}", GCS_HTTP_TRANSPORT_KEY, transportTypeString);

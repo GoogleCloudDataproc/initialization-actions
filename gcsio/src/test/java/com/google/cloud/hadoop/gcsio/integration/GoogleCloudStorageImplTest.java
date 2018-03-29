@@ -19,12 +19,14 @@ import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.assertThrows;
 
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.cloud.hadoop.gcsio.CreateBucketOptions;
 import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
@@ -34,9 +36,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Tests that require a particular configuration of GoogleCloudStorageImpl.
- */
+/** Tests that require a particular configuration of GoogleCloudStorageImpl. */
 @RunWith(JUnit4.class)
 public class GoogleCloudStorageImplTest {
 
@@ -190,5 +190,42 @@ public class GoogleCloudStorageImplTest {
     assertThat(gcs.getItemInfo(resourceId1).getContentType()).isEqualTo("text/plain");
     assertThat(gcs.getItemInfo(resourceId2).getContentType()).isEqualTo("image/png");
     assertThat(gcs.getItemInfo(resourceId3).getContentType()).isEqualTo("application/octet-stream");
+  }
+
+  @Test
+  public void testCopySingleItemWithRewrite() throws IOException {
+    GoogleCloudStorageOptions.Builder builder =
+        GoogleCloudStorageTestHelper.getStandardOptionBuilder()
+            .setCopyWithRewriteEnabled(true);
+    GoogleCloudStorageImpl gcs = makeStorage(builder.build());
+
+    String srcBucketName = BUCKET_HELPER.getUniqueBucketName("copy-with-rewrite-src");
+    gcs.create(srcBucketName);
+
+    String dstBucketName = BUCKET_HELPER.getUniqueBucketName("copy-with-rewrite-dst");
+    // Create destination bucket with different location and storage class,
+    // because this is supported by rewrite but not copy requests
+    gcs.create(dstBucketName, new CreateBucketOptions(null, "coldline"));
+
+    byte[] bytesToWrite = new byte[500 * 1024 * 1024];
+    GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
+
+    StorageResourceId objectToCreate =
+        new StorageResourceId(srcBucketName, "testCopySingleItemWithRewrite_SourceObject");
+    try (WritableByteChannel channel = gcs.create(objectToCreate)) {
+      channel.write(ByteBuffer.wrap(bytesToWrite));
+    }
+
+    GoogleCloudStorageTestHelper.assertObjectContent(gcs, objectToCreate, bytesToWrite);
+
+    StorageResourceId copiedResourceId =
+        new StorageResourceId(dstBucketName, "testCopySingleItemWithRewrite_DestinationObject");
+
+    // Do the copy:
+    gcs.copy(
+        srcBucketName, ImmutableList.of(objectToCreate.getObjectName()),
+        dstBucketName, ImmutableList.of(copiedResourceId.getObjectName()));
+
+    GoogleCloudStorageTestHelper.assertObjectContent(gcs, copiedResourceId, bytesToWrite);
   }
 }

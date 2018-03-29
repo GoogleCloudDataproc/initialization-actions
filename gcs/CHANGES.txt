@@ -2,6 +2,12 @@
 
   1. Add `AUTO` mode support for Cloud Storage Requester Pays feature.
 
+  2. Add support for using Cloud Storage Rewrite requests for copy operation:
+
+       fs.gs.copy.with.rewrite.enable (default: false)
+
+     This allows to copy files between different locations and storage classes.
+
 
 1.8.0 - 2018-03-15
 

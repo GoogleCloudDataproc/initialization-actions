@@ -44,6 +44,14 @@
     </description>
   </property>
   <property>
+    <name>fs.gs.copy.with.rewrite.enable</name>
+    <value></value>
+    <description>
+      Whether or not to perform copy operation using Rewrite requests. Allows
+      to copy files between different locations and storage classes.
+    </description>
+  </property>
+  <property>
     <name>fs.gs.system.bucket</name>
     <value></value>
     <description>

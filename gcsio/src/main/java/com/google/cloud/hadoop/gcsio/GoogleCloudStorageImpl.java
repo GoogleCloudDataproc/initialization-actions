@@ -38,6 +38,7 @@ import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Buckets;
 import com.google.api.services.storage.model.ComposeRequest;
 import com.google.api.services.storage.model.Objects;
+import com.google.api.services.storage.model.RewriteResponse;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
@@ -726,6 +727,7 @@ public class GoogleCloudStorageImpl
       queueSingleObjectDelete(fullObjectName, innerExceptions, batchHelper, 1);
     }
 
+    // TODO: delete this loop, it already looped in `batchHelper.flush()`
     do {
       batchHelper.flush();
     } while (!batchHelper.isEmpty());
@@ -847,15 +849,17 @@ public class GoogleCloudStorageImpl
    * Validates basic argument constraints like non-null, non-empty Strings, using {@code
    * Preconditions} in addition to checking for src/dst bucket existence and compatibility of bucket
    * properties such as location and storage-class.
+   *
    * @param gcsImpl A GoogleCloudStorage for retrieving bucket info via getItemInfo, but only if
    *     srcBucketName != dstBucketName; passed as a parameter so that this static method can be
    *     used by other implementations of GoogleCloudStorage that want to preserve the validation
    *     behavior of GoogleCloudStorageImpl, including disallowing cross-location copies.
    */
   @VisibleForTesting
-  public static void validateCopyArguments(String srcBucketName, List<String> srcObjectNames,
-      String dstBucketName, List<String> dstObjectNames, GoogleCloudStorage gcsImpl)
-      throws IOException {
+  public static void validateCopyArguments(
+      String srcBucketName, List<String> srcObjectNames,
+      String dstBucketName, List<String> dstObjectNames,
+      GoogleCloudStorage gcsImpl) throws IOException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(srcBucketName),
         "srcBucketName must not be null or empty");
     Preconditions.checkArgument(!Strings.isNullOrEmpty(dstBucketName),
@@ -881,14 +885,16 @@ public class GoogleCloudStorageImpl
         throw new FileNotFoundException("Bucket not found: " + dstBucketName);
       }
 
-      if (!srcBucketInfo.getLocation().equals(dstBucketInfo.getLocation())) {
-        throw new UnsupportedOperationException(
-            "This operation is not supported across two different storage locations.");
-      }
+      if (!gcsImpl.getOptions().isCopyWithRewriteEnabled()) {
+        if (!srcBucketInfo.getLocation().equals(dstBucketInfo.getLocation())) {
+          throw new UnsupportedOperationException(
+              "This operation is not supported across two different storage locations.");
+        }
 
-      if (!srcBucketInfo.getStorageClass().equals(dstBucketInfo.getStorageClass())) {
-        throw new UnsupportedOperationException(
-            "This operation is not supported across two different storage classes.");
+        if (!srcBucketInfo.getStorageClass().equals(dstBucketInfo.getStorageClass())) {
+          throw new UnsupportedOperationException(
+              "This operation is not supported across two different storage classes.");
+        }
       }
     }
     for (int i = 0; i < srcObjectNames.size(); i++) {
@@ -906,60 +912,150 @@ public class GoogleCloudStorageImpl
   }
 
   /**
-   * See {@link GoogleCloudStorage#copy(String, List, String, List)} for details
-   * about expected behavior.
+   * See {@link GoogleCloudStorage#copy(String, List, String, List)} for details about expected
+   * behavior.
    */
   @Override
-  public void copy(final String srcBucketName, List<String> srcObjectNames,
-      final String dstBucketName, List<String> dstObjectNames)
+  public void copy(
+      String srcBucketName, List<String> srcObjectNames,
+      String dstBucketName, List<String> dstObjectNames)
       throws IOException {
-    validateCopyArguments(srcBucketName, srcObjectNames,
-        dstBucketName, dstObjectNames, this);
+    validateCopyArguments(srcBucketName, srcObjectNames, dstBucketName, dstObjectNames, this);
 
-    // Gather FileNotFoundExceptions for individual objects, but only throw a single combined
-    // exception at the end.
-    final List<IOException> innerExceptions = new ArrayList<>();
+    // Gather FileNotFoundExceptions for individual objects,
+    // but only throw a single combined exception at the end.
+    List<IOException> innerExceptions = new ArrayList<>();
 
     // Perform the copy operations.
-    BatchHelper batchHelper = batchFactory.newBatchHelper(
-        httpRequestInitializer,
-        gcs,
-        storageOptions.getMaxRequestsPerBatch());
+    BatchHelper batchHelper =
+        batchFactory.newBatchHelper(
+            httpRequestInitializer, gcs, storageOptions.getMaxRequestsPerBatch());
 
     for (int i = 0; i < srcObjectNames.size(); i++) {
-      final String srcObjectName = srcObjectNames.get(i);
-      final String dstObjectName = dstObjectNames.get(i);
-      Storage.Objects.Copy copyObject =
-          configureRequest(
-              gcs.objects().copy(srcBucketName, srcObjectName, dstBucketName, dstObjectName, null),
-              srcBucketName);
-      batchHelper.queue(copyObject, new JsonBatchCallback<StorageObject>() {
-        @Override
-        public void onSuccess(StorageObject obj, HttpHeaders responseHeaders) {
-          LOG.debug("Successfully copied {} to {}",
-              StorageResourceId.createReadableString(srcBucketName, srcObjectName),
-              StorageResourceId.createReadableString(dstBucketName, dstObjectName));
-        }
-
-        @Override
-        public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) {
-          if (errorExtractor.itemNotFound(e)) {
-            LOG.debug("copy({}) : not found",
-                StorageResourceId.createReadableString(srcBucketName, srcObjectName));
-            innerExceptions.add(GoogleCloudStorageExceptions.getFileNotFoundException(
-                srcBucketName, srcObjectName));
-          } else {
-            innerExceptions.add(wrapException(
-                new IOException(e.toString()), "Error copying", srcBucketName, srcObjectName));
-          }
-        }
-      });
+      if (storageOptions.isCopyWithRewriteEnabled()) {
+        // Rewrite request has the same effect as Copy, but it can handle moving
+        // large objects that may potentially timeout a Copy request.
+        rewriteInternal(
+            batchHelper,
+            innerExceptions,
+            srcBucketName, srcObjectNames.get(i),
+            dstBucketName, dstObjectNames.get(i));
+      } else {
+        copyInternal(
+            batchHelper,
+            innerExceptions,
+            srcBucketName, srcObjectNames.get(i),
+            dstBucketName, dstObjectNames.get(i));
+      }
     }
+
     // Execute any remaining requests not divisible by the max batch size.
     batchHelper.flush();
 
-    if (innerExceptions.size() > 0) {
+    if (!innerExceptions.isEmpty()) {
       throw GoogleCloudStorageExceptions.createCompositeException(innerExceptions);
+    }
+  }
+
+  /**
+   * Performs copy operation using GCS Rewrite requests
+   *
+   * @see GoogleCloudStorage#copy(String, List, String, List)
+   */
+  private void rewriteInternal(
+      final BatchHelper batchHelper,
+      final List<IOException> innerExceptions,
+      final String srcBucketName, final String srcObjectName,
+      final String dstBucketName, final String dstObjectName)
+      throws IOException {
+    Storage.Objects.Rewrite rewriteObject =
+        configureRequest(
+            gcs.objects().rewrite(srcBucketName, srcObjectName, dstBucketName, dstObjectName, null),
+            srcBucketName);
+
+    batchHelper.queue(
+        rewriteObject,
+        new JsonBatchCallback<RewriteResponse>() {
+          @Override
+          public void onSuccess(RewriteResponse rewriteResponse, HttpHeaders responseHeaders) {
+            String srcString = StorageResourceId.createReadableString(srcBucketName, srcObjectName);
+            String dstString = StorageResourceId.createReadableString(dstBucketName, dstObjectName);
+
+            if (rewriteResponse.getDone()) {
+              LOG.debug("Successfully copied {} to {}", srcString, dstString);
+            } else {
+              // If an object is very large, we need to continue making successive calls to
+              // rewrite until the operation completes.
+              LOG.debug("Copy ({} to {}) did not complete. Resuming...", srcString, dstString);
+              try {
+                Storage.Objects.Rewrite rewriteObjectWithToken =
+                    configureRequest(
+                        gcs.objects()
+                            .rewrite(
+                                srcBucketName, srcObjectName, dstBucketName, dstObjectName, null),
+                        srcBucketName);
+                rewriteObjectWithToken.setRewriteToken(rewriteResponse.getRewriteToken());
+                batchHelper.queue(rewriteObjectWithToken, this);
+              } catch (IOException e) {
+                innerExceptions.add(e);
+              }
+            }
+          }
+
+          @Override
+          public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) {
+            onCopyFailure(innerExceptions, e, srcBucketName, srcObjectName);
+          }
+        });
+  }
+
+  /**
+   * Performs copy operation using GCS Copy requests
+   *
+   * @see GoogleCloudStorage#copy(String, List, String, List)
+   */
+  private void copyInternal(
+      BatchHelper batchHelper,
+      final List<IOException> innerExceptions,
+      final String srcBucketName, final String srcObjectName,
+      final String dstBucketName, final String dstObjectName)
+      throws IOException {
+    Storage.Objects.Copy copyObject =
+        configureRequest(
+            gcs.objects().copy(srcBucketName, srcObjectName, dstBucketName, dstObjectName, null),
+            srcBucketName);
+
+    batchHelper.queue(
+        copyObject,
+        new JsonBatchCallback<StorageObject>() {
+          @Override
+          public void onSuccess(StorageObject copyResponse, HttpHeaders responseHeaders) {
+            String srcString = StorageResourceId.createReadableString(srcBucketName, srcObjectName);
+            String dstString = StorageResourceId.createReadableString(dstBucketName, dstObjectName);
+            LOG.debug("Successfully copied {} to {}", srcString, dstString);
+          }
+
+          @Override
+          public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) {
+            onCopyFailure(innerExceptions, e, srcBucketName, srcObjectName);
+          }
+        });
+  }
+
+  /** Processes failed copy requests */
+  private void onCopyFailure(
+      List<IOException> innerExceptions,
+      GoogleJsonError e,
+      String srcBucketName, String srcObjectName) {
+    if (errorExtractor.itemNotFound(e)) {
+      String srcString = StorageResourceId.createReadableString(srcBucketName, srcObjectName);
+      LOG.debug("copy({}) : not found", srcString);
+      innerExceptions.add(
+          GoogleCloudStorageExceptions.getFileNotFoundException(srcBucketName, srcObjectName));
+    } else {
+      innerExceptions.add(
+          wrapException(
+              new IOException(e.toString()), "Error copying", srcBucketName, srcObjectName));
     }
   }
 

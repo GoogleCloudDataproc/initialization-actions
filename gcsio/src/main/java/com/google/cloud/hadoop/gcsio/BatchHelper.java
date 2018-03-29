@@ -22,7 +22,6 @@ import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.StorageRequest;
 import com.google.common.annotations.VisibleForTesting;
-
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
@@ -42,8 +41,8 @@ public class BatchHelper {
    * use cases will generally interact via an injectable BatchHelper.Factory.
    */
   public static class Factory {
-    public BatchHelper newBatchHelper(HttpRequestInitializer requestInitializer, Storage gcs,
-        long maxRequestsPerBatch) {
+    public BatchHelper newBatchHelper(
+        HttpRequestInitializer requestInitializer, Storage gcs, long maxRequestsPerBatch) {
       return new BatchHelper(requestInitializer, gcs, maxRequestsPerBatch);
     }
   }
@@ -97,39 +96,38 @@ public class BatchHelper {
     flushIfPossibleAndRequired();
   }
 
-  // Flush our buffer if we have more pending entries than maxRequestsPerBatch
+  // Flush our buffer if we have at least maxRequestsPerBatch pending entries
   private void flushIfPossibleAndRequired() throws IOException {
-    if (pendingBatchEntries.size() > maxRequestsPerBatch) {
-      flushIfPossible();
+    if (pendingBatchEntries.size() >= maxRequestsPerBatch) {
+      flushIfPossible(false);
     }
   }
 
   // Flush our buffer if we are not already in a flush operation and we have data to flush.
-  private void flushIfPossible() throws IOException {
+  private void flushIfPossible(boolean flushAll) throws IOException {
     if (!flushing && pendingBatchEntries.size() > 0) {
       flushing = true;
       try {
-        while (batch.size() < maxRequestsPerBatch
-            && pendingBatchEntries.size() > 0) {
-          QueueRequestCallback head = pendingBatchEntries.remove(0);
-          head.enqueue();
-        }
+        do {
+          while (batch.size() < maxRequestsPerBatch && !pendingBatchEntries.isEmpty()) {
+            QueueRequestCallback head = pendingBatchEntries.remove(0);
+            head.enqueue();
+          }
 
-        batch.execute();
+          batch.execute();
+        } while (flushAll && !pendingBatchEntries.isEmpty());
       } finally {
         flushing = false;
       }
     }
   }
 
-
   /**
-   * Sends any currently remaining requests in the batch; should be caleld at the end of any
-   * series of batched requests to ensure everything has been sent.
+   * Sends any currently remaining requests in the batch; should be caleld at the end of any series
+   * of batched requests to ensure everything has been sent.
    */
-  public void flush()
-      throws IOException {
-    flushIfPossible();
+  public void flush() throws IOException {
+    flushIfPossible(true);
   }
 
   /**

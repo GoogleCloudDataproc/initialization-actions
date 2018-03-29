@@ -61,6 +61,9 @@ public class GoogleCloudStorageOptions {
   public static final RequesterPaysOptions DEFAULT_REQUESTER_PAYS_OPTIONS =
       RequesterPaysOptions.DEFAULT;
 
+  /** Default setting for whether or not to use rewrite request for copy operation. */
+  public static final boolean COPY_WITH_REWRITE_DEFAULT = false;
+
   /**
    * Mutable builder for the GoogleCloudStorageOptions class.
    */
@@ -87,6 +90,8 @@ public class GoogleCloudStorageOptions {
         new AsyncWriteChannelOptions.Builder();
 
     private RequesterPaysOptions requesterPaysOptions = DEFAULT_REQUESTER_PAYS_OPTIONS;
+
+    private boolean copyWithRewriteEnabled = COPY_WITH_REWRITE_DEFAULT;
 
     public Builder setAutoRepairImplicitDirectoriesEnabled(
         boolean autoRepairImplicitDirectoriesEnabled) {
@@ -156,6 +161,11 @@ public class GoogleCloudStorageOptions {
       return this;
     }
 
+    public Builder setCopyWithRewriteEnabled(boolean copyWithRewriteEnabled) {
+      this.copyWithRewriteEnabled = copyWithRewriteEnabled;
+      return this;
+    }
+
     public GoogleCloudStorageOptions build() {
       return new GoogleCloudStorageOptions(this);
     }
@@ -177,6 +187,7 @@ public class GoogleCloudStorageOptions {
   private final boolean createMarkerFile;
   private final int maxWaitMillisForEmptyObjectCreation;
   private final RequesterPaysOptions requesterPaysOptions;
+  private final boolean copyWithRewriteEnabled;
 
   protected GoogleCloudStorageOptions(Builder builder) {
     this.autoRepairImplicitDirectoriesEnabled = builder.autoRepairImplicitDirectoriesEnabled;
@@ -192,6 +203,7 @@ public class GoogleCloudStorageOptions {
     this.maxWaitMillisForEmptyObjectCreation = builder.maxWaitMillisForEmptyObjectCreation;
     this.requesterPaysOptions =
         checkNotNull(builder.requesterPaysOptions, "requesterPaysOptions could not be null");
+    this.copyWithRewriteEnabled = builder.copyWithRewriteEnabled;
   }
 
   public GoogleCloudStorageOptions(
@@ -268,6 +280,10 @@ public class GoogleCloudStorageOptions {
 
   public RequesterPaysOptions getRequesterPaysOptions() {
     return requesterPaysOptions;
+  }
+
+  public boolean isCopyWithRewriteEnabled() {
+    return copyWithRewriteEnabled;
   }
 
   public void throwIfNotValid() {
