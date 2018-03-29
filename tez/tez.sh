@@ -136,15 +136,12 @@ function configure_master_node() {
   systemctl status hadoop-yarn-timelineserver  # Ensure it started successfully
 
   # Check hive-server2 status
-  local hive_server2_status
-  hive_server2_status=$(systemctl show --property=LoadState hive-server2.service \
-    | sed -e 's/^.*=//')
-  if [[ "${hive_server2_status}" == 'loaded' ]]; then
-    # Restart hive server2 if it is installed/loaded
+  if ( systemctl is-enabled --quiet hive-server2 ); then
+    # Restart hive server2 if it is enabled
     systemctl restart hive-server2
     systemctl status hive-server2  # Ensure it started successfully
   else
-    echo "Service hive-server2 is not loaded"
+    echo "Service hive-server2 is not enabled"
   fi
 }
 
