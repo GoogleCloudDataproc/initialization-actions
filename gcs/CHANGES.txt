@@ -1,3 +1,6 @@
+1.9.0 - 2018-XX-XX
+
+
 1.8.1 - 2018-03-29
 
   1. Add `AUTO` mode support for Cloud Storage Requester Pays feature.

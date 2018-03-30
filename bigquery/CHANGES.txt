@@ -1,3 +1,8 @@
+0.13.0 - 2018-XX-XX
+
+  1. POM updates for GCS connector 1.9.0.
+
+
 0.12.1 - 2018-03-29
 
   1. Wire location through load, extract, and query jobs.
