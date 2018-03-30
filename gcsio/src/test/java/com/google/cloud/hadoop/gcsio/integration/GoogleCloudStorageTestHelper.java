@@ -224,7 +224,8 @@ public class GoogleCloudStorageTestHelper {
         }
       }
       if (bucketsToDelete.size() > MAX_CLEANUP_BUCKETS) {
-        LOG.info("GCS has {} buckets to cleanup. It's too many, will cleanup only {} buckets: {}",
+        LOG.info(
+            "GCS has {} buckets to cleanup. It's too many, will cleanup only {} buckets: {}",
             bucketsToDelete.size(), MAX_CLEANUP_BUCKETS, bucketsToDelete);
         bucketsToDelete = bucketsToDelete.subList(0, MAX_CLEANUP_BUCKETS);
       } else {
@@ -241,7 +242,7 @@ public class GoogleCloudStorageTestHelper {
         storage.deleteObjects(Lists.transform(objectsToDelete, INFO_TO_RESOURCE_ID_FN));
         storage.deleteBuckets(bucketsToDelete);
       } catch (IOException ioe) {
-        LOG.warn("Caught exception during GCS buckets cleanup", storage, ioe);
+        LOG.warn("Caught exception during GCS ({}) buckets cleanup", storage, ioe);
       }
 
       LOG.info("GCS cleaned up in {} seconds", storageStopwatch.elapsed(TimeUnit.SECONDS));
