@@ -161,9 +161,13 @@ EOF
       || err 'Failed to set mysql schema.'
   fi
 
-  # Start metastore back up.
-  systemctl start hive-metastore \
-    || err 'Unable to start hive-metastore service'
+  if ( systemctl is-enabled --quiet hive-metastore ); then
+    # Start metastore back up.
+    systemctl start hive-metastore \
+      || err 'Unable to start hive-metastore service'
+  else
+    echo "Service hive-metastore is not loaded"
+  fi
 
   # Validate it's functioning.
   if ! hive -e 'SHOW TABLES;' >& /dev/null; then
@@ -213,7 +217,12 @@ function main() {
   if [[ "${role}" == 'Master' ]]; then
     # Disable Hive Metastore and MySql Server.
     if (( ENABLE_CLOUD_SQL_METASTORE )); then
-      systemctl stop hive-metastore
+      if ( systemctl is-enabled --quiet hive-metastore ); then
+        # Stop hive-metastore if it is enabled
+        systemctl stop hive-metastore
+      else
+        echo "Service hive-metastore is not enabled"
+      fi
       systemctl stop mysql
       systemctl disable mysql
     fi
