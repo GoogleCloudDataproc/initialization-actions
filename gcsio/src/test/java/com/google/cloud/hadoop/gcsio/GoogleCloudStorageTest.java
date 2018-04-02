@@ -2061,12 +2061,9 @@ public class GoogleCloudStorageTest {
     }
   }
 
-  /**
-   * Test successful operation of GoogleCloudStorage.delete(2).
-   */
+  /** Test successful operation of GoogleCloudStorage.delete(2). */
   @Test
-  public void testDeleteObjectNormalOperation()
-      throws IOException {
+  public void testDeleteObjectNormalOperation() throws IOException {
     when(mockBatchFactory.newBatchHelper(any(HttpRequestInitializer.class),
         any(Storage.class), any(Long.class))).thenReturn(mockBatchHelper);
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
@@ -2103,10 +2100,6 @@ public class GoogleCloudStorageTest {
         Matchers.<StorageRequest<Object>>anyObject(),
         Matchers.<JsonBatchCallback<Object>>anyObject());
 
-    when(mockBatchHelper.isEmpty())
-        .thenReturn(false)
-        .thenReturn(true);
-
     gcs.deleteObjects(Lists.newArrayList(new StorageResourceId(BUCKET_NAME, OBJECT_NAME)));
 
     verify(mockBatchFactory).newBatchHelper(any(HttpRequestInitializer.class),
@@ -2115,20 +2108,16 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjects).delete(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockStorageObjectsDelete).setIfGenerationMatch(eq(1L));
-    verify(mockBatchHelper, times(2)).isEmpty();
-    verify(mockBatchHelper, times(2)).flush();
+    verify(mockBatchHelper, times(1)).flush();
     verify(mockBatchHelper, times(2))
         .queue(
             Matchers.<StorageRequest<Object>>anyObject(),
             Matchers.<JsonBatchCallback<Object>>anyObject());
   }
 
-  /**
-   * Test successful operation of GoogleCloudStorage.delete(2) with generationId.
-   */
+  /** Test successful operation of GoogleCloudStorage.delete(2) with generationId. */
   @Test
-  public void testDeleteObjectWithGenerationId()
-      throws IOException {
+  public void testDeleteObjectWithGenerationId() throws IOException {
     when(mockBatchFactory.newBatchHelper(any(HttpRequestInitializer.class),
         any(Storage.class), any(Long.class))).thenReturn(mockBatchHelper);
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
@@ -2147,9 +2136,6 @@ public class GoogleCloudStorageTest {
         Matchers.<StorageRequest<Object>>anyObject(),
         Matchers.<JsonBatchCallback<Object>>anyObject());
 
-    when(mockBatchHelper.isEmpty())
-        .thenReturn(true);
-
     gcs.deleteObjects(Lists.newArrayList(new StorageResourceId(BUCKET_NAME, OBJECT_NAME, 222L)));
 
     verify(mockBatchFactory).newBatchHelper(any(HttpRequestInitializer.class),
@@ -2157,7 +2143,6 @@ public class GoogleCloudStorageTest {
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects).delete(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockStorageObjectsDelete).setIfGenerationMatch(eq(222L));
-    verify(mockBatchHelper, times(1)).isEmpty();
     verify(mockBatchHelper, times(1)).flush();
     verify(mockBatchHelper, times(1))
         .queue(
@@ -2170,8 +2155,7 @@ public class GoogleCloudStorageTest {
    * GoogleCloudStorage.delete(2).
    */
   @Test
-  public void testDeleteObjectApiException()
-      throws IOException {
+  public void testDeleteObjectApiException() throws IOException {
     when(mockBatchFactory.newBatchHelper(any(HttpRequestInitializer.class),
         any(Storage.class), any(Long.class))).thenReturn(mockBatchHelper);
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
@@ -2255,20 +2239,13 @@ public class GoogleCloudStorageTest {
     when(mockErrorExtractor.preconditionNotMet(any(GoogleJsonError.class)))
         .thenReturn(false);
 
-    when(mockBatchHelper.isEmpty())
-        .thenReturn(false)
-        .thenReturn(true)
-        .thenReturn(false)
-        .thenReturn(true);
-
     // First time is the notFoundException; expect the impl to ignore it completely.
     try {
       gcs.deleteObjects(Lists.newArrayList(new StorageResourceId(BUCKET_NAME, OBJECT_NAME)));
     } catch (Exception e) {
       // Make the test output a little more friendly by specifying why an error may have leaked
       // through.
-      fail("Expected no exception when mocking itemNotFound error from API call, got "
-           + e.toString());
+      fail("Expected no exception when mocking itemNotFound error from API call, got " + e);
     }
 
     // Second time is the unexpectedException.
@@ -2288,8 +2265,7 @@ public class GoogleCloudStorageTest {
         Matchers.<JsonBatchCallback<Object>>anyObject());
     verify(mockErrorExtractor, times(2)).itemNotFound(any(GoogleJsonError.class));
     verify(mockErrorExtractor, times(1)).preconditionNotMet(any(GoogleJsonError.class));
-    verify(mockBatchHelper, times(4)).flush();
-    verify(mockBatchHelper, times(4)).isEmpty();
+    verify(mockBatchHelper, times(2)).flush();
   }
 
   /**

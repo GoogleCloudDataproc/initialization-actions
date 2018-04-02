@@ -657,14 +657,13 @@ public class GoogleCloudStorageImpl
    * See {@link GoogleCloudStorage#deleteBuckets(List<String>)} for details about expected behavior.
    */
   @Override
-  public void deleteBuckets(List<String> bucketNames)
-      throws IOException {
+  public void deleteBuckets(List<String> bucketNames) throws IOException {
     LOG.debug("deleteBuckets({})", bucketNames);
 
     // Validate all the inputs first.
     for (String bucketName : bucketNames) {
-      Preconditions.checkArgument(!Strings.isNullOrEmpty(bucketName),
-          "bucketName must not be null or empty");
+      Preconditions.checkArgument(
+          !Strings.isNullOrEmpty(bucketName), "bucketName must not be null or empty");
     }
 
     // Gather exceptions to wrap in a composite exception at the end.
@@ -684,11 +683,11 @@ public class GoogleCloudStorageImpl
       } catch (IOException ioe) {
         if (errorExtractor.itemNotFound(ioe)) {
           LOG.debug("delete({}) : not found", bucketName);
-          innerExceptions.add(GoogleCloudStorageExceptions.getFileNotFoundException(
-              bucketName, null));
+          innerExceptions.add(
+              GoogleCloudStorageExceptions.getFileNotFoundException(bucketName, null));
         } else {
-          innerExceptions.add(wrapException(
-              new IOException(ioe.toString()), "Error deleting", bucketName, null));
+          innerExceptions.add(
+              wrapException(new IOException(ioe.toString()), "Error deleting", bucketName, null));
         }
       } catch (InterruptedException e) {
         throw new IOException(e);  // From sleep
@@ -704,8 +703,7 @@ public class GoogleCloudStorageImpl
    * expected behavior.
    */
   @Override
-  public void deleteObjects(List<StorageResourceId> fullObjectNames)
-      throws IOException {
+  public void deleteObjects(List<StorageResourceId> fullObjectNames) throws IOException {
     LOG.debug("deleteObjects({})", fullObjectNames);
 
     // Validate that all the elements represent StorageObjects.
@@ -718,19 +716,15 @@ public class GoogleCloudStorageImpl
 
     // Gather exceptions to wrap in a composite exception at the end.
     final List<IOException> innerExceptions = new ArrayList<>();
-    BatchHelper batchHelper = batchFactory.newBatchHelper(
-        httpRequestInitializer,
-        gcs,
-        storageOptions.getMaxRequestsPerBatch());
+    BatchHelper batchHelper =
+        batchFactory.newBatchHelper(
+            httpRequestInitializer, gcs, storageOptions.getMaxRequestsPerBatch());
 
     for (final StorageResourceId fullObjectName : fullObjectNames) {
       queueSingleObjectDelete(fullObjectName, innerExceptions, batchHelper, 1);
     }
 
-    // TODO: delete this loop, it already looped in `batchHelper.flush()`
-    do {
-      batchHelper.flush();
-    } while (!batchHelper.isEmpty());
+    batchHelper.flush();
 
     if (innerExceptions.size() > 0) {
       throw GoogleCloudStorageExceptions.createCompositeException(innerExceptions);

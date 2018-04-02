@@ -134,6 +134,6 @@ public class BatchHelper {
    * Returns true if there are no currently queued entries in the batch helper.
    */
   public boolean isEmpty() {
-    return pendingBatchEntries.size() == 0;
+    return pendingBatchEntries.isEmpty();
   }
 }
