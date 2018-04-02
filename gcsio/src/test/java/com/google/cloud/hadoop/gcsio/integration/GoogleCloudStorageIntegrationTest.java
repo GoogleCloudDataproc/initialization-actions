@@ -72,10 +72,7 @@ public class GoogleCloudStorageIntegrationTest extends GoogleCloudStorageTest {
     Credential credential = GoogleCloudStorageTestHelper.getCredential();
 
     GoogleCloudStorageOptions.Builder builder =
-        optionalBuilder
-            .or(GoogleCloudStorageTestHelper.getStandardOptionBuilder())
-            .setMaxRequestsPerBatch(100)
-            .setMaxListItemsPerCall(1000);
+        optionalBuilder.or(GoogleCloudStorageTestHelper.getStandardOptionBuilder());
 
     return new ThrottledGoogleCloudStorage(
         // Allow 2 create or delete bucket operation every second. This will hit rate limits,

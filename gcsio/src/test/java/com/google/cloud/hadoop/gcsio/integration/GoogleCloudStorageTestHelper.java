@@ -28,7 +28,6 @@ import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
-import com.google.common.base.Function;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 import java.io.IOException;
@@ -170,22 +169,13 @@ public class GoogleCloudStorageTestHelper {
   /** Helper for dealing with buckets in GCS integration tests. */
   public static class TestBucketHelper {
 
-    private static final int MAX_CLEANUP_BUCKETS = 1000;
+    private static final int MAX_CLEANUP_BUCKETS = 250;
 
     private static final String DELIMITER = "_";
 
     // If bucket created before this time, it considered leaked
     private static final long LEAKED_BUCKETS_CUTOFF_TIME =
         Instant.now().minus(Duration.standardHours(6)).getMillis();
-
-    private static final Function<GoogleCloudStorageItemInfo, StorageResourceId>
-        INFO_TO_RESOURCE_ID_FN =
-            new Function<GoogleCloudStorageItemInfo, StorageResourceId>() {
-              @Override
-              public StorageResourceId apply(GoogleCloudStorageItemInfo info) {
-                return info.getResourceId();
-              }
-            };
 
     private final String bucketPrefix;
     private final String uniqueBucketPrefix;
@@ -239,7 +229,8 @@ public class GoogleCloudStorageTestHelper {
       LOG.info("GCS has {} objects to cleanup: {}", objectsToDelete.size(), objectsToDelete);
 
       try {
-        storage.deleteObjects(Lists.transform(objectsToDelete, INFO_TO_RESOURCE_ID_FN));
+        storage.deleteObjects(
+            Lists.transform(objectsToDelete, GoogleCloudStorageItemInfo::getResourceId));
         storage.deleteBuckets(bucketsToDelete);
       } catch (IOException ioe) {
         LOG.warn("Caught exception during GCS ({}) buckets cleanup", storage, ioe);
