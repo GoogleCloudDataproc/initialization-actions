@@ -13,6 +13,8 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.cloud.hadoop.io.bigquery.BigQueryFactory.BIGQUERY_CONFIG_PREFIX;
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.when;
 
@@ -20,9 +22,9 @@ import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
+import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
 import com.google.gson.JsonObject;
@@ -74,8 +76,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
   // Populated by command-line projectId and falls back to env.
   private String projectIdvalue;
 
-  // A unique per-setUp String to avoid collisions between test runs.
-  private String testId;
+  private TestBucketHelper bucketHelper;
 
   // DatasetId derived from testId; same for all test methods.
   private String testDataset;
@@ -102,10 +103,8 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
   // TableId derived from testId, a unique one should be used for each test method.
   private String testTable;
 
-  /**
-   * True to enable using an AsyncWriteChannel.
-   */
-  public boolean enableAsyncWrites = false;
+  /** True to enable using an AsyncWriteChannel. */
+  public boolean enableAsyncWrites;
 
   public AbstractBigQueryIoIntegrationTestBase(Boolean enableAsyncWrites, InputFormat inputFormat) {
     this.inputFormat = inputFormat;
@@ -137,24 +136,20 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     }
     Configuration config = new Configuration();
     config.set(
-        BigQueryFactory.BIGQUERY_CONFIG_PREFIX
-            + HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX,
+        BIGQUERY_CONFIG_PREFIX + HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX,
         "true");
     config.set(
-        BigQueryFactory.BIGQUERY_CONFIG_PREFIX
-            + HadoopCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX,
+        BIGQUERY_CONFIG_PREFIX + HadoopCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX,
         bigqueryServiceAccount);
     config.set(
-        BigQueryFactory.BIGQUERY_CONFIG_PREFIX
-            + HadoopCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX,
+        BIGQUERY_CONFIG_PREFIX + HadoopCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX,
         bigqueryPrivateKeyFile);
     config.set(GoogleHadoopFileSystemBase.SERVICE_ACCOUNT_AUTH_KEYFILE_KEY, bigqueryPrivateKeyFile);
     config.set(GoogleHadoopFileSystemBase.SERVICE_ACCOUNT_AUTH_EMAIL_KEY, bigqueryServiceAccount);
     config.set(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY, projectIdvalue);
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, testBucket);
 
-    config.set("fs.gs.impl",
-               "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
+    config.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     return config;
   }
 
@@ -180,16 +175,16 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     Logger.getLogger(BigQueryUtils.class).setLevel(Level.DEBUG);
     Logger.getLogger(GsonRecordReader.class).setLevel(Level.DEBUG);
 
-    // Use current time to label the test run.
-    // TODO(user): Use a date formatter.
-    testId = "bq_integration_test_" + System.currentTimeMillis();
+    bucketHelper = new TestBucketHelper("bq_integration_test");
+    // A unique per-setUp String to avoid collisions between test runs.
+    String testId = bucketHelper.getUniqueBucketPrefix();
 
     projectIdvalue = configuration.getProjectId();
     if (Strings.isNullOrEmpty(projectIdvalue)) {
       projectIdvalue = System.getenv(BIGQUERY_PROJECT_ID_ENVVARNAME);
     }
 
-    Preconditions.checkArgument(
+    checkArgument(
         !Strings.isNullOrEmpty(projectIdvalue), "Must provide %s", BIGQUERY_PROJECT_ID_ENVVARNAME);
     testDataset = testId + "_dataset";
     testBucket = testId + "_bucket";
@@ -257,8 +252,12 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     setConfigForGcsFromBigquerySettings();
     Path toDelete = new Path(String.format("gs://%s", testBucket));
     FileSystem fs = toDelete.getFileSystem(config);
-    LOG.info("Deleting temporary test bucket '{}'", toDelete);
-    fs.delete(toDelete, true);
+    if (fs instanceof GoogleHadoopFileSystemBase) {
+      bucketHelper.cleanup(((GoogleHadoopFileSystemBase) fs).getGcsFs().getGcs());
+    } else {
+      LOG.info("Deleting temporary test bucket '{}'", toDelete);
+      fs.delete(toDelete, true);
+    }
   }
 
   @Test
@@ -332,8 +331,8 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
           (int) record.get(MARKET_CAP_FIELD_NAME));
     }
     assertThat(readValues).hasSize(3);
-    assertThat(readValues.get("Google").intValue()).isEqualTo(409);
-    assertThat(readValues.get("Microsoft").intValue()).isEqualTo(314);
-    assertThat(readValues.get("Facebook").intValue()).isEqualTo(175);
+    assertThat(readValues.get("Google")).isEqualTo(409);
+    assertThat(readValues.get("Microsoft")).isEqualTo(314);
+    assertThat(readValues.get("Facebook")).isEqualTo(175);
   }
 }
