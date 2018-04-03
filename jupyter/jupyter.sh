@@ -36,8 +36,9 @@ if [ -n "${JUPYTER_CONDA_CHANNELS}" ]; then
 fi
 
 if [ -n "${JUPYTER_CONDA_PACKAGES}" ]; then
-  echo "Installing custom conda packages '${JUPYTER_CONDA_PACKAGES/:/ })'"
-  conda install "${JUPYTER_CONDA_PACKAGES//:/ }"
+  echo "Installing custom conda packages '${JUPYTER_CONDA_PACKAGES/:/ }'"
+  # Do not use quotes so that space separated packages turn into multiple arguments
+  conda install ${JUPYTER_CONDA_PACKAGES//:/ }
 fi
 
 if [[ "${ROLE}" == 'Master' ]]; then
