@@ -16,6 +16,11 @@
 
 set -x -e
 
+function random_string()
+{
+    cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w ${1:-32} | head -n 1
+}
+
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
   return 1
@@ -33,11 +38,12 @@ function update_apt_get() {
 
 function install_hue_and_configure() {
   local old_hdfs_url='## webhdfs_url\=http:\/\/localhost:50070'
-  local new_hdfs_url='webhdfs_url\=http:\/\/'"$(hdfs getconf -confKey  dfs.namenode.http-address)"
+  local new_hdfs_url='webhdfs_url\=http:\/\/'"$(hdfs getconf -confKey dfs.namenode.http-address)"
   local old_mysql_settings='## engine=sqlite3(\s+)## host=(\s+)## port=(\s+)## user=(\s+)## password='
   local new_mysql_settings='engine=mysql$1host=127.0.0.1$2port=3306$3user=hue$4password=hue-password'
   local mysql_password='root-password'
   local hue_password='hue-password'
+  local random=$(random_string)
   # Install hue
   apt-get install -t jessie-backports hue -y || err "Failed to install hue"
 
@@ -45,40 +51,40 @@ function install_hue_and_configure() {
   systemctl stop hue || err "Hue stop action not performed"
 
   bdconfig set_property \
-    --configuration_file 'core-site-patch.xml' \
+    --configuration_file '/etc/hadoop/conf/core-site.xml' \
     --name 'hadoop.proxyuser.hue.hosts' --value '*' \
+    --create_if_absent \
     --clobber \
     || err 'Unable to set hadoop.proxyuser.hue.hosts'
 
   bdconfig set_property \
-    --configuration_file 'core-site-patch.xml' \
+    --configuration_file '/etc/hadoop/conf/core-site.xml' \
     --name 'hadoop.proxyuser.hue.groups' --value '*' \
+    --create_if_absent \
     --clobber \
     || err 'Unable to set hadoop.proxyuser.hue.groups'
 
-  sed -i '/<\/configuration>/e cat core-site-patch.xml' \
-    /etc/hadoop/conf/core-site.xml
-
   bdconfig set_property \
-    --configuration_file 'hdfs-site-patch.xml' \
+    --configuration_file '/etc/hadoop/conf/hdfs-site.xml' \
     --name 'dfs.webhdfs.enabled' --value 'true' \
+    --create_if_absent \
     --clobber \
     || err 'Unable to set dfs.webhdfs.enabled'
 
   bdconfig set_property \
-    --configuration_file 'hdfs-site-patch.xml' \
+    --configuration_file '/etc/hadoop/conf/hdfs-site.xml' \
     --name 'hadoop.proxyuser.hue.hosts' --value '*' \
+    --create_if_absent \
     --clobber \
     || err 'Unable to set hadoop.proxyuser.hue.hosts'
 
   bdconfig set_property \
-    --configuration_file 'hdfs-site-patch.xml' \
+    --configuration_file '/etc/hadoop/conf/hdfs-site.xml' \
     --name 'hadoop.proxyuser.hue.groups' --value '*' \
+    --create_if_absent \
     --clobber \
-    || err 'nable to set hadoop.proxyuser.hue.groups'
+    || err 'Unable to set hadoop.proxyuser.hue.groups'
 
-  sed -i '/<\/configuration>/e cat hdfs-site-patch.xml' \
-    /etc/hadoop/conf/hdfs-site.xml
 
   cat >> /etc/hue/conf/hue.ini <<EOF
 # Defaults to ${HADOOP_MR1_HOME} or /usr/lib/hadoop-0.20-mapreduce
@@ -89,21 +95,19 @@ EOF
   if [[ -f /etc/oozie/conf/oozie-site.xml ]];
   then
     bdconfig set_property \
-      --configuration_file 'oozie-site-patch.xml' \
+      --configuration_file '/etc/oozie/conf/oozie-site.xml' \
       --name 'oozie.service.ProxyUserService.proxyuser.hue.hosts' --value '*' \
+      --create_if_absent \
       --clobber \
       || err 'Unable to set hadoop.proxyuser.hue.groups'
 
     bdconfig set_property \
-      --configuration_file 'oozie-site-patch.xml' \
+      --configuration_file '/etc/oozie/conf/oozie-site.xml' \
       --name 'oozie.service.ProxyUserService.proxyuser.hue.groups' --value '*' \
+      --create_if_absent \
       --clobber \
       || err 'Unable to set hadoop.proxyuser.hue.groups'
 
-    sed -i '/<\/configuration>/e cat oozie-site-patch.xml' \
-      /etc/oozie/conf/oozie-site.xml
-
-    rm oozie-site-patch.xml
     systemctl restart oozie || err "Unable to restart oozie"
   else
     echo "oozie not installed, skipped configuring hue as an user proxy"
@@ -118,13 +122,14 @@ EOF
   sed -i '0,/resourcemanager_api_url/! s/resourcemanager_api_url/## resourcemanager_api_url/' \
     /etc/hue/conf/hue.ini
 
-  # Clean up temporary fles
-  rm -rf hdfs-site-patch.xml core-site-patch.xml hue-patch.ini
-
   # Make hive warehouse directory
-  if [[ ! -d /user/hive/warehouse ]]; then
-    hdfs dfs -mkdir /user/hive/warehouse || err "Unable to create folder"
-  fi
+  hdfs dfs -mkdir /user/hive/warehouse || err "Unable to create folder"
+
+  bdconfig set_property \
+      --configuration_file '/etc/hue/conf/hive-site.xml' \
+      --create_if_absent \
+      --clobber \
+      --name 'hive.metastore.warehouse.dir' --value '/user/hive/warehouse'
 
   # Configure Desktop Database to use mysql
   perl -i -0777 -pe 's/'"${old_mysql_settings}"'/'"${new_mysql_settings}"'/' /etc/hue/conf/hue.ini
@@ -134,6 +139,9 @@ EOF
 
   # Set database name to hue
   sed -i 's/name=\/var\/lib\/hue\/desktop.db/name=hue/' /etc/hue/conf/hue.ini
+
+  # Set random secret key
+  sed -i 's/'"secret_key=.*"'/'"secret_key=${random}"'/' /etc/hue/conf/hue.ini
 
   # Create database, give hue user permissions
   mysql -u root -proot-password -e " \
