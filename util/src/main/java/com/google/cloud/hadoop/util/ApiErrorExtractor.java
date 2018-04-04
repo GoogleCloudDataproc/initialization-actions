@@ -36,6 +36,7 @@ import javax.net.ssl.SSLException;
  */
 public class ApiErrorExtractor {
 
+  /** Singleton instance of the ApiErrorExtractor. */
   public static final ApiErrorExtractor INSTANCE = new ApiErrorExtractor();
 
   // TODO(user): Move this into HttpStatusCodes.java.
