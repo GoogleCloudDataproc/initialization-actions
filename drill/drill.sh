@@ -14,7 +14,7 @@ function print_err_logs() {
     echo ">>> $i"
     cat "$i";
   done
-  return 0
+  return 1
 }
 
 function create_hive_storage_plugin() {
