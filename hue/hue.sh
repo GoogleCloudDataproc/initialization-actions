@@ -44,6 +44,7 @@ function install_hue_and_configure() {
   local mysql_password='root-password'
   local hue_password='hue-password'
   local random=$(random_string)
+  local hadoop_conf_dir='/etc/hadoop/conf'
   # Install hue
   apt-get install -t jessie-backports hue -y || err "Failed to install hue"
 
@@ -51,35 +52,35 @@ function install_hue_and_configure() {
   systemctl stop hue || err "Hue stop action not performed"
 
   bdconfig set_property \
-    --configuration_file '/etc/hadoop/conf/core-site.xml' \
+    --configuration_file "${hadoop_conf_dir}/core-site.xml" \
     --name 'hadoop.proxyuser.hue.hosts' --value '*' \
     --create_if_absent \
     --clobber \
     || err 'Unable to set hadoop.proxyuser.hue.hosts'
 
   bdconfig set_property \
-    --configuration_file '/etc/hadoop/conf/core-site.xml' \
+    --configuration_file "${hadoop_conf_dir}/core-site.xml" \
     --name 'hadoop.proxyuser.hue.groups' --value '*' \
     --create_if_absent \
     --clobber \
     || err 'Unable to set hadoop.proxyuser.hue.groups'
 
   bdconfig set_property \
-    --configuration_file '/etc/hadoop/conf/hdfs-site.xml' \
+    --configuration_file "${hadoop_conf_dir}/hdfs-site.xml" \
     --name 'dfs.webhdfs.enabled' --value 'true' \
     --create_if_absent \
     --clobber \
     || err 'Unable to set dfs.webhdfs.enabled'
 
   bdconfig set_property \
-    --configuration_file '/etc/hadoop/conf/hdfs-site.xml' \
+    --configuration_file "${hadoop_conf_dir}/hdfs-site.xml" \
     --name 'hadoop.proxyuser.hue.hosts' --value '*' \
     --create_if_absent \
     --clobber \
     || err 'Unable to set hadoop.proxyuser.hue.hosts'
 
   bdconfig set_property \
-    --configuration_file '/etc/hadoop/conf/hdfs-site.xml' \
+    --configuration_file "${hadoop_conf_dir}/hdfs-site.xml" \
     --name 'hadoop.proxyuser.hue.groups' --value '*' \
     --create_if_absent \
     --clobber \
