@@ -197,7 +197,7 @@ public class GoogleCloudStorageImpl
           .build());
 
   // Helper delegate for turning IOExceptions from API calls into higher-level semantics.
-  private ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+  private ApiErrorExtractor errorExtractor = ApiErrorExtractor.INSTANCE;
 
   // Helper for interacting with objects invovled with the API client libraries.
   private ClientRequestHelper<StorageObject> clientRequestHelper =

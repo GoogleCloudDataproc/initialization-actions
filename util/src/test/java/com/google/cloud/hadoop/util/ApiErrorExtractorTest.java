@@ -60,7 +60,7 @@ public class ApiErrorExtractorTest {
   private GoogleJsonResponseException bigqueryRateLimited;  // bigquery rate limited
   private static final int POSSIBLE_RATE_LIMIT = 429;  // Can be many things, but not STATUS_CODE_OK
 
-  private ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+  private final ApiErrorExtractor errorExtractor = ApiErrorExtractor.INSTANCE;
 
   @Before
   public void setUp() throws Exception {
@@ -232,9 +232,9 @@ public class ApiErrorExtractorTest {
     assertThat(errorExtractor.socketError(new IOException(new IOException(socketError2)))).isTrue();
 
     Throwable socketError3 = new SSLException("ssl exception", new EOFException("eof"));
-    assertThat(errorExtractor.socketError(socketError2)).isTrue();
-    assertThat(errorExtractor.socketError(new Exception(socketError2))).isTrue();
-    assertThat(errorExtractor.socketError(new IOException(new IOException(socketError2)))).isTrue();
+    assertThat(errorExtractor.socketError(socketError3)).isTrue();
+    assertThat(errorExtractor.socketError(new Exception(socketError3))).isTrue();
+    assertThat(errorExtractor.socketError(new IOException(new IOException(socketError3)))).isTrue();
 
     // Check false cases.
     Throwable notSocketError = new Exception("not socket error");

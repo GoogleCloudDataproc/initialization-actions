@@ -18,7 +18,6 @@
 package com.google.cloud.hadoop.util;
 
 import com.google.api.client.http.HttpResponseException;
-
 import java.io.IOException;
 
 /**
@@ -47,7 +46,7 @@ public abstract class RetryDeterminer<X extends Exception> {
    * Socket errors retry determiner retries on socket exceptions.
    */
   public static final RetryDeterminer<IOException> SOCKET_ERRORS =
-      createSocketErrorRetryDeterminer(new ApiErrorExtractor());
+      createSocketErrorRetryDeterminer(ApiErrorExtractor.INSTANCE);
 
   /**
    *  Server errors RetryDeterminer decides to retry on HttpResponseExceptions that return a 500.
@@ -69,7 +68,7 @@ public abstract class RetryDeterminer<X extends Exception> {
    * A rate limited determiner that uses a generic ApiErrorExtractor.
    */
   public static final RetryDeterminer<IOException> RATE_LIMIT_ERRORS =
-      createRateLimitedRetryDeterminer(new ApiErrorExtractor());
+      createRateLimitedRetryDeterminer(ApiErrorExtractor.INSTANCE);
 
   /**
    * Determines if we should attempt a retry depending on the caught exception.

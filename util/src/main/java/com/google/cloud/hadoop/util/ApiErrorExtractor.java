@@ -35,6 +35,9 @@ import javax.net.ssl.SSLException;
  * for testing how API errors are handled.
  */
 public class ApiErrorExtractor {
+
+  public static final ApiErrorExtractor INSTANCE = new ApiErrorExtractor();
+
   // TODO(user): Move this into HttpStatusCodes.java.
   public static final int STATUS_CODE_CONFLICT = 409;
   public static final int STATUS_CODE_PRECONDITION_FAILED = 412;
@@ -64,6 +67,10 @@ public class ApiErrorExtractor {
   // HTTP 400 message for 'USER_PROJECT_MISSING' error.
   public static final String USER_PROJECT_MISSING =
       "Bucket is requester pays bucket but no user project provided.";
+
+  /** @deprecated use {@link #INSTANCE} instead */
+  @Deprecated
+  public ApiErrorExtractor() {}
 
   // Public methods here are in alphabetical order.
 

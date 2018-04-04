@@ -85,7 +85,7 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
   private ExecutorService threadPool = Executors.newCachedThreadPool();
 
   // Used for specialized handling of various API-defined exceptions.
-  private ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+  private ApiErrorExtractor errorExtractor = ApiErrorExtractor.INSTANCE;
 
   // Count of total bytes written after serialization of records.
   private long bytesWritten = 0;

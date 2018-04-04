@@ -50,7 +50,7 @@ public class BigQueryHelper {
   protected static final Logger LOG = LoggerFactory.getLogger(BigQueryHelper.class);
 
   // Used for specialized handling of various API-defined exceptions.
-  private ApiErrorExtractor errorExtractor = new ApiErrorExtractor();
+  private ApiErrorExtractor errorExtractor = ApiErrorExtractor.INSTANCE;
 
   private Bigquery service;
 
