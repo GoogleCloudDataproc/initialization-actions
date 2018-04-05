@@ -129,14 +129,14 @@ EOF
 }
 
 function configure_master(){
-	# Configure master properties
-	if [[ ${WORKER_COUNT} == 0 ]]; then
-	  # master on single-node is also worker
-	  include_coordinator='true'
-	else
-	  include_coordinator='false'
-	fi
-	cat > presto-server-${PRESTO_VERSION}/etc/config.properties <<EOF
+  # Configure master properties
+  if [[ ${WORKER_COUNT} == 0 ]]; then
+    # master on single-node is also worker
+    include_coordinator='true'
+  else
+    include_coordinator='false'
+  fi
+  cat > presto-server-${PRESTO_VERSION}/etc/config.properties <<EOF
 coordinator=true
 node-scheduler.include-coordinator=${include_coordinator}
 http-server.http.port=${HTTP_PORT}
@@ -147,9 +147,9 @@ discovery-server.enabled=true
 discovery.uri=http://${PRESTO_MASTER_FQDN}:${HTTP_PORT}
 EOF
 
-	# Install cli
-	$(wget https://repo1.maven.org/maven2/com/facebook/presto/presto-cli/${PRESTO_VERSION}/presto-cli-${PRESTO_VERSION}-executable.jar -O /usr/bin/presto)
-	$(chmod a+x /usr/bin/presto)
+  # Install cli
+  $(wget https://repo1.maven.org/maven2/com/facebook/presto/presto-cli/${PRESTO_VERSION}/presto-cli-${PRESTO_VERSION}-executable.jar -O /usr/bin/presto)
+  $(chmod a+x /usr/bin/presto)
 }
 
 function configure_worker(){
@@ -212,9 +212,9 @@ function configure_and_start_presto(){
 }
 
 function main(){
- get_presto
- calculate_memory
- configure_and_start_presto
+  get_presto
+  calculate_memory
+  configure_and_start_presto
 }
 
 main
