@@ -96,6 +96,9 @@ cat > presto-server-${PRESTO_VERSION}/etc/jvm.config <<EOF
 -Djava.library.path=/usr/lib/hadoop/lib/native/:/usr/lib/
 EOF
 
+# Increase the number of open files allowed.
+ulimit -n 65000
+
 # Start coordinator only on main Master
 if [[ "${HOSTNAME}" == "${PRESTO_MASTER_FQDN}" ]]; then
   # Configure master properties
