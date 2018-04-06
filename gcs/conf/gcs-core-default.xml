@@ -16,17 +16,6 @@
     </description>
   </property>
   <property>
-    <name>fs.gs.metadata.cache.enable</name>
-    <value>false</value>
-    <description>
-      Whether or not to create an in memory cache of GCS objects created by
-      the connector. This allows for immediate visibility of objects to
-      subsequent list requests from the same client.
-      Note: enabling this property isn't necessary and in fact probably will
-      be detrimental to your job.
-    </description>
-  </property>
-  <property>
     <name>fs.gs.implicit.directory.repair</name>
     <value>true</value>
     <description>

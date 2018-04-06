@@ -156,7 +156,6 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
                     .setMarkerFilePattern("_(FAILURE|SUCCESS)");
 
             optionsBuilder
-                .setIsMetadataCacheEnabled(true)
                 .setEnableBucketDelete(true)
                 .setShouldIncludeInTimestampUpdatesPredicate(INCLUDE_SUBSTRINGS_PREDICATE)
                 .getCloudStorageOptionsBuilder()

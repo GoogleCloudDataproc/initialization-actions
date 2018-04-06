@@ -62,25 +62,6 @@ public class GoogleCloudStorageFileSystemOptionsUnitTest
     }
   }
 
-  static class CachedGcsCreator implements GcsCreator {
-    public GoogleCloudStorage createGcs(GoogleCloudStorageOptions options) {
-      return new CacheSupplementedGoogleCloudStorage(
-          new InMemoryGoogleCloudStorage(options),
-          InMemoryDirectoryListCache.getInstance());
-    }
-  }
-
-  static class CachedLaggedGcsCreator implements GcsCreator {
-    public GoogleCloudStorage createGcs(GoogleCloudStorageOptions options) {
-      return new CacheSupplementedGoogleCloudStorage(
-          new LaggedGoogleCloudStorage(
-              new InMemoryGoogleCloudStorage(options),
-              Clock.SYSTEM,
-              ListVisibilityCalculator.DEFAULT_LAGGED),
-          InMemoryDirectoryListCache.getInstance());
-    }
-  }
-
   private GcsCreator gcsCreator;
 
   public GoogleCloudStorageFileSystemOptionsUnitTest(GcsCreator gcsCreator) {
@@ -93,7 +74,6 @@ public class GoogleCloudStorageFileSystemOptionsUnitTest
     return Arrays.asList(new Object[][]{
         {new InMemoryGcsCreator()},
         {new ZeroLaggedGcsCreator()},
-        {new CachedGcsCreator()},
         // {new CachedLaggedGcsCreator()},
         // TODO(user): The above test fails when we run :UnitTests,
         // but succeeds when we run :UnitTests with a filter set to

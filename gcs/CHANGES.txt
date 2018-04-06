@@ -1,6 +1,15 @@
 1.9.0 - 2018-XX-XX
 
-  1 Update all dependencies to latest versions.
+  1. Update all dependencies to latest versions.
+
+  2. Delete metadata cache functionality because Cloud Storage has strong
+     native list operation consistency already. Deleted properties:
+
+       fs.gs.metadata.cache.enable
+       fs.gs.metadata.cache.type
+       fs.gs.metadata.cache.directory
+       fs.gs.metadata.cache.max.age.info.ms
+       fs.gs.metadata.cache.max.age.entry.ms
 
 
 1.8.1 - 2018-03-29

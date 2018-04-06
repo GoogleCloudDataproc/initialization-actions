@@ -39,7 +39,10 @@ import org.apache.hadoop.fs.Path;
  * and lives in the context of a single complex top-level method call, like globStatus.
  * <p>
  * Note that this class is *not* intended to be used as a general-usage FileSystem.
+ *
+ * @deprecated because list conistency already implemented in GCS this class should be removed
  */
+@Deprecated
 class ListHelperGoogleHadoopFileSystem
     extends GoogleHadoopFileSystem {
 

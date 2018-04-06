@@ -15,11 +15,9 @@
 package com.google.cloud.hadoop.gcsio.integration;
 
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.cloud.hadoop.gcsio.CacheSupplementedGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
-import com.google.cloud.hadoop.gcsio.InMemoryDirectoryListCache;
 import com.google.cloud.hadoop.gcsio.ThrottledGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.ThrottledGoogleCloudStorage.StorageOperation;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
@@ -39,16 +37,10 @@ public class GoogleCloudStorageIntegrationTest extends GoogleCloudStorageTest {
   @Parameters
   public static Collection<Object[]> getConstructorArguments() throws IOException {
     GoogleCloudStorage gcs = getGoogleCloudStorage();
-    GoogleCloudStorage cachedGcs = new CacheSupplementedGoogleCloudStorage(
-        getGoogleCloudStorage(), InMemoryDirectoryListCache.getInstance());
-    GoogleCloudStorage cachedFileBackedGcs = new CacheSupplementedGoogleCloudStorage(
-        getGoogleCloudStorage(), fileBackedCache);
     GoogleCloudStorage apacheTransportGcs = getApacheGoogleCloudStorage();
 
     return Arrays.asList(new Object[][]{
         {gcs},
-        {cachedGcs},
-        {cachedFileBackedGcs},
         {apacheTransportGcs},
     });
   }

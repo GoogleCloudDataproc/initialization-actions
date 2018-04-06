@@ -224,17 +224,9 @@ public class GoogleHadoopFileSystemIntegrationTest
     config.setBoolean(
         GoogleHadoopFileSystemBase.GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY,
         true);
-    config.setLong(
-        GoogleHadoopFileSystemBase.GCS_METADATA_CACHE_MAX_ENTRY_AGE_KEY,
-        2222L);
-    config.setLong(
-        GoogleHadoopFileSystemBase.GCS_METADATA_CACHE_MAX_INFO_AGE_KEY,
-        1111L);
 
     optionsBuilder = fs.createOptionsBuilderFromConfig(config);
     options = optionsBuilder.build();
-    assertThat(options.getCacheMaxEntryAgeMillis()).isEqualTo(2222L);
-    assertThat(options.getCacheMaxInfoAgeMillis()).isEqualTo(1111L);
 
     gcsOptions = options.getCloudStorageOptions();
     assertThat(gcsOptions.isAutoRepairImplicitDirectoriesEnabled()).isFalse();

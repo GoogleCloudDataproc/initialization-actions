@@ -26,7 +26,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +42,10 @@ import org.slf4j.LoggerFactory;
  * This instance will supplement fake GoogleCloudStorageItemInfos for pure implicit directories
  * if there is no metadata entry for the directory object itself. This means that some directory
  * objects will list info that is inconsistent with an actual listing.
+ *
+ * @deprecated because list conistency already implemented in GCS this class should be removed
  */
+@Deprecated
 public class MetadataReadOnlyGoogleCloudStorage
     implements GoogleCloudStorage {
   // Logger.
@@ -48,7 +53,8 @@ public class MetadataReadOnlyGoogleCloudStorage
       LoggerFactory.getLogger(MetadataReadOnlyGoogleCloudStorage.class);
 
   // Immutable cache of all metadata held by this instance, populated at construction time.
-  private final DirectoryListCache resourceCache = new InMemoryDirectoryListCache();
+  private final Map<StorageResourceId, GoogleCloudStorageItemInfo> resourceCache =
+      new ConcurrentHashMap<>();
 
   private GoogleCloudStorageOptions options;
 
@@ -70,13 +76,9 @@ public class MetadataReadOnlyGoogleCloudStorage
    */
   public MetadataReadOnlyGoogleCloudStorage(Collection<GoogleCloudStorageItemInfo> itemInfos)
       throws IOException {
-    // Entries never expire for this use case.
-    resourceCache.getMutableConfig().setMaxEntryAgeMillis(Long.MAX_VALUE);
-    resourceCache.getMutableConfig().setMaxInfoAgeMillis(Long.MAX_VALUE);
-
     LOG.debug("Populating cache with {} entries.", itemInfos.size());
     for (GoogleCloudStorageItemInfo itemInfo : itemInfos) {
-      resourceCache.putResourceId(itemInfo.getResourceId()).setItemInfo(itemInfo);
+      resourceCache.put(itemInfo.getResourceId(), itemInfo);
     }
     options = GoogleCloudStorageOptions.newBuilder().build(); // for getOptions
   }
@@ -226,17 +228,16 @@ public class MetadataReadOnlyGoogleCloudStorage
     List<GoogleCloudStorageItemInfo> allObjectInfos = new ArrayList<>();
     Set<String> retrievedNames = new HashSet<>();
     Set<String> prefixes = new HashSet<>();
-    List<CacheEntry> cachedObjects = resourceCache.getObjectList(
-        bucketName, objectNamePrefix, delimiter, prefixes);
+    List<GoogleCloudStorageItemInfo> cachedObjects =
+        getObjectListInternal(bucketName, objectNamePrefix, delimiter, prefixes);
     if (cachedObjects != null) {
       // Pull the itemInfos out of all the matched entries; in our usage here of DirectoryListCache,
       // we expect the info to *always* be available.
-      for (CacheEntry entry : cachedObjects) {
-        GoogleCloudStorageItemInfo info = entry.getItemInfo();
+      for (GoogleCloudStorageItemInfo info : cachedObjects) {
         Preconditions.checkState(
-            info != null, "Cache entry missing info for name '%s'!", entry.getResourceId());
+            info != null, "Cache entry missing info for name '%s'!", info.getResourceId());
         allObjectInfos.add(info);
-        retrievedNames.add(entry.getResourceId().getObjectName());
+        retrievedNames.add(info.getResourceId().getObjectName());
       }
 
       // Check whether each raw prefix already had a valid real entry; if not, we'll add a fake
@@ -254,11 +255,45 @@ public class MetadataReadOnlyGoogleCloudStorage
 
           // Also add a concrete object for each implicit directory, since the caller may decide
           // to call getItemInfo sometime later after listing it.
-          resourceCache.putResourceId(fakeInfo.getResourceId()).setItemInfo(fakeInfo);
+          resourceCache.put(fakeInfo.getResourceId(), fakeInfo);
         }
       }
     }
     return allObjectInfos;
+  }
+
+  private List<GoogleCloudStorageItemInfo> getObjectListInternal(
+      String bucketName, String objectNamePrefix, String delimiter, Set<String> returnedPrefixes) {
+    LOG.debug("getObjectList({}, {}, {})", bucketName, objectNamePrefix, delimiter);
+    List<GoogleCloudStorageItemInfo> matchingObjectEntries = new ArrayList<>();
+    boolean bucketExists = false;
+    for (GoogleCloudStorageItemInfo objectEntry : resourceCache.values()) {
+      StorageResourceId resourceId = objectEntry.getResourceId();
+      if (!resourceId.getBucketName().equals(bucketName)) {
+        continue;
+      }
+      bucketExists = true;
+      if (!resourceId.isStorageObject()) {
+        continue;
+      }
+      String objectName = resourceId.getObjectName();
+      String matchedName =
+          GoogleCloudStorageStrings.matchListPrefix(objectNamePrefix, delimiter, objectName);
+      // We get a non-null matchedName if either an implicit 'prefix' matches or if it's an
+      // exact match.
+      if (matchedName != null) {
+        if (objectName.equals(matchedName)) {
+          // Exact match.
+          matchingObjectEntries.add(objectEntry);
+        } else if (returnedPrefixes != null) {
+          // Prefix match; only need to populate the container if the caller actually provided
+          // a non-null container.
+          returnedPrefixes.add(matchedName);
+        }
+      }
+    }
+
+    return bucketExists ? matchingObjectEntries : null;
   }
 
   /**
@@ -288,14 +323,11 @@ public class MetadataReadOnlyGoogleCloudStorage
   public GoogleCloudStorageItemInfo getItemInfo(StorageResourceId resourceId)
       throws IOException {
     LOG.debug("getItemInfo({})", resourceId);
-    CacheEntry entry = resourceCache.getCacheEntry(resourceId);
-    if (entry == null) {
+    GoogleCloudStorageItemInfo info = resourceCache.get(resourceId);
+    if (info == null) {
       // TODO(user): Move the createItemInfoForNotFound method into GoogleCloudStorageItemInfo.
       return GoogleCloudStorageImpl.createItemInfoForNotFound(resourceId);
     } else {
-      GoogleCloudStorageItemInfo info = entry.getItemInfo();
-      Preconditions.checkState(
-          info != null, "Cache entry missing info for name '%s'!", entry.getResourceId());
       return info;
     }
   }

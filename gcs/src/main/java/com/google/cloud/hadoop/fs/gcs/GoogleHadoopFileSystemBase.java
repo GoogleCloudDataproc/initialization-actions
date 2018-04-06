@@ -20,7 +20,6 @@ import static com.google.cloud.hadoop.util.RequesterPaysOptions.REQUESTER_PAYS_M
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
-import com.google.cloud.hadoop.gcsio.DirectoryListCache;
 import com.google.cloud.hadoop.gcsio.FileInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
@@ -240,15 +239,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   public static final String GCS_MARKER_FILE_PATTERN_KEY = "fs.gs.marker.file.pattern";
 
   /**
-   * Configuration key for using a local metadata cache to supplement GCS API "list" results; this
-   * allows same-client create() to immediately be visible to a subsequent list() call.
-   */
-  public static final String GCS_ENABLE_METADATA_CACHE_KEY = "fs.gs.metadata.cache.enable";
-
-  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_ENABLE_METADATA_CACHE_KEY}. */
-  public static final boolean GCS_ENABLE_METADATA_CACHE_DEFAULT = false;
-
-  /**
    * Configuration key for using a local item cache to supplement GCS API "getFile" results. This
    * provides faster access to recently queried data. Because the data is cached, modifications made
    * outside of this instance may not be immediately reflected. The performance cache can be used in
@@ -293,58 +283,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
    * Default value for {@link GoogleHadoopFileSystemBase#GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY}.
    */
   public static final boolean GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_DEFAULT = true;
-
-  /**
-   * Configuration key for specifying which implementation of DirectoryListCache to use for
-   * supplementing GCS API "list" results. Supported implementations:
-   *
-   * <p>IN_MEMORY: Enforces immediate consistency within same Java process.
-   *
-   * <p>FILESYSTEM_BACKED: Enforces consistency across all cooperating processes pointed at the same
-   * local mirror directory, which may be an NFS directory for distributed coordination.
-   */
-  public static final String GCS_METADATA_CACHE_TYPE_KEY = "fs.gs.metadata.cache.type";
-
-  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_METADATA_CACHE_TYPE_KEY}. */
-  public static final String GCS_METADATA_CACHE_TYPE_DEFAULT = "IN_MEMORY";
-
-  /**
-   * Only used if fs.gs.metadata.cache.type is FILESYSTEM_BACKED, specifies the local path to use as
-   * the base path for storing mirrored GCS metadata. Must be an absolute path, must be a directory,
-   * and must be fully readable/writable/executable by any user running processes which use the GCS
-   * connector.
-   */
-  public static final String GCS_METADATA_CACHE_DIRECTORY_KEY = "fs.gs.metadata.cache.directory";
-
-  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_METADATA_CACHE_DIRECTORY_KEY}. */
-  public static final String GCS_METADATA_CACHE_DIRECTORY_DEFAULT =
-      "/tmp/gcs_connector_metadata_cache";
-
-  /**
-   * Maximum number of milliseconds a cache entry will remain in the list-consistency cache, even as
-   * an id-only entry (no risk of stale GoogleCloudStorageItemInfo). In general, entries should be
-   * allowed to expire fully from the cache once reasonably certain the remote GCS API's list-index
-   * is up-to-date to save memory and computation when trying to supplement new results using the
-   * cache.
-   */
-  public static final String GCS_METADATA_CACHE_MAX_ENTRY_AGE_KEY =
-      "fs.gs.metadata.cache.max.age.entry.ms";
-
-  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_METADATA_CACHE_MAX_ENTRY_AGE_KEY}. */
-  public static final long GCS_METADATA_CACHE_MAX_ENTRY_AGE_DEFAULT =
-      DirectoryListCache.Config.MAX_ENTRY_AGE_MILLIS_DEFAULT;
-
-  /**
-   * Maximum number of milliseconds a GoogleCloudStorageItemInfo will remain "valid" in the
-   * list-consistency cache, after which the next attempt to fetch the itemInfo will require
-   * fetching fresh info from a GoogleCloudStorage instance.
-   */
-  public static final String GCS_METADATA_CACHE_MAX_INFO_AGE_KEY =
-      "fs.gs.metadata.cache.max.age.info.ms";
-
-  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_METADATA_CACHE_MAX_INFO_AGE_KEY}. */
-  public static final long GCS_METADATA_CACHE_MAX_INFO_AGE_DEFAULT =
-      DirectoryListCache.Config.MAX_INFO_AGE_MILLIS_DEFAULT;
 
   /**
    * Configuration key containing a comma-separated list of sub-strings that when matched will cause
@@ -2148,40 +2086,10 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
         GoogleCloudStorageFileSystemOptions.newBuilder();
 
-    boolean enableMetadataCache = config.getBoolean(
-        GCS_ENABLE_METADATA_CACHE_KEY, GCS_ENABLE_METADATA_CACHE_DEFAULT);
-    LOG.debug("{} = {}", GCS_ENABLE_METADATA_CACHE_KEY, enableMetadataCache);
-    if (enableMetadataCache) {
-      LOG.info("GCS Metadata Cache is enabled:"
-          + " this isn't necessary and in fact is probably detrimental to your job!");
-    }
-    optionsBuilder.setIsMetadataCacheEnabled(enableMetadataCache);
-
     boolean enableBucketDelete = config.getBoolean(
         GCE_BUCKET_DELETE_ENABLE_KEY, GCE_BUCKET_DELETE_ENABLE_DEFAULT);
     LOG.debug("{} = {}", GCE_BUCKET_DELETE_ENABLE_KEY, enableBucketDelete);
     optionsBuilder.setEnableBucketDelete(enableBucketDelete);
-
-    DirectoryListCache.Type cacheType = DirectoryListCache.Type.valueOf(
-        config.get(
-            GCS_METADATA_CACHE_TYPE_KEY, GCS_METADATA_CACHE_TYPE_DEFAULT));
-    LOG.debug("{} = {}", GCS_METADATA_CACHE_TYPE_KEY, cacheType);
-    optionsBuilder.setCacheType(cacheType);
-
-    String cacheBasePath = config.get(
-        GCS_METADATA_CACHE_DIRECTORY_KEY, GCS_METADATA_CACHE_DIRECTORY_DEFAULT);
-    LOG.debug("{} = {}", GCS_METADATA_CACHE_DIRECTORY_KEY, cacheBasePath);
-    optionsBuilder.setCacheBasePath(cacheBasePath);
-
-    long cacheMaxEntryAgeMillis = config.getLong(
-        GCS_METADATA_CACHE_MAX_ENTRY_AGE_KEY, GCS_METADATA_CACHE_MAX_ENTRY_AGE_DEFAULT);
-    LOG.debug("{} = {}", GCS_METADATA_CACHE_MAX_ENTRY_AGE_KEY, cacheMaxEntryAgeMillis);
-    optionsBuilder.setCacheMaxEntryAgeMillis(cacheMaxEntryAgeMillis);
-
-    long cacheMaxInfoAgeMillis = config.getLong(
-        GCS_METADATA_CACHE_MAX_INFO_AGE_KEY, GCS_METADATA_CACHE_MAX_INFO_AGE_DEFAULT);
-    LOG.debug("{} = {}", GCS_METADATA_CACHE_MAX_INFO_AGE_KEY, cacheMaxInfoAgeMillis);
-    optionsBuilder.setCacheMaxInfoAgeMillis(cacheMaxInfoAgeMillis);
 
     GoogleCloudStorageFileSystemOptions.TimestampUpdatePredicate updatePredicate =
         ParentTimestampUpdateIncludePredicate.create(config);

@@ -80,9 +80,6 @@ public class GoogleCloudStorageFileSystemTest
   private static void setDefaultValidOptions(
       GoogleCloudStorageFileSystemOptions.Builder optionsBuilder) {
     optionsBuilder
-        .setIsMetadataCacheEnabled(true)
-        .setCacheMaxEntryAgeMillis(12345L)
-        .setCacheMaxInfoAgeMillis(42L)
         .getCloudStorageOptionsBuilder()
             .setAppName("appName")
             .setProjectId("projectId")
@@ -137,12 +134,7 @@ public class GoogleCloudStorageFileSystemTest
         new GoogleCloudStorageFileSystem(cred, optionsBuilder.build());
 
     // White-box testing; check a few internal outcomes of our options.
-    assertThat(tmpGcsFs.getGcs()).isInstanceOf(CacheSupplementedGoogleCloudStorage.class);
-    CacheSupplementedGoogleCloudStorage cacheGcs =
-        (CacheSupplementedGoogleCloudStorage) tmpGcsFs.getGcs();
-    assertThat(cacheGcs.getResourceCache().getMutableConfig().getMaxEntryAgeMillis())
-        .isEqualTo(12345L);
-    assertThat(cacheGcs.getResourceCache().getMutableConfig().getMaxInfoAgeMillis()).isEqualTo(42L);
+    assertThat(tmpGcsFs.getGcs()).isInstanceOf(GoogleCloudStorageImpl.class);
   }
 
   /** Verify that PATH_COMPARATOR produces correct sorting order. */

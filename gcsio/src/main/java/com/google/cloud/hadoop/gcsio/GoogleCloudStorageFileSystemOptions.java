@@ -49,9 +49,6 @@ public class GoogleCloudStorageFileSystemOptions {
         PerformanceCachingGoogleCloudStorageOptions.newBuilder();
     private PerformanceCachingGoogleCloudStorageOptions immutablePerformanceCacheOptions = null;
 
-    protected boolean metadataCacheEnabled = true;
-    protected DirectoryListCache.Type cacheType = DirectoryListCache.Type.IN_MEMORY;
-    protected String cacheBasePath = null;
     protected TimestampUpdatePredicate shouldIncludeInTimestampUpdatesPredicate =
         new TimestampUpdatePredicate() {
           @Override
@@ -59,9 +56,6 @@ public class GoogleCloudStorageFileSystemOptions {
             return true;
           }
         };
-
-    protected long cacheMaxEntryAgeMillis = DirectoryListCache.Config.MAX_ENTRY_AGE_MILLIS_DEFAULT;
-    protected long cacheMaxInfoAgeMillis = DirectoryListCache.Config.MAX_INFO_AGE_MILLIS_DEFAULT;
 
     private GoogleCloudStorageOptions.Builder cloudStorageOptionsBuilder =
         new GoogleCloudStorageOptions.Builder();
@@ -153,21 +147,6 @@ public class GoogleCloudStorageFileSystemOptions {
       return this;
     }
 
-    public Builder setIsMetadataCacheEnabled(boolean isMetadataCacheEnabled) {
-      this.metadataCacheEnabled = isMetadataCacheEnabled;
-      return this;
-    }
-
-    public Builder setCacheType(DirectoryListCache.Type cacheType) {
-      this.cacheType = cacheType;
-      return this;
-    }
-
-    public Builder setCacheBasePath(String cacheBasePath) {
-      this.cacheBasePath = cacheBasePath;
-      return this;
-    }
-
     /** Set a Predicate to be applied to item paths to determine if the item should
      * have its timestamps updated */
     public Builder setShouldIncludeInTimestampUpdatesPredicate(
@@ -184,16 +163,6 @@ public class GoogleCloudStorageFileSystemOptions {
     public Builder setShouldIncludeInTimestampUpdatesPredicate(
         TimestampUpdatePredicate shouldIncludeInTimestampUpdatesPredicate) {
       this.shouldIncludeInTimestampUpdatesPredicate = shouldIncludeInTimestampUpdatesPredicate;
-      return this;
-    }
-
-    public Builder setCacheMaxEntryAgeMillis(long cacheMaxEntryAgeMillis) {
-      this.cacheMaxEntryAgeMillis = cacheMaxEntryAgeMillis;
-      return this;
-    }
-
-    public Builder setCacheMaxInfoAgeMillis(long cacheMaxInfoAgeMillis) {
-      this.cacheMaxInfoAgeMillis = cacheMaxInfoAgeMillis;
       return this;
     }
 
@@ -221,12 +190,7 @@ public class GoogleCloudStorageFileSystemOptions {
           immutableCloudStorageOptions != null
               ? immutableCloudStorageOptions
               : cloudStorageOptionsBuilder.build(),
-          metadataCacheEnabled,
-          cacheType,
-          cacheBasePath,
           shouldIncludeInTimestampUpdatesPredicate,
-          cacheMaxEntryAgeMillis,
-          cacheMaxInfoAgeMillis,
           pathCodec,
           enableBucketDelete,
           markerFilePattern);
@@ -240,12 +204,7 @@ public class GoogleCloudStorageFileSystemOptions {
   private final PerformanceCachingGoogleCloudStorageOptions performanceCacheOptions;
   private final boolean performanceCacheEnabled;
   private final GoogleCloudStorageOptions cloudStorageOptions;
-  private final boolean metadataCacheEnabled;
-  private final DirectoryListCache.Type cacheType;
-  private final String cacheBasePath;  // Only used if cacheType == FILESYSTEM_BACKED.
   private final TimestampUpdatePredicate shouldIncludeInTimestampUpdatesPredicate;
-  private final long cacheMaxEntryAgeMillis;
-  private final long cacheMaxInfoAgeMillis;
   private final PathCodec pathCodec;
   private final boolean enableBucketDelete;
   private final Pattern markerFilePattern;
@@ -254,24 +213,14 @@ public class GoogleCloudStorageFileSystemOptions {
       PerformanceCachingGoogleCloudStorageOptions performanceCacheOptions,
       boolean performanceCacheEnabled,
       GoogleCloudStorageOptions cloudStorageOptions,
-      boolean metadataCacheEnabled,
-      DirectoryListCache.Type cacheType,
-      String cacheBasePath,
       TimestampUpdatePredicate shouldIncludeInTimestampUpdatesPredicate,
-      long cacheMaxEntryAgeMillis,
-      long cacheMaxInfoAgeMillis,
       PathCodec pathCodec,
       boolean enableBucketDelete,
       String markerFilePattern) {
     this.performanceCacheOptions = performanceCacheOptions;
     this.performanceCacheEnabled = performanceCacheEnabled;
     this.cloudStorageOptions = cloudStorageOptions;
-    this.metadataCacheEnabled = metadataCacheEnabled;
-    this.cacheType = cacheType;
-    this.cacheBasePath = cacheBasePath;
     this.shouldIncludeInTimestampUpdatesPredicate = shouldIncludeInTimestampUpdatesPredicate;
-    this.cacheMaxEntryAgeMillis = cacheMaxEntryAgeMillis;
-    this.cacheMaxInfoAgeMillis = cacheMaxInfoAgeMillis;
     this.pathCodec = pathCodec;
     this.enableBucketDelete = enableBucketDelete;
     this.markerFilePattern = Pattern.compile("^(.+/)?" + markerFilePattern + "$");
@@ -289,28 +238,8 @@ public class GoogleCloudStorageFileSystemOptions {
     return cloudStorageOptions;
   }
 
-  public boolean isMetadataCacheEnabled() {
-    return metadataCacheEnabled;
-  }
-
-  public DirectoryListCache.Type getCacheType() {
-    return cacheType;
-  }
-
-  public String getCacheBasePath() {
-    return cacheBasePath;
-  }
-
   public TimestampUpdatePredicate getShouldIncludeInTimestampUpdatesPredicate() {
     return shouldIncludeInTimestampUpdatesPredicate;
-  }
-
-  public long getCacheMaxEntryAgeMillis() {
-    return cacheMaxEntryAgeMillis;
-  }
-
-  public long getCacheMaxInfoAgeMillis() {
-    return cacheMaxInfoAgeMillis;
   }
 
   public PathCodec getPathCodec() {
