@@ -67,7 +67,7 @@ val notRenamed = Seq(
   "io.grpc",
   myPackage,
   // Exposed to the user in the API.
-  "com.google.cloud.pubsub")
+  "com.google.pubsub")
 
 assemblyShadeRules in assembly := (
   // Rename preserved prefixes to themselves first to keep them unchanged

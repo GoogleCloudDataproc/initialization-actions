@@ -234,7 +234,7 @@
                   </includes>
                   <excludes>
                     <exclude>com.google.cloud.spark.**</exclude>
-                    <exclude>com.google.cloud.pubsub.**</exclude>
+                    <exclude>com.google.pubsub.**</exclude>
                   </excludes>
                 </relocation>
                 <relocation>
