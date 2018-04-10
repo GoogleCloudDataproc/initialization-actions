@@ -11,6 +11,9 @@ echo "echo \$PWD: $PWD"
 echo "echo \$PATH: $PATH"
 echo "echo \$CONDA_BIN_PATH: $CONDA_BIN_PATH"
 
+[ -z $CONDA_PACKAGES ] && CONDA_PACKAGES=$(/usr/share/google/get_metadata_value attributes/CONDA_PACKAGES || true)
+[ -z $PIP_PACKAGES ] && PIP_PACKAGES=$(/usr/share/google/get_metadata_value attributes/PIP_PACKAGES || true)
+
 # 0.2. Specify conda environment name (recommend leaving as root)
 if [[ ! -v CONDA_ENV_NAME ]]; then
     echo "No conda environment name specified, setting to 'root' env..."
