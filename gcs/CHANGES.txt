@@ -11,6 +11,10 @@
        fs.gs.metadata.cache.max.age.info.ms
        fs.gs.metadata.cache.max.age.entry.ms
 
+  3. Make max requests per batch value configurable with property:
+
+       fs.gs.max.requests.per.batch (default: 1000)
+
 
 1.8.1 - 2018-03-29
 

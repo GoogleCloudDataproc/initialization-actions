@@ -410,6 +410,12 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   /** Default value for {@link GoogleHadoopFileSystemBase#GCS_MAX_LIST_ITEMS_PER_CALL}. */
   public static final long GCS_MAX_LIST_ITEMS_PER_CALL_DEFAULT = 1024;
 
+  /** Configuration key for a max number of GCS RPCs in batch request. */
+  public static final String GCS_MAX_REQUESTS_PER_BATCH = "fs.gs.max.requests.per.batch";
+
+  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_MAX_REQUESTS_PER_BATCH}. */
+  public static final long GCS_MAX_REQUESTS_PER_BATCH_DEFAULT = 1000;
+
   /**
    * Configuration key for setting a proxy for the connector to use to connect to GCS. The proxy
    * must be an HTTP proxy of the form "host:port".
@@ -2153,6 +2159,12 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     LOG.debug("{} = {}", GCS_MAX_LIST_ITEMS_PER_CALL, maxListItemsPerCall);
 
     optionsBuilder.getCloudStorageOptionsBuilder().setMaxListItemsPerCall(maxListItemsPerCall);
+
+    long maxRequestsPerBatch =
+        config.getLong(GCS_MAX_REQUESTS_PER_BATCH, GCS_MAX_REQUESTS_PER_BATCH_DEFAULT);
+    LOG.debug("{} = {}", GCS_MAX_REQUESTS_PER_BATCH, maxRequestsPerBatch);
+
+    optionsBuilder.getCloudStorageOptionsBuilder().setMaxRequestsPerBatch(maxRequestsPerBatch);
 
     // Configuration for setting 250GB upper limit on file size to gain higher write throughput.
     boolean limitFileSizeTo250Gb =
