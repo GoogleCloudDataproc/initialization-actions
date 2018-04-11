@@ -18,6 +18,17 @@ gcloud dataproc clusters create foo --initialization-actions \
 
 ### Install extra conda and/or pip packages
 
+You can add extra packages by using the metadata entries `CONDA_PACKAGES` and `PIP_PACKAGES`. These variables provide a space separated list of additional packages to install.
+
+```
+gcloud dataproc clusters create foo \
+    --metadata 'CONDA_PACKAGES="numpy pandas",PIP_PACKAGES=pandas-gbq' \
+    --initialization-actions \
+      gs://dataproc-initialization-actions/conda/bootstrap-conda.sh,gs://dataproc-initialization-actions/conda/install-conda-env.sh
+```
+
+Alternatively, you can use environment variables, e.g.:
+
 ```
 gcloud dataproc clusters create foo \
   --initialization-actions gs://<YOUR-BUCKET>/create-my-cluster.sh
