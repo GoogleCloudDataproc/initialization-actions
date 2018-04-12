@@ -414,7 +414,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   public static final String GCS_MAX_REQUESTS_PER_BATCH = "fs.gs.max.requests.per.batch";
 
   /** Default value for {@link GoogleHadoopFileSystemBase#GCS_MAX_REQUESTS_PER_BATCH}. */
-  public static final long GCS_MAX_REQUESTS_PER_BATCH_DEFAULT = 1000;
+  public static final long GCS_MAX_REQUESTS_PER_BATCH_DEFAULT = 30;
 
   /**
    * Configuration key for setting a proxy for the connector to use to connect to GCS. The proxy

@@ -45,7 +45,7 @@ public class GoogleCloudStorageOptions {
   /**
    * Default setting for maximum number of requests per GCS batch.
    */
-  public static final long MAX_REQUESTS_PER_BATCH_DEFAULT = 1000;
+  public static final long MAX_REQUESTS_PER_BATCH_DEFAULT = 30;
 
   /**
    * Default setting for whether or not to create a marker file when beginning file creation.
