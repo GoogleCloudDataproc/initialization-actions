@@ -12,75 +12,106 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-set -x -e
+
+set -euxo pipefail
 
 # Variables for running this script
-ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
-HOSTNAME=$(hostname -s)
-PRESTO_MASTER_FQDN=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
-WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
-CONNECTOR_JAR=$(find /usr/lib/hadoop/lib -name 'gcs-connector-*.jar')
-PRESTO_VERSION="0.177"
-HTTP_PORT="8080"
+readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+readonly PRESTO_MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
+readonly WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
+readonly CONNECTOR_JAR="$(find /usr/lib/hadoop/lib -name 'gcs-connector-*.jar')"
+readonly PRESTO_VERSION='0.177'
+readonly HTTP_PORT='8080'
+readonly INIT_SCRIPT='/usr/lib/systemd/system/presto.service'
+PRESTO_JVM_MB=0;
+PRESTO_QUERY_NODE_MB=0;
+PRESTO_RESERVED_SYSTEM_MB=0;
 
-# Download and unpack Presto server
-wget https://repo1.maven.org/maven2/com/facebook/presto/presto-server/${PRESTO_VERSION}/presto-server-${PRESTO_VERSION}.tar.gz
-tar -zxvf presto-server-${PRESTO_VERSION}.tar.gz
-mkdir /var/presto
-mkdir /var/presto/data
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  return 1
+}
 
-# Copy required Jars
-cp ${CONNECTOR_JAR} presto-server-${PRESTO_VERSION}/plugin/hive-hadoop2
+function get_presto(){
+  # Download and unpack Presto server
+  wget https://repo1.maven.org/maven2/com/facebook/presto/presto-server/${PRESTO_VERSION}/presto-server-${PRESTO_VERSION}.tar.gz
+  tar -zxvf presto-server-${PRESTO_VERSION}.tar.gz
+  mkdir -p /var/presto/data
+}
 
-# Configure Presto
-mkdir presto-server-${PRESTO_VERSION}/etc
-mkdir presto-server-${PRESTO_VERSION}/etc/catalog
+function calculate_memory(){
+  # Compute memory settings based on Spark's settings.
+  # We use "tail -n 1" since overrides are applied just by order of appearance.
+  local spark_executor_mb;
+  spark_executor_mb=$(grep spark.executor.memory \
+    /etc/spark/conf/spark-defaults.conf \
+    | tail -n 1  \
+    | sed 's/.*[[:space:]=]\+\([[:digit:]]\+\).*/\1/')
 
-cat > presto-server-${PRESTO_VERSION}/etc/node.properties <<EOF
+  local spark_executor_cores;
+  spark_executor_cores=$(grep spark.executor.cores \
+    /etc/spark/conf/spark-defaults.conf \
+    | tail -n 1 \
+    | sed 's/.*[[:space:]=]\+\([[:digit:]]\+\).*/\1/')
+
+  local spark_executor_overhead_mb;
+  if (grep spark.yarn.executor.memoryOverhead /etc/spark/conf/spark-defaults.conf); then
+    spark_executor_overhead_mb=$(grep spark.yarn.executor.memoryOverhead \
+      /etc/spark/conf/spark-defaults.conf \
+      | tail -n 1 \
+      | sed 's/.*[[:space:]=]\+\([[:digit:]]\+\).*/\1/')
+  else
+    # When spark.yarn.executor.memoryOverhead couldn't be found in
+    # spark-defaults.conf, use Spark default properties:
+    # executorMemory * 0.10, with minimum of 384
+    local min_executor_overhead=384
+    spark_executor_overhead_mb=$(( ${spark_executor_mb} / 10 ))
+    spark_executor_overhead_mb=$(( ${spark_executor_overhead_mb}>${min_executor_overhead}?${spark_executor_overhead_mb}:${min_executor_overhead} ))
+  fi
+  local spark_executor_count;
+  spark_executor_count=$(( $(nproc) / ${spark_executor_cores} ))
+
+  # Add up overhead and allocated executor MB for container size.
+  local spark_container_mb;
+  spark_container_mb=$(( ${spark_executor_mb} + ${spark_executor_overhead_mb} ))
+  PRESTO_JVM_MB=$(( ${spark_container_mb} * ${spark_executor_count} ))
+  readonly PRESTO_JVM_MB
+
+  # Give query.max-memorr-per-node 60% of Xmx; this more-or-less assumes a
+  # single-tenant use case rather than trying to allow many concurrent queries
+  # against a shared cluster.
+  # Subtract out spark_executor_overhead_mb in both the query MB and reserved
+  # system MB as a crude approximation of other unaccounted overhead that we need
+  # to leave betweenused bytes and Xmx bytes. Rounding down by integer division
+  # here also effectively places round-down bytes in the "general" pool.
+  PRESTO_QUERY_NODE_MB=$(( ${PRESTO_JVM_MB} * 6 / 10 - ${spark_executor_overhead_mb} ))
+  PRESTO_RESERVED_SYSTEM_MB=$(( ${PRESTO_JVM_MB} * 4 / 10 - ${spark_executor_overhead_mb} ))
+  readonly PRESTO_QUERY_NODE_MB
+  readonly PRESTO_RESERVED_SYSTEM_MB
+}
+
+function configure_node_properties(){
+  cat > presto-server-${PRESTO_VERSION}/etc/node.properties <<EOF
 node.environment=production
 node.id=$(uuidgen)
 node.data-dir=/var/presto/data
 EOF
+}
 
-METASTORE_URI=$(bdconfig get_property_value \
-  --configuration_file /etc/hive/conf/hive-site.xml \
-  --name hive.metastore.uris 2>/dev/null)
+function configure_hive(){
+  local metastore_uri
+  metastore_uri=$(bdconfig get_property_value \
+    --configuration_file /etc/hive/conf/hive-site.xml \
+    --name hive.metastore.uris 2>/dev/null)
 
-cat > presto-server-${PRESTO_VERSION}/etc/catalog/hive.properties <<EOF
+  cat > presto-server-${PRESTO_VERSION}/etc/catalog/hive.properties <<EOF
 connector.name=hive-hadoop2
-hive.metastore.uri=${METASTORE_URI}
+hive.metastore.uri=${metastore_uri}
 EOF
+}
 
-# Compute memory settings based on Spark's settings.
-# We use "tail -n 1" since overrides are applied just by order of appearance.
-SPARK_EXECUTOR_MB=$(grep spark.executor.memory /etc/spark/conf/spark-defaults.conf | tail -n 1 | sed 's/.*[[:space:]=]\+\([[:digit:]]\+\).*/\1/')
-SPARK_EXECUTOR_CORES=$(grep spark.executor.cores /etc/spark/conf/spark-defaults.conf | tail -n 1 | sed 's/.*[[:space:]=]\+\([[:digit:]]\+\).*/\1/')
-SPARK_EXECUTOR_OVERHEAD_MB=$(grep spark.yarn.executor.memoryOverhead /etc/spark/conf/spark-defaults.conf | tail -n 1 | sed 's/.*[[:space:]=]\+\([[:digit:]]\+\).*/\1/')
-if [[ -z "${SPARK_EXECUTOR_OVERHEAD_MB}" ]]; then
-  # When spark.yarn.executor.memoryOverhead couldnt't be found in
-  # spark-defaults.conf, use Spark default properties:
-  # executorMemory * 0.10, with minimum of 384
-  MIN_EXECUTOR_OVERHEAD=384
-  SPARK_EXECUTOR_OVERHEAD_MB=$(( ${SPARK_EXECUTOR_MB} / 10 ))
-  SPARK_EXECUTOR_OVERHEAD_MB=$(( ${SPARK_EXECUTOR_OVERHEAD_MB}>${MIN_EXECUTOR_OVERHEAD}?${SPARK_EXECUTOR_OVERHEAD_MB}:${MIN_EXECUTOR_OVERHEAD} ))
-fi
-SPARK_EXECUTOR_COUNT=$(( $(nproc) / ${SPARK_EXECUTOR_CORES} ))
-
-# Add up overhead and allocated executor MB for container size.
-SPARK_CONTAINER_MB=$(( ${SPARK_EXECUTOR_MB} + ${SPARK_EXECUTOR_OVERHEAD_MB} ))
-PRESTO_JVM_MB=$(( ${SPARK_CONTAINER_MB} * ${SPARK_EXECUTOR_COUNT} ))
-
-# Give query.max-memorr-per-node 60% of Xmx; this more-or-less assumes a
-# single-tenant use case rather than trying to allow many concurrent queries
-# against a shared cluster.
-# Subtract out SPARK_EXECUTOR_OVERHEAD_MB in both the query MB and reserved
-# system MB as a crude approximation of other unaccounted overhead that we need
-# to leave betweenused bytes and Xmx bytes. Rounding down by integer division
-# here also effectively places round-down bytes in the "general" pool.
-PRESTO_QUERY_NODE_MB=$(( ${PRESTO_JVM_MB} * 6 / 10 - ${SPARK_EXECUTOR_OVERHEAD_MB} ))
-PRESTO_RESERVED_SYSTEM_MB=$(( ${PRESTO_JVM_MB} * 4 / 10 - ${SPARK_EXECUTOR_OVERHEAD_MB} ))
-
-cat > presto-server-${PRESTO_VERSION}/etc/jvm.config <<EOF
+function configure_jvm(){
+  cat > presto-server-${PRESTO_VERSION}/etc/jvm.config <<EOF
 -server
 -Xmx${PRESTO_JVM_MB}m
 -Xmn512m
@@ -95,11 +126,11 @@ cat > presto-server-${PRESTO_VERSION}/etc/jvm.config <<EOF
 -Dhive.config.resources=/etc/hadoop/conf/core-site.xml,/etc/hadoop/conf/hdfs-site.xml
 -Djava.library.path=/usr/lib/hadoop/lib/native/:/usr/lib/
 EOF
+}
 
-# Start coordinator only on main Master
-if [[ "${HOSTNAME}" == "${PRESTO_MASTER_FQDN}" ]]; then
+function configure_master(){
   # Configure master properties
-  if [[ $WORKER_COUNT == 0 ]]; then
+  if [[ ${WORKER_COUNT} == 0 ]]; then
     # master on single-node is also worker
     include_coordinator='true'
   else
@@ -116,15 +147,13 @@ discovery-server.enabled=true
 discovery.uri=http://${PRESTO_MASTER_FQDN}:${HTTP_PORT}
 EOF
 
-	# Install cli
-	$(wget https://repo1.maven.org/maven2/com/facebook/presto/presto-cli/${PRESTO_VERSION}/presto-cli-${PRESTO_VERSION}-executable.jar -O /usr/bin/presto)
-	$(chmod a+x /usr/bin/presto)
-  # Start presto coordinator
-  presto-server-${PRESTO_VERSION}/bin/launcher start
-fi
+  # Install cli
+  $(wget https://repo1.maven.org/maven2/com/facebook/presto/presto-cli/${PRESTO_VERSION}/presto-cli-${PRESTO_VERSION}-executable.jar -O /usr/bin/presto)
+  $(chmod a+x /usr/bin/presto)
+}
 
-if [[ "${ROLE}" == 'Worker' ]]; then
-	cat > presto-server-${PRESTO_VERSION}/etc/config.properties <<EOF
+function configure_worker(){
+  cat > presto-server-${PRESTO_VERSION}/etc/config.properties <<EOF
 coordinator=false
 http-server.http.port=${HTTP_PORT}
 query.max-memory=999TB
@@ -132,7 +161,60 @@ query.max-memory-per-node=${PRESTO_QUERY_NODE_MB}MB
 resources.reserved-system-memory=${PRESTO_RESERVED_SYSTEM_MB}MB
 discovery.uri=http://${PRESTO_MASTER_FQDN}:${HTTP_PORT}
 EOF
-  # Start presto worker
-  presto-server-${PRESTO_VERSION}/bin/launcher start
-fi
+}
 
+function start_presto(){
+  # Start presto as systemd job
+
+  cat << EOF > ${INIT_SCRIPT}
+[Unit]
+Description=Presto DB
+
+[Service]
+Type=forking
+ExecStart=/presto-server-${PRESTO_VERSION}/bin/launcher.py start
+ExecStop=/presto-server-${PRESTO_VERSION}/bin/launcher.py stop
+Restart=always
+
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  chmod a+rw ${INIT_SCRIPT}
+
+  systemctl daemon-reload
+  systemctl enable presto
+  systemctl start presto
+  systemctl status presto
+}
+
+function configure_and_start_presto(){
+  # Copy required Jars
+  cp ${CONNECTOR_JAR} presto-server-${PRESTO_VERSION}/plugin/hive-hadoop2
+
+  # Configure Presto
+  mkdir -p presto-server-${PRESTO_VERSION}/etc/catalog
+
+  configure_node_properties
+  configure_hive
+  configure_jvm
+
+  if [[ "${HOSTNAME}" == "${PRESTO_MASTER_FQDN}" ]]; then
+    configure_master
+    start_presto
+  fi
+
+  if [[ "${ROLE}" == 'Worker' ]]; then
+    configure_worker
+    start_presto
+  fi
+}
+
+function main(){
+  get_presto
+  calculate_memory
+  configure_and_start_presto
+}
+
+main
