@@ -42,7 +42,7 @@ if [ -n "${JUPYTER_CONDA_PACKAGES}" ]; then
 fi
 
 if [[ "${ROLE}" == 'Master' ]]; then
-  conda install jupyter
+  conda install jupyter matplotlib
 
   # For storing notebooks on GCS. Pin version to make this script hermetic.
   pip install jgscm==0.1.7
