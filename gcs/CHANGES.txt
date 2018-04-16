@@ -17,6 +17,9 @@
 
        fs.gs.max.requests.per.batch (default: 30)
 
+  5. Hadoop 3 build compatibility.
+
+
 1.8.1 - 2018-03-29
 
   1. Add `AUTO` mode support for Cloud Storage Requester Pays feature.

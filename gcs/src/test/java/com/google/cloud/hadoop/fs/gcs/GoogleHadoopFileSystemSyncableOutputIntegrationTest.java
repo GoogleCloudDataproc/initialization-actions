@@ -14,7 +14,6 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
-import java.io.IOException;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -42,7 +41,7 @@ public class GoogleHadoopFileSystemSyncableOutputIntegrationTest
       };
 
   @Test @Override
-  public void testHsync() throws IOException {
+  public void testHsync() throws Exception {
     internalTestHsync();
   }
 }

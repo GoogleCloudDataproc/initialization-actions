@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopSyncableOutputStreamTest.hsync;
 import static org.junit.Assert.assertThrows;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
@@ -736,7 +737,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
   }
 
   @Test
-  public void testHsync() throws IOException {
+  public void testHsync() throws Exception {
     internalTestHsync();
   }
 
@@ -763,7 +764,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     }
   }
 
-  protected void internalTestHsync() throws IOException {
+  protected void internalTestHsync() throws Exception {
     String line1 = "hello\n";
     byte[] line1Bytes = line1.getBytes("UTF-8");
     String line2 = "world\n";
@@ -783,8 +784,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     }
     expected.append(line1);
 
-    // Use the deprecated sync() for Hadoop 1 compatibility.
-    writeStream.sync();
+    hsync(writeStream);
 
     String readText = ghfsHelper.readTextFile(hadoopPath);
     Assert.assertEquals("Expected line1 after first sync()", expected.toString(), readText);
@@ -792,7 +792,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     // Write second line, sync() again.
     writeStream.write(line2Bytes, 0, line2Bytes.length);
     expected.append(line2);
-    writeStream.sync();
+    hsync(writeStream);
     readText = ghfsHelper.readTextFile(hadoopPath);
     Assert.assertEquals(
         "Expected line1 + line2 after second sync()", expected.toString(), readText);
@@ -811,43 +811,29 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
   // in the context of this layer.
   // -----------------------------------------------------------------
 
-  @Test @Override
-  public void testGetFileInfos()
-      throws IOException {
-  }
+  @Override
+  public void testGetFileInfos() {}
 
   @Override
-  public void testFileCreationSetsAttributes() throws IOException {
-  }
+  public void testFileCreationSetsAttributes() {}
 
   @Override
-  public void testFileCreationUpdatesParentDirectoryModificationTimestamp()
-      throws IOException, InterruptedException {
-  }
+  public void testFileCreationUpdatesParentDirectoryModificationTimestamp() {}
 
   @Override
-  public void testMkdirsUpdatesParentDirectoryModificationTimestamp()
-      throws IOException, InterruptedException {
-  }
+  public void testMkdirsUpdatesParentDirectoryModificationTimestamp() {}
 
   @Override
-  public void testDeleteUpdatesDirectoryModificationTimestamps()
-      throws IOException, InterruptedException {
-  }
+  public void testDeleteUpdatesDirectoryModificationTimestamps() {}
 
   @Override
-  public void renameDirectoryShouldCopyMarkerFilesLast() {
-  }
+  public void renameDirectoryShouldCopyMarkerFilesLast() {}
 
   @Override
-  public void testRenameUpdatesParentDirectoryModificationTimestamps()
-      throws IOException, InterruptedException {
-  }
+  public void testRenameUpdatesParentDirectoryModificationTimestamps() {}
 
   @Override
-  public void testPredicateIsConsultedForModificationTimestamps()
-      throws IOException, InterruptedException {
-  }
+  public void testPredicateIsConsultedForModificationTimestamps() {}
 
   @Override
   public void testComposeSuccess() throws IOException {}

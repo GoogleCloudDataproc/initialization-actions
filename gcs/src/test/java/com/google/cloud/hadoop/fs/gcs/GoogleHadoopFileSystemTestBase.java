@@ -130,7 +130,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
   // -----------------------------------------------------------------------------------------
 
   @Test @Override
-  public void testHsync() throws IOException {
+  public void testHsync() throws Exception {
     // hsync() is not supported in the default setup.
   }
 

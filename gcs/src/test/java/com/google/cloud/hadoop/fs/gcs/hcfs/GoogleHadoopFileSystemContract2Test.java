@@ -29,9 +29,8 @@ public class GoogleHadoopFileSystemContract2Test
   extends FileSystemContractBaseTest {
 
   @Before
-  @Override
-  public void setUp()
-      throws IOException {
+  @SuppressWarnings("MissingOverride")
+  public void setUp() throws IOException {
     fs = GoogleHadoopFileSystemTestHelper.createInMemoryGoogleHadoopFileSystem();
   }
 
@@ -59,10 +58,8 @@ public class GoogleHadoopFileSystemContract2Test
   }
 
   @Override
-  public void testMkdirsWithUmask() throws Exception {
-  }
+  public void testMkdirsWithUmask() {}
 
   @Override
-  public void testListStatusThrowsExceptionForNonExistentFile() throws Exception  {
-  }
+  public void testListStatusThrowsExceptionForNonExistentFile() {}
 }

@@ -24,11 +24,14 @@ import static org.mockito.Mockito.when;
 
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.stream.Stream;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -71,7 +74,7 @@ public class GoogleHadoopSyncableOutputStreamTest {
   }
 
   @Test
-  public void testEndToEndHsync() throws IOException {
+  public void testEndToEndHsync() throws Exception {
     Path objectPath = new Path(ghfs.getFileSystemRoot(), "dir/object.txt");
     FSDataOutputStream fout = ghfs.create(objectPath);
 
@@ -83,7 +86,7 @@ public class GoogleHadoopSyncableOutputStreamTest {
     byte[] data3Read = new byte[2];
 
     fout.write(data1, 0, data1.length);
-    fout.sync();
+    hsync(fout);
 
     assertThat(ghfs.getFileStatus(objectPath).getLen()).isEqualTo(4);
     FSDataInputStream fin = ghfs.open(objectPath);
@@ -92,7 +95,7 @@ public class GoogleHadoopSyncableOutputStreamTest {
     assertThat(data1Read).isEqualTo(data1);
 
     fout.write(data2, 0, data2.length);
-    fout.sync();
+    hsync(fout);
 
     assertThat(ghfs.getFileStatus(objectPath).getLen()).isEqualTo(8);
     fin = ghfs.open(objectPath);
@@ -135,8 +138,6 @@ public class GoogleHadoopSyncableOutputStreamTest {
 
     byte[] data1 = new byte[] { 0x0f, 0x0e, 0x0e, 0x0d };
     byte[] data2 = new byte[] { 0x0b, 0x0e, 0x0e, 0x0f };
-    byte[] data1Read = new byte[4];
-    byte[] data2Read = new byte[4];
 
     fout.write(data1, 0, data1.length);
     fout.sync();  // This one commits straight into destination.
@@ -185,11 +186,11 @@ public class GoogleHadoopSyncableOutputStreamTest {
     FSDataOutputStream fout = ghfs.create(objectPath);
     fout.close();
 
-    assertThrows(ClosedChannelException.class, () -> fout.sync());
+    assertThrows(ClosedChannelException.class, () -> hsync(fout));
   }
 
   @Test
-  public void testSyncCompositeLimitException() throws IOException {
+  public void testSyncCompositeLimitException() throws Exception {
     Path objectPath = new Path(ghfs.getFileSystemRoot(), "dir/object.txt");
     FSDataOutputStream fout = ghfs.create(objectPath);
 
@@ -199,7 +200,7 @@ public class GoogleHadoopSyncableOutputStreamTest {
       buf[0] = (byte) i;
       expected[i] = buf[0];
       fout.write(buf, 0, 1);
-      fout.sync();
+      hsync(fout);
     }
 
     // If the limit is N, then the Nth attempt to call sync() will fail, since it means the
@@ -210,7 +211,7 @@ public class GoogleHadoopSyncableOutputStreamTest {
     fout.write(new byte[] {0x42});
     expected[GoogleHadoopSyncableOutputStream.MAX_COMPOSITE_COMPONENTS - 1] = 0x42;
 
-    assertThrows(CompositeLimitExceededException.class, () -> fout.sync());
+    assertThrows(CompositeLimitExceededException.class, () -> hsync(fout));
 
     // Despite having thrown an exception, the stream is still safe to use and even write more data.
     fout.write(new byte[] { 0x11 });
@@ -222,5 +223,25 @@ public class GoogleHadoopSyncableOutputStreamTest {
     fin.read(actual);
     fin.close();
     assertThat(actual).isEqualTo(expected);
+  }
+
+  /**
+   * Call sync/hsync method across all Hadoop versions
+   *
+   * <p>Because Hadoop 1 has only `sync` method, Hadoop 2 - `sync` and `hsync` methods and Hadoop 3
+   * - only `hsync` method, we call whatever method is present (`sync` or `hsync`) using reflection
+   */
+  static void hsync(FSDataOutputStream fsos) throws Exception {
+    Method syncMethod =
+        Stream.of(fsos.getClass().getDeclaredMethods())
+            .filter(m -> m.getName().equals("sync") || m.getName().equals("hsync"))
+            .findAny()
+            .get();
+    try {
+      syncMethod.invoke(fsos);
+    } catch (InvocationTargetException e) {
+      Throwable cause = e.getCause();
+      throw (cause instanceof Exception) ? (Exception) cause : e;
+    }
   }
 }

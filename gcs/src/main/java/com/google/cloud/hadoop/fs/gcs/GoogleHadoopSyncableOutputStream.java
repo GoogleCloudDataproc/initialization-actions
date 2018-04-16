@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
@@ -59,7 +58,7 @@ import org.slf4j.LoggerFactory;
  * further writes.
  * <p>
  * Caveats:
- *   1. Each hsync()/sync() requires many underlying read and mutation requests occuring
+ *   1. Each hsync()/sync() requires many underlying read and mutation requests occurring
  *      sequentially, so latency is expected to be fairly high.
  *   2. There is a hard limit to the number of times hsync()/sync() can be called due to the
  *      GCS-level limit on the number of components a composite object can contain (1024). Any
@@ -103,12 +102,13 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
 
   // Deletion of temporary files occurs asynchronously for performance reasons, but in-flight
   // deletions are awaited on close() so as long as all output streams are closed, there should
-  // be no remaining in-flight work occuring inside this threadpool.
-  private static final ExecutorService TEMPFILE_CLEANUP_THREADPOOL = Executors.newCachedThreadPool(
-      new ThreadFactoryBuilder()
-          .setNameFormat("gcs-syncable-output-stream-cleanup-pool-%d")
-          .setDaemon(true)
-          .build());
+  // be no remaining in-flight work occurring inside this threadpool.
+  private static final ExecutorService TEMPFILE_CLEANUP_THREADPOOL =
+      Executors.newCachedThreadPool(
+          new ThreadFactoryBuilder()
+              .setNameFormat("gcs-syncable-output-stream-cleanup-pool-%d")
+              .setDaemon(true)
+              .build());
 
   // Instance of GoogleHadoopFileSystemBase.
   private final GoogleHadoopFileSystemBase ghfs;
@@ -229,7 +229,6 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
     LOG.debug("close(): done");
   }
 
-  @Override
   public void sync() throws IOException {
     hsync();
   }
