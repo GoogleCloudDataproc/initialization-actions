@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -exo pipefail
 
 # 0.1 Ensure we have conda installed and available on the PATH
 if [[ ! -v CONDA_BIN_PATH ]]; then
@@ -11,8 +11,8 @@ echo "echo \$PWD: $PWD"
 echo "echo \$PATH: $PATH"
 echo "echo \$CONDA_BIN_PATH: $CONDA_BIN_PATH"
 
-[ -z $CONDA_PACKAGES ] && CONDA_PACKAGES=$(/usr/share/google/get_metadata_value attributes/CONDA_PACKAGES || true)
-[ -z $PIP_PACKAGES ] && PIP_PACKAGES=$(/usr/share/google/get_metadata_value attributes/PIP_PACKAGES || true)
+[ -z "${CONDA_PACKAGES}" ] && CONDA_PACKAGES=$(/usr/share/google/get_metadata_value attributes/CONDA_PACKAGES || true)
+[ -z "${PIP_PACKAGES}" ] && PIP_PACKAGES=$(/usr/share/google/get_metadata_value attributes/PIP_PACKAGES || true)
 
 # 0.2. Specify conda environment name (recommend leaving as root)
 if [[ ! -v CONDA_ENV_NAME ]]; then
@@ -67,12 +67,12 @@ if [[ ! $CONDA_ENV_NAME == 'root' ]]
 fi
 
 # 3. Install conda and pip packages (if specified)
-if [[ -v CONDA_PACKAGES ]]; then
+if [[ ! -z "${CONDA_PACKAGES}" ]]; then
     echo "Installing conda packages for $CONDA_ENV_NAME..."
     echo "conda packages requested: $CONDA_PACKAGES"
     conda install $CONDA_PACKAGES
 fi
-if [[ -v PIP_PACKAGES ]]; then
+if [[ ! -z "${PIP_PACKAGES}" ]]; then
     echo "Installing pip packages for $CONDA_ENV_NAME..."
     echo "conda packages requested: $PIP_PACKAGES"
     pip install $PIP_PACKAGES
