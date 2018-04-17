@@ -1,8 +1,11 @@
 # Jupyter Notebook
 
 This folder contains the initialization action `jupyter.sh` to quickly setup and launch [Jupyter Notebook](http://jupyter.org/), (the successor of IPython notebook) and a script to be run on the user's local machine to access the Jupyter notebook server.
+This folder contains the initialization action `jupyter.sh` to quickly setup and launch [Jupyter Notebook](http://jupyter-notebook.readthedocs.io/en/stable/) and [Jupyterlab](https://jupyterlab.readthedocs.io/en/stable/getting_started/overview.html). It also contains a script to be run on your local machine to access the Jupyter UI.
 
 Note: This init action uses Conda and Python 3. Python 2 and `pip` uesrs should consider using the [jupyter2 action](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/jupyter2).
+
+## Usage
 
 A real-world example of how to use this from within a bash script, using the default dataproc-initialization-actions repo/branch:
 
@@ -43,7 +46,24 @@ gcloud dataproc clusters create my-dataproc-cluster \
     --master-machine-type=n1-standard-4
 ```
 
-## jupyter.sh
+## Viewing the UI (launch-jupyter-interface.sh))
+
+**NOTE**: this script should be run from your local machine
+
+Default [cluster firewall rules](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/network) prevent access to ports other than ssh. [launch-jupyter-interface.sh](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/blob/master/jupyter/launch-jupyter-interface.sh) helps you set up a SOCKS5 proxy to the Jupyter UI.
+
+- sets a path for the local os to the chrome executable
+- setup an ssh tunnel and socks proxy to the master node
+- launch a chrome instance that uses this ssh tunnel and references the jupyter port.
+
+
+More information on viewing cluster web interfaces can be found [here](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces).
+
+## Using Jupyterlab
+
+Navigating to http://clustername-m:8123/ brings up the Jupyter Notebook UI. To view the Jupyterlab UI, naviagate to http://clustername-m:8123/lab.
+
+## Details on jupyter.sh
 
 `jupyter.sh` handles configuring and running Jupyter on the Dataproc master node by doing the following:
 
@@ -59,17 +79,4 @@ gcloud dataproc clusters create my-dataproc-cluster \
       - This proxy access is automated by [launch-jupyter-interfaces.sh](#launch-jupyter-interfacesh).
   - loads and saves notebooks to `gs://$DATAPROC_BUCKET/notebooks/`, where `$DATAPROC_BUCKET` is the value stored in the metadata key `dataproc-bucket` (set by default upon cluster creation and overridable). Note that all clusters sharing a $DATAPROC_BUCKET will share notebooks.
   - launches the `jupyter notebook` process
-
-**NOTE**: to be run as an init action.
-
-
-## launch-jupyter-interface.sh
-
-`launch-jupyter-interface.sh` launches a web interface to connect to Jupyter notebook process running on master node.
-
-- sets a path for the local OS to the Chrome executable
-- setup an ssh tunnel and socks proxy to the master node
-- launch a Chrome instance that uses this ssh tunnel and references the Jupyter port.
-
-**NOTE**: to be run from a local machine
 

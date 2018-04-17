@@ -36,7 +36,7 @@ function err() {
 function install_jupyter() {
   apt-get install -y python-dev python-tk
   easy_install pip
-  pip install --upgrade jupyter jgscm==0.1.7 matplotlib
+  pip install --upgrade --ignore-installed jupyter jupyterlab jgscm==0.1.9 matplotlib
 }
 
 function configure_jupyter() {
