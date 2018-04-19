@@ -181,6 +181,9 @@
           </plugin>
           <plugin>
             <artifactId>maven-javadoc-plugin</artifactId>
+            <configuration>
+              <additionalOptions>-Xdoclint:none</additionalOptions>
+            </configuration>
             <executions>
               <execution>
                 <id>attach-javadocs</id>
