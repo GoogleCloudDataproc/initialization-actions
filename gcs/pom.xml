@@ -18,7 +18,6 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <packaging>pom</packaging>
 
   <parent>
     <groupId>com.google.cloud.bigdataoss</groupId>
@@ -27,16 +26,28 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>gcs-connector-parent</artifactId>
-  <name>gcs-connector.jar</name>
+  <name>gcs-connector-${hadoop.identifier}</name>
   <description>
     An implementation of org.apache.hadoop.fs.FileSystem targeting Google Cloud Storage
   </description>
-  <version>1.9.0-SNAPSHOT</version>
+
+  <artifactId>gcs-connector</artifactId>
+  <version>1.9.0-SNAPSHOT-${hadoop.identifier}</version>
 
   <profiles>
     <profile>
       <id>hadoop1</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-core</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-test</artifactId>
+          <scope>test</scope>
+        </dependency>
+      </dependencies>
       <build>
         <plugins>
           <plugin>
@@ -57,6 +68,21 @@
     </profile>
     <profile>
       <id>hadoop2</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
+          <classifier>tests</classifier>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-mapreduce-client-core</artifactId>
+        </dependency>
+      </dependencies>
       <build>
         <plugins>
           <plugin>
@@ -169,17 +195,22 @@
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>util</artifactId>
-      <version>${bigdataoss.util.version}</version>
+      <version>${bigdataoss.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.google.cloud.bigdataoss</groupId>
+      <artifactId>util-hadoop</artifactId>
+      <version>${bigdataoss.version}-${hadoop.identifier}</version>
     </dependency>
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>gcsio</artifactId>
-      <version>${bigdataoss.gcsio.version}</version>
+      <version>${bigdataoss.version}</version>
     </dependency>
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>gcsio</artifactId>
-      <version>${bigdataoss.gcsio.version}</version>
+      <version>${bigdataoss.version}</version>
       <scope>test</scope>
       <type>test-jar</type>
     </dependency>
@@ -197,13 +228,6 @@
     </dependency>
   </dependencies>
   <build>
-    <resources>
-      <resource>
-        <directory>src/main/resources</directory>
-        <!-- enable project.version substitution. -->
-        <filtering>true</filtering>
-      </resource>
-    </resources>
     <plugins>
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
@@ -215,69 +239,65 @@
           <reuseForks>false</reuseForks>
         </configuration>
       </plugin>
-    </plugins>
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <artifactId>maven-shade-plugin</artifactId>
-          <executions>
-            <execution>
-              <phase>package</phase>
-              <goals>
-                <goal>shade</goal>
-              </goals>
-              <configuration>
-                <transformers>
-                  <transformer
-                      implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
-                </transformers>
-                <artifactSet>
+      <plugin>
+        <artifactId>maven-shade-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <transformers>
+                <transformer
+                    implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+              </transformers>
+              <artifactSet>
+                <includes>
+                  <include>com.fasterxml.jackson.core:jackson-core</include>
+                  <include>com.google.api-client</include>
+                  <include>com.google.apis</include>
+                  <include>com.google.cloud.bigdataoss:util</include>
+                  <include>com.google.cloud.bigdataoss:util-hadoop</include>
+                  <include>com.google.cloud.bigdataoss:gcsio</include>
+                  <include>com.google.guava</include>
+                  <include>com.google.http-client:google-http-client</include>
+                  <include>com.google.http-client:google-http-client-jackson2</include>
+                  <include>com.google.oauth-client:google-oauth-client</include>
+                  <include>com.google.oauth-client:google-oauth-client-java6</include>
+                  <include>org.apache.httpcomponents:httpclient</include>
+                  <include>org.apache.httpcomponents:httpcore</include>
+                  <!-- needed by http client and versions conflict -->
+                  <include>commons-codec:commons-codec</include>
+                </includes>
+              </artifactSet>
+              <minimizeJar>true</minimizeJar>
+              <relocations>
+                <relocation>
+                  <pattern>com</pattern>
+                  <shadedPattern>com.google.cloud.hadoop.repackaged.gcs.com</shadedPattern>
                   <includes>
-                    <include>com.fasterxml.jackson.core:jackson-core</include>
-                    <include>com.google.api-client:*</include>
-                    <include>com.google.apis:*</include>
-                    <include>com.google.cloud.bigdataoss:util</include>
-                    <include>com.google.cloud.bigdataoss:util-hadoop</include>
-                    <include>com.google.cloud.bigdataoss:gcsio</include>
-                    <include>com.google.guava:*</include>
-                    <include>com.google.http-client:google-http-client</include>
-                    <include>com.google.http-client:google-http-client-jackson2</include>
-                    <include>com.google.oauth-client:google-oauth-client</include>
-                    <include>com.google.oauth-client:google-oauth-client-java6</include>
-                    <include>org.apache.httpcomponents:httpclient</include>
-                    <include>org.apache.httpcomponents:httpcore</include>
-                    <!-- needed by http client and versions conflict -->
-                    <include>commons-codec:commons-codec</include>
+                    <include>com.fasterxml.**</include>
+                    <include>com.google.api.**</include>
+                    <include>com.google.cloud.hadoop.gcsio.**</include>
+                    <include>com.google.cloud.hadoop.util.**</include>
+                    <include>com.google.common.**</include>
                   </includes>
-                </artifactSet>
-                <minimizeJar>true</minimizeJar>
-                <relocations>
-                  <relocation>
-                    <pattern>com</pattern>
-                    <shadedPattern>com.google.cloud.hadoop.repackaged.gcs.com</shadedPattern>
-                    <includes>
-                      <include>com.fasterxml.**</include>
-                      <include>com.google.api.**</include>
-                      <include>com.google.cloud.hadoop.gcsio.**</include>
-                      <include>com.google.cloud.hadoop.util.**</include>
-                      <include>com.google.common.**</include>
-                    </includes>
-                  </relocation>
-                  <relocation>
-                    <pattern>org</pattern>
-                    <shadedPattern>com.google.cloud.hadoop.repackaged.gcs.org</shadedPattern>
-                    <includes>
-                      <include>org.apache.commons.codec.**</include>
-                      <include>org.apache.http.**</include>
-                    </includes>
-                  </relocation>
-                </relocations>
-                <shadedArtifactAttached>true</shadedArtifactAttached>
-              </configuration>
-            </execution>
-          </executions>
-        </plugin>
-      </plugins>
-    </pluginManagement>
+                </relocation>
+                <relocation>
+                  <pattern>org</pattern>
+                  <shadedPattern>com.google.cloud.hadoop.repackaged.gcs.org</shadedPattern>
+                  <includes>
+                    <include>org.apache.commons.codec.**</include>
+                    <include>org.apache.http.**</include>
+                  </includes>
+                </relocation>
+              </relocations>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
   </build>
 </project>

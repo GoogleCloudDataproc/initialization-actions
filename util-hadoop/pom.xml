@@ -26,16 +26,32 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <packaging>pom</packaging>
-  <artifactId>util-hadoop-parent</artifactId>
-  <version>1.9.0-SNAPSHOT</version>
+  <artifactId>util-hadoop</artifactId>
+  <version>1.9.0-SNAPSHOT-${hadoop.identifier}</version>
 
   <profiles>
     <profile>
       <id>hadoop1</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-core</artifactId>
+        </dependency>
+      </dependencies>
     </profile>
     <profile>
       <id>hadoop2</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
+        </dependency>
+        <!-- HadoopToStringUtil requires InputSplit -->
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-mapreduce-client-core</artifactId>
+        </dependency>
+      </dependencies>
     </profile>
   </profiles>
 
@@ -95,7 +111,7 @@
     <dependency>
       <groupId>com.google.cloud.bigdataoss</groupId>
       <artifactId>util</artifactId>
-      <version>${bigdataoss.util.version}</version>
+      <version>${bigdataoss.version}</version>
     </dependency>
     <dependency>
       <groupId>log4j</groupId>
@@ -109,6 +125,5 @@
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-log4j12</artifactId>
     </dependency>
-
   </dependencies>
 </project>

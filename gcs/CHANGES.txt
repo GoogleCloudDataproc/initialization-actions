@@ -19,6 +19,8 @@
 
   5. Hadoop 3 build compatibility.
 
+  6. Change Maven project structure to be better compatible with IDEs.
+
 
 1.8.1 - 2018-03-29
 

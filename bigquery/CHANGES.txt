@@ -4,6 +4,8 @@
 
   2. Update all dependencies to latest versions.
 
+  3. Change Maven project structure to be better compatible with IDEs.
+
 
 0.12.1 - 2018-03-29
 

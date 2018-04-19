@@ -18,15 +18,16 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <packaging>pom</packaging>
 
-  <groupId>com.google.cloud.bigdataoss</groupId>
-  <artifactId>bigdataoss-parent</artifactId>
-  <version>1.9.0-SNAPSHOT</version>
   <name>BigDataOSS Parent</name>
   <description>
     Parent project for Google Cloud Platform Big-Data connectors.
   </description>
+
+  <groupId>com.google.cloud.bigdataoss</groupId>
+  <artifactId>bigdataoss-parent</artifactId>
+  <version>1.9.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
 
   <url>https://github.com/GoogleCloudPlatform/BigData-interop/</url>
 
@@ -91,12 +92,7 @@
 
     <gpg.skip>true</gpg.skip>
 
-    <bigdataoss.util.version>1.9.0-SNAPSHOT</bigdataoss.util.version>
-    <bigdataoss.gcsio.version>1.9.0-SNAPSHOT</bigdataoss.gcsio.version>
-    <bigdataoss.util-hadoop.one.version>1.9.0-SNAPSHOT-hadoop1</bigdataoss.util-hadoop.one.version>
-    <bigdataoss.util-hadoop.two.version>1.9.0-SNAPSHOT-hadoop2</bigdataoss.util-hadoop.two.version>
-    <bigdataoss.gcs.hadoop.one.version>1.9.0-SNAPSHOT-hadoop1</bigdataoss.gcs.hadoop.one.version>
-    <bigdataoss.gcs.hadoop.two.version>1.9.0-SNAPSHOT-hadoop2</bigdataoss.gcs.hadoop.two.version>
+    <bigdataoss.version>1.9.0-SNAPSHOT</bigdataoss.version>
 
     <!-- Keep in sync with Hadoop dependencies -->
     <apache.avro.version>1.7.7</apache.avro.version>
@@ -122,32 +118,26 @@
     <slf4j.version>1.7.25</slf4j.version>
   </properties>
 
+  <modules>
+    <module>bigquery/pom.xml</module>
+    <module>gcs/pom.xml</module>
+    <module>gcsio/pom.xml</module>
+    <module>util/pom.xml</module>
+    <module>util-hadoop/pom.xml</module>
+  </modules>
+
   <profiles>
     <profile>
       <id>hadoop1</id>
       <properties>
         <hadoop.identifier>hadoop1</hadoop.identifier>
       </properties>
-      <modules>
-        <module>util/pom.xml</module>
-        <module>gcsio/pom.xml</module>
-        <module>util-hadoop/util-hadoop-hadoop1.pom.xml</module>
-        <module>gcs/gcs-hadoop1.pom.xml</module>
-        <module>bigquery/bigquery-hadoop1.pom.xml</module>
-      </modules>
     </profile>
     <profile>
       <id>hadoop2</id>
       <properties>
         <hadoop.identifier>hadoop2</hadoop.identifier>
       </properties>
-      <modules>
-        <module>util/pom.xml</module>
-        <module>gcsio/pom.xml</module>
-        <module>util-hadoop/util-hadoop-hadoop2.pom.xml</module>
-        <module>gcs/gcs-hadoop2.pom.xml</module>
-        <module>bigquery/bigquery-hadoop2.pom.xml</module>
-      </modules>
     </profile>
     <profile>
       <id>release</id>
@@ -405,6 +395,13 @@
     </dependencies>
   </dependencyManagement>
   <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <!-- enable project.version substitution. -->
+        <filtering>true</filtering>
+      </resource>
+    </resources>
     <pluginManagement>
       <plugins>
         <plugin>
