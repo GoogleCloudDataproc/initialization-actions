@@ -1288,11 +1288,12 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     LOG.debug("GHFS.listStatus: {}", hadoopPath);
 
     URI gcsPath = getGcsPath(hadoopPath);
-    List<FileStatus> status = new ArrayList<>();
+    List<FileStatus> status;
 
     try {
       List<FileInfo> fileInfos = gcsfs.listFileInfo(
           gcsPath, enableAutoRepairImplicitDirectories);
+      status = new ArrayList<>(fileInfos.size());
       for (FileInfo fileInfo : fileInfos) {
         status.add(getFileStatus(fileInfo));
       }

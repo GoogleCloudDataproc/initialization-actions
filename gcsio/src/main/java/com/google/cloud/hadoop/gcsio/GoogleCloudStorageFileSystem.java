@@ -1028,10 +1028,10 @@ public class GoogleCloudStorageFileSystem {
     Preconditions.checkState(
         !prefixId.isRoot(), "Prefix must not be global root, got '%s'", prefix);
     // Use 'null' for delimiter to get full 'recursive' listing.
-    List<GoogleCloudStorageItemInfo> itemInfos = gcs.listObjectInfo(
-        prefixId.getBucketName(), prefixId.getObjectName(), null);
+    List<GoogleCloudStorageItemInfo> itemInfos =
+        gcs.listObjectInfo(prefixId.getBucketName(), prefixId.getObjectName(), null);
     List<FileInfo> fileInfos = FileInfo.fromItemInfos(pathCodec, itemInfos);
-    Collections.sort(fileInfos, FILE_INFO_PATH_COMPARATOR);
+    fileInfos.sort(FILE_INFO_PATH_COMPARATOR);
     return fileInfos;
   }
 
