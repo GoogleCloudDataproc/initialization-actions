@@ -242,7 +242,6 @@
                   <include>com.fasterxml.jackson.core:jackson-core</include>
                   <include>com.google.api-client</include>
                   <include>com.google.apis</include>
-                  <include>com.google.cloud.bigdataoss:bigquery-connector</include>
                   <include>com.google.cloud.bigdataoss:util</include>
                   <include>com.google.cloud.bigdataoss:util-hadoop</include>
                   <include>com.google.guava</include>
