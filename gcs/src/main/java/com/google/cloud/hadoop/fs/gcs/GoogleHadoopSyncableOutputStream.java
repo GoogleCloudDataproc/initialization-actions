@@ -92,13 +92,14 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
   // since metadata settings get clobbered on final compose() anyways; additionally, due to
   // the way we pick temp file names and already ensured directories for the destination file,
   // we can optimize tempfile creation by skipping various directory checks.
-  private static final CreateFileOptions TEMPFILE_CREATE_OPTIONS = new CreateFileOptions(
-      false,  // overwriteExisting
-      CreateFileOptions.DEFAULT_CONTENT_TYPE,
-      CreateFileOptions.EMPTY_ATTRIBUTES,
-      false,  // checkNoDirectoryConflict
-      false,  // ensureParentDirectoriesExist
-      0L);  // existingGenerationId
+  private static final CreateFileOptions TEMPFILE_CREATE_OPTIONS =
+      new CreateFileOptions(
+          /* overwriteExisting= */ false,
+          CreateFileOptions.DEFAULT_CONTENT_TYPE,
+          CreateFileOptions.EMPTY_ATTRIBUTES,
+          /* checkNoDirectoryConflict= */ false,
+          /* ensureParentDirectoriesExist= */ false,
+          /* existingGenerationId= */ 0L);
 
   // Deletion of temporary files occurs asynchronously for performance reasons, but in-flight
   // deletions are awaited on close() so as long as all output streams are closed, there should
