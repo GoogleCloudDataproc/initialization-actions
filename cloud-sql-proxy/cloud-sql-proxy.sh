@@ -20,11 +20,11 @@ set -euxo pipefail
 
 # Whether to configure the Hive metastore to point to a Cloud SQL database.
 # This is not required for Hive & Spark I/O.
-readonly ENABLE_CLOUD_SQL_METASTORE=1 # 0 -> false
+readonly ENABLE_CLOUD_SQL_METASTORE="$(/usr/share/google/get_metadata_value attributes/enable-cloud-sql-hive-metastore || 1)"
 
 # Whether to enable the proxy on workers. This is not necessary for the
 # Metastore, but is required for Hive & Spark I/O.
-readonly ENABLE_PROXY_ON_WORKERS=1 # 0 -> false
+readonly ENABLE_PROXY_ON_WORKERS=$(/usr/share/google/get_metadata_value attributes/enable-cloud-sql-proxy-on-workers || 1)
 
 # MySQL user to use to access metastore.
 readonly HIVE_USER='hive'
