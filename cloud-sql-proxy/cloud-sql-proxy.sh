@@ -62,7 +62,7 @@ function configure_proxy_flags() {
 
   if [[ -n "${additional_instances}" ]]; then
     # Pass additional instances straight to the proxy.
-    proxy_instances_flags+=" -instances_metadata=${ADDITIONAL_INSTANCES_KEY}"
+    proxy_instances_flags+=" -instances_metadata=instance/${ADDITIONAL_INSTANCES_KEY}"
   fi
 }
 
