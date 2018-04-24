@@ -10,7 +10,7 @@ Once you have configured a copy of this script, you can use this initialization 
 
 1. Uploading a copy of the [initialization action for zookeeper](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/zookeeper) to [Google Cloud Storage](https://cloud.google.com/storage).
 1. Uploading a copy of the initialization action (`drill.sh`) to GCS.
-1. Using the `gcloud` command to create a new cluster with zookeeper and this initialization action. The following command will create a new cluster named `<CLUSTER_NAME>`, specify the initialization action stored in `<GCS_BUCKET>`, and increase the timeout to 5 minutes.
+1. Using the `gcloud` command to create a new cluster with zookeeper and this initialization action. You can skipp zookeeper.sh init action for HA configuration - already has preinstalled Zookeeper and for Single node - no worker nodes. For standard configuration it is required to first initialize Zookeeper. The following command will create a new cluster named `<CLUSTER_NAME>`, specify the initialization action stored in `<GCS_BUCKET>`, and increase the timeout to 5 minutes.
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
@@ -53,6 +53,7 @@ apache drill 1.9.0
 +---------------------+
 12 rows selected (3.943 seconds)
 ```
+In order to test Drill on single node cluster it is needed to use drill-embedded version.
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
 

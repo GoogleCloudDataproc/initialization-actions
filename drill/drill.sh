@@ -26,9 +26,10 @@ function create_hive_storage_plugin() {
     "type": "hive",
     "enabled": true,
     "configProps": {
-    "hive.metastore.uris": "${HIVEMETA}",
+    "lazyInit": true,
+    "hive.metastore.uris": "${hivemeta}",
     "hive.metastore.sasl.enabled": "false",
-    "fs.default.name": "${HDFS}"
+    "fs.default.name": "${hdfs}"
     }
   }
 }
@@ -41,7 +42,7 @@ function create_gcs_storage_plugin() {
   cat > /tmp/gcs_plugin.json <<EOF
 {
     "config": {
-        "connection": "${GS_PLUGIN_BUCKET}",
+        "connection": "${gs_plugin_bucket}",
         "enabled": true,
         "formats": {
             "avro": {
@@ -112,7 +113,7 @@ function create_hdfs_storage_plugin() {
   cat > /tmp/hdfs_plugin.json <<EOF
 {
     "config": {
-        "connection": "${HDFS}",
+        "connection": "${hdfs}",
         "enabled": true,
         "formats": {
             "avro": {
@@ -186,7 +187,7 @@ EOF
 function start_drillbit() {
   # Start drillbit
   sudo -u ${DRILL_USER} ${DRILL_HOME}/bin/drillbit.sh status \
-    || sudo -u ${DRILL_USER} ${DRILL_HOME}/bin/drillbit.sh start && sleep 10
+    || sudo -u ${DRILL_USER} ${DRILL_HOME}/bin/drillbit.sh start && sleep 45
   create_hive_storage_plugin
   create_gcs_storage_plugin
   create_hdfs_storage_plugin
@@ -211,7 +212,7 @@ function main() {
   local zookeeper_list=$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg \
      | cut -d '=' -f 2 | cut -d ':' -f 1 | sed "s/$/:${zookeeper_client_port}/" \
      | xargs echo | sed 's/ /,/g')
-
+  echo "${zookeeper_list}"
   # Get hive metastore thrift and HDFS URIs
   local hivemeta=$(bdconfig get_property_value \
     --configuration_file /etc/hive/conf/hive-site.xml \
@@ -257,9 +258,10 @@ function main() {
   cat >> ${DRILL_HOME}/conf/drill-override.conf <<EOF
 drill.exec: { sys.store.provider.zk.blobroot: "${profile_store}" }
 EOF
+
+  start_drillbit
   # Clean up
   rm -f /tmp/*_plugin.json
-  start_drillbit
 }
 
 main || print_err_logs
