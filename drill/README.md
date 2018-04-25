@@ -6,17 +6,32 @@ This initialization action installs [Apache Drill](http://drill.apache.org) on a
 
 Check the variables set in the script to ensure they're to your liking.
 
-Once you have configured a copy of this script, you can use this initialization action to create a new Dataproc cluster with Drill installed by:
+Once you have configured a copy of this script, you can use this initialization action to create a new Dataproc cluster with Drill installed by running one of the following commands depending on your desired cluster type.
 
-1. Uploading a copy of the [initialization action for zookeeper](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/zookeeper) to [Google Cloud Storage](https://cloud.google.com/storage).
-1. Uploading a copy of the initialization action (`drill.sh`) to GCS.
-1. Using the `gcloud` command to create a new cluster with zookeeper and this initialization action. You can skipp zookeeper.sh init action for HA configuration - already has preinstalled Zookeeper and for Single node - no worker nodes. For standard configuration it is required to first initialize Zookeeper. The following command will create a new cluster named `<CLUSTER_NAME>`, specify the initialization action stored in `<GCS_BUCKET>`, and increase the timeout to 5 minutes.
+Standard cluster (requires Zookeeper init action)
 
-    ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-    --initialization-actions gs://<GCS_BUCKET>/zookeeper.sh,gs://<GCS_BUCKET>/drill.sh
-    --initialization-action-timeout 5m
-    ```
+```bash
+gcloud dataproc clusters create <CLUSTER_NAME> \
+    --initialization-actions gs://dataproc-initialization-actions/zookeeper/zookeeper.sh \
+    --initialization-actions gs://dataproc-initialization-actions/drill/drill.sh
+```
+
+High availability cluster (Zookeeper comes pre-installed)
+
+```bash
+gcloud dataproc clusters create <CLUSTER_NAME> \
+    --num-masters 3 \
+    --initialization-actions gs://dataproc-initialization-actions/drill/drill.sh
+```
+
+Single node cluster (Zookeeper is unnecessary)
+
+```bash
+gcloud dataproc clusters create <CLUSTER_NAME> \
+    --single-node \
+    --initialization-actions gs://dataproc-initialization-actions/drill/drill.sh
+```
+
 1. Once the cluster has been created, Drillbits will start on all nodes. You can log into any node of the cluster to run Drill queries. Drill is installed in `/usr/lib/drill` (unless you change the setting) which contains a `bin` directory with `sqlline`.
 
 You can run the following to get into sqlline, the Drill CLI query tool:
