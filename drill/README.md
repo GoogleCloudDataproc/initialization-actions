@@ -68,7 +68,7 @@ apache drill 1.9.0
 +---------------------+
 12 rows selected (3.943 seconds)
 ```
-In order to test Drill on single node cluster it is needed to use drill-embedded version.
+In order to test Drill on single node cluster it is needed to use usr/lib/drill/bin/drill-embedded or execute sqlline query with zk specified as local - sqlline -u jdbc:drill:zk=local.
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
 
