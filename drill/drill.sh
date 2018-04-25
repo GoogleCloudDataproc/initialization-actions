@@ -187,7 +187,7 @@ EOF
 function start_drillbit() {
   # Start drillbit
   sudo -u ${DRILL_USER} ${DRILL_HOME}/bin/drillbit.sh status \
-    || sudo -u ${DRILL_USER} ${DRILL_HOME}/bin/drillbit.sh start && sleep 45
+    || sudo -u ${DRILL_USER} ${DRILL_HOME}/bin/drillbit.sh start && sleep 60
   create_hive_storage_plugin
   create_gcs_storage_plugin
   create_hdfs_storage_plugin
@@ -212,7 +212,7 @@ function main() {
   local zookeeper_list=$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg \
      | cut -d '=' -f 2 | cut -d ':' -f 1 | sed "s/$/:${zookeeper_client_port}/" \
      | xargs echo | sed 's/ /,/g')
-  echo "${zookeeper_list}"
+
   # Get hive metastore thrift and HDFS URIs
   local hivemeta=$(bdconfig get_property_value \
     --configuration_file /etc/hive/conf/hive-site.xml \
