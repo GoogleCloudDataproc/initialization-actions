@@ -13,12 +13,12 @@ You can use this initialization action to create a new Dataproc cluster with Pre
     --initialization-actions gs://<GCS_BUCKET>/presto.sh   
     --initialization-action-timeout 5m
     ```
-1. Once the cluster has been created, Presto is configured to run on port `8080` (though you can change this int he script) on the master node in a Cloud Dataproc cluster. To connect to the Presto web interface, you will need to create an SSH tunnel and use a SOCKS 5 Proxy as described in the [dataproc web interfaces](https://cloud.google.com/dataproc/cluster-web-interfaces) documentation. You can also use the [Presto command line interface](https://prestodb.io/docs/current/installation/cli.html) using the `presto` command on the master node.
+1. Once the cluster has been created, Presto is configured to run on port `8080` (though you can change this in the script) on the master node in a Cloud Dataproc cluster. To connect to the Presto web interface, you will need to create an SSH tunnel and use a SOCKS 5 Proxy as described in the [dataproc web interfaces](https://cloud.google.com/dataproc/cluster-web-interfaces) documentation. You can also use the [Presto command line interface](https://prestodb.io/docs/current/installation/cli.html) using the `presto` command on the master node.
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
 
 ## Important notes
-* This script must be updated based on which Presto version you wish you install
+* This script must be updated based on which Presto version you wish to install
 * You may need to adjust the memory settings in `jvm.config` based on your needs
 * Presto is set to use HTTP port `8080` by default
 * Only the Hive connector is configured by default
