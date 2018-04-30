@@ -62,7 +62,7 @@ scaffolding for other frameworks and use cases.
 
 ### Mailing list
 
-Subscribe to the google group [cloud-dataproc-discuss](groups.google.com/forum/#!forum/cloud-dataproc-discuss) for announcements and discussion.
+Subscribe to [cloud-dataproc-discuss](groups.google.com/forum/#!forum/cloud-dataproc-discuss) for announcements and discussion.
 
 ## Contributing changes
 
