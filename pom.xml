@@ -138,6 +138,9 @@
       <properties>
         <hadoop.identifier>hadoop2</hadoop.identifier>
       </properties>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
     </profile>
     <profile>
       <id>release</id>
