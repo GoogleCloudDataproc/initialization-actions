@@ -60,7 +60,6 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileChecksum;
 import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.GlobPattern;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
@@ -93,7 +92,7 @@ import org.slf4j.LoggerFactory;
  * tests and HDFS tests against the same test data and use that as a guide to decide whether to
  * throw or to return false.
  */
-public abstract class GoogleHadoopFileSystemBase extends FileSystem
+public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemBaseSpecific
     implements FileSystemDescriptor {
   /** Logger. */
   public static final Logger LOG = LoggerFactory.getLogger(GoogleHadoopFileSystemBase.class);
