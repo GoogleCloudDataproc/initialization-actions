@@ -157,18 +157,16 @@ function configure_sql_client(){
 [client]
 protocol = tcp
 port = ${metastore_proxy_port}
-user = ${db_admin_user}
-password = ${db_admin_password}
 EOF
 
   # Check if metastore is initialized.
   if ! mysql -u "${db_hive_user}" -p"${db_hive_password}" -e ''; then
-    mysql -e \
+    mysql -u "${db_admin_user}" -p"${db_admin_password}" -e \
       "CREATE USER '${db_hive_user}' IDENTIFIED BY '${db_hive_password}';"
   fi
-  if mysql -e "use ${metastore_db}"; then
+  if mysql -u "${db_hive_user}" -p"${db_hive_password}" -e "use ${metastore_db}"; then
     # Extract the warehouse URI.
-    HIVE_WAREHOURSE_URI=$(mysql -Nse \
+    HIVE_WAREHOURSE_URI=$(mysql -u "${db_hive_user}" -p"${db_hive_password}" -Nse \
       "SELECT DB_LOCATION_URI FROM ${metastore_db}.DBS WHERE NAME = 'default';")
     bdconfig set_property \
       --name 'hive.metastore.warehouse.dir' \
@@ -177,9 +175,9 @@ EOF
       --clobber
   else
     # Initialize database with current warehouse URI.
-    mysql -e \
+    mysql -u "${db_admin_user}" -p"${db_admin_password}" -e \
       "CREATE DATABASE ${metastore_db}; \
-      GRANT ALL PRIVILEGES ON ${metastore_db}.* TO '${db_hive_user}';"
+       GRANT ALL PRIVILEGES ON ${metastore_db}.* TO '${db_hive_user}';"
     /usr/lib/hive/bin/schematool -dbType mysql -initSchema \
       || err 'Failed to set mysql schema.'
   fi
@@ -225,7 +223,7 @@ function main() {
   metastore_db="${metastore_db:-hive_metastore}"
 
   local metastore_proxy_port
-  metastore_proxy_port=3306
+  metastore_proxy_port="$(/usr/share/google/get_metadata_value attributes/metastore-proxy-port || echo '3306')"
 
   # Validation
   if [[ $enable_cloud_sql_metastore != "true" ]] && [[ -z "${additional_instances}" ]]; then
