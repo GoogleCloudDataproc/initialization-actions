@@ -24,17 +24,40 @@ readonly enable_cloud_sql_metastore="$(/usr/share/google/get_metadata_value attr
 
 # Whether to enable the proxy on workers. This is not necessary for the
 # Metastore, but is required for Hive & Spark I/O.
-readonly enable_proxy_on_workers=$(/usr/share/google/get_metadata_value attributes/enable-cloud-sql-proxy-on-workers || echo 'true')
+readonly enable_proxy_on_workers="$(/usr/share/google/get_metadata_value attributes/enable-cloud-sql-proxy-on-workers || echo 'true')"
 
-# MySQL user to use to access metastore.
-readonly HIVE_USER='hive'
+# Database user to use to access metastore.
+readonly db_hive_user="$(/usr/share/google/get_metadata_value attributes/db-hive-user || echo 'hive')"
 
-# MySQL password to use to access metastore.
-readonly HIVE_USER_PASSWORD='hive-password'
+readonly db_admin_user="$(/usr/share/google/get_metadata_value attributes/db-admin-user || echo 'root')"
 
-# MySQL root password used to initialize metastore.
-# Empty is the default for new CloudSQL instances.
-readonly MYSQL_ROOT_PASSWORD=''
+readonly kms_key_uri="$(/usr/share/google/get_metadata_value attributes/kms-key-uri)"
+
+# Database admin user password used to create the metastore database and user.
+readonly db_admin_password_uri="$(/usr/share/google/get_metadata_value attributes/db-admin-password-uri)"
+if [[ -n "${db_admin_password_uri}" ]]; then
+  # Decrypt password
+  readonly db_admin_password="$(gsutil cat $db_admin_password_uri | \
+    gcloud kms decrypt \
+    --ciphertext-file - \
+    --plaintext-file - \
+    --key $kms_key_uri)"
+else
+  readonly db_admin_password=''
+fi
+
+# Database password to use to access metastore.
+readonly db_hive_password_uri="$(/usr/share/google/get_metadata_value attributes/db-hive-password-uri)"
+if [[ -n "${db_hive_password_uri}" ]]; then
+  # Decrypt password
+  readonly db_hive_password="$(gsutil cat $db_hive_password_uri | \
+    gcloud kms decrypt \
+    --ciphertext-file - \
+    --plaintext-file - \
+    --key $kms_key_uri)"
+else
+  readonly db_hive_password='hive-password'
+fi
 
 readonly PROXY_DIR='/var/run/cloud_sql_proxy'
 readonly PROXY_BIN='/usr/local/bin/cloud_sql_proxy'
@@ -62,7 +85,7 @@ function configure_proxy_flags() {
 
   if [[ -n "${additional_instances}" ]]; then
     # Pass additional instances straight to the proxy.
-    proxy_instances_flags+=" -instances_metadata=instance/${ADDITIONAL_INSTANCES_KEY}"
+    proxy_instances_flags+=" -instances_metadata=${ADDITIONAL_INSTANCES_KEY}"
   fi
 }
 
@@ -111,11 +134,11 @@ EOF
   </property>
   <property>
     <name>javax.jdo.option.ConnectionUserName</name>
-    <value>${HIVE_USER}</value>
+    <value>${db_hive_user}</value>
   </property>
   <property>
     <name>javax.jdo.option.ConnectionPassword</name>
-    <value>${HIVE_USER_PASSWORD}</value>
+    <value>${db_hive_password}</value>
   </property>
 </configuration>
 EOF
@@ -129,19 +152,19 @@ fi
 
 
 function configure_sql_client(){
-  # Configure mysql client to talk to metastore as root.
+  # Configure mysql client to talk to metastore
   cat << EOF > /etc/mysql/conf.d/cloud-sql-proxy.cnf
 [client]
 protocol = tcp
 port = ${metastore_proxy_port}
-user = root
-password = ${MYSQL_ROOT_PASSWORD}
+user = ${db_admin_password}
+password = ${db_admin_password}
 EOF
 
   # Check if metastore is initialized.
-  if ! mysql -u "${HIVE_USER}" -p"${HIVE_USER_PASSWORD}" -e ''; then
+  if ! mysql -u "${db_hive_user}" -p"${db_hive_password}" -e ''; then
     mysql -e \
-      "CREATE USER '${HIVE_USER}' IDENTIFIED BY '${HIVE_USER_PASSWORD}';"
+      "CREATE USER '${db_hive_user}' IDENTIFIED BY '${db_hive_password}';"
   fi
   if mysql -e "use ${metastore_db}"; then
     # Extract the warehouse URI.
@@ -156,7 +179,7 @@ EOF
     # Initialize database with current warehouse URI.
     mysql -e \
       "CREATE DATABASE ${metastore_db}; \
-      GRANT ALL PRIVILEGES ON ${metastore_db}.* TO '${HIVE_USER}';"
+      GRANT ALL PRIVILEGES ON ${metastore_db}.* TO '${db_hive_user}';"
     /usr/lib/hive/bin/schematool -dbType mysql -initSchema \
       || err 'Failed to set mysql schema.'
   fi
