@@ -157,7 +157,7 @@ function configure_sql_client(){
 [client]
 protocol = tcp
 port = ${metastore_proxy_port}
-user = ${db_admin_password}
+user = ${db_admin_user}
 password = ${db_admin_password}
 EOF
 
