@@ -42,6 +42,9 @@ public class GoogleHadoopGlobalRootedFileSystemContract2Test
     return "gsg:/fake-test-system-bucket/some-dir";
   }
 
+  protected boolean rootDirTestEnabled() {
+    return false;
+  }
 
   /**
    * Tests get/setWorkingDirectory().
@@ -59,4 +62,8 @@ public class GoogleHadoopGlobalRootedFileSystemContract2Test
 
   @Override
   public void testListStatusThrowsExceptionForNonExistentFile() {}
+
+  public void testRenameFileToSelf() {}
+
+  public void testMoveFileUnderParent() {}
 }

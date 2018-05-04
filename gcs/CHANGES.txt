@@ -17,7 +17,7 @@
 
        fs.gs.max.requests.per.batch (default: 30)
 
-  5. Hadoop 3 build compatibility.
+  5. Support Hadoop 3.
 
   6. Change Maven project structure to be better compatible with IDEs.
 

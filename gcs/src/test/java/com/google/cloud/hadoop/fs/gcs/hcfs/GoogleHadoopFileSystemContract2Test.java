@@ -62,4 +62,8 @@ public class GoogleHadoopFileSystemContract2Test
 
   @Override
   public void testListStatusThrowsExceptionForNonExistentFile() {}
+
+  public void testRenameFileToSelf() {}
+
+  public void testMoveFileUnderParent() {}
 }

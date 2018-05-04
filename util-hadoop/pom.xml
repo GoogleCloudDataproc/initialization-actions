@@ -53,6 +53,21 @@
         </dependency>
       </dependencies>
     </profile>
+
+    <profile>
+      <id>hadoop3</id>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
+        </dependency>
+        <!-- HadoopToStringUtil requires InputSplit -->
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-mapreduce-client-core</artifactId>
+        </dependency>
+      </dependencies>
+    </profile>
   </profiles>
 
   <dependencies>

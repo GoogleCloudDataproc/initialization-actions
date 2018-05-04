@@ -62,7 +62,7 @@ public class GoogleHadoopGlobalRootedFSMainOperations2Test
     assertThat(exists(fSys, testDir)).isTrue();
 
     createFile(helper.getTestRootPath(fSys, "test/hadoop/file"));
-    
+
     Path testSubDir = helper.getTestRootPath(fSys, "test/hadoop/file/subdir");
     assertThrows(IOException.class, () -> fSys.mkdirs(testSubDir));
     assertThat(exists(fSys, testSubDir)).isFalse();
@@ -86,19 +86,22 @@ public class GoogleHadoopGlobalRootedFSMainOperations2Test
     }
   }
 
-  @Test @Override
-  public void testListStatusThrowsExceptionForNonExistentFile() throws Exception {
-  }
+  @Test
+  @Override
+  public void testListStatusThrowsExceptionForNonExistentFile() {}
 
-  @Test @Override
-  public void testListStatusThrowsExceptionForUnreadableDir() throws Exception {
-  }
+  @Test
+  @Override
+  public void testListStatusThrowsExceptionForUnreadableDir() {}
 
-  @Test @Override
-  public void testCopyToLocalWithUseRawLocalFileSystemOption() throws Exception {
-  }
+  @Test
+  @Override
+  public void testCopyToLocalWithUseRawLocalFileSystemOption() {}
 
-  @Test @Override
-  public void testWDAbsolute() throws IOException {
-  }
+  @Test
+  @Override
+  public void testWDAbsolute() {}
+
+  @Test
+  public void testGlobStatusThrowsExceptionForUnreadableDir() {}
 }
