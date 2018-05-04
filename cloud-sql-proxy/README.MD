@@ -21,8 +21,8 @@ You can use this initialization action to create a Dataproc cluster using a shar
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
     --scopes sql-admin \
-    --initialization-actions gs://<GCS_BUCKET>/cloud-sql-proxy.sh \
-    --properties hive:hive.metastore.warehouse.dir=gs://<GCS_BUCKET>/hive-warehouse \
+    --initialization-actions gs://<INIT_ACTION_BUCKET>/cloud-sql-proxy.sh \
+    --properties hive:hive.metastore.warehouse.dir=gs://<HIVE_DATA_BUCKET>/hive-warehouse \
     --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>"
     ```
     a. Optionally add other instances, paired with distict TCP ports for further I/O.
@@ -41,14 +41,14 @@ You can use this initialization action to create a Dataproc cluster using a shar
     ```bash
     gcloud dataproc clusters create <ANOTHER_CLUSTER_NAME> \
     --scopes sql-admin \
-    --initialization-actions gs://<GCS_BUCKET>/cloud-sql-proxy.sh \
+    --initialization-actions gs://<INIT_ACTION_BUCKET>/cloud-sql-proxy.sh \
     --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>"
     ```
 
 6. The two clusters should now be sharing Hive Tables and Spark SQL Dataframes saved as tables.
 
 ## Important notes for Hive metastore
-* Hive stores the metadata of all tables in it's metastore. It stores the contents of (non-external) tables in a HCFS directory, which is by default on HDFS. If you want to perist your tables beyond the life of the cluster, set "hive.metastore.warehouse.dir" to a shared locations (such as the Cloud Storage directory in the example above). This directory get's baked into the Cloud SQL metastore, so it is recommended to set even if you intend to mostly use external tables. If you place this direcotry in Cloud Storage. You may want to use the shared NFS consistency cache as well.
+* Hive stores the metadata of all tables in its metastore. It stores the contents of (non-external) tables in a HCFS directory, which is by default on HDFS. If you want to persist your tables beyond the life of the cluster, set "hive.metastore.warehouse.dir" to a shared locations (such as the Cloud Storage directory in the example above). This directory gets baked into the Cloud SQL metastore, so it is recommended to set even if you intend to mostly use external tables. If you place this directory in Cloud Storage. You may want to use the shared NFS consistency cache as well.
 * The initialization action can be configured to install the proxy only on the master, in the case where you wish to have a shared metastore. For that, set the `enable-cloud-sql-proxy-on-workers` metadata key to `false`.
 * The initialization action creates a `hive` user and `hive_metastore` database in the SQL instance if they don't already exist. It does this by logging in as root with an empty password. You can reconfigure all of this in the script.
 
@@ -59,7 +59,79 @@ The initialization action can also be configured to install proxies without chan
 ```bash
 gcloud dataproc clusters create <CLUSTER_NAME> \
     --scopes sql-admin \
-    --initialization-actions gs://<GCS_BUCKET>/cloud-sql-proxy.sh \
+    --initialization-actions gs://<INIT_ACTION_BUCKET>/cloud-sql-proxy.sh \
     --metadata "enable-cloud-sql-hive-metastore=false"
     --metadata "additional-cloud-sql-instances=<PROJECT_ID>:<REGION>:<ANOTHER_INSTANCE_NAME>
 ```
+
+## Protecting passwords with KMS
+
+If you want to protect the passwords for the `root` and `hive` MySQL users, you may use [Cloud KMS](https://cloud.google.com/kms/),
+Google Cloud's key management service. Proceed as follows:
+
+1. Create a bucket to store the encrypted passwords:
+
+    ```bash
+    gsutil mb gs://<SECRETS_BUCKET>
+    ```
+
+2. Create a key ring:
+
+    ```bash
+    gcloud kms keyrings create my-key-ring --location global
+    ```
+
+3. Create an encryption key:
+
+    ```bash
+    gcloud kms keys create my-key \
+        --location global \
+        --keyring my-key-ring \
+        --purpose encryption
+    ```
+
+4. Encrypt the `root` user's password:
+
+    ```bash
+    echo "<ROOT_PASSWORD>" | \
+    gcloud kms encrypt \
+        --location=global  \
+        --keyring=my-key-ring \
+        --key=my-key \
+        --plaintext-file=- \
+        --ciphertext-file=admin-password.encrypted
+    ```
+
+5. Encrypt the `hive` user's password:
+
+    ```bash
+    echo "<HIVE_PASSWORD>" | \
+    gcloud kms encrypt \
+        --location=global  \
+        --keyring=my-key-ring \
+        --key=my-key \
+        --plaintext-file=- \
+        --ciphertext-file=hive-password.encrypted
+    ```
+
+6. Upload the encrypted passwords to your secrets GCS bucket:
+
+    ```bash
+    gsutil cp admin-password.encrypted hive-password.encrypted gs://<SECRETS_BUCKET>
+    ```
+
+7. Create the Dataproc cluster:
+
+    ```bash
+    gcloud dataproc clusters create <CLUSTER_NAME> \
+    --scopes sql-admin \
+    --initialization-actions gs://<INIT_ACTION_BUCKET>/cloud-sql-proxy.sh \
+    --properties hive:hive.metastore.warehouse.dir=gs://<HIVE_DATA_BUCKET>/hive-warehouse \
+    --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>" \
+    --metadata "kms-key-uri=projects/<PROJECT_ID>/locations/global/keyRings/my-key-ring/cryptoKeys/my-key" \
+    --metadata "db-admin-password-uri=gs://<SECRETS_BUCKET>/admin-password.encrypted" \
+    --metadata "db-hive-password-uri=gs://<SECRETS_BUCKET>/hive-password.encrypted"
+    ```
+
+**Note:** The `hive` user password is stored in the Hive configuration file `/etc/hive/conf/hive-site.xml`.
+Therefore SSH users with `sudo` access will be able to view that password in that file.
