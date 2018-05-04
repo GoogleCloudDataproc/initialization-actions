@@ -3,6 +3,7 @@
 This initialization action installs a [Google Cloud SQL proxy](https://cloud.google.com/sql/docs/sql-proxy) on every node in a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster. It also configures the cluster to store [Apache Hive](https://hive.apache.org) metadata on a given Cloud SQL instance.
 
 ## Using this initialization action
+
 You can use this initialization action to create a Dataproc cluster using a shared hive metastore.:
 
 1. Using the `gcloud` command to create a new 2nd generation Cloud SQL intance (or use a previously created instance). You must enable the [Cloud SQL API](https://console.cloud.google.com/apis/library/sqladmin.googleapis.com/?q=sql) for your project.
@@ -48,6 +49,7 @@ You can use this initialization action to create a Dataproc cluster using a shar
 6. The two clusters should now be sharing Hive Tables and Spark SQL Dataframes saved as tables.
 
 ## Important notes for Hive metastore
+
 * Hive stores the metadata of all tables in its metastore. It stores the contents of (non-external) tables in a HCFS directory, which is by default on HDFS. If you want to persist your tables beyond the life of the cluster, set "hive.metastore.warehouse.dir" to a shared locations (such as the Cloud Storage directory in the example above). This directory gets baked into the Cloud SQL metastore, so it is recommended to set even if you intend to mostly use external tables. If you place this directory in Cloud Storage. You may want to use the shared NFS consistency cache as well.
 * The initialization action can be configured to install the proxy only on the master, in the case where you wish to have a shared metastore. For that, set the `enable-cloud-sql-proxy-on-workers` metadata key to `false`.
 * The initialization action creates a `hive` user and `hive_metastore` database in the SQL instance if they don't already exist. It does this by logging in as root with an empty password. You can reconfigure all of this in the script.
@@ -133,5 +135,19 @@ Google Cloud's key management service. Proceed as follows:
     --metadata "db-hive-password-uri=gs://<SECRETS_BUCKET>/hive-password.encrypted"
     ```
 
-**Note:** The `hive` user password is stored in the Hive configuration file `/etc/hive/conf/hive-site.xml`.
-Therefore SSH users with `sudo` access will be able to view that password in that file.
+**Notes:**
+
+* If the cluster's service account has permission to decrypt the `root` or `hive` password, then any user that
+  can SSH or run jobs on this cluster can decrypt the passwords as well.
+* The `hive` user password is stored in the Hive configuration file `/etc/hive/conf/hive-site.xml`.
+  Therefore any user that can SSH on this cluster and has `sudo` access, and any user that can run
+  jobs on this cluster, will be able to view the password in that file.
+* If the `hive` already exists, you do not need to provide the `root` user password when creating the cluster:
+      ```bash
+      gcloud dataproc clusters create <CLUSTER_NAME> \
+      --scopes sql-admin \
+      --initialization-actions gs://<INIT_ACTION_BUCKET>/cloud-sql-proxy.sh \
+      --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>" \
+      --metadata "kms-key-uri=projects/<PROJECT_ID>/locations/global/keyRings/my-key-ring/cryptoKeys/my-key" \
+      --metadata "db-hive-password-uri=gs://<SECRETS_BUCKET>/hive-password.encrypted"
+      ```
