@@ -16,7 +16,9 @@
 # This init script installs a cloud-sql-proxy on each node in the cluster, and
 # uses that proxy to expose TCP proxies of one or more CloudSQL instances.
 # One of these instances is used for the clusters Hive Metastore.
-set -euxo pipefail
+
+# Do not use "set -x" to avoid printing passwords in clear in the logs
+set -euo pipefail
 
 # Whether to configure the Hive metastore to point to a Cloud SQL database.
 # This is not required for Hive & Spark I/O.
