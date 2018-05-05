@@ -66,12 +66,17 @@ function install_zeppelin(){
 function configure_zeppelin(){
   # Ideally we would use Zeppelin's REST API, but it is difficult, especially
   # between versions. So sed the JSON file.
+  
+  local zeppelin_version;
+  zeppelin_version="$(dpkg-query --showformat='${Version}' --show zeppelin)"
 
-  # Set spark.yarn.isPython to fix Zeppelin pyspark in Dataproc 1.0.
-  sed -i 's/\(\s*\)"spark\.app\.name[^,}]*/&,\n\1"spark.yarn.isPython": "true"/' \
-    "${INTERPRETER_FILE}"
-  # Unset Spark Executor memory to let the spark-defaults.conf set it.
-  sed -i '/spark\.executor\.memory/d' "${INTERPRETER_FILE}"
+  if dpkg --compare-versions "${zeppelin_version}" '<' 0.8.0; then
+    # Set spark.yarn.isPython to fix Zeppelin pyspark in Dataproc 1.0.
+    sed -i 's/\(\s*\)"spark\.app\.name[^,}]*/&,\n\1"spark.yarn.isPython": "true"/' \
+      "${INTERPRETER_FILE}"
+    # Unset Spark Executor memory to let the spark-defaults.conf set it.
+    sed -i '/spark\.executor\.memory/d' "${INTERPRETER_FILE}"
+  fi
 
   # Link in hive configuration.
   ln -s /etc/hive/conf/hive-site.xml /etc/zeppelin/conf
@@ -90,8 +95,6 @@ function configure_zeppelin(){
   pip install --upgrade matplotlib
 
   # Install R libraries and configure BigQuery for Zeppelin 0.6.1+
-  local zeppelin_version;
-  zeppelin_version="$(dpkg-query --showformat='${Version}' --show zeppelin)"
   if dpkg --compare-versions "${zeppelin_version}" '>=' 0.6.1; then
     # Set BigQuery project ID if present.
 
