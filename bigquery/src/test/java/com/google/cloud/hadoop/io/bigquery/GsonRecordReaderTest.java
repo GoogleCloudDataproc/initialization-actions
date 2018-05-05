@@ -50,7 +50,7 @@ public class GsonRecordReaderTest {
   private Text value1 = new Text("{'title':'Test1','value':'test_1'}");
   private Text value2 = new Text("{'title':'Test2','value':'test_2'}");
 
-  // GoogleHadoopGlobalRootedFileSystem to use.
+  // GoogleHadoopFileSystem to use.
   private FileSystem ghfs;
 
   // Hadoop job configuration.
@@ -68,7 +68,7 @@ public class GsonRecordReaderTest {
     // Set the Hadoop job configuration.
     config = InMemoryGoogleHadoopFileSystem.getSampleConfiguration();
 
-    // Create a GoogleHadoopGlobalRootedFileSystem to use to initialize and write to
+    // Create a GoogleHadoopFileSystem to use to initialize and write to
     // the in-memory GcsFs.
     ghfs = new InMemoryGoogleHadoopFileSystem();
   }
@@ -222,7 +222,7 @@ public class GsonRecordReaderTest {
   /**
    * Helper method to write buffer to GHFS.
    *
-   * @param ghfs the GoogleHadoopGlobalRootedFileSystem to write to.
+   * @param ghfs the GoogleHadoopFileSystem to write to.
    * @param hadoopPath the path of the file to write to.
    * @param buffer the buffer to write to the file.
    * @throws IOException on IO Error.

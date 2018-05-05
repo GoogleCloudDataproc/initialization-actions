@@ -30,7 +30,7 @@ import org.junit.runners.JUnit4;
 /**
  * Integration tests for HDFS.
  *
- * This class allows running all tests in GoogleHadoopGlobalRootedFileSystemIntegrationTest against
+ * This class allows running all tests in HadoopFileSystemTestBase against
  * HDFS. This allows us to determine if HDFS behavior is different from GHFS behavior and if so, fix
  * GHFS to match HDFS behavior.
  *

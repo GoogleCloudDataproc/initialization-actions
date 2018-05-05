@@ -30,9 +30,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Allows running all tests in GoogleHadoopGlobalRootedFileSystemIntegrationTest against local FS.
- */
+/** Allows running all tests in HadoopFileSystemTestBase against local FS. */
 @RunWith(JUnit4.class)
 public class LocalFileSystemIntegrationTest
     extends HadoopFileSystemTestBase {

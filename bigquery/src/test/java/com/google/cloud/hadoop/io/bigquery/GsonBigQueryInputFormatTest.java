@@ -71,7 +71,7 @@ public class GsonBigQueryInputFormatTest {
   private Text value1 = new Text("{'title':'Test1','value':'test_1'}");
   private Text value2 = new Text("{'title':'Test2','value':'test_2'}");
 
-  // GoogleHadoopGlobalRootedFileSystem to use.
+  // GoogleHadoopFileSystem to use.
   private InMemoryGoogleHadoopFileSystem ghfs;
 
   // Hadoop job configuration.
@@ -135,7 +135,7 @@ public class GsonBigQueryInputFormatTest {
 
     CredentialConfigurationUtil.addTestConfigurationSettings(config);
 
-    // Create a GoogleHadoopGlobalRootedFileSystem to use to initialize and write to
+    // Create a GoogleHadoopFileSystem to use to initialize and write to
     // the in-memory GcsFs.
     ghfs = new InMemoryGoogleHadoopFileSystem();
 

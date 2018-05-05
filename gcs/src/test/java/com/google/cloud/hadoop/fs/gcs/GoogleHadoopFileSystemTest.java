@@ -44,12 +44,12 @@ public class GoogleHadoopFileSystemTest
           ghfs = GoogleHadoopFileSystemTestHelper.createInMemoryGoogleHadoopFileSystem();
           ghfsFileSystemDescriptor = (FileSystemDescriptor) ghfs;
 
-          GoogleHadoopGlobalRootedFileSystemIntegrationTest.postCreateInit();
+          GoogleHadoopFileSystemIntegrationTest.postCreateInit();
         }
 
         @Override
         public void after() {
-          GoogleHadoopGlobalRootedFileSystemIntegrationTest.storageResource.after();
+          GoogleHadoopFileSystemIntegrationTest.storageResource.after();
         }
       };
 

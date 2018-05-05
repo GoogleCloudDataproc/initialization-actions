@@ -49,26 +49,6 @@ public class GoogleHadoopFileSystemTestHelper {
   }
 
   /**
-   * Creates an instance of a global-rooted GoogleHadoopFileSystemBase using an in-memory
-   * underlying store.
-   */
-  public static FileSystem createInMemoryGoogleHadoopGlobalRootedFileSystem()
-      throws IOException {
-    GoogleCloudStorageOptions.Builder gcsOptionsBuilder =
-        defaultStorageOptionsBuilder();
-    GoogleCloudStorageFileSystemOptions.Builder fsOptionsBuilder =
-        GoogleCloudStorageFileSystemOptions.newBuilder()
-        .setCloudStorageOptionsBuilder(gcsOptionsBuilder);
-    GoogleCloudStorageFileSystem memoryGcsFs = new GoogleCloudStorageFileSystem(
-        new InMemoryGoogleCloudStorage(gcsOptionsBuilder.build()),
-        fsOptionsBuilder.build());
-    GoogleHadoopFileSystemBase ghfs =
-        new GoogleHadoopGlobalRootedFileSystem(memoryGcsFs);
-    initializeInMemoryFileSystem(ghfs, "gsg://bucket-should-be-ignored");
-    return ghfs;
-  }
-
-  /**
    * Get the options we want to use for our GCS instances.
    */
   public static GoogleCloudStorageOptions.Builder

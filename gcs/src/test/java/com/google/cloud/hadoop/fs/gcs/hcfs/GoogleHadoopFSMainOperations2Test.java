@@ -47,7 +47,7 @@ public class GoogleHadoopFSMainOperations2Test
    * @return
    */
   public FileSystem createFileSystem() throws Exception {
-    return GoogleHadoopFileSystemTestHelper.createInMemoryGoogleHadoopGlobalRootedFileSystem();
+    return GoogleHadoopFileSystemTestHelper.createInMemoryGoogleHadoopFileSystem();
   }
 
   /**

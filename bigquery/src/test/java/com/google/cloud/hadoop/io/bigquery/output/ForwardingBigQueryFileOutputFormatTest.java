@@ -75,7 +75,7 @@ public class ForwardingBigQueryFileOutputFormatTest {
   private static final TaskAttemptID TEST_TASK_ATTEMPT_ID =
       new TaskAttemptID(new TaskID("sample_task", 100, false, 200), 1);
 
-  /** GoogleHadoopGlobalRootedFileSystem to use. */
+  /** GoogleHadoopFileSystem to use. */
   private InMemoryGoogleHadoopFileSystem ghfs;
 
   /** In memory file system for testing. */

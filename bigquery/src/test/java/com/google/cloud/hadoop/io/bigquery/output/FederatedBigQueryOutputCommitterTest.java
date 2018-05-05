@@ -88,7 +88,7 @@ public class FederatedBigQueryOutputCommitterTest {
   /** Sample output file. */
   private static final String TEST_OUTPUT_FILE_STRING = TEST_OUTPUT_PATH_STRING + "test_file";
 
-  /** GoogleHadoopGlobalRootedFileSystem to use. */
+  /** GoogleHadoopFileSystem to use. */
   private InMemoryGoogleHadoopFileSystem ghfs;
 
   /** The expected table reference being derived. */

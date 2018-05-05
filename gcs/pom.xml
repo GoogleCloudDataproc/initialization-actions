@@ -153,9 +153,6 @@
                   </excludes>
                   <includes>
                     <include>**/fs/gcs/GoogleHadoopFileSystemIntegrationTest.java</include>
-                    <include>
-                      **/fs/gcs/GoogleHadoopGlobalRootedFileSystemIntegrationTest.java
-                    </include>
                     <include>**/fs/gcs/LocalFileSystemIntegrationTest.java</include>
                   </includes>
                   <reuseForks>false</reuseForks>

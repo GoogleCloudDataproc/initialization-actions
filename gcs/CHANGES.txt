@@ -21,6 +21,8 @@
 
   6. Change Maven project structure to be better compatible with IDEs.
 
+  7. Delete deprecated `GoogleHadoopGlobalRootedFileSystem`.
+
 
 1.8.1 - 2018-03-29
 
