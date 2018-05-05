@@ -43,12 +43,8 @@ function err() {
 }
 
 function configure_master_node() {
-  # Install Tez and YARN Application Timeline Server.
-  # Install node/npm to run HTTP server for Tez UI.
-  curl -sL 'https://deb.nodesource.com/setup_8.x' | bash - \
-    || err 'Failed to setup node 8.'
   update_apt_get || err 'Unable to update packages lists.'
-  apt-get install tez hadoop-yarn-timelineserver nodejs -y \
+  apt-get install tez hadoop-yarn-timelineserver -y \
     || err 'Failed to install required packages.'
 
   # Copy to hdfs from one master only to avoid race
@@ -66,9 +62,7 @@ function configure_master_node() {
     echo "HADOOP_CLASSPATH=\$HADOOP_CLASSPATH:${TEZ_CONF_DIR}:${TEZ_JARS}/*:${TEZ_JARS}/lib/*"
   } >> /etc/hadoop/conf/hadoop-env.sh
 
-  # Configure YARN to enable the Application Timeline Server,
-  # and configure the Tez UI to push logs to the ATS.
-  # See https://tez.apache.org/tez-ui.html for more information.
+  # Configure YARN to enable the Application Timeline Server.
   bdconfig set_property \
     --configuration_file "${HADOOP_CONF_DIR}/core-site.xml" \
     --name 'hadoop.http.filter.initializers' --value 'org.apache.hadoop.security.HttpCrossOriginFilterInitializer' \
@@ -93,6 +87,25 @@ function configure_master_node() {
     --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
     --name 'yarn.resourcemanager.system-metrics-publisher.enabled' --value 'true' \
     --clobber
+
+  # Configure ATS to serve Tez UI. Tez UI can be accessed at
+  # http://clustername-m:8188/tez.
+  TEZ_UI_WAR=$(ls /usr/lib/tez/tez-ui-*.war)
+  bdconfig set_property \
+    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
+    --name 'yarn.timeline-service.ui-on-disk-path.tez' --value "${TEZ_UI_WAR}" \
+    --clobber
+  bdconfig set_property \
+    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
+    --name 'yarn.timeline-service.ui-web-path.tez' --value '/tez' \
+    --clobber
+  bdconfig set_property \
+    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
+    --name 'yarn.timeline-service.ui-names' --value 'tez' \
+    --clobber
+
+  # Configure the Tez UI to push logs to the ATS.
+  # See https://tez.apache.org/tez-ui.html for more information.
   bdconfig set_property \
     --configuration_file "${TEZ_CONF_DIR}/tez-site.xml" \
     --name 'tez.history.logging.service.class' --value 'org.apache.tez.dag.history.logging.ats.ATSHistoryLoggingService' \
@@ -108,23 +121,9 @@ function configure_master_node() {
     --name 'hive.execution.engine' --value 'tez' \
     --clobber
 
-  # Set up service for Tez UI on port 9999 at the path /tez-ui
-  npm install -g http-server forever forever-service \
-    || err 'Unable to install kafka libraries on master!'
-  unzip ${TEZ_JARS}/tez-ui-*.war -d ${TEZ_JARS}/tez-ui \
-    || err 'Unzipping tez-ui jars failed!'
-  forever-service install tez-ui --script /usr/bin/http-server \
-    -o "${TEZ_JARS}/ -p 9999" \
-    || err 'Installation of tez-ui as a service failed!'
-
   # Restart daemons
 
   systemctl daemon-reload
-
-  # Start tez ui
-  systemctl enable tez-ui
-  systemctl restart tez-ui
-  systemctl status tez-ui  # Ensure it started successfully
 
   # Restart resource manager
   systemctl restart hadoop-yarn-resourcemanager
