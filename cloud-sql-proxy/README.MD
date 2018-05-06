@@ -69,7 +69,7 @@ gcloud dataproc clusters create <CLUSTER_NAME> \
 ## Protecting passwords with KMS
 
 If you want to protect the passwords for the `root` and `hive` MySQL users, you may use [Cloud KMS](https://cloud.google.com/kms/),
-Google Cloud's key management service. Proceed as follows:
+Google Cloud's key management service. You will only need to encrypt and provide a root password if the `hive` user does not already exist in MySQL. Proceed as follows:
 
 1. Create a bucket to store the encrypted passwords:
 
@@ -92,7 +92,7 @@ Google Cloud's key management service. Proceed as follows:
         --purpose encryption
     ```
 
-4. Encrypt the `root` user's password:
+4. Encrypt the `root` user's password (only necessary if you want the init action to create the hive user):
 
     ```bash
     echo "<ROOT_PASSWORD>" | \
@@ -124,6 +124,8 @@ Google Cloud's key management service. Proceed as follows:
 
 7. Create the Dataproc cluster:
 
+    If you want the init action to create the `hive` MySQL user, use the following command to specify both the `root` and `hive` passwords:
+
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
     --scopes sql-admin \
@@ -135,19 +137,21 @@ Google Cloud's key management service. Proceed as follows:
     --metadata "db-hive-password-uri=gs://<SECRETS_BUCKET>/hive-password.encrypted"
     ```
 
+    If you have already created a `hive` user in MySQL, use the following command, which does not require the `root` password:
+
+    ```bash
+    gcloud dataproc clusters create <CLUSTER_NAME> \
+        --scopes sql-admin \
+        --initialization-actions gs://<INIT_ACTION_BUCKET>/cloud-sql-proxy.sh \
+        --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>" \
+        --metadata "kms-key-uri=projects/<PROJECT_ID>/locations/global/keyRings/my-key-ring/cryptoKeys/my-key" \
+        --metadata "db-hive-password-uri=gs://<SECRETS_BUCKET>/hive-password.encrypted"
+    ```
+
 **Notes:**
 
 * If the cluster's service account has permission to decrypt the `root` or `hive` password, then any user that
-  can SSH or run jobs on this cluster can decrypt the passwords as well.
+  can SSH or run jobs on this cluster can decrypt the passwords as well. If you do not want these users to have access as `root` to MySQL, create the `hive` user prior to creating the cluster, and do not specify a `root` password.
 * The `hive` user password is stored in the Hive configuration file `/etc/hive/conf/hive-site.xml`.
   Therefore any user that can SSH on this cluster and has `sudo` access, and any user that can run
   jobs on this cluster, will be able to view the password in that file.
-* If the `hive` already exists, you do not need to provide the `root` user password when creating the cluster:
-      ```bash
-      gcloud dataproc clusters create <CLUSTER_NAME> \
-      --scopes sql-admin \
-      --initialization-actions gs://<INIT_ACTION_BUCKET>/cloud-sql-proxy.sh \
-      --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>" \
-      --metadata "kms-key-uri=projects/<PROJECT_ID>/locations/global/keyRings/my-key-ring/cryptoKeys/my-key" \
-      --metadata "db-hive-password-uri=gs://<SECRETS_BUCKET>/hive-password.encrypted"
-      ```
