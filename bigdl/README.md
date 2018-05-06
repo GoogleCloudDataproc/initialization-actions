@@ -6,6 +6,7 @@ BigDL is a distributed deep learning library for Apache Spark. More information 
 [project's website](https://bigdl-project.github.io/)
 
 ## Using this initialization action
+
 You can use this initialization to create a new Dataproc cluster with BigDL's Spark and PySpark libraries installed.
 
 ```
@@ -28,7 +29,7 @@ gcloud dataproc clusters create <CLUSTER_NAME> \
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
 
-## Important Notes
+## Important notes
 
 * You cannot use preemptible VMs with this init action, nor scale (add or remove workers from) the cluster. BigDL needs to know the exact number of Spark executors and cores per executor to make optimizations for Intel's MKL library (which BigDL ships with). This init action statically sets `spark.executor.instances` based on the original size of the cluster, and **disables** dynamic allocation (`spark.dynamicAllocation.enabled=false`).
 * The init action sets `spark.executor.instances` such that a single application takes up all the resources in a cluster. To run multiple applications simulatenously, override `spark.executor.instances` on each job using `--properties` to `gcloud dataproc jobs submit [spark|pyspark|spark-sql]` or `--conf` to `spark-shell`/`spark-submit`. Note that each application needs to schedule an app master in addition to the executors.
