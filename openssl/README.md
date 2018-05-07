@@ -1,6 +1,6 @@
 # OpenSSL Upgrade
 
-This [initialization action] (https://cloud.google.com/dataproc/init-actions) installs OpenSSL 1.0.2
+This [initialization action](https://cloud.google.com/dataproc/init-actions) installs OpenSSL 1.0.2
 from Jessie-backports for Dataproc clusters running Dataproc 1.0 through 1.2.
 
 ## Using this initialization action
@@ -12,7 +12,7 @@ gcloud dataproc clusters create <CLUSTER_NAME> \
     --initialization-actions gs://dataproc-initialization-actions/openssl/openssl.sh
 ```
 
-## Important Notes
+## Important notes
 
 * This init action should not be applied to Dataproc image versions greater than
   1.2.
