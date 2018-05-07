@@ -47,6 +47,11 @@ if [[ -n "${db_admin_password_uri}" ]]; then
 else
   readonly db_admin_password=''
 fi
+if [ "${db_admin_password}" == "" ]; then
+    readonly db_admin_password_parameter=""
+else
+    readonly db_admin_password_parameter="-p${db_admin_password}"
+fi
 
 # Database password to use to access metastore.
 readonly db_hive_password_uri="$(/usr/share/google/get_metadata_value attributes/db-hive-password-uri)"
@@ -59,6 +64,11 @@ if [[ -n "${db_hive_password_uri}" ]]; then
     --key $kms_key_uri)"
 else
   readonly db_hive_password='hive-password'
+fi
+if [ "${db_hive_password}" == "" ]; then
+    readonly db_hive_password_parameter=""
+else
+    readonly db_hive_password_parameter="-p${db_hive_password}"
 fi
 
 readonly PROXY_DIR='/var/run/cloud_sql_proxy'
@@ -162,13 +172,13 @@ port = ${metastore_proxy_port}
 EOF
 
   # Check if metastore is initialized.
-  if ! mysql -u "${db_hive_user}" -p"${db_hive_password}" -e ''; then
-    mysql -u "${db_admin_user}" -p"${db_admin_password}" -e \
+  if ! mysql -u "${db_hive_user}" "${db_hive_password_parameter}" -e ''; then
+    mysql -u "${db_admin_user}" "${db_admin_password_parameter}" -e \
       "CREATE USER '${db_hive_user}' IDENTIFIED BY '${db_hive_password}';"
   fi
-  if mysql -u "${db_hive_user}" -p"${db_hive_password}" -e "use ${metastore_db}"; then
+  if mysql -u "${db_hive_user}" "${db_hive_password_parameter}" -e "use ${metastore_db}"; then
     # Extract the warehouse URI.
-    HIVE_WAREHOURSE_URI=$(mysql -u "${db_hive_user}" -p"${db_hive_password}" -Nse \
+    HIVE_WAREHOURSE_URI=$(mysql -u "${db_hive_user}" "${db_hive_password_parameter}" -Nse \
       "SELECT DB_LOCATION_URI FROM ${metastore_db}.DBS WHERE NAME = 'default';")
     bdconfig set_property \
       --name 'hive.metastore.warehouse.dir' \
@@ -177,7 +187,7 @@ EOF
       --clobber
   else
     # Initialize database with current warehouse URI.
-    mysql -u "${db_admin_user}" -p"${db_admin_password}" -e \
+    mysql -u "${db_admin_user}" "${db_admin_password_parameter}" -e \
       "CREATE DATABASE ${metastore_db}; \
        GRANT ALL PRIVILEGES ON ${metastore_db}.* TO '${db_hive_user}';"
     /usr/lib/hive/bin/schematool -dbType mysql -initSchema \
