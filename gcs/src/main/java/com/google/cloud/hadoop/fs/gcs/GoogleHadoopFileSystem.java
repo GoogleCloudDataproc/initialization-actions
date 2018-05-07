@@ -16,6 +16,8 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.common.annotations.VisibleForTesting;
@@ -59,7 +61,7 @@ public class GoogleHadoopFileSystem
 
    /**
    * {@inheritDoc}
-   * 
+   *
    * Sets and validates the root bucket.
    */
   @Override
@@ -131,19 +133,13 @@ public class GoogleHadoopFileSystem
     StorageResourceId resourceId = gcsfs.getPathCodec().validatePathAndGetId(gcsPath, true);
 
     // Unlike the global-rooted GHFS, gs:// has no meaning in the bucket-rooted world.
-    if (resourceId.isRoot()) {
-      throw new IllegalArgumentException(String.format(
-          "Missing authority in gcsPath '%s'", gcsPath.toString()));
-    }
-    
-    if (!resourceId.getBucketName().equals(rootBucket)) {
-      throw new IllegalArgumentException(String.format(
-          "Authority of URI '%s' doesn't match root bucket '%s'",
-          resourceId.getBucketName(), rootBucket));
-    }
+    checkArgument(!resourceId.isRoot(), "Missing authority in gcsPath '%s'", gcsPath);
+    checkArgument(
+        resourceId.getBucketName().equals(rootBucket),
+        "Authority of URI '%s' doesn't match root bucket '%s'",
+        resourceId.getBucketName(), rootBucket);
 
-    Path hadoopPath = new Path(getScheme() + "://"
-        + rootBucket + '/' + resourceId.getObjectName());
+    Path hadoopPath = new Path(getScheme() + "://" + rootBucket + '/' + resourceId.getObjectName());
     LOG.debug("GHFS.getHadoopPath: {} -> {}", gcsPath, hadoopPath);
     return hadoopPath;
   }
