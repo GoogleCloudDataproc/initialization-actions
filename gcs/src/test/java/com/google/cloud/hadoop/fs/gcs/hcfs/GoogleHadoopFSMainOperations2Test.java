@@ -29,22 +29,19 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Runs the Hadoop tests in FSMainOperationsBaseTest over the GoogleHadoopFileSystem.
- * Tests that the GoogleHadoopFileSystem obeys the file system contract specified for
- * Hadoop.
+ * Runs the Hadoop tests in FSMainOperationsBaseTest over the GoogleHadoopFileSystem. Tests that the
+ * GoogleHadoopFileSystem obeys the file system contract specified for Hadoop.
  *
- * This class is used to test Hadoop v2 functionality.
+ * <p>This class is used to test Hadoop v2 functionality.
  */
 @RunWith(JUnit4.class)
-public class GoogleHadoopFSMainOperations2Test
-    extends FSMainOperationsBaseTest {
+public class GoogleHadoopFSMainOperations2Test extends FSMainOperationsBaseTest {
 
-  FileSystemTestHelper helper = new FileSystemTestHelper();
+  private final FileSystemTestHelper helper = new FileSystemTestHelper();
 
   /**
    * In Hadoop2 this method overrides the abstract method of the same name in
    * FSMainOperationsBaseTest
-   * @return
    */
   public FileSystem createFileSystem() throws Exception {
     return GoogleHadoopFileSystemTestHelper.createInMemoryGoogleHadoopFileSystem();
@@ -74,22 +71,11 @@ public class GoogleHadoopFSMainOperations2Test
     assertThat(exists(fSys, testDeepSubDir)).isFalse();
   }
 
-  @Test
-  @Override
-  public void testListStatusThrowsExceptionForNonExistentFile() {}
-
-  @Test
+  // Ignore: FS-level permissions are not supported in GCS
   @Override
   public void testListStatusThrowsExceptionForUnreadableDir() {}
 
-  @Test
+  // Ignore: unit tests can not access Local FS
   @Override
   public void testCopyToLocalWithUseRawLocalFileSystemOption() {}
-
-  @Test
-  @Override
-  public void testWDAbsolute() {}
-
-  @Test
-  public void testGlobStatusThrowsExceptionForUnreadableDir() {}
 }

@@ -29,19 +29,17 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Runs the Hadoop tests in FSMainOperationsBaseTest over the GoogleHadoopFileSystem.
- * Tests that the GoogleHadoopFileSystem obeys the file system contract specified for
- * Hadoop.
+ * Runs the Hadoop tests in FSMainOperationsBaseTest over the GoogleHadoopFileSystem. Tests that the
+ * GoogleHadoopFileSystem obeys the file system contract specified for Hadoop.
  *
- * This class is used to test Hadoop v1 functionality.
+ * <p>This class is used to test Hadoop v1 functionality.
  */
 @RunWith(JUnit4.class)
-public class GoogleHadoopFSMainOperations1Test
-    extends FSMainOperationsBaseTest {
+public class GoogleHadoopFSMainOperations1Test extends FSMainOperationsBaseTest {
+
   @Before
   @Override
-  public void setUp()
-      throws Exception {
+  public void setUp() throws Exception {
     fSys = GoogleHadoopFileSystemTestHelper.createInMemoryGoogleHadoopFileSystem();
     super.setUp();
   }
@@ -59,7 +57,7 @@ public class GoogleHadoopFSMainOperations1Test
     assertThat(exists(fSys, testDir)).isTrue();
 
     createFile(getTestRootPath(fSys, "test/hadoop/file"));
-    
+
     Path testSubDir = getTestRootPath(fSys, "test/hadoop/file/subdir");
     assertThrows(IOException.class, () -> fSys.mkdirs(testSubDir));
     assertThat(exists(fSys, testSubDir)).isFalse();

@@ -21,12 +21,10 @@ import org.apache.hadoop.fs.Path;
 import org.junit.Before;
 
 /**
- * Runs the Hadoop tests in FileSystemContractBaseTest over the GoogleHadoopFileSystem.
- * Tests that the GoogleHadoopFileSystem obeys the file system contract specified for
- * Hadoop.
+ * Runs the Hadoop tests in FileSystemContractBaseTest over the GoogleHadoopFileSystem. Tests that
+ * the GoogleHadoopFileSystem obeys the file system contract specified for Hadoop.
  */
-public class GoogleHadoopFileSystemContract2Test
-  extends FileSystemContractBaseTest {
+public class GoogleHadoopFileSystemContract2Test extends FileSystemContractBaseTest {
 
   @Before
   @SuppressWarnings("MissingOverride")
@@ -46,24 +44,15 @@ public class GoogleHadoopFileSystemContract2Test
     return "gs://fake-test-system-bucket/some-dir";
   }
 
-  /**
-   * Tests get/setWorkingDirectory().
-   */
+  /** Tests get/setWorkingDirectory(). */
   @Override
-  public void testWorkingDirectory()
-      throws Exception {
+  public void testWorkingDirectory() throws Exception {
     // Set the pseudo default working directory before the test begins.
     fs.setWorkingDirectory(new Path(getDefaultWorkingDirectory()));
     super.testWorkingDirectory();
   }
 
+  // Ignore: FS-level permissions are not supported in GCS
   @Override
   public void testMkdirsWithUmask() {}
-
-  @Override
-  public void testListStatusThrowsExceptionForNonExistentFile() {}
-
-  public void testRenameFileToSelf() {}
-
-  public void testMoveFileUnderParent() {}
 }

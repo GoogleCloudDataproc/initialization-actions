@@ -21,17 +21,14 @@ import org.apache.hadoop.fs.Path;
 import org.junit.Before;
 
 /**
- * Runs the Hadoop tests in FileSystemContractBaseTest over the GoogleHadoopFileSystem.
- * Tests that the GoogleHadoopFileSystem obeys the file system contract specified for
- * Hadoop.
+ * Runs the Hadoop tests in FileSystemContractBaseTest over the GoogleHadoopFileSystem. Tests that
+ * the GoogleHadoopFileSystem obeys the file system contract specified for Hadoop.
  */
-public class GoogleHadoopFileSystemContract1Test
-  extends FileSystemContractBaseTest {
+public class GoogleHadoopFileSystemContract1Test extends FileSystemContractBaseTest {
 
   @Before
   @Override
-  public void setUp()
-      throws IOException {
+  public void setUp() throws IOException {
     fs = GoogleHadoopFileSystemTestHelper.createInMemoryGoogleHadoopFileSystem();
   }
 
@@ -47,12 +44,9 @@ public class GoogleHadoopFileSystemContract1Test
     return "gs://fake-test-system-bucket/some-dir";
   }
 
-  /**
-   * Tests get/setWorkingDirectory().
-   */
+  /** Tests get/setWorkingDirectory(). */
   @Override
-  public void testWorkingDirectory()
-      throws Exception {
+  public void testWorkingDirectory() throws Exception {
     // Set the pseudo default working directory before the test begins.
     fs.setWorkingDirectory(new Path(getDefaultWorkingDirectory()));
     super.testWorkingDirectory();
