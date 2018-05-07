@@ -16,7 +16,6 @@ package com.google.cloud.hadoop.gcsio.testing;
 
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
@@ -259,7 +258,7 @@ public class InMemoryObjectEntry {
    */
   public synchronized GoogleCloudStorageItemInfo getInfo() {
     if (!isCompleted()) {
-      return GoogleCloudStorageImpl.createItemInfoForNotFound(info.getResourceId());
+      return GoogleCloudStorageItemInfo.createNotFound(info.getResourceId());
     }
     return info;
   }

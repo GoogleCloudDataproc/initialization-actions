@@ -193,7 +193,7 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
     if (inferImplicitDirectoriesEnabled) {
       for (String dir : dirs) {
         items.add(
-            GoogleCloudStorageImpl.createItemInfoForInferredDirectory(
+            GoogleCloudStorageItemInfo.createInferredDirectory(
                 new StorageResourceId(bucketName, dir)));
       }
     }

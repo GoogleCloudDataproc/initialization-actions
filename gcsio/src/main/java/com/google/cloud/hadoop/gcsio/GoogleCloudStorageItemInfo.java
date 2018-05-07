@@ -16,6 +16,8 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
@@ -23,9 +25,7 @@ import java.util.Date;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Contains information about an item in Google Cloud Storage.
- */
+/** Contains information about an item in Google Cloud Storage. */
 public class GoogleCloudStorageItemInfo {
   /**
    * Convenience interface for classes which want to implement Provider of
@@ -42,6 +42,29 @@ public class GoogleCloudStorageItemInfo {
 
   // Instead of returning null metadata, we'll return this map.
   private static final ImmutableMap<String, byte[]> EMPTY_METADATA = ImmutableMap.of();
+
+  /** Helper for creating a "found" GoogleCloudStorageItemInfo for an inferred directory. */
+  public static GoogleCloudStorageItemInfo createInferredDirectory(StorageResourceId resourceId) {
+    checkArgument(resourceId != null, "resourceId must not be null");
+    return new GoogleCloudStorageItemInfo(
+        resourceId,
+        /* creationTime= */ 0,
+        /* size= */ 0,
+        /* location= */ null,
+        /* storageClass= */ null);
+  }
+
+  /** Helper for creating a "not found" GoogleCloudStorageItemInfo for a StorageResourceId. */
+  public static GoogleCloudStorageItemInfo createNotFound(StorageResourceId resourceId) {
+    checkArgument(resourceId != null, "resourceId must not be null");
+    // Bucket or StorageObject.
+    return new GoogleCloudStorageItemInfo(
+        resourceId,
+        /* creationTime= */ 0,
+        /* size= */ -1,
+        /* location= */ null,
+        /* storageClass= */ null);
+  }
 
   // The Bucket and maybe StorageObject names of the GCS "item" referenced by this object. Not null.
   private final StorageResourceId resourceId;
@@ -84,10 +107,10 @@ public class GoogleCloudStorageItemInfo {
         size,
         location,
         storageClass,
-        null,
-        ImmutableMap.<String, byte[]>of(),
-        0 /* content generation */,
-        0 /* meta generation */);
+        /* contentType= */ null,
+        /* metadata= */ ImmutableMap.<String, byte[]>of(),
+        /* contentGeneration= */ 0,
+        /* metaGeneration= */ 0);
   }
 
   /**

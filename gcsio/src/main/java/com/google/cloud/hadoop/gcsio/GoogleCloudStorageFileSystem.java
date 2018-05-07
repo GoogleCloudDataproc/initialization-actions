@@ -1296,13 +1296,13 @@ public class GoogleCloudStorageFileSystem {
       StorageResourceId dirId) throws IOException {
 
     if (dirId.isRoot() || dirId.isBucket()) {
-      return GoogleCloudStorageImpl.createItemInfoForNotFound(dirId);
+      return GoogleCloudStorageItemInfo.createNotFound(dirId);
     }
 
     StorageResourceId bucketId = new StorageResourceId(dirId.getBucketName());
     if (!gcs.getItemInfo(bucketId).exists()) {
       // If the bucket does not exist, don't try to look for children.
-      return GoogleCloudStorageImpl.createItemInfoForNotFound(dirId);
+      return GoogleCloudStorageItemInfo.createNotFound(dirId);
     }
 
     dirId = FileInfo.convertToDirectoryPath(dirId);
@@ -1318,9 +1318,9 @@ public class GoogleCloudStorageFileSystem {
 
     if (objectNames.size() > 0) {
       // At least one object with that prefix exists, so infer a directory.
-      return GoogleCloudStorageImpl.createItemInfoForInferredDirectory(dirId);
+      return GoogleCloudStorageItemInfo.createInferredDirectory(dirId);
     } else {
-      return GoogleCloudStorageImpl.createItemInfoForNotFound(dirId);
+      return GoogleCloudStorageItemInfo.createNotFound(dirId);
     }
   }
 

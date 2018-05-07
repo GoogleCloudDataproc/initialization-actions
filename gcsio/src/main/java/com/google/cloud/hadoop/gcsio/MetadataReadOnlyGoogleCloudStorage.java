@@ -324,12 +324,7 @@ public class MetadataReadOnlyGoogleCloudStorage
       throws IOException {
     LOG.debug("getItemInfo({})", resourceId);
     GoogleCloudStorageItemInfo info = resourceCache.get(resourceId);
-    if (info == null) {
-      // TODO(user): Move the createItemInfoForNotFound method into GoogleCloudStorageItemInfo.
-      return GoogleCloudStorageImpl.createItemInfoForNotFound(resourceId);
-    } else {
-      return info;
-    }
+    return info == null ? GoogleCloudStorageItemInfo.createNotFound(resourceId) : info;
   }
 
   @Override

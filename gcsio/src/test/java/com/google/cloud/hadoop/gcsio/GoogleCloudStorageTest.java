@@ -3858,11 +3858,11 @@ public class GoogleCloudStorageTest {
         StorageResourceId.ROOT,
         new StorageResourceId(BUCKET_NAME)));
 
-    GoogleCloudStorageItemInfo expectedObject = GoogleCloudStorageImpl.createItemInfoForNotFound(
-        new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
+    GoogleCloudStorageItemInfo expectedObject =
+        GoogleCloudStorageItemInfo.createNotFound(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     GoogleCloudStorageItemInfo expectedRoot = GoogleCloudStorageItemInfo.ROOT_INFO;
-    GoogleCloudStorageItemInfo expectedBucket = GoogleCloudStorageImpl.createItemInfoForNotFound(
-        new StorageResourceId(BUCKET_NAME));
+    GoogleCloudStorageItemInfo expectedBucket =
+        GoogleCloudStorageItemInfo.createNotFound(new StorageResourceId(BUCKET_NAME));
 
     assertThat(itemInfos.get(0)).isEqualTo(expectedObject);
     assertThat(itemInfos.get(1)).isEqualTo(expectedRoot);
@@ -4089,9 +4089,8 @@ public class GoogleCloudStorageTest {
 
     Map<String, byte[]> rawMetadata =
         ImmutableMap.of("foo", new byte[] { 0x01 }, "bar", new byte[] { 0x02 });
-    GoogleCloudStorageItemInfo returnedInfo =
-        gcs.composeObjects(sources, destinationId, new CreateObjectOptions(
-            false, "text-content", rawMetadata));
+    gcs.composeObjects(
+        sources, destinationId, new CreateObjectOptions(false, "text-content", rawMetadata));
 
     ArgumentCaptor<ComposeRequest> composeCaptor = ArgumentCaptor.forClass(ComposeRequest.class);
     verify(mockStorage, times(1)).objects();

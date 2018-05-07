@@ -30,7 +30,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -433,13 +432,13 @@ public class InMemoryGoogleCloudStorage
           // If we fail to do the repair, but inferImplicit is enabled,
           // then we silently add the implicit (as opposed to silently
           // ignoring the failure, which is what we used to do).
-          listedInfo.add(GoogleCloudStorageImpl
-              .createItemInfoForInferredDirectory(itemInfo.getResourceId()));
+          listedInfo.add(
+              GoogleCloudStorageItemInfo.createInferredDirectory(itemInfo.getResourceId()));
         }
       } else if (itemInfo.getResourceId().isStorageObject()
                  && storageOptions.isInferImplicitDirectoriesEnabled()) {
-        listedInfo.add(GoogleCloudStorageImpl
-            .createItemInfoForInferredDirectory(itemInfo.getResourceId()));
+        listedInfo.add(
+            GoogleCloudStorageItemInfo.createInferredDirectory(itemInfo.getResourceId()));
       }
       if (maxResults > 0 && listedInfo.size() >= maxResults) {
         break;

@@ -1398,8 +1398,8 @@ public class GoogleCloudStorageImpl
             LOG.debug(errorBase + "Attempting to repair missing directory.");
             repairList.add(prefixInfo.getResourceId());
           } else if (storageOptions.isInferImplicitDirectoriesEnabled()) {
-            objectInfos.add(createItemInfoForInferredDirectory(
-                prefixInfo.getResourceId()));
+            objectInfos.add(
+                GoogleCloudStorageItemInfo.createInferredDirectory(prefixInfo.getResourceId()));
           } else {
             LOG.error(errorBase + "Giving up on retrieving missing directory.");
           }
@@ -1426,8 +1426,9 @@ public class GoogleCloudStorageImpl
             } else {
               LOG.warn("Somehow the repair for '{}' failed quietly", repairedInfo.getResourceId());
               if (storageOptions.isInferImplicitDirectoriesEnabled()) {
-                objectInfos.add(createItemInfoForInferredDirectory(
-                    repairedInfo.getResourceId()));
+                objectInfos.add(
+                    GoogleCloudStorageItemInfo.createInferredDirectory(
+                        repairedInfo.getResourceId()));
               }
             }
           }
@@ -1449,8 +1450,9 @@ public class GoogleCloudStorageImpl
               } else {
                 LOG.info("Repair for '{}' failed, using inferred directory",
                     repairedInfo.getResourceId());
-                objectInfos.add(createItemInfoForInferredDirectory(
-                    repairedInfo.getResourceId()));
+                objectInfos.add(
+                    GoogleCloudStorageItemInfo.createInferredDirectory(
+                        repairedInfo.getResourceId()));
               }
             }
             if (numRepaired > 0) {
@@ -1551,37 +1553,7 @@ public class GoogleCloudStorageImpl
     return Maps.transformValues(metadata, DECODE_METADATA_VALUES);
   }
 
-  /**
-   * Helper for creating a "found" GoogleCloudStorageItemInfo
-   * for an inferred directory.
-   */
-  @VisibleForTesting
-  public static GoogleCloudStorageItemInfo
-      createItemInfoForInferredDirectory(
-          StorageResourceId resourceId) {
-    Preconditions.checkArgument(resourceId != null,
-        "resourceId must not be null");
-
-    // Return size == 0, creationTime == 0,
-    // location == storageClass == null for an inferred directory object.
-    return new GoogleCloudStorageItemInfo(resourceId, 0, 0, null, null);
-  }
-
-  /**
-   * Helper for creating a "not found" GoogleCloudStorageItemInfo for a StorageResourceId.
-   */
-  public static GoogleCloudStorageItemInfo createItemInfoForNotFound(StorageResourceId resourceId) {
-    Preconditions.checkArgument(resourceId != null, "resourceId must not be null");
-
-    // Return size == -1, creationTime == 0, location == storageClass == null for a not-found
-    // Bucket or StorageObject.
-    return new GoogleCloudStorageItemInfo(resourceId, 0, -1, null, null);
-  }
-
-  /**
-   * See {@link GoogleCloudStorage#getItemInfos(List<StorageResourceId>)} for details about expected
-   * behavior.
-   */
+  /** See {@link GoogleCloudStorage#getItemInfos(List)} for details about expected behavior. */
   @Override
   public List<GoogleCloudStorageItemInfo> getItemInfos(List<StorageResourceId> resourceIds)
       throws IOException {
@@ -1617,7 +1589,7 @@ public class GoogleCloudStorageImpl
               public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) {
                 if (errorExtractor.itemNotFound(e)) {
                   LOG.debug("getItemInfos: bucket not found: {}", resourceId.getBucketName());
-                  itemInfos.put(resourceId, createItemInfoForNotFound(resourceId));
+                  itemInfos.put(resourceId, GoogleCloudStorageItemInfo.createNotFound(resourceId));
                 } else {
                   innerExceptions.add(
                       wrapException(
@@ -1647,7 +1619,7 @@ public class GoogleCloudStorageImpl
               public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) {
                 if (errorExtractor.itemNotFound(e)) {
                   LOG.debug("getItemInfos: object not found: {}", resourceId);
-                  itemInfos.put(resourceId, createItemInfoForNotFound(resourceId));
+                  itemInfos.put(resourceId, GoogleCloudStorageItemInfo.createNotFound(resourceId));
                 } else {
                   innerExceptions.add(
                       wrapException(
@@ -1717,26 +1689,31 @@ public class GoogleCloudStorageImpl
                       bucketName, objectName, new StorageObject().setMetadata(rewrittenMetadata)),
               bucketName);
 
-      batchHelper.queue(patch, new JsonBatchCallback<StorageObject>() {
-        @Override
-        public void onSuccess(StorageObject obj, HttpHeaders responseHeaders) {
-          LOG.debug("updateItems: Successfully updated object '{}' for resourceId '{}'",
-              obj, resourceId);
-          resultItemInfos.put(resourceId, createItemInfoForStorageObject(resourceId, obj));
-        }
+      batchHelper.queue(
+          patch,
+          new JsonBatchCallback<StorageObject>() {
+            @Override
+            public void onSuccess(StorageObject obj, HttpHeaders responseHeaders) {
+              LOG.debug(
+                  "updateItems: Successfully updated object '{}' for resourceId '{}'",
+                  obj, resourceId);
+              resultItemInfos.put(resourceId, createItemInfoForStorageObject(resourceId, obj));
+            }
 
-        @Override
-        public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) {
-          if (errorExtractor.itemNotFound(e)) {
-            LOG.debug("updateItems: object not found: {}", resourceId);
-            resultItemInfos.put(resourceId, createItemInfoForNotFound(resourceId));
-          } else {
-            innerExceptions.add(wrapException(
-                new IOException(e.toString()), "Error getting StorageObject: ",
-                bucketName, objectName));
-          }
-        }
-      });
+            @Override
+            public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) {
+              if (errorExtractor.itemNotFound(e)) {
+                LOG.debug("updateItems: object not found: {}", resourceId);
+                resultItemInfos.put(
+                    resourceId, GoogleCloudStorageItemInfo.createNotFound(resourceId));
+              } else {
+                innerExceptions.add(
+                    wrapException(
+                        new IOException(e.toString()),
+                        "Error getting StorageObject: ", bucketName, objectName));
+              }
+            }
+          });
     }
     batchHelper.flush();
 
@@ -1796,7 +1773,7 @@ public class GoogleCloudStorageImpl
     }
 
     if (itemInfo == null) {
-      itemInfo = createItemInfoForNotFound(resourceId);
+      itemInfo = GoogleCloudStorageItemInfo.createNotFound(resourceId);
     }
     LOG.debug("getItemInfo: {}", itemInfo);
     return itemInfo;
