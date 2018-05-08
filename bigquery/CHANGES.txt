@@ -8,6 +8,11 @@
 
   4. Support Hadoop 3.
 
+  5. Default BigQueryInputFormats to use unsharded exports and deprecate
+     sharded exports.
+
+  6. Deprecate BigQueryOutputFormat in favor of IndirectBigQueryOutputFormat.
+
 
 0.12.1 - 2018-03-29
 

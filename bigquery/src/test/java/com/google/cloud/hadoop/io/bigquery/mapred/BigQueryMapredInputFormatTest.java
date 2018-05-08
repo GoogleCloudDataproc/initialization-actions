@@ -19,6 +19,7 @@ import static org.junit.Assert.assertThrows;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.ShardedInputSplit;
 import com.google.gson.JsonObject;
 import java.io.DataInput;
@@ -140,8 +141,7 @@ public class BigQueryMapredInputFormatTest {
     assertThrows(IOException.class, () -> inputFormat.getSplits(jobConf, numSplits));
   }
 
-  @Test public void testGetRecordReader()
-      throws IOException, InterruptedException {
+  @Test public void testGetRecordReader() throws IOException {
     BigQueryMapredInputFormat inputFormat = new BigQueryMapredInputFormat();
     Path path = new Path("testpath");
     ShardedInputSplit testSplit =
@@ -149,6 +149,7 @@ public class BigQueryMapredInputFormatTest {
     InputSplit inputSplit = new BigQueryMapredInputSplit(testSplit);
     JobConf jobConf = new JobConf();
     jobConf.set("mapreduce.job.dir", "/a/path/job_1_2");
+    jobConf.set(BigQueryConfiguration.ENABLE_SHARDED_EXPORT_KEY, "true");
     Reporter reporter = null; // not used by the code under test
     RecordReader<LongWritable, JsonObject> recordReader =
         inputFormat.getRecordReader(inputSplit, jobConf, reporter);

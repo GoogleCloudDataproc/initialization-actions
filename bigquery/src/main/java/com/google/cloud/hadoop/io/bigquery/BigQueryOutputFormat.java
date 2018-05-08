@@ -14,6 +14,7 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
+import com.google.cloud.hadoop.io.bigquery.output.IndirectBigQueryOutputFormat;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -31,15 +32,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An OutputFormat that sends the output of a Hadoop job to BigQuery. BigQueryOutputFormat accepts
- * key, value pairs, but the returned BigQueryRecordWriter writes only the value to the database as
- * each BigQuery value already contains a BigQuery key.
- *
+ * @deprecated Use {@link IndirectBigQueryOutputFormat} instead.
+ *     <p>An OutputFormat that sends the output of a Hadoop job directly to BigQuery.
+ *     <p>BigQueryOutputFormat accepts key, value pairs, but the returned BigQueryRecordWriter
+ *     writes only the value to the database as each BigQuery value already contains a BigQuery key.
+ *     <p>This is deprecated because it creates many temporary tables, which can drain user quota.
  * @param <K> Key type.
  * @param <V> Value type must be JsonObject or a derived type..
  */
-public class BigQueryOutputFormat<K, V extends JsonObject>
-    extends OutputFormat<K, V> {
+@Deprecated
+public class BigQueryOutputFormat<K, V extends JsonObject> extends OutputFormat<K, V> {
   // Construct format for output table name.
   public static final NumberFormat NUMBER_FORMAT = NumberFormat.getInstance();
   static {
@@ -61,14 +63,13 @@ public class BigQueryOutputFormat<K, V extends JsonObject>
    * the fields, projectId, tableId, datasetId, are not null or empty and if the numRecordsInBatch
    * is a positive int.
    *
-   * TODO(user): check fields is a properly formatted TableSchema.
+   * <p>TODO(user): check fields is a properly formatted TableSchema.
    *
    * @param context the job's context.
    * @throws IOException on IO Error.
    */
   @Override
-  public void checkOutputSpecs(JobContext context)
-      throws IllegalArgumentException, IOException {
+  public void checkOutputSpecs(JobContext context) throws IOException {
     // Check the proper values in the configuration are set.
     ConfigurationUtil.getMandatoryConfig(
         context.getConfiguration(), BigQueryConfiguration.MANDATORY_CONFIG_PROPERTIES_OUTPUT);
@@ -120,8 +121,7 @@ public class BigQueryOutputFormat<K, V extends JsonObject>
    * @throws IOException on IOError.
    */
   @Override
-  public RecordWriter<K, V> getRecordWriter(TaskAttemptContext context)
-      throws IOException {
+  public RecordWriter<K, V> getRecordWriter(TaskAttemptContext context) throws IOException {
     // Check the proper values in the configuration are set.
     Map<String, String> mandatoryConfig = ConfigurationUtil.getMandatoryConfig(
         context.getConfiguration(), BigQueryConfiguration.MANDATORY_CONFIG_PROPERTIES_OUTPUT);

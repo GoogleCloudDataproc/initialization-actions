@@ -57,8 +57,7 @@ public class BigQueryConfiguration {
   /**
    * @deprecated Issue queries from the BigQuery command-line tool instead, outside of a MapReduce.
    */
-  @Deprecated
-  public static final String INPUT_QUERY_KEY = "mapred.bq.input.query";
+  @Deprecated public static final String INPUT_QUERY_KEY = "mapred.bq.input.query";
 
   /** Configuration key for the GCS temp path this connector uses. */
   public static final String TEMP_GCS_PATH_KEY = "mapred.bq.temp.gcs.path";
@@ -78,9 +77,15 @@ public class BigQueryConfiguration {
       "mapred.bq.input.export.files.delete";
   public static final boolean DELETE_EXPORT_FILES_FROM_GCS_DEFAULT = true;
 
-  /** Configuration key specifying whether to use concurrent/sharded export. */
+  /**
+   * @deprecated Configuration key specifying whether to start the map phase concurrently with the
+   *     BigQuery export. Since BigQuery exports are significantly faster than when this was
+   *     implemented it is no longer suggested.
+   */
+  @Deprecated
   public static final String ENABLE_SHARDED_EXPORT_KEY = "mapred.bq.input.sharded.export.enable";
-  public static final boolean ENABLE_SHARDED_EXPORT_DEFAULT = true;
+
+  public static final boolean ENABLE_SHARDED_EXPORT_DEFAULT = false;
 
   /**
    * Number of milliseconds to wait between listStatus calls inside of nextKeyValue when no
