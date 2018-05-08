@@ -188,13 +188,7 @@ public class GoogleCloudStorageImpl
 
   // Thread-pool for manual matching of metadata tasks.
   // TODO(user): Wire out GoogleCloudStorageOptions for these.
-  private ExecutorService manualBatchingThreadPool = new ThreadPoolExecutor(
-      10 /* base num threads */, 20 /* max num threads */, 10L /* keepalive time */,
-      TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(),
-      new ThreadFactoryBuilder()
-          .setNameFormat("gcs-manual-batching-pool-%d")
-          .setDaemon(true)
-          .build());
+  private ExecutorService manualBatchingThreadPool = createManualBatchingThreadPool();
 
   // Helper delegate for turning IOExceptions from API calls into higher-level semantics.
   private ApiErrorExtractor errorExtractor = ApiErrorExtractor.INSTANCE;
@@ -278,6 +272,23 @@ public class GoogleCloudStorageImpl
   @VisibleForTesting
   protected GoogleCloudStorageImpl() {
     this.storageOptions = GoogleCloudStorageOptions.newBuilder().build();
+  }
+
+  private ExecutorService createManualBatchingThreadPool() {
+    ThreadPoolExecutor service =
+        new ThreadPoolExecutor(
+            /* corePoolSize= */ 10,
+            /* maximumPoolSize= */ 20,
+            /* keepAliveTime= */ 10L,
+            TimeUnit.SECONDS,
+            new LinkedBlockingQueue<Runnable>(),
+            new ThreadFactoryBuilder()
+                .setNameFormat("gcs-manual-batching-pool-%d")
+                .setDaemon(true)
+                .build());
+    // allowCoreThreadTimeOut needs to be enabled for cases where the encapsulating class does not
+    service.allowCoreThreadTimeOut(true);
+    return service;
   }
 
   @VisibleForTesting

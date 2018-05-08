@@ -83,14 +83,7 @@ public class GoogleCloudStorageFileSystem {
   private final GoogleCloudStorageFileSystemOptions options;
 
   // Executor for updating directory timestamps.
-  private ExecutorService updateTimestampsExecutor = new ThreadPoolExecutor(
-      2 /* core thread count */, 2 /* max thread count */, 2 /* keepAliveTime */,
-      TimeUnit.SECONDS /* keepAliveTime unit */, new LinkedBlockingQueue<Runnable>(1000),
-      new ThreadFactoryBuilder()
-          .setNameFormat("gcsfs-timestamp-updates-%d")
-          .setDaemon(true)
-          .build());
-
+  private ExecutorService updateTimestampsExecutor = createUpdateTimestampsExecutor();
   // Comparator used for sorting paths.
   //
   // For some bulk operations, we need to operate on parent directories before
@@ -192,6 +185,22 @@ public class GoogleCloudStorageFileSystem {
     this.updateTimestampsExecutor = executor;
   }
 
+  private static ExecutorService createUpdateTimestampsExecutor() {
+    ThreadPoolExecutor service =
+        new ThreadPoolExecutor(
+            /* corePoolSize= */ 2,
+            /* maximumPoolSize= */ 2,
+            /* keepAliveTime= */ 2,
+            TimeUnit.SECONDS,
+            new LinkedBlockingQueue<Runnable>(1000),
+            new ThreadFactoryBuilder()
+                .setNameFormat("gcsfs-timestamp-updates-%d")
+                .setDaemon(true)
+                .build());
+    // allowCoreThreadTimeOut needs to be enabled for cases where the encapsulating class does not
+    service.allowCoreThreadTimeOut(true);
+    return service;
+  }
 
   /**
    * Retrieve the options that were used to create this
@@ -1734,4 +1743,5 @@ public class GoogleCloudStorageFileSystem {
       }
     }
   }
+
 }
