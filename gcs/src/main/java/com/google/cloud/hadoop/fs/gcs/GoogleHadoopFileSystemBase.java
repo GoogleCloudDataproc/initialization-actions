@@ -23,7 +23,9 @@ import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.cloud.hadoop.gcsio.FileInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.PathCodec;
+import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.EntriesCredentialConfiguration;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
@@ -51,6 +53,7 @@ import java.util.Collection;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.hadoop.conf.Configuration;
@@ -1505,12 +1508,11 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   }
 
   /**
-   * Returns an array of FileStatus objects whose path names match pathPattern
-   * and is accepted by the user-supplied path filter. Results are sorted by
-   * their path names.
+   * Returns an array of FileStatus objects whose path names match pathPattern and is accepted by
+   * the user-supplied path filter. Results are sorted by their path names.
    *
-   * Return null if pathPattern has no glob and the path does not exist.
-   * Return an empty array if pathPattern has a glob and no path matches it.
+   * <p>Return null if pathPattern has no glob and the path does not exist. Return an empty array if
+   * pathPattern has a glob and no path matches it.
    *
    * @param pathPattern A regular expression specifying the path pattern.
    * @param filter A user-supplied path filter.
@@ -1518,9 +1520,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * @throws IOException if an error occurs.
    */
   @Override
-  public FileStatus[] globStatus(Path pathPattern, PathFilter filter)
-      throws IOException {
-
+  public FileStatus[] globStatus(Path pathPattern, PathFilter filter) throws IOException {
     checkOpen();
 
     LOG.debug("GHFS.globStatus: {}", pathPattern);
@@ -1556,10 +1556,12 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
         return super.globStatus(fixedPath, filter);
       }
 
+      Collection<FileStatus> fileStatuses = toFileStatusesWithImplicitDirectories(fileInfos);
+
       // Perform the core globbing logic in the helper filesystem.
-      GoogleHadoopFileSystem helperFileSystem =
-          ListHelperGoogleHadoopFileSystem.createInstance(gcsfs, fileInfos);
-      FileStatus[] returnList = helperFileSystem.globStatus(pathPattern, filter);
+      InMemoryGlobberFileSystem helperFileSystem =
+          new InMemoryGlobberFileSystem(getWorkingDirectory(), fileStatuses);
+      FileStatus[] returnList = helperFileSystem.globStatus(fixedPath, filter);
 
       // If the return list contains directories, we should repair them if they're 'implicit'.
       if (enableAutoRepairImplicitDirectories) {
@@ -1593,6 +1595,41 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     }
   }
 
+  /** Helper method that converts {@link FileInfo} collection to {@link FileStatus} collection. */
+  private Collection<FileStatus> toFileStatusesWithImplicitDirectories(
+      Collection<FileInfo> fileInfos) {
+    List<FileStatus> fileStatuses = new ArrayList<>(fileInfos.size());
+    Set<URI> filePaths = Sets.newHashSetWithExpectedSize(fileInfos.size());
+    for (FileInfo fileInfo : fileInfos) {
+      filePaths.add(fileInfo.getPath());
+      fileStatuses.add(getFileStatus(fileInfo));
+    }
+
+    // The flow for populating this doesn't bother to populate metadata entries for parent
+    // directories but we know the parent directories are expected to exist, so we'll just
+    // populate the missing entries explicitly here. Necessary for getFileStatus(parentOfInfo)
+    // to work when using an instance of this class.
+    for (FileInfo fileInfo : fileInfos) {
+      URI parentPath = gcsfs.getParentPath(fileInfo.getPath());
+      while (parentPath != null && !parentPath.equals(GoogleCloudStorageFileSystem.GCS_ROOT)) {
+        if (!filePaths.contains(parentPath)) {
+          LOG.debug("Adding fake entry for missing parent path '{}'", parentPath);
+          StorageResourceId id = gcsfs.getPathCodec().validatePathAndGetId(parentPath, true);
+
+          GoogleCloudStorageItemInfo fakeItemInfo =
+              GoogleCloudStorageItemInfo.createInferredDirectory(id);
+          FileInfo fakeFileInfo = FileInfo.fromItemInfo(gcsfs.getPathCodec(), fakeItemInfo);
+
+          filePaths.add(parentPath);
+          fileStatuses.add(getFileStatus(fakeFileInfo));
+        }
+        parentPath = gcsfs.getParentPath(parentPath);
+      }
+    }
+
+    return fileStatuses;
+  }
+
   /**
    * Returns home directory of the current user.
    *
@@ -1618,11 +1655,11 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
             fileInfo.isDirectory(),
             REPLICATION_FACTOR_DEFAULT,
             defaultBlockSize,
-            fileInfo.getModificationTime(), /* Last modification time */
-            fileInfo.getModificationTime(), /* Last access time */
+            /* modificationTime= */ fileInfo.getModificationTime(),
+            /* accessTime= */ fileInfo.getModificationTime(),
             reportedPermissions,
-            USER_NAME,
-            USER_NAME,
+            /* owner= */ USER_NAME,
+            /* group= */ USER_NAME,
             getHadoopPath(fileInfo.getPath()));
     LOG.debug("GHFS.getFileStatus: {} => {}", fileInfo.getPath(), fileStatusToString(status));
     return status;
