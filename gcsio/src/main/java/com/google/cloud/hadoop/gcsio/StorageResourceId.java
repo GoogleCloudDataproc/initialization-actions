@@ -44,7 +44,7 @@ public class StorageResourceId {
   // 4 = foo/bar/baz
   // Groups 2 and 4 can be used to create an instance.
   private static final Pattern OBJECT_NAME_IN_GCS_PATTERN =
-      Pattern.compile("gs://(([^/]+)(/((.+))?)?)?");
+      Pattern.compile("gs://(([^/]+)(/(.+)?)?)?");
 
   // The singleton instance identifying the GCS root (gs://). Both getObjectName() and
   // getBucketName() will return null.
