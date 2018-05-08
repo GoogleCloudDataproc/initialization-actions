@@ -73,7 +73,7 @@ public class BigQueryMapredRecordReaderTest {
 
     when(mockRecordReader.getProgress()).thenReturn(256.0F);
     float f = recordReader.getPos();
-    assertThat(f).isWithin(0.000001F).of(256.0F);
+    assertThat(f).isEqualTo(256.0F);
 
     verify(mockRecordReader).getProgress();
   }
