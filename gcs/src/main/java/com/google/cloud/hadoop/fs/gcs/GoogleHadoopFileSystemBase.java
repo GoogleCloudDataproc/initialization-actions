@@ -63,6 +63,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileChecksum;
 import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.GlobPattern;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
@@ -1124,19 +1125,19 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     switch (type) {
       case BASIC:
         out = new GoogleHadoopOutputStream(
-          this,
-          gcsPath,
-          bufferSize,
-          statistics,
-          new CreateFileOptions(overwrite));
+            this,
+            gcsPath,
+            bufferSize,
+            statistics,
+            new CreateFileOptions(overwrite));
         break;
       case SYNCABLE_COMPOSITE:
         out = new GoogleHadoopSyncableOutputStream(
-          this,
-          gcsPath,
-          bufferSize,
-          statistics,
-          new CreateFileOptions(overwrite));
+            this,
+            gcsPath,
+            bufferSize,
+            statistics,
+            new CreateFileOptions(overwrite));
         break;
       default:
         throw new IOException(String.format(
@@ -1559,8 +1560,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       Collection<FileStatus> fileStatuses = toFileStatusesWithImplicitDirectories(fileInfos);
 
       // Perform the core globbing logic in the helper filesystem.
-      InMemoryGlobberFileSystem helperFileSystem =
-          new InMemoryGlobberFileSystem(getWorkingDirectory(), fileStatuses);
+      FileSystem helperFileSystem =
+          InMemoryGlobberFileSystem.createInstance(getConf(), getWorkingDirectory(), fileStatuses);
       FileStatus[] returnList = helperFileSystem.globStatus(fixedPath, filter);
 
       // If the return list contains directories, we should repair them if they're 'implicit'.

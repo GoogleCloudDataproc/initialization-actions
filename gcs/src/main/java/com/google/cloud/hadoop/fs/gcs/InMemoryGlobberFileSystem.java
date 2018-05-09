@@ -15,6 +15,7 @@
  */
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.ListStatusFileNotFoundBehavior;
@@ -26,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -33,8 +35,6 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.Progressable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * InMemoryGlobberFileSystem overrides the behavior of {@link FileSystem} to manifest a temporary
@@ -46,7 +46,23 @@ import org.slf4j.LoggerFactory;
  * <p>Note that this class is <b>not</b> intended to be used as a general-usage {@link FileSystem}.
  */
 class InMemoryGlobberFileSystem extends FileSystem {
-  public static final Logger LOG = LoggerFactory.getLogger(InMemoryGlobberFileSystem.class);
+
+  /**
+   * Factory method for constructing and initializing an instance of InMemoryGlobberFileSystem which
+   * is ready to list/get FileStatus entries corresponding to {@code fileStatuses}.
+   */
+  public static FileSystem createInstance(
+      Configuration config, Path workingDirectory, Collection<FileStatus> fileStatuses) {
+    checkNotNull(config, "configuration can not be null");
+    checkState(
+        !fileStatuses.isEmpty(),
+        "Cannot construct InMemoryGlobberFileSystem with empty fileStatuses list!");
+
+    FileSystem fileSystem = new InMemoryGlobberFileSystem(workingDirectory, fileStatuses);
+    fileSystem.setConf(config);
+
+    return fileSystem;
+  }
 
   private final Path workingDirectory;
   private final URI uri;
@@ -59,11 +75,7 @@ class InMemoryGlobberFileSystem extends FileSystem {
    * Constructs an instance of InMemoryGlobberFileSystem using the provided collection of {@link
    * FileStatus} objects; {@code initialize()} will not re-initialize it.
    */
-  public InMemoryGlobberFileSystem(Path workingDirectory, Collection<FileStatus> fileStatuses) {
-    checkState(
-        !fileStatuses.isEmpty(),
-        "Cannot construct InMemoryGlobberFileSystem with empty fileStatuses list!");
-
+  private InMemoryGlobberFileSystem(Path workingDirectory, Collection<FileStatus> fileStatuses) {
     this.workingDirectory = workingDirectory;
     this.uri = workingDirectory.toUri();
 
