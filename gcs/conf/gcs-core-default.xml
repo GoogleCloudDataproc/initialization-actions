@@ -51,6 +51,24 @@
 
   <!-- Authorization -->
 
+  <!-- When one of the following two properties is set, it will precede all other credential
+   settings, and credentials will be obtained from the access token provider.
+  -->
+  <property>
+    <name>fs.gs.auth.access.token.provider.impl</name>
+    <value></value>
+    <description>
+      The implementation of the AccessTokenProvider interface used for GCS Connector.
+    </description>
+  </property>
+  <property>
+    <name>mapred.bq.auth.access.token.provider.impl</name>
+    <value></value>
+    <description>
+      The implementation of the AccessTokenProvider interface used for BigQuery Connector.
+    </description>
+  </property>
+
   <property>
     <name>google.cloud.auth.service.account.enable</name>
     <value>true</value>

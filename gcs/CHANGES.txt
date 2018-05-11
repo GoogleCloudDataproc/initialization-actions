@@ -26,6 +26,8 @@
   8. Fix thread leaks that were occurring when YARN log aggregation uploaded
      logs to GCS.
 
+  9. Add interface through which user can directly provide the access token.
+
 
 1.8.1 - 2018-03-29
 

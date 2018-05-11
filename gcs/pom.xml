@@ -331,6 +331,10 @@
                     <include>com.google.cloud.hadoop.util.**</include>
                     <include>com.google.common.**</include>
                   </includes>
+                  <excludes>
+                    <exclude>com.google.cloud.hadoop.util.AccessTokenProvider</exclude>
+                    <exclude>com.google.cloud.hadoop.util.AccessTokenProvider$AccessToken</exclude>
+                  </excludes>
                 </relocation>
                 <relocation>
                   <pattern>org</pattern>

@@ -26,7 +26,10 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.PathCodec;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
+import com.google.cloud.hadoop.util.AccessTokenProvider;
+import com.google.cloud.hadoop.util.AccessTokenProviderClassFromConfigFactory;
 import com.google.cloud.hadoop.util.CredentialFactory;
+import com.google.cloud.hadoop.util.CredentialFromAccessTokenProviderClassFactory;
 import com.google.cloud.hadoop.util.EntriesCredentialConfiguration;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.HadoopVersionInfo;
@@ -1828,6 +1831,29 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   }
 
   /**
+   * Retrieve user's Credential. If user implemented {@link AccessTokenProvider} and provided the
+   * class name (See {@link AccessTokenProviderClassFromConfigFactory} then build a credential with
+   * access token provided by this provider; Otherwise obtain credential through {@link
+   * HadoopCredentialConfiguration#getCredential(List)}.
+   */
+  private Credential getCredential(
+      AccessTokenProviderClassFromConfigFactory providerClassFactory, Configuration config)
+      throws IOException, GeneralSecurityException {
+    Credential credential =
+        CredentialFromAccessTokenProviderClassFactory.credential(
+            providerClassFactory, config, CredentialFactory.GCS_SCOPES);
+    if (credential != null) {
+      return credential;
+    }
+
+    return HadoopCredentialConfiguration.newBuilder()
+        .withConfiguration(config)
+        .withOverridePrefix(AUTHENTICATION_PREFIX)
+        .build()
+        .getCredential(CredentialFactory.GCS_SCOPES);
+  }
+
+  /**
    * Configures GHFS using the supplied configuration.
    *
    * @param config Hadoop configuration object.
@@ -1843,12 +1869,10 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
       Credential credential;
       try {
-        credential = HadoopCredentialConfiguration
-            .newBuilder()
-            .withConfiguration(config)
-            .withOverridePrefix(AUTHENTICATION_PREFIX)
-            .build()
-            .getCredential(CredentialFactory.GCS_SCOPES);
+        credential =
+            getCredential(
+                new AccessTokenProviderClassFromConfigFactory().withOverridePrefix("fs.gs"),
+                config);
       } catch (GeneralSecurityException gse) {
         throw new IOException(gse);
       }

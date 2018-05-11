@@ -19,13 +19,14 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.bigquery.Bigquery;
+import com.google.cloud.hadoop.util.AccessTokenProviderClassFromConfigFactory;
+import com.google.cloud.hadoop.util.CredentialFromAccessTokenProviderClassFactory;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.PropertyUtil;
 import com.google.cloud.hadoop.util.RetryHttpInitializer;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +38,7 @@ public class BigQueryFactory {
 
   public static final String BIGQUERY_CONFIG_PREFIX = "mapred.bq";
   // BigQuery scopes for OAUTH.
-  public static final List<String> BIGQUERY_OAUTH_SCOPES =
+  public static final ImmutableList<String> BIGQUERY_OAUTH_SCOPES =
       ImmutableList.of("https://www.googleapis.com/auth/bigquery");
 
   // Service account environment variable name for BigQuery Authentication.
@@ -86,13 +87,20 @@ public class BigQueryFactory {
    */
   public Credential createBigQueryCredential(Configuration config)
       throws GeneralSecurityException, IOException {
+    Credential credential =
+        CredentialFromAccessTokenProviderClassFactory.credential(
+            new AccessTokenProviderClassFromConfigFactory().withOverridePrefix("mapred.bq"),
+            config,
+            BIGQUERY_OAUTH_SCOPES);
+    if (credential != null) {
+      return credential;
+    }
 
-      return HadoopCredentialConfiguration
-          .newBuilder()
-          .withConfiguration(config)
-          .withOverridePrefix(BIGQUERY_CONFIG_PREFIX)
-          .build()
-          .getCredential(BIGQUERY_OAUTH_SCOPES);
+    return HadoopCredentialConfiguration.newBuilder()
+        .withConfiguration(config)
+        .withOverridePrefix(BIGQUERY_CONFIG_PREFIX)
+        .build()
+        .getCredential(BIGQUERY_OAUTH_SCOPES);
   }
 
   /**
