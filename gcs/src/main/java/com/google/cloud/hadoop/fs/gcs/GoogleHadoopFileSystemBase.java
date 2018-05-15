@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2013 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -391,8 +391,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
   /**
    * Configuration key for enabling the use of marker files during file creation. When running
-   * non-MR applications that make use of the FileSystem, it is a idea to enable marker files to
-   * better mimic HDFS overwrite and locking behavior.
+   * non-MR applications that make use of the FileSystem, it is a good idea to enable marker files
+   * to better mimic HDFS overwrite and locking behavior.
    */
   public static final String GCS_ENABLE_MARKER_FILE_CREATION_KEY =
       "fs.gs.create.marker.files.enable";
@@ -442,7 +442,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
   /** Default to the default specified in HttpTransportFactory. */
   public static final String GCS_HTTP_TRANSPORT_DEFAULT =
-      EntriesCredentialConfiguration.PROXY_ADDRESS_DEFAULT;
+      EntriesCredentialConfiguration.HTTP_TRANSPORT_DEFAULT;
 
   /** Configuration key for adding a suffix to the GHFS application name sent to GCS. */
   public static final String GCS_APPLICATION_NAME_SUFFIX_KEY = "fs.gs.application.name.suffix";

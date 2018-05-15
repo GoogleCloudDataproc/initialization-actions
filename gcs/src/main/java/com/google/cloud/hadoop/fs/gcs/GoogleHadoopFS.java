@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2014 Google Inc. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * GoogleHadoopFS provides a YARN compatible Abstract File System on top of
  * Google Cloud Storage (GCS).
  *
- *  It is implemented as a thin abstraction layer on top of GoogleHadoopFileSystem, but will soon be
+ * It is implemented as a thin abstraction layer on top of GoogleHadoopFileSystem, but will soon be
  * refactored to share a common base.
  */
 public class GoogleHadoopFS extends AbstractFileSystem {

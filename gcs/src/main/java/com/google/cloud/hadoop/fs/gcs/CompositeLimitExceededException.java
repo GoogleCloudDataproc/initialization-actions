@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2016 Google Inc. All Rights Reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,7 @@ import java.io.IOException;
 
 /**
  * Throw when an attempted operation is prohibited because it would require exceeding the GCS
- * component limit. Generally, methods which throw this exception should fail-fast and perserve
+ * component limit. Generally, methods which throw this exception should fail-fast and preserve
  * correctness of internal state so that other methods which don't entail exceeding the
  * limit for composite component count can still be called safely.
  */

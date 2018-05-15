@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2013 Google Inc. All Rights Reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,7 +36,8 @@ public interface FileSystemDescriptor {
   String getScheme();
 
   /**
-   * Deprecated in favor of getScehme, the name of which coincides with Hadoop 2's method.
+   * Deprecated in favor of {@link #getScheme()}, the name of which coincides
+   * with Hadoop 2's method.
    */
   @Deprecated
   String getHadoopScheme();

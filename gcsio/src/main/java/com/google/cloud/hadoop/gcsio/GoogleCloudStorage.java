@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2013 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -274,7 +274,7 @@ public interface GoogleCloudStorage {
       throws IOException;
 
   /**
-   * Same name-matching semantics as {@link listObjectNames} except this method
+   * Same name-matching semantics as {@link #listObjectNames} except this method
    * retrieves the full GoogleCloudStorageFileInfo for each item as well.
    * <p>
    * Generally the info is already available from
@@ -297,7 +297,7 @@ public interface GoogleCloudStorage {
       throws IOException;
 
   /**
-   * Same name-matching semantics as {@link listObjectNames} except this method
+   * Same name-matching semantics as {@link #listObjectNames} except this method
    * retrieves the full GoogleCloudStorageFileInfo for each item as well.
    * <p>
    * Generally the info is already available from
@@ -384,7 +384,7 @@ public interface GoogleCloudStorage {
    * Composes inputs into a single GCS object. This performs a GCS Compose. Objects will be composed
    * according to the order they appear in the input. The destination object will have metadata set
    * according to {@code options}. Overwrite semantics for the destination object will follow the
-   * same semantics as {@link create(StorageResourceId, CreateObjectOptions)}.
+   * same semantics as {@link #create(StorageResourceId, CreateObjectOptions)}.
    * See {@link #create(StorageResourceId)} for the behavior if StorageResourceId.getGenerationId()
    * is explicitly set. The bucket must be the same for all sources and the destination.
    */
