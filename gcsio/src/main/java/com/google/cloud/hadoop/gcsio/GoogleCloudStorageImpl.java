@@ -17,6 +17,7 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.collect.Sets.newConcurrentHashSet;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
@@ -68,12 +69,11 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentHashMap.KeySetView;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -543,8 +543,7 @@ public class GoogleCloudStorageImpl
     }
 
     // Gather exceptions to wrap in a composite exception at the end.
-    final Set<IOException> innerExceptions =
-        Collections.newSetFromMap(new ConcurrentHashMap<IOException, Boolean>());
+    final Set<IOException> innerExceptions = newConcurrentHashSet();
     final CountDownLatch latch = new CountDownLatch(resourceIds.size());
     for (final StorageResourceId resourceId : resourceIds) {
       final Storage.Objects.Insert insertObject = prepareEmptyInsert(resourceId, options);
@@ -726,7 +725,7 @@ public class GoogleCloudStorageImpl
     }
 
     // Gather exceptions to wrap in a composite exception at the end.
-    final List<IOException> innerExceptions = new ArrayList<>();
+    final KeySetView<IOException, Boolean> innerExceptions = ConcurrentHashMap.newKeySet();
     BatchHelper batchHelper =
         batchFactory.newBatchHelper(
             httpRequestInitializer, gcs, storageOptions.getMaxRequestsPerBatch());
@@ -742,12 +741,10 @@ public class GoogleCloudStorageImpl
     }
   }
 
-  /**
-   * Helper to create a callback for a particular deletion request.
-   */
+  /** Helper to create a callback for a particular deletion request. */
   private JsonBatchCallback<Void> getDeletionCallback(
       final StorageResourceId fullObjectName,
-      final List<IOException> innerExceptions,
+      final KeySetView<IOException, Boolean> innerExceptions,
       final BatchHelper batchHelper,
       final int attempt,
       final long generation) {
@@ -786,7 +783,7 @@ public class GoogleCloudStorageImpl
 
   private void queueSingleObjectDelete(
       final StorageResourceId fullObjectName,
-      final List<IOException> innerExceptions,
+      final KeySetView<IOException, Boolean> innerExceptions,
       final BatchHelper batchHelper,
       final int attempt) throws IOException {
 
@@ -919,7 +916,7 @@ public class GoogleCloudStorageImpl
 
     // Gather FileNotFoundExceptions for individual objects,
     // but only throw a single combined exception at the end.
-    List<IOException> innerExceptions = new ArrayList<>();
+    KeySetView<IOException, Boolean> innerExceptions = ConcurrentHashMap.newKeySet();
 
     // Perform the copy operations.
     BatchHelper batchHelper =
@@ -959,7 +956,7 @@ public class GoogleCloudStorageImpl
    */
   private void rewriteInternal(
       final BatchHelper batchHelper,
-      final List<IOException> innerExceptions,
+      final KeySetView<IOException, Boolean> innerExceptions,
       final String srcBucketName, final String srcObjectName,
       final String dstBucketName, final String dstObjectName)
       throws IOException {
@@ -1011,7 +1008,7 @@ public class GoogleCloudStorageImpl
    */
   private void copyInternal(
       BatchHelper batchHelper,
-      final List<IOException> innerExceptions,
+      final KeySetView<IOException, Boolean> innerExceptions,
       final String srcBucketName, final String srcObjectName,
       final String dstBucketName, final String dstObjectName)
       throws IOException {
@@ -1039,7 +1036,7 @@ public class GoogleCloudStorageImpl
 
   /** Processes failed copy requests */
   private void onCopyFailure(
-      List<IOException> innerExceptions,
+      KeySetView<IOException, Boolean> innerExceptions,
       GoogleJsonError e,
       String srcBucketName, String srcObjectName) {
     if (errorExtractor.itemNotFound(e)) {
@@ -1560,8 +1557,8 @@ public class GoogleCloudStorageImpl
       throws IOException {
     LOG.debug("getItemInfos({})", resourceIds);
 
-    final Map<StorageResourceId, GoogleCloudStorageItemInfo> itemInfos = new HashMap<>();
-    final List<IOException> innerExceptions = new ArrayList<>();
+    final Map<StorageResourceId, GoogleCloudStorageItemInfo> itemInfos = new ConcurrentHashMap<>();
+    final Set<IOException> innerExceptions = newConcurrentHashSet();
     BatchHelper batchHelper = batchFactory.newBatchHelper(
         httpRequestInitializer,
         gcs,
@@ -1656,8 +1653,9 @@ public class GoogleCloudStorageImpl
       throws IOException {
     LOG.debug("updateItems({})", itemInfoList);
 
-    final Map<StorageResourceId, GoogleCloudStorageItemInfo> resultItemInfos = new HashMap<>();
-    final List<IOException> innerExceptions = new ArrayList<>();
+    final Map<StorageResourceId, GoogleCloudStorageItemInfo> resultItemInfos =
+        new ConcurrentHashMap<>();
+    final Set<IOException> innerExceptions = newConcurrentHashSet();
     BatchHelper batchHelper = batchFactory.newBatchHelper(
         httpRequestInitializer,
         gcs,
