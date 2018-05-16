@@ -158,6 +158,11 @@ public class GoogleCloudStorageTestHelper {
   }
 
   public static byte[] writeObject(
+      GoogleCloudStorage gcs, StorageResourceId resourceId, int objectSize) throws IOException {
+    return writeObject(gcs, resourceId, objectSize, /* partitionsCount= */ 1);
+  }
+
+  public static byte[] writeObject(
       GoogleCloudStorage gcs, StorageResourceId resourceId, int partitionSize, int partitionsCount)
       throws IOException {
     checkArgument(partitionsCount > 0, "partitionsCount should be greater than 0");
