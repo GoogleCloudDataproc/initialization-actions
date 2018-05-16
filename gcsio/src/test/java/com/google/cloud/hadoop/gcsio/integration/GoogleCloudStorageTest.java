@@ -15,6 +15,8 @@
 package com.google.cloud.hadoop.gcsio.integration;
 
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorage.MAX_RESULTS_UNLIMITED;
+import static com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.assertObjectContent;
+import static com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.writeObject;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -961,9 +963,13 @@ public class GoogleCloudStorageTest {
   @Test
   public void testOpenLargeObject() throws IOException {
     String bucketName = getSharedBucketName();
-    StorageResourceId objectToCreate =
-        new StorageResourceId(bucketName, "testOpenLargeObject_Object");
-    GoogleCloudStorageTestHelper.readAndWriteLargeObject(objectToCreate, rawStorage);
+    StorageResourceId resourceId = new StorageResourceId(bucketName, "testOpenLargeObject_Object");
+
+    int partitionsCount = 50;
+    byte[] partition =
+        writeObject(rawStorage, resourceId, /* partitionSize= */ 10 * 1024 * 1024, partitionsCount);
+
+    assertObjectContent(rawStorage, resourceId, partition, partitionsCount);
   }
 
   @Test

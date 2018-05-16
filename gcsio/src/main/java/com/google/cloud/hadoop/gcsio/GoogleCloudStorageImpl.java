@@ -965,6 +965,7 @@ public class GoogleCloudStorageImpl
             gcs.objects().rewrite(srcBucketName, srcObjectName, dstBucketName, dstObjectName, null),
             srcBucketName);
 
+    // TODO(b/79750454) do not batch rewrite requests because they time out in batches.
     batchHelper.queue(
         rewriteObject,
         new JsonBatchCallback<RewriteResponse>() {

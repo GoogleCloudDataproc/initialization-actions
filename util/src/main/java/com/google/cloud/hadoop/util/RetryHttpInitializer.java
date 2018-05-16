@@ -215,7 +215,7 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
     request.setIOExceptionHandler(loggingResponseHandler);
 
     if (Strings.isNullOrEmpty(request.getHeaders().getUserAgent())) {
-      LOG.debug("Request is missing a user-agent, adding default value of '{}'", defaultUserAgent);
+      LOG.trace("Request is missing a user-agent, adding default value of '{}'", defaultUserAgent);
       request.getHeaders().setUserAgent(defaultUserAgent);
     }
   }

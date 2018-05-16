@@ -14,7 +14,8 @@
 
 package com.google.cloud.hadoop.gcsio.integration;
 
-import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.fail;
 
@@ -36,7 +37,9 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.joda.time.Duration;
@@ -51,43 +54,37 @@ public class GoogleCloudStorageTestHelper {
   // Application name for OAuth.
   public static final String APP_NAME = "GHFS/test";
 
+  private static final int BUFFER_SIZE_MAX_BYTES = 32 * 1024 * 1024;
+
   public static Credential getCredential() throws IOException {
     String serviceAccount = TestConfiguration.getInstance().getServiceAccount();
     String privateKeyfile = TestConfiguration.getInstance().getPrivateKeyFile();
 
     assertWithMessage("privateKeyfile must not be null").that(privateKeyfile).isNotNull();
     assertWithMessage("serviceAccount must not be null").that(serviceAccount).isNotNull();
-    Credential credential;
     try {
       CredentialFactory credentialFactory = new CredentialFactory();
       HttpTransport transport = HttpTransportFactory.newTrustedTransport();
-      credential =
-          credentialFactory.getCredentialFromPrivateKeyServiceAccount(
-              serviceAccount, privateKeyfile, CredentialFactory.GCS_SCOPES, transport);
+      return credentialFactory.getCredentialFromPrivateKeyServiceAccount(
+          serviceAccount, privateKeyfile, CredentialFactory.GCS_SCOPES, transport);
     } catch (GeneralSecurityException gse) {
       throw new IOException(gse);
     }
-    return credential;
   }
 
   public static Builder getStandardOptionBuilder() {
-    String projectId = TestConfiguration.getInstance().getProjectId();
-    assertThat(projectId).isNotNull();
-    GoogleCloudStorageOptions.Builder builder = GoogleCloudStorageOptions.newBuilder();
-    builder.setAppName(GoogleCloudStorageTestHelper.APP_NAME)
-        .setProjectId(projectId)
+    return GoogleCloudStorageOptions.newBuilder()
+        .setAppName(GoogleCloudStorageTestHelper.APP_NAME)
+        .setProjectId(checkNotNull(TestConfiguration.getInstance().getProjectId()))
         .setMaxListItemsPerCall(50)
         .setMaxRequestsPerBatch(2);
-    return builder;
   }
 
-  /**
-   * More efficient version of checking byte arrays than using Assert.assertArrayEquals.
-   */
+  /** More efficient version of checking byte arrays than using Assert.assertArrayEquals. */
   public static void assertByteArrayEquals(byte[] expected, byte[] actual) {
     if ((expected == null) ^ (actual == null)) {
-      // Don't use a fancy toString(), just display which is null, which isn't, since the arrays
-      // may be very large.
+      // Don't use a fancy toString(), just display which is null,
+      // which isn't, since the arrays may be very large.
       fail(String.format("Expected was '%s', actual was '%s'", expected, actual));
     } else if (expected == null && actual == null) {
       return;
@@ -106,69 +103,82 @@ public class GoogleCloudStorageTestHelper {
     }
   }
 
-  public static void assertObjectContent(GoogleCloudStorage storage, StorageResourceId object,
-      byte[] expectedBytes) throws IOException {
+  public static void assertObjectContent(
+      GoogleCloudStorage gcs, StorageResourceId resourceId, byte[] expectedBytes)
+      throws IOException {
+    assertObjectContent(gcs, resourceId, expectedBytes, /* expectedBytesCount= */ 1);
+  }
 
-    try (ReadableByteChannel channel = storage.open(object)) {
-      ByteBuffer buffer = ByteBuffer.allocate(expectedBytes.length);
-      int totalRead = 0;
+  public static void assertObjectContent(
+      GoogleCloudStorage gcs, StorageResourceId id, byte[] expectedBytes, int expectedBytesCount)
+      throws IOException {
+    checkArgument(expectedBytesCount > 0, "expectedBytesCount should be greater than 0");
+
+    int expectedBytesLength = expectedBytes.length;
+    long expectedBytesTotalLength = (long) expectedBytesLength * expectedBytesCount;
+    ByteBuffer buffer = ByteBuffer.allocate(Math.min(BUFFER_SIZE_MAX_BYTES, expectedBytesLength));
+    long totalRead = 0;
+    try (ReadableByteChannel channel = gcs.open(id)) {
       int read = channel.read(buffer);
       while (read > 0) {
         totalRead += read;
+        assertWithMessage("Bytes read mismatch").that(totalRead).isAtMost(expectedBytesTotalLength);
+
+        buffer.flip();
+        byte[] bytesRead = Arrays.copyOf(buffer.array(), buffer.limit());
+        byte[] expectedBytesRead = getExpectedBytesRead(expectedBytes, totalRead, read);
+        assertByteArrayEquals(expectedBytesRead, bytesRead);
+
+        buffer.clear();
         read = channel.read(buffer);
       }
-      assertWithMessage("Bytes read mismatch").that(totalRead).isEqualTo(expectedBytes.length);
-      buffer.flip();
-      byte[] bytesRead = new byte[buffer.limit()];
-      buffer.get(bytesRead);
-      assertByteArrayEquals(expectedBytes, bytesRead);
     }
+
+    assertWithMessage("Bytes read mismatch").that(totalRead).isEqualTo(expectedBytesTotalLength);
+  }
+
+  private static byte[] getExpectedBytesRead(byte[] expectedBytes, long totalRead, int read) {
+    int expectedBytesLength = expectedBytes.length;
+    int expectedBytesStart = (int) ((totalRead - read) % expectedBytesLength);
+    int expectedBytesEnd = (int) (totalRead % expectedBytesLength);
+    if (expectedBytesStart < expectedBytesEnd) {
+      return Arrays.copyOfRange(expectedBytes, expectedBytesStart, expectedBytesEnd);
+    }
+    // expectedBytesRead is not continuous in expectedBytes partition
+    // and need to be copied with 2 method calls
+    byte[] expectedBytesRead = new byte[read];
+    int firstPartSize = expectedBytesLength - expectedBytesStart;
+    System.arraycopy(expectedBytes, expectedBytesStart, expectedBytesRead, 0, firstPartSize);
+    System.arraycopy(expectedBytes, 0, expectedBytesRead, firstPartSize, expectedBytesEnd);
+    return expectedBytesRead;
   }
 
   public static void fillBytes(byte[] bytes) {
-    for (int i = 0; i < bytes.length; i++) {
-      bytes[i] = (byte) i;
-    }
+    new Random().nextBytes(bytes);
   }
 
-  public static void readAndWriteLargeObject(StorageResourceId objectToCreate,
-      GoogleCloudStorage storage) throws IOException {
-    // We'll write the bytePattern repetitions times (totalling 65MB of data)
-    int repetitions = 65 * 1024;
-    int patternSize = 1024;
-    byte[] bytePattern = new byte[patternSize];
-    fillBytes(bytePattern);
+  public static byte[] writeObject(
+      GoogleCloudStorage gcs, StorageResourceId resourceId, int partitionSize, int partitionsCount)
+      throws IOException {
+    checkArgument(partitionsCount > 0, "partitionsCount should be greater than 0");
+
+    byte[] partition = new byte[partitionSize];
+    fillBytes(partition);
 
     long startTime = System.currentTimeMillis();
-    try (WritableByteChannel channel = storage.create(objectToCreate)) {
-      for (int i = 0; i < repetitions; i++) {
-        channel.write(ByteBuffer.wrap(bytePattern));
+    try (WritableByteChannel channel = gcs.create(resourceId)) {
+      for (int i = 0; i < partitionsCount; i++) {
+        channel.write(ByteBuffer.wrap(partition));
       }
     }
     long endTime = System.currentTimeMillis();
-    LOG.info("Took {} milliseconds to write {}", (endTime - startTime), repetitions * patternSize);
-
-    startTime = System.currentTimeMillis();
-    try (ReadableByteChannel channel = storage.open(objectToCreate)) {
-      byte[] destinationBytes = new byte[patternSize];
-      ByteBuffer buffer = ByteBuffer.wrap(destinationBytes);
-      for (int i = 0; i < repetitions; i++) {
-        int read = channel.read(buffer);
-        // Possible flake?
-        assertThat(read).isEqualTo(patternSize);
-        // Writing to the buffer will write tot he destination bytes array.
-        assertByteArrayEquals(bytePattern, destinationBytes);
-        // Set the buffer back to the beginning
-        buffer.flip();
-      }
-    }
-    endTime = System.currentTimeMillis();
-    LOG.info("Took {} milliseconds to read {}", (endTime - startTime), repetitions * patternSize);
+    LOG.info(
+        "Took {} milliseconds to write {}", (endTime - startTime), partitionsCount * partitionSize);
+    return partition;
   }
 
   /** Helper for dealing with buckets in GCS integration tests. */
   public static class TestBucketHelper {
-
     private static final int MAX_CLEANUP_BUCKETS = 250;
 
     private static final String DELIMITER = "_";

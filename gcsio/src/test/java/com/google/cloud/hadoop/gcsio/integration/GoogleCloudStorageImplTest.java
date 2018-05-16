@@ -14,6 +14,8 @@
 
 package com.google.cloud.hadoop.gcsio.integration;
 
+import static com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.assertObjectContent;
+import static com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.writeObject;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.assertThrows;
@@ -87,24 +89,32 @@ public class GoogleCloudStorageImplTest {
 
   @Test
   public void testReadAndWriteLargeObjectWithSmallBuffer() throws IOException {
+    GoogleCloudStorageImpl gcs = makeStorageWithBufferSize(1024 * 1024);
+
     String bucketName = BUCKET_HELPER.getUniqueBucketName("write-large-obj");
-    StorageResourceId resourceId = new StorageResourceId(bucketName, "LargeObject");
-
-    GoogleCloudStorageImpl gcs = makeStorageWithBufferSize(1 * 1024 * 1024);
-
     gcs.create(bucketName);
-    GoogleCloudStorageTestHelper.readAndWriteLargeObject(resourceId, gcs);
+
+    StorageResourceId resourceId = new StorageResourceId(bucketName, "LargeObject");
+    int partitionsCount = 64;
+    byte[] partition =
+        writeObject(gcs, resourceId, /* partitionSize= */ 5 * 1024 * 1024, partitionsCount);
+
+    assertObjectContent(gcs, resourceId, partition, partitionsCount);
   }
 
   @Test
   public void testNonAlignedWriteChannelBufferSize() throws IOException {
-    String bucketName = BUCKET_HELPER.getUniqueBucketName("write-3m-buff-obj");
-    StorageResourceId resourceId = new StorageResourceId(bucketName, "LargeObject");
-
     GoogleCloudStorageImpl gcs = makeStorageWithBufferSize(3 * 1024 * 1024);
 
+    String bucketName = BUCKET_HELPER.getUniqueBucketName("write-3m-buff-obj");
     gcs.create(bucketName);
-    GoogleCloudStorageTestHelper.readAndWriteLargeObject(resourceId, gcs);
+
+    StorageResourceId resourceId = new StorageResourceId(bucketName, "Object");
+    int partitionsCount = 64;
+    byte[] partition =
+        writeObject(gcs, resourceId, /* partitionSize= */ 1024 * 1024, partitionsCount);
+
+    assertObjectContent(gcs, resourceId, partition, partitionsCount);
   }
 
   @Test
@@ -145,7 +155,7 @@ public class GoogleCloudStorageImplTest {
     byteChannel1.close();
 
     // Closing byte channel2 should fail:
-    Throwable thrown = assertThrows(Throwable.class, () -> byteChannel2.close());
+    Throwable thrown = assertThrows(Throwable.class, byteChannel2::close);
     assertThat(thrown).hasMessageThat().contains("412 Precondition Failed");
   }
 
@@ -194,10 +204,11 @@ public class GoogleCloudStorageImplTest {
 
   @Test
   public void testCopySingleItemWithRewrite() throws IOException {
-    GoogleCloudStorageOptions.Builder builder =
-        GoogleCloudStorageTestHelper.getStandardOptionBuilder()
-            .setCopyWithRewriteEnabled(true);
-    GoogleCloudStorageImpl gcs = makeStorage(builder.build());
+    GoogleCloudStorageImpl gcs =
+        makeStorage(
+            GoogleCloudStorageTestHelper.getStandardOptionBuilder()
+                .setCopyWithRewriteEnabled(true)
+                .build());
 
     String srcBucketName = BUCKET_HELPER.getUniqueBucketName("copy-with-rewrite-src");
     gcs.create(srcBucketName);
@@ -207,25 +218,18 @@ public class GoogleCloudStorageImplTest {
     // because this is supported by rewrite but not copy requests
     gcs.create(dstBucketName, new CreateBucketOptions(null, "coldline"));
 
-    byte[] bytesToWrite = new byte[500 * 1024 * 1024];
-    GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
-
-    StorageResourceId objectToCreate =
+    StorageResourceId resourceId =
         new StorageResourceId(srcBucketName, "testCopySingleItemWithRewrite_SourceObject");
-    try (WritableByteChannel channel = gcs.create(objectToCreate)) {
-      channel.write(ByteBuffer.wrap(bytesToWrite));
-    }
-
-    GoogleCloudStorageTestHelper.assertObjectContent(gcs, objectToCreate, bytesToWrite);
+    int partitionsCount = 4;
+    byte[] partition =
+        writeObject(gcs, resourceId, /* partitionSize= */ 64 * 1024 * 1024, partitionsCount);
 
     StorageResourceId copiedResourceId =
         new StorageResourceId(dstBucketName, "testCopySingleItemWithRewrite_DestinationObject");
-
-    // Do the copy:
     gcs.copy(
-        srcBucketName, ImmutableList.of(objectToCreate.getObjectName()),
+        srcBucketName, ImmutableList.of(resourceId.getObjectName()),
         dstBucketName, ImmutableList.of(copiedResourceId.getObjectName()));
 
-    GoogleCloudStorageTestHelper.assertObjectContent(gcs, copiedResourceId, bytesToWrite);
+    assertObjectContent(gcs, copiedResourceId, partition, partitionsCount);
   }
 }
