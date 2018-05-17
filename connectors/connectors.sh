@@ -59,3 +59,16 @@ fi
 
 update_connector "bigquery" "$BIGQUERY_CONNECTOR_VERSION"
 update_connector "gcs" "$GCS_CONNECTOR_VERSION"
+
+# Restarts Dataproc Agent after successful initialization
+restart_dataptoc_agent() {
+  while [[ ! -f /var/lib/google/dataproc/has_run_before ]]; do
+    sleep 1
+  done
+  if [[ ! -f /var/lib/google/dataproc/has_failed_before ]]; then
+    service google-dataproc-agent restart
+  fi
+}
+export -f restart_dataptoc_agent
+
+bash -c restart_dataptoc_agent & disown
