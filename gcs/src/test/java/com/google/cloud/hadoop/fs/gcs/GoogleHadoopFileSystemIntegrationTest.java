@@ -330,7 +330,8 @@ public class GoogleHadoopFileSystemIntegrationTest
   @Override
   public void testInvalidCredentialFromAccessTokenProvider()
       throws URISyntaxException, IOException {
-    Configuration config = loadConfig();
+    Configuration config = new Configuration();
+    config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, sharedBucketName1);
     config.set("fs.gs.auth.access.token.provider.impl", TestingAccessTokenProvider.class.getName());
     URI gsUri = new URI("gs://foobar/");
 
