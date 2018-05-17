@@ -4,46 +4,48 @@ This folder contains the initialization action `jupyter.sh` to quickly setup and
 
 Note: This init action uses Conda and Python 3. Python 2 and `pip` uesrs should consider using the [jupyter2 action](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/jupyter2).
 
-A real-world example of how to use this from within a bash script, using the default dataproc-initialization-actions repo/branch:
+## Using this initialization action
 
-```bash
-# Simple one-liner; just use all default settings for your cluster. Jupyter will run on port 8123
-# of your master node.
-gcloud dataproc clusters create my-dataproc-cluster \
-    --initialization-actions \
-        gs://dataproc-initialization-actions/jupyter/jupyter.sh \
-```
+You can use this initialization action to create a new Dataproc cluster with Jupyter installed:
 
-There are various options for customizing your Jupyter installation. For example to change the port
-on which the Jupyter server runs, you can set the metadata key `JUPYTER_PORT`. You may also want
-to change the number of workers and machine type of your cluster:
+1. Use the `gcloud` command to create a new cluster with this initialization action.  The following command will create a new cluster named `<CLUSTER_NAME>`.
 
-```bash
-# Override the Jupyter port with 8124 (default is 8123)
-gcloud dataproc clusters create my-dataproc-cluster \
-    --metadata "JUPYTER_PORT=8124" \
-    --initialization-actions \
-        gs://dataproc-initialization-actions/jupyter/jupyter.sh \
-    --num-workers 2 \
-    --properties spark:spark.executorEnv.PYTHONHASHSEED=0,spark:spark.yarn.am.memory=1024m \
-    --worker-machine-type=n1-standard-4 \
-    --master-machine-type=n1-standard-4
-```
-You can pre-install various Python packages through `conda` by specifying a colon-separated
-list in the metadata entry `JUPYTER_CONDA_PACKAGES`:
+    ```bash
+    # Simple one-liner; just use all default settings for your cluster. Jupyter will run on port 8123
+    # of your master node.
+    gcloud dataproc clusters create my-dataproc-cluster \
+        --initialization-actions \
+            gs://dataproc-initialization-actions/jupyter/jupyter.sh \
+    ```
+
+1. Run `./launch-jupyter-interface` to connect to the Jupyter notebook running on the master node. This creates a SOCKS5 proxy to the master node and launches a Google Chrome window that uses this proxy. Note: you will need to edit the script to point it at the Chrome installation path for your operating system. Alternatively, follow the instructions in [connecting to cluster web interfaces](https://cloud.google.com/dataproc/docs/concepts/cluster-web-interfaces).
+
+### Options
+
+There are various options for customizing your Jupyter installation. These can be provided as metadata keys using `--metadata`.
+
+* `JUPYTER_PORT`=<integer>: Port on which the Jupyter server runs
+* `JUPYTER_CONDA_PACKAGES`=<colon-separated list of strings>: List of Conda packages to install.
+* `INIT_ACTIONS_REPO`=<https url>: Repo to clone to find other scripts to install/configure Conda and Jupyter.
+* `INIT_ACTIONS_BRANCH`=<string>: Branch in `INIT_ACTIONS_REPO` to use.
+
+For example to specify a different port and specify additional packages to install:
 
 ```bash
 gcloud dataproc clusters create my-dataproc-cluster \
     --metadata "JUPYTER_PORT=8124,JUPYTER_CONDA_PACKAGES=numpy:pandas:scikit-learn" \
     --initialization-actions \
         gs://dataproc-initialization-actions/jupyter/jupyter.sh \
-    --num-workers 2 \
     --properties spark:spark.executorEnv.PYTHONHASHSEED=0,spark:spark.yarn.am.memory=1024m \
     --worker-machine-type=n1-standard-4 \
     --master-machine-type=n1-standard-4
 ```
 
-## jupyter.sh
+Notebooks are stored and retrieved from the cluster staging bucket (Google Cloud Storage) at `gs://<staging-bucket>/notebooks/`. By default, clusters in your project in the same region use the same bucket. You can explicitly provide `--bucket=gs://<some-bucket>` to the same value to share notebooks between them.
+
+## Internal details
+
+### jupyter.sh
 
 `jupyter.sh` handles configuring and running Jupyter on the Dataproc master node by doing the following:
 
@@ -63,7 +65,7 @@ gcloud dataproc clusters create my-dataproc-cluster \
 **NOTE**: to be run as an init action.
 
 
-## launch-jupyter-interface.sh
+### launch-jupyter-interface.sh
 
 `launch-jupyter-interface.sh` launches a web interface to connect to Jupyter notebook process running on master node.
 
@@ -72,4 +74,9 @@ gcloud dataproc clusters create my-dataproc-cluster \
 - launch a Chrome instance that uses this ssh tunnel and references the Jupyter port.
 
 **NOTE**: to be run from a local machine
+
+## Important notes
+
+* This initialization action clones this repo at `master` to run other scripts in the repo. If you plan to copy `jupyter.sh` to your own GCS bucket, you will also need to fork this repository and specify the metadata keys `INIT_ACTIONS_REPO` and `INIT_ACTIONS_BRANCH`.
+* This initialization action runs the conda init action, which supports the metadata keys `CONDA_PACKAGES` and `PIP_PACKAGES`. You can also use these to install additional packages.
 
