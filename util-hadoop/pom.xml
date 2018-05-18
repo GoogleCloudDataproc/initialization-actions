@@ -26,6 +26,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
+  <name>util-hadoop-${hadoop.identifier}</name>
+
   <artifactId>util-hadoop</artifactId>
   <version>1.9.0-SNAPSHOT-${hadoop.identifier}</version>
 
@@ -59,12 +61,12 @@
       <dependencies>
         <dependency>
           <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-common</artifactId>
+          <artifactId>hadoop-client-api</artifactId>
         </dependency>
-        <!-- HadoopToStringUtil requires InputSplit -->
         <dependency>
           <groupId>org.apache.hadoop</groupId>
-          <artifactId>hadoop-mapreduce-client-core</artifactId>
+          <artifactId>hadoop-client-runtime</artifactId>
+          <scope>test</scope>
         </dependency>
       </dependencies>
     </profile>

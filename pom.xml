@@ -193,9 +193,15 @@
         <dependencies>
           <dependency>
             <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-common</artifactId>
+            <artifactId>hadoop-client-api</artifactId>
             <version>${hadoop.three.version}</version>
             <scope>provided</scope>
+          </dependency>
+          <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-client-runtime</artifactId>
+            <version>${hadoop.three.version}</version>
+            <scope>test</scope>
           </dependency>
           <dependency>
             <groupId>org.apache.hadoop</groupId>
@@ -203,12 +209,6 @@
             <version>${hadoop.three.version}</version>
             <classifier>tests</classifier>
             <scope>test</scope>
-          </dependency>
-          <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-mapreduce-client-core</artifactId>
-            <version>${hadoop.three.version}</version>
-            <scope>provided</scope>
           </dependency>
         </dependencies>
       </dependencyManagement>
