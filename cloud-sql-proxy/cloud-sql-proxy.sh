@@ -20,11 +20,11 @@ set -euxo pipefail
 
 # Whether to configure the Hive metastore to point to a Cloud SQL database.
 # This is not required for Hive & Spark I/O.
-readonly ENABLE_CLOUD_SQL_METASTORE=1 # 0 -> false
+readonly enable_cloud_sql_metastore="$(/usr/share/google/get_metadata_value attributes/enable-cloud-sql-hive-metastore || echo 'true')"
 
 # Whether to enable the proxy on workers. This is not necessary for the
 # Metastore, but is required for Hive & Spark I/O.
-readonly ENABLE_PROXY_ON_WORKERS=1 # 0 -> false
+readonly enable_proxy_on_workers=$(/usr/share/google/get_metadata_value attributes/enable-cloud-sql-proxy-on-workers || echo 'true')
 
 # MySQL user to use to access metastore.
 readonly HIVE_USER='hive'
@@ -47,7 +47,7 @@ function err() {
 }
 
 function configure_proxy_flags() {
-  if (( ENABLE_CLOUD_SQL_METASTORE )); then
+  if [[ $enable_cloud_sql_metastore = "true" ]]; then
     if [[ -z "${metastore_instance}" ]]; then
       err 'Must specify hive-metastore-instance VM metadata'
     elif ! [[ "${metastore_instance}" =~ .+:.+:.+ ]]; then
@@ -62,7 +62,7 @@ function configure_proxy_flags() {
 
   if [[ -n "${additional_instances}" ]]; then
     # Pass additional instances straight to the proxy.
-    proxy_instances_flags+=" -instances_metadata=${ADDITIONAL_INSTANCES_KEY}"
+    proxy_instances_flags+=" -instances_metadata=instance/${ADDITIONAL_INSTANCES_KEY}"
   fi
 }
 
@@ -99,7 +99,7 @@ EOF
 
   echo 'Cloud SQL Proxy installation succeeded' >&2
 
-  if (( ENABLE_CLOUD_SQL_METASTORE )); then
+  if [[ $enable_cloud_sql_metastore = "true" ]]; then
     # Update hive-site.xml
     cat << EOF > hive-template.xml
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
@@ -161,9 +161,13 @@ EOF
       || err 'Failed to set mysql schema.'
   fi
 
-  # Start metastore back up.
-  systemctl start hive-metastore \
-    || err 'Unable to start hive-metastore service'
+  if ( systemctl is-enabled --quiet hive-metastore ); then
+    # Start metastore back up.
+    systemctl start hive-metastore \
+      || err 'Unable to start hive-metastore service'
+  else
+    echo "Service hive-metastore is not loaded"
+  fi
 
   # Validate it's functioning.
   if ! hive -e 'SHOW TABLES;' >& /dev/null; then
@@ -180,7 +184,6 @@ function main() {
 
   local metastore_instance
   metastore_instance="$(/usr/share/google/get_metadata_value attributes/hive-metastore-instance || true)"
-  #metastore_instance="$(/usr/share/google/get_metadata_value attributes/hive-warehouse-uri || true)"
 
   local additional_instances
   additional_instances="$(/usr/share/google/get_metadata_value ${ADDITIONAL_INSTANCES_KEY} || true)"
@@ -202,7 +205,7 @@ function main() {
   metastore_proxy_port=3306
 
   # Validation
-  if (( ! ENABLE_CLOUD_SQL_METASTORE )) && [[ -z "${additional_instances}" ]]; then
+  if [[ $enable_cloud_sql_metastore != "true" ]] && [[ -z "${additional_instances}" ]]; then
     err 'No Cloud SQL instances to proxy'
   fi
 
@@ -212,19 +215,24 @@ function main() {
 
   if [[ "${role}" == 'Master' ]]; then
     # Disable Hive Metastore and MySql Server.
-    if (( ENABLE_CLOUD_SQL_METASTORE )); then
-      systemctl stop hive-metastore
+    if [[ $enable_cloud_sql_metastore = "true" ]]; then
+      if ( systemctl is-enabled --quiet hive-metastore ); then
+        # Stop hive-metastore if it is enabled
+        systemctl stop hive-metastore
+      else
+        echo "Service hive-metastore is not enabled"
+      fi
       systemctl stop mysql
       systemctl disable mysql
     fi
     install_cloud_sql_proxy
-    if (( ENABLE_CLOUD_SQL_METASTORE )); then
+    if [[ $enable_cloud_sql_metastore = "true" ]]; then
       configure_sql_client
     fi
   else
-    # This part run on workers.
-    # Run installation on workers when ENABLE_PROXY_ON_WORKERS is set.
-    if (( ENABLE_PROXY_ON_WORKERS )); then
+    # This part runs on workers.
+    # Run installation on workers when enable_proxy_on_workers is set.
+    if [[ $enable_proxy_on_workers = "true" ]]; then
       install_cloud_sql_proxy
     fi
   fi

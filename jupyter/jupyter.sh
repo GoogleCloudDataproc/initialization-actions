@@ -1,55 +1,64 @@
-#!/usr/bin/env bash
-set -e
+#!/bin/bash
 
-ROLE=$(curl -f -s -H Metadata-Flavor:Google http://metadata/computeMetadata/v1/instance/attributes/dataproc-role)
-INIT_ACTIONS_REPO=$(curl -f -s -H Metadata-Flavor:Google http://metadata/computeMetadata/v1/instance/attributes/INIT_ACTIONS_REPO || true)
-INIT_ACTIONS_REPO="${INIT_ACTIONS_REPO:-https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git}"
-INIT_ACTIONS_BRANCH=$(curl -f -s -H Metadata-Flavor:Google http://metadata/computeMetadata/v1/instance/attributes/INIT_ACTIONS_BRANCH || true)
-INIT_ACTIONS_BRANCH="${INIT_ACTIONS_BRANCH:-master}"
+# This script installs Jupyter notebook (http://jupyter.org/) on a Google Cloud
+# Dataproc cluster.
+# Jupyter is successor of iPython Notebook
+#
+# This init action depends on init-action for Conda. Git repo and branch for
+# init actions might be overridden by specifying INIT_ACTIONS_REPO and
+# INIT_ACTIONS_BRANCH metadata keys.
+
+set -exo pipefail
+
+readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_REPO \
+  || echo 'https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git')"
+readonly INIT_ACTIONS_BRANCH="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_BRANCH \
+  || echo 'master')"
 
 # Colon-separated list of conda channels to add before installing packages
-JUPYTER_CONDA_CHANNELS=$(curl -f -s -H Metadata-Flavor:Google http://metadata/computeMetadata/v1/instance/attributes/JUPYTER_CONDA_CHANNELS || true)
-# Colon-separated list of conda packages to install, for example 'numpy:pandas'
-JUPYTER_CONDA_PACKAGES=$(curl -f -s -H Metadata-Flavor:Google http://metadata/computeMetadata/v1/instance/attributes/JUPYTER_CONDA_PACKAGES || true)
+readonly JUPYTER_CONDA_CHANNELS="$(/usr/share/google/get_metadata_value attributes/JUPYTER_CONDA_CHANNELS)"
 
-echo "Cloning fresh dataproc-initialization-actions from repo $INIT_ACTIONS_REPO and branch $INIT_ACTIONS_BRANCH..."
-git clone -b "$INIT_ACTIONS_BRANCH" --single-branch $INIT_ACTIONS_REPO
+# Colon-separated list of conda packages to install, for example 'numpy:pandas'
+readonly JUPYTER_CONDA_PACKAGES="$(/usr/share/google/get_metadata_value attributes/JUPYTER_CONDA_PACKAGES)"
+
+echo "Cloning fresh dataproc-initialization-actions from repo ${INIT_ACTIONS_REPO} and branch ${INIT_ACTIONS_BRANCH}..."
+git clone -b "${INIT_ACTIONS_BRANCH}" --single-branch "${INIT_ACTIONS_REPO}"
+
 # Ensure we have conda installed.
 ./dataproc-initialization-actions/conda/bootstrap-conda.sh
 
 source /etc/profile.d/conda.sh
 
 if [ -n "${JUPYTER_CONDA_CHANNELS}" ]; then
-  echo "Adding custom conda channels '$(echo ${JUPYTER_CONDA_CHANNELS} | tr ':' ' ')'"
-  conda config --add channels $(echo ${JUPYTER_CONDA_CHANNELS} | tr ':' ',')
+  echo "Adding custom conda channels '${JUPYTER_CONDA_CHANNELS//:/ }'"
+  conda config --add channels "${JUPYTER_CONDA_CHANNELS//:/,}"
 fi
 
 if [ -n "${JUPYTER_CONDA_PACKAGES}" ]; then
-  echo "Installing custom conda packages '$(echo ${JUPYTER_CONDA_PACKAGES} | tr ':' ' ')'"
-  conda install $(echo ${JUPYTER_CONDA_PACKAGES} | tr ':' ' ')
+  echo "Installing custom conda packages '${JUPYTER_CONDA_PACKAGES/:/ }'"
+  # Do not use quotes so that space separated packages turn into multiple arguments
+  conda install ${JUPYTER_CONDA_PACKAGES//:/ }
 fi
 
 if [[ "${ROLE}" == 'Master' ]]; then
-    conda install jupyter
+  conda install jupyter matplotlib
 
-    # For storing notebooks on GCS. Pin version to make this script hermetic.
-    pip install jgscm==0.1.7
+  # For storing notebooks on GCS. Pin version to make this script hermetic.
+  pip install jgscm==0.1.7
 
-    ./dataproc-initialization-actions/jupyter/internal/setup-jupyter-kernel.sh
-    ./dataproc-initialization-actions/jupyter/internal/launch-jupyter-kernel.sh
+  ./dataproc-initialization-actions/jupyter/internal/setup-jupyter-kernel.sh
+  ./dataproc-initialization-actions/jupyter/internal/launch-jupyter-kernel.sh
 fi
 echo "Completed installing Jupyter!"
 
 # Install Jupyter extensions (if desired)
 # TODO: document this in readme
-if [[ ! -v $INSTALL_JUPYTER_EXT ]]
-    then
-    INSTALL_JUPYTER_EXT=false
+if [[ ! -v "${INSTALL_JUPYTER_EXT}" ]]; then
+  INSTALL_JUPYTER_EXT=false
 fi
-if [[ "$INSTALL_JUPYTER_EXT" = true ]]
-then
-    echo "Installing Jupyter Notebook extensions..."
-    ./dataproc-initialization-actions/jupyter/internal/bootstrap-jupyter-ext.sh
-    echo "Jupyter Notebook extensions installed!"
+if [[ "${INSTALL_JUPYTER_EXT}" = true ]]; then
+  echo "Installing Jupyter Notebook extensions..."
+  ./dataproc-initialization-actions/jupyter/internal/bootstrap-jupyter-ext.sh
+  echo "Jupyter Notebook extensions installed!"
 fi
-
