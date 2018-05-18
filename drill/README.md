@@ -8,29 +8,29 @@ Check the variables set in the script to ensure they're to your liking.
 
 1. Use the `gcloud` command to create a new cluster with Drill installed. Run one of the following commands depending on your desired cluster type.
 
-  Standard cluster (requires Zookeeper init action)
+    Standard cluster (requires Zookeeper init action)
 
-  ```bash
-  gcloud dataproc clusters create <CLUSTER_NAME> \
-      --initialization-actions gs://dataproc-initialization-actions/zookeeper/zookeeper.sh \
-      --initialization-actions gs://dataproc-initialization-actions/drill/drill.sh
-  ```
+    ```bash
+    gcloud dataproc clusters create <CLUSTER_NAME> \
+        --initialization-actions gs://dataproc-initialization-actions/zookeeper/zookeeper.sh \
+        --initialization-actions gs://dataproc-initialization-actions/drill/drill.sh
+    ```
 
-  High availability cluster (Zookeeper comes pre-installed)
+    High availability cluster (Zookeeper comes pre-installed)
 
-  ```bash
-  gcloud dataproc clusters create <CLUSTER_NAME> \
-      --num-masters 3 \
-      --initialization-actions gs://dataproc-initialization-actions/drill/drill.sh
-  ```
+    ```bash
+    gcloud dataproc clusters create <CLUSTER_NAME> \
+        --num-masters 3 \
+        --initialization-actions gs://dataproc-initialization-actions/drill/drill.sh
+    ```
 
-  Single node cluster (Zookeeper is unnecessary)
+    Single node cluster (Zookeeper is unnecessary)
 
-  ```bash
-  gcloud dataproc clusters create <CLUSTER_NAME> \
-      --single-node \
-      --initialization-actions gs://dataproc-initialization-actions/drill/drill.sh
-  ```
+    ```bash
+    gcloud dataproc clusters create <CLUSTER_NAME> \
+        --single-node \
+        --initialization-actions gs://dataproc-initialization-actions/drill/drill.sh
+    ```
 
 1. Once the cluster has been created, Drillbits will start on all nodes. You can log into any node of the cluster to run Drill queries. Drill is installed in `/usr/lib/drill` (unless you change the setting) which contains a `bin` directory with `sqlline`.
 
