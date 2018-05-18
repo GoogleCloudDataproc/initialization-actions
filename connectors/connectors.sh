@@ -62,9 +62,14 @@ update_connector "gcs" "$GCS_CONNECTOR_VERSION"
 
 # Restarts Dataproc Agent after successful initialization
 restart_dataptoc_agent() {
+  # Dataproc Agent should be restarted after initialization,
+  # that's why we need to wait until Dataproc Agent will create
+  # sentinel file that signals that initialization has finished
   while [[ ! -f /var/lib/google/dataproc/has_run_before ]]; do
     sleep 1
   done
+  # If Dataproc Agent didn't create sentinel file that signals
+  # that initialization failed then restart Dataproc Agent
   if [[ ! -f /var/lib/google/dataproc/has_failed_before ]]; then
     service google-dataproc-agent restart
   fi
