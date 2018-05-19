@@ -616,9 +616,7 @@ public class GoogleCloudStorageFileSystem {
    * @throws FileNotFoundException if src does not exist.
    * @throws IOException
    */
-  public void rename(URI src, URI dst)
-      throws IOException {
-
+  public void rename(URI src, URI dst) throws IOException {
     LOG.debug("rename({}, {})", src, dst);
     Preconditions.checkNotNull(src);
     Preconditions.checkNotNull(dst);
@@ -660,8 +658,10 @@ public class GoogleCloudStorageFileSystem {
       throw new IOException("A file cannot be created in root.");
     }
 
-    // Throw if the destination is a file that already exists.
-    if (dstInfo.exists() && !dstInfo.isDirectory()) {
+    // Throw if the destination is a file that already exists and it's not a source file.
+    if (dstInfo.exists()
+        && !dstInfo.isDirectory()
+        && (srcInfo.isDirectory() || !dst.equals(src))) {
       throw new IOException("Cannot overwrite existing file: " + dst);
     }
 
@@ -688,11 +688,24 @@ public class GoogleCloudStorageFileSystem {
         dstInfo = getFileInfo(dst);
       }
 
+      // Throw if renaming directory to self - this is forbidden
+      if (src.equals(dst)) {
+        throw new IOException("Rename dir to self is forbidden");
+      }
+
+      URI dstRelativeToSrc = src.relativize(dst);
+      // Throw if dst URI relative to src is not equal to dst,
+      // because this means that src is a parent directory of dst
+      // and src can not be "renamed" to its subdirectory
+      if (!dstRelativeToSrc.equals(dst)) {
+        throw new IOException("Rename to subdir is forbidden");
+      }
+
       if (dstInfo.exists()) {
         if (dst.equals(GCS_ROOT)) {
           dst = pathCodec.getPath(srcItemName, null, true);
         } else {
-          dst = dst.resolve(srcItemName);
+          dst = FileInfo.convertToDirectoryPath(pathCodec, dst.resolve(srcItemName));
         }
       }
     } else {
@@ -716,6 +729,11 @@ public class GoogleCloudStorageFileSystem {
           dst = dstDir.resolve(srcItemName);
         }
       }
+    }
+
+    // if src and dst are equal then do nothing
+    if (src.equals(dst)) {
+      return;
     }
 
     renameInternal(srcInfo, dst);
@@ -1743,5 +1761,4 @@ public class GoogleCloudStorageFileSystem {
       }
     }
   }
-
 }

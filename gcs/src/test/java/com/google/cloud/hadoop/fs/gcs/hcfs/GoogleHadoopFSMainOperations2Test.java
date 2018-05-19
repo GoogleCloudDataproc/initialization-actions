@@ -75,6 +75,10 @@ public class GoogleHadoopFSMainOperations2Test extends FSMainOperationsBaseTest 
   @Override
   public void testListStatusThrowsExceptionForUnreadableDir() {}
 
+  // Ignore: FS-level permissions are not supported in GCS
+  @Test
+  public void testGlobStatusThrowsExceptionForUnreadableDir() {}
+
   // Ignore: unit tests can not access Local FS
   @Override
   public void testCopyToLocalWithUseRawLocalFileSystemOption() {}
