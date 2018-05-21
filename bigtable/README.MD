@@ -27,10 +27,10 @@ You can use this initialization action to create a Dataproc cluster configured t
     ```bash
     gcloud compute ssh bigtable-m --command 'hdfs dfs -copyFromLocal <FILE_NAME> /tmp/<FILE_NAME>'
     ```
-5. Cluster created with this init action is provided with proper dependencies so you can use jar without dependecies to submit job:
+5. Use the jar with dependecies to submit job:
    
     ```bash
-    gcloud dataproc jobs submit hadoop --cluster <CLUSTER_NAME> --class com.example.bigtable.sample.WordCountDriver --jars target/wordcount-mapreduce-0-SNAPSHOT.jar -- wordcount-hbase /tmp/<FILE_NAME> <HBASE_TABLE>
+    gcloud dataproc jobs submit hadoop --cluster <CLUSTER_NAME> --class com.example.bigtable.sample.WordCountDriver --jars target/wordcount-mapreduce-0-SNAPSHOT-jar-with-dependencies.jar -- wordcount-hbase /tmp/<FILE_NAME> <HBASE_TABLE>
     ```
 
 ## Important notes

@@ -42,17 +42,11 @@ function install_big_table_client() {
       || err 'Unable to install BigTable client libs.'
     ln -s "${HBASE_HOME}/lib/${BIGTABLE_HBASE_CLIENT}" \
       "/usr/lib/hadoop-mapreduce/lib/${BIGTABLE_HBASE_CLIENT}"
-    echo "export PATH=\"${HBASE_HOME}/bin:$PATH\"" >> /etc/profile
 }
 
 function configure_big_table_client() {
 
 #Update classpaths
- cat << 'EOF' >> /etc/hadoop/conf/hadoop-env.sh
-HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:/usr/lib/hbase/*"
-HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:/usr/lib/hbase/lib/*"
-HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:/etc/hbase/conf"
-EOF
   cat << 'EOF' >> /etc/hadoop/conf/mapred-env.sh
 HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:/usr/lib/hbase/*"
 HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:/usr/lib/hbase/lib/*"
