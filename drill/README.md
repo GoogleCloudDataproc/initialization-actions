@@ -38,14 +38,14 @@ You can run the following to get into sqlline, the Drill CLI query tool:
 
 `sudo -u drill /usr/lib/drill/bin/sqlline -u jdbc:drill:`
 
-If you prefer to run drill as your user, set `DRILL_LOG_DIR` to someplace you have permission to write to:
+If you prefer to run drill as your user, set `DRILL_YARN_LOG_DIR` to someplace you have permission to write to:
 
-`DRILL_LOG_DIR=~/logs /usr/lib/drill/bin/sqlline -u jdbc:drill:`
+`DRILL_YARN_LOG_DIR=~/logs /usr/lib/drill/bin/sqlline -u jdbc:drill:`
 
 Once in sqlline, you can see what storage plugins are available. Out of the box, this initialization action supports GCS (gs), HDFS (hdfs), local linux file system (dfs) and Hive (hive):
 
 ```
-$ DRILL_LOG_DIR=~/logs /usr/lib/drill/bin/sqlline -u jdbc:drill:
+$ DRILL_YARN_LOG_DIR=~/logs /usr/lib/drill/bin/sqlline -u jdbc:drill:
 OpenJDK 64-Bit Server VM warning: ignoring option MaxPermSize=512M; support was removed in 8.0
 apache drill 1.9.0
 "just drill it"
