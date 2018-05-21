@@ -258,6 +258,9 @@ function main() {
   cat >> ${DRILL_HOME}/conf/drill-override.conf <<EOF
 drill.exec: { sys.store.provider.zk.blobroot: "${profile_store}" }
 EOF
+  chown -R drill:drill /etc/drill/conf/*
+
+  chmod +rx /etc/drill/conf/*
 
   start_drillbit
   # Clean up
