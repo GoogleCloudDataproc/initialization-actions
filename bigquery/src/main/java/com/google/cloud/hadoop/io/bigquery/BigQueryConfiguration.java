@@ -128,6 +128,12 @@ public class BigQueryConfiguration {
   public static final String OUTPUT_TABLE_SCHEMA_KEY = "mapred.bq.output.table.schema";
 
   /**
+   * Configuration key for the Cloud KMS encryption key that will be used to protect output BigQuery
+   * table. This key is stored as a {@link String}.
+   */
+  public static final String OUTPUT_TABLE_KMS_KEY_NAME_KEY = "mapred.bq.output.table.kmskeyname";
+
+  /**
    * Configuration key for the write disposition of the output table. This specifies the action that
    * occurs if the destination table already exists. This key is stored as a {@link String}.
    */

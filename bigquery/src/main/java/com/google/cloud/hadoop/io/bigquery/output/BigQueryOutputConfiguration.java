@@ -149,6 +149,12 @@ public class BigQueryOutputConfiguration {
     }
   }
 
+  public static void setKmsKeyName(Configuration conf, String kmsKeyName) {
+    Preconditions.checkArgument(
+        !Strings.isNullOrEmpty(kmsKeyName), "kmsKeyName must not be null or empty.");
+    conf.set(BigQueryConfiguration.OUTPUT_TABLE_KMS_KEY_NAME_KEY, kmsKeyName);
+  }
+
   /**
    * Helper function that validates the output configuration. Ensures the project id, dataset id,
    * and table id exist in the configuration. This also ensures that if a schema is provided, that
@@ -245,6 +251,17 @@ public class BigQueryOutputConfiguration {
       }
     }
     return null;
+  }
+
+  /**
+   * Gets the output table KMS key name based on the given configuration.
+   *
+   * @param conf the configuration to reference the keys from.
+   * @return the KMS key name of the output table, null if no KMS key name exists in the
+   *     configuration.
+   */
+  public static String getKmsKeyName(Configuration conf) throws IOException {
+    return conf.get(BigQueryConfiguration.OUTPUT_TABLE_KMS_KEY_NAME_KEY);
   }
 
   /**

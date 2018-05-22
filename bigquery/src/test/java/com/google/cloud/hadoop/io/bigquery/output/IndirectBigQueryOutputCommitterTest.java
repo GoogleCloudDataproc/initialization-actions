@@ -16,6 +16,7 @@ package com.google.cloud.hadoop.io.bigquery.output;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -84,6 +85,10 @@ public class IndirectBigQueryOutputCommitterTest {
                   new TableFieldSchema().setName("Word").setType("STRING"),
                   new TableFieldSchema().setName("Count").setType("INTEGER")));
 
+  /** Sample KMS key name. */
+  private static final String TEST_KMS_KEY_NAME =
+      "projects/domain:project/locations/us-west1/keyRings/ring-1/cryptoKeys/key-1";
+
   /** A sample task ID for the mock TaskAttemptContext. */
   private static final TaskAttemptID TEST_TASK_ATTEMPT_ID =
       new TaskAttemptID(new TaskID("sample_task", 100, false, 200), 1);
@@ -142,6 +147,7 @@ public class IndirectBigQueryOutputCommitterTest {
         TEST_OUTPUT_PATH_STRING,
         TEST_FILE_FORMAT,
         TEST_OUTPUT_CLASS);
+    BigQueryOutputConfiguration.setKmsKeyName(conf, TEST_KMS_KEY_NAME);
 
     // Setup sample data.
     outputTableRef = BigQueryOutputConfiguration.getTableReference(conf);
@@ -195,6 +201,7 @@ public class IndirectBigQueryOutputCommitterTest {
             eq(TEST_PROJECT_ID),
             eq(outputTableRef),
             eq(TEST_TABLE_SCHEMA),
+            eq(TEST_KMS_KEY_NAME),
             eq(TEST_FILE_FORMAT),
             eq(TEST_WRITE_DISPOSITION),
             gcsOutputFileCaptor.capture(),
@@ -224,6 +231,7 @@ public class IndirectBigQueryOutputCommitterTest {
             any(String.class),
             any(TableReference.class),
             any(TableSchema.class),
+            anyString(),
             any(BigQueryFileFormat.class),
             any(String.class),
             any(List.class),
@@ -238,6 +246,7 @@ public class IndirectBigQueryOutputCommitterTest {
             eq(TEST_PROJECT_ID),
             eq(outputTableRef),
             eq(TEST_TABLE_SCHEMA),
+            eq(TEST_KMS_KEY_NAME),
             eq(TEST_FILE_FORMAT),
             eq(TEST_WRITE_DISPOSITION),
             any(List.class), // Tested, no need to capture

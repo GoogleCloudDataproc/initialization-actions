@@ -77,6 +77,10 @@ public class BigQueryHelperTest {
   // Sample projectId for testing - for owning the BigQuery jobs.
   private String jobProjectId = "google.com:foo-project";
 
+  // Sample KMS key name.
+  private final String kmsKeyName =
+      "projects/google.com:foo-project/locations/us-west1/keyRings/ring-1/cryptoKeys/key-1";
+
   // Sample TableReference for BigQuery.
   private TableReference tableRef;
   private String projectId = "google.com:bar-project";
@@ -179,6 +183,7 @@ public class BigQueryHelperTest {
         jobProjectId,
         tableRef,
         fakeTableSchema,
+        kmsKeyName,
         BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
         BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_DEFAULT,
         ImmutableList.of("test-import-path"),

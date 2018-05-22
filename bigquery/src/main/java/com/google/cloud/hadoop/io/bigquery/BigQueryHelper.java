@@ -16,6 +16,7 @@ package com.google.cloud.hadoop.io.bigquery;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Jobs.Insert;
 import com.google.api.services.bigquery.model.Dataset;
+import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.ExternalDataConfiguration;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
@@ -28,6 +29,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
@@ -122,6 +124,7 @@ public class BigQueryHelper {
    * @param projectId the project on whose behalf to perform the load.
    * @param tableRef the reference to the destination table.
    * @param schema the schema of the source data to populate the destination table by.
+   * @param kmsKeyName the Cloud KMS encryption key used to protect the output table.
    * @param sourceFormat the file format of the source data.
    * @param writeDisposition the write disposition of the output table.
    * @param gcsPaths the location of the source data in GCS.
@@ -134,6 +137,7 @@ public class BigQueryHelper {
       String projectId,
       TableReference tableRef,
       @Nullable TableSchema schema,
+      @Nullable String kmsKeyName,
       BigQueryFileFormat sourceFormat,
       String writeDisposition,
       List<String> gcsPaths,
@@ -153,7 +157,10 @@ public class BigQueryHelper {
     loadConfig.setSourceUris(gcsPaths);
     loadConfig.setDestinationTable(tableRef);
     loadConfig.setWriteDisposition(writeDisposition);
-
+    if (!Strings.isNullOrEmpty(kmsKeyName)) {
+      loadConfig.setDestinationEncryptionConfiguration(
+          new EncryptionConfiguration().setKmsKeyName(kmsKeyName));
+    }
     // Auto detect the schema if we're not given one, otherwise use the passed schema.
     if (schema == null) {
       LOG.info("No import schema provided, auto detecting schema.");
