@@ -204,7 +204,7 @@ public class GoogleCloudStorageTestHelper {
       String username = System.getProperty("user.name", "unknown");
       username = username.substring(0, Math.min(username.length(), 10));
       String uuidSuffix = UUID.randomUUID().toString().substring(0, 8);
-      return prefix + DELIMITER + username + DELIMITER + uuidSuffix;
+      return (prefix + DELIMITER + username + DELIMITER + uuidSuffix).replace("-", DELIMITER);
     }
 
     public String getUniqueBucketName(String suffix) {

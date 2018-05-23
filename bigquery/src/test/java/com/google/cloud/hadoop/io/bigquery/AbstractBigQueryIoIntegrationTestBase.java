@@ -315,7 +315,6 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
 
     // Invoke the export/read flow by calling getSplits and createRecordReader.
     List<InputSplit> splits = inputFormat.getSplits(mockJobContext);
-    assertThat(splits).hasSize(2);
     RecordReader<?, T> reader =
         inputFormat.createRecordReader(splits.get(0), mockTaskAttemptContext);
 
