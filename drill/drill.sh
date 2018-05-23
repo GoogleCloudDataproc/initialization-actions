@@ -262,6 +262,8 @@ EOF
 
   chmod +rx /etc/drill/conf/*
 
+  chmod 777 /usr/lib/drill/log/
+
   start_drillbit
   # Clean up
   rm -f /tmp/*_plugin.json
