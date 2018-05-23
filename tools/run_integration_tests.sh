@@ -14,19 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# tools/run_integration_tests.sh (hadoop1 | hadoop2 | hadoop3) <project_id> <clinet id> <client secret> <service_account_email> <path_to_p12>
+# tools/run_integration_tests.sh (hadoop1 | hadoop2 | hadoop3) <project_id> <service_account_email> <path_to_p12>
 
 set -Eeuo pipefail
 
 HADOOP_VERSION=$1
 export GCS_TEST_PROJECT_ID=$2
-export GCS_TEST_CLIENT_ID=$3
-export GCS_TEST_CLIENT_SECRET=$4
-export GCS_TEST_SERVICE_ACCOUNT=$5
-export GCS_TEST_PRIVATE_KEYFILE=$6
+export GCS_TEST_SERVICE_ACCOUNT=$3
+export GCS_TEST_PRIVATE_KEYFILE=$4
 
 print_usage() {
-  echo -n "$0 (hadoop1 | hadoop2 | hadoop3) <project ID> <client ID> <client secret> <service_account_email> <path_to_p12>"
+  echo -n "$0 (hadoop1 | hadoop2 | hadoop3) <project ID> <service_account_email> <path_to_p12>"
 }
 
 check_required_param() {
@@ -42,8 +40,6 @@ check_required_param() {
 check_required_params() {
   check_required_param "$HADOOP_VERSION" "Hadoop version required."
   check_required_param "$GCS_TEST_PROJECT_ID" "Project ID required."
-  check_required_param "$GCS_TEST_CLIENT_ID" "Client ID is required."
-  check_required_param "$GCS_TEST_CLIENT_SECRET" "Client secret is required."
   check_required_param "$GCS_TEST_SERVICE_ACCOUNT" "Service account email is required."
   check_required_param "$GCS_TEST_PRIVATE_KEYFILE" "Private key file is required."
 

@@ -45,11 +45,6 @@ public abstract class GoogleCloudStorageIntegrationHelper {
   // Application name for OAuth.
   static final String APP_NAME = "GCS-test";
 
-  // Name of environment variables from which to get GCS access info.
-  public static final String GCS_TEST_PROJECT_ID = "GCS_TEST_PROJECT_ID";
-  public static final String GCS_TEST_CLIENT_ID = "GCS_TEST_CLIENT_ID";
-  public static final String GCS_TEST_CLIENT_SECRET = "GCS_TEST_CLIENT_SECRET";
-
   // Prefix used for naming test buckets.
   private static final String TEST_BUCKET_NAME_PREFIX = "gcsio-test";
 
