@@ -236,15 +236,6 @@
   <build>
     <plugins>
       <plugin>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <excludes>
-            <exclude>**/*IntegrationTest.java</exclude>
-          </excludes>
-          <reuseForks>false</reuseForks>
-        </configuration>
-      </plugin>
-      <plugin>
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
           <execution>

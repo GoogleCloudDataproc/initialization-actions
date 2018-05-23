@@ -13,54 +13,41 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
+# tools/run_integration_tests.sh (hadoop1 | hadoop2 | hadoop3) <project_id> <clinet id> <client secret> <service_account_email> <path_to_p12>
 
-# tools/run_integration_tests [project_id] [clinet id] [client secret] [service_account_email] [path_to_p12]
+set -Eeuo pipefail
 
-set -o errexit
-set -o nounset
+HADOOP_VERSION=$1
+export GCS_TEST_PROJECT_ID=$2
+export GCS_TEST_CLIENT_ID=$3
+export GCS_TEST_CLIENT_SECRET=$4
+export GCS_TEST_SERVICE_ACCOUNT=$5
+export GCS_TEST_PRIVATE_KEYFILE=$6
 
-export GCS_TEST_PROJECT_ID=$1
-export GCS_TEST_CLIENT_ID=$2
-export GCS_TEST_CLIENT_SECRET=$3
-export GCS_TEST_SERVICE_ACCOUNT=$4
-export GCS_TEST_PRIVATE_KEYFILE=$5
-
-function print_usage() {
-  echo -n "$0 [project ID] [client ID] [client secret] [service_account_email] [path_to_p12]"
+print_usage() {
+  echo -n "$0 (hadoop1 | hadoop2 | hadoop3) <project ID> <client ID> <client secret> <service_account_email> <path_to_p12>"
 }
 
-function check_required_params () {
-  if [ "x" = "x$GCS_TEST_PROJECT_ID" ]; then
-    echo "Project ID required".
+check_required_param() {
+  local value=$1
+  local msg=$2
+  if [[ "x" = "x$value" ]]; then
+    echo "$msg"
     print_usage
     exit 1
   fi
+}
 
-  if [ "x" = "x$GCS_TEST_CLIENT_ID" ]; then
-    echo "Client ID is required"
-    print_usage
-    exit 1
-  fi
+check_required_params() {
+  check_required_param "$HADOOP_VERSION" "Hadoop version required."
+  check_required_param "$GCS_TEST_PROJECT_ID" "Project ID required."
+  check_required_param "$GCS_TEST_CLIENT_ID" "Client ID is required."
+  check_required_param "$GCS_TEST_CLIENT_SECRET" "Client secret is required."
+  check_required_param "$GCS_TEST_SERVICE_ACCOUNT" "Service account email is required."
+  check_required_param "$GCS_TEST_PRIVATE_KEYFILE" "Private key file is required."
 
-  if [ "x" = "x$GCS_TEST_CLIENT_SECRET" ]; then
-    echo "Client secret is required."
-    print_usage
-    exit 1
-  fi
-
-  if [ "x" = "x$GCS_TEST_SERVICE_ACCOUNT" ]; then
-    echo "Service account email is required."
-    print_usage
-    exit 1
-  fi
-
-  if [ "x" = "x$GCS_TEST_PRIVATE_KEYFILE" ]; then
-    echo "Private key file is required."
-    print_usage
-    exit 1
-   fi
-
-  if [ ! -f "$GCS_TEST_PRIVATE_KEYFILE" ]; then
+  if [[ ! -f "$GCS_TEST_PRIVATE_KEYFILE" ]]; then
     echo "Can't find private key file $GCS_TEST_PRIVATE_KEYFILE"
     print_Usage
     exit 1
@@ -81,4 +68,4 @@ if ! which mvn; then
   exit 1
 fi
 
-mvn integration-test
+mvn "-P${HADOOP_VERSION}" -Pintegration-test clean test

@@ -34,6 +34,28 @@
   <artifactId>gcsio</artifactId>
   <version>1.9.0-SNAPSHOT</version>
 
+  <profiles>
+    <profile>
+      <id>integration-test</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <excludes>
+                <exclude>none</exclude>
+              </excludes>
+              <includes>
+                <include>**/*IntegrationTest.java</include>
+                <include>**/GoogleCloudStorageImplTest.java</include>
+              </includes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+
   <dependencies>
     <dependency>
       <groupId>com.google.api-client</groupId>
@@ -118,7 +140,6 @@
             <exclude>**/*IntegrationTest.java</exclude>
             <exclude>**/GoogleCloudStorageImplTest.java</exclude>
           </excludes>
-          <reuseForks>false</reuseForks>
         </configuration>
       </plugin>
     </plugins>

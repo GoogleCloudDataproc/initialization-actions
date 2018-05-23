@@ -134,35 +134,17 @@
 
     <profile>
       <id>integration-test</id>
-      <activation>
-        <property>
-          <name>env.RUN_INTEGRATION_TESTS</name>
-        </property>
-      </activation>
       <build>
         <plugins>
           <plugin>
             <artifactId>maven-surefire-plugin</artifactId>
-            <executions>
-              <execution>
-                <id>integration-test</id>
-                <goals>
-                  <goal>test</goal>
-                </goals>
-                <phase>integration-test</phase>
-                <configuration>
-                  <excludes>
-                    <exclude>none</exclude>
-                  </excludes>
-                  <includes>
-                    <include>**/fs/gcs/GoogleHadoopFileSystemIntegrationTest.java</include>
-                    <include>**/fs/gcs/LocalFileSystemIntegrationTest.java</include>
-                  </includes>
-                  <reuseForks>false</reuseForks>
-                  <forkCount>3</forkCount>
-                </configuration>
-              </execution>
-            </executions>
+            <configuration>
+              <excludes>
+                <exclude>**/HadoopFileSystemIntegrationTest.java</exclude>
+                <exclude>**/LocalFileSystemIntegrationTest.java</exclude>
+                <exclude>**/WebHdfsIntegrationTest.java</exclude>
+              </excludes>
+            </configuration>
           </plugin>
         </plugins>
       </build>
@@ -279,16 +261,6 @@
             </configuration>
           </execution>
         </executions>
-      </plugin>
-      <plugin>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <configuration>
-          <excludes>
-            <exclude>**/*IntegrationTest.java</exclude>
-            <exclude>**/GoogleCloudStorageImplTest.java</exclude>
-          </excludes>
-          <reuseForks>false</reuseForks>
-        </configuration>
       </plugin>
       <plugin>
         <artifactId>maven-shade-plugin</artifactId>
