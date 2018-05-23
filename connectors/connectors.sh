@@ -61,7 +61,7 @@ update_connector "bigquery" "$BIGQUERY_CONNECTOR_VERSION"
 update_connector "gcs" "$GCS_CONNECTOR_VERSION"
 
 # Restarts Dataproc Agent after successful initialization
-# WARNING: this function relies on undocumened and not officially supported Dataproc Agent
+# WARNING: this function relies on undocumented and not officially supported Dataproc Agent
 # "sentinel" files to determine successful Agent initialization and not guaranteed
 # to work in the future. Use at your own risk!
 restart_dataptoc_agent() {
