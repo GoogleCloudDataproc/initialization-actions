@@ -14,12 +14,14 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions.TimestampUpdatePredicate;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
+import com.google.cloud.hadoop.testing.TestingAccessTokenProvider;
 import com.google.cloud.hadoop.util.HadoopVersionInfo;
 import com.google.common.base.Strings;
 import java.io.File;
@@ -125,9 +127,6 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
   public abstract void testConfigureBucketsSuccess()
       throws URISyntaxException, IOException;
 
-  @Test
-  public abstract void testInvalidCredentialFromAccessTokenProvider()
-      throws URISyntaxException, IOException;
   // -----------------------------------------------------------------------------------------
   // Tests that aren't supported by all configurations of GHFS.
   // -----------------------------------------------------------------------------------------
@@ -650,5 +649,19 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     Assert.assertFalse(
         "Should be ignored",
         predicate.shouldUpdateTimestamp(new URI("/")));
+  }
+
+  @Test
+  public void testInvalidCredentialFromAccessTokenProvider()
+      throws URISyntaxException, IOException {
+    Configuration config = new Configuration();
+    config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, sharedBucketName1);
+    config.set("fs.gs.auth.access.token.provider.impl", TestingAccessTokenProvider.class.getName());
+    URI gsUri = new URI("gs://foobar/");
+
+    IOException thrown =
+        assertThrows(
+            IOException.class, () -> new GoogleHadoopFileSystem().initialize(gsUri, config));
+    assertThat(thrown).hasCauseThat().hasMessageThat().contains("Invalid Credentials");
   }
 }

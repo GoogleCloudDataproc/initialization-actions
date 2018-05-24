@@ -24,7 +24,6 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
-import com.google.cloud.hadoop.testing.TestingAccessTokenProvider;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -324,21 +323,6 @@ public class GoogleHadoopFileSystemIntegrationTest
             IllegalStateException.class,
             () -> new GoogleHadoopFileSystem().initialize(gsUri, config));
     assertThat(thrown).hasMessageThat().contains("No valid credential configuration discovered");
-  }
-
-  @Test
-  @Override
-  public void testInvalidCredentialFromAccessTokenProvider()
-      throws URISyntaxException, IOException {
-    Configuration config = new Configuration();
-    config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, sharedBucketName1);
-    config.set("fs.gs.auth.access.token.provider.impl", TestingAccessTokenProvider.class.getName());
-    URI gsUri = new URI("gs://foobar/");
-
-    IOException thrown =
-        assertThrows(
-            IOException.class, () -> new GoogleHadoopFileSystem().initialize(gsUri, config));
-    assertThat(thrown).hasCauseThat().hasMessageThat().contains("Invalid Credentials");
   }
 
   /**
