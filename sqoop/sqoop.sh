@@ -23,8 +23,6 @@ set -euxo pipefail
 
 readonly SQOOP_HOME='/usr/lib/sqoop'
 readonly SQOOP_CODE_LINK='https://github.com/apache/sqoop'
-readonly BIGTABLE_HBASE_CLIENT='bigtable-hbase-1.x-hadoop-1.3.0.jar'
-readonly HBASE_BIGTABLE_DL_LINK="http://central.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-1.x-hadoop/1.3.0/${BIGTABLE_HBASE_CLIENT}"
 
 function update_apt_get() {
   for ((i = 0; i < 10; i++)); do
@@ -47,14 +45,6 @@ function install_sqoop() {
   echo "export PATH=\"${SQOOP_HOME}/bin:$PATH\"" >> /etc/profile
 }
 
-function install_sqoop_connectors() {
-  # Using Sqoop with BigTable requires cloud-bigtable-client jar to be present.
-  wget -q "${HBASE_BIGTABLE_DL_LINK}" -O "${SQOOP_HOME}/lib/${BIGTABLE_HBASE_CLIENT}" \
-    || err 'Unable to install BigTable connector libs.'
-
-  # Adding more Sqoop connectors requires to put them to "${SQOOP_HOME}/lib/" directory.
-}
-
 function main() {
   local role
   role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
@@ -65,7 +55,6 @@ function main() {
   # Only run the installation on Masters
   if [[ "${role}" == 'Master' ]]; then
     install_sqoop
-    install_sqoop_connectors
   fi
 
 }
