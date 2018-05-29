@@ -126,7 +126,7 @@ Google Cloud's key management service. You will only need to encrypt and provide
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-    --scopes sql-admin \
+    --scopes cloud-platform \
     --initialization-actions gs://<INIT_ACTION_BUCKET>/cloud-sql-proxy.sh \
     --properties hive:hive.metastore.warehouse.dir=gs://<HIVE_DATA_BUCKET>/hive-warehouse \
     --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>" \
@@ -139,7 +139,7 @@ Google Cloud's key management service. You will only need to encrypt and provide
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-        --scopes sql-admin \
+        --scopes cloud-platform \
         --initialization-actions gs://<INIT_ACTION_BUCKET>/cloud-sql-proxy.sh \
         --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>" \
         --metadata "kms-key-uri=projects/<PROJECT_ID>/locations/global/keyRings/my-key-ring/cryptoKeys/my-key" \
