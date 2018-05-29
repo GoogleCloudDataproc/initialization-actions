@@ -12,6 +12,7 @@ You can use this initialization action to create a new Dataproc cluster with RSt
         --initialization-actions \
             gs://dataproc-initialization-actions/rstudio/rstudio.sh
     ```
+
 1. Once the cluster has been created, RStudio Server is configured to run on port `8787` on the master node in a Dataproc cluster. To connect to the Rtudio Server web interface, you will need to create an SSH tunnel and use a SOCKS 5 Proxy as described in the [dataproc web interfaces](https://cloud.google.com/dataproc/cluster-web-interfaces) documentation.
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).

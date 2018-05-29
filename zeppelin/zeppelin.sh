@@ -64,14 +64,26 @@ function install_zeppelin(){
 }
 
 function configure_zeppelin(){
-  # Ideally we would use Zeppelin's REST API, but it is difficult, especially
-  # between versions. So sed the JSON file.
+  local zeppelin_version;
+  zeppelin_version="$(dpkg-query --showformat='${Version}' --show zeppelin)"
 
-  # Set spark.yarn.isPython to fix Zeppelin pyspark in Dataproc 1.0.
-  sed -i 's/\(\s*\)"spark\.app\.name[^,}]*/&,\n\1"spark.yarn.isPython": "true"/' \
-    "${INTERPRETER_FILE}"
-  # Unset Spark Executor memory to let the spark-defaults.conf set it.
-  sed -i '/spark\.executor\.memory/d' "${INTERPRETER_FILE}"
+  # Only use sed to modify interpreter.json prior to Zeppelin 0.8.0.
+  # The file format has changed in 0.8.0.
+  # TODO(karthikpal): Evaluate which of these (if any) are necessary >= 0.8.0
+  if dpkg --compare-versions "${zeppelin_version}" '<' 0.8.0; then
+    # Set spark.yarn.isPython to fix Zeppelin pyspark in Dataproc 1.0.
+    sed -i 's/\(\s*\)"spark\.app\.name[^,}]*/&,\n\1"spark.yarn.isPython": "true"/' \
+      "${INTERPRETER_FILE}"
+
+    # Unset Spark Executor memory to let the spark-defaults.conf set it.
+    sed -i '/spark\.executor\.memory/d' "${INTERPRETER_FILE}"
+
+    # Set BigQuery project ID if present.
+    local project_id;
+    project_id="$(/usr/share/google/get_metadata_value ../project/project-id)"
+    sed -i "s/\(\"zeppelin.bigquery.project_id\"\)[^,}]*/\1: \"${project_id}\"/" \
+      "${INTERPRETER_FILE}"
+  fi
 
   # Link in hive configuration.
   ln -s /etc/hive/conf/hive-site.xml /etc/zeppelin/conf
@@ -89,17 +101,8 @@ function configure_zeppelin(){
   easy_install pip
   pip install --upgrade matplotlib
 
-  # Install R libraries and configure BigQuery for Zeppelin 0.6.1+
-  local zeppelin_version;
-  zeppelin_version="$(dpkg-query --showformat='${Version}' --show zeppelin)"
+  # Install R libraries for Zeppelin 0.6.1+
   if dpkg --compare-versions "${zeppelin_version}" '>=' 0.6.1; then
-    # Set BigQuery project ID if present.
-
-    local project_id;
-    project_id="$(/usr/share/google/get_metadata_value ../project/project-id)"
-    sed -i "s/\(\"zeppelin.bigquery.project_id\"\)[^,}]*/\1: \"${project_id}\"/" \
-      "${INTERPRETER_FILE}"
-
     # TODO(pmkc): Add googlevis to Zeppelin Package recommendations
     apt-get install -y r-cran-googlevis
 

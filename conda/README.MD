@@ -3,11 +3,13 @@
 ## Overview
 
 This folder contains initialization actions for use Miniconda / conda, who can be introduced as:
- 
+
 - [Minconda](http://conda.pydata.org/miniconda.html), a barebones version of [Anaconda](https://www.continuum.io/why-anaconda) of an open source (and totally legit) Python distro from Continuum Analytics, alongside,
 - [conda](http://conda.pydata.org/docs/), an open source (and amazing) package and environment management system.
 
 This allows Dataproc users to quickly and easily provision a Dataproc cluster leveraging conda's powerful management capabilities, by specifying a list of conda and / or pip packages along with use of [conda environment definitions](https://github.com/conda/conda-env#environment-file-example). All configuration is exposed via environment variables set to sane point-and-shoot defaults.
+
+## Using this initialization action
 
 ### Just install and configure conda environment
 
@@ -68,15 +70,14 @@ gsutil -m cp -r gs://dataproc-initialization-actions/conda/install-conda-env.sh 
 
 chmod 755 ./*conda*.sh
 
-# Install Miniconda / conda                                                                                   
+# Install Miniconda / conda
 ./bootstrap-conda.sh
-# Create / Update conda environment via conda yaml                                                            
+# Create / Update conda environment via conda yaml
 CONDA_ENV_YAML=$CONDA_ENV_YAML_PATH ./install-conda-env.sh
 
 ```
 
-
-## Details 
+## Internal details
 
 ### bootstrap-conda.sh
 
@@ -91,7 +92,7 @@ In addition, the script:
 - installs some useful extensions:
     - [`conda-build`](https://github.com/conda/conda-build)
     - [`anaconda-client`](https://github.com/Anaconda-Server/anaconda-client)
-    
+
 See the script source for more options on configuration. :)
 
 ### install-conda-env.sh

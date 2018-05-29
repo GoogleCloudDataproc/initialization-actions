@@ -31,6 +31,7 @@ accept your pull requests.
    [Google Cloud Platform Samples Style Guide]
    (https://github.com/GoogleCloudPlatform/Template/wiki/style.html) for the
    recommended coding standards for this organization.
+   1. Shell scripts should follow the [Google shell style guide](https://google.github.io/styleguide/shell.xml)
 1. Ensure that your code has an appropriate set of unit tests which all pass.
 1. Submit a pull request.
 

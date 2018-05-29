@@ -38,7 +38,7 @@ NODE_NUMBER=1
 if [[ "${ROLE}" == 'Worker' ]]; then
 	NODE_NUMBER=$((`hostname | sed 's/.*-w-\([0-9]\)*.*/\1/g'`+2))
 fi
-echo ${NODE_NUMBER} > /var/lib/zookeeper/myid
+echo ${NODE_NUMBER} >| /var/lib/zookeeper/myid
 
 # Write ZooKeeper configuration file
 cat > /etc/zookeeper/conf/zoo.cfg <<EOF
