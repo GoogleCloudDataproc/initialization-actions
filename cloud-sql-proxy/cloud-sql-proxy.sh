@@ -16,7 +16,9 @@
 # This init script installs a cloud-sql-proxy on each node in the cluster, and
 # uses that proxy to expose TCP proxies of one or more CloudSQL instances.
 # One of these instances is used for the clusters Hive Metastore.
-set -euxo pipefail
+
+# Do not use "set -x" to avoid printing passwords in clear in the logs
+set -euo pipefail
 
 # Whether to configure the Hive metastore to point to a Cloud SQL database.
 # This is not required for Hive & Spark I/O.
@@ -24,17 +26,50 @@ readonly enable_cloud_sql_metastore="$(/usr/share/google/get_metadata_value attr
 
 # Whether to enable the proxy on workers. This is not necessary for the
 # Metastore, but is required for Hive & Spark I/O.
-readonly enable_proxy_on_workers=$(/usr/share/google/get_metadata_value attributes/enable-cloud-sql-proxy-on-workers || echo 'true')
+readonly enable_proxy_on_workers="$(/usr/share/google/get_metadata_value attributes/enable-cloud-sql-proxy-on-workers || echo 'true')"
 
-# MySQL user to use to access metastore.
-readonly HIVE_USER='hive'
+# Database user to use to access metastore.
+readonly db_hive_user="$(/usr/share/google/get_metadata_value attributes/db-hive-user || echo 'hive')"
 
-# MySQL password to use to access metastore.
-readonly HIVE_USER_PASSWORD='hive-password'
+readonly db_admin_user="$(/usr/share/google/get_metadata_value attributes/db-admin-user || echo 'root')"
 
-# MySQL root password used to initialize metastore.
-# Empty is the default for new CloudSQL instances.
-readonly MYSQL_ROOT_PASSWORD=''
+readonly kms_key_uri="$(/usr/share/google/get_metadata_value attributes/kms-key-uri)"
+
+# Database admin user password used to create the metastore database and user.
+readonly db_admin_password_uri="$(/usr/share/google/get_metadata_value attributes/db-admin-password-uri)"
+if [[ -n "${db_admin_password_uri}" ]]; then
+  # Decrypt password
+  readonly db_admin_password="$(gsutil cat $db_admin_password_uri | \
+    gcloud kms decrypt \
+    --ciphertext-file - \
+    --plaintext-file - \
+    --key $kms_key_uri)"
+else
+  readonly db_admin_password=''
+fi
+if [ "${db_admin_password}" == "" ]; then
+    readonly db_admin_password_parameter=""
+else
+    readonly db_admin_password_parameter="-p${db_admin_password}"
+fi
+
+# Database password to use to access metastore.
+readonly db_hive_password_uri="$(/usr/share/google/get_metadata_value attributes/db-hive-password-uri)"
+if [[ -n "${db_hive_password_uri}" ]]; then
+  # Decrypt password
+  readonly db_hive_password="$(gsutil cat $db_hive_password_uri | \
+    gcloud kms decrypt \
+    --ciphertext-file - \
+    --plaintext-file - \
+    --key $kms_key_uri)"
+else
+  readonly db_hive_password='hive-password'
+fi
+if [ "${db_hive_password}" == "" ]; then
+    readonly db_hive_password_parameter=""
+else
+    readonly db_hive_password_parameter="-p${db_hive_password}"
+fi
 
 readonly PROXY_DIR='/var/run/cloud_sql_proxy'
 readonly PROXY_BIN='/usr/local/bin/cloud_sql_proxy'
@@ -111,11 +146,11 @@ EOF
   </property>
   <property>
     <name>javax.jdo.option.ConnectionUserName</name>
-    <value>${HIVE_USER}</value>
+    <value>${db_hive_user}</value>
   </property>
   <property>
     <name>javax.jdo.option.ConnectionPassword</name>
-    <value>${HIVE_USER_PASSWORD}</value>
+    <value>${db_hive_password}</value>
   </property>
 </configuration>
 EOF
@@ -129,23 +164,21 @@ fi
 
 
 function configure_sql_client(){
-  # Configure mysql client to talk to metastore as root.
+  # Configure mysql client to talk to metastore
   cat << EOF > /etc/mysql/conf.d/cloud-sql-proxy.cnf
 [client]
 protocol = tcp
 port = ${metastore_proxy_port}
-user = root
-password = ${MYSQL_ROOT_PASSWORD}
 EOF
 
   # Check if metastore is initialized.
-  if ! mysql -u "${HIVE_USER}" -p"${HIVE_USER_PASSWORD}" -e ''; then
-    mysql -e \
-      "CREATE USER '${HIVE_USER}' IDENTIFIED BY '${HIVE_USER_PASSWORD}';"
+  if ! mysql -u "${db_hive_user}" "${db_hive_password_parameter}" -e ''; then
+    mysql -u "${db_admin_user}" "${db_admin_password_parameter}" -e \
+      "CREATE USER '${db_hive_user}' IDENTIFIED BY '${db_hive_password}';"
   fi
-  if mysql -e "use ${metastore_db}"; then
+  if mysql -u "${db_hive_user}" "${db_hive_password_parameter}" -e "use ${metastore_db}"; then
     # Extract the warehouse URI.
-    HIVE_WAREHOURSE_URI=$(mysql -Nse \
+    HIVE_WAREHOURSE_URI=$(mysql -u "${db_hive_user}" "${db_hive_password_parameter}" -Nse \
       "SELECT DB_LOCATION_URI FROM ${metastore_db}.DBS WHERE NAME = 'default';")
     bdconfig set_property \
       --name 'hive.metastore.warehouse.dir' \
@@ -154,9 +187,9 @@ EOF
       --clobber
   else
     # Initialize database with current warehouse URI.
-    mysql -e \
+    mysql -u "${db_admin_user}" "${db_admin_password_parameter}" -e \
       "CREATE DATABASE ${metastore_db}; \
-      GRANT ALL PRIVILEGES ON ${metastore_db}.* TO '${HIVE_USER}';"
+       GRANT ALL PRIVILEGES ON ${metastore_db}.* TO '${db_hive_user}';"
     /usr/lib/hive/bin/schematool -dbType mysql -initSchema \
       || err 'Failed to set mysql schema.'
   fi
@@ -202,7 +235,7 @@ function main() {
   metastore_db="${metastore_db:-hive_metastore}"
 
   local metastore_proxy_port
-  metastore_proxy_port=3306
+  metastore_proxy_port="$(/usr/share/google/get_metadata_value attributes/metastore-proxy-port || echo '3306')"
 
   # Validation
   if [[ $enable_cloud_sql_metastore != "true" ]] && [[ -z "${additional_instances}" ]]; then
