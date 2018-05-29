@@ -15,14 +15,12 @@ You can use this initialization action to create a Dataproc cluster using a shar
     ```
     a. Optionally create (or already have) other 2nd generation instances, which you wish to be accessible.
 
-2. Uploading a copy of this initialization action (`cloud-sql-proxy.sh`) to [Google Cloud Storage](https://cloud.google.com/storage).
-
-3. Using the `gcloud` command to create a new cluster with this initialization action.
+1. Using the `gcloud` command to create a new cluster with this initialization action.
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
     --scopes sql-admin \
-    --initialization-actions gs://<INIT_ACTION_BUCKET>/cloud-sql-proxy.sh \
+    --initialization-actions gs://dataproc-initialization-actions/cloud-sql-proxy/cloud-sql-proxy.sh \
     --properties hive:hive.metastore.warehouse.dir=gs://<HIVE_DATA_BUCKET>/hive-warehouse \
     --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>"
     ```
@@ -32,21 +30,21 @@ You can use this initialization action to create a Dataproc cluster using a shar
     --metadata "additional-cloud-sql-instances=<PROJECT_ID>:<REGION>:<ANOTHER_INSTANCE_NAME>=tcp<PORT_#>[,...]"
     ```
 
-4. Submit pyspark_metastore_test.py to the cluster to validate the metatstore and SQL proxies.
+1. Submit pyspark_metastore_test.py to the cluster to validate the metatstore and SQL proxies.
     ```bash
     gcloud dataproc jobs submit pyspark --cluster <CLUSTER_NAME> pyspark_metastore_test.py
     ```
     a. You can test connections to your other instance(s) using the url `"jdbc:mysql//localhost:<PORT_#>?user=root"`
 
-5. Create another dataproc cluster with the same Cloud SQL metastore.
+1. Create another dataproc cluster with the same Cloud SQL metastore.
     ```bash
     gcloud dataproc clusters create <ANOTHER_CLUSTER_NAME> \
     --scopes sql-admin \
-    --initialization-actions gs://<INIT_ACTION_BUCKET>/cloud-sql-proxy.sh \
+    --initialization-actions gs://dataproc-initialization-actions/cloud-sql-proxy/cloud-sql-proxy.sh \
     --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>"
     ```
 
-6. The two clusters should now be sharing Hive Tables and Spark SQL Dataframes saved as tables.
+1. The two clusters should now be sharing Hive Tables and Spark SQL Dataframes saved as tables.
 
 ## Important notes for Hive metastore
 
@@ -61,7 +59,7 @@ The initialization action can also be configured to install proxies without chan
 ```bash
 gcloud dataproc clusters create <CLUSTER_NAME> \
     --scopes sql-admin \
-    --initialization-actions gs://<INIT_ACTION_BUCKET>/cloud-sql-proxy.sh \
+    --initialization-actions gs://dataproc-initialization-actions/cloud-sql-proxy/cloud-sql-proxy.sh \
     --metadata "enable-cloud-sql-hive-metastore=false"
     --metadata "additional-cloud-sql-instances=<PROJECT_ID>:<REGION>:<ANOTHER_INSTANCE_NAME>
 ```
