@@ -1,10 +1,9 @@
-# Jupyter Notebook
+# Jupyter Notebook / Jupyterlab
 
 This folder contains the initialization action `jupyter.sh` to quickly setup and launch [Jupyter Notebook](http://jupyter.org/), (the successor of IPython notebook) and a script to be run on the user's local machine to access the Jupyter notebook server.
 This folder contains the initialization action `jupyter.sh` to quickly setup and launch [Jupyter Notebook](http://jupyter-notebook.readthedocs.io/en/stable/) and [Jupyterlab](https://jupyterlab.readthedocs.io/en/stable/getting_started/overview.html). It also contains a script to be run on your local machine to access the Jupyter UI.
 
 Note: This init action uses Conda and Python 3. Python 2 and `pip` uesrs should consider using the [jupyter2 action](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/jupyter2).
-
 
 ## Using this initialization action
 
