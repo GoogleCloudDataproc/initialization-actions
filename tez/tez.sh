@@ -97,7 +97,7 @@ function configure_master_node() {
     --clobber
   bdconfig set_property \
     --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
-    --name 'yarn.timeline-service.ui-web-path.tez' --value '/tez' \
+    --name 'yarn.timeline-service.ui-web-path.tez' --value '/tez-ui' \
     --clobber
   bdconfig set_property \
     --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
@@ -112,7 +112,7 @@ function configure_master_node() {
     --clobber
   bdconfig set_property \
     --configuration_file "${TEZ_CONF_DIR}/tez-site.xml" \
-    --name 'tez.tez-ui.history-url.base' --value "http://${HOSTNAME}:9999/tez-ui/" \
+    --name 'tez.tez-ui.history-url.base' --value "http://${HOSTNAME}:8188/tez-ui/" \
     --clobber
 
   # Update hive to use tez as execution engine
