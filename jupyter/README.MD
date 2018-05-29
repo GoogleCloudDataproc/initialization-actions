@@ -1,7 +1,6 @@
-# Jupyter Notebook / Jupyterlab
+# Jupyter Notebook
 
 This folder contains the initialization action `jupyter.sh` to quickly setup and launch [Jupyter Notebook](http://jupyter.org/), (the successor of IPython notebook) and a script to be run on the user's local machine to access the Jupyter notebook server.
-This folder contains the initialization action `jupyter.sh` to quickly setup and launch [Jupyter Notebook](http://jupyter-notebook.readthedocs.io/en/stable/) and [Jupyterlab](https://jupyterlab.readthedocs.io/en/stable/getting_started/overview.html). It also contains a script to be run on your local machine to access the Jupyter UI.
 
 Note: This init action uses Conda and Python 3. Python 2 and `pip` uesrs should consider using the [jupyter2 action](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/jupyter2).
 
@@ -44,10 +43,6 @@ gcloud dataproc clusters create my-dataproc-cluster \
 
 Notebooks are stored and retrieved from the cluster staging bucket (Google Cloud Storage) at `gs://<staging-bucket>/notebooks/`. By default, clusters in your project in the same region use the same bucket. You can explicitly provide `--bucket=gs://<some-bucket>` to the same value to share notebooks between them.
 
-## Using Jupyterlab
-
-Navigate to `http://clustername-m:8123/lab` (note the added `/lab`).
-
 ## Internal details
 
 ### jupyter.sh
@@ -84,3 +79,4 @@ Navigate to `http://clustername-m:8123/lab` (note the added `/lab`).
 
 * This initialization action clones this repo at `master` to run other scripts in the repo. If you plan to copy `jupyter.sh` to your own GCS bucket, you will also need to fork this repository and specify the metadata keys `INIT_ACTIONS_REPO` and `INIT_ACTIONS_BRANCH`.
 * This initialization action runs the conda init action, which supports the metadata keys `CONDA_PACKAGES` and `PIP_PACKAGES`. You can also use these to install additional packages.
+
