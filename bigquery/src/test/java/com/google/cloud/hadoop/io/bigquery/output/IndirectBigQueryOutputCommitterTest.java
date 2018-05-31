@@ -78,12 +78,13 @@ public class IndirectBigQueryOutputCommitterTest {
   private static final Class<? extends FileOutputFormat> TEST_OUTPUT_CLASS = TextOutputFormat.class;
 
   /** Sample table schema used for output. */
-  private static final TableSchema TEST_TABLE_SCHEMA =
-      new TableSchema()
-          .setFields(
-              ImmutableList.of(
-                  new TableFieldSchema().setName("Word").setType("STRING"),
-                  new TableFieldSchema().setName("Count").setType("INTEGER")));
+  private static final BigQueryTableSchema TEST_TABLE_SCHEMA =
+      BigQueryTableSchema.wrap(
+          new TableSchema()
+              .setFields(
+                  ImmutableList.of(
+                      new TableFieldSchema().setName("Word").setType("STRING"),
+                      new TableFieldSchema().setName("Count").setType("INTEGER"))));
 
   /** Sample KMS key name. */
   private static final String TEST_KMS_KEY_NAME =
@@ -200,7 +201,7 @@ public class IndirectBigQueryOutputCommitterTest {
         .importFromGcs(
             eq(TEST_PROJECT_ID),
             eq(outputTableRef),
-            eq(TEST_TABLE_SCHEMA),
+            eq(TEST_TABLE_SCHEMA.get()),
             eq(TEST_KMS_KEY_NAME),
             eq(TEST_FILE_FORMAT),
             eq(TEST_WRITE_DISPOSITION),
@@ -245,7 +246,7 @@ public class IndirectBigQueryOutputCommitterTest {
         .importFromGcs(
             eq(TEST_PROJECT_ID),
             eq(outputTableRef),
-            eq(TEST_TABLE_SCHEMA),
+            eq(TEST_TABLE_SCHEMA.get()),
             eq(TEST_KMS_KEY_NAME),
             eq(TEST_FILE_FORMAT),
             eq(TEST_WRITE_DISPOSITION),

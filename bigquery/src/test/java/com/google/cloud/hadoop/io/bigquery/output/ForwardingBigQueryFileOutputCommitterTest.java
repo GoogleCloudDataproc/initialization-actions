@@ -69,12 +69,13 @@ public class ForwardingBigQueryFileOutputCommitterTest {
   private static final Class<? extends FileOutputFormat> TEST_OUTPUT_CLASS = TextOutputFormat.class;
 
   /** Sample table schema used for output. */
-  private static final TableSchema TEST_TABLE_SCHEMA =
-      new TableSchema()
-          .setFields(
-              ImmutableList.of(
-                  new TableFieldSchema().setName("Word").setType("STRING"),
-                  new TableFieldSchema().setName("Count").setType("INTEGER")));
+  private static final BigQueryTableSchema TEST_TABLE_SCHEMA =
+      BigQueryTableSchema.wrap(
+          new TableSchema()
+              .setFields(
+                  ImmutableList.of(
+                      new TableFieldSchema().setName("Word").setType("STRING"),
+                      new TableFieldSchema().setName("Count").setType("INTEGER"))));
 
   /** Sample task ID for the mock TaskAttemptContext. */
   private static final TaskAttemptID TEST_TASK_ATTEMPT_ID =

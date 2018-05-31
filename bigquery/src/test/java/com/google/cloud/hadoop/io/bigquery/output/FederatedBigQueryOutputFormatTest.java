@@ -110,7 +110,7 @@ public class FederatedBigQueryOutputFormatTest {
         TEST_PROJECT_ID,
         TEST_DATASET_ID,
         TEST_TABLE_ID,
-        null,
+        (String) null,
         TEST_OUTPUT_PATH_STRING,
         TEST_FILE_FORMAT,
         TEST_OUTPUT_CLASS);

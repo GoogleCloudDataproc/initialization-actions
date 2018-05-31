@@ -14,10 +14,10 @@
 package com.google.cloud.hadoop.io.bigquery.output;
 
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.JobContext;
@@ -61,7 +61,7 @@ public class IndirectBigQueryOutputCommitter extends ForwardingBigQueryFileOutpu
     TableReference destTable = BigQueryOutputConfiguration.getTableReference(conf);
     String destProjectId = BigQueryOutputConfiguration.getProjectId(conf);
     String writeDisposition = BigQueryOutputConfiguration.getWriteDisposition(conf);
-    TableSchema destSchema = BigQueryOutputConfiguration.getTableSchema(conf);
+    Optional<BigQueryTableSchema> destSchema = BigQueryOutputConfiguration.getTableSchema(conf);
     String kmsKeyName = BigQueryOutputConfiguration.getKmsKeyName(conf);
     BigQueryFileFormat outputFileFormat = BigQueryOutputConfiguration.getFileFormat(conf);
     List<String> sourceUris = getOutputFileURIs();
@@ -71,7 +71,7 @@ public class IndirectBigQueryOutputCommitter extends ForwardingBigQueryFileOutpu
           .importFromGcs(
               destProjectId,
               destTable,
-              destSchema,
+              destSchema.isPresent() ? destSchema.get().get() : null,
               kmsKeyName,
               outputFileFormat,
               writeDisposition,

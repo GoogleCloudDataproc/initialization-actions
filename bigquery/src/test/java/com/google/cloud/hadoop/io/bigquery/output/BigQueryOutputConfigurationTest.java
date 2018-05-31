@@ -17,14 +17,13 @@ import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertThrows;
 
-import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.util.Optional;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.JobID;
@@ -68,12 +67,12 @@ public class BigQueryOutputConfigurationTest {
   private static final Class<? extends FileOutputFormat> TEST_OUTPUT_CLASS = TextOutputFormat.class;
 
   /** Sample table schema used for output. */
-  private static final TableSchema TEST_TABLE_SCHEMA =
-      new TableSchema()
+  private static final BigQueryTableSchema TEST_TABLE_SCHEMA =
+      new BigQueryTableSchema()
           .setFields(
               ImmutableList.of(
-                  new TableFieldSchema().setName("A").setType("STRING"),
-                  new TableFieldSchema().setName("B").setType("INTEGER")));
+                  new BigQueryTableFieldSchema().setName("A").setType("STRING"),
+                  new BigQueryTableFieldSchema().setName("B").setType("INTEGER")));
 
   /** Sample expected serialized version of TEST_TABLE_SCHEMA. */
   private static final String TEST_TABLE_SCHEMA_STRING =
@@ -290,9 +289,9 @@ public class BigQueryOutputConfigurationTest {
   public void testGetTableReferenceSchema() throws IOException {
     conf.set(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY, TEST_TABLE_SCHEMA_STRING);
 
-    TableSchema result = BigQueryOutputConfiguration.getTableSchema(conf);
+    Optional<BigQueryTableSchema> result = BigQueryOutputConfiguration.getTableSchema(conf);
 
-    assertThat(result, is(TEST_TABLE_SCHEMA));
+    assertThat(result.get(), is(TEST_TABLE_SCHEMA));
   }
 
   /** Test the getTableSchema throws an exception when the schema is malformed. */
