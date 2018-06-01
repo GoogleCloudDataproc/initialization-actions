@@ -19,7 +19,6 @@ import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.BigQueryStrings;
-import com.google.cloud.hadoop.io.bigquery.BigQueryTableHelper;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;

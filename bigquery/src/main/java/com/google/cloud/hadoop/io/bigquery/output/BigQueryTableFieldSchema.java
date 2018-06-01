@@ -22,7 +22,7 @@ import com.google.common.base.Preconditions;
  * <p>This class is used to avoid client code to depend on BigQuery API classes, so that there is no
  * potential conflict between different versions of BigQuery API libraries in the client.
  *
- * @see TableFieldSchema.
+ * @see TableFieldSchema
  */
 public class BigQueryTableFieldSchema {
   private final TableFieldSchema fieldSchema;

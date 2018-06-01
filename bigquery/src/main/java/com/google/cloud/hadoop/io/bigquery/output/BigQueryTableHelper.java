@@ -11,7 +11,7 @@
  * express or implied. See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.google.cloud.hadoop.io.bigquery;
+package com.google.cloud.hadoop.io.bigquery.output;
 
 import com.google.api.client.json.JsonParser;
 import com.google.api.client.json.jackson2.JacksonFactory;
@@ -22,15 +22,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Helper for BigQuery tables. */
-public class BigQueryTableHelper {
+class BigQueryTableHelper {
   /**
    * Parses table schema JSON into {@link TableSchema}.
    *
-   * @param tableSchemaJson
+   * @param tableSchemaJson JSON table schema to convert to {@link TableSchema}
    * @return {@link TableSchema}
    * @throws IOException if the JSON is invalid.
    */
-  public static TableSchema parseTableSchema(String tableSchemaJson) throws IOException {
+  static TableSchema parseTableSchema(String tableSchemaJson) throws IOException {
     JsonParser parser = JacksonFactory.getDefaultInstance().createJsonParser(tableSchemaJson);
     return parser.parseAndClose(TableSchema.class);
   }
@@ -38,11 +38,11 @@ public class BigQueryTableHelper {
   /**
    * Creates {@link TableSchema} from the JSON representation of the table fields.
    *
-   * @param fieldsJson
+   * @param fieldsJson JSON fields to convert to {@link TableSchema}
    * @return {@link TableSchema}
    * @throws IOException
    */
-  public static TableSchema createTableSchemaFromFields(String fieldsJson) throws IOException {
+  static TableSchema createTableSchemaFromFields(String fieldsJson) throws IOException {
     List<TableFieldSchema> fields = new ArrayList<>();
     JsonParser parser = JacksonFactory.getDefaultInstance().createJsonParser(fieldsJson);
     parser.parseArrayAndClose(fields, TableFieldSchema.class);
@@ -53,22 +53,22 @@ public class BigQueryTableHelper {
   /**
    * Gets the JSON representation of the table schema.
    *
-   * @param tableSchema
+   * @param tableSchema {@link TableSchema} to convert to JSON
    * @return the JSON of the table schema.
    * @throws IOException
    */
-  public static String getTableSchemaJson(TableSchema tableSchema) throws IOException {
+  static String getTableSchemaJson(TableSchema tableSchema) throws IOException {
     return JacksonFactory.getDefaultInstance().toString(tableSchema);
   }
 
   /**
    * Gets the JSON representation of the table's fields.
    *
-   * @param tableSchema
+   * @param tableSchema {@link TableSchema} to get JSON fields from
    * @return the JSON of the fields.
    * @throws IOException
    */
-  public static String getTableFieldsJson(TableSchema tableSchema) throws IOException {
+  static String getTableFieldsJson(TableSchema tableSchema) throws IOException {
     return JacksonFactory.getDefaultInstance().toString(tableSchema.getFields());
   }
 }
