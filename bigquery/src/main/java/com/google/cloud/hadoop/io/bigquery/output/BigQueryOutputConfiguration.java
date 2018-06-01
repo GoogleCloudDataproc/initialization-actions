@@ -26,7 +26,6 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.Optional;
-import javax.annotation.Nullable;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -57,9 +56,7 @@ public class BigQueryOutputConfiguration {
    * @param qualifiedOutputTableId the qualified id of the output table in the form: <code>(Optional
    *     ProjectId):[DatasetId].[TableId]</code>. If the project id is missing, the default project
    *     id is attempted {@link BigQueryConfiguration#PROJECT_ID_KEY}.
-   * @param outputTableSchema the schema of the BigQuery output table. If the schema is null,
-   *     BigQuery will attempt to auto detect the schema. When using avro formatted data, a schema
-   *     is not required as avro stores the schema in the file.
+   * @param outputTableSchemaJson the schema of the BigQuery output table.
    * @param outputGcsPath the path in GCS to stage data in. Example: 'gs://bucket/job'.
    * @param outputFileFormat the formatting of the data being written by the output format class.
    * @param outputFormatClass the file output format that will write files to GCS.
@@ -69,18 +66,21 @@ public class BigQueryOutputConfiguration {
   public static void configure(
       Configuration conf,
       String qualifiedOutputTableId,
-      @Nullable String outputTableSchema,
+      String outputTableSchemaJson,
       String outputGcsPath,
       BigQueryFileFormat outputFileFormat,
       Class<? extends FileOutputFormat> outputFormatClass)
       throws IOException {
+    Preconditions.checkArgument(
+        !Strings.isNullOrEmpty(outputTableSchemaJson),
+        "outputTableSchemaJson must not be null or empty.");
     TableReference outputTable = BigQueryStrings.parseTableReference(qualifiedOutputTableId);
     configure(
         conf,
         outputTable.getProjectId(),
         outputTable.getDatasetId(),
         outputTable.getTableId(),
-        outputTableSchema,
+        Optional.of(outputTableSchemaJson),
         outputGcsPath,
         outputFileFormat,
         outputFormatClass);
@@ -94,7 +94,7 @@ public class BigQueryOutputConfiguration {
    *     project id is attempted {@link BigQueryConfiguration#PROJECT_ID_KEY}.
    * @param outputDatasetId the id of the output dataset.
    * @param outputTableId the id of the output table.
-   * @param outputTableSchema the schema of the BigQuery output table. If the schema is null,
+   * @param outputTableSchemaJson the schema of the BigQuery output table. If the schema is null,
    *     BigQuery will attempt to auto detect the schema. When using avro formatted data, a schema
    *     is not required as avro stores the schema in the file.
    * @param outputGcsPath the path in GCS to stage data in. Example: 'gs://bucket/job'.
@@ -103,12 +103,12 @@ public class BigQueryOutputConfiguration {
    * @throws IOException
    */
   @SuppressWarnings("rawtypes")
-  public static void configure(
+  private static void configure(
       Configuration conf,
       String outputProjectId,
       String outputDatasetId,
       String outputTableId,
-      @Nullable String outputTableSchema,
+      Optional<String> outputTableSchemaJson,
       String outputGcsPath,
       BigQueryFileFormat outputFileFormat,
       Class<? extends FileOutputFormat> outputFormatClass)
@@ -140,8 +140,8 @@ public class BigQueryOutputConfiguration {
     setFileOutputFormatOutputPath(conf, outputGcsPath);
 
     // If a schema is provided, serialize it.
-    if (outputTableSchema != null) {
-      TableSchema tableSchema = BigQueryTableHelper.parseTableSchema(outputTableSchema);
+    if (outputTableSchemaJson.isPresent()) {
+      TableSchema tableSchema = BigQueryTableHelper.parseTableSchema(outputTableSchemaJson.get());
       String fieldsJson = BigQueryTableHelper.getTableFieldsJson(tableSchema);
       conf.set(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY, fieldsJson);
     }
@@ -166,7 +166,38 @@ public class BigQueryOutputConfiguration {
   public static void configure(
       Configuration conf,
       String qualifiedOutputTableId,
-      @Nullable BigQueryTableSchema outputTableSchema,
+      BigQueryTableSchema outputTableSchema,
+      String outputGcsPath,
+      BigQueryFileFormat outputFileFormat,
+      Class<? extends FileOutputFormat> outputFormatClass)
+      throws IOException {
+    configure(
+        conf,
+        qualifiedOutputTableId,
+        BigQueryTableHelper.getTableSchemaJson(outputTableSchema.get()),
+        outputGcsPath,
+        outputFileFormat,
+        outputFormatClass);
+  }
+
+  /**
+   * A helper function to set the required output keys in the given configuration.
+   *
+   * <p>This method will set the output table schema as auto-detected.
+   *
+   * @param conf the configuration to set the keys on.
+   * @param qualifiedOutputTableId the qualified id of the output table in the form: <code>(Optional
+   *     ProjectId):[DatasetId].[TableId]</code>. If the project id is missing, the default project
+   *     id is attempted {@link BigQueryConfiguration#PROJECT_ID_KEY}.
+   * @param outputGcsPath the path in GCS to stage data in. Example: 'gs://bucket/job'.
+   * @param outputFileFormat the formatting of the data being written by the output format class.
+   * @param outputFormatClass the file output format that will write files to GCS.
+   * @throws IOException
+   */
+  @SuppressWarnings("rawtypes")
+  public static void configureWithAutoSchema(
+      Configuration conf,
+      String qualifiedOutputTableId,
       String outputGcsPath,
       BigQueryFileFormat outputFileFormat,
       Class<? extends FileOutputFormat> outputFormatClass)
@@ -177,49 +208,7 @@ public class BigQueryOutputConfiguration {
         outputTable.getProjectId(),
         outputTable.getDatasetId(),
         outputTable.getTableId(),
-        outputTableSchema,
-        outputGcsPath,
-        outputFileFormat,
-        outputFormatClass);
-  }
-
-  /**
-   * A helper function to set the required output keys in the given configuration.
-   *
-   * @param conf the configuration to set the keys on.
-   * @param outputProjectId the id of the output project. If the project id is null, the default
-   *     project id is attempted {@link BigQueryConfiguration#PROJECT_ID_KEY}.
-   * @param outputDatasetId the id of the output dataset.
-   * @param outputTableId the id of the output table.
-   * @param outputTableSchema the schema of the BigQuery output table. If the schema is null,
-   *     BigQuery will attempt to auto detect the schema. When using avro formatted data, a schema
-   *     is not required as avro stores the schema in the file.
-   * @param outputGcsPath the path in GCS to stage data in. Example: 'gs://bucket/job'.
-   * @param outputFileFormat the formatting of the data being written by the output format class.
-   * @param outputFormatClass the file output format that will write files to GCS.
-   * @throws IOException
-   */
-  @SuppressWarnings("rawtypes")
-  public static void configure(
-      Configuration conf,
-      String outputProjectId,
-      String outputDatasetId,
-      String outputTableId,
-      @Nullable BigQueryTableSchema outputTableSchema,
-      String outputGcsPath,
-      BigQueryFileFormat outputFileFormat,
-      Class<? extends FileOutputFormat> outputFormatClass)
-      throws IOException {
-    String tableSchemaJson =
-        outputTableSchema != null
-            ? BigQueryTableHelper.getTableSchemaJson(outputTableSchema.get())
-            : null;
-    configure(
-        conf,
-        outputProjectId,
-        outputDatasetId,
-        outputTableId,
-        tableSchemaJson,
+        /* outputTableSchemaJson= */ Optional.empty(),
         outputGcsPath,
         outputFileFormat,
         outputFormatClass);

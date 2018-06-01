@@ -62,6 +62,9 @@ public class FederatedBigQueryOutputCommitterTest {
   /** Sample tableId for output. */
   private static final String TEST_TABLE_ID = "table";
 
+  private static final String QUALIFIED_TEST_TABLE_ID =
+      String.format("%s:%s.%s", TEST_PROJECT_ID, TEST_DATASET_ID, TEST_TABLE_ID);
+
   /** Sample output file format for the committer. */
   private static final BigQueryFileFormat TEST_FILE_FORMAT =
       BigQueryFileFormat.NEWLINE_DELIMITED_JSON;
@@ -130,9 +133,7 @@ public class FederatedBigQueryOutputCommitterTest {
     CredentialConfigurationUtil.addTestConfigurationSettings(conf);
     BigQueryOutputConfiguration.configure(
         conf,
-        TEST_PROJECT_ID,
-        TEST_DATASET_ID,
-        TEST_TABLE_ID,
+        QUALIFIED_TEST_TABLE_ID,
         TEST_TABLE_SCHEMA,
         TEST_OUTPUT_PATH_STRING,
         TEST_FILE_FORMAT,
