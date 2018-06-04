@@ -16,6 +16,7 @@ package com.google.cloud.hadoop.gcsio.integration;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.fail;
 
@@ -24,7 +25,6 @@ import com.google.api.client.http.HttpTransport;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions.Builder;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.CredentialFactory;
@@ -72,7 +72,7 @@ public class GoogleCloudStorageTestHelper {
     }
   }
 
-  public static Builder getStandardOptionBuilder() {
+  public static GoogleCloudStorageOptions.Builder getStandardOptionBuilder() {
     return GoogleCloudStorageOptions.newBuilder()
         .setAppName(GoogleCloudStorageTestHelper.APP_NAME)
         .setProjectId(checkNotNull(TestConfiguration.getInstance().getProjectId()))
@@ -198,13 +198,16 @@ public class GoogleCloudStorageTestHelper {
     public TestBucketHelper(String bucketPrefix) {
       this.bucketPrefix = bucketPrefix + DELIMITER;
       this.uniqueBucketPrefix = makeBucketName(bucketPrefix);
+      checkState(
+          this.uniqueBucketPrefix.startsWith(this.bucketPrefix),
+          "uniqueBucketPrefix should start with bucketPrefix");
     }
 
     private static String makeBucketName(String prefix) {
-      String username = System.getProperty("user.name", "unknown");
+      String username = System.getProperty("user.name", "unknown").replace("-", "");
       username = username.substring(0, Math.min(username.length(), 10));
       String uuidSuffix = UUID.randomUUID().toString().substring(0, 8);
-      return (prefix + DELIMITER + username + DELIMITER + uuidSuffix).replace("-", DELIMITER);
+      return prefix + DELIMITER + username + DELIMITER + uuidSuffix;
     }
 
     public String getUniqueBucketName(String suffix) {
