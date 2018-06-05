@@ -53,4 +53,4 @@ server.3=${CLUSTER_NAME}-w-1:2888:3888
 EOF
 
 # Start ZooKeeper
-ZOO_LOG_DIR=/var/log/zookeeper /usr/lib/zookeeper/bin/zkServer.sh start
+ZOO_LOG_DIR=/var/log/zookeeper /usr/share/zookeeper/bin/zkServer.sh start
