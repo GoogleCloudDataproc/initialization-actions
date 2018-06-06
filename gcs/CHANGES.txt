@@ -36,6 +36,12 @@
   11. Add properties to allow users to specify connect timeout and read timeout on
       low level GCS HTTP requests.
 
+  12. Include prefix/directory objects metadata into `storage.objects.list`
+      requests response to improve performance (i.e. set
+      `includeTrailingDelimiter` parameter for `storage.objects.list` GCS
+      requests to `true`).
+
+
 1.8.1 - 2018-03-29
 
   1. Add `AUTO` mode support for Cloud Storage Requester Pays feature.

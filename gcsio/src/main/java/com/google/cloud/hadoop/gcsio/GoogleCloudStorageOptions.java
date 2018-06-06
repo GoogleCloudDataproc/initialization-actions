@@ -14,37 +14,35 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
 import com.google.cloud.hadoop.util.RequesterPaysOptions;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import javax.annotation.Nullable;
 
-/**
- * Configuration options for the GoogleCloudStorage class.
- */
+/** Configuration options for the GoogleCloudStorage class. */
 public class GoogleCloudStorageOptions {
 
-  /**
-   * Default number of items to return per call to the list* GCS RPCs.
-   */
+  /** Default number of items to return per call to the list* GCS RPCs. */
   public static final long MAX_LIST_ITEMS_PER_CALL_DEFAULT = 1024;
-  /**
-   * Default setting for enabling auto-repair of implicit directories.
-   */
+
+  /** Default setting for enabling auto-repair of implicit directories. */
   public static final boolean AUTO_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT = true;
 
-  /**
-   * Default setting for enabling inferring of implicit directories.
-   */
+  /** Default setting for enabling inferring of implicit directories. */
   public static final boolean INFER_IMPLICIT_DIRECTORIES_DEFAULT = true;
 
   /**
-   * Default setting for maximum number of requests per GCS batch.
+   * Default setting for enabling inclusion of directory objects into GCS list response.
+   *
+   * @deprecated this is a transitioning flag that will be removed in next version.
    */
+  @Deprecated private static final boolean LIST_DIRECTORY_OBJECTS_DEFAULT = true;
+
+  /** Default setting for maximum number of requests per GCS batch. */
   public static final long MAX_REQUESTS_PER_BATCH_DEFAULT = 30;
 
   /** Default setting for maximum number of GCS HTTP request retires. */
@@ -56,9 +54,7 @@ public class GoogleCloudStorageOptions {
   /** Default setting for read timeout (in millisecond) of GCS HTTP request. */
   public static final int HTTP_REQUEST_READ_TIMEOUT = 20 * 1000;
 
-  /**
-   * Default setting for whether or not to create a marker file when beginning file creation.
-   */
+  /** Default setting for whether or not to create a marker file when beginning file creation. */
   public static final boolean CREATE_EMPTY_MARKER_OBJECT_DEFAULT = false;
 
   /**
@@ -73,14 +69,11 @@ public class GoogleCloudStorageOptions {
   /** Default setting for whether or not to use rewrite request for copy operation. */
   public static final boolean COPY_WITH_REWRITE_DEFAULT = false;
 
-  /**
-   * Mutable builder for the GoogleCloudStorageOptions class.
-   */
+  /** Mutable builder for the GoogleCloudStorageOptions class. */
   public static class Builder {
-    private boolean autoRepairImplicitDirectoriesEnabled =
-        AUTO_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT;
-    private boolean inferImplicitDirectoriesEnabled =
-        INFER_IMPLICIT_DIRECTORIES_DEFAULT;
+    private boolean autoRepairImplicitDirectoriesEnabled = AUTO_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT;
+    private boolean inferImplicitDirectoriesEnabled = INFER_IMPLICIT_DIRECTORIES_DEFAULT;
+    @Deprecated private boolean listDirectoryObjects = LIST_DIRECTORY_OBJECTS_DEFAULT;
     private String projectId = null;
     private String appName = null;
     private HttpTransportFactory.HttpTransportType transportType =
@@ -117,6 +110,12 @@ public class GoogleCloudStorageOptions {
     public Builder setInferImplicitDirectoriesEnabled(
         boolean inferImplicitDirectoriesEnabled) {
       this.inferImplicitDirectoriesEnabled = inferImplicitDirectoriesEnabled;
+      return this;
+    }
+
+    /** @deprecated this is a transitioning flag that will be removed in next version. */
+    @Deprecated public Builder setListDirectoryObjects(boolean listDirectoryObjects) {
+      this.listDirectoryObjects = listDirectoryObjects;
       return this;
     }
 
@@ -170,8 +169,7 @@ public class GoogleCloudStorageOptions {
       return this;
     }
 
-    public Builder setWriteChannelOptionsBuilder(
-        AsyncWriteChannelOptions.Builder builder) {
+    public Builder setWriteChannelOptionsBuilder(AsyncWriteChannelOptions.Builder builder) {
       writeChannelOptionsBuilder = builder;
       return this;
     }
@@ -180,8 +178,7 @@ public class GoogleCloudStorageOptions {
       return writeChannelOptionsBuilder;
     }
 
-    public Builder setMaxWaitMillisForEmptyObjectCreation(
-        int maxWaitMillisForEmptyObjectCreation) {
+    public Builder setMaxWaitMillisForEmptyObjectCreation(int maxWaitMillisForEmptyObjectCreation) {
       this.maxWaitMillisForEmptyObjectCreation = maxWaitMillisForEmptyObjectCreation;
       return this;
     }
@@ -207,6 +204,7 @@ public class GoogleCloudStorageOptions {
 
   private final boolean autoRepairImplicitDirectoriesEnabled;
   private final boolean inferImplicitDirectoriesEnabled;
+  @Deprecated private final boolean listDirectoryObjects;
   private final String projectId;
   private final String appName;
   private final HttpTransportFactory.HttpTransportType transportType;
@@ -225,6 +223,7 @@ public class GoogleCloudStorageOptions {
   protected GoogleCloudStorageOptions(Builder builder) {
     this.autoRepairImplicitDirectoriesEnabled = builder.autoRepairImplicitDirectoriesEnabled;
     this.inferImplicitDirectoriesEnabled = builder.inferImplicitDirectoriesEnabled;
+    this.listDirectoryObjects = builder.listDirectoryObjects;
     this.projectId = builder.projectId;
     this.appName = builder.appName;
     this.writeChannelOptions = builder.getWriteChannelOptionsBuilder().build();
@@ -275,6 +274,11 @@ public class GoogleCloudStorageOptions {
 
   public boolean isInferImplicitDirectoriesEnabled() {
     return inferImplicitDirectoriesEnabled;
+  }
+
+  /** @deprecated this is a transitioning flag that will be removed in next version. */
+  @Deprecated boolean isListDirectoryObjects() {
+    return listDirectoryObjects;
   }
 
   @Nullable
@@ -335,7 +339,6 @@ public class GoogleCloudStorageOptions {
   }
 
   public void throwIfNotValid() {
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(appName),
-        "appName must not be null or empty");
+    checkArgument(!isNullOrEmpty(appName), "appName must not be null or empty");
   }
 }
