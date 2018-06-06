@@ -138,15 +138,14 @@ public class ResilientOperation {
   }
 
   /**
-   * Returns a {@link CheckedCallable} that returns encompasses a
-   * {@link AbstractGoogleClientRequest} and can be used to retry the execute for a
-   * AbstractGoogleClientReqest.
+   * Returns a {@link CheckedCallable} that encompasses a {@link AbstractGoogleClientRequest} and
+   * can be used to retry the execution for an AbstractGoogleClientRequest.
    *
    * @param request The AbstractGoogleClientRequest to turn into a {@link CheckedCallable}.
    * @return a CheckedCallable object that attempts a AbstractGoogleClientRequest
    */
   public static <V> CheckedCallable<V, IOException> getGoogleRequestCallable(
-      AbstractGoogleClientRequest<V> request){
+      AbstractGoogleClientRequest<V> request) {
     return new AbstractGoogleClientRequestExecutor<V>(request);
   }
 

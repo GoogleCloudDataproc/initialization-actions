@@ -47,6 +47,15 @@ public class GoogleCloudStorageOptions {
    */
   public static final long MAX_REQUESTS_PER_BATCH_DEFAULT = 30;
 
+  /** Default setting for maximum number of GCS HTTP request retires. */
+  public static final int MAX_HTTP_REQUEST_RETRIES = 10;
+
+  /** Default setting for connect timeout (in millisecond) of GCS HTTP request. */
+  public static final int HTTP_REQUEST_CONNECT_TIMEOUT = 20 * 1000;
+
+  /** Default setting for read timeout (in millisecond) of GCS HTTP request. */
+  public static final int HTTP_REQUEST_READ_TIMEOUT = 20 * 1000;
+
   /**
    * Default setting for whether or not to create a marker file when beginning file creation.
    */
@@ -86,6 +95,12 @@ public class GoogleCloudStorageOptions {
     // manually, except possibly for testing purposes.
     private long maxRequestsPerBatch = MAX_REQUESTS_PER_BATCH_DEFAULT;
 
+    private int maxHttpRequestRetries = MAX_HTTP_REQUEST_RETRIES;
+
+    private int httpRequestConnectTimeout = HTTP_REQUEST_CONNECT_TIMEOUT;
+
+    private int httpRequestReadTimeout = HTTP_REQUEST_READ_TIMEOUT;
+
     private AsyncWriteChannelOptions.Builder writeChannelOptionsBuilder =
         new AsyncWriteChannelOptions.Builder();
 
@@ -122,6 +137,21 @@ public class GoogleCloudStorageOptions {
 
     public Builder setMaxRequestsPerBatch(long maxRequestsPerBatch) {
       this.maxRequestsPerBatch = maxRequestsPerBatch;
+      return this;
+    }
+
+    public Builder setMaxHttpRequestRetries(int maxHttpRequestRetries) {
+      this.maxHttpRequestRetries = maxHttpRequestRetries;
+      return this;
+    }
+
+    public Builder setHttpRequestConnectTimeout(int httpRequestConnectTimeout) {
+      this.httpRequestConnectTimeout = httpRequestConnectTimeout;
+      return this;
+    }
+
+    public Builder setHttpRequestReadTimeout(int httpRequestReadTimeout) {
+      this.httpRequestReadTimeout = httpRequestReadTimeout;
       return this;
     }
 
@@ -184,6 +214,9 @@ public class GoogleCloudStorageOptions {
   private final AsyncWriteChannelOptions writeChannelOptions;
   private final long maxListItemsPerCall;
   private final long maxRequestsPerBatch;
+  private final int maxHttpRequestRetries;
+  private final int httpRequestConnectTimeout;
+  private final int httpRequestReadTimeout;
   private final boolean createMarkerFile;
   private final int maxWaitMillisForEmptyObjectCreation;
   private final RequesterPaysOptions requesterPaysOptions;
@@ -197,6 +230,9 @@ public class GoogleCloudStorageOptions {
     this.writeChannelOptions = builder.getWriteChannelOptionsBuilder().build();
     this.maxListItemsPerCall = builder.maxListItemsPerCall;
     this.maxRequestsPerBatch = builder.maxRequestsPerBatch;
+    this.maxHttpRequestRetries = builder.maxHttpRequestRetries;
+    this.httpRequestConnectTimeout = builder.httpRequestConnectTimeout;
+    this.httpRequestReadTimeout = builder.httpRequestReadTimeout;
     this.createMarkerFile = builder.createMarkerObjects;
     this.transportType = builder.transportType;
     this.proxyAddress = builder.proxyAddress;
@@ -268,6 +304,18 @@ public class GoogleCloudStorageOptions {
 
   public long getMaxRequestsPerBatch() {
     return maxRequestsPerBatch;
+  }
+
+  public int getMaxHttpRequestRetries() {
+    return maxHttpRequestRetries;
+  }
+
+  public int getHttpRequestConnectTimeout() {
+    return httpRequestConnectTimeout;
+  }
+
+  public int getHttpRequestReadTimeout() {
+    return httpRequestReadTimeout;
   }
 
   public boolean isMarkerFileCreationEnabled() {

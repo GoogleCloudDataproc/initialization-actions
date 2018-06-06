@@ -132,8 +132,32 @@
     </description>
   </property>
 
-  <!-- Block, Buffer, and file sizes -->
+  <!-- Block, Buffer, retries, timeouts, and file sizes -->
 
+  <property>
+    <name>fs.gs.http.max.retry</name>
+    <value></value>
+    <description>
+      The maximum number of retries for low-level HTTP requests to GCS when
+      server errors (code: 5XX) or I/O errors are encountered.
+    </description>
+  </property>
+  <property>
+    <name>fs.gs.http.connect-timeout</name>
+    <value></value>
+    <description>
+      Timeout in milliseconds to establish a connection.
+      Use 0 for an infinite timeout.
+    </description>
+  </property>
+  <property>
+    <name>fs.gs.http.read-timeout</name>
+    <value></value>
+    <description>
+      Timeout in milliseconds to read from an established connection.
+      Use 0 for an infinite timeout.
+    </description>
+  </property>
   <property>
     <name>fs.gs.block.size</name>
     <value>67108864</value>

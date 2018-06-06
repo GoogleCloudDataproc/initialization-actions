@@ -423,6 +423,31 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final long GCS_MAX_REQUESTS_PER_BATCH_DEFAULT = 30;
 
   /**
+   * Configuration key for the max number of retries for failed HTTP request to GCS. Note that the
+   * connector will retry *up to* the number of times as specified, using a default
+   * ExponentialBackOff strategy.
+   *
+   * <p>Also, note that this number will only control the number of retries in the low level HTTP
+   * request implementation.
+   */
+  public static final String GCS_HTTP_MAX_RETRY_KEY = "fs.gs.http.max.retry";
+
+  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_HTTP_MAX_RETRY_KEY}. */
+  public static final int GCS_HTTP_MAX_RETRY_DEFAULT = 10;
+
+  /** Configuration key for the connect timeout (in millisecond) for HTTP request to GCS. */
+  public static final String GCS_HTTP_CONNECT_TIMEOUT_KEY = "fs.gs.http.connect-timeout";
+
+  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_HTTP_CONNECT_TIMEOUT_KEY}. */
+  public static final int GCS_HTTP_CONNECT_TIMEOUT_DEFAULT = 20 * 1000;
+
+  /** Configuration key for the connect timeout (in millisecond) for HTTP request to GCS. */
+  public static final String GCS_HTTP_READ_TIMEOUT_KEY = "fs.gs.http.read-timeout";
+
+  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_HTTP_READ_TIMEOUT_KEY}. */
+  public static final int GCS_HTTP_READ_TIMEOUT_DEFAULT = 20 * 1000;
+
+  /**
    * Configuration key for setting a proxy for the connector to use to connect to GCS. The proxy
    * must be an HTTP proxy of the form "host:port".
    */
@@ -2227,6 +2252,27 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     LOG.debug("{} = {}", GCS_MAX_REQUESTS_PER_BATCH, maxRequestsPerBatch);
 
     optionsBuilder.getCloudStorageOptionsBuilder().setMaxRequestsPerBatch(maxRequestsPerBatch);
+
+    int maxHttpRequestRetries = config.getInt(GCS_HTTP_MAX_RETRY_KEY, GCS_HTTP_MAX_RETRY_DEFAULT);
+    LOG.debug("{} = {}", GCS_HTTP_MAX_RETRY_KEY, maxHttpRequestRetries);
+
+    optionsBuilder.getCloudStorageOptionsBuilder().setMaxHttpRequestRetries(maxHttpRequestRetries);
+
+    int httpRequestConnectTimeout =
+        config.getInt(GCS_HTTP_CONNECT_TIMEOUT_KEY, GCS_HTTP_CONNECT_TIMEOUT_DEFAULT);
+    LOG.debug("{} = {}", GCS_HTTP_CONNECT_TIMEOUT_KEY, httpRequestConnectTimeout);
+
+    optionsBuilder
+        .getCloudStorageOptionsBuilder()
+        .setHttpRequestConnectTimeout(httpRequestConnectTimeout);
+
+    int httpRequestReadTimeout =
+        config.getInt(GCS_HTTP_READ_TIMEOUT_KEY, GCS_HTTP_READ_TIMEOUT_DEFAULT);
+    LOG.debug("{} = {}", GCS_HTTP_READ_TIMEOUT_KEY, httpRequestReadTimeout);
+
+    optionsBuilder
+        .getCloudStorageOptionsBuilder()
+        .setHttpRequestReadTimeout(httpRequestReadTimeout);
 
     // Configuration for setting 250GB upper limit on file size to gain higher write throughput.
     boolean limitFileSizeTo250Gb =

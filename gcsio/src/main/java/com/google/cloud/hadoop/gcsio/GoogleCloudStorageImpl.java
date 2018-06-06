@@ -234,7 +234,13 @@ public class GoogleCloudStorageImpl
 
     Preconditions.checkNotNull(credential, "credential must not be null");
 
-    this.httpRequestInitializer = new RetryHttpInitializer(credential, options.getAppName());
+    this.httpRequestInitializer =
+        new RetryHttpInitializer(
+            credential,
+            options.getAppName(),
+            options.getMaxHttpRequestRetries(),
+            options.getHttpRequestConnectTimeout(),
+            options.getHttpRequestReadTimeout());
 
     HttpTransport httpTransport = HttpTransportFactory.createHttpTransport(
         options.getTransportType(), options.getProxyAddress());

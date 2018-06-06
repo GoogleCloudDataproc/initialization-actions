@@ -28,6 +28,13 @@
 
   9. Add interface through which user can directly provide the access token.
 
+  10. Add more retries and error handling in GoogleCloudStorageReadChannel,
+      to make it more resilient to network errors; also add a property to allow users
+      to specify number of retries on low level GCS HTTP requests in case of server
+      errors and I/O errors.
+
+  11. Add properties to allow users to specify connect timeout and read timeout on
+      low level GCS HTTP requests.
 
 1.8.1 - 2018-03-29
 

@@ -138,6 +138,10 @@ public class GoogleCloudStorageReadChannel
   // necessary.
   private BackOff backOff = null;
 
+  // read operation gets its own Exponential Backoff Strategy,
+  // to avoid interference with other operations in nested retries.
+  private BackOff readBackOff = null;
+
   // Used as scratch space when reading bytes just to discard them when trying to perform small
   // in-place seeks.
   private byte[] skipBuffer = null;
@@ -267,6 +271,15 @@ public class GoogleCloudStorageReadChannel
   }
 
   /**
+   * Sets the backoff for determining sleep duration between read retries.
+   *
+   * @param backOff May be null to force the next usage to auto-initialize with default settings.
+   */
+  void setReadBackOff(BackOff backOff) {
+    this.readBackOff = backOff;
+  }
+
+  /**
    * Gets the backoff used for determining sleep duration between retries. May be null if it was
    * never lazily initialized.
    */
@@ -276,10 +289,19 @@ public class GoogleCloudStorageReadChannel
   }
 
   /**
-   * Helper for reseting the BackOff used for retries. If no backoff is given, a generic
-   * one is initialized.
+   * Gets the backoff used for determining sleep duration between read retries. May be null if it
+   * was never lazily initialized.
    */
-  private BackOff resetOrCreateBackOff() throws IOException{
+  @VisibleForTesting
+  BackOff getReadBackOff() {
+    return readBackOff;
+  }
+
+  /**
+   * Helper for resetting the BackOff used for retries. If no backoff is given, a generic one is
+   * initialized.
+   */
+  private BackOff resetOrCreateBackOff(BackOff backOff) throws IOException {
     if (backOff != null){
       backOff.reset();
     } else {
@@ -293,6 +315,14 @@ public class GoogleCloudStorageReadChannel
           .build();
     }
     return backOff;
+  }
+
+  private BackOff resetOrCreateBackOff() throws IOException {
+    return backOff = resetOrCreateBackOff(backOff);
+  }
+
+  private BackOff resetOrCreateReadBackOff() throws IOException {
+    return readBackOff = resetOrCreateBackOff(readBackOff);
   }
 
   /**
@@ -372,7 +402,7 @@ public class GoogleCloudStorageReadChannel
           if (retriesAttempted == 0) {
             // If this is the first of a series of retries, we also want to reset the backOff
             // to have fresh initial values.
-            resetOrCreateBackOff();
+            resetOrCreateReadBackOff();
           }
 
           ++retriesAttempted;
@@ -380,7 +410,7 @@ public class GoogleCloudStorageReadChannel
               ioe.getMessage(), StorageResourceId.createReadableString(bucketName, objectName),
               retriesAttempted);
           try {
-            boolean backOffSuccessful = BackOffUtils.next(sleeper, backOff);
+            boolean backOffSuccessful = BackOffUtils.next(sleeper, readBackOff);
             if (!backOffSuccessful) {
               LOG.error("BackOff returned false; maximum total elapsed time exhausted. Giving up "
                   + "after {} retries for '{}'", retriesAttempted,
@@ -409,8 +439,7 @@ public class GoogleCloudStorageReadChannel
           }
 
           // Close the channel and mark it to be reopened on next performLazySeek.
-          closeReadChannel();
-          lazySeekPending = true;
+          closeReadChannelAndSetLazySeekPending();
         }
       } catch (RuntimeException r) {
         closeReadChannel();
@@ -527,7 +556,6 @@ public class GoogleCloudStorageReadChannel
     }
 
     validatePosition(newPosition);
-
     long seekDistance = newPosition - currentPosition;
     if (readChannel != null
         && seekDistance > 0
@@ -538,23 +566,37 @@ public class GoogleCloudStorageReadChannel
         skipBuffer = new byte[SKIP_BUFFER_SIZE];
       }
       while (seekDistance > 0) {
-        int bytesRead = readChannel.read(
-            ByteBuffer.wrap(skipBuffer, 0, (int) Math.min(skipBuffer.length, seekDistance)));
-        if (bytesRead < 0) {
-          // Shouldn't happen since we called validatePosition prior to this loop.
-          throw new IOException(String.format(
-              "Somehow read %d bytes trying to skip %d more bytes to seek to position %d, size: %d",
-              bytesRead, seekDistance, newPosition, size));
+        try {
+          final int bufferSize = (int) Math.min(skipBuffer.length, seekDistance);
+          int bytesRead = readChannel.read(ByteBuffer.wrap(skipBuffer, 0, bufferSize));
+          if (bytesRead < 0) {
+            // Shouldn't happen since we called validatePosition prior to this loop.
+            LOG.info(
+                String.format(
+                    "Somehow read %d bytes trying to skip %d more bytes "
+                        + "to seek to position %d, size: %d",
+                    bytesRead, seekDistance, newPosition, size));
+            closeReadChannelAndSetLazySeekPending();
+            break;
+          }
+          seekDistance -= bytesRead;
+        } catch (IOException e) {
+          LOG.info("Got an I/O exception on readChannel.read(). A lazy-seek will be pending.");
+          closeReadChannelAndSetLazySeekPending();
+          break;
         }
-        seekDistance -= bytesRead;
       }
     } else {
       // Close the read channel. If anything tries to read on it, it's an error and should fail.
-      closeReadChannel();
-      lazySeekPending = true;
+      closeReadChannelAndSetLazySeekPending();
     }
     currentPosition = newPosition;
     return this;
+  }
+
+  private void closeReadChannelAndSetLazySeekPending() {
+    closeReadChannel();
+    lazySeekPending = true;
   }
 
   /**
@@ -641,8 +683,10 @@ public class GoogleCloudStorageReadChannel
     try {
       return ResilientOperation.retry(
           ResilientOperation.getGoogleRequestCallable(getObject),
-          new RetryBoundedBackOff(3, resetOrCreateBackOff()),
-          RetryDeterminer.SOCKET_ERRORS, IOException.class, sleeper);
+          new RetryBoundedBackOff(maxRetries, resetOrCreateBackOff()),
+          RetryDeterminer.SOCKET_ERRORS,
+          IOException.class,
+          sleeper);
     } catch (IOException e) {
       if (errorExtractor.itemNotFound(e)) {
         throw GoogleCloudStorageExceptions.getFileNotFoundException(bucketName, objectName);

@@ -147,6 +147,7 @@ public class GoogleCloudStorageTest {
   @Mock private Sleeper mockSleeper;
   @Mock private NanoClock mockClock;
   @Mock private BackOff mockBackOff;
+  @Mock private BackOff mockReadBackOff;
   @Mock private BackOffFactory mockBackOffFactory;
 
   private GoogleCloudStorage gcs;
@@ -327,6 +328,7 @@ public class GoogleCloudStorageTest {
     verifyNoMoreInteractions(mockSleeper);
     verifyNoMoreInteractions(mockClock);
     verifyNoMoreInteractions(mockBackOff);
+    verifyNoMoreInteractions(mockReadBackOff);
     verifyNoMoreInteractions(mockBackOffFactory);
   }
 
@@ -865,6 +867,7 @@ public class GoogleCloudStorageTest {
     readChannel.setSleeper(mockSleeper);
     readChannel.setNanoClock(mockClock);
     readChannel.setBackOff(mockBackOff);
+    readChannel.setReadBackOff(mockReadBackOff);
     readChannel.setMaxRetries(maxRetries);
     assertThat(readChannel.isOpen()).isTrue();
     assertThat(readChannel.position()).isEqualTo(0);
@@ -910,10 +913,7 @@ public class GoogleCloudStorageTest {
         .thenThrow(new SSLException("fake SSLException"))
         .thenThrow(new IOException("fake generic IOException"));
 
-    when(mockBackOff.nextBackOffMillis())
-        .thenReturn(111L)
-        .thenReturn(222L)
-        .thenReturn(333L);
+    when(mockReadBackOff.nextBackOffMillis()).thenReturn(111L).thenReturn(222L).thenReturn(333L);
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
@@ -928,8 +928,9 @@ public class GoogleCloudStorageTest {
     verify(mockHeaders, times(4)).setRange(eq("bytes=0-"));
     verify(mockStorageObjectsGet, times(2)).execute();
     verify(mockStorageObjectsGet, times(4)).executeMedia();
-    verify(mockBackOff, times(2)).reset();
-    verify(mockBackOff, times(3)).nextBackOffMillis();
+    verify(mockBackOff, times(1)).reset();
+    verify(mockReadBackOff, times(1)).reset();
+    verify(mockReadBackOff, times(3)).nextBackOffMillis();
     verify(mockSleeper).sleep(eq(111L));
     verify(mockSleeper).sleep(eq(222L));
     verify(mockSleeper).sleep(eq(333L));
@@ -957,8 +958,7 @@ public class GoogleCloudStorageTest {
         .doThrow(new SSLException("second fake SSLException on close()"))
         .when(mockExceptionStream).close();
 
-    when(mockBackOff.nextBackOffMillis())
-        .thenReturn(111L);
+    when(mockReadBackOff.nextBackOffMillis()).thenReturn(111L);
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
@@ -973,8 +973,9 @@ public class GoogleCloudStorageTest {
     verify(mockHeaders, times(2)).setRange(eq("bytes=0-"));
     verify(mockStorageObjectsGet, times(2)).execute();
     verify(mockStorageObjectsGet, times(2)).executeMedia();
-    verify(mockBackOff, times(2)).reset();
-    verify(mockBackOff).nextBackOffMillis();
+    verify(mockBackOff, times(1)).reset();
+    verify(mockReadBackOff, times(1)).reset();
+    verify(mockReadBackOff).nextBackOffMillis();
     verify(mockSleeper).sleep(eq(111L));
 
     assertThat(bytesRead).isEqualTo(testData.length);
@@ -1057,6 +1058,7 @@ public class GoogleCloudStorageTest {
     when(mockBackOffFactory.newBackOff()).thenReturn(mockBackOff);
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
+    setUpAndValidateReadChannelMocksAndSetMaxRetries(readChannel, 3);
     SocketTimeoutException socketException = new SocketTimeoutException("Socket1");
     when(mockStorageObjectsGet.execute()).thenThrow(socketException);
     readChannel.setBackOff(mockBackOff);
@@ -1109,8 +1111,9 @@ public class GoogleCloudStorageTest {
 
     // Both "retries" reset the mockBackOff, since they are "independent" retries with progress
     // in-between. One initial retry for getMetadata.
-    verify(mockBackOff, times(3)).reset();
-    verify(mockBackOff, times(2)).nextBackOffMillis();
+    verify(mockBackOff, times(1)).reset();
+    verify(mockReadBackOff, times(2)).reset();
+    verify(mockReadBackOff, times(2)).nextBackOffMillis();
     verify(mockSleeper, times(2)).sleep(anyLong());
     verify(mockStorage, times(5)).objects();
     verify(mockStorageObjects, times(5)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
@@ -1156,8 +1159,9 @@ public class GoogleCloudStorageTest {
 
     // Both "retries" reset the mockBackOff, since they are "independent" retries with progress
     // in-between. One initial retry for getMetadata.
-    verify(mockBackOff, times(3)).reset();
-    verify(mockBackOff, times(2)).nextBackOffMillis();
+    verify(mockBackOff, times(1)).reset();
+    verify(mockReadBackOff, times(2)).reset();
+    verify(mockReadBackOff, times(2)).nextBackOffMillis();
     verify(mockSleeper, times(2)).sleep(anyLong());
     verify(mockStorage, times(5)).objects();
     verify(mockStorageObjects, times(5)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
@@ -1194,6 +1198,7 @@ public class GoogleCloudStorageTest {
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     setUpAndValidateReadChannelMocksAndSetMaxRetries(readChannel, 3);
     readChannel.setBackOff(null);
+    readChannel.setReadBackOff(null);
 
     byte[] actualData = new byte[testData.length];
     IOException thrown =
@@ -1221,8 +1226,7 @@ public class GoogleCloudStorageTest {
     when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
         .thenThrow(new IOException("fake generic IOException"));
 
-    when(mockBackOff.nextBackOffMillis())
-        .thenReturn(111L);
+    when(mockReadBackOff.nextBackOffMillis()).thenReturn(111L);
     InterruptedException interrupt = new InterruptedException("fake interrupt");
     doThrow(interrupt)
         .when(mockSleeper).sleep(eq(111L));
@@ -1243,9 +1247,10 @@ public class GoogleCloudStorageTest {
     verify(mockHeaders).setRange(eq("bytes=0-"));
     verify(mockStorageObjectsGet).executeMedia();
     verify(mockStorageObjectsGet, times(2)).execute();
-    verify(mockBackOff, times(2)).reset();
-    verify(mockBackOff).nextBackOffMillis();
-    verify(mockSleeper).sleep(eq(111L));
+    verify(mockBackOff, times(1)).reset();
+    verify(mockReadBackOff, times(1)).reset();
+    verify(mockReadBackOff, times(1)).nextBackOffMillis();
+    verify(mockSleeper, times(1)).sleep(eq(111L));
   }
 
   @Test
@@ -1265,9 +1270,7 @@ public class GoogleCloudStorageTest {
         .thenThrow(new SSLException("fake SSLException"))
         .thenThrow(new IOException("fake generic IOException"));
 
-    when(mockBackOff.nextBackOffMillis())
-        .thenReturn(111L)
-        .thenReturn(222L);
+    when(mockReadBackOff.nextBackOffMillis()).thenReturn(111L).thenReturn(222L);
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
@@ -1284,8 +1287,9 @@ public class GoogleCloudStorageTest {
     verify(mockHeaders, times(3)).setRange(eq("bytes=0-"));
     verify(mockStorageObjectsGet, times(3)).executeMedia();
     verify(mockStorageObjectsGet, times(2)).execute();
-    verify(mockBackOff, times(2)).reset();
-    verify(mockBackOff, times(2)).nextBackOffMillis();
+    verify(mockBackOff, times(1)).reset();
+    verify(mockReadBackOff, times(1)).reset();
+    verify(mockReadBackOff, times(2)).nextBackOffMillis();
     verify(mockSleeper).sleep(eq(111L));
     verify(mockSleeper).sleep(eq(222L));
   }
@@ -1341,8 +1345,7 @@ public class GoogleCloudStorageTest {
         // exception when trying to retrieve the 4th byte.
         .thenReturn(1);
 
-    when(mockBackOff.nextBackOffMillis())
-        .thenReturn(111L);
+    when(mockReadBackOff.nextBackOffMillis()).thenReturn(111L);
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
@@ -1361,8 +1364,9 @@ public class GoogleCloudStorageTest {
     verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
     verify(mockHeaders, times(2)).setRange(eq("bytes=0-"));
     verify(mockHeaders).setRange(eq("bytes=3-"));
-    verify(mockBackOff, times(3)).reset();
-    verify(mockBackOff, times(2)).nextBackOffMillis();
+    verify(mockBackOff, times(1)).reset();
+    verify(mockReadBackOff, times(2)).reset();
+    verify(mockReadBackOff, times(2)).nextBackOffMillis();
     verify(mockSleeper, times(2)).sleep(eq(111L));
   }
 
@@ -1658,7 +1662,7 @@ public class GoogleCloudStorageTest {
         .thenReturn(createFakeResponse(testData.length, secondTimeoutStream))
         .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(testData)));
 
-    when(mockBackOff.nextBackOffMillis()).thenReturn(1L);
+    when(mockReadBackOff.nextBackOffMillis()).thenReturn(1L);
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
@@ -1674,8 +1678,9 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsGet, times(2)).execute();
     verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
     verify(mockHeaders, times(3)).setRange(eq("bytes=0-"));
-    verify(mockBackOff, times(3)).reset();
-    verify(mockBackOff, times(2)).nextBackOffMillis();
+    verify(mockBackOff, times(1)).reset();
+    verify(mockReadBackOff, times(2)).reset();
+    verify(mockReadBackOff, times(2)).nextBackOffMillis();
     verify(mockSleeper, times(2)).sleep(eq(1L));
   }
 

@@ -51,6 +51,15 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
       BASE_HTTP_BACKOFF_REQUIRED =
           HttpBackOffUnsuccessfulResponseHandler.BackOffRequired.ON_SERVER_ERROR;
 
+  // Default number of retries.
+  private static final int DEFAULT_MAX_REQUEST_RETRIES = HttpRequest.DEFAULT_NUMBER_OF_RETRIES;
+
+  // Default number of connection timeout (20 seconds).
+  private static final int DEFAULT_CONNECT_TIMEOUT = 20 * 1000;
+
+  // Default number of read timeout (20 seconds).
+  private static final int DEFAULT_READ_TIMEOUT = 20 * 1000;
+
   // To be used as a request interceptor for filling in the "Authorization" header field, as well
   // as a response handler for certain unsuccessful error codes wherein the Credential must refresh
   // its token for a retry.
@@ -62,6 +71,15 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
 
   // String to set as user-agent when initializing HttpRequests if none already set.
   private String defaultUserAgent;
+
+  // Max number of retires.
+  private final int maxRequestRetries;
+
+  // Connect timeout, in milliseconds.
+  private final int connectTimeoutMillis;
+
+  // Read timeout, in milliseconds.
+  private final int readTimeoutMillis;
 
   /**
    * A HttpUnsuccessfulResponseHandler logs the URL that generated certain failures.
@@ -178,22 +196,64 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
   }
 
   /**
-   * @param credential A credential which will be set as an interceptor on HttpRequests and
-   *     as the delegate for a CredentialOrBackoffResponsehandler.
-   * @param defaultUserAgent A String to set as the user-agent when initializing an HttpRequest
-   *     if the HttpRequest doesn't already have a user-agent header.
+   * @param credential A credential which will be set as an interceptor on HttpRequests and as the
+   *     delegate for a CredentialOrBackoffResponsehandler.
+   * @param defaultUserAgent A String to set as the user-agent when initializing an HttpRequest if
+   *     the HttpRequest doesn't already have a user-agent header.
+   * @param maxRequestRetries An int to indicate the max number of retries of an HttpRequest.
+   * @param connectTimeoutMillis An int to indicate the number of milliseconds for connection
+   *     timeout. Use {@code 0} for infinite timeout.
+   * @param readTimeoutMillis An int to indicate the number of milliseconds for read timeout from an
+   *     established connection. Use {@code 0} for infinite timeout.
    */
-  public RetryHttpInitializer(Credential credential, String defaultUserAgent) {
+  public RetryHttpInitializer(
+      Credential credential,
+      String defaultUserAgent,
+      int maxRequestRetries,
+      int connectTimeoutMillis,
+      int readTimeoutMillis) {
     Preconditions.checkNotNull(credential, "A valid Credential is required");
     this.credential = credential;
     this.sleeperOverride = null;
     this.defaultUserAgent = defaultUserAgent;
+    this.maxRequestRetries = maxRequestRetries;
+    this.connectTimeoutMillis = connectTimeoutMillis;
+    this.readTimeoutMillis = readTimeoutMillis;
+  }
+
+  /**
+   * {@code maxRequestRetries} defaults to {@link RetryHttpInitializer#DEFAULT_MAX_REQUEST_RETRIES}.
+   *
+   * <p>{@code connectTimeoutMillis} defaults to {@link
+   * RetryHttpInitializer#DEFAULT_CONNECT_TIMEOUT}.
+   *
+   * <p>{@code readTimeoutMillis} defaults to {@link RetryHttpInitializer#DEFAULT_READ_TIMEOUT}.
+   *
+   * @param credential A credential which will be set as an interceptor on HttpRequests and as the
+   *     delegate for a CredentialOrBackoffResponseHandler.
+   * @param defaultUserAgent A String to set as the user-agent when initializing an HttpRequest if
+   *     the HttpRequest doesn't already have a user-agent header.
+   */
+  public RetryHttpInitializer(Credential credential, String defaultUserAgent) {
+    this(
+        credential,
+        defaultUserAgent,
+        DEFAULT_MAX_REQUEST_RETRIES,
+        DEFAULT_CONNECT_TIMEOUT,
+        DEFAULT_READ_TIMEOUT);
   }
 
   @Override
   public void initialize(HttpRequest request) {
     // Credential must be the interceptor to fill in accessToken fields.
     request.setInterceptor(credential);
+
+    // Request will be retried if server errors (5XX) or I/O errors are encountered.
+    request.setNumberOfRetries(maxRequestRetries);
+
+    // Set the timeout configurations.
+    request.setConnectTimeout(connectTimeoutMillis);
+    request.setReadTimeout(readTimeoutMillis);
 
     // IOExceptions such as "socket timed out" of "insufficient bytes written" will follow a
     // straightforward backoff.
