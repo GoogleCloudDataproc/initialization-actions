@@ -1393,7 +1393,7 @@ public class GoogleCloudStorageImpl
           createItemInfoForStorageObject(new StorageResourceId(bucketName, obj.getName()), obj));
     }
 
-    if (listedPrefixes.size() > 0) {
+    if (!listedPrefixes.isEmpty()) {
       Set<StorageResourceId> prefixIds = new LinkedHashSet<>(listedPrefixes.size());
       for (String prefix : listedPrefixes) {
         prefixIds.add(new StorageResourceId(bucketName, prefix));
@@ -1408,74 +1408,67 @@ public class GoogleCloudStorageImpl
             objectInfos.add(prefixInfo);
           }
         }
-      }
 
-      List<StorageResourceId> repairList = new ArrayList<>();
-      for (StorageResourceId prefixId : prefixIds) {
-        if (storageOptions.isAutoRepairImplicitDirectoriesEnabled()) {
-          LOG.debug("Attempting to repair missing directory: {}", prefixId);
-          repairList.add(prefixId);
-        } else if (storageOptions.isInferImplicitDirectoriesEnabled()) {
-          objectInfos.add(GoogleCloudStorageItemInfo.createInferredDirectory(prefixId));
-        } else {
-          LOG.info("Giving up on retrieving missing directory: {}", prefixId);
+        if (prefixIds.isEmpty()) {
+          return objectInfos;
         }
       }
 
       // Handle repairs.
-      if (!repairList.isEmpty()) {
+      if (storageOptions.isAutoRepairImplicitDirectoriesEnabled()) {
+        LOG.info("Repairing batch of {} missing directories.", prefixIds.size());
+        LOG.debug("Directories to repair: {}", prefixIds);
+        List<StorageResourceId> prefixIdsList = new ArrayList<>(prefixIds);
         try {
-          LOG.warn("Repairing batch of {} missing directories.", repairList.size());
-          if (repairList.size() == 1) {
-            createEmptyObject(repairList.get(0));
+          if (prefixIds.size() == 1) {
+            createEmptyObject(prefixIdsList.get(0));
           } else {
-            createEmptyObjects(repairList);
+            createEmptyObjects(prefixIdsList);
           }
-
-          // Fetch and append all the repaired metadatas.
-          List<GoogleCloudStorageItemInfo> repairedInfos = getItemInfos(repairList);
-          int numRepaired = 0;
-          for (GoogleCloudStorageItemInfo repairedInfo : repairedInfos) {
-            if (repairedInfo.exists()) {
-              objectInfos.add(repairedInfo);
-              ++numRepaired;
-            } else {
-              StorageResourceId resourceId = repairedInfo.getResourceId();
-              LOG.warn("Somehow the repair for '{}' failed quietly", resourceId);
-              if (storageOptions.isInferImplicitDirectoriesEnabled()) {
-                objectInfos.add(GoogleCloudStorageItemInfo.createInferredDirectory(resourceId));
-              }
-            }
-          }
-          LOG.warn(
-              "Successfully repaired {}/{} implicit directories.", numRepaired, repairList.size());
         } catch (IOException ioe) {
-          // Don't totally fail the listObjectInfo call, since auto-repair is best-effort
-          // anyways.
+          // Don't totally fail the listObjectInfo call, since auto-repair is best-effort anyways.
           LOG.error("Failed to repair some missing directories.", ioe);
-          if (storageOptions.isInferImplicitDirectoriesEnabled()) {
-            // If we have both auto-repair and auto-infer set, and we fail
-            // to repair everything, then infer what was not repaired.
-            List<GoogleCloudStorageItemInfo> repairedInfos = getItemInfos(repairList);
-            int numRepaired = 0;
-            for (GoogleCloudStorageItemInfo repairedInfo : repairedInfos) {
-              if (repairedInfo.exists()) {
-                objectInfos.add(repairedInfo);
-                ++numRepaired;
-              } else {
-                StorageResourceId resourceId = repairedInfo.getResourceId();
-                LOG.info("Repair for '{}' failed, using inferred directory", resourceId);
-                objectInfos.add(GoogleCloudStorageItemInfo.createInferredDirectory(resourceId));
-              }
-            }
-            if (numRepaired > 0) {
-              LOG.info("Successfully repaired {}/{} implicit directories.",
-                  numRepaired, repairList.size());
-            }
-          }
+        }
+
+        List<GoogleCloudStorageItemInfo> repairedInfos = getItemInfos(prefixIdsList);
+        objectInfos.addAll(
+            inferOrFilterNotRepairedInfos(
+                repairedInfos, storageOptions.isInferImplicitDirectoriesEnabled()));
+      } else if (storageOptions.isInferImplicitDirectoriesEnabled()) {
+        for (StorageResourceId prefixId : prefixIds) {
+          objectInfos.add(GoogleCloudStorageItemInfo.createInferredDirectory(prefixId));
+        }
+      } else {
+        LOG.info(
+            "Directory repair and inferred directories are disabled, "
+                + "giving up on retrieving missing directories: {}",
+            prefixIds);
+      }
+    }
+
+    return objectInfos;
+  }
+
+  static List<GoogleCloudStorageItemInfo> inferOrFilterNotRepairedInfos(
+      List<GoogleCloudStorageItemInfo> repairInfos, boolean inferImplicitDirectories) {
+    // Fetch and append all the repaired items metadata.
+    List<GoogleCloudStorageItemInfo> objectInfos = new ArrayList<>(repairInfos.size());
+    int numRepaired = 0;
+    for (GoogleCloudStorageItemInfo repairedInfo : repairInfos) {
+      if (repairedInfo.exists()) {
+        objectInfos.add(repairedInfo);
+        ++numRepaired;
+      } else {
+        StorageResourceId resourceId = repairedInfo.getResourceId();
+        if (inferImplicitDirectories) {
+          LOG.info("Repair for '{}' failed, using inferred directory", resourceId);
+          objectInfos.add(GoogleCloudStorageItemInfo.createInferredDirectory(resourceId));
+        } else {
+          LOG.info("Repair for '{}' failed, skipping", resourceId);
         }
       }
     }
+    LOG.info("Successfully repaired {}/{} implicit directories.", numRepaired, repairInfos.size());
     return objectInfos;
   }
 
