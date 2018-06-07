@@ -202,6 +202,9 @@ EOF
     echo "Service hive-metastore is not loaded"
   fi
 
+  # Check that metastore schema is compatible.
+  /usr/lib/hive/bin/schematool -dbType mysql -info
+
   # Validate it's functioning.
   if ! hive -e 'SHOW TABLES;' >& /dev/null; then
     err 'Failed to bring up Cloud SQL Metastore'
