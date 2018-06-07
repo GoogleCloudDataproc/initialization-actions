@@ -13,6 +13,8 @@
  */
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.base.Strings.nullToEmpty;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Ticker;
@@ -416,15 +418,17 @@ public class PrefixMappedItemCache {
     /**
      * Creates a new {@link PrefixKey}.
      *
-     * @param bucket the bucket for the entry. This must not be null.
+     * @param bucket the bucket for the entry. If this string is null, it is converted to empty
+     *     string.
      * @param objectName the object name for the entry. If this string is null, it is converted to
      *     empty string.
-     * @throws NullPointerException if the bucket is null.
+     * @throws IllegalArgumentException if the bucket is null and object is not null.
      */
     public PrefixKey(String bucket, @Nullable String objectName) {
-      Preconditions.checkNotNull(bucket, "bucket must not be null.");
-      this.bucket = bucket;
-      this.objectName = objectName == null ? "" : objectName;
+      Preconditions.checkArgument(
+          bucket != null || objectName == null, "bucket must not be null if object is not null.");
+      this.bucket = nullToEmpty(bucket);
+      this.objectName = nullToEmpty(objectName);
     }
 
     /** Gets the bucket for the entry. */
