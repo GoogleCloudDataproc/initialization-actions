@@ -128,14 +128,12 @@ public class GoogleCloudStorageStringsTest {
       new MatchResultExpectation("foo/bar/baz", null, "foo/bar/baz123")
           .willReturn("foo/bar/baz123"),
 
-      // Exact match doesn't succeed because our GoogleCloudStorage is made to filter it out if
-      // no delimiter was provided.
       new MatchResultExpectation("foo/bar/baz", null, "foo/bar/baz")
-          .willReturn((String) null),
+          .willReturn("foo/bar/baz"),
 
       // String shorter than the prefix will not succeed.
       new MatchResultExpectation("foo/bar/baz", null, "foo/bar/ba")
-          .willReturn((String) null),
+          .willReturn(null),
 
       // Since no delimiter was passed, '/' should not cause truncation.
       new MatchResultExpectation("foo/bar/baz", null, "foo/bar/baz/sub")
@@ -147,7 +145,7 @@ public class GoogleCloudStorageStringsTest {
 
       // Exact match where both prefix and objectName end with '/'.
       new MatchResultExpectation("foo/bar/baz/", null, "foo/bar/baz/")
-          .willReturn((String) null),
+          .willReturn("foo/bar/baz/"),
     };
 
     verifyExpectations(expectations);
@@ -192,9 +190,13 @@ public class GoogleCloudStorageStringsTest {
       new MatchResultExpectation("foo/bar", "/", "foo/bar123/baz")
           .willReturn("foo/bar123/"),
 
+      // Exact match that not ends with delimiter means we return matched item.
+      new MatchResultExpectation("foo/bar", "/", "foo/bar")
+          .willReturn("foo/bar"),
+
       // Exact match and ends with delimiter means we return null.
       new MatchResultExpectation("foo/bar/", "/", "foo/bar/")
-          .willReturn((String) null),
+          .willReturn(null),
 
       // The delimiter-truncation search begins *strictly after* the prefix; if the prefix
       // ends with the delimiter, then truncation occurs at the *next* delimiter after it.

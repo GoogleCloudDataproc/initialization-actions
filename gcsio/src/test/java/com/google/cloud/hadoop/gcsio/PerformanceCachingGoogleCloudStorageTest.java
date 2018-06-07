@@ -165,12 +165,9 @@ public class PerformanceCachingGoogleCloudStorageTest {
     assertContainsInAnyOrder(cache.getAllItemsRaw(), expected);
   }
 
-  /** TODO: THIS TEST IS BROKEN */
   @Test
   public void testListObjectInfo() throws IOException {
-    // TODO: This is broken.
-    // The expected items SHOULD include ITEM_A_A, but the InMemoryGCS filters it out incorrectly.
-    List<GoogleCloudStorageItemInfo> expected = Lists.newArrayList(ITEM_A_AA, ITEM_A_ABA);
+    List<GoogleCloudStorageItemInfo> expected = Lists.newArrayList(ITEM_A_A, ITEM_A_AA, ITEM_A_ABA);
 
     List<GoogleCloudStorageItemInfo> result =
         gcs.listObjectInfo(BUCKET_A, PREFIX_A, null, GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
