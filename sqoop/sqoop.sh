@@ -14,7 +14,9 @@
 #    limitations under the License.
 #
 # This script installs Apache Sqoop (http://sqoop.apache.org/) on a Google Cloud
-# Dataproc cluster. Hive-Hcatalog is not installed automatically and if you want
+# Dataproc cluster.
+#
+# Hive-Hcatalog is not installed automatically and if you want
 # to run hive jobs than please use this script with hive-hcatalog.sh init action.
 # HBase libraries are not installed automatically so in order to run imports to 
 # BigTable using sqoop, please run this init action with bigtable.sh.
