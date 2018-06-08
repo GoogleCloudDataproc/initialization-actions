@@ -572,10 +572,8 @@ public class GoogleCloudStorageReadChannel
           if (bytesRead < 0) {
             // Shouldn't happen since we called validatePosition prior to this loop.
             LOG.info(
-                String.format(
-                    "Somehow read %d bytes trying to skip %d more bytes "
-                        + "to seek to position %d, size: %d",
-                    bytesRead, seekDistance, newPosition, size));
+                "Somehow read {} bytes trying to skip {} bytes to seek to position {}, size: {}",
+                bytesRead, seekDistance, newPosition, size);
             closeReadChannelAndSetLazySeekPending();
             break;
           }
