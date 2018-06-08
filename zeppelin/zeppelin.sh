@@ -45,22 +45,6 @@ function install_zeppelin(){
   if [ $? != 0 ]; then
     err 'Failed to install zeppelin'
   fi
-
-  # Wait up to 60s for ${INTERPRETER_FILE} to be available
-  for i in {1..6}; do
-    if [[ -r "${INTERPRETER_FILE}" ]]; then
-      break
-    else
-      sleep 10
-    fi
-  done
-
-  if [[ ! -r "${INTERPRETER_FILE}" ]]; then
-    err "${INTERPRETER_FILE} is missing"
-  fi
-
-  # stop service, systemd will be configured
-  service zeppelin stop
 }
 
 function configure_zeppelin(){
@@ -71,6 +55,23 @@ function configure_zeppelin(){
   # The file format has changed in 0.8.0.
   # TODO(karthikpal): Evaluate which of these (if any) are necessary >= 0.8.0
   if dpkg --compare-versions "${zeppelin_version}" '<' 0.8.0; then
+
+    # Wait up to 60s for ${INTERPRETER_FILE} to be available
+    for i in {1..6}; do
+      if [[ -r "${INTERPRETER_FILE}" ]]; then
+        break
+      else
+        sleep 10
+      fi
+    done
+
+    if [[ ! -r "${INTERPRETER_FILE}" ]]; then
+      err "${INTERPRETER_FILE} is missing"
+    fi
+
+    # stop service, systemd will be configured
+    service zeppelin stop
+
     # Set spark.yarn.isPython to fix Zeppelin pyspark in Dataproc 1.0.
     sed -i 's/\(\s*\)"spark\.app\.name[^,}]*/&,\n\1"spark.yarn.isPython": "true"/' \
       "${INTERPRETER_FILE}"
@@ -110,20 +111,12 @@ function configure_zeppelin(){
   fi
 }
 
-function launch_zeppelin(){
-  # Start Zeppelin as systemd job
-  systemctl daemon-reload
-  systemctl enable zeppelin
-  systemctl start zeppelin
-  systemctl status zeppelin
-}
-
 function main() {
   if [[ "${ROLE}" == 'Master' ]]; then
     update_apt_get || err 'Failed to update apt-get'
     install_zeppelin
     configure_zeppelin
-    launch_zeppelin
+    systemctl restart zeppelin
   fi
 }
 
