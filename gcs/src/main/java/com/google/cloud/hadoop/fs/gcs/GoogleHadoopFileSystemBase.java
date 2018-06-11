@@ -1697,7 +1697,9 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
             /* owner= */ USER_NAME,
             /* group= */ USER_NAME,
             getHadoopPath(fileInfo.getPath()));
-    LOG.debug("GHFS.getFileStatus: {} => {}", fileInfo.getPath(), fileStatusToString(status));
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("GHFS.getFileStatus: {} => {}", fileInfo.getPath(), fileStatusToString(status));
+    }
     return status;
   }
 
