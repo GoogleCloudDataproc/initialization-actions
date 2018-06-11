@@ -13,7 +13,7 @@ You can use this initialization action to create a Dataproc cluster configured t
     --initialization-actions gs://dataproc-initialization-actions/bigtable/bigtable.sh \
     --metadata bigtable-instance=<BIGTABLE INSTANCE>
     ```
-1. When it is finished being created the cluster will have HBase libraries and the Bigtable Client.
+1. The cluster will have HBase libraries and the Bigtable client after it is created.
 1. You can validate the deployment by SSHing to the master (`gcloud compute ssh <CLUSTER_NAME>-m`) and running `hbase shell`.
 
 ## Running example MR job on cluster
@@ -33,14 +33,14 @@ You can use this initialization action to create a Dataproc cluster configured t
     ```
 
 ## Running example Spark job on cluster
-1. On the cluster there is Spark-HBase connector installed. Please find more details regarding compilation and example usage on [Apache Spark - Apache HBase Connector](https://github.com/hortonworks-spark/shc)
-1. It is possible to submit example spark job with:
+1. This initialization action adds the Spark-HBase connector to the Spark classpath. Please find more details regarding compilation and example usage on [Apache Spark - Apache HBase Connector](https://github.com/hortonworks-spark/shc)
+1. Submit example spark job:
    ```bash
-   gcloud dataproc jobs submit spark --cluster <CLUSTER_NAME> --class org.apache.spark.sql.execution.datasources.hbase.examples.HBaseSource --files file:////usr/lib/hbase/conf/hbase-site.xml --jars examples/target/shc-examples-1.1.2-2.2-s_2.11-SNAPSHOT.jar
+   gcloud dataproc jobs submit spark --cluster <CLUSTER_NAME> --class org.apache.spark.sql.execution.datasources.hbase.examples.HBaseSource --jars examples/target/shc-examples-1.1.2-2.2-s_2.11-SNAPSHOT.jar
    ```
 
 ## Important notes
 * You can edit and upload your own copy of `bigtable.sh` to Google Cloud Storage and use that instead.
 * If you wish to use an instance in another project you can specify `--metadata bigtable-project=<PROJECT>` (this will set `google.bigtable.project.id`). Make sure your cluster's [service account](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/service-accounts) is authorized to access the instance, by default service account that created cluster is being used.
 * If you specify custom service account scopes, make sure to add [appropriate Bigtable scopes](https://cloud.google.com/bigtable/docs/creating-compute-instance#choosing_title_short_scopes) or `cloud-platform`. Clusters have `bigtable.admin.table` and `bigtable.data`, by default.
-* Apache Spark - Apache HBase connector is installed in version: 1.1.1-2.1-s_2.11.
+* Apache Spark - Apache HBase connector version is 1.1.1-2.1-s_2.11.

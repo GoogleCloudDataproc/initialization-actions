@@ -42,8 +42,6 @@ function err() {
 function install_big_table_client() {
   wget -q "${BIGTABLE_HBASE_DL_LINK}" -O "${HBASE_HOME}/lib/${BIGTABLE_HBASE_CLIENT}" \
     || err 'Unable to install BigTable client libs.'
-  ln -s "${HBASE_HOME}/lib/${BIGTABLE_HBASE_CLIENT}" \
-    "/usr/lib/hadoop-mapreduce/lib/${BIGTABLE_HBASE_CLIENT}"
 }
 
 function install_shc() {
@@ -65,7 +63,7 @@ EOF
 SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/usr/lib/hbase/*"
 SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/usr/lib/hbase/lib/*"
 SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/etc/hbase/conf"
-SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/usr/lib/spark/external/*"
+SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/usr/lib/spark/external/shc-core.jar"
 EOF
 
   cat << EOF > hbase-site.xml
