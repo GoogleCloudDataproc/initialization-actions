@@ -146,6 +146,23 @@ Google Cloud's key management service. You will only need to encrypt and provide
         --metadata "db-hive-password-uri=gs://<SECRETS_BUCKET>/hive-password.encrypted"
     ```
 
+8. Upgrading schema (create cluster step failed on new Dataproc version):
+
+    When changing Dataproc versions, metastore may detect schema as obsolete. In this case a schema upgrade may be necessary. Log into master node on a cluster with new Dataproc version, and run these commands:
+    
+    ```bash
+    $ /usr/lib/hive/bin/schematool -dbType mysql -info
+    Hive distribution version: 2.3.0
+    Metastore schema version: 2.1.0
+    org.apache.hadoop.hive.metastore.HiveMetaException: Metastore schema version is not compatible. Hive Version: 2.3.0, Database Schema Version: 2.1.0
+    *** schemaTool failed ***
+
+    User can upgrade their schema by running:
+    $ /usr/lib/hive/bin/schematool -dbType mysql -upgradeSchemaFrom <current-version>
+    ```
+
+    Now schema is updated. Please delete and recreate the cluster
+
 **Notes:**
 
 * If the cluster's service account has permission to decrypt the `root` or `hive` password, then any user that
