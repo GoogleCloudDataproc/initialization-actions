@@ -148,7 +148,9 @@ Google Cloud's key management service. You will only need to encrypt and provide
 
 8. Upgrading schema (create cluster step failed on new Dataproc version):
 
-    When changing Dataproc versions, metastore may detect schema as obsolete. In this case a schema upgrade may be necessary. Log into master node on a cluster with new Dataproc version, and run these commands:
+    When changing Dataproc versions, metastore may detect schema as obsolete. The initialization action log will include `*** schemaTool failed ***` and `Run /usr/lib/hive/bin/schematool -dbType mysql -upgradeSchemaFrom <schema-version> to upgrade the schema. Note that this may break Hive metastores that depend on the old schema'` messges.
+    
+    In this case a schema upgrade is necessary. Log into master node on a cluster with new Dataproc version, and run these commands:
     
     ```bash
     $ /usr/lib/hive/bin/schematool -dbType mysql -info
