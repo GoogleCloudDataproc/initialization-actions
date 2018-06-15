@@ -1,4 +1,4 @@
-0.13.0 - 2018-XX-XX
+0.13.0 - 2018-06-15
 
   1. POM updates for GCS connector 1.9.0.
 
@@ -16,6 +16,7 @@
   7. Add interface through which user can directly provide the access token.
 
   8. Support Cloud KMS key name in the output table spec.
+
 
 0.12.1 - 2018-03-29
 
