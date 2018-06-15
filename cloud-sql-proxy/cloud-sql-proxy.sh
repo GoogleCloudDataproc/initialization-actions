@@ -203,7 +203,8 @@ EOF
   fi
 
   # Check that metastore schema is compatible.
-  /usr/lib/hive/bin/schematool -dbType mysql -info
+  /usr/lib/hive/bin/schematool -dbType mysql -info || \
+      err 'Run /usr/lib/hive/bin/schematool -dbType mysql -upgradeSchemaFrom <schema-version> to upgrade the schema. Note that this may break Hive metastores that depend on the old schema'
 
   # Validate it's functioning.
   if ! hive -e 'SHOW TABLES;' >& /dev/null; then
