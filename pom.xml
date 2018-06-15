@@ -228,7 +228,7 @@
                 <include>**/*IntegrationTest.java</include>
               </includes>
               <reuseForks>false</reuseForks>
-              <forkCount>3</forkCount>
+              <forkCount>1C</forkCount>
             </configuration>
           </plugin>
         </plugins>
@@ -542,6 +542,7 @@
             <exclude>**/*IntegrationTest.java</exclude>
           </excludes>
           <reuseForks>false</reuseForks>
+          <forkCount>2</forkCount>
         </configuration>
       </plugin>
       <plugin>
