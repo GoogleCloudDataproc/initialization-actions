@@ -2,8 +2,11 @@
 
 This initialization action installs the [Oozie](http://oozie.apache.org) workflow scheduler on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster. The Oozie server, client, and web interface are installed.
 
-**Note:** Google Cloud Dataproc provides native support for executing DAG of jobs via
-[Workflow Templates](https://cloud.google.com/dataproc/docs/concepts/workflows/overview)
+## Alternatives to Oozie for workflow orchestration
+
+* Google Cloud Dataproc provides native support for executing a DAG of jobs via
+[Workflow Templates](https://cloud.google.com/dataproc/docs/concepts/workflows/overview).
+* In addition, [Google Cloud Composer](https://cloud.google.com/composer/) provides managed workflow orchestration built on top of [Apache Airflow](https://airflow.apache.org/).
 
 ## Using this initialization action
 
@@ -23,19 +26,35 @@ You can find more information about using initialization actions with Dataproc i
 
 You can test this Oozie installation by running the `oozie-examples` included with Oozie. The examples are in an archive at `/usr/share/doc/oozie/oozie-examples.tar.gz`. To run the MapReduce example, you can do the following:
 
-1. Move the examples to your home directory:<br/>
-`cp /usr/share/doc/oozie/oozie-examples.tar.gz ~`
+1. Move the examples to your home directory:
+    ```
+    cp /usr/share/doc/oozie/oozie-examples.tar.gz ~
+    ```
 1. Decompress the archive:<br/>
-`tar -zxvf oozie-examples.tar.gz`
-1. Edit the MapReduce example with details for your cluster:<br/>
-`nameNode=hdfs://<cluster-name-m>:8020`<br/>
-`jobTracker=<cluster-name-m>:8032`
-1. Move the Oozie examples to HDFS:<br/>
-`hadoop fs -put ~/examples/ /user/<username>/`
-1. Run the example on the command line with:<br/>
-`oozie job -oozie http://127.0.0.1:11000/oozie -config \
-~/examples/apps/map-reduce/job.properties -run`
+    ```
+    tar -zxvf oozie-examples.tar.gz
+    ```
+1. Edit the MapReduce example (`~/examples/apps/map-reduce/job.properties`) with details for your cluster:
 
+    On standard and single node clusters, use the master node hostname:
+    ```
+    nameNode=hdfs://<cluster-name-m>:8020
+    jobTracker=<cluster-name-m>:8032
+    ```
+    
+    On high availability clusters use the nameservice ids (by default, the cluster name):
+    ```
+    nameNode=hdfs://<cluster-name>:8020
+    jobTracker=<cluster-name>:8032
+    ```
+1. Move the Oozie examples to HDFS:
+    ```
+    hadoop fs -put ~/examples/ /user/<username>/
+    ```
+1. Run the example on the command line with:<br/>
+    ```
+    oozie job -oozie http://127.0.0.1:11000/oozie -config ~/examples/apps/map-reduce/job.properties -run
+    ```
 
 ## Oozie web interface
 
