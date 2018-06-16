@@ -62,39 +62,63 @@ function install_oozie(){
   # Create the Oozie database
   sudo -u oozie /usr/lib/oozie/bin/ooziedb.sh create -run
   # Hadoop must allow impersonation for Oozie to work properly
-  cat > core-site-patch.xml <<'EOF'
-<property>
-  <name>hadoop.proxyuser.oozie.hosts</name>
-  <value>*</value>
-</property>
-<property>
-  <name>hadoop.proxyuser.oozie.groups</name>
-  <value>*</value>
-</property>
-<property>
-  <name>hadoop.proxyuser.${user.name}.hosts</name>
-  <value>*</value>
-</property>
-<property>
-  <name>hadoop.proxyuser.${user.name}.groups</name>
-  <value>*</value>
-</property>
-EOF
-  sed -i '/<\/configuration>/e cat core-site-patch.xml' \
-    /etc/hadoop/conf/core-site.xml
+
+  bdconfig set_property \
+      --configuration_file "/etc/hadoop/conf/core-site.xml" \
+      --name 'hadoop.proxyuser.oozie.hosts' --value '*' \
+      --clobber
+
+  bdconfig set_property \
+    --configuration_file "/etc/hadoop/conf/core-site.xml" \
+    --name 'hadoop.proxyuser.oozie.groups' --value '*' \
+    --clobber
 
   # Install share lib
   tar -xvzf /usr/lib/oozie/oozie-sharelib.tar.gz
   ln -s share /usr/lib/oozie/share
   hadoop fs -mkdir -p /user/oozie/
-  hadoop fs -put share/ /user/oozie/
+  hadoop fs -put -f share/ /user/oozie/
+  # Detect if current node configuration is HA and then set oozie servers
+  local additional_nodes=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional | sed 's/,/\n/g' | wc -l)
+  if [[ ${additional_nodes} -ge 2 ]]; then
+    echo 'Starting configuration for HA'
+    # List of servers is used for proper zookeeper configuration. It is needed to replace original ports range with specific one
+    local servers=$(cat /usr/lib/zookeeper/conf/zoo.cfg \
+      | grep 'server.' \
+      | sed 's/server.//g' \
+      | sed 's/:2888:3888//g' \
+      | cut -d'=' -f2- \
+      | sed 's/\n/,/g' \
+      | head -n 3 \
+      | sed 's/$/:2181,/g' \
+      | xargs -L3 \
+      | sed 's/.$//g')
 
+    bdconfig set_property \
+      --configuration_file "/etc/oozie/conf/oozie-site.xml" \
+      --name 'oozie.services.ext' --value \
+        'org.apache.oozie.service.ZKLocksService,
+        org.apache.oozie.service.ZKXLogStreamingService,
+        org.apache.oozie.service.ZKJobsConcurrencyService,
+        org.apache.oozie.service.ZKUUIDService' \
+      --clobber
+
+    bdconfig set_property \
+      --configuration_file "/etc/oozie/conf/oozie-site.xml" \
+      --name 'oozie.zookeeper.connection.string' --value "${servers}" \
+      --clobber
+
+  fi
   # Clean up temporary fles
-  rm -rf ext-2.2 ext-2.2.zip core-site-patch.xml share oozie-sharelib.tar.gz
-
+  rm -rf ext-2.2 ext-2.2.zip share oozie-sharelib.tar.gz
+  /usr/lib/zookeeper/bin/zkServer.sh restart
   # HDFS and YARN must be cycled; restart to clean things up
-  systemctl restart hadoop-hdfs-namenode hadoop-hdfs-secondarynamenode \
-    hadoop-yarn-resourcemanager oozie
+  for service in hadoop-hdfs-namenode hadoop-hdfs-secondarynamenode hadoop-yarn-resourcemanager oozie; do
+    if [[ $(systemctl list-unit-files | grep ${service}) != '' ]] && \
+      [[ $(systemctl is-enabled ${service}) == 'enabled' ]]; then
+      systemctl restart ${service}
+    fi
+  done
 }
 
 main
