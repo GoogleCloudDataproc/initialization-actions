@@ -12,7 +12,8 @@
 #    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
-set -x -e
+set -o errexit
+set -o xtrace
 
 function update_apt_get() {
   for ((i = 0; i < 10; i++)); do
@@ -28,9 +29,9 @@ function update_apt_get() {
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 CLUSTER_NAME=$(hostname | sed -r 's/(.*)-[w|m](-[0-9]+)?$/\1/')
 
-# Download and extract ZooKeeper
+# Download and extract ZooKeeper Server
 update_apt_get
-apt-get install -y zookeeper
+apt-get install -y zookeeper-server
 mkdir -p /var/lib/zookeeper
 
 # Configure ZooKeeper node ID
@@ -52,5 +53,5 @@ server.2=${CLUSTER_NAME}-w-0:2888:3888
 server.3=${CLUSTER_NAME}-w-1:2888:3888
 EOF
 
-# Start ZooKeeper
-ZOO_LOG_DIR=/var/log/zookeeper /usr/lib/zookeeper/bin/zkServer.sh start
+# Restart ZooKeeper
+systemctl restart zookeeper-server
