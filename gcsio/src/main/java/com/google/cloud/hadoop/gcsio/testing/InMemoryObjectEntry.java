@@ -44,10 +44,10 @@ import java.util.concurrent.TimeUnit;
 public class InMemoryObjectEntry {
   /**
    * We have to delegate because we can't extend from the inner class returned by,
-   * Channels.newChannel, and the default version doesn't enforce ClosedChannelException
-   * when trying to write to a closed channel; probably because it relies on the underlying
-   * output stream throwing when closed. The ByteArrayOutputStream doesn't enforce throwing
-   * when closed, so we have to manually do it.
+   * Channels.newChannel, and the default version doesn't enforce ClosedChannelException when trying
+   * to write to a closed channel; probably because it relies on the underlying output stream
+   * throwing when closed. The ByteArrayOutputStream doesn't enforce throwing when closed, so we
+   * have to manually do it.
    */
   private class WritableByteChannelImpl
       implements WritableByteChannel, GoogleCloudStorageItemInfo.Provider {
@@ -102,35 +102,39 @@ public class InMemoryObjectEntry {
   // The metadata associated with this ObjectEntry;
   private GoogleCloudStorageItemInfo info;
 
-  public InMemoryObjectEntry(String bucketName, String objectName, long createTimeMillis,
-      String contentType, Map<String, byte[]> metadata) {
+  public InMemoryObjectEntry(
+      String bucketName,
+      String objectName,
+      long createTimeMillis,
+      String contentType,
+      Map<String, byte[]> metadata) {
     // Override close() to commit its completed byte array into completedContents to reflect
     // the behavior that any readable contents are only well-defined if the writeStream is closed.
-    writeStream = new ByteArrayOutputStream() {
-      @Override
-      public synchronized void close() throws IOException {
-        synchronized (InMemoryObjectEntry.this) {
-          completedContents = toByteArray();
-          HashCode md5 = Hashing.md5().hashBytes(completedContents);
-          HashCode crc32c = Hashing.crc32c().hashBytes(completedContents);
-          writeStream = null;
-          writeChannel = null;
-          info = new GoogleCloudStorageItemInfo(
-              info.getResourceId(),
-              info.getCreationTime(),
-              completedContents.length,
-              null,
-              null,
-              info.getContentType(),
-              info.getMetadata(),
-              info.getContentGeneration(),
-              0L,
-              new VerificationAttributes(
-                  md5.asBytes(),
-                  Ints.toByteArray(crc32c.asInt())));
-        }
-      }
-    };
+    writeStream =
+        new ByteArrayOutputStream() {
+          @Override
+          public synchronized void close() throws IOException {
+            synchronized (InMemoryObjectEntry.this) {
+              completedContents = toByteArray();
+              HashCode md5 = Hashing.md5().hashBytes(completedContents);
+              HashCode crc32c = Hashing.crc32c().hashBytes(completedContents);
+              writeStream = null;
+              writeChannel = null;
+              info =
+                  new GoogleCloudStorageItemInfo(
+                      info.getResourceId(),
+                      info.getCreationTime(),
+                      /* size= */ completedContents.length,
+                      /* location= */ null,
+                      /* storageClass= */ null,
+                      info.getContentType(),
+                      info.getMetadata(),
+                      info.getContentGeneration(),
+                      /* metaGeneration= */ 0L,
+                      new VerificationAttributes(md5.asBytes(), Ints.toByteArray(crc32c.asInt())));
+            }
+          }
+        };
 
     // We have to delegate because we can't extend from the inner class returned by,
     // Channels.newChannel, and the default version doesn't enforce ClosedChannelException
@@ -141,23 +145,21 @@ public class InMemoryObjectEntry {
     writeChannel = new WritableByteChannelImpl(delegateWriteChannel);
 
     // Size 0 initially because this object exists, but contains no data.
-    info = new GoogleCloudStorageItemInfo(
-        new StorageResourceId(bucketName, objectName),
-        createTimeMillis,
-        0,
-        null,
-        null,
-        contentType,
-        ImmutableMap.copyOf(metadata),
-        createTimeMillis,
-        0L);
+    info =
+        new GoogleCloudStorageItemInfo(
+            new StorageResourceId(bucketName, objectName),
+            createTimeMillis,
+            /* size= */ 0,
+            /* location= */ null,
+            /* storageClass= */ null,
+            contentType,
+            ImmutableMap.copyOf(metadata),
+            /* contentGeneration= */ createTimeMillis,
+            /* metaGeneration= */ 0L);
   }
 
-  /**
-   * For internal use in getShallowCopy(2).
-   */
-  private InMemoryObjectEntry() {
-  }
+  /** For internal use in getShallowCopy(2). */
+  private InMemoryObjectEntry() {}
 
   /**
    * Returns true if the initial WritableByteChannel associated with this InMemoryObjectEntry has
@@ -188,8 +190,8 @@ public class InMemoryObjectEntry {
    * Returns a copy of this InMemoryObjectEntry which shares the underlying completedContents data;
    * it is illegal to call this method if the write channel has not yet been closed.
    */
-  public synchronized InMemoryObjectEntry getShallowCopy(
-      String bucketName, String objectName) throws IOException {
+  public synchronized InMemoryObjectEntry getShallowCopy(String bucketName, String objectName)
+      throws IOException {
     if (!isCompleted()) {
       throw new IOException("Cannot getShallowCopy() before the writeChannel has been closed!");
     }
@@ -207,12 +209,12 @@ public class InMemoryObjectEntry {
             new StorageResourceId(bucketName, objectName),
             System.currentTimeMillis(),
             info.getSize(),
-            null,
-            null,
+            /* location= */ null,
+            /* storageClass= */ null,
             info.getContentType(),
             info.getMetadata(),
             info.getContentGeneration(),
-            0L);
+            /* metaGeneration= */ 0L);
     return copy;
   }
 
@@ -229,24 +231,25 @@ public class InMemoryObjectEntry {
   }
 
   /**
-   * Returns a SeekableByteChannel pointing at this InMemoryObjectEntry's byte contents;
-   * a previous writer must have already closed the associated WritableByteChannel to commit
-   * the byte contents and make them available for reading.
+   * Returns a SeekableByteChannel pointing at this InMemoryObjectEntry's byte contents; a previous
+   * writer must have already closed the associated WritableByteChannel to commit the byte contents
+   * and make them available for reading.
    */
   public synchronized SeekableByteChannel getReadChannel() throws IOException {
     return getReadChannel(GoogleCloudStorageReadOptions.DEFAULT);
   }
 
   /**
-   * Returns a SeekableByteChannel pointing at this InMemoryObjectEntry's byte contents;
-   * a previous writer must have already closed the associated WritableByteChannel to commit
-   * the byte contents and make them available for reading.
+   * Returns a SeekableByteChannel pointing at this InMemoryObjectEntry's byte contents; a previous
+   * writer must have already closed the associated WritableByteChannel to commit the byte contents
+   * and make them available for reading.
    */
   public synchronized SeekableByteChannel getReadChannel(GoogleCloudStorageReadOptions readOptions)
       throws IOException {
     if (!isCompleted()) {
       throw new IOException(
-          String.format("Cannot getReadChannel() before writes have been committed! Object = %s",
+          String.format(
+              "Cannot getReadChannel() before writes have been committed! Object = %s",
               this.getObjectName()));
     }
     return new InMemoryObjectReadChannel(completedContents, readOptions);
@@ -264,9 +267,9 @@ public class InMemoryObjectEntry {
   }
 
   /**
-   * Updates the metadata associated with this InMemoryObjectEntry. Any key in newMetadata which
-   * has a corresponding null value will be removed from the object's metadata. All other values
-   * will be added.
+   * Updates the metadata associated with this InMemoryObjectEntry. Any key in newMetadata which has
+   * a corresponding null value will be removed from the object's metadata. All other values will be
+   * added.
    */
   public synchronized void patchMetadata(Map<String, byte[]> newMetadata) throws IOException {
     if (!isCompleted()) {
@@ -285,15 +288,17 @@ public class InMemoryObjectEntry {
       }
     }
 
-    info = new GoogleCloudStorageItemInfo(
-        info.getResourceId(),
-        info.getCreationTime(),
-        completedContents.length,
-        null,
-        null,
-        info.getContentType(),
-        mergedMetadata,
-        0L,
-        0L);
+    info =
+        new GoogleCloudStorageItemInfo(
+            info.getResourceId(),
+            info.getCreationTime(),
+            /* size= */ completedContents.length,
+            /* location= */ null,
+            /* storageClass= */ null,
+            info.getContentType(),
+            mergedMetadata,
+            /* contentGeneration= */ 0,
+            /* metaGeneration= */ 0,
+            info.getVerificationAttributes());
   }
 }

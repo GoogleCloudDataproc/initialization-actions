@@ -327,10 +327,9 @@ public class GoogleCloudStorageItemInfo {
   @Override
   public String toString() {
     if (exists()) {
-      return String.format("%s: created on: %s",
-          resourceId, (new Date(creationTime)).toString());
+      return String.format("%s: created on: %s", resourceId, new Date(creationTime));
     } else {
-      return String.format("%s: exists: no", resourceId.toString());
+      return String.format("%s: exists: no", resourceId);
     }
   }
 

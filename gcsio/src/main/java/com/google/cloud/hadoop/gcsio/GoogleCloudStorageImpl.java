@@ -86,20 +86,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Provides read/write access to Google Cloud Storage (GCS), using Java nio channel semantics.
- * This is a basic implementation of the GoogleCloudStorage interface that mostly delegates through
- * to the appropriate API call(s) via the generated JSON API client, while adding reliability and
- * performance features such as setting up low-level retries, translating low-level exceptions,
- * and request batching.
+ * Provides read/write access to Google Cloud Storage (GCS), using Java nio channel semantics. This
+ * is a basic implementation of the GoogleCloudStorage interface that mostly delegates through to
+ * the appropriate API call(s) via the generated JSON API client, while adding reliability and
+ * performance features such as setting up low-level retries, translating low-level exceptions, and
+ * request batching.
  */
-public class GoogleCloudStorageImpl
-    implements GoogleCloudStorage {
-  // Pseudo path delimiter.
-  //
-  // GCS does not implement full concept of file system paths but it does expose
-  // some notion of a delimiter that can be used with Storage.Objects.List to
-  // control which items are listed.
-  public static final String PATH_DELIMITER = "/";
+public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
   // Number of retries to make when waiting for a bucket to be empty.
   public static final int BUCKET_EMPTY_MAX_RETRIES = 20;
@@ -515,8 +508,7 @@ public class GoogleCloudStorageImpl
       insertObject.execute();
     } catch (IOException ioe) {
       if (canIgnoreExceptionForEmptyObject(ioe, resourceId, options)) {
-        LOG.info(
-            "Ignoring exception; verified object already exists with desired state.", ioe);
+        LOG.info("Ignoring exception; verified object already exists with desired state.", ioe);
       } else {
         throw ioe;
       }
@@ -1472,9 +1464,7 @@ public class GoogleCloudStorageImpl
     return objectInfos;
   }
 
-  /**
-   * Helper for converting a StorageResourceId + Bucket into a GoogleCloudStorageItemInfo.
-   */
+  /** Helper for converting a StorageResourceId + Bucket into a GoogleCloudStorageItemInfo. */
   public static GoogleCloudStorageItemInfo createItemInfoForBucket(
       StorageResourceId resourceId, Bucket bucket) {
     Preconditions.checkArgument(resourceId != null, "resourceId must not be null");

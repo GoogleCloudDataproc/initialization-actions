@@ -145,7 +145,7 @@ public class GoogleCloudStorageStringsTest {
 
       // Exact match where both prefix and objectName end with '/'.
       new MatchResultExpectation("foo/bar/baz/", null, "foo/bar/baz/")
-          .willReturn("foo/bar/baz/"),
+          .willReturn(null),
     };
 
     verifyExpectations(expectations);

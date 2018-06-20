@@ -16,6 +16,8 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorage.PATH_DELIMITER;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 
@@ -51,12 +53,10 @@ public class GoogleCloudStorageStrings {
     int suffixIndex = 0;
     if (objectNamePrefix != null) {
       // The underlying GCS API does return objectName when it equals the prefix, but our
-      // GoogleCloudStorage wrapper filters this case if the objectName also ends with the
-      // delimiter.
+      // GoogleCloudStorage wrapper filters this case if the objectName also ends with
+      // PATH_DELIMITER.
       if (!objectName.startsWith(objectNamePrefix)
-          || (objectName.equals(objectNamePrefix)
-              && delimiter != null
-              && objectNamePrefix.endsWith(delimiter))) {
+          || (objectName.equals(objectNamePrefix) && objectNamePrefix.endsWith(PATH_DELIMITER))) {
         return null;
       } else {
         suffixIndex = objectNamePrefix.length();

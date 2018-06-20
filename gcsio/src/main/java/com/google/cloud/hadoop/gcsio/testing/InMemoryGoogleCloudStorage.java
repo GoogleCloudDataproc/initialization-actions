@@ -115,9 +115,7 @@ public class InMemoryGoogleCloudStorage
 
   @Override
   public synchronized WritableByteChannel create(
-      StorageResourceId resourceId,
-      final CreateObjectOptions options)
-      throws IOException {
+      StorageResourceId resourceId, final CreateObjectOptions options) throws IOException {
     if (!bucketLookup.containsKey(resourceId.getBucketName())) {
       throw new IOException(String.format(
           "Tried to insert object '%s' into nonexistent bucket '%s'",
@@ -127,11 +125,12 @@ public class InMemoryGoogleCloudStorage
       throw new IOException("Error creating object. Invalid name: " + resourceId.getObjectName());
     }
     if (resourceId.hasGenerationId() && resourceId.getGenerationId() != 0L) {
-      if (getItemInfo(resourceId).getContentGeneration() != resourceId.getGenerationId()) {
-        throw new IOException(String.format(
-            "Required generationId '%d' doesn't match existing '%d' for '%s'",
-            resourceId.getGenerationId(), getItemInfo(resourceId).getContentGeneration(),
-            resourceId));
+      GoogleCloudStorageItemInfo itemInfo = getItemInfo(resourceId);
+      if (itemInfo.getContentGeneration() != resourceId.getGenerationId()) {
+        throw new IOException(
+            String.format(
+                "Required generationId '%d' doesn't match existing '%d' for '%s'",
+                resourceId.getGenerationId(), itemInfo.getContentGeneration(), resourceId));
       }
     }
     if (!options.overwriteExisting() || resourceId.getGenerationId() == 0L) {
