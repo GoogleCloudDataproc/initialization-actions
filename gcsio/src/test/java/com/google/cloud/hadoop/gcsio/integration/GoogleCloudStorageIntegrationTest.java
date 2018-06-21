@@ -18,6 +18,8 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
+import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorage;
+import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.ThrottledGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.ThrottledGoogleCloudStorage.StorageOperation;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
@@ -36,7 +38,9 @@ public class GoogleCloudStorageIntegrationTest extends GoogleCloudStorageTest {
   @Parameters
   public static Collection<Object[]> getConstructorArguments() throws IOException {
     return Arrays.asList(
-        new Object[] {getGoogleCloudStorage()}, new Object[] {getApacheGoogleCloudStorage()});
+        new Object[] {getGoogleCloudStorage()},
+        new Object[] {getApacheGoogleCloudStorage()},
+        new Object[] {getPerformanceCachingGoogleCloudStorage()});
   }
 
   private static GoogleCloudStorage getApacheGoogleCloudStorage() throws IOException {
@@ -45,8 +49,10 @@ public class GoogleCloudStorageIntegrationTest extends GoogleCloudStorageTest {
             .setTransportType(HttpTransportFactory.HttpTransportType.APACHE));
   }
 
-  public GoogleCloudStorageIntegrationTest(GoogleCloudStorage gcs) {
-    super(gcs);
+  private static GoogleCloudStorage getPerformanceCachingGoogleCloudStorage() throws IOException {
+    return new PerformanceCachingGoogleCloudStorage(
+        getGoogleCloudStorage(GoogleCloudStorageTestHelper.getStandardOptionBuilder()),
+        PerformanceCachingGoogleCloudStorageOptions.newBuilder().build());
   }
 
   private static GoogleCloudStorage getGoogleCloudStorage() throws IOException {
@@ -62,5 +68,9 @@ public class GoogleCloudStorageIntegrationTest extends GoogleCloudStorageTest {
         RateLimiter.create(2),
         new GoogleCloudStorageImpl(optionsBuilder.build(), credential),
         EnumSet.of(StorageOperation.DELETE_BUCKETS, StorageOperation.CREATE_BUCKET));
+  }
+
+  public GoogleCloudStorageIntegrationTest(GoogleCloudStorage gcs) {
+    super(gcs);
   }
 }

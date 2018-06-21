@@ -326,4 +326,9 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
 
     return item;
   }
+
+  @VisibleForTesting
+  public void invalidateCache() {
+    cache.invalidateAll();
+  }
 }

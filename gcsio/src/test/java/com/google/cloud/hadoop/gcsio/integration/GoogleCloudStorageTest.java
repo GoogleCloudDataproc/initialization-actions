@@ -30,6 +30,8 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageWriteChannel;
 import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage.ListVisibilityCalculator;
+import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorage;
+import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.UpdatableItemInfo;
 import com.google.cloud.hadoop.gcsio.VerificationAttributes;
@@ -66,6 +68,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -103,17 +106,18 @@ public class GoogleCloudStorageTest {
   }
 
   /** An Equivalence for byte arrays. */
-  public static final Equivalence<byte[]> BYTE_ARRAY_EQUIVALENCE = new Equivalence<byte[]>() {
-    @Override
-    protected boolean doEquivalent(byte[] bytes, byte[] bytes2) {
-      return Arrays.equals(bytes, bytes2);
-    }
+  public static final Equivalence<byte[]> BYTE_ARRAY_EQUIVALENCE =
+      new Equivalence<byte[]>() {
+        @Override
+        protected boolean doEquivalent(byte[] bytes, byte[] bytes2) {
+          return Arrays.equals(bytes, bytes2);
+        }
 
-    @Override
-    protected int doHash(byte[] bytes) {
-      return Arrays.hashCode(bytes);
-    }
-  };
+        @Override
+        protected int doHash(byte[] bytes) {
+          return Arrays.hashCode(bytes);
+        }
+      };
 
   // Test classes using JUnit4 runner must have only a single constructor. Since we
   // want to be able to pass in dependencies, we'll maintain this base class as
@@ -126,13 +130,25 @@ public class GoogleCloudStorageTest {
             new InMemoryGoogleCloudStorage(),
             Clock.SYSTEM,
             ListVisibilityCalculator.IMMEDIATELY_VISIBLE);
-    return Arrays.asList(new Object[] {gcs}, new Object[] {zeroLaggedGcs});
+    GoogleCloudStorage performanceCachingGcs =
+        new PerformanceCachingGoogleCloudStorage(
+            new InMemoryGoogleCloudStorage(),
+            PerformanceCachingGoogleCloudStorageOptions.newBuilder().build());
+    return Arrays.asList(
+        new Object[] {gcs}, new Object[] {zeroLaggedGcs}, new Object[] {performanceCachingGcs});
   }
 
   private final GoogleCloudStorage rawStorage;
 
   public GoogleCloudStorageTest(GoogleCloudStorage rawStorage) {
     this.rawStorage = rawStorage;
+  }
+
+  @Before
+  public void setUp() {
+    if (rawStorage instanceof PerformanceCachingGoogleCloudStorage) {
+      ((PerformanceCachingGoogleCloudStorage) rawStorage).invalidateCache();
+    }
   }
 
   @AfterClass
@@ -627,8 +643,7 @@ public class GoogleCloudStorageTest {
         rawStorage.listObjectInfo(
             bucketName, "testListObjectInfoWithDirectoryRepair_", "/", MAX_RESULTS_UNLIMITED);
 
-    // Specifying any exact values seems like it's begging for this test to become flaky.
-    assertWithMessage("Infos not expected to be empty").that(rootInfo.isEmpty()).isFalse();
+    assertWithMessage("Infos not expected to be empty").that(rootInfo).hasSize(2);
 
     // Directory repair should have created an empty object for us:
     StorageResourceId d2 =
@@ -981,9 +996,7 @@ public class GoogleCloudStorageTest {
   }
 
   @Test @Ignore("Not implemented")
-  public void testOperationsAfterCloseFail() {
-
-  }
+  public void testOperationsAfterCloseFail() {}
 
   @Test
   public void testMetadataIsWrittenWhenCreatingObjects() throws IOException {
@@ -1043,9 +1056,7 @@ public class GoogleCloudStorageTest {
     writeObject(rawStorage, objectToCreate, /* objectSize= */ 100);
 
     GoogleCloudStorageItemInfo itemInfo = rawStorage.getItemInfo(objectToCreate);
-    assertWithMessage("iniital metadata should be empty")
-        .that(itemInfo.getMetadata().size())
-        .isEqualTo(0);
+    assertWithMessage("initial metadata should be empty").that(itemInfo.getMetadata()).isEmpty();
 
     // Verify we can update metadata:
     List<GoogleCloudStorageItemInfo> results =
