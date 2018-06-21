@@ -13,21 +13,20 @@
  */
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
-import com.google.common.base.Joiner;
 import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hashing;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -37,7 +36,11 @@ import org.mockito.MockitoAnnotations;
 
 @RunWith(JUnit4.class)
 public class PerformanceCachingGoogleCloudStorageTest {
-  /** Sample empty metadata. */
+
+  private static final HashCode EMPTY_OBJECT_MD5 = Hashing.md5().hashBytes(new byte[0]);
+  private static final HashCode EMPTY_OBJECT_CRC32C = Hashing.crc32c().hashBytes(new byte[0]);
+
+  // Sample empty metadata.
   private static final ImmutableMap<String, byte[]> TEST_METADATA =
       ImmutableMap.of("test_key", new byte[] {2});
 
@@ -47,11 +50,11 @@ public class PerformanceCachingGoogleCloudStorageTest {
   private static final CreateObjectOptions CREATE_OBJECT_OPTIONS =
       new CreateObjectOptions(true, "test_content_type", TEST_METADATA, true);
 
-  /* Sample bucket names. */
+  // Sample bucket names.
   private static final String BUCKET_A = "alpha";
   private static final String BUCKET_B = "alph";
 
-  /* Sample object names. */
+  // Sample object names.
   private static final String PREFIX_A = "bar";
   private static final String PREFIX_AA = "bar/apple";
   private static final String PREFIX_ABA = "bar/berry/foo";
@@ -131,7 +134,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
     // Verify the delegate call.
     verify(gcsDelegate).deleteBuckets(eq(buckets));
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList(ITEM_B_A));
+    assertThat(cache.getAllItemsRaw()).containsExactly(ITEM_B_A);
   }
 
   @Test
@@ -149,7 +152,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
     // Verify the delegate call.
     verify(gcsDelegate).deleteObjects(eq(ids));
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList(ITEM_B_B));
+    assertThat(cache.getAllItemsRaw()).containsExactly(ITEM_B_B);
   }
 
   @Test
@@ -160,9 +163,9 @@ public class PerformanceCachingGoogleCloudStorageTest {
 
     // Verify the delegate call.
     verify(gcsDelegate).listBucketInfo();
-    assertContainsInAnyOrder(result, expected);
+    assertThat(result).containsExactlyElementsIn(expected);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), expected);
+    assertThat(cache.getAllItemsRaw()).containsExactlyElementsIn(expected);
   }
 
   @Test
@@ -179,9 +182,9 @@ public class PerformanceCachingGoogleCloudStorageTest {
             Matchers.<String>eq(PREFIX_A),
             Matchers.<String>eq(null),
             eq(GoogleCloudStorage.MAX_RESULTS_UNLIMITED));
-    assertContainsInAnyOrder(result, expected);
+    assertThat(result).containsExactlyElementsIn(expected);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), expected);
+    assertThat(cache.getAllItemsRaw()).containsExactlyElementsIn(expected);
   }
 
   @Test
@@ -193,9 +196,9 @@ public class PerformanceCachingGoogleCloudStorageTest {
     // Verify the delegate call.
     verify(gcsDelegate)
         .listObjectInfo(eq(BUCKET_B), Matchers.<String>eq(null), Matchers.<String>eq(null));
-    assertContainsInAnyOrder(result, expected);
+    assertThat(result).containsExactlyElementsIn(expected);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), expected);
+    assertThat(cache.getAllItemsRaw()).containsExactlyElementsIn(expected);
   }
 
   @Test
@@ -211,9 +214,9 @@ public class PerformanceCachingGoogleCloudStorageTest {
     // Verify the delegate call once.
     verify(gcsDelegate)
         .listObjectInfo(eq(BUCKET_A), Matchers.<String>eq(null), Matchers.<String>eq(null));
-    assertContainsInAnyOrder(result, expected);
+    assertThat(result).containsExactlyElementsIn(expected);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), expected);
+    assertThat(cache.getAllItemsRaw()).containsExactlyElementsIn(expected);
   }
 
   @Test
@@ -224,9 +227,9 @@ public class PerformanceCachingGoogleCloudStorageTest {
     GoogleCloudStorageItemInfo result = gcs.getItemInfo(ITEM_A_A.getResourceId());
 
     // Verify the cached item was returned.
-    assertEquals(result, ITEM_A_A);
+    assertThat(result).isEqualTo(ITEM_A_A);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList(ITEM_A_A));
+    assertThat(cache.getAllItemsRaw()).containsExactly(ITEM_A_A);
   }
 
   @Test
@@ -235,9 +238,9 @@ public class PerformanceCachingGoogleCloudStorageTest {
 
     // Verify the delegate call.
     verify(gcsDelegate).getItemInfo(eq(ITEM_A_A.getResourceId()));
-    assertEquals(result, ITEM_A_A);
+    assertThat(result).isEqualTo(ITEM_A_A);
     // Verify the cache was updated.
-    assertEquals(cache.getItem(ITEM_A_A.getResourceId()), ITEM_A_A);
+    assertThat(cache.getItem(ITEM_A_A.getResourceId())).isEqualTo(ITEM_A_A);
   }
 
   @Test
@@ -252,13 +255,10 @@ public class PerformanceCachingGoogleCloudStorageTest {
 
     List<GoogleCloudStorageItemInfo> result = gcs.getItemInfos(requestedIds);
 
-    // Verify the result is exactly what the delegate returns.
-    assertContainsInAnyOrder(result, expected);
-    // Verify ordering
-    assertEquals(result.get(0), ITEM_A_A);
-    assertEquals(result.get(1), ITEM_A_B);
+    // Verify the result is exactly what the delegate returns in order.
+    assertThat(result).containsExactlyElementsIn(expected).inOrder();
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), expected);
+    assertThat(cache.getAllItemsRaw()).containsExactlyElementsIn(expected);
   }
 
   @Test
@@ -282,14 +282,10 @@ public class PerformanceCachingGoogleCloudStorageTest {
 
     // Verify the delegate call.
     verify(gcsDelegate).getItemInfos(eq(uncachedIds));
-    assertContainsInAnyOrder(result, expected);
-    // Verify ordering.
-    assertEquals(result.get(0), ITEM_A_A);
-    assertEquals(result.get(1), ITEM_A_B);
-    assertEquals(result.get(2), ITEM_B_A);
-    assertEquals(result.get(3), ITEM_B_B);
+    // Verify the result and its ordering.
+    assertThat(result).containsExactlyElementsIn(expected).inOrder();
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), expected);
+    assertThat(cache.getAllItemsRaw()).containsExactlyElementsIn(expected);
   }
 
   @Test
@@ -302,17 +298,14 @@ public class PerformanceCachingGoogleCloudStorageTest {
 
     // Verify the delegate call.
     verify(gcsDelegate).getItemInfos(eq(requestedIds));
-    assertContainsInAnyOrder(result, expected);
-    // Verify ordering
-    assertEquals(result.get(0), ITEM_A_A);
-    assertEquals(result.get(1), ITEM_A_B);
+    // Verify the result and its ordering.
+    assertThat(result).containsExactlyElementsIn(expected).inOrder();
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), expected);
+    assertThat(cache.getAllItemsRaw()).containsExactlyElementsIn(expected);
   }
 
   @Test
   public void testUpdateItems() throws IOException {
-    List<GoogleCloudStorageItemInfo> expected = Lists.newArrayList(ITEM_A_A);
     List<UpdatableItemInfo> updateItems =
         Lists.newArrayList(new UpdatableItemInfo(ITEM_A_A.getResourceId(), TEST_METADATA));
 
@@ -320,9 +313,9 @@ public class PerformanceCachingGoogleCloudStorageTest {
 
     // Verify the delegate call.
     verify(gcsDelegate).updateItems(eq(updateItems));
-    assertContainsInAnyOrder(result, expected);
+    assertThat(result).containsExactly(ITEM_A_A);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), expected);
+    assertThat(cache.getAllItemsRaw()).containsExactly(ITEM_A_A);
   }
 
   @Test
@@ -335,8 +328,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
     // Verify the delegate call was made.
     verify(gcsDelegate).close();
     // Verify the state of the cache.
-    assertContainsInAnyOrder(
-        cache.getAllItemsRaw(), Lists.<GoogleCloudStorageItemInfo>newArrayList());
+    assertThat(cache.getAllItemsRaw()).isEmpty();
   }
 
   @Test
@@ -350,9 +342,9 @@ public class PerformanceCachingGoogleCloudStorageTest {
     // Verify the delegate call.
     verify(gcsDelegate)
         .composeObjects(eq(ids), eq(ITEM_A_AA.getResourceId()), eq(CREATE_OBJECT_OPTIONS));
-    assertEquals(result, ITEM_A_AA);
+    assertThat(result).isEqualTo(ITEM_A_AA);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList(ITEM_A_AA));
+    assertThat(cache.getAllItemsRaw()).containsExactly(ITEM_A_AA);
   }
 
   /**
@@ -362,14 +354,12 @@ public class PerformanceCachingGoogleCloudStorageTest {
    * @return the generated item.
    */
   public static GoogleCloudStorageItemInfo createBucketItemInfo(String bucketName) {
-    GoogleCloudStorageItemInfo item =
-        new GoogleCloudStorageItemInfo(
-            new StorageResourceId(bucketName),
-            0,
-            0,
-            CREATE_BUCKET_OPTIONS.getLocation(),
-            CREATE_BUCKET_OPTIONS.getStorageClass());
-    return item;
+    return new GoogleCloudStorageItemInfo(
+        new StorageResourceId(bucketName),
+        /* creationTime= */ 0,
+        /* size= */ 0,
+        CREATE_BUCKET_OPTIONS.getLocation(),
+        CREATE_BUCKET_OPTIONS.getStorageClass());
   }
 
   /**
@@ -381,118 +371,30 @@ public class PerformanceCachingGoogleCloudStorageTest {
    */
   public static GoogleCloudStorageItemInfo createObjectItemInfo(
       String bucketName, String objectName) {
-    GoogleCloudStorageItemInfo item =
-        new GoogleCloudStorageItemInfo(
-            new StorageResourceId(bucketName, objectName),
-            0,
-            0,
-            null,
-            null,
-            CREATE_OBJECT_OPTIONS.getContentType(),
-            TEST_METADATA,
-            0,
-            0L);
-    return item;
+    return createObjectItemInfo(bucketName, objectName, CREATE_OBJECT_OPTIONS);
   }
 
   /**
-   * Helper method for comparing collections of GoogleCloudStorageItemInfos. Only checks equality
-   * based on the item's resource id.
+   * Helper to generate a GoogleCloudStorageItemInfo for an object entry.
    *
-   * @param actualItems the actual collect of GoogleCloudStorageItemInfo.
-   * @param expectedItems the collection of GoogleCloudStorageItemInfo that was expected.
+   * @param bucketName the name of the bucket for the generated item.
+   * @param objectName the object name of the generated item.
+   * @param createObjectOptions the {@link CreateObjectOptions} to use to generate item.
+   * @return the generated item.
    */
-  public static void assertContainsInAnyOrder(
-      Collection<GoogleCloudStorageItemInfo> actualItems,
-      Collection<GoogleCloudStorageItemInfo> expectedItems) {
-
-    List<WrappedItem> actualWrapped = new ArrayList<WrappedItem>();
-    List<WrappedItem> expectedWrapped = new ArrayList<WrappedItem>();
-    List<WrappedItem> xor = new ArrayList<WrappedItem>();
-
-    for (GoogleCloudStorageItemInfo actual : actualItems) {
-      WrappedItem wrapped = new WrappedItem(actual);
-      actualWrapped.add(wrapped);
-      xor.add(wrapped);
-    }
-    for (GoogleCloudStorageItemInfo expected : expectedItems) {
-      WrappedItem wrapped = new WrappedItem(expected);
-      expectedWrapped.add(wrapped);
-      xor.add(wrapped);
-    }
-
-    String actualString = Joiner.on(',').join(actualWrapped);
-    String expectedString = Joiner.on(',').join(expectedWrapped);
-
-    actualWrapped.retainAll(expectedWrapped);
-    xor.removeAll(actualWrapped);
-
-    if (!xor.isEmpty()) {
-      throw new AssertionError(
-          String.format(
-              "\nExpected: [ %s ] in any order"
-                  + "\n     got: [ %s ]"
-                  + "\n     but: [ %s ] were not matched",
-              expectedString, actualString, Joiner.on(',').join(xor)));
-    }
-  }
-
-  /** Used to have the correct equals behavior for items. */
-  private static class WrappedItem {
-    private final GoogleCloudStorageItemInfo item;
-
-    public WrappedItem(GoogleCloudStorageItemInfo item) {
-      this.item = item;
-    }
-
-    // TODO(b/37774152): implement hashCode() (go/equals-hashcode-lsc)
-    @SuppressWarnings("EqualsHashCode")
-    @Override
-    public boolean equals(Object obj) {
-      return PerformanceCachingGoogleCloudStorageTest.equals(item, ((WrappedItem) obj).item);
-    }
-
-    @Override
-    public String toString() {
-      return item.getResourceId().toString();
-    }
-  }
-
-  /**
-   * Helper method for comparing GoogleCloudStorageItemInfo. Checks based on resource id, location,
-   * storage class, content type, and metadata.
-   *
-   * @param actual the actual object.
-   * @param expected the expected object.
-   * @throws AssertionError if the objects are not equal.
-   */
-  public static void assertEquals(
-      GoogleCloudStorageItemInfo actual, GoogleCloudStorageItemInfo expected) {
-    if (!equals(actual, expected)) {
-      throw new AssertionError(String.format("\nExpected: %s\n but was: %s ", expected, actual));
-    }
-  }
-
-  /**
-   * Helper method for comparing GoogleCloudStorageItemInfo. Checks based on resource id, location,
-   * storage class, content type, and metadata.
-   *
-   * @param a a GoogleCloudStorageItemInfo.
-   * @param b a GoogleCloudStorageItemInfo to be compared with a.
-   * @return true of the arguments are equal, false otherwise.
-   */
-  public static boolean equals(GoogleCloudStorageItemInfo a, GoogleCloudStorageItemInfo b) {
-    if (a == b) {
-      return true;
-    } else if (a == null || b == null) {
-      return false;
-    } else {
-      return a.getResourceId().equals(b.getResourceId())
-          && Objects.equals(a.getLocation(), b.getLocation())
-          && Objects.equals(a.getStorageClass(), b.getStorageClass())
-          && Objects.equals(a.getContentType(), b.getContentType())
-          && a.metadataEquals(b.getMetadata());
-    }
+  public static GoogleCloudStorageItemInfo createObjectItemInfo(
+      String bucketName, String objectName, CreateObjectOptions createObjectOptions) {
+    return new GoogleCloudStorageItemInfo(
+        new StorageResourceId(bucketName, objectName),
+        /* creationTime= */ 0,
+        /* size= */ 0,
+        /* location= */ null,
+        /* storageClass= */ null,
+        createObjectOptions.getContentType(),
+        createObjectOptions.getMetadata(),
+        /* contentGeneration= */ 0,
+        /* metaGeneration= */ 0,
+        new VerificationAttributes(EMPTY_OBJECT_MD5.asBytes(), EMPTY_OBJECT_CRC32C.asBytes()));
   }
 
   /** Ticker with a manual time value used for testing the cache. */

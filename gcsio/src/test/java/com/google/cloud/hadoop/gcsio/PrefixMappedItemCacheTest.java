@@ -13,8 +13,6 @@
  */
 package com.google.cloud.hadoop.gcsio;
 
-import static com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorageTest.assertContainsInAnyOrder;
-import static com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorageTest.assertEquals;
 import static com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorageTest.createObjectItemInfo;
 import static com.google.common.truth.Truth.assertThat;
 
@@ -29,17 +27,17 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class PrefixMappedItemCacheTest {
-  /* Sample bucket names. */
+  // Sample bucket names.
   private static final String BUCKET_A = "alpha";
   private static final String BUCKET_B = "alph";
 
-  /* Sample object names. */
+  // Sample object names.
   private static final String PREFIX_A = "bar";
   private static final String PREFIX_AA = "bar/apple";
   private static final String PREFIX_ABA = "bar/berry/foo";
   private static final String PREFIX_B = "baz";
 
-  /* Sample item info. */
+  // Sample item info.
   private static final GoogleCloudStorageItemInfo ITEM_A_A =
       createObjectItemInfo(BUCKET_A, PREFIX_A);
   private static final GoogleCloudStorageItemInfo ITEM_A_AA =
@@ -75,9 +73,9 @@ public class PrefixMappedItemCacheTest {
 
     GoogleCloudStorageItemInfo actualItem = cache.getItem(ITEM_A_A.getResourceId());
 
-    assertEquals(actualItem, ITEM_A_A);
+    assertThat(actualItem).isEqualTo(ITEM_A_A);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList(ITEM_A_A));
+    assertThat(cache.getAllItemsRaw()).containsExactly(ITEM_A_A);
   }
 
   /** Test missing items cannot be retrieved. */
@@ -87,8 +85,7 @@ public class PrefixMappedItemCacheTest {
 
     assertThat(actualItem).isNull();
     // Verify the state of the cache.
-    assertContainsInAnyOrder(
-        cache.getAllItemsRaw(), Lists.<GoogleCloudStorageItemInfo>newArrayList());
+    assertThat(cache.getAllItemsRaw()).isEmpty();
   }
 
   /** Test expired items cannot be retrieved. */
@@ -103,7 +100,7 @@ public class PrefixMappedItemCacheTest {
 
     assertThat(actualItem).isNull();
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList(ITEM_B_A));
+    assertThat(cache.getAllItemsRaw()).containsExactly(ITEM_B_A);
     assertThat(cache.containsListRaw(BUCKET_A, PREFIX_A)).isFalse();
     assertThat(cache.containsListRaw(BUCKET_B, PREFIX_A)).isTrue();
   }
@@ -115,7 +112,7 @@ public class PrefixMappedItemCacheTest {
 
     assertThat(previousItem).isNull();
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList(ITEM_A_A));
+    assertThat(cache.getAllItemsRaw()).containsExactly(ITEM_A_A);
   }
 
   /** Test old but valid items are overwritten and the old value is returned. */
@@ -125,9 +122,9 @@ public class PrefixMappedItemCacheTest {
 
     GoogleCloudStorageItemInfo previousItem = cache.putItem(ITEM_A_A);
 
-    assertEquals(previousItem, ITEM_A_A);
+    assertThat(previousItem).isEqualTo(ITEM_A_A);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList(ITEM_A_A));
+    assertThat(cache.getAllItemsRaw()).containsExactly(ITEM_A_A);
   }
 
   /** Test old expired items are not returned. */
@@ -141,7 +138,7 @@ public class PrefixMappedItemCacheTest {
 
     assertThat(previousItem).isNull();
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList(ITEM_A_ABA, ITEM_B_A));
+    assertThat(cache.getAllItemsRaw()).containsExactly(ITEM_A_ABA, ITEM_B_A);
     assertThat(cache.containsListRaw(BUCKET_A, PREFIX_A)).isFalse();
     assertThat(cache.containsListRaw(BUCKET_B, PREFIX_A)).isTrue();
   }
@@ -156,11 +153,10 @@ public class PrefixMappedItemCacheTest {
 
     List<GoogleCloudStorageItemInfo> actualItems = cache.getList(BUCKET_A, "");
 
-    assertContainsInAnyOrder(actualItems, expectedItems);
+    assertThat(actualItems).containsExactlyElementsIn(expectedItems);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(
-        cache.getAllItemsRaw(),
-        Lists.newArrayList(ITEM_A_A, ITEM_A_AA, ITEM_A_ABA, ITEM_A_B, ITEM_B_A));
+    assertThat(cache.getAllItemsRaw())
+        .containsExactly(ITEM_A_A, ITEM_A_AA, ITEM_A_ABA, ITEM_A_B, ITEM_B_A);
     assertThat(cache.containsListRaw(BUCKET_A, "")).isTrue();
   }
 
@@ -175,11 +171,10 @@ public class PrefixMappedItemCacheTest {
 
     List<GoogleCloudStorageItemInfo> actualItems = cache.getList(BUCKET_A, PREFIX_A);
 
-    assertContainsInAnyOrder(actualItems, expectedItems);
+    assertThat(actualItems).containsExactlyElementsIn(expectedItems);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(
-        cache.getAllItemsRaw(),
-        Lists.newArrayList(ITEM_A_A, ITEM_A_AA, ITEM_A_ABA, ITEM_A_B, ITEM_B_A));
+    assertThat(cache.getAllItemsRaw())
+        .containsExactly(ITEM_A_A, ITEM_A_AA, ITEM_A_ABA, ITEM_A_B, ITEM_B_A);
     assertThat(cache.containsListRaw(BUCKET_A, PREFIX_A)).isTrue();
   }
 
@@ -192,11 +187,10 @@ public class PrefixMappedItemCacheTest {
 
     List<GoogleCloudStorageItemInfo> actualItems = cache.getList(BUCKET_A, PREFIX_A + "/");
 
-    assertContainsInAnyOrder(actualItems, expectedItems);
+    assertThat(actualItems).containsExactlyElementsIn(expectedItems);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(
-        cache.getAllItemsRaw(),
-        Lists.newArrayList(ITEM_A_A, ITEM_A_AA, ITEM_A_ABA, ITEM_A_B, ITEM_B_A));
+    assertThat(cache.getAllItemsRaw())
+        .containsExactly(ITEM_A_A, ITEM_A_AA, ITEM_A_ABA, ITEM_A_B, ITEM_B_A);
     assertThat(cache.containsListRaw(BUCKET_A, "")).isTrue();
   }
 
@@ -207,8 +201,7 @@ public class PrefixMappedItemCacheTest {
 
     assertThat(actualItems).isNull();
     // Verify the state of the cache.
-    assertContainsInAnyOrder(
-        cache.getAllItemsRaw(), Lists.<GoogleCloudStorageItemInfo>newArrayList());
+    assertThat(cache.getAllItemsRaw()).isEmpty();
   }
 
   /** Test missing lists cannot be retrieved. */
@@ -222,9 +215,8 @@ public class PrefixMappedItemCacheTest {
 
     assertThat(actualItems).isNull();
     // Verify the state of the cache.
-    assertContainsInAnyOrder(
-        cache.getAllItemsRaw(),
-        Lists.newArrayList(ITEM_A_B, ITEM_A_A, ITEM_A_AA, ITEM_A_ABA, ITEM_B_A));
+    assertThat(cache.getAllItemsRaw())
+        .containsExactly(ITEM_A_B, ITEM_A_A, ITEM_A_AA, ITEM_A_ABA, ITEM_B_A);
     assertThat(cache.containsListRaw(BUCKET_A, PREFIX_A)).isTrue();
   }
 
@@ -241,7 +233,7 @@ public class PrefixMappedItemCacheTest {
 
     assertThat(actualItems).isNull();
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList(ITEM_B_A));
+    assertThat(cache.getAllItemsRaw()).containsExactly(ITEM_B_A);
     assertThat(cache.containsListRaw(BUCKET_A, "")).isFalse();
     assertThat(cache.containsListRaw(BUCKET_A, PREFIX_A)).isTrue();
   }
@@ -252,7 +244,7 @@ public class PrefixMappedItemCacheTest {
     cache.putList(BUCKET_A, PREFIX_AA, Lists.newArrayList(ITEM_A_AA, ITEM_A_ABA));
 
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList(ITEM_A_AA, ITEM_A_ABA));
+    assertThat(cache.getAllItemsRaw()).containsExactly(ITEM_A_AA, ITEM_A_ABA);
     assertThat(cache.containsListRaw(BUCKET_A, PREFIX_AA)).isTrue();
   }
 
@@ -263,7 +255,7 @@ public class PrefixMappedItemCacheTest {
     cache.putList(BUCKET_A, PREFIX_A, Lists.newArrayList(ITEM_A_AA));
 
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList(ITEM_A_AA));
+    assertThat(cache.getAllItemsRaw()).containsExactly(ITEM_A_AA);
     assertThat(cache.containsListRaw(BUCKET_A, PREFIX_A)).isTrue();
   }
 
@@ -274,8 +266,7 @@ public class PrefixMappedItemCacheTest {
     cache.putList(BUCKET_A, PREFIX_AA, Lists.newArrayList(ITEM_A_AA));
 
     // Verify the state of the cache.
-    assertContainsInAnyOrder(
-        cache.getAllItemsRaw(), Lists.newArrayList(ITEM_A_A, ITEM_A_AA, ITEM_A_ABA));
+    assertThat(cache.getAllItemsRaw()).containsExactly(ITEM_A_A, ITEM_A_AA, ITEM_A_ABA);
     assertThat(cache.containsListRaw(BUCKET_A, "")).isTrue();
     assertThat(cache.containsListRaw(BUCKET_A, PREFIX_AA)).isTrue();
   }
@@ -287,10 +278,9 @@ public class PrefixMappedItemCacheTest {
 
     GoogleCloudStorageItemInfo actualItem = cache.removeItem(ITEM_A_A.getResourceId());
 
-    assertEquals(actualItem, ITEM_A_A);
+    assertThat(actualItem).isEqualTo(ITEM_A_A);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(
-        cache.getAllItemsRaw(), Lists.<GoogleCloudStorageItemInfo>newArrayList());
+    assertThat(cache.getAllItemsRaw()).isEmpty();
   }
 
   /** Test missing items can be removed. */
@@ -300,9 +290,9 @@ public class PrefixMappedItemCacheTest {
 
     GoogleCloudStorageItemInfo actualItem = cache.removeItem(ITEM_A_AA.getResourceId());
 
-    assertEquals(actualItem, ITEM_A_AA);
+    assertThat(actualItem).isEqualTo(ITEM_A_AA);
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList(ITEM_A_A, ITEM_A_ABA));
+    assertThat(cache.getAllItemsRaw()).containsExactly(ITEM_A_A, ITEM_A_ABA);
     assertThat(cache.containsListRaw(BUCKET_A, PREFIX_A)).isTrue();
   }
 
@@ -313,8 +303,7 @@ public class PrefixMappedItemCacheTest {
 
     assertThat(actualItem).isNull();
     // Verify the state of the cache.
-    assertContainsInAnyOrder(
-        cache.getAllItemsRaw(), Lists.<GoogleCloudStorageItemInfo>newArrayList());
+    assertThat(cache.getAllItemsRaw()).isEmpty();
   }
 
   /** Test missing items can be removed. */
@@ -326,10 +315,9 @@ public class PrefixMappedItemCacheTest {
 
     GoogleCloudStorageItemInfo actualItem = cache.removeItem(ITEM_A_A.getResourceId());
 
-    assertEquals(actualItem, null);
+    assertThat(actualItem).isNull();
     // Verify the state of the cache.
-    assertContainsInAnyOrder(
-        cache.getAllItemsRaw(), Lists.<GoogleCloudStorageItemInfo>newArrayList());
+    assertThat(cache.getAllItemsRaw()).isEmpty();
     assertThat(cache.containsListRaw(BUCKET_A, "")).isFalse();
     assertThat(cache.containsListRaw(BUCKET_A, PREFIX_AA)).isTrue();
   }
@@ -343,7 +331,7 @@ public class PrefixMappedItemCacheTest {
     cache.invalidateBucket(BUCKET_A);
 
     // Verify the state of the cache.
-    assertContainsInAnyOrder(cache.getAllItemsRaw(), Lists.newArrayList(ITEM_B_A));
+    assertThat(cache.getAllItemsRaw()).containsExactly(ITEM_B_A);
     assertThat(cache.containsListRaw(BUCKET_A, "")).isFalse();
     assertThat(cache.containsListRaw(BUCKET_A, PREFIX_A)).isFalse();
     assertThat(cache.containsListRaw(BUCKET_B, "")).isTrue();
@@ -358,8 +346,7 @@ public class PrefixMappedItemCacheTest {
     cache.invalidateBucket(BUCKET_B);
 
     // Verify the state of the cache.
-    assertContainsInAnyOrder(
-        cache.getAllItemsRaw(), Lists.newArrayList(ITEM_A_A, ITEM_A_AA));
+    assertThat(cache.getAllItemsRaw()).containsExactly(ITEM_A_A, ITEM_A_AA);
     assertThat(cache.containsListRaw(BUCKET_A, "")).isTrue();
     assertThat(cache.containsListRaw(BUCKET_A, PREFIX_A)).isTrue();
     assertThat(cache.containsListRaw(BUCKET_B, "")).isFalse();
@@ -374,8 +361,7 @@ public class PrefixMappedItemCacheTest {
     cache.invalidateAll();
 
     // Verify the state of the cache.
-    assertContainsInAnyOrder(
-        cache.getAllItemsRaw(), Lists.<GoogleCloudStorageItemInfo>newArrayList());
+    assertThat(cache.getAllItemsRaw()).isEmpty();
     assertThat(cache.containsListRaw(BUCKET_A, "")).isFalse();
     assertThat(cache.containsListRaw(BUCKET_A, PREFIX_AA)).isFalse();
   }
