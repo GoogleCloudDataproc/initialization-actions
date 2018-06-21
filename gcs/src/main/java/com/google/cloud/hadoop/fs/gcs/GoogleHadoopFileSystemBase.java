@@ -2359,7 +2359,6 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     optionsBuilder
         .getPerformanceCachingOptionsBuilder()
         .setMaxEntryAgeMillis(performanceCacheMaxEntryAgeMillis)
-        .setInferImplicitDirectoriesEnabled(enableInferImplicitDirectories)
         .setListCachingEnabled(listCachingEnabled);
 
     optionsBuilder

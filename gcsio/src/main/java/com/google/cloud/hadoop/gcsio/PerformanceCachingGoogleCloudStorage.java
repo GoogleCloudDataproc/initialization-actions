@@ -43,11 +43,11 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
   /** Cache to hold item info and manage invalidation. */
   private final PrefixMappedItemCache cache;
 
-  /** Setting for enabling inferring of implicit directories. */
-  private final boolean inferImplicitDirectoriesEnabled;
+  /** Options that configure delegate storage. */
+  private final GoogleCloudStorageOptions delegateOptions;
 
-  /** Setting for enabling list caching. */
-  private final boolean listCachingEnabled;
+  /** Options that configure this cache. */
+  private final PerformanceCachingGoogleCloudStorageOptions options;
 
   /**
    * Creates a wrapper around a GoogleCloudStorage instance, caching calls that create, update,
@@ -62,15 +62,7 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
    */
   public PerformanceCachingGoogleCloudStorage(
       GoogleCloudStorage delegate, PerformanceCachingGoogleCloudStorageOptions options) {
-    super(delegate);
-
-    this.inferImplicitDirectoriesEnabled = options.isInferImplicitDirectoriesEnabled();
-    this.listCachingEnabled = options.isListCachingEnabled();
-
-    // Create the cache configuration.
-    PrefixMappedItemCache.Config config = new PrefixMappedItemCache.Config();
-    config.setMaxEntryAgeMillis(options.getMaxEntryAgeMillis());
-    this.cache = new PrefixMappedItemCache(config);
+    this(delegate, options, createCache(options));
   }
 
   @VisibleForTesting
@@ -79,9 +71,16 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
       PerformanceCachingGoogleCloudStorageOptions options,
       PrefixMappedItemCache cache) {
     super(delegate);
-    this.inferImplicitDirectoriesEnabled = options.isInferImplicitDirectoriesEnabled();
-    this.listCachingEnabled = options.isListCachingEnabled();
+    this.delegateOptions = delegate.getOptions();
+    this.options = options;
     this.cache = cache;
+  }
+
+  private static PrefixMappedItemCache createCache(
+      PerformanceCachingGoogleCloudStorageOptions options) {
+    PrefixMappedItemCache.Config config = new PrefixMappedItemCache.Config();
+    config.setMaxEntryAgeMillis(options.getMaxEntryAgeMillis());
+    return new PrefixMappedItemCache(config);
   }
 
   @Override
@@ -132,7 +131,7 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
       throws IOException {
     List<GoogleCloudStorageItemInfo> result;
 
-    if (listCachingEnabled) {
+    if (options.isListCachingEnabled()) {
       result = cache.getList(bucketName, objectNamePrefix);
 
       if (result == null) {
@@ -153,6 +152,7 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
         cache.putItem(item);
       }
     }
+
     return result;
   }
 
@@ -217,7 +217,8 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
       dirIds.add(new StorageResourceId(bucketName, dir));
     }
 
-    if (getDelegate().getOptions().isAutoRepairImplicitDirectoriesEnabled()) {
+    boolean inferImplicitDirectories = delegateOptions.isInferImplicitDirectoriesEnabled();
+    if (delegateOptions.isAutoRepairImplicitDirectoriesEnabled()) {
       try {
         createEmptyObjects(dirIds);
       } catch (IOException ioe) {
@@ -226,9 +227,8 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
       }
       // cache repaired dirs
       List<GoogleCloudStorageItemInfo> repairedDirInfos = getItemInfos(dirIds);
-      items.addAll(
-          inferOrFilterNotRepairedInfos(repairedDirInfos, inferImplicitDirectoriesEnabled));
-    } else if (inferImplicitDirectoriesEnabled) {
+      items.addAll(inferOrFilterNotRepairedInfos(repairedDirInfos, inferImplicitDirectories));
+    } else if (inferImplicitDirectories) {
       for (StorageResourceId dirId : dirIds) {
         items.add(GoogleCloudStorageItemInfo.createInferredDirectory(dirId));
       }

@@ -300,9 +300,7 @@ public class PrefixMappedItemCache {
   private static <E> Entry<PrefixKey, E> getParentEntry(
       TreeMap<PrefixKey, E> map, PrefixKey upperBound) {
     NavigableMap<PrefixKey, E> head = map.headMap(upperBound, true).descendingMap();
-    Iterator<Entry<PrefixKey, E>> itr = head.entrySet().iterator();
-    while (itr.hasNext()) {
-      Entry<PrefixKey, E> entry = itr.next();
+    for (Entry<PrefixKey, E> entry : head.entrySet()) {
       if (upperBound.isParent(entry.getKey())) {
         return entry;
       }
