@@ -188,6 +188,57 @@ public class PerformanceCachingGoogleCloudStorageTest {
   }
 
   @Test
+  public void testListObjectInfo_delimiter() throws IOException {
+    GoogleCloudStorageItemInfo itemAAPrefix =
+        createObjectItemInfo(BUCKET_A, PREFIX_A + "/", CreateObjectOptions.DEFAULT);
+
+    List<GoogleCloudStorageItemInfo> expectedResult = Lists.newArrayList(ITEM_A_A, itemAAPrefix);
+    List<GoogleCloudStorageItemInfo> expectedCached =
+        Lists.newArrayList(ITEM_A_A, itemAAPrefix, ITEM_A_AA, ITEM_A_ABA);
+
+    List<GoogleCloudStorageItemInfo> result =
+        gcs.listObjectInfo(BUCKET_A, PREFIX_A, "/", GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+
+    // Verify the delegate call.
+    verify(gcsDelegate)
+        .listObjectInfo(
+            eq(BUCKET_A), eq(PREFIX_A), eq(null), eq(GoogleCloudStorage.MAX_RESULTS_UNLIMITED));
+
+    // Verify the result.
+    assertThat(result).containsExactlyElementsIn(expectedResult);
+
+    // Verify the state of the cache.
+    assertThat(cache.getAllItemsRaw()).containsExactlyElementsIn(expectedCached);
+  }
+
+  @Test
+  public void testListObjectInfo_prefixDir_delimiter() throws IOException {
+    String prefixADir = PREFIX_A + "/";
+
+    String prefixABADir = PREFIX_ABA.substring(0, PREFIX_ABA.lastIndexOf('/') + 1);
+    GoogleCloudStorageItemInfo itemABAPrefix =
+        createObjectItemInfo(BUCKET_A, prefixABADir, CreateObjectOptions.DEFAULT);
+
+    List<GoogleCloudStorageItemInfo> expectedResult = Lists.newArrayList(ITEM_A_AA, itemABAPrefix);
+    List<GoogleCloudStorageItemInfo> expectedCached =
+        Lists.newArrayList(ITEM_A_AA, itemABAPrefix, ITEM_A_ABA);
+
+    List<GoogleCloudStorageItemInfo> result =
+        gcs.listObjectInfo(BUCKET_A, prefixADir, "/", GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+
+    // Verify the delegate call.
+    verify(gcsDelegate)
+        .listObjectInfo(
+            eq(BUCKET_A), eq(prefixADir), eq(null), eq(GoogleCloudStorage.MAX_RESULTS_UNLIMITED));
+
+    // Verify the result.
+    assertThat(result).containsExactlyElementsIn(expectedResult);
+
+    // Verify the state of the cache.
+    assertThat(cache.getAllItemsRaw()).containsExactlyElementsIn(expectedCached);
+  }
+
+  @Test
   public void testListObjectInfoAlt() throws IOException {
     List<GoogleCloudStorageItemInfo> expected = Lists.newArrayList(ITEM_B_A, ITEM_B_B);
 

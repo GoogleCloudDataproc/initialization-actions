@@ -13,7 +13,10 @@
  */
 package com.google.cloud.hadoop.gcsio;
 
-import com.google.api.client.util.Strings;
+import static com.google.api.client.util.Strings.isNullOrEmpty;
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl.inferOrFilterNotRepairedInfos;
+import static com.google.common.base.Strings.nullToEmpty;
+
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -21,6 +24,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This class adds a caching layer around a GoogleCloudStorage instance, caching calls that create,
@@ -31,6 +36,10 @@ import javax.annotation.Nullable;
  * outside of this instance may not be immediately reflected.
  */
 public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudStorage {
+
+  private static final Logger LOG =
+      LoggerFactory.getLogger(PerformanceCachingGoogleCloudStorage.class);
+
   /** Cache to hold item info and manage invalidation. */
   private final PrefixMappedItemCache cache;
 
@@ -134,11 +143,16 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
       if (GoogleCloudStorage.PATH_DELIMITER.equals(delimiter)) {
         filter(result, bucketName, objectNamePrefix, delimiter);
       }
-    } else {
-      result = super.listObjectInfo(bucketName, objectNamePrefix, null);
-      cache.putList(bucketName, objectNamePrefix, result);
-    }
 
+      if (maxResults > 0 && result.size() > maxResults) {
+        result = result.subList(0, (int) maxResults);
+      }
+    } else {
+      result = super.listObjectInfo(bucketName, objectNamePrefix, delimiter, maxResults);
+      for (GoogleCloudStorageItemInfo item : result) {
+        cache.putItem(item);
+      }
+    }
     return result;
   }
 
@@ -155,19 +169,24 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
       List<GoogleCloudStorageItemInfo> items,
       String bucketName,
       @Nullable String prefix,
-      @Nullable String delimiter) {
-    prefix = prefix == null ? "" : prefix;
-    if (Strings.isNullOrEmpty(delimiter)) {
+      @Nullable String delimiter)
+      throws IOException {
+    prefix = nullToEmpty(prefix);
+    if (isNullOrEmpty(delimiter)) {
       return;
     }
 
-    HashSet<String> dirs = new HashSet<String>();
+    HashSet<String> dirs = new HashSet<>();
     Iterator<GoogleCloudStorageItemInfo> itr = items.iterator();
     while (itr.hasNext()) {
       String objectName = itr.next().getObjectName();
 
       // Remove if doesn't start with the prefix.
       if (!objectName.startsWith(prefix)) {
+        itr.remove();
+      } else if (prefix.endsWith(delimiter) && objectName.equals(prefix)) {
+        // Remove prefix object if it ends with delimiter:
+        // do not return prefix dir to avoid infinite recursion.
         itr.remove();
       } else {
         // Retain if missing the delimiter after the prefix.
@@ -176,21 +195,46 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
           // Remove if the first occurrence of the delimiter after the prefix isn't the last.
           // Remove if the last occurrence of the delimiter isn't the end of the string.
           int lastIndex = objectName.lastIndexOf(delimiter);
-          if (firstIndex != lastIndex) {
-            itr.remove();
-            dirs.add(objectName.substring(0, firstIndex + 1));
-          } else if (lastIndex != objectName.length() - 1) {
+          if (firstIndex != lastIndex || lastIndex != objectName.length() - 1) {
             itr.remove();
             dirs.add(objectName.substring(0, firstIndex + 1));
           }
         }
       }
     }
-    if (inferImplicitDirectoriesEnabled) {
-      for (String dir : dirs) {
-        items.add(
-            GoogleCloudStorageItemInfo.createInferredDirectory(
-                new StorageResourceId(bucketName, dir)));
+
+    // Remove non-implicit directories (i.e. have corresponding directory objects)
+    for (GoogleCloudStorageItemInfo item : items) {
+      dirs.remove(item.getObjectName());
+    }
+
+    if (dirs.isEmpty()) {
+      return;
+    }
+
+    List<StorageResourceId> dirIds = new ArrayList<>(dirs.size());
+    for (String dir : dirs) {
+      dirIds.add(new StorageResourceId(bucketName, dir));
+    }
+
+    if (getDelegate().getOptions().isAutoRepairImplicitDirectoriesEnabled()) {
+      try {
+        if (dirIds.size() == 1) {
+          createEmptyObject(dirIds.get(0));
+        } else {
+          createEmptyObjects(dirIds);
+        }
+      } catch (IOException ioe) {
+        // Don't totally fail the listObjectInfo call, since auto-repair is best-effort anyways.
+        LOG.error("Failed to repair some missing directories.", ioe);
+      }
+      // cache repaired dirs
+      List<GoogleCloudStorageItemInfo> repairedDirInfos = getItemInfos(dirIds);
+      items.addAll(
+          inferOrFilterNotRepairedInfos(repairedDirInfos, inferImplicitDirectoriesEnabled));
+    } else if (inferImplicitDirectoriesEnabled) {
+      for (StorageResourceId dirId : dirIds) {
+        items.add(GoogleCloudStorageItemInfo.createInferredDirectory(dirId));
       }
     }
   }
