@@ -219,11 +219,7 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
 
     if (getDelegate().getOptions().isAutoRepairImplicitDirectoriesEnabled()) {
       try {
-        if (dirIds.size() == 1) {
-          createEmptyObject(dirIds.get(0));
-        } else {
-          createEmptyObjects(dirIds);
-        }
+        createEmptyObjects(dirIds);
       } catch (IOException ioe) {
         // Don't totally fail the listObjectInfo call, since auto-repair is best-effort anyways.
         LOG.error("Failed to repair some missing directories.", ioe);

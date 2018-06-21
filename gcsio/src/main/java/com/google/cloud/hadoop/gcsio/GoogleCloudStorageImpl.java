@@ -59,6 +59,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.BaseEncoding;
@@ -536,6 +537,16 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     // deleteObjects(List<StorageResourceId>); extract a generic method for both.
     LOG.debug("createEmptyObjects({})", resourceIds);
 
+    if (resourceIds.isEmpty()) {
+      return;
+    }
+
+    // Don't go through batch interface for a single-item case to avoid batching overhead.
+    if (resourceIds.size() == 1) {
+      createEmptyObject(Iterables.getOnlyElement(resourceIds), options);
+      return;
+    }
+
     // Validate that all the elements represent StorageObjects.
     for (StorageResourceId resourceId : resourceIds) {
       Preconditions.checkArgument(resourceId.isStorageObject(),
@@ -614,8 +625,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
    * expected behavior.
    */
   @Override
-  public void createEmptyObjects(List<StorageResourceId> resourceIds)
-      throws IOException {
+  public void createEmptyObjects(List<StorageResourceId> resourceIds) throws IOException {
     createEmptyObjects(resourceIds, CreateObjectOptions.DEFAULT);
   }
 
@@ -1412,11 +1422,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
         LOG.debug("Directories to repair: {}", prefixIds);
         List<StorageResourceId> prefixIdsList = new ArrayList<>(prefixIds);
         try {
-          if (prefixIds.size() == 1) {
-            createEmptyObject(prefixIdsList.get(0));
-          } else {
-            createEmptyObjects(prefixIdsList);
-          }
+          createEmptyObjects(prefixIdsList);
         } catch (IOException ioe) {
           // Don't totally fail the listObjectInfo call, since auto-repair is best-effort anyways.
           LOG.error("Failed to repair some missing directories.", ioe);

@@ -4102,12 +4102,14 @@ public class GoogleCloudStorageTest {
   public void testIgnoreExceptionsOnCreateEmptyObjectsErrorOnRefetch() throws IOException {
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.insert(
-        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
+            eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
+        .thenReturn(mockStorageObjectsInsert)
         .thenReturn(mockStorageObjectsInsert);
     when(mockStorageObjectsInsert.execute())
         .thenThrow(new IOException("rateLimitExceeded"));
     when(mockErrorExtractor.rateLimited(any(IOException.class))).thenReturn(true);
     when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
+        .thenReturn(mockStorageObjectsGet)
         .thenReturn(mockStorageObjectsGet);
     when(mockStorageObjectsGet.execute())
         .thenThrow(new RuntimeException("error while fetching"));
@@ -4117,18 +4119,21 @@ public class GoogleCloudStorageTest {
             IOException.class,
             () ->
                 gcs.createEmptyObjects(
-                    ImmutableList.of(new StorageResourceId(BUCKET_NAME, OBJECT_NAME))));
+                    ImmutableList.of(
+                        new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
+                        new StorageResourceId(BUCKET_NAME, OBJECT_NAME))));
     assertThat(thrown).hasMessageThat().contains("Multiple IOExceptions");
 
-    verify(mockStorage, times(2)).objects();
-    verify(mockStorageObjects)
+    verify(mockStorage, times(4)).objects();
+    verify(mockStorageObjects, times(2))
         .insert(eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
-    verify(mockStorageObjectsInsert).setDisableGZipContent(eq(true));
-    verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
-    verify(mockStorageObjectsInsert).execute();
-    verify(mockErrorExtractor).rateLimited(any(IOException.class));
-    verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
-    verify(mockStorageObjectsGet).execute();
+    verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
+    verify(mockClientRequestHelper, times(2))
+        .setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
+    verify(mockStorageObjectsInsert, times(2)).execute();
+    verify(mockErrorExtractor, times(2)).rateLimited(any(IOException.class));
+    verify(mockStorageObjects, times(2)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorageObjectsGet, times(2)).execute();
   }
 
   @Test

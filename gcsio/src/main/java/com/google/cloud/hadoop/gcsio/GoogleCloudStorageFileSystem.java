@@ -462,12 +462,7 @@ public class GoogleCloudStorageFileSystem {
      * of "creating" directories, instead it drops markers to help GCSFS and GHFS find directories
      * that already "existed" and 3) it's extra RPCs on top of the list and create empty object RPCs
      */
-    if (dirsToCreate.size() == 1) {
-      // Don't go through batch interface for a single-item case to avoid batching overhead.
-      gcs.createEmptyObject(dirsToCreate.get(0));
-    } else if (dirsToCreate.size() > 1) {
-      gcs.createEmptyObjects(dirsToCreate);
-    }
+    gcs.createEmptyObjects(dirsToCreate);
 
     LOG.warn("Successfully repaired {} directories.", dirsToCreate.size());
   }
@@ -568,12 +563,7 @@ public class GoogleCloudStorageFileSystem {
       }
     }
 
-    if (dirsToCreate.size() == 1) {
-      // Don't go through batch interface for a single-item case to avoid batching overhead.
-      gcs.createEmptyObject(dirsToCreate.get(0));
-    } else if (dirsToCreate.size() > 1) {
-      gcs.createEmptyObjects(dirsToCreate);
-    }
+    gcs.createEmptyObjects(dirsToCreate);
 
     List<URI> createdDirectories =
         Lists.transform(dirsToCreate, new Function<StorageResourceId, URI>() {
