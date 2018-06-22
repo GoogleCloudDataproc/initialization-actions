@@ -112,10 +112,8 @@ public abstract class AbstractBigQueryInputFormat<K, V>
   public List<InputSplit> getSplits(JobContext context)
       throws IOException, InterruptedException {
     LOG.debug("getSplits({})", HadoopToStringUtil.toString(context));
-    Preconditions.checkNotNull(context.getJobID(), "getSplits requires a jobID");
 
     final Configuration configuration = context.getConfiguration();
-    final JobID jobId = context.getJobID();
     BigQueryHelper bigQueryHelper = null;
     try {
       bigQueryHelper = getBigQueryHelper(configuration);
@@ -124,7 +122,8 @@ public abstract class AbstractBigQueryInputFormat<K, V>
       throw new IOException("Failed to create BigQuery client", gse);
     }
 
-    String exportPath = BigQueryConfiguration.getTemporaryPathRoot(configuration, jobId);
+    String exportPath =
+        BigQueryConfiguration.getTemporaryPathRoot(configuration, context.getJobID());
     configuration.set(BigQueryConfiguration.TEMP_GCS_PATH_KEY, exportPath);
 
     Export export = constructExport(

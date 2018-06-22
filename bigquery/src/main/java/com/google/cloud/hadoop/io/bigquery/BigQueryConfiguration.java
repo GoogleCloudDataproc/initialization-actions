@@ -13,6 +13,8 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
@@ -20,6 +22,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import javax.annotation.Nullable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -324,29 +327,28 @@ public class BigQueryConfiguration {
   }
 
   /**
-   * Either resolves a temporary path based on GCS_BUCKET_KEY and JobID, or defers to a pre-provided
-   * BigQueryConfiguration.TEMP_GCS_PATH_KEY.
+   * Resolves to provided {@link TEMP_GCS_PATH_KEY} or fallbacks to a temporary path based on {@link
+   * GCS_BUCKET_KEY} and {@code jobId}.
    *
    * @param conf the configuration to fetch the keys from.
-   * @param jobId the id of the job requesting a working path.
+   * @param jobId the ID of the job requesting a working path. Optional (could be {@code null}) if
+   *     {@link TEMP_GCS_PATH_KEY} is provided.
    * @return the temporary directory path.
    * @throws IOException if the file system of the derived working path isn't a derivative of
    *     GoogleHadoopFileSystemBase.
    */
-  public static String getTemporaryPathRoot(Configuration conf, JobID jobId) throws IOException {
+  public static String getTemporaryPathRoot(Configuration conf, @Nullable JobID jobId)
+      throws IOException {
     // Try using the temporary gcs path.
     String pathRoot = conf.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY);
 
     if (Strings.isNullOrEmpty(pathRoot)) {
+      checkNotNull(jobId, "jobId is required if '%s' is not set", TEMP_GCS_PATH_KEY);
       LOG.info(
-          "Fetching key '{}' since '{}' isn't set explicitly.",
-          BigQueryConfiguration.GCS_BUCKET_KEY,
-          BigQueryConfiguration.TEMP_GCS_PATH_KEY);
-      String gcsBucket =
-          conf.get(
-              BigQueryConfiguration.GCS_BUCKET_KEY,
-              "${" + GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY + "}");
+          "Fetching key '{}' since '{}' isn't set explicitly.", GCS_BUCKET_KEY, TEMP_GCS_PATH_KEY);
 
+      String gcsBucket =
+          conf.get(GCS_BUCKET_KEY, "${" + GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY + "}");
       if (Strings.isNullOrEmpty(gcsBucket)) {
         throw new IOException("Must supply a value for configuration setting: " + GCS_BUCKET_KEY);
       }
