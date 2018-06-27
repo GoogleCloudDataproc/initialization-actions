@@ -62,7 +62,6 @@ import com.google.api.services.storage.model.ComposeRequest;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl.BackOffFactory;
-import com.google.cloud.hadoop.util.AbstractGoogleAsyncWriteChannel;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.common.collect.ImmutableList;
@@ -451,9 +450,6 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(0L));
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(1L));
     assertThat(storageObjectCaptor.getValue().getName()).isEqualTo(OBJECT_NAME);
-    verify(mockHeaders, times(1)).set(
-        eq("X-Goog-Upload-Desired-Chunk-Granularity"),
-        eq(AbstractGoogleAsyncWriteChannel.GCS_UPLOAD_GRANULARITY));
     verify(mockHeaders, times(0)).set(eq("X-Goog-Upload-Max-Raw-Size"), anyInt());
     verify(mockClientRequestHelper).getRequestHeaders(any(AbstractGoogleClientRequest.class));
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
@@ -547,9 +543,6 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(222L));
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(1L));
     assertThat(storageObjectCaptor.getValue().getName()).isEqualTo(OBJECT_NAME);
-    verify(mockHeaders, times(1)).set(
-        eq("X-Goog-Upload-Desired-Chunk-Granularity"),
-        eq(AbstractGoogleAsyncWriteChannel.GCS_UPLOAD_GRANULARITY));
     verify(mockHeaders, times(0)).set(eq("X-Goog-Upload-Max-Raw-Size"), anyInt());
     verify(mockClientRequestHelper).getRequestHeaders(any(AbstractGoogleClientRequest.class));
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
@@ -647,9 +640,6 @@ public class GoogleCloudStorageTest {
         eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
     verify(mockStorageObjectsInsert, times(1)).setName(eq(OBJECT_NAME));
     verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
-    verify(mockHeaders, times(1)).set(
-        eq("X-Goog-Upload-Desired-Chunk-Granularity"),
-        eq(AbstractGoogleAsyncWriteChannel.GCS_UPLOAD_GRANULARITY));
     verify(mockHeaders, times(0)).set(eq("X-Goog-Upload-Max-Raw-Size"), anyInt());
     verify(mockClientRequestHelper).getRequestHeaders(any(AbstractGoogleClientRequest.class));
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
@@ -696,9 +686,6 @@ public class GoogleCloudStorageTest {
         eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
     verify(mockStorageObjectsInsert, times(1)).setName(eq(OBJECT_NAME));
     verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
-    verify(mockHeaders, times(1)).set(
-        eq("X-Goog-Upload-Desired-Chunk-Granularity"),
-        eq(AbstractGoogleAsyncWriteChannel.GCS_UPLOAD_GRANULARITY));
     verify(mockHeaders, times(0)).set(eq("X-Goog-Upload-Max-Raw-Size"), anyInt());
     verify(mockClientRequestHelper).getRequestHeaders(any(AbstractGoogleClientRequest.class));
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
@@ -752,9 +739,6 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsInsert, times(1)).setName(eq(OBJECT_NAME));
     verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
     verify(mockStorageObjects, times(1)).get(anyString(), anyString());
-    verify(mockHeaders, times(1)).set(
-        eq("X-Goog-Upload-Desired-Chunk-Granularity"),
-        eq(AbstractGoogleAsyncWriteChannel.GCS_UPLOAD_GRANULARITY));
     verify(mockHeaders, times(0)).set(eq("X-Goog-Upload-Max-Raw-Size"), anyInt());
     verify(mockClientRequestHelper).getRequestHeaders(any(AbstractGoogleClientRequest.class));
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
@@ -801,9 +785,6 @@ public class GoogleCloudStorageTest {
     verify(mockErrorExtractor, times(1)).itemNotFound(any(IOException.class));
     verify(mockBackOff, atLeastOnce()).nextBackOffMillis();
     verify(mockBackOffFactory, atLeastOnce()).newBackOff();
-    verify(mockHeaders, times(1)).set(
-        eq("X-Goog-Upload-Desired-Chunk-Granularity"),
-        eq(AbstractGoogleAsyncWriteChannel.GCS_UPLOAD_GRANULARITY));
     verify(mockHeaders, times(0)).set(eq("X-Goog-Upload-Max-Raw-Size"), anyInt());
     verify(mockClientRequestHelper).getRequestHeaders(any(AbstractGoogleClientRequest.class));
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
