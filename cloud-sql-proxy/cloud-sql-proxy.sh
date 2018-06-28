@@ -76,6 +76,14 @@ readonly PROXY_BIN='/usr/local/bin/cloud_sql_proxy'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/cloud-sql-proxy.service'
 readonly ADDITIONAL_INSTANCES_KEY='attributes/additional-cloud-sql-instances'
 
+# Dataproc master nodes information
+readonly DATAPROC_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+readonly DATAPROC_MASTER_ADDITIONAL=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional || true)
+readonly MASTER_HOSTNAMES=($DATAPROC_MASTER ${DATAPROC_MASTER_ADDITIONAL//,/ })
+readonly MASTER_COUNT=${#MASTER_HOSTNAMES[@]}
+readonly MY_HOSTNAME=$(hostname -s)
+
+
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
   return 1
@@ -88,7 +96,7 @@ function configure_proxy_flags() {
     elif ! [[ "${metastore_instance}" =~ .+:.+:.+ ]]; then
       err 'hive-metastore-instance must be of form project:region:instance'
     elif ! [[ "${metastore_instance}" =~ =tcp:[0-9]+$ ]]; then
-      metastore_instance+="=tcp:${metastore_proxy_port}"
+      metastore_instance+="=tcp:0.0.0.0:${metastore_proxy_port}"
     else
       metastore_proxy_port="${metastore_instance##*:}"
     fi
@@ -194,6 +202,10 @@ EOF
       || err 'Failed to set mysql schema.'
   fi
 
+  run_validation
+}
+
+function run_validation() {
   if ( systemctl is-enabled --quiet hive-metastore ); then
     # Start metastore back up.
     systemctl start hive-metastore \
@@ -212,6 +224,50 @@ EOF
   fi
   echo 'Cloud SQL Hive Metastore initialization succeeded' >&2
 
+}
+
+
+# Helper to run any command with default bdutil settings with Fibonacci
+# backoff. If all retries fail, returns last attempt's exit code.
+# Args: "$@" is the command to run.
+function run_with_retries() {
+  local retry_backoff=(1 1 2 3 5 8 13 21 34 55 89 144)
+  local -a cmd=("$@")
+  echo "About to run '${cmd[*]}' with retries..."
+
+  local update_succeeded=0
+  for ((i = 0; i < ${#retry_backoff[@]}; i++)); do
+    if "${cmd[@]}"; then
+      update_succeeded=1
+      break
+    else
+      local sleep_time=${retry_backoff[$i]}
+      echo "'${cmd[*]}' attempt $(( $i + 1 )) failed! Sleeping ${sleep_time}." >&2
+      sleep ${sleep_time}
+    fi
+  done
+
+  if ! (( ${update_succeeded} )); then
+    echo "Final attempt of '${cmd[*]}'..."
+    # Let any final error propagate all the way out to any error traps.
+    "${cmd[@]}"
+  fi
+}
+
+
+function configure_hive_warehouse_dir(){
+  run_with_retries nc -zv "${MASTER_HOSTNAMES[0]}" 3306
+
+  HIVE_WAREHOURSE_URI=$(beeline -u jdbc:hive2://localhost:10000 -e "describe database default;" 2>/dev/null \
+    | sed '4q;d' | cut -d "|" -f4 | tr -d '[:space:]')
+
+  bdconfig set_property \
+    --name 'hive.metastore.warehouse.dir' \
+    --value "${HIVE_WAREHOURSE_URI}" \
+    --configuration_file /etc/hive/conf/hive-site.xml \
+    --clobber
+
+  run_validation
 }
 
 function main() {
@@ -251,6 +307,14 @@ function main() {
   configure_proxy_flags
 
   if [[ "${role}" == 'Master' ]]; then
+    #set master index
+    for i in "${!MASTER_HOSTNAMES[@]}"; do
+      if [[ "${MY_HOSTNAME}" == "${MASTER_HOSTNAMES[$i]}" ]]; then
+        MASTER_INDEX="$i"
+        break
+      fi
+    done
+
     # Disable Hive Metastore and MySql Server.
     if [[ $enable_cloud_sql_metastore = "true" ]]; then
       if ( systemctl is-enabled --quiet hive-metastore ); then
@@ -259,12 +323,18 @@ function main() {
       else
         echo "Service hive-metastore is not enabled"
       fi
-      systemctl stop mysql
-      systemctl disable mysql
+      if ( systemctl is-enabled --quiet mysql ); then
+        systemctl stop mysql
+        systemctl disable mysql
+      fi
     fi
     install_cloud_sql_proxy
     if [[ $enable_cloud_sql_metastore = "true" ]]; then
-      configure_sql_client
+      if [[ "${MASTER_INDEX?}" == 0 ]]; then
+        configure_sql_client
+      else
+        configure_hive_warehouse_dir
+      fi
     fi
   else
     # This part runs on workers.
