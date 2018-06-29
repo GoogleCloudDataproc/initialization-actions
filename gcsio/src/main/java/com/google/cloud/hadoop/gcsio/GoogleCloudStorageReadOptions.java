@@ -19,8 +19,8 @@ package com.google.cloud.hadoop.gcsio;
 import com.google.common.base.Preconditions;
 
 /**
- * Advanced options for reading GoogleCloudStorage objects. Immutable; callers must use the
- * inner Builder class to construct instances.
+ * Advanced options for reading GoogleCloudStorage objects. Immutable; callers must use the inner
+ * Builder class to construct instances.
  */
 public class GoogleCloudStorageReadOptions {
   public static final GoogleCloudStorageReadOptions DEFAULT = new Builder().build();
@@ -35,9 +35,7 @@ public class GoogleCloudStorageReadOptions {
   public static final int DEFAULT_BUFFER_SIZE = 0;
   public static final long DEFAULT_INPLACE_SEEK_LIMIT = 0L;
 
-  /**
-   * Mutable builder for GoogleCloudStorageReadOptions.
-   */
+  /** Mutable builder for GoogleCloudStorageReadOptions. */
   public static class Builder {
     private int backoffInitialIntervalMillis = DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS;
     private double backoffRandomizationFactor = DEFAULT_BACKOFF_RANDOMIZATION_FACTOR;
@@ -53,8 +51,7 @@ public class GoogleCloudStorageReadOptions {
      * On exponential backoff, the initial delay before the first retry; subsequent retries then
      * grow as an exponential function of the current delay interval.
      */
-    public Builder setBackoffInitialIntervalMillis(
-        int backoffInitialIntervalMillis) {
+    public Builder setBackoffInitialIntervalMillis(int backoffInitialIntervalMillis) {
       this.backoffInitialIntervalMillis = backoffInitialIntervalMillis;
       return this;
     }
@@ -63,8 +60,7 @@ public class GoogleCloudStorageReadOptions {
      * The amount of jitter introduced when computing the next retry sleep interval so that when
      * many clients are retrying, they don't all retry at the same time.
      */
-    public Builder setBackoffRandomizationFactor(
-        double backoffRandomizationFactor) {
+    public Builder setBackoffRandomizationFactor(double backoffRandomizationFactor) {
       this.backoffRandomizationFactor = backoffRandomizationFactor;
       return this;
     }
@@ -93,8 +89,7 @@ public class GoogleCloudStorageReadOptions {
      * without having to calculate the summation of a series of exponentiated intervals while
      * accounting for the randomization of backoff intervals.
      */
-    public Builder setBackoffMaxElapsedTimeMillis(
-        int backoffMaxElapsedTimeMillis) {
+    public Builder setBackoffMaxElapsedTimeMillis(int backoffMaxElapsedTimeMillis) {
       this.backoffMaxElapsedTimeMillis = backoffMaxElapsedTimeMillis;
       return this;
     }
@@ -102,8 +97,8 @@ public class GoogleCloudStorageReadOptions {
     /**
      * True if the channel must take special precautions for deailing with "content-encoding"
      * headers where reported object sizes don't match actual bytes being read due to the stream
-     * being decoded in-flight. This is not the same as "content-type", and most use cases
-     * shouldn't have to worry about this; performance will be improved if this is set to false.
+     * being decoded in-flight. This is not the same as "content-type", and most use cases shouldn't
+     * have to worry about this; performance will be improved if this is set to false.
      */
     public Builder setSupportContentEncoding(boolean supportContentEncoding) {
       this.supportContentEncoding = supportContentEncoding;
@@ -112,10 +107,10 @@ public class GoogleCloudStorageReadOptions {
 
     /**
      * True if attempts to open a new channel on a nonexistent object are required to immediately
-     * throw an IOException. If false, then channels may not throw exceptions for such cases
-     * until attempting to call read(). Performance can be improved if this is set to false and
-     * the caller is equipped to deal with delayed failures for not-found objects. Or if the caller
-     * is already sure the object being opened exists, it is recommended to set this to false to
+     * throw an IOException. If false, then channels may not throw exceptions for such cases until
+     * attempting to call read(). Performance can be improved if this is set to false and the caller
+     * is equipped to deal with delayed failures for not-found objects. Or if the caller is already
+     * sure the object being opened exists, it is recommended to set this to false to
      * aGoogleCloudStorageReadOptions doing extraneous checks on open().
      */
     public Builder setFastFailOnNotFound(boolean fastFailOnNotFound) {
@@ -124,10 +119,10 @@ public class GoogleCloudStorageReadOptions {
     }
 
     /**
-     * If set to a positive value, low-level streams will be wrapped inside a BufferedInputStream
-     * of this size. Otherwise no buffer will be created to wrap the low-level streams. Note that
-     * the low-level streams may or may not have their own additional buffering layers independent
-     * of this setting.
+     * If set to a positive value, low-level streams will be wrapped inside a BufferedInputStream of
+     * this size. Otherwise no buffer will be created to wrap the low-level streams. Note that the
+     * low-level streams may or may not have their own additional buffering layers independent of
+     * this setting.
      */
     public Builder setBufferSize(int bufferSize) {
       this.bufferSize = bufferSize;
@@ -140,8 +135,8 @@ public class GoogleCloudStorageReadOptions {
      * rather than trying to open a brand-new underlying stream.
      */
     public Builder setInplaceSeekLimit(long inplaceSeekLimit) {
-      Preconditions.checkArgument(inplaceSeekLimit >= 0,
-          "inplaceSeekLimit must be non-negative! Got %s", inplaceSeekLimit);
+      Preconditions.checkArgument(
+          inplaceSeekLimit >= 0, "inplaceSeekLimit must be non-negative! Got %s", inplaceSeekLimit);
       this.inplaceSeekLimit = inplaceSeekLimit;
       return this;
     }
@@ -171,8 +166,8 @@ public class GoogleCloudStorageReadOptions {
   private final long inplaceSeekLimit;
 
   /**
-   * Should only be used by Builder to protect callers from changing constructor signatures when
-   * new options are added.
+   * Should only be used by Builder to protect callers from changing constructor signatures when new
+   * options are added.
    */
   private GoogleCloudStorageReadOptions(
       int backoffInitialIntervalMillis,
@@ -195,83 +190,61 @@ public class GoogleCloudStorageReadOptions {
     this.inplaceSeekLimit = inplaceSeekLimit;
   }
 
-  /**
-   * See {@link #Builder.setBackoffInitialIntervalMillis}.
-   */
+  /** See {@link Builder#setBackoffInitialIntervalMillis}. */
   public int getBackoffInitialIntervalMillis() {
     return backoffInitialIntervalMillis;
   }
 
-  /**
-   * See {@link #Builder.setBackoffRandomizationFactor}.
-   */
+  /** See {@link Builder#setBackoffRandomizationFactor}. */
   public double getBackoffRandomizationFactor() {
     return backoffRandomizationFactor;
   }
 
-  /**
-   * See {@link #Builder.setBackoffMultiplier}.
-   */
+  /** See {@link Builder#setBackoffMultiplier}. */
   public double getBackoffMultiplier() {
     return backoffMultiplier;
   }
 
-  /**
-   * See {@link #Builder.setBackoffMaxIntervalMillis}.
-   */
+  /** See {@link Builder#setBackoffMaxIntervalMillis}. */
   public int getBackoffMaxIntervalMillis() {
     return backoffMaxIntervalMillis;
   }
 
-  /**
-   * See {@link #Builder.setBackoffMaxElapsedTimeMillis}.
-   */
+  /** See {@link Builder#setBackoffMaxElapsedTimeMillis}. */
   public int getBackoffMaxElapsedTimeMillis() {
     return backoffMaxElapsedTimeMillis;
   }
 
-  /**
-   * See {@link #Builder.setSupportContentEncoding}.
-   */
+  /** See {@link Builder#setSupportContentEncoding}. */
   public boolean getSupportContentEncoding() {
     return supportContentEncoding;
   }
 
-  /**
-   * See {@link #Builder.setFastFailOnNotFound}.
-   */
+  /** See {@link Builder#setFastFailOnNotFound}. */
   public boolean getFastFailOnNotFound() {
     return fastFailOnNotFound;
   }
 
-  /**
-   * See {@link #Builder.setBufferSize}.
-   */
+  /** See {@link Builder#setBufferSize}. */
   public int getBufferSize() {
     return bufferSize;
   }
 
-  /**
-   * See {@link #Builder.setInplaceSeekLimit}.
-   */
+  /** See {@link Builder#setInplaceSeekLimit}. */
   public long getInplaceSeekLimit() {
     return inplaceSeekLimit;
   }
 
-  /**
-   * Summary of options.
-   */
+  /** Summary of options. */
   public String toString() {
-    StringBuilder sb = new StringBuilder();
-    sb.append("backoffInitialIntervalMillis=" + backoffInitialIntervalMillis + " ");
-    sb.append("backoffRandomizationFactor=" + backoffRandomizationFactor + " ");
-    sb.append("backoffMultiplier=" + backoffMultiplier + " ");
-    sb.append("backoffMaxIntervalMillis=" + backoffMaxIntervalMillis + " ");
-    sb.append("backoffMaxElapsedTimeMillis=" + backoffMaxElapsedTimeMillis + " ");
-    sb.append("supportContentEncoding=" + supportContentEncoding + " ");
-    sb.append("fastFailOnNotFound=" + fastFailOnNotFound + " ");
-    sb.append("bufferSize=" + bufferSize + " ");
-    sb.append("inplaceSeekLimit=" + inplaceSeekLimit + " ");
-    return sb.toString();
+    return "backoffInitialIntervalMillis=" + backoffInitialIntervalMillis
+        + " backoffRandomizationFactor=" + backoffRandomizationFactor
+        + " backoffMultiplier=" + backoffMultiplier
+        + " backoffMaxIntervalMillis=" + backoffMaxIntervalMillis
+        + " backoffMaxElapsedTimeMillis=" + backoffMaxElapsedTimeMillis
+        + " supportContentEncoding=" + supportContentEncoding
+        + " fastFailOnNotFound=" + fastFailOnNotFound
+        + " bufferSize=" + bufferSize
+        + " inplaceSeekLimit=" + inplaceSeekLimit;
   }
 }
