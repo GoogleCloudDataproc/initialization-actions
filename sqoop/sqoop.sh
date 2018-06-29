@@ -24,17 +24,11 @@
 set -euxo pipefail
 
 readonly SQOOP_HOME='/usr/lib/sqoop'
-readonly SQOOP_CODE_LINK='https://github.com/apache/sqoop'
-
-function update_apt_get() {
-  for ((i = 0; i < 10; i++)); do
-    if apt-get update; then
-      return 0
-    fi
-    sleep 5
-  done
-  return 1
-}
+readonly SQOOP_CODE_LINK='https://github.com/szewi/sqoop'
+readonly SQOOP_JAR='https://storage.googleapis.com/sqoop-bigtable-connector/sqoop-1.4.7.jar'
+readonly AVRO_JAR='http://repo1.maven.org/maven2/org/apache/avro/avro/1.8.1/avro-1.8.1.jar'
+readonly BIGTABLE_HBASE_CLIENT='bigtable-hbase-1.x-hadoop-1.3.0.jar'
+readonly BIGTABLE_HBASE_DL_LINK="http://central.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-1.x-hadoop/1.3.0/${BIGTABLE_HBASE_CLIENT}"
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
@@ -42,21 +36,30 @@ function err() {
 }
 
 function install_sqoop() {
-  git clone ${SQOOP_CODE_LINK} ${SQOOP_HOME} && cd ${SQOOP_HOME} && ant \
-    || err 'Compiling Sqoop from source code failed.'
+  git clone -b sqoop-bigtable-client "${SQOOP_CODE_LINK}" "${SQOOP_HOME}" \
+    || err 'Cloning Sqoop sources from code location failed.'
+  wget -q "${SQOOP_JAR}" -O "${SQOOP_HOME}/sqoop-1.4.7.jar" \
+    || err 'Downloading sqoop jar file failed.'
   echo "export PATH=\"${SQOOP_HOME}/bin:$PATH\"" >> /etc/profile
+}
+
+function install_sqoop_dependencies_and_connectors() {
+  # Sqoop requires avro 1.8.+
+  wget -q "${AVRO_JAR}" -O "${SQOOP_HOME}/lib/avro-1.8.1.jar" \
+    || err 'Downloading avro jar file failed.'
+  # Install sqoop connectors in /usr/lib/sqoop/lib
+  wget -q "${BIGTABLE_HBASE_DL_LINK}" -O "${SQOOP_HOME}/lib/${BIGTABLE_HBASE_CLIENT}" \
+    || err 'Error getting BigTable-HBase connector.'
 }
 
 function main() {
   local role
   role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-
-  update_apt_get || err 'Unable to update packages lists.'
-  apt-get install -y ant || err 'Unable to install ant and hbase.'
   
   # Only run the installation on Masters
   if [[ "${role}" == 'Master' ]]; then
     install_sqoop
+    install_sqoop_dependencies_and_connectors
   fi
 
 }
