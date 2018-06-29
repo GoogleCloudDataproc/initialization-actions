@@ -96,7 +96,7 @@ function configure_proxy_flags() {
     elif ! [[ "${metastore_instance}" =~ .+:.+:.+ ]]; then
       err 'hive-metastore-instance must be of form project:region:instance'
     elif ! [[ "${metastore_instance}" =~ =tcp:[0-9]+$ ]]; then
-      metastore_instance+="=tcp:0.0.0.0:${metastore_proxy_port}"
+      metastore_instance+="=tcp:${metastore_proxy_port}"
     else
       metastore_proxy_port="${metastore_instance##*:}"
     fi
@@ -208,7 +208,7 @@ EOF
 function run_validation() {
   if ( systemctl is-enabled --quiet hive-metastore ); then
     # Start metastore back up.
-    systemctl start hive-metastore \
+    systemctl restart hive-metastore \
       || err 'Unable to start hive-metastore service'
   else
     echo "Service hive-metastore is not loaded"
@@ -256,18 +256,18 @@ function run_with_retries() {
 
 
 function configure_hive_warehouse_dir(){
-  run_with_retries nc -zv "${MASTER_HOSTNAMES[0]}" 3306
+  run_with_retries run_validation
 
-  HIVE_WAREHOURSE_URI=$(beeline -u jdbc:hive2://localhost:10000 -e "describe database default;" 2>/dev/null \
+  HIVE_WAREHOURSE_URI=$(beeline -u jdbc:hive2://localhost:10000 \
+    -e "describe database default;" 2>/dev/null \
     | sed '4q;d' | cut -d "|" -f4 | tr -d '[:space:]')
+  echo $HIVE_WAREHOURSE_URI
 
   bdconfig set_property \
     --name 'hive.metastore.warehouse.dir' \
     --value "${HIVE_WAREHOURSE_URI}" \
     --configuration_file /etc/hive/conf/hive-site.xml \
     --clobber
-
-  run_validation
 }
 
 function main() {
