@@ -79,14 +79,37 @@ readonly ADDITIONAL_INSTANCES_KEY='attributes/additional-cloud-sql-instances'
 # Dataproc master nodes information
 readonly DATAPROC_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 readonly DATAPROC_MASTER_ADDITIONAL=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional || true)
-readonly MASTER_HOSTNAMES=($DATAPROC_MASTER ${DATAPROC_MASTER_ADDITIONAL//,/ })
-readonly MASTER_COUNT=${#MASTER_HOSTNAMES[@]}
-readonly MY_HOSTNAME=$(hostname -s)
-
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
   return 1
+}
+
+# Helper to run any command with default bdutil settings with Fibonacci
+# backoff. If all retries fail, returns last attempt's exit code.
+# Args: "$@" is the command to run.
+function run_with_retries() {
+  local retry_backoff=(1 1 2 3 5 8 13 21 34 55 89 144)
+  local -a cmd=("$@")
+  echo "About to run '${cmd[*]}' with retries..."
+
+  local update_succeeded=0
+  for ((i = 0; i < ${#retry_backoff[@]}; i++)); do
+    if "${cmd[@]}"; then
+      update_succeeded=1
+      break
+    else
+      local sleep_time=${retry_backoff[$i]}
+      echo "'${cmd[*]}' attempt $(( $i + 1 )) failed! Sleeping ${sleep_time}." >&2
+      sleep ${sleep_time}
+    fi
+  done
+
+  if ! (( ${update_succeeded} )); then
+    echo "Final attempt of '${cmd[*]}'..."
+    # Let any final error propagate all the way out to any error traps.
+    "${cmd[@]}"
+  fi
 }
 
 function configure_proxy_flags() {
@@ -227,41 +250,13 @@ function run_validation() {
 }
 
 
-# Helper to run any command with default bdutil settings with Fibonacci
-# backoff. If all retries fail, returns last attempt's exit code.
-# Args: "$@" is the command to run.
-function run_with_retries() {
-  local retry_backoff=(1 1 2 3 5 8 13 21 34 55 89 144)
-  local -a cmd=("$@")
-  echo "About to run '${cmd[*]}' with retries..."
-
-  local update_succeeded=0
-  for ((i = 0; i < ${#retry_backoff[@]}; i++)); do
-    if "${cmd[@]}"; then
-      update_succeeded=1
-      break
-    else
-      local sleep_time=${retry_backoff[$i]}
-      echo "'${cmd[*]}' attempt $(( $i + 1 )) failed! Sleeping ${sleep_time}." >&2
-      sleep ${sleep_time}
-    fi
-  done
-
-  if ! (( ${update_succeeded} )); then
-    echo "Final attempt of '${cmd[*]}'..."
-    # Let any final error propagate all the way out to any error traps.
-    "${cmd[@]}"
-  fi
-}
-
-
 function configure_hive_warehouse_dir(){
+  # wait for master 0 to create the metastore db if necessary
   run_with_retries run_validation
 
   HIVE_WAREHOURSE_URI=$(beeline -u jdbc:hive2://localhost:10000 \
     -e "describe database default;" 2>/dev/null \
     | sed '4q;d' | cut -d "|" -f4 | tr -d '[:space:]')
-  echo $HIVE_WAREHOURSE_URI
 
   bdconfig set_property \
     --name 'hive.metastore.warehouse.dir' \
@@ -307,14 +302,6 @@ function main() {
   configure_proxy_flags
 
   if [[ "${role}" == 'Master' ]]; then
-    #set master index
-    for i in "${!MASTER_HOSTNAMES[@]}"; do
-      if [[ "${MY_HOSTNAME}" == "${MASTER_HOSTNAMES[$i]}" ]]; then
-        MASTER_INDEX="$i"
-        break
-      fi
-    done
-
     # Disable Hive Metastore and MySql Server.
     if [[ $enable_cloud_sql_metastore = "true" ]]; then
       if ( systemctl is-enabled --quiet hive-metastore ); then
@@ -330,9 +317,11 @@ function main() {
     fi
     install_cloud_sql_proxy
     if [[ $enable_cloud_sql_metastore = "true" ]]; then
-      if [[ "${MASTER_INDEX?}" == 0 ]]; then
+      if [[ "${HOSTNAME}" == "${DATAPROC_MASTER}" ]]; then
+        #initialize metastore db instance and set hive.metastore.warehouse.dir on master 0
         configure_sql_client
       else
+        #set hive.metastore.warehouse.dir only on other masters
         configure_hive_warehouse_dir
       fi
     fi
