@@ -99,7 +99,8 @@ public class CredentialFactory {
               .setTransport(credential.getTransport())
               .setClientAuthentication(credential.getClientAuthentication())
               .setJsonFactory(credential.getJsonFactory())
-              .setClock(credential.getClock());
+              .setClock(credential.getClock())
+              .setRequestInitializer(new CredentialHttpRetryInitializer());
       GoogleCredentialWithRetry withRetry = new GoogleCredentialWithRetry(builder);
       // Setting a refresh token requires validation even if it is null.
       if (credential.getRefreshToken() != null) {
@@ -403,9 +404,6 @@ public class CredentialFactory {
   public Credential getApplicationDefaultCredentials(List<String> scopes, HttpTransport transport)
       throws IOException, GeneralSecurityException {
     LOG.debug("getApplicationDefaultCredential({})", scopes);
-    // GoogleCredentialWithRetry will not properly retry for all application default credentials
-    // e.g.
-    // AppEngine, or GCE metadata. But this should properly retry for known JSON key Credentials.
     return GoogleCredentialWithRetry.fromGoogleCredential(
         GoogleCredential.getApplicationDefault(transport, JSON_FACTORY).createScoped(scopes));
   }
