@@ -678,7 +678,7 @@ public class GoogleCloudStorageTest {
     WritableByteChannel writeChannel = gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     assertThat(writeChannel.isOpen()).isTrue();
 
-    IOException thrown = assertThrows(IOException.class, () -> writeChannel.close());
+    IOException thrown = assertThrows(IOException.class, writeChannel::close);
     assertThat(thrown).hasCauseThat().isEqualTo(fakeException);
 
     verify(mockStorage, times(3)).objects();
@@ -724,7 +724,7 @@ public class GoogleCloudStorageTest {
     WritableByteChannel writeChannel = gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     assertThat(writeChannel.isOpen()).isTrue();
 
-    IOException thrown = assertThrows(IOException.class, () -> writeChannel.close());
+    IOException thrown = assertThrows(IOException.class, writeChannel::close);
     assertThat(thrown).hasCauseThat().isEqualTo(fakeException);
 
     verify(mockStorageObjectsInsert, times(2)).execute();
@@ -770,7 +770,7 @@ public class GoogleCloudStorageTest {
     WritableByteChannel writeChannel = gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     assertThat(writeChannel.isOpen()).isTrue();
 
-    Error thrown = assertThrows(Error.class, () -> writeChannel.close());
+    Error thrown = assertThrows(Error.class, writeChannel::close);
     assertThat(thrown).isEqualTo(fakeError);
 
     verify(mockStorage, times(3)).objects();
@@ -1160,8 +1160,7 @@ public class GoogleCloudStorageTest {
   }
 
   @Test
-  public void testOpenExceptionsDuringReadTotalElapsedTimeTooGreat()
-      throws IOException {
+  public void testOpenExceptionsDuringReadTotalElapsedTimeTooGreat() throws IOException {
     setUpBasicMockBehaviorForOpeningReadChannel();
 
     InputStream mockExceptionStream = mock(InputStream.class);
@@ -1174,14 +1173,16 @@ public class GoogleCloudStorageTest {
     when(mockClock.nanoTime())
         .thenReturn(1000000L)
         .thenReturn(1000001L)
+        .thenReturn(1000002L)
+        .thenReturn(1000003L)
         .thenReturn(
             (GoogleCloudStorageReadChannel.DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS + 3) * 1000000L);
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     setUpAndValidateReadChannelMocksAndSetMaxRetries(readChannel, 3);
-    readChannel.setBackOff(null);
-    readChannel.setReadBackOff(null);
+    readChannel.setBackOff(readChannel.createBackOff());
+    readChannel.setReadBackOff(readChannel.createBackOff());
 
     byte[] actualData = new byte[testData.length];
     IOException thrown =
@@ -1190,7 +1191,7 @@ public class GoogleCloudStorageTest {
 
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
-    verify(mockClock, times(3)).nanoTime();
+    verify(mockClock, times(5)).nanoTime();
     verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Get.class));
     verify(mockHeaders).setRange(eq("bytes=0-"));
     verify(mockStorageObjectsGet).executeMedia();
