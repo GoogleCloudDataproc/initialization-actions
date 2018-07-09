@@ -2,6 +2,17 @@
 
   1. Fix `PerformanceCachingGoogleCloudStorage`.
 
+  2. Send only 1 GCS metadata request per `GoogleCloudStorageReadChannel`
+     object lifecycle to reduce number of GCS requests when reading objects.
+
+  3. Fail-fast when creating `GoogleCloudStorageReadChannel` instance for
+     non-existing GCS object.
+
+  4. For gzip-encoded objects always return `Long.MAX_VALUE` size in
+     `GoogleCloudStorageReadChannel.size()` method, until object will be
+     fully read. This fixes a bug, when clients that rely on `size` method
+     could stop reading object prematurely.
+
 
 1.9.0 - 2018-06-15
 

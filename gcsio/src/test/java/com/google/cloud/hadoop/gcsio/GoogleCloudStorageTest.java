@@ -30,6 +30,7 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -335,8 +336,8 @@ public class GoogleCloudStorageTest {
 
   /**
    * Handles all the boilerplate mocking of the HttpTransport and HttpRequest in order to build a
-   * fake HttpResponse with the provided {@code contentLength} and {@code content} to get around
-   * the fact that HttpResponse is a "final class".
+   * fake HttpResponse with the provided {@code contentLength} and {@code content} to get around the
+   * fact that HttpResponse is a "final class".
    */
   private HttpResponse createFakeResponse(final long contentLength, final InputStream content)
       throws IOException {
@@ -825,19 +826,45 @@ public class GoogleCloudStorageTest {
    * GoogleCloudStorage.open(StorageResourceId)}.
    */
   private void setUpBasicMockBehaviorForOpeningReadChannel() throws IOException {
+    setUpBasicMockBehaviorForOpeningReadChannel(111);
+  }
+
+  /**
+   * Helper for the shared boilerplate of setting up the low-level "API objects" like
+   * mockStorage.objects(), etc., that is common between test cases targeting {@code
+   * GoogleCloudStorage.open(StorageResourceId)}.
+   *
+   * @param size {@link StorageObject} size
+   */
+  private void setUpBasicMockBehaviorForOpeningReadChannel(long size) throws IOException {
+    setUpBasicMockBehaviorForOpeningReadChannel(size, null);
+  }
+
+  /**
+   * Helper for the shared boilerplate of setting up the low-level "API objects" like
+   * mockStorage.objects(), etc., that is common between test cases targeting {@code
+   * GoogleCloudStorage.open(StorageResourceId)}.
+   *
+   * @param size {@link StorageObject} size
+   * @param encoding {@link StorageObject} encoding
+   */
+  private void setUpBasicMockBehaviorForOpeningReadChannel(long size, String encoding)
+      throws IOException {
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
         .thenReturn(mockStorageObjectsGet);
     when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsGet)))
         .thenReturn(mockHeaders);
     when(mockStorageObjectsGet.execute())
-        .thenReturn(new StorageObject()
-            .setBucket(BUCKET_NAME)
-            .setName(OBJECT_NAME)
-            .setUpdated(new DateTime(11L))
-            .setSize(BigInteger.valueOf(111L))
-            .setGeneration(1L)
-            .setMetageneration(1L));
+        .thenReturn(
+            new StorageObject()
+                .setBucket(BUCKET_NAME)
+                .setName(OBJECT_NAME)
+                .setUpdated(new DateTime(11L))
+                .setSize(BigInteger.valueOf(size))
+                .setContentEncoding(encoding)
+                .setGeneration(1L)
+                .setMetageneration(1L));
   }
 
   /**
@@ -871,9 +898,17 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testGcsReadChannelCloseIdempotent() throws IOException {
-    GoogleCloudStorageReadChannel channel = new GoogleCloudStorageReadChannel();
+    setUpBasicMockBehaviorForOpeningReadChannel();
+
+    GoogleCloudStorageReadChannel channel =
+        (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
+
     channel.close();
     channel.close();
+
+    verify(mockStorage).objects();
+    verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorageObjectsGet).execute();
   }
 
   @Test
@@ -908,10 +943,10 @@ public class GoogleCloudStorageTest {
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper, times(4)).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders, times(4)).setAcceptEncoding(eq("gzip"));
     verify(mockHeaders, times(4)).setRange(eq("bytes=0-"));
-    verify(mockStorageObjectsGet, times(2)).execute();
+    verify(mockStorageObjectsGet, times(1)).execute();
     verify(mockStorageObjectsGet, times(4)).executeMedia();
-    verify(mockBackOff, times(1)).reset();
     verify(mockReadBackOff, times(1)).reset();
     verify(mockReadBackOff, times(3)).nextBackOffMillis();
     verify(mockSleeper).sleep(eq(111L));
@@ -953,10 +988,10 @@ public class GoogleCloudStorageTest {
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper, times(2)).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders, times(2)).setAcceptEncoding(eq("gzip"));
     verify(mockHeaders, times(2)).setRange(eq("bytes=0-"));
-    verify(mockStorageObjectsGet, times(2)).execute();
+    verify(mockStorageObjectsGet, times(1)).execute();
     verify(mockStorageObjectsGet, times(2)).executeMedia();
-    verify(mockBackOff, times(1)).reset();
     verify(mockReadBackOff, times(1)).reset();
     verify(mockReadBackOff).nextBackOffMillis();
     verify(mockSleeper).sleep(eq(111L));
@@ -990,15 +1025,15 @@ public class GoogleCloudStorageTest {
 
     assertThrows(RuntimeException.class, () -> readChannel.read(ByteBuffer.wrap(actualData)));
 
-    assertThat(readChannel.readChannel).isNull();
+    assertThat(readChannel.contentChannel).isNull();
     assertThat(readChannel.lazySeekPending).isFalse();
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper, times(1)).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders, times(1)).setAcceptEncoding(eq("gzip"));
     verify(mockHeaders, times(1)).setRange(eq("bytes=0-"));
-    verify(mockStorageObjectsGet, times(2)).execute();
+    verify(mockStorageObjectsGet, times(1)).execute();
     verify(mockStorageObjectsGet, times(1)).executeMedia();
-    verify(mockBackOff).reset();  // Called because backoff is set in test.
   }
 
   @Test
@@ -1019,19 +1054,19 @@ public class GoogleCloudStorageTest {
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     setUpAndValidateReadChannelMocksAndSetMaxRetries(readChannel, 0);
     readChannel.performLazySeek();
-    assertThat(readChannel.readChannel).isNotNull();
+    assertThat(readChannel.contentChannel).isNotNull();
 
     // Should not throw exception. If it does, it will be caught by the test harness.
     readChannel.close();
 
-    assertThat(readChannel.readChannel).isNull();
+    assertThat(readChannel.contentChannel).isNull();
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper, times(1)).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders, times(1)).setAcceptEncoding(eq("gzip"));
     verify(mockHeaders, times(1)).setRange(eq("bytes=0-"));
-    verify(mockStorageObjectsGet, times(2)).execute();
+    verify(mockStorageObjectsGet, times(1)).execute();
     verify(mockStorageObjectsGet, times(1)).executeMedia();
-    verify(mockBackOff).reset();  // Called because backoff is set in test.
   }
 
   @Test
@@ -1047,7 +1082,7 @@ public class GoogleCloudStorageTest {
     readChannel.setBackOff(mockBackOff);
     readChannel.setSleeper(mockSleeper);
 
-    IOException thrown = assertThrows(IOException.class, () -> readChannel.getMetadata());
+    IOException thrown = assertThrows(IOException.class, readChannel::getMetadata);
     assertWithMessage("Expected " + socketException + " inside IOException")
         .that(thrown)
         .hasCauseThat()
@@ -1058,7 +1093,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorage, times(2)).objects();
     verify(mockErrorExtractor, times(1)).itemNotFound(any(IOException.class));
     verify(mockStorageObjects, times(2)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
-    verify(mockStorageObjectsGet, times(5)).execute(); //4 repeated, 1 from GoogleCloudStorageImpl
+    verify(mockStorageObjectsGet, times(5)).execute();
   }
 
   @Test
@@ -1094,17 +1129,17 @@ public class GoogleCloudStorageTest {
 
     // Both "retries" reset the mockBackOff, since they are "independent" retries with progress
     // in-between. One initial retry for getMetadata.
-    verify(mockBackOff, times(1)).reset();
     verify(mockReadBackOff, times(2)).reset();
     verify(mockReadBackOff, times(2)).nextBackOffMillis();
     verify(mockSleeper, times(2)).sleep(anyLong());
-    verify(mockStorage, times(5)).objects();
-    verify(mockStorageObjects, times(5)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorage, times(4)).objects();
+    verify(mockStorageObjects, times(4)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders, times(3)).setAcceptEncoding(eq("gzip"));
     verify(mockHeaders, times(1)).setRange(eq("bytes=0-"));
     verify(mockHeaders, times(1)).setRange(eq("bytes=3-"));
     verify(mockHeaders, times(1)).setRange(eq("bytes=4-"));
-    verify(mockStorageObjectsGet, times(2)).execute();
+    verify(mockStorageObjectsGet, times(1)).execute();
     verify(mockStorageObjectsGet, times(3)).executeMedia();
   }
 
@@ -1140,19 +1175,19 @@ public class GoogleCloudStorageTest {
     byte[] actualData = new byte[testData.length];
     int bytesRead = readChannel.read(ByteBuffer.wrap(actualData));
 
-    // Both "retries" reset the mockBackOff, since they are "independent" retries with progress
-    // in-between. One initial retry for getMetadata.
-    verify(mockBackOff, times(1)).reset();
+    // Both "retries" reset the mockReadBackOff, since they are "independent"
+    // retries with progress in-between. One initial retry for getMetadata.
     verify(mockReadBackOff, times(2)).reset();
     verify(mockReadBackOff, times(2)).nextBackOffMillis();
     verify(mockSleeper, times(2)).sleep(anyLong());
-    verify(mockStorage, times(5)).objects();
-    verify(mockStorageObjects, times(5)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorage, times(4)).objects();
+    verify(mockStorageObjects, times(4)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders, times(3)).setAcceptEncoding(eq("gzip"));
     verify(mockHeaders, times(1)).setRange(eq("bytes=0-"));
     verify(mockHeaders, times(1)).setRange(eq("bytes=3-"));
     verify(mockHeaders, times(1)).setRange(eq("bytes=4-"));
-    verify(mockStorageObjectsGet, times(2)).execute();
+    verify(mockStorageObjectsGet, times(1)).execute();
     verify(mockStorageObjectsGet, times(3)).executeMedia();
 
     assertThat(bytesRead).isEqualTo(testData.length);
@@ -1161,10 +1196,10 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testOpenExceptionsDuringReadTotalElapsedTimeTooGreat() throws IOException {
-    setUpBasicMockBehaviorForOpeningReadChannel();
-
     InputStream mockExceptionStream = mock(InputStream.class);
     byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
+
+    setUpBasicMockBehaviorForOpeningReadChannel(testData.length);
     when(mockStorageObjectsGet.executeMedia())
         .thenReturn(createFakeResponse(testData.length, mockExceptionStream));
     when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
@@ -1174,7 +1209,6 @@ public class GoogleCloudStorageTest {
         .thenReturn(1000000L)
         .thenReturn(1000001L)
         .thenReturn(1000002L)
-        .thenReturn(1000003L)
         .thenReturn(
             (GoogleCloudStorageReadChannel.DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS + 3) * 1000000L);
 
@@ -1191,11 +1225,12 @@ public class GoogleCloudStorageTest {
 
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
-    verify(mockClock, times(5)).nanoTime();
+    verify(mockClock, times(4)).nanoTime();
     verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders).setAcceptEncoding(eq("gzip"));
     verify(mockHeaders).setRange(eq("bytes=0-"));
     verify(mockStorageObjectsGet).executeMedia();
-    verify(mockStorageObjectsGet, times(2)).execute();
+    verify(mockStorageObjectsGet).execute();
   }
 
   @Test
@@ -1228,10 +1263,10 @@ public class GoogleCloudStorageTest {
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders).setAcceptEncoding(eq("gzip"));
     verify(mockHeaders).setRange(eq("bytes=0-"));
     verify(mockStorageObjectsGet).executeMedia();
-    verify(mockStorageObjectsGet, times(2)).execute();
-    verify(mockBackOff, times(1)).reset();
+    verify(mockStorageObjectsGet, times(1)).execute();
     verify(mockReadBackOff, times(1)).reset();
     verify(mockReadBackOff, times(1)).nextBackOffMillis();
     verify(mockSleeper, times(1)).sleep(eq(111L));
@@ -1268,10 +1303,10 @@ public class GoogleCloudStorageTest {
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders, times(3)).setAcceptEncoding(eq("gzip"));
     verify(mockHeaders, times(3)).setRange(eq("bytes=0-"));
     verify(mockStorageObjectsGet, times(3)).executeMedia();
-    verify(mockStorageObjectsGet, times(2)).execute();
-    verify(mockBackOff, times(1)).reset();
+    verify(mockStorageObjectsGet, times(1)).execute();
     verify(mockReadBackOff, times(1)).reset();
     verify(mockReadBackOff, times(2)).nextBackOffMillis();
     verify(mockSleeper).sleep(eq(111L));
@@ -1344,11 +1379,11 @@ public class GoogleCloudStorageTest {
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockStorageObjectsGet, times(3)).executeMedia();
-    verify(mockStorageObjectsGet, times(2)).execute();
+    verify(mockStorageObjectsGet, times(1)).execute();
     verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders, times(3)).setAcceptEncoding(eq("gzip"));
     verify(mockHeaders, times(2)).setRange(eq("bytes=0-"));
     verify(mockHeaders).setRange(eq("bytes=3-"));
-    verify(mockBackOff, times(1)).reset();
     verify(mockReadBackOff, times(2)).reset();
     verify(mockReadBackOff, times(2)).nextBackOffMillis();
     verify(mockSleeper, times(2)).sleep(eq(111L));
@@ -1371,26 +1406,12 @@ public class GoogleCloudStorageTest {
   public void testOpenGzippedObjectNormalOperation() throws IOException {
     // Generate 1k test data to compress.
     byte[] testData = generateTestData(1000);
-    ByteArrayOutputStream os = new ByteArrayOutputStream();
-    GZIPOutputStream gzipper = new GZIPOutputStream(os);
-    gzipper.write(testData);
-    byte[] compressedData = os.toByteArray();
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream);
+    gzipOutputStream.write(testData);
+    byte[] compressedData = outputStream.toByteArray();
 
-    when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
-        .thenReturn(mockStorageObjectsGet);
-    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsGet)))
-        .thenReturn(mockHeaders);
-    when(mockStorageObjectsGet.execute())
-        .thenReturn(
-            new StorageObject()
-                .setBucket(BUCKET_NAME)
-                .setName(OBJECT_NAME)
-                .setUpdated(new DateTime(11L))
-                .setSize(BigInteger.valueOf(compressedData.length))
-                .setGeneration(1L)
-                .setMetageneration(1L)
-                .setContentEncoding("gzip"));
+    setUpBasicMockBehaviorForOpeningReadChannel(compressedData.length, "gzip");
     // content. Mock this by providing a stream that simply provides the uncompressed content.
     when(mockStorageObjectsGet.executeMedia())
         .thenReturn(createFakeResponse(compressedData.length, new ByteArrayInputStream(testData)))
@@ -1401,10 +1422,10 @@ public class GoogleCloudStorageTest {
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     assertThat(readChannel.isOpen()).isTrue();
     assertThat(readChannel.position()).isEqualTo(0);
-    assertThat(readChannel.size()).isEqualTo(compressedData.length);
+    assertThat(readChannel.size()).isEqualTo(Long.MAX_VALUE);
     byte[] actualData = new byte[testData.length];
     assertThat(readChannel.read(ByteBuffer.wrap(actualData))).isEqualTo(testData.length);
-    assertThat(readChannel.readChannel != null).isTrue();
+    assertThat(readChannel.contentChannel != null).isTrue();
     assertThat(actualData).isEqualTo(testData);
     assertThat(readChannel.position()).isEqualTo(testData.length);
 
@@ -1431,12 +1452,12 @@ public class GoogleCloudStorageTest {
     assertThat(actualData).isEqualTo(partialData);
     assertThat(readChannel.position()).isEqualTo(testData.length);
 
-    verify(mockStorage, times(5)).objects();
-    verify(mockStorageObjects, times(5)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorage, times(4)).objects();
+    verify(mockStorageObjects, times(4)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockStorageObjectsGet, times(3)).executeMedia();
-    verify(mockStorageObjectsGet, times(2)).execute();
+    verify(mockStorageObjectsGet, times(1)).execute();
     verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
-    verify(mockHeaders, times(3)).setRange(eq("bytes=0-"));
+    verify(mockHeaders, times(3)).setAcceptEncoding(eq("gzip"));
   }
 
   /**
@@ -1445,10 +1466,10 @@ public class GoogleCloudStorageTest {
    */
   @Test
   public void testOpenNoSupportContentEncodingAndNoFailFastOnNotFound() throws Exception {
-    setUpBasicMockBehaviorForOpeningReadChannel();
-
     InputStream mockExceptionStream = mock(InputStream.class);
     byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
+
+    setUpBasicMockBehaviorForOpeningReadChannel(testData.length);
     when(mockStorageObjectsGet.executeMedia())
         .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(testData)));
     when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
@@ -1463,10 +1484,12 @@ public class GoogleCloudStorageTest {
 
     byte[] actualData = new byte[testData.length];
     int bytesRead = readChannel.read(ByteBuffer.wrap(actualData));
-    verify(mockStorage).objects();
-    verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorage, times(2)).objects();
+    verify(mockStorageObjects, times(2)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders).setAcceptEncoding(eq("gzip"));
     verify(mockHeaders).setRange(eq("bytes=0-"));
+    verify(mockStorageObjectsGet).execute();
     verify(mockStorageObjectsGet).executeMedia();
 
     assertThat(bytesRead).isEqualTo(testData.length);
@@ -1478,10 +1501,10 @@ public class GoogleCloudStorageTest {
    */
   @Test
   public void testInplaceSeekSmallerThanSeekBuffer() throws Exception {
-    setUpBasicMockBehaviorForOpeningReadChannel();
-
     InputStream mockExceptionStream = mock(InputStream.class);
     byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
+
+    setUpBasicMockBehaviorForOpeningReadChannel(testData.length);
     when(mockStorageObjectsGet.executeMedia())
         .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(testData)));
     when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
@@ -1505,10 +1528,12 @@ public class GoogleCloudStorageTest {
     byte[] actualData2 = new byte[2];
     int bytesRead2 = readChannel.read(ByteBuffer.wrap(actualData2));
 
-    verify(mockStorage).objects();
-    verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorage, times(2)).objects();
+    verify(mockStorageObjects, times(2)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders).setAcceptEncoding(eq("gzip"));
     verify(mockHeaders).setRange(eq("bytes=0-"));
+    verify(mockStorageObjectsGet).execute();
     verify(mockStorageObjectsGet).executeMedia();
 
     assertThat(bytesRead1).isEqualTo(1);
@@ -1522,8 +1547,6 @@ public class GoogleCloudStorageTest {
    */
   @Test
   public void testInplaceSeekLargerThanSeekBuffer() throws Exception {
-    setUpBasicMockBehaviorForOpeningReadChannel();
-
     InputStream mockExceptionStream = mock(InputStream.class);
     byte[] testData = new byte[GoogleCloudStorageReadChannel.SKIP_BUFFER_SIZE + 5];
     testData[0] = 0x01;
@@ -1531,6 +1554,8 @@ public class GoogleCloudStorageTest {
     testData[testData.length - 3] = 0x03;
     testData[testData.length - 2] = 0x05;
     testData[testData.length - 1] = 0x08;
+
+    setUpBasicMockBehaviorForOpeningReadChannel(testData.length);
     when(mockStorageObjectsGet.executeMedia())
         .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(testData)));
     when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
@@ -1556,10 +1581,12 @@ public class GoogleCloudStorageTest {
     byte[] actualData2 = new byte[2];
     int bytesRead2 = readChannel.read(ByteBuffer.wrap(actualData2));
 
-    verify(mockStorage).objects();
-    verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorage, times(2)).objects();
+    verify(mockStorageObjects, times(2)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders).setAcceptEncoding(eq("gzip"));
     verify(mockHeaders).setRange(eq("bytes=0-"));
+    verify(mockStorageObjectsGet).execute();
     verify(mockStorageObjectsGet).executeMedia();
 
     assertThat(bytesRead1).isEqualTo(1);
@@ -1581,22 +1608,7 @@ public class GoogleCloudStorageTest {
     byte[] compressedData = os.toByteArray();
     final int compressedLength = compressedData.length;
 
-    when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
-        .thenReturn(mockStorageObjectsGet);
-    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsGet)))
-        .thenReturn(mockHeaders);
-    when(mockStorageObjectsGet.execute())
-        .thenReturn(
-            new StorageObject()
-                .setBucket(BUCKET_NAME)
-                .setName(OBJECT_NAME)
-                .setUpdated(new DateTime(11L))
-                .setSize(BigInteger.valueOf(compressedData.length))
-                .setGeneration(1L)
-                .setMetageneration(1L)
-                .setContentEncoding("gzip"));
-
+    setUpBasicMockBehaviorForOpeningReadChannel(compressedData.length, "gzip");
     // Content-Length will be the size of the compressed data. During the first read attempt,
     // we will read < size bytes before throwing an exception. During the second read
     // attempt, we will throw an exception after > size bytes have been read. Finally, we
@@ -1656,13 +1668,12 @@ public class GoogleCloudStorageTest {
     assertThat(readChannel.read(ByteBuffer.wrap(actualData))).isEqualTo(testData.length);
     assertThat(readChannel.position()).isEqualTo(testData.length);
 
-    verify(mockStorage, times(5)).objects();
-    verify(mockStorageObjects, times(5)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
+    verify(mockStorage, times(4)).objects();
+    verify(mockStorageObjects, times(4)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockStorageObjectsGet, times(3)).executeMedia();
-    verify(mockStorageObjectsGet, times(2)).execute();
+    verify(mockStorageObjectsGet, times(1)).execute();
     verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
-    verify(mockHeaders, times(3)).setRange(eq("bytes=0-"));
-    verify(mockBackOff, times(1)).reset();
+    verify(mockHeaders, times(3)).setAcceptEncoding(eq("gzip"));
     verify(mockReadBackOff, times(2)).reset();
     verify(mockReadBackOff, times(2)).nextBackOffMillis();
     verify(mockSleeper, times(2)).sleep(eq(1L));
@@ -1704,7 +1715,7 @@ public class GoogleCloudStorageTest {
     assertThat(readChannel.position()).isEqualTo(0);
     byte[] actualData = new byte[testData.length];
     assertThat(readChannel.read(ByteBuffer.wrap(actualData))).isEqualTo(testData.length);
-    assertThat(readChannel.readChannel != null).isTrue();
+    assertThat(readChannel.contentChannel != null).isTrue();
     assertThat(actualData).isEqualTo(testData);
     assertThat(readChannel.position()).isEqualTo(testData.length);
 
@@ -1737,10 +1748,11 @@ public class GoogleCloudStorageTest {
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper, times(2)).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders, times(2)).setAcceptEncoding(eq("gzip"));
     verify(mockHeaders).setRange(eq("bytes=0-"));
     verify(mockHeaders).setRange(eq("bytes=2-"));
     verify(mockStorageObjectsGet, times(2)).executeMedia();
-    verify(mockStorageObjectsGet, times(2)).execute();
+    verify(mockStorageObjectsGet, times(1)).execute();
 
     readChannel.close();
     assertThat(readChannel.isOpen()).isFalse();
@@ -1755,19 +1767,14 @@ public class GoogleCloudStorageTest {
    * GoogleCloudStorage.open(2).
    */
   @Test
-  public void testOpenObjectApiException()
-      throws IOException {
-    when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
-        .thenReturn(mockStorageObjectsGet);
-    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsGet)))
-        .thenReturn(mockHeaders);
-
+  public void testOpenObjectApiException() throws IOException {
     IOException notFoundException = new IOException("Fake not-found exception");
     IOException rangeNotSatisfiableException =
         new IOException("Fake range-not-satisfiable exception");
     IOException unexpectedException = new IOException("Other API exception");
 
+    setUpBasicMockBehaviorForOpeningReadChannel();
+    reset(mockStorageObjectsGet);
     when(mockStorageObjectsGet.execute())
         .thenThrow(notFoundException)
         .thenReturn(new StorageObject()
@@ -1806,18 +1813,22 @@ public class GoogleCloudStorageTest {
 
     // Second time is the rangeNotSatisfiableException.
     SeekableByteChannel readChannel2 = gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    assertThat(readChannel2.size()).isEqualTo(0);
+    EOFException thrown2 =
+        assertThrows(EOFException.class, () -> readChannel2.read(ByteBuffer.allocate(1)));
+    assertThat(thrown2).hasCauseThat().isEqualTo(rangeNotSatisfiableException);
 
     // Third time is the unexpectedException.
     SeekableByteChannel readChannel3 = gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    IOException thrown = assertThrows(IOException.class, () -> readChannel3.size());
-    assertThat(thrown).hasCauseThat().isEqualTo(unexpectedException);
+    IOException thrown3 =
+        assertThrows(IOException.class, () -> readChannel3.read(ByteBuffer.allocate(1)));
+    assertThat(thrown3).hasCauseThat().isEqualTo(unexpectedException);
 
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper, times(2)).getRequestHeaders(any(Storage.Objects.Get.class));
+    verify(mockHeaders, times(2)).setAcceptEncoding(eq("gzip"));
     verify(mockHeaders, times(2)).setRange(eq("bytes=0-"));
-    verify(mockStorageObjectsGet, times(5)).execute();
+    verify(mockStorageObjectsGet, times(3)).execute();
     verify(mockStorageObjectsGet, times(2)).executeMedia();
     verify(mockErrorExtractor, times(3)).itemNotFound(any(IOException.class));
     verify(mockErrorExtractor, atLeastOnce()).rangeNotSatisfiable(any(IOException.class));

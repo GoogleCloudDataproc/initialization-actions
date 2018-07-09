@@ -14,9 +14,10 @@
 
 package com.google.cloud.hadoop.gcsio.testing;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
-import com.google.common.base.Preconditions;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,23 +29,29 @@ import java.io.InputStream;
 public class InMemoryObjectReadChannel extends GoogleCloudStorageReadChannel {
 
   // All reads return data from this byte array. Set at construction time.
-  private final byte[] channelContents;
+  private final byte[] channelContent;
 
   /** Creates a new instance of InMemoryObjectReadChannel. */
-  public InMemoryObjectReadChannel(byte[] channelContents) throws IOException {
-    this(channelContents, GoogleCloudStorageReadOptions.DEFAULT);
+  public InMemoryObjectReadChannel(byte[] channelContent) throws IOException {
+    this(channelContent, GoogleCloudStorageReadOptions.DEFAULT);
   }
 
   /**
    * Creates a new instance of InMemoryObjectReadChannel with {@code readOptions} plumbed into the
    * base class.
    */
-  public InMemoryObjectReadChannel(
-      byte[] channelContents, GoogleCloudStorageReadOptions readOptions) throws IOException {
+  public InMemoryObjectReadChannel(byte[] channelContent, GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
     super(readOptions);
-    Preconditions.checkArgument(channelContents != null);
-    this.channelContents = channelContents;
+    this.channelContent = checkNotNull(channelContent, "channelContents could not be null");
+    // gzipEncoded and size should be initialized in constructor, the same as with super-class
+    setGzipEncoded(false);
+    setSize(channelContent.length);
   }
+
+  /** No-op, because encoding and size are set in constructor. */
+  @Override
+  protected void initEncodingAndSize() {}
 
   /**
    * Opens the underlying byte array stream, sets its position to currentPosition and sets size to
@@ -54,10 +61,9 @@ public class InMemoryObjectReadChannel extends GoogleCloudStorageReadChannel {
    * @throws IOException on IO error
    */
   @Override
-  protected InputStream openStreamAndSetMetadata(long newPosition) throws IOException {
+  protected InputStream openStream(long newPosition) throws IOException {
     validatePosition(newPosition);
-    setSize(channelContents.length);
-    InputStream inputStream = new ByteArrayInputStream(channelContents);
+    InputStream inputStream = new ByteArrayInputStream(channelContent);
     inputStream.skip(newPosition);
     return inputStream;
   }
