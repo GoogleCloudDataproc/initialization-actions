@@ -122,7 +122,6 @@ public abstract class AbstractGoogleAsyncWriteChannel
   private boolean isInitialized = false;
 
   // Chunk size to use.
-  @VisibleForTesting
   private int uploadBufferSize = UPLOAD_CHUNK_SIZE_DEFAULT;
 
   // Size of buffer used by upload pipe.
@@ -136,7 +135,6 @@ public abstract class AbstractGoogleAsyncWriteChannel
 
   // Previously this allowed faster writes. This is no longer true. Therefore default to false.
   // TODO: Remove this flag and all related code.
-  @VisibleForTesting
   private boolean limitFileSizeTo250Gb = false;
 
   // When enabled, we get higher throughput for writing small files.
