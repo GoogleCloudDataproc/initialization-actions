@@ -1053,7 +1053,7 @@ public class GoogleCloudStorageTest {
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     setUpAndValidateReadChannelMocksAndSetMaxRetries(readChannel, 0);
-    readChannel.performLazySeek();
+    readChannel.performLazySeek(/* limit= */ 1);
     assertThat(readChannel.contentChannel).isNotNull();
 
     // Should not throw exception. If it does, it will be caught by the test harness.

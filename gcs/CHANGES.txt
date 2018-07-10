@@ -13,6 +13,8 @@
      fully read. This fixes a bug, when clients that rely on `size` method
      could stop reading object prematurely.
 
+  5. Add support for making bounded range requests when reading GCS objects.
+
 
 1.9.0 - 2018-06-15
 

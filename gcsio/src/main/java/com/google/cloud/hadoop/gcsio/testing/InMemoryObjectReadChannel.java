@@ -45,7 +45,7 @@ public class InMemoryObjectReadChannel extends GoogleCloudStorageReadChannel {
     super(readOptions);
     this.channelContent = checkNotNull(channelContent, "channelContents could not be null");
     // gzipEncoded and size should be initialized in constructor, the same as with super-class
-    setGzipEncoded(false);
+    // gzipEncoded is false by default.
     setSize(channelContent.length);
   }
 
@@ -58,10 +58,11 @@ public class InMemoryObjectReadChannel extends GoogleCloudStorageReadChannel {
    * size of the byte array.
    *
    * @param newPosition position to seek into the new stream.
+   * @param limit ignored.
    * @throws IOException on IO error
    */
   @Override
-  protected InputStream openStream(long newPosition) throws IOException {
+  protected InputStream openStream(long newPosition, long limit) throws IOException {
     validatePosition(newPosition);
     InputStream inputStream = new ByteArrayInputStream(channelContent);
     inputStream.skip(newPosition);
