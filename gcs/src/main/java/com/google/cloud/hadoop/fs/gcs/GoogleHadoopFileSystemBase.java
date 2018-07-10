@@ -73,6 +73,7 @@ import org.apache.hadoop.fs.GlobPattern;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.Progressable;
 import org.slf4j.Logger;
@@ -108,9 +109,6 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
   /** Default value of replication factor. */
   public static final short REPLICATION_FACTOR_DEFAULT = 3;
-
-  /** We report this value as a file's owner/group name. */
-  private static final String USER_NAME = System.getProperty("user.name");
 
   /** Splitter for list values stored in a single configuration value */
   private static final Splitter CONFIGURATION_SPLITTER = Splitter.on(',');
@@ -1331,8 +1329,9 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       List<FileInfo> fileInfos = gcsfs.listFileInfo(
           gcsPath, enableAutoRepairImplicitDirectories);
       status = new ArrayList<>(fileInfos.size());
+      String userName = getUgiUserName();
       for (FileInfo fileInfo : fileInfos) {
-        status.add(getFileStatus(fileInfo));
+        status.add(getFileStatus(fileInfo, userName));
       }
     } catch (FileNotFoundException fnfe) {
       LOG.debug("Got fnfe: ", fnfe);
@@ -1453,7 +1452,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       msg += hadoopPath.toString();
       throw new FileNotFoundException(msg);
     }
-    FileStatus status = getFileStatus(fileInfo);
+    String userName = getUgiUserName();
+    FileStatus status = getFileStatus(fileInfo, userName);
 
     long duration = System.nanoTime() - startTime;
     increment(Counter.GET_FILE_STATUS);
@@ -1632,12 +1632,13 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
   /** Helper method that converts {@link FileInfo} collection to {@link FileStatus} collection. */
   private Collection<FileStatus> toFileStatusesWithImplicitDirectories(
-      Collection<FileInfo> fileInfos) {
+      Collection<FileInfo> fileInfos) throws IOException {
     List<FileStatus> fileStatuses = new ArrayList<>(fileInfos.size());
     Set<URI> filePaths = Sets.newHashSetWithExpectedSize(fileInfos.size());
+    String userName = getUgiUserName();
     for (FileInfo fileInfo : fileInfos) {
       filePaths.add(fileInfo.getPath());
-      fileStatuses.add(getFileStatus(fileInfo));
+      fileStatuses.add(getFileStatus(fileInfo, userName));
     }
 
     // The flow for populating this doesn't bother to populate metadata entries for parent
@@ -1656,13 +1657,19 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
           FileInfo fakeFileInfo = FileInfo.fromItemInfo(gcsfs.getPathCodec(), fakeItemInfo);
 
           filePaths.add(parentPath);
-          fileStatuses.add(getFileStatus(fakeFileInfo));
+          fileStatuses.add(getFileStatus(fakeFileInfo, userName));
         }
         parentPath = gcsfs.getParentPath(parentPath);
       }
     }
 
     return fileStatuses;
+  }
+
+  /** Helper method to get the UGI short user name */
+  private static String getUgiUserName() throws IOException {
+    UserGroupInformation ugi = UserGroupInformation.getCurrentUser();
+    return ugi.getShortUserName();
   }
 
   /**
@@ -1681,7 +1688,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   /**
    * Gets FileStatus corresponding to the given FileInfo value.
    */
-  private FileStatus getFileStatus(FileInfo fileInfo) {
+  private FileStatus getFileStatus(FileInfo fileInfo, String userName) throws IOException {
     // GCS does not provide modification time. It only provides creation time.
     // It works for objects because they are immutable once created.
     FileStatus status =
@@ -1693,8 +1700,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
             /* modificationTime= */ fileInfo.getModificationTime(),
             /* accessTime= */ fileInfo.getModificationTime(),
             reportedPermissions,
-            /* owner= */ USER_NAME,
-            /* group= */ USER_NAME,
+            /* owner= */ userName,
+            /* group= */ userName,
             getHadoopPath(fileInfo.getPath()));
     if (LOG.isDebugEnabled()) {
       LOG.debug("GHFS.getFileStatus: {} => {}", fileInfo.getPath(), fileStatusToString(status));

@@ -28,14 +28,17 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -576,6 +579,35 @@ public class GoogleHadoopFileSystemIntegrationTest
 
     FileStatus status = myGhfs.getFileStatus(filePath);
     assertThat(status.getPermission()).isEqualTo(new FsPermission(testPermissions));
+
+    // Cleanup.
+    assertThat(ghfs.delete(filePath, true)).isTrue();
+  }
+
+  /**
+   * Test getFileStatus() uses the user reported by UGI
+   * @throws IOException
+   */
+  @Test
+  public void testFileStatusUser() throws IOException, InterruptedException {
+    String ugiUser = UUID.randomUUID().toString();
+    UserGroupInformation ugi = UserGroupInformation.createRemoteUser(ugiUser);
+    Configuration conf = getConfigurationWtihImplementation();
+    GoogleHadoopFileSystem myGhfs = new GoogleHadoopFileSystem();
+    myGhfs.initialize(ghfs.getUri(), conf);
+    URI fileUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
+    Path filePath = ghfsHelper.castAsHadoopPath(fileUri);
+    ghfsHelper.writeFile(filePath, "foo", 1, true);
+
+    FileStatus status =
+    ugi.doAs(new PrivilegedExceptionAction<FileStatus>() {
+      @Override
+      public FileStatus run() throws IOException, InterruptedException {
+        return myGhfs.getFileStatus(filePath);
+      }
+    });
+    assertThat(status.getOwner()).isEqualTo(ugiUser);
+    assertThat(status.getGroup()).isEqualTo(ugiUser);
 
     // Cleanup.
     assertThat(ghfs.delete(filePath, true)).isTrue();

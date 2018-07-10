@@ -117,4 +117,8 @@ public class GoogleHadoopFileSystemTest
   public void testConfigurablePermissions()
       throws IOException {
   }
+
+  @Test
+  @Override
+  public void testFileStatusUser() throws IOException {}
 }

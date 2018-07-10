@@ -1,5 +1,7 @@
 1.9.2 - 2018-XX-XX
 
+  1. Report the UGI user in FileStatus instead of process owner. 
+
 
 1.9.1 - 2018-07-11
 
