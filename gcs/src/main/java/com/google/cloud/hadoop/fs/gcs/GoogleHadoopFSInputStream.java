@@ -102,10 +102,11 @@ class GoogleHadoopFSInputStream
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_DEFAULT);
     LOG.debug("inplaceSeekLimit: {}", inplaceSeekLimit);
 
-    GoogleCloudStorageReadOptions.Builder readOptions = new GoogleCloudStorageReadOptions.Builder()
-        .setSupportContentEncoding(supportContentEncoding)
-        .setFastFailOnNotFound(fastFailOnNotFound)
-        .setInplaceSeekLimit(inplaceSeekLimit);
+    GoogleCloudStorageReadOptions.Builder readOptions =
+        GoogleCloudStorageReadOptions.builder()
+            .setSupportContentEncoding(supportContentEncoding)
+            .setFastFailOnNotFound(fastFailOnNotFound)
+            .setInplaceSeekLimit(inplaceSeekLimit);
     if (enableInternalBuffer) {
       buffer = ByteBuffer.allocate(bufferSize);
       buffer.limit(0);

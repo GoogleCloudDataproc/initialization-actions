@@ -1475,12 +1475,13 @@ public class GoogleCloudStorageTest {
     when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
         .thenReturn(testData.length);
     GoogleCloudStorageReadChannel readChannel =
-        (GoogleCloudStorageReadChannel) gcs.open(
-            new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
-            new GoogleCloudStorageReadOptions.Builder()
-                .setFastFailOnNotFound(false)
-                .setSupportContentEncoding(false)
-                .build());
+        (GoogleCloudStorageReadChannel)
+            gcs.open(
+                new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
+                GoogleCloudStorageReadOptions.builder()
+                    .setFastFailOnNotFound(false)
+                    .setSupportContentEncoding(false)
+                    .build());
 
     byte[] actualData = new byte[testData.length];
     int bytesRead = readChannel.read(ByteBuffer.wrap(actualData));
@@ -1510,13 +1511,14 @@ public class GoogleCloudStorageTest {
     when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
         .thenReturn(testData.length);
     GoogleCloudStorageReadChannel readChannel =
-        (GoogleCloudStorageReadChannel) gcs.open(
-            new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
-            new GoogleCloudStorageReadOptions.Builder()
-                .setFastFailOnNotFound(false)
-                .setSupportContentEncoding(false)
-                .setInplaceSeekLimit(2)
-                .build());
+        (GoogleCloudStorageReadChannel)
+            gcs.open(
+                new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
+                GoogleCloudStorageReadOptions.builder()
+                    .setFastFailOnNotFound(false)
+                    .setSupportContentEncoding(false)
+                    .setInplaceSeekLimit(2)
+                    .build());
 
     byte[] actualData1 = new byte[1];
     int bytesRead1 = readChannel.read(ByteBuffer.wrap(actualData1));
@@ -1561,13 +1563,14 @@ public class GoogleCloudStorageTest {
     when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
         .thenReturn(testData.length);
     GoogleCloudStorageReadChannel readChannel =
-        (GoogleCloudStorageReadChannel) gcs.open(
-            new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
-            new GoogleCloudStorageReadOptions.Builder()
-                .setFastFailOnNotFound(false)
-                .setSupportContentEncoding(false)
-                .setInplaceSeekLimit(2 * GoogleCloudStorageReadChannel.SKIP_BUFFER_SIZE)
-                .build());
+        (GoogleCloudStorageReadChannel)
+            gcs.open(
+                new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
+                GoogleCloudStorageReadOptions.builder()
+                    .setFastFailOnNotFound(false)
+                    .setSupportContentEncoding(false)
+                    .setInplaceSeekLimit(2 * GoogleCloudStorageReadChannel.SKIP_BUFFER_SIZE)
+                    .build());
 
     byte[] actualData1 = new byte[1];
     int bytesRead1 = readChannel.read(ByteBuffer.wrap(actualData1));

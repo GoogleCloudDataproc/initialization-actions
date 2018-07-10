@@ -16,14 +16,17 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import com.google.common.base.Preconditions;
+import static com.google.common.base.Preconditions.checkState;
+
+import com.google.auto.value.AutoValue;
 
 /**
  * Advanced options for reading GoogleCloudStorage objects. Immutable; callers must use the inner
- * Builder class to construct instances.
+ * {@link Builder} class to construct instances.
  */
-public class GoogleCloudStorageReadOptions {
-  public static final GoogleCloudStorageReadOptions DEFAULT = new Builder().build();
+@AutoValue
+public abstract class GoogleCloudStorageReadOptions {
+  public static final GoogleCloudStorageReadOptions DEFAULT = builder().build();
 
   public static final int DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS = 200;
   public static final double DEFAULT_BACKOFF_RANDOMIZATION_FACTOR = 0.5;
@@ -35,64 +38,82 @@ public class GoogleCloudStorageReadOptions {
   public static final int DEFAULT_BUFFER_SIZE = 0;
   public static final long DEFAULT_INPLACE_SEEK_LIMIT = 0L;
 
-  /** Mutable builder for GoogleCloudStorageReadOptions. */
-  public static class Builder {
-    private int backoffInitialIntervalMillis = DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS;
-    private double backoffRandomizationFactor = DEFAULT_BACKOFF_RANDOMIZATION_FACTOR;
-    private double backoffMultiplier = DEFAULT_BACKOFF_MULTIPLIER;
-    private int backoffMaxIntervalMillis = DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS;
-    private int backoffMaxElapsedTimeMillis = DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS;
-    private boolean supportContentEncoding = DEFAULT_SUPPORT_CONTENT_ENCODING;
-    private boolean fastFailOnNotFound = DEFAULT_FAST_FAIL_ON_NOT_FOUND;
-    private int bufferSize = DEFAULT_BUFFER_SIZE;
-    private long inplaceSeekLimit = DEFAULT_INPLACE_SEEK_LIMIT;
+  public static Builder builder() {
+    return new AutoValue_GoogleCloudStorageReadOptions.Builder()
+        .setBackoffInitialIntervalMillis(DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS)
+        .setBackoffRandomizationFactor(DEFAULT_BACKOFF_RANDOMIZATION_FACTOR)
+        .setBackoffMultiplier(DEFAULT_BACKOFF_MULTIPLIER)
+        .setBackoffMaxIntervalMillis(DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS)
+        .setBackoffMaxElapsedTimeMillis(DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS)
+        .setSupportContentEncoding(DEFAULT_SUPPORT_CONTENT_ENCODING)
+        .setFastFailOnNotFound(DEFAULT_FAST_FAIL_ON_NOT_FOUND)
+        .setBufferSize(DEFAULT_BUFFER_SIZE)
+        .setInplaceSeekLimit(DEFAULT_INPLACE_SEEK_LIMIT);
+  }
 
+  /** See {@link Builder#setBackoffInitialIntervalMillis}. */
+  public abstract int getBackoffInitialIntervalMillis();
+
+  /** See {@link Builder#setBackoffRandomizationFactor}. */
+  public abstract double getBackoffRandomizationFactor();
+
+  /** See {@link Builder#setBackoffMultiplier}. */
+  public abstract double getBackoffMultiplier();
+
+  /** See {@link Builder#setBackoffMaxIntervalMillis}. */
+  public abstract int getBackoffMaxIntervalMillis();
+
+  /** See {@link Builder#setBackoffMaxElapsedTimeMillis}. */
+  public abstract int getBackoffMaxElapsedTimeMillis();
+
+  /** See {@link Builder#setSupportContentEncoding}. */
+  public abstract boolean getSupportContentEncoding();
+
+  /** See {@link Builder#setFastFailOnNotFound}. */
+  public abstract boolean getFastFailOnNotFound();
+
+  /** See {@link Builder#setBufferSize}. */
+  public abstract int getBufferSize();
+
+  /** See {@link Builder#setInplaceSeekLimit}. */
+  public abstract long getInplaceSeekLimit();
+
+  public abstract Builder toBuilder();
+
+  /** Mutable builder for GoogleCloudStorageReadOptions. */
+  @AutoValue.Builder
+  public abstract static class Builder {
     /**
-     * On exponential backoff, the initial delay before the first retry; subsequent retries then
+     * On exponential back-off, the initial delay before the first retry; subsequent retries then
      * grow as an exponential function of the current delay interval.
      */
-    public Builder setBackoffInitialIntervalMillis(int backoffInitialIntervalMillis) {
-      this.backoffInitialIntervalMillis = backoffInitialIntervalMillis;
-      return this;
-    }
+    public abstract Builder setBackoffInitialIntervalMillis(int backoffInitialIntervalMillis);
 
     /**
      * The amount of jitter introduced when computing the next retry sleep interval so that when
      * many clients are retrying, they don't all retry at the same time.
      */
-    public Builder setBackoffRandomizationFactor(double backoffRandomizationFactor) {
-      this.backoffRandomizationFactor = backoffRandomizationFactor;
-      return this;
-    }
+    public abstract Builder setBackoffRandomizationFactor(double backoffRandomizationFactor);
 
     /**
-     * The base of the exponent used for exponential backoff; each subsequent sleep interval is
+     * The base of the exponent used for exponential back-off; each subsequent sleep interval is
      * roughly this many times the previous interval.
      */
-    public Builder setBackoffMultiplier(double backoffMultiplier) {
-      this.backoffMultiplier = backoffMultiplier;
-      return this;
-    }
+    public abstract Builder setBackoffMultiplier(double backoffMultiplier);
 
     /**
      * The maximum amount of sleep between retries; at this point, there will be no further
-     * exponential backoff. This prevents intervals from growing unreasonably large.
+     * exponential back-off. This prevents intervals from growing unreasonably large.
      */
-    public Builder setBackoffMaxIntervalMillis(int backoffMaxIntervalMillis) {
-      this.backoffMaxIntervalMillis = backoffMaxIntervalMillis;
-      return this;
-    }
+    public abstract Builder setBackoffMaxIntervalMillis(int backoffMaxIntervalMillis);
 
     /**
      * The maximum total time elapsed since the first retry over the course of a series of retries.
      * This makes it easier to bound the maximum time it takes to respond to a permanent failure
      * without having to calculate the summation of a series of exponentiated intervals while
-     * accounting for the randomization of backoff intervals.
+     * accounting for the randomization of back-off intervals.
      */
-    public Builder setBackoffMaxElapsedTimeMillis(int backoffMaxElapsedTimeMillis) {
-      this.backoffMaxElapsedTimeMillis = backoffMaxElapsedTimeMillis;
-      return this;
-    }
+    public abstract Builder setBackoffMaxElapsedTimeMillis(int backoffMaxElapsedTimeMillis);
 
     /**
      * True if the channel must take special precautions for deailing with "content-encoding"
@@ -100,10 +121,7 @@ public class GoogleCloudStorageReadOptions {
      * being decoded in-flight. This is not the same as "content-type", and most use cases shouldn't
      * have to worry about this; performance will be improved if this is set to false.
      */
-    public Builder setSupportContentEncoding(boolean supportContentEncoding) {
-      this.supportContentEncoding = supportContentEncoding;
-      return this;
-    }
+    public abstract Builder setSupportContentEncoding(boolean supportContentEncoding);
 
     /**
      * True if attempts to open a new channel on a nonexistent object are required to immediately
@@ -113,10 +131,7 @@ public class GoogleCloudStorageReadOptions {
      * sure the object being opened exists, it is recommended to set this to false to
      * aGoogleCloudStorageReadOptions doing extraneous checks on open().
      */
-    public Builder setFastFailOnNotFound(boolean fastFailOnNotFound) {
-      this.fastFailOnNotFound = fastFailOnNotFound;
-      return this;
-    }
+    public abstract Builder setFastFailOnNotFound(boolean fastFailOnNotFound);
 
     /**
      * If set to a positive value, low-level streams will be wrapped inside a BufferedInputStream of
@@ -124,127 +139,23 @@ public class GoogleCloudStorageReadOptions {
      * low-level streams may or may not have their own additional buffering layers independent of
      * this setting.
      */
-    public Builder setBufferSize(int bufferSize) {
-      this.bufferSize = bufferSize;
-      return this;
-    }
+    public abstract Builder setBufferSize(int bufferSize);
 
     /**
      * If seeking to a new position which is within this number of bytes in front of the current
      * position, then we will skip forward by reading and discarding the necessary amount of bytes
      * rather than trying to open a brand-new underlying stream.
      */
-    public Builder setInplaceSeekLimit(long inplaceSeekLimit) {
-      Preconditions.checkArgument(
-          inplaceSeekLimit >= 0, "inplaceSeekLimit must be non-negative! Got %s", inplaceSeekLimit);
-      this.inplaceSeekLimit = inplaceSeekLimit;
-      return this;
-    }
+    public abstract Builder setInplaceSeekLimit(long inplaceSeekLimit);
+
+    abstract GoogleCloudStorageReadOptions autoBuild();
 
     public GoogleCloudStorageReadOptions build() {
-      return new GoogleCloudStorageReadOptions(
-          backoffInitialIntervalMillis,
-          backoffRandomizationFactor,
-          backoffMultiplier,
-          backoffMaxIntervalMillis,
-          backoffMaxElapsedTimeMillis,
-          supportContentEncoding,
-          fastFailOnNotFound,
-          bufferSize,
-          inplaceSeekLimit);
+      GoogleCloudStorageReadOptions options = autoBuild();
+      checkState(
+          options.getInplaceSeekLimit() >= 0,
+          "inplaceSeekLimit must be non-negative! Got %s", options.getInplaceSeekLimit());
+      return options;
     }
-  }
-
-  private final int backoffInitialIntervalMillis;
-  private final double backoffRandomizationFactor;
-  private final double backoffMultiplier;
-  private final int backoffMaxIntervalMillis;
-  private final int backoffMaxElapsedTimeMillis;
-  private final boolean supportContentEncoding;
-  private final boolean fastFailOnNotFound;
-  private final int bufferSize;
-  private final long inplaceSeekLimit;
-
-  /**
-   * Should only be used by Builder to protect callers from changing constructor signatures when new
-   * options are added.
-   */
-  private GoogleCloudStorageReadOptions(
-      int backoffInitialIntervalMillis,
-      double backoffRandomizationFactor,
-      double backoffMultiplier,
-      int backoffMaxIntervalMillis,
-      int backoffMaxElapsedTimeMillis,
-      boolean supportContentEncoding,
-      boolean fastFailOnNotFound,
-      int bufferSize,
-      long inplaceSeekLimit) {
-    this.backoffInitialIntervalMillis = backoffInitialIntervalMillis;
-    this.backoffRandomizationFactor = backoffRandomizationFactor;
-    this.backoffMultiplier = backoffMultiplier;
-    this.backoffMaxIntervalMillis = backoffMaxIntervalMillis;
-    this.backoffMaxElapsedTimeMillis = backoffMaxElapsedTimeMillis;
-    this.supportContentEncoding = supportContentEncoding;
-    this.fastFailOnNotFound = fastFailOnNotFound;
-    this.bufferSize = bufferSize;
-    this.inplaceSeekLimit = inplaceSeekLimit;
-  }
-
-  /** See {@link Builder#setBackoffInitialIntervalMillis}. */
-  public int getBackoffInitialIntervalMillis() {
-    return backoffInitialIntervalMillis;
-  }
-
-  /** See {@link Builder#setBackoffRandomizationFactor}. */
-  public double getBackoffRandomizationFactor() {
-    return backoffRandomizationFactor;
-  }
-
-  /** See {@link Builder#setBackoffMultiplier}. */
-  public double getBackoffMultiplier() {
-    return backoffMultiplier;
-  }
-
-  /** See {@link Builder#setBackoffMaxIntervalMillis}. */
-  public int getBackoffMaxIntervalMillis() {
-    return backoffMaxIntervalMillis;
-  }
-
-  /** See {@link Builder#setBackoffMaxElapsedTimeMillis}. */
-  public int getBackoffMaxElapsedTimeMillis() {
-    return backoffMaxElapsedTimeMillis;
-  }
-
-  /** See {@link Builder#setSupportContentEncoding}. */
-  public boolean getSupportContentEncoding() {
-    return supportContentEncoding;
-  }
-
-  /** See {@link Builder#setFastFailOnNotFound}. */
-  public boolean getFastFailOnNotFound() {
-    return fastFailOnNotFound;
-  }
-
-  /** See {@link Builder#setBufferSize}. */
-  public int getBufferSize() {
-    return bufferSize;
-  }
-
-  /** See {@link Builder#setInplaceSeekLimit}. */
-  public long getInplaceSeekLimit() {
-    return inplaceSeekLimit;
-  }
-
-  /** Summary of options. */
-  public String toString() {
-    return "backoffInitialIntervalMillis=" + backoffInitialIntervalMillis
-        + " backoffRandomizationFactor=" + backoffRandomizationFactor
-        + " backoffMultiplier=" + backoffMultiplier
-        + " backoffMaxIntervalMillis=" + backoffMaxIntervalMillis
-        + " backoffMaxElapsedTimeMillis=" + backoffMaxElapsedTimeMillis
-        + " supportContentEncoding=" + supportContentEncoding
-        + " fastFailOnNotFound=" + fastFailOnNotFound
-        + " bufferSize=" + bufferSize
-        + " inplaceSeekLimit=" + inplaceSeekLimit;
   }
 }
