@@ -78,15 +78,14 @@ readonly ADDITIONAL_INSTANCES_KEY='attributes/additional-cloud-sql-instances'
 
 # Dataproc master nodes information
 readonly DATAPROC_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
-readonly DATAPROC_MASTER_ADDITIONAL=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional || true)
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
   return 1
 }
 
-# Helper to run any command with default bdutil settings with Fibonacci
-# backoff. If all retries fail, returns last attempt's exit code.
+# Helper to run any command with Fibonacci backoff.
+# If all retries fail, returns last attempt's exit code.
 # Args: "$@" is the command to run.
 function run_with_retries() {
   local retry_backoff=(1 1 2 3 5 8 13 21 34 55 89 144)
@@ -251,7 +250,7 @@ function run_validation() {
 
 
 function configure_hive_warehouse_dir(){
-  # wait for master 0 to create the metastore db if necessary
+  # Wait for master 0 to create the metastore db if necessary.
   run_with_retries run_validation
 
   HIVE_WAREHOURSE_URI=$(beeline -u jdbc:hive2://localhost:10000 \
@@ -313,15 +312,18 @@ function main() {
       if ( systemctl is-enabled --quiet mysql ); then
         systemctl stop mysql
         systemctl disable mysql
+      else
+        echo "Service mysql is not enabled"
       fi
     fi
     install_cloud_sql_proxy
     if [[ $enable_cloud_sql_metastore = "true" ]]; then
       if [[ "${HOSTNAME}" == "${DATAPROC_MASTER}" ]]; then
-        #initialize metastore db instance and set hive.metastore.warehouse.dir on master 0
+        # Initialize metastore db instance and set hive.metastore.warehouse.dir
+        # on master 0.
         configure_sql_client
       else
-        #set hive.metastore.warehouse.dir only on other masters
+        # Set hive.metastore.warehouse.dir only on other masters.
         configure_hive_warehouse_dir
       fi
     fi
