@@ -15,7 +15,26 @@
      fully read. This fixes a bug, when clients that rely on `size` method
      could stop reading object prematurely.
 
-  5. Add support for making bounded range requests when reading GCS objects.
+  5. Implement fadvise feature that allows to read objects in random mode in
+     addition to sequential mode (current behavior).
+
+     In random mode connector will send bounded range requests (HTTP Range
+     header) to GCS which are more efficient in some cases (e.g. reading objects
+     in row-columnar file formats like ORC, Parquet, etc).
+
+     Range request size is limited by whatever is greater, `fs.gs.io.buffer` or
+     read buffer size passed by client.
+
+     To avoid sending too small range requests (couple bytes) what could happen
+     if `fs.gs.io.buffer` is 0 and client passes very small read buffer, min
+     range request size is limited to 1 MiB by default. To override this limit
+     and set minimum range request size to different value, use property:
+
+       fs.gs.inputstream.min.range.request.size (default: 1048576)
+
+     To enable fadvise random mode set property:
+
+       fs.gs.inputstream.fadvise=RANDOM (default: SEQUENTIAL)
 
   6. Do not close GCS read channel when calling
      `GoogleCloudStorageReadChannel.position(long)` method.

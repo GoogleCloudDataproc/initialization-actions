@@ -30,6 +30,7 @@ import com.google.api.client.util.NanoClock;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.StorageObject;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.ResilientOperation;
@@ -56,26 +57,10 @@ import org.slf4j.LoggerFactory;
 /** Provides seekable read access to GCS. */
 public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
 
-  // Defaults kept here for legacy compatibility; see GoogleCloudStorageReadOptions for details.
-  public static final int DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS =
-      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS;
-  public static final double DEFAULT_BACKOFF_RANDOMIZATION_FACTOR =
-      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_RANDOMIZATION_FACTOR;
-  public static final double DEFAULT_BACKOFF_MULTIPLIER =
-      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_MULTIPLIER;
-  public static final int DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS =
-      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS;
-  public static final int DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS =
-      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS;
-
-  // Logger.
   private static final Logger LOG = LoggerFactory.getLogger(GoogleCloudStorageReadChannel.class);
 
   // Size of buffer to allocate for skipping bytes in-place when performing in-place seeks.
   @VisibleForTesting static final int SKIP_BUFFER_SIZE = 8192;
-
-  // TODO(b/110832992): add property to control this
-  private static final int MIN_RANGE_REQUEST_SIZE = 2048;
 
   // GCS access instance.
   private final Storage gcs;
@@ -91,10 +76,6 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
 
   // GCS object content channel.
   @VisibleForTesting ReadableByteChannel contentChannel;
-
-  // Whether to use bounded range requests or streaming requests.
-  // TODO(b/110832992): wire property to control this.
-  private final boolean randomAccess = false;
 
   // True if this channel is open, false otherwise.
   private boolean channelIsOpen = true;
@@ -214,7 +195,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     initEncodingAndSize();
     LOG.debug(
         "Created and initialized new channel (encoding={}, size={}) for '{}'",
-        gzipEncoded ? "gzip" : "plain", size, resourceIdString);
+        gzipEncoded ? "gzip" : "other", size, resourceIdString);
   }
 
   /**
@@ -741,8 +722,8 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
    * decompress it), the entire file is always requested and we seek to the position requested. If
    * the file encoding is not gzip, only the remaining bytes to be read are requested from GCS.
    *
-   * @param limit number of bytes to read from new stream. Ignored if {@link #randomAccess} is
-   *     false.
+   * @param limit number of bytes to read from new stream. Ignored if {@link
+   *     GoogleCloudStorageReadOptions#getFadvise()} is equal to {@link Fadvise#SEQUENTIAL}.
    * @throws IOException on IO error
    */
   protected InputStream openStream(long limit) throws IOException {
@@ -772,11 +753,11 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     if (!gzipEncoded) {
       String rangeHeader = "bytes=" + currentPosition + "-";
 
-      if (randomAccess) {
+      if (readOptions.getFadvise() == Fadvise.RANDOM) {
         long rangeSize = Math.max(bufferSize, limit);
         // When bufferSize is 0 and limit passed by client is very small,
         // we still don't want to send too small range request to GCS.
-        rangeSize = Math.max(rangeSize, MIN_RANGE_REQUEST_SIZE);
+        rangeSize = Math.max(rangeSize, readOptions.getMinRangeRequestSize());
         // limit rangeSize to the object end
         rangeSize = Math.min(rangeSize, size - currentPosition);
         long rangeEndInclusive = currentPosition + rangeSize - 1;
@@ -791,8 +772,8 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
 
     if (contentChannelEnd < 0) {
       checkState(
-          !randomAccess,
-          "contentChannelEnd should be initialized already if randomAccess is true for '%s'",
+          readOptions.getFadvise() != Fadvise.RANDOM,
+          "contentChannelEnd should be initialized already if fadvise is RANDOM for '%s'",
           resourceIdString);
 
       // we are reading object till the end
@@ -873,4 +854,29 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       throw new IOException(errorMessage);
     }
   }
+
+  /**
+   * @deprecated use {@link GoogleCloudStorageReadOptions#DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS}
+   */
+  @Deprecated
+  public static final int DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS =
+      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS;
+  /** @deprecated use {@link GoogleCloudStorageReadOptions#DEFAULT_BACKOFF_RANDOMIZATION_FACTOR} */
+  @Deprecated
+  public static final double DEFAULT_BACKOFF_RANDOMIZATION_FACTOR =
+      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_RANDOMIZATION_FACTOR;
+  /** @deprecated use {@link GoogleCloudStorageReadOptions#DEFAULT_BACKOFF_MULTIPLIER} instead */
+  @Deprecated
+  public static final double DEFAULT_BACKOFF_MULTIPLIER =
+      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_MULTIPLIER;
+  /** @deprecated use {@link GoogleCloudStorageReadOptions#DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS} */
+  @Deprecated
+  public static final int DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS =
+      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS;
+  /**
+   * @deprecated use {@link GoogleCloudStorageReadOptions#DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS}
+   */
+  @Deprecated
+  public static final int DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS =
+      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS;
 }

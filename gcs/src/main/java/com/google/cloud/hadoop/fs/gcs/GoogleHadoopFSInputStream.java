@@ -17,6 +17,7 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.net.URI;
@@ -97,10 +98,22 @@ class GoogleHadoopFSInputStream
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_DEFAULT);
     LOG.debug("inplaceSeekLimit: {}", inplaceSeekLimit);
 
+    Fadvise fadvise = ghfs.getConf().getEnum(
+        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FADVISE_KEY,
+        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FADVISE_DEFAULT);
+    LOG.debug("fadvise: {}", fadvise);
+
+    int minRangeRequestSize = ghfs.getConf().getInt(
+        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_KEY,
+        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_DEFAULT);
+    LOG.debug("minRangeRequestSize: {}", minRangeRequestSize);
+
     GoogleCloudStorageReadOptions.Builder readOptions =
         GoogleCloudStorageReadOptions.builder()
             .setSupportContentEncoding(supportContentEncoding)
-            .setInplaceSeekLimit(inplaceSeekLimit);
+            .setInplaceSeekLimit(inplaceSeekLimit)
+            .setFadvise(fadvise)
+            .setMinRangeRequestSize(minRangeRequestSize);
     if (enableInternalBuffer) {
       buffer = ByteBuffer.allocate(bufferSize);
       buffer.limit(0);

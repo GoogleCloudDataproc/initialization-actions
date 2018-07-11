@@ -24,6 +24,8 @@ import com.google.cloud.hadoop.gcsio.FileInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.cloud.hadoop.gcsio.PathCodec;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.util.AccessTokenProvider;
@@ -561,6 +563,27 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * Default value for {@link GoogleHadoopFileSystemBase#GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY}.
    */
   public static final long GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_DEFAULT = 8 * 1024 * 1024L;
+
+  /** Tunes reading objects behavior to optimize HTTP GET requests for various use cases. */
+  public static final String GCS_INPUTSTREAM_FADVISE_KEY = "fs.gs.inputstream.fadvise";
+
+  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_INPUTSTREAM_FADVISE_KEY}. */
+  public static final Fadvise GCS_INPUTSTREAM_FADVISE_DEFAULT =
+      GoogleCloudStorageReadOptions.DEFAULT_FADVISE;
+
+  /**
+   * Minimum size in bytes of the HTTP Range header set in GCS request when opening new stream to
+   * read an object.
+   */
+  public static final String GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_KEY =
+      "fs.gs.inputstream.min.range.request.size";
+
+  /**
+   * Default value for {@link
+   * GoogleHadoopFileSystemBase#GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_KEY}.
+   */
+  public static final int GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_DEFAULT =
+      GoogleCloudStorageReadOptions.DEFAULT_MIN_RANGE_REQUEST_SIZE;
 
   /**
    * If true, recursive delete on a path that refers to a GCS bucket itself ('/' for any

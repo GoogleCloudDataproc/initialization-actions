@@ -26,7 +26,12 @@ import com.google.auto.value.AutoValue;
  */
 @AutoValue
 public abstract class GoogleCloudStorageReadOptions {
-  public static final GoogleCloudStorageReadOptions DEFAULT = builder().build();
+
+  /** Operational modes of fadvise feature. */
+  public static enum Fadvise {
+    RANDOM,
+    SEQUENTIAL
+  }
 
   public static final int DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS = 200;
   public static final double DEFAULT_BACKOFF_RANDOMIZATION_FACTOR = 0.5;
@@ -36,6 +41,12 @@ public abstract class GoogleCloudStorageReadOptions {
   public static final boolean DEFAULT_SUPPORT_CONTENT_ENCODING = true;
   public static final int DEFAULT_BUFFER_SIZE = 0;
   public static final long DEFAULT_INPLACE_SEEK_LIMIT = 0L;
+  public static final Fadvise DEFAULT_FADVISE = Fadvise.SEQUENTIAL;
+  public static final int DEFAULT_MIN_RANGE_REQUEST_SIZE = 1024 * 1024;
+
+  // Default builder should be initialized after default values,
+  // otherwise it will access not initialized default values.
+  public static final GoogleCloudStorageReadOptions DEFAULT = builder().build();
 
   public static Builder builder() {
     return new AutoValue_GoogleCloudStorageReadOptions.Builder()
@@ -46,7 +57,9 @@ public abstract class GoogleCloudStorageReadOptions {
         .setBackoffMaxElapsedTimeMillis(DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS)
         .setSupportContentEncoding(DEFAULT_SUPPORT_CONTENT_ENCODING)
         .setBufferSize(DEFAULT_BUFFER_SIZE)
-        .setInplaceSeekLimit(DEFAULT_INPLACE_SEEK_LIMIT);
+        .setInplaceSeekLimit(DEFAULT_INPLACE_SEEK_LIMIT)
+        .setFadvise(DEFAULT_FADVISE)
+        .setMinRangeRequestSize(DEFAULT_MIN_RANGE_REQUEST_SIZE);
   }
 
   /** See {@link Builder#setBackoffInitialIntervalMillis}. */
@@ -72,6 +85,12 @@ public abstract class GoogleCloudStorageReadOptions {
 
   /** See {@link Builder#setInplaceSeekLimit}. */
   public abstract long getInplaceSeekLimit();
+
+  /** See {@link Builder#setFadvise}. */
+  public abstract Fadvise getFadvise();
+
+  /** See {@link Builder#setMinRangeRequestSize}. */
+  public abstract int getMinRangeRequestSize();
 
   public abstract Builder toBuilder();
 
@@ -111,10 +130,10 @@ public abstract class GoogleCloudStorageReadOptions {
     public abstract Builder setBackoffMaxElapsedTimeMillis(int backoffMaxElapsedTimeMillis);
 
     /**
-     * True if the channel must take special precautions for deailing with "content-encoding"
-     * headers where reported object sizes don't match actual bytes being read due to the stream
-     * being decoded in-flight. This is not the same as "content-type", and most use cases shouldn't
-     * have to worry about this; performance will be improved if this is set to false.
+     * True if the channel must take special precautions for dealing with "content-encoding" headers
+     * where reported object sizes don't match actual bytes being read due to the stream being
+     * decoded in-flight. This is not the same as "content-type", and most use cases shouldn't have
+     * to worry about this; performance will be improved if this is set to false.
      */
     public abstract Builder setSupportContentEncoding(boolean supportContentEncoding);
 
@@ -132,6 +151,15 @@ public abstract class GoogleCloudStorageReadOptions {
      * rather than trying to open a brand-new underlying stream.
      */
     public abstract Builder setInplaceSeekLimit(long inplaceSeekLimit);
+
+    /** Sets fadvise that tunes behavior to optimize HTTP GET requests for various use cases. */
+    public abstract Builder setFadvise(Fadvise fadvise);
+
+    /**
+     * Sets the minimum size of the HTTP Range header that could be set in GCS request when opening
+     * new stream to read an object.
+     */
+    public abstract Builder setMinRangeRequestSize(int size);
 
     abstract GoogleCloudStorageReadOptions autoBuild();
 
