@@ -28,7 +28,7 @@
     <name>fs.gs.glob.flatlist.enable</name>
     <value>true</value>
     <description>
-      Whether or not to prepopulate potenital glob matches in a single list
+      Whether or not to prepopulate potential glob matches in a single list
       request to minimize calls to GCS in nested glob cases.
     </description>
   </property>
@@ -73,10 +73,10 @@
     <name>google.cloud.auth.service.account.enable</name>
     <value>true</value>
     <description>
-      Whether to use a service account for GCS authorizaiton. If an email and
+      Whether to use a service account for GCS authorization. If an email and
       keyfile are provided (see google.cloud.auth.service.account.email and
       google.cloud.auth.service.account.keyfile), then that service account
-      willl be used. Otherwise the connector will look to see if it running on
+      will be used. Otherwise the connector will look to see if it is running on
       a GCE VM with some level of GCS access in it's service account scope, and
       use that service account.
     </description>
@@ -163,7 +163,7 @@
     <value>67108864</value>
     <description>
       The reported block size of the file system. This does not change any
-      behavior of the connector or the underlying GCS objectsr. However it
+      behavior of the connector or the underlying GCS objects. However it
       will affect the number of splits Hadoop MapReduce uses for a given
       input.
     </description>
