@@ -5,8 +5,10 @@
   2. Send only 1 GCS metadata request per `GoogleCloudStorageReadChannel`
      object lifecycle to reduce number of GCS requests when reading objects.
 
-  3. Fail-fast when creating `GoogleCloudStorageReadChannel` instance for
-     non-existing GCS object.
+  3. Always fail-fast when creating `GoogleCloudStorageReadChannel` instance for
+     non-existing GCS object. Remove property that disables this:
+
+       fs.gs.inputstream.fast.fail.on.not.found.enable
 
   4. For gzip-encoded objects always return `Long.MAX_VALUE` size in
      `GoogleCloudStorageReadChannel.size()` method, until object will be

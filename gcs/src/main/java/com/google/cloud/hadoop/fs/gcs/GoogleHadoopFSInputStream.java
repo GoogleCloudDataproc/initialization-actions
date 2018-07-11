@@ -92,11 +92,6 @@ class GoogleHadoopFSInputStream
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_SUPPORT_CONTENT_ENCODING_ENABLE_DEFAULT);
     LOG.debug("supportContentEncoding: {}", supportContentEncoding);
 
-    boolean fastFailOnNotFound = ghfs.getConf().getBoolean(
-        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY,
-        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_DEFAULT);
-    LOG.debug("fastFailOnNotFound: {}", fastFailOnNotFound);
-
     long inplaceSeekLimit = ghfs.getConf().getLong(
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY,
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_DEFAULT);
@@ -105,7 +100,6 @@ class GoogleHadoopFSInputStream
     GoogleCloudStorageReadOptions.Builder readOptions =
         GoogleCloudStorageReadOptions.builder()
             .setSupportContentEncoding(supportContentEncoding)
-            .setFastFailOnNotFound(fastFailOnNotFound)
             .setInplaceSeekLimit(inplaceSeekLimit);
     if (enableInternalBuffer) {
       buffer = ByteBuffer.allocate(bufferSize);

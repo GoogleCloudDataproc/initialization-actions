@@ -34,7 +34,6 @@ public abstract class GoogleCloudStorageReadOptions {
   public static final int DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS = 10 * 1000;
   public static final int DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS = 2 * 60 * 1000;
   public static final boolean DEFAULT_SUPPORT_CONTENT_ENCODING = true;
-  public static final boolean DEFAULT_FAST_FAIL_ON_NOT_FOUND = true;
   public static final int DEFAULT_BUFFER_SIZE = 0;
   public static final long DEFAULT_INPLACE_SEEK_LIMIT = 0L;
 
@@ -46,7 +45,6 @@ public abstract class GoogleCloudStorageReadOptions {
         .setBackoffMaxIntervalMillis(DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS)
         .setBackoffMaxElapsedTimeMillis(DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS)
         .setSupportContentEncoding(DEFAULT_SUPPORT_CONTENT_ENCODING)
-        .setFastFailOnNotFound(DEFAULT_FAST_FAIL_ON_NOT_FOUND)
         .setBufferSize(DEFAULT_BUFFER_SIZE)
         .setInplaceSeekLimit(DEFAULT_INPLACE_SEEK_LIMIT);
   }
@@ -68,9 +66,6 @@ public abstract class GoogleCloudStorageReadOptions {
 
   /** See {@link Builder#setSupportContentEncoding}. */
   public abstract boolean getSupportContentEncoding();
-
-  /** See {@link Builder#setFastFailOnNotFound}. */
-  public abstract boolean getFastFailOnNotFound();
 
   /** See {@link Builder#setBufferSize}. */
   public abstract int getBufferSize();
@@ -122,16 +117,6 @@ public abstract class GoogleCloudStorageReadOptions {
      * have to worry about this; performance will be improved if this is set to false.
      */
     public abstract Builder setSupportContentEncoding(boolean supportContentEncoding);
-
-    /**
-     * True if attempts to open a new channel on a nonexistent object are required to immediately
-     * throw an IOException. If false, then channels may not throw exceptions for such cases until
-     * attempting to call read(). Performance can be improved if this is set to false and the caller
-     * is equipped to deal with delayed failures for not-found objects. Or if the caller is already
-     * sure the object being opened exists, it is recommended to set this to false to
-     * aGoogleCloudStorageReadOptions doing extraneous checks on open().
-     */
-    public abstract Builder setFastFailOnNotFound(boolean fastFailOnNotFound);
 
     /**
      * If set to a positive value, low-level streams will be wrapped inside a BufferedInputStream of

@@ -551,24 +551,6 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final boolean GCS_INPUTSTREAM_SUPPORT_CONTENT_ENCODING_ENABLE_DEFAULT = true;
 
   /**
-   * If true, on opening a file we will proactively perform a metadata GET to check whether the
-   * object exists, even though the underlying channel will not open a data stream until read() is
-   * actually called so that streams can seek to nonzero file positions without incurring an extra
-   * stream creation. This is necessary to technically match the expected behavior of Hadoop
-   * filesystems, but incurs extra latency overhead on open(). If the calling code can handle late
-   * failures on not-found errors, or has independently already ensured that a file exists before
-   * calling open(), then set this to false for more efficient reads.
-   */
-  public static final String GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY =
-      "fs.gs.inputstream.fast.fail.on.not.found.enable";
-
-  /**
-   * Default value for {@link
-   * GoogleHadoopFileSystemBase#GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY}.
-   */
-  public static final boolean GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_DEFAULT = true;
-
-  /**
    * If forward seeks are within this many bytes of the current position, seeks are performed by
    * reading and discarding bytes in-place rather than opening a new underlying stream.
    */

@@ -1479,7 +1479,6 @@ public class GoogleCloudStorageTest {
             gcs.open(
                 new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
                 GoogleCloudStorageReadOptions.builder()
-                    .setFastFailOnNotFound(false)
                     .setSupportContentEncoding(false)
                     .build());
 
@@ -1515,7 +1514,6 @@ public class GoogleCloudStorageTest {
             gcs.open(
                 new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
                 GoogleCloudStorageReadOptions.builder()
-                    .setFastFailOnNotFound(false)
                     .setSupportContentEncoding(false)
                     .setInplaceSeekLimit(2)
                     .build());
@@ -1567,7 +1565,6 @@ public class GoogleCloudStorageTest {
             gcs.open(
                 new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
                 GoogleCloudStorageReadOptions.builder()
-                    .setFastFailOnNotFound(false)
                     .setSupportContentEncoding(false)
                     .setInplaceSeekLimit(2 * GoogleCloudStorageReadChannel.SKIP_BUFFER_SIZE)
                     .build());
