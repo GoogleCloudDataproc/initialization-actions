@@ -57,15 +57,13 @@ public class InMemoryObjectReadChannel extends GoogleCloudStorageReadChannel {
    * Opens the underlying byte array stream, sets its position to currentPosition and sets size to
    * size of the byte array.
    *
-   * @param newPosition position to seek into the new stream.
    * @param limit ignored.
    * @throws IOException on IO error
    */
   @Override
-  protected InputStream openStream(long newPosition, long limit) throws IOException {
-    validatePosition(newPosition);
+  protected InputStream openStream(long limit) throws IOException {
     InputStream inputStream = new ByteArrayInputStream(channelContent);
-    inputStream.skip(newPosition);
+    inputStream.skip(currentPosition);
     return inputStream;
   }
 }

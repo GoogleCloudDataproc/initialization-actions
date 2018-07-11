@@ -99,16 +99,19 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
   // True if this channel is open, false otherwise.
   private boolean channelIsOpen = true;
 
-  // Current read position in the channel.
-  private long currentPosition = 0;
+  // Current position in this channel, it could be different from contentChannelPosition if
+  // position(long) method calls were made without calls to read(ByteBuffer) method.
+  @VisibleForTesting protected long currentPosition = 0;
 
+  // Current read position in the contentChannel.
+  //
   // When a caller calls position(long) to set stream position, we record the target position
   // and defer the actual seek operation until the caller tries to read from the channel.
   // This allows us to avoid an unnecessary seek to position 0 that would take place on creation
   // of this instance in cases where caller intends to start reading at some other offset.
-  // If lazySeekPending is set to true, it indicates that a target position has been set
-  // but the actual seek operation is still pending.
-  @VisibleForTesting boolean lazySeekPending = true;
+  // If contentChannelPosition is not the same as currentPosition, it indicates that a target
+  // position has been set but the actual seek operation is still pending.
+  @VisibleForTesting long contentChannelPosition = -1;
 
   // Size of the object being read.
   private long size = -1;
@@ -341,9 +344,13 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     // in the first read. Therefore, loop till we either read the required number of
     // bytes or we reach end-of-stream.
     do {
-      // Perform a lazy seek if not done already.
       int remainingBeforeRead = buffer.remaining();
       performLazySeek(remainingBeforeRead);
+      checkState(
+          contentChannelPosition == currentPosition,
+          "contentChannelPosition (%s) should be equal to currentPosition (%s) after lazy seek",
+          contentChannelPosition, currentPosition);
+
       try {
         int numBytesRead = contentChannel.read(buffer);
         checkIOPrecondition(numBytesRead != 0, "Read 0 bytes without blocking");
@@ -369,14 +376,22 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
           // If we have reached an end of a contentChannel but not an end of an object
           // then close contentChannel and continue reading an object if necessary.
           if (contentChannelEnd != size && currentPosition == contentChannelEnd) {
-            closeContentChannelAndSetLazySeekPending();
-            continue;
+            closeContentChannel();
+          } else {
+            break;
           }
-
-          break;
         }
-        totalBytesRead += numBytesRead;
-        currentPosition += numBytesRead;
+
+        if (numBytesRead > 0) {
+          totalBytesRead += numBytesRead;
+          currentPosition += numBytesRead;
+          contentChannelPosition += numBytesRead;
+          checkState(
+              contentChannelPosition == currentPosition,
+              "contentChannelPosition (%s) should be equal to currentPosition (%s)"
+                  + " after successful read",
+              contentChannelPosition, currentPosition);
+        }
 
         if (retriesAttempted != 0) {
           LOG.info("Success after {} retries on reading '{}'", retriesAttempted, resourceIdString);
@@ -435,8 +450,8 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
             currentPosition += partialRead;
           }
 
-          // Close the channel and mark it to be reopened on next performLazySeek.
-          closeContentChannelAndSetLazySeekPending();
+          // Close the contentChannel.
+          closeContentChannel();
         }
       } catch (RuntimeException r) {
         closeContentChannel();
@@ -506,6 +521,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
             resourceIdString, e);
       } finally {
         contentChannel = null;
+        contentChannelPosition = -1;
         contentChannelEnd = -1;
       }
     }
@@ -554,57 +570,47 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
   public SeekableByteChannel position(long newPosition) throws IOException {
     throwIfNotOpen();
 
-    // If the position has not changed, avoid the expensive operation.
     if (newPosition == currentPosition) {
       return this;
     }
 
     validatePosition(newPosition);
-    long seekDistance = newPosition - currentPosition;
-    if (contentChannel != null
-        && seekDistance > 0
-        && seekDistance <= readOptions.getInplaceSeekLimit()
-        && newPosition < contentChannelEnd) {
-      LOG.debug(
-          "Seeking forward {} bytes (inplaceSeekLimit: {}) in-place to position {} for '{}'",
-          seekDistance, readOptions.getInplaceSeekLimit(), newPosition, resourceIdString);
-      if (skipBuffer == null) {
-        skipBuffer = new byte[SKIP_BUFFER_SIZE];
-      }
-      while (seekDistance > 0) {
-        try {
-          final int bufferSize = (int) Math.min(skipBuffer.length, seekDistance);
-          int bytesRead = contentChannel.read(ByteBuffer.wrap(skipBuffer, 0, bufferSize));
-          if (bytesRead < 0) {
-            // Shouldn't happen since we called validatePosition prior to this loop.
-            LOG.info(
-                "Somehow read {} bytes trying to skip {} bytes to seek to position {}, size: {}",
-                bytesRead, seekDistance, newPosition, size);
-            closeContentChannelAndSetLazySeekPending();
-            break;
-          }
-          seekDistance -= bytesRead;
-        } catch (IOException e) {
-          LOG.info(
-              "Got an IO exception on contentChannel.read(), a lazy-seek will be pending for '{}'",
-              resourceIdString, e);
-          closeContentChannelAndSetLazySeekPending();
-          break;
-        }
-      }
-    } else {
-      // Close the read channel. If anything tries to read on it, it's an error and should fail.
-      closeContentChannelAndSetLazySeekPending();
-    }
+    LOG.debug(
+        "Seek from {} to {} position for '{}'", currentPosition, newPosition, resourceIdString);
     currentPosition = newPosition;
     return this;
   }
 
-  private void closeContentChannelAndSetLazySeekPending() {
-    LOG.debug(
-        "Closing contentChannel and setting lazySeekPending to true for '{}'", resourceIdString);
-    closeContentChannel();
-    lazySeekPending = true;
+  private void skipInPlace(long seekDistance) {
+    if (skipBuffer == null) {
+      skipBuffer = new byte[SKIP_BUFFER_SIZE];
+    }
+    while (seekDistance > 0 && contentChannel != null) {
+      try {
+        int bufferSize = (int) Math.min(skipBuffer.length, seekDistance);
+        int bytesRead = contentChannel.read(ByteBuffer.wrap(skipBuffer, 0, bufferSize));
+        if (bytesRead < 0) {
+          // Shouldn't happen since we called validatePosition prior to this loop.
+          LOG.info(
+              "Somehow read {} bytes trying to skip {} bytes to seek to position {}, size: {}",
+              bytesRead, seekDistance, currentPosition, size);
+          closeContentChannel();
+        } else {
+          seekDistance -= bytesRead;
+          contentChannelPosition += bytesRead;
+        }
+      } catch (IOException e) {
+        LOG.info(
+            "Got an IO exception on contentChannel.read(), a lazy-seek will be pending for '{}'",
+            resourceIdString, e);
+        closeContentChannel();
+      }
+    }
+    checkState(
+        contentChannel == null || contentChannelPosition == currentPosition,
+        "contentChannelPosition (%s) should be equal to currentPosition (%s)"
+            + " after successful in-place skip",
+        contentChannelPosition, currentPosition);
   }
 
   /**
@@ -626,26 +632,19 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
   }
 
   /** Validates that the given position is valid for this channel. */
-  protected void validatePosition(long newPosition) throws IOException {
-    // Validate: newPosition >= 0
-    if (newPosition < 0) {
+  protected void validatePosition(long position) throws IOException {
+    if (position < 0) {
       throw new EOFException(
           String.format(
               "Invalid seek offset: position value (%d) must be >= 0 for '%s'",
-              newPosition, resourceIdString));
+              position, resourceIdString));
     }
 
-    // Validate: newPosition < size
-    // Note that we access this.size directly rather than calling size() to avoid initiating
-    // lazy seek that leads to recursive error. We validate newPosition < size only when size of
-    // this channel has been computed by a prior call. This means that position could be
-    // potentially set to an invalid value (>= size) by position(long). However, that error
-    // gets caught during lazy seek.
-    if (newPosition >= size) {
+    if (position >= size) {
       throw new EOFException(
           String.format(
               "Invalid seek offset: position value (%d) must be between 0 and %d for '%s'",
-              newPosition, size, resourceIdString));
+              position, size, resourceIdString));
     }
   }
 
@@ -659,18 +658,40 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
    */
   @VisibleForTesting
   void performLazySeek(long limit) throws IOException {
-    // Return quickly if there is no pending seek operation.
-    if (!lazySeekPending) {
+    throwIfNotOpen();
+
+    // Return quickly if there is no pending seek operation, i.e. position didn't change.
+    if (currentPosition == contentChannelPosition && contentChannel != null) {
       return;
     }
-    LOG.debug("Performing lazySeek with {} limit for '{}'", limit, resourceIdString);
 
-    // Close the underlying channel if it is open.
-    closeContentChannel();
+    LOG.debug(
+        "Performing lazySeek from {} to {} position with {} limit for '{}'",
+        contentChannelPosition, currentPosition, limit, resourceIdString);
 
-    InputStream contentStream = openStream(currentPosition, limit);
-    contentChannel = Channels.newChannel(contentStream);
-    lazySeekPending = false;
+    long seekDistance = currentPosition - contentChannelPosition;
+    if (contentChannel != null
+        && seekDistance > 0
+        && seekDistance <= readOptions.getInplaceSeekLimit()
+        && currentPosition < contentChannelEnd) {
+      LOG.debug(
+          "Seeking forward {} bytes (inplaceSeekLimit: {}) in-place to position {} for '{}'",
+          seekDistance, readOptions.getInplaceSeekLimit(), currentPosition, resourceIdString);
+      skipInPlace(seekDistance);
+    } else {
+      closeContentChannel();
+    }
+
+    if (contentChannel == null) {
+      openContentChannel(limit);
+    }
+  }
+
+  private void openContentChannel(long limit) throws IOException {
+    checkState(contentChannel == null, "contentChannel should be null, before opening new");
+    InputStream objectContentStream = openStream(limit);
+    contentChannel = Channels.newChannel(objectContentStream);
+    contentChannelPosition = currentPosition;
   }
 
   /**
@@ -720,13 +741,12 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
    * decompress it), the entire file is always requested and we seek to the position requested. If
    * the file encoding is not gzip, only the remaining bytes to be read are requested from GCS.
    *
-   * @param newPosition position to seek into the new stream.
-   * @param limit number of bytes to read from new stream.
+   * @param limit number of bytes to read from new stream. Ignored if {@link #randomAccess} is
+   *     false.
    * @throws IOException on IO error
    */
-  protected InputStream openStream(long newPosition, long limit) throws IOException {
+  protected InputStream openStream(long limit) throws IOException {
     checkArgument(limit > 0, "limit should be greater than 0, but was %s", limit);
-    validatePosition(newPosition);
 
     checkState(
         contentChannel == null && contentChannelEnd < 0,
@@ -750,7 +770,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
 
     // Do not set range for gzip-encoded files - it's not supported.
     if (!gzipEncoded) {
-      String rangeHeader = "bytes=" + newPosition + "-";
+      String rangeHeader = "bytes=" + currentPosition + "-";
 
       if (randomAccess) {
         long rangeSize = Math.max(bufferSize, limit);
@@ -758,12 +778,12 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         // we still don't want to send too small range request to GCS.
         rangeSize = Math.max(rangeSize, MIN_RANGE_REQUEST_SIZE);
         // limit rangeSize to the object end
-        rangeSize = Math.min(rangeSize, size - newPosition);
-        long rangeEndInclusive = newPosition + rangeSize - 1;
+        rangeSize = Math.min(rangeSize, size - currentPosition);
+        long rangeEndInclusive = currentPosition + rangeSize - 1;
         rangeHeader += rangeEndInclusive;
 
         // set contentChannelEnd to range end
-        contentChannelEnd = newPosition + rangeSize;
+        contentChannelEnd = currentPosition + rangeSize;
       }
 
       requestHeaders.setRange(rangeHeader);
@@ -780,7 +800,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     }
 
     // limit buffer size to the object end
-    bufferSize = (int) Math.min(bufferSize, size - newPosition);
+    bufferSize = (int) Math.min(bufferSize, contentChannelEnd - currentPosition);
 
     checkState(
         contentChannelEnd >= 0,
@@ -794,7 +814,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         throw GoogleCloudStorageExceptions.getFileNotFoundException(bucketName, objectName);
       }
       String msg =
-          String.format("Error reading '%s' at position %d", resourceIdString, newPosition);
+          String.format("Error reading '%s' at position %d", resourceIdString, currentPosition);
       if (errorExtractor.rangeNotSatisfiable(e)) {
         throw (EOFException) new EOFException(msg).initCause(e);
       }
@@ -807,16 +827,16 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       if (bufferSize > 0) {
         LOG.debug(
             "Opened stream from {} position with {} range, {} limit and {} bytes buffer for '{}'",
-            newPosition, requestHeaders.getRange(), limit, bufferSize, resourceIdString);
+            currentPosition, requestHeaders.getRange(), limit, bufferSize, resourceIdString);
         contentStream = new BufferedInputStream(contentStream, bufferSize);
       } else {
         LOG.debug(
             "Opened stream from {} position with {} range and {} limit for '{}'",
-            newPosition, requestHeaders.getRange(), limit, resourceIdString);
+            currentPosition, requestHeaders.getRange(), limit, resourceIdString);
       }
 
       if (gzipEncoded) {
-        contentStream.skip(newPosition);
+        contentStream.skip(currentPosition);
       }
 
       return contentStream;

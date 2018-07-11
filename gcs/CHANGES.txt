@@ -17,6 +17,9 @@
 
   5. Add support for making bounded range requests when reading GCS objects.
 
+  6. Do not close GCS read channel when calling
+     `GoogleCloudStorageReadChannel.position(long)` method.
+
 
 1.9.0 - 2018-06-15
 
