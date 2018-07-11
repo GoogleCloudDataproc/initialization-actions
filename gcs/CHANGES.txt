@@ -39,6 +39,11 @@
   6. Do not close GCS read channel when calling
      `GoogleCloudStorageReadChannel.position(long)` method.
 
+  7. Remove property that disables use of `includeTrailingDelimiter` GCS
+     parameter after it was verified in production for a while:
+
+       fs.gs.list.directory.objects.enable
+
 
 1.9.0 - 2018-06-15
 

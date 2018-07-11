@@ -382,12 +382,6 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   private boolean enableInferImplicitDirectories = GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_DEFAULT;
 
 
-  @Deprecated private static final String GCS_ENABLE_LIST_DIRECTORY_OBJECTS_KEY =
-      "fs.gs.list.directory.objects.enable";
-  @Deprecated private static final boolean GCS_ENABLE_LIST_DIRECTORY_OBJECTS_KEY_DEFAULT = true;
-  @Deprecated
-  private boolean enableListDirectoryObjects = GCS_ENABLE_LIST_DIRECTORY_OBJECTS_KEY_DEFAULT;
-
   /**
    * Configuration key for enabling the use of a large flat listing to pre-populate possible glob
    * matches in a single API call before running the core globbing logic in-memory rather than
@@ -2214,16 +2208,10 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     LOG.debug("{} = {}", GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY,
               enableInferImplicitDirectories);
 
-    enableListDirectoryObjects =
-        config.getBoolean(
-            GCS_ENABLE_LIST_DIRECTORY_OBJECTS_KEY, GCS_ENABLE_LIST_DIRECTORY_OBJECTS_KEY_DEFAULT);
-    LOG.debug("{} = {}", GCS_ENABLE_LIST_DIRECTORY_OBJECTS_KEY, enableListDirectoryObjects);
-
     optionsBuilder
         .getCloudStorageOptionsBuilder()
         .setAutoRepairImplicitDirectoriesEnabled(enableAutoRepairImplicitDirectories)
-        .setInferImplicitDirectoriesEnabled(enableInferImplicitDirectories)
-        .setListDirectoryObjects(enableListDirectoryObjects);
+        .setInferImplicitDirectoriesEnabled(enableInferImplicitDirectories);
 
     enableFlatGlob = config.getBoolean(GCS_ENABLE_FLAT_GLOB_KEY, GCS_ENABLE_FLAT_GLOB_DEFAULT);
     LOG.debug("{} = {}", GCS_ENABLE_FLAT_GLOB_KEY, enableFlatGlob);

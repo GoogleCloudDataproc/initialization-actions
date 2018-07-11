@@ -35,13 +35,6 @@ public class GoogleCloudStorageOptions {
   /** Default setting for enabling inferring of implicit directories. */
   public static final boolean INFER_IMPLICIT_DIRECTORIES_DEFAULT = true;
 
-  /**
-   * Default setting for enabling inclusion of directory objects into GCS list response.
-   *
-   * @deprecated this is a transitioning flag that will be removed in next version.
-   */
-  @Deprecated private static final boolean LIST_DIRECTORY_OBJECTS_DEFAULT = true;
-
   /** Default setting for maximum number of requests per GCS batch. */
   public static final long MAX_REQUESTS_PER_BATCH_DEFAULT = 30;
 
@@ -73,7 +66,6 @@ public class GoogleCloudStorageOptions {
   public static class Builder {
     private boolean autoRepairImplicitDirectoriesEnabled = AUTO_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT;
     private boolean inferImplicitDirectoriesEnabled = INFER_IMPLICIT_DIRECTORIES_DEFAULT;
-    @Deprecated private boolean listDirectoryObjects = LIST_DIRECTORY_OBJECTS_DEFAULT;
     private String projectId = null;
     private String appName = null;
     private HttpTransportFactory.HttpTransportType transportType =
@@ -110,12 +102,6 @@ public class GoogleCloudStorageOptions {
     public Builder setInferImplicitDirectoriesEnabled(
         boolean inferImplicitDirectoriesEnabled) {
       this.inferImplicitDirectoriesEnabled = inferImplicitDirectoriesEnabled;
-      return this;
-    }
-
-    /** @deprecated this is a transitioning flag that will be removed in next version. */
-    @Deprecated public Builder setListDirectoryObjects(boolean listDirectoryObjects) {
-      this.listDirectoryObjects = listDirectoryObjects;
       return this;
     }
 
@@ -204,7 +190,6 @@ public class GoogleCloudStorageOptions {
 
   private final boolean autoRepairImplicitDirectoriesEnabled;
   private final boolean inferImplicitDirectoriesEnabled;
-  @Deprecated private final boolean listDirectoryObjects;
   private final String projectId;
   private final String appName;
   private final HttpTransportFactory.HttpTransportType transportType;
@@ -223,7 +208,6 @@ public class GoogleCloudStorageOptions {
   protected GoogleCloudStorageOptions(Builder builder) {
     this.autoRepairImplicitDirectoriesEnabled = builder.autoRepairImplicitDirectoriesEnabled;
     this.inferImplicitDirectoriesEnabled = builder.inferImplicitDirectoriesEnabled;
-    this.listDirectoryObjects = builder.listDirectoryObjects;
     this.projectId = builder.projectId;
     this.appName = builder.appName;
     this.writeChannelOptions = builder.getWriteChannelOptionsBuilder().build();
@@ -274,11 +258,6 @@ public class GoogleCloudStorageOptions {
 
   public boolean isInferImplicitDirectoriesEnabled() {
     return inferImplicitDirectoriesEnabled;
-  }
-
-  /** @deprecated this is a transitioning flag that will be removed in next version. */
-  @Deprecated boolean isListDirectoryObjects() {
-    return listDirectoryObjects;
   }
 
   @Nullable

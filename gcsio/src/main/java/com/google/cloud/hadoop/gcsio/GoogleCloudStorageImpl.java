@@ -1371,7 +1371,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
         bucketName,
         objectNamePrefix,
         delimiter,
-        /* includeTrailingDelimiter= */ storageOptions.isListDirectoryObjects(),
+        /* includeTrailingDelimiter= */ true,
         maxResults,
         listedObjects,
         listedPrefixes);
@@ -1384,53 +1384,42 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
           createItemInfoForStorageObject(new StorageResourceId(bucketName, obj.getName()), obj));
     }
 
-    if (!listedPrefixes.isEmpty()) {
-      Set<StorageResourceId> prefixIds = new LinkedHashSet<>(listedPrefixes.size());
+    if (listedPrefixes.isEmpty()) {
+      return objectInfos;
+    }
+
+    // Handle prefixes without prefix objects.
+    if (storageOptions.isAutoRepairImplicitDirectoriesEnabled()) {
+      LOG.info("Repairing batch of {} missing directories.", listedPrefixes.size());
+      LOG.debug("Directories to repair: {}", listedPrefixes);
+
+      List<StorageResourceId> prefixIds = new ArrayList<>(listedPrefixes.size());
       for (String prefix : listedPrefixes) {
         prefixIds.add(new StorageResourceId(bucketName, prefix));
       }
 
-      if (!storageOptions.isListDirectoryObjects()) {
-        // Send requests to fetch info about the directories associated with each prefix in batch
-        // requests, maxRequestsPerBatch at a time.
-        for (GoogleCloudStorageItemInfo prefixInfo : getItemInfos(new ArrayList<>(prefixIds))) {
-          if (prefixInfo.exists()) {
-            prefixIds.remove(prefixInfo.getResourceId());
-            objectInfos.add(prefixInfo);
-          }
-        }
-
-        if (prefixIds.isEmpty()) {
-          return objectInfos;
-        }
+      try {
+        createEmptyObjects(prefixIds);
+      } catch (IOException ioe) {
+        // Don't totally fail the listObjectInfo call, since auto-repair is best-effort anyways.
+        LOG.error("Failed to repair some missing directories.", ioe);
       }
 
-      // Handle repairs.
-      if (storageOptions.isAutoRepairImplicitDirectoriesEnabled()) {
-        LOG.info("Repairing batch of {} missing directories.", prefixIds.size());
-        LOG.debug("Directories to repair: {}", prefixIds);
-        List<StorageResourceId> prefixIdsList = new ArrayList<>(prefixIds);
-        try {
-          createEmptyObjects(prefixIdsList);
-        } catch (IOException ioe) {
-          // Don't totally fail the listObjectInfo call, since auto-repair is best-effort anyways.
-          LOG.error("Failed to repair some missing directories.", ioe);
-        }
-
-        List<GoogleCloudStorageItemInfo> repairedInfos = getItemInfos(prefixIdsList);
-        objectInfos.addAll(
-            inferOrFilterNotRepairedInfos(
-                repairedInfos, storageOptions.isInferImplicitDirectoriesEnabled()));
-      } else if (storageOptions.isInferImplicitDirectoriesEnabled()) {
-        for (StorageResourceId prefixId : prefixIds) {
-          objectInfos.add(GoogleCloudStorageItemInfo.createInferredDirectory(prefixId));
-        }
-      } else {
-        LOG.info(
-            "Directory repair and inferred directories are disabled, "
-                + "giving up on retrieving missing directories: {}",
-            prefixIds);
+      List<GoogleCloudStorageItemInfo> repairedInfos = getItemInfos(prefixIds);
+      objectInfos.addAll(
+          inferOrFilterNotRepairedInfos(
+              repairedInfos, storageOptions.isInferImplicitDirectoriesEnabled()));
+    } else if (storageOptions.isInferImplicitDirectoriesEnabled()) {
+      for (String prefix : listedPrefixes) {
+        objectInfos.add(
+            GoogleCloudStorageItemInfo.createInferredDirectory(
+                new StorageResourceId(bucketName, prefix)));
       }
+    } else {
+      LOG.info(
+          "Directory repair and inferred directories are disabled, "
+              + "giving up on retrieving missing directories: {}",
+          listedPrefixes);
     }
 
     return objectInfos;
