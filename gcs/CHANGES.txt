@@ -1,3 +1,6 @@
+1.9.2 - 2018-XX-XX
+
+
 1.9.1 - 2018-07-11
 
   1. Fix `PerformanceCachingGoogleCloudStorage`.
