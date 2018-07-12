@@ -241,7 +241,7 @@ function run_validation() {
       err 'Run /usr/lib/hive/bin/schematool -dbType mysql -upgradeSchemaFrom <schema-version> to upgrade the schema. Note that this may break Hive metastores that depend on the old schema'
 
   # Validate it's functioning.
-  if ! hive -e 'SHOW TABLES;' >& /dev/null; then
+  if ! beeline -u jdbc:hive2://localhost:10000 -e 'SHOW TABLES;' >& /dev/null; then
     err 'Failed to bring up Cloud SQL Metastore'
   fi
   echo 'Cloud SQL Hive Metastore initialization succeeded' >&2
@@ -254,14 +254,17 @@ function configure_hive_warehouse_dir(){
   run_with_retries run_validation
 
   HIVE_WAREHOURSE_URI=$(beeline -u jdbc:hive2://localhost:10000 \
-    -e "describe database default;" 2>/dev/null \
+    -e "describe database default;" \
     | sed '4q;d' | cut -d "|" -f4 | tr -d '[:space:]')
+
+  echo "Hive warehouse uri: $HIVE_WAREHOURSE_URI"
 
   bdconfig set_property \
     --name 'hive.metastore.warehouse.dir' \
     --value "${HIVE_WAREHOURSE_URI}" \
     --configuration_file /etc/hive/conf/hive-site.xml \
     --clobber
+  echo "Updated hive warehouse dir"
 }
 
 function main() {
