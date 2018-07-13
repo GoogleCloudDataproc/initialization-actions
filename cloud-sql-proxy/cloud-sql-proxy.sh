@@ -224,7 +224,7 @@ EOF
       || err 'Failed to set mysql schema.'
   fi
 
-  run_validation
+  run_with_retries run_validation
 }
 
 function run_validation() {
@@ -243,8 +243,9 @@ function run_validation() {
   # Validate it's functioning.
   if ! beeline -u jdbc:hive2://localhost:10000 -e 'SHOW TABLES;' >& /dev/null; then
     err 'Failed to bring up Cloud SQL Metastore'
+  else
+    echo 'Cloud SQL Hive Metastore initialization succeeded' >&2
   fi
-  echo 'Cloud SQL Hive Metastore initialization succeeded' >&2
 
 }
 
