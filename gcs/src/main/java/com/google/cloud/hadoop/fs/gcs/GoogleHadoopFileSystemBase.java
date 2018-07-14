@@ -1461,6 +1461,28 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     return status;
   }
 
+  /** Gets FileStatus corresponding to the given FileInfo value. */
+  private FileStatus getFileStatus(FileInfo fileInfo, String userName) throws IOException {
+    // GCS does not provide modification time. It only provides creation time.
+    // It works for objects because they are immutable once created.
+    FileStatus status =
+        new FileStatus(
+            fileInfo.getSize(),
+            fileInfo.isDirectory(),
+            REPLICATION_FACTOR_DEFAULT,
+            defaultBlockSize,
+            /* modificationTime= */ fileInfo.getModificationTime(),
+            /* accessTime= */ fileInfo.getModificationTime(),
+            reportedPermissions,
+            /* owner= */ userName,
+            /* group= */ userName,
+            getHadoopPath(fileInfo.getPath()));
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("GHFS.getFileStatus: {} => {}", fileInfo.getPath(), fileStatusToString(status));
+    }
+    return status;
+  }
+
   /**
    * Determines based on config settings and suitability of {@code fixedPath} whether to use
    * flat globbing logic where we use a single large listing during globStatus to then perform
@@ -1683,30 +1705,6 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     Path result = new Path(getFileSystemRoot(), getHomeDirectorySubpath());
     LOG.debug("GHFS.getHomeDirectory:=> {}", result);
     return result;
-  }
-
-  /**
-   * Gets FileStatus corresponding to the given FileInfo value.
-   */
-  private FileStatus getFileStatus(FileInfo fileInfo, String userName) throws IOException {
-    // GCS does not provide modification time. It only provides creation time.
-    // It works for objects because they are immutable once created.
-    FileStatus status =
-        new FileStatus(
-            fileInfo.getSize(),
-            fileInfo.isDirectory(),
-            REPLICATION_FACTOR_DEFAULT,
-            defaultBlockSize,
-            /* modificationTime= */ fileInfo.getModificationTime(),
-            /* accessTime= */ fileInfo.getModificationTime(),
-            reportedPermissions,
-            /* owner= */ userName,
-            /* group= */ userName,
-            getHadoopPath(fileInfo.getPath()));
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("GHFS.getFileStatus: {} => {}", fileInfo.getPath(), fileStatusToString(status));
-    }
-    return status;
   }
 
   /**
