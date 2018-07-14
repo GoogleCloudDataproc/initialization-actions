@@ -16,6 +16,8 @@ package com.google.cloud.hadoop.gcsio;
 
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl.createItemInfoForStorageObject;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo.createInferredDirectory;
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.fakeResponseWithLength;
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.fakeResponseWithRange;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.assertThrows;
@@ -41,16 +43,7 @@ import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.http.AbstractInputStreamContent;
 import com.google.api.client.http.HttpHeaders;
-import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
-import com.google.api.client.http.HttpResponse;
-import com.google.api.client.http.HttpTransport;
-import com.google.api.client.http.LowLevelHttpRequest;
-import com.google.api.client.http.LowLevelHttpResponse;
-import com.google.api.client.testing.http.HttpTesting;
-import com.google.api.client.testing.http.MockHttpTransport;
-import com.google.api.client.testing.http.MockLowLevelHttpRequest;
-import com.google.api.client.testing.http.MockLowLevelHttpResponse;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.DateTime;
 import com.google.api.client.util.NanoClock;
@@ -332,44 +325,6 @@ public class GoogleCloudStorageTest {
     verifyNoMoreInteractions(mockBackOff);
     verifyNoMoreInteractions(mockReadBackOff);
     verifyNoMoreInteractions(mockBackOffFactory);
-  }
-
-  /**
-   * Handles all the boilerplate mocking of the HttpTransport and HttpRequest in order to build a
-   * fake HttpResponse with the provided {@code contentLength} and {@code content} to get around the
-   * fact that HttpResponse is a "final class".
-   */
-  private HttpResponse createFakeResponse(final long contentLength, final InputStream content)
-      throws IOException {
-       return createFakeResponse("Content-Length", Long.toString(contentLength), content);
-  }
-
-  /** Like createFakeResponse, but responds with a Content-Range header */
-  private HttpResponse createFakeResponseForRange(final long contentLength,
-                                                  final InputStream content)
-      throws IOException {
-       return createFakeResponse("Content-Range", "bytes=0-123/" + contentLength, content);
-  }
-
-  private HttpResponse createFakeResponse(final String responseHeader, final String responseValue,
-                                          final InputStream content) throws IOException {
-    HttpTransport transport = new MockHttpTransport() {
-      @Override
-      public LowLevelHttpRequest buildRequest(String method, String url) throws IOException {
-        MockLowLevelHttpRequest req = new MockLowLevelHttpRequest() {
-          @Override
-          public LowLevelHttpResponse execute() throws IOException {
-            return new MockLowLevelHttpResponse()
-                .addHeader(responseHeader, responseValue)
-                .setContent(content);
-          }
-        };
-        return req;
-      }
-    };
-    HttpRequest request =
-        transport.createRequestFactory().buildGetRequest(HttpTesting.SIMPLE_GENERIC_URL);
-    return request.execute();
   }
 
   /**
@@ -921,10 +876,10 @@ public class GoogleCloudStorageTest {
     InputStream mockExceptionStream = mock(InputStream.class);
     byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
     when(mockStorageObjectsGet.executeMedia())
-        .thenReturn(createFakeResponse(testData.length, mockExceptionStream))
-        .thenReturn(createFakeResponse(testData.length, mockExceptionStream))
-        .thenReturn(createFakeResponse(testData.length, mockExceptionStream))
-        .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(testData)));
+        .thenReturn(fakeResponseWithLength(testData.length, mockExceptionStream))
+        .thenReturn(fakeResponseWithLength(testData.length, mockExceptionStream))
+        .thenReturn(fakeResponseWithLength(testData.length, mockExceptionStream))
+        .thenReturn(fakeResponseWithLength(testData.length, new ByteArrayInputStream(testData)));
 
     when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
         .thenThrow(new SocketTimeoutException("fake timeout"))
@@ -967,8 +922,8 @@ public class GoogleCloudStorageTest {
     InputStream mockExceptionStream = mock(InputStream.class);
     byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
     when(mockStorageObjectsGet.executeMedia())
-        .thenReturn(createFakeResponse(testData.length, mockExceptionStream))
-        .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(testData)));
+        .thenReturn(fakeResponseWithLength(testData.length, mockExceptionStream))
+        .thenReturn(fakeResponseWithLength(testData.length, new ByteArrayInputStream(testData)));
 
     when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
         .thenThrow(new SSLException("fake SSLException"));
@@ -1009,7 +964,7 @@ public class GoogleCloudStorageTest {
     InputStream mockExceptionStream = mock(InputStream.class);
     byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
     when(mockStorageObjectsGet.executeMedia())
-        .thenReturn(createFakeResponse(testData.length, mockExceptionStream));
+        .thenReturn(fakeResponseWithLength(testData.length, mockExceptionStream));
 
     when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
         .thenThrow(new RuntimeException("fake RuntimeException"));
@@ -1046,7 +1001,7 @@ public class GoogleCloudStorageTest {
     InputStream mockExceptionStream = mock(InputStream.class);
     byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
     when(mockStorageObjectsGet.executeMedia())
-        .thenReturn(createFakeResponse(testData.length, mockExceptionStream));
+        .thenReturn(fakeResponseWithLength(testData.length, mockExceptionStream));
 
     doThrow(new SSLException("fake SSLException on close()"))
         .when(mockExceptionStream).close();
@@ -1110,15 +1065,16 @@ public class GoogleCloudStorageTest {
     byte[] truncatedRetryData = { 0x05 };
     when(mockStorageObjectsGet.executeMedia())
         // First time: Claim  we'll provide 5 bytes, but only give 3.
-        .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(truncatedData)))
+        .thenReturn(
+            fakeResponseWithLength(testData.length, new ByteArrayInputStream(truncatedData)))
         // Second time: Claim we'll provide the 2 remaining bytes, but only give one byte.
         // This retry counts toward the maxRetries of the "first" attempt, but the nonzero bytes
         // returned resets the counter; when this ends prematurely we'll expect yet another "retry"
         // even though we'll set maxRetries == 1.
-        .thenReturn(createFakeResponse(2, new ByteArrayInputStream(truncatedRetryData)))
+        .thenReturn(fakeResponseWithLength(2, new ByteArrayInputStream(truncatedRetryData)))
         // Third time, we claim we'll deliver the one remaining byte, but give none. Since no
         // progress is made, the retry counter does not get reset and we've exhausted all retries.
-        .thenReturn(createFakeResponse(1, new ByteArrayInputStream(new byte[0])));
+        .thenReturn(fakeResponseWithLength(1, new ByteArrayInputStream(new byte[0])));
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
@@ -1158,15 +1114,16 @@ public class GoogleCloudStorageTest {
     byte[] finalRetryData = { 0x08 };
     when(mockStorageObjectsGet.executeMedia())
         // First time: Claim  we'll provide 5 bytes, but only give 3.
-        .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(truncatedData)))
+        .thenReturn(
+            fakeResponseWithLength(testData.length, new ByteArrayInputStream(truncatedData)))
         // Second time: Claim we'll provide the 2 remaining bytes, but only give one byte.
         // This retry counts toward the maxRetries of the "first" attempt, but the nonzero bytes
         // returned resets the counter; when this ends prematurely we'll expect yet another "retry"
         // even though we'll set maxRetries == 1.
-        .thenReturn(createFakeResponse(2, new ByteArrayInputStream(truncatedRetryData)))
+        .thenReturn(fakeResponseWithLength(2, new ByteArrayInputStream(truncatedRetryData)))
         // Third time, we claim we'll deliver the one remaining byte, but give none. Since no
         // progress is made, the retry counter does not get reset and we've exhausted all retries.
-        .thenReturn(createFakeResponse(1, new ByteArrayInputStream(finalRetryData)));
+        .thenReturn(fakeResponseWithLength(1, new ByteArrayInputStream(finalRetryData)));
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
@@ -1202,7 +1159,7 @@ public class GoogleCloudStorageTest {
 
     setUpBasicMockBehaviorForOpeningReadChannel(testData.length);
     when(mockStorageObjectsGet.executeMedia())
-        .thenReturn(createFakeResponse(testData.length, mockExceptionStream));
+        .thenReturn(fakeResponseWithLength(testData.length, mockExceptionStream));
     when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
         .thenThrow(new IOException("fake generic IOException"));
 
@@ -1242,7 +1199,7 @@ public class GoogleCloudStorageTest {
     InputStream mockExceptionStream = mock(InputStream.class);
     byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
     when(mockStorageObjectsGet.executeMedia())
-        .thenReturn(createFakeResponse(testData.length, mockExceptionStream));
+        .thenReturn(fakeResponseWithLength(testData.length, mockExceptionStream));
     when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
         .thenThrow(new IOException("fake generic IOException"));
 
@@ -1281,9 +1238,9 @@ public class GoogleCloudStorageTest {
     InputStream mockExceptionStream = mock(InputStream.class);
     byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
     when(mockStorageObjectsGet.executeMedia())
-        .thenReturn(createFakeResponse(testData.length, mockExceptionStream))
-        .thenReturn(createFakeResponse(testData.length, mockExceptionStream))
-        .thenReturn(createFakeResponse(testData.length, mockExceptionStream));
+        .thenReturn(fakeResponseWithLength(testData.length, mockExceptionStream))
+        .thenReturn(fakeResponseWithLength(testData.length, mockExceptionStream))
+        .thenReturn(fakeResponseWithLength(testData.length, mockExceptionStream));
 
     when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
         .thenThrow(new SocketTimeoutException("fake timeout"))
@@ -1328,9 +1285,9 @@ public class GoogleCloudStorageTest {
     final byte[] testData = { 0x01, 0x02, 0x03, 0x05, 0x08 };
     final byte[] testData2 = { 0x05, 0x08 };
     when(mockStorageObjectsGet.executeMedia())
-        .thenReturn(createFakeResponse(testData.length, mockTimeoutStream))
-        .thenReturn(createFakeResponse(testData.length, mockFlakyStream))
-        .thenReturn(createFakeResponse(testData2.length, new ByteArrayInputStream(testData2)));
+        .thenReturn(fakeResponseWithLength(testData.length, mockTimeoutStream))
+        .thenReturn(fakeResponseWithLength(testData.length, mockFlakyStream))
+        .thenReturn(fakeResponseWithLength(testData2.length, new ByteArrayInputStream(testData2)));
 
     when(mockTimeoutStream.read(any(byte[].class), eq(0), eq(testData.length)))
         .thenThrow(new SocketTimeoutException("fake timeout 1"));
@@ -1415,9 +1372,12 @@ public class GoogleCloudStorageTest {
     setUpBasicMockBehaviorForOpeningReadChannel(compressedData.length, "gzip");
     // content. Mock this by providing a stream that simply provides the uncompressed content.
     when(mockStorageObjectsGet.executeMedia())
-        .thenReturn(createFakeResponse(compressedData.length, new ByteArrayInputStream(testData)))
-        .thenReturn(createFakeResponse(compressedData.length, new ByteArrayInputStream(testData)))
-        .thenReturn(createFakeResponse(compressedData.length, new ByteArrayInputStream(testData)));
+        .thenReturn(
+            fakeResponseWithLength(compressedData.length, new ByteArrayInputStream(testData)))
+        .thenReturn(
+            fakeResponseWithLength(compressedData.length, new ByteArrayInputStream(testData)))
+        .thenReturn(
+            fakeResponseWithLength(compressedData.length, new ByteArrayInputStream(testData)));
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
@@ -1472,7 +1432,7 @@ public class GoogleCloudStorageTest {
 
     setUpBasicMockBehaviorForOpeningReadChannel(testData.length);
     when(mockStorageObjectsGet.executeMedia())
-        .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(testData)));
+        .thenReturn(fakeResponseWithLength(testData.length, new ByteArrayInputStream(testData)));
     when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
         .thenReturn(testData.length);
     GoogleCloudStorageReadChannel readChannel =
@@ -1507,7 +1467,7 @@ public class GoogleCloudStorageTest {
 
     setUpBasicMockBehaviorForOpeningReadChannel(testData.length);
     when(mockStorageObjectsGet.executeMedia())
-        .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(testData)));
+        .thenReturn(fakeResponseWithLength(testData.length, new ByteArrayInputStream(testData)));
     when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
         .thenReturn(testData.length);
     GoogleCloudStorageReadChannel readChannel =
@@ -1558,7 +1518,7 @@ public class GoogleCloudStorageTest {
 
     setUpBasicMockBehaviorForOpeningReadChannel(testData.length);
     when(mockStorageObjectsGet.executeMedia())
-        .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(testData)));
+        .thenReturn(fakeResponseWithLength(testData.length, new ByteArrayInputStream(testData)));
     when(mockExceptionStream.read(any(byte[].class), eq(0), eq(testData.length)))
         .thenReturn(testData.length);
     GoogleCloudStorageReadChannel readChannel =
@@ -1655,9 +1615,9 @@ public class GoogleCloudStorageTest {
         .thenReturn(testData.length - compressedLength);
 
     when(mockStorageObjectsGet.executeMedia())
-        .thenReturn(createFakeResponse(testData.length, firstTimeoutStream))
-        .thenReturn(createFakeResponse(testData.length, secondTimeoutStream))
-        .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(testData)));
+        .thenReturn(fakeResponseWithLength(testData.length, firstTimeoutStream))
+        .thenReturn(fakeResponseWithLength(testData.length, secondTimeoutStream))
+        .thenReturn(fakeResponseWithLength(testData.length, new ByteArrayInputStream(testData)));
 
     when(mockReadBackOff.nextBackOffMillis()).thenReturn(1L);
 
@@ -1706,9 +1666,8 @@ public class GoogleCloudStorageTest {
                 .setGeneration(1L)
                 .setMetageneration(1L));
     when(mockStorageObjectsGet.executeMedia())
-        .thenReturn(createFakeResponse(testData.length, new ByteArrayInputStream(testData)))
-        .thenReturn(createFakeResponseForRange(
-            testData2.length, new ByteArrayInputStream(testData2)));
+        .thenReturn(fakeResponseWithLength(testData.length, new ByteArrayInputStream(testData)))
+        .thenReturn(fakeResponseWithRange(testData2.length, new ByteArrayInputStream(testData2)));
 
    GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
@@ -4178,8 +4137,8 @@ public class GoogleCloudStorageTest {
         .thenThrow(new IOException("In-place seek IOException"));
 
     when(mockStorageObjectsGet.executeMedia())
-        .thenReturn(createFakeResponse(testData.length, mockExceptionStream))
-        .thenReturn(createFakeResponse(testData2.length, new ByteArrayInputStream(testData2)));
+        .thenReturn(fakeResponseWithLength(testData.length, mockExceptionStream))
+        .thenReturn(fakeResponseWithLength(testData2.length, new ByteArrayInputStream(testData2)));
 
     GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel)

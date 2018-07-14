@@ -29,6 +29,7 @@ public abstract class GoogleCloudStorageReadOptions {
 
   /** Operational modes of fadvise feature. */
   public static enum Fadvise {
+    AUTO,
     RANDOM,
     SEQUENTIAL
   }

@@ -100,6 +100,9 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
   // Size of the contentChannel.
   private long contentChannelEnd = -1;
 
+  // Whether to use bounded range requests or streaming requests.
+  @VisibleForTesting boolean randomAccess;
+
   // Maximum number of automatic retries when reading from the underlying channel without making
   // progress; each time at least one byte is successfully read, the counter of attempted retries
   // is reset.
@@ -193,9 +196,11 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     this.readOptions = readOptions;
     this.resourceIdString = StorageResourceId.createReadableString(bucketName, objectName);
     initEncodingAndSize();
+    this.randomAccess = !gzipEncoded && readOptions.getFadvise() == Fadvise.RANDOM;
+    checkEncodingAndAccess();
     LOG.debug(
-        "Created and initialized new channel (encoding={}, size={}) for '{}'",
-        gzipEncoded ? "gzip" : "other", size, resourceIdString);
+        "Created and initialized new channel (encoding={}, size={}, randomAccess={}) for '{}'",
+        gzipEncoded ? "gzip" : "other", size, randomAccess, resourceIdString);
   }
 
   /**
@@ -562,6 +567,35 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     return this;
   }
 
+  private boolean isRandomAccessPattern(long oldPosition) {
+    if (!shouldDetectRandomAccess()) {
+      return false;
+    }
+    if (currentPosition < oldPosition) {
+      LOG.debug(
+          "Detected backward read from {} to {} position, switching to random IO for '{}'",
+          oldPosition, currentPosition, resourceIdString);
+      return true;
+    }
+    if (oldPosition >= 0 && oldPosition + readOptions.getInplaceSeekLimit() < currentPosition) {
+      LOG.debug(
+          "Detected forward read from {} to {} position over {} threshold,"
+              + " switching to random IO for '{}'",
+          oldPosition, currentPosition, readOptions.getInplaceSeekLimit(), resourceIdString);
+      return true;
+    }
+    return false;
+  }
+
+  private boolean shouldDetectRandomAccess() {
+    return !gzipEncoded && !randomAccess && readOptions.getFadvise() == Fadvise.AUTO;
+  }
+
+  private void setRandomAccess() {
+    randomAccess = true;
+    checkEncodingAndAccess();
+  }
+
   private void skipInPlace(long seekDistance) {
     if (skipBuffer == null) {
       skipBuffer = new byte[SKIP_BUFFER_SIZE];
@@ -612,6 +646,13 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     this.size = size;
   }
 
+  private void checkEncodingAndAccess() {
+    checkState(
+        !(gzipEncoded && randomAccess),
+        "gzipEncoded and randomAccess should not be true at the same time for '%s'",
+        resourceIdString);
+  }
+
   /** Validates that the given position is valid for this channel. */
   protected void validatePosition(long position) throws IOException {
     if (position < 0) {
@@ -650,6 +691,9 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         "Performing lazySeek from {} to {} position with {} limit for '{}'",
         contentChannelPosition, currentPosition, limit, resourceIdString);
 
+    // used to auto-detect random access
+    long oldPosition = contentChannelPosition;
+
     long seekDistance = currentPosition - contentChannelPosition;
     if (contentChannel != null
         && seekDistance > 0
@@ -664,6 +708,9 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     }
 
     if (contentChannel == null) {
+      if (isRandomAccessPattern(oldPosition)) {
+        setRandomAccess();
+      }
       openContentChannel(limit);
     }
   }
@@ -753,7 +800,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     if (!gzipEncoded) {
       String rangeHeader = "bytes=" + currentPosition + "-";
 
-      if (readOptions.getFadvise() == Fadvise.RANDOM) {
+      if (randomAccess) {
         long rangeSize = Math.max(bufferSize, limit);
         // When bufferSize is 0 and limit passed by client is very small,
         // we still don't want to send too small range request to GCS.
@@ -772,7 +819,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
 
     if (contentChannelEnd < 0) {
       checkState(
-          readOptions.getFadvise() != Fadvise.RANDOM,
+          !randomAccess,
           "contentChannelEnd should be initialized already if fadvise is RANDOM for '%s'",
           resourceIdString);
 
@@ -790,6 +837,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     HttpResponse response;
     try {
       response = getObject.executeMedia();
+      // TODO(b/110832992): validate response range header against expected/request range
     } catch (IOException e) {
       if (errorExtractor.itemNotFound(e)) {
         throw GoogleCloudStorageExceptions.getFileNotFoundException(bucketName, objectName);

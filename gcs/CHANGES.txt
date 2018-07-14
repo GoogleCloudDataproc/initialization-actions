@@ -1,6 +1,16 @@
 1.9.2 - 2018-XX-XX
 
-  1. Report the UGI user in FileStatus instead of process owner. 
+  1. Report the UGI user in FileStatus instead of process owner.
+
+  2. Implement automatic fadvise (adaptive range reads). In this mode, connector
+     starts to send bounded range requests instead of streaming range requests
+     when reading non gzip encoded files after first backward read or forward
+     read for more than `fs.gs.inputstream.inplace.seek.limit` bytes was
+     detected.
+
+     To activate this behavior set the property:
+
+       fs.gs.inputstream.fadvise=AUTO (default: SEQUENTIAL)
 
 
 1.9.1 - 2018-07-11
