@@ -108,12 +108,18 @@ class GoogleHadoopFSInputStream
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_DEFAULT);
     LOG.debug("minRangeRequestSize: {}", minRangeRequestSize);
 
+    int footerPrefetchSize = ghfs.getConf().getInt(
+        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FOOTER_PREFETCH_SIZE_KEY,
+        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FOOTER_PREFETCH_SIZE_DEFAULT);
+    LOG.debug("footerPrefetchSize: {}", footerPrefetchSize);
+
     GoogleCloudStorageReadOptions.Builder readOptions =
         GoogleCloudStorageReadOptions.builder()
             .setSupportContentEncoding(supportContentEncoding)
             .setInplaceSeekLimit(inplaceSeekLimit)
             .setFadvise(fadvise)
-            .setMinRangeRequestSize(minRangeRequestSize);
+            .setMinRangeRequestSize(minRangeRequestSize)
+            .setFooterPrefetchSize(footerPrefetchSize);
     if (enableInternalBuffer) {
       buffer = ByteBuffer.allocate(bufferSize);
       buffer.limit(0);

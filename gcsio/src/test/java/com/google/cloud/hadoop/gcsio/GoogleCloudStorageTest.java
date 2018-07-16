@@ -1419,6 +1419,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsGet, times(1)).execute();
     verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
     verify(mockHeaders, times(3)).setAcceptEncoding(eq("gzip"));
+    verify(mockHeaders, times(3)).setRange(eq(null));
   }
 
   /**
@@ -1635,6 +1636,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsGet, times(1)).execute();
     verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
     verify(mockHeaders, times(3)).setAcceptEncoding(eq("gzip"));
+    verify(mockHeaders, times(3)).setRange(eq(null));
     verify(mockReadBackOff, times(2)).reset();
     verify(mockReadBackOff, times(2)).nextBackOffMillis();
     verify(mockSleeper, times(2)).sleep(eq(1L));

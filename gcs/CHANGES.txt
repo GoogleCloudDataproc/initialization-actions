@@ -12,6 +12,20 @@
 
        fs.gs.inputstream.fadvise=AUTO (default: SEQUENTIAL)
 
+  3. Add an option to prefetch footer when creating
+     `GoogleCloudStorageReadChannel` in `AUTO` and `RANDOM` fadvise mode.
+     Prefetch size is configured via property:
+
+       fs.gs.inputstream.footer.prefetch.size (default: 0)
+
+     This optimization is helpful when reading objects in format that stores
+     metadata at the end of the file in footer, like Parquet and ORC.
+
+     Note: for this optimization to work, specified footer prefetch size should
+     be greater or equal to an actual metadata size stored in the file footer.
+
+     To disable footer pre-fetching set this property to 0.
+
 
 1.9.1 - 2018-07-11
 

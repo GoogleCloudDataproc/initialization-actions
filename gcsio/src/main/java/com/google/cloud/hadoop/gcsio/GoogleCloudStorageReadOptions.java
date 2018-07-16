@@ -44,6 +44,7 @@ public abstract class GoogleCloudStorageReadOptions {
   public static final long DEFAULT_INPLACE_SEEK_LIMIT = 0L;
   public static final Fadvise DEFAULT_FADVISE = Fadvise.SEQUENTIAL;
   public static final int DEFAULT_MIN_RANGE_REQUEST_SIZE = 1024 * 1024;
+  public static final int DEFAULT_FOOTER_PREFETCH_SIZE = 0;
 
   // Default builder should be initialized after default values,
   // otherwise it will access not initialized default values.
@@ -60,7 +61,8 @@ public abstract class GoogleCloudStorageReadOptions {
         .setBufferSize(DEFAULT_BUFFER_SIZE)
         .setInplaceSeekLimit(DEFAULT_INPLACE_SEEK_LIMIT)
         .setFadvise(DEFAULT_FADVISE)
-        .setMinRangeRequestSize(DEFAULT_MIN_RANGE_REQUEST_SIZE);
+        .setMinRangeRequestSize(DEFAULT_MIN_RANGE_REQUEST_SIZE)
+        .setFooterPrefetchSize(DEFAULT_FOOTER_PREFETCH_SIZE);
   }
 
   /** See {@link Builder#setBackoffInitialIntervalMillis}. */
@@ -92,6 +94,9 @@ public abstract class GoogleCloudStorageReadOptions {
 
   /** See {@link Builder#setMinRangeRequestSize}. */
   public abstract int getMinRangeRequestSize();
+
+  /** See {@link Builder#setFooterPrefetchSize}. */
+  public abstract int getFooterPrefetchSize();
 
   public abstract Builder toBuilder();
 
@@ -153,8 +158,31 @@ public abstract class GoogleCloudStorageReadOptions {
      */
     public abstract Builder setInplaceSeekLimit(long inplaceSeekLimit);
 
-    /** Sets fadvise that tunes behavior to optimize HTTP GET requests for various use cases. */
+    /**
+     * Sets fadvise mode that tunes behavior to optimize HTTP GET requests for various use cases.
+     *
+     * <p>Supported modes:
+     *
+     * <ul>
+     *   <li>{@code AUTO} - automatically switches to {@code RANDOM} mode if backward read or
+     *       forward read for more than {@link #setInplaceSeekLimit} bytes is detected.
+     *   <li>{@code RANDOM} - sends HTTP requests with {@code Range} header set to greater of
+     *       provided reade buffer by user or {@link #setBufferSize}.
+     *   <li>{@code SEQUENTIAL} - sends HTTP requests with unbounded {@code Range} header.
+     * </ul>
+     */
     public abstract Builder setFadvise(Fadvise fadvise);
+
+    /**
+     * Sets size of the footer that will be prefetched when {@link GoogleCloudStorageReadChannel} is
+     * created.
+     *
+     * <p>This allows to reads objects in columnar formats (like Parquet and ORC) that store
+     * metadata at the end of the file in the footer faster.
+     *
+     * <p>To disable footer prefetching set this option to 0.
+     */
+    public abstract Builder setFooterPrefetchSize(int prefetchSize);
 
     /**
      * Sets the minimum size of the HTTP Range header that could be set in GCS request when opening

@@ -578,6 +578,20 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       GoogleCloudStorageReadOptions.DEFAULT_MIN_RANGE_REQUEST_SIZE;
 
   /**
+   * Size of the object footer that will be prefetched when read channel opened. Footer prefetching
+   * is disabled if this property is set to 0.
+   */
+  public static final String GCS_INPUTSTREAM_FOOTER_PREFETCH_SIZE_KEY =
+      "fs.gs.inputstream.footer.prefetch.size";
+
+  /**
+   * Default value for {@link
+   * GoogleHadoopFileSystemBase#GCS_INPUTSTREAM_FOOTER_PREFETCH_SIZE_KEY}.
+   */
+  public static final int GCS_INPUTSTREAM_FOOTER_PREFETCH_SIZE_DEFAULT =
+      GoogleCloudStorageReadOptions.DEFAULT_FOOTER_PREFETCH_SIZE;
+
+  /**
    * If true, recursive delete on a path that refers to a GCS bucket itself ('/' for any
    * bucket-rooted GoogleHadoopFileSystem) or delete on that path when it's empty will result in
    * fully deleting the GCS bucket. If false, any operation that normally would have deleted the
