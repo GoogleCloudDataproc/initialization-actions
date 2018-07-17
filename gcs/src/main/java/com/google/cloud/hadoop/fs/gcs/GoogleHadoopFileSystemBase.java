@@ -873,16 +873,14 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
       for (String include : includeSubstrings) {
         if (uri.toString().contains(include)) {
-          LOG.debug(
-              "Path %s matched included path %s. Updating timestamps.", uri, include);
+          LOG.debug("Path {} matched included path {}. Updating timestamps.", uri, include);
           return true;
         }
       }
 
       for (String exclude : excludeSubstrings) {
         if (uri.toString().contains(exclude)) {
-          LOG.debug(
-              "Path %s matched excluded path %s. Not updating timestamps.", uri, exclude);
+          LOG.debug("Path {} matched excluded path {}. Not updating timestamps.", uri, exclude);
           return false;
         }
       }
