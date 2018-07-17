@@ -179,14 +179,17 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
     HashSet<String> dirs = new HashSet<>();
     Iterator<GoogleCloudStorageItemInfo> itr = items.iterator();
     while (itr.hasNext()) {
-      String objectName = itr.next().getObjectName();
+      GoogleCloudStorageItemInfo item = itr.next();
+      String objectName = item.getObjectName();
 
-      // Remove if doesn't start with the prefix.
-      if (!objectName.startsWith(prefix)) {
-        itr.remove();
-      } else if (prefix.endsWith(delimiter) && objectName.equals(prefix)) {
-        // Remove prefix object if it ends with delimiter:
-        // do not return prefix dir to avoid infinite recursion.
+      // 1. Remove if bucket (means that listing objects in bucket):
+      //    do not return bucket itself (prefix dir) to avoid infinite recursion
+      // 2. Remove if doesn't start with the prefix.
+      // 3. Remove prefix object if it ends with delimiter:
+      //    do not return prefix dir to avoid infinite recursion.
+      if (item.isBucket()
+          || !objectName.startsWith(prefix)
+          || (prefix.endsWith(delimiter) && objectName.equals(prefix))) {
         itr.remove();
       } else {
         // Retain if missing the delimiter after the prefix.
@@ -241,7 +244,19 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
     // Get the item from cache.
     GoogleCloudStorageItemInfo item = cache.getItem(resourceId);
 
-    // If it wasn't in the cache, request it then add it.
+    // If it wasn't in the cache, list all the objects in the parent directory and cache them
+    // and then retrieve it from the cache.
+    if (item == null && resourceId.isStorageObject()) {
+      String objectName = resourceId.getObjectName();
+      int lastSlashIndex = objectName.lastIndexOf(PATH_DELIMITER);
+      String directoryName =
+          lastSlashIndex >= 0 ? objectName.substring(0, lastSlashIndex + 1) : null;
+      listObjectInfo(resourceId.getBucketName(), directoryName, PATH_DELIMITER);
+      item = cache.getItem(resourceId);
+    }
+
+    // If it wasn't in the cache and wasn't cached in directory list request
+    // then request and cache it directly.
     if (item == null) {
       item = super.getItemInfo(resourceId);
       cache.putItem(item);

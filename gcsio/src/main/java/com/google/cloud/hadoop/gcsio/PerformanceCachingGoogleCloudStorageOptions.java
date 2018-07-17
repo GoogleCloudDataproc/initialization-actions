@@ -13,59 +13,44 @@
  */
 package com.google.cloud.hadoop.gcsio;
 
+import com.google.auto.value.AutoValue;
+
 /** Configurable options for {@link PerformanceCachingGoogleCloudStorage}. */
-public class PerformanceCachingGoogleCloudStorageOptions {
+@AutoValue
+public abstract class PerformanceCachingGoogleCloudStorageOptions {
 
   /** Max age of an item in cache in milliseconds. */
-  public static final long MAX_ENTRY_AGE_MILLIS_DEFAULT = 3000L;
+  public static final long MAX_ENTRY_AGE_MILLIS_DEFAULT = 5_000;
 
   /** Flag to enable list caching. */
-  public static final boolean LIST_CACHING_ENABLED = true;
+  public static final boolean LIST_CACHING_ENABLED = false;
 
-  private final long maxEntryAgeMillis;
+  public static final PerformanceCachingGoogleCloudStorageOptions DEFAULT = builder().build();
 
-  private final boolean listCachingEnabled;
-
-  private PerformanceCachingGoogleCloudStorageOptions(Builder builder) {
-    this.maxEntryAgeMillis = builder.maxEntryAgeMillis;
-    this.listCachingEnabled = builder.listCachingEnabled;
+  public static Builder builder() {
+    return new AutoValue_PerformanceCachingGoogleCloudStorageOptions.Builder()
+        .setMaxEntryAgeMillis(MAX_ENTRY_AGE_MILLIS_DEFAULT)
+        .setListCachingEnabled(LIST_CACHING_ENABLED);
   }
 
   /** Gets the max age of an item in cache in milliseconds. */
-  public long getMaxEntryAgeMillis() {
-    return maxEntryAgeMillis;
-  }
+  public abstract long getMaxEntryAgeMillis();
 
   /** Gets if list caching is enabled. */
-  public boolean isListCachingEnabled() {
-    return listCachingEnabled;
-  }
+  public abstract boolean isListCachingEnabled();
+
+  public abstract Builder toBuilder();
 
   /** Builder class for PerformanceCachingGoogleCloudStorageOptions. */
-  public static class Builder {
-
-    private long maxEntryAgeMillis = MAX_ENTRY_AGE_MILLIS_DEFAULT;
-
-    private boolean listCachingEnabled = LIST_CACHING_ENABLED;
+  @AutoValue.Builder
+  public abstract static class Builder {
 
     /** Sets the max age of an item in cache in milliseconds. */
-    public Builder setMaxEntryAgeMillis(long maxEntryAgeMillis) {
-      this.maxEntryAgeMillis = maxEntryAgeMillis;
-      return this;
-    }
+    public abstract Builder setMaxEntryAgeMillis(long maxEntryAgeMillis);
 
     /** Setting for list caching. */
-    public Builder setListCachingEnabled(boolean listCachingEnabled) {
-      this.listCachingEnabled = listCachingEnabled;
-      return this;
-    }
+    public abstract Builder setListCachingEnabled(boolean listCachingEnabled);
 
-    public PerformanceCachingGoogleCloudStorageOptions build() {
-      return new PerformanceCachingGoogleCloudStorageOptions(this);
-    }
-  }
-
-  public static Builder newBuilder() {
-    return new Builder();
+    public abstract PerformanceCachingGoogleCloudStorageOptions build();
   }
 }

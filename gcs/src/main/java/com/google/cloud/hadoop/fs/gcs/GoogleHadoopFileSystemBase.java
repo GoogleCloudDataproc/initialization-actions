@@ -27,6 +27,7 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.cloud.hadoop.gcsio.PathCodec;
+import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.util.AccessTokenProvider;
 import com.google.cloud.hadoop.util.AccessTokenProviderClassFromConfigFactory;
@@ -266,7 +267,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * Default value for {@link
    * GoogleHadoopFileSystemBase#GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY}.
    */
-  public static final long GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_DEFAULT = 3000L;
+  public static final long GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_DEFAULT =
+      PerformanceCachingGoogleCloudStorageOptions.MAX_ENTRY_AGE_MILLIS_DEFAULT;
 
   /** Configuration key for whether or not to enable list caching for the performance cache. */
   public static final String GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY =
@@ -276,7 +278,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * Default value for {@link
    * GoogleHadoopFileSystemBase#GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY}.
    */
-  public static final boolean GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_DEFAULT = true;
+  public static final boolean GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_DEFAULT =
+      PerformanceCachingGoogleCloudStorageOptions.LIST_CACHING_ENABLED;
 
   /**
    * Configuration key for whether or not we should update timestamps for parent directories when we
@@ -585,8 +588,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       "fs.gs.inputstream.footer.prefetch.size";
 
   /**
-   * Default value for {@link
-   * GoogleHadoopFileSystemBase#GCS_INPUTSTREAM_FOOTER_PREFETCH_SIZE_KEY}.
+   * Default value for {@link GoogleHadoopFileSystemBase#GCS_INPUTSTREAM_FOOTER_PREFETCH_SIZE_KEY}.
    */
   public static final int GCS_INPUTSTREAM_FOOTER_PREFETCH_SIZE_DEFAULT =
       GoogleCloudStorageReadOptions.DEFAULT_FOOTER_PREFETCH_SIZE;

@@ -46,7 +46,7 @@ public class GoogleCloudStorageFileSystemOptions {
   public static class Builder {
     private boolean performanceCacheEnabled = false;
     private PerformanceCachingGoogleCloudStorageOptions.Builder performanceCacheOptionsBuilder =
-        PerformanceCachingGoogleCloudStorageOptions.newBuilder();
+        PerformanceCachingGoogleCloudStorageOptions.builder();
     private PerformanceCachingGoogleCloudStorageOptions immutablePerformanceCacheOptions = null;
 
     protected TimestampUpdatePredicate shouldIncludeInTimestampUpdatesPredicate =
@@ -105,8 +105,7 @@ public class GoogleCloudStorageFileSystemOptions {
     public Builder setImmutablePerformanceCachingOptions(
         PerformanceCachingGoogleCloudStorageOptions immutablePerformanceCacheOptions) {
       this.immutablePerformanceCacheOptions = immutablePerformanceCacheOptions;
-      this.performanceCacheOptionsBuilder =
-          PerformanceCachingGoogleCloudStorageOptions.newBuilder();
+      this.performanceCacheOptionsBuilder = PerformanceCachingGoogleCloudStorageOptions.builder();
       return this;
     }
 

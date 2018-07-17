@@ -133,7 +133,9 @@ public class GoogleCloudStorageTest {
     GoogleCloudStorage performanceCachingGcs =
         new PerformanceCachingGoogleCloudStorage(
             new InMemoryGoogleCloudStorage(),
-            PerformanceCachingGoogleCloudStorageOptions.newBuilder().build());
+            PerformanceCachingGoogleCloudStorageOptions.builder()
+                .setListCachingEnabled(true)
+                .build());
     return Arrays.asList(
         new Object[] {gcs}, new Object[] {zeroLaggedGcs}, new Object[] {performanceCachingGcs});
   }

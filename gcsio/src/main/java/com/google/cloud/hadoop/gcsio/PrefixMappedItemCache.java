@@ -60,8 +60,7 @@ public class PrefixMappedItemCache {
     itemMap = new TreeMap<PrefixKey, CacheValue<GoogleCloudStorageItemInfo>>(PrefixKey.COMPARATOR);
     prefixMap = new TreeMap<PrefixKey, CacheValue<Object>>(PrefixKey.COMPARATOR);
 
-    maxEntryAgeNanos =
-        TimeUnit.NANOSECONDS.convert(config.getMaxEntryAgeMillis(), TimeUnit.MILLISECONDS);
+    maxEntryAgeNanos = TimeUnit.MILLISECONDS.toNanos(config.getMaxEntryAgeMillis());
     ticker = config.getTicker();
   }
 

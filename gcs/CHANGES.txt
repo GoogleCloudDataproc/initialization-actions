@@ -26,6 +26,15 @@
 
      To disable footer pre-fetching set this property to 0.
 
+  4. Cache objects metadata in `PerformanceCachingGoogleCloudStorage` using GCS
+     `ListObjects` requests.
+
+  5. Change default values of properties:
+
+       fs.gs.inputstream.min.range.request.size (default: 1048576 -> 524288)
+       fs.gs.performance.cache.max.entry.age.ms (default: 3000 -> 5000)
+       fs.gs.performance.cache.list.caching.enable (default: true -> false)
+
 
 1.9.1 - 2018-07-11
 

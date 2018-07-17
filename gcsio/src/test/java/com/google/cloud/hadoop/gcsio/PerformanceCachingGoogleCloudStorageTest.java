@@ -100,7 +100,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
 
     // Create the cache configuration.
     PerformanceCachingGoogleCloudStorageOptions options =
-        new PerformanceCachingGoogleCloudStorageOptions.Builder().build();
+        PerformanceCachingGoogleCloudStorageOptions.builder().setListCachingEnabled(true).build();
 
     // Setup the delegate
     clock = new TestClock();

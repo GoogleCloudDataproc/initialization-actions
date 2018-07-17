@@ -43,7 +43,7 @@ public abstract class GoogleCloudStorageReadOptions {
   public static final int DEFAULT_BUFFER_SIZE = 0;
   public static final long DEFAULT_INPLACE_SEEK_LIMIT = 0L;
   public static final Fadvise DEFAULT_FADVISE = Fadvise.SEQUENTIAL;
-  public static final int DEFAULT_MIN_RANGE_REQUEST_SIZE = 1024 * 1024;
+  public static final int DEFAULT_MIN_RANGE_REQUEST_SIZE = 512 * 1024;
   public static final int DEFAULT_FOOTER_PREFETCH_SIZE = 0;
 
   // Default builder should be initialized after default values,
