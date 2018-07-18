@@ -139,9 +139,8 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
         cache.putList(bucketName, objectNamePrefix, result);
       }
 
-      if (GoogleCloudStorage.PATH_DELIMITER.equals(delimiter)) {
-        filter(result, bucketName, objectNamePrefix, delimiter);
-      }
+      filter(result, bucketName, objectNamePrefix, delimiter);
+
 
       if (maxResults > 0 && result.size() > maxResults) {
         result = result.subList(0, (int) maxResults);
@@ -172,7 +171,21 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
       @Nullable String delimiter)
       throws IOException {
     prefix = nullToEmpty(prefix);
+
+    // if delimiter is not specified we don't need to filter-out subdirectories
     if (isNullOrEmpty(delimiter)) {
+      // if prefix is not specified it means that we are listing all objects in the bucket
+      // and we need to exclude bucket from the result
+      if (prefix.isEmpty()) {
+        Iterator<GoogleCloudStorageItemInfo> itr = items.iterator();
+        while (itr.hasNext()) {
+          GoogleCloudStorageItemInfo item = itr.next();
+          if (item.isBucket()) {
+            itr.remove();
+            break;
+          }
+        }
+      }
       return;
     }
 

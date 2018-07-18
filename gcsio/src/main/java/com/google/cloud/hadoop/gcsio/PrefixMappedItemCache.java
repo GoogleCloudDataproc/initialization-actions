@@ -267,10 +267,9 @@ public class PrefixMappedItemCache {
    *     returned.
    */
   private static <K, V> List<V> aggregateCacheValues(Map<K, CacheValue<V>> map) {
-    List<V> values = new ArrayList<V>(map.size());
-    Iterator<Entry<K, CacheValue<V>>> itr = map.entrySet().iterator();
-    while (itr.hasNext()) {
-      values.add(itr.next().getValue().getValue());
+    List<V> values = new ArrayList<>(map.size());
+    for (Map.Entry<K, CacheValue<V>> entry : map.entrySet()) {
+      values.add(entry.getValue().getValue());
     }
     return values;
   }
