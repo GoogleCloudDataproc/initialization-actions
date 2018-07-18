@@ -35,6 +35,14 @@
        fs.gs.performance.cache.max.entry.age.ms (default: 3000 -> 5000)
        fs.gs.performance.cache.list.caching.enable (default: true -> false)
 
+  6. Change default OAuth 2.0 token server URL to
+     `https://oauth2.googleapis.com/token`.
+
+     Default OAuth 2.0 token server URL could be changed via environment
+     variable:
+
+       GOOGLE_OAUTH_TOKEN_SERVER_URL
+
 
 1.9.1 - 2018-07-11
 

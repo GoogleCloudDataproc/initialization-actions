@@ -15,6 +15,10 @@
  */
 package com.google.cloud.hadoop.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Strings.isNullOrEmpty;
+
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.auth.oauth2.TokenRequest;
 import com.google.api.client.auth.oauth2.TokenResponse;
@@ -39,8 +43,7 @@ import com.google.api.client.json.webtoken.JsonWebToken;
 import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.services.storage.StorageScopes;
 import com.google.common.base.Joiner;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
+import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.FileInputStream;
@@ -50,16 +53,19 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Miscellaneous helper methods for getting a {@code Credential} from various sources.
- */
+/** Miscellaneous helper methods for getting a {@code Credential} from various sources. */
 public class CredentialFactory {
 
   static final String CREDENTIAL_ENV_VAR = "GOOGLE_APPLICATION_CREDENTIALS";
 
+  private static final String TOKEN_SERVER_URL_ENV_VAR = "GOOGLE_OAUTH_TOKEN_SERVER_URL";
+  private static final String TOKEN_SERVER_URL_DEFAULT = "https://oauth2.googleapis.com/token";
+  private static final String TOKEN_SERVER_URL =
+      MoreObjects.firstNonNull(System.getenv(TOKEN_SERVER_URL_ENV_VAR), TOKEN_SERVER_URL_DEFAULT);
+
   /**
-   * Simple HttpRequestInitializer that retries requests that result in 5XX response codes and
-   * IO Exceptions with an exponential backoff.
+   * Simple HttpRequestInitializer that retries requests that result in 5XX response codes and IO
+   * Exceptions with an exponential backoff.
    */
   public static class CredentialHttpRetryInitializer implements HttpRequestInitializer {
 
@@ -73,20 +79,17 @@ public class CredentialFactory {
   }
 
   /**
-   * A subclass of {@link GoogleCredential} that properly wires specified
-   * {@link HttpRequestInitializer} through the @{link Credential#executeRefreshToken} override.
-   * <p>
-   * We will not retry 403 "invalid_request" rate limiting errors. See the following for
-   * more on rate limiting in OAuth:
-   * https://code.google.com/p/google-api-java-client/issues/detail?id=879
+   * A subclass of {@link GoogleCredential} that properly wires specified {@link
+   * HttpRequestInitializer} through the @{link Credential#executeRefreshToken} override.
+   *
+   * <p>We will not retry 403 "invalid_request" rate limiting errors. See the following for more on
+   * rate limiting in OAuth: https://code.google.com/p/google-api-java-client/issues/detail?id=879
    */
   public static class GoogleCredentialWithRetry extends GoogleCredential {
 
     private static final int DEFAULT_TOKEN_EXPIRATION_SECONDS = 3600;
 
-    /**
-     * Create a new GoogleCredentialWithRetry from a GoogleCredential.
-     */
+    /** Create a new GoogleCredentialWithRetry from a GoogleCredential. */
     public static GoogleCredentialWithRetry fromGoogleCredential(GoogleCredential credential) {
       GoogleCredential.Builder builder =
           new GoogleCredential.Builder()
@@ -110,7 +113,7 @@ public class CredentialFactory {
     }
 
     public GoogleCredentialWithRetry(Builder builder) {
-      super(builder);
+      super(builder.setTokenServerEncodedUrl(TOKEN_SERVER_URL));
     }
 
     @Override
@@ -119,38 +122,42 @@ public class CredentialFactory {
         return super.executeRefreshToken();
       }
       // service accounts: no refresh token; instead use private key to request new access token
-      JsonWebSignature.Header header = new JsonWebSignature.Header();
-      header.setAlgorithm("RS256");
-      header.setType("JWT");
-      header.setKeyId(getServiceAccountPrivateKeyId());
-      JsonWebToken.Payload payload = new JsonWebToken.Payload();
+      JsonWebSignature.Header header =
+          new JsonWebSignature.Header()
+              .setAlgorithm("RS256")
+              .setType("JWT")
+              .setKeyId(getServiceAccountPrivateKeyId());
+
       long currentTime = getClock().currentTimeMillis();
-      payload.setIssuer(getServiceAccountId());
-      payload.setAudience(getTokenServerEncodedUrl());
-      payload.setIssuedAtTimeSeconds(currentTime / 1000);
-      payload.setExpirationTimeSeconds(currentTime / 1000 + DEFAULT_TOKEN_EXPIRATION_SECONDS);
-      payload.setSubject(getServiceAccountUser());
+      JsonWebToken.Payload payload =
+          new JsonWebToken.Payload()
+              .setIssuer(getServiceAccountId())
+              .setAudience(getTokenServerEncodedUrl())
+              .setIssuedAtTimeSeconds(currentTime / 1000)
+              .setExpirationTimeSeconds(currentTime / 1000 + DEFAULT_TOKEN_EXPIRATION_SECONDS)
+              .setSubject(getServiceAccountUser());
       payload.put("scope", Joiner.on(' ').join(getServiceAccountScopes()));
+
       try {
-        String assertion = JsonWebSignature.signUsingRsaSha256(
-            getServiceAccountPrivateKey(), getJsonFactory(), header, payload);
-        TokenRequest request = new TokenRequest(
-            getTransport(), getJsonFactory(), new GenericUrl(getTokenServerEncodedUrl()),
-            "urn:ietf:params:oauth:grant-type:jwt-bearer");
+        String assertion =
+            JsonWebSignature.signUsingRsaSha256(
+                getServiceAccountPrivateKey(), getJsonFactory(), header, payload);
+        TokenRequest request =
+            new TokenRequest(
+                    getTransport(),
+                    getJsonFactory(),
+                    new GenericUrl(getTokenServerEncodedUrl()),
+                    "urn:ietf:params:oauth:grant-type:jwt-bearer")
+                .setRequestInitializer(getRequestInitializer());
         request.put("assertion", assertion);
-        request.setRequestInitializer(getRequestInitializer());
         return request.execute();
       } catch (GeneralSecurityException exception) {
-        IOException e = new IOException();
-        e.initCause(exception);
-        throw e;
+        throw (IOException) new IOException().initCause(exception);
       }
     }
   }
 
-  /**
-   * A subclass of ComputeCredential that properly sets request initializers.
-   */
+  /** A subclass of ComputeCredential that properly sets request initializers. */
   public static class ComputeCredentialWithRetry extends ComputeCredential {
 
     public ComputeCredentialWithRetry(Builder builder) {
@@ -159,12 +166,11 @@ public class CredentialFactory {
 
     @Override
     protected TokenResponse executeRefreshToken() throws IOException {
-      GenericUrl tokenUrl = new GenericUrl(getTokenServerEncodedUrl());
       HttpRequest request =
           getTransport()
               .createRequestFactory(getRequestInitializer())
-              .buildGetRequest(tokenUrl);
-      request.setParser(new JsonObjectParser(getJsonFactory()));
+              .buildGetRequest(new GenericUrl(getTokenServerEncodedUrl()))
+              .setParser(new JsonObjectParser(getJsonFactory()));
       request.getHeaders().set("Metadata-Flavor", "Google");
       return request.execute().parseAs(TokenResponse.class);
     }
@@ -204,9 +210,9 @@ public class CredentialFactory {
   }
 
   /**
-   * Initializes OAuth2 credential using preconfigured ServiceAccount settings on the local
-   * GCE VM. See: <a href="https://developers.google.com/compute/docs/authentication"
-   * >Authenticating from Google Compute Engine</a>.
+   * Initializes OAuth2 credential using preconfigured ServiceAccount settings on the local GCE VM.
+   * See: <a href="https://developers.google.com/compute/docs/authentication">Authenticating from
+   * Google Compute Engine</a>.
    */
   public Credential getCredentialFromMetadataServiceAccount()
       throws IOException, GeneralSecurityException {
@@ -218,8 +224,9 @@ public class CredentialFactory {
     try {
       cred.refreshToken();
     } catch (IOException e) {
-      throw new IOException("Error getting access token from metadata server at: "
-          + ComputeCredential.TOKEN_SERVER_ENCODED_URL, e);
+      throw new IOException(
+          "Error getting access token from metadata server at: " + cred.getTokenServerEncodedUrl(),
+          e);
     }
     return cred;
   }
@@ -240,7 +247,8 @@ public class CredentialFactory {
       List<String> scopes,
       HttpTransport transport)
       throws IOException, GeneralSecurityException {
-    LOG.debug("getCredentialFromPrivateKeyServiceAccount({}, {}, {})",
+    LOG.debug(
+        "getCredentialFromPrivateKeyServiceAccount({}, {}, {})",
         serviceAccountEmail, privateKeyFile, scopes);
 
     return new GoogleCredentialWithRetry(
@@ -263,8 +271,7 @@ public class CredentialFactory {
   public Credential getCredentialFromJsonKeyFile(
       String serviceAccountJsonKeyFile, List<String> scopes, HttpTransport transport)
       throws IOException, GeneralSecurityException {
-    LOG.debug("getCredentialFromJsonKeyFile({}, {})",
-        serviceAccountJsonKeyFile, scopes);
+    LOG.debug("getCredentialFromJsonKeyFile({}, {})", serviceAccountJsonKeyFile, scopes);
 
     try (FileInputStream fis = new FileInputStream(serviceAccountJsonKeyFile)) {
       return GoogleCredentialWithRetry.fromGoogleCredential(
@@ -292,33 +299,28 @@ public class CredentialFactory {
       List<String> scopes,
       HttpTransport transport)
       throws IOException, GeneralSecurityException {
-    LOG.debug("getCredentialFromFileCredentialStoreForInstalledApp({}, {}, {}, {})",
+    LOG.debug(
+        "getCredentialFromFileCredentialStoreForInstalledApp({}, {}, {}, {})",
         clientId, clientSecret, filePath, scopes);
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(clientId),
-        "clientId must not be null or empty");
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(clientSecret),
-        "clientSecret must not be null or empty");
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(filePath),
-        "filePath must not be null or empty");
-    Preconditions.checkArgument(scopes != null,
-        "scopes must not be null or empty");
+    checkArgument(!isNullOrEmpty(clientId), "clientId must not be null or empty");
+    checkArgument(!isNullOrEmpty(clientSecret), "clientSecret must not be null or empty");
+    checkArgument(!isNullOrEmpty(filePath), "filePath must not be null or empty");
+    checkNotNull(scopes, "scopes must not be null");
 
     // Initialize client secrets.
-    GoogleClientSecrets.Details details = new GoogleClientSecrets.Details();
-    details.setClientId(clientId);
-    details.setClientSecret(clientSecret);
-    GoogleClientSecrets clientSecrets = new GoogleClientSecrets();
-    clientSecrets.setInstalled(details);
+    GoogleClientSecrets.Details details =
+        new GoogleClientSecrets.Details().setClientId(clientId).setClientSecret(clientSecret);
+    GoogleClientSecrets clientSecrets = new GoogleClientSecrets().setInstalled(details);
 
     // Set up file credential store.
-    FileCredentialStore credentialStore =
-        new FileCredentialStore(new File(filePath), JSON_FACTORY);
+    FileCredentialStore credentialStore = new FileCredentialStore(new File(filePath), JSON_FACTORY);
 
     // Set up authorization code flow.
     GoogleAuthorizationCodeFlow flow =
         new GoogleAuthorizationCodeFlow.Builder(transport, JSON_FACTORY, clientSecrets, scopes)
             .setCredentialStore(credentialStore)
             .setRequestInitializer(new CredentialHttpRetryInitializer())
+            .setTokenServerUrl(new GenericUrl(TOKEN_SERVER_URL))
             .build();
 
     // Authorize access.
