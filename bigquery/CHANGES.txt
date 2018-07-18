@@ -1,4 +1,4 @@
-0.13.2 - 2018-XX-XX
+0.13.2 - 2018-07-18
 
   1. POM updates for GCS connector 1.9.2.
 
