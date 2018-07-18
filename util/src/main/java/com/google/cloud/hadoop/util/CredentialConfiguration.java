@@ -18,7 +18,6 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.HttpTransport;
 import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import java.io.IOException;
@@ -27,12 +26,11 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Configuration for how components should obtain Credentials.
- */
+/** Configuration for how components should obtain Credentials. */
 public class CredentialConfiguration {
   protected static final Logger LOG = LoggerFactory.getLogger(CredentialConfiguration.class);
-  private Optional<Boolean> isServiceAccountEnabled = Optional.absent();
+
+  private boolean serviceAccountEnabled = true;
   private String serviceAccountEmail = null;
   private String serviceAccountKeyFile = null;
   private String serviceAccountJsonKeyFile = null;
@@ -58,8 +56,8 @@ public class CredentialConfiguration {
    * 4. If service accounts are disabled and null credentials are enabled for unit testing, return
    *    null
    *
-   * @throws IllegalStateException if none of the above conditions are met and a
-   *    Credential cannot be created
+   * @throws IllegalStateException if none of the above conditions are met and a Credential cannot
+   *     be created
    */
   public Credential getCredential(List<String> scopes)
       throws IOException, GeneralSecurityException {
@@ -71,7 +69,7 @@ public class CredentialConfiguration {
       // running in GCE).
       if (shouldUseMetadataService()) {
         LOG.debug("Getting service account credentials from meta data service.");
-        //TODO(user): Validate the returned credential has access to the given scopes.
+        // TODO(user): Validate the returned credential has access to the given scopes.
         return credentialFactory.getCredentialFromMetadataServiceAccount();
       }
 
@@ -88,14 +86,13 @@ public class CredentialConfiguration {
       }
 
       if (!Strings.isNullOrEmpty(serviceAccountKeyFile)) {
-        // A keyfile is specified, use email-address and p12 based authentication.
+        // A key file is specified, use email-address and p12 based authentication.
         Preconditions.checkState(
             !Strings.isNullOrEmpty(serviceAccountEmail),
             "Email must be set if using service account auth and a key file is specified.");
         LOG.debug(
             "Using service account email {} and private key file {}",
-            serviceAccountEmail,
-            serviceAccountKeyFile);
+            serviceAccountEmail, serviceAccountKeyFile);
 
         return credentialFactory.getCredentialFromPrivateKeyServiceAccount(
             serviceAccountEmail, serviceAccountKeyFile, scopes, getTransport());
@@ -147,11 +144,11 @@ public class CredentialConfiguration {
   }
 
   public boolean isServiceAccountEnabled() {
-    return !isServiceAccountEnabled.isPresent() || isServiceAccountEnabled.get();
+    return serviceAccountEnabled;
   }
 
   public void setEnableServiceAccounts(boolean enableServiceAccounts) {
-    this.isServiceAccountEnabled = Optional.of(enableServiceAccounts);
+    this.serviceAccountEnabled = enableServiceAccounts;
   }
 
   public String getServiceAccountEmail() {
@@ -218,7 +215,7 @@ public class CredentialConfiguration {
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder();
-    builder.append("isServiceAccountEnabled: ").append(isServiceAccountEnabled()).append('\n');
+    builder.append("serviceAccountEnabled: ").append(isServiceAccountEnabled()).append('\n');
     builder.append("serviceAccountEmail: ").append(getServiceAccountEmail()).append('\n');
     builder.append("serviceAccountKeyfile: ").append(getServiceAccountKeyFile()).append('\n');
     builder.append("clientId: ").append(getClientId()).append('\n');
