@@ -70,7 +70,8 @@ readonly keystore_password=$(gsutil cat $keystore_password_uri | \
   --plaintext-file - \
   --key $kms_key_uri)
 readonly dataproc_bucket=$(/usr/share/google/get_metadata_value attributes/dataproc-bucket)
-readonly keystore_bucket=$(/usr/share/google/get_metadata_value attributes/keystore-bucket)
+readonly keystore_uri=$(/usr/share/google/get_metadata_value attributes/keystore-uri)
+readonly truststore_uri=$(/usr/share/google/get_metadata_value attributes/truststore-uri)
 readonly cluster_uuid=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-uuid)
 readonly krb5_server_mark_file="krb5-server-mark"
 
@@ -285,8 +286,8 @@ function config_mapred_site() {
 
 function copy_keystore_files() {
   mkdir $HADOOP_CONF_DIR/ssl
-  gsutil cp gs://$keystore_bucket/keystore.jks $HADOOP_CONF_DIR/ssl
-  gsutil cp gs://$keystore_bucket/truststore.jks $HADOOP_CONF_DIR/ssl
+  gsutil cp $keystore_uri $HADOOP_CONF_DIR/ssl/keystore.jks
+  gsutil cp $truststore_uri $HADOOP_CONF_DIR/ssl/truststore.jks
   chown -R yarn:hadoop $HADOOP_CONF_DIR/ssl
   chmod 755 $HADOOP_CONF_DIR/ssl
   chmod 440 $HADOOP_CONF_DIR/ssl/keystore.jks
