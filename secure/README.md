@@ -30,5 +30,5 @@ All the metadata key-value pairs are required to properly secure the cluster.
 
 ## Important notes
 1. This initialization action does not support Dataproc clusters in HA mode.
-1. Only a root user principal "root@<REALM>" will be provided (password specfied by caller). It has administrative permission to the KDC.
+1. Only a root user principal "root@`<REALM>`" will be provided (password specfied by caller). It has administrative permission to the KDC.
 1. Once the cluster is secured ("Kerberized"), submitting a Yarn job through gcloud will stop working. You can however still ssh to the master and submit a job.
