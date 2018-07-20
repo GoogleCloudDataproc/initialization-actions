@@ -76,15 +76,13 @@ readonly cluster_uuid=$(/usr/share/google/get_metadata_value attributes/dataproc
 readonly krb5_server_mark_file="krb5-server-mark"
 
 function install_and_start_kerberos_server() {
-  # Install the krb5-kdc and krb5-admin-server packages
   DEBIAN_FRONTEND=noninteractive apt-get install -y krb5-kdc; \
   DEBIAN_FRONTEND=noninteractive apt-get install -y krb5-admin-server || TRUE
   krb5_configuration
 
   # Retrieve the password to new db and generate new db
-  # Worth mentioning is that the '-W' option will force use /dev/urandom instead
-  # of /dev/random for entropy, which will help speed up db creation, but people
-  # argue that urandom does not provide guarantee of randomness.
+  # The '-W' option will force the use of /dev/urandom instead
+  # of /dev/random for entropy, which will help speed up db creation.
   echo -e "$db_password\n$db_password" | /usr/sbin/kdb5_util create -s -W
 
   service krb5-kdc restart || err 'Cannot restart KDC'
@@ -258,8 +256,6 @@ function config_yarn_site_and_permission() {
   set_property_yarn_site 'yarn.http.policy' 'HTTPS_ONLY'
   set_property_yarn_site 'yarn.log.server.url' "https://$MASTER_FQDN:19889/jobhistory/logs"
 
-  # TODO: did not find a way to allow root. Seems to be a big problem
-  # if we consier submitting jobs through agent, which runs as root.
   cat << EOF > $HADOOP_CONF_DIR/container-executor.cfg
 yarn.nodemanager.linux-container-executor.group=yarn
 banned.users=hdfs,yarn,mapred,bin
