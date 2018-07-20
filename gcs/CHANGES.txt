@@ -1,5 +1,9 @@
 1.9.3 - 2018-XX-XX
 
+  1. Ignore `fs.gs.io.buffer` property when determining HTTP range request size
+     in fadvise `RANDOM` mode which is used to limit minimum size of HTTP range
+     request.
+
 
 1.9.2 - 2018-07-18
 

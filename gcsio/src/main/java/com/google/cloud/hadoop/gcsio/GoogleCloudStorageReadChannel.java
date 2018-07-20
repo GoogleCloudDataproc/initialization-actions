@@ -869,10 +869,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       rangeHeader = "bytes=" + currentPosition + "-";
 
       if (randomAccess) {
-        long rangeSize = Math.max(bufferSize, limit);
-        // When bufferSize is 0 and limit passed by client is very small,
-        // we still don't want to send too small range request to GCS.
-        rangeSize = Math.max(rangeSize, readOptions.getMinRangeRequestSize());
+        long rangeSize = Math.max(limit, readOptions.getMinRangeRequestSize());
         // limit rangeSize to the object end
         rangeSize = Math.min(rangeSize, size - currentPosition);
         long rangeEndInclusive = currentPosition + rangeSize - 1;
@@ -895,7 +892,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       contentChannelEnd = size;
     }
 
-    // limit buffer size to the object end
+    // limit buffer size to the channel end
     bufferSize = Math.toIntExact(Math.min(bufferSize, contentChannelEnd - currentPosition));
 
     checkState(
