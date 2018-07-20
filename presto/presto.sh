@@ -20,12 +20,14 @@ readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly PRESTO_MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 readonly WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 readonly CONNECTOR_JAR="$(find /usr/lib/hadoop/lib -name 'gcs-connector-*.jar')"
-readonly PRESTO_VERSION='0.177'
+readonly PRESTO_VERSION='0.206'
 readonly HTTP_PORT='8080'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/presto.service'
 PRESTO_JVM_MB=0;
 PRESTO_QUERY_NODE_MB=0;
 PRESTO_RESERVED_SYSTEM_MB=0;
+# Allocate some headroom for untracked memory usage (in the heap and to help GC).
+PRESTO_HEADROOM_NODE_MB=256;
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
@@ -77,7 +79,7 @@ function calculate_memory(){
   PRESTO_JVM_MB=$(( ${spark_container_mb} * ${spark_executor_count} ))
   readonly PRESTO_JVM_MB
 
-  # Give query.max-memorr-per-node 60% of Xmx; this more-or-less assumes a
+  # Give query.max-memory-per-node 60% of Xmx; this more-or-less assumes a
   # single-tenant use case rather than trying to allow many concurrent queries
   # against a shared cluster.
   # Subtract out spark_executor_overhead_mb in both the query MB and reserved
@@ -142,6 +144,8 @@ node-scheduler.include-coordinator=${include_coordinator}
 http-server.http.port=${HTTP_PORT}
 query.max-memory=999TB
 query.max-memory-per-node=${PRESTO_QUERY_NODE_MB}MB
+query.max-total-memory-per-node=${PRESTO_QUERY_NODE_MB}MB
+memory.heap-headroom-per-node=${PRESTO_HEADROOM_NODE_MB}MB
 resources.reserved-system-memory=${PRESTO_RESERVED_SYSTEM_MB}MB
 discovery-server.enabled=true
 discovery.uri=http://${PRESTO_MASTER_FQDN}:${HTTP_PORT}
@@ -158,6 +162,8 @@ coordinator=false
 http-server.http.port=${HTTP_PORT}
 query.max-memory=999TB
 query.max-memory-per-node=${PRESTO_QUERY_NODE_MB}MB
+query.max-total-memory-per-node=${PRESTO_QUERY_NODE_MB}MB
+memory.heap-headroom-per-node=${PRESTO_HEADROOM_NODE_MB}MB
 resources.reserved-system-memory=${PRESTO_RESERVED_SYSTEM_MB}MB
 discovery.uri=http://${PRESTO_MASTER_FQDN}:${HTTP_PORT}
 EOF
