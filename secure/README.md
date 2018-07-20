@@ -7,17 +7,17 @@ It will also encrypt HTTP traffic (include Web UIs and shuffle) with SSL.
 You can use this initialization action to create a secured Dataproc cluster:
   Using the `gcloud` command to create a new cluster with this initialization action.
 
-    ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-        --scopes cloud-platform \
-        --initialization-actions gs://dataproc-initialization-actions/secure/secure.sh \
-        --metadata "kms-key-uri=projects/<PROJECT_ID>/locations/global/keyRings/my-key-rings/cryptoKeys/my-key" \
-        --metadata "keystore-uri=gs://<SECRET-BUCKET>/keystore.jks" \
-        --metadata "truststore-uri=gs://<SECRET-BUCKET>/truststore.jks" \
-        --metadata "db-password-uri=gs://<SECRET-BUCKET>/dp-password.encrypted" \
-        --metadata "root-password-uri=gs://<SECRET-BUCKET>/root-password.encrypted" \
-        --metadata "keystore-password-uri=gs://<SECRET-BUCKET>/keystore-password.encrypted"
-    ```
+```bash
+gcloud dataproc clusters create <CLUSTER_NAME> \
+    --scopes cloud-platform \
+    --initialization-actions gs://dataproc-initialization-actions/secure/secure.sh \
+    --metadata "kms-key-uri=projects/<PROJECT_ID>/locations/global/keyRings/my-key-rings/cryptoKeys/my-key" \
+    --metadata "keystore-uri=gs://<SECRET-BUCKET>/keystore.jks" \
+    --metadata "truststore-uri=gs://<SECRET-BUCKET>/truststore.jks" \
+    --metadata "db-password-uri=gs://<SECRET-BUCKET>/dp-password.encrypted" \
+    --metadata "root-password-uri=gs://<SECRET-BUCKET>/root-password.encrypted" \
+    --metadata "keystore-password-uri=gs://<SECRET-BUCKET>/keystore-password.encrypted"
+```
 
 All the metadata key-value pairs are required to properly secure the cluster.
 
