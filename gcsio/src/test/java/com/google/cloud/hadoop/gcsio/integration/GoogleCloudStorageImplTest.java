@@ -28,6 +28,7 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
+import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -58,10 +59,9 @@ public class GoogleCloudStorageImplTest {
 
   protected GoogleCloudStorageImpl makeStorageWithBufferSize(int bufferSize) throws IOException {
     GoogleCloudStorageOptions.Builder builder =
-        GoogleCloudStorageTestHelper.getStandardOptionBuilder();
-
-    builder.getWriteChannelOptionsBuilder()
-        .setUploadBufferSize(bufferSize);
+        GoogleCloudStorageTestHelper.getStandardOptionBuilder()
+            .setWriteChannelOptions(
+                AsyncWriteChannelOptions.newBuilder().setUploadBufferSize(bufferSize).build());
 
     return makeStorage(builder.build());
   }

@@ -58,7 +58,7 @@ public class GoogleCloudStorageFileSystemOptions {
         };
 
     private GoogleCloudStorageOptions.Builder cloudStorageOptionsBuilder =
-        new GoogleCloudStorageOptions.Builder();
+        GoogleCloudStorageOptions.newBuilder();
     private GoogleCloudStorageOptions immutableCloudStorageOptions = null;
 
     private PathCodec pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
@@ -142,7 +142,7 @@ public class GoogleCloudStorageFileSystemOptions {
     public Builder setImmutableCloudStorageOptions(
         GoogleCloudStorageOptions immutableCloudStorageOptions) {
       this.immutableCloudStorageOptions = immutableCloudStorageOptions;
-      this.cloudStorageOptionsBuilder = new GoogleCloudStorageOptions.Builder();
+      this.cloudStorageOptionsBuilder = GoogleCloudStorageOptions.newBuilder();
       return this;
     }
 

@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThrows;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
+import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -161,9 +162,11 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
                 .getCloudStorageOptionsBuilder()
                 .setAppName(appName)
                 .setProjectId(projectId)
-                .getWriteChannelOptionsBuilder()
-                .setFileSizeLimitedTo250Gb(GCS_FILE_SIZE_LIMIT_250GB_DEFAULT)
-                .setUploadBufferSize(WRITE_BUFFERSIZE_DEFAULT);
+                .setWriteChannelOptions(
+                    AsyncWriteChannelOptions.newBuilder()
+                        .setFileSizeLimitedTo250Gb(GCS_FILE_SIZE_LIMIT_250GB_DEFAULT)
+                        .setUploadBufferSize(WRITE_BUFFERSIZE_DEFAULT)
+                        .build());
 
             gcsfs = new GoogleCloudStorageFileSystem(credential, optionsBuilder.build());
 
@@ -370,7 +373,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
             .contains(expectedPath);
       }
     } else {
-      assertThat(expectedPaths).containsExactlyElementsIn(listedUris);
+      assertThat(listedUris).containsExactlyElementsIn(expectedPaths);
     }
   }
 
@@ -1487,11 +1490,12 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
       threadPool.shutdown();
       try {
         if (!threadPool.awaitTermination(10L, TimeUnit.SECONDS)) {
-          System.err.println("Failed to awaitTermination! Forcing executor shutdown.");
+          LOG.error("Failed to awaitTermination! Forcing executor shutdown.");
           threadPool.shutdownNow();
         }
       } catch (InterruptedException ie) {
-        throw new IOException("Interrupted while shutting down threadpool!", ie);
+        LOG.error("Interrupted while shutting down threadpool!", ie);
+        threadPool.shutdownNow();
       }
     }
   }

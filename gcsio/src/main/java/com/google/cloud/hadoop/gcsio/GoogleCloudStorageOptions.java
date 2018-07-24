@@ -15,25 +15,35 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
+import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
 import com.google.cloud.hadoop.util.RequesterPaysOptions;
 import javax.annotation.Nullable;
 
 /** Configuration options for the GoogleCloudStorage class. */
-public class GoogleCloudStorageOptions {
-
-  /** Default number of items to return per call to the list* GCS RPCs. */
-  public static final long MAX_LIST_ITEMS_PER_CALL_DEFAULT = 1024;
+@AutoValue
+public abstract class GoogleCloudStorageOptions {
 
   /** Default setting for enabling auto-repair of implicit directories. */
   public static final boolean AUTO_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT = true;
 
   /** Default setting for enabling inferring of implicit directories. */
   public static final boolean INFER_IMPLICIT_DIRECTORIES_DEFAULT = true;
+
+  /** Default setting for whether or not to create a marker file when beginning file creation. */
+  public static final boolean CREATE_EMPTY_MARKER_OBJECT_DEFAULT = false;
+
+  /**
+   * Default setting for the length of time to wait for empty objects to appear if we believe we are
+   * in a race with multiple workers.
+   */
+  public static final int MAX_WAIT_MILLIS_FOR_EMPTY_OBJECT_CREATION = 3_000;
+
+  /** Default number of items to return per call to the list* GCS RPCs. */
+  public static final long MAX_LIST_ITEMS_PER_CALL_DEFAULT = 1024;
 
   /** Default setting for maximum number of requests per GCS batch. */
   public static final long MAX_REQUESTS_PER_BATCH_DEFAULT = 30;
@@ -47,277 +57,144 @@ public class GoogleCloudStorageOptions {
   /** Default setting for read timeout (in millisecond) of GCS HTTP request. */
   public static final int HTTP_REQUEST_READ_TIMEOUT = 20 * 1000;
 
-  /** Default setting for whether or not to create a marker file when beginning file creation. */
-  public static final boolean CREATE_EMPTY_MARKER_OBJECT_DEFAULT = false;
-
-  /**
-   * Default setting for the length of time to wait for empty objects to appear if we believe
-   * we are in a race with multiple workers.
-   */
-  public static final int MAX_WAIT_MILLIS_FOR_EMPTY_OBJECT_CREATION = 3_000;
-
-  public static final RequesterPaysOptions DEFAULT_REQUESTER_PAYS_OPTIONS =
-      RequesterPaysOptions.DEFAULT;
-
   /** Default setting for whether or not to use rewrite request for copy operation. */
   public static final boolean COPY_WITH_REWRITE_DEFAULT = false;
 
-  /** Mutable builder for the GoogleCloudStorageOptions class. */
-  public static class Builder {
-    private boolean autoRepairImplicitDirectoriesEnabled = AUTO_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT;
-    private boolean inferImplicitDirectoriesEnabled = INFER_IMPLICIT_DIRECTORIES_DEFAULT;
-    private String projectId = null;
-    private String appName = null;
-    private HttpTransportFactory.HttpTransportType transportType =
-        HttpTransportFactory.DEFAULT_TRANSPORT_TYPE;
-    private String proxyAddress = null;
-    private long maxListItemsPerCall = MAX_LIST_ITEMS_PER_CALL_DEFAULT;
-    private boolean createMarkerObjects = CREATE_EMPTY_MARKER_OBJECT_DEFAULT;
-    private int maxWaitMillisForEmptyObjectCreation = MAX_WAIT_MILLIS_FOR_EMPTY_OBJECT_CREATION;
+  /** Default setting for async write channel. */
+  public static final AsyncWriteChannelOptions ASYNC_WRITE_CHANNEL_OPTIONS_DEFAULT =
+      AsyncWriteChannelOptions.newBuilder().build();
 
-    // According to https://developers.google.com/storage/docs/json_api/v1/how-tos/batch, there is a
-    // maximum of 1000 requests per batch; it should not generally be necessary to modify this value
-    // manually, except possibly for testing purposes.
-    private long maxRequestsPerBatch = MAX_REQUESTS_PER_BATCH_DEFAULT;
+  /** Default setting for requester pays feature. */
+  public static final RequesterPaysOptions REQUESTER_PAYS_OPTIONS_DEFAULT =
+      RequesterPaysOptions.DEFAULT;
 
-    private int maxHttpRequestRetries = MAX_HTTP_REQUEST_RETRIES;
+  public static Builder newBuilder() {
+    return new AutoValue_GoogleCloudStorageOptions.Builder()
+        .setAutoRepairImplicitDirectoriesEnabled(AUTO_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT)
+        .setInferImplicitDirectoriesEnabled(INFER_IMPLICIT_DIRECTORIES_DEFAULT)
+        .setCreateMarkerObjects(CREATE_EMPTY_MARKER_OBJECT_DEFAULT)
+        .setMaxWaitMillisForEmptyObjectCreation(MAX_WAIT_MILLIS_FOR_EMPTY_OBJECT_CREATION)
+        .setMaxListItemsPerCall(MAX_LIST_ITEMS_PER_CALL_DEFAULT)
+        .setMaxRequestsPerBatch(MAX_REQUESTS_PER_BATCH_DEFAULT)
+        .setMaxHttpRequestRetries(MAX_HTTP_REQUEST_RETRIES)
+        .setHttpRequestConnectTimeout(HTTP_REQUEST_CONNECT_TIMEOUT)
+        .setHttpRequestReadTimeout(HTTP_REQUEST_READ_TIMEOUT)
+        .setTransportType(HttpTransportFactory.DEFAULT_TRANSPORT_TYPE)
+        .setCopyWithRewriteEnabled(COPY_WITH_REWRITE_DEFAULT)
+        .setWriteChannelOptions(ASYNC_WRITE_CHANNEL_OPTIONS_DEFAULT)
+        .setRequesterPaysOptions(REQUESTER_PAYS_OPTIONS_DEFAULT);
+  }
 
-    private int httpRequestConnectTimeout = HTTP_REQUEST_CONNECT_TIMEOUT;
+  @Nullable
+  public abstract String getProjectId();
 
-    private int httpRequestReadTimeout = HTTP_REQUEST_READ_TIMEOUT;
+  @Nullable
+  public abstract String getAppName();
 
-    private AsyncWriteChannelOptions.Builder writeChannelOptionsBuilder =
-        new AsyncWriteChannelOptions.Builder();
+  public abstract boolean isAutoRepairImplicitDirectoriesEnabled();
 
-    private RequesterPaysOptions requesterPaysOptions = DEFAULT_REQUESTER_PAYS_OPTIONS;
+  public abstract boolean isInferImplicitDirectoriesEnabled();
 
-    private boolean copyWithRewriteEnabled = COPY_WITH_REWRITE_DEFAULT;
+  public abstract boolean isMarkerFileCreationEnabled();
 
-    public Builder setAutoRepairImplicitDirectoriesEnabled(
-        boolean autoRepairImplicitDirectoriesEnabled) {
-      this.autoRepairImplicitDirectoriesEnabled = autoRepairImplicitDirectoriesEnabled;
-      return this;
-    }
+  public abstract int getMaxWaitMillisForEmptyObjectCreation();
 
-    public Builder setInferImplicitDirectoriesEnabled(
-        boolean inferImplicitDirectoriesEnabled) {
-      this.inferImplicitDirectoriesEnabled = inferImplicitDirectoriesEnabled;
-      return this;
-    }
+  public abstract long getMaxListItemsPerCall();
 
-    public Builder setProjectId(String projectId) {
-      this.projectId = projectId;
-      return this;
-    }
+  public abstract long getMaxRequestsPerBatch();
 
-    public Builder setAppName(String appName) {
-      this.appName = appName;
-      return this;
-    }
+  public abstract int getMaxHttpRequestRetries();
 
-    public Builder setMaxListItemsPerCall(long maxListItemsPerCall) {
-      this.maxListItemsPerCall = maxListItemsPerCall;
-      return this;
-    }
+  public abstract int getHttpRequestConnectTimeout();
 
-    public Builder setMaxRequestsPerBatch(long maxRequestsPerBatch) {
-      this.maxRequestsPerBatch = maxRequestsPerBatch;
-      return this;
-    }
+  public abstract int getHttpRequestReadTimeout();
 
-    public Builder setMaxHttpRequestRetries(int maxHttpRequestRetries) {
-      this.maxHttpRequestRetries = maxHttpRequestRetries;
-      return this;
-    }
+  public abstract HttpTransportFactory.HttpTransportType getTransportType();
 
-    public Builder setHttpRequestConnectTimeout(int httpRequestConnectTimeout) {
-      this.httpRequestConnectTimeout = httpRequestConnectTimeout;
-      return this;
-    }
+  @Nullable
+  public abstract String getProxyAddress();
 
-    public Builder setHttpRequestReadTimeout(int httpRequestReadTimeout) {
-      this.httpRequestReadTimeout = httpRequestReadTimeout;
-      return this;
-    }
+  public abstract boolean isCopyWithRewriteEnabled();
 
+  public abstract AsyncWriteChannelOptions getWriteChannelOptions();
+
+  public abstract RequesterPaysOptions getRequesterPaysOptions();
+
+  public abstract Builder toBuilder();
+
+  public void throwIfNotValid() {
+    checkArgument(!isNullOrEmpty(getAppName()), "appName must not be null or empty");
+  }
+
+  /** Mutable builder for the {@link GoogleCloudStorageOptions} class. */
+  @AutoValue.Builder
+  public abstract static class Builder {
+
+    public abstract Builder setProjectId(String projectId);
+
+    public abstract Builder setAppName(String appName);
+
+    public abstract Builder setAutoRepairImplicitDirectoriesEnabled(boolean autoRepair);
+
+    public abstract Builder setInferImplicitDirectoriesEnabled(boolean inferImplicitDirectories);
+
+    public abstract Builder setMarkerFileCreationEnabled(boolean markerFileCreationEnabled);
+
+    /** @deprecated use {@link #setMarkerFileCreationEnabled} instead */
+    @Deprecated
     public Builder setCreateMarkerObjects(boolean createMarkerObjects) {
-      this.createMarkerObjects = createMarkerObjects;
-      return this;
+      return setMarkerFileCreationEnabled(createMarkerObjects);
     }
 
-    public Builder setTransportType(HttpTransportFactory.HttpTransportType transportType) {
-      this.transportType = transportType;
-      return this;
-    }
+    public abstract Builder setMaxWaitMillisForEmptyObjectCreation(int durationMillis);
 
-    public Builder setProxyAddress(String proxyAddress) {
-      this.proxyAddress = proxyAddress;
-      return this;
-    }
+    public abstract Builder setMaxListItemsPerCall(long maxListItemsPerCall);
 
+    // According to https://developers.google.com/storage/docs/json_api/v1/how-tos/batch
+    // there is a maximum of 1000 requests per batch.
+    public abstract Builder setMaxRequestsPerBatch(long maxRequestsPerBatch);
+
+    public abstract Builder setMaxHttpRequestRetries(int maxHttpRequestRetries);
+
+    public abstract Builder setHttpRequestConnectTimeout(int httpRequestConnectTimeout);
+
+    public abstract Builder setHttpRequestReadTimeout(int httpRequestReadTimeout);
+
+    public abstract Builder setTransportType(HttpTransportFactory.HttpTransportType transportType);
+
+    public abstract Builder setProxyAddress(String proxyAddress);
+
+    public abstract Builder setCopyWithRewriteEnabled(boolean copyWithRewrite);
+
+    public abstract Builder setWriteChannelOptions(AsyncWriteChannelOptions writeChannelOptions);
+
+    @Deprecated private AsyncWriteChannelOptions.Builder writeChannelOptionsBuilder;
+
+    /** @deprecated use {@link #setWriteChannelOptions} instead */
+    @Deprecated
     public Builder setWriteChannelOptionsBuilder(AsyncWriteChannelOptions.Builder builder) {
       writeChannelOptionsBuilder = builder;
       return this;
     }
 
+    /** @deprecated use {@link #setWriteChannelOptions} instead */
+    @Deprecated
     public AsyncWriteChannelOptions.Builder getWriteChannelOptionsBuilder() {
-      return writeChannelOptionsBuilder;
+      return writeChannelOptionsBuilder == null
+          ? writeChannelOptionsBuilder = AsyncWriteChannelOptions.newBuilder()
+          : writeChannelOptionsBuilder;
     }
 
-    public Builder setMaxWaitMillisForEmptyObjectCreation(int maxWaitMillisForEmptyObjectCreation) {
-      this.maxWaitMillisForEmptyObjectCreation = maxWaitMillisForEmptyObjectCreation;
-      return this;
-    }
+    public abstract Builder setRequesterPaysOptions(RequesterPaysOptions requesterPaysOptions);
 
-    public Builder setRequesterPaysOptions(RequesterPaysOptions requesterPaysOptions) {
-      this.requesterPaysOptions = requesterPaysOptions;
-      return this;
-    }
-
-    public Builder setCopyWithRewriteEnabled(boolean copyWithRewriteEnabled) {
-      this.copyWithRewriteEnabled = copyWithRewriteEnabled;
-      return this;
-    }
+    abstract GoogleCloudStorageOptions autoBuild();
 
     public GoogleCloudStorageOptions build() {
-      return new GoogleCloudStorageOptions(this);
+      if (writeChannelOptionsBuilder != null) {
+        setWriteChannelOptions(writeChannelOptionsBuilder.build());
+      }
+      return autoBuild();
     }
-  }
 
-  public static Builder newBuilder() {
-    return new Builder();
-  }
-
-  private final boolean autoRepairImplicitDirectoriesEnabled;
-  private final boolean inferImplicitDirectoriesEnabled;
-  private final String projectId;
-  private final String appName;
-  private final HttpTransportFactory.HttpTransportType transportType;
-  private final String proxyAddress;
-  private final AsyncWriteChannelOptions writeChannelOptions;
-  private final long maxListItemsPerCall;
-  private final long maxRequestsPerBatch;
-  private final int maxHttpRequestRetries;
-  private final int httpRequestConnectTimeout;
-  private final int httpRequestReadTimeout;
-  private final boolean createMarkerFile;
-  private final int maxWaitMillisForEmptyObjectCreation;
-  private final RequesterPaysOptions requesterPaysOptions;
-  private final boolean copyWithRewriteEnabled;
-
-  protected GoogleCloudStorageOptions(Builder builder) {
-    this.autoRepairImplicitDirectoriesEnabled = builder.autoRepairImplicitDirectoriesEnabled;
-    this.inferImplicitDirectoriesEnabled = builder.inferImplicitDirectoriesEnabled;
-    this.projectId = builder.projectId;
-    this.appName = builder.appName;
-    this.writeChannelOptions = builder.getWriteChannelOptionsBuilder().build();
-    this.maxListItemsPerCall = builder.maxListItemsPerCall;
-    this.maxRequestsPerBatch = builder.maxRequestsPerBatch;
-    this.maxHttpRequestRetries = builder.maxHttpRequestRetries;
-    this.httpRequestConnectTimeout = builder.httpRequestConnectTimeout;
-    this.httpRequestReadTimeout = builder.httpRequestReadTimeout;
-    this.createMarkerFile = builder.createMarkerObjects;
-    this.transportType = builder.transportType;
-    this.proxyAddress = builder.proxyAddress;
-    this.maxWaitMillisForEmptyObjectCreation = builder.maxWaitMillisForEmptyObjectCreation;
-    this.requesterPaysOptions =
-        checkNotNull(builder.requesterPaysOptions, "requesterPaysOptions could not be null");
-    this.copyWithRewriteEnabled = builder.copyWithRewriteEnabled;
-  }
-
-  public GoogleCloudStorageOptions(
-      boolean autoRepairImplicitDirectoriesEnabled,
-      boolean inferImplicitDirectoriesEnabled,
-      String projectId,
-      String appName,
-      long maxListItemsPerCall,
-      long maxRequestsPerBatch,
-      boolean createMarkerFile,
-      HttpTransportFactory.HttpTransportType transportType,
-      String proxyAddress,
-      AsyncWriteChannelOptions writeChannelOptions) {
-    this(new Builder()
-        .setProjectId(projectId)
-        .setAppName(appName)
-        .setWriteChannelOptionsBuilder(
-            new AsyncWriteChannelOptions.Builder()
-                .setUploadBufferSize(writeChannelOptions.getUploadBufferSize())
-                .setDirectUploadEnabled(writeChannelOptions.isDirectUploadEnabled()))
-        .setAutoRepairImplicitDirectoriesEnabled(autoRepairImplicitDirectoriesEnabled)
-        .setInferImplicitDirectoriesEnabled(inferImplicitDirectoriesEnabled)
-        .setMaxListItemsPerCall(maxListItemsPerCall)
-        .setMaxRequestsPerBatch(maxRequestsPerBatch)
-        .setTransportType(transportType)
-        .setCreateMarkerObjects(createMarkerFile)
-        .setProxyAddress(proxyAddress));
-  }
-
-  public boolean isAutoRepairImplicitDirectoriesEnabled() {
-    return autoRepairImplicitDirectoriesEnabled;
-  }
-
-  public boolean isInferImplicitDirectoriesEnabled() {
-    return inferImplicitDirectoriesEnabled;
-  }
-
-  @Nullable
-  public String getProjectId() {
-    return projectId;
-  }
-
-  public String getAppName() {
-    return appName;
-  }
-
-  public HttpTransportFactory.HttpTransportType getTransportType() {
-    return transportType;
-  }
-
-  public String getProxyAddress() {
-    return proxyAddress;
-  }
-
-  public long getMaxListItemsPerCall() {
-    return maxListItemsPerCall;
-  }
-
-  public AsyncWriteChannelOptions getWriteChannelOptions() {
-    return writeChannelOptions;
-  }
-
-  public long getMaxRequestsPerBatch() {
-    return maxRequestsPerBatch;
-  }
-
-  public int getMaxHttpRequestRetries() {
-    return maxHttpRequestRetries;
-  }
-
-  public int getHttpRequestConnectTimeout() {
-    return httpRequestConnectTimeout;
-  }
-
-  public int getHttpRequestReadTimeout() {
-    return httpRequestReadTimeout;
-  }
-
-  public boolean isMarkerFileCreationEnabled() {
-    return createMarkerFile;
-  }
-
-  public int getMaxWaitMillisForEmptyObjectCreation() {
-    return maxWaitMillisForEmptyObjectCreation;
-  }
-
-  public RequesterPaysOptions getRequesterPaysOptions() {
-    return requesterPaysOptions;
-  }
-
-  public boolean isCopyWithRewriteEnabled() {
-    return copyWithRewriteEnabled;
-  }
-
-  public void throwIfNotValid() {
-    checkArgument(!isNullOrEmpty(appName), "appName must not be null or empty");
   }
 }

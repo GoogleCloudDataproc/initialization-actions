@@ -24,6 +24,7 @@ import com.google.cloud.hadoop.gcsio.FileInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.cloud.hadoop.gcsio.PathCodec;
@@ -31,6 +32,7 @@ import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorageOptions
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.util.AccessTokenProvider;
 import com.google.cloud.hadoop.util.AccessTokenProviderClassFromConfigFactory;
+import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.CredentialFromAccessTokenProviderClassFactory;
 import com.google.cloud.hadoop.util.EntriesCredentialConfiguration;
@@ -138,14 +140,14 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
   /**
    * Hadoop passes 4096 bytes as buffer size which causes poor perf. Default value of {@link
-   * GoogleHadoopFileSystemBase#BUFFERSIZE_KEY}.
+   * #BUFFERSIZE_KEY}.
    */
   public static final int BUFFERSIZE_DEFAULT = 8 * 1024 * 1024;
 
   /** Configuration key for setting write buffer size. */
   public static final String WRITE_BUFFERSIZE_KEY = "fs.gs.io.buffersize.write";
 
-  /** Default value of {@link GoogleHadoopFileSystemBase#WRITE_BUFFERSIZE_KEY}. */
+  /** Default value of {@link #WRITE_BUFFERSIZE_KEY}. */
   // chunk size etc. Get the following value from GCSWC class in a better way. For now, we hard code
   // it to a known good value.
   public static final int WRITE_BUFFERSIZE_DEFAULT = 64 * 1024 * 1024;
@@ -153,7 +155,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   /** Configuration key for default block size of a file. */
   public static final String BLOCK_SIZE_KEY = "fs.gs.block.size";
 
-  /** Default value of {@link GoogleHadoopFileSystemBase#BLOCK_SIZE_KEY}. */
+  /** Default value of {@link #BLOCK_SIZE_KEY}. */
   public static final int BLOCK_SIZE_DEFAULT = 64 * 1024 * 1024;
 
   /** Prefix to use for common authentication keys. */
@@ -168,9 +170,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
   /**
    * Configuration key specifying the email address of the service-account with which to
-   * authenticate. Only required if {@link
-   * GoogleHadoopFileSystemBase#ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY} is true AND we're using
-   * fs.gs.service.account.auth.keyfile to authenticate with a private keyfile. NB: Once GCE
+   * authenticate. Only required if {@link #ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY} is true AND we're
+   * using fs.gs.service.account.auth.keyfile to authenticate with a private keyfile. NB: Once GCE
    * supports setting multiple service account email addresses for metadata auth, this key will also
    * be used in the metadata auth flow. This key is deprecated. See {@link
    * HadoopCredentialConfiguration} for current key names.
@@ -179,11 +180,11 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
   /**
    * Configuration key specifying local file containing a service-account private .p12 keyfile. Only
-   * used if {@link GoogleHadoopFileSystemBase#ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY} is true; if
-   * provided, the keyfile will be used for service-account authentication. Otherwise, it is assumed
-   * that we are on a GCE VM with metadata-authentication for service-accounts enabled, and the
-   * metadata server will be used instead. Default value: none This key is deprecated. See {@link
-   * HadoopCredentialConfiguration} for current key names.
+   * used if {@link #ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY} is true; if provided, the keyfile will be
+   * used for service-account authentication. Otherwise, it is assumed that we are on a GCE VM with
+   * metadata-authentication for service-accounts enabled, and the metadata server will be used
+   * instead. Default value: none This key is deprecated. See {@link HadoopCredentialConfiguration}
+   * for current key names.
    */
   public static final String SERVICE_ACCOUNT_AUTH_KEYFILE_KEY =
       "fs.gs.service.account.auth.keyfile";
@@ -201,16 +202,16 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String GCS_REQUESTER_PAYS_BUCKETS_KEY = "fs.gs.requester.pays.buckets";
 
   /**
-   * Configuration key for GCS client ID. Required if {@link
-   * GoogleHadoopFileSystemBase#ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY} == false. Default value: none
-   * This key is deprecated. See {@link HadoopCredentialConfiguration} for current key names.
+   * Configuration key for GCS client ID. Required if {@link #ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY}
+   * == false. Default value: none This key is deprecated. See {@link HadoopCredentialConfiguration}
+   * for current key names.
    */
   public static final String GCS_CLIENT_ID_KEY = "fs.gs.client.id";
 
   /**
    * Configuration key for GCS client secret. Required if {@link
-   * GoogleHadoopFileSystemBase#ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY} == false. Default value: none
-   * This key is deprecated. See HadoopCredentialConfiguration for current key names.
+   * #ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY} == false. Default value: none This key is deprecated. See
+   * HadoopCredentialConfiguration for current key names.
    */
   public static final String GCS_CLIENT_SECRET_KEY = "fs.gs.client.secret";
 
@@ -223,11 +224,11 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
   /**
    * Configuration key for flag to indicate whether system bucket should be created if it does not
-   * exist. This key is deprecated. See {@link GoogleHadoopFileSystemBase#GCS_SYSTEM_BUCKET_KEY}.
+   * exist. This key is deprecated. See {@link #GCS_SYSTEM_BUCKET_KEY}.
    */
   public static final String GCS_CREATE_SYSTEM_BUCKET_KEY = "fs.gs.system.bucket.create";
 
-  /** Default value of {@link GoogleHadoopFileSystemBase#GCS_CREATE_SYSTEM_BUCKET_KEY}. */
+  /** Default value of {@link #GCS_CREATE_SYSTEM_BUCKET_KEY}. */
   public static final boolean GCS_CREATE_SYSTEM_BUCKET_DEFAULT = true;
 
   /** Configuration key for initial working directory of a GHFS instance. Default value: '/' */
@@ -239,7 +240,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   // TODO(user): remove it once blobstore supports high throughput without limiting size.
   public static final String GCS_FILE_SIZE_LIMIT_250GB = "fs.gs.file.size.limit.250gb";
 
-  /** Default value of {@link GoogleHadoopFileSystemBase#GCS_FILE_SIZE_LIMIT_250GB}. */
+  /** Default value of {@link #GCS_FILE_SIZE_LIMIT_250GB}. */
   public static final boolean GCS_FILE_SIZE_LIMIT_250GB_DEFAULT = false;
 
   /** Configuration key for marker file pattern. Default value: none */
@@ -253,7 +254,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    */
   public static final String GCS_ENABLE_PERFORMANCE_CACHE_KEY = "fs.gs.performance.cache.enable";
 
-  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_ENABLE_PERFORMANCE_CACHE_KEY}. */
+  /** Default value for {@link #GCS_ENABLE_PERFORMANCE_CACHE_KEY}. */
   public static final boolean GCS_ENABLE_PERFORMANCE_CACHE_DEFAULT = false;
 
   /**
@@ -263,10 +264,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY =
       "fs.gs.performance.cache.max.entry.age.ms";
 
-  /**
-   * Default value for {@link
-   * GoogleHadoopFileSystemBase#GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY}.
-   */
+  /** Default value for {@link #GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY}. */
   public static final long GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_DEFAULT =
       PerformanceCachingGoogleCloudStorageOptions.MAX_ENTRY_AGE_MILLIS_DEFAULT;
 
@@ -274,10 +272,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY =
       "fs.gs.performance.cache.list.caching.enable";
 
-  /**
-   * Default value for {@link
-   * GoogleHadoopFileSystemBase#GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY}.
-   */
+  /** Default value for {@link #GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY}. */
   public static final boolean GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_DEFAULT =
       PerformanceCachingGoogleCloudStorageOptions.LIST_CACHING_ENABLED;
 
@@ -288,9 +283,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY =
       "fs.gs.parent.timestamp.update.enable";
 
-  /**
-   * Default value for {@link GoogleHadoopFileSystemBase#GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY}.
-   */
+  /** Default value for {@link #GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY}. */
   public static final boolean GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_DEFAULT = true;
 
   /**
@@ -301,9 +294,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY =
       "fs.gs.parent.timestamp.update.substrings.excludes";
 
-  /**
-   * Default value for {@link GoogleHadoopFileSystemBase#GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY}.
-   */
+  /** Default value for {@link #GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY}. */
   public static final String GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_DEFAULT = "/";
 
   /** Configuration key for the MR intermediate done dir. */
@@ -321,9 +312,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY =
       "fs.gs.parent.timestamp.update.substrings.includes";
 
-  /**
-   * Default value for {@link GoogleHadoopFileSystemBase#GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY}.
-   */
+  /** Default value for {@link #GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY}. */
   public static final String GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_DEFAULT =
       String.format(
           "${%s},${%s}", MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY, MR_JOB_HISTORY_DONE_DIR_KEY);
@@ -336,10 +325,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY =
       "fs.gs.implicit.dir.repair.enable";
 
-  /**
-   * Default value for {@link
-   * GoogleHadoopFileSystemBase#GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY}.
-   */
+  /** Default value for {@link #GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY}. */
   public static final boolean GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT = true;
 
   /** Configuration key for changing the path codec from legacy to 'uri path encoding'. */
@@ -355,8 +341,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String PATH_CODEC_DEFAULT = PATH_CODEC_USE_LEGACY_ENCODING;
 
   /**
-   * Instance value of {@link GoogleHadoopFileSystemBase#GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY}
-   * based on the initial Configuration.
+   * Instance value of {@link #GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY} based on the initial
+   * Configuration.
    */
   private boolean enableAutoRepairImplicitDirectories =
       GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT;
@@ -371,17 +357,14 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY =
       "fs.gs.implicit.dir.infer.enable";
 
-  /**
-   * Default value for {@link GoogleHadoopFileSystemBase#GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY}.
-   */
+  /** Default value for {@link #GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY}. */
   public static final boolean GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_DEFAULT = true;
 
   /**
-   * Instance value of {@link GoogleHadoopFileSystemBase#GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY}
-   * based on the initial Configuration.
+   * Instance value of {@link #GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY} based on the initial
+   * Configuration.
    */
   private boolean enableInferImplicitDirectories = GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_DEFAULT;
-
 
   /**
    * Configuration key for enabling the use of a large flat listing to pre-populate possible glob
@@ -390,7 +373,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    */
   public static final String GCS_ENABLE_FLAT_GLOB_KEY = "fs.gs.glob.flatlist.enable";
 
-  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_ENABLE_FLAT_GLOB_KEY}. */
+  /** Default value for {@link #GCS_ENABLE_FLAT_GLOB_KEY}. */
   public static final boolean GCS_ENABLE_FLAT_GLOB_DEFAULT = true;
 
   /**
@@ -401,7 +384,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String GCS_ENABLE_MARKER_FILE_CREATION_KEY =
       "fs.gs.create.marker.files.enable";
 
-  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_ENABLE_MARKER_FILE_CREATION_KEY}. */
+  /** Default value for {@link #GCS_ENABLE_MARKER_FILE_CREATION_KEY}. */
   public static final boolean GCS_ENABLE_MARKER_FILE_CREATION_DEFAULT = false;
 
   /**
@@ -411,20 +394,21 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    */
   public static final String GCS_ENABLE_COPY_WITH_REWRITE_KEY = "fs.gs.copy.with.rewrite.enable";
 
-  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_ENABLE_COPY_WITH_REWRITE_KEY}. */
+  /** Default value for {@link #GCS_ENABLE_COPY_WITH_REWRITE_KEY}. */
   public static final boolean GCS_ENABLE_COPY_WITH_REWRITE_DEFAULT = false;
 
   /** Configuration key for number of items to return per call to the list* GCS RPCs. */
   public static final String GCS_MAX_LIST_ITEMS_PER_CALL = "fs.gs.list.max.items.per.call";
 
-  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_MAX_LIST_ITEMS_PER_CALL}. */
+  /** Default value for {@link #GCS_MAX_LIST_ITEMS_PER_CALL}. */
   public static final long GCS_MAX_LIST_ITEMS_PER_CALL_DEFAULT = 1024;
 
   /** Configuration key for a max number of GCS RPCs in batch request. */
   public static final String GCS_MAX_REQUESTS_PER_BATCH = "fs.gs.max.requests.per.batch";
 
-  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_MAX_REQUESTS_PER_BATCH}. */
-  public static final long GCS_MAX_REQUESTS_PER_BATCH_DEFAULT = 30;
+  /** Default value for {@link #GCS_MAX_REQUESTS_PER_BATCH}. */
+  public static final long GCS_MAX_REQUESTS_PER_BATCH_DEFAULT =
+      GoogleCloudStorageOptions.MAX_REQUESTS_PER_BATCH_DEFAULT;
 
   /**
    * Configuration key for the max number of retries for failed HTTP request to GCS. Note that the
@@ -436,19 +420,19 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    */
   public static final String GCS_HTTP_MAX_RETRY_KEY = "fs.gs.http.max.retry";
 
-  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_HTTP_MAX_RETRY_KEY}. */
+  /** Default value for {@link #GCS_HTTP_MAX_RETRY_KEY}. */
   public static final int GCS_HTTP_MAX_RETRY_DEFAULT = 10;
 
   /** Configuration key for the connect timeout (in millisecond) for HTTP request to GCS. */
   public static final String GCS_HTTP_CONNECT_TIMEOUT_KEY = "fs.gs.http.connect-timeout";
 
-  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_HTTP_CONNECT_TIMEOUT_KEY}. */
+  /** Default value for {@link #GCS_HTTP_CONNECT_TIMEOUT_KEY}. */
   public static final int GCS_HTTP_CONNECT_TIMEOUT_DEFAULT = 20 * 1000;
 
   /** Configuration key for the connect timeout (in millisecond) for HTTP request to GCS. */
   public static final String GCS_HTTP_READ_TIMEOUT_KEY = "fs.gs.http.read-timeout";
 
-  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_HTTP_READ_TIMEOUT_KEY}. */
+  /** Default value for {@link #GCS_HTTP_READ_TIMEOUT_KEY}. */
   public static final int GCS_HTTP_READ_TIMEOUT_DEFAULT = 20 * 1000;
 
   /**
@@ -502,10 +486,10 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    */
   public static final String GCS_OUTPUTSTREAM_TYPE_KEY = "fs.gs.outputstream.type";
 
-  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_OUTPUTSTREAM_TYPE_KEY}. */
+  /** Default value for {@link #GCS_OUTPUTSTREAM_TYPE_KEY}. */
   public static final String GCS_OUTPUTSTREAM_TYPE_DEFAULT = "BASIC";
 
-  /** Available types for use with {@link GoogleHadoopFileSystemBase#GCS_OUTPUTSTREAM_TYPE_KEY}. */
+  /** Available types for use with {@link #GCS_OUTPUTSTREAM_TYPE_KEY}. */
   public static enum OutputStreamType {
     BASIC,
     SYNCABLE_COMPOSITE
@@ -515,15 +499,13 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * If true, the returned FSDataInputStream from the open(Path) method will hold an internal
    * ByteBuffer of size fs.gs.io.buffersize which it pre-fills on each read, and can efficiently
    * seek within the internal buffer. Otherwise, calls are delegated straight through to a lower
-   * level channel and the value of {@link GoogleHadoopFileSystemBase#BUFFERSIZE_KEY} is passed
-   * through for the lower-level channel to interpret as it sees fit.
+   * level channel and the value of {@link #BUFFERSIZE_KEY} is passed through for the lower-level
+   * channel to interpret as it sees fit.
    */
   public static final String GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_KEY =
       "fs.gs.inputstream.internalbuffer.enable";
 
-  /**
-   * Default value for {@link GoogleHadoopFileSystemBase#GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_KEY}.
-   */
+  /** Default value for {@link #GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_KEY}. */
   public static final boolean GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_DEFAULT = false;
 
   /**
@@ -541,10 +523,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String GCS_INPUTSTREAM_SUPPORT_CONTENT_ENCODING_ENABLE_KEY =
       "fs.gs.inputstream.support.content.encoding.enable";
 
-  /**
-   * Default value for {@link
-   * GoogleHadoopFileSystemBase#GCS_INPUTSTREAM_SUPPORT_CONTENT_ENCODING_ENABLE_KEY}.
-   */
+  /** Default value for {@link #GCS_INPUTSTREAM_SUPPORT_CONTENT_ENCODING_ENABLE_KEY}. */
   public static final boolean GCS_INPUTSTREAM_SUPPORT_CONTENT_ENCODING_ENABLE_DEFAULT = true;
 
   /**
@@ -554,15 +533,13 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY =
       "fs.gs.inputstream.inplace.seek.limit";
 
-  /**
-   * Default value for {@link GoogleHadoopFileSystemBase#GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY}.
-   */
+  /** Default value for {@link #GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY}. */
   public static final long GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_DEFAULT = 8 * 1024 * 1024L;
 
   /** Tunes reading objects behavior to optimize HTTP GET requests for various use cases. */
   public static final String GCS_INPUTSTREAM_FADVISE_KEY = "fs.gs.inputstream.fadvise";
 
-  /** Default value for {@link GoogleHadoopFileSystemBase#GCS_INPUTSTREAM_FADVISE_KEY}. */
+  /** Default value for {@link #GCS_INPUTSTREAM_FADVISE_KEY}. */
   public static final Fadvise GCS_INPUTSTREAM_FADVISE_DEFAULT =
       GoogleCloudStorageReadOptions.DEFAULT_FADVISE;
 
@@ -573,10 +550,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_KEY =
       "fs.gs.inputstream.min.range.request.size";
 
-  /**
-   * Default value for {@link
-   * GoogleHadoopFileSystemBase#GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_KEY}.
-   */
+  /** Default value for {@link #GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_KEY}. */
   public static final int GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_DEFAULT =
       GoogleCloudStorageReadOptions.DEFAULT_MIN_RANGE_REQUEST_SIZE;
 
@@ -587,9 +561,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String GCS_INPUTSTREAM_FOOTER_PREFETCH_SIZE_KEY =
       "fs.gs.inputstream.footer.prefetch.size";
 
-  /**
-   * Default value for {@link GoogleHadoopFileSystemBase#GCS_INPUTSTREAM_FOOTER_PREFETCH_SIZE_KEY}.
-   */
+  /** Default value for {@link #GCS_INPUTSTREAM_FOOTER_PREFETCH_SIZE_KEY}. */
   public static final int GCS_INPUTSTREAM_FOOTER_PREFETCH_SIZE_DEFAULT =
       GoogleCloudStorageReadOptions.DEFAULT_FOOTER_PREFETCH_SIZE;
 
@@ -603,7 +575,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    */
   public static final String GCE_BUCKET_DELETE_ENABLE_KEY = "fs.gs.bucket.delete.enable";
 
-  /** Default value for {@link GoogleHadoopFileSystemBase#GCE_BUCKET_DELETE_ENABLE_KEY}. */
+  /** Default value for {@link #GCE_BUCKET_DELETE_ENABLE_KEY}. */
   public static final boolean GCE_BUCKET_DELETE_ENABLE_DEFAULT = false;
 
   /** Default PathFilter that accepts all paths. */
@@ -638,18 +610,15 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     GHFS_ID = String.format("GHFS/%s", VERSION);
   }
 
-  /**
-   * Instance value of {@link GoogleHadoopFileSystemBase#GCS_ENABLE_FLAT_GLOB_KEY} based on the
-   * initial Configuration.
-   */
+  /** Instance value of {@link #GCS_ENABLE_FLAT_GLOB_KEY} based on the initial Configuration. */
   private boolean enableFlatGlob = GCS_ENABLE_FLAT_GLOB_DEFAULT;
 
   /** The URI the File System is passed in initialize. */
   protected URI initUri;
 
   /**
-   * The retrieved configuration value for {@link GoogleHadoopFileSystemBase#GCS_SYSTEM_BUCKET_KEY}.
-   * Used as a fallback for a root bucket, when required.
+   * The retrieved configuration value for {@link #GCS_SYSTEM_BUCKET_KEY}. Used as a fallback for a
+   * root bucket, when required.
    */
   @Deprecated protected String systemBucket;
 
@@ -657,8 +626,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   protected GoogleCloudStorageFileSystem gcsfs;
 
   /**
-   * Current working directory; overridden in initialize() if {@link
-   * GoogleHadoopFileSystemBase#GCS_WORKING_DIRECTORY_KEY} is set.
+   * Current working directory; overridden in initialize() if {@link #GCS_WORKING_DIRECTORY_KEY} is
+   * set.
    */
   private Path workingDirectory;
 
@@ -2299,29 +2268,10 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
         .getCloudStorageOptionsBuilder()
         .setHttpRequestReadTimeout(httpRequestReadTimeout);
 
-    // Configuration for setting 250GB upper limit on file size to gain higher write throughput.
-    boolean limitFileSizeTo250Gb =
-        config.getBoolean(GCS_FILE_SIZE_LIMIT_250GB, GCS_FILE_SIZE_LIMIT_250GB_DEFAULT);
-    LOG.debug("{} = {}", GCS_FILE_SIZE_LIMIT_250GB, limitFileSizeTo250Gb);
-
-    optionsBuilder
-        .getCloudStorageOptionsBuilder()
-        .getWriteChannelOptionsBuilder()
-        .setFileSizeLimitedTo250Gb(limitFileSizeTo250Gb);
-
     String markerFilePattern = config.get(GCS_MARKER_FILE_PATTERN_KEY);
     LOG.debug("{} = {}", GCS_MARKER_FILE_PATTERN_KEY, markerFilePattern);
 
     optionsBuilder.setMarkerFilePattern(markerFilePattern);
-
-    // Configuration for setting GoogleCloudStorageWriteChannel upload buffer size.
-    int uploadBufferSize = config.getInt(WRITE_BUFFERSIZE_KEY, WRITE_BUFFERSIZE_DEFAULT);
-    LOG.debug("{} = {}", WRITE_BUFFERSIZE_KEY, uploadBufferSize);
-
-    optionsBuilder
-        .getCloudStorageOptionsBuilder()
-        .getWriteChannelOptionsBuilder()
-        .setUploadBufferSize(uploadBufferSize);
 
     String applicationNameSuffix = config.get(
         GCS_APPLICATION_NAME_SUFFIX_KEY, GCS_APPLICATION_NAME_SUFFIX_DEFAULT);
@@ -2343,8 +2293,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
             GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_DEFAULT);
     LOG.debug(
         "{} = {}",
-        GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_KEY,
-        maxWaitMillisForEmptyObjectCreation);
+        GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_KEY, maxWaitMillisForEmptyObjectCreation);
     optionsBuilder
         .getCloudStorageOptionsBuilder()
         .setMaxWaitMillisForEmptyObjectCreation(maxWaitMillisForEmptyObjectCreation);
@@ -2352,35 +2301,58 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     boolean enablePerformanceCache =
         config.getBoolean(GCS_ENABLE_PERFORMANCE_CACHE_KEY, GCS_ENABLE_PERFORMANCE_CACHE_DEFAULT);
     LOG.debug("{} = {}", GCS_ENABLE_PERFORMANCE_CACHE_KEY, enablePerformanceCache);
-    optionsBuilder.setIsPerformanceCacheEnabled(enablePerformanceCache);
+    optionsBuilder
+        .setIsPerformanceCacheEnabled(enablePerformanceCache)
+        .setImmutablePerformanceCachingOptions(getPerformanceCachingOptions(config));
 
+    optionsBuilder
+        .getCloudStorageOptionsBuilder()
+        .setWriteChannelOptions(getWriteChannelOptions(config))
+        .setRequesterPaysOptions(getRequesterPaysOptions(config, projectId));
+
+    return optionsBuilder;
+  }
+
+  private static PerformanceCachingGoogleCloudStorageOptions getPerformanceCachingOptions(
+      Configuration config) {
     long performanceCacheMaxEntryAgeMillis =
         config.getLong(
             GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY,
             GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_DEFAULT);
     LOG.debug(
         "{} = {}",
-        GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY,
-        performanceCacheMaxEntryAgeMillis);
+        GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY, performanceCacheMaxEntryAgeMillis);
 
     boolean listCachingEnabled =
         config.getBoolean(
             GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY,
             GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_DEFAULT);
     LOG.debug("{} = {}", GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY, listCachingEnabled);
-    optionsBuilder
-        .getPerformanceCachingOptionsBuilder()
+
+    return PerformanceCachingGoogleCloudStorageOptions.builder()
         .setMaxEntryAgeMillis(performanceCacheMaxEntryAgeMillis)
-        .setListCachingEnabled(listCachingEnabled);
-
-    optionsBuilder
-        .getCloudStorageOptionsBuilder()
-        .setRequesterPaysOptions(getRequesterPaysOptions(config, projectId));
-
-    return optionsBuilder;
+        .setListCachingEnabled(listCachingEnabled)
+        .build();
   }
 
-  private RequesterPaysOptions getRequesterPaysOptions(Configuration config, String projectId) {
+  private static AsyncWriteChannelOptions getWriteChannelOptions(Configuration config) {
+    // Configuration for setting 250GB upper limit on file size to gain higher write throughput.
+    boolean limitFileSizeTo250Gb =
+        config.getBoolean(GCS_FILE_SIZE_LIMIT_250GB, GCS_FILE_SIZE_LIMIT_250GB_DEFAULT);
+    LOG.debug("{} = {}", GCS_FILE_SIZE_LIMIT_250GB, limitFileSizeTo250Gb);
+
+    // Configuration for setting GoogleCloudStorageWriteChannel upload buffer size.
+    int uploadBufferSize = config.getInt(WRITE_BUFFERSIZE_KEY, WRITE_BUFFERSIZE_DEFAULT);
+    LOG.debug("{} = {}", WRITE_BUFFERSIZE_KEY, uploadBufferSize);
+
+    return AsyncWriteChannelOptions.newBuilder()
+        .setFileSizeLimitedTo250Gb(limitFileSizeTo250Gb)
+        .setUploadBufferSize(uploadBufferSize)
+        .build();
+  }
+
+  private static RequesterPaysOptions getRequesterPaysOptions(
+      Configuration config, String projectId) {
     RequesterPaysMode requesterPaysMode =
         config.getEnum(GCS_REQUESTER_PAYS_MODE_KEY, REQUESTER_PAYS_MODE_DEFAULT);
     LOG.debug("{} = {}", GCS_REQUESTER_PAYS_MODE_KEY, requesterPaysMode);

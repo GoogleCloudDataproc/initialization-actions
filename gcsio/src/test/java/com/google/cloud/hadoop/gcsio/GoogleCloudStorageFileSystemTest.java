@@ -20,6 +20,7 @@ import static org.junit.Assert.assertThrows;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
+import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.IOException;
 import java.net.URI;
@@ -52,8 +53,6 @@ public class GoogleCloudStorageFileSystemTest
           Logger.getRootLogger().setLevel(Level.OFF);
 
           if (gcsfs == null) {
-            // TODO(user): Maybe switch to
-            // new CacheSupplementedGoogleCloudStorage(new InMemoryGoogleCloudStorage()).
             gcsfs =
                 new GoogleCloudStorageFileSystem(
                     new InMemoryGoogleCloudStorage(),
@@ -81,11 +80,13 @@ public class GoogleCloudStorageFileSystemTest
       GoogleCloudStorageFileSystemOptions.Builder optionsBuilder) {
     optionsBuilder
         .getCloudStorageOptionsBuilder()
-            .setAppName("appName")
-            .setProjectId("projectId")
-            .getWriteChannelOptionsBuilder()
+        .setAppName("appName")
+        .setProjectId("projectId")
+        .setWriteChannelOptions(
+            AsyncWriteChannelOptions.newBuilder()
                 .setFileSizeLimitedTo250Gb(GCS_FILE_SIZE_LIMIT_250GB_DEFAULT)
-                .setUploadBufferSize(WRITE_BUFFERSIZE_DEFAULT);
+                .setUploadBufferSize(WRITE_BUFFERSIZE_DEFAULT)
+                .build());
   }
 
   /**

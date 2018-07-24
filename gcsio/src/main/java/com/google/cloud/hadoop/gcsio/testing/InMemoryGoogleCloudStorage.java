@@ -57,7 +57,7 @@ public class InMemoryGoogleCloudStorage
   private final Clock clock;
 
   public InMemoryGoogleCloudStorage() {
-    storageOptions = GoogleCloudStorageOptions.newBuilder().build();
+    storageOptions = GoogleCloudStorageOptions.newBuilder().setAppName("in-memory").build();
     clock = Clock.SYSTEM;
   }
 
