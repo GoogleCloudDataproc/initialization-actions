@@ -104,6 +104,13 @@ public final class GoogleCloudStorageTestUtils {
     return dataResponse(JSON_FACTORY.toByteArray(metadataObject));
   }
 
+  public static MockLowLevelHttpResponse dataRangeResponse(
+      byte[] content, long rangeStart, long totalSize) {
+    long rangeEnd = rangeStart + content.length - 1;
+    return dataResponse(content)
+        .addHeader("Content-Range", rangeStart + "-" + rangeEnd + "/" + totalSize);
+  }
+
   public static MockLowLevelHttpResponse dataResponse(byte[] content) {
     return new MockLowLevelHttpResponse()
         .addHeader("Content-Length", String.valueOf(content.length))

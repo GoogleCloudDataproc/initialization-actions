@@ -713,7 +713,8 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     long seekDistance = currentPosition - contentChannelPosition;
     if (contentChannel != null
         && seekDistance > 0
-        && seekDistance <= readOptions.getInplaceSeekLimit()
+        // Always skip in place gzip-encoded files, because they do not support range reads.
+        && (gzipEncoded || seekDistance <= readOptions.getInplaceSeekLimit())
         && currentPosition < contentChannelEnd) {
       LOG.debug(
           "Seeking forward {} bytes (inplaceSeekLimit: {}) in-place to position {} for '{}'",
@@ -860,45 +861,41 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       return new ByteArrayInputStream(new byte[0]);
     }
 
-    int bufferSize = readOptions.getBufferSize();
-
-    String rangeHeader = null;
-
-    // Do not set range for gzip-encoded files - it's not supported.
-    if (!gzipEncoded) {
-      rangeHeader = "bytes=" + currentPosition + "-";
-
+    String rangeHeader;
+    if (gzipEncoded) {
+      // Do not set range for gzip-encoded files - it's not supported.
+      rangeHeader = null;
+      // Always read gzip-encoded files till the end - they do not support range reads.
+      contentChannelEnd = size;
+    } else {
+      // Set rangeSize to the size of the file reminder from currentPosition.
+      long rangeSize = size - currentPosition;
       if (randomAccess) {
-        long rangeSize = Math.max(limit, readOptions.getMinRangeRequestSize());
-        // limit rangeSize to the object end
-        rangeSize = Math.min(rangeSize, size - currentPosition);
-        long rangeEndInclusive = currentPosition + rangeSize - 1;
-        rangeHeader += rangeEndInclusive;
+        long randomRangeSize = Math.max(limit, readOptions.getMinRangeRequestSize());
+        // Limit rangeSize to the randomRangeSize.
+        rangeSize = Math.min(randomRangeSize, rangeSize);
+      }
 
-        // set contentChannelEnd to range end
-        contentChannelEnd = currentPosition + rangeSize;
+      contentChannelEnd = currentPosition + rangeSize;
+      // Do not read footer again, if it was already pre-fetched.
+      if (footerContent != null && size - footerContent.length < contentChannelEnd) {
+        contentChannelEnd -= footerContent.length;
+      }
+      checkState(
+          currentPosition < contentChannelEnd,
+          "currentPosition (%s) should be less than contentChannelEnd (%s) for '%s'",
+          currentPosition, contentChannelEnd, resourceIdString);
+
+      rangeHeader = "bytes=" + currentPosition + "-";
+      if (randomAccess || contentChannelEnd != size) {
+        rangeHeader += (contentChannelEnd - 1);
       }
     }
-
-    Storage.Objects.Get getObject = createDataRequest(rangeHeader);
-
-    if (contentChannelEnd < 0) {
-      checkState(
-          !randomAccess,
-          "contentChannelEnd should be initialized already if fadvise is RANDOM for '%s'",
-          resourceIdString);
-
-      // we are reading object till the end
-      contentChannelEnd = size;
-    }
-
-    // limit buffer size to the channel end
-    bufferSize = Math.toIntExact(Math.min(bufferSize, contentChannelEnd - currentPosition));
-
     checkState(
-        contentChannelEnd >= 0,
+        contentChannelEnd > 0,
         "contentChannelEnd should be initialized already for '%s'", resourceIdString);
 
+    Storage.Objects.Get getObject = createDataRequest(rangeHeader);
     HttpResponse response;
     try {
       response = getObject.executeMedia();
@@ -918,7 +915,10 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     try {
       InputStream contentStream = response.getContent();
 
-      if (bufferSize > 0) {
+      if (readOptions.getBufferSize() > 0) {
+        int bufferSize = readOptions.getBufferSize();
+        // limit buffer size to the channel end
+        bufferSize = Math.toIntExact(Math.min(bufferSize, contentChannelEnd - currentPosition));
         LOG.debug(
             "Opened stream from {} position with {} range, {} limit and {} bytes buffer for '{}'",
             currentPosition, rangeHeader, limit, bufferSize, resourceIdString);

@@ -16,6 +16,7 @@ package com.google.cloud.hadoop.gcsio;
 
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.JSON_FACTORY;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.createReadChannel;
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.dataRangeResponse;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.dataResponse;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.metadataResponse;
 import static com.google.common.truth.Truth.assertThat;
@@ -127,5 +128,46 @@ public class GoogleCloudStorageReadChannelTest {
         requests.stream().map(r -> r.getHeaders().getRange()).collect(toList());
 
     assertThat(rangeHeaders).containsExactly(null, "bytes=5-", "bytes=0-9").inOrder();
+  }
+
+  @Test
+  public void footerPrefetch_reused() throws IOException {
+    int footerPrefetchBytes = 2;
+    byte[] testData = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09};
+    int footerPrefetchStart = testData.length - footerPrefetchBytes;
+    byte[] footerPrefetch = Arrays.copyOfRange(testData, footerPrefetchStart, testData.length);
+
+    MockHttpTransport transport =
+        GoogleCloudStorageTestUtils.mockTransport(
+            // Footer prefetch response
+            dataRangeResponse(footerPrefetch, footerPrefetchStart, testData.length),
+            // Footer read miss request response
+            dataResponse(new byte[] {testData[footerPrefetchStart - 1]}));
+
+    List<HttpRequest> requests = new ArrayList<>();
+
+    Storage storage = new Storage(transport, JSON_FACTORY, requests::add);
+
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setFadvise(Fadvise.RANDOM)
+            .setFooterPrefetchSize(footerPrefetchBytes)
+            .build();
+
+    GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options);
+    assertThat(readChannel.size()).isEqualTo(testData.length);
+
+    byte[] read = new byte[footerPrefetchBytes + 1];
+
+    readChannel.position(footerPrefetchStart - 1);
+
+    assertThat(readChannel.read(ByteBuffer.wrap(read))).isEqualTo(3);
+    assertThat(read)
+        .isEqualTo(Arrays.copyOfRange(testData, footerPrefetchStart - 1, testData.length));
+
+    List<String> rangeHeaders =
+        requests.stream().map(r -> r.getHeaders().getRange()).collect(toList());
+
+    assertThat(rangeHeaders).containsExactly("bytes=-2", "bytes=7-7").inOrder();
   }
 }
