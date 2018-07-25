@@ -1,4 +1,4 @@
-1.9.3 - 2018-XX-XX
+1.9.3 - 2018-07-25
 
   1. Ignore `fs.gs.io.buffer` property when determining HTTP range request size
      in fadvise `RANDOM` mode which is used to limit minimum size of HTTP range
@@ -7,6 +7,9 @@
   2. Reuse prefetched footer when reading end of the file.
 
   3. Always skip in place for gzip-encoded files.
+
+  4. Fix Ivy compatibility - resolve artifact versions in released `pom.xml`
+     files.
 
 
 1.9.2 - 2018-07-18
