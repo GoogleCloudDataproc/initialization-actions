@@ -152,18 +152,19 @@ public class GoogleCloudStorageReadChannelTest {
         GoogleCloudStorageReadOptions.builder()
             .setFadvise(Fadvise.RANDOM)
             .setFooterPrefetchSize(footerPrefetchBytes)
+            .setMinRangeRequestSize(footerPrefetchBytes)
             .build();
 
     GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options);
     assertThat(readChannel.size()).isEqualTo(testData.length);
 
-    byte[] read = new byte[footerPrefetchBytes + 1];
+    byte[] read = new byte[2];
 
     readChannel.position(footerPrefetchStart - 1);
 
-    assertThat(readChannel.read(ByteBuffer.wrap(read))).isEqualTo(3);
+    assertThat(readChannel.read(ByteBuffer.wrap(read))).isEqualTo(2);
     assertThat(read)
-        .isEqualTo(Arrays.copyOfRange(testData, footerPrefetchStart - 1, testData.length));
+        .isEqualTo(Arrays.copyOfRange(testData, footerPrefetchStart - 1, testData.length - 1));
 
     List<String> rangeHeaders =
         requests.stream().map(r -> r.getHeaders().getRange()).collect(toList());

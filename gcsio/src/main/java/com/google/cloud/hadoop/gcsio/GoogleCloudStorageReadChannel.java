@@ -687,15 +687,17 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
   }
 
   /**
-   * Seeks to the given position in the underlying stream.
+   * Seeks to the {@link #currentPosition} in the underlying stream or opens new stream at {@link
+   * #currentPosition}.
    *
-   * <p>Note: Seek is an expensive operation because a new stream is opened each time.
+   * <p>Note: Seek could be an expensive operation if a new stream is opened.
    *
+   * @param bytesToRead number of bytes to read, used only if new stream is opened.
    * @throws java.io.FileNotFoundException if the underlying object does not exist.
    * @throws IOException on IO error
    */
   @VisibleForTesting
-  void performLazySeek(long limit) throws IOException {
+  void performLazySeek(long bytesToRead) throws IOException {
     throwIfNotOpen();
 
     // Return quickly if there is no pending seek operation, i.e. position didn't change.
@@ -704,8 +706,8 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     }
 
     LOG.debug(
-        "Performing lazySeek from {} to {} position with {} limit for '{}'",
-        contentChannelPosition, currentPosition, limit, resourceIdString);
+        "Performing lazySeek from {} to {} position with {} bytesToRead for '{}'",
+        contentChannelPosition, currentPosition, bytesToRead, resourceIdString);
 
     // used to auto-detect random access
     long oldPosition = contentChannelPosition;
@@ -728,16 +730,16 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       if (isRandomAccessPattern(oldPosition)) {
         setRandomAccess();
       }
-      openContentChannel(limit);
+      openContentChannel(bytesToRead);
     }
   }
 
-  private void openContentChannel(long limit) throws IOException {
+  private void openContentChannel(long bytesToRead) throws IOException {
     checkState(contentChannel == null, "contentChannel should be null, before opening new");
     InputStream objectContentStream =
         footerContent != null && currentPosition >= size - footerContent.length
-            ? openFooterStream(limit)
-            : openStream(limit);
+            ? openFooterStream()
+            : openStream(bytesToRead);
     contentChannel = Channels.newChannel(objectContentStream);
     contentChannelPosition = currentPosition;
   }
@@ -829,28 +831,32 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     }
   }
 
-  private InputStream openFooterStream(long limit) {
+  /**
+   * Opens the underlying stream from {@link #footerContent}, sets its position to the {@link
+   * #currentPosition}.
+   */
+  private InputStream openFooterStream() {
     int offset = Math.toIntExact(currentPosition - (size - footerContent.length));
     int length = footerContent.length - offset;
     LOG.debug(
-        "Opened stream (prefetched footer) from {} position and {} limit for '{}'",
-        currentPosition, limit, resourceIdString);
+        "Opened stream (prefetched footer) from {} position for '{}'",
+        currentPosition, resourceIdString);
     return new ByteArrayInputStream(footerContent, offset, length);
   }
 
   /**
-   * Opens the underlying stream, sets its position to the given value.
+   * Opens the underlying stream, sets its position to the {@link #currentPosition}.
    *
-   * <p>If the file encoding in GCS is gzip (and therefore the HTTP client will attempt to
-   * decompress it), the entire file is always requested and we seek to the position requested. If
-   * the file encoding is not gzip, only the remaining bytes to be read are requested from GCS.
+   * <p>If the file encoding in GCS is gzip (and therefore the HTTP client will decompress it), the
+   * entire file is always requested and we seek to the position requested. If the file encoding is
+   * not gzip, only the remaining bytes to be read are requested from GCS.
    *
-   * @param limit number of bytes to read from new stream. Ignored if {@link
+   * @param bytesToRead number of bytes to read from new stream. Ignored if {@link
    *     GoogleCloudStorageReadOptions#getFadvise()} is equal to {@link Fadvise#SEQUENTIAL}.
    * @throws IOException on IO error
    */
-  protected InputStream openStream(long limit) throws IOException {
-    checkArgument(limit > 0, "limit should be greater than 0, but was %s", limit);
+  protected InputStream openStream(long bytesToRead) throws IOException {
+    checkArgument(bytesToRead > 0, "bytesToRead should be greater than 0, but was %s", bytesToRead);
 
     checkState(
         contentChannel == null && contentChannelEnd < 0,
@@ -871,15 +877,15 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       // Set rangeSize to the size of the file reminder from currentPosition.
       long rangeSize = size - currentPosition;
       if (randomAccess) {
-        long randomRangeSize = Math.max(limit, readOptions.getMinRangeRequestSize());
+        long randomRangeSize = Math.max(bytesToRead, readOptions.getMinRangeRequestSize());
         // Limit rangeSize to the randomRangeSize.
         rangeSize = Math.min(randomRangeSize, rangeSize);
       }
 
       contentChannelEnd = currentPosition + rangeSize;
       // Do not read footer again, if it was already pre-fetched.
-      if (footerContent != null && size - footerContent.length < contentChannelEnd) {
-        contentChannelEnd -= footerContent.length;
+      if (footerContent != null) {
+        contentChannelEnd = Math.min(contentChannelEnd, size - footerContent.length);
       }
       checkState(
           currentPosition < contentChannelEnd,
@@ -920,13 +926,14 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         // limit buffer size to the channel end
         bufferSize = Math.toIntExact(Math.min(bufferSize, contentChannelEnd - currentPosition));
         LOG.debug(
-            "Opened stream from {} position with {} range, {} limit and {} bytes buffer for '{}'",
-            currentPosition, rangeHeader, limit, bufferSize, resourceIdString);
+            "Opened stream from {} position with {} range, {} bytesToRead"
+                + " and {} bytes buffer for '{}'",
+            currentPosition, rangeHeader, bytesToRead, bufferSize, resourceIdString);
         contentStream = new BufferedInputStream(contentStream, bufferSize);
       } else {
         LOG.debug(
-            "Opened stream from {} position with {} range and {} limit for '{}'",
-            currentPosition, rangeHeader, limit, resourceIdString);
+            "Opened stream from {} position with {} range and {} bytesToRead for '{}'",
+            currentPosition, rangeHeader, bytesToRead, resourceIdString);
       }
 
       if (gzipEncoded) {
