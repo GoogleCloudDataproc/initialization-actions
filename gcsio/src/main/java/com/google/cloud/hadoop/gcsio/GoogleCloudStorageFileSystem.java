@@ -190,9 +190,8 @@ public class GoogleCloudStorageFileSystem {
         new ThreadPoolExecutor(
             /* corePoolSize= */ 2,
             /* maximumPoolSize= */ 2,
-            /* keepAliveTime= */ 2,
-            TimeUnit.SECONDS,
-            new LinkedBlockingQueue<Runnable>(1000),
+            /* keepAliveTime= */ 5, TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(1000),
             new ThreadFactoryBuilder()
                 .setNameFormat("gcsfs-timestamp-updates-%d")
                 .setDaemon(true)
@@ -1370,20 +1369,24 @@ public class GoogleCloudStorageFileSystem {
         gcs.close();
       } finally {
         gcs = null;
-      }
-    }
 
-    if (updateTimestampsExecutor != null) {
-      updateTimestampsExecutor.shutdown();
-      try {
-        if (!updateTimestampsExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
-          LOG.warn("Forcibly shutting down timestamp update threadpool.");
-          updateTimestampsExecutor.shutdownNow();
+        if (updateTimestampsExecutor != null) {
+          updateTimestampsExecutor.shutdown();
+          try {
+            if (!updateTimestampsExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
+              LOG.warn("Forcibly shutting down timestamp update thread pool.");
+              updateTimestampsExecutor.shutdownNow();
+            }
+          } catch (InterruptedException e) {
+            LOG.debug(
+                "Failed to await termination: forcibly shutting down timestamp update thread pool.",
+                e);
+            updateTimestampsExecutor.shutdownNow();
+          } finally {
+            updateTimestampsExecutor = null;
+          }
         }
-      } catch (InterruptedException e) {
-        LOG.warn("Interrupted awaiting timestamp update threadpool.");
       }
-      updateTimestampsExecutor = null;
     }
   }
 
