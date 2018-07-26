@@ -228,7 +228,7 @@ function main() {
   mkdir -p ${DRILL_HOME} && chown ${DRILL_USER}:${DRILL_USER} ${DRILL_HOME}
 
   # Download and unpack Drill as the pseudo-user.
-  sudo wget http://apache.mirrors.hoobly.com/drill/drill-${DRILL_VERSION}/apache-drill-${DRILL_VERSION}.tar.gz
+  sudo wget http://www-us.apache.org/dist/drill/drill-${DRILL_VERSION}/apache-drill-${DRILL_VERSION}.tar.gz 
   sudo -u ${DRILL_USER} tar -xvzf apache-drill-${DRILL_VERSION}.tar.gz -C ${DRILL_HOME} --strip 1
 
   # Replace default configuration with cluster-specific.
