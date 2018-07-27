@@ -18,6 +18,19 @@ This initialization action downloads and runs a [Google Cloud Datalab](https://c
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
 
+## Python 3
+
+Datalab (and the Spark driver) can run with Python 2 or Python 3. However, workers (executors) are configured to use Python 2. To change worker python, use the [conda init action](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/conda). Note that the driver (`PYSPARK_DRIVER_PYTHON`) and executors (`PYSPARK_PYTHON`) must be at the same minor version. Currently, Datalab uses Python 3.5. Here is how to set up Python 3.5 on workers:
+
+```bash
+gcloud dataproc clusters create kpal-datalab-works4 \
+    --metadata 'CONDA_PACKAGES="python==3.5"' \
+    --scopes cloud-platform \
+    --initialization-actions gs://dataproc-initialization-actions/conda/bootstrap-conda.sh,gs://dataproc-initialization-actions/conda/install-conda-env.sh,gs://karthikpal/datalab.sh
+```
+
+In effect, this means that a particular Datalab-on-Dataproc cluster can only run Python 2 or Python 3 kernels, but not both.
+
 ## Important notes
 
 * PySpark's [`DataFrame.toPandas()`](http://spark.apache.org/docs/latest/api/python/pyspark.sql.html#pyspark.sql.DataFrame.toPandas) method is useful for integrating with Datalab APIs.

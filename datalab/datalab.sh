@@ -99,6 +99,15 @@ RUN apt-key add /tmp/vm_trusted.gpg
 RUN apt-get update
 RUN apt-get install -y hive spark-python openjdk-8-jre-headless
 
+# Workers do not run docker, so have a different python environment.
+# To run python3, you need to run the conda init action.
+# The conda init action correctly sets up python in PATH and
+# /etc/spark/conf/spark-env.sh, but running pyspark via shell.py does
+# not pick up spark-env.sh. So, set PYSPARK_PYTHON explicitly to either
+# system python or conda python. It is on the user to set up the same
+# version of python for workers and the datalab docker container.
+ENV PYSPARK_PYTHON=$(ls /opt/conda/bin/python || which python)
+
 ENV SPARK_HOME='/usr/lib/spark'
 ENV JAVA_HOME='${JAVA_HOME}'
 ENV PYTHONPATH='${PYTHONPATH}'
