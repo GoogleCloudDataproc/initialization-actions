@@ -44,7 +44,7 @@ function install_ganglia_dependencies() {
 
   ln -s /etc/ganglia-webfrontend/apache.conf /etc/apache2/sites-enabled/ganglia.conf
   sed -i "s/my cluster/${master}/" /etc/ganglia/gmetad.conf
-  sed -e '/udp_send_channel {/a\  host = localhost' -i /etc/ganglia/gmond.conf
+  sed -e "/udp_send_channel {/a\  host = $(hostname)" -i /etc/ganglia/gmond.conf
   systemctl restart ganglia-monitor &&
   systemctl restart gmetad &&
   systemctl restart apache2
