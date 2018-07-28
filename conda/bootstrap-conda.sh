@@ -132,7 +132,6 @@ else
     echo "Adding path definition to profiles..."
     echo "export CONDA_BIN_PATH=$CONDA_BIN_PATH" | tee -a /etc/profile.d/conda.sh #/etc/*bashrc /etc/profile
     echo 'export PATH=$CONDA_BIN_PATH:$PATH' | tee -a /etc/profile.d/conda.sh  #/etc/*bashrc /etc/profile
-
 fi
 
 # 2.3 Update global profiles to add the miniconda location to PATH
@@ -158,6 +157,9 @@ if grep -ir "export PYSPARK_PYTHON=$CONDA_BIN_PATH/python" /etc/profile.d/conda.
 else
     echo "export PYSPARK_PYTHON=$CONDA_BIN_PATH/python" | tee -a  /etc/profile.d/conda.sh /etc/environment /usr/lib/spark/conf/spark-env.sh
 fi
+
+# CloudSDK libraries are installed in system python
+echo 'export CLOUDSDK_PYTHON=/usr/bin/python' | tee -a /etc/profile.d/conda.sh  #/etc/*bashrc /etc/profile
 
 echo "Finished bootstrapping via Miniconda, sourcing /etc/profile ..."
 source /etc/profile
