@@ -32,6 +32,7 @@ import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.Storage.Objects.Get;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.ResilientOperation;
@@ -54,6 +55,7 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -151,6 +153,8 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
   // 2. Test showing shorter footer prefetch does not cause any problems.
   // 3. Test that footer prefetch always disabled for gzipped files.
   private byte[] footerContent;
+
+  private Long generation = null;
 
   /**
    * Constructs an instance of GoogleCloudStorageReadChannel.
@@ -757,6 +761,21 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     StorageObject metadata = getMetadata();
     gzipEncoded = nullToEmpty(metadata.getContentEncoding()).contains("gzip");
     size = gzipEncoded ? Long.MAX_VALUE : metadata.getSize().longValue();
+    initGeneration(metadata.getGeneration());
+  }
+
+  private void initGeneration(@Nullable Long gen) throws IOException {
+    if (readOptions.getGenerationReadConsistency().equals(GenerationReadConsistency.LATEST)) {
+      generation = null;
+    } else {
+      if (gen == null) {
+        throw new IOException(
+            String.format(
+                "Generation Read Consistency is '%s', but failed to retrieve generation for '%s'.",
+                readOptions.getGenerationReadConsistency().name(), resourceIdString));
+      }
+      generation = gen;
+    }
   }
 
   /**
@@ -787,6 +806,10 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
             });
 
     HttpHeaders responseHeaders = response.getHeaders();
+
+    String genStr = responseHeaders.getFirstHeaderStringValue("x-goog-generation");
+    Long gen = genStr == null ? null : Long.valueOf(genStr);
+    initGeneration(gen);
 
     gzipEncoded = nullToEmpty(responseHeaders.getContentEncoding()).contains("gzip");
     if (gzipEncoded) {
@@ -902,20 +925,20 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         "contentChannelEnd should be initialized already for '%s'", resourceIdString);
 
     Storage.Objects.Get getObject = createDataRequest(rangeHeader);
+    if (generation != null) {
+      getObject.setGeneration(generation);
+    }
     HttpResponse response;
     try {
       response = getObject.executeMedia();
       // TODO(b/110832992): validate response range header against expected/request range
     } catch (IOException e) {
-      if (errorExtractor.itemNotFound(e)) {
-        throw GoogleCloudStorageExceptions.getFileNotFoundException(bucketName, objectName);
-      }
-      String msg =
-          String.format("Error reading '%s' at position %d", resourceIdString, currentPosition);
-      if (errorExtractor.rangeNotSatisfiable(e)) {
-        throw (EOFException) new EOFException(msg).initCause(e);
-      }
-      throw new IOException(msg, e);
+      boolean shouldRetryWithLiveVersion =
+          generation != null
+              && readOptions
+                  .getGenerationReadConsistency()
+                  .equals(GenerationReadConsistency.BEST_EFFORT);
+      response = handleExecuteMeidaExceptions(e, getObject, shouldRetryWithLiveVersion);
     }
 
     try {
@@ -949,6 +972,42 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       }
       throw e;
     }
+  }
+
+  /**
+   * When an IOException is thrown, depending on if the exception is caused by non-existent object
+   * generation, and depending on the generation read consistency setting, either retry the read (of
+   * the latest generation), or handle the exception directly.
+   *
+   * @param e IOException thrown while reading from GCS.
+   * @param getObject the Get request to GCS.
+   * @param shouldRetryWithLatestGeneration flag indicating whether we should strip the generation
+   *     (thus read from the latest generation) and retry.
+   * @return the HttpResponse of reading from GCS from possible retry.
+   * @throws IOException either error on retry, or thrown because the original read encounters
+   *     error.
+   */
+  private HttpResponse handleExecuteMeidaExceptions(
+      IOException e, Get getObject, boolean shouldRetryWithLatestGeneration) throws IOException {
+    if (errorExtractor.itemNotFound(e)) {
+      if (shouldRetryWithLatestGeneration) {
+        generation = null;
+        try {
+          getObject.setGeneration(null);
+          return getObject.executeMedia();
+        } catch (IOException e1) {
+          return handleExecuteMeidaExceptions(e1, getObject, false);
+        }
+      } else {
+        throw GoogleCloudStorageExceptions.getFileNotFoundException(bucketName, objectName);
+      }
+    }
+    String msg =
+        String.format("Error reading '%s' at position %d", resourceIdString, currentPosition);
+    if (errorExtractor.rangeNotSatisfiable(e)) {
+      throw (EOFException) new EOFException(msg).initCause(e);
+    }
+    throw new IOException(msg, e);
   }
 
   private Get createDataRequest(String rangeHeader) throws IOException {

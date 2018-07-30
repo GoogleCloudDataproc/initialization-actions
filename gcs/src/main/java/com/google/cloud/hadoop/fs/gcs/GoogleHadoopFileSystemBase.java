@@ -27,6 +27,7 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
 import com.google.cloud.hadoop.gcsio.PathCodec;
 import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
@@ -490,10 +491,18 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String GCS_OUTPUTSTREAM_TYPE_DEFAULT = "BASIC";
 
   /** Available types for use with {@link #GCS_OUTPUTSTREAM_TYPE_KEY}. */
-  public static enum OutputStreamType {
+  public enum OutputStreamType {
     BASIC,
     SYNCABLE_COMPOSITE
   }
+
+  /** Configuration key for the generation consistency read model. */
+  public static final String GCS_GENERATION_READ_CONSISTENCY_KEY =
+      "fs.gs.generation.read.consistency";
+
+  /** Default value for {@link #GCS_GENERATION_READ_CONSISTENCY_KEY}. */
+  public static final GenerationReadConsistency GCS_GENERATION_READ_CONSISTENCY_DEFAULT =
+      GoogleCloudStorageReadOptions.DEFAULT_GENERATION_READ_CONSISTENCY;
 
   /**
    * If true, the returned FSDataInputStream from the open(Path) method will hold an internal

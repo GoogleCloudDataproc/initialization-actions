@@ -17,7 +17,6 @@
 package com.google.cloud.hadoop.gcsio;
 
 import com.google.common.base.Preconditions;
-
 import java.io.IOException;
 import java.net.URI;
 import java.nio.channels.SeekableByteChannel;
@@ -42,6 +41,15 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
       throws IOException {
     URI path = getPath(bucketName, objectName);
     return gcsfs.open(path);
+  }
+
+  /** Opens the given object for reading, with the specified read options. */
+  @Override
+  protected SeekableByteChannel open(
+      String bucketName, String objectName, GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
+    URI path = getPath(bucketName, objectName);
+    return gcsfs.open(path, readOptions);
   }
 
   /**
@@ -172,9 +180,7 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
    * Helper to construct a path.
    */
   protected URI getPath(String bucketName, String objectName) {
-    // 'true' for allowEmptyObjectName.
-    URI path = gcsfs.getPathCodec().getPath(bucketName, objectName, true);
-    return path;
+    return gcsfs.getPathCodec().getPath(bucketName, objectName, /* allowEmptyObjectName= */ true);
   }
 
   public StorageResourceId validatePathAndGetId(URI path, boolean allowEmpty) {

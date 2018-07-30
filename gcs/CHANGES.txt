@@ -1,5 +1,26 @@
 1.9.4 - 2018-XX-XX
 
+  1. Add `fs.gs.generation.read.consistency (default : LATEST)` property to
+     determine read consistency across different generations of a GCS object.
+
+     Three modes are supported:
+
+     `LATEST`: this is the default behavior. The connector will ignore
+     generation ID of the GCS objects and always try to read the live version.
+
+     `BEST_EFFORT`: The connector will try to read the generation determined
+     when the GoogleCloudStorageReadChannel is first established. However if
+     that generation cannot be found anymore, connector will fall back to read
+     the live version.
+
+     `STRICT`: The connector will always try to read the generation determined
+     when the GoogleCloudStorageReadChannel is first established, and report
+     error (FileNotFound) when that generation cannot be found anymore.
+
+     Note that this property will only apply to new streams opened after
+     generation is determined. It won't affect read from any streams that are
+     already open, pre-fetched footer, or the metadata of the object.
+
 
 1.9.3 - 2018-07-25
 
@@ -139,12 +160,12 @@
   9. Add interface through which user can directly provide the access token.
 
   10. Add more retries and error handling in GoogleCloudStorageReadChannel,
-      to make it more resilient to network errors; also add a property to allow users
-      to specify number of retries on low level GCS HTTP requests in case of server
-      errors and I/O errors.
+      to make it more resilient to network errors; also add a property to allow
+      users to specify number of retries on low level GCS HTTP requests in case
+      of server errors and I/O errors.
 
-  11. Add properties to allow users to specify connect timeout and read timeout on
-      low level GCS HTTP requests.
+  11. Add properties to allow users to specify connect timeout and read timeout
+      on low level GCS HTTP requests.
 
   12. Include prefix/directory objects metadata into `storage.objects.list`
       requests response to improve performance (i.e. set

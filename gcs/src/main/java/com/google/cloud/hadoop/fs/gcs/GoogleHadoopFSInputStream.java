@@ -18,6 +18,7 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.net.URI;
@@ -113,13 +114,21 @@ class GoogleHadoopFSInputStream
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FOOTER_PREFETCH_SIZE_DEFAULT);
     LOG.debug("footerPrefetchSize: {}", footerPrefetchSize);
 
+    GenerationReadConsistency generationConsistency =
+        ghfs.getConf()
+            .getEnum(
+                GoogleHadoopFileSystemBase.GCS_GENERATION_READ_CONSISTENCY_KEY,
+                GoogleHadoopFileSystemBase.GCS_GENERATION_READ_CONSISTENCY_DEFAULT);
+    LOG.debug("generationReadConsistency: {}", generationConsistency);
+
     GoogleCloudStorageReadOptions.Builder readOptions =
         GoogleCloudStorageReadOptions.builder()
             .setSupportContentEncoding(supportContentEncoding)
             .setInplaceSeekLimit(inplaceSeekLimit)
             .setFadvise(fadvise)
             .setMinRangeRequestSize(minRangeRequestSize)
-            .setFooterPrefetchSize(footerPrefetchSize);
+            .setFooterPrefetchSize(footerPrefetchSize)
+            .setGenerationReadConsistency(generationConsistency);
     if (enableInternalBuffer) {
       buffer = ByteBuffer.allocate(bufferSize);
       buffer.limit(0);

@@ -837,4 +837,10 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
 
   @Override
   public void testComposeSuccess() throws IOException {}
+
+  @Override
+  public void testReadGenerationBestEffort() throws IOException {}
+
+  @Override
+  public void testReadGenerationStrict() throws IOException {}
 }

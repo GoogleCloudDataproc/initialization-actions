@@ -38,7 +38,11 @@ public class GoogleCloudStorageExceptions {
       objectName = "";
     }
     return new FileNotFoundException(
-        String.format("Item not found: %s/%s", bucketName, objectName));
+        String.format(
+            "Item not found: %s/%s. "
+                + "If you enabled STRICT generation consistency, it is possible that "
+                + "the live version is still available but the intended generation is deleted.",
+            bucketName, objectName));
   }
 
   /**

@@ -460,4 +460,16 @@ public class GoogleCloudStorageFileSystemTest
                 .exists())
         .isTrue();
   }
+
+  /*
+   * TODO(user): add support of generations in InMemoryGoogleCloudStorage so
+   * we can run the following tests in this class.
+   */
+  @Test
+  @Override
+  public void testReadGenerationBestEffort() throws IOException {}
+
+  @Test
+  @Override
+  public void testReadGenerationStrict() throws IOException {}
 }

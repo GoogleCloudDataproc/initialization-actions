@@ -45,9 +45,7 @@ public class GoogleCloudStorageExceptionsTest {
         () -> GoogleCloudStorageExceptions.getFileNotFoundException("", "obj"));
   }
 
-  /**
-   * Validates getFileNotFoundException().
-   */
+  /** Validates getFileNotFoundException(). */
   @Test
   public void testGetFileNotFoundException() {
     FileNotFoundException e;
@@ -56,11 +54,11 @@ public class GoogleCloudStorageExceptionsTest {
     // objectName is null or empty
     e = GoogleCloudStorageExceptions.getFileNotFoundException("bucket", null);
     e2 = GoogleCloudStorageExceptions.getFileNotFoundException("bucket", "");
-    assertThat(e).hasMessageThat().isEqualTo("Item not found: bucket/");
+    assertThat(e).hasMessageThat().startsWith("Item not found: bucket/");
     assertThat(e2).hasMessageThat().isEqualTo(e.getMessage());
 
     e = GoogleCloudStorageExceptions.getFileNotFoundException("bucket", "obj");
-    assertThat(e).hasMessageThat().isEqualTo("Item not found: bucket/obj");
+    assertThat(e).hasMessageThat().startsWith("Item not found: bucket/obj");
   }
 
   @Test

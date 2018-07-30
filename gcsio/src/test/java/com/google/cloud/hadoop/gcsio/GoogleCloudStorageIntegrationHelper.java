@@ -68,12 +68,12 @@ public abstract class GoogleCloudStorageIntegrationHelper {
   }
 
   /**
-   * Writes a file with the give text at the given path.
+   * Writes a file with the give text at the given path. Do not allow overwriting existing files.
    *
-   * Note: This method takes non-trivial amount of time to complete.
-   * If you use it in a test where multiple operations on the same file are performed,
-   * then it is better to create the file once and perform multiple operations in
-   * the same test rather than have multiple tests each creating its own test file.
+   * <p>Note: This method takes non-trivial amount of time to complete. If you use it in a test
+   * where multiple operations on the same file are performed, then it is better to create the file
+   * once and perform multiple operations in the same test rather than have multiple tests each
+   * creating its own test file.
    *
    * @param bucketName name of the bucket to create object in
    * @param objectName name of the object to create
@@ -88,20 +88,46 @@ public abstract class GoogleCloudStorageIntegrationHelper {
   }
 
   /**
-   * Writes a file with the given buffer repeated numWrites times.
+   * Writes a file with the give text at the given path. Allow overwriting an existing file.
+   *
+   * <p>Note: This method takes non-trivial amount of time to complete. If you use it in a test
+   * where multiple operations on the same file are performed, then it is better to create the file
+   * once and perform multiple operations in the same test rather than have multiple tests each
+   * creating its own test file.
+   *
+   * @param bucketName name of the bucket to create object in
+   * @param objectName name of the object to create
+   * @param text file contents
+   * @return number of bytes written
+   */
+  protected int writeTextFileOverwriting(String bucketName, String objectName, String text)
+      throws IOException {
+    byte[] textBytes = text.getBytes("UTF-8");
+    ByteBuffer writeBuffer = ByteBuffer.wrap(textBytes);
+    return writeFileOverwriting(bucketName, objectName, writeBuffer, 1);
+  }
+
+  /**
+   * Wrtes a file with the given buffer repeated numWrites times
    *
    * @param bucketName name of the bucket to create object in
    * @param objectName name of the object to create
    * @param buffer Data to write
    * @param numWrites number of times to repeat the data
+   * @param overwriteExisting flag to indicate whether to overwrite if file already exists.
    * @return number of bytes written
    */
-  protected int writeFile(String bucketName, String objectName, ByteBuffer buffer, int numWrites)
+  protected int writeFile(
+      String bucketName,
+      String objectName,
+      ByteBuffer buffer,
+      int numWrites,
+      boolean overwriteExisting)
       throws IOException {
     int totalBytesWritten = 0;
 
     try (WritableByteChannel writeChannel =
-        create(bucketName, objectName, new CreateFileOptions(false /* overwrite existing */))) {
+        create(bucketName, objectName, new CreateFileOptions(overwriteExisting))) {
       for (int i = 0; i < numWrites; i++) {
         buffer.clear();
         int numBytesWritten = writeChannel.write(buffer);
@@ -113,6 +139,36 @@ public abstract class GoogleCloudStorageIntegrationHelper {
     }
 
     return totalBytesWritten;
+  }
+
+  /**
+   * Writes a file with the given buffer repeated numWrites times. Do not allow overwriting if file
+   * already exists.
+   *
+   * @param bucketName name of the bucket to create object in
+   * @param objectName name of the object to create
+   * @param buffer Data to write
+   * @param numWrites number of times to repeat the data
+   * @return number of bytes written
+   */
+  protected int writeFile(String bucketName, String objectName, ByteBuffer buffer, int numWrites)
+      throws IOException {
+    return writeFile(bucketName, objectName, buffer, numWrites, false);
+  }
+
+  /**
+   * Writes a file with the given buffer repeated numWrites times. If file already exists, overwrite
+   * it.
+   *
+   * @param bucketName name of the bucket to create object in
+   * @param objectName name of the object to create
+   * @param buffer Data to write
+   * @param numWrites number of times to repeat the data
+   * @return number of bytes written
+   */
+  protected int writeFileOverwriting(
+      String bucketName, String objectName, ByteBuffer buffer, int numWrites) throws IOException {
+    return writeFile(bucketName, objectName, buffer, numWrites, true);
   }
 
   /**
@@ -134,6 +190,23 @@ public abstract class GoogleCloudStorageIntegrationHelper {
     }
 
     return returnBuffer.toString();
+  }
+
+  /** Helper that reads text from a given SeekableByteChannel. */
+  protected String readText(
+      SeekableByteChannel readChannel, int offset, int len, boolean checkOverflow)
+      throws IOException {
+    int bufferSize = len + (checkOverflow ? 1 : 0);
+    ByteBuffer readBuffer = ByteBuffer.allocate(bufferSize);
+    if (offset > 0) {
+      readChannel.position(offset);
+    }
+
+    int numBytesRead = readChannel.read(readBuffer);
+    assertWithMessage("readText: read size mismatch").that(numBytesRead).isEqualTo(len);
+
+    readBuffer.flip();
+    return StandardCharsets.UTF_8.decode(readBuffer).toString();
   }
 
   /**
@@ -165,6 +238,10 @@ public abstract class GoogleCloudStorageIntegrationHelper {
   protected abstract SeekableByteChannel open(String bucketName, String objectName)
       throws IOException;
 
+  /** Opens the given object for reading, with the specified read options. */
+  protected abstract SeekableByteChannel open(
+      String bucketName, String objectName, GoogleCloudStorageReadOptions readOptions)
+      throws IOException;
 
   /**
    * Opens the given object for writing.
