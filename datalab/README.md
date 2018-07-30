@@ -26,7 +26,7 @@ Datalab (and the Spark driver) can run with Python 2 or Python 3. However, worke
 gcloud dataproc clusters create kpal-datalab-works4 \
     --metadata 'CONDA_PACKAGES="python==3.5"' \
     --scopes cloud-platform \
-    --initialization-actions gs://dataproc-initialization-actions/conda/bootstrap-conda.sh,gs://dataproc-initialization-actions/conda/install-conda-env.sh,gs://karthikpal/datalab.sh
+    --initialization-actions gs://dataproc-initialization-actions/conda/bootstrap-conda.sh,gs://dataproc-initialization-actions/conda/install-conda-env.sh,gs://dataproc-initialization-actions/datalab/datalab.sh
 ```
 
 In effect, this means that a particular Datalab-on-Dataproc cluster can only run Python 2 or Python 3 kernels, but not both.
