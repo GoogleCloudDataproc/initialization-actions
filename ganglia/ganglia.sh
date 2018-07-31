@@ -34,7 +34,7 @@ function update_apt_get() {
 
 function install_ganglia_dependencies() {
   # Install dependencies needed for ganglia
-  sed -e "/name = \"unspecified\" /s/unspecified/${master}/" -i /etc/ganglia/gmond.conf
+  sed -e "/name = \"unspecified\" /s/unspecified/${master_hostname}/" -i /etc/ganglia/gmond.conf
   sed -e '/mcast_join /s/^  /  #/' -i /etc/ganglia/gmond.conf
   sed -e '/bind /s/^  /  #/' -i /etc/ganglia/gmond.conf
   DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -43,8 +43,8 @@ function install_ganglia_dependencies() {
     ganglia-webfrontend || err 'Unable to install packages'
 
   ln -s /etc/ganglia-webfrontend/apache.conf /etc/apache2/sites-enabled/ganglia.conf
-  sed -i "s/my cluster/${master}/" /etc/ganglia/gmetad.conf
-  sed -e "/udp_send_channel {/a\  host = $(hostname)" -i /etc/ganglia/gmond.conf
+  sed -i "s/my cluster/${master_hostname}/" /etc/ganglia/gmetad.conf
+  sed -e "/udp_send_channel {/a\  host = ${master_hostname}" -i /etc/ganglia/gmond.conf
   systemctl restart ganglia-monitor &&
   systemctl restart gmetad &&
   systemctl restart apache2
@@ -53,16 +53,16 @@ function install_ganglia_dependencies() {
 
 function main() {
   local role=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
-  local master=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+  local master_hostname=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
   update_apt_get || err 'Unable to update apt-get'
   apt-get install -y ganglia-monitor
 
-  if [[ "${role}" == 'Master' ]]; then
-    # Only run on the master node
+  if [[ "${HOSTNAME}" == "${master_hostname}" ]]; then
+    # Only run on the one master node ("0"-master in HA mode)
     install_ganglia_dependencies || err 'Installing dependencies for Ganglia failed'
   else
-    sed -e "/udp_send_channel {/a\  host = ${master}" -i /etc/ganglia/gmond.conf
+    sed -e "/udp_send_channel {/a\  host = ${master_hostname}" -i /etc/ganglia/gmond.conf
     sed -i '/udp_recv_channel {/,/}/d' /etc/ganglia/gmond.conf
     systemctl restart ganglia-monitor
   fi
