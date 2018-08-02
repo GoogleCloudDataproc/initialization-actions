@@ -41,4 +41,4 @@ found in bigquery/target.
 ### Building the Google Cloud Pub/Sub connector
 
 Building the Pub/Sub Connector is described in [its
-README](pubsbu/README.md#building-and-testing).
+README](pubsub/README.md#building-and-testing).
