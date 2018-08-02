@@ -17,8 +17,7 @@ function is_master() {
 function get_docker_gpg() {
   # Hard code the GPG key to prevent malicious payloads. The key was originally
   # fetched by running:
-  # curl -fsSL https://download.docker.com/linux/$(. /etc/os-release; echo
-  # "$ID")/gpg
+  # curl -fsSL https://download.docker.com/linux/debian/gpg
   cat <<EOF
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 
