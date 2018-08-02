@@ -29,11 +29,10 @@ function update_apt_get() {
 }
 
 function install_docker() {
-  update_apt_get
-  apt-get install -y apt-transport-https ca-certificates curl gnupg2 \
-    software-properties-common
   get_docker_gpg | apt-key add -
-  add-apt-repository -y "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
+  # TODO: Use HTTPS repository when this is available in the base Dataproc
+  # image.
+  echo "deb [arch=amd64] http://download.docker.com/linux/debian $(lsb_release -cs) stable" >/etc/apt/sources.list.d/docker.list
   update_apt_get
   apt-get install -y docker-ce="${DOCKER_VERSION}"
 }
