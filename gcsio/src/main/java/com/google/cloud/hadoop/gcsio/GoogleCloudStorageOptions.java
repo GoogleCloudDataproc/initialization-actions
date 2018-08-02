@@ -48,6 +48,9 @@ public abstract class GoogleCloudStorageOptions {
   /** Default setting for maximum number of requests per GCS batch. */
   public static final long MAX_REQUESTS_PER_BATCH_DEFAULT = 30;
 
+  /** Default setting for number of threads to execute GCS batch requests. */
+  public static final int BATCH_THREADS_DEFAULT = 0;
+
   /** Default setting for maximum number of GCS HTTP request retires. */
   public static final int MAX_HTTP_REQUEST_RETRIES = 10;
 
@@ -76,6 +79,7 @@ public abstract class GoogleCloudStorageOptions {
         .setMaxWaitMillisForEmptyObjectCreation(MAX_WAIT_MILLIS_FOR_EMPTY_OBJECT_CREATION)
         .setMaxListItemsPerCall(MAX_LIST_ITEMS_PER_CALL_DEFAULT)
         .setMaxRequestsPerBatch(MAX_REQUESTS_PER_BATCH_DEFAULT)
+        .setBatchThreads(BATCH_THREADS_DEFAULT)
         .setMaxHttpRequestRetries(MAX_HTTP_REQUEST_RETRIES)
         .setHttpRequestConnectTimeout(HTTP_REQUEST_CONNECT_TIMEOUT)
         .setHttpRequestReadTimeout(HTTP_REQUEST_READ_TIMEOUT)
@@ -102,6 +106,8 @@ public abstract class GoogleCloudStorageOptions {
   public abstract long getMaxListItemsPerCall();
 
   public abstract long getMaxRequestsPerBatch();
+
+  public abstract int getBatchThreads();
 
   public abstract int getMaxHttpRequestRetries();
 
@@ -154,6 +160,8 @@ public abstract class GoogleCloudStorageOptions {
     // there is a maximum of 1000 requests per batch.
     public abstract Builder setMaxRequestsPerBatch(long maxRequestsPerBatch);
 
+    public abstract Builder setBatchThreads(int batchThreads);
+
     public abstract Builder setMaxHttpRequestRetries(int maxHttpRequestRetries);
 
     public abstract Builder setHttpRequestConnectTimeout(int httpRequestConnectTimeout);
@@ -195,6 +203,5 @@ public abstract class GoogleCloudStorageOptions {
       }
       return autoBuild();
     }
-
   }
 }

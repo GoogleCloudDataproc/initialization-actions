@@ -13,127 +13,254 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.google.cloud.hadoop.gcsio;
+
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
 
 import com.google.api.client.googleapis.batch.BatchRequest;
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.StorageRequest;
-import com.google.common.annotations.VisibleForTesting;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * BatchHelper abstracts out the logic for maximum requests per batch, and also allows a workaround
  * for the fact that {@code BatchRequest} was made a "final class" for some reason, making it
  * impossible to unittest. Instead, batch interactions with a Storage API client will be funneled
  * through this class, while unittests can inject a mock batch helper.
- * <p>
- * This class is not thread-safe; expected usage is to create a new BatchHelper instance per
- * single-threaded logical grouping of requests.
+ *
+ * <p>This class is thread-safe, because if {@code numThreads} is greater than 0, request callbacks
+ * will be executed on a different thread(s) than a client thread that queues requests.
+ *
+ * <p>Expected usage is to create a new BatchHelper instance per client operation (copy, rename,
+ * delete, etc.) that represent logical grouping of requests.
+ *
+ * <p>Instance of this class can not be used again after {@link #flush()} method call.
  */
 public class BatchHelper {
+
+  public static final Logger LOG = LoggerFactory.getLogger(BatchHelper.class);
+
+  private static final ThreadFactory THREAD_FACTORY =
+      new ThreadFactoryBuilder().setNameFormat("gcsfs-batch-helper-%d").setDaemon(true).build();
+
   /**
-   * Since each BatchHelper instance should be tied to a particular related set of requests,
-   * use cases will generally interact via an injectable BatchHelper.Factory.
+   * Since each BatchHelper instance should be tied to a particular related set of requests, use
+   * cases will generally interact via an injectable BatchHelper.Factory.
    */
   public static class Factory {
     public BatchHelper newBatchHelper(
         HttpRequestInitializer requestInitializer, Storage gcs, long maxRequestsPerBatch) {
-      return new BatchHelper(requestInitializer, gcs, maxRequestsPerBatch);
+      return new BatchHelper(requestInitializer, gcs, maxRequestsPerBatch, /* numThreads= */ 1);
+    }
+
+    BatchHelper newBatchHelper(
+        HttpRequestInitializer requestInitializer,
+        Storage gcs,
+        long maxRequestsPerBatch,
+        long totalRequests,
+        int maxThreads) {
+      checkArgument(maxRequestsPerBatch > 0, "maxRequestsPerBatch should be greater than 0");
+      checkArgument(totalRequests > 0, "totalRequests should be greater than 0");
+      checkArgument(maxThreads >= 0, "maxThreads should be greater or equal to 0");
+      if (maxThreads == 0) {
+        return new BatchHelper(requestInitializer, gcs, maxRequestsPerBatch, maxThreads);
+      }
+      // If maxRequestsPerBatch is too high to fill up all parallel batches (maxThreads)
+      // then reduce it to evenly distribute requests across the batches
+      long requestsPerBatch = (long) Math.ceil((double) totalRequests / maxThreads);
+      requestsPerBatch = Math.min(requestsPerBatch, maxRequestsPerBatch);
+      // If maxThreads is too high to execute all requests (totalRequests)
+      // in batches (requestsPerBatch) then reduce it to minimum required number of threads
+      int numThreads = Math.toIntExact((long) Math.ceil((double) totalRequests / requestsPerBatch));
+      numThreads = Math.min(numThreads, maxThreads);
+      return new BatchHelper(requestInitializer, gcs, requestsPerBatch, numThreads);
     }
   }
 
-  /**
-   * Callback that causes a single StorageRequest to be added to the BatchRequest.
-   */
+  /** Callback that causes a single StorageRequest to be added to the {@link BatchRequest}. */
   protected static interface QueueRequestCallback {
-    void enqueue() throws IOException;
+    void enqueue(BatchRequest batch) throws IOException;
   }
 
-  private final List<QueueRequestCallback> pendingBatchEntries;
-  private final BatchRequest batch;
-  // Number of requests that can be queued into a single actual HTTP request
-  // before a sub-batch is sent.
+  private final Queue<QueueRequestCallback> pendingRequests = new ConcurrentLinkedQueue<>();
+  private final ExecutorService requestsExecutor;
+  private final Queue<Future<Void>> responseFutures = new ConcurrentLinkedQueue<>();
+
+  private final HttpRequestInitializer requestInitializer;
+  private final Storage gcs;
+  // Number of requests that can be queued into a single HTTP batch request.
   private final long maxRequestsPerBatch;
-  // Flag that indicates whether there is an in-progress flush.
-  private boolean flushing = false;
+
+  private final Lock flushLock = new ReentrantLock();
 
   /**
    * Primary constructor, generally accessed only via the inner Factory class.
+   *
+   * @param numThreads Number of threads to execute HTTP batch requests in parallel.
    */
-  private BatchHelper(HttpRequestInitializer requestInitializer, Storage gcs,
-      long maxRequestsPerBatch) {
-    this.pendingBatchEntries = new LinkedList<>();
-    this.batch = gcs.batch(requestInitializer);
+  private BatchHelper(
+      HttpRequestInitializer requestInitializer,
+      Storage gcs,
+      long maxRequestsPerBatch,
+      int numThreads) {
+    this.requestInitializer = requestInitializer;
+    this.gcs = gcs;
+    this.requestsExecutor =
+        numThreads == 0 ? newDirectExecutorService() : newRequestsExecutor(numThreads);
     this.maxRequestsPerBatch = maxRequestsPerBatch;
   }
 
-  @VisibleForTesting
-  protected BatchHelper() {
-    this.pendingBatchEntries = new LinkedList<>();
-    this.batch = null;
-    this.maxRequestsPerBatch = -1;
+  private static ExecutorService newRequestsExecutor(int numThreads) {
+    ThreadPoolExecutor requestsExecutor =
+        new ThreadPoolExecutor(
+            /* corePoolSize= */ numThreads,
+            /* maximumPoolSize= */ numThreads,
+            /* keepAliveTime= */ 5, TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(numThreads * 20),
+            THREAD_FACTORY);
+    // Prevents memory leaks in case flush() method was not called.
+    requestsExecutor.allowCoreThreadTimeOut(true);
+    return requestsExecutor;
   }
 
   /**
    * Adds an additional request to the batch, and possibly flushes the current contents of the batch
    * if {@code maxRequestsPerBatch} has been reached.
    */
-  public <T> void queue(final StorageRequest<T> req, final JsonBatchCallback<T> callback)
-      throws IOException {
-      QueueRequestCallback queueCallback = new QueueRequestCallback() {
-        @Override
-        public void enqueue() throws IOException {
-          req.queue(batch, callback);
-        }
-      };
-    pendingBatchEntries.add(queueCallback);
+  public <T> void queue(StorageRequest<T> req, JsonBatchCallback<T> callback) throws IOException {
+    checkState(
+        !requestsExecutor.isShutdown() && !requestsExecutor.isTerminated(),
+        "requestsExecutor should not be terminated to queue batch requests");
+    if (maxRequestsPerBatch == 1) {
+      responseFutures.add(
+          requestsExecutor.submit(
+              () -> {
+                execute(req, callback);
+                return null;
+              }));
+    } else {
+      pendingRequests.add(batch -> req.queue(batch, callback));
 
-    flushIfPossibleAndRequired();
+      flushIfPossibleAndRequired();
+    }
+  }
+
+  public <T> void execute(StorageRequest<T> req, JsonBatchCallback<T> callback) throws IOException {
+    try {
+      T result = req.execute();
+      callback.onSuccess(result, req.getLastResponseHeaders());
+    } catch (IOException e) {
+      GoogleJsonResponseException je = ApiErrorExtractor.getJsonResponseExceptionOrNull(e);
+      if (je == null) {
+        throw e;
+      }
+      callback.onFailure(je.getDetails(), je.getHeaders());
+    }
   }
 
   // Flush our buffer if we have at least maxRequestsPerBatch pending entries
   private void flushIfPossibleAndRequired() throws IOException {
-    if (pendingBatchEntries.size() >= maxRequestsPerBatch) {
+    if (pendingRequests.size() >= maxRequestsPerBatch) {
       flushIfPossible(false);
     }
   }
 
   // Flush our buffer if we are not already in a flush operation and we have data to flush.
   private void flushIfPossible(boolean flushAll) throws IOException {
-    if (!flushing && pendingBatchEntries.size() > 0) {
-      flushing = true;
-      try {
-        do {
-          while (batch.size() < maxRequestsPerBatch && !pendingBatchEntries.isEmpty()) {
-            QueueRequestCallback head = pendingBatchEntries.remove(0);
-            head.enqueue();
-          }
+    if (flushAll) {
+      flushLock.lock();
+    } else if (pendingRequests.isEmpty() || !flushLock.tryLock()) {
+      return;
+    }
+    try {
+      do {
+        flushPendingRequests();
+        if (flushAll) {
+          awaitRequestsCompletion();
+        }
+      } while (flushAll && (!pendingRequests.isEmpty() || !responseFutures.isEmpty()));
+    } finally {
+      flushLock.unlock();
+    }
+  }
 
-          batch.execute();
-        } while (flushAll && !pendingBatchEntries.isEmpty());
-      } finally {
-        flushing = false;
+  private void flushPendingRequests() throws IOException {
+    if (pendingRequests.isEmpty()) {
+      return;
+    }
+    BatchRequest batch = gcs.batch(requestInitializer);
+    while (batch.size() < maxRequestsPerBatch && !pendingRequests.isEmpty()) {
+      // enqueue request at head
+      pendingRequests.remove().enqueue(batch);
+    }
+    responseFutures.add(
+        requestsExecutor.submit(
+            () -> {
+              batch.execute();
+              return null;
+            }));
+  }
+
+  /**
+   * Sends any currently remaining requests in the batch; should be called at the end of any series
+   * of batched requests to ensure everything has been sent.
+   */
+  public void flush() throws IOException {
+    try {
+      flushIfPossible(true);
+      checkState(pendingRequests.isEmpty(), "pendingRequests should be empty after flush");
+      checkState(responseFutures.isEmpty(), "responseFutures should be empty after flush");
+    } finally {
+      requestsExecutor.shutdown();
+      try {
+        if (!requestsExecutor.awaitTermination(1, TimeUnit.SECONDS)) {
+          LOG.warn("Forcibly shutting down batch helper thread pool.");
+          requestsExecutor.shutdownNow();
+        }
+      } catch (InterruptedException e) {
+        LOG.debug(
+            "Failed to await termination: forcibly shutting down batch helper thread pool.", e);
+        requestsExecutor.shutdownNow();
       }
     }
   }
 
-  /**
-   * Sends any currently remaining requests in the batch; should be caleld at the end of any series
-   * of batched requests to ensure everything has been sent.
-   */
-  public void flush() throws IOException {
-    flushIfPossible(true);
+  /** Returns true if there are no currently queued entries in the batch helper. */
+  public boolean isEmpty() {
+    return pendingRequests.isEmpty();
   }
 
-  /**
-   * Returns true if there are no currently queued entries in the batch helper.
-   */
-  public boolean isEmpty() {
-    return pendingBatchEntries.isEmpty();
+  /** Awaits until all sent requests are completed. Should be serialized */
+  private void awaitRequestsCompletion() throws IOException {
+    while (!responseFutures.isEmpty()) {
+      try {
+        responseFutures.remove().get();
+      } catch (InterruptedException | ExecutionException e) {
+        if (e.getCause() instanceof IOException) {
+          throw (IOException) e.getCause();
+        }
+        throw new RuntimeException("Failed to execute batch", e);
+      }
+    }
   }
 }

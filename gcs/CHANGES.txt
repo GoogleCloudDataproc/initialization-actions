@@ -21,6 +21,16 @@
      generation is determined. It won't affect read from any streams that are
      already open, pre-fetched footer, or the metadata of the object.
 
+  2. Support parallel execution of GCS batch requests.
+
+     Number of threads to execute batch requests configurable via property:
+
+       fs.gs.batch.threads (default: 0)
+
+
+     If `fs.gs.batch.threads` value is set to 0 then batch requests will be
+     executed sequentially by caller thread.
+
 
 1.9.3 - 2018-07-25
 
