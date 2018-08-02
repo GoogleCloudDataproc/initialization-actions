@@ -29,6 +29,9 @@ function update_apt_get() {
 }
 
 function install_docker() {
+  update_apt_get
+  apt-get install -y apt-transport-https ca-certificates curl gnupg2 \
+    software-properties-common
   get_docker_gpg | apt-key add -
   add-apt-repository -y "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
   update_apt_get
