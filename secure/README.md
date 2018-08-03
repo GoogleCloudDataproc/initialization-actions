@@ -131,3 +131,4 @@ Using a self-signed certificate in a production system is strongly discouraged.
 1. This initialization action does not support Dataproc clusters in HA mode.
 2. Only a root user principal "root@`<REALM>`" will be provided (password specfied by caller). It has administrative permission to the KDC.
 3. Once the cluster is secured ("Kerberized"), submitting a YARN job through gcloud will stop working. You can however still ssh to the master and submit a job.
+4. Submitting a YARN job as the user `root` is not allowed. You can however create principals for non-privileged users and the submit jobs.
