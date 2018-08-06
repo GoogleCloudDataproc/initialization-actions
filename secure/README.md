@@ -99,7 +99,7 @@ Google Cloud's key management service. Proceed as follows:
 You will need to purchase the certificate from a Certificate Authority (CA).
 Using a self-signed certificate in a production system is strongly discouraged.
 
-1. Create a key pair (fill in the domain name, etc. on prompt.
+1. Create a key pair (fill in the domain name, etc. on prompt).
 
     ```bash
     keytool -genkeypair -keystore <KEYSTORE_FILE> \
