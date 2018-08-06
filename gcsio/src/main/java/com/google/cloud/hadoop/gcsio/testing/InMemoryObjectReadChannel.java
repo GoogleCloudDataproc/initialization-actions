@@ -29,29 +29,22 @@ import java.io.InputStream;
 public class InMemoryObjectReadChannel extends GoogleCloudStorageReadChannel {
 
   // All reads return data from this byte array. Set at construction time.
-  private final byte[] channelContent;
+  private final byte[] content;
 
   /** Creates a new instance of InMemoryObjectReadChannel. */
-  public InMemoryObjectReadChannel(byte[] channelContent) throws IOException {
-    this(channelContent, GoogleCloudStorageReadOptions.DEFAULT);
+  public InMemoryObjectReadChannel(byte[] content) throws IOException {
+    this(content, GoogleCloudStorageReadOptions.DEFAULT);
   }
 
   /**
    * Creates a new instance of InMemoryObjectReadChannel with {@code readOptions} plumbed into the
    * base class.
    */
-  public InMemoryObjectReadChannel(byte[] channelContent, GoogleCloudStorageReadOptions readOptions)
+  public InMemoryObjectReadChannel(byte[] content, GoogleCloudStorageReadOptions readOptions)
       throws IOException {
     super(readOptions);
-    this.channelContent = checkNotNull(channelContent, "channelContents could not be null");
-    // gzipEncoded and size should be initialized in constructor, the same as with super-class
-    // gzipEncoded is false by default.
-    setSize(channelContent.length);
+    this.content = checkNotNull(content, "channelContents could not be null");
   }
-
-  /** No-op, because encoding and size are set in constructor. */
-  @Override
-  protected void initEncodingAndSize() {}
 
   /**
    * Opens the underlying byte array stream, sets its position to currentPosition and sets size to
@@ -62,8 +55,15 @@ public class InMemoryObjectReadChannel extends GoogleCloudStorageReadChannel {
    */
   @Override
   protected InputStream openStream(long bytesToRead) throws IOException {
-    InputStream inputStream = new ByteArrayInputStream(channelContent);
+    if (size() == -1 && content.length == 0 && currentPosition == 0) {
+      setSize(content.length);
+    } else {
+      setSize(content.length);
+      validatePosition(currentPosition);
+    }
+    InputStream inputStream = new ByteArrayInputStream(content);
     inputStream.skip(currentPosition);
+    contentChannelPosition = currentPosition;
     return inputStream;
   }
 }

@@ -525,22 +525,19 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final boolean GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_DEFAULT = false;
 
   /**
-   * If true, input streams will proactively check the "content-encoding" header of underlying
-   * objects during reads for special handling of cases where content-encoding causes the reported
-   * object sizes to not match the actual number of read bytes due to the content being decoded
-   * in-transit; such encoded objects also aren't suitable for splitting or resuming on failure, so
-   * the underlying channel will restart from byte 0 and discard the requisite number of bytes to
-   * seek to a desired position or resume in such cases. In general, content-encoded objects are
-   * *not* well-suited for FileSystem-style access, and will break most of the split computations in
-   * the Hadoop subsystem anyways. To avoid paying the cost of an extra metadata GET on every single
-   * opened channel in the usual case where no content-encoded objects are present, it may be
-   * desirable to set this to 'false'.
+   * If true, on opening a file we will proactively perform a metadata GET to check whether the
+   * object exists, even though the underlying channel will not open a data stream until read() is
+   * actually called so that streams can seek to nonzero file positions without incurring an extra
+   * stream creation. This is necessary to technically match the expected behavior of Hadoop
+   * filesystems, but incurs extra latency overhead on open(). If the calling code can handle late
+   * failures on not-found errors, or has independently already ensured that a file exists before
+   * calling open(), then set this to false for more efficient reads.
    */
-  public static final String GCS_INPUTSTREAM_SUPPORT_CONTENT_ENCODING_ENABLE_KEY =
-      "fs.gs.inputstream.support.content.encoding.enable";
+  public static final String GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY =
+      "fs.gs.inputstream.fast.fail.on.not.found.enable";
 
-  /** Default value for {@link #GCS_INPUTSTREAM_SUPPORT_CONTENT_ENCODING_ENABLE_KEY}. */
-  public static final boolean GCS_INPUTSTREAM_SUPPORT_CONTENT_ENCODING_ENABLE_DEFAULT = true;
+  /** Default value for {@link #GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY}. */
+  public static final boolean GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_DEFAULT = true;
 
   /**
    * If forward seeks are within this many bytes of the current position, seeks are performed by
@@ -569,17 +566,6 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   /** Default value for {@link #GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_KEY}. */
   public static final int GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_DEFAULT =
       GoogleCloudStorageReadOptions.DEFAULT_MIN_RANGE_REQUEST_SIZE;
-
-  /**
-   * Size of the object footer that will be prefetched when read channel opened. Footer prefetching
-   * is disabled if this property is set to 0.
-   */
-  public static final String GCS_INPUTSTREAM_FOOTER_PREFETCH_SIZE_KEY =
-      "fs.gs.inputstream.footer.prefetch.size";
-
-  /** Default value for {@link #GCS_INPUTSTREAM_FOOTER_PREFETCH_SIZE_KEY}. */
-  public static final int GCS_INPUTSTREAM_FOOTER_PREFETCH_SIZE_DEFAULT =
-      GoogleCloudStorageReadOptions.DEFAULT_FOOTER_PREFETCH_SIZE;
 
   /**
    * If true, recursive delete on a path that refers to a GCS bucket itself ('/' for any

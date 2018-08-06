@@ -89,10 +89,10 @@ class GoogleHadoopFSInputStream
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_DEFAULT);
     LOG.debug("enableInternalBuffer: {}", enableInternalBuffer);
 
-    boolean supportContentEncoding = ghfs.getConf().getBoolean(
-        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_SUPPORT_CONTENT_ENCODING_ENABLE_KEY,
-        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_SUPPORT_CONTENT_ENCODING_ENABLE_DEFAULT);
-    LOG.debug("supportContentEncoding: {}", supportContentEncoding);
+    boolean fastFailOnNotFound = ghfs.getConf().getBoolean(
+        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY,
+        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_DEFAULT);
+    LOG.debug("fastFailOnNotFound: {}", fastFailOnNotFound);
 
     long inplaceSeekLimit = ghfs.getConf().getLong(
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY,
@@ -109,25 +109,17 @@ class GoogleHadoopFSInputStream
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_DEFAULT);
     LOG.debug("minRangeRequestSize: {}", minRangeRequestSize);
 
-    int footerPrefetchSize = ghfs.getConf().getInt(
-        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FOOTER_PREFETCH_SIZE_KEY,
-        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FOOTER_PREFETCH_SIZE_DEFAULT);
-    LOG.debug("footerPrefetchSize: {}", footerPrefetchSize);
-
-    GenerationReadConsistency generationConsistency =
-        ghfs.getConf()
-            .getEnum(
-                GoogleHadoopFileSystemBase.GCS_GENERATION_READ_CONSISTENCY_KEY,
-                GoogleHadoopFileSystemBase.GCS_GENERATION_READ_CONSISTENCY_DEFAULT);
+    GenerationReadConsistency generationConsistency = ghfs.getConf().getEnum(
+        GoogleHadoopFileSystemBase.GCS_GENERATION_READ_CONSISTENCY_KEY,
+        GoogleHadoopFileSystemBase.GCS_GENERATION_READ_CONSISTENCY_DEFAULT);
     LOG.debug("generationReadConsistency: {}", generationConsistency);
 
     GoogleCloudStorageReadOptions.Builder readOptions =
         GoogleCloudStorageReadOptions.builder()
-            .setSupportContentEncoding(supportContentEncoding)
+            .setFastFailOnNotFound(fastFailOnNotFound)
             .setInplaceSeekLimit(inplaceSeekLimit)
             .setFadvise(fadvise)
             .setMinRangeRequestSize(minRangeRequestSize)
-            .setFooterPrefetchSize(footerPrefetchSize)
             .setGenerationReadConsistency(generationConsistency);
     if (enableInternalBuffer) {
       buffer = ByteBuffer.allocate(bufferSize);

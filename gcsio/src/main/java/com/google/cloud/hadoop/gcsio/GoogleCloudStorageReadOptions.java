@@ -46,12 +46,11 @@ public abstract class GoogleCloudStorageReadOptions {
   public static final double DEFAULT_BACKOFF_MULTIPLIER = 1.5;
   public static final int DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS = 10 * 1000;
   public static final int DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS = 2 * 60 * 1000;
-  public static final boolean DEFAULT_SUPPORT_CONTENT_ENCODING = true;
+  public static final boolean DEFAULT_FAST_FAIL_ON_NOT_FOUND = true;
   public static final int DEFAULT_BUFFER_SIZE = 0;
   public static final long DEFAULT_INPLACE_SEEK_LIMIT = 0L;
   public static final Fadvise DEFAULT_FADVISE = Fadvise.SEQUENTIAL;
   public static final int DEFAULT_MIN_RANGE_REQUEST_SIZE = 512 * 1024;
-  public static final int DEFAULT_FOOTER_PREFETCH_SIZE = 0;
   public static final GenerationReadConsistency DEFAULT_GENERATION_READ_CONSISTENCY =
       GenerationReadConsistency.LATEST;
 
@@ -66,12 +65,11 @@ public abstract class GoogleCloudStorageReadOptions {
         .setBackoffMultiplier(DEFAULT_BACKOFF_MULTIPLIER)
         .setBackoffMaxIntervalMillis(DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS)
         .setBackoffMaxElapsedTimeMillis(DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS)
-        .setSupportContentEncoding(DEFAULT_SUPPORT_CONTENT_ENCODING)
+        .setFastFailOnNotFound(DEFAULT_FAST_FAIL_ON_NOT_FOUND)
         .setBufferSize(DEFAULT_BUFFER_SIZE)
         .setInplaceSeekLimit(DEFAULT_INPLACE_SEEK_LIMIT)
         .setFadvise(DEFAULT_FADVISE)
         .setMinRangeRequestSize(DEFAULT_MIN_RANGE_REQUEST_SIZE)
-        .setFooterPrefetchSize(DEFAULT_FOOTER_PREFETCH_SIZE)
         .setGenerationReadConsistency(DEFAULT_GENERATION_READ_CONSISTENCY);
   }
 
@@ -90,8 +88,8 @@ public abstract class GoogleCloudStorageReadOptions {
   /** See {@link Builder#setBackoffMaxElapsedTimeMillis}. */
   public abstract int getBackoffMaxElapsedTimeMillis();
 
-  /** See {@link Builder#setSupportContentEncoding}. */
-  public abstract boolean getSupportContentEncoding();
+  /** See {@link Builder#setFastFailOnNotFound}. */
+  public abstract boolean getFastFailOnNotFound();
 
   /** See {@link Builder#setBufferSize}. */
   public abstract int getBufferSize();
@@ -104,9 +102,6 @@ public abstract class GoogleCloudStorageReadOptions {
 
   /** See {@link Builder#setMinRangeRequestSize}. */
   public abstract int getMinRangeRequestSize();
-
-  /** See {@link Builder#setFooterPrefetchSize}. */
-  public abstract int getFooterPrefetchSize();
 
   /** See {@link Builder#setGenerationReadConsistency}. */
   public abstract GenerationReadConsistency getGenerationReadConsistency();
@@ -149,12 +144,14 @@ public abstract class GoogleCloudStorageReadOptions {
     public abstract Builder setBackoffMaxElapsedTimeMillis(int backoffMaxElapsedTimeMillis);
 
     /**
-     * True if the channel must take special precautions for dealing with "content-encoding" headers
-     * where reported object sizes don't match actual bytes being read due to the stream being
-     * decoded in-flight. This is not the same as "content-type", and most use cases shouldn't have
-     * to worry about this; performance will be improved if this is set to false.
+     * True if attempts to open a new channel on a nonexistent object are required to immediately
+     * throw an IOException. If false, then channels may not throw exceptions for such cases until
+     * attempting to call read(). Performance can be improved if this is set to false and the caller
+     * is equipped to deal with delayed failures for not-found objects. Or if the caller is already
+     * sure the object being opened exists, it is recommended to set this to false to avoid doing
+     * extraneous checks on open().
      */
-    public abstract Builder setSupportContentEncoding(boolean supportContentEncoding);
+    public abstract Builder setFastFailOnNotFound(boolean fastFailOnNotFound);
 
     /**
      * If set to a positive value, low-level streams will be wrapped inside a BufferedInputStream of
@@ -185,17 +182,6 @@ public abstract class GoogleCloudStorageReadOptions {
      * </ul>
      */
     public abstract Builder setFadvise(Fadvise fadvise);
-
-    /**
-     * Sets size of the footer that will be prefetched when {@link GoogleCloudStorageReadChannel} is
-     * created.
-     *
-     * <p>This allows to reads objects in columnar formats (like Parquet and ORC) that store
-     * metadata at the end of the file in the footer faster.
-     *
-     * <p>To disable footer prefetching set this option to 0.
-     */
-    public abstract Builder setFooterPrefetchSize(int prefetchSize);
 
     /**
      * Sets the minimum size of the HTTP Range header that could be set in GCS request when opening

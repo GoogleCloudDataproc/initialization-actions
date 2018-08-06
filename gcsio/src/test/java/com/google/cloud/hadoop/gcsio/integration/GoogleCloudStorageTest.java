@@ -890,9 +890,7 @@ public class GoogleCloudStorageTest {
       assertWithMessage("Expected new file to open at position 0")
           .that(readChannel.position())
           .isEqualTo(0);
-      assertWithMessage("Unexpected readChannel.size()")
-          .that(readChannel.size())
-          .isEqualTo(totalBytes);
+      assertWithMessage("Unexpected readChannel.size()").that(readChannel.size()).isEqualTo(-1);
 
       readBuffer.limit(4);
       int bytesRead = readChannel.read(readBuffer);
@@ -900,6 +898,9 @@ public class GoogleCloudStorageTest {
       assertWithMessage("Unexpected position after read()")
           .that(readChannel.position())
           .isEqualTo(4);
+      assertWithMessage("Unexpected readChannel.size()")
+          .that(readChannel.size())
+          .isEqualTo(totalBytes);
 
       readChannel.position(4);
       assertWithMessage("Unexpected position after no-op")

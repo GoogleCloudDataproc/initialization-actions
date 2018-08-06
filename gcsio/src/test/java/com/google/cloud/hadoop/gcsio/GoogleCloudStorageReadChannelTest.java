@@ -18,17 +18,14 @@ import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.JSON_FAC
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.createReadChannel;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.dataRangeResponse;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.dataResponse;
-import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.metadataResponse;
 import static com.google.common.truth.Truth.assertThat;
 import static java.util.stream.Collectors.toList;
 
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.services.storage.Storage;
-import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import java.io.IOException;
-import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -49,12 +46,10 @@ public class GoogleCloudStorageReadChannelTest {
 
     MockHttpTransport transport =
         GoogleCloudStorageTestUtils.mockTransport(
-            // Metadata request response
-            metadataResponse(new StorageObject().setSize(BigInteger.valueOf(testData.length))),
             // 1st read request response
-            dataResponse(testData),
+            dataRangeResponse(Arrays.copyOfRange(testData, 1, testData.length), 1, testData.length),
             // 2nd read request response
-            dataResponse(testData2));
+            dataRangeResponse(testData2, seekPosition, testData2.length));
 
     List<HttpRequest> requests = new ArrayList<>();
 
@@ -63,27 +58,29 @@ public class GoogleCloudStorageReadChannelTest {
     GoogleCloudStorageReadOptions options =
         GoogleCloudStorageReadOptions.builder()
             .setFadvise(Fadvise.AUTO)
-            .setInplaceSeekLimit(seekPosition - 2)
+            .setMinRangeRequestSize(1)
+            .setInplaceSeekLimit(2)
             .build();
 
     GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options);
 
-    byte[] read = new byte[1];
+    byte[] readBytes = new byte[1];
 
-    assertThat(readChannel.read(ByteBuffer.wrap(read))).isEqualTo(1);
-    assertThat(read).isEqualTo(new byte[] {testData[0]});
+    readChannel.position(1);
+    assertThat(readChannel.read(ByteBuffer.wrap(readBytes))).isEqualTo(1);
+    assertThat(readBytes).isEqualTo(new byte[] {testData[1]});
 
     readChannel.position(seekPosition);
     assertThat(readChannel.randomAccess).isFalse();
 
-    assertThat(readChannel.read(ByteBuffer.wrap(read))).isEqualTo(1);
-    assertThat(read).isEqualTo(new byte[] {testData[seekPosition]});
+    assertThat(readChannel.read(ByteBuffer.wrap(readBytes))).isEqualTo(1);
+    assertThat(readBytes).isEqualTo(new byte[] {testData[seekPosition]});
     assertThat(readChannel.randomAccess).isTrue();
 
     List<String> rangeHeaders =
         requests.stream().map(r -> r.getHeaders().getRange()).collect(toList());
 
-    assertThat(rangeHeaders).containsExactly(null, "bytes=0-", "bytes=5-9").inOrder();
+    assertThat(rangeHeaders).containsExactly("bytes=1-", "bytes=5-5").inOrder();
   }
 
   @Test
@@ -94,55 +91,56 @@ public class GoogleCloudStorageReadChannelTest {
 
     MockHttpTransport transport =
         GoogleCloudStorageTestUtils.mockTransport(
-            // Metadata request response
-            metadataResponse(new StorageObject().setSize(BigInteger.valueOf(testData.length))),
             // 1st read request response
-            dataResponse(testData2),
+            dataRangeResponse(testData2, seekPosition, testData2.length),
             // 2nd read request response
-            dataResponse(testData));
+            dataRangeResponse(testData, 0, testData.length));
 
     List<HttpRequest> requests = new ArrayList<>();
 
     Storage storage = new Storage(transport, JSON_FACTORY, requests::add);
 
     GoogleCloudStorageReadOptions options =
-        GoogleCloudStorageReadOptions.builder().setFadvise(Fadvise.AUTO).build();
+        GoogleCloudStorageReadOptions.builder()
+            .setFadvise(Fadvise.AUTO)
+            .setMinRangeRequestSize(1)
+            .build();
 
     GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options);
 
-    byte[] read = new byte[1];
+    byte[] readBytes = new byte[1];
 
     readChannel.position(seekPosition);
 
-    assertThat(readChannel.read(ByteBuffer.wrap(read))).isEqualTo(1);
-    assertThat(read).isEqualTo(new byte[] {testData[seekPosition]});
+    assertThat(readChannel.read(ByteBuffer.wrap(readBytes))).isEqualTo(1);
+    assertThat(readBytes).isEqualTo(new byte[] {testData[seekPosition]});
 
     readChannel.position(0);
     assertThat(readChannel.randomAccess).isFalse();
 
-    assertThat(readChannel.read(ByteBuffer.wrap(read))).isEqualTo(1);
-    assertThat(read).isEqualTo(new byte[] {testData[0]});
+    assertThat(readChannel.read(ByteBuffer.wrap(readBytes))).isEqualTo(1);
+    assertThat(readBytes).isEqualTo(new byte[] {testData[0]});
     assertThat(readChannel.randomAccess).isTrue();
 
     List<String> rangeHeaders =
         requests.stream().map(r -> r.getHeaders().getRange()).collect(toList());
 
-    assertThat(rangeHeaders).containsExactly(null, "bytes=5-", "bytes=0-9").inOrder();
+    assertThat(rangeHeaders).containsExactly("bytes=5-", "bytes=0-0").inOrder();
   }
 
   @Test
   public void footerPrefetch_reused() throws IOException {
-    int footerPrefetchBytes = 2;
+    int footeSize = 2;
     byte[] testData = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09};
-    int footerPrefetchStart = testData.length - footerPrefetchBytes;
-    byte[] footerPrefetch = Arrays.copyOfRange(testData, footerPrefetchStart, testData.length);
+    int footerStart = testData.length - footeSize;
+    byte[] footer = Arrays.copyOfRange(testData, footerStart, testData.length);
 
     MockHttpTransport transport =
         GoogleCloudStorageTestUtils.mockTransport(
             // Footer prefetch response
-            dataRangeResponse(footerPrefetch, footerPrefetchStart, testData.length),
+            dataRangeResponse(footer, footerStart, testData.length),
             // Footer read miss request response
-            dataResponse(new byte[] {testData[footerPrefetchStart - 1]}));
+            dataResponse(new byte[] {testData[footerStart - 1]}));
 
     List<HttpRequest> requests = new ArrayList<>();
 
@@ -151,24 +149,29 @@ public class GoogleCloudStorageReadChannelTest {
     GoogleCloudStorageReadOptions options =
         GoogleCloudStorageReadOptions.builder()
             .setFadvise(Fadvise.RANDOM)
-            .setFooterPrefetchSize(footerPrefetchBytes)
-            .setMinRangeRequestSize(footerPrefetchBytes)
+            .setMinRangeRequestSize(footeSize)
             .build();
 
     GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options);
+    assertThat(readChannel.size()).isEqualTo(-1);
+
+    byte[] readBytes = new byte[2];
+
+    // Force lazy footer prefetch
+    readChannel.position(footerStart);
+    assertThat(readChannel.read(ByteBuffer.wrap(readBytes))).isEqualTo(2);
     assertThat(readChannel.size()).isEqualTo(testData.length);
+    assertThat(readBytes).isEqualTo(Arrays.copyOfRange(testData, footerStart, testData.length));
 
-    byte[] read = new byte[2];
+    readChannel.position(footerStart - 1);
 
-    readChannel.position(footerPrefetchStart - 1);
-
-    assertThat(readChannel.read(ByteBuffer.wrap(read))).isEqualTo(2);
-    assertThat(read)
-        .isEqualTo(Arrays.copyOfRange(testData, footerPrefetchStart - 1, testData.length - 1));
+    assertThat(readChannel.read(ByteBuffer.wrap(readBytes))).isEqualTo(2);
+    assertThat(readBytes)
+        .isEqualTo(Arrays.copyOfRange(testData, footerStart - 1, testData.length - 1));
 
     List<String> rangeHeaders =
         requests.stream().map(r -> r.getHeaders().getRange()).collect(toList());
 
-    assertThat(rangeHeaders).containsExactly("bytes=-2", "bytes=7-7").inOrder();
+    assertThat(rangeHeaders).containsExactly("bytes=8-9", "bytes=7-7").inOrder();
   }
 }

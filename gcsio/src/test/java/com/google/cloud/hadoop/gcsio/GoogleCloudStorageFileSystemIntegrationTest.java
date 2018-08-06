@@ -620,24 +620,27 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
         GoogleCloudStorageReadOptions.builder()
             .setGenerationReadConsistency(GenerationReadConsistency.BEST_EFFORT)
             .setFadvise(Fadvise.RANDOM)
-            .setMinRangeRequestSize(0)
-            .setFooterPrefetchSize(footerLength)
+            .setMinRangeRequestSize(footerLength)
             .build();
     try (SeekableByteChannel readChannel = gcsiHelper.open(bucketName, object, readOptions)) {
       String read1 = gcsiHelper.readText(readChannel, 0, offset, false);
+      // Force lazy footer caching
+      String readFooter =
+          gcsiHelper.readText(readChannel, message1.length() - 1, footerLength, true);
       gcsiHelper.writeTextFileOverwriting(bucketName, object, message2);
       String read2 = gcsiHelper.readText(readChannel, offset, message1.length() - offset, true);
-      assertWithMessage("partial read mismatch")
+      assertWithMessage("beginning read mismatch")
           .that(read1)
           .isEqualTo(message1.substring(0, offset));
+      assertWithMessage("footer read mismatch").that(readFooter).isEqualTo(footer);
       // The readChannel will still just try to read the remaining 8 characters, but this time from
       // the live version ("Sayonara, world!\n"), also, since the last character is already
       // pre-fetched, this second read will only read 7 characters, and concatenate the footer
       // (in this test case, the '\n' character). Thus, instead of reading " world!\n", it actually
       // reads "ara wor\n".
-      assertWithMessage("partial read mismatch")
+      assertWithMessage("ending read mismatch")
           .that(read2)
-          .isEqualTo(message2.substring(offset, message1.length() - footerLength) + footer);
+          .isEqualTo(message2.substring(offset, message1.length() - footerLength) + readFooter);
     }
   }
 

@@ -9,13 +9,13 @@
      generation ID of the GCS objects and always try to read the live version.
 
      `BEST_EFFORT`: The connector will try to read the generation determined
-     when the GoogleCloudStorageReadChannel is first established. However if
+     when the `GoogleCloudStorageReadChannel` is first established. However if
      that generation cannot be found anymore, connector will fall back to read
      the live version.
 
      `STRICT`: The connector will always try to read the generation determined
-     when the GoogleCloudStorageReadChannel is first established, and report
-     error (FileNotFound) when that generation cannot be found anymore.
+     when the `GoogleCloudStorageReadChannel` is first established, and report
+     error (`FileNotFound`) when that generation cannot be found anymore.
 
      Note that this property will only apply to new streams opened after
      generation is determined. It won't affect read from any streams that are
@@ -30,6 +30,35 @@
 
      If `fs.gs.batch.threads` value is set to 0 then batch requests will be
      executed sequentially by caller thread.
+
+
+  3. Do not fail-fast when creating `GoogleCloudStorageReadChannel` instance for
+     non-existing object to avoid GCS metadata request.
+
+  4. Add property to fail fast with `FileNotFoundException` when calling
+     `GoogleCloudStorageImpl#open` method (costs additional GCS metadata
+     request):
+
+       fs.gs.inputstream.fast.fail.on.not.found.enable (default: true)
+
+  5. Lazily initialize `GoogleCloudStorageReadChannel` metadata after first
+     read operation.
+
+  6. Lazily pre-fetch footer in `AUTO` and `RANDOM` fadvise modes when reading
+     end of the file using `GoogleCloudStorageReadChannel`.
+
+  7. Delete `fs.gs.inputstream.footer.prefetch.size` property and use
+     `fs.gs.inputstream.min.range.request.size` property for determining lazy
+     footer prefetch size.
+
+     Because `GoogleCloudStorageReadChannel` makes first read without knowing
+     object size it uses heuristic to lazily prefetch at most
+     `fs.gs.inputstream.min.range.request.size / 2` bytes before read channel
+     position in case this is a footer read. This logic simplifies performance
+     tuning and renders `fs.gs.inputstream.footer.prefetch.size` property to be
+     obsolete.
+
+  8. Delete unused `fs.gs.inputstream.support.content.encoding.enable` property.
 
 
 1.9.3 - 2018-07-25

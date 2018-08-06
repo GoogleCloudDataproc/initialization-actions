@@ -28,8 +28,10 @@ import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
+import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Map;
 
 /** Utility class with helper methods for GCS IO tests. */
 public final class GoogleCloudStorageTestUtils {
@@ -51,18 +53,13 @@ public final class GoogleCloudStorageTestUtils {
         storage, BUCKET_NAME, OBJECT_NAME, ERROR_EXTRACTOR, REQUEST_HELPER, options);
   }
 
-  public static HttpResponse fakeResponseWithLength(long contentLength, InputStream content)
+  public static HttpResponse fakeResponse(String header, Object headerValue, InputStream content)
       throws IOException {
-    return fakeResponse("Content-Length", Long.toString(contentLength), content);
+    return fakeResponse(ImmutableMap.of(header, headerValue), content);
   }
 
-  public static HttpResponse fakeResponseWithRange(long contentLength, InputStream content)
+  public static HttpResponse fakeResponse(Map<String, Object> headers, InputStream content)
       throws IOException {
-    return fakeResponse("Content-Range", "bytes=0-123/" + contentLength, content);
-  }
-
-  public static HttpResponse fakeResponse(
-      String responseHeader, String responseValue, InputStream content) throws IOException {
     HttpTransport transport =
         new MockHttpTransport() {
           @Override
@@ -70,9 +67,9 @@ public final class GoogleCloudStorageTestUtils {
             return new MockLowLevelHttpRequest() {
               @Override
               public LowLevelHttpResponse execute() {
-                return new MockLowLevelHttpResponse()
-                    .addHeader(responseHeader, responseValue)
-                    .setContent(content);
+                MockLowLevelHttpResponse response = new MockLowLevelHttpResponse();
+                headers.forEach((h, hv) -> response.addHeader(h, String.valueOf(hv)));
+                return response.setContent(content);
               }
             };
           }

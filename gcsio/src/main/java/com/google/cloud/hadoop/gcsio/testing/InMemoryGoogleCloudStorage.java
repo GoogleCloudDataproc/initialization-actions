@@ -188,8 +188,60 @@ public class InMemoryGoogleCloudStorage
   public SeekableByteChannel open(
       StorageResourceId resourceId, GoogleCloudStorageReadOptions readOptions) throws IOException {
     if (!getItemInfo(resourceId).exists()) {
-      throw GoogleCloudStorageExceptions.getFileNotFoundException(
-          resourceId.getBucketName(), resourceId.getObjectName());
+      final IOException notFoundException =
+          GoogleCloudStorageExceptions.getFileNotFoundException(
+              resourceId.getBucketName(), resourceId.getObjectName());
+      if (readOptions.getFastFailOnNotFound()) {
+        throw notFoundException;
+      } else {
+        // We'll need to simulate a lazy-evaluating byte channel which only detects nonexistence
+        // on size() and read(ByteBuffer) calls.
+        return new SeekableByteChannel() {
+          private long position = 0;
+          private boolean isOpen = true;
+
+          @Override
+          public long position() {
+            return position;
+          }
+
+          @Override
+          public SeekableByteChannel position(long newPosition) {
+            position = newPosition;
+            return this;
+          }
+
+          @Override
+          public int read(ByteBuffer dst) throws IOException {
+            throw notFoundException;
+          }
+
+          @Override
+          public long size() throws IOException {
+            throw notFoundException;
+          }
+
+          @Override
+          public SeekableByteChannel truncate(long size) {
+            throw new UnsupportedOperationException("Cannot mutate read-only channel");
+          }
+
+          @Override
+          public int write(ByteBuffer src) throws IOException {
+            throw new UnsupportedOperationException("Cannot mutate read-only channel");
+          }
+
+          @Override
+          public void close() {
+            isOpen = false;
+          }
+
+          @Override
+          public boolean isOpen() {
+            return isOpen;
+          }
+        };
+      }
     }
     return bucketLookup
         .get(resourceId.getBucketName())
@@ -503,10 +555,13 @@ public class InMemoryGoogleCloudStorage
       // TODO(user): If we change to also set generationIds for source objects in the base
       // GoogleCloudStorageImpl, make sure to also add a generationId check here.
       try (SeekableByteChannel sourceChannel = open(sourceId)) {
-        byte[] buf = new byte[(int) sourceChannel.size()];
-        ByteBuffer reader = ByteBuffer.wrap(buf);
-        sourceChannel.read(reader);
-        tempOutput.write(buf, 0, buf.length);
+        byte[] bufferArray = new byte[4 * 1024 * 1024];
+        int bytesRead;
+        do {
+          ByteBuffer buffer = ByteBuffer.wrap(bufferArray);
+          bytesRead = sourceChannel.read(buffer);
+          tempOutput.write(bufferArray, 0, buffer.position());
+        } while (bytesRead >= 0);
       }
     }
 
