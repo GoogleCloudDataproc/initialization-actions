@@ -45,6 +45,16 @@ function install_zeppelin(){
   if [ $? != 0 ]; then
     err 'Failed to install zeppelin'
   fi
+
+  # If both asm-3.1.jar and asm-5.0.4.jar are found in /usr/lib/zeppelin/lib for
+  # Zeppelin 0.7, delete asm-5.0.4.jar. This is a temporary workaround before
+  # we figure out the root cause of asm conflict.
+  version=$(dpkg --status zeppelin | grep 'Version:')
+  asm_3_1=/usr/lib/zeppelin/lib/asm-3.1.jar
+  asm_5_0_4=/usr/lib/zeppelin/lib/asm-5.0.4.jar
+  if [[ "$version" == "Version: 0.7."* && -f "$asm_3_1" && -f "$asm_5_0_4" ]]; then
+    rm "$asm_5_0_4"
+  fi
 }
 
 function configure_zeppelin(){
