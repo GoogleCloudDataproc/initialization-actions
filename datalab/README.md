@@ -23,7 +23,7 @@ You can find more information about using initialization actions with Dataproc i
 Datalab (and the Spark driver) can run with Python 2 or Python 3. However, workers (executors) are configured to use Python 2. To change worker python, use the [conda init action](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/conda). Note that the driver (`PYSPARK_DRIVER_PYTHON`) and executors (`PYSPARK_PYTHON`) must be at the same minor version. Currently, Datalab uses Python 3.5. Here is how to set up Python 3.5 on workers:
 
 ```bash
-gcloud dataproc clusters create kpal-datalab-works4 \
+gcloud dataproc clusters create <CLUSTER_NAME> \
     --metadata 'CONDA_PACKAGES="python==3.5"' \
     --scopes cloud-platform \
     --initialization-actions gs://dataproc-initialization-actions/conda/bootstrap-conda.sh,gs://dataproc-initialization-actions/conda/install-conda-env.sh,gs://dataproc-initialization-actions/datalab/datalab.sh
