@@ -1,5 +1,7 @@
 #!/bin/bash
-set -e
+
+set -exo pipefail
+
 # Modified from bootstrap-conda.sh script, see:
 # https://bitbucket.org/bombora-datascience/bootstrap-conda
 
@@ -9,7 +11,10 @@ set -e
 
 MINICONDA_VARIANT=$(/usr/share/google/get_metadata_value attributes/MINICONDA_VARIANT || true)
 MINICONDA_VERSION=$(/usr/share/google/get_metadata_value attributes/MINICONDA_VERSION || true)
-MIN_SPARK_VERSION_FOR_LATEST_MINICONDA="2.2.0"
+
+OLD_MINICONDA_VERSION="4.2.12"
+NEW_MINICONDA_VERSION="4.5.4"
+MIN_SPARK_VERSION_FOR_NEWER_MINICONDA="2.2.0"
 
 if [[ ! -v CONDA_INSTALL_PATH ]]; then
     echo "CONDA_INSTALL_PATH not set, setting ..."
@@ -38,17 +43,14 @@ else
     fi
     ## specify Miniconda release (e.g., MINICONDA_VERSION='4.0.5')
     if [[ -z "${MINICONDA_VERSION}" ]]; then
-      # Pin to 4.2.12 by default until Spark default is 2.2.0, then use latest
-      # https://issues.apache.org/jira/browse/SPARK-19019
+      # Pin to 4.2.12 by default until Spark default is 2.2.0, then use newer
+      # one (https://issues.apache.org/jira/browse/SPARK-19019)
       SPARK_VERSION=`spark-submit --version 2>&1  | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\.[0-9]\+\+\).*/\1/p' | head -n1`
-      if dpkg --compare-versions ${SPARK_VERSION} ge ${MIN_SPARK_VERSION_FOR_LATEST_MINICONDA}; then
-        echo "MINICONDA_VERSION not set, Spark version >= ${MIN_SPARK_VERSION_FOR_LATEST_MINICONDA}, setting Miniconda version to latest ..."
-        MINICONDA_VERSION='latest'
+      if dpkg --compare-versions ${SPARK_VERSION} ge ${MIN_SPARK_VERSION_FOR_NEWER_MINICONDA}; then
+        MINICONDA_VERSION="${NEW_MINICONDA_VERSION}"
       else
-        echo "MINICONDA_VERSION not set, Spark version < ${MIN_SPARK_VERSION_FOR_LATEST_MINICONDA}, setting Miniconda to 4.2.12 ..."
-        MINICONDA_VERSION='4.2.12'
+        MINICONDA_VERSION="${OLD_MINICONDA_VERSION}"
       fi
-      set "Set MINICONDA_VERSION to $MINICONDA_VERSION"
     fi
 
     ## 0.2 Compute Miniconda version
