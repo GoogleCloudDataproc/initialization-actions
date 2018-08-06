@@ -101,9 +101,9 @@
     <!-- Keep in sync with google-api-client dependency -->
     <apache.httpcomponents.version>4.0.1</apache.httpcomponents.version>
 
-    <google.api.version>1.23.0</google.api.version>
-    <google.api-bigquery.version>v2-rev391-${google.api.version}</google.api-bigquery.version>
-    <google.api-storage.version>v1-rev133-${google.api.version}</google.api-storage.version>
+    <google.api.version>1.24.1</google.api.version>
+    <google.api-bigquery.version>v2-rev397-${google.api.version}</google.api-bigquery.version>
+    <google.api-storage.version>v1-rev135-${google.api.version}</google.api-storage.version>
     <google.auto-value.version>1.6</google.auto-value.version>
     <google.findbugs.version>3.0.2</google.findbugs.version>
     <google.guava.version>25.1-jre</google.guava.version>
@@ -310,13 +310,6 @@
         <groupId>com.google.api-client</groupId>
         <artifactId>google-api-client-java6</artifactId>
         <version>${google.api.version}</version>
-        <exclusions>
-          <!-- this version hides too many things -->
-          <exclusion>
-            <groupId>com.google.guava</groupId>
-            <artifactId>guava-jdk5</artifactId>
-          </exclusion>
-        </exclusions>
       </dependency>
       <dependency>
         <groupId>com.google.apis</groupId>
