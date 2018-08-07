@@ -1,3 +1,4 @@
+import argparse
 import json
 import logging
 import random
@@ -8,6 +9,9 @@ from threading import Timer
 import os
 
 DEFAULT_TIMEOUT = 10  # minutes
+
+parser = argparse.ArgumentParser(description='Dataproc init action tests.')
+parser.add_argument('--bucket')
 
 
 class DataprocTestCase(unittest.TestCase):
@@ -40,6 +44,10 @@ class DataprocTestCase(unittest.TestCase):
         super().setUpClass()
         assert cls.COMPONENT
         assert cls.INIT_ACTION
+        args = parser.parse_args()
+        if args.bucket:
+          filename = cls.INIT_ACTION[cls.INIT_ACTION.rfind('/')+1:]
+          cls.INIT_ACTION = '/'.join([bucket, filename])
 
     def createCluster(self, configuration, init_action, dataproc_version, metadata=None, scopes=None, properties=None,
                       timeout_in_minutes=None):

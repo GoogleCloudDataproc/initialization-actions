@@ -26,7 +26,7 @@ cd testing-scripts
 pip3 install -r requirements.txt
 
 #invoke tests
-python3 -m ${TEST_MODULE}
+python3 -m ${TEST_MODULE} --bucket ${bucket}
 
 
 #clean up bucket
