@@ -6,7 +6,6 @@ bucket=gs://test-$(head /dev/urandom | tr -dc a-z0-9 | head -c 32)
 gsutil mb ${bucket}
 gsutil lifecycle set bucket_lifecycle.json ${bucket}
 
-
 #clone repo
 git clone https://github.com/${REPO_OWNER}/${REPO_NAME}.git
 cd ${REPO_NAME}
