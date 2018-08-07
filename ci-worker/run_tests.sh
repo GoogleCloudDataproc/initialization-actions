@@ -16,6 +16,8 @@ gsutil -m cp */*sh ${bucket}
 gsutil ls ${bucket}
 
 #install pip requirements
+cd testing-scripts
+pip3 install -r requirements.txt
 #invoke tests
 
 
