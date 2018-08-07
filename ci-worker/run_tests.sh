@@ -1,6 +1,12 @@
 #!/bin/bash
 set -ex
 
+gcloud config set core/disable_prompts 1
+gcloud config set component_manager/disable_update_check true
+gcloud config set core/disable_usage_reporting true
+gcloud config set compute/zone us-west1-c
+gcloud config set compute/region us-west1
+gcloud config list
 #create bucket
 bucket=gs://test-$(head /dev/urandom | tr -dc a-z0-9 | head -c 32)
 gsutil mb ${bucket}
@@ -18,7 +24,9 @@ gsutil ls ${bucket}
 #install pip requirements
 cd testing-scripts
 pip3 install -r requirements.txt
+
 #invoke tests
+python3 -m ${TEST_MODULE}
 
 
 #clean up bucket
