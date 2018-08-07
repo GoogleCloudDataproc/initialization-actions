@@ -60,6 +60,8 @@
 
   8. Delete unused `fs.gs.inputstream.support.content.encoding.enable` property.
 
+  9. Update all dependencies to latest versions.
+
 
 1.9.3 - 2018-07-25
 
