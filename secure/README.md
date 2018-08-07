@@ -24,7 +24,7 @@ All the metadata key-value pairs are required to properly secure the cluster.
 1. Use **keystore-uri** to specify the GCS location of the keystore file which contains the SSL certificate. It has to be in the Java KeyStore (JKS) format and when copied to VMs, it will be renamed (if necessary) to **keystore.jks**. The SSL certificate should be a wildcard certificate which applies to every node in the cluster.
 2. Use **truststore-uri** to specify the GCS location of the truststore file. It has to be in the Java KeyStore (JKS) format and when copied to VMs, it will be renamed (if necessary) to **truststore.jks**.
 3. Use **keystore-password** to specify the password to the keystore and truststore files. For simplicity, the keystore password, key password, as well as the truststore password, will all be this password.
-4. Use **kms-key-uri** to specify the URI of the KMS key used to encryp various password files.
+4. Use **kms-key-uri** to specify the URI of the KMS key used to encrypt various password files.
 5. Use **db-password-uri** to specify the GCS location of the encrypted file which contains the password to the KDC master database.
 6. Use **root-password-uri** to specify the GCS location of the encrypted file which contains the password to the root user principal.
 
@@ -129,6 +129,6 @@ Using a self-signed certificate in a production system is strongly discouraged.
 
 ## Important notes
 1. This initialization action does not support Dataproc clusters in HA mode.
-2. Only a root user principal "root@`<REALM>`" will be provided (password specfied by caller). It has administrative permission to the KDC.
+2. Only a root user principal "root@`<REALM>`" will be provided (password specified by caller). It has administrative permission to the KDC.
 3. Once the cluster is secured ("Kerberized"), submitting a YARN job through gcloud will stop working. You can however still ssh to the master and submit a job.
 4. Submitting a YARN job as the user `root` is not allowed. You can however create principals for non-privileged users and then submit jobs.
