@@ -102,7 +102,7 @@ class DataprocTestCase(unittest.TestCase):
                 self.COMPONENT.lower(),
                 self.TEST_SCRIPT_FILE_NAME
             ),
-            name,
+            name + ':~/',
         )
         ret_code, stdout, stderr = self.run_command(cmd)
         self.assertEqual(ret_code, 0, "Failed to upload test file. Error: {}".format(stderr))
