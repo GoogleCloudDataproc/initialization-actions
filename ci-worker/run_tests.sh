@@ -8,7 +8,7 @@ gcloud config set compute/zone us-west1-c
 gcloud config set compute/region us-west1
 gcloud config list
 #create bucket
-bucket=gs://test-$(head /dev/urandom | tr -dc a-z0-9 | head -c 32)
+export bucket=gs://test-$(head /dev/urandom | tr -dc a-z0-9 | head -c 32)
 gsutil mb ${bucket}
 gsutil lifecycle set bucket_lifecycle.json ${bucket}
 
@@ -26,7 +26,7 @@ cd testing-scripts
 pip3 install -r requirements.txt
 
 #invoke tests
-python3 -m ${TEST_MODULE} --bucket ${bucket}
+python3 -m ${TEST_MODULE} -f
 
 
 #clean up bucket
