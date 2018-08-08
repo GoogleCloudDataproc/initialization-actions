@@ -19,13 +19,11 @@ class DatalabTestCase(DataprocTestCase):
         self.__remove_test_script(name)
 
     def __download_test_script(self, name):
-        ret_code, stdout, stderr = self.run_command(
-            'gcloud compute ssh {} -- "gsutil cp gs://{}/{} ."'.format(
-                name,
-                self.GOOGLE_TEST_SCRIPT_BUCKET,
-                self.GOOGLE_TEST_SCRIPT_FILE_NAME,
-            )
-        )
+        ret_code, stdout, stderr = self.ssh_cmd(
+              name,
+              '"gsutil cp gs://{}/{} ."'.format(
+                  self.GOOGLE_TEST_SCRIPT_BUCKET,
+                  self.GOOGLE_TEST_SCRIPT_FILE_NAME))
         self.assertEqual(ret_code, 0, "Failed to download test file. Error: {}".format(stderr))
 
     def __run_test_script(self, name):

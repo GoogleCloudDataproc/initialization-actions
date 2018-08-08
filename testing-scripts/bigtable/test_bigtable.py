@@ -53,7 +53,7 @@ class BigTableTestCase(DataprocTestCase):
 
     def _run_hbase_shell(self, name):
         ret_code, stdout, stderr = self.ssh_cmd(name,
-        '"python {}"'.format(self.self.TEST_SCRIPT_FILE_NAME))
+        '"python {}"'.format(self.TEST_SCRIPT_FILE_NAME))
         self.assertEqual(ret_code, 0, "Failed to validate cluster. Last error: {}".format(stderr))
 
     def _validate_bigtable(self):
