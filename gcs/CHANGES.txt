@@ -1,3 +1,6 @@
+1.9.5 - 2018-XX-XX
+
+
 1.9.4 - 2018-08-07
 
   1. Add `fs.gs.generation.read.consistency (default : LATEST)` property to
@@ -27,10 +30,8 @@
 
        fs.gs.batch.threads (default: 0)
 
-
      If `fs.gs.batch.threads` value is set to 0 then batch requests will be
      executed sequentially by caller thread.
-
 
   3. Do not fail-fast when creating `GoogleCloudStorageReadChannel` instance for
      non-existing object to avoid GCS metadata request.

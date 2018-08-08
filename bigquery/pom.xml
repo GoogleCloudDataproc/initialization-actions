@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.google.cloud.bigdataoss</groupId>
     <artifactId>bigdataoss-parent</artifactId>
-    <version>1.9.4</version>
+    <version>1.9.5-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -32,7 +32,7 @@
   </description>
 
   <artifactId>bigquery-connector</artifactId>
-  <version>0.13.4-${hadoop.identifier}</version>
+  <version>0.13.5-SNAPSHOT-${hadoop.identifier}</version>
 
   <profiles>
     <profile>
