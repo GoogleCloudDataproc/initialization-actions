@@ -20,18 +20,16 @@ class FlinkTestCase(DataprocTestCase):
 
     def __run_test_file(self, name, yarn_session):
         if yarn_session == True:
-            cmd = 'gcloud compute ssh {} -- "bash {}"'.format(
-                name,
+            cmd = '"bash {}"'.format(
                 self.TEST_SCRIPT_FILE_NAME
             )
         else:
-            cmd = 'gcloud compute ssh {} -- "bash {} {}"'.format(
-                name,
+            cmd = '"bash {} {}"'.format(
                 self.TEST_SCRIPT_FILE_NAME,
                 yarn_session
             )
 
-        ret_code, stdout, stderr = self.run_command(cmd)
+        ret_code, stdout, stderr = self.ssh_cmd(name, cmd)
         print("stdout", stdout)
         print("retcode", ret_code)
         print("stderr", stderr)

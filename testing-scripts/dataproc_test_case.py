@@ -92,7 +92,11 @@ class DataprocTestCase(unittest.TestCase):
         return self.name
 
     def upload_test_file(self, name):
-        cmd = 'gcloud compute scp {} {}:'.format(
+        if 'use_internal_ip' in os.environ:
+          scp_cmd = 'gcloud alpha compute scp --internal-ip {} {}'
+        else:
+          scp_cmp = 'gcloud compute scp {} {}'
+        cmd = scp_cmd.format(
             os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
                 self.COMPONENT.lower(),
@@ -103,13 +107,20 @@ class DataprocTestCase(unittest.TestCase):
         ret_code, stdout, stderr = self.run_command(cmd)
         self.assertEqual(ret_code, 0, "Failed to upload test file. Error: {}".format(stderr))
 
-    def remove_test_script(self, name):
-        ret_code, stdout, stderr = self.run_command(
-            'gcloud compute ssh {} -- "rm {}"'.format(
+    def ssh_cmd(self, name, cmd):
+        if 'use_internal_ip' in os.environ:
+          ssh_cmd = 'gcloud beta compute ssh --internal-ip {} -- {}'
+        else:
+          ssh_cmd = 'gcloud compute ssh {} -- {}'
+        return self.run_command(
+            ssh_cmd.format(
                 name,
-                self.TEST_SCRIPT_FILE_NAME,
+                cmd,
             )
         )
+
+    def remove_test_script(self, name):
+        ret_code, stdout, stderr = self.ssh_cmd(name, '"rm {}"'.format(self.TEST_SCRIPT_FILE_NAME))
         self.assertEqual(ret_code, 0, "Failed to remove test file. Error: {}".format(stderr))
 
     @staticmethod

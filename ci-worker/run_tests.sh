@@ -7,7 +7,9 @@ gcloud config set core/disable_usage_reporting true
 gcloud config set compute/zone us-west1-c
 gcloud config set compute/region us-west1
 gcloud config list
+
 #create bucket
+export use_internal_ip=true
 export bucket=gs://test-$(head /dev/urandom | tr -dc a-z0-9 | head -c 32)
 gsutil mb ${bucket}
 gsutil lifecycle set bucket_lifecycle.json ${bucket}
