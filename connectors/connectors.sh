@@ -64,7 +64,7 @@ update_connector "gcs" "$GCS_CONNECTOR_VERSION"
 # WARNING: this function relies on undocumented and not officially supported Dataproc Agent
 # "sentinel" files to determine successful Agent initialization and not guaranteed
 # to work in the future. Use at your own risk!
-restart_dataptoc_agent() {
+restart_dataproc_agent() {
   # Because Dataproc Agent should be restarted after initialization, we need to wait until
   # it will create a sentinel file that signals initialization competition (success or failure)
   while [[ ! -f /var/lib/google/dataproc/has_run_before ]]; do
@@ -76,9 +76,9 @@ restart_dataptoc_agent() {
     service google-dataproc-agent restart
   fi
 }
-export -f restart_dataptoc_agent
+export -f restart_dataproc_agent
 
 # Schedule asynchronous Dataproc Agent restart so it will use updated connectors.
 # It could not be restarted sycnhronously because Dataproc Agent should be restarted
 # after its initialization, including init actions execution, has been completed.
-bash -c restart_dataptoc_agent & disown
+bash -c restart_dataproc_agent & disown
