@@ -37,7 +37,7 @@ update_connector() {
     rm -f "${VM_CONNECTORS_DIR}/${name}-connector-"*
 
     # download new connector
-    local path=gs://hadoop-lib/${name}/${name}-connector-${version}-hadoop2.jar
+    local path=$(gsutil ls gs://hadoop-lib/${name}/${name}-connector-*${version}*.jar | grep hadoop2)
     gsutil cp "$path" "${VM_CONNECTORS_DIR}/"
   fi
 }
