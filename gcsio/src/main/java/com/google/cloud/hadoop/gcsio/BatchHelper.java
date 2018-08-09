@@ -82,6 +82,11 @@ public class BatchHelper {
       checkArgument(maxRequestsPerBatch > 0, "maxRequestsPerBatch should be greater than 0");
       checkArgument(totalRequests > 0, "totalRequests should be greater than 0");
       checkArgument(maxThreads >= 0, "maxThreads should be greater or equal to 0");
+      // Do not send batch request when performing operations on 1 object.
+      if (totalRequests == 1) {
+        return new BatchHelper(
+            requestInitializer, gcs, /* maxRequestsPerBatch= */ 1, /* numThreads= */ 0);
+      }
       if (maxThreads == 0) {
         return new BatchHelper(requestInitializer, gcs, maxRequestsPerBatch, maxThreads);
       }

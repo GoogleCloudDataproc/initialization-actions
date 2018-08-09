@@ -7,6 +7,9 @@
 
   2. Update Maven plugins versions.
 
+  3. Do not send batch request when performing operations (rename, delete, copy)
+     on 1 object.
+
 
 1.9.4 - 2018-08-07
 
