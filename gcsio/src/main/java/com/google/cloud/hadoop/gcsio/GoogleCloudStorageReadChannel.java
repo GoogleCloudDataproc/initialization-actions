@@ -740,7 +740,6 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         contentChannelPosition, currentPosition, resourceIdString);
   }
 
-
   /** Initializes metadata (size, encoding, etc) from HTTP {@code headers}. */
   @VisibleForTesting
   protected void initMetadata(HttpHeaders headers) throws IOException {
@@ -761,7 +760,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     initMetadata(headers.getContentEncoding(), sizeFromMetadata, generation);
   }
 
-  /** Initializes metadata (size, encoding, etc) from HTTP {@code headers}. */
+  /** Initializes metadata (size, encoding, etc) from passed parameters. */
   @VisibleForTesting
   protected void initMetadata(
       @Nullable String encoding, long sizeFromMetadata, @Nullable String generation)
