@@ -2,6 +2,13 @@
 
   1. POM updates for GCS connector 1.9.5.
 
+  2. Improve build configuration (`pom.xml`s) compatibility with Maven release
+     plugin.
+
+     Changes version string from `0.13.5-hadoop2` to `hadoop2-0.13.5`.
+
+  3. Update Maven plugins versions.
+
 
 0.13.4 - 2018-08-07
 
