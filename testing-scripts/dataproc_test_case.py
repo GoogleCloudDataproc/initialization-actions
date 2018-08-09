@@ -11,6 +11,9 @@ import os
 DEFAULT_TIMEOUT = 10  # minutes
 
 
+logging.basicConfig(level=os.environ.get('LOG_LEVEL', logging.INFO))
+
+
 class DataprocTestCase(unittest.TestCase):
     DEFAULT_ARGS = {
         "SINGLE": [
