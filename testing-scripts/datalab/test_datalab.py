@@ -32,24 +32,18 @@ class DatalabTestCase(DataprocTestCase):
 
         for _ in range(6):
             # Wait up to 60 seconds for notebook to be running
-            ret_code, stdout, stderr = self.run_command(
-                'gcloud compute ssh {} -- "python {}"'.format(
-                    name,
-                    self.GOOGLE_TEST_SCRIPT_FILE_NAME,
-                )
-            )
+            ret_code, stdout, stderr = self.ssh_cmd(
+                name,
+                '"python {}"'.format(self.GOOGLE_TEST_SCRIPT_FILE_NAME))
             if ret_code == 0:
                 break
             time.sleep(10)
         self.assertEqual(ret_code, 0, "Failed to vaildate cluster in 6 attempts. Last error: {}".format(stderr))
 
     def __remove_test_script(self, name):
-        ret_code, stdout, stderr = self.run_command(
-            'gcloud compute ssh {} -- "rm {}"'.format(
-                name,
-                self.GOOGLE_TEST_SCRIPT_FILE_NAME,
-            )
-        )
+        ret_code, stdout, stderr = self.ssh_cmd(
+            name,
+            '"rm {}"'.format(self.GOOGLE_TEST_SCRIPT_FILE_NAME))
         self.assertEqual(ret_code, 0, "Failed to remove test file. Error: {}".format(stderr))
 
     @parameterized.expand([

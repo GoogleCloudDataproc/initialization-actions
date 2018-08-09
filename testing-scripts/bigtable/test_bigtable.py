@@ -57,6 +57,11 @@ class BigTableTestCase(DataprocTestCase):
         self.assertEqual(ret_code, 0, "Failed to validate cluster. Last error: {}".format(stderr))
 
     def _validate_bigtable(self):
+        self.run_command(
+            'cbt -instance {} ls '.format(
+                self.DB_NAME
+            )
+        )
         ret_code, stdout, stderr = self.run_command(
             'cbt -instance {} count test-bigtable '.format(
                 self.DB_NAME
