@@ -629,7 +629,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
           gcsiHelper.readText(readChannel, message1.length() - 1, footerLength, true);
       gcsiHelper.writeTextFileOverwriting(bucketName, object, message2);
       String read2 = gcsiHelper.readText(readChannel, offset, message1.length() - offset, true);
-      assertWithMessage("beginning read mismatch")
+      assertWithMessage("file beginning read mismatch")
           .that(read1)
           .isEqualTo(message1.substring(0, offset));
       assertWithMessage("footer read mismatch").that(readFooter).isEqualTo(footer);
@@ -638,9 +638,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
       // pre-fetched, this second read will only read 7 characters, and concatenate the footer
       // (in this test case, the '\n' character). Thus, instead of reading " world!\n", it actually
       // reads "ara wor\n".
-      assertWithMessage("ending read mismatch")
+      assertWithMessage("file ending read mismatch")
           .that(read2)
-          .isEqualTo(message2.substring(offset, message1.length() - footerLength) + readFooter);
+          .isEqualTo(message2.substring(offset, message1.length()));
     }
   }
 

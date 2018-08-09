@@ -1077,6 +1077,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     if (errorExtractor.itemNotFound(e)) {
       if (retryWithLiveVersion) {
         generation = null;
+        footerContent = null;
         getObject.setGeneration(null);
         try {
           return getObject.executeMedia();

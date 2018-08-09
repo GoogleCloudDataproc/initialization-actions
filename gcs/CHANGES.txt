@@ -24,7 +24,10 @@
      `BEST_EFFORT`: The connector will try to read the generation determined
      when the `GoogleCloudStorageReadChannel` is first established. However if
      that generation cannot be found anymore, connector will fall back to read
-     the live version.
+     the live version. This mode allows to improve performance by requesting the
+     same object generation from GCS. Using this mode connector can read
+     changing objects from GCS buckets with disabled object versioning without
+     failure.
 
      `STRICT`: The connector will always try to read the generation determined
      when the `GoogleCloudStorageReadChannel` is first established, and report
