@@ -83,6 +83,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -651,9 +652,15 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     // FileNotFoundException until read is called. As a result, in order to find out if the object
     // exists, we'll need to do an RPC (metadata or data). A metadata check should be a less
     // expensive operation than a read data operation.
-    if (readOptions.getFastFailOnNotFound() && !getItemInfo(resourceId).exists()) {
-      throw GoogleCloudStorageExceptions.getFileNotFoundException(
-          resourceId.getBucketName(), resourceId.getObjectName());
+    GoogleCloudStorageItemInfo info;
+    if (readOptions.getFastFailOnNotFound()) {
+      info = getItemInfo(resourceId);
+      if (!info.exists()) {
+        throw GoogleCloudStorageExceptions.getFileNotFoundException(
+            resourceId.getBucketName(), resourceId.getObjectName());
+      }
+    } else {
+      info = null;
     }
 
     return new GoogleCloudStorageReadChannel(
@@ -663,6 +670,12 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
         errorExtractor,
         clientRequestHelper,
         readOptions) {
+
+      @Override
+      @Nullable
+      protected GoogleCloudStorageItemInfo getInitialMetadata() {
+        return info;
+      }
 
       @Override
       protected Storage.Objects.Get createRequest() throws IOException {
@@ -1534,6 +1547,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
         /* location= */ null,
         /* storageClass= */ null,
         object.getContentType(),
+        object.getContentEncoding(),
         decodedMetadata,
         object.getGeneration(),
         object.getMetageneration(),

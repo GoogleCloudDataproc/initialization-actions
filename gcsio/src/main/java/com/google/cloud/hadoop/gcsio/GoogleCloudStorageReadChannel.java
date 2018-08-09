@@ -63,6 +63,8 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
   // Size of buffer to allocate for skipping bytes in-place when performing in-place seeks.
   @VisibleForTesting static final int SKIP_BUFFER_SIZE = 8192;
 
+  private static final String GZIP_ENCODING = "gzip";
+
   // GCS access instance.
   private final Storage gcs;
 
@@ -157,13 +159,15 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
    * @param bucketName name of the bucket containing the object to read
    * @param objectName name of the object to read
    * @param requestHelper a ClientRequestHelper used to set any extra headers
+   * @throws IOException on IO error
    */
   public GoogleCloudStorageReadChannel(
       Storage gcs,
       String bucketName,
       String objectName,
       ApiErrorExtractor errorExtractor,
-      ClientRequestHelper<StorageObject> requestHelper) {
+      ClientRequestHelper<StorageObject> requestHelper)
+      throws IOException {
     this(
         gcs,
         bucketName,
@@ -182,6 +186,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
    * @param requestHelper a ClientRequestHelper used to set any extra headers
    * @param readOptions fine-grained options specifying things like retry settings, buffering, etc.
    *     Could not be null.
+   * @throws IOException on IO error
    */
   public GoogleCloudStorageReadChannel(
       Storage gcs,
@@ -189,7 +194,8 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       String objectName,
       ApiErrorExtractor errorExtractor,
       ClientRequestHelper<StorageObject> requestHelper,
-      @Nonnull GoogleCloudStorageReadOptions readOptions) {
+      @Nonnull GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
     this.gcs = gcs;
     this.clientRequestHelper = requestHelper;
     this.bucketName = bucketName;
@@ -198,6 +204,13 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     this.readOptions = readOptions;
     // TODO: micro benchmark if this necessary
     this.resourceIdString = lazyToString(() -> createReadableString(bucketName, objectName));
+
+    // Initialize metadata if available.
+    GoogleCloudStorageItemInfo info = getInitialMetadata();
+    if (info != null) {
+      String generationString = String.valueOf(info.getContentGeneration());
+      initMetadata(info.getContentEncoding(), info.getSize(), generationString);
+    }
   }
 
   /**
@@ -207,9 +220,11 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
    *
    * @param readOptions fine-grained options specifying things like retry settings, buffering, etc.
    *     Could not be null.
+   * @throws IOException on IO error
    */
   @VisibleForTesting
-  protected GoogleCloudStorageReadChannel(@Nonnull GoogleCloudStorageReadOptions readOptions) {
+  protected GoogleCloudStorageReadChannel(@Nonnull GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
     this(
         /* gcs= */ null,
         /* bucketName= */ null,
@@ -259,6 +274,16 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         .setMaxElapsedTimeMillis(readOptions.getBackoffMaxElapsedTimeMillis())
         .setNanoClock(clock)
         .build();
+  }
+
+  /**
+   * Returns {@link GoogleCloudStorageItemInfo} used to initialize metadata in constructor. By
+   * default returns {@code null} which means that metadata will be lazily initialized during first
+   * read.
+   */
+  @Nullable
+  protected GoogleCloudStorageItemInfo getInitialMetadata() {
+    return null;
   }
 
   /**
@@ -611,7 +636,11 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
   /**
    * Returns size of the object to which this channel is connected.
    *
-   * @return size of the object to which this channel is connected
+   * <p>Note: this method will return -1 until metadata will be lazily initialized during first
+   * {@link #read} method call.
+   *
+   * @return size of the object to which this channel is connected after metadata was initialized
+   *     (during first read) or {@code -1} otherwise.
    * @throws IOException on IO error
    */
   @Override
@@ -711,28 +740,47 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         contentChannelPosition, currentPosition, resourceIdString);
   }
 
+
   /** Initializes metadata (size, encoding, etc) from HTTP {@code headers}. */
   @VisibleForTesting
   protected void initMetadata(HttpHeaders headers) throws IOException {
     checkState(
         !metadataInitialized,
         "can not initialize metadata, it already initialized for '%s'", resourceIdString);
-    gzipEncoded = nullToEmpty(headers.getContentEncoding()).contains("gzip");
+
+    long sizeFromMetadata;
+    String range = headers.getContentRange();
+    if (range != null) {
+      sizeFromMetadata = Long.parseLong(range.substring(range.lastIndexOf('/') + 1));
+    } else {
+      sizeFromMetadata = headers.getContentLength();
+    }
+
+    String generation = headers.getFirstHeaderStringValue("x-goog-generation");
+
+    initMetadata(headers.getContentEncoding(), sizeFromMetadata, generation);
+  }
+
+  /** Initializes metadata (size, encoding, etc) from HTTP {@code headers}. */
+  @VisibleForTesting
+  protected void initMetadata(
+      @Nullable String encoding, long sizeFromMetadata, @Nullable String generation)
+      throws IOException {
+    checkState(
+        !metadataInitialized,
+        "can not initialize metadata, it already initialized for '%s'", resourceIdString);
+    gzipEncoded = nullToEmpty(encoding).contains(GZIP_ENCODING);
     if (gzipEncoded) {
       size = Long.MAX_VALUE;
     } else {
-      String range = headers.getContentRange();
-      if (range != null) {
-        size = Long.parseLong(range.substring(range.lastIndexOf('/') + 1));
-      } else {
-        size = headers.getContentLength();
-      }
+      size = sizeFromMetadata;
     }
     randomAccess = !gzipEncoded && readOptions.getFadvise() == Fadvise.RANDOM;
-    metadataInitialized = true;
     checkEncodingAndAccess();
 
-    initGeneration(headers.getFirstHeaderStringValue("x-goog-generation"));
+    initGeneration(generation);
+
+    metadataInitialized = true;
 
     LOG.debug(
         "Initialized metadata (gzipEncoded={}, size={}, randomAccess={}, generation={}) for '{}'",

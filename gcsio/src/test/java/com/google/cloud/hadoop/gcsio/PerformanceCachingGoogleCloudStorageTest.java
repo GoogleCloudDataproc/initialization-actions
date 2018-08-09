@@ -465,6 +465,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
         /* location= */ null,
         /* storageClass= */ null,
         createObjectOptions.getContentType(),
+        /* contentEncoding= */ null,
         createObjectOptions.getMetadata(),
         /* contentGeneration= */ 0,
         /* metaGeneration= */ 0,

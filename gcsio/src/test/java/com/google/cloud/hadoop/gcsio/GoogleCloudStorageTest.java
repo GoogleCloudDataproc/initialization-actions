@@ -1368,7 +1368,7 @@ public class GoogleCloudStorageTest {
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     assertThat(readChannel.isOpen()).isTrue();
     assertThat(readChannel.position()).isEqualTo(0);
-    assertThat(readChannel.size()).isEqualTo(-1);
+    assertThat(readChannel.size()).isEqualTo(Long.MAX_VALUE);
     byte[] actualData = new byte[testData.length];
     assertThat(readChannel.read(ByteBuffer.wrap(actualData))).isEqualTo(testData.length);
     assertThat(readChannel.size()).isEqualTo(Long.MAX_VALUE);
@@ -1406,8 +1406,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsGet, times(1)).execute();
     verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
     verify(mockHeaders, times(3)).setAcceptEncoding(eq("gzip"));
-    verify(mockHeaders, times(1)).setRange(eq("bytes=0-"));
-    verify(mockHeaders, times(2)).setRange(eq(null));
+    verify(mockHeaders, times(3)).setRange(eq(null));
   }
 
   /**
@@ -1692,8 +1691,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsGet, times(1)).execute();
     verify(mockClientRequestHelper, times(3)).getRequestHeaders(any(Storage.Objects.Get.class));
     verify(mockHeaders, times(3)).setAcceptEncoding(eq("gzip"));
-    verify(mockHeaders, times(1)).setRange(eq("bytes=0-"));
-    verify(mockHeaders, times(2)).setRange(eq(null));
+    verify(mockHeaders, times(3)).setRange(eq(null));
     verify(mockReadBackOff, times(2)).reset();
     verify(mockReadBackOff, times(2)).nextBackOffMillis();
     verify(mockSleeper, times(2)).sleep(eq(1L));
@@ -1837,7 +1835,6 @@ public class GoogleCloudStorageTest {
 
     // Second time is the rangeNotSatisfiableException.
     SeekableByteChannel readChannel2 = gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    readChannel2.position(111L);
     EOFException thrown2 =
         assertThrows(EOFException.class, () -> readChannel2.read(ByteBuffer.allocate(1)));
     assertThat(thrown2).hasCauseThat().isEqualTo(rangeNotSatisfiableException);
@@ -1852,8 +1849,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper, times(2)).getRequestHeaders(any(Storage.Objects.Get.class));
     verify(mockHeaders, times(2)).setAcceptEncoding(eq("gzip"));
-    verify(mockHeaders, times(1)).setRange(eq("bytes=0-"));
-    verify(mockHeaders, times(1)).setRange(eq("bytes=111-"));
+    verify(mockHeaders, times(2)).setRange(eq("bytes=0-"));
     verify(mockStorageObjectsGet, times(3)).execute();
     verify(mockStorageObjectsGet, times(2)).executeMedia();
     verify(mockStorageObjectsGet, times(2)).setGeneration(eq(null));
@@ -3364,16 +3360,18 @@ public class GoogleCloudStorageTest {
             .setMetageneration(1L));
     GoogleCloudStorageItemInfo info =
         gcs.getItemInfo(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
-    GoogleCloudStorageItemInfo expected = new GoogleCloudStorageItemInfo(
-        new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
-        1234L,
-        42L,
-        null,
-        null,
-        "text/plain",
-        EMPTY_METADATA,
-        1L,
-        1L);
+    GoogleCloudStorageItemInfo expected =
+        new GoogleCloudStorageItemInfo(
+            new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
+            1234L,
+            42L,
+            null,
+            null,
+            "text/plain",
+            null,
+            EMPTY_METADATA,
+            1L,
+            1L);
     assertThat(info).isEqualTo(expected);
 
     verify(mockStorage).objects();
@@ -3448,6 +3446,7 @@ public class GoogleCloudStorageTest {
             new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
             0L,
             -1L,
+            null,
             null,
             null,
             null,
@@ -3541,6 +3540,7 @@ public class GoogleCloudStorageTest {
             null,
             null,
             "image/png",
+            null,
             EMPTY_METADATA,
             /* contentGeneration= */ 1,
             /* metaGeneration= */ 1);

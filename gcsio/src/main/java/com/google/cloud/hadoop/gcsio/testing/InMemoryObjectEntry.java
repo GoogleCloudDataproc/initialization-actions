@@ -34,6 +34,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 
 /**
  * InMemoryObjectEntry represents a GCS StorageObject in-memory by maintaining byte[] contents
@@ -128,6 +129,7 @@ public class InMemoryObjectEntry {
                       /* location= */ null,
                       /* storageClass= */ null,
                       info.getContentType(),
+                      info.getContentEncoding(),
                       info.getMetadata(),
                       info.getContentGeneration(),
                       /* metaGeneration= */ 0L,
@@ -153,6 +155,7 @@ public class InMemoryObjectEntry {
             /* location= */ null,
             /* storageClass= */ null,
             contentType,
+            /* contentEncoding= */ null,
             ImmutableMap.copyOf(metadata),
             /* contentGeneration= */ createTimeMillis,
             /* metaGeneration= */ 0L);
@@ -212,6 +215,7 @@ public class InMemoryObjectEntry {
             /* location= */ null,
             /* storageClass= */ null,
             info.getContentType(),
+            info.getContentEncoding(),
             info.getMetadata(),
             info.getContentGeneration(),
             /* metaGeneration= */ 0L);
@@ -252,7 +256,13 @@ public class InMemoryObjectEntry {
               "Cannot getReadChannel() before writes have been committed! Object = %s",
               this.getObjectName()));
     }
-    return new InMemoryObjectReadChannel(completedContents, readOptions);
+    return new InMemoryObjectReadChannel(completedContents, readOptions) {
+      @Nullable
+      @Override
+      protected GoogleCloudStorageItemInfo getInitialMetadata() {
+        return readOptions.getFastFailOnNotFound() ? getInfo() : super.getInitialMetadata();
+      }
+    };
   }
 
   /**
@@ -296,6 +306,7 @@ public class InMemoryObjectEntry {
             /* location= */ null,
             /* storageClass= */ null,
             info.getContentType(),
+            info.getContentEncoding(),
             mergedMetadata,
             /* contentGeneration= */ 0,
             /* metaGeneration= */ 0,

@@ -86,6 +86,8 @@ public class GoogleCloudStorageItemInfo {
   // Content-Type of this item
   private final String contentType;
 
+  private final String contentEncoding;
+
   // User-supplied metadata.
   private final Map<String, byte[]> metadata;
   private final long contentGeneration;
@@ -108,6 +110,7 @@ public class GoogleCloudStorageItemInfo {
         location,
         storageClass,
         /* contentType= */ null,
+        /* contentEncoding= */ null,
         /* metadata= */ ImmutableMap.<String, byte[]>of(),
         /* contentGeneration= */ 0,
         /* metaGeneration= */ 0);
@@ -128,15 +131,18 @@ public class GoogleCloudStorageItemInfo {
       String location,
       String storageClass,
       String contentType,
+      String contentEncoding,
       Map<String, byte[]> metadata,
       long contentGeneration,
       long metaGeneration) {
-    this(resourceId,
+    this(
+        resourceId,
         creationTime,
         size,
         location,
         storageClass,
         contentType,
+        contentEncoding,
         metadata,
         contentGeneration,
         metaGeneration,
@@ -158,6 +164,7 @@ public class GoogleCloudStorageItemInfo {
       String location,
       String storageClass,
       String contentType,
+      String contentEncoding,
       Map<String, byte[]> metadata,
       long contentGeneration,
       long metaGeneration,
@@ -170,6 +177,7 @@ public class GoogleCloudStorageItemInfo {
     this.location = location;
     this.storageClass = storageClass;
     this.contentType = contentType;
+    this.contentEncoding = contentEncoding;
     this.metadata = (metadata == null) ? EMPTY_METADATA : metadata;
     this.contentGeneration = contentGeneration;
     this.metaGeneration = metaGeneration;
@@ -239,6 +247,15 @@ public class GoogleCloudStorageItemInfo {
    */
   public String getContentType() {
     return contentType;
+  }
+
+  /**
+   * Gets the content-encoding of this item, or null if unknown or inapplicable.
+   *
+   * <p>Note: content-encoding is only supported for objects, and will always be null for buckets.
+   */
+  public String getContentEncoding() {
+    return contentEncoding;
   }
 
   /**

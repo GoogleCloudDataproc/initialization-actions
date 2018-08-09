@@ -47,11 +47,12 @@ public class FileInfoTest {
     GoogleCloudStorageItemInfo itemInfo =
         new GoogleCloudStorageItemInfo(
             new StorageResourceId("testBucket", "testObject"),
-            10L /* creation timestamp */,
-            200L /* size */,
+            /* creationTime= */ 10L,
+            /* size= */ 200L,
             "location",
             "storage class",
             "text/plain",
+            /* contentEncoding= */ null,
             metadata,
             0L,
             0L);
@@ -69,11 +70,12 @@ public class FileInfoTest {
     GoogleCloudStorageItemInfo itemInfo =
         new GoogleCloudStorageItemInfo(
             new StorageResourceId("testBucket", "testObject"),
-            10L /* creation timestamp */,
-            200L /* size */,
+            /* creationTime= */ 10L,
+            /* size= */ 200L,
             "location",
             "storage class",
             "text/plain",
+            /* contentEncoding= */ null,
             metadata,
             0L,
             0L);
