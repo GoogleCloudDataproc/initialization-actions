@@ -277,6 +277,14 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final boolean GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_DEFAULT =
       PerformanceCachingGoogleCloudStorageOptions.LIST_CACHING_ENABLED;
 
+  /** Configuration key for number of prefetched directory objects metadata in performance cache. */
+  public static final String GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT_KEY =
+      "fs.gs.performance.cache.dir.metadata.prefetch.limit";
+
+  /** Default value for {@link #GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT_KEY}. */
+  public static final long GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT_DEFAULT =
+      PerformanceCachingGoogleCloudStorageOptions.DIR_METADATA_PREFETCH_LIMIT_DEFAULT;
+
   /**
    * Configuration key for whether or not we should update timestamps for parent directories when we
    * create new files in them.
@@ -2336,9 +2344,18 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
             GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_DEFAULT);
     LOG.debug("{} = {}", GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY, listCachingEnabled);
 
+    long dirMetadataPrefetchLimit =
+        config.getLong(
+            GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT_KEY,
+            GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT_DEFAULT);
+    LOG.debug(
+        "{} = {}",
+        GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT_KEY, dirMetadataPrefetchLimit);
+
     return PerformanceCachingGoogleCloudStorageOptions.builder()
         .setMaxEntryAgeMillis(performanceCacheMaxEntryAgeMillis)
         .setListCachingEnabled(listCachingEnabled)
+        .setDirMetadataPrefetchLimit(dirMetadataPrefetchLimit)
         .build();
   }
 

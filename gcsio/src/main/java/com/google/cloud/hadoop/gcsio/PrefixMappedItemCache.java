@@ -111,6 +111,15 @@ public class PrefixMappedItemCache {
       return null;
     }
 
+    return listItems(key);
+  }
+
+  synchronized List<GoogleCloudStorageItemInfo> listItems(
+      String bucket, @Nullable String objectNamePrefix) {
+   return listItems(new PrefixKey(bucket, objectNamePrefix));
+  }
+
+  private List<GoogleCloudStorageItemInfo> listItems(PrefixKey key) {
     return aggregateCacheValues(getPrefixSubMap(itemMap, key));
   }
 

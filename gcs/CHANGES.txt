@@ -10,6 +10,14 @@
   3. Do not send batch request when performing operations (rename, delete, copy)
      on 1 object.
 
+  4. Add `fs.gs.performance.cache.dir.metadata.prefetch.limit` (default=`1000`)
+     configuration property to control number of prefetched metadata objects
+     in the same directory by `PerformanceCachingGoogleCloudStorage`.
+
+     To disable metadata prefetching set property value to `0`.
+
+     To prefetch all objects metadata in a directory set property value to `-1`.
+
 
 1.9.4 - 2018-08-07
 

@@ -259,13 +259,23 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
 
     // If it wasn't in the cache, list all the objects in the parent directory and cache them
     // and then retrieve it from the cache.
-    if (item == null && resourceId.isStorageObject()) {
+    long dirMetadataPrefetchLimit = options.getDirMetadataPrefetchLimit();
+    if (item == null && resourceId.isStorageObject() && dirMetadataPrefetchLimit != 0) {
+      String bucketName = resourceId.getBucketName();
       String objectName = resourceId.getObjectName();
       int lastSlashIndex = objectName.lastIndexOf(PATH_DELIMITER);
       String directoryName =
           lastSlashIndex >= 0 ? objectName.substring(0, lastSlashIndex + 1) : null;
-      listObjectInfo(resourceId.getBucketName(), directoryName, PATH_DELIMITER);
-      item = cache.getItem(resourceId);
+      List<GoogleCloudStorageItemInfo> cachedInDirectory =
+          cache.listItems(bucketName, directoryName);
+      filter(cachedInDirectory, bucketName, directoryName, PATH_DELIMITER);
+      // If there are a lot of items cached in directory, do not prefetch with list requests,
+      // because metadata in this directory already prefetched
+      if (dirMetadataPrefetchLimit == GoogleCloudStorage.MAX_RESULTS_UNLIMITED
+          || cachedInDirectory.size() < dirMetadataPrefetchLimit) {
+        listObjectInfo(bucketName, directoryName, PATH_DELIMITER, dirMetadataPrefetchLimit);
+        item = cache.getItem(resourceId);
+      }
     }
 
     // If it wasn't in the cache and wasn't cached in directory list request
@@ -282,9 +292,8 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
   @Override
   public List<GoogleCloudStorageItemInfo> getItemInfos(List<StorageResourceId> resourceIds)
       throws IOException {
-    List<GoogleCloudStorageItemInfo> result =
-        new ArrayList<GoogleCloudStorageItemInfo>(resourceIds.size());
-    List<StorageResourceId> request = new ArrayList<StorageResourceId>(resourceIds.size());
+    List<GoogleCloudStorageItemInfo> result = new ArrayList<>(resourceIds.size());
+    List<StorageResourceId> request = new ArrayList<>(resourceIds.size());
 
     // Populate the result list with items in the cache, and the request list with resources that
     // still need to be resolved. Null items are added to the result list to preserve ordering.
