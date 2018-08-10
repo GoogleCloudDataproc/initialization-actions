@@ -17,11 +17,8 @@ class GangliaTestCase(DataprocTestCase):
         self.remove_test_script(name)
 
     def __run_test_file(self, name):
-        cmd = 'gcloud compute ssh {} -- "python {} "'.format(
-            name,
-            self.TEST_SCRIPT_FILE_NAME
-        )
-        ret_code, stdout, stderr = self.run_command(cmd)
+        ret_code, stdout, stderr = self.ssh_cmd(name,
+            '"python {}"'.format(self.TEST_SCRIPT_FILE_NAME))
         print("stdout", stdout)
         print("retcode", ret_code)
         print("stderr", stderr)
