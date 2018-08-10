@@ -20,17 +20,10 @@ class DrillTestCase(DataprocTestCase):
         self.remove_test_script(name)
 
     def __run_bash_test_file(self, name, config, target_node):
-        cmd = 'gcloud compute ssh {} -- "sudo bash {} {} {}"'.format(
-            name,
-            self.TEST_SCRIPT_FILE_NAME,
-            config,
-            target_node
-        )
-        ret_code, stdout, stderr = self.run_command(cmd)
-        print("stderr", stderr)
-        print("stdout", stdout)
-        print("ret_code", ret_code)
-
+        ret_code, stdout, stderr = self.ssh_cmd(name,
+                  '"sudo bash {} {} {}"'.format(self.TEST_SCRIPT_FILE_NAME,
+                    config,
+                    target_node))
         self.assertEqual(ret_code, 0, "Failed to run test file. Error: {}".format(stderr))
 
     @parameterized.expand([
