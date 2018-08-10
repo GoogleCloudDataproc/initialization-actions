@@ -27,6 +27,14 @@
   6. Fix `RejectedExecutionException` during parallel execution of GCS batch
      requests.
 
+  7. Change default values for GCS batch/directory operations properties:
+
+       fs.gs.copy.with.rewrite.enable (default: false -> true)
+       fs.gs.copy.max.requests.per.batch (default: 30 -> 1)
+       fs.gs.copy.batch.threads (default: 0 -> 50)
+       fs.gs.max.requests.per.batch (default: 30 -> 25)
+       fs.gs.batch.threads (default: 0 -> 25)
+
 
 1.9.4 - 2018-08-07
 

@@ -405,21 +405,19 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String GCS_ENABLE_COPY_WITH_REWRITE_KEY = "fs.gs.copy.with.rewrite.enable";
 
   /** Default value for {@link #GCS_ENABLE_COPY_WITH_REWRITE_KEY}. */
-  public static final boolean GCS_ENABLE_COPY_WITH_REWRITE_DEFAULT = false;
+  public static final boolean GCS_ENABLE_COPY_WITH_REWRITE_DEFAULT = true;
 
   /** Configuration key for a max number of GCS RPCs in batch request for copy operations. */
   public static final String GCS_COPY_MAX_REQUESTS_PER_BATCH = "fs.gs.copy.max.requests.per.batch";
 
   /** Default value for {@link #GCS_COPY_MAX_REQUESTS_PER_BATCH}. */
-  public static final long GCS_COPY_MAX_REQUESTS_PER_BATCH_DEFAULT =
-      GoogleCloudStorageOptions.COPY_MAX_REQUESTS_PER_BATCH_DEFAULT;
+  public static final long GCS_COPY_MAX_REQUESTS_PER_BATCH_DEFAULT = 1;
 
   /** Configuration key for a number of threads to execute batch requests for copy operations. */
   public static final String GCS_COPY_BATCH_THREADS = "fs.gs.copy.batch.threads";
 
   /** Default value for {@link #GCS_COPY_BATCH_THREADS}. */
-  public static final int GCS_COPY_BATCH_THREADS_DEFAULT =
-      GoogleCloudStorageOptions.COPY_BATCH_THREADS_DEFAULT;
+  public static final int GCS_COPY_BATCH_THREADS_DEFAULT = 50;
 
   /** Configuration key for number of items to return per call to the list* GCS RPCs. */
   public static final String GCS_MAX_LIST_ITEMS_PER_CALL = "fs.gs.list.max.items.per.call";
@@ -431,15 +429,13 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String GCS_MAX_REQUESTS_PER_BATCH = "fs.gs.max.requests.per.batch";
 
   /** Default value for {@link #GCS_MAX_REQUESTS_PER_BATCH}. */
-  public static final long GCS_MAX_REQUESTS_PER_BATCH_DEFAULT =
-      GoogleCloudStorageOptions.MAX_REQUESTS_PER_BATCH_DEFAULT;
+  public static final long GCS_MAX_REQUESTS_PER_BATCH_DEFAULT = 25;
 
   /** Configuration key for a number of threads to execute batch requests. */
   public static final String GCS_BATCH_THREADS = "fs.gs.batch.threads";
 
   /** Default value for {@link #GCS_BATCH_THREADS}. */
-  public static final int GCS_BATCH_THREADS_DEFAULT =
-      GoogleCloudStorageOptions.BATCH_THREADS_DEFAULT;
+  public static final int GCS_BATCH_THREADS_DEFAULT = 25;
 
   /**
    * Configuration key for the max number of retries for failed HTTP request to GCS. Note that the
