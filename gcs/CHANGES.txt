@@ -18,6 +18,15 @@
 
      To prefetch all objects metadata in a directory set property value to `-1`.
 
+  5. Add configuration properties to control batching of copy operations
+     separately from other operations:
+
+       fs.gs.copy.max.requests.per.batch (default: 30)
+       fs.gs.copy.batch.threads (default: 0)
+
+  6. Fix `RejectedExecutionException` during parallel execution of GCS batch
+     requests.
+
 
 1.9.4 - 2018-08-07
 

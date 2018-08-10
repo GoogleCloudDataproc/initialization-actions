@@ -17,6 +17,7 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.cloud.hadoop.util.RequesterPaysOptions.REQUESTER_PAYS_MODE_DEFAULT;
+import static com.google.common.base.Strings.nullToEmpty;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
@@ -405,6 +406,20 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
   /** Default value for {@link #GCS_ENABLE_COPY_WITH_REWRITE_KEY}. */
   public static final boolean GCS_ENABLE_COPY_WITH_REWRITE_DEFAULT = false;
+
+  /** Configuration key for a max number of GCS RPCs in batch request for copy operations. */
+  public static final String GCS_COPY_MAX_REQUESTS_PER_BATCH = "fs.gs.copy.max.requests.per.batch";
+
+  /** Default value for {@link #GCS_COPY_MAX_REQUESTS_PER_BATCH}. */
+  public static final long GCS_COPY_MAX_REQUESTS_PER_BATCH_DEFAULT =
+      GoogleCloudStorageOptions.COPY_MAX_REQUESTS_PER_BATCH_DEFAULT;
+
+  /** Configuration key for a number of threads to execute batch requests for copy operations. */
+  public static final String GCS_COPY_BATCH_THREADS = "fs.gs.copy.batch.threads";
+
+  /** Default value for {@link #GCS_COPY_BATCH_THREADS}. */
+  public static final int GCS_COPY_BATCH_THREADS_DEFAULT =
+      GoogleCloudStorageOptions.COPY_BATCH_THREADS_DEFAULT;
 
   /** Configuration key for number of items to return per call to the list* GCS RPCs. */
   public static final String GCS_MAX_LIST_ITEMS_PER_CALL = "fs.gs.list.max.items.per.call";
@@ -2182,150 +2197,126 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   @VisibleForTesting
   GoogleCloudStorageFileSystemOptions.Builder createOptionsBuilderFromConfig(Configuration config)
       throws IOException {
-    GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
+    GoogleCloudStorageFileSystemOptions.Builder gcsFsOptionsBuilder =
         GoogleCloudStorageFileSystemOptions.newBuilder();
 
     boolean enableBucketDelete = config.getBoolean(
         GCE_BUCKET_DELETE_ENABLE_KEY, GCE_BUCKET_DELETE_ENABLE_DEFAULT);
     LOG.debug("{} = {}", GCE_BUCKET_DELETE_ENABLE_KEY, enableBucketDelete);
-    optionsBuilder.setEnableBucketDelete(enableBucketDelete);
+    gcsFsOptionsBuilder.setEnableBucketDelete(enableBucketDelete);
 
     GoogleCloudStorageFileSystemOptions.TimestampUpdatePredicate updatePredicate =
         ParentTimestampUpdateIncludePredicate.create(config);
-    optionsBuilder.setShouldIncludeInTimestampUpdatesPredicate(updatePredicate);
+    gcsFsOptionsBuilder.setShouldIncludeInTimestampUpdatesPredicate(updatePredicate);
+
+    GoogleCloudStorageOptions.Builder gcsOptionsBuilder =
+        gcsFsOptionsBuilder.getCloudStorageOptionsBuilder();
 
     enableAutoRepairImplicitDirectories = config.getBoolean(
-        GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY,
-        GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT);
-    LOG.debug("{} = {}", GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY,
-              enableAutoRepairImplicitDirectories);
+        GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY, GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT);
+    LOG.debug(
+        "{} = {}", GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY, enableAutoRepairImplicitDirectories);
+    gcsOptionsBuilder.setAutoRepairImplicitDirectoriesEnabled(enableAutoRepairImplicitDirectories);
 
     enableInferImplicitDirectories = config.getBoolean(
-        GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY,
-        GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_DEFAULT);
-    LOG.debug("{} = {}", GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY,
-              enableInferImplicitDirectories);
-
-    optionsBuilder
-        .getCloudStorageOptionsBuilder()
-        .setAutoRepairImplicitDirectoriesEnabled(enableAutoRepairImplicitDirectories)
-        .setInferImplicitDirectoriesEnabled(enableInferImplicitDirectories);
+        GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY, GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_DEFAULT);
+    LOG.debug("{} = {}", GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY, enableInferImplicitDirectories);
+    gcsOptionsBuilder.setInferImplicitDirectoriesEnabled(enableInferImplicitDirectories);
 
     enableFlatGlob = config.getBoolean(GCS_ENABLE_FLAT_GLOB_KEY, GCS_ENABLE_FLAT_GLOB_DEFAULT);
     LOG.debug("{} = {}", GCS_ENABLE_FLAT_GLOB_KEY, enableFlatGlob);
 
     boolean enableMarkerFileCreation = config.getBoolean(
-        GCS_ENABLE_MARKER_FILE_CREATION_KEY,
-        GCS_ENABLE_MARKER_FILE_CREATION_DEFAULT);
+        GCS_ENABLE_MARKER_FILE_CREATION_KEY, GCS_ENABLE_MARKER_FILE_CREATION_DEFAULT);
     LOG.debug("{} = {}", GCS_ENABLE_MARKER_FILE_CREATION_KEY, enableMarkerFileCreation);
-
-    optionsBuilder
-        .getCloudStorageOptionsBuilder()
-        .setCreateMarkerObjects(enableMarkerFileCreation);
+    gcsOptionsBuilder.setMarkerFileCreationEnabled(enableMarkerFileCreation);
 
     boolean enableCopyWithRewrite =
         config.getBoolean(GCS_ENABLE_COPY_WITH_REWRITE_KEY, GCS_ENABLE_COPY_WITH_REWRITE_DEFAULT);
     LOG.debug("{} = {}", GCS_ENABLE_COPY_WITH_REWRITE_KEY, enableCopyWithRewrite);
+    gcsOptionsBuilder.setCopyWithRewriteEnabled(enableCopyWithRewrite);
 
-    optionsBuilder.getCloudStorageOptionsBuilder().setCopyWithRewriteEnabled(enableCopyWithRewrite);
+    long copyMaxRequestsPerBatch =
+        config.getLong(GCS_COPY_MAX_REQUESTS_PER_BATCH, GCS_COPY_MAX_REQUESTS_PER_BATCH_DEFAULT);
+    LOG.debug("{} = {}", GCS_COPY_MAX_REQUESTS_PER_BATCH, copyMaxRequestsPerBatch);
+    gcsOptionsBuilder.setCopyMaxRequestsPerBatch(copyMaxRequestsPerBatch);
+
+    int copyBatchThreads = config.getInt(GCS_COPY_BATCH_THREADS, GCS_COPY_BATCH_THREADS_DEFAULT);
+    LOG.debug("{} = {}", GCS_COPY_BATCH_THREADS, copyBatchThreads);
+    gcsOptionsBuilder.setCopyBatchThreads(copyBatchThreads);
 
     String transportTypeString = config.get(GCS_HTTP_TRANSPORT_KEY, GCS_HTTP_TRANSPORT_DEFAULT);
     LOG.debug("{} = {}", GCS_HTTP_TRANSPORT_KEY, transportTypeString);
+    gcsOptionsBuilder.setTransportType(
+        HttpTransportFactory.getTransportTypeOf(transportTypeString));
+
     String proxyAddress = config.get(GCS_PROXY_ADDRESS_KEY, GCS_PROXY_ADDRESS_DEFAULT);
     LOG.debug("{} = {}", GCS_PROXY_ADDRESS_KEY, proxyAddress);
-    HttpTransportFactory.HttpTransportType transportType = HttpTransportFactory.getTransportTypeOf(
-        transportTypeString);
-
-    optionsBuilder
-        .getCloudStorageOptionsBuilder()
-        .setTransportType(transportType)
-        .setProxyAddress(proxyAddress);
+    gcsOptionsBuilder.setProxyAddress(proxyAddress);
 
     String projectId = config.get(GCS_PROJECT_ID_KEY);
     LOG.debug("{} = {}", GCS_PROJECT_ID_KEY, projectId);
-    optionsBuilder.getCloudStorageOptionsBuilder().setProjectId(projectId);
+    gcsOptionsBuilder.setProjectId(projectId);
 
     long maxListItemsPerCall =
         config.getLong(GCS_MAX_LIST_ITEMS_PER_CALL, GCS_MAX_LIST_ITEMS_PER_CALL_DEFAULT);
     LOG.debug("{} = {}", GCS_MAX_LIST_ITEMS_PER_CALL, maxListItemsPerCall);
-
-    optionsBuilder.getCloudStorageOptionsBuilder().setMaxListItemsPerCall(maxListItemsPerCall);
+    gcsOptionsBuilder.setMaxListItemsPerCall(maxListItemsPerCall);
 
     long maxRequestsPerBatch =
         config.getLong(GCS_MAX_REQUESTS_PER_BATCH, GCS_MAX_REQUESTS_PER_BATCH_DEFAULT);
     LOG.debug("{} = {}", GCS_MAX_REQUESTS_PER_BATCH, maxRequestsPerBatch);
-
-    optionsBuilder.getCloudStorageOptionsBuilder().setMaxRequestsPerBatch(maxRequestsPerBatch);
+    gcsOptionsBuilder.setMaxRequestsPerBatch(maxRequestsPerBatch);
 
     int batchThreads = config.getInt(GCS_BATCH_THREADS, GCS_BATCH_THREADS_DEFAULT);
     LOG.debug("{} = {}", GCS_BATCH_THREADS, batchThreads);
-
-    optionsBuilder.getCloudStorageOptionsBuilder().setBatchThreads(batchThreads);
+    gcsOptionsBuilder.setBatchThreads(batchThreads);
 
     int maxHttpRequestRetries = config.getInt(GCS_HTTP_MAX_RETRY_KEY, GCS_HTTP_MAX_RETRY_DEFAULT);
     LOG.debug("{} = {}", GCS_HTTP_MAX_RETRY_KEY, maxHttpRequestRetries);
-
-    optionsBuilder.getCloudStorageOptionsBuilder().setMaxHttpRequestRetries(maxHttpRequestRetries);
+    gcsOptionsBuilder.setMaxHttpRequestRetries(maxHttpRequestRetries);
 
     int httpRequestConnectTimeout =
         config.getInt(GCS_HTTP_CONNECT_TIMEOUT_KEY, GCS_HTTP_CONNECT_TIMEOUT_DEFAULT);
     LOG.debug("{} = {}", GCS_HTTP_CONNECT_TIMEOUT_KEY, httpRequestConnectTimeout);
-
-    optionsBuilder
-        .getCloudStorageOptionsBuilder()
-        .setHttpRequestConnectTimeout(httpRequestConnectTimeout);
+    gcsOptionsBuilder.setHttpRequestConnectTimeout(httpRequestConnectTimeout);
 
     int httpRequestReadTimeout =
         config.getInt(GCS_HTTP_READ_TIMEOUT_KEY, GCS_HTTP_READ_TIMEOUT_DEFAULT);
     LOG.debug("{} = {}", GCS_HTTP_READ_TIMEOUT_KEY, httpRequestReadTimeout);
-
-    optionsBuilder
-        .getCloudStorageOptionsBuilder()
-        .setHttpRequestReadTimeout(httpRequestReadTimeout);
+    gcsOptionsBuilder.setHttpRequestReadTimeout(httpRequestReadTimeout);
 
     String markerFilePattern = config.get(GCS_MARKER_FILE_PATTERN_KEY);
     LOG.debug("{} = {}", GCS_MARKER_FILE_PATTERN_KEY, markerFilePattern);
+    gcsFsOptionsBuilder.setMarkerFilePattern(markerFilePattern);
 
-    optionsBuilder.setMarkerFilePattern(markerFilePattern);
-
-    String applicationNameSuffix = config.get(
-        GCS_APPLICATION_NAME_SUFFIX_KEY, GCS_APPLICATION_NAME_SUFFIX_DEFAULT);
+    String applicationNameSuffix =
+        config.get(GCS_APPLICATION_NAME_SUFFIX_KEY, GCS_APPLICATION_NAME_SUFFIX_DEFAULT);
     LOG.debug("{} = {}", GCS_APPLICATION_NAME_SUFFIX_KEY, applicationNameSuffix);
-
-    String applicationName = GHFS_ID;
-    if (!Strings.isNullOrEmpty(applicationNameSuffix)) {
-      applicationName = applicationName + applicationNameSuffix;
-    }
-
+    String applicationName = GHFS_ID + nullToEmpty(applicationNameSuffix);
     LOG.debug("Setting GCS application name to {}", applicationName);
-    optionsBuilder
-        .getCloudStorageOptionsBuilder()
-        .setAppName(applicationName);
+    gcsOptionsBuilder.setAppName(applicationName);
 
-    int maxWaitMillisForEmptyObjectCreation =
-        config.getInt(
-            GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_KEY,
-            GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_DEFAULT);
+    int maxWaitMillisForEmptyObjectCreation = config.getInt(
+        GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_KEY,
+        GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_DEFAULT);
     LOG.debug(
         "{} = {}",
         GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_KEY, maxWaitMillisForEmptyObjectCreation);
-    optionsBuilder
-        .getCloudStorageOptionsBuilder()
-        .setMaxWaitMillisForEmptyObjectCreation(maxWaitMillisForEmptyObjectCreation);
+    gcsOptionsBuilder.setMaxWaitMillisForEmptyObjectCreation(maxWaitMillisForEmptyObjectCreation);
 
     boolean enablePerformanceCache =
         config.getBoolean(GCS_ENABLE_PERFORMANCE_CACHE_KEY, GCS_ENABLE_PERFORMANCE_CACHE_DEFAULT);
     LOG.debug("{} = {}", GCS_ENABLE_PERFORMANCE_CACHE_KEY, enablePerformanceCache);
-    optionsBuilder
+    gcsFsOptionsBuilder
         .setIsPerformanceCacheEnabled(enablePerformanceCache)
         .setImmutablePerformanceCachingOptions(getPerformanceCachingOptions(config));
 
-    optionsBuilder
-        .getCloudStorageOptionsBuilder()
+    gcsOptionsBuilder
         .setWriteChannelOptions(getWriteChannelOptions(config))
         .setRequesterPaysOptions(getRequesterPaysOptions(config, projectId));
 
-    return optionsBuilder;
+    return gcsFsOptionsBuilder;
   }
 
   private static PerformanceCachingGoogleCloudStorageOptions getPerformanceCachingOptions(

@@ -145,6 +145,7 @@ public class BatchHelper {
             THREAD_FACTORY);
     // Prevents memory leaks in case flush() method was not called.
     requestsExecutor.allowCoreThreadTimeOut(true);
+    requestsExecutor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
     return requestsExecutor;
   }
 

@@ -63,6 +63,12 @@ public abstract class GoogleCloudStorageOptions {
   /** Default setting for whether or not to use rewrite request for copy operation. */
   public static final boolean COPY_WITH_REWRITE_DEFAULT = false;
 
+  /** Default setting for maximum number of requests per GCS batch for copy operations. */
+  public static final long COPY_MAX_REQUESTS_PER_BATCH_DEFAULT = MAX_REQUESTS_PER_BATCH_DEFAULT;
+
+  /** Default setting for number of threads to execute GCS batch requests for copy operations. */
+  public static final int COPY_BATCH_THREADS_DEFAULT = BATCH_THREADS_DEFAULT;
+
   /** Default setting for async write channel. */
   public static final AsyncWriteChannelOptions ASYNC_WRITE_CHANNEL_OPTIONS_DEFAULT =
       AsyncWriteChannelOptions.newBuilder().build();
@@ -85,6 +91,8 @@ public abstract class GoogleCloudStorageOptions {
         .setHttpRequestReadTimeout(HTTP_REQUEST_READ_TIMEOUT)
         .setTransportType(HttpTransportFactory.DEFAULT_TRANSPORT_TYPE)
         .setCopyWithRewriteEnabled(COPY_WITH_REWRITE_DEFAULT)
+        .setCopyMaxRequestsPerBatch(COPY_MAX_REQUESTS_PER_BATCH_DEFAULT)
+        .setCopyBatchThreads(COPY_BATCH_THREADS_DEFAULT)
         .setWriteChannelOptions(ASYNC_WRITE_CHANNEL_OPTIONS_DEFAULT)
         .setRequesterPaysOptions(REQUESTER_PAYS_OPTIONS_DEFAULT);
   }
@@ -108,6 +116,10 @@ public abstract class GoogleCloudStorageOptions {
   public abstract long getMaxRequestsPerBatch();
 
   public abstract int getBatchThreads();
+
+  public abstract long getCopyMaxRequestsPerBatch();
+
+  public abstract int getCopyBatchThreads();
 
   public abstract int getMaxHttpRequestRetries();
 
@@ -173,6 +185,10 @@ public abstract class GoogleCloudStorageOptions {
     public abstract Builder setProxyAddress(String proxyAddress);
 
     public abstract Builder setCopyWithRewriteEnabled(boolean copyWithRewrite);
+
+    public abstract Builder setCopyMaxRequestsPerBatch(long copyMaxRequestsPerBatch);
+
+    public abstract Builder setCopyBatchThreads(int copyBatchThreads);
 
     public abstract Builder setWriteChannelOptions(AsyncWriteChannelOptions writeChannelOptions);
 

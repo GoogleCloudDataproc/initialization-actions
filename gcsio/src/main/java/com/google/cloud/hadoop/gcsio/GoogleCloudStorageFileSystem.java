@@ -769,10 +769,8 @@ public class GoogleCloudStorageFileSystem {
       StorageResourceId dstResourceId = pathCodec.validatePathAndGetId(dst, true);
 
       gcs.copy(
-          srcResourceId.getBucketName(),
-          ImmutableList.of(srcResourceId.getObjectName()),
-          dstResourceId.getBucketName(),
-          ImmutableList.of(dstResourceId.getObjectName()));
+          srcResourceId.getBucketName(), ImmutableList.of(srcResourceId.getObjectName()),
+          dstResourceId.getBucketName(), ImmutableList.of(dstResourceId.getObjectName()));
 
       tryUpdateTimestampsForParentDirectories(ImmutableList.of(dst), ImmutableList.<URI>of());
 
