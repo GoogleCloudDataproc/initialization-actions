@@ -58,7 +58,7 @@ import org.slf4j.LoggerFactory;
  */
 public class BatchHelper {
 
-  public static final Logger LOG = LoggerFactory.getLogger(BatchHelper.class);
+  private static final Logger LOG = LoggerFactory.getLogger(BatchHelper.class);
 
   private static final ThreadFactory THREAD_FACTORY =
       new ThreadFactoryBuilder().setNameFormat("gcsfs-batch-helper-%d").setDaemon(true).build();
@@ -70,7 +70,7 @@ public class BatchHelper {
   public static class Factory {
     public BatchHelper newBatchHelper(
         HttpRequestInitializer requestInitializer, Storage gcs, long maxRequestsPerBatch) {
-      return new BatchHelper(requestInitializer, gcs, maxRequestsPerBatch, /* numThreads= */ 1);
+      return new BatchHelper(requestInitializer, gcs, maxRequestsPerBatch, /* numThreads= */ 0);
     }
 
     BatchHelper newBatchHelper(
