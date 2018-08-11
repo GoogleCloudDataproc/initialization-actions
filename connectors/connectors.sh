@@ -40,10 +40,11 @@ update_connector() {
     # connecor name could be in one of 2 formats:
     # gs://hadoop-lib/${name}/${name}-connector-hadoop2-${version}.jar
     # gs://hadoop-lib/${name}/${name}-connector-${version}-hadoop2.jar
-    local path=$(gsutil ls gs://hadoop-lib/${name}/${name}-connector-*${version}*.jar | grep hadoop2)
+    local path=$(gsutil ls "gs://hadoop-lib/${name}/${name}-connector-*${version}*.jar" | grep hadoop2)
     # fail if more than one path was listed
-    if [[ $(echo "$path" | wc -w) != 1 ]]
-      echo "ERROR: Only one ${name} connector should be listed for ${version} version, but listed: $path"
+    local path_count=$(echo "$path" | wc -w)
+    if [[ $path_count != 1 ]]; then
+      echo -e "ERROR: Only one ${name} connector path should be listed for ${version} version, but listed $path_count paths:\n$path"
       exit 1
     fi
     gsutil cp "$path" "${VM_CONNECTORS_DIR}/"
