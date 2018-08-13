@@ -27,18 +27,26 @@ readonly PYTHONPATH="/env/python:$(find /usr/lib/spark/python/lib -name '*.zip' 
 readonly DOCKER_IMAGE="$(/usr/share/google/get_metadata_value attributes/docker-image || \
   echo 'gcr.io/cloud-datalab/datalab:local')"
 
+# For running the docker init action
+readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_REPO \
+  || echo 'https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git')"
+readonly INIT_ACTIONS_BRANCH="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_BRANCH \
+  || echo 'master')"
+
 # Expose every possible spark configuration to the container.
 readonly VOLUMES="$(echo /etc/{hadoop*,hive*,*spark*} /usr/lib/hadoop/lib/{gcs,bigquery}*)"
 readonly VOLUME_FLAGS="$(echo "${VOLUMES}" | sed 's/\S*/-v &:&/g')"
 
-function update_apt_get() {
-  for ((i = 0; i < 10; i++)); do
-    if apt-get update; then
-      return 0
-    fi
-    sleep 5
-  done
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
   return 1
+}
+
+function install_docker() {
+  # Run the docker init action to install docker.
+  git clone -b "${INIT_ACTIONS_BRANCH}" --single-branch "${INIT_ACTIONS_REPO}"
+  chmod +x ./dataproc-initialization-actions/docker/docker.sh
+  ./dataproc-initialization-actions/docker/docker.sh
 }
 
 function docker_pull() {
@@ -51,16 +59,8 @@ function docker_pull() {
   return 1
 }
 
-function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
-  return 1
-}
-
 function configure_master(){
-  update_apt_get || err 'Failed to update apt-get'
   mkdir -p "${DATALAB_DIR}"
-
-  apt-get install -y -q docker.io || err 'Failed to install Docker'
 
   docker_pull ${DOCKER_IMAGE} || err "Failed to pull ${DOCKER_IMAGE}"
 
@@ -130,6 +130,8 @@ function run_datalab(){
 }
 
 function main(){
+  install_docker
+
   if [[ "${ROLE}" == 'Master' ]]; then
     configure_master
     run_datalab
