@@ -46,7 +46,7 @@ function install_hue_and_configure() {
   local random=$(random_string)
   local hadoop_conf_dir='/etc/hadoop/conf'
   # Install hue
-  apt-get install -t jessie-backports hue -y || err "Failed to install hue"
+  apt-get install -t $(lsb_release -sc)-backports hue -y || err "Failed to install hue"
 
   # Stop hue
   systemctl stop hue || err "Hue stop action not performed"
