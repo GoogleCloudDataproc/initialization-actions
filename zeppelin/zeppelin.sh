@@ -41,7 +41,7 @@ function err() {
 
 function install_zeppelin(){
   # Install zeppelin. Don't mind if it fails to start the first time.
-  apt-get install -y -t jessie-backports zeppelin || dpkg -l zeppelin
+  apt-get install -y -t $(lsb_release -sc)-backports zeppelin || dpkg -l zeppelin
   if [ $? != 0 ]; then
     err 'Failed to install zeppelin'
   fi
