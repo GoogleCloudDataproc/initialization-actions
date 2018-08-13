@@ -140,7 +140,7 @@ Using a self-signed certificate in a production system is strongly discouraged.
 ## Enabling cross-realm trust
 
 The initialization script will set up one-way trust to the remote Kerberos realm. Depending on the implementation of the remote Kerberos realm, you need to perform the following as well.
-Also, you need to ensure KDC servers from both realms can communicate with each other. If your remote Kerberos server is on-prem, we recommend using [Cloud VPN](https://cloud.google.com/vpn/docs/concepts/overview).
+Also, you need to ensure KDC servers from both realms can communicate with each other. If your remote Kerberos server is on-prem, we recommend using [Cloud VPN](https://cloud.google.com/vpn/docs/) or [Cloud Interconnect](https://cloud.google.com/interconnect/).
 
 ### Enabling cross-realm trust to a remote MIT KDC
 
