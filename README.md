@@ -22,23 +22,44 @@ The Google Cloud Pub/Sub connector for Spark Streming enables running Spark
 Streaming Job on topics in Pub/Sub by implementing the InputDStream
 interface. For more details see [the README](pubsub/README.md)
 
-## Building
+## Building the Cloud Storage (GCS) and BigQuery connectors
 
-All the connectors can be built with Apache Maven 3 (as of 2017-10-25,
-version 3.5.0 has been tested). To build the connector for Hadoop 1,
-run the following commands from the main directory:
+All the connectors can be built with Apache Maven 3 (as of 2018-08-07,
+version 3.5.4 has been tested). To build the connector for specific
+Hadoop version, run the following commands from the main directory:
 
-    mvn -P hadoop1 package
+```bash
+# with Hadoop 1 support:
+mvn -P hadoop1 clean package
+# with Hadoop 2 and YARN support:
+mvn -P hadoop2 clean package
+# with Hadoop 3 and YARN support:
+mvn -P hadoop3 clean package
+```
 
-To build the connector with support for Hadoop 2 & YARN, run the following
-commands from the main directory:
-
-    mvn -P hadoop2 package
-
-The GCS connector JAR can be found in gcs/target/. The BigQuery JAR can be
-found in bigquery/target.
+The GCS connector JAR can be found in `gcs/target/`. The BigQuery JAR can be
+found in `bigquery/target/`.
 
 ### Building the Google Cloud Pub/Sub connector
 
 Building the Pub/Sub Connector is described in [its
 README](pubsub/README.md#building-and-testing).
+
+## Adding the CloudStorage (GCS) and BigQuery connectors to your build
+
+Maven group ID is `com.google.cloud.bigdataoss` and artifact ID for
+Cloud Storage connector is `gcs-connector` and for BigQuery connectors
+is `bigquery-connector`.
+
+To add a dependency on one of the connectrs using Maven, use the following:
+
+```xml
+<dependency>
+  <groupId>com.google.cloud.bigdataoss</groupId>
+  <artifactId>gcs-connector</artifactId>
+  <version>hadoop2-1.9.5</version>
+  <!-- or, for BigQuery: -->
+  <artifactId>bigquery-connector</artifactId>
+  <version>hadoop2-0.13.5</version>
+</dependency>
+```
