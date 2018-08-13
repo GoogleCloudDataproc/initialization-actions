@@ -51,7 +51,7 @@ Maven group ID is `com.google.cloud.bigdataoss` and artifact ID for
 Cloud Storage connector is `gcs-connector` and for BigQuery connectors
 is `bigquery-connector`.
 
-To add a dependency on one of the connectrs using Maven, use the following:
+To add a dependency on one of the connectors using Maven, use the following:
 
 ```xml
 <dependency>
