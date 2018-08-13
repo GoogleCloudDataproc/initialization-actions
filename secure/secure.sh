@@ -23,7 +23,7 @@ set -euo pipefail
 # Fail under HA mode early
 additional_nodes=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional | sed 's/,/\n/g' | wc -l)
 if [[ $additional_nodes -gt 0 ]]; then
-  echo 'Kerberos is not supported on HA mode clusters.'
+  echo 'This initialization action script does not support HA mode clusters.'
   exit 1
 fi
 
@@ -50,8 +50,11 @@ REALM=$(echo $DOMAIN | awk '{print toupper($0)}')
 MASTER="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 MASTER_FQDN="$MASTER.$DOMAIN"
 HADOOP_CONF_DIR="/etc/hadoop/conf"
-HADOOP_VERSION=$(hadoop version | head -n 1)
 
+readonly cross_realm_trust_realm="$(/usr/share/google/get_metadata_value attributes/cross-realm-trust-realm)"
+readonly cross_realm_trust_kdc="$(/usr/share/google/get_metadata_value attributes/cross-realm-trust-kdc)"
+readonly cross_realm_trust_admin_server="$(/usr/share/google/get_metadata_value attributes/cross-realm-trust-admin-server)"
+readonly cross_realm_trust_password_uri="$(/usr/share/google/get_metadata_value attributes/cross-realm-trust-password-uri)"
 readonly kms_key_uri=$(/usr/share/google/get_metadata_value attributes/kms-key-uri)
 readonly db_password_uri=$(/usr/share/google/get_metadata_value attributes/db-password-uri)
 readonly root_password_uri=$(/usr/share/google/get_metadata_value attributes/root-password-uri)
@@ -71,6 +74,12 @@ readonly keystore_password=$(gsutil cat $keystore_password_uri | \
   --ciphertext-file - \
   --plaintext-file - \
   --key $kms_key_uri)
+readonly trust_password=$(gsutil cat $cross_realm_trust_password_uri | \
+  gcloud kms decrypt \
+  --ciphertext-file - \
+  --plaintext-file - \
+  --key $kms_key_uri)
+
 readonly dataproc_bucket=$(/usr/share/google/get_metadata_value attributes/dataproc-bucket)
 readonly keystore_uri=$(/usr/share/google/get_metadata_value attributes/keystore-uri)
 readonly truststore_uri=$(/usr/share/google/get_metadata_value attributes/truststore-uri)
@@ -114,7 +123,12 @@ function install_kerberos() {
 }
 
 function krb5_configuration() {
-  echo "Configuring krb5 to add realm in /etc/krb5.conf."
+  if [[ -n $cross_realm_trust_realm ]]; then
+    echo "Configruing cross-realm trust to $cross_realm_trust_realm"
+    sed -i "/\[realms\]/a\ \t$cross_realm_trust_realm = {\n\t\tkdc = $cross_realm_trust_kdc\n\t\tadmin_server = $cross_realm_trust_admin_server\n\t}" "/etc/krb5.conf"
+    sed -i "/\[domain_realm\]/a\ \t$cross_realm_trust_kdc = $cross_realm_trust_realm\n\t\.$DOMAIN = $REALM" "/etc/krb5.conf"
+  fi
+  echo "Configuring krb5 to add local realm in /etc/krb5.conf."
   sed -i "/\[realms\]/a\ \t$REALM = {\n\t\tkdc = $MASTER_FQDN\n\t\tadmin_server = $MASTER_FQDN\n\t}" "/etc/krb5.conf"
 }
 
@@ -128,6 +142,13 @@ function create_root_user_principal() {
     touch /tmp/$krb5_server_mark_file
     gsutil cp /tmp/$krb5_server_mark_file gs://$dataproc_bucket/$cluster_uuid/$krb5_server_mark_file
     rm /tmp/$krb5_server_mark_file
+  fi
+}
+
+function create_cross_realm_trust_principal_if_necessary() {
+  if [[ $ROLE == 'Master' && -n $cross_realm_trust_realm ]]; then
+    echo "Creating cross-realm trust principal krbtgt/$REALM@$cross_realm_trust_realm"
+    echo -e "$trust_password\n$trust_password" | /usr/sbin/kadmin.local -q "addprinc krbtgt/$REALM@$cross_realm_trust_realm"
   fi
 }
 
@@ -180,14 +201,14 @@ function create_service_principals() {
 function set_property_in_xml() {
   bdconfig set_property \
     --configuration_file $1 \
-    --name $2 --value $3 \
+    --name $2 --value "$3" \
     --create_if_absent \
     --clobber \
     || err "Unable to set $2"
 }
 
 function set_property_core_site() {
-  set_property_in_xml "$HADOOP_CONF_DIR/core-site.xml" $1 $2
+  set_property_in_xml "$HADOOP_CONF_DIR/core-site.xml" $1 "$2"
 }
 
 function config_core_site() {
@@ -203,12 +224,24 @@ function config_core_site() {
   set_property_core_site 'hadoop.ssl.client.conf' 'ssl-client.xml'
   set_property_core_site 'fs.default.name' "hdfs://$MASTER_FQDN"
   set_property_core_site 'fs.defaultFS' "hdfs://$MASTER_FQDN"
-  # Starting from Hadoop 2.9, TLSv1.1, TLSv1.2 and SSLv2Hello are added to the
-  # "hadoop.ssl.enabled.protocols" property. However, conscrypt/BoringSSL (the
-  # default SSL implementation used by Dataproc) does not support SSLv2Hello.
+  # Starting from Hadoop 2.8.4, TLSv1.1, TLSv1.2 and SSLv2Hello are added to the
+  # default "hadoop.ssl.enabled.protocols" property. However, conscrypt/BoringSSL
+  # (the default SSL implementation used by Dataproc) does not support SSLv2Hello.
   # See: https://github.com/google/conscrypt/blob/master/CAPABILITIES.md
-  if [[ $HADOOP_VERSION == *" 2.9"* ]]; then
-    set_property_core_site 'hadoop.ssl.enabled.protocols' 'TLSv1,TLSv1.1,TLSv1.2'
+  set_property_core_site 'hadoop.ssl.enabled.protocols' 'TLSv1,TLSv1.1,TLSv1.2'
+
+  # This will map all principals from all realms to the first part of the
+  # principal name.
+  # eg: both 'my-name/master.fqdn@MY.REALM' and 'my-name@MY.REALM' will be mapped to
+  # 'my-name'.
+  if [[ -n $cross_realm_trust_realm ]]; then
+    auth_to_local_rules=$(cat << 'EOF'
+    RULE:[1:$1](.*)s/(.*)/$1/g
+    RULE:[2:$1](.*)s/(.*)/$1/g
+    DEFAULT
+EOF
+)
+    set_property_core_site 'hadoop.security.auth_to_local' "$auth_to_local_rules"
   fi
 }
 
@@ -264,6 +297,7 @@ function config_yarn_site_and_permission() {
   # See https://www.ibm.com/support/knowledgecenter/en/SSPT3X_4.2.0/com.ibm.swg.im.infosphere.biginsights.install.doc/doc/inst_adv_yarn_config.html
   set_property_yarn_site 'yarn.nodemanager.container-executor.class' 'org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor'
   set_property_yarn_site 'yarn.nodemanager.linux-container-executor.group' 'yarn'
+  chown yarn /hadoop/yarn/nm-local-dir
 
   # HTTPS
   set_property_yarn_site 'yarn.http.policy' 'HTTPS_ONLY'
@@ -282,6 +316,7 @@ yarn.nodemanager.linux-container-executor.group=yarn
 banned.users=hdfs,yarn,mapred,bin
 min.user.id=1000
 EOF
+
 }
 
 function set_property_mapred_site() {
@@ -415,6 +450,7 @@ function main() {
   update_apt_get
   install_kerberos
   install_jce
+  create_cross_realm_trust_principal_if_necessary
   create_root_user_principal
   create_service_principals
   config_core_site
