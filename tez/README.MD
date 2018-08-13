@@ -1,6 +1,8 @@
 # Apache Tez
 
-This initialization action installs the latest version of [Apache Tez](https://tez.apache.org/) on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster. In this initialization action:
+This initialization action installs [Apache Tez](https://tez.apache.org/) on  1.0 to 1.2 [Google Cloud Dataproc](https://cloud.google.com/dataproc) clusters.
+
+Note that Tez is pre-installed on Dataproc 1.3+ clusters, so you should not run this initialization action on 1.3+ clusters.
 
 ## Using this initialization action
 
