@@ -144,15 +144,15 @@ EOF
   # Set random secret key
   sed -i 's/'"secret_key=.*"'/'"secret_key=${random}"'/' /etc/hue/conf/hue.ini
 
+  # Restart mysql
+  systemctl restart mysql || err "Unable to restart mysql"
+
   # Create database, give hue user permissions
   mysql -u root -proot-password -e " \
     CREATE DATABASE hue; \
     CREATE USER 'hue'@'localhost' IDENTIFIED BY '${hue_password}'; \
     GRANT ALL PRIVILEGES ON hue.* TO 'hue'@'localhost';" \
     || err "Unable to create database"
-
-  # Restart mysql
-  systemctl restart mysql || err "Unable to restart mysql"
 
   # Hue creates all needed tables
   /usr/lib/hue/build/env/bin/hue syncdb --noinput || err "Database sync failed"
@@ -171,6 +171,10 @@ function main() {
   # Only run on the master node of the cluster
   if [[ "${role}" == 'Master' ]]; then
     update_apt_get || err "Unable to update apt-get"
+    if [[ $(which mysql) == '' ]]; then
+      DEBIAN_FRONTEND=noninteractive apt-get -y install mysql-server \
+        || err "Unable to install mysql-server"
+    fi
     install_hue_and_configure || err "Hue install process failed"
   else
     return 0 || err "Hue can be installed only on master node - skipped for worker node"
