@@ -72,7 +72,7 @@ public class EntriesCredentialConfigurationTest {
   }
 
   @Test
-  public void setConfiugrationSetsValuesAsExpected() {
+  public void setConfigurationSetsValuesAsExpected() {
     Entries conf = new TestEntries();
 
     setConfigurationKey(

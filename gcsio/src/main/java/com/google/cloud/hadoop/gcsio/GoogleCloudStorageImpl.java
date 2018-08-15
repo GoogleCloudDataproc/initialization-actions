@@ -729,10 +729,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     }
   }
 
-  /**
-   * See {@link GoogleCloudStorage#deleteObjects(List<StorageResourceId>)} for details about
-   * expected behavior.
-   */
+  /** See {@link GoogleCloudStorage#deleteObjects(List)} for details about expected behavior. */
   @Override
   public void deleteObjects(List<StorageResourceId> fullObjectNames) throws IOException {
     LOG.debug("deleteObjects({})", fullObjectNames);
@@ -745,8 +742,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     for (StorageResourceId fullObjectName : fullObjectNames) {
       Preconditions.checkArgument(
           fullObjectName.isStorageObject(),
-          "Expected full StorageObject names only, got: %s",
-          fullObjectName);
+          "Expected full StorageObject names only, got: %s", fullObjectName);
     }
 
     // Gather exceptions to wrap in a composite exception at the end.
@@ -1215,8 +1211,8 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
       List<String> listedPrefixes)
       throws IOException {
     LOG.debug(
-        "listStorageObjectsAndPrefixes({}, {}, {}, {})",
-        bucketName, objectNamePrefix, delimiter, maxResults);
+        "listStorageObjectsAndPrefixes({}, {}, {}, {}, {})",
+        bucketName, objectNamePrefix, delimiter, includeTrailingDelimiter, maxResults);
 
     checkArgument(!Strings.isNullOrEmpty(bucketName), "bucketName must not be null or empty");
     checkArgument(
@@ -1387,8 +1383,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
   public List<GoogleCloudStorageItemInfo> listObjectInfo(
       final String bucketName, String objectNamePrefix, String delimiter)
       throws IOException {
-    return listObjectInfo(bucketName, objectNamePrefix, delimiter,
-        GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+    return listObjectInfo(bucketName, objectNamePrefix, delimiter, MAX_RESULTS_UNLIMITED);
   }
 
   /**
@@ -1512,8 +1507,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     Preconditions.checkArgument(object != null, "object must not be null");
     Preconditions.checkArgument(
         resourceId.isStorageObject(),
-        "resourceId must be a StorageObject. resourceId: %s",
-        resourceId);
+        "resourceId must be a StorageObject. resourceId: %s", resourceId);
     Preconditions.checkArgument(
         resourceId.getBucketName().equals(object.getBucket()),
         "resourceId.getBucketName() must equal object.getBucket(): '%s' vs '%s'",
@@ -2028,8 +2022,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     for (StorageResourceId inputId : sources) {
       if (!destination.getBucketName().equals(inputId.getBucketName())) {
         throw new IOException(String.format(
-            "Bucket doesn't match for source '%s' and destination '%s'!",
-            inputId, destination));
+            "Bucket doesn't match for source '%s' and destination '%s'!", inputId, destination));
       }
     }
     List<ComposeRequest.SourceObjects> sourceObjects =

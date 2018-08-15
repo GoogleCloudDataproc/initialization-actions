@@ -1,12 +1,12 @@
 /*
  * Copyright 2013 Google Inc. All Rights Reserved.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- *    
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -91,8 +91,9 @@ public class FileInfo {
    * to avoid having to create a FileInfo object just to use this logic.
    */
   static boolean isDirectory(GoogleCloudStorageItemInfo itemInfo) {
-    return isGlobalRoot(itemInfo) || itemInfo.isBucket() ||
-        objectHasDirectoryPath(itemInfo.getObjectName());
+    return isGlobalRoot(itemInfo)
+        || itemInfo.isBucket()
+        || objectHasDirectoryPath(itemInfo.getObjectName());
   }
 
   /**
@@ -242,15 +243,12 @@ public class FileInfo {
    * Handy factory method for constructing a FileInfo from a GoogleCloudStorageItemInfo while
    * potentially returning a singleton instead of really constructing an object for cases like ROOT.
    */
-  public static FileInfo fromItemInfo(
-      PathCodec pathCodec, GoogleCloudStorageItemInfo itemInfo) {
+  public static FileInfo fromItemInfo(PathCodec pathCodec, GoogleCloudStorageItemInfo itemInfo) {
     if (itemInfo.isRoot()) {
       return ROOT_INFO;
-    } else {
-      URI path = pathCodec.getPath(
-          itemInfo.getBucketName(), itemInfo.getObjectName(), true);
-      return new FileInfo(path, itemInfo);
     }
+    URI path = pathCodec.getPath(itemInfo.getBucketName(), itemInfo.getObjectName(), true);
+    return new FileInfo(path, itemInfo);
   }
 
   /**
@@ -259,7 +257,7 @@ public class FileInfo {
    */
   public static List<FileInfo> fromItemInfos(
       PathCodec pathCodec, List<GoogleCloudStorageItemInfo> itemInfos) {
-    List<FileInfo> fileInfos = new ArrayList<>();
+    List<FileInfo> fileInfos = new ArrayList<>(itemInfos.size());
     for (GoogleCloudStorageItemInfo itemInfo : itemInfos) {
       fileInfos.add(fromItemInfo(pathCodec, itemInfo));
     }
@@ -273,8 +271,7 @@ public class FileInfo {
    * @return Whether the path looks like a directory path.
    */
   public static boolean isDirectoryPath(URI path) {
-    return (path != null) &&
-        path.toString().endsWith(GoogleCloudStorage.PATH_DELIMITER);
+    return (path != null) && path.toString().endsWith(GoogleCloudStorage.PATH_DELIMITER);
   }
 
   /**
