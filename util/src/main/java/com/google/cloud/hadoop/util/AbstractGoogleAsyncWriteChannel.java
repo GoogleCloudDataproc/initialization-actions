@@ -355,9 +355,8 @@ public abstract class AbstractGoogleAsyncWriteChannel
         exception = ioe;
         S response = createResponseFromException(ioe);
         if (response != null) {
-          LOG.warn(String.format(
-              "Received IOException, but successfully converted to response '%s'.", response),
-              ioe);
+          LOG.warn(
+              "Received IOException, but successfully converted to response '{}'.", response, ioe);
           return response;
         }
         LOG.error("Exception not convertible into handled response", ioe);

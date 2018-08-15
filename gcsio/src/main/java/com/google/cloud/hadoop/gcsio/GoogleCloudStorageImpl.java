@@ -396,9 +396,8 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
         } catch (IOException ioe) {
           if (errorExtractor.preconditionNotMet(ioe)) {
             LOG.info(
-                "Retrying marker file creation. Retrying according to backoff policy, %s - %s",
-                resourceId,
-                ioe);
+                "Retrying marker file creation. Retrying according to backoff policy, {}",
+                resourceId, ioe);
           } else {
             throw ioe;
           }
@@ -1833,7 +1832,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
       if (errorExtractor.itemNotFound(e)) {
         LOG.debug("getBucket({}) : not found", bucketName);
       } else {
-        LOG.debug(String.format("getBucket(%s) threw exception: ", bucketName), e);
+        LOG.debug("getBucket({}) threw exception: ", bucketName, e);
         throw wrapException(e, "Error accessing", bucketName, null);
       }
     }
@@ -1902,7 +1901,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
       if (errorExtractor.itemNotFound(e)) {
         LOG.debug("getObject({}) : not found", resourceId);
       } else {
-        LOG.debug(String.format("getObject(%s) threw exception: ", resourceId), e);
+        LOG.debug("getObject({}) threw exception: ", resourceId, e);
         throw wrapException(e, "Error accessing", bucketName, objectName);
       }
     }

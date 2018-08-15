@@ -1146,7 +1146,7 @@ public class GoogleCloudStorageFileSystem {
       // both forms do not exist, we will just go with the original non-converted itemInfo.
       if (newItemInfo.exists()) {
         LOG.debug(
-            "getFileInfo: swapping not-found info: %s for converted info: %s",
+            "getFileInfo: swapping not-found info: {} for converted info: {}",
             itemInfo, newItemInfo);
         itemInfo = newItemInfo;
         resourceId = newResourceId;
@@ -1165,7 +1165,7 @@ public class GoogleCloudStorageFileSystem {
       GoogleCloudStorageItemInfo newItemInfo = getInferredItemInfo(resourceId);
       if (newItemInfo.exists()) {
         LOG.debug(
-            "getFileInfo: swapping not-found info: %s for inferred info: %s",
+            "getFileInfo: swapping not-found info: {} for inferred info: {}",
             itemInfo, newItemInfo);
         itemInfo = newItemInfo;
         resourceId = newResourceId;
@@ -1258,8 +1258,8 @@ public class GoogleCloudStorageFileSystem {
           if (inferredInfos.get(i).exists()) {
             int replaceIndex =
                 inferredIdsToIndex.get(inferredResourceIds.get(i));
-            LOG.debug("getFileInfos: swapping not-found info: "
-                + "%s for inferred info: %s",
+            LOG.debug(
+                "getFileInfos: swapping not-found info: {} for inferred info: {}",
                 itemInfos.get(replaceIndex), inferredInfos.get(i));
             itemInfos.set(replaceIndex, inferredInfos.get(i));
           }

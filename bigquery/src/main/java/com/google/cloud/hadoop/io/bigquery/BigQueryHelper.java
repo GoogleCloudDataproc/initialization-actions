@@ -336,13 +336,12 @@ public class BigQueryHelper {
       LOG.debug("Successfully inserted job '{}'. Response: '{}'", job, response);
     } catch (IOException ioe) {
       if (errorExtractor.itemAlreadyExists(ioe)) {
-        LOG.info(String.format(
-            "Fetching existing job after catching exception for duplicate jobId '%s'",
-            job.getJobReference().getJobId()), ioe);
+        LOG.info(
+            "Fetching existing job after catching exception for duplicate jobId '{}'",
+            job.getJobReference().getJobId(), ioe);
         response = service.jobs().get(projectId, job.getJobReference().getJobId()).execute();
       } else {
-        LOG.info(String.format(
-            "Unhandled exception trying to insert job '%s'", job), ioe);
+        LOG.info("Unhandled exception trying to insert job '{}'", job, ioe);
         throw ioe;
       }
     }

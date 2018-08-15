@@ -73,9 +73,13 @@ public class LoggingMediaHttpUploaderProgressListener implements MediaHttpUpload
                                / ((currentTime - startTime) / 1000.0);
           double currentRate = ((bytesUploaded - prevUploadedBytes) / BYTES_IN_MB)
                                / ((currentTime - prevTime) / 1000.0);
-          log.debug(String.format(
-              "Uploading: %s Average Rate: %.3f MiB/s, Current Rate: %.3f MiB/s, Total: %.3f MiB",
-              name, averageRate, currentRate, bytesUploaded / BYTES_IN_MB));
+          if (log.isDebugEnabled()) {
+            log.debug(
+                String.format(
+                    "Uploading: %s Average Rate: %.3f MiB/s, Current Rate: %.3f MiB/s"
+                        + ", Total: %.3f MiB",
+                    name, averageRate, currentRate, bytesUploaded / BYTES_IN_MB));
+          }
           prevTime = currentTime;
           prevUploadedBytes = bytesUploaded;
         }

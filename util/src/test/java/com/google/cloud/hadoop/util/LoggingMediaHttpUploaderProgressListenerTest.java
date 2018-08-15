@@ -16,12 +16,13 @@
 
 package com.google.cloud.hadoop.util;
 
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.verifyZeroInteractions;
+import static org.mockito.Mockito.when;
 
 import com.google.api.client.googleapis.media.MediaHttpUploader.UploadState;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -40,6 +41,7 @@ public class LoggingMediaHttpUploaderProgressListenerTest {
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
+    when(mockLogger.isDebugEnabled()).thenReturn(true);
     listener = new LoggingMediaHttpUploaderProgressListener("NAME", 60000L);
   }
 
@@ -54,6 +56,7 @@ public class LoggingMediaHttpUploaderProgressListenerTest {
   public void testLoggingProgressAfterSixtySeconds() {
     listener.progressChanged(mockLogger, UploadState.MEDIA_IN_PROGRESS, 10485760L, 60001L);
     listener.progressChanged(mockLogger, UploadState.MEDIA_IN_PROGRESS, 104857600L, 120002L);
+    verify(mockLogger, times(2)).isDebugEnabled();
     verify(mockLogger).debug(
         "Uploading: NAME Average Rate: 0.167 MiB/s, Current Rate: 0.167 MiB/s, Total: 10.000 MiB");
     verify(mockLogger).debug(

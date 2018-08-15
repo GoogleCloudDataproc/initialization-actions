@@ -58,7 +58,7 @@ public class PropertyUtil {
       }
       return value;
     } catch (IOException e) {
-      LOG.error(String.format("Error while trying to get property value for key %s", key), e);
+      LOG.error("Error while trying to get property value for key {}", key, e);
       return defaultValue;
     }
   }
