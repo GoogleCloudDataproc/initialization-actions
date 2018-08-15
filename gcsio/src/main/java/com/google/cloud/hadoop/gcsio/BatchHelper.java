@@ -258,7 +258,8 @@ public class BatchHelper {
 
   /** Awaits until all sent requests are completed. Should be serialized */
   private void awaitRequestsCompletion() throws IOException {
-    while (!responseFutures.isEmpty()) {
+    // Don't wait until all requests will be completed if enough requests are pending for full batch
+    while (!responseFutures.isEmpty() && pendingRequests.size() < maxRequestsPerBatch) {
       try {
         responseFutures.remove().get();
       } catch (InterruptedException | ExecutionException e) {
