@@ -14,6 +14,7 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.api.services.bigquery.model.Table;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,8 +22,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.JobContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A BigQueryExport that makes use of BigQuery's multiple export path feature and
@@ -30,7 +29,7 @@ import org.slf4j.LoggerFactory;
  * as soon as the export begins.
  */
 public class ShardedExportToCloudStorage extends AbstractExportToCloudStorage {
-  private static final Logger LOG = LoggerFactory.getLogger(ShardedExportToCloudStorage.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Configuration key for 'hint' of number of desired map tasks.
   public static final String NUM_MAP_TASKS_HINT_KEY = "mapred.map.tasks";
@@ -72,7 +71,7 @@ public class ShardedExportToCloudStorage extends AbstractExportToCloudStorage {
 
   @Override
   public void waitForUsableMapReduceInput() throws IOException, InterruptedException {
-    LOG.debug("Using sharded input. waitForUsableMapReduceInput is a no-op.");
+    logger.atFine().log("Using sharded input. waitForUsableMapReduceInput is a no-op.");
   }
 
   @Override
@@ -98,14 +97,15 @@ public class ShardedExportToCloudStorage extends AbstractExportToCloudStorage {
     long numTableBytes = tableToExport.getNumBytes();
 
     int numShards = computeNumShards(numTableBytes);
-    LOG.info("Computed '{}' shards for sharded BigQuery export.", numShards);
+    logger.atInfo().log("Computed '%s' shards for sharded BigQuery export.", numShards);
     for (int i = 0; i < numShards; ++i) {
       String exportPattern = String.format(
           "%s/shard-%d/%s", gcsPath, i, fileFormat.getFilePattern());
       paths.add(exportPattern);
     }
 
-    LOG.info("Table '{}' to be exported has {} rows and {} bytes",
+    logger.atInfo().log(
+        "Table '%s' to be exported has %s rows and %s bytes",
         BigQueryStrings.toString(tableToExport.getTableReference()), numTableRows, numTableBytes);
 
     return paths;
@@ -117,24 +117,24 @@ public class ShardedExportToCloudStorage extends AbstractExportToCloudStorage {
    */
   private int computeNumShards(long numTableBytes) {
     int desiredNumMaps = configuration.getInt(NUM_MAP_TASKS_HINT_KEY, NUM_MAP_TASKS_HINT_DEFAULT);
-    LOG.debug("Fetched desiredNumMaps from '{}': {}", NUM_MAP_TASKS_HINT_KEY, desiredNumMaps);
+    logger.atFine().log(
+        "Fetched desiredNumMaps from '%s': %s", NUM_MAP_TASKS_HINT_KEY, desiredNumMaps);
 
     int estimatedNumFiles =
         (int) Math.min(numTableBytes / APPROXIMATE_EXPORT_FILE_SIZE, APPROXIMATE_MAX_EXPORT_FILES);
-    LOG.debug("estimatedNumFiles: {}", estimatedNumFiles);
+    logger.atFine().log("estimatedNumFiles: %s", estimatedNumFiles);
 
     // Maximum number of shards is either equal to the number of files (such that each shard has
     // exactly one file) or the service-enforced maximum.
     int serviceMaxShards = configuration.getInt(MAX_EXPORT_SHARDS_KEY, MAX_EXPORT_SHARDS_DEFAULT);
-    LOG.debug("Fetched serviceMaxShards from '{}': {}", MAX_EXPORT_SHARDS_KEY, serviceMaxShards);
+    logger.atFine().log(
+        "Fetched serviceMaxShards from '%s': %s", MAX_EXPORT_SHARDS_KEY, serviceMaxShards);
 
     int numShards = Math.min(estimatedNumFiles, serviceMaxShards);
     if (numShards < desiredNumMaps) {
-      LOG.warn(
-          "Estimated number of shards < desired num maps ({} < {}); clipping to {}.",
-          numShards,
-          desiredNumMaps,
-          numShards);
+      logger.atWarning().log(
+          "Estimated number of shards < desired num maps (%s < %s); clipping to %s.",
+          numShards, desiredNumMaps, numShards);
       // TODO(user): Add config settings for whether to clip or not.
     } else {
       numShards = desiredNumMaps;

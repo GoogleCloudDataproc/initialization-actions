@@ -25,11 +25,10 @@ import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.PropertyUtil;
 import com.google.cloud.hadoop.util.RetryHttpInitializer;
 import com.google.common.collect.ImmutableList;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import org.apache.hadoop.conf.Configuration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Helper class to get BigQuery from environment credentials.
@@ -48,8 +47,7 @@ public class BigQueryFactory {
   // Authentication.
   public static final String BIGQUERY_PRIVATE_KEY_FILE = "BIGQUERY_PRIVATE_KEY_FILE";
 
-  // Logger.
-  protected static final Logger LOG = LoggerFactory.getLogger(BigQueryFactory.class);
+  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // A resource file containing bigquery related build properties.
   public static final String PROPERTIES_FILE = "bigquery.properties";
@@ -72,7 +70,7 @@ public class BigQueryFactory {
   static {
     VERSION = PropertyUtil.getPropertyOrDefault(
         BigQueryFactory.class, PROPERTIES_FILE, VERSION_PROPERTY, UNKNOWN_VERSION);
-    LOG.info("Bigquery connector version {}", VERSION);
+    logger.atInfo().log("Bigquery connector version %s", VERSION);
     BQC_ID = String.format("Hadoop BigQuery Connector/%s", VERSION);
   }
 
@@ -119,7 +117,7 @@ public class BigQueryFactory {
    */
   public Bigquery getBigQuery(Configuration config)
       throws GeneralSecurityException, IOException {
-    LOG.info("Creating BigQuery from default credential.");
+    logger.atInfo().log("Creating BigQuery from default credential.");
     Credential credential = createBigQueryCredential(config);
     // Use the credential to create an authorized BigQuery client
     return getBigQueryFromCredential(credential, BQC_ID);
@@ -129,7 +127,7 @@ public class BigQueryFactory {
    * Constructs a BigQuery from a given Credential.
    */
   public Bigquery getBigQueryFromCredential(Credential credential, String appName) {
-    LOG.info("Creating BigQuery from given credential.");
+    logger.atInfo().log("Creating BigQuery from given credential.");
     // Use the credential to create an authorized BigQuery client
     if (credential != null) {
       return new Bigquery

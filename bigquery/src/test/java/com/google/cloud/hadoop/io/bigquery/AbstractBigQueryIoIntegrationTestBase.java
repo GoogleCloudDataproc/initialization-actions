@@ -27,12 +27,15 @@ import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
+import com.google.common.flogger.GoogleLogger;
+import com.google.common.flogger.LoggerConfig;
 import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.logging.Level;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -48,8 +51,6 @@ import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.TaskID;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -69,9 +70,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
   protected static final String MARKET_CAP_FIELD_NAME = "MarketCap";
   protected static final String COMPANY_NAME_FIELD_NAME = "CompanyName";
 
-  // Logger.
-  private static final org.slf4j.Logger LOG =
-      org.slf4j.LoggerFactory.getLogger(AbstractBigQueryIoIntegrationTestBase.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Populated by command-line projectId and falls back to env.
   private String projectIdvalue;
@@ -168,12 +167,12 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
 
     TestConfiguration configuration = TestConfiguration.getInstance();
 
-    Logger.getLogger(GsonBigQueryInputFormat.class).setLevel(Level.DEBUG);
-    Logger.getLogger(BigQueryOutputCommitter.class).setLevel(Level.DEBUG);
-    Logger.getLogger(BigQueryOutputFormat.class).setLevel(Level.DEBUG);
-    Logger.getLogger(BigQueryRecordWriter.class).setLevel(Level.DEBUG);
-    Logger.getLogger(BigQueryUtils.class).setLevel(Level.DEBUG);
-    Logger.getLogger(GsonRecordReader.class).setLevel(Level.DEBUG);
+    LoggerConfig.getConfig(GsonBigQueryInputFormat.class).setLevel(Level.FINE);
+    LoggerConfig.getConfig(BigQueryOutputCommitter.class).setLevel(Level.FINE);
+    LoggerConfig.getConfig(BigQueryOutputFormat.class).setLevel(Level.FINE);
+    LoggerConfig.getConfig(BigQueryRecordWriter.class).setLevel(Level.FINE);
+    LoggerConfig.getConfig(BigQueryUtils.class).setLevel(Level.FINE);
+    LoggerConfig.getConfig(GsonRecordReader.class).setLevel(Level.FINE);
 
     bucketHelper = new TestBucketHelper("bq_integration_test");
     // A unique per-setUp String to avoid collisions between test runs.
@@ -203,12 +202,13 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
 
     Bigquery.Datasets datasets = bigqueryInstance.datasets();
     outputDataset.setDatasetReference(datasetReference);
-    LOG.info("Creating temporary dataset '{}' for project '{}'", testDataset, projectIdvalue);
+    logger.atInfo().log(
+        "Creating temporary dataset '%s' for project '%s'", testDataset, projectIdvalue);
     datasets.insert(projectIdvalue, outputDataset).execute();
 
     Path toCreate = new Path(String.format("gs://%s", testBucket));
     FileSystem fs = toCreate.getFileSystem(config);
-    LOG.info("Creating temporary test bucket '{}'", toCreate);
+    logger.atInfo().log("Creating temporary test bucket '%s'", toCreate);
     fs.mkdirs(toCreate);
 
     // Since the TaskAttemptContext and JobContexts are mostly used just to access a
@@ -245,7 +245,8 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     // Delete the test dataset along with all tables inside it.
     // TODO(user): Move this into library shared by BigQueryOutputCommitter.
     Bigquery.Datasets datasets = bigqueryInstance.datasets();
-    LOG.info("Deleting temporary test dataset '{}' for project '{}'", testDataset, projectIdvalue);
+    logger.atInfo().log(
+        "Deleting temporary test dataset '%s' for project '%s'", testDataset, projectIdvalue);
     datasets.delete(projectIdvalue, testDataset).setDeleteContents(true).execute();
 
     // Recursively delete the testBucket.
@@ -255,7 +256,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     if (fs instanceof GoogleHadoopFileSystemBase) {
       bucketHelper.cleanup(((GoogleHadoopFileSystemBase) fs).getGcsFs().getGcs());
     } else {
-      LOG.info("Deleting temporary test bucket '{}'", toDelete);
+      logger.atInfo().log("Deleting temporary test bucket '%s'", toDelete);
       fs.delete(toDelete, true);
     }
   }

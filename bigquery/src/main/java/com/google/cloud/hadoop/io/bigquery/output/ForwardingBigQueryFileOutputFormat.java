@@ -15,6 +15,7 @@ package com.google.cloud.hadoop.io.bigquery.output;
 
 import com.google.cloud.hadoop.io.bigquery.BigQueryFactory;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import org.apache.hadoop.classification.InterfaceStability;
@@ -28,8 +29,6 @@ import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An OutputFormat to interact with Google Cloud Storage and BigQuery. This acts as a wrapper around
@@ -38,9 +37,7 @@ import org.slf4j.LoggerFactory;
 @InterfaceStability.Unstable
 public class ForwardingBigQueryFileOutputFormat<K, V> extends OutputFormat<K, V> {
 
-  /** Logger. */
-  private static final Logger LOG =
-      LoggerFactory.getLogger(ForwardingBigQueryFileOutputFormat.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /**
    * Cached reference to the delegate, this may be null at any time. Use getDelegate to get a
@@ -67,7 +64,7 @@ public class ForwardingBigQueryFileOutputFormat<K, V> extends OutputFormat<K, V>
 
     // Get the output path.
     Path outputPath = BigQueryOutputConfiguration.getGcsOutputPath(conf);
-    LOG.info("Using output path '{}'.", outputPath);
+    logger.atInfo().log("Using output path '%s'.", outputPath);
 
     // Error if the output path already exists.
     FileSystem outputFileSystem = outputPath.getFileSystem(conf);
@@ -133,7 +130,7 @@ public class ForwardingBigQueryFileOutputFormat<K, V> extends OutputFormat<K, V>
   protected synchronized FileOutputFormat<K, V> getDelegate(Configuration conf) throws IOException {
     if (delegate == null) {
       delegate = BigQueryOutputConfiguration.getFileOutputFormat(conf);
-      LOG.info("Delegating functionality to '{}'.", delegate.getClass().getSimpleName());
+      logger.atInfo().log("Delegating functionality to '%s'.", delegate.getClass().getSimpleName());
     }
     return delegate;
   }

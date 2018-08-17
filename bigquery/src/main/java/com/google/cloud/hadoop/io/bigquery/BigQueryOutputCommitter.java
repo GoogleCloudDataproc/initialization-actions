@@ -13,6 +13,8 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.common.flogger.LazyArgs.lazy;
+
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
@@ -23,6 +25,7 @@ import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.hadoop.util.HadoopToStringUtil;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import org.apache.hadoop.conf.Configuration;
@@ -30,8 +33,6 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An OutputCommitter that commits tables specified in job output dataset in Bigquery. This is
@@ -39,8 +40,7 @@ import org.slf4j.LoggerFactory;
  * abortion.
  */
 public class BigQueryOutputCommitter extends OutputCommitter {
-  // Logger.
-  protected static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputCommitter.class);
+  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Id of project used to describe the project under which all connector operations occur.
   private String projectId;
@@ -75,7 +75,6 @@ public class BigQueryOutputCommitter extends OutputCommitter {
       BigQueryFactory bigQueryFactory = new BigQueryFactory();
       this.bigQueryHelper = bigQueryFactory.getBigQueryHelper(configuration);
     } catch (GeneralSecurityException e) {
-      LOG.error("Could not get Bigquery", e);
       throw new IOException("Could not get Bigquery", e);
     }
   }
@@ -88,9 +87,7 @@ public class BigQueryOutputCommitter extends OutputCommitter {
    */
   @Override
   public void setupJob(JobContext context) throws IOException {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("setupJob({})", HadoopToStringUtil.toString(context));
-    }
+    logger.atFine().log("setupJob(%s)", lazy(() -> HadoopToStringUtil.toString(context)));
     // Create dataset.
     DatasetReference datasetReference = new DatasetReference();
     datasetReference.setProjectId(tempTableRef.getProjectId());
@@ -104,7 +101,8 @@ public class BigQueryOutputCommitter extends OutputCommitter {
     Bigquery.Datasets datasets = bigQueryHelper.getRawBigquery().datasets();
 
     // TODO(user): Maybe allow the dataset to exist already instead of throwing 409 here.
-    LOG.debug("Creating temporary dataset '{}' for project '{}'",
+    logger.atFine().log(
+        "Creating temporary dataset '%s' for project '%s'",
         tempTableRef.getDatasetId(), tempTableRef.getProjectId());
 
     // NB: Even though this "insert" makes it look like we can specify a different projectId than
@@ -120,12 +118,11 @@ public class BigQueryOutputCommitter extends OutputCommitter {
    */
   @Override
   public void cleanupJob(JobContext context) throws IOException {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("cleanupJob({})", HadoopToStringUtil.toString(context));
-    }
+    logger.atFine().log("cleanupJob(%s)", lazy(() -> HadoopToStringUtil.toString(context)));
     Bigquery.Datasets datasets = bigQueryHelper.getRawBigquery().datasets();
     try {
-      LOG.debug("cleanupJob: Deleting dataset '{}' from project '{}'",
+      logger.atFine().log(
+          "cleanupJob: Deleting dataset '%s' from project '%s'",
           tempTableRef.getDatasetId(), tempTableRef.getProjectId());
       datasets.delete(tempTableRef.getProjectId(), tempTableRef.getDatasetId())
           .setDeleteContents(true)
@@ -134,7 +131,8 @@ public class BigQueryOutputCommitter extends OutputCommitter {
       // Error is swallowed as job has completed successfully and the only failure is deleting
       // temporary data.
       // This matches the FileOutputCommitter pattern.
-      LOG.warn("Could not delete dataset. Temporary data not cleaned up.", e);
+      logger.atWarning().withCause(e).log(
+          "Could not delete dataset. Temporary data not cleaned up.");
     }
   }
 
@@ -146,9 +144,8 @@ public class BigQueryOutputCommitter extends OutputCommitter {
    * @throws IOException on IO Error.
    */
   public void abortJob(JobContext jobContext, int status) throws IOException {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("abortJob({}, {})", HadoopToStringUtil.toString(jobContext), status);
-    }
+    logger.atFine().log(
+        "abortJob(%s, %s)", lazy(() -> HadoopToStringUtil.toString(jobContext)), status);
     cleanupJob(jobContext);
   }
 
@@ -161,9 +158,7 @@ public class BigQueryOutputCommitter extends OutputCommitter {
    */
   @Override
   public void commitJob(JobContext jobContext) throws IOException {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("commitJob({})", HadoopToStringUtil.toString(jobContext));
-    }
+    logger.atFine().log("commitJob(%s)", lazy(() -> HadoopToStringUtil.toString(jobContext)));
     cleanupJob(jobContext);
   }
 
@@ -174,9 +169,7 @@ public class BigQueryOutputCommitter extends OutputCommitter {
    */
   @Override
   public void setupTask(TaskAttemptContext context) throws IOException {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("setupTask({})", HadoopToStringUtil.toString(context));
-    }
+    logger.atFine().log("setupTask(%s)", lazy(() -> HadoopToStringUtil.toString(context)));
     // BigQueryOutputCommitter's setupTask doesn't do anything. Because the
     // temporary task table is created on demand when the
     // task is writing.
@@ -190,9 +183,7 @@ public class BigQueryOutputCommitter extends OutputCommitter {
    */
   @Override
   public void commitTask(TaskAttemptContext context) throws IOException {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("commitTask({})", HadoopToStringUtil.toString(context));
-    }
+    logger.atFine().log("commitTask(%s)", lazy(() -> HadoopToStringUtil.toString(context)));
 
     // Create a table copy request object.
     JobConfigurationTableCopy copyTableConfig = new JobConfigurationTableCopy();
@@ -217,20 +208,21 @@ public class BigQueryOutputCommitter extends OutputCommitter {
     job.setJobReference(jobReference);
 
     // Run the job.
-    LOG.debug("commitTask: Running table copy from {} to {}",
+    logger.atFine().log(
+        "commitTask: Running table copy from %s to %s",
         BigQueryStrings.toString(tempTableRef), BigQueryStrings.toString(finalTableRef));
     Job response = bigQueryHelper.insertJobOrFetchDuplicate(projectId, job);
-    LOG.debug("Got response '{}'", response);
+    logger.atFine().log("Got response '%s'", response);
 
     // Poll until job is complete.
     try {
       BigQueryUtils.waitForJobCompletion(
           bigQueryHelper.getRawBigquery(), projectId, jobReference, context);
     } catch (InterruptedException e) {
-      LOG.error("Could not check if results of task were transferred.", e);
       throw new IOException("Could not check if results of task were transferred.", e);
     }
-    LOG.info("Saved output of task to table '{}' using project '{}'",
+    logger.atInfo().log(
+        "Saved output of task to table '%s' using project '%s'",
         BigQueryStrings.toString(finalTableRef), projectId);
   }
 
@@ -241,9 +233,7 @@ public class BigQueryOutputCommitter extends OutputCommitter {
    */
   @Override
   public void abortTask(TaskAttemptContext context) {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("abortTask({})", HadoopToStringUtil.toString(context));
-    }
+    logger.atFine().log("abortTask(%s)", lazy(() -> HadoopToStringUtil.toString(context)));
     // Cleanup of per-task temporary tables will be performed at job cleanup time.
   }
 
@@ -266,14 +256,12 @@ public class BigQueryOutputCommitter extends OutputCommitter {
    */
   @VisibleForTesting
   public boolean needsTaskCommit(TaskAttemptID attemptId) throws IOException {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("needsTaskCommit({}) - tempTableRef: '{}'",
-          attemptId,
-          BigQueryStrings.toString(tempTableRef));
-    }
+    logger.atFine().log(
+        "needsTaskCommit(%s) - tempTableRef: '%s'",
+        attemptId, lazy(() -> BigQueryStrings.toString(tempTableRef)));
 
     boolean tableExists = bigQueryHelper.tableExists(tempTableRef);
-    LOG.debug("needsTaskCommit -> {}", tableExists);
+    logger.atFine().log("needsTaskCommit -> %s", tableExists);
     return tableExists;
   }
 

@@ -22,20 +22,19 @@ import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.util.List;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.util.Progressable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A Export decorator that will attempt to perform a query during the export prepare phase.
  */
 public class QueryBasedExport implements Export {
 
-  protected static final Logger LOG = LoggerFactory.getLogger(QueryBasedExport.class);
+  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   private final String query;
   private final BigQueryHelper bigQueryHelper;
@@ -82,7 +81,8 @@ public class QueryBasedExport implements Export {
   @Override
   public void prepare() throws IOException {
     if (!Strings.isNullOrEmpty(query)) {
-      LOG.info("Invoking query '{}' and saving to '{}' before beginning export/read.",
+      logger.atInfo().log(
+          "Invoking query '%s' and saving to '%s' before beginning export/read.",
           query, BigQueryStrings.toString(tableToExport));
       try {
         runQuery(bigQueryHelper, projectId, tableToExport, query);
@@ -98,11 +98,9 @@ public class QueryBasedExport implements Export {
   @Override
   public void cleanupExport() throws IOException {
     if (deleteIntermediateTable) {
-      LOG.info(
-          "Deleting input intermediate table: {}:{}.{}",
-          tableToExport.getProjectId(),
-          tableToExport.getDatasetId(),
-          tableToExport.getTableId());
+      logger.atInfo().log(
+          "Deleting input intermediate table: %s:%s.%s",
+          tableToExport.getProjectId(), tableToExport.getDatasetId(), tableToExport.getTableId());
 
       Bigquery.Tables tables = bigQueryHelper.getRawBigquery().tables();
       Bigquery.Tables.Delete delete = tables.delete(
@@ -127,7 +125,8 @@ public class QueryBasedExport implements Export {
   static void runQuery(
       BigQueryHelper bigQueryHelper, String projectId, TableReference tableRef, String query)
       throws IOException, InterruptedException {
-    LOG.debug("runQuery(bigquery, '{}', '{}', '{}')",
+    logger.atFine().log(
+        "runQuery(bigquery, '%s', '%s', '%s')",
         projectId, BigQueryStrings.toString(tableRef), query);
 
     // Create a query statement and query request object.
@@ -155,7 +154,7 @@ public class QueryBasedExport implements Export {
 
     // Run the job.
     Job response = bigQueryHelper.insertJobOrFetchDuplicate(projectId, job);
-    LOG.debug("Got response '{}'", response);
+    logger.atFine().log("Got response '%s'", response);
 
     // Create anonymous Progressable object
     Progressable progressable = new Progressable() {

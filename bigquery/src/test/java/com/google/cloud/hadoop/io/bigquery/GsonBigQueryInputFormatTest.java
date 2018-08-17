@@ -33,11 +33,13 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
 import com.google.common.collect.ImmutableList;
+import com.google.common.flogger.LoggerConfig;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.util.List;
+import java.util.logging.Level;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -51,8 +53,6 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.input.LineRecordReader;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -116,7 +116,7 @@ public class GsonBigQueryInputFormatTest {
   public void setUp()
       throws IOException {
     MockitoAnnotations.initMocks(this);
-    Logger.getLogger(GsonBigQueryInputFormat.class).setLevel(Level.DEBUG);
+    LoggerConfig.getConfig(GsonBigQueryInputFormat.class).setLevel(Level.FINE);
 
     // Set the Hadoop job configuration.
     config = InMemoryGoogleHadoopFileSystem.getSampleConfiguration();

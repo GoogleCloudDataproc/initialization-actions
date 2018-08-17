@@ -19,12 +19,11 @@ import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.Table;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An abstract base class for BigQuery exports to GCS for use by MapReduce job setup
@@ -33,7 +32,7 @@ public abstract class AbstractExportToCloudStorage implements Export {
 
   public static final String DESTINATION_FORMAT_KEY = "destinationFormat";
 
-  private static final Logger LOG = LoggerFactory.getLogger(AbstractExportToCloudStorage.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   protected final Configuration configuration;
   protected final String gcsPath;
@@ -60,7 +59,7 @@ public abstract class AbstractExportToCloudStorage implements Export {
 
   @Override
   public void prepare() throws IOException {
-    LOG.debug("Preparing export path {}", gcsPath);
+    logger.atFine().log("Preparing export path %s", gcsPath);
     Path hadoopPath = new Path(gcsPath);
     FileSystem fs = hadoopPath.getFileSystem(configuration);
     if (fs.exists(hadoopPath)) {
@@ -98,13 +97,12 @@ public abstract class AbstractExportToCloudStorage implements Export {
     // Insert and run job.
     try {
       Job response = bigQueryHelper.insertJobOrFetchDuplicate(projectId, job);
-      LOG.debug("Got response '{}'", response);
+      logger.atFine().log("Got response '%s'", response);
       exportJobReference = response.getJobReference();
     } catch (IOException e) {
       String error = String.format(
           "Error while exporting table %s",
           BigQueryStrings.toString(tableToExport.getTableReference()));
-      LOG.error(error, e);
       throw new IOException(error, e);
     }
   }
@@ -121,14 +119,15 @@ public abstract class AbstractExportToCloudStorage implements Export {
       try {
         FileSystem fs = tempPath.getFileSystem(configuration);
         if (fs.exists(tempPath)) {
-          LOG.info("Deleting temp GCS input path '{}'", tempPath);
+          logger.atInfo().log("Deleting temp GCS input path '%s'", tempPath);
           fs.delete(tempPath, true);
         }
       } catch (IOException e) {
         // Error is swallowed as job has completed successfully and the only failure is deleting
         // temporary data.
         // This matches the FileOutputCommitter pattern.
-        LOG.warn("Could not delete intermediate GCS files. Temporary data not cleaned up.", e);
+        logger.atWarning().withCause(e).log(
+            "Could not delete intermediate GCS files. Temporary data not cleaned up.");
       }
     }
   }

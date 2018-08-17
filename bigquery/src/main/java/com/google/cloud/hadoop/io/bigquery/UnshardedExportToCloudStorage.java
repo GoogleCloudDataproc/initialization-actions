@@ -16,6 +16,7 @@ package com.google.cloud.hadoop.io.bigquery;
 import com.google.api.services.bigquery.model.Table;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,15 +30,13 @@ import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.util.Progressable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An Export to GCS that provides a single directory for BigQuery to export to and requires
  * all content to be written (the export complete) before we begin execution of the MapReduce.
  */
 public class UnshardedExportToCloudStorage extends AbstractExportToCloudStorage {
-  private static final Logger LOG = LoggerFactory.getLogger(UnshardedExportToCloudStorage.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
   private InputFormat<LongWritable, Text> delegateInputFormat;
 
   public UnshardedExportToCloudStorage(
@@ -58,7 +57,7 @@ public class UnshardedExportToCloudStorage extends AbstractExportToCloudStorage 
 
   @Override
   public List<InputSplit> getSplits(JobContext context) throws IOException, InterruptedException {
-    LOG.info("Setting FileInputFormat's inputPath to '{}'", gcsPath);
+    logger.atInfo().log("Setting FileInputFormat's inputPath to '%s'", gcsPath);
     configuration.set("mapred.input.dir", gcsPath);
 
     // Now that the FileInputFormat's path is pointed to the export directory, construct splits
@@ -78,7 +77,7 @@ public class UnshardedExportToCloudStorage extends AbstractExportToCloudStorage 
 
   @Override
   public List<String> getExportPaths() throws IOException {
-    LOG.debug("Using unsharded splits");
+    logger.atFine().log("Using unsharded splits");
     String exportPattern = gcsPath + "/" + fileFormat.getFilePattern();
     return ImmutableList.of(exportPattern);
   }

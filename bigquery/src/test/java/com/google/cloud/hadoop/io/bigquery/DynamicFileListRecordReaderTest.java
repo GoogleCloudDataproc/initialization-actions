@@ -22,10 +22,12 @@ import static org.mockito.Mockito.when;
 import com.google.api.client.util.Sleeper;
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import com.google.common.collect.ImmutableList;
+import com.google.common.flogger.LoggerConfig;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.util.List;
+import java.util.logging.Level;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -35,8 +37,6 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -90,7 +90,7 @@ public class DynamicFileListRecordReaderTest {
       throws IOException, InterruptedException {
     MockitoAnnotations.initMocks(this);
 
-    Logger.getLogger(DynamicFileListRecordReader.class).setLevel(Level.DEBUG);
+    LoggerConfig.getConfig(DynamicFileListRecordReader.class).setLevel(Level.FINE);
 
     // Set up a Configuration which will case "gs://" to grab an InMemoryGoogleHadoopFileSystem.
     config = InMemoryGoogleHadoopFileSystem.getSampleConfiguration();

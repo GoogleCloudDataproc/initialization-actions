@@ -13,14 +13,15 @@
  */
 package com.google.cloud.hadoop.io.bigquery.mapred;
 
+import static com.google.common.flogger.LazyArgs.lazy;
+
+import com.google.common.flogger.GoogleLogger;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
 import org.apache.hadoop.mapred.RecordWriter;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Wrap our mapreduce RecordWriter so it can be called
@@ -28,8 +29,7 @@ import org.slf4j.LoggerFactory;
  */
 public class BigQueryMapredRecordWriter<K, V> implements RecordWriter<K, V> {
 
-  protected static final Logger LOG =
-      LoggerFactory.getLogger(BigQueryMapredRecordWriter.class);
+  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   private org.apache.hadoop.mapreduce.RecordWriter<K, JsonObject>
       mapreduceRecordWriter;
@@ -45,11 +45,11 @@ public class BigQueryMapredRecordWriter<K, V> implements RecordWriter<K, V> {
       mapreduceRecordWriter, TaskAttemptContext context) {
     this.mapreduceRecordWriter = mapreduceRecordWriter;
     this.context = context;
-    LOG.debug("BigQueryMapredRecordWriter created");
+    logger.atFine().log("BigQueryMapredRecordWriter created");
   }
 
   public void close(Reporter reporter) throws IOException {
-    LOG.debug("close");
+    logger.atFine().log("close");
     try {
       mapreduceRecordWriter.close(context);
     } catch (InterruptedException ex) {
@@ -60,8 +60,9 @@ public class BigQueryMapredRecordWriter<K, V> implements RecordWriter<K, V> {
   public void write(K key, V value) throws IOException {
     if (writeCount < 5) {
       // TODO(user): perhaps figure out how to make a reusable log_first_n
-      LOG.debug("convertToJson from type {}",
-            (value == null) ? "null" : value.getClass().getName());
+      logger.atFine().log(
+          "convertToJson from type %s",
+          lazy(() -> (value == null) ? "null" : value.getClass().getName()));
       writeCount++;
     }
     try {

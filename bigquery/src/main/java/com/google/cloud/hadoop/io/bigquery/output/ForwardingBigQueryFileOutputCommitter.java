@@ -16,6 +16,7 @@ package com.google.cloud.hadoop.io.bigquery.output;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFactory;
 import com.google.cloud.hadoop.io.bigquery.BigQueryHelper;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
@@ -30,8 +31,6 @@ import org.apache.hadoop.mapreduce.JobStatus.State;
 import org.apache.hadoop.mapreduce.OutputCommitter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This class acts as a wrapper which delegates calls to another OutputCommitter whose
@@ -40,9 +39,7 @@ import org.slf4j.LoggerFactory;
 @InterfaceStability.Unstable
 public class ForwardingBigQueryFileOutputCommitter extends OutputCommitter {
 
-  /** Logger. */
-  private static final Logger LOG =
-      LoggerFactory.getLogger(ForwardingBigQueryFileOutputCommitter.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /** The delegate OutputCommitter being wrapped. */
   private final OutputCommitter delegate;
@@ -165,11 +162,12 @@ public class ForwardingBigQueryFileOutputCommitter extends OutputCommitter {
         BigQueryOutputConfiguration.getCleanupTemporaryDataFlag(context.getConfiguration());
 
     if (delete && outputFileSystem.exists(outputPath)) {
-      LOG.info("Found GCS output data at '{}', attempting to clean up.", outputPath);
+      logger.atInfo().log("Found GCS output data at '%s', attempting to clean up.", outputPath);
       if (outputFileSystem.delete(outputPath, true)) {
-        LOG.info("Successfully deleted GCS output path '{}'.", outputPath);
+        logger.atInfo().log("Successfully deleted GCS output path '%s'.", outputPath);
       } else {
-        LOG.warn("Failed to delete GCS output at '{}', retrying on shutdown.", outputPath);
+        logger.atWarning().log(
+            "Failed to delete GCS output at '%s', retrying on shutdown.", outputPath);
         outputFileSystem.deleteOnExit(outputPath);
       }
     }

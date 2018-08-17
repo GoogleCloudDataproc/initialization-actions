@@ -30,13 +30,12 @@ import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import org.apache.hadoop.util.Progressable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Wrapper for BigQuery API.
@@ -48,8 +47,7 @@ public class BigQueryHelper {
   // Maximum number of characters in a BigQuery job_id.
   public static final int BIGQUERY_JOB_ID_MAX_LENGTH = 1024;
 
-  // Logger.
-  protected static final Logger LOG = LoggerFactory.getLogger(BigQueryHelper.class);
+  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Used for specialized handling of various API-defined exceptions.
   private ApiErrorExtractor errorExtractor = ApiErrorExtractor.INSTANCE;
@@ -91,8 +89,8 @@ public class BigQueryHelper {
       BigQueryFileFormat sourceFormat,
       List<String> gcsPaths)
       throws IOException {
-    LOG.info(
-        "Importing into federated table '{}' from {} paths; path[0] is '{}'",
+    logger.atInfo().log(
+        "Importing into federated table '%s' from %s paths; path[0] is '%s'",
         BigQueryStrings.toString(tableRef),
         gcsPaths.size(),
         gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0));
@@ -104,10 +102,10 @@ public class BigQueryHelper {
 
     // Auto detect the schema if we're not given one, otherwise use the passed schema.
     if (schema == null) {
-      LOG.info("No federated import schema provided, auto detecting schema.");
+      logger.atInfo().log("No federated import schema provided, auto detecting schema.");
       externalConf.setAutodetect(true);
     } else {
-      LOG.info("Using provided federated import schema '{}'.", schema.toString());
+      logger.atInfo().log("Using provided federated import schema '%s'.", schema.toString());
     }
 
     Table table = new Table();
@@ -143,8 +141,8 @@ public class BigQueryHelper {
       List<String> gcsPaths,
       boolean awaitCompletion)
       throws IOException, InterruptedException {
-    LOG.info(
-        "Importing into table '{}' from {} paths; path[0] is '{}'; awaitCompletion: {}",
+    logger.atInfo().log(
+        "Importing into table '%s' from %s paths; path[0] is '%s'; awaitCompletion: %s",
         BigQueryStrings.toString(tableRef),
         gcsPaths.size(),
         gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0),
@@ -163,10 +161,10 @@ public class BigQueryHelper {
     }
     // Auto detect the schema if we're not given one, otherwise use the passed schema.
     if (schema == null) {
-      LOG.info("No import schema provided, auto detecting schema.");
+      logger.atInfo().log("No import schema provided, auto detecting schema.");
       loadConfig.setAutodetect(true);
     } else {
-      LOG.info("Using provided import schema '{}'.", schema.toString());
+      logger.atInfo().log("Using provided import schema '%s'.", schema.toString());
     }
 
     JobConfiguration config = new JobConfiguration();
@@ -206,14 +204,11 @@ public class BigQueryHelper {
    */
   public void exportBigQueryToGcs(String projectId, TableReference tableRef, List<String> gcsPaths,
       boolean awaitCompletion) throws IOException, InterruptedException {
-    LOG.debug(
-        "exportBigQueryToGcs(bigquery, '{}', '{}', '{}', '{}')",
-        projectId,
-        BigQueryStrings.toString(tableRef),
-        gcsPaths,
-        awaitCompletion);
-    LOG.info(
-        "Exporting table '{}' to {} paths; path[0] is '{}'; awaitCompletion: {}",
+    logger.atFine().log(
+        "exportBigQueryToGcs(bigquery, '%s', '%s', '%s', '%s')",
+        projectId, BigQueryStrings.toString(tableRef), gcsPaths, awaitCompletion);
+    logger.atInfo().log(
+        "Exporting table '%s' to %s paths; path[0] is '%s'; awaitCompletion: %s",
         BigQueryStrings.toString(tableRef),
         gcsPaths.size(),
         gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0),
@@ -258,7 +253,8 @@ public class BigQueryHelper {
     try {
       Table fetchedTable = service.tables().get(
           tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()).execute();
-      LOG.debug("Successfully fetched table '{}' for tableRef '{}'", fetchedTable, tableRef);
+      logger.atFine().log(
+          "Successfully fetched table '%s' for tableRef '%s'", fetchedTable, tableRef);
       return true;
     } catch (IOException ioe) {
       if (errorExtractor.itemNotFound(ioe)) {
@@ -333,16 +329,16 @@ public class BigQueryHelper {
     Job response = null;
     try {
       response = insert.execute();
-      LOG.debug("Successfully inserted job '{}'. Response: '{}'", job, response);
+      logger.atFine().log("Successfully inserted job '%s'. Response: '%s'", job, response);
     } catch (IOException ioe) {
       if (errorExtractor.itemAlreadyExists(ioe)) {
-        LOG.info(
-            "Fetching existing job after catching exception for duplicate jobId '{}'",
-            job.getJobReference().getJobId(), ioe);
+        logger.atInfo().withCause(ioe).log(
+            "Fetching existing job after catching exception for duplicate jobId '%s'",
+            job.getJobReference().getJobId());
         response = service.jobs().get(projectId, job.getJobReference().getJobId()).execute();
       } else {
-        LOG.info("Unhandled exception trying to insert job '{}'", job, ioe);
-        throw ioe;
+        throw new IOException(
+            String.format("Unhandled exception trying to insert job '%s'", job), ioe);
       }
     }
     checkJobIdEquality(job, response);

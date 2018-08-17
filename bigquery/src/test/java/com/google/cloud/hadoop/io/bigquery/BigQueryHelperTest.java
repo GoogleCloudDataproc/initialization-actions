@@ -34,9 +34,9 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.collect.ImmutableList;
+import com.google.common.flogger.LoggerConfig;
 import java.io.IOException;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
+import java.util.logging.Level;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -96,7 +96,7 @@ public class BigQueryHelperTest {
   @Before
   public void setUp() throws IOException {
     MockitoAnnotations.initMocks(this);
-    Logger.getLogger(GsonBigQueryInputFormat.class).setLevel(Level.DEBUG);
+    LoggerConfig.getConfig(GsonBigQueryInputFormat.class).setLevel(Level.FINE);
 
     // Create fake job reference.
     JobReference fakeJobReference = new JobReference();
@@ -362,7 +362,8 @@ public class BigQueryHelperTest {
     IOException thrown =
         assertThrows(
             IOException.class, () -> helper.insertJobOrFetchDuplicate(jobProjectId, jobHandle));
-    assertThat(thrown).isEqualTo(unhandledException);
+    assertThat(thrown).hasMessageThat().contains(jobHandle.toString());
+    assertThat(thrown).hasCauseThat().isEqualTo(unhandledException);
 
     verify(mockBigquery, times(1)).jobs();
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);

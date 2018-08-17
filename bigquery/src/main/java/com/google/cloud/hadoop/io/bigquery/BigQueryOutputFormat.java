@@ -18,6 +18,7 @@ import com.google.cloud.hadoop.io.bigquery.output.IndirectBigQueryOutputFormat;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.flogger.GoogleLogger;
 import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.text.NumberFormat;
@@ -28,8 +29,6 @@ import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * @deprecated Use {@link IndirectBigQueryOutputFormat} instead.
@@ -53,8 +52,7 @@ public class BigQueryOutputFormat<K, V extends JsonObject> extends OutputFormat<
   // appending the JobID as the final suffix for the temporary datasetId.
   public static final String TEMP_NAME = "_hadoop_temporary_";
 
-  // Logger.
-  protected static final Logger LOG = LoggerFactory.getLogger(BigQueryOutputFormat.class);
+  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /**
    * Checks for validity of the output-specification for the job. Typically checks that it does not
@@ -109,7 +107,8 @@ public class BigQueryOutputFormat<K, V extends JsonObject> extends OutputFormat<
     TableReference tempTableRef = getTempTableReference(configuration, taskAttemptId);
     TableReference finalTableRef = getFinalTableReference(configuration);
 
-    LOG.debug("Returning BigQueryOutputCommitter('{}', '{}', '{}'",
+    logger.atFine().log(
+        "Returning BigQueryOutputCommitter('%s', '%s', '%s'",
         projectId, BigQueryStrings.toString(tempTableRef), BigQueryStrings.toString(finalTableRef));
     return new BigQueryOutputCommitter(projectId, tempTableRef, finalTableRef, configuration);
   }
@@ -136,8 +135,8 @@ public class BigQueryOutputFormat<K, V extends JsonObject> extends OutputFormat<
     TableReference tempTableRef =
         getTempTableReference(context.getConfiguration(), context.getTaskAttemptID());
 
-    LOG.debug(
-        "Returning new BigqueryRecordWriter for fields: '{}', project: '{}', table: '{}'",
+    logger.atFine().log(
+        "Returning new BigqueryRecordWriter for fields: '%s', project: '%s', table: '%s'",
         tableSchema, jobProjectId, BigQueryStrings.toString(tempTableRef));
     // Return a new BigQueryRecordWriter.
     return new BigQueryRecordWriter<>(

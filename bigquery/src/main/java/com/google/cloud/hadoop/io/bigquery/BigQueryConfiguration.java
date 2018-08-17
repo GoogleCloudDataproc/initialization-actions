@@ -21,14 +21,13 @@ import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import javax.annotation.Nullable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.JobID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A container for configuration property names for jobs with BigQuery input/output.
@@ -202,8 +201,7 @@ public class BigQueryConfiguration {
   public static final String ENABLE_ASYNC_WRITE = "mapred.bq.output.async.write.enabled";
   public static final boolean ENABLE_ASYNC_WRITE_DEFAULT = true;
 
-  // Logger.
-  protected static final Logger LOG = LoggerFactory.getLogger(BigQueryConfiguration.class);
+  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /**
    * Sets the Bigquery access related fields in the JobConf for input connector.
@@ -227,20 +225,22 @@ public class BigQueryConfiguration {
 
     // Project is optional, if not set use default project.
     if (!Strings.isNullOrEmpty(projectId)) {
-      LOG.info("Using specified project-id '{}' for input", projectId);
+      logger.atInfo().log("Using specified project-id '%s' for input", projectId);
       config.set(INPUT_PROJECT_ID_KEY, projectId);
 
       // For user-friendliness, we'll helpfully backfill the input-specific projectId into the
       // "global" projectId for now.
       // TODO(user): Maybe don't try to be user-friendly here.
       if (Strings.isNullOrEmpty(config.get(PROJECT_ID_KEY))) {
-        LOG.warn("No job-level projectId specified in '{}', using '{}' for it.",
+        logger.atWarning().log(
+            "No job-level projectId specified in '%s', using '%s' for it.",
             PROJECT_ID_KEY, projectId);
         config.set(PROJECT_ID_KEY, projectId);
       }
     } else {
       String defaultProjectId = ConfigurationUtil.getMandatoryConfig(config, PROJECT_ID_KEY);
-      LOG.info("Using default project-id '{}' since none specified for input.", defaultProjectId);
+      logger.atInfo().log(
+          "Using default project-id '%s' since none specified for input.", defaultProjectId);
       config.set(INPUT_PROJECT_ID_KEY, defaultProjectId);
     }
     config.set(INPUT_DATASET_ID_KEY, datasetId);
@@ -288,20 +288,22 @@ public class BigQueryConfiguration {
 
     // Project is optional, if not set use default project.
     if (!Strings.isNullOrEmpty(projectId)) {
-      LOG.info("Using specified project-id '{}' for output", projectId);
+      logger.atInfo().log("Using specified project-id '%s' for output", projectId);
       config.set(OUTPUT_PROJECT_ID_KEY, projectId);
 
       // For user-friendliness, we'll helpfully backfill the input-specific projectId into the
       // "global" projectId for now.
       // TODO(user): Maybe don't try to be user-friendly here.
       if (Strings.isNullOrEmpty(config.get(PROJECT_ID_KEY))) {
-        LOG.warn("No job-level projectId specified in '{}', using '{}' for it.",
+        logger.atWarning().log(
+            "No job-level projectId specified in '%s', using '%s' for it.",
             PROJECT_ID_KEY, projectId);
         config.set(PROJECT_ID_KEY, projectId);
       }
     } else {
       String defaultProjectId = ConfigurationUtil.getMandatoryConfig(config, PROJECT_ID_KEY);
-      LOG.info("Using default project-id '{}' since none specified for output.", defaultProjectId);
+      logger.atInfo().log(
+          "Using default project-id '%s' since none specified for output.", defaultProjectId);
       config.set(OUTPUT_PROJECT_ID_KEY, defaultProjectId);
     }
     config.set(OUTPUT_DATASET_ID_KEY, datasetId);
@@ -344,8 +346,8 @@ public class BigQueryConfiguration {
 
     if (Strings.isNullOrEmpty(pathRoot)) {
       checkNotNull(jobId, "jobId is required if '%s' is not set", TEMP_GCS_PATH_KEY);
-      LOG.info(
-          "Fetching key '{}' since '{}' isn't set explicitly.", GCS_BUCKET_KEY, TEMP_GCS_PATH_KEY);
+      logger.atInfo().log(
+          "Fetching key '%s' since '%s' isn't set explicitly.", GCS_BUCKET_KEY, TEMP_GCS_PATH_KEY);
 
       String gcsBucket =
           conf.get(GCS_BUCKET_KEY, "${" + GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY + "}");
@@ -356,7 +358,7 @@ public class BigQueryConfiguration {
       pathRoot = String.format("gs://%s/hadoop/tmp/bigquery/%s", gcsBucket, jobId);
     }
 
-    LOG.info("Using working path: '{}'", pathRoot);
+    logger.atInfo().log("Using working path: '%s'", pathRoot);
     Path workingPath = new Path(pathRoot);
 
     FileSystem fs = workingPath.getFileSystem(conf);
