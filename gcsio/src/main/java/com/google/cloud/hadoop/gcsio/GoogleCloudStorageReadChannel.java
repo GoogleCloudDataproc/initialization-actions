@@ -403,7 +403,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
           ++retriesAttempted;
           LOG.warn(
               "Failed read retry #{}/{} for '{}'. Sleeping...",
-              resourceIdString, maxRetries, retriesAttempted, ioe);
+              retriesAttempted, maxRetries, resourceIdString, ioe);
           try {
             boolean backOffSuccessful = BackOffUtils.next(sleeper, readBackOff.get());
             if (!backOffSuccessful) {
@@ -1009,7 +1009,8 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       if (readOptions.getBufferSize() > 0) {
         int bufferSize = readOptions.getBufferSize();
         // limit buffer size to the channel end
-        bufferSize = Math.toIntExact(Math.min(bufferSize, contentChannelEnd - currentPosition));
+        bufferSize =
+            Math.toIntExact(Math.min(bufferSize, contentChannelEnd - contentChannelPosition));
         LOG.debug(
             "Opened stream from {} position with {} range, {} bytesToRead"
                 + " and {} bytes buffer for '{}'",
