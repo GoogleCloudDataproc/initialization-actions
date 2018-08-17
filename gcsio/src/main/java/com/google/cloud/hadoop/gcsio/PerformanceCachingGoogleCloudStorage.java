@@ -18,14 +18,13 @@ import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl.inferOrFilter
 import static com.google.common.base.Strings.nullToEmpty;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import javax.annotation.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This class adds a caching layer around a GoogleCloudStorage instance, caching calls that create,
@@ -37,8 +36,7 @@ import org.slf4j.LoggerFactory;
  */
 public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudStorage {
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(PerformanceCachingGoogleCloudStorage.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /** Cache to hold item info and manage invalidation. */
   private final PrefixMappedItemCache cache;
@@ -239,7 +237,7 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
         createEmptyObjects(dirIds);
       } catch (IOException ioe) {
         // Don't totally fail the listObjectInfo call, since auto-repair is best-effort anyways.
-        LOG.error("Failed to repair some missing directories.", ioe);
+        logger.atSevere().withCause(ioe).log("Failed to repair some missing directories.");
       }
       // cache repaired dirs
       List<GoogleCloudStorageItemInfo> repairedDirInfos = getItemInfos(dirIds);

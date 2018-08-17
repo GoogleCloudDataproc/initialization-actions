@@ -15,7 +15,6 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.truth.Truth.assertWithMessage;
-import static org.slf4j.LoggerFactory.getLogger;
 
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
 import com.google.common.base.Strings;
@@ -34,13 +33,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
 
 /**
  * Integration tests for GoogleCloudStorage class.
  */
 public abstract class GoogleCloudStorageIntegrationHelper {
-  protected static final Logger LOG = getLogger(GoogleCloudStorageIntegrationHelper.class);
 
   // Application name for OAuth.
   static final String APP_NAME = "GCS-test";
@@ -411,7 +408,8 @@ public abstract class GoogleCloudStorageIntegrationHelper {
           threadPool.shutdownNow();
         }
       } catch (InterruptedException ie) {
-        throw new IOException("Interrupted while shutting down threadpool!", ie);
+        System.err.println("Interrupted during awaitTermination! Forcing executor shutdown.");
+        threadPool.shutdownNow();
       }
     }
 

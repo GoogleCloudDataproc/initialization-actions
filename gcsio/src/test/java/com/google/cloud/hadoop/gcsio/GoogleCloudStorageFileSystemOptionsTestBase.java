@@ -19,12 +19,12 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 import com.google.common.collect.ObjectArrays;
+import com.google.common.flogger.LoggerConfig;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
+import java.util.logging.Level;
 import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -68,10 +68,9 @@ public abstract class GoogleCloudStorageFileSystemOptionsTestBase {
   private GoogleCloudStorageFileSystem gcsfs;
 
   @BeforeClass
-  public static void beforeAllTests()
-      throws IOException {
+  public static void beforeAllTests() throws IOException {
     // Disable logging.
-    Logger.getRootLogger().setLevel(Level.OFF);
+    LoggerConfig.getConfig("").setLevel(Level.OFF);
   }
 
   @After

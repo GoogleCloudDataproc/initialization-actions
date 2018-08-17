@@ -26,6 +26,7 @@ import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.StorageRequest;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
+import com.google.common.flogger.GoogleLogger;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.util.Queue;
@@ -39,8 +40,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * BatchHelper abstracts out the logic for maximum requests per batch, and also allows a workaround
@@ -58,7 +57,7 @@ import org.slf4j.LoggerFactory;
  */
 public class BatchHelper {
 
-  private static final Logger LOG = LoggerFactory.getLogger(BatchHelper.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   private static final ThreadFactory THREAD_FACTORY =
       new ThreadFactoryBuilder().setNameFormat("gcsfs-batch-helper-%d").setDaemon(true).build();
@@ -240,12 +239,12 @@ public class BatchHelper {
       requestsExecutor.shutdown();
       try {
         if (!requestsExecutor.awaitTermination(1, TimeUnit.SECONDS)) {
-          LOG.warn("Forcibly shutting down batch helper thread pool.");
+          logger.atWarning().log("Forcibly shutting down batch helper thread pool.");
           requestsExecutor.shutdownNow();
         }
       } catch (InterruptedException e) {
-        LOG.debug(
-            "Failed to await termination: forcibly shutting down batch helper thread pool.", e);
+        logger.atFine().withCause(e).log(
+            "Failed to await termination: forcibly shutting down batch helper thread pool.");
         requestsExecutor.shutdownNow();
       }
     }

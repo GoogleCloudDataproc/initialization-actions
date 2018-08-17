@@ -106,6 +106,7 @@
     <google.api-storage.version>v1-rev135-${google.api.version}</google.api-storage.version>
     <google.auto-value.version>1.6.2</google.auto-value.version>
     <google.findbugs.version>3.0.2</google.findbugs.version>
+    <google.flogger.version>0.2</google.flogger.version>
     <google.guava.version>26.0-jre</google.guava.version>
     <google.truth.version>0.42</google.truth.version>
     <hadoop.one.version>1.2.1</hadoop.one.version>
@@ -411,6 +412,17 @@
         <artifactId>avro</artifactId>
         <version>${apache.avro.version}</version>
         <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.google.flogger</groupId>
+        <artifactId>google-extensions</artifactId>
+        <version>${google.flogger.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.flogger</groupId>
+        <artifactId>flogger-log4j-backend</artifactId>
+        <version>${google.flogger.version}</version>
+        <scope>runtime</scope>
       </dependency>
       <dependency>
         <groupId>log4j</groupId>

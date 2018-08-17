@@ -32,6 +32,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.flogger.GoogleLogger;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -62,8 +63,6 @@ import org.junit.runner.Description;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.model.Statement;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 // TODO(user): add tests for multi-threaded reads/writes
 /**
@@ -71,9 +70,7 @@ import org.slf4j.LoggerFactory;
  */
 @RunWith(JUnit4.class)
 public class GoogleCloudStorageFileSystemIntegrationTest {
-  // Logger.
-  protected static final Logger LOG =
-      LoggerFactory.getLogger(GoogleCloudStorageFileSystemIntegrationTest.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // hack to make tests pass until JUnit 4.13 regression will be fixed:
   // https://github.com/junit-team/junit4/issues/1509
@@ -1567,11 +1564,11 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
       threadPool.shutdown();
       try {
         if (!threadPool.awaitTermination(10L, TimeUnit.SECONDS)) {
-          LOG.error("Failed to awaitTermination! Forcing executor shutdown.");
+          logger.atSevere().log("Failed to awaitTermination! Forcing executor shutdown.");
           threadPool.shutdownNow();
         }
       } catch (InterruptedException ie) {
-        LOG.error("Interrupted while shutting down threadpool!", ie);
+        logger.atSevere().withCause(ie).log("Interrupted while shutting down threadpool!");
         threadPool.shutdownNow();
       }
     }

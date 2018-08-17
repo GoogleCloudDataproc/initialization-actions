@@ -232,6 +232,10 @@
       <classifier>tests</classifier>
       <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>com.google.flogger</groupId>
+      <artifactId>flogger-log4j-backend</artifactId>
+    </dependency>
   </dependencies>
   <build>
     <plugins>
@@ -248,6 +252,15 @@
                 <transformer
                     implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
               </transformers>
+              <filters>
+                <filter>
+                  <artifact>com.google.flogger:flogger-log4j-backend</artifact>
+                  <includes>
+                    <!--Avoid cleanup with minimizeJar that breaks logging-->
+                    <include>**</include>
+                  </includes>
+                </filter>
+              </filters>
               <artifactSet>
                 <includes>
                   <include>com.fasterxml.jackson.core:jackson-core</include>
@@ -256,6 +269,7 @@
                   <include>com.google.cloud.bigdataoss:util</include>
                   <include>com.google.cloud.bigdataoss:util-hadoop</include>
                   <include>com.google.guava</include>
+                  <include>com.google.flogger</include>
                   <include>com.google.http-client:google-http-client</include>
                   <include>com.google.http-client:google-http-client-jackson2</include>
                   <include>com.google.oauth-client:google-oauth-client</include>

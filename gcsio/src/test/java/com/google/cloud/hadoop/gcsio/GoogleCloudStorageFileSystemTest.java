@@ -21,6 +21,7 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
+import com.google.common.flogger.LoggerConfig;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.IOException;
 import java.net.URI;
@@ -28,8 +29,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
+import java.util.logging.Level;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -50,7 +50,7 @@ public class GoogleCloudStorageFileSystemTest
         @Override
         public void before() throws IOException {
           // Disable logging.
-          Logger.getRootLogger().setLevel(Level.OFF);
+          LoggerConfig.getConfig("").setLevel(Level.OFF);
 
           if (gcsfs == null) {
             gcsfs =

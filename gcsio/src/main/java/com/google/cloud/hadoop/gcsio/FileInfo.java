@@ -19,14 +19,13 @@ package com.google.cloud.hadoop.gcsio;
 import com.google.api.client.util.Clock;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.flogger.GoogleLogger;
 import com.google.common.primitives.Longs;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Contains information about a file or a directory.
@@ -38,7 +37,7 @@ import org.slf4j.LoggerFactory;
  */
 public class FileInfo {
 
-  private static final Logger LOG = LoggerFactory.getLogger(FileInfo.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Info about the root path.
   public static final FileInfo ROOT_INFO = new FileInfo(
@@ -145,7 +144,8 @@ public class FileInfo {
       try {
         return Longs.fromByteArray(attributes.get(FILE_MODIFICATION_TIMESTAMP_KEY));
       } catch (IllegalArgumentException iae) {
-        LOG.debug("Failed to parse modification time '{}' millis for object {}",
+        logger.atFine().log(
+            "Failed to parse modification time '%s' millis for object %s",
             attributes.get(FILE_MODIFICATION_TIMESTAMP_KEY), itemInfo.getObjectName());
       }
     }

@@ -18,22 +18,20 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.flogger.GoogleLogger;
 import java.net.URI;
 import java.net.URISyntaxException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
 * A GoogleCloudStorageFileSystem PathCodec that was in use until version 1.4.4.
 */
 class LegacyPathCodec implements PathCodec {
 
-  public static final Logger LOG =
-      LoggerFactory.getLogger(LegacyPathCodec.class);
+  public static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   @Override
   public StorageResourceId validatePathAndGetId(URI path, boolean allowEmptyObjectName) {
-    LOG.debug("validatePathAndGetId('{}', {})", path, allowEmptyObjectName);
+    logger.atFine().log("validatePathAndGetId('%s', %s)", path, allowEmptyObjectName);
     Preconditions.checkNotNull(path);
 
     if (!GoogleCloudStorageFileSystem.SCHEME.equals(path.getScheme())) {
@@ -95,7 +93,6 @@ class LegacyPathCodec implements PathCodec {
       // This should be very rare given the earlier checks.
       String msg = String.format("Invalid bucket name (%s) or object name (%s)",
           bucketName, objectName);
-      LOG.error(msg, e);
       throw new IllegalArgumentException(msg, e);
     }
 

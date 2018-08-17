@@ -31,6 +31,7 @@ import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
@@ -41,15 +42,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Helper methods for GCS integration tests. */
 public class GoogleCloudStorageTestHelper {
-  private static final Logger LOG = LoggerFactory.getLogger(GoogleCloudStorageTestHelper.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Application name for OAuth.
   public static final String APP_NAME = "GHFS/test";
@@ -177,8 +175,8 @@ public class GoogleCloudStorageTestHelper {
       }
     }
     long endTime = System.currentTimeMillis();
-    LOG.info(
-        "Took {} milliseconds to write {}", (endTime - startTime), partitionsCount * partitionSize);
+    logger.atInfo().log(
+        "Took %s milliseconds to write %s", (endTime - startTime), partitionsCount * partitionSize);
     return partition;
   }
 
@@ -220,7 +218,8 @@ public class GoogleCloudStorageTestHelper {
 
     public void cleanup(GoogleCloudStorage storage) throws IOException {
       Stopwatch storageStopwatch = Stopwatch.createStarted();
-      LOG.info("Cleaning up GCS buckets that start with {} prefix or leaked", uniqueBucketPrefix);
+      logger.atInfo().log(
+          "Cleaning up GCS buckets that start with %s prefix or leaked", uniqueBucketPrefix);
 
       List<String> bucketsToDelete = new ArrayList<>();
       for (GoogleCloudStorageItemInfo bucketInfo : storage.listBucketInfo()) {
@@ -232,29 +231,32 @@ public class GoogleCloudStorageTestHelper {
         }
       }
       if (bucketsToDelete.size() > MAX_CLEANUP_BUCKETS) {
-        LOG.info(
-            "GCS has {} buckets to cleanup. It's too many, will cleanup only {} buckets: {}",
+        logger.atInfo().log(
+            "GCS has %s buckets to cleanup. It's too many, will cleanup only %s buckets: %s",
             bucketsToDelete.size(), MAX_CLEANUP_BUCKETS, bucketsToDelete);
         bucketsToDelete = bucketsToDelete.subList(0, MAX_CLEANUP_BUCKETS);
       } else {
-        LOG.info("GCS has {} buckets to cleanup: {}", bucketsToDelete.size(), bucketsToDelete);
+        logger.atInfo().log(
+            "GCS has %s buckets to cleanup: %s", bucketsToDelete.size(), bucketsToDelete);
       }
 
       List<GoogleCloudStorageItemInfo> objectsToDelete = new ArrayList<>();
       for (String bucket : bucketsToDelete) {
         objectsToDelete.addAll(storage.listObjectInfo(bucket, null, null));
       }
-      LOG.info("GCS has {} objects to cleanup: {}", objectsToDelete.size(), objectsToDelete);
+      logger.atInfo().log(
+          "GCS has %s objects to cleanup: %s", objectsToDelete.size(), objectsToDelete);
 
       try {
         storage.deleteObjects(
             Lists.transform(objectsToDelete, GoogleCloudStorageItemInfo::getResourceId));
         storage.deleteBuckets(bucketsToDelete);
       } catch (IOException ioe) {
-        LOG.warn("Caught exception during GCS ({}) buckets cleanup", storage, ioe);
+        logger.atWarning().withCause(ioe).log(
+            "Caught exception during GCS (%s) buckets cleanup", storage);
       }
 
-      LOG.info("GCS cleaned up in {} seconds", storageStopwatch.elapsed(TimeUnit.SECONDS));
+      logger.atInfo().log("GCS cleaned up in %s seconds", storageStopwatch.elapsed().getSeconds());
     }
   }
 }
