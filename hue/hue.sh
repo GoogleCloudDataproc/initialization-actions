@@ -166,15 +166,12 @@ EOF
 }
 
 function main() {
-  # Determine the role of this node
-  local role=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
+  # Determine if script is launched on current master node (not additional)
+  local master_node=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+  local node_name=${HOSTNAME}
   # Only run on the master node of the cluster
-  if [[ "${role}" == 'Master' ]]; then
+  if [[ "${HOSTNAME}" == "${master_node}" ]]; then
     update_apt_get || err "Unable to update apt-get"
-    if [[ $(which mysql) == '' ]]; then
-      DEBIAN_FRONTEND=noninteractive apt-get -y install mysql-server \
-        || err "Unable to install mysql-server"
-    fi
     install_hue_and_configure || err "Hue install process failed"
   else
     return 0 || err "Hue can be installed only on master node - skipped for worker node"
