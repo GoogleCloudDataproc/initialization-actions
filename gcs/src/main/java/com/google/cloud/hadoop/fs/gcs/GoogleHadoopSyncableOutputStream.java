@@ -20,6 +20,7 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.common.collect.ImmutableList;
+import com.google.common.flogger.GoogleLogger;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -37,8 +38,6 @@ import java.util.concurrent.Future;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.Syncable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * GoogleHadoopSyncableOutputStream implements the {@code Syncable} interface by composing
@@ -85,8 +84,7 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
   // intermediate attempts to hsync() throw exceptions due to the component limit.
   public static final int MAX_COMPOSITE_COMPONENTS = 1024;
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(GoogleHadoopSyncableOutputStream.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Temporary files don't need to contain the desired attributes of the final destination file
   // since metadata settings get clobbered on final compose() anyways; additionally, due to
@@ -165,7 +163,7 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
       FileSystem.Statistics statistics, CreateFileOptions createFileOptions,
       ExecutorService cleanupThreadpool)
       throws IOException {
-    LOG.debug("GoogleHadoopSyncableOutputStream({}, {})", gcsPath, bufferSize);
+    logger.atFine().log("GoogleHadoopSyncableOutputStream(%s, %s)", gcsPath, bufferSize);
     this.ghfs = ghfs;
     this.finalGcsPath = gcsPath;
     this.bufferSize = bufferSize;
@@ -202,9 +200,10 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
 
   @Override
   public void close() throws IOException {
-    LOG.debug("close(): Current tail file: {} final destination: {}", curGcsPath, finalGcsPath);
+    logger.atFine().log(
+        "close(): Current tail file: %s final destination: %s", curGcsPath, finalGcsPath);
     if (!isOpen()) {
-      LOG.debug("close(): Ignoring; stream already closed.");
+      logger.atFine().log("close(): Ignoring; stream already closed.");
       return;
     }
     commitCurrentFile();
@@ -215,7 +214,7 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
     curGcsPath = null;
     curDelegate = null;
 
-    LOG.debug("close(): Awaiting {} deletionFutures", deletionFutures.size());
+    logger.atFine().log("close(): Awaiting %s deletionFutures", deletionFutures.size());
     for (Future<?> deletion : deletionFutures) {
       try {
         deletion.get();
@@ -227,7 +226,7 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
         }
       }
     }
-    LOG.debug("close(): done");
+    logger.atFine().log("close(): done");
   }
 
   public void sync() throws IOException {
@@ -241,8 +240,8 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
    * exist in Hadoop 1.
    */
   public void hflush() throws IOException {
-    LOG.warn(
-        "hflush() is a no-op; readers will *not* yet see flushed data for {}", finalGcsPath);
+    logger.atWarning().log(
+        "hflush() is a no-op; readers will *not* yet see flushed data for %s", finalGcsPath);
     throwIfNotOpen();
   }
 
@@ -257,7 +256,8 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
    *     yet been committed.
    */
   public void hsync() throws IOException {
-    LOG.debug("hsync(): Committing tail file {} to final destination {}", curGcsPath, finalGcsPath);
+    logger.atFine().log(
+        "hsync(): Committing tail file %s to final destination %s", curGcsPath, finalGcsPath);
     throwIfNotOpen();
     long startTime = System.nanoTime();
 
@@ -277,12 +277,13 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
     ++curComponentIndex;
     curGcsPath = getNextTemporaryPath();
 
-    LOG.debug("hsync(): Opening next temporary tail file {} as component number {}",
+    logger.atFine().log(
+        "hsync(): Opening next temporary tail file %s as component number %s",
         curGcsPath, curComponentIndex);
     curDelegate = new GoogleHadoopOutputStream(
         ghfs, curGcsPath, bufferSize, statistics, TEMPFILE_CREATE_OPTIONS);
     long endTime = System.nanoTime();
-    LOG.debug("Took {} ns to hsync()", endTime - startTime);
+    logger.atFine().log("Took %s ns to hsync()", endTime - startTime);
   }
 
   private void commitCurrentFile() throws IOException {
@@ -295,11 +296,11 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
     if (innerChannel instanceof GoogleCloudStorageItemInfo.Provider) {
       generationId = ((GoogleCloudStorageItemInfo.Provider) innerChannel)
           .getItemInfo().getContentGeneration();
-      LOG.debug(
-          "innerChannel is GoogleCloudStorageItemInfo.Provider; closed generationId {}.",
+      logger.atFine().log(
+          "innerChannel is GoogleCloudStorageItemInfo.Provider; closed generationId %s.",
           generationId);
     } else {
-      LOG.debug("innerChannel NOT instanceof provider: {}", innerChannel.getClass());
+      logger.atFine().log("innerChannel NOT instanceof provider: %s", innerChannel.getClass());
     }
 
     // On the first component, curGcsPath will equal finalGcsPath, and no compose() call is

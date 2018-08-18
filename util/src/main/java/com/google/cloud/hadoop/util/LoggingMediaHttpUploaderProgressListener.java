@@ -19,21 +19,22 @@ package com.google.cloud.hadoop.util;
 import com.google.api.client.googleapis.media.MediaHttpUploader;
 import com.google.api.client.googleapis.media.MediaHttpUploader.UploadState;
 import com.google.api.client.googleapis.media.MediaHttpUploaderProgressListener;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * Logs the status of uploads. At the beginning, during, and
- * at the end of the upload, emits relevant statistics such as how many bytes
- * uploaded and the rate at which the upload is progressing.
- * <p>
- * A new instance of this progress listener should be used for each MediaHttpUploader.
+ * Logs the status of uploads. At the beginning, during, and at the end of the upload, emits
+ * relevant statistics such as how many bytes uploaded and the rate at which the upload is
+ * progressing.
+ *
+ * <p>A new instance of this progress listener should be used for each MediaHttpUploader.
  */
 public class LoggingMediaHttpUploaderProgressListener implements MediaHttpUploaderProgressListener {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(MediaHttpUploaderProgressListener.class);
-  private static final double BYTES_IN_MB = (double) (1024 * 1024);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+
+  private static final double BYTES_IN_MB = 1024 * 1024;
+
   private final long minLoggingInterval;
   private final String name;
   private long startTime;
@@ -41,8 +42,9 @@ public class LoggingMediaHttpUploaderProgressListener implements MediaHttpUpload
   private long prevUploadedBytes;
 
   /**
-   * Creates a upload progress listener that emits relevant statistics about the
-   * progress of the upload.
+   * Creates a upload progress listener that emits relevant statistics about the progress of the
+   * upload.
+   *
    * @param name The name of the resource being uploaded.
    * @param minLoggingInterval The minimum amount of time (millis) between logging upload progress.
    */
@@ -53,39 +55,37 @@ public class LoggingMediaHttpUploaderProgressListener implements MediaHttpUpload
 
   @Override
   public void progressChanged(MediaHttpUploader uploader) throws IOException {
-    progressChanged(LOG,
-        uploader.getUploadState(),
-        uploader.getNumBytesUploaded(),
-        System.currentTimeMillis());
+    progressChanged(
+        uploader.getUploadState(), uploader.getNumBytesUploaded(), System.currentTimeMillis());
   }
 
-  void progressChanged(Logger log, UploadState uploadState, long bytesUploaded, long currentTime) {
+  @VisibleForTesting
+  void progressChanged(UploadState uploadState, long bytesUploaded, long currentTime) {
     switch (uploadState) {
       case INITIATION_STARTED:
         startTime = currentTime;
         prevTime = currentTime;
-        log.debug("Uploading: {}", name);
+        logger.atFine().log("Uploading: %s", name);
         break;
       case MEDIA_IN_PROGRESS:
         // Limit messages to be emitted for in progress uploads.
         if (currentTime > prevTime + minLoggingInterval) {
-          double averageRate = (bytesUploaded / BYTES_IN_MB)
-                               / ((currentTime - startTime) / 1000.0);
-          double currentRate = ((bytesUploaded - prevUploadedBytes) / BYTES_IN_MB)
-                               / ((currentTime - prevTime) / 1000.0);
-          if (log.isDebugEnabled()) {
-            log.debug(
-                String.format(
-                    "Uploading: %s Average Rate: %.3f MiB/s, Current Rate: %.3f MiB/s"
-                        + ", Total: %.3f MiB",
-                    name, averageRate, currentRate, bytesUploaded / BYTES_IN_MB));
+          if (logger.atFine().isEnabled()) {
+            double megaBytesUploaded = bytesUploaded / BYTES_IN_MB;
+            double averageRate = megaBytesUploaded / ((currentTime - startTime) / 1000.0);
+            double currentRate =
+                ((bytesUploaded - prevUploadedBytes) / BYTES_IN_MB)
+                    / ((currentTime - prevTime) / 1000.0);
+            logger.atFine().log(
+                "Uploading: %s Average Rate: %.3f MiB/s, Current Rate: %.3f MiB/s, Total: %.3f MiB",
+                name, averageRate, currentRate, megaBytesUploaded);
           }
           prevTime = currentTime;
           prevUploadedBytes = bytesUploaded;
         }
         break;
       case MEDIA_COMPLETE:
-        log.debug("Finished Uploading: {}", name);
+        logger.atFine().log("Finished Uploading: %s", name);
         break;
       default:
     }

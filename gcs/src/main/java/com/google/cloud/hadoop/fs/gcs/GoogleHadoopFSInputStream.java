@@ -20,6 +20,7 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
 import com.google.common.base.Preconditions;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
@@ -27,17 +28,11 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SeekableByteChannel;
 import org.apache.hadoop.fs.FSInputStream;
 import org.apache.hadoop.fs.FileSystem;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-/**
- * A seekable and positionable FSInputStream that provides read access to a file.
- */
-class GoogleHadoopFSInputStream
-    extends FSInputStream {
+/** A seekable and positionable FSInputStream that provides read access to a file. */
+class GoogleHadoopFSInputStream extends FSInputStream {
 
-  // Logging helper.
-  private static final Logger LOG = LoggerFactory.getLogger(GoogleHadoopFSInputStream.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Instance of GoogleHadoopFileSystemBase.
   private GoogleHadoopFileSystemBase ghfs;
@@ -77,7 +72,7 @@ class GoogleHadoopFSInputStream
       GoogleHadoopFileSystemBase ghfs, URI gcsPath, int bufferSize,
       FileSystem.Statistics statistics)
       throws IOException {
-    LOG.debug("GoogleHadoopFSInputStream({}, {})", gcsPath, bufferSize);
+    logger.atFine().log("GoogleHadoopFSInputStream(%s, %s)", gcsPath, bufferSize);
     this.ghfs = ghfs;
     this.gcsPath = gcsPath;
     this.statistics = statistics;
@@ -87,32 +82,32 @@ class GoogleHadoopFSInputStream
     boolean enableInternalBuffer = ghfs.getConf().getBoolean(
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_KEY,
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_DEFAULT);
-    LOG.debug("enableInternalBuffer: {}", enableInternalBuffer);
+    logger.atFine().log("enableInternalBuffer: %s", enableInternalBuffer);
 
     boolean fastFailOnNotFound = ghfs.getConf().getBoolean(
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY,
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_DEFAULT);
-    LOG.debug("fastFailOnNotFound: {}", fastFailOnNotFound);
+    logger.atFine().log("fastFailOnNotFound: %s", fastFailOnNotFound);
 
     long inplaceSeekLimit = ghfs.getConf().getLong(
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY,
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_DEFAULT);
-    LOG.debug("inplaceSeekLimit: {}", inplaceSeekLimit);
+    logger.atFine().log("inplaceSeekLimit: %s", inplaceSeekLimit);
 
     Fadvise fadvise = ghfs.getConf().getEnum(
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FADVISE_KEY,
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FADVISE_DEFAULT);
-    LOG.debug("fadvise: {}", fadvise);
+    logger.atFine().log("fadvise: %s", fadvise);
 
     int minRangeRequestSize = ghfs.getConf().getInt(
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_KEY,
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_DEFAULT);
-    LOG.debug("minRangeRequestSize: {}", minRangeRequestSize);
+    logger.atFine().log("minRangeRequestSize: %s", minRangeRequestSize);
 
     GenerationReadConsistency generationConsistency = ghfs.getConf().getEnum(
         GoogleHadoopFileSystemBase.GCS_GENERATION_READ_CONSISTENCY_KEY,
         GoogleHadoopFileSystemBase.GCS_GENERATION_READ_CONSISTENCY_DEFAULT);
-    LOG.debug("generationReadConsistency: {}", generationConsistency);
+    logger.atFine().log("generationReadConsistency: %s", generationConsistency);
 
     GoogleCloudStorageReadOptions.Builder readOptions =
         GoogleCloudStorageReadOptions.builder()
@@ -143,8 +138,7 @@ class GoogleHadoopFSInputStream
    * @throws IOException if an IO error occurs.
    */
   @Override
-  public synchronized int read()
-      throws IOException {
+  public synchronized int read() throws IOException {
     long startTime = System.nanoTime();
 
     byte b;
@@ -304,7 +298,7 @@ class GoogleHadoopFSInputStream
       throws IOException {
     int bufRemaining = (buffer == null ? 0 : buffer.remaining());
     long pos = channel.position() - bufRemaining;
-    LOG.debug("getPos: {}", pos);
+    logger.atFine().log("getPos: %s", pos);
     return pos;
   }
 
@@ -318,7 +312,7 @@ class GoogleHadoopFSInputStream
   public synchronized void seek(long pos)
       throws IOException {
     long startTime = System.nanoTime();
-    LOG.debug("seek: {}", pos);
+    logger.atFine().log("seek: %s", pos);
     if (buffer == null) {
       try {
         channel.position(pos);
@@ -328,7 +322,7 @@ class GoogleHadoopFSInputStream
     } else {
       long curPos = getPos();
       if (curPos == pos) {
-        LOG.debug("Skipping no-op seek.");
+        logger.atFine().log("Skipping no-op seek.");
       } else if (pos < curPos && curPos - pos <= buffer.position()) {
         // Skip backwards few enough bytes that our current buffer still has those bytes around
         // so that we simply need to reposition the buffer backwards a bit.
@@ -337,7 +331,8 @@ class GoogleHadoopFSInputStream
         // Guaranteed safe to cast as an (int) because curPos - pos is <= buffer.position(), and
         // position() is itself an int.
         int newBufferPosition = buffer.position() - (int) skipBack;
-        LOG.debug("Skipping backward {} bytes in-place from buffer pos {} to new pos {}",
+        logger.atFine().log(
+            "Skipping backward %s bytes in-place from buffer pos %s to new pos %s",
             skipBack, buffer.position(), newBufferPosition);
         buffer.position(newBufferPosition);
       } else if (curPos < pos && pos < channel.position()) {
@@ -352,12 +347,14 @@ class GoogleHadoopFSInputStream
         // overflowing an int, since we at least assert that skipBytes < buffer.remaining(),
         // which is itself less than Integer.MAX_VALUE.
         int newBufferPosition = buffer.position() + (int) skipBytes;
-        LOG.debug("Skipping {} bytes in-place from buffer pos {} to new pos {}",
+        logger.atFine().log(
+            "Skipping %s bytes in-place from buffer pos %s to new pos %s",
             skipBytes, buffer.position(), newBufferPosition);
         buffer.position(newBufferPosition);
       } else {
-        LOG.debug("New position '{}' out of range of inplace buffer, with curPos ({}), "
-            + "buffer.position() ({}) and buffer.remaining() ({}).",
+        logger.atFine().log(
+            "New position '%s' out of range of inplace buffer, with curPos (%s), "
+                + "buffer.position() (%s) and buffer.remaining() (%s).",
             pos, curPos, buffer.position(), buffer.remaining());
         try {
           channel.position(pos);
@@ -394,7 +391,7 @@ class GoogleHadoopFSInputStream
       throws IOException {
     if (channel != null) {
       long startTime = System.nanoTime();
-      LOG.debug("close: file: {}, totalBytesRead: {}", gcsPath, totalBytesRead);
+      logger.atFine().log("close: file: %s, totalBytesRead: %s", gcsPath, totalBytesRead);
       channel.close();
       long duration = System.nanoTime() - startTime;
       ghfs.increment(GoogleHadoopFileSystemBase.Counter.READ_CLOSE);

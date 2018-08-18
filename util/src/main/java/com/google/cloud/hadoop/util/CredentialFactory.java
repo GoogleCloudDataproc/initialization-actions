@@ -45,13 +45,12 @@ import com.google.api.services.storage.StorageScopes;
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
+import com.google.common.flogger.GoogleLogger;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Miscellaneous helper methods for getting a {@code Credential} from various sources. */
 public class CredentialFactory {
@@ -185,8 +184,7 @@ public class CredentialFactory {
           "https://www.googleapis.com/auth/datastore",
           "https://www.googleapis.com/auth/userinfo.email");
 
-  // Logger.
-  private static final Logger LOG = LoggerFactory.getLogger(CredentialFactory.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // JSON factory used for formatting credential-handling payloads.
   private static final JsonFactory JSON_FACTORY = new JacksonFactory();
@@ -216,7 +214,7 @@ public class CredentialFactory {
    */
   public Credential getCredentialFromMetadataServiceAccount()
       throws IOException, GeneralSecurityException {
-    LOG.debug("getCredentialFromMetadataServiceAccount()");
+    logger.atFine().log("getCredentialFromMetadataServiceAccount()");
     Credential cred =
         new ComputeCredentialWithRetry(
             new ComputeCredential.Builder(getStaticHttpTransport(), JSON_FACTORY)
@@ -247,8 +245,8 @@ public class CredentialFactory {
       List<String> scopes,
       HttpTransport transport)
       throws IOException, GeneralSecurityException {
-    LOG.debug(
-        "getCredentialFromPrivateKeyServiceAccount({}, {}, {})",
+    logger.atFine().log(
+        "getCredentialFromPrivateKeyServiceAccount(%s, %s, %s)",
         serviceAccountEmail, privateKeyFile, scopes);
 
     return new GoogleCredentialWithRetry(
@@ -271,7 +269,7 @@ public class CredentialFactory {
   public Credential getCredentialFromJsonKeyFile(
       String serviceAccountJsonKeyFile, List<String> scopes, HttpTransport transport)
       throws IOException, GeneralSecurityException {
-    LOG.debug("getCredentialFromJsonKeyFile({}, {})", serviceAccountJsonKeyFile, scopes);
+    logger.atFine().log("getCredentialFromJsonKeyFile(%s, %s)", serviceAccountJsonKeyFile, scopes);
 
     try (FileInputStream fis = new FileInputStream(serviceAccountJsonKeyFile)) {
       return GoogleCredentialWithRetry.fromGoogleCredential(
@@ -299,8 +297,8 @@ public class CredentialFactory {
       List<String> scopes,
       HttpTransport transport)
       throws IOException, GeneralSecurityException {
-    LOG.debug(
-        "getCredentialFromFileCredentialStoreForInstalledApp({}, {}, {}, {})",
+    logger.atFine().log(
+        "getCredentialFromFileCredentialStoreForInstalledApp(%s, %s, %s, %s)",
         clientId, clientSecret, filePath, scopes);
     checkArgument(!isNullOrEmpty(clientId), "clientId must not be null or empty");
     checkArgument(!isNullOrEmpty(clientSecret), "clientSecret must not be null or empty");
@@ -338,7 +336,7 @@ public class CredentialFactory {
   @Deprecated
   public Credential getStorageCredential(String clientId, String clientSecret)
       throws IOException, GeneralSecurityException {
-    LOG.debug("getStorageCredential({}, {})", clientId, clientSecret);
+    logger.atFine().log("getStorageCredential(%s, %s)", clientId, clientSecret);
     String filePath = System.getProperty("user.home") + "/.credentials/storage.json";
     return getCredentialFromFileCredentialStoreForInstalledApp(
         clientId, clientSecret, filePath, GCS_SCOPES, getStaticHttpTransport());
@@ -355,7 +353,7 @@ public class CredentialFactory {
   @Deprecated
   public Credential getDatastoreCredential(String clientId, String clientSecret)
       throws IOException, GeneralSecurityException {
-    LOG.debug("getStorageCredential({}, {})", clientId, clientSecret);
+    logger.atFine().log("getStorageCredential(%s, %s)", clientId, clientSecret);
     String filePath = System.getProperty("user.home") + "/.credentials/datastore.json";
     return getCredentialFromFileCredentialStoreForInstalledApp(
         clientId, clientSecret, filePath, DATASTORE_SCOPES);
@@ -405,7 +403,7 @@ public class CredentialFactory {
    */
   public Credential getApplicationDefaultCredentials(List<String> scopes, HttpTransport transport)
       throws IOException, GeneralSecurityException {
-    LOG.debug("getApplicationDefaultCredential({})", scopes);
+    logger.atFine().log("getApplicationDefaultCredential(%s)", scopes);
     return GoogleCredentialWithRetry.fromGoogleCredential(
         GoogleCredential.getApplicationDefault(transport, JSON_FACTORY).createScoped(scopes));
   }

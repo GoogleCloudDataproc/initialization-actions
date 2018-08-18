@@ -20,6 +20,7 @@ import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.InputStreamContent;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PipedInputStream;
@@ -33,8 +34,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Abstract base class for streaming uploads to Google Cloud Services.
@@ -79,8 +78,7 @@ public abstract class AbstractGoogleAsyncWriteChannel
   // ClientRequestHelper to be used instead of calling final methods in client requests.
   private ClientRequestHelper<S> clientRequestHelper = new ClientRequestHelper<>();
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(AbstractGoogleAsyncWriteChannel.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Buffering used in the upload path:
   // There are a series of buffers used along the upload path. It is important to understand their
@@ -194,7 +192,8 @@ public abstract class AbstractGoogleAsyncWriteChannel
     Preconditions.checkArgument(bufferSize % MediaHttpUploader.MINIMUM_CHUNK_SIZE == 0,
         "Upload buffer size must be a multiple of MediaHttpUploader.MINIMUM_CHUNK_SIZE");
     if ((bufferSize > GCS_UPLOAD_GRANULARITY) && (bufferSize % GCS_UPLOAD_GRANULARITY != 0)) {
-      LOG.warn("Upload buffer size should be a multiple of {} for best performance, got {}",
+      logger.atWarning().log(
+          "Upload buffer size should be a multiple of %s for best performance, got %s",
           GCS_UPLOAD_GRANULARITY, bufferSize);
     }
     uploadBufferSize = bufferSize;
@@ -355,21 +354,21 @@ public abstract class AbstractGoogleAsyncWriteChannel
         exception = ioe;
         S response = createResponseFromException(ioe);
         if (response != null) {
-          LOG.warn(
-              "Received IOException, but successfully converted to response '{}'.", response, ioe);
+          logger.atWarning().withCause(ioe).log(
+              "Received IOException, but successfully converted to response '%s'.", response);
           return response;
         }
-        LOG.error("Exception not convertible into handled response", ioe);
+        logger.atSevere().withCause(ioe).log("Exception not convertible into handled response");
       } catch (Exception e) {
         exception = e;
-        LOG.error("Exception uploading. ", e);
+        logger.atSevere().withCause(e).log("Exception uploading. ");
       } finally {
         try {
           // Close this end of the pipe so that the writer at the other end
           // will not hang indefinitely.
           pipeSource.close();
         } catch (IOException ioe) {
-          LOG.error("Error trying to close pipe.source()", ioe);
+          logger.atSevere().withCause(ioe).log("Error trying to close pipe.source()");
 
           if (exception != null) {
             exception.addSuppressed(ioe);

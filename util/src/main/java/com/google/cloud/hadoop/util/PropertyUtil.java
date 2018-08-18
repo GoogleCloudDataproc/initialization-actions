@@ -16,17 +16,16 @@
 
 package com.google.cloud.hadoop.util;
 
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Helpers for interacting with properties files
  */
 public class PropertyUtil {
-  private static final Logger LOG = LoggerFactory.getLogger(PropertyUtil.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /**
    * Get the value of a property or a default value if there's an error retrieving the property key.
@@ -46,19 +45,20 @@ public class PropertyUtil {
       String defaultValue) {
     try (InputStream stream = referenceClass.getResourceAsStream(propertyFile)) {
       if (stream == null) {
-        LOG.error("Could not load properties file '{}'", propertyFile);
+        logger.atSevere().log("Could not load properties file '%s'", propertyFile);
         return defaultValue;
       }
       Properties properties = new Properties();
       properties.load(stream);
       String value = properties.getProperty(key);
       if (value == null) {
-        LOG.error("Key {} not found in properties file {}.", key, propertyFile);
+        logger.atSevere().log("Key %s not found in properties file %s.", key, propertyFile);
         return defaultValue;
       }
       return value;
     } catch (IOException e) {
-      LOG.error("Error while trying to get property value for key {}", key, e);
+      logger.atSevere().withCause(e).log(
+          "Error while trying to get property value for key %s", key);
       return defaultValue;
     }
   }

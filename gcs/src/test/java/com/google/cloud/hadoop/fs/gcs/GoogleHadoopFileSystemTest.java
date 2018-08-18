@@ -17,10 +17,10 @@ package com.google.cloud.hadoop.fs.gcs;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
+import com.google.common.flogger.LoggerConfig;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
+import java.util.logging.Level;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -39,7 +39,7 @@ public class GoogleHadoopFileSystemTest
         @Override
         public void before() throws Throwable {
           // Disable logging.
-          Logger.getRootLogger().setLevel(Level.OFF);
+          LoggerConfig.getConfig("").setLevel(Level.OFF);
 
           ghfs = GoogleHadoopFileSystemTestHelper.createInMemoryGoogleHadoopFileSystem();
           ghfsFileSystemDescriptor = (FileSystemDescriptor) ghfs;

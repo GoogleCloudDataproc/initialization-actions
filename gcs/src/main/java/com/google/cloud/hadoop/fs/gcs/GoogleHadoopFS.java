@@ -15,6 +15,7 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.common.base.Preconditions;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -34,8 +35,6 @@ import org.apache.hadoop.fs.Options.ChecksumOpt;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.Progressable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * GoogleHadoopFS provides a YARN compatible Abstract File System on top of
@@ -46,8 +45,7 @@ import org.slf4j.LoggerFactory;
  */
 public class GoogleHadoopFS extends AbstractFileSystem {
 
-  // Logger.
-  public static final Logger LOG = LoggerFactory.getLogger(GoogleHadoopFS.class);
+  public static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Wrapped GoogleHadoopFileSystem instance
   private GoogleHadoopFileSystem ghfs;
@@ -78,13 +76,19 @@ public class GoogleHadoopFS extends AbstractFileSystem {
       Progressable progress,
       ChecksumOpt checksumOpt,
       boolean createParent) throws IOException {
-    LOG.debug(
-        "createInternal: flag: {}, absolutePermission: {}, bufferSize: {}, replication: {},"
-        + "blockSize: {}, progress: {}, checksumOpt: {}, createParent: {}",
-        flag, absolutePermission, bufferSize, replication,
-        blockSize, progress, checksumOpt, createParent);
+    logger.atFine().log(
+        "createInternal: flag: %s, absolutePermission: %s, bufferSize: %s, replication: %s,"
+            + "blockSize: %s, progress: %s, checksumOpt: %s, createParent: %s",
+        flag,
+        absolutePermission,
+        bufferSize,
+        replication,
+        blockSize,
+        progress,
+        checksumOpt,
+        createParent);
     if (!createParent) {
-      LOG.debug("Ignoring createParent=false. Creating parents anyways.");
+      logger.atFine().log("Ignoring createParent=false. Creating parents anyways.");
     }
     // AbstractFileSystems rely on permission to not overwrite.
     boolean overwriteFile = true;
@@ -94,7 +98,7 @@ public class GoogleHadoopFS extends AbstractFileSystem {
 
   @Override
   public int getUriDefaultPort() {
-    LOG.debug("getUriDefaultPort");
+    logger.atFine().log("getUriDefaultPort");
     return ghfs.getDefaultPort();
   }
 
@@ -135,7 +139,7 @@ public class GoogleHadoopFS extends AbstractFileSystem {
   @SuppressWarnings("deprecation")
   @Override
   public FsServerDefaults getServerDefaults() throws IOException {
-    LOG.debug("getServerDefaults");
+    logger.atFine().log("getServerDefaults");
     return ghfs.getServerDefaults();
   }
 
@@ -143,90 +147,91 @@ public class GoogleHadoopFS extends AbstractFileSystem {
   @Override
   public void mkdir(final Path dir, final FsPermission permission, final boolean createParent)
       throws IOException {
-    LOG.debug("mkdir: dir: {}, permission: {}, createParent {}", dir, permission, createParent);
+    logger.atFine().log(
+        "mkdir: dir: %s, permission: %s, createParent %s", dir, permission, createParent);
     if (!createParent) {
-      LOG.debug("Ignoring createParent=false. Creating parents anyways.");
+      logger.atFine().log("Ignoring createParent=false. Creating parents anyways.");
     }
     ghfs.mkdirs(dir, permission);
   }
 
   @Override
   public boolean delete(final Path f, final boolean recursive) throws IOException {
-    LOG.debug("delete");
+    logger.atFine().log("delete");
     return ghfs.delete(f, recursive);
   }
 
   @Override
   public FSDataInputStream open(final Path f, int bufferSize) throws IOException {
-    LOG.debug("open");
+    logger.atFine().log("open");
     return ghfs.open(f, bufferSize);
   }
 
   @Override
   public boolean setReplication(final Path f, final short replication) throws IOException {
-    LOG.debug("setReplication");
+    logger.atFine().log("setReplication");
     return ghfs.setReplication(f, replication);
   }
 
   @Override
   public void renameInternal(final Path src, final Path dst) throws IOException {
-    LOG.debug("renameInternal");
+    logger.atFine().log("renameInternal");
     ghfs.rename(src, dst);
   }
 
   @Override
   public void setPermission(final Path f, final FsPermission permission) throws IOException {
-    LOG.debug("setPermission");
+    logger.atFine().log("setPermission");
     ghfs.setPermission(f, permission);
   }
 
   @Override
   public void setOwner(final Path f, final String username, final String groupname)
       throws IOException {
-    LOG.debug("setOwner");
+    logger.atFine().log("setOwner");
     ghfs.setOwner(f, username, groupname);
   }
 
   @Override
   public void setTimes(final Path f, final long mtime, final long atime) throws IOException {
-    LOG.debug("setTimes");
+    logger.atFine().log("setTimes");
     ghfs.setTimes(f, mtime, atime);
   }
 
   @Override
   public FileChecksum getFileChecksum(final Path f) throws IOException {
-    LOG.debug("getFileChecksum");
+    logger.atFine().log("getFileChecksum");
     return ghfs.getFileChecksum(f);
   }
 
   @Override
   public FileStatus getFileStatus(final Path f) throws IOException {
-    LOG.debug("getFileStatus");
+    logger.atFine().log("getFileStatus");
     return ghfs.getFileStatus(f);
   }
 
   @Override
   public BlockLocation[] getFileBlockLocations(final Path f, final long start, final long len)
       throws IOException {
-    LOG.debug("getFileBlockLocations");
+    logger.atFine().log("getFileBlockLocations");
     return ghfs.getFileBlockLocations(f, start, len);
   }
 
   @Override
   public FsStatus getFsStatus() throws IOException {
-    LOG.debug("getFsStatus");
+    logger.atFine().log("getFsStatus");
     return ghfs.getStatus();
   }
 
   @Override
   public FileStatus[] listStatus(final Path f) throws IOException {
-    LOG.debug("listStatus");
+    logger.atFine().log("listStatus");
     return ghfs.listStatus(f);
   }
 
   @Override
   public void setVerifyChecksum(final boolean verifyChecksum) {
-    LOG.debug("setVerifyChecksum");
+    logger.atFine().log("setVerifyChecksum");
     ghfs.setVerifyChecksum(verifyChecksum);
   }
 }

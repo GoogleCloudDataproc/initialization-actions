@@ -20,18 +20,16 @@ import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Preconditions;
 import com.google.api.client.util.Sleeper;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.util.concurrent.Callable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A class which defines static functions to be called to make a user-provided function more
  * resilient by attempting retries.
  */
 public class ResilientOperation {
-  // Logger.
-  private static final Logger LOG = LoggerFactory.getLogger(ResilientOperation.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /**
    * Retries the given executable function in the case of transient errors defined by the
@@ -72,14 +70,13 @@ public class ResilientOperation {
           if (e instanceof RuntimeException) {
             throw (RuntimeException) e;
           }
-          LOG.warn("Retrying with unchecked exceptions that are not"
-              + " RuntimeExceptions is not supported.");
-          throw new RuntimeException("Retrying with unchecked exceptions that are not"
-              + " RuntimeExceptions is not supported.", e);
+          throw new RuntimeException(
+              "Retrying with unchecked exceptions that are not RuntimeExceptions is not supported.",
+              e);
         }
       }
     } while (nextSleep(backoff, sleeper, currentException));
-    LOG.warn("Attempted retries failed.");
+    logger.atWarning().log("Attempted retries failed.");
     throw currentException;
   }
 
@@ -120,8 +117,8 @@ public class ResilientOperation {
     if (backOffTime == BackOff.STOP) {
       return false;
     }
-    LOG.info("Transient exception caught. Sleeping for " + backOffTime + ", then retrying."
-        + currentException);
+    logger.atInfo().withCause(currentException).log(
+        "Transient exception caught. Sleeping for %d, then retrying.", backOffTime);
     sleeper.sleep(backOffTime);
     return true;
   }

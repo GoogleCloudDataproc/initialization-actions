@@ -30,19 +30,17 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.util.Set;
 import org.apache.http.HttpStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class RetryHttpInitializer implements HttpRequestInitializer {
 
   /** HTTP status code indicating too many requests in a given amount of time. */
   public static final int STATUS_CODE_TOO_MANY_REQUESTS = 429;
 
-  // Logger.
-  private static final Logger LOG = LoggerFactory.getLogger(RetryHttpInitializer.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Base impl of BackOffRequired determining the default set of cases where we'll retry on
   // unsuccessful HTTP responses; we'll mix in additional retriable response cases on top
@@ -111,11 +109,10 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
         HttpRequest httpRequest, HttpResponse httpResponse, boolean supportsRetry)
         throws IOException {
       if (responseCodesToLog.contains(httpResponse.getStatusCode())) {
-        LOG.info(
-            "Encountered status code {} when accessing URL {}. "
+        logger.atInfo().log(
+            "Encountered status code %s when accessing URL %s. "
                 + "Delegating to response handler for possible retry.",
-            httpResponse.getStatusCode(),
-            httpRequest.getUrl());
+            httpResponse.getStatusCode(), httpRequest.getUrl());
       }
 
       return delegateResponseHandler.handleResponse(httpRequest, httpResponse, supportsRetry);
@@ -126,7 +123,7 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
         throws IOException {
       // We sadly don't get anything helpful to see if this is something we want to log. As a result
       // we'll turn down the logging level to debug.
-      LOG.debug("Encountered an IOException when accessing URL {}", httpRequest.getUrl());
+      logger.atFine().log("Encountered an IOException when accessing URL %s", httpRequest.getUrl());
       return delegateIOExceptionHandler.handleIOException(httpRequest, supportsRetry);
     }
   }
@@ -184,8 +181,8 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
         String redirectLocation = response.getHeaders().getLocation();
         if (redirectLocation.contains("+")) {
           String escapedLocation = redirectLocation.replace("+", "%2B");
-          LOG.debug(
-              "Redirect path '{}' contains unescaped '+', replacing with '%2B': '{}'",
+          logger.atFine().log(
+              "Redirect path '%s' contains unescaped '+', replacing with '%%2B': '%s'",
               redirectLocation, escapedLocation);
           response.getHeaders().setLocation(escapedLocation);
         }
@@ -275,7 +272,8 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
     request.setIOExceptionHandler(loggingResponseHandler);
 
     if (Strings.isNullOrEmpty(request.getHeaders().getUserAgent())) {
-      LOG.trace("Request is missing a user-agent, adding default value of '{}'", defaultUserAgent);
+      logger.atFiner().log(
+          "Request is missing a user-agent, adding default value of '%s'", defaultUserAgent);
       request.getHeaders().setUserAgent(defaultUserAgent);
     }
   }

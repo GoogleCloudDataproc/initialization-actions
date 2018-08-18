@@ -20,12 +20,11 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.util.AccessTokenProvider.AccessToken;
 import com.google.common.base.Preconditions;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Collection;
 import org.apache.hadoop.conf.Configuration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Given an {@link AccessTokenProviderClassFromConfigFactory} and a Hadoop {@link Configuration},
@@ -80,8 +79,7 @@ public final class CredentialFromAccessTokenProviderClassFactory {
     }
   }
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(CredentialFromAccessTokenProviderClassFactory.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /**
    * Generate the credential.
@@ -97,7 +95,7 @@ public final class CredentialFromAccessTokenProviderClassFactory {
     Class<? extends AccessTokenProvider> clazz =
         providerClassFactory.getAccessTokenProviderClass(config);
     if (clazz != null) {
-      LOG.debug("Using AccessTokenProvider ({})", clazz.getName());
+      logger.atFine().log("Using AccessTokenProvider (%s)", clazz.getName());
       try {
         AccessTokenProvider accessTokenProvider = clazz.getDeclaredConstructor().newInstance();
         accessTokenProvider.setConf(config);

@@ -20,15 +20,14 @@ import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** Configuration for how components should obtain Credentials. */
 public class CredentialConfiguration {
-  protected static final Logger LOG = LoggerFactory.getLogger(CredentialConfiguration.class);
+  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   private boolean serviceAccountEnabled = true;
   private String serviceAccountEmail = null;
@@ -63,18 +62,18 @@ public class CredentialConfiguration {
       throws IOException, GeneralSecurityException {
 
     if (isServiceAccountEnabled()) {
-      LOG.debug("Using service account credentials");
+      logger.atFine().log("Using service account credentials");
 
       // By default, we want to use service accounts with the meta-data service (assuming we're
       // running in GCE).
       if (shouldUseMetadataService()) {
-        LOG.debug("Getting service account credentials from meta data service.");
+        logger.atFine().log("Getting service account credentials from meta data service.");
         // TODO(user): Validate the returned credential has access to the given scopes.
         return credentialFactory.getCredentialFromMetadataServiceAccount();
       }
 
       if (!Strings.isNullOrEmpty(serviceAccountJsonKeyFile)) {
-        LOG.debug("Using JSON keyfile {}", serviceAccountJsonKeyFile);
+        logger.atFine().log("Using JSON keyfile %s", serviceAccountJsonKeyFile);
         Preconditions.checkArgument(
             Strings.isNullOrEmpty(serviceAccountKeyFile),
             "A P12 key file may not be specified at the same time as a JSON key file.");
@@ -90,8 +89,8 @@ public class CredentialConfiguration {
         Preconditions.checkState(
             !Strings.isNullOrEmpty(serviceAccountEmail),
             "Email must be set if using service account auth and a key file is specified.");
-        LOG.debug(
-            "Using service account email {} and private key file {}",
+        logger.atFine().log(
+            "Using service account email %s and private key file %s",
             serviceAccountEmail, serviceAccountKeyFile);
 
         return credentialFactory.getCredentialFromPrivateKeyServiceAccount(
@@ -99,21 +98,22 @@ public class CredentialConfiguration {
       }
 
       if (shouldUseApplicationDefaultCredentials()) {
-        LOG.debug("Getting Application Default Credentials");
+        logger.atFine().log("Getting Application Default Credentials");
         return credentialFactory.getApplicationDefaultCredentials(scopes, getTransport());
       }
     } else if (oAuthCredentialFile != null && clientId != null && clientSecret != null) {
-      LOG.debug("Using installed app credentials in file {}", oAuthCredentialFile);
+      logger.atFine().log("Using installed app credentials in file %s", oAuthCredentialFile);
 
       return credentialFactory.getCredentialFromFileCredentialStoreForInstalledApp(
           clientId, clientSecret, oAuthCredentialFile, scopes, getTransport());
     } else if (nullCredentialEnabled) {
-      LOG.warn("Allowing null credentials for unit testing. This should not be used in production");
+      logger.atWarning().log(
+          "Allowing null credentials for unit testing. This should not be used in production");
 
       return null;
     }
 
-    LOG.error("Credential configuration is not valid. Configuration: {}", this);
+    logger.atSevere().log("Credential configuration is not valid. Configuration: %s", this);
     throw new IllegalStateException("No valid credential configuration discovered.");
   }
 

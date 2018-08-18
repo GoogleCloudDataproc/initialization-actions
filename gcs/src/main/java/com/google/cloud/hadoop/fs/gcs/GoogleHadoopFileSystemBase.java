@@ -18,6 +18,7 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.cloud.hadoop.util.RequesterPaysOptions.REQUESTER_PAYS_MODE_DEFAULT;
 import static com.google.common.base.Strings.nullToEmpty;
+import static com.google.common.flogger.LazyArgs.lazy;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
@@ -52,6 +53,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.flogger.GoogleLogger;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -81,8 +83,6 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.Progressable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This class provides a Hadoop compatible File System on top of Google Cloud Storage (GCS).
@@ -109,8 +109,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemBaseSpecific
     implements FileSystemDescriptor {
-  /** Logger. */
-  public static final Logger LOG = LoggerFactory.getLogger(GoogleHadoopFileSystemBase.class);
+  public static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /** Default value of replication factor. */
   public static final short REPLICATION_FACTOR_DEFAULT = 3;
@@ -627,7 +626,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     VERSION =
         PropertyUtil.getPropertyOrDefault(
             GoogleHadoopFileSystemBase.class, PROPERTIES_FILE, VERSION_PROPERTY, UNKNOWN_VERSION);
-    LOG.info("GHFS version: {}", VERSION);
+    logger.atInfo().log("GHFS version: %s", VERSION);
     GHFS_ID = String.format("GHFS/%s", VERSION);
   }
 
@@ -810,20 +809,20 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       boolean enableDirectoryTimestampUpdating = config.getBoolean(
           GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY,
           GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_DEFAULT);
-      LOG.debug("{} = {}", GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY,
-          enableDirectoryTimestampUpdating);
+      logger.atFine().log(
+          "%s = %s", GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY, enableDirectoryTimestampUpdating);
 
       String includedParentPaths = config.get(
           GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY,
           GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_DEFAULT);
-      LOG.debug("{} = {}", GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY, includedParentPaths);
+      logger.atFine().log("%s = %s", GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY, includedParentPaths);
       List<String> splitIncludedParentPaths =
           CONFIGURATION_SPLITTER.splitToList(includedParentPaths);
 
       String excludedParentPaths = config.get(
           GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY,
           GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_DEFAULT);
-      LOG.debug("{} = {}", GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY, excludedParentPaths);
+      logger.atFine().log("%s = %s", GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY, excludedParentPaths);
       List<String> splitExcludedParentPaths =
           CONFIGURATION_SPLITTER.splitToList(excludedParentPaths);
 
@@ -857,20 +856,22 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     @Override
     public boolean shouldUpdateTimestamp(URI uri) {
       if (!enableTimestampUpdates) {
-        LOG.debug("Timestamp updating disabled. Not updating uri {}", uri);
+        logger.atFine().log("Timestamp updating disabled. Not updating uri %s", uri);
         return false;
       }
 
       for (String include : includeSubstrings) {
         if (uri.toString().contains(include)) {
-          LOG.debug("Path {} matched included path {}. Updating timestamps.", uri, include);
+          logger.atFine().log(
+              "Path %s matched included path %s. Updating timestamps.", uri, include);
           return true;
         }
       }
 
       for (String exclude : excludeSubstrings) {
         if (uri.toString().contains(exclude)) {
-          LOG.debug("Path {} matched excluded path {}. Not updating timestamps.", uri, exclude);
+          logger.atFine().log(
+              "Path %s matched excluded path %s. Not updating timestamps.", uri, exclude);
           return false;
         }
       }
@@ -946,7 +947,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    */
   @Override
   public Path makeQualified(Path path) {
-    LOG.debug("GHFS.makeQualified: path: {}", path);
+    logger.atFine().log("GHFS.makeQualified: path: %s", path);
     Path qualifiedPath = super.makeQualified(path);
 
     URI uri = qualifiedPath.toUri();
@@ -971,7 +972,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     }
 
     Path result = new Path(uri.getScheme(), uri.getAuthority(), strippedPath);
-    LOG.debug("GHFS.makeQualified:=> {}", result);
+    logger.atFine().log("GHFS.makeQualified:=> %s", result);
     return result;
   }
 
@@ -1027,12 +1028,12 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       throw new IllegalArgumentException("URI scheme not supported: " + path);
     }
     initUri = path;
-    LOG.debug("GHFS.initialize: {}", path);
+    logger.atFine().log("GHFS.initialize: %s", path);
 
     if (initSuperclass) {
       super.initialize(path, config);
     } else {
-      LOG.debug(
+      logger.atFine().log(
           "Initializing 'statistics' as an instance not attached to the static FileSystem map");
       // Provide an ephemeral Statistics object to avoid NPE, but still avoid registering a global
       // statistics object.
@@ -1058,9 +1059,9 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    */
   @Override
   protected int getDefaultPort() {
-    LOG.debug("GHFS.getDefaultPort:");
+    logger.atFine().log("GHFS.getDefaultPort:");
     int result = -1;
-    LOG.debug("GHFS.getDefaultPort:=> {}", result);
+    logger.atFine().log("GHFS.getDefaultPort:=> %s", result);
     return result;
   }
 
@@ -1095,8 +1096,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
     checkOpen();
 
-    LOG.debug("GHFS.open: {}, bufferSize: {} (override: {})",
-        hadoopPath, bufferSize, bufferSizeOverride);
+    logger.atFine().log(
+        "GHFS.open: %s, bufferSize: %s (override: %s)", hadoopPath, bufferSize, bufferSizeOverride);
     bufferSize = bufferSizeOverride;
     URI gcsPath = getGcsPath(hadoopPath);
     GoogleHadoopFSInputStream in =
@@ -1149,7 +1150,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
     checkOpen();
 
-    LOG.debug("GHFS.create: {}, overwrite: {}, bufferSize: {} (override: {})",
+    logger.atFine().log(
+        "GHFS.create: %s, overwrite: %s, bufferSize: %s (override: %s)",
         hadoopPath, overwrite, bufferSize, bufferSizeOverride);
     bufferSize = bufferSizeOverride;
 
@@ -1207,7 +1209,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     Preconditions.checkArgument(bufferSize > 0,
         "bufferSize must be a positive integer: %s", bufferSize);
 
-    LOG.debug("GHFS.append: {}, bufferSize: {} (override: {})",
+    logger.atFine().log(
+        "GHFS.append: %s, bufferSize: %s (override: %s)",
         hadoopPath, bufferSize, bufferSizeOverride);
     bufferSize = bufferSizeOverride;
 
@@ -1233,7 +1236,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     // root happens to equal the global root, we want to explicitly check it here since derived
     // classes may not have filesystem roots equal to the global root.
     if (src.makeQualified(this).equals(getFileSystemRoot())) {
-      LOG.debug("GHFS.rename: src is root: '{}'", src);
+      logger.atFine().log("GHFS.rename: src is root: '%s'", src);
       return false;
     }
 
@@ -1244,13 +1247,13 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     checkOpen();
 
     try {
-      LOG.debug("GHFS.rename: {} -> {}", src, dst);
+      logger.atFine().log("GHFS.rename: %s -> %s", src, dst);
 
       URI srcPath = getGcsPath(src);
       URI dstPath = getGcsPath(dst);
       gcsfs.rename(srcPath, dstPath);
     } catch (IOException e) {
-      LOG.debug("GHFS.rename", e);
+      logger.atFine().withCause(e).log("GHFS.rename");
       return false;
     }
 
@@ -1291,14 +1294,14 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
     checkOpen();
 
-    LOG.debug("GHFS.delete: {}, recursive: {}", hadoopPath, recursive);
+    logger.atFine().log("GHFS.delete: %s, recursive: %s", hadoopPath, recursive);
     URI gcsPath = getGcsPath(hadoopPath);
     try {
       gcsfs.delete(gcsPath, recursive);
     } catch (DirectoryNotEmptyException e) {
       throw e;
     } catch (IOException e) {
-      LOG.debug("GHFS.delete", e);
+      logger.atFine().withCause(e).log("GHFS.delete");
       return false;
     }
 
@@ -1324,7 +1327,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
     checkOpen();
 
-    LOG.debug("GHFS.listStatus: {}", hadoopPath);
+    logger.atFine().log("GHFS.listStatus: %s", hadoopPath);
 
     URI gcsPath = getGcsPath(hadoopPath);
     List<FileStatus> status;
@@ -1338,7 +1341,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
         status.add(getFileStatus(fileInfo, userName));
       }
     } catch (FileNotFoundException fnfe) {
-      LOG.debug("Got fnfe: ", fnfe);
+      logger.atFine().withCause(fnfe).log("Got fnfe: ");
       return listStatusFileNotFoundBehavior.handle(gcsPath.toString());
     }
 
@@ -1358,7 +1361,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     long startTime = System.nanoTime();
     Preconditions.checkArgument(hadoopPath != null, "hadoopPath must not be null");
 
-    LOG.debug("GHFS.setWorkingDirectory: {}", hadoopPath);
+    logger.atFine().log("GHFS.setWorkingDirectory: %s", hadoopPath);
     URI gcsPath = getGcsPath(hadoopPath);
     gcsPath = FileInfo.convertToDirectoryPath(gcsfs.getPathCodec(), gcsPath);
     Path newPath = getHadoopPath(gcsPath);
@@ -1369,7 +1372,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     // better performance.
 
     workingDirectory = newPath;
-    LOG.debug("GHFS.setWorkingDirectory: => {}", workingDirectory);
+    logger.atFine().log("GHFS.setWorkingDirectory: => %s", workingDirectory);
 
     long duration = System.nanoTime() - startTime;
     increment(Counter.SET_WD);
@@ -1383,7 +1386,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    */
   @Override
   public Path getWorkingDirectory() {
-    LOG.debug("GHFS.getWorkingDirectory: {}", workingDirectory);
+    logger.atFine().log("GHFS.getWorkingDirectory: %s", workingDirectory);
     return workingDirectory;
   }
 
@@ -1405,7 +1408,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
     checkOpen();
 
-    LOG.debug("GHFS.mkdirs: {}, perm: {}", hadoopPath, permission);
+    logger.atFine().log("GHFS.mkdirs: %s, perm: %s", hadoopPath, permission);
     URI gcsPath = getGcsPath(hadoopPath);
     try {
       gcsfs.mkdirs(gcsPath);
@@ -1447,11 +1450,11 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
     checkOpen();
 
-    LOG.debug("GHFS.getFileStatus: {}", hadoopPath);
+    logger.atFine().log("GHFS.getFileStatus: %s", hadoopPath);
     URI gcsPath = getGcsPath(hadoopPath);
     FileInfo fileInfo = gcsfs.getFileInfo(gcsPath);
     if (!fileInfo.exists()) {
-      LOG.debug("GHFS.getFileStatus: not found: {}", gcsPath);
+      logger.atFine().log("GHFS.getFileStatus: not found: %s", gcsPath);
       String msg = fileInfo.isDirectory() ? "Directory not found : " : "File not found : ";
       msg += hadoopPath.toString();
       throw new FileNotFoundException(msg);
@@ -1481,9 +1484,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
             /* owner= */ userName,
             /* group= */ userName,
             getHadoopPath(fileInfo.getPath()));
-    if (LOG.isDebugEnabled()) {
-      LOG.debug("GHFS.getFileStatus: {} => {}", fileInfo.getPath(), fileStatusToString(status));
-    }
+    logger.atFine().log(
+        "GHFS.getFileStatus: %s => %s", fileInfo.getPath(), lazy(() -> fileStatusToString(status)));
     return status;
   }
 
@@ -1502,8 +1504,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     // Only works for filesystems where the base Hadoop Path scheme matches the underlying URI
     // scheme for GCS.
     if (!getUri().getScheme().equals(GoogleCloudStorageFileSystem.SCHEME)) {
-      LOG.debug(
-          "Flat glob is on, but doesn't work for scheme '{}'; using default behavior.",
+      logger.atFine().log(
+          "Flat glob is on, but doesn't work for scheme '%s'; using default behavior.",
           getUri().getScheme());
       return false;
     }
@@ -1511,16 +1513,15 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     // The full pattern should have a wildcard, otherwise there's no point doing the flat glob.
     GlobPattern fullPattern = new GlobPattern(fixedPath.toString());
     if (!fullPattern.hasWildcard()) {
-      LOG.debug(
-          "Flat glob is on, but Path '{}' has no wildcard; using default behavior.",
-          fixedPath);
+      logger.atFine().log(
+          "Flat glob is on, but Path '%s' has no wildcard; using default behavior.", fixedPath);
       return false;
     }
 
     // To use a flat glob, there must be an authority defined.
     if (Strings.isNullOrEmpty(fixedPath.toUri().getAuthority())) {
-      LOG.info(
-          "Flat glob is on, but Path '{}' has a empty authority, using default behavior.",
+      logger.atInfo().log(
+          "Flat glob is on, but Path '%s' has a empty authority, using default behavior.",
           fixedPath);
       return false;
     }
@@ -1528,8 +1529,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     // And the authority must not contain a wildcard.
     GlobPattern authorityPattern = new GlobPattern(fixedPath.toUri().getAuthority());
     if (authorityPattern.hasWildcard()) {
-      LOG.info(
-          "Flat glob is on, but Path '{}' has a wildcard authority, using default behavior.",
+      logger.atInfo().log(
+          "Flat glob is on, but Path '%s' has a wildcard authority, using default behavior.",
           fixedPath);
       return false;
     }
@@ -1584,7 +1585,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public FileStatus[] globStatus(Path pathPattern, PathFilter filter) throws IOException {
     checkOpen();
 
-    LOG.debug("GHFS.globStatus: {}", pathPattern);
+    logger.atFine().log("GHFS.globStatus: %s", pathPattern);
     // URI does not handle glob expressions nicely, for the purpose of
     // fully-qualifying a path we can URI-encode them.
     // Using toString() to avoid Path(URI) constructor.
@@ -1594,7 +1595,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     Path fixedPath = getHadoopPath(getGcsPath(encodedPath));
     // Decode URI-encoded path back into a glob path.
     fixedPath = new Path(URI.create(fixedPath.toString()));
-    LOG.debug("GHFS.globStatus fixedPath: {} => {}", pathPattern, fixedPath);
+    logger.atFine().log("GHFS.globStatus fixedPath: %s => %s", pathPattern, fixedPath);
 
     if (shouldUseFlatGlob(fixedPath)) {
       String pathString = fixedPath.toString();
@@ -1610,7 +1611,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       }
 
       // Get everything matching the non-glob prefix.
-      LOG.debug("Listing everything with prefix '{}'", prefixUri);
+      logger.atFine().log("Listing everything with prefix '%s'", prefixUri);
       List<FileInfo> fileInfos = gcsfs.listAllFileInfoForPrefix(prefixUri);
       if (fileInfos.isEmpty()) {
         // Let the superclass define the proper logic for finding no matches.
@@ -1634,8 +1635,9 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
           }
         }
         if (!toRepair.isEmpty()) {
-          LOG.warn("Discovered {} implicit directories to repair within return values.",
-                   toRepair.size());
+          logger.atWarning().log(
+              "Discovered %s implicit directories to repair within return values.",
+              toRepair.size());
           gcsfs.repairDirs(toRepair);
         }
       }
@@ -1644,10 +1646,10 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       FileStatus[] ret = super.globStatus(fixedPath, filter);
       if (ret == null) {
         if (enableAutoRepairImplicitDirectories) {
-          LOG.debug("GHFS.globStatus returned null for '{}', attempting possible repair.",
-                    pathPattern);
+          logger.atFine().log(
+              "GHFS.globStatus returned null for '%s', attempting possible repair.", pathPattern);
           if (gcsfs.repairPossibleImplicitDirectory(getGcsPath(fixedPath))) {
-            LOG.warn("Success repairing '{}', re-globbing.", pathPattern);
+            logger.atWarning().log("Success repairing '%s', re-globbing.", pathPattern);
             ret = super.globStatus(fixedPath, filter);
           }
         }
@@ -1675,7 +1677,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       URI parentPath = gcsfs.getParentPath(fileInfo.getPath());
       while (parentPath != null && !parentPath.equals(GoogleCloudStorageFileSystem.GCS_ROOT)) {
         if (!filePaths.contains(parentPath)) {
-          LOG.debug("Adding fake entry for missing parent path '{}'", parentPath);
+          logger.atFine().log("Adding fake entry for missing parent path '%s'", parentPath);
           StorageResourceId id = gcsfs.getPathCodec().validatePathAndGetId(parentPath, true);
 
           GoogleCloudStorageItemInfo fakeItemInfo =
@@ -1707,7 +1709,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   @Override
   public Path getHomeDirectory() {
     Path result = new Path(getFileSystemRoot(), getHomeDirectorySubpath());
-    LOG.debug("GHFS.getHomeDirectory:=> {}", result);
+    logger.atFine().log("GHFS.getHomeDirectory:=> %s", result);
     return result;
   }
 
@@ -1754,8 +1756,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    */
   @Override
   public String getCanonicalServiceName() {
-    LOG.debug("GHFS.getCanonicalServiceName:");
-    LOG.debug("GHFS.getCanonicalServiceName:=> null");
+    logger.atFine().log("GHFS.getCanonicalServiceName:");
+    logger.atFine().log("GHFS.getCanonicalServiceName:=> null");
     return null;
   }
 
@@ -1816,9 +1818,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * Logs values of all counters.
    */
   private void logCounters() {
-    if (LOG.isDebugEnabled()) {
-      LOG.debug(countersToString());
-    }
+    logger.atFine().log("%s", lazy(this::countersToString));
   }
 
   /**
@@ -1828,11 +1828,9 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   private static void copyIfNotPresent(Configuration config, String deprecatedKey, String newKey) {
     String deprecatedValue = config.get(deprecatedKey);
     if (config.get(newKey) == null && deprecatedValue != null) {
-      LOG.warn(
-          "Key {} is deprecated. Copying the value of key {} to new key {}",
-          deprecatedKey,
-          deprecatedKey,
-          newKey);
+      logger.atWarning().log(
+          "Key %s is deprecated. Copying the value of key %s to new key %s",
+          deprecatedKey, deprecatedKey, newKey);
       config.set(newKey, deprecatedValue);
     }
   }
@@ -1902,8 +1900,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    */
   private synchronized void configure(Configuration config)
       throws IOException {
-    LOG.debug("GHFS.configure");
-    LOG.debug("GHFS_ID = {}", GHFS_ID);
+    logger.atFine().log("GHFS.configure");
+    logger.atFine().log("GHFS_ID = %s", GHFS_ID);
 
     if (gcsfs == null) {
 
@@ -1924,35 +1922,36 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
       PathCodec pathCodec;
       String specifiedPathCodec = config.get(PATH_CODEC_KEY, PATH_CODEC_DEFAULT).toLowerCase();
-      LOG.debug("{} = {}", PATH_CODEC_KEY, specifiedPathCodec);
+      logger.atFine().log("%s = %s", PATH_CODEC_KEY, specifiedPathCodec);
       if (specifiedPathCodec.equals(PATH_CODEC_USE_LEGACY_ENCODING)) {
         pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
       } else if (specifiedPathCodec.equals(PATH_CODEC_USE_URI_ENCODING)) {
         pathCodec = GoogleCloudStorageFileSystem.URI_ENCODED_PATH_CODEC;
       } else {
         pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
-        LOG.warn("Unknown path codec specified {}. Using default / legacy.", specifiedPathCodec);
+        logger.atWarning().log(
+            "Unknown path codec specified %s. Using default / legacy.", specifiedPathCodec);
       }
       optionsBuilder.setPathCodec(pathCodec);
       gcsfs = new GoogleCloudStorageFileSystem(credential, optionsBuilder.build());
     }
 
     bufferSizeOverride = config.getInt(BUFFERSIZE_KEY, BUFFERSIZE_DEFAULT);
-    LOG.debug("{} = {}", BUFFERSIZE_KEY, bufferSizeOverride);
+    logger.atFine().log("%s = %s", BUFFERSIZE_KEY, bufferSizeOverride);
 
     defaultBlockSize = config.getLong(BLOCK_SIZE_KEY, BLOCK_SIZE_DEFAULT);
-    LOG.debug("{} = {}", BLOCK_SIZE_KEY, defaultBlockSize);
+    logger.atFine().log("%s = %s", BLOCK_SIZE_KEY, defaultBlockSize);
 
     String systemBucketName = config.get(GCS_SYSTEM_BUCKET_KEY, null);
-    LOG.debug("{} = {}", GCS_SYSTEM_BUCKET_KEY, systemBucketName);
+    logger.atFine().log("%s = %s", GCS_SYSTEM_BUCKET_KEY, systemBucketName);
 
     boolean createSystemBucket =
         config.getBoolean(GCS_CREATE_SYSTEM_BUCKET_KEY, GCS_CREATE_SYSTEM_BUCKET_DEFAULT);
-    LOG.debug("{} = {}", GCS_CREATE_SYSTEM_BUCKET_KEY, createSystemBucket);
+    logger.atFine().log("%s = %s", GCS_CREATE_SYSTEM_BUCKET_KEY, createSystemBucket);
 
     reportedPermissions = new FsPermission(
         config.get(PERMISSIONS_TO_REPORT_KEY, PERMISSIONS_TO_REPORT_DEFAULT));
-    LOG.debug("{} = {}", PERMISSIONS_TO_REPORT_KEY, reportedPermissions);
+    logger.atFine().log("%s = %s", PERMISSIONS_TO_REPORT_KEY, reportedPermissions);
 
     configureBuckets(systemBucketName, createSystemBucket);
 
@@ -1964,8 +1963,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     String configWorkingDirectory = config.get(GCS_WORKING_DIRECTORY_KEY);
     if (Strings.isNullOrEmpty(configWorkingDirectory)) {
       newWorkingDirectory = getDefaultWorkingDirectory();
-      LOG.warn(
-          "No working directory configured, using default: '{}'", newWorkingDirectory);
+      logger.atWarning().log(
+          "No working directory configured, using default: '%s'", newWorkingDirectory);
     } else {
       newWorkingDirectory = new Path(configWorkingDirectory);
     }
@@ -1973,12 +1972,12 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     // Use the public method to ensure proper behavior of normalizing and resolving the new
     // working directory relative to the initial filesystem-root directory.
     setWorkingDirectory(newWorkingDirectory);
-    LOG.debug("{} = {}", GCS_WORKING_DIRECTORY_KEY, getWorkingDirectory());
+    logger.atFine().log("%s = %s", GCS_WORKING_DIRECTORY_KEY, getWorkingDirectory());
 
     // Set this configuration as the default config for this instance.
     setConf(config);
 
-    LOG.debug("GHFS.configure: done");
+    logger.atFine().log("GHFS.configure: done");
   }
 
   /**
@@ -1995,12 +1994,12 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public void configureBuckets(String systemBucketName, boolean createSystemBucket)
       throws IOException {
 
-    LOG.debug("GHFS.configureBuckets: {}, {}", systemBucketName, createSystemBucket);
+    logger.atFine().log("GHFS.configureBuckets: %s, %s", systemBucketName, createSystemBucket);
 
     systemBucket = systemBucketName;
 
     if (systemBucket != null) {
-      LOG.debug("GHFS.configureBuckets: Warning fs.gs.system.bucket is deprecated.");
+      logger.atFine().log("GHFS.configureBuckets: Warning fs.gs.system.bucket is deprecated.");
       // Ensure that system bucket exists. It really must be a bucket, not a GCS path.
       URI systemBucketPath = gcsfs.getPathCodec().getPath(systemBucket, null, true);
 
@@ -2017,7 +2016,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       }
     }
 
-    LOG.debug("GHFS.configureBuckets:=>");
+    logger.atFine().log("GHFS.configureBuckets:=>");
   }
 
   /**
@@ -2041,33 +2040,33 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
     checkOpen();
 
-    LOG.debug("GHFS.deleteOnExit: {}", f);
+    logger.atFine().log("GHFS.deleteOnExit: %s", f);
     boolean result = super.deleteOnExit(f);
-    LOG.debug("GHFS.deleteOnExit:=> {}", result);
+    logger.atFine().log("GHFS.deleteOnExit:=> %s", result);
     return result;
   }
 
   @Override
   protected void processDeleteOnExit() {
-    LOG.debug("GHFS.processDeleteOnExit:");
+    logger.atFine().log("GHFS.processDeleteOnExit:");
     super.processDeleteOnExit();
   }
 
   @Override
   public ContentSummary getContentSummary(Path f)
       throws IOException {
-    LOG.debug("GHFS.getContentSummary: {}", f);
+    logger.atFine().log("GHFS.getContentSummary: %s", f);
     ContentSummary result = super.getContentSummary(f);
-    LOG.debug("GHFS.getContentSummary:=> {}", result);
+    logger.atFine().log("GHFS.getContentSummary:=> %s", result);
     return result;
   }
 
   @Override
   public Token<?> getDelegationToken(String renewer)
       throws IOException {
-    LOG.debug("GHFS.getDelegationToken: renewer: {}", renewer);
+    logger.atFine().log("GHFS.getDelegationToken: renewer: %s", renewer);
     Token<?> result = super.getDelegationToken(renewer);
-    LOG.debug("GHFS.getDelegationToken:=> {}", result);
+    logger.atFine().log("GHFS.getDelegationToken:=> %s", result);
     return result;
   }
 
@@ -2075,51 +2074,53 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public void copyFromLocalFile(boolean delSrc, boolean overwrite,
       Path[] srcs, Path dst)
       throws IOException {
-    LOG.debug("GHFS.copyFromLocalFile: delSrc: {}, overwrite: {}, #srcs: {}, dst: {}",
+    logger.atFine().log(
+        "GHFS.copyFromLocalFile: delSrc: %s, overwrite: %s, #srcs: %s, dst: %s",
         delSrc, overwrite, srcs.length, dst);
     super.copyFromLocalFile(delSrc, overwrite, srcs, dst);
-    LOG.debug("GHFS.copyFromLocalFile:=> ");
+    logger.atFine().log("GHFS.copyFromLocalFile:=> ");
   }
 
   @Override
   public void copyFromLocalFile(boolean delSrc, boolean overwrite,
       Path src, Path dst)
       throws IOException {
-    LOG.debug("GHFS.copyFromLocalFile: delSrc: {}, overwrite: {}, src: {}, dst: {}",
+    logger.atFine().log(
+        "GHFS.copyFromLocalFile: delSrc: %s, overwrite: %s, src: %s, dst: %s",
         delSrc, overwrite, src, dst);
     super.copyFromLocalFile(delSrc, overwrite, src, dst);
-    LOG.debug("GHFS.copyFromLocalFile:=> ");
+    logger.atFine().log("GHFS.copyFromLocalFile:=> ");
   }
 
   @Override
   public void copyToLocalFile(boolean delSrc, Path src, Path dst)
       throws IOException {
-    LOG.debug("GHFS.copyToLocalFile: delSrc: {}, src: {}, dst: {}", delSrc, src, dst);
+    logger.atFine().log("GHFS.copyToLocalFile: delSrc: %s, src: %s, dst: %s", delSrc, src, dst);
     super.copyToLocalFile(delSrc, src, dst);
-    LOG.debug("GHFS.copyToLocalFile:=> ");
+    logger.atFine().log("GHFS.copyToLocalFile:=> ");
   }
 
   @Override
   public Path startLocalOutput(Path fsOutputFile, Path tmpLocalFile)
       throws IOException {
-    LOG.debug("GHFS.startLocalOutput: out: {}, tmp: {}", fsOutputFile, tmpLocalFile);
+    logger.atFine().log("GHFS.startLocalOutput: out: %s, tmp: %s", fsOutputFile, tmpLocalFile);
     Path result = super.startLocalOutput(fsOutputFile, tmpLocalFile);
-    LOG.debug("GHFS.startLocalOutput:=> {}", result);
+    logger.atFine().log("GHFS.startLocalOutput:=> %s", result);
     return result;
   }
 
   @Override
   public void completeLocalOutput(Path fsOutputFile, Path tmpLocalFile)
       throws IOException {
-    LOG.debug("GHFS.startLocalOutput: out: {}, tmp: {}", fsOutputFile, tmpLocalFile);
+    logger.atFine().log("GHFS.startLocalOutput: out: %s, tmp: %s", fsOutputFile, tmpLocalFile);
     super.completeLocalOutput(fsOutputFile, tmpLocalFile);
-    LOG.debug("GHFS.completeLocalOutput:=> ");
+    logger.atFine().log("GHFS.completeLocalOutput:=> ");
   }
 
   @Override
   public void close()
       throws IOException {
-    LOG.debug("GHFS.close:");
+    logger.atFine().log("GHFS.close:");
     super.close();
 
     // NB: We must *first* have the superclass close() before we close the underlying gcsfs since
@@ -2130,64 +2131,64 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       gcsfs = null;
     }
     logCounters();
-    LOG.debug("GHFS.close:=> ");
+    logger.atFine().log("GHFS.close:=> ");
   }
 
   @Override
   public long getUsed()
       throws IOException{
-    LOG.debug("GHFS.getUsed:");
+    logger.atFine().log("GHFS.getUsed:");
     long result = super.getUsed();
-    LOG.debug("GHFS.getUsed:=> {}", result);
+    logger.atFine().log("GHFS.getUsed:=> %s", result);
     return result;
   }
 
   @Override
   public long getDefaultBlockSize() {
-    LOG.debug("GHFS.getDefaultBlockSize:");
+    logger.atFine().log("GHFS.getDefaultBlockSize:");
     long result = defaultBlockSize;
-    LOG.debug("GHFS.getDefaultBlockSize:=> {}", result);
+    logger.atFine().log("GHFS.getDefaultBlockSize:=> %s", result);
     return result;
   }
 
   @Override
   public FileChecksum getFileChecksum(Path f)
       throws IOException {
-    LOG.debug("GHFS.getFileChecksum:");
+    logger.atFine().log("GHFS.getFileChecksum:");
     FileChecksum result = super.getFileChecksum(f);
-    LOG.debug("GHFS.getFileChecksum:=> {}", result);
+    logger.atFine().log("GHFS.getFileChecksum:=> %s", result);
     return result;
   }
 
   @Override
   public void setVerifyChecksum(boolean verifyChecksum) {
-    LOG.debug("GHFS.setVerifyChecksum:");
+    logger.atFine().log("GHFS.setVerifyChecksum:");
     super.setVerifyChecksum(verifyChecksum);
-    LOG.debug("GHFS.setVerifyChecksum:=> ");
+    logger.atFine().log("GHFS.setVerifyChecksum:=> ");
   }
 
   @Override
   public void setPermission(Path p, FsPermission permission)
       throws IOException {
-    LOG.debug("GHFS.setPermission: path: {}, perm: {}", p, permission);
+    logger.atFine().log("GHFS.setPermission: path: %s, perm: %s", p, permission);
     super.setPermission(p, permission);
-    LOG.debug("GHFS.setPermission:=> ");
+    logger.atFine().log("GHFS.setPermission:=> ");
   }
 
   @Override
   public void setOwner(Path p, String username, String groupname)
       throws IOException {
-    LOG.debug("GHFS.setOwner: path: {}, user: {}, group: {}", p, username, groupname);
+    logger.atFine().log("GHFS.setOwner: path: %s, user: %s, group: %s", p, username, groupname);
     super.setOwner(p, username, groupname);
-    LOG.debug("GHFS.setOwner:=> ");
+    logger.atFine().log("GHFS.setOwner:=> ");
   }
 
   @Override
   public void setTimes(Path p, long mtime, long atime)
       throws IOException {
-    LOG.debug("GHFS.setTimes: path: {}, mtime: {}, atime: {}", p, mtime, atime);
+    logger.atFine().log("GHFS.setTimes: path: %s, mtime: %s, atime: %s", p, mtime, atime);
     super.setTimes(p, mtime, atime);
-    LOG.debug("GHFS.setTimes:=> ");
+    logger.atFine().log("GHFS.setTimes:=> ");
   }
 
   @VisibleForTesting
@@ -2198,7 +2199,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
     boolean enableBucketDelete = config.getBoolean(
         GCE_BUCKET_DELETE_ENABLE_KEY, GCE_BUCKET_DELETE_ENABLE_DEFAULT);
-    LOG.debug("{} = {}", GCE_BUCKET_DELETE_ENABLE_KEY, enableBucketDelete);
+    logger.atFine().log("%s = %s", GCE_BUCKET_DELETE_ENABLE_KEY, enableBucketDelete);
     gcsFsOptionsBuilder.setEnableBucketDelete(enableBucketDelete);
 
     GoogleCloudStorageFileSystemOptions.TimestampUpdatePredicate updatePredicate =
@@ -2210,100 +2211,101 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
     enableAutoRepairImplicitDirectories = config.getBoolean(
         GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY, GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT);
-    LOG.debug(
-        "{} = {}", GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY, enableAutoRepairImplicitDirectories);
+    logger.atFine().log(
+        "%s = %s", GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY, enableAutoRepairImplicitDirectories);
     gcsOptionsBuilder.setAutoRepairImplicitDirectoriesEnabled(enableAutoRepairImplicitDirectories);
 
     enableInferImplicitDirectories = config.getBoolean(
         GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY, GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_DEFAULT);
-    LOG.debug("{} = {}", GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY, enableInferImplicitDirectories);
+    logger.atFine().log(
+        "%s = %s", GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY, enableInferImplicitDirectories);
     gcsOptionsBuilder.setInferImplicitDirectoriesEnabled(enableInferImplicitDirectories);
 
     enableFlatGlob = config.getBoolean(GCS_ENABLE_FLAT_GLOB_KEY, GCS_ENABLE_FLAT_GLOB_DEFAULT);
-    LOG.debug("{} = {}", GCS_ENABLE_FLAT_GLOB_KEY, enableFlatGlob);
+    logger.atFine().log("%s = %s", GCS_ENABLE_FLAT_GLOB_KEY, enableFlatGlob);
 
     boolean enableMarkerFileCreation = config.getBoolean(
         GCS_ENABLE_MARKER_FILE_CREATION_KEY, GCS_ENABLE_MARKER_FILE_CREATION_DEFAULT);
-    LOG.debug("{} = {}", GCS_ENABLE_MARKER_FILE_CREATION_KEY, enableMarkerFileCreation);
+    logger.atFine().log("%s = %s", GCS_ENABLE_MARKER_FILE_CREATION_KEY, enableMarkerFileCreation);
     gcsOptionsBuilder.setMarkerFileCreationEnabled(enableMarkerFileCreation);
 
     boolean enableCopyWithRewrite =
         config.getBoolean(GCS_ENABLE_COPY_WITH_REWRITE_KEY, GCS_ENABLE_COPY_WITH_REWRITE_DEFAULT);
-    LOG.debug("{} = {}", GCS_ENABLE_COPY_WITH_REWRITE_KEY, enableCopyWithRewrite);
+    logger.atFine().log("%s = %s", GCS_ENABLE_COPY_WITH_REWRITE_KEY, enableCopyWithRewrite);
     gcsOptionsBuilder.setCopyWithRewriteEnabled(enableCopyWithRewrite);
 
     long copyMaxRequestsPerBatch =
         config.getLong(GCS_COPY_MAX_REQUESTS_PER_BATCH, GCS_COPY_MAX_REQUESTS_PER_BATCH_DEFAULT);
-    LOG.debug("{} = {}", GCS_COPY_MAX_REQUESTS_PER_BATCH, copyMaxRequestsPerBatch);
+    logger.atFine().log("%s = %s", GCS_COPY_MAX_REQUESTS_PER_BATCH, copyMaxRequestsPerBatch);
     gcsOptionsBuilder.setCopyMaxRequestsPerBatch(copyMaxRequestsPerBatch);
 
     int copyBatchThreads = config.getInt(GCS_COPY_BATCH_THREADS, GCS_COPY_BATCH_THREADS_DEFAULT);
-    LOG.debug("{} = {}", GCS_COPY_BATCH_THREADS, copyBatchThreads);
+    logger.atFine().log("%s = %s", GCS_COPY_BATCH_THREADS, copyBatchThreads);
     gcsOptionsBuilder.setCopyBatchThreads(copyBatchThreads);
 
     String transportTypeString = config.get(GCS_HTTP_TRANSPORT_KEY, GCS_HTTP_TRANSPORT_DEFAULT);
-    LOG.debug("{} = {}", GCS_HTTP_TRANSPORT_KEY, transportTypeString);
+    logger.atFine().log("%s = %s", GCS_HTTP_TRANSPORT_KEY, transportTypeString);
     gcsOptionsBuilder.setTransportType(
         HttpTransportFactory.getTransportTypeOf(transportTypeString));
 
     String proxyAddress = config.get(GCS_PROXY_ADDRESS_KEY, GCS_PROXY_ADDRESS_DEFAULT);
-    LOG.debug("{} = {}", GCS_PROXY_ADDRESS_KEY, proxyAddress);
+    logger.atFine().log("%s = %s", GCS_PROXY_ADDRESS_KEY, proxyAddress);
     gcsOptionsBuilder.setProxyAddress(proxyAddress);
 
     String projectId = config.get(GCS_PROJECT_ID_KEY);
-    LOG.debug("{} = {}", GCS_PROJECT_ID_KEY, projectId);
+    logger.atFine().log("%s = %s", GCS_PROJECT_ID_KEY, projectId);
     gcsOptionsBuilder.setProjectId(projectId);
 
     long maxListItemsPerCall =
         config.getLong(GCS_MAX_LIST_ITEMS_PER_CALL, GCS_MAX_LIST_ITEMS_PER_CALL_DEFAULT);
-    LOG.debug("{} = {}", GCS_MAX_LIST_ITEMS_PER_CALL, maxListItemsPerCall);
+    logger.atFine().log("%s = %s", GCS_MAX_LIST_ITEMS_PER_CALL, maxListItemsPerCall);
     gcsOptionsBuilder.setMaxListItemsPerCall(maxListItemsPerCall);
 
     long maxRequestsPerBatch =
         config.getLong(GCS_MAX_REQUESTS_PER_BATCH, GCS_MAX_REQUESTS_PER_BATCH_DEFAULT);
-    LOG.debug("{} = {}", GCS_MAX_REQUESTS_PER_BATCH, maxRequestsPerBatch);
+    logger.atFine().log("%s = %s", GCS_MAX_REQUESTS_PER_BATCH, maxRequestsPerBatch);
     gcsOptionsBuilder.setMaxRequestsPerBatch(maxRequestsPerBatch);
 
     int batchThreads = config.getInt(GCS_BATCH_THREADS, GCS_BATCH_THREADS_DEFAULT);
-    LOG.debug("{} = {}", GCS_BATCH_THREADS, batchThreads);
+    logger.atFine().log("%s = %s", GCS_BATCH_THREADS, batchThreads);
     gcsOptionsBuilder.setBatchThreads(batchThreads);
 
     int maxHttpRequestRetries = config.getInt(GCS_HTTP_MAX_RETRY_KEY, GCS_HTTP_MAX_RETRY_DEFAULT);
-    LOG.debug("{} = {}", GCS_HTTP_MAX_RETRY_KEY, maxHttpRequestRetries);
+    logger.atFine().log("%s = %s", GCS_HTTP_MAX_RETRY_KEY, maxHttpRequestRetries);
     gcsOptionsBuilder.setMaxHttpRequestRetries(maxHttpRequestRetries);
 
     int httpRequestConnectTimeout =
         config.getInt(GCS_HTTP_CONNECT_TIMEOUT_KEY, GCS_HTTP_CONNECT_TIMEOUT_DEFAULT);
-    LOG.debug("{} = {}", GCS_HTTP_CONNECT_TIMEOUT_KEY, httpRequestConnectTimeout);
+    logger.atFine().log("%s = %s", GCS_HTTP_CONNECT_TIMEOUT_KEY, httpRequestConnectTimeout);
     gcsOptionsBuilder.setHttpRequestConnectTimeout(httpRequestConnectTimeout);
 
     int httpRequestReadTimeout =
         config.getInt(GCS_HTTP_READ_TIMEOUT_KEY, GCS_HTTP_READ_TIMEOUT_DEFAULT);
-    LOG.debug("{} = {}", GCS_HTTP_READ_TIMEOUT_KEY, httpRequestReadTimeout);
+    logger.atFine().log("%s = %s", GCS_HTTP_READ_TIMEOUT_KEY, httpRequestReadTimeout);
     gcsOptionsBuilder.setHttpRequestReadTimeout(httpRequestReadTimeout);
 
     String markerFilePattern = config.get(GCS_MARKER_FILE_PATTERN_KEY);
-    LOG.debug("{} = {}", GCS_MARKER_FILE_PATTERN_KEY, markerFilePattern);
+    logger.atFine().log("%s = %s", GCS_MARKER_FILE_PATTERN_KEY, markerFilePattern);
     gcsFsOptionsBuilder.setMarkerFilePattern(markerFilePattern);
 
     String applicationNameSuffix =
         config.get(GCS_APPLICATION_NAME_SUFFIX_KEY, GCS_APPLICATION_NAME_SUFFIX_DEFAULT);
-    LOG.debug("{} = {}", GCS_APPLICATION_NAME_SUFFIX_KEY, applicationNameSuffix);
+    logger.atFine().log("%s = %s", GCS_APPLICATION_NAME_SUFFIX_KEY, applicationNameSuffix);
     String applicationName = GHFS_ID + nullToEmpty(applicationNameSuffix);
-    LOG.debug("Setting GCS application name to {}", applicationName);
+    logger.atFine().log("Setting GCS application name to %s", applicationName);
     gcsOptionsBuilder.setAppName(applicationName);
 
     int maxWaitMillisForEmptyObjectCreation = config.getInt(
         GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_KEY,
         GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_DEFAULT);
-    LOG.debug(
-        "{} = {}",
+    logger.atFine().log(
+        "%s = %s",
         GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_KEY, maxWaitMillisForEmptyObjectCreation);
     gcsOptionsBuilder.setMaxWaitMillisForEmptyObjectCreation(maxWaitMillisForEmptyObjectCreation);
 
     boolean enablePerformanceCache =
         config.getBoolean(GCS_ENABLE_PERFORMANCE_CACHE_KEY, GCS_ENABLE_PERFORMANCE_CACHE_DEFAULT);
-    LOG.debug("{} = {}", GCS_ENABLE_PERFORMANCE_CACHE_KEY, enablePerformanceCache);
+    logger.atFine().log("%s = %s", GCS_ENABLE_PERFORMANCE_CACHE_KEY, enablePerformanceCache);
     gcsFsOptionsBuilder
         .setIsPerformanceCacheEnabled(enablePerformanceCache)
         .setImmutablePerformanceCachingOptions(getPerformanceCachingOptions(config));
@@ -2321,23 +2323,23 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
         config.getLong(
             GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY,
             GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_DEFAULT);
-    LOG.debug(
-        "{} = {}",
+    logger.atFine().log(
+        "%s = %s",
         GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY, performanceCacheMaxEntryAgeMillis);
 
     boolean listCachingEnabled =
         config.getBoolean(
             GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY,
             GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_DEFAULT);
-    LOG.debug("{} = {}", GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY, listCachingEnabled);
+    logger.atFine().log(
+        "%s = %s", GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY, listCachingEnabled);
 
     long dirMetadataPrefetchLimit =
         config.getLong(
             GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT_KEY,
             GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT_DEFAULT);
-    LOG.debug(
-        "{} = {}",
-        GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT_KEY, dirMetadataPrefetchLimit);
+    logger.atFine().log(
+        "%s = %s", GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT_KEY, dirMetadataPrefetchLimit);
 
     return PerformanceCachingGoogleCloudStorageOptions.builder()
         .setMaxEntryAgeMillis(performanceCacheMaxEntryAgeMillis)
@@ -2350,11 +2352,11 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     // Configuration for setting 250GB upper limit on file size to gain higher write throughput.
     boolean limitFileSizeTo250Gb =
         config.getBoolean(GCS_FILE_SIZE_LIMIT_250GB, GCS_FILE_SIZE_LIMIT_250GB_DEFAULT);
-    LOG.debug("{} = {}", GCS_FILE_SIZE_LIMIT_250GB, limitFileSizeTo250Gb);
+    logger.atFine().log("%s = %s", GCS_FILE_SIZE_LIMIT_250GB, limitFileSizeTo250Gb);
 
     // Configuration for setting GoogleCloudStorageWriteChannel upload buffer size.
     int uploadBufferSize = config.getInt(WRITE_BUFFERSIZE_KEY, WRITE_BUFFERSIZE_DEFAULT);
-    LOG.debug("{} = {}", WRITE_BUFFERSIZE_KEY, uploadBufferSize);
+    logger.atFine().log("%s = %s", WRITE_BUFFERSIZE_KEY, uploadBufferSize);
 
     return AsyncWriteChannelOptions.newBuilder()
         .setFileSizeLimitedTo250Gb(limitFileSizeTo250Gb)
@@ -2366,14 +2368,14 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       Configuration config, String projectId) {
     RequesterPaysMode requesterPaysMode =
         config.getEnum(GCS_REQUESTER_PAYS_MODE_KEY, REQUESTER_PAYS_MODE_DEFAULT);
-    LOG.debug("{} = {}", GCS_REQUESTER_PAYS_MODE_KEY, requesterPaysMode);
+    logger.atFine().log("%s = %s", GCS_REQUESTER_PAYS_MODE_KEY, requesterPaysMode);
 
     String requesterPaysProjectId = config.get(GCS_REQUESTER_PAYS_PROJECT_ID_KEY);
-    LOG.debug("{} = {}", GCS_REQUESTER_PAYS_PROJECT_ID_KEY, requesterPaysProjectId);
+    logger.atFine().log("%s = %s", GCS_REQUESTER_PAYS_PROJECT_ID_KEY, requesterPaysProjectId);
 
     Collection<String> requesterPaysBuckets =
         config.getStringCollection(GCS_REQUESTER_PAYS_BUCKETS_KEY);
-    LOG.debug("{} = {}", GCS_REQUESTER_PAYS_BUCKETS_KEY, requesterPaysBuckets);
+    logger.atFine().log("%s = %s", GCS_REQUESTER_PAYS_BUCKETS_KEY, requesterPaysBuckets);
 
     return RequesterPaysOptions.builder()
         .setMode(requesterPaysMode)

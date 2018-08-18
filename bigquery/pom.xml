@@ -222,6 +222,10 @@
     </dependency>
     <dependency>
       <groupId>com.google.flogger</groupId>
+      <artifactId>google-extensions</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.flogger</groupId>
       <artifactId>flogger-log4j-backend</artifactId>
     </dependency>
   </dependencies>

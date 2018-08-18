@@ -17,6 +17,7 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
+import com.google.common.flogger.GoogleLogger;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -25,8 +26,6 @@ import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileSystem;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A buffered output stream that allows writing to a GCS object.
@@ -34,9 +33,7 @@ import org.slf4j.LoggerFactory;
 class GoogleHadoopOutputStream
     extends OutputStream {
 
-  // Logging helper.
-  private static final Logger LOG =
-      LoggerFactory.getLogger(GoogleHadoopOutputStream.class);
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Instance of GoogleHadoopFileSystemBase.
   private GoogleHadoopFileSystemBase ghfs;
@@ -70,7 +67,7 @@ class GoogleHadoopOutputStream
       GoogleHadoopFileSystemBase ghfs, URI gcsPath, int bufferSize,
       FileSystem.Statistics statistics, CreateFileOptions createFileOptions)
       throws IOException {
-    LOG.debug("GoogleHadoopOutputStream({}, {})", gcsPath, bufferSize);
+    logger.atFine().log("GoogleHadoopOutputStream(%s, %s)", gcsPath, bufferSize);
     this.ghfs = ghfs;
     this.gcsPath = gcsPath;
     this.statistics = statistics;
@@ -131,7 +128,7 @@ class GoogleHadoopOutputStream
         ghfs.increment(GoogleHadoopFileSystemBase.Counter.OUTPUT_STREAM);
         ghfs.increment(
             GoogleHadoopFileSystemBase.Counter.OUTPUT_STREAM_TIME, streamDuration);
-        LOG.debug("close({})", gcsPath);
+        logger.atFine().log("close(%s)", gcsPath);
       } finally {
         out = null;
         channel = null;

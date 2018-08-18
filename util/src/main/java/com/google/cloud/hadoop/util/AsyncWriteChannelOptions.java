@@ -14,16 +14,14 @@
 
 package com.google.cloud.hadoop.util;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.google.common.flogger.GoogleLogger;
 
 /**
  * Options for the GoogleCloudStorageWriteChannel.
  */
 public class AsyncWriteChannelOptions {
-  
-  // Logger.
-  private static final Logger LOG = LoggerFactory.getLogger(AsyncWriteChannelOptions.class);
+
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /**
    * Default of whether to limit files to 250GB by default.
@@ -87,8 +85,9 @@ public class AsyncWriteChannelOptions {
     this.uploadBufferSize = uploadBufferSize;
     this.directUploadEnabled = useDirectUpload;
     if (fileSizeLimitedTo250Gb) {
-      LOG.warn("fileSizeLimitedTo250Gb now defaults to false. It is deprecated and will soon be "
-          + "removed. Files greater than 250Gb are allowed by default.");
+      logger.atWarning().log(
+          "fileSizeLimitedTo250Gb now defaults to false. It is deprecated and will soon be "
+              + "removed. Files greater than 250Gb are allowed by default.");
     }
   }
 

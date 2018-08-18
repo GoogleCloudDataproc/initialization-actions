@@ -16,71 +16,103 @@
 
 package com.google.cloud.hadoop.util;
 
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.verifyZeroInteractions;
-import static org.mockito.Mockito.when;
+import static com.google.common.truth.Truth.assertThat;
 
 import com.google.api.client.googleapis.media.MediaHttpUploader.UploadState;
+import com.google.common.flogger.LoggerConfig;
+import java.io.ByteArrayOutputStream;
+import java.util.logging.Formatter;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.StreamHandler;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.slf4j.Logger;
 
 /** Unit tests for {@link LoggingMediaHttpUploaderProgressListener}. */
 @RunWith(JUnit4.class)
 public class LoggingMediaHttpUploaderProgressListenerTest {
-  @Mock
-  private Logger mockLogger;
+
+  private static final Formatter LOG_FORMATTER =
+      new Formatter() {
+        @Override
+        public String format(LogRecord record) {
+          return record.getLevel() + ": " + record.getMessage();
+        }
+      };
+
   private LoggingMediaHttpUploaderProgressListener listener;
+
+  private ByteArrayOutputStream logCapturingStream;
+  private StreamHandler customLogHandler;
 
   @Before
   public void setUp() {
-    MockitoAnnotations.initMocks(this);
-    when(mockLogger.isDebugEnabled()).thenReturn(true);
     listener = new LoggingMediaHttpUploaderProgressListener("NAME", 60000L);
+
+    LoggerConfig config = LoggerConfig.getConfig(LoggingMediaHttpUploaderProgressListener.class);
+    config.setLevel(Level.FINE);
+
+    logCapturingStream = new ByteArrayOutputStream();
+    customLogHandler = new StreamHandler(logCapturingStream, LOG_FORMATTER);
+    customLogHandler.setLevel(Level.FINE);
+    config.addHandler(customLogHandler);
+  }
+
+  @After
+  public void verifyAndRemoveAssertingHandler() {
+    LoggerConfig.getConfig(LoggingMediaHttpUploaderProgressListener.class)
+        .removeHandler(customLogHandler);
   }
 
   @Test
   public void testLoggingInitiation() {
-    listener.progressChanged(mockLogger, UploadState.INITIATION_STARTED, 0L, 0L);
-    verify(mockLogger).debug("Uploading: {}", "NAME");
-    verifyNoMoreInteractions(mockLogger);
+    listener.progressChanged(UploadState.INITIATION_STARTED, 0L, 0L);
+    assertThat(getTestCapturedLog()).isEqualTo("FINE: Uploading: NAME");
   }
 
   @Test
   public void testLoggingProgressAfterSixtySeconds() {
-    listener.progressChanged(mockLogger, UploadState.MEDIA_IN_PROGRESS, 10485760L, 60001L);
-    listener.progressChanged(mockLogger, UploadState.MEDIA_IN_PROGRESS, 104857600L, 120002L);
-    verify(mockLogger, times(2)).isDebugEnabled();
-    verify(mockLogger).debug(
-        "Uploading: NAME Average Rate: 0.167 MiB/s, Current Rate: 0.167 MiB/s, Total: 10.000 MiB");
-    verify(mockLogger).debug(
-        "Uploading: NAME Average Rate: 0.833 MiB/s, Current Rate: 1.500 MiB/s, Total: 100.000 MiB");
-    verifyNoMoreInteractions(mockLogger);
+    listener.progressChanged(UploadState.MEDIA_IN_PROGRESS, 10485760L, 60001L);
+    assertThat(getTestCapturedLog())
+        .isEqualTo(
+            "FINE: Uploading:"
+                + " NAME Average Rate: 0.167 MiB/s, Current Rate: 0.167 MiB/s, Total: 10.000 MiB");
+
+    listener.progressChanged(UploadState.MEDIA_IN_PROGRESS, 104857600L, 120002L);
+    assertThat(getTestCapturedLog())
+        .isEqualTo(
+            "FINE: Uploading:"
+                + " NAME Average Rate: 0.833 MiB/s, Current Rate: 1.500 MiB/s, Total: 100.000 MiB");
   }
 
   @Test
   public void testSkippingLoggingAnInProgressUpdate() {
-    listener.progressChanged(mockLogger, UploadState.MEDIA_IN_PROGRESS, 104857600L, 60000L);
-    verifyZeroInteractions(mockLogger);
+    listener.progressChanged(UploadState.MEDIA_IN_PROGRESS, 104857600L, 60000L);
+    assertThat(getTestCapturedLog()).isEmpty();
   }
 
   @Test
   public void testLoggingCompletion() {
-    listener.progressChanged(mockLogger, UploadState.MEDIA_COMPLETE, 104857600L, 60000L);
-    verify(mockLogger).debug("Finished Uploading: {}", "NAME");
-    verifyNoMoreInteractions(mockLogger);
+    listener.progressChanged(UploadState.MEDIA_COMPLETE, 104857600L, 60000L);
+    assertThat(getTestCapturedLog()).isEqualTo("FINE: Finished Uploading: NAME");
   }
 
   @Test
   public void testOtherUpdatesIgnored() {
-    listener.progressChanged(mockLogger, UploadState.NOT_STARTED, 0L, 60001L);
-    listener.progressChanged(mockLogger, UploadState.INITIATION_COMPLETE, 0L, 60001L);
-    verifyZeroInteractions(mockLogger);
+    listener.progressChanged(UploadState.NOT_STARTED, 0L, 60001L);
+    listener.progressChanged(UploadState.INITIATION_COMPLETE, 0L, 60001L);
+    assertThat(getTestCapturedLog()).isEmpty();
+  }
+
+  private String getTestCapturedLog() {
+    customLogHandler.flush();
+    try {
+      return logCapturingStream.toString();
+    } finally {
+      logCapturingStream.reset();
+    }
   }
 }

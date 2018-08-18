@@ -8,6 +8,8 @@
        fs.gs.max.requests.per.batch (default: 25 -> 15)
        fs.gs.batch.threads (default: 25 -> 30)
 
+  2. Migrate logging to Google Flogger.
+
 
 1.9.5 - 2018-08-09
 
