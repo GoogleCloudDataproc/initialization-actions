@@ -1,6 +1,6 @@
 # Securing Dataproc
 
-This initialization action installs the MIT distribution of the Kerberos packages, and configures YARN, HDFS, Hive, Spark to integrate with Kerberose, which also enables in-transit data encryption.
+This initialization action installs the MIT distribution of the Kerberos packages, and configures YARN, HDFS, Hive, Spark to integrate with Kerberos, which also enables in-transit data encryption.
 It will also encrypt HTTP traffic (include Web UIs and shuffle) with SSL.
 Optionally, this initialization action will also enable cross-realm trust, to allow users to authenticate through a remote Kerberos/Active Directory server.
 
