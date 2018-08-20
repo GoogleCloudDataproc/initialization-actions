@@ -47,7 +47,7 @@ function setup_ganglia_host() {
 
 function main() {
   local master_hostname=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
-  local cluster_name=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+  local cluster_name=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)
 
   update_apt_get || err 'Unable to update apt-get'
   apt-get install -y ganglia-monitor
