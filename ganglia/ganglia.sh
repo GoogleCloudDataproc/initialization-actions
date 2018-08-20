@@ -33,7 +33,7 @@ function update_apt_get() {
 }
 
 function setup_ganglia_host() {
-  # Install dependencies needed for ganglia
+  # Install dependencies needed for Ganglia host
   DEBIAN_FRONTEND=noninteractive apt-get install -y \
     rrdtool \
     gmetad \
@@ -54,7 +54,7 @@ function main() {
 
   if [[ "${HOSTNAME}" == "${master_hostname}" ]]; then
     # Only run on the one master node ("0"-master in HA mode)
-    setup_ganglia_host || err 'Installing Ganglia host failed'
+    setup_ganglia_host || err 'Setting up Ganglia host failed'
   fi
   
   sed -e "/name = \"unspecified\" /s/unspecified/${master_hostname}/" -i /etc/ganglia/gmond.conf
