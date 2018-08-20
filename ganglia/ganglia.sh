@@ -32,11 +32,8 @@ function update_apt_get() {
   return 1
 }
 
-function install_ganglia_dependencies() {
+function setup_ganglia_host() {
   # Install dependencies needed for ganglia
-  sed -e "/name = \"unspecified\" /s/unspecified/${master_hostname}/" -i /etc/ganglia/gmond.conf
-  sed -e '/mcast_join /s/^  /  #/' -i /etc/ganglia/gmond.conf
-  sed -e '/bind /s/^  /  #/' -i /etc/ganglia/gmond.conf
   DEBIAN_FRONTEND=noninteractive apt-get install -y \
     rrdtool \
     gmetad \
@@ -44,10 +41,7 @@ function install_ganglia_dependencies() {
 
   ln -s /etc/ganglia-webfrontend/apache.conf /etc/apache2/sites-enabled/ganglia.conf
   sed -i "s/my cluster/${master_hostname}/" /etc/ganglia/gmetad.conf
-  sed -e "/udp_send_channel {/a\  host = ${master_hostname}" -i /etc/ganglia/gmond.conf
-  systemctl restart ganglia-monitor &&
-  systemctl restart gmetad &&
-  systemctl restart apache2
+  systemctl restart gmetad apache2
 
 }
 
@@ -60,12 +54,16 @@ function main() {
 
   if [[ "${HOSTNAME}" == "${master_hostname}" ]]; then
     # Only run on the one master node ("0"-master in HA mode)
-    install_ganglia_dependencies || err 'Installing dependencies for Ganglia failed'
-  else
-    sed -e "/udp_send_channel {/a\  host = ${master_hostname}" -i /etc/ganglia/gmond.conf
-    sed -i '/udp_recv_channel {/,/}/d' /etc/ganglia/gmond.conf
-    systemctl restart ganglia-monitor
+    install_ganglia_host || err 'Installing Ganglia host failed'
   fi
+  
+  sed -e "/name = \"unspecified\" /s/unspecified/${master_hostname}/" -i /etc/ganglia/gmond.conf
+  sed -e '/mcast_join /s/^  /  #/' -i /etc/ganglia/gmond.conf
+  sed -e '/bind /s/^  /  #/' -i /etc/ganglia/gmond.conf
+  sed -e "/udp_send_channel {/a\  host = ${master_hostname}" -i /etc/ganglia/gmond.conf
+  sed -i '/udp_recv_channel {/,/}/d' /etc/ganglia/gmond.conf
+  systemctl restart ganglia-monitor
+
 }
 
 main
