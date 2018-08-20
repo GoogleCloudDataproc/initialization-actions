@@ -14,9 +14,6 @@
 package com.google.cloud.hadoop.io.bigquery.output;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -208,7 +205,7 @@ public class ForwardingBigQueryFileOutputCommitterTest {
 
     // Verify the delegate is being called and returns the correct data.
     verify(mockCommitter).needsTaskCommit(eq(mockTaskAttemptContext));
-    assertThat(result, is(false));
+    assertThat(result).isFalse();
   }
 
   /** Test to ensure the underlying delegate is being passed the setupJob call. */
@@ -238,7 +235,7 @@ public class ForwardingBigQueryFileOutputCommitterTest {
     List<String> outputFileURIs = committer.getOutputFileURIs();
 
     // Verify the file in the output path is being returFned.
-    assertThat(outputFileURIs, containsInAnyOrder(TEST_OUTPUT_FILE_STRING));
+    assertThat(outputFileURIs).containsExactly(TEST_OUTPUT_FILE_STRING);
   }
 
   /** Test that cleanup actually cleans up. */

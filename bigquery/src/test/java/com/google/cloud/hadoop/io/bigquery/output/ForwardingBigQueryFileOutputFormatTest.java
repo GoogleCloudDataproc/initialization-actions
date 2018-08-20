@@ -14,8 +14,6 @@
 package com.google.cloud.hadoop.io.bigquery.output;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
@@ -182,7 +180,7 @@ public class ForwardingBigQueryFileOutputFormatTest {
     OutputCommitter committer = outputFormat.getOutputCommitter(mockTaskAttemptContext);
 
     // Verify the delegate is being called and the mock OutputCommitter is returned.
-    assertThat(committer, is(mockOutputCommitter));
+    assertThat(committer).isEqualTo(mockOutputCommitter);
     verify(mockFileOutputFormat).getOutputCommitter(eq(mockTaskAttemptContext));
   }
 
@@ -192,7 +190,7 @@ public class ForwardingBigQueryFileOutputFormatTest {
     RecordWriter<Text, Text> recordWriter = outputFormat.getRecordWriter(mockTaskAttemptContext);
 
     // Verify the delegate is being called and the mock RecordWriter is returned.
-    assertThat(recordWriter, is(mockRecordWriter));
+    assertThat(recordWriter).isEqualTo(mockRecordWriter);
     verify(mockFileOutputFormat).getRecordWriter(eq(mockTaskAttemptContext));
   }
 
@@ -202,7 +200,7 @@ public class ForwardingBigQueryFileOutputFormatTest {
     OutputCommitter committer = outputFormat.createCommitter(mockTaskAttemptContext);
 
     // Verify the delegate is being called and the mock OutputCommitter is returned.
-    assertThat(committer, is(mockOutputCommitter));
+    assertThat(committer).isEqualTo(mockOutputCommitter);
     verify(mockFileOutputFormat).getOutputCommitter(eq(mockTaskAttemptContext));
   }
 

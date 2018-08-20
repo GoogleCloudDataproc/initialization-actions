@@ -329,12 +329,12 @@ public class BigQueryConfiguration {
   }
 
   /**
-   * Resolves to provided {@link TEMP_GCS_PATH_KEY} or fallbacks to a temporary path based on {@link
-   * GCS_BUCKET_KEY} and {@code jobId}.
+   * Resolves to provided {@link #TEMP_GCS_PATH_KEY} or fallbacks to a temporary path based on
+   * {@link #GCS_BUCKET_KEY} and {@code jobId}.
    *
    * @param conf the configuration to fetch the keys from.
    * @param jobId the ID of the job requesting a working path. Optional (could be {@code null}) if
-   *     {@link TEMP_GCS_PATH_KEY} is provided.
+   *     {@link #TEMP_GCS_PATH_KEY} is provided.
    * @return the temporary directory path.
    * @throws IOException if the file system of the derived working path isn't a derivative of
    *     GoogleHadoopFileSystemBase.

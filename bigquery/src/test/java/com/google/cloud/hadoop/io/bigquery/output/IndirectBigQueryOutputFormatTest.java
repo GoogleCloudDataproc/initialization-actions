@@ -13,8 +13,7 @@
  */
 package com.google.cloud.hadoop.io.bigquery.output;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -144,7 +143,7 @@ public class IndirectBigQueryOutputFormatTest {
     IndirectBigQueryOutputCommitter committer =
         (IndirectBigQueryOutputCommitter) outputFormat.createCommitter(mockTaskAttemptContext);
 
-    assertThat(committer.getDelegate(), is(mockOutputCommitter));
+    assertThat(committer.getDelegate()).isEqualTo(mockOutputCommitter);
     verify(mockFileOutputFormat).getOutputCommitter(eq(mockTaskAttemptContext));
   }
 }

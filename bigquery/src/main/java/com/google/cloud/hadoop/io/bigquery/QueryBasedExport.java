@@ -13,6 +13,8 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.common.flogger.LazyArgs.lazy;
+
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
@@ -114,7 +116,7 @@ public class QueryBasedExport implements Export {
   /**
    * Runs the query in BigQuery and writes results to a temporary table.
    *
-   * @param bigquery the Bigquery instance to use.
+   * @param bigQueryHelper the Bigquery instance to use.
    * @param projectId the project on whose behalf the query will be run.
    * @param tableRef the table to write the results to.
    * @param query the query to run.
@@ -126,8 +128,8 @@ public class QueryBasedExport implements Export {
       BigQueryHelper bigQueryHelper, String projectId, TableReference tableRef, String query)
       throws IOException, InterruptedException {
     logger.atFine().log(
-        "runQuery(bigquery, '%s', '%s', '%s')",
-        projectId, BigQueryStrings.toString(tableRef), query);
+        "runQuery(bigQueryHelper, '%s', '%s', '%s')",
+        projectId, lazy(() -> BigQueryStrings.toString(tableRef)), query);
 
     // Create a query statement and query request object.
     JobConfigurationQuery queryConfig = new JobConfigurationQuery();

@@ -37,7 +37,7 @@ import java.io.IOError;
 import java.io.IOException;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
-import java.util.Arrays;
+import java.util.Collections;
 import javax.net.ssl.SSLException;
 import org.junit.Before;
 import org.junit.Test;
@@ -311,23 +311,27 @@ public class ApiErrorExtractorTest {
       final int status, final ErrorInfo errorInfo, final String httpStatusString)
       throws IOException {
     final JsonFactory jsonFactory = new JacksonFactory();
-    HttpTransport transport = new MockHttpTransport() {
-      @Override
-      public LowLevelHttpRequest buildRequest(String method, String url) throws IOException {
-        errorInfo.setFactory(jsonFactory);
-        GoogleJsonError jsonError = new GoogleJsonError();
-        jsonError.setCode(status);
-        jsonError.setErrors(Arrays.asList(errorInfo));
-        jsonError.setMessage(httpStatusString);
-        jsonError.setFactory(jsonFactory);
-        GenericJson errorResponse = new GenericJson();
-        errorResponse.set("error", jsonError);
-        errorResponse.setFactory(jsonFactory);
-        return new MockLowLevelHttpRequest().setResponse(
-            new MockLowLevelHttpResponse().setContent(errorResponse.toPrettyString())
-            .setContentType(Json.MEDIA_TYPE).setStatusCode(status));
-        }
-    };
+    HttpTransport transport =
+        new MockHttpTransport() {
+          @Override
+          public LowLevelHttpRequest buildRequest(String method, String url) throws IOException {
+            errorInfo.setFactory(jsonFactory);
+            GoogleJsonError jsonError = new GoogleJsonError();
+            jsonError.setCode(status);
+            jsonError.setErrors(Collections.singletonList(errorInfo));
+            jsonError.setMessage(httpStatusString);
+            jsonError.setFactory(jsonFactory);
+            GenericJson errorResponse = new GenericJson();
+            errorResponse.set("error", jsonError);
+            errorResponse.setFactory(jsonFactory);
+            return new MockLowLevelHttpRequest()
+                .setResponse(
+                    new MockLowLevelHttpResponse()
+                        .setContent(errorResponse.toPrettyString())
+                        .setContentType(Json.MEDIA_TYPE)
+                        .setStatusCode(status));
+          }
+        };
     HttpRequest request =
         transport.createRequestFactory().buildGetRequest(HttpTesting.SIMPLE_GENERIC_URL);
     request.setThrowExceptionOnExecuteError(false);

@@ -328,7 +328,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
       assertThat(record).containsKey(MARKET_CAP_FIELD_NAME);
       readValues.put(
           (String) record.get(COMPANY_NAME_FIELD_NAME),
-          (int) record.get(MARKET_CAP_FIELD_NAME));
+          (Integer) record.get(MARKET_CAP_FIELD_NAME));
     }
     assertThat(readValues).hasSize(3);
     assertThat(readValues.get("Google")).isEqualTo(409);

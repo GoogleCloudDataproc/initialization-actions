@@ -14,8 +14,6 @@
 package com.google.cloud.hadoop.io.bigquery.output;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -117,8 +115,8 @@ public class FederatedBigQueryOutputCommitterTest {
   @Mock private TaskAttemptContext mockTaskAttemptContext;
   @Mock private OutputCommitter mockCommitter;
 
-  /** Verify exceptions are being thrown. */
-  /** Sets up common objects for testing before each test. */
+  // Verify exceptions are being thrown.
+  // Sets up common objects for testing before each test.
   @Before
   public void setUp() throws IOException {
     // Generate Mocks.
@@ -198,7 +196,7 @@ public class FederatedBigQueryOutputCommitterTest {
     verify(mockCommitter).commitJob(eq(job));
 
     // Assert the passed files contains our sample file.
-    assertThat(gcsOutputFileCaptor.getValue(), containsInAnyOrder(TEST_OUTPUT_FILE_STRING));
+    assertThat(gcsOutputFileCaptor.getValue()).containsExactly(TEST_OUTPUT_FILE_STRING);
   }
 
   /** Test that cleanup actually cleans up. */

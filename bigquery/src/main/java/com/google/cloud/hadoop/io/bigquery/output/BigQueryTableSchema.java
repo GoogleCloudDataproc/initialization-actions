@@ -25,7 +25,7 @@ import java.util.List;
  * <p>This class is used to avoid client code to depend on BigQuery API classes, so that there is no
  * potential conflict between different versions of BigQuery API libraries in the client.
  *
- * @see TableSchema.
+ * @see TableSchema
  */
 public class BigQueryTableSchema {
   private final TableSchema tableSchema;

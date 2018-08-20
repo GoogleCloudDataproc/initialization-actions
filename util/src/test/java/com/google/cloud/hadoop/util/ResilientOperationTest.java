@@ -84,7 +84,7 @@ public class ResilientOperationTest {
     assertThat(callTester.timesCalled()).isEqualTo(3);
     verifySleeper(sleeper, 2);
   }
-  
+
   @Test
   public void testCallRetriesAndFailsWithSocketErrors() throws Exception {
     MockSleeper sleeper = new MockSleeper();
@@ -152,8 +152,7 @@ public class ResilientOperationTest {
     BackOff backoff = new RetryBoundedBackOff(3, new BackOffTester());
     assertThat(
             ResilientOperation.retry(
-                    callTester, backoff, RetryDeterminer.DEFAULT, Exception.class, sleeper)
-                .intValue())
+                callTester, backoff, RetryDeterminer.DEFAULT, Exception.class, sleeper))
         .isEqualTo(3);
     assertThat(callTester.timesCalled()).isEqualTo(4);
     verifySleeper(sleeper, 3);

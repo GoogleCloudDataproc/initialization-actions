@@ -13,8 +13,7 @@
  */
 package com.google.cloud.hadoop.gcsio;
 
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -285,6 +284,6 @@ public class ForwardingGoogleCloudStorageTest {
   public void testGetDelegate() {
     GoogleCloudStorage delegate = gcs.getDelegate();
 
-    assertThat(delegate, is(mockGcsDelegate));
+    assertThat(delegate).isEqualTo(mockGcsDelegate);
   }
 }
