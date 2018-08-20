@@ -13,20 +13,20 @@ interface. For details, see [the README](gcs/README.md).
 
 The Google BigQuery connector for Hadoop MapReduce enables running MapReduce
 jobs on data in BigQuery by implementing the InputFormat & OutputFormat
-interfaces. For more details see [the documentation](
-https://cloud.google.com/dataproc/docs/concepts/connectors/bigquery)
+interfaces. For more details see
+[the documentation](https://cloud.google.com/dataproc/docs/concepts/connectors/bigquery)
 
 ## Google Cloud Pub/Sub connector for Apache Spark Streaming
 
-The Google Cloud Pub/Sub connector for Spark Streming enables running Spark
-Streaming Job on topics in Pub/Sub by implementing the InputDStream
-interface. For more details see [the README](pubsub/README.md)
+The Google Cloud Pub/Sub connector for Spark Streaming enables running Spark
+Streaming Job on topics in Pub/Sub by implementing the InputDStream interface.
+For more details see [the README](pubsub/README.md)
 
 ## Building the Cloud Storage (GCS) and BigQuery connectors
 
-All the connectors can be built with Apache Maven 3 (as of 2018-08-07,
-version 3.5.4 has been tested). To build the connector for specific
-Hadoop version, run the following commands from the main directory:
+All the connectors can be built with Apache Maven 3 (as of 2018-08-07, version
+3.5.4 has been tested). To build the connector for specific Hadoop version, run
+the following commands from the main directory:
 
 ```bash
 # with Hadoop 1 support:
@@ -42,20 +42,21 @@ found in `bigquery/target/`.
 
 ### Building the Google Cloud Pub/Sub connector
 
-Building the Pub/Sub Connector is described in [its
-README](pubsub/README.md#building-and-testing).
+Building the Pub/Sub Connector is described in
+[its README](pubsub/README.md#building-and-testing).
 
 ## Adding the CloudStorage (GCS) and BigQuery connectors to your build
 
-Maven group ID is `com.google.cloud.bigdataoss` and artifact ID for
-Cloud Storage connector is `gcs-connector` and for BigQuery connectors
-is `bigquery-connector`.
+Maven group ID is `com.google.cloud.bigdataoss` and artifact ID for Cloud
+Storage connector is `gcs-connector` and for BigQuery connectors is
+`bigquery-connector`.
 
 To add a dependency on one of the connectors using Maven, use the following:
 
 ```xml
 <dependency>
   <groupId>com.google.cloud.bigdataoss</groupId>
+  <!-- Cloud Storage: -->
   <artifactId>gcs-connector</artifactId>
   <version>hadoop2-1.9.5</version>
   <!-- or, for BigQuery: -->
