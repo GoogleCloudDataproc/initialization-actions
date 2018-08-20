@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.net.URI;
 import org.apache.hadoop.fs.Path;
@@ -28,16 +29,18 @@ import org.apache.hadoop.fs.Path;
 /**
  * GoogleHadoopFileSystem is a version of GoogleHadoopFileSystemBase which is rooted in a single
  * bucket at initialization time; in this case, Hadoop paths no longer correspond directly to
- * general GCS paths, and all Hadoop operations going through this FileSystem will never touch
- * any GCS bucket other than the bucket on which this FileSystem is rooted.
- * <p>
- * This implementation sacrifices a small amount of cross-bucket interoperability in favor of
- * more straightforward FileSystem semantics and compatibility with existing Hadoop applications.
- * In particular, it is not subject to bucket-naming constraints, and files are allowed to be
- * placed in root.
+ * general GCS paths, and all Hadoop operations going through this FileSystem will never touch any
+ * GCS bucket other than the bucket on which this FileSystem is rooted.
+ *
+ * <p>This implementation sacrifices a small amount of cross-bucket interoperability in favor of
+ * more straightforward FileSystem semantics and compatibility with existing Hadoop applications. In
+ * particular, it is not subject to bucket-naming constraints, and files are allowed to be placed in
+ * root.
  */
-public class GoogleHadoopFileSystem
-    extends GoogleHadoopFileSystemBase {
+public class GoogleHadoopFileSystem extends GoogleHadoopFileSystemBase {
+
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+
   // The bucket the file system is rooted in used for default values of:
   // -- working directory
   // -- user home directories (only for Hadoop purposes).

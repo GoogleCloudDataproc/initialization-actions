@@ -47,7 +47,7 @@ public class BigQueryHelper {
   // Maximum number of characters in a BigQuery job_id.
   public static final int BIGQUERY_JOB_ID_MAX_LENGTH = 1024;
 
-  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Used for specialized handling of various API-defined exceptions.
   private ApiErrorExtractor errorExtractor = ApiErrorExtractor.INSTANCE;

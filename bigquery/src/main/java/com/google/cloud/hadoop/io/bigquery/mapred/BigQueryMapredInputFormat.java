@@ -39,7 +39,7 @@ import org.apache.hadoop.mapreduce.TaskID;
 public class BigQueryMapredInputFormat
     implements InputFormat<LongWritable, JsonObject> {
 
-  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   private org.apache.hadoop.mapreduce.InputFormat<LongWritable, JsonObject>
       mapreduceInputFormat = new GsonBigQueryInputFormat();

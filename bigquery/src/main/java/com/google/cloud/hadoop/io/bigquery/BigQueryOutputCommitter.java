@@ -40,7 +40,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptID;
  * abortion.
  */
 public class BigQueryOutputCommitter extends OutputCommitter {
-  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Id of project used to describe the project under which all connector operations occur.
   private String projectId;

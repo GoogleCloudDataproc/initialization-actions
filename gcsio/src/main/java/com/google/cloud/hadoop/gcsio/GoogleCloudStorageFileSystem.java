@@ -69,7 +69,7 @@ public class GoogleCloudStorageFileSystem {
   // URI of the root path.
   public static final URI GCS_ROOT = URI.create(SCHEME + ":/");
 
-  public static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // GCS access instance.
   private GoogleCloudStorage gcs;

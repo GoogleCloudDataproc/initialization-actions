@@ -37,7 +37,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileSplit;
  * RecordReader for avro BigQuery exports.
  */
 public class AvroRecordReader extends RecordReader<LongWritable, GenericData.Record> {
-  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   final LongWritable currentKey = new LongWritable();
   FileReader<GenericData.Record> dataFileReader;

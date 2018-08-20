@@ -39,7 +39,7 @@ import org.apache.hadoop.util.Progressable;
  * Helper methods to interact with BigQuery.
  */
 public class BigQueryUtils {
-  public static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Initial wait interval
   public static final int POLL_WAIT_INITIAL_MILLIS =

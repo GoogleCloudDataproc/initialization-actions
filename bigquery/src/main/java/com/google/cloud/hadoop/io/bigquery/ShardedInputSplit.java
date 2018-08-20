@@ -29,7 +29,7 @@ import org.apache.hadoop.mapreduce.InputSplit;
  */
 public class ShardedInputSplit
     extends InputSplit implements Writable {
-  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Directory/file-pattern whose files will be read by the reader created from this split.
   // The file-pattern portion is the glob expression of the file basename, e.g. data-*.json.

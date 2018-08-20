@@ -63,7 +63,7 @@ import org.apache.hadoop.util.Progressable;
  */
 public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<K, V> {
 
-  public static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Holds collection of counters used by this instance.
   private static Counters counters = new Counters();

@@ -44,7 +44,7 @@ class BigQueryMapredOutputCommitter extends OutputCommitter {
           .put(JobStatus.KILLED, State.KILLED)
           .build();
 
-  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   private org.apache.hadoop.mapreduce.OutputCommitter mapreduceOutputCommitter;
 

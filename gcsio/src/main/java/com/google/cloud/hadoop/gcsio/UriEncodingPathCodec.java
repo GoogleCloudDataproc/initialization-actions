@@ -27,7 +27,7 @@ import java.net.URISyntaxException;
  */
 class UriEncodingPathCodec implements PathCodec {
 
-  public static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   @Override
   public StorageResourceId validatePathAndGetId(URI path, boolean allowEmptyObjectName) {

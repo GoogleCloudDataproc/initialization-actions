@@ -26,7 +26,7 @@ import org.apache.hadoop.mapreduce.JobID;
  * Utility to create a JobContext for use with our MRV1 wrapper.
  */
 public class BigQueryMapredJobContext {
-  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /**
    * Create a mapreduce.JobContext from a mapred.JobConf.

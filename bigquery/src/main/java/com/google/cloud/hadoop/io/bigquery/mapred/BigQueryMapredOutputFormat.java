@@ -34,7 +34,7 @@ import org.apache.hadoop.util.Progressable;
  */
 class BigQueryMapredOutputFormat<K, V> implements OutputFormat<K, V> {
 
-  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   private org.apache.hadoop.mapreduce.OutputFormat<K, JsonObject>
       mapreduceOutputFormat = new BigQueryOutputFormat<K, JsonObject>();

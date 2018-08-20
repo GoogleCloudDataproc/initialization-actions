@@ -47,7 +47,7 @@ public class BigQueryFactory {
   // Authentication.
   public static final String BIGQUERY_PRIVATE_KEY_FILE = "BIGQUERY_PRIVATE_KEY_FILE";
 
-  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // A resource file containing bigquery related build properties.
   public static final String PROPERTIES_FILE = "bigquery.properties";

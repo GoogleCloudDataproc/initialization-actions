@@ -48,7 +48,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 public abstract class AbstractBigQueryInputFormat<K, V>
     extends InputFormat<K, V> implements DelegateRecordReaderFactory<K, V> {
 
-  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
   /**
    * Configuration key for InputFormat class name.
    */

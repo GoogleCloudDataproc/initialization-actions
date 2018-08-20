@@ -201,7 +201,7 @@ public class BigQueryConfiguration {
   public static final String ENABLE_ASYNC_WRITE = "mapred.bq.output.async.write.enabled";
   public static final boolean ENABLE_ASYNC_WRITE_DEFAULT = true;
 
-  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /**
    * Sets the Bigquery access related fields in the JobConf for input connector.

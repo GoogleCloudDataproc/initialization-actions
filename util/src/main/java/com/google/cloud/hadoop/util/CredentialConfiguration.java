@@ -27,7 +27,7 @@ import java.util.List;
 
 /** Configuration for how components should obtain Credentials. */
 public class CredentialConfiguration {
-  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   private boolean serviceAccountEnabled = true;
   private String serviceAccountEmail = null;

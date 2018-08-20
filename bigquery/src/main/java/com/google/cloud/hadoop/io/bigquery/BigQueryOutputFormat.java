@@ -52,7 +52,7 @@ public class BigQueryOutputFormat<K, V extends JsonObject> extends OutputFormat<
   // appending the JobID as the final suffix for the temporary datasetId.
   public static final String TEMP_NAME = "_hadoop_temporary_";
 
-  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /**
    * Checks for validity of the output-specification for the job. Typically checks that it does not

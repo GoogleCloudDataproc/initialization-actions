@@ -27,7 +27,7 @@ import org.apache.hadoop.mapreduce.RecordReader;
  */
 public class GsonBigQueryInputFormat
     extends AbstractBigQueryInputFormat<LongWritable, JsonObject> {
-  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   @Override
   public RecordReader<LongWritable, JsonObject> createDelegateRecordReader(

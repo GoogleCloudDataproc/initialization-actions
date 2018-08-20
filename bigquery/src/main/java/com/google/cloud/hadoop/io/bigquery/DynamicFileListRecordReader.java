@@ -45,7 +45,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileSplit;
  */
 public class DynamicFileListRecordReader<K, V>
     extends RecordReader<K, V> {
-  public static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Directory/file-pattern which will contain all the files we read with this reader.
   private Path inputDirectoryAndPattern;

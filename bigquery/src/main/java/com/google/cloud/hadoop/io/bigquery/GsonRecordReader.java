@@ -34,7 +34,7 @@ import org.apache.hadoop.mapreduce.lib.input.LineRecordReader;
  * value. These pairs are passed as input to the Mapper.
  */
 public class GsonRecordReader extends RecordReader<LongWritable, JsonObject> {
-  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // A LineRecordReader which handles most calls. The GsonRecordReader just provides a wrapper which
   // translates the results of LineRecordReader into Json objects.

@@ -36,7 +36,7 @@ import org.apache.hadoop.util.Progressable;
  */
 public class QueryBasedExport implements Export {
 
-  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   private final String query;
   private final BigQueryHelper bigQueryHelper;

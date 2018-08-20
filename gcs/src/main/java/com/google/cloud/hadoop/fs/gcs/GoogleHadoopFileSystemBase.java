@@ -109,7 +109,7 @@ import org.apache.hadoop.util.Progressable;
  */
 public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemBaseSpecific
     implements FileSystemDescriptor {
-  public static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /** Default value of replication factor. */
   public static final short REPLICATION_FACTOR_DEFAULT = 3;

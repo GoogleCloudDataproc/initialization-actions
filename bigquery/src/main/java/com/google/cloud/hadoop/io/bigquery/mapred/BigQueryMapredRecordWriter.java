@@ -29,7 +29,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  */
 public class BigQueryMapredRecordWriter<K, V> implements RecordWriter<K, V> {
 
-  protected static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   private org.apache.hadoop.mapreduce.RecordWriter<K, JsonObject>
       mapreduceRecordWriter;

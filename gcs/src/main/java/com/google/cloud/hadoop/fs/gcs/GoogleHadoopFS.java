@@ -45,7 +45,7 @@ import org.apache.hadoop.util.Progressable;
  */
 public class GoogleHadoopFS extends AbstractFileSystem {
 
-  public static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Wrapped GoogleHadoopFileSystem instance
   private GoogleHadoopFileSystem ghfs;
