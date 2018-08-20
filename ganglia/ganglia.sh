@@ -46,22 +46,25 @@ function setup_ganglia_host() {
 }
 
 function main() {
-  local role=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
   local master_hostname=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+  local cluster_name=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
   update_apt_get || err 'Unable to update apt-get'
   apt-get install -y ganglia-monitor
 
-  if [[ "${HOSTNAME}" == "${master_hostname}" ]]; then
-    # Only run on the one master node ("0"-master in HA mode)
-    setup_ganglia_host || err 'Setting up Ganglia host failed'
-  fi
-
-  sed -e "/name = \"unspecified\" /s/unspecified/${master_hostname}/" -i /etc/ganglia/gmond.conf
+  sed -e "/name = \"unspecified\" /s/unspecified/${cluster_name}/" -i /etc/ganglia/gmond.conf
   sed -e '/mcast_join /s/^  /  #/' -i /etc/ganglia/gmond.conf
   sed -e '/bind /s/^  /  #/' -i /etc/ganglia/gmond.conf
   sed -e "/udp_send_channel {/a\  host = ${master_hostname}" -i /etc/ganglia/gmond.conf
-  sed -i '/udp_recv_channel {/,/}/d' /etc/ganglia/gmond.conf
+
+  if [[ "${HOSTNAME}" == "${master_hostname}" ]]; then
+    # Only run on the one master node ("0"-master in HA mode)
+    setup_ganglia_host || err 'Setting up Ganglia host failed'
+  else
+    # Delete receive channel configuraion on all non-host nodes
+    sed -i '/udp_recv_channel {/,/}/d' /etc/ganglia/gmond.conf
+  fi
+
   systemctl restart ganglia-monitor
 }
 
