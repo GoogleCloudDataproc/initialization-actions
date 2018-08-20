@@ -114,6 +114,10 @@
       <artifactId>google-extensions</artifactId>
     </dependency>
     <dependency>
+      <groupId>com.google.flogger</groupId>
+      <artifactId>flogger-system-backend</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.mockito</groupId>
       <artifactId>mockito-core</artifactId>
     </dependency>

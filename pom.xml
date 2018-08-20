@@ -418,6 +418,12 @@
       </dependency>
       <dependency>
         <groupId>com.google.flogger</groupId>
+        <artifactId>flogger-system-backend</artifactId>
+        <version>${google.flogger.version}</version>
+        <scope>runtime</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.google.flogger</groupId>
         <artifactId>flogger-log4j-backend</artifactId>
         <version>${google.flogger.version}</version>
         <scope>runtime</scope>

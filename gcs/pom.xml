@@ -236,6 +236,10 @@
     </dependency>
     <dependency>
       <groupId>com.google.flogger</groupId>
+      <artifactId>flogger-system-backend</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.flogger</groupId>
       <artifactId>flogger-log4j-backend</artifactId>
     </dependency>
   </dependencies>
@@ -275,7 +279,7 @@
                 <filter>
                   <artifact>com.google.flogger:flogger-log4j-backend</artifact>
                   <includes>
-                    <!--Avoid cleanup with minimizeJar that breaks logging-->
+                    <!--Avoid cleanup with minimizeJar that breaks Log4j logging-->
                     <include>**</include>
                   </includes>
                 </filter>

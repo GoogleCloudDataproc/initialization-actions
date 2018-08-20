@@ -75,6 +75,10 @@
       <artifactId>google-extensions</artifactId>
     </dependency>
     <dependency>
+      <groupId>com.google.flogger</groupId>
+      <artifactId>flogger-system-backend</artifactId>
+    </dependency>
+    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
     </dependency>
