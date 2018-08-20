@@ -54,7 +54,7 @@ function main() {
 
   if [[ "${HOSTNAME}" == "${master_hostname}" ]]; then
     # Only run on the one master node ("0"-master in HA mode)
-    install_ganglia_host || err 'Installing Ganglia host failed'
+    setup_ganglia_host || err 'Installing Ganglia host failed'
   fi
   
   sed -e "/name = \"unspecified\" /s/unspecified/${master_hostname}/" -i /etc/ganglia/gmond.conf
