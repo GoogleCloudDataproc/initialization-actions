@@ -15,10 +15,10 @@
 #
 #  This initialization action installs Ganglia, a distributed monitoring system.
 
-set -x -e
+set -euxo pipefail
 
 function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   return 1
 }
 
@@ -32,11 +32,8 @@ function update_apt_get() {
   return 1
 }
 
-function install_ganglia_dependencies() {
-  # Install dependencies needed for ganglia
-  sed -e "/name = \"unspecified\" /s/unspecified/${master_hostname}/" -i /etc/ganglia/gmond.conf
-  sed -e '/mcast_join /s/^  /  #/' -i /etc/ganglia/gmond.conf
-  sed -e '/bind /s/^  /  #/' -i /etc/ganglia/gmond.conf
+function setup_ganglia_host() {
+  # Install dependencies needed for Ganglia host
   DEBIAN_FRONTEND=noninteractive apt-get install -y \
     rrdtool \
     gmetad \
@@ -44,28 +41,31 @@ function install_ganglia_dependencies() {
 
   ln -s /etc/ganglia-webfrontend/apache.conf /etc/apache2/sites-enabled/ganglia.conf
   sed -i "s/my cluster/${master_hostname}/" /etc/ganglia/gmetad.conf
-  sed -e "/udp_send_channel {/a\  host = ${master_hostname}" -i /etc/ganglia/gmond.conf
-  systemctl restart ganglia-monitor &&
-  systemctl restart gmetad &&
-  systemctl restart apache2
+  systemctl restart gmetad apache2
 
 }
 
 function main() {
-  local role=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
   local master_hostname=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+  local cluster_name=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)
 
   update_apt_get || err 'Unable to update apt-get'
   apt-get install -y ganglia-monitor
 
+  sed -e "/name = \"unspecified\" /s/unspecified/${cluster_name}/" -i /etc/ganglia/gmond.conf
+  sed -e '/mcast_join /s/^  /  #/' -i /etc/ganglia/gmond.conf
+  sed -e '/bind /s/^  /  #/' -i /etc/ganglia/gmond.conf
+  sed -e "/udp_send_channel {/a\  host = ${master_hostname}" -i /etc/ganglia/gmond.conf
+
   if [[ "${HOSTNAME}" == "${master_hostname}" ]]; then
     # Only run on the one master node ("0"-master in HA mode)
-    install_ganglia_dependencies || err 'Installing dependencies for Ganglia failed'
+    setup_ganglia_host || err 'Setting up Ganglia host failed'
   else
-    sed -e "/udp_send_channel {/a\  host = ${master_hostname}" -i /etc/ganglia/gmond.conf
+    # Delete receive channel configuraion on all non-host nodes
     sed -i '/udp_recv_channel {/,/}/d' /etc/ganglia/gmond.conf
-    systemctl restart ganglia-monitor
   fi
+
+  systemctl restart ganglia-monitor
 }
 
 main
