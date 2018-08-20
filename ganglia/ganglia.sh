@@ -15,10 +15,10 @@
 #
 #  This initialization action installs Ganglia, a distributed monitoring system.
 
-set -x -e
+set -euxo pipefail
 
 function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   return 1
 }
 
@@ -56,14 +56,13 @@ function main() {
     # Only run on the one master node ("0"-master in HA mode)
     setup_ganglia_host || err 'Setting up Ganglia host failed'
   fi
-  
+
   sed -e "/name = \"unspecified\" /s/unspecified/${master_hostname}/" -i /etc/ganglia/gmond.conf
   sed -e '/mcast_join /s/^  /  #/' -i /etc/ganglia/gmond.conf
   sed -e '/bind /s/^  /  #/' -i /etc/ganglia/gmond.conf
   sed -e "/udp_send_channel {/a\  host = ${master_hostname}" -i /etc/ganglia/gmond.conf
   sed -i '/udp_recv_channel {/,/}/d' /etc/ganglia/gmond.conf
   systemctl restart ganglia-monitor
-
 }
 
 main
