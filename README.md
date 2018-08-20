@@ -45,7 +45,7 @@ found in `bigquery/target/`.
 Building the Pub/Sub Connector is described in
 [its README](pubsub/README.md#building-and-testing).
 
-## Adding the CloudStorage (GCS) and BigQuery connectors to your build
+## Adding the Cloud Storage (GCS) and BigQuery connectors to your build
 
 Maven group ID is `com.google.cloud.bigdataoss` and artifact ID for Cloud
 Storage connector is `gcs-connector` and for BigQuery connectors is
