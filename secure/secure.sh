@@ -178,7 +178,7 @@ function create_service_principals() {
     fi
   fi
 
-  echo "starting to create service principals on $FQDN"
+  echo "starting to create service principals on ${FQDN}"
   # principals: hdfs/<FQDN>, yarn/<FQDN>, mapred/<FQDN> and HTTP/<FQDN>
   kadmin -p root -w "${root_principal_password}" -q "addprinc -randkey hdfs/${FQDN}"
   kadmin -p root -w "${root_principal_password}" -q "addprinc -randkey yarn/${FQDN}"
