@@ -382,14 +382,16 @@ public class PerformanceCachingGoogleCloudStorageTest {
   public void testUpdateItems() throws IOException {
     List<UpdatableItemInfo> updateItems =
         Lists.newArrayList(new UpdatableItemInfo(ITEM_A_A.getResourceId(), TEST_METADATA));
+    GoogleCloudStorageItemInfo itemAAUpdated =
+        updateObjectItemInfo(ITEM_A_A, ITEM_A_A.getMetaGeneration() + 1);
 
     List<GoogleCloudStorageItemInfo> result = gcs.updateItems(updateItems);
 
     // Verify the delegate call.
     verify(gcsDelegate).updateItems(eq(updateItems));
-    assertThat(result).containsExactly(ITEM_A_A);
+    assertThat(result).containsExactly(itemAAUpdated);
     // Verify the state of the cache.
-    assertThat(cache.getAllItemsRaw()).containsExactly(ITEM_A_A);
+    assertThat(cache.getAllItemsRaw()).containsExactly(itemAAUpdated);
   }
 
   @Test
@@ -467,9 +469,25 @@ public class PerformanceCachingGoogleCloudStorageTest {
         createObjectOptions.getContentType(),
         /* contentEncoding= */ null,
         createObjectOptions.getMetadata(),
-        /* contentGeneration= */ 0,
-        /* metaGeneration= */ 0,
+        /* contentGeneration= */ 1,
+        /* metaGeneration= */ 1,
         new VerificationAttributes(EMPTY_OBJECT_MD5.asBytes(), EMPTY_OBJECT_CRC32C.asBytes()));
+  }
+
+  private static GoogleCloudStorageItemInfo updateObjectItemInfo(
+      GoogleCloudStorageItemInfo object, long metaGeneration) {
+    return new GoogleCloudStorageItemInfo(
+        object.getResourceId(),
+        object.getCreationTime(),
+        object.getSize(),
+        object.getLocation(),
+        object.getStorageClass(),
+        object.getContentType(),
+        object.getContentEncoding(),
+        object.getMetadata(),
+        object.getContentGeneration(),
+        metaGeneration,
+        object.getVerificationAttributes());
   }
 
   /** Ticker with a manual time value used for testing the cache. */

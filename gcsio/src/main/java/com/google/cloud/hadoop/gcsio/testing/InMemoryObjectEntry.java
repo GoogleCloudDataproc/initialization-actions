@@ -131,8 +131,8 @@ public class InMemoryObjectEntry {
                       info.getContentType(),
                       info.getContentEncoding(),
                       info.getMetadata(),
-                      info.getContentGeneration(),
-                      /* metaGeneration= */ 0L,
+                      /* contentGeneration= */ 1,
+                      /* metaGeneration= */ 1,
                       new VerificationAttributes(md5.asBytes(), Ints.toByteArray(crc32c.asInt())));
             }
           }
@@ -157,8 +157,8 @@ public class InMemoryObjectEntry {
             contentType,
             /* contentEncoding= */ null,
             ImmutableMap.copyOf(metadata),
-            /* contentGeneration= */ createTimeMillis,
-            /* metaGeneration= */ 0L);
+            /* contentGeneration= */ 0,
+            /* metaGeneration= */ 0);
   }
 
   /** For internal use in getShallowCopy(2). */
@@ -218,7 +218,7 @@ public class InMemoryObjectEntry {
             info.getContentEncoding(),
             info.getMetadata(),
             info.getContentGeneration(),
-            /* metaGeneration= */ 0L);
+            info.getMetaGeneration());
     return copy;
   }
 
@@ -308,8 +308,8 @@ public class InMemoryObjectEntry {
             info.getContentType(),
             info.getContentEncoding(),
             mergedMetadata,
-            /* contentGeneration= */ 0,
-            /* metaGeneration= */ 0,
+            info.getContentGeneration(),
+            info.getMetaGeneration() + 1,
             info.getVerificationAttributes());
   }
 }

@@ -18,6 +18,7 @@ package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static java.util.stream.Collectors.toCollection;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.util.Clock;
@@ -28,6 +29,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.flogger.GoogleLogger;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.FileNotFoundException;
@@ -206,6 +208,12 @@ public class GoogleCloudStorageFileSystem {
     return options;
   }
 
+  /** Convert {@code CreateFileOptions} to {@code CreateObjectOptions}. */
+  public static CreateObjectOptions objectOptionsFromFileOptions(CreateFileOptions options) {
+    return new CreateObjectOptions(
+        options.overwriteExisting(), options.getContentType(), options.getAttributes());
+  }
+
   /**
    * Creates and opens an object for writing.
    * If the object already exists, it is deleted.
@@ -220,28 +228,18 @@ public class GoogleCloudStorageFileSystem {
   }
 
   /**
-   * Convert {@code CreateFileOptions} to {@code CreateObjectOptions}.
-   */
-  public static CreateObjectOptions objectOptionsFromFileOptions(CreateFileOptions options) {
-    return new CreateObjectOptions(options.overwriteExisting(), options.getContentType(),
-        options.getAttributes());
-  }
-
-  /**
    * Creates and opens an object for writing.
    *
    * @param path Object full path of the form gs://bucket/object-path.
    * @return A channel for writing to the given object.
    * @throws IOException
    */
-  public WritableByteChannel create(URI path, CreateFileOptions options)
-      throws IOException {
-
+  public WritableByteChannel create(URI path, CreateFileOptions options) throws IOException {
     logger.atFine().log("create(%s)", path);
-    Preconditions.checkNotNull(path);
+    Preconditions.checkNotNull(path, "path could not be null");
     if (FileInfo.isDirectoryPath(path)) {
-      throw new IOException(String.format(
-          "Cannot create a file whose name looks like a directory. Got '%s'", path));
+      throw new IOException(
+          String.format("Cannot create a file whose name looks like a directory. Got '%s'", path));
     }
 
     // Check if a directory of that name exists.
@@ -323,28 +321,29 @@ public class GoogleCloudStorageFileSystem {
   /**
    * Deletes one or more items indicated by the given path.
    *
-   * If path points to a directory:
-   * -- if recursive is true,
-   *    all items under that path are recursively deleted followed by
-   *    deletion of the directory.
-   * -- else,
-   *    -- the directory is deleted if it is empty,
-   *    -- else, an IOException is thrown.
+   * <p>If path points to a directory:
    *
-   * The recursive parameter is ignored for a file.
+   * <ul>
+   *   <li>if recursive is true, all items under that path are recursively deleted followed by
+   *       deletion of the directory.
+   *   <li>else,
+   *       <ul>
+   *         <li>the directory is deleted if it is empty,
+   *         <li>else, an IOException is thrown.
+   *       </ul>
+   * </ul>
+   *
+   * <p>The recursive parameter is ignored for a file.
    *
    * @param path Path of the item to delete.
    * @param recursive If true, all sub-items are also deleted.
-   *
    * @throws FileNotFoundException if the given path does not exist.
    * @throws IOException
    */
-  public void delete(URI path, boolean recursive)
-      throws IOException {
-
+  public void delete(URI path, boolean recursive) throws IOException {
     logger.atFine().log("delete(%s, %s)", path, recursive);
     Preconditions.checkNotNull(path);
-    checkArgument(!path.equals(GCS_ROOT), "Cannot delete root path.");
+    checkArgument(!path.equals(GCS_ROOT), "Cannot delete root path (%s)", path);
 
     // Throw FileNotFoundException if the path does not exist.
     FileInfo fileInfo = getFileInfo(path);
@@ -352,38 +351,40 @@ public class GoogleCloudStorageFileSystem {
       throw getFileNotFoundException(path);
     }
 
-    List<URI> itemsToDelete = new ArrayList<>();
-    List<URI> bucketsToDelete = new ArrayList<>();
+    List<FileInfo> itemsToDelete = new ArrayList<>();
+    List<FileInfo> bucketsToDelete = new ArrayList<>();
 
     // Delete sub-items if it is a directory.
     if (fileInfo.isDirectory()) {
-      List<URI> subpaths = listFileNames(fileInfo, recursive);
-      if (recursive) {
-        itemsToDelete.addAll(subpaths);
-      } else {
-        if (subpaths.size() > 0) {
-          throw new DirectoryNotEmptyException("Cannot delete a non-empty directory.");
-        }
+      itemsToDelete =
+          recursive
+              ? listAllFileInfoForPrefix(fileInfo.getPath())
+              : listFileInfo(fileInfo.getPath(), /* enableAutoRepair= */ false);
+      if (!itemsToDelete.isEmpty() && !recursive) {
+        throw new DirectoryNotEmptyException("Cannot delete a non-empty directory.");
       }
     }
 
     if (fileInfo.getItemInfo().isBucket()) {
-      bucketsToDelete.add(fileInfo.getPath());
+      bucketsToDelete.add(fileInfo);
     } else {
-      itemsToDelete.add(fileInfo.getPath());
+      itemsToDelete.add(fileInfo);
     }
 
     deleteInternal(itemsToDelete, bucketsToDelete);
 
     // if we deleted a bucket, then there no need to update timestamps
     if (bucketsToDelete.isEmpty()) {
+      List<URI> itemsToDeleteNames =
+          itemsToDelete.stream().map(FileInfo::getPath).collect(toCollection(ArrayList::new));
       // Any path that was deleted, we should update the parent except for parents we also deleted
-      tryUpdateTimestampsForParentDirectories(itemsToDelete, itemsToDelete);
+      tryUpdateTimestampsForParentDirectories(itemsToDeleteNames, itemsToDeleteNames);
     }
   }
 
   /** Deletes all items in the given path list followed by all bucket items. */
-  private void deleteInternal(List<URI> paths, List<URI> bucketPaths) throws IOException {
+  private void deleteInternal(List<FileInfo> itemsToDelete, List<FileInfo> bucketsToDelete)
+      throws IOException {
     // TODO(user): We might need to separate out children into separate batches from parents to
     // avoid deleting a parent before somehow failing to delete a child.
 
@@ -391,30 +392,33 @@ public class GoogleCloudStorageFileSystem {
     //
     // Note: we modify the input list, which is ok for current usage.
     // We should make a copy in case that changes in future.
-    Collections.sort(paths, PATH_COMPARATOR.reversed());
+    itemsToDelete.sort(FILE_INFO_PATH_COMPARATOR.reversed());
 
-    if (paths.size() > 0) {
-      List<StorageResourceId> objectsToDelete = new ArrayList<>();
-      for (URI path : paths) {
-        StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, false);
-        objectsToDelete.add(resourceId);
+    if (!itemsToDelete.isEmpty()) {
+      List<StorageResourceId> objectsToDelete = new ArrayList<>(itemsToDelete.size());
+      for (FileInfo fileInfo : itemsToDelete) {
+        // TODO(b/110833109): populate generation ID in StorageResourceId when listing infos?
+        objectsToDelete.add(
+            new StorageResourceId(
+                fileInfo.getItemInfo().getBucketName(),
+                fileInfo.getItemInfo().getObjectName(),
+                fileInfo.getItemInfo().getContentGeneration()));
       }
       gcs.deleteObjects(objectsToDelete);
     }
 
-    if (bucketPaths.size() > 0) {
-      List<String> bucketsToDelete = new ArrayList<>();
-      for (URI path : bucketPaths) {
-        StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, true);
+    if (!bucketsToDelete.isEmpty()) {
+      List<String> bucketNames = new ArrayList<>(bucketsToDelete.size());
+      for (FileInfo bucketInfo : bucketsToDelete) {
+        StorageResourceId resourceId = bucketInfo.getItemInfo().getResourceId();
         gcs.waitForBucketEmpty(resourceId.getBucketName());
-        bucketsToDelete.add(resourceId.getBucketName());
+        bucketNames.add(resourceId.getBucketName());
       }
       if (options.enableBucketDelete()) {
-        gcs.deleteBuckets(bucketsToDelete);
+        gcs.deleteBuckets(bucketNames);
       } else {
         logger.atInfo().log(
-            "Skipping deletion of buckets because enableBucketDelete is false: %s",
-            bucketsToDelete);
+            "Skipping deletion of buckets because enableBucketDelete is false: %s", bucketNames);
       }
     }
   }
@@ -626,10 +630,7 @@ public class GoogleCloudStorageFileSystem {
     List<FileInfo> fileInfo = getFileInfos(paths);
     FileInfo srcInfo = fileInfo.get(0);
     FileInfo dstInfo = fileInfo.get(1);
-    FileInfo dstParentInfo = null;
-    if (dstParent != null) {
-      dstParentInfo = fileInfo.get(2);
-    }
+    FileInfo dstParentInfo = dstParent == null ? null : fileInfo.get(2);
 
     // Make sure paths match what getFileInfo() returned (it can add / at the end).
     src = srcInfo.getPath();
@@ -772,7 +773,13 @@ public class GoogleCloudStorageFileSystem {
 
       tryUpdateTimestampsForParentDirectories(ImmutableList.of(dst), ImmutableList.<URI>of());
 
-      gcs.deleteObjects(ImmutableList.of(srcResourceId));
+      // TODO(b/110833109): populate generation ID in StorageResourceId when getting info
+      gcs.deleteObjects(
+          ImmutableList.of(
+              new StorageResourceId(
+                  srcInfo.getItemInfo().getBucketName(),
+                  srcInfo.getItemInfo().getObjectName(),
+                  srcInfo.getItemInfo().getContentGeneration())));
 
       // Any path that was deleted, we should update the parent except for parents we also deleted
       tryUpdateTimestampsForParentDirectories(ImmutableList.of(src), ImmutableList.<URI>of());
@@ -792,12 +799,12 @@ public class GoogleCloudStorageFileSystem {
     // Mapping from each src to its respective dst.
     // Sort src items so that parent directories appear before their children.
     // That allows us to copy parent directories before we copy their children.
-    Map<URI, URI> srcToDstItemNames = new TreeMap<>(PATH_COMPARATOR);
-    Map<URI, URI> srcToDstMarkerItemNames = new TreeMap<>(PATH_COMPARATOR);
+    Map<FileInfo, URI> srcToDstItemNames = new TreeMap<>(FILE_INFO_PATH_COMPARATOR);
+    Map<FileInfo, URI> srcToDstMarkerItemNames = new TreeMap<>(FILE_INFO_PATH_COMPARATOR);
 
     // List of individual paths to rename;
     // we will try to carry out the copies in this list's order.
-    List<URI> srcItemNames = listFileNames(srcInfo, true);
+    List<FileInfo> srcItemInfos = listAllFileInfoForPrefix(srcInfo.getPath());
 
     // Create the destination directory.
     dst = FileInfo.convertToDirectoryPath(pathCodec, dst);
@@ -805,17 +812,17 @@ public class GoogleCloudStorageFileSystem {
 
     // Create a list of sub-items to copy.
     String prefix = srcInfo.getPath().toString();
-    for (URI srcItemName : srcItemNames) {
-      String relativeItemName = srcItemName.toString().substring(prefix.length());
+    for (FileInfo srcItemInfo : srcItemInfos) {
+      String relativeItemName = srcItemInfo.getPath().toString().substring(prefix.length());
       URI dstItemName = dst.resolve(relativeItemName);
       if (markerFilePattern != null && markerFilePattern.matcher(relativeItemName).matches()) {
-        srcToDstMarkerItemNames.put(srcItemName, dstItemName);
+        srcToDstMarkerItemNames.put(srcItemInfo, dstItemName);
       } else {
-        srcToDstItemNames.put(srcItemName, dstItemName);
+        srcToDstItemNames.put(srcItemInfo, dstItemName);
       }
     }
 
-    // First, copy all items excpet marker items
+    // First, copy all items except marker items
     copyInternal(srcToDstItemNames);
     // Finally, copy marker items (if any) to mark rename operation success
     copyInternal(srcToDstMarkerItemNames);
@@ -830,31 +837,33 @@ public class GoogleCloudStorageFileSystem {
       tryUpdateTimestampsForParentDirectories(allDestinationUris, allDestinationUris);
     }
 
-    List<URI> bucketsToDelete = new ArrayList<>(1);
-    List<URI> srcItemsToDelete = new ArrayList<>(srcToDstItemNames.size() + 1);
+    List<FileInfo> bucketsToDelete = new ArrayList<>(1);
+    List<FileInfo> srcItemsToDelete = new ArrayList<>(srcToDstItemNames.size() + 1);
     srcItemsToDelete.addAll(srcToDstItemNames.keySet());
     if (srcInfo.getItemInfo().isBucket()) {
-      bucketsToDelete.add(srcInfo.getPath());
+      bucketsToDelete.add(srcInfo);
     } else {
-      // If src is a directory then srcItemNames does not contain its own name,
+      // If src is a directory then srcItemInfos does not contain its own name,
       // therefore add it to the list before we delete items in the list.
-      srcItemsToDelete.add(srcInfo.getPath());
+      srcItemsToDelete.add(srcInfo);
     }
 
     // First delete marker files from the src
-    deleteInternal(new ArrayList<>(srcToDstMarkerItemNames.keySet()), new ArrayList<URI>());
+    deleteInternal(new ArrayList<>(srcToDstMarkerItemNames.keySet()), new ArrayList<>());
     // Then delete rest of the items that we successfully copied.
     deleteInternal(srcItemsToDelete, bucketsToDelete);
 
     // if we deleted a bucket, then there no need to update timestamps
     if (bucketsToDelete.isEmpty()) {
+      List<URI> srcItemNames =
+          srcItemInfos.stream().map(FileInfo::getPath).collect(toCollection(ArrayList::new));
       // Any path that was deleted, we should update the parent except for parents we also deleted
       tryUpdateTimestampsForParentDirectories(srcItemNames, srcItemNames);
     }
   }
 
   /** Copies items in given map that maps source items to destination items. */
-  private void copyInternal(Map<URI, URI> srcToDstItemNames) throws IOException {
+  private void copyInternal(Map<FileInfo, URI> srcToDstItemNames) throws IOException {
     if (srcToDstItemNames.isEmpty()) {
       return;
     }
@@ -865,9 +874,8 @@ public class GoogleCloudStorageFileSystem {
     List<String> dstObjectNames = new ArrayList<>(srcToDstItemNames.size());
 
     // Prepare list of items to copy.
-    for (Map.Entry<URI, URI> srcToDstItemName : srcToDstItemNames.entrySet()) {
-      StorageResourceId srcResourceId =
-          pathCodec.validatePathAndGetId(srcToDstItemName.getKey(), true);
+    for (Map.Entry<FileInfo, URI> srcToDstItemName : srcToDstItemNames.entrySet()) {
+      StorageResourceId srcResourceId = srcToDstItemName.getKey().getItemInfo().getResourceId();
       srcBucketName = srcResourceId.getBucketName();
       String srcObjectName = srcResourceId.getObjectName();
       srcObjectNames.add(srcObjectName);
@@ -935,16 +943,14 @@ public class GoogleCloudStorageFileSystem {
           // of 1 are returned.
           String delimiter = recursive ? null : GoogleCloudStorage.PATH_DELIMITER;
 
+          GoogleCloudStorageItemInfo itemInfo = fileInfo.getItemInfo();
           // Obtain paths of children.
-          childNames = gcs.listObjectNames(
-              fileInfo.getItemInfo().getBucketName(),
-              fileInfo.getItemInfo().getObjectName(),
-              delimiter);
+          childNames =
+              gcs.listObjectNames(itemInfo.getBucketName(), itemInfo.getObjectName(), delimiter);
 
           // Obtain path for each child.
           for (String childName : childNames) {
-            URI childPath = pathCodec
-                .getPath(fileInfo.getItemInfo().getBucketName(), childName, false);
+            URI childPath = pathCodec.getPath(itemInfo.getBucketName(), childName, false);
             paths.add(childPath);
             logger.atFine().log("listFileNames: added: %s", childPath);
           }
@@ -1036,14 +1042,15 @@ public class GoogleCloudStorageFileSystem {
   public List<FileInfo> listAllFileInfoForPrefix(URI prefix)
       throws IOException {
     logger.atFine().log("listAllFileInfoForPrefix(%s)", prefix);
-    Preconditions.checkNotNull(prefix);
+    Preconditions.checkNotNull(prefix, "prefix could not be null");
 
     StorageResourceId prefixId = pathCodec.validatePathAndGetId(prefix, true);
-    Preconditions.checkState(
-        !prefixId.isRoot(), "Prefix must not be global root, got '%s'", prefix);
+    Preconditions.checkArgument(
+        !prefixId.isRoot(), "prefix must not be global root, got '%s'", prefix);
     // Use 'null' for delimiter to get full 'recursive' listing.
     List<GoogleCloudStorageItemInfo> itemInfos =
-        gcs.listObjectInfo(prefixId.getBucketName(), prefixId.getObjectName(), null);
+        gcs.listObjectInfo(
+            prefixId.getBucketName(), prefixId.getObjectName(), /* delimiter= */ null);
     List<FileInfo> fileInfos = FileInfo.fromItemInfos(pathCodec, itemInfos);
     fileInfos.sort(FILE_INFO_PATH_COMPARATOR);
     return fileInfos;
@@ -1073,7 +1080,8 @@ public class GoogleCloudStorageFileSystem {
     URI dirPath = FileInfo.convertToDirectoryPath(pathCodec, path);
     List<FileInfo> baseAndDirInfos = getFileInfosRaw(ImmutableList.of(path, dirPath));
     Preconditions.checkState(
-        baseAndDirInfos.size() == 2, "Expected baseAndDirInfos.size() == 2, got %s",
+        baseAndDirInfos.size() == 2,
+        "Expected baseAndDirInfos.size() == 2, got %s",
         baseAndDirInfos.size());
 
     // If the non-directory object exists, return a single-element list directly.
@@ -1088,8 +1096,7 @@ public class GoogleCloudStorageFileSystem {
     if (!dirInfo.exists()) {
       if (enableAutoRepair) {
         dirInfo = repairPossibleImplicitDirectory(dirInfo);
-      } else if (options.getCloudStorageOptions()
-                  .isInferImplicitDirectoriesEnabled()) {
+      } else if (options.getCloudStorageOptions().isInferImplicitDirectoriesEnabled()) {
         StorageResourceId dirId = dirInfo.getItemInfo().getResourceId();
         if (!dirInfo.isDirectory()) {
           dirId = FileInfo.convertToDirectoryPath(dirId);
@@ -1113,7 +1120,7 @@ public class GoogleCloudStorageFileSystem {
           GoogleCloudStorage.PATH_DELIMITER);
     }
     List<FileInfo> fileInfos = FileInfo.fromItemInfos(pathCodec, itemInfos);
-    Collections.sort(fileInfos, FILE_INFO_PATH_COMPARATOR);
+    fileInfos.sort(FILE_INFO_PATH_COMPARATOR);
     return fileInfos;
   }
 
@@ -1447,7 +1454,7 @@ public class GoogleCloudStorageFileSystem {
         options.getShouldIncludeInTimestampUpdatesPredicate();
     Set<URI> excludedParentPathsSet = new HashSet<>(excludedParents);
 
-    HashSet<URI> parentUrisToUpdate = new HashSet<>(modifiedObjects.size());
+    Set<URI> parentUrisToUpdate = Sets.newHashSetWithExpectedSize(modifiedObjects.size());
     for (URI modifiedObjectUri : modifiedObjects) {
       URI parentPathUri = getParentPath(modifiedObjectUri);
       if (!excludedParentPathsSet.contains(parentPathUri)
@@ -1476,10 +1483,11 @@ public class GoogleCloudStorageFileSystem {
   }
 
   /**
-   * For each listed modified object, attempt to update the modification time
-   * of the parent directory.
+   * For each listed modified object, attempt to update the modification time of the parent
+   * directory.
    *
-   * This method will log & swallow exceptions thrown by the GCSIO layer.
+   * <p>This method will log & swallow exceptions thrown by the GCSIO layer.
+   *
    * @param modifiedObjects The objects that have been modified
    * @param excludedParents A list of parent directories that we shouldn't attempt to update.
    */
