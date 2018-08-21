@@ -338,7 +338,7 @@ function config_mapred_site() {
   set_property_mapred_site 'mapreduce.ssl.enabled' 'true'
   set_property_mapred_site 'mapreduce.shuffle.ssl.enabled' 'true'
   set_property_mapred_site 'mapreduce.jobhistory.address' "${MASTER_FQDN}:10020"
-  set_property_mapred_site 'mapreduce.jobhistory.webapp.https.address' "{$MASTER_FQDN}:19889"
+  set_property_mapred_site 'mapreduce.jobhistory.webapp.https.address' "${MASTER_FQDN}:19889"
 }
 
 function copy_keystore_files() {
