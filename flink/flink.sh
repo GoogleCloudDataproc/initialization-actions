@@ -44,6 +44,11 @@ readonly START_FLINK_YARN_SESSION_METADATA_KEY='flink-start-yarn-session'
 # Set this to true to start a flink yarn session at initialization time.
 readonly START_FLINK_YARN_SESSION_DEFAULT=true
 
+readonly USE_FLINK_SNAPSHOT_METADATA_KEY='flink-use-snapshot'
+# Set this to true to install flink from a snapshot instead of apt
+readonly USE_FLINK_SNAPSHOT_METADATA_DEFAULT=false
+
+
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
   return 1
@@ -133,11 +138,34 @@ EOF
 
 }
 
+function install_flink_snapshot() {
+  local FLINK_TOPLEVEL='flink-1.5.2'
+  local FLINK_URL='http://www-eu.apache.org/dist/flink/flink-1.5.2/flink-1.5.2-bin-hadoop28-scala_2.11.tgz'
+  local FLINK_LOCAL='/tmp/flink-1.5.2-bin-hadoop28-scala_2.11.tgz'
+  local work_dir="$(mktemp -d)"
+
+  pushd "${work_dir}"
+
+  curl -o "${FLINK_LOCAL}" "${FLINK_URL}"
+  tar -xzvf "${FLINK_LOCAL}"
+  mv "${FLINK_TOPLEVEL}" "${FLINK_INSTALL_DIR}"
+
+  popd # work_dir
+
+}
+
 function main() {
 local role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+local use_snapshot="$(/usr/share/google/get_metadata_value \
+  "attributes/${USE_FLINK_SNAPSHOT_METADATA_KEY}" \
+  || echo "${USE_FLINK_SNAPSHOT_METADATA_DEFAULT}")"
 if [[ "${role}" == 'Master' ]] ; then
   update_apt_get || err "Unable to update apt-get"
-  apt-get install -y flink || err "Unable to install flink"
+  if ${use_snapshot} ; then
+    install_flink_snapshot || err "Unable to install flink"
+  else
+    apt-get install -y flink || err "Unable to install flink"
+  fi
   configure_flink || err "Flink configuration failed"
 fi
 }
