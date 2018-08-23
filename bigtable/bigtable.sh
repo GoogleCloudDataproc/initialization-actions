@@ -45,6 +45,7 @@ function install_big_table_client() {
 }
 
 function install_shc() {
+  mkdir -p "/usr/lib/spark/external"
   wget -q "${SPARK_HBASE_CLIENT_DL_LINK}" -O "/usr/lib/spark/external/${SPARK_HBASE_CLIENT}" \
     || err 'Unable to install shc.'
   ln -s "/usr/lib/spark/external/${SPARK_HBASE_CLIENT}" \
