@@ -416,7 +416,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String GCS_COPY_BATCH_THREADS = "fs.gs.copy.batch.threads";
 
   /** Default value for {@link #GCS_COPY_BATCH_THREADS}. */
-  public static final int GCS_COPY_BATCH_THREADS_DEFAULT = 30;
+  public static final int GCS_COPY_BATCH_THREADS_DEFAULT = 15;
 
   /** Configuration key for number of items to return per call to the list* GCS RPCs. */
   public static final String GCS_MAX_LIST_ITEMS_PER_CALL = "fs.gs.list.max.items.per.call";
@@ -434,7 +434,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final String GCS_BATCH_THREADS = "fs.gs.batch.threads";
 
   /** Default value for {@link #GCS_BATCH_THREADS}. */
-  public static final int GCS_BATCH_THREADS_DEFAULT = 30;
+  public static final int GCS_BATCH_THREADS_DEFAULT = 15;
 
   /**
    * Configuration key for the max number of retries for failed HTTP request to GCS. Note that the

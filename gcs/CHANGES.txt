@@ -4,9 +4,9 @@
      improve performance:
 
        fs.gs.copy.max.requests.per.batch (default: 1 -> 15)
-       fs.gs.copy.batch.threads (default: 50 -> 30)
+       fs.gs.copy.batch.threads (default: 50 -> 15)
        fs.gs.max.requests.per.batch (default: 25 -> 15)
-       fs.gs.batch.threads (default: 25 -> 30)
+       fs.gs.batch.threads (default: 25 -> 15)
 
   2. Migrate logging to Google Flogger.
 
