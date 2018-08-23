@@ -49,14 +49,28 @@ function err() {
   return 1
 }
 
-function update_apt_get() {
+function retry_apt_command() {
+  cmd="$1"
   for ((i = 0; i < 10; i++)); do
-    if apt-get update; then
+    if eval "$cmd"; then
       return 0
     fi
+
+    # Check if any process is holding the lock.
+    lsof /var/lib/dpkg/lock
+
     sleep 5
   done
   return 1
+}
+
+function update_apt_get() {
+  retry_apt_command "apt-get update"
+}
+
+function install_apt_get() {
+  pkgs="$@"
+  retry_apt_command "apt-get install -y $pkgs"
 }
 
 function configure_flink() {
@@ -137,7 +151,7 @@ function main() {
 local role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 if [[ "${role}" == 'Master' ]] ; then
   update_apt_get || err "Unable to update apt-get"
-  apt-get install -y flink || err "Unable to install flink"
+  install_apt_get flink || err "Unable to install flink"
   configure_flink || err "Flink configuration failed"
 fi
 }

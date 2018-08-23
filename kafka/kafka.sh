@@ -14,20 +14,34 @@
 #    limitations under the License.
 #
 # This script installs Apache Kafka (http://kafka.apache.org) on a Google Cloud
-# Dataproc cluster. 
+# Dataproc cluster.
 
 set -euxo pipefail
 
 readonly KAFKA_PROP_FILE='/etc/kafka/conf/server.properties'
 
-function update_apt_get() {
+function retry_apt_command() {
+  cmd="$1"
   for ((i = 0; i < 10; i++)); do
-    if apt-get update; then
+    if eval "$cmd"; then
       return 0
     fi
+
+    # Check if any process is holding the lock.
+    lsof /var/lib/dpkg/lock
+
     sleep 5
   done
   return 1
+}
+
+function update_apt_get() {
+  retry_apt_command "apt-get update"
+}
+
+function install_apt_get() {
+  pkgs="$@"
+  retry_apt_command "apt-get install -y $pkgs"
 }
 
 function err() {
@@ -40,7 +54,7 @@ function install_and_configure_kafka_server() {
   local zookeeper_client_port
   zookeeper_client_port=$(grep 'clientPort' /etc/zookeeper/conf/zoo.cfg \
     | cut -d '=' -f 2)
-  
+
   local zookeeper_list
   zookeeper_list=$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg \
     | cut -d '=' -f 2 \
@@ -63,7 +77,7 @@ function install_and_configure_kafka_server() {
   fi
 
   # Install Kafka from Dataproc distro.
-  apt-get install -y kafka-server || dpkg -l kafka-server \
+  install_apt_get kafka-server || dpkg -l kafka-server \
     || err 'Unable to install and find kafka-server on worker node.'
 
   mkdir -p /var/lib/kafka-logs
@@ -95,7 +109,7 @@ function main() {
     service zookeeper-server status \
       || err 'Required zookeeper-server not running on master!'
     # On master nodes, just install kafka libs but not kafka-server.
-    apt-get install -y kafka \
+    install_apt_get kafka \
       || err 'Unable to install kafka libraries on master!'
   else
     # Run installation on workers.
