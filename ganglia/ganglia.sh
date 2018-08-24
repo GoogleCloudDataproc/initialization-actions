@@ -58,7 +58,7 @@ function main() {
   sed -e "/udp_send_channel {/a\  host = ${master_hostname}" -i /etc/ganglia/gmond.conf
 
   if [[ "${HOSTNAME}" == "${master_hostname}" ]]; then
-    # Setup Ganglia host on the one master node ("0"-master in HA mode)
+    # Setup Ganglia host only on the master node ("0"-master in HA mode)
     setup_ganglia_host || err 'Setting up Ganglia host failed'
   else
     # Configure non-host Ganglia nodes
