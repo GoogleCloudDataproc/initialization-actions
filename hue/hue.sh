@@ -32,10 +32,6 @@ function retry_apt_command() {
     if eval "$cmd"; then
       return 0
     fi
-
-    # Check if any process is holding the lock.
-    lsof /var/lib/dpkg/lock
-
     sleep 5
   done
   return 1
