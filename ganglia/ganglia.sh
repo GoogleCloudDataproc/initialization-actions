@@ -52,10 +52,12 @@ function main() {
   update_apt_get || err 'Unable to update apt-get'
   apt-get install -y ganglia-monitor
 
+  sed -e "/send_metadata_interval = 0 /s/0/1/" -i /etc/ganglia/gmond.conf
   sed -e "/name = \"unspecified\" /s/unspecified/${cluster_name}/" -i /etc/ganglia/gmond.conf
   sed -e '/mcast_join /s/^  /  #/' -i /etc/ganglia/gmond.conf
   sed -e '/bind /s/^  /  #/' -i /etc/ganglia/gmond.conf
   sed -e "/udp_send_channel {/a\  host = ${master_hostname}" -i /etc/ganglia/gmond.conf
+
 
   if [[ "${HOSTNAME}" == "${master_hostname}" ]]; then
     # Only run on the one master node ("0"-master in HA mode)
