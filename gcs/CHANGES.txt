@@ -19,6 +19,11 @@
 
        java -Dflogger.backend=com.google.common.flogger.backend.log4j.Log4jBackendFactory#getInstance ...
 
+  3. Delete read buffer in `GoogleHadoopFSInputStream` class and remove property
+     that enables it:
+
+       fs.gs.inputstream.internalbuffer.enable (deafult: false)
+
 
 1.9.5 - 2018-08-09
 

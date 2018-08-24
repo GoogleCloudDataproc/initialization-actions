@@ -40,9 +40,6 @@ class GoogleHadoopFSInputStream extends FSInputStream {
   // All store IO access goes through this.
   private final SeekableByteChannel channel;
 
-  // Internal buffer.
-  private ByteBuffer buffer;
-
   // Path of the file to read.
   private URI gcsPath;
 
@@ -76,13 +73,8 @@ class GoogleHadoopFSInputStream extends FSInputStream {
     this.ghfs = ghfs;
     this.gcsPath = gcsPath;
     this.statistics = statistics;
-    initTime = System.nanoTime();
-    totalBytesRead = 0;
-
-    boolean enableInternalBuffer = ghfs.getConf().getBoolean(
-        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_KEY,
-        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_DEFAULT);
-    logger.atFine().log("enableInternalBuffer: %s", enableInternalBuffer);
+    this.initTime = System.nanoTime();
+    this.totalBytesRead = 0;
 
     boolean fastFailOnNotFound = ghfs.getConf().getBoolean(
         GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY,
@@ -113,22 +105,12 @@ class GoogleHadoopFSInputStream extends FSInputStream {
         GoogleCloudStorageReadOptions.builder()
             .setFastFailOnNotFound(fastFailOnNotFound)
             .setInplaceSeekLimit(inplaceSeekLimit)
+            .setBufferSize(bufferSize)
             .setFadvise(fadvise)
             .setMinRangeRequestSize(minRangeRequestSize)
             .setGenerationReadConsistency(generationConsistency);
-    if (enableInternalBuffer) {
-      buffer = ByteBuffer.allocate(bufferSize);
-      buffer.limit(0);
-      buffer.rewind();
-      // If we're using a buffer in this layer, skip the lower-level buffer.
-      readOptions.setBufferSize(0);
-    } else {
-      buffer = null;
-      // If not using internal buffer, let the lower-level channel figure out how to do buffering.
-      readOptions.setBufferSize(bufferSize);
-    }
 
-    channel = ghfs.getGcsFs().open(gcsPath, readOptions.build());
+    this.channel = ghfs.getGcsFs().open(gcsPath, readOptions.build());
   }
 
   /**
@@ -141,35 +123,20 @@ class GoogleHadoopFSInputStream extends FSInputStream {
   public synchronized int read() throws IOException {
     long startTime = System.nanoTime();
 
-    byte b;
-    if (buffer == null) {
-      // TODO(user): Wrap this in a while-loop if we ever introduce a non-blocking mode for the
-      // underlying channel.
-      int numRead = channel.read(ByteBuffer.wrap(singleReadBuf));
-      if (numRead == -1) {
-        return -1;
-      } else if (numRead != 1) {
-        throw new IOException(String.format(
-            "Somehow read %d bytes using single-byte buffer for path %s ending in position %d!",
-            numRead, gcsPath, channel.position()));
-      }
-      b = singleReadBuf[0];
-    } else {
-      // Refill the internal buffer if necessary.
-      if (!buffer.hasRemaining()) {
-        buffer.clear();
-        int numBytesRead = channel.read(buffer);
-        if (numBytesRead <= 0) {
-          buffer.limit(0);
-          buffer.rewind();
-          return -1;
-        }
-
-        buffer.flip();
-      }
-
-      b = buffer.get();
+    // TODO(user): Wrap this in a while-loop if we ever introduce a non-blocking mode for the
+    // underlying channel.
+    int numRead = channel.read(ByteBuffer.wrap(singleReadBuf));
+    if (numRead == -1) {
+      return -1;
     }
+    if (numRead != 1) {
+      throw new IOException(
+          String.format(
+              "Somehow read %d bytes using single-byte buffer for path %s ending in position %d!",
+              numRead, gcsPath, channel.position()));
+    }
+    byte b = singleReadBuf[0];
+
     totalBytesRead++;
     statistics.incrementBytesRead(1);
     long duration = System.nanoTime() - startTime;
@@ -179,69 +146,24 @@ class GoogleHadoopFSInputStream extends FSInputStream {
   }
 
   /**
-   * Reads up to length bytes from the underlying store and stores
-   * them starting at the specified offset in the given buffer.
-   * Less than length bytes may be returned.
+   * Reads up to length bytes from the underlying store and stores them starting at the specified
+   * offset in the given buffer. Less than length bytes may be returned.
    *
    * @param buf The buffer into which data is returned.
    * @param offset The offset at which data is written.
    * @param length Maximum number of bytes to read.
-   *
    * @return Number of bytes read or -1 on EOF.
    * @throws IOException if an IO error occurs.
    */
   @Override
-  public synchronized int read(byte[] buf, int offset, int length)
-      throws IOException {
+  public synchronized int read(byte[] buf, int offset, int length) throws IOException {
     long startTime = System.nanoTime();
     Preconditions.checkNotNull(buf, "buf must not be null");
     if (offset < 0 || length < 0 || length > buf.length - offset) {
       throw new IndexOutOfBoundsException();
     }
 
-    int numRead = 0;
-    if (buffer == null) {
-      numRead = channel.read(ByteBuffer.wrap(buf, offset, length));
-    } else {
-      while (numRead < length) {
-        int needToRead = length - numRead;
-        if (buffer.remaining() >= needToRead) {
-          // There are sufficient bytes, we'll only read a (not-necessarily-proper) subset of the
-          // internal buffer.
-          buffer.get(buf, offset + numRead, needToRead);
-          numRead += needToRead;
-        } else if (buffer.hasRemaining()) {
-          // We must take everything from the buffer and loop again.
-          int singleRead = buffer.remaining();
-          buffer.get(buf, offset + numRead, singleRead);
-          numRead += singleRead;
-        } else {
-          // Buffer is empty AND we still need more bytes to be read.
-          long channelTime = System.nanoTime();
-          buffer.clear();
-          int numNewBytes = channel.read(buffer);
-          long channelDuration = System.nanoTime() - channelTime;
-          ghfs.increment(GoogleHadoopFileSystemBase.Counter.READ_FROM_CHANNEL);
-          ghfs.increment(
-              GoogleHadoopFileSystemBase.Counter.READ_FROM_CHANNEL_TIME, channelDuration);
-          if (numNewBytes <= 0) {
-            // Ran out of underlying channel bytes.
-            buffer.limit(0);
-            buffer.rewind();
-
-            if (numRead == 0) {
-              // Never read anything at all; return -1 to indicate EOF. Otherwise, we'll leave
-              // numRead untouched and return the number of bytes we did manage to retrieve.
-              numRead = -1;
-            }
-            break;
-          } else {
-            // Successfully got some new bytes from the channel; keep looping.
-            buffer.flip();
-          }
-        }
-      }
-    }
+    int numRead = channel.read(ByteBuffer.wrap(buf, offset, length));
 
     if (numRead > 0) {
       // -1 means we actually read 0 bytes, but requested at least one byte.
@@ -256,16 +178,14 @@ class GoogleHadoopFSInputStream extends FSInputStream {
   }
 
   /**
-   * Reads up to length bytes from the underlying store and stores
-   * them starting at the specified offset in the given buffer.
-   * Less than length bytes may be returned. Reading starts at the
-   * given position.
+   * Reads up to length bytes from the underlying store and stores them starting at the specified
+   * offset in the given buffer. Less than length bytes may be returned. Reading starts at the given
+   * position.
    *
    * @param position Data is read from the stream starting at this position.
    * @param buf The buffer into which data is returned.
    * @param offset The offset at which data is written.
    * @param length Maximum number of bytes to read.
-   *
    * @return Number of bytes read or -1 on EOF.
    * @throws IOException if an IO error occurs.
    */
@@ -294,11 +214,9 @@ class GoogleHadoopFSInputStream extends FSInputStream {
    * @throws IOException if an IO error occurs.
    */
   @Override
-  public synchronized long getPos()
-      throws IOException {
-    int bufRemaining = (buffer == null ? 0 : buffer.remaining());
-    long pos = channel.position() - bufRemaining;
-    logger.atFine().log("getPos: %s", pos);
+  public synchronized long getPos() throws IOException {
+    long pos = channel.position();
+    logger.atFine().log("getPos: %d", pos);
     return pos;
   }
 
@@ -309,61 +227,13 @@ class GoogleHadoopFSInputStream extends FSInputStream {
    * @throws IOException if an IO error occurs or if the target position is invalid.
    */
   @Override
-  public synchronized void seek(long pos)
-      throws IOException {
+  public synchronized void seek(long pos) throws IOException {
     long startTime = System.nanoTime();
-    logger.atFine().log("seek: %s", pos);
-    if (buffer == null) {
-      try {
-        channel.position(pos);
-      } catch (IllegalArgumentException e) {
-        throw new IOException(e);
-      }
-    } else {
-      long curPos = getPos();
-      if (curPos == pos) {
-        logger.atFine().log("Skipping no-op seek.");
-      } else if (pos < curPos && curPos - pos <= buffer.position()) {
-        // Skip backwards few enough bytes that our current buffer still has those bytes around
-        // so that we simply need to reposition the buffer backwards a bit.
-        long skipBack = curPos - pos;
-
-        // Guaranteed safe to cast as an (int) because curPos - pos is <= buffer.position(), and
-        // position() is itself an int.
-        int newBufferPosition = buffer.position() - (int) skipBack;
-        logger.atFine().log(
-            "Skipping backward %s bytes in-place from buffer pos %s to new pos %s",
-            skipBack, buffer.position(), newBufferPosition);
-        buffer.position(newBufferPosition);
-      } else if (curPos < pos && pos < channel.position()) {
-        // Skip forwards--between curPos and channel.position() are the bytes we already have
-        // available in the buffer.
-        long skipBytes = pos - curPos;
-        Preconditions.checkState(skipBytes < buffer.remaining(),
-            "skipBytes (%s) must be less than buffer.remaining() (%s)",
-            skipBytes, buffer.remaining());
-
-        // We know skipBytes is castable as (int) even if the top-level position is capable of
-        // overflowing an int, since we at least assert that skipBytes < buffer.remaining(),
-        // which is itself less than Integer.MAX_VALUE.
-        int newBufferPosition = buffer.position() + (int) skipBytes;
-        logger.atFine().log(
-            "Skipping %s bytes in-place from buffer pos %s to new pos %s",
-            skipBytes, buffer.position(), newBufferPosition);
-        buffer.position(newBufferPosition);
-      } else {
-        logger.atFine().log(
-            "New position '%s' out of range of inplace buffer, with curPos (%s), "
-                + "buffer.position() (%s) and buffer.remaining() (%s).",
-            pos, curPos, buffer.position(), buffer.remaining());
-        try {
-          channel.position(pos);
-        } catch (IllegalArgumentException e) {
-          throw new IOException(e);
-        }
-        buffer.limit(0);
-        buffer.rewind();
-      }
+    logger.atFine().log("seek: %d", pos);
+    try {
+      channel.position(pos);
+    } catch (IllegalArgumentException e) {
+      throw new IOException(e);
     }
     long duration = System.nanoTime() - startTime;
     ghfs.increment(GoogleHadoopFileSystemBase.Counter.SEEK);
@@ -376,8 +246,7 @@ class GoogleHadoopFSInputStream extends FSInputStream {
    * @return true if a new source is found, false otherwise.
    */
   @Override
-  public synchronized boolean seekToNewSource(long targetPos)
-      throws IOException {
+  public synchronized boolean seekToNewSource(long targetPos) throws IOException {
     return false;
   }
 
@@ -387,19 +256,17 @@ class GoogleHadoopFSInputStream extends FSInputStream {
    * @throws IOException if an IO error occurs.
    */
   @Override
-  public synchronized void close()
-      throws IOException {
+  public synchronized void close() throws IOException {
     if (channel != null) {
       long startTime = System.nanoTime();
-      logger.atFine().log("close: file: %s, totalBytesRead: %s", gcsPath, totalBytesRead);
+      logger.atFine().log("close: file: %s, totalBytesRead: %d", gcsPath, totalBytesRead);
       channel.close();
       long duration = System.nanoTime() - startTime;
       ghfs.increment(GoogleHadoopFileSystemBase.Counter.READ_CLOSE);
       ghfs.increment(GoogleHadoopFileSystemBase.Counter.READ_CLOSE_TIME, duration);
       long streamDuration = System.nanoTime() - initTime;
       ghfs.increment(GoogleHadoopFileSystemBase.Counter.INPUT_STREAM);
-      ghfs.increment(
-          GoogleHadoopFileSystemBase.Counter.INPUT_STREAM_TIME, streamDuration);
+      ghfs.increment(GoogleHadoopFileSystemBase.Counter.INPUT_STREAM_TIME, streamDuration);
     }
   }
 

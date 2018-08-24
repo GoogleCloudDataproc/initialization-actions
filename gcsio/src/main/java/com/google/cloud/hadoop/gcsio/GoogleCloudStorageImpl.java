@@ -682,9 +682,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     };
   }
 
-  /**
-   * See {@link GoogleCloudStorage#deleteBuckets(List<String>)} for details about expected behavior.
-   */
+  /** See {@link GoogleCloudStorage#deleteBuckets(List)} for details about expected behavior. */
   @Override
   public void deleteBuckets(List<String> bucketNames) throws IOException {
     logger.atFine().log("deleteBuckets(%s)", bucketNames);

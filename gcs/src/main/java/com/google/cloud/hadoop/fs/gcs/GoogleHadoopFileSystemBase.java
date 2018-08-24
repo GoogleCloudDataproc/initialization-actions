@@ -530,19 +530,6 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       GoogleCloudStorageReadOptions.DEFAULT_GENERATION_READ_CONSISTENCY;
 
   /**
-   * If true, the returned FSDataInputStream from the open(Path) method will hold an internal
-   * ByteBuffer of size fs.gs.io.buffersize which it pre-fills on each read, and can efficiently
-   * seek within the internal buffer. Otherwise, calls are delegated straight through to a lower
-   * level channel and the value of {@link #BUFFERSIZE_KEY} is passed through for the lower-level
-   * channel to interpret as it sees fit.
-   */
-  public static final String GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_KEY =
-      "fs.gs.inputstream.internalbuffer.enable";
-
-  /** Default value for {@link #GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_KEY}. */
-  public static final boolean GCS_INPUTSTREAM_INTERNALBUFFER_ENABLE_DEFAULT = false;
-
-  /**
    * If true, on opening a file we will proactively perform a metadata GET to check whether the
    * object exists, even though the underlying channel will not open a data stream until read() is
    * actually called so that streams can seek to nonzero file positions without incurring an extra
@@ -599,13 +586,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public static final boolean GCE_BUCKET_DELETE_ENABLE_DEFAULT = false;
 
   /** Default PathFilter that accepts all paths. */
-  public static final PathFilter DEFAULT_FILTER =
-      new PathFilter() {
-        @Override
-        public boolean accept(Path path) {
-          return true;
-        }
-      };
+  public static final PathFilter DEFAULT_FILTER = path -> true;
 
   /** A resource file containing GCS related build properties. */
   public static final String PROPERTIES_FILE = "gcs.properties";

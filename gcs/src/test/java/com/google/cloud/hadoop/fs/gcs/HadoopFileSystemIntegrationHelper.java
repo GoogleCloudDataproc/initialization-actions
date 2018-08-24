@@ -44,7 +44,6 @@ public class HadoopFileSystemIntegrationHelper
   FileSystem ghfs;
   FileSystemDescriptor ghfsFileSystemDescriptor;
 
-
   /**
    * FS statistics mode.
    */
