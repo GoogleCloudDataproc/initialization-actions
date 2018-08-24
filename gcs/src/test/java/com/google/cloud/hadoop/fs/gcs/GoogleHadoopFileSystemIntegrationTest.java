@@ -236,14 +236,10 @@ public class GoogleHadoopFileSystemIntegrationTest
     assertThat(gcsOptions.isInferImplicitDirectoriesEnabled()).isTrue();
   }
 
-  /**
-   * Validates success path in initialize().
-   */
-  @Test @Override
-  public void testInitializeSuccess()
-      throws IOException, URISyntaxException {
-    GoogleHadoopFileSystem fs = null;
-
+  /** Validates success path in initialize(). */
+  @Test
+  @Override
+  public void testInitializeSuccess() throws IOException, URISyntaxException {
     // Reuse loadConfig() to initialize auth related settings.
     Configuration config = loadConfig();
 
@@ -257,11 +253,13 @@ public class GoogleHadoopFileSystemIntegrationTest
     config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, systemBucketName);
 
     URI initUri = (new Path("gs://" + rootBucketName)).toUri();
-    fs = new GoogleHadoopFileSystem();
+    GoogleHadoopFileSystem fs = new GoogleHadoopFileSystem();
     fs.initialize(initUri, config);
+    GoogleCloudStorageOptions cloudStorageOptions =
+        fs.getGcsFs().getOptions().getCloudStorageOptions();
 
     // Verify that config settings were set correctly.
-    assertThat(fs.getBufferSizeOverride()).isEqualTo(bufferSize);
+    assertThat(cloudStorageOptions.getReadChannelOptions().getBufferSize()).isEqualTo(bufferSize);
     assertThat(fs.getDefaultBlockSize()).isEqualTo(blockSize);
     assertThat(fs.getSystemBucketName()).isEqualTo(systemBucketName);
     assertThat(fs.initUri).isEqualTo(initUri);
@@ -270,9 +268,10 @@ public class GoogleHadoopFileSystemIntegrationTest
     initUri = (new Path("gs:/foo")).toUri();
     fs = new GoogleHadoopFileSystem();
     fs.initialize(initUri, config);
+    cloudStorageOptions = fs.getGcsFs().getOptions().getCloudStorageOptions();
 
     // Verify that config settings were set correctly.
-    assertThat(fs.getBufferSizeOverride()).isEqualTo(bufferSize);
+    assertThat(cloudStorageOptions.getReadChannelOptions().getBufferSize()).isEqualTo(bufferSize);
     assertThat(fs.getDefaultBlockSize()).isEqualTo(blockSize);
     assertThat(fs.getSystemBucketName()).isEqualTo(systemBucketName);
     assertThat(fs.initUri).isEqualTo(initUri);

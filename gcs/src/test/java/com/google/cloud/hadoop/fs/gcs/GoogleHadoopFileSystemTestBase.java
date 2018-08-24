@@ -20,10 +20,10 @@ import static org.junit.Assert.assertThrows;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions.TimestampUpdatePredicate;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.testing.TestingAccessTokenProvider;
 import com.google.cloud.hadoop.util.HadoopVersionInfo;
-import com.google.common.base.Strings;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -157,11 +157,14 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
   @Test
   public void testConfig() {
     GoogleHadoopFileSystemBase myghfs = (GoogleHadoopFileSystemBase) ghfs;
-    Assert.assertEquals(
-        GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT, myghfs.getBufferSizeOverride());
-    Assert.assertEquals(
-        GoogleHadoopFileSystemBase.BLOCK_SIZE_DEFAULT, myghfs.getDefaultBlockSize());
-    Assert.assertTrue(!Strings.isNullOrEmpty(myghfs.getSystemBucketName()));
+    GoogleCloudStorageOptions cloudStorageOptions =
+        myghfs.getGcsFs().getOptions().getCloudStorageOptions();
+
+    assertThat(cloudStorageOptions.getReadChannelOptions().getBufferSize())
+        .isEqualTo(GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT);
+    assertThat(myghfs.getDefaultBlockSize())
+        .isEqualTo(GoogleHadoopFileSystemBase.BLOCK_SIZE_DEFAULT);
+    assertThat(myghfs.getSystemBucketName()).isNotEmpty();
   }
 
   /**

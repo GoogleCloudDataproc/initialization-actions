@@ -122,13 +122,13 @@ public class GoogleHadoopSyncableOutputStreamTest {
   @Test
   public void testExceptionOnDelete() throws IOException, InterruptedException, ExecutionException {
     Path objectPath = new Path(ghfs.getFileSystemRoot(), "dir/object2.txt");
-    GoogleHadoopSyncableOutputStream fout = new GoogleHadoopSyncableOutputStream(
-        ghfs,
-        ghfs.getGcsPath(objectPath),
-        4096,
-        new FileSystem.Statistics(ghfs.getScheme()),
-        CreateFileOptions.DEFAULT,
-        mockExecutorService);
+    GoogleHadoopSyncableOutputStream fout =
+        new GoogleHadoopSyncableOutputStream(
+            ghfs,
+            ghfs.getGcsPath(objectPath),
+            new FileSystem.Statistics(ghfs.getScheme()),
+            CreateFileOptions.DEFAULT,
+            mockExecutorService);
 
     IOException fakeIoException = new IOException("fake io exception");
     when(mockExecutorService.submit(any(Callable.class)))

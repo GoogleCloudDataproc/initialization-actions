@@ -115,9 +115,6 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
   // The final destination path for this stream.
   private final URI finalGcsPath;
 
-  // Buffer size to pass through to delegate streams.
-  private final int bufferSize;
-
   // Statistics tracker provided by the parent GoogleHadoopFileSystemBase for recording
   // numbers of bytes written.
   private final FileSystem.Statistics statistics;
@@ -147,26 +144,29 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
   private long curDestGenerationId;
 
   /**
-   * Creates a new GoogleHadoopSyncableOutputStream with initial stream initialized and expected
-   * to begin at file-offset 0. This constructor is not suitable for "appending" to already
-   * existing files.
+   * Creates a new GoogleHadoopSyncableOutputStream with initial stream initialized and expected to
+   * begin at file-offset 0. This constructor is not suitable for "appending" to already existing
+   * files.
    */
   public GoogleHadoopSyncableOutputStream(
-      GoogleHadoopFileSystemBase ghfs, URI gcsPath, int bufferSize,
-      FileSystem.Statistics statistics, CreateFileOptions createFileOptions)
+      GoogleHadoopFileSystemBase ghfs,
+      URI gcsPath,
+      FileSystem.Statistics statistics,
+      CreateFileOptions createFileOptions)
       throws IOException {
-    this(ghfs, gcsPath, bufferSize, statistics, createFileOptions, TEMPFILE_CLEANUP_THREADPOOL);
+    this(ghfs, gcsPath, statistics, createFileOptions, TEMPFILE_CLEANUP_THREADPOOL);
   }
 
   GoogleHadoopSyncableOutputStream(
-      GoogleHadoopFileSystemBase ghfs, URI gcsPath, int bufferSize,
-      FileSystem.Statistics statistics, CreateFileOptions createFileOptions,
+      GoogleHadoopFileSystemBase ghfs,
+      URI gcsPath,
+      FileSystem.Statistics statistics,
+      CreateFileOptions createFileOptions,
       ExecutorService cleanupThreadpool)
       throws IOException {
-    logger.atFine().log("GoogleHadoopSyncableOutputStream(%s, %s)", gcsPath, bufferSize);
+    logger.atFine().log("GoogleHadoopSyncableOutputStream(%s)", gcsPath);
     this.ghfs = ghfs;
     this.finalGcsPath = gcsPath;
-    this.bufferSize = bufferSize;
     this.statistics = statistics;
     this.fileOptions = createFileOptions;
     this.deletionFutures = new ArrayList<>();
@@ -176,8 +176,7 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
     // the case where no hsync() or a single hsync() is called during the lifetime of the stream;
     // committing the first component thus doesn't require any compose() call under the hood.
     this.curGcsPath = gcsPath;
-    this.curDelegate = new GoogleHadoopOutputStream(
-        ghfs, curGcsPath, bufferSize, statistics, fileOptions);
+    this.curDelegate = new GoogleHadoopOutputStream(ghfs, curGcsPath, statistics, fileOptions);
 
     // TODO(user): Make sure to initialize this to the correct value if a new stream is created to
     // "append" to an existing file.
@@ -280,10 +279,10 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
     logger.atFine().log(
         "hsync(): Opening next temporary tail file %s as component number %s",
         curGcsPath, curComponentIndex);
-    curDelegate = new GoogleHadoopOutputStream(
-        ghfs, curGcsPath, bufferSize, statistics, TEMPFILE_CREATE_OPTIONS);
+    curDelegate =
+        new GoogleHadoopOutputStream(ghfs, curGcsPath, statistics, TEMPFILE_CREATE_OPTIONS);
     long endTime = System.nanoTime();
-    logger.atFine().log("Took %s ns to hsync()", endTime - startTime);
+    logger.atFine().log("Took %d ns to hsync()", endTime - startTime);
   }
 
   private void commitCurrentFile() throws IOException {

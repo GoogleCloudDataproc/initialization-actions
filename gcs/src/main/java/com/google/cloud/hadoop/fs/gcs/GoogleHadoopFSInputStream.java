@@ -17,8 +17,6 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
 import com.google.common.base.Preconditions;
 import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
@@ -61,56 +59,22 @@ class GoogleHadoopFSInputStream extends FSInputStream {
    *
    * @param ghfs Instance of GoogleHadoopFileSystemBase.
    * @param gcsPath Path of the file to read from.
-   * @param bufferSize Size of the buffer to use.
    * @param statistics File system statistics object.
    * @throws IOException if an IO error occurs.
    */
   GoogleHadoopFSInputStream(
-      GoogleHadoopFileSystemBase ghfs, URI gcsPath, int bufferSize,
+      GoogleHadoopFileSystemBase ghfs,
+      URI gcsPath,
+      GoogleCloudStorageReadOptions readOptions,
       FileSystem.Statistics statistics)
       throws IOException {
-    logger.atFine().log("GoogleHadoopFSInputStream(%s, %s)", gcsPath, bufferSize);
+    logger.atFine().log("GoogleHadoopFSInputStream(%s)", gcsPath);
     this.ghfs = ghfs;
     this.gcsPath = gcsPath;
     this.statistics = statistics;
     this.initTime = System.nanoTime();
     this.totalBytesRead = 0;
-
-    boolean fastFailOnNotFound = ghfs.getConf().getBoolean(
-        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY,
-        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_DEFAULT);
-    logger.atFine().log("fastFailOnNotFound: %s", fastFailOnNotFound);
-
-    long inplaceSeekLimit = ghfs.getConf().getLong(
-        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY,
-        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_DEFAULT);
-    logger.atFine().log("inplaceSeekLimit: %s", inplaceSeekLimit);
-
-    Fadvise fadvise = ghfs.getConf().getEnum(
-        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FADVISE_KEY,
-        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_FADVISE_DEFAULT);
-    logger.atFine().log("fadvise: %s", fadvise);
-
-    int minRangeRequestSize = ghfs.getConf().getInt(
-        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_KEY,
-        GoogleHadoopFileSystemBase.GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_DEFAULT);
-    logger.atFine().log("minRangeRequestSize: %s", minRangeRequestSize);
-
-    GenerationReadConsistency generationConsistency = ghfs.getConf().getEnum(
-        GoogleHadoopFileSystemBase.GCS_GENERATION_READ_CONSISTENCY_KEY,
-        GoogleHadoopFileSystemBase.GCS_GENERATION_READ_CONSISTENCY_DEFAULT);
-    logger.atFine().log("generationReadConsistency: %s", generationConsistency);
-
-    GoogleCloudStorageReadOptions.Builder readOptions =
-        GoogleCloudStorageReadOptions.builder()
-            .setFastFailOnNotFound(fastFailOnNotFound)
-            .setInplaceSeekLimit(inplaceSeekLimit)
-            .setBufferSize(bufferSize)
-            .setFadvise(fadvise)
-            .setMinRangeRequestSize(minRangeRequestSize)
-            .setGenerationReadConsistency(generationConsistency);
-
-    this.channel = ghfs.getGcsFs().open(gcsPath, readOptions.build());
+    this.channel = ghfs.getGcsFs().open(gcsPath, readOptions);
   }
 
   /**

@@ -493,17 +493,17 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
     Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
 
-    byte[] testBytes = new byte[GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT * 3];
+    int bufferSize = 8 * 1024 * 1024;
+
+    byte[] testBytes = new byte[bufferSize * 3];
     // The value of each byte should be each to its integer index squared, cast as a byte.
     for (int i = 0; i < testBytes.length; ++i) {
       testBytes[i] = (byte) (i * i);
     }
-    int numBytesWritten =
-        ghfsHelper.writeFile(hadoopPath, ByteBuffer.wrap(testBytes), 1, false);
+    int numBytesWritten = ghfsHelper.writeFile(hadoopPath, ByteBuffer.wrap(testBytes), 1, false);
     Assert.assertEquals(testBytes.length, numBytesWritten);
 
-    try (FSDataInputStream readStream =
-        ghfs.open(hadoopPath, GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT)) {
+    try (FSDataInputStream readStream = ghfs.open(hadoopPath, bufferSize)) {
       Assert.assertEquals(0, readStream.getPos());
       Assert.assertEquals(testBytes[0], (byte) readStream.read());
       Assert.assertEquals(1, readStream.getPos());
@@ -525,7 +525,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       Assert.assertEquals(3, readStream.getPos());
 
       // Seek farther, but within the read buffersize.
-      int midPos = (int) GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT / 2;
+      int midPos = bufferSize / 2;
       readStream.seek(midPos);
       Assert.assertEquals(midPos, readStream.getPos());
       Assert.assertEquals(testBytes[midPos], (byte) readStream.read());
@@ -537,7 +537,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       Assert.assertEquals(testBytes[42], (byte) readStream.read());
 
       // Seek to right before the end of the internal buffer.
-      int edgePos = (int) GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT - 1;
+      int edgePos = bufferSize - 1;
       readStream.seek(edgePos);
       Assert.assertEquals(edgePos, readStream.getPos());
       Assert.assertEquals(testBytes[edgePos], (byte) readStream.read());
@@ -555,7 +555,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       Assert.assertEquals(testBytes[edgePos + 1], (byte) readStream.read());
 
       // Seek into buffer 2, then seek a bit further into it.
-      int bufferTwoStart = GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT * 2;
+      int bufferTwoStart = bufferSize * 2;
       readStream.seek(bufferTwoStart);
       Assert.assertEquals(bufferTwoStart, readStream.getPos());
       Assert.assertEquals(testBytes[bufferTwoStart], (byte) readStream.read());
@@ -569,7 +569,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       Assert.assertEquals(testBytes[bufferTwoStart], (byte) readStream.read());
 
       // Seek backwards by one buffer, but not all the way back to buffer 0.
-      int bufferOneInternal = GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT + 42;
+      int bufferOneInternal = bufferSize + 42;
       readStream.seek(bufferOneInternal);
       Assert.assertEquals(bufferOneInternal, readStream.getPos());
       Assert.assertEquals(testBytes[bufferOneInternal], (byte) readStream.read());

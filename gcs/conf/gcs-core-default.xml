@@ -170,7 +170,7 @@
   </property>
   <property>
     <name>fs.gs.io.buffersize</name>
-    <value>8388608</value>
+    <value>0</value>
     <description>
       The number of bytes in read buffers.
     </description>

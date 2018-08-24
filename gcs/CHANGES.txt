@@ -24,6 +24,13 @@
 
        fs.gs.inputstream.internalbuffer.enable (deafult: false)
 
+  4. Disable read buffer in `GoogleCloudStorageReadChannel` by default because
+     it does not provide significant performance benefits:
+
+       fs.gs.io.buffersize (deafult: 8388608 -> 0)
+
+  5. Remove output buffer in `GoogleHadoopOutputStream`.
+
 
 1.9.5 - 2018-08-09
 

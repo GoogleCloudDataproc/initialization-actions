@@ -143,7 +143,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * Hadoop passes 4096 bytes as buffer size which causes poor perf. Default value of {@link
    * #BUFFERSIZE_KEY}.
    */
-  public static final int BUFFERSIZE_DEFAULT = 8 * 1024 * 1024;
+  public static final int BUFFERSIZE_DEFAULT = 0;
 
   /** Configuration key for setting write buffer size. */
   public static final String WRITE_BUFFERSIZE_KEY = "fs.gs.io.buffersize.write";
@@ -632,9 +632,6 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    */
   private Path workingDirectory;
 
-  /** Buffer size to use instead of what Hadoop passed. */
-  private int bufferSizeOverride = BUFFERSIZE_DEFAULT;
-
   /**
    * Default block size. Note that this is the size that is reported to Hadoop FS clients. It does
    * not modify the actual block size of an underlying GCS object, because GCS JSON API does not
@@ -1068,21 +1065,17 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    */
   @Override
   public FSDataInputStream open(Path hadoopPath, int bufferSize) throws IOException {
-
     long startTime = System.nanoTime();
-    Preconditions.checkArgument(hadoopPath != null,
-        "hadoopPath must not be null");
-    Preconditions.checkArgument(bufferSize > 0,
-        "bufferSize must be a positive integer: %s", bufferSize);
+    Preconditions.checkArgument(hadoopPath != null, "hadoopPath must not be null");
 
     checkOpen();
 
-    logger.atFine().log(
-        "GHFS.open: %s, bufferSize: %s (override: %s)", hadoopPath, bufferSize, bufferSizeOverride);
-    bufferSize = bufferSizeOverride;
+    logger.atFine().log("GHFS.open: %s, bufferSize: %d (ignored)", hadoopPath, bufferSize);
     URI gcsPath = getGcsPath(hadoopPath);
+    GoogleCloudStorageReadOptions readChannelOptions =
+        getGcsFs().getOptions().getCloudStorageOptions().getReadChannelOptions();
     GoogleHadoopFSInputStream in =
-        new GoogleHadoopFSInputStream(this, gcsPath, bufferSize, statistics);
+        new GoogleHadoopFSInputStream(this, gcsPath, readChannelOptions, statistics);
 
     long duration = System.nanoTime() - startTime;
     increment(Counter.OPEN);
@@ -1092,11 +1085,6 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
   /**
    * Opens the given file for writing.
-   *
-   * Note:
-   * This function overrides the given bufferSize value with a higher
-   * number unless further overridden using configuration
-   * parameter fs.gs.io.buffersize.
    *
    * @param hadoopPath The file to open.
    * @param permission Permissions to set on the new file. Ignored.
@@ -1122,19 +1110,16 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
     long startTime = System.nanoTime();
     Preconditions.checkArgument(hadoopPath != null, "hadoopPath must not be null");
-    Preconditions.checkArgument(bufferSize > 0,
-        "bufferSize must be a positive integer: %s", bufferSize);
-    Preconditions.checkArgument(replication > 0,
-        "replication must be a positive integer: %s", replication);
-    Preconditions.checkArgument(blockSize > 0,
-        "blockSize must be a positive integer: %s", blockSize);
+    Preconditions.checkArgument(
+        replication > 0, "replication must be a positive integer: %s", replication);
+    Preconditions.checkArgument(
+        blockSize > 0, "blockSize must be a positive integer: %s", blockSize);
 
     checkOpen();
 
     logger.atFine().log(
-        "GHFS.create: %s, overwrite: %s, bufferSize: %s (override: %s)",
-        hadoopPath, overwrite, bufferSize, bufferSizeOverride);
-    bufferSize = bufferSizeOverride;
+        "GHFS.create: %s, overwrite: %s, bufferSize: %d (ignored)",
+        hadoopPath, overwrite, bufferSize);
 
     URI gcsPath = getGcsPath(hadoopPath);
 
@@ -1143,20 +1128,14 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     OutputStream out;
     switch (type) {
       case BASIC:
-        out = new GoogleHadoopOutputStream(
-            this,
-            gcsPath,
-            bufferSize,
-            statistics,
-            new CreateFileOptions(overwrite));
+        out =
+            new GoogleHadoopOutputStream(
+                this, gcsPath, statistics, new CreateFileOptions(overwrite));
         break;
       case SYNCABLE_COMPOSITE:
-        out = new GoogleHadoopSyncableOutputStream(
-            this,
-            gcsPath,
-            bufferSize,
-            statistics,
-            new CreateFileOptions(overwrite));
+        out =
+            new GoogleHadoopSyncableOutputStream(
+                this, gcsPath, statistics, new CreateFileOptions(overwrite));
         break;
       default:
         throw new IOException(String.format(
@@ -1180,20 +1159,13 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * @throws IOException if an error occurs.
    */
   @Override
-  public FSDataOutputStream append(
-      Path hadoopPath,
-      int bufferSize,
-      Progressable progress) throws IOException {
+  public FSDataOutputStream append(Path hadoopPath, int bufferSize, Progressable progress)
+      throws IOException {
 
     long startTime = System.nanoTime();
     Preconditions.checkArgument(hadoopPath != null, "hadoopPath must not be null");
-    Preconditions.checkArgument(bufferSize > 0,
-        "bufferSize must be a positive integer: %s", bufferSize);
 
-    logger.atFine().log(
-        "GHFS.append: %s, bufferSize: %s (override: %s)",
-        hadoopPath, bufferSize, bufferSizeOverride);
-    bufferSize = bufferSizeOverride;
+    logger.atFine().log("GHFS.append: %s, bufferSize: %d (ignored)", hadoopPath, bufferSize);
 
     long duration = System.nanoTime() - startTime;
     increment(Counter.APPEND);
@@ -1712,14 +1684,6 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   }
 
   /**
-   * Gets buffer size that overrides the default value.
-   */
-  @VisibleForTesting
-  int getBufferSizeOverride() {
-    return bufferSizeOverride;
-  }
-
-  /**
    * Gets system bucket name.
    *
    * @deprecated Use getUri().authority instead.
@@ -1916,9 +1880,6 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       optionsBuilder.setPathCodec(pathCodec);
       gcsfs = new GoogleCloudStorageFileSystem(credential, optionsBuilder.build());
     }
-
-    bufferSizeOverride = config.getInt(BUFFERSIZE_KEY, BUFFERSIZE_DEFAULT);
-    logger.atFine().log("%s = %s", BUFFERSIZE_KEY, bufferSizeOverride);
 
     defaultBlockSize = config.getLong(BLOCK_SIZE_KEY, BLOCK_SIZE_DEFAULT);
     logger.atFine().log("%s = %s", BLOCK_SIZE_KEY, defaultBlockSize);
@@ -2292,6 +2253,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
         .setImmutablePerformanceCachingOptions(getPerformanceCachingOptions(config));
 
     gcsOptionsBuilder
+        .setReadChannelOptions(getReadChannelOptions(config))
         .setWriteChannelOptions(getWriteChannelOptions(config))
         .setRequesterPaysOptions(getRequesterPaysOptions(config, projectId));
 
@@ -2326,6 +2288,47 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
         .setMaxEntryAgeMillis(performanceCacheMaxEntryAgeMillis)
         .setListCachingEnabled(listCachingEnabled)
         .setDirMetadataPrefetchLimit(dirMetadataPrefetchLimit)
+        .build();
+  }
+
+  private static GoogleCloudStorageReadOptions getReadChannelOptions(Configuration configuration) {
+    boolean fastFailOnNotFound =
+        configuration.getBoolean(
+            GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY,
+            GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_DEFAULT);
+    logger.atFine().log(
+        "%s = %s", GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY, fastFailOnNotFound);
+
+    long inplaceSeekLimit =
+        configuration.getLong(
+            GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY, GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_DEFAULT);
+    logger.atFine().log("%s = %d", GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY, inplaceSeekLimit);
+
+    int bufferSize = configuration.getInt(BUFFERSIZE_KEY, BUFFERSIZE_DEFAULT);
+    logger.atFine().log("%s = %d", BUFFERSIZE_KEY, bufferSize);
+
+    Fadvise fadvise =
+        configuration.getEnum(GCS_INPUTSTREAM_FADVISE_KEY, GCS_INPUTSTREAM_FADVISE_DEFAULT);
+    logger.atFine().log("%s = %s", GCS_INPUTSTREAM_FADVISE_KEY, fadvise);
+
+    int minRangeRequestSize =
+        configuration.getInt(
+            GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_KEY,
+            GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_DEFAULT);
+    logger.atFine().log("%s = %d", GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_KEY, minRangeRequestSize);
+
+    GenerationReadConsistency generationConsistency =
+        configuration.getEnum(
+            GCS_GENERATION_READ_CONSISTENCY_KEY, GCS_GENERATION_READ_CONSISTENCY_DEFAULT);
+    logger.atFine().log("%s = %s", GCS_GENERATION_READ_CONSISTENCY_KEY, generationConsistency);
+
+    return GoogleCloudStorageReadOptions.builder()
+        .setFastFailOnNotFound(fastFailOnNotFound)
+        .setInplaceSeekLimit(inplaceSeekLimit)
+        .setBufferSize(bufferSize)
+        .setFadvise(fadvise)
+        .setMinRangeRequestSize(minRangeRequestSize)
+        .setGenerationReadConsistency(generationConsistency)
         .build();
   }
 

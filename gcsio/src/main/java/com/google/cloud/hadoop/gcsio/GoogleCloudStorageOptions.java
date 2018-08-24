@@ -69,6 +69,10 @@ public abstract class GoogleCloudStorageOptions {
   /** Default setting for number of threads to execute GCS batch requests for copy operations. */
   public static final int COPY_BATCH_THREADS_DEFAULT = BATCH_THREADS_DEFAULT;
 
+  /** Default setting for read write channel. */
+  public static final GoogleCloudStorageReadOptions READ_CHANNEL_OPTIONS_DEFAULT =
+      GoogleCloudStorageReadOptions.DEFAULT;
+
   /** Default setting for async write channel. */
   public static final AsyncWriteChannelOptions ASYNC_WRITE_CHANNEL_OPTIONS_DEFAULT =
       AsyncWriteChannelOptions.newBuilder().build();
@@ -93,6 +97,7 @@ public abstract class GoogleCloudStorageOptions {
         .setCopyWithRewriteEnabled(COPY_WITH_REWRITE_DEFAULT)
         .setCopyMaxRequestsPerBatch(COPY_MAX_REQUESTS_PER_BATCH_DEFAULT)
         .setCopyBatchThreads(COPY_BATCH_THREADS_DEFAULT)
+        .setReadChannelOptions(READ_CHANNEL_OPTIONS_DEFAULT)
         .setWriteChannelOptions(ASYNC_WRITE_CHANNEL_OPTIONS_DEFAULT)
         .setRequesterPaysOptions(REQUESTER_PAYS_OPTIONS_DEFAULT);
   }
@@ -133,6 +138,8 @@ public abstract class GoogleCloudStorageOptions {
   public abstract String getProxyAddress();
 
   public abstract boolean isCopyWithRewriteEnabled();
+
+  public abstract GoogleCloudStorageReadOptions getReadChannelOptions();
 
   public abstract AsyncWriteChannelOptions getWriteChannelOptions();
 
@@ -189,6 +196,8 @@ public abstract class GoogleCloudStorageOptions {
     public abstract Builder setCopyMaxRequestsPerBatch(long copyMaxRequestsPerBatch);
 
     public abstract Builder setCopyBatchThreads(int copyBatchThreads);
+
+    public abstract Builder setReadChannelOptions(GoogleCloudStorageReadOptions readChannelOptions);
 
     public abstract Builder setWriteChannelOptions(AsyncWriteChannelOptions writeChannelOptions);
 

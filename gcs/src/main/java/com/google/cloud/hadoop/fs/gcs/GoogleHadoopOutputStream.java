@@ -18,7 +18,6 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.common.flogger.GoogleLogger;
-import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
@@ -27,11 +26,8 @@ import java.nio.channels.WritableByteChannel;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileSystem;
 
-/**
- * A buffered output stream that allows writing to a GCS object.
- */
-class GoogleHadoopOutputStream
-    extends OutputStream {
+/** A buffered output stream that allows writing to a GCS object. */
+class GoogleHadoopOutputStream extends OutputStream {
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
@@ -59,28 +55,28 @@ class GoogleHadoopOutputStream
    *
    * @param ghfs Instance of GoogleHadoopFileSystemBase.
    * @param gcsPath Path of the file to write to.
-   * @param bufferSize Size of the buffer to use.
    * @param statistics File system statistics object.
    * @throws IOException if an IO error occurs.
    */
   GoogleHadoopOutputStream(
-      GoogleHadoopFileSystemBase ghfs, URI gcsPath, int bufferSize,
-      FileSystem.Statistics statistics, CreateFileOptions createFileOptions)
+      GoogleHadoopFileSystemBase ghfs,
+      URI gcsPath,
+      FileSystem.Statistics statistics,
+      CreateFileOptions createFileOptions)
       throws IOException {
-    logger.atFine().log("GoogleHadoopOutputStream(%s, %s)", gcsPath, bufferSize);
+    logger.atFine().log("GoogleHadoopOutputStream(%s)", gcsPath);
     this.ghfs = ghfs;
     this.gcsPath = gcsPath;
     this.statistics = statistics;
-    initTime = System.nanoTime();
+    this.initTime = System.nanoTime();
     try {
-      channel = ghfs.getGcsFs().create(gcsPath, createFileOptions);
+      this.channel = ghfs.getGcsFs().create(gcsPath, createFileOptions);
     } catch (java.nio.file.FileAlreadyExistsException faee) {
       // Need to convert to the Hadoop flavor of FileAlreadyExistsException.
       throw (FileAlreadyExistsException)
           (new FileAlreadyExistsException(faee.getMessage()).initCause(faee));
     }
-    OutputStream rawStream = Channels.newOutputStream(channel);
-    out = new BufferedOutputStream(rawStream, bufferSize);
+    this.out = Channels.newOutputStream(channel);
   }
 
   /**
