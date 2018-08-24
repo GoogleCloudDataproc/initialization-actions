@@ -24,14 +24,24 @@ readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly INTERPRETER_FILE='/etc/zeppelin/conf/interpreter.json'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/zeppelin-notebook.service'
 
-function update_apt_get() {
+function retry_apt_command() {
+  cmd="$1"
   for ((i = 0; i < 10; i++)); do
-    if apt-get update; then
+    if eval "$cmd"; then
       return 0
     fi
     sleep 5
   done
   return 1
+}
+
+function update_apt_get() {
+  retry_apt_command "apt-get update"
+}
+
+function install_apt_get() {
+  pkgs="$@"
+  retry_apt_command "apt-get install -y $pkgs"
 }
 
 function err() {
@@ -41,7 +51,7 @@ function err() {
 
 function install_zeppelin(){
   # Install zeppelin. Don't mind if it fails to start the first time.
-  apt-get install -y -t $(lsb_release -sc)-backports zeppelin || dpkg -l zeppelin
+  retry_apt_command "apt-get install -t $(lsb_release -sc)-backports -y zeppelin" || dpkg -l zeppelin
   if [ $? != 0 ]; then
     err 'Failed to install zeppelin'
   fi
@@ -109,14 +119,14 @@ function configure_zeppelin(){
 
   # Install matplotlib. Note that this will work in Zeppelin, but not
   # in a vanilla Python interpreter, as that requires an X server to be running
-  apt-get install -y python-dev python-tk
+  install_apt_get python-dev python-tk
   easy_install pip
   pip install --upgrade matplotlib
 
   # Install R libraries for Zeppelin 0.6.1+
   if dpkg --compare-versions "${zeppelin_version}" '>=' 0.6.1; then
     # TODO(pmkc): Add googlevis to Zeppelin Package recommendations
-    apt-get install -y r-cran-googlevis
+    install_apt_get r-cran-googlevis
 
     # TODO(Aniszewski): Fix SparkR (GitHub issue #198)
   fi

@@ -15,14 +15,24 @@
 set -o errexit
 set -o xtrace
 
-function update_apt_get() {
+function retry_apt_command() {
+  cmd="$1"
   for ((i = 0; i < 10; i++)); do
-    if apt-get update; then
+    if eval "$cmd"; then
       return 0
     fi
     sleep 5
   done
   return 1
+}
+
+function update_apt_get() {
+  retry_apt_command "apt-get update"
+}
+
+function install_apt_get() {
+  pkgs="$@"
+  retry_apt_command "apt-get install -y $pkgs"
 }
 
 # Variables for this script
@@ -31,7 +41,7 @@ CLUSTER_NAME=$(hostname | sed -r 's/(.*)-[w|m](-[0-9]+)?$/\1/')
 
 # Download and extract ZooKeeper Server
 update_apt_get
-apt-get install -y zookeeper-server
+install_apt_get zookeeper-server
 mkdir -p /var/lib/zookeeper
 
 # Configure ZooKeeper node ID

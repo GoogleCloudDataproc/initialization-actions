@@ -27,14 +27,24 @@ readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
 readonly HIVE_CONF_DIR='/etc/hive/conf'
 readonly SPARK_CONF_DIR='/etc/spark/conf'
 
-function update_apt_get() {
+function retry_apt_command() {
+  cmd="$1"
   for ((i = 0; i < 10; i++)); do
-    if apt-get update; then
+    if eval "$cmd"; then
       return 0
     fi
     sleep 5
   done
   return 1
+}
+
+function update_apt_get() {
+  retry_apt_command "apt-get update"
+}
+
+function install_apt_get() {
+  pkgs="$@"
+  retry_apt_command "apt-get install -y $pkgs"
 }
 
 function err() {
@@ -44,7 +54,7 @@ function err() {
 
 function configure_master_node() {
   update_apt_get || err 'Unable to update packages lists.'
-  apt-get install tez hadoop-yarn-timelineserver -y \
+  install_apt_get tez hadoop-yarn-timelineserver \
     || err 'Failed to install required packages.'
 
   # Copy to hdfs from one master only to avoid race

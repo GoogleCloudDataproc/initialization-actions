@@ -24,14 +24,24 @@ readonly BIGTABLE_HBASE_DL_LINK="http://central.maven.org/maven2/com/google/clou
 readonly SPARK_HBASE_CLIENT='shc-core-1.1.1-2.1-s_2.11.jar'
 readonly SPARK_HBASE_CLIENT_DL_LINK="http://repo.hortonworks.com/content/groups/public/com/hortonworks/shc-core/1.1.1-2.1-s_2.11/${SPARK_HBASE_CLIENT}"
 
-function update_apt_get() {
+function retry_apt_command() {
+  cmd="$1"
   for ((i = 0; i < 10; i++)); do
-    if apt-get update; then
+    if eval "$cmd"; then
       return 0
     fi
     sleep 5
   done
   return 1
+}
+
+function update_apt_get() {
+  retry_apt_command "apt-get update"
+}
+
+function install_apt_get() {
+  pkgs="$@"
+  retry_apt_command "apt-get install -y $pkgs"
 }
 
 function err() {
@@ -97,7 +107,7 @@ function main() {
     /usr/share/google/get_metadata_value ../project/project-id)"
 
   update_apt_get || err 'Unable to update packages lists.'
-  apt-get install -y hbase || err 'Unable to install hbase.'
+  install_apt_get hbase || err 'Unable to install hbase.'
 
   install_big_table_client || err 'Unable to install big table client'.
   configure_big_table_client || err 'Failed to configure big table client.'

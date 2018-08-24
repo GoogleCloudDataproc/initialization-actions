@@ -15,7 +15,7 @@
 # Initialization action for installing Apache Oozie on a Google Cloud
 # Dataproc cluster. This script will install and configure Oozie to run on the
 # master node of a Dataproc cluster. The version of Oozie which is installed
-# comes from the BigTop repository. 
+# comes from the BigTop repository.
 #
 # You can find more information about Oozie at http://oozie.apache.org/
 # For more information in init actions and Google Cloud Dataproc see the Cloud
@@ -25,14 +25,24 @@
 
 set -x -e
 
-function update_apt_get() {
+function retry_apt_command() {
+  cmd="$1"
   for ((i = 0; i < 10; i++)); do
-    if apt-get update; then
+    if eval "$cmd"; then
       return 0
     fi
     sleep 5
   done
   return 1
+}
+
+function update_apt_get() {
+  retry_apt_command "apt-get update"
+}
+
+function install_apt_get() {
+  pkgs="$@"
+  retry_apt_command "apt-get install -y $pkgs"
 }
 
 function err() {
@@ -52,7 +62,7 @@ function main() {
 function install_oozie(){
   # Upgrade the repository and install Oozie
   update_apt_get || err 'Failed to update apt-get'
-  apt-get install oozie oozie-client -y || err 'Unable to install oozie-client'
+  install_apt_get oozie oozie-client || err 'Unable to install oozie-client'
 
   # The ext library is needed to enable the Oozie web console
   wget http://archive.cloudera.com/gplextras/misc/ext-2.2.zip || err 'Unable to download ext-2.2.zip'
