@@ -60,14 +60,32 @@ function main() {
 }
 
 function install_oozie(){
+  local master_node=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+  local node_name=${HOSTNAME}
+
   # Upgrade the repository and install Oozie
   update_apt_get || err 'Failed to update apt-get'
   install_apt_get oozie oozie-client || err 'Unable to install oozie-client'
 
-  # The ext library is needed to enable the Oozie web console
-  wget http://archive.cloudera.com/gplextras/misc/ext-2.2.zip || err 'Unable to download ext-2.2.zip'
-  unzip ext-2.2.zip
-  ln -s ext-2.2 /var/lib/oozie/ext-2.2 || err 'Unable to create symbolic link'
+  if [[ ${node_name} == ${master_node} ]]; then
+    # The ext library is needed to enable the Oozie web console
+    wget http://archive.cloudera.com/gplextras/misc/ext-2.2.zip || err 'Unable to download ext-2.2.zip'
+    unzip ext-2.2.zip
+    ln -s ext-2.2 /var/lib/oozie/ext-2.2 || err 'Unable to create symbolic link'
+   # Install share lib
+  install -d /usr/lib/oozie
+  tar -xvzf /usr/lib/oozie/oozie-sharelib.tar.gz -C /usr/lib/oozie
+
+  # Workaround to issue where jackson 1.8 and 1.9 jars are found on the classpath, causing
+  # AbstractMethodError at runtime. We know hadoop/lib has matching vesions of jackson.
+  rm -f /usr/lib/oozie/share/lib/hive2/jackson-*
+  cp /usr/lib/hadoop/lib/jackson-* /usr/lib/oozie/share/lib/hive2/
+
+  hadoop fs -mkdir -p /user/oozie/
+  hadoop fs -put -f /usr/lib/oozie/share /user/oozie/
+    # Clean up temporary fles
+   rm -rf ext-2.2 ext-2.2.zip share oozie-sharelib.tar.gz
+   fi
 
   # Create the Oozie database
   sudo -u oozie /usr/lib/oozie/bin/ooziedb.sh create -run
@@ -83,17 +101,6 @@ function install_oozie(){
     --name 'hadoop.proxyuser.oozie.groups' --value '*' \
     --clobber
 
-  # Install share lib
-  install -d /usr/lib/oozie
-  tar -xvzf /usr/lib/oozie/oozie-sharelib.tar.gz -C /usr/lib/oozie
-
-  # Workaround to issue where jackson 1.8 and 1.9 jars are found on the classpath, causing
-  # AbstractMethodError at runtime. We know hadoop/lib has matching vesions of jackson.
-  rm -f /usr/lib/oozie/share/lib/hive2/jackson-*
-  cp /usr/lib/hadoop/lib/jackson-* /usr/lib/oozie/share/lib/hive2/
-
-  hadoop fs -mkdir -p /user/oozie/
-  hadoop fs -put -f /usr/lib/oozie/share /user/oozie/
 
   # Detect if current node configuration is HA and then set oozie servers
   local additional_nodes=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional | sed 's/,/\n/g' | wc -l)
@@ -126,8 +133,7 @@ function install_oozie(){
       --clobber
 
   fi
-  # Clean up temporary fles
-  rm -rf ext-2.2 ext-2.2.zip oozie-sharelib.tar.gz
+
   /usr/lib/zookeeper/bin/zkServer.sh restart
   # HDFS and YARN must be cycled; restart to clean things up
   for service in hadoop-hdfs-namenode hadoop-hdfs-secondarynamenode hadoop-yarn-resourcemanager oozie; do
