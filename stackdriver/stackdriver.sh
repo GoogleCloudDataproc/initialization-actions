@@ -23,4 +23,4 @@
 
 # Download and run the Stackdriver installation script
 curl -sSO https://dl.google.com/cloudagents/install-monitoring-agent.sh
-sudo bash install-monitoring-agent.sh
+yes | sudo bash install-monitoring-agent.sh
