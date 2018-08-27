@@ -41,8 +41,7 @@ function setup_ganglia_host() {
 
   ln -s /etc/ganglia-webfrontend/apache.conf /etc/apache2/sites-enabled/ganglia.conf
   sed -i "s/my cluster/${master_hostname}/" /etc/ganglia/gmetad.conf
-  systemctl restart gmetad apache2
-
+  systemctl restart ganglia-monitor gmetad apache2
 }
 
 function main() {
@@ -52,20 +51,21 @@ function main() {
   update_apt_get || err 'Unable to update apt-get'
   apt-get install -y ganglia-monitor
 
+  sed -e "/send_metadata_interval = 0 /s/0/5/" -i /etc/ganglia/gmond.conf
   sed -e "/name = \"unspecified\" /s/unspecified/${cluster_name}/" -i /etc/ganglia/gmond.conf
   sed -e '/mcast_join /s/^  /  #/' -i /etc/ganglia/gmond.conf
   sed -e '/bind /s/^  /  #/' -i /etc/ganglia/gmond.conf
   sed -e "/udp_send_channel {/a\  host = ${master_hostname}" -i /etc/ganglia/gmond.conf
 
   if [[ "${HOSTNAME}" == "${master_hostname}" ]]; then
-    # Only run on the one master node ("0"-master in HA mode)
+    # Setup Ganglia host only on the master node ("0"-master in HA mode)
     setup_ganglia_host || err 'Setting up Ganglia host failed'
   else
-    # Delete receive channel configuraion on all non-host nodes
+    # Configure non-host Ganglia nodes
+    sed -e "/deaf = no /s/no/yes/" -i /etc/ganglia/gmond.conf
     sed -i '/udp_recv_channel {/,/}/d' /etc/ganglia/gmond.conf
+    systemctl restart ganglia-monitor
   fi
-
-  systemctl restart ganglia-monitor
 }
 
 main
