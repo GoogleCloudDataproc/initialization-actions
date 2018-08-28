@@ -202,7 +202,8 @@ public class HadoopFileSystemIntegrationHelper
     StringBuilder returnBuffer = new StringBuilder();
 
     try {
-      readStream = ghfs.open(hadoopPath, GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT);
+      readStream =
+          ghfs.open(hadoopPath, GoogleHadoopFileSystemConfiguration.BUFFERSIZE.getDefault());
       int numBytesRead = readStream.read(readBuffer);
       while (numBytesRead > 0) {
         returnBuffer.append(new String(readBuffer, 0, numBytesRead, StandardCharsets.UTF_8));
@@ -252,7 +253,8 @@ public class HadoopFileSystemIntegrationHelper
       int bufferSize = len;
       bufferSize += checkOverflow ? 1 : 0;
       byte[] readBuffer = new byte[bufferSize];
-      readStream = ghfs.open(hadoopPath, GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT);
+      readStream =
+          ghfs.open(hadoopPath, GoogleHadoopFileSystemConfiguration.BUFFERSIZE.getDefault());
       int numBytesRead;
       if (offset > 0) {
         numBytesRead = readStream.read(offset, readBuffer, 0, bufferSize);
@@ -466,13 +468,15 @@ public class HadoopFileSystemIntegrationHelper
     boolean allWritesSucceeded = false;
 
     try {
-      writeStream = ghfs.create(hadoopPath,
-          FsPermission.getDefault(),
-          overwrite,
-          GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT,
-          GoogleHadoopFileSystemBase.REPLICATION_FACTOR_DEFAULT,
-          GoogleHadoopFileSystemBase.BLOCK_SIZE_DEFAULT,
-          null);  // progressable
+      writeStream =
+          ghfs.create(
+              hadoopPath,
+              FsPermission.getDefault(),
+              overwrite,
+              GoogleHadoopFileSystemConfiguration.BUFFERSIZE.getDefault(),
+              GoogleHadoopFileSystemBase.REPLICATION_FACTOR_DEFAULT,
+              GoogleHadoopFileSystemConfiguration.BLOCK_SIZE.getDefault(),
+              /* progress= */ null);
 
       for (int i = 0; i < numWrites; i++) {
         buffer.clear();

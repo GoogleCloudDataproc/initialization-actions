@@ -148,15 +148,13 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     }
   }
 
-
   /**
    * Validates FileStatus for the given item.
    *
-   * See {@link GoogleCloudStorageIntegrationTest.listObjectNamesAndGetItemInfo()} for more info.
+   * <p>See {@link GoogleCloudStorageIntegrationTest#listObjectNamesAndGetItemInfo()} for more info.
    */
   @Override
-  protected void validateGetItemInfo(
-      String bucketName, String objectName, boolean expectedToExist)
+  protected void validateGetItemInfo(String bucketName, String objectName, boolean expectedToExist)
       throws IOException {
     URI path = ghfsHelper.getPath(bucketName, objectName, true);
     Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
@@ -286,7 +284,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
     ghfsHelper.writeFile(hadoopPath, "file text", 1, true);
     FSDataInputStream readStream =
-        ghfs.open(hadoopPath, GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT);
+        ghfs.open(hadoopPath, GoogleHadoopFileSystemConfiguration.BUFFERSIZE.getDefault());
     byte[] buffer = new byte[1];
 
     // Verify that normal read works.
@@ -398,7 +396,9 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
     assertThrows(
         IOException.class,
-        () -> ghfs.append(hadoopPath, GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT, null));
+        () ->
+            ghfs.append(
+                hadoopPath, GoogleHadoopFileSystemConfiguration.BUFFERSIZE.getDefault(), null));
   }
 
   /**
@@ -426,7 +426,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
 
     // Verify that position is at 0 for a newly opened stream.
     try (FSDataInputStream readStream =
-        ghfs.open(hadoopPath, GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT)) {
+        ghfs.open(hadoopPath, GoogleHadoopFileSystemConfiguration.BUFFERSIZE.getDefault())) {
       Assert.assertEquals(0, readStream.getPos());
 
       // Verify that position advances by 2 after reading 2 bytes.

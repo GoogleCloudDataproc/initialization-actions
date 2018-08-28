@@ -72,8 +72,8 @@ public class GoogleHadoopFileSystemTestHelper {
     }
     String systemBucketName = "fake-test-system-bucket";
     Configuration config = new Configuration();
-    config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, systemBucketName);
-    config.setBoolean(GoogleHadoopFileSystemBase.GCS_CREATE_SYSTEM_BUCKET_KEY, true);
+    config.set(GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET.getKey(), systemBucketName);
+    config.setBoolean(GoogleHadoopFileSystemConfiguration.GCS_CREATE_SYSTEM_BUCKET.getKey(), true);
     ghfs.initialize(initUri, config);
   }
 }

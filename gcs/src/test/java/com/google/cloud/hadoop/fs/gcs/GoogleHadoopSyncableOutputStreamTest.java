@@ -60,9 +60,10 @@ public class GoogleHadoopSyncableOutputStreamTest {
 
     ghfs = (GoogleHadoopFileSystemBase) GoogleHadoopFileSystemTestHelper
         .createInMemoryGoogleHadoopFileSystem();
-    ghfs.getConf().set(
-        GoogleHadoopFileSystemBase.GCS_OUTPUTSTREAM_TYPE_KEY,
-        GoogleHadoopFileSystemBase.OutputStreamType.SYNCABLE_COMPOSITE.toString());
+    ghfs.getConf()
+        .set(
+            GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_TYPE.getKey(),
+            GoogleHadoopFileSystemBase.OutputStreamType.SYNCABLE_COMPOSITE.toString());
   }
 
   @After

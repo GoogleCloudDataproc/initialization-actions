@@ -22,6 +22,7 @@ import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
+import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
@@ -143,10 +144,14 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     config.set(
         BIGQUERY_CONFIG_PREFIX + HadoopCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX,
         bigqueryPrivateKeyFile);
-    config.set(GoogleHadoopFileSystemBase.SERVICE_ACCOUNT_AUTH_KEYFILE_KEY, bigqueryPrivateKeyFile);
-    config.set(GoogleHadoopFileSystemBase.SERVICE_ACCOUNT_AUTH_EMAIL_KEY, bigqueryServiceAccount);
-    config.set(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY, projectIdvalue);
-    config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, testBucket);
+    config.set(
+        GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_KEY_FILE.getKey(),
+        bigqueryPrivateKeyFile);
+    config.set(
+        GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_EMAIL.getKey(),
+        bigqueryServiceAccount);
+    config.set(GoogleHadoopFileSystemConfiguration.GCS_PROJECT_ID.getKey(), projectIdvalue);
+    config.set(GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET.getKey(), testBucket);
 
     config.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     return config;

@@ -209,12 +209,11 @@ public class GoogleHadoopFileSystemIntegrationTest
    */
   @Test
   public void testBuildOptionsFromConfig() throws IOException {
-    GoogleHadoopFileSystem fs = new GoogleHadoopFileSystem();
     Configuration config = loadConfig(
         "projectId", "serviceAccount", "priveKeyFile");
 
     GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
-        fs.createOptionsBuilderFromConfig(config);
+        GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config);
     GoogleCloudStorageFileSystemOptions options = optionsBuilder.build();
     GoogleCloudStorageOptions gcsOptions = options.getCloudStorageOptions();
 
@@ -222,13 +221,11 @@ public class GoogleHadoopFileSystemIntegrationTest
     assertThat(gcsOptions.isInferImplicitDirectoriesEnabled()).isFalse();
 
     config.setBoolean(
-        GoogleHadoopFileSystemBase.GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY,
-        false);
+        GoogleHadoopFileSystemConfiguration.GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE.getKey(), false);
     config.setBoolean(
-        GoogleHadoopFileSystemBase.GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY,
-        true);
+        GoogleHadoopFileSystemConfiguration.GCS_INFER_IMPLICIT_DIRECTORIES_ENABLE.getKey(), true);
 
-    optionsBuilder = fs.createOptionsBuilderFromConfig(config);
+    optionsBuilder = GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config);
     options = optionsBuilder.build();
 
     gcsOptions = options.getCloudStorageOptions();
@@ -245,12 +242,12 @@ public class GoogleHadoopFileSystemIntegrationTest
 
     // Set up remaining settings to known test values.
     int bufferSize = 512;
-    config.setInt(GoogleHadoopFileSystemBase.BUFFERSIZE_KEY, bufferSize);
+    config.setInt(GoogleHadoopFileSystemConfiguration.BUFFERSIZE.getKey(), bufferSize);
     long blockSize = 1024;
-    config.setLong(GoogleHadoopFileSystemBase.BLOCK_SIZE_KEY, blockSize);
+    config.setLong(GoogleHadoopFileSystemConfiguration.BLOCK_SIZE.getKey(), blockSize);
     String systemBucketName = ghfsHelper.getUniqueBucketName("initialize-system");
     String rootBucketName = ghfsHelper.getUniqueBucketName("initialize-root");
-    config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, systemBucketName);
+    config.set(GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET.getKey(), systemBucketName);
 
     URI initUri = (new Path("gs://" + rootBucketName)).toUri();
     GoogleHadoopFileSystem fs = new GoogleHadoopFileSystem();
@@ -283,10 +280,10 @@ public class GoogleHadoopFileSystemIntegrationTest
       throws URISyntaxException, IOException {
     Configuration config = loadConfig();
     // Unset Project ID
-    config.unset(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY);
+    config.unset(GoogleHadoopFileSystemConfiguration.GCS_PROJECT_ID.getKey());
     // Unset system bucket, because it will be created during initialization (requires project id)
-    config.unset(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY);
-    config.unset(GoogleHadoopFileSystemBase.GCS_CREATE_SYSTEM_BUCKET_KEY);
+    config.unset(GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET.getKey());
+    config.unset(GoogleHadoopFileSystemConfiguration.GCS_CREATE_SYSTEM_BUCKET.getKey());
 
     URI gsUri = (new Path("gs://foo")).toUri();
     new GoogleHadoopFileSystem().initialize(gsUri, config);
@@ -314,11 +311,11 @@ public class GoogleHadoopFileSystemIntegrationTest
     String fakeProjectId = "123456";
     Configuration config = new Configuration();
     config.setBoolean(
-        GoogleHadoopFileSystemBase.ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY, false);
+        GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_ENABLE.getKey(), false);
     // Set project ID and client ID but no client secret.
-    config.set(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY, fakeProjectId);
-    config.set(GoogleHadoopFileSystemBase.GCS_CLIENT_ID_KEY, fakeClientId);
-    config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, existingBucket);
+    config.set(GoogleHadoopFileSystemConfiguration.GCS_PROJECT_ID.getKey(), fakeProjectId);
+    config.set(GoogleHadoopFileSystemConfiguration.AUTH_CLIENT_ID.getKey(), fakeClientId);
+    config.set(GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET.getKey(), existingBucket);
 
     IllegalStateException thrown =
         assertThrows(
@@ -340,7 +337,7 @@ public class GoogleHadoopFileSystemIntegrationTest
     GoogleHadoopFileSystem myGhfs = (GoogleHadoopFileSystem) ghfs;
 
     Configuration config = new Configuration();
-    config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, sharedBucketName1);
+    config.set(GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET.getKey(), sharedBucketName1);
     ghfs.initialize(myGhfs.initUri, config);
 
     // setUpWorkingDirectoryTest() depends on getFileSystemRoot(), which in turn depends on
@@ -353,7 +350,8 @@ public class GoogleHadoopFileSystemIntegrationTest
       Path path = wdd.path;
       Path expectedWorkingDir = wdd.expectedPath;
       Path currentWorkingDir = ghfs.getWorkingDirectory();
-      config.set(GoogleHadoopFileSystemBase.GCS_WORKING_DIRECTORY_KEY, path.toString());
+      config.set(
+          GoogleHadoopFileSystemConfiguration.GCS_WORKING_DIRECTORY.getKey(), path.toString());
       ghfs.initialize(myGhfs.initUri, config);
       Path newWorkingDir = ghfs.getWorkingDirectory();
       if (expectedWorkingDir != null) {
@@ -411,7 +409,7 @@ public class GoogleHadoopFileSystemIntegrationTest
     GoogleCloudStorageFileSystem fakeGcsFs =
         new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
 
-    // Non-existent system bucket with GCS_CREATE_SYSTEM_BUCKET_KEY set to false.
+    // Non-existent system bucket with GCS_CREATE_SYSTEM_BUCKET.getKey() set to false.
     boolean createSystemBuckets = false;
     String systemBucketName = "this-bucket-doesnt-exist";
     FileNotFoundException thrown =
@@ -420,7 +418,9 @@ public class GoogleHadoopFileSystemIntegrationTest
             () ->
                 new GoogleHadoopFileSystem(fakeGcsFs)
                     .configureBuckets(systemBucketName, createSystemBuckets));
-    assertThat(thrown).hasMessageThat().contains(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY);
+    assertThat(thrown)
+        .hasMessageThat()
+        .contains(GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET.getKey());
   }
 
   @Test
@@ -569,7 +569,7 @@ public class GoogleHadoopFileSystemIntegrationTest
   public void testConfigurablePermissions() throws IOException {
     String testPermissions = "777";
     Configuration conf = getConfigurationWtihImplementation();
-    conf.set(GoogleHadoopFileSystemBase.PERMISSIONS_TO_REPORT_KEY, testPermissions);
+    conf.set(GoogleHadoopFileSystemConfiguration.PERMISSIONS_TO_REPORT.getKey(), testPermissions);
     GoogleHadoopFileSystem myGhfs = new GoogleHadoopFileSystem();
     myGhfs.initialize(ghfs.getUri(), conf);
     URI fileUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();

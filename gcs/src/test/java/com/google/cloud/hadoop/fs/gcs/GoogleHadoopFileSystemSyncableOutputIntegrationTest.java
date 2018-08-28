@@ -31,7 +31,9 @@ public class GoogleHadoopFileSystemSyncableOutputIntegrationTest
         public void before() throws Throwable {
           GoogleHadoopFileSystemIntegrationTest.storageResource.before();
           ghfs.getConf()
-              .set(GoogleHadoopFileSystemBase.GCS_OUTPUTSTREAM_TYPE_KEY, "SYNCABLE_COMPOSITE");
+              .set(
+                  GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_TYPE.getKey(),
+                  "SYNCABLE_COMPOSITE");
         }
 
         @Override

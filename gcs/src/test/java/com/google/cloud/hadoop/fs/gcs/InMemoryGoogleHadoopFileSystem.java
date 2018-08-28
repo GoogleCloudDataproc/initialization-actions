@@ -70,8 +70,8 @@ public class InMemoryGoogleHadoopFileSystem
     Configuration config = new Configuration();
     config.set("fs.gs.impl", InMemoryGoogleHadoopFileSystem.class.getName());
     String systemBucketName = "test-system-bucket";
-    config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, systemBucketName);
-    config.setBoolean(GoogleHadoopFileSystemBase.GCS_CREATE_SYSTEM_BUCKET_KEY, true);
+    config.set(GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET.getKey(), systemBucketName);
+    config.setBoolean(GoogleHadoopFileSystemConfiguration.GCS_CREATE_SYSTEM_BUCKET.getKey(), true);
     return config;
   }
 

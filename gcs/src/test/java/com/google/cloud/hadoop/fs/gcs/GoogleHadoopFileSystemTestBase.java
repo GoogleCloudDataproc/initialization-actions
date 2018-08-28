@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.common.base.Charsets.UTF_8;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
@@ -24,11 +25,14 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.testing.TestingAccessTokenProvider;
 import com.google.cloud.hadoop.util.HadoopVersionInfo;
+import com.google.common.base.Joiner;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
@@ -44,6 +48,8 @@ import org.junit.Test;
  * visible at the GHFS level.
  */
 public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTestBase {
+
+  private static final Joiner COMMA_JOINER = Joiner.on(',');
 
   /**
    * Helper to load all the GHFS-specific config values from environment variables, such as those
@@ -73,19 +79,20 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     Assert.assertNotNull(
         "Expected value for env var " + TestConfiguration.GCS_TEST_PRIVATE_KEYFILE, privateKeyFile);
     Configuration config = new Configuration();
-    config.set(GoogleHadoopFileSystemBase.GCS_PROJECT_ID_KEY, projectId);
-    config.set(GoogleHadoopFileSystemBase.SERVICE_ACCOUNT_AUTH_EMAIL_KEY, serviceAccount);
-    config.set(GoogleHadoopFileSystemBase.SERVICE_ACCOUNT_AUTH_KEYFILE_KEY, privateKeyFile);
+    config.set(GoogleHadoopFileSystemConfiguration.GCS_PROJECT_ID.getKey(), projectId);
+    config.set(
+        GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_EMAIL.getKey(), serviceAccount);
+    config.set(
+        GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_KEY_FILE.getKey(), privateKeyFile);
     String systemBucketName = ghfsHelper.getUniqueBucketName("system");
-    config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, systemBucketName);
-    config.setBoolean(GoogleHadoopFileSystemBase.GCS_CREATE_SYSTEM_BUCKET_KEY, true);
+    config.set(GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET.getKey(), systemBucketName);
+    config.setBoolean(GoogleHadoopFileSystemConfiguration.GCS_CREATE_SYSTEM_BUCKET.getKey(), true);
     config.setBoolean(
-        GoogleHadoopFileSystemBase.GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY, true);
+        GoogleHadoopFileSystemConfiguration.GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE.getKey(), true);
     config.setBoolean(
-        GoogleHadoopFileSystemBase.GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY, false);
+        GoogleHadoopFileSystemConfiguration.GCS_INFER_IMPLICIT_DIRECTORIES_ENABLE.getKey(), false);
     // Allow buckets to be deleted in test cleanup:
-    config.setBoolean(
-        GoogleHadoopFileSystemBase.GCE_BUCKET_DELETE_ENABLE_KEY, true);
+    config.setBoolean(GoogleHadoopFileSystemConfiguration.GCE_BUCKET_DELETE_ENABLE.getKey(), true);
     return config;
   }
 
@@ -161,9 +168,9 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
         myghfs.getGcsFs().getOptions().getCloudStorageOptions();
 
     assertThat(cloudStorageOptions.getReadChannelOptions().getBufferSize())
-        .isEqualTo(GoogleHadoopFileSystemBase.BUFFERSIZE_DEFAULT);
+        .isEqualTo(GoogleHadoopFileSystemConfiguration.BUFFERSIZE.getDefault());
     assertThat(myghfs.getDefaultBlockSize())
-        .isEqualTo(GoogleHadoopFileSystemBase.BLOCK_SIZE_DEFAULT);
+        .isEqualTo(GoogleHadoopFileSystemConfiguration.BLOCK_SIZE.getDefault());
     assertThat(myghfs.getSystemBucketName()).isNotEmpty();
   }
 
@@ -330,11 +337,9 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     ghfsHelper.clearBucket(bucketName);
   }
 
- /**
-   * Validates makeQualified() when working directory is not root.
-   */
+  /** Validates makeQualified() when working directory is not root. */
   @Test
-  public void testMakeQualifiedNotRoot()  {
+  public void testMakeQualifiedNotRoot() {
     GoogleHadoopFileSystemBase myGhfs = (GoogleHadoopFileSystemBase) ghfs;
     Path fsRootPath = myGhfs.getFileSystemRoot();
     URI fsRootUri = fsRootPath.toUri();
@@ -438,7 +443,6 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     qualifiedPaths.put(fsRoot + "..", fsRoot);
     qualifiedPaths.put(fsRoot + "../foo", fsRoot + "foo");
     qualifiedPaths.put(fsRoot + "../foo/bar", fsRoot + "foo/bar");
-    qualifiedPaths.put("../foo/../foo", fsRoot + "foo");
     qualifiedPaths.put("../../../foo/bar/../../foo/bar", fsRoot + "foo/bar");
     qualifiedPaths.put("../foo/../foo", fsRoot + "foo");
     qualifiedPaths.put("../foo/bar/../../foo/bar", fsRoot + "foo/bar");
@@ -509,9 +513,9 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
       File localCopiedFile = new File(localTempDirPath.toString(), tempFilePath.getName());
       localCopiedFile.delete();
       Path localOutputPath = ghfs.startLocalOutput(tempFilePath2, localTempFilePath);
-      FileWriter writer = new FileWriter(localOutputPath.toString());
-      writer.write(text);
-      writer.close();
+      try (Writer writer = Files.newBufferedWriter(Paths.get(localOutputPath.toString()), UTF_8)) {
+        writer.write(text);
+      }
       ghfs.completeLocalOutput(tempFilePath2, localOutputPath);
       ghfs.getUsed();
       ghfs.setVerifyChecksum(false);
@@ -539,9 +543,11 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     Configuration configuration = new Configuration();
     // 1 Disable all updates and then try to include all paths
     configuration.setBoolean(
-        GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY, false);
-    configuration.set(GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY, "/");
-    configuration.set(GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY, "");
+        GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_ENABLE.getKey(), false);
+    configuration.set(
+        GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES.getKey(), "/");
+    configuration.set(
+        GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES.getKey(), "");
 
     TimestampUpdatePredicate predicate =
         GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate.create(configuration);
@@ -551,9 +557,11 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
 
     // 2 Enable updates, set include to everything and exclude to everything
     configuration.setBoolean(
-        GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY, true);
-    configuration.set(GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY, "/");
-    configuration.set(GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY, "/");
+        GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_ENABLE.getKey(), true);
+    configuration.set(
+        GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES.getKey(), "/");
+    configuration.set(
+        GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES.getKey(), "/");
 
     predicate = GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate
         .create(configuration);
@@ -563,9 +571,10 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
 
     // 3 Enable specific paths, exclude everything:
     configuration.set(
-        GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY, "/foobar,/baz");
+        GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES.getKey(),
+        "/foobar,/baz");
     configuration.set(
-        GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY, "/");
+        GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES.getKey(), "/");
 
     predicate = GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate
         .create(configuration);
@@ -581,16 +590,17 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
 
     // 4 set to defaults, set job history paths
     configuration.set(
-        GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY,
-        GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_DEFAULT);
+        GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES.getKey(),
+        COMMA_JOINER.join(
+            GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES.getDefault()));
     configuration.set(
-        GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY,
-        GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_DEFAULT);
+        GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES.getKey(),
+        COMMA_JOINER.join(
+            GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES.getDefault()));
     configuration.set(
-        GoogleHadoopFileSystemBase.MR_JOB_HISTORY_DONE_DIR_KEY,
-        "/tmp/hadoop-yarn/done");
+        GoogleHadoopFileSystemConfiguration.MR_JOB_HISTORY_DONE_DIR_KEY, "/tmp/hadoop-yarn/done");
     configuration.set(
-        GoogleHadoopFileSystemBase.MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY,
+        GoogleHadoopFileSystemConfiguration.MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY,
         "/tmp/hadoop-yarn/staging/done");
 
     predicate =
@@ -598,7 +608,8 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
 
     Assert.assertEquals(
         "/tmp/hadoop-yarn/staging/done,/tmp/hadoop-yarn/done",
-        configuration.get(GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY));
+        configuration.get(
+            GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES.getKey()));
 
     Assert.assertTrue(
         "Should be included",
@@ -618,16 +629,18 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
 
     // 5 set to defaults, set job history paths with gs:// scheme
     configuration.set(
-        GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY,
-        GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_DEFAULT);
+        GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES.getKey(),
+        COMMA_JOINER.join(
+            GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES.getDefault()));
     configuration.set(
-        GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY,
-        GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_DEFAULT);
+        GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES.getKey(),
+        COMMA_JOINER.join(
+            GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES.getDefault()));
     configuration.set(
-        GoogleHadoopFileSystemBase.MR_JOB_HISTORY_DONE_DIR_KEY,
+        GoogleHadoopFileSystemConfiguration.MR_JOB_HISTORY_DONE_DIR_KEY,
         "gs://foo-bucket/tmp/hadoop-yarn/done");
     configuration.set(
-        GoogleHadoopFileSystemBase.MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY,
+        GoogleHadoopFileSystemConfiguration.MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY,
         "gs://foo-bucket/tmp/hadoop-yarn/staging/done");
 
     predicate =
@@ -635,7 +648,8 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
 
     Assert.assertEquals(
         "gs://foo-bucket/tmp/hadoop-yarn/staging/done,gs://foo-bucket/tmp/hadoop-yarn/done",
-        configuration.get(GoogleHadoopFileSystemBase.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY));
+        configuration.get(
+            GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES.getKey()));
 
     Assert.assertTrue(
         "Should be included",
@@ -658,7 +672,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
   public void testInvalidCredentialFromAccessTokenProvider()
       throws URISyntaxException, IOException {
     Configuration config = new Configuration();
-    config.set(GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY, sharedBucketName1);
+    config.set(GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET.getKey(), sharedBucketName1);
     config.set("fs.gs.auth.access.token.provider.impl", TestingAccessTokenProvider.class.getName());
     URI gsUri = new URI("gs://foobar/");
 

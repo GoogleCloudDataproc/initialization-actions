@@ -15,15 +15,18 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.common.truth.Truth.assertThat;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.truth.Truth;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -65,7 +68,7 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
           ghfsHelper = new HadoopFileSystemIntegrationHelper(ghfs, ghfsFileSystemDescriptor);
           Configuration conf = loadConfig();
           conf.set(
-              GoogleHadoopFileSystemBase.PATH_CODEC_KEY,
+              GoogleHadoopFileSystemConfiguration.PATH_CODEC.getKey(),
               GoogleHadoopFileSystemBase.PATH_CODEC_USE_URI_ENCODING);
           ghfs.initialize(initUri, conf);
           HadoopFileSystemTestBase.postCreateInit();
@@ -181,7 +184,7 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
     GoogleHadoopFileSystem legacyEncodedFS = new GoogleHadoopFileSystem();
     Configuration conf = uriPathEncodedFS.getConf();
     conf.set(
-        GoogleHadoopFileSystemBase.PATH_CODEC_KEY,
+        GoogleHadoopFileSystemConfiguration.PATH_CODEC.getKey(),
         GoogleHadoopFileSystemBase.PATH_CODEC_USE_LEGACY_ENCODING);
     legacyEncodedFS.initialize(URI.create("gs:/"), conf);
 
@@ -200,8 +203,8 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
       Path compatPath) throws IOException {
 
     String testText = "TestText" + UUID.randomUUID();
-    try (OutputStream os = newUriEncodingFS.create(compatPath, false /* don't overwrite */);
-         PrintWriter pw = new PrintWriter(os)) {
+    try (OutputStream os = newUriEncodingFS.create(compatPath, /* overwrite= */ false);
+        PrintWriter pw = new PrintWriter(new BufferedWriter(new OutputStreamWriter(os, UTF_8)))) {
       pw.write(testText);
     }
 

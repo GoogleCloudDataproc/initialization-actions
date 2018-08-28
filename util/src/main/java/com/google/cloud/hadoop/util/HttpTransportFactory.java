@@ -50,10 +50,11 @@ public class HttpTransportFactory {
    * Utility for getting {@link HttpTransportType}s form names, with default.
    *
    * @param typeName The name of the {@link HttpTransportType} type to return. A default will be
-   * used if null or empty.
+   *     used if null or empty.
    * @return The corresponding HttpTransportType.
    * @throws IllegalArgumentException if the name is not an HttpTransportType.
    */
+  @Deprecated
   public static HttpTransportType getTransportTypeOf(@Nullable String typeName) {
     HttpTransportType type = DEFAULT_TRANSPORT_TYPE;
     if (!Strings.isNullOrEmpty(typeName)) {

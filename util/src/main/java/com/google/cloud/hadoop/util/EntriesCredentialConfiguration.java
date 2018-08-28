@@ -110,7 +110,8 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
   public static final String HTTP_TRANSPORT_KEY = "fs.gs.http.transport.type";
 
   /** Default to the default specified in HttpTransportFactory. */
-  public static final String HTTP_TRANSPORT_DEFAULT = null;
+  public static final HttpTransportFactory.HttpTransportType HTTP_TRANSPORT_DEFAULT =
+      HttpTransportFactory.DEFAULT_TRANSPORT_TYPE;
 
   /**
    * Builder for constructing CredentialConfiguration instances.

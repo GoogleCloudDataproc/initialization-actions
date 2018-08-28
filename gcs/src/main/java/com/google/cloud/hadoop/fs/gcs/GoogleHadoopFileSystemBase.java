@@ -16,8 +16,17 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
-import static com.google.cloud.hadoop.util.RequesterPaysOptions.REQUESTER_PAYS_MODE_DEFAULT;
-import static com.google.common.base.Strings.nullToEmpty;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CREATE_SYSTEM_BUCKET;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_FLAT_GLOB_ENABLE;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_TYPE;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_ENABLE;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_WORKING_DIRECTORY;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PATH_CODEC;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PERMISSIONS_TO_REPORT;
 import static com.google.common.flogger.LazyArgs.lazy;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -26,28 +35,21 @@ import com.google.cloud.hadoop.gcsio.FileInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
 import com.google.cloud.hadoop.gcsio.PathCodec;
-import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.util.AccessTokenProvider;
 import com.google.cloud.hadoop.util.AccessTokenProviderClassFromConfigFactory;
-import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.CredentialFromAccessTokenProviderClassFactory;
-import com.google.cloud.hadoop.util.EntriesCredentialConfiguration;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.HadoopVersionInfo;
-import com.google.cloud.hadoop.util.HttpTransportFactory;
 import com.google.cloud.hadoop.util.PropertyUtil;
-import com.google.cloud.hadoop.util.RequesterPaysOptions;
-import com.google.cloud.hadoop.util.RequesterPaysOptions.RequesterPaysMode;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -109,484 +111,31 @@ import org.apache.hadoop.util.Progressable;
  */
 public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemBaseSpecific
     implements FileSystemDescriptor {
+
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
-  /** Default value of replication factor. */
-  public static final short REPLICATION_FACTOR_DEFAULT = 3;
-
-  /** Splitter for list values stored in a single configuration value */
-  private static final Splitter CONFIGURATION_SPLITTER = Splitter.on(',');
-
-  // -----------------------------------------------------------------
-  // Configuration settings.
-  // -----------------------------------------------------------------
-
   /**
-   * Key for the permissions that we report a file or directory to have. Can either be octal or
-   * symbolic mode accepted by {@link FsPermission#FsPermission(String)}
+   * Available types for use with {@link
+   * GoogleHadoopFileSystemConfiguration#GCS_OUTPUT_STREAM_TYPE}.
    */
-  public static final String PERMISSIONS_TO_REPORT_KEY = "fs.gs.reported.permissions";
-
-  /**
-   * Default value for the permissions that we report a file or directory to have. Note: We do not
-   * really support file/dir permissions but we need to report some permission value when Hadoop
-   * calls getFileStatus(). A MapReduce job fails if we report permissions more relaxed than the
-   * value below and this is the default File System.
-   */
-  public static final String PERMISSIONS_TO_REPORT_DEFAULT = "700";
-
-  /** Configuration key for setting IO buffer size. */
-  // TODO(user): rename the following to indicate that it is read buffer size.
-  public static final String BUFFERSIZE_KEY = "fs.gs.io.buffersize";
-
-  /**
-   * Hadoop passes 4096 bytes as buffer size which causes poor perf. Default value of {@link
-   * #BUFFERSIZE_KEY}.
-   */
-  public static final int BUFFERSIZE_DEFAULT = 0;
-
-  /** Configuration key for setting write buffer size. */
-  public static final String WRITE_BUFFERSIZE_KEY = "fs.gs.io.buffersize.write";
-
-  /** Default value of {@link #WRITE_BUFFERSIZE_KEY}. */
-  // chunk size etc. Get the following value from GCSWC class in a better way. For now, we hard code
-  // it to a known good value.
-  public static final int WRITE_BUFFERSIZE_DEFAULT = 64 * 1024 * 1024;
-
-  /** Configuration key for default block size of a file. */
-  public static final String BLOCK_SIZE_KEY = "fs.gs.block.size";
-
-  /** Default value of {@link #BLOCK_SIZE_KEY}. */
-  public static final int BLOCK_SIZE_DEFAULT = 64 * 1024 * 1024;
-
-  /** Prefix to use for common authentication keys. */
-  public static final String AUTHENTICATION_PREFIX = "fs.gs";
-
-  /**
-   * Configuration key for enabling GCE service account authentication. This key is deprecated. See
-   * {@link HadoopCredentialConfiguration} for current key names.
-   */
-  public static final String ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY =
-      "fs.gs.enable.service.account.auth";
-
-  /**
-   * Configuration key specifying the email address of the service-account with which to
-   * authenticate. Only required if {@link #ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY} is true AND we're
-   * using fs.gs.service.account.auth.keyfile to authenticate with a private keyfile. NB: Once GCE
-   * supports setting multiple service account email addresses for metadata auth, this key will also
-   * be used in the metadata auth flow. This key is deprecated. See {@link
-   * HadoopCredentialConfiguration} for current key names.
-   */
-  public static final String SERVICE_ACCOUNT_AUTH_EMAIL_KEY = "fs.gs.service.account.auth.email";
-
-  /**
-   * Configuration key specifying local file containing a service-account private .p12 keyfile. Only
-   * used if {@link #ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY} is true; if provided, the keyfile will be
-   * used for service-account authentication. Otherwise, it is assumed that we are on a GCE VM with
-   * metadata-authentication for service-accounts enabled, and the metadata server will be used
-   * instead. Default value: none This key is deprecated. See {@link HadoopCredentialConfiguration}
-   * for current key names.
-   */
-  public static final String SERVICE_ACCOUNT_AUTH_KEYFILE_KEY =
-      "fs.gs.service.account.auth.keyfile";
-
-  /** Configuration key for GCS project ID. Default value: none */
-  public static final String GCS_PROJECT_ID_KEY = "fs.gs.project.id";
-
-  /** Configuration key for GCS project ID. Default value: "DISABLED" */
-  public static final String GCS_REQUESTER_PAYS_MODE_KEY = "fs.gs.requester.pays.mode";
-
-  /** Configuration key for GCS Requester Pays Project ID. Default value: none */
-  public static final String GCS_REQUESTER_PAYS_PROJECT_ID_KEY = "fs.gs.requester.pays.project.id";
-
-  /** Configuration key for GCS Requester Pays Buckets. Default value: none */
-  public static final String GCS_REQUESTER_PAYS_BUCKETS_KEY = "fs.gs.requester.pays.buckets";
-
-  /**
-   * Configuration key for GCS client ID. Required if {@link #ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY}
-   * == false. Default value: none This key is deprecated. See {@link HadoopCredentialConfiguration}
-   * for current key names.
-   */
-  public static final String GCS_CLIENT_ID_KEY = "fs.gs.client.id";
-
-  /**
-   * Configuration key for GCS client secret. Required if {@link
-   * #ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY} == false. Default value: none This key is deprecated. See
-   * HadoopCredentialConfiguration for current key names.
-   */
-  public static final String GCS_CLIENT_SECRET_KEY = "fs.gs.client.secret";
-
-  /**
-   * Configuration key for system bucket name. It is a fall back for the rootBucket of
-   * GoogleHadoopFileSystem in gs:///path URIs . Default value: none This key is deprecated. Always
-   * init the FileSystem with a bucket.
-   */
-  public static final String GCS_SYSTEM_BUCKET_KEY = "fs.gs.system.bucket";
-
-  /**
-   * Configuration key for flag to indicate whether system bucket should be created if it does not
-   * exist. This key is deprecated. See {@link #GCS_SYSTEM_BUCKET_KEY}.
-   */
-  public static final String GCS_CREATE_SYSTEM_BUCKET_KEY = "fs.gs.system.bucket.create";
-
-  /** Default value of {@link #GCS_CREATE_SYSTEM_BUCKET_KEY}. */
-  public static final boolean GCS_CREATE_SYSTEM_BUCKET_DEFAULT = true;
-
-  /** Configuration key for initial working directory of a GHFS instance. Default value: '/' */
-  public static final String GCS_WORKING_DIRECTORY_KEY = "fs.gs.working.dir";
-
-  /**
-   * Configuration key for setting 250GB upper limit on file size to gain higher write throughput.
-   */
-  // TODO(user): remove it once blobstore supports high throughput without limiting size.
-  public static final String GCS_FILE_SIZE_LIMIT_250GB = "fs.gs.file.size.limit.250gb";
-
-  /** Default value of {@link #GCS_FILE_SIZE_LIMIT_250GB}. */
-  public static final boolean GCS_FILE_SIZE_LIMIT_250GB_DEFAULT = false;
-
-  /** Configuration key for marker file pattern. Default value: none */
-  public static final String GCS_MARKER_FILE_PATTERN_KEY = "fs.gs.marker.file.pattern";
-
-  /**
-   * Configuration key for using a local item cache to supplement GCS API "getFile" results. This
-   * provides faster access to recently queried data. Because the data is cached, modifications made
-   * outside of this instance may not be immediately reflected. The performance cache can be used in
-   * conjunction with other caching options.
-   */
-  public static final String GCS_ENABLE_PERFORMANCE_CACHE_KEY = "fs.gs.performance.cache.enable";
-
-  /** Default value for {@link #GCS_ENABLE_PERFORMANCE_CACHE_KEY}. */
-  public static final boolean GCS_ENABLE_PERFORMANCE_CACHE_DEFAULT = false;
-
-  /**
-   * Configuration key for maximum number of milliseconds a GoogleCloudStorageItemInfo will remain
-   * "valid" in the performance cache before it's invalidated.
-   */
-  public static final String GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY =
-      "fs.gs.performance.cache.max.entry.age.ms";
-
-  /** Default value for {@link #GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY}. */
-  public static final long GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_DEFAULT =
-      PerformanceCachingGoogleCloudStorageOptions.MAX_ENTRY_AGE_MILLIS_DEFAULT;
-
-  /** Configuration key for whether or not to enable list caching for the performance cache. */
-  public static final String GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY =
-      "fs.gs.performance.cache.list.caching.enable";
-
-  /** Default value for {@link #GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY}. */
-  public static final boolean GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_DEFAULT =
-      PerformanceCachingGoogleCloudStorageOptions.LIST_CACHING_ENABLED;
-
-  /** Configuration key for number of prefetched directory objects metadata in performance cache. */
-  public static final String GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT_KEY =
-      "fs.gs.performance.cache.dir.metadata.prefetch.limit";
-
-  /** Default value for {@link #GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT_KEY}. */
-  public static final long GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT_DEFAULT =
-      PerformanceCachingGoogleCloudStorageOptions.DIR_METADATA_PREFETCH_LIMIT_DEFAULT;
-
-  /**
-   * Configuration key for whether or not we should update timestamps for parent directories when we
-   * create new files in them.
-   */
-  public static final String GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY =
-      "fs.gs.parent.timestamp.update.enable";
-
-  /** Default value for {@link #GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY}. */
-  public static final boolean GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_DEFAULT = true;
-
-  /**
-   * Configuration key containing a comma-separated list of sub-strings that when matched will cause
-   * a particular directory to not have its modification timestamp updated. Includes take precedence
-   * over excludes.
-   */
-  public static final String GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY =
-      "fs.gs.parent.timestamp.update.substrings.excludes";
-
-  /** Default value for {@link #GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY}. */
-  public static final String GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_DEFAULT = "/";
-
-  /** Configuration key for the MR intermediate done dir. */
-  public static final String MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY =
-      "mapreduce.jobhistory.intermediate-done-dir";
-
-  /** Configuration key of the MR done directory. */
-  public static final String MR_JOB_HISTORY_DONE_DIR_KEY = "mapreduce.jobhistory.done-dir";
-
-  /**
-   * Configuration key containing a comma-separated list of sub-strings that when matched will cause
-   * a particular directory to have its modification timestamp updated. Includes take precedence
-   * over excludes.
-   */
-  public static final String GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY =
-      "fs.gs.parent.timestamp.update.substrings.includes";
-
-  /** Default value for {@link #GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY}. */
-  public static final String GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_DEFAULT =
-      String.format(
-          "${%s},${%s}", MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY, MR_JOB_HISTORY_DONE_DIR_KEY);
-
-  /**
-   * Configuration key for enabling automatic repair of implicit directories whenever detected
-   * inside listStatus and globStatus calls, or other methods which may indirectly call listStatus
-   * and/or globaStatus.
-   */
-  public static final String GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY =
-      "fs.gs.implicit.dir.repair.enable";
-
-  /** Default value for {@link #GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY}. */
-  public static final boolean GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT = true;
-
-  /** Configuration key for changing the path codec from legacy to 'uri path encoding'. */
-  public static final String PATH_CODEC_KEY = "fs.gs.path.encoding";
-
-  /** Use new URI_ENCODED_PATH_CODEC. */
-  public static final String PATH_CODEC_USE_URI_ENCODING = "uri-path";
-
-  /** Use LEGACY_PATH_CODEC. */
-  public static final String PATH_CODEC_USE_LEGACY_ENCODING = "legacy";
-
-  /** Use the default path codec. */
-  public static final String PATH_CODEC_DEFAULT = PATH_CODEC_USE_LEGACY_ENCODING;
-
-  /**
-   * Instance value of {@link #GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY} based on the initial
-   * Configuration.
-   */
-  private boolean enableAutoRepairImplicitDirectories =
-      GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT;
-
-  /**
-   * Configuration key for enabling automatic inference of implicit directories. If set, we create
-   * and return in-memory directory objects on the fly when no backing object exists, but we know
-   * there are files with the same prefix. The ENABLE_REPAIR flag takes precedence over this flag:
-   * if both are set, the repair is attempted, and only if it fails does the setting of this flag
-   * kick in.
-   */
-  public static final String GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY =
-      "fs.gs.implicit.dir.infer.enable";
-
-  /** Default value for {@link #GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY}. */
-  public static final boolean GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_DEFAULT = true;
-
-  /**
-   * Instance value of {@link #GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY} based on the initial
-   * Configuration.
-   */
-  private boolean enableInferImplicitDirectories = GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_DEFAULT;
-
-  /**
-   * Configuration key for enabling the use of a large flat listing to pre-populate possible glob
-   * matches in a single API call before running the core globbing logic in-memory rather than
-   * sequentially and recursively performing API calls.
-   */
-  public static final String GCS_ENABLE_FLAT_GLOB_KEY = "fs.gs.glob.flatlist.enable";
-
-  /** Default value for {@link #GCS_ENABLE_FLAT_GLOB_KEY}. */
-  public static final boolean GCS_ENABLE_FLAT_GLOB_DEFAULT = true;
-
-  /**
-   * Configuration key for enabling the use of marker files during file creation. When running
-   * non-MR applications that make use of the FileSystem, it is a good idea to enable marker files
-   * to better mimic HDFS overwrite and locking behavior.
-   */
-  public static final String GCS_ENABLE_MARKER_FILE_CREATION_KEY =
-      "fs.gs.create.marker.files.enable";
-
-  /** Default value for {@link #GCS_ENABLE_MARKER_FILE_CREATION_KEY}. */
-  public static final boolean GCS_ENABLE_MARKER_FILE_CREATION_DEFAULT = false;
-
-  /**
-   * Configuration key for enabling the use of Rewrite requests for copy operations. Rewrite request
-   * has the same effect as Copy request, but it can handle moving large objects that may
-   * potentially timeout a Copy request.
-   */
-  public static final String GCS_ENABLE_COPY_WITH_REWRITE_KEY = "fs.gs.copy.with.rewrite.enable";
-
-  /** Default value for {@link #GCS_ENABLE_COPY_WITH_REWRITE_KEY}. */
-  public static final boolean GCS_ENABLE_COPY_WITH_REWRITE_DEFAULT = true;
-
-  /** Configuration key for a max number of GCS RPCs in batch request for copy operations. */
-  public static final String GCS_COPY_MAX_REQUESTS_PER_BATCH = "fs.gs.copy.max.requests.per.batch";
-
-  /** Default value for {@link #GCS_COPY_MAX_REQUESTS_PER_BATCH}. */
-  public static final long GCS_COPY_MAX_REQUESTS_PER_BATCH_DEFAULT = 15;
-
-  /** Configuration key for a number of threads to execute batch requests for copy operations. */
-  public static final String GCS_COPY_BATCH_THREADS = "fs.gs.copy.batch.threads";
-
-  /** Default value for {@link #GCS_COPY_BATCH_THREADS}. */
-  public static final int GCS_COPY_BATCH_THREADS_DEFAULT = 15;
-
-  /** Configuration key for number of items to return per call to the list* GCS RPCs. */
-  public static final String GCS_MAX_LIST_ITEMS_PER_CALL = "fs.gs.list.max.items.per.call";
-
-  /** Default value for {@link #GCS_MAX_LIST_ITEMS_PER_CALL}. */
-  public static final long GCS_MAX_LIST_ITEMS_PER_CALL_DEFAULT = 1024;
-
-  /** Configuration key for a max number of GCS RPCs in batch request. */
-  public static final String GCS_MAX_REQUESTS_PER_BATCH = "fs.gs.max.requests.per.batch";
-
-  /** Default value for {@link #GCS_MAX_REQUESTS_PER_BATCH}. */
-  public static final long GCS_MAX_REQUESTS_PER_BATCH_DEFAULT = 15;
-
-  /** Configuration key for a number of threads to execute batch requests. */
-  public static final String GCS_BATCH_THREADS = "fs.gs.batch.threads";
-
-  /** Default value for {@link #GCS_BATCH_THREADS}. */
-  public static final int GCS_BATCH_THREADS_DEFAULT = 15;
-
-  /**
-   * Configuration key for the max number of retries for failed HTTP request to GCS. Note that the
-   * connector will retry *up to* the number of times as specified, using a default
-   * ExponentialBackOff strategy.
-   *
-   * <p>Also, note that this number will only control the number of retries in the low level HTTP
-   * request implementation.
-   */
-  public static final String GCS_HTTP_MAX_RETRY_KEY = "fs.gs.http.max.retry";
-
-  /** Default value for {@link #GCS_HTTP_MAX_RETRY_KEY}. */
-  public static final int GCS_HTTP_MAX_RETRY_DEFAULT = 10;
-
-  /** Configuration key for the connect timeout (in millisecond) for HTTP request to GCS. */
-  public static final String GCS_HTTP_CONNECT_TIMEOUT_KEY = "fs.gs.http.connect-timeout";
-
-  /** Default value for {@link #GCS_HTTP_CONNECT_TIMEOUT_KEY}. */
-  public static final int GCS_HTTP_CONNECT_TIMEOUT_DEFAULT = 20 * 1000;
-
-  /** Configuration key for the connect timeout (in millisecond) for HTTP request to GCS. */
-  public static final String GCS_HTTP_READ_TIMEOUT_KEY = "fs.gs.http.read-timeout";
-
-  /** Default value for {@link #GCS_HTTP_READ_TIMEOUT_KEY}. */
-  public static final int GCS_HTTP_READ_TIMEOUT_DEFAULT = 20 * 1000;
-
-  /**
-   * Configuration key for setting a proxy for the connector to use to connect to GCS. The proxy
-   * must be an HTTP proxy of the form "host:port".
-   */
-  public static final String GCS_PROXY_ADDRESS_KEY =
-      EntriesCredentialConfiguration.PROXY_ADDRESS_KEY;
-
-  /** Default to no proxy. */
-  public static final String GCS_PROXY_ADDRESS_DEFAULT =
-      EntriesCredentialConfiguration.PROXY_ADDRESS_DEFAULT;
-
-  /**
-   * Configuration key for the name of HttpTransport class to use for connecting to GCS. Must be the
-   * name of an HttpTransportFactory.HttpTransportType (APACHE or JAVA_NET).
-   */
-  public static final String GCS_HTTP_TRANSPORT_KEY =
-      EntriesCredentialConfiguration.HTTP_TRANSPORT_KEY;
-
-  /** Default to the default specified in HttpTransportFactory. */
-  public static final String GCS_HTTP_TRANSPORT_DEFAULT =
-      EntriesCredentialConfiguration.HTTP_TRANSPORT_DEFAULT;
-
-  /** Configuration key for adding a suffix to the GHFS application name sent to GCS. */
-  public static final String GCS_APPLICATION_NAME_SUFFIX_KEY = "fs.gs.application.name.suffix";
-
-  /** Default suffix to add to the application name. */
-  public static final String GCS_APPLICATION_NAME_SUFFIX_DEFAULT = "";
-
-  /**
-   * Configuration key for modifying the maximum amount of time to wait for empty object creation.
-   */
-  public static final String GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_KEY =
-      "fs.gs.max.wait.for.empty.object.creation.ms";
-
-  /** Default to 3 seconds. */
-  public static final int GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_DEFAULT = 3_000;
-
-  /**
-   * Configuration key for which type of output stream to use; different options may have different
-   * degrees of support for advanced features like hsync() and different performance
-   * characteristics. Options:
-   *
-   * <p>BASIC: Stream is closest analogue to direct wrapper around low-level HTTP stream into GCS.
-   *
-   * <p>SYNCABLE_COMPOSITE: Stream behaves similarly to BASIC when used with basic
-   * create/write/close patterns, but supports hsync() by creating discrete temporary GCS objects
-   * which are composed onto the destination object. Has a hard upper limit of number of components
-   * which can be composed onto the destination object.
-   */
-  public static final String GCS_OUTPUTSTREAM_TYPE_KEY = "fs.gs.outputstream.type";
-
-  /** Default value for {@link #GCS_OUTPUTSTREAM_TYPE_KEY}. */
-  public static final String GCS_OUTPUTSTREAM_TYPE_DEFAULT = "BASIC";
-
-  /** Available types for use with {@link #GCS_OUTPUTSTREAM_TYPE_KEY}. */
   public enum OutputStreamType {
     BASIC,
     SYNCABLE_COMPOSITE
   }
 
-  /** Configuration key for the generation consistency read model. */
-  public static final String GCS_GENERATION_READ_CONSISTENCY_KEY =
-      "fs.gs.generation.read.consistency";
+  /** Use new URI_ENCODED_PATH_CODEC. */
+  public static final String PATH_CODEC_USE_URI_ENCODING = "uri-path";
+  /** Use LEGACY_PATH_CODEC. */
+  public static final String PATH_CODEC_USE_LEGACY_ENCODING = "legacy";
 
-  /** Default value for {@link #GCS_GENERATION_READ_CONSISTENCY_KEY}. */
-  public static final GenerationReadConsistency GCS_GENERATION_READ_CONSISTENCY_DEFAULT =
-      GoogleCloudStorageReadOptions.DEFAULT_GENERATION_READ_CONSISTENCY;
-
-  /**
-   * If true, on opening a file we will proactively perform a metadata GET to check whether the
-   * object exists, even though the underlying channel will not open a data stream until read() is
-   * actually called so that streams can seek to nonzero file positions without incurring an extra
-   * stream creation. This is necessary to technically match the expected behavior of Hadoop
-   * filesystems, but incurs extra latency overhead on open(). If the calling code can handle late
-   * failures on not-found errors, or has independently already ensured that a file exists before
-   * calling open(), then set this to false for more efficient reads.
-   */
-  public static final String GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY =
-      "fs.gs.inputstream.fast.fail.on.not.found.enable";
-
-  /** Default value for {@link #GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY}. */
-  public static final boolean GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_DEFAULT = true;
-
-  /**
-   * If forward seeks are within this many bytes of the current position, seeks are performed by
-   * reading and discarding bytes in-place rather than opening a new underlying stream.
-   */
-  public static final String GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY =
-      "fs.gs.inputstream.inplace.seek.limit";
-
-  /** Default value for {@link #GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY}. */
-  public static final long GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_DEFAULT = 8 * 1024 * 1024L;
-
-  /** Tunes reading objects behavior to optimize HTTP GET requests for various use cases. */
-  public static final String GCS_INPUTSTREAM_FADVISE_KEY = "fs.gs.inputstream.fadvise";
-
-  /** Default value for {@link #GCS_INPUTSTREAM_FADVISE_KEY}. */
-  public static final Fadvise GCS_INPUTSTREAM_FADVISE_DEFAULT =
-      GoogleCloudStorageReadOptions.DEFAULT_FADVISE;
-
-  /**
-   * Minimum size in bytes of the HTTP Range header set in GCS request when opening new stream to
-   * read an object.
-   */
-  public static final String GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_KEY =
-      "fs.gs.inputstream.min.range.request.size";
-
-  /** Default value for {@link #GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_KEY}. */
-  public static final int GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_DEFAULT =
-      GoogleCloudStorageReadOptions.DEFAULT_MIN_RANGE_REQUEST_SIZE;
-
-  /**
-   * If true, recursive delete on a path that refers to a GCS bucket itself ('/' for any
-   * bucket-rooted GoogleHadoopFileSystem) or delete on that path when it's empty will result in
-   * fully deleting the GCS bucket. If false, any operation that normally would have deleted the
-   * bucket will be ignored instead. Setting to 'false' preserves the typical behavior of "rm -rf /"
-   * which translates to deleting everything inside of root, but without clobbering the filesystem
-   * authority corresponding to that root path in the process.
-   */
-  public static final String GCE_BUCKET_DELETE_ENABLE_KEY = "fs.gs.bucket.delete.enable";
-
-  /** Default value for {@link #GCE_BUCKET_DELETE_ENABLE_KEY}. */
-  public static final boolean GCE_BUCKET_DELETE_ENABLE_DEFAULT = false;
+  /** Default value of replication factor. */
+  public static final short REPLICATION_FACTOR_DEFAULT = 3;
 
   /** Default PathFilter that accepts all paths. */
   public static final PathFilter DEFAULT_FILTER = path -> true;
+
+  /** Prefix to use for common authentication keys. */
+  public static final String AUTHENTICATION_PREFIX = "fs.gs";
 
   /** A resource file containing GCS related build properties. */
   public static final String PROPERTIES_FILE = "gcs.properties";
@@ -611,15 +160,27 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     GHFS_ID = String.format("GHFS/%s", VERSION);
   }
 
-  /** Instance value of {@link #GCS_ENABLE_FLAT_GLOB_KEY} based on the initial Configuration. */
-  private boolean enableFlatGlob = GCS_ENABLE_FLAT_GLOB_DEFAULT;
+  /**
+   * Instance value of {@link
+   * GoogleHadoopFileSystemConfiguration#GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE} based on the
+   * initial Configuration.
+   */
+  private boolean enableAutoRepairImplicitDirectories =
+      GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE.getDefault();
+
+  /**
+   * Instance value of {@link GoogleHadoopFileSystemConfiguration#GCS_FLAT_GLOB_ENABLE} based on the
+   * initial Configuration.
+   */
+  private boolean enableFlatGlob = GCS_FLAT_GLOB_ENABLE.getDefault();
 
   /** The URI the File System is passed in initialize. */
   protected URI initUri;
 
   /**
-   * The retrieved configuration value for {@link #GCS_SYSTEM_BUCKET_KEY}. Used as a fallback for a
-   * root bucket, when required.
+   * The retrieved configuration value for {@link
+   * GoogleHadoopFileSystemConfiguration#GCS_SYSTEM_BUCKET}. Used as a fallback for a root bucket,
+   * when required.
    */
   @Deprecated protected String systemBucket;
 
@@ -627,8 +188,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   protected GoogleCloudStorageFileSystem gcsfs;
 
   /**
-   * Current working directory; overridden in initialize() if {@link #GCS_WORKING_DIRECTORY_KEY} is
-   * set.
+   * Current working directory; overridden in initialize() if {@link
+   * GoogleHadoopFileSystemConfiguration#GCS_WORKING_DIRECTORY} is set.
    */
   private Path workingDirectory;
 
@@ -638,7 +199,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * allow modifying or querying the value. Modifying this value allows one to control how many
    * mappers are used to process a given file.
    */
-  protected long defaultBlockSize = BLOCK_SIZE_DEFAULT;
+  protected long defaultBlockSize = GoogleHadoopFileSystemConfiguration.BLOCK_SIZE.getDefault();
 
   /** The fixed reported permission of all files. */
   private FsPermission reportedPermissions;
@@ -784,43 +345,23 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
      * object.
      */
     public static ParentTimestampUpdateIncludePredicate create(Configuration config) {
-      boolean enableDirectoryTimestampUpdating = config.getBoolean(
-          GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY,
-          GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_DEFAULT);
-      logger.atFine().log(
-          "%s = %s", GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY, enableDirectoryTimestampUpdating);
-
-      String includedParentPaths = config.get(
-          GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY,
-          GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_DEFAULT);
-      logger.atFine().log("%s = %s", GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY, includedParentPaths);
-      List<String> splitIncludedParentPaths =
-          CONFIGURATION_SPLITTER.splitToList(includedParentPaths);
-
-      String excludedParentPaths = config.get(
-          GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY,
-          GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_DEFAULT);
-      logger.atFine().log("%s = %s", GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY, excludedParentPaths);
-      List<String> splitExcludedParentPaths =
-          CONFIGURATION_SPLITTER.splitToList(excludedParentPaths);
-
       return new ParentTimestampUpdateIncludePredicate(
-          enableDirectoryTimestampUpdating,
-          splitIncludedParentPaths,
-          splitExcludedParentPaths);
+          GCS_PARENT_TIMESTAMP_UPDATE_ENABLE.get(config, config::getBoolean),
+          GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES.get(config::getStringCollection),
+          GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES.get(config::getStringCollection));
     }
 
     // Include and exclude lists are intended to be small N and checked relatively
     // infrequently. If that becomes not that case, consider Aho-Corasick or similar matching
     // algorithms.
-    private final List<String> includeSubstrings;
-    private final List<String> excludeSubstrings;
+    private final Collection<String> includeSubstrings;
+    private final Collection<String> excludeSubstrings;
     private final boolean enableTimestampUpdates;
 
     public ParentTimestampUpdateIncludePredicate(
         boolean enableTimestampUpdates,
-        List<String> includeSubstrings,
-        List<String> excludeSubstrings) {
+        Collection<String> includeSubstrings,
+        Collection<String> excludeSubstrings) {
       this.includeSubstrings = includeSubstrings;
       this.excludeSubstrings = excludeSubstrings;
       this.enableTimestampUpdates = enableTimestampUpdates;
@@ -1123,8 +664,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
     URI gcsPath = getGcsPath(hadoopPath);
 
-    OutputStreamType type = OutputStreamType.valueOf(
-        getConf().get(GCS_OUTPUTSTREAM_TYPE_KEY, GCS_OUTPUTSTREAM_TYPE_DEFAULT));
+    OutputStreamType type = GCS_OUTPUT_STREAM_TYPE.get(getConf(), getConf()::getEnum);
     OutputStream out;
     switch (type) {
       case BASIC:
@@ -1138,9 +678,10 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
                 this, gcsPath, statistics, new CreateFileOptions(overwrite));
         break;
       default:
-        throw new IOException(String.format(
-            "Unsupported output stream type given for key '%s': '%s'",
-            GCS_OUTPUTSTREAM_TYPE_KEY, type));
+        throw new IOException(
+            String.format(
+                "Unsupported output stream type given for key '%s': '%s'",
+                GCS_OUTPUT_STREAM_TYPE.getKey(), type));
     }
 
     long duration = System.nanoTime() - startTime;
@@ -1286,8 +827,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     List<FileStatus> status;
 
     try {
-      List<FileInfo> fileInfos = gcsfs.listFileInfo(
-          gcsPath, enableAutoRepairImplicitDirectories);
+      List<FileInfo> fileInfos = gcsfs.listFileInfo(gcsPath, enableAutoRepairImplicitDirectories);
       status = new ArrayList<>(fileInfos.size());
       String userName = getUgiUserName();
       for (FileInfo fileInfo : fileInfos) {
@@ -1786,23 +1326,23 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   private static void copyDeprecatedConfigurationOptions(Configuration config) {
     copyIfNotPresent(
         config,
-        ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY,
+        GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_ENABLE.getKey(),
         AUTHENTICATION_PREFIX + HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX);
     copyIfNotPresent(
         config,
-        SERVICE_ACCOUNT_AUTH_KEYFILE_KEY,
+        GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_KEY_FILE.getKey(),
         AUTHENTICATION_PREFIX + HadoopCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX);
     copyIfNotPresent(
         config,
-        SERVICE_ACCOUNT_AUTH_EMAIL_KEY,
+        GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_EMAIL.getKey(),
         AUTHENTICATION_PREFIX + HadoopCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX);
     copyIfNotPresent(
         config,
-        GCS_CLIENT_ID_KEY,
+        GoogleHadoopFileSystemConfiguration.AUTH_CLIENT_ID.getKey(),
         AUTHENTICATION_PREFIX + HadoopCredentialConfiguration.CLIENT_ID_SUFFIX);
     copyIfNotPresent(
         config,
-        GCS_CLIENT_SECRET_KEY,
+        GoogleHadoopFileSystemConfiguration.AUTH_CLIENT_SECRET.getKey(),
         AUTHENTICATION_PREFIX + HadoopCredentialConfiguration.CLIENT_SECRET_SUFFIX);
 
     String oauthClientFileKey =
@@ -1849,7 +1389,6 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     logger.atFine().log("GHFS_ID = %s", GHFS_ID);
 
     if (gcsfs == null) {
-
       copyDeprecatedConfigurationOptions(config);
 
       Credential credential;
@@ -1862,39 +1401,40 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
         throw new IOException(gse);
       }
 
+      enableFlatGlob = GCS_FLAT_GLOB_ENABLE.get(config, config::getBoolean);
+
       GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
-          createOptionsBuilderFromConfig(config);
+          GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config);
 
       PathCodec pathCodec;
-      String specifiedPathCodec = config.get(PATH_CODEC_KEY, PATH_CODEC_DEFAULT).toLowerCase();
-      logger.atFine().log("%s = %s", PATH_CODEC_KEY, specifiedPathCodec);
-      if (specifiedPathCodec.equals(PATH_CODEC_USE_LEGACY_ENCODING)) {
-        pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
-      } else if (specifiedPathCodec.equals(PATH_CODEC_USE_URI_ENCODING)) {
-        pathCodec = GoogleCloudStorageFileSystem.URI_ENCODED_PATH_CODEC;
-      } else {
-        pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
-        logger.atWarning().log(
-            "Unknown path codec specified %s. Using default / legacy.", specifiedPathCodec);
+      String specifiedPathCodec = PATH_CODEC.get(config::get).toLowerCase();
+      switch (specifiedPathCodec) {
+        case PATH_CODEC_USE_LEGACY_ENCODING:
+          pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
+          break;
+        case PATH_CODEC_USE_URI_ENCODING:
+          pathCodec = GoogleCloudStorageFileSystem.URI_ENCODED_PATH_CODEC;
+          break;
+        default:
+          pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
+          logger.atWarning().log(
+              "Unknown path codec specified %s. Using default / legacy.", specifiedPathCodec);
       }
       optionsBuilder.setPathCodec(pathCodec);
-      gcsfs = new GoogleCloudStorageFileSystem(credential, optionsBuilder.build());
+
+      GoogleCloudStorageFileSystemOptions options = optionsBuilder.build();
+
+      enableAutoRepairImplicitDirectories =
+          options.getCloudStorageOptions().isAutoRepairImplicitDirectoriesEnabled();
+
+      gcsfs = new GoogleCloudStorageFileSystem(credential, options);
     }
 
-    defaultBlockSize = config.getLong(BLOCK_SIZE_KEY, BLOCK_SIZE_DEFAULT);
-    logger.atFine().log("%s = %s", BLOCK_SIZE_KEY, defaultBlockSize);
+    defaultBlockSize = GoogleHadoopFileSystemConfiguration.BLOCK_SIZE.get(config, config::getLong);
+    reportedPermissions = new FsPermission(PERMISSIONS_TO_REPORT.get(config::get));
 
-    String systemBucketName = config.get(GCS_SYSTEM_BUCKET_KEY, null);
-    logger.atFine().log("%s = %s", GCS_SYSTEM_BUCKET_KEY, systemBucketName);
-
-    boolean createSystemBucket =
-        config.getBoolean(GCS_CREATE_SYSTEM_BUCKET_KEY, GCS_CREATE_SYSTEM_BUCKET_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_CREATE_SYSTEM_BUCKET_KEY, createSystemBucket);
-
-    reportedPermissions = new FsPermission(
-        config.get(PERMISSIONS_TO_REPORT_KEY, PERMISSIONS_TO_REPORT_DEFAULT));
-    logger.atFine().log("%s = %s", PERMISSIONS_TO_REPORT_KEY, reportedPermissions);
-
+    String systemBucketName = GCS_SYSTEM_BUCKET.get(config::get);
+    boolean createSystemBucket = GCS_CREATE_SYSTEM_BUCKET.get(config, config::getBoolean);
     configureBuckets(systemBucketName, createSystemBucket);
 
     // Set initial working directory to root so that any configured value gets resolved
@@ -1902,7 +1442,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     workingDirectory = getFileSystemRoot();
 
     Path newWorkingDirectory;
-    String configWorkingDirectory = config.get(GCS_WORKING_DIRECTORY_KEY);
+    String configWorkingDirectory = GCS_WORKING_DIRECTORY.get(config, config::get);
     if (Strings.isNullOrEmpty(configWorkingDirectory)) {
       newWorkingDirectory = getDefaultWorkingDirectory();
       logger.atWarning().log(
@@ -1914,7 +1454,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     // Use the public method to ensure proper behavior of normalizing and resolving the new
     // working directory relative to the initial filesystem-root directory.
     setWorkingDirectory(newWorkingDirectory);
-    logger.atFine().log("%s = %s", GCS_WORKING_DIRECTORY_KEY, getWorkingDirectory());
+    logger.atFine().log("%s = %s", GCS_WORKING_DIRECTORY.getKey(), getWorkingDirectory());
 
     // Set this configuration as the default config for this instance.
     setConf(config);
@@ -1951,9 +1491,9 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
         if (createSystemBucket) {
           gcsfs.mkdirs(systemBucketPath);
         } else {
-          String msg =
-              String.format("%s: system bucket not found: %s", GCS_SYSTEM_BUCKET_KEY, systemBucket);
-          throw new FileNotFoundException(msg);
+          throw new FileNotFoundException(
+              String.format(
+                  "%s: system bucket not found: %s", GCS_SYSTEM_BUCKET.getKey(), systemBucket));
         }
       }
     }
@@ -2133,238 +1673,442 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     logger.atFine().log("GHFS.setTimes:=> ");
   }
 
-  @VisibleForTesting
-  GoogleCloudStorageFileSystemOptions.Builder createOptionsBuilderFromConfig(Configuration config)
-      throws IOException {
-    GoogleCloudStorageFileSystemOptions.Builder gcsFsOptionsBuilder =
-        GoogleCloudStorageFileSystemOptions.newBuilder();
-
-    boolean enableBucketDelete = config.getBoolean(
-        GCE_BUCKET_DELETE_ENABLE_KEY, GCE_BUCKET_DELETE_ENABLE_DEFAULT);
-    logger.atFine().log("%s = %s", GCE_BUCKET_DELETE_ENABLE_KEY, enableBucketDelete);
-    gcsFsOptionsBuilder.setEnableBucketDelete(enableBucketDelete);
-
-    GoogleCloudStorageFileSystemOptions.TimestampUpdatePredicate updatePredicate =
-        ParentTimestampUpdateIncludePredicate.create(config);
-    gcsFsOptionsBuilder.setShouldIncludeInTimestampUpdatesPredicate(updatePredicate);
-
-    GoogleCloudStorageOptions.Builder gcsOptionsBuilder =
-        gcsFsOptionsBuilder.getCloudStorageOptionsBuilder();
-
-    enableAutoRepairImplicitDirectories = config.getBoolean(
-        GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY, GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT);
-    logger.atFine().log(
-        "%s = %s", GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY, enableAutoRepairImplicitDirectories);
-    gcsOptionsBuilder.setAutoRepairImplicitDirectoriesEnabled(enableAutoRepairImplicitDirectories);
-
-    enableInferImplicitDirectories = config.getBoolean(
-        GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY, GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_DEFAULT);
-    logger.atFine().log(
-        "%s = %s", GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY, enableInferImplicitDirectories);
-    gcsOptionsBuilder.setInferImplicitDirectoriesEnabled(enableInferImplicitDirectories);
-
-    enableFlatGlob = config.getBoolean(GCS_ENABLE_FLAT_GLOB_KEY, GCS_ENABLE_FLAT_GLOB_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_ENABLE_FLAT_GLOB_KEY, enableFlatGlob);
-
-    boolean enableMarkerFileCreation = config.getBoolean(
-        GCS_ENABLE_MARKER_FILE_CREATION_KEY, GCS_ENABLE_MARKER_FILE_CREATION_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_ENABLE_MARKER_FILE_CREATION_KEY, enableMarkerFileCreation);
-    gcsOptionsBuilder.setMarkerFileCreationEnabled(enableMarkerFileCreation);
-
-    boolean enableCopyWithRewrite =
-        config.getBoolean(GCS_ENABLE_COPY_WITH_REWRITE_KEY, GCS_ENABLE_COPY_WITH_REWRITE_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_ENABLE_COPY_WITH_REWRITE_KEY, enableCopyWithRewrite);
-    gcsOptionsBuilder.setCopyWithRewriteEnabled(enableCopyWithRewrite);
-
-    long copyMaxRequestsPerBatch =
-        config.getLong(GCS_COPY_MAX_REQUESTS_PER_BATCH, GCS_COPY_MAX_REQUESTS_PER_BATCH_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_COPY_MAX_REQUESTS_PER_BATCH, copyMaxRequestsPerBatch);
-    gcsOptionsBuilder.setCopyMaxRequestsPerBatch(copyMaxRequestsPerBatch);
-
-    int copyBatchThreads = config.getInt(GCS_COPY_BATCH_THREADS, GCS_COPY_BATCH_THREADS_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_COPY_BATCH_THREADS, copyBatchThreads);
-    gcsOptionsBuilder.setCopyBatchThreads(copyBatchThreads);
-
-    String transportTypeString = config.get(GCS_HTTP_TRANSPORT_KEY, GCS_HTTP_TRANSPORT_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_HTTP_TRANSPORT_KEY, transportTypeString);
-    gcsOptionsBuilder.setTransportType(
-        HttpTransportFactory.getTransportTypeOf(transportTypeString));
-
-    String proxyAddress = config.get(GCS_PROXY_ADDRESS_KEY, GCS_PROXY_ADDRESS_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_PROXY_ADDRESS_KEY, proxyAddress);
-    gcsOptionsBuilder.setProxyAddress(proxyAddress);
-
-    String projectId = config.get(GCS_PROJECT_ID_KEY);
-    logger.atFine().log("%s = %s", GCS_PROJECT_ID_KEY, projectId);
-    gcsOptionsBuilder.setProjectId(projectId);
-
-    long maxListItemsPerCall =
-        config.getLong(GCS_MAX_LIST_ITEMS_PER_CALL, GCS_MAX_LIST_ITEMS_PER_CALL_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_MAX_LIST_ITEMS_PER_CALL, maxListItemsPerCall);
-    gcsOptionsBuilder.setMaxListItemsPerCall(maxListItemsPerCall);
-
-    long maxRequestsPerBatch =
-        config.getLong(GCS_MAX_REQUESTS_PER_BATCH, GCS_MAX_REQUESTS_PER_BATCH_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_MAX_REQUESTS_PER_BATCH, maxRequestsPerBatch);
-    gcsOptionsBuilder.setMaxRequestsPerBatch(maxRequestsPerBatch);
-
-    int batchThreads = config.getInt(GCS_BATCH_THREADS, GCS_BATCH_THREADS_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_BATCH_THREADS, batchThreads);
-    gcsOptionsBuilder.setBatchThreads(batchThreads);
-
-    int maxHttpRequestRetries = config.getInt(GCS_HTTP_MAX_RETRY_KEY, GCS_HTTP_MAX_RETRY_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_HTTP_MAX_RETRY_KEY, maxHttpRequestRetries);
-    gcsOptionsBuilder.setMaxHttpRequestRetries(maxHttpRequestRetries);
-
-    int httpRequestConnectTimeout =
-        config.getInt(GCS_HTTP_CONNECT_TIMEOUT_KEY, GCS_HTTP_CONNECT_TIMEOUT_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_HTTP_CONNECT_TIMEOUT_KEY, httpRequestConnectTimeout);
-    gcsOptionsBuilder.setHttpRequestConnectTimeout(httpRequestConnectTimeout);
-
-    int httpRequestReadTimeout =
-        config.getInt(GCS_HTTP_READ_TIMEOUT_KEY, GCS_HTTP_READ_TIMEOUT_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_HTTP_READ_TIMEOUT_KEY, httpRequestReadTimeout);
-    gcsOptionsBuilder.setHttpRequestReadTimeout(httpRequestReadTimeout);
-
-    String markerFilePattern = config.get(GCS_MARKER_FILE_PATTERN_KEY);
-    logger.atFine().log("%s = %s", GCS_MARKER_FILE_PATTERN_KEY, markerFilePattern);
-    gcsFsOptionsBuilder.setMarkerFilePattern(markerFilePattern);
-
-    String applicationNameSuffix =
-        config.get(GCS_APPLICATION_NAME_SUFFIX_KEY, GCS_APPLICATION_NAME_SUFFIX_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_APPLICATION_NAME_SUFFIX_KEY, applicationNameSuffix);
-    String applicationName = GHFS_ID + nullToEmpty(applicationNameSuffix);
-    logger.atFine().log("Setting GCS application name to %s", applicationName);
-    gcsOptionsBuilder.setAppName(applicationName);
-
-    int maxWaitMillisForEmptyObjectCreation = config.getInt(
-        GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_KEY,
-        GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_DEFAULT);
-    logger.atFine().log(
-        "%s = %s",
-        GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_KEY, maxWaitMillisForEmptyObjectCreation);
-    gcsOptionsBuilder.setMaxWaitMillisForEmptyObjectCreation(maxWaitMillisForEmptyObjectCreation);
-
-    boolean enablePerformanceCache =
-        config.getBoolean(GCS_ENABLE_PERFORMANCE_CACHE_KEY, GCS_ENABLE_PERFORMANCE_CACHE_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_ENABLE_PERFORMANCE_CACHE_KEY, enablePerformanceCache);
-    gcsFsOptionsBuilder
-        .setIsPerformanceCacheEnabled(enablePerformanceCache)
-        .setImmutablePerformanceCachingOptions(getPerformanceCachingOptions(config));
-
-    gcsOptionsBuilder
-        .setReadChannelOptions(getReadChannelOptions(config))
-        .setWriteChannelOptions(getWriteChannelOptions(config))
-        .setRequesterPaysOptions(getRequesterPaysOptions(config, projectId));
-
-    return gcsFsOptionsBuilder;
-  }
-
-  private static PerformanceCachingGoogleCloudStorageOptions getPerformanceCachingOptions(
-      Configuration config) {
-    long performanceCacheMaxEntryAgeMillis =
-        config.getLong(
-            GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY,
-            GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_DEFAULT);
-    logger.atFine().log(
-        "%s = %s",
-        GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY, performanceCacheMaxEntryAgeMillis);
-
-    boolean listCachingEnabled =
-        config.getBoolean(
-            GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY,
-            GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_DEFAULT);
-    logger.atFine().log(
-        "%s = %s", GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY, listCachingEnabled);
-
-    long dirMetadataPrefetchLimit =
-        config.getLong(
-            GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT_KEY,
-            GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT_DEFAULT);
-    logger.atFine().log(
-        "%s = %s", GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT_KEY, dirMetadataPrefetchLimit);
-
-    return PerformanceCachingGoogleCloudStorageOptions.builder()
-        .setMaxEntryAgeMillis(performanceCacheMaxEntryAgeMillis)
-        .setListCachingEnabled(listCachingEnabled)
-        .setDirMetadataPrefetchLimit(dirMetadataPrefetchLimit)
-        .build();
-  }
-
-  private static GoogleCloudStorageReadOptions getReadChannelOptions(Configuration configuration) {
-    boolean fastFailOnNotFound =
-        configuration.getBoolean(
-            GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY,
-            GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_DEFAULT);
-    logger.atFine().log(
-        "%s = %s", GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY, fastFailOnNotFound);
-
-    long inplaceSeekLimit =
-        configuration.getLong(
-            GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY, GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_DEFAULT);
-    logger.atFine().log("%s = %d", GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY, inplaceSeekLimit);
-
-    int bufferSize = configuration.getInt(BUFFERSIZE_KEY, BUFFERSIZE_DEFAULT);
-    logger.atFine().log("%s = %d", BUFFERSIZE_KEY, bufferSize);
-
-    Fadvise fadvise =
-        configuration.getEnum(GCS_INPUTSTREAM_FADVISE_KEY, GCS_INPUTSTREAM_FADVISE_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_INPUTSTREAM_FADVISE_KEY, fadvise);
-
-    int minRangeRequestSize =
-        configuration.getInt(
-            GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_KEY,
-            GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_DEFAULT);
-    logger.atFine().log("%s = %d", GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_KEY, minRangeRequestSize);
-
-    GenerationReadConsistency generationConsistency =
-        configuration.getEnum(
-            GCS_GENERATION_READ_CONSISTENCY_KEY, GCS_GENERATION_READ_CONSISTENCY_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_GENERATION_READ_CONSISTENCY_KEY, generationConsistency);
-
-    return GoogleCloudStorageReadOptions.builder()
-        .setFastFailOnNotFound(fastFailOnNotFound)
-        .setInplaceSeekLimit(inplaceSeekLimit)
-        .setBufferSize(bufferSize)
-        .setFadvise(fadvise)
-        .setMinRangeRequestSize(minRangeRequestSize)
-        .setGenerationReadConsistency(generationConsistency)
-        .build();
-  }
-
-  private static AsyncWriteChannelOptions getWriteChannelOptions(Configuration config) {
-    // Configuration for setting 250GB upper limit on file size to gain higher write throughput.
-    boolean limitFileSizeTo250Gb =
-        config.getBoolean(GCS_FILE_SIZE_LIMIT_250GB, GCS_FILE_SIZE_LIMIT_250GB_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_FILE_SIZE_LIMIT_250GB, limitFileSizeTo250Gb);
-
-    // Configuration for setting GoogleCloudStorageWriteChannel upload buffer size.
-    int uploadBufferSize = config.getInt(WRITE_BUFFERSIZE_KEY, WRITE_BUFFERSIZE_DEFAULT);
-    logger.atFine().log("%s = %s", WRITE_BUFFERSIZE_KEY, uploadBufferSize);
-
-    return AsyncWriteChannelOptions.newBuilder()
-        .setFileSizeLimitedTo250Gb(limitFileSizeTo250Gb)
-        .setUploadBufferSize(uploadBufferSize)
-        .build();
-  }
-
-  private static RequesterPaysOptions getRequesterPaysOptions(
-      Configuration config, String projectId) {
-    RequesterPaysMode requesterPaysMode =
-        config.getEnum(GCS_REQUESTER_PAYS_MODE_KEY, REQUESTER_PAYS_MODE_DEFAULT);
-    logger.atFine().log("%s = %s", GCS_REQUESTER_PAYS_MODE_KEY, requesterPaysMode);
-
-    String requesterPaysProjectId = config.get(GCS_REQUESTER_PAYS_PROJECT_ID_KEY);
-    logger.atFine().log("%s = %s", GCS_REQUESTER_PAYS_PROJECT_ID_KEY, requesterPaysProjectId);
-
-    Collection<String> requesterPaysBuckets =
-        config.getStringCollection(GCS_REQUESTER_PAYS_BUCKETS_KEY);
-    logger.atFine().log("%s = %s", GCS_REQUESTER_PAYS_BUCKETS_KEY, requesterPaysBuckets);
-
-    return RequesterPaysOptions.builder()
-        .setMode(requesterPaysMode)
-        .setProjectId(requesterPaysProjectId == null ? projectId : requesterPaysProjectId)
-        .setBuckets(requesterPaysBuckets)
-        .build();
-  }
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#PERMISSIONS_TO_REPORT} */
+  @Deprecated
+  public static final String PERMISSIONS_TO_REPORT_KEY =
+      GoogleHadoopFileSystemConfiguration.PERMISSIONS_TO_REPORT.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#PERMISSIONS_TO_REPORT} */
+  @Deprecated
+  public static final String PERMISSIONS_TO_REPORT_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.PERMISSIONS_TO_REPORT.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#BUFFERSIZE} */
+  @Deprecated
+  public static final String BUFFERSIZE_KEY =
+      GoogleHadoopFileSystemConfiguration.BUFFERSIZE.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#BUFFERSIZE} */
+  @Deprecated
+  public static final int BUFFERSIZE_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.BUFFERSIZE.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#WRITE_BUFFERSIZE} */
+  @Deprecated
+  public static final String WRITE_BUFFERSIZE_KEY =
+      GoogleHadoopFileSystemConfiguration.WRITE_BUFFERSIZE.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#WRITE_BUFFERSIZE} */
+  @Deprecated
+  public static final int WRITE_BUFFERSIZE_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.WRITE_BUFFERSIZE.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#BLOCK_SIZE} */
+  @Deprecated
+  public static final String BLOCK_SIZE_KEY =
+      GoogleHadoopFileSystemConfiguration.BLOCK_SIZE.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#BLOCK_SIZE} */
+  @Deprecated
+  public static final int BLOCK_SIZE_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.BLOCK_SIZE.getDefault().intValue();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#AUTH_SERVICE_ACCOUNT_ENABLE} */
+  @Deprecated
+  public static final String ENABLE_GCE_SERVICE_ACCOUNT_AUTH_KEY =
+      GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_ENABLE.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#AUTH_SERVICE_ACCOUNT_EMAIL} */
+  @Deprecated
+  public static final String SERVICE_ACCOUNT_AUTH_EMAIL_KEY =
+      GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_EMAIL.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#AUTH_SERVICE_ACCOUNT_KEY_FILE} */
+  @Deprecated
+  public static final String SERVICE_ACCOUNT_AUTH_KEYFILE_KEY =
+      GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_KEY_FILE.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_PROJECT_ID} */
+  @Deprecated
+  public static final String GCS_PROJECT_ID_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_PROJECT_ID.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_REQUESTER_PAYS_MODE} */
+  @Deprecated
+  public static final String GCS_REQUESTER_PAYS_MODE_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_REQUESTER_PAYS_MODE.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_REQUESTER_PAYS_PROJECT_ID} */
+  @Deprecated
+  public static final String GCS_REQUESTER_PAYS_PROJECT_ID_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_REQUESTER_PAYS_PROJECT_ID.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_REQUESTER_PAYS_BUCKETS} */
+  @Deprecated
+  public static final String GCS_REQUESTER_PAYS_BUCKETS_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_REQUESTER_PAYS_BUCKETS.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#AUTH_CLIENT_ID} */
+  @Deprecated
+  public static final String GCS_CLIENT_ID_KEY =
+      GoogleHadoopFileSystemConfiguration.AUTH_CLIENT_ID.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#AUTH_CLIENT_SECRET} */
+  @Deprecated
+  public static final String GCS_CLIENT_SECRET_KEY =
+      GoogleHadoopFileSystemConfiguration.AUTH_CLIENT_SECRET.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_SYSTEM_BUCKET} */
+  @Deprecated
+  public static final String GCS_SYSTEM_BUCKET_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_CREATE_SYSTEM_BUCKET} */
+  @Deprecated
+  public static final String GCS_CREATE_SYSTEM_BUCKET_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_CREATE_SYSTEM_BUCKET.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_CREATE_SYSTEM_BUCKET} */
+  @Deprecated
+  public static final boolean GCS_CREATE_SYSTEM_BUCKET_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_CREATE_SYSTEM_BUCKET.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_WORKING_DIRECTORY} */
+  @Deprecated
+  public static final String GCS_WORKING_DIRECTORY_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_WORKING_DIRECTORY.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_FILE_SIZE_LIMIT_250GB} */
+  @Deprecated
+  public static final String GCS_FILE_SIZE_LIMIT_250GB =
+      GoogleHadoopFileSystemConfiguration.GCS_FILE_SIZE_LIMIT_250GB.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_FILE_SIZE_LIMIT_250GB} */
+  @Deprecated
+  public static final boolean GCS_FILE_SIZE_LIMIT_250GB_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_FILE_SIZE_LIMIT_250GB.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_MARKER_FILE_PATTERN} */
+  @Deprecated
+  public static final String GCS_MARKER_FILE_PATTERN_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_MARKER_FILE_PATTERN.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_PERFORMANCE_CACHE_ENABLE} */
+  @Deprecated
+  public static final String GCS_ENABLE_PERFORMANCE_CACHE_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_PERFORMANCE_CACHE_ENABLE.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_PERFORMANCE_CACHE_ENABLE} */
+  @Deprecated
+  public static final boolean GCS_ENABLE_PERFORMANCE_CACHE_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_PERFORMANCE_CACHE_ENABLE.getDefault();
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS}
+   */
+  @Deprecated
+  public static final String GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS.getKey();
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS}
+   */
+  @Deprecated
+  public static final long GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS.getDefault();
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE}
+   */
+  @Deprecated
+  public static final String GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE.getKey();
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE}
+   */
+  @Deprecated
+  public static final boolean GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE.getDefault();
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT}
+   */
+  @Deprecated
+  public static final String GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT
+          .getKey();
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT}
+   */
+  @Deprecated
+  public static final long GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT
+          .getDefault();
+  /**
+   * @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_PARENT_TIMESTAMP_UPDATE_ENABLE}
+   */
+  @Deprecated
+  public static final String GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_ENABLE.getKey();
+  /**
+   * @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_PARENT_TIMESTAMP_UPDATE_ENABLE}
+   */
+  @Deprecated
+  public static final boolean GCS_PARENT_TIMESTAMP_UPDATE_ENABLE_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_ENABLE.getDefault();
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES}
+   */
+  @Deprecated
+  public static final String GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES.getKey();
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES}
+   */
+  @Deprecated
+  public static final String GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES_DEFAULT =
+      Joiner.on(',')
+          .join(
+              GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES
+                  .getDefault());
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY}
+   */
+  @Deprecated
+  public static final String MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY =
+      GoogleHadoopFileSystemConfiguration.MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY;
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#MR_JOB_HISTORY_DONE_DIR_KEY} */
+  @Deprecated
+  public static final String MR_JOB_HISTORY_DONE_DIR_KEY =
+      GoogleHadoopFileSystemConfiguration.MR_JOB_HISTORY_DONE_DIR_KEY;
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES}
+   */
+  @Deprecated
+  public static final String GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES.getKey();
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES}
+   */
+  @Deprecated
+  public static final String GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES_DEFAULT =
+      Joiner.on(',')
+          .join(
+              GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES
+                  .getDefault());
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE}
+   */
+  @Deprecated
+  public static final String GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE.getKey();
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE}
+   */
+  @Deprecated
+  public static final boolean GCS_ENABLE_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#PATH_CODEC} */
+  @Deprecated
+  public static final String PATH_CODEC_KEY =
+      GoogleHadoopFileSystemConfiguration.PATH_CODEC.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#PATH_CODEC} */
+  @Deprecated
+  public static final String PATH_CODEC_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.PATH_CODEC.getDefault();
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_INFER_IMPLICIT_DIRECTORIES_ENABLE}
+   */
+  @Deprecated
+  public static final String GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_INFER_IMPLICIT_DIRECTORIES_ENABLE.getKey();
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_INFER_IMPLICIT_DIRECTORIES_ENABLE}
+   */
+  @Deprecated
+  public static final boolean GCS_ENABLE_INFER_IMPLICIT_DIRECTORIES_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_INFER_IMPLICIT_DIRECTORIES_ENABLE.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_FLAT_GLOB_ENABLE} */
+  @Deprecated
+  public static final String GCS_ENABLE_FLAT_GLOB_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_FLAT_GLOB_ENABLE.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_FLAT_GLOB_ENABLE} */
+  @Deprecated
+  public static final boolean GCS_ENABLE_FLAT_GLOB_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_FLAT_GLOB_ENABLE.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_MARKER_FILE_CREATION_ENABLE} */
+  @Deprecated
+  public static final String GCS_ENABLE_MARKER_FILE_CREATION_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_MARKER_FILE_CREATION_ENABLE.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_MARKER_FILE_CREATION_ENABLE} */
+  @Deprecated
+  public static final boolean GCS_ENABLE_MARKER_FILE_CREATION_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_MARKER_FILE_CREATION_ENABLE.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_COPY_WITH_REWRITE_ENABLE} */
+  @Deprecated
+  public static final String GCS_ENABLE_COPY_WITH_REWRITE_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_COPY_WITH_REWRITE_ENABLE.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_COPY_WITH_REWRITE_ENABLE} */
+  @Deprecated
+  public static final boolean GCS_ENABLE_COPY_WITH_REWRITE_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_COPY_WITH_REWRITE_ENABLE.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_COPY_MAX_REQUESTS_PER_BATCH} */
+  @Deprecated
+  public static final String GCS_COPY_MAX_REQUESTS_PER_BATCH =
+      GoogleHadoopFileSystemConfiguration.GCS_COPY_MAX_REQUESTS_PER_BATCH.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_COPY_MAX_REQUESTS_PER_BATCH} */
+  @Deprecated
+  public static final long GCS_COPY_MAX_REQUESTS_PER_BATCH_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_COPY_MAX_REQUESTS_PER_BATCH.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_COPY_BATCH_THREADS} */
+  @Deprecated
+  public static final String GCS_COPY_BATCH_THREADS =
+      GoogleHadoopFileSystemConfiguration.GCS_COPY_BATCH_THREADS.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_COPY_BATCH_THREADS} */
+  @Deprecated
+  public static final int GCS_COPY_BATCH_THREADS_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_COPY_BATCH_THREADS.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_MAX_LIST_ITEMS_PER_CALL} */
+  @Deprecated
+  public static final String GCS_MAX_LIST_ITEMS_PER_CALL =
+      GoogleHadoopFileSystemConfiguration.GCS_MAX_LIST_ITEMS_PER_CALL.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_MAX_LIST_ITEMS_PER_CALL} */
+  @Deprecated
+  public static final long GCS_MAX_LIST_ITEMS_PER_CALL_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_MAX_LIST_ITEMS_PER_CALL.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_MAX_REQUESTS_PER_BATCH} */
+  @Deprecated
+  public static final String GCS_MAX_REQUESTS_PER_BATCH =
+      GoogleHadoopFileSystemConfiguration.GCS_MAX_REQUESTS_PER_BATCH.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_MAX_REQUESTS_PER_BATCH} */
+  @Deprecated
+  public static final long GCS_MAX_REQUESTS_PER_BATCH_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_MAX_REQUESTS_PER_BATCH.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_BATCH_THREADS} */
+  @Deprecated
+  public static final String GCS_BATCH_THREADS =
+      GoogleHadoopFileSystemConfiguration.GCS_BATCH_THREADS.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_BATCH_THREADS} */
+  @Deprecated
+  public static final int GCS_BATCH_THREADS_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_BATCH_THREADS.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_HTTP_MAX_RETRY} */
+  @Deprecated
+  public static final String GCS_HTTP_MAX_RETRY_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_HTTP_MAX_RETRY.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_HTTP_MAX_RETRY} */
+  @Deprecated
+  public static final int GCS_HTTP_MAX_RETRY_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_HTTP_MAX_RETRY.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_HTTP_CONNECT_TIMEOUT} */
+  @Deprecated
+  public static final String GCS_HTTP_CONNECT_TIMEOUT_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_HTTP_CONNECT_TIMEOUT.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_HTTP_CONNECT_TIMEOUT} */
+  @Deprecated
+  public static final int GCS_HTTP_CONNECT_TIMEOUT_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_HTTP_CONNECT_TIMEOUT.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_HTTP_READ_TIMEOUT} */
+  @Deprecated
+  public static final String GCS_HTTP_READ_TIMEOUT_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_HTTP_READ_TIMEOUT.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_HTTP_READ_TIMEOUT} */
+  @Deprecated
+  public static final int GCS_HTTP_READ_TIMEOUT_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_HTTP_READ_TIMEOUT.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_PROXY_ADDRESS} */
+  @Deprecated
+  public static final String GCS_PROXY_ADDRESS_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_PROXY_ADDRESS.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_PROXY_ADDRESS} */
+  @Deprecated
+  public static final String GCS_PROXY_ADDRESS_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_PROXY_ADDRESS.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_HTTP_TRANSPORT} */
+  @Deprecated
+  public static final String GCS_HTTP_TRANSPORT_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_HTTP_TRANSPORT.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_HTTP_TRANSPORT} */
+  @Deprecated public static final String GCS_HTTP_TRANSPORT_DEFAULT = null;
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_APPLICATION_NAME_SUFFIX} */
+  @Deprecated
+  public static final String GCS_APPLICATION_NAME_SUFFIX_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_APPLICATION_NAME_SUFFIX.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_APPLICATION_NAME_SUFFIX} */
+  @Deprecated
+  public static final String GCS_APPLICATION_NAME_SUFFIX_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_APPLICATION_NAME_SUFFIX.getDefault();
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE}
+   */
+  @Deprecated
+  public static final String GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE.getKey();
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE}
+   */
+  @Deprecated
+  public static final int GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_OUTPUT_STREAM_TYPE} */
+  @Deprecated
+  public static final String GCS_OUTPUTSTREAM_TYPE_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_TYPE.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_OUTPUT_STREAM_TYPE} */
+  @Deprecated
+  public static final String GCS_OUTPUTSTREAM_TYPE_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_TYPE.getDefault().toString();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_GENERATION_READ_CONSISTENCY} */
+  @Deprecated
+  public static final String GCS_GENERATION_READ_CONSISTENCY_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_GENERATION_READ_CONSISTENCY.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_GENERATION_READ_CONSISTENCY} */
+  @Deprecated
+  public static final GenerationReadConsistency GCS_GENERATION_READ_CONSISTENCY_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_GENERATION_READ_CONSISTENCY.getDefault();
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_INPUT_STREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE}
+   */
+  @Deprecated
+  public static final String GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE.getKey();
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_INPUT_STREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE}
+   */
+  @Deprecated
+  public static final boolean GCS_INPUTSTREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE
+          .getDefault();
+  /**
+   * @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_INPUT_STREAM_INPLACE_SEEK_LIMIT}
+   */
+  @Deprecated
+  public static final String GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_INPLACE_SEEK_LIMIT.getKey();
+  /**
+   * @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_INPUT_STREAM_INPLACE_SEEK_LIMIT}
+   */
+  @Deprecated
+  public static final long GCS_INPUTSTREAM_INPLACE_SEEK_LIMIT_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_INPLACE_SEEK_LIMIT.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_INPUT_STREAM_FADVISE} */
+  @Deprecated
+  public static final String GCS_INPUTSTREAM_FADVISE_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_FADVISE.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_INPUT_STREAM_FADVISE} */
+  @Deprecated
+  public static final Fadvise GCS_INPUTSTREAM_FADVISE_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_FADVISE.getDefault();
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_INPUT_STREAM_MIN_RANGE_REQUEST_SIZE}
+   */
+  @Deprecated
+  public static final String GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_KEY =
+      GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_MIN_RANGE_REQUEST_SIZE.getKey();
+  /**
+   * @deprecated use {@link
+   *     GoogleHadoopFileSystemConfiguration#GCS_INPUT_STREAM_MIN_RANGE_REQUEST_SIZE}
+   */
+  @Deprecated
+  public static final int GCS_INPUTSTREAM_MIN_RANGE_REQUEST_SIZE_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_MIN_RANGE_REQUEST_SIZE.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCE_BUCKET_DELETE_ENABLE} */
+  @Deprecated
+  public static final String GCE_BUCKET_DELETE_ENABLE_KEY =
+      GoogleHadoopFileSystemConfiguration.GCE_BUCKET_DELETE_ENABLE.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCE_BUCKET_DELETE_ENABLE} */
+  @Deprecated
+  public static final boolean GCE_BUCKET_DELETE_ENABLE_DEFAULT =
+      GoogleHadoopFileSystemConfiguration.GCE_BUCKET_DELETE_ENABLE.getDefault();
 }
