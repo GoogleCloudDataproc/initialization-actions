@@ -27,7 +27,6 @@ import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageWriteChannel;
 import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage.ListVisibilityCalculator;
 import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorage;
@@ -37,6 +36,7 @@ import com.google.cloud.hadoop.gcsio.UpdatableItemInfo;
 import com.google.cloud.hadoop.gcsio.VerificationAttributes;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
+import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.common.base.Equivalence;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -228,7 +228,7 @@ public class GoogleCloudStorageTest {
   public void testCreate1PageLengthObjectUsingCreate() throws IOException {
     String bucketName = getSharedBucketName();
 
-    int objectSize = GoogleCloudStorageWriteChannel.UPLOAD_PIPE_BUFFER_SIZE_DEFAULT;
+    int objectSize = AsyncWriteChannelOptions.PIPE_BUFFER_SIZE_DEFAULT;
     StorageResourceId objectToCreate =
         new StorageResourceId(bucketName, "testCreate1PageLengthObjectUsingCreate_Object");
     byte[] objectBytes = writeObject(rawStorage, objectToCreate, objectSize);
@@ -240,7 +240,7 @@ public class GoogleCloudStorageTest {
   public void testCreate1PageLengthPlus1byteObjectUsingCreate() throws IOException {
     String bucketName = getSharedBucketName();
 
-    int objectSize = GoogleCloudStorageWriteChannel.UPLOAD_PIPE_BUFFER_SIZE_DEFAULT + 1;
+    int objectSize = AsyncWriteChannelOptions.PIPE_BUFFER_SIZE_DEFAULT + 1;
     StorageResourceId objectToCreate =
         new StorageResourceId(bucketName, "testCreate1PageLengthPlus1byteObjectUsingCreate_Object");
     byte[] objectBytes = writeObject(rawStorage, objectToCreate, objectSize);

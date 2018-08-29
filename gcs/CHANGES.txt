@@ -29,7 +29,15 @@
 
        fs.gs.io.buffersize (deafult: 8388608 -> 0)
 
-  5. Remove output buffer in `GoogleHadoopOutputStream`.
+  5. Add configuration properties for buffers in `GoogleHadoopOutputStream`:
+
+       fs.gs.outputstream.buffer.size (default: 8388608)
+       fs.gs.outputstream.pipe.buffer.size (default: 1048576)
+
+  6. Deprecate and replace properties with new one:
+
+      fs.gs.io.buffersize -> fs.gs.inputstream.buffer.size (deafult :0)
+      fs.gs.io.buffersize.write -> fs.gs.outputstream.upload.chunk.size (default: 67108864)
 
 
 1.9.5 - 2018-08-09

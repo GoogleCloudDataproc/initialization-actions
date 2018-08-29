@@ -137,7 +137,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   protected static String objectName = "gcsio-test.txt";
 
   protected static final boolean GCS_FILE_SIZE_LIMIT_250GB_DEFAULT = true;
-  protected static final int WRITE_BUFFERSIZE_DEFAULT = 64 * 1024 * 1024;
+  protected static final int UPLOAD_CHUNK_SIZE_DEFAULT = 64 * 1024 * 1024;
 
   @ClassRule
   public static NotInheritableExternalResource storageResource =
@@ -164,7 +164,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
                 .setWriteChannelOptions(
                     AsyncWriteChannelOptions.newBuilder()
                         .setFileSizeLimitedTo250Gb(GCS_FILE_SIZE_LIMIT_250GB_DEFAULT)
-                        .setUploadBufferSize(WRITE_BUFFERSIZE_DEFAULT)
+                        .setUploadChunkSize(UPLOAD_CHUNK_SIZE_DEFAULT)
                         .build());
 
             gcsfs = new GoogleCloudStorageFileSystem(credential, optionsBuilder.build());

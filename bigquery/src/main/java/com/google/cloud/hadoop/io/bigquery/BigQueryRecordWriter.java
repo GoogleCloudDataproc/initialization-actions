@@ -319,10 +319,8 @@ public class BigQueryRecordWriter<K, V extends JsonObject> extends RecordWriter<
           "Got 'false' for obsolete key '%s', using asynchronous write channel anyway.",
           BigQueryConfiguration.ENABLE_ASYNC_WRITE);
     }
-    AsyncWriteChannelOptions options = AsyncWriteChannelOptions
-        .newBuilder()
-        .setUploadBufferSize(writeBufferSize)
-        .build();
+    AsyncWriteChannelOptions options =
+        AsyncWriteChannelOptions.newBuilder().setUploadChunkSize(writeBufferSize).build();
 
     // TODO(user): Add threadpool configurations
     BigQueryAsyncWriteChannel channel = new BigQueryAsyncWriteChannel(

@@ -284,7 +284,9 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
     ghfsHelper.writeFile(hadoopPath, "file text", 1, true);
     FSDataInputStream readStream =
-        ghfs.open(hadoopPath, GoogleHadoopFileSystemConfiguration.BUFFERSIZE.getDefault());
+        ghfs.open(
+            hadoopPath,
+            GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_BUFFER_SIZE.getDefault());
     byte[] buffer = new byte[1];
 
     // Verify that normal read works.
@@ -398,7 +400,9 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
         IOException.class,
         () ->
             ghfs.append(
-                hadoopPath, GoogleHadoopFileSystemConfiguration.BUFFERSIZE.getDefault(), null));
+                hadoopPath,
+                GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_BUFFER_SIZE.getDefault(),
+                null));
   }
 
   /**
@@ -426,7 +430,9 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
 
     // Verify that position is at 0 for a newly opened stream.
     try (FSDataInputStream readStream =
-        ghfs.open(hadoopPath, GoogleHadoopFileSystemConfiguration.BUFFERSIZE.getDefault())) {
+        ghfs.open(
+            hadoopPath,
+            GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_BUFFER_SIZE.getDefault())) {
       Assert.assertEquals(0, readStream.getPos());
 
       // Verify that position advances by 2 after reading 2 bytes.

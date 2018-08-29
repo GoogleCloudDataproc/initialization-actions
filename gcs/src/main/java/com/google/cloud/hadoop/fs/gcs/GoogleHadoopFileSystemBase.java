@@ -596,7 +596,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * Opens the given file for reading.
    *
    * <p>Note: This function overrides the given bufferSize value with a higher number unless further
-   * overridden using configuration parameter fs.gs.io.buffersize.
+   * overridden using configuration parameter {@code fs.gs.inputstream.buffer.size}.
    *
    * @param hadoopPath File to open.
    * @param bufferSize Size of buffer to use for IO.
@@ -627,10 +627,13 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   /**
    * Opens the given file for writing.
    *
+   * <p>Note: This function overrides the given bufferSize value with a higher number unless further
+   * overridden using configuration parameter {@code fs.gs.outputstream.buffer.size}.
+   *
    * @param hadoopPath The file to open.
    * @param permission Permissions to set on the new file. Ignored.
-   * @param overwrite If a file with this name already exists, then if true,
-   *        the file will be overwritten, and if false an error will be thrown.
+   * @param overwrite If a file with this name already exists, then if true, the file will be
+   *     overwritten, and if false an error will be thrown.
    * @param bufferSize The size of the buffer to use.
    * @param replication Required block replication for the file. Ignored.
    * @param blockSize The block-size to be used for the new file. Ignored.
@@ -647,7 +650,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       int bufferSize,
       short replication,
       long blockSize,
-      Progressable progress) throws IOException {
+      Progressable progress)
+      throws IOException {
 
     long startTime = System.nanoTime();
     Preconditions.checkArgument(hadoopPath != null, "hadoopPath must not be null");
@@ -1681,22 +1685,22 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   @Deprecated
   public static final String PERMISSIONS_TO_REPORT_DEFAULT =
       GoogleHadoopFileSystemConfiguration.PERMISSIONS_TO_REPORT.getDefault();
-  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#BUFFERSIZE} */
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_INPUT_STREAM_BUFFER_SIZE} */
   @Deprecated
   public static final String BUFFERSIZE_KEY =
-      GoogleHadoopFileSystemConfiguration.BUFFERSIZE.getKey();
-  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#BUFFERSIZE} */
+      GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_BUFFER_SIZE.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_INPUT_STREAM_BUFFER_SIZE} */
   @Deprecated
   public static final int BUFFERSIZE_DEFAULT =
-      GoogleHadoopFileSystemConfiguration.BUFFERSIZE.getDefault();
-  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#WRITE_BUFFERSIZE} */
+      GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_BUFFER_SIZE.getDefault();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_OUTPUT_STREAM_BUFFER_SIZE} */
   @Deprecated
   public static final String WRITE_BUFFERSIZE_KEY =
-      GoogleHadoopFileSystemConfiguration.WRITE_BUFFERSIZE.getKey();
-  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#WRITE_BUFFERSIZE} */
+      GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_UPLOAD_CHUNK_SIZE.getKey();
+  /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#GCS_OUTPUT_STREAM_BUFFER_SIZE} */
   @Deprecated
   public static final int WRITE_BUFFERSIZE_DEFAULT =
-      GoogleHadoopFileSystemConfiguration.WRITE_BUFFERSIZE.getDefault();
+      GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_UPLOAD_CHUNK_SIZE.getDefault();
   /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#BLOCK_SIZE} */
   @Deprecated
   public static final String BLOCK_SIZE_KEY =

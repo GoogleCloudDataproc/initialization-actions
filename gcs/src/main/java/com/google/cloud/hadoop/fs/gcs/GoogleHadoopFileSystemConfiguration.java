@@ -67,21 +67,13 @@ public class GoogleHadoopFileSystemConfiguration {
       new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.reported.permissions", "700");
 
   /**
-   * Configuration key for setting IO buffer size. Hadoop passes 4096 bytes as buffer size which
-   * causes poor perf.
+   * Configuration key for default block size of a file.
+   *
+   * <p>Note that this is the size that is reported to Hadoop FS clients. It does not modify the
+   * actual block size of an underlying GCS object, because GCS JSON API does not allow modifying or
+   * querying the value. Modifying this value allows one to control how many mappers are used to
+   * process a given file.
    */
-  // TODO(user): rename the following to indicate that it is read buffer size.
-  public static final GoogleHadoopFileSystemConfigurationProperty<Integer> BUFFERSIZE =
-      new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.io.buffersize", 0);
-
-  /** Configuration key for setting write buffer size. */
-  // chunk size etc. Get the following value from GCSWC class in a better way. For now, we hard code
-  // it to a known good value.
-  public static final GoogleHadoopFileSystemConfigurationProperty<Integer> WRITE_BUFFERSIZE =
-      new GoogleHadoopFileSystemConfigurationProperty<>(
-          "fs.gs.io.buffersize.write", 64 * 1024 * 1024);
-
-  /** Configuration key for default block size of a file. */
   public static final GoogleHadoopFileSystemConfigurationProperty<Long> BLOCK_SIZE =
       new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.block.size", 64 * 1024 * 1024L);
 
@@ -412,12 +404,40 @@ public class GoogleHadoopFileSystemConfiguration {
           new GoogleHadoopFileSystemConfigurationProperty<>(
               "fs.gs.outputstream.type", OutputStreamType.BASIC);
 
+  /** Configuration key for setting write buffer size. */
+  public static final GoogleHadoopFileSystemConfigurationProperty<Integer>
+      GCS_OUTPUT_STREAM_BUFFER_SIZE =
+          new GoogleHadoopFileSystemConfigurationProperty<>(
+              "fs.gs.outputstream.buffer.size", 8 * 1024 * 1024);
+
+  /** Configuration key for setting pipe buffer size. */
+  public static final GoogleHadoopFileSystemConfigurationProperty<Integer>
+      GCS_OUTPUT_STREAM_PIPE_BUFFER_SIZE =
+          new GoogleHadoopFileSystemConfigurationProperty<>(
+              "fs.gs.outputstream.pipe.buffer.size", 1024 * 1024);
+
+  /** Configuration key for setting GCS upload chunk size. */
+  // chunk size etc. Get the following value from GCSWC class in a better way. For now, we hard code
+  // it to a known good value.
+  public static final GoogleHadoopFileSystemConfigurationProperty<Integer>
+      GCS_OUTPUT_STREAM_UPLOAD_CHUNK_SIZE =
+          new GoogleHadoopFileSystemConfigurationProperty<>(
+              "fs.gs.outputstream.upload.chunk.size",
+              64 * 1024 * 1024,
+              "fs.gs.io.buffersize.write");
+
   /** Configuration key for the generation consistency read model. */
   public static final GoogleHadoopFileSystemConfigurationProperty<GenerationReadConsistency>
       GCS_GENERATION_READ_CONSISTENCY =
           new GoogleHadoopFileSystemConfigurationProperty<>(
               "fs.gs.generation.read.consistency",
               GoogleCloudStorageReadOptions.DEFAULT_GENERATION_READ_CONSISTENCY);
+
+  /** Configuration key for setting read buffer size. */
+  public static final GoogleHadoopFileSystemConfigurationProperty<Integer>
+      GCS_INPUT_STREAM_BUFFER_SIZE =
+          new GoogleHadoopFileSystemConfigurationProperty<>(
+              "fs.gs.inputstream.buffer.size", 0, "fs.gs.io.buffersize");
 
   /**
    * If true, on opening a file we will proactively perform a metadata GET to check whether the
@@ -525,7 +545,7 @@ public class GoogleHadoopFileSystemConfiguration {
         .setFastFailOnNotFound(
             GCS_INPUT_STREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE.get(config, config::getBoolean))
         .setInplaceSeekLimit(GCS_INPUT_STREAM_INPLACE_SEEK_LIMIT.get(config, config::getLong))
-        .setBufferSize(BUFFERSIZE.get(config, config::getInt))
+        .setBufferSize(GCS_INPUT_STREAM_BUFFER_SIZE.get(config, config::getInt))
         .setFadvise(GCS_INPUT_STREAM_FADVISE.get(config, config::getEnum))
         .setMinRangeRequestSize(GCS_INPUT_STREAM_MIN_RANGE_REQUEST_SIZE.get(config, config::getInt))
         .setGenerationReadConsistency(GCS_GENERATION_READ_CONSISTENCY.get(config, config::getEnum))
@@ -535,7 +555,9 @@ public class GoogleHadoopFileSystemConfiguration {
   private static AsyncWriteChannelOptions getWriteChannelOptions(Configuration config) {
     return AsyncWriteChannelOptions.newBuilder()
         .setFileSizeLimitedTo250Gb(GCS_FILE_SIZE_LIMIT_250GB.get(config, config::getBoolean))
-        .setUploadBufferSize(WRITE_BUFFERSIZE.get(config, config::getInt))
+        .setBufferSize(GCS_OUTPUT_STREAM_BUFFER_SIZE.get(config, config::getInt))
+        .setPipeBufferSize(GCS_OUTPUT_STREAM_PIPE_BUFFER_SIZE.get(config, config::getInt))
+        .setUploadChunkSize(GCS_OUTPUT_STREAM_UPLOAD_CHUNK_SIZE.get(config, config::getInt))
         .build();
   }
 

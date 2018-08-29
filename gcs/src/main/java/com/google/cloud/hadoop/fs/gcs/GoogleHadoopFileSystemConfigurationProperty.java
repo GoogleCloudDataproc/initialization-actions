@@ -1,10 +1,11 @@
 package com.google.cloud.hadoop.fs.gcs;
 
-import com.google.common.base.Pair;
 import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.GoogleLogger;
+import java.util.AbstractMap;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.apache.hadoop.conf.Configuration;
@@ -39,31 +40,31 @@ public class GoogleHadoopFileSystemConfigurationProperty<T> {
   }
 
   public T get(Configuration config, BiFunction<String, T, T> getterFn) {
-    Pair<String, String> keyValue = getOrNull(config::get, key, deprecatedKeys);
+    Map.Entry<String, String> keyValue = getOrNull(config::get, key, deprecatedKeys);
     return keyValue == null
         ? logProperty(key, defaultValue)
-        : logProperty(keyValue.first, getterFn.apply(keyValue.first, defaultValue));
+        : logProperty(keyValue.getKey(), getterFn.apply(keyValue.getKey(), defaultValue));
   }
 
   public T get(Function<String, T> getterFn) {
-    Pair<String, T> keyValue = getOrNull(getterFn, key, deprecatedKeys);
+    Map.Entry<String, T> keyValue = getOrNull(getterFn, key, deprecatedKeys);
     return keyValue == null
         ? logProperty(key, defaultValue)
-        : logProperty(keyValue.first, keyValue.second);
+        : logProperty(keyValue.getKey(), keyValue.getValue());
   }
 
-  private static <S> Pair<String, S> getOrNull(
+  private static <S> Map.Entry<String, S> getOrNull(
       Function<String, S> getterFn, String key, List<String> deprecatedKeys) {
     S value = getterFn.apply(key);
     if (value != null && isNotEmptyCollection(value)) {
-      return Pair.of(key, value);
+      return new AbstractMap.SimpleEntry<>(key, value);
     }
     for (String deprecatedKey : deprecatedKeys) {
       value = getterFn.apply(deprecatedKey);
       if (value != null && isNotEmptyCollection(value)) {
         logger.atWarning().log(
             "Using deprecated key '%s', use '%s' key instead.", deprecatedKey, key);
-        return Pair.of(deprecatedKey, value);
+        return new AbstractMap.SimpleEntry<>(deprecatedKey, value);
       }
     }
     return null;

@@ -14,93 +14,96 @@
 
 package com.google.cloud.hadoop.util;
 
+import com.google.auto.value.AutoValue;
 import com.google.common.flogger.GoogleLogger;
 
-/**
- * Options for the GoogleCloudStorageWriteChannel.
- */
-public class AsyncWriteChannelOptions {
-
+/** Options for the {@link AbstractGoogleAsyncWriteChannel}. */
+@AutoValue
+public abstract class AsyncWriteChannelOptions {
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
-  /**
-   * Default of whether to limit files to 250GB by default.
-   */
-  public static final boolean LIMIT_FILESIZE_TO_250GB_DEFAULT = false;
-  /**
-   * Default upload buffer size.
-   */
-  public static final int UPLOAD_BUFFER_SIZE_DEFAULT = 64 * 1024 * 1024;
+  /** Default of whether to limit files to 250GB by default. */
+  @Deprecated public static final boolean LIMIT_FILESIZE_TO_250GB_DEFAULT = false;
 
-  /**
-   * Default of whether to use direct upload.
-   */
+  /** Default upload buffer size. */
+  public static final int BUFFER_SIZE_DEFAULT = 8 * 1024 * 1024;
+
+  /** Default pipe buffer size. */
+  public static final int PIPE_BUFFER_SIZE_DEFAULT = 1024 * 1024;
+
+  /** Default upload chunk size. */
+  public static final int UPLOAD_CHUNK_SIZE_DEFAULT = 64 * 1024 * 1024;
+
+  @Deprecated public static final int UPLOAD_BUFFER_SIZE_DEFAULT = UPLOAD_CHUNK_SIZE_DEFAULT;
+
+  /** Default of whether to use direct upload. */
   public static final boolean DIRECT_UPLOAD_ENABLED_DEFAULT = false;
 
-  /**
-   * Mutable builder for the GoogleCloudStorageWriteChannelOptions class.
-   */
-  public static class Builder {
-    private boolean fileSizeLimitedTo250Gb = LIMIT_FILESIZE_TO_250GB_DEFAULT;
-    private int uploadBufferSize = UPLOAD_BUFFER_SIZE_DEFAULT;
-    private boolean useDirectUpload = DIRECT_UPLOAD_ENABLED_DEFAULT;
-
-    @Deprecated
-    public Builder setFileSizeLimitedTo250Gb(boolean fileSizeLimitedTo250Gb) {
-      this.fileSizeLimitedTo250Gb = fileSizeLimitedTo250Gb;
-      return this;
-    }
-
-    public Builder setUploadBufferSize(int uploadBufferSize) {
-      this.uploadBufferSize = uploadBufferSize;
-      return this;
-    }
-
-    public Builder setDirectUploadEnabled(boolean useDirectUpload) {
-      this.useDirectUpload = useDirectUpload;
-      return this;
-    }
-
-    public AsyncWriteChannelOptions build() {
-      return new AsyncWriteChannelOptions(
-          fileSizeLimitedTo250Gb, uploadBufferSize, useDirectUpload);
-    }
-  }
-
-  /**
-   * Create a new builder with default values.
-   */
+  /** @deprecated use {@link #builder} */
+  @Deprecated
   public static Builder newBuilder() {
-    return new Builder();
+    return builder();
   }
 
-  private final boolean fileSizeLimitedTo250Gb;
-  private final int uploadBufferSize;
-  private final boolean directUploadEnabled;
-
-  public AsyncWriteChannelOptions(boolean fileSizeLimitedTo250Gb,
-      int uploadBufferSize,
-      boolean useDirectUpload) {
-    this.fileSizeLimitedTo250Gb = fileSizeLimitedTo250Gb;
-    this.uploadBufferSize = uploadBufferSize;
-    this.directUploadEnabled = useDirectUpload;
-    if (fileSizeLimitedTo250Gb) {
-      logger.atWarning().log(
-          "fileSizeLimitedTo250Gb now defaults to false. It is deprecated and will soon be "
-              + "removed. Files greater than 250Gb are allowed by default.");
-    }
+  public static Builder builder() {
+    return new AutoValue_AsyncWriteChannelOptions.Builder()
+        .setFileSizeLimitedTo250Gb(LIMIT_FILESIZE_TO_250GB_DEFAULT)
+        .setBufferSize(BUFFER_SIZE_DEFAULT)
+        .setPipeBufferSize(PIPE_BUFFER_SIZE_DEFAULT)
+        .setUploadChunkSize(UPLOAD_CHUNK_SIZE_DEFAULT)
+        .setDirectUploadEnabled(DIRECT_UPLOAD_ENABLED_DEFAULT);
   }
+
+  /**
+   * @deprecated {@code fileSizeLimitedTo250Gb} now defaults to false. It is deprecated and will
+   *     soon be removed. Files greater than 250Gb are allowed by default.
+   */
+  @Deprecated
+  public abstract boolean isFileSizeLimitedTo250Gb();
+
+  public abstract int getBufferSize();
+
+  public abstract int getPipeBufferSize();
 
   @Deprecated
-  public boolean isFileSizeLimitedTo250Gb() {
-    return fileSizeLimitedTo250Gb;
-  }
-
   public int getUploadBufferSize() {
-    return uploadBufferSize;
+    return getUploadChunkSize();
   }
 
-  public boolean isDirectUploadEnabled() {
-    return directUploadEnabled;
+  public abstract int getUploadChunkSize();
+
+  public abstract boolean isDirectUploadEnabled();
+
+  /** Mutable builder for the GoogleCloudStorageWriteChannelOptions class. */
+  @AutoValue.Builder
+  public abstract static class Builder {
+
+    @Deprecated
+    public abstract Builder setFileSizeLimitedTo250Gb(boolean fileSizeLimitedTo250Gb);
+
+    public abstract Builder setBufferSize(int bufferSize);
+
+    public abstract Builder setPipeBufferSize(int pipeBufferSize);
+
+    @Deprecated
+    public Builder setUploadBufferSize(int uploadBufferSize) {
+      return setUploadChunkSize(uploadBufferSize);
+    }
+
+    public abstract Builder setUploadChunkSize(int uploadChunkSize);
+
+    public abstract Builder setDirectUploadEnabled(boolean directUploadEnabled);
+
+    abstract AsyncWriteChannelOptions autoBuild();
+
+    public AsyncWriteChannelOptions build() {
+      AsyncWriteChannelOptions options = autoBuild();
+      if (options.isFileSizeLimitedTo250Gb()) {
+        logger.atWarning().log(
+            "fileSizeLimitedTo250Gb now defaults to false. It is deprecated and will soon be "
+                + "removed. Files greater than 250Gb are allowed by default.");
+      }
+      return options;
+    }
   }
 }

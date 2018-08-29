@@ -158,7 +158,10 @@ public class WebHdfsIntegrationTest extends HadoopFileSystemTestBase {
     // For now, verify that append does not throw. We are not interested in
     // verifying that append() actually appends correctly. We will do that
     // once GHFS also starts supporting appends.
-    ghfs.append(hadoopPath, GoogleHadoopFileSystemConfiguration.BUFFERSIZE.getDefault(), null);
+    ghfs.append(
+        hadoopPath,
+        GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_BUFFER_SIZE.getDefault(),
+        null);
   }
 
   /**

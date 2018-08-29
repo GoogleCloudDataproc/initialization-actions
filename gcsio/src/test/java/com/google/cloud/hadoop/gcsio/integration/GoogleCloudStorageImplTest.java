@@ -61,7 +61,7 @@ public class GoogleCloudStorageImplTest {
     GoogleCloudStorageOptions.Builder builder =
         GoogleCloudStorageTestHelper.getStandardOptionBuilder()
             .setWriteChannelOptions(
-                AsyncWriteChannelOptions.newBuilder().setUploadBufferSize(bufferSize).build());
+                AsyncWriteChannelOptions.newBuilder().setUploadChunkSize(bufferSize).build());
 
     return makeStorage(builder.build());
   }

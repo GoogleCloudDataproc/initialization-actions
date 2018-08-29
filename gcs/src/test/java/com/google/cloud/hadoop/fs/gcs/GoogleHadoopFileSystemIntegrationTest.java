@@ -242,7 +242,8 @@ public class GoogleHadoopFileSystemIntegrationTest
 
     // Set up remaining settings to known test values.
     int bufferSize = 512;
-    config.setInt(GoogleHadoopFileSystemConfiguration.BUFFERSIZE.getKey(), bufferSize);
+    config.setInt(
+        GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_BUFFER_SIZE.getKey(), bufferSize);
     long blockSize = 1024;
     config.setLong(GoogleHadoopFileSystemConfiguration.BLOCK_SIZE.getKey(), blockSize);
     String systemBucketName = ghfsHelper.getUniqueBucketName("initialize-system");

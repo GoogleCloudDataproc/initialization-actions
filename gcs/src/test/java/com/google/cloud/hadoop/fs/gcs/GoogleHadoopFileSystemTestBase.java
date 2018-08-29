@@ -168,7 +168,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
         myghfs.getGcsFs().getOptions().getCloudStorageOptions();
 
     assertThat(cloudStorageOptions.getReadChannelOptions().getBufferSize())
-        .isEqualTo(GoogleHadoopFileSystemConfiguration.BUFFERSIZE.getDefault());
+        .isEqualTo(GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_BUFFER_SIZE.getDefault());
     assertThat(myghfs.getDefaultBlockSize())
         .isEqualTo(GoogleHadoopFileSystemConfiguration.BLOCK_SIZE.getDefault());
     assertThat(myghfs.getSystemBucketName()).isNotEmpty();

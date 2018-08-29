@@ -169,17 +169,17 @@
     </description>
   </property>
   <property>
-    <name>fs.gs.io.buffersize</name>
+    <name>fs.gs.inputstream.buffer.size</name>
     <value>0</value>
     <description>
       The number of bytes in read buffers.
     </description>
   </property>
   <property>
-    <name>fs.gs.io.buffersize.write</name>
+    <name>fs.gs.outputstream.upload.chunk.size</name>
     <value>67108864</value>
     <description>
-      The number of bytes in write buffers.
+      The number of bytes in one GCS upload request.
     </description>
   </property>
   <property>
