@@ -153,6 +153,7 @@ public class BigQueryOutputCommitterTest {
         .thenReturn(mockBigqueryJobsInsert);
     when(mockBigqueryJobs.get(any(String.class), any(String.class)))
         .thenReturn(mockBigqueryJobsGet);
+    when(mockBigqueryJobsGet.setLocation(any(String.class))).thenReturn(mockBigqueryJobsGet);
 
     // Set OutputCommitter.
     committerInstance =

@@ -146,6 +146,7 @@ public class BigQueryRecordWriterTest {
     jobReference = new JobReference();
     jobReference.setProjectId(jobProjectId);
     jobReference.setJobId(taskIdentifier + "-12345");
+    jobReference.setLocation("test_location");
 
     jobStatus = new JobStatus();
     jobStatus.setState("DONE");
@@ -161,6 +162,7 @@ public class BigQueryRecordWriterTest {
     when(mockBigQuery.jobs()).thenReturn(mockBigQueryJobs);
     when(mockBigQueryJobs.get(any(String.class), any(String.class)))
         .thenReturn(mockJobsGet);
+    when(mockJobsGet.setLocation(any(String.class))).thenReturn(mockJobsGet);
     when(mockJobsGet.execute()).thenReturn(jobReturn);
 
     when(mockBigQueryJobs.insert(
@@ -252,6 +254,7 @@ public class BigQueryRecordWriterTest {
     // Check that the proper calls were sent to the BigQuery.
     verify(mockFactory).getBigQueryHelper(any(Configuration.class));
     verify(mockBigQuery, times(2)).jobs();
+    verify(mockJobsGet).setLocation(eq("test_location"));
     verify(mockJobsGet, times(1)).execute();
     verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), eq(jobReference.getJobId()));
     assertThat(executorService.isShutdown()).isTrue();
@@ -306,6 +309,7 @@ public class BigQueryRecordWriterTest {
     // Check that the proper calls were sent to the BigQuery.
     verify(mockFactory).getBigQueryHelper(any(Configuration.class));
     verify(mockBigQuery, times(2)).jobs();
+    verify(mockJobsGet).setLocation("test_location");
     verify(mockJobsGet, times(1)).execute();
     verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), eq(jobReference.getJobId()));
     assertThat(executorService.isShutdown()).isTrue();
@@ -340,6 +344,7 @@ public class BigQueryRecordWriterTest {
     // Check that the proper calls were sent to the BigQuery.
     verify(mockFactory).getBigQueryHelper(any(Configuration.class));
     verify(mockBigQuery, times(2)).jobs();
+    verify(mockJobsGet).setLocation(eq("test_location"));
     verify(mockJobsGet, times(1)).execute();
     verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), eq(jobReference.getJobId()));
     verify(mockBigQueryJobs).insert(
@@ -413,6 +418,7 @@ public class BigQueryRecordWriterTest {
     // Check that the proper calls were sent to the BigQuery.
     verify(mockFactory).getBigQueryHelper(any(Configuration.class));
     verify(mockBigQuery, times(2)).jobs();
+    verify(mockJobsGet).setLocation(eq("test_location"));
     verify(mockJobsGet, times(1)).execute();
     verify(mockBigQueryJobs, times(1)).get(eq(jobProjectId), eq(jobReference.getJobId()));
     assertThat(executorService.isShutdown()).isTrue();

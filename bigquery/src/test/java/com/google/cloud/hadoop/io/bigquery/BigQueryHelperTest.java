@@ -118,6 +118,7 @@ public class BigQueryHelperTest {
     // Mock getting Bigquery job.
     when(mockBigqueryJobs.get(any(String.class), any(String.class)))
         .thenReturn(mockBigqueryJobsGet);
+    when(mockBigqueryJobsGet.setLocation(any(String.class))).thenReturn(mockBigqueryJobsGet);
 
     // Mock inserting Bigquery job.
     when(mockBigqueryJobs.insert(any(String.class), any(Job.class)))
@@ -200,6 +201,9 @@ public class BigQueryHelperTest {
     assertThat(job.getConfiguration().getLoad().getDestinationTable()).isEqualTo(tableRef);
     assertThat(job.getJobReference().getLocation()).isEqualTo("test_location");
 
+    // Verify we poll for job in correct location
+    verify(mockBigqueryJobsGet).setLocation(eq("test_location"));
+
     // Verify correct calls to BigQuery.Jobs.Get are made.
     verify(mockBigqueryJobsGet, times(1)).execute();
 
@@ -242,6 +246,9 @@ public class BigQueryHelperTest {
         .isEqualTo("test-export-path");
     assertThat(job.getConfiguration().getExtract().getSourceTable()).isEqualTo(tableRef);
     assertThat(job.getJobReference().getLocation()).isEqualTo("test_location");
+
+    // Verify we poll for job in correct location
+    verify(mockBigqueryJobsGet).setLocation(eq("test_location"));
 
     // Verify correct calls to BigQuery.Jobs.Get are made.
     verify(mockBigqueryJobsGet, times(1)).execute();

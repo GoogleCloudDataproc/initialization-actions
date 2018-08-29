@@ -15,6 +15,7 @@ package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -106,10 +107,11 @@ public class BigQueryUtilsTest {
     when(mockBigQuery.jobs()).thenReturn(mockBigQueryJobs);
     when(mockBigQueryJobs.get(projectId, mockJobReference.getJobId()))
         .thenReturn(mockJobsGet).thenReturn(mockJobsGet);
+    when(mockJobsGet.setLocation(any(String.class))).thenReturn(mockJobsGet);
     when(mockJobsGet.execute()).thenReturn(job);
 
     // Constructor coverage
-    BigQueryUtils bigQueryUtils = new BigQueryUtils();
+    new BigQueryUtils();
 
     // Mock Progressable.
     mockProgressable = mock(Progressable.class);
@@ -119,7 +121,7 @@ public class BigQueryUtilsTest {
    * Tests waitForJobCompletion method of BigQueryUtils when the job has been completed.
    */
   @Test
-  public void testWaitForJobCompletion() 
+  public void testWaitForJobCompletion()
       throws IOException, InterruptedException {
     // Return completed job.
     when(mockJobsGet.execute()).thenReturn(job);
@@ -138,7 +140,7 @@ public class BigQueryUtilsTest {
    * Tests waitForJobCompletion method of BigQueryUtils when the job status changes.
    */
   @Test
-  public void testWaitForJobCompletionChange() 
+  public void testWaitForJobCompletionChange()
       throws IOException, InterruptedException {
     // Return unfinished job the return finished job.
     when(mockJobsGet.execute()).thenReturn(notDoneJob).thenReturn(job);
@@ -157,7 +159,7 @@ public class BigQueryUtilsTest {
    * Tests waitForJobCompletion method of BigQueryUtils when the job returns an error.
    */
   @Test
-  public void testWaitForJobCompletionError() 
+  public void testWaitForJobCompletionError()
       throws InterruptedException, IOException {
     // Return completed job.
     when(mockJobsGet.execute()).thenReturn(job);
