@@ -39,6 +39,10 @@
       fs.gs.io.buffersize -> fs.gs.inputstream.buffer.size (deafult :0)
       fs.gs.io.buffersize.write -> fs.gs.outputstream.upload.chunk.size (default: 67108864)
 
+  7. Enable fadvise `AUTO` mode by deafult:
+
+       fs.gs.inputstream.fadvise (default: SEQUENTIAL -> AUTO)
+
 
 1.9.5 - 2018-08-09
 
@@ -814,4 +818,3 @@
 1.2.0 - 2014-01-14
 
   1. Preview release of GCS connector.
-

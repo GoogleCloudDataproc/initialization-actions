@@ -167,11 +167,10 @@ public class GoogleCloudStorageTest {
   }
 
   /**
-   * Creates an instance of GoogleCloudStorage using GoogleCloudStorageImpl
-   * as the concrete type and setting up the proper mocks.
+   * Creates an instance of GoogleCloudStorage using GoogleCloudStorageImpl as the concrete type and
+   * setting up the proper mocks.
    */
-  protected GoogleCloudStorageOptions.Builder
-      createDefaultCloudStorageOptionsBuilder() {
+  protected GoogleCloudStorageOptions.Builder createDefaultCloudStorageOptionsBuilder() {
     return GoogleCloudStorageOptions.newBuilder()
         .setAppName(APP_NAME)
         .setProjectId(PROJECT_ID)
@@ -183,66 +182,26 @@ public class GoogleCloudStorageTest {
    * as the concrete type and setting up the proper mocks.
    */
   protected GoogleCloudStorage createTestInstance() {
-    GoogleCloudStorageOptions.Builder optionsBuilder =
-        createDefaultCloudStorageOptionsBuilder();
-    return createTestInstance(optionsBuilder.build());
+    return createTestInstance(createDefaultCloudStorageOptionsBuilder().build());
   }
 
   /**
-   * Creates an instance of GoogleCloudStorage using GoogleCloudStorageImpl
-   * as the concrete type and setting up the proper mocks,
-   * with the specified value for autoRepairImplicitDirectories.
+   * Creates an instance of GoogleCloudStorage using GoogleCloudStorageImpl as the concrete type and
+   * setting up the proper mocks, with the specified value for autoRepairImplicitDirectories.
    */
-  protected GoogleCloudStorage createTestInstance(
-      boolean autoRepairImplicitDirectories) {
-    GoogleCloudStorageOptions.Builder optionsBuilder =
-        createDefaultCloudStorageOptionsBuilder();
-    optionsBuilder
-        .setAutoRepairImplicitDirectoriesEnabled(autoRepairImplicitDirectories);
-    return createTestInstance(optionsBuilder.build());
+  protected GoogleCloudStorage createTestInstance(boolean autoRepairImplicitDirectories) {
+    return createTestInstance(
+        createDefaultCloudStorageOptionsBuilder()
+            .setAutoRepairImplicitDirectoriesEnabled(autoRepairImplicitDirectories)
+            .build());
   }
 
   /**
-   * Creates an instance of GoogleCloudStorage using GoogleCloudStorageImpl
-   * as the concrete type and setting up the proper mocks,
-   * with autoRepairImplicitDirectories set false,
-   * and the specified value for inferImplicitDirectories.
+   * Creates an instance of GoogleCloudStorage with the specified options, using
+   * GoogleCloudStorageImpl as the concrete type, and setting up the proper mocks.
    */
-  private GoogleCloudStorage createTestInstanceWithInferImplicit(
-      boolean inferImplicitDirectories) {
-    GoogleCloudStorageOptions.Builder optionsBuilder =
-        createDefaultCloudStorageOptionsBuilder();
-    optionsBuilder
-        .setAutoRepairImplicitDirectoriesEnabled(false)
-        .setInferImplicitDirectoriesEnabled(inferImplicitDirectories);
-    return createTestInstance(optionsBuilder.build());
-  }
-
-  /**
-   * Creates an instance of GoogleCloudStorage using GoogleCloudStorageImpl
-   * as the concrete type and setting up the proper mocks,
-   * with the specified autoRepairImplicitDirectories and
-   * inferImplicitDirectories.
-   */
-  private GoogleCloudStorage createTestInstanceWithAutoRepairWithInferImplicit(
-      boolean autoRepairImplicitDirectories, boolean inferImplicitDirectories) {
-    GoogleCloudStorageOptions.Builder optionsBuilder =
-        createDefaultCloudStorageOptionsBuilder();
-    optionsBuilder
-        .setAutoRepairImplicitDirectoriesEnabled(autoRepairImplicitDirectories)
-        .setInferImplicitDirectoriesEnabled(inferImplicitDirectories);
-    return createTestInstance(optionsBuilder.build());
-  }
-
-  /**
-   * Creates an instance of GoogleCloudStorage with the specified options,
-   * using GoogleCloudStorageImpl as the concrete type,
-   * and setting up the proper mocks.
-   */
-  protected GoogleCloudStorage createTestInstance(
-      GoogleCloudStorageOptions options) {
-    GoogleCloudStorageImpl gcsTestInstance =
-        new GoogleCloudStorageImpl(options, mockStorage);
+  protected GoogleCloudStorage createTestInstance(GoogleCloudStorageOptions options) {
+    GoogleCloudStorageImpl gcsTestInstance = new GoogleCloudStorageImpl(options, mockStorage);
     gcsTestInstance.setThreadPool(executorService);
     gcsTestInstance.setErrorExtractor(mockErrorExtractor);
     gcsTestInstance.setClientRequestHelper(mockClientRequestHelper);
@@ -252,13 +211,38 @@ public class GoogleCloudStorageTest {
     return gcsTestInstance;
   }
 
+  /**
+   * Creates an instance of GoogleCloudStorage using GoogleCloudStorageImpl as the concrete type and
+   * setting up the proper mocks, with autoRepairImplicitDirectories set false, and the specified
+   * value for inferImplicitDirectories.
+   */
+  private GoogleCloudStorage createTestInstanceWithInferImplicit(boolean inferImplicitDirectories) {
+    return createTestInstance(
+        createDefaultCloudStorageOptionsBuilder()
+            .setAutoRepairImplicitDirectoriesEnabled(false)
+            .setInferImplicitDirectoriesEnabled(inferImplicitDirectories)
+            .build());
+  }
+
+  /**
+   * Creates an instance of GoogleCloudStorage using GoogleCloudStorageImpl as the concrete type and
+   * setting up the proper mocks, with the specified autoRepairImplicitDirectories and
+   * inferImplicitDirectories.
+   */
+  private GoogleCloudStorage createTestInstanceWithAutoRepairWithInferImplicit(
+      boolean autoRepairImplicitDirectories, boolean inferImplicitDirectories) {
+    return createTestInstance(
+        createDefaultCloudStorageOptionsBuilder()
+            .setAutoRepairImplicitDirectoriesEnabled(autoRepairImplicitDirectories)
+            .setInferImplicitDirectoriesEnabled(inferImplicitDirectories)
+            .build());
+  }
+
   protected void setupNonConflictedWrite(final Throwable t) throws IOException {
-    setupNonConflictedWrite(new Answer<StorageObject>() {
-      @Override
-      public StorageObject answer(InvocationOnMock invocation) throws Throwable {
-        throw t;
-      }
-    });
+    setupNonConflictedWrite(
+        invocation -> {
+          throw t;
+        });
   }
 
   protected void setupNonConflictedWrite(Answer<StorageObject> answer)
@@ -1730,7 +1714,7 @@ public class GoogleCloudStorageTest {
                 "Content-Range", "bytes=0-123/" + testData2.length,
                 new ByteArrayInputStream(testData2)));
 
-   GoogleCloudStorageReadChannel readChannel =
+    GoogleCloudStorageReadChannel readChannel =
         (GoogleCloudStorageReadChannel) gcs.open(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     assertThat(readChannel.isOpen()).isTrue();
     assertThat(readChannel.position()).isEqualTo(0);
@@ -3712,7 +3696,7 @@ public class GoogleCloudStorageTest {
                         StorageResourceId.ROOT,
                         new StorageResourceId(BUCKET_NAME))));
     assertThat(ioe.getSuppressed()).isNotNull();
-      assertThat(ioe.getSuppressed()).hasLength(2);
+    assertThat(ioe.getSuppressed()).hasLength(2);
     // All invocations still should have been attempted; the exception should have been thrown
     // at the very end.
     verify(mockBatchFactory)

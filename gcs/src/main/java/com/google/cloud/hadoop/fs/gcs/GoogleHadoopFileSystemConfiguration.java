@@ -466,7 +466,7 @@ public class GoogleHadoopFileSystemConfiguration {
   public static final GoogleHadoopFileSystemConfigurationProperty<Fadvise>
       GCS_INPUT_STREAM_FADVISE =
           new GoogleHadoopFileSystemConfigurationProperty<>(
-              "fs.gs.inputstream.fadvise", GoogleCloudStorageReadOptions.DEFAULT_FADVISE);
+              "fs.gs.inputstream.fadvise", Fadvise.AUTO);
 
   /**
    * Minimum size in bytes of the HTTP Range header set in GCS request when opening new stream to
