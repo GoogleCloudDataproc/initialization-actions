@@ -13,6 +13,10 @@
 
        java -Dflogger.backend=com.google.common.flogger.backend.log4j.Log4jBackendFactory#getInstance ...
 
+  3. Poll BQ jobs in their correct locations.
+
+  4. Update all dependencies to latest versions.
+
 
 0.13.5 - 2018-08-09
 
