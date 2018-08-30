@@ -10,14 +10,14 @@
 
   2. Migrate logging to Google Flogger.
 
-     To configure Log4j as a Flogger backend set `flogger.backend` system
-     property to `com.google.common.flogger.backend.log4j.Log4jBackendFactory#getInstance`
+     To configure Log4j as a Flogger backend set `flogger.backend_factory`
+     system property to `com.google.common.flogger.backend.log4j.Log4jBackendFactory#getInstance`
      or `com.google.cloud.hadoop.repackaged.gcs.com.google.common.flogger.backend.log4j.Log4jBackendFactory#getInstance`
      if using shaded jar.
 
      For example:
 
-       java -Dflogger.backend=com.google.common.flogger.backend.log4j.Log4jBackendFactory#getInstance ...
+       java -Dflogger.backend_factory=com.google.common.flogger.backend.log4j.Log4jBackendFactory#getInstance ...
 
   3. Delete read buffer in `GoogleHadoopFSInputStream` class and remove property
      that enables it:
