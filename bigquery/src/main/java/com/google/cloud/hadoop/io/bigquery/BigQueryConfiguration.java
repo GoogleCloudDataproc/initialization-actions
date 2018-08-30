@@ -13,7 +13,6 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.TableReference;
@@ -350,7 +349,8 @@ public class BigQueryConfiguration {
       logger.atInfo().log(
           "Fetching key '%s' since '%s' isn't set explicitly.", GCS_BUCKET_KEY, TEMP_GCS_PATH_KEY);
 
-      String gcsBucket = conf.get(GCS_BUCKET_KEY, "${" + GCS_SYSTEM_BUCKET.getKey() + "}");
+      String gcsBucket =
+          conf.get(GCS_BUCKET_KEY, "${" + GoogleHadoopFileSystemBase.GCS_SYSTEM_BUCKET_KEY + "}");
       if (Strings.isNullOrEmpty(gcsBucket)) {
         throw new IOException("Must supply a value for configuration setting: " + GCS_BUCKET_KEY);
       }
