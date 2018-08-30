@@ -22,7 +22,7 @@
   <parent>
     <groupId>com.google.cloud.bigdataoss</groupId>
     <artifactId>bigdataoss-parent</artifactId>
-    <version>1.9.6-SNAPSHOT</version>
+    <version>1.9.6</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -32,7 +32,7 @@
   </description>
 
   <artifactId>gcsio</artifactId>
-  <version>1.9.6-SNAPSHOT</version>
+  <version>1.9.6</version>
 
   <profiles>
     <profile>
