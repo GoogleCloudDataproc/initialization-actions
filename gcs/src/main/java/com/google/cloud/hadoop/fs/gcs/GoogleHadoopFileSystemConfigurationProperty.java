@@ -10,7 +10,7 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.apache.hadoop.conf.Configuration;
 
-/** HDFS configuration property */
+/** GHFS configuration property */
 public class GoogleHadoopFileSystemConfigurationProperty<T> {
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
