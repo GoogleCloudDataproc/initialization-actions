@@ -39,14 +39,14 @@ public class GoogleHadoopFileSystemConfigurationProperty<T> {
     return defaultValue;
   }
 
-  public T get(Configuration config, BiFunction<String, T, T> getterFn) {
+  T get(Configuration config, BiFunction<String, T, T> getterFn) {
     Map.Entry<String, String> keyValue = getOrNull(config::get, key, deprecatedKeys);
     return keyValue == null
         ? logProperty(key, defaultValue)
         : logProperty(keyValue.getKey(), getterFn.apply(keyValue.getKey(), defaultValue));
   }
 
-  public T get(Function<String, T> getterFn) {
+  T get(Function<String, T> getterFn) {
     Map.Entry<String, T> keyValue = getOrNull(getterFn, key, deprecatedKeys);
     return keyValue == null
         ? logProperty(key, defaultValue)
