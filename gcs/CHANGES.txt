@@ -22,7 +22,7 @@
   3. Delete read buffer in `GoogleHadoopFSInputStream` class and remove property
      that enables it:
 
-       fs.gs.inputstream.internalbuffer.enable (deafult: false)
+       fs.gs.inputstream.internalbuffer.enable (default: false)
 
   4. Disable read buffer in `GoogleCloudStorageReadChannel` by default because
      it does not provide significant performance benefits:
@@ -39,9 +39,11 @@
       fs.gs.io.buffersize -> fs.gs.inputstream.buffer.size (deafult :0)
       fs.gs.io.buffersize.write -> fs.gs.outputstream.upload.chunk.size (default: 67108864)
 
-  7. Enable fadvise `AUTO` mode by deafult:
+  7. Enable fadvise `AUTO` mode by default:
 
        fs.gs.inputstream.fadvise (default: SEQUENTIAL -> AUTO)
+
+  8. Update all dependencies to latest versions.
 
 
 1.9.5 - 2018-08-09
@@ -80,8 +82,6 @@
        fs.gs.copy.batch.threads (default: 0 -> 50)
        fs.gs.max.requests.per.batch (default: 30 -> 25)
        fs.gs.batch.threads (default: 0 -> 25)
-
-  8. Update all dependencies to latest versions.
 
 
 1.9.4 - 2018-08-07
