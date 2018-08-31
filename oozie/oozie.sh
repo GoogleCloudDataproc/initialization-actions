@@ -84,10 +84,17 @@ function install_oozie(){
     --clobber
 
   # Install share lib
-  tar -xvzf /usr/lib/oozie/oozie-sharelib.tar.gz
-  ln -s share /usr/lib/oozie/share
+  install -d /usr/lib/oozie
+  tar -xvzf /usr/lib/oozie/oozie-sharelib.tar.gz -C /usr/lib/oozie
+
+  # Workaround to issue where jackson 1.8 and 1.9 jars are found on the classpath, causing
+  # AbstractMethodError at runtime. We know hadoop/lib has matching vesions of jackson.
+  rm -f /usr/lib/oozie/share/lib/hive2/jackson-*
+  cp /usr/lib/hadoop/lib/jackson-* /usr/lib/oozie/share/lib/hive2/
+
   hadoop fs -mkdir -p /user/oozie/
-  hadoop fs -put -f share/ /user/oozie/
+  hadoop fs -put -f /usr/lib/oozie/share /user/oozie/
+
   # Detect if current node configuration is HA and then set oozie servers
   local additional_nodes=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional | sed 's/,/\n/g' | wc -l)
   if [[ ${additional_nodes} -ge 2 ]]; then
@@ -120,7 +127,7 @@ function install_oozie(){
 
   fi
   # Clean up temporary fles
-  rm -rf ext-2.2 ext-2.2.zip share oozie-sharelib.tar.gz
+  rm -rf ext-2.2 ext-2.2.zip oozie-sharelib.tar.gz
   /usr/lib/zookeeper/bin/zkServer.sh restart
   # HDFS and YARN must be cycled; restart to clean things up
   for service in hadoop-hdfs-namenode hadoop-hdfs-secondarynamenode hadoop-yarn-resourcemanager oozie; do
