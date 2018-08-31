@@ -14,12 +14,13 @@
 
 package com.google.cloud.hadoop.util;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
+
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.HttpTransport;
 import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -72,22 +73,22 @@ public class CredentialConfiguration {
         return credentialFactory.getCredentialFromMetadataServiceAccount();
       }
 
-      if (!Strings.isNullOrEmpty(serviceAccountJsonKeyFile)) {
+      if (!isNullOrEmpty(serviceAccountJsonKeyFile)) {
         logger.atFine().log("Using JSON keyfile %s", serviceAccountJsonKeyFile);
         Preconditions.checkArgument(
-            Strings.isNullOrEmpty(serviceAccountKeyFile),
+            isNullOrEmpty(serviceAccountKeyFile),
             "A P12 key file may not be specified at the same time as a JSON key file.");
         Preconditions.checkArgument(
-            Strings.isNullOrEmpty(serviceAccountEmail),
+            isNullOrEmpty(serviceAccountEmail),
             "Service account email may not be specified at the same time as a JSON key file.");
         return credentialFactory.getCredentialFromJsonKeyFile(
             serviceAccountJsonKeyFile, scopes, getTransport());
       }
 
-      if (!Strings.isNullOrEmpty(serviceAccountKeyFile)) {
+      if (!isNullOrEmpty(serviceAccountKeyFile)) {
         // A key file is specified, use email-address and p12 based authentication.
         Preconditions.checkState(
-            !Strings.isNullOrEmpty(serviceAccountEmail),
+            !isNullOrEmpty(serviceAccountEmail),
             "Email must be set if using service account auth and a key file is specified.");
         logger.atFine().log(
             "Using service account email %s and private key file %s",
@@ -122,8 +123,8 @@ public class CredentialConfiguration {
   }
 
   public boolean shouldUseMetadataService() {
-    return Strings.isNullOrEmpty(serviceAccountKeyFile)
-        && Strings.isNullOrEmpty(serviceAccountJsonKeyFile)
+    return isNullOrEmpty(serviceAccountKeyFile)
+        && isNullOrEmpty(serviceAccountJsonKeyFile)
         && !shouldUseApplicationDefaultCredentials();
   }
 
@@ -214,22 +215,19 @@ public class CredentialConfiguration {
 
   @Override
   public String toString() {
-    StringBuilder builder = new StringBuilder();
-    builder.append("serviceAccountEnabled: ").append(isServiceAccountEnabled()).append('\n');
-    builder.append("serviceAccountEmail: ").append(getServiceAccountEmail()).append('\n');
-    builder.append("serviceAccountKeyfile: ").append(getServiceAccountKeyFile()).append('\n');
-    builder.append("clientId: ").append(getClientId()).append('\n');
-    if (!Strings.isNullOrEmpty(getClientSecret())) {
-      builder.append("clientSecret: Provided, but not displayed");
-    } else {
-      builder.append("clientSecret: Not provided");
-    }
-    builder.append('\n');
-    builder.append("oAuthCredentialFile: ").append(getOAuthCredentialFile()).append('\n');
-    builder.append("isNullCredentialEnabled: ").append(isNullCredentialEnabled()).append('\n');
-    builder.append("transportType: ").append(getTransportType()).append('\n');
-    builder.append("proxyAddress: ").append(getProxyAddress());
-    return builder.toString();
+    return "CredentialConfiguration{"
+        + ("serviceAccountEnabled: " + isServiceAccountEnabled() + '\n')
+        + ("serviceAccountEmail: " + getServiceAccountEmail() + '\n')
+        + ("serviceAccountKeyfile: " + getServiceAccountKeyFile() + '\n')
+        + ("clientId: " + getClientId() + '\n')
+        + ("clientSecret: "
+            + (isNullOrEmpty(getClientSecret()) ? "Not provided" : "Provided, but not displayed")
+            + '\n')
+        + ("oAuthCredentialFile: " + getOAuthCredentialFile() + '\n')
+        + ("isNullCredentialEnabled: " + isNullCredentialEnabled() + '\n')
+        + ("transportType: " + getTransportType() + '\n')
+        + ("proxyAddress: " + getProxyAddress())
+        + "}";
   }
 
   private HttpTransport getTransport() throws IOException {
