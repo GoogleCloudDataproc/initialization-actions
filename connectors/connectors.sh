@@ -50,7 +50,7 @@ update_connector() {
     local new_name_min_version=${NEW_NAME_MIN_CONNECTOR_VERSIONS[$name]}
     if [[ "$(min_version "$new_name_min_version" "$version")" = "$new_name_min_version" ]]; then
       local path="gs://hadoop-lib/${name}/${name}-connector-hadoop2-${version}.jar"
-    elif
+    else
       local path="gs://hadoop-lib/${name}/${name}-connector-${version}-hadoop2.jar"
     fi
     gsutil cp "$path" "${VM_CONNECTORS_DIR}/"
