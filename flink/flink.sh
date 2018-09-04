@@ -26,6 +26,9 @@ set -euxo pipefail
 
 # Install directories for Flink and Hadoop.
 readonly FLINK_INSTALL_DIR='/usr/lib/flink'
+readonly FLINK_WORKING_DIR='/var/lib/flink'
+readonly FLINK_YARN_SCRIPT='/usr/bin/flink-yarn-daemon'
+readonly FLINK_WORKING_USER='yarn'
 readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
 
 # The number of buffers for the network stack.
@@ -43,6 +46,11 @@ readonly FLINK_TASKMANAGER_MEMORY_FRACTION='1.0'
 readonly START_FLINK_YARN_SESSION_METADATA_KEY='flink-start-yarn-session'
 # Set this to true to start a flink yarn session at initialization time.
 readonly START_FLINK_YARN_SESSION_DEFAULT=true
+
+# Set this to install flink from a snapshot URL instead of apt
+readonly FLINK_SNAPSHOT_URL_METADATA_KEY='flink-snapshot-url'
+
+
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
@@ -67,6 +75,26 @@ function update_apt_get() {
 function install_apt_get() {
   pkgs="$@"
   retry_apt_command "apt-get install -y $pkgs"
+}
+
+function install_flink_snapshot() {
+  local work_dir="$(mktemp -d)"
+  local flink_url="$(/usr/share/google/get_metadata_value "attributes/${FLINK_SNAPSHOT_URL_METADATA_KEY}")"
+  local flink_local="${work_dir}/flink.tgz"
+  local flink_toplevel_pattern="${work_dir}/flink-*"
+
+  pushd "${work_dir}"
+
+  curl -o "${flink_local}" "${flink_url}"
+  tar -xzvf "${flink_local}"
+  rm "${flink_local}"
+  # only the first match of the flink toplevel pattern is used
+  local files=( ${flink_toplevel_pattern} )
+  local flink_toplevel="${files[0]}"
+  mv "${flink_toplevel}" "${FLINK_INSTALL_DIR}"
+
+  popd # work_dir
+
 }
 
 function configure_flink() {
@@ -103,19 +131,9 @@ function configure_flink() {
 
   # Fetch the primary master name from metadata.
   local master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
-  local hostname="$(hostname)"
 
-  local start_flink_yarn_session
-  if [[ "${hostname}" == "${master_hostname}" ]] ; then
-    # Determine whether to start a detached session.
-    start_flink_yarn_session="$(/usr/share/google/get_metadata_value \
-      "attributes/${START_FLINK_YARN_SESSION_METADATA_KEY}" \
-      || echo "${START_FLINK_YARN_SESSION_DEFAULT}")"
-  else
-    # We only start a session on the primary master.
-    start_flink_yarn_session=false
-    echo 'Skipped Flink yarn session start on worker node'
-  fi
+  # create working directory
+  mkdir -p "${FLINK_WORKING_DIR}"
 
   # Apply Flink settings by appending them to the default config.
   cat << EOF >> ${FLINK_INSTALL_DIR}/conf/flink-conf.yaml
@@ -129,27 +147,53 @@ taskmanager.network.numberOfBuffers: ${FLINK_NETWORK_NUM_BUFFERS}
 fs.hdfs.hadoopconf: ${HADOOP_CONF_DIR}
 EOF
 
-  if ${start_flink_yarn_session} ; then
-    # NB: yarn-session.sh ignores taskmanager.numberOfTaskSlots for some reason.
-    # We specify it manually below.
-    env HADOOP_CONF_DIR="$HADOOP_CONF_DIR" \
-      "$FLINK_INSTALL_DIR/bin/yarn-session.sh" \
-      -n "${num_taskmanagers}" \
-      -s "${flink_taskmanager_slots}" \
-      -jm "${flink_jobmanager_memory}" \
-      -tm "${flink_taskmanager_memory}" \
-      --detached
-  fi
+cat > "${FLINK_YARN_SCRIPT}" << EOF
+#!/bin/bash
+set -exuo pipefail
+sudo -u yarn -i \
+HADOOP_CONF_DIR=${HADOOP_CONF_DIR} \
+  ${FLINK_INSTALL_DIR}/bin/yarn-session.sh \
+  -n "${num_taskmanagers}" \
+  -s "${flink_taskmanager_slots}" \
+  -jm "${flink_jobmanager_memory}" \
+  -tm "${flink_taskmanager_memory}" \
+  -nm flink-dataproc \
+  --detached
+EOF
+chmod +x "${FLINK_YARN_SCRIPT}"
 
 }
 
+function start_flink_master() {
+  local start_yarn_session="$(/usr/share/google/get_metadata_value \
+    "attributes/${START_FLINK_YARN_SESSION_METADATA_KEY}" \
+    || echo "${START_FLINK_YARN_SESSION_DEFAULT}")"
+
+  if ${start_yarn_session} ; then
+    "${FLINK_YARN_SCRIPT}"
+  else
+    echo "Doing nothing"
+  fi
+}
+
 function main() {
-local role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-if [[ "${role}" == 'Master' ]] ; then
-  update_apt_get || err "Unable to update apt-get"
-  install_apt_get flink || err "Unable to install flink"
+  local role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+  local snapshot_url="$(/usr/share/google/get_metadata_value \
+    "attributes/${FLINK_INSTALL_SNAPSHOT_METADATA_KEY}" \
+    || echo "${FLINK_INSTALL_SNAPSHOT_METADATA_DEFAULT}")"
+
+  # check if a flink snapshot URL is specified
+  if /usr/share/google/get_metadata_value \
+    "attributes/${FLINK_SNAPSHOT_URL_METADATA_KEY}" ; then
+      install_flink_snapshot || err "Unable to install Flink"
+  else
+    update_apt_get || err "Unable to update apt-get"
+    install_apt_get flink || err "Unable to install flink"
+  fi
   configure_flink || err "Flink configuration failed"
-fi
+  if [[ "${role}" == 'Master' ]] ; then
+    start_flink_master || err "Unable to start Flink master"
+  fi
 }
 
 main

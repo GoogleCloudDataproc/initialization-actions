@@ -43,3 +43,4 @@ You can find more information about using initialization actions with Dataproc i
 
 * By default, a detached Flink YARN session is started for you. To find its application id, run `yarn application -list`.
 * The default session is configured to consume all YARN resources. If you want to submit multiple jobs in parallel or use transient sessions, you'll need to disable this default session. You can either fork this init script and set START_FLINK_YARN_SESSION_DEFAULT to `false`, or set the cluster metadata key `flink-start-yarn-session` to `false` when you create your cluster.
+* By default, flink is installed via apt.  However, a custom flink snapshot can be installed by specifying the `flink-snapshot-url` metadata key to a URL that points to a valid flink tarball.
