@@ -9,6 +9,12 @@ MIN_CONNECTOR_VERSIONS=(
   ["bigquery"]="0.11.0"
   ["gcs"]="1.7.0")
 
+# Starting from these versions connectors name changed:
+# "...-<version>-hadoop2.jar" -> "...hadoop2-<version>.jar" 
+NEW_NAME_MIN_CONNECTOR_VERSIONS=(
+  ["bigquery"]="0.13.5"
+  ["gcs"]="1.9.5")
+
 BIGQUERY_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/bigquery-connector-version || true)
 GCS_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/gcs-connector-version || true)
 
@@ -38,14 +44,11 @@ update_connector() {
 
     # download new connector
     # connecor name could be in one of 2 formats:
-    # gs://hadoop-lib/${name}/${name}-connector-hadoop2-${version}.jar
-    # gs://hadoop-lib/${name}/${name}-connector-${version}-hadoop2.jar
-    local path=$(gsutil ls "gs://hadoop-lib/${name}/${name}-connector-*${version}*.jar" | grep hadoop2)
-    # fail if more than one path was listed
-    local path_count=$(echo "$path" | wc -w)
-    if [[ $path_count != 1 ]]; then
-      echo -e "ERROR: Only one ${name} connector path should be listed for ${version} version, but listed $path_count paths:\n$path"
-      exit 1
+    local new_name_min_version=${NEW_NAME_MIN_CONNECTOR_VERSIONS[$name]}
+    if [[ "$(min_version "$new_name_min_version" "$version")" = "$new_name_min_version" ]]; then
+      local path="gs://hadoop-lib/${name}/${name}-connector-hadoop2-${version}.jar"
+    elif
+      local path="gs://hadoop-lib/${name}/${name}-connector-${version}-hadoop2.jar"
     fi
     gsutil cp "$path" "${VM_CONNECTORS_DIR}/"
   fi
