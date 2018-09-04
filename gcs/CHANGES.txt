@@ -39,8 +39,8 @@
 
   6. Deprecate and replace properties with new one:
 
-      fs.gs.io.buffersize -> fs.gs.inputstream.buffer.size (deafult :0)
-      fs.gs.io.buffersize.write -> fs.gs.outputstream.upload.chunk.size (default: 67108864)
+       fs.gs.io.buffersize -> fs.gs.inputstream.buffer.size (deafult: 0)
+       fs.gs.io.buffersize.write -> fs.gs.outputstream.upload.chunk.size (default: 67108864)
 
   7. Enable fadvise `AUTO` mode by default:
 
