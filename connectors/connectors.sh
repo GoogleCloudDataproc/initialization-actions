@@ -11,6 +11,7 @@ MIN_CONNECTOR_VERSIONS=(
 
 # Starting from these versions connectors name changed:
 # "...-<version>-hadoop2.jar" -> "...-hadoop2-<version>.jar" 
+declare -A NEW_NAME_MIN_CONNECTOR_VERSIONS
 NEW_NAME_MIN_CONNECTOR_VERSIONS=(
   ["bigquery"]="0.13.5"
   ["gcs"]="1.9.5")
