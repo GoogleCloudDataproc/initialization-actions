@@ -10,7 +10,7 @@ MIN_CONNECTOR_VERSIONS=(
   ["gcs"]="1.7.0")
 
 # Starting from these versions connectors name changed:
-# "...-<version>-hadoop2.jar" -> "...hadoop2-<version>.jar" 
+# "...-<version>-hadoop2.jar" -> "...-hadoop2-<version>.jar" 
 NEW_NAME_MIN_CONNECTOR_VERSIONS=(
   ["bigquery"]="0.13.5"
   ["gcs"]="1.9.5")
@@ -43,7 +43,9 @@ update_connector() {
     rm -f "${VM_CONNECTORS_DIR}/${name}-connector-"*
 
     # download new connector
-    # connecor name could be in one of 2 formats:
+    # connector name could be in one of 2 formats:
+    # 1) gs://hadoop-lib/${name}/${name}-connector-hadoop2-${version}.jar
+    # 2) gs://hadoop-lib/${name}/${name}-connector-${version}-hadoop2.jar
     local new_name_min_version=${NEW_NAME_MIN_CONNECTOR_VERSIONS[$name]}
     if [[ "$(min_version "$new_name_min_version" "$version")" = "$new_name_min_version" ]]; then
       local path="gs://hadoop-lib/${name}/${name}-connector-hadoop2-${version}.jar"
