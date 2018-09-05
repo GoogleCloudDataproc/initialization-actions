@@ -88,7 +88,7 @@ restart_dataproc_agent() {
   # If Dataproc Agent didn't create a sentinel file that signals initialization
   # failure then it means that initialization succeded and it should be restarted
   if [[ ! -f /var/lib/google/dataproc/has_failed_before ]]; then
-    service google-dataproc-agent restart
+    pkill -f com.google.cloud.hadoop.services.agent.AgentMain
   fi
 }
 export -f restart_dataproc_agent
