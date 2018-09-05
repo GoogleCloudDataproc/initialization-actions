@@ -4,6 +4,8 @@ set -euxo pipefail
 
 # TODO: Allow this to be configured by metadata.
 readonly DOCKER_VERSION='18.06.0~ce~3-0~debian'
+readonly CREDENTIAL_HELPER_VERSION='1.5.0'
+
 
 function is_master() {
   local role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
@@ -37,9 +39,27 @@ function install_docker() {
   apt-get install -y docker-ce="${DOCKER_VERSION}"
 }
 
+function configure_gcr() {
+  # this standalone method is recommended here:
+  # https://cloud.google.com/container-registry/docs/advanced-authentication#standalone_docker_credential_helper
+  curl -fsSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v${CREDENTIAL_HELPER_VERSION}/docker-credential-gcr_linux_amd64-${CREDENTIAL_HELPER_VERSION}.tar.gz" \
+    | tar xz --to-stdout ./docker-credential-gcr \
+    > /usr/local/bin/docker-credential-gcr && chmod +x /usr/local/bin/docker-credential-gcr
+
+  # this command configures docker on a per-user basis. Therefore we configure
+  # the root user, as well as the yarn user which is part of the docker group.
+  # If additional users are added to the docker group later, this command will
+  # need to be run for them as well.
+  docker-credential-gcr configure-docker
+  su yarn --command "docker-credential-gcr configure-docker"
+}
+
 function configure_docker() {
   # The installation package should create `docker` group.
   usermod -aG docker yarn
+  # configure docker to use Google Cloud Registry
+  configure_gcr
+
   systemctl enable docker
   # Restart YARN daemons to pick up new group without restarting nodes.
   if is_master ; then
