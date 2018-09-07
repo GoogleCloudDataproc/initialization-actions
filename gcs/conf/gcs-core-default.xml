@@ -74,8 +74,8 @@
     <value>true</value>
     <description>
       Whether to use a service account for GCS authorization. If an email and
-      keyfile are provided (see google.cloud.auth.service.account.email and
-      google.cloud.auth.service.account.keyfile), then that service account
+      keyfile are provided (see fs.gs.auth.service.account.email and
+      fs.gs.auth.service.account.keyfile), then that service account
       will be used. Otherwise the connector will look to see if it is running on
       a GCE VM with some level of GCS access in it's service account scope, and
       use that service account.
@@ -83,23 +83,26 @@
   </property>
 
   <!-- The following properties are required when not on a GCE VM and
-    google.cloud.auth.service.account.enable is true. There's 3 ways to configure
+    fs.gs.auth.service.account.enable is true. There are 3 ways to configure
     these credentials, which are mutually exclusive.
   -->
-  <!-- Method1
+
+  <property>
+    <name>fs.gs.auth.service.account.email</name>
+    <value></value>
+    <description>
+      The email address is associated with the service account used for GCS
+      access when fs.gs.auth.service.account.enable is true. Required
+      when authentication key specified in the Configuration file (Method 1)
+      or a PKCS12 certificate (Method 3) is being used.
+    </description>
+  </property>
+
+  <!-- Method 1
     Configure service account details directly in the Configuration file
     or via Hadoop Credentials.
     https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/CredentialProviderAPI.html
    -->
-  <property>
-    <name>fs.gs.auth.service.account.client.email</name>
-    <value></value>
-    <description>
-      The email address associated with the service account used for GCS access.
-      This can be extracted from the json keyfile generated via the Google Cloud
-      Console.
-    </description>
-  </property>
   <property>
     <name>fs.gs.auth.service.account.private.key.id</name>
     <value></value>
@@ -119,7 +122,7 @@
     </description>
   </property>
 
-  <!-- Method2
+  <!-- Method 2
     Configure service account credentials using a json keyfile. The file must exist at the same
     path on all nodes
   -->
@@ -131,37 +134,28 @@
     </description>
   </property>
 
-  <!-- Method3
+  <!-- Method 3
     Configure service account credentials using a P12 certificate. The file must exist at the same
     path on all nodes
   -->
-  <property>
-    <name>fs.gs.auth.service.account.email</name>
-    <value></value>
-    <description>
-      The email address is associated with the service account used for GCS
-      access when google.cloud.auth.service.account.enable is true. Required
-      when a PKCS12 certificate is being used.
-    </description>
-  </property>
   <property>
     <name>fs.gs.auth.service.account.keyfile</name>
     <value></value>
     <description>
       The PKCS12 (p12) certificate file of the service account used for GCS
-      access when google.cloud.auth.service.account.enable is true.
+      access when fs.gs.auth.service.account.enable is true.
     </description>
   </property>
 
   <!--  The following properties are required when
-    google.cloud.auth.service.account.enable is false.
+    fs.gs.auth.service.account.enable is false.
   -->
   <property>
     <name>fs.gs.auth.client.id</name>
     <value></value>
     <description>
       The client ID for GCS access in the OAuth 2.0 installed application flow
-      (when google.cloud.auth.service.account.enable is false).
+      (when fs.gs.auth.service.account.enable is false).
     </description>
   </property>
   <property>
@@ -169,7 +163,7 @@
     <value></value>
     <description>
       The client secret for GCS access in the OAuth 2.0 installed application
-      flow (when google.cloud.auth.service.account.enable is false).
+      flow (when fs.gs.auth.service.account.enable is false).
     </description>
   </property>
   <property>
@@ -177,7 +171,7 @@
     <value></value>
     <description>
       The client credential file for GCS access in the OAuth 2.0 installed
-      application flow (when google.cloud.auth.service.account.enable is
+      application flow (when fs.gs.auth.service.account.enable is
       false).
     </description>
   </property>

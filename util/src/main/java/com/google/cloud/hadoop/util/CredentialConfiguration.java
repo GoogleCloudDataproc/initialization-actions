@@ -31,10 +31,10 @@ public class CredentialConfiguration {
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   private boolean serviceAccountEnabled = true;
-  // The following 3 parameters are used for credentials set directly via Hadoop Configuration
+
+  // The following 2 parameters are used for credentials set directly via Hadoop Configuration
   private String serviceAccountPrivateKeyId = null;
   private String serviceAccountPrivateKey = null;
-  private String serviceAccountClientEmail = null;
 
   // The following 2 parameters are used for ServiceAccount P12 KeyFiles
   private String serviceAccountEmail = null;
@@ -43,9 +43,11 @@ public class CredentialConfiguration {
   // The following parameter is used for ServiceAccount Json KeyFiles
   private String serviceAccountJsonKeyFile = null;
 
+  // The following 3 parameters are used for client authentication
   private String clientId = null;
   private String clientSecret = null;
   private String oAuthCredentialFile = null;
+
   private boolean nullCredentialEnabled = false;
   private CredentialFactory credentialFactory = new CredentialFactory();
   private HttpTransportType transportType = HttpTransportType.JAVA_NET;
@@ -55,15 +57,19 @@ public class CredentialConfiguration {
   /**
    * Get the credential as configured.
    *
-   * The following is the order in which properties are applied to create the Credential:
-   * 1. If service accounts are not disabled and no service account key file or sa parameters are
-   *    set, use the metadata service.
-   * 2. If service accounts are not disabled and a service-account email and keyfile, or service account
-   *     parameters are provided, use service account authentication with the given parameters.
-   * 3. If service accounts are disabled and client id, client secret and OAuth credential file
-   *    is provided, use the Installed App authentication flow.
-   * 4. If service accounts are disabled and null credentials are enabled for unit testing, return
-   *    null
+   * <p>The following is the order in which properties are applied to create the Credential:
+   *
+   * <ol>
+   *   <li>If service accounts are not disabled and no service account key file or service account
+   *       parameters are set, use the metadata service.
+   *   <li>If service accounts are not disabled and a service-account email and keyfile, or service
+   *       account parameters are provided, use service account authentication with the given
+   *       parameters.
+   *   <li>If service accounts are disabled and client id, client secret and OAuth credential file
+   *       is provided, use the Installed App authentication flow.
+   *   <li>If service accounts are disabled and null credentials are enabled for unit testing,
+   *       return null
+   * </ol>
    *
    * @throws IllegalStateException if none of the above conditions are met and a Credential cannot
    *     be created
@@ -83,24 +89,26 @@ public class CredentialConfiguration {
       }
 
       if (!isNullOrEmpty(serviceAccountPrivateKeyId)) {
-        // TODO: Test with a hadoop credentials (jceks) file. getPassword is being used.
+        // TODO: Test with a hadoop credentials (jceks) file that getPassword is being used.
         logger.atFine().log("Attempting to get credentials from Configuration");
         Preconditions.checkState(
             !isNullOrEmpty(serviceAccountPrivateKey),
             "privateKeyId must be set if using credentials configured directly in configuration");
         Preconditions.checkState(
-            !isNullOrEmpty(serviceAccountClientEmail),
+            !isNullOrEmpty(serviceAccountEmail),
             "clientEmail must be set if using credentials configured directly in configuration");
         Preconditions.checkArgument(
             isNullOrEmpty(serviceAccountKeyFile),
-            "A P12 key file may not be specified at the same time as credentials via configuration.");
+            "A P12 key file may not be specified at the same time as credentials"
+                + " via configuration.");
         Preconditions.checkArgument(
             isNullOrEmpty(serviceAccountJsonKeyFile),
-            "A JSON key file may not be specified at the same time as credentials via configuration.");
+            "A JSON key file may not be specified at the same time as credentials"
+                + " via configuration.");
         return credentialFactory.getCredentialsFromSAParameters(
             serviceAccountPrivateKeyId,
             serviceAccountPrivateKey,
-            serviceAccountClientEmail,
+            serviceAccountEmail,
             scopes,
             getTransport());
       }
@@ -197,14 +205,6 @@ public class CredentialConfiguration {
     this.serviceAccountPrivateKey = serviceAccountPrivateKey.replace("\\n", System.lineSeparator());
   }
 
-  public String getServiceAccountClientEmail() {
-    return serviceAccountClientEmail;
-  }
-
-  public void setServiceAccountClientEmail(String serviceAccountClientEmail) {
-    this.serviceAccountClientEmail = serviceAccountClientEmail;
-  }
-
   public void setEnableServiceAccounts(boolean enableServiceAccounts) {
     this.serviceAccountEnabled = enableServiceAccounts;
   }
@@ -284,7 +284,6 @@ public class CredentialConfiguration {
                 ? "Not Provided"
                 : "Provided, but not displayed")
             + '\n')
-        + ("serviceAccountClientEmail: " + getServiceAccountClientEmail() + '\n')
         + ("serviceAccountEmail: " + getServiceAccountEmail() + '\n')
         + ("serviceAccountKeyfile: " + getServiceAccountKeyFile() + '\n')
         + ("serviceAccountJsonKeyFile: " + getServiceAccountJsonKeyFile() + '\n')

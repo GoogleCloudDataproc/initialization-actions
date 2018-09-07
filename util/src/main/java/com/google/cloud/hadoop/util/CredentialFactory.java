@@ -290,12 +290,13 @@ public class CredentialFactory {
   public Credential getCredentialsFromSAParameters(
       String privateKeyId,
       String privateKeyPem,
-      String clientEmail,
+      String serviceAccountEmail,
       List<String> scopes,
       HttpTransport transport)
       throws IOException {
-    logger.atFine().log("getServiceAccountCredentialFromHadoopConfiguration(%s)", clientEmail);
-    if (clientEmail == null || privateKeyPem == null || privateKeyId == null) {
+    logger.atFine().log(
+        "getServiceAccountCredentialFromHadoopConfiguration(%s)", serviceAccountEmail);
+    if (serviceAccountEmail == null || privateKeyPem == null || privateKeyId == null) {
       throw new IOException(
           "Error reading service account credential from stream, "
               + "expecting, 'client_email', 'private_key' and 'private_key_id'.");
@@ -305,7 +306,7 @@ public class CredentialFactory {
         new GoogleCredential.Builder()
             .setTransport(transport)
             .setJsonFactory(JSON_FACTORY)
-            .setServiceAccountId(clientEmail)
+            .setServiceAccountId(serviceAccountEmail)
             .setServiceAccountScopes(scopes)
             .setServiceAccountPrivateKey(privateKey)
             .setServiceAccountPrivateKeyId(privateKeyId);
@@ -443,7 +444,7 @@ public class CredentialFactory {
         GoogleCredential.getApplicationDefault(transport, JSON_FACTORY).createScoped(scopes));
   }
 
-  // TODO (Copied (mostly) over from Google Credential since it has private scope)
+  // TODO: Copied (mostly) over from Google Credential since it has private scope
   private static PrivateKey privateKeyFromPkcs8(String privateKeyPem) throws IOException {
     Reader reader = new StringReader(privateKeyPem);
     Section section = PemReader.readFirstSectionAndClose(reader, "PRIVATE KEY");

@@ -116,7 +116,7 @@ public class CredentialConfigurationTest {
 
   @Test
   public void configurationSAUsedWhenConfigured() throws IOException, GeneralSecurityException {
-    configuration.setServiceAccountClientEmail("foo@example.com");
+    configuration.setServiceAccountEmail("foo@example.com");
     configuration.setServiceAccountPrivateKeyId("privateKeyId");
     configuration.setServiceAccountPrivateKey("privateKey");
 

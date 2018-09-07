@@ -17,7 +17,6 @@ package com.google.cloud.hadoop.util;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.common.collect.ImmutableList;
-import java.io.IOException;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Test;
@@ -36,27 +35,29 @@ public class HadoopCredentialConfigurationTest {
   }
 
   @Test
-  public void componentsCanOverrideBaseConfiguration() throws IOException {
+  public void componentsCanOverrideBaseConfiguration() {
     Configuration configuration = new Configuration();
     // Overall, use service accounts
-    configuration.set(HadoopCredentialConfiguration.BASE_KEY_PREFIX +
-        HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX, "true");
+    configuration.set(
+        HadoopCredentialConfiguration.BASE_KEY_PREFIX
+            + HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX,
+        "true");
 
     // In the testing prefix, disable service accounts
-    configuration.set("testing." +
-        HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX, "false");
+    configuration.set(
+        "testing." + HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX, "false");
 
-    configuration.set("testing." +
-        HadoopCredentialConfiguration.CLIENT_ID_SUFFIX, "aClientId");
-    configuration.set("testing." +
-        HadoopCredentialConfiguration.CLIENT_SECRET_SUFFIX, "aClientSecret");
-    configuration.set("testing." +
-        HadoopCredentialConfiguration.OAUTH_CLIENT_FILE_SUFFIX, "aCredentialFile");
+    configuration.set("testing." + HadoopCredentialConfiguration.CLIENT_ID_SUFFIX, "aClientId");
+    configuration.set(
+        "testing." + HadoopCredentialConfiguration.CLIENT_SECRET_SUFFIX, "aClientSecret");
+    configuration.set(
+        "testing." + HadoopCredentialConfiguration.OAUTH_CLIENT_FILE_SUFFIX, "aCredentialFile");
 
-    CredentialConfiguration credentialConfiguration = HadoopCredentialConfiguration.newBuilder()
-        .withConfiguration(configuration)
-        .withOverridePrefix("testing.")
-        .build();
+    CredentialConfiguration credentialConfiguration =
+        HadoopCredentialConfiguration.newBuilder()
+            .withConfiguration(configuration)
+            .withOverridePrefix("testing.")
+            .build();
 
     assertThat(credentialConfiguration.getClientId()).isEqualTo("aClientId");
     assertThat(credentialConfiguration.getClientSecret()).isEqualTo("aClientSecret");
@@ -64,11 +65,9 @@ public class HadoopCredentialConfigurationTest {
   }
 
   @Test
-  public void setConfiugrationSetsValuesAsExpected() throws IOException {
+  public void setConfiugrationSetsValuesAsExpected() {
     Configuration conf = new Configuration();
 
-    setConfigurationKey(
-        conf, HadoopCredentialConfiguration.SERVICE_ACCOUNT_CLIENT_EMAIL_SUFFIX, "anEmail");
     setConfigurationKey(
         conf, HadoopCredentialConfiguration.SERVICE_ACCOUNT_PRIVATE_KEY_ID_SUFFIX, "aPrivateKeyId");
     setConfigurationKey(
@@ -111,7 +110,6 @@ public class HadoopCredentialConfigurationTest {
         .withConfiguration(conf)
         .build();
 
-    assertThat(credentialConfiguration.getServiceAccountClientEmail()).isEqualTo("anEmail");
     assertThat(credentialConfiguration.getServiceAccountPrivateKeyId()).isEqualTo("aPrivateKeyId");
     assertThat(credentialConfiguration.getServiceAccountPrivateKey()).isEqualTo("aPrivateKey");
     assertThat(credentialConfiguration.getServiceAccountEmail()).isEqualTo("anEmail");
@@ -151,13 +149,6 @@ public class HadoopCredentialConfigurationTest {
         conf,
         HadoopCredentialConfiguration.JSON_KEYFILE_SUFFIX);
     assertThat(writtenValue).isEqualTo("aJsonFile");
-
-    credentialConfiguration.setServiceAccountClientEmail("anEmail");
-    conf = credentialConfiguration.getConf();
-    writtenValue =
-        getConfigurationKey(
-            conf, HadoopCredentialConfiguration.SERVICE_ACCOUNT_CLIENT_EMAIL_SUFFIX);
-    assertThat(writtenValue).isEqualTo("anEmail");
 
     credentialConfiguration.setServiceAccountPrivateKeyId("aPrivateKeyId");
     conf = credentialConfiguration.getConf();
