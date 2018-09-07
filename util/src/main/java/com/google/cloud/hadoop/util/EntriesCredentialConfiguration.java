@@ -17,6 +17,7 @@ package com.google.cloud.hadoop.util;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,6 +45,9 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
 
     /** Sets the value of an entry to a boolean value. */
     void setBoolean(String key, boolean value);
+
+    /** Return the vale of an entry. */
+    String getPassword(String key) throws IOException;
   }
 
   /**
@@ -57,6 +61,16 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
    * service accounts. The default is to use a service account.
    */
   public static final String ENABLE_SERVICE_ACCOUNTS_SUFFIX = ".auth.service.account.enable";
+
+  public static final String SERVICE_ACCOUNT_PRIVATE_KEY_ID_SUFFIX =
+      ".auth.service.account.private.key.id";
+  public static final String SERVICE_ACCOUNT_PRIVATE_KEY_SUFFIX =
+      ".auth.service.account.private.key";
+  // Not ideal to duplicate email, but keeps the parameter names for this set of configuration
+  // consistent
+  public static final String SERVICE_ACCOUNT_CLIENT_EMAIL_SUFFIX =
+      ".auth.service.account.client.email";
+
   /**
    * Key suffix used to control which email address is associated with the service account.
    */
@@ -141,10 +155,8 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
      */
     protected abstract T beginBuild();
 
-    /**
-     * Return the fully-assembled concrete object for which this is a builder.
-     */
-    public T build() {
+    /** Return the fully-assembled concrete object for which this is a builder. */
+    public T build() throws IOException {
       T concreteCredentialConfiguration = beginBuild();
       if (configuration != null) {
         concreteCredentialConfiguration.setConfiguration(configuration);
@@ -215,6 +227,18 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
   public void getConfigurationInto(Entries configuration) {
     for (String prefix : prefixes) {
       configuration.setBoolean(prefix + ENABLE_SERVICE_ACCOUNTS_SUFFIX, isServiceAccountEnabled());
+      if (getServiceAccountClientEmail() != null) {
+        configuration.set(
+            prefix + SERVICE_ACCOUNT_CLIENT_EMAIL_SUFFIX, getServiceAccountClientEmail());
+      }
+      if (getServiceAccountPrivateKeyId() != null) {
+        configuration.set(
+            prefix + SERVICE_ACCOUNT_PRIVATE_KEY_ID_SUFFIX, getServiceAccountPrivateKeyId());
+      }
+      if (getServiceAccountPrivateKey() != null) {
+        configuration.set(
+            prefix + SERVICE_ACCOUNT_PRIVATE_KEY_SUFFIX, getServiceAccountPrivateKey());
+      }
       if (getServiceAccountEmail() != null) {
         configuration.set(prefix + SERVICE_ACCOUNT_EMAIL_SUFFIX, getServiceAccountEmail());
       }
@@ -247,7 +271,7 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
    * have a corresponding value in the configuration, no changes will be made to the state of this
    * object.
    */
-  public void setConfiguration(Entries entries) {
+  public void setConfiguration(Entries entries) throws IOException {
     for (String prefix : prefixes) {
       Optional<Boolean> enableServiceAccounts =
           maybeGetBoolean(entries, prefix + ENABLE_SERVICE_ACCOUNTS_SUFFIX);
@@ -256,6 +280,26 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
         setEnableServiceAccounts(enableServiceAccounts.get());
       }
 
+      // Parameters for ServiceAccount directly in Configuration
+      String serviceAccountPrivateKeyId =
+          entries.getPassword(prefix + SERVICE_ACCOUNT_PRIVATE_KEY_ID_SUFFIX);
+      if (serviceAccountPrivateKeyId != null) {
+        setServiceAccountPrivateKeyId(serviceAccountPrivateKeyId);
+      }
+
+      String serviceAccountPrivateKey =
+          entries.getPassword(prefix + SERVICE_ACCOUNT_PRIVATE_KEY_SUFFIX);
+      if (serviceAccountPrivateKey != null) {
+        setServiceAccountPrivateKey(serviceAccountPrivateKey);
+      }
+
+      String serviceAccountClientEmail =
+          entries.getPassword(prefix + SERVICE_ACCOUNT_CLIENT_EMAIL_SUFFIX);
+      if (serviceAccountClientEmail != null) {
+        setServiceAccountClientEmail(serviceAccountClientEmail);
+      }
+
+      // Parameters for file based credentials
       String serviceEmailAccount = entries.get(prefix + SERVICE_ACCOUNT_EMAIL_SUFFIX);
       if (serviceEmailAccount != null) {
         setServiceAccountEmail(serviceEmailAccount);

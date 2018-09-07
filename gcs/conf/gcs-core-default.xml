@@ -70,7 +70,7 @@
   </property>
 
   <property>
-    <name>google.cloud.auth.service.account.enable</name>
+    <name>fs.gs.auth.service.account.enable</name>
     <value>true</value>
     <description>
       Whether to use a service account for GCS authorization. If an email and
@@ -83,10 +83,60 @@
   </property>
 
   <!-- The following properties are required when not on a GCE VM and
-    google.cloud.auth.service.account.enable is true.
+    google.cloud.auth.service.account.enable is true. There's 3 ways to configure
+    these credentials, which are mutually exclusive.
+  -->
+  <!-- Method1
+    Configure service account details directly in the Configuration file
+    or via Hadoop Credentials.
+    https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/CredentialProviderAPI.html
+   -->
+  <property>
+    <name>fs.gs.auth.service.account.client.email</name>
+    <value></value>
+    <description>
+      The email address associated with the service account used for GCS access.
+      This can be extracted from the json keyfile generated via the Google Cloud
+      Console.
+    </description>
+  </property>
+  <property>
+    <name>fs.gs.auth.service.account.private.key.id</name>
+    <value></value>
+    <description>
+      The private key id associated with the service account used for GCS access.
+      This can be extracted from the json keyfile generated via the Google Cloud
+      Console.
+    </description>
+  </property>
+  <property>
+    <name>fs.gs.auth.service.account.private.key</name>
+    <value></value>
+    <description>
+      The private key associated with the service account used for GCS access.
+      This can be extracted from the json keyfile generated via the Google Cloud
+      Console.
+    </description>
+  </property>
+
+  <!-- Method2
+    Configure service account credentials using a json keyfile. The file must exist at the same
+    path on all nodes
   -->
   <property>
-    <name>google.cloud.auth.service.account.email</name>
+    <name>fs.gs.auth.service.account.json.keyfile</name>
+    <value></value>
+    <description>
+      The path to the json keyfile for the service account.
+    </description>
+  </property>
+
+  <!-- Method3
+    Configure service account credentials using a P12 certificate. The file must exist at the same
+    path on all nodes
+  -->
+  <property>
+    <name>fs.gs.auth.service.account.email</name>
     <value></value>
     <description>
       The email address is associated with the service account used for GCS
@@ -95,7 +145,7 @@
     </description>
   </property>
   <property>
-    <name>google.cloud.auth.service.account.keyfile</name>
+    <name>fs.gs.auth.service.account.keyfile</name>
     <value></value>
     <description>
       The PKCS12 (p12) certificate file of the service account used for GCS
@@ -107,7 +157,7 @@
     google.cloud.auth.service.account.enable is false.
   -->
   <property>
-    <name>google.cloud.auth.client.id</name>
+    <name>fs.gs.auth.client.id</name>
     <value></value>
     <description>
       The client ID for GCS access in the OAuth 2.0 installed application flow
@@ -115,7 +165,7 @@
     </description>
   </property>
   <property>
-    <name>google.cloud.auth.client.secret</name>
+    <name>fs.gs.auth.client.secret</name>
     <value></value>
     <description>
       The client secret for GCS access in the OAuth 2.0 installed application
@@ -123,7 +173,7 @@
     </description>
   </property>
   <property>
-    <name>google.cloud.auth.client.file</name>
+    <name>fs.gs.auth.client.file</name>
     <value></value>
     <description>
       The client credential file for GCS access in the OAuth 2.0 installed

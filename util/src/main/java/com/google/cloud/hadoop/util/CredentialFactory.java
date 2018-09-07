@@ -41,6 +41,9 @@ import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.json.webtoken.JsonWebSignature;
 import com.google.api.client.json.webtoken.JsonWebToken;
 import com.google.api.client.util.ExponentialBackOff;
+import com.google.api.client.util.PemReader;
+import com.google.api.client.util.PemReader.Section;
+import com.google.api.client.util.SecurityUtils;
 import com.google.api.services.storage.StorageScopes;
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
@@ -49,7 +52,14 @@ import com.google.common.flogger.GoogleLogger;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
 import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.List;
 
 /** Miscellaneous helper methods for getting a {@code Credential} from various sources. */
@@ -277,6 +287,31 @@ public class CredentialFactory {
     }
   }
 
+  public Credential getCredentialsFromSAParameters(
+      String privateKeyId,
+      String privateKeyPem,
+      String clientEmail,
+      List<String> scopes,
+      HttpTransport transport)
+      throws IOException {
+    logger.atFine().log("getServiceAccountCredentialFromHadoopConfiguration(%s)", clientEmail);
+    if (clientEmail == null || privateKeyPem == null || privateKeyId == null) {
+      throw new IOException(
+          "Error reading service account credential from stream, "
+              + "expecting, 'client_email', 'private_key' and 'private_key_id'.");
+    }
+    PrivateKey privateKey = privateKeyFromPkcs8(privateKeyPem);
+    GoogleCredential.Builder builder =
+        new GoogleCredential.Builder()
+            .setTransport(transport)
+            .setJsonFactory(JSON_FACTORY)
+            .setServiceAccountId(clientEmail)
+            .setServiceAccountScopes(scopes)
+            .setServiceAccountPrivateKey(privateKey)
+            .setServiceAccountPrivateKeyId(privateKeyId);
+    return new GoogleCredentialWithRetry(builder);
+  }
+
   /**
    * Initialized OAuth2 credential for the "installed application" flow; where the credential
    * typically represents an actual end user (instead of a service account), and is stored as a
@@ -406,5 +441,23 @@ public class CredentialFactory {
     logger.atFine().log("getApplicationDefaultCredential(%s)", scopes);
     return GoogleCredentialWithRetry.fromGoogleCredential(
         GoogleCredential.getApplicationDefault(transport, JSON_FACTORY).createScoped(scopes));
+  }
+
+  // TODO (Copied (mostly) over from Google Credential since it has private scope)
+  private static PrivateKey privateKeyFromPkcs8(String privateKeyPem) throws IOException {
+    Reader reader = new StringReader(privateKeyPem);
+    Section section = PemReader.readFirstSectionAndClose(reader, "PRIVATE KEY");
+    if (section == null) {
+      throw new IOException("Invalid PKCS8 data.");
+    }
+    byte[] bytes = section.getBase64DecodedBytes();
+    PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(bytes);
+    try {
+      KeyFactory keyFactory = SecurityUtils.getRsaKeyFactory();
+      PrivateKey privateKey = keyFactory.generatePrivate(keySpec);
+      return privateKey;
+    } catch (NoSuchAlgorithmException | InvalidKeySpecException exception) {
+      throw new IOException("Unexpected expcetion reading PKCS data", exception);
+    }
   }
 }

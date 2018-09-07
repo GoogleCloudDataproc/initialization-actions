@@ -21,6 +21,7 @@ import com.google.cloud.hadoop.testing.EntriesCredentialConfigurationUtil.TestEn
 import com.google.cloud.hadoop.util.EntriesCredentialConfiguration.Entries;
 import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import com.google.common.collect.ImmutableList;
+import java.io.IOException;
 import java.util.List;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -39,7 +40,7 @@ public class EntriesCredentialConfigurationTest {
   }
 
   @Test
-  public void componentsCanOverrideBaseConfiguration() {
+  public void componentsCanOverrideBaseConfiguration() throws IOException {
     Entries configuration =
         EntriesCredentialConfigurationUtil.getTestConfiguration();
     // Overall, use service accounts
@@ -72,7 +73,7 @@ public class EntriesCredentialConfigurationTest {
   }
 
   @Test
-  public void setConfigurationSetsValuesAsExpected() {
+  public void setConfiugrationSetsValuesAsExpected() throws IOException {
     Entries conf = new TestEntries();
 
     setConfigurationKey(

@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.util;
 
+import java.io.IOException;
 import java.util.List;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
@@ -55,6 +56,12 @@ public class HadoopCredentialConfiguration
 
     public void setBoolean(String key, boolean value) {
       config.setBoolean(key, value);
+    }
+
+    @Override
+    public String getPassword(String key) throws IOException {
+      char[] val = config.getPassword(key);
+      return val == null ? null : String.valueOf(val);
     }
   }
 
@@ -105,7 +112,13 @@ public class HadoopCredentialConfiguration
    * have a corresponding value in the Configuration, no changes will be made to the state of this
    * object.
    */
+  @Override
+  @Deprecated
   public void setConf(Configuration entries) {
-    setConfiguration(new ConfigurationEntriesAdapter(entries));
+    try {
+      setConfiguration(new ConfigurationEntriesAdapter(entries));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

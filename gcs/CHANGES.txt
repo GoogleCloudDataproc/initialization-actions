@@ -1,4 +1,12 @@
 1.9.7 - 2018-XX-XX
+  
+  1. Add an option to provide credentials directly in Hadoop Configuration,
+     without having to place a file on every node, or associating service accounts
+     with GCE VMs.
+
+       fs.gs.auth.service.account.client.email
+       fs.gs.auth.service.account.private.key.id
+       fs.gs.auth.service.account.private.key
 
 
 1.9.6 - 2018-08-30
