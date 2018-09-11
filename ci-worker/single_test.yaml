@@ -1,0 +1,24 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  # Unique key of the Job instance
+  name: single-test
+spec:
+  template:
+    metadata:
+      name: single-test
+    spec:
+      containers:
+      - name: test-worker
+        image: gcr.io/dataproc-kokoro-tests/ci-image:latest
+        env:
+        - name: REPO_OWNER
+          value: ishanrc
+        - name: REPO_NAME
+          value: dataproc-initialization-actions
+        - name: PULL_PULL_SHA
+          value: df75026819125eaf7c28fb3c410236d6169a1e3a
+        - name: TEST_MODULE
+          value: ganglia.test_ganglia
+      # Do not restart containers after they exit
+      restartPolicy: Never
