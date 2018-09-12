@@ -1,0 +1,17 @@
+presubmits:
+  ishanrc/dataproc-initialization-actions:
+  - name: test-flink
+    branches:
+    - ci-setup
+    trigger: "(?m)^/test flink"
+    rerun_command: "/test flink"
+    context: test-presubmit
+    always_run: true
+    skip_report: false
+    agent: kubernetes
+    spec:
+      containers:
+      - image: gcr.io/dataproc-kokoro-tests/ci-test-worker
+        env:
+        - name: TEST_MODULE
+          value: flink.test_flink

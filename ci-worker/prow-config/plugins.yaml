@@ -1,0 +1,4 @@
+plugins:
+  ishanrc/dataproc-initialization-actions:
+  - size
+  - trigger
