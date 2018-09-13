@@ -55,7 +55,6 @@ function flink_master_url() {
   # flink in yarn mode.
   if ${start_flink_yarn_session} ; then
     # grab final field from the first yarn application that contains 'flink'
-    yarn application -list >&2 # Logging this here is useful for debugging potential failures
     yarn application -list \
       | grep -i 'flink' \
       | head -n1 \
@@ -118,6 +117,8 @@ function pull_beam_images() {
   local image_repo="$(/usr/share/google/get_metadata_value \
     "attributes/${BEAM_IMAGE_REPOSITORY_KEY}" \
     || echo "${BEAM_IMAGE_REPOSITORY_DEFAULT}")"
+  # Pull beam images with `sudo -i` since if pulling from GCR, yarn will be
+  # configured with GCR authorization
   sudo -u yarn -i docker pull "${image_repo}/go:${beam_image_version}"
   sudo -u yarn -i docker pull "${image_repo}/python:${beam_image_version}"
   sudo -u yarn -i docker pull "${image_repo}/java:${beam_image_version}"
@@ -131,7 +132,7 @@ function main() {
 
   local pull_images="$(/usr/share/google/get_metadata_value \
     "attributes/${BEAM_IMAGE_ENABLE_PULL_METADATA_KEY}" \
-    || echo "${RELEASE_SNAPSHOT_URL_METADATA_KEY}")"
+    || echo "${BEAM_IMAGE_ENABLE_PULL_DEFAULT}")"
   if ${pull_images} ; then
     pull_beam_images
   fi

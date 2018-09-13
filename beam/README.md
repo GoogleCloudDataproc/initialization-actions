@@ -1,14 +1,16 @@
 # Beam Initialization Actions
 
-While Apache Beam is primarily a SDK, jobs running under its portability framework
-require a job service to run correctly.  This directory contains a setup script
-to properly configure beam job services.
+While Apache Beam is primarily an SDK, jobs running under its portability
+framework require a job service to run correctly.  This directory contains a
+setup script to properly configure beam job services.
 
 **WARNING:** The Beam portability framework is **under active development** and
 should not be used in a production context.
 
-Due to the current development [status](https://beam.apache.org/contribute/portability/#status) of Beam's portability
-framework, users are responsible for building and maintaining their own Beam artifacts manually. Instructions are included below.
+Due to the current development
+[status](https://beam.apache.org/contribute/portability/#status) of Beam's
+portability framework, you are responsible for building and maintaining their
+own Beam artifacts manually. Instructions are included below.
 
 ## Building Beam Artifacts
 
@@ -17,7 +19,8 @@ You will generate two categories of artifacts for this initialization action:
 | Job Service | This micro service runs on the master node, accepting new beam jobs on port 8099.  It is configured to submit Beam jobs to Apache Flink. |
 | Worker Container Images | These docker images run language-specific code on worker nodes. |
 
-When building manually, substitute the following terms into build commands. In bash, set environment variables using `export <term>=<value>`.
+When building manually, substitute the following terms into build commands. In
+bash, set environment variables using `export <term>=<value>`.
 
 | `BEAM_JOB_SERVICE_DESTINATION` | A Cloud Storage directory path accessible by both the build machine and the cluster to be created. |
 | `BEAM_CONTAINER_IMAGE_DESTINATION` | A Docker repository path prefix accessible by both the build machine and the cluster to be created. |
@@ -49,7 +52,8 @@ Next, build a standalone job service jar.
 ./gradlew :beam-runners-flink_2.11-job-server:shadowJar
 ```
 
-Then, upload the jar to a Cloud Storage path that clusters can access during initialization.
+Then, upload the jar to a Cloud Storage path that clusters can access during
+initialization.
 
 ```bash
 gsutil cp \
@@ -68,8 +72,8 @@ Build the docker images used by Beam worker tasks.
 Docker images names are generated in the following format:
 `<USER>-docker-apache.bintray.io/beam/<LANGUAGE>`. 
 
-Rename and push the images to a docker repository path that clusters can access during
-initialization.  As a best practice, tag the images with the
+Rename and push the images to a docker repository path that clusters can access
+during initialization.  As a best practice, tag the images with the
 `BEAM_SOURCE_VERSION` they were generated from.
 
 ```bash
@@ -91,35 +95,22 @@ The Beam `beam_job_service` and `flink/flink.sh` initialization actions use the 
 [metadata variables](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/init-actions#passing_arguments_to_initialization_actions):
 
 | Metadata Key | Default | Description |
-| --- | --- |
-| beam-job-service-snapshot | [v2.6.0](http://repo1.maven.org/maven2/org/apache/beam/beam-runners-flink_2.11-job-server/2.6.0/beam-runners-flink_2.11-job-server-2.6.0.jar) | The URL or GCS bucket of a Beam job service snapshot. |
+| ------------ | ------- | ----------- |
+| beam-job-service-snapshot | [v2.6.0](http://repo1.maven.org/maven2/org/apache/beam/beam-runners-flink_2.11-job-server/2.6.0/beam-runners-flink_2.11-job-server-2.6.0.jar) | The Cloud Storage path of your JobService jar (see above) |
 | beam-image-enable-pull | false | When set to true, the init action will attempt to pull beam worker images for efficient access later |
 | beam-image-version | master | The image version to use when selecting a tagged image |
-| beam-image-repository | apache.bintray.io/beam | The image repository root to pull images from. As of September 12th, 2018, these images have not been published yet.  Therefore it is recommended that users build and store their own images when using this init action. |
-| flink-start-yarn-session | ???? |
-| flink-snapshot-url | URL to a Flink snapshot.
+| beam-image-repository | apache.bintray.io/beam | The image repository root to pull images from. As of September 12th, 2018, these images have not been published yet.  Therefore it is recommended that you build and store their own images when using this init action. |
+| flink-start-yarn-session | `true` | Run a flink session in YARN on startup. |
+| flink-snapshot-url | `<none>` | URL to a Flink snapshot. |
 
-You should explicitly set the Beam and Flink metadata variables (use a script as shown later).
+You should explicitly set the Beam and Flink metadata variables (use a script as
+shown later).
 
-| Metadata Key | Value |
-| --- | --- |
-| beam-job-service-snapshot | The Cloud Storage path of your JobService jar (see above) |
-| beam-image-enable-pull | `true` | ??? Description ???
-| beam-image-version | the tag used for container images (default: `latest`) |
-| beam-image-repository | `<BEAM_CONTAINER_IMAGE_DESTINATION>` (see above) |
-| flink-start-yarn-session | `true` | ??? Description ???
-| flink-snapshot-url | URL to a flink 1.5 snapshot, such as
-[https://archive.apache.org/dist/flink/flink-1.5.3/flink-1.5.3-bin-hadoop28-scala_2.11.tgz](https://archive.apache.org/dist/flink/flink-1.5.3/flink-1.5.3-bin-hadoop28-scala_2.11.tgz). You must set this variable since Beam 2.7 requires Flink 1.5, but Cloud Dataproc uses version 1.2 as a default. |
-
-The recommended practice is to use a script to set variables and create the Beam cluster.
-
-TODO: anonymize this
 ```bash
 CLUSTER_NAME="$1
-INIT_BUCKET="gs://dataproc-initialization-actions"
-INIT_ACTIONS="${INIT_BUCKET}/docker/docker.sh"
-INIT_ACTIONS+=",${INIT_BUCKET}/flink/flink.sh"
-INIT_ACTIONS+=",${INIT_BUCKET}/beam/beam_job_service.sh"
+INIT_ACTIONS="gs://dataproc-initialization-actions/docker/docker.sh"
+INIT_ACTIONS+=",gs://dataproc-initialization-actions/flink/flink.sh"
+INIT_ACTIONS+=",gs://dataproc-initialization-actions/beam/beam_job_service.sh"
 FLINK_SNAPSHOT="https://archive.apache.org/dist/flink/flink-1.5.3/flink-1.5.3-bin-hadoop28-scala_2.11.tgz"
 METADATA="beam-job-service-snapshot=<...>"
 METADATA+=",beam-image-enable-pull=true"
@@ -134,7 +125,10 @@ gcloud dataproc clusters create "${CLUSTER_NAME}" \
   --metadata="${METADATA}"
 ```
 
-The Beam Job Service runs on port `8099` of the master node. You can submit portable Beam jobs against this port. For example, to run the [Go Wordcount example](????link ????) on the master node, upload the wordcount job binary, and then run:
+The Beam Job Service runs on port `8099` of the master node. You can submit
+portable Beam jobs against this port. For example, to run the [Go Wordcount
+example](https://github.com/apache/beam/tree/master/sdks/go/examples/wordcount)
+on the master node, upload the wordcount job binary, and then run:
 
 ```bash
 ./wordcount \
@@ -145,5 +139,6 @@ The Beam Job Service runs on port `8099` of the master node. You can submit port
   --container_image <BEAM_CONTAINER_DESTINATION>/go:<BEAM_SOURCE_VERSION>
 ```
 
-The Beam Job Service port must be opened to submit beam jobs from machines outside the cluster (see
-[Using Firewall Rules](https://cloud.google.com/vpc/docs/using-firewalls) for instructions)).
+The Beam Job Service port must be opened to submit beam jobs from machines
+outside the cluster (see [Using Firewall
+Rules](https://cloud.google.com/vpc/docs/using-firewalls) for instructions)).

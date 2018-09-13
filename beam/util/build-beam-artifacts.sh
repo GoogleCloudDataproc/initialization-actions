@@ -3,7 +3,7 @@
 set -exuo pipefail
 
 if [ "$#" -lt 2 ] ; then
-  echo "Usage: $0 <BEAM_JOB_SERVICE_DESTINATION> <BEAM_CONTAINER_IMAGE_DESTINATION> [<BEAM_SOURCE_VERSION>]" >&2
+  echo "Usage: $0 <BEAM_JOB_SERVICE_DESTINATION> <BEAM_CONTAINER_IMAGE_DESTINATION> [<BEAM_SOURCE_VERSION> [<BEAM_SOURCE_DIRECTORY>]]" >&2
   exit 1
 fi
 
@@ -31,10 +31,15 @@ function build_container() {
 }
 
 function main() {
-  local workdir=$(mktemp -d)
-  pushd ${workdir}
-  git clone https://github.com/apache/beam.git
-  pushd beam
+  if [[ $# -eq 4 ]] ; then
+    # if there is a 4th argument, use it as the beam source directory
+    pushd "$4"
+  else
+    local workdir=$(mktemp -d)
+    pushd ${workdir}
+    git clone https://github.com/apache/beam.git
+    pushd beam
+  fi
   git checkout "${BEAM_SOURCE_VERSION}"
   ./gradlew clean
   build_job_service
