@@ -3,10 +3,10 @@ plank:
     timeout: 7200000000000 # 2h
     grace_period: 15000000000 # 15s
     utility_images:
-      clonerefs: "clonerefs:default"
-      initupload: "initupload:default"
-      entrypoint: "entrypoint:default"
-      sidecar: "sidecar:default"
+      clonerefs: "gcr.io/dataproc-kokoro-tests/clonerefs:latest"
+      initupload: "gcr.io/dataproc-kokoro-tests/initupload:latest"
+      entrypoint: "gcr.io/dataproc-kokoro-tests/entrypoint:latest"
+      sidecar: "gcr.io/dataproc-kokoro-tests/sidecar:latest"
     gcs_configuration:
       bucket: "dataproc-init-action-tests"
       path_strategy: "legacy"
