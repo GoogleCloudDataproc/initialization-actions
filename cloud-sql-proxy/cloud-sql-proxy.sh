@@ -241,7 +241,7 @@ function run_validation() {
       err 'Run /usr/lib/hive/bin/schematool -dbType mysql -upgradeSchemaFrom <schema-version> to upgrade the schema. Note that this may break Hive metastores that depend on the old schema'
 
   # Validate it's functioning.
-  if ! beeline -u jdbc:hive2://localhost:10000 -e 'SHOW TABLES;' >& /dev/null; then
+  if ! timeout 60s beeline -u jdbc:hive2://localhost:10000 -e 'SHOW TABLES;' >& /dev/null; then
     err 'Failed to bring up Cloud SQL Metastore'
   else
     echo 'Cloud SQL Hive Metastore initialization succeeded' >&2
