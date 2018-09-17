@@ -24,7 +24,7 @@ You will generate two categories of artifacts for this initialization action:
 When building manually, substitute the following terms into build commands. In
 bash, set environment variables using `export <term>=<value>`.
 
-| `beam_DESTINATION` | A Cloud Storage directory path accessible by both the build machine and the cluster to be created. |
+| `BEAM_JOB_SERVICE_DESTINATION` | A Cloud Storage directory path accessible by both the build machine and the cluster to be created. |
 | `BEAM_CONTAINER_IMAGE_DESTINATION` | A Docker repository path prefix accessible by both the build machine and the cluster to be created. |
 | `BEAM_SOURCE_VERSION` | A tag, branch, or commit hash in the Beam source repositories to build artifacts from. (default: `master`) |
 
@@ -33,7 +33,7 @@ bash, set environment variables using `export <term>=<value>`.
 You can invoke a helper script from `util` directory to build Beam artifacts.
 
 ```bash
-bash ./util/build-beam-artifacts.sh <beam_DESTINATION> <BEAM_CONTAINER_IMAGE_DESTINATION> [<BEAM_SOURCE_VERSION>]
+bash ./util/build-beam-artifacts.sh <BEAM_JOB_SERVICE_DESTINATION> <BEAM_CONTAINER_IMAGE_DESTINATION> [<BEAM_SOURCE_VERSION>]
 ```
 
 ### Manual Build
@@ -60,7 +60,7 @@ initialization.
 ```bash
 gsutil cp \
   ./runners/flink/job-server/build/libs/beam-runners-flink_2.11-job-server-*-SNAPSHOT.jar \
-  <beam_DESTINATION>/beam-runners-flink_2.11-job-server-latest-SNAPSHOT.jar
+  <BEAM_JOB_SERVICE_DESTINATION>/beam-runners-flink_2.11-job-server-latest-SNAPSHOT.jar
 ```
 
 #### Build the Worker Container Images
