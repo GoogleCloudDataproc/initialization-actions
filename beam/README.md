@@ -5,7 +5,9 @@ framework require a job service to run correctly.  This directory contains a
 setup script to properly configure beam job services.
 
 **WARNING:** The Beam portability framework is **under active development** and
-should not be used in a production context.
+should not be used in a production context.  It is also not supported on
+clusters running in [high availability](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/high-availability) 
+mode.
 
 Due to the current development
 [status](https://beam.apache.org/contribute/portability/#status) of Beam's
@@ -22,7 +24,7 @@ You will generate two categories of artifacts for this initialization action:
 When building manually, substitute the following terms into build commands. In
 bash, set environment variables using `export <term>=<value>`.
 
-| `BEAM_JOB_SERVICE_DESTINATION` | A Cloud Storage directory path accessible by both the build machine and the cluster to be created. |
+| `beam_DESTINATION` | A Cloud Storage directory path accessible by both the build machine and the cluster to be created. |
 | `BEAM_CONTAINER_IMAGE_DESTINATION` | A Docker repository path prefix accessible by both the build machine and the cluster to be created. |
 | `BEAM_SOURCE_VERSION` | A tag, branch, or commit hash in the Beam source repositories to build artifacts from. (default: `master`) |
 
@@ -31,7 +33,7 @@ bash, set environment variables using `export <term>=<value>`.
 You can invoke a helper script from `util` directory to build Beam artifacts.
 
 ```bash
-bash ./util/build-beam-artifacts.sh <BEAM_JOB_SERVICE_DESTINATION> <BEAM_CONTAINER_IMAGE_DESTINATION> [<BEAM_SOURCE_VERSION>]
+bash ./util/build-beam-artifacts.sh <beam_DESTINATION> <BEAM_CONTAINER_IMAGE_DESTINATION> [<BEAM_SOURCE_VERSION>]
 ```
 
 ### Manual Build
@@ -58,7 +60,7 @@ initialization.
 ```bash
 gsutil cp \
   ./runners/flink/job-server/build/libs/beam-runners-flink_2.11-job-server-*-SNAPSHOT.jar \
-  <BEAM_JOB_SERVICE_DESTINATION>/beam-runners-flink_2.11-job-server-latest-SNAPSHOT.jar
+  <beam_DESTINATION>/beam-runners-flink_2.11-job-server-latest-SNAPSHOT.jar
 ```
 
 #### Build the Worker Container Images
@@ -89,14 +91,15 @@ You create a Beam cluster by calling the Cloud Dataproc clusters create command 
 
   - `docker/docker.sh`
   - `flink/flink.sh`
-  - `beam/beam_job_service.sh`
+  - `beam/beam.sh`
 
-The Beam `beam_job_service` and `flink/flink.sh` initialization actions use the following
+The Beam `beam` and `flink/flink.sh` initialization actions use the following
 [metadata variables](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/init-actions#passing_arguments_to_initialization_actions):
 
 | Metadata Key | Default | Description |
 | ------------ | ------- | ----------- |
 | beam-job-service-snapshot | [v2.6.0](http://repo1.maven.org/maven2/org/apache/beam/beam-runners-flink_2.11-job-server/2.6.0/beam-runners-flink_2.11-job-server-2.6.0.jar) | The Cloud Storage path of your JobService jar (see above) |
+| beam-artifacts-gcs-path | `<cluster staging bucket>` | A cluster-writeable GCS path to store beam artifacts under |
 | beam-image-enable-pull | false | When set to true, the init action will attempt to pull beam worker images for efficient access later |
 | beam-image-version | master | The image version to use when selecting a tagged image |
 | beam-image-repository | apache.bintray.io/beam | The image repository root to pull images from. As of September 12th, 2018, these images have not been published yet.  Therefore it is recommended that you build and store their own images when using this init action. |
@@ -110,7 +113,7 @@ shown later).
 CLUSTER_NAME="$1
 INIT_ACTIONS="gs://dataproc-initialization-actions/docker/docker.sh"
 INIT_ACTIONS+=",gs://dataproc-initialization-actions/flink/flink.sh"
-INIT_ACTIONS+=",gs://dataproc-initialization-actions/beam/beam_job_service.sh"
+INIT_ACTIONS+=",gs://dataproc-initialization-actions/beam/beam.sh"
 FLINK_SNAPSHOT="https://archive.apache.org/dist/flink/flink-1.5.3/flink-1.5.3-bin-hadoop28-scala_2.11.tgz"
 METADATA="beam-job-service-snapshot=<...>"
 METADATA+=",beam-image-enable-pull=true"

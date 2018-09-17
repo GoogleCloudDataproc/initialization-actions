@@ -7,7 +7,7 @@ readonly SERVICE_INSTALL_DIR='/usr/lib/beam-job-service'
 readonly SERVICE_WORKING_DIR='/var/lib/beam-job-service'
 readonly SERVICE_WORKING_USER='yarn'
 
-readonly ARTIFACTS_DIR_METADATA_KEY='beam-artifacts-dir'
+readonly ARTIFACTS_GCS_PATH_METADATA_KEY='beam-artifacts-gcs-path'
 readonly RELEASE_SNAPSHOT_URL_METADATA_KEY="beam-job-service-snapshot"
 readonly RELEASE_SNAPSHOT_URL_DEFAULT="http://repo1.maven.org/maven2/org/apache/beam/beam-runners-flink_2.11-job-server/2.6.0/beam-runners-flink_2.11-job-server-2.6.0.jar"
 
@@ -33,7 +33,7 @@ function is_master() {
 }
 
 function get_artifacts_dir() {
-  /usr/share/google/get_metadata_value "attributes/${ARTIFACTS_DIR_METADATA_KEY}" \
+  /usr/share/google/get_metadata_value "attributes/${ARTIFACTS_GCS_PATH_METADATA_KEY}" \
     || echo "gs://$(/usr/share/google/get_metadata_value "attributes/dataproc-bucket")/beam-artifacts"
 }
 
@@ -75,7 +75,7 @@ function install_job_service() {
   echo "Retrieving Beam Job Service snapshot from ${release_snapshot_url}"
 
   local flink_master="$(flink_master_url)"
-  echo "resolved flink master to: '${master_url}'"
+  echo "Resolved flink master to: '${master_url}'"
 
   mkdir -p "${SERVICE_INSTALL_DIR}"
   pushd "${SERVICE_INSTALL_DIR}"
