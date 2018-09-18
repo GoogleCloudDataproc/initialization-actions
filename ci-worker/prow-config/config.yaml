@@ -1,24 +1,14 @@
-plank:
-  default_decoration_config:
-    timeout: 7200000000000 # 2h
-    grace_period: 15000000000 # 15s
-    utility_images:
-      clonerefs: "gcr.io/dataproc-kokoro-tests/clonerefs:latest"
-      initupload: "gcr.io/dataproc-kokoro-tests/initupload:latest"
-      entrypoint: "gcr.io/dataproc-kokoro-tests/entrypoint:latest"
-      sidecar: "gcr.io/dataproc-kokoro-tests/sidecar:latest"
-    gcs_configuration:
-      bucket: "dataproc-init-action-tests"
-      path_strategy: "legacy"
-    gcs_credentials_secret: "dataproc-init-action-tests-key"
 presubmits:
   ishanrc/dataproc-initialization-actions:
   - name: test-flink
     always_run: true
-    decorate: true
+    agent: kubernetes
+    labels:
+      preset-service-account: "true"
     spec:
       containers:
-      - image: gcr.io/dataproc-kokoro-tests/ci-test-worker:latest
+      - image: gcr.io/dataproc-kokoro-tests/test-container
+        command: ["/home/test/run_tests.sh"]
         imagePullPolicy: Always
         env:
         - name: TEST_MODULE
