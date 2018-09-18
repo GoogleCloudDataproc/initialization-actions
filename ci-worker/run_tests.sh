@@ -20,7 +20,11 @@ gsutil lifecycle set bucket_lifecycle.json ${bucket}
 #clone repo
 git clone https://github.com/${REPO_OWNER}/${REPO_NAME}.git
 cd ${REPO_NAME}
-git checkout ${PULL_PULL_SHA}
+git config user.name test
+git config user.email test@example.com
+git fetch
+git checkout ${PULL_BASE_SHA}
+git merge --no-commit ${PULL_PULL_SHA}
 
 #upload init actions
 gsutil -m cp */*sh ${bucket}
