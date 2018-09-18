@@ -1,10 +1,52 @@
 presubmits:
   ishanrc/dataproc-initialization-actions:
-  - name: test-flink
-    always_run: true
+  - name: test-bigtable
+    run_if_changed: "^(bigtable/.*)|(testing-scripts/bigtable/.*)$"
     agent: kubernetes
-    labels:
-      preset-service-account: "true"
+    spec:
+      containers:
+      - image: gcr.io/dataproc-kokoro-tests/test-container
+        command: ["/home/test/run_tests.sh"]
+        imagePullPolicy: Always
+        env:
+        - name: TEST_MODULE
+          value: bigtable.test_bigtable
+  - name: test-cloud-sql-proxy
+    run_if_changed: "^(cloud-sql-proxy/.*)|(testing-scripts/cloud-sql-proxy/.*)$"
+    agent: kubernetes
+    spec:
+      containers:
+      - image: gcr.io/dataproc-kokoro-tests/test-container
+        command: ["/home/test/run_tests.sh"]
+        imagePullPolicy: Always
+        env:
+        - name: TEST_MODULE
+          value: cloud-sql-proxy.test_cloud-sql-proxy
+  - name: test-datalab
+    run_if_changed: "^(datalab/.*)|(testing-scripts/datalab/.*)$"
+    agent: kubernetes
+    spec:
+      containers:
+      - image: gcr.io/dataproc-kokoro-tests/test-container
+        command: ["/home/test/run_tests.sh"]
+        imagePullPolicy: Always
+        env:
+        - name: TEST_MODULE
+          value: datalab.test_datalab
+  - name: test-drill
+    run_if_changed: "^(drill/.*)|(testing-scripts/drill/.*)$"
+    agent: kubernetes
+    spec:
+      containers:
+      - image: gcr.io/dataproc-kokoro-tests/test-container
+        command: ["/home/test/run_tests.sh"]
+        imagePullPolicy: Always
+        env:
+        - name: TEST_MODULE
+          value: drill.test_drill
+  - name: test-flink
+    run_if_changed: "^(flink/.*)|(testing-scripts/flink/.*)$"
+    agent: kubernetes
     spec:
       containers:
       - image: gcr.io/dataproc-kokoro-tests/test-container
@@ -13,3 +55,113 @@ presubmits:
         env:
         - name: TEST_MODULE
           value: flink.test_flink
+  - name: test-ganglia
+    run_if_changed: "^(ganglia/.*)|(testing-scripts/ganglia/.*)$"
+    agent: kubernetes
+    spec:
+      containers:
+      - image: gcr.io/dataproc-kokoro-tests/test-container
+        command: ["/home/test/run_tests.sh"]
+        imagePullPolicy: Always
+        env:
+        - name: TEST_MODULE
+          value: ganglia.test_ganglia
+  - name: test-hive
+    run_if_changed: "^(hive/.*)|(testing-scripts/hive/.*)$"
+    agent: kubernetes
+    spec:
+      containers:
+      - image: gcr.io/dataproc-kokoro-tests/test-container
+        command: ["/home/test/run_tests.sh"]
+        imagePullPolicy: Always
+        env:
+        - name: TEST_MODULE
+          value: hive.test_hive
+  - name: test-hue
+    run_if_changed: "^(hue/.*)|(testing-scripts/hue/.*)$"
+    agent: kubernetes
+    spec:
+      containers:
+      - image: gcr.io/dataproc-kokoro-tests/test-container
+        command: ["/home/test/run_tests.sh"]
+        imagePullPolicy: Always
+        env:
+        - name: TEST_MODULE
+          value: hue.test_hue
+  - name: test-jupyter
+    run_if_changed: "^(jupyter/.*)|(testing-scripts/jupyter/.*)$"
+    agent: kubernetes
+    spec:
+      containers:
+      - image: gcr.io/dataproc-kokoro-tests/test-container
+        command: ["/home/test/run_tests.sh"]
+        imagePullPolicy: Always
+        env:
+        - name: TEST_MODULE
+          value: jupyter.test_jupyter
+  - name: test-kafka
+    run_if_changed: "^(kafka/.*)|(testing-scripts/kafka/.*)$"
+    agent: kubernetes
+    spec:
+      containers:
+      - image: gcr.io/dataproc-kokoro-tests/test-container
+        command: ["/home/test/run_tests.sh"]
+        imagePullPolicy: Always
+        env:
+        - name: TEST_MODULE
+          value: kafka.test_kafka
+  - name: test-oozie
+    run_if_changed: "^(oozie/.*)|(testing-scripts/oozie/.*)$"
+    agent: kubernetes
+    spec:
+      containers:
+      - image: gcr.io/dataproc-kokoro-tests/test-container
+        command: ["/home/test/run_tests.sh"]
+        imagePullPolicy: Always
+        env:
+        - name: TEST_MODULE
+          value: oozie.test_oozie
+  - name: test-presto
+    run_if_changed: "^(presto/.*)|(testing-scripts/presto/.*)$"
+    agent: kubernetes
+    spec:
+      containers:
+      - image: gcr.io/dataproc-kokoro-tests/test-container
+        command: ["/home/test/run_tests.sh"]
+        imagePullPolicy: Always
+        env:
+        - name: TEST_MODULE
+          value: presto.test_presto
+  - name: test-sqoop
+    run_if_changed: "^(sqoop/.*)|(testing-scripts/sqoop/.*)$"
+    agent: kubernetes
+    spec:
+      containers:
+      - image: gcr.io/dataproc-kokoro-tests/test-container
+        command: ["/home/test/run_tests.sh"]
+        imagePullPolicy: Always
+        env:
+        - name: TEST_MODULE
+          value: sqoop.test_sqoop
+  - name: test-tez
+    run_if_changed: "^(tez/.*)|(testing-scripts/tez/.*)$"
+    agent: kubernetes
+    spec:
+      containers:
+      - image: gcr.io/dataproc-kokoro-tests/test-container
+        command: ["/home/test/run_tests.sh"]
+        imagePullPolicy: Always
+        env:
+        - name: TEST_MODULE
+          value: tez.test_tez
+  - name: test-zeppelin
+    run_if_changed: "^(zeppelin/.*)|(testing-scripts/zeppelin/.*)$"
+    agent: kubernetes
+    spec:
+      containers:
+      - image: gcr.io/dataproc-kokoro-tests/test-container
+        command: ["/home/test/run_tests.sh"]
+        imagePullPolicy: Always
+        env:
+        - name: TEST_MODULE
+          value: zeppelin.test_zeppelin
