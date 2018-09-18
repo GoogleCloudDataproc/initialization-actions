@@ -9,7 +9,7 @@ gcloud config set core/disable_usage_reporting true
 gcloud config set compute/zone us-west1-c
 gcloud config set compute/region us-west1
 gcloud config list
-gcloud compute config-ssh
+gcloud compute config-ssh || true
 
 #create bucket
 export use_internal_ip=true
