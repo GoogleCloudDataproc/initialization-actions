@@ -329,6 +329,11 @@ public class GoogleHadoopFileSystemConfiguration {
       GCS_COPY_WITH_REWRITE_ENABLE =
           new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.copy.with.rewrite.enable", true);
 
+  public static final GoogleHadoopFileSystemConfigurationProperty<Long>
+      GCS_REWRITE_MAX_BYTES_PER_CALL =
+          new GoogleHadoopFileSystemConfigurationProperty<>(
+              "fs.gs.rewrite.max.bytes.per.call", 512 * 1024 * 1024L);
+
   /** Configuration key for number of items to return per call to the list* GCS RPCs. */
   public static final GoogleHadoopFileSystemConfigurationProperty<Long>
       GCS_MAX_LIST_ITEMS_PER_CALL =
@@ -500,6 +505,7 @@ public class GoogleHadoopFileSystemConfiguration {
         .setMarkerFileCreationEnabled(
             GCS_MARKER_FILE_CREATION_ENABLE.get(config, config::getBoolean))
         .setCopyWithRewriteEnabled(GCS_COPY_WITH_REWRITE_ENABLE.get(config, config::getBoolean))
+        .setMaxBytesRewrittenPerCall(GCS_REWRITE_MAX_BYTES_PER_CALL.get(config, config::getLong))
         .setCopyMaxRequestsPerBatch(GCS_COPY_MAX_REQUESTS_PER_BATCH.get(config, config::getLong))
         .setCopyBatchThreads(GCS_COPY_BATCH_THREADS.get(config, config::getInt))
         .setTransportType(GCS_HTTP_TRANSPORT.get(config, config::getEnum))

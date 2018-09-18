@@ -63,6 +63,9 @@ public abstract class GoogleCloudStorageOptions {
   /** Default setting for whether or not to use rewrite request for copy operation. */
   public static final boolean COPY_WITH_REWRITE_DEFAULT = false;
 
+  /** Default setting for max number of bytes rewritten per rewrite request/call. */
+  public static final int MAX_BYTES_REWRITTEN_PER_CALL_DEFAULT = 0;
+
   /** Default setting for maximum number of requests per GCS batch for copy operations. */
   public static final long COPY_MAX_REQUESTS_PER_BATCH_DEFAULT = MAX_REQUESTS_PER_BATCH_DEFAULT;
 
@@ -95,6 +98,7 @@ public abstract class GoogleCloudStorageOptions {
         .setHttpRequestReadTimeout(HTTP_REQUEST_READ_TIMEOUT)
         .setTransportType(HttpTransportFactory.DEFAULT_TRANSPORT_TYPE)
         .setCopyWithRewriteEnabled(COPY_WITH_REWRITE_DEFAULT)
+        .setMaxBytesRewrittenPerCall(MAX_BYTES_REWRITTEN_PER_CALL_DEFAULT)
         .setCopyMaxRequestsPerBatch(COPY_MAX_REQUESTS_PER_BATCH_DEFAULT)
         .setCopyBatchThreads(COPY_BATCH_THREADS_DEFAULT)
         .setReadChannelOptions(READ_CHANNEL_OPTIONS_DEFAULT)
@@ -138,6 +142,8 @@ public abstract class GoogleCloudStorageOptions {
   public abstract String getProxyAddress();
 
   public abstract boolean isCopyWithRewriteEnabled();
+
+  public abstract long getMaxBytesRewrittenPerCall();
 
   public abstract GoogleCloudStorageReadOptions getReadChannelOptions();
 
@@ -193,6 +199,8 @@ public abstract class GoogleCloudStorageOptions {
 
     public abstract Builder setCopyWithRewriteEnabled(boolean copyWithRewrite);
 
+    public abstract Builder setMaxBytesRewrittenPerCall(long bytes);
+
     public abstract Builder setCopyMaxRequestsPerBatch(long copyMaxRequestsPerBatch);
 
     public abstract Builder setCopyBatchThreads(int copyBatchThreads);
@@ -226,7 +234,13 @@ public abstract class GoogleCloudStorageOptions {
       if (writeChannelOptionsBuilder != null) {
         setWriteChannelOptions(writeChannelOptionsBuilder.build());
       }
-      return autoBuild();
+      GoogleCloudStorageOptions instance = autoBuild();
+      checkArgument(
+          instance.getMaxBytesRewrittenPerCall() <= 0
+              || instance.getMaxBytesRewrittenPerCall() % (1024 * 1024) == 0,
+          "maxBytesRewrittenPerCall must be an integral multiple of 1 MiB (1048576), but was: %s",
+          instance.getMaxBytesRewrittenPerCall());
+      return instance;
     }
   }
 }

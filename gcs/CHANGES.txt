@@ -7,6 +7,14 @@
        fs.gs.auth.service.account.private.key.id
        fs.gs.auth.service.account.private.key
 
+  2. Add an option to specify max bytes rewritten per rewrite request when
+     `fs.gs.copy.with.rewrite.enable` is set to `true`:
+
+       fs.gs.rewrite.max.bytes.per.call (default: 536870912)
+
+     Even though GCS does not require this parameter for rewrite requests,
+     rewrite requests are flaky without it.
+
 
 1.9.6 - 2018-08-30
 

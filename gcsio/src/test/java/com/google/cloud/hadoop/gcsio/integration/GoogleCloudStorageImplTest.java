@@ -208,6 +208,7 @@ public class GoogleCloudStorageImplTest {
         makeStorage(
             GoogleCloudStorageTestHelper.getStandardOptionBuilder()
                 .setCopyWithRewriteEnabled(true)
+                .setMaxBytesRewrittenPerCall(512 * 1024 * 1024)
                 .build());
 
     String srcBucketName = BUCKET_HELPER.getUniqueBucketName("copy-with-rewrite-src");
@@ -220,7 +221,7 @@ public class GoogleCloudStorageImplTest {
 
     StorageResourceId resourceId =
         new StorageResourceId(srcBucketName, "testCopySingleItemWithRewrite_SourceObject");
-    int partitionsCount = 4;
+    int partitionsCount = 32;
     byte[] partition =
         writeObject(gcs, resourceId, /* partitionSize= */ 64 * 1024 * 1024, partitionsCount);
 

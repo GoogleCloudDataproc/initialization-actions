@@ -995,6 +995,9 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
         configureRequest(
             gcs.objects().rewrite(srcBucketName, srcObjectName, dstBucketName, dstObjectName, null),
             srcBucketName);
+    if (storageOptions.getMaxBytesRewrittenPerCall() > 0) {
+      rewriteObject.setMaxBytesRewrittenPerCall(storageOptions.getMaxBytesRewrittenPerCall());
+    }
 
     // TODO(b/79750454) do not batch rewrite requests because they time out in batches.
     batchHelper.queue(
@@ -1019,6 +1022,10 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
                             .rewrite(
                                 srcBucketName, srcObjectName, dstBucketName, dstObjectName, null),
                         srcBucketName);
+                if (storageOptions.getMaxBytesRewrittenPerCall() > 0) {
+                  rewriteObjectWithToken.setMaxBytesRewrittenPerCall(
+                      storageOptions.getMaxBytesRewrittenPerCall());
+                }
                 rewriteObjectWithToken.setRewriteToken(rewriteResponse.getRewriteToken());
                 batchHelper.queue(rewriteObjectWithToken, this);
               } catch (IOException e) {
