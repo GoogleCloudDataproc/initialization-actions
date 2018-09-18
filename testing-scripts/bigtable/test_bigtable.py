@@ -57,19 +57,16 @@ class BigTableTestCase(DataprocTestCase):
         self.assertEqual(ret_code, 0, "Failed to validate cluster. Last error: {}".format(stderr))
 
     def _validate_bigtable(self):
-        self.run_command(
-            'cbt -instance {} ls '.format(
-                self.DB_NAME
-            )
-        )
         ret_code, stdout, stderr = self.run_command(
-            'cbt -instance {} count test-bigtable '.format(
+            'cbt -instance {} read test-bigtable '.format(
                 self.DB_NAME
             )
         )
         self.assertEqual(ret_code, 0, "Failed to validate cluster. Last error: {}".format(stderr))
-        self.assertEqual(int(float(stdout)), 4, "Failed to validate cluster. Last error: {}"
-                         .format(stderr))
+        self.assertIn("value1", stdout, "Failed to validate cluster. value1 is missing in the table")
+        self.assertIn("value2", stdout, "Failed to validate cluster. value2 is missing in the table")
+        self.assertIn("value3", stdout, "Failed to validate cluster. value3 is missing in the table")
+        self.assertIn("value4", stdout, "Failed to validate cluster. value4 is missing in the table")
 
     def verify_instance(self, name):
         self.upload_test_file(name)
