@@ -18,6 +18,7 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
@@ -443,7 +444,7 @@ public class HadoopFileSystemIntegrationHelper
    */
   public int writeFile(Path hadoopPath, String text, int numWrites, boolean overwrite)
       throws IOException {
-    return writeFile(hadoopPath, ByteBuffer.wrap(text.getBytes("UTF-8")), numWrites, overwrite);
+    return writeFile(hadoopPath, ByteBuffer.wrap(text.getBytes(UTF_8)), numWrites, overwrite);
   }
 
   /**

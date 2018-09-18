@@ -15,6 +15,7 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopSyncableOutputStreamTest.hsync;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
@@ -322,7 +323,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
   public void testWrite1Byte()
       throws IOException {
     String text = "Hello World!";
-    byte[] textBytes = text.getBytes("UTF-8");
+    byte[] textBytes = text.getBytes(UTF_8);
     URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
     Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
     FSDataOutputStream writeStream = null;
@@ -382,7 +383,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     // Create a file.
     String text = "Hello World!";
     int numBytesWritten = ghfsHelper.writeFile(hadoopPath, text, 1, false);
-    Assert.assertEquals(text.getBytes("UTF-8").length, numBytesWritten);
+    Assert.assertEquals(text.getBytes(UTF_8).length, numBytesWritten);
 
     // Try to create the same file again with overwrite == false.
     assertThrows(IOException.class, () -> ghfsHelper.writeFile(hadoopPath, text, 1, false));
@@ -772,11 +773,11 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
 
   protected void internalTestHsync() throws Exception {
     String line1 = "hello\n";
-    byte[] line1Bytes = line1.getBytes("UTF-8");
+    byte[] line1Bytes = line1.getBytes(UTF_8);
     String line2 = "world\n";
-    byte[] line2Bytes = line2.getBytes("UTF-8");
+    byte[] line2Bytes = line2.getBytes(UTF_8);
     String line3 = "foobar\n";
-    byte[] line3Bytes = line3.getBytes("UTF-8");
+    byte[] line3Bytes = line3.getBytes(UTF_8);
 
     URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
     Path hadoopPath = ghfsHelper.castAsHadoopPath(path);

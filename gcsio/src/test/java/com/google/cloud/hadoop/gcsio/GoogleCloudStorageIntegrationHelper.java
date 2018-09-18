@@ -15,6 +15,7 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.truth.Truth.assertWithMessage;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
 import com.google.common.base.Strings;
@@ -79,7 +80,7 @@ public abstract class GoogleCloudStorageIntegrationHelper {
    */
   protected int writeTextFile(String bucketName, String objectName, String text)
       throws IOException {
-    byte[] textBytes = text.getBytes("UTF-8");
+    byte[] textBytes = text.getBytes(UTF_8);
     ByteBuffer writeBuffer = ByteBuffer.wrap(textBytes);
     return writeFile(bucketName, objectName, writeBuffer, 1);
   }
@@ -99,7 +100,7 @@ public abstract class GoogleCloudStorageIntegrationHelper {
    */
   protected int writeTextFileOverwriting(String bucketName, String objectName, String text)
       throws IOException {
-    byte[] textBytes = text.getBytes("UTF-8");
+    byte[] textBytes = text.getBytes(UTF_8);
     ByteBuffer writeBuffer = ByteBuffer.wrap(textBytes);
     return writeFileOverwriting(bucketName, objectName, writeBuffer, 1);
   }
@@ -300,7 +301,7 @@ public abstract class GoogleCloudStorageIntegrationHelper {
           || objectName.endsWith(GoogleCloudStorage.PATH_DELIMITER)) {
         return 0;
       }
-      return objectName.getBytes("UTF-8").length;
+      return objectName.getBytes(UTF_8).length;
     }
     return -1;
   }

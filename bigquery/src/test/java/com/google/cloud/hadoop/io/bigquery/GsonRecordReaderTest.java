@@ -14,6 +14,7 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.common.truth.Truth.assertThat;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import com.google.gson.JsonObject;
@@ -216,7 +217,7 @@ public class GsonRecordReaderTest {
    */
   public static ByteBuffer stringToBytebuffer(String text)
       throws UnsupportedEncodingException {
-    return ByteBuffer.wrap(text.getBytes("UTF-8"));
+    return ByteBuffer.wrap(text.getBytes(UTF_8));
   }
 
   /**
