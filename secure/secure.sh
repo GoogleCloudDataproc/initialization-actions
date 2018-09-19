@@ -142,7 +142,7 @@ function krb5_configuration() {
   additional_kdcs=""
   if [[ "${HA_MODE}" == 1 ]]; then
     for additional_master in "${ADDITIONAL_MASTERS[@]}"; do
-      additional_kdcs+="\t\tkdc = ${additional_master}\n"
+      additional_kdcs+="\t\tkdc = ${additional_master}.${DOMAIN}\n"
     done
   fi
   sed -i "/\[realms\]/a\ \t${REALM} = {\n\t\tkdc = ${MASTER_FQDN}\n${additional_kdcs}\t\tadmin_server = ${MASTER_FQDN}\n\t}" "/etc/krb5.conf"
@@ -228,8 +228,8 @@ function create_service_principals() {
   chmod 440 "${HADOOP_CONF_DIR}"/http.keytab
 }
 
-function krb5_propagate_if_necessary() {
-  if [[ "${ROLE}" == 'Master' ]]; then
+function config_krb5_propagate_if_necessary() {
+  if [[ "${HA_MODE}" == 1 && "${ROLE}" == 'Master' ]]; then
     cat << EOF >> /etc/services
 krb5_prop 754/tcp
 EOF
@@ -248,33 +248,35 @@ service krb5_prop
 EOF
     systemctl restart xinetd
 
-    if [[ "${FQDN}" != "${MASTER_FQDN}" ]]; then
-      # Assuming there will be 3 masters which are $CLUSTER_NAME-m-0,
-      # $CLUSTER_NAME-m-1 and $CLUSTER_NAME-m-2
-      cat << EOF >> /etc/krb5kdc/kpropd.acl
+    # Assuming there will be 3 masters which are $CLUSTER_NAME-m-0,
+    # $CLUSTER_NAME-m-1 and $CLUSTER_NAME-m-2
+    # To include all 3 masters in the ACL files on all 3 masters makes
+    # failover easier if it is needed.
+    cat << EOF >> /etc/krb5kdc/kpropd.acl
 host/$CLUSTER_NAME-m-0.$DOMAIN@$REALM
 host/$CLUSTER_NAME-m-1.$DOMAIN@$REALM
 host/$CLUSTER_NAME-m-2.$DOMAIN@$REALM
 EOF
+
+    if [[ "${FQDN}" != "${MASTER_FQDN}" ]]; then
       touch "krb5_prop_acl_mark_$FQDN"
       gsutil cp "./krb5_prop_acl_mark_$FQDN" "gs://${dataproc_bucket}/${CLUSTER_UUID}/krb5_prop_acl/krb5_prop_acl_mark_$FQDN"
       rm "krb5_prop_acl_mark_$FQDN"
-      local krb5_prop_finish=1
+      local krb5_prop_finish=0
       for (( i=0; i < 2*60; i++)); do
-        echo "Waiting for initial KDC database propagation to finish"
-        if [[ -f /etc/krb5kdc/stash ]]; then
-          krb5_prop_finish=0
+        echo "Waiting for initial KDC database propagation to finish..."
+        if gsutil -q stat "gs://${dataproc_bucket}/${CLUSTER_UUID}/${FQDN}-propagated"; then
+          krb5_prop_finish=1
           break
         fi
         sleep 1
       done
 
-      if [[ "${krb5_prop_finish}" == 1 ]]; then
+      if [[ "${krb5_prop_finish}" == 0 ]]; then
         echo 'Initial KDC database propagation did not finish after 2 minutes, likely failed.'
         exit 1
       fi
 
-      sleep 5
       echo "Restarting krb5-kdc on ${FQDN}."
       systemctl restart krb5-kdc || err 'Cannot restart KDC'
       echo "Restarting krb5-admin-server on ${FQDN}."
@@ -282,27 +284,28 @@ EOF
     else
       # On Master-KDC
       /usr/sbin/kdb5_util dump /etc/krb5kdc/slave_datatrans
-      local krb5_prop_acl_configured=1
+      local krb5_prop_acl_configured=0
       for (( i=0; i < 60; i++ )); do
         echo "Waiting for all slave KDCs to finish krb_prop_acl configuration."
         finished_count="$((gsutil ls gs://${dataproc_bucket}/${CLUSTER_UUID}/krb5_prop_acl/* 2>/dev/null || true) | wc -l)"
         if [[ "${finished_count}" == "${#ADDITIONAL_MASTERS[@]}" ]]; then
-          krb5_prop_acl_configured=0
+          krb5_prop_acl_configured=1
           break
         fi
         sleep 1
       done
 
-      if [[ "${krb5_prop_acl_configured}" == 1 ]]; then
+      if [[ "${krb5_prop_acl_configured}" == 0 ]]; then
         echo 'Slave KDCs have not finished ACL configuration even after 1 minute, something went wrong.'
         exit 1
       fi
 
-      if [[ "${HA_MODE}" == 1 ]]; then
-        for additional_master in "${ADDITIONAL_MASTERS[@]}"; do
-          kprop -f /etc/krb5kdc/slave_datatrans "${additional_master}"
-        done
-      fi
+      for additional_master in "${ADDITIONAL_MASTERS[@]}"; do
+        kprop -f /etc/krb5kdc/slave_datatrans "${additional_master}"
+        touch "${additional_master}.${DOMAIN}-propagated"
+        gsutil cp "${additional_master}.${DOMAIN}-propagated" "gs://${dataproc_bucket}/${CLUSTER_UUID}/${additional_master}.${DOMAIN}-propagated"
+        rm "${additional_master}.${DOMAIN}-propagated"
+      done
 
       echo 'Preparing krb5_prop script'
       cat << 'EOF' > /etc/krb5_prop.sh
@@ -310,7 +313,7 @@ EOF
 SLAVES=($(/usr/share/google/get_metadata_value attributes/dataproc-master-additional | sed 's/,/\n/g'))
 /usr/sbin/kdb5_util dump /etc/krb5kdc/slave_datatrans
 for slave in "${SLAVES[@]}"; do
-  kprop -f /etc/krb5kdc/slave_datatrans "${slave}"
+  /usr/sbin/kprop -f /etc/krb5kdc/slave_datatrans "${slave}"
 done
 EOF
       chmod +x /etc/krb5_prop.sh
@@ -529,6 +532,8 @@ function secure_hive() {
 }
 
 function secure_spark() {
+  # Dataproc only runs Spark History Server on 'first' master so we only need
+  # to Kerberize it on this master.
   if [[ "${FQDN}" == "${MASTER_FQDN}" ]]; then
     echo "Securing Spark."
     kadmin -p root -w "${root_principal_password}" -q "addprinc -randkey spark/${FQDN}"
@@ -544,8 +549,11 @@ SPARK_HISTORY_OPTS="\$SPARK_HISTORY_OPTS
 -Dspark.history.kerberos.principal=spark/${FQDN}@${REALM}
 -Dspark.history.kerberos.keytab=/etc/spark/conf/spark.keytab"
 EOF
-    cat << EOF >> /etc/spark/conf/spark-defaults.conf
-spark.yarn.historyServer.address https://${MASTER_FQDN}:18480
+  fi
+
+    # All the nodes receive the configurations
+  sed -i "s/spark.yarn.historyServer.address.*/spark.yarn.historyServer.address https:\/\/${MASTER_FQDN}:18480/" /etc/spark/conf/spark-defaults.conf
+  cat << EOF >> /etc/spark/conf/spark-defaults.conf
 spark.ssl.protocol tls
 spark.ssl.historyServer.enabled true
 spark.ssl.trustStore ${HADOOP_CONF_DIR}/ssl/truststore.jks
@@ -553,7 +561,6 @@ spark.ssl.keyStore ${HADOOP_CONF_DIR}/ssl/keystore.jks
 spark.ssl.trustStorePassword ${keystore_password}
 spark.ssl.keyStorePassword ${keystore_password}
 EOF
-  fi
 }
 
 function restart_services() {
@@ -582,6 +589,11 @@ function create_dataproc_principal() {
   chmod 400 /etc/dataproc.keytab
 }
 
+function krb5_propagate() {
+  if [[ "${FQDN}" == "${MASTER_FQDN}" && "${HA_MODE}" == 1 ]]; then
+    /etc/krb5_prop.sh
+  fi
+}
 
 function main() {
   update_apt_get
@@ -590,7 +602,7 @@ function main() {
   create_cross_realm_trust_principal_if_necessary
   create_root_user_principal_and_ready_stash
   create_service_principals
-  krb5_propagate_if_necessary
+  config_krb5_propagate_if_necessary
   config_core_site
   config_hdfs_site
   config_yarn_site_and_permission
@@ -602,6 +614,7 @@ function main() {
   secure_spark
   restart_services
   create_dataproc_principal
+  krb5_propagate
 }
 
 main

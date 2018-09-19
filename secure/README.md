@@ -137,6 +137,13 @@ Using a self-signed certificate in a production system is strongly discouraged.
         -file <CA_REPLY_CRT>
     ```
 
+## Kerberos in High Availability mode
+
+In High Availability (HA) mode, a Dataproc cluster will have 3 masters. Such clusters, when Kerberized through this script, will have 3 KDCs, one on each of the Dataproc masters.
+The KDC running on the "first" master (```$CLUSTER_NAME-m-0```) will be the Master KDC and also serve as the Admin Server. The Master KDC's database will be synced to the two slave KDCs every 5 minutes through a cron job, and all 3 KDCs will be serving read traffic.
+
+This script will not configure automatic fail over if the Master KDC is down.
+
 ## Enabling cross-realm trust
 
 The initialization script will set up one-way trust to the remote Kerberos realm. Depending on the implementation of the remote Kerberos realm, you need to perform the following as well.
