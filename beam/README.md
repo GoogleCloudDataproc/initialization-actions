@@ -99,7 +99,7 @@ The Beam `beam` and `flink/flink.sh` initialization actions use the following
 | Metadata Key | Default | Description |
 | ------------ | ------- | ----------- |
 | beam-job-service-snapshot | [v2.6.0](http://repo1.maven.org/maven2/org/apache/beam/beam-runners-flink_2.11-job-server/2.6.0/beam-runners-flink_2.11-job-server-2.6.0.jar) | The Cloud Storage path of your JobService jar (see above) |
-| beam-artifacts-dfs-path | `hdfs://tmp/beam-artifacts` | A cluster-writeable path on a distributed file system such as HDFS or GCS that can store runtime beam artifacts |
+| beam-artifacts-gcs-path | `<cluster staging bucket>` | A cluster-writeable GCS path to store beam artifacts under |
 | beam-image-enable-pull | false | When set to true, the init action will attempt to pull beam worker images for efficient access later |
 | beam-image-version | master | The image version to use when selecting a tagged image |
 | beam-image-repository | apache.bintray.io/beam | The image repository root to pull images from. As of September 12th, 2018, these images have not been published yet.  Therefore it is recommended that you build and store their own images when using this init action. |
