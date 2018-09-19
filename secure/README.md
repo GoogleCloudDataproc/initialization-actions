@@ -20,7 +20,7 @@ gcloud dataproc clusters create <CLUSTER_NAME> \
     --metadata "keystore-password-uri=gs://<SECRET_BUCKET>/keystore-password.encrypted" \
     --metadata "cross-realm-trust-realm=<REMOTE.REALM>" \
     --metadata "cross-realm-trust-kdc=<REMOTE_KDC>" \
-    --metadata "cross-realm-trust-admin-server=<REMOTE_ADMIN_SERVER" \
+    --metadata "cross-realm-trust-admin-server=<REMOTE_ADMIN_SERVER>" \
     --metadata "cross-realm-trust-password-uri=gs://<SECRET_BUCKET>/cross-realm-trust-password.encrypted"
 ```
 
