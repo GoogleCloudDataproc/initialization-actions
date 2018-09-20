@@ -7,8 +7,7 @@ readonly SERVICE_INSTALL_DIR='/usr/lib/beam-job-service'
 readonly SERVICE_WORKING_DIR='/var/lib/beam-job-service'
 readonly SERVICE_WORKING_USER='yarn'
 
-readonly ARTIFACTS_DFS_PATH_METADATA_KEY='beam-artifacts-dfs-path'
-readonly ARTIFACTS_DFS_PATH_DEFAULT='hdfs://tmp/beam-artifacts'
+readonly ARTIFACTS_GCS_PATH_METADATA_KEY='beam-artifacts-gcs-path'
 readonly RELEASE_SNAPSHOT_URL_METADATA_KEY="beam-job-service-snapshot"
 readonly RELEASE_SNAPSHOT_URL_DEFAULT="http://repo1.maven.org/maven2/org/apache/beam/beam-runners-flink_2.11-job-server/2.6.0/beam-runners-flink_2.11-job-server-2.6.0.jar"
 
@@ -31,6 +30,11 @@ function is_master() {
   else
     false
   fi
+}
+
+function get_artifacts_dir() {
+  /usr/share/google/get_metadata_value "attributes/${ARTIFACTS_GCS_PATH_METADATA_KEY}" \
+    || echo "gs://$(/usr/share/google/get_metadata_value "attributes/dataproc-bucket")/beam-artifacts"
 }
 
 function download_snapshot() {
@@ -63,9 +67,7 @@ function flink_master_url() {
 
 function install_job_service() {
   local master_url="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
-  local artifacts_dir="$(/usr/share/google/get_metadata_value \
-    "attributes/${ARTIFACTS_DFS_PATH_METADATA_KEY}" \
-    || echo "${ARTIFACTS_DFS_PATH_DEFAULT}")"
+  local artifacts_dir="$(get_artifacts_dir)"
   local release_snapshot_url="$(/usr/share/google/get_metadata_value \
     "attributes/${RELEASE_SNAPSHOT_URL_METADATA_KEY}" \
     || echo "${RELEASE_SNAPSHOT_URL_DEFAULT}")"
