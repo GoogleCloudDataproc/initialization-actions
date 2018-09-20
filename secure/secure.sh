@@ -43,6 +43,7 @@ ADDITIONAL_MASTERS=($(/usr/share/google/get_metadata_value attributes/dataproc-m
 HA_MODE=$((${#ADDITIONAL_MASTERS[@]}>0))
 if [[ "${HA_MODE}" == 1 ]]; then
   MASTERS=("${CLUSTER_NAME}-m-0" "${CLUSTER_NAME}-m-1" "${CLUSTER_NAME}-m-2")
+  KRB5_PROP_SCRIPT="/etc/krb5_prop.sh"
 fi
 FQDN="$(hostname -f | tr -d '\n')"
 DOMAIN="${FQDN#*\.}"
@@ -86,6 +87,7 @@ if [[ -n "${cross_realm_trust_realm}" ]]; then
 fi
 
 readonly dataproc_bucket="$(/usr/share/google/get_metadata_value attributes/dataproc-bucket)"
+readonly staging_meta_info_gcs_prefix="${dataproc_bucket}/google-cloud-dataproc-metainfo/${CLUSTER_UUID}/secure_init_action"
 readonly keystore_uri="$(/usr/share/google/get_metadata_value attributes/keystore-uri)"
 readonly truststore_uri="$(/usr/share/google/get_metadata_value attributes/truststore-uri)"
 readonly krb5_server_mark_file="krb5-server-mark"
@@ -153,15 +155,15 @@ function create_root_user_principal_and_ready_stash() {
     echo "Creating root principal root@${REALM}."
     echo -e "${root_principal_password}\n${root_principal_password}" | /usr/sbin/kadmin.local -q "addprinc root"
     if [[ "${HA_MODE}" == 1 ]]; then
-      echo "In HA mode, writing krb5 stash file to GCS: gs://${dataproc_bucket}/${CLUSTER_UUID}/stash"
-      gsutil cp /etc/krb5kdc/stash "gs://${dataproc_bucket}/${CLUSTER_UUID}/stash"
+      echo "In HA mode, writing krb5 stash file to GCS: gs://${staging_meta_info_gcs_prefix}/stash"
+      gsutil cp /etc/krb5kdc/stash "gs://${staging_meta_info_gcs_prefix}/stash"
     fi
     # write a file to gcs to signal to workers (and possibly additional masters)
     # that Kerberos server on Master KDC is ready
     # (root principal is also created).
-    echo "Writing krb5 server mark file in GCS: gs://${dataproc_bucket}/${CLUSTER_UUID}/${krb5_server_mark_file}"
+    echo "Writing krb5 server mark file in GCS: gs://${staging_meta_info_gcs_prefix}/${krb5_server_mark_file}"
     touch /tmp/"${krb5_server_mark_file}"
-    gsutil cp /tmp/"${krb5_server_mark_file}" "gs://${dataproc_bucket}/${CLUSTER_UUID}/${krb5_server_mark_file}"
+    gsutil cp /tmp/"${krb5_server_mark_file}" "gs://${staging_meta_info_gcs_prefix}/${krb5_server_mark_file}"
     rm /tmp/"${krb5_server_mark_file}"
   fi
 }
@@ -182,7 +184,7 @@ function create_service_principals() {
     local server_started=1
     for (( i=0; i < 5*60; i++ )); do
       echo "Waiting for KDC and root principal."
-      if gsutil -q stat "gs://${dataproc_bucket}/${CLUSTER_UUID}/${krb5_server_mark_file}"; then
+      if gsutil -q stat "gs://${staging_meta_info_gcs_prefix}/${krb5_server_mark_file}"; then
         server_started=0
         break
       fi
@@ -200,7 +202,7 @@ function create_service_principals() {
     kadmin -p root -w "${root_principal_password}" -q "addprinc -randkey host/${FQDN}"
     kadmin -p root -w "${root_principal_password}" -q "ktadd host/${FQDN}"
     if [[ "${FQDN}" != "${MASTER_FQDN}" ]]; then
-      gsutil cp "gs://${dataproc_bucket}/${CLUSTER_UUID}/stash" /etc/krb5kdc/stash
+      gsutil cp "gs://${staging_meta_info_gcs_prefix}/stash" /etc/krb5kdc/stash
     fi
   fi
 
@@ -260,12 +262,12 @@ EOF
 
     if [[ "${FQDN}" != "${MASTER_FQDN}" ]]; then
       touch "krb5_prop_acl_mark_$FQDN"
-      gsutil cp "./krb5_prop_acl_mark_$FQDN" "gs://${dataproc_bucket}/${CLUSTER_UUID}/krb5_prop_acl/krb5_prop_acl_mark_$FQDN"
+      gsutil cp "./krb5_prop_acl_mark_$FQDN" "gs://${staging_meta_info_gcs_prefix}/krb5_prop_acl/krb5_prop_acl_mark_$FQDN"
       rm "krb5_prop_acl_mark_$FQDN"
       local krb5_prop_finish=0
-      for (( i=0; i < 2*60; i++)); do
+      for (( i=0; i < 5*60; i++)); do
         echo "Waiting for initial KDC database propagation to finish..."
-        if gsutil -q stat "gs://${dataproc_bucket}/${CLUSTER_UUID}/${FQDN}-propagated"; then
+        if gsutil -q stat "gs://${staging_meta_info_gcs_prefix}/${FQDN}-propagated"; then
           krb5_prop_finish=1
           break
         fi
@@ -273,7 +275,7 @@ EOF
       done
 
       if [[ "${krb5_prop_finish}" == 0 ]]; then
-        echo 'Initial KDC database propagation did not finish after 2 minutes, likely failed.'
+        echo 'Initial KDC database propagation did not finish after 5 minutes, likely failed.'
         exit 1
       fi
 
@@ -285,9 +287,9 @@ EOF
       # On Master-KDC
       /usr/sbin/kdb5_util dump /etc/krb5kdc/slave_datatrans
       local krb5_prop_acl_configured=0
-      for (( i=0; i < 60; i++ )); do
+      for (( i=0; i < 5*60; i++ )); do
         echo "Waiting for all slave KDCs to finish krb_prop_acl configuration."
-        finished_count="$((gsutil ls gs://${dataproc_bucket}/${CLUSTER_UUID}/krb5_prop_acl/* 2>/dev/null || true) | wc -l)"
+        finished_count="$((gsutil ls gs://${staging_meta_info_gcs_prefix}/krb5_prop_acl/* 2>/dev/null || true) | wc -l)"
         if [[ "${finished_count}" == "${#ADDITIONAL_MASTERS[@]}" ]]; then
           krb5_prop_acl_configured=1
           break
@@ -296,19 +298,19 @@ EOF
       done
 
       if [[ "${krb5_prop_acl_configured}" == 0 ]]; then
-        echo 'Slave KDCs have not finished ACL configuration even after 1 minute, something went wrong.'
+        echo 'Slave KDCs have not finished ACL configuration even after 5 minutes, something went wrong.'
         exit 1
       fi
 
       for additional_master in "${ADDITIONAL_MASTERS[@]}"; do
         kprop -f /etc/krb5kdc/slave_datatrans "${additional_master}"
         touch "${additional_master}.${DOMAIN}-propagated"
-        gsutil cp "${additional_master}.${DOMAIN}-propagated" "gs://${dataproc_bucket}/${CLUSTER_UUID}/${additional_master}.${DOMAIN}-propagated"
+        gsutil cp "${additional_master}.${DOMAIN}-propagated" "gs://${staging_meta_info_gcs_prefix}/${additional_master}.${DOMAIN}-propagated"
         rm "${additional_master}.${DOMAIN}-propagated"
       done
 
       echo 'Preparing krb5_prop script'
-      cat << 'EOF' > /etc/krb5_prop.sh
+      cat << 'EOF' > "${KRB5_PROP_SCRIPT}"
 #!/bin/bash
 SLAVES=($(/usr/share/google/get_metadata_value attributes/dataproc-master-additional | sed 's/,/\n/g'))
 /usr/sbin/kdb5_util dump /etc/krb5kdc/slave_datatrans
@@ -316,9 +318,9 @@ for slave in "${SLAVES[@]}"; do
   /usr/sbin/kprop -f /etc/krb5kdc/slave_datatrans "${slave}"
 done
 EOF
-      chmod +x /etc/krb5_prop.sh
+      chmod +x "${KRB5_PROP_SCRIPT}"
 
-      (crontab -l 2>/dev/null || true; echo "*/5 * * * * /etc/krb5_prop.sh >/dev/null 2>&1") | crontab -
+      (crontab -l 2>/dev/null || true; echo "*/5 * * * * ${KRB5_PROP_SCRIPT} >/dev/null 2>&1") | crontab -
     fi
   fi
 }
@@ -551,7 +553,7 @@ SPARK_HISTORY_OPTS="\$SPARK_HISTORY_OPTS
 EOF
   fi
 
-    # All the nodes receive the configurations
+  # All the nodes receive the configurations
   sed -i "s/spark.yarn.historyServer.address.*/spark.yarn.historyServer.address https:\/\/${MASTER_FQDN}:18480/" /etc/spark/conf/spark-defaults.conf
   cat << EOF >> /etc/spark/conf/spark-defaults.conf
 spark.ssl.protocol tls
@@ -591,7 +593,7 @@ function create_dataproc_principal() {
 
 function krb5_propagate() {
   if [[ "${FQDN}" == "${MASTER_FQDN}" && "${HA_MODE}" == 1 ]]; then
-    /etc/krb5_prop.sh
+    "${KRB5_PROP_SCRIPT}"
   fi
 }
 

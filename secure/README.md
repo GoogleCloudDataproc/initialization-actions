@@ -20,7 +20,7 @@ gcloud dataproc clusters create <CLUSTER_NAME> \
     --metadata "keystore-password-uri=gs://<SECRET_BUCKET>/keystore-password.encrypted" \
     --metadata "cross-realm-trust-realm=<REMOTE.REALM>" \
     --metadata "cross-realm-trust-kdc=<REMOTE_KDC>" \
-    --metadata "cross-realm-trust-admin-server=<REMOTE_ADMIN_SERVER" \
+    --metadata "cross-realm-trust-admin-server=<REMOTE_ADMIN_SERVER>" \
     --metadata "cross-realm-trust-password-uri=gs://<SECRET_BUCKET>/cross-realm-trust-password.encrypted"
 ```
 
@@ -142,7 +142,13 @@ Using a self-signed certificate in a production system is strongly discouraged.
 In High Availability (HA) mode, a Dataproc cluster will have 3 masters. Such clusters, when Kerberized through this script, will have 3 KDCs, one on each of the Dataproc masters.
 The KDC running on the "first" master (```$CLUSTER_NAME-m-0```) will be the Master KDC and also serve as the Admin Server. The Master KDC's database will be synced to the two slave KDCs every 5 minutes through a cron job, and all 3 KDCs will be serving read traffic.
 
-This script will not configure automatic fail over if the Master KDC is down.
+This script will not configure automatic fail over if the Master KDC is down. To perform a manual fail over:
+1. On all KDC machines, in ```/etc/krb5.conf```, change the admin_server to the new Master's FQDN. Remove the old Master from the KDC list.
+2. On the new Master KDC, set up the cron job to propagate the database.
+3. On the new Master KDC, restart the admin_server process (```krb5-admin-server```).
+4. On all the KDC machines, restart the KDC process (```krb5-kdc```).
+
+For details, please refer to the [guide from MIT](https://web.mit.edu/kerberos/krb5-devel/doc/admin/install_kdc.html).
 
 ## Enabling cross-realm trust
 
