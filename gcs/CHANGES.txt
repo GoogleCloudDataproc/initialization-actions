@@ -1,4 +1,4 @@
-1.9.7 - 2018-XX-XX
+1.9.7 - 2018-09-20
 
   1. Add an option to provide credentials directly in Hadoop Configuration,
      without having to place a file on every node, or associating service

@@ -22,14 +22,14 @@
   <parent>
     <groupId>com.google.cloud.bigdataoss</groupId>
     <artifactId>bigdataoss-parent</artifactId>
-    <version>1.9.7-SNAPSHOT</version>
+    <version>1.9.7</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
   <name>util-hadoop-${hadoop.identifier}</name>
 
   <artifactId>util-hadoop</artifactId>
-  <version>${hadoop.identifier}-1.9.7-SNAPSHOT</version>
+  <version>${hadoop.identifier}-1.9.7</version>
 
   <profiles>
     <profile>
