@@ -20,13 +20,6 @@
 # Do not use -x, so that passwords are not printed.
 set -euo pipefail
 
-# Fail under HA mode early
-additional_nodes="$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional | sed 's/,/\n/g' | wc -l)"
-if [[ "${additional_nodes}" -gt 0 ]]; then
-  echo 'This initialization action script does not support HA mode clusters.'
-  exit 1
-fi
-
 function update_apt_get() {
   for ((i = 0; i < 10; i++)); do
     if apt-get update; then
@@ -42,11 +35,20 @@ function err() {
   return 1
 }
 
+CLUSTER_UUID="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-uuid)"
+CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)"
 ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 WORKER_COUNT="$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)"
+ADDITIONAL_MASTERS=($(/usr/share/google/get_metadata_value attributes/dataproc-master-additional | sed 's/,/\n/g'))
+HA_MODE=$((${#ADDITIONAL_MASTERS[@]}>0))
+if [[ "${HA_MODE}" == 1 ]]; then
+  MASTERS=("${CLUSTER_NAME}-m-0" "${CLUSTER_NAME}-m-1" "${CLUSTER_NAME}-m-2")
+  KRB5_PROP_SCRIPT="/etc/krb5_prop.sh"
+fi
 FQDN="$(hostname -f | tr -d '\n')"
 DOMAIN="${FQDN#*\.}"
 REALM="$(echo ${DOMAIN} | awk '{print toupper($0)}')"
+# In HA mode, this will be the 'first-master', i.e. $CLUSTER_NAME-m-0
 MASTER="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 MASTER_FQDN="${MASTER}.${DOMAIN}"
 HADOOP_CONF_DIR="/etc/hadoop/conf"
@@ -85,9 +87,9 @@ if [[ -n "${cross_realm_trust_realm}" ]]; then
 fi
 
 readonly dataproc_bucket="$(/usr/share/google/get_metadata_value attributes/dataproc-bucket)"
+readonly staging_meta_info_gcs_prefix="${dataproc_bucket}/google-cloud-dataproc-metainfo/${CLUSTER_UUID}/secure_init_action"
 readonly keystore_uri="$(/usr/share/google/get_metadata_value attributes/keystore-uri)"
 readonly truststore_uri="$(/usr/share/google/get_metadata_value attributes/truststore-uri)"
-readonly cluster_uuid="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-uuid)"
 readonly krb5_server_mark_file="krb5-server-mark"
 
 function install_and_start_kerberos_server() {
@@ -98,18 +100,24 @@ function install_and_start_kerberos_server() {
   # Retrieve the password to new db and generate new db
   # The '-W' option will force the use of /dev/urandom instead
   # of /dev/random for entropy, which will help speed up db creation.
-  echo -e "${db_password}\n${db_password}" | /usr/sbin/kdb5_util create -s -W
-
-  echo "Restarting krb5-kdc."
-  service krb5-kdc restart || err 'Cannot restart KDC'
+  # Only run this from the Master-KDC in HA mode.
+  if [[ "${FQDN}" == "${MASTER_FQDN}" ]]; then
+    echo "Creating KDC database."
+    echo -e "${db_password}\n${db_password}" | /usr/sbin/kdb5_util create -s -W
+  fi
 
   # Give principal 'root' admin access
   cat << EOF >> /etc/krb5kdc/kadm5.acl
 root *
 EOF
 
-  echo "Restarting krb5-admin-server."
-  service krb5-admin-server restart || err 'Cannot restart Kerberos admin server'
+  if [[ "${FQDN}" == "${MASTER_FQDN}" ]]; then
+    echo "Restarting krb5-kdc on Master KDC."
+    systemctl restart krb5-kdc || err 'Cannot restart KDC'
+
+    echo "Restarting krb5-admin-server on Master KDC."
+    systemctl restart krb5-admin-server || err 'Cannot restart Kerberos admin server'
+  fi
 }
 
 function install_kerberos_client() {
@@ -133,24 +141,35 @@ function krb5_configuration() {
     sed -i "/\[domain_realm\]/a\ \t${cross_realm_trust_kdc} = ${cross_realm_trust_realm}\n\t\.${DOMAIN} = ${REALM}" "/etc/krb5.conf"
   fi
   echo "Configuring krb5 to add local realm in /etc/krb5.conf."
-  sed -i "/\[realms\]/a\ \t${REALM} = {\n\t\tkdc = ${MASTER_FQDN}\n\t\tadmin_server = ${MASTER_FQDN}\n\t}" "/etc/krb5.conf"
+  additional_kdcs=""
+  if [[ "${HA_MODE}" == 1 ]]; then
+    for additional_master in "${ADDITIONAL_MASTERS[@]}"; do
+      additional_kdcs+="\t\tkdc = ${additional_master}.${DOMAIN}\n"
+    done
+  fi
+  sed -i "/\[realms\]/a\ \t${REALM} = {\n\t\tkdc = ${MASTER_FQDN}\n${additional_kdcs}\t\tadmin_server = ${MASTER_FQDN}\n\t}" "/etc/krb5.conf"
 }
 
-function create_root_user_principal() {
-  if [[ "${ROLE}" == 'Master' ]]; then
+function create_root_user_principal_and_ready_stash() {
+  if [[ "${FQDN}" == "${MASTER_FQDN}" ]]; then
     echo "Creating root principal root@${REALM}."
     echo -e "${root_principal_password}\n${root_principal_password}" | /usr/sbin/kadmin.local -q "addprinc root"
-    # write a file to gcs to signal to workers that Kerberos server is ready
+    if [[ "${HA_MODE}" == 1 ]]; then
+      echo "In HA mode, writing krb5 stash file to GCS: gs://${staging_meta_info_gcs_prefix}/stash"
+      gsutil cp /etc/krb5kdc/stash "gs://${staging_meta_info_gcs_prefix}/stash"
+    fi
+    # write a file to gcs to signal to workers (and possibly additional masters)
+    # that Kerberos server on Master KDC is ready
     # (root principal is also created).
-    echo "Writing krb5 server mark file in GCS: gs://${dataproc_bucket}/${cluster_uuid}/${krb5_server_mark_file}"
+    echo "Writing krb5 server mark file in GCS: gs://${staging_meta_info_gcs_prefix}/${krb5_server_mark_file}"
     touch /tmp/"${krb5_server_mark_file}"
-    gsutil cp /tmp/"${krb5_server_mark_file}" "gs://${dataproc_bucket}/${cluster_uuid}/${krb5_server_mark_file}"
+    gsutil cp /tmp/"${krb5_server_mark_file}" "gs://${staging_meta_info_gcs_prefix}/${krb5_server_mark_file}"
     rm /tmp/"${krb5_server_mark_file}"
   fi
 }
 
 function create_cross_realm_trust_principal_if_necessary() {
-  if [[ "${ROLE}" == 'Master' && -n "${cross_realm_trust_realm}" ]]; then
+  if [[ "${FQDN}" == "${MASTER_FQDN}" && -n "${cross_realm_trust_realm}" ]]; then
     echo "Creating cross-realm trust principal krbtgt/${REALM}@${cross_realm_trust_realm}"
     echo -e "${trust_password}\n${trust_password}" | /usr/sbin/kadmin.local -q "addprinc krbtgt/${REALM}@${cross_realm_trust_realm}"
   fi
@@ -161,11 +180,11 @@ function install_jce() {
 }
 
 function create_service_principals() {
-  if [[ "${ROLE}" == 'Worker' ]]; then
+  if [[ "${FQDN}" != "${MASTER_FQDN}" ]]; then
     local server_started=1
     for (( i=0; i < 5*60; i++ )); do
       echo "Waiting for KDC and root principal."
-      if gsutil -q stat "gs://${dataproc_bucket}/${cluster_uuid}/${krb5_server_mark_file}"; then
+      if gsutil -q stat "gs://${staging_meta_info_gcs_prefix}/${krb5_server_mark_file}"; then
         server_started=0
         break
       fi
@@ -178,7 +197,16 @@ function create_service_principals() {
     fi
   fi
 
-  echo "starting to create service principals on ${FQDN}"
+  if [[ "${HA_MODE}" == 1 && "${ROLE}" == 'Master' ]]; then
+    echo "Creating host principal on ${FQDN}"
+    kadmin -p root -w "${root_principal_password}" -q "addprinc -randkey host/${FQDN}"
+    kadmin -p root -w "${root_principal_password}" -q "ktadd host/${FQDN}"
+    if [[ "${FQDN}" != "${MASTER_FQDN}" ]]; then
+      gsutil cp "gs://${staging_meta_info_gcs_prefix}/stash" /etc/krb5kdc/stash
+    fi
+  fi
+
+  echo "Creating service principals on ${FQDN}"
   # principals: hdfs/<FQDN>, yarn/<FQDN>, mapred/<FQDN> and HTTP/<FQDN>
   kadmin -p root -w "${root_principal_password}" -q "addprinc -randkey hdfs/${FQDN}"
   kadmin -p root -w "${root_principal_password}" -q "addprinc -randkey yarn/${FQDN}"
@@ -202,6 +230,101 @@ function create_service_principals() {
   chmod 440 "${HADOOP_CONF_DIR}"/http.keytab
 }
 
+function config_krb5_propagate_if_necessary() {
+  if [[ "${HA_MODE}" == 1 && "${ROLE}" == 'Master' ]]; then
+    cat << EOF >> /etc/services
+krb5_prop 754/tcp
+EOF
+    echo "Installing xinetd"
+    apt-get install -y xinetd
+    cat << EOF > /etc/xinetd.d/krb5_prop
+service krb5_prop
+{
+        disable         = no
+        socket_type     = stream
+        protocol        = tcp
+        user            = root
+        wait            = no
+        server          = /usr/sbin/kpropd
+}
+EOF
+    systemctl restart xinetd
+
+    # Assuming there will be 3 masters which are $CLUSTER_NAME-m-0,
+    # $CLUSTER_NAME-m-1 and $CLUSTER_NAME-m-2
+    # To include all 3 masters in the ACL files on all 3 masters makes
+    # failover easier if it is needed.
+    cat << EOF >> /etc/krb5kdc/kpropd.acl
+host/$CLUSTER_NAME-m-0.$DOMAIN@$REALM
+host/$CLUSTER_NAME-m-1.$DOMAIN@$REALM
+host/$CLUSTER_NAME-m-2.$DOMAIN@$REALM
+EOF
+
+    if [[ "${FQDN}" != "${MASTER_FQDN}" ]]; then
+      touch "krb5_prop_acl_mark_$FQDN"
+      gsutil cp "./krb5_prop_acl_mark_$FQDN" "gs://${staging_meta_info_gcs_prefix}/krb5_prop_acl/krb5_prop_acl_mark_$FQDN"
+      rm "krb5_prop_acl_mark_$FQDN"
+      local krb5_prop_finish=0
+      for (( i=0; i < 5*60; i++)); do
+        echo "Waiting for initial KDC database propagation to finish..."
+        if gsutil -q stat "gs://${staging_meta_info_gcs_prefix}/${FQDN}-propagated"; then
+          krb5_prop_finish=1
+          break
+        fi
+        sleep 1
+      done
+
+      if [[ "${krb5_prop_finish}" == 0 ]]; then
+        echo 'Initial KDC database propagation did not finish after 5 minutes, likely failed.'
+        exit 1
+      fi
+
+      echo "Restarting krb5-kdc on ${FQDN}."
+      systemctl restart krb5-kdc || err 'Cannot restart KDC'
+      echo "Restarting krb5-admin-server on ${FQDN}."
+      systemctl restart krb5-admin-server || err 'Cannot restart Kerberos admin server'
+    else
+      # On Master-KDC
+      /usr/sbin/kdb5_util dump /etc/krb5kdc/slave_datatrans
+      local krb5_prop_acl_configured=0
+      for (( i=0; i < 5*60; i++ )); do
+        echo "Waiting for all slave KDCs to finish krb_prop_acl configuration."
+        finished_count="$((gsutil ls gs://${staging_meta_info_gcs_prefix}/krb5_prop_acl/* 2>/dev/null || true) | wc -l)"
+        if [[ "${finished_count}" == "${#ADDITIONAL_MASTERS[@]}" ]]; then
+          krb5_prop_acl_configured=1
+          break
+        fi
+        sleep 1
+      done
+
+      if [[ "${krb5_prop_acl_configured}" == 0 ]]; then
+        echo 'Slave KDCs have not finished ACL configuration even after 5 minutes, something went wrong.'
+        exit 1
+      fi
+
+      for additional_master in "${ADDITIONAL_MASTERS[@]}"; do
+        kprop -f /etc/krb5kdc/slave_datatrans "${additional_master}"
+        touch "${additional_master}.${DOMAIN}-propagated"
+        gsutil cp "${additional_master}.${DOMAIN}-propagated" "gs://${staging_meta_info_gcs_prefix}/${additional_master}.${DOMAIN}-propagated"
+        rm "${additional_master}.${DOMAIN}-propagated"
+      done
+
+      echo 'Preparing krb5_prop script'
+      cat << 'EOF' > "${KRB5_PROP_SCRIPT}"
+#!/bin/bash
+SLAVES=($(/usr/share/google/get_metadata_value attributes/dataproc-master-additional | sed 's/,/\n/g'))
+/usr/sbin/kdb5_util dump /etc/krb5kdc/slave_datatrans
+for slave in "${SLAVES[@]}"; do
+  /usr/sbin/kprop -f /etc/krb5kdc/slave_datatrans "${slave}"
+done
+EOF
+      chmod +x "${KRB5_PROP_SCRIPT}"
+
+      (crontab -l 2>/dev/null || true; echo "*/5 * * * * ${KRB5_PROP_SCRIPT} >/dev/null 2>&1") | crontab -
+    fi
+  fi
+}
+
 function set_property_in_xml() {
   bdconfig set_property \
     --configuration_file $1 \
@@ -211,12 +334,23 @@ function set_property_in_xml() {
     || err "Unable to set $2"
 }
 
+function master_name_to_fqdn_in_file() {
+  if [[ "${HA_MODE}" == 1 ]]; then
+    for master in "${MASTERS[@]}"; do
+      sed -i -e "s/${master}/${master}.${DOMAIN}/g" "$1"
+    done
+  else
+    sed -i -e "s/${MASTER}/${MASTER_FQDN}/g" "$1"
+  fi
+}
+
 function set_property_core_site() {
   set_property_in_xml "${HADOOP_CONF_DIR}/core-site.xml" "$1" "$2"
 }
 
 function config_core_site() {
   echo "Setting properties in core-site.xml."
+  master_name_to_fqdn_in_file "${HADOOP_CONF_DIR}/core-site.xml"
   set_property_core_site 'hadoop.security.authentication' 'kerberos'
   set_property_core_site 'hadoop.security.authorization' 'true'
   set_property_core_site 'hadoop.rpc.protection' 'privacy'
@@ -226,8 +360,6 @@ function config_core_site() {
   set_property_core_site 'hadoop.ssl.keystores.factory.class' 'org.apache.hadoop.security.ssl.FileBasedKeyStoresFactory'
   set_property_core_site 'hadoop.ssl.server.conf' 'ssl-server.xml'
   set_property_core_site 'hadoop.ssl.client.conf' 'ssl-client.xml'
-  set_property_core_site 'fs.default.name' "hdfs://${MASTER_FQDN}"
-  set_property_core_site 'fs.defaultFS' "hdfs://${MASTER_FQDN}"
   # Starting from Hadoop 2.8.4, TLSv1.1, TLSv1.2 and SSLv2Hello are added to the
   # default "hadoop.ssl.enabled.protocols" property. However, conscrypt/BoringSSL
   # (the default SSL implementation used by Dataproc) does not support SSLv2Hello.
@@ -255,6 +387,7 @@ function set_property_hdfs_site() {
 
 function config_hdfs_site() {
   echo "Setting properties in hdfs-site.xml."
+  master_name_to_fqdn_in_file "${HADOOP_CONF_DIR}/hdfs-site.xml"
   set_property_hdfs_site 'dfs.block.access.token.enable' 'true'
   set_property_hdfs_site 'dfs.encrypt.data.transfer' 'true'
   # Name Node
@@ -280,8 +413,6 @@ function config_hdfs_site() {
   set_property_hdfs_site 'dfs.web.authentication.kerberos.keytab' "${HADOOP_CONF_DIR}/http.keytab"
   # HTTPS
   set_property_hdfs_site 'dfs.http.policy' 'HTTPS_ONLY'
-
-  set_property_hdfs_site 'dfs.namenode.rpc-address' "${MASTER_FQDN}:8020"
 }
 
 function set_property_yarn_site() {
@@ -290,13 +421,18 @@ function set_property_yarn_site() {
 
 function config_yarn_site_and_permission() {
   echo "Setting properties in yarn-site.xml."
+  master_name_to_fqdn_in_file "${HADOOP_CONF_DIR}/yarn-site.xml"
   # Resource Manager
   set_property_yarn_site 'yarn.resourcemanager.keytab' "${HADOOP_CONF_DIR}/yarn.keytab"
   set_property_yarn_site 'yarn.resourcemanager.principal' "yarn/_HOST@${REALM}"
-  set_property_yarn_site 'yarn.resourcemanager.hostname' "${MASTER_FQDN}"
   # Node Manager
   set_property_yarn_site 'yarn.nodemanager.keytab' "${HADOOP_CONF_DIR}/yarn.keytab"
   set_property_yarn_site 'yarn.nodemanager.principal' "yarn/_HOST@${REALM}"
+  if [[ "${HA_MODE}" == 1 ]]; then
+    set_property_yarn_site 'yarn.resourcemanager.webapp.https.address.rm0' "${CLUSTER_NAME}-m-0.${DOMAIN}:8090"
+    set_property_yarn_site 'yarn.resourcemanager.webapp.https.address.rm1' "${CLUSTER_NAME}-m-1.${DOMAIN}:8090"
+    set_property_yarn_site 'yarn.resourcemanager.webapp.https.address.rm2' "${CLUSTER_NAME}-m-2.${DOMAIN}:8090"
+  fi
   # Containers need to be run as the users that submitted the job.
   # See https://www.ibm.com/support/knowledgecenter/en/SSPT3X_4.2.0/com.ibm.swg.im.infosphere.biginsights.install.doc/doc/inst_adv_yarn_config.html
   set_property_yarn_site 'yarn.nodemanager.container-executor.class' 'org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor'
@@ -308,7 +444,6 @@ function config_yarn_site_and_permission() {
   set_property_yarn_site 'yarn.log.server.url' "https://${MASTER_FQDN}:19889/jobhistory/logs"
 
   # YARN App Timeline Server
-  set_property_yarn_site 'yarn.timeline-service.hostname' "${MASTER_FQDN}"
   set_property_yarn_site 'yarn.timeline-service.http-authentication.type' 'kerberos'
   set_property_yarn_site 'yarn.timeline-service.principal' "yarn/_HOST@${REALM}"
   set_property_yarn_site 'yarn.timeline-service.keytab' "${HADOOP_CONF_DIR}/yarn.keytab"
@@ -329,7 +464,7 @@ function set_property_mapred_site() {
 
 function config_mapred_site() {
   echo "Setting properties in mapred-site.xml."
-  if [[ "${ROLE}" == 'Master' ]]; then
+  if [[ "${FQDN}" == "${MASTER_FQDN}" ]]; then
     set_property_mapred_site 'mapreduce.jobhistory.keytab' "${HADOOP_CONF_DIR}/mapred.keytab"
     set_property_mapred_site 'mapreduce.jobhistory.principal' "mapred/_HOST@${REALM}"
   fi
@@ -338,6 +473,7 @@ function config_mapred_site() {
   set_property_mapred_site 'mapreduce.ssl.enabled' 'true'
   set_property_mapred_site 'mapreduce.shuffle.ssl.enabled' 'true'
   set_property_mapred_site 'mapreduce.jobhistory.address' "${MASTER_FQDN}:10020"
+  set_property_mapred_site 'mapreduce.jobhistory.webapp.http.address' "${MASTER_FQDN}:19888"
   set_property_mapred_site 'mapreduce.jobhistory.webapp.https.address' "${MASTER_FQDN}:19889"
 }
 
@@ -398,7 +534,9 @@ function secure_hive() {
 }
 
 function secure_spark() {
-  if [[ "${ROLE}" == 'Master' ]]; then
+  # Dataproc only runs Spark History Server on 'first' master so we only need
+  # to Kerberize it on this master.
+  if [[ "${FQDN}" == "${MASTER_FQDN}" ]]; then
     echo "Securing Spark."
     kadmin -p root -w "${root_principal_password}" -q "addprinc -randkey spark/${FQDN}"
     kadmin -p root -w "${root_principal_password}" -q "xst -k spark.keytab spark/${FQDN}"
@@ -413,8 +551,11 @@ SPARK_HISTORY_OPTS="\$SPARK_HISTORY_OPTS
 -Dspark.history.kerberos.principal=spark/${FQDN}@${REALM}
 -Dspark.history.kerberos.keytab=/etc/spark/conf/spark.keytab"
 EOF
-    cat << EOF >> /etc/spark/conf/spark-defaults.conf
-spark.yarn.historyServer.address https://${FQDN}:18480
+  fi
+
+  # All the nodes receive the configurations
+  sed -i "s/spark.yarn.historyServer.address.*/spark.yarn.historyServer.address https:\/\/${MASTER_FQDN}:18480/" /etc/spark/conf/spark-defaults.conf
+  cat << EOF >> /etc/spark/conf/spark-defaults.conf
 spark.ssl.protocol tls
 spark.ssl.historyServer.enabled true
 spark.ssl.trustStore ${HADOOP_CONF_DIR}/ssl/truststore.jks
@@ -422,36 +563,22 @@ spark.ssl.keyStore ${HADOOP_CONF_DIR}/ssl/keystore.jks
 spark.ssl.trustStorePassword ${keystore_password}
 spark.ssl.keyStorePassword ${keystore_password}
 EOF
-  fi
 }
 
 function restart_services() {
   if [[ "${ROLE}" == 'Master' ]]; then
-    service hadoop-hdfs-namenode restart || err 'Cannot restart name node'
-    service hadoop-hdfs-secondarynamenode restart || err 'Cannot restart secondary name node'
-    service hadoop-yarn-resourcemanager restart || err 'Cannot restart yarn resource manager'
-    service hive-server2 restart || err 'Cannot restart hive server'
-    service hive-metastore restart || err 'Cannot restart hive metastore'
-    if ( systemctl is-enabled --quiet hadoop-yarn-timelineserver ); then
-      service hadoop-yarn-timelineserver restart
-    fi
-    service hadoop-mapreduce-historyserver restart || err 'Cannot restart mapreduce history server'
-    service spark-history-server restart || err 'Cannot restart spark history server'
+    local master_services=('hadoop-hdfs-namenode' 'hadoop-hdfs-secondarynamenode' 'hadoop-hdfs-journalnode' 'hadoop-yarn-resourcemanager' 'hive-server2' 'hive-metastore' 'hadoop-yarn-timelineserver' 'hadoop-mapreduce-historyserver' 'spark-history-server' 'hadoop-hdfs-zkfc')
+    for master_service in "${master_services[@]}"; do
+      if ( systemctl is-enabled --quiet "${master_service}" ); then
+        systemctl restart "${master_service}" || err "Cannot restart service: ${master_service}"
+      fi
+    done
   fi
   # In single node mode, we run datanode and nodemanager on the master.
   if [[ "${ROLE}" == 'Worker' || "${WORKER_COUNT}" == '0' ]]; then
-    service hadoop-hdfs-datanode restart || err 'Cannot restart data node'
-    service hadoop-yarn-nodemanager restart || err 'Cannot restart node manager'
+    systemctl restart hadoop-hdfs-datanode || err 'Cannot restart data node'
+    systemctl restart hadoop-yarn-nodemanager || err 'Cannot restart node manager'
   fi
-}
-
-# Will be used by the Dataproc agent.
-function create_host_root_principal() {
-  echo "Creating principal root/${FQDN}@${REALM}."
-  kadmin -p root -w "${root_principal_password}" -q "addprinc -randkey root/${FQDN}"
-  kadmin -p root -w "${root_principal_password}" -q "xst -k root.keytab root/${FQDN}"
-  mv root.keytab /etc
-  chmod 400 /etc/root.keytab
 }
 
 function create_dataproc_principal() {
@@ -464,14 +591,20 @@ function create_dataproc_principal() {
   chmod 400 /etc/dataproc.keytab
 }
 
+function krb5_propagate() {
+  if [[ "${FQDN}" == "${MASTER_FQDN}" && "${HA_MODE}" == 1 ]]; then
+    "${KRB5_PROP_SCRIPT}"
+  fi
+}
 
 function main() {
   update_apt_get
   install_kerberos
   install_jce
   create_cross_realm_trust_principal_if_necessary
-  create_root_user_principal
+  create_root_user_principal_and_ready_stash
   create_service_principals
+  config_krb5_propagate_if_necessary
   config_core_site
   config_hdfs_site
   config_yarn_site_and_permission
@@ -482,8 +615,8 @@ function main() {
   secure_hive
   secure_spark
   restart_services
-  create_host_root_principal
   create_dataproc_principal
+  krb5_propagate
 }
 
 main
