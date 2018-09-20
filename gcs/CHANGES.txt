@@ -1,3 +1,6 @@
+1.9.8 - 2018-XX-XX
+
+
 1.9.7 - 2018-09-20
 
   1. Add an option to provide credentials directly in Hadoop Configuration,
