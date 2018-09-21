@@ -19,14 +19,7 @@ gcloud dataproc clusters create <CLUSTER_NAME> \
     --metadata "root-password-uri=gs://<SECRET_BUCKET>/root-password.encrypted" \
     --metadata "keystore-password-uri=gs://<SECRET_BUCKET>/keystore-password.encrypted"
 ```
-Optionally, enable cross-realm trust: 
-```bash
-    --metadata "cross-realm-trust-realm=<REMOTE.REALM>" \
-    --metadata "cross-realm-trust-kdc=<REMOTE_KDC>" \
-    --metadata "cross-realm-trust-admin-server=<REMOTE_ADMIN_SERVER>" \
-    --metadata "cross-realm-trust-password-uri=gs://<SECRET_BUCKET>/cross-realm-trust-password.encrypted"
-```
-All the metadata key-value pairs are required to properly secure the cluster.
+All the following metadata key-value pairs are required to properly secure the cluster.
 
 1. Use **keystore-uri** to specify the GCS location of the keystore file which contains the SSL certificate. It has to be in the Java KeyStore (JKS) format and when copied to VMs, it will be renamed (if necessary) to **keystore.jks**. The SSL certificate should be a wildcard certificate which applies to every node in the cluster.
 2. Use **truststore-uri** to specify the GCS location of the truststore file. It has to be in the Java KeyStore (JKS) format and when copied to VMs, it will be renamed (if necessary) to **truststore.jks**.
@@ -34,11 +27,21 @@ All the metadata key-value pairs are required to properly secure the cluster.
 4. Use **kms-key-uri** to specify the URI of the KMS key used to encrypt various password files.
 5. Use **db-password-uri** to specify the GCS location of the encrypted file which contains the password to the KDC master database.
 6. Use **root-password-uri** to specify the GCS location of the encrypted file which contains the password to the root user principal.
-(Below are optional for cross-realm trust)
-7. Use **cross-realm-trust-realm** to specify the remote realm name.
-8. Use **cross-realm-trust-kdc** to specify the hostname/address of the remote KDC server.
-9. Use **cross-realm-trust-admin-server** to specify the hostname/address of the remote KDC admin server.
-10. Use **cross-realm-trust-password** to specify the realm trust password.
+
+Optionally, enable cross-realm trust: 
+```bash
+    --metadata "cross-realm-trust-realm=<REMOTE.REALM>" \
+    --metadata "cross-realm-trust-kdc=<REMOTE_KDC>" \
+    --metadata "cross-realm-trust-admin-server=<REMOTE_ADMIN_SERVER>" \
+    --metadata "cross-realm-trust-password-uri=gs://<SECRET_BUCKET>/cross-realm-trust-password.encrypted"
+```
+
+The following metadata key-value pairs are optional, required only when user wants to enable cross-realm trust.
+
+1. Use **cross-realm-trust-realm** to specify the remote realm name.
+2. Use **cross-realm-trust-kdc** to specify the hostname/address of the remote KDC server.
+3. Use **cross-realm-trust-admin-server** to specify the hostname/address of the remote KDC admin server.
+4. Use **cross-realm-trust-password** to specify the realm trust password.
 
 ## Protecting passwords with KMS
 
