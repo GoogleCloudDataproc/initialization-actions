@@ -17,13 +17,15 @@ gcloud dataproc clusters create <CLUSTER_NAME> \
     --metadata "truststore-uri=gs://<SECRET_BUCKET>/truststore.jks" \
     --metadata "db-password-uri=gs://<SECRET_BUCKET>/db-password.encrypted" \
     --metadata "root-password-uri=gs://<SECRET_BUCKET>/root-password.encrypted" \
-    --metadata "keystore-password-uri=gs://<SECRET_BUCKET>/keystore-password.encrypted" \
+    --metadata "keystore-password-uri=gs://<SECRET_BUCKET>/keystore-password.encrypted"
+```
+Optionally, enable cross-realm trust: 
+```bash
     --metadata "cross-realm-trust-realm=<REMOTE.REALM>" \
     --metadata "cross-realm-trust-kdc=<REMOTE_KDC>" \
     --metadata "cross-realm-trust-admin-server=<REMOTE_ADMIN_SERVER>" \
     --metadata "cross-realm-trust-password-uri=gs://<SECRET_BUCKET>/cross-realm-trust-password.encrypted"
 ```
-
 All the metadata key-value pairs are required to properly secure the cluster.
 
 1. Use **keystore-uri** to specify the GCS location of the keystore file which contains the SSL certificate. It has to be in the Java KeyStore (JKS) format and when copied to VMs, it will be renamed (if necessary) to **keystore.jks**. The SSL certificate should be a wildcard certificate which applies to every node in the cluster.
