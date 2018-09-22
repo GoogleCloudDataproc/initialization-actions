@@ -25,7 +25,7 @@ hadoop fs -mkdir -p "gs://${NOTEBOOK_DIR}"
 echo "Creating Jupyter config..."
 jupyter notebook --allow-root --generate-config -y --ip=127.0.0.1
 echo "c.Application.log_level = 'DEBUG'" >> ~/.jupyter/jupyter_notebook_config.py
-echo "c.NotebookApp.ip = '*'" >> ~/.jupyter/jupyter_notebook_config.py
+echo "c.NotebookApp.ip = '0.0.0.0'" >> ~/.jupyter/jupyter_notebook_config.py
 echo "c.NotebookApp.open_browser = False" >> ~/.jupyter/jupyter_notebook_config.py
 echo "c.NotebookApp.port = ${JUPYTER_PORT}" >> ~/.jupyter/jupyter_notebook_config.py
 echo "c.NotebookApp.contents_manager_class = 'jgscm.GoogleStorageContentManager'" >> ~/.jupyter/jupyter_notebook_config.py
