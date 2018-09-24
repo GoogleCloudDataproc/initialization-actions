@@ -16,6 +16,7 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.common.base.Charsets.UTF_8;
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.assertThrows;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
@@ -38,7 +39,6 @@ import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 
@@ -55,8 +55,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
    * Helper to load all the GHFS-specific config values from environment variables, such as those
    * needed for setting up the credentials of a real GoogleCloudStorage.
    */
-  protected static Configuration loadConfig()
-      throws IOException {
+  protected static Configuration loadConfig() {
     TestConfiguration testConfiguration = TestConfiguration.getInstance();
 
     String projectId = testConfiguration.getProjectId();
@@ -72,12 +71,15 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
    */
   protected static Configuration loadConfig(
       String projectId, String serviceAccount, String privateKeyFile) {
-    Assert.assertNotNull(
-        "Expected value for env var " + TestConfiguration.GCS_TEST_PROJECT_ID, projectId);
-    Assert.assertNotNull(
-        "Expected value for env var " + TestConfiguration.GCS_TEST_SERVICE_ACCOUNT, serviceAccount);
-    Assert.assertNotNull(
-        "Expected value for env var " + TestConfiguration.GCS_TEST_PRIVATE_KEYFILE, privateKeyFile);
+    assertWithMessage("Expected value for env var %s", TestConfiguration.GCS_TEST_PROJECT_ID)
+        .that(projectId)
+        .isNotNull();
+    assertWithMessage("Expected value for env var %s", TestConfiguration.GCS_TEST_SERVICE_ACCOUNT)
+        .that(serviceAccount)
+        .isNotNull();
+    assertWithMessage("Expected value for env var %s", TestConfiguration.GCS_TEST_PRIVATE_KEYFILE)
+        .that(privateKeyFile)
+        .isNotNull();
     Configuration config = new Configuration();
     config.set(GoogleHadoopFileSystemConfiguration.GCS_PROJECT_ID.getKey(), projectId);
     config.set(
@@ -152,7 +154,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     GoogleHadoopFileSystemBase myghfs = (GoogleHadoopFileSystemBase) ghfs;
     URI gcsPath = new URI("gs://" + myghfs.getSystemBucketName() + "/dir/obj");
     URI convertedPath = myghfs.getGcsPath(new Path(gcsPath));
-    Assert.assertEquals(gcsPath, convertedPath);
+    assertThat(gcsPath).isEqualTo(convertedPath);
 
     assertThrows(
         IllegalArgumentException.class, () -> myghfs.getGcsPath(new Path("/buck^et", "object")));
@@ -179,7 +181,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
    */
   @Test
   public void testGetCanonicalServiceName() {
-    Assert.assertNull(ghfs.getCanonicalServiceName());
+    assertThat(ghfs.getCanonicalServiceName()).isNull();
   }
 
   /**
@@ -208,73 +210,73 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     boolean inferImplicitDirectories = gcsfs.getOptions()
         .getCloudStorageOptions().isInferImplicitDirectoriesEnabled();
 
-    Assert.assertTrue("Expected to exist: " + leafUri, gcsfs.exists(leafUri));
+    assertWithMessage("Expected to exist: %s", leafUri).that(gcsfs.exists(leafUri)).isTrue();
     if (inferImplicitDirectories) {
-      Assert.assertTrue(
-          "Expected to exist: " + subdirUri, gcsfs.exists(subdirUri));
-      Assert.assertTrue(
-          "Expected to exist: " + parentUri, gcsfs.exists(parentUri));
+      assertWithMessage("Expected to exist: %s", subdirUri).that(gcsfs.exists(subdirUri)).isTrue();
+      assertWithMessage("Expected to exist: %s", parentUri).that(gcsfs.exists(parentUri)).isTrue();
     } else {
-      Assert.assertFalse(
-          "Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
-      Assert.assertFalse(
-          "Expected to !exist: " + parentUri, gcsfs.exists(parentUri));
+      assertWithMessage("Expected to !exist: %s", subdirUri)
+          .that(gcsfs.exists(subdirUri))
+          .isFalse();
+      assertWithMessage("Expected to !exist: %s", parentUri)
+          .that(gcsfs.exists(parentUri))
+          .isFalse();
     }
 
     myghfs.listStatus(parentPath);
 
-    Assert.assertTrue("Expected to exist: " + leafUri, gcsfs.exists(leafUri));
-    Assert.assertTrue("Expected to exist: " + subdirUri, gcsfs.exists(subdirUri));
-    Assert.assertTrue("Expected to exist: " + parentUri, gcsfs.exists(parentUri));
+    assertWithMessage("Expected to exist: %s", leafUri).that(gcsfs.exists(leafUri)).isTrue();
+    assertWithMessage("Expected to exist: %s", subdirUri).that(gcsfs.exists(subdirUri)).isTrue();
+    assertWithMessage("Expected to exist: %s", parentUri).that(gcsfs.exists(parentUri)).isTrue();
 
     ghfsHelper.clearBucket(bucketName);
 
     // Reset for globStatus.
     gcsfs.mkdir(leafUri);
 
-    Assert.assertTrue("Expected to exist: " + leafUri, gcsfs.exists(leafUri));
+    assertWithMessage("Expected to exist: %s", leafUri).that(gcsfs.exists(leafUri)).isTrue();
     if (inferImplicitDirectories) {
-      Assert.assertTrue(
-          "Expected to exist: " + subdirUri, gcsfs.exists(subdirUri));
-      Assert.assertTrue(
-          "Expected to exist: " + parentUri, gcsfs.exists(parentUri));
+      assertWithMessage("Expected to exist: %s", subdirUri).that(gcsfs.exists(subdirUri)).isTrue();
+      assertWithMessage("Expected to exist: %s", parentUri).that(gcsfs.exists(parentUri)).isTrue();
     } else {
-      Assert.assertFalse(
-          "Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
-      Assert.assertFalse(
-          "Expected to !exist: " + parentUri, gcsfs.exists(parentUri));
+      assertWithMessage("Expected to !exist: %s", subdirUri)
+          .that(gcsfs.exists(subdirUri))
+          .isFalse();
+      assertWithMessage("Expected to !exist: %s", parentUri)
+          .that(gcsfs.exists(parentUri))
+          .isFalse();
     }
 
     myghfs.globStatus(parentPath);
 
     // Globbing the single directory only repairs that top-level directory; it is *not* the same
     // as listStatus.
-    Assert.assertTrue("Expected to exist: " + leafUri, gcsfs.exists(leafUri));
+    assertWithMessage("Expected to exist: %s", leafUri).that(gcsfs.exists(leafUri)).isTrue();
     if (inferImplicitDirectories) {
-      Assert.assertTrue(
-          "Expected to exist: " + subdirUri, gcsfs.exists(subdirUri));
+      assertWithMessage("Expected to exist: %s", subdirUri).that(gcsfs.exists(subdirUri)).isTrue();
     } else {
-      Assert.assertFalse(
-          "Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
+      assertWithMessage("Expected to !exist: %s", subdirUri)
+          .that(gcsfs.exists(subdirUri))
+          .isFalse();
     }
-    Assert.assertTrue("Expected to exist: " + parentUri, gcsfs.exists(parentUri));
+    assertWithMessage("Expected to exist: %s", parentUri).that(gcsfs.exists(parentUri)).isTrue();
 
     ghfsHelper.clearBucket(bucketName);
 
     // Reset for globStatus(path/*)
     gcsfs.mkdir(leafUri);
 
-    Assert.assertTrue("Expected to exist: " + leafUri, gcsfs.exists(leafUri));
+    assertWithMessage("Expected to exist: %s", leafUri).that(gcsfs.exists(leafUri)).isTrue();
     if (inferImplicitDirectories) {
-      Assert.assertTrue(
-          "Expected to exist: " + subdirUri, gcsfs.exists(subdirUri));
-      Assert.assertTrue(
-          "Expected to exist: " + parentUri, gcsfs.exists(parentUri));
+      assertWithMessage("Expected to exist: %s", subdirUri).that(gcsfs.exists(subdirUri)).isTrue();
+      assertWithMessage("Expected to exist: %s", parentUri).that(gcsfs.exists(parentUri)).isTrue();
     } else {
-      Assert.assertFalse(
-          "Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
-      Assert.assertFalse(
-          "Expected to !exist: " + parentUri, gcsfs.exists(parentUri));
+      assertWithMessage("Expected to !exist: %s", subdirUri)
+          .that(gcsfs.exists(subdirUri))
+          .isFalse();
+      assertWithMessage("Expected to !exist: %s", parentUri)
+          .that(gcsfs.exists(parentUri))
+          .isFalse();
     }
 
     // When globbing children, the parent will only be repaired if flat-globbing is not enabled.
@@ -284,18 +286,21 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
 
     // This will internally call listStatus, so will have the same behavior of repairing both
     // levels of subdirectories.
-    Assert.assertTrue("Expected to exist: " + leafUri, gcsfs.exists(leafUri));
+    assertWithMessage("Expected to exist: %s", leafUri).that(gcsfs.exists(leafUri)).isTrue();
 
     HadoopVersionInfo versionInfo = HadoopVersionInfo.getInstance();
 
     if (versionInfo.isLessThan(2, 0) || versionInfo.isGreaterThan(2, 3)) {
-      Assert.assertTrue("Expected to exist: " + subdirUri, gcsfs.exists(subdirUri));
+      assertWithMessage("Expected to exist: %s", subdirUri).that(gcsfs.exists(subdirUri)).isTrue();
 
       if (expectParentRepair || inferImplicitDirectories) {
-        Assert.assertTrue("Expected to exist: " + parentUri, gcsfs.exists(parentUri));
+        assertWithMessage("Expected to exist: %s", parentUri)
+            .that(gcsfs.exists(parentUri))
+            .isTrue();
       } else {
-        Assert.assertFalse(
-            "Expected not to exist due to flat globbing: " + parentUri, gcsfs.exists(parentUri));
+        assertWithMessage("Expected not to exist due to flat globbing: %s", parentUri)
+            .that(gcsfs.exists(parentUri))
+            .isFalse();
       }
     }
 
@@ -304,17 +309,17 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     // Reset for globStatus(path*)
     gcsfs.mkdir(leafUri);
 
-    Assert.assertTrue("Expected to exist: " + leafUri, gcsfs.exists(leafUri));
+    assertWithMessage("Expected to exist: %s", leafUri).that(gcsfs.exists(leafUri)).isTrue();
     if (inferImplicitDirectories) {
-      Assert.assertTrue(
-          "Expected to exist: " + subdirUri, gcsfs.exists(subdirUri));
-      Assert.assertTrue(
-          "Expected to exist: " + parentUri, gcsfs.exists(parentUri));
+      assertWithMessage("Expected to exist: %s", subdirUri).that(gcsfs.exists(subdirUri)).isTrue();
+      assertWithMessage("Expected to exist: %s", parentUri).that(gcsfs.exists(parentUri)).isTrue();
     } else {
-      Assert.assertFalse(
-          "Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
-      Assert.assertFalse(
-          "Expected to !exist: " + parentUri, gcsfs.exists(parentUri));
+      assertWithMessage("Expected to !exist: %s", subdirUri)
+          .that(gcsfs.exists(subdirUri))
+          .isFalse();
+      assertWithMessage("Expected to !exist: %s", parentUri)
+          .that(gcsfs.exists(parentUri))
+          .isFalse();
     }
 
     // Globbing with a wildcard in the parentUri itself also only repairs one level, but for
@@ -323,16 +328,16 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     // when listing parentOf(parentUri).
     myghfs.globStatus(new Path(parentPath.toString() + "*"));
 
-    Assert.assertTrue("Expected to exist: " + leafUri, gcsfs.exists(leafUri));
+    assertWithMessage("Expected to exist: %s", leafUri).that(gcsfs.exists(leafUri)).isTrue();
     if (inferImplicitDirectories) {
-      Assert.assertTrue(
-          "Expected to exist: " + subdirUri, gcsfs.exists(subdirUri));
+      assertWithMessage("Expected to exist: %s", subdirUri).that(gcsfs.exists(subdirUri)).isTrue();
     } else {
-      Assert.assertFalse(
-          "Expected to !exist: " + subdirUri, gcsfs.exists(subdirUri));
+      assertWithMessage("Expected to !exist: %s", subdirUri)
+          .that(gcsfs.exists(subdirUri))
+          .isFalse();
     }
     if (versionInfo.isLessThan(2, 0) || versionInfo.isGreaterThan(2, 3)) {
-      Assert.assertTrue("Expected to exist: " + parentUri, gcsfs.exists(parentUri));
+      assertWithMessage("Expected to exist: %s", parentUri).that(gcsfs.exists(parentUri)).isTrue();
     }
     ghfsHelper.clearBucket(bucketName);
   }
@@ -398,7 +403,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     for (String unqualifiedString : qualifiedPaths.keySet()) {
       Path unqualifiedPath = new Path(unqualifiedString);
       Path qualifiedPath = new Path(qualifiedPaths.get(unqualifiedString));
-      Assert.assertEquals(qualifiedPath, myGhfs.makeQualified(unqualifiedPath));
+      assertThat(qualifiedPath).isEqualTo(myGhfs.makeQualified(unqualifiedPath));
     }
   }
 
@@ -463,23 +468,21 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     for (String unqualifiedString : qualifiedPaths.keySet()) {
       Path unqualifiedPath = new Path(unqualifiedString);
       Path qualifiedPath = new Path(qualifiedPaths.get(unqualifiedString));
-      Assert.assertEquals(qualifiedPath, myGhfs.makeQualified(unqualifiedPath));
+      assertThat(qualifiedPath).isEqualTo(myGhfs.makeQualified(unqualifiedPath));
     }
   }
 
   /**
    * We override certain methods in FileSystem simply to provide debug tracing. (Search for
-   * "Overridden functions for debug tracing" in GoogleHadoopFileSystemBase.java).
-   * We do not add or update any functionality for such methods. The following
-   * tests simply exercise that path to ensure coverage. Consequently, they do not
-   * really test any functionality.
+   * "Overridden functions for debug tracing" in GoogleHadoopFileSystemBase.java). We do not add or
+   * update any functionality for such methods. The following tests simply exercise that path to
+   * ensure coverage. Consequently, they do not really test any functionality.
    *
-   * Having coverage for these methods lets us easily determine the amount of
-   * coverage that is missing in the rest of the code.
+   * <p>Having coverage for these methods lets us easily determine the amount of coverage that is
+   * missing in the rest of the code.
    */
   @Test
-  public void provideCoverageForUnmodifiedMethods()
-      throws IOException {
+  public void provideCoverageForUnmodifiedMethods() throws IOException {
     // -------------------------------------------------------
     // Create test data.
 
@@ -526,7 +529,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
       } catch (IOException ioe) {
         // Some filesystems (like the LocalFileSystem) are strict about existence of owners.
         // TODO(user): Abstract out the behaviors around owners/permissions and properly test
-        // the different behaviors between different filesystems.
+        //  the different behaviors between different filesystems.
       }
       ghfs.setTimes(tempFilePath2, 0, 0);
     } finally {
@@ -552,8 +555,12 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     TimestampUpdatePredicate predicate =
         GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate.create(configuration);
 
-    Assert.assertFalse("Should be ignored", predicate.shouldUpdateTimestamp(new URI("/foobar")));
-    Assert.assertFalse("Should be ignored", predicate.shouldUpdateTimestamp(new URI("")));
+    assertWithMessage("Should be ignored")
+        .that(predicate.shouldUpdateTimestamp(new URI("/foobar")))
+        .isFalse();
+    assertWithMessage("Should be ignored")
+        .that(predicate.shouldUpdateTimestamp(new URI("")))
+        .isFalse();
 
     // 2 Enable updates, set include to everything and exclude to everything
     configuration.setBoolean(
@@ -566,8 +573,12 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     predicate = GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate
         .create(configuration);
 
-    Assert.assertTrue("Should be included", predicate.shouldUpdateTimestamp(new URI("/foobar")));
-    Assert.assertTrue("Should be included", predicate.shouldUpdateTimestamp(new URI("")));
+    assertWithMessage("Should be included")
+        .that(predicate.shouldUpdateTimestamp(new URI("/foobar")))
+        .isTrue();
+    assertWithMessage("Should be included")
+        .that(predicate.shouldUpdateTimestamp(new URI("")))
+        .isTrue();
 
     // 3 Enable specific paths, exclude everything:
     configuration.set(
@@ -579,14 +590,18 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     predicate = GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate
         .create(configuration);
 
-    Assert.assertTrue(
-        "Should be included", predicate.shouldUpdateTimestamp(new URI("asdf/foobar")));
-    Assert.assertTrue(
-        "Should be included",  predicate.shouldUpdateTimestamp(new URI("asdf/baz")));
-    Assert.assertFalse(
-        "Should be ignored",  predicate.shouldUpdateTimestamp(new URI("/anythingElse")));
-    Assert.assertFalse(
-        "Should be ignored",  predicate.shouldUpdateTimestamp(new URI("/")));
+    assertWithMessage("Should be included")
+        .that(predicate.shouldUpdateTimestamp(new URI("asdf/foobar")))
+        .isTrue();
+    assertWithMessage("Should be included")
+        .that(predicate.shouldUpdateTimestamp(new URI("asdf/baz")))
+        .isTrue();
+    assertWithMessage("Should be ignored")
+        .that(predicate.shouldUpdateTimestamp(new URI("/anythingElse")))
+        .isFalse();
+    assertWithMessage("Should be ignored")
+        .that(predicate.shouldUpdateTimestamp(new URI("/")))
+        .isFalse();
 
     // 4 set to defaults, set job history paths
     configuration.set(
@@ -606,26 +621,26 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     predicate =
         GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate.create(configuration);
 
-    Assert.assertEquals(
-        "/tmp/hadoop-yarn/staging/done,/tmp/hadoop-yarn/done",
-        configuration.get(
-            GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES.getKey()));
+    assertThat(
+            configuration.get(
+                GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES.getKey()))
+        .isEqualTo("/tmp/hadoop-yarn/staging/done,/tmp/hadoop-yarn/done");
 
-    Assert.assertTrue(
-        "Should be included",
-        predicate.shouldUpdateTimestamp(new URI("gs://bucket/tmp/hadoop-yarn/staging/done/")));
-    Assert.assertTrue(
-        "Should be included",
-        predicate.shouldUpdateTimestamp(new URI("gs://bucket/tmp/hadoop-yarn/done/")));
-    Assert.assertFalse(
-        "Should be ignored",
-        predicate.shouldUpdateTimestamp(new URI("asdf/baz")));
-    Assert.assertFalse(
-        "Should be ignored",
-        predicate.shouldUpdateTimestamp(new URI("/anythingElse")));
-    Assert.assertFalse(
-        "Should be ignored",
-        predicate.shouldUpdateTimestamp(new URI("/")));
+    assertWithMessage("Should be included")
+        .that(predicate.shouldUpdateTimestamp(new URI("gs://bucket/tmp/hadoop-yarn/staging/done/")))
+        .isTrue();
+    assertWithMessage("Should be included")
+        .that(predicate.shouldUpdateTimestamp(new URI("gs://bucket/tmp/hadoop-yarn/done/")))
+        .isTrue();
+    assertWithMessage("Should be ignored")
+        .that(predicate.shouldUpdateTimestamp(new URI("asdf/baz")))
+        .isFalse();
+    assertWithMessage("Should be ignored")
+        .that(predicate.shouldUpdateTimestamp(new URI("/anythingElse")))
+        .isFalse();
+    assertWithMessage("Should be ignored")
+        .that(predicate.shouldUpdateTimestamp(new URI("/")))
+        .isFalse();
 
     // 5 set to defaults, set job history paths with gs:// scheme
     configuration.set(
@@ -646,31 +661,33 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     predicate =
         GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate.create(configuration);
 
-    Assert.assertEquals(
-        "gs://foo-bucket/tmp/hadoop-yarn/staging/done,gs://foo-bucket/tmp/hadoop-yarn/done",
-        configuration.get(
-            GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES.getKey()));
+    assertThat(
+            configuration.get(
+                GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES.getKey()))
+        .isEqualTo(
+            "gs://foo-bucket/tmp/hadoop-yarn/staging/done,gs://foo-bucket/tmp/hadoop-yarn/done");
 
-    Assert.assertTrue(
-        "Should be included",
-        predicate.shouldUpdateTimestamp(new URI("gs://foo-bucket/tmp/hadoop-yarn/staging/done/")));
-    Assert.assertTrue(
-        "Should be included",
-        predicate.shouldUpdateTimestamp(new URI("gs://foo-bucket/tmp/hadoop-yarn/done/")));
-    Assert.assertFalse(
-        "Should be ignored",
-        predicate.shouldUpdateTimestamp(new URI("asdf/baz")));
-    Assert.assertFalse(
-        "Should be ignored",
-        predicate.shouldUpdateTimestamp(new URI("/anythingElse")));
-    Assert.assertFalse(
-        "Should be ignored",
-        predicate.shouldUpdateTimestamp(new URI("/")));
+    assertWithMessage("Should be included")
+        .that(
+            predicate.shouldUpdateTimestamp(
+                new URI("gs://foo-bucket/tmp/hadoop-yarn/staging/done/")))
+        .isTrue();
+    assertWithMessage("Should be included")
+        .that(predicate.shouldUpdateTimestamp(new URI("gs://foo-bucket/tmp/hadoop-yarn/done/")))
+        .isTrue();
+    assertWithMessage("Should be ignored")
+        .that(predicate.shouldUpdateTimestamp(new URI("asdf/baz")))
+        .isFalse();
+    assertWithMessage("Should be ignored")
+        .that(predicate.shouldUpdateTimestamp(new URI("/anythingElse")))
+        .isFalse();
+    assertWithMessage("Should be ignored")
+        .that(predicate.shouldUpdateTimestamp(new URI("/")))
+        .isFalse();
   }
 
   @Test
-  public void testInvalidCredentialFromAccessTokenProvider()
-      throws URISyntaxException, IOException {
+  public void testInvalidCredentialFromAccessTokenProvider() throws Exception {
     Configuration config = new Configuration();
     config.set(GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET.getKey(), sharedBucketName1);
     config.set("fs.gs.auth.access.token.provider.impl", TestingAccessTokenProvider.class.getName());
