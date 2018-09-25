@@ -74,9 +74,10 @@ readonly root_principal_password="$(gsutil cat ${root_password_uri} | \
   --plaintext-file - \
   --key ${kms_key_uri})"
 
-# SSL keystore / truststore. If user specify the keystore URI they must also
-# specify the truststore URI and the keystore password, otherwise the script
-# will use self-signed certificate.
+# SSL keystore / truststore. By default a self signed certificate is used, but
+# user can specify the location of their own certificate through the following
+# metadata key-value pairs. If user specifies the keystore URI they must also
+# specify the truststore URI and the keystore password.
 readonly keystore_uri="$(/usr/share/google/get_metadata_value attributes/keystore-uri)" || echo ''
 if [[ -n "${keystore_uri}" ]]; then
   readonly keystore_password_uri="$(/usr/share/google/get_metadata_value attributes/keystore-password-uri)" || echo ''
