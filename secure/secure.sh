@@ -53,32 +53,55 @@ MASTER="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 MASTER_FQDN="${MASTER}.${DOMAIN}"
 HADOOP_CONF_DIR="/etc/hadoop/conf"
 
-readonly cross_realm_trust_realm="$(/usr/share/google/get_metadata_value attributes/cross-realm-trust-realm)" || echo ''
-if [[ -n "${cross_realm_trust_realm}" ]]; then
-  readonly cross_realm_trust_kdc="$(/usr/share/google/get_metadata_value attributes/cross-realm-trust-kdc)"
-  readonly cross_realm_trust_admin_server="$(/usr/share/google/get_metadata_value attributes/cross-realm-trust-admin-server)"
-  readonly cross_realm_trust_password_uri="$(/usr/share/google/get_metadata_value attributes/cross-realm-trust-password-uri)"
-fi
 readonly kms_key_uri="$(/usr/share/google/get_metadata_value attributes/kms-key-uri)"
-readonly db_password_uri="$(/usr/share/google/get_metadata_value attributes/db-password-uri)"
 readonly root_password_uri="$(/usr/share/google/get_metadata_value attributes/root-password-uri)"
-readonly keystore_password_uri="$(/usr/share/google/get_metadata_value attributes/keystore-password-uri)"
-readonly db_password="$(gsutil cat ${db_password_uri} | \
-  gcloud kms decrypt \
-  --ciphertext-file - \
-  --plaintext-file - \
-  --key ${kms_key_uri})"
+
+# If user does not specify the URI of the encrypted file containing the KDC
+# database password (master key) the the password defaults to "dataproc".
+readonly db_password_uri="$(/usr/share/google/get_metadata_value attributes/db-password-uri)" || echo ''
+db_password="dataproc"
+if [[ -n "${db_password_uri}" ]]; then
+  dp_password="$(gsutil cat ${db_password_uri} | \
+    gcloud kms decrypt \
+    --ciphertext-file - \
+    --plaintext-file - \
+    --key ${kms_key_uri})"
+fi
+
 readonly root_principal_password="$(gsutil cat ${root_password_uri} | \
   gcloud kms decrypt \
   --ciphertext-file - \
   --plaintext-file - \
   --key ${kms_key_uri})"
-readonly keystore_password="$(gsutil cat ${keystore_password_uri} | \
-  gcloud kms decrypt \
-  --ciphertext-file - \
-  --plaintext-file - \
-  --key ${kms_key_uri})"
+
+# SSL keystore / truststore. If user specify the keystore URI they must also
+# specify the truststore URI and the keystore password, otherwise the script
+# will use self-signed certificate.
+readonly keystore_uri="$(/usr/share/google/get_metadata_value attributes/keystore-uri)" || echo ''
+if [[ -n "${keystore_uri}" ]]; then
+  readonly keystore_password_uri="$(/usr/share/google/get_metadata_value attributes/keystore-password-uri)" || echo ''
+  if [[ -n "${keystore_password_uri}" ]]; then
+    error "Missing parameter 'keystore_password_uri'
+  fi
+  readonly keystore_password="$(gsutil cat ${keystore_password_uri} | \
+    gcloud kms decrypt \
+    --ciphertext-file - \
+    --plaintext-file - \
+    --key ${kms_key_uri})"
+  readonly truststore_uri="$(/usr/share/google/get_metadata_value attributes/truststore-uri)" || echo '';
+  if [[ -n "${truststore_uri}" ]]; then
+    error "Missing parameter 'truststore_uri'
+  fi
+else
+  readonly keystore_password="dataproc"
+fi
+
+# Cross-realm trust
+readonly cross_realm_trust_realm="$(/usr/share/google/get_metadata_value attributes/cross-realm-trust-realm)" || echo ''
 if [[ -n "${cross_realm_trust_realm}" ]]; then
+  readonly cross_realm_trust_kdc="$(/usr/share/google/get_metadata_value attributes/cross-realm-trust-kdc)"
+  readonly cross_realm_trust_admin_server="$(/usr/share/google/get_metadata_value attributes/cross-realm-trust-admin-server)"
+  readonly cross_realm_trust_password_uri="$(/usr/share/google/get_metadata_value attributes/cross-realm-trust-password-uri)"
   readonly trust_password="$(gsutil cat ${cross_realm_trust_password_uri} | \
     gcloud kms decrypt \
     --ciphertext-file - \
@@ -86,10 +109,9 @@ if [[ -n "${cross_realm_trust_realm}" ]]; then
     --key ${kms_key_uri})"
 fi
 
+# GCS locations, etc. for staging/node coordinations.
 readonly dataproc_bucket="$(/usr/share/google/get_metadata_value attributes/dataproc-bucket)"
 readonly staging_meta_info_gcs_prefix="${dataproc_bucket}/google-cloud-dataproc-metainfo/${CLUSTER_UUID}/secure_init_action"
-readonly keystore_uri="$(/usr/share/google/get_metadata_value attributes/keystore-uri)"
-readonly truststore_uri="$(/usr/share/google/get_metadata_value attributes/truststore-uri)"
 readonly krb5_server_mark_file="krb5-server-mark"
 
 function install_and_start_kerberos_server() {
@@ -181,17 +203,17 @@ function install_jce() {
 
 function create_service_principals() {
   if [[ "${FQDN}" != "${MASTER_FQDN}" ]]; then
-    local server_started=1
+    local server_started=0
     for (( i=0; i < 5*60; i++ )); do
       echo "Waiting for KDC and root principal."
       if gsutil -q stat "gs://${staging_meta_info_gcs_prefix}/${krb5_server_mark_file}"; then
-        server_started=0
+        server_started=1
         break
       fi
       sleep 1
     done
 
-    if [[ "${server_started}" == 1 ]]; then
+    if [[ "${server_started}" == 0 ]]; then
       echo 'Kerberos server has not started even after 5 minutes, likely failed.'
       exit 1
     fi
@@ -470,18 +492,50 @@ function config_mapred_site() {
   fi
 
   set_property_mapred_site 'mapreduce.jobhistory.http.policy' 'HTTPS_ONLY'
-  set_property_mapred_site 'mapreduce.ssl.enabled' 'true'
   set_property_mapred_site 'mapreduce.shuffle.ssl.enabled' 'true'
   set_property_mapred_site 'mapreduce.jobhistory.address' "${MASTER_FQDN}:10020"
   set_property_mapred_site 'mapreduce.jobhistory.webapp.http.address' "${MASTER_FQDN}:19888"
   set_property_mapred_site 'mapreduce.jobhistory.webapp.https.address' "${MASTER_FQDN}:19889"
 }
 
-function copy_keystore_files() {
-  echo "Copying keystore and truststore files from GCS."
+function copy_or_create_keystore_files() {
   mkdir "${HADOOP_CONF_DIR}"/ssl
-  gsutil cp "${keystore_uri}" "${HADOOP_CONF_DIR}"/ssl/keystore.jks
-  gsutil cp "${truststore_uri}" "${HADOOP_CONF_DIR}"/ssl/truststore.jks
+  if [[ -n "${keystore_uri}" ]]; then
+    echo "Copying keystore and truststore files from GCS."
+    gsutil cp "${keystore_uri}" "${HADOOP_CONF_DIR}"/ssl/keystore.jks
+    gsutil cp "${truststore_uri}" "${HADOOP_CONF_DIR}"/ssl/truststore.jks
+  else
+    local keystore_location="${staging_meta_info_gcs_prefix}/keystores"
+    if [[ "${FQDN}" == "${MASTER_FQDN}" ]]; then
+      echo "Generating self-signed certificate from ${FQDN}"
+      # The validity of the cert is 1800 days.
+      keytool -genkeypair -keystore keystore.jks -keyalg RSA -keysize 2048 \
+        -storepass "${keystore_password}" -keypass "${keystore_password}" -validity 1800 -alias dataproc-cert \
+        -dname "CN=*.${DOMAIN}, OU=Google Cloud Platform, O=Google, L=Mountain View, S=CA, C=US"
+      keytool -export -alias dataproc-cert -storepass "${keystore_password}" -file dataproc.cert -keystore keystore.jks
+      keytool -importcert -keystore truststore.jks -alias dataproc-cert -storepass "${keystore_password}" -file dataproc.cert -noprompt
+      rm dataproc.cert
+      gsutil cp keystore.jks truststore.jks "gs://${keystore_location}"
+      mv keystore.jks "${HADOOP_CONF_DIR}"/ssl/
+      mv truststore.jks "${HADOOP_CONF_DIR}"/ssl/
+    else
+      local files_downloaded=0
+      for (( i=0; i < 5*60; i++ )); do
+        echo "Waiting for keystore and truststore files."
+        if gsutil -q stat "gs://${keystore_location}/keystore.jks" && gsutil -q stat "gs://${keystore_location}/truststore.jks";  then
+          gsutil cp "gs://${keystore_location}/keystore.jks" "${HADOOP_CONF_DIR}"/ssl/keystore.jks
+          gsutil cp "gs://${keystore_location}/truststore.jks" "${HADOOP_CONF_DIR}"/ssl/truststore.jks
+          files_downloaded=1
+          break
+        fi
+        sleep 1
+      done
+
+      if [[ "${files_downloaded}" == 0 ]]; then
+        error 'Failed to download keystore and truststore files after 5 minutes. Something went wrong.'
+      fi
+    fi
+  fi
   chown -R yarn:hadoop "${HADOOP_CONF_DIR}"/ssl
   chmod 755 "${HADOOP_CONF_DIR}"/ssl
   chmod 440 "${HADOOP_CONF_DIR}"/ssl/keystore.jks
@@ -609,7 +663,7 @@ function main() {
   config_hdfs_site
   config_yarn_site_and_permission
   config_mapred_site
-  copy_keystore_files
+  copy_or_create_keystore_files
   config_ssl_xml 'server'
   config_ssl_xml 'client'
   secure_hive
