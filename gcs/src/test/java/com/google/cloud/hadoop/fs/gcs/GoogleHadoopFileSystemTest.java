@@ -19,19 +19,15 @@ import static com.google.common.truth.Truth.assertThat;
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
 import com.google.common.flogger.LoggerConfig;
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.logging.Level;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Unittests for GoogleHadoopFileSystem class.
- */
+/** Unittests for {@link GoogleHadoopFileSystem} class. */
 @RunWith(JUnit4.class)
-public class GoogleHadoopFileSystemTest
-    extends GoogleHadoopFileSystemIntegrationTest {
+public class GoogleHadoopFileSystemTest extends GoogleHadoopFileSystemIntegrationTest {
 
   @ClassRule
   public static NotInheritableExternalResource storageResource =
@@ -65,21 +61,21 @@ public class GoogleHadoopFileSystemTest
   // Tests that exercise behavior defined in HdfsBehavior.
   // -----------------------------------------------------------------
 
-  /**
-   * Validates rename().
-   */
-  @Test @Override
-  public void testRename()
-      throws IOException {
-    renameHelper(new HdfsBehavior() {
-        /**
-         * Returns the MethodOutcome of trying to rename an existing file into the root directory.
-         */
-        @Override
-        public MethodOutcome renameFileIntoRootOutcome() {
-          return new MethodOutcome(MethodOutcome.Type.RETURNS_TRUE);
-        }
-      });
+  /** Validates {@link GoogleHadoopFileSystem#rename}. */
+  @Test
+  @Override
+  public void testRename() throws IOException {
+    renameHelper(
+        new HdfsBehavior() {
+          /**
+           * Returns the {@link MethodOutcome} of trying to rename an existing file into the root
+           * directory.
+           */
+          @Override
+          public MethodOutcome renameFileIntoRootOutcome() {
+            return new MethodOutcome(MethodOutcome.Type.RETURNS_TRUE);
+          }
+        });
   }
 
   // -----------------------------------------------------------------
@@ -88,37 +84,30 @@ public class GoogleHadoopFileSystemTest
   // TODO(user): Add tests for subtleties of how global-rooted
   // initialization differs from bucket-rooted initialization.
   // -----------------------------------------------------------------
-  @Test @Override
-  public void testInitializeSuccess()
-      throws IOException, URISyntaxException {
-  }
-
-  @Test
   @Override
-  public void testInitializeSucceedsWhenNoProjectIdConfigured()
-      throws IOException, URISyntaxException {}
+  public void testInitializeSuccess() {}
 
-  @Test @Override
-  public void testInitializeWithWorkingDirectory()
-      throws IOException, URISyntaxException {
-  }
-
-  @Test @Override
-  public void testIOExceptionIsThrowAfterClose()
-      throws IOException, URISyntaxException {
-  }
-
-  @Test @Override
-  public void testFileSystemIsRemovedFromCacheOnClose()
-      throws IOException, URISyntaxException {
-  }
-
-  @Test @Override
-  public void testConfigurablePermissions()
-      throws IOException {
-  }
-
-  @Test
   @Override
-  public void testFileStatusUser() throws IOException {}
+  public void testInitializeSucceedsWhenNoProjectIdConfigured() {}
+
+  @Override
+  public void testInitializeWithWorkingDirectory() {}
+
+  @Override
+  public void testIOExceptionIsThrowAfterClose() {}
+
+  @Override
+  public void testFileSystemIsRemovedFromCacheOnClose() {}
+
+  @Override
+  public void testConfigurablePermissions() {}
+
+  @Override
+  public void testFileStatusUser() {}
+
+  @Override
+  public void testCrc32cFileChecksum() {}
+
+  @Override
+  public void testMd5FileChecksum() {}
 }

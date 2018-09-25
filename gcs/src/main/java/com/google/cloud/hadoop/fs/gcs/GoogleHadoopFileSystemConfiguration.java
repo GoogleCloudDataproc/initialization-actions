@@ -19,6 +19,7 @@ package com.google.cloud.hadoop.fs.gcs;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.PATH_CODEC_USE_LEGACY_ENCODING;
 import static com.google.common.base.Strings.nullToEmpty;
 
+import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.GcsFileChecksumType;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.OutputStreamType;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
@@ -177,6 +178,15 @@ public class GoogleHadoopFileSystemConfiguration {
       GCS_REQUESTER_PAYS_BUCKETS =
           new GoogleHadoopFileSystemConfigurationProperty<>(
               "fs.gs.requester.pays.buckets", ImmutableList.of());
+
+  /**
+   * Configuration key for which type of FileChecksum to return; if a particular file doesn't
+   * support the requested type, then getFileChecksum() will return null for that file.
+   */
+  public static final GoogleHadoopFileSystemConfigurationProperty<GcsFileChecksumType>
+      GCS_FILE_CHECKSUM_TYPE =
+          new GoogleHadoopFileSystemConfigurationProperty<>(
+              "fs.gs.checksum.type", GcsFileChecksumType.NONE);
 
   /**
    * Configuration key for setting 250GB upper limit on file size to gain higher write throughput.

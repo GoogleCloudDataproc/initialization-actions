@@ -1,5 +1,13 @@
 1.9.8 - 2018-XX-XX
 
+  1. Expose `FileChecksum` in `GoogleHadoopFileSystem` via property:
+
+       fs.gs.checksum.type (default: NONE)
+
+     Valid property values: `NONE`, `CRC32C`, `MD5`.
+
+     CRC32c checksum is compatible with HDFS-13056.
+
 
 1.9.7 - 2018-09-20
 

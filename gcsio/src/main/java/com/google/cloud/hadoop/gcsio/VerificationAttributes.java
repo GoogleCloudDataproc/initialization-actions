@@ -17,34 +17,25 @@
 package com.google.cloud.hadoop.gcsio;
 
 import java.util.Arrays;
-
 import javax.annotation.Nullable;
 
-/**
- * GCS provided validation attributes for a single object.
- */
+/** GCS provided validation attributes for a single object. */
 public class VerificationAttributes {
   private final byte[] md5hash;
   private final byte[] crc32c;
 
-  public VerificationAttributes(
-      @Nullable byte[] md5hash,
-      @Nullable byte[] crc32c) {
+  public VerificationAttributes(@Nullable byte[] md5hash, @Nullable byte[] crc32c) {
     this.md5hash = md5hash;
     this.crc32c = crc32c;
   }
 
-  /**
-   * MD5 hash of an object, if available.
-   */
+  /** MD5 hash of an object, if available. */
   @Nullable
   public byte[] getMd5hash() {
     return md5hash;
   }
 
-  /**
-   * CRC32c checksum of an object, if available.
-   */
+  /** CRC32c checksum of an object, if available. */
   @Nullable
   public byte[] getCrc32c() {
     return crc32c;
@@ -55,7 +46,7 @@ public class VerificationAttributes {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof VerificationAttributes)) {
       return false;
     }
 

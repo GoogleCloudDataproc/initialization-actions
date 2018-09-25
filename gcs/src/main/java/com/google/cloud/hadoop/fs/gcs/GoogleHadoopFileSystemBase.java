@@ -17,6 +17,7 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CREATE_SYSTEM_BUCKET;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_FILE_CHECKSUM_TYPE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_FLAT_GLOB_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_TYPE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_ENABLE;
@@ -27,6 +28,7 @@ import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_WORKING_DIRECTORY;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PATH_CODEC;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PERMISSIONS_TO_REPORT;
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.flogger.LazyArgs.lazy;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -56,6 +58,8 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.flogger.GoogleLogger;
+import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -70,6 +74,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -123,6 +128,32 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     SYNCABLE_COMPOSITE
   }
 
+  /**
+   * Available GCS checksum types for use with {@link
+   * GoogleHadoopFileSystemConfiguration#GCS_FILE_CHECKSUM_TYPE}.
+   */
+  public static enum GcsFileChecksumType {
+    NONE(null, 0),
+    CRC32C("COMPOSITE-CRC32C", 4),
+    MD5("MD5", 16);
+
+    private final String algorithmName;
+    private final int byteLength;
+
+    GcsFileChecksumType(String algorithmName, int byteLength) {
+      this.algorithmName = algorithmName;
+      this.byteLength = byteLength;
+    }
+
+    public String getAlgorithmName() {
+      return algorithmName;
+    }
+
+    public int getByteLength() {
+      return byteLength;
+    }
+  }
+
   /** Use new URI_ENCODED_PATH_CODEC. */
   public static final String PATH_CODEC_USE_URI_ENCODING = "uri-path";
   /** Use LEGACY_PATH_CODEC. */
@@ -173,6 +204,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * initial Configuration.
    */
   private boolean enableFlatGlob = GCS_FLAT_GLOB_ENABLE.getDefault();
+
+  private GcsFileChecksumType checksumType = GCS_FILE_CHECKSUM_TYPE.getDefault();
 
   /** The URI the File System is passed in initialize. */
   protected URI initUri;
@@ -283,6 +316,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     CREATE_TIME,
     DELETE,
     DELETE_TIME,
+    GET_FILE_CHECKSUM,
+    GET_FILE_CHECKSUM_TIME,
     GET_FILE_STATUS,
     GET_FILE_STATUS_TIME,
     INIT,
@@ -329,6 +364,54 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    */
   private static final ImmutableSet<Counter> ALL_COUNTERS =
       Sets.immutableEnumSet(EnumSet.allOf(Counter.class));
+
+  /**
+   * GCS {@link FileChecksum} which takes constructor parameters to define the return values of the
+   * various abstract methods of {@link FileChecksum}.
+   */
+  private static class GcsFileChecksum extends FileChecksum {
+    private final GcsFileChecksumType checksumType;
+    private final byte[] bytes;
+
+    public GcsFileChecksum(GcsFileChecksumType checksumType, byte[] bytes) {
+      this.checksumType = checksumType;
+      this.bytes = bytes;
+      checkState(
+          bytes == null || bytes.length == checksumType.getByteLength(),
+          "Checksum value length (%s) should be equal to the algorithm byte length (%s)",
+          checksumType.getByteLength(), bytes.length);
+    }
+
+    @Override
+    public String getAlgorithmName() {
+      return checksumType.getAlgorithmName();
+    }
+
+    @Override
+    public int getLength() {
+      return checksumType.getByteLength();
+    }
+
+    @Override
+    public byte[] getBytes() {
+      return bytes;
+    }
+
+    @Override
+    public void readFields(DataInput in) throws IOException {
+      in.readFully(bytes);
+    }
+
+    @Override
+    public void write(DataOutput out) throws IOException {
+      out.write(bytes);
+    }
+
+    @Override
+    public String toString() {
+      return getAlgorithmName() + ": " + (bytes == null ? null : new String(Hex.encodeHex(bytes)));
+    }
+  }
 
   /**
    * A predicate that processes individual directory paths and evaluates the conditions set in
@@ -471,7 +554,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
     URI uri = qualifiedPath.toUri();
 
-    Preconditions.checkState(
+    checkState(
         "".equals(uri.getPath()) || qualifiedPath.isAbsolute(),
         "Path '%s' must be fully qualified.",
         qualifiedPath);
@@ -952,9 +1035,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     FileInfo fileInfo = gcsfs.getFileInfo(gcsPath);
     if (!fileInfo.exists()) {
       logger.atFine().log("GHFS.getFileStatus: not found: %s", gcsPath);
-      String msg = fileInfo.isDirectory() ? "Directory not found : " : "File not found : ";
-      msg += hadoopPath.toString();
-      throw new FileNotFoundException(msg);
+      throw new FileNotFoundException(
+          (fileInfo.isDirectory() ? "Directory not found : " : "File not found : ") + hadoopPath);
     }
     String userName = getUgiUserName();
     FileStatus status = getFileStatus(fileInfo, userName);
@@ -1406,6 +1488,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       }
 
       enableFlatGlob = GCS_FLAT_GLOB_ENABLE.get(config, config::getBoolean);
+      checksumType = GCS_FILE_CHECKSUM_TYPE.get(config, config::getEnum);
 
       GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
           GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config);
@@ -1638,12 +1721,41 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   }
 
   @Override
-  public FileChecksum getFileChecksum(Path f)
+  public FileChecksum getFileChecksum(Path hadoopPath) throws IOException {
+    long startTime = System.nanoTime();
+    Preconditions.checkArgument(hadoopPath != null, "hadoopPath must not be null");
+
+    checkOpen();
+
+    URI gcsPath = getGcsPath(hadoopPath);
+    final FileInfo fileInfo = gcsfs.getFileInfo(gcsPath);
+    if (!fileInfo.exists()) {
+      logger.atFine().log("GHFS.getFileStatus: not found: %s", gcsPath);
+      throw new FileNotFoundException(
+          (fileInfo.isDirectory() ? "Directory not found : " : "File not found : ") + hadoopPath);
+    }
+    FileChecksum checksum = getFileChecksum(checksumType, fileInfo);
+    logger.atFine().log("GHFS.getFileChecksum:=> %s", checksum);
+
+    long duration = System.nanoTime() - startTime;
+    increment(Counter.GET_FILE_CHECKSUM);
+    increment(Counter.GET_FILE_CHECKSUM_TIME, duration);
+    return checksum;
+  }
+
+  private static FileChecksum getFileChecksum(GcsFileChecksumType type, FileInfo fileInfo)
       throws IOException {
-    logger.atFine().log("GHFS.getFileChecksum:");
-    FileChecksum result = super.getFileChecksum(f);
-    logger.atFine().log("GHFS.getFileChecksum:=> %s", result);
-    return result;
+    switch (type) {
+      case NONE:
+        return null;
+      case CRC32C:
+        return new GcsFileChecksum(
+            type, fileInfo.getItemInfo().getVerificationAttributes().getCrc32c());
+      case MD5:
+        return new GcsFileChecksum(
+            type, fileInfo.getItemInfo().getVerificationAttributes().getMd5hash());
+    }
+    throw new IOException("Unrecognized GcsFileChecksumType: " + type);
   }
 
   @Override

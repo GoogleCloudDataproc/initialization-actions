@@ -16,14 +16,18 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 
+import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.GcsFileChecksumType;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
+import com.google.common.hash.Hashing;
+import com.google.common.primitives.Ints;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -32,8 +36,10 @@ import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileChecksum;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -600,14 +606,46 @@ public class GoogleHadoopFileSystemIntegrationTest
     ghfsHelper.writeFile(filePath, "foo", 1, true);
 
     FileStatus status =
-    ugi.doAs(new PrivilegedExceptionAction<FileStatus>() {
-      @Override
-      public FileStatus run() throws IOException, InterruptedException {
-        return myGhfs.getFileStatus(filePath);
-      }
-    });
+        ugi.doAs((PrivilegedExceptionAction<FileStatus>) () -> myGhfs.getFileStatus(filePath));
+
     assertThat(status.getOwner()).isEqualTo(ugiUser);
     assertThat(status.getGroup()).isEqualTo(ugiUser);
+
+    // Cleanup.
+    assertThat(ghfs.delete(filePath, true)).isTrue();
+  }
+
+  @Test
+  public void testCrc32cFileChecksum() throws Exception {
+    testFileChecksum(
+        GcsFileChecksumType.CRC32C,
+        content -> Ints.toByteArray(Hashing.crc32c().hashString(content, UTF_8).asInt()));
+  }
+
+  @Test
+  public void testMd5FileChecksum() throws Exception {
+    testFileChecksum(
+        GcsFileChecksumType.MD5, content -> Hashing.md5().hashString(content, UTF_8).asBytes());
+  }
+
+  private void testFileChecksum(
+      GcsFileChecksumType checksumType, Function<String, byte[]> checksumFn) throws Exception {
+    Configuration config = getConfigurationWtihImplementation();
+    config.set("fs.gs.checksum.type", checksumType.name());
+
+    GoogleHadoopFileSystem myGhfs = new GoogleHadoopFileSystem();
+    myGhfs.initialize(ghfs.getUri(), config);
+
+    URI fileUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
+    Path filePath = ghfsHelper.castAsHadoopPath(fileUri);
+    String fileContent = "foo-testFileChecksum-" + checksumType;
+    ghfsHelper.writeFile(filePath, fileContent, 1, true);
+
+    FileChecksum fileChecksum = myGhfs.getFileChecksum(filePath);
+
+    assertThat(fileChecksum.getAlgorithmName()).isEqualTo(checksumType.getAlgorithmName());
+    assertThat(fileChecksum.getLength()).isEqualTo(checksumType.getByteLength());
+    assertThat(fileChecksum.getBytes()).isEqualTo(checksumFn.apply(fileContent));
 
     // Cleanup.
     assertThat(ghfs.delete(filePath, true)).isTrue();
