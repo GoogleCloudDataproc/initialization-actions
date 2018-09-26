@@ -402,6 +402,12 @@ EOF
 )
     set_property_core_site 'hadoop.security.auth_to_local' "${auth_to_local_rules}"
   fi
+
+  set_property_core_site 'hadoop.http.authentication.simple.anonymous.allowed' 'false'
+  set_property_core_site 'hadoop.http.authentication.type' 'kerberos'
+  set_property_core_site 'hadoop.http.authentication.kerberos.keytab' "${HADOOP_CONF_DIR}/http.keytab"
+  set_property_core_site 'hadoop.http.authentication.kerberos.principal' "HTTP/_HOST@${REALM}"
+  set_property_core_site 'hadoop.http.filter.initializers' 'org.apache.hadoop.security.AuthenticationFilterInitializer'
 }
 
 function set_property_hdfs_site() {
@@ -493,6 +499,7 @@ function config_mapred_site() {
   fi
 
   set_property_mapred_site 'mapreduce.jobhistory.http.policy' 'HTTPS_ONLY'
+  set_property_mapred_site 'mapreduce.ssl.enabled' 'true'
   set_property_mapred_site 'mapreduce.shuffle.ssl.enabled' 'true'
   set_property_mapred_site 'mapreduce.jobhistory.address' "${MASTER_FQDN}:10020"
   set_property_mapred_site 'mapreduce.jobhistory.webapp.http.address' "${MASTER_FQDN}:19888"
