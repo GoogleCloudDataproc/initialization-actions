@@ -402,12 +402,6 @@ EOF
 )
     set_property_core_site 'hadoop.security.auth_to_local' "${auth_to_local_rules}"
   fi
-
-  set_property_core_site 'hadoop.http.authentication.simple.anonymous.allowed' 'false'
-  set_property_core_site 'hadoop.http.authentication.type' 'kerberos'
-  set_property_core_site 'hadoop.http.authentication.kerberos.keytab' "${HADOOP_CONF_DIR}/http.keytab"
-  set_property_core_site 'hadoop.http.authentication.kerberos.principal' "HTTP/_HOST@${REALM}"
-  set_property_core_site 'hadoop.http.filter.initializers' 'org.apache.hadoop.security.AuthenticationFilterInitializer'
 }
 
 function set_property_hdfs_site() {
