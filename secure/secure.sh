@@ -512,7 +512,8 @@ function copy_or_create_keystore_files() {
       # The validity of the cert is 1800 days.
       keytool -genkeypair -keystore keystore.jks -keyalg RSA -keysize 2048 \
         -storepass "${keystore_password}" -keypass "${keystore_password}" -validity 1800 -alias dataproc-cert \
-        -dname "CN=*.${DOMAIN}, OU=Google Cloud Platform, O=Google, L=Mountain View, S=CA, C=US"
+        -dname "CN=*.${DOMAIN}"
+        #-dname "CN=*.${DOMAIN}, OU=Google Cloud Platform, O=Google, L=Mountain View, S=CA, C=US"
       keytool -export -alias dataproc-cert -storepass "${keystore_password}" -file dataproc.cert -keystore keystore.jks
       keytool -importcert -keystore truststore.jks -alias dataproc-cert -storepass "${keystore_password}" -file dataproc.cert -noprompt
       rm dataproc.cert
@@ -533,7 +534,7 @@ function copy_or_create_keystore_files() {
       done
 
       if [[ "${files_downloaded}" == 0 ]]; then
-        error 'Failed to download keystore and truststore files after 5 minutes. Something went wrong.'
+        error 'Failed to download keystore and truststore files after 5 minutes.'
       fi
     fi
   fi
