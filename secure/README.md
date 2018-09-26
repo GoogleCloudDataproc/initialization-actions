@@ -13,7 +13,7 @@ gcloud dataproc clusters create <CLUSTER_NAME> \
     --scopes cloud-platform \
     --initialization-actions gs://dataproc-initialization-actions/secure/secure.sh \
     --metadata "kms-key-uri=projects/<PROJECT_ID>/locations/global/keyRings/my-key-rings/cryptoKeys/my-key" \
-    --metadata "root-password-uri=gs://<SECRET_BUCKET>/root-password.encrypted" \
+    --metadata "root-password-uri=gs://<SECRET_BUCKET>/root-password.encrypted"
 ```
 The following metadata key-value pairs are the minimally required set to run this script.
 1. Use **kms-key-uri** to specify the URI of the KMS key used to encrypt various password files.
