@@ -493,6 +493,7 @@ function config_mapred_site() {
   fi
 
   set_property_mapred_site 'mapreduce.jobhistory.http.policy' 'HTTPS_ONLY'
+  set_property_mapred_site 'mapreduce.ssl.enabled' 'true'
   set_property_mapred_site 'mapreduce.shuffle.ssl.enabled' 'true'
   set_property_mapred_site 'mapreduce.jobhistory.address' "${MASTER_FQDN}:10020"
   set_property_mapred_site 'mapreduce.jobhistory.webapp.http.address' "${MASTER_FQDN}:19888"
