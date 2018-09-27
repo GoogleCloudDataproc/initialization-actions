@@ -172,11 +172,9 @@ public class FileInfo {
    */
   public String toString() {
     if (exists()) {
-      return String.format("%s: created on: %s",
-          getPath(), (new Date(getCreationTime())).toString());
-    } else {
-      return String.format("%s: exists: no", getPath());
+      return getPath() + ": created on: " + new Date(getCreationTime());
     }
+    return getPath() + ": exists: no";
   }
 
   /**
