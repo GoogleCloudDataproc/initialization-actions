@@ -1,0 +1,8 @@
+triggers:
+  - repos:
+    - GoogleCloudPlatform/dataproc-initialization-actions
+  - only_org_members: true
+plugins:
+  GoogleCloudPlatform/dataproc-initialization-actions:
+  - size
+  - trigger
