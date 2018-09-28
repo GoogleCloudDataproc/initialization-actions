@@ -117,7 +117,6 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
   @Override
   public List<GoogleCloudStorageItemInfo> listObjectInfo(
       String bucketName, String objectNamePrefix, String delimiter) throws IOException {
-
     return this.listObjectInfo(
         bucketName, objectNamePrefix, delimiter, GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
   }
@@ -139,7 +138,6 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
 
       filter(result, bucketName, objectNamePrefix, delimiter);
 
-
       if (maxResults > 0 && result.size() > maxResults) {
         result = result.subList(0, (int) maxResults);
       }
@@ -150,6 +148,22 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
       }
     }
 
+    return result;
+  }
+
+  @Override
+  public ListPage<GoogleCloudStorageItemInfo> listObjectInfoPage(
+      String bucketName, String objectNamePrefix, String delimiter, String pageToken)
+      throws IOException {
+    if (options.isListCachingEnabled()) {
+      return new ListPage<>(listObjectInfo(bucketName, objectNamePrefix, delimiter), null);
+    }
+
+    ListPage<GoogleCloudStorageItemInfo> result =
+        super.listObjectInfoPage(bucketName, objectNamePrefix, delimiter, pageToken);
+    for (GoogleCloudStorageItemInfo item : result.getItems()) {
+      cache.putItem(item);
+    }
     return result;
   }
 

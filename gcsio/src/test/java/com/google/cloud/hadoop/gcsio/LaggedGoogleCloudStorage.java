@@ -17,7 +17,6 @@ package com.google.cloud.hadoop.gcsio;
 import com.google.api.client.util.Clock;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
-
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -128,7 +127,7 @@ public class LaggedGoogleCloudStorage implements GoogleCloudStorage  {
   @Override
   public void createEmptyObject(StorageResourceId resourceId, CreateObjectOptions options)
       throws IOException {
-   delegate.createEmptyObject(resourceId, options);
+    delegate.createEmptyObject(resourceId, options);
   }
 
   @Override
@@ -225,10 +224,10 @@ public class LaggedGoogleCloudStorage implements GoogleCloudStorage  {
   }
 
   @Override
-  public List<GoogleCloudStorageItemInfo> listObjectInfo(String bucketName,
-      String objectNamePrefix, String delimiter) throws IOException {
-    return listObjectInfo(bucketName, objectNamePrefix, delimiter,
-        GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+  public List<GoogleCloudStorageItemInfo> listObjectInfo(
+      String bucketName, String objectNamePrefix, String delimiter) throws IOException {
+    return listObjectInfo(
+        bucketName, objectNamePrefix, delimiter, GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
   }
 
   @Override
@@ -238,12 +237,27 @@ public class LaggedGoogleCloudStorage implements GoogleCloudStorage  {
     // We don't know how many items will be trimmed by listVisibilityCalculator,
     // so we can't limit the number of items returned by our delegate.
     List<GoogleCloudStorageItemInfo> delegatedObjects =
-        delegate.listObjectInfo(bucketName, objectNamePrefix, delimiter,
-            GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+        delegate.listObjectInfo(
+            bucketName, objectNamePrefix, delimiter, GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
 
+    return getVisibleItems(delegatedObjects, maxResults);
+  }
+
+  @Override
+  public ListPage<GoogleCloudStorageItemInfo> listObjectInfoPage(
+      String bucketName, String objectNamePrefix, String delimiter, String pageToken)
+      throws IOException {
+    ListPage<GoogleCloudStorageItemInfo> page =
+        delegate.listObjectInfoPage(bucketName, objectNamePrefix, delimiter, pageToken);
+    List<GoogleCloudStorageItemInfo> visibleItems =
+        getVisibleItems(page.getItems(), GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
+    return new ListPage<>(visibleItems, page.getNextPageToken());
+  }
+
+  private List<GoogleCloudStorageItemInfo> getVisibleItems(
+      List<GoogleCloudStorageItemInfo> infos, long maxResults) {
     List<GoogleCloudStorageItemInfo> result = new ArrayList<>();
-
-    for (GoogleCloudStorageItemInfo info : delegatedObjects) {
+    for (GoogleCloudStorageItemInfo info : infos) {
       if (listVisibilityCalculator.isObjectVisible(clock, info)) {
         result.add(info);
         if (maxResults > 0 && result.size() >= maxResults) {

@@ -16,7 +16,6 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.ListStatusFileNotFoundBehavior;
 import com.google.common.collect.Maps;
@@ -54,9 +53,6 @@ class InMemoryGlobberFileSystem extends FileSystem {
   public static FileSystem createInstance(
       Configuration config, Path workingDirectory, Collection<FileStatus> fileStatuses) {
     checkNotNull(config, "configuration can not be null");
-    checkState(
-        !fileStatuses.isEmpty(),
-        "Cannot construct InMemoryGlobberFileSystem with empty fileStatuses list!");
 
     FileSystem fileSystem = new InMemoryGlobberFileSystem(workingDirectory, fileStatuses);
     fileSystem.setConf(config);

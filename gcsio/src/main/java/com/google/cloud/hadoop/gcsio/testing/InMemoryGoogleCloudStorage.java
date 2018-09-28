@@ -45,11 +45,10 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * InMemoryGoogleCloudStorage overrides the public methods of GoogleCloudStorage by implementing
- * all the equivalent bucket/object semantics with local in-memory storage.
+ * InMemoryGoogleCloudStorage overrides the public methods of GoogleCloudStorage by implementing all
+ * the equivalent bucket/object semantics with local in-memory storage.
  */
-public class InMemoryGoogleCloudStorage
-    implements GoogleCloudStorage {
+public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
 
   // Mapping from bucketName to structs representing a bucket.
   private final Map<String, InMemoryBucketEntry> bucketLookup = new HashMap<>();
@@ -397,6 +396,14 @@ public class InMemoryGoogleCloudStorage
       }
     }
     return new ArrayList<>(uniqueNames);
+  }
+
+  @Override
+  public ListPage<GoogleCloudStorageItemInfo> listObjectInfoPage(
+      String bucketName, String objectNamePrefix, String delimiter, String pageToken)
+      throws IOException {
+    // TODO: implement pagination
+    return new ListPage<>(listObjectInfo(bucketName, objectNamePrefix, delimiter), null);
   }
 
   @Override

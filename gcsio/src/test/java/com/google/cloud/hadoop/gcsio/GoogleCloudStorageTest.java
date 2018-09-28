@@ -2760,6 +2760,7 @@ public class GoogleCloudStorageTest {
     String delimiter = "/";
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.list(eq(BUCKET_NAME))).thenReturn(mockStorageObjectsList);
+    when(mockStorageObjectsList.getPrefix()).thenReturn(objectPrefix);
     when(mockStorageObjectsList.execute())
         .thenReturn(new Objects()
             .setPrefixes(ImmutableList.of(
@@ -2787,6 +2788,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsList).setIncludeTrailingDelimiter(eq(Boolean.FALSE));
     verify(mockStorageObjectsList).setPrefix(eq(objectPrefix));
     verify(mockStorageObjectsList).setPageToken("token0");
+    verify(mockStorageObjectsList).getPrefix();
     verify(mockStorageObjectsList, times(2)).execute();
   }
 
@@ -2802,6 +2804,7 @@ public class GoogleCloudStorageTest {
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.list(eq(BUCKET_NAME)))
         .thenReturn(mockStorageObjectsList);
+    when(mockStorageObjectsList.getPrefix()).thenReturn(objectPrefix);
     when(mockStorageObjectsList.execute())
         .thenReturn(new Objects()
             .setPrefixes(ImmutableList.of(
@@ -2828,6 +2831,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsList).setIncludeTrailingDelimiter(eq(Boolean.FALSE));
     verify(mockStorageObjectsList).setPrefix(eq(objectPrefix));
     verify(mockStorageObjectsList).setPageToken("token0");
+    verify(mockStorageObjectsList).getPrefix();
     verify(mockStorageObjectsList, times(2)).execute();
   }
 
@@ -2846,6 +2850,7 @@ public class GoogleCloudStorageTest {
 
     IOException notFoundException = new IOException("Fake not-found exception");
     IOException unexpectedException = new IOException("Other API exception");
+    when(mockStorageObjectsList.getPrefix()).thenReturn(objectPrefix);
     when(mockStorageObjectsList.execute())
         .thenThrow(notFoundException)
         .thenThrow(unexpectedException);
@@ -2870,6 +2875,8 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsList, times(2)).setDelimiter(eq(delimiter));
     verify(mockStorageObjectsList, times(2)).setIncludeTrailingDelimiter(eq(Boolean.FALSE));
     verify(mockStorageObjectsList, times(2)).setPrefix(eq(objectPrefix));
+    verify(mockStorageObjectsList).getBucket();
+    verify(mockStorageObjectsList).getPrefix();
     verify(mockStorageObjectsList, times(2)).execute();
     verify(mockErrorExtractor, times(2)).itemNotFound(any(IOException.class));
   }
@@ -2904,6 +2911,7 @@ public class GoogleCloudStorageTest {
             .setSize(BigInteger.valueOf(333L))
             .setGeneration(3L)
             .setMetageneration(3L));
+    when(mockStorageObjectsList.getPrefix()).thenReturn(objectPrefix);
     when(mockStorageObjectsList.execute())
         .thenReturn(new Objects()
             .setItems(fakeObjectList)
@@ -2930,6 +2938,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsList).setDelimiter(eq(delimiter));
     verify(mockStorageObjectsList).setIncludeTrailingDelimiter(eq(Boolean.TRUE));
     verify(mockStorageObjectsList).setPrefix(eq(objectPrefix));
+    verify(mockStorageObjectsList).getPrefix();
     verify(mockStorageObjectsList).execute();
   }
 
@@ -2959,6 +2968,7 @@ public class GoogleCloudStorageTest {
 
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.list(eq(BUCKET_NAME))).thenReturn(mockStorageObjectsList);
+    when(mockStorageObjectsList.getPrefix()).thenReturn(objectPrefix);
     when(mockStorageObjectsList.execute())
         .thenReturn(
             new Objects()
@@ -2981,6 +2991,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsList).setDelimiter(eq(delimiter));
     verify(mockStorageObjectsList).setIncludeTrailingDelimiter(eq(Boolean.TRUE));
     verify(mockStorageObjectsList).setPrefix(eq(objectPrefix));
+    verify(mockStorageObjectsList).getPrefix();
     verify(mockStorageObjectsList).execute();
   }
 
@@ -3020,6 +3031,7 @@ public class GoogleCloudStorageTest {
     // Set up the initial list to return three prefixes, two of which don't exist.
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.list(any(String.class))).thenReturn(mockStorageObjectsList);
+    when(mockStorageObjectsList.getPrefix()).thenReturn(objectPrefix);
     when(mockStorageObjectsList.execute())
         .thenReturn(
             new Objects()
@@ -3078,6 +3090,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsList).setDelimiter(eq(delimiter));
     verify(mockStorageObjectsList).setIncludeTrailingDelimiter(eq(Boolean.TRUE));
     verify(mockStorageObjectsList).setPrefix(eq(objectPrefix));
+    verify(mockStorageObjectsList).getPrefix();
     verify(mockStorageObjectsList).execute();
 
     // Auto-repair insert.
@@ -3138,6 +3151,7 @@ public class GoogleCloudStorageTest {
     // Set up the initial list to return three prefixes and one item
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.list(any(String.class))).thenReturn(mockStorageObjectsList);
+    when(mockStorageObjectsList.getPrefix()).thenReturn(objectPrefix);
     when(mockStorageObjectsList.execute())
         .thenReturn(
             new Objects()
@@ -3157,6 +3171,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsList).setDelimiter(eq(delimiter));
     verify(mockStorageObjectsList).setIncludeTrailingDelimiter(eq(Boolean.TRUE));
     verify(mockStorageObjectsList).setPrefix(eq(objectPrefix));
+    verify(mockStorageObjectsList).getPrefix();
     verify(mockStorageObjectsList).execute();
 
     // Check logical contents after all the "verify" calls, otherwise the
@@ -3200,6 +3215,7 @@ public class GoogleCloudStorageTest {
     // two of which don't exist.
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.list(any(String.class))).thenReturn(mockStorageObjectsList);
+    when(mockStorageObjectsList.getPrefix()).thenReturn(objectPrefix);
     when(mockStorageObjectsList.execute())
         .thenReturn(
             new Objects()
@@ -3219,6 +3235,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsList).setDelimiter(eq(delimiter));
     verify(mockStorageObjectsList).setIncludeTrailingDelimiter(eq(Boolean.TRUE));
     verify(mockStorageObjectsList).setPrefix(eq(objectPrefix));
+    verify(mockStorageObjectsList).getPrefix();
     verify(mockStorageObjectsList).execute();
 
     // Check logical contents after all the "verify" calls, otherwise the
@@ -3756,6 +3773,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsList, times(2)).setMaxResults(eq(2L));
     verify(mockStorageObjectsList, times(2)).setDelimiter(eq(GoogleCloudStorage.PATH_DELIMITER));
     verify(mockStorageObjectsList, times(2)).setIncludeTrailingDelimiter(eq(Boolean.FALSE));
+    verify(mockStorageObjectsList, times(2)).getPrefix();
     verify(mockStorageObjectsList, times(2)).execute();
     verify(mockSleeper, times(1)).sleep(
         eq((long) GoogleCloudStorageImpl.BUCKET_EMPTY_WAIT_TIME_MS));
@@ -3790,6 +3808,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsList, retryTimes).setMaxResults(eq(2L));
     verify(mockStorageObjectsList, retryTimes).setDelimiter(eq(GoogleCloudStorage.PATH_DELIMITER));
     verify(mockStorageObjectsList, retryTimes).setIncludeTrailingDelimiter(eq(Boolean.FALSE));
+    verify(mockStorageObjectsList, retryTimes).getPrefix();
     verify(mockStorageObjectsList, retryTimes).execute();
     verify(mockSleeper, retryTimes).sleep(
         eq((long) GoogleCloudStorageImpl.BUCKET_EMPTY_WAIT_TIME_MS));

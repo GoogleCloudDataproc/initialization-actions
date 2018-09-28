@@ -189,6 +189,16 @@ public class ForwardingGoogleCloudStorage implements GoogleCloudStorage {
   }
 
   @Override
+  public ListPage<GoogleCloudStorageItemInfo> listObjectInfoPage(
+      String bucketName, String objectNamePrefix, String delimiter, String pageToken)
+      throws IOException {
+    logger.atFine().log(
+        "%s.listObjectInfoPage(%s, %s, %s, %s)",
+        delegateClassName, bucketName, objectNamePrefix, delimiter, pageToken);
+    return delegate.listObjectInfoPage(bucketName, objectNamePrefix, delimiter, pageToken);
+  }
+
+  @Override
   public GoogleCloudStorageItemInfo getItemInfo(StorageResourceId resourceId) throws IOException {
     logger.atFine().log("%s.getItemInfo(%s)", delegateClassName, resourceId);
     return delegate.getItemInfo(resourceId);

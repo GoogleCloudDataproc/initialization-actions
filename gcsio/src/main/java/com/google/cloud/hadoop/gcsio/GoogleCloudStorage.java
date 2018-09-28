@@ -274,17 +274,16 @@ public interface GoogleCloudStorage {
       throws IOException;
 
   /**
-   * Same name-matching semantics as {@link #listObjectNames} except this method
-   * retrieves the full GoogleCloudStorageFileInfo for each item as well.
-   * <p>
-   * Generally the info is already available from
-   * the same "list()" calls, so the only additional cost is dispatching an extra batch request to
-   * retrieve object metadata for all listed *directories*, since these are originally listed as
-   * String prefixes without attached metadata.
-   * <p>
-   * The default implementation of this method should turn around and call
-   * the version that takes {@code maxResults} so that inheriting classes
-   * need only implement that version.
+   * Same name-matching semantics as {@link #listObjectNames} except this method retrieves the full
+   * GoogleCloudStorageFileInfo for each item as well.
+   *
+   * <p>Generally the info is already available from the same "list()" calls, so the only additional
+   * cost is dispatching an extra batch request to retrieve object metadata for all listed
+   * <b>directories</b>, since these are originally listed as String prefixes without attached
+   * metadata.
+   *
+   * <p>The default implementation of this method should turn around and call the version that takes
+   * {@code maxResults} so that inheriting classes need only implement that version.
    *
    * @param bucketName bucket name
    * @param objectNamePrefix object name prefix or null if all objects in the bucket are desired
@@ -293,29 +292,42 @@ public interface GoogleCloudStorage {
    * @throws IOException on IO error
    */
   List<GoogleCloudStorageItemInfo> listObjectInfo(
-      final String bucketName, String objectNamePrefix, String delimiter)
+      String bucketName, String objectNamePrefix, String delimiter) throws IOException;
+
+  /**
+   * Same name-matching semantics as {@link #listObjectNames} except this method retrieves the full
+   * GoogleCloudStorageFileInfo for each item as well.
+   *
+   * <p>Generally the info is already available from the same "list()" calls, so the only additional
+   * cost is dispatching an extra batch request to retrieve object metadata for all listed
+   * <b>directories</b>, since these are originally listed as String prefixes without attached
+   * metadata.
+   *
+   * @param bucketName bucket name
+   * @param objectNamePrefix object name prefix or null if all objects in the bucket are desired
+   * @param delimiter delimiter to use (typically "/"), otherwise null
+   * @param maxResults maximum number of results to return, unlimited if negative or zero
+   * @return list of object info
+   * @throws IOException on IO error
+   */
+  List<GoogleCloudStorageItemInfo> listObjectInfo(
+      String bucketName, String objectNamePrefix, String delimiter, long maxResults)
       throws IOException;
 
   /**
-   * Same name-matching semantics as {@link #listObjectNames} except this method
-   * retrieves the full GoogleCloudStorageFileInfo for each item as well.
-   * <p>
-   * Generally the info is already available from
-   * the same "list()" calls, so the only additional cost is dispatching an extra batch request to
-   * retrieve object metadata for all listed *directories*, since these are originally listed as
-   * String prefixes without attached metadata.
+   * The same semantics as {@link #listObjectInfo}, but returns only result of single list request
+   * (1 page).
    *
    * @param bucketName bucket name
    * @param objectNamePrefix object name prefix or null if all objects in the bucket are desired
    * @param delimiter delimiter to use (typically "/"), otherwise null
-   * @param maxResults maximum number of results to return,
-   *        unlimited if negative or zero
-   * @return list of object info
+   * @param pageToken the page token
+   * @return {@link ListPage} object with listed {@link GoogleCloudStorageItemInfo}s and next page
+   *     token if any
    * @throws IOException on IO error
    */
-  List<GoogleCloudStorageItemInfo> listObjectInfo(
-      final String bucketName, String objectNamePrefix, String delimiter,
-      long maxResults)
+  ListPage<GoogleCloudStorageItemInfo> listObjectInfoPage(
+      String bucketName, String objectNamePrefix, String delimiter, String pageToken)
       throws IOException;
 
   /**
@@ -391,4 +403,23 @@ public interface GoogleCloudStorage {
   GoogleCloudStorageItemInfo composeObjects(
       List<StorageResourceId> sources, StorageResourceId destination, CreateObjectOptions options)
       throws IOException;
+
+  /** Paged list request response */
+  class ListPage<T> {
+    private final List<T> items;
+    private final String nextPageToken;
+
+    public ListPage(List<T> items, String nextPageToken) {
+      this.items = items;
+      this.nextPageToken = nextPageToken;
+    }
+
+    public List<T> getItems() {
+      return items;
+    }
+
+    public String getNextPageToken() {
+      return nextPageToken;
+    }
+  }
 }
