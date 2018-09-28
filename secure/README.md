@@ -199,6 +199,5 @@ Run the following commands in a PowerShell as Adminstrator:
 The trust password specified by **passwordt** must be the same as the one in the encrypted file specified by the **cross-realm-trust-password-uri** parameter.
 
 ## Important notes
-1. This initialization action does not support Dataproc clusters in HA mode.
-2. Only a root user principal "root@`<REALM>`" will be provided (password specfied by caller). It has administrative permission to the KDC.
-3. Once the cluster is secured ("Kerberized"), submitting a YARN job through gcloud will stop working. You can however still ssh to the master and submit a job.
+1. Only a root user principal "root@`<REALM>`" will be provided (password specfied by caller). It has administrative permission to the KDC.
+2. Once the cluster is secured ("Kerberized"), submitting a YARN job through gcloud will stop working. You can however still ssh to the master and submit a job.
