@@ -1,19 +1,24 @@
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Strings.nullToEmpty;
+
+import com.google.common.base.Joiner;
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.GoogleLogger;
-import java.util.AbstractMap;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 import org.apache.hadoop.conf.Configuration;
 
 /** GHFS configuration property */
 public class GoogleHadoopFileSystemConfigurationProperty<T> {
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+
+  private static final Joiner COMMA_JOINER = Joiner.on(',');
+  private static final Splitter COMMA_SPLITTER = Splitter.on(',');
 
   private final String key;
   private final List<String> deprecatedKeys;
@@ -40,42 +45,39 @@ public class GoogleHadoopFileSystemConfigurationProperty<T> {
   }
 
   T get(Configuration config, BiFunction<String, T, T> getterFn) {
-    Map.Entry<String, String> keyValue = getOrNull(config::get, key, deprecatedKeys);
-    return keyValue == null
-        ? logProperty(key, defaultValue)
-        : logProperty(keyValue.getKey(), getterFn.apply(keyValue.getKey(), defaultValue));
+    String lookupKey = getLookupKey(config, key, deprecatedKeys);
+    return logProperty(lookupKey, getterFn.apply(lookupKey, defaultValue));
   }
 
-  T get(Function<String, T> getterFn) {
-    Map.Entry<String, T> keyValue = getOrNull(getterFn, key, deprecatedKeys);
-    return keyValue == null
-        ? logProperty(key, defaultValue)
-        : logProperty(keyValue.getKey(), keyValue.getValue());
+  Collection<String> getStringCollection(Configuration config) {
+    checkState(
+        defaultValue == null || defaultValue instanceof Collection, "Not a collection property");
+    String lookupKey = getLookupKey(config, key, deprecatedKeys);
+    String valueString =
+        config.get(
+            lookupKey,
+            defaultValue == null ? null : COMMA_JOINER.join((Collection<?>) defaultValue));
+    List<String> value = COMMA_SPLITTER.splitToList(nullToEmpty(valueString));
+    return logProperty(lookupKey, value);
   }
 
-  private static <S> Map.Entry<String, S> getOrNull(
-      Function<String, S> getterFn, String key, List<String> deprecatedKeys) {
-    S value = getterFn.apply(key);
-    if (value != null && isNotEmptyCollection(value)) {
-      return new AbstractMap.SimpleEntry<>(key, value);
+  private static String getLookupKey(
+      Configuration config, String key, List<String> deprecatedKeys) {
+    if (config.get(key) != null) {
+      return key;
     }
     for (String deprecatedKey : deprecatedKeys) {
-      value = getterFn.apply(deprecatedKey);
-      if (value != null && isNotEmptyCollection(value)) {
+      if (config.get(deprecatedKey) != null) {
         logger.atWarning().log(
             "Using deprecated key '%s', use '%s' key instead.", deprecatedKey, key);
-        return new AbstractMap.SimpleEntry<>(deprecatedKey, value);
+        return deprecatedKey;
       }
     }
-    return null;
+    return key;
   }
 
   private static <S> S logProperty(String key, S value) {
     logger.atFine().log("%s = %s", key, value);
     return value;
-  }
-
-  private static <S> boolean isNotEmptyCollection(S value) {
-    return !(value instanceof Collection && ((Collection) value).isEmpty());
   }
 }

@@ -433,8 +433,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     public static ParentTimestampUpdateIncludePredicate create(Configuration config) {
       return new ParentTimestampUpdateIncludePredicate(
           GCS_PARENT_TIMESTAMP_UPDATE_ENABLE.get(config, config::getBoolean),
-          GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES.get(config::getStringCollection),
-          GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES.get(config::getStringCollection));
+          GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES.getStringCollection(config),
+          GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES.getStringCollection(config));
     }
 
     // Include and exclude lists are intended to be small N and checked relatively
@@ -1534,7 +1534,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
           GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config);
 
       PathCodec pathCodec;
-      String specifiedPathCodec = PATH_CODEC.get(config::get).toLowerCase();
+      String specifiedPathCodec = PATH_CODEC.get(config, config::get).toLowerCase();
       switch (specifiedPathCodec) {
         case PATH_CODEC_USE_LEGACY_ENCODING:
           pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
@@ -1558,9 +1558,9 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     }
 
     defaultBlockSize = GoogleHadoopFileSystemConfiguration.BLOCK_SIZE.get(config, config::getLong);
-    reportedPermissions = new FsPermission(PERMISSIONS_TO_REPORT.get(config::get));
+    reportedPermissions = new FsPermission(PERMISSIONS_TO_REPORT.get(config, config::get));
 
-    String systemBucketName = GCS_SYSTEM_BUCKET.get(config::get);
+    String systemBucketName = GCS_SYSTEM_BUCKET.get(config, config::get);
     boolean createSystemBucket = GCS_CREATE_SYSTEM_BUCKET.get(config, config::getBoolean);
     configureBuckets(systemBucketName, createSystemBucket);
 
