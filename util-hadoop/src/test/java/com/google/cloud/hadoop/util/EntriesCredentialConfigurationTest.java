@@ -105,6 +105,8 @@ public class EntriesCredentialConfigurationTest {
         EntriesCredentialConfiguration.ENABLE_NULL_CREDENTIAL_SUFFIX,
         "true");
     conf.set(EntriesCredentialConfiguration.PROXY_ADDRESS_KEY, "foo.bar:1234");
+    conf.set(EntriesCredentialConfiguration.PROXY_USERNAME_KEY, "foo.bar-username");
+    conf.set(EntriesCredentialConfiguration.PROXY_PASSWORD_KEY, "foo.bar-password");
     conf.set(EntriesCredentialConfiguration.HTTP_TRANSPORT_KEY, "APACHE");
 
     CredentialConfiguration credentialConfiguration =
@@ -121,11 +123,13 @@ public class EntriesCredentialConfigurationTest {
     assertThat(credentialConfiguration.isServiceAccountEnabled()).isFalse();
     assertThat(credentialConfiguration.isNullCredentialEnabled()).isTrue();
     assertThat(credentialConfiguration.getProxyAddress()).isEqualTo("foo.bar:1234");
+    assertThat(credentialConfiguration.getProxyUsername()).isEqualTo("foo.bar-username");
+    assertThat(credentialConfiguration.getProxyPassword()).isEqualTo("foo.bar-password");
     assertThat(credentialConfiguration.getTransportType()).isEqualTo(HttpTransportType.APACHE);
   }
 
   @Test
-  public void getConfigurationSetsValuesAsAxpected() {
+  public void getConfigurationSetsValuesAsExpected() {
     List<String> prefixes =
         ImmutableList.of(EntriesCredentialConfiguration.BASE_KEY_PREFIX);
 
@@ -142,6 +146,8 @@ public class EntriesCredentialConfigurationTest {
 
     credentialConfiguration.setServiceAccountKeyFile("aKeyFile");
     credentialConfiguration.setProxyAddress("foo.bar:1234");
+    credentialConfiguration.setProxyUsername("foo.bar-username");
+    credentialConfiguration.setProxyPassword("foo.bar-password");
     credentialConfiguration.setTransportType(HttpTransportType.APACHE);
     credentialConfiguration.getConfigurationInto(conf);
     writtenValue = getConfigurationKey(
@@ -178,6 +184,10 @@ public class EntriesCredentialConfigurationTest {
     assertThat(writtenValue).isEqualTo("true");
     assertThat(conf.get(EntriesCredentialConfiguration.PROXY_ADDRESS_KEY))
         .isEqualTo("foo.bar:1234");
+    assertThat(conf.get(EntriesCredentialConfiguration.PROXY_USERNAME_KEY))
+        .isEqualTo("foo.bar-username");
+    assertThat(conf.get(EntriesCredentialConfiguration.PROXY_PASSWORD_KEY))
+        .isEqualTo("foo.bar-password");
     assertThat(conf.get(EntriesCredentialConfiguration.HTTP_TRANSPORT_KEY)).isEqualTo("APACHE");
   }
 }

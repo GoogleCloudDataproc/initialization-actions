@@ -108,6 +108,24 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
   public static final String PROXY_ADDRESS_DEFAULT = null;
 
   /**
+   * Configuration key for setting a proxy username for the connector to use to authenticate with
+   * proxy used to connect to GCS.
+   */
+  public static final String PROXY_USERNAME_KEY = "fs.gs.proxy.username";
+
+  /** Default to no username. */
+  public static final String PROXY_USERNAME_DEFAULT = null;
+
+  /**
+   * Configuration key for setting a proxy password for the connector to use to authenticate with
+   * proxy used to connect to GCS.
+   */
+  public static final String PROXY_PASSWORD_KEY = "fs.gs.proxy.password";
+
+  /** Default to no password. */
+  public static final String PROXY_PASSWORD_DEFAULT = null;
+
+  /**
    * Configuration key for the name of HttpTransport class to use for connecting to GCS. Must be the
    * name of an HttpTransportFactory.HttpTransportType (APACHE or JAVA_NET).
    */
@@ -117,11 +135,9 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
   public static final HttpTransportFactory.HttpTransportType HTTP_TRANSPORT_DEFAULT =
       HttpTransportFactory.DEFAULT_TRANSPORT_TYPE;
 
-  /**
-   * Builder for constructing CredentialConfiguration instances.
-   */
-  public abstract static class Builder<B extends Builder<B, T>,
-                                       T extends EntriesCredentialConfiguration> {
+  /** Builder for constructing CredentialConfiguration instances. */
+  public abstract static class Builder<
+      B extends Builder<B, T>, T extends EntriesCredentialConfiguration> {
     protected List<String> prefixes = new ArrayList<>();
     private Entries configuration;
     private CredentialFactory credentialFactory = new CredentialFactory();
@@ -245,9 +261,16 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
       }
       configuration.setBoolean(prefix + ENABLE_NULL_CREDENTIAL_SUFFIX, isNullCredentialEnabled());
     }
+
     // Transport configuration does not use prefixes
     if (getProxyAddress() != null) {
       configuration.set(PROXY_ADDRESS_KEY, getProxyAddress());
+    }
+    if (getProxyUsername() != null) {
+      configuration.set(PROXY_USERNAME_KEY, getProxyUsername());
+    }
+    if (getProxyPassword() != null) {
+      configuration.set(PROXY_PASSWORD_KEY, getProxyPassword());
     }
     configuration.set(HTTP_TRANSPORT_KEY, getTransportType().name());
   }
@@ -319,6 +342,14 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
     String proxyAddress = entries.get(PROXY_ADDRESS_KEY);
     if (proxyAddress != null) {
       setProxyAddress(proxyAddress);
+    }
+    String proxyUsername = entries.get(PROXY_USERNAME_KEY);
+    if (proxyUsername != null) {
+      setProxyUsername(proxyUsername);
+    }
+    String proxyPassword = entries.get(PROXY_PASSWORD_KEY);
+    if (proxyPassword != null) {
+      setProxyPassword(proxyPassword);
     }
 
     String transportType = entries.get(HTTP_TRANSPORT_KEY);

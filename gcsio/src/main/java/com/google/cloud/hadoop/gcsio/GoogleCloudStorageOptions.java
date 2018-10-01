@@ -141,6 +141,12 @@ public abstract class GoogleCloudStorageOptions {
   @Nullable
   public abstract String getProxyAddress();
 
+  @Nullable
+  public abstract String getProxyUsername();
+
+  @Nullable
+  public abstract String getProxyPassword();
+
   public abstract boolean isCopyWithRewriteEnabled();
 
   public abstract long getMaxBytesRewrittenPerCall();
@@ -197,6 +203,10 @@ public abstract class GoogleCloudStorageOptions {
 
     public abstract Builder setProxyAddress(String proxyAddress);
 
+    public abstract Builder setProxyUsername(String proxyUsername);
+
+    public abstract Builder setProxyPassword(String proxyPassword);
+
     public abstract Builder setCopyWithRewriteEnabled(boolean copyWithRewrite);
 
     public abstract Builder setMaxBytesRewrittenPerCall(long bytes);
@@ -240,6 +250,13 @@ public abstract class GoogleCloudStorageOptions {
               || instance.getMaxBytesRewrittenPerCall() % (1024 * 1024) == 0,
           "maxBytesRewrittenPerCall must be an integral multiple of 1 MiB (1048576), but was: %s",
           instance.getMaxBytesRewrittenPerCall());
+      checkArgument(
+          instance.getProxyAddress() != null
+              || (instance.getProxyUsername() == null && instance.getProxyPassword() == null),
+          "if proxyAddress is null then proxyUsername and proxyPassword should be null too");
+      checkArgument(
+          (instance.getProxyUsername() == null) == (instance.getProxyPassword() == null),
+          "both proxyUsername and proxyPassword should be null or not null together");
       return instance;
     }
   }

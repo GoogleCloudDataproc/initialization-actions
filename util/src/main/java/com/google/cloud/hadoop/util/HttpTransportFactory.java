@@ -14,6 +14,8 @@
 
 package com.google.cloud.hadoop.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.api.client.googleapis.GoogleUtils;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.apache.ApacheHttpTransport;
@@ -21,7 +23,9 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import java.io.IOException;
+import java.net.Authenticator;
 import java.net.InetSocketAddress;
+import java.net.PasswordAuthentication;
 import java.net.Proxy;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -29,6 +33,10 @@ import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import javax.annotation.Nullable;
 import org.apache.http.HttpHost;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.Credentials;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.impl.client.DefaultHttpClient;
 
 /**
  * Factory for creating HttpTransport types.
@@ -82,22 +90,50 @@ public class HttpTransportFactory {
    */
   public static HttpTransport createHttpTransport(
       HttpTransportType type, @Nullable String proxyAddress) throws IOException {
+    return createHttpTransport(type, proxyAddress, null, null);
+  }
+
+  /**
+   * Create an {@link HttpTransport} based on an type class and an optional HTTP proxy.
+   *
+   * @param type The type of HttpTransport to use.
+   * @param proxyAddress The HTTP proxy to use with the transport. Of the form hostname:port. If
+   *     empty no proxy will be used.
+   * @param proxyUsername The HTTP proxy username to use with the transport. If empty no proxy
+   *     username will be used.
+   * @param proxyPassword The HTTP proxy password to use with the transport. If empty no proxy
+   *     password will be used.
+   * @return The resulting HttpTransport.
+   * @throws IllegalArgumentException If the proxy address is invalid.
+   * @throws IOException If there is an issue connecting to Google's Certification server.
+   */
+  public static HttpTransport createHttpTransport(
+      HttpTransportType type,
+      @Nullable String proxyAddress,
+      @Nullable String proxyUsername,
+      @Nullable String proxyPassword)
+      throws IOException {
+    checkArgument(
+        proxyAddress != null || (proxyUsername == null && proxyPassword == null),
+        "if proxyAddress is null then proxyUsername and proxyPassword should be null too");
+    checkArgument(
+        (proxyUsername == null) == (proxyPassword == null),
+        "both proxyUsername and proxyPassword should be null or not null together");
+    URI proxyUri = parseProxyAddress(proxyAddress);
     try {
-      URI proxyUri = parseProxyAddress(proxyAddress);
       switch (type) {
         case APACHE:
-          HttpHost proxyHost = null;
-          if (proxyUri != null) {
-            proxyHost = new HttpHost(proxyUri.getHost(), proxyUri.getPort());
-          }
-          return createApacheHttpTransport(proxyHost);
+          Credentials proxyCredentials =
+              proxyUsername != null
+                  ? new UsernamePasswordCredentials(proxyUsername, proxyPassword)
+                  : null;
+          return createApacheHttpTransport(proxyUri, proxyCredentials);
         case JAVA_NET:
-          Proxy proxy = null;
-          if (proxyUri != null) {
-            proxy = new Proxy(
-                Proxy.Type.HTTP, new InetSocketAddress(proxyUri.getHost(), proxyUri.getPort()));
-          }
-          return createNetHttpTransport(proxy);
+          PasswordAuthentication proxyAuth =
+              proxyUsername != null
+                  ? new PasswordAuthentication(proxyUsername, proxyPassword.toCharArray())
+                  : null;
+          return createNetHttpTransport(proxyUri, proxyAuth);
         default:
           throw new IllegalArgumentException(
               String.format("Invalid HttpTransport type '%s'", type.name()));
@@ -114,13 +150,46 @@ public class HttpTransportFactory {
    * @return The resulting HttpTransport.
    * @throws IOException If there is an issue connecting to Google's certification server.
    * @throws GeneralSecurityException If there is a security issue with the keystore.
+   * @deprecated use {@link #createApacheHttpTransport(URI, Credentials)}
    */
+  @Deprecated
   public static ApacheHttpTransport createApacheHttpTransport(@Nullable HttpHost proxy)
       throws IOException, GeneralSecurityException {
-    ApacheHttpTransport.Builder builder = new ApacheHttpTransport.Builder();
-    builder.trustCertificates(GoogleUtils.getCertificateTrustStore());
-    builder.setProxy(proxy);
-    return builder.build();
+    return createApacheHttpTransport(
+        proxy == null ? null : URI.create(proxy.toURI()), /* proxyCredentials= */ null);
+  }
+
+  /**
+   * Create an {@link ApacheHttpTransport} for calling Google APIs with an optional HTTP proxy.
+   *
+   * @param proxyUri Optional HTTP proxy URI to use with the transport.
+   * @param proxyCredentials Optional HTTP proxy credentials to authenticate with the transport
+   *     proxy.
+   * @return The resulting HttpTransport.
+   * @throws IOException If there is an issue connecting to Google's certification server.
+   * @throws GeneralSecurityException If there is a security issue with the keystore.
+   */
+  public static ApacheHttpTransport createApacheHttpTransport(
+      @Nullable URI proxyUri, @Nullable Credentials proxyCredentials)
+      throws IOException, GeneralSecurityException {
+    checkArgument(
+        proxyUri != null || proxyCredentials == null,
+        "if proxyUri is null than proxyCredentials should be null too");
+
+    ApacheHttpTransport transport =
+        new ApacheHttpTransport.Builder()
+            .trustCertificates(GoogleUtils.getCertificateTrustStore())
+            .setProxy(
+                proxyUri == null ? null : new HttpHost(proxyUri.getHost(), proxyUri.getPort()))
+            .build();
+
+    if (proxyCredentials != null) {
+      ((DefaultHttpClient) transport.getHttpClient())
+          .getCredentialsProvider()
+          .setCredentials(new AuthScope(proxyUri.getHost(), proxyUri.getPort()), proxyCredentials);
+    }
+
+    return transport;
   }
 
   /**
@@ -130,13 +199,55 @@ public class HttpTransportFactory {
    * @return The resulting HttpTransport.
    * @throws IOException If there is an issue connecting to Google's certification server.
    * @throws GeneralSecurityException If there is a security issue with the keystore.
+   * @deprecated use {@link #createNetHttpTransport(URI, PasswordAuthentication)}
    */
+  @Deprecated
   public static NetHttpTransport createNetHttpTransport(@Nullable Proxy proxy)
       throws IOException, GeneralSecurityException {
-    NetHttpTransport.Builder builder = new NetHttpTransport.Builder();
-    builder.trustCertificates(GoogleUtils.getCertificateTrustStore());
-    builder.setProxy(proxy);
-    return builder.build();
+    return createNetHttpTransport(
+        proxy == null ? null : parseProxyAddress(proxy.address().toString()),
+        /* proxyAuth= */ null);
+  }
+
+  /**
+   * Create an {@link NetHttpTransport} for calling Google APIs with an optional HTTP proxy.
+   *
+   * @param proxyUri Optional HTTP proxy URI to use with the transport.
+   * @param proxyAuth Optional HTTP proxy credentials to authenticate with the transport proxy.
+   * @return The resulting HttpTransport.
+   * @throws IOException If there is an issue connecting to Google's certification server.
+   * @throws GeneralSecurityException If there is a security issue with the keystore.
+   */
+  public static NetHttpTransport createNetHttpTransport(
+      @Nullable URI proxyUri, @Nullable PasswordAuthentication proxyAuth)
+      throws IOException, GeneralSecurityException {
+    checkArgument(
+        proxyUri != null || proxyAuth == null,
+        "if proxyUri is null than proxyAuth should be null too");
+
+    if (proxyAuth != null) {
+      Authenticator.setDefault(
+          new Authenticator() {
+            @Override
+            protected PasswordAuthentication getPasswordAuthentication() {
+              if (getRequestorType() == RequestorType.PROXY
+                  && getRequestingHost().equalsIgnoreCase(proxyUri.getHost())
+                  && getRequestingPort() == proxyUri.getPort()) {
+                return proxyAuth;
+              }
+              return null;
+            }
+          });
+    }
+
+    return new NetHttpTransport.Builder()
+        .trustCertificates(GoogleUtils.getCertificateTrustStore())
+        .setProxy(
+            proxyUri == null
+                ? null
+                : new Proxy(
+                    Proxy.Type.HTTP, new InetSocketAddress(proxyUri.getHost(), proxyUri.getPort())))
+        .build();
   }
 
   /**
@@ -144,7 +255,7 @@ public class HttpTransportFactory {
    * com.google.api.client.googleapis.javanet.GoogleNetHttpTransport#newTrustedTransport()}.
    */
   public static HttpTransport newTrustedTransport() throws GeneralSecurityException, IOException {
-    return createNetHttpTransport(null);
+    return createNetHttpTransport(null, null);
   }
 
   /**
@@ -158,29 +269,20 @@ public class HttpTransportFactory {
     if (Strings.isNullOrEmpty(proxyAddress)) {
       return null;
     }
-    String uriString = proxyAddress;
-    if (!uriString.contains("//")) {
-      uriString = "//" + uriString;
-    }
+    String uriString = (proxyAddress.contains("//") ? "" : "//") + proxyAddress;
     try {
       URI uri = new URI(uriString);
       String scheme = uri.getScheme();
       String host = uri.getHost();
       int port = uri.getPort();
-      if (!Strings.isNullOrEmpty(scheme) && !scheme.matches("https?")) {
-        throw new IllegalArgumentException(
-            String.format(
-                "HTTP proxy address '%s' has invalid scheme '%s'.", proxyAddress, scheme));
-      } else if (Strings.isNullOrEmpty(host)) {
-        throw new IllegalArgumentException(
-            String.format("Proxy address '%s' has no host.", proxyAddress));
-      } else if (port == -1) {
-        throw new IllegalArgumentException(
-            String.format("Proxy address '%s' has no port.", proxyAddress));
-      } else if (!uri.equals(new URI(scheme, null, host, port, null, null, null))) {
-        throw new IllegalArgumentException(
-            String.format("Invalid proxy address '%s'.", proxyAddress));
-      }
+      checkArgument(
+          Strings.isNullOrEmpty(scheme) || scheme.matches("https?"),
+          "HTTP proxy address '%s' has invalid scheme '%s'.", proxyAddress, scheme);
+      checkArgument(!Strings.isNullOrEmpty(host), "Proxy address '%s' has no host.", proxyAddress);
+      checkArgument(port != -1, "Proxy address '%s' has no port.", proxyAddress);
+      checkArgument(
+          uri.equals(new URI(scheme, null, host, port, null, null, null)),
+          "Invalid proxy address '%s'.", proxyAddress);
       return uri;
     } catch (URISyntaxException e) {
       throw new IllegalArgumentException(

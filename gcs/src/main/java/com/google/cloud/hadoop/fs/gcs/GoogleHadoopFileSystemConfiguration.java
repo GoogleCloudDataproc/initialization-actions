@@ -380,6 +380,24 @@ public class GoogleHadoopFileSystemConfiguration {
           EntriesCredentialConfiguration.PROXY_ADDRESS_DEFAULT);
 
   /**
+   * Configuration key for setting a proxy username for the connector to use to authenticate with
+   * proxy used to connect to GCS.
+   */
+  public static final GoogleHadoopFileSystemConfigurationProperty<String> GCS_PROXY_USERNAME =
+      new GoogleHadoopFileSystemConfigurationProperty<>(
+          EntriesCredentialConfiguration.PROXY_USERNAME_KEY,
+          EntriesCredentialConfiguration.PROXY_USERNAME_DEFAULT);
+
+  /**
+   * Configuration key for setting a proxy password for the connector to use to authenticate with
+   * proxy used to connect to GCS.
+   */
+  public static final GoogleHadoopFileSystemConfigurationProperty<String> GCS_PROXY_PASSWORD =
+      new GoogleHadoopFileSystemConfigurationProperty<>(
+          EntriesCredentialConfiguration.PROXY_PASSWORD_KEY,
+          EntriesCredentialConfiguration.PROXY_PASSWORD_DEFAULT);
+
+  /**
    * Configuration key for the name of HttpTransport class to use for connecting to GCS. Must be the
    * name of an HttpTransportFactory.HttpTransportType (APACHE or JAVA_NET).
    */
@@ -520,6 +538,8 @@ public class GoogleHadoopFileSystemConfiguration {
         .setCopyBatchThreads(GCS_COPY_BATCH_THREADS.get(config, config::getInt))
         .setTransportType(GCS_HTTP_TRANSPORT.get(config, config::getEnum))
         .setProxyAddress(GCS_PROXY_ADDRESS.get(config::get))
+        .setProxyUsername(GCS_PROXY_USERNAME.get(config::get))
+        .setProxyPassword(GCS_PROXY_PASSWORD.get(config::get))
         .setProjectId(projectId)
         .setMaxListItemsPerCall(GCS_MAX_LIST_ITEMS_PER_CALL.get(config, config::getLong))
         .setMaxRequestsPerBatch(GCS_MAX_REQUESTS_PER_BATCH.get(config, config::getLong))

@@ -52,6 +52,8 @@ public class CredentialConfiguration {
   private CredentialFactory credentialFactory = new CredentialFactory();
   private HttpTransportType transportType = HttpTransportType.JAVA_NET;
   private String proxyAddress = null;
+  private String proxyUsername = null;
+  private String proxyPassword = null;
   private HttpTransport transport;
 
   /**
@@ -265,6 +267,22 @@ public class CredentialConfiguration {
     this.proxyAddress = proxyAddress;
   }
 
+  public String getProxyUsername() {
+    return proxyUsername;
+  }
+
+  public void setProxyUsername(String proxyUsername) {
+    this.proxyUsername = proxyUsername;
+  }
+
+  public String getProxyPassword() {
+    return proxyPassword;
+  }
+
+  public void setProxyPassword(String proxyPassword) {
+    this.proxyPassword = proxyPassword;
+  }
+
   @VisibleForTesting
   void setCredentialFactory(CredentialFactory factory) {
     this.credentialFactory = factory;
@@ -272,7 +290,7 @@ public class CredentialConfiguration {
 
   @Override
   public String toString() {
-    return "CredentialConfiguration{"
+    return "CredentialConfiguration{\n"
         + ("serviceAccountEnabled: " + isServiceAccountEnabled() + '\n')
         + ("serviceAccountPrivateKeyId: "
             + (isNullOrEmpty(getServiceAccountPrivateKeyId())
@@ -294,13 +312,19 @@ public class CredentialConfiguration {
         + ("oAuthCredentialFile: " + getOAuthCredentialFile() + '\n')
         + ("isNullCredentialEnabled: " + isNullCredentialEnabled() + '\n')
         + ("transportType: " + getTransportType() + '\n')
-        + ("proxyAddress: " + getProxyAddress())
+        + ("proxyAddress: " + getProxyAddress() + '\n')
+        + ("proxyUsername: " + getProxyUsername() + '\n')
+        + ("proxyPassword: "
+            + (isNullOrEmpty(getProxyPassword()) ? "Not Provided" : "Provided, but not displayed")
+            + '\n')
         + "}";
   }
 
   private HttpTransport getTransport() throws IOException {
     if (transport == null) {
-      transport = HttpTransportFactory.createHttpTransport(getTransportType(), getProxyAddress());
+      transport =
+          HttpTransportFactory.createHttpTransport(
+              getTransportType(), getProxyAddress(), getProxyUsername(), getProxyPassword());
     }
     return transport;
   }

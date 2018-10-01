@@ -8,6 +8,14 @@
 
      CRC32c checksum is compatible with HDFS-13056.
 
+  2. Add support for proxy authentication for both `APACHE` and `JAVA_NET`
+     `HttpTransport` options.
+
+     Proxy authentication is configurable with properties:
+
+        fs.gs.proxy.username (default: null)
+        fs.gs.proxy.password (default: null)
+
 
 1.9.7 - 2018-09-20
 

@@ -238,8 +238,12 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
             options.getHttpRequestConnectTimeout(),
             options.getHttpRequestReadTimeout());
 
-    HttpTransport httpTransport = HttpTransportFactory.createHttpTransport(
-        options.getTransportType(), options.getProxyAddress());
+    HttpTransport httpTransport =
+        HttpTransportFactory.createHttpTransport(
+            options.getTransportType(),
+            options.getProxyAddress(),
+            options.getProxyUsername(),
+            options.getProxyPassword());
 
     // Create GCS instance.
     this.gcs = new Storage.Builder(
@@ -1776,8 +1780,8 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
             storageOptions.getBatchThreads());
 
     for (UpdatableItemInfo itemInfo : itemInfoList) {
-      Preconditions.checkArgument(!itemInfo.getStorageResourceId().isBucket()
-          && !itemInfo.getStorageResourceId().isRoot(),
+      Preconditions.checkArgument(
+          !itemInfo.getStorageResourceId().isBucket() && !itemInfo.getStorageResourceId().isRoot(),
           "Buckets and GCS Root resources are not supported for updateItems");
     }
 
