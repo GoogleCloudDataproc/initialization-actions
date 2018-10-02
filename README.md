@@ -116,6 +116,10 @@ scaffolding for other frameworks and use cases.
 
 Subscribe to [cloud-dataproc-discuss@google.com](https://groups.google.com/forum/#!forum/cloud-dataproc-discuss) for announcements and discussion.
 
+## Tests
+
+Init actions are tested with the Dataproc image versions and cluster configurations they are intended to work with. Tests authored in python and located in a "test" directory along side the init action they test.
+
 ## Contributing changes
 
 * See [CONTRIBUTING.md](CONTRIBUTING.md)

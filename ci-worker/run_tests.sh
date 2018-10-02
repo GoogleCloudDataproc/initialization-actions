@@ -1,0 +1,41 @@
+#!/bin/bash
+set -ex
+
+/usr/bin/printenv
+
+gcloud config set core/disable_prompts 1
+gcloud config set component_manager/disable_update_check true
+gcloud config set core/disable_usage_reporting true
+gcloud config set compute/zone us-west1-c
+gcloud config set compute/region us-west1
+gcloud config list
+gcloud compute config-ssh || true
+
+#create bucket
+export use_internal_ip=true
+export bucket=gs://test-$(head /dev/urandom | tr -dc a-z0-9 | head -c 32)
+gsutil mb ${bucket}
+gsutil lifecycle set bucket_lifecycle.json ${bucket}
+
+#clone repo
+git clone https://github.com/${REPO_OWNER}/${REPO_NAME}.git
+cd ${REPO_NAME}
+git config user.name test
+git config user.email test@example.com
+git fetch
+git checkout ${PULL_BASE_SHA}
+git merge --no-commit ${PULL_PULL_SHA}
+
+#upload init actions
+gsutil -m cp -r * ${bucket}
+gsutil ls ${bucket}
+
+#install pip requirements
+pip3 install -r testing/requirements.txt
+
+#invoke tests
+python3 -m ${TEST_MODULE} -f
+
+
+#clean up bucket
+gsutil -m rm -r ${bucket}

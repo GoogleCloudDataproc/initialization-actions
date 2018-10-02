@@ -1,0 +1,9 @@
+triggers:
+  - repos:
+    - ishanrc/dataproc-initialization-actions
+    trusted_org: GoogleCloudPlatform
+    only_org_members: true
+plugins:
+  ishanrc/dataproc-initialization-actions:
+  - size
+  - trigger
