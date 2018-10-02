@@ -71,3 +71,16 @@ standard cluster modes.
    restarts on reboot or crash. See [#111](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/pull/111/files)
    and [#113](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/pull/113/files)
    for an example of integrating Jupyter with systemd.
+
+
+## Testing
+
+When you submit a pull request a repo owner will review you changes and approve
+ them from testing. The tests are run using [Prow](https://github.com/kubernetes/test-infra/blob/master/prow/README.md)
+The results with be attached to your pull request.
+
+To author a new test place it in the test directory in the directory with the
+init action being tested. You can modify ci-worker/single-test.yaml and verify
+your test on a k8s cluster. Update ci-worker/prow-config/config.yaml with a new
+presubmit job to run your test. Notify the reviewer that they will need to apply
+ the updated prow config to run your tests.

@@ -5,7 +5,7 @@ presubmits:
     agent: kubernetes
     spec:
       containers:
-      - image: gcr.io/dataproc-kokoro-tests/test-container
+      - image: gcr.io/dataproc-github-tests/test-container
         command: ["/home/test/run_tests.sh"]
         imagePullPolicy: Always
         env:
