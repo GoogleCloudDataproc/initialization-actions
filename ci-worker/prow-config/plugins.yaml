@@ -1,7 +1,7 @@
 triggers:
   - repos:
     - ishanrc/dataproc-initialization-actions
-  - only_org_members: true
+  only_org_members: true
 plugins:
   ishanrc/dataproc-initialization-actions:
   - size

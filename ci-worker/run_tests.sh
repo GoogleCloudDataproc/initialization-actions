@@ -27,7 +27,7 @@ git checkout ${PULL_BASE_SHA}
 git merge --no-commit ${PULL_PULL_SHA}
 
 #upload init actions
-gsutil -m cp */*sh ${bucket}
+gsutil -m cp -r * ${bucket}
 gsutil ls ${bucket}
 
 #install pip requirements

@@ -1,7 +1,7 @@
 presubmits:
   ishanrc/dataproc-initialization-actions:
   - name: test-jupyter
-    run_if_changed: "^(jupyter/.*)$"
+    run_if_changed: "^(jupyter/.*)|(testing/.*)$"
     agent: kubernetes
     spec:
       containers:

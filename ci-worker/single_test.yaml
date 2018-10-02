@@ -17,7 +17,7 @@ spec:
         - name: REPO_NAME
           value: dataproc-initialization-actions
         - name: PULL_PULL_SHA
-          value: ae439a6513c00ea7844bd12d9f4d134e548cb46d
+          value: aaf997df068df2b0bfada6166113a683ec3c397d
         - name: PULL_BASE_SHA
           value: d80a03665c9765b153a08fe9c297159fcb6a7e69
         - name: TEST_MODULE
