@@ -95,17 +95,13 @@ class DataprocTestCase(unittest.TestCase):
     def getClusterName(self):
         return self.name
 
-    def upload_test_file(self, name):
+    def upload_test_file(self, name, file_path):
         if 'use_internal_ip' in os.environ:
           scp_cmd = 'gcloud alpha compute scp --internal-ip {} {}'
         else:
           scp_cmp = 'gcloud compute scp {} {}'
         cmd = scp_cmd.format(
-            os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                self.COMPONENT.lower(),
-                self.TEST_SCRIPT_FILE_NAME
-            ),
+            file_path,
             name + ':~/',
         )
         ret_code, stdout, stderr = self.run_command(cmd)

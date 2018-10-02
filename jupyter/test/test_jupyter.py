@@ -13,7 +13,10 @@ class JupyterTestCase(DataprocTestCase):
     TEST_SCRIPT_FILE_NAME = 'verify_jupyter_running.py'
 
     def verify_instance(self, name, expected_version):
-        self.upload_test_file(name)
+        self.upload_test_file(name, os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                self.TEST_SCRIPT_FILE_NAME
+            ))
         self.__run_test_file(expected_version, name)
         self.remove_test_script(name)
 
