@@ -10,16 +10,16 @@ spec:
     spec:
       containers:
       - name: test-worker
-        image: gcr.io/dataproc-github-tests/ci-image:latest
+        image: gcr.io/dataproc-github-tests/test-container:latest
         env:
         - name: REPO_OWNER
           value: ishanrc
         - name: REPO_NAME
           value: dataproc-initialization-actions
         - name: PULL_PULL_SHA
-          value: df75026819125eaf7c28fb3c410236d6169a1e3a
+          value: ae439a6513c00ea7844bd12d9f4d134e548cb46d
         - name: PULL_BASE_SHA
-          value: df75026819125eaf7c28fb3c410236d6169a1e3a
+          value: d80a03665c9765b153a08fe9c297159fcb6a7e69
         - name: TEST_MODULE
           value: jupyter.test.test_jupyter
       # Do not restart containers after they exit

@@ -36,17 +36,18 @@ class DataprocTestCase(unittest.TestCase):
     }
 
     COMPONENT = None
-    INIT_ACTION = None
+    DEFAULT_INIT_ACTION_BUCKET = 'gs://dataproc-initialization-actions'
     TEST_SCRIPT_FILE_NAME = None
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         assert cls.COMPONENT
-        assert cls.INIT_ACTION
+        assert cls.INIT_ACTION_FILE
         if 'bucket' in os.environ:
-          filename = cls.INIT_ACTION[cls.INIT_ACTION.rfind('/')+1:]
-          cls.INIT_ACTION = '/'.join([os.environ['bucket'], filename])
+          cls.INIT_ACTION = '/'.join([os.environ['bucket'], cls.INIT_ACTION_FILE])
+        else:
+          cls.INIT_ACTION = '/'.join([os.environ['bucket'], cls.DEFAULT_INIT_ACTION_BUCKET])
 
     def createCluster(self, configuration, init_action, dataproc_version, metadata=None, scopes=None, properties=None,
                       timeout_in_minutes=None):

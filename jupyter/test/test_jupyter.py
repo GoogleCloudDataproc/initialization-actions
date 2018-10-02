@@ -3,12 +3,12 @@ import unittest
 
 from parameterized import parameterized
 
-from testing_scripts.dataproc_test_case import DataprocTestCase
+from testing.dataproc_test_case import DataprocTestCase
 
 
 class JupyterTestCase(DataprocTestCase):
     COMPONENT = 'jupyter'
-    INIT_ACTION = 'gs://polidea-dataproc-utils/jupyter/init-actions/6/jupyter/jupyter.sh'
+    INIT_ACTION_FILE = 'jupyter/jupyter.sh'
     METADATA = "JUPYTER_AUTH_TOKEN=abc123"
     TEST_SCRIPT_FILE_NAME = 'verify_jupyter_running.py'
 

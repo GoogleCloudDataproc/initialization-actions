@@ -31,9 +31,7 @@ gsutil -m cp */*sh ${bucket}
 gsutil ls ${bucket}
 
 #install pip requirements
-cd testing-scripts
-pip3 install -r requirements.txt
-cd ..
+pip3 install -r testing/requirements.txt
 
 #invoke tests
 python3 -m ${TEST_MODULE} -f
