@@ -1,0 +1,13 @@
+presubmits:
+  ishanrc/dataproc-initialization-actions:
+  - name: test-jupyter
+    run_if_changed: "^(jupyter/.*)$"
+    agent: kubernetes
+    spec:
+      containers:
+      - image: gcr.io/dataproc-kokoro-tests/test-container
+        command: ["/home/test/run_tests.sh"]
+        imagePullPolicy: Always
+        env:
+        - name: TEST_MODULE
+          value: jupyter.test.test_jupyter
