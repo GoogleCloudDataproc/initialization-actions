@@ -1,4 +1,4 @@
-1.9.8 - 2018-XX-XX
+1.9.8 - 2018-10-03
 
   1. Expose `FileChecksum` in `GoogleHadoopFileSystem` via property:
 
