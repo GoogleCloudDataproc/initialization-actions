@@ -49,6 +49,8 @@ PYTHON="$(ls /opt/conda/bin/python || which python)"
 PYTHON_VERSION="$(${PYTHON} --version 2>&1 | cut -d ' ' -f 2)"
 conda install jupyter matplotlib "python==${PYTHON_VERSION}"
 
+conda install 'testpath<0.4'
+
 # For storing notebooks on GCS. Pin version to make this script hermetic.
 pip install jgscm==0.1.7
 
