@@ -99,7 +99,7 @@ public class AvroRecordReaderTest {
   public void testSingleSplit() throws IOException, InterruptedException {
     FileSplit fileSplit =
         new FileSplit(
-            new Path("file://" + testAvroFile.getAbsolutePath()),
+            new Path("file", null,  testAvroFile.getAbsolutePath()),
             0,
             testAvroFile.length(),
             new String[0]);
@@ -113,7 +113,7 @@ public class AvroRecordReaderTest {
   public void testMultipleSplits() throws IOException, InterruptedException {
     long fileLength = testAvroFile.length();
     List<FileSplit> splits = new ArrayList<>();
-    Path hadoopPath = new Path("file://" + testAvroFile.getAbsolutePath());
+    Path hadoopPath = new Path("file", null,  testAvroFile.getAbsolutePath());
 
     for (int blockStart = 0; blockStart < fileLength; blockStart += AUTO_SYNC_INTERVAL) {
       splits.add(new FileSplit(hadoopPath, blockStart, AUTO_SYNC_INTERVAL, new String[0]));
