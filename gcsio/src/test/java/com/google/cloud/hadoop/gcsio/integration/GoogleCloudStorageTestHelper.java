@@ -17,6 +17,7 @@ package com.google.cloud.hadoop.gcsio.integration;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.fail;
 
@@ -39,6 +40,7 @@ import java.nio.channels.WritableByteChannel;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -230,6 +232,8 @@ public class GoogleCloudStorageTestHelper {
           bucketsToDelete.add(bucketName);
         }
       }
+      // randomize buckets order in case concurrent clean ups are running
+      Collections.shuffle(bucketsToDelete);
       if (bucketsToDelete.size() > MAX_CLEANUP_BUCKETS) {
         logger.atInfo().log(
             "GCS has %s buckets to cleanup. It's too many, will cleanup only %s buckets: %s",
@@ -240,10 +244,18 @@ public class GoogleCloudStorageTestHelper {
             "GCS has %s buckets to cleanup: %s", bucketsToDelete.size(), bucketsToDelete);
       }
 
-      List<GoogleCloudStorageItemInfo> objectsToDelete = new ArrayList<>();
-      for (String bucket : bucketsToDelete) {
-        objectsToDelete.addAll(storage.listObjectInfo(bucket, null, null));
-      }
+      List<GoogleCloudStorageItemInfo> objectsToDelete =
+          bucketsToDelete
+              .parallelStream()
+              .flatMap(
+                  bucket -> {
+                    try {
+                      return storage.listObjectInfo(bucket, null, null).stream();
+                    } catch (IOException e) {
+                      throw new RuntimeException(e);
+                    }
+                  })
+              .collect(toImmutableList());
       logger.atInfo().log(
           "GCS has %s objects to cleanup: %s", objectsToDelete.size(), objectsToDelete);
 
