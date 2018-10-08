@@ -14,40 +14,38 @@
 
 package com.google.cloud.hadoop.fs.gcs.contract;
 
+import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem;
+import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.contract.AbstractContractRootDirectoryTest;
 import org.apache.hadoop.fs.contract.AbstractFSContract;
-import org.apache.hadoop.fs.contract.ContractTestUtils;
-
+import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * GCS contract tests covering file root directory.
- */
+/** GCS contract tests covering file root directory. */
 @RunWith(JUnit4.class)
 public class TestGoogleContractRootDirectory extends AbstractContractRootDirectoryTest {
 
+  private static final TestBucketHelper TEST_BUCKET_HELPER =
+      new TestBucketHelper(GoogleContract.TEST_BUCKET_NAME_PREFIX);
+
+  private static final AtomicReference<GoogleHadoopFileSystem> fs = new AtomicReference<>();
+
+  @Before
+  public void before() {
+    fs.compareAndSet(null, (GoogleHadoopFileSystem) getFileSystem());
+  }
+
+  @AfterClass
+  public static void cleanup() throws Exception {
+    TEST_BUCKET_HELPER.cleanup(fs.get().getGcsFs().getGcs());
+  }
+
   @Override
   protected AbstractFSContract createContract(Configuration conf) {
-    return new GoogleContract(conf);
-  }
-
-  @Override
-  public void testMkDirDepth1() throws Throwable {
-    ContractTestUtils.skip(
-        "disabled due to not being friendly for concurrent tests");
-  }
-
-  @Override
-  public void testRmEmptyRootDirNonRecursive() throws Throwable {
-    ContractTestUtils.skip(
-        "disabled due to not being friendly for concurrent tests");
-  }
-
-  @Override
-  public void testRmRootRecursive() throws Throwable {
-    ContractTestUtils.skip(
-        "disabled due to not being friendly for concurrent tests");
+    return new GoogleContract(conf, TEST_BUCKET_HELPER);
   }
 }

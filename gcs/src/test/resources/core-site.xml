@@ -25,8 +25,6 @@
     <!--
     To run these tests:
     # Create a file auth-keys.xml  - DO NOT ADD TO REVISION CONTROL
-    # Add the property fs.contract.test.fs.gs.name to point to a GCS bucket
-    # like "gs://my-bucket"
     # Add the credentials/settings for Google Cloud Storage with the three
     # keys: fs.gs.auth.service.account.email, fs.gs.auth.service.account.keyfile
     # and fs.gs.project.id.
@@ -37,10 +35,6 @@
 
     <!--
     Example:
-    <property>
-      <name>fs.contract.test.fs.gs</name>
-      <value>gs://YOUR_BUCKET_HERE</value>
-    </property>
     <property>
       <name>fs.gs.auth.service.account.email</name>
       <value>YOUR_SERVICE_ACCOUNT_EMAIL_HERE</value>

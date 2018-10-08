@@ -14,31 +14,25 @@
 
 package com.google.cloud.hadoop.fs.gcs.contract;
 
+import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.contract.AbstractBondedFSContract;
 
-/**
- * Contract of GoogleHadoopFileSystem via scheme "gs".
- */
+/** Contract of GoogleHadoopFileSystem via scheme "gs". */
 public class GoogleContract extends AbstractBondedFSContract {
-  public static final String CONTRACT_XML = "contract/gs.xml";
 
-  public GoogleContract(Configuration conf) {
+  public static final String TEST_BUCKET_NAME_PREFIX = "ghfs-contract-test";
+
+  private static final String CONTRACT_XML = "contract/gs.xml";
+
+  public GoogleContract(Configuration conf, TestBucketHelper bucketHelper) {
     super(conf);
     addConfResource(CONTRACT_XML);
+    conf.set("fs.contract.test.fs.gs", "gs://" + bucketHelper.getUniqueBucketPrefix());
   }
 
   @Override
   public String getScheme() {
     return "gs";
-  }
-
-  @Override
-  public Path getTestPath() {
-    String testUniqueForkId = System.getProperty("test.unique.fork.id");
-    return testUniqueForkId == null
-        ? super.getTestPath()
-        : new Path("/" + testUniqueForkId, "test");
   }
 }
