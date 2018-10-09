@@ -139,9 +139,11 @@ public class GsonBigQueryInputFormatTest {
     // the in-memory GcsFs.
     ghfs = new InMemoryGoogleHadoopFileSystem();
 
-    JobReference fakeJobReference = new JobReference();
-    fakeJobReference.setProjectId(jobProjectId);
-    fakeJobReference.setJobId("bigquery-job-1234");
+    JobReference fakeJobReference =
+        new JobReference()
+            .setProjectId(jobProjectId)
+            .setJobId("bigquery-job-1234")
+            .setLocation("test-job-location");
 
     // Create the job result.
     jobStatus = new JobStatus();

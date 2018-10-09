@@ -42,7 +42,6 @@ import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.http.AbstractInputStreamContent;
 import com.google.api.client.http.HttpHeaders;
-import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.DateTime;
 import com.google.api.client.util.NanoClock;
@@ -2071,8 +2070,7 @@ public class GoogleCloudStorageTest {
   /** Test successful operation of GoogleCloudStorage.delete(2). */
   @Test
   public void testDeleteObjectNormalOperation() throws IOException {
-    when(mockBatchFactory.newBatchHelper(
-            any(HttpRequestInitializer.class), any(Storage.class), anyLong(), anyLong(), anyInt()))
+    when(mockBatchFactory.newBatchHelper(any(), any(Storage.class), anyLong(), anyLong(), anyInt()))
         .thenReturn(mockBatchHelper);
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.get(eq(BUCKET_NAME), eq(OBJECT_NAME)))
@@ -2110,9 +2108,7 @@ public class GoogleCloudStorageTest {
 
     gcs.deleteObjects(Lists.newArrayList(new StorageResourceId(BUCKET_NAME, OBJECT_NAME)));
 
-    verify(mockBatchFactory)
-        .newBatchHelper(
-            any(HttpRequestInitializer.class), eq(mockStorage), anyLong(), anyLong(), anyInt());
+    verify(mockBatchFactory).newBatchHelper(any(), eq(mockStorage), anyLong(), anyLong(), anyInt());
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects).delete(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
@@ -2127,8 +2123,7 @@ public class GoogleCloudStorageTest {
   /** Test successful operation of GoogleCloudStorage.delete(2) with generationId. */
   @Test
   public void testDeleteObjectWithGenerationId() throws IOException {
-    when(mockBatchFactory.newBatchHelper(
-            any(HttpRequestInitializer.class), any(Storage.class), anyLong(), anyLong(), anyInt()))
+    when(mockBatchFactory.newBatchHelper(any(), any(Storage.class), anyLong(), anyLong(), anyInt()))
         .thenReturn(mockBatchHelper);
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.delete(eq(BUCKET_NAME), eq(OBJECT_NAME)))
@@ -2148,9 +2143,7 @@ public class GoogleCloudStorageTest {
 
     gcs.deleteObjects(Lists.newArrayList(new StorageResourceId(BUCKET_NAME, OBJECT_NAME, 222L)));
 
-    verify(mockBatchFactory)
-        .newBatchHelper(
-            any(HttpRequestInitializer.class), eq(mockStorage), anyLong(), anyLong(), anyInt());
+    verify(mockBatchFactory).newBatchHelper(any(), eq(mockStorage), anyLong(), anyLong(), anyInt());
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects).delete(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockStorageObjectsDelete).setIfGenerationMatch(eq(222L));
@@ -2167,8 +2160,7 @@ public class GoogleCloudStorageTest {
    */
   @Test
   public void testDeleteObjectApiException() throws IOException {
-    when(mockBatchFactory.newBatchHelper(
-            any(HttpRequestInitializer.class), any(Storage.class), anyLong(), anyLong(), anyInt()))
+    when(mockBatchFactory.newBatchHelper(any(), any(Storage.class), anyLong(), anyLong(), anyInt()))
         .thenReturn(mockBatchHelper);
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.delete(eq(BUCKET_NAME), eq(OBJECT_NAME)))
@@ -2267,8 +2259,7 @@ public class GoogleCloudStorageTest {
             gcs.deleteObjects(Lists.newArrayList(new StorageResourceId(BUCKET_NAME, OBJECT_NAME))));
 
     verify(mockBatchFactory, times(2))
-        .newBatchHelper(
-            any(HttpRequestInitializer.class), eq(mockStorage), anyLong(), anyLong(), anyInt());
+        .newBatchHelper(any(), eq(mockStorage), anyLong(), anyLong(), anyInt());
     verify(mockStorage, times(4)).objects();
     verify(mockStorageObjects, times(2)).delete(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockStorageObjects, times(2)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
@@ -2345,8 +2336,7 @@ public class GoogleCloudStorageTest {
   public void testCopyObjectsNormalOperationSameBucket()
       throws IOException {
     String dstObjectName = OBJECT_NAME + "-copy";
-    when(mockBatchFactory.newBatchHelper(
-            any(HttpRequestInitializer.class), any(Storage.class), anyLong(), anyLong(), anyInt()))
+    when(mockBatchFactory.newBatchHelper(any(), any(Storage.class), anyLong(), anyLong(), anyInt()))
         .thenReturn(mockBatchHelper);
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.copy(
@@ -2357,9 +2347,7 @@ public class GoogleCloudStorageTest {
     gcs.copy(BUCKET_NAME, ImmutableList.of(OBJECT_NAME),
              BUCKET_NAME, ImmutableList.of(dstObjectName));
 
-    verify(mockBatchFactory)
-        .newBatchHelper(
-            any(HttpRequestInitializer.class), eq(mockStorage), anyLong(), anyLong(), anyInt());
+    verify(mockBatchFactory).newBatchHelper(any(), eq(mockStorage), anyLong(), anyLong(), anyInt());
     verify(mockStorage).objects();
     verify(mockStorageObjects).copy(
         eq(BUCKET_NAME), eq(OBJECT_NAME), eq(BUCKET_NAME), eq(dstObjectName),
@@ -2378,8 +2366,7 @@ public class GoogleCloudStorageTest {
   public void testCopyObjectsApiExceptionSameBucket()
       throws IOException {
     String dstObjectName = OBJECT_NAME + "-copy";
-    when(mockBatchFactory.newBatchHelper(
-            any(HttpRequestInitializer.class), any(Storage.class), anyLong(), anyLong(), anyInt()))
+    when(mockBatchFactory.newBatchHelper(any(), any(Storage.class), anyLong(), anyLong(), anyInt()))
         .thenReturn(mockBatchHelper);
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
     when(mockStorageObjects.copy(
@@ -2423,28 +2410,23 @@ public class GoogleCloudStorageTest {
     when(mockErrorExtractor.itemNotFound(eq(unexpectedError)))
         .thenReturn(false);
 
-    try {
-      gcs.copy(BUCKET_NAME, ImmutableList.of(OBJECT_NAME),
-               BUCKET_NAME, ImmutableList.of(dstObjectName));
-      fail("Expected FileNotFoundException");
-    } catch (FileNotFoundException e) {
-      // Expected.
-    } catch (Exception e) {
-      // Make the test output a little more friendly in case the exception class differs.
-      fail("Expected FileNotFoundException, got " + e.getClass().getName());
-    }
+    // Make the test output a little more friendly in case the exception class differs.
+    assertThrows(
+        FileNotFoundException.class,
+        () ->
+            gcs.copy(
+                BUCKET_NAME, ImmutableList.of(OBJECT_NAME),
+                BUCKET_NAME, ImmutableList.of(dstObjectName)));
+
     assertThrows(
         IOException.class,
         () ->
             gcs.copy(
-                BUCKET_NAME,
-                ImmutableList.of(OBJECT_NAME),
-                BUCKET_NAME,
-                ImmutableList.of(dstObjectName)));
+                BUCKET_NAME, ImmutableList.of(OBJECT_NAME),
+                BUCKET_NAME, ImmutableList.of(dstObjectName)));
 
     verify(mockBatchFactory, times(2))
-        .newBatchHelper(
-            any(HttpRequestInitializer.class), eq(mockStorage), anyLong(), anyLong(), anyInt());
+        .newBatchHelper(any(), eq(mockStorage), anyLong(), anyLong(), anyInt());
     verify(mockStorage, times(2)).objects();
     verify(mockStorageObjects, times(2)).copy(
         eq(BUCKET_NAME), eq(OBJECT_NAME), eq(BUCKET_NAME), eq(dstObjectName),
@@ -2463,8 +2445,7 @@ public class GoogleCloudStorageTest {
       throws IOException {
     String dstObjectName = OBJECT_NAME + "-copy";
     String dstBucketName = BUCKET_NAME + "-copy";
-    when(mockBatchFactory.newBatchHelper(
-            any(HttpRequestInitializer.class), any(Storage.class), anyLong(), anyLong(), anyInt()))
+    when(mockBatchFactory.newBatchHelper(any(), any(Storage.class), anyLong(), anyLong(), anyInt()))
         .thenReturn(mockBatchHelper);
     when(mockStorage.buckets()).thenReturn(mockStorageBuckets);
     when(mockStorageBuckets.get(eq(BUCKET_NAME))).thenReturn(mockStorageBucketsGet);
@@ -2494,9 +2475,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageBuckets, times(2)).get(any(String.class));
     verify(mockStorageBucketsGet).execute();
     verify(mockStorageBucketsGet2).execute();
-    verify(mockBatchFactory)
-        .newBatchHelper(
-            any(HttpRequestInitializer.class), eq(mockStorage), anyLong(), anyLong(), anyInt());
+    verify(mockBatchFactory).newBatchHelper(any(), eq(mockStorage), anyLong(), anyLong(), anyInt());
     verify(mockStorage).objects();
     verify(mockStorageObjects).copy(
         eq(BUCKET_NAME), eq(OBJECT_NAME), eq(dstBucketName), eq(dstObjectName),
@@ -3040,8 +3019,7 @@ public class GoogleCloudStorageTest {
                 .setNextPageToken(null));
 
     // Set up the follow-up getItemInfos to just return a batch with "not found".
-    when(mockBatchFactory.newBatchHelper(
-            any(HttpRequestInitializer.class), any(Storage.class), anyLong(), anyLong(), anyInt()))
+    when(mockBatchFactory.newBatchHelper(any(), any(Storage.class), anyLong(), anyLong(), anyInt()))
         .thenReturn(mockBatchHelper);
     when(mockStorageObjects.get(any(String.class), any(String.class)))
         .thenReturn(mockStorageObjectsGet);
@@ -3102,9 +3080,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsInsert, times(2)).execute();
 
     // Batch get after auto-repair.
-    verify(mockBatchFactory)
-        .newBatchHelper(
-            any(HttpRequestInitializer.class), eq(mockStorage), anyLong(), anyLong(), anyInt());
+    verify(mockBatchFactory).newBatchHelper(any(), eq(mockStorage), anyLong(), anyLong(), anyInt());
     verify(mockStorageObjects, times(2)).get(eq(BUCKET_NAME), any(String.class));
     verify(mockBatchHelper, times(2))
         .queue(eq(mockStorageObjectsGet), Matchers.<JsonBatchCallback<StorageObject>>anyObject());
@@ -3469,8 +3445,7 @@ public class GoogleCloudStorageTest {
   @Test
   public void testGetItemInfos()
       throws IOException {
-    when(mockBatchFactory.newBatchHelper(
-            any(HttpRequestInitializer.class), any(Storage.class), anyLong(), anyLong(), anyInt()))
+    when(mockBatchFactory.newBatchHelper(any(), any(Storage.class), anyLong(), anyLong(), anyInt()))
         .thenReturn(mockBatchHelper);
 
     // Set up the return for the Bucket fetch.
@@ -3553,9 +3528,7 @@ public class GoogleCloudStorageTest {
     assertThat(itemInfos.get(1)).isEqualTo(expectedRoot);
     assertThat(itemInfos.get(2)).isEqualTo(expectedBucket);
 
-    verify(mockBatchFactory)
-        .newBatchHelper(
-            any(HttpRequestInitializer.class), eq(mockStorage), anyLong(), anyLong(), anyInt());
+    verify(mockBatchFactory).newBatchHelper(any(), eq(mockStorage), anyLong(), anyLong(), anyInt());
     verify(mockStorage).buckets();
     verify(mockStorageBuckets).get(eq(BUCKET_NAME));
     verify(mockBatchHelper).queue(
@@ -3570,8 +3543,7 @@ public class GoogleCloudStorageTest {
   @Test
   public void testGetItemInfosNotFound()
       throws IOException {
-    when(mockBatchFactory.newBatchHelper(
-            any(HttpRequestInitializer.class), any(Storage.class), anyLong(), anyLong(), anyInt()))
+    when(mockBatchFactory.newBatchHelper(any(), any(Storage.class), anyLong(), anyLong(), anyInt()))
         .thenReturn(mockBatchHelper);
 
     // Set up the return for the Bucket fetch.
@@ -3635,9 +3607,7 @@ public class GoogleCloudStorageTest {
     assertThat(itemInfos.get(1)).isEqualTo(expectedRoot);
     assertThat(itemInfos.get(2)).isEqualTo(expectedBucket);
 
-    verify(mockBatchFactory)
-        .newBatchHelper(
-            any(HttpRequestInitializer.class), eq(mockStorage), anyLong(), anyLong(), anyInt());
+    verify(mockBatchFactory).newBatchHelper(any(), eq(mockStorage), anyLong(), anyLong(), anyInt());
     verify(mockStorage).buckets();
     verify(mockStorageBuckets).get(eq(BUCKET_NAME));
     verify(mockBatchHelper).queue(
@@ -3653,8 +3623,7 @@ public class GoogleCloudStorageTest {
   @Test
   public void testGetItemInfosApiException()
       throws IOException {
-    when(mockBatchFactory.newBatchHelper(
-            any(HttpRequestInitializer.class), any(Storage.class), anyLong(), anyLong(), anyInt()))
+    when(mockBatchFactory.newBatchHelper(any(), any(Storage.class), anyLong(), anyLong(), anyInt()))
         .thenReturn(mockBatchHelper);
 
     // Set up the return for the Bucket fetch.
@@ -3716,9 +3685,7 @@ public class GoogleCloudStorageTest {
     assertThat(ioe.getSuppressed()).hasLength(2);
     // All invocations still should have been attempted; the exception should have been thrown
     // at the very end.
-    verify(mockBatchFactory)
-        .newBatchHelper(
-            any(HttpRequestInitializer.class), eq(mockStorage), anyLong(), anyLong(), anyInt());
+    verify(mockBatchFactory).newBatchHelper(any(), eq(mockStorage), anyLong(), anyLong(), anyInt());
     verify(mockStorage).buckets();
     verify(mockStorageBuckets).get(eq(BUCKET_NAME));
     verify(mockBatchHelper).queue(

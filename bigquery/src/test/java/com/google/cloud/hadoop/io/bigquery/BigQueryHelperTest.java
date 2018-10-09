@@ -99,9 +99,7 @@ public class BigQueryHelperTest {
     LoggerConfig.getConfig(GsonBigQueryInputFormat.class).setLevel(Level.FINE);
 
     // Create fake job reference.
-    JobReference fakeJobReference = new JobReference();
-    fakeJobReference.setProjectId(jobProjectId);
-    fakeJobReference.setJobId(jobId);
+    JobReference fakeJobReference = new JobReference().setProjectId(jobProjectId).setJobId(jobId);
 
     // Create the job result.
     jobStatus = new JobStatus();

@@ -51,8 +51,7 @@ public class BigQueryUtilsTest {
   // Sample projectId for testing.
   private String projectId = "Test";
 
-  // Mock JobReference.
-  private JobReference mockJobReference;
+  private JobReference jobReference;
 
   // Mock BigQuery Jobs.
   private Bigquery.Jobs mockBigQueryJobs;
@@ -81,8 +80,7 @@ public class BigQueryUtilsTest {
   @Before
   public void setUp() throws IOException {
 
-    // Set mock JobReference
-    mockJobReference = new JobReference();
+    jobReference = new JobReference().setJobId("test-job-id").setLocation("test-job-location");
 
     // Create the unfinished job result.
     notDoneJob = new Job();
@@ -90,7 +88,7 @@ public class BigQueryUtilsTest {
     notDoneJobStatus.setState("NOT DONE");
     notDoneJobStatus.setErrorResult(null);
     notDoneJob.setStatus(notDoneJobStatus);
-    notDoneJob.setJobReference(mockJobReference);
+    notDoneJob.setJobReference(jobReference);
 
     // Create the finished job result.
     job = new Job();
@@ -98,15 +96,16 @@ public class BigQueryUtilsTest {
     jobStatus.setState("DONE");
     jobStatus.setErrorResult(null);
     job.setStatus(jobStatus);
-    job.setJobReference(mockJobReference);
+    job.setJobReference(jobReference);
 
     // Mock BigQuery.
     mockBigQuery = mock(Bigquery.class);
     mockBigQueryJobs = mock(Bigquery.Jobs.class);
     mockJobsGet = mock(Bigquery.Jobs.Get.class);
     when(mockBigQuery.jobs()).thenReturn(mockBigQueryJobs);
-    when(mockBigQueryJobs.get(projectId, mockJobReference.getJobId()))
-        .thenReturn(mockJobsGet).thenReturn(mockJobsGet);
+    when(mockBigQueryJobs.get(projectId, jobReference.getJobId()))
+        .thenReturn(mockJobsGet)
+        .thenReturn(mockJobsGet);
     when(mockJobsGet.setLocation(any(String.class))).thenReturn(mockJobsGet);
     when(mockJobsGet.execute()).thenReturn(job);
 
@@ -127,11 +126,11 @@ public class BigQueryUtilsTest {
     when(mockJobsGet.execute()).thenReturn(job);
 
     // Run waitForJobCompletion.
-    BigQueryUtils.waitForJobCompletion(mockBigQuery, projectId, mockJobReference, mockProgressable);
+    BigQueryUtils.waitForJobCompletion(mockBigQuery, projectId, jobReference, mockProgressable);
 
     // Verify that the method terminates and that the correct calls were sent to the mock BigQuery.
     verify(mockBigQuery).jobs();
-    verify(mockBigQueryJobs).get(projectId, mockJobReference.getJobId());
+    verify(mockBigQueryJobs).get(projectId, jobReference.getJobId());
     verify(mockJobsGet).execute();
     verify(mockProgressable, never()).progress();
   }
@@ -146,11 +145,11 @@ public class BigQueryUtilsTest {
     when(mockJobsGet.execute()).thenReturn(notDoneJob).thenReturn(job);
 
     // Run waitForJobCompletion.
-    BigQueryUtils.waitForJobCompletion(mockBigQuery, projectId, mockJobReference, mockProgressable);
+    BigQueryUtils.waitForJobCompletion(mockBigQuery, projectId, jobReference, mockProgressable);
 
     // Verify that the method terminates and that the correct calls were sent to the mock BigQuery.
     verify(mockBigQuery, times(2)).jobs();
-    verify(mockBigQueryJobs, times(2)).get(projectId, mockJobReference.getJobId());
+    verify(mockBigQueryJobs, times(2)).get(projectId, jobReference.getJobId());
     verify(mockJobsGet, times(2)).execute();
     verify(mockProgressable, atLeastOnce()).progress();
   }
@@ -172,7 +171,7 @@ public class BigQueryUtilsTest {
         IOException.class,
         () ->
             BigQueryUtils.waitForJobCompletion(
-                mockBigQuery, projectId, mockJobReference, mockProgressable));
+                mockBigQuery, projectId, jobReference, mockProgressable));
   }
 
   /**

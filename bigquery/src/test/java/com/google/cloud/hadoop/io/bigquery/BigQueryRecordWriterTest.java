@@ -23,7 +23,6 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.http.AbstractInputStreamContent;
-import com.google.api.client.http.ByteArrayContent;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Jobs.Insert;
@@ -143,10 +142,11 @@ public class BigQueryRecordWriterTest {
     jsonValue.addProperty("Number", "123");
 
     // Create the job result.
-    jobReference = new JobReference();
-    jobReference.setProjectId(jobProjectId);
-    jobReference.setJobId(taskIdentifier + "-12345");
-    jobReference.setLocation("test_location");
+    jobReference =
+        new JobReference()
+            .setProjectId(jobProjectId)
+            .setJobId(taskIdentifier + "-12345")
+            .setLocation("test_location");
 
     jobStatus = new JobStatus();
     jobStatus.setState("DONE");
@@ -166,7 +166,7 @@ public class BigQueryRecordWriterTest {
     when(mockJobsGet.execute()).thenReturn(jobReturn);
 
     when(mockBigQueryJobs.insert(
-        any(String.class), any(Job.class), any(ByteArrayContent.class)))
+            any(String.class), any(Job.class), any(AbstractInputStreamContent.class)))
         .thenReturn(mockInsert);
     when(mockInsert.setProjectId(any(String.class))).thenReturn(mockInsert);
 

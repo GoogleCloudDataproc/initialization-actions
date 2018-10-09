@@ -143,9 +143,11 @@ public class BigQueryOutputCommitterTest {
     when(mockBigQueryHelper.getRawBigquery())
         .thenReturn(mockBigquery);
 
-    jobReference = new JobReference()
-        .setProjectId(JOB_PROJECT_ID)
-        .setJobId("foo_task_123_r_42_2_12345");
+    jobReference =
+        new JobReference()
+            .setProjectId(JOB_PROJECT_ID)
+            .setJobId("foo_task_123_r_42_2_12345")
+            .setLocation("test-job-location");
 
     when(mockBigquery.jobs())
         .thenReturn(mockBigqueryJobs);
