@@ -20,6 +20,10 @@
 # Do not use -x, so that passwords are not printed.
 set -euo pipefail
 
+# Whether init actions will run early
+# This will affect whether nodemanager and datanode should be restarted
+readonly early_init="$(/usr/share/google/get_metadata_value attributes/dataproc-option-run-init-actions-early || echo 'false')"
+
 function update_apt_get() {
   for ((i = 0; i < 10; i++)); do
     if apt-get update; then
@@ -632,8 +636,10 @@ function restart_services() {
   fi
   # In single node mode, we run datanode and nodemanager on the master.
   if [[ "${ROLE}" == 'Worker' || "${WORKER_COUNT}" == '0' ]]; then
-    systemctl restart hadoop-hdfs-datanode || err 'Cannot restart data node'
-    systemctl restart hadoop-yarn-nodemanager || err 'Cannot restart node manager'
+    if [[ "${early_init}" == 'false' ]]; then
+      systemctl restart hadoop-hdfs-datanode || err 'Cannot restart data node'
+      systemctl restart hadoop-yarn-nodemanager || err 'Cannot restart node manager'
+    fi
   fi
 }
 
