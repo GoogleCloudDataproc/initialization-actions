@@ -1,6 +1,6 @@
 import json
 import logging
-import random
+import datetime
 import unittest
 import subprocess
 from threading import Timer
@@ -14,20 +14,14 @@ class DataprocTestCase(unittest.TestCase):
     DEFAULT_ARGS = {
         "SINGLE": [
             "--single-node",
-            "--worker-machine-type n1-standard-4",
-            "--master-machine-type n1-standard-4",
         ],
         "STANDARD": [
             "--num-masters 1",
             "--num-workers 2",
-            "--worker-machine-type n1-standard-4",
-            "--master-machine-type n1-standard-4",
         ],
         "HA": [
             "--num-masters 3",
             "--num-workers 2",
-            "--worker-machine-type n1-standard-4",
-            "--master-machine-type n1-standard-4",
         ]
     }
 
@@ -47,7 +41,7 @@ class DataprocTestCase(unittest.TestCase):
             self.COMPONENT,
             configuration.lower(),
             dataproc_version.replace(".", "-"),
-            random.randint(1, 10000),
+            datetime.datetime.now().strftime("%Y%m%d%H%M%S")
         )
         self.cluster_version = None
 
@@ -77,7 +71,7 @@ class DataprocTestCase(unittest.TestCase):
         self.cluster_version = json.loads(stdout).get("config", {}).get("softwareConfig", {}).get("imageVersion")
 
     def tearDown(self):
-        cmd = "yes | gcloud dataproc clusters delete {}".format(self.name)
+        cmd = "yes | gcloud dataproc clusters delete {} --quiet".format(self.name)
         ret_val, stdout, stderr = self.run_command(cmd)
         self.assertEqual(ret_val, 0, "Failed to delete cluster {}. Error: {}".format(
             self.name,
