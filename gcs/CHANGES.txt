@@ -1,5 +1,10 @@
 1.9.9 - 2018-XX-XX
 
+  1. Add an option for running flat and regular glob search algorithms in
+     parallel. Returns a result of an algorithm that finishes first and cancels
+     another algorithm.
+
+       fs.gs.glob.concurent.enable (default: false)
 
 1.9.8 - 2018-10-03
 

@@ -16,6 +16,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONCURRENT_GLOB_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CREATE_SYSTEM_BUCKET;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_FILE_CHECKSUM_TYPE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_FLAT_GLOB_ENABLE;
@@ -68,6 +69,7 @@ import java.net.URI;
 import java.nio.file.DirectoryNotEmptyException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -75,6 +77,10 @@ import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.codec.binary.Hex;
@@ -207,6 +213,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * initial Configuration.
    */
   private boolean enableFlatGlob = GCS_FLAT_GLOB_ENABLE.getDefault();
+
+  private boolean enableConcurrentGlob = GCS_CONCURRENT_GLOB_ENABLE.getDefault();
 
   private GcsFileChecksumType checksumType = GCS_FILE_CHECKSUM_TYPE.getDefault();
 
@@ -1083,6 +1091,11 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       return false;
     }
 
+    return couldUseFlatGlob(fixedPath);
+  }
+
+  @VisibleForTesting
+  boolean couldUseFlatGlob(Path fixedPath) {
     // Only works for filesystems where the base Hadoop Path scheme matches the underlying URI
     // scheme for GCS.
     if (!getUri().getScheme().equals(GoogleCloudStorageFileSystem.SCHEME)) {
@@ -1174,102 +1187,129 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     Path encodedPath = new Path(pathPattern.toUri().toString());
     // We convert pathPattern to GCS path and then to Hadoop path to ensure that it ends up in
     // the correct format. See note in getHadoopPath for more information.
-    Path fixedPath = getHadoopPath(getGcsPath(encodedPath));
+    Path encodedFixedPath = getHadoopPath(getGcsPath(encodedPath));
     // Decode URI-encoded path back into a glob path.
-    fixedPath = new Path(URI.create(fixedPath.toString()));
+    Path fixedPath = new Path(URI.create(encodedFixedPath.toString()));
     logger.atFine().log("GHFS.globStatus fixedPath: %s => %s", pathPattern, fixedPath);
 
-    if (shouldUseFlatGlob(fixedPath)) {
-      String pathString = fixedPath.toString();
-      String prefixString = trimToPrefixWithoutGlob(pathString);
-      Path prefixPath = new Path(prefixString);
-      URI prefixUri = getGcsPath(prefixPath);
-
-      if (prefixString.endsWith("/") && !prefixPath.toString().endsWith("/")) {
-        // Path strips a trailing slash unless it's the 'root' path. We want to keep the trailing
-        // slash so that we don't wastefully list sibling files which may match the directory-name
-        // as a strict prefix but would've been omitted due to not containing the '/' at the end.
-        prefixUri = FileInfo.convertToDirectoryPath(gcsfs.getPathCodec(), prefixUri);
-      }
-
-      // Get everything matching the non-glob prefix.
-      logger.atFine().log("Listing everything with prefix '%s'", prefixUri);
-      List<FileStatus> matchedStatuses = null;
-      String pageToken = null;
-      do {
-        ListPage<FileInfo> infoPage = gcsfs.listAllFileInfoForPrefixPage(prefixUri, pageToken);
-
-        // TODO: Are implicit directories really always needed for globbing?
-        //  Probably they should be inferred only when fs.gs.implicit.dir.infer.enable is true.
-        Collection<FileStatus> statusPage =
-            toFileStatusesWithImplicitDirectories(infoPage.getItems());
-
-        // TODO: refactor to use GlobPattern and PathFilter directly without helper FS
-        FileSystem helperFileSystem =
-            InMemoryGlobberFileSystem.createInstance(getConf(), getWorkingDirectory(), statusPage);
-        FileStatus[] matchedStatusPage = helperFileSystem.globStatus(fixedPath, filter);
-        if (matchedStatusPage != null) {
-          Collections.addAll(
-              (matchedStatuses == null ? matchedStatuses = new ArrayList<>() : matchedStatuses),
-              matchedStatusPage);
-        }
-
-        pageToken = infoPage.getNextPageToken();
-      } while (pageToken != null);
-
-      if (matchedStatuses == null || matchedStatuses.isEmpty()) {
-        return matchedStatuses == null ? null : new FileStatus[0];
-      }
-
-      matchedStatuses.sort(
-          ((Comparator<FileStatus>) Comparator.<FileStatus>naturalOrder())
-              // Place duplicate implicit directories after real directory
-              .thenComparingInt((FileStatus f) -> isImplicitDirectory(f) ? 1 : 0));
-
-      // Remove duplicate file statuses that could be in the matchedStatuses
-      // because of pagination and implicit directories
-      List<FileStatus> filteredStatuses = new ArrayList<>(matchedStatuses.size());
-      FileStatus lastAdded = null;
-      for (FileStatus fileStatus : matchedStatuses) {
-        if (lastAdded == null || lastAdded.compareTo(fileStatus) != 0) {
-          filteredStatuses.add(fileStatus);
-          lastAdded = fileStatus;
-        }
-      }
-
-      FileStatus[] returnList = filteredStatuses.toArray(new FileStatus[0]);
-
-      // If the return list contains directories, we should repair them if they're 'implicit'.
-      if (enableAutoRepairImplicitDirectories) {
-        List<URI> toRepair = new ArrayList<>();
-        for (FileStatus status : returnList) {
-          if (isImplicitDirectory(status)) {
-            toRepair.add(getGcsPath(status.getPath()));
-          }
-        }
-        if (!toRepair.isEmpty()) {
-          logger.atWarning().log(
-              "Discovered %s implicit directories to repair within return values.",
-              toRepair.size());
-          gcsfs.repairDirs(toRepair);
-        }
-      }
-
-      return returnList;
-    } else {
-      FileStatus[] ret = super.globStatus(fixedPath, filter);
-      if (ret == null) {
-        if (enableAutoRepairImplicitDirectories) {
-          logger.atFine().log(
-              "GHFS.globStatus returned null for '%s', attempting possible repair.", pathPattern);
-          if (gcsfs.repairPossibleImplicitDirectory(getGcsPath(fixedPath))) {
-            logger.atWarning().log("Success repairing '%s', re-globbing.", pathPattern);
-            ret = super.globStatus(fixedPath, filter);
-          }
-        }
-      }
-      return ret;
+    if (enableConcurrentGlob && couldUseFlatGlob(fixedPath)) {
+      return concurrentGlobInternal(fixedPath, filter, pathPattern);
     }
+
+    if (shouldUseFlatGlob(fixedPath)) {
+      return flatGlobInternal(fixedPath, filter);
+    }
+
+    return globInternal(fixedPath, filter, pathPattern);
+  }
+
+  private FileStatus[] concurrentGlobInternal(Path fixedPath, PathFilter filter, Path pathPattern)
+      throws IOException {
+    ExecutorService executorService = Executors.newFixedThreadPool(2);
+    Callable<FileStatus[]> flatGlobTask = () -> flatGlobInternal(fixedPath, filter);
+    Callable<FileStatus[]> nonFlatGlobTask = () -> globInternal(fixedPath, filter, pathPattern);
+
+    try {
+      return executorService.invokeAny(Arrays.asList(flatGlobTask, nonFlatGlobTask));
+    } catch (InterruptedException | ExecutionException e) {
+      throw (e.getCause() instanceof IOException) ? (IOException) e.getCause() : new IOException(e);
+    } finally {
+      executorService.shutdownNow();
+    }
+  }
+
+  private FileStatus[] flatGlobInternal(Path fixedPath, PathFilter filter) throws IOException {
+    String pathString = fixedPath.toString();
+    String prefixString = trimToPrefixWithoutGlob(pathString);
+    Path prefixPath = new Path(prefixString);
+    URI prefixUri = getGcsPath(prefixPath);
+
+    if (prefixString.endsWith("/") && !prefixPath.toString().endsWith("/")) {
+      // Path strips a trailing slash unless it's the 'root' path. We want to keep the trailing
+      // slash so that we don't wastefully list sibling files which may match the directory-name
+      // as a strict prefix but would've been omitted due to not containing the '/' at the end.
+      prefixUri = FileInfo.convertToDirectoryPath(gcsfs.getPathCodec(), prefixUri);
+    }
+
+    // Get everything matching the non-glob prefix.
+    logger.atFine().log("Listing everything with prefix '%s'", prefixUri);
+    List<FileStatus> matchedStatuses = null;
+    String pageToken = null;
+    do {
+      ListPage<FileInfo> infoPage = gcsfs.listAllFileInfoForPrefixPage(prefixUri, pageToken);
+
+      // TODO: Are implicit directories really always needed for globbing?
+      //  Probably they should be inferred only when fs.gs.implicit.dir.infer.enable is true.
+      Collection<FileStatus> statusPage =
+          toFileStatusesWithImplicitDirectories(infoPage.getItems());
+
+      // TODO: refactor to use GlobPattern and PathFilter directly without helper FS
+      FileSystem helperFileSystem =
+          InMemoryGlobberFileSystem.createInstance(getConf(), getWorkingDirectory(), statusPage);
+      FileStatus[] matchedStatusPage = helperFileSystem.globStatus(fixedPath, filter);
+      if (matchedStatusPage != null) {
+        Collections.addAll(
+            (matchedStatuses == null ? matchedStatuses = new ArrayList<>() : matchedStatuses),
+            matchedStatusPage);
+      }
+
+      pageToken = infoPage.getNextPageToken();
+    } while (pageToken != null);
+
+    if (matchedStatuses == null || matchedStatuses.isEmpty()) {
+      return matchedStatuses == null ? null : new FileStatus[0];
+    }
+
+    matchedStatuses.sort(
+        ((Comparator<FileStatus>) Comparator.<FileStatus>naturalOrder())
+            // Place duplicate implicit directories after real directory
+            .thenComparingInt((FileStatus f) -> isImplicitDirectory(f) ? 1 : 0));
+
+    // Remove duplicate file statuses that could be in the matchedStatuses
+    // because of pagination and implicit directories
+    List<FileStatus> filteredStatuses = new ArrayList<>(matchedStatuses.size());
+    FileStatus lastAdded = null;
+    for (FileStatus fileStatus : matchedStatuses) {
+      if (lastAdded == null || lastAdded.compareTo(fileStatus) != 0) {
+        filteredStatuses.add(fileStatus);
+        lastAdded = fileStatus;
+      }
+    }
+
+    FileStatus[] returnList = filteredStatuses.toArray(new FileStatus[0]);
+
+    // If the return list contains directories, we should repair them if they're 'implicit'.
+    if (enableAutoRepairImplicitDirectories) {
+      List<URI> toRepair = new ArrayList<>();
+      for (FileStatus status : returnList) {
+        if (isImplicitDirectory(status)) {
+          toRepair.add(getGcsPath(status.getPath()));
+        }
+      }
+      if (!toRepair.isEmpty()) {
+        logger.atWarning().log(
+            "Discovered %s implicit directories to repair within return values.", toRepair.size());
+        gcsfs.repairDirs(toRepair);
+      }
+    }
+
+    return returnList;
+  }
+
+  private FileStatus[] globInternal(Path fixedPath, PathFilter filter, Path pathPattern)
+      throws IOException {
+    FileStatus[] ret = super.globStatus(fixedPath, filter);
+    if (ret == null) {
+      if (enableAutoRepairImplicitDirectories) {
+        logger.atFine().log(
+            "GHFS.globStatus returned null for '%s', attempting possible repair.", pathPattern);
+        if (gcsfs.repairPossibleImplicitDirectory(getGcsPath(fixedPath))) {
+          logger.atWarning().log("Success repairing '%s', re-globbing.", pathPattern);
+          ret = super.globStatus(fixedPath, filter);
+        }
+      }
+    }
+    return ret;
   }
 
   private static boolean isImplicitDirectory(FileStatus curr) {
@@ -1528,6 +1568,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       }
 
       enableFlatGlob = GCS_FLAT_GLOB_ENABLE.get(config, config::getBoolean);
+      enableConcurrentGlob = GCS_CONCURRENT_GLOB_ENABLE.get(config, config::getBoolean);
       checksumType = GCS_FILE_CHECKSUM_TYPE.get(config, config::getEnum);
 
       GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
