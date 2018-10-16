@@ -91,7 +91,6 @@ public class CredentialConfiguration {
       }
 
       if (!isNullOrEmpty(serviceAccountPrivateKeyId)) {
-        // TODO: Test with a hadoop credentials (jceks) file that getPassword is being used.
         logger.atFine().log("Attempting to get credentials from Configuration");
         Preconditions.checkState(
             !isNullOrEmpty(serviceAccountPrivateKey),

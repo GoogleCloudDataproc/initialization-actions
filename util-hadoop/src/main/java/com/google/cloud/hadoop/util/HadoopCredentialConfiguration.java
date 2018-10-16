@@ -33,28 +33,12 @@ public class HadoopCredentialConfiguration
     extends EntriesCredentialConfiguration implements Configurable {
 
   /**
-   * An adapter to use our Configuration object as the config object
-   * for our superclass.
+   * An adapter to use our Configuration object as the config object for our superclass. Exists here
+   * for backward compatibility
    */
-  public static class ConfigurationEntriesAdapter
-      implements EntriesCredentialConfiguration.Entries {
-    Configuration config;
-
-    /// Create our adapter.
+  public static class ConfigurationEntriesAdapter extends ConfigurationEntriesAdapterSpecific {
     public ConfigurationEntriesAdapter(Configuration config) {
-      this.config = config;
-    }
-
-    public String get(String key) {
-      return config.get(key);
-    }
-
-    public void set(String key, String value) {
-      config.set(key, value);
-    }
-
-    public void setBoolean(String key, boolean value) {
-      config.setBoolean(key, value);
+      super(config);
     }
   }
 

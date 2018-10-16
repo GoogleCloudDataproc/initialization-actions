@@ -57,5 +57,10 @@ public class EntriesCredentialConfigurationUtil {
       Boolean b = Boolean.valueOf(value);
       map.put(key, b);
     }
+
+    @Override
+    public String getPassword(String key) {
+      return get(key);
+    }
   }
 }

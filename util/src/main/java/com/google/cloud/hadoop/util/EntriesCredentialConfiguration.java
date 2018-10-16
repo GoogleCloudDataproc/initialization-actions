@@ -44,6 +44,9 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
 
     /** Sets the value of an entry to a boolean value. */
     void setBoolean(String key, boolean value);
+
+    /** Return the vale of an entry */
+    String getPassword(String key);
   }
 
   /**
@@ -289,18 +292,19 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
         setEnableServiceAccounts(enableServiceAccounts.get());
       }
 
-      String serviceEmailAccount = entries.get(prefix + SERVICE_ACCOUNT_EMAIL_SUFFIX);
+      String serviceEmailAccount = entries.getPassword(prefix + SERVICE_ACCOUNT_EMAIL_SUFFIX);
       if (serviceEmailAccount != null) {
         setServiceAccountEmail(serviceEmailAccount);
       }
 
       // Parameters for ServiceAccount directly in Configuration
       String serviceAccountPrivateKeyId =
-          entries.get(prefix + SERVICE_ACCOUNT_PRIVATE_KEY_ID_SUFFIX);
+          entries.getPassword(prefix + SERVICE_ACCOUNT_PRIVATE_KEY_ID_SUFFIX);
       if (serviceAccountPrivateKeyId != null) {
         setServiceAccountPrivateKeyId(serviceAccountPrivateKeyId);
       }
-      String serviceAccountPrivateKey = entries.get(prefix + SERVICE_ACCOUNT_PRIVATE_KEY_SUFFIX);
+      String serviceAccountPrivateKey =
+          entries.getPassword(prefix + SERVICE_ACCOUNT_PRIVATE_KEY_SUFFIX);
       if (serviceAccountPrivateKey != null) {
         setServiceAccountPrivateKey(serviceAccountPrivateKey);
       }
