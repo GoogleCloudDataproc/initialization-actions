@@ -62,11 +62,13 @@ import com.google.common.collect.Sets;
 import com.google.common.flogger.GoogleLogger;
 import java.io.DataInput;
 import java.io.DataOutput;
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.DirectoryNotEmptyException;
+import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -84,6 +86,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FSDataInputStream;
@@ -1554,6 +1557,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     logger.atFine().log("GHFS.configure");
     logger.atFine().log("GHFS_ID = %s", GHFS_ID);
 
+    overrideConfigFromFile(config);
+
     if (gcsfs == null) {
       copyDeprecatedConfigurationOptions(config);
 
@@ -1628,6 +1633,25 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     setConf(config);
 
     logger.atFine().log("GHFS.configure: done");
+  }
+
+  /**
+   * If overrides file configured, update properties from override file into {@link Configuration}
+   * object
+   */
+  private void overrideConfigFromFile(Configuration config) throws IOException {
+    String configFilePath =
+        GoogleHadoopFileSystemConfiguration.GCS_CONFIG_OVERRIDE_FILE.get(config, config::get);
+    if (configFilePath != null) {
+      File configFile = Paths.get(configFilePath).toFile();
+      if (configFile.exists()) {
+        config.addResource(FileUtils.openInputStream(configFile));
+      } else {
+        logger.atWarning().log(
+            "Override configuration path specified not present, path %s",
+            configFile.getAbsolutePath());
+      }
+    }
   }
 
   /**

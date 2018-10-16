@@ -278,4 +278,12 @@
     </description>
   </property>
 
+  <property>
+    <name>fs.gs.config.override.file</name>
+    <description>
+      Optional. Override configuration file path. Properties defined in this file overrides
+      the properties defined in core-site.xml and values passed from command line.
+    </description>
+  </property>
+
 </configuration>
