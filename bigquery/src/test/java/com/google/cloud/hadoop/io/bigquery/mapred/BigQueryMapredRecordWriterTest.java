@@ -56,8 +56,7 @@ public class BigQueryMapredRecordWriterTest {
   @Test
   public void testClose() throws IOException, InterruptedException {
     RecordWriter<LongWritable, JsonObject> recordWriter =
-        new BigQueryMapredRecordWriter<LongWritable, JsonObject>(
-            mockRecordWriter, mockTaskAttemptContext);
+        new BigQueryMapredRecordWriter<>(mockRecordWriter, mockTaskAttemptContext);
     Reporter reporter = null; // unused by code under test
 
     recordWriter.close(reporter);
@@ -85,8 +84,7 @@ public class BigQueryMapredRecordWriterTest {
   @Test
   public void testWrite_nullValue() throws IOException, InterruptedException {
     RecordWriter<LongWritable, JsonObject> recordWriter =
-        new BigQueryMapredRecordWriter<LongWritable, JsonObject>(
-            mockRecordWriter, mockTaskAttemptContext);
+        new BigQueryMapredRecordWriter<>(mockRecordWriter, mockTaskAttemptContext);
     LongWritable key = new LongWritable(123);
 
     recordWriter.write(key, null);
@@ -97,8 +95,7 @@ public class BigQueryMapredRecordWriterTest {
   @Test
   public void testWrite_throwException() throws IOException, InterruptedException {
     RecordWriter<LongWritable, JsonObject> recordWriter =
-        new BigQueryMapredRecordWriter<LongWritable, JsonObject>(
-            mockRecordWriter, mockTaskAttemptContext);
+        new BigQueryMapredRecordWriter<>(mockRecordWriter, mockTaskAttemptContext);
     LongWritable key = new LongWritable(123);
     JsonObject value = new JsonObject();
 

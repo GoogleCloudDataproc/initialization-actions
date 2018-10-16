@@ -300,7 +300,7 @@ public class GoogleHadoopFileSystemConfiguration {
 
   /**
    * Configuration key for enabling the use of flat and regular glob search algorithms in two
-   * parallel threads. After the first one returns result, another one will be interrupted.
+   * parallel threads. After the first one returns result, the other one will be interrupted.
    */
   public static final GoogleHadoopFileSystemConfigurationProperty<Boolean>
       GCS_CONCURRENT_GLOB_ENABLE =
@@ -519,7 +519,7 @@ public class GoogleHadoopFileSystemConfiguration {
               "fs.gs.inputstream.min.range.request.size",
               GoogleCloudStorageReadOptions.DEFAULT_MIN_RANGE_REQUEST_SIZE);
 
-  /** Override configuration file path. This file must have be a valid Hadoop configuration file. */
+  /** Override configuration file path. This file must be a valid Hadoop configuration file. */
   public static final GoogleHadoopFileSystemConfigurationProperty<String> GCS_CONFIG_OVERRIDE_FILE =
       new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.config.override.file", null);
 
@@ -619,3 +619,4 @@ public class GoogleHadoopFileSystemConfiguration {
         .build();
   }
 }
+
