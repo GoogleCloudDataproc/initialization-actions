@@ -14,6 +14,7 @@
 package com.google.cloud.hadoop.io.bigquery.mapred;
 
 import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
@@ -34,29 +35,30 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Unit tests for {@link BigQueryMapredRecordWriter}.
- */
+/** Unit tests for {@link BigQueryMapredRecordWriter}. */
 @RunWith(JUnit4.class)
 public class BigQueryMapredRecordWriterTest {
 
-  @Mock private org.apache.hadoop.mapreduce.RecordWriter<
-      LongWritable, JsonObject> mockRecordWriter;
+  @Mock private org.apache.hadoop.mapreduce.RecordWriter<LongWritable, JsonObject> mockRecordWriter;
   @Mock private TaskAttemptContext mockTaskAttemptContext;
-  @Before public void setUp() {
+
+  @Before
+  public void setUp() {
     MockitoAnnotations.initMocks(this);
   }
 
-  @After public void tearDown() {
+  @After
+  public void tearDown() {
     verifyNoMoreInteractions(mockRecordWriter);
     verifyNoMoreInteractions(mockTaskAttemptContext);
   }
 
-  @Test public void testClose() throws IOException, InterruptedException {
+  @Test
+  public void testClose() throws IOException, InterruptedException {
     RecordWriter<LongWritable, JsonObject> recordWriter =
         new BigQueryMapredRecordWriter<LongWritable, JsonObject>(
-        mockRecordWriter, mockTaskAttemptContext);
-    Reporter reporter = null;   // unused by code under test
+            mockRecordWriter, mockTaskAttemptContext);
+    Reporter reporter = null; // unused by code under test
 
     recordWriter.close(reporter);
     verify(mockRecordWriter).close(any(TaskAttemptContext.class));
@@ -67,7 +69,8 @@ public class BigQueryMapredRecordWriterTest {
     verify(mockRecordWriter, times(2)).close(any(TaskAttemptContext.class));
   }
 
-  @Test public void testWrite() throws IOException, InterruptedException {
+  @Test
+  public void testWrite() throws IOException, InterruptedException {
     RecordWriter<LongWritable, JsonObject> recordWriter =
         new BigQueryMapredRecordWriter<LongWritable, JsonObject>(
             mockRecordWriter, mockTaskAttemptContext);
@@ -75,18 +78,35 @@ public class BigQueryMapredRecordWriterTest {
     JsonObject value = new JsonObject();
 
     recordWriter.write(key, value);
-    verify(mockRecordWriter).write(
-        any(LongWritable.class), any(JsonObject.class));
+
+    verify(mockRecordWriter).write(eq(key), eq(value));
+  }
+
+  @Test
+  public void testWrite_nullValue() throws IOException, InterruptedException {
+    RecordWriter<LongWritable, JsonObject> recordWriter =
+        new BigQueryMapredRecordWriter<LongWritable, JsonObject>(
+            mockRecordWriter, mockTaskAttemptContext);
+    LongWritable key = new LongWritable(123);
 
     recordWriter.write(key, null);
-    verify(mockRecordWriter, times(2)).write(
-        any(LongWritable.class), any(JsonObject.class));
+
+    verify(mockRecordWriter).write(eq(key), eq(null));
+  }
+
+  @Test
+  public void testWrite_throwException() throws IOException, InterruptedException {
+    RecordWriter<LongWritable, JsonObject> recordWriter =
+        new BigQueryMapredRecordWriter<LongWritable, JsonObject>(
+            mockRecordWriter, mockTaskAttemptContext);
+    LongWritable key = new LongWritable(123);
+    JsonObject value = new JsonObject();
 
     doThrow(new IOException("test"))
         .when(mockRecordWriter)
         .write(any(LongWritable.class), any(JsonObject.class));
     assertThrows(IOException.class, () -> recordWriter.write(key, value));
 
-    verify(mockRecordWriter, times(3)).write(any(LongWritable.class), any(JsonObject.class));
+    verify(mockRecordWriter).write(eq(key), eq(value));
   }
 }
