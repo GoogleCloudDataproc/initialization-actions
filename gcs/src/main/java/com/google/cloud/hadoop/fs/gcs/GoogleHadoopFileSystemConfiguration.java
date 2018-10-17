@@ -619,4 +619,3 @@ public class GoogleHadoopFileSystemConfiguration {
         .build();
   }
 }
-
