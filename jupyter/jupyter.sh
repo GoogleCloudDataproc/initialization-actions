@@ -55,8 +55,15 @@ conda install 'testpath<0.4'
 pip install jgscm==0.1.7
 
 if [[ "${ROLE}" == 'Master' ]]; then
-  ./dataproc-initialization-actions/jupyter/internal/setup-jupyter-kernel.sh
-  ./dataproc-initialization-actions/jupyter/internal/launch-jupyter-kernel.sh
+    apt-get install -y python-matplotlib libfreetype6-dev pkg-config
+    conda install jupyter ipython matplotlib jsonschema jinja2 terminado tornado protobuf pandas seaborn scikit-learn
+    conda install -c conda-forge palettable=2.1.1
+    if gsutil -q stat "gs://$DATAPROC_BUCKET/notebooks/**"; then
+        echo "Pulling notebooks directory to cluster master node..."
+        gsutil -m cp -r gs://$DATAPROC_BUCKET/notebooks /root/
+    fi
+    ./dataproc-initialization-actions/jupyter/internal/setup-jupyter-kernel.sh
+    ./dataproc-initialization-actions/jupyter/internal/launch-jupyter-kernel.sh
 fi
 echo "Completed installing Jupyter!"
 
