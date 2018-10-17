@@ -209,13 +209,11 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   private boolean enableAutoRepairImplicitDirectories =
       GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE.getDefault();
 
-  /**
-   * Instance value of {@link GoogleHadoopFileSystemConfiguration#GCS_FLAT_GLOB_ENABLE} based on the
-   * initial Configuration.
-   */
-  private boolean enableFlatGlob = GCS_FLAT_GLOB_ENABLE.getDefault();
+  @VisibleForTesting
+  boolean enableFlatGlob = GCS_FLAT_GLOB_ENABLE.getDefault();
 
-  private boolean enableConcurrentGlob = GCS_CONCURRENT_GLOB_ENABLE.getDefault();
+  @VisibleForTesting
+  boolean enableConcurrentGlob = GCS_CONCURRENT_GLOB_ENABLE.getDefault();
 
   private GcsFileChecksumType checksumType = GCS_FILE_CHECKSUM_TYPE.getDefault();
 
@@ -1081,20 +1079,10 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   }
 
   /**
-   * Determines based on config settings and suitability of {@code fixedPath} whether to use
-   * flat globbing logic where we use a single large listing during globStatus to then perform
-   * the core globbing logic in-memory.
+   * Determines based on suitability of {@code fixedPath} whether to use flat globbing logic where
+   * we use a single large listing during globStatus to then perform the core globbing logic
+   * in-memory.
    */
-  @VisibleForTesting
-  boolean shouldUseFlatGlob(Path fixedPath) {
-    // Config setting overrides all else.
-    if (!enableFlatGlob) {
-      return false;
-    }
-
-    return couldUseFlatGlob(fixedPath);
-  }
-
   @VisibleForTesting
   boolean couldUseFlatGlob(Path fixedPath) {
     // Only works for filesystems where the base Hadoop Path scheme matches the underlying URI
@@ -1197,7 +1185,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       return concurrentGlobInternal(fixedPath, filter, pathPattern);
     }
 
-    if (shouldUseFlatGlob(fixedPath)) {
+    if (enableFlatGlob && couldUseFlatGlob(fixedPath)) {
       return flatGlobInternal(fixedPath, filter);
     }
 

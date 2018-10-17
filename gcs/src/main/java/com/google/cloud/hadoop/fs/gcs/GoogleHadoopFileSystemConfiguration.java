@@ -304,7 +304,7 @@ public class GoogleHadoopFileSystemConfiguration {
    */
   public static final GoogleHadoopFileSystemConfigurationProperty<Boolean>
       GCS_CONCURRENT_GLOB_ENABLE =
-          new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.glob.concurent.enable", false);
+          new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.glob.concurent.enable", true);
 
   /**
    * Configuration key for enabling the use of marker files during file creation. When running

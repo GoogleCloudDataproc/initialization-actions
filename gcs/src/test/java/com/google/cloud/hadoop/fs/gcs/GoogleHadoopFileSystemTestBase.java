@@ -189,8 +189,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
    * creating its parent directory object.
    */
   @Test
-  public void testRepairImplicitDirectory()
-      throws IOException, URISyntaxException {
+  public void testRepairImplicitDirectory() throws IOException, URISyntaxException {
     String bucketName = sharedBucketName1;
     GoogleHadoopFileSystemBase myghfs = (GoogleHadoopFileSystemBase) ghfs;
     GoogleCloudStorageFileSystem gcsfs = myghfs.getGcsFs();
@@ -282,7 +281,9 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     // When globbing children, the parent will only be repaired if flat-globbing is not enabled.
     Path globChildrenPath = new Path(parentPath.toString() + "/*");
     myghfs.globStatus(globChildrenPath);
-    boolean expectParentRepair = !myghfs.shouldUseFlatGlob(globChildrenPath);
+    boolean expectParentRepair =
+        (myghfs.enableConcurrentGlob && myghfs.couldUseFlatGlob(globChildrenPath))
+            || !(myghfs.enableFlatGlob && myghfs.couldUseFlatGlob(globChildrenPath));
 
     // This will internally call listStatus, so will have the same behavior of repairing both
     // levels of subdirectories.
