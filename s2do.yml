@@ -1,0 +1,14 @@
+---
+project: goeuro-data
+tags:
+  - dataproc-initialization-actions
+tasks:
+  _deploy_prod:
+    cmd: gsutil -mq cp -r . gs://spark_jobs/dataproc-initialization-actions
+  _deploy_dev:
+    cmd: gsutil -mq cp -r gs://spark_jobs/dataproc-initialization-actions gs://dataproc-dev/
+  deploy:
+    before:
+      - _deploy_prod
+      - _deploy_dev
+    cmd: echo "Done"
