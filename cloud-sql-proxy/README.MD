@@ -60,8 +60,8 @@ The initialization action can also be configured to install proxies without chan
 gcloud dataproc clusters create <CLUSTER_NAME> \
     --scopes sql-admin \
     --initialization-actions gs://dataproc-initialization-actions/cloud-sql-proxy/cloud-sql-proxy.sh \
-    --metadata "enable-cloud-sql-hive-metastore=false"
-    --metadata "additional-cloud-sql-instances=<PROJECT_ID>:<REGION>:<ANOTHER_INSTANCE_NAME>
+    --metadata "enable-cloud-sql-hive-metastore=false" \
+    --metadata "additional-cloud-sql-instances=<PROJECT_ID>:<REGION>:<ANOTHER_INSTANCE_NAME>"
 ```
 
 ## Protecting passwords with KMS
