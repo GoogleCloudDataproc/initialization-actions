@@ -161,7 +161,10 @@ EOF
   systemctl enable cloud-sql-proxy
   systemctl start cloud-sql-proxy \
     || err 'Unable to start cloud-sql-proxy service'
-  run_with_retries nc -zv localhost ${metastore_proxy_port}
+    
+  if [[ $enable_cloud_sql_metastore = "true" ]]; then
+    run_with_retries nc -zv localhost ${metastore_proxy_port}
+  fi
 
   echo 'Cloud SQL Proxy installation succeeded' >&2
 
