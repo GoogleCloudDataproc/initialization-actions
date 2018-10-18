@@ -197,7 +197,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     VERSION =
         PropertyUtil.getPropertyOrDefault(
             GoogleHadoopFileSystemBase.class, PROPERTIES_FILE, VERSION_PROPERTY, UNKNOWN_VERSION);
-    logger.atInfo().log("GHFS version: %s", VERSION);
+    logger.atFine().log("GHFS version: %s", VERSION);
     GHFS_ID = String.format("GHFS/%s", VERSION);
   }
 
