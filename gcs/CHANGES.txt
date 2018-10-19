@@ -4,7 +4,7 @@
      parallel. Returns a result of an algorithm that finishes first and cancels
      the other algorithm.
 
-        fs.gs.glob.concurent.enable (default: true)
+        fs.gs.glob.concurrent.enable (default: true)
 
   2. Add an option to provide path of configuration override file. Connector
      overrides configurations with values provided in this file. File format
