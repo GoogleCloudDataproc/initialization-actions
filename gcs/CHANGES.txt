@@ -4,23 +4,26 @@
 1.9.9 - 2018-10-19
 
   1. Add an option for running flat and regular glob search algorithms in
-     parallel. Returns a result of an algorithm that finishes first and cancels
-     the other algorithm.
+     parallel:
 
-        fs.gs.glob.concurrent.enable (default: true)
+       fs.gs.glob.concurrent.enable (default: true)
 
-  2. Add an option to provide path of configuration override file. Connector
-     overrides configurations with values provided in this file. File format
-     should be XML and follows same schema of Hadoop configuration files.
+     Returns a result of an algorithm that finishes first and cancels the other
+     algorithm.
 
-        fs.gs.config.override.file (default: null)
+  2. Add an option to provide path for configuration override file:
 
+       fs.gs.config.override.file (default: null)
+
+     Connector overrides its configuration with values provided in this file.
+     This file should be in XML format that follows the same schema as Hadoop
+     configuration files.
 
 1.9.8 - 2018-10-03
 
   1. Expose `FileChecksum` in `GoogleHadoopFileSystem` via property:
 
-       fs.gs.checksum.type (default: NONE)
+      fs.gs.checksum.type (default: NONE)
 
      Valid property values: `NONE`, `CRC32C`, `MD5`.
 
@@ -31,8 +34,8 @@
 
      Proxy authentication is configurable with properties:
 
-        fs.gs.proxy.username (default: null)
-        fs.gs.proxy.password (default: null)
+       fs.gs.proxy.username (default: null)
+       fs.gs.proxy.password (default: null)
 
   3. Update Apache HttpClient to the latest version.
 
