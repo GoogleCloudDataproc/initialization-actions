@@ -1,3 +1,4 @@
+import os
 import json
 import logging
 import datetime
@@ -5,7 +6,7 @@ import unittest
 import subprocess
 from threading import Timer
 
-import os
+logging.basicConfig(level=os.getenv("LOG_LEVEL", logging.WARNING))
 
 DEFAULT_TIMEOUT = 10  # minutes
 
@@ -104,7 +105,6 @@ class DataprocTestCase(unittest.TestCase):
 
     @staticmethod
     def run_command(command, timeout_in_minutes=DEFAULT_TIMEOUT):
-        print(command)
         kill = lambda process: process.kill()
         p = subprocess.Popen(
             command,
