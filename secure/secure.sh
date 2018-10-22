@@ -65,7 +65,7 @@ readonly root_password_uri="$(/usr/share/google/get_metadata_value attributes/ro
 readonly db_password_uri="$(/usr/share/google/get_metadata_value attributes/db-password-uri)" || echo ''
 db_password="dataproc"
 if [[ -n "${db_password_uri}" ]]; then
-  dp_password="$(gsutil cat ${db_password_uri} | \
+  db_password="$(gsutil cat ${db_password_uri} | \
     gcloud kms decrypt \
     --ciphertext-file - \
     --plaintext-file - \
