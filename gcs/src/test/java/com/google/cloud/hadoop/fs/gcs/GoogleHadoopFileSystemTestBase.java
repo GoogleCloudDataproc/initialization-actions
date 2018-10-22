@@ -95,6 +95,9 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
         GoogleHadoopFileSystemConfiguration.GCS_INFER_IMPLICIT_DIRECTORIES_ENABLE.getKey(), false);
     // Allow buckets to be deleted in test cleanup:
     config.setBoolean(GoogleHadoopFileSystemConfiguration.GCE_BUCKET_DELETE_ENABLE.getKey(), true);
+    // Disable concurrent globbing because it's unpredictable in auto repairing parent directory
+    config.setBoolean(
+        GoogleHadoopFileSystemConfiguration.GCS_CONCURRENT_GLOB_ENABLE.getKey(), false);
     return config;
   }
 
@@ -282,8 +285,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     Path globChildrenPath = new Path(parentPath.toString() + "/*");
     myghfs.globStatus(globChildrenPath);
     boolean expectParentRepair =
-        (myghfs.enableConcurrentGlob && myghfs.couldUseFlatGlob(globChildrenPath))
-            || !(myghfs.enableFlatGlob && myghfs.couldUseFlatGlob(globChildrenPath));
+        !(myghfs.enableFlatGlob && myghfs.couldUseFlatGlob(globChildrenPath));
 
     // This will internally call listStatus, so will have the same behavior of repairing both
     // levels of subdirectories.

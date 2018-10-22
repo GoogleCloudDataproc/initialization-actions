@@ -66,16 +66,12 @@ public class GoogleHadoopFileSystemIntegrationTest
           GoogleHadoopFileSystem testInstance = new GoogleHadoopFileSystem();
           ghfs = testInstance;
           ghfsFileSystemDescriptor = testInstance;
-          URI initUri;
-          try {
-            initUri = new URI("gs:/");
-          } catch (URISyntaxException e) {
-            throw new IllegalArgumentException(e);
-          }
 
           // loadConfig needs ghfsHelper, which is normally created in
           // postCreateInit. Create one here for it to use.
           ghfsHelper = new HadoopFileSystemIntegrationHelper(ghfs, ghfsFileSystemDescriptor);
+
+          URI initUri = new URI("gs:/");
           ghfs.initialize(initUri, loadConfig());
 
           HadoopFileSystemTestBase.postCreateInit();
