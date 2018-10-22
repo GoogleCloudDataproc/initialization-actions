@@ -71,7 +71,7 @@ class DataprocTestCase(unittest.TestCase):
         self.cluster_version = json.loads(stdout).get("config", {}).get("softwareConfig", {}).get("imageVersion")
 
     def tearDown(self):
-        cmd = "yes | gcloud dataproc clusters delete {} --quiet".format(self.name)
+        cmd = "gcloud dataproc clusters delete {} --quiet".format(self.name)
         ret_val, stdout, stderr = self.run_command(cmd)
         self.assertEqual(ret_val, 0, "Failed to delete cluster {}. Error: {}".format(
             self.name,
