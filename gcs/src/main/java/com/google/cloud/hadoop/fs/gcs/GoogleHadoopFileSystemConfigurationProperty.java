@@ -49,6 +49,13 @@ public class GoogleHadoopFileSystemConfigurationProperty<T> {
     return logProperty(lookupKey, getterFn.apply(lookupKey, defaultValue));
   }
 
+  String getPassword(Configuration config) {
+    checkState(defaultValue == null || defaultValue instanceof String, "Not a string property");
+    String lookupKey = getLookupKey(config, key, deprecatedKeys);
+    String value = GoogleHadoopFileSystemBaseSpecific.getPassword(config, lookupKey);
+    return logProperty(lookupKey, value == null ? (String) defaultValue : value);
+  }
+
   Collection<String> getStringCollection(Configuration config) {
     checkState(
         defaultValue == null || defaultValue instanceof Collection, "Not a collection property");

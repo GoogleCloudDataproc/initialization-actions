@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 
 /**
@@ -21,4 +22,9 @@ import org.apache.hadoop.fs.FileSystem;
  *
  * @see GoogleHadoopFileSystemBase
  */
-abstract class GoogleHadoopFileSystemBaseSpecific extends FileSystem {}
+abstract class GoogleHadoopFileSystemBaseSpecific extends FileSystem {
+
+  static String getPassword(Configuration config, String name) {
+    return config.get(name);
+  }
+}

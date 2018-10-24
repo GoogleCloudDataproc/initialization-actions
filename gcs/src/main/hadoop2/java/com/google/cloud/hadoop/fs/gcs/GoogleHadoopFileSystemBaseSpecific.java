@@ -22,6 +22,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.EnumSet;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -34,6 +35,16 @@ import org.apache.hadoop.util.Progressable;
  * @see GoogleHadoopFileSystemBase
  */
 abstract class GoogleHadoopFileSystemBaseSpecific extends FileSystem {
+
+  static String getPassword(Configuration config, String name) {
+    char[] value;
+    try {
+      value = config.getPassword(name);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    return value == null ? null : String.valueOf(value);
+  }
 
   /** @see GoogleHadoopFileSystemBase#getGcsPath(Path) */
   public abstract URI getGcsPath(Path hadoopPath);
