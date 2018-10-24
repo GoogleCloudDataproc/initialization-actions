@@ -16,15 +16,14 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
+
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.flogger.GoogleLogger;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-/**
- * A PathCodec that performs URI path encoding and decoding on GCS object names.
- */
+/** A PathCodec that performs URI path encoding and decoding on GCS object names. */
 class UriEncodingPathCodec implements PathCodec {
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
@@ -36,58 +35,47 @@ class UriEncodingPathCodec implements PathCodec {
 
     if (!GoogleCloudStorageFileSystem.SCHEME.equals(path.getScheme())) {
       throw new IllegalArgumentException(
-          "Google Cloud Storage path supports only '"
-              + GoogleCloudStorageFileSystem.SCHEME + "' scheme, instead got '"
-              + path.getScheme() + "' from '" + path + "'.");
+          String.format(
+              "Google Cloud Storage path supports only '%s' scheme, instead got '%s' from '%s'.",
+              GoogleCloudStorageFileSystem.SCHEME, path.getScheme(), path));
     }
-
-    String bucketName;
-    String objectName;
 
     if (path.equals(GoogleCloudStorageFileSystem.GCS_ROOT)) {
       return StorageResourceId.ROOT;
-    } else {
-      bucketName = path.getAuthority();
-      // Note that we're using getPath here instead of rawPath, etc. This is because it is assumed
-      // that the path was properly encoded in getPath (or another similar method):
-      objectName = path.getPath();
-
-      bucketName =
-          GoogleCloudStorageFileSystem.validateBucketName(bucketName);
-      objectName =
-          GoogleCloudStorageFileSystem.validateObjectName(objectName, allowEmptyObjectName);
-
-      if (Strings.isNullOrEmpty(objectName)) {
-        return new StorageResourceId(bucketName);
-      } else {
-        return new StorageResourceId(bucketName, objectName);
-      }
     }
+
+    String bucketName = GoogleCloudStorageFileSystem.validateBucketName(path.getAuthority());
+    // Note that we're using getPath here instead of rawPath, etc. This is because it is assumed
+    // that the path was properly encoded in getPath (or another similar method):
+    String objectName =
+        GoogleCloudStorageFileSystem.validateObjectName(path.getPath(), allowEmptyObjectName);
+
+    return isNullOrEmpty(objectName)
+        ? new StorageResourceId(bucketName)
+        : new StorageResourceId(bucketName, objectName);
   }
 
   @Override
   public URI getPath(String bucketName, String objectName, boolean allowEmptyObjectName) {
-    if (allowEmptyObjectName && (bucketName == null) && (objectName == null)) {
+    if (allowEmptyObjectName && bucketName == null && objectName == null) {
       return GoogleCloudStorageFileSystem.GCS_ROOT;
     }
 
-    bucketName =
-        GoogleCloudStorageFileSystem.validateBucketName(bucketName);
-    objectName =
-        GoogleCloudStorageFileSystem.validateObjectName(objectName, allowEmptyObjectName);
-
-    String path = GoogleCloudStorage.PATH_DELIMITER + objectName;
-    String authority = bucketName;
-    URI pathUri;
+    String authority = GoogleCloudStorageFileSystem.validateBucketName(bucketName);
+    String path =
+        GoogleCloudStorage.PATH_DELIMITER
+            + GoogleCloudStorageFileSystem.validateObjectName(objectName, allowEmptyObjectName);
 
     try {
-      pathUri = new URI(GoogleCloudStorageFileSystem.SCHEME, authority, path, null, null);
+      return new URI(
+          GoogleCloudStorageFileSystem.SCHEME,
+          authority,
+          path,
+          /* query= */ null,
+          /* fragment= */ null);
     } catch (URISyntaxException e) {
-      String msg = String.format("Invalid bucket name (%s) or object name (%s)",
-          bucketName, objectName);
-      throw new IllegalArgumentException(msg, e);
+      throw new IllegalArgumentException(
+          String.format("Invalid bucket name (%s) or object name (%s)", bucketName, objectName), e);
     }
-
-    return pathUri;
   }
 }
