@@ -4,18 +4,15 @@ This script installs Dr. Elephant on dataproc clusters. To learn more about Dr. 
 
 
 ## Using this initialization action
-You can use these initialization actions to create a new Dataproc cluster with Dr. Elephant installed.
-
-It is needed to use ```dr-elephant-env.sh``` script to set environment variables before the main ```dr-elephant.sh``` script starts.
+You can use this initialization action to create a new Dataproc cluster with Dr. Elephant installed.
 
 Once the cluster has been created, Dr. Elephant is configured to run on port `8080`.
 
 ## Testing
-You can easily test Dr. Elephant is running by using ```test.sh ${cluster_prefix} ${bucket_name} ${project_name}``` script.
+You can easily test Dr. Elephant is running by using ```test.sh ${cluster_prefix} ${bucket_name}``` script.
 
 * ```cluster_prefix``` argument sets a prefix in created cluster name
 * ```bucket_name``` argument sets a place where init action will be placed
-* ```project_name ``` argument sets your dataproc project name
 
 This script is used for testing dr-elephant on 1.1,1.2,1.3 dataproc images with single,
 standard and HA configurations. After clusters are created, script submit spark jobs on them.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# This script is used for dr-elephant configuration and running
+# Init action for Dr.Elephant
 set -x -e
 
 function err() {
@@ -7,6 +7,15 @@ function err() {
   return 1
 }
 function prepare_env(){
+  cat << 'EOF' >> ~/.bashrc
+export ACTIVATOR_HOME=/usr/lib/activator-dist-1.3.12/activator-dist-1.3.12
+export HADOOP_HOME='/usr/lib/hadoop'
+export HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop
+export SPARK_HOME='/usr/lib/spark'
+export SPARK_CONF_DIR='/usr/lib/spark/conf'
+export PATH=$PATH:$HADOOP_HOME:$HADOOP_CONF_DIR:$SPARK_HOME:$SPARK_CONF_DIR:$ACTIVATOR_HOME/bin/
+EOF
+  readonly enable_cloud_sql_metastore="$(/usr/share/google/get_metadata_value attributes/enable-cloud-sql-hive-metastore || echo 'true')"
   cd /root/
   source .bashrc
 }
@@ -57,24 +66,6 @@ function build(){
   # Build dr elephant and move outputs
   bash ./compile.sh compile.conf
   unzip /root/dr-elephant/dist/dr-elephant-2.1.7.zip -d /root/dr-elephant/dist/
-}
-
-function install_mysql(){
-  # Install MySQL
-
-  export DEBIAN_FRONTEND=noninteractive
-  curl -LO https://dev.mysql.com/get/mysql-apt-config_0.7.3-1_all.deb
-  echo mysql-apt-config mysql-apt-config/select-product          select Apply              | sudo debconf-set-selections
-  echo mysql-apt-config mysql-apt-config/select-server           select mysql-5.7          | sudo debconf-set-selections
-  echo mysql-apt-config mysql-apt-config/select-connector-python select none               | sudo debconf-set-selections
-  echo mysql-apt-config mysql-apt-config/select-workbench        select none               | sudo debconf-set-selections
-  echo mysql-apt-config mysql-apt-config/select-utilities        select none               | sudo debconf-set-selections
-  echo mysql-apt-config mysql-apt-config/select-connector-odbc   select connector-odbc-x.x | sudo debconf-set-selections
-  sudo -E dpkg -i mysql-apt-config_0.7.3-1_all.deb
-  apt-get update
-  echo mysql-community-server mysql-community-server/re-root-pass password ${mysql_root_password} | sudo debconf-set-selections
-  echo mysql-community-server mysql-community-server/root-pass    password ${mysql_root_password} | sudo debconf-set-selections
-  yes | sudo -E apt-get --force-yes install mysql-community-server
 }
 
 function configure(){
@@ -214,18 +205,16 @@ function prepare_mysql(){
 
 function run_dr(){
   # Restart History Server
-  bash $SPARK_HOME/sbin/stop-history-server.sh
-  bash $SPARK_HOME/sbin/start-history-server.sh
+  systemctl restart spark-historyserver
   bash /root/dr-elephant/dist/dr-elephant-2.1.7/bin/start.sh
 }
 
 function main(){
   # Install on master node
   [[ "$(/usr/share/google/get_metadata_value attributes/dataproc-role)" == 'Master' ]] || exit 0
-  prepare_env
+  prepare_env || err 'Env configuration failed'
   build || err 'Build step failed'
   configure || err 'Configuration failed'
-  install_mysql || err 'Could not install mysql'
   prepare_mysql || err 'Could not proceed with mysql'
   run_dr || err 'Cannot launch dr-elephant'
 }
