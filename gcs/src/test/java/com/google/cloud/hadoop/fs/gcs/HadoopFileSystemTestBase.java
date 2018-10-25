@@ -115,7 +115,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
 
     if (fileStatus != null) {
       // File/dir exists, check its attributes.
-      String message = (fileStatus.getPath()).toString();
+      String message = fileStatus.getPath().toString();
 
       long expectedSize =
           ghfsHelper.getExpectedObjectSize(objectName, expectedToExist);
@@ -124,8 +124,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       }
 
       boolean expectedToBeDir =
-          Strings.isNullOrEmpty(objectName)
-          || ghfsHelper.objectHasDirectoryPath(objectName);
+          Strings.isNullOrEmpty(objectName) || ghfsHelper.objectHasDirectoryPath(objectName);
       Assert.assertEquals(message, expectedToBeDir, fileStatus.isDir());
 
       Instant currentTime = Instant.now();

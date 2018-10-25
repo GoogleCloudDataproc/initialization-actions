@@ -30,23 +30,25 @@ import org.junit.runners.JUnit4;
 /**
  * Integration tests for HDFS.
  *
- * This class allows running all tests in HadoopFileSystemTestBase against
- * HDFS. This allows us to determine if HDFS behavior is different from GHFS behavior and if so, fix
- * GHFS to match HDFS behavior.
+ * <p>This class allows running all tests in HadoopFileSystemTestBase against HDFS. This allows us
+ * to determine if HDFS behavior is different from GHFS behavior and if so, fix GHFS to match HDFS
+ * behavior.
  *
- * We enable it by mapping paths used by GHFS tests to HDFS paths.
- * GHFS tests construct test paths using the following 2 methods:
- * -- combine bucketName and objectName to form GCS path.
- * -- directly use GCS path (in some cases).
+ * <p>We enable it by mapping paths used by GHFS tests to HDFS paths. GHFS tests construct test
+ * paths using the following 2 methods:
  *
- * This class overrides the initial setup of the FileSystem under test to inject an actual
- * HDFS implementation, as well as injecting a version of FileSystemDescriptor which properly
- * describes the behavior of HDFS. The FileSystemDescriptor thus reroutes all the test methods
- * through the proper HDFS instance using hdfs:/ paths.
+ * <ul>
+ *   <li>combine bucketName and objectName to form GCS path.
+ *   <li>directly use GCS path (in some cases).
+ * </ul>
+ *
+ * <p>This class overrides the initial setup of the FileSystem under test to inject an actual HDFS
+ * implementation, as well as injecting a version of FileSystemDescriptor which properly describes
+ * the behavior of HDFS. The FileSystemDescriptor thus reroutes all the test methods through the
+ * proper HDFS instance using hdfs:/ paths.
  */
 @RunWith(JUnit4.class)
-public class HadoopFileSystemIntegrationTest
-    extends HadoopFileSystemTestBase {
+public class HadoopFileSystemIntegrationTest extends HadoopFileSystemTestBase {
 
   // Environment variable from which to get HDFS access info.
   public static final String HDFS_ROOT = "HDFS_ROOT";
@@ -54,8 +56,7 @@ public class HadoopFileSystemIntegrationTest
   // HDFS path (passed to the test through environment var).
   static String hdfsRoot;
 
-  @ClassRule
-  public static TemporaryFolder folder = new TemporaryFolder();
+  @ClassRule public static TemporaryFolder folder = new TemporaryFolder();
 
   @ClassRule
   public static NotInheritableExternalResource storageResource =
@@ -110,11 +111,8 @@ public class HadoopFileSystemIntegrationTest
         }
       };
 
-  /**
-   * Perform initialization after creating test instances.
-   */
-  public static void postCreateInit()
-      throws IOException {
+  /** Perform initialization after creating test instances. */
+  public static void postCreateInit() throws IOException {
     HadoopFileSystemTestBase.postCreateInit();
   }
 
@@ -122,30 +120,21 @@ public class HadoopFileSystemIntegrationTest
   // Tests that exercise behavior defined in HdfsBehavior.
   // -----------------------------------------------------------------
 
-  /**
-   * Validates delete().
-   */
-  @Test @Override
-  public void testDelete()
-      throws IOException {
+  @Test
+  @Override
+  public void testDelete() throws IOException {
     deleteHelper(new HdfsBehavior());
   }
 
-  /**
-   * Validates mkdirs().
-   */
-  @Test @Override
-  public void testMkdirs()
-      throws IOException, URISyntaxException {
+  @Test
+  @Override
+  public void testMkdirs() throws IOException, URISyntaxException {
     mkdirsHelper(new HdfsBehavior());
   }
 
-  /**
-   * Validates rename().
-   */
-  @Test @Override
-  public void testRename()
-      throws IOException {
+  @Test
+  @Override
+  public void testRename() throws IOException {
     renameHelper(new HdfsBehavior());
   }
 }
