@@ -40,51 +40,38 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.Syncable;
 
 /**
- * GoogleHadoopSyncableOutputStream implements the {@code Syncable} interface by composing
- * objects created in separate underlying streams for each hsync() call.
- * <p>
- * Prior to the first hsync(), sync() or close() call, this channel will behave the same way as a
+ * GoogleHadoopSyncableOutputStream implements the {@code Syncable} interface by composing objects
+ * created in separate underlying streams for each hsync() call.
+ *
+ * <p>Prior to the first hsync(), sync() or close() call, this channel will behave the same way as a
  * basic non-syncable channel, writing directly to the destination file.
- * <p>
- * On the first call to hsync()/sync(), the destination file is committed and a new temporary file
- * using a hidden-file prefix (underscore) is created with an additional suffix which differs for
- * each subsequent temporary file in the series; during this time readers can read the data
- * committed to the destination file, but not the bytes written to the temporary file since the
- * last hsync() call.
- * <p>
- * On each subsequent hsync()/sync() call, the temporary file closed(), composed onto the
+ *
+ * <p>On the first call to hsync()/sync(), the destination file is committed and a new temporary
+ * file using a hidden-file prefix (underscore) is created with an additional suffix which differs
+ * for each subsequent temporary file in the series; during this time readers can read the data
+ * committed to the destination file, but not the bytes written to the temporary file since the last
+ * hsync() call.
+ *
+ * <p>On each subsequent hsync()/sync() call, the temporary file closed(), composed onto the
  * destination file, then deleted, and a new temporary file is opened under a new filename for
  * further writes.
- * <p>
- * Caveats:
- *   1. Each hsync()/sync() requires many underlying read and mutation requests occurring
- *      sequentially, so latency is expected to be fairly high.
- *   2. There is a hard limit to the number of times hsync()/sync() can be called due to the
- *      GCS-level limit on the number of components a composite object can contain (1024). Any
- *      attempt to hsync() more than this number of times will result in an IOException and
- *      any data written since the last hsync() should be considered lost (unless manually
- *      recovered as long as the temporary file wasn't deleted under the hood).
- * <p>
- * If errors occur mid-stream, there may be one or more temporary files failing to be cleaned up,
- * and require manual intervention to discover and delete any such unused files. Data written
- * prior to the most recent successful hsync() is persistent and safe in such a case.
- * <p>
- * If multiple writers are attempting to write to the same destination file, generation ids used
+ *
+ * <p>Caveat: each hsync()/sync() requires many underlying read and mutation requests occurring
+ * sequentially, so latency is expected to be fairly high.
+ *
+ * <p>If errors occur mid-stream, there may be one or more temporary files failing to be cleaned up,
+ * and require manual intervention to discover and delete any such unused files. Data written prior
+ * to the most recent successful hsync() is persistent and safe in such a case.
+ *
+ * <p>If multiple writers are attempting to write to the same destination file, generation ids used
  * with low-level precondition checks will cause all but a one writer to fail their precondition
  * checks during writes, and a single remaining writer will safely occupy the stream.
  */
 public class GoogleHadoopSyncableOutputStream extends OutputStream implements Syncable {
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+
   // Prefix used for all temporary files created by this stream.
   public static final String TEMPFILE_PREFIX = "_GCS_SYNCABLE_TEMPFILE_";
-
-  // Maximum number of components a composite object can have; any attempts to compose onto
-  // an object already having this many components will fail. This OutputStream will enforce
-  // the limit before attempting the compose operation at all, so that the stream can be
-  // considered still safe to use and eventually close() without losing data even if
-  // intermediate attempts to hsync() throw exceptions due to the component limit.
-  public static final int MAX_COMPOSITE_COMPONENTS = 1024;
-
-  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Temporary files don't need to contain the desired attributes of the final destination file
   // since metadata settings get clobbered on final compose() anyways; additionally, due to
@@ -259,15 +246,6 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
         "hsync(): Committing tail file %s to final destination %s", curGcsPath, finalGcsPath);
     throwIfNotOpen();
     long startTime = System.nanoTime();
-
-    // If we were to call close() instead of hsync() right now, the final object would have this
-    // many components.
-    int curNumComponents = curComponentIndex + 1;
-    if (curNumComponents >= MAX_COMPOSITE_COMPONENTS) {
-      throw new CompositeLimitExceededException(String.format(
-          "Cannot hsync() '%s' because subsequent component count would exceed limit of %d",
-          finalGcsPath, MAX_COMPOSITE_COMPONENTS));
-    }
 
     commitCurrentFile();
 

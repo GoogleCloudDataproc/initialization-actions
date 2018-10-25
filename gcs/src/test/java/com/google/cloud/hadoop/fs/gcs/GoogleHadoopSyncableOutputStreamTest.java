@@ -23,14 +23,15 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
+import com.google.common.util.concurrent.Futures;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.channels.ClosedChannelException;
+import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.stream.Stream;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -50,7 +51,6 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class GoogleHadoopSyncableOutputStreamTest {
   @Mock private ExecutorService mockExecutorService;
-  @Mock private Future<Void> mockFuture;
 
   private GoogleHadoopFileSystemBase ghfs;
 
@@ -71,7 +71,6 @@ public class GoogleHadoopSyncableOutputStreamTest {
     ghfs.close();
 
     verifyNoMoreInteractions(mockExecutorService);
-    verifyNoMoreInteractions(mockFuture);
   }
 
   @Test
@@ -133,9 +132,7 @@ public class GoogleHadoopSyncableOutputStreamTest {
 
     IOException fakeIoException = new IOException("fake io exception");
     when(mockExecutorService.submit(any(Callable.class)))
-        .thenReturn(mockFuture);
-    when(mockFuture.get())
-        .thenThrow(new ExecutionException(fakeIoException));
+        .thenReturn(Futures.immediateFailedFuture(new ExecutionException(fakeIoException)));
 
     byte[] data1 = new byte[] { 0x0f, 0x0e, 0x0e, 0x0d };
     byte[] data2 = new byte[] { 0x0b, 0x0e, 0x0e, 0x0f };
@@ -152,7 +149,6 @@ public class GoogleHadoopSyncableOutputStreamTest {
     assertThat(thrown).hasMessageThat().contains(fakeIoException.getMessage());
 
     verify(mockExecutorService, times(2)).submit(any(Callable.class));
-    verify(mockFuture).get();
   }
 
   @Test
@@ -191,38 +187,25 @@ public class GoogleHadoopSyncableOutputStreamTest {
   }
 
   @Test
-  public void testSyncCompositeLimitException() throws Exception {
+  public void testSyncComposite_withLargeNumberOfComposeComponents() throws Exception {
     Path objectPath = new Path(ghfs.getFileSystemRoot(), "dir/object.txt");
-    FSDataOutputStream fout = ghfs.create(objectPath);
 
-    byte[] expected = new byte[GoogleHadoopSyncableOutputStream.MAX_COMPOSITE_COMPONENTS + 1];
-    byte[] buf = new byte[1];
-    for (int i = 0; i < GoogleHadoopSyncableOutputStream.MAX_COMPOSITE_COMPONENTS - 1; ++i) {
-      buf[0] = (byte) i;
-      expected[i] = buf[0];
-      fout.write(buf, 0, 1);
-      hsync(fout);
+    // number of compose components should be greater than 1024 (previous limit for GCS compose API)
+    byte[] expected = new byte[1536];
+    new Random().nextBytes(expected);
+
+    try (FSDataOutputStream fout = ghfs.create(objectPath)) {
+      for (int i = 0; i < expected.length; ++i) {
+        fout.write(expected, i, 1);
+        hsync(fout);
+      }
     }
 
-    // If the limit is N, then the Nth attempt to call sync() will fail, since it means the
-    // base object already has N - 1 components, and we have 1 temporary object in-progress,
-    // and a call to close() at this point brings the base object up to the limit of N.
-
-    // Despite the exception we're expecting, the data here should still be safe.
-    fout.write(new byte[] {0x42});
-    expected[GoogleHadoopSyncableOutputStream.MAX_COMPOSITE_COMPONENTS - 1] = 0x42;
-
-    assertThrows(CompositeLimitExceededException.class, () -> hsync(fout));
-
-    // Despite having thrown an exception, the stream is still safe to use and even write more data.
-    fout.write(new byte[] { 0x11 });
-    expected[GoogleHadoopSyncableOutputStream.MAX_COMPOSITE_COMPONENTS] = 0x11;
-    fout.close();
-
     byte[] actual = new byte[expected.length];
-    FSDataInputStream fin = ghfs.open(objectPath);
-    fin.read(actual);
-    fin.close();
+    try (FSDataInputStream fin = ghfs.open(objectPath)) {
+      fin.read(actual);
+    }
+
     assertThat(actual).isEqualTo(expected);
   }
 
