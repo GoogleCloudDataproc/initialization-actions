@@ -42,6 +42,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -54,7 +55,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -239,7 +239,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
     if (expectedToExist) {
       Instant currentTime = Instant.now();
-      Instant fileCreationTime = new Instant(fileInfo.getCreationTime());
+      Instant fileCreationTime = Instant.ofEpochMilli(fileInfo.getCreationTime());
 
       assertWithMessage(
               "stale file? testStartTime: %s, fileCreationTime: %s",

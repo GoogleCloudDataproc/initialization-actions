@@ -15,6 +15,7 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopSyncableOutputStreamTest.hsync;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 
@@ -26,6 +27,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -38,8 +40,6 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.joda.time.Duration;
-import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -128,23 +128,22 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       Assert.assertEquals(message, expectedToBeDir, fileStatus.isDir());
 
       Instant currentTime = Instant.now();
-      Instant modificationTime = new Instant(fileStatus.getModificationTime());
+      Instant modificationTime = Instant.ofEpochMilli(fileStatus.getModificationTime());
       // We must subtract 1000, because some FileSystems, like LocalFileSystem, have only
       // second granularity, so we might have something like testStartTime == 1234123
       // and modificationTime == 1234000. Unfortunately, "Instant" doesn't support easy
       // conversions between units to clip to the "second" precision.
       // Alternatively, we should just use TimeUnit and formally convert "toSeconds".
-      Assert.assertTrue(
-          String.format(
+      assertWithMessage(
               "Stale file? testStartTime: %s modificationTime: %s bucket: '%s' object: '%s'",
-              testStartTime.toString(), modificationTime.toString(), bucketName, objectName),
-          modificationTime.isEqual(testStartTime.minus(Duration.millis(1000)))
-              || modificationTime.isAfter(testStartTime.minus(Duration.millis(1000))));
-      Assert.assertTrue(
-          String.format(
+              testStartTime, modificationTime, bucketName, objectName)
+          .that(modificationTime)
+          .isAtLeast(testStartTime.minusMillis(1000));
+      assertWithMessage(
               "Clock skew? currentTime: %s modificationTime: %s bucket: '%s' object: '%s'",
-              currentTime.toString(), modificationTime.toString(), bucketName, objectName),
-          modificationTime.isEqual(currentTime) || modificationTime.isBefore(currentTime));
+              currentTime, modificationTime, bucketName, objectName)
+          .that(modificationTime)
+          .isAtMost(currentTime);
     }
   }
 

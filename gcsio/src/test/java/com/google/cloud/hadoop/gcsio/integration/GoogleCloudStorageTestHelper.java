@@ -38,14 +38,14 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.security.GeneralSecurityException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
-import org.joda.time.Duration;
-import org.joda.time.Instant;
 
 /** Helper methods for GCS integration tests. */
 public class GoogleCloudStorageTestHelper {
@@ -190,7 +190,7 @@ public class GoogleCloudStorageTestHelper {
 
     // If bucket created before this time, it considered leaked
     private static final long LEAKED_BUCKETS_CUTOFF_TIME =
-        Instant.now().minus(Duration.standardHours(6)).getMillis();
+        Instant.now().minus(Duration.ofHours(6)).toEpochMilli();
 
     private final String bucketPrefix;
     private final String uniqueBucketPrefix;
