@@ -22,6 +22,7 @@ import com.google.api.client.http.apache.ApacheHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
+import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.net.Authenticator;
 import java.net.InetSocketAddress;
@@ -42,6 +43,7 @@ import org.apache.http.impl.client.DefaultHttpClient;
  * Factory for creating HttpTransport types.
  */
 public class HttpTransportFactory {
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /**
    * Types of HttpTransports the factory can create.
@@ -113,6 +115,8 @@ public class HttpTransportFactory {
       @Nullable String proxyUsername,
       @Nullable String proxyPassword)
       throws IOException {
+    logger.atFine().log(
+        "createHttpTransport(%s, %s, %s, %s)", type, proxyAddress, proxyUsername, proxyPassword);
     checkArgument(
         proxyAddress != null || (proxyUsername == null && proxyPassword == null),
         "if proxyAddress is null then proxyUsername and proxyPassword should be null too");

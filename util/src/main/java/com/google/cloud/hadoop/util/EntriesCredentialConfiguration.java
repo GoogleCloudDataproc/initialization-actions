@@ -347,11 +347,11 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
     if (proxyAddress != null) {
       setProxyAddress(proxyAddress);
     }
-    String proxyUsername = entries.get(PROXY_USERNAME_KEY);
+    String proxyUsername = entries.getPassword(PROXY_USERNAME_KEY);
     if (proxyUsername != null) {
       setProxyUsername(proxyUsername);
     }
-    String proxyPassword = entries.get(PROXY_PASSWORD_KEY);
+    String proxyPassword = entries.getPassword(PROXY_PASSWORD_KEY);
     if (proxyPassword != null) {
       setProxyPassword(proxyPassword);
     }
