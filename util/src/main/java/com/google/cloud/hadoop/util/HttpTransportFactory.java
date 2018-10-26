@@ -116,7 +116,8 @@ public class HttpTransportFactory {
       @Nullable String proxyPassword)
       throws IOException {
     logger.atFine().log(
-        "createHttpTransport(%s, %s, %s, %s)", type, proxyAddress, proxyUsername, proxyPassword);
+        "createHttpTransport(%s, %s, %s, %s)",
+        type, proxyAddress, toSecretString(proxyUsername), toSecretString(proxyPassword));
     checkArgument(
         proxyAddress != null || (proxyUsername == null && proxyPassword == null),
         "if proxyAddress is null then proxyUsername and proxyPassword should be null too");
@@ -145,6 +146,10 @@ public class HttpTransportFactory {
     } catch (GeneralSecurityException e) {
       throw new IOException(e);
     }
+  }
+
+  static String toSecretString(@Nullable String secret) {
+    return secret == null ? "<not provided>" : "<provided, but not displayed>";
   }
 
   /**

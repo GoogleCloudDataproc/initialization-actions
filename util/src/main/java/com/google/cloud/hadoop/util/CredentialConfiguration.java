@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.util;
 
+import static com.google.cloud.hadoop.util.HttpTransportFactory.toSecretString;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -291,31 +292,19 @@ public class CredentialConfiguration {
   public String toString() {
     return "CredentialConfiguration{\n"
         + ("serviceAccountEnabled: " + isServiceAccountEnabled() + '\n')
-        + ("serviceAccountPrivateKeyId: "
-            + (isNullOrEmpty(getServiceAccountPrivateKeyId())
-                ? "Not Provided"
-                : "Provided, but not displayed")
-            + '\n')
-        + ("serviceAccountPrivateKey: "
-            + (isNullOrEmpty(getServiceAccountPrivateKey())
-                ? "Not Provided"
-                : "Provided, but not displayed")
-            + '\n')
+        + ("serviceAccountPrivateKeyId: " + toSecretString(getServiceAccountPrivateKeyId()) + '\n')
+        + ("serviceAccountPrivateKey: " + toSecretString(getServiceAccountPrivateKey()) + '\n')
         + ("serviceAccountEmail: " + getServiceAccountEmail() + '\n')
         + ("serviceAccountKeyfile: " + getServiceAccountKeyFile() + '\n')
         + ("serviceAccountJsonKeyFile: " + getServiceAccountJsonKeyFile() + '\n')
-        + ("clientId: " + getClientId() + '\n')
-        + ("clientSecret: "
-            + (isNullOrEmpty(getClientSecret()) ? "Not provided" : "Provided, but not displayed")
-            + '\n')
+        + ("clientId: " + toSecretString(getClientId()) + '\n')
+        + ("clientSecret: " + toSecretString(getClientSecret()) + '\n')
         + ("oAuthCredentialFile: " + getOAuthCredentialFile() + '\n')
         + ("isNullCredentialEnabled: " + isNullCredentialEnabled() + '\n')
         + ("transportType: " + getTransportType() + '\n')
         + ("proxyAddress: " + getProxyAddress() + '\n')
-        + ("proxyUsername: " + getProxyUsername() + '\n')
-        + ("proxyPassword: "
-            + (isNullOrEmpty(getProxyPassword()) ? "Not Provided" : "Provided, but not displayed")
-            + '\n')
+        + ("proxyUsername: " + toSecretString(getProxyUsername()) + '\n')
+        + ("proxyPassword: " + toSecretString(getProxyPassword()) + '\n')
         + "}";
   }
 
