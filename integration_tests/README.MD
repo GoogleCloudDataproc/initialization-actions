@@ -9,7 +9,7 @@ In order to run tests you need `Python 3.5` virtualenv and libs specified in `re
 You also need to have `gcloud` CLI configured to use your GCP project.
 
 ## Running tests
-To run all tests just type `python -m unittest`
+To run all tests just type `python -m unittest` from project root.
 
 To run test for specific init action use its package name and test name:
  `python -m unittest hive-hcatalog.test_hive`

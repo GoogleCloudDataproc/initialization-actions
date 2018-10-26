@@ -1,11 +1,9 @@
 import json
 import random
 import unittest
-
-import time
 from parameterized import parameterized
 
-from dataproc_test_case import DataprocTestCase
+from integration_tests.dataproc_test_case import DataprocTestCase
 
 
 class HiveHCatalogTestCase(DataprocTestCase):
