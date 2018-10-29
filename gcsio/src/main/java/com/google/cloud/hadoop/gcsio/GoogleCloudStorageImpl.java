@@ -113,28 +113,16 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
   // A function to encode metadata map values
   private static final Function<byte[], String> ENCODE_METADATA_VALUES =
-      new Function<byte[], String>() {
-        @Override
-        public String apply(byte[] bytes) {
-          if (bytes == null) {
-            return Data.NULL_STRING;
-          } else {
-            return BaseEncoding.base64().encode(bytes);
-          }
-        }
-      };
+      bytes -> bytes == null ? Data.NULL_STRING : BaseEncoding.base64().encode(bytes);
 
   private static final Function<String, byte[]> DECODE_METADATA_VALUES =
-      new Function<String, byte[]>() {
-        @Override
-        public byte[] apply(String value) {
-          try {
-            return BaseEncoding.base64().decode(value);
-          } catch (IllegalArgumentException iae) {
-            logger.atSevere().withCause(iae).log(
-                "Failed to parse base64 encoded attribute value %s - %s", value, iae);
-            return null;
-          }
+      value -> {
+        try {
+          return BaseEncoding.base64().decode(value);
+        } catch (IllegalArgumentException iae) {
+          logger.atSevere().withCause(iae).log(
+              "Failed to parse base64 encoded attribute value %s - %s", value, iae);
+          return null;
         }
       };
 
@@ -563,51 +551,48 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     for (final StorageResourceId resourceId : resourceIds) {
       final Storage.Objects.Insert insertObject = prepareEmptyInsert(resourceId, options);
       manualBatchingThreadPool.execute(
-          new Runnable() {
-            @Override
-            public void run() {
+          () -> {
+            try {
+              insertObject.execute();
+              logger.atFine().log("Successfully inserted %s", resourceId);
+            } catch (IOException ioe) {
+              boolean canIgnoreException = false;
               try {
-                insertObject.execute();
-                logger.atFine().log("Successfully inserted %s", resourceId);
-              } catch (IOException ioe) {
-                boolean canIgnoreException = false;
-                try {
-                  canIgnoreException = canIgnoreExceptionForEmptyObject(ioe, resourceId, options);
-                } catch (Throwable t) {
-                  // Make sure to catch Throwable instead of only IOException so that we can
-                  // correctly wrap other such throwables and propagate them out cleanly inside
-                  // innerExceptions; common sources of non-IOExceptions include Preconditions
-                  // checks which get enforced at varous layers in the library stack.
-                  IOException toWrap =
-                      (t instanceof IOException ? (IOException) t : new IOException(t));
-                  innerExceptions.add(
-                      wrapException(
-                          toWrap,
-                          "Error re-fetching after rate-limit error.",
-                          resourceId.getBucketName(),
-                          resourceId.getObjectName()));
-                }
-                if (canIgnoreException) {
-                  logger.atInfo().withCause(ioe).log(
-                      "Ignoring exception; verified object already exists with desired state.");
-                } else {
-                  innerExceptions.add(
-                      wrapException(
-                          ioe,
-                          "Error inserting.",
-                          resourceId.getBucketName(),
-                          resourceId.getObjectName()));
-                }
+                canIgnoreException = canIgnoreExceptionForEmptyObject(ioe, resourceId, options);
               } catch (Throwable t) {
+                // Make sure to catch Throwable instead of only IOException so that we can
+                // correctly wrap other such throwables and propagate them out cleanly inside
+                // innerExceptions; common sources of non-IOExceptions include Preconditions
+                // checks which get enforced at varous layers in the library stack.
+                IOException toWrap =
+                    (t instanceof IOException ? (IOException) t : new IOException(t));
                 innerExceptions.add(
                     wrapException(
-                        new IOException(t),
+                        toWrap,
+                        "Error re-fetching after rate-limit error.",
+                        resourceId.getBucketName(),
+                        resourceId.getObjectName()));
+              }
+              if (canIgnoreException) {
+                logger.atInfo().withCause(ioe).log(
+                    "Ignoring exception; verified object already exists with desired state.");
+              } else {
+                innerExceptions.add(
+                    wrapException(
+                        ioe,
                         "Error inserting.",
                         resourceId.getBucketName(),
                         resourceId.getObjectName()));
-              } finally {
-                latch.countDown();
               }
+            } catch (Throwable t) {
+              innerExceptions.add(
+                  wrapException(
+                      new IOException(t),
+                      "Error inserting.",
+                      resourceId.getBucketName(),
+                      resourceId.getObjectName()));
+            } finally {
+              latch.countDown();
             }
           });
     }
@@ -2086,13 +2071,8 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
       final String bucketName, List<String> sources, String destination, String contentType)
       throws IOException {
     logger.atFine().log("compose(%s, %s, %s, %s)", bucketName, sources, destination, contentType);
-    List<StorageResourceId> sourceIds = Lists.transform(
-        sources, new Function<String, StorageResourceId>() {
-          @Override
-          public StorageResourceId apply(String objectName) {
-            return new StorageResourceId(bucketName, objectName);
-          }
-        });
+    List<StorageResourceId> sourceIds =
+        Lists.transform(sources, objectName -> new StorageResourceId(bucketName, objectName));
     StorageResourceId destinationId = new StorageResourceId(bucketName, destination);
     CreateObjectOptions options = new CreateObjectOptions(
         true, contentType, CreateObjectOptions.EMPTY_METADATA);
@@ -2114,14 +2094,8 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     }
     List<ComposeRequest.SourceObjects> sourceObjects =
         Lists.transform(
-            sources,
-            new Function<StorageResourceId, ComposeRequest.SourceObjects>() {
-              @Override
-              public ComposeRequest.SourceObjects apply(StorageResourceId input) {
-                // TODO(user): Maybe set generationIds for source objects as well here.
-                return new ComposeRequest.SourceObjects().setName(input.getObjectName());
-              }
-            });
+            // TODO(user): Maybe set generationIds for source objects as well here.
+            sources, input -> new ComposeRequest.SourceObjects().setName(input.getObjectName()));
     Storage.Objects.Compose compose =
         configureRequest(
             gcs.objects()

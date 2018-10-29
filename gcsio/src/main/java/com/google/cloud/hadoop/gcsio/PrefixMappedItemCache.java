@@ -14,6 +14,7 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.base.Strings.nullToEmpty;
+import static java.util.Comparator.naturalOrder;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -256,15 +257,7 @@ public class PrefixMappedItemCache {
     if (last != null) {
       SortedMap<PrefixKey, CacheValue<GoogleCloudStorageItemInfo>> prefix =
           getPrefixSubMap(itemMap, last.getKey());
-      Iterator<Entry<PrefixKey, CacheValue<GoogleCloudStorageItemInfo>>> prefixItr =
-          prefix.entrySet().iterator();
-
-      while (prefixItr.hasNext()) {
-        Entry<PrefixKey, CacheValue<GoogleCloudStorageItemInfo>> entry = prefixItr.next();
-        if (isExpired(entry.getValue())) {
-          prefixItr.remove();
-        }
-      }
+      prefix.entrySet().removeIf(entry -> isExpired(entry.getValue()));
     }
   }
 
@@ -406,13 +399,7 @@ public class PrefixMappedItemCache {
      * to off-load to for performance reasons. This throws a NullPointerException if either of the
      * entries being compared are null.
      */
-    public static final Comparator<PrefixKey> COMPARATOR =
-        new Comparator<PrefixKey>() {
-          @Override
-          public int compare(PrefixKey a, PrefixKey b) {
-            return a.compareTo(b);
-          }
-        };
+    public static final Comparator<PrefixKey> COMPARATOR = naturalOrder();
 
     /** The bucket for the entry. */
     private final String bucket;

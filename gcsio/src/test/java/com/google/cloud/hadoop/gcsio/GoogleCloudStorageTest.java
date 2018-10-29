@@ -550,18 +550,13 @@ public class GoogleCloudStorageTest {
 
     Future<?> write =
         executorService.submit(
-            new Runnable() {
-              @Override
-              public void run() {
-                try {
-                  writeStartedLatch.countDown();
-                  writeChannel.close();
-                  fail("Expected IOException");
-                } catch (IOException ioe) {
-                  assertThat(ioe.getClass()).isEqualTo(ClosedByInterruptException.class);
-                } finally {
-                  threadsDoneLatch.countDown();
-                }
+            () -> {
+              writeStartedLatch.countDown();
+              try {
+                IOException ioe = assertThrows(IOException.class, writeChannel::close);
+                assertThat(ioe).isInstanceOf(ClosedByInterruptException.class);
+              } finally {
+                threadsDoneLatch.countDown();
               }
             });
     // Wait for the insert object to be executed, then cancel the writing thread, and finally wait

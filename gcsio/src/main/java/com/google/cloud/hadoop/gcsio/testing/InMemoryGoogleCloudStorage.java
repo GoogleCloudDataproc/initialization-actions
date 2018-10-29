@@ -26,7 +26,6 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageStrings;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.UpdatableItemInfo;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
@@ -537,14 +536,7 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
       final String bucketName, List<String> sources, String destination, String contentType)
       throws IOException {
     List<StorageResourceId> sourceResourcesIds =
-        Lists.transform(
-            sources,
-            new Function<String, StorageResourceId>() {
-              @Override
-              public StorageResourceId apply(String s) {
-                return new StorageResourceId(bucketName, s);
-              }
-            });
+        Lists.transform(sources, s -> new StorageResourceId(bucketName, s));
     StorageResourceId destinationId = new StorageResourceId(bucketName, destination);
     CreateObjectOptions options = new CreateObjectOptions(
         true, contentType, CreateObjectOptions.EMPTY_METADATA);

@@ -376,24 +376,23 @@ public abstract class GoogleCloudStorageIntegrationHelper {
     List<Future<?>> futures = new ArrayList<>();
     // Do each creation asynchronously.
     for (final String objectName : objectNames) {
-      Future<?> future = threadPool.submit(new Runnable() {
-        @Override
-        public void run() {
-          try {
-            if (objectName.endsWith(GoogleCloudStorage.PATH_DELIMITER)) {
-              mkdir(bucketName, objectName);
-            } else {
-              // Just use objectName as file contents.
-              writeTextFile(bucketName, objectName, objectName);
-            }
-          } catch (Throwable ioe) {
-            throw new RuntimeException(
-                String.format("Exception creating %s/%s", bucketName, objectName), ioe);
-          } finally {
-            counter.countDown();
-          }
-        }
-      });
+      Future<?> future =
+          threadPool.submit(
+              () -> {
+                try {
+                  if (objectName.endsWith(GoogleCloudStorage.PATH_DELIMITER)) {
+                    mkdir(bucketName, objectName);
+                  } else {
+                    // Just use objectName as file contents.
+                    writeTextFile(bucketName, objectName, objectName);
+                  }
+                } catch (Throwable ioe) {
+                  throw new RuntimeException(
+                      String.format("Exception creating %s/%s", bucketName, objectName), ioe);
+                } finally {
+                  counter.countDown();
+                }
+              });
       futures.add(future);
     }
 

@@ -18,6 +18,8 @@ package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
+import static java.util.Comparator.comparing;
+import static java.util.Comparator.comparingInt;
 import static java.util.stream.Collectors.toCollection;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -93,39 +95,22 @@ public class GoogleCloudStorageFileSystem {
   // debugging/testing).
   @VisibleForTesting
   static final Comparator<URI> PATH_COMPARATOR =
-      new Comparator<URI>() {
-        @Override
-        public int compare(URI a, URI b) {
-          String as = a.toString();
-          String bs = b.toString();
-          return (as.length() == bs.length())
-              ? as.compareTo(bs)
-              : Integer.compare(as.length(), bs.length());
-        }
-      };
+      comparing(
+          URI::toString,
+          (as, bs) ->
+              (as.length() == bs.length())
+                  ? as.compareTo(bs)
+                  : Integer.compare(as.length(), bs.length()));
 
   // Comparator used for sorting a collection of FileInfo items based on path comparison.
   @VisibleForTesting
   static final Comparator<FileInfo> FILE_INFO_PATH_COMPARATOR =
-      new Comparator<FileInfo>() {
-        @Override
-        public int compare(FileInfo file1, FileInfo file2) {
-          return PATH_COMPARATOR.compare(file1.getPath(), file2.getPath());
-        }
-      };
+      comparing(FileInfo::getPath, PATH_COMPARATOR);
 
   private static final Comparator<FileInfo> STRING_LENGTH_COMPARATOR =
-      new Comparator<FileInfo>() {
-        @Override
-        public int compare(FileInfo file1, FileInfo file2) {
-          return Integer.compare(
-              file1.getPath().toString().length(), file2.getPath().toString().length());
-        }
-      };
+      comparingInt(arg -> arg.getPath().toString().length());
 
-  /**
-   * A PathCodec that maintains compatibility with versions of GCS FS < 1.4.5.
-   */
+  /** A PathCodec that maintains compatibility with versions of GCS FS < 1.4.5. */
   public static final PathCodec LEGACY_PATH_CODEC = new LegacyPathCodec();
 
   /**
@@ -742,13 +727,7 @@ public class GoogleCloudStorageFileSystem {
     StorageResourceId destResource = StorageResourceId.fromObjectName(destination.toString());
     List<String> sourceObjects =
         Lists.transform(
-            sources,
-            new Function<URI, String>() {
-              @Override
-              public String apply(URI uri) {
-                return StorageResourceId.fromObjectName(uri.toString()).getObjectName();
-              }
-            });
+            sources, uri -> StorageResourceId.fromObjectName(uri.toString()).getObjectName());
     gcs.compose(
         destResource.getBucketName(), sourceObjects, destResource.getObjectName(), contentType);
   }
@@ -1526,15 +1505,12 @@ public class GoogleCloudStorageFileSystem {
       @SuppressWarnings("unused") // go/futurereturn-lsc
       Future<?> possiblyIgnoredError =
           updateTimestampsExecutor.submit(
-              new Runnable() {
-                @Override
-                public void run() {
-                  try {
-                    updateTimestampsForParentDirectories(modifiedObjects, excludedParents);
-                  } catch (IOException ioe) {
-                    logger.atFine().withCause(ioe).log(
-                        "Exception caught when trying to update parent directory timestamps.");
-                  }
+              () -> {
+                try {
+                  updateTimestampsForParentDirectories(modifiedObjects, excludedParents);
+                } catch (IOException ioe) {
+                  logger.atFine().withCause(ioe).log(
+                      "Exception caught when trying to update parent directory timestamps.");
                 }
               });
     } catch (RejectedExecutionException ree) {

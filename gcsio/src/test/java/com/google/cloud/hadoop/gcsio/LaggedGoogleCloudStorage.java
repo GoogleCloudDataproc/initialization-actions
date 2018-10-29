@@ -59,12 +59,7 @@ public class LaggedGoogleCloudStorage implements GoogleCloudStorage  {
   }
 
   private static final Function<GoogleCloudStorageItemInfo, String> ITEM_INFO_TO_NAME =
-      new Function<GoogleCloudStorageItemInfo, String>() {
-        @Override
-        public String apply(GoogleCloudStorageItemInfo itemInfo) {
-          return itemInfo.getObjectName();
-        }
-      };
+      GoogleCloudStorageItemInfo::getObjectName;
 
   private final GoogleCloudStorage delegate;
   private final Clock clock;
