@@ -85,7 +85,7 @@ public class BigQueryMapredRecordReaderTest {
     // Happy-path is already tested by testGetPos
 
     when(mockRecordReader.getProgress()).thenThrow(new InterruptedException());
-    assertThrows(IOException.class, () -> recordReader.getProgress());
+    assertThrows(IOException.class, recordReader::getProgress);
 
     verify(mockRecordReader).getProgress();
   }
