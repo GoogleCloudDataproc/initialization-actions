@@ -30,7 +30,6 @@ import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -298,13 +297,12 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
           destResourceId,
           GoogleCloudStorageFileSystem.objectOptionsFromFileOptions(fileOptions));
       curDestGenerationId = composedObject.getContentGeneration();
-      deletionFutures.add(cleanupThreadpool.submit(new Callable<Void>() {
-        @Override
-        public Void call() throws IOException {
-          ghfs.getGcsFs().getGcs().deleteObjects(ImmutableList.of(tempResourceId));
-          return null;
-        }
-      }));
+      deletionFutures.add(
+          cleanupThreadpool.submit(
+              () -> {
+                ghfs.getGcsFs().getGcs().deleteObjects(ImmutableList.of(tempResourceId));
+                return null;
+              }));
     } else {
       // First commit was direct to the destination; the generationId of the object we just
       // committed will be used as the destination generation id for future compose calls.

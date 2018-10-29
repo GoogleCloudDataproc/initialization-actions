@@ -145,7 +145,7 @@ public class GoogleHadoopSyncableOutputStreamTest {
 
     verify(mockExecutorService).submit(any(Callable.class));
 
-    IOException thrown = assertThrows(IOException.class, () -> fout.close());
+    IOException thrown = assertThrows(IOException.class, fout::close);
     assertThat(thrown).hasMessageThat().contains(fakeIoException.getMessage());
 
     verify(mockExecutorService, times(2)).submit(any(Callable.class));
