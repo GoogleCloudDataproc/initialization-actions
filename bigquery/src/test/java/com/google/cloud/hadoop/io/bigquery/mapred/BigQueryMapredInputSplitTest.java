@@ -14,7 +14,6 @@
 package com.google.cloud.hadoop.io.bigquery.mapred;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.hadoop.io.bigquery.UnshardedInputSplit;
@@ -84,14 +83,12 @@ public class BigQueryMapredInputSplitTest {
     assertThat(length).isEqualTo(135L);
   }
 
-  @Test public void testGetLocations()
-      throws IOException, InterruptedException {
-    BigQueryMapredInputSplit inputSplit =
-        new BigQueryMapredInputSplit(mockInputSplit);
+  @Test
+  public void testGetLocations() throws IOException, InterruptedException {
+    BigQueryMapredInputSplit inputSplit = new BigQueryMapredInputSplit(mockInputSplit);
 
-    when(mockInputSplit.getLocations()).
-        thenReturn(new String[] { "g", "o", "o", "g" });
+    when(mockInputSplit.getLocations()).thenReturn(new String[] {"g", "o", "o", "g"});
     String[] locations = inputSplit.getLocations();
-    assertEquals(new String[] {"g", "o", "o", "g"}, locations);
+    assertThat(locations).isEqualTo(new String[] {"g", "o", "o", "g"});
   }
 }

@@ -14,7 +14,6 @@
 package com.google.cloud.hadoop.io.bigquery.mapred;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.when;
@@ -123,7 +122,7 @@ public class BigQueryMapredInputFormatTest {
     when(mockInputFormat.getSplits(any(JobContext.class)))
         .thenReturn(null);
     InputSplit[] splits = inputFormat.getSplits(jobConf, numSplits);
-    assertEquals(null, splits);
+    assertThat(splits).isNull();
   }
 
   @Test public void testGetSplitsException()

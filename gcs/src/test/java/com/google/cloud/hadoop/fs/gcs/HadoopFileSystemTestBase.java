@@ -15,13 +15,13 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopSyncableOutputStreamTest.hsync;
+import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
 import com.google.common.base.Strings;
-import com.google.common.collect.Sets;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -29,7 +29,6 @@ import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -40,7 +39,6 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 
@@ -109,23 +107,25 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
   private void validateFileStatusInternal(
       String bucketName, String objectName, boolean expectedToExist, FileStatus fileStatus)
       throws IOException {
-    Assert.assertEquals(
-        String.format("Existence of bucketName '%s', objectName '%s'", bucketName, objectName),
-        expectedToExist, fileStatus != null);
+    assertWithMessage("Existence of bucketName '%s', objectName '%s'", bucketName, objectName)
+        .that(fileStatus != null)
+        .isEqualTo(expectedToExist);
 
     if (fileStatus != null) {
       // File/dir exists, check its attributes.
-      String message = fileStatus.getPath().toString();
-
       long expectedSize =
           ghfsHelper.getExpectedObjectSize(objectName, expectedToExist);
       if (expectedSize != Long.MIN_VALUE) {
-        Assert.assertEquals(message, expectedSize, fileStatus.getLen());
+        assertWithMessage("%s", fileStatus.getPath())
+            .that(fileStatus.getLen())
+            .isEqualTo(expectedSize);
       }
 
       boolean expectedToBeDir =
           Strings.isNullOrEmpty(objectName) || ghfsHelper.objectHasDirectoryPath(objectName);
-      Assert.assertEquals(message, expectedToBeDir, fileStatus.isDir());
+      assertWithMessage("%s", fileStatus.getPath())
+          .that(fileStatus.isDir())
+          .isEqualTo(expectedToBeDir);
 
       Instant currentTime = Instant.now();
       Instant modificationTime = Instant.ofEpochMilli(fileStatus.getModificationTime());
@@ -166,8 +166,9 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     }
 
     if (fileStatus != null) {
-      Assert.assertEquals(
-          "Hadoop paths for URI: " + path.toString(), hadoopPath, fileStatus.getPath());
+      assertWithMessage("Hadoop paths for URI: %s", path)
+          .that(hadoopPath)
+          .isEqualTo(fileStatus.getPath());
     }
     validateFileStatusInternal(bucketName, objectName, expectedToExist, fileStatus);
   }
@@ -217,19 +218,20 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     try {
       fileStatus = ghfsHelper.listStatus(hadoopPath);
     } catch (FileNotFoundException fnfe) {
-      Assert.assertFalse(
-          String.format("Hadoop path %s expected to exist", hadoopPath), pathExpectedToExist);
+      assertWithMessage("Hadoop path %s expected to exist", hadoopPath)
+          .that(pathExpectedToExist)
+          .isFalse();
     }
 
     if (!ghfsFileSystemDescriptor.getScheme().equals("file")) {
-      Assert.assertEquals(
-          String.format("Hadoop path %s", hadoopPath.toString()),
-          pathExpectedToExist, fileStatus != null);
+      assertWithMessage("Hadoop path %s", hadoopPath)
+          .that(fileStatus != null)
+          .isEqualTo(pathExpectedToExist);
     } else {
       // LocalFileSystem -> ChecksumFileSystem will return an empty array instead of null for
       // nonexistent paths.
       if (!pathExpectedToExist && fileStatus != null) {
-        Assert.assertEquals(0, fileStatus.length);
+        assertThat(fileStatus.length).isEqualTo(0);
       }
     }
 
@@ -238,7 +240,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       for (FileStatus status : fileStatus) {
         Path actualPath = status.getPath();
         if (status.isDir()) {
-          Assert.assertFalse(status.getPath().getName().isEmpty());
+          assertThat(status.getPath().getName()).isNotEmpty();
         }
         actualPaths.add(actualPath);
         String[] uriComponents = pathToComponents.get(actualPath);
@@ -249,23 +251,9 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       }
 
       if (listRoot) {
-        for (Path expectedPath : expectedPaths) {
-          Assert.assertTrue(
-              String.format("expected: <%s> in: <%s>", expectedPath, actualPaths),
-              actualPaths.contains(expectedPath));
-        }
+        assertThat(actualPaths).containsAllIn(expectedPaths);
       } else {
-        // Used sorted arrays so that the test-failure output is makes it easy to match up each
-        // expected element to each actual element.
-        Path[] sortedExpectedPaths =
-            new ArrayList<>(Sets.newTreeSet(expectedPaths)).toArray(new Path[0]);
-        Path[] sortedActualPaths =
-            new ArrayList<>(Sets.newTreeSet(actualPaths)).toArray(new Path[0]);
-        String errorMessage = String.format(
-            "expected: %s, actual: %s",
-            Arrays.toString(sortedExpectedPaths),
-            Arrays.toString(sortedActualPaths));
-        Assert.assertArrayEquals(errorMessage, sortedExpectedPaths, sortedActualPaths);
+        assertThat(actualPaths).containsExactlyElementsIn(expectedPaths);
       }
     }
   }
@@ -290,7 +278,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
 
     // Verify that normal read works.
     int numBytesRead = readStream.read(buffer, 0, buffer.length);
-    Assert.assertEquals("Expected exactly 1 byte to be read", 1, numBytesRead);
+    assertWithMessage("Expected exactly 1 byte to be read").that(numBytesRead).isEqualTo(1);
 
     // Null buffer.
     testReadInvalidArgsHelper(readStream, null, 0, 1, NullPointerException.class);
@@ -309,9 +297,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       FSDataInputStream readStream, byte[] buffer, int offset, int length,
       Class<? extends Exception> exceptionClass) {
     Exception e = assertThrows(Exception.class, () -> readStream.read(buffer, offset, length));
-    if (e.getClass() != exceptionClass) {
-        Assert.fail("Unexpected exception: " + e);
-      }
+    assertThat(e).isInstanceOf(exceptionClass);
   }
 
   /**
@@ -336,7 +322,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     // Read the file back and verify contents.
     String readText =
         ghfsHelper.readTextFile(hadoopPath, 0, textBytes.length, true);
-    Assert.assertEquals("testWrite1Byte: write-read mismatch", text, readText);
+    assertWithMessage("testWrite1Byte: write-read mismatch").that(readText).isEqualTo(text);
   }
 
   /**
@@ -381,7 +367,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     // Create a file.
     String text = "Hello World!";
     int numBytesWritten = ghfsHelper.writeFile(hadoopPath, text, 1, false);
-    Assert.assertEquals(text.getBytes(UTF_8).length, numBytesWritten);
+    assertThat(numBytesWritten).isEqualTo(text.getBytes(UTF_8).length);
 
     // Try to create the same file again with overwrite == false.
     assertThrows(IOException.class, () -> ghfsHelper.writeFile(hadoopPath, text, 1, false));
@@ -410,8 +396,8 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
   @Test
   public void testGetDefaultReplication()
       throws IOException {
-    Assert.assertEquals(GoogleHadoopFileSystemBase.REPLICATION_FACTOR_DEFAULT,
-        ghfs.getDefaultReplication());
+    assertThat(ghfs.getDefaultReplication())
+        .isEqualTo(GoogleHadoopFileSystemBase.REPLICATION_FACTOR_DEFAULT);
   }
 
   /**
@@ -432,35 +418,35 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
         ghfs.open(
             hadoopPath,
             GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_BUFFER_SIZE.getDefault())) {
-      Assert.assertEquals(0, readStream.getPos());
+      assertThat(readStream.getPos()).isEqualTo(0);
 
       // Verify that position advances by 2 after reading 2 bytes.
-      Assert.assertEquals((int) 'H', readStream.read());
-      Assert.assertEquals((int) 'e', readStream.read());
-      Assert.assertEquals(2, readStream.getPos());
+      assertThat(readStream.read()).isEqualTo('H');
+      assertThat(readStream.read()).isEqualTo('e');
+      assertThat(readStream.getPos()).isEqualTo(2);
 
       // Verify that setting position to the same value is a no-op.
       readStream.seek(2);
-      Assert.assertEquals(2, readStream.getPos());
+      assertThat(readStream.getPos()).isEqualTo(2);
       readStream.seek(2);
-      Assert.assertEquals(2, readStream.getPos());
+      assertThat(readStream.getPos()).isEqualTo(2);
 
       // Verify that position can be set to a valid position.
       readStream.seek(6);
-      Assert.assertEquals(6, readStream.getPos());
-      Assert.assertEquals((int) 'W', readStream.read());
+      assertThat(readStream.getPos()).isEqualTo(6);
+      assertThat(readStream.read()).isEqualTo('W');
 
       // Verify that position can be set to end of file.
       long posEOF = numBytesWritten - 1;
       int val;
       readStream.seek(posEOF);
-      Assert.assertEquals(posEOF, readStream.getPos());
+      assertThat(readStream.getPos()).isEqualTo(posEOF);
       val = readStream.read();
-      Assert.assertTrue(val != -1);
+      assertThat(val).isNotEqualTo(-1);
       val = readStream.read();
-      Assert.assertEquals(-1, val);
+      assertThat(val).isEqualTo(-1);
       readStream.seek(0);
-      Assert.assertEquals(0, readStream.getPos());
+      assertThat(readStream.getPos()).isEqualTo(0);
 
       // Verify that position cannot be set to a negative position.
       // Note:
@@ -481,8 +467,8 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       // TODO(user): Make it no longer necessary to do instanceof.
       if (ghfs instanceof GoogleHadoopFileSystemBase) {
         long someValidPosition = 2;
-        Assert.assertEquals(false, readStream.seekToNewSource(someValidPosition));
-        Assert.assertEquals(false, readStream.markSupported());
+        assertThat(readStream.seekToNewSource(someValidPosition)).isFalse();
+        assertThat(readStream.markSupported()).isFalse();
       }
     }
   }
@@ -506,87 +492,87 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       testBytes[i] = (byte) (i * i);
     }
     int numBytesWritten = ghfsHelper.writeFile(hadoopPath, ByteBuffer.wrap(testBytes), 1, false);
-    Assert.assertEquals(testBytes.length, numBytesWritten);
+    assertThat(numBytesWritten).isEqualTo(testBytes.length);
 
     try (FSDataInputStream readStream = ghfs.open(hadoopPath, bufferSize)) {
-      Assert.assertEquals(0, readStream.getPos());
-      Assert.assertEquals(testBytes[0], (byte) readStream.read());
-      Assert.assertEquals(1, readStream.getPos());
-      Assert.assertEquals(testBytes[1], (byte) readStream.read());
-      Assert.assertEquals(2, readStream.getPos());
+      assertThat(readStream.getPos()).isEqualTo(0);
+      assertThat((byte) readStream.read()).isEqualTo(testBytes[0]);
+      assertThat(readStream.getPos()).isEqualTo(1);
+      assertThat((byte) readStream.read()).isEqualTo(testBytes[1]);
+      assertThat(readStream.getPos()).isEqualTo(2);
 
       // Seek backwards after reads got us to the current position.
       readStream.seek(0);
-      Assert.assertEquals(0, readStream.getPos());
-      Assert.assertEquals(testBytes[0], (byte) readStream.read());
-      Assert.assertEquals(1, readStream.getPos());
-      Assert.assertEquals(testBytes[1], (byte) readStream.read());
-      Assert.assertEquals(2, readStream.getPos());
+      assertThat(readStream.getPos()).isEqualTo(0);
+      assertThat((byte) readStream.read()).isEqualTo(testBytes[0]);
+      assertThat(readStream.getPos()).isEqualTo(1);
+      assertThat((byte) readStream.read()).isEqualTo(testBytes[1]);
+      assertThat(readStream.getPos()).isEqualTo(2);
 
       // Seek to same position, should be no-op, data should still be right.
       readStream.seek(2);
-      Assert.assertEquals(2, readStream.getPos());
-      Assert.assertEquals(testBytes[2], (byte) readStream.read());
-      Assert.assertEquals(3, readStream.getPos());
+      assertThat(readStream.getPos()).isEqualTo(2);
+      assertThat((byte) readStream.read()).isEqualTo(testBytes[2]);
+      assertThat(readStream.getPos()).isEqualTo(3);
 
       // Seek farther, but within the read buffersize.
       int midPos = bufferSize / 2;
       readStream.seek(midPos);
-      Assert.assertEquals(midPos, readStream.getPos());
-      Assert.assertEquals(testBytes[midPos], (byte) readStream.read());
+      assertThat(readStream.getPos()).isEqualTo(midPos);
+      assertThat((byte) readStream.read()).isEqualTo(testBytes[midPos]);
 
       // Seek backwards after we got here from some seeking, seek close to but not equal to
       // the beginning.
       readStream.seek(42);
-      Assert.assertEquals(42, readStream.getPos());
-      Assert.assertEquals(testBytes[42], (byte) readStream.read());
+      assertThat(readStream.getPos()).isEqualTo(42);
+      assertThat((byte) readStream.read()).isEqualTo(testBytes[42]);
 
       // Seek to right before the end of the internal buffer.
       int edgePos = bufferSize - 1;
       readStream.seek(edgePos);
-      Assert.assertEquals(edgePos, readStream.getPos());
-      Assert.assertEquals(testBytes[edgePos], (byte) readStream.read());
+      assertThat(readStream.getPos()).isEqualTo(edgePos);
+      assertThat((byte) readStream.read()).isEqualTo(testBytes[edgePos]);
 
       // This read should put us over the buffer's limit and require a new read from the underlying
       // stream.
-      Assert.assertEquals(edgePos + 1, readStream.getPos());
-      Assert.assertEquals(testBytes[edgePos + 1], (byte) readStream.read());
+      assertThat(readStream.getPos()).isEqualTo(edgePos + 1);
+      assertThat((byte) readStream.read()).isEqualTo(testBytes[edgePos + 1]);
 
       // Seek back to the edge and this time seek forward.
       readStream.seek(edgePos);
-      Assert.assertEquals(edgePos, readStream.getPos());
+      assertThat(readStream.getPos()).isEqualTo(edgePos);
       readStream.seek(edgePos + 1);
-      Assert.assertEquals(edgePos + 1, readStream.getPos());
-      Assert.assertEquals(testBytes[edgePos + 1], (byte) readStream.read());
+      assertThat(readStream.getPos()).isEqualTo(edgePos + 1);
+      assertThat((byte) readStream.read()).isEqualTo(testBytes[edgePos + 1]);
 
       // Seek into buffer 2, then seek a bit further into it.
       int bufferTwoStart = bufferSize * 2;
       readStream.seek(bufferTwoStart);
-      Assert.assertEquals(bufferTwoStart, readStream.getPos());
-      Assert.assertEquals(testBytes[bufferTwoStart], (byte) readStream.read());
+      assertThat(readStream.getPos()).isEqualTo(bufferTwoStart);
+      assertThat((byte) readStream.read()).isEqualTo(testBytes[bufferTwoStart]);
       readStream.seek(bufferTwoStart + 42);
-      Assert.assertEquals(bufferTwoStart + 42, readStream.getPos());
-      Assert.assertEquals(testBytes[bufferTwoStart + 42], (byte) readStream.read());
+      assertThat(readStream.getPos()).isEqualTo(bufferTwoStart + 42);
+      assertThat((byte) readStream.read()).isEqualTo(testBytes[bufferTwoStart + 42]);
 
       // Seek backwards in-place inside buffer 2.
       readStream.seek(bufferTwoStart);
-      Assert.assertEquals(bufferTwoStart, readStream.getPos());
-      Assert.assertEquals(testBytes[bufferTwoStart], (byte) readStream.read());
+      assertThat(readStream.getPos()).isEqualTo(bufferTwoStart);
+      assertThat((byte) readStream.read()).isEqualTo(testBytes[bufferTwoStart]);
 
       // Seek backwards by one buffer, but not all the way back to buffer 0.
       int bufferOneInternal = bufferSize + 42;
       readStream.seek(bufferOneInternal);
-      Assert.assertEquals(bufferOneInternal, readStream.getPos());
-      Assert.assertEquals(testBytes[bufferOneInternal], (byte) readStream.read());
+      assertThat(readStream.getPos()).isEqualTo(bufferOneInternal);
+      assertThat((byte) readStream.read()).isEqualTo(testBytes[bufferOneInternal]);
 
       // Seek to the very beginning again and then seek to the very end.
       readStream.seek(0);
-      Assert.assertEquals(0, readStream.getPos());
-      Assert.assertEquals(testBytes[0], (byte) readStream.read());
-      Assert.assertEquals(1, readStream.getPos());
+      assertThat(readStream.getPos()).isEqualTo(0);
+      assertThat((byte) readStream.read()).isEqualTo(testBytes[0]);
+      assertThat(readStream.getPos()).isEqualTo(1);
       readStream.seek(testBytes.length - 1);
-      Assert.assertEquals(testBytes[testBytes.length - 1], (byte) readStream.read());
-      Assert.assertEquals(testBytes.length, readStream.getPos());
+      assertThat((byte) readStream.read()).isEqualTo(testBytes[testBytes.length - 1]);
+      assertThat(readStream.getPos()).isEqualTo(testBytes.length);
     }
   }
 
@@ -603,13 +589,13 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     Path escapedPath = new Path(parentPath, new Path("foo%3Abar"));
 
     ghfsHelper.writeFile(escapedPath, "foo", 1, true);
-    Assert.assertTrue(ghfs.exists(escapedPath));
+    assertThat(ghfs.exists(escapedPath)).isTrue();
 
     FileStatus status = ghfs.getFileStatus(escapedPath);
-    Assert.assertEquals(escapedPath, status.getPath());
+    assertThat(status.getPath()).isEqualTo(escapedPath);
 
     // Cleanup.
-    Assert.assertTrue(ghfs.delete(parentPath, true));
+    assertThat(ghfs.delete(parentPath, true)).isTrue();
   }
 
   /**
@@ -734,9 +720,9 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       ghfs.setWorkingDirectory(path);
       Path newWorkingDir = ghfs.getWorkingDirectory();
       if (expectedWorkingDir != null) {
-        Assert.assertEquals(expectedWorkingDir, newWorkingDir);
+        assertThat(newWorkingDir).isEqualTo(expectedWorkingDir);
       } else {
-        Assert.assertEquals(currentWorkingDir, newWorkingDir);
+        assertThat(newWorkingDir).isEqualTo(currentWorkingDir);
       }
     }
   }
@@ -759,11 +745,11 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     try (FSDataInputStream input = ghfs.open(hadoopPath)) {
       byte[] readBuffer1 = new byte[512];
       input.seek(511);
-      Assert.assertEquals(512, input.read(readBuffer1, 0, 512));
+      assertThat(input.read(readBuffer1, 0, 512)).isEqualTo(512);
       input.seek(0);
 
       input.seek(511);
-      Assert.assertEquals(512, input.read(readBuffer1, 0, 512));
+      assertThat(input.read(readBuffer1, 0, 512)).isEqualTo(512);
     } finally {
       ghfs.delete(hadoopPath);
     }
@@ -792,23 +778,27 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     hsync(writeStream);
 
     String readText = ghfsHelper.readTextFile(hadoopPath);
-    Assert.assertEquals("Expected line1 after first sync()", expected.toString(), readText);
+    assertWithMessage("Expected line1 after first sync()")
+        .that(readText)
+        .isEqualTo(expected.toString());
 
     // Write second line, sync() again.
     writeStream.write(line2Bytes, 0, line2Bytes.length);
     expected.append(line2);
     hsync(writeStream);
     readText = ghfsHelper.readTextFile(hadoopPath);
-    Assert.assertEquals(
-        "Expected line1 + line2 after second sync()", expected.toString(), readText);
+    assertWithMessage("Expected line1 + line2 after second sync()")
+        .that(readText)
+        .isEqualTo(expected.toString());
 
     // Write third line, close() without sync().
     writeStream.write(line3Bytes, 0, line3Bytes.length);
     expected.append(line3);
     writeStream.close();
     readText = ghfsHelper.readTextFile(hadoopPath);
-    Assert.assertEquals(
-        "Expected line1 + line2 + line3 after close()", expected.toString(), readText);
+    assertWithMessage("Expected line1 + line2 + line3 after close()")
+        .that(readText)
+        .isEqualTo(expected.toString());
   }
 
   // -----------------------------------------------------------------
