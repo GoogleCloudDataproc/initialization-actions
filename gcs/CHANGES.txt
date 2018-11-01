@@ -1,8 +1,8 @@
-1.9.10 - 2018-XX-XX
+1.9.10 - 2018-11-01
 
   1. Use Hadoop `CredentialProvider` API to retrieve proxy credentials.
 
-  2. Remove 1024 compose components limit from SYNCABLE_COMPOSITE output stream
+  2. Remove 1024 compose components limit from `SYNCABLE_COMPOSITE` output stream
      type.
 
 

@@ -22,12 +22,12 @@
   <parent>
     <groupId>com.google.cloud.bigdataoss</groupId>
     <artifactId>bigdataoss-parent</artifactId>
-    <version>1.9.10-SNAPSHOT</version>
+    <version>1.9.10</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
   <artifactId>util</artifactId>
-  <version>1.9.10-SNAPSHOT</version>
+  <version>1.9.10</version>
 
   <dependencies>
     <dependency>
