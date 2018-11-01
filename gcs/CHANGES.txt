@@ -1,3 +1,6 @@
+1.9.11 - 2018-XX-XX
+
+
 1.9.10 - 2018-11-01
 
   1. Use Hadoop `CredentialProvider` API to retrieve proxy credentials.
