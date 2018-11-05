@@ -1999,15 +1999,8 @@ public class GoogleCloudStorageTest {
         .thenReturn(false);
 
     // First time is the notFoundException.
-    try {
-      gcs.deleteBuckets(Lists.newArrayList(BUCKET_NAME));
-      fail("Expected FileNotFoundException");
-    } catch (FileNotFoundException e) {
-      // Expected.
-    } catch (Exception e) {
-      // Make the test output a little more friendly in case the exception class differs.
-      fail("Expected FileNotFoundException, got " + e.getClass().getName());
-    }
+    assertThrows(
+        FileNotFoundException.class, () -> gcs.deleteBuckets(Lists.newArrayList(BUCKET_NAME)));
 
     // Second time is the unexpectedException.
     assertThrows(IOException.class, () -> gcs.deleteBuckets(Lists.newArrayList(BUCKET_NAME)));

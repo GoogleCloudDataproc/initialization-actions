@@ -15,7 +15,6 @@ package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.fail;
 
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
 import com.google.gson.JsonObject;
@@ -113,45 +112,65 @@ public class BigQueryOutputFormatTest {
 
     // Assert checkOutputSpecs fails with empty fields.
     assertCheckOutputSpecsFailure(
-        emptyTableSchema, "Empty is not a valid setting for the tableSchema parameter.");
+        emptyTableSchema,
+        "Empty is not a valid setting for the tableSchema parameter.",
+        IOException.class);
     // Assert checkOutputSpecs fails with null fields.
     assertCheckOutputSpecsFailure(
-        nullTableSchema, "Null is not a valid setting for the tableSchema parameter.");
+        nullTableSchema,
+        "Null is not a valid setting for the tableSchema parameter.",
+        IOException.class);
 
     // Assert checkOutputSpecs fails with empty jobProjectId.
     assertCheckOutputSpecsFailure(
-        emptyJobProjectId, "Empty is not a valid setting for the jobProjectId parameter.");
+        emptyJobProjectId,
+        "Empty is not a valid setting for the jobProjectId parameter.",
+        IOException.class);
     // Assert checkOutputSpecs fails with null jobProjectId.
     assertCheckOutputSpecsFailure(
-        nullJobProjectId, "Null is not a valid setting for the jobProjectId parameter.");
+        nullJobProjectId,
+        "Null is not a valid setting for the jobProjectId parameter.",
+        IOException.class);
 
     // Assert checkOutputSpecs fails with empty OutputProjectId.
     assertCheckOutputSpecsFailure(
-        emptyOutputProjectId, "Empty is not a valid setting for the OutputProjectId parameter.");
+        emptyOutputProjectId,
+        "Empty is not a valid setting for the OutputProjectId parameter.",
+        IOException.class);
     // Assert checkOutputSpecs fails with null OutputProjectId.
     assertCheckOutputSpecsFailure(
-        nullOutputProjectId, "Null is not a valid setting for the OutputProjectId parameter.");
+        nullOutputProjectId,
+        "Null is not a valid setting for the OutputProjectId parameter.",
+        IOException.class);
 
     // Assert checkOutputSpecs fails with empty tableId.
     assertCheckOutputSpecsFailure(
-        emptyTableId, "Empty is not a valid setting for the tableId parameter.");
+        emptyTableId, "Empty is not a valid setting for the tableId parameter.", IOException.class);
     // Assert checkOutputSpecs fails with null tableId.
     assertCheckOutputSpecsFailure(
-        nullTableId, "Null is not a valid setting for the tableId parameter.");
+        nullTableId, "Null is not a valid setting for the tableId parameter.", IOException.class);
 
     // Assert checkOutputSpecs fails with empty datasetId.
     assertCheckOutputSpecsFailure(
-        emptyDatasetId, "Empty is not a valid setting for the datasetId parameter.");
+        emptyDatasetId,
+        "Empty is not a valid setting for the datasetId parameter.",
+        IOException.class);
     // Assert checkOutputSpecs fails with null datasetId.
     assertCheckOutputSpecsFailure(
-        nullDatasetId, "Null is not a valid setting for the datasetId parameter.");
+        nullDatasetId,
+        "Null is not a valid setting for the datasetId parameter.",
+        IOException.class);
 
     // Assert checkOutputSpecs fails with zero numRecordsInBatch.
     assertCheckOutputSpecsFailure(
-        zeroNumRecords, "Zero is not a valid setting for the numRecordsInBatch parameter.");
+        zeroNumRecords,
+        "Zero is not a valid setting for the numRecordsInBatch parameter.",
+        IllegalArgumentException.class);
     // Assert checkOutputSpecs fails with negative numRecordsInBatch.
     assertCheckOutputSpecsFailure(
-        negativeNumRecords, "Negative is not a valid setting for the numRecordsInBatch parameter.");
+        negativeNumRecords,
+        "Negative is not a valid setting for the numRecordsInBatch parameter.",
+        IllegalArgumentException.class);
   }
 
   /**
@@ -252,13 +271,9 @@ public class BigQueryOutputFormatTest {
                 jobIdString, jobNumber, taskNumber, taskAttempt));
   }
 
-
-  /**
-   * Tests the getUniqueTable method of BigQueryOutputFormat.
-   */
+  /** Tests the getUniqueTable method of BigQueryOutputFormat. */
   @Test
-  public void testGetTempDataset() 
-      throws IOException {
+  public void testGetTempDataset() throws IOException {
     // Sample tableId for testing.
     String datasetId = "test_datasetId";
 
@@ -279,13 +294,9 @@ public class BigQueryOutputFormatTest {
    *
    * @param jobContext the JobContext to test.
    */
-  public void assertCheckOutputSpecsFailure(JobContext jobContext, String message) {
-    try {
-      outputFormat.checkOutputSpecs(jobContext);
-      fail(message);
-    } catch (IllegalArgumentException | IOException e) {
-      // Expected.
-    }
+  public void assertCheckOutputSpecsFailure(
+      JobContext jobContext, String message, Class<? extends Exception> clazz) {
+    assertThrows(message, clazz, () -> outputFormat.checkOutputSpecs(jobContext));
   }
 
   /**

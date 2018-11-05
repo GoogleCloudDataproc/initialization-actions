@@ -20,7 +20,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import org.apache.hadoop.conf.Configuration;
-import org.junit.Assert;
 
 /**
  * Helper class to create an in-memory GHFS from an in-memory GcsFs instance for testing only.
@@ -46,16 +45,14 @@ public class InMemoryGoogleHadoopFileSystem
    * create a GCS storage over which to run the in-memory GHFS.
    */
   private static synchronized GoogleCloudStorageFileSystem createUnderlyingStorage() {
-    try {
-      if (inMemoryGcsFs == null) {
-        return new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
-      } else {
-        return inMemoryGcsFs;
-      }
-    } catch (IOException e) {
-      Assert.fail("Could not initialize in-memory Google Cloud Storage.");
+    if (inMemoryGcsFs != null) {
+      return inMemoryGcsFs;
     }
-    return null;
+    try {
+      return new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
+    } catch (IOException e) {
+      throw new RuntimeException("Could not initialize in-memory Google Cloud Storage.", e);
+    }
   }
 
   /**
