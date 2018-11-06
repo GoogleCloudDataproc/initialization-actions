@@ -66,9 +66,9 @@ public class UriEncodingPathCodecTest {
   @Test
   public void testValidatePathAndGetId_Foo() throws URISyntaxException {
     StorageResourceId id =
-        codec.validatePathAndGetId(new URI("gs", "bucketName", "/object/name", null), true);
+        codec.validatePathAndGetId(new URI("gs", "bucket-name", "/object/name", null), true);
 
-    Truth.assertThat(id.getBucketName()).isEqualTo("bucketName");
+    Truth.assertThat(id.getBucketName()).isEqualTo("bucket-name");
     Truth.assertThat(id.getObjectName()).isEqualTo("object/name");
   }
 

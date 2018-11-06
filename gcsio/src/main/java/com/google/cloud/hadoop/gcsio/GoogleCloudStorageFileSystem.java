@@ -27,6 +27,7 @@ import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage.ListPage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions.TimestampUpdatePredicate;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.CharMatcher;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -68,13 +69,22 @@ import java.util.regex.Pattern;
  */
 public class GoogleCloudStorageFileSystem {
 
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+
   // URI scheme for GCS.
   public static final String SCHEME = "gs";
 
   // URI of the root path.
   public static final URI GCS_ROOT = URI.create(SCHEME + ":/");
 
-  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+  // 14x faster (20ns vs 280ns) than "^[a-z0-9_.-]+$" regex
+  private static final CharMatcher BUCKET_NAME_CHAR_MATCHER =
+      CharMatcher.ascii()
+          .and(
+              CharMatcher.inRange('0', '9')
+                  .or(CharMatcher.inRange('a', 'z'))
+                  .or(CharMatcher.anyOf("_.-")))
+          .precomputed();
 
   // GCS access instance.
   private GoogleCloudStorage gcs;
@@ -1570,9 +1580,11 @@ public class GoogleCloudStorageFileSystem {
           "Google Cloud Storage bucket name cannot be empty.");
     }
 
-    if (bucketName.indexOf('/') >= 0) {
+    if (!BUCKET_NAME_CHAR_MATCHER.matchesAllOf(bucketName)) {
       throw new IllegalArgumentException(
-          "Google Cloud Storage bucket name must not contain '/' character.");
+          String.format(
+              "Invalid bucket name '%s': bucket name must contain only 'a-z0-9_.-' characters.",
+              bucketName));
     }
 
     return bucketName;

@@ -77,9 +77,9 @@ public class LegacyPathCodecTest {
   @Test
   public void testValidatePathAndGetId_ValidObject() throws URISyntaxException {
     StorageResourceId id =
-        codec.validatePathAndGetId(new URI("gs", "bucketName", "/object/name", null), true);
+        codec.validatePathAndGetId(new URI("gs", "bucket-name", "/object/name", null), true);
 
-    Truth.assertThat(id.getBucketName()).isEqualTo("bucketName");
+    Truth.assertThat(id.getBucketName()).isEqualTo("bucket-name");
     Truth.assertThat(id.getObjectName()).isEqualTo("object/name");
   }
 
@@ -87,9 +87,9 @@ public class LegacyPathCodecTest {
   public void testValidatePathAndGetId_SpecialCharacterObjectName() throws URISyntaxException {
     StorageResourceId id =
         codec.validatePathAndGetId(
-            new URI("gs", "bucketName", "/path/!@#$%^&*()_to/obj", null), true);
+            new URI("gs", "bucket-name", "/path/!@#$%^&*()_to/obj", null), true);
 
-    Truth.assertThat(id.getBucketName()).isEqualTo("bucketName");
+    Truth.assertThat(id.getBucketName()).isEqualTo("bucket-name");
     // The URI constructor above will percent escape characters that are not valid for a URI
     // path. The legacy codec will preserve this percent escaping.
     Truth.assertThat(id.getObjectName()).isEqualTo("path/!@%23$%25%5E&*()_to/obj");

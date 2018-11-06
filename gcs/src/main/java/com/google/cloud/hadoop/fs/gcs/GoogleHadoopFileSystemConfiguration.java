@@ -16,7 +16,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.PATH_CODEC_USE_LEGACY_ENCODING;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.PATH_CODEC_USE_URI_ENCODING;
 import static com.google.common.base.Strings.nullToEmpty;
 
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.GcsFileChecksumType;
@@ -276,7 +276,7 @@ public class GoogleHadoopFileSystemConfiguration {
   /** Configuration key for changing the path codec from legacy to 'uri path encoding'. */
   public static final GoogleHadoopFileSystemConfigurationProperty<String> PATH_CODEC =
       new GoogleHadoopFileSystemConfigurationProperty<>(
-          "fs.gs.path.encoding", PATH_CODEC_USE_LEGACY_ENCODING);
+          "fs.gs.path.encoding", PATH_CODEC_USE_URI_ENCODING);
 
   /**
    * Configuration key for enabling automatic inference of implicit directories. If set, we create

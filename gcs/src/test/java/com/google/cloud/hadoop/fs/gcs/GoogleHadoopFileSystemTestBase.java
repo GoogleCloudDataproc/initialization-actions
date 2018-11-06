@@ -148,19 +148,16 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     // hsync() is not supported in the default setup.
   }
 
-  /**
-   * Tests getGcsPath().
-   */
+  /** Tests getGcsPath(). */
   @Test
-  public void testGetGcsPath()
-      throws URISyntaxException {
+  public void testGetGcsPath() throws URISyntaxException {
     GoogleHadoopFileSystemBase myghfs = (GoogleHadoopFileSystemBase) ghfs;
-    URI gcsPath = new URI("gs://" + myghfs.getSystemBucketName() + "/dir/obj");
-    URI convertedPath = myghfs.getGcsPath(new Path(gcsPath));
-    assertThat(gcsPath).isEqualTo(convertedPath);
 
-    assertThrows(
-        IllegalArgumentException.class, () -> myghfs.getGcsPath(new Path("/buck^et", "object")));
+    URI gcsPath = new URI("gs://" + myghfs.getSystemBucketName() + "/dir/obj");
+    assertThat(myghfs.getGcsPath(new Path(gcsPath))).isEqualTo(gcsPath);
+
+    assertThat(myghfs.getGcsPath(new Path("/buck^et", "object")))
+        .isEqualTo(new URI("gs://" + myghfs.getSystemBucketName() + "/buck%5Eet/object"));
   }
 
   /**

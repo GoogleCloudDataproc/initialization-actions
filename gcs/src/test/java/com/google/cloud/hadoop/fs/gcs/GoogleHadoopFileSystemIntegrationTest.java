@@ -455,7 +455,7 @@ public class GoogleHadoopFileSystemIntegrationTest
             () ->
                 new GoogleHadoopFileSystem(fakeGcsFs)
                     .configureBuckets(systemBucketName, createSystemBuckets));
-    assertThat(thrown).hasMessageThat().contains("must not contain '/'");
+    assertThat(thrown).hasMessageThat().contains("must contain only 'a-z0-9_.-' characters.");
   }
 
 

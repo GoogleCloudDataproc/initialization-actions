@@ -61,7 +61,7 @@ public class GoogleCloudStorageFileSystemOptions {
         GoogleCloudStorageOptions.newBuilder();
     private GoogleCloudStorageOptions immutableCloudStorageOptions = null;
 
-    private PathCodec pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
+    private PathCodec pathCodec = GoogleCloudStorageFileSystem.URI_ENCODED_PATH_CODEC;
     private boolean enableBucketDelete = false;
     private String markerFilePattern = null;
 
