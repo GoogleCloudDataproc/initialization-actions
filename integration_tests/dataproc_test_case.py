@@ -82,13 +82,9 @@ class DataprocTestCase(unittest.TestCase):
     def getClusterName(self):
         return self.name
 
-    def upload_test_file(self, name):
+    def upload_test_file(self, testfile, name):
         cmd = 'gcloud compute scp {} {}:'.format(
-            os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                self.COMPONENT.lower(),
-                self.TEST_SCRIPT_FILE_NAME
-            ),
+            testfile,
             name,
         )
         ret_code, stdout, stderr = self.run_command(cmd)
