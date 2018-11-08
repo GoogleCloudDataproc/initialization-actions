@@ -1,5 +1,5 @@
 import unittest
-import random
+import datetime
 
 from parameterized import parameterized
 
@@ -25,7 +25,7 @@ class CloudSqlProxyTestCase(DataprocTestCase):
 
     def setUp(self):
         super().setUp()
-        self.DB_NAME = "test-{}-db".format(random.randint(1, 10000))
+        self.DB_NAME = "test-{}-db".format(datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
         ret_code, stdout, stderr = self.run_command(
             'gcloud sql instances create {} --region {}'.format(self.DB_NAME, self.REGION)
         )
