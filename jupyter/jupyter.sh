@@ -32,7 +32,13 @@ source /etc/profile.d/conda.sh
 
 if [ -n "${JUPYTER_CONDA_CHANNELS}" ]; then
   echo "Adding custom conda channels '${JUPYTER_CONDA_CHANNELS//:/ }'"
-  conda config --add channels "${JUPYTER_CONDA_CHANNELS//:/,}"
+  declare -a a_channels=();
+  a_channels=${JUPYTER_CONDA_CHANNELS//:/ };
+
+  for channel in ${a_channels[@]};
+  do
+    conda config --add channels ${channel}
+  done
 fi
 
 if [ -n "${JUPYTER_CONDA_PACKAGES}" ]; then
