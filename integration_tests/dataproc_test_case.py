@@ -28,7 +28,6 @@ class DataprocTestCase(unittest.TestCase):
 
     COMPONENT = None
     INIT_ACTION = None
-    TEST_SCRIPT_FILE_NAME = None
 
     @classmethod
     def setUpClass(cls):
@@ -90,11 +89,11 @@ class DataprocTestCase(unittest.TestCase):
         ret_code, stdout, stderr = self.run_command(cmd)
         self.assertEqual(ret_code, 0, "Failed to upload test file. Error: {}".format(stderr))
 
-    def remove_test_script(self, name):
+    def remove_test_script(self, testfile, name):
         ret_code, stdout, stderr = self.run_command(
             'gcloud compute ssh {} -- "rm {}"'.format(
                 name,
-                self.TEST_SCRIPT_FILE_NAME,
+                testfile
             )
         )
         self.assertEqual(ret_code, 0, "Failed to remove test file. Error: {}".format(stderr))

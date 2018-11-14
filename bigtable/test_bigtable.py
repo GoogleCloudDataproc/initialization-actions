@@ -21,35 +21,38 @@ class BigTableTestCase(DataprocTestCase):
     COMPONENT = 'bigtable'
     INIT_ACTION = 'gs://dataproc-initialization-actions/bigtable/bigtable.sh'
     TEST_SCRIPT_FILE_NAME = "run_hbase_commands.py"
-    METADATA = None
-    DB_NAME = None
-    ZONE = None
+
+    def __init__(self, methodName='runTest'):
+        super().__init__(methodName)
+        self.metadata = None
+        self.db_name = None
+        self.zone = None
 
     def setUp(self):
         super().setUp()
-        self.DB_NAME = "test-{}-db".format(random.randint(1, 10000))
+        self.db_name = "test-{}-db".format(random.randint(1, 10000))
         _, zone, _ = self.run_command("gcloud config get-value compute/zone")
-        self.ZONE = zone.strip()
+        self.zone = zone.strip()
         _, project, _ = self.run_command("gcloud config get-value project")
         project = project.strip()
-        self.METADATA = "bigtable-instance={},bigtable-project={}"\
-            .format(self.DB_NAME, project)
+        self.metadata = "bigtable-instance={},bigtable-project={}"\
+            .format(self.db_name, project)
 
         ret_code, stdout, stderr = self.run_command(
             'gcloud beta bigtable instances create {} --cluster {} --cluster-zone {} '
             '--display-name={} --instance-type=DEVELOPMENT'
-            .format(self.DB_NAME, self.DB_NAME, self.ZONE, self.DB_NAME)
+            .format(self.db_name, self.db_name, self.zone, self.db_name)
         )
         self.assertEqual(ret_code, 0, "Failed to create bigtable instance {}. Last error: {}"
-                         .format(self.DB_NAME, stderr))
+                         .format(self.db_name, stderr))
 
     def tearDown(self):
         super().tearDown()
         ret_code, stdout, stderr = self.run_command(
-            'gcloud beta bigtable instances delete {}'.format(self.DB_NAME)
+            'gcloud beta bigtable instances delete {}'.format(self.db_name)
         )
         self.assertEqual(ret_code, 0, "Failed to delete bigtable instance {}. Last error: {}"
-                         .format(self.DB_NAME, stderr))
+                         .format(self.db_name, stderr))
 
     def _run_hbase_shell(self, name):
         ret_code, stdout, stderr = self.run_command(
@@ -62,15 +65,13 @@ class BigTableTestCase(DataprocTestCase):
 
     def _validate_bigtable(self):
         ret_code, stdout, stderr = self.run_command(
-            'cbt -instance {} read test-bigtable '.format(
-                self.DB_NAME
+            'cbt -instance {} count test-bigtable '.format(
+                self.db_name
             )
         )
         self.assertEqual(ret_code, 0, "Failed to validate cluster. Last error: {}".format(stderr))
-        self.assertIn("value1", stdout, "Failed to validate cluster. value1 is missing in the table")
-        self.assertIn("value2", stdout, "Failed to validate cluster. value2 is missing in the table")
-        self.assertIn("value3", stdout, "Failed to validate cluster. value3 is missing in the table")
-        self.assertIn("value4", stdout, "Failed to validate cluster. value4 is missing in the table")
+        self.assertEqual(int(float(stdout)), 4, "Failed to validate cluster. Last error: {}"
+                         .format(stderr))
 
     def verify_instance(self, name):
         self.upload_test_file(
@@ -82,11 +83,11 @@ class BigTableTestCase(DataprocTestCase):
         self._run_hbase_shell(name)
         self._validate_bigtable()
 
-
+    """ Dataproc versions 1.0 and 1.1 are excluded from automatic testing.
+    Hbase shell is not working properly on older Dataproc Clusters when
+    admin commands are provided from text file.
+    """
     @parameterized.expand([
-        ("SINGLE", "1.1", ["m"]),
-        ("STANDARD", "1.1", ["m"]),
-        ("HA", "1.1", ["m-0"]),
         ("SINGLE", "1.2", ["m"]),
         ("STANDARD", "1.2", ["m"]),
         ("HA", "1.2", ["m-0"]),
@@ -95,7 +96,7 @@ class BigTableTestCase(DataprocTestCase):
         ("HA", "1.3", ["m-0"]),
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_bigtable(self, configuration, dataproc_version, machine_suffixes):
-        self.createCluster(configuration, self.INIT_ACTION, dataproc_version, metadata=self.METADATA)
+        self.createCluster(configuration, self.INIT_ACTION, dataproc_version, metadata=self.metadata)
 
         for machine_suffix in machine_suffixes:
             self.verify_instance(
