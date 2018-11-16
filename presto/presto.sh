@@ -34,6 +34,18 @@ function err() {
   return 1
 }
 
+function wait_for_presto_cluster_ready() {
+  # wait up to 120s for presto being able to run query
+  for ((i = 0; i < 12; i++)); do
+    if presto --execute='select * from system.runtime.nodes;'; then
+      return 0
+    fi
+    sleep 10
+  done
+  return 1
+}
+
+
 function get_presto(){
   # Download and unpack Presto server
   wget https://repo1.maven.org/maven2/com/facebook/presto/presto-server/${PRESTO_VERSION}/presto-server-${PRESTO_VERSION}.tar.gz
@@ -209,6 +221,7 @@ function configure_and_start_presto(){
   if [[ "${HOSTNAME}" == "${PRESTO_MASTER_FQDN}" ]]; then
     configure_master
     start_presto
+    wait_for_presto_cluster_ready
   fi
 
   if [[ "${ROLE}" == 'Worker' ]]; then
