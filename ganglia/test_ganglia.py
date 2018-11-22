@@ -1,8 +1,7 @@
 import unittest
 
 from parameterized import parameterized
-
-from dataproc_test_case import DataprocTestCase
+from integration_tests.dataproc_test_case import DataprocTestCase
 
 
 class GangliaTestCase(DataprocTestCase):
@@ -12,16 +11,26 @@ class GangliaTestCase(DataprocTestCase):
 
     def verify_instance(self, name):
         self.upload_test_file(name)
+        self.__run_command_on_cluster(name,'yes | sudo apt-get install python3-pip')
+        self.__run_command_on_cluster(name,'sudo pip3 install requests-html')
         self.__run_test_file(name)
         self.remove_test_script(name)
 
     def __run_test_file(self, name):
-        cmd = 'gcloud compute ssh {} -- "python {} "'.format(
+        cmd = 'gcloud compute ssh {} -- "python3 {} "'.format(
             name,
             self.TEST_SCRIPT_FILE_NAME
         )
         ret_code, stdout, stderr = self.run_command(cmd)
         self.assertEqual(ret_code, 0, "Failed to run test file. Error: {}".format(stderr))
+
+    def __run_command_on_cluster(self, name, command):
+        cmd = 'gcloud compute ssh {} -- "{} "'.format(
+            name,
+            command
+        )
+        ret_code, stdout, stderr = self.run_command(cmd)
+        self.assertEqual(ret_code, 0, "Failed to run command. Error: {}".format(stderr))
 
     @parameterized.expand([
         ("SINGLE", "1.0", ["m"]),

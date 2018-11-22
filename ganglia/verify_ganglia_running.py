@@ -1,40 +1,30 @@
 """verify_ganglia_running.py: Script for ganglia initialization action test.
 """
-import requests
 import socket
 import subprocess
+from requests_html import HTMLSession
 
 BASE = 'localhost'
 PORT = 80
 
 
-class GangliaApi(object):
+class Ganglia(object):
     def __init__(self, base, port):
         self.path = 'http://{}:{}/ganglia/'.format(base, port)
         self.host = socket.gethostname()
-        self.page = None
-        self.is_main_master = None
-
-    def validate_homepage(self):
-        if self.page:
-            if '-w-' in self.host:
-                raise Exception('NOK - Ganglia should not be running on worker node')
-            elif self.is_main_master:
-                if 'Cluster Report' in self.page:
-                    print('OK - Ganglia UI is running on master node')
-                else:
-                    raise Exception('NOK - Ganglia UI is not found on master node')
+        self.cluster_name = self.get_cluster_name()
+        if self.host in self.get_main_master():
+            self.is_main_master = True
         else:
-            if '-w-' in self.host:
-                print('OK - Ganglia is not running on worker node')
-            if '-m-' in self.host and not (self.is_main_master):
-                print('OK - Ganglia is not designed to be running on additional master nodes')
+            self.is_main_master = False
 
-    def get_homepage(self):
+    def get_homepage_title(self):
+        session = HTMLSession()
+        r = session.get(self.path)
         try:
-            self.page = requests.get(self.path).text[:200]
-        except requests.exceptions.RequestException:
-            self.page = None
+            return r.html.find('#page_title', first=True).text
+        except Exception:
+            return None
 
     def detect_role(self):
         if self.host == self.get_main_master():
@@ -52,10 +42,35 @@ class GangliaApi(object):
             stderr=subprocess.PIPE,
         )
         stdout, stderr = p.communicate()
-        return stdout
+        return stdout.decode("utf-8")
+
+    def get_cluster_name(self):
+        cmd = '/usr/share/google/get_metadata_value attributes/dataproc-cluster-name'
+        p = subprocess.Popen(
+            cmd,
+            shell=True,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        stdout, stderr = p.communicate()
+        return stdout.decode("utf-8")
+
+def validate_homepage(ganglia):
+    if ganglia.is_main_master:
+        if ganglia.cluster_name in ganglia.get_homepage_title():
+            print('Ganglia UI is running on master node')
+        else:
+            raise Exception('Ganglia UI is not found on master node')
+    else:
+        if '-w-' in ganglia.host:
+            print("Ganglia UI should not run on worker node")
+        elif '-m-' in ganglia.host:
+            print("Ganglia UI should not run on additional master")
 
 
 def main():
+
     """Drives the script.
 
     Returns:
@@ -64,10 +79,8 @@ def main():
     Raises:
       Exception: If a response does not contain the expected value
     """
-    gangliaApi = GangliaApi(BASE, PORT)
-    gangliaApi.detect_role()
-    gangliaApi.get_homepage()
-    gangliaApi.validate_homepage()
+    ganglia = Ganglia(BASE, PORT)
+    validate_homepage(ganglia)
 
 
 if __name__ == '__main__':
