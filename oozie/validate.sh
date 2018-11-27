@@ -1,11 +1,21 @@
 #!/bin/bash
-echo "starting validation script"
+set -euxo pipefail
+
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  return 1
+}
+
 namenode=$(bdconfig get_property_value --configuration_file /etc/hadoop/conf/core-site.xml --name fs.default.name 2>/dev/null)
 hostname="$(hostname)"
-sudo -u hdfs hadoop dfsadmin -safemode leave &> /dev/null
-cp /usr/share/doc/oozie/oozie-examples.tar.gz ~
-tar -zxvf oozie-examples.tar.gz
-cat << EOF > /home/$(whoami)/examples/apps/map-reduce/job.properties
+hdfs_empty=false
+echo "Starting validation script"
+
+hdfs dfs -ls /user/$(whoami)/examples || hdfs_empty=true
+if [[ ${hdfs_empty} == true ]] ; then
+  cp /usr/share/doc/oozie/oozie-examples.tar.gz ~
+  tar -zxvf oozie-examples.tar.gz
+  cat << EOF > /home/$(whoami)/examples/apps/map-reduce/job.properties
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -33,18 +43,20 @@ oozie.wf.application.path=${namenode}/user/$(whoami)/examples/apps/map-reduce/wo
 outputDir=map-reduce
 oozie.use.system.libpath=true
 EOF
-
-hdfs dfs -mkdir -p /user/$(whoami)/
-hadoop fs -put ~/examples/ /user/$(whoami)/
+  ln -s  /home/$(whoami)/examples/apps/map-reduce/job.properties job.properties
+  hdfs dfs -mkdir -p /user/$(whoami)/
+  hadoop fs -put ~/examples/ /user/$(whoami)/
+else
+  hdfs dfs -get /user/$(whoami)/examples/apps/map-reduce/job.properties job.properties
+fi
 
 echo "---------------------------------"
 echo "Starting validation on ${hostname}"
-oozie job -oozie http://localhost:11000/oozie -config /home/$(whoami)/examples/apps/map-reduce/job.properties -run
-oozie jobs -oozie http://localhost:11000/oozie -localtime -len 2 | grep "No Jobs match your criteria!"
+sudo -u hdfs hadoop dfsadmin -safemode leave &> /dev/null
+oozie admin -sharelibupdate
 
-if [[ $? == 1 ]]; then
-  exit 0
-else
-  exit 1
-fi
-echo "---------------------------------"
+job=$(oozie job -config job.properties -run)
+job="${job:5:${#job}}"
+sleep 1m
+oozie job -oozie http://localhost:11000/oozie -info ${job} | grep "SUCCEEDED"
+exit $?
