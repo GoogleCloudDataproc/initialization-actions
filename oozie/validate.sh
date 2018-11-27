@@ -1,11 +1,6 @@
 #!/bin/bash
 set -euxo pipefail
 
-function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
-  return 1
-}
-
 namenode=$(bdconfig get_property_value --configuration_file /etc/hadoop/conf/core-site.xml --name fs.default.name 2>/dev/null)
 hostname="$(hostname)"
 hdfs_empty=false
