@@ -18,18 +18,7 @@ class HBaseTestCase(DataprocTestCase):
         )
         self.assertEqual(ret_code, 0, "Failed to validate cluster. Error: {}".format(stderr))
 
-    """
-    Single and standard mode on 1.0 and 1.1 are disabled because HBase doesn't work in those 
-    modes on older dataproc versions. HBase is intended to run on HA environment.
-    HA mode on 1.0 and 1.1 doesn't pass integration test.
-    """
     @parameterized.expand([
-        # ("SINGLE", "1.0", ["m"]),
-        # ("STANDARD", "1.0", ["m"]),
-        # ("HA", "1.0", ["m-0"]),
-        # ("SINGLE", "1.1", ["m"]),
-        # ("STANDARD", "1.1", ["m"]),
-        # ("HA", "1.1", ["m-0"]),
         ("SINGLE", "1.2", ["m"]),
         ("STANDARD", "1.2", ["m"]),
         ("HA", "1.2", ["m-0"]),
