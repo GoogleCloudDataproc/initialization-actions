@@ -30,6 +30,16 @@ git clone -b "${INIT_ACTIONS_BRANCH}" --single-branch "${INIT_ACTIONS_REPO}"
 
 source /etc/profile.d/conda.sh
 
+# Install jupyter on all nodes to start with a consistent python environment
+# on all nodes. Also, pin the python version to ensure that conda does not
+# update python because the latest version of jupyter supports a higher version
+# than the one already installed. See issue #300 for more information.
+PYTHON="$(ls /opt/conda/bin/python || which python)"
+PYTHON_VERSION="$(${PYTHON} --version 2>&1 | cut -d ' ' -f 2)"
+conda install jupyter matplotlib "python==${PYTHON_VERSION}"
+
+conda install 'testpath<0.4'
+
 if [ -n "${JUPYTER_CONDA_CHANNELS}" ]; then
   echo "Adding custom conda channels '${JUPYTER_CONDA_CHANNELS//:/ }'"
   declare -a a_channels=();
@@ -46,16 +56,6 @@ if [ -n "${JUPYTER_CONDA_PACKAGES}" ]; then
   # Do not use quotes so that space separated packages turn into multiple arguments
   conda install ${JUPYTER_CONDA_PACKAGES//:/ }
 fi
-
-# Install jupyter on all nodes to start with a consistent python environment
-# on all nodes. Also, pin the python version to ensure that conda does not
-# update python because the latest version of jupyter supports a higher version
-# than the one already installed. See issue #300 for more information.
-PYTHON="$(ls /opt/conda/bin/python || which python)"
-PYTHON_VERSION="$(${PYTHON} --version 2>&1 | cut -d ' ' -f 2)"
-conda install jupyter matplotlib "python==${PYTHON_VERSION}"
-
-conda install 'testpath<0.4'
 
 # For storing notebooks on GCS. Pin version to make this script hermetic.
 pip install jgscm==0.1.7
