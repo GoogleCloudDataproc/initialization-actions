@@ -18,6 +18,9 @@
 
 set -euxo pipefail
 
+# Use Python from /usr/bin instead of /opt/conda.
+export PATH=/usr/bin:$PATH
+
 readonly HBASE_HOME='/usr/lib/hbase'
 readonly BIGTABLE_HBASE_CLIENT='bigtable-hbase-1.x-hadoop-1.3.0.jar'
 readonly BIGTABLE_HBASE_DL_LINK="http://central.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-1.x-hadoop/1.3.0/${BIGTABLE_HBASE_CLIENT}"

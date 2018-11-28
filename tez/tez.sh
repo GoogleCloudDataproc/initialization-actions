@@ -18,6 +18,9 @@
 
 set -euxo pipefail
 
+# Use Python from /usr/bin instead of /opt/conda.
+export PATH=/usr/bin:$PATH
+
 readonly TEZ_VERSION='0.7.0'
 readonly PROTOBUF_VERSION='2.5.0'
 readonly TEZ_HDFS_PATH='/apps/tez'

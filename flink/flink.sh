@@ -24,6 +24,9 @@
 
 set -euxo pipefail
 
+# Use Python from /usr/bin instead of /opt/conda.
+export PATH=/usr/bin:$PATH
+
 # Install directories for Flink and Hadoop.
 readonly FLINK_INSTALL_DIR='/usr/lib/flink'
 readonly FLINK_WORKING_DIR='/var/lib/flink'
