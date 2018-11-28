@@ -15,6 +15,9 @@
 
 set -euxo pipefail
 
+# Use Python from /usr/bin instead of /opt/conda.
+export PATH=/usr/bin:$PATH
+
 # Variables for running this script
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly PRESTO_MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"

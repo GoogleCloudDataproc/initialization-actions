@@ -25,6 +25,9 @@
 
 set -x -e
 
+# Use Python from /usr/bin instead of /opt/conda.
+export PATH=/usr/bin:$PATH
+
 function retry_apt_command() {
   cmd="$1"
   for ((i = 0; i < 10; i++)); do
