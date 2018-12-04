@@ -56,7 +56,8 @@ class DataprocTestCase(unittest.TestCase):
             args.append("--image-version={}".format(dataproc_version))
         if timeout_in_minutes:
             args.append("--initialization-action-timeout {}m".format(timeout_in_minutes))
-        args.append("--initialization-actions {}".format(init_action))
+        if init_action:
+            args.append("--initialization-actions {}".format(init_action))
         cmd = "gcloud dataproc clusters create {}".format(self.name)
         for flag in args:
             cmd += " {}".format(flag)
