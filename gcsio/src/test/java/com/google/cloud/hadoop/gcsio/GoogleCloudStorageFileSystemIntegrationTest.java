@@ -55,7 +55,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import org.junit.Assert;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.ExternalResource;
@@ -312,17 +311,11 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     // Get list of actual paths.
     URI path = gcsiHelper.getPath(bucketName, objectNamePrefix);
     List<FileInfo> fileInfos;
-
-    try {
+    if (pathExpectedToExist) {
       fileInfos = gcsfs.listFileInfo(path, false);
-      if (!pathExpectedToExist) {
-        Assert.fail("Expected FileNotFoundException for path: " + path);
-      }
-    } catch (FileNotFoundException e) {
+    } else {
+      assertThrows(FileNotFoundException.class, () -> gcsfs.listFileInfo(path, false));
       fileInfos = new ArrayList<>();
-      if (pathExpectedToExist) {
-        Assert.fail("Did not expect FileNotFoundException for path: " + path);
-      }
     }
 
     List<URI> actualPaths = new ArrayList<>();
@@ -536,7 +529,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     // At non-existent path.
     validateListNamesAndInfo(tempTestBucket, dirDoesNotExist, false);
     validateListNamesAndInfo(tempTestBucket, objDoesNotExist, false);
-    validateListNamesAndInfo(objDoesNotExist, objDoesNotExist, false);
+    validateListNamesAndInfo("gcsio-test-bucket-" + objDoesNotExist, objDoesNotExist, false);
 
     // -------------------------------------------------------
     // Tests for listObjectNames().
