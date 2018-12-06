@@ -59,20 +59,6 @@
     <url>https://github.com/GoogleCloudPlatform/bigdata-interop/issues</url>
   </issueManagement>
 
-  <repositories>
-    <repository>
-      <id>snapshots</id>
-      <name>Sonatype SNAPSHOTS</name>
-      <url>https://oss.sonatype.org/content/repositories/snapshots/</url>
-      <releases>
-        <enabled>false</enabled>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
-    </repository>
-  </repositories>
-
   <distributionManagement>
     <snapshotRepository>
       <id>ossrh</id>
@@ -99,18 +85,18 @@
     <google.gson.version>2.2.4</google.gson.version>
 
     <apache.httpcomponents.version>4.5.6</apache.httpcomponents.version>
-    <google.api.version>1.25.0</google.api.version>
-    <google.api-bigquery.version>v2-rev402-${google.api.version}</google.api-bigquery.version>
-    <google.api-storage.version>v1-rev136-${google.api.version}</google.api-storage.version>
+    <google.api.version>1.27.0</google.api.version>
+    <google.api-bigquery.version>v2-rev20181104-${google.api.version}</google.api-bigquery.version>
+    <google.api-storage.version>v1-rev20181109-${google.api.version}</google.api-storage.version>
     <google.auto-value.version>1.6.2</google.auto-value.version>
     <google.flogger.version>0.3.1</google.flogger.version>
-    <google.guava.version>26.0-jre</google.guava.version>
+    <google.guava.version>27.0.1-jre</google.guava.version>
     <google.truth.version>0.42</google.truth.version>
     <hadoop.one.version>1.2.1</hadoop.one.version>
-    <hadoop.two.version>2.9.1</hadoop.two.version>
+    <hadoop.two.version>2.9.2</hadoop.two.version>
     <hadoop.three.version>3.1.1</hadoop.three.version>
-    <junit.version>4.13-SNAPSHOT</junit.version>
-    <mockito.version>2.23.0</mockito.version>
+    <junit.version>4.13-beta-1</junit.version>
+    <mockito.version>2.23.4</mockito.version>
   </properties>
 
   <modules>

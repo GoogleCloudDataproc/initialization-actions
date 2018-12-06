@@ -4,6 +4,8 @@
      codec introduced in 1.4.5. The old behavior can be restored by setting
      `fs.gs.path.encoding` to 'legacy'.
 
+  2. Update all dependencies to latest versions.
+
 
 1.9.10 - 2018-11-01
 
