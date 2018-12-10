@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# tools/run_integration_tests.sh (hadoop1 | hadoop2 | hadoop3) <project_id> <service_account_email> <path_to_p12>
+# tools/run_integration_tests.sh (hadoop1 | hadoop2 | hadoop3) <project_id> <service_account_email> <path_to_p12> [optional_maven_parameters, [...]]
 
 set -Eeuo pipefail
 
@@ -24,7 +24,7 @@ export GCS_TEST_SERVICE_ACCOUNT=$3
 export GCS_TEST_PRIVATE_KEYFILE=$4
 
 print_usage() {
-  echo -n "$0 (hadoop1 | hadoop2 | hadoop3) <project ID> <service_account_email> <path_to_p12>"
+  echo -n "$0 (hadoop1 | hadoop2 | hadoop3) <project ID> <service_account_email> <path_to_p12> [optional_maven_parameters, [...]]"
 }
 
 check_required_param() {
@@ -59,9 +59,9 @@ check_required_params
 export GCS_TEST_PRIVATE_KEYFILE=$(readlink -f "$GCS_TEST_PRIVATE_KEYFILE")
 export RUN_INTEGRATION_TESTS=true
 
-if ! which mvn; then
+if ! which mvn > /dev/null; then
   echo "Couldn't find mvn on the PATH"
   exit 1
 fi
 
-mvn "-P${HADOOP_VERSION}" -Pintegration-test clean test
+mvn -B -e -T1C "-P${HADOOP_VERSION}" -Pintegration-test clean test "${@:5}"
