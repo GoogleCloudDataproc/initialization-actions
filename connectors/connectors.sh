@@ -2,7 +2,8 @@
 
 set -euxo pipefail
 
-VM_CONNECTORS_DIR=/usr/lib/hadoop/lib
+VM_CONNECTORS_HADOOP_DIR=/usr/lib/hadoop/lib
+VM_CONNECTORS_DATAPROC_DIR=/usr/local/share/google/dataproc/lib
 
 declare -A MIN_CONNECTOR_VERSIONS
 MIN_CONNECTOR_VERSIONS=(
@@ -40,8 +41,14 @@ update_connector() {
     # validate new connector version
     validate_version "$name" "$version"
 
+    if [[ -d ${VM_CONNECTORS_DATAPROC_DIR} ]]; then
+      local vm_connectors_dir=${VM_CONNECTORS_DATAPROC_DIR}
+    else
+      local vm_connectors_dir=${VM_CONNECTORS_HADOOP_DIR}
+    fi
+
     # remove old connector
-    rm -f "${VM_CONNECTORS_DIR}/${name}-connector-"*
+    rm -f "${vm_connectors_dir}/${name}-connector-"*
 
     # download new connector
     # connector name could be in one of 2 formats:
@@ -53,7 +60,7 @@ update_connector() {
     else
       local path="gs://hadoop-lib/${name}/${name}-connector-${version}-hadoop2.jar"
     fi
-    gsutil cp "$path" "${VM_CONNECTORS_DIR}/"
+    gsutil cp "$path" "${vm_connectors_dir}/"
   fi
 }
 
