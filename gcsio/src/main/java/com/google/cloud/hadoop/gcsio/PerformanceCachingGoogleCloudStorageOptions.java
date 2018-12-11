@@ -28,7 +28,7 @@ public abstract class PerformanceCachingGoogleCloudStorageOptions {
   public static final boolean LIST_CACHING_ENABLED = false;
 
   /** Number of prefetched objects metadata in directory. */
-  public static final long DIR_METADATA_PREFETCH_LIMIT_DEFAULT = 1_000;
+  @Deprecated public static final long DIR_METADATA_PREFETCH_LIMIT_DEFAULT = 1_000;
 
   public static final PerformanceCachingGoogleCloudStorageOptions DEFAULT = builder().build();
 
@@ -46,6 +46,7 @@ public abstract class PerformanceCachingGoogleCloudStorageOptions {
   public abstract boolean isListCachingEnabled();
 
   /** Gets number if list caching is enabled. */
+  @Deprecated
   public abstract long getDirMetadataPrefetchLimit();
 
   public abstract Builder toBuilder();
@@ -65,6 +66,7 @@ public abstract class PerformanceCachingGoogleCloudStorageOptions {
      * disables metadata prefetching in directory. Setting it to {@code -1} prefetches all objects
      * metadata in a directory.
      */
+    @Deprecated
     public abstract Builder setDirMetadataPrefetchLimit(long dirMetadataPrefetchLimit);
 
     abstract PerformanceCachingGoogleCloudStorageOptions autoBuild();

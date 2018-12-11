@@ -271,8 +271,7 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
 
     // If it wasn't in the cache, list all the objects in the parent directory and cache them
     // and then retrieve it from the cache.
-    long dirMetadataPrefetchLimit = options.getDirMetadataPrefetchLimit();
-    if (item == null && resourceId.isStorageObject() && dirMetadataPrefetchLimit != 0) {
+    if (item == null && resourceId.isStorageObject()) {
       String bucketName = resourceId.getBucketName();
       String objectName = resourceId.getObjectName();
       int lastSlashIndex = objectName.lastIndexOf(PATH_DELIMITER);
@@ -281,11 +280,11 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
       List<GoogleCloudStorageItemInfo> cachedInDirectory =
           cache.listItems(bucketName, directoryName);
       filter(cachedInDirectory, bucketName, directoryName, PATH_DELIMITER);
-      // If there are a lot of items cached in directory, do not prefetch with list requests,
-      // because metadata in this directory already prefetched
-      if (dirMetadataPrefetchLimit == GoogleCloudStorage.MAX_RESULTS_UNLIMITED
-          || cachedInDirectory.size() < dirMetadataPrefetchLimit) {
-        listObjectInfo(bucketName, directoryName, PATH_DELIMITER, dirMetadataPrefetchLimit);
+      // If there are items already cached in directory, do not prefetch with list requests,
+      // because metadata for this directory already could be prefetched
+      if (cachedInDirectory.isEmpty()) {
+        // make just 1 request to prefetch only 1 page of directory items
+        listObjectInfoPage(bucketName, directoryName, PATH_DELIMITER, /* pageToken= */ null);
         item = cache.getItem(resourceId);
       }
     }

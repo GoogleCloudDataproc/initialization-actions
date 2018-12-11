@@ -225,6 +225,7 @@ public class GoogleHadoopFileSystemConfiguration {
               PerformanceCachingGoogleCloudStorageOptions.LIST_CACHING_ENABLED);
 
   /** Configuration key for number of prefetched directory objects metadata in performance cache. */
+  @Deprecated
   public static final GoogleHadoopFileSystemConfigurationProperty<Long>
       GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT =
           new GoogleHadoopFileSystemConfigurationProperty<>(
@@ -576,8 +577,6 @@ public class GoogleHadoopFileSystemConfiguration {
             GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS.get(config, config::getLong))
         .setListCachingEnabled(
             GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE.get(config, config::getBoolean))
-        .setDirMetadataPrefetchLimit(
-            GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT.get(config, config::getLong))
         .build();
   }
 

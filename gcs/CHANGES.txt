@@ -6,6 +6,12 @@
 
   2. Update all dependencies to latest versions.
 
+  3. Don't use `fs.gs.performance.cache.dir.metadata.prefetch.limit` property to
+     prefetch metadata in `PerformanceCachingGoogleCloudStorage` - always use
+     single objects list request, because prefetching metadata with multiple
+     list requests (when directory contains a lot of files) could introduce
+     performance penalties when using performance chache.
+
 
 1.9.10 - 2018-11-01
 
