@@ -14,6 +14,13 @@ You can use this initialization action to create a new Dataproc cluster with Apa
     gcloud dataproc clusters create <CLUSTER_NAME> \
       --initialization-actions gs://dataproc-initialization-actions/tez/tez.sh
     ```
+1. On Dataproc 1.3+ clusters in order to use pre-installed Tez is necessary to add the flag `--properties 'hadoop-env:HADOOP_CLASSPATH=${HADOOP_CLASSPATH}:/etc/tez/conf:/usr/lib/tez/*:/usr/lib/tez/lib/*'`.
+
+    ```bash
+    gcloud dataproc clusters create <CLUSTER_NAME> \
+      --image-version 1.3 \
+      --properties 'hadoop-env:HADOOP_CLASSPATH=${HADOOP_CLASSPATH}:/etc/tez/conf:/usr/lib/tez/*:/usr/lib/tez/lib/*'
+    ```
 1. Hive is be configured to use Tez, rather than MapReduce, as its execution engine. This can significantly speed up some Hive queries. Read more in the [Hive on Tez documentation](https://cwiki.apache.org/confluence/display/Hive/Hive+on+Tez).
 
 ## Tez Web UI
