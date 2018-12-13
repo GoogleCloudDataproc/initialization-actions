@@ -58,32 +58,34 @@ public class GoogleHadoopFileSystem extends GoogleHadoopFileSystemBase {
    * Constructs an instance of GoogleHadoopFileSystem using the provided
    * GoogleCloudStorageFileSystem; initialize() will not re-initialize it.
    */
-  public GoogleHadoopFileSystem(GoogleCloudStorageFileSystem gcsfs) {
+  @VisibleForTesting
+  GoogleHadoopFileSystem(GoogleCloudStorageFileSystem gcsfs) {
     super(gcsfs);
   }
 
-   /**
+  /**
    * {@inheritDoc}
    *
-   * Sets and validates the root bucket.
+   * <p>Sets and validates the root bucket.
    */
   @Override
   @VisibleForTesting
-  public void configureBuckets(String systemBucketName, boolean createConfiguredBuckets)
+  protected void configureBuckets(
+      GoogleCloudStorageFileSystem gcsFs, String systemBucketName, boolean createSystemBucket)
       throws IOException {
-    super.configureBuckets(systemBucketName, createConfiguredBuckets);
+    super.configureBuckets(gcsFs, systemBucketName, createSystemBucket);
     rootBucket = initUri.getAuthority();
     if (rootBucket != null) {
       // Validate root bucket name
-      gcsfs.getPathCodec().getPath(rootBucket, null, true);
+      pathCodec.getPath(rootBucket, null, true);
     } else if (systemBucket != null) {
       logger.atWarning().log(
           "GHFS.configureBuckets: Warning. No GCS bucket provided. "
               + "Falling back on deprecated fs.gs.system.bucket.");
       rootBucket = systemBucket;
     } else {
-      String msg = String.format("No bucket specified in GCS URI: %s", initUri);
-      throw new IllegalArgumentException(msg);
+      throw new IllegalArgumentException(
+          String.format("No bucket specified in GCS URI: %s", initUri));
     }
     logger.atFine().log(
         "GHFS.configureBuckets: GoogleHadoopFileSystem root in bucket: %s", rootBucket);
@@ -135,7 +137,7 @@ public class GoogleHadoopFileSystem extends GoogleHadoopFileSystemBase {
       return getFileSystemRoot();
     }
 
-    StorageResourceId resourceId = gcsfs.getPathCodec().validatePathAndGetId(gcsPath, true);
+    StorageResourceId resourceId = pathCodec.validatePathAndGetId(gcsPath, true);
 
     // Unlike the global-rooted GHFS, gs:// has no meaning in the bucket-rooted world.
     checkArgument(!resourceId.isRoot(), "Missing authority in gcsPath '%s'", gcsPath);
@@ -169,7 +171,7 @@ public class GoogleHadoopFileSystem extends GoogleHadoopFileSystemBase {
     }
 
     // Construct GCS path uri.
-    URI gcsPath = gcsfs.getPathCodec().getPath(rootBucket, objectName, true);
+    URI gcsPath = pathCodec.getPath(rootBucket, objectName, true);
     logger.atFine().log("GHFS.getGcsPath: %s -> %s", hadoopPath, gcsPath);
     return gcsPath;
   }

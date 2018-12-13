@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_LAZY_INITIALIZATION_ENABLE;
 import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
@@ -56,12 +57,6 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
           GoogleHadoopFileSystem testInstance = new GoogleHadoopFileSystem();
           ghfs = testInstance;
           ghfsFileSystemDescriptor = testInstance;
-          URI initUri;
-          try {
-            initUri = new URI("gs:/");
-          } catch (URISyntaxException e) {
-            throw new IllegalArgumentException(e);
-          }
 
           // loadConfig needs ghfsHelper, which is normally created in
           // postCreateInit. Create one here for it to use.
@@ -70,7 +65,14 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
           conf.set(
               GoogleHadoopFileSystemConfiguration.PATH_CODEC.getKey(),
               GoogleHadoopFileSystemBase.PATH_CODEC_USE_URI_ENCODING);
+
+          URI initUri = new URI("gs:/");
           ghfs.initialize(initUri, conf);
+
+          if (GCS_LAZY_INITIALIZATION_ENABLE.get(ghfs.getConf(), ghfs.getConf()::getBoolean)) {
+            testInstance.getGcsFs();
+          }
+
           HadoopFileSystemTestBase.postCreateInit();
         }
 

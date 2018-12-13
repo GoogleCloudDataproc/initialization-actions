@@ -206,8 +206,8 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     URI leafUri = myghfs.getGcsPath(leafPath);
     gcsfs.mkdir(leafUri);
 
-    boolean inferImplicitDirectories = gcsfs.getOptions()
-        .getCloudStorageOptions().isInferImplicitDirectoriesEnabled();
+    boolean inferImplicitDirectories =
+        gcsfs.getOptions().getCloudStorageOptions().isInferImplicitDirectoriesEnabled();
 
     assertWithMessage("Expected to exist: %s", leafUri).that(gcsfs.exists(leafUri)).isTrue();
     if (inferImplicitDirectories) {
@@ -693,9 +693,17 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     config.set("fs.gs.auth.access.token.provider.impl", TestingAccessTokenProvider.class.getName());
     URI gsUri = new URI("gs://foobar/");
 
-    IOException thrown =
-        assertThrows(
-            IOException.class, () -> new GoogleHadoopFileSystem().initialize(gsUri, config));
+    GoogleHadoopFileSystem ghfs = new GoogleHadoopFileSystem();
+
+    IOException thrown;
+    if (GoogleHadoopFileSystemConfiguration.GCS_LAZY_INITIALIZATION_ENABLE.get(
+        config, config::getBoolean)) {
+      ghfs.initialize(gsUri, config);
+      thrown = (IOException) assertThrows(RuntimeException.class, ghfs::getGcsFs).getCause();
+    } else {
+      thrown = assertThrows(IOException.class, () -> ghfs.initialize(gsUri, config));
+    }
+
     assertThat(thrown).hasCauseThat().hasMessageThat().contains("Invalid Credentials");
   }
 }

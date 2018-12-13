@@ -16,19 +16,22 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.BLOCK_SIZE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONCURRENT_GLOB_ENABLE;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONFIG_OVERRIDE_FILE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CREATE_SYSTEM_BUCKET;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_FILE_CHECKSUM_TYPE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_FLAT_GLOB_ENABLE;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_LAZY_INITIALIZATION_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_TYPE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES;
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_WORKING_DIRECTORY;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PATH_CODEC;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PERMISSIONS_TO_REPORT;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.flogger.LazyArgs.lazy;
 
@@ -52,9 +55,11 @@ import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.HadoopVersionInfo;
 import com.google.cloud.hadoop.util.PropertyUtil;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Ascii;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
@@ -84,6 +89,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Supplier;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.ContentSummary;
@@ -201,14 +207,6 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     GHFS_ID = String.format("GHFS/%s", VERSION);
   }
 
-  /**
-   * Instance value of {@link
-   * GoogleHadoopFileSystemConfiguration#GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE} based on the
-   * initial Configuration.
-   */
-  private boolean enableAutoRepairImplicitDirectories =
-      GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE.getDefault();
-
   @VisibleForTesting
   boolean enableFlatGlob = GCS_FLAT_GLOB_ENABLE.getDefault();
 
@@ -228,7 +226,10 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   @Deprecated protected String systemBucket;
 
   /** Underlying GCS file system object. */
-  protected GoogleCloudStorageFileSystem gcsfs;
+  private Supplier<GoogleCloudStorageFileSystem> gcsFsSupplier;
+
+  private boolean gcsFsInitialized = false;
+  protected PathCodec pathCodec;
 
   /**
    * Current working directory; overridden in initialize() if {@link
@@ -242,7 +243,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * allow modifying or querying the value. Modifying this value allows one to control how many
    * mappers are used to process a given file.
    */
-  protected long defaultBlockSize = GoogleHadoopFileSystemConfiguration.BLOCK_SIZE.getDefault();
+  protected long defaultBlockSize = BLOCK_SIZE.getDefault();
 
   /** The fixed reported permission of all files. */
   private FsPermission reportedPermissions;
@@ -493,19 +494,25 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   }
 
   /**
-   * Constructs an instance of GoogleHadoopFileSystemBase; the internal
-   * GoogleCloudStorageFileSystem will be set up with config settings when initialize() is called.
+   * Constructs an instance of GoogleHadoopFileSystemBase; the internal {@link
+   * GoogleCloudStorageFileSystem} will be set up with config settings when initialize() is called.
    */
-  public GoogleHadoopFileSystemBase() {
-  }
+  public GoogleHadoopFileSystemBase() {}
 
   /**
-   * Constructs an instance of GoogleHadoopFileSystemBase using the provided
+   * Constructs an instance of {@link GoogleHadoopFileSystemBase} using the provided
    * GoogleCloudStorageFileSystem; initialize() will not re-initialize it.
    */
-  public GoogleHadoopFileSystemBase(GoogleCloudStorageFileSystem gcsfs) {
-    Preconditions.checkArgument(gcsfs != null, "gcsfs must not be null");
-    this.gcsfs = gcsfs;
+  @VisibleForTesting
+  GoogleHadoopFileSystemBase(GoogleCloudStorageFileSystem gcsFs) {
+    checkNotNull(gcsFs, "gcsFs must not be null");
+    setGcsFs(gcsFs);
+  }
+
+  private void setGcsFs(GoogleCloudStorageFileSystem gcsFs) {
+    this.gcsFsSupplier = Suppliers.ofInstance(gcsFs);
+    this.gcsFsInitialized = true;
+    this.pathCodec = gcsFs.getPathCodec();
   }
 
   /**
@@ -611,10 +618,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * @param config Hadoop configuration.
    */
   @Override
-  public void initialize(URI path, Configuration config)
-      throws IOException {
-    // initSuperclass == true.
-    initialize(path, config, true);
+  public void initialize(URI path, Configuration config) throws IOException {
+    initialize(path, config, /* initSuperclass= */ true);
   }
 
   /**
@@ -837,12 +842,12 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
     checkOpen();
 
-    try {
-      logger.atFine().log("GHFS.rename: %s -> %s", src, dst);
+    URI srcPath = getGcsPath(src);
+    URI dstPath = getGcsPath(dst);
+    logger.atFine().log("GHFS.rename: %s -> %s", src, dst);
 
-      URI srcPath = getGcsPath(src);
-      URI dstPath = getGcsPath(dst);
-      gcsfs.rename(srcPath, dstPath);
+    try {
+      getGcsFs().rename(srcPath, dstPath);
     } catch (IOException e) {
       logger.atFine().withCause(e).log("GHFS.rename");
       return false;
@@ -888,7 +893,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     logger.atFine().log("GHFS.delete: %s, recursive: %s", hadoopPath, recursive);
     URI gcsPath = getGcsPath(hadoopPath);
     try {
-      gcsfs.delete(gcsPath, recursive);
+      getGcsFs().delete(gcsPath, recursive);
     } catch (DirectoryNotEmptyException e) {
       throw e;
     } catch (IOException e) {
@@ -924,7 +929,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     List<FileStatus> status;
 
     try {
-      List<FileInfo> fileInfos = gcsfs.listFileInfo(gcsPath, enableAutoRepairImplicitDirectories);
+      List<FileInfo> fileInfos =
+          getGcsFs().listFileInfo(gcsPath, isAutoRepairImplicitDirectoriesEnabled());
       status = new ArrayList<>(fileInfos.size());
       String userName = getUgiUserName();
       for (FileInfo fileInfo : fileInfos) {
@@ -941,6 +947,11 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     return status.toArray(new FileStatus[0]);
   }
 
+  private boolean isAutoRepairImplicitDirectoriesEnabled() {
+    GoogleCloudStorageFileSystemOptions gcsFsOptions = getGcsFs().getOptions();
+    return gcsFsOptions.getCloudStorageOptions().isAutoRepairImplicitDirectoriesEnabled();
+  }
+
   /**
    * Sets the current working directory to the given path.
    *
@@ -952,8 +963,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     Preconditions.checkArgument(hadoopPath != null, "hadoopPath must not be null");
 
     logger.atFine().log("GHFS.setWorkingDirectory: %s", hadoopPath);
-    URI gcsPath = getGcsPath(hadoopPath);
-    gcsPath = FileInfo.convertToDirectoryPath(gcsfs.getPathCodec(), gcsPath);
+    URI gcsPath = FileInfo.convertToDirectoryPath(pathCodec, getGcsPath(hadoopPath));
     Path newPath = getHadoopPath(gcsPath);
 
     // Ideally we should check (as we did earlier) if the given path really points to an existing
@@ -1001,7 +1011,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     logger.atFine().log("GHFS.mkdirs: %s, perm: %s", hadoopPath, permission);
     URI gcsPath = getGcsPath(hadoopPath);
     try {
-      gcsfs.mkdirs(gcsPath);
+      getGcsFs().mkdirs(gcsPath);
     } catch (java.nio.file.FileAlreadyExistsException faee) {
       // Need to convert to the Hadoop flavor of FileAlreadyExistsException.
       throw (FileAlreadyExistsException)
@@ -1042,7 +1052,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
 
     logger.atFine().log("GHFS.getFileStatus: %s", hadoopPath);
     URI gcsPath = getGcsPath(hadoopPath);
-    FileInfo fileInfo = gcsfs.getFileInfo(gcsPath);
+    FileInfo fileInfo = getGcsFs().getFileInfo(gcsPath);
     if (!fileInfo.exists()) {
       logger.atFine().log("GHFS.getFileStatus: not found: %s", gcsPath);
       throw new FileNotFoundException(
@@ -1217,7 +1227,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       // Path strips a trailing slash unless it's the 'root' path. We want to keep the trailing
       // slash so that we don't wastefully list sibling files which may match the directory-name
       // as a strict prefix but would've been omitted due to not containing the '/' at the end.
-      prefixUri = FileInfo.convertToDirectoryPath(gcsfs.getPathCodec(), prefixUri);
+      prefixUri = FileInfo.convertToDirectoryPath(pathCodec, prefixUri);
     }
 
     // Get everything matching the non-glob prefix.
@@ -1225,7 +1235,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     List<FileStatus> matchedStatuses = null;
     String pageToken = null;
     do {
-      ListPage<FileInfo> infoPage = gcsfs.listAllFileInfoForPrefixPage(prefixUri, pageToken);
+      ListPage<FileInfo> infoPage = getGcsFs().listAllFileInfoForPrefixPage(prefixUri, pageToken);
 
       // TODO: Are implicit directories really always needed for globbing?
       //  Probably they should be inferred only when fs.gs.implicit.dir.infer.enable is true.
@@ -1268,7 +1278,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     FileStatus[] returnList = filteredStatuses.toArray(new FileStatus[0]);
 
     // If the return list contains directories, we should repair them if they're 'implicit'.
-    if (enableAutoRepairImplicitDirectories) {
+    if (isAutoRepairImplicitDirectoriesEnabled()) {
       List<URI> toRepair = new ArrayList<>();
       for (FileStatus status : returnList) {
         if (isImplicitDirectory(status)) {
@@ -1278,7 +1288,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       if (!toRepair.isEmpty()) {
         logger.atWarning().log(
             "Discovered %s implicit directories to repair within return values.", toRepair.size());
-        gcsfs.repairDirs(toRepair);
+        getGcsFs().repairDirs(toRepair);
       }
     }
 
@@ -1289,10 +1299,10 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       throws IOException {
     FileStatus[] ret = super.globStatus(fixedPath, filter);
     if (ret == null) {
-      if (enableAutoRepairImplicitDirectories) {
+      if (isAutoRepairImplicitDirectoriesEnabled()) {
         logger.atFine().log(
             "GHFS.globStatus returned null for '%s', attempting possible repair.", pathPattern);
-        if (gcsfs.repairPossibleImplicitDirectory(getGcsPath(fixedPath))) {
+        if (getGcsFs().repairPossibleImplicitDirectory(getGcsPath(fixedPath))) {
           logger.atWarning().log("Success repairing '%s', re-globbing.", pathPattern);
           ret = super.globStatus(fixedPath, filter);
         }
@@ -1322,20 +1332,20 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     // populate the missing entries explicitly here. Necessary for getFileStatus(parentOfInfo)
     // to work when using an instance of this class.
     for (FileInfo fileInfo : fileInfos) {
-      URI parentPath = gcsfs.getParentPath(fileInfo.getPath());
+      URI parentPath = getGcsFs().getParentPath(fileInfo.getPath());
       while (parentPath != null && !parentPath.equals(GoogleCloudStorageFileSystem.GCS_ROOT)) {
         if (!filePaths.contains(parentPath)) {
           logger.atFine().log("Adding fake entry for missing parent path '%s'", parentPath);
-          StorageResourceId id = gcsfs.getPathCodec().validatePathAndGetId(parentPath, true);
+          StorageResourceId id = pathCodec.validatePathAndGetId(parentPath, true);
 
           GoogleCloudStorageItemInfo fakeItemInfo =
               GoogleCloudStorageItemInfo.createInferredDirectory(id);
-          FileInfo fakeFileInfo = FileInfo.fromItemInfo(gcsfs.getPathCodec(), fakeItemInfo);
+          FileInfo fakeFileInfo = FileInfo.fromItemInfo(pathCodec, fakeItemInfo);
 
           filePaths.add(parentPath);
           fileStatuses.add(getFileStatus(fakeFileInfo, userName));
         }
-        parentPath = gcsfs.getParentPath(parentPath);
+        parentPath = getGcsFs().getParentPath(parentPath);
       }
     }
 
@@ -1405,7 +1415,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * Gets GCS FS instance.
    */
   public GoogleCloudStorageFileSystem getGcsFs() {
-    return gcsfs;
+    return gcsFsSupplier.get();
   }
 
   /**
@@ -1516,7 +1526,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * access token provided by this provider; Otherwise obtain credential through {@link
    * HadoopCredentialConfiguration#getCredential(List)}.
    */
-  private Credential getCredential(
+  private static Credential getCredential(
       AccessTokenProviderClassFromConfigFactory providerClassFactory, Configuration config)
       throws IOException, GeneralSecurityException {
     Credential credential =
@@ -1538,64 +1548,138 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    *
    * @param config Hadoop configuration object.
    */
-  private synchronized void configure(Configuration config)
-      throws IOException {
+  private synchronized void configure(Configuration config) throws IOException {
     logger.atFine().log("GHFS.configure");
     logger.atFine().log("GHFS_ID = %s", GHFS_ID);
 
     overrideConfigFromFile(config);
+    copyDeprecatedConfigurationOptions(config);
+    // Set this configuration as the default config for this instance.
+    setConf(config);
 
-    if (gcsfs == null) {
-      copyDeprecatedConfigurationOptions(config);
-
-      Credential credential;
-      try {
-        credential =
-            getCredential(
-                new AccessTokenProviderClassFromConfigFactory().withOverridePrefix("fs.gs"),
-                config);
-      } catch (GeneralSecurityException gse) {
-        throw new IOException(gse);
-      }
-
-      enableFlatGlob = GCS_FLAT_GLOB_ENABLE.get(config, config::getBoolean);
-      enableConcurrentGlob = GCS_CONCURRENT_GLOB_ENABLE.get(config, config::getBoolean);
-      checksumType = GCS_FILE_CHECKSUM_TYPE.get(config, config::getEnum);
-
-      GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
-          GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config);
-
-      PathCodec pathCodec;
-      String specifiedPathCodec = PATH_CODEC.get(config, config::get).toLowerCase();
-      switch (specifiedPathCodec) {
-        case PATH_CODEC_USE_LEGACY_ENCODING:
-          pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
-          break;
-        case PATH_CODEC_USE_URI_ENCODING:
-          pathCodec = GoogleCloudStorageFileSystem.URI_ENCODED_PATH_CODEC;
-          break;
-        default:
-          pathCodec = GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
-          logger.atWarning().log(
-              "Unknown path codec specified %s. Using default / legacy.", specifiedPathCodec);
-      }
-      optionsBuilder.setPathCodec(pathCodec);
-
-      GoogleCloudStorageFileSystemOptions options = optionsBuilder.build();
-
-      enableAutoRepairImplicitDirectories =
-          options.getCloudStorageOptions().isAutoRepairImplicitDirectoriesEnabled();
-
-      gcsfs = new GoogleCloudStorageFileSystem(credential, options);
-    }
-
-    defaultBlockSize = GoogleHadoopFileSystemConfiguration.BLOCK_SIZE.get(config, config::getLong);
+    systemBucket = GCS_SYSTEM_BUCKET.get(config, config::get);
+    enableFlatGlob = GCS_FLAT_GLOB_ENABLE.get(config, config::getBoolean);
+    enableConcurrentGlob = GCS_CONCURRENT_GLOB_ENABLE.get(config, config::getBoolean);
+    checksumType = GCS_FILE_CHECKSUM_TYPE.get(config, config::getEnum);
+    defaultBlockSize = BLOCK_SIZE.get(config, config::getLong);
     reportedPermissions = new FsPermission(PERMISSIONS_TO_REPORT.get(config, config::get));
 
-    String systemBucketName = GCS_SYSTEM_BUCKET.get(config, config::get);
     boolean createSystemBucket = GCS_CREATE_SYSTEM_BUCKET.get(config, config::getBoolean);
-    configureBuckets(systemBucketName, createSystemBucket);
+    if (gcsFsSupplier == null) {
+      if (GCS_LAZY_INITIALIZATION_ENABLE.get(config, config::getBoolean)) {
+        gcsFsSupplier =
+            Suppliers.memoize(
+                () -> {
+                  try {
+                    GoogleCloudStorageFileSystem gcsFs = createGcsFs(config);
 
+                    pathCodec = gcsFs.getPathCodec();
+                    configureBuckets(gcsFs, systemBucket, createSystemBucket);
+                    configureWorkingDirectory(config);
+                    gcsFsInitialized = true;
+
+                    return gcsFs;
+                  } catch (IOException e) {
+                    throw new RuntimeException("Failed to create GCS FS", e);
+                  }
+                });
+        pathCodec = getPathCodec(config);
+      } else {
+        setGcsFs(createGcsFs(config));
+        configureBuckets(getGcsFs(), systemBucket, createSystemBucket);
+        configureWorkingDirectory(config);
+      }
+    } else {
+      configureBuckets(getGcsFs(), systemBucket, createSystemBucket);
+      configureWorkingDirectory(config);
+    }
+
+    logger.atFine().log("GHFS.configure: done");
+  }
+
+  /**
+   * If overrides file configured, update properties from override file into {@link Configuration}
+   * object
+   */
+  private void overrideConfigFromFile(Configuration config) throws IOException {
+    String configFile = GCS_CONFIG_OVERRIDE_FILE.get(config, config::get);
+    if (configFile != null) {
+      config.addResource(new FileInputStream(configFile));
+    }
+  }
+
+  private static PathCodec getPathCodec(Configuration config) {
+    String specifiedPathCodec = Ascii.toLowerCase(PATH_CODEC.get(config, config::get));
+    switch (specifiedPathCodec) {
+      case PATH_CODEC_USE_LEGACY_ENCODING:
+        return GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
+      case PATH_CODEC_USE_URI_ENCODING:
+        return GoogleCloudStorageFileSystem.URI_ENCODED_PATH_CODEC;
+      default:
+        logger.atWarning().log(
+            "Unknown path codec specified %s. Using default / legacy.", specifiedPathCodec);
+        return GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
+    }
+  }
+
+  private static GoogleCloudStorageFileSystem createGcsFs(Configuration config) throws IOException {
+    Credential credential;
+    try {
+      credential =
+          getCredential(
+              new AccessTokenProviderClassFromConfigFactory().withOverridePrefix("fs.gs"), config);
+    } catch (GeneralSecurityException e) {
+      throw new RuntimeException(e);
+    }
+
+    GoogleCloudStorageFileSystemOptions gcsFsOptions =
+        GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config)
+            .setPathCodec(getPathCodec(config))
+            .build();
+
+    return new GoogleCloudStorageFileSystem(credential, gcsFsOptions);
+  }
+
+  /**
+   * Validates and possibly creates the system bucket. Should be overridden to configure other
+   * buckets.
+   *
+   * @param gcsFs {@link GoogleCloudStorageFileSystem} to configure buckets
+   * @param systemBucketName Name of system bucket
+   * @param createSystemBucket Whether or not to create systemBucketName if it does not exist.
+   * @throws IOException if systemBucketName is invalid or cannot be found and createSystemBucket is
+   *     false.
+   */
+  @VisibleForTesting
+  protected void configureBuckets(
+      GoogleCloudStorageFileSystem gcsFs, String systemBucketName, boolean createSystemBucket)
+      throws IOException {
+    logger.atFine().log("GHFS.configureBuckets: %s, %s", systemBucketName, createSystemBucket);
+
+    systemBucket = systemBucketName;
+    if (systemBucket != null) {
+      logger.atFine().log("GHFS.configureBuckets: Warning fs.gs.system.bucket is deprecated.");
+      // Ensure that system bucket exists. It really must be a bucket, not a GCS path.
+      URI systemBucketPath =
+          gcsFs
+              .getPathCodec()
+              .getPath(systemBucket, /* objectName= */ null, /* allowEmptyObjectName= */ true);
+
+      if (!gcsFs.exists(systemBucketPath)) {
+        if (createSystemBucket) {
+          gcsFs.mkdirs(systemBucketPath);
+        } else {
+          throw new FileNotFoundException(
+              String.format(
+                  "%s: system bucket not found: %s", GCS_SYSTEM_BUCKET.getKey(), systemBucket));
+        }
+      }
+    }
+
+    logger.atFine().log("GHFS.configureBuckets:=>");
+  }
+
+  private void configureWorkingDirectory(Configuration config) {
     // Set initial working directory to root so that any configured value gets resolved
     // against file system root.
     workingDirectory = getFileSystemRoot();
@@ -1614,71 +1698,25 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     // working directory relative to the initial filesystem-root directory.
     setWorkingDirectory(newWorkingDirectory);
     logger.atFine().log("%s = %s", GCS_WORKING_DIRECTORY.getKey(), getWorkingDirectory());
-
-    // Set this configuration as the default config for this instance.
-    setConf(config);
-
-    logger.atFine().log("GHFS.configure: done");
-  }
-
-  /**
-   * If overrides file configured, update properties from override file into {@link Configuration}
-   * object
-   */
-  private void overrideConfigFromFile(Configuration config) throws IOException {
-    String configFile =
-        GoogleHadoopFileSystemConfiguration.GCS_CONFIG_OVERRIDE_FILE.get(config, config::get);
-    if (configFile != null) {
-      config.addResource(new FileInputStream(configFile));
-    }
-  }
-
-  /**
-   * Validates and possibly creates the system bucket. Should be overridden to configure other
-   * buckets.
-   *
-   * @param systemBucketName Name of system bucket
-   * @param createSystemBucket Whether or not to create systemBucketName if it does not exist.
-   * @throws IOException if systemBucketName is invalid or cannot be found and createSystemBucket
-   *     is false.
-   */
-  @VisibleForTesting
-  // TODO(user): Refactor to make protected
-  public void configureBuckets(String systemBucketName, boolean createSystemBucket)
-      throws IOException {
-
-    logger.atFine().log("GHFS.configureBuckets: %s, %s", systemBucketName, createSystemBucket);
-
-    systemBucket = systemBucketName;
-
-    if (systemBucket != null) {
-      logger.atFine().log("GHFS.configureBuckets: Warning fs.gs.system.bucket is deprecated.");
-      // Ensure that system bucket exists. It really must be a bucket, not a GCS path.
-      URI systemBucketPath = gcsfs.getPathCodec().getPath(systemBucket, null, true);
-
-      checkOpen();
-
-      if (!gcsfs.exists(systemBucketPath)) {
-        if (createSystemBucket) {
-          gcsfs.mkdirs(systemBucketPath);
-        } else {
-          throw new FileNotFoundException(
-              String.format(
-                  "%s: system bucket not found: %s", GCS_SYSTEM_BUCKET.getKey(), systemBucket));
-        }
-      }
-    }
-
-    logger.atFine().log("GHFS.configureBuckets:=>");
   }
 
   /**
    * Assert that the FileSystem has been initialized and not close()d.
    */
   private void checkOpen() throws IOException {
-    if (gcsfs == null) {
+    if (isClosed()) {
       throw new IOException("GoogleHadoopFileSystem has been closed or not initialized.");
     }
+  }
+
+  protected void checkOpenUnchecked() {
+    if (isClosed()) {
+      throw new RuntimeException("GoogleHadoopFileSystem has been closed or not initialized.");
+    }
+  }
+
+  private boolean isClosed() {
+    return gcsFsSupplier == null || gcsFsSupplier.get() == null;
   }
 
   // =================================================================
@@ -1771,17 +1809,18 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   }
 
   @Override
-  public void close()
-      throws IOException {
+  public void close() throws IOException {
     logger.atFine().log("GHFS.close:");
     super.close();
 
-    // NB: We must *first* have the superclass close() before we close the underlying gcsfs since
-    // the superclass may decide to perform various heavyweight cleanup operations (such as
+    // NB: We must *first* have the superclass close() before we close the underlying gcsFsSupplier
+    // since the superclass may decide to perform various heavyweight cleanup operations (such as
     // deleteOnExit).
-    if (gcsfs != null) {
-      gcsfs.close();
-      gcsfs = null;
+    if (gcsFsSupplier != null) {
+      if (gcsFsInitialized) {
+        getGcsFs().close();
+      }
+      gcsFsSupplier = null;
     }
     logCounters();
     logger.atFine().log("GHFS.close:=> ");
@@ -1812,7 +1851,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     checkOpen();
 
     URI gcsPath = getGcsPath(hadoopPath);
-    final FileInfo fileInfo = gcsfs.getFileInfo(gcsPath);
+    final FileInfo fileInfo = getGcsFs().getFileInfo(gcsPath);
     if (!fileInfo.exists()) {
       logger.atFine().log("GHFS.getFileStatus: not found: %s", gcsPath);
       throw new FileNotFoundException(
