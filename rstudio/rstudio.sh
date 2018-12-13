@@ -29,14 +29,14 @@ function update_apt_get() {
 
 # Only run on the master node
 ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-RSTUDIO_VERSION=1.1.442
+RSTUDIO_VERSION=1.1.463
 
 if [[ "${ROLE}" == 'Master' ]]; then
   # Install RStudio Server
   update_apt_get
   apt-get install -y software-properties-common
-  apt-key adv --keyserver keys.gnupg.net --recv-key 'E19F5F87128899B192B1A2C2AD5F960A256A04AF'
-  add-apt-repository 'deb http://cran.r-project.org/bin/linux/debian jessie-cran34/'
+  apt-key adv --no-tty --keyserver keys.gnupg.net --recv-key 'E19F5F87128899B192B1A2C2AD5F960A256A04AF'
+  add-apt-repository 'deb http://cran.r-project.org/bin/linux/debian stretch-cran34/'
   update_apt_get
   apt install -y r-base r-base-dev gdebi-core
 
