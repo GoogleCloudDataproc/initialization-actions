@@ -16,9 +16,10 @@
 
 package com.google.cloud.hadoop.util;
 
+import static com.google.api.client.util.Preconditions.checkNotNull;
+
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.util.BackOff;
-import com.google.api.client.util.Preconditions;
 import com.google.api.client.util.Sleeper;
 import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
@@ -34,8 +35,8 @@ public class ResilientOperation {
   /**
    * Retries the given executable function in the case of transient errors defined by the
    * RetryDeterminer.
-   * <p>
-   * Does not support unchecked exceptions that are not instances of RuntimeException.
+   *
+   * <p>Does not support unchecked exceptions that are not instances of RuntimeException.
    *
    * @param callable CheckedCallable to retry execution of
    * @param backoff BackOff to determine how long to sleep for
@@ -47,21 +48,25 @@ public class ResilientOperation {
    * @throws X What is thrown from the executable or the RetryDeterminer
    * @throws InterruptedException - Exception thrown from sleep
    */
- @SuppressWarnings("unchecked")
-  public static <T, X extends Exception> T retry(CheckedCallable<T, X> callable, BackOff backoff,
-      RetryDeterminer<? super X> retryDet, Class<X> classType, Sleeper sleeper)
+  @SuppressWarnings("unchecked")
+  public static <T, X extends Exception> T retry(
+      CheckedCallable<T, X> callable,
+      BackOff backoff,
+      RetryDeterminer<? super X> retryDet,
+      Class<X> classType,
+      Sleeper sleeper)
       throws X, InterruptedException {
-    Preconditions.checkNotNull(backoff, "Must provide a non-null BackOff.");
-    Preconditions.checkNotNull(retryDet, "Must provide a non-null RetryDeterminer.");
-    Preconditions.checkNotNull(sleeper, "Must provide a non-null Sleeper.");
-    Preconditions.checkNotNull(callable, "Must provide a non-null Execitable object.");
+    checkNotNull(backoff, "Must provide a non-null BackOff.");
+    checkNotNull(retryDet, "Must provide a non-null RetryDeterminer.");
+    checkNotNull(sleeper, "Must provide a non-null Sleeper.");
+    checkNotNull(callable, "Must provide a non-null Executable object.");
 
-    X currentException = null;
+    X currentException;
     do {
       try {
         return callable.call();
       } catch (Exception e) {
-        if (classType.isInstance(e)) {  // e is something that extends X
+        if (classType.isInstance(e)) { // e is something that extends X
           currentException = (X) e;
           if (!retryDet.shouldRetry(currentException)) {
             throw currentException;
@@ -76,7 +81,6 @@ public class ResilientOperation {
         }
       }
     } while (nextSleep(backoff, sleeper, currentException));
-    logger.atWarning().log("Attempted retries failed.");
     throw currentException;
   }
 
@@ -93,8 +97,12 @@ public class ResilientOperation {
    * @throws X What is thrown from the executable or the RetryDeterminer
    * @throws InterruptedException - Exception thrown from sleep
    */
-  public static <T, X extends Exception> T retry(CheckedCallable<T, X> callable, BackOff backoff,
-      RetryDeterminer<? super X> retryDet, Class<X> classType) throws X, InterruptedException {
+  public static <T, X extends Exception> T retry(
+      CheckedCallable<T, X> callable,
+      BackOff backoff,
+      RetryDeterminer<? super X> retryDet,
+      Class<X> classType)
+      throws X, InterruptedException {
     return retry(callable, backoff, retryDet, classType, Sleeper.DEFAULT);
   }
 
@@ -108,11 +116,11 @@ public class ResilientOperation {
    */
   private static boolean nextSleep(BackOff backoff, Sleeper sleeper, Exception currentException)
       throws InterruptedException {
-    long backOffTime = 0;
+    long backOffTime;
     try {
       backOffTime = backoff.nextBackOffMillis();
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Failed to to get next back off time", e);
     }
     if (backOffTime == BackOff.STOP) {
       return false;
@@ -125,6 +133,7 @@ public class ResilientOperation {
 
   /**
    * Interface that allows a call that can throw an exception X.
+   *
    * @param <T> Type of object returned by the call.
    * @param <X> Type of exception thrown by the call.
    */
@@ -143,7 +152,7 @@ public class ResilientOperation {
    */
   public static <V> CheckedCallable<V, IOException> getGoogleRequestCallable(
       AbstractGoogleClientRequest<V> request) {
-    return new AbstractGoogleClientRequestExecutor<V>(request);
+    return new AbstractGoogleClientRequestExecutor<>(request);
   }
 
   /**
@@ -151,10 +160,12 @@ public class ResilientOperation {
    */
   private static class AbstractGoogleClientRequestExecutor<T>
       implements CheckedCallable<T, IOException> {
-    AbstractGoogleClientRequest<T> request;
-    private AbstractGoogleClientRequestExecutor (AbstractGoogleClientRequest<T> request) {
+    private final AbstractGoogleClientRequest<T> request;
+
+    private AbstractGoogleClientRequestExecutor(AbstractGoogleClientRequest<T> request) {
       this.request = request;
     }
+
     @Override
     public T call() throws IOException {
       return request.execute();
