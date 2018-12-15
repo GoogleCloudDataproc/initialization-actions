@@ -419,6 +419,43 @@ public class GoogleHadoopFileSystemIntegrationTest
     assertThat(fs.getRootBucketName()).isEqualTo(systemBucketName);
   }
 
+  /** Validates success path when there is a root bucket but no system bucket is specified. */
+  @Test
+  @Override
+  public void testConfigureBucketsWithRootBucketButNoSystemBucket() throws IOException {
+    String systemBucketName = null;
+    String rootBucketName = ghfsHelper.getUniqueBucketName("configure-root");
+    URI initUri = (new Path("gs://" + rootBucketName)).toUri();
+    GoogleCloudStorageFileSystem fakeGcsFs =
+        new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
+    GoogleHadoopFileSystem fs = new GoogleHadoopFileSystem(fakeGcsFs);
+    fs.initUri = initUri;
+    fs.configureBuckets(fakeGcsFs, systemBucketName, true);
+
+    // Verify that config settings were set correctly.
+    assertThat(fs.getSystemBucketName()).isNull();
+    assertThat(fs.initUri).isEqualTo(initUri);
+  }
+
+  /** Validates that a system bucket is required if no root bucket is specified. */
+  @Test
+  @Override
+  public void testConfigureBucketsWithNeitherRootBucketNorSystemBucket() throws IOException {
+    String systemBucketName = null;
+    URI initUri = (new Path("gs://")).toUri();
+    final GoogleCloudStorageFileSystem fakeGcsFs =
+        new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
+    final GoogleHadoopFileSystem fs = new GoogleHadoopFileSystem(fakeGcsFs);
+    fs.initUri = initUri;
+
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> fs.configureBuckets(fakeGcsFs, systemBucketName, true));
+
+    assertThat(thrown).hasMessageThat().isEqualTo("No bucket specified in GCS URI: gs:/");
+  }
+
   @Test
   public void testConfigureBucketsThrowsWhenBucketNotFound() throws IOException {
     GoogleCloudStorageFileSystem fakeGcsFs =

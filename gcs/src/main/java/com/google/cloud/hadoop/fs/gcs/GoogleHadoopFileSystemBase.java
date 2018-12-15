@@ -33,6 +33,7 @@ import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PERMISSIONS_TO_REPORT;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Strings.emptyToNull;
 import static com.google.common.flogger.LazyArgs.lazy;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -1557,7 +1558,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     // Set this configuration as the default config for this instance.
     setConf(config);
 
-    systemBucket = GCS_SYSTEM_BUCKET.get(config, config::get);
+    systemBucket = emptyToNull(GCS_SYSTEM_BUCKET.get(config, config::get));
     enableFlatGlob = GCS_FLAT_GLOB_ENABLE.get(config, config::getBoolean);
     enableConcurrentGlob = GCS_CONCURRENT_GLOB_ENABLE.get(config, config::getBoolean);
     checksumType = GCS_FILE_CHECKSUM_TYPE.get(config, config::getEnum);

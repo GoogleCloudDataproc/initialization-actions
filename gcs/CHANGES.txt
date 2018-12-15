@@ -16,6 +16,10 @@
 
       fs.gs.lazy.init.enable (default: false)
 
+  5. Add ability to unset `fs.gs.system.bucket` with an empty string value:
+
+      fs.gs.system.bucket=
+
 
 1.9.10 - 2018-11-01
 
