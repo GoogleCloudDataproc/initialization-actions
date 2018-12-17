@@ -425,7 +425,7 @@ public class GoogleHadoopFileSystemIntegrationTest
   public void testConfigureBucketsWithRootBucketButNoSystemBucket() throws IOException {
     String systemBucketName = null;
     String rootBucketName = ghfsHelper.getUniqueBucketName("configure-root");
-    URI initUri = (new Path("gs://" + rootBucketName)).toUri();
+    URI initUri = new Path("gs://" + rootBucketName).toUri();
     GoogleCloudStorageFileSystem fakeGcsFs =
         new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
     GoogleHadoopFileSystem fs = new GoogleHadoopFileSystem(fakeGcsFs);
@@ -442,7 +442,7 @@ public class GoogleHadoopFileSystemIntegrationTest
   @Override
   public void testConfigureBucketsWithNeitherRootBucketNorSystemBucket() throws IOException {
     String systemBucketName = null;
-    URI initUri = (new Path("gs://")).toUri();
+    URI initUri = new Path("gs://").toUri();
     final GoogleCloudStorageFileSystem fakeGcsFs =
         new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
     final GoogleHadoopFileSystem fs = new GoogleHadoopFileSystem(fakeGcsFs);
