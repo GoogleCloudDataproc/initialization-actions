@@ -210,7 +210,8 @@ public class BigQueryOutputCommitter extends OutputCommitter {
     // Run the job.
     logger.atFine().log(
         "commitTask: Running table copy from %s to %s",
-        BigQueryStrings.toString(tempTableRef), BigQueryStrings.toString(finalTableRef));
+        lazy(() -> BigQueryStrings.toString(tempTableRef)),
+        lazy(() -> BigQueryStrings.toString(finalTableRef)));
     Job response = bigQueryHelper.insertJobOrFetchDuplicate(projectId, job);
     logger.atFine().log("Got response '%s'", response);
 
