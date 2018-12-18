@@ -4,6 +4,8 @@ This initialization action installs the MIT distribution of the Kerberos package
 It will also encrypt HTTP traffic (include Web UIs and shuffle) with SSL.
 Optionally, this initialization action will also enable cross-realm trust, to allow users to authenticate through a remote Kerberos/Active Directory server.
 
+Note: You can also secure a Dataproc cluster by utilizing the [Kerberos optional component](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/optional-components#kerberos), which is better supported.
+
 ## Using this initialization action
 You can use this initialization action to create a secured Dataproc cluster:
   Using the `gcloud` command to create a new cluster with this initialization action.
