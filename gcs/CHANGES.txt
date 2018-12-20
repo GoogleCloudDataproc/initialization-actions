@@ -20,6 +20,7 @@
 
       fs.gs.system.bucket=
 
+  6. Set default value for "fs.gs.working.dir" property to "/".
 
 1.9.10 - 2018-11-01
 

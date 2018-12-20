@@ -148,7 +148,7 @@ public class GoogleHadoopFileSystemConfiguration {
 
   /** Configuration key for initial working directory of a GHFS instance. Default value: '/' */
   public static final GoogleHadoopFileSystemConfigurationProperty<String> GCS_WORKING_DIRECTORY =
-      new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.working.dir");
+      new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.working.dir", "/");
 
   /**
    * If true, recursive delete on a path that refers to a GCS bucket itself ('/' for any
