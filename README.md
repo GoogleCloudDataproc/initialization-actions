@@ -58,9 +58,9 @@ To add a dependency on one of the connectors using Maven, use the following:
   <groupId>com.google.cloud.bigdataoss</groupId>
   <!-- Cloud Storage: -->
   <artifactId>gcs-connector</artifactId>
-  <version>hadoop2-1.9.10</version>
+  <version>hadoop2-1.9.11</version>
   <!-- or, for BigQuery: -->
   <artifactId>bigquery-connector</artifactId>
-  <version>hadoop2-0.13.10</version>
+  <version>hadoop2-0.13.11</version>
 </dependency>
 ```
