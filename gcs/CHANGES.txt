@@ -1,4 +1,4 @@
-1.9.11 - 2018-XX-XX
+1.9.11 - 2018-12-20
 
   1. Changed the default value of `fs.gs.path.encoding` to 'uri-path', the new
      codec introduced in 1.4.5. The old behavior can be restored by setting
@@ -14,13 +14,14 @@
 
   4. Add an option to lazily initialize `GoogleHadoopFileSystem` instances:
 
-      fs.gs.lazy.init.enable (default: false)
+       fs.gs.lazy.init.enable (default: false)
 
   5. Add ability to unset `fs.gs.system.bucket` with an empty string value:
 
-      fs.gs.system.bucket=
+       fs.gs.system.bucket=
 
   6. Set default value for "fs.gs.working.dir" property to "/".
+
 
 1.9.10 - 2018-11-01
 
