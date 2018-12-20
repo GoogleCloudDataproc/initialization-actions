@@ -56,7 +56,6 @@ import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.HadoopVersionInfo;
 import com.google.cloud.hadoop.util.PropertyUtil;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.annotations.VisibleForTesting.Visibility;
 import com.google.common.base.Ascii;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -1654,7 +1653,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * @throws IOException if systemBucketName is invalid or cannot be found and createSystemBucket is
    *     false.
    */
-  @VisibleForTesting(productionVisibility = Visibility.PACKAGE_PRIVATE)
+  @VisibleForTesting
   protected void configureBuckets(
       GoogleCloudStorageFileSystem gcsFs, String systemBucketName, boolean createSystemBucket)
       throws IOException {
