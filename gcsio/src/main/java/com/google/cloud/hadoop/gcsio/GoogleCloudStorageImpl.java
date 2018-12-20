@@ -859,11 +859,16 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
    *     used by other implementations of GoogleCloudStorage that want to preserve the validation
    *     behavior of GoogleCloudStorageImpl, including disallowing cross-location copies.
    */
-  @VisibleForTesting
+  // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
+  // Please check that removing it is correct, and remove this comment along with it.
+  // @VisibleForTesting
   public static void validateCopyArguments(
-      String srcBucketName, List<String> srcObjectNames,
-      String dstBucketName, List<String> dstObjectNames,
-      GoogleCloudStorage gcsImpl) throws IOException {
+      String srcBucketName,
+      List<String> srcObjectNames,
+      String dstBucketName,
+      List<String> dstObjectNames,
+      GoogleCloudStorage gcsImpl)
+      throws IOException {
     Preconditions.checkArgument(!Strings.isNullOrEmpty(srcBucketName),
         "srcBucketName must not be null or empty");
     Preconditions.checkArgument(!Strings.isNullOrEmpty(dstBucketName),

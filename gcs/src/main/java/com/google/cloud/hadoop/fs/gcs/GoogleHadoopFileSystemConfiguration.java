@@ -33,7 +33,6 @@ import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import com.google.cloud.hadoop.util.RequesterPaysOptions;
 import com.google.cloud.hadoop.util.RequesterPaysOptions.RequesterPaysMode;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.GoogleLogger;
 import java.util.Collection;
@@ -529,7 +528,9 @@ public class GoogleHadoopFileSystemConfiguration {
   public static final GoogleHadoopFileSystemConfigurationProperty<String> GCS_CONFIG_OVERRIDE_FILE =
       new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.config.override.file", null);
 
-  @VisibleForTesting
+  // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
+  // Please check that removing it is correct, and remove this comment along with it.
+  // @VisibleForTesting
   static GoogleCloudStorageFileSystemOptions.Builder getGcsFsOptionsBuilder(Configuration config) {
     GoogleCloudStorageFileSystemOptions.Builder gcsFsOptionsBuilder =
         GoogleCloudStorageFileSystemOptions.newBuilder()

@@ -56,6 +56,7 @@ import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.HadoopVersionInfo;
 import com.google.cloud.hadoop.util.PropertyUtil;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.annotations.VisibleForTesting.Visibility;
 import com.google.common.base.Ascii;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -504,7 +505,9 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * Constructs an instance of {@link GoogleHadoopFileSystemBase} using the provided
    * GoogleCloudStorageFileSystem; initialize() will not re-initialize it.
    */
-  @VisibleForTesting
+  // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
+  // Please check that removing it is correct, and remove this comment along with it.
+  // @VisibleForTesting
   GoogleHadoopFileSystemBase(GoogleCloudStorageFileSystem gcsFs) {
     checkNotNull(gcsFs, "gcsFs must not be null");
     setGcsFs(gcsFs);
@@ -1651,7 +1654,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * @throws IOException if systemBucketName is invalid or cannot be found and createSystemBucket is
    *     false.
    */
-  @VisibleForTesting
+  @VisibleForTesting(productionVisibility = Visibility.PACKAGE_PRIVATE)
   protected void configureBuckets(
       GoogleCloudStorageFileSystem gcsFs, String systemBucketName, boolean createSystemBucket)
       throws IOException {

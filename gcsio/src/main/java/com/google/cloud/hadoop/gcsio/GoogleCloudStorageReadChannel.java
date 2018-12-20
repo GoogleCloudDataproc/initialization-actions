@@ -84,7 +84,10 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
 
   // Current position in this channel, it could be different from contentChannelPosition if
   // position(long) method calls were made without calls to read(ByteBuffer) method.
-  @VisibleForTesting protected long currentPosition = 0;
+  // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
+  // Please check that removing it is correct, and remove this comment along with it.
+  // @VisibleForTesting
+  protected long currentPosition = 0;
 
   // Current read position in the contentChannel.
   //
@@ -94,7 +97,10 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
   // of this instance in cases where caller intends to start reading at some other offset.
   // If contentChannelPosition is not the same as currentPosition, it indicates that a target
   // position has been set but the actual seek operation is still pending.
-  @VisibleForTesting protected long contentChannelPosition = -1;
+  // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
+  // Please check that removing it is correct, and remove this comment along with it.
+  // @VisibleForTesting
+  protected long contentChannelPosition = -1;
 
   // Size of the object being read.
   private long size = -1;
@@ -221,7 +227,9 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
    *     Could not be null.
    * @throws IOException on IO error
    */
-  @VisibleForTesting
+  // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
+  // Please check that removing it is correct, and remove this comment along with it.
+  // @VisibleForTesting
   protected GoogleCloudStorageReadChannel(@Nonnull GoogleCloudStorageReadOptions readOptions)
       throws IOException {
     this(
@@ -649,7 +657,9 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
   }
 
   /** Sets size of this channel to the given value. */
-  @VisibleForTesting
+  // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
+  // Please check that removing it is correct, and remove this comment along with it.
+  // @VisibleForTesting
   protected void setSize(long size) {
     this.size = size;
   }

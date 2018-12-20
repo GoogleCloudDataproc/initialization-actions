@@ -19,6 +19,7 @@ import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.InputStreamContent;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.annotations.VisibleForTesting.Visibility;
 import com.google.common.base.Preconditions;
 import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
@@ -104,7 +105,7 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
   /**
    * Sets the ClientRequestHelper to be used instead of calling final methods in client requests.
    */
-  @VisibleForTesting
+  @VisibleForTesting(productionVisibility = Visibility.PROTECTED)
   public void setClientRequestHelper(ClientRequestHelper<S> helper) {
     clientRequestHelper = helper;
   }

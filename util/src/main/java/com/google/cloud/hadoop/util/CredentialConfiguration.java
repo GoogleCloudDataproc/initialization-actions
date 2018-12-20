@@ -283,7 +283,9 @@ public class CredentialConfiguration {
     this.proxyPassword = proxyPassword;
   }
 
-  @VisibleForTesting
+  // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
+  // Please check that removing it is correct, and remove this comment along with it.
+  // @VisibleForTesting
   void setCredentialFactory(CredentialFactory factory) {
     this.credentialFactory = factory;
   }
