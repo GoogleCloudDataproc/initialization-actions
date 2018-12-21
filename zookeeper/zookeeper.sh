@@ -52,7 +52,10 @@ fi
 echo ${NODE_NUMBER} >| /var/lib/zookeeper/myid
 
 # Write ZooKeeper configuration file
-cat > /etc/zookeeper/conf/zoo.cfg <<EOF
+ZOOKEEPER_CONF=/etc/zookeeper/conf/zoo.cfg
+cat >> ${ZOOKEEPER_CONF} <<EOF
+
+# Properties from Zookeeper init action.
 tickTime=2000
 dataDir=/var/lib/zookeeper
 clientPort=2181
