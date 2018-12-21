@@ -52,7 +52,8 @@ fi
 echo ${NODE_NUMBER} >| /var/lib/zookeeper/myid
 
 # Write ZooKeeper configuration file
-cat > /etc/zookeeper/conf/zoo.cfg <<EOF
+ZOOKEEPER_CONF=/etc/zookeeper/conf/zoo.cfg
+cat > ${ZOOKEEPER_CONF} <<EOF
 tickTime=2000
 dataDir=/var/lib/zookeeper
 clientPort=2181
@@ -62,6 +63,13 @@ server.1=${CLUSTER_NAME}-m:2888:3888
 server.2=${CLUSTER_NAME}-w-0:2888:3888
 server.3=${CLUSTER_NAME}-w-1:2888:3888
 EOF
+
+# Merge user-specified zookeeper properties on cluster creation.
+ZOOKEEPER_PROPERTIES=/tmp/cluster/properties/zookeeper.properties
+if [[ -f ${ZOOKEEPER_PROPERTIES} ]]; then
+  echo -e "\n# User-supplied properties." >> "${ZOOKEEPER_CONF}"
+  cat "${ZOOKEEPER_PROPERTIES}" >> "${ZOOKEEPER_CONF}"
+fi
 
 # Restart ZooKeeper
 systemctl restart zookeeper-server
