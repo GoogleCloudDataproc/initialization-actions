@@ -1,5 +1,8 @@
 # bigdata-interop
 
+[![License](https://img.shields.io/github/license/GoogleCloudPlatform/bigdata-interop.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
+[![GitHub release](https://img.shields.io/github/release/GoogleCloudPlatform/bigdata-interop.svg)](https://github.com/GoogleCloudPlatform/bigdata-interop/releases/latest)
+[![GitHub release date](https://img.shields.io/github/release-date/GoogleCloudPlatform/bigdata-interop.svg)](https://github.com/GoogleCloudPlatform/bigdata-interop/releases/latest)
 [![Code Quality: Java](https://img.shields.io/lgtm/grade/java/g/GoogleCloudPlatform/bigdata-interop.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/GoogleCloudPlatform/bigdata-interop/context:java)
 [![Total Alerts](https://img.shields.io/lgtm/alerts/g/GoogleCloudPlatform/bigdata-interop.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/GoogleCloudPlatform/bigdata-interop/alerts)
 
