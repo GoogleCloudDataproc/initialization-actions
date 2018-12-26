@@ -11,7 +11,7 @@ function main() {
   fi
 
   easy_install pip
-  pip install --upgrade "${PACKAGES}"
+  pip install --upgrade ${PACKAGES}
 }
 
 main
