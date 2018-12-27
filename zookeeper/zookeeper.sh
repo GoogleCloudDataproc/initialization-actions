@@ -46,18 +46,24 @@ if [[ -n "$ADDITIONAL_MASTER" ]]; then
   exit 1
 fi
 
-# Download and extract ZooKeeper Server
-update_apt_get
-install_apt_get zookeeper-server
-mkdir -p /var/lib/zookeeper
-
 # Configure ZooKeeper node ID, master has ID 0, workers start from 1.
 if [[ "${ROLE}" == 'Worker' ]]; then
   NODE_NUMBER=$((`hostname | sed 's/.*-w-\([0-9]\)*.*/\1/g'`+1))
 else
   NODE_NUMBER=0
 fi
-echo ${NODE_NUMBER} >| /var/lib/zookeeper/myid
+
+if (( $NODE_NUMBER > 2 )); then
+  echo "Skip running ZooKeeper on this node."
+  exit 0
+else
+  echo ${NODE_NUMBER} >| /var/lib/zookeeper/myid
+fi
+
+# Download and extract ZooKeeper Server
+update_apt_get
+install_apt_get zookeeper-server
+mkdir -p /var/lib/zookeeper
 
 # Write ZooKeeper configuration file
 ZOOKEEPER_CONF=/etc/zookeeper/conf/zoo.cfg
