@@ -56,14 +56,15 @@ fi
 if (( $NODE_NUMBER > 2 )); then
   echo "Skip running ZooKeeper on this node."
   exit 0
-else
-  echo ${NODE_NUMBER} >| /var/lib/zookeeper/myid
 fi
 
 # Download and extract ZooKeeper Server
 update_apt_get
 install_apt_get zookeeper-server
+
+# Write ZooKeeper node ID.
 mkdir -p /var/lib/zookeeper
+echo ${NODE_NUMBER} >| /var/lib/zookeeper/myid
 
 # Write ZooKeeper configuration file
 ZOOKEEPER_CONF=/etc/zookeeper/conf/zoo.cfg
