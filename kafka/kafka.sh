@@ -49,6 +49,7 @@ function install_and_configure_kafka_server() {
   # Find zookeeper list first, before attempting any installation.
   local zookeeper_client_port
   zookeeper_client_port=$(grep 'clientPort' /etc/zookeeper/conf/zoo.cfg \
+    | tail -n 1 \
     | cut -d '=' -f 2)
 
   local zookeeper_list
