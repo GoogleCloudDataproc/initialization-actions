@@ -46,12 +46,6 @@ if [[ -n "$ADDITIONAL_MASTER" ]]; then
   exit 1
 fi
 
-WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
-if [[ "$WORKER_COUNT" -lt 2 ]]; then
-  echo "ZooKeeper requires at least 2 worker nodes."
-  exit 1
-fi
-
 # Download and extract ZooKeeper Server
 update_apt_get
 install_apt_get zookeeper-server
