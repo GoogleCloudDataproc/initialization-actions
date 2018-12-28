@@ -442,8 +442,7 @@ public class GoogleHadoopFileSystemConfiguration {
    *
    * <p>SYNCABLE_COMPOSITE: Stream behaves similarly to BASIC when used with basic
    * create/write/close patterns, but supports hsync() by creating discrete temporary GCS objects
-   * which are composed onto the destination object. Has a hard upper limit of number of components
-   * which can be composed onto the destination object.
+   * which are composed onto the destination object.
    */
   public static final GoogleHadoopFileSystemConfigurationProperty<OutputStreamType>
       GCS_OUTPUT_STREAM_TYPE =

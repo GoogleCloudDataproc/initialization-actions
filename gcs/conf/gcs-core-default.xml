@@ -16,7 +16,7 @@
     </description>
   </property>
   <property>
-    <name>fs.gs.implicit.directory.repair</name>
+    <name>fs.gs.implicit.dir.repair.enable</name>
     <value>true</value>
     <description>
       Whether or not to create objects for the parent directories of objects
