@@ -394,59 +394,59 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         // each time we make progress we reset the retry counter.
         retriesAttempted = 0;
       } catch (IOException ioe) {
+        logger.atFine().log(
+            "Closing contentChannel after %s exception for '%s'.",
+            ioe.getMessage(), resourceIdString);
+        closeContentChannel();
+
+        if (buffer.remaining() != remainingBeforeRead) {
+          int partialRead = remainingBeforeRead - buffer.remaining();
+          logger.atInfo().log(
+              "Despite exception, had partial read of %s bytes from '%s'; resetting retry count.",
+              partialRead, resourceIdString);
+          retriesAttempted = 0;
+          totalBytesRead += partialRead;
+          currentPosition += partialRead;
+        }
+
         // TODO(user): Refactor any reusable logic for retries into a separate RetryHelper class.
         if (retriesAttempted == maxRetries) {
           logger.atSevere().log(
               "Throwing exception after reaching max read retries (%s) for '%s'.",
               maxRetries, resourceIdString);
-          closeContentChannel();
           throw ioe;
-        } else {
-          if (retriesAttempted == 0) {
-            // If this is the first of a series of retries, we also want to reset the readBackOff
-            // to have fresh initial values.
-            readBackOff.get().reset();
-          }
+        }
 
-          ++retriesAttempted;
-          logger.atWarning().withCause(ioe).log(
-              "Failed read retry #%s/%s for '%s'. Sleeping...",
-              retriesAttempted, maxRetries, resourceIdString);
-          try {
-            boolean backOffSuccessful = BackOffUtils.next(sleeper, readBackOff.get());
-            if (!backOffSuccessful) {
-              logger.atSevere().log(
-                  "BackOff returned false; maximum total elapsed time exhausted."
-                      + " Giving up after %s/%s retries for '%s'",
-                  retriesAttempted, maxRetries, resourceIdString);
-              closeContentChannel();
-              throw ioe;
-            }
-          } catch (InterruptedException ie) {
+        if (retriesAttempted == 0) {
+          // If this is the first of a series of retries, we also want to reset the readBackOff
+          // to have fresh initial values.
+          readBackOff.get().reset();
+        }
+
+        ++retriesAttempted;
+        logger.atWarning().withCause(ioe).log(
+            "Failed read retry #%s/%s for '%s'. Sleeping...",
+            retriesAttempted, maxRetries, resourceIdString);
+        try {
+          boolean backOffSuccessful = BackOffUtils.next(sleeper, readBackOff.get());
+          if (!backOffSuccessful) {
             logger.atSevere().log(
-                "Interrupted while sleeping before retry. Giving up after %s/%s retries for '%s'",
+                "BackOff returned false; maximum total elapsed time exhausted."
+                    + " Giving up after %s/%s retries for '%s'",
                 retriesAttempted, maxRetries, resourceIdString);
-            ioe.addSuppressed(ie);
-            closeContentChannel();
             throw ioe;
           }
-          logger.atInfo().log(
-              "Done sleeping before retry #%s/%s for '%s'",
+        } catch (InterruptedException ie) {
+          logger.atSevere().log(
+              "Interrupted while sleeping before retry. Giving up after %s/%s retries for '%s'",
               retriesAttempted, maxRetries, resourceIdString);
-
-          if (buffer.remaining() != remainingBeforeRead) {
-            int partialRead = remainingBeforeRead - buffer.remaining();
-            logger.atInfo().log(
-                "Despite exception, had partial read of %s bytes from '%s'; resetting retry count.",
-                partialRead, resourceIdString);
-            retriesAttempted = 0;
-            totalBytesRead += partialRead;
-            currentPosition += partialRead;
-          }
-
-          // Close the contentChannel.
-          closeContentChannel();
+          ioe.addSuppressed(ie);
+          throw ioe;
         }
+
+        logger.atInfo().log(
+            "Done sleeping before retry #%s/%s for '%s'",
+            retriesAttempted, maxRetries, resourceIdString);
       } catch (RuntimeException r) {
         closeContentChannel();
         throw r;
