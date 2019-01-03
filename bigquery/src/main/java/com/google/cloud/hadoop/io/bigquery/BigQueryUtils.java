@@ -13,6 +13,8 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.client.util.Sleeper;
@@ -23,7 +25,6 @@ import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
-import com.google.common.base.Preconditions;
 import com.google.common.flogger.GoogleLogger;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -35,9 +36,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.util.Progressable;
 
-/**
- * Helper methods to interact with BigQuery.
- */
+/** Helper methods to interact with BigQuery. */
 public class BigQueryUtils {
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
@@ -61,15 +60,11 @@ public class BigQueryUtils {
    * @param projectId the project that is polling.
    * @param jobReference the job to poll.
    * @param progressable to get progress of task.
-   *
    * @throws IOException on IO Error.
    * @throws InterruptedException on sleep interrupt.
    */
   public static void waitForJobCompletion(
-      Bigquery bigquery,
-      String projectId,
-      JobReference jobReference,
-      Progressable progressable)
+      Bigquery bigquery, String projectId, JobReference jobReference, Progressable progressable)
       throws IOException, InterruptedException {
 
     Sleeper sleeper = Sleeper.DEFAULT;
@@ -88,16 +83,19 @@ public class BigQueryUtils {
     // While job is incomplete continue to poll.
     while (notDone) {
       BackOff operationBackOff = new ExponentialBackOff.Builder().build();
-      Get get = bigquery.jobs()
-          .get(projectId, jobReference.getJobId())
-          .setLocation(jobReference.getLocation());
+      Get get =
+          bigquery
+              .jobs()
+              .get(projectId, jobReference.getJobId())
+              .setLocation(jobReference.getLocation());
 
-      Job pollJob = ResilientOperation.retry(
-          ResilientOperation.getGoogleRequestCallable(get),
-          operationBackOff,
-          RetryDeterminer.RATE_LIMIT_ERRORS,
-          IOException.class,
-          sleeper);
+      Job pollJob =
+          ResilientOperation.retry(
+              ResilientOperation.getGoogleRequestCallable(get),
+              operationBackOff,
+              RetryDeterminer.RATE_LIMIT_ERRORS,
+              IOException.class,
+              sleeper);
 
       elapsedTime = System.currentTimeMillis() - startTime;
       logger.atFine().log(
@@ -106,7 +104,8 @@ public class BigQueryUtils {
       if (pollJob.getStatus().getState().equals("DONE")) {
         notDone = false;
         if (pollJob.getStatus().getErrorResult() != null) {
-          throw new IOException(pollJob.getStatus().getErrorResult().getMessage());
+          throw new IOException(
+              "Error during BigQuery job execution: " + pollJob.getStatus().getErrorResult());
         }
       } else {
         long millisToWait = pollBackOff.nextBackOffMillis();
@@ -114,8 +113,7 @@ public class BigQueryUtils {
           throw new IOException(
               String.format(
                   "Job %s failed to complete after %s millis.",
-                  jobReference.getJobId(),
-                  elapsedTime));
+                  jobReference.getJobId(), elapsedTime));
         }
         // Pause execution for the configured duration before polling job status again.
         Thread.sleep(millisToWait);
@@ -137,18 +135,20 @@ public class BigQueryUtils {
     // Parse the output schema for Json from fields.
     JsonParser jsonParser = new JsonParser();
     JsonArray json = jsonParser.parse(fields).getAsJsonArray();
-    List<TableFieldSchema> fieldsList =  new ArrayList<>();
+    List<TableFieldSchema> fieldsList = new ArrayList<>();
 
     // For each item in the list of fields.
     for (JsonElement jsonElement : json) {
-      Preconditions.checkArgument(jsonElement.isJsonObject(),
-          "Expected JsonObject for element, got '%s'.", jsonElement);
+      checkArgument(
+          jsonElement.isJsonObject(), "Expected JsonObject for element, got '%s'.", jsonElement);
       JsonObject jsonObject = jsonElement.getAsJsonObject();
 
       // Set the name and type.
-      Preconditions.checkArgument(jsonObject.get("name") != null,
+      checkArgument(
+          jsonObject.get("name") != null,
           "Expected non-null entry for key 'name' in JsonObject '%s'", jsonObject);
-      Preconditions.checkArgument(jsonObject.get("type") != null,
+      checkArgument(
+          jsonObject.get("type") != null,
           "Expected non-null entry for key 'type' in JsonObject '%s'", jsonObject);
       TableFieldSchema fieldDef = new TableFieldSchema();
       fieldDef.setName(jsonObject.get("name").getAsString());
@@ -161,7 +161,7 @@ public class BigQueryUtils {
 
       // If the type is RECORD set the fields.
       if (jsonObject.get("type").getAsString().equals("RECORD")) {
-        Preconditions.checkArgument(
+        checkArgument(
             jsonObject.get("fields") != null,
             "Expected non-null entry for key 'fields' in JsonObject of type RECORD: '%s'",
             jsonObject);
