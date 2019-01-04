@@ -35,6 +35,21 @@ function install_apt_get() {
   retry_apt_command "apt-get install -y $pkgs"
 }
 
+function write_config() {
+  cat >> /etc/zookeeper/conf/zoo.cfg <<EOF
+
+# Properties from Zookeeper init action.
+tickTime=2000
+dataDir=/var/lib/zookeeper
+clientPort=2181
+initLimit=5
+syncLimit=2
+server.0=${CLUSTER_NAME}-m:2888:3888
+server.1=${CLUSTER_NAME}-w-0:2888:3888
+server.2=${CLUSTER_NAME}-w-1:2888:3888
+EOF
+}
+
 # Variables for this script
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 CLUSTER_NAME=$(hostname | sed -r 's/(.*)-[w|m](-[0-9]+)?$/\1/')
@@ -54,6 +69,7 @@ else
 fi
 
 if (( $NODE_NUMBER > 2 )); then
+  write_config
   echo "Skip running ZooKeeper on this node."
   exit 0
 fi
@@ -67,19 +83,7 @@ mkdir -p /var/lib/zookeeper
 echo ${NODE_NUMBER} >| /var/lib/zookeeper/myid
 
 # Write ZooKeeper configuration file
-ZOOKEEPER_CONF=/etc/zookeeper/conf/zoo.cfg
-cat >> ${ZOOKEEPER_CONF} <<EOF
-
-# Properties from Zookeeper init action.
-tickTime=2000
-dataDir=/var/lib/zookeeper
-clientPort=2181
-initLimit=5
-syncLimit=2
-server.0=${CLUSTER_NAME}-m:2888:3888
-server.1=${CLUSTER_NAME}-w-0:2888:3888
-server.2=${CLUSTER_NAME}-w-1:2888:3888
-EOF
+write_config
 
 # Restart ZooKeeper
 systemctl restart zookeeper-server
