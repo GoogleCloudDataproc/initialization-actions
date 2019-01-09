@@ -83,7 +83,7 @@ class PrestoTestCase(DataprocTestCase):
         self.assertEqual(stdout, "1\t200\n0\t200\n")
         self.assertEqual(ret_code, 0, "Failed to read data from table. Error: {}".format(stderr))
 
-    def __verify_coordinators_count(self, coordinators, name):
+    def __verify_coordinators_count(self, name, coordinators):
         query = "select count(*) from system.runtime.nodes where coordinator=true"
         ret_code, stdout, stderr = self.run_command(
             "gcloud compute ssh {} -- \"presto --execute '{}' --output-format TSV\"".format(
