@@ -22,10 +22,11 @@ readonly TENSORFLOW_VERSION='1.9'
 readonly PYTORCH_VERSION='0.4.1'
 
 # TonY configurations
-readonly NUM_WORKERS=2
-readonly WORKER_MEMORY='4g'
+readonly PS_INSTANCES=1
 readonly PS_MEMORY='4g'
-readonly NUM_GPUS=0     # Not supported in Dataproc
+readonly WORKER_INSTANCES=2
+readonly WORKER_MEMORY='4g'
+readonly WORKER_GPUS=0     # Not supported in Dataproc
 
 
 function err() {
@@ -56,10 +57,11 @@ function install_samples() {
   cp "${TONY_INSTALL_FOLDER}"/TonY/tony-cli/build/libs/tony-cli-0.1.5-all.jar "${TONY_SAMPLES_FOLDER}"
 
   # Collect Metadata
-  num_gpus="$(/usr/share/google/get_metadata_value attributes/num_gpus)" || num_gpus="${NUM_GPUS}"
-  num_workers="$(/usr/share/google/get_metadata_value attributes/num_workers)" || num_workers="${NUM_WORKERS}"
+  worker_instances="$(/usr/share/google/get_metadata_value attributes/worker_instances)" || worker_instances="${WORKER_INSTANCES}"
   worker_memory="$(/usr/share/google/get_metadata_value attributes/worker_memory)" || worker_memory="${WORKER_MEMORY}"
+  ps_instances="$(/usr/share/google/get_metadata_value attributes/ps_instances)" || ps_instances="${PS_INSTANCES}"
   ps_memory="$(/usr/share/google/get_metadata_value attributes/ps_memory)" || ps_memory="${PS_MEMORY}"
+  worker_gpus="$(/usr/share/google/get_metadata_value attributes/worker_gpus)" || worker_gpus="${WORKER_GPUS}"
 
   # Install TensorFlow sample
   cd "${TONY_SAMPLES_FOLDER}"/deps
@@ -81,11 +83,15 @@ function install_samples() {
  </property>
  <property>
   <name>tony.worker.instances</name>
-  <value>${num_workers}</value>
+  <value>${worker_instances}</value>
  </property>
  <property>
   <name>tony.worker.memory</name>
   <value>${worker_memory}</value>
+ </property>
+ <property>
+  <name>tony.ps.instances</name>
+  <value>${ps_instances}</value>
  </property>
  <property>
   <name>tony.ps.memory</name>
@@ -93,7 +99,7 @@ function install_samples() {
  </property>
  <property>
   <name>tony.worker.gpus</name>
-  <value>${num_gpus}</value>
+  <value>${worker_gpus}</value>
  </property>
 </configuration>
 EOF
@@ -121,11 +127,15 @@ EOF
  </property>
  <property>
   <name>tony.worker.instances</name>
-  <value>${num_workers}</value>
+  <value>${worker_instances}</value>
  </property>
  <property>
   <name>tony.worker.memory</name>
   <value>${worker_memory}</value>
+ </property>
+ <property>
+  <name>tony.ps.instances</name>
+  <value>${ps_instances}</value>
  </property>
  <property>
   <name>tony.ps.memory</name>
@@ -137,12 +147,12 @@ EOF
  </property>
  <property>
   <name>tony.worker.gpus</name>
-  <value>${num_gpus}</value>
+  <value>${worker_gpus}</value>
  </property>
 </configuration>
 EOF
 
-  echo 'TonY successfully install samples'
+  echo 'TonY successfully added samples'
 }
 
 function main() {
