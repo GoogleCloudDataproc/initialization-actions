@@ -44,8 +44,8 @@ On dataproc clusters HBase uses HDFS as storage backend by default. This mode ca
 ## Important notes
 
 - This initialization works with all cluster configuration on dataproc version 1.3 and 1.2, but it is intended to be used in the HA mode.
-- In HA clusters HBase is using Zookeeper that is pre-installed on master nodes.
-- In standard clusters it is required to install and configure Zookeeper on all nodes which could be done with zookeeper init action. You can pass additional init action when creating HBase standard cluster:
+- In HA clusters, HBase is using Zookeeper that is pre-installed on master nodes.
+- In standard clusters, it is required to install and configure Zookeeper on three required nodes which could be done with zookeeper init action. You can pass additional init action when creating HBase standard cluster:
     ```bash
     --initialization-actions gs://dataproc-initialization-actions/zookeeper/zookeeper.sh,gs://dataproc-initialization-actions/hbase/hbase.sh
     ```
