@@ -22,10 +22,11 @@ readonly TENSORFLOW_VERSION='1.9'
 readonly PYTORCH_VERSION='0.4.1'
 
 # TonY configurations
-readonly NUM_GPUS=0     # Not supported in Dataproc
 readonly NUM_WORKERS=2
 readonly WORKER_MEMORY='4g'
 readonly PS_MEMORY='4g'
+readonly NUM_GPUS=0     # Not supported in Dataproc
+
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
@@ -35,24 +36,24 @@ function err() {
 function download_and_build_tony() {
   # Download TonY latest distribution.
   cd "${TONY_INSTALL_FOLDER}"
-  sudo git clone https://github.com/linkedin/TonY.git
+  git clone https://github.com/linkedin/TonY.git
   cd TonY
   # Build TonY without tests.
-  sudo -E ./gradlew build -x test
+  ./gradlew build -x test
   return 0
 }
 
 function install_samples() {
 
   # Create samples directory structure.
-  sudo mkdir -p "${TONY_SAMPLES_FOLDER}"/deps
+  mkdir -p "${TONY_SAMPLES_FOLDER}"/deps
   # Create TensorFlow directory
-  sudo mkdir -p "${TONY_SAMPLES_FOLDER}"/jobs/TFJob/src
+  mkdir -p "${TONY_SAMPLES_FOLDER}"/jobs/TFJob/src
   # Create PyTorch directory
-  sudo mkdir -p "${TONY_SAMPLES_FOLDER}"/jobs/PTJob/src
+  mkdir -p "${TONY_SAMPLES_FOLDER}"/jobs/PTJob/src
 
   # Copy Jar file.
-  sudo cp "${TONY_INSTALL_FOLDER}"/TonY/tony-cli/build/libs/tony-cli-0.1.5-all.jar "${TONY_SAMPLES_FOLDER}"
+  cp "${TONY_INSTALL_FOLDER}"/TonY/tony-cli/build/libs/tony-cli-0.1.5-all.jar "${TONY_SAMPLES_FOLDER}"
 
   # Collect Metadata
   num_gpus="$(/usr/share/google/get_metadata_value attributes/num_gpus)" || num_gpus="${NUM_GPUS}"
@@ -62,17 +63,17 @@ function install_samples() {
 
   # Install TensorFlow sample
   cd "${TONY_SAMPLES_FOLDER}"/deps
-  sudo virtualenv -p python3 tf
+  virtualenv -p python3 tf
   source tf/bin/activate
-  sudo pip install tensorflow=="${TENSORFLOW_VERSION}"
-  sudo zip -r tf.zip tf
+  pip install tensorflow=="${TENSORFLOW_VERSION}"
+  zip -r tf.zip tf
 
-  sudo cp "${TONY_INSTALL_FOLDER}"/TonY/tony-examples/mnist-tensorflow/mnist_distributed.py \
+  cp "${TONY_INSTALL_FOLDER}"/TonY/tony-examples/mnist-tensorflow/mnist_distributed.py \
     "${TONY_SAMPLES_FOLDER}"/jobs/TFJob/src
   cd "${TONY_SAMPLES_FOLDER}"/jobs/TFJob
 
   # Tony Configurations: https://github.com/linkedin/TonY/wiki/TonY-Configurations
-  sudo bash -c 'cat << EOF > tony.xml
+  cat << EOF > tony.xml
 <configuration>
  <property>
   <name>tony.application.security.enabled</name>
@@ -86,28 +87,29 @@ function install_samples() {
   <name>tony.worker.memory</name>
   <value>${worker_memory}</value>
  </property>
-  <property>
-  <name>tony.worker.gpus</name>
-  <value>${num_gpus}</value>
- </property>
  <property>
   <name>tony.ps.memory</name>
   <value>${ps_memory}</value>
-  </property>
+ </property>
+ <property>
+  <name>tony.worker.gpus</name>
+  <value>${num_gpus}</value>
+ </property>
 </configuration>
-EOF'
+EOF
 
   # Install PyTorch sample
   cd "${TONY_SAMPLES_FOLDER}"/deps
-  sudo virtualenv -p python3 pytorch
+  virtualenv -p python3 pytorch
   source pytorch/bin/activate
-  sudo pip install torch=="${PYTORCH_VERSION}"
-  sudo zip -r pytorch.zip pytorch
-  sudo cp "${TONY_INSTALL_FOLDER}"/TonY/tony-examples/mnist-pytorch/mnist_distributed.py "${TONY_SAMPLES_FOLDER}"/jobs/PTJob/src
+  pip install torch=="${PYTORCH_VERSION}"
+  zip -r pytorch.zip pytorch
+  cp "${TONY_INSTALL_FOLDER}"/TonY/tony-examples/mnist-pytorch/mnist_distributed.py \
+    "${TONY_SAMPLES_FOLDER}"/jobs/PTJob/src
   cd "${TONY_SAMPLES_FOLDER}"/jobs/PTJob/
 
   # Tony Configurations: https://github.com/linkedin/TonY/wiki/TonY-Configurations
-  sudo bash -c 'cat << EOF > tony.xml
+  cat << EOF > tony.xml
 <configuration>
  <property>
   <name>tony.application.name</name>
@@ -126,10 +128,6 @@ EOF'
   <value>${worker_memory}</value>
  </property>
  <property>
-  <name>tony.worker.gpus</name>
-  <value>${num_gpus}</value>
- </property>
- <property>
   <name>tony.ps.memory</name>
   <value>${ps_memory}</value>
  </property>
@@ -137,8 +135,12 @@ EOF'
   <name>tony.application.framework</name>
   <value>pytorch</value>
  </property>
+ <property>
+  <name>tony.worker.gpus</name>
+  <value>${num_gpus}</value>
+ </property>
 </configuration>
-EOF'
+EOF
 
   echo 'TonY successfully install samples'
 }
