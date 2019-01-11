@@ -22,7 +22,7 @@ readonly CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/datapro
 readonly WORKER_COUNT="$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)"
 readonly MASTER_ADDITIONAL="$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)"
 
-function retry_apt_command() {
+function retry_command() {
   cmd="$1"
   for ((i = 0; i < 10; i++)); do
     if eval "$cmd"; then
@@ -34,12 +34,12 @@ function retry_apt_command() {
 }
 
 function update_apt_get() {
-  retry_apt_command "apt-get update"
+  retry_command "apt-get update"
 }
 
 function install_apt_get() {
   pkgs="$@"
-  retry_apt_command "apt-get install -y $pkgs"
+  retry_command "apt-get install -y $pkgs"
 }
 
 function configure_hbase() {
