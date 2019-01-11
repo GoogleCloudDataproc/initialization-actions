@@ -99,21 +99,21 @@ ExecStart=/usr/bin/hbase \
 WantedBy=multi-user.target
 EOF
 
-systemctl daemon-reload
+  systemctl daemon-reload
 
+  if [[ -z "${hbase_root_dir}" ]]; then
+    hbase_root_dir="hdfs://${CLUSTER_NAME}-m-0:8020/hbase"
+  fi
+  bdconfig set_property \
+    --configuration_file 'hbase-site.xml.tmp' \
+    --name 'hbase.rootdir' --value "${hbase_root_dir}" \
+    --clobber
   if [[ "${MASTER_ADDITIONAL}" != "" ]]; then
     # If true than init action is running on high availability dataproc cluster.
     # HBase will use zookeeper service pre-installed and running on master nodes.
-    if [[ -z "${hbase_root_dir}" ]]; then
-      hbase_root_dir="hdfs://${CLUSTER_NAME}-m-0:8020/hbase"
-    fi
     bdconfig set_property \
       --configuration_file 'hbase-site.xml.tmp' \
       --name 'hbase.zookeeper.quorum' --value "${zookeeper_nodes}-0,${MASTER_ADDITIONAL}" \
-      --clobber
-    bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
-      --name 'hbase.rootdir' --value "${hbase_root_dir}" \
       --clobber
   else
     if [[ -z "${hbase_root_dir}" ]]; then
@@ -126,10 +126,6 @@ systemctl daemon-reload
     bdconfig set_property \
       --configuration_file 'hbase-site.xml.tmp' \
       --name 'hbase.zookeeper.quorum' --value "${zookeeper_nodes}" \
-      --clobber
-    bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
-      --name 'hbase.rootdir' --value "${hbase_root_dir}" \
       --clobber
   fi
 
