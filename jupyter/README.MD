@@ -14,8 +14,7 @@ You can use this initialization action to create a new Dataproc cluster with Jup
     # Simple one-liner; just use all default settings for your cluster. Jupyter will run on port 8123
     # of your master node.
     gcloud dataproc clusters create my-dataproc-cluster \
-        --initialization-actions \
-            gs://dataproc-initialization-actions/jupyter/jupyter.sh \
+        --initialization-actions gs://dataproc-initialization-actions/jupyter/jupyter.sh
     ```
 
 1. Run `./launch-jupyter-interface` to connect to the Jupyter notebook running on the master node. This creates a SOCKS5 proxy to the master node and launches a Google Chrome window that uses this proxy. Note: you will need to edit the script to point it at the Chrome installation path for your operating system. Alternatively, follow the instructions in [connecting to cluster web interfaces](https://cloud.google.com/dataproc/docs/concepts/cluster-web-interfaces).
