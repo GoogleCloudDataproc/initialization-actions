@@ -13,7 +13,7 @@ You can use this initialization action to create a new Dataproc cluster with Jup
     ```bash
     # Simple one-liner; just use all default settings for your cluster. Jupyter will run on port 8123
     # of your master node.
-    CLUSTER=my-dataproc-cluster
+    CLUSTER=<CLUSTER_NAME>
     gcloud dataproc clusters create $CLUSTER \
         --initialization-actions gs://dataproc-initialization-actions/jupyter/jupyter.sh
     ```
@@ -32,7 +32,7 @@ There are various options for customizing your Jupyter installation. These can b
 For example to specify a different port and specify additional packages to install:
 
 ```bash
-CLUSTER=my-dataproc-cluster
+CLUSTER=<CLUSTER_NAME>
 gcloud dataproc clusters create $CLUSTER \
     --metadata "JUPYTER_PORT=8124,JUPYTER_CONDA_PACKAGES=numpy:pandas:scikit-learn" \
     --initialization-actions gs://dataproc-initialization-actions/jupyter/jupyter.sh \
