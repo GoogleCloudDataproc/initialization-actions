@@ -45,10 +45,10 @@ class HBaseTestCase(DataprocTestCase):
         self.assertEqual(ret_code, 0, "Failed to validate cluster. Error: {}".format(stderr))
 
     @parameterized.expand([
-        ("SINGLE", "1.2", ["m"], ""),
+        ("SINGLE", "1.2", ["m"], HELPER_ACTIONS),
         ("STANDARD", "1.2", ["m"], HELPER_ACTIONS),
         ("HA", "1.2", ["m-0"], ""),
-        ("SINGLE", "1.3", ["m"], ""),
+        ("SINGLE", "1.3", ["m"], HELPER_ACTIONS),
         ("STANDARD", "1.3", ["m"], HELPER_ACTIONS),
         ("HA", "1.3", ["m-0"], ""),
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
@@ -67,10 +67,10 @@ class HBaseTestCase(DataprocTestCase):
             )
 
     @parameterized.expand([
-        ("SINGLE", "1.2", ["m"], ""),
+        ("SINGLE", "1.2", ["m"], HELPER_ACTIONS),
         ("STANDARD", "1.2", ["m"], HELPER_ACTIONS),
         ("HA", "1.2", ["m-0"], ""),
-        ("SINGLE", "1.3", ["m"], ""),
+        ("SINGLE", "1.3", ["m"], HELPER_ACTIONS),
         ("STANDARD", "1.3", ["m"], HELPER_ACTIONS),
         ("HA", "1.3", ["m-0"], ""),
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
