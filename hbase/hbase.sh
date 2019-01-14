@@ -43,9 +43,6 @@ function install_apt_get() {
 }
 
 function configure_hbase() {
-  local zookeeper_nodes="${CLUSTER_NAME}-m"
-  local hbase_root_dir="$(/usr/share/google/get_metadata_value attributes/hbase-root-dir)"
-
   cat << EOF > hbase-site.xml.tmp
   <configuration>
     <property>
@@ -101,42 +98,37 @@ EOF
 
   systemctl daemon-reload
 
+  # Prepare and merge configuration values:
+  # hbase.rootdir
+  local hbase_root_dir="$(/usr/share/google/get_metadata_value attributes/hbase-root-dir)"
   if [[ -z "${hbase_root_dir}" ]]; then
-    hbase_root_dir="hdfs://${CLUSTER_NAME}-m-0:8020/hbase"
+    if [[ "${MASTER_ADDITIONAL}" != "" ]]; then
+      hbase_root_dir="hdfs://${CLUSTER_NAME}-m-0:8020/hbase"
+    else
+      hbase_root_dir="hdfs://${CLUSTER_NAME}-m:8020/hbase"
+    fi
   fi
   bdconfig set_property \
     --configuration_file 'hbase-site.xml.tmp' \
     --name 'hbase.rootdir' --value "${hbase_root_dir}" \
     --clobber
-  if [[ "${MASTER_ADDITIONAL}" != "" ]]; then
-    # If true than init action is running on high availability dataproc cluster.
-    # HBase will use zookeeper service pre-installed and running on master nodes.
-    bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
-      --name 'hbase.zookeeper.quorum' --value "${zookeeper_nodes}-0,${MASTER_ADDITIONAL}" \
-      --clobber
-  else
-    if [[ -z "${hbase_root_dir}" ]]; then
-      hbase_root_dir="hdfs://${CLUSTER_NAME}-m:8020/hbase"
-    fi
-    for (( i=0; i<${WORKER_COUNT}; i++ ))
-    do
-      zookeeper_nodes="${zookeeper_nodes},${CLUSTER_NAME}-w-${i}"
-    done
-    bdconfig set_property \
+
+  # zookeeper.quorum
+  local zookeeper_nodes="$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg \
+  | uniq | cut -d '=' -f 2 | cut -d ':' -f 1 | xargs echo | sed "s/ /,/g")"
+  bdconfig set_property \
       --configuration_file 'hbase-site.xml.tmp' \
       --name 'hbase.zookeeper.quorum' --value "${zookeeper_nodes}" \
       --clobber
-  fi
 
+  # Merge all cofig values to hbase-site.xml
   bdconfig merge_configurations \
     --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
     --source_configuration_file hbase-site.xml.tmp \
     --clobber
 
-  # On single node clusters we must also start regionserver on it and provide zookeeper-server.
+  # On single node clusters we must also start regionserver on it.
   if [[ "${WORKER_COUNT}" -eq 0 ]]; then
-    install_apt_get zookeeper-server || err 'Unable to install Zookeeper on single node cluster.'
     systemctl start hbase-regionserver
   fi
 }
