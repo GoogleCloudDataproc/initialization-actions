@@ -28,6 +28,9 @@ You can use this initialization action to create a new Dataproc cluster with Ton
      - worker_memory
      - ps_instances
      - ps_memory
+     - tensorflow version
+     - pytorch version
+     - torch vision version
         
     These parameters are defined here: TonY [configurations](https://github.com/linkedin/TonY/wiki/TonY-Configurations)
     
@@ -36,7 +39,7 @@ You can use this initialization action to create a new Dataproc cluster with Ton
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
       --initialization-actions gs://dataproc-initialization-actions/tony/tony.sh \
-      --metadata worker_instances=4,worker_memory=4g,ps_memory=2g
+      --metadata worker_instances=4,worker_memory=4g,ps_instances=1,ps_memory=2g
     ```
     
     **Note:** For settings not defined in this configuration, you can pass a separate configuration when launching tasks
@@ -47,7 +50,35 @@ You can use this initialization action to create a new Dataproc cluster with Ton
 3. TonY installation is located by default in the following folder:
 
     ```bash
-    /usr/local/src/TonY
+    /opt/tony/TonY
     ```
     
+4. TonY examples is located in the following folder:
+
+    ```bash
+    /opt/tony/TonY-samples
+    ```
+    By default we install two examples:
+    
+    - TensorFlow
+    - PyTorch
+    
 For more information and to run some TonY examples, take a look at [TonY examples](https://github.com/linkedin/TonY/tree/master/tony-examples)
+A working example can be found on validate.sh
+
+## Testing
+You can easily test TonY is running by using ```validate.sh ${cluster_prefix} ${bucket_name}``` script.
+
+* ```cluster_prefix``` argument sets a prefix in created cluster name
+* ```bucket_name``` argument sets a place where init action will be placed
+
+This script is used for testing dr-elephant on 1.1,1.2,1.3 dataproc images with single,
+standard and HA configurations. After clusters are created, script submit spark jobs on them.
+
+
+## Important notes
+
+* This script will install TonY in the master node only
+* Virtual environments are installed for both TensorFlow and PyTorch examples.
+* TonY is supported with STANDARD configuration (1 master/2+ workers) in Dataproc 1.3.
+* There is no current support for GPU in Dataproc

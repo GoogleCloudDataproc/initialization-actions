@@ -16,17 +16,22 @@
 
 set -x -e
 
-readonly TONY_INSTALL_FOLDER='/usr/local/src'
+# TonY settings
+readonly TONY_INSTALL_FOLDER='/opt/tony/'
 readonly TONY_SAMPLES_FOLDER="${TONY_INSTALL_FOLDER}"'/TonY-samples'
-readonly TENSORFLOW_VERSION='1.9'
-readonly PYTORCH_VERSION='0.4.1'
+readonly TONY_DEFAULT_VERSION='30c4c42e6f81de18b959de17555a9a7bd0c90a29'
 
-# TonY configurations
+# Tony configurations: https://github.com/linkedin/TonY/wiki/TonY-Configurations
 readonly PS_INSTANCES=1
 readonly PS_MEMORY='4g'
 readonly WORKER_INSTANCES=2
 readonly WORKER_MEMORY='4g'
-readonly WORKER_GPUS=0     # Not supported in Dataproc
+readonly WORKER_GPUS=0     # GPUs are not supported in Dataproc.
+
+# ML frameworks versions
+readonly TENSORFLOW_VERSION='1.9'
+readonly PYTORCH_VERSION='0.4.1'
+readonly TORCHVISION_VERSION='0.2.1'
 
 
 function err() {
@@ -36,8 +41,10 @@ function err() {
 
 function download_and_build_tony() {
   # Download TonY latest distribution.
+  mkdir "${TONY_INSTALL_FOLDER}"
   cd "${TONY_INSTALL_FOLDER}"
   git clone https://github.com/linkedin/TonY.git
+  git checkout "${TONY_DEFAULT_VERSION}"
   cd TonY
   # Build TonY without tests.
   ./gradlew build -x test
@@ -61,20 +68,23 @@ function install_samples() {
   worker_memory="$(/usr/share/google/get_metadata_value attributes/worker_memory)" || worker_memory="${WORKER_MEMORY}"
   ps_instances="$(/usr/share/google/get_metadata_value attributes/ps_instances)" || ps_instances="${PS_INSTANCES}"
   ps_memory="$(/usr/share/google/get_metadata_value attributes/ps_memory)" || ps_memory="${PS_MEMORY}"
-  worker_gpus="$(/usr/share/google/get_metadata_value attributes/worker_gpus)" || worker_gpus="${WORKER_GPUS}"
+  # Framework versions
+  tf_version="$(/usr/share/google/get_metadata_value attributes/tf_version)" || tf_version="${TENSORFLOW_VERSION}"
+  torch_version="$(/usr/share/google/get_metadata_value attributes/torch_version)" || torch_version="${PYTORCH_VERSION}"
+  torchvision_version="$(/usr/share/google/get_metadata_value attributes/torchvision_version)" || torchvision_version="${TORCHVISION_VERSION}"
 
   # Install TensorFlow sample
   cd "${TONY_SAMPLES_FOLDER}"/deps
   virtualenv -p python3 tf
   source tf/bin/activate
-  pip install tensorflow=="${TENSORFLOW_VERSION}"
+  pip install tensorflow=="${tf_version}"
   zip -r tf.zip tf
 
   cp "${TONY_INSTALL_FOLDER}"/TonY/tony-examples/mnist-tensorflow/mnist_distributed.py \
     "${TONY_SAMPLES_FOLDER}"/jobs/TFJob/src
   cd "${TONY_SAMPLES_FOLDER}"/jobs/TFJob
 
-  # Tony Configurations: https://github.com/linkedin/TonY/wiki/TonY-Configurations
+  # Additional configuration settings: https://github.com/linkedin/TonY/wiki/TonY-Configurations
   cat << EOF > tony.xml
 <configuration>
  <property>
@@ -99,7 +109,7 @@ function install_samples() {
  </property>
  <property>
   <name>tony.worker.gpus</name>
-  <value>${worker_gpus}</value>
+  <value>${WORKER_GPUS}</value>
  </property>
 </configuration>
 EOF
@@ -108,19 +118,21 @@ EOF
   cd "${TONY_SAMPLES_FOLDER}"/deps
   virtualenv -p python3 pytorch
   source pytorch/bin/activate
-  pip install torch=="${PYTORCH_VERSION}"
+  pip install torch=="${torch_version}"
+  pip install torchvision=="${torchvision_version}"
+  pip install numpy -I
   zip -r pytorch.zip pytorch
   cp "${TONY_INSTALL_FOLDER}"/TonY/tony-examples/mnist-pytorch/mnist_distributed.py \
     "${TONY_SAMPLES_FOLDER}"/jobs/PTJob/src
   cd "${TONY_SAMPLES_FOLDER}"/jobs/PTJob/
 
-  # Tony Configurations: https://github.com/linkedin/TonY/wiki/TonY-Configurations
+  # Additional configuration settings: https://github.com/linkedin/TonY/wiki/TonY-Configurations
   cat << EOF > tony.xml
 <configuration>
  <property>
   <name>tony.application.name</name>
   <value>PyTorch</value>
- </property
+ </property>
  <property>
   <name>tony.application.security.enabled</name>
   <value>false</value>
@@ -147,7 +159,7 @@ EOF
  </property>
  <property>
   <name>tony.worker.gpus</name>
-  <value>${worker_gpus}</value>
+  <value>${WORKER_GPUS}</value>
  </property>
 </configuration>
 EOF
