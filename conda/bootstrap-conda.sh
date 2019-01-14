@@ -22,9 +22,9 @@ if [[ ! -v CONDA_INSTALL_PATH ]]; then
     echo "Set CONDA_INSTALL_PATH to $CONDA_INSTALL_PATH"
 fi
 
-if [[ -f "/etc/profile.d/conda.sh" ]]; then
-    echo "file /etc/profile.d/conda.sh exists! Dataproc has installed conda previously. Skipping install!"
-    command -v conda >/dev/null && echo "conda command detected in $PATH"
+if command -v conda >/dev/null; then
+  echo "Dataproc has installed conda previously at $(command -v conda). Skipping install!"
+  exit 0
 else
 
     # 0. Specify Miniconda version

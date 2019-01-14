@@ -2,7 +2,7 @@
 set -exo pipefail
 
 # 0.1 Ensure we have conda installed and available on the PATH
-if [[ ! -v CONDA_BIN_PATH ]]; then
+if [[ ! -v CONDA_BIN_PATH && -f /etc/profile.d/conda.sh ]]; then
     source /etc/profile.d/conda.sh
 fi
 
