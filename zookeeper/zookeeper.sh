@@ -45,14 +45,20 @@ clientPort=2181
 initLimit=5
 syncLimit=2
 server.0=${CLUSTER_NAME}-m:2888:3888
+EOF
+
+  if [[ ${WORKER_COUNT} -gt 0 ]]; then
+    cat >> /etc/zookeeper/conf/zoo.cfg <<EOF
 server.1=${CLUSTER_NAME}-w-0:2888:3888
 server.2=${CLUSTER_NAME}-w-1:2888:3888
 EOF
+  fi
 }
 
 # Variables for this script
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 CLUSTER_NAME=$(hostname | sed -r 's/(.*)-[w|m](-[0-9]+)?$/\1/')
+WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 
 # Validate the cluster mode and worker count.
 ADDITIONAL_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)
