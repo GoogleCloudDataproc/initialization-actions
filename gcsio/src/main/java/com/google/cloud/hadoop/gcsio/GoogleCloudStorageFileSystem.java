@@ -344,7 +344,7 @@ public class GoogleCloudStorageFileSystem {
     // Throw FileNotFoundException if the path does not exist.
     FileInfo fileInfo = getFileInfo(path);
     if (!fileInfo.exists()) {
-      throw getFileNotFoundException(path);
+      throw new FileNotFoundException("Item not found: " + path);
     }
 
     List<FileInfo> itemsToDelete = new ArrayList<>();
@@ -634,7 +634,7 @@ public class GoogleCloudStorageFileSystem {
 
     // Throw if the source file does not exist.
     if (!srcInfo.exists()) {
-      throw getFileNotFoundException(src);
+      throw new FileNotFoundException("Item not found: " + src);
     }
 
     // Throw if src is a file and dst == GCS_ROOT
@@ -1120,7 +1120,7 @@ public class GoogleCloudStorageFileSystem {
 
     // Still doesn't exist after attempted repairs (or repairs were disabled).
     if (!dirInfo.exists()) {
-      throw getFileNotFoundException(path);
+      throw new FileNotFoundException("Item not found: " + path);
     }
 
     List<GoogleCloudStorageItemInfo> itemInfos;
@@ -1672,14 +1672,6 @@ public class GoogleCloudStorageFileSystem {
    */
   public URI getParentPath(URI path) {
     return getParentPath(getPathCodec(), path);
-  }
-
-  /**
-   * Creates FileNotFoundException with a suitable message.
-   */
-  static FileNotFoundException getFileNotFoundException(URI path) {
-    return new FileNotFoundException(
-        String.format("Item not found: %s", path));
   }
 
   /**

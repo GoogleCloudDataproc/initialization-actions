@@ -829,8 +829,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * @throws IOException if an error occurs.
    */
   @Override
-  public boolean rename(Path src, Path dst)
-      throws IOException {
+  public boolean rename(Path src, Path dst) throws IOException {
     // Even though the underlying GCSFS will also throw an IAE if src is root, since our filesystem
     // root happens to equal the global root, we want to explicitly check it here since derived
     // classes may not have filesystem roots equal to the global root.
@@ -852,7 +851,13 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     try {
       getGcsFs().rename(srcPath, dstPath);
     } catch (IOException e) {
-      logger.atFine().withCause(e).log("GHFS.rename");
+      // Occasionally log exceptions that have a cause at info level,
+      // because they could surface real issues and help with troubleshooting
+      (logger.atFine().isEnabled() || e.getCause() == null
+              ? logger.atFine()
+              : logger.atInfo().atMostEvery(5, TimeUnit.MINUTES))
+          .withCause(e)
+          .log("Failed GHFS.rename: %s -> %s", src, dst);
       return false;
     }
 
@@ -885,9 +890,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    * @throws IOException if an error occurs.
    */
   @Override
-  public boolean delete(Path hadoopPath, boolean recursive)
-      throws IOException {
-
+  public boolean delete(Path hadoopPath, boolean recursive) throws IOException {
     long startTime = System.nanoTime();
     Preconditions.checkArgument(hadoopPath != null, "hadoopPath must not be null");
 
@@ -900,7 +903,13 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     } catch (DirectoryNotEmptyException e) {
       throw e;
     } catch (IOException e) {
-      logger.atFine().withCause(e).log("GHFS.delete");
+      // Occasionally log exceptions that have a cause at info level,
+      // because they could surface real issues and help with troubleshooting
+      (logger.atFine().isEnabled() || e.getCause() == null
+          ? logger.atFine()
+          : logger.atInfo().atMostEvery(5, TimeUnit.MINUTES))
+          .withCause(e)
+          .log("Failed GHFS.delete: %s, recursive: %s", hadoopPath, recursive);
       return false;
     }
 
