@@ -72,8 +72,8 @@ You can easily test TonY is running by using ```validate.sh ${cluster_prefix} ${
 * ```cluster_prefix``` argument sets a prefix in created cluster name
 * ```bucket_name``` argument sets a place where init action will be placed
 
-This script is used for testing Tony using 1.3 Dataproc images with standard configurations. 
-After clusters are created, script submit Hadoop jobs on them.
+This script is used for testing TonY using 1.3 Dataproc images with standard configurations. 
+After clusters are created, script submits Hadoop jobs on them.
 
 
 ## Important notes
