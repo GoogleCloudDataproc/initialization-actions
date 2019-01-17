@@ -72,8 +72,8 @@ You can easily test TonY is running by using ```validate.sh ${cluster_prefix} ${
 * ```cluster_prefix``` argument sets a prefix in created cluster name
 * ```bucket_name``` argument sets a place where init action will be placed
 
-This script is used for testing dr-elephant on 1.1,1.2,1.3 dataproc images with single,
-standard and HA configurations. After clusters are created, script submit spark jobs on them.
+This script is used for testing Tony using 1.3 dataproc images with standard configurations. 
+After clusters are created, script submit Hadoop jobs on them.
 
 
 ## Important notes
