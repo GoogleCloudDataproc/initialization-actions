@@ -15,7 +15,12 @@ MINICONDA_VERSION=$(/usr/share/google/get_metadata_value attributes/MINICONDA_VE
 OLD_MINICONDA_VERSION="4.2.12"
 NEW_MINICONDA_VERSION="4.5.4"
 MIN_SPARK_VERSION_FOR_NEWER_MINICONDA="2.2.0"
-PROFILE_SCRIPT_PATH=/etc/profile.d/effective-python.sh
+
+if [[ -f /etc/profile.d/effective-python.sh ]]; then
+    PROFILE_SCRIPT_PATH=/etc/profile.d/effective-python.sh
+else
+    PROFILE_SCRIPT_PATH=/etc/profile.d/conda.sh
+fi
 
 if [[ ! -v CONDA_INSTALL_PATH ]]; then
     echo "CONDA_INSTALL_PATH not set, setting ..."
