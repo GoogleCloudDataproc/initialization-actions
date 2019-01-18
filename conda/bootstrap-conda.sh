@@ -15,6 +15,7 @@ MINICONDA_VERSION=$(/usr/share/google/get_metadata_value attributes/MINICONDA_VE
 OLD_MINICONDA_VERSION="4.2.12"
 NEW_MINICONDA_VERSION="4.5.4"
 MIN_SPARK_VERSION_FOR_NEWER_MINICONDA="2.2.0"
+PROFILE_SCRIPT_PATH=/etc/profile.d/effective-python.sh
 
 if [[ ! -v CONDA_INSTALL_PATH ]]; then
     echo "CONDA_INSTALL_PATH not set, setting ..."
@@ -22,11 +23,13 @@ if [[ ! -v CONDA_INSTALL_PATH ]]; then
     echo "Set CONDA_INSTALL_PATH to $CONDA_INSTALL_PATH"
 fi
 
-if command -v conda >/dev/null; then
-  echo "Dataproc has installed conda previously at $(command -v conda). Skipping install!"
-  exit 0
+# Check if Conda is already installed at the expected location. This will allow
+# this init action to override the default Miniconda in 1.4+ or Anaconda
+# optional component in 1.3+ which is installed at /opt/conda/default.
+if [[ -f "${CONDA_INSTALL_PATH}/bin/conda" ]]; then
+    echo "Dataproc has installed Conda previously at ${CONDA_INSTALL_PATH}. Skipping install!"
+    exit 0
 else
-
     # 0. Specify Miniconda version
     ## 0.1 A few parameters
     ## specify base operating system
@@ -127,41 +130,27 @@ conda info -a
 # and also: http://askubuntu.com/questions/391515/changing-etc-environment-did-not-affect-my-environemtn-variables
 # and this: http://askubuntu.com/questions/128413/setting-the-path-so-it-applies-to-all-users-including-root-sudo
 echo "Updating global profiles to export miniconda bin location to PATH..."
-if grep -ir "CONDA_BIN_PATH=$CONDA_BIN_PATH" /etc/profile.d/conda.sh
-    then
-    echo "CONDA_BIN_PATH found in /etc/profile.d/conda.sh , skipping..."
-else
-    echo "Adding path definition to profiles..."
-    echo "export CONDA_BIN_PATH=$CONDA_BIN_PATH" | tee -a /etc/profile.d/conda.sh #/etc/*bashrc /etc/profile
-    echo 'export PATH=$CONDA_BIN_PATH:$PATH' | tee -a /etc/profile.d/conda.sh  #/etc/*bashrc /etc/profile
-fi
+echo "Adding path definition to profiles..."
+echo "# Environment varaibles set by Conda init action." | tee -a "${PROFILE_SCRIPT_PATH}" #/etc/*bashrc /etc/profile
+echo "export CONDA_BIN_PATH=$CONDA_BIN_PATH" | tee -a "${PROFILE_SCRIPT_PATH}" #/etc/*bashrc /etc/profile
+echo 'export PATH=$CONDA_BIN_PATH:$PATH' | tee -a "${PROFILE_SCRIPT_PATH}"  #/etc/*bashrc /etc/profile
 
 # 2.3 Update global profiles to add the miniconda location to PATH
 echo "Updating global profiles to export miniconda bin location to PATH and set PYTHONHASHSEED ..."
-if grep -ir "export PYTHONHASHSEED=0" /etc/profile.d/conda.sh
-    then
-    echo "export PYTHONHASHSEED=0 detected in /etc/profile.d/conda.sh , skipping..."
-else
-    # Fix issue with Python3 hash seed.
-    # Issue here: https://issues.apache.org/jira/browse/SPARK-13330 (fixed in Spark 2.2.0 release)
-    # Fix here: http://blog.stuart.axelbrooke.com/python-3-on-spark-return-of-the-pythonhashseed/
-    echo "Adding PYTHONHASHSEED=0 to profiles and spark-defaults.conf..."
-    echo "export PYTHONHASHSEED=0" | tee -a  /etc/profile.d/conda.sh  #/etc/*bashrc  /usr/lib/spark/conf/spark-env.sh
-    echo "spark.executorEnv.PYTHONHASHSEED=0" >> /etc/spark/conf/spark-defaults.conf
-fi
+# Fix issue with Python3 hash seed.
+# Issue here: https://issues.apache.org/jira/browse/SPARK-13330 (fixed in Spark 2.2.0 release)
+# Fix here: http://blog.stuart.axelbrooke.com/python-3-on-spark-return-of-the-pythonhashseed/
+echo "Adding PYTHONHASHSEED=0 to profiles and spark-defaults.conf..."
+echo "export PYTHONHASHSEED=0" | tee -a  "${PROFILE_SCRIPT_PATH}"  #/etc/*bashrc  /usr/lib/spark/conf/spark-env.sh
+echo "spark.executorEnv.PYTHONHASHSEED=0" >> /etc/spark/conf/spark-defaults.conf
 
 ## 3. Ensure that Anaconda Python and PySpark play nice
 ### http://blog.cloudera.com/blog/2015/09/how-to-prepare-your-apache-hadoop-cluster-for-pyspark-jobs/
 echo "Ensure that Anaconda Python and PySpark play nice by all pointing to same Python distro..."
-if grep -ir "export PYSPARK_PYTHON=$CONDA_BIN_PATH/python" /etc/profile.d/conda.sh
-    then
-    echo "export PYSPARK_PYTHON=$CONDA_BIN_PATH/python detected in /etc/profile.d/conda.sh , skipping..."
-else
-    echo "export PYSPARK_PYTHON=$CONDA_BIN_PATH/python" | tee -a  /etc/profile.d/conda.sh /etc/environment /usr/lib/spark/conf/spark-env.sh
-fi
+echo "export PYSPARK_PYTHON=$CONDA_BIN_PATH/python" | tee -a  "${PROFILE_SCRIPT_PATH}" /etc/environment /usr/lib/spark/conf/spark-env.sh
 
 # CloudSDK libraries are installed in system python
-echo 'export CLOUDSDK_PYTHON=/usr/bin/python' | tee -a /etc/profile.d/conda.sh  #/etc/*bashrc /etc/profile
+echo 'export CLOUDSDK_PYTHON=/usr/bin/python' | tee -a "${PROFILE_SCRIPT_PATH}"  #/etc/*bashrc /etc/profile
 
 echo "Finished bootstrapping via Miniconda, sourcing /etc/profile ..."
 source /etc/profile
