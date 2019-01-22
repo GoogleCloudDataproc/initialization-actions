@@ -16,8 +16,6 @@ if [[ ${num_workers} == 0 ]] && [[ "${hostname}" == "${master_hostname}" ]]; the
     /usr/lib/flink/examples/batch/WordCount.jar
   flink_return_code=$?
   echo "  Done. Flink return code: ${flink_return_code}"
-
-
 else
   if [[ ${yarn_session} == "False" ]]; then
     echo "  Running flink job because detected yarn session start false"
@@ -43,9 +41,6 @@ else
   echo "  Done. Flink return code: ${flink_return_code}"
 fi
 fi
-
-
-
 
 if [[ ${flink_return_code} -eq 0 && ${yarn_result_code} -eq 0 ]]; then
   echo ""
