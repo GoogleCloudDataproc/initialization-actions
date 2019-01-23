@@ -90,7 +90,7 @@ function install_and_configure_kafka_server() {
     "${KAFKA_PROP_FILE}"
   sed -i 's,^\(broker\.id=\).*,\1'${broker_id}',' \
     "${KAFKA_PROP_FILE}"
-  echo 'delete.topic.enable = true' >> "${KAFKA_PROP_FILE}"
+  echo -e '\ndelete.topic.enable = true' >> "${KAFKA_PROP_FILE}"
 
   # Start Kafka.
   service kafka-server restart
