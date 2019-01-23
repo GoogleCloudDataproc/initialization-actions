@@ -4,14 +4,14 @@
 # modules (e.g., kafka) to the Dataproc init actions GCS bucket. It performs
 # necessary validations to make sure the repo is in good shape before pushing.
 #
-# Usage: ./push-to-gcs.sh <head> <module>
+# Usage: ./push-to-gcs.sh <git-ref> <module>
 #
-# Example: ./push-to-gcs.sh 119952 kafka
+# Example: ./push-to-gcs.sh cbde05 kafka
 
 set -euo pipefail
 
 [[ $# -eq 2 ]] || {
-    echo "Usage: ./push-to-gcs.sh <head> <module>"
+    echo "Usage: ./push-to-gcs.sh <git-ref> <module>"
     echo "Example: ./push-to-gcs.sh cbde05 kafka"
     exit 1
 }
