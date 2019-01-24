@@ -56,6 +56,7 @@ function install_and_configure_kafka_server() {
   zookeeper_list=$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg \
     | cut -d '=' -f 2 \
     | cut -d ':' -f 1 \
+    | sort \
     | uniq \
     | sed "s/$/:${zookeeper_client_port}/" \
     | xargs echo  \
