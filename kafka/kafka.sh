@@ -56,6 +56,7 @@ function install_and_configure_kafka_server() {
   zookeeper_list=$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg \
     | cut -d '=' -f 2 \
     | cut -d ':' -f 1 \
+    | uniq \
     | sed "s/$/:${zookeeper_client_port}/" \
     | xargs echo  \
     | sed "s/ /,/g")
@@ -90,7 +91,7 @@ function install_and_configure_kafka_server() {
     "${KAFKA_PROP_FILE}"
   sed -i 's,^\(broker\.id=\).*,\1'${broker_id}',' \
     "${KAFKA_PROP_FILE}"
-  echo -e '\ndelete.topic.enable = true' >> "${KAFKA_PROP_FILE}"
+  echo -e '\ndelete.topic.enable=true' >> "${KAFKA_PROP_FILE}"
 
   # Start Kafka.
   service kafka-server restart
