@@ -2,6 +2,8 @@
 
 This initialization action installs [Kafka](http://kafka.apache.org) on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster. Kafka depends on Zookeeper, which can either be installed with a separate zookeeper initialization action or by simply creating a "High Availability" cluster using `--num-masters 3`.
 
+By default, Kafka brokers run only on all worker nodes in the cluster, and Kafka libraries and command-line tools are installed on the master node(s) at `/usr/lib/kafka`. But you can specify to run Kafka broker(s) on master node(s) with `--metadata "run-on-master=true"`.
+
 ## Using this initialization action
 
 You can use this initialization action to create a new Dataproc cluster with Kafka installed:
@@ -11,9 +13,10 @@ You can use this initialization action to create a new Dataproc cluster with Kaf
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
         --num-masters 3 \
+        --metadata "run-on-master=true" \
         --initialization-actions gs://dataproc-initialization-actions/kafka/kafka.sh
     ```
-1. Once the cluster has been created Kafka should be running on all worker nodes in the cluster, and Kafka libraries should be installed on the master node(s). You can test your Kafka setup by creating a simple topic and publishing to it with Kafka's command-line tools, after SSH'ing into one of your master nodes:
+1. You can test your Kafka setup by creating a simple topic and publishing to it with Kafka's command-line tools, after SSH'ing into one of your nodes:
 
     ```bash
     gcloud compute ssh <CLUSTER_NAME>-m-0
