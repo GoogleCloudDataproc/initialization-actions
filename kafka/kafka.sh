@@ -19,6 +19,8 @@
 set -euxo pipefail
 
 readonly KAFKA_PROP_FILE='/etc/kafka/conf/server.properties'
+readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+readonly RUN_ON_MASTER="$(/usr/share/google/get_metadata_value attributes/run-on-master)"
 
 function retry_apt_command() {
   cmd="$1"
@@ -82,16 +84,27 @@ function install_and_configure_kafka_server() {
   mkdir -p /var/lib/kafka-logs
   chown kafka:kafka -R /var/lib/kafka-logs
 
-  # Note: If modified to also run brokers on master nodes, this logic for
-  # generating broker_id will need to be changed.
   local broker_id
-  broker_id=$(hostname | sed 's/.*-w-\([0-9]\)*.*/\1/g')
+  if [[ "${ROLE}" == "Master" ]]; then
+    # For master nodes, broker ID starts from 10,000.
+    if [[ "$(hostname)" == *-m ]]; then
+      # non-HA
+      broker_id=10000
+    else
+      # HA
+      broker_id=$((10000 + $(hostname | sed 's/.*-m-\([0-9]*\)$/\1/g')))
+    fi
+  else
+    # For worker nodes, broker ID is the worker ID.
+    broker_id=$(hostname | sed 's/.*-w-\([0-9]*\)$/\1/g')
+  fi
   sed -i 's|log.dirs=/tmp/kafka-logs|log.dirs=/var/lib/kafka-logs|' \
     "${KAFKA_PROP_FILE}"
   sed -i 's|^\(zookeeper\.connect=\).*|\1'${zookeeper_list}'|' \
     "${KAFKA_PROP_FILE}"
   sed -i 's,^\(broker\.id=\).*,\1'${broker_id}',' \
     "${KAFKA_PROP_FILE}"
+  echo -e '\nreserved.broker.max.id=100000' >> "${KAFKA_PROP_FILE}"
   echo -e '\ndelete.topic.enable=true' >> "${KAFKA_PROP_FILE}"
 
   # Start Kafka.
@@ -99,22 +112,25 @@ function install_and_configure_kafka_server() {
 }
 
 function main() {
-  local role
-  role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
   update_apt_get || err 'Unable to update packages lists.'
 
   # Only run the installation on workers; verify zookeeper on master(s).
-  if [[ "${role}" == 'Master' ]]; then
+  if [[ "${ROLE}" == 'Master' ]]; then
     service zookeeper-server status \
       || err 'Required zookeeper-server not running on master!'
-    # On master nodes, just install kafka libs but not kafka-server.
-    install_apt_get kafka \
-      || err 'Unable to install kafka libraries on master!'
+    if [[ "${RUN_ON_MASTER}" == "true" ]]; then
+      # Run installation on masters.
+      install_and_configure_kafka_server
+    else
+      # On master nodes, just install kafka command-line tools and libs but not
+      # kafka-server.
+      install_apt_get kafka \
+        || err 'Unable to install kafka libraries on master!'
+    fi
   else
     # Run installation on workers.
     install_and_configure_kafka_server
   fi
-
 }
 
 main
