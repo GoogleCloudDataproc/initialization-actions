@@ -13,7 +13,7 @@ You can use this initialization action to create a new Dataproc cluster with Kaf
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
         --num-masters 3 \
-	--metadata "run-on-master=true" \
+        --metadata "run-on-master=true" \
         --initialization-actions gs://dataproc-initialization-actions/kafka/kafka.sh
     ```
 1. You can test your Kafka setup by creating a simple topic and publishing to it with Kafka's command-line tools, after SSH'ing into one of your nodes:
