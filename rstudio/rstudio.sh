@@ -40,10 +40,14 @@ if [[ "${ROLE}" == 'Master' ]]; then
   update_apt_get
   apt install -y r-base r-base-dev gdebi-core
 
-  cd /tmp; wget https://download2.rstudio.org/rstudio-server-${RSTUDIO_VERSION}-amd64.deb
-  gdebi -n /tmp/rstudio-server-${RSTUDIO_VERSION}-amd64.deb
+  cd /tmp; wget https://download2.rstudio.org/rstudio-server-stretch-${RSTUDIO_VERSION}-amd64.deb
+  gdebi -n /tmp/rstudio-server-stretch-${RSTUDIO_VERSION}-amd64.deb
 
-  groupadd rstudio
-  useradd --create-home --gid rstudio rstudio
-  echo "rstudio:rstudio" | chpasswd
+  if ! [ $(getent group rstudio) ]; then
+    groupadd rstudio
+  fi
+  if ! [ $(id -u rstudio) ]; then
+    useradd --create-home --gid rstudio rstudio
+    echo "rstudio:rstudio" | chpasswd
+  fi
 fi
