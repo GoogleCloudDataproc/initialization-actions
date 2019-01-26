@@ -80,10 +80,10 @@ class GoogleHadoopOutputStream extends OutputStream {
       GoogleHadoopFileSystemBase ghfs, URI gcsPath, CreateFileOptions options) throws IOException {
     try {
       return ghfs.getGcsFs().create(gcsPath, options);
-    } catch (java.nio.file.FileAlreadyExistsException faee) {
+    } catch (java.nio.file.FileAlreadyExistsException e) {
       // Need to convert to the Hadoop flavor of FileAlreadyExistsException.
       throw (FileAlreadyExistsException)
-          (new FileAlreadyExistsException(faee.getMessage()).initCause(faee));
+          new FileAlreadyExistsException("'" + gcsPath + "' already exists").initCause(e);
     }
   }
 

@@ -821,8 +821,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
    * param to mkdir. The create should fail.
    */
   @Test
-  public void testMkdirAndCreateFileOfSameName()
-      throws IOException, URISyntaxException {
+  public void testMkdirAndCreateFileOfSameName() throws Exception {
     String bucketName = sharedBucketName1;
     String uniqueDirName = "dir-" + UUID.randomUUID();
     gcsiHelper.mkdir(
@@ -831,12 +830,11 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
         assertThrows(
             IOException.class,
             () -> gcsiHelper.writeTextFile(bucketName, uniqueDirName, "hello world"));
-    assertWithMessage(
-            String.format(
-                "unexpected exception: %s\n%s",
-                ioe.getMessage(), Throwables.getStackTraceAsString(ioe)))
-        .that(ioe.getMessage().matches(".*(A directory with that name exists|Is a directory).*"))
-        .isTrue();
+    assertWithMessage("unexpected exception:%n%s", Throwables.getStackTraceAsString(ioe))
+        .that(ioe)
+        .hasMessageThat()
+        .matches(".*(A directory with that name exists|Is a directory|already exists).*");
+
     gcsiHelper.delete(bucketName, uniqueDirName);
   }
 
