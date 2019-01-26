@@ -451,7 +451,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         closeContentChannel();
         throw r;
       }
-    } while (buffer.remaining() > 0);
+    } while (buffer.remaining() > 0 && currentPosition < size);
 
     // If this method was called when the stream was already at EOF
     // (indicated by totalBytesRead == 0) then return EOF else,
@@ -945,6 +945,27 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       response = handleExecuteMediaException(e, getObject, shouldRetryWithLiveVersion());
     }
 
+    if (!metadataInitialized) {
+      initMetadata(response.getHeaders());
+      checkState(
+          metadataInitialized, "metadata should be initialized already for '%s'", resourceIdString);
+      if (size == 0) {
+        resetContentChannel();
+        return new ByteArrayInputStream(new byte[0]);
+      }
+      if (gzipEncoded) {
+        // Initialize `contentChannelEnd` to `size` (initialized to Long.MAX_VALUE in `initMetadata`
+        // method for gzipped objetcs) because value of HTTP Content-Length header is usually
+        // smaller than decompressed object size.
+        if (currentPosition == 0) {
+          contentChannelEnd = size;
+        } else {
+          resetContentChannel();
+          return openStream(bytesToRead);
+        }
+      }
+    }
+
     if (contentChannelEnd < 0) {
       String contentRange = response.getHeaders().getContentRange();
       if (contentRange != null) {
@@ -957,19 +978,6 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       }
     }
 
-    if (!metadataInitialized) {
-      initMetadata(response.getHeaders());
-      checkState(
-          metadataInitialized, "metadata should be initialized already for '%s'", resourceIdString);
-      if (size == 0) {
-        resetContentChannel();
-        return new ByteArrayInputStream(new byte[0]);
-      }
-      if (gzipEncoded && currentPosition != 0) {
-        resetContentChannel();
-        return openStream(bytesToRead);
-      }
-    }
     checkState(
         contentChannelEnd > 0,
         "contentChannelEnd should be initialized already for '%s'", resourceIdString);
