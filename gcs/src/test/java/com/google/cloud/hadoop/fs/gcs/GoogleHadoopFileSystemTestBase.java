@@ -498,7 +498,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     Path tempFilePath = ghfsHelper.castAsHadoopPath(tempFileUri);
     Path tempDirPath = tempFilePath.getParent();
     String text = "Hello World!";
-    ghfsHelper.writeFile(tempFilePath, text, 1, false);
+    ghfsHelper.writeFile(tempFilePath, text, 1, /* overwrite= */ false);
 
     // Another temporary file in GHFS.
     URI tempFileUri2 = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();

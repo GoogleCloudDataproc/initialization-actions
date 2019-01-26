@@ -930,34 +930,29 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
         boolean result = gcsiHelper.mkdirs(path);
         if (result) {
           assertWithMessage(
-                  String.format(
-                      "Unexpected result for path: %s : expected %s, actually returned true.",
-                      path, expectedOutcome.toString()))
+                  "Unexpected result for path: %s : expected %s, actually returned true.",
+                  path, expectedOutcome)
               .that(expectedOutcome.getType())
               .isEqualTo(MethodOutcome.Type.RETURNS_TRUE);
 
           // Assert that all of the sub-dirs have been created.
           List<URI> subDirPaths = getSubDirPaths(path);
           for (URI subDirPath : subDirPaths) {
-            assertWithMessage(
-                    String.format(
-                        "Sub-path %s of path %s not found or not a dir", subDirPath, path))
+            assertWithMessage("Sub-path %s of path %s not found or not a dir", subDirPath, path)
                 .that(gcsiHelper.exists(subDirPath) && gcsiHelper.isDirectory(subDirPath))
                 .isTrue();
           }
         } else {
           assertWithMessage(
-                  String.format(
-                      "Unexpected result for path: %s : expected %s, actually returned false.",
-                      path, expectedOutcome.toString()))
+                  "Unexpected result for path: %s : expected %s, actually returned false.",
+                  path, expectedOutcome)
               .that(expectedOutcome.getType())
               .isEqualTo(MethodOutcome.Type.RETURNS_FALSE);
         }
       } catch (Exception e) {
         assertWithMessage(
-                String.format(
-                    "Unexpected result for path: %s : expected %s, actually threw exception %s.",
-                    path, expectedOutcome.toString(), Throwables.getStackTraceAsString(e)))
+                "Unexpected result for path: %s : expected %s, actually threw exception %s.",
+                path, expectedOutcome, Throwables.getStackTraceAsString(e))
             .that(expectedOutcome.getType())
             .isEqualTo(MethodOutcome.Type.THROWS_EXCEPTION);
       }

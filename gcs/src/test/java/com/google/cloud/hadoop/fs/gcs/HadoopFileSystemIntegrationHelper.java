@@ -28,7 +28,6 @@ import com.google.common.base.Strings;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
@@ -168,22 +167,6 @@ public class HadoopFileSystemIntegrationHelper
   }
 
   /**
-   * Writes a file with the given buffer repeated numWrites times.
-   *
-   * @param bucketName Name of the bucket to create object in.
-   * @param objectName Name of the object to create.
-   * @param buffer Data to write
-   * @param numWrites Number of times to repeat the data.
-   * @return Number of bytes written.
-   */
-  @Override
-  protected int writeFile(String bucketName, String objectName, ByteBuffer buffer, int numWrites)
-      throws IOException {
-    Path hadoopPath = createSchemeCompatibleHadoopPath(bucketName, objectName);
-    return writeFile(hadoopPath, buffer, numWrites, true);
-  }
-
-  /**
    * Helper which reads the entire file as a String.
    */
   @Override
@@ -281,12 +264,11 @@ public class HadoopFileSystemIntegrationHelper
     long endFileSystemBytesRead = stats.getBytesRead();
     int bytesReadStats = (int) (endFileSystemBytesRead - fileSystemBytesRead);
     if (statistics == FileSystemStatistics.EXACT) {
-      assertWithMessage(
-              String.format("FS statistics mismatch fetched from class '%s'", ghfs.getClass()))
+      assertWithMessage("FS statistics mismatch fetched from class '%s'", ghfs.getClass())
           .that(bytesReadStats)
           .isEqualTo(len);
     } else if (statistics == FileSystemStatistics.GREATER_OR_EQUAL) {
-      assertWithMessage(String.format("Expected %d <= %d", len, bytesReadStats))
+      assertWithMessage("Expected %d <= %d", len, bytesReadStats)
           .that(len <= bytesReadStats)
           .isTrue();
     } else if (statistics == FileSystemStatistics.NONE) {
@@ -436,6 +418,22 @@ public class HadoopFileSystemIntegrationHelper
   /**
    * Writes a file with the given buffer repeated numWrites times.
    *
+   * @param bucketName Name of the bucket to create object in.
+   * @param objectName Name of the object to create.
+   * @param buffer Data to write
+   * @param numWrites Number of times to repeat the data.
+   * @return Number of bytes written.
+   */
+  @Override
+  protected int writeFile(String bucketName, String objectName, byte[] buffer, int numWrites)
+      throws IOException {
+    Path hadoopPath = createSchemeCompatibleHadoopPath(bucketName, objectName);
+    return writeFile(hadoopPath, buffer, numWrites, /* overwrite= */ true);
+  }
+
+  /**
+   * Writes a file with the given buffer repeated numWrites times.
+   *
    * @param hadoopPath Path of the file to create.
    * @param text Text data to write.
    * @param numWrites Number of times to repeat the data.
@@ -444,7 +442,7 @@ public class HadoopFileSystemIntegrationHelper
    */
   public int writeFile(Path hadoopPath, String text, int numWrites, boolean overwrite)
       throws IOException {
-    return writeFile(hadoopPath, ByteBuffer.wrap(text.getBytes(UTF_8)), numWrites, overwrite);
+    return writeFile(hadoopPath, text.getBytes(UTF_8), numWrites, overwrite);
   }
 
   /**
@@ -456,7 +454,7 @@ public class HadoopFileSystemIntegrationHelper
    * @param overwrite If true, overwrite any existing file.
    * @return Number of bytes written.
    */
-  public int writeFile(Path hadoopPath, ByteBuffer buffer, int numWrites, boolean overwrite)
+  public int writeFile(Path hadoopPath, byte[] buffer, int numWrites, boolean overwrite)
       throws IOException {
     int numBytesWritten = -1;
     int totalBytesWritten = 0;
@@ -469,40 +467,19 @@ public class HadoopFileSystemIntegrationHelper
       fileSystemBytesWritten =
           stats.getBytesWritten();
     }
-    FSDataOutputStream writeStream = null;
-    boolean allWritesSucceeded = false;
-
-    try {
-      writeStream =
-          ghfs.create(
-              hadoopPath,
-              FsPermission.getDefault(),
-              overwrite,
-              GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_BUFFER_SIZE.getDefault(),
-              GoogleHadoopFileSystemBase.REPLICATION_FACTOR_DEFAULT,
-              GoogleHadoopFileSystemConfiguration.BLOCK_SIZE.getDefault(),
-              /* progress= */ null);
-
+    try (FSDataOutputStream writeStream =
+        ghfs.create(
+            hadoopPath,
+            FsPermission.getDefault(),
+            overwrite,
+            GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_BUFFER_SIZE.getDefault(),
+            GoogleHadoopFileSystemBase.REPLICATION_FACTOR_DEFAULT,
+            GoogleHadoopFileSystemConfiguration.BLOCK_SIZE.getDefault(),
+            /* progress= */ null)) {
       for (int i = 0; i < numWrites; i++) {
-        buffer.clear();
-        writeStream.write(buffer.array(), 0, buffer.capacity());
-        numBytesWritten = buffer.capacity();
+        writeStream.write(buffer, 0, buffer.length);
+        numBytesWritten = buffer.length;
         totalBytesWritten += numBytesWritten;
-      }
-      allWritesSucceeded = true;
-    } finally {
-      if (writeStream != null) {
-        try {
-          writeStream.close();
-        } catch (IOException e) {
-          // Ignore IO exceptions while closing if write failed otherwise the
-          // exception that caused the write to fail gets superseded.
-          // On the other hand, if all writes succeeded then we need to know about the exception
-          // that was thrown during closing.
-          if (allWritesSucceeded) {
-            throw e;
-          }
-        }
       }
     }
 
@@ -513,12 +490,11 @@ public class HadoopFileSystemIntegrationHelper
         stats.getBytesWritten();
     int bytesWrittenStats = (int) (endFileSystemBytesWritten - fileSystemBytesWritten);
     if (statistics == FileSystemStatistics.EXACT) {
-      assertWithMessage(
-              String.format("FS statistics mismatch fetched from class '%s'", ghfs.getClass()))
+      assertWithMessage("FS statistics mismatch fetched from class '%s'", ghfs.getClass())
           .that(bytesWrittenStats)
           .isEqualTo(totalBytesWritten);
     } else if (statistics == FileSystemStatistics.GREATER_OR_EQUAL) {
-      assertWithMessage(String.format("Expected %d <= %d", totalBytesWritten, bytesWrittenStats))
+      assertWithMessage("Expected %d <= %d", totalBytesWritten, bytesWrittenStats)
           .that(totalBytesWritten <= bytesWrittenStats)
           .isTrue();
     } else if (statistics == FileSystemStatistics.NONE) {

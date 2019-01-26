@@ -626,7 +626,7 @@ public class GoogleHadoopFileSystemIntegrationTest
     myGhfs.initialize(ghfs.getUri(), conf);
     URI fileUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
     Path filePath = ghfsHelper.castAsHadoopPath(fileUri);
-    ghfsHelper.writeFile(filePath, "foo", 1, true);
+    ghfsHelper.writeFile(filePath, "foo", 1, /* overwrite= */ true);
 
     FileStatus status = myGhfs.getFileStatus(filePath);
     assertThat(status.getPermission()).isEqualTo(new FsPermission(testPermissions));
@@ -648,7 +648,7 @@ public class GoogleHadoopFileSystemIntegrationTest
     myGhfs.initialize(ghfs.getUri(), conf);
     URI fileUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
     Path filePath = ghfsHelper.castAsHadoopPath(fileUri);
-    ghfsHelper.writeFile(filePath, "foo", 1, true);
+    ghfsHelper.writeFile(filePath, "foo", 1, /* overwrite= */ true);
 
     FileStatus status =
         ugi.doAs((PrivilegedExceptionAction<FileStatus>) () -> myGhfs.getFileStatus(filePath));
@@ -684,7 +684,7 @@ public class GoogleHadoopFileSystemIntegrationTest
     URI fileUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
     Path filePath = ghfsHelper.castAsHadoopPath(fileUri);
     String fileContent = "foo-testFileChecksum-" + checksumType;
-    ghfsHelper.writeFile(filePath, fileContent, 1, true);
+    ghfsHelper.writeFile(filePath, fileContent, 1, /* overwrite= */ true);
 
     FileChecksum fileChecksum = myGhfs.getFileChecksum(filePath);
 

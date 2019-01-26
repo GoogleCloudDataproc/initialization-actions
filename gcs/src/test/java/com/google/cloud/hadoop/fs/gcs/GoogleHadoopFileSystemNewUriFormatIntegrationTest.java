@@ -173,7 +173,7 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
     Path p = new Path(directory, "foo#bar#baz");
     assertThrows(FileNotFoundException.class, () -> ghfs.getFileStatus(p));
 
-    ghfsHelper.writeFile(p, "SomeText", 100, false);
+    ghfsHelper.writeFile(p, "SomeText", 100, /* overwrite= */ false);
 
     FileStatus status = ghfs.getFileStatus(p);
     assertThat(status.getPath()).isEqualTo(p);

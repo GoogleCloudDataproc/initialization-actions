@@ -26,7 +26,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -269,7 +268,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       throws IOException {
     URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
     Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
-    ghfsHelper.writeFile(hadoopPath, "file text", 1, true);
+    ghfsHelper.writeFile(hadoopPath, "file text", 1, /* overwrite= */ true);
     FSDataInputStream readStream =
         ghfs.open(
             hadoopPath,
@@ -366,11 +365,12 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
 
     // Create a file.
     String text = "Hello World!";
-    int numBytesWritten = ghfsHelper.writeFile(hadoopPath, text, 1, false);
+    int numBytesWritten = ghfsHelper.writeFile(hadoopPath, text, 1, /* overwrite= */ false);
     assertThat(numBytesWritten).isEqualTo(text.getBytes(UTF_8).length);
 
     // Try to create the same file again with overwrite == false.
-    assertThrows(IOException.class, () -> ghfsHelper.writeFile(hadoopPath, text, 1, false));
+    assertThrows(
+        IOException.class, () -> ghfsHelper.writeFile(hadoopPath, text, 1, /* overwrite= */ false));
   }
 
   /**
@@ -411,7 +411,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
     Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
     String text = "Hello World!";
-    int numBytesWritten = ghfsHelper.writeFile(hadoopPath, text, 1, false);
+    int numBytesWritten = ghfsHelper.writeFile(hadoopPath, text, 1, /* overwrite= */ false);
 
     // Verify that position is at 0 for a newly opened stream.
     try (FSDataInputStream readStream =
@@ -491,7 +491,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     for (int i = 0; i < testBytes.length; ++i) {
       testBytes[i] = (byte) (i * i);
     }
-    int numBytesWritten = ghfsHelper.writeFile(hadoopPath, ByteBuffer.wrap(testBytes), 1, false);
+    int numBytesWritten = ghfsHelper.writeFile(hadoopPath, testBytes, 1, /* overwrite= */ false);
     assertThat(numBytesWritten).isEqualTo(testBytes.length);
 
     try (FSDataInputStream readStream = ghfs.open(hadoopPath, bufferSize)) {
@@ -588,7 +588,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     Path parentPath = ghfsHelper.castAsHadoopPath(parentUri);
     Path escapedPath = new Path(parentPath, new Path("foo%3Abar"));
 
-    ghfsHelper.writeFile(escapedPath, "foo", 1, true);
+    ghfsHelper.writeFile(escapedPath, "foo", 1, /* overwrite= */ true);
     assertThat(ghfs.exists(escapedPath)).isTrue();
 
     FileStatus status = ghfs.getFileStatus(escapedPath);
@@ -741,7 +741,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     for (int i = 0; i < byteBuffer.length; i++) {
       byteBuffer[i] = (byte) (i % 255);
     }
-    ghfsHelper.writeFile(hadoopPath, ByteBuffer.wrap(byteBuffer), 1, false /* overwrite */);
+    ghfsHelper.writeFile(hadoopPath, byteBuffer, 1, /* overwrite= */ false);
     try (FSDataInputStream input = ghfs.open(hadoopPath)) {
       byte[] readBuffer1 = new byte[512];
       input.seek(511);
