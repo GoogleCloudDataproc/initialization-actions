@@ -1027,7 +1027,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     } catch (java.nio.file.FileAlreadyExistsException faee) {
       // Need to convert to the Hadoop flavor of FileAlreadyExistsException.
       throw (FileAlreadyExistsException)
-          (new FileAlreadyExistsException(faee.getMessage()).initCause(faee));
+          new FileAlreadyExistsException(faee.getMessage()).initCause(faee);
     }
 
     long duration = System.nanoTime() - startTime;
