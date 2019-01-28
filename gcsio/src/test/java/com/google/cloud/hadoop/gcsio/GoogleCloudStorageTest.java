@@ -2490,10 +2490,10 @@ public class GoogleCloudStorageTest {
     when(mockStorageBuckets.get(eq(dstBucketName))).thenReturn(mockStorageBucketsGet2);
     IOException notFoundException = new IOException("Fake not-found exception");
     IOException unexpectedException = new IOException("Other API exception");
-    IOException wrappedUnexpectedException1 = GoogleCloudStorageExceptions.wrapException(
-        unexpectedException, "Error accessing", BUCKET_NAME, null);
-    IOException wrappedUnexpectedException2 = GoogleCloudStorageExceptions.wrapException(
-        unexpectedException, "Error accessing", dstBucketName, null);
+    IOException wrappedUnexpectedException1 =
+        new IOException("Error accessing Bucket " + BUCKET_NAME, unexpectedException);
+    IOException wrappedUnexpectedException2 =
+        new IOException("Error accessing Bucket " + dstBucketName, unexpectedException);
     Bucket returnedBucket = new Bucket()
         .setName(BUCKET_NAME)
         .setTimeCreated(new DateTime(1111L))
@@ -2807,8 +2807,7 @@ public class GoogleCloudStorageTest {
    * GoogleCloudStorage.listObjectNames(3).
    */
   @Test
-  public void testListObjectNamesPrefixApiException()
-      throws IOException {
+  public void testListObjectNamesPrefixApiException() throws IOException {
     String objectPrefix = "foo/bar/baz/";
     String delimiter = "/";
     when(mockStorage.objects()).thenReturn(mockStorageObjects);
@@ -2818,6 +2817,7 @@ public class GoogleCloudStorageTest {
     IOException notFoundException = new IOException("Fake not-found exception");
     IOException unexpectedException = new IOException("Other API exception");
     when(mockStorageObjectsList.getPrefix()).thenReturn(objectPrefix);
+    when(mockStorageObjectsList.getBucket()).thenReturn(BUCKET_NAME);
     when(mockStorageObjectsList.execute())
         .thenThrow(notFoundException)
         .thenThrow(unexpectedException);
@@ -2827,8 +2827,7 @@ public class GoogleCloudStorageTest {
         .thenReturn(false);
 
     // First time should just return empty list.
-    List<String> objectNames =
-        gcs.listObjectNames(BUCKET_NAME, objectPrefix, delimiter);
+    List<String> objectNames = gcs.listObjectNames(BUCKET_NAME, objectPrefix, delimiter);
     assertThat(objectNames).isEmpty();
 
     // Second time throws.
@@ -2842,8 +2841,8 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsList, times(2)).setDelimiter(eq(delimiter));
     verify(mockStorageObjectsList, times(2)).setIncludeTrailingDelimiter(eq(Boolean.FALSE));
     verify(mockStorageObjectsList, times(2)).setPrefix(eq(objectPrefix));
-    verify(mockStorageObjectsList).getBucket();
-    verify(mockStorageObjectsList).getPrefix();
+    verify(mockStorageObjectsList, times(2)).getBucket();
+    verify(mockStorageObjectsList, times(2)).getPrefix();
     verify(mockStorageObjectsList, times(2)).execute();
     verify(mockErrorExtractor, times(2)).itemNotFound(any(IOException.class));
   }

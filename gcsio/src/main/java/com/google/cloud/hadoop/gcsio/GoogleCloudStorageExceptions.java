@@ -15,8 +15,10 @@
  */
 package com.google.cloud.hadoop.gcsio;
 
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Strings.isNullOrEmpty;
+import static com.google.common.base.Strings.nullToEmpty;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
@@ -27,22 +29,17 @@ import java.util.Iterator;
  * GCS-based FileSystems.
  */
 public class GoogleCloudStorageExceptions {
-  /**
-   * Creates FileNotFoundException with suitable message for a GCS bucket or object.
-   */
+
+  /** Creates FileNotFoundException with suitable message for a GCS bucket or object. */
   public static FileNotFoundException getFileNotFoundException(
       String bucketName, String objectName) {
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(bucketName),
-        "bucketName must not be null or empty");
-    if (objectName == null) {
-      objectName = "";
-    }
+    checkArgument(!isNullOrEmpty(bucketName), "bucketName must not be null or empty");
     return new FileNotFoundException(
         String.format(
-            "Item not found: %s/%s. "
-                + "If you enabled STRICT generation consistency, it is possible that "
-                + "the live version is still available but the intended generation is deleted.",
-            bucketName, objectName));
+            "Item not found: '%s'."
+                + " If you enabled STRICT generation consistency, it is possible that"
+                + " the live version is still available but the intended generation is deleted.",
+            StorageResourceId.createReadableString(bucketName, nullToEmpty(objectName))));
   }
 
   /**
@@ -50,10 +47,9 @@ public class GoogleCloudStorageExceptions {
    * innerException}, it will be returned as-is without wrapping into an outer exception.
    */
   public static IOException createCompositeException(Collection<IOException> innerExceptions) {
-    Preconditions.checkArgument(innerExceptions != null,
-        "innerExceptions must not be null");
-    Preconditions.checkArgument(
-        !innerExceptions.isEmpty(), "innerExceptions must contain at least one element");
+    checkArgument(
+        innerExceptions != null && !innerExceptions.isEmpty(),
+        "innerExceptions (%s) must be not null and contain at least one element", innerExceptions);
 
     Iterator<IOException> innerExceptionIterator = innerExceptions.iterator();
 
@@ -66,20 +62,5 @@ public class GoogleCloudStorageExceptions {
       combined.addSuppressed(innerExceptionIterator.next());
     }
     return combined;
-  }
-
-  /**
-   * Wraps the given IOException into another IOException, adding the given error message and a
-   * reference to the supplied bucket and object. It allows one to know which bucket and object
-   * were being accessed when the exception occurred for an operation.
-   */
-  public static IOException wrapException(IOException e, String message,
-      String bucketName, String objectName) {
-    String name = "bucket: " + bucketName;
-    if (!Strings.isNullOrEmpty(objectName)) {
-      name += ", object: " + objectName;
-    }
-    String fullMessage = String.format("%s: %s", message, name);
-    return new IOException(fullMessage, e);
   }
 }

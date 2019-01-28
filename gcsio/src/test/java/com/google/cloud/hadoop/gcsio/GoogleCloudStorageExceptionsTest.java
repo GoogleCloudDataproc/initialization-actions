@@ -48,17 +48,16 @@ public class GoogleCloudStorageExceptionsTest {
   /** Validates getFileNotFoundException(). */
   @Test
   public void testGetFileNotFoundException() {
-    FileNotFoundException e;
-    FileNotFoundException e2;
-
     // objectName is null or empty
-    e = GoogleCloudStorageExceptions.getFileNotFoundException("bucket", null);
-    e2 = GoogleCloudStorageExceptions.getFileNotFoundException("bucket", "");
-    assertThat(e).hasMessageThat().startsWith("Item not found: bucket/");
-    assertThat(e2).hasMessageThat().isEqualTo(e.getMessage());
+    FileNotFoundException e = GoogleCloudStorageExceptions.getFileNotFoundException("bucket", null);
+    assertThat(e).hasMessageThat().startsWith("Item not found: 'gs://bucket/'.");
+    assertThat(GoogleCloudStorageExceptions.getFileNotFoundException("bucket", ""))
+        .hasMessageThat()
+        .isEqualTo(e.getMessage());
 
-    e = GoogleCloudStorageExceptions.getFileNotFoundException("bucket", "obj");
-    assertThat(e).hasMessageThat().startsWith("Item not found: bucket/obj");
+    assertThat(GoogleCloudStorageExceptions.getFileNotFoundException("bucket", "obj"))
+        .hasMessageThat()
+        .startsWith("Item not found: 'gs://bucket/obj'.");
   }
 
   @Test
@@ -96,19 +95,6 @@ public class GoogleCloudStorageExceptionsTest {
     assertThat(inner1 == compositeException).isFalse();
     assertThat(inner2 == compositeException).isFalse();
     assertThat(compositeException).hasMessageThat().isEqualTo("Multiple IOExceptions.");
-  }
-
-  /**
-   * Validates wrapException().
-   */
-  @Test
-  public void testWrapException() {
-    IOException wrapped;
-    IOException inner1 = new IOException("inner1");
-    String message = "I am wrapped";
-    wrapped = GoogleCloudStorageExceptions.wrapException(inner1, message, "bucket", "object");
-    assertThat(wrapped).hasMessageThat().startsWith(message);
-    assertThat(wrapped).hasCauseThat().isEqualTo(inner1);
   }
 
   /**
