@@ -69,6 +69,10 @@ public class ApiErrorExtractor {
   public static final String USER_PROJECT_MISSING =
       "Bucket is requester pays bucket but no user project provided.";
 
+  // The debugInfo field present on Errors collection in GoogleJsonException
+  // as an unknown key.
+  private static final String DEBUG_INFO_FIELD = "debugInfo";
+
   /** @deprecated use {@link #INSTANCE} instead */
   @Deprecated
   public ApiErrorExtractor() {}
@@ -393,6 +397,17 @@ public class ApiErrorExtractor {
    */
   public String toUserPresentableMessage(IOException ioe) {
     return toUserPresentableMessage(ioe, null);
+  }
+
+  @Nullable
+  public String getDebugInfo(IOException ioe) {
+    ErrorInfo info = getErrorInfo(ioe);
+    if (info != null) {
+      if (info.getUnknownKeys().containsKey(DEBUG_INFO_FIELD)) {
+        return (String) info.getUnknownKeys().get(DEBUG_INFO_FIELD);
+      }
+    }
+    return null;
   }
 
   /**
