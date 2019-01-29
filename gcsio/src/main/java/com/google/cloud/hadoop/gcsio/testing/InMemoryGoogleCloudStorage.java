@@ -30,7 +30,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import java.io.ByteArrayOutputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
@@ -378,10 +377,9 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
       String bucketName, String objectNamePrefix, String delimiter,
       long maxResults)
       throws IOException {
-    // TODO(user): Add tests for behavior when bucket doesn't exist.
     InMemoryBucketEntry bucketEntry = bucketLookup.get(bucketName);
     if (bucketEntry == null) {
-      throw new FileNotFoundException("Bucket not found: " + bucketName);
+      return new ArrayList<>();
     }
     Set<String> uniqueNames = new HashSet<>();
     for (String objectName : bucketEntry.getObjectNames()) {
