@@ -6,7 +6,6 @@
 
 set -e
 
-
 REPO_URL="https://archive.apache.org/dist"
 /opt/conda/bin/pip \
     install \
