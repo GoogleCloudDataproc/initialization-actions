@@ -57,6 +57,7 @@ function set_webhdfs_address(){
   local host
   local port
   local master
+
   master="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
   host=$(hdfs getconf -confKey dfs.namenode.http-address)
   port="$(echo ${host} | sed -e 's,^.*:,:,g' -e 's,.*:\([0-9]*\).*,\1,g' -e 's,[^0-9],,g')"
@@ -74,8 +75,13 @@ function install_dependencies(){
 }
 
 function add_user(){
-  useradd knox
-  echo "knox:knox"|chpasswd
+  if [[ $(id -u knox) -ge 0 ]]; then
+    echo 'knox user already exists'
+  else
+    useradd knox
+    echo "knox:knox"|chpasswd
+  fi
+
 }
 
 function grant_knox_folder_permissions(){

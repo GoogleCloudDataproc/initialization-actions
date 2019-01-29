@@ -66,7 +66,6 @@ def main():
 
     Returns:
       None
-sudo su
     Raises:
       Exception: If a response does not contain the expected value
     """
