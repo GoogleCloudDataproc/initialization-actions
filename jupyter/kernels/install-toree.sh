@@ -6,7 +6,8 @@
 
 set -e
 
-REPO_URL="https://www-us.apache.org/dist"
+
+REPO_URL="https://archive.apache.org/dist"
 /opt/conda/bin/pip \
     install \
     ${REPO_URL}/incubator/toree/0.2.0-incubating/toree/toree-0.2.0-incubating-bin.tar.gz
