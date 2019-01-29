@@ -70,7 +70,8 @@ class DruidTestCase(DataprocTestCase):
         self.createCluster(
             configuration,
             init_action,
-            dataproc_version
+            dataproc_version,
+            timeout_in_minutes=25
         )
         for machine_suffix in machine_suffixes:
             self.verify_instance(
@@ -115,6 +116,7 @@ class DruidTestCase(DataprocTestCase):
                 self.PROJECT_METADATA, self.DB_NAME
             ),
             scopes=self.SCOPES,
+            timeout_in_minutes=25
         )
         for machine_suffix in machine_suffixes:
             self.verify_instance(

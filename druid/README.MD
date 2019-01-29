@@ -6,7 +6,10 @@ This script installs Druid on dataproc clusters. To learn more about Druid see d
 ## Using this initialization action
 You can use this initialization action to create a new Dataproc cluster with Druid installed.
 
-Once the cluster has been created, Druid is configured to run on port `8090`.
+Once the cluster has been created, Druid is configured to run on port `8090`. You can change this port with additional parameter:
+``
+--metadata=druid-port=xxxx
+``
 
 Example of gcloud command for Druid initialization on standard cluster:
 
@@ -38,16 +41,13 @@ Dr. Elephant UI can be accessed after connection with command:
 gcloud compute ssh clusterName-m* -- -L 8090:clusterName-m*:8090
 ```
 
-In ```../druid-0.12.3``` directory exists folder named examples. Inside you can find sample tasks that can be used for setup validation.
+In ```/opt/druid/apache-druid-0.13.0-incubating/quickstart/tutorial``` directory you can find sample tasks that can be used for setup validation.
 
-Within ```../druid-0.12.3``` directory fire: 
-```curl -L -X 'POST' -H 'Content-Type:application/json' -d @examples/wikipedia-index.json http://localhost:8090/druid/indexer/v1/task``` and then it should be task id returned.
-This task can be found on UI after a moment and further it should be displayed SUCCESS status if config is ok.
+You can verify correctness of your setup with the following command:
+```/opt/druid/apache-druid-0.13.0-incubating/bin/post-index-task --file /opt/druid/apache-druid-0.13.0-incubating/quickstart/tutorial/wikipedia-index.json```
 
-Remember to call ```-L``` option - it is crucial because of redirection between service on cluster nodes.
-
-Then just open a browser and type ```localhost:8090``` address. Your task statistics should be there.
+Once task is finished, the detailed info should be displayed under druid-coordinator web console (UI). 
 
 ## Automated tests
 
-You can verify setup using automated script ```test_druid.py```.
+You can verify setup using automated script ```test_druid.py```. In order to run tests fire ```python3 -m unittest druid.test_druid```.
