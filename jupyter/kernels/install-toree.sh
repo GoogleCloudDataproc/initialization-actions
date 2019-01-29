@@ -10,7 +10,11 @@ REPO_URL="https://dist.apache.org/repos/dist"
 /opt/conda/bin/pip \
     install \
     ${REPO_URL}/release/incubator/toree/0.2.0-incubating/toree-pip/toree-0.2.0.tar.gz
-    
+
+REPO_URL="https://archive.apache.org/dist"
+/opt/conda/bin/pip \
+    install \
+    ${REPO_URL}/incubator/toree/0.2.0-incubating/toree/toree-0.2.0-incubating-bin.tar.gz
 
 SPARK_MAJOR_VERSION=$(spark-submit --version |& \
   grep 'version' | head -n 1 | sed 's/.*version //' | cut -d '.' -f 1)
