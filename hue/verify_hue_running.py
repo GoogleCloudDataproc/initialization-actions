@@ -14,7 +14,6 @@ class Hue(object):
         self.path = 'http://{}:{}/accounts/login/?next=/'.format(base, port)
         self.host = socket.gethostname()
 
-
     def get_response_code(self):
         try:
             response = requests.get(self.path)
