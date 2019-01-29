@@ -516,19 +516,18 @@ public class GoogleCloudStorageTest {
 
   @Test
   public void testMultipleDeleteBucket() throws IOException {
-    String bucketName1 = createUniqueBucket("delete-multi-1");
-    String bucketName2 = createUniqueBucket("delete-multi-2");
+    StorageResourceId bucket1 = new StorageResourceId(createUniqueBucket("delete-multi-1"));
+    StorageResourceId bucket2 = new StorageResourceId(createUniqueBucket("delete-multi-2"));
+    rawStorage
+        .getItemInfos(ImmutableList.of(bucket1, bucket2))
+        .forEach(i -> assertWithMessage("Expected to exist:%n%s", i).that(i.exists()).isTrue());
 
-    rawStorage.deleteBuckets(ImmutableList.of(bucketName1, bucketName2));
+    rawStorage.deleteBuckets(ImmutableList.of(bucket1.getBucketName(), bucket2.getBucketName()));
 
-    List<GoogleCloudStorageItemInfo> infoList =
-        rawStorage.getItemInfos(
-            ImmutableList.of(
-                new StorageResourceId(bucketName1), new StorageResourceId(bucketName2)));
-
-    for (GoogleCloudStorageItemInfo info : infoList) {
-      assertThat(info.exists()).isFalse();
-    }
+    rawStorage
+        .getItemInfos(ImmutableList.of(bucket1, bucket2))
+        .forEach(
+            i -> assertWithMessage("Expected to not exist:%n%s", i).that(i.exists()).isFalse());
   }
 
   @Test
