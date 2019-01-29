@@ -161,6 +161,7 @@ druid.metadata.storage.type=mysql
 druid.metadata.storage.connector.connectURI=jdbc:mysql://${sql_host}:3306/druid
 druid.metadata.storage.connector.user=druid
 druid.metadata.storage.connector.password=diurd
+druid.sql.enable = true
 
 # For PostgreSQL (make sure to additionally include the Postgres extension):
 #druid.metadata.storage.type=postgresql
