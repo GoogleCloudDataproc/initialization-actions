@@ -6,6 +6,10 @@
 
   3. Reduce latency of GCS IO operations.
 
+  4. Fix bug that could lead to data duplication when reading files with GZIP
+     content encoding (HTTP header `Content-Encoding: gzip`) that have
+     uncompressed size of more than 2.14 GiB.
+
 
 1.9.11 - 2018-12-20
 

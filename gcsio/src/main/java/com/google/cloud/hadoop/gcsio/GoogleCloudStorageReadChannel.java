@@ -1030,20 +1030,35 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         bufferSize =
             Math.toIntExact(Math.min(bufferSize, contentChannelEnd - contentChannelPosition));
         logger.atFine().log(
-            "Opened stream from %s position with %s range, %s bytesToRead"
-                + " and %s bytes buffer for '%s'",
+            "Opened stream from %d position with %s range, %d bytesToRead"
+                + " and %d bytes buffer for '%s'",
             currentPosition, rangeHeader, bytesToRead, bufferSize, resourceIdString);
         contentStream = new BufferedInputStream(contentStream, bufferSize);
       } else {
         logger.atFine().log(
-            "Opened stream from %s position with %s range and %s bytesToRead for '%s'",
+            "Opened stream from %d position with %s range and %d bytesToRead for '%s'",
             currentPosition, rangeHeader, bytesToRead, resourceIdString);
       }
 
       if (contentChannelPosition < currentPosition) {
-        contentStream.skip(currentPosition - contentChannelPosition);
-        contentChannelPosition = currentPosition;
+        long bytesToSkip = currentPosition - contentChannelPosition;
+        logger.atFine().log(
+            "Skipping %d bytes from %d position to %d position for '%s'",
+            bytesToSkip, contentChannelPosition, currentPosition, resourceIdString);
+        while (bytesToSkip > 0) {
+          long skippedBytes = contentStream.skip(bytesToSkip);
+          logger.atFine().log(
+              "Skipped %d bytes from %d position for '%s'",
+              skippedBytes, contentChannelPosition, resourceIdString);
+          bytesToSkip -= skippedBytes;
+          contentChannelPosition += skippedBytes;
+        }
       }
+
+      checkState(
+          contentChannelPosition == currentPosition,
+          "contentChannelPosition (%s) should be equal to currentPosition (%s) for '%s'",
+          contentChannelPosition, currentPosition, resourceIdString);
 
       return contentStream;
     } catch (IOException e) {

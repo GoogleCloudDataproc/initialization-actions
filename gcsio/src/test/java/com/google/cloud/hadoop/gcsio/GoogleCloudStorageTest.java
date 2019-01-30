@@ -1609,41 +1609,40 @@ public class GoogleCloudStorageTest {
     InputStream firstTimeoutStream = mock(InputStream.class);
     InputStream secondTimeoutStream = mock(InputStream.class);
     when(firstTimeoutStream.read(any(byte[].class), eq(0), eq(testData.length)))
-        .thenAnswer(new Answer<Integer>() {
-          @Override
-          public Integer answer(InvocationOnMock invocation) {
-            Object[] args = invocation.getArguments();
-            byte[] inputBuf = (byte[]) args[0];
-            // Read < size bytes
-            System.arraycopy(testData, 0, inputBuf, 0, compressedLength / 2);
-            return compressedLength / 2;
-          }
-        });
-    when(
-        firstTimeoutStream.read(
+        .thenAnswer(
+            invocation -> {
+              Object[] args = invocation.getArguments();
+              byte[] inputBuf = (byte[]) args[0];
+              // Read < size bytes
+              System.arraycopy(testData, 0, inputBuf, 0, compressedLength / 2);
+              return compressedLength / 2;
+            });
+    when(firstTimeoutStream.read(
             any(byte[].class), eq(0), eq(testData.length - compressedLength / 2)))
         .thenThrow(new SocketTimeoutException("fake timeout 1"));
 
     when(secondTimeoutStream.read(
             any(byte[].class), eq(0), eq(testData.length - compressedLength / 2)))
-        .thenAnswer(new Answer<Integer>() {
-          @Override
-          public Integer answer(InvocationOnMock invocation) {
-            Object[] args = invocation.getArguments();
-            byte[] inputBuf = (byte[]) args[0];
-            // Read > size bytes
-            System.arraycopy(testData, compressedLength / 2, inputBuf, 0, compressedLength / 2);
-            return compressedLength / 2;
-          }
-        });
+        .thenAnswer(
+            invocation -> {
+              Object[] args = invocation.getArguments();
+              byte[] inputBuf = (byte[]) args[0];
+              // Read > size bytes
+              System.arraycopy(testData, compressedLength / 2, inputBuf, 0, compressedLength / 2);
+              return compressedLength / 2;
+            });
     when(secondTimeoutStream.read(any(byte[].class), eq(0), eq(testData.length - compressedLength)))
         .thenThrow(new SocketTimeoutException("fake timeout 2"));
+
     when(firstTimeoutStream.available())
         .thenReturn(testData.length)
         .thenReturn(testData.length - compressedLength / 2);
+    when(firstTimeoutStream.skip(anyLong())).thenReturn((long) compressedLength / 2);
+
     when(secondTimeoutStream.available())
         .thenReturn(testData.length - compressedLength / 2)
         .thenReturn(testData.length - compressedLength);
+    when(secondTimeoutStream.skip(anyLong())).thenReturn((long) compressedLength / 2);
 
     Map<String, Object> responseHeaders =
         ImmutableMap.of("Content-Length", testData.length, "Content-Encoding", "gzip");
