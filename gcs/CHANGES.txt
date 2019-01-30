@@ -1,4 +1,4 @@
-1.9.12 - 2019-xx-xx
+1.9.12 - 2019-01-30
 
   1. Update all dependencies to latest versions.
 
