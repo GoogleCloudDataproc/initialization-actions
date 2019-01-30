@@ -19,21 +19,48 @@
 set -euxo pipefail
 
 readonly SOLR_VERSION='7.6.0'
-readonly SOLR_DOWNLOAD_LINK="https://www-us.apache.org/dist/lucene/solr/${SOLR_VERSION}/solr-${SOLR_VERSION}.tgz"
+readonly SOLR_DOWNLOAD_LINK="http://archive.apache.org/dist/lucene/solr/${SOLR_VERSION}/solr-${SOLR_VERSION}.tgz"
+readonly MASTER_ADDITIONAL="$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)"
+readonly CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)"
+readonly NODE_NAME="$(/usr/share/google/get_metadata_value name)"
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
   return 1
 }
 
-cd tmp && wget -q "${SOLR_DOWNLOAD_LINK}" && wget -q "${SOLR_DOWNLOAD_LINK}.sha512"
-diff <(sha512sum solr-${SOLR_VERSION}.tgz | awk {'print $1'}) \
- <(cat solr-${SOLR_VERSION}.tgz.sha512 | awk {'print $1'}) \
- || err 'Verification of downloaded solr archive failed.'
+function install_and_configure_solr() {
+  cd tmp && wget -q "${SOLR_DOWNLOAD_LINK}" && wget -q "${SOLR_DOWNLOAD_LINK}.sha512"
+  diff <(sha512sum solr-${SOLR_VERSION}.tgz | awk {'print $1'}) \
+    <(cat solr-${SOLR_VERSION}.tgz.sha512 | awk {'print $1'}) \
+    || err 'Verification of downloaded solr archive failed.'
 
-tar -xf "solr-${SOLR_VERSION}.tgz" && pushd "solr-${SOLR_VERSION}/bin" \
-  && ./install_solr_service.sh "/tmp/solr-${SOLR_VERSION}.tgz" -n && popd
+  tar -xf "solr-${SOLR_VERSION}.tgz" && pushd "solr-${SOLR_VERSION}/bin" \
+    && ./install_solr_service.sh "/tmp/solr-${SOLR_VERSION}.tgz" -n && popd
 
-rm -rf "/tmp/solr-${SOLR_VERSION}.tgz" "/tmp/solr-${SOLR_VERSION}"
+  rm -rf "/tmp/solr-${SOLR_VERSION}.tgz" "/tmp/solr-${SOLR_VERSION}"
 
-systemctl start solr || err 'Unable to start solr service.'
+  sed -i "s/^#SOLR_HOST=\"192.168.1.1\"/SOLR_HOST=\"${NODE_NAME}\"/" \
+    /etc/default/solr.in.sh
+  mkdir -p /var/log/solr && chown solr:solr /var/log/solr
+  sed -i 's/^SOLR_LOGS_DIR="\/var\/solr\/logs"/SOLR_LOGS_DIR="\/var\/log\/solr"/' \
+    /etc/default/solr.in.sh
+  # Enable SolrCloud setup in HA mode.
+  if [[ "${MASTER_ADDITIONAL}" != "" ]]; then
+    sed -i "s/^#ZK_HOST=\"\"/ZK_HOST=\"${CLUSTER_NAME}-m-0,${MASTER_ADDITIONAL}\/solr\"/" \
+      /etc/default/solr.in.sh
+    /opt/solr/bin/solr zk mkroot /solr -z "${NODE_NAME}:2181" || echo 'Node already exists for /solr.'
+  fi
+}
+
+function main() {
+  local role
+  role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+
+  if [[ "${role}" == 'Master' ]]; then
+    install_and_configure_solr
+    systemctl start solr || err 'Unable to start solr service.'
+  fi
+}
+
+main

@@ -19,4 +19,5 @@ The Solr Admin UI is served by the Jetty web server (port 8983) at `/solr`. Foll
 
 ## Important notes
 
-* This script installs Solr as a service on every node in the cluster.
+* This script installs Solr as a service only on master nodes in the cluster.
+* In HA clusters Solr starts in SolrCloud mode.
