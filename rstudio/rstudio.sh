@@ -29,9 +29,23 @@ function update_apt_get() {
 
 # Only run on the master node
 ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+USER_NAME="$(/usr/share/google/get_metadata_value attributes/rstudio-user || echo rstudio)"
+USER_PASSWORD="$(/usr/share/google/get_metadata_value attributes/rstudio-password || true)"
 RSTUDIO_VERSION=1.1.463
 
 if [[ "${ROLE}" == 'Master' ]]; then
+  if (( ${#USER_PASSWORD} < 7 )) ; then
+    echo "You must specify a password of at least 7 characters for user \`$USER_NAME\` through metadata \`rstudio-password\`."
+    exit 1
+  fi
+  if [[ -z "${USER_NAME}" ]] ; then
+    echo "RStudio user name must not be empty."
+    exit 2
+  fi
+  if [[ "${USER_NAME}" == "${USER_PASSWORD}" ]] ; then
+    echo "RStudio user name and password must not be the same."
+    exit 3
+  fi
   # Install RStudio Server
   update_apt_get
   apt-get install -y software-properties-common
@@ -43,11 +57,11 @@ if [[ "${ROLE}" == 'Master' ]]; then
   cd /tmp; wget https://download2.rstudio.org/rstudio-server-stretch-${RSTUDIO_VERSION}-amd64.deb
   gdebi -n /tmp/rstudio-server-stretch-${RSTUDIO_VERSION}-amd64.deb
 
-  if ! [ $(getent group rstudio) ]; then
-    groupadd rstudio
+  if ! [ $(getent group "${USER_NAME}") ]; then
+    groupadd "${USER_NAME}"
   fi
-  if ! [ $(id -u rstudio) ]; then
-    useradd --create-home --gid rstudio rstudio
-    echo "rstudio:rstudio" | chpasswd
+  if ! [ $(id -u "${USER_NAME}") ]; then
+    useradd --create-home --gid "${USER_NAME}" "${USER_NAME}"
+    echo "${USER_NAME}:${USER_PASSWORD}" | chpasswd
   fi
 fi
