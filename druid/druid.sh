@@ -103,10 +103,6 @@ function configure_druid() {
 
   cd ${DRUID_DIR}
 
-  if [[ ${druid_port} != "" ]]; then
-    sed -i -- "s/druid.port=8090/druid.port=${druid_port}/g" ${DRUID_DIR}/conf/druid/overlord/runtime.properties
-  fi
-
   wget -O extensions/mysql-metadata-storage/mysql-connector-java-5.1.38.jar http://central.maven.org/maven2/mysql/mysql-connector-java/5.1.38/mysql-connector-java-5.1.38.jar
   java \
     -cp "lib/*" \
@@ -463,6 +459,9 @@ ExecStart=/bin/bash -c "java `cat conf/druid/middleManager/jvm.config | xargs` -
 [Install]
 WantedBy=multi-user.target
 EOF
+  if [[ ${druid_port} != "" ]]; then
+    sed -i -- "s/druid.plaintextPort=8090/druid.plaintextPort=${druid_port}/g" ${DRUID_DIR}/conf/druid/overlord/runtime.properties
+  fi
 
   ln -sf /usr/lib/zookeeper zk
 }

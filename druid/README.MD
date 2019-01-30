@@ -51,3 +51,4 @@ Once task is finished, the detailed info should be displayed under druid-coordin
 ## Automated tests
 
 You can verify setup using automated script ```test_druid.py```. In order to run tests fire ```python3 -m unittest druid.test_druid```.
+Please be aware that automated test is not compliant with other port than 8090 and validation may fail.
