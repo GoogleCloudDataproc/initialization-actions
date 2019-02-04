@@ -1,4 +1,4 @@
-1.9.13 - 2019-XX-XX
+1.9.13 - 2019-02-04
 
   1. Fix implicit directries inference.
 
