@@ -15,7 +15,7 @@ package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
-import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
@@ -106,8 +106,7 @@ public class DynamicFileListRecordReaderTest {
 
     // Instead of actually blocking, make our mockSleeper throw an exception that we can catch
     // whenever the reader would otherwise be blocking.
-    doThrow(new RuntimeException("test-sleep-id-12345"))
-        .when(mockSleeper).sleep(any(Long.class));
+    doThrow(new RuntimeException("test-sleep-id-12345")).when(mockSleeper).sleep(anyLong());
 
     resetRecordReader();
   }

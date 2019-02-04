@@ -17,6 +17,7 @@ package com.google.cloud.hadoop.util;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyLong;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.times;
@@ -228,7 +229,7 @@ public class RetryHttpInitializerTest {
     verify(mockLowLevelRequest, times(2)).execute();
     verify(mockLowLevelResponse, times(2)).getStatusCode();
     verify(mockCredential).handleResponse(eq(req), any(HttpResponse.class), eq(true));
-    verify(mockSleeper).sleep(any(Long.class));
+    verify(mockSleeper).sleep(anyLong());
   }
 
   @Test
@@ -270,6 +271,6 @@ public class RetryHttpInitializerTest {
     verify(mockLowLevelRequest, times(2)).addHeader(eq("Authorization"), eq(authHeaderValue));
     verify(mockLowLevelRequest, times(2)).execute();
     verify(mockLowLevelResponse).getStatusCode();
-    verify(mockSleeper).sleep(any(Long.class));
+    verify(mockSleeper).sleep(anyLong());
   }
 }

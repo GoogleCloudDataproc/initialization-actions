@@ -4163,7 +4163,7 @@ public class GoogleCloudStorageTest {
     verify(mockErrorExtractor, times(2)).itemNotFound(eq(notFoundException));
     verify(mockStorageObjects, times(3)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockStorageObjectsGet, times(3)).execute();
-    verify(mockSleeper, times(2)).sleep(any(Long.class));
+    verify(mockSleeper, times(2)).sleep(anyLong());
   }
 
   @Test
