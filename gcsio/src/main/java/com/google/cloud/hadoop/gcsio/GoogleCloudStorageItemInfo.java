@@ -47,7 +47,7 @@ public class GoogleCloudStorageItemInfo {
   public static GoogleCloudStorageItemInfo createInferredDirectory(StorageResourceId resourceId) {
     checkArgument(resourceId != null, "resourceId must not be null");
     return new GoogleCloudStorageItemInfo(
-        resourceId,
+        FileInfo.convertToDirectoryPath(resourceId),
         /* creationTime= */ 0,
         /* size= */ 0,
         /* location= */ null,

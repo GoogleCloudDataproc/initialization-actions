@@ -1157,8 +1157,8 @@ public class GoogleCloudStorageFileSystem {
         }
 
         return gcs.getOptions().isInferImplicitDirectoriesEnabled()
-            ? GoogleCloudStorageItemInfo.createInferredDirectory(resourceId)
-            : GoogleCloudStorageItemInfo.createNotFound(resourceId);
+            ? GoogleCloudStorageItemInfo.createInferredDirectory(dirId)
+            : GoogleCloudStorageItemInfo.createNotFound(dirId);
       } catch (ExecutionException | InterruptedException e) {
         if (e instanceof InterruptedException) {
           Thread.currentThread().interrupt();

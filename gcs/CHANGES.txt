@@ -1,5 +1,7 @@
 1.9.13 - 2019-XX-XX
 
+  1. Fix implicit directries inference.
+
 
 1.9.12 - 2019-01-30
 
