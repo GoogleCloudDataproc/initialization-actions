@@ -6,7 +6,7 @@ This script installs Druid on dataproc clusters. To learn more about Druid see d
 ## Using this initialization action
 You can use this initialization action to create a new Dataproc cluster with Druid installed.
 
-Once the cluster has been created, Druid is configured to run on port `8090`. You can change this port with additional parameter:
+Once the cluster has been created, Druid Index Coordinator Console is configured to run on port `8090`. You can change this port with additional parameter:
 ``
 --metadata=druid-port=xxxx
 ``
@@ -14,7 +14,7 @@ Once the cluster has been created, Druid is configured to run on port `8090`. Yo
 Example of gcloud command for Druid initialization on standard cluster:
 
 ```
-gcloud dataproc clusters create druid --master-machine-type n1-standard-4 --num-workers 2 --worker-machine-type n1-standard-4 --image-version 1.3-deb9 --initialization-actions 'gs://dataproc-initialization-actions/zookeeper/zookeeper.sh','gs://dataproc-initialization-actions/druid/druid.sh'
+gcloud dataproc clusters create $CLUSTER_NAME --initialization-actions 'gs://dataproc-initialization-actions/zookeeper/zookeeper.sh','gs://dataproc-initialization-actions/druid/druid.sh'
 ```
 
 Druid can be used with Cloud SQL Proxy (init action inside repo). To make Druid running with this please follow steps:
@@ -31,12 +31,12 @@ Druid can be used with Cloud SQL Proxy (init action inside repo). To make Druid 
 
 ## Testing
 
-This script is used for testing dr-elephant on 1.1,1.2,1.3 dataproc images with single,
+This script is used for testing Druid on 1.1, 1.2, 1.3 dataproc images with single,
 standard and HA configurations. After clusters are created, you can submit batch task on them.
 
 Remember about setting up zookeeper init action first if you decide to use Druid upon Standard configuration.
 
-Dr. Elephant UI can be accessed after connection with command:
+Druid UI can be accessed after connection with command:
 ```
 gcloud compute ssh clusterName-m* -- -L 8090:clusterName-m*:8090
 ```
