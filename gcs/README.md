@@ -65,3 +65,7 @@ There are multiple ways to access data stored in Google Cloud Storage:
 *   [`gsutil rsync`](https://cloud.google.com/storage/docs/gsutil/commands/rsync)
 *   The
     [Cloud Storage JSON API](https://cloud.google.com/storage/docs/json_api/v1/)
+    
+## Resources
+
+<strong>Stack Overflow.</strong> Use the tag <code>google-cloud-dataproc</code> for questions about the Google Cloud Storage Connector. This tag receives responses from the Stack Overflow community and Google engineers, who monitor the tag and offer unofficial support. 
