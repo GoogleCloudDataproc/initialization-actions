@@ -31,7 +31,7 @@
      prefetch metadata in `PerformanceCachingGoogleCloudStorage` - always use
      single objects list request, because prefetching metadata with multiple
      list requests (when directory contains a lot of files) could introduce
-     performance penalties when using performance chache.
+     performance penalties when using performance cache.
 
   4. Add an option to lazily initialize `GoogleHadoopFileSystem` instances:
 

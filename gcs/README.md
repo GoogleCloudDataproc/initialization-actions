@@ -34,8 +34,8 @@ has several benefits:
 
 ## Getting the connector
 
-This repository contains the Hadoop 1.x compatible and the Hadoop 2.x compatible
-connector. You can clone this repository and follow the directions in
+This repository contains the Hadoop 1.x, the Hadoop 2.x and the Hadoop 3.x
+compatible connector. You can clone this repository and follow the directions in
 `INSTALL.md` within this directory to install the connector. If you use
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) the connector is
 installed automatically.
@@ -65,9 +65,3 @@ There are multiple ways to access data stored in Google Cloud Storage:
 *   [`gsutil rsync`](https://cloud.google.com/storage/docs/gsutil/commands/rsync)
 *   The
     [Cloud Storage JSON API](https://cloud.google.com/storage/docs/json_api/v1/)
-    
-## Resources
-
-On **Stack Overflow**, use the tag [`google-cloud-dataproc`][google-cloud-dataproc] for questions about the Google Cloud Storage Connector. This tag receives responses from the Stack Overflow community and Google engineers, who monitor the tag and offer unofficial support. 
-
-[google-cloud-dataproc]: https://stackoverflow.com/questions/tagged/google-cloud-dataproc

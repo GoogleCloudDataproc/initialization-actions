@@ -36,9 +36,8 @@ For more details see [the README](pubsub/README.md)
 
 ## Building the Cloud Storage (GCS) and BigQuery connectors
 
-All the connectors can be built with Apache Maven 3 (as of 2018-08-07, version
-3.5.4 has been tested). To build the connector for specific Hadoop version, run
-the following commands from the main directory:
+To build the connector for specific Hadoop version, run the following commands
+from the main directory:
 
 ```bash
 # with Hadoop 1 support:
@@ -76,3 +75,11 @@ To add a dependency on one of the connectors using Maven, use the following:
   <version>hadoop2-0.13.13</version>
 </dependency>
 ```
+
+## Resources
+
+On **Stack Overflow**, use the tag
+[`google-cloud-dataproc`](https://stackoverflow.com/tags/google-cloud-dataproc)
+for questions about the connectors in this repository. This tag receives
+responses from the Stack Overflow community and Google engineers, who monitor
+the tag and offer unofficial support.
