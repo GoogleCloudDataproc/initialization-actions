@@ -30,6 +30,11 @@ function err() {
 }
 
 function install_and_configure_solr() {
+  local solr_home_dir
+  local zookeeper_nodes
+  zookeeper_nodes="$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg \
+    | uniq | cut -d '=' -f 2 | cut -d ':' -f 1 | xargs echo | sed "s/ /,/g")"
+
   cd tmp && wget -q "${SOLR_DOWNLOAD_LINK}" && wget -q "${SOLR_DOWNLOAD_LINK}.sha512"
   diff <(sha512sum solr-${SOLR_VERSION}.tgz | awk {'print $1'}) \
     <(cat solr-${SOLR_VERSION}.tgz.sha512 | awk {'print $1'}) \
@@ -45,12 +50,24 @@ function install_and_configure_solr() {
   mkdir -p /var/log/solr && chown solr:solr /var/log/solr
   sed -i 's/^SOLR_LOGS_DIR="\/var\/solr\/logs"/SOLR_LOGS_DIR="\/var\/log\/solr"/' \
     /etc/default/solr.in.sh
+
   # Enable SolrCloud setup in HA mode.
   if [[ "${MASTER_ADDITIONAL}" != "" ]]; then
-    sed -i "s/^#ZK_HOST=\"\"/ZK_HOST=\"${CLUSTER_NAME}-m-0,${MASTER_ADDITIONAL}\/solr\"/" \
+    sed -i "s/^#ZK_HOST=\"\"/ZK_HOST=\"${zookeeper_nodes}\/solr\"/" \
       /etc/default/solr.in.sh
     /opt/solr/bin/solr zk mkroot /solr -z "${NODE_NAME}:2181" || echo 'Node already exists for /solr.'
   fi
+
+  # Enable hdfs as default backend storage.
+  if [[ "${MASTER_ADDITIONAL}" != "" ]]; then
+    solr_home_dir="hdfs://${CLUSTER_NAME}-m-0:8020/solr"
+  else
+    solr_home_dir="hdfs://${CLUSTER_NAME}-m:8020/solr"
+  fi
+  cat << EOF >> /etc/default/solr.in.sh
+SOLR_OPTS="\${SOLR_OPTS} -Dsolr.directoryFactory=HdfsDirectoryFactory -Dsolr.lock.type=hdfs \
+ -Dsolr.hdfs.home=${solr_home_dir}"
+EOF
 }
 
 function main() {
