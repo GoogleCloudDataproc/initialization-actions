@@ -68,4 +68,6 @@ There are multiple ways to access data stored in Google Cloud Storage:
     
 ## Resources
 
-<strong>Stack Overflow.</strong> Use the tag <code>google-cloud-dataproc</code> for questions about the Google Cloud Storage Connector. This tag receives responses from the Stack Overflow community and Google engineers, who monitor the tag and offer unofficial support. 
+On **Stack Overflow**, use the tag [`google-cloud-dataproc`][google-cloud-dataproc] for questions about the Google Cloud Storage Connector. This tag receives responses from the Stack Overflow community and Google engineers, who monitor the tag and offer unofficial support. 
+
+[google-cloud-dataproc]: https://stackoverflow.com/questions/tagged/google-cloud-dataproc
