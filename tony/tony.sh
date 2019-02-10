@@ -44,8 +44,8 @@ function download_and_build_tony() {
   mkdir "${TONY_INSTALL_FOLDER}"
   cd "${TONY_INSTALL_FOLDER}"
   git clone https://github.com/linkedin/TonY.git
-  git checkout "${TONY_DEFAULT_VERSION}"
   cd TonY
+  git checkout "${TONY_DEFAULT_VERSION}"
   # Build TonY without tests.
   ./gradlew build -x test
   return 0
