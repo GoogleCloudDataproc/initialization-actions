@@ -61,7 +61,7 @@ function install_samples() {
   mkdir -p "${TONY_SAMPLES_FOLDER}"/jobs/PTJob/src
 
   # Copy Jar file.
-  cp "${TONY_INSTALL_FOLDER}"/TonY/tony-cli/build/libs/tony-cli-0.1.5-all.jar "${TONY_SAMPLES_FOLDER}"
+  cp "${TONY_INSTALL_FOLDER}"/TonY/tony-cli/build/libs/tony-cli-0.2.0-all.jar "${TONY_SAMPLES_FOLDER}"
 
   # Collect Metadata
   worker_instances="$(/usr/share/google/get_metadata_value attributes/worker_instances)" || worker_instances="${WORKER_INSTANCES}"
