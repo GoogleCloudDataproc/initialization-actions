@@ -70,6 +70,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.flogger.GoogleLogger;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.FileInputStream;
@@ -92,6 +93,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
@@ -211,6 +213,9 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     logger.atFine().log("GHFS version: %s", VERSION);
     GHFS_ID = String.format("GHFS/%s", VERSION);
   }
+
+  private static final ThreadFactory DAEMON_THREAD_FACTORY =
+      new ThreadFactoryBuilder().setNameFormat("ghfs-thread-%d").setDaemon(true).build();
 
   @VisibleForTesting
   boolean enableFlatGlob = GCS_FLAT_GLOB_ENABLE.getDefault();
@@ -1251,9 +1256,13 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     return globInternal(fixedPath, filter, pathPattern);
   }
 
+  /**
+   * Use 2 glob algorithms that return the same result but one of them could be significantly faster
+   * than another one depending on directory layout.
+   */
   private FileStatus[] concurrentGlobInternal(Path fixedPath, PathFilter filter, Path pathPattern)
       throws IOException {
-    ExecutorService executorService = Executors.newFixedThreadPool(2);
+    ExecutorService executorService = Executors.newFixedThreadPool(2, DAEMON_THREAD_FACTORY);
     Callable<FileStatus[]> flatGlobTask = () -> flatGlobInternal(fixedPath, filter);
     Callable<FileStatus[]> nonFlatGlobTask = () -> globInternal(fixedPath, filter, pathPattern);
 
