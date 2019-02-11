@@ -7,7 +7,7 @@ set -x
 
 readonly CLUSTER_PREFIX='dev'
 readonly BUCKET_NAME='tony-dev'
-readonly TONY_JARFILE='tony-cli-0.1.5-all.jar'
+readonly TONY_JARFILE='tony-cli-0.2.0-all.jar'
 
 if [ -z "$1" ]
   then
