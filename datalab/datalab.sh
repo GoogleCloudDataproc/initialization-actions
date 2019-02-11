@@ -89,7 +89,7 @@ function configure_master(){
   cp /etc/apt/trusted.gpg .
   if [[ -f /etc/apt/sources.list.d/backports.list ]]; then
     cp /etc/apt/sources.list.d/backports.list .
-    ADD_BACKPORTS='ADD dataproc.list /etc/apt/sources.list.d/'
+    ADD_BACKPORTS='ADD backports.list /etc/apt/sources.list.d/'
   else
     ADD_BACKPORTS=''
   fi
