@@ -11,6 +11,7 @@ class DruidTestCase(DataprocTestCase):
     INIT_ACTION_FOR_STANDARD = '\'gs://dataproc-initialization-actions/zookeeper/zookeeper.sh\',\'gs://dataproc-initialization-actions/druid/druid.sh\''
     HELPER_ACTIONS = 'gs://dataproc-initialization-actions/cloud-sql-proxy/cloud-sql-proxy.sh'
     TEST_SCRIPT_FILE_NAME = 'verify_druid_running.py'
+    GCS_BUCKET = 'gcs-test-bucket-{}'.format(datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
     SCOPES = 'sql-admin'
     DB_NAME = None
 
@@ -52,15 +53,49 @@ class DruidTestCase(DataprocTestCase):
         self.assertEqual(ret_code, 0, "Failed to run command. Error: {}".format(stderr))
 
     @parameterized.expand([
-        ("SINGLE", "1.0", INIT_ACTION, ["m"]),
-        ("STANDARD", "1.0", INIT_ACTION_FOR_STANDARD, ["m"]),
-        ("HA", "1.0", INIT_ACTION, ["m-0", "m-1", "m-2"]),
-        ("SINGLE", "1.1", INIT_ACTION, ["m"]),
-        ("STANDARD", "1.1", INIT_ACTION_FOR_STANDARD, ["m"]),
-        ("HA", "1.1", INIT_ACTION, ["m-0", "m-1", "m-2"]),
-        ("SINGLE", "1.2", INIT_ACTION, ["m"]),
-        ("STANDARD", "1.2", INIT_ACTION_FOR_STANDARD, ["m"]),
-        ("HA", "1.2", INIT_ACTION, ["m-0", "m-1", "m-2"]),
+        ("SINGLE", "1.0", INIT_ACTION, ["m"], GCS_BUCKET),
+        ("STANDARD", "1.0", INIT_ACTION_FOR_STANDARD, ["m"], GCS_BUCKET),
+        ("HA", "1.0", INIT_ACTION, ["m-0", "m-1", "m-2"], GCS_BUCKET),
+        ("SINGLE", "1.1", INIT_ACTION, ["m"], GCS_BUCKET),
+        ("STANDARD", "1.1", INIT_ACTION_FOR_STANDARD, ['m'], GCS_BUCKET),
+        ("HA", "1.1", INIT_ACTION, ["m-0", "m-1", "m-2"], GCS_BUCKET),
+        ("SINGLE", "1.2", INIT_ACTION, ["m"], GCS_BUCKET),
+        ("STANDARD", "1.2", INIT_ACTION_FOR_STANDARD, ["m"], GCS_BUCKET),
+        ("HA", "1.2", INIT_ACTION, ["m-0", "m-1", "m-2"], GCS_BUCKET),
+        ("SINGLE", "1.3", INIT_ACTION, ["m"], GCS_BUCKET),
+        ("STANDARD", "1.3", INIT_ACTION_FOR_STANDARD, ["m"], GCS_BUCKET),
+        ("HA", "1.3", INIT_ACTION, ["m-0", "m-1"], GCS_BUCKET),
+
+    ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    def test_druid_with_gcs(self, configuration, dataproc_version, init_action, machine_suffixes, gcs_bucket):
+        if gcs_bucket:
+            ret_code, stdout, stderr = self.run_command(
+                'gsutil mb gs://{}'.format(gcs_bucket)
+            )
+
+        self.createCluster(
+            configuration,
+            init_action,
+            dataproc_version,
+            metadata='gcs-bucket={}'.format(
+                gcs_bucket
+            ),
+            timeout_in_minutes=25
+        )
+        for machine_suffix in machine_suffixes:
+            self.verify_instance(
+                "{}-{}".format(
+                    self.getClusterName(),
+                    machine_suffix
+                )
+
+            )
+        if gcs_bucket:
+            ret_code, stdout, stderr = self.run_command(
+                'gsutil rb {}'.format(gcs_bucket)
+            )
+
+    @parameterized.expand([
         ("SINGLE", "1.3", INIT_ACTION, ["m"]),
         ("STANDARD", "1.3", INIT_ACTION_FOR_STANDARD, ["m"]),
         ("HA", "1.3", INIT_ACTION, ["m-0", "m-1"]),

@@ -6,10 +6,19 @@ This script installs Druid on dataproc clusters. To learn more about Druid see d
 ## Using this initialization action
 You can use this initialization action to create a new Dataproc cluster with Druid installed.
 
-Once the cluster has been created, Druid Index Coordinator Console is configured to run on port `8090`. You can change this port with additional parameter:
+Once the cluster has been created, Druid Overlord Console is configured to run on port `8090`. You can change this port with additional parameter:
 ``
---metadata=druid-port=xxxx
+--metadata=druid-overlord-port=xxxx
 ``
+Druid Coordinator Console is configured to run on port `8081`. You can change this port with additional parameter:
+``
+--metadata=druid-coordinator-port=xxxx
+``
+
+By default Druid initialized with this script is configured to use hdfs as a segment storage. It is possible to make this running with GCS bucket by adding metadata with initialization command. For example: 
+```
+--metadata=gcs-bucket=YOUR_BUCKET
+```
 
 Example of gcloud command for Druid initialization on standard cluster:
 

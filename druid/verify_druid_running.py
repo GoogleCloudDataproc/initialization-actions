@@ -15,23 +15,33 @@ def run_command(cmd):
         stderr=subprocess.PIPE,
     )
     stdout, stderr = p.communicate()
-    return stdout, stderr
+    return stdout.decode("utf-8"), stderr.decode("utf-8")
 
 
 class Druid(object):
     def __init__(self):
+        self.druid_urls = ""
         self.druid_dir = "/opt/druid/apache-druid-{}".format(DRUID_VERSION)
+
+        stdout, stderr = run_command("/usr/share/google/get_metadata_value attributes/druid-overlord-port")
+        if stdout != "":
+            self.druid_urls = "{}".format("--url http://localhost:{}/".format(stdout))
+
+        stdout, stderr = run_command("/usr/share/google/get_metadata_value attributes/druid-coordinator-port")
+        if stdout != "":
+            self.druid_urls = "{} {}".format(self.druid_urls, "--coordinator-url http://localhost:{}/".format(stdout))
 
     def submit_task(self):
         cmd = "{}/bin/post-index-task  " \
-              "--file {}/quickstart/tutorial/wikipedia-index.json".format(
-            self.druid_dir, self.druid_dir)
+              "--file {}/quickstart/tutorial/wikipedia-index.json {}".format(
+            self.druid_dir, self.druid_dir, self.druid_urls)
+        print(cmd)
         stdout, stderr = run_command(cmd)
         if stdout:
             print(stdout)
         if stderr:
-            print(stderr.decode("utf-8"))
-            return stderr.decode("utf-8")
+            print(stderr)
+            return stderr
 
 
 def main():

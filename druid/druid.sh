@@ -42,6 +42,20 @@ function download_druid() {
   tar -xzf apache-druid-${DRUID_VERSION}-bin.tar.gz
 }
 
+function extract_runtime_property(){
+  local file="${1}"
+  local parameter="${2}"
+  echo $(cat ${file} | grep ${parameter} | grep -o -E '[0-9]+')
+}
+
+function calculate_xmx(){
+  local processing_buffer=${1}
+  local num_threads=${2}
+  local num_merge_buffers=${3}
+
+  echo $(( ${processing_buffer} * (${num_merge_buffers} + ${num_threads}) + 1 ))
+}
+
 function prepare_environment_services(){
   local metastore_instance
   local password_argument
@@ -52,15 +66,56 @@ function prepare_environment_services(){
   else
     password_argument=''
   fi
-  echo | mysql -u root ${password_argument} -e "CREATE DATABASE druid DEFAULT CHARACTER SET utf8;"
-  echo | mysql -u root ${password_argument} -e "GRANT ALL ON druid.* TO 'druid' IDENTIFIED BY 'diurd';"
-  bash /usr/lib/zookeeper/bin/zkServer.sh restart
+  mysql -u root ${password_argument} -e "CREATE DATABASE druid DEFAULT CHARACTER SET utf8;" \
+    || echo "Database already exists"
+  mysql -u root ${password_argument} -e "GRANT ALL ON druid.* TO 'druid' IDENTIFIED BY 'diurd';" \
+    || echo "Cannot grant priviliges to druid user"
+}
+
+function max() {
+   [ "$1" -gt "$2" ] && echo $1 || echo $2
+}
+
+function modify_jvm_config(){
+  local service_name="${1}"
+  local cores
+  local processing_buffer
+  local num_threads
+  local num_merge_buff
+  local xmx
+  local xx
+  processing_buffer=$(extract_runtime_property \
+    ${DRUID_DIR}/conf/druid/${service_name}/runtime.properties druid.processing.buffer.sizeBytes)
+  if [[ ${processing_buffer} == "" ]];then
+    # Default value 1GB
+    processing_buffer=1073741824
+  fi
+  cores=$(grep -c ^processor /proc/cpuinfo)
+  cores=$((${cores}-1))
+  num_threads=$(max 1 ${cores})
+  if [[ ${num_threads} < 4 ]];then
+    num_merge_buff=2
+  else
+    num_merge_buff=$(max 2 ${num_threads}/4)
+  fi
+  xmx=$(calculate_xmx ${processing_buffer} ${num_threads} ${num_merge_buff})
+  xx=$((${num_threads} * ${processing_buffer} * 4))
+  cat << EOF > conf/druid/${service_name}/jvm.config
+-XX:MaxDirectMemorySize=${xx}
+-Xmx${xmx}
+-Duser.timezone=UTC
+-Dfile.encoding=UTF-8
+-Djava.io.tmpdir=var/tmp
+-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager
+-Dderby.stream.error.file=var/druid/derby.log
+EOF
 }
 
 function configure_druid() {
   local java_home
   local hadoop_conf_dir
-  local druid_port
+  local druid_overlord_port
+  local druid_coordinator_port
   local zookeeper_client_port
   local zookeeper_list
   local tmp_dir
@@ -68,11 +123,17 @@ function configure_druid() {
   local sql_host
   local master_additional
   local hive_metastore_instance
+  local gcs_bucket
+  local base_extensions
+  local gcs_enabled_extensions
 
-
+  base_extensions="[\"druid-kafka-eight\", \"druid-histogram\", \"druid-datasketches\", \"druid-lookups-cached-global\", \"mysql-metadata-storage\", \"druid-hdfs-storage\",\"druid-kafka-indexing-service\"]"
+  gcs_enabled_extensions="[\"druid-kafka-eight\", \"druid-histogram\", \"druid-datasketches\", \"druid-lookups-cached-global\", \"mysql-metadata-storage\", \"druid-hdfs-storage\", \"druid-kafka-indexing-service\", \"druid-google-extensions\"]"
   master_additional=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)
-  cluster_name=$(hostname | sed -r 's/(.*)-[w|m](-[0-9]+)?$/\1/')
+  cluster_name=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)
   hive_metastore_instance=$(/usr/share/google/get_metadata_value attributes/hive-metastore-instance)
+  gcs_bucket=$(/usr/share/google/get_metadata_value attributes/gcs-bucket)
+
   # Set localhost as sql host for cloud-sql-proxy or master node for other configurations
   if [[ ${hive_metastore_instance} == "" ]]; then
     if [ "${master_additional}" == '' ]; then
@@ -84,7 +145,8 @@ function configure_druid() {
     sql_host='localhost'
   fi
 
-  druid_port=$(/usr/share/google/get_metadata_value attributes/druid-port)
+  druid_overlord_port=$(/usr/share/google/get_metadata_value attributes/druid-overlord-port)
+  druid_coordinator_port=$(/usr/share/google/get_metadata_value attributes/druid-coordinator-port)
   java_home=$(echo ${JAVA_HOME})
   hadoop_conf_dir="/etc/hadoop/conf"
 
@@ -103,7 +165,8 @@ function configure_druid() {
 
   cd ${DRUID_DIR}
 
-  wget -O extensions/mysql-metadata-storage/mysql-connector-java-5.1.38.jar http://central.maven.org/maven2/mysql/mysql-connector-java/5.1.38/mysql-connector-java-5.1.38.jar
+  ln -sf /usr/share/java/mysql-connector-java.jar extensions/mysql-metadata-storage/mysql-connector-java-5.1.38.jar
+
   java \
     -cp "lib/*" \
     -Ddruid.extensions.directory="extensions" \
@@ -121,14 +184,6 @@ function configure_druid() {
     -c "org.apache.druid.extensions:druid-hdfs-storage:${DRUID_VERSION}"
 
   cat <<EOF > ${DRUID_DIR}/conf/druid/_common/common.runtime.properties
-#
-# Extensions
-#
-
-# This is not the full list of Druid extensions, but common ones that people often use. You may need to change this list
-# based on your particular setup.
-druid.extensions.loadList=["druid-kafka-eight", "druid-histogram", "druid-datasketches", "druid-lookups-cached-global", "mysql-metadata-storage", "druid-hdfs-storage","druid-kafka-indexing-service"]
-
 # If you have a different version of Hadoop, place your Hadoop client jar files in your hadoop-dependencies directory
 # and uncomment the line below to point to your directory.
 #druid.extensions.hadoopDependenciesDir=/my/dir/hadoop-dependencies
@@ -159,12 +214,6 @@ druid.metadata.storage.connector.user=druid
 druid.metadata.storage.connector.password=diurd
 druid.sql.enable = true
 
-# For PostgreSQL (make sure to additionally include the Postgres extension):
-#druid.metadata.storage.type=postgresql
-#druid.metadata.storage.connector.connectURI=jdbc:postgresql://db.example.com:5432/druid
-#druid.metadata.storage.connector.user=...
-#druid.metadata.storage.connector.password=...
-
 #
 # Deep storage
 #
@@ -177,13 +226,6 @@ druid.sql.enable = true
 druid.storage.type=hdfs
 druid.storage.storageDirectory=/druid/segments
 
-# For S3:
-#druid.storage.type=s3
-#druid.storage.bucket=your-bucket
-#druid.storage.baseKey=druid/segments
-#druid.s3.accessKey=...
-#druid.s3.secretKey=...
-
 #
 # Indexing service logs
 #
@@ -195,12 +237,6 @@ druid.storage.storageDirectory=/druid/segments
 # For HDFS (make sure to include the HDFS extension and that your Hadoop config files in the cp):
 druid.indexer.logs.type=hdfs
 druid.indexer.logs.directory=/druid/indexing-logs
-
-# For S3:
-#druid.indexer.logs.type=s3
-#druid.indexer.logs.s3Bucket=your-bucket
-#druid.indexer.logs.s3Prefix=druid/indexing-logs
-
 #
 # Service discovery
 #
@@ -222,72 +258,44 @@ druid.emitter.logging.logLevel=info
 druid.indexing.doubleStorage=double
 EOF
 
-  cp /usr/lib/hadoop/etc/hadoop/core-site.xml conf/druid/_common/core-site.xml
-  cp /usr/lib/hadoop/etc/hadoop/hdfs-site.xml conf/druid/_common/hdfs-site.xml
-  cp /usr/lib/hadoop/etc/hadoop/yarn-site.xml conf/druid/_common/yarn-site.xml
-  cp /usr/lib/hadoop/etc/hadoop/mapred-site.xml conf/druid/_common/mapred-site.xml
+  if [ "${gcs_bucket}" != "" ];then
+    java \
+      -cp "lib/*" \
+      -Ddruid.extensions.directory="extensions" \
+      -Ddruid.extensions.hadoopDependenciesDir="hadoop-dependencies" \
+      org.apache.druid.cli.Main tools pull-deps \
+      --no-default-hadoop \
+      -c "org.apache.druid.extensions.contrib:druid-google-extensions:${DRUID_VERSION}"
+
+    sed -i -- "s/druid.indexer.logs.type=hdfs/druid.indexer.logs.type=google/g" ${DRUID_DIR}/conf/druid/_common/common.runtime.properties
+    sed -i -- "s/druid.storage.type=hdfs/druid.storage.type=google/g" ${DRUID_DIR}/conf/druid/_common/common.runtime.properties
+    cat << EOF >> ${DRUID_DIR}/conf/druid/_common/common.runtime.properties
+druid.extensions.loadList=${gcs_enabled_extensions}
+druid.google.bucket=${gcs_bucket}
+druid.google.prefix=druid/segments
+druid.indexer.logs.bucket=${gcs_bucket}
+druid.indexer.logs.prefix=druid/indexing-logs
+mapreduce.job.classloader=true
+hadoopDependencyCoordinates="org.apache.hadoop:hadoop-client:2.8.3"
+EOF
+  else
+    echo "druid.extensions.loadList=${base_extensions}" >> ${DRUID_DIR}/conf/druid/_common/common.runtime.properties
+  fi
+
+
+  ln -sf /usr/lib/hadoop/etc/hadoop/core-site.xml conf/druid/_common/core-site.xml
+  ln -sf /usr/lib/hadoop/etc/hadoop/hdfs-site.xml conf/druid/_common/hdfs-site.xml
+  ln -sf /usr/lib/hadoop/etc/hadoop/yarn-site.xml conf/druid/_common/yarn-site.xml
+  ln -sf /usr/lib/hadoop/etc/hadoop/mapred-site.xml conf/druid/_common/mapred-site.xml
 
   chown root conf/druid/
   chmod +xr -R conf/druid/
   tmp_dir=var/tmp
   mkdir -p ${tmp_dir}
 
-  cat << 'EOF' > conf/druid/coordinator/jvm.config
--server
--Xms2g
--Xmx2g
--Duser.timezone=UTC
--Dfile.encoding=UTF-8
--Djava.io.tmpdir=var/tmp
--Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager
--Dderby.stream.error.file=var/druid/derby.log
-EOF
-
-
-  cat << 'EOF' > conf/druid/overlord/jvm.config
--server
--Xms2g
--Xmx2g
--XX:MaxDirectMemorySize=1792m
--Duser.timezone=UTC
--Dfile.encoding=UTF-8
--Djava.io.tmpdir=var/tmp
--Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager
-EOF
-
-  cat << 'EOF' > conf/druid/broker/jvm.config
--server
--Xms2g
--Xmx2g
--XX:MaxDirectMemorySize=8192m
--Duser.timezone=UTC
--Dfile.encoding=UTF-8
--Djava.io.tmpdir=var/tmp
--Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager
-
-EOF
-
-  cat << 'EOF' > conf/druid/historical/jvm.config
--server
--Xms2g
--Xmx2g
--XX:MaxDirectMemorySize=4096m
--Duser.timezone=UTC
--Dfile.encoding=UTF-8
--Djava.io.tmpdir=var/tmp
--Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager
-EOF
-
-  cat << 'EOF' > conf/druid/middleManager/jvm.config
--server
--Xms2g
--Xmx2g
--XX:MaxDirectMemorySize=4096m
--Duser.timezone=UTC
--Dfile.encoding=UTF-8
--Djava.io.tmpdir=var/tmp
--Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager
-EOF
+  for service in coordinator overlord broker historical middleManager; do
+    modify_jvm_config ${service}
+  done
 
   cat << 'EOF' > conf/druid/broker/runtime.properties
 druid.service=druid/broker
@@ -357,6 +365,7 @@ druid.processing.numThreads=7
 # Segment storage
 druid.segmentCache.locations=[{"path":"var/druid/segment-cache","maxSize":130000000000}]
 druid.server.maxSize=130000000000
+
 EOF
 
   cat << 'EOF' > conf/druid/coordinator/runtime.properties
@@ -367,7 +376,6 @@ druid.coordinator.startDelay=PT30S
 druid.coordinator.period=PT30S
 druid.processing.buffer.sizeBytes=268435456
 EOF
-
 
   cat << EOF > /etc/systemd/system/druid-coordinator.service
 [Unit]
@@ -459,29 +467,48 @@ ExecStart=/bin/bash -c "java `cat conf/druid/middleManager/jvm.config | xargs` -
 [Install]
 WantedBy=multi-user.target
 EOF
-  if [[ ${druid_port} != "" ]]; then
-    sed -i -- "s/druid.plaintextPort=8090/druid.plaintextPort=${druid_port}/g" ${DRUID_DIR}/conf/druid/overlord/runtime.properties
+  if [[ ${druid_overlord_port} != "" ]]; then
+    sed -i -- "s/druid.plaintextPort=8090/druid.plaintextPort=${druid_overlord_port}/g" ${DRUID_DIR}/conf/druid/overlord/runtime.properties
   fi
 
+  if [[ ${druid_coordinator_port} != "" ]]; then
+    sed -i -- "s/druid.plaintextPort=8081/druid.plaintextPort=${druid_coordinator_port}/g" ${DRUID_DIR}/conf/druid/coordinator/runtime.properties
+  fi
+
+  # Restart zookeeper in order to avoid problems with connectivity
   ln -sf /usr/lib/zookeeper zk
+  bash zk/bin/zkServer.sh restart
 }
 
 function start_druid_master(){
   systemctl daemon-reload
   systemctl enable druid-coordinator druid-broker druid-overlord
   systemctl start druid-coordinator druid-broker druid-overlord
+  sleep 10
+  for service in coordinator overlord broker; do
+    systemctl status druid-${service} | grep 'active (running)' || err "${service} is not running"
+  done
+
 }
 
 function start_druid_single_master(){
   systemctl daemon-reload
   systemctl enable druid-coordinator druid-broker druid-overlord druid-middle-manager druid-historical
   systemctl start druid-coordinator druid-broker druid-overlord druid-middle-manager druid-historical
+  sleep 10
+  for service in coordinator overlord broker historical middle-manager; do
+    systemctl status druid-${service} | grep 'active (running)' || err "${service} is not running"
+  done
 }
 
 function start_druid_worker(){
   systemctl daemon-reload
   systemctl enable druid-middle-manager druid-historical
   systemctl start  druid-middle-manager druid-historical
+  sleep 10
+  for service in historical middle-manager; do
+    systemctl status druid-${service} | grep 'active (running)' || err "${service} is not running"
+  done
 }
 
 function main() {
@@ -493,7 +520,7 @@ function main() {
   role=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
   make_druid_home || err 'Cannot create Druid home directory'
   download_druid || err 'Druid download failed'
-  prepare_environment_services || err 'Zookeeper or mysql preparation failed'
+  prepare_environment_services || err 'Setting up mysql failed'
   configure_druid || err 'Druid configuration failed'
   # Install all druid services on single configuration
   if [[ "${worker_count}" == '0' ]]; then
