@@ -42,6 +42,9 @@ public interface GoogleCloudStorage {
    */
   public static final long MAX_RESULTS_UNLIMITED = -1;
 
+  /** The maximum number of objects that can be composed in one operation. */
+  public static final int MAX_COMPOSE_OBJECTS = 32;
+
   /**
    * Retrieve the options that were used to create this GoogleCloudStorage.
    */

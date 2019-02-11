@@ -31,14 +31,17 @@ import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_WORKING_DIRECTORY;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PATH_CODEC;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PERMISSIONS_TO_REPORT;
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.emptyToNull;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.flogger.LazyArgs.lazy;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.cloud.hadoop.gcsio.FileInfo;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage.ListPage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
@@ -63,6 +66,7 @@ import com.google.common.base.Strings;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.flogger.GoogleLogger;
@@ -817,6 +821,39 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     increment(Counter.APPEND);
     increment(Counter.APPEND_TIME, duration);
     throw new IOException("The append operation is not supported.");
+  }
+
+  /**
+   * Concat existing files into one file.
+   *
+   * @param trg the path to the target destination.
+   * @param psrcs the paths to the sources to use for the concatenation.
+   * @throws IOException IO failure
+   */
+  @Override
+  public void concat(Path trg, Path[] psrcs) throws IOException {
+    logger.atFine().log("GHFS.concat: %s, %s", trg, lazy(() -> Arrays.toString(psrcs)));
+
+    checkArgument(psrcs.length > 0, "psrcs must have at least one source");
+
+    URI trgPath = getGcsPath(trg);
+    List<URI> srcPaths = Arrays.stream(psrcs).map(this::getGcsPath).collect(toImmutableList());
+
+    checkArgument(!srcPaths.contains(trgPath), "target must not be contained in sources");
+
+    List<List<URI>> partitions =
+        Lists.partition(srcPaths, GoogleCloudStorage.MAX_COMPOSE_OBJECTS - 1);
+    logger.atFine().log("GHFS.concat: %s, %d partitions", trg, partitions.size());
+    for (List<URI> partition : partitions) {
+      // We need to include the target in the list of sources to compose since
+      // the GCS FS compose operation will overwrite the target, whereas the Hadoop
+      // concat operation appends to the target.
+      List<URI> sources = Lists.newArrayList(trgPath);
+      sources.addAll(partition);
+      logger.atFine().log("GHFS.concat compose: %s, %s", trgPath, sources);
+      getGcsFs().compose(sources, trgPath, CreateFileOptions.DEFAULT_CONTENT_TYPE);
+    }
+    logger.atFine().log("GHFS.concat:=> ");
   }
 
   /**

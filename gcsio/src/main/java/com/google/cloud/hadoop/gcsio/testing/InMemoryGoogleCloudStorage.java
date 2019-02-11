@@ -14,6 +14,8 @@
 
 package com.google.cloud.hadoop.gcsio.testing;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.gcsio.CreateBucketOptions;
 import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
@@ -547,6 +549,9 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
       final StorageResourceId destination,
       CreateObjectOptions options)
       throws IOException {
+    checkArgument(
+        sources.size() <= MAX_COMPOSE_OBJECTS,
+        "Can not compose more than %s sources", MAX_COMPOSE_OBJECTS);
     ByteArrayOutputStream tempOutput = new ByteArrayOutputStream();
     for (StorageResourceId sourceId : sources) {
       // TODO(user): If we change to also set generationIds for source objects in the base

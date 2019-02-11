@@ -56,7 +56,7 @@
 
   <property>
     <name>fs.contract.supports-concat</name>
-    <value>false</value>
+    <value>true</value>
   </property>
 
   <property>
