@@ -10,8 +10,7 @@ on master and workers node in a [Google Cloud Dataproc](https://cloud.google.com
 
 You can use this initialization action to create a new Dataproc cluster with GPU support:
 
-1. Use the `gcloud` command to create a new cluster with this initialization action.  The following command will create a new cluster named `<CLUSTER_NAME>`.
-   and install GPU drivers.
+1. Use the `gcloud` command to create a new cluster with this initialization action. The following command will create a new cluster named `<CLUSTER_NAME>` and install GPU drivers.
    
     ```bash
     gcloud beta dataproc clusters create <CLUSTER_NAME> \
@@ -21,8 +20,7 @@ You can use this initialization action to create a new Dataproc cluster with GPU
       --metadata install_gpu_agent=false
     ```
 
-2. Use the `gcloud` command to create a new cluster with this initialization action.  The following command will create a new cluster named `<CLUSTER_NAME>`.
-   install GPU drivers and add the GPU monitoring service.
+2. Use the `gcloud` command to create a new cluster with this initialization action. The following command will create a new cluster named `<CLUSTER_NAME>`, install GPU drivers and add the GPU monitoring service.
   
     ```bash
     gcloud beta dataproc clusters create <CLUSTER_NAME> \
