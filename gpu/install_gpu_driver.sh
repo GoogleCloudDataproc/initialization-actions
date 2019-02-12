@@ -28,8 +28,7 @@ function err() {
 
 function install_gpu(){
     # Detect NVIDIA GPU
-    echo
-        apt-get update
+    apt-get update
     apt-get install -y pciutils
     if ! (lspci | grep -q NVIDIA); then
       echo 'No NVIDIA card detected. Skipping installation.' >&2
@@ -46,8 +45,8 @@ function install_gpu(){
         done
       done
     done
-    apt-get update
 
+    apt-get update
     # Install proprietary NVIDIA Drivers and CUDA
     # See https://wiki.debian.org/NvidiaGraphicsDrivers
     export DEBIAN_FRONTEND=noninteractive
@@ -59,14 +58,14 @@ function install_gpu(){
     # Create a system wide NVBLAS config
     # See http://docs.nvidia.com/cuda/nvblas/
     NVBLAS_CONFIG_FILE=/etc/nvidia/nvblas.conf
-    cat << EOF >> ${NVBLAS_CONFIG_FILE}
-# Insert here the CPU BLAS fallback library of your choice.
-# The standard libblas.so.3 defaults to OpenBLAS, which does not have the
-# requisite CBLAS API.
-NVBLAS_CPU_BLAS_LIB /usr/lib/libblas/libblas.so
-# Use all GPUs
-NVBLAS_GPU_LIST ALL
-# Add more configuration here.
+    cat <<-EOF >> ${NVBLAS_CONFIG_FILE}
+    # Insert here the CPU BLAS fallback library of your choice.
+    # The standard libblas.so.3 defaults to OpenBLAS, which does not have the
+    # requisite CBLAS API.
+    NVBLAS_CPU_BLAS_LIB /usr/lib/libblas/libblas.so
+    # Use all GPUs
+    NVBLAS_GPU_LIST ALL
+    # Add more configuration here.
 EOF
     echo "NVBLAS_CONFIG_FILE=${NVBLAS_CONFIG_FILE}" >> /etc/environment
 
@@ -97,20 +96,20 @@ function install_gpu_agent_service(){
     pip install -r ./requirements.txt
 
     # Generate GPU service.
-    cat <<-EOH > /lib/systemd/system/gpu_utilization_agent.service
-[Unit]
-Description=GPU Utilization Metric Agent
-[Service]
-Type=simple
-PIDFile=/run/gpu_agent.pid
-ExecStart=/bin/bash --login -c '/usr/bin/python /root/report_gpu_metrics.py'
-User=root
-Group=root
-WorkingDirectory=/
-Restart=always
-[Install]
-WantedBy=multi-user.target
-EOH
+    cat <<-EOF > /lib/systemd/system/gpu_utilization_agent.service
+    [Unit]
+    Description=GPU Utilization Metric Agent
+    [Service]
+    Type=simple
+    PIDFile=/run/gpu_agent.pid
+    ExecStart=/bin/bash --login -c '/usr/bin/python /root/report_gpu_metrics.py'
+    User=root
+    Group=root
+    WorkingDirectory=/
+    Restart=always
+    [Install]
+    WantedBy=multi-user.target
+EOF
     # Reload systemd manager configuration
     systemctl daemon-reload
     # Enable gpu_utilization_agent service
