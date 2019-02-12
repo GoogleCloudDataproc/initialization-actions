@@ -102,4 +102,4 @@ sudo systemctl status gpu_utilization_agent.service
 
 * This initialization script will install NVIDIA GPU drivers in all nodes in which a GPU is detected.
 * This initialization script uses Debian Stretch packages to install CUDA 9.1 driver
-* Tested with Dataproc 1.3-deb9
+* Tested with Dataproc 1.0, 1.1, 1.2 and 1.3-deb9.

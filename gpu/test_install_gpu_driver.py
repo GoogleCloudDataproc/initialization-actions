@@ -52,6 +52,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
       )
 
   @parameterized.expand([
+    ("STANDARD", "1.0", ["m"], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
+    ("STANDARD", "1.1", ["m"], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
+    ("STANDARD", "1.2", ["m"], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
     ("STANDARD", "1.3", ["m"], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
   ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
   def test_install_gpu_agent(self, configuration, dataproc_version,
