@@ -12,8 +12,7 @@ You can use this initialization action to create a new Dataproc cluster with GPU
 This initialization action will install GPU drivers 390.87 and CUDA 9.1. If you need a more recent
 GPU driver please visit NVIDIA [site](https://www.nvidia.com/Download/index.aspx?lang=en-us).
 
-1. Use the `gcloud` command to create a new cluster with this initialization action.  The following command will create a new cluster named `<CLUSTER_NAME>`.
-   and install GPU drivers.
+1. Use the `gcloud` command to create a new cluster with this initialization action. The following command will create a new cluster named `<CLUSTER_NAME>` and install GPU drivers.
    
     ```bash
     gcloud beta dataproc clusters create <CLUSTER_NAME> \
@@ -23,8 +22,7 @@ GPU driver please visit NVIDIA [site](https://www.nvidia.com/Download/index.aspx
       --metadata install_gpu_agent=false
     ```
 
-2. Use the `gcloud` command to create a new cluster with this initialization action.  The following command will create a new cluster named `<CLUSTER_NAME>`.
-   install GPU drivers and add the GPU monitoring service.
+2. Use the `gcloud` command to create a new cluster with this initialization action. The following command will create a new cluster named `<CLUSTER_NAME>`, install GPU drivers and add the GPU monitoring service.
   
     ```bash
     gcloud beta dataproc clusters create <CLUSTER_NAME> \
