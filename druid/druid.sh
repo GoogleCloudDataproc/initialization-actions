@@ -173,15 +173,11 @@ function configure_druid() {
     -Ddruid.extensions.hadoopDependenciesDir="hadoop-dependencies" \
     org.apache.druid.cli.Main tools pull-deps \
     --no-default-hadoop \
-    -c "org.apache.druid.extensions:mysql-metadata-storage:${DRUID_VERSION}"
-
-  java \
-    -cp "lib/*" \
-    -Ddruid.extensions.directory="extensions" \
-    -Ddruid.extensions.hadoopDependenciesDir="hadoop-dependencies" \
-    org.apache.druid.cli.Main tools pull-deps \
-    --no-default-hadoop \
-    -c "org.apache.druid.extensions:druid-hdfs-storage:${DRUID_VERSION}"
+    -c "org.apache.druid.extensions:druid-hdfs-storage:${DRUID_VERSION}" \
+    -c "org.apache.druid.extensions:mysql-metadata-storage:${DRUID_VERSION}" \
+    -c "org.apache.druid.extensions:druid-kafka-eight:${DRUID_VERSION}" \
+    -c "org.apache.druid.extensions.contrib:druid-google-extensions:${DRUID_VERSION}" \
+    -c "org.apache.druid.extensions.contrib:druid-distinctcount:${DRUID_VERSION}"
 
   cat <<EOF > ${DRUID_DIR}/conf/druid/_common/common.runtime.properties
 # If you have a different version of Hadoop, place your Hadoop client jar files in your hadoop-dependencies directory
@@ -259,14 +255,6 @@ druid.indexing.doubleStorage=double
 EOF
 
   if [ "${gcs_bucket}" != "" ];then
-    java \
-      -cp "lib/*" \
-      -Ddruid.extensions.directory="extensions" \
-      -Ddruid.extensions.hadoopDependenciesDir="hadoop-dependencies" \
-      org.apache.druid.cli.Main tools pull-deps \
-      --no-default-hadoop \
-      -c "org.apache.druid.extensions.contrib:druid-google-extensions:${DRUID_VERSION}"
-
     sed -i -- "s/druid.indexer.logs.type=hdfs/druid.indexer.logs.type=google/g" ${DRUID_DIR}/conf/druid/_common/common.runtime.properties
     sed -i -- "s/druid.storage.type=hdfs/druid.storage.type=google/g" ${DRUID_DIR}/conf/druid/_common/common.runtime.properties
     cat << EOF >> ${DRUID_DIR}/conf/druid/_common/common.runtime.properties

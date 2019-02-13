@@ -96,6 +96,15 @@ class DruidTestCase(DataprocTestCase):
             )
 
     @parameterized.expand([
+        ("SINGLE", "1.0", INIT_ACTION, ["m"]),
+        ("STANDARD", "1.0", INIT_ACTION_FOR_STANDARD, ["m"]),
+        ("HA", "1.0", INIT_ACTION, ["m-0", "m-1"]),
+        ("SINGLE", "1.1", INIT_ACTION, ["m"]),
+        ("STANDARD", "1.1", INIT_ACTION_FOR_STANDARD, ["m"]),
+        ("HA", "1.1", INIT_ACTION, ["m-0", "m-1"]),
+        ("SINGLE", "1.2", INIT_ACTION, ["m"]),
+        ("STANDARD", "1.2", INIT_ACTION_FOR_STANDARD, ["m"]),
+        ("HA", "1.2", INIT_ACTION, ["m-0", "m-1"]),
         ("SINGLE", "1.3", INIT_ACTION, ["m"]),
         ("STANDARD", "1.3", INIT_ACTION_FOR_STANDARD, ["m"]),
         ("HA", "1.3", INIT_ACTION, ["m-0", "m-1"]),
