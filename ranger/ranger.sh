@@ -18,13 +18,19 @@
 set -euxo pipefail
 
 readonly NODE_NAME="$(/usr/share/google/get_metadata_value name)"
-readonly RANGER_ADMIN_PASS='dataproc2019'
+readonly RANGER_ADMIN_PORT="$(/usr/share/google/get_metadata_value attributes/ranger-port || echo '6080')"
+readonly RANGER_ADMIN_PASS="$(/usr/share/google/get_metadata_value attributes/default-password)"
 readonly RANGER_GCS_BUCKET='apache-ranger-1-2-0-artifacts'
 readonly RANGER_INSTALL_DIR='/usr/lib/ranger'
 readonly RANGER_VERSION='1.2.0'
 readonly SOLR_HOME='/opt/solr'
 readonly MASTER_ADDITIONAL="$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)"
 readonly CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)"
+
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  return 1
+}
 
 function download_and_install_component() {
   local full_component_name="$(echo ${1} | sed "s/^ranger/ranger-${RANGER_VERSION}/")"
@@ -43,7 +49,10 @@ function configure_admin() {
     "${RANGER_INSTALL_DIR}/ranger-admin/install.properties"
   sed -i 's/^audit_solr_user=/audit_solr_user=solr/' \
     "${RANGER_INSTALL_DIR}/ranger-admin/install.properties"
-
+  bdconfig set_property \
+      --configuration_file "${RANGER_INSTALL_DIR}/ranger-admin/ews/webapp/WEB-INF/classes/conf.dist/ranger-admin-site.xml" \
+      --name 'ranger.service.http.port' --value "${RANGER_ADMIN_PORT}" \
+      --clobber
   mysql -u root -proot-password -e "CREATE USER 'rangeradmin'@'localhost' IDENTIFIED BY 'rangerpass';"
   mysql -u root -proot-password -e "CREATE DATABASE ranger;"
   mysql -u root -proot-password -e "GRANT ALL PRIVILEGES ON ranger.* TO 'rangeradmin'@'localhost';"
@@ -76,7 +85,7 @@ function add_usersync_plugin() {
 
   sed -i 's/^logdir=logs/logdir=\/var\/log\/ranger-usersync/' \
     "${RANGER_INSTALL_DIR}/ranger-usersync/install.properties"
-  sed -i 's/^POLICY_MGR_URL =/POLICY_MGR_URL = http:\/\/localhost:6080/' \
+  sed -i "s/^POLICY_MGR_URL =/POLICY_MGR_URL = http:\/\/localhost:${RANGER_ADMIN_PORT}/" \
     "${RANGER_INSTALL_DIR}/ranger-usersync/install.properties"
 
   pushd "${RANGER_INSTALL_DIR}/ranger-usersync" && ./setup.sh
@@ -93,7 +102,7 @@ function add_usersync_plugin() {
 function apply_common_plugin_configuration() {
   local plugin_name="${1}"
   local service_name="${2}"
-  sed -i 's/^POLICY_MGR_URL=/POLICY_MGR_URL=http:\/\/localhost:6080/' \
+  sed -i "s/^POLICY_MGR_URL=/POLICY_MGR_URL=http:\/\/localhost:${RANGER_ADMIN_PORT}/" \
     "${RANGER_INSTALL_DIR}/${plugin_name}/install.properties"
   sed -i "s/^REPOSITORY_NAME=/REPOSITORY_NAME=${service_name}/" \
     "${RANGER_INSTALL_DIR}/${plugin_name}/install.properties"
@@ -150,7 +159,7 @@ function add_hdfs_plugin() {
 }
 EOF
     curl --user "admin:${RANGER_ADMIN_PASS}" -H "Content-Type: application/json"  \
-      -X POST -d @service-hdfs.json http://localhost:6080/service/public/v2/api/service
+      -X POST -d @service-hdfs.json "http://localhost:${RANGER_ADMIN_PORT}/service/public/v2/api/service"
   elif [[ "${NODE_NAME}" =~ ^.*(-m-1)$ ]]; then
     # Waiting until hdfs plugin will be configured on m-0
     until hadoop fs -ls /tmp/ranger-hdfs-plugin-ready &> /dev/null
@@ -196,7 +205,7 @@ function add_hive_plugin() {
 }
 EOF
     curl --user "admin:${RANGER_ADMIN_PASS}" -H "Content-Type: application/json"  \
-      -X POST -d @service-hive.json http://localhost:6080/service/public/v2/api/service
+      -X POST -d @service-hive.json "http://localhost:${RANGER_ADMIN_PORT}/service/public/v2/api/service"
   elif [[ "${NODE_NAME}" =~ ^.*(-m-1|-m-2)$ ]]; then
     # Waiting until hive plugin will be configured on m-0
     until hadoop fs -ls /tmp/ranger-hive-plugin-ready &> /dev/null
@@ -238,7 +247,7 @@ function add_yarn_plugin() {
 }
 EOF
     curl --user "admin:${RANGER_ADMIN_PASS}" -H "Content-Type: application/json"  \
-      -X POST -d @service-yarn.json http://localhost:6080/service/public/v2/api/service
+      -X POST -d @service-yarn.json "http://localhost:${RANGER_ADMIN_PORT}/service/public/v2/api/service"
   elif [[ "${NODE_NAME}" =~ ^.*(-m-1|-m-2)$ ]]; then
     # Waiting until yarn plugin will be configured on m-0
     until hadoop fs -ls /tmp/ranger-yarn-plugin-ready &> /dev/null
@@ -253,6 +262,9 @@ EOF
 function main() {
   local role
   role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+  if [[ -z "${RANGER_ADMIN_PASS}" ]]; then
+    err 'Ranger admin password not set. Please use metadata flag - default-password'
+  fi
   mkdir -p "${RANGER_INSTALL_DIR}" && cd "${RANGER_INSTALL_DIR}"
 
   if [[ "${role}" == 'Master' && "${NODE_NAME}" =~ ^.*(-m|-m-0)$ ]]; then
