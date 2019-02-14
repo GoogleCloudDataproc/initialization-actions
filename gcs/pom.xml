@@ -263,7 +263,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <excludes>
-            <exclude>**/*IntegrationTest.java</exclude>
+            <exclude>**/*Integration*Test.java</exclude>
             <exclude>**/TestGoogleContract*.java</exclude>
           </excludes>
         </configuration>
