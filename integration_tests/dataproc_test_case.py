@@ -35,8 +35,10 @@ class DataprocTestCase(unittest.TestCase):
         assert cls.COMPONENT
         assert cls.INIT_ACTION
 
-    def createCluster(self, configuration, init_action, dataproc_version, metadata=None, scopes=None, properties=None,
-                      timeout_in_minutes=None):
+    def createCluster(self, configuration, init_action, dataproc_version,
+                      metadata=None, scopes=None, properties=None,
+                      timeout_in_minutes=None, beta=False,
+                      master_accelerator=None, worker_accelerator=None):
         self.name = "test-{}-{}-{}-{}".format(
             self.COMPONENT,
             configuration.lower(),
@@ -57,7 +59,13 @@ class DataprocTestCase(unittest.TestCase):
         if timeout_in_minutes:
             args.append("--initialization-action-timeout {}m".format(timeout_in_minutes))
         args.append("--initialization-actions {}".format(init_action))
+        if master_accelerator:
+            args.append("--master-accelerator {}".format(master_accelerator))
+        if worker_accelerator:
+            args.append("--worker-accelerator {}".format(worker_accelerator))
         cmd = "gcloud dataproc clusters create {}".format(self.name)
+        if beta:
+            cmd = "gcloud beta dataproc clusters create {}".format(self.name)
         for flag in args:
             cmd += " {}".format(flag)
         cmd += " --format=json"
