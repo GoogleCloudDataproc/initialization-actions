@@ -27,7 +27,7 @@ public class CreateFileOptions {
   public static final ImmutableMap<String, byte[]> EMPTY_ATTRIBUTES = ImmutableMap.of();
   public static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
   public static final CreateFileOptions DEFAULT =
-      new CreateFileOptions(true, DEFAULT_CONTENT_TYPE, EMPTY_ATTRIBUTES);
+      new CreateFileOptions(/* overwriteExisting= */ true, DEFAULT_CONTENT_TYPE, EMPTY_ATTRIBUTES);
 
   private final boolean overwriteExisting;
   private final String contentType;

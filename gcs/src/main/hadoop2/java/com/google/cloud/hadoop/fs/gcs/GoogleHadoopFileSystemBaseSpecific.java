@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
@@ -26,6 +27,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.XAttrSetFlag;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.Progressable;
 
@@ -81,4 +83,17 @@ abstract class GoogleHadoopFileSystemBaseSpecific extends FileSystem {
         blockSize,
         progress);
   }
+
+  /** {@inheritDoc} */
+  @Override
+  public void setXAttr(Path path, String name, byte[] value, EnumSet<XAttrSetFlag> flags)
+      throws IOException {
+    checkArgument(flags != null && !flags.isEmpty(), "flags should not be null or empty");
+    boolean create = flags.contains(XAttrSetFlag.CREATE);
+    boolean replace = flags.contains(XAttrSetFlag.REPLACE);
+    setXAttrInternal(path, name, value, create, replace);
+  }
+
+  abstract void setXAttrInternal(
+      Path path, String name, byte[] value, boolean create, boolean replace) throws IOException;
 }

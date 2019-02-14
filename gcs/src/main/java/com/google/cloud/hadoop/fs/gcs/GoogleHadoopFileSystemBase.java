@@ -37,6 +37,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.emptyToNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.flogger.LazyArgs.lazy;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
@@ -51,6 +52,7 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
 import com.google.cloud.hadoop.gcsio.PathCodec;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
+import com.google.cloud.hadoop.gcsio.UpdatableItemInfo;
 import com.google.cloud.hadoop.util.AccessTokenProvider;
 import com.google.cloud.hadoop.util.AccessTokenProviderClassFromConfigFactory;
 import com.google.cloud.hadoop.util.CredentialFactory;
@@ -64,6 +66,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -87,7 +90,10 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -97,6 +103,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.ContentSummary;
@@ -213,6 +220,11 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     logger.atFine().log("GHFS version: %s", VERSION);
     GHFS_ID = String.format("GHFS/%s", VERSION);
   }
+
+  private static final String XATTR_KEY_PREFIX = "GHFS_XATTR_";
+
+  // Use empty array as null value because GCS API already uses null value to remove metadata key
+  private static final byte[] XATTR_NULL_VALUE = new byte[0];
 
   private static final ThreadFactory DAEMON_THREAD_FACTORY =
       new ThreadFactoryBuilder().setNameFormat("ghfs-thread-%d").setDaemon(true).build();
@@ -1734,7 +1746,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       }
     }
 
-    logger.atFine().log("GHFS.configureBuckets:=>");
+    logger.atFine().log("GHFS.configureBuckets:=> ");
   }
 
   private void configureWorkingDirectory(Configuration config) {
@@ -1968,6 +1980,141 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     logger.atFine().log("GHFS.setTimes: path: %s, mtime: %s, atime: %s", p, mtime, atime);
     super.setTimes(p, mtime, atime);
     logger.atFine().log("GHFS.setTimes:=> ");
+  }
+
+  /** Supported starting from Hadoop 2.x */
+  public byte[] getXAttr(Path path, String name) throws IOException {
+    logger.atFine().log("GHFS.getXAttr: %s, %s", path, name);
+    checkNotNull(path, "path should not be null");
+    checkNotNull(name, "name should not be null");
+
+    Map<String, byte[]> attributes = getGcsFs().getFileInfo(getGcsPath(path)).getAttributes();
+    String xAttrKey = getXAttrKey(name);
+    byte[] xAttr =
+        attributes.containsKey(xAttrKey) ? getXAttrValue(attributes.get(xAttrKey)) : null;
+
+    logger.atFine().log("GHFS.getXAttr:=> %s", lazy(() -> new String(xAttr, UTF_8)));
+    return xAttr;
+  }
+
+  /** Supported starting from Hadoop 2.x */
+  public Map<String, byte[]> getXAttrs(Path path) throws IOException {
+    logger.atFine().log("GHFS.getXAttrs: %s", path);
+    checkNotNull(path, "path should not be null");
+
+    FileInfo fileInfo = getGcsFs().getFileInfo(getGcsPath(path));
+    Map<String, byte[]> xAttrs =
+        fileInfo.getAttributes().entrySet().stream()
+            .filter(a -> isXAttr(a.getKey()))
+            .collect(
+                HashMap::new,
+                (m, a) -> m.put(getXAttrName(a.getKey()), getXAttrValue(a.getValue())),
+                Map::putAll);
+
+    logger.atFine().log("GHFS.getXAttrs:=> %s", xAttrs);
+    return xAttrs;
+  }
+
+  /** Supported starting from Hadoop 2.x */
+  public Map<String, byte[]> getXAttrs(Path path, List<String> names) throws IOException {
+    logger.atFine().log("GHFS.getXAttrs: %s, %s", path, names);
+    checkNotNull(path, "path should not be null");
+    checkNotNull(names, "names should not be null");
+
+    Map<String, byte[]> xAttrs;
+    if (names.isEmpty()) {
+      xAttrs = new HashMap<>();
+    } else {
+      Set<String> namesSet = new HashSet<>(names);
+      xAttrs =
+          getXAttrs(path).entrySet().stream()
+              .filter(a -> namesSet.contains(a.getKey()))
+              .collect(HashMap::new, (m, a) -> m.put(a.getKey(), a.getValue()), Map::putAll);
+    }
+
+    logger.atFine().log("GHFS.getXAttrs:=> %s", xAttrs);
+    return xAttrs;
+  }
+
+  /** Supported starting from Hadoop 2.x */
+  public List<String> listXAttrs(Path path) throws IOException {
+    logger.atFine().log("GHFS.listXAttrs: %s", path);
+    checkNotNull(path, "path should not be null");
+
+    FileInfo fileInfo = getGcsFs().getFileInfo(getGcsPath(path));
+
+    List<String> xAttrs =
+        fileInfo.getAttributes().keySet().stream()
+            .filter(this::isXAttr)
+            .map(this::getXAttrName)
+            .collect(Collectors.toCollection(ArrayList::new));
+
+    logger.atFine().log("GHFS.listXAttrs:=> %s", xAttrs);
+    return xAttrs;
+  }
+
+  void setXAttrInternal(Path path, String name, byte[] value, boolean create, boolean replace)
+      throws IOException {
+    logger.atFine().log(
+        "GHFS.setXAttr: %s, %s, %s, %s, %s",
+        path, name, lazy(() -> new String(value, UTF_8)), create, replace);
+    checkNotNull(path, "path should not be null");
+    checkNotNull(name, "name should not be null");
+
+    FileInfo fileInfo = getGcsFs().getFileInfo(getGcsPath(path));
+    String xAttrKey = getXAttrKey(name);
+    Map<String, byte[]> attributes = fileInfo.getAttributes();
+
+    if (attributes.containsKey(xAttrKey) && !replace) {
+      throw new IOException(
+          String.format(
+              "REPLACE flag must be set to update XAttr (name='%s', value='%s') for '%s'",
+              name, new String(value, UTF_8), path));
+    }
+    if (!attributes.containsKey(xAttrKey) && !create) {
+      throw new IOException(
+          String.format(
+              "CREATE flag must be set to create XAttr (name='%s', value='%s') for '%s'",
+              name, new String(value, UTF_8), path));
+    }
+
+    UpdatableItemInfo updateInfo =
+        new UpdatableItemInfo(
+            fileInfo.getItemInfo().getResourceId(),
+            ImmutableMap.of(xAttrKey, getXAttrValue(value)));
+    getGcsFs().getGcs().updateItems(ImmutableList.of(updateInfo));
+    logger.atFine().log("GHFS.setXAttr:=> ");
+  }
+
+  /** Supported starting from Hadoop 2.x */
+  public void removeXAttr(Path path, String name) throws IOException {
+    logger.atFine().log("GHFS.removeXAttr: %s, %s", path, name);
+    checkNotNull(path, "path should not be null");
+    checkNotNull(name, "name should not be null");
+
+    FileInfo fileInfo = getGcsFs().getFileInfo(getGcsPath(path));
+    Map<String, byte[]> xAttrToRemove = new HashMap<>();
+    xAttrToRemove.put(getXAttrKey(name), null);
+    UpdatableItemInfo updateInfo =
+        new UpdatableItemInfo(fileInfo.getItemInfo().getResourceId(), xAttrToRemove);
+    getGcsFs().getGcs().updateItems(ImmutableList.of(updateInfo));
+    logger.atFine().log("GHFS.removeXAttr:=> ");
+  }
+
+  private boolean isXAttr(String key) {
+    return key != null && key.startsWith(XATTR_KEY_PREFIX);
+  }
+
+  private String getXAttrKey(String name) {
+    return XATTR_KEY_PREFIX + name;
+  }
+
+  private String getXAttrName(String key) {
+    return key.substring(XATTR_KEY_PREFIX.length());
+  }
+
+  private byte[] getXAttrValue(byte[] value) {
+    return value == null ? XATTR_NULL_VALUE : value;
   }
 
   /** @deprecated use {@link GoogleHadoopFileSystemConfiguration#PERMISSIONS_TO_REPORT} */

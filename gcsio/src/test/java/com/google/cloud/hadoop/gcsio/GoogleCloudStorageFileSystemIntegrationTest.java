@@ -74,7 +74,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   // hack to make tests pass until JUnit 4.13 regression will be fixed:
   // https://github.com/junit-team/junit4/issues/1509
   // TODO: refactor or delete this hack
-  protected static class NotInheritableExternalResource extends ExternalResource {
+  public static class NotInheritableExternalResource extends ExternalResource {
     private final Class<?> testClass;
 
     public NotInheritableExternalResource(Class<?> testClass) {
