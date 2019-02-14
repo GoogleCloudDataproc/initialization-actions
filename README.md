@@ -40,8 +40,6 @@ To build the connector for specific Hadoop version, run the following commands
 from the main directory:
 
 ```bash
-# with Hadoop 1 support:
-mvn -P hadoop1 clean package
 # with Hadoop 2 and YARN support:
 mvn -P hadoop2 clean package
 # with Hadoop 3 and YARN support:

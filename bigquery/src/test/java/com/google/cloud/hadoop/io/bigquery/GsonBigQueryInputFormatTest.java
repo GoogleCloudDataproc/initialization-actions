@@ -14,6 +14,7 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.common.truth.Truth.assertThat;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
@@ -36,7 +37,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.LoggerConfig;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.logging.Level;
@@ -46,13 +46,16 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.JobID;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.input.LineRecordReader;
+import org.apache.hadoop.mapreduce.task.JobContextImpl;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -75,7 +78,7 @@ public class GsonBigQueryInputFormatTest {
   private InMemoryGoogleHadoopFileSystem ghfs;
 
   // Hadoop job configuration.
-  private Configuration config;
+  private JobConf config;
 
   // Sample projectIds for testing; one for owning the BigQuery jobs, another for the
   // TableReference.
@@ -119,7 +122,7 @@ public class GsonBigQueryInputFormatTest {
     LoggerConfig.getConfig(GsonBigQueryInputFormat.class).setLevel(Level.FINE);
 
     // Set the Hadoop job configuration.
-    config = InMemoryGoogleHadoopFileSystem.getSampleConfiguration();
+    config = new JobConf(InMemoryGoogleHadoopFileSystem.getSampleConfiguration());
     config.set(BigQueryConfiguration.PROJECT_ID_KEY, jobProjectId);
     config.set(BigQueryConfiguration.INPUT_PROJECT_ID_KEY, dataProjectId);
     config.set(BigQueryConfiguration.INPUT_DATASET_ID_KEY, intermediateDataset);
@@ -221,9 +224,8 @@ public class GsonBigQueryInputFormatTest {
     when(mockTaskAttemptContext.getJobID()).thenReturn(new JobID());
 
     // Write values to file.
-    ByteBuffer buffer = GsonRecordReaderTest.stringToBytebuffer(value1 + "\n" + value2 + "\n");
     Path mockPath = new Path("gs://test_bucket/path/test");
-    GsonRecordReaderTest.writeFile(ghfs, mockPath, buffer);
+    GsonRecordReaderTest.writeFile(ghfs, mockPath, (value1 + "\n" + value2 + "\n").getBytes(UTF_8));
 
     // Create a new InputSplit containing the values.
     UnshardedInputSplit bqInputSplit = new UnshardedInputSplit(mockPath, 0, 60, new String[0]);
@@ -278,9 +280,8 @@ public class GsonBigQueryInputFormatTest {
 
     // Run getSplits method.
     GsonBigQueryInputFormat gsonBigQueryInputFormat = new GsonBigQueryInputFormatForTest();
-    BigQueryJobWrapper wrapper = new BigQueryJobWrapper(config);
-    wrapper.setJobID(new JobID());
-    List<InputSplit> splits = gsonBigQueryInputFormat.getSplits(wrapper);
+    JobContext jobContext = new JobContextImpl(config, new JobID());
+    List<InputSplit> splits = gsonBigQueryInputFormat.getSplits(jobContext);
 
     // The base export path should've gotten created.
     Path baseExportPath = new Path(config.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY));
@@ -336,9 +337,8 @@ public class GsonBigQueryInputFormatTest {
 
     // Run getSplits method.
     GsonBigQueryInputFormat gsonBigQueryInputFormat = new GsonBigQueryInputFormatForTest();
-    BigQueryJobWrapper wrapper = new BigQueryJobWrapper(config);
-    wrapper.setJobID(new JobID());
-    List<InputSplit> splits = gsonBigQueryInputFormat.getSplits(wrapper);
+    JobContext jobContext = new JobContextImpl(config, new JobID());
+    List<InputSplit> splits = gsonBigQueryInputFormat.getSplits(jobContext);
 
     // The base export path should've gotten created.
     Path baseExportPath = new Path(config.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY));
@@ -378,9 +378,8 @@ public class GsonBigQueryInputFormatTest {
 
     // Run getSplits method.
     GsonBigQueryInputFormat gsonBigQueryInputFormat = new GsonBigQueryInputFormatForTest();
-    BigQueryJobWrapper wrapper = new BigQueryJobWrapper(config);
-    wrapper.setJobID(new JobID());
-    List<InputSplit> splits = gsonBigQueryInputFormat.getSplits(wrapper);
+    JobContext jobContext = new JobContextImpl(config, new JobID());
+    List<InputSplit> splits = gsonBigQueryInputFormat.getSplits(jobContext);
 
     // The base export path should've gotten created.
     Path baseExportPath = new Path(config.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY));
@@ -409,19 +408,17 @@ public class GsonBigQueryInputFormatTest {
       throws IOException, InterruptedException {
     config.setBoolean(BigQueryConfiguration.ENABLE_SHARDED_EXPORT_KEY, false);
     // Why are we still setting this??
-    //config.unset(BigQueryConfiguration.INPUT_QUERY_KEY);
+    // config.unset(BigQueryConfiguration.INPUT_QUERY_KEY);
 
-    BigQueryJobWrapper wrapper = new BigQueryJobWrapper(config);
-    wrapper.setJobID(new JobID());
+    JobContext jobContext = new JobContextImpl(config, new JobID());
 
-    when(mockInputFormat.getSplits(eq(wrapper)))
-        .thenReturn(ImmutableList.<InputSplit>of(
-            new FileSplit(new Path("file1"), 0, 100, new String[0])));
+    when(mockInputFormat.getSplits(eq(jobContext)))
+        .thenReturn(ImmutableList.of(new FileSplit(new Path("file1"), 0, 100, new String[0])));
     GsonBigQueryInputFormat gsonBigQueryInputFormat = new GsonBigQueryInputFormatForTest();
     gsonBigQueryInputFormat.setDelegateInputFormat(mockInputFormat);
 
     // Run getSplits method.
-    List<InputSplit> splits = gsonBigQueryInputFormat.getSplits(wrapper);
+    List<InputSplit> splits = gsonBigQueryInputFormat.getSplits(jobContext);
 
     // The base export path should've gotten created.
     Path baseExportPath = new Path(config.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY));
@@ -448,8 +445,7 @@ public class GsonBigQueryInputFormatTest {
   @Test
   public void testGetSplitsFederated()
       throws IOException, InterruptedException {
-    BigQueryJobWrapper wrapper = new BigQueryJobWrapper(config);
-    wrapper.setJobID(new JobID());
+    JobContext jobContext = new JobContextImpl(config, new JobID());
     config.unset(BigQueryConfiguration.INPUT_QUERY_KEY);
 
     table.setType("EXTERNAL")
@@ -459,13 +455,13 @@ public class GsonBigQueryInputFormatTest {
                 .setSourceUris(ImmutableList.of("gs://foo-bucket/bar.json")));
 
     FileSplit split = new FileSplit(new Path("gs://foo-bucket/bar.json"), 0, 100, new String[0]);
-    when(mockInputFormat.getSplits(eq(wrapper))).thenReturn(ImmutableList.<InputSplit>of(split));
+    when(mockInputFormat.getSplits(eq(jobContext))).thenReturn(ImmutableList.<InputSplit>of(split));
 
     GsonBigQueryInputFormat gsonBigQueryInputFormat = new GsonBigQueryInputFormatForTest();
     gsonBigQueryInputFormat.setDelegateInputFormat(mockInputFormat);
 
     // Run getSplits method.
-    List<InputSplit> splits = gsonBigQueryInputFormat.getSplits(wrapper);
+    List<InputSplit> splits = gsonBigQueryInputFormat.getSplits(jobContext);
 
     assertThat(splits).hasSize(1);
     assertThat(((FileSplit) splits.get(0)).getPath()).isEqualTo(split.getPath());
@@ -483,19 +479,17 @@ public class GsonBigQueryInputFormatTest {
     when(mockBigquery.tables()).thenReturn(mockBigqueryTables);
 
     // Write values to file.
-    ByteBuffer buffer = GsonRecordReaderTest.stringToBytebuffer(value1 + "\n" + value2 + "\n");
     Path mockPath = new Path("gs://test_bucket/path/test");
-    GsonRecordReaderTest.writeFile(ghfs, mockPath, buffer);
+    GsonRecordReaderTest.writeFile(ghfs, mockPath, (value1 + "\n" + value2 + "\n").getBytes(UTF_8));
 
     // Run getSplits method.
     GsonBigQueryInputFormat gsonBigQueryInputFormat =
         new GsonBigQueryInputFormatForTestGeneralSecurityException();
     config.set("mapred.input.dir", "gs://test_bucket/path/test");
 
-    BigQueryJobWrapper wrapper = new BigQueryJobWrapper(config);
-    wrapper.setJobID(new JobID());
+    JobContext jobContext = new JobContextImpl(config, new JobID());
 
-    assertThrows(IOException.class, () -> gsonBigQueryInputFormat.getSplits(wrapper));
+    assertThrows(IOException.class, () -> gsonBigQueryInputFormat.getSplits(jobContext));
   }
 
   /**

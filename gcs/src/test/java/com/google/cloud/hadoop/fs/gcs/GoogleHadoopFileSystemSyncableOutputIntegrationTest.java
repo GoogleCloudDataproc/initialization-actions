@@ -14,7 +14,6 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopSyncableOutputStreamTest.hsync;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.OutputStreamType;
@@ -72,7 +71,7 @@ public class GoogleHadoopFileSystemSyncableOutputIntegrationTest
     try (FSDataOutputStream fout = ghfs.create(hadoopPath)) {
       for (int i = 0; i < expected.length; ++i) {
         fout.write(expected, i, 1);
-        hsync(fout);
+        fout.hsync();
 
         // validate partly composed data
         int composedLength = i + 1;

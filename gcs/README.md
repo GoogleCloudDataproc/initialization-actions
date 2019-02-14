@@ -34,9 +34,9 @@ has several benefits:
 
 ## Getting the connector
 
-This repository contains the Hadoop 1.x, the Hadoop 2.x and the Hadoop 3.x
-compatible connector. You can clone this repository and follow the directions in
-`INSTALL.md` within this directory to install the connector. If you use
+This repository contains the Hadoop 2.x and the Hadoop 3.x compatible connector.
+You can clone this repository and follow the directions in `INSTALL.md` within
+this directory to install the connector. If you use
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) the connector is
 installed automatically.
 

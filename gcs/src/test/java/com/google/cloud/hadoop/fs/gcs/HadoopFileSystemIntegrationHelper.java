@@ -330,7 +330,6 @@ public class HadoopFileSystemIntegrationHelper
     Path hadoopPath = createSchemeCompatibleHadoopPath(bucketName, null);
     FileStatus[] statusList = null;
     try {
-      // Hadoop1 returns null on listStatus FileNotFound, Hadoop2 throws:
       statusList = ghfs.listStatus(hadoopPath);
     } catch (IOException ioe) {
       // Ignored.

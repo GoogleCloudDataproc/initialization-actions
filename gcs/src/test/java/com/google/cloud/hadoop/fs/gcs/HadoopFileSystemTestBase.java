@@ -14,7 +14,6 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopSyncableOutputStreamTest.hsync;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -775,7 +774,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     }
     expected.append(line1);
 
-    hsync(writeStream);
+    writeStream.hsync();
 
     String readText = ghfsHelper.readTextFile(hadoopPath);
     assertWithMessage("Expected line1 after first sync()")
@@ -785,7 +784,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     // Write second line, sync() again.
     writeStream.write(line2Bytes, 0, line2Bytes.length);
     expected.append(line2);
-    hsync(writeStream);
+    writeStream.hsync();
     readText = ghfsHelper.readTextFile(hadoopPath);
     assertWithMessage("Expected line1 + line2 after second sync()")
         .that(readText)

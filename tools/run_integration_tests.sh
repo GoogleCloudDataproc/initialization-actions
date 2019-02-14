@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# tools/run_integration_tests.sh (hadoop1 | hadoop2 | hadoop3) <project_id> <service_account_email> <path_to_p12> [optional_maven_parameters, [...]]
+# tools/run_integration_tests.sh (hadoop2 | hadoop3) <project_id> <service_account_email> <path_to_p12> [optional_maven_parameters, [...]]
 
 set -Eeuo pipefail
 
@@ -24,7 +24,7 @@ export GCS_TEST_SERVICE_ACCOUNT=$3
 export GCS_TEST_PRIVATE_KEYFILE=$4
 
 print_usage() {
-  echo -n "$0 (hadoop1 | hadoop2 | hadoop3) <project ID> <service_account_email> <path_to_p12> [optional_maven_parameters, [...]]"
+  echo -n "$0 (hadoop2 | hadoop3) <project ID> <service_account_email> <path_to_p12> [optional_maven_parameters, [...]]"
 }
 
 check_required_param() {

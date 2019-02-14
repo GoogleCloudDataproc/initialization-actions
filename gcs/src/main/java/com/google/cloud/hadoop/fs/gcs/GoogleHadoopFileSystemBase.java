@@ -58,7 +58,6 @@ import com.google.cloud.hadoop.util.AccessTokenProviderClassFromConfigFactory;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.CredentialFromAccessTokenProviderClassFactory;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
-import com.google.cloud.hadoop.util.HadoopVersionInfo;
 import com.google.cloud.hadoop.util.PropertyUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Ascii;
@@ -282,60 +281,6 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   }
 
   /**
-   * Behavior of listStatus when a path is not found.
-   */
-  protected enum ListStatusFileNotFoundBehavior {
-    Hadoop1 {
-      @Override
-      public FileStatus[] handle(String path) throws IOException {
-        return null;
-      }
-    },
-    Hadoop2 {
-      @Override
-      public FileStatus[] handle(String path) throws IOException {
-        throw new FileNotFoundException(String.format("Path '%s' does not exist.", path));
-      }
-    };
-
-    /**
-     * Perform version specific handling for a missing path.
-     * @param path The missing path
-     */
-    public abstract FileStatus[] handle(String path) throws IOException;
-
-    /**
-     * Get the ListStatusFileNotFoundBehavior for the currently running Hadoop version.
-     */
-    public static ListStatusFileNotFoundBehavior get() {
-      return get(HadoopVersionInfo.getInstance());
-    }
-
-    /**
-     * Get the ListStatusFileNotFoundBehavior for the given hadoop version/
-     * @param hadoopVersionInfo The hadoop version.
-     */
-    public static ListStatusFileNotFoundBehavior get(HadoopVersionInfo hadoopVersionInfo) {
-      if (hadoopVersionInfo.isGreaterThan(2, 0)
-          || hadoopVersionInfo.isEqualTo(2, 0)
-          || hadoopVersionInfo.isEqualTo(0, 23)) {
-        return Hadoop2;
-      }
-      return Hadoop1;
-    }
-  }
-
-  // Behavior when a path is not found in listStatus()
-  protected ListStatusFileNotFoundBehavior listStatusFileNotFoundBehavior =
-      ListStatusFileNotFoundBehavior.get();
-
-  @VisibleForTesting
-  protected void setListStatusFileNotFoundBehavior(ListStatusFileNotFoundBehavior behavior) {
-    this.listStatusFileNotFoundBehavior = behavior;
-  }
-
-
-  /**
    * Defines names of counters we track for each operation.
    *
    * There are two types of counters:
@@ -554,11 +499,12 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   public abstract Path getHadoopPath(URI gcsPath);
 
   /**
-   * Gets GCS path corresponding to the given Hadoop path, which can be relative or absolute,
-   * and can have either gs://<path> or gs:/<path> forms.
+   * Gets GCS path corresponding to the given Hadoop path, which can be relative or absolute, and
+   * can have either gs://<path> or gs:/<path> forms.
    *
    * @param hadoopPath Hadoop path.
    */
+  @Override
   public abstract URI getGcsPath(Path hadoopPath);
 
   /**
@@ -1004,7 +950,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
       }
     } catch (FileNotFoundException fnfe) {
       logger.atFine().withCause(fnfe).log("Got fnfe: ");
-      return listStatusFileNotFoundBehavior.handle(gcsPath.toString());
+      throw new FileNotFoundException(String.format("Path '%s' does not exist.", gcsPath));
     }
 
     long duration = System.nanoTime() - startTime;
@@ -1481,9 +1427,8 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     return null;
   }
 
-  /**
-   * Gets GCS FS instance.
-   */
+  /** Gets GCS FS instance. */
+  @Override
   public GoogleCloudStorageFileSystem getGcsFs() {
     return gcsFsSupplier.get();
   }
@@ -1983,6 +1928,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   }
 
   /** Supported starting from Hadoop 2.x */
+  @Override
   public byte[] getXAttr(Path path, String name) throws IOException {
     logger.atFine().log("GHFS.getXAttr: %s, %s", path, name);
     checkNotNull(path, "path should not be null");
@@ -1998,6 +1944,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   }
 
   /** Supported starting from Hadoop 2.x */
+  @Override
   public Map<String, byte[]> getXAttrs(Path path) throws IOException {
     logger.atFine().log("GHFS.getXAttrs: %s", path);
     checkNotNull(path, "path should not be null");
@@ -2016,6 +1963,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   }
 
   /** Supported starting from Hadoop 2.x */
+  @Override
   public Map<String, byte[]> getXAttrs(Path path, List<String> names) throws IOException {
     logger.atFine().log("GHFS.getXAttrs: %s, %s", path, names);
     checkNotNull(path, "path should not be null");
@@ -2037,6 +1985,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   }
 
   /** Supported starting from Hadoop 2.x */
+  @Override
   public List<String> listXAttrs(Path path) throws IOException {
     logger.atFine().log("GHFS.listXAttrs: %s", path);
     checkNotNull(path, "path should not be null");
@@ -2087,6 +2036,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   }
 
   /** Supported starting from Hadoop 2.x */
+  @Override
   public void removeXAttr(Path path, String name) throws IOException {
     logger.atFine().log("GHFS.removeXAttr: %s, %s", path, name);
     checkNotNull(path, "path should not be null");

@@ -17,7 +17,6 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.ListStatusFileNotFoundBehavior;
 import com.google.common.collect.Maps;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -62,8 +61,6 @@ class InMemoryGlobberFileSystem extends FileSystem {
 
   private final Path workingDirectory;
   private final URI uri;
-  private final ListStatusFileNotFoundBehavior listStatusNotFoundBehavior =
-      ListStatusFileNotFoundBehavior.get();
   private final Map<Path, FileStatus> fileStatusesByPath;
   private final Map<Path, List<FileStatus>> fileStatusesByParentPath;
 
@@ -105,8 +102,8 @@ class InMemoryGlobberFileSystem extends FileSystem {
     Path qualifiedPath = makeQualified(f);
     List<FileStatus> fileStatuses = fileStatusesByParentPath.get(qualifiedPath);
     if (fileStatuses == null) {
-      return listStatusNotFoundBehavior.handle(
-          String.format("%s (qualified: %s)", f, qualifiedPath));
+      throw new FileNotFoundException(
+          String.format("Path '%s' (qualified: '%s') does not exist.", f, qualifiedPath));
     }
     return fileStatuses.toArray(new FileStatus[0]);
   }

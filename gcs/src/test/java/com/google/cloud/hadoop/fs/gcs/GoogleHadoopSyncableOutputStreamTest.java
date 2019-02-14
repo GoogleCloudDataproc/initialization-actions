@@ -25,14 +25,11 @@ import static org.mockito.Mockito.when;
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.common.util.concurrent.Futures;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.nio.channels.ClosedChannelException;
 import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.stream.Stream;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -86,7 +83,7 @@ public class GoogleHadoopSyncableOutputStreamTest {
     byte[] data3Read = new byte[2];
 
     fout.write(data1, 0, data1.length);
-    hsync(fout);
+    fout.hsync();
 
     assertThat(ghfs.getFileStatus(objectPath).getLen()).isEqualTo(4);
     FSDataInputStream fin = ghfs.open(objectPath);
@@ -95,7 +92,7 @@ public class GoogleHadoopSyncableOutputStreamTest {
     assertThat(data1Read).isEqualTo(data1);
 
     fout.write(data2, 0, data2.length);
-    hsync(fout);
+    fout.hsync();
 
     assertThat(ghfs.getFileStatus(objectPath).getLen()).isEqualTo(8);
     fin = ghfs.open(objectPath);
@@ -183,7 +180,7 @@ public class GoogleHadoopSyncableOutputStreamTest {
     FSDataOutputStream fout = ghfs.create(objectPath);
     fout.close();
 
-    assertThrows(ClosedChannelException.class, () -> hsync(fout));
+    assertThrows(ClosedChannelException.class, () -> fout.hsync());
   }
 
   @Test
@@ -197,7 +194,7 @@ public class GoogleHadoopSyncableOutputStreamTest {
     try (FSDataOutputStream fout = ghfs.create(objectPath)) {
       for (int i = 0; i < expected.length; ++i) {
         fout.write(expected, i, 1);
-        hsync(fout);
+        fout.hsync();
       }
     }
 
@@ -207,25 +204,5 @@ public class GoogleHadoopSyncableOutputStreamTest {
     }
 
     assertThat(actual).isEqualTo(expected);
-  }
-
-  /**
-   * Call sync/hsync method across all Hadoop versions
-   *
-   * <p>Because Hadoop 1 has only `sync` method, Hadoop 2 - `sync` and `hsync` methods and Hadoop 3
-   * - only `hsync` method, we call whatever method is present (`sync` or `hsync`) using reflection
-   */
-  static void hsync(FSDataOutputStream fsos) throws Exception {
-    Method syncMethod =
-        Stream.of(fsos.getClass().getDeclaredMethods())
-            .filter(m -> m.getName().equals("sync") || m.getName().equals("hsync"))
-            .findAny()
-            .get();
-    try {
-      syncMethod.invoke(fsos);
-    } catch (InvocationTargetException e) {
-      Throwable cause = e.getCause();
-      throw (cause instanceof Exception) ? (Exception) cause : e;
-    }
   }
 }

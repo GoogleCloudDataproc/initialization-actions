@@ -20,8 +20,6 @@ import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.nio.ByteBuffer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -194,9 +192,8 @@ public class GsonRecordReaderTest {
     Mockito.when(mockJob.getTaskAttemptID()).thenReturn(testTaskAttemptId);
 
     // Write values to file.
-    ByteBuffer buffer = stringToBytebuffer(value1 + "\n" + value2 + "\n");
     Path mockPath = new Path("gs://test_bucket/test-object");
-    writeFile(ghfs, mockPath, buffer);
+    writeFile(ghfs, mockPath, (value1 + "\n" + value2 + "\n").getBytes(UTF_8));
 
     // Create a new InputSplit containing the values.
     UnshardedInputSplit inputSplit =
@@ -209,18 +206,6 @@ public class GsonRecordReaderTest {
   }
 
   /**
-   * Helper method to get ByteBuffer from string.
-   *
-   * @param text the String used to create the ByteBuffer.
-   * @return A ByteBuffer of the string.
-   * @throws UnsupportedEncodingException when coding scheme unsupported.
-   */
-  public static ByteBuffer stringToBytebuffer(String text)
-      throws UnsupportedEncodingException {
-    return ByteBuffer.wrap(text.getBytes(UTF_8));
-  }
-
-  /**
    * Helper method to write buffer to GHFS.
    *
    * @param ghfs the GoogleHadoopFileSystem to write to.
@@ -228,11 +213,9 @@ public class GsonRecordReaderTest {
    * @param buffer the buffer to write to the file.
    * @throws IOException on IO Error.
    */
-  public static void writeFile(FileSystem ghfs, Path hadoopPath, ByteBuffer buffer)
-      throws IOException {
+  public static void writeFile(FileSystem ghfs, Path hadoopPath, byte[] buffer) throws IOException {
     try (FSDataOutputStream writeStream = ghfs.create(hadoopPath, true)) {
-      buffer.clear();
-      writeStream.write(buffer.array(), 0, buffer.capacity());
+      writeStream.write(buffer);
     }
   }
 }

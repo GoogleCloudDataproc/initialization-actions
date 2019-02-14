@@ -219,11 +219,10 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
   }
 
   /**
-   * There is no way to flush data to become available for readers without a full-fledged
-   * hsync(), so this method is a no-op.
-   * This overrides Syncable.hflush(), but is not annotated as such because the method doesn't
-   * exist in Hadoop 1.
+   * There is no way to flush data to become available for readers without a full-fledged hsync(),
+   * so this method is a no-op.
    */
+  @Override
   public void hflush() throws IOException {
     logger.atWarning().log(
         "hflush() is a no-op; readers will *not* yet see flushed data for %s", finalGcsPath);
@@ -231,15 +230,13 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
   }
 
   /**
-   * This overrides Syncable.hsync(), but is not annotated as such because the method doesn't
-   * exist in Hadoop 1.
-   *
    * @throws CompositeLimitExceededException if this hsync() call would require any future close()
-   *     call to exceed the component limit. If CompositeLimitExceededException is thrown, no
-   *     actual GCS operations are taken and it's safe to subsequently call close() on this
-   *     stream as normal; it just means data written since the last successful hsync() has not
-   *     yet been committed.
+   *     call to exceed the component limit. If CompositeLimitExceededException is thrown, no actual
+   *     GCS operations are taken and it's safe to subsequently call close() on this stream as
+   *     normal; it just means data written since the last successful hsync() has not yet been
+   *     committed.
    */
+  @Override
   public void hsync() throws IOException {
     logger.atFine().log(
         "hsync(): Committing tail file %s to final destination %s", curGcsPath, finalGcsPath);
