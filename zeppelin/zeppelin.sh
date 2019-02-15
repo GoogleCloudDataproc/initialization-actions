@@ -120,7 +120,9 @@ function configure_zeppelin(){
   # Install matplotlib. Note that this will work in Zeppelin, but not
   # in a vanilla Python interpreter, as that requires an X server to be running
   install_apt_get python-dev python-tk
-  easy_install pip
+  if ! command -v pip >/dev/null; then
+    install_apt_get python-pip
+  fi
   pip install --upgrade matplotlib
 
   # Install R libraries for Zeppelin 0.6.1+
