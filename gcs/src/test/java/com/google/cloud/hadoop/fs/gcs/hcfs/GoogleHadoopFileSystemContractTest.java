@@ -24,7 +24,7 @@ import org.junit.Before;
  * Runs the Hadoop tests in FileSystemContractBaseTest over the GoogleHadoopFileSystem. Tests that
  * the GoogleHadoopFileSystem obeys the file system contract specified for Hadoop.
  */
-public class GoogleHadoopFileSystemContract2Test extends FileSystemContractBaseTest {
+public class GoogleHadoopFileSystemContractTest extends FileSystemContractBaseTest {
 
   @Before
   @SuppressWarnings("MissingOverride")

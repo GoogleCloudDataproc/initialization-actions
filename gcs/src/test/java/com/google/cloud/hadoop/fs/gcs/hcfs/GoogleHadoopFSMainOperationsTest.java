@@ -31,11 +31,9 @@ import org.junit.runners.JUnit4;
 /**
  * Runs the Hadoop tests in FSMainOperationsBaseTest over the GoogleHadoopFileSystem. Tests that the
  * GoogleHadoopFileSystem obeys the file system contract specified for Hadoop.
- *
- * <p>This class is used to test Hadoop v2 functionality.
  */
 @RunWith(JUnit4.class)
-public class GoogleHadoopFSMainOperations2Test extends FSMainOperationsBaseTest {
+public class GoogleHadoopFSMainOperationsTest extends FSMainOperationsBaseTest {
 
   private final FileSystemTestHelper helper = new FileSystemTestHelper();
 
