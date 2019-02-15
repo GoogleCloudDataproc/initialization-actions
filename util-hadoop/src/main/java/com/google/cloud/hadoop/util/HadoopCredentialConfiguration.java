@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.util;
 
+import java.io.IOException;
 import java.util.List;
 import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
@@ -36,9 +37,37 @@ public class HadoopCredentialConfiguration
    * An adapter to use our Configuration object as the config object for our superclass. Exists here
    * for backward compatibility
    */
-  public static class ConfigurationEntriesAdapter extends ConfigurationEntriesAdapterSpecific {
+  public static class ConfigurationEntriesAdapter
+      implements EntriesCredentialConfiguration.Entries {
+    private final Configuration config;
+
     public ConfigurationEntriesAdapter(Configuration config) {
-      super(config);
+      this.config = config;
+    }
+
+    @Override
+    public String get(String key) {
+      return config.get(key);
+    }
+
+    @Override
+    public void set(String key, String value) {
+      config.set(key, value);
+    }
+
+    @Override
+    public void setBoolean(String key, boolean value) {
+      config.setBoolean(key, value);
+    }
+
+    @Override
+    public String getPassword(String key) {
+      try {
+        char[] val = config.getPassword(key);
+        return val == null ? null : String.valueOf(val);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
 

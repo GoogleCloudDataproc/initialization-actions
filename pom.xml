@@ -181,7 +181,7 @@
                 <exclude>none</exclude>
               </excludes>
               <includes>
-                <include>**/*Integration*Test.java</include>
+                <include>**/*IntegrationTest.java</include>
               </includes>
               <reuseForks>false</reuseForks>
               <forkCount>1C</forkCount>
@@ -433,11 +433,6 @@
           <artifactId>maven-shade-plugin</artifactId>
           <version>3.1.1</version>
         </plugin>
-        <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>build-helper-maven-plugin</artifactId>
-          <version>3.0.0</version>
-        </plugin>
       </plugins>
     </pluginManagement>
     <plugins>
@@ -463,7 +458,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <excludes>
-            <exclude>**/*Integration*Test.java</exclude>
+            <exclude>**/*IntegrationTest.java</exclude>
           </excludes>
           <reuseForks>false</reuseForks>
           <forkCount>2</forkCount>

@@ -26,7 +26,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public final class GoogleHadoopFileSystemIntegrationHadoop2Test {
+public final class GoogleHadoopFileSystemXAttrsIntegrationTest {
 
   private static HadoopFileSystemIntegrationHelper ghfsHelper;
   private static FileSystem ghfs;

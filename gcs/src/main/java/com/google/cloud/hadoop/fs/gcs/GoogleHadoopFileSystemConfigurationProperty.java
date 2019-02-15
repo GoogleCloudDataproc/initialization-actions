@@ -7,6 +7,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.GoogleLogger;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -52,8 +53,13 @@ public class GoogleHadoopFileSystemConfigurationProperty<T> {
   String getPassword(Configuration config) {
     checkState(defaultValue == null || defaultValue instanceof String, "Not a string property");
     String lookupKey = getLookupKey(config, key, deprecatedKeys);
-    String value = GoogleHadoopFileSystemBaseSpecific.getPassword(config, lookupKey);
-    return logProperty(lookupKey, value == null ? (String) defaultValue : value);
+    char[] value;
+    try {
+      value = config.getPassword(lookupKey);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+    return logProperty(lookupKey, value == null ? (String) defaultValue : String.valueOf(value));
   }
 
   Collection<String> getStringCollection(Configuration config) {

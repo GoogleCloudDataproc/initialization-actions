@@ -46,7 +46,7 @@
                 <exclude>none</exclude>
               </excludes>
               <includes>
-                <include>**/*Integration*Test.java</include>
+                <include>**/*IntegrationTest.java</include>
                 <include>**/GoogleCloudStorageImplTest.java</include>
               </includes>
             </configuration>
@@ -117,7 +117,7 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <configuration>
           <excludes>
-            <exclude>**/*Integration*Test.java</exclude>
+            <exclude>**/*IntegrationTest.java</exclude>
             <exclude>**/GoogleCloudStorageImplTest.java</exclude>
           </excludes>
         </configuration>

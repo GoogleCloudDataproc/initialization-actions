@@ -115,6 +115,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.GlobPattern;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
+import org.apache.hadoop.fs.XAttrSetFlag;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
@@ -143,7 +144,7 @@ import org.apache.hadoop.util.Progressable;
  * tests and HDFS tests against the same test data and use that as a guide to decide whether to
  * throw or to return false.
  */
-public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemBaseSpecific
+public abstract class GoogleHadoopFileSystemBase extends FileSystem
     implements FileSystemDescriptor {
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
@@ -504,7 +505,6 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
    *
    * @param hadoopPath Hadoop path.
    */
-  @Override
   public abstract URI getGcsPath(Path hadoopPath);
 
   /**
@@ -760,6 +760,36 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     increment(Counter.CREATE);
     increment(Counter.CREATE_TIME, duration);
     return new FSDataOutputStream(out, null);
+  }
+
+  /** {@inheritDoc} */
+  @Override
+  public FSDataOutputStream createNonRecursive(
+      Path hadoopPath,
+      FsPermission permission,
+      EnumSet<org.apache.hadoop.fs.CreateFlag> flags,
+      int bufferSize,
+      short replication,
+      long blockSize,
+      Progressable progress)
+      throws IOException {
+    URI gcsPath = getGcsPath(checkNotNull(hadoopPath, "hadoopPath must not be null"));
+    URI parentGcsPath = getGcsFs().getParentPath(gcsPath);
+    GoogleCloudStorageItemInfo parentInfo = getGcsFs().getFileInfo(parentGcsPath).getItemInfo();
+    if (!parentInfo.isRoot() && !parentInfo.isBucket() && !parentInfo.exists()) {
+      throw new FileNotFoundException(
+          String.format(
+              "Can not create '%s' file, because parent folder does not exist: %s",
+              gcsPath, parentGcsPath));
+    }
+    return create(
+        hadoopPath,
+        permission,
+        flags.contains(org.apache.hadoop.fs.CreateFlag.OVERWRITE),
+        bufferSize,
+        replication,
+        blockSize,
+        progress);
   }
 
   /**
@@ -1428,7 +1458,6 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
   }
 
   /** Gets GCS FS instance. */
-  @Override
   public GoogleCloudStorageFileSystem getGcsFs() {
     return gcsFsSupplier.get();
   }
@@ -1927,7 +1956,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     logger.atFine().log("GHFS.setTimes:=> ");
   }
 
-  /** Supported starting from Hadoop 2.x */
+  /** {@inheritDoc} */
   @Override
   public byte[] getXAttr(Path path, String name) throws IOException {
     logger.atFine().log("GHFS.getXAttr: %s, %s", path, name);
@@ -1943,7 +1972,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     return xAttr;
   }
 
-  /** Supported starting from Hadoop 2.x */
+  /** {@inheritDoc} */
   @Override
   public Map<String, byte[]> getXAttrs(Path path) throws IOException {
     logger.atFine().log("GHFS.getXAttrs: %s", path);
@@ -1962,7 +1991,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     return xAttrs;
   }
 
-  /** Supported starting from Hadoop 2.x */
+  /** {@inheritDoc} */
   @Override
   public Map<String, byte[]> getXAttrs(Path path, List<String> names) throws IOException {
     logger.atFine().log("GHFS.getXAttrs: %s, %s", path, names);
@@ -1984,7 +2013,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     return xAttrs;
   }
 
-  /** Supported starting from Hadoop 2.x */
+  /** {@inheritDoc} */
   @Override
   public List<String> listXAttrs(Path path) throws IOException {
     logger.atFine().log("GHFS.listXAttrs: %s", path);
@@ -2002,25 +2031,27 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     return xAttrs;
   }
 
-  void setXAttrInternal(Path path, String name, byte[] value, boolean create, boolean replace)
+  /** {@inheritDoc} */
+  @Override
+  public void setXAttr(Path path, String name, byte[] value, EnumSet<XAttrSetFlag> flags)
       throws IOException {
     logger.atFine().log(
-        "GHFS.setXAttr: %s, %s, %s, %s, %s",
-        path, name, lazy(() -> new String(value, UTF_8)), create, replace);
+        "GHFS.setXAttr: %s, %s, %s, %s", path, name, lazy(() -> new String(value, UTF_8)), flags);
     checkNotNull(path, "path should not be null");
     checkNotNull(name, "name should not be null");
+    checkArgument(flags != null && !flags.isEmpty(), "flags should not be null or empty");
 
     FileInfo fileInfo = getGcsFs().getFileInfo(getGcsPath(path));
     String xAttrKey = getXAttrKey(name);
     Map<String, byte[]> attributes = fileInfo.getAttributes();
 
-    if (attributes.containsKey(xAttrKey) && !replace) {
+    if (attributes.containsKey(xAttrKey) && !flags.contains(XAttrSetFlag.REPLACE)) {
       throw new IOException(
           String.format(
               "REPLACE flag must be set to update XAttr (name='%s', value='%s') for '%s'",
               name, new String(value, UTF_8), path));
     }
-    if (!attributes.containsKey(xAttrKey) && !create) {
+    if (!attributes.containsKey(xAttrKey) && !flags.contains(XAttrSetFlag.CREATE)) {
       throw new IOException(
           String.format(
               "CREATE flag must be set to create XAttr (name='%s', value='%s') for '%s'",
@@ -2035,7 +2066,7 @@ public abstract class GoogleHadoopFileSystemBase extends GoogleHadoopFileSystemB
     logger.atFine().log("GHFS.setXAttr:=> ");
   }
 
-  /** Supported starting from Hadoop 2.x */
+  /** {@inheritDoc} */
   @Override
   public void removeXAttr(Path path, String name) throws IOException {
     logger.atFine().log("GHFS.removeXAttr: %s, %s", path, name);
