@@ -250,7 +250,13 @@ function main() {
   echo DRILL_LOG_DIR=${DRILL_LOG_DIR} >> ${DRILL_HOME}/conf/drill-env.sh
 
   # Link GCS connector to drill 3rdparty jars
-  ln -sf /usr/lib/hadoop/lib/gcs-connector-*.jar ${DRILL_HOME}/jars/3rdparty
+  local connector_dir
+  if [[ -d /usr/local/share/google/dataproc/lib ]]; then
+    connector_dir=/usr/local/share/google/dataproc/lib
+  else
+    connector_dir=/usr/lib/hadoop/lib
+  fi
+  ln -sf ${connector_dir}/gcs-connector-*.jar ${DRILL_HOME}/jars/3rdparty
 
   # Symlink core-site.xml to $DRILL_HOME/conf
   ln -sf /etc/hadoop/conf/core-site.xml /etc/drill/conf
