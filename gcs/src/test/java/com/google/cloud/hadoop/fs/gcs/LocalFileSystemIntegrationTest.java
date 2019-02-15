@@ -15,7 +15,6 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
-import com.google.cloud.hadoop.util.HadoopVersionInfo;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
@@ -132,55 +131,41 @@ public class LocalFileSystemIntegrationTest
   public void testRename()
       throws IOException {
 
-    final HadoopVersionInfo versionInfo = HadoopVersionInfo.getInstance();
-
     try {
-      renameHelper(new HdfsBehavior() {
-          @Override
-          public MethodOutcome renameFileIntoRootOutcome() {
-            // LocalFileSystem returns true on rename into root.
-            return new MethodOutcome(MethodOutcome.Type.RETURNS_TRUE);
-          }
+      renameHelper(
+          new HdfsBehavior() {
+            @Override
+            public MethodOutcome renameFileIntoRootOutcome() {
+              // LocalFileSystem returns true on rename into root.
+              return new MethodOutcome(MethodOutcome.Type.RETURNS_TRUE);
+            }
 
-          @Override
-          public MethodOutcome renameRootOutcome() {
-            // LocalFileSystem throws IOException on rename of root.
-            return new MethodOutcome(
-                MethodOutcome.Type.THROWS_EXCEPTION, IOException.class);
-          }
+            @Override
+            public MethodOutcome renameRootOutcome() {
+              // LocalFileSystem throws IOException on rename of root.
+              return new MethodOutcome(MethodOutcome.Type.THROWS_EXCEPTION, IOException.class);
+            }
 
-          @Override
-          public MethodOutcome nonExistentSourceOutcome() {
-            // LocalFileSystem throws FileNotFoundException on nonexistent src.
-            return new MethodOutcome(
-                MethodOutcome.Type.THROWS_EXCEPTION, FileNotFoundException.class);
-          }
-
-          @Override
-          public MethodOutcome destinationFileExistsSrcIsFileOutcome() {
-            // LocalFileSystem returns true if dst already exists, is a file, and src is also a
-            // file.
-            return new MethodOutcome(MethodOutcome.Type.RETURNS_TRUE);
-          }
-
-          @Override
-          public MethodOutcome nonExistentDestinationFileParentOutcome() {
-            // Fixed in Hadoop 2.5.0
-            if (versionInfo.isLessThan(2, 5)) {
-              // LocalFileSystem throws FileNotFoundException if a parent of a file dst doesn't
-              // exist.
+            @Override
+            public MethodOutcome nonExistentSourceOutcome() {
+              // LocalFileSystem throws FileNotFoundException on nonexistent src.
               return new MethodOutcome(
                   MethodOutcome.Type.THROWS_EXCEPTION, FileNotFoundException.class);
             }
-            return super.nonExistentDestinationFileParentOutcome();
-          }
 
-          @Override
-          public MethodOutcome nonExistentDestinationDirectoryParentOutcome() {
-            // LocalFileSystem returns true if a parent of a directory dst doesn't exist.
-            return new MethodOutcome(MethodOutcome.Type.RETURNS_TRUE);
-          }
-        });
+            @Override
+            public MethodOutcome destinationFileExistsSrcIsFileOutcome() {
+              // LocalFileSystem returns true if dst already exists, is a file,
+              // and src is also a file.
+              return new MethodOutcome(MethodOutcome.Type.RETURNS_TRUE);
+            }
+
+            @Override
+            public MethodOutcome nonExistentDestinationDirectoryParentOutcome() {
+              // LocalFileSystem returns true if a parent of a directory dst doesn't exist.
+              return new MethodOutcome(MethodOutcome.Type.RETURNS_TRUE);
+            }
+          });
     } catch (AssertionError ae) {
       // LocalFileSystem behaves differently for the case where dst is an existing directory,
       // and src is a directory with a file underneath it. GHFS places the src directory

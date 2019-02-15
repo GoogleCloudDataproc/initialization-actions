@@ -25,7 +25,6 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions.Timesta
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.testing.TestingAccessTokenProvider;
-import com.google.cloud.hadoop.util.HadoopVersionInfo;
 import com.google.common.base.Joiner;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -270,19 +269,14 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     // levels of subdirectories.
     assertDirectory(gcsfs, leafUri, /* exists= */ true);
 
-    HadoopVersionInfo versionInfo = HadoopVersionInfo.getInstance();
-    if (versionInfo.isLessThan(2, 0) || versionInfo.isGreaterThan(2, 3)) {
-      assertDirectory(gcsfs, subdirUri, inferredOrRepairedDirExists);
+    assertDirectory(gcsfs, subdirUri, inferredOrRepairedDirExists);
 
-      if (expectParentRepair || inferredDirExists) {
-        assertWithMessage("Expected to exist: %s", parentUri)
-            .that(gcsfs.exists(parentUri))
-            .isTrue();
-      } else {
-        assertWithMessage("Expected not to exist due to flat globbing: %s", parentUri)
-            .that(gcsfs.exists(parentUri))
-            .isFalse();
-      }
+    if (expectParentRepair || inferredDirExists) {
+      assertWithMessage("Expected to exist: %s", parentUri).that(gcsfs.exists(parentUri)).isTrue();
+    } else {
+      assertWithMessage("Expected not to exist due to flat globbing: %s", parentUri)
+          .that(gcsfs.exists(parentUri))
+          .isFalse();
     }
 
     ghfsHelper.clearBucket(bucketName);
