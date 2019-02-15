@@ -79,7 +79,7 @@ public class GoogleCloudStorageFileSystem {
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   private static final ThreadFactory DAEMON_THREAD_FACTORY =
-      new ThreadFactoryBuilder().setDaemon(true).build();
+      new ThreadFactoryBuilder().setNameFormat("gcsfs-thread-%d").setDaemon(true).build();
 
   // URI scheme for GCS.
   public static final String SCHEME = "gs";
