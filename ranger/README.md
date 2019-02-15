@@ -18,7 +18,7 @@ The following command will create a new standard cluster named `<CLUSTER_NAME>` 
       --metadata "default-admin-password=<YOUR_PASSWORD>" 
     ```
 1. Once the cluster has been created Apache Ranger Policy Manager should be running on master node and use Solr in standalone mode for audits.
-1. The Policy Manager Web UI is served by default on port 6080.
+1. The Policy Manager Web UI is served by default on port 6080. You can login using username `admin` and password provided in metadata. 
 Follow the instructions on [connect to cluster web interfaces](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces) 
 to create a SOCKS5 proxy to view `http://clustername-m:6080` in your browser.
 
