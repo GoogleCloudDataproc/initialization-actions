@@ -426,7 +426,7 @@ public class GsonBigQueryInputFormatTest {
     assertThat(baseStatus.isDir()).isTrue();
 
     assertThat(((FileSplit) splits.get(0)).getPath().getName()).isEqualTo("file1");
-    assertThat(config.get("mapred.input.dir"))
+    assertThat(config.get("mapreduce.input.fileinputformat.inputdir"))
         .isEqualTo(config.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY));
 
     // Verify correct calls to BigQuery are made.
@@ -465,7 +465,8 @@ public class GsonBigQueryInputFormatTest {
 
     assertThat(splits).hasSize(1);
     assertThat(((FileSplit) splits.get(0)).getPath()).isEqualTo(split.getPath());
-    assertThat(config.get("mapred.input.dir")).isEqualTo("gs://foo-bucket/bar.json");
+    assertThat(config.get("mapreduce.input.fileinputformat.inputdir"))
+        .isEqualTo("gs://foo-bucket/bar.json");
     verify(mockBigQueryHelper, times(1)).getTable(eq(tableRef));
     verifyNoMoreInteractions(mockBigquery);
   }
@@ -485,7 +486,7 @@ public class GsonBigQueryInputFormatTest {
     // Run getSplits method.
     GsonBigQueryInputFormat gsonBigQueryInputFormat =
         new GsonBigQueryInputFormatForTestGeneralSecurityException();
-    config.set("mapred.input.dir", "gs://test_bucket/path/test");
+    config.set("mapreduce.input.fileinputformat.inputdir", "gs://test_bucket/path/test");
 
     JobContext jobContext = new JobContextImpl(config, new JobID());
 

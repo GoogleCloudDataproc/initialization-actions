@@ -123,7 +123,7 @@ public class NoopFederatedExportToCloudStorageTest {
 
     List<InputSplit> splits = export.getSplits(null);
     // Verify configuration
-    assertThat(conf.get("mapred.input.dir"))
+    assertThat(conf.get("mapreduce.input.fileinputformat.inputdir"))
         .isEqualTo("gs://foo-bucket/bar-dir/glob-*.avro,gs://foo-bucket/bar-dir/file.avro");
 
     UnshardedInputSplit split1 = (UnshardedInputSplit) splits.get(0);
