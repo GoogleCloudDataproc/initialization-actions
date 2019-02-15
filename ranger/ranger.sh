@@ -19,7 +19,7 @@ set -euxo pipefail
 
 readonly NODE_NAME="$(/usr/share/google/get_metadata_value name)"
 readonly RANGER_ADMIN_PORT="$(/usr/share/google/get_metadata_value attributes/ranger-port || echo '6080')"
-readonly RANGER_ADMIN_PASS="$(/usr/share/google/get_metadata_value attributes/default-password)"
+readonly RANGER_ADMIN_PASS="$(/usr/share/google/get_metadata_value attributes/default-admin-password)"
 readonly RANGER_GCS_BUCKET='apache-ranger-1-2-0-artifacts'
 readonly RANGER_INSTALL_DIR='/usr/lib/ranger'
 readonly RANGER_VERSION='1.2.0'
