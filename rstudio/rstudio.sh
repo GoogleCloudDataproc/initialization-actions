@@ -81,15 +81,17 @@ if [[ "${ROLE}" == 'Master' ]]; then
   if [[ "${OS_ID}" == "ubuntu" ]]; then
     run_with_retries apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
     add-apt-repository "deb http://cran.r-project.org/bin/linux/ubuntu ${OS_CODE}-cran35/"
+    rstudio_server_package=rstudio-server-${RSTUDIO_VERSION}-amd64.deb
   else
     run_with_retries apt-key adv --no-tty --keyserver keys.gnupg.net --recv-key E19F5F87128899B192B1A2C2AD5F960A256A04AF
     add-apt-repository "deb http://cran.r-project.org/bin/linux/debian ${OS_CODE}-cran34/"
+    rstudio_server_package=rstudio-server-${OS_CODE}-${RSTUDIO_VERSION}-amd64.deb
   fi
   update_apt_get
   apt install -y r-base r-base-dev gdebi-core
 
-  cd /tmp; wget https://download2.rstudio.org/rstudio-server-${RSTUDIO_VERSION}-amd64.deb
-  gdebi -n /tmp/rstudio-server-${RSTUDIO_VERSION}-amd64.deb
+  cd /tmp; wget https://download2.rstudio.org/${rstudio_server_package}
+  gdebi -n /tmp/${rstudio_server_package}
 
   if ! [ $(getent group "${USER_NAME}") ]; then
     groupadd "${USER_NAME}"
