@@ -31,6 +31,7 @@ You can use this initialization action to create a new Dataproc cluster with Ton
      - tensorflow version
      - pytorch version
      - torch vision version
+     - tf_gpu
         
     These parameters are defined here: TonY [configurations](https://github.com/linkedin/TonY/wiki/TonY-Configurations)
     
@@ -81,3 +82,4 @@ After clusters are created, script submits Hadoop jobs on them.
 * This script will install TonY in the master node only
 * Virtual environments are installed for both TensorFlow and PyTorch examples.
 * TonY is supported with STANDARD configuration (1 master/2+ workers) in Dataproc 1.3.
+* TonY supports GPU using Hadoop 3.1 (YARN-6223). Currently not supported with Dataproc
