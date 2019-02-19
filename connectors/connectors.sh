@@ -61,6 +61,11 @@ update_connector() {
       local path="gs://hadoop-lib/${name}/${name}-connector-${version}-hadoop2.jar"
     fi
     gsutil cp "$path" "${vm_connectors_dir}/"
+    
+    # Update version-less connector link
+    if [[ -f ${vm_connectors_dir}/${name}-connector.jar ]]; then
+      ln -s -f "${vm_connectors_dir}/${name}-connector-"* "${vm_connectors_dir}/${name}-connector.jar"
+    fi
   fi
 }
 
