@@ -33,6 +33,7 @@ readonly FLINK_WORKING_DIR='/var/lib/flink'
 readonly FLINK_YARN_SCRIPT='/usr/bin/flink-yarn-daemon'
 readonly FLINK_WORKING_USER='yarn'
 readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
+readonly NODE_NAME="$(/usr/share/google/get_metadata_value name)"
 
 # The number of buffers for the network stack.
 # Flink config entry: taskmanager.network.numberOfBuffers.
@@ -52,6 +53,8 @@ readonly START_FLINK_YARN_SESSION_DEFAULT=true
 
 # Set this to install flink from a snapshot URL instead of apt
 readonly FLINK_SNAPSHOT_URL_METADATA_KEY='flink-snapshot-url'
+
+readonly MASTER_ADDITIONAL="$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)"
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
@@ -101,6 +104,8 @@ function install_flink_snapshot() {
 }
 
 function configure_flink() {
+  local zookeeper_nodes
+
   # Number of worker nodes in your cluster
   local num_workers
   num_workers=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
@@ -158,6 +163,18 @@ taskmanager.network.numberOfBuffers: ${FLINK_NETWORK_NUM_BUFFERS}
 fs.hdfs.hadoopconf: ${HADOOP_CONF_DIR}
 EOF
 
+  if [[ "${MASTER_ADDITIONAL}" != "" ]]; then
+    zookeeper_nodes="$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg | uniq | cut -d '=' -f 2 \
+    | cut -d ':' -f 1 | xargs -L1 echo | sed "s/$/:2181/g" | xargs echo | sed "s/ /,/g")"
+    cat << EOF >> ${FLINK_INSTALL_DIR}/conf/flink-conf.yaml
+high-availability: zookeeper
+high-availability.zookeeper.quorum: ${zookeeper_nodes}
+high-availability.zookeeper.storageDir: hdfs:///flink/recovery
+high-availability.zookeeper.path.root: /flink
+yarn.application-attempts: 10
+EOF
+  fi
+
   cat >"${FLINK_YARN_SCRIPT}" <<EOF
 #!/bin/bash
 set -exuo pipefail
@@ -204,7 +221,7 @@ function main() {
     install_apt_get flink || err "Unable to install flink"
   fi
   configure_flink || err "Flink configuration failed"
-  if [[ "${role}" == 'Master' ]]; then
+  if [[ "${role}" == 'Master' && "${NODE_NAME}" =~ ^.*(-m|-m-0)$ ]] ; then
     start_flink_master || err "Unable to start Flink master"
   fi
 }
