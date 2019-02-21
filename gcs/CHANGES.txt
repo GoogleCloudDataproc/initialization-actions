@@ -2,6 +2,8 @@
 
   1. Remove Hadoop 1.x support.
 
+  2. Do not convert path to directory path for inferred implicit directories.
+
 
 1.9.14 - 2019-02-13
 
