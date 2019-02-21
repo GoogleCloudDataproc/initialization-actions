@@ -4,6 +4,8 @@
 
   2. Do not convert path to directory path for inferred implicit directories.
 
+  3. Do not parallelize GCS list requests, because it leads to too high QPS.
+
 
 1.9.14 - 2019-02-13
 
