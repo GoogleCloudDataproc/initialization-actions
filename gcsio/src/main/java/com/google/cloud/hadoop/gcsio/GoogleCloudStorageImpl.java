@@ -1211,7 +1211,8 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
       }
       pageToken =
           listStorageObjectsAndPrefixesPage(listObject, maxResults, listedObjects, listedPrefixes);
-    } while (pageToken != null);
+    } while (pageToken != null
+        && (maxResults <= 0 || listedObjects.size() + listedPrefixes.size() < maxResults));
   }
 
   private String listStorageObjectsAndPrefixesPage(

@@ -6,6 +6,9 @@
 
   3. Do not parallelize GCS list requests, because it leads to too high QPS.
 
+  4. Fix bug when GCS connector lists all files in directory instead of
+     specified limit.
+
 
 1.9.14 - 2019-02-13
 

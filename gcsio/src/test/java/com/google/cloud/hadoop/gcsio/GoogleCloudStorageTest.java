@@ -2758,12 +2758,9 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsList, times(2)).execute();
   }
 
-  /**
-   * Test GoogleCloudStorage.listObjectNames(3) with maxResults set.
-   */
+  /** Test GoogleCloudStorage.listObjectNames(3) with maxResults set. */
   @Test
-  public void testListObjectNamesPrefixLimited()
-      throws IOException {
+  public void testListObjectNamesPrefixLimited() throws IOException {
     String objectPrefix = "foo/bar/baz/";
     String delimiter = "/";
     long maxResults = 3;
@@ -2772,17 +2769,18 @@ public class GoogleCloudStorageTest {
         .thenReturn(mockStorageObjectsList);
     when(mockStorageObjectsList.getPrefix()).thenReturn(objectPrefix);
     when(mockStorageObjectsList.execute())
-        .thenReturn(new Objects()
-            .setPrefixes(ImmutableList.of(
-                "foo/bar/baz/dir0/",
-                "foo/bar/baz/dir1/"))
-            .setNextPageToken("token0"))
-        .thenReturn(new Objects()
-            .setItems(ImmutableList.of(
-                new StorageObject().setName("foo/bar/baz/"),
-                new StorageObject().setName("foo/bar/baz/obj0"),
-                new StorageObject().setName("foo/bar/baz/obj1")))
-            .setNextPageToken(null));
+        .thenReturn(
+            new Objects()
+                .setPrefixes(ImmutableList.of("foo/bar/baz/dir0/", "foo/bar/baz/dir1/"))
+                .setItems(
+                    ImmutableList.of(
+                        new StorageObject().setName("foo/bar/baz/"),
+                        new StorageObject().setName("foo/bar/baz/obj0")))
+                .setNextPageToken("token0"))
+        .thenReturn(
+            new Objects()
+                .setItems(ImmutableList.of(new StorageObject().setName("foo/bar/baz/obj1")))
+                .setNextPageToken(null));
 
     List<String> objectNames =
         gcs.listObjectNames(BUCKET_NAME, objectPrefix, delimiter, maxResults);
@@ -2796,9 +2794,8 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsList).setDelimiter(eq(delimiter));
     verify(mockStorageObjectsList).setIncludeTrailingDelimiter(eq(Boolean.FALSE));
     verify(mockStorageObjectsList).setPrefix(eq(objectPrefix));
-    verify(mockStorageObjectsList).setPageToken("token0");
     verify(mockStorageObjectsList).getPrefix();
-    verify(mockStorageObjectsList, times(2)).execute();
+    verify(mockStorageObjectsList).execute();
   }
 
   /**
