@@ -72,6 +72,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -1212,7 +1213,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
       pageToken =
           listStorageObjectsAndPrefixesPage(listObject, maxResults, listedObjects, listedPrefixes);
     } while (pageToken != null
-        && (maxResults <= 0 || listedObjects.size() + listedPrefixes.size() < maxResults));
+        && getMaxRemainingResults(maxResults, listedPrefixes, listedObjects) > 0);
   }
 
   private String listStorageObjectsAndPrefixesPage(
@@ -1334,7 +1335,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
   }
 
   private static long getMaxRemainingResults(
-      long maxResults, Set<String> prefixes, List<StorageObject> objects) {
+      long maxResults, Collection<String> prefixes, List<StorageObject> objects) {
     if (maxResults <= 0) {
       return Long.MAX_VALUE;
     }
