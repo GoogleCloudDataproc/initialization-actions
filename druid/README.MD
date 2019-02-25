@@ -36,7 +36,7 @@ Druid can be used with Cloud SQL Proxy (init action inside repo). To make Druid 
   4. Add to your gcloud dataproc clusters create command metadata and scope
   5. Put Cloud SQL init action at the first position on initialization actions list:
   6. Combine command with additional data and execute - example below:
-  ```gcloud dataproc clusters create druid --num-masters 3 --num-workers 2 --scopes sql-admin --metadata=hive-metastore-instance=your-project-name:us-central1:yourname-db --image-version=1.0 --initialization-actions 'gs://dataproc-initialization-actions/cloud-sql-proxy/cloud-sql-proxy.sh','gs://dataproc-initialization-actions/druid/druid.sh' --format=json --initialization-action-timeout 15m ```
+  ```gcloud dataproc clusters create druid --num-masters 3 --num-workers 2 --scopes sql-admin --metadata=hive-metastore-instance=your-project-name:us-central1:yourname-db --image-version=1.0 --metadata=druid-coordinator-port=8081 --initialization-actions 'gs://dataproc-initialization-actions/cloud-sql-proxy/cloud-sql-proxy.sh','gs://dataproc-initialization-actions/druid/druid.sh' --format=json --initialization-action-timeout 15m ```
 
 ## Testing
 
