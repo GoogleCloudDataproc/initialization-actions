@@ -81,9 +81,17 @@ function install_samples() {
   source tf/bin/activate
   # Verify you install GPU drivers, CUDA and CUDNN compatible with TensorFlow.
   if [[ "${tf_gpu}" == 'true' ]]; then
-    pip install tensorflow-gpu=="${tf_version}"
+    if [[ "${tf_version}" == 'tf-nightly-gpu' ]]; then
+        pip install "${tf_version}"
+    else
+        pip install tensorflow-gpu=="${tf_version}"
+    fi
   else
-    pip install tensorflow=="${tf_version}"
+    if [[ "${tf_version}" == 'tf-nightly' ]]; then
+        pip install "${tf_version}"
+    else
+        pip install tensorflow=="${tf_version}"
+    fi
   fi
   zip -r tf.zip tf
 
