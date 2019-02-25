@@ -16,6 +16,7 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl.createItemInfoForStorageObject;
 import static com.google.cloud.hadoop.gcsio.StorageResourceId.createReadableString;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -36,6 +37,8 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
+import com.google.cloud.hadoop.util.ResilientOperation;
+import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -289,8 +292,27 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
    * read.
    */
   @Nullable
-  protected GoogleCloudStorageItemInfo getInitialMetadata() {
-    return null;
+  protected GoogleCloudStorageItemInfo getInitialMetadata() throws IOException {
+    if (!readOptions.getFastFailOnNotFound()) {
+      return null;
+    }
+    StorageObject object;
+    try {
+      object =
+          ResilientOperation.retry(
+              ResilientOperation.getGoogleRequestCallable(createRequest()),
+              readBackOff.get(),
+              RetryDeterminer.SOCKET_ERRORS,
+              IOException.class,
+              sleeper);
+    } catch (IOException e) {
+      throw errorExtractor.itemNotFound(e)
+          ? GoogleCloudStorageExceptions.getFileNotFoundException(bucketName, objectName)
+          : new IOException("Error reading " + resourceIdString, e);
+    } catch (InterruptedException e) { // From the sleep
+      throw new IOException("Thread interrupt received.", e);
+    }
+    return createItemInfoForStorageObject(new StorageResourceId(bucketName, objectName), object);
   }
 
   /**

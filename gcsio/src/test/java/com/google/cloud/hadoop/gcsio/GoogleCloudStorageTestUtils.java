@@ -38,8 +38,8 @@ public final class GoogleCloudStorageTestUtils {
 
   public static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
 
-  private static final String BUCKET_NAME = "foo-bucket";
-  private static final String OBJECT_NAME = "bar-object";
+  static final String BUCKET_NAME = "foo-bucket";
+  static final String OBJECT_NAME = "bar-object";
 
   private static final ApiErrorExtractor ERROR_EXTRACTOR = ApiErrorExtractor.INSTANCE;
   private static final ClientRequestHelper<StorageObject> REQUEST_HELPER =

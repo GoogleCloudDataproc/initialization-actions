@@ -14,21 +14,28 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.BUCKET_NAME;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.JSON_FACTORY;
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.OBJECT_NAME;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.createReadChannel;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.dataRangeResponse;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.dataResponse;
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.metadataResponse;
 import static com.google.common.truth.Truth.assertThat;
 import static java.util.stream.Collectors.toList;
 
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.testing.http.MockHttpTransport;
+import com.google.api.client.util.DateTime;
 import com.google.api.services.storage.Storage;
+import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -37,6 +44,49 @@ import org.junit.runners.JUnit4;
 /** Unit tests for {@link GoogleCloudStorageReadChannel} class. */
 @RunWith(JUnit4.class)
 public class GoogleCloudStorageReadChannelTest {
+
+  @Test
+  public void metadataInitialization_eager() throws IOException {
+    MockHttpTransport transport =
+        GoogleCloudStorageTestUtils.mockTransport(
+            metadataResponse(
+                new StorageObject()
+                    .setBucket(BUCKET_NAME)
+                    .setName(OBJECT_NAME)
+                    .setSize(new BigInteger("123"))
+                    .setGeneration(1L)
+                    .setMetageneration(1L)
+                    .setUpdated(new DateTime(new Date()))));
+
+    List<HttpRequest> requests = new ArrayList<>();
+
+    Storage storage = new Storage(transport, JSON_FACTORY, requests::add);
+
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(true).build();
+
+    GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options);
+
+    assertThat(readChannel.size()).isEqualTo(123);
+    assertThat(requests).hasSize(1);
+  }
+
+  @Test
+  public void metadataInitialization_lazy() throws IOException {
+    MockHttpTransport transport = GoogleCloudStorageTestUtils.mockTransport();
+
+    List<HttpRequest> requests = new ArrayList<>();
+
+    Storage storage = new Storage(transport, JSON_FACTORY, requests::add);
+
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(false).build();
+
+    GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options);
+
+    assertThat(readChannel.size()).isEqualTo(-1);
+    assertThat(requests).isEmpty();
+  }
 
   @Test
   public void fadviseAuto_onForwardRead_switchesToRandom() throws IOException {
@@ -57,6 +107,7 @@ public class GoogleCloudStorageReadChannelTest {
 
     GoogleCloudStorageReadOptions options =
         GoogleCloudStorageReadOptions.builder()
+            .setFastFailOnNotFound(false)
             .setFadvise(Fadvise.AUTO)
             .setMinRangeRequestSize(1)
             .setInplaceSeekLimit(2)
@@ -102,6 +153,7 @@ public class GoogleCloudStorageReadChannelTest {
 
     GoogleCloudStorageReadOptions options =
         GoogleCloudStorageReadOptions.builder()
+            .setFastFailOnNotFound(false)
             .setFadvise(Fadvise.AUTO)
             .setMinRangeRequestSize(1)
             .build();
@@ -148,6 +200,7 @@ public class GoogleCloudStorageReadChannelTest {
 
     GoogleCloudStorageReadOptions options =
         GoogleCloudStorageReadOptions.builder()
+            .setFastFailOnNotFound(false)
             .setFadvise(Fadvise.RANDOM)
             .setMinRangeRequestSize(footeSize)
             .build();

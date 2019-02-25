@@ -259,7 +259,7 @@ public class InMemoryObjectEntry {
     return new InMemoryObjectReadChannel(completedContents, readOptions) {
       @Nullable
       @Override
-      protected GoogleCloudStorageItemInfo getInitialMetadata() {
+      protected GoogleCloudStorageItemInfo getInitialMetadata() throws IOException {
         return readOptions.getFastFailOnNotFound() ? getInfo() : super.getInitialMetadata();
       }
     };

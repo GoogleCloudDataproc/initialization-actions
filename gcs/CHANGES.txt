@@ -9,6 +9,9 @@
   4. Fix bug when GCS connector lists all files in directory instead of
      specified limit.
 
+  5. Eagerly initialize `GoogleCloudStorageReadChannel` metadata if
+     `fs.gs.inputstream.fast.fail.on.not.found.enable` set to true.
+
 
 1.9.14 - 2019-02-13
 
