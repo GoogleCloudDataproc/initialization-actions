@@ -16,11 +16,13 @@ package com.google.cloud.hadoop.gcsio.testing;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadChannel;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import javax.annotation.Nullable;
 
 /**
  * A SeekableByteChannel based on GoogleCloudStorageReadChannel that supports reading from in-memory
@@ -44,6 +46,12 @@ public class InMemoryObjectReadChannel extends GoogleCloudStorageReadChannel {
       throws IOException {
     super(readOptions);
     this.content = checkNotNull(content, "channelContents could not be null");
+  }
+
+  @Nullable
+  @Override
+  protected GoogleCloudStorageItemInfo getInitialMetadata() throws IOException {
+    return null;
   }
 
   /**
