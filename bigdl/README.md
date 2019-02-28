@@ -22,7 +22,7 @@ This script downloads BigDL 0.7.2 for Dataproc 1.3 (Spark 2.3.0 and Scala 2.11.8
 To download a different version of BigDL or Analytics Zoo distribution 
 or one targeted to a different version of Spark/Scala, 
 find the download URL from the [BigDL releases page](https://bigdl-project.github.io/master/#release-download), and set the metadata key `bigdl-download-url` 
-or beside [maven packages] (). 
+or beside [maven packages](https://repo1.maven.org/maven2/com/intel/analytics/). 
 The URL should end in `-dist.zip`.
 
 For example, for Dataproc 1.0 (Spark 1.6 and Scala 2.10) and BigDL v0.7.2:
