@@ -1,5 +1,10 @@
 #!/bin/bash
 
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  return 1
+}
+
 set -euxo pipefail
 
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
@@ -66,21 +71,15 @@ if [[ "${ROLE}" == "Master" ]]; then
   # will never come up.
   SPARK_NUM_EXECUTORS=$((SPARK_NUM_EXECUTORS_PER_NODE_MANAGER * CURRENTLY_RUNNING_NODEMANAGERS - 1))
 
-# Check if it BigDL conf or Zoo  
+  # Check if it BigDL conf or Zoo
+  if [ -f conf/spark-bigdl.conf ]; then
+    cat conf/spark-bigdl.conf >> /etc/spark/conf/spark-defaults.conf
+  elif [ -f conf/spark-analytics-zoo.conf ]; then
+    cat conf/spark-analytics-zoo.conf >> /etc/spark/conf/spark-defaults.conf
+  else
+    err "Can't find any suitable spark config for Intel BigDL/Zoo"
+  fi
 
-SPARK_BIG_DL_CONF=
-
-if [ -f conf/spark-bigdl.conf ]; then
-  SPARK_BIG_DL_CONF=conf/spark-bigdl.conf
-elif [ -f conf/spark-analytics-zoo.conf ]; then
-  SPARK_BIG_DL_CONF=conf/spark-analytics-zoo.conf
-else	
-  echo "Can't find any suitable spark config for Intel BigDL/Zoo"
-fi
-
-if [ $SPARK_BIG_DL_CONF != "" ]; then
-
-  cat $SPARK_BIG_DL_CONF >> /etc/spark/conf/spark-defaults.conf
   cat << EOF >> /etc/spark/conf/spark-defaults.conf
 
 spark.dynamicAllocation.enabled=false
@@ -88,9 +87,4 @@ spark.executor.instances=${SPARK_NUM_EXECUTORS}
 
 EOF
 
-else
-  exit 256
 fi
-
-fi
-

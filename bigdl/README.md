@@ -39,7 +39,7 @@ Or, for example, to download Analytics Zoo 0.4.0 with BigDL v0.7.2 use this:
 
 ```
 gcloud dataproc clusters create <CLUSTER_NAME> \
-    --image-version 1.0 \
+    --image-version 1.3 \
     --initialization-actions gs://dataproc-initialization-actions/bigdl/bigdl.sh \
     --initialization-action-timeout 10m \
     --metadata 'bigdl-download-url=https://repo1.maven.org/maven2/com/intel/analytics/zoo/analytics-zoo-bigdl_0.7.2-spark_2.3.1/0.4.0/analytics-zoo-bigdl_0.7.2-spark_2.3.1-0.4.0-dist-all.zip'
