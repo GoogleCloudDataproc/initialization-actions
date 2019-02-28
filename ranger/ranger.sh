@@ -23,7 +23,7 @@ readonly RANGER_ADMIN_PASS="$(/usr/share/google/get_metadata_value attributes/de
 readonly RANGER_GCS_BUCKET='apache-ranger-1-2-0-artifacts'
 readonly RANGER_INSTALL_DIR='/usr/lib/ranger'
 readonly RANGER_VERSION='1.2.0'
-readonly SOLR_HOME='/opt/solr'
+readonly SOLR_HOME='/usr/lib/solr'
 readonly MASTER_ADDITIONAL="$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)"
 readonly CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)"
 
@@ -62,11 +62,11 @@ function configure_admin() {
       "${RANGER_INSTALL_DIR}/ranger-admin/install.properties"
     sed -i 's/^audit_solr_urls=/audit_solr_urls=none/' \
       "${RANGER_INSTALL_DIR}/ranger-admin/install.properties"
-    runuser -l solr -c "${SOLR_HOME}/bin/solr create_collection -c ranger_audits -d ${RANGER_INSTALL_DIR}/ranger-admin/contrib/solr_for_audit_setup/conf -shards 1 -replicationFactor 3"
+    runuser -l solr -s /bin/bash -c "${SOLR_HOME}/bin/solr create_collection -c ranger_audits -d ${RANGER_INSTALL_DIR}/ranger-admin/contrib/solr_for_audit_setup/conf -shards 1 -replicationFactor 3"
   else
     sed -i 's/^audit_solr_urls=/audit_solr_urls=http:\/\/localhost:8983\/solr\/ranger_audits/' \
       "${RANGER_INSTALL_DIR}/ranger-admin/install.properties"
-    runuser -l solr -c "${SOLR_HOME}/bin/solr create_core -c ranger_audits -d ${RANGER_INSTALL_DIR}/ranger-admin/contrib/solr_for_audit_setup/conf -shards 1 -replicationFactor 1"
+    runuser -l solr -s /bin/bash -c "${SOLR_HOME}/bin/solr create_core -c ranger_audits -d ${RANGER_INSTALL_DIR}/ranger-admin/contrib/solr_for_audit_setup/conf -shards 1 -replicationFactor 1"
   fi
 }
 
