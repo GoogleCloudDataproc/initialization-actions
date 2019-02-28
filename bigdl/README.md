@@ -25,17 +25,17 @@ find the download URL from the [BigDL releases page](https://bigdl-project.githu
 or beside [maven packages] (). 
 The URL should end in `-dist.zip`.
 
-For example, for Dataproc 1.0 (Spark 1.6 and Scala 2.10):
+For example, for Dataproc 1.0 (Spark 1.6 and Scala 2.10) and BigDL v0.7.2:
 
 ```
 gcloud dataproc clusters create <CLUSTER_NAME> \
     --image-version 1.0 \
     --initialization-actions gs://dataproc-initialization-actions/bigdl/bigdl.sh \
     --initialization-action-timeout 10m \
-    --metadata 'bigdl-download-url=https://s3-ap-southeast-1.amazonaws.com/bigdl-download/dist-spark-1.6.2-scala-2.10.5-all-0.4.0-dist.zip'
+    --metadata 'bigdl-download-url=https://repo1.maven.org/maven2/com/intel/analytics/bigdl/dist-spark-1.6.2-scala-2.10.5-all/0.7.2/dist-spark-1.6.2-scala-2.10.5-all-0.7.2-dist.zip'
 ```
 
-Or, for example, to download Analytics Zoo 0.4.0 with BigDL v0.7.2 use this:
+Or, for example, to download Analytics Zoo 0.4.0 with BigDL v0.7.2 for Dataproc 1.3 (Spark 2.3) use this:
 
 ```
 gcloud dataproc clusters create <CLUSTER_NAME> \
