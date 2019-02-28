@@ -22,7 +22,11 @@ export PATH=/usr/bin:$PATH
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly PRESTO_MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 readonly WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
-readonly CONNECTOR_JAR="$(find /usr/lib/hadoop/lib -name 'gcs-connector-*.jar')"
+if [[ -d /usr/local/share/google/dataproc/lib ]]; then
+  readonly CONNECTOR_JAR="$(find /usr/local/share/google/dataproc/lib -name 'gcs-connector-*.jar')"
+else
+  readonly CONNECTOR_JAR="$(find /usr/lib/hadoop/lib -name 'gcs-connector-*.jar')"
+fi
 readonly PRESTO_VERSION='0.206'
 readonly HTTP_PORT='8080'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/presto.service'
