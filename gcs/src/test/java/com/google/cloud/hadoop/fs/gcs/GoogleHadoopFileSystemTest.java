@@ -14,12 +14,21 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.AUTHENTICATION_PREFIX;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_LAZY_INITIALIZATION_ENABLE;
+import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.JSON_KEYFILE_SUFFIX;
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
 import com.google.common.flogger.LoggerConfig;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URI;
 import java.util.logging.Level;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -55,6 +64,62 @@ public class GoogleHadoopFileSystemTest extends GoogleHadoopFileSystemIntegratio
     assertThat(
             GoogleHadoopFileSystemBase.UNKNOWN_VERSION.equals(GoogleHadoopFileSystemBase.VERSION))
         .isFalse();
+  }
+
+  @Test
+  public void lazyInitialization_succeeds_withInvalidCredentialsConfiguration() throws Exception {
+    new GoogleHadoopFileSystem();
+    Configuration lazyConf = new Configuration();
+    lazyConf.set(GCS_LAZY_INITIALIZATION_ENABLE.getKey(), "true");
+    lazyConf.set(AUTHENTICATION_PREFIX + JSON_KEYFILE_SUFFIX, "non-existent.json");
+    GoogleHadoopFileSystem lazyFs = new GoogleHadoopFileSystem();
+
+    lazyFs.initialize(new URI("gs://test-non-existent/"), lazyConf);
+    lazyFs.close();
+  }
+
+  @Test
+  public void lazyInitialization_deleteCall_fails_withInvalidCredentialsConfiguration()
+      throws Exception {
+    new GoogleHadoopFileSystem();
+    Configuration lazyConf = new Configuration();
+    lazyConf.set(GCS_LAZY_INITIALIZATION_ENABLE.getKey(), "true");
+    lazyConf.set(AUTHENTICATION_PREFIX + JSON_KEYFILE_SUFFIX, "non-existent.json");
+    GoogleHadoopFileSystem lazyFs = new GoogleHadoopFileSystem();
+
+    lazyFs.initialize(new URI("gs://test-non-existent"), lazyConf);
+
+    RuntimeException exception =
+        assertThrows(
+            RuntimeException.class,
+            () -> lazyFs.delete(new Path("gs://test-non-existent/dir"), false));
+
+    assertThat(exception).hasMessageThat().isEqualTo("Failed to create GCS FS");
+    assertThat(exception).hasCauseThat().isInstanceOf(FileNotFoundException.class);
+    assertThat(exception)
+        .hasCauseThat()
+        .hasMessageThat()
+        .isEqualTo("non-existent.json (No such file or directory)");
+
+    lazyFs.close();
+  }
+
+  @Test
+  public void eagerInitialization_fails_withInvalidCredentialsConfiguration() {
+    new GoogleHadoopFileSystem();
+    Configuration eagerConf = new Configuration();
+    eagerConf.set(GCS_LAZY_INITIALIZATION_ENABLE.getKey(), "false");
+    eagerConf.set(AUTHENTICATION_PREFIX + JSON_KEYFILE_SUFFIX, "non-existent.json");
+    FileSystem eagerFs = new GoogleHadoopFileSystem();
+
+    FileNotFoundException exception =
+        assertThrows(
+            FileNotFoundException.class,
+            () -> eagerFs.initialize(new URI("gs://test-non-existent"), eagerConf));
+
+    assertThat(exception)
+        .hasMessageThat()
+        .isEqualTo("non-existent.json (No such file or directory)");
   }
 
   // -----------------------------------------------------------------
