@@ -1,7 +1,7 @@
 # Sqoop
 
 This initialization action installs [Sqoop](http://sqoop.apache.org/) on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster. 
-Sqoop was compiled using `release-1.4.7-rc0` from the official [github](https://github.com/apache/sqoop) mirror with two additional cherry-picked commits (more details in "Important Notes" paragraph).
+Sqoop was compiled using `release-1.4.6-rc3` from the official [github](https://github.com/apache/sqoop) mirror with four additional cherry-picked commits (more details in "Important Notes" paragraph).
 
 ## Using this initialization action
 
@@ -88,8 +88,11 @@ Init actions which cooperate with Sqoop:
     - [BigTable](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/bigtable) 
     - [HBase](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/hbase)
 * This init action uses Sqoop source code with patches which use new HBase API. 
-See: [SQOOP-3232](https://github.com/apache/sqoop/commit/e13dd21209c26316d43350a23f5d533321b61352) 
-and [SQOOP-3222](https://github.com/apache/sqoop/commit/18445290810b1df035e06fb074064d6b9c1d6e90) for more details.
+See: 
+[SQOOP-3232](https://github.com/apache/sqoop/commit/e13dd21209c26316d43350a23f5d533321b61352),
+[SQOOP-3222](https://github.com/apache/sqoop/commit/18445290810b1df035e06fb074064d6b9c1d6e90),
+[SQOOP-3149](https://github.com/apache/sqoop/commit/4ab7b60caf2c3d9fda72c85e6427912584986970) and
+[SQOOP-2952](https://github.com/apache/sqoop/commit/b4afcf4179b13c25b5e9bd182d75cab5d2e6c8d1) for more details.
 * Please note different scopes required to run certain import jobs. Importing to and from Cloud SQL requires adding `sql-admin` scope. 
 Using BigTable requires additional permission, so `cloud-platform` scope is added. Finally, importing between Cloud SQL and HBase again 
 `sql-admin` scope is sufficient because HBase uses locally available Hadoop HDFS as storage backend which has no additional scope's requirements.
