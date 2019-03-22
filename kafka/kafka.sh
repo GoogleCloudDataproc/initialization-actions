@@ -79,7 +79,7 @@ function install_and_configure_kafka_server() {
 
   # Install Kafka from Dataproc distro.
   install_apt_get kafka-server || dpkg -l kafka-server \
-    || err 'Unable to install and find kafka-server on worker node.'
+    || err 'Unable to install and find kafka-server.'
 
   mkdir -p /var/lib/kafka-logs
   chown kafka:kafka -R /var/lib/kafka-logs
