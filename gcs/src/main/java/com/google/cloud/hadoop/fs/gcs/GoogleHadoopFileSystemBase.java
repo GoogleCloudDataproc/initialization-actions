@@ -40,6 +40,7 @@ import static com.google.common.flogger.LazyArgs.lazy;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.cloud.hadoop.fs.gcs.auth.GcsDelegationTokens;
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.cloud.hadoop.gcsio.FileInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
@@ -114,6 +115,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.XAttrSetFlag;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.util.Progressable;
@@ -236,6 +238,9 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
 
   /** The URI the File System is passed in initialize. */
   protected URI initUri;
+
+  /** Delegation token support */
+  protected GcsDelegationTokens delegationTokens = null;
 
   /**
    * The retrieved configuration value for {@link
@@ -623,11 +628,45 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
       // statistics object.
       statistics = new Statistics(getScheme());
     }
+
+    // Set this configuration as the default config for this instance; configure()
+    // will perform some file-system-specific adjustments, but the original should
+    // be sufficient (and is required) for the delegation token binding initialization.
+    setConf(config);
+
+    // Initialize the delegation token support, if it is configured
+    initializeDelegationTokenSupport(config, path);
+
     configure(config);
 
     long duration = System.nanoTime() - startTime;
     increment(Counter.INIT);
     increment(Counter.INIT_TIME, duration);
+  }
+
+  /**
+   * Initialize the delegation token support for this filesystem.
+   *
+   * @param config The filesystem configuration
+   * @param path The filesystem path
+   * @throws IOException
+   */
+  private void initializeDelegationTokenSupport(Configuration config, URI path) throws IOException {
+    logger.atFine().log("GHFS.initializeDelegationTokenSupport");
+    // Load delegation token binding, if support is configured
+    GcsDelegationTokens dts = new GcsDelegationTokens();
+    Text service = new Text(getScheme() + "://" + path.getAuthority());
+    dts.bindToFileSystem(this, service);
+    try {
+      dts.init(config);
+      delegationTokens = dts;
+      if (delegationTokens.isBoundToDT()) {
+        logger.atFine().log(
+            "GHFS.initializeDelegationTokenSupport: Using existing delegation token.");
+      }
+    } catch (IllegalStateException e) {
+      logger.atInfo().log("GHFS.initializeDelegationTokenSupport: %s", e.getMessage());
+    }
   }
 
   /**
@@ -1445,13 +1484,16 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   /**
    * {@inheritDoc}
    *
-   * <p>Returns null, because GHFS does not use security tokens.
+   * <p>Returns the service if delegation tokens are configured, otherwise, null.
    */
   @Override
   public String getCanonicalServiceName() {
-    logger.atFine().log("GHFS.getCanonicalServiceName:");
-    logger.atFine().log("GHFS.getCanonicalServiceName:=> null");
-    return null;
+    String service = null;
+    if (delegationTokens != null) {
+      service = delegationTokens.getService().toString();
+    }
+    logger.atFine().log("GHFS.getCanonicalServiceName:=> %s", service);
+    return service;
   }
 
   /** Gets GCS FS instance. */
@@ -1567,21 +1609,42 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
    * access token provided by this provider; Otherwise obtain credential through {@link
    * HadoopCredentialConfiguration#getCredential(List)}.
    */
-  private static Credential getCredential(
+  private Credential getCredential(
       AccessTokenProviderClassFromConfigFactory providerClassFactory, Configuration config)
       throws IOException, GeneralSecurityException {
-    Credential credential =
-        CredentialFromAccessTokenProviderClassFactory.credential(
-            providerClassFactory, config, CredentialFactory.GCS_SCOPES);
-    if (credential != null) {
-      return credential;
+    Credential credential = null;
+
+    // Check if delegation token support is configured
+    if (delegationTokens != null) {
+      // If so, use the delegation token to acquire the Google credentials
+      AccessTokenProvider atp = delegationTokens.getAccessTokenProvider();
+      if (atp != null) {
+        atp.setConf(config);
+        credential =
+            CredentialFromAccessTokenProviderClassFactory.credential(
+                atp, CredentialFactory.GCS_SCOPES);
+      }
+    } else {
+      // If delegation token support is not configured, check if a
+      // custom AccessTokenProvider implementation is configured, and attempt
+      // to acquire the Google credentials using it
+      credential =
+          CredentialFromAccessTokenProviderClassFactory.credential(
+              providerClassFactory, config, CredentialFactory.GCS_SCOPES);
+
+      if (credential == null) {
+        // Finally, if no credentials have been acquired at this point, employ
+        // the default mechanism.
+        credential =
+            HadoopCredentialConfiguration.newBuilder()
+                .withConfiguration(config)
+                .withOverridePrefix(AUTHENTICATION_PREFIX)
+                .build()
+                .getCredential(CredentialFactory.GCS_SCOPES);
+      }
     }
 
-    return HadoopCredentialConfiguration.newBuilder()
-        .withConfiguration(config)
-        .withOverridePrefix(AUTHENTICATION_PREFIX)
-        .build()
-        .getCredential(CredentialFactory.GCS_SCOPES);
+    return credential;
   }
 
   /**
@@ -1663,7 +1726,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     }
   }
 
-  private static GoogleCloudStorageFileSystem createGcsFs(Configuration config) throws IOException {
+  private GoogleCloudStorageFileSystem createGcsFs(Configuration config) throws IOException {
     Credential credential;
     try {
       credential =
@@ -1797,7 +1860,13 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   public Token<?> getDelegationToken(String renewer)
       throws IOException {
     logger.atFine().log("GHFS.getDelegationToken: renewer: %s", renewer);
-    Token<?> result = super.getDelegationToken(renewer);
+
+    Token<?> result = null;
+
+    if (delegationTokens != null) {
+      result = delegationTokens.getBoundOrNewDT(renewer);
+    }
+
     logger.atFine().log("GHFS.getDelegationToken:=> %s", result);
     return result;
   }

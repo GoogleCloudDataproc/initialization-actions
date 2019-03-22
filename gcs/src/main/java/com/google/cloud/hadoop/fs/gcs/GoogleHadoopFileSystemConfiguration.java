@@ -124,6 +124,11 @@ public class GoogleHadoopFileSystemConfiguration {
   public static final GoogleHadoopFileSystemConfigurationProperty<String> AUTH_CLIENT_SECRET =
       new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.client.secret");
 
+  /** Configuration key for Delegation Token binding class. Default value: none */
+  public static final GoogleHadoopFileSystemConfigurationProperty<String>
+      DELEGATION_TOKEN_BINDING_CLASS =
+          new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.delegation.token.binding");
+
   /** Configuration key for GCS project ID. Default value: none */
   public static final GoogleHadoopFileSystemConfigurationProperty<String> GCS_PROJECT_ID =
       new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.project.id");
