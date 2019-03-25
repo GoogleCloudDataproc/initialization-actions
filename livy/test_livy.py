@@ -1,7 +1,7 @@
+import os
 import unittest
 
 from parameterized import parameterized
-import os
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 
@@ -11,17 +11,17 @@ class LivyTestCase(DataprocTestCase):
     INIT_ACTION = 'gs://dataproc-initialization-actions/livy/livy.sh'
     INIT_ACTION_FOR_STANDARD = '\'gs://dataproc-initialization-actions/zookeeper/zookeeper.sh\',\'gs://dataproc-initialization-actions/livy/livy.sh\''
 
-    def verify_instance(self, name):
+    def _verify_instance(self, name):
         self.upload_test_file(
             os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
                 self.TEST_SCRIPT_FILE_NAME
             ),
             name)
-        self.__run_python_test_file(name)
+        self._run_python_test_file(name)
         self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
 
-    def __run_python_test_file(self, name):
+    def _run_python_test_file(self, name):
         cmd = 'gcloud compute ssh {} -- "sudo python3 {}"'.format(
             name,
             self.TEST_SCRIPT_FILE_NAME
@@ -46,7 +46,7 @@ class LivyTestCase(DataprocTestCase):
     def test_livy(self, configuration, dataproc_version, machine_suffixes):
         self.createCluster(configuration, self.INIT_ACTION, dataproc_version)
         for machine_suffix in machine_suffixes:
-            self.verify_instance(
+            self._verify_instance(
                 "{}-{}".format(
                     self.getClusterName(),
                     machine_suffix
