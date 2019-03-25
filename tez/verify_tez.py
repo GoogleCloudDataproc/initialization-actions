@@ -1,5 +1,4 @@
-"""verify_tez.py: this script run tez job on node
-"""
+"""verify_tez.py: this script run tez job on node"""
 
 import shlex
 import subprocess
