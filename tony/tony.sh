@@ -26,7 +26,7 @@ readonly PS_INSTANCES=1
 readonly PS_MEMORY='4g'
 readonly WORKER_INSTANCES=2
 readonly WORKER_MEMORY='4g'
-readonly WORKER_GPUS=0  # GPU isolation is not supported in Dataproc 1.3
+readonly WORKER_GPUS=0  # GPU isolation is not supported in Dataproc 1.3.
 
 # ML frameworks versions
 readonly TENSORFLOW_VERSION='1.9'
