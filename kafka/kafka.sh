@@ -18,9 +18,15 @@
 
 set -euxo pipefail
 
+readonly KAFKA_HOME=/usr/lib/kafka
 readonly KAFKA_PROP_FILE='/etc/kafka/conf/server.properties'
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly RUN_ON_MASTER="$(/usr/share/google/get_metadata_value attributes/run-on-master)"
+
+# The first ZooKeeper server address, e.g., "cluster1-m-0:2181".
+ZOOKEEPER_ADDRESS=''
+# Integer broker ID of this node, e.g., 0
+BROKER_ID=''
 
 function retry_apt_command() {
   cmd="$1"
@@ -45,6 +51,30 @@ function install_apt_get() {
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
   return 1
+}
+
+# Returns the list of broker IDs registered in ZooKeeper, e.g., " 0, 2, 1,".
+function get_broker_list() {
+  ${KAFKA_HOME}/bin/zookeeper-shell.sh "${ZOOKEEPER_ADDRESS}" \
+      <<< "ls /brokers/ids" \
+      | grep '\[.*\]' \
+      | sed 's/\[/ /' \
+      | sed 's/\]/,/'
+}
+
+# Wait until the current broker is registered or time out.
+function wait_for_kafka() {
+  for i in {1..10}; do
+    local broker_list=$(get_broker_list || true)
+    if [[ "${broker_list}" == *" ${BROKER_ID},"* ]]; then
+      return 0
+    else
+      echo "Kafka broker ${BROKER_ID} is not registered yet, retry ${i}..."
+      sleep 5
+    fi
+  done
+  echo "Failed to start Kafka broker ${BROKER_ID}." >&2
+  exit 1
 }
 
 function install_and_configure_kafka_server() {
@@ -77,6 +107,8 @@ function install_and_configure_kafka_server() {
     err 'Failed to find configured Zookeeper list; try --num-masters=3 for HA'
   fi
 
+  ZOOKEEPER_ADDRESS="${zookeeper_list%%,*}"
+
   # Install Kafka from Dataproc distro.
   install_apt_get kafka-server || dpkg -l kafka-server \
     || err 'Unable to install and find kafka-server.'
@@ -84,31 +116,32 @@ function install_and_configure_kafka_server() {
   mkdir -p /var/lib/kafka-logs
   chown kafka:kafka -R /var/lib/kafka-logs
 
-  local broker_id
   if [[ "${ROLE}" == "Master" ]]; then
     # For master nodes, broker ID starts from 10,000.
     if [[ "$(hostname)" == *-m ]]; then
       # non-HA
-      broker_id=10000
+      BROKER_ID=10000
     else
       # HA
-      broker_id=$((10000 + $(hostname | sed 's/.*-m-\([0-9]*\)$/\1/g')))
+      BROKER_ID=$((10000 + $(hostname | sed 's/.*-m-\([0-9]*\)$/\1/g')))
     fi
   else
     # For worker nodes, broker ID is the worker ID.
-    broker_id=$(hostname | sed 's/.*-w-\([0-9]*\)$/\1/g')
+    BROKER_ID=$(hostname | sed 's/.*-w-\([0-9]*\)$/\1/g')
   fi
   sed -i 's|log.dirs=/tmp/kafka-logs|log.dirs=/var/lib/kafka-logs|' \
     "${KAFKA_PROP_FILE}"
   sed -i 's|^\(zookeeper\.connect=\).*|\1'${zookeeper_list}'|' \
     "${KAFKA_PROP_FILE}"
-  sed -i 's,^\(broker\.id=\).*,\1'${broker_id}',' \
+  sed -i 's,^\(broker\.id=\).*,\1'${BROKER_ID}',' \
     "${KAFKA_PROP_FILE}"
   echo -e '\nreserved.broker.max.id=100000' >> "${KAFKA_PROP_FILE}"
   echo -e '\ndelete.topic.enable=true' >> "${KAFKA_PROP_FILE}"
 
   # Start Kafka.
   service kafka-server restart
+
+  wait_for_kafka
 }
 
 function main() {
