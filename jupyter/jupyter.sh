@@ -26,9 +26,15 @@ echo "Cloning fresh dataproc-initialization-actions from repo ${INIT_ACTIONS_REP
 git clone -b "${INIT_ACTIONS_BRANCH}" --single-branch "${INIT_ACTIONS_REPO}"
 
 # Ensure we have conda installed.
-./dataproc-initialization-actions/conda/bootstrap-conda.sh
+bash ./dataproc-initialization-actions/conda/bootstrap-conda.sh
 
-source /etc/profile.d/conda.sh
+if [[ -f /etc/profile.d/conda.sh ]]; then
+  source /etc/profile.d/conda.sh
+fi
+
+if [[ -f /etc/profile.d/effective-python.sh ]]; then
+  source /etc/profile.d/effective-python.sh
+fi
 
 # Install jupyter on all nodes to start with a consistent python environment
 # on all nodes. Also, pin the python version to ensure that conda does not

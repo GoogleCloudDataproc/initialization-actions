@@ -22,7 +22,11 @@ export PATH=/usr/bin:$PATH
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly PRESTO_MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 readonly WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
-readonly CONNECTOR_JAR="$(find /usr/lib/hadoop/lib -name 'gcs-connector-*.jar')"
+if [[ -d /usr/local/share/google/dataproc/lib ]]; then
+  readonly CONNECTOR_JAR="$(find /usr/local/share/google/dataproc/lib -name 'gcs-connector-*.jar')"
+else
+  readonly CONNECTOR_JAR="$(find /usr/lib/hadoop/lib -name 'gcs-connector-*.jar')"
+fi
 readonly PRESTO_VERSION='0.206'
 readonly HTTP_PORT='8080'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/presto.service'
@@ -36,6 +40,18 @@ function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
   return 1
 }
+
+function wait_for_presto_cluster_ready() {
+  # wait up to 120s for presto being able to run query
+  for ((i = 0; i < 12; i++)); do
+    if presto --execute='select * from system.runtime.nodes;'; then
+      return 0
+    fi
+    sleep 10
+  done
+  return 1
+}
+
 
 function get_presto(){
   # Download and unpack Presto server
@@ -212,6 +228,7 @@ function configure_and_start_presto(){
   if [[ "${HOSTNAME}" == "${PRESTO_MASTER_FQDN}" ]]; then
     configure_master
     start_presto
+    wait_for_presto_cluster_ready
   fi
 
   if [[ "${ROLE}" == 'Worker' ]]; then

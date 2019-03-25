@@ -1,15 +1,26 @@
 #!/bin/bash
 set -exo pipefail
 
+if [[ -f /etc/profile.d/effective-python.sh ]]; then
+    PROFILE_SCRIPT_PATH=/etc/profile.d/effective-python.sh
+elif [[ -f /etc/profile.d/conda.sh ]]; then
+    PROFILE_SCRIPT_PATH=/etc/profile.d/conda.sh
+fi
+
 # 0.1 Ensure we have conda installed and available on the PATH
-if [[ ! -v CONDA_BIN_PATH ]]; then
-    source /etc/profile.d/conda.sh
+if [[ -f "${PROFILE_SCRIPT_PATH}" ]]; then
+    source "${PROFILE_SCRIPT_PATH}"
 fi
 
 echo "echo \$USER: $USER"
 echo "echo \$PWD: $PWD"
 echo "echo \$PATH: $PATH"
-echo "echo \$CONDA_BIN_PATH: $CONDA_BIN_PATH"
+echo "echo \$CONDA_PATH: $(which conda)"
+
+if ! command -v conda >/dev/null; then
+  echo "Conda was not installed."
+  exit 1
+fi
 
 [ -z "${CONDA_PACKAGES}" ] && CONDA_PACKAGES=$(/usr/share/google/get_metadata_value attributes/CONDA_PACKAGES || true)
 [ -z "${PIP_PACKAGES}" ] && PIP_PACKAGES=$(/usr/share/google/get_metadata_value attributes/PIP_PACKAGES || true)
@@ -79,22 +90,22 @@ if [[ ! -z "${PIP_PACKAGES}" ]]; then
 fi
 
 # 2. Append profiles with conda env source activate
-echo "Attempting to append /etc/profile.d/conda.sh to activate conda env at login..."
-if [[ -f "/etc/profile.d/conda.sh"  ]]  && [[ ! $CONDA_ENV_NAME == 'root' ]]
+echo "Attempting to append ${PROFILE_SCRIPT_PATH} to activate conda env at login..."
+if [[ -f "${PROFILE_SCRIPT_PATH}"  ]]  && [[ ! $CONDA_ENV_NAME == 'root' ]]
     then
-    if grep -ir "source activate $CONDA_ENV_NAME" /etc/profile.d/conda.sh
+    if grep -ir "source activate $CONDA_ENV_NAME" "${PROFILE_SCRIPT_PATH}"
         then
-        echo "conda env activation found in /etc/profile.d/conda.sh, skipping..."
+        echo "conda env activation found in ${PROFILE_SCRIPT_PATH}, skipping..."
     else
-        echo "Appending /etc/profile.d/conda.sh to activate conda env $CONDA_ENV_NAME for shell..."
-        sudo echo "source activate $CONDA_ENV_NAME" | tee -a /etc/profile.d/conda.sh
-        echo "./etc/profile.d/conda.sh successfully appended!"
+        echo "Appending ${PROFILE_SCRIPT_PATH} to activate conda env $CONDA_ENV_NAME for shell..."
+        sudo echo "source activate $CONDA_ENV_NAME" | tee -a "${PROFILE_SCRIPT_PATH}"
+        echo "${PROFILE_SCRIPT_PATH} successfully appended!"
     fi
 elif [[ $CONDA_ENV_NAME == 'root' ]]
     then
     echo "The conda env specified is 'root', the default environment, no need to activate, skipping..."
 else
-    echo "No file detected at /etc/profile.d/conda.sh..."
-    echo "Are you sure you installed conda via bootstrap-conda.sh?"
+    echo "No file detected at ${PROFILE_SCRIPT_PATH}..."
+    echo "Are you sure you installed conda?"
     exit 1
 fi

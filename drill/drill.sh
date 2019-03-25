@@ -1,12 +1,17 @@
 #!/bin/bash
-set -x -e
+set -euxo pipefail
 
 # drill installation paths and user & version details
 readonly DRILL_USER=drill
 readonly DRILL_USER_HOME=/var/lib/drill
 readonly DRILL_HOME=/usr/lib/drill
 readonly DRILL_LOG_DIR=${DRILL_HOME}/log
-readonly DRILL_VERSION='1.13.0'
+readonly DRILL_VERSION='1.15.0'
+
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  return 1
+}
 
 function print_err_logs() {
   for i in ${DRILL_LOG_DIR}/*;
@@ -228,8 +233,9 @@ function main() {
   mkdir -p ${DRILL_HOME} && chown ${DRILL_USER}:${DRILL_USER} ${DRILL_HOME}
 
   # Download and unpack Drill as the pseudo-user.
-  sudo wget http://www-us.apache.org/dist/drill/drill-${DRILL_VERSION}/apache-drill-${DRILL_VERSION}.tar.gz 
-  sudo -u ${DRILL_USER} tar -xvzf apache-drill-${DRILL_VERSION}.tar.gz -C ${DRILL_HOME} --strip 1
+  wget https://archive.apache.org/dist/drill/drill-${DRILL_VERSION}/apache-drill-${DRILL_VERSION}.tar.gz || \
+    err "Unable to download archive"
+  tar -xvzf apache-drill-${DRILL_VERSION}.tar.gz -C ${DRILL_HOME} --strip 1
 
   # Replace default configuration with cluster-specific.
   sed -i "s/drillbits1/${cluster_name}/" ${DRILL_HOME}/conf/drill-override.conf
@@ -244,7 +250,13 @@ function main() {
   echo DRILL_LOG_DIR=${DRILL_LOG_DIR} >> ${DRILL_HOME}/conf/drill-env.sh
 
   # Link GCS connector to drill 3rdparty jars
-  ln -sf /usr/lib/hadoop/lib/gcs-connector-*.jar ${DRILL_HOME}/jars/3rdparty
+  local connector_dir
+  if [[ -d /usr/local/share/google/dataproc/lib ]]; then
+    connector_dir=/usr/local/share/google/dataproc/lib
+  else
+    connector_dir=/usr/lib/hadoop/lib
+  fi
+  ln -sf ${connector_dir}/gcs-connector-*.jar ${DRILL_HOME}/jars/3rdparty
 
   # Symlink core-site.xml to $DRILL_HOME/conf
   ln -sf /etc/hadoop/conf/core-site.xml /etc/drill/conf
@@ -262,9 +274,9 @@ EOF
 
   chmod +rx /etc/drill/conf/*
 
-  chmod 777 /usr/lib/drill/log/
+  chmod 777 ${DRILL_HOME}/log/
 
-  start_drillbit
+  start_drillbit || err "Failed to start drill"
   # Clean up
   rm -f /tmp/*_plugin.json
 }

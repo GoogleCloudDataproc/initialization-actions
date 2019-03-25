@@ -2,8 +2,10 @@
 
 set -euxo pipefail
 
+readonly OS_ID=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+readonly OS_CODE=$(lsb_release -cs)
 # TODO: Allow this to be configured by metadata.
-readonly DOCKER_VERSION='18.06.0~ce~3-0~debian'
+readonly DOCKER_VERSION="18.06.0~ce~3-0~${OS_ID}"
 readonly CREDENTIAL_HELPER_VERSION='1.5.0'
 
 
@@ -17,7 +19,7 @@ function is_master() {
 }
 
 function get_docker_gpg() {
-  curl -fsSL https://download.docker.com/linux/debian/gpg
+  curl -fsSL https://download.docker.com/linux/${OS_ID}/gpg
 }
 
 function update_apt_get() {
@@ -34,7 +36,7 @@ function install_docker() {
   update_apt_get
   apt-get install -y apt-transport-https ca-certificates curl gnupg2
   get_docker_gpg | apt-key add -
-  echo "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable" >/etc/apt/sources.list.d/docker.list
+  echo "deb [arch=amd64] https://download.docker.com/linux/${OS_ID} ${OS_CODE} stable" >/etc/apt/sources.list.d/docker.list
   update_apt_get
   apt-get install -y docker-ce="${DOCKER_VERSION}"
 }

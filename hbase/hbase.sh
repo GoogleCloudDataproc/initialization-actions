@@ -17,30 +17,32 @@
 
 set -euxo pipefail
 
-readonly HBASE_FILE='hbase-1.3.2.1-bin'
-readonly HBASE_LINK="https://www-us.apache.org/dist/hbase/1.3.2.1/${HBASE_FILE}.tar.gz"
-readonly HBASE_SHA_SUM="${HBASE_LINK}.sha512"
 readonly HBASE_HOME='/etc/hbase'
 readonly CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)"
 readonly WORKER_COUNT="$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)"
 readonly MASTER_ADDITIONAL="$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)"
 
-function install_and_configure_hbase() {
-  local zookeeper_nodes="${CLUSTER_NAME}-m"
+function retry_command() {
+  cmd="$1"
+  for ((i = 0; i < 10; i++)); do
+    if eval "$cmd"; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
 
-  wget -q "${HBASE_LINK}" \
-    && wget -q "${HBASE_SHA_SUM}" \
-    && diff <(gpg --print-md SHA512 "${HBASE_FILE}.tar.gz") <(cat "${HBASE_FILE}.tar.gz.sha512") \
-    && tar -xf "${HBASE_FILE}.tar.gz" \
-    && rm -f "${HBASE_FILE}.tar.gz" "${HBASE_FILE}.tar.gz.sha512"
+function update_apt_get() {
+  retry_command "apt-get update"
+}
 
-  if [[ -d "${HBASE_HOME}" ]]; then
-    mv "${HBASE_HOME}" "${HBASE_HOME}_old"
-  fi
-  mv hbase-1.3.2.1 "${HBASE_HOME}"
+function install_apt_get() {
+  pkgs="$@"
+  retry_command "apt-get install -y $pkgs"
+}
 
-  echo 'export PATH=/etc/hbase/bin:${PATH}' >> /etc/profile
-
+function configure_hbase() {
   cat << EOF > hbase-site.xml.tmp
   <configuration>
     <property>
@@ -54,57 +56,96 @@ function install_and_configure_hbase() {
   </configuration>
 EOF
 
-  if [[ "${MASTER_ADDITIONAL}" != "" ]]; then
-    # If true than init action is running on high availability dataproc cluster.
-    # HBase will use zookeeper service pre-installed and running on master nodes.
-    bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
-      --name 'hbase.zookeeper.quorum' --value "${zookeeper_nodes}-0,${MASTER_ADDITIONAL}" \
-      --clobber
-    bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
-      --name 'hbase.rootdir' --value "hdfs://${CLUSTER_NAME}-m-0:8020/hbase" \
-      --clobber
-  else
-    # For non HA cluster we will use zookeper managed by HBase installed on
-    # master and workers nodes.
-    for (( i=0; i<${WORKER_COUNT}; i++ ))
-    do
-      zookeeper_nodes="${zookeeper_nodes},${CLUSTER_NAME}-w-${i}"
-    done
-    bdconfig set_property \
+  cat << EOF > /etc/systemd/system/hbase-master.service
+[Unit]
+Description=HBase Master
+Wants=network-online.target
+After=network-online.target hadoop-hdfs-namenode.service
+
+[Service]
+User=root
+Group=root
+Type=simple
+EnvironmentFile=/etc/environment
+Environment=HBASE_HOME=/etc/hbase
+ExecStart=/usr/bin/hbase \
+  --config ${HBASE_HOME}/conf/ \
+  master start
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  cat << EOF > /etc/systemd/system/hbase-regionserver.service
+[Unit]
+Description=HBase Regionserver
+Wants=network-online.target
+After=network-online.target hadoop-hdfs-datanode.service
+
+[Service]
+User=root
+Group=root
+Type=simple
+EnvironmentFile=/etc/environment
+Environment=HBASE_HOME=/etc/hbase
+ExecStart=/usr/bin/hbase \
+  --config ${HBASE_HOME}/conf/ \
+  regionserver start
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  systemctl daemon-reload
+
+  # Prepare and merge configuration values:
+  # hbase.rootdir
+  local hbase_root_dir="$(/usr/share/google/get_metadata_value attributes/hbase-root-dir)"
+  if [[ -z "${hbase_root_dir}" ]]; then
+    if [[ "${MASTER_ADDITIONAL}" != "" ]]; then
+      hbase_root_dir="hdfs://${CLUSTER_NAME}-m-0:8020/hbase"
+    else
+      hbase_root_dir="hdfs://${CLUSTER_NAME}-m:8020/hbase"
+    fi
+  fi
+  bdconfig set_property \
+    --configuration_file 'hbase-site.xml.tmp' \
+    --name 'hbase.rootdir' --value "${hbase_root_dir}" \
+    --clobber
+
+  # zookeeper.quorum
+  local zookeeper_nodes="$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg \
+  | uniq | cut -d '=' -f 2 | cut -d ':' -f 1 | xargs echo | sed "s/ /,/g")"
+  bdconfig set_property \
       --configuration_file 'hbase-site.xml.tmp' \
       --name 'hbase.zookeeper.quorum' --value "${zookeeper_nodes}" \
       --clobber
-    bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
-      --name 'hbase.rootdir' --value "hdfs://${CLUSTER_NAME}-m:8020/hbase" \
-      --clobber
 
-    "${HBASE_HOME}/bin/hbase-daemon.sh" start zookeeper
-  fi
-
+  # Merge all cofig values to hbase-site.xml
   bdconfig merge_configurations \
     --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
     --source_configuration_file hbase-site.xml.tmp \
     --clobber
-  
+
   # On single node clusters we must also start regionserver on it.
   if [[ "${WORKER_COUNT}" -eq 0 ]]; then
-    "${HBASE_HOME}/bin/hbase-daemon.sh" start regionserver
+    systemctl start hbase-regionserver
   fi
 }
 
 function main() {
   local role
   role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-  
-  install_and_configure_hbase
+
+  update_apt_get || err 'Unable to update packages lists.'
+  install_apt_get hbase || err 'Unable to install hbase.'
+
+  configure_hbase
 
   if [[ "${role}" == 'Master' ]]; then
-    "${HBASE_HOME}/bin/hbase-daemon.sh" start master
+    systemctl start hbase-master
   else
-    "${HBASE_HOME}/bin/hbase-daemon.sh" start regionserver
+    systemctl start hbase-regionserver
   fi
 }
 
