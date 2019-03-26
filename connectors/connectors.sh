@@ -63,7 +63,7 @@ update_connector() {
     gsutil cp "gs://hadoop-lib/${name}/${jar_name}" "${vm_connectors_dir}/"
     
     # Update version-less connector link
-    if [[ -f ${vm_connectors_dir}/${name}-connector.jar ]]; then
+    if [[ -L ${vm_connectors_dir}/${name}-connector.jar ]]; then
       ln -s -f "${vm_connectors_dir}/${jar_name}" "${vm_connectors_dir}/${name}-connector.jar"
     fi
   fi
