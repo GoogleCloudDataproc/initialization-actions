@@ -1,19 +1,19 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements. See the NOTICE file distributed with this
- * work for additional information regarding copyright ownership. The ASF
- * licenses this file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the License.
+ * Copyright 2019 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+
 package com.google.cloud.hadoop.fs.gcs.auth;
 
 import static java.util.Objects.requireNonNull;
@@ -52,7 +52,7 @@ public abstract class AbstractDelegationTokenBinding {
     return kind;
   }
 
-  /** @return The bound file system */
+  /** Returns the bound file system */
   public GoogleHadoopFileSystemBase getFileSystem() {
     return fileSystem;
   }
@@ -90,7 +90,6 @@ public abstract class AbstractDelegationTokenBinding {
    *
    * @param fs owning FS.
    * @param service name of the service (i.e. bucket name) for the FS.
-   * @throws IOException failure.
    */
   public void bindToFileSystem(GoogleHadoopFileSystemBase fs, Text service) {
     this.fileSystem = requireNonNull(fs);
@@ -160,13 +159,14 @@ public abstract class AbstractDelegationTokenBinding {
    * @param expectedClass class of the expected token identifier.
    * @throws DelegationTokenIOException If the wrong class was found.
    */
+  @SuppressWarnings("unchecked") // safe by contract of convertTokenIdentifier()
   protected <T extends DelegationTokenIdentifier> T convertTokenIdentifier(
       DelegationTokenIdentifier identifier, Class<T> expectedClass)
       throws DelegationTokenIOException {
-    if (!identifier.getClass().equals(expectedClass)) {
-      throw DelegationTokenIOException.wrongTokenType(expectedClass, identifier);
+    if (identifier.getClass().equals(expectedClass)) {
+      return (T) identifier;
     }
-    return (T) identifier;
+    throw DelegationTokenIOException.wrongTokenType(expectedClass, identifier);
   }
 
   /**

@@ -1,19 +1,19 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements. See the NOTICE file distributed with this
- * work for additional information regarding copyright ownership. The ASF
- * licenses this file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the License.
+ * Copyright 2019 Google Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *    http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations under
- * the License.
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
+
 package com.google.cloud.hadoop.fs.gcs.auth;
 
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.DELEGATION_TOKEN_BINDING_CLASS;
@@ -65,9 +65,9 @@ public class GcsDelegationTokens {
     checkState(tokenBindingImpl != null, "Delegation Tokens are not configured");
 
     try {
-      Class bindingClass = Class.forName(tokenBindingImpl);
+      Class<?> bindingClass = Class.forName(tokenBindingImpl);
       AbstractDelegationTokenBinding binding =
-          (AbstractDelegationTokenBinding) bindingClass.newInstance();
+          (AbstractDelegationTokenBinding) bindingClass.getDeclaredConstructor().newInstance();
       binding.bindToFileSystem(fileSystem, getService());
       tokenBinding = binding;
       logger.atFine().log(
@@ -259,6 +259,7 @@ public class GcsDelegationTokens {
    * @return the token or null if no suitable token was found
    * @throws DelegationTokenIOException wrong token kind found
    */
+  @SuppressWarnings("unchecked") // safe by contract of lookupToken()
   private static Token<DelegationTokenIdentifier> lookupToken(
       Credentials credentials, Text service, Text kind) throws DelegationTokenIOException {
     logger.atFine().log("Looking for token for service %s in credentials", service);

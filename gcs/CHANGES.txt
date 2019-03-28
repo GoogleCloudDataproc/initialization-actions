@@ -12,6 +12,9 @@
   5. Eagerly initialize `GoogleCloudStorageReadChannel` metadata if
      `fs.gs.inputstream.fast.fail.on.not.found.enable` set to true.
 
+  6. Add support for Hadoop Delegation Tokens (based on HADOOP-14556).
+     Configurable via `fs.gs.delegation.token.binding` property.
+
 
 1.9.14 - 2019-02-13
 
