@@ -62,6 +62,11 @@ RSTUDIO_VERSION=1.1.463
 OS_ID=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 OS_CODE=$(lsb_release -cs)
 
+function get_apt_key_for_debian() {
+  apt-key adv --no-tty --keyserver keys.gnupg.net --recv-key E19F5F87128899B192B1A2C2AD5F960A256A04AF || \
+      apt-key adv --no-tty --keyserver pgp.mit.edu --recv-key E19F5F87128899B192B1A2C2AD5F960A256A04AF
+}
+
 if [[ "${ROLE}" == 'Master' ]]; then
   if (( ${#USER_PASSWORD} < 7 )) ; then
     echo "You must specify a password of at least 7 characters for user \`$USER_NAME\` through metadata \`rstudio-password\`."
@@ -83,7 +88,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
     add-apt-repository "deb http://cran.r-project.org/bin/linux/ubuntu ${OS_CODE}-cran35/"
     rstudio_server_package=rstudio-server-${RSTUDIO_VERSION}-amd64.deb
   else
-    run_with_retries apt-key adv --no-tty --keyserver keys.gnupg.net --recv-key E19F5F87128899B192B1A2C2AD5F960A256A04AF
+    run_with_retries get_apt_key_for_debian
     add-apt-repository "deb http://cran.r-project.org/bin/linux/debian ${OS_CODE}-cran34/"
     rstudio_server_package=rstudio-server-${OS_CODE}-${RSTUDIO_VERSION}-amd64.deb
   fi
