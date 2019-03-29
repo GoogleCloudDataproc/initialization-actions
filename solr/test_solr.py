@@ -1,5 +1,8 @@
+"""
+This module provides testing functionality of the Apache Solr Init Action.
+"""
 import unittest
-import json
+import os
 from parameterized import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
@@ -8,86 +11,25 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 class SolrTestCase(DataprocTestCase):
     COMPONENT = 'solr'
     INIT_ACTION = 'gs://dataproc-initialization-actions/solr/solr.sh'
-    SOLR_DIR = '/opt/solr'
-    SOLR_EXAMPLE_DOC = 'https://raw.githubusercontent.com/apache/lucene-solr/master/solr/example/films/films.json'
-
-    def create_core_collection(self, name):
-        ret_code, stdout, stderr = self.run_command(
-            'gcloud compute ssh {} --command "{}"'.format(
-                name,
-                "sudo runuser -l solr -s /bin/bash "
-                "-c '{}/bin/solr create -c films -s 2 -rf 2'".format(
-                    self.SOLR_DIR
-                )
-            )
-        )
-        self.assertEqual(ret_code, 0, "Failed to create core or collection. Error: {}".format(stderr))
-
-    def use_api_to_update_schema(self, name):
-        json = '{\\"add-field\\": {\\"name\\":\\"name\\", \\"type\\":\\"text_general\\", \\"multiValued\\":false, \\"stored\\":true}}'
-        ret_code, stdout, stderr = self.run_command(
-            'gcloud compute ssh {} --command "{}"'.format(
-                name,
-                "curl -X POST -H 'Content-type:application/json' --data-binary '{}' "
-                "http://localhost:8983/solr/films/schema".format(
-                    json
-                )
-            )
-        )
-        self.assertEqual(ret_code, 0, "Failed to update schema using API. Error: {}".format(stderr))
-
-    def use_api_to_create_catch_all_rule(self, name):
-        json = '{\\"add-copy-field\\" : {\\"source\\":\\"*\\",\\"dest\\":\\"_text_\\"}}'
-        ret_code, stdout, stderr = self.run_command(
-            'gcloud compute ssh {} --command "{}"'.format(
-                name,
-                "curl -X POST -H 'Content-type:application/json' --data-binary '{}' " 
-                "http://localhost:8983/solr/films/schema".format(
-                    json
-                )
-            )
-        )
-        self.assertEqual(ret_code, 0, "Failed to create rule using API. Error: {}".format(stderr))
-
-    def post_test_data(self, name):
-        ret_code, stdout, stderr = self.run_command(
-            'gcloud compute ssh {} --command "{}"'.format(
-                name,
-                "wget -q {} -O /tmp/films.json".format(
-                    self.SOLR_EXAMPLE_DOC
-                )
-            )
-        )
-        self.assertEqual(ret_code, 0, "Failed to get test data. Error: {}".format(stderr))
-        ret_code, stdout, stderr = self.run_command(
-            'gcloud compute ssh {} --command "{}"'.format(
-                name,
-                "sudo runuser -l solr -s /bin/bash "
-                "-c '{}/bin/post -c films  /tmp/films.json'".format(
-                    self.SOLR_DIR
-                )
-            )
-        )
-        self.assertEqual(ret_code, 0, "Failed to post data. Error: {}".format(stderr))
-
-    def run_test_query(self, name):
-        ret_code, stdout, stderr = self.run_command(
-            'gcloud compute ssh {} --command "{}"'.format(
-                name,
-                "curl --silent 'http://localhost:8983/solr/films/select?q=Comedy&rows=0'"
-            )
-        )
-        self.assertEqual(ret_code, 0, "Failed to query solr using API. Error: {}".format(stderr))
-        out_json = json.loads(stdout)
-        self.assertEqual(out_json['response']['numFound'], 417,
-                         "Failed to get right number of matches. Got:{}".format(stdout))
+    TEST_SCRIPT_FILE_NAME = 'verify_solr.py'
 
     def verify_instance(self, name):
-        self.create_core_collection(name)
-        self.use_api_to_update_schema(name)
-        self.use_api_to_create_catch_all_rule(name)
-        self.post_test_data(name)
-        self.run_test_query(name)
+        self.upload_test_file(
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                self.TEST_SCRIPT_FILE_NAME),
+            name)
+        self.__run_test_script(name)
+        self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
+
+    def __run_test_script(self, name):
+        ret_code, stdout, stderr = self.run_command(
+            'gcloud compute ssh {} -- "python {}"'.format(
+                name,
+                self.TEST_SCRIPT_FILE_NAME,
+            )
+        )
+        self.assertEqual(ret_code, 0, "Failed to validate cluster. Last error: {}".format(stderr))
 
     @parameterized.expand([
         ("SINGLE", "1.2", ["m"]),
