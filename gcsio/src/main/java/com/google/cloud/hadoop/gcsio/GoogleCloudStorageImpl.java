@@ -1481,29 +1481,8 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
   /** Handle prefixes without prefix objects. */
   private void handlePrefixes(
-      String bucketName, List<String> prefixes, List<GoogleCloudStorageItemInfo> objectInfos)
-      throws IOException {
-    if (storageOptions.isAutoRepairImplicitDirectoriesEnabled()) {
-      logger.atInfo().log("Repairing batch of %s missing directories.", prefixes.size());
-      logger.atFine().log("Directories to repair: %s", prefixes);
-
-      List<StorageResourceId> prefixIds = new ArrayList<>(prefixes.size());
-      for (String prefix : prefixes) {
-        prefixIds.add(new StorageResourceId(bucketName, prefix));
-      }
-
-      try {
-        createEmptyObjects(prefixIds);
-      } catch (IOException ioe) {
-        // Don't totally fail the listObjectInfo call, since auto-repair is best-effort anyways.
-        logger.atSevere().withCause(ioe).log("Failed to repair some missing directories.");
-      }
-
-      List<GoogleCloudStorageItemInfo> repairedInfos = getItemInfos(prefixIds);
-      objectInfos.addAll(
-          inferOrFilterNotRepairedInfos(
-              repairedInfos, storageOptions.isInferImplicitDirectoriesEnabled()));
-    } else if (storageOptions.isInferImplicitDirectoriesEnabled()) {
+      String bucketName, List<String> prefixes, List<GoogleCloudStorageItemInfo> objectInfos) {
+    if (storageOptions.isInferImplicitDirectoriesEnabled()) {
       for (String prefix : prefixes) {
         objectInfos.add(
             GoogleCloudStorageItemInfo.createInferredDirectory(
@@ -1511,34 +1490,9 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
       }
     } else {
       logger.atInfo().log(
-          "Directory repair and inferred directories are disabled, "
-              + "giving up on retrieving missing directories: %s",
+          "Inferred directories are disabled, giving up on retrieving missing directories: %s",
           prefixes);
     }
-  }
-
-  static List<GoogleCloudStorageItemInfo> inferOrFilterNotRepairedInfos(
-      List<GoogleCloudStorageItemInfo> repairInfos, boolean inferImplicitDirectories) {
-    // Fetch and append all the repaired items metadata.
-    List<GoogleCloudStorageItemInfo> objectInfos = new ArrayList<>(repairInfos.size());
-    int numRepaired = 0;
-    for (GoogleCloudStorageItemInfo repairedInfo : repairInfos) {
-      if (repairedInfo.exists()) {
-        objectInfos.add(repairedInfo);
-        ++numRepaired;
-      } else {
-        StorageResourceId resourceId = repairedInfo.getResourceId();
-        if (inferImplicitDirectories) {
-          logger.atInfo().log("Repair for '%s' failed, using inferred directory", resourceId);
-          objectInfos.add(GoogleCloudStorageItemInfo.createInferredDirectory(resourceId));
-        } else {
-          logger.atInfo().log("Repair for '%s' failed, skipping", resourceId);
-        }
-      }
-    }
-    logger.atInfo().log(
-        "Successfully repaired %s/%s implicit directories.", numRepaired, repairInfos.size());
-    return objectInfos;
   }
 
   /** Helper for converting a StorageResourceId + Bucket into a GoogleCloudStorageItemInfo. */

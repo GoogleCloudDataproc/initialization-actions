@@ -184,17 +184,6 @@ public class GoogleCloudStorageTest {
   }
 
   /**
-   * Creates an instance of GoogleCloudStorage using GoogleCloudStorageImpl as the concrete type and
-   * setting up the proper mocks, with the specified value for autoRepairImplicitDirectories.
-   */
-  protected GoogleCloudStorage createTestInstance(boolean autoRepairImplicitDirectories) {
-    return createTestInstance(
-        createDefaultCloudStorageOptionsBuilder()
-            .setAutoRepairImplicitDirectoriesEnabled(autoRepairImplicitDirectories)
-            .build());
-  }
-
-  /**
    * Creates an instance of GoogleCloudStorage with the specified options, using
    * GoogleCloudStorageImpl as the concrete type, and setting up the proper mocks.
    */
@@ -211,27 +200,11 @@ public class GoogleCloudStorageTest {
 
   /**
    * Creates an instance of GoogleCloudStorage using GoogleCloudStorageImpl as the concrete type and
-   * setting up the proper mocks, with autoRepairImplicitDirectories set false, and the specified
-   * value for inferImplicitDirectories.
+   * setting up the proper mocks, and the specified value for inferImplicitDirectories.
    */
   private GoogleCloudStorage createTestInstanceWithInferImplicit(boolean inferImplicitDirectories) {
     return createTestInstance(
         createDefaultCloudStorageOptionsBuilder()
-            .setAutoRepairImplicitDirectoriesEnabled(false)
-            .setInferImplicitDirectoriesEnabled(inferImplicitDirectories)
-            .build());
-  }
-
-  /**
-   * Creates an instance of GoogleCloudStorage using GoogleCloudStorageImpl as the concrete type and
-   * setting up the proper mocks, with the specified autoRepairImplicitDirectories and
-   * inferImplicitDirectories.
-   */
-  private GoogleCloudStorage createTestInstanceWithAutoRepairWithInferImplicit(
-      boolean autoRepairImplicitDirectories, boolean inferImplicitDirectories) {
-    return createTestInstance(
-        createDefaultCloudStorageOptionsBuilder()
-            .setAutoRepairImplicitDirectoriesEnabled(autoRepairImplicitDirectories)
             .setInferImplicitDirectoriesEnabled(inferImplicitDirectories)
             .build());
   }
@@ -3007,16 +2980,11 @@ public class GoogleCloudStorageTest {
         .when(mockBatchHelper)
         .queue(eq(mockStorageObjectsGet), Matchers.anyObject());
 
-    // Set up the "create" for auto-repair after a failed getItemInfos.
-    when(mockStorageObjects.insert(
-            any(String.class), any(StorageObject.class), any(AbstractInputStreamContent.class)))
-        .thenReturn(mockStorageObjectsInsert);
-
     List<GoogleCloudStorageItemInfo> objectInfos =
         gcs.listObjectInfo(BUCKET_NAME, objectPrefix, delimiter);
 
-    // objects().list, objects().insert x 2, objects().get x 2
-    verify(mockStorage, times(5)).objects();
+    // objects().list
+    verify(mockStorage, times(1)).objects();
     verify(mockStorageObjects).list(eq(BUCKET_NAME));
     verify(mockStorageObjectsList)
         .setMaxResults(eq(GoogleCloudStorageOptions.MAX_LIST_ITEMS_PER_CALL_DEFAULT));
@@ -3025,45 +2993,15 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsList).setPrefix(eq(objectPrefix));
     verify(mockStorageObjectsList).getPrefix();
     verify(mockStorageObjectsList).execute();
-
-    // Auto-repair insert.
-    verify(mockStorageObjects, times(2)).insert(
-        eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
-    verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
-    verify(mockClientRequestHelper, times(2))
-        .setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
-    verify(mockStorageObjectsInsert, times(2)).execute();
-
-    // Batch get after auto-repair.
-    verify(mockBatchFactory).newBatchHelper(any(), eq(mockStorage), anyLong(), anyLong(), anyInt());
-    verify(mockStorageObjects, times(2)).get(eq(BUCKET_NAME), any(String.class));
-    verify(mockBatchHelper, times(2))
-        .queue(eq(mockStorageObjectsGet), Matchers.<JsonBatchCallback<StorageObject>>anyObject());
-    verify(mockBatchHelper).flush();
-
-    // Check logical contents after all the "verify" calls, otherwise the mock verifications won't
-    // be executed and we'll have misleading "NoInteractionsWanted" errors.
-    assertThat(objectInfos)
-        .containsExactly(
-            createItemInfoForStorageObject(new StorageResourceId(BUCKET_NAME, dir0Name), dir0),
-            createItemInfoForStorageObject(new StorageResourceId(BUCKET_NAME, dir1Name), dir1),
-            createItemInfoForStorageObject(new StorageResourceId(BUCKET_NAME, dir2Name), dir2));
   }
 
   @Test
-  public void testListObjectInfoNoAutoRepairWithInferImplicit()
-      throws IOException {
-    runTestListObjectInfoNoAutoRepair(true);
+  public void testListObjectInfoWithoutInferImplicit() throws IOException {
+    runTestListObjectInfo(false);
   }
 
-  @Test
-  public void testListObjectInfoNoAutoRepairWithoutInferImplicit() throws IOException {
-    runTestListObjectInfoNoAutoRepair(false);
-  }
-
-  private void runTestListObjectInfoNoAutoRepair(boolean inferImplicit) throws IOException {
-    GoogleCloudStorage gcsNoAutoRepair =
-        createTestInstanceWithAutoRepairWithInferImplicit(false, inferImplicit);
+  private void runTestListObjectInfo(boolean inferImplicit) throws IOException {
+    GoogleCloudStorage gcs = createTestInstanceWithInferImplicit(inferImplicit);
 
     String objectPrefix = "foo/bar/baz/";
     String delimiter = "/";
@@ -3090,9 +3028,9 @@ public class GoogleCloudStorageTest {
                 .setItems(ImmutableList.of(dir1))
                 .setNextPageToken(null));
 
-    // List the objects, without attempting any auto-repair
+    // List the objects
     List<GoogleCloudStorageItemInfo> objectInfos =
-        gcsNoAutoRepair.listObjectInfo(BUCKET_NAME, objectPrefix, delimiter);
+        gcs.listObjectInfo(BUCKET_NAME, objectPrefix, delimiter);
 
     // objects().list
     verify(mockStorage).objects();
@@ -3109,7 +3047,7 @@ public class GoogleCloudStorageTest {
     // mock verifications won't be executed and we'll have misleading
     // "NoInteractionsWanted" errors.
 
-    if (gcsNoAutoRepair.getOptions().isInferImplicitDirectoriesEnabled()) {
+    if (gcs.getOptions().isInferImplicitDirectoriesEnabled()) {
       assertThat(objectInfos)
           .containsExactly(
               createInferredDirectory(new StorageResourceId(BUCKET_NAME, dir0Name)),
@@ -3154,7 +3092,7 @@ public class GoogleCloudStorageTest {
                 .setItems(ImmutableList.of(dir1))
                 .setNextPageToken(null));
 
-    // List the objects, without attempting any auto-repair
+    // List the objects
     List<GoogleCloudStorageItemInfo> objectInfos =
         gcsInferImplicit.listObjectInfo(BUCKET_NAME, objectPrefix, delimiter);
 

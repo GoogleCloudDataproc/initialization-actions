@@ -14,7 +14,6 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.api.client.util.Strings.isNullOrEmpty;
-import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl.inferOrFilterNotRepairedInfos;
 import static com.google.common.base.Strings.nullToEmpty;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -246,17 +245,7 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
     }
 
     boolean inferImplicitDirectories = delegateOptions.isInferImplicitDirectoriesEnabled();
-    if (delegateOptions.isAutoRepairImplicitDirectoriesEnabled()) {
-      try {
-        createEmptyObjects(dirIds);
-      } catch (IOException ioe) {
-        // Don't totally fail the listObjectInfo call, since auto-repair is best-effort anyways.
-        logger.atSevere().withCause(ioe).log("Failed to repair some missing directories.");
-      }
-      // cache repaired dirs
-      List<GoogleCloudStorageItemInfo> repairedDirInfos = getItemInfos(dirIds);
-      items.addAll(inferOrFilterNotRepairedInfos(repairedDirInfos, inferImplicitDirectories));
-    } else if (inferImplicitDirectories) {
+    if (inferImplicitDirectories) {
       for (StorageResourceId dirId : dirIds) {
         items.add(GoogleCloudStorageItemInfo.createInferredDirectory(dirId));
       }

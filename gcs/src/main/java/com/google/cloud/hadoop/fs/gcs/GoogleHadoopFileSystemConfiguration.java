@@ -267,8 +267,7 @@ public class GoogleHadoopFileSystemConfiguration {
 
   /**
    * Configuration key for enabling automatic repair of implicit directories whenever detected
-   * inside listStatus and globStatus calls, or other methods which may indirectly call listStatus
-   * and/or globStatus.
+   * inside delete calls.
    */
   public static final GoogleHadoopFileSystemConfigurationProperty<Boolean>
       GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE =
@@ -283,9 +282,7 @@ public class GoogleHadoopFileSystemConfiguration {
   /**
    * Configuration key for enabling automatic inference of implicit directories. If set, we create
    * and return in-memory directory objects on the fly when no backing object exists, but we know
-   * there are files with the same prefix. The ENABLE_REPAIR flag takes precedence over this flag:
-   * if both are set, the repair is attempted, and only if it fails does the setting of this flag
-   * kick in.
+   * there are files with the same prefix.
    */
   public static final GoogleHadoopFileSystemConfigurationProperty<Boolean>
       GCS_INFER_IMPLICIT_DIRECTORIES_ENABLE =

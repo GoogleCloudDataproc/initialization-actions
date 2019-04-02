@@ -646,10 +646,10 @@ public class GoogleCloudStorageTest {
 
     assertWithMessage("Infos not expected to be empty").that(rootInfo).hasSize(2);
 
-    // Directory repair should have created an empty object for us:
-    StorageResourceId d2 =
-        new StorageResourceId(bucketName, "testListObjectInfoWithDirectoryRepair_d2/");
-    assertObjectContent(rawStorage, d2, new byte[0]);
+    GoogleCloudStorageItemInfo d2Info =
+        rawStorage.getItemInfo(
+            new StorageResourceId(bucketName, "testListObjectInfoWithDirectoryRepair_d2/"));
+    assertThat(d2Info.exists()).isFalse();
 
     List<GoogleCloudStorageItemInfo> d2ItemInfo =
         rawStorage.listObjectInfo(

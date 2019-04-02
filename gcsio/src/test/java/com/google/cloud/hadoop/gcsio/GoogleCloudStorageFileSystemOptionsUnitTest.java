@@ -20,6 +20,7 @@ import static com.google.common.truth.Truth.assertThat;
 import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage.ListVisibilityCalculator;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
+import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.IOException;
 import java.util.Arrays;
@@ -69,24 +70,9 @@ public class GoogleCloudStorageFileSystemOptionsUnitTest
   }
 
   @Parameters
-  public static Collection<Object[]> getConstructorArguments()
-      throws IOException {
-    return Arrays.asList(new Object[][]{
-        {new InMemoryGcsCreator()},
-        {new ZeroLaggedGcsCreator()},
-        // {new CachedLaggedGcsCreator()},
-        // TODO(user): The above test fails when we run :UnitTests,
-        // but succeeds when we run :UnitTests with a filter set to
-        // this class name, so there must be some kind of interaction
-        // between this test and other tests in :UnitTests.
-        // Need to track this down.
-
-        // We don't test with a file-backed cache, because it creates
-        // its cache files on disk, which requires
-        // that parent directories be created, so the test fails when
-        // autoRepair=false and we expect there not to be any
-        // intermediate directories.
-    });
+  public static Collection<Object[]> getConstructorArguments() {
+    return ImmutableList.of(
+        new Object[] {new InMemoryGcsCreator()}, new Object[] {new ZeroLaggedGcsCreator()});
   }
 
   @BeforeClass
@@ -95,13 +81,9 @@ public class GoogleCloudStorageFileSystemOptionsUnitTest
     GoogleCloudStorageFileSystemOptionsTestBase.beforeAllTests();
   }
 
-  /**
-   * Generate the GCSFS to be used for testing.
-   */
+  /** Generate the GCSFS to be used for testing. */
   @Override
-  public GoogleCloudStorageFileSystem
-      createGcsfsWithAutoRepairWithInferDirectories(
-      boolean autoRepairEnabled, boolean inferDirectories)
+  public GoogleCloudStorageFileSystem createGcsfsWithInferDirectories(boolean inferDirectories)
       throws IOException {
     // Use the GcsOptions builder from the GcsFsOptions builder
     // so that we can get to the GcsOptions from the GcsFsOptions
@@ -114,7 +96,6 @@ public class GoogleCloudStorageFileSystemOptionsUnitTest
     GoogleCloudStorageOptions.Builder gcsOptionsBuilder =
         fsOptionsBuilder.getCloudStorageOptionsBuilder();
     GoogleCloudStorageOptions gcsOptions = gcsOptionsBuilder
-        .setAutoRepairImplicitDirectoriesEnabled(autoRepairEnabled)
         .setInferImplicitDirectoriesEnabled(inferDirectories)
         .build();
     GoogleCloudStorage gcs = this.gcsCreator.createGcs(gcsOptions);

@@ -1007,8 +1007,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     List<FileStatus> status;
 
     try {
-      List<FileInfo> fileInfos =
-          getGcsFs().listFileInfo(gcsPath, isAutoRepairImplicitDirectoriesEnabled());
+      List<FileInfo> fileInfos = getGcsFs().listFileInfo(gcsPath);
       status = new ArrayList<>(fileInfos.size());
       String userName = getUgiUserName();
       for (FileInfo fileInfo : fileInfos) {
@@ -1023,11 +1022,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     increment(Counter.LIST_STATUS);
     increment(Counter.LIST_STATUS_TIME, duration);
     return status.toArray(new FileStatus[0]);
-  }
-
-  private boolean isAutoRepairImplicitDirectoriesEnabled() {
-    GoogleCloudStorageFileSystemOptions gcsFsOptions = getGcsFs().getOptions();
-    return gcsFsOptions.getCloudStorageOptions().isAutoRepairImplicitDirectoriesEnabled();
   }
 
   /**
@@ -1277,7 +1271,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
       return flatGlobInternal(fixedPath, filter);
     }
 
-    return globInternal(fixedPath, filter, pathPattern);
+    return super.globStatus(fixedPath, filter);
   }
 
   /**
@@ -1288,7 +1282,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
       throws IOException {
     ExecutorService executorService = Executors.newFixedThreadPool(2, DAEMON_THREAD_FACTORY);
     Callable<FileStatus[]> flatGlobTask = () -> flatGlobInternal(fixedPath, filter);
-    Callable<FileStatus[]> nonFlatGlobTask = () -> globInternal(fixedPath, filter, pathPattern);
+    Callable<FileStatus[]> nonFlatGlobTask = () -> super.globStatus(fixedPath, filter);
 
     try {
       return executorService.invokeAny(Arrays.asList(flatGlobTask, nonFlatGlobTask));
@@ -1359,38 +1353,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
 
     FileStatus[] returnList = filteredStatuses.toArray(new FileStatus[0]);
 
-    // If the return list contains directories, we should repair them if they're 'implicit'.
-    if (isAutoRepairImplicitDirectoriesEnabled()) {
-      List<URI> toRepair = new ArrayList<>();
-      for (FileStatus status : returnList) {
-        if (isImplicitDirectory(status)) {
-          toRepair.add(getGcsPath(status.getPath()));
-        }
-      }
-      if (!toRepair.isEmpty()) {
-        logger.atWarning().log(
-            "Discovered %s implicit directories to repair within return values.", toRepair.size());
-        getGcsFs().repairDirs(toRepair);
-      }
-    }
-
     return returnList;
-  }
-
-  private FileStatus[] globInternal(Path fixedPath, PathFilter filter, Path pathPattern)
-      throws IOException {
-    FileStatus[] ret = super.globStatus(fixedPath, filter);
-    if (ret == null) {
-      if (isAutoRepairImplicitDirectoriesEnabled()) {
-        logger.atFine().log(
-            "GHFS.globStatus returned null for '%s', attempting possible repair.", pathPattern);
-        if (getGcsFs().repairPossibleImplicitDirectory(getGcsPath(fixedPath))) {
-          logger.atWarning().log("Success repairing '%s', re-globbing.", pathPattern);
-          ret = super.globStatus(fixedPath, filter);
-        }
-      }
-    }
-    return ret;
   }
 
   private static boolean isImplicitDirectory(FileStatus curr) {

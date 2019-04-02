@@ -310,9 +310,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     URI path = gcsiHelper.getPath(bucketName, objectNamePrefix);
     List<FileInfo> fileInfos;
     if (pathExpectedToExist) {
-      fileInfos = gcsfs.listFileInfo(path, false);
+      fileInfos = gcsfs.listFileInfo(path);
     } else {
-      assertThrows(FileNotFoundException.class, () -> gcsfs.listFileInfo(path, false));
+      assertThrows(FileNotFoundException.class, () -> gcsfs.listFileInfo(path));
       fileInfos = new ArrayList<>();
     }
 

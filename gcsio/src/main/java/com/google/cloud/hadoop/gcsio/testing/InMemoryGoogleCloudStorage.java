@@ -429,19 +429,6 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
       if (itemInfo.exists()) {
         listedInfo.add(itemInfo);
       } else if (itemInfo.getResourceId().isStorageObject()
-                 && storageOptions.isAutoRepairImplicitDirectoriesEnabled()) {
-        create(itemInfo.getResourceId()).close();
-        GoogleCloudStorageItemInfo newInfo = getItemInfo(itemInfo.getResourceId());
-        if (newInfo.exists()) {
-          listedInfo.add(newInfo);
-        } else if (storageOptions.isInferImplicitDirectoriesEnabled()) {
-          // If we fail to do the repair, but inferImplicit is enabled,
-          // then we silently add the implicit (as opposed to silently
-          // ignoring the failure, which is what we used to do).
-          listedInfo.add(
-              GoogleCloudStorageItemInfo.createInferredDirectory(itemInfo.getResourceId()));
-        }
-      } else if (itemInfo.getResourceId().isStorageObject()
                  && storageOptions.isInferImplicitDirectoriesEnabled()) {
         listedInfo.add(
             GoogleCloudStorageItemInfo.createInferredDirectory(itemInfo.getResourceId()));

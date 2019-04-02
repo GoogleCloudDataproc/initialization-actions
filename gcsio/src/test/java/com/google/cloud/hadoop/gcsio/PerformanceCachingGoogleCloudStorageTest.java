@@ -214,12 +214,11 @@ public class PerformanceCachingGoogleCloudStorageTest {
 
   @Test
   public void testListObjectInfo_delimiter() throws IOException {
-    GoogleCloudStorageItemInfo itemAAPrefix =
-        createObjectItemInfo(BUCKET_A, PREFIX_A + "/", CreateObjectOptions.DEFAULT);
+    GoogleCloudStorageItemInfo itemAAPrefix = createInferredDirectory(BUCKET_A, PREFIX_A + "/");
 
     List<GoogleCloudStorageItemInfo> expectedResult = Lists.newArrayList(ITEM_A_A, itemAAPrefix);
     List<GoogleCloudStorageItemInfo> expectedCached =
-        Lists.newArrayList(ITEM_A_A, itemAAPrefix, ITEM_A_AA, ITEM_A_ABA);
+        Lists.newArrayList(ITEM_A_A, ITEM_A_AA, ITEM_A_ABA);
 
     List<GoogleCloudStorageItemInfo> result =
         gcs.listObjectInfo(BUCKET_A, PREFIX_A, "/", MAX_RESULTS_UNLIMITED);
@@ -240,12 +239,10 @@ public class PerformanceCachingGoogleCloudStorageTest {
     String prefixADir = PREFIX_A + "/";
 
     String prefixABADir = PREFIX_ABA.substring(0, PREFIX_ABA.lastIndexOf('/') + 1);
-    GoogleCloudStorageItemInfo itemABAPrefix =
-        createObjectItemInfo(BUCKET_A, prefixABADir, CreateObjectOptions.DEFAULT);
+    GoogleCloudStorageItemInfo itemABAPrefix = createInferredDirectory(BUCKET_A, prefixABADir);
 
     List<GoogleCloudStorageItemInfo> expectedResult = Lists.newArrayList(ITEM_A_AA, itemABAPrefix);
-    List<GoogleCloudStorageItemInfo> expectedCached =
-        Lists.newArrayList(ITEM_A_AA, itemABAPrefix, ITEM_A_ABA);
+    List<GoogleCloudStorageItemInfo> expectedCached = Lists.newArrayList(ITEM_A_AA, ITEM_A_ABA);
 
     List<GoogleCloudStorageItemInfo> result =
         gcs.listObjectInfo(BUCKET_A, prefixADir, "/", MAX_RESULTS_UNLIMITED);
@@ -448,6 +445,12 @@ public class PerformanceCachingGoogleCloudStorageTest {
   public static GoogleCloudStorageItemInfo createObjectItemInfo(
       String bucketName, String objectName) {
     return createObjectItemInfo(bucketName, objectName, CREATE_OBJECT_OPTIONS);
+  }
+
+  public static GoogleCloudStorageItemInfo createInferredDirectory(
+      String bucketName, String objectName) {
+    return GoogleCloudStorageItemInfo.createInferredDirectory(
+        new StorageResourceId(bucketName, objectName));
   }
 
   /**

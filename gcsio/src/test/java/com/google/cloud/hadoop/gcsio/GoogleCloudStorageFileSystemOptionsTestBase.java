@@ -81,66 +81,31 @@ public abstract class GoogleCloudStorageFileSystemOptionsTestBase {
     }
   }
 
-  /**
-   * Generate the GCSFS to be used for testing.
-   */
-  public abstract GoogleCloudStorageFileSystem
-      createGcsfsWithAutoRepairWithInferDirectories(
-          boolean autoRepair, boolean inferDirectories)
-      throws IOException;
+  /** Generate the GCSFS to be used for testing. */
+  public abstract GoogleCloudStorageFileSystem createGcsfsWithInferDirectories(
+      boolean inferDirectories) throws IOException;
 
-  /**
-   * Test auto-repair of directories.
-   */
+  /** Ensure directory implicit directory is absent. */
   @Test
-  public void testAutoRepairEnabled() throws IOException, URISyntaxException {
+  public void testImplicitDirectory() throws IOException, URISyntaxException {
     // We need different GCSFS options for our test.
-    gcsfs = createGcsfsWithAutoRepairWithInferDirectories(true, false);
+    gcsfs = createGcsfsWithInferDirectories(false);
 
     createTestFiles(gcsfs);
-    testAndPossiblyRepairDirs(gcsfs);
-
-    // The directory objects should now exist.
-    for (String dir : impliedDirs0) {
-      FileInfo dirInfo = gcsfs.getFileInfo(new URI(dir));
-      assertWithMessage("Directory " + dir + " should exist after repair.")
-          .that(dirInfo.exists())
-          .isTrue();
-      assertWithMessage("Creation time on repaired directory should be non-zero.")
-          .that(dirInfo.getCreationTime() > 0)
-          .isTrue();
-    }
-  }
-
-  /**
-   * Ensure directory auto-repair can be disabled.
-   */
-  @Test
-  public void testAutoRepairDisabled() throws IOException, URISyntaxException {
-    // We need different GCSFS options for our test.
-    gcsfs = createGcsfsWithAutoRepairWithInferDirectories(false, false);
-
-    createTestFiles(gcsfs);
-    // Since we set autoRepair=false, no repair should happen.
-    testAndPossiblyRepairDirs(gcsfs);
+    testImpliedDirs(gcsfs);
 
     // The directory objects should still not exist.
     for (String dir : impliedDirs) {
       FileInfo dirInfo = gcsfs.getFileInfo(new URI(dir));
-      assertWithMessage("Directory " + dir + " should not exist after (non-)repair.")
-          .that(dirInfo.exists())
-          .isFalse();
+      assertWithMessage("Directory " + dir + " should not exist.").that(dirInfo.exists()).isFalse();
     }
   }
 
-  /**
-   * With no auto-repair but with inferred directories,
-   * the directories should appear to be there.
-   */
+  /** With inferred directories, the directories should appear to be there. */
   @Test
   public void testInferredDirectories() throws IOException, URISyntaxException {
     // We need different GCSFS options for our test.
-    gcsfs = createGcsfsWithAutoRepairWithInferDirectories(false, true);
+    gcsfs = createGcsfsWithInferDirectories(true);
     createTestFiles(gcsfs);
 
     // The directory objects should exist (as inferred directories).
@@ -155,7 +120,7 @@ public abstract class GoogleCloudStorageFileSystemOptionsTestBase {
     }
 
     String dir = impliedDirA;
-    List<FileInfo> subInfo = gcsfs.listFileInfo(new URI(dir), false);
+    List<FileInfo> subInfo = gcsfs.listFileInfo(new URI(dir));
     assertWithMessage("Implied directory " + dir + " should have 2 children")
         .that(subInfo.size())
         .isEqualTo(2);
@@ -176,8 +141,7 @@ public abstract class GoogleCloudStorageFileSystemOptionsTestBase {
     }
   }
 
-  private void testAndPossiblyRepairDirs(
-      GoogleCloudStorageFileSystem gcsfs)
+  private void testImpliedDirs(GoogleCloudStorageFileSystem gcsfs)
       throws IOException, URISyntaxException {
     // We created our objects directly in GCS, so the implied directories
     // should not exist.
@@ -186,13 +150,6 @@ public abstract class GoogleCloudStorageFileSystemOptionsTestBase {
       assertWithMessage("Implied directory " + dir + " should not exist.")
           .that(dirInfo.exists())
           .isFalse();
-    }
-
-    // List each directory so that auto-repair kicks in.
-    for (String inputFile : inputFiles) {
-      URI parentPathUri =
-          gcsfs.getParentPath(new URI(inputFile));
-      gcsfs.repairPossibleImplicitDirectory(parentPathUri);
     }
   }
 
