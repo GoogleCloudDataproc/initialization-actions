@@ -193,14 +193,6 @@ public class GoogleHadoopFileSystemConfiguration {
               "fs.gs.checksum.type", GcsFileChecksumType.NONE);
 
   /**
-   * Configuration key for setting 250GB upper limit on file size to gain higher write throughput.
-   */
-  // TODO(user): remove it once blobstore supports high throughput without limiting size.
-  public static final GoogleHadoopFileSystemConfigurationProperty<Boolean>
-      GCS_FILE_SIZE_LIMIT_250GB =
-          new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.file.size.limit.250gb", false);
-
-  /**
    * Configuration key for using a local item cache to supplement GCS API "getFile" results. This
    * provides faster access to recently queried data. Because the data is cached, modifications made
    * outside of this instance may not be immediately reflected. The performance cache can be used in
@@ -611,7 +603,6 @@ public class GoogleHadoopFileSystemConfiguration {
 
   private static AsyncWriteChannelOptions getWriteChannelOptions(Configuration config) {
     return AsyncWriteChannelOptions.newBuilder()
-        .setFileSizeLimitedTo250Gb(GCS_FILE_SIZE_LIMIT_250GB.get(config, config::getBoolean))
         .setBufferSize(GCS_OUTPUT_STREAM_BUFFER_SIZE.get(config, config::getInt))
         .setPipeBufferSize(GCS_OUTPUT_STREAM_PIPE_BUFFER_SIZE.get(config, config::getInt))
         .setUploadChunkSize(GCS_OUTPUT_STREAM_UPLOAD_CHUNK_SIZE.get(config, config::getInt))

@@ -227,14 +227,6 @@
     </description>
   </property>
   <property>
-    <name>fs.gs.file.size.limit.250gb</name>
-    <value>true</value>
-    <description>
-      Whether to limit files to 250 GB. Setting to false may degrade connector
-      performance somewhat.
-    </description>
-  </property>
-  <property>
     <name>fs.gs.marker.file.pattern</name>
     <value></value>
     <description>

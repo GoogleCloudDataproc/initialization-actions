@@ -39,7 +39,6 @@ import static org.mockito.Mockito.when;
 
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
 import com.google.api.client.googleapis.json.GoogleJsonError;
-import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.http.AbstractInputStreamContent;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.util.BackOff;
@@ -357,8 +356,6 @@ public class GoogleCloudStorageTest {
     when(mockStorageObjects.insert(
         eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
         .thenReturn(mockStorageObjectsInsert);
-    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsInsert)))
-        .thenReturn(mockHeaders);
 
     // Get a channel which will execute the insert object.
     WritableByteChannel writeChannel = gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
@@ -389,8 +386,6 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(0L));
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(1L));
     assertThat(storageObjectCaptor.getValue().getName()).isEqualTo(OBJECT_NAME);
-    verify(mockHeaders, times(0)).set(eq("X-Goog-Upload-Max-Raw-Size"), anyInt());
-    verify(mockClientRequestHelper).getRequestHeaders(any(AbstractGoogleClientRequest.class));
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
     verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
     verify(mockErrorExtractor).itemNotFound(any(IOException.class));
@@ -450,8 +445,6 @@ public class GoogleCloudStorageTest {
     when(mockStorageObjects.insert(
         eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
         .thenReturn(mockStorageObjectsInsert);
-    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsInsert)))
-        .thenReturn(mockHeaders);
 
     // Get a channel which will execute the insert object with an existing generationId to
     // overwrite.
@@ -482,8 +475,6 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(222L));
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(1L));
     assertThat(storageObjectCaptor.getValue().getName()).isEqualTo(OBJECT_NAME);
-    verify(mockHeaders, times(0)).set(eq("X-Goog-Upload-Max-Raw-Size"), anyInt());
-    verify(mockClientRequestHelper).getRequestHeaders(any(AbstractGoogleClientRequest.class));
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
     verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
     verify(mockBackOffFactory).newBackOff();
@@ -522,9 +513,6 @@ public class GoogleCloudStorageTest {
     when(mockStorageObjects.insert(
         eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
         .thenReturn(mockStorageObjectsInsert);
-
-    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsInsert)))
-        .thenReturn(mockHeaders);
 
     // Set up the mock Insert to wait forever.
     final CountDownLatch waitForEverLatch = new CountDownLatch(1);
@@ -574,8 +562,6 @@ public class GoogleCloudStorageTest {
         eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
     verify(mockStorageObjectsInsert, times(1)).setName(eq(OBJECT_NAME));
     verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
-    verify(mockHeaders, times(0)).set(eq("X-Goog-Upload-Max-Raw-Size"), anyInt());
-    verify(mockClientRequestHelper).getRequestHeaders(any(AbstractGoogleClientRequest.class));
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
     verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(0L));
@@ -602,9 +588,6 @@ public class GoogleCloudStorageTest {
         eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
         .thenReturn(mockStorageObjectsInsert);
 
-    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsInsert)))
-        .thenReturn(mockHeaders);
-
     // Set up the mock Insert to throw an exception when execute() is called.
     IOException fakeException = new IOException("Fake IOException");
     setupNonConflictedWrite(fakeException);
@@ -620,8 +603,6 @@ public class GoogleCloudStorageTest {
         eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class));
     verify(mockStorageObjectsInsert, times(1)).setName(eq(OBJECT_NAME));
     verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
-    verify(mockHeaders, times(0)).set(eq("X-Goog-Upload-Max-Raw-Size"), anyInt());
-    verify(mockClientRequestHelper).getRequestHeaders(any(AbstractGoogleClientRequest.class));
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
     verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
     verify(mockStorageObjectsInsert, times(1)).setIfGenerationMatch(eq(0L));
@@ -648,9 +629,6 @@ public class GoogleCloudStorageTest {
         eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
         .thenReturn(mockStorageObjectsInsert);
 
-    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsInsert)))
-        .thenReturn(mockHeaders);
-
     // Set up the mock Insert to throw an exception when execute() is called.
     RuntimeException fakeException = new RuntimeException("Fake exception");
     setupNonConflictedWrite(fakeException);
@@ -673,8 +651,6 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsInsert, times(1)).setName(eq(OBJECT_NAME));
     verify(mockStorageObjectsInsert, times(2)).setDisableGZipContent(eq(true));
     verify(mockStorageObjects, times(1)).get(anyString(), anyString());
-    verify(mockHeaders, times(0)).set(eq("X-Goog-Upload-Max-Raw-Size"), anyInt());
-    verify(mockClientRequestHelper).getRequestHeaders(any(AbstractGoogleClientRequest.class));
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
     verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
     verify(mockStorageObjectsInsert, times(2)).setIfGenerationMatch(anyLong());
@@ -698,8 +674,6 @@ public class GoogleCloudStorageTest {
     when(mockStorageObjects.insert(
         eq(BUCKET_NAME), any(StorageObject.class), any(AbstractInputStreamContent.class)))
         .thenReturn(mockStorageObjectsInsert);
-    when(mockClientRequestHelper.getRequestHeaders(eq(mockStorageObjectsInsert)))
-        .thenReturn(mockHeaders);
 
     WritableByteChannel writeChannel = gcs.create(new StorageResourceId(BUCKET_NAME, OBJECT_NAME));
     assertThat(writeChannel.isOpen()).isTrue();
@@ -719,8 +693,6 @@ public class GoogleCloudStorageTest {
     verify(mockErrorExtractor, times(1)).itemNotFound(any(IOException.class));
     verify(mockBackOff, atLeastOnce()).nextBackOffMillis();
     verify(mockBackOffFactory, atLeastOnce()).newBackOff();
-    verify(mockHeaders, times(0)).set(eq("X-Goog-Upload-Max-Raw-Size"), anyInt());
-    verify(mockClientRequestHelper).getRequestHeaders(any(AbstractGoogleClientRequest.class));
     verify(mockClientRequestHelper).setChunkSize(any(Storage.Objects.Insert.class), anyInt());
     verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
     verify(mockStorageObjectsInsert, times(2)).execute();

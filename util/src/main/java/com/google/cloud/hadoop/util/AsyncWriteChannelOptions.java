@@ -22,9 +22,6 @@ import com.google.common.flogger.GoogleLogger;
 public abstract class AsyncWriteChannelOptions {
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
-  /** Default of whether to limit files to 250GB by default. */
-  @Deprecated public static final boolean LIMIT_FILESIZE_TO_250GB_DEFAULT = false;
-
   /** Default upload buffer size. */
   public static final int BUFFER_SIZE_DEFAULT = 8 * 1024 * 1024;
 
@@ -47,19 +44,11 @@ public abstract class AsyncWriteChannelOptions {
 
   public static Builder builder() {
     return new AutoValue_AsyncWriteChannelOptions.Builder()
-        .setFileSizeLimitedTo250Gb(LIMIT_FILESIZE_TO_250GB_DEFAULT)
         .setBufferSize(BUFFER_SIZE_DEFAULT)
         .setPipeBufferSize(PIPE_BUFFER_SIZE_DEFAULT)
         .setUploadChunkSize(UPLOAD_CHUNK_SIZE_DEFAULT)
         .setDirectUploadEnabled(DIRECT_UPLOAD_ENABLED_DEFAULT);
   }
-
-  /**
-   * @deprecated {@code fileSizeLimitedTo250Gb} now defaults to false. It is deprecated and will
-   *     soon be removed. Files greater than 250Gb are allowed by default.
-   */
-  @Deprecated
-  public abstract boolean isFileSizeLimitedTo250Gb();
 
   public abstract int getBufferSize();
 
@@ -78,9 +67,6 @@ public abstract class AsyncWriteChannelOptions {
   @AutoValue.Builder
   public abstract static class Builder {
 
-    @Deprecated
-    public abstract Builder setFileSizeLimitedTo250Gb(boolean fileSizeLimitedTo250Gb);
-
     public abstract Builder setBufferSize(int bufferSize);
 
     public abstract Builder setPipeBufferSize(int pipeBufferSize);
@@ -94,16 +80,6 @@ public abstract class AsyncWriteChannelOptions {
 
     public abstract Builder setDirectUploadEnabled(boolean directUploadEnabled);
 
-    abstract AsyncWriteChannelOptions autoBuild();
-
-    public AsyncWriteChannelOptions build() {
-      AsyncWriteChannelOptions options = autoBuild();
-      if (options.isFileSizeLimitedTo250Gb()) {
-        logger.atWarning().log(
-            "fileSizeLimitedTo250Gb now defaults to false. It is deprecated and will soon be "
-                + "removed. Files greater than 250Gb are allowed by default.");
-      }
-      return options;
-    }
+    public abstract AsyncWriteChannelOptions build();
   }
 }

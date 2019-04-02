@@ -16,7 +16,6 @@ package com.google.cloud.hadoop.util;
 
 import com.google.api.client.googleapis.media.MediaHttpUploader;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
-import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.InputStreamContent;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -55,10 +54,6 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
           ? GCS_UPLOAD_GRANULARITY
           : 8 * GCS_UPLOAD_GRANULARITY;
 
-  // Upper limit on object size.
-  // We use less than 250GB limit to avoid potential boundary errors
-  private static final long UPLOAD_MAX_SIZE = 249 * 1024 * 1024 * 1024L;
-
   private String contentType;
 
   // ClientRequestHelper to be used instead of calling final methods in client requests.
@@ -83,10 +78,6 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
   // Upload operation that takes place on a separate thread.
   private Future<S> uploadOperation;
 
-  // Previously this allowed faster writes. This is no longer true. Therefore default to false.
-  // TODO: Remove this flag and all related code.
-  private boolean limitFileSizeTo250Gb = false;
-
   // When enabled, we get higher throughput for writing small files.
   private boolean directUploadEnabled = false;
 
@@ -95,7 +86,6 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
       ExecutorService threadPool, AsyncWriteChannelOptions options) {
     this.threadPool = threadPool;
     this.pipeBufferSize = options.getPipeBufferSize();
-    enableFileSizeLimit250Gb(options.isFileSizeLimitedTo250Gb());
     setUploadChunkSize(options.getUploadChunkSize());
     setDirectUploadEnabled(options.isDirectUploadEnabled());
     setContentType("application/octet-stream");
@@ -157,16 +147,6 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
           GCS_UPLOAD_GRANULARITY, chunkSize);
     }
     uploadChunkSize = chunkSize;
-  }
-
-  /**
-   * Enables or disables hard limit of 250GB on size of uploaded files.
-   *
-   * <p>If enabled, we get very high write throughput but writing files larger than UPLOAD_MAX_SIZE
-   * will not succeed. Set it to false to allow larger files at lower throughput.
-   */
-  public void enableFileSizeLimit250Gb(boolean enableLimit) {
-    limitFileSizeTo250Gb = enableLimit;
   }
 
   /**
@@ -263,13 +243,6 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
 
     T request = createRequest(objectContentStream);
     request.setDisableGZipContent(true);
-
-    HttpHeaders headers = clientRequestHelper.getRequestHeaders(request);
-
-    // Legacy check. Will be phased out.
-    if (limitFileSizeTo250Gb) {
-      headers.set("X-Goog-Upload-Max-Raw-Size", UPLOAD_MAX_SIZE);
-    }
 
     // Change chunk size from default value (10MB) to one that yields higher performance.
     clientRequestHelper.setChunkSize(request, uploadChunkSize);

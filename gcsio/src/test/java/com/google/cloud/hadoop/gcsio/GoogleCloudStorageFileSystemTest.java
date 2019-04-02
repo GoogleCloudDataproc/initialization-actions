@@ -84,7 +84,6 @@ public class GoogleCloudStorageFileSystemTest
         .setProjectId("projectId")
         .setWriteChannelOptions(
             AsyncWriteChannelOptions.newBuilder()
-                .setFileSizeLimitedTo250Gb(GCS_FILE_SIZE_LIMIT_250GB_DEFAULT)
                 .setUploadChunkSize(UPLOAD_CHUNK_SIZE_DEFAULT)
                 .build());
   }
