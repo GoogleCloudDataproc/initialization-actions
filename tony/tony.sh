@@ -19,17 +19,18 @@ set -x -e
 # TonY settings
 readonly TONY_INSTALL_FOLDER='/opt/tony/'
 readonly TONY_SAMPLES_FOLDER="${TONY_INSTALL_FOLDER}"'/TonY-samples'
-readonly TONY_DEFAULT_VERSION='30c4c42e6f81de18b959de17555a9a7bd0c90a29'
+readonly TONY_DEFAULT_VERSION='cc8c4ea599143b775092d1b05af63398ad98a9de'
 
 # Tony configurations: https://github.com/linkedin/TonY/wiki/TonY-Configurations
 readonly PS_INSTANCES=1
 readonly PS_MEMORY='4g'
 readonly WORKER_INSTANCES=2
 readonly WORKER_MEMORY='4g'
-readonly WORKER_GPUS=0     # GPUs are not supported in Dataproc.
+readonly WORKER_GPUS=0  # GPU isolation is not supported in Dataproc 1.3
 
 # ML frameworks versions
 readonly TENSORFLOW_VERSION='1.9'
+readonly TENSORFLOW_GPU=false
 readonly PYTORCH_VERSION='0.4.1'
 readonly TORCHVISION_VERSION='0.2.1'
 
@@ -70,6 +71,7 @@ function install_samples() {
   ps_memory="$(/usr/share/google/get_metadata_value attributes/ps_memory)" || ps_memory="${PS_MEMORY}"
   # Framework versions
   tf_version="$(/usr/share/google/get_metadata_value attributes/tf_version)" || tf_version="${TENSORFLOW_VERSION}"
+  tf_gpu="$(/usr/share/google/get_metadata_value attributes/tf_gpu)" || tf_gpu="${TENSORFLOW_GPU}"
   torch_version="$(/usr/share/google/get_metadata_value attributes/torch_version)" || torch_version="${PYTORCH_VERSION}"
   torchvision_version="$(/usr/share/google/get_metadata_value attributes/torchvision_version)" || torchvision_version="${TORCHVISION_VERSION}"
 
@@ -77,7 +79,20 @@ function install_samples() {
   cd "${TONY_SAMPLES_FOLDER}"/deps
   virtualenv -p python3 tf
   source tf/bin/activate
-  pip install tensorflow=="${tf_version}"
+  # Verify you install GPU drivers, CUDA and CUDNN compatible with TensorFlow.
+  if [[ "${tf_gpu}" == 'true' ]]; then
+    if [[ "${tf_version}" == 'tf-nightly-gpu' ]]; then
+        pip install "${tf_version}"
+    else
+        pip install tensorflow-gpu=="${tf_version}"
+    fi
+  else
+    if [[ "${tf_version}" == 'tf-nightly' ]]; then
+        pip install "${tf_version}"
+    else
+        pip install tensorflow=="${tf_version}"
+    fi
+  fi
   zip -r tf.zip tf
 
   cp "${TONY_INSTALL_FOLDER}"/TonY/tony-examples/mnist-tensorflow/mnist_distributed.py \
