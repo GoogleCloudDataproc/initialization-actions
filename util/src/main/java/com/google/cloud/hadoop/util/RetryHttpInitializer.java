@@ -15,6 +15,8 @@
  */
 package com.google.cloud.hadoop.util;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
+
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.HttpBackOffIOExceptionHandler;
 import com.google.api.client.http.HttpBackOffUnsuccessfulResponseHandler;
@@ -37,10 +39,10 @@ import org.apache.http.HttpStatus;
 
 public class RetryHttpInitializer implements HttpRequestInitializer {
 
-  /** HTTP status code indicating too many requests in a given amount of time. */
-  public static final int STATUS_CODE_TOO_MANY_REQUESTS = 429;
-
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+
+  /** HTTP status code indicating too many requests in a given amount of time. */
+  private static final int HTTP_SC_TOO_MANY_REQUESTS = 429;
 
   // Base impl of BackOffRequired determining the default set of cases where we'll retry on
   // unsuccessful HTTP responses; we'll mix in additional retriable response cases on top
@@ -88,29 +90,40 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
     private final HttpUnsuccessfulResponseHandler delegateResponseHandler;
     private final HttpIOExceptionHandler delegateIOExceptionHandler;
     private final ImmutableSet<Integer> responseCodesToLog;
+    private final ImmutableSet<Integer> responseCodesToLogWithRateLimit;
 
     /**
-     * @param delegateResponseHandler The HttpUnsuccessfulResponseHandler to invoke to
-     *    really handle errors.
+     * @param delegateResponseHandler The HttpUnsuccessfulResponseHandler to invoke to really handle
+     *     errors.
      * @param delegateIOExceptionHandler The HttpIOExceptionResponseHandler to delegate to.
      * @param responseCodesToLog The set of response codes to log URLs for.
+     * @param responseCodesToLogWithRateLimit The set of response codes to log URLs for with reate
+     *     limit.
      */
     public LoggingResponseHandler(
         HttpUnsuccessfulResponseHandler delegateResponseHandler,
         HttpIOExceptionHandler delegateIOExceptionHandler,
-        Set<Integer> responseCodesToLog) {
+        Set<Integer> responseCodesToLog,
+        Set<Integer> responseCodesToLogWithRateLimit) {
       this.delegateResponseHandler = delegateResponseHandler;
       this.delegateIOExceptionHandler = delegateIOExceptionHandler;
       this.responseCodesToLog = ImmutableSet.copyOf(responseCodesToLog);
+      this.responseCodesToLogWithRateLimit = ImmutableSet.copyOf(responseCodesToLogWithRateLimit);
     }
 
     @Override
     public boolean handleResponse(
         HttpRequest httpRequest, HttpResponse httpResponse, boolean supportsRetry)
         throws IOException {
-      if (responseCodesToLog.contains(httpResponse.getStatusCode())) {
-        logger.atInfo().log(
+      if (responseCodesToLogWithRateLimit.contains(httpResponse.getStatusCode())) {
+        String httpStatusCode = String.valueOf(httpResponse.getStatusCode());
+        logger.atInfo().atMostEvery(10, SECONDS).perUnique(httpStatusCode).log(
             "Encountered status code %s when accessing URL %s. "
+                + "Delegating to response handler for possible retry.",
+            httpStatusCode, httpRequest.getUrl());
+      } else if (responseCodesToLog.contains(httpResponse.getStatusCode())) {
+        logger.atInfo().log(
+            "Encountered status code %d when accessing URL %s. "
                 + "Delegating to response handler for possible retry.",
             httpResponse.getStatusCode(), httpRequest.getUrl());
       }
@@ -146,7 +159,7 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
             @Override
             public boolean isRequired(HttpResponse response) {
               return BASE_HTTP_BACKOFF_REQUIRED.isRequired(response)
-                  || response.getStatusCode() == STATUS_CODE_TOO_MANY_REQUESTS;
+                  || response.getStatusCode() == HTTP_SC_TOO_MANY_REQUESTS;
             }
           });
       if (sleeperOverride != null) {
@@ -267,7 +280,8 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
         new LoggingResponseHandler(
             new CredentialOrBackoffResponseHandler(),
             exceptionHandler,
-            ImmutableSet.of(HttpStatus.SC_GONE, HttpStatus.SC_SERVICE_UNAVAILABLE));
+            ImmutableSet.of(HttpStatus.SC_GONE, HttpStatus.SC_SERVICE_UNAVAILABLE),
+            ImmutableSet.of(HTTP_SC_TOO_MANY_REQUESTS));
     request.setUnsuccessfulResponseHandler(loggingResponseHandler);
     request.setIOExceptionHandler(loggingResponseHandler);
 

@@ -20,6 +20,9 @@
   8. Repair implicit directories during delete and rename operations instead of
      list and glob operations.
 
+  9. Log HTTP `429 Too Many Requests` responses from GCS at 1 per 10 seconds
+     rate.
+
 
 1.9.14 - 2019-02-13
 
