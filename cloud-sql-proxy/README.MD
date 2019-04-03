@@ -64,6 +64,90 @@ gcloud dataproc clusters create <CLUSTER_NAME> \
     --metadata "additional-cloud-sql-instances=<PROJECT_ID>:<REGION>:<ANOTHER_INSTANCE_NAME>"
 ```
 
+## Private IP Clusters and Cloud SQL Instances
+
+Connecting to a cloud sql instance from a private IP cluster requires some additional setup.
+
+1. Create a network.
+
+```
+gcloud compute networks create <NETWORK>
+```
+Note that regional subnets will be created automatically.
+To list these subnets:
+```
+gcloud compute networks subnets list --network <NETWORK>
+```
+
+2. Enable private IP for a subnet.
+
+Choose the subnet that is in the region you want to use.
+Enable private ip google access for your subnet:
+```
+gcloud compute networks subnets update <SUBNET> \
+    --region <REGION> \
+    --enable-private-ip-google-access
+```
+
+3. Create a cloud sql instance.
+
+```
+gcloud sql instances create <INSTANCE_NAME> \
+    --database-version="MYSQL_5_7" \
+    --activation-policy=ALWAYS \
+    --zone <ZONE>
+```
+Make sure that the zone is in the region you chose earlier.
+
+4. Enable the service networking API
+```
+gcloud services enable servicenetworking.googleapis.com
+```
+
+5. Configure the cloud sql instance to use private IP.
+
+Configure your cloud sql instance to use private IP by following [these instructions](https://cloud.google.com/sql/docs/mysql/configure-private-ip#configuring_an_existing_instance_to_use_private_ip).
+
+Important notes:
+
+When selecting a network, make sure to select the same one that you created earlier.
+
+Make sure to click Save after making changes to your cloud sql instance and note that the update may take a while.
+
+You can confirm that the changes were made by describing your cloud sql instance:
+```
+gcloud sql instances describe <INSTANCE_NAME>
+```
+If both a public and a private IP appear under ipAddresses, then you have successfully completed this step.
+
+6. Create a cluster using this initialization action
+
+To create a private IP cluster that points to your cloud sql instance, do the following:
+
+```
+gcloud dataproc clusters create <CLUSTER_NAME> \
+    --scopes sql-admin \
+    --initialization-actions gs://dataproc-initialization-actions/cloud-sql-proxy/cloud-sql-proxy.sh \
+    --properties hive:hive.metastore.warehouse.dir=gs://<HIVE_DATA_BUCKET>/hive-warehouse \
+    --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>" \
+    --metadata "use-cloud-sql-private-ip=true" \
+    --subnet <SUBNET> \
+    --region <REGION> \
+    --no-address
+```
+Note that the value for hive-metastore-instance can be found by running:
+```
+gcloud sql instances describe <INSTANCE_NAME> | grep connectionName
+```
+
+Important notes:
+
+Make sure to pass the flag --metadata=use-cloud-sql-private-ip=true. This tells the cloud sql proxy to use the private IP address of the cloud sql instance, not the public one.
+
+Make sure to create the cluster in the same region and subnet as you used earlier.
+
+Make sure to pass the --no-address flag, as this is what makes this an internal IP cluster.
+
 ## Protecting passwords with KMS
 
 If you want to protect the passwords for the `root` and `hive` MySQL users, you may use [Cloud KMS](https://cloud.google.com/kms/),
