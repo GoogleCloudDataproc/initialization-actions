@@ -23,7 +23,6 @@ import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Collection;
 import org.junit.BeforeClass;
 import org.junit.Test;

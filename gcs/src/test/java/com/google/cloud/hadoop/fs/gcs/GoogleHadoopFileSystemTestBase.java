@@ -18,6 +18,7 @@ import static com.google.common.base.Charsets.UTF_8;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assume.assumeTrue;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
@@ -212,20 +213,14 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
         gcsfs.getOptions().getCloudStorageOptions().isInferImplicitDirectoriesEnabled();
 
     assertDirectory(gcsfs, leafUri, /* exists= */ true);
-    assertDirectory(gcsfs, subdirUri, inferredDirExists);
-    assertDirectory(gcsfs, parentUri, inferredDirExists);
+    assertDirectory(gcsfs, subdirUri, /* exists= */ inferredDirExists);
+    assertDirectory(gcsfs, parentUri, /* exists= */ inferredDirExists);
 
     ghfsHelper.clearBucket(bucketName);
-  }
+    }
 
-  /**
-   * Test directory repair at deletion
-   *
-   * @throws IOException
-   */
   @Test
-  public void testRepairDirectory() throws IOException {
-    String bucketName = sharedBucketName1;
+  public void testRepairDirectory_afterFileDelete() throws IOException {
     GoogleHadoopFileSystemBase myghfs = (GoogleHadoopFileSystemBase) ghfs;
     GoogleCloudStorageFileSystem gcsfs = myghfs.getGcsFs();
     GoogleCloudStorage gcs = gcsfs.getGcs();
@@ -242,34 +237,123 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
 
     boolean inferImplicitDirectories =
         gcsfs.getOptions().getCloudStorageOptions().isInferImplicitDirectoriesEnabled();
+    boolean autoRepairImplicitDirectories =
+        gcsfs.getOptions().getCloudStorageOptions().isAutoRepairImplicitDirectoriesEnabled();
 
-    assertWithMessage(
-            "Expected to %s: %s", inferImplicitDirectories ? "exist" : "not exist", dirUri)
-        .that(gcsfs.exists(dirUri))
-        .isEqualTo(inferImplicitDirectories);
+    assertDirectory(gcsfs, dirUri, /* exists= */ inferImplicitDirectories);
 
     gcsfs.delete(objUri, false);
-    // Implicit directory created after deletion of the sole object in the directory
-    assertWithMessage("Expected to exist: %s", dirUri).that(gcsfs.exists(dirUri)).isTrue();
-    ghfsHelper.clearBucket(bucketName);
 
-    // test implicit dir repair after a subdir vs. an object has been deleted (recursively)
-    if (inferImplicitDirectories) {
-      // only if directory inferring is enabled, the directory without the implicit
-      // directory entry can be deleted without the FileNotFoundException
-      Path subDir = new Path(dirPath, "subdir");
-      emptyObject = new Path(subDir, "empty-object");
-      objUri = myghfs.getGcsPath(emptyObject);
-      resource = gcsfs.getPathCodec().validatePathAndGetId(objUri, false);
-      gcs.createEmptyObject(resource);
-      URI subdirUri = myghfs.getGcsPath(subDir);
-      assertWithMessage("Expected to exist: %s", dirUri).that(gcsfs.exists(dirUri)).isTrue();
-      assertWithMessage("Expected to exist: %s", subdirUri).that(gcsfs.exists(subdirUri)).isTrue();
-      gcsfs.delete(subdirUri, true);
-      // Implicit directory created after deletion of the sole object in the directory
-      assertWithMessage("Expected to exist: %s", dirUri).that(gcsfs.exists(dirUri)).isTrue();
-      ghfsHelper.clearBucket(bucketName);
+    // Implicit directory created after deletion of the sole object in the directory
+    assertDirectory(gcsfs, dirUri, /* exists= */ autoRepairImplicitDirectories);
+
+    ghfsHelper.clearBucket(resource.getBucketName());
+  }
+
+  @Test
+  public void testRepairDirectory_afterSubdirectoryDelete() throws IOException {
+    GoogleHadoopFileSystemBase myghfs = (GoogleHadoopFileSystemBase) ghfs;
+    GoogleCloudStorageFileSystem gcsfs = myghfs.getGcsFs();
+    GoogleCloudStorage gcs = gcsfs.getGcs();
+
+    // only if directory inferring is enabled, the directory without the implicit
+    // directory entry can be deleted without the FileNotFoundException
+    assumeTrue(gcsfs.getOptions().getCloudStorageOptions().isInferImplicitDirectoriesEnabled());
+
+    URI seedUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
+    Path dirPath = ghfsHelper.castAsHadoopPath(seedUri);
+    URI dirUri = myghfs.getGcsPath(dirPath);
+    Path subDir = new Path(dirPath, "subdir");
+    URI subdirUri = myghfs.getGcsPath(subDir);
+
+    // A subdir path that looks like gs://<bucket>/<generated-tempdir>/foo-subdir where
+    // neither the subdir nor gs://<bucket>/<generated-tempdir> exist yet.
+    Path emptyObject = new Path(subDir, "empty-object");
+    URI objUri = myghfs.getGcsPath(emptyObject);
+    StorageResourceId resource = gcsfs.getPathCodec().validatePathAndGetId(objUri, false);
+    gcs.createEmptyObject(resource);
+
+    boolean autoRepairImplicitDirectories =
+        gcsfs.getOptions().getCloudStorageOptions().isAutoRepairImplicitDirectoriesEnabled();
+
+    assertDirectory(gcsfs, dirUri, /* exists= */ true);
+    assertDirectory(gcsfs, subdirUri, /* exists= */ true);
+
+    gcsfs.delete(subdirUri, true);
+
+    // Implicit directory created after deletion of the sole object in the directory
+    assertDirectory(gcsfs, dirUri, /* exists= */ autoRepairImplicitDirectories);
+
+    ghfsHelper.clearBucket(resource.getBucketName());
     }
+
+  @Test
+  public void testRepairDirectory_afterFileRename() throws IOException {
+    GoogleHadoopFileSystemBase myghfs = (GoogleHadoopFileSystemBase) ghfs;
+    GoogleCloudStorageFileSystem gcsfs = myghfs.getGcsFs();
+    GoogleCloudStorage gcs = gcsfs.getGcs();
+    URI seedUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
+    Path dirPath = ghfsHelper.castAsHadoopPath(seedUri);
+    URI dirUri = myghfs.getGcsPath(dirPath);
+
+    // A subdir path that looks like gs://<bucket>/<generated-tempdir>/foo-subdir where
+    // neither the subdir nor gs://<bucket>/<generated-tempdir> exist yet.
+    Path emptyObject = new Path(dirPath, "empty-object");
+    URI objUri = myghfs.getGcsPath(emptyObject);
+    StorageResourceId resource = gcsfs.getPathCodec().validatePathAndGetId(objUri, false);
+    gcs.createEmptyObject(resource);
+
+    boolean inferImplicitDirectories =
+        gcsfs.getOptions().getCloudStorageOptions().isInferImplicitDirectoriesEnabled();
+    boolean autoRepairImplicitDirectories =
+        gcsfs.getOptions().getCloudStorageOptions().isAutoRepairImplicitDirectoriesEnabled();
+
+    assertDirectory(gcsfs, dirUri, /* exists= */ inferImplicitDirectories);
+
+    gcsfs.rename(objUri, seedUri.resolve("."));
+
+    // Implicit directory created after deletion of the sole object in the directory
+    assertDirectory(gcsfs, dirUri, /* exists= */ autoRepairImplicitDirectories);
+
+    ghfsHelper.clearBucket(resource.getBucketName());
+  }
+
+  @Test
+  public void testRepairDirectory_afterSubdirectoryRename() throws IOException {
+    String bucketName = sharedBucketName1;
+    GoogleHadoopFileSystemBase myghfs = (GoogleHadoopFileSystemBase) ghfs;
+    GoogleCloudStorageFileSystem gcsfs = myghfs.getGcsFs();
+    GoogleCloudStorage gcs = gcsfs.getGcs();
+
+    // only if directory inferring is enabled, the directory without the implicit
+    // directory entry can be deleted without the FileNotFoundException
+    assumeTrue(gcsfs.getOptions().getCloudStorageOptions().isInferImplicitDirectoriesEnabled());
+
+    URI seedUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
+    Path dirPath = ghfsHelper.castAsHadoopPath(seedUri);
+    URI dirUri = myghfs.getGcsPath(dirPath);
+    Path subDir = new Path(dirPath, "subdir");
+    URI subdirUri = myghfs.getGcsPath(subDir);
+
+    // A subdir path that looks like gs://<bucket>/<generated-tempdir>/foo-subdir where
+    // neither the subdir nor gs://<bucket>/<generated-tempdir> exist yet.
+    Path emptyObject = new Path(subDir, "empty-object");
+    URI objUri = myghfs.getGcsPath(emptyObject);
+    StorageResourceId resource = gcsfs.getPathCodec().validatePathAndGetId(objUri, false);
+    gcs.createEmptyObject(resource);
+
+    boolean autoRepairImplicitDirectories =
+        gcsfs.getOptions().getCloudStorageOptions().isAutoRepairImplicitDirectoriesEnabled();
+
+    assertDirectory(gcsfs, dirUri, /* exists= */ true);
+    assertDirectory(gcsfs, subdirUri, /* exists= */ true);
+
+    gcsfs.rename(subdirUri, seedUri.resolve("."));
+
+    // Implicit directory created after deletion of the sole object in the directory
+    assertDirectory(gcsfs, dirUri, /* exists= */ autoRepairImplicitDirectories);
+
+    ghfsHelper.clearBucket(bucketName);
   }
 
   private static void assertDirectory(GoogleCloudStorageFileSystem gcsfs, URI path, boolean exists)

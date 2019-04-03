@@ -62,6 +62,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -106,6 +107,10 @@ public class GoogleCloudStorageFileSystem {
 
   // Executor for updating directory timestamps.
   private ExecutorService updateTimestampsExecutor = createUpdateTimestampsExecutor();
+
+  /** Cached executor for async task. */
+  private ExecutorService cachedExecutor = createCachedExecutor();
+
   // Comparator used for sorting paths.
   //
   // For some bulk operations, we need to operate on parent directories before
@@ -200,6 +205,19 @@ public class GoogleCloudStorageFileSystem {
                 .build());
     // allowCoreThreadTimeOut needs to be enabled for cases where the encapsulating class does not
     service.allowCoreThreadTimeOut(true);
+    return service;
+  }
+
+  private static ExecutorService createCachedExecutor() {
+    ThreadPoolExecutor service =
+        new ThreadPoolExecutor(
+            /* corePoolSize= */ 2,
+            /* maximumPoolSize= */ Integer.MAX_VALUE,
+            /* keepAliveTime= */ 30, TimeUnit.SECONDS,
+            new SynchronousQueue<>(),
+            new ThreadFactoryBuilder().setNameFormat("gcsfs-misc-%d").setDaemon(true).build());
+    service.allowCoreThreadTimeOut(true);
+    // allowCoreThreadTimeOut needs to be enabled for cases where the encapsulating class does not
     return service;
   }
 
@@ -348,17 +366,17 @@ public class GoogleCloudStorageFileSystem {
     checkArgument(!path.equals(GCS_ROOT), "Cannot delete root path (%s)", path);
     logger.atFine().log("delete(%s, %s)", path, recursive);
 
-    Future<FileInfo> parentInfoFuture = null;
-    if (options.getCloudStorageOptions().isAutoRepairImplicitDirectoriesEnabled()) {
-      ExecutorService parentExecutor = Executors.newSingleThreadExecutor(DAEMON_THREAD_FACTORY);
-      parentInfoFuture = parentExecutor.submit(() -> getFileInfo(getParentPath(path)));
-      parentExecutor.shutdown();
-    }
-
-    // Throw FileNotFoundException if the path does not exist.
     FileInfo fileInfo = getFileInfo(path);
     if (!fileInfo.exists()) {
       throw new FileNotFoundException("Item not found: " + path);
+    }
+
+    Future<GoogleCloudStorageItemInfo> parentInfoFuture = null;
+    if (options.getCloudStorageOptions().isAutoRepairImplicitDirectoriesEnabled()) {
+      StorageResourceId parentId = pathCodec.validatePathAndGetId(getParentPath(path), true);
+      parentInfoFuture =
+          cachedExecutor.submit(
+              () -> getFileInfoInternal(parentId, /* inferImplicitDirectories= */ false));
     }
 
     List<FileInfo> itemsToDelete = new ArrayList<>();
@@ -383,27 +401,14 @@ public class GoogleCloudStorageFileSystem {
 
     deleteInternal(itemsToDelete, bucketsToDelete);
 
+    repairImplicitDirectory(parentInfoFuture);
+
     // if we deleted a bucket, then there no need to update timestamps
     if (bucketsToDelete.isEmpty()) {
       List<URI> itemsToDeleteNames =
           itemsToDelete.stream().map(FileInfo::getPath).collect(toCollection(ArrayList::new));
       // Any path that was deleted, we should update the parent except for parents we also deleted
       tryUpdateTimestampsForParentDirectories(itemsToDeleteNames, itemsToDeleteNames);
-    }
-
-    if (options.getCloudStorageOptions().isAutoRepairImplicitDirectoriesEnabled()) {
-      FileInfo parentInfo;
-      try {
-        parentInfo = checkNotNull(parentInfoFuture, "parentInfoFuture should not be null").get();
-      } catch (InterruptedException e) {
-        throw new IOException("Failed to get parent info for: " + path, e);
-      } catch (ExecutionException e) {
-        if (e.getCause() instanceof IOException) {
-          throw (IOException) e.getCause();
-        }
-        throw new IOException("Failed to get parent info for: " + path, e.getCause());
-      }
-      createDirectoryIfDoesNotExist(parentInfo);
     }
   }
 
@@ -685,7 +690,17 @@ public class GoogleCloudStorageFileSystem {
       return;
     }
 
+    Future<GoogleCloudStorageItemInfo> srcParentInfoFuture = null;
+    if (options.getCloudStorageOptions().isAutoRepairImplicitDirectoriesEnabled()) {
+      StorageResourceId srcParentId = pathCodec.validatePathAndGetId(getParentPath(src), true);
+      srcParentInfoFuture =
+          cachedExecutor.submit(
+              () -> getFileInfoInternal(srcParentId, /* inferImplicitDirectories= */ false));
+    }
+
     renameInternal(srcInfo, dst);
+
+    repairImplicitDirectory(srcParentInfoFuture);
   }
 
   /**
@@ -921,13 +936,22 @@ public class GoogleCloudStorageFileSystem {
   }
 
   /**
-   * Attempts to create the directory object explicitly for provided {@code info} if it doesn't
-   * already exist as a directory object.
+   * Attempts to create the directory object explicitly for provided {@code infoFuture} if it
+   * doesn't already exist as a directory object.
    */
-  private void createDirectoryIfDoesNotExist(FileInfo info) {
-    Preconditions.checkNotNull(info, "info can not be null");
-    logger.atFine().log("createDirectoryIfDoesNotExist(%s)", info.getPath());
-    StorageResourceId resourceId = info.getItemInfo().getResourceId();
+  private void repairImplicitDirectory(Future<GoogleCloudStorageItemInfo> infoFuture)
+      throws IOException {
+    if (infoFuture == null) {
+      return;
+    }
+
+    checkState(
+        options.getCloudStorageOptions().isAutoRepairImplicitDirectoriesEnabled(),
+        "implicit directories auto repair should be enabled");
+
+    GoogleCloudStorageItemInfo info = getFromFuture(infoFuture, "Failed to get info from future");
+    StorageResourceId resourceId = info.getResourceId();
+    logger.atFine().log("repairImplicitDirectory(%s)", resourceId);
 
     if (info.exists()
         || resourceId.isRoot()
@@ -948,6 +972,17 @@ public class GoogleCloudStorageFileSystem {
       logger.atInfo().log("Successfully repaired '%s' directory.", resourceId);
     } catch (IOException e) {
       logger.atWarning().withCause(e).log("Failed to repair '%s' directory", resourceId);
+    }
+    }
+
+  private static <T> T getFromFuture(Future<T> future, String message) throws IOException {
+    try {
+      return future.get();
+    } catch (InterruptedException | ExecutionException e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+      throw new IOException(message, e);
     }
   }
 
@@ -1074,14 +1109,17 @@ public class GoogleCloudStorageFileSystem {
     // One should be able to get info about top level directory (== bucket),
     // therefore we allow object name to be empty.
     StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, true);
-    FileInfo fileInfo = FileInfo.fromItemInfo(pathCodec, getFileInfoInternal(resourceId));
+    FileInfo fileInfo =
+        FileInfo.fromItemInfo(
+            pathCodec,
+            getFileInfoInternal(resourceId, gcs.getOptions().isInferImplicitDirectoriesEnabled()));
     logger.atFine().log("getFileInfo: %s", fileInfo);
     return fileInfo;
   }
 
   /** @see #getFileInfo(URI) */
-  private GoogleCloudStorageItemInfo getFileInfoInternal(StorageResourceId resourceId)
-      throws IOException {
+  private GoogleCloudStorageItemInfo getFileInfoInternal(
+      StorageResourceId resourceId, boolean inferImplicitDirectories) throws IOException {
     if (resourceId.isRoot() || resourceId.isBucket()) {
       return gcs.getItemInfo(resourceId);
     }
@@ -1114,7 +1152,7 @@ public class GoogleCloudStorageFileSystem {
           return GoogleCloudStorageItemInfo.createNotFound(resourceId);
         }
 
-        return gcs.getOptions().isInferImplicitDirectoriesEnabled()
+        return inferImplicitDirectories
             ? GoogleCloudStorageItemInfo.createInferredDirectory(dirId)
             : GoogleCloudStorageItemInfo.createNotFound(dirId);
       } catch (ExecutionException | InterruptedException e) {
@@ -1185,22 +1223,36 @@ public class GoogleCloudStorageFileSystem {
         gcs = null;
 
         if (updateTimestampsExecutor != null) {
-          updateTimestampsExecutor.shutdown();
           try {
-            if (!updateTimestampsExecutor.awaitTermination(10, TimeUnit.SECONDS)) {
-              logger.atWarning().log("Forcibly shutting down timestamp update thread pool.");
-              updateTimestampsExecutor.shutdownNow();
-            }
-          } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            logger.atFine().withCause(e).log(
-                "Failed to await termination: forcibly shutting down timestamp update thread pool");
-            updateTimestampsExecutor.shutdownNow();
+            shutdownExecutor(updateTimestampsExecutor, /* waitSeconds= */ 10);
           } finally {
             updateTimestampsExecutor = null;
           }
         }
+
+        if (cachedExecutor != null) {
+          try {
+            shutdownExecutor(cachedExecutor, /* waitSeconds= */ 5);
+          } finally {
+            cachedExecutor = null;
       }
+        }
+      }
+    }
+  }
+
+  private static void shutdownExecutor(ExecutorService executor, long waitSeconds) {
+    executor.shutdown();
+    try {
+      if (!executor.awaitTermination(waitSeconds, TimeUnit.SECONDS)) {
+        logger.atWarning().log("Forcibly shutting down executor service.");
+        executor.shutdownNow();
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      logger.atFine().withCause(e).log(
+          "Failed to await termination: forcibly shutting down executor service");
+      executor.shutdownNow();
     }
   }
 

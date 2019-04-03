@@ -20,8 +20,8 @@
     <value>true</value>
     <description>
       Whether or not to create objects for the parent directories of objects
-      with / in their path e.g. creating gs://bucket/foo/ upon finding
-      gs://bucket/foo/bar.
+      with / in their path e.g. creating gs://bucket/foo/ upon deleting or
+      renaming gs://bucket/foo/bar.
     </description>
   </property>
   <property>

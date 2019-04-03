@@ -17,8 +17,8 @@
 
   7. Remove deprecated `fs.gs.file.size.limit.250gb` property.
 
-  8. Repair implicit directories during delete operations instead of list
-     operations.
+  8. Repair implicit directories during delete and rename operations instead of
+     list and glob operations.
 
 
 1.9.14 - 2019-02-13

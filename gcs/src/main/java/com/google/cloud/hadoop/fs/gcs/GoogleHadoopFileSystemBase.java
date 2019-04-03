@@ -1264,7 +1264,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     logger.atFine().log("GHFS.globStatus fixedPath: %s => %s", pathPattern, fixedPath);
 
     if (enableConcurrentGlob && couldUseFlatGlob(fixedPath)) {
-      return concurrentGlobInternal(fixedPath, filter, pathPattern);
+      return concurrentGlobInternal(fixedPath, filter);
     }
 
     if (enableFlatGlob && couldUseFlatGlob(fixedPath)) {
@@ -1278,7 +1278,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
    * Use 2 glob algorithms that return the same result but one of them could be significantly faster
    * than another one depending on directory layout.
    */
-  private FileStatus[] concurrentGlobInternal(Path fixedPath, PathFilter filter, Path pathPattern)
+  private FileStatus[] concurrentGlobInternal(Path fixedPath, PathFilter filter)
       throws IOException {
     ExecutorService executorService = Executors.newFixedThreadPool(2, DAEMON_THREAD_FACTORY);
     Callable<FileStatus[]> flatGlobTask = () -> flatGlobInternal(fixedPath, filter);
@@ -1351,9 +1351,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
       }
     }
 
-    FileStatus[] returnList = filteredStatuses.toArray(new FileStatus[0]);
-
-    return returnList;
+    return filteredStatuses.toArray(new FileStatus[0]);
   }
 
   private static boolean isImplicitDirectory(FileStatus curr) {

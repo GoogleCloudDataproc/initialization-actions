@@ -267,7 +267,7 @@ public class GoogleHadoopFileSystemConfiguration {
 
   /**
    * Configuration key for enabling automatic repair of implicit directories whenever detected
-   * inside delete calls.
+   * inside delete and rename calls.
    */
   public static final GoogleHadoopFileSystemConfigurationProperty<Boolean>
       GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE =

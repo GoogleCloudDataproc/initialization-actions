@@ -2993,6 +2993,14 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjectsList).setPrefix(eq(objectPrefix));
     verify(mockStorageObjectsList).getPrefix();
     verify(mockStorageObjectsList).execute();
+
+    // Check logical contents after all the "verify" calls, otherwise the mock verifications won't
+    // be executed and we'll have misleading "NoInteractionsWanted" errors.
+    assertThat(objectInfos)
+        .containsExactly(
+            createInferredDirectory(new StorageResourceId(BUCKET_NAME, dir0Name)),
+            createItemInfoForStorageObject(new StorageResourceId(BUCKET_NAME, dir1Name), dir1),
+            createInferredDirectory(new StorageResourceId(BUCKET_NAME, dir2Name)));
   }
 
   @Test
