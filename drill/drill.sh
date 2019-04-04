@@ -213,10 +213,18 @@ function main() {
   local gs_plugin_bucket="gs://${dataproc_bucket}"
 
   # intelligently generate the zookeeper string
-  local zookeeper_client_port=$(grep clientPort /etc/zookeeper/conf/zoo.cfg | cut -d '=' -f 2)
-  local zookeeper_list=$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg \
-     | cut -d '=' -f 2 | cut -d ':' -f 1 | sed "s/$/:${zookeeper_client_port}/" \
-     | xargs echo | sed 's/ /,/g')
+  readonly zookeeper_cfg="/etc/zookeeper/conf/zoo.cfg"
+  readonly zookeeper_client_port=$(grep 'clientPort' ${zookeeper_cfg} \
+    | tail -n 1 \
+    | cut -d '=' -f 2)
+  readonly zookeeper_list=$(grep '^server\.' ${zookeeper_cfg} \
+    | tac \
+    | sort -u -t '='  -k1,1 \
+    | cut -d '=' -f 2 \
+    | cut -d ':' -f 1 \
+    | sed "s/$/:${zookeeper_client_port}/" \
+    | xargs echo \
+    | sed "s/ /,/g")
 
   # Get hive metastore thrift and HDFS URIs
   local hivemeta=$(bdconfig get_property_value \
