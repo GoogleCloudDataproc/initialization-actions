@@ -218,12 +218,12 @@ function main() {
     | tail -n 1 \
     | cut -d '=' -f 2)
   readonly zookeeper_list=$(grep '^server\.' ${zookeeper_cfg} \
+    | tac \
+    | sort -u -t '='  -k1,1 \
     | cut -d '=' -f 2 \
     | cut -d ':' -f 1 \
-    | sort \
-    | uniq \
     | sed "s/$/:${zookeeper_client_port}/" \
-    | xargs echo  \
+    | xargs echo \
     | sed "s/ /,/g")
 
   # Get hive metastore thrift and HDFS URIs
