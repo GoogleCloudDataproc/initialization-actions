@@ -33,6 +33,11 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
     this.gcsfs = Preconditions.checkNotNull(gcsfs);
   }
 
+  /** Perform clean-up once after all tests are turn. */
+  public void afterAllTests() throws IOException {
+    afterAllTests(gcsfs.getGcs());
+  }
+
   /**
    * Opens the given object for reading.
    */

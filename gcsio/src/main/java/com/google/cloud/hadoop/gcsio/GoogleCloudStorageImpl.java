@@ -209,23 +209,26 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
    */
   public GoogleCloudStorageImpl(GoogleCloudStorageOptions options, Credential credential)
       throws IOException {
-    Preconditions.checkNotNull(options, "options must not be null");
-
-    logger.atFine().log("GCS(%s)", options.getAppName());
-
-    options.throwIfNotValid();
-
-    this.storageOptions = options;
-
-    Preconditions.checkNotNull(credential, "credential must not be null");
-
-    this.httpRequestInitializer =
+    this(
+        options,
         new RetryHttpInitializer(
-            credential,
+            checkNotNull(credential, "credential must not be null"),
             options.getAppName(),
             options.getMaxHttpRequestRetries(),
             options.getHttpRequestConnectTimeout(),
-            options.getHttpRequestReadTimeout());
+            options.getHttpRequestReadTimeout()));
+  }
+
+  @VisibleForTesting
+  public GoogleCloudStorageImpl(
+      GoogleCloudStorageOptions options, HttpRequestInitializer httpRequestInitializer)
+      throws IOException {
+    Preconditions.checkNotNull(options, "options must not be null");
+    options.throwIfNotValid();
+    logger.atFine().log("GCS(%s)", options.getAppName());
+    this.storageOptions = options;
+
+    this.httpRequestInitializer = httpRequestInitializer;
 
     HttpTransport httpTransport =
         HttpTransportFactory.createHttpTransport(
@@ -235,10 +238,10 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
             options.getProxyPassword());
 
     // Create GCS instance.
-    this.gcs = new Storage.Builder(
-        httpTransport, JSON_FACTORY, httpRequestInitializer)
-        .setApplicationName(options.getAppName())
-        .build();
+    this.gcs =
+        new Storage.Builder(httpTransport, JSON_FACTORY, httpRequestInitializer)
+            .setApplicationName(options.getAppName())
+            .build();
   }
 
   /**

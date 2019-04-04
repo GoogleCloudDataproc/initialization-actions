@@ -217,7 +217,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     assertDirectory(gcsfs, parentUri, /* exists= */ inferredDirExists);
 
     ghfsHelper.clearBucket(bucketName);
-    }
+  }
 
   @Test
   public void testRepairDirectory_afterFileDelete() throws IOException {
@@ -285,7 +285,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     assertDirectory(gcsfs, dirUri, /* exists= */ autoRepairImplicitDirectories);
 
     ghfsHelper.clearBucket(resource.getBucketName());
-    }
+  }
 
   @Test
   public void testRepairDirectory_afterFileRename() throws IOException {

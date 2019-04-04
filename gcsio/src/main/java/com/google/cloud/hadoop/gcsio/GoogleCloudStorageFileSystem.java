@@ -973,7 +973,7 @@ public class GoogleCloudStorageFileSystem {
     } catch (IOException e) {
       logger.atWarning().withCause(e).log("Failed to repair '%s' directory", resourceId);
     }
-    }
+  }
 
   private static <T> T getFromFuture(Future<T> future, String message) throws IOException {
     try {
@@ -1235,7 +1235,7 @@ public class GoogleCloudStorageFileSystem {
             shutdownExecutor(cachedExecutor, /* waitSeconds= */ 5);
           } finally {
             cachedExecutor = null;
-      }
+          }
         }
       }
     }
