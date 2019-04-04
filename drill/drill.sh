@@ -218,7 +218,6 @@ function main() {
     | tail -n 1 \
     | cut -d '=' -f 2)
   readonly zookeeper_list=$(grep '^server\.' ${zookeeper_cfg} \
-    | tail -n 1 \
     | cut -d '=' -f 2 \
     | cut -d ':' -f 1 \
     | sort \
