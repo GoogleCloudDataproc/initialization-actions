@@ -4,6 +4,8 @@ This folder contains the initialization action `jupyter.sh` to quickly setup and
 
 Note: This init action uses Conda and Python 3. Python 2 and `pip` uesrs should consider using the [jupyter2 action](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/jupyter2).
 
+__Use the Dataproc [Jupyter Optional Component](https://cloud.google.com/dataproc/docs/concepts/components/jupyter)__. Clusters created with Cloud Dataproc image version 1.3 and later can install Jupyter Notebook without using this initialization action. The Jupyter Optional Component's web interface can be accessed via [Component Gateway](https://cloud.google.com/dataproc/docs/concepts/accessing/dataproc-gateways) without using SSH tunnels.
+
 ## Using this initialization action
 
 You can use this initialization action to create a new Dataproc cluster with Jupyter installed:
