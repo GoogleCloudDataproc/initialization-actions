@@ -81,11 +81,13 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
   // Read timeout, in milliseconds.
   private final int readTimeoutMillis;
 
-  /**
-   * A HttpUnsuccessfulResponseHandler logs the URL that generated certain failures.
-   */
+  /** A HttpUnsuccessfulResponseHandler logs the URL that generated certain failures. */
   private static class LoggingResponseHandler
       implements HttpUnsuccessfulResponseHandler, HttpIOExceptionHandler {
+
+    private static final String LOG_MESSAGE_FORMAT =
+        "Encountered status code %d when accessing URL '%s'. "
+            + "Delegating to response handler for possible retry.";
 
     private final HttpUnsuccessfulResponseHandler delegateResponseHandler;
     private final HttpIOExceptionHandler delegateIOExceptionHandler;
@@ -116,16 +118,19 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
         HttpRequest httpRequest, HttpResponse httpResponse, boolean supportsRetry)
         throws IOException {
       if (responseCodesToLogWithRateLimit.contains(httpResponse.getStatusCode())) {
-        String httpStatusCode = String.valueOf(httpResponse.getStatusCode());
-        logger.atInfo().atMostEvery(10, SECONDS).perUnique(httpStatusCode).log(
-            "Encountered status code %s when accessing URL %s. "
-                + "Delegating to response handler for possible retry.",
-            httpStatusCode, httpRequest.getUrl());
+        switch (httpResponse.getStatusCode()) {
+          case HTTP_SC_TOO_MANY_REQUESTS:
+            logger.atInfo().atMostEvery(10, SECONDS).log(
+                LOG_MESSAGE_FORMAT, httpResponse.getStatusCode(), httpRequest.getUrl());
+            break;
+          default:
+            logger.atInfo().atMostEvery(10, SECONDS).log(
+                "Encountered status code %d (and maybe others) when accessing URL '%s'."
+                    + " Delegating to response handler for possible retry.",
+                httpResponse.getStatusCode(), httpRequest.getUrl());
+        }
       } else if (responseCodesToLog.contains(httpResponse.getStatusCode())) {
-        logger.atInfo().log(
-            "Encountered status code %d when accessing URL %s. "
-                + "Delegating to response handler for possible retry.",
-            httpResponse.getStatusCode(), httpRequest.getUrl());
+        logger.atInfo().log(LOG_MESSAGE_FORMAT, httpResponse.getStatusCode(), httpRequest.getUrl());
       }
 
       return delegateResponseHandler.handleResponse(httpRequest, httpResponse, supportsRetry);
@@ -142,9 +147,9 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
   }
 
   /**
-   * An inner class allowing this initializer to create a new handler instance per HttpRequest
-   * which shares the Credential of the outer class and which will compose the Credential with
-   * a backoff handler to handle unsuccessful HTTP codes.
+   * An inner class allowing this initializer to create a new handler instance per HttpRequest which
+   * shares the Credential of the outer class and which will compose the Credential with a backoff
+   * handler to handle unsuccessful HTTP codes.
    */
   private class CredentialOrBackoffResponseHandler implements HttpUnsuccessfulResponseHandler {
     // The backoff-handler instance to use whenever the outer-class's Credential does not handle
@@ -292,9 +297,7 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
     }
   }
 
-  /**
-   * Overrides the default Sleepers used in backoff retry handler instances.
-   */
+  /** Overrides the default Sleepers used in backoff retry handler instances. */
   @VisibleForTesting
   void setSleeperOverride(Sleeper sleeper) {
     sleeperOverride = sleeper;
