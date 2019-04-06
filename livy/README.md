@@ -20,3 +20,10 @@ You can use this initialization action to create a new Dataproc cluster with Liv
 
 1. To learn about how to use Livy read the documentation for the
    [Rest API](https://livy.incubator.apache.org/docs/latest/rest-api.html)
+
+## Automated tests
+
+This init action can be tested with automated script ```test_livy.py```. In order to run just use command from project top directory: 
+```bash
+python3 -m unittest livy.test_livy
+```

@@ -28,6 +28,9 @@ readonly enable_cloud_sql_metastore="$(/usr/share/google/get_metadata_value attr
 # Metastore, but is required for Hive & Spark I/O.
 readonly enable_proxy_on_workers="$(/usr/share/google/get_metadata_value attributes/enable-cloud-sql-proxy-on-workers || echo 'true')"
 
+# Whether to use the private IP address of the cloud sql instance.
+readonly use_cloud_sql_private_ip="$(/usr/share/google/get_metadata_value attributes/use-cloud-sql-private-ip || true)"
+
 # Database user to use to access metastore.
 readonly db_hive_user="$(/usr/share/google/get_metadata_value attributes/db-hive-user || echo 'hive')"
 
@@ -76,12 +79,46 @@ readonly PROXY_BIN='/usr/local/bin/cloud_sql_proxy'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/cloud-sql-proxy.service'
 readonly ADDITIONAL_INSTANCES_KEY='attributes/additional-cloud-sql-instances'
 
+# Dataproc master nodes information
+readonly DATAPROC_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
   return 1
 }
 
+# Helper to run any command with Fibonacci backoff.
+# If all retries fail, returns last attempt's exit code.
+# Args: "$@" is the command to run.
+function run_with_retries() {
+  local retry_backoff=(1 1 2 3 5 8 13 21 34 55 89 144)
+  local -a cmd=("$@")
+  echo "About to run '${cmd[*]}' with retries..."
+
+  local update_succeeded=0
+  for ((i = 0; i < ${#retry_backoff[@]}; i++)); do
+    if "${cmd[@]}"; then
+      update_succeeded=1
+      break
+    else
+      local sleep_time=${retry_backoff[$i]}
+      echo "'${cmd[*]}' attempt $(( $i + 1 )) failed! Sleeping ${sleep_time}." >&2
+      sleep ${sleep_time}
+    fi
+  done
+
+  if ! (( ${update_succeeded} )); then
+    echo "Final attempt of '${cmd[*]}'..."
+    # Let any final error propagate all the way out to any error traps.
+    "${cmd[@]}"
+  fi
+}
+
 function configure_proxy_flags() {
+  # If a cloud sql instance has both public and private IP, use private IP.
+  if [[ $use_cloud_sql_private_ip ]]; then
+    proxy_instances_flags+=" --ip_address_types=PRIVATE"
+  fi
   if [[ $enable_cloud_sql_metastore = "true" ]]; then
     if [[ -z "${metastore_instance}" ]]; then
       err 'Must specify hive-metastore-instance VM metadata'
@@ -131,6 +168,10 @@ EOF
   systemctl enable cloud-sql-proxy
   systemctl start cloud-sql-proxy \
     || err 'Unable to start cloud-sql-proxy service'
+    
+  if [[ $enable_cloud_sql_metastore = "true" ]]; then
+    run_with_retries nc -zv localhost ${metastore_proxy_port}
+  fi
 
   echo 'Cloud SQL Proxy installation succeeded' >&2
 
@@ -194,20 +235,48 @@ EOF
       || err 'Failed to set mysql schema.'
   fi
 
+  run_with_retries run_validation
+}
+
+function run_validation() {
   if ( systemctl is-enabled --quiet hive-metastore ); then
     # Start metastore back up.
-    systemctl start hive-metastore \
+    systemctl restart hive-metastore \
       || err 'Unable to start hive-metastore service'
   else
     echo "Service hive-metastore is not loaded"
   fi
 
-  # Validate it's functioning.
-  if ! hive -e 'SHOW TABLES;' >& /dev/null; then
-    err 'Failed to bring up Cloud SQL Metastore'
-  fi
-  echo 'Cloud SQL Hive Metastore initialization succeeded' >&2
+  # Check that metastore schema is compatible.
+  /usr/lib/hive/bin/schematool -dbType mysql -info || \
+      err 'Run /usr/lib/hive/bin/schematool -dbType mysql -upgradeSchemaFrom <schema-version> to upgrade the schema. Note that this may break Hive metastores that depend on the old schema'
 
+  # Validate it's functioning.
+  if ! timeout 60s beeline -u jdbc:hive2://localhost:10000 -e 'SHOW TABLES;' >& /dev/null; then
+    err 'Failed to bring up Cloud SQL Metastore'
+  else
+    echo 'Cloud SQL Hive Metastore initialization succeeded' >&2
+  fi
+
+}
+
+
+function configure_hive_warehouse_dir(){
+  # Wait for master 0 to create the metastore db if necessary.
+  run_with_retries run_validation
+
+  HIVE_WAREHOURSE_URI=$(beeline -u jdbc:hive2://localhost:10000 \
+    -e "describe database default;" \
+    | sed '4q;d' | cut -d "|" -f4 | tr -d '[:space:]')
+
+  echo "Hive warehouse uri: $HIVE_WAREHOURSE_URI"
+
+  bdconfig set_property \
+    --name 'hive.metastore.warehouse.dir' \
+    --value "${HIVE_WAREHOURSE_URI}" \
+    --configuration_file /etc/hive/conf/hive-site.xml \
+    --clobber
+  echo "Updated hive warehouse dir"
 }
 
 function main() {
@@ -255,12 +324,23 @@ function main() {
       else
         echo "Service hive-metastore is not enabled"
       fi
-      systemctl stop mysql
-      systemctl disable mysql
+      if ( systemctl is-enabled --quiet mysql ); then
+        systemctl stop mysql
+        systemctl disable mysql
+      else
+        echo "Service mysql is not enabled"
+      fi
     fi
     install_cloud_sql_proxy
     if [[ $enable_cloud_sql_metastore = "true" ]]; then
-      configure_sql_client
+      if [[ "${HOSTNAME}" == "${DATAPROC_MASTER}" ]]; then
+        # Initialize metastore db instance and set hive.metastore.warehouse.dir
+        # on master 0.
+        configure_sql_client
+      else
+        # Set hive.metastore.warehouse.dir only on other masters.
+        configure_hive_warehouse_dir
+      fi
     fi
   else
     # This part runs on workers.

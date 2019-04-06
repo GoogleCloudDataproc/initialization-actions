@@ -93,9 +93,9 @@ CONDA_ENV_YAML=$CONDA_ENV_YAML_PATH ./install-conda-env.sh
 
 ### bootstrap-conda.sh
 
-`bootstrap-conda.sh` contains logic for quickly configuring and installing Miniconda across the dataproc cluster. Defaults to [`Miniconda3-latest-Linux-x86_64.sh`](https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh) package (e.g., Python 3), however, users can easily config for targeted versions via the following instance metadata keys:
+`bootstrap-conda.sh` contains logic for quickly configuring and installing Miniconda across the dataproc cluster. Defaults to [`Miniconda3-4.5.4-Linux-x86_64.sh`](https://repo.continuum.io/miniconda/Miniconda3-4.5.4-Linux-x86_64.sh) package (e.g., Python 3), however, users can easily config for targeted versions via the following instance metadata keys:
 - `MINICONDA_VARIANT`: the Python version can be `2` or `3`
-- `MINICONDA_VER`: the Miniconda version (e.g., `4.0.5`)
+- `MINICONDA_VERSION`: the Miniconda version (e.g., `4.0.5` or `latest`)
 
 In addition, the script:
 

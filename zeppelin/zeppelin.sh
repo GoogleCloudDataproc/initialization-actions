@@ -24,14 +24,24 @@ readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly INTERPRETER_FILE='/etc/zeppelin/conf/interpreter.json'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/zeppelin-notebook.service'
 
-function update_apt_get() {
+function retry_apt_command() {
+  cmd="$1"
   for ((i = 0; i < 10; i++)); do
-    if apt-get update; then
+    if eval "$cmd"; then
       return 0
     fi
     sleep 5
   done
   return 1
+}
+
+function update_apt_get() {
+  retry_apt_command "apt-get update"
+}
+
+function install_apt_get() {
+  pkgs="$@"
+  retry_apt_command "apt-get install -y $pkgs"
 }
 
 function err() {
@@ -41,26 +51,21 @@ function err() {
 
 function install_zeppelin(){
   # Install zeppelin. Don't mind if it fails to start the first time.
-  apt-get install -y -t jessie-backports zeppelin || dpkg -l zeppelin
+  retry_apt_command "apt-get install -t $(lsb_release -sc)-backports -y zeppelin" || dpkg -l zeppelin
   if [ $? != 0 ]; then
     err 'Failed to install zeppelin'
   fi
 
-  # Wait up to 60s for ${INTERPRETER_FILE} to be available
-  for i in {1..6}; do
-    if [[ -r "${INTERPRETER_FILE}" ]]; then
-      break
-    else
-      sleep 10
-    fi
-  done
+  # If both asm-3.1.jar and asm-5.0.4.jar are found in /usr/lib/zeppelin/lib for
+  # Zeppelin 0.7, delete asm-5.0.4.jar. This is a temporary workaround before
+  # we figure out the root cause of asm conflict.
+  local zeppelin_version="$(dpkg-query --showformat='${Version}' --show zeppelin)"
+  local asm_3_1=/usr/lib/zeppelin/lib/asm-3.1.jar
+  local asm_5_0_4=/usr/lib/zeppelin/lib/asm-5.0.4.jar
 
-  if [[ ! -r "${INTERPRETER_FILE}" ]]; then
-    err "${INTERPRETER_FILE} is missing"
+  if [[ "$zeppelin_version" == "0.7."* && -f "$asm_3_1" && -f "$asm_5_0_4" ]]; then
+    rm "$asm_5_0_4"
   fi
-
-  # stop service, systemd will be configured
-  service zeppelin stop
 }
 
 function configure_zeppelin(){
@@ -71,6 +76,23 @@ function configure_zeppelin(){
   # The file format has changed in 0.8.0.
   # TODO(karthikpal): Evaluate which of these (if any) are necessary >= 0.8.0
   if dpkg --compare-versions "${zeppelin_version}" '<' 0.8.0; then
+
+    # Wait up to 60s for ${INTERPRETER_FILE} to be available
+    for i in {1..6}; do
+      if [[ -r "${INTERPRETER_FILE}" ]]; then
+        break
+      else
+        sleep 10
+      fi
+    done
+
+    if [[ ! -r "${INTERPRETER_FILE}" ]]; then
+      err "${INTERPRETER_FILE} is missing"
+    fi
+
+    # stop service, systemd will be configured
+    service zeppelin stop
+
     # Set spark.yarn.isPython to fix Zeppelin pyspark in Dataproc 1.0.
     sed -i 's/\(\s*\)"spark\.app\.name[^,}]*/&,\n\1"spark.yarn.isPython": "true"/' \
       "${INTERPRETER_FILE}"
@@ -97,25 +119,19 @@ function configure_zeppelin(){
 
   # Install matplotlib. Note that this will work in Zeppelin, but not
   # in a vanilla Python interpreter, as that requires an X server to be running
-  apt-get install -y python-dev python-tk
-  easy_install pip
+  install_apt_get python-dev python-tk
+  if ! command -v pip >/dev/null; then
+    install_apt_get python-pip
+  fi
   pip install --upgrade matplotlib
 
   # Install R libraries for Zeppelin 0.6.1+
   if dpkg --compare-versions "${zeppelin_version}" '>=' 0.6.1; then
     # TODO(pmkc): Add googlevis to Zeppelin Package recommendations
-    apt-get install -y r-cran-googlevis
+    install_apt_get r-cran-googlevis
 
     # TODO(Aniszewski): Fix SparkR (GitHub issue #198)
   fi
-}
-
-function launch_zeppelin(){
-  # Start Zeppelin as systemd job
-  systemctl daemon-reload
-  systemctl enable zeppelin
-  systemctl start zeppelin
-  systemctl status zeppelin
 }
 
 function main() {
@@ -123,7 +139,7 @@ function main() {
     update_apt_get || err 'Failed to update apt-get'
     install_zeppelin
     configure_zeppelin
-    launch_zeppelin
+    systemctl restart zeppelin
   fi
 }
 

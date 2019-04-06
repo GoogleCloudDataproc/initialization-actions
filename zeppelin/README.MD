@@ -19,7 +19,7 @@ You can use this initialization action to create a new Dataproc cluster with Apa
 
 This option can be provided as a metadata key using `--metadata`.
 
-* `zeppelin-port`=<integer>: Port on which the Zeppelin server runs
+* `zeppelin-port=<integer>` - port on which the Zeppelin server runs
 
 For example:
 

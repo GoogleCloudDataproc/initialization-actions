@@ -26,14 +26,19 @@ function err() {
   return 1
 }
 
-function update_apt_get() {
+function retry_apt_command() {
+  cmd="$1"
   for ((i = 0; i < 10; i++)); do
-    if apt-get update; then
+    if eval "$cmd"; then
       return 0
     fi
     sleep 5
   done
   return 1
+}
+
+function update_apt_get() {
+  retry_apt_command "apt-get update"
 }
 
 function install_hue_and_configure() {
@@ -46,7 +51,7 @@ function install_hue_and_configure() {
   local random=$(random_string)
   local hadoop_conf_dir='/etc/hadoop/conf'
   # Install hue
-  apt-get install -t jessie-backports hue -y || err "Failed to install hue"
+  retry_apt_command "apt-get install -t $(lsb_release -sc)-backports -y hue" || err "Failed to install hue"
 
   # Stop hue
   systemctl stop hue || err "Hue stop action not performed"

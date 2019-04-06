@@ -80,6 +80,31 @@ Some initialization actions are known **not to work** on Single Node clusters. A
 
 Feel free to send pull requests or file issues if you have a good use case for running one of these actions on a Single Node cluster.
 
+## Using cluster metadata
+
+Cloud Dataproc sets special [metadata values](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/metadata)
+for the instances that run in your cluster. You can use these values to customize the behavior of
+initialization actions, for example:
+
+```bash
+ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
+if [[ "${ROLE}" == 'Master' ]]; then
+  ... master specific actions ...
+else
+  ... worker specific actions ...
+fi
+```
+
+You can also use the `‑‑metadata` flag of the `gcloud dataproc clusters create` command to provide your own
+custom metadata:
+
+```bash
+gcloud dataproc clusters create cluster-name \
+  --initialization-actions ... \
+  --metadata name1=value1,name2=value2... \
+  ... other flags ...
+```
+
 ## For more information
 
 For more information, review the [Cloud Dataproc documentation](https://cloud.google.com/dataproc/init-actions). You can also pose questions to the [Stack Overflow](http://www.stackoverflow.com) community with the tag `google-cloud-dataproc`.
