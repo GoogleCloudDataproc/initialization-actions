@@ -11,11 +11,7 @@ function main() {
   fi
 
   easy_install pip
-<<<<<<< HEAD
-  pip install --upgrade "${PACKAGES}"
-=======
   pip install --upgrade ${PACKAGES}
->>>>>>> upstream/master
 }
 
 main
