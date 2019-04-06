@@ -9,11 +9,8 @@ function main() {
     echo "ERROR: Must specify CONDA_PACKAGES metadata key" 
     exit 1
   fi
-<<<<<<< HEAD
+
   conda install "${PACKAGES}"
-=======
-  conda install ${PACKAGES}
->>>>>>> upstream/master
 }
 
 main
