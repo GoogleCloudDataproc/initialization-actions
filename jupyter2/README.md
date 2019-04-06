@@ -2,6 +2,8 @@
 
 This initialization action installs the latest version of [Jupyter Notebook](http://jupyter.org/) with `pip` and Python 2. Conda and Python 3 users should instead use the original [Jupyter init action](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/jupyter).
 
+__Use the Dataproc [Jupyter Optional Component](https://cloud.google.com/dataproc/docs/concepts/components/jupyter)__. Clusters created with Cloud Dataproc image version 1.3 and later can install Jupyter Notebook without using this initialization action. The Jupyter Optional Component's web interface can be accessed via [Component Gateway](https://cloud.google.com/dataproc/docs/concepts/accessing/dataproc-gateways) without using SSH tunnels.
+
 ## Using this initialization action
 
 Usage is similar to the original `jupyter` init action.
