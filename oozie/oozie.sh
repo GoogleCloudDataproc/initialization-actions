@@ -73,22 +73,21 @@ function install_oozie(){
   if [[ ${node_name} == ${master_node} ]]; then
     # The ext library is needed to enable the Oozie web console
     wget http://archive.cloudera.com/gplextras/misc/ext-2.2.zip || err 'Unable to download ext-2.2.zip'
-    unzip ext-2.2.zip
-    ln -s ext-2.2 /var/lib/oozie/ext-2.2 || err 'Unable to create symbolic link'
-   # Install share lib
-  install -d /usr/lib/oozie
-  tar -xvzf /usr/lib/oozie/oozie-sharelib.tar.gz -C /usr/lib/oozie
+    unzip ext-2.2.zip -d /var/lib/oozie
+    # Install share lib
+    install -d /usr/lib/oozie
+    tar -xvzf /usr/lib/oozie/oozie-sharelib.tar.gz -C /usr/lib/oozie
 
-  # Workaround to issue where jackson 1.8 and 1.9 jars are found on the classpath, causing
-  # AbstractMethodError at runtime. We know hadoop/lib has matching vesions of jackson.
-  rm -f /usr/lib/oozie/share/lib/hive2/jackson-*
-  cp /usr/lib/hadoop/lib/jackson-* /usr/lib/oozie/share/lib/hive2/
+    # Workaround to issue where jackson 1.8 and 1.9 jars are found on the classpath, causing
+    # AbstractMethodError at runtime. We know hadoop/lib has matching vesions of jackson.
+    rm -f /usr/lib/oozie/share/lib/hive2/jackson-*
+    cp /usr/lib/hadoop/lib/jackson-* /usr/lib/oozie/share/lib/hive2/
 
-  hadoop fs -mkdir -p /user/oozie/
-  hadoop fs -put -f /usr/lib/oozie/share /user/oozie/
+    hadoop fs -mkdir -p /user/oozie/
+    hadoop fs -put -f /usr/lib/oozie/share /user/oozie/
     # Clean up temporary fles
-   rm -rf ext-2.2 ext-2.2.zip share oozie-sharelib.tar.gz
-   fi
+    rm -rf ext-2.2 ext-2.2.zip share oozie-sharelib.tar.gz
+  fi
 
   # Create the Oozie database
   sudo -u oozie /usr/lib/oozie/bin/ooziedb.sh create -run
