@@ -27,7 +27,7 @@ if [[ -d /usr/local/share/google/dataproc/lib ]]; then
 else
   readonly CONNECTOR_JAR="$(find /usr/lib/hadoop/lib -name 'gcs-connector-*.jar')"
 fi
-readonly PRESTO_VERSION='0.206'
+readonly PRESTO_VERSION='307'
 readonly HTTP_PORT='8080'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/presto.service'
 PRESTO_JVM_MB=0;
@@ -55,7 +55,7 @@ function wait_for_presto_cluster_ready() {
 
 function get_presto(){
   # Download and unpack Presto server
-  wget https://repo1.maven.org/maven2/com/facebook/presto/presto-server/${PRESTO_VERSION}/presto-server-${PRESTO_VERSION}.tar.gz
+  wget https://repo1.maven.org/maven2/io/prestosql/presto-server/${PRESTO_VERSION}/presto-server-${PRESTO_VERSION}.tar.gz
   tar -zxvf presto-server-${PRESTO_VERSION}.tar.gz
   mkdir -p /var/presto/data
 }
@@ -171,7 +171,8 @@ discovery.uri=http://${PRESTO_MASTER_FQDN}:${HTTP_PORT}
 EOF
 
   # Install cli
-  $(wget https://repo1.maven.org/maven2/com/facebook/presto/presto-cli/${PRESTO_VERSION}/presto-cli-${PRESTO_VERSION}-executable.jar -O /usr/bin/presto)
+  # https://repo1.maven.org/maven2/io/prestosql/presto-cli/307/presto-cli-307-executable.jar
+  $(wget https://repo1.maven.org/maven2/io/prestosql/presto-cli/${PRESTO_VERSION}/presto-cli-${PRESTO_VERSION}-executable.jar -O /usr/bin/presto)
   $(chmod a+x /usr/bin/presto)
 }
 
