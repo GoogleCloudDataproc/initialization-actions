@@ -229,7 +229,8 @@ function configure_and_start_presto(){
   if [[ "${HOSTNAME}" == "${PRESTO_MASTER_FQDN}" ]]; then
     configure_master
     start_presto
-    wait_for_presto_cluster_ready
+    # Need to fix following func: Because system.runtime.nodes is giving wrong address
+    # wait_for_presto_cluster_ready
   fi
 
   if [[ "${ROLE}" == 'Worker' ]]; then
