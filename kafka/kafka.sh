@@ -66,8 +66,7 @@ function get_broker_list() {
 # Waits for zookeeper to be up or time out.
 function wait_for_zookeeper() {
   for i in {1..20}; do
-    if "${ZOOKEEPER_HOME}/bin/zkCli.sh" -server "${ZOOKEEPER_ADDRESS}" ls /;
-    then
+    if "${ZOOKEEPER_HOME}/bin/zkCli.sh" -server "${ZOOKEEPER_ADDRESS}" ls /; then
       return 0
     else
       echo "Failed to connect to ZooKeeper ${ZOOKEEPER_ADDRESS}, retry ${i}..."
