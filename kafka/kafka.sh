@@ -18,6 +18,7 @@
 
 set -euxo pipefail
 
+readonly ZOOKEEPER_HOME=/usr/lib/zookeeper
 readonly KAFKA_HOME=/usr/lib/kafka
 readonly KAFKA_PROP_FILE='/etc/kafka/conf/server.properties'
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
@@ -62,9 +63,23 @@ function get_broker_list() {
       | sed 's/\]/,/'
 }
 
+# Waits for zookeeper to be up or time out.
+function wait_for_zookeeper() {
+  for i in {1..20}; do
+    if "${ZOOKEEPER_HOME}/bin/zkCli.sh" -server "${ZOOKEEPER_ADDRESS}" ls /; then
+      return 0
+    else
+      echo "Failed to connect to ZooKeeper ${ZOOKEEPER_ADDRESS}, retry ${i}..."
+      sleep 5
+    fi
+  done
+  echo "Failed to connect to ZooKeeper ${ZOOKEEPER_ADDRESS}" >&2
+  exit 1
+}
+
 # Wait until the current broker is registered or time out.
 function wait_for_kafka() {
-  for i in {1..10}; do
+  for i in {1..20}; do
     local broker_list=$(get_broker_list || true)
     if [[ "${broker_list}" == *" ${BROKER_ID},"* ]]; then
       return 0
@@ -137,6 +152,8 @@ function install_and_configure_kafka_server() {
     "${KAFKA_PROP_FILE}"
   echo -e '\nreserved.broker.max.id=100000' >> "${KAFKA_PROP_FILE}"
   echo -e '\ndelete.topic.enable=true' >> "${KAFKA_PROP_FILE}"
+
+  wait_for_zookeeper
 
   # Start Kafka.
   service kafka-server restart
