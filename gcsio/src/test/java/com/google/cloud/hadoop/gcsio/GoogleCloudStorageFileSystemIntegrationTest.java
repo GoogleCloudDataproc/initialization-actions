@@ -176,11 +176,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
         @Override
         public void after() {
           if (gcs != null) {
-            try {
-              gcsiHelper.afterAllTests(gcs);
-            } catch (IOException e) {
-              throw new RuntimeException("Unexpected exception", e);
-            }
+            gcsiHelper.afterAllTests();
+            gcsiHelper = null;
           }
           if (gcsfs != null) {
             gcsfs.close();

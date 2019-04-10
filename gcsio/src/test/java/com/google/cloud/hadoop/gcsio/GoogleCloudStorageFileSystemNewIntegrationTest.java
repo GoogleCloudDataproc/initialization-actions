@@ -16,19 +16,14 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.uploadRequestString;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.http.HttpRequest;
-import com.google.api.client.http.MultipartContent;
-import com.google.api.client.http.json.JsonHttpContent;
-import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.RetryHttpInitializer;
-import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.net.URI;
 import java.util.UUID;
@@ -41,9 +36,6 @@ import org.junit.runners.JUnit4;
 /** Integration tests for GoogleCloudStorageFileSystem class. */
 @RunWith(JUnit4.class)
 public class GoogleCloudStorageFileSystemNewIntegrationTest {
-
-  private static final String UPLOAD_REQUEST_FORMAT =
-      "POST:https://www.googleapis.com/upload/storage/v1/b/%s/o?uploadType=multipart:%s";
 
   private static GoogleCloudStorageOptions gcsOptions;
   private static RetryHttpInitializer httpRequestsInitializer;
@@ -101,28 +93,11 @@ public class GoogleCloudStorageFileSystemNewIntegrationTest {
 
     gcsFs.mkdir(dirObjectUri);
 
-    assertThat(
-            gcsRequestsTracker.getAllRequests().stream()
-                .map(this::requestToString)
-                .collect(toImmutableList()))
-        .containsExactly(String.format(UPLOAD_REQUEST_FORMAT, bucketName, dirObject + "/"));
+    assertThat(gcsRequestsTracker.getAllRequestStrings())
+        .containsExactly(uploadRequestString(bucketName, dirObject));
 
     assertThat(gcsFs.exists(dirObjectUri)).isTrue();
     assertThat(gcsFs.getFileInfo(dirObjectUri).isDirectory()).isTrue();
-  }
-
-  private String requestToString(HttpRequest request) {
-    String method = request.getRequestMethod();
-    String url = request.getUrl().toString();
-    String requestString = method + ":" + url;
-    if ("POST".equals(method) && url.contains("uploadType=multipart")) {
-      MultipartContent content = (MultipartContent) request.getContent();
-      JsonHttpContent jsonRequest =
-          (JsonHttpContent) Iterables.get(content.getParts(), 0).getContent();
-      String objectName = ((StorageObject) jsonRequest.getData()).getName();
-      requestString += ":" + objectName;
-    }
-    return requestString;
   }
 
   private GoogleCloudStorageFileSystemOptions newGcsFsOptions() {

@@ -17,20 +17,32 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 
 import com.google.api.client.http.HttpExecuteInterceptor;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
+import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
 
+  private static final String UPLOAD_REQUEST_FORMAT =
+      "POST:https://www.googleapis.com/upload/storage/v1/b/%s/o?uploadType=multipart:%s";
+
+  private static final String LIST_REQUEST_FORMAT =
+      "GET:https://www.googleapis.com/storage/v1/b/%s/o"
+          + "?delimiter=/&includeTrailingDelimiter=%s&maxResults=%d%s&prefix=%s";
+
+  private static final String PAGE_TOKEN_PARAM_PATTERN = "&pageToken=[^&]+";
+
   private final HttpRequestInitializer delegate;
 
-  private final Collection<HttpRequest> requests = Collections.synchronizedList(new ArrayList<>());
+  private final List<HttpRequest> requests = Collections.synchronizedList(new ArrayList<>());
 
   public TrackingHttpRequestInitializer(HttpRequestInitializer delegate) {
     this.delegate = delegate;
@@ -47,11 +59,36 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
         });
   }
 
-  public Collection<HttpRequest> getAllRequests() {
-    return requests;
+  public ImmutableList<HttpRequest> getAllRequests() {
+    return ImmutableList.copyOf(requests);
+  }
+
+  public ImmutableList<String> getAllRequestStrings() {
+    AtomicLong pageTokenId = new AtomicLong();
+    return requests.stream()
+        .map(GoogleCloudStorageIntegrationHelper::requestToString)
+        // Replace randomized pageToken with predictable value so it could be asserted in tests
+        .map(r -> replacePageTokenWithId(r, pageTokenId.getAndIncrement()))
+        .collect(toImmutableList());
+  }
+
+  private String replacePageTokenWithId(String request, long pageTokenId) {
+    return request.replaceAll(PAGE_TOKEN_PARAM_PATTERN, "&pageToken=token_" + pageTokenId);
   }
 
   public void reset() {
     requests.clear();
+  }
+
+  public static String uploadRequestString(String bucketName, String dirObject) {
+    return String.format(UPLOAD_REQUEST_FORMAT, bucketName, dirObject + "/");
+  }
+
+  public static String listRequestString(
+      String bucket, String prefix, int maxResults, String pageToken) {
+    boolean includeTrailingDelimiter = false;
+    String pageTokenParam = pageToken == null ? "" : "&pageToken=" + pageToken;
+    return String.format(
+        LIST_REQUEST_FORMAT, bucket, includeTrailingDelimiter, maxResults, pageTokenParam, prefix);
   }
 }

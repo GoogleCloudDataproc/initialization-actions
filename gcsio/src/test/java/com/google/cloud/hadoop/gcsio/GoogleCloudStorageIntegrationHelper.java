@@ -17,8 +17,13 @@ package com.google.cloud.hadoop.gcsio;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.google.api.client.http.HttpRequest;
+import com.google.api.client.http.MultipartContent;
+import com.google.api.client.http.json.JsonHttpContent;
+import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
 import com.google.common.base.Strings;
+import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
@@ -35,9 +40,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Integration tests for GoogleCloudStorage class.
- */
+/** Integration tests for GoogleCloudStorage class. */
 public abstract class GoogleCloudStorageIntegrationHelper {
 
   // Application name for OAuth.
@@ -52,6 +55,12 @@ public abstract class GoogleCloudStorageIntegrationHelper {
   public String sharedBucketName1;
   public String sharedBucketName2;
 
+  final GoogleCloudStorage gcs;
+
+  public GoogleCloudStorageIntegrationHelper(GoogleCloudStorage gcs) {
+    this.gcs = gcs;
+  }
+
   /** Perform initialization once before tests are run. */
   public void beforeAllTests() throws IOException {
     // Create a couple of buckets. The first one is used by most tests.
@@ -61,8 +70,12 @@ public abstract class GoogleCloudStorageIntegrationHelper {
   }
 
   /** Perform clean-up once after all tests are turn. */
-  public void afterAllTests(GoogleCloudStorage gcs) throws IOException {
-    bucketHelper.cleanup(gcs);
+  public void afterAllTests() {
+    try {
+      bucketHelper.cleanup(gcs);
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to cleanup test buckets", e);
+    }
   }
 
   /**
@@ -162,11 +175,8 @@ public abstract class GoogleCloudStorageIntegrationHelper {
     return writeFile(bucketName, objectName, buffer, numWrites, /* overwriteExisting= */ true);
   }
 
-  /**
-   * Helper which reads the entire file as a String.
-   */
-  protected String readTextFile(String bucketName, String objectName)
-      throws IOException {
+  /** Helper which reads the entire file as a String. */
+  protected String readTextFile(String bucketName, String objectName) throws IOException {
     ByteBuffer readBuffer = ByteBuffer.allocate(1024);
     StringBuilder returnBuffer = new StringBuilder();
 
@@ -183,27 +193,9 @@ public abstract class GoogleCloudStorageIntegrationHelper {
     return returnBuffer.toString();
   }
 
-  /** Helper that reads text from a given SeekableByteChannel. */
-  protected String readText(
-      SeekableByteChannel readChannel, int offset, int len, boolean checkOverflow)
-      throws IOException {
-    int bufferSize = len + (checkOverflow ? 1 : 0);
-    ByteBuffer readBuffer = ByteBuffer.allocate(bufferSize);
-    if (offset > 0) {
-      readChannel.position(offset);
-    }
-
-    int numBytesRead = readChannel.read(readBuffer);
-    assertWithMessage("readText: read size mismatch").that(numBytesRead).isEqualTo(len);
-
-    readBuffer.flip();
-    return StandardCharsets.UTF_8.decode(readBuffer).toString();
-  }
-
   /**
-   * Helper that reads text from the given file at the given offset
-   * and returns it. If checkOverflow is true, it will make sure that
-   * no more than 'len' bytes were read.
+   * Helper that reads text from the given file at the given offset and returns it. If checkOverflow
+   * is true, it will make sure that no more than 'len' bytes were read.
    */
   protected String readTextFile(
       String bucketName, String objectName, int offset, int len, boolean checkOverflow)
@@ -223,9 +215,24 @@ public abstract class GoogleCloudStorageIntegrationHelper {
     return StandardCharsets.UTF_8.decode(readBuffer).toString();
   }
 
-  /**
-   * Opens the given object for reading.
-   */
+  /** Helper that reads text from a given SeekableByteChannel. */
+  protected String readText(
+      SeekableByteChannel readChannel, int offset, int len, boolean checkOverflow)
+      throws IOException {
+    int bufferSize = len + (checkOverflow ? 1 : 0);
+    ByteBuffer readBuffer = ByteBuffer.allocate(bufferSize);
+    if (offset > 0) {
+      readChannel.position(offset);
+    }
+
+    int numBytesRead = readChannel.read(readBuffer);
+    assertWithMessage("readText: read size mismatch").that(numBytesRead).isEqualTo(len);
+
+    readBuffer.flip();
+    return StandardCharsets.UTF_8.decode(readBuffer).toString();
+  }
+
+  /** Opens the given object for reading. */
   protected abstract SeekableByteChannel open(String bucketName, String objectName)
       throws IOException;
 
@@ -234,46 +241,29 @@ public abstract class GoogleCloudStorageIntegrationHelper {
       String bucketName, String objectName, GoogleCloudStorageReadOptions readOptions)
       throws IOException;
 
-  /**
-   * Opens the given object for writing.
-   */
+  /** Opens the given object for writing. */
   protected WritableByteChannel create(String bucketName, String objectName) throws IOException {
     return create(bucketName, objectName, CreateFileOptions.DEFAULT);
   }
 
-  /**
-   * Opens the given object for writing.
-   */
+  /** Opens the given object for writing. */
   protected abstract WritableByteChannel create(
       String bucketName, String objectName, CreateFileOptions options) throws IOException;
 
-  /**
-   * Creates a directory like object.
-   */
-  protected abstract void mkdir(String bucketName, String objectName)
-      throws IOException;
+  /** Creates a directory like object. */
+  protected abstract void mkdir(String bucketName, String objectName) throws IOException;
 
-  /**
-   * Creates the given bucket.
-   */
+  /** Creates the given bucket. */
   protected abstract void mkdir(String bucketName) throws IOException;
 
-  /**
-   * Deletes the given bucket.
-   */
+  /** Deletes the given bucket. */
   protected abstract void delete(String bucketName) throws IOException;
 
-  /**
-   * Deletes the given object.
-   */
-  protected abstract void delete(String bucketName, String objectName)
-      throws IOException;
+  /** Deletes the given object. */
+  protected abstract void delete(String bucketName, String objectName) throws IOException;
 
-  /**
-   * Deletes all objects from the given bucket.
-   */
-  protected abstract void clearBucket(String bucketName)
-      throws IOException;
+  /** Deletes all objects from the given bucket. */
+  protected abstract void clearBucket(String bucketName) throws IOException;
 
   // -----------------------------------------------------------------
   // Misc helpers
@@ -315,7 +305,8 @@ public abstract class GoogleCloudStorageIntegrationHelper {
    *
    * <p>For example, foo/bar/zoo => creates: foo/, foo/bar/, foo/bar/zoo.
    */
-  public void createObjectsWithSubdirs(String bucketName, String[] objectNames) throws IOException {
+  public void createObjectsWithSubdirs(String bucketName, String... objectNames)
+      throws IOException {
     List<String> allNames = new ArrayList<>();
     Set<String> created = new HashSet<>();
     for (String objectName : objectNames) {
@@ -334,11 +325,14 @@ public abstract class GoogleCloudStorageIntegrationHelper {
   }
 
   /**
-   * For objects whose name looks like a path (foo/bar/zoo),
-   * returns intermediate sub-paths.
-   * for example,
-   * foo/bar/zoo => returns: (foo/, foo/bar/)
-   * foo => returns: ()
+   * For objects whose name looks like a path (foo/bar/zoo), returns intermediate sub-paths.
+   *
+   * <p>For example:
+   *
+   * <ul>
+   *   <li>foo/bar/zoo => returns: (foo/, foo/bar/)
+   *   <li>foo => returns: ()
+   * </ul>
    */
   private List<String> getSubdirs(String objectName) {
     List<String> subdirs = new ArrayList<>();
@@ -358,11 +352,8 @@ public abstract class GoogleCloudStorageIntegrationHelper {
     return subdirs;
   }
 
-  /**
-   * Creates objects with the given names in the given bucket.
-   */
-  private void createObjects(final String bucketName, String[] objectNames)
-      throws IOException {
+  /** Creates objects with the given names in the given bucket. */
+  private void createObjects(final String bucketName, String[] objectNames) throws IOException {
 
     final ExecutorService threadPool = Executors.newCachedThreadPool();
     final CountDownLatch counter = new CountDownLatch(objectNames.length);
@@ -393,7 +384,7 @@ public abstract class GoogleCloudStorageIntegrationHelper {
       counter.await();
     } catch (InterruptedException ie) {
       throw new IOException("Interrupted while awaiting object creation!", ie);
-    }  finally {
+    } finally {
       threadPool.shutdown();
       try {
         if (!threadPool.awaitTermination(10L, TimeUnit.SECONDS)) {
@@ -418,8 +409,9 @@ public abstract class GoogleCloudStorageIntegrationHelper {
 
   /**
    * Gets randomly generated name of a bucket.
-   * The name is prefixed with an identifiable string. A bucket created by this method
-   * can be identified by calling isTestBucketName() for that bucket.
+   *
+   * <p>The name is prefixed with an identifiable string. A bucket created by this method can be
+   * identified by calling isTestBucketName() for that bucket.
    */
   public String getUniqueBucketName() {
     return getUniqueBucketName("");
@@ -427,11 +419,27 @@ public abstract class GoogleCloudStorageIntegrationHelper {
 
   /**
    * Gets randomly generated name of a bucket with the given suffix.
-   * The name is prefixed with an identifiable string. A bucket created by this method
-   * can be identified by calling isTestBucketName() for that bucket.
+   *
+   * <p>The name is prefixed with an identifiable string. A bucket created by this method can be
+   * identified by calling isTestBucketName() for that bucket.
    */
   public String getUniqueBucketName(String suffix) {
     return bucketHelper.getUniqueBucketName(suffix);
+  }
+
+  /** Convert request to string representation that could be used for assertions in tests */
+  public static String requestToString(HttpRequest request) {
+    String method = request.getRequestMethod();
+    String url = request.getUrl().toString();
+    String requestString = method + ":" + url;
+    if ("POST".equals(method) && url.contains("uploadType=multipart")) {
+      MultipartContent content = (MultipartContent) request.getContent();
+      JsonHttpContent jsonRequest =
+          (JsonHttpContent) Iterables.get(content.getParts(), 0).getContent();
+      String objectName = ((StorageObject) jsonRequest.getData()).getName();
+      requestString += ":" + objectName;
+    }
+    return requestString;
   }
 
   /** Creates a bucket and adds it to the list of buckets to delete at the end of tests. */
