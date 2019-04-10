@@ -42,6 +42,17 @@ You can use this initialization action to create a new Dataproc cluster with Kaf
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
 
+## Installing Cruise Control with Kafka
+
+If you would like to use [Cruise Control](https://github.com/linkedin/cruise-control) to automate common Kafka operations, e.g., automatically fixing under-replicated partitions caused by broker failures, use the `gcloud` command to create a new Kafka cluster with the Cruise Control initialization action. The following command will create a new high availability Kafka cluster with Cruise Control running on the first master node. The default HTTP port is 9090.
+
+    ```bash
+    gcloud dataproc clusters create <CLUSTER_NAME> \
+        --num-masters 3 \
+        --metadata "run-on-master=true" \
+        --initialization-actions gs://dataproc-initialization-actions/kafka/kafka.sh,gs://dataproc-initialization-actions/kafka/cruise-control.sh
+    ```
+
 ## Important notes
 
 * This script will install Kafka on all **worker nodes** by default (but not the master(s))
