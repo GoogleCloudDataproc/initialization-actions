@@ -20,11 +20,10 @@ must do one of the following:
 
 ## Add the connector jar to Hadoop's classpath
 
-Placing the connector jar in the appropriate subdirectory of the Hadoop
-installation may be effective to have Hadoop load the jar. However, to be
-certain that the jar is loaded, add
-`HADOOP_CLASSPATH=$HADOOP_CLASSPATH:</path/to/gcs-connector-jar>` to
-`hadoop-env.sh` in the Hadoop configuration directory.
+Placing the connector jar in the `$HADOOP_COMMON_LIB_JARS_DIR` directory should be
+sufficient to have Hadoop load the jar. Alternatively, to be certain that the jar is
+loaded, you can add `HADOOP_CLASSPATH=$HADOOP_CLASSPATH:</path/to/gcs-connector.jar>`
+to `hadoop-env.sh` in the Hadoop configuration directory.
 
 ## Configure Hadoop
 
@@ -37,6 +36,24 @@ Once you have the JSON key file, you must add the following property to
 `core-site.xml` on your server.
 
 ```xml
+<property>
+  <name>fs.gs.project.id</name>
+  <value></value>
+  <description>
+    Optional. Google Cloud Project ID with access to GCS buckets.
+    Required only for list buckets and create bucket operations.
+  </description>
+</property>
+<property>
+  <name>google.cloud.auth.service.account.enable</name>
+  <value>/path/to/keyfile</value>
+  <description>
+    Whether to use a service account for GCS authorization.
+    If set to `false` then GCE VM metadata service will be used for authorization.
+    Note: alternatively you can set `GOOGLE_APPLICATION_CREDENTIALS` environment
+    variable to `/path/to/keyfile.json`.
+  </description>
+</property>
 <property>
   <name>google.cloud.auth.service.account.json.keyfile</name>
   <value>/path/to/keyfile</value>

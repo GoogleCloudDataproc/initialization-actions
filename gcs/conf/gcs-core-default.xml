@@ -5,7 +5,8 @@
     <name>fs.gs.project.id</name>
     <value></value>
     <description>
-      Required. Google Cloud Project ID with access to configured GCS buckets.
+      Optional. Google Cloud Project ID with access to GCS buckets.
+      Required only for list buckets and create bucket operations.
     </description>
   </property>
   <property>
@@ -79,6 +80,8 @@
       will be used. Otherwise the connector will look to see if it is running on
       a GCE VM with some level of GCS access in it's service account scope, and
       use that service account.
+      Note: alternatively you can set `GOOGLE_APPLICATION_CREDENTIALS` environment
+      variable to `/path/to/keyfile.json`
     </description>
   </property>
 
@@ -129,9 +132,7 @@
   <property>
     <name>fs.gs.auth.service.account.json.keyfile</name>
     <value></value>
-    <description>
-      The path to the json keyfile for the service account.
-    </description>
+    <description>The path to the json keyfile for the service account.</description>
   </property>
 
   <!-- Method 3
@@ -171,8 +172,7 @@
     <value></value>
     <description>
       The client credential file for GCS access in the OAuth 2.0 installed
-      application flow (when fs.gs.auth.service.account.enable is
-      false).
+      application flow (when fs.gs.auth.service.account.enable is false).
     </description>
   </property>
 
@@ -208,23 +208,18 @@
     <description>
       The reported block size of the file system. This does not change any
       behavior of the connector or the underlying GCS objects. However it
-      will affect the number of splits Hadoop MapReduce uses for a given
-      input.
+      will affect the number of splits Hadoop MapReduce uses for a given input.
     </description>
   </property>
   <property>
     <name>fs.gs.inputstream.buffer.size</name>
     <value>0</value>
-    <description>
-      The number of bytes in read buffers.
-    </description>
+    <description>The number of bytes in read buffers.</description>
   </property>
   <property>
     <name>fs.gs.outputstream.upload.chunk.size</name>
     <value>67108864</value>
-    <description>
-      The number of bytes in one GCS upload request.
-    </description>
+    <description>The number of bytes in one GCS upload request.</description>
   </property>
   <property>
     <name>fs.gs.marker.file.pattern</name>
@@ -277,5 +272,4 @@
       the properties defined in core-site.xml and values passed from command line.
     </description>
   </property>
-
 </configuration>
