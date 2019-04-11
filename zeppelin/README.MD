@@ -2,6 +2,8 @@
 
 This initialization action installs the latest version of [Apache Zeppelin](https://zeppelin.apache.org/) on a master node within a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
 
+__Use the Dataproc [Zeppelin Optional Component](https://cloud.google.com/dataproc/docs/concepts/components/zeppelin)__. Clusters created with Cloud Dataproc image version 1.3 and later can install Zeppelin Notebook without using this initialization action. The Zeppelin Optional Component's web interface can be accessed via [Component Gateway](https://cloud.google.com/dataproc/docs/concepts/accessing/dataproc-gateways) without using SSH tunnels.
+
 ## Using this initialization action
 You can use this initialization action to create a new Dataproc cluster with Apache Zeppelin installed:
 

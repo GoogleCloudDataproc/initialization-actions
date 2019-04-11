@@ -2,12 +2,24 @@
 
 ## Overview
 
-This folder contains initialization actions for use Miniconda / conda, who can be introduced as:
+This folder contains initialization actions for use Miniconda / conda, which can be introduced as:
 
 - [Minconda](http://conda.pydata.org/miniconda.html), a barebones version of [Anaconda](https://www.continuum.io/why-anaconda) of an open source (and totally legit) Python distro from Continuum Analytics, alongside,
 - [conda](http://conda.pydata.org/docs/), an open source (and amazing) package and environment management system.
 
 This allows Dataproc users to quickly and easily provision a Dataproc cluster leveraging conda's powerful management capabilities, by specifying a list of conda and / or pip packages along with use of [conda environment definitions](https://github.com/conda/conda-env#environment-file-example). All configuration is exposed via environment variables set to sane point-and-shoot defaults.
+
+## Dataproc Python Environment
+
+Starting with Dataproc image version 1.3, this initialization action may not be necessary:
+
+- Starting with image version `1.3` Anaconda can be installed via the [Anaconda Optional Component](https://cloud.google.com/dataproc/docs/concepts/components/anaconda).
+
+- Starting with image version `1.4` Miniconda is the default Python interpreter.
+
+- On version 1.3, the Python environment is based on Python 2.7. On version 1.4 and later the Python environment is Python 3.6.
+
+Please see the following tutorial for full details https://cloud.google.com/dataproc/docs/tutorials/python-configuration.
 
 ## Using this initialization action
 
