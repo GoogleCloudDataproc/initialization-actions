@@ -20,10 +20,11 @@ must do one of the following:
 
 ## Add the connector jar to Hadoop's classpath
 
-Placing the connector jar in the `$HADOOP_COMMON_LIB_JARS_DIR` directory should be
-sufficient to have Hadoop load the jar. Alternatively, to be certain that the jar is
-loaded, you can add `HADOOP_CLASSPATH=$HADOOP_CLASSPATH:</path/to/gcs-connector.jar>`
-to `hadoop-env.sh` in the Hadoop configuration directory.
+Placing the connector jar in the `$HADOOP_COMMON_LIB_JARS_DIR` directory should
+be sufficient to have Hadoop load the jar. Alternatively, to be certain that the
+jar is loaded, you can add
+`HADOOP_CLASSPATH=$HADOOP_CLASSPATH:</path/to/gcs-connector.jar>` to
+`hadoop-env.sh` in the Hadoop configuration directory.
 
 ## Configure Hadoop
 
@@ -32,10 +33,15 @@ Google Cloud Storage. You can follow
 [these directions](https://cloud.google.com/storage/docs/authentication#service_accounts)
 to obtain a JSON keyfile.
 
-Once you have the JSON key file, you must add the following property to
-`core-site.xml` on your server.
+Once you have the JSON key file, you need to configure following properties in
+`core-site.xml` on your server:
 
 ```xml
+<property>
+  <name>fs.AbstractFileSystem.gs.impl</name>
+  <value>com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS</value>
+  <description>The AbstractFileSystem for gs: uris.</description>
+</property>
 <property>
   <name>fs.gs.project.id</name>
   <value></value>
@@ -49,9 +55,8 @@ Once you have the JSON key file, you must add the following property to
   <value>/path/to/keyfile</value>
   <description>
     Whether to use a service account for GCS authorization.
-    If set to `false` then GCE VM metadata service will be used for authorization.
-    Note: alternatively you can set `GOOGLE_APPLICATION_CREDENTIALS` environment
-    variable to `/path/to/keyfile.json`.
+    If set to `false` then GCE VM metadata service will be used for
+    authorization.
   </description>
 </property>
 <property>
@@ -65,7 +70,7 @@ Once you have the JSON key file, you must add the following property to
 ```
 
 You can alternatively set the environment variable
-`GOOGLE_APPLICATION_CREDENTIALS` to your keyfile.
+`GOOGLE_APPLICATION_CREDENTIALS` to your keyfile (`/path/to/keyfile.json`).
 
 Additional properties can be specified for the Cloud Storage connector,
 including alternative authentication options. For more information, see the

@@ -2,6 +2,11 @@
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
 <configuration>
   <property>
+    <name>fs.AbstractFileSystem.gs.impl</name>
+    <value>com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS</value>
+    <description>The AbstractFileSystem for gs: uris.</description>
+  </property>
+  <property>
     <name>fs.gs.project.id</name>
     <value></value>
     <description>
@@ -80,8 +85,6 @@
       will be used. Otherwise the connector will look to see if it is running on
       a GCE VM with some level of GCS access in it's service account scope, and
       use that service account.
-      Note: alternatively you can set `GOOGLE_APPLICATION_CREDENTIALS` environment
-      variable to `/path/to/keyfile.json`
     </description>
   </property>
 
