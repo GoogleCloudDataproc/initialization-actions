@@ -29,7 +29,7 @@ readonly enable_cloud_sql_metastore="$(/usr/share/google/get_metadata_value attr
 readonly enable_proxy_on_workers="$(/usr/share/google/get_metadata_value attributes/enable-cloud-sql-proxy-on-workers || echo 'true')"
 
 # Whether to use the private IP address of the cloud sql instance.
-readonly use_cloud_sql_private_ip="$(/usr/share/google/get_metadata_value attributes/use-cloud-sql-private-ip || true)"
+readonly use_cloud_sql_private_ip="$(/usr/share/google/get_metadata_value attributes/use-cloud-sql-private-ip || echo 'true')"
 
 # Database user to use to access metastore.
 readonly db_hive_user="$(/usr/share/google/get_metadata_value attributes/db-hive-user || echo 'hive')"
@@ -116,7 +116,7 @@ function run_with_retries() {
 
 function configure_proxy_flags() {
   # If a cloud sql instance has both public and private IP, use private IP.
-  if [[ $use_cloud_sql_private_ip ]]; then
+  if [[ $use_cloud_sql_private_ip = "true" ]]; then
     proxy_instances_flags+=" --ip_address_types=PRIVATE"
   fi
   if [[ $enable_cloud_sql_metastore = "true" ]]; then
