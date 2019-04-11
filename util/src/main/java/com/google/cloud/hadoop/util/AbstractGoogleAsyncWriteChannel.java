@@ -14,6 +14,8 @@
 
 package com.google.cloud.hadoop.util;
 
+import static com.google.common.base.Preconditions.checkState;
+
 import com.google.api.client.googleapis.media.MediaHttpUploader;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.http.InputStreamContent;
@@ -178,10 +180,10 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
    */
   @Override
   public synchronized int write(ByteBuffer buffer) throws IOException {
-    // We haven't set up properly
-    throwIfNotInitialized();
-
-    throwIfNotOpen();
+    checkState(isInitialized, "initialize() must be invoked before use.");
+    if (!isOpen()) {
+      throw new ClosedChannelException();
+    }
 
     // No point in writing further if upload failed on another thread.
     if (uploadOperation.isDone()) {
@@ -211,7 +213,7 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
    */
   @Override
   public void close() throws IOException {
-    throwIfNotInitialized();
+    checkState(isInitialized, "initialize() must be invoked before use.");
     if (isOpen()) {
       try {
         pipeSinkChannel.close();
@@ -269,54 +271,25 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
 
     @Override
     public S call() throws Exception {
-      Exception exception = null;
-      try {
+      // Try-with-resource will close this end of the pipe so that
+      // the writer at the other end will not hang indefinitely.
+      try (InputStream uploadPipeSource = pipeSource) {
         return uploadObject.execute();
       } catch (IOException ioe) {
-        exception = ioe;
         S response = createResponseFromException(ioe);
         if (response != null) {
           logger.atWarning().withCause(ioe).log(
               "Received IOException, but successfully converted to response '%s'.", response);
           return response;
         }
-        logger.atSevere().withCause(ioe).log("Exception not convertible into handled response");
-      } catch (Exception e) {
-        exception = e;
-        logger.atSevere().withCause(e).log("Exception uploading. ");
-      } finally {
-        try {
-          // Close this end of the pipe so that the writer at the other end
-          // will not hang indefinitely.
-          pipeSource.close();
-        } catch (IOException ioe) {
-          logger.atSevere().withCause(ioe).log("Error trying to close pipe.source()");
-
-          if (exception != null) {
-            exception.addSuppressed(ioe);
-          } else {
-            exception = ioe;
-          }
-        }
+        throw ioe;
       }
-      throw exception;
     }
   }
 
   /** Sets the contentType. This must be called before {@link #initialize()} for any effect. */
   protected void setContentType(String contentType) {
     this.contentType = contentType;
-  }
-
-  /**
-   * Throws if this channel is not currently open.
-   *
-   * @throws IOException on IO error
-   */
-  private void throwIfNotOpen() throws IOException {
-    if (!isOpen()) {
-      throw new ClosedChannelException();
-    }
   }
 
   /**
@@ -336,16 +309,8 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
     } catch (ExecutionException e) {
       if (e.getCause() instanceof Error) {
         throw (Error) e.getCause();
-      } else {
-        throw new IOException(e.getCause());
       }
-    }
-  }
-
-  /** Throws if {@link #initialize()} has not been called. */
-  private void throwIfNotInitialized() {
-    if (!isInitialized) {
-      throw new IllegalStateException("initialize() must be invoked before use.");
+      throw new IOException("Upload failed", e.getCause());
     }
   }
 }

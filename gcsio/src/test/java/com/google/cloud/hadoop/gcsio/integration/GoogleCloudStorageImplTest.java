@@ -156,7 +156,7 @@ public class GoogleCloudStorageImplTest {
 
     // Closing byte channel2 should fail:
     Throwable thrown = assertThrows(Throwable.class, byteChannel2::close);
-    assertThat(thrown).hasMessageThat().contains("412 Precondition Failed");
+    assertThat(thrown).hasCauseThat().hasMessageThat().contains("412 Precondition Failed");
   }
 
   @Test
