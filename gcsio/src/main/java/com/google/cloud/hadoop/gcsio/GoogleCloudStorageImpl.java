@@ -358,61 +358,10 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
      * generation matches the marker file.
      */
 
-    // TODO(user): Have createEmptyObject return enough information to use that instead.
-    Optional<Long> overwriteGeneration = Optional.absent();
-    long backOffSleep = 0L;
-
-    if (storageOptions.isMarkerFileCreationEnabled()) {
-      BackOff backOff = backOffFactory.newBackOff();
-      do {
-        if (backOffSleep != 0) {
-          try {
-            sleeper.sleep(backOffSleep);
-          } catch (InterruptedException ie) {
-            throw new IOException(String.format(
-                "Interrupted while sleeping for backoff in create of %s", resourceId));
-          }
-        }
-
-        backOffSleep = backOff.nextBackOffMillis();
-
-        Storage.Objects.Insert insertObject = prepareEmptyInsert(resourceId, options);
-        // If resourceId.hasHasGenerationId(), we'll expect the underlying prepareEmptyInsert
-        // to already set the setIfGenerationMatch; otherwise we must explicitly fetch the
-        // current generationId here.
-        if (!resourceId.hasGenerationId()) {
-          insertObject.setIfGenerationMatch(
-              getWriteGeneration(resourceId, options.overwriteExisting()));
-        }
-
-        try {
-          StorageObject result = insertObject.execute();
-          overwriteGeneration = Optional.of(result.getGeneration());
-        } catch (IOException ioe) {
-          if (errorExtractor.preconditionNotMet(ioe)) {
-            logger.atInfo().withCause(ioe).log(
-                "Retrying marker file creation. Retrying according to backoff policy, %s",
-                resourceId);
-          } else {
-            throw ioe;
-          }
-        }
-      } while (!overwriteGeneration.isPresent() && backOffSleep != BackOff.STOP);
-
-      if (backOffSleep == BackOff.STOP) {
-        throw new IOException(
-            String.format(
-                "Retries exhausted while attempting to create marker file for %s", resourceId));
-      }
-    } else {
-      // Do not use a marker-file
-      if (resourceId.hasGenerationId()) {
-        overwriteGeneration = Optional.of(resourceId.getGenerationId());
-      } else {
-        overwriteGeneration =
-            Optional.of(getWriteGeneration(resourceId, options.overwriteExisting()));
-      }
-    }
+    Optional<Long> overwriteGeneration =
+        resourceId.hasGenerationId()
+            ? Optional.of(resourceId.getGenerationId())
+            : Optional.of(getWriteGeneration(resourceId, options.overwriteExisting()));
 
     ObjectWriteConditions writeConditions =
         new ObjectWriteConditions(overwriteGeneration, Optional.<Long>absent());
@@ -1866,14 +1815,13 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     GoogleCloudStorageItemInfo info = getItemInfo(resourceId);
     if (!info.exists()) {
       return 0L;
-    } else if (info.exists() && overwritable) {
+    }
+    if (info.exists() && overwritable) {
       long generation = info.getContentGeneration();
       Preconditions.checkState(generation != 0, "Generation should not be 0 for an existing item");
       return generation;
-    } else {
-      throw new FileAlreadyExistsException(
-          String.format("Object %s already exists.", resourceId.toString()));
     }
+    throw new FileAlreadyExistsException(String.format("Object %s already exists.", resourceId));
   }
 
   /**

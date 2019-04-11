@@ -15,13 +15,15 @@
   6. Add support for Hadoop Delegation Tokens (based on HADOOP-14556).
      Configurable via `fs.gs.delegation.token.binding` property.
 
-  7. Remove deprecated `fs.gs.file.size.limit.250gb` property.
+  7. Remove obsolete `fs.gs.file.size.limit.250gb` property.
 
   8. Repair implicit directories during delete and rename operations instead of
      list and glob operations.
 
   9. Log HTTP `429 Too Many Requests` responses from GCS at 1 per 10 seconds
      rate.
+
+  10. Remove obsolete `fs.gs.create.marker.files.enable` property.
 
 
 1.9.14 - 2019-02-13

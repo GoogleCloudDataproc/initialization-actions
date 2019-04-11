@@ -305,16 +305,6 @@ public class GoogleHadoopFileSystemConfiguration {
       GCS_CONCURRENT_GLOB_ENABLE =
           new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.glob.concurrent.enable", true);
 
-  /**
-   * Configuration key for enabling the use of marker files during file creation. When running
-   * non-MR applications that make use of the FileSystem, it is a good idea to enable marker files
-   * to better mimic HDFS overwrite and locking behavior.
-   */
-  public static final GoogleHadoopFileSystemConfigurationProperty<Boolean>
-      GCS_MARKER_FILE_CREATION_ENABLE =
-          new GoogleHadoopFileSystemConfigurationProperty<>(
-              "fs.gs.create.marker.files.enable", false);
-
   /** Configuration key for marker file pattern. Default value: none */
   public static final GoogleHadoopFileSystemConfigurationProperty<String> GCS_MARKER_FILE_PATTERN =
       new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.marker.file.pattern");
@@ -542,8 +532,6 @@ public class GoogleHadoopFileSystemConfiguration {
             GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE.get(config, config::getBoolean))
         .setInferImplicitDirectoriesEnabled(
             GCS_INFER_IMPLICIT_DIRECTORIES_ENABLE.get(config, config::getBoolean))
-        .setMarkerFileCreationEnabled(
-            GCS_MARKER_FILE_CREATION_ENABLE.get(config, config::getBoolean))
         .setCopyWithRewriteEnabled(GCS_COPY_WITH_REWRITE_ENABLE.get(config, config::getBoolean))
         .setMaxBytesRewrittenPerCall(GCS_REWRITE_MAX_BYTES_PER_CALL.get(config, config::getLong))
         .setCopyMaxRequestsPerBatch(GCS_COPY_MAX_REQUESTS_PER_BATCH.get(config, config::getLong))

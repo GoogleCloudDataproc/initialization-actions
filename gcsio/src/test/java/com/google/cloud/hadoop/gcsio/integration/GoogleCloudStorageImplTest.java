@@ -66,16 +66,6 @@ public class GoogleCloudStorageImplTest {
     return makeStorage(builder.build());
   }
 
-  protected GoogleCloudStorageImpl makeStorageWithMarkerFileCreation(
-      boolean createMarkerFiles) throws IOException {
-    GoogleCloudStorageOptions.Builder builder =
-        GoogleCloudStorageTestHelper.getStandardOptionBuilder();
-
-    builder.setCreateMarkerObjects(createMarkerFiles);
-
-    return makeStorage(builder.build());
-  }
-
   protected GoogleCloudStorageImpl makeStorageWithInferImplicit()
       throws IOException {
     GoogleCloudStorageOptions.Builder builder =
@@ -118,30 +108,12 @@ public class GoogleCloudStorageImplTest {
   }
 
   @Test
-  public void testConflictingWritesWithMarkerFiles() throws IOException {
-    String bucketName = BUCKET_HELPER.getUniqueBucketName("with-marker");
-    StorageResourceId resourceId = new StorageResourceId(bucketName, "obj1");
-
-    GoogleCloudStorageImpl gcs = makeStorageWithMarkerFileCreation(true);
-
-    gcs.create(bucketName);
-    byte[] bytesToWrite = new byte[1024];
-    GoogleCloudStorageTestHelper.fillBytes(bytesToWrite);
-    WritableByteChannel byteChannel1 = gcs.create(resourceId, new CreateObjectOptions(false));
-    byteChannel1.write(ByteBuffer.wrap(bytesToWrite));
-
-    // This call should fail:
-    Throwable thrown =
-        assertThrows(Throwable.class, () -> gcs.create(resourceId, new CreateObjectOptions(false)));
-    assertThat(thrown).hasMessageThat().contains("already exists");
-  }
-
-  @Test
-  public void testConflictingWritesWithoutMarkerFiles() throws IOException {
+  public void testConflictingWrites() throws IOException {
     String bucketName = BUCKET_HELPER.getUniqueBucketName("without-marker");
     StorageResourceId resourceId = new StorageResourceId(bucketName, "obj1");
 
-    GoogleCloudStorageImpl gcs = makeStorageWithMarkerFileCreation(false);
+    GoogleCloudStorageImpl gcs =
+        makeStorage(GoogleCloudStorageTestHelper.getStandardOptionBuilder().build());
 
     gcs.create(bucketName);
     byte[] bytesToWrite = new byte[1024];

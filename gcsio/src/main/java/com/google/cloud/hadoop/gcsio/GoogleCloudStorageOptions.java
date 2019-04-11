@@ -88,7 +88,6 @@ public abstract class GoogleCloudStorageOptions {
     return new AutoValue_GoogleCloudStorageOptions.Builder()
         .setAutoRepairImplicitDirectoriesEnabled(AUTO_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT)
         .setInferImplicitDirectoriesEnabled(INFER_IMPLICIT_DIRECTORIES_DEFAULT)
-        .setCreateMarkerObjects(CREATE_EMPTY_MARKER_OBJECT_DEFAULT)
         .setMaxWaitMillisForEmptyObjectCreation(MAX_WAIT_MILLIS_FOR_EMPTY_OBJECT_CREATION)
         .setMaxListItemsPerCall(MAX_LIST_ITEMS_PER_CALL_DEFAULT)
         .setMaxRequestsPerBatch(MAX_REQUESTS_PER_BATCH_DEFAULT)
@@ -115,8 +114,6 @@ public abstract class GoogleCloudStorageOptions {
   public abstract boolean isAutoRepairImplicitDirectoriesEnabled();
 
   public abstract boolean isInferImplicitDirectoriesEnabled();
-
-  public abstract boolean isMarkerFileCreationEnabled();
 
   public abstract int getMaxWaitMillisForEmptyObjectCreation();
 
@@ -174,14 +171,6 @@ public abstract class GoogleCloudStorageOptions {
     public abstract Builder setAutoRepairImplicitDirectoriesEnabled(boolean autoRepair);
 
     public abstract Builder setInferImplicitDirectoriesEnabled(boolean inferImplicitDirectories);
-
-    public abstract Builder setMarkerFileCreationEnabled(boolean markerFileCreationEnabled);
-
-    /** @deprecated use {@link #setMarkerFileCreationEnabled} instead */
-    @Deprecated
-    public Builder setCreateMarkerObjects(boolean createMarkerObjects) {
-      return setMarkerFileCreationEnabled(createMarkerObjects);
-    }
 
     public abstract Builder setMaxWaitMillisForEmptyObjectCreation(int durationMillis);
 
