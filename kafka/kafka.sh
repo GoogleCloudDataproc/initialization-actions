@@ -22,7 +22,9 @@ readonly ZOOKEEPER_HOME=/usr/lib/zookeeper
 readonly KAFKA_HOME=/usr/lib/kafka
 readonly KAFKA_PROP_FILE='/etc/kafka/conf/server.properties'
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-readonly RUN_ON_MASTER="$(/usr/share/google/get_metadata_value attributes/run-on-master)"
+readonly RUN_ON_MASTER="$(/usr/share/google/get_metadata_value attributes/run-on-master || echo false)"
+readonly KAFKA_ENABLE_JMX="$(/usr/share/google/get_metadata_value attributes/kafka-enable-jmx || echo false)"
+readonly KAFKA_JMX_PORT="$(/usr/share/google/get_metadata_value attributes/kafka-jmx-port || echo 9999)"
 
 # The first ZooKeeper server address, e.g., "cluster1-m-0:2181".
 ZOOKEEPER_ADDRESS=''
@@ -152,6 +154,11 @@ function install_and_configure_kafka_server() {
     "${KAFKA_PROP_FILE}"
   echo -e '\nreserved.broker.max.id=100000' >> "${KAFKA_PROP_FILE}"
   echo -e '\ndelete.topic.enable=true' >> "${KAFKA_PROP_FILE}"
+
+  if [[ "${KAFKA_ENABLE_JMX}" == "true" ]]; then
+    sed -i '/kafka-run-class.sh/i export KAFKA_JMX_OPTS="-Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=localhost -Djava.net.preferIPv4Stack=true"' /usr/lib/kafka/bin/kafka-server-start.sh
+    sed -i "/kafka-run-class.sh/i export JMX_PORT=${KAFKA_JMX_PORT}" /usr/lib/kafka/bin/kafka-server-start.sh
+  fi
 
   wait_for_zookeeper
 
