@@ -77,6 +77,21 @@ including alternative authentication options. For more information, see the
 values documented in the [gcs-core-default.xml](/gcs/conf/gcs-core-default.xml)
 file inside the `conf` directory.
 
+## Configure Spark
+
+Spark may not install a Hadoop `core-site.xml` in its `conf` dir, so you may
+need to create one or, alternatively, set `spark.hadoop.*` properties in the
+`spark-defaults.conf` file (see
+[Custom Hadoop/Hive Configuration](https://spark.apache.org/docs/latest/configuration.html#custom-hadoophive-configuration)).
+
+For example, instead of setting the required properties in `core-site.xml`, you
+can set the properties in `spark-defaults.conf`:
+
+```
+spark.hadoop.google.cloud.auth.service.account.enable       true
+spark.hadoop.google.cloud.auth.service.account.json.keyfile <path/to/keyfile.json>
+```
+
 ## Test the installation
 
 On the command line, type `hadoop fs -ls gs://<some-bucket>`, where
@@ -88,12 +103,12 @@ the installation.
 ## Troubleshooting the installation
 
 *   If the installation test reported `No FileSystem for scheme: gs`, make sure
-    that you correctly set the two properties in the correct core-site.xml.
+    that you correctly set the two properties in the correct `core-site.xml`.
 *   If the test reported `java.lang.ClassNotFoundException:
     com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem`, check that you added
-    the connector to the
-    [Hadoop classpath](https://cloud.google.com/hadoop/google-cloud-storage-connector#classpath).
+    the connector to the Hadoop/Spark classpath.
 *   If the test issued a message related to authorization, make sure that you
-    have access to `<some-bucket>` with
-    [`gsutil`](https://cloud.google.com/storage/docs/gsutil), and that the
-    credentials in your configuration are correct.
+    have access to Cloud Storage using
+    [gsutil](https://cloud.google.com/storage/docs/gsutil) (`gsutil
+    gs://some-bucket`), and that the credentials in your configuration are
+    correct.
