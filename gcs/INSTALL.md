@@ -110,5 +110,5 @@ the installation.
 *   If the test issued a message related to authorization, make sure that you
     have access to Cloud Storage using
     [gsutil](https://cloud.google.com/storage/docs/gsutil) (`gsutil
-    gs://some-bucket`), and that the credentials in your configuration are
+    ls -b gs://<some-bucket>`), and that the credentials in your configuration are
     correct.
