@@ -33,7 +33,7 @@ readonly CRUISE_CONTROL_VERSION="$(/usr/share/google/get_metadata_value attribut
 readonly CRUISE_CONTROL_HTTP_PORT="$(/usr/share/google/get_metadata_value attributes/cruise-control-http-port || echo 9090)"
 readonly SELF_HEALING_BROKER_FAILURE_ENABLED="$(/usr/share/google/get_metadata_value attributes/self-healing-broker-failure-enabled || echo true)"
 readonly SELF_HEALING_GOAL_VIOLATION_ENABLED="$(/usr/share/google/get_metadata_value attributes/self-healing-goal-violation-enabled || echo true)"
-readonly SELF_HEALING_METRIC_ANOMALY_ENABLED="$(/usr/share/google/get_metadata_value attributes/self-healing-metric-anomaly-enabled || echo true)"
+readonly SELF_HEALING_METRIC_ANOMALY_ENABLED="$(/usr/share/google/get_metadata_value attributes/self-healing-metric-anomaly-enabled || echo false)"
 readonly BROKER_FAILURE_ALERT_THRESHOLD_MS="$(/usr/share/google/get_metadata_value attributes/broker-failure-alert-threshold-ms || echo 120000)"
 readonly BROKER_FAILURE_SELF_HEALING_THRESHOLD_MS="$(/usr/share/google/get_metadata_value attributes/broker-failure-alert-threshold-ms || echo 300000)"
 
@@ -78,7 +78,9 @@ self.healing.goal.violation.enabled=${SELF_HEALING_GOAL_VIOLATION_ENABLED}
 self.healing.metric.anomaly.enabled=${SELF_HEALING_METRIC_ANOMALY_ENABLED}
 broker.failure.alert.threshold.ms=${BROKER_FAILURE_ALERT_THRESHOLD_MS}
 broker.failure.self.healing.threshold.ms=${BROKER_FAILURE_SELF_HEALING_THRESHOLD_MS}
-metric.anomaly.analyzer.metrics=BROKER_PRODUCE_LOCAL_TIME_MS_50TH,BROKER_PRODUCE_LOCAL_TIME_MS_999TH,BROKER_CONSUMER_FETCH_LOCAL_TIME_MS_50TH,BROKER_CONSUMER_FETCH_LOCAL_TIME_MS_999TH,BROKER_FOLLOWER_FETCH_LOCAL_TIME_MS_50TH,BROKER_FOLLOWER_FETCH_LOCAL_TIME_MS_999TH,BROKER_LOG_FLUSH_TIME_MS_50TH,BROKER_LOG_FLUSH_TIME_MS_999TH
+anomaly.detection.goals=com.linkedin.kafka.cruisecontrol.analyzer.goals.ReplicaCapacityGoal,com.linkedin.kafka.cruisecontrol.analyzer.goals.DiskCapacityGoal,com.linkedin.kafka.cruisecontrol.analyzer.goals.CpuCapacityGoal,com.linkedin.kafka.cruisecontrol.analyzer.goals.ReplicaDistributionGoal
+metric.anomaly.finder.class=com.linkedin.kafka.cruisecontrol.detector.NoopMetricAnomalyFinder
+
 EOF
 }
 
