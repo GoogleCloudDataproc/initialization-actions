@@ -103,7 +103,7 @@ EOF
   local hbase_root_dir="$(/usr/share/google/get_metadata_value attributes/hbase-root-dir)"
   if [[ -z "${hbase_root_dir}" ]]; then
     if [[ "${MASTER_ADDITIONAL}" != "" ]]; then
-      hbase_root_dir="hdfs://${CLUSTER_NAME}-m-0:8020/hbase"
+      hbase_root_dir="hdfs://${CLUSTER_NAME}:8020/hbase"
     else
       hbase_root_dir="hdfs://${CLUSTER_NAME}-m:8020/hbase"
     fi
