@@ -235,6 +235,12 @@
                     <include>**</include>
                   </includes>
                 </filter>
+                <filter>
+                  <artifact>com.google.apis:google-api-services-storage</artifact>
+                  <excludes>
+                    <exclude>storage.v1.json</exclude>
+                  </excludes>
+                </filter>
               </filters>
               <artifactSet>
                 <includes>

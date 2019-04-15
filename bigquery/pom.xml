@@ -183,6 +183,12 @@
                     <include>**</include>
                   </includes>
                 </filter>
+                <filter>
+                  <artifact>com.google.apis:google-api-services-bigquery</artifact>
+                  <excludes>
+                    <exclude>bigquery.v2.json</exclude>
+                  </excludes>
+                </filter>
               </filters>
               <artifactSet>
                 <includes>
