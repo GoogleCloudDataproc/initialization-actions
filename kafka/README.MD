@@ -42,9 +42,21 @@ You can use this initialization action to create a new Dataproc cluster with Kaf
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
 
+## Installing Kafka Manager with Kafka
+
+If you would like to use [Kafka Manager](https://github.com/yahoo/kafka-manager) to manage your Kafka cluster through web UI, use the `gcloud` command to create a new Kafka cluster with the Kafka Manager initialization action. The following command will create a new high availability Kafka cluster with Kafka Manager running on the first master node. The default HTTP port for Kafka Manager is 9000. Follow the instructions at [Dataproc cluster web interfaces](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces) to access the web UI.
+
+    ```bash
+    gcloud dataproc clusters create <CLUSTER_NAME> \
+        --num-masters 3 \
+        --metadata "run-on-master=true" \
+        --metadata "kafka-enable-jmx=true" \
+        --initialization-actions gs://dataproc-initialization-actions/kafka/kafka.sh,gs://dataproc-initialization-actions/kafka/kafka-manager.sh
+    ```
+
 ## Installing Cruise Control with Kafka
 
-If you would like to use [Cruise Control](https://github.com/linkedin/cruise-control) to automate common Kafka operations, e.g., automatically fixing under-replicated partitions caused by broker failures, use the `gcloud` command to create a new Kafka cluster with the Cruise Control initialization action. The following command will create a new high availability Kafka cluster with Cruise Control running on the first master node. The default HTTP port is 9090.
+If you would like to use [Cruise Control](https://github.com/linkedin/cruise-control) to automate common Kafka operations, e.g., automatically fixing under-replicated partitions caused by broker failures, use the `gcloud` command to create a new Kafka cluster with the Cruise Control initialization action. The following command will create a new high availability Kafka cluster with Cruise Control running on the first master node. The default HTTP port for Cruise Control is 9090. Follow the instructions at [Dataproc cluster web interfaces](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces) to access the web UI.
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
