@@ -1922,9 +1922,10 @@ public class GoogleCloudStorageTest {
     when(mockStorageBuckets.delete(eq(BUCKET_NAME)))
         .thenReturn(mockStorageBucketsDelete);
     when(mockBackOffFactory.newBackOff()).thenReturn(mockBackOff);
-    when(mockStorageBucketsDelete.execute())
-        .thenThrow(new IOException("Fake Exception"))
-        .thenReturn(null);
+    doThrow(new IOException("Fake Exception"))
+        .doNothing()
+        .when(mockStorageBucketsDelete)
+        .execute();
     when(mockBackOff.nextBackOffMillis()).thenReturn(100L);
     when(mockErrorExtractor.rateLimited(any(IOException.class))).thenReturn(true);
 
