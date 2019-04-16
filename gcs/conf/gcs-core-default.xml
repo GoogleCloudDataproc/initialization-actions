@@ -46,14 +46,6 @@
       to copy files between different locations and storage classes.
     </description>
   </property>
-  <property>
-    <name>fs.gs.system.bucket</name>
-    <value></value>
-    <description>
-      Deprecated. GCS bucket to use as a default bucket if fs.default.name
-      is not a gs: uri.
-    </description>
-  </property>
 
   <!-- Authorization -->
 

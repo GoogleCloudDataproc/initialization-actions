@@ -133,23 +133,6 @@ public class GoogleHadoopFileSystemConfiguration {
   public static final GoogleHadoopFileSystemConfigurationProperty<String> GCS_PROJECT_ID =
       new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.project.id");
 
-  /**
-   * Configuration key for system bucket name. It is a fall back for the rootBucket of
-   * GoogleHadoopFileSystem in gs:///path URIs . Default value: none This key is deprecated. Always
-   * init the FileSystem with a bucket.
-   */
-  @Deprecated
-  public static final GoogleHadoopFileSystemConfigurationProperty<String> GCS_SYSTEM_BUCKET =
-      new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.system.bucket");
-
-  /**
-   * Configuration key for flag to indicate whether system bucket should be created if it does not
-   * exist. This key is deprecated. See {@link #GCS_SYSTEM_BUCKET}.
-   */
-  public static final GoogleHadoopFileSystemConfigurationProperty<Boolean>
-      GCS_CREATE_SYSTEM_BUCKET =
-          new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.system.bucket.create", true);
-
   /** Configuration key for initial working directory of a GHFS instance. Default value: '/' */
   public static final GoogleHadoopFileSystemConfigurationProperty<String> GCS_WORKING_DIRECTORY =
       new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.working.dir", "/");

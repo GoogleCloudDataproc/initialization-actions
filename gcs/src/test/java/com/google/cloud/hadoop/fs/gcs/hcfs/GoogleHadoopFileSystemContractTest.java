@@ -41,7 +41,7 @@ public class GoogleHadoopFileSystemContractTest extends FileSystemContractBaseTe
    */
   @Override
   protected String getDefaultWorkingDirectory() {
-    return "gs://fake-test-system-bucket/some-dir";
+    return fs.getUri().resolve("test-work-dir").toString();
   }
 
   /** Tests get/setWorkingDirectory(). */

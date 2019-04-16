@@ -63,30 +63,14 @@ public class GoogleHadoopFileSystem extends GoogleHadoopFileSystemBase {
     super(gcsfs);
   }
 
-  /**
-   * {@inheritDoc}
-   *
-   * <p>Sets and validates the root bucket.
-   */
+  /** Sets and validates the root bucket. */
   @Override
   @VisibleForTesting
-  protected void configureBuckets(
-      GoogleCloudStorageFileSystem gcsFs, String systemBucketName, boolean createSystemBucket)
-      throws IOException {
-    super.configureBuckets(gcsFs, systemBucketName, createSystemBucket);
+  protected void configureBuckets(GoogleCloudStorageFileSystem gcsFs) throws IOException {
     rootBucket = initUri.getAuthority();
-    if (rootBucket != null) {
-      // Validate root bucket name
-      pathCodec.getPath(rootBucket, null, true);
-    } else if (systemBucket != null) {
-      logger.atWarning().log(
-          "GHFS.configureBuckets: Warning. No GCS bucket provided. "
-              + "Falling back on deprecated fs.gs.system.bucket.");
-      rootBucket = systemBucket;
-    } else {
-      throw new IllegalArgumentException(
-          String.format("No bucket specified in GCS URI: %s", initUri));
-    }
+    checkArgument(rootBucket != null, "No bucket specified in GCS URI: %s", initUri);
+    // Validate root bucket name
+    pathCodec.getPath(rootBucket, /* objectName= */ null, /* allowEmptyObjectName= */ true);
     logger.atFine().log(
         "GHFS.configureBuckets: GoogleHadoopFileSystem root in bucket: %s", rootBucket);
   }
@@ -100,12 +84,10 @@ public class GoogleHadoopFileSystem extends GoogleHadoopFileSystemBase {
     // Bucketless URIs will be qualified later
     if (bucket == null || bucket.equals(rootBucket)) {
       return;
-    } else {
-      String msg = String.format(
-          "Wrong bucket: %s, in path: %s, expected bucket: %s",
-          bucket, path, rootBucket);
-      throw new IllegalArgumentException(msg);
     }
+    throw new IllegalArgumentException(
+        String.format(
+            "Wrong bucket: %s, in path: %s, expected bucket: %s", bucket, path, rootBucket));
   }
 
   /**

@@ -29,7 +29,8 @@ public class InMemoryGoogleContract extends AbstractFSContract {
   public static final String CONTRACT_XML = "contract/gs.xml";
 
   // This bucket comes from our helper method which produces an in-memory fake for the test to use.
-  public static final String FAKE_TEST_PATH = "gs://fake-test-system-bucket/test/";
+  public static final String FAKE_TEST_PATH =
+      GoogleHadoopFileSystemTestHelper.IN_MEMORY_TEST_BUCKET + "/contract-test/";
 
   private FileSystem fs;
 

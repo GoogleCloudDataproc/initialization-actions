@@ -66,9 +66,6 @@ public class InMemoryGoogleHadoopFileSystem
     // Set the Hadoop job configuration.
     Configuration config = new Configuration();
     config.set("fs.gs.impl", InMemoryGoogleHadoopFileSystem.class.getName());
-    String systemBucketName = "test-system-bucket";
-    config.set(GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET.getKey(), systemBucketName);
-    config.setBoolean(GoogleHadoopFileSystemConfiguration.GCS_CREATE_SYSTEM_BUCKET.getKey(), true);
     return config;
   }
 

@@ -23,18 +23,21 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 /**
  * GoogleHadoopFileSystemTestHelper contains helper methods and factory methods for setting up the
  * test instances used for various unit and integration tests.
  */
 public class GoogleHadoopFileSystemTestHelper {
+
+  public static final String IN_MEMORY_TEST_BUCKET = "gs://fake-in-memory-test-bucket";
+
   /**
-   * Creates an instance of a bucket-rooted GoogleHadoopFileSystemBase using an in-memory
-   * underlying store.
+   * Creates an instance of a bucket-rooted GoogleHadoopFileSystemBase using an in-memory underlying
+   * store.
    */
-  public static FileSystem createInMemoryGoogleHadoopFileSystem()
-      throws IOException {
+  public static GoogleHadoopFileSystem createInMemoryGoogleHadoopFileSystem() throws IOException {
     GoogleCloudStorageOptions.Builder gcsOptionsBuilder =
         defaultStorageOptionsBuilder();
     GoogleCloudStorageFileSystemOptions.Builder fsOptionsBuilder =
@@ -44,7 +47,7 @@ public class GoogleHadoopFileSystemTestHelper {
         new InMemoryGoogleCloudStorage(gcsOptionsBuilder.build()),
         fsOptionsBuilder.build());
     GoogleHadoopFileSystem ghfs = new GoogleHadoopFileSystem(memoryGcsFs);
-    initializeInMemoryFileSystem(ghfs, "gs:/");
+    initializeInMemoryFileSystem(ghfs, IN_MEMORY_TEST_BUCKET);
     return ghfs;
   }
 
@@ -70,10 +73,9 @@ public class GoogleHadoopFileSystemTestHelper {
     } catch (URISyntaxException e) {
       throw new IllegalArgumentException(e);
     }
-    String systemBucketName = "fake-test-system-bucket";
     Configuration config = new Configuration();
-    config.set(GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET.getKey(), systemBucketName);
-    config.setBoolean(GoogleHadoopFileSystemConfiguration.GCS_CREATE_SYSTEM_BUCKET.getKey(), true);
     ghfs.initialize(initUri, config);
+    // Create test bucket
+    ghfs.mkdirs(new Path(initUriString));
   }
 }

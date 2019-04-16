@@ -19,7 +19,6 @@ package com.google.cloud.hadoop.fs.gcs;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.BLOCK_SIZE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONCURRENT_GLOB_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONFIG_OVERRIDE_FILE;
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CREATE_SYSTEM_BUCKET;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_FILE_CHECKSUM_TYPE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_FLAT_GLOB_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_LAZY_INITIALIZATION_ENABLE;
@@ -27,14 +26,12 @@ import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES;
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_WORKING_DIRECTORY;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PATH_CODEC;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PERMISSIONS_TO_REPORT;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Strings.emptyToNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.flogger.LazyArgs.lazy;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -241,13 +238,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
 
   /** Delegation token support */
   protected GcsDelegationTokens delegationTokens = null;
-
-  /**
-   * The retrieved configuration value for {@link
-   * GoogleHadoopFileSystemConfiguration#GCS_SYSTEM_BUCKET}. Used as a fallback for a root bucket,
-   * when required.
-   */
-  @Deprecated protected String systemBucket;
 
   /** Underlying GCS file system object. */
   private Supplier<GoogleCloudStorageFileSystem> gcsFsSupplier;
@@ -1432,17 +1422,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   }
 
   /**
-   * Gets system bucket name.
-   *
-   * @deprecated Use getUri().authority instead.
-   */
-  @VisibleForTesting
-  @Deprecated
-  String getSystemBucketName() {
-    return systemBucket;
-  }
-
-  /**
    * {@inheritDoc}
    *
    * <p>Returns the service if delegation tokens are configured, otherwise, null.
@@ -1622,14 +1601,12 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     // Set this configuration as the default config for this instance.
     setConf(config);
 
-    systemBucket = emptyToNull(GCS_SYSTEM_BUCKET.get(config, config::get));
     enableFlatGlob = GCS_FLAT_GLOB_ENABLE.get(config, config::getBoolean);
     enableConcurrentGlob = GCS_CONCURRENT_GLOB_ENABLE.get(config, config::getBoolean);
     checksumType = GCS_FILE_CHECKSUM_TYPE.get(config, config::getEnum);
     defaultBlockSize = BLOCK_SIZE.get(config, config::getLong);
     reportedPermissions = new FsPermission(PERMISSIONS_TO_REPORT.get(config, config::get));
 
-    boolean createSystemBucket = GCS_CREATE_SYSTEM_BUCKET.get(config, config::getBoolean);
     if (gcsFsSupplier == null) {
       if (GCS_LAZY_INITIALIZATION_ENABLE.get(config, config::getBoolean)) {
         gcsFsSupplier =
@@ -1639,7 +1616,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
                     GoogleCloudStorageFileSystem gcsFs = createGcsFs(config);
 
                     pathCodec = gcsFs.getPathCodec();
-                    configureBuckets(gcsFs, systemBucket, createSystemBucket);
+                    configureBuckets(gcsFs);
                     configureWorkingDirectory(config);
                     gcsFsInitialized = true;
 
@@ -1651,11 +1628,11 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
         pathCodec = getPathCodec(config);
       } else {
         setGcsFs(createGcsFs(config));
-        configureBuckets(getGcsFs(), systemBucket, createSystemBucket);
+        configureBuckets(getGcsFs());
         configureWorkingDirectory(config);
       }
     } else {
-      configureBuckets(getGcsFs(), systemBucket, createSystemBucket);
+      configureBuckets(getGcsFs());
       configureWorkingDirectory(config);
     }
 
@@ -1706,43 +1683,13 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   }
 
   /**
-   * Validates and possibly creates the system bucket. Should be overridden to configure other
-   * buckets.
+   * Validates and possibly creates buckets needed by subclass.
    *
    * @param gcsFs {@link GoogleCloudStorageFileSystem} to configure buckets
-   * @param systemBucketName Name of system bucket
-   * @param createSystemBucket Whether or not to create systemBucketName if it does not exist.
-   * @throws IOException if systemBucketName is invalid or cannot be found and createSystemBucket is
-   *     false.
+   * @throws IOException if bucket name is invalid or cannot be found.
    */
   @VisibleForTesting
-  protected void configureBuckets(
-      GoogleCloudStorageFileSystem gcsFs, String systemBucketName, boolean createSystemBucket)
-      throws IOException {
-    logger.atFine().log("GHFS.configureBuckets: %s, %s", systemBucketName, createSystemBucket);
-
-    systemBucket = systemBucketName;
-    if (systemBucket != null) {
-      logger.atFine().log("GHFS.configureBuckets: Warning fs.gs.system.bucket is deprecated.");
-      // Ensure that system bucket exists. It really must be a bucket, not a GCS path.
-      URI systemBucketPath =
-          gcsFs
-              .getPathCodec()
-              .getPath(systemBucket, /* objectName= */ null, /* allowEmptyObjectName= */ true);
-
-      if (!gcsFs.exists(systemBucketPath)) {
-        if (createSystemBucket) {
-          gcsFs.mkdirs(systemBucketPath);
-        } else {
-          throw new FileNotFoundException(
-              String.format(
-                  "%s: system bucket not found: %s", GCS_SYSTEM_BUCKET.getKey(), systemBucket));
-        }
-      }
-    }
-
-    logger.atFine().log("GHFS.configureBuckets:=> ");
-  }
+  protected abstract void configureBuckets(GoogleCloudStorageFileSystem gcsFs) throws IOException;
 
   private void configureWorkingDirectory(Configuration config) {
     // Set initial working directory to root so that any configured value gets resolved

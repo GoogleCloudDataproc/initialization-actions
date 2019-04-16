@@ -88,9 +88,6 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
         GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_EMAIL.getKey(), serviceAccount);
     config.set(
         GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_KEY_FILE.getKey(), privateKeyFile);
-    String systemBucketName = ghfsHelper.getUniqueBucketName("system");
-    config.set(GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET.getKey(), systemBucketName);
-    config.setBoolean(GoogleHadoopFileSystemConfiguration.GCS_CREATE_SYSTEM_BUCKET.getKey(), true);
     config.setBoolean(
         GoogleHadoopFileSystemConfiguration.GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE.getKey(), true);
     config.setBoolean(
@@ -159,11 +156,11 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
   public void testGetGcsPath() throws URISyntaxException {
     GoogleHadoopFileSystemBase myghfs = (GoogleHadoopFileSystemBase) ghfs;
 
-    URI gcsPath = new URI("gs://" + myghfs.getSystemBucketName() + "/dir/obj");
+    URI gcsPath = new URI("gs://" + myghfs.getUri().getAuthority() + "/dir/obj");
     assertThat(myghfs.getGcsPath(new Path(gcsPath))).isEqualTo(gcsPath);
 
     assertThat(myghfs.getGcsPath(new Path("/buck^et", "object")))
-        .isEqualTo(new URI("gs://" + myghfs.getSystemBucketName() + "/buck%5Eet/object"));
+        .isEqualTo(new URI("gs://" + myghfs.getUri().getAuthority() + "/buck%5Eet/object"));
   }
 
   /**
@@ -179,7 +176,6 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
         .isEqualTo(GoogleHadoopFileSystemConfiguration.GCS_INPUT_STREAM_BUFFER_SIZE.getDefault());
     assertThat(myghfs.getDefaultBlockSize())
         .isEqualTo(GoogleHadoopFileSystemConfiguration.BLOCK_SIZE.getDefault());
-    assertThat(myghfs.getSystemBucketName()).isNotEmpty();
   }
 
   /**
@@ -292,6 +288,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     GoogleHadoopFileSystemBase myghfs = (GoogleHadoopFileSystemBase) ghfs;
     GoogleCloudStorageFileSystem gcsfs = myghfs.getGcsFs();
     GoogleCloudStorage gcs = gcsfs.getGcs();
+
     URI seedUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
     Path dirPath = ghfsHelper.castAsHadoopPath(seedUri);
     URI dirUri = myghfs.getGcsPath(dirPath);
@@ -310,7 +307,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
 
     assertDirectory(gcsfs, dirUri, /* exists= */ inferImplicitDirectories);
 
-    gcsfs.rename(objUri, seedUri.resolve("."));
+    gcsfs.rename(objUri, objUri.resolve(".."));
 
     // Implicit directory created after deletion of the sole object in the directory
     assertDirectory(gcsfs, dirUri, /* exists= */ autoRepairImplicitDirectories);
@@ -713,20 +710,13 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
   @Test
   public void testInvalidCredentialFromAccessTokenProvider() throws Exception {
     Configuration config = new Configuration();
-    config.set(GoogleHadoopFileSystemConfiguration.GCS_SYSTEM_BUCKET.getKey(), sharedBucketName1);
     config.set("fs.gs.auth.access.token.provider.impl", TestingAccessTokenProvider.class.getName());
     URI gsUri = new URI("gs://foobar/");
 
     GoogleHadoopFileSystem ghfs = new GoogleHadoopFileSystem();
+    ghfs.initialize(gsUri, config);
 
-    IOException thrown;
-    if (GoogleHadoopFileSystemConfiguration.GCS_LAZY_INITIALIZATION_ENABLE.get(
-        config, config::getBoolean)) {
-      ghfs.initialize(gsUri, config);
-      thrown = (IOException) assertThrows(RuntimeException.class, ghfs::getGcsFs).getCause();
-    } else {
-      thrown = assertThrows(IOException.class, () -> ghfs.initialize(gsUri, config));
-    }
+    IOException thrown = assertThrows(IOException.class, () -> ghfs.exists(new Path("gs://")));
 
     assertThat(thrown).hasCauseThat().hasMessageThat().contains("Invalid Credentials");
   }

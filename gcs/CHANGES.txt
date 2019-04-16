@@ -25,6 +25,11 @@
 
   10. Remove obsolete `fs.gs.create.marker.files.enable` property.
 
+  11. Remove system bucket feature and related properties:
+
+       fs.gs.system.bucket
+       fs.gs.system.bucket.create
+
 
 1.9.14 - 2019-02-13
 

@@ -66,7 +66,7 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
               GoogleHadoopFileSystemConfiguration.PATH_CODEC.getKey(),
               GoogleHadoopFileSystemBase.PATH_CODEC_USE_URI_ENCODING);
 
-          URI initUri = new URI("gs:/");
+          URI initUri = new URI("gs://" + ghfsHelper.getUniqueBucketName("init"));
           ghfs.initialize(initUri, conf);
 
           if (GCS_LAZY_INITIALIZATION_ENABLE.get(ghfs.getConf(), ghfs.getConf()::getBoolean)) {
@@ -188,7 +188,7 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
     conf.set(
         GoogleHadoopFileSystemConfiguration.PATH_CODEC.getKey(),
         GoogleHadoopFileSystemBase.PATH_CODEC_USE_LEGACY_ENCODING);
-    legacyEncodedFS.initialize(URI.create("gs:/"), conf);
+    legacyEncodedFS.initialize(URI.create("gs://" + uriPathEncodedFS.getRootBucketName()), conf);
 
     Path compatTestRoot = new Path(
         String.format(
