@@ -42,20 +42,6 @@ function download_druid() {
   tar -xzf apache-druid-${DRUID_VERSION}-bin.tar.gz
 }
 
-function extract_runtime_property(){
-  local file="${1}"
-  local parameter="${2}"
-  echo $(cat ${file} | grep ${parameter} | grep -o -E '[0-9]+')
-}
-
-function calculate_xmx(){
-  local processing_buffer=${1}
-  local num_threads=${2}
-  local num_merge_buffers=${3}
-
-  echo $(( ${processing_buffer} * (${num_merge_buffers} + ${num_threads}) + 1 ))
-}
-
 function prepare_environment_services(){
   local metastore_instance
   local password_argument
@@ -72,37 +58,12 @@ function prepare_environment_services(){
     || echo "Cannot grant priviliges to druid user"
 }
 
-function max() {
-   [ "$1" -gt "$2" ] && echo $1 || echo $2
-}
-
 function modify_jvm_config(){
   local service_name="${1}"
-  local cores
-  local processing_buffer
-  local num_threads
-  local num_merge_buff
-  local xmx
-  local xx
-  processing_buffer=$(extract_runtime_property \
-    ${DRUID_DIR}/conf/druid/${service_name}/runtime.properties druid.processing.buffer.sizeBytes)
-  if [[ ${processing_buffer} == "" ]];then
-    # Default value 1GB
-    processing_buffer=1073741824
-  fi
-  cores=$(grep -c ^processor /proc/cpuinfo)
-  cores=$((${cores}-1))
-  num_threads=$(max 1 ${cores})
-  if [[ ${num_threads} < 4 ]];then
-    num_merge_buff=2
-  else
-    num_merge_buff=$(max 2 ${num_threads}/4)
-  fi
-  xmx=$(calculate_xmx ${processing_buffer} ${num_threads} ${num_merge_buff})
-  xx=$((${num_threads} * ${processing_buffer} * 4))
+  local memory=$(echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE) / (1024 * 1024))))
   cat << EOF > conf/druid/${service_name}/jvm.config
--XX:MaxDirectMemorySize=${xx}
--Xmx${xmx}
+-XX:MaxDirectMemorySize=${memory}m
+-Xmx${memory}m
 -Duser.timezone=UTC
 -Dfile.encoding=UTF-8
 -Djava.io.tmpdir=var/tmp
@@ -435,7 +396,6 @@ ExecStart=/bin/bash -c "java `cat conf/druid/historical/jvm.config | xargs` -cp 
 [Install]
 WantedBy=multi-user.target
 EOF
-
 
 
   cat << EOF > /etc/systemd/system/druid-middle-manager.service
