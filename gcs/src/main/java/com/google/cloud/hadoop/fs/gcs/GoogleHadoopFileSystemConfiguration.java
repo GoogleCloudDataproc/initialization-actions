@@ -203,14 +203,6 @@ public class GoogleHadoopFileSystemConfiguration {
               "fs.gs.performance.cache.list.caching.enable",
               PerformanceCachingGoogleCloudStorageOptions.LIST_CACHING_ENABLED);
 
-  /** Configuration key for number of prefetched directory objects metadata in performance cache. */
-  @Deprecated
-  public static final GoogleHadoopFileSystemConfigurationProperty<Long>
-      GCS_PERFORMANCE_CACHE_DIR_METADATA_PREFETCH_LIMIT =
-          new GoogleHadoopFileSystemConfigurationProperty<>(
-              "fs.gs.performance.cache.dir.metadata.prefetch.limit",
-              PerformanceCachingGoogleCloudStorageOptions.DIR_METADATA_PREFETCH_LIMIT_DEFAULT);
-
   /**
    * Configuration key for whether or not we should update timestamps for parent directories when we
    * create new files in them.

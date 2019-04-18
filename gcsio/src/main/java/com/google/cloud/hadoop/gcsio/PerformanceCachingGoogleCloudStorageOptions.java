@@ -13,8 +13,6 @@
  */
 package com.google.cloud.hadoop.gcsio;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import com.google.auto.value.AutoValue;
 
 /** Configurable options for {@link PerformanceCachingGoogleCloudStorage}. */
@@ -27,16 +25,12 @@ public abstract class PerformanceCachingGoogleCloudStorageOptions {
   /** Flag to enable list caching. */
   public static final boolean LIST_CACHING_ENABLED = false;
 
-  /** Number of prefetched objects metadata in directory. */
-  @Deprecated public static final long DIR_METADATA_PREFETCH_LIMIT_DEFAULT = 1_000;
-
   public static final PerformanceCachingGoogleCloudStorageOptions DEFAULT = builder().build();
 
   public static Builder builder() {
     return new AutoValue_PerformanceCachingGoogleCloudStorageOptions.Builder()
         .setMaxEntryAgeMillis(MAX_ENTRY_AGE_MILLIS_DEFAULT)
-        .setListCachingEnabled(LIST_CACHING_ENABLED)
-        .setDirMetadataPrefetchLimit(DIR_METADATA_PREFETCH_LIMIT_DEFAULT);
+        .setListCachingEnabled(LIST_CACHING_ENABLED);
   }
 
   /** Gets the max age of an item in cache in milliseconds. */
@@ -44,10 +38,6 @@ public abstract class PerformanceCachingGoogleCloudStorageOptions {
 
   /** Gets if list caching is enabled. */
   public abstract boolean isListCachingEnabled();
-
-  /** Gets number if list caching is enabled. */
-  @Deprecated
-  public abstract long getDirMetadataPrefetchLimit();
 
   public abstract Builder toBuilder();
 
@@ -61,22 +51,6 @@ public abstract class PerformanceCachingGoogleCloudStorageOptions {
     /** Setting for enabling list caching. */
     public abstract Builder setListCachingEnabled(boolean listCachingEnabled);
 
-    /**
-     * Sets number of prefetched objects metadata in directory. Setting this property to {@code 0}
-     * disables metadata prefetching in directory. Setting it to {@code -1} prefetches all objects
-     * metadata in a directory.
-     */
-    @Deprecated
-    public abstract Builder setDirMetadataPrefetchLimit(long dirMetadataPrefetchLimit);
-
-    abstract PerformanceCachingGoogleCloudStorageOptions autoBuild();
-
-    public PerformanceCachingGoogleCloudStorageOptions build() {
-      PerformanceCachingGoogleCloudStorageOptions options = autoBuild();
-      checkState(
-          options.getDirMetadataPrefetchLimit() >= -1,
-          "dirMetadataPrefetchLimit should be greater or equal to -1");
-      return options;
-    }
+    public abstract PerformanceCachingGoogleCloudStorageOptions build();
   }
 }
