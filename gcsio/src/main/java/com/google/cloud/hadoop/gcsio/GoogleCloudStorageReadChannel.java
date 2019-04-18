@@ -1199,29 +1199,4 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       }
     };
   }
-
-  /**
-   * @deprecated use {@link GoogleCloudStorageReadOptions#DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS}
-   */
-  @Deprecated
-  public static final int DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS =
-      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_INITIAL_INTERVAL_MILLIS;
-  /** @deprecated use {@link GoogleCloudStorageReadOptions#DEFAULT_BACKOFF_RANDOMIZATION_FACTOR} */
-  @Deprecated
-  public static final double DEFAULT_BACKOFF_RANDOMIZATION_FACTOR =
-      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_RANDOMIZATION_FACTOR;
-  /** @deprecated use {@link GoogleCloudStorageReadOptions#DEFAULT_BACKOFF_MULTIPLIER} instead */
-  @Deprecated
-  public static final double DEFAULT_BACKOFF_MULTIPLIER =
-      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_MULTIPLIER;
-  /** @deprecated use {@link GoogleCloudStorageReadOptions#DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS} */
-  @Deprecated
-  public static final int DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS =
-      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS;
-  /**
-   * @deprecated use {@link GoogleCloudStorageReadOptions#DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS}
-   */
-  @Deprecated
-  public static final int DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS =
-      GoogleCloudStorageReadOptions.DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS;
 }
