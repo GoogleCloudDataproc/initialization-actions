@@ -64,12 +64,6 @@ public class LocalFileSystemIntegrationTest
                 public String getScheme() {
                   return getFileSystemRoot().toUri().getScheme();
                 }
-
-                @Deprecated
-                @Override
-                public String getHadoopScheme() {
-                  return getScheme();
-                }
               };
 
           // The file:/// scheme will secretly use a ChecksumFileSystem under the hood, causing all

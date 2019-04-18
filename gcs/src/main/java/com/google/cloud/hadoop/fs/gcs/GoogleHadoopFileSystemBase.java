@@ -515,12 +515,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   @Override
   public abstract String getScheme();
 
-  @Deprecated
-  @Override
-  public String getHadoopScheme() {
-    return getScheme();
-  }
-
   /**
    *
    * <p> Overridden to make root it's own parent. This is POSIX compliant, but more importantly

@@ -92,12 +92,6 @@ public class HadoopFileSystemIntegrationTest extends HadoopFileSystemTestBase {
                 public String getScheme() {
                   return getFileSystemRoot().toUri().getScheme();
                 }
-
-                @Deprecated
-                @Override
-                public String getHadoopScheme() {
-                  return getScheme();
-                }
               };
 
           postCreateInit();
