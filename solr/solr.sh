@@ -56,7 +56,7 @@ function install_and_configure_solr() {
 
 # Install deb packages from GS
   update_apt_get
-  install_apt_get solr solr-server solr-doc
+  install_apt_get solr
 
   sed -i "s/^#SOLR_HOST=\"192.168.1.1\"/SOLR_HOST=\"${NODE_NAME}\"/" "${SOLR_CONF_FILE}"
   sed -i 's/^#SOLR_LOGS_DIR=/SOLR_LOGS_DIR=/' "${SOLR_CONF_FILE}"
@@ -71,7 +71,7 @@ function install_and_configure_solr() {
 
   # Enable hdfs as default backend storage.
   if [[ "${MASTER_ADDITIONAL}" != "" ]]; then
-    solr_home_dir="hdfs://${CLUSTER_NAME}-m-0:8020/solr"
+    solr_home_dir="hdfs://${CLUSTER_NAME}:8020/solr"
   else
     solr_home_dir="hdfs://${CLUSTER_NAME}-m:8020/solr"
   fi
