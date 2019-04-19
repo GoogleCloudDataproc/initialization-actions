@@ -18,11 +18,30 @@
 
 set -euxo pipefail
 
-readonly SOLR_VERSION='7.6.0'
-readonly SOLR_DOWNLOAD_LINK="http://archive.apache.org/dist/lucene/solr/${SOLR_VERSION}/solr-${SOLR_VERSION}.tgz"
 readonly MASTER_ADDITIONAL="$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)"
 readonly CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)"
 readonly NODE_NAME="$(/usr/share/google/get_metadata_value name)"
+readonly SOLR_CONF_FILE='/etc/default/solr'
+
+function retry_apt_command() {
+  cmd="$1"
+  for ((i = 0; i < 10; i++)); do
+    if eval "$cmd"; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
+function update_apt_get() {
+  retry_apt_command "apt-get update"
+}
+
+function install_apt_get() {
+  pkgs="$@"
+  retry_apt_command "apt-get install -y $pkgs"
+}
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
@@ -35,39 +54,62 @@ function install_and_configure_solr() {
   zookeeper_nodes="$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg \
     | uniq | cut -d '=' -f 2 | cut -d ':' -f 1 | xargs echo | sed "s/ /,/g")"
 
-  cd tmp && wget -q "${SOLR_DOWNLOAD_LINK}" && wget -q "${SOLR_DOWNLOAD_LINK}.sha512"
-  diff <(sha512sum solr-${SOLR_VERSION}.tgz | awk {'print $1'}) \
-    <(cat solr-${SOLR_VERSION}.tgz.sha512 | awk {'print $1'}) \
-    || err 'Verification of downloaded solr archive failed.'
+# Install deb packages from GS
+  update_apt_get
+  install_apt_get solr
 
-  tar -xf "solr-${SOLR_VERSION}.tgz" && pushd "solr-${SOLR_VERSION}/bin" \
-    && ./install_solr_service.sh "/tmp/solr-${SOLR_VERSION}.tgz" -n && popd
-
-  rm -rf "/tmp/solr-${SOLR_VERSION}.tgz" "/tmp/solr-${SOLR_VERSION}"
-
-  sed -i "s/^#SOLR_HOST=\"192.168.1.1\"/SOLR_HOST=\"${NODE_NAME}\"/" \
-    /etc/default/solr.in.sh
-  mkdir -p /var/log/solr && chown solr:solr /var/log/solr
-  sed -i 's/^SOLR_LOGS_DIR="\/var\/solr\/logs"/SOLR_LOGS_DIR="\/var\/log\/solr"/' \
-    /etc/default/solr.in.sh
+  sed -i "s/^#SOLR_HOST=\"192.168.1.1\"/SOLR_HOST=\"${NODE_NAME}\"/" "${SOLR_CONF_FILE}"
+  sed -i 's/^#SOLR_LOGS_DIR=/SOLR_LOGS_DIR=/' "${SOLR_CONF_FILE}"
+  chown -R solr:solr /usr/lib/solr/server/solr
 
   # Enable SolrCloud setup in HA mode.
   if [[ "${MASTER_ADDITIONAL}" != "" ]]; then
     sed -i "s/^#ZK_HOST=\"\"/ZK_HOST=\"${zookeeper_nodes}\/solr\"/" \
-      /etc/default/solr.in.sh
-    /opt/solr/bin/solr zk mkroot /solr -z "${NODE_NAME}:2181" || echo 'Node already exists for /solr.'
+      "${SOLR_CONF_FILE}"
+    /usr/lib/solr/bin/solr zk mkroot /solr -z "${NODE_NAME}:2181" || echo 'Node already exists for /solr.'
   fi
 
   # Enable hdfs as default backend storage.
   if [[ "${MASTER_ADDITIONAL}" != "" ]]; then
-    solr_home_dir="hdfs://${CLUSTER_NAME}-m-0:8020/solr"
+    solr_home_dir="hdfs://${CLUSTER_NAME}:8020/solr"
   else
     solr_home_dir="hdfs://${CLUSTER_NAME}-m:8020/solr"
   fi
-  cat << EOF >> /etc/default/solr.in.sh
+  cat << EOF >> "${SOLR_CONF_FILE}"
 SOLR_OPTS="\${SOLR_OPTS} -Dsolr.directoryFactory=HdfsDirectoryFactory -Dsolr.lock.type=hdfs \
  -Dsolr.hdfs.home=${solr_home_dir}"
 EOF
+
+  cat << EOF > /etc/systemd/system/solr.service
+[Unit]
+Description=Apache SOLR
+ConditionPathExists=/usr/lib/solr/bin
+After=syslog.target network.target remote-fs.target nss-lookup.target systemd-journald-dev-log.socket
+Before=multi-user.target
+Conflicts=shutdown.target
+
+[Service]
+User=solr
+LimitNOFILE=1048576
+LimitNPROC=1048576
+Environment=SOLR_INCLUDE=/etc/default/solr
+Environment=RUNAS=solr
+Environment=SOLR_INSTALL_DIR=/usr/lib/solr
+
+Restart=on-failure
+RestartSec=5
+
+ExecStart=/usr/lib/solr/bin/solr start -f
+ExecStop=/usr/lib/solr/bin/solr stop
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  # Remove default init.d file and use solr as systemd service
+  rm -f /etc/init.d/solr-server && update-rc.d -f solr-server remove
+  systemctl daemon-reload || err 'Unable to reload daemons.'
 }
 
 function main() {
