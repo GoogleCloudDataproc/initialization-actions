@@ -918,18 +918,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   }
 
   /**
-   * Delete a file.
-   * @deprecated Use {@code delete(Path, boolean)} instead
-   */
-  @Deprecated
-  @Override
-  public boolean delete(Path f)
-      throws IOException {
-
-    return delete(f, true);
-  }
-
-  /**
    * Deletes the given file or directory.
    *
    * @param hadoopPath The path to delete.
