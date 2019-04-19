@@ -19,17 +19,17 @@ set -x -e
 # TonY settings
 readonly TONY_INSTALL_FOLDER='/opt/tony/'
 readonly TONY_SAMPLES_FOLDER="${TONY_INSTALL_FOLDER}"'/TonY-samples'
-readonly TONY_DEFAULT_VERSION='cc8c4ea599143b775092d1b05af63398ad98a9de'
+readonly TONY_DEFAULT_VERSION='6273f16d9c0597b3715a04645445aeedc495baf8'
 
 # Tony configurations: https://github.com/linkedin/TonY/wiki/TonY-Configurations
 readonly PS_INSTANCES=1
-readonly PS_MEMORY='4g'
+readonly PS_MEMORY='2g'
 readonly WORKER_INSTANCES=2
 readonly WORKER_MEMORY='4g'
 readonly WORKER_GPUS=0  # GPU isolation is not supported in Dataproc 1.3
 
 # ML frameworks versions
-readonly TENSORFLOW_VERSION='1.9'
+readonly TENSORFLOW_VERSION='1.13.1'
 readonly TENSORFLOW_GPU=false
 readonly PYTORCH_VERSION='0.4.1'
 readonly TORCHVISION_VERSION='0.2.1'
