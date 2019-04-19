@@ -56,38 +56,16 @@ public class BigQueryConfiguration {
   /** Configuration key for ID of the table written by this input connector. */
   public static final String INPUT_TABLE_ID_KEY = "mapred.bq.input.table.id";
 
-  /**
-   * @deprecated Issue queries from the BigQuery command-line tool instead, outside of a MapReduce.
-   */
-  @Deprecated public static final String INPUT_QUERY_KEY = "mapred.bq.input.query";
-
   /** Configuration key for the GCS temp path this connector uses. */
   public static final String TEMP_GCS_PATH_KEY = "mapred.bq.temp.gcs.path";
 
   /** Configuration key for the GCS bucket holding TEMP_GCS_PATH_KEY */
   public static final String GCS_BUCKET_KEY = "mapred.bq.gcs.bucket";
 
-  /**
-   * @deprecated Tables exist outside the scope of MapReduces; use BigQuery CLI instead.
-   */
-  @Deprecated
-  public static final String DELETE_INTERMEDIATE_TABLE_KEY = "mapred.bq.query.results.table.delete";
-  public static final boolean DELETE_INTERMEDIATE_TABLE_DEFAULT = false;
-
   /** Configuration key for whether to delete the intermediate GCS-export files. */
   public static final String DELETE_EXPORT_FILES_FROM_GCS_KEY =
       "mapred.bq.input.export.files.delete";
   public static final boolean DELETE_EXPORT_FILES_FROM_GCS_DEFAULT = true;
-
-  /**
-   * @deprecated Configuration key specifying whether to start the map phase concurrently with the
-   *     BigQuery export. Since BigQuery exports are significantly faster than when this was
-   *     implemented it is no longer suggested.
-   */
-  @Deprecated
-  public static final String ENABLE_SHARDED_EXPORT_KEY = "mapred.bq.input.sharded.export.enable";
-
-  public static final boolean ENABLE_SHARDED_EXPORT_DEFAULT = false;
 
   /**
    * Number of milliseconds to wait between listStatus calls inside of nextKeyValue when no

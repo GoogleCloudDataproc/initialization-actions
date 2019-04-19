@@ -25,6 +25,7 @@ import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
+import com.google.cloud.hadoop.io.bigquery.output.IndirectBigQueryOutputFormat;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.common.base.Strings;
 import com.google.common.collect.Maps;
@@ -172,9 +173,6 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     TestConfiguration configuration = TestConfiguration.getInstance();
 
     LoggerConfig.getConfig(GsonBigQueryInputFormat.class).setLevel(Level.FINE);
-    LoggerConfig.getConfig(BigQueryOutputCommitter.class).setLevel(Level.FINE);
-    LoggerConfig.getConfig(BigQueryOutputFormat.class).setLevel(Level.FINE);
-    LoggerConfig.getConfig(BigQueryRecordWriter.class).setLevel(Level.FINE);
     LoggerConfig.getConfig(BigQueryUtils.class).setLevel(Level.FINE);
     LoggerConfig.getConfig(GsonRecordReader.class).setLevel(Level.FINE);
 
@@ -241,7 +239,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     testTable = testId + "_table_" + jobIdString;
 
     // Instantiate an OutputFormat and InputFormat instance.
-    outputFormat = new BigQueryOutputFormat();
+    outputFormat = new IndirectBigQueryOutputFormat<>();
   }
 
   @After
@@ -272,11 +270,6 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     BigQueryConfiguration.configureBigQueryOutput(
         config, projectIdvalue, testDataset, testTable,
         "[{'name': 'CompanyName','type': 'STRING'},{'name': 'MarketCap','type': 'INTEGER'}]");
-
-    // TODO(user): This shouldn't be necessary, but it's a bug where output committer assumes
-    // the inputformat was also BQ and thus tries to find a GCS path to delete. We should make
-    // the input and output independent from each other.
-    config.setBoolean(BigQueryConfiguration.DELETE_INTERMEDIATE_TABLE_KEY, false);
 
     // First, obtain the "committer" and call the "setup" methods which are expected to create
     // the temporary dataset.

@@ -22,7 +22,6 @@ import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.cloud.hadoop.util.HadoopToStringUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -91,19 +90,6 @@ public abstract class AbstractBigQueryInputFormat<K, V>
   }
 
   /**
-   * Enable or disable BigQuery sharded output.
-   */
-  public static void setEnableShardedExport(Configuration configuration, boolean enabled) {
-    configuration.setBoolean(BigQueryConfiguration.ENABLE_SHARDED_EXPORT_KEY, enabled);
-  }
-
-  protected static boolean isShardedExportEnabled(Configuration configuration) {
-    return configuration.getBoolean(
-        BigQueryConfiguration.ENABLE_SHARDED_EXPORT_KEY,
-        BigQueryConfiguration.ENABLE_SHARDED_EXPORT_DEFAULT);
-  }
-
-  /**
    * Get the ExportFileFormat that this input format supports.
    */
   public abstract ExportFileFormat getExportFileFormat();
@@ -165,24 +151,19 @@ public abstract class AbstractBigQueryInputFormat<K, V>
   public RecordReader<K, V> createRecordReader(
       InputSplit inputSplit, Configuration configuration)
       throws IOException, InterruptedException {
-    if (isShardedExportEnabled(configuration)) {
-      Preconditions.checkArgument(
-          inputSplit instanceof ShardedInputSplit,
-          "Split should be instance of ShardedInputSplit.");
-      logger.atFine().log("createRecordReader -> DynamicFileListRecordReader");
-      return new DynamicFileListRecordReader<>(this);
-    } else {
-      Preconditions.checkArgument(
-          inputSplit instanceof UnshardedInputSplit,
-          "Split should be instance of UnshardedInputSplit.");
+    Preconditions.checkArgument(
+        inputSplit instanceof UnshardedInputSplit,
+        "Split should be instance of UnshardedInputSplit.");
       logger.atFine().log("createRecordReader -> createDelegateRecordReader()");
       return createDelegateRecordReader(inputSplit, configuration);
-    }
   }
 
   private static Export constructExport(
-      Configuration configuration, ExportFileFormat format, String exportPath,
-      BigQueryHelper bigQueryHelper, InputFormat delegateInputFormat)
+      Configuration configuration,
+      ExportFileFormat format,
+      String exportPath,
+      BigQueryHelper bigQueryHelper,
+      InputFormat<LongWritable, Text> delegateInputFormat)
       throws IOException {
     logger.atFine().log("constructExport() with export path %s", exportPath);
 
@@ -200,82 +181,20 @@ public abstract class AbstractBigQueryInputFormat<K, V>
         .setTableId(tableName);
     Table table = bigQueryHelper.getTable(exportTableReference);
 
-    String query = configuration.get(BigQueryConfiguration.INPUT_QUERY_KEY);
-
     if (EXTERNAL_TABLE_TYPE.equals(table.getType())) {
-      if (Strings.isNullOrEmpty(query)) {
         logger.atInfo().log("Table is already external, so skipping export");
-        // Otherwise getSplits gets confused.
-        setEnableShardedExport(configuration, false);
         return new NoopFederatedExportToCloudStorage(
             configuration, format, bigQueryHelper, jobProjectId, table, delegateInputFormat);
-      } else {
-        logger.atInfo().log(
-            "Ignoring use of federated data source, because a query was specified.");
-      }
     }
 
-    boolean enableShardedExport = isShardedExportEnabled(configuration);
-    boolean deleteTableOnExit = configuration.getBoolean(
-        BigQueryConfiguration.DELETE_INTERMEDIATE_TABLE_KEY,
-        BigQueryConfiguration.DELETE_INTERMEDIATE_TABLE_DEFAULT);
-
-    logger.atFine().log(
-        "isShardedExportEnabled = %s, deleteTableOnExit = %s, tableReference = %s, query = %s",
-        enableShardedExport,
-        deleteTableOnExit,
-        lazy(() -> BigQueryStrings.toString(exportTableReference)),
-        query);
-
-    Export export;
-    if (enableShardedExport) {
-      export = new ShardedExportToCloudStorage(
-          configuration,
-          exportPath,
-          format,
-          bigQueryHelper,
-          jobProjectId,
-          table);
-    } else {
-      export = new UnshardedExportToCloudStorage(
-          configuration,
-          exportPath,
-          format,
-          bigQueryHelper,
-          jobProjectId,
-          table,
-          delegateInputFormat);
-    }
-
-    if (!Strings.isNullOrEmpty(query)) {
-      // A query was specified. In this case we want to add add prepare and cleanup steps
-      // via the QueryBasedExport.
-      export = new QueryBasedExport(
-          export, query, jobProjectId, bigQueryHelper, exportTableReference, deleteTableOnExit);
-    }
-
-    return export;
-  }
-
-  /**
-   * Cleans up relevant temporary resources associated with a job which used the
-   * GsonBigQueryInputFormat; this should be called explicitly after the completion of the entire
-   * job. Possibly cleans up intermediate export tables if configured to use one due to
-   * specifying a BigQuery "query" for the input. Cleans up the GCS directoriy where BigQuery
-   * exported its files for reading.
-   *
-   * @param context The JobContext which contains the full configuration plus JobID which matches
-   *     the JobContext seen in the corresponding BigQueryInptuFormat.getSplits() setup.
-   *
-   * @deprecated Use {@link #cleanupJob(Configuration, JobID)}
-   */
-  @Deprecated
-  public static void cleanupJob(JobContext context)
-      throws IOException {
-    // Since cleanupJob may be called from a place where the actual runtime Configuration isn't
-    // available, we must re-walk the same logic for generating the export path based on settings
-    // and JobID in the context.
-    cleanupJob(context.getConfiguration(), context.getJobID());
+    return new UnshardedExportToCloudStorage(
+        configuration,
+        exportPath,
+        format,
+        bigQueryHelper,
+        jobProjectId,
+        table,
+        delegateInputFormat);
   }
 
   /**
@@ -298,7 +217,8 @@ public abstract class AbstractBigQueryInputFormat<K, V>
   }
 
   /**
-   * Similar to {@link #cleanupJob(JobContext)}, but allows specifying the Bigquery instance to use.
+   * Similar to {@link #cleanupJob(Configuration, JobID)}, but allows specifying the Bigquery
+   * instance to use.
    *
    * @param bigQueryHelper The Bigquery API-client helper instance to use.
    * @param config The job Configuration object which contains settings such as whether sharded

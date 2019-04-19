@@ -4,6 +4,12 @@
 
   2. Remove Hadoop 1.x support.
 
+  3. Remove deprecated features and associated properties:
+
+       mapred.bq.input.query
+       mapred.bq.query.results.table.delete
+       mapred.bq.input.sharded.export.enable
+
 
 0.13.14 - 2019-02-13
 
