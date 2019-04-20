@@ -25,9 +25,13 @@ import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
+import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
+import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
+import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
 import com.google.cloud.hadoop.io.bigquery.output.IndirectBigQueryOutputFormat;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import com.google.common.flogger.GoogleLogger;
 import com.google.common.flogger.LoggerConfig;
@@ -53,6 +57,7 @@ import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.TaskID;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -64,15 +69,20 @@ import org.mockito.MockitoAnnotations;
  * connector libraries.
  */
 public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
-  // Environment variable name for the projectId with which we will run this test.
-  public static final String BIGQUERY_PROJECT_ID_ENVVARNAME = "BIGQUERY_PROJECT_ID";
-  // Environment variable name to enable async/resumable writes.
-  public static final String BIGQUERY_ENABLE_ASYNC_WRITE_ENVVARNAME =
-      "ENABLE_BIGQUERY_ASYNC_WRITES";
-  protected static final String MARKET_CAP_FIELD_NAME = "MarketCap";
-  protected static final String COMPANY_NAME_FIELD_NAME = "CompanyName";
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+
+  // Environment variable name for the projectId with which we will run this test.
+  public static final String BIGQUERY_PROJECT_ID_ENVVARNAME = "BIGQUERY_PROJECT_ID";
+
+  protected static final BigQueryTableFieldSchema COMPANY_NAME_FIELD =
+      new BigQueryTableFieldSchema().setName("CompanyName").setType("STRING");
+  protected static final BigQueryTableFieldSchema MARKET_CAP_FIELD =
+      new BigQueryTableFieldSchema().setName("MarketCap").setType("INTEGER");
+  private static final BigQueryTableSchema TABLE_SCHEMA =
+      new BigQueryTableSchema().setFields(ImmutableList.of(COMPANY_NAME_FIELD, MARKET_CAP_FIELD));
+
+  private static final Text EMPTY_KEY = new Text("");
 
   // Populated by command-line projectId and falls back to env.
   private String projectIdvalue;
@@ -98,8 +108,8 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
 
   // The InputFormat and OutputFormat handles with which we will invoke the underlying "connector"
   // library methods.
-  private InputFormat inputFormat;
-  private OutputFormat outputFormat;
+  private final InputFormat inputFormat;
+  private final OutputFormat<Text, JsonObject> outputFormat;
 
   // TableId derived from testId, a unique one should be used for each test method.
   private String testTable;
@@ -109,13 +119,12 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
 
   public AbstractBigQueryIoIntegrationTestBase(Boolean enableAsyncWrites, InputFormat inputFormat) {
     this.inputFormat = inputFormat;
+    this.outputFormat = new IndirectBigQueryOutputFormat<>();
     this.enableAsyncWrites = enableAsyncWrites;
   }
 
-  /**
-   * Read the current value from the given record reader and return record fields in a Map.
-   */
-  protected abstract Map<String, Object> readReacord(RecordReader<?, T> recordReader)
+  /** Read the current value from the given record reader and return record fields in a Map. */
+  protected abstract Map<String, Object> readRecord(RecordReader<?, T> recordReader)
       throws IOException, InterruptedException;
 
   /**
@@ -237,9 +246,6 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     when(mockJobContext.getJobID()).thenReturn(jobId);
 
     testTable = testId + "_table_" + jobIdString;
-
-    // Instantiate an OutputFormat and InputFormat instance.
-    outputFormat = new IndirectBigQueryOutputFormat<>();
   }
 
   @After
@@ -264,12 +270,17 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
   }
 
   @Test
-  public void testBasicWriteAndRead()
-      throws IOException, InterruptedException {
+  public void testBasicWriteAndRead() throws IOException, InterruptedException {
     // Prepare the output settings.
-    BigQueryConfiguration.configureBigQueryOutput(
-        config, projectIdvalue, testDataset, testTable,
-        "[{'name': 'CompanyName','type': 'STRING'},{'name': 'MarketCap','type': 'INTEGER'}]");
+    BigQueryOutputConfiguration.configure(
+        config,
+        String.format("%s:%s.%s", projectIdvalue, testDataset, testTable),
+        TABLE_SCHEMA,
+        String.format(
+            "gs://%s/%s/testBasicWriteAndRead/output/",
+            testBucket, inputFormat.getClass().getSimpleName()),
+        BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
+        TextOutputFormat.class);
 
     // First, obtain the "committer" and call the "setup" methods which are expected to create
     // the temporary dataset.
@@ -280,17 +291,17 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     // Write some data records into the bare RecordWriter interface.
     RecordWriter<Text, JsonObject> writer = outputFormat.getRecordWriter(mockTaskAttemptContext);
     JsonObject value = new JsonObject();
-    value.addProperty(COMPANY_NAME_FIELD_NAME, "Google");
-    value.addProperty(MARKET_CAP_FIELD_NAME, 409);
-    writer.write(new Text("unused"), value);
+    value.addProperty(COMPANY_NAME_FIELD.getName(), "Google");
+    value.addProperty(MARKET_CAP_FIELD.getName(), 409);
+    writer.write(EMPTY_KEY, value);
     value = new JsonObject();
-    value.addProperty(COMPANY_NAME_FIELD_NAME, "Microsoft");
-    value.addProperty(MARKET_CAP_FIELD_NAME, 314);
-    writer.write(new Text("unused"), value);
+    value.addProperty(COMPANY_NAME_FIELD.getName(), "Microsoft");
+    value.addProperty(MARKET_CAP_FIELD.getName(), 314);
+    writer.write(EMPTY_KEY, value);
     value = new JsonObject();
-    value.addProperty(COMPANY_NAME_FIELD_NAME, "Facebook");
-    value.addProperty(MARKET_CAP_FIELD_NAME, 175);
-    writer.write(new Text("unused"), value);
+    value.addProperty(COMPANY_NAME_FIELD.getName(), "Facebook");
+    value.addProperty(MARKET_CAP_FIELD.getName(), 175);
+    writer.write(EMPTY_KEY, value);
 
     // Calling close should flush the data in a new load job request.
     writer.close(mockTaskAttemptContext);
@@ -320,12 +331,12 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     // Place the read values into a map since they may arrive in any order.
     Map<String, Integer> readValues = Maps.newHashMap();
     while (reader.nextKeyValue()) {
-      Map<String, Object> record = readReacord(reader);
-      assertThat(record).containsKey(COMPANY_NAME_FIELD_NAME);
-      assertThat(record).containsKey(MARKET_CAP_FIELD_NAME);
+      Map<String, Object> record = readRecord(reader);
+      assertThat(record).containsKey(COMPANY_NAME_FIELD.getName());
+      assertThat(record).containsKey(MARKET_CAP_FIELD.getName());
       readValues.put(
-          (String) record.get(COMPANY_NAME_FIELD_NAME),
-          (Integer) record.get(MARKET_CAP_FIELD_NAME));
+          (String) record.get(COMPANY_NAME_FIELD.getName()),
+          (Integer) record.get(MARKET_CAP_FIELD.getName()));
     }
     assertThat(readValues).hasSize(3);
     assertThat(readValues.get("Google")).isEqualTo(409);

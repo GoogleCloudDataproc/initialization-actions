@@ -44,24 +44,23 @@ public class AvroBigQueryIoIntegrationTest extends
   }
 
   @Override
-  protected Map<String, Object> readReacord(RecordReader<?, GenericData.Record> recordReader)
+  protected Map<String, Object> readRecord(RecordReader<?, GenericData.Record> recordReader)
       throws IOException, InterruptedException {
     Map<String, Object> result = new HashMap<>();
     GenericData.Record currentValue = recordReader.getCurrentValue();
     Schema schema = currentValue.getSchema();
     for (Schema.Field field : schema.getFields()) {
-      if (COMPANY_NAME_FIELD_NAME.equals(field.name())) {
+      if (COMPANY_NAME_FIELD.getName().equals(field.name())) {
         // String data comes in as org.apache.avro.util.Utf8, need to convert to java string:
         result.put(
-            COMPANY_NAME_FIELD_NAME,
-            currentValue.get(COMPANY_NAME_FIELD_NAME).toString());
-      } else if (MARKET_CAP_FIELD_NAME.equals(field.name())) {
+            COMPANY_NAME_FIELD.getName(),
+            currentValue.get(COMPANY_NAME_FIELD.getName()).toString());
+      } else if (MARKET_CAP_FIELD.getName().equals(field.name())) {
         result.put(
-            MARKET_CAP_FIELD_NAME,
-            ((Long) currentValue.get(MARKET_CAP_FIELD_NAME)).intValue());
+            MARKET_CAP_FIELD.getName(),
+            ((Long) currentValue.get(MARKET_CAP_FIELD.getName())).intValue());
       } else {
-        throw new IllegalStateException(
-            String.format("Don't know how to handle field %s", field.name()));
+        throw new IllegalStateException("Don't know how to handle field %s" + field.name());
       }
     }
     return result;

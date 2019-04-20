@@ -45,7 +45,7 @@ public class GsonBigQueryIoIntegrationTest extends
   }
 
   @Override
-  protected Map<String, Object> readReacord(RecordReader<?, JsonObject> recordReader)
+  protected Map<String, Object> readRecord(RecordReader<?, JsonObject> recordReader)
       throws IOException, InterruptedException {
     Map<String, Object> result = new HashMap<>();
     JsonObject currentValue = recordReader.getCurrentValue();
@@ -53,13 +53,12 @@ public class GsonBigQueryIoIntegrationTest extends
       String key = entry.getKey();
       JsonPrimitive primitiveValue = entry.getValue().getAsJsonPrimitive();
       Object value;
-      if (COMPANY_NAME_FIELD_NAME.equals(key)) {
+      if (COMPANY_NAME_FIELD.getName().equals(key)) {
         value = primitiveValue.getAsString();
-      } else if (MARKET_CAP_FIELD_NAME.equals(key)) {
+      } else if (MARKET_CAP_FIELD.getName().equals(key)) {
         value = primitiveValue.getAsInt();
       } else {
-        throw new IllegalStateException(
-            String.format("Cannot handle key %s", key));
+        throw new IllegalStateException("Cannot handle key " + key);
       }
       result.put(key, value);
     }
