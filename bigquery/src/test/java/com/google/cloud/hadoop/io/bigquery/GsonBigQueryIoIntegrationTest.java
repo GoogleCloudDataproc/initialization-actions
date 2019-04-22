@@ -17,8 +17,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.hadoop.mapreduce.RecordReader;
@@ -32,16 +30,8 @@ import org.junit.runners.Parameterized;
 public class GsonBigQueryIoIntegrationTest extends
     AbstractBigQueryIoIntegrationTestBase<JsonObject> {
 
-  @Parameterized.Parameters
-  public static Collection<Object[]> getConstructorArguments() throws IOException {
-    return Arrays.asList(new Object[][]{
-        {true},
-        {false}
-    });
-  }
-
-  public GsonBigQueryIoIntegrationTest(Boolean enableAsyncWrites) {
-    super(enableAsyncWrites, new GsonBigQueryInputFormat());
+  public GsonBigQueryIoIntegrationTest() {
+    super(new GsonBigQueryInputFormat());
   }
 
   @Override

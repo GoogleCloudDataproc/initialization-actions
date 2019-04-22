@@ -114,13 +114,9 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
   // TableId derived from testId, a unique one should be used for each test method.
   private String testTable;
 
-  /** True to enable using an AsyncWriteChannel. */
-  public boolean enableAsyncWrites;
-
-  public AbstractBigQueryIoIntegrationTestBase(Boolean enableAsyncWrites, InputFormat inputFormat) {
+  public AbstractBigQueryIoIntegrationTestBase(InputFormat inputFormat) {
     this.inputFormat = inputFormat;
     this.outputFormat = new IndirectBigQueryOutputFormat<>();
-    this.enableAsyncWrites = enableAsyncWrites;
   }
 
   /** Read the current value from the given record reader and return record fields in a Map. */
@@ -171,7 +167,6 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     for (Entry<String, String> entry : conf) {
       config.set(entry.getKey(), entry.getValue());
     }
-    config.setBoolean(BigQueryConfiguration.ENABLE_ASYNC_WRITE, enableAsyncWrites);
   }
 
   @Before

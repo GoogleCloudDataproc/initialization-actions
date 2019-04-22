@@ -14,8 +14,6 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.avro.Schema;
@@ -31,16 +29,8 @@ import org.junit.runners.Parameterized;
 public class AvroBigQueryIoIntegrationTest extends
     AbstractBigQueryIoIntegrationTestBase<GenericData.Record> {
 
-  @Parameterized.Parameters
-  public static Collection<Object[]> getConstructorArguments() throws IOException {
-    return Arrays.asList(new Object[][]{
-        {true},
-        {false}
-    });
-  }
-
-  public AvroBigQueryIoIntegrationTest(Boolean enableAsyncWrites) {
-    super(enableAsyncWrites, new AvroBigQueryInputFormat());
+  public AvroBigQueryIoIntegrationTest() {
+    super(new AvroBigQueryInputFormat());
   }
 
   @Override

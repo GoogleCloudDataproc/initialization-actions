@@ -169,16 +169,6 @@ public class BigQueryConfiguration {
           OUTPUT_TABLE_ID_KEY,
           OUTPUT_TABLE_SCHEMA_KEY);
 
-  /**
-   * Obsolete; no longer affects any behavior. A warning will be printed if the key is found to be
-   * set to 'false', and then ignored. Outputs will now always occur in the "async" mode where
-   * a pipe connects the writer thread with another request-executor thread sending data to
-   * Google's "resumeable upload" service. This upload service is the same one used for uploads
-   * using the Google Cloud Storage connector for Hadoop.
-   */
-  public static final String ENABLE_ASYNC_WRITE = "mapred.bq.output.async.write.enabled";
-  public static final boolean ENABLE_ASYNC_WRITE_DEFAULT = true;
-
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /**
