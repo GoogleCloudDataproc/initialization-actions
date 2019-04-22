@@ -15,12 +15,10 @@
 package com.google.cloud.hadoop.util;
 
 import com.google.auto.value.AutoValue;
-import com.google.common.flogger.GoogleLogger;
 
 /** Options for the {@link AbstractGoogleAsyncWriteChannel}. */
 @AutoValue
 public abstract class AsyncWriteChannelOptions {
-  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /** Default upload buffer size. */
   public static final int BUFFER_SIZE_DEFAULT = 8 * 1024 * 1024;
@@ -30,8 +28,6 @@ public abstract class AsyncWriteChannelOptions {
 
   /** Default upload chunk size. */
   public static final int UPLOAD_CHUNK_SIZE_DEFAULT = 64 * 1024 * 1024;
-
-  @Deprecated public static final int UPLOAD_BUFFER_SIZE_DEFAULT = UPLOAD_CHUNK_SIZE_DEFAULT;
 
   /** Default of whether to use direct upload. */
   public static final boolean DIRECT_UPLOAD_ENABLED_DEFAULT = false;
@@ -54,11 +50,6 @@ public abstract class AsyncWriteChannelOptions {
 
   public abstract int getPipeBufferSize();
 
-  @Deprecated
-  public int getUploadBufferSize() {
-    return getUploadChunkSize();
-  }
-
   public abstract int getUploadChunkSize();
 
   public abstract boolean isDirectUploadEnabled();
@@ -70,11 +61,6 @@ public abstract class AsyncWriteChannelOptions {
     public abstract Builder setBufferSize(int bufferSize);
 
     public abstract Builder setPipeBufferSize(int pipeBufferSize);
-
-    @Deprecated
-    public Builder setUploadBufferSize(int uploadBufferSize) {
-      return setUploadChunkSize(uploadBufferSize);
-    }
 
     public abstract Builder setUploadChunkSize(int uploadChunkSize);
 
