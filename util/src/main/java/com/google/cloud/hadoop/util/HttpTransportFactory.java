@@ -31,7 +31,6 @@ import java.net.Proxy;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
-import java.util.Arrays;
 import javax.annotation.Nullable;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
@@ -57,42 +56,16 @@ public class HttpTransportFactory {
   public static final HttpTransportType DEFAULT_TRANSPORT_TYPE = HttpTransportType.JAVA_NET;
 
   /**
-   * Utility for getting {@link HttpTransportType}s form names, with default.
-   *
-   * @param typeName The name of the {@link HttpTransportType} type to return. A default will be
-   *     used if null or empty.
-   * @return The corresponding HttpTransportType.
-   * @throws IllegalArgumentException if the name is not an HttpTransportType.
-   */
-  @Deprecated
-  public static HttpTransportType getTransportTypeOf(@Nullable String typeName) {
-    HttpTransportType type = DEFAULT_TRANSPORT_TYPE;
-    if (!Strings.isNullOrEmpty(typeName)) {
-      try {
-        type = HttpTransportType.valueOf(typeName);
-      } catch (IllegalArgumentException e) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Invalid HttpTransport type '%s'. Must be one of %s.", typeName,
-                Arrays.toString(HttpTransportType.values())), e);
-      }
-    }
-    return type;
-  }
-
-  /**
-   * Create an {@link HttpTransport} based on an type class and an optional HTTP proxy.
+   * Create an {@link HttpTransport} based on an type class.
    *
    * @param type The type of HttpTransport to use.
-   * @param proxyAddress The HTTP proxy to use with the transport. Of the form hostname:port. If
-   * empty no proxy will be used.
    * @return The resulting HttpTransport.
    * @throws IllegalArgumentException If the proxy address is invalid.
    * @throws IOException If there is an issue connecting to Google's Certification server.
    */
-  public static HttpTransport createHttpTransport(
-      HttpTransportType type, @Nullable String proxyAddress) throws IOException {
-    return createHttpTransport(type, proxyAddress, null, null);
+  public static HttpTransport createHttpTransport(HttpTransportType type) throws IOException {
+    return createHttpTransport(
+        type, /* proxyAddress= */ null, /* proxyUsername= */ null, /* proxyPassword= */ null);
   }
 
   /**
@@ -155,22 +128,6 @@ public class HttpTransportFactory {
   /**
    * Create an {@link ApacheHttpTransport} for calling Google APIs with an optional HTTP proxy.
    *
-   * @param proxy Optional HTTP proxy to use with the transport.
-   * @return The resulting HttpTransport.
-   * @throws IOException If there is an issue connecting to Google's certification server.
-   * @throws GeneralSecurityException If there is a security issue with the keystore.
-   * @deprecated use {@link #createApacheHttpTransport(URI, Credentials)}
-   */
-  @Deprecated
-  public static ApacheHttpTransport createApacheHttpTransport(@Nullable HttpHost proxy)
-      throws IOException, GeneralSecurityException {
-    return createApacheHttpTransport(
-        proxy == null ? null : URI.create(proxy.toURI()), /* proxyCredentials= */ null);
-  }
-
-  /**
-   * Create an {@link ApacheHttpTransport} for calling Google APIs with an optional HTTP proxy.
-   *
    * @param proxyUri Optional HTTP proxy URI to use with the transport.
    * @param proxyCredentials Optional HTTP proxy credentials to authenticate with the transport
    *     proxy.
@@ -199,23 +156,6 @@ public class HttpTransportFactory {
     }
 
     return transport;
-  }
-
-  /**
-   * Create an {@link NetHttpTransport} for calling Google APIs with an optional HTTP proxy.
-   *
-   * @param proxy Optional HTTP proxy to use with the transport.
-   * @return The resulting HttpTransport.
-   * @throws IOException If there is an issue connecting to Google's certification server.
-   * @throws GeneralSecurityException If there is a security issue with the keystore.
-   * @deprecated use {@link #createNetHttpTransport(URI, PasswordAuthentication)}
-   */
-  @Deprecated
-  public static NetHttpTransport createNetHttpTransport(@Nullable Proxy proxy)
-      throws IOException, GeneralSecurityException {
-    return createNetHttpTransport(
-        proxy == null ? null : parseProxyAddress(proxy.address().toString()),
-        /* proxyAuth= */ null);
   }
 
   /**
@@ -257,14 +197,6 @@ public class HttpTransportFactory {
                 : new Proxy(
                     Proxy.Type.HTTP, new InetSocketAddress(proxyUri.getHost(), proxyUri.getPort())))
         .build();
-  }
-
-  /**
-   * Convenience method equivalent to {@link
-   * com.google.api.client.googleapis.javanet.GoogleNetHttpTransport#newTrustedTransport()}.
-   */
-  public static HttpTransport newTrustedTransport() throws GeneralSecurityException, IOException {
-    return createNetHttpTransport(null, null);
   }
 
   /**

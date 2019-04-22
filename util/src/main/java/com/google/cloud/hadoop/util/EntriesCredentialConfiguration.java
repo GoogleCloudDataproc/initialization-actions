@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.util;
 
+import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
@@ -358,7 +359,7 @@ public class EntriesCredentialConfiguration extends CredentialConfiguration {
 
     String transportType = entries.get(HTTP_TRANSPORT_KEY);
     if (transportType != null) {
-      setTransportType(HttpTransportFactory.getTransportTypeOf(transportType));
+      setTransportType(HttpTransportType.valueOf(transportType));
     }
   }
 }

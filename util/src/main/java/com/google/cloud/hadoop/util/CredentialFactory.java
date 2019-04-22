@@ -45,6 +45,7 @@ import com.google.api.client.util.PemReader;
 import com.google.api.client.util.PemReader.Section;
 import com.google.api.client.util.SecurityUtils;
 import com.google.api.services.storage.StorageScopes;
+import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
@@ -64,6 +65,8 @@ import java.util.List;
 
 /** Miscellaneous helper methods for getting a {@code Credential} from various sources. */
 public class CredentialFactory {
+
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   static final String CREDENTIAL_ENV_VAR = "GOOGLE_APPLICATION_CREDENTIALS";
 
@@ -189,13 +192,6 @@ public class CredentialFactory {
   public static final ImmutableList<String> GCS_SCOPES =
       ImmutableList.of(StorageScopes.DEVSTORAGE_FULL_CONTROL);
 
-  public static final ImmutableList<String> DATASTORE_SCOPES =
-      ImmutableList.of(
-          "https://www.googleapis.com/auth/datastore",
-          "https://www.googleapis.com/auth/userinfo.email");
-
-  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
-
   // JSON factory used for formatting credential-handling payloads.
   private static final JsonFactory JSON_FACTORY = new JacksonFactory();
 
@@ -212,7 +208,7 @@ public class CredentialFactory {
   private static synchronized HttpTransport getStaticHttpTransport()
       throws IOException, GeneralSecurityException {
     if (staticHttpTransport == null) {
-      staticHttpTransport = HttpTransportFactory.newTrustedTransport();
+      staticHttpTransport = HttpTransportFactory.createHttpTransport(HttpTransportType.JAVA_NET);
     }
     return staticHttpTransport;
   }
@@ -359,65 +355,6 @@ public class CredentialFactory {
 
     // Authorize access.
     return new AuthorizationCodeInstalledApp(flow, new GooglePromptReceiver()).authorize("user");
-  }
-
-  /**
-   * Initializes OAuth2 credential and obtains authorization to access GCS.
-   *
-   * @param clientId OAuth2 client ID
-   * @param clientSecret OAuth2 client secret
-   * @return credential that allows access to GCS
-   * @throws IOException on IO error
-   */
-  @Deprecated
-  public Credential getStorageCredential(String clientId, String clientSecret)
-      throws IOException, GeneralSecurityException {
-    logger.atFine().log("getStorageCredential(%s, %s)", clientId, clientSecret);
-    String filePath = System.getProperty("user.home") + "/.credentials/storage.json";
-    return getCredentialFromFileCredentialStoreForInstalledApp(
-        clientId, clientSecret, filePath, GCS_SCOPES, getStaticHttpTransport());
-  }
-
-  /**
-   * Initializes OAuth2 credential and obtains authorization to access Datastore.
-   *
-   * @param clientId OAuth2 client ID
-   * @param clientSecret OAuth2 client secret
-   * @return credential that allows access to Datastore
-   * @throws IOException on IO error
-   */
-  @Deprecated
-  public Credential getDatastoreCredential(String clientId, String clientSecret)
-      throws IOException, GeneralSecurityException {
-    logger.atFine().log("getStorageCredential(%s, %s)", clientId, clientSecret);
-    String filePath = System.getProperty("user.home") + "/.credentials/datastore.json";
-    return getCredentialFromFileCredentialStoreForInstalledApp(
-        clientId, clientSecret, filePath, DATASTORE_SCOPES);
-  }
-
-  /** @deprecated Caller should provide HttpTransport */
-  @Deprecated
-  public Credential getCredentialFromPrivateKeyServiceAccount(
-      String serviceAccountEmail, String privateKeyFile, List<String> scopes)
-      throws IOException, GeneralSecurityException {
-    return getCredentialFromPrivateKeyServiceAccount(
-        serviceAccountEmail, privateKeyFile, scopes, getStaticHttpTransport());
-  }
-
-  /** @deprecated Caller should provide HttpTransport */
-  @Deprecated
-  public Credential getCredentialFromJsonKeyFile(String file, List<String> scopes)
-      throws IOException, GeneralSecurityException {
-    return getCredentialFromJsonKeyFile(file, scopes, getStaticHttpTransport());
-  }
-
-  /** @deprecated Caller should provide HttpTransport */
-  @Deprecated
-  public Credential getCredentialFromFileCredentialStoreForInstalledApp(
-      String clientId, String clientSecret, String filePath, List<String> scopes)
-      throws IOException, GeneralSecurityException {
-    return getCredentialFromFileCredentialStoreForInstalledApp(
-        clientId, clientSecret, filePath, scopes, getStaticHttpTransport());
   }
 
   /**

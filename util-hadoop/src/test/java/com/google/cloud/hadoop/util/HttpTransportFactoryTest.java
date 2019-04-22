@@ -17,7 +17,6 @@ package com.google.cloud.hadoop.util;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
-import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import java.net.URI;
 import java.net.URISyntaxException;
 import org.junit.Test;
@@ -26,37 +25,6 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class HttpTransportFactoryTest {
-  @Test
-  public void testGetTransportTypeOfDefault() throws Exception {
-    HttpTransportFactory.HttpTransportType type = HttpTransportFactory.getTransportTypeOf(null);
-    assertThat(type).isEqualTo(HttpTransportType.JAVA_NET);
-    type = HttpTransportFactory.getTransportTypeOf("");
-    assertThat(type).isEqualTo(HttpTransportType.JAVA_NET);
-  }
-
-  @Test
-  public void testGetTransportTypeOf() throws Exception {
-    HttpTransportFactory.HttpTransportType type = HttpTransportFactory.getTransportTypeOf(
-        "JAVA_NET");
-    assertThat(type).isEqualTo(HttpTransportFactory.HttpTransportType.JAVA_NET);
-    type = HttpTransportFactory.getTransportTypeOf("APACHE");
-    assertThat(type).isEqualTo(HttpTransportType.APACHE);
-  }
-
-  @Test
-  public void testGetTransportTypeOfException() throws Exception {
-    IllegalArgumentException thrown =
-        assertThrows(
-            IllegalArgumentException.class,
-            () ->
-                HttpTransportFactory.getTransportTypeOf(
-                    "com.google.api.client.http.apache.ApacheHttpTransport"));
-    assertThat(thrown)
-        .hasMessageThat()
-        .contains(
-            "Invalid HttpTransport type 'com.google.api.client.http.apache.ApacheHttpTransport'."
-                + " Must be one of [APACHE, JAVA_NET].");
-  }
 
   @Test
   public void testParseProxyAddress() throws Exception {

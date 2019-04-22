@@ -22,7 +22,6 @@ import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.fail;
 
 import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.client.http.HttpTransport;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
@@ -30,6 +29,7 @@ import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
+import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.Lists;
 import com.google.common.flogger.GoogleLogger;
@@ -64,9 +64,11 @@ public class GoogleCloudStorageTestHelper {
     assertWithMessage("serviceAccount must not be null").that(serviceAccount).isNotNull();
     try {
       CredentialFactory credentialFactory = new CredentialFactory();
-      HttpTransport transport = HttpTransportFactory.newTrustedTransport();
       return credentialFactory.getCredentialFromPrivateKeyServiceAccount(
-          serviceAccount, privateKeyfile, CredentialFactory.GCS_SCOPES, transport);
+          serviceAccount,
+          privateKeyfile,
+          CredentialFactory.GCS_SCOPES,
+          HttpTransportFactory.createHttpTransport(HttpTransportType.JAVA_NET));
     } catch (GeneralSecurityException gse) {
       throw new IOException(gse);
     }
