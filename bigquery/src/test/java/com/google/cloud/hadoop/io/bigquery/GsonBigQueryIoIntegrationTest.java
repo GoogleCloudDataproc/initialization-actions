@@ -21,14 +21,12 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.runners.JUnit4;
 
-/**
- * Integration tests for JSON BigQuery exports
- */
-@RunWith(Parameterized.class)
-public class GsonBigQueryIoIntegrationTest extends
-    AbstractBigQueryIoIntegrationTestBase<JsonObject> {
+/** Integration tests for JSON BigQuery exports */
+@RunWith(JUnit4.class)
+public class GsonBigQueryIoIntegrationTest
+    extends AbstractBigQueryIoIntegrationTestBase<JsonObject> {
 
   public GsonBigQueryIoIntegrationTest() {
     super(new GsonBigQueryInputFormat());

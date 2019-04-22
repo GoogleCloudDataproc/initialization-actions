@@ -20,14 +20,12 @@ import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.runners.JUnit4;
 
-/**
- * Integration tests for Avro BigQuery exports
- */
-@RunWith(Parameterized.class)
-public class AvroBigQueryIoIntegrationTest extends
-    AbstractBigQueryIoIntegrationTestBase<GenericData.Record> {
+/** Integration tests for Avro BigQuery exports */
+@RunWith(JUnit4.class)
+public class AvroBigQueryIoIntegrationTest
+    extends AbstractBigQueryIoIntegrationTestBase<GenericData.Record> {
 
   public AvroBigQueryIoIntegrationTest() {
     super(new AvroBigQueryInputFormat());
