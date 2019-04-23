@@ -487,7 +487,7 @@ public class GoogleHadoopFileSystemIntegrationTest
     fs1.close();
 
     FileSystem fs3 = FileSystem.get(fsUri, conf);
-    assertThat(fs3).isNotSameAs(fs1);
+    assertThat(fs3).isNotSameInstanceAs(fs1);
 
     fs3.close();
   }

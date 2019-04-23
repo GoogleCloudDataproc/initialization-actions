@@ -296,7 +296,7 @@ public class GoogleCloudStorageTest {
 
     assertThat(secondItemInfo.exists()).isTrue();
     assertThat(secondItemInfo.getSize()).isEqualTo(0);
-    assertThat(secondItemInfo.getCreationTime()).isNotSameAs(itemInfo.getCreationTime());
+    assertThat(secondItemInfo.getCreationTime()).isNotSameInstanceAs(itemInfo.getCreationTime());
   }
 
   @Test
