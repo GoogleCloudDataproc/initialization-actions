@@ -91,7 +91,7 @@
     <google.auto-value.version>1.6.3</google.auto-value.version>
     <google.flogger.version>0.3.1</google.flogger.version>
     <google.guava.version>27.0.1-jre</google.guava.version>
-    <google.truth.version>0.42</google.truth.version>
+    <google.truth.version>0.44</google.truth.version>
     <hadoop.two.version>2.9.2</hadoop.two.version>
     <hadoop.three.version>3.2.0</hadoop.three.version>
     <junit.version>4.13-beta-1</junit.version>

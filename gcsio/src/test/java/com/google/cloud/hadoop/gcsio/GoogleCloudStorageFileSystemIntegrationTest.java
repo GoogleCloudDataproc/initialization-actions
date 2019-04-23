@@ -329,7 +329,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     }
 
     if (listRoot) {
-      assertThat(actualPaths).containsAllIn(expectedPaths);
+      assertThat(actualPaths).containsAtLeastElementsIn(expectedPaths);
     } else {
       assertThat(actualPaths).containsExactlyElementsIn(expectedPaths);
     }
