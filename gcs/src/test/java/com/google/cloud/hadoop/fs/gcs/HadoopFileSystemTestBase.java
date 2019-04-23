@@ -20,6 +20,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageIntegrationHelper;
 import com.google.common.base.Strings;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -120,7 +121,8 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       }
 
       boolean expectedToBeDir =
-          Strings.isNullOrEmpty(objectName) || ghfsHelper.objectHasDirectoryPath(objectName);
+          Strings.isNullOrEmpty(objectName)
+              || GoogleCloudStorageIntegrationHelper.objectHasDirectoryPath(objectName);
       assertWithMessage("%s", fileStatus.getPath())
           .that(fileStatus.isDir())
           .isEqualTo(expectedToBeDir);
@@ -436,7 +438,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       assertThat(readStream.read()).isEqualTo('W');
 
       // Verify that position can be set to end of file.
-      long posEOF = numBytesWritten - 1;
+      long posEOF = numBytesWritten - 1L;
       int val;
       readStream.seek(posEOF);
       assertThat(readStream.getPos()).isEqualTo(posEOF);

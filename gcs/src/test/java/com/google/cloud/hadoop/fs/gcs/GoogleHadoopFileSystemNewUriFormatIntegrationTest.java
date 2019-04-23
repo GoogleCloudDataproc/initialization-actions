@@ -212,7 +212,7 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
 
     String line;
     try (InputStream is = legacyEncodingFS.open(compatPath)) {
-      BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+      BufferedReader reader = new BufferedReader(new InputStreamReader(is, UTF_8));
       line = reader.readLine();
     }
 

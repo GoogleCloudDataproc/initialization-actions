@@ -26,7 +26,8 @@ import org.junit.runners.JUnit4;
 public class CreateFileOptionsTest {
   @Test
   public void testConstructorChecksForContentTypeAttributes() throws Exception {
-    new CreateFileOptions(true, "", ImmutableMap.<String, byte[]>of("Innocuous", "".getBytes()));
+    new CreateFileOptions(
+        true, "", ImmutableMap.<String, byte[]>of("Innocuous", "".getBytes(UTF_8)));
 
     assertThrows(
         IllegalArgumentException.class,
