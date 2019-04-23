@@ -15,7 +15,7 @@ package com.google.cloud.hadoop.gcsio;
 
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorage.MAX_RESULTS_UNLIMITED;
 import static com.google.common.truth.Truth.assertThat;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
@@ -34,7 +34,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.mockito.Matchers;
+import org.mockito.ArgumentMatchers;
 import org.mockito.MockitoAnnotations;
 
 @RunWith(JUnit4.class)
@@ -266,7 +266,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
 
     // Verify the delegate call.
     verify(gcsDelegate)
-        .listObjectInfo(eq(BUCKET_B), Matchers.<String>eq(null), Matchers.<String>eq(null));
+        .listObjectInfo(eq(BUCKET_B), ArgumentMatchers.eq(null), ArgumentMatchers.eq(null));
     assertThat(result).containsExactlyElementsIn(expected);
     // Verify the state of the cache.
     assertThat(cache.getAllItemsRaw()).containsExactlyElementsIn(expected);
@@ -284,7 +284,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
 
     // Verify the delegate call once.
     verify(gcsDelegate)
-        .listObjectInfo(eq(BUCKET_A), Matchers.<String>eq(null), Matchers.<String>eq(null));
+        .listObjectInfo(eq(BUCKET_A), ArgumentMatchers.eq(null), ArgumentMatchers.eq(null));
     assertThat(result).containsExactlyElementsIn(expected);
     // Verify the state of the cache.
     assertThat(cache.getAllItemsRaw()).containsExactlyElementsIn(expected);
