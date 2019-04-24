@@ -482,7 +482,7 @@ public class GoogleHadoopFileSystemIntegrationTest
     FileSystem fs1 = FileSystem.get(fsUri, conf);
     FileSystem fs2 = FileSystem.get(fsUri, conf);
 
-    assertThat(fs2).isSameAs(fs1);
+    assertThat(fs2).isSameInstanceAs(fs1);
 
     fs1.close();
 
@@ -501,7 +501,7 @@ public class GoogleHadoopFileSystemIntegrationTest
     FileSystem fs1 = FileSystem.get(fsUri, conf);
     FileSystem fs2 = FileSystem.get(fsUri, conf);
 
-    assertThat(fs2).isSameAs(fs1);
+    assertThat(fs2).isSameInstanceAs(fs1);
 
     fs1.close();
 
