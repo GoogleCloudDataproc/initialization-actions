@@ -19,8 +19,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
-import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableSchema;
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
@@ -71,12 +69,22 @@ public class ForwardingBigQueryFileOutputCommitterTest {
 
   /** Sample table schema used for output. */
   private static final BigQueryTableSchema TEST_TABLE_SCHEMA =
-      BigQueryTableSchema.wrap(
-          new TableSchema()
-              .setFields(
-                  ImmutableList.of(
-                      new TableFieldSchema().setName("Word").setType("STRING"),
-                      new TableFieldSchema().setName("Count").setType("INTEGER"))));
+      new BigQueryTableSchema()
+          .setFields(
+              ImmutableList.of(
+                  new BigQueryTableFieldSchema().setName("Word").setType("STRING"),
+                  new BigQueryTableFieldSchema().setName("Count").setType("INTEGER"),
+                  new BigQueryTableFieldSchema()
+                      .setName("MetaInfo")
+                      .setType("RECORD")
+                      .setFields(
+                          ImmutableList.of(
+                              new BigQueryTableFieldSchema()
+                                  .setName("NestedField1")
+                                  .setType("STRING"),
+                              new BigQueryTableFieldSchema()
+                                  .setName("NestedField2")
+                                  .setType("INTEGER")))));
 
   /** Sample task ID for the mock TaskAttemptContext. */
   private static final TaskAttemptID TEST_TASK_ATTEMPT_ID =

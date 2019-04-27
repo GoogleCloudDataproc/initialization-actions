@@ -12,6 +12,8 @@
 
 1.  Remove obsolete `mapred.bq.output.async.write.enabled` property.
 
+1.  Support nested record type in field schema in BigQuery connector.
+
 ### 0.13.14 - 2019-02-13
 
 1.  POM updates for GCS connector 1.9.14.
