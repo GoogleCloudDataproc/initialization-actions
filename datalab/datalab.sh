@@ -34,7 +34,7 @@ readonly INIT_ACTIONS_BRANCH="$(/usr/share/google/get_metadata_value attributes/
   || echo 'master')"
 
 # Expose every possible spark configuration to the container.
-readonly VOLUMES="$(echo /etc/{hadoop*,hive*,*spark*} /usr/lib/hadoop/lib/{gcs,bigquery}*)"
+readonly VOLUMES="$(echo /etc/{hadoop*,hive*,*spark*} /usr/lib/hadoop/lib/{gcs,bigquery}* /usr/local/share/google/dataproc/lib/gcs*)"
 readonly VOLUME_FLAGS="$(echo "${VOLUMES}" | sed 's/\S*/-v &:&/g')"
 
 function err() {
