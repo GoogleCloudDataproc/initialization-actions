@@ -48,7 +48,7 @@ This repository presently offers the following actions for use with Cloud Datapr
   * [Apache Oozie](http://oozie.apache.org)
   * [Apache Tez](http://tez.apache.org)
   * [Apache ZooKeeper](http://zookeeper.apache.org)
-  * [Presto](http://prestodb.io)
+  * [Presto](http://prestosql.io)
 * Improve data science and interactive experiences
   * [Miniconda](https://conda.io/docs/)
   * [Jupyter](http://jupyter.org/)
