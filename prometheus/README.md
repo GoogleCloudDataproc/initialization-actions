@@ -1,5 +1,5 @@
 # Prometheus
-This script installs [Prometheus](https://prometheus.io/) on dataproc clusters. Prometheus is a time series database that allows visualizing, querying metrics gathered from different cluster components during job execution.
+This script installs [Prometheus](https://prometheus.io/) on Dataproc clusters, performs necessary configurations and pulls metrics from Hadoop, Spark and Kafka if installed. Prometheus is a time series database that allows visualizing, querying metrics gathered from different cluster components during job execution.
 
 ## Using this initialization action
 You can use this initialization action to create a new Dataproc cluster with Prometheus installed on every node:
@@ -19,5 +19,6 @@ You can use this initialization action to create a new Dataproc cluster with Pro
 1. Prometheus UI on worker node can be accessed similarly, but just substitute `-m` suffix with `-w-0`,  `-w-1` depending on worker you would like to access. You can also [setup ssh tunnel and configure sock proxy](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces) to access all master nodes and worker nodes using their internal hostnames.
 
 ## Important notes
-Prometheus uses StatsD to retrieve metrics, but the StatsD sink for metrics publishing is available on Apache Spark 2.3.0, so aggregating metrics from Spark on clusters with software version other than 1.3 will result in an error. 
-StatsD sink for Apache Hadoop metrics is available on Hadoop Versions 2.8+ so will work on clusters with software version 1.2 or 1.3.
+Prometheus uses StatsD to retrieve metrics for Hadoop and Spark, but the StatsD sink for metrics publishing is available on Apache Spark 2.3.0, so aggregating metrics from Spark on clusters with software version other than 1.3+ will result in an error. StatsD sink for Apache Hadoop metrics is available on Hadoop Versions 2.8+ so will work on clusters with image version 1.2+.
+
+Prometheus uses [JMX exporter](https://github.com/prometheus/jmx_exporter) to retrieve metrics for Kafka.
