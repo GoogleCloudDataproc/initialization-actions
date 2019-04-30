@@ -65,6 +65,18 @@ gcloud dataproc clusters create <CLUSTER_NAME> \
     --initialization-actions gs://dataproc-initialization-actions/kafka/kafka.sh,gs://dataproc-initialization-actions/kafka/cruise-control.sh
 ```
 
+## Installing Prometheus with Kafka
+
+If you would like to use [Prometheus](https://github.com/prometheus/prometheus) to monitor your Kafka cluster, use the `gcloud` command to create a new Kafka cluster with the Prometheus initialization action. The following command will create a new high availability Kafka cluster with Prometheus server listening on port 9096 of each node. Follow the instructions at [Dataproc cluster web interfaces](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces) to access the web UI.
+
+```bash
+gcloud dataproc clusters create <CLUSTER_NAME> \
+    --num-masters 3 \
+    --metadata "run-on-master=true" \
+    --metadata "prometheus-http-port=9096" \
+    --initialization-actions gs://dataproc-initialization-actions/kafka/kafka.sh,gs://dataproc-initialization-actions/prometheus/prometheus.sh
+```
+
 ## Important notes
 
 * This script will install Kafka on all **worker nodes** by default (but not the master(s))
