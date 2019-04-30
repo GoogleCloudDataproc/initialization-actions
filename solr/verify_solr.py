@@ -12,7 +12,7 @@ Solr performs indexing on data in collections(cores in SolrStandalone mode). Thi
 import subprocess
 import json
 
-SOLR_DIR = '/opt/solr'
+SOLR_DIR = '/usr/lib/solr'
 SOLR_EXAMPLE_DOC = 'https://raw.githubusercontent.com/apache/lucene-solr/master/solr/example/films/films.json'
 SOLR_COLLECTION_NAME = 'films'
 

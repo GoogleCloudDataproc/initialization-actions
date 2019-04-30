@@ -71,7 +71,7 @@ function install_and_configure_solr() {
 
   # Enable hdfs as default backend storage.
   if [[ "${MASTER_ADDITIONAL}" != "" ]]; then
-    solr_home_dir="hdfs://${CLUSTER_NAME}:8020/solr"
+    solr_home_dir="hdfs://${CLUSTER_NAME}-m-0:8020/solr"
   else
     solr_home_dir="hdfs://${CLUSTER_NAME}-m:8020/solr"
   fi
