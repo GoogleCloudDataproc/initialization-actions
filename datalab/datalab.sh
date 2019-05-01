@@ -40,9 +40,15 @@ CONNECTORS_LIB=/usr/lib/hadoop/lib
 if [[ -d /usr/local/share/google/dataproc/lib ]]; then
   CONNECTORS_LIB="/usr/local/share/google/dataproc/lib"
 fi
-VOLUMES+=$(echo " ${CONNECTORS_LIB}/gcs*")
-if compgen -G "${CONNECTORS_LIB}/bigquery*" > /dev/null; then
-  VOLUMES+=$(echo " ${CONNECTORS_LIB}/bigquery*")
+if [[ -L ${CONNECTORS_LIB}/gcs-connector.jar ]]; then
+  VOLUMES+=" ${CONNECTORS_LIB}/gcs-connector.jar"
+else
+  VOLUMES+=" $(compgen -G ${CONNECTORS_LIB}/gcs*)"
+fi
+if [[ -L ${CONNECTORS_LIB}/bigquery-connector.jar ]]; then
+  VOLUMES+=" ${CONNECTORS_LIB}/bigquery-connector.jar"
+elif compgen -G "${CONNECTORS_LIB}/bigquery*" > /dev/null; then
+  VOLUMES+=" $(compgen -G ${CONNECTORS_LIB}/bigquery*)"
 fi
 
 readonly VOLUMES
