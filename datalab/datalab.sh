@@ -47,7 +47,7 @@ else
 fi
 if [[ -L ${CONNECTORS_LIB}/bigquery-connector.jar ]]; then
   VOLUMES+=" ${CONNECTORS_LIB}/bigquery-connector.jar"
-elif compgen -G "${CONNECTORS_LIB}/bigquery*" > /dev/null; then
+else
   VOLUMES+=" $(compgen -G ${CONNECTORS_LIB}/bigquery*)"
 fi
 
