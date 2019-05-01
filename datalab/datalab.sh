@@ -35,11 +35,16 @@ readonly INIT_ACTIONS_BRANCH="$(/usr/share/google/get_metadata_value attributes/
 
 # Expose every possible spark configuration to the container.
 VOLUMES="$(echo /etc/{hadoop*,hive*,*spark*})"
+
+CONNECTORS_LIB=/usr/lib/hadoop/lib
 if [[ -d /usr/local/share/google/dataproc/lib ]]; then
-  VOLUMES+="$(echo " /usr/local/share/google/dataproc/lib/{gcs,bigquery}*")"
-else
-  VOLUMES+="$(echo " /usr/lib/hadoop/lib/{gcs,bigquery}*")"
+  CONNECTORS_LIB=/usr/local/share/google/dataproc/lib
 fi
+VOLUMES+="$(echo " ${CONNECTORS_LIB}/gcs*")"
+if compgen -G "${CONNECTORS_LIB}/bigquery*" > /dev/null; then
+  VOLUMES+="$(echo " ${CONNECTORS_LIB}/bigquery*")"
+fi
+
 readonly VOLUMES
 readonly VOLUME_FLAGS="$(echo "${VOLUMES}" | sed 's/\S*/-v &:&/g')"
 
