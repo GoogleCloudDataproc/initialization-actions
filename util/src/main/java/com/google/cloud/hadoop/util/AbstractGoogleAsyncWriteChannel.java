@@ -42,11 +42,6 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
-  // Default size of upload buffer.
-  @Deprecated
-  public static final int UPLOAD_PIPE_BUFFER_SIZE_DEFAULT =
-      AsyncWriteChannelOptions.PIPE_BUFFER_SIZE_DEFAULT;
-
   // Default GCS upload granularity.
   public static final int GCS_UPLOAD_GRANULARITY = 8 * 1024 * 1024;
 
