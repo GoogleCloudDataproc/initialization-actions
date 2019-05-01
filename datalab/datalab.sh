@@ -38,11 +38,11 @@ VOLUMES="$(echo /etc/{hadoop*,hive*,*spark*})"
 
 CONNECTORS_LIB=/usr/lib/hadoop/lib
 if [[ -d /usr/local/share/google/dataproc/lib ]]; then
-  CONNECTORS_LIB=/usr/local/share/google/dataproc/lib
+  CONNECTORS_LIB="/usr/local/share/google/dataproc/lib"
 fi
-VOLUMES+="$(echo " ${CONNECTORS_LIB}/gcs*")"
+VOLUMES+=$(echo " ${CONNECTORS_LIB}/gcs*")
 if compgen -G "${CONNECTORS_LIB}/bigquery*" > /dev/null; then
-  VOLUMES+="$(echo " ${CONNECTORS_LIB}/bigquery*")"
+  VOLUMES+=$(echo " ${CONNECTORS_LIB}/bigquery*")
 fi
 
 readonly VOLUMES
