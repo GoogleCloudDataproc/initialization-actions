@@ -63,7 +63,11 @@ update_connector() {
     gsutil cp "gs://hadoop-lib/${name}/${jar_name}" "${vm_connectors_dir}/"
     
     # Update version-less connector link
-    if [[ -L ${vm_connectors_dir}/${name}-connector.jar ]]; then
+    # Note: always check for existence of GCS connector link,
+    # because new version-less link should be created for a connector even if
+    # it didn't exist before, but if version-less link exists for GCS connector
+    # (it could happen if BQ connector wasn't pre-installed in a Datapoc image)
+    if [[ -L ${vm_connectors_dir}/gcs-connector.jar ]]; then
       ln -s -f "${vm_connectors_dir}/${jar_name}" "${vm_connectors_dir}/${name}-connector.jar"
     fi
   fi
