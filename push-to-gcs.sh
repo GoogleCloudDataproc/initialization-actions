@@ -42,10 +42,10 @@ if [[ ! -d "${MODULE}" ]]; then
   exit 4
 fi
 
-# Verify shell scripts have permission mode 755.
+# Verify shell scripts have permission mode 75x.
 for file in ${MODULE}/*.sh; do
-  if [[ "$(stat -c '%a' ${file})" != "755" ]]; then
-    echo "The permission mode of script ${file} is $(stat -c '%a' ${file}), expected: 755."
+  if [[ "$(stat -c '%a' ${file})" != 75* ]]; then
+    echo "The permission mode of script ${file} is $(stat -c '%a' ${file}), expected: 75x."
     exit 5
   fi
 done
