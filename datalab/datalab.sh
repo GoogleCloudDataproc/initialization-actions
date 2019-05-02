@@ -18,12 +18,6 @@
 
 set -exo pipefail
 
-# Exit immediatedly if this is not a master node, because
-# Datalab init action should be executed only on a master node
-if [[ "${ROLE}" != 'Master' ]]; then
-  exit 0
-fi
-
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly PROJECT="$(/usr/share/google/get_metadata_value ../project/project-id)"
 readonly SPARK_PACKAGES="$(/usr/share/google/get_metadata_value attributes/spark-packages || true)"
@@ -158,9 +152,11 @@ function run_datalab(){
 }
 
 function main(){
-  install_docker
-  configure_master
-  run_datalab
+  if [[ "${ROLE}" != 'Master' ]]; then
+    install_docker
+    configure_master
+    run_datalab
+  fi
 }
 
 main
