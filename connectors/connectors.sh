@@ -64,9 +64,9 @@ update_connector() {
     
     # Update version-less connector link
     # Note: always check for existence of GCS connector link,
-    # because new version-less link should be created for a connector even if
-    # it didn't exist before, but if version-less link exists for GCS connector
-    # (it could happen if BQ connector wasn't pre-installed in a Datapoc image)
+    # because if GCS connector version-less link exist we want to
+    # create link for BQ connector even if it didn't exist before
+    # (it could happen if BQ connector wasn't pre-installed in a Datapoc image 1.3+)
     if [[ -L ${vm_connectors_dir}/gcs-connector.jar ]]; then
       ln -s -f "${vm_connectors_dir}/${jar_name}" "${vm_connectors_dir}/${name}-connector.jar"
     fi
