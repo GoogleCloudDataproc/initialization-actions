@@ -62,14 +62,8 @@ update_connector() {
     fi
     gsutil cp "gs://hadoop-lib/${name}/${jar_name}" "${vm_connectors_dir}/"
     
-    # Update version-less connector link
-    # Note: always check for existence of GCS connector link,
-    # because if GCS connector version-less link exist we want to
-    # create link for BQ connector even if it didn't exist before
-    # (it happens in Dataproc 1.3+ where BQ connector not pre-installed)
-    if [[ -L ${vm_connectors_dir}/gcs-connector.jar ]]; then
-      ln -s -f "${vm_connectors_dir}/${jar_name}" "${vm_connectors_dir}/${name}-connector.jar"
-    fi
+    # Update or create version-less connector link
+    ln -s -f "${vm_connectors_dir}/${jar_name}" "${vm_connectors_dir}/${name}-connector.jar"
   fi
 }
 
