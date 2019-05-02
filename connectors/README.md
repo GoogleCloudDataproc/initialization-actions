@@ -13,7 +13,7 @@ Google Cloud Storage and BigQuery connector installed:
 ```
 gcloud dataproc clusters create <CLUSTER_NAME> \
     --initialization-actions gs://dataproc-initialization-actions/connectors/connectors.sh \
-    --metadata gcs-connector-version=1.9.16
+    --metadata gcs-connector-version=1.9.16 \
     --metadata bigquery-connector-version=0.13.16
 ```
 
