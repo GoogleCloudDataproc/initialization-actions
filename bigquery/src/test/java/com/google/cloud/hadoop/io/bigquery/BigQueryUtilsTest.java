@@ -167,11 +167,13 @@ public class BigQueryUtilsTest {
     jobStatus.setErrorResult(new ErrorProto());
 
     // Run waitForJobCompletion and assert failure.
-    assertThrows(
-        IOException.class,
-        () ->
-            BigQueryUtils.waitForJobCompletion(
-                mockBigQuery, projectId, jobReference, mockProgressable));
+    IOException e =
+        assertThrows(
+            IOException.class,
+            () ->
+                BigQueryUtils.waitForJobCompletion(
+                    mockBigQuery, projectId, jobReference, mockProgressable));
+    assertThat(e).hasMessageThat().contains(jobReference.getJobId());
   }
 
   /**

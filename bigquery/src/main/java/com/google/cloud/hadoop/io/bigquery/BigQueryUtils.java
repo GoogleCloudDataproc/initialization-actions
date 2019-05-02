@@ -105,7 +105,9 @@ public class BigQueryUtils {
         notDone = false;
         if (pollJob.getStatus().getErrorResult() != null) {
           throw new IOException(
-              "Error during BigQuery job execution: " + pollJob.getStatus().getErrorResult());
+              String.format(
+                  "Job %s failed: %s",
+                  jobReference.getJobId(), pollJob.getStatus().getErrorResult()));
         }
       } else {
         long millisToWait = pollBackOff.nextBackOffMillis();
