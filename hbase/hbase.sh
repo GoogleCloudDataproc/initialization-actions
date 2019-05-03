@@ -21,6 +21,9 @@ readonly HBASE_HOME='/etc/hbase'
 readonly CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)"
 readonly WORKER_COUNT="$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)"
 readonly MASTER_ADDITIONAL="$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)"
+readonly ENABLE_KERBEROS="$(/usr/share/google/get_metadata_value attributes/enable-kerberos)"
+readonly DOMAIN=$(dnsdomainname)
+readonly REALM=$(echo "${DOMAIN}" | awk '{print toupper($0)}')
 
 function retry_command() {
   cmd="$1"
@@ -121,7 +124,84 @@ EOF
       --name 'hbase.zookeeper.quorum' --value "${zookeeper_nodes}" \
       --clobber
 
-  # Merge all cofig values to hbase-site.xml
+  # Prepare kerberos specific config values
+  if [[ ${ENABLE_KERBEROS}]]; then
+
+    # Kerberos authentication
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.security.authentication' --value "kerberos" \
+      --clobber
+    
+    # Security authorization
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.security.authorization' --value "true" \
+      --clobber
+    
+    # Kerberos master principal
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.master.kerberos.principal' --value "hbase/_HOST@${REALM}" \
+      --clobber
+
+    # Kerberos region server principal
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.regionserver.kerberos.principal' --value "hbase/_HOST@${REALM}" \
+      --clobber
+
+    # Kerberos master server keytab file path
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.master.keytab.file' --value "/etc/hbase/conf/hbase-master.keytab" \
+      --clobber
+
+    # Kerberos region server keytab file path
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.regionserver.keytab.file' --value "/etc/hbase/conf/hbase-region.keytab" \
+      --clobber
+    
+    # Zookeeper authentication provider
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.zookeeper.property.authProvider.1' --value "org.apache.zookeeper.server.auth.SASLAuthenticationProvider" \
+      --clobber
+    
+    # HBase coprocessor region classes
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.coprocessor.region.classes' --value "org.apache.hadoop.hbase.security.token.TokenProvider" \
+      --clobber
+
+    # Zookeeper remove host from principal
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.zookeeper.property.kerberos.removeHostFromPrincipal' --value "true" \
+      --clobber
+
+    # Zookeeper remove realm from principal
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.zookeeper.property.kerberos.removeRealmFromPrincipal' --value "true" \
+      --clobber
+
+    # Zookeeper znode
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'zookeeper.znode.parent' --value "/hbase-secure" \
+      --clobber
+
+    # HBase RPC protection
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.rpc.protection' --value "privacy" \
+      --clobber
+
+  fi
+
+  # Merge all config values to hbase-site.xml
   bdconfig merge_configurations \
     --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
     --source_configuration_file hbase-site.xml.tmp \
