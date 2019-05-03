@@ -152,9 +152,8 @@ function run_datalab(){
 }
 
 function main(){
-  install_docker
-
   if [[ "${ROLE}" == 'Master' ]]; then
+    install_docker
     configure_master
     run_datalab
   fi
