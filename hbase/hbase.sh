@@ -95,7 +95,7 @@ Type=simple
 EnvironmentFile=/etc/environment
 Environment=HBASE_HOME=/etc/hbase
 ExecStart=/usr/bin/hbase \
-  --config  ${HBASE_HOME}/conf/ \
+  --config ${HBASE_HOME}/conf/ \
   regionserver start
 
 [Install]
