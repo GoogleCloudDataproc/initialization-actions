@@ -41,8 +41,8 @@ On dataproc clusters HBase uses HDFS as storage backend by default. This mode ca
         --num-masters 3 --num-workers 2
     ```
 
-## Configuration of kerberos authentication and rpc encryption for HBase
-On dataproc clusters HBase uses no kerberos authentication by default. This mode can be changed by passing `enable-kerberos` and `keytab-bucket` as cluster metadata during cluster creation process. The script automatically
+## Using of Kerberos authentication and rpc encryption for HBase
+On dataproc clusters HBase uses no Kerberos authentication by default. This mode can be changed by passing `enable-kerberos` and `keytab-bucket` as cluster metadata during cluster creation process. The script automatically
 changes the necessary configurations and creates all keytabs necessary for HBase.
 
 1. The metadata field `enable-kerberos` should be set to `true`. The metadata field `keytab-bucket` should be set to an storage bucket that will be used during cluster creation for saving the keytab files of the hbase master and region servers. You have to remove the keytab folder before you initiate a new cluster provisioning with the same cluster name.
@@ -56,14 +56,14 @@ changes the necessary configurations and creates all keytabs necessary for HBase
         --kerberos-kms-key="The URI of the KMS key used to decrypt the root password" \
         --image-version=1.3
     ```
-1. Login to master `<CLUSTER_NAME>-m-0` and add a principal to kerberos key distribution center to authenticate for HBase.
+1. Login to master `<CLUSTER_NAME>-m-0` and add a principal to Kerberos key distribution center to authenticate for HBase.
 
     ```bash
     sudo kadmin.local
     add_principal <USER_NAME>
     exit
     ```
-1. Get a kerberos ticket for your user to be able to login into HBase shell
+1. Get a Kerberos ticket for your user to be able to login into HBase shell
 
     ```bash
     kinit
@@ -78,4 +78,4 @@ changes the necessary configurations and creates all keytabs necessary for HBase
     ```bash
     --initialization-actions gs://dataproc-initialization-actions/zookeeper/zookeeper.sh,gs://dataproc-initialization-actions/hbase/hbase.sh
     ```
-- The kerberos version of this initialization action should be used in the HA mode. Otherwise, an additional zookeeper configuration is necessary.
+- The Kerberos version of this initialization action should be used in the HA mode. Otherwise, an additional zookeeper configuration is necessary.
