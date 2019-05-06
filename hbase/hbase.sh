@@ -73,9 +73,9 @@ User=root
 Group=root
 Type=simple
 EnvironmentFile=/etc/environment
-Environment=/etc/hbase
+Environment=HBASE_HOME=/etc/hbase
 ExecStart=/usr/bin/hbase \
-  --config /etc/hbase/conf/ \
+  --config ${HBASE_HOME}/conf/ \
   master start
 
 [Install]
@@ -93,9 +93,9 @@ User=root
 Group=root
 Type=simple
 EnvironmentFile=/etc/environment
-Environment=/etc/hbase
+Environment=HBASE_HOME=/etc/hbase
 ExecStart=/usr/bin/hbase \
-  --config /etc/hbase/conf/ \
+  --config  ${HBASE_HOME}/conf/ \
   regionserver start
 
 [Install]
