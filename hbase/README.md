@@ -45,7 +45,7 @@ On dataproc clusters HBase uses HDFS as storage backend by default. This mode ca
 On dataproc clusters HBase uses no kerberos authentication by default. This mode can be changed by passing `enable-kerberos` and `keytab-bucket` as cluster metadata during cluster creation process. The script automatically
 changes the necessary configurations and creates all keytabs necessary for HBase.
 
-1. The metadata field `enable-kerberos` should be set to `true`. The metadata field ``keytab-bucket` should be set to an storage bucket that will be used during cluster creation for saving the keytab files of the hbase master and region servers. You have to remove the keytab folder before you initiate a new cluster provisioning with the same cluster name.
+1. The metadata field `enable-kerberos` should be set to `true`. The metadata field `keytab-bucket` should be set to an storage bucket that will be used during cluster creation for saving the keytab files of the hbase master and region servers. You have to remove the keytab folder before you initiate a new cluster provisioning with the same cluster name.
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
