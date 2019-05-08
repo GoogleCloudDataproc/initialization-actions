@@ -319,7 +319,7 @@ public class GoogleHadoopFileSystemIntegrationTest
     // Unset Project ID
     config.unset(GoogleHadoopFileSystemConfiguration.GCS_PROJECT_ID.getKey());
 
-    URI gsUri = (new Path("gs://foo")).toUri();
+    URI gsUri = new Path("gs://foo").toUri();
     new GoogleHadoopFileSystem().initialize(gsUri, config);
   }
 

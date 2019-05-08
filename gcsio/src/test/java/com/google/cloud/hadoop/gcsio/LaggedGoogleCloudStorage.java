@@ -91,8 +91,17 @@ public class LaggedGoogleCloudStorage implements GoogleCloudStorage  {
   }
 
   @Override
-  public SeekableByteChannel open(
-      StorageResourceId resourceId) throws IOException {
+  public void create(String bucketName) throws IOException {
+    delegate.create(bucketName);
+  }
+
+  @Override
+  public void create(String bucketName, CreateBucketOptions options) throws IOException {
+    delegate.create(bucketName, options);
+  }
+
+  @Override
+  public SeekableByteChannel open(StorageResourceId resourceId) throws IOException {
     return delegate.open(resourceId);
   }
 
@@ -138,18 +147,8 @@ public class LaggedGoogleCloudStorage implements GoogleCloudStorage  {
   }
 
   @Override
-  public void create(String bucketName) throws IOException {
-    delegate.create(bucketName);
-  }
-
-  @Override
-  public void create(String bucketName, CreateBucketOptions options) throws IOException {
-    delegate.create(bucketName, options);
-  }
-
-  @Override
-  public List<GoogleCloudStorageItemInfo> getItemInfos(
-      List<StorageResourceId> resourceIds) throws IOException {
+  public List<GoogleCloudStorageItemInfo> getItemInfos(List<StorageResourceId> resourceIds)
+      throws IOException {
     return delegate.getItemInfos(resourceIds);
   }
 

@@ -101,6 +101,10 @@ public class GoogleCloudStorageTest {
     return bucketName;
   }
 
+  private String createUniqueBucket(String suffix) throws IOException {
+    return createUniqueBucket(rawStorage, suffix);
+  }
+
   private static String getUniqueBucketName(String suffix) {
     return BUCKET_HELPER.get().getUniqueBucketName(suffix);
   }
@@ -157,10 +161,6 @@ public class GoogleCloudStorageTest {
   public static void cleanupBuckets() throws IOException {
     // Use any GCS object (from tested ones) for clean up
     BUCKET_HELPER.get().cleanup(Iterables.getLast(SHARED_BUCKETS.asMap().keySet()));
-  }
-
-  private String createUniqueBucket(String suffix) throws IOException {
-    return createUniqueBucket(rawStorage, suffix);
   }
 
   private String getSharedBucketName() {

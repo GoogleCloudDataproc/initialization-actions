@@ -92,12 +92,9 @@ public class HadoopFileSystemIntegrationHelper
     return ghfs.rename(srcHadoopPath, dstHadoopPath);
   }
 
-  /**
-   * Deletes the given path.
-   */
+  /** Deletes the given path. */
   @Override
-  protected boolean delete(URI path, boolean recursive)
-      throws IOException {
+  protected boolean delete(URI path, boolean recursive) throws IOException {
     Path hadoopPath = castAsHadoopPath(path);
     if (recursive) {
       // Allows delete(URI) to be covered by test.
@@ -108,12 +105,23 @@ public class HadoopFileSystemIntegrationHelper
     }
   }
 
-  /**
-   * Creates the given directory and any non-existent parent directories.
-   */
+  /** Deletes the given item. */
   @Override
-  protected boolean mkdirs(URI path)
-      throws IOException {
+  protected void delete(String bucketName) throws IOException {
+    Path path = createSchemeCompatibleHadoopPath(bucketName, null);
+    ghfs.delete(path, false);
+  }
+
+  /** Deletes the given object. */
+  @Override
+  protected void delete(String bucketName, String objectName) throws IOException {
+    Path path = createSchemeCompatibleHadoopPath(bucketName, objectName);
+    ghfs.delete(path, false);
+  }
+
+  /** Creates the given directory and any non-existent parent directories. */
+  @Override
+  protected boolean mkdirs(URI path) throws IOException {
     Path hadoopPath = castAsHadoopPath(path);
     return ghfs.mkdirs(hadoopPath);
   }
@@ -301,32 +309,9 @@ public class HadoopFileSystemIntegrationHelper
     ghfs.mkdirs(path);
   }
 
-  /**
-   * Deletes the given item.
-   */
+  /** Deletes all objects from the given bucket. */
   @Override
-  protected void delete(String bucketName)
-      throws IOException {
-    Path path = createSchemeCompatibleHadoopPath(bucketName, null);
-    ghfs.delete(path, false);
-  }
-
-  /**
-   * Deletes the given object.
-   */
-  @Override
-  protected void delete(String bucketName, String objectName)
-      throws IOException {
-    Path path = createSchemeCompatibleHadoopPath(bucketName, objectName);
-    ghfs.delete(path, false);
-  }
-
-  /**
-   * Deletes all objects from the given bucket.
-   */
-  @Override
-  protected void clearBucket(String bucketName)
-      throws IOException {
+  protected void clearBucket(String bucketName) throws IOException {
     Path hadoopPath = createSchemeCompatibleHadoopPath(bucketName, null);
     FileStatus[] statusList = null;
     try {

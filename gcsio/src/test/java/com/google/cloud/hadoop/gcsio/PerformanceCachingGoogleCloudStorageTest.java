@@ -447,12 +447,6 @@ public class PerformanceCachingGoogleCloudStorageTest {
     return createObjectItemInfo(bucketName, objectName, CREATE_OBJECT_OPTIONS);
   }
 
-  public static GoogleCloudStorageItemInfo createInferredDirectory(
-      String bucketName, String objectName) {
-    return GoogleCloudStorageItemInfo.createInferredDirectory(
-        new StorageResourceId(bucketName, objectName));
-  }
-
   /**
    * Helper to generate a GoogleCloudStorageItemInfo for an object entry.
    *
@@ -475,6 +469,12 @@ public class PerformanceCachingGoogleCloudStorageTest {
         /* contentGeneration= */ 1,
         /* metaGeneration= */ 1,
         new VerificationAttributes(EMPTY_OBJECT_MD5.asBytes(), EMPTY_OBJECT_CRC32C.asBytes()));
+  }
+
+  public static GoogleCloudStorageItemInfo createInferredDirectory(
+      String bucketName, String objectName) {
+    return GoogleCloudStorageItemInfo.createInferredDirectory(
+        new StorageResourceId(bucketName, objectName));
   }
 
   private static GoogleCloudStorageItemInfo updateObjectItemInfo(
