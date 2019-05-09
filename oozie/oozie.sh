@@ -69,6 +69,9 @@ function install_oozie(){
   # Upgrade the repository and install Oozie
   update_apt_get || err 'Failed to update apt-get'
   install_apt_get oozie oozie-client || err 'Unable to install oozie-client'
+  # Remove Log4j 2 jar not compatible with Log4j 1 that was brought by Hive 2
+  # TODO: remove after upgrade to Oozie 5.1
+  rm -rf /usr/lib/oozie/lib/log4j-1.2-api*.jar
 
   if [[ ${node_name} == ${master_node} ]]; then
     # The ext library is needed to enable the Oozie web console
