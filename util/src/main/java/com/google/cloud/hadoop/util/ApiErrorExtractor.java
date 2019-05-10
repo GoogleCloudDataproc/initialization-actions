@@ -135,7 +135,7 @@ public class ApiErrorExtractor {
   public boolean isClientError(IOException e) {
     GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(e);
     if (jsonException != null) {
-      return (getHttpStatusCode(jsonException)) / 100 == 4;
+      return getHttpStatusCode(jsonException) / 100 == 4;
     }
     return false;
   }
@@ -146,7 +146,7 @@ public class ApiErrorExtractor {
   public boolean isInternalServerError(IOException e) {
     GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(e);
     if (jsonException != null) {
-      return (getHttpStatusCode(jsonException)) / 100 == 5;
+      return getHttpStatusCode(jsonException) / 100 == 5;
     }
     return false;
   }
@@ -433,21 +433,7 @@ public class ApiErrorExtractor {
     return null;
   }
 
-  /**
-   * If the exception is a GoogleJsonResponseException, get the
-   * error details, else return null.
-   */
-  protected GoogleJsonError getDetails(IOException e) {
-    if (e instanceof GoogleJsonResponseException) {
-      return ((GoogleJsonResponseException) e).getDetails();
-    }
-    return null;
-  }
-
-  /**
-   * Get the first ErrorInfo from a GoogleJsonError, or null if
-   * there is not one.
-   */
+  /** Get the first ErrorInfo from a GoogleJsonError, or null if there is not one. */
   protected ErrorInfo getErrorInfo(GoogleJsonError details) {
     if (details == null) {
       return null;
@@ -456,10 +442,15 @@ public class ApiErrorExtractor {
     return errors.isEmpty() ? null : errors.get(0);
   }
 
-  /**
-   * Recursively checks getCause() if outer exception isn't
-   * an instance of the correct class.
-   */
+  /** If the exception is a GoogleJsonResponseException, get the error details, else return null. */
+  protected GoogleJsonError getDetails(IOException e) {
+    if (e instanceof GoogleJsonResponseException) {
+      return ((GoogleJsonResponseException) e).getDetails();
+    }
+    return null;
+  }
+
+  /** Recursively checks getCause() if outer exception isn't an instance of the correct class. */
   protected boolean recursiveCheckForCode(Throwable e, int code) {
     GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(e);
     if (jsonException != null) {
