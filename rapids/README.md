@@ -18,7 +18,7 @@ You can use this initialization action to create a new Dataproc cluster with RAP
     --worker-accelerator type=nvidia-tesla-t4,count=4 \
     --worker-machine-type n1-standard-32 \
     --metadata "gpu-driver-url=http://us.download.nvidia.com/tesla/410.104/NVIDIA-Linux-x86_64-410.104.run,gpu-driver=NVIDIA-Linux-x86_64-410.104.run" \
-    --initialization-actions gs://dataproc-initialiation-actions/rapids/install-gpu-driver.sh,gs://dataproc-initialization-actions/rapids/install-rapids.sh,gs://dataproc-initialization-actions/rapids/start-dask.sh
+    --initialization-actions gs://dataproc-initialization-actions/rapids/install-gpu-driver.sh,gs://dataproc-initialization-actions/rapids/install-rapids.sh,gs://dataproc-initialization-actions/rapids/start-dask.sh
     ```
 
 1. Once the cluster has been created, the Dask scheduler listens for workers on port `8786`, and its status dashboard is on port `8787` (though you can change these in the script) on the master node in a Cloud Dataproc cluster.
