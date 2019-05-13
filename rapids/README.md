@@ -15,7 +15,7 @@ The master Cloud Dataproc node will run the dask-scheduler _and_ dask-cuda-worke
 Our initialization actions do the following:
 1. [install nvidia GPU driver](install-gpu-driver.sh)
 2. [install RAPIDS](install-rapids.sh) - [installs miniconda](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/conda), and [conda packages](conda-environment.yml)
-3. [start dask-scheduler and dask-cuda-workers](start-dask.sh)
+3. [start dask-scheduler and dask-cuda-workers](launch-dask.sh)
 
 ## Using this initialization action
 You can use this initialization action to create a new Dataproc cluster with RAPIDS installed:
@@ -31,10 +31,10 @@ You can use this initialization action to create a new Dataproc cluster with RAP
     --master-machine-type n1-standard-32 \
     --worker-accelerator type=nvidia-tesla-t4,count=4 \
     --worker-machine-type n1-standard-32 \
-    --initialization-actions gs://$DATAPROC_BUCKET/rapids/install-gpu-driver.sh,gs://$DATAPROC_BUCKET/rapids/install-rapids.sh,gs://$DATAPROC_BUCKET/rapids/start-dask.sh
+    --initialization-actions gs://$DATAPROC_BUCKET/rapids/install-gpu-driver.sh,gs://$DATAPROC_BUCKET/rapids/install-rapids.sh,gs://$DATAPROC_BUCKET/rapids/launch-dask.sh
     ```
 
-1. Once the cluster has been created, the Dask scheduler listens for workers on port `8786`, and its status dashboard is on port `8787` on the Dataproc master node. These ports can be changed by modifying the [start-dask.sh](start-dask.sh) script.
+1. Once the cluster has been created, the Dask scheduler listens for workers on port `8786`, and its status dashboard is on port `8787` on the Dataproc master node. These ports can be changed by modifying the [launch-dask.sh](launch-dask.sh) script.
 
 To connect to the Dask web interface, you will need to create an SSH tunnel as described in the [dataproc web interfaces](https://cloud.google.com/dataproc/cluster-web-interfaces) documentation. You can also connect using the [Dask Client Python API](http://distributed.dask.org/en/latest/client.html) from a notebook, or a from a plain Python script or interpreter session.
 
@@ -62,7 +62,7 @@ gcloud beta dataproc clusters create <CLUSTER_NAME> \
 --worker-machine-type n1-standard-32 \
 --metadata "master-worker=false" \
 --bucket $DATAPROC_BUCKET \
---initialization-actions gs://$DATAPROC_BUCKET/rapids/install-gpu-driver.sh,gs://$DATAPROC_BUCKET/rapids/install-rapids.sh,gs://$DATAPROC_BUCKET/rapids/start-dask.sh
+--initialization-actions gs://$DATAPROC_BUCKET/rapids/install-gpu-driver.sh,gs://$DATAPROC_BUCKET/rapids/install-rapids.sh,gs://$DATAPROC_BUCKET/rapids/launch-dask.sh
 ```
 
 By default, these initialization actions assume you are using a Tesla T4 GPU. If you are using other GPU types or want to run a different driver version, [find the appropriate driver download URL](https://www.nvidia.com/Download/index.aspx?lang=en-us) for your driver's `.run` file.
@@ -81,7 +81,7 @@ gcloud beta dataproc clusters create <CLUSTER_NAME> \
 --worker-accelerator type=nvidia-tesla-t4,count=4 \
 --worker-machine-type n1-standard-32 \
 --metadata "gpu-driver-url=http://us.download.nvidia.com/tesla/410.104/NVIDIA-Linux-x86_64-410.104.run" \
---initialization-actions gs://$DATAPROC_BUCKET/rapids/install-gpu-driver.sh,gs://$DATAPROC_BUCKET/rapids/install-rapids.sh,gs://$DATAPROC_BUCKET/rapids/start-dask.sh
+--initialization-actions gs://$DATAPROC_BUCKET/rapids/install-gpu-driver.sh,gs://$DATAPROC_BUCKET/rapids/install-rapids.sh,gs://$DATAPROC_BUCKET/rapids/launch-dask.sh
 ```
 
 ## Important notes
