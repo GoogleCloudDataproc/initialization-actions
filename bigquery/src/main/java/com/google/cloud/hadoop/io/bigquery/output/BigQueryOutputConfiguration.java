@@ -15,7 +15,6 @@ package com.google.cloud.hadoop.io.bigquery.output;
 
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
-import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.BigQueryStrings;
@@ -379,7 +378,7 @@ public class BigQueryOutputConfiguration {
    * @param conf the configuration to reference the keys from.
    * @return the stored output path in the configuration.
    * @throws IOException if the output path isn't set in the configuration, or the output path's
-   *     file system isn't derived from GoogleHadoopFileSystemBase.
+   *     file system isn't GCS.
    */
   public static Path getGcsOutputPath(Configuration conf) throws IOException {
     Job tempJob = new JobConfigurationAdapter(conf);
@@ -392,8 +391,8 @@ public class BigQueryOutputConfiguration {
 
     // Error if the output file system isn't GCS.
     FileSystem fs = outputPath.getFileSystem(conf);
-    if (!(fs instanceof GoogleHadoopFileSystemBase)) {
-      throw new IOException("Output FileSystem must derive from GoogleHadoopFileSystemBase.");
+    if (!"gs".equals(fs.getScheme())) {
+      throw new IOException("Output FileSystem must be GCS ('gs' scheme).");
     }
 
     return outputPath;

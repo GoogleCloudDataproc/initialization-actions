@@ -21,8 +21,8 @@ import static org.mockito.Mockito.when;
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.DatasetReference;
-import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationHelper;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
@@ -256,8 +256,9 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     setConfigForGcsFromBigquerySettings();
     Path toDelete = new Path(String.format("gs://%s", testBucket));
     FileSystem fs = toDelete.getFileSystem(config);
-    if (fs instanceof GoogleHadoopFileSystemBase) {
-      bucketHelper.cleanup(((GoogleHadoopFileSystemBase) fs).getGcsFs().getGcs());
+    if ("gs".equals(fs.getScheme())) {
+      bucketHelper.cleanup(
+          GoogleCloudStorageFileSystemIntegrationHelper.createGcsFs(projectIdvalue).getGcs());
     } else {
       logger.atInfo().log("Deleting temporary test bucket '%s'", toDelete);
       fs.delete(toDelete, true);

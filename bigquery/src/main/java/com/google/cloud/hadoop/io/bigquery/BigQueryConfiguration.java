@@ -16,7 +16,6 @@ package com.google.cloud.hadoop.io.bigquery;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase;
 import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -304,8 +303,7 @@ public class BigQueryConfiguration {
    * @param jobId the ID of the job requesting a working path. Optional (could be {@code null}) if
    *     {@link #TEMP_GCS_PATH_KEY} is provided.
    * @return the temporary directory path.
-   * @throws IOException if the file system of the derived working path isn't a derivative of
-   *     GoogleHadoopFileSystemBase.
+   * @throws IOException if the file system of the derived working path isn't GCS.
    */
   public static String getTemporaryPathRoot(Configuration conf, @Nullable JobID jobId)
       throws IOException {
@@ -329,9 +327,7 @@ public class BigQueryConfiguration {
     Path workingPath = new Path(pathRoot);
 
     FileSystem fs = workingPath.getFileSystem(conf);
-    Preconditions.checkState(
-        fs instanceof GoogleHadoopFileSystemBase,
-        "Export FS must derive from GoogleHadoopFileSystemBase.");
+    Preconditions.checkState("gs".equals(fs.getScheme()), "Export FS must be GCS ('gs' scheme).");
     return pathRoot;
   }
 }
