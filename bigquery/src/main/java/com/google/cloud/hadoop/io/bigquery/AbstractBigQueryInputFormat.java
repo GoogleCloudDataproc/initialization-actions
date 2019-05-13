@@ -89,14 +89,32 @@ public abstract class AbstractBigQueryInputFormat<K, V>
     configuration.set(BigQueryConfiguration.TEMP_GCS_PATH_KEY, path);
   }
 
-  /**
-   * Get the ExportFileFormat that this input format supports.
-   */
+  /** Get the ExportFileFormat that this input format supports. */
   public abstract ExportFileFormat getExportFileFormat();
 
+  @SuppressWarnings("unchecked")
+  protected static ExportFileFormat getExportFileFormat(Configuration configuration) {
+    Class<? extends AbstractBigQueryInputFormat<?, ?>> clazz =
+        (Class<? extends AbstractBigQueryInputFormat<?, ?>>)
+            configuration.getClass(INPUT_FORMAT_CLASS_KEY, AbstractBigQueryInputFormat.class);
+    Preconditions.checkState(
+        AbstractBigQueryInputFormat.class.isAssignableFrom(clazz),
+        "Expected input format to derive from AbstractBigQueryInputFormat");
+    return getExportFileFormat(clazz);
+  }
+
+  protected static ExportFileFormat getExportFileFormat(
+      Class<? extends AbstractBigQueryInputFormat<?, ?>> clazz) {
+    try {
+      AbstractBigQueryInputFormat<?, ?> format = clazz.getConstructor().newInstance();
+      return format.getExportFileFormat();
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
   @Override
-  public List<InputSplit> getSplits(JobContext context)
-      throws IOException, InterruptedException {
+  public List<InputSplit> getSplits(JobContext context) throws IOException, InterruptedException {
     logger.atFine().log("getSplits(%s)", lazy(() -> HadoopToStringUtil.toString(context)));
 
     final Configuration configuration = context.getConfiguration();
@@ -242,27 +260,6 @@ public abstract class AbstractBigQueryInputFormat<K, V>
       // This matches the FileOutputCommitter pattern.
       logger.atWarning().withCause(ioe).log(
           "Could not delete intermediate data from BigQuery export");
-    }
-  }
-
-  @SuppressWarnings("unchecked")
-  protected static ExportFileFormat getExportFileFormat(Configuration configuration) {
-    Class<? extends AbstractBigQueryInputFormat<?, ?>> clazz =
-        (Class<? extends AbstractBigQueryInputFormat<?, ?>>) configuration.getClass(
-            INPUT_FORMAT_CLASS_KEY, AbstractBigQueryInputFormat.class);
-    Preconditions.checkState(
-        AbstractBigQueryInputFormat.class.isAssignableFrom(clazz),
-        "Expected input format to derive from AbstractBigQueryInputFormat");
-    return getExportFileFormat(clazz);
-  }
-
-  protected static ExportFileFormat getExportFileFormat(
-      Class<? extends AbstractBigQueryInputFormat<?, ?>> clazz) {
-    try {
-      AbstractBigQueryInputFormat<?, ?> format = clazz.getConstructor().newInstance();
-      return format.getExportFileFormat();
-    } catch (ReflectiveOperationException e) {
-      throw new RuntimeException(e);
     }
   }
 
