@@ -20,7 +20,9 @@ set -euxo pipefail
 readonly HBASE_HOME='/etc/hbase'
 readonly CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)"
 readonly WORKER_COUNT="$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)"
-readonly MASTER_ADDITIONAL="$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)"
+readonly DATAPROC_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+readonly MASTER_ADDITIONAL=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional || true)
+readonly MASTER_HOSTNAMES=($DATAPROC_MASTER ${MASTER_ADDITIONAL//,/ })
 readonly ENABLE_KERBEROS="$(/usr/share/google/get_metadata_value attributes/enable-kerberos)"
 readonly KEYTAB_BUCKET="$(/usr/share/google/get_metadata_value attributes/keytab-bucket)"
 readonly DOMAIN=$(dnsdomainname)
@@ -210,16 +212,11 @@ EOF
     --source_configuration_file hbase-site.xml.tmp \
     --clobber
 
-
   if [ "${ENABLE_KERBEROS}" = true ]; then
-    local machine_nr=$(echo $HOSTNAME | sed 's/.*-.-\([0-9]\)*.*/\1/g')
-    local masters=$(/usr/share/google/get_metadata_value attributes/dataproc-master),$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)
-
-    if [[ $machine_nr -eq "0" ]] && [[ "${ROLE}" == "Master" ]]; then 
+    if [[ "${HOSTNAME}" == "${DATAPROC_MASTER}" ]]; then
       # Master
-      export IFS=","
-      for m in $masters; 
-      do  
+      for m in "${MASTER_HOSTNAMES[@]}"; do 
+      do
         sudo kadmin.local -q "addprinc -randkey hbase/${m}.${DOMAIN}@${REALM}"
         echo "Generating hbase keytab..."
         sudo kadmin.local -q "xst -k ${HBASE_HOME}/conf/hbase-${m}.keytab hbase/${m}.${DOMAIN}"
