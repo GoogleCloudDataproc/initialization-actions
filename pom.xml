@@ -136,6 +136,12 @@
             <version>${hadoop.two.version}</version>
             <scope>provided</scope>
           </dependency>
+          <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-mapreduce-client-common</artifactId>
+            <version>${hadoop.two.version}</version>
+            <scope>test</scope>
+          </dependency>
         </dependencies>
       </dependencyManagement>
     </profile>
@@ -164,6 +170,12 @@
             <artifactId>hadoop-common</artifactId>
             <version>${hadoop.three.version}</version>
             <classifier>tests</classifier>
+            <scope>test</scope>
+          </dependency>
+          <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-mapreduce-client-common</artifactId>
+            <version>${hadoop.three.version}</version>
             <scope>test</scope>
           </dependency>
         </dependencies>

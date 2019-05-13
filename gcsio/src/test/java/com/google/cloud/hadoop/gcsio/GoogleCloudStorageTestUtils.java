@@ -19,6 +19,7 @@ import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.LowLevelHttpRequest;
 import com.google.api.client.http.LowLevelHttpResponse;
+import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.testing.http.HttpTesting;
 import com.google.api.client.testing.http.MockHttpTransport;
@@ -36,6 +37,7 @@ import java.util.Map;
 /** Utility class with helper methods for GCS IO tests. */
 public final class GoogleCloudStorageTestUtils {
 
+  public static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
   public static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
 
   static final String BUCKET_NAME = "foo-bucket";

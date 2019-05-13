@@ -16,6 +16,7 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.net.URI;
@@ -25,6 +26,22 @@ import java.util.List;
 
 public class GoogleCloudStorageFileSystemIntegrationHelper
     extends GoogleCloudStorageIntegrationHelper {
+
+  public static GoogleCloudStorageFileSystem createGcsFs(String projectId) throws IOException {
+    GoogleCloudStorageOptions gcsOptions =
+        GoogleCloudStorageOptions.newBuilder()
+            .setAppName(GoogleCloudStorageIntegrationHelper.APP_NAME)
+            .setProjectId(projectId)
+            .setCopyWithRewriteEnabled(true)
+            .build();
+
+    return new GoogleCloudStorageFileSystem(
+        GoogleCloudStorageTestHelper.getCredential(),
+        GoogleCloudStorageFileSystemOptions.newBuilder()
+            .setEnableBucketDelete(true)
+            .setCloudStorageOptionsBuilder(gcsOptions.toBuilder())
+            .build());
+  }
 
   protected GoogleCloudStorageFileSystem gcsfs;
 
