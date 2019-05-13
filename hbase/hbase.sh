@@ -137,13 +137,13 @@ EOF
       --configuration_file 'hbase-site.xml.tmp' \
       --name 'hbase.security.authentication' --value "kerberos" \
       --clobber
-    
+
     # Security authorization
     bdconfig set_property \
       --configuration_file 'hbase-site.xml.tmp' \
       --name 'hbase.security.authorization' --value "true" \
       --clobber
-    
+
     # Kerberos master principal
     bdconfig set_property \
       --configuration_file 'hbase-site.xml.tmp' \
@@ -167,13 +167,13 @@ EOF
       --configuration_file 'hbase-site.xml.tmp' \
       --name 'hbase.regionserver.keytab.file' --value "/etc/hbase/conf/hbase-region.keytab" \
       --clobber
-    
+
     # Zookeeper authentication provider
     bdconfig set_property \
       --configuration_file 'hbase-site.xml.tmp' \
       --name 'hbase.zookeeper.property.authProvider.1' --value "org.apache.zookeeper.server.auth.SASLAuthenticationProvider" \
       --clobber
-    
+
     # HBase coprocessor region classes
     bdconfig set_property \
       --configuration_file 'hbase-site.xml.tmp' \
@@ -215,17 +215,16 @@ EOF
   if [ "${ENABLE_KERBEROS}" = true ]; then
     if [[ "${HOSTNAME}" == "${DATAPROC_MASTER}" ]]; then
       # Master
-      for m in "${MASTER_HOSTNAMES[@]}"; do 
-      do
+      for m in "${MASTER_HOSTNAMES[@]}"; do
         sudo kadmin.local -q "addprinc -randkey hbase/${m}.${DOMAIN}@${REALM}"
         echo "Generating hbase keytab..."
         sudo kadmin.local -q "xst -k ${HBASE_HOME}/conf/hbase-${m}.keytab hbase/${m}.${DOMAIN}"
         sudo gsutil cp ${HBASE_HOME}/conf/hbase-${m}.keytab ${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/hbase-${m}.keytab
       done
-      
+
       # Worker
       for (( c="0"; c<$WORKER_COUNT; c++ ))
-      do  
+      do
         sudo kadmin.local -q "addprinc -randkey hbase/${CLUSTER_NAME}-w-${c}.${DOMAIN}"
         echo "Generating hbase keytab..."
         sudo kadmin.local -q "xst -k ${HBASE_HOME}/conf/hbase-${CLUSTER_NAME}-w-${c}.keytab hbase/${CLUSTER_NAME}-w-${c}.${DOMAIN}"
@@ -246,7 +245,7 @@ EOF
     else
       hbase_keytab_path=${HBASE_HOME}/conf/hbase-region.keytab
     fi
-    
+
     # Copy keytab to machine
     sudo gsutil cp ${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/hbase-${HOSTNAME}.keytab $hbase_keytab_path
 
@@ -255,7 +254,7 @@ EOF
       sudo chown hbase:hbase $hbase_keytab_path
       sudo chmod 0400 $hbase_keytab_path
     fi
-    
+
     # Change regionserver information
     for (( c="0"; c<$WORKER_COUNT; c++ ))
     do
@@ -263,7 +262,7 @@ EOF
     done
     sudo mv /tmp/regionservers ${HBASE_HOME}/conf/regionservers
 
-    # Add server JAAS 
+    # Add server JAAS
     cat > /tmp/hbase-server.jaas << EOF
 Client {
   com.sun.security.auth.module.Krb5LoginModule required
@@ -272,9 +271,9 @@ Client {
   useTicketCache=false
   keyTab="${hbase_keytab_path}"
   principal="hbase/${FQDN}";
-}; 
+};
 EOF
-  
+
     # Copy JAAS file to hbase conf directory
     sudo mv /tmp/hbase-server.jaas ${HBASE_HOME}/conf/hbase-server.jaas
 
@@ -295,7 +294,7 @@ EOF
     cat ${HBASE_HOME}/conf/hbase-env.sh > /tmp/hbase-env.sh
     cat >> /tmp/hbase-env.sh << EOF
 export HBASE_MANAGES_ZK=false
-export HBASE_OPTS="\$HBASE_OPTS -Djava.security.auth.login.config=/etc/hbase/conf/hbase-client.jaas" 
+export HBASE_OPTS="\$HBASE_OPTS -Djava.security.auth.login.config=/etc/hbase/conf/hbase-client.jaas"
 export HBASE_MASTER_OPTS="\$HBASE_MASTER_OPTS -Djava.security.auth.login.config=/etc/hbase/conf/hbase-server.jaas"
 export HBASE_REGIONSERVER_OPTS="\$HBASE_REGIONSERVER_OPTS -Djava.security.auth.login.config=/etc/hbase/conf/hbase-server.jaas"
 EOF
@@ -312,7 +311,6 @@ EOF
 
 
 function main() {
-  
   update_apt_get || err 'Unable to update packages lists.'
   install_apt_get hbase || err 'Unable to install hbase.'
 
