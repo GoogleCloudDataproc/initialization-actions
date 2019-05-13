@@ -3,7 +3,7 @@
 apt install libopenblas-base libomp-dev
 
 readonly DATAPROC_BUCKET="$(/usr/share/google/get_metadata_value attributes/dataproc-bucket)"
-readonly CONDA_ENV_YAML_GSC_LOC="gs://${DATAPROC_BUCKET}/rapids/conda-environment.yml"
+readonly CONDA_ENV_YAML_GSC_LOC="gs://dataproc-initialization-actions/rapids/conda-environment.yml"
 readonly CONDA_ENV_YAML_PATH="/root/conda-environment.yml"
 
 echo "Downloading conda environment at $CONDA_ENV_YAML_GSC_LOC to $CONDA_ENV_YAML_PATH ... "

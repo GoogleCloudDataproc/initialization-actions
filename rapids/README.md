@@ -28,7 +28,9 @@ You can use this initialization action to create a new Dataproc cluster with RAP
 
 To connect to the Dask web interface, you will need to create an SSH tunnel as described in the [dataproc web interfaces](https://cloud.google.com/dataproc/cluster-web-interfaces) documentation. You can also connect using the [Dask Client Python API](http://distributed.dask.org/en/latest/client.html) from a notebook, or a from a plain Python script or interpreter session.
 
-An [example notebook](notebooks/NYCTaxi-E2E.ipynb) is provided that demonstrates end to end data pre-processing (ETL) and model training (XGBoost) with RAPIDS APIs. Additional example notebooks [are available](https://github.com/rapidsai/notebooks). See the [RAPIDS documentation](https://docs.rapids.ai/) for API details.
+An [example notebook](notebooks/NYCTaxi-E2E.ipynb) is provided that demonstrates end to end data pre-processing (cuDF & Dask) and model training (XGBoost) with RAPIDS APIs. Additional example notebooks [are available](https://github.com/rapidsai/notebooks). See the [RAPIDS documentation](https://docs.rapids.ai/) for API details.
+
+RAPIDS is a relatively young project with APIs evolving quickly. If you encounter unexpected errors or have feature requests, please file them at the relevant [RAPIDS repo](https://github.com/rapidsai).
 
 ### Options
 
