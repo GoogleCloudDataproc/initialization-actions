@@ -158,7 +158,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
 
   private Long generation = null;
 
-  private boolean metadataInitialized = false;
+  @VisibleForTesting protected boolean metadataInitialized = false;
 
   /**
    * Constructs an instance of GoogleCloudStorageReadChannel.
@@ -216,8 +216,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     // Initialize metadata if available.
     GoogleCloudStorageItemInfo info = getInitialMetadata();
     if (info != null) {
-      String generationString = String.valueOf(info.getContentGeneration());
-      initMetadata(info.getContentEncoding(), info.getSize(), generationString);
+      initMetadata(info);
     }
   }
 
@@ -287,15 +286,16 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
   }
 
   /**
-   * Returns {@link GoogleCloudStorageItemInfo} used to initialize metadata in constructor. By
-   * default returns {@code null} which means that metadata will be lazily initialized during first
-   * read.
+   * Returns {@link GoogleCloudStorageItemInfo} used to initialize metadata in constructor or {@code
+   * null} if {@link GoogleCloudStorageReadOptions#getFastFailOnNotFound()} is set to {@code false}.
    */
   @Nullable
   protected GoogleCloudStorageItemInfo getInitialMetadata() throws IOException {
-    if (!readOptions.getFastFailOnNotFound()) {
-      return null;
-    }
+    return readOptions.getFastFailOnNotFound() ? fetchInitialMetadata() : null;
+  }
+
+  /** Returns {@link GoogleCloudStorageItemInfo} used to initialize metadata in constructor. */
+  private GoogleCloudStorageItemInfo fetchInitialMetadata() throws IOException {
     StorageObject object;
     try {
       object =
@@ -675,6 +675,9 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
   @Override
   public long size() throws IOException {
     throwIfNotOpen();
+    if (!metadataInitialized) {
+      initMetadata(fetchInitialMetadata());
+    }
     return size;
   }
 
@@ -769,6 +772,12 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         contentChannelPosition == currentPosition,
         "contentChannelPosition (%s) should be equal to currentPosition (%s) for '%s'",
         contentChannelPosition, currentPosition, resourceIdString);
+  }
+
+  /* Initializes metadata (size, encoding, etc) from {@link GoogleCloudStorageItemInfo} */
+  private void initMetadata(GoogleCloudStorageItemInfo info) throws IOException {
+    String generationString = String.valueOf(info.getContentGeneration());
+    initMetadata(info.getContentEncoding(), info.getSize(), generationString);
   }
 
   /** Initializes metadata (size, encoding, etc) from HTTP {@code headers}. */

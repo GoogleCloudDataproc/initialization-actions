@@ -67,13 +67,23 @@ public class GoogleCloudStorageReadChannelTest {
 
     GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options);
 
+    assertThat(requests).hasSize(1);
     assertThat(readChannel.size()).isEqualTo(123);
     assertThat(requests).hasSize(1);
   }
 
   @Test
   public void metadataInitialization_lazy() throws IOException {
-    MockHttpTransport transport = GoogleCloudStorageTestUtils.mockTransport();
+    MockHttpTransport transport =
+        GoogleCloudStorageTestUtils.mockTransport(
+            metadataResponse(
+                new StorageObject()
+                    .setBucket(BUCKET_NAME)
+                    .setName(OBJECT_NAME)
+                    .setSize(new BigInteger("123"))
+                    .setGeneration(1L)
+                    .setMetageneration(1L)
+                    .setUpdated(new DateTime(new Date()))));
 
     List<HttpRequest> requests = new ArrayList<>();
 
@@ -84,8 +94,9 @@ public class GoogleCloudStorageReadChannelTest {
 
     GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options);
 
-    assertThat(readChannel.size()).isEqualTo(-1);
     assertThat(requests).isEmpty();
+    assertThat(readChannel.size()).isEqualTo(123);
+    assertThat(requests).hasSize(1);
   }
 
   @Test
@@ -206,7 +217,7 @@ public class GoogleCloudStorageReadChannelTest {
             .build();
 
     GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options);
-    assertThat(readChannel.size()).isEqualTo(-1);
+    assertThat(requests).isEmpty();
 
     byte[] readBytes = new byte[2];
 

@@ -63,7 +63,7 @@ public class InMemoryObjectReadChannel extends GoogleCloudStorageReadChannel {
    */
   @Override
   protected InputStream openStream(long bytesToRead) throws IOException {
-    if (size() == -1 && content.length == 0 && currentPosition == 0) {
+    if (!metadataInitialized && content.length == 0 && currentPosition == 0) {
       setSize(content.length);
     } else {
       setSize(content.length);
