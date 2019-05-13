@@ -15,7 +15,9 @@ package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
+import java.util.List;
 
 /**
  * BigQueryStrings provides misc static helper methods for printing and formatting strings related
@@ -24,6 +26,8 @@ import com.google.common.base.Strings;
 public class BigQueryStrings {
   // Regular expression for validating a datasetId.tableId pair.
   public static final String DATASET_AND_TABLE_REGEX = "[a-zA-Z0-9_]+\\.[a-zA-Z0-9_$]+";
+
+  private static final Splitter DOT_SPLITTER = Splitter.on('.');
 
   /**
    * Returns a String representation of the TableReference suitable for interop with other bigquery
@@ -69,9 +73,9 @@ public class BigQueryStrings {
         "Invalid datasetAndTableString '%s'; must match regex '%s'.",
         datasetAndTableString, DATASET_AND_TABLE_REGEX);
 
-    String[] idParts = datasetAndTableString.split("\\.");
-    tableRef.setDatasetId(idParts[0]);
-    tableRef.setTableId(idParts[1]);
+    List<String> idParts = DOT_SPLITTER.splitToList(datasetAndTableString);
+    tableRef.setDatasetId(idParts.get(0));
+    tableRef.setTableId(idParts.get(1));
     return tableRef;
   }
 }

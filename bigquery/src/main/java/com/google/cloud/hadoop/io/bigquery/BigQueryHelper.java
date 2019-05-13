@@ -35,7 +35,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nullable;
-import org.apache.hadoop.util.Progressable;
 
 /**
  * Wrapper for BigQuery API.
@@ -53,13 +52,6 @@ public class BigQueryHelper {
   private ApiErrorExtractor errorExtractor = ApiErrorExtractor.INSTANCE;
 
   private Bigquery service;
-
-  /** A progressable that does nothing. */
-  private static final Progressable NOP_PROGRESSABLE =
-      new Progressable() {
-        @Override
-        public void progress() {}
-      };
 
   public BigQueryHelper(Bigquery service) {
     this.service = service;
@@ -185,8 +177,7 @@ public class BigQueryHelper {
 
     if (awaitCompletion) {
       // Poll until job is complete.
-      BigQueryUtils.waitForJobCompletion(
-          getRawBigquery(), projectId, jobReference, NOP_PROGRESSABLE);
+      BigQueryUtils.waitForJobCompletion(getRawBigquery(), projectId, jobReference, () -> {});
     }
   }
 
@@ -242,7 +233,7 @@ public class BigQueryHelper {
 
     if (awaitCompletion) {
       // Poll until job is complete.
-      BigQueryUtils.waitForJobCompletion(service, projectId, jobReference, NOP_PROGRESSABLE);
+      BigQueryUtils.waitForJobCompletion(service, projectId, jobReference, () -> {});
     }
   }
 

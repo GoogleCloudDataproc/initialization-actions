@@ -14,7 +14,6 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import com.google.common.base.Preconditions;
-import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import org.apache.avro.Schema;
 import org.apache.avro.file.DataFileReader;
@@ -37,7 +36,6 @@ import org.apache.hadoop.mapreduce.lib.input.FileSplit;
  * RecordReader for avro BigQuery exports.
  */
 public class AvroRecordReader extends RecordReader<LongWritable, GenericData.Record> {
-  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   final LongWritable currentKey = new LongWritable();
   FileReader<GenericData.Record> dataFileReader;
