@@ -20,7 +20,15 @@ set -euxo pipefail
 readonly HBASE_HOME='/etc/hbase'
 readonly CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)"
 readonly WORKER_COUNT="$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)"
-readonly MASTER_ADDITIONAL="$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)"
+readonly DATAPROC_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+readonly MASTER_ADDITIONAL=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional || true)
+readonly MASTER_HOSTNAMES=($DATAPROC_MASTER ${MASTER_ADDITIONAL//,/ })
+readonly ENABLE_KERBEROS="$(/usr/share/google/get_metadata_value attributes/enable-kerberos)"
+readonly KEYTAB_BUCKET="$(/usr/share/google/get_metadata_value attributes/keytab-bucket)"
+readonly DOMAIN=$(dnsdomainname)
+readonly REALM=$(echo "${DOMAIN}" | awk '{print toupper($0)}')
+readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+readonly FQDN=$(hostname -f)
 
 function retry_command() {
   cmd="$1"
@@ -121,11 +129,179 @@ EOF
       --name 'hbase.zookeeper.quorum' --value "${zookeeper_nodes}" \
       --clobber
 
-  # Merge all cofig values to hbase-site.xml
+  # Prepare kerberos specific config values for hbase-site.xml
+  if [ "${ENABLE_KERBEROS}" = true ]; then
+
+    # Kerberos authentication
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.security.authentication' --value "kerberos" \
+      --clobber
+
+    # Security authorization
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.security.authorization' --value "true" \
+      --clobber
+
+    # Kerberos master principal
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.master.kerberos.principal' --value "hbase/_HOST@${REALM}" \
+      --clobber
+
+    # Kerberos region server principal
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.regionserver.kerberos.principal' --value "hbase/_HOST@${REALM}" \
+      --clobber
+
+    # Kerberos master server keytab file path
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.master.keytab.file' --value "/etc/hbase/conf/hbase-master.keytab" \
+      --clobber
+
+    # Kerberos region server keytab file path
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.regionserver.keytab.file' --value "/etc/hbase/conf/hbase-region.keytab" \
+      --clobber
+
+    # Zookeeper authentication provider
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.zookeeper.property.authProvider.1' --value "org.apache.zookeeper.server.auth.SASLAuthenticationProvider" \
+      --clobber
+
+    # HBase coprocessor region classes
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.coprocessor.region.classes' --value "org.apache.hadoop.hbase.security.token.TokenProvider" \
+      --clobber
+
+    # Zookeeper remove host from principal
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.zookeeper.property.kerberos.removeHostFromPrincipal' --value "true" \
+      --clobber
+
+    # Zookeeper remove realm from principal
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.zookeeper.property.kerberos.removeRealmFromPrincipal' --value "true" \
+      --clobber
+
+    # Zookeeper znode
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'zookeeper.znode.parent' --value "/hbase-secure" \
+      --clobber
+
+    # HBase RPC protection
+    bdconfig set_property \
+      --configuration_file 'hbase-site.xml.tmp' \
+      --name 'hbase.rpc.protection' --value "privacy" \
+      --clobber
+
+  fi
+
+  # Merge all config values to hbase-site.xml
   bdconfig merge_configurations \
     --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
     --source_configuration_file hbase-site.xml.tmp \
     --clobber
+
+  if [ "${ENABLE_KERBEROS}" = true ]; then
+    if [[ "${HOSTNAME}" == "${DATAPROC_MASTER}" ]]; then
+      # Master
+      for m in "${MASTER_HOSTNAMES[@]}"; do
+        sudo kadmin.local -q "addprinc -randkey hbase/${m}.${DOMAIN}@${REALM}"
+        echo "Generating hbase keytab..."
+        sudo kadmin.local -q "xst -k ${HBASE_HOME}/conf/hbase-${m}.keytab hbase/${m}.${DOMAIN}"
+        sudo gsutil cp ${HBASE_HOME}/conf/hbase-${m}.keytab ${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/hbase-${m}.keytab
+      done
+
+      # Worker
+      for (( c="0"; c<$WORKER_COUNT; c++ ))
+      do
+        sudo kadmin.local -q "addprinc -randkey hbase/${CLUSTER_NAME}-w-${c}.${DOMAIN}"
+        echo "Generating hbase keytab..."
+        sudo kadmin.local -q "xst -k ${HBASE_HOME}/conf/hbase-${CLUSTER_NAME}-w-${c}.keytab hbase/${CLUSTER_NAME}-w-${c}.${DOMAIN}"
+        sudo gsutil cp ${HBASE_HOME}/conf/hbase-${CLUSTER_NAME}-w-${c}.keytab ${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/hbase-${CLUSTER_NAME}-w-${c}.keytab
+      done
+      sudo touch /tmp/_success
+      sudo gsutil cp /tmp/_success ${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/_success
+    fi
+    success=1
+    while [ $success -eq "1" ]; do
+      sleep 1
+      success=$(gsutil -q stat ${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/_success; echo $?)
+    done
+
+    # Define keytab path based on role
+    if [[ "${ROLE}" == 'Master' ]]; then
+      hbase_keytab_path=${HBASE_HOME}/conf/hbase-master.keytab
+    else
+      hbase_keytab_path=${HBASE_HOME}/conf/hbase-region.keytab
+    fi
+
+    # Copy keytab to machine
+    sudo gsutil cp ${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/hbase-${HOSTNAME}.keytab $hbase_keytab_path
+
+    # Change owner of keytab to hbase with read only permissions
+    if [ -f $hbase_keytab_path ]; then
+      sudo chown hbase:hbase $hbase_keytab_path
+      sudo chmod 0400 $hbase_keytab_path
+    fi
+
+    # Change regionserver information
+    for (( c="0"; c<$WORKER_COUNT; c++ ))
+    do
+      echo "${CLUSTER_NAME}-w-${c}.${DOMAIN}" >> /tmp/regionservers
+    done
+    sudo mv /tmp/regionservers ${HBASE_HOME}/conf/regionservers
+
+    # Add server JAAS
+    cat > /tmp/hbase-server.jaas << EOF
+Client {
+  com.sun.security.auth.module.Krb5LoginModule required
+  useKeyTab=true
+  storeKey=true
+  useTicketCache=false
+  keyTab="${hbase_keytab_path}"
+  principal="hbase/${FQDN}";
+};
+EOF
+
+    # Copy JAAS file to hbase conf directory
+    sudo mv /tmp/hbase-server.jaas ${HBASE_HOME}/conf/hbase-server.jaas
+
+    # Add client JAAS
+    cat > /tmp/hbase-client.jaas << EOF
+Client {
+      com.sun.security.auth.module.Krb5LoginModule required
+      useKeyTab=false
+      useTicketCache=true;
+};
+EOF
+
+    # Copy JAAS file to hbase conf directory
+    sudo mv /tmp/hbase-client.jaas ${HBASE_HOME}/conf/hbase-client.jaas
+
+
+    # Extend hbase enviroment variable script
+    cat ${HBASE_HOME}/conf/hbase-env.sh > /tmp/hbase-env.sh
+    cat >> /tmp/hbase-env.sh << EOF
+export HBASE_MANAGES_ZK=false
+export HBASE_OPTS="\$HBASE_OPTS -Djava.security.auth.login.config=/etc/hbase/conf/hbase-client.jaas"
+export HBASE_MASTER_OPTS="\$HBASE_MASTER_OPTS -Djava.security.auth.login.config=/etc/hbase/conf/hbase-server.jaas"
+export HBASE_REGIONSERVER_OPTS="\$HBASE_REGIONSERVER_OPTS -Djava.security.auth.login.config=/etc/hbase/conf/hbase-server.jaas"
+EOF
+
+    # Copy script to hbase conf directory
+    sudo mv /tmp/hbase-env.sh ${HBASE_HOME}/conf/hbase-env.sh
+  fi
 
   # On single node clusters we must also start regionserver on it.
   if [[ "${WORKER_COUNT}" -eq 0 ]]; then
@@ -133,16 +309,14 @@ EOF
   fi
 }
 
-function main() {
-  local role
-  role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 
+function main() {
   update_apt_get || err 'Unable to update packages lists.'
   install_apt_get hbase || err 'Unable to install hbase.'
 
   configure_hbase
 
-  if [[ "${role}" == 'Master' ]]; then
+  if [[ "${ROLE}" == 'Master' ]]; then
     systemctl start hbase-master
   else
     systemctl start hbase-regionserver
