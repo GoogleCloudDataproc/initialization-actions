@@ -47,9 +47,9 @@ function download_atlas(){
 function configure_solr(){
   if [[ $(hostname) == "${MASTER}" ]]; then
     # configure Solr only on the one actual Master node
-    su solr -c "/opt/solr/bin/solr create -c vertex_index -d /etc/atlas/conf/solr -shards 3"
-    su solr -c "/opt/solr/bin/solr create -c edge_index -d /etc/atlas/conf/solr -shards 3"
-    su solr -c "/opt/solr/bin/solr create -c fulltext_index -d /etc/atlas/conf/solr -shards 3"
+    runuser -l solr -s /bin/bash -c "/usr/lib/solr/bin/solr create -c vertex_index -d /etc/atlas/conf/solr -shards 3"
+    runuser -l solr -s /bin/bash -c "/usr/lib/solr/bin/solr create -c edge_index -d /etc/atlas/conf/solr -shards 3"
+    runuser -l solr -s /bin/bash -c "/usr/lib/solr/bin/solr create -c fulltext_index -d /etc/atlas/conf/solr -shards 3"
   fi
 }
 
