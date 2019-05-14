@@ -64,6 +64,7 @@ public class GoogleCloudStorageFileSystemOptions {
     private PathCodec pathCodec = GoogleCloudStorageFileSystem.URI_ENCODED_PATH_CODEC;
     private boolean enableBucketDelete = false;
     private String markerFilePattern = null;
+    private boolean statusParallelEnabled = false;
 
     public Builder setIsPerformanceCacheEnabled(boolean performanceCacheEnabled) {
       this.performanceCacheEnabled = performanceCacheEnabled;
@@ -180,6 +181,15 @@ public class GoogleCloudStorageFileSystemOptions {
       return this;
     }
 
+    /**
+     * Enables parallel execution of GCS requests in {@code listFileInfo} and {@code getFileInfo}
+     * methods to reduce latency.
+     */
+    public Builder setStatusParallelEnabled(boolean statusParallelEnabled) {
+      this.statusParallelEnabled = statusParallelEnabled;
+      return this;
+    }
+
     public GoogleCloudStorageFileSystemOptions build() {
       return new GoogleCloudStorageFileSystemOptions(
           immutablePerformanceCacheOptions != null
@@ -192,7 +202,8 @@ public class GoogleCloudStorageFileSystemOptions {
           shouldIncludeInTimestampUpdatesPredicate,
           pathCodec,
           enableBucketDelete,
-          markerFilePattern);
+          markerFilePattern,
+          statusParallelEnabled);
     }
   }
 
@@ -207,6 +218,7 @@ public class GoogleCloudStorageFileSystemOptions {
   private final PathCodec pathCodec;
   private final boolean enableBucketDelete;
   private final Pattern markerFilePattern;
+  private final boolean statusParallelEnabled;
 
   public GoogleCloudStorageFileSystemOptions(
       PerformanceCachingGoogleCloudStorageOptions performanceCacheOptions,
@@ -215,7 +227,8 @@ public class GoogleCloudStorageFileSystemOptions {
       TimestampUpdatePredicate shouldIncludeInTimestampUpdatesPredicate,
       PathCodec pathCodec,
       boolean enableBucketDelete,
-      String markerFilePattern) {
+      String markerFilePattern,
+      boolean statusParallelEnabled) {
     this.performanceCacheOptions = performanceCacheOptions;
     this.performanceCacheEnabled = performanceCacheEnabled;
     this.cloudStorageOptions = cloudStorageOptions;
@@ -223,6 +236,7 @@ public class GoogleCloudStorageFileSystemOptions {
     this.pathCodec = pathCodec;
     this.enableBucketDelete = enableBucketDelete;
     this.markerFilePattern = Pattern.compile("^(.+/)?" + markerFilePattern + "$");
+    this.statusParallelEnabled = statusParallelEnabled;
   }
 
   public PerformanceCachingGoogleCloudStorageOptions getPerformanceCacheOptions() {
@@ -253,11 +267,15 @@ public class GoogleCloudStorageFileSystemOptions {
     return markerFilePattern;
   }
 
+  public boolean isStatusParallelEnabled() {
+    return statusParallelEnabled;
+  }
+
   public void throwIfNotValid() {
     checkNotNull(
         shouldIncludeInTimestampUpdatesPredicate,
         "Predicate for ignored directory updates should not be null."
-            + " Consider Predicates.alwasyTrue");
+            + " Consider Predicates.alwaysTrue");
     cloudStorageOptions.throwIfNotValid();
   }
 }

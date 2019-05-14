@@ -204,6 +204,14 @@ public class GoogleHadoopFileSystemConfiguration {
               PerformanceCachingGoogleCloudStorageOptions.LIST_CACHING_ENABLED);
 
   /**
+   * If true, executes GCS requests in {@code listStatus} and {@code getFileStatus} methods in
+   * parallel to reduce latency.
+   */
+  public static final GoogleHadoopFileSystemConfigurationProperty<Boolean>
+      GCS_STATUS_PARALLEL_ENABLE =
+          new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.status.parallel.enable", false);
+
+  /**
    * Configuration key for whether or not we should update timestamps for parent directories when we
    * create new files in them.
    */
@@ -498,7 +506,8 @@ public class GoogleHadoopFileSystemConfiguration {
             .setMarkerFilePattern(GCS_MARKER_FILE_PATTERN.get(config, config::get))
             .setIsPerformanceCacheEnabled(
                 GCS_PERFORMANCE_CACHE_ENABLE.get(config, config::getBoolean))
-            .setImmutablePerformanceCachingOptions(getPerformanceCachingOptions(config));
+            .setImmutablePerformanceCachingOptions(getPerformanceCachingOptions(config))
+            .setStatusParallelEnabled(GCS_STATUS_PARALLEL_ENABLE.get(config, config::getBoolean));
 
     String projectId = GCS_PROJECT_ID.get(config, config::get);
     gcsFsOptionsBuilder

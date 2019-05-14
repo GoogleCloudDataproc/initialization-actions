@@ -31,6 +31,9 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
 
+  private static final String GET_REQUEST_FORMAT =
+      "GET:https://www.googleapis.com/storage/v1/b/%s/o/%s";
+
   private static final String UPLOAD_REQUEST_FORMAT =
       "POST:https://www.googleapis.com/upload/storage/v1/b/%s/o?uploadType=multipart:%s";
 
@@ -80,13 +83,26 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
     requests.clear();
   }
 
-  public static String uploadRequestString(String bucketName, String dirObject) {
-    return String.format(UPLOAD_REQUEST_FORMAT, bucketName, dirObject + "/");
+  public static String getRequestString(String bucketName, String object) {
+    return String.format(GET_REQUEST_FORMAT, bucketName, object);
+  }
+
+  public static String uploadRequestString(String bucketName, String object) {
+    return String.format(UPLOAD_REQUEST_FORMAT, bucketName, object);
   }
 
   public static String listRequestString(
       String bucket, String prefix, int maxResults, String pageToken) {
-    boolean includeTrailingDelimiter = false;
+    return listRequestString(
+        bucket, /* includeTrailingDelimiter= */ false, prefix, maxResults, pageToken);
+  }
+
+  public static String listRequestString(
+      String bucket,
+      boolean includeTrailingDelimiter,
+      String prefix,
+      int maxResults,
+      String pageToken) {
     String pageTokenParam = pageToken == null ? "" : "&pageToken=" + pageToken;
     return String.format(
         LIST_REQUEST_FORMAT, bucket, includeTrailingDelimiter, maxResults, pageTokenParam, prefix);

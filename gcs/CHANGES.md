@@ -34,6 +34,15 @@
 1.  Remove obsolete `fs.gs.performance.cache.dir.metadata.prefetch.limit`
     property.
 
+1.  Add a property to parallelize GCS requests in `getFileStatus` and
+    `listStatus` methods to reduce latency:
+
+        fs.gs.status.parallel.enable (default: false)
+
+    Setting this property to `true` will cause GCS connector to send more GCS
+    requests which will decrease latency but also increase cost of
+    `getFileStatus` and `listStatus` method calls.
+
 ### 1.9.14 - 2019-02-13
 
 1.  Implement Hadoop File System `concat` method using GCS compose API.

@@ -29,6 +29,7 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage.ListPage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions.TimestampUpdatePredicate;
+import com.google.cloud.hadoop.util.LazyExecutorService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Preconditions;
@@ -1055,11 +1056,20 @@ public class GoogleCloudStorageFileSystem {
     StorageResourceId dirId =
         pathCodec.validatePathAndGetId(FileInfo.convertToDirectoryPath(pathCodec, path), true);
 
-    // To improve performance start to list directory items right away.
-    ExecutorService dirExecutor = Executors.newSingleThreadExecutor(DAEMON_THREAD_FACTORY);
+    ExecutorService dirExecutor =
+        options.isStatusParallelEnabled()
+            ? Executors.newFixedThreadPool(2, DAEMON_THREAD_FACTORY)
+            : new LazyExecutorService();
     try {
       Future<GoogleCloudStorageItemInfo> dirFuture =
           dirExecutor.submit(() -> gcs.getItemInfo(dirId));
+      Future<List<GoogleCloudStorageItemInfo>> dirChildrenFutures =
+          dirExecutor.submit(
+              () ->
+                  dirId.isRoot()
+                      ? gcs.listBucketInfo()
+                      : gcs.listObjectInfo(
+                          dirId.getBucketName(), dirId.getObjectName(), PATH_DELIMITER));
       dirExecutor.shutdown();
 
       if (!pathId.isDirectory()) {
@@ -1073,10 +1083,7 @@ public class GoogleCloudStorageFileSystem {
 
       try {
         GoogleCloudStorageItemInfo dirInfo = dirFuture.get();
-        List<GoogleCloudStorageItemInfo> dirItemInfos =
-            dirId.isRoot()
-                ? gcs.listBucketInfo()
-                : gcs.listObjectInfo(dirId.getBucketName(), dirId.getObjectName(), PATH_DELIMITER);
+        List<GoogleCloudStorageItemInfo> dirItemInfos = dirChildrenFutures.get();
         if (!dirInfo.exists() && dirItemInfos.isEmpty()) {
           throw new FileNotFoundException("Item not found: " + path);
         }
@@ -1124,9 +1131,19 @@ public class GoogleCloudStorageFileSystem {
       return gcs.getItemInfo(resourceId);
     }
     StorageResourceId dirId = FileInfo.convertToDirectoryPath(resourceId);
-    // To improve performance get directory and its child right away.
-    ExecutorService dirExecutor = Executors.newSingleThreadExecutor(DAEMON_THREAD_FACTORY);
+
+    ExecutorService dirExecutor =
+        options.isStatusParallelEnabled()
+            ? resourceId.isDirectory()
+                ? Executors.newSingleThreadExecutor(DAEMON_THREAD_FACTORY)
+                : Executors.newFixedThreadPool(2, DAEMON_THREAD_FACTORY)
+            : new LazyExecutorService();
     try {
+      Future<List<String>> dirChildFuture =
+          dirExecutor.submit(
+              () ->
+                  gcs.listObjectNames(
+                      dirId.getBucketName(), dirId.getObjectName(), PATH_DELIMITER, 1));
       Future<GoogleCloudStorageItemInfo> dirFuture =
           resourceId.isDirectory()
               ? Futures.immediateFuture(gcs.getItemInfo(resourceId))
@@ -1146,9 +1163,7 @@ public class GoogleCloudStorageFileSystem {
           return dirInfo;
         }
 
-        List<String> dirChild =
-            gcs.listObjectNames(dirId.getBucketName(), dirId.getObjectName(), PATH_DELIMITER, 1);
-        if (dirChild.isEmpty()) {
+        if (dirChildFuture.get().isEmpty()) {
           return GoogleCloudStorageItemInfo.createNotFound(resourceId);
         }
 

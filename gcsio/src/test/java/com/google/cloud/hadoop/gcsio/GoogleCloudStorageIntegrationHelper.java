@@ -14,6 +14,8 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -335,6 +337,10 @@ public abstract class GoogleCloudStorageIntegrationHelper {
    * </ul>
    */
   private List<String> getSubdirs(String objectName) {
+    checkArgument(
+        isNullOrEmpty(objectName) || objectName.charAt(0) != '/',
+        "objectName can not start from '/': %s",
+        objectName);
     List<String> subdirs = new ArrayList<>();
     // Create a list of all subdirs.
     // for example,
