@@ -61,7 +61,7 @@ changes the necessary configurations and creates all keytabs necessary for HBase
     gcloud beta dataproc clusters create <CLUSTER_NAME> \
         --initialization-actions gs://dataproc-initialization-actions/hbase/hbase.sh \
         --metadata 'enable-kerberos=true,keytab-bucket=gs://<BUCKET_NAME>' \
-        --optional-component=zookeeper \
+        --optional-components=zookeeper \
         --num-workers 2 \
         --kerberos-root-principal-password-uri="Cloud Storage URI of KMS-encrypted password for Kerberos root principal" \
         --kerberos-kms-key="The URI of the KMS key used to decrypt the root password" \
