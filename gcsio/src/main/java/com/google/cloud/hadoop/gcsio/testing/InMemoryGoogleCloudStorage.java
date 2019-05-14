@@ -107,8 +107,7 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
   }
 
   @Override
-  public synchronized WritableByteChannel create(StorageResourceId resourceId)
-      throws IOException {
+  public synchronized WritableByteChannel create(StorageResourceId resourceId) throws IOException {
     return create(resourceId, CreateObjectOptions.DEFAULT);
   }
 
@@ -116,9 +115,10 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
   public synchronized WritableByteChannel create(
       StorageResourceId resourceId, final CreateObjectOptions options) throws IOException {
     if (!bucketLookup.containsKey(resourceId.getBucketName())) {
-      throw new IOException(String.format(
-          "Tried to insert object '%s' into nonexistent bucket '%s'",
-          resourceId.getObjectName(), resourceId.getBucketName()));
+      throw new IOException(
+          String.format(
+              "Tried to insert object '%s' into nonexistent bucket '%s'",
+              resourceId.getObjectName(), resourceId.getBucketName()));
     }
     if (!validateObjectName(resourceId.getObjectName())) {
       throw new IOException("Error creating object. Invalid name: " + resourceId.getObjectName());
@@ -137,19 +137,38 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
         throw new FileAlreadyExistsException(String.format("%s exists.", resourceId));
       }
     }
-    InMemoryObjectEntry entry = new InMemoryObjectEntry(
-        resourceId.getBucketName(),
-        resourceId.getObjectName(),
-        clock.currentTimeMillis(),
-        options.getContentType(),
-        options.getMetadata());
+    InMemoryObjectEntry entry =
+        new InMemoryObjectEntry(
+            resourceId.getBucketName(),
+            resourceId.getObjectName(),
+            clock.currentTimeMillis(),
+            options.getContentType(),
+            options.getMetadata());
     bucketLookup.get(resourceId.getBucketName()).add(entry);
     return entry.getWriteChannel();
   }
 
   @Override
-  public synchronized void createEmptyObject(StorageResourceId resourceId)
+  public synchronized void create(String bucketName) throws IOException {
+    create(bucketName, CreateBucketOptions.DEFAULT);
+  }
+
+  @Override
+  public synchronized void create(String bucketName, CreateBucketOptions options)
       throws IOException {
+    if (!validateBucketName(bucketName)) {
+      throw new IOException("Error creating bucket. Invalid name: " + bucketName);
+    }
+    if (!bucketLookup.containsKey(bucketName)) {
+      bucketLookup.put(
+          bucketName, new InMemoryBucketEntry(bucketName, clock.currentTimeMillis(), options));
+    } else {
+      throw new IOException("Bucket '" + bucketName + "'already exists");
+    }
+  }
+
+  @Override
+  public synchronized void createEmptyObject(StorageResourceId resourceId) throws IOException {
     createEmptyObject(resourceId, CreateObjectOptions.DEFAULT);
   }
 
@@ -249,28 +268,7 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
   }
 
   @Override
-  public synchronized void create(String bucketName)
-      throws IOException {
-    create(bucketName, CreateBucketOptions.DEFAULT);
-  }
-
-  @Override
-  public synchronized void create(String bucketName, CreateBucketOptions options)
-      throws IOException {
-    if (!validateBucketName(bucketName)) {
-      throw new IOException("Error creating bucket. Invalid name: " + bucketName);
-    }
-    if (!bucketLookup.containsKey(bucketName)) {
-      bucketLookup.put(
-          bucketName, new InMemoryBucketEntry(bucketName, clock.currentTimeMillis(), options));
-    } else {
-      throw new IOException("Bucket '" + bucketName + "'already exists");
-    }
-  }
-
-  @Override
-  public synchronized void deleteBuckets(List<String> bucketNames)
-      throws IOException {
+  public synchronized void deleteBuckets(List<String> bucketNames) throws IOException {
     boolean hasError = false;
     for (String bucketName : bucketNames) {
       // TODO(user): Enforcement of not being able to delete non-empty buckets should probably also

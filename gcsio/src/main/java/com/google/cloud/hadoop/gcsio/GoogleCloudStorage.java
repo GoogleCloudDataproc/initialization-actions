@@ -51,18 +51,17 @@ public interface GoogleCloudStorage {
   GoogleCloudStorageOptions getOptions();
 
   /**
-   * Creates and opens an object for writing. The bucket must already exist.
-   * If the object already exists and {@code resourceId} doesn't have a explicit generationId set,
-   * it is deleted. If a generationId is provided in {@code resourceId}, that is used in place
-   * of normal overwrite semantics (overwrite will only succeed if the provided generationId
-   * matches the existing object, where a generationId of 0 indicates no existing object expected).
+   * Creates and opens an object for writing. The bucket must already exist. If the object already
+   * exists and {@code resourceId} doesn't have a explicit generationId set, it is deleted. If a
+   * generationId is provided in {@code resourceId}, that is used in place of normal overwrite
+   * semantics (overwrite will only succeed if the provided generationId matches the existing
+   * object, where a generationId of 0 indicates no existing object expected).
    *
    * @param resourceId identifies a StorageObject
    * @return a channel for writing to the given object
    * @throws IOException on IO error
    */
-  WritableByteChannel create(StorageResourceId resourceId)
-      throws IOException;
+  WritableByteChannel create(StorageResourceId resourceId) throws IOException;
 
   /**
    * Creates and opens an object for writing. The bucket must already exist. If {@code resourceId}
@@ -80,16 +79,32 @@ public interface GoogleCloudStorage {
       throws IOException;
 
   /**
-   * Creates an empty object, useful for placeholders representing, for example, directories.
-   * The bucket must already exist. If the object already exists, it is overwritten.
-   * See {@link #create(StorageResourceId)} for the behavior if StorageResourceId.getGenerationId()
-   * is explicitly set.
+   * Creates a bucket.
+   *
+   * @param bucketName name of the bucket to create
+   * @throws IOException on IO error
+   */
+  void create(String bucketName) throws IOException;
+
+  /**
+   * Creates a bucket.
+   *
+   * @param bucketName name of the bucket to create
+   * @param options options to use when creating bucket
+   * @throws IOException on IO error
+   */
+  void create(String bucketName, CreateBucketOptions options) throws IOException;
+
+  /**
+   * Creates an empty object, useful for placeholders representing, for example, directories. The
+   * bucket must already exist. If the object already exists, it is overwritten. See {@link
+   * #create(StorageResourceId)} for the behavior if StorageResourceId.getGenerationId() is
+   * explicitly set.
    *
    * @param resourceId identifies a StorageObject
    * @throws IOException on IO error
    */
-  void createEmptyObject(StorageResourceId resourceId)
-      throws IOException;
+  void createEmptyObject(StorageResourceId resourceId) throws IOException;
 
   /**
    * Creates an empty object, useful for placeholders representing, for example, directories.
@@ -144,25 +159,6 @@ public interface GoogleCloudStorage {
    * @throws IOException if object exists but cannot be opened
    */
   SeekableByteChannel open(StorageResourceId resourceId, GoogleCloudStorageReadOptions readOptions)
-      throws IOException;
-
-  /**
-   * Creates a bucket.
-   *
-   * @param bucketName name of the bucket to create
-   * @throws IOException on IO error
-   */
-  void create(String bucketName)
-      throws IOException;
-
-  /**
-   * Creates a bucket.
-   *
-   * @param bucketName name of the bucket to create
-   * @param options options to use when creating bucket
-   * @throws IOException on IO error
-   */
-  void create(String bucketName, CreateBucketOptions options)
       throws IOException;
 
   /**

@@ -195,11 +195,10 @@ public class FileInfo {
   }
 
   /**
-   * Converts the given object name to look like a directory path.
-   * If the object name already looks like a directory path then
-   * this call is a no-op.
+   * Converts the given object name to look like a directory path. If the object name already looks
+   * like a directory path then this call is a no-op.
    *
-   * If the object name is null or empty, it is returned as-is.
+   * <p>If the object name is null or empty, it is returned as-is.
    *
    * @param objectName Name of the object to inspect.
    * @return Directory path for the given path.
@@ -209,8 +208,50 @@ public class FileInfo {
   }
 
   /**
+   * Converts the given resourceId to look like a directory path. If the path already looks like a
+   * directory path then this call is a no-op.
+   *
+   * @param resourceId StorageResourceId to convert.
+   * @return A resourceId with a directory path corresponding to the given resourceId.
+   */
+  public static StorageResourceId convertToDirectoryPath(StorageResourceId resourceId) {
+    if (resourceId.isStorageObject()) {
+      if (!objectHasDirectoryPath(resourceId.getObjectName())) {
+        resourceId =
+            new StorageResourceId(
+                resourceId.getBucketName(), convertToDirectoryPath(resourceId.getObjectName()));
+      }
+    }
+    return resourceId;
+  }
+
+  /**
+   * Converts the given path to look like a directory path. If the path already looks like a
+   * directory path then this call is a no-op.
+   *
+   * @param path Path to convert.
+   * @return Directory path for the given path.
+   */
+  public static URI convertToDirectoryPath(PathCodec pathCodec, URI path) {
+    StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, true);
+
+    if (resourceId.isStorageObject()) {
+      if (!objectHasDirectoryPath(resourceId.getObjectName())) {
+        resourceId = convertToDirectoryPath(resourceId);
+        path =
+            pathCodec.getPath(
+                resourceId.getBucketName(),
+                resourceId.getObjectName(),
+                false /* allow empty name */);
+      }
+    }
+    return path;
+  }
+
+  /**
    * Add a key and value representing the current time, as determined by the passed clock, to the
    * passed attributes dictionary.
+   *
    * @param attributes The file attributes map to update
    * @param clock The clock to retrieve the current time from
    */
@@ -270,44 +311,5 @@ public class FileInfo {
    */
   public static boolean isDirectoryPath(URI path) {
     return (path != null) && path.toString().endsWith(GoogleCloudStorage.PATH_DELIMITER);
-  }
-
-  /**
-   * Converts the given resourceId to look like a directory path.
-   * If the path already looks like a directory path then
-   * this call is a no-op.
-   *
-   * @param resourceId StorageResourceId to convert.
-   * @return A resourceId with a directory path corresponding to the given resourceId.
-   */
-  public static StorageResourceId convertToDirectoryPath(StorageResourceId resourceId) {
-    if (resourceId.isStorageObject()) {
-      if (!objectHasDirectoryPath(resourceId.getObjectName())) {
-        resourceId = new StorageResourceId(
-            resourceId.getBucketName(), convertToDirectoryPath(resourceId.getObjectName()));
-      }
-    }
-    return resourceId;
-  }
-
-  /**
-   * Converts the given path to look like a directory path.
-   * If the path already looks like a directory path then
-   * this call is a no-op.
-   *
-   * @param path Path to convert.
-   * @return Directory path for the given path.
-   */
-  public static URI convertToDirectoryPath(PathCodec pathCodec, URI path) {
-    StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, true);
-
-    if (resourceId.isStorageObject()) {
-      if (!objectHasDirectoryPath(resourceId.getObjectName())) {
-        resourceId = convertToDirectoryPath(resourceId);
-        path = pathCodec.getPath(
-            resourceId.getBucketName(), resourceId.getObjectName(), false /* allow empty name */);
-      }
-    }
-    return path;
   }
 }

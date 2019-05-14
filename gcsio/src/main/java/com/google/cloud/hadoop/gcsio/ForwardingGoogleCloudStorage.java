@@ -63,6 +63,18 @@ public class ForwardingGoogleCloudStorage implements GoogleCloudStorage {
   }
 
   @Override
+  public void create(String bucketName) throws IOException {
+    logger.atFine().log("%s.create(%s)", delegateClassName, bucketName);
+    delegate.create(bucketName);
+  }
+
+  @Override
+  public void create(String bucketName, CreateBucketOptions options) throws IOException {
+    logger.atFine().log("%s.create(%s, %s)", delegateClassName, bucketName, options);
+    delegate.create(bucketName, options);
+  }
+
+  @Override
   public void createEmptyObject(StorageResourceId resourceId) throws IOException {
     logger.atFine().log("%s.createEmptyObject(%s)", delegateClassName, resourceId);
     delegate.createEmptyObject(resourceId);
@@ -99,18 +111,6 @@ public class ForwardingGoogleCloudStorage implements GoogleCloudStorage {
       StorageResourceId resourceId, GoogleCloudStorageReadOptions readOptions) throws IOException {
     logger.atFine().log("%s.open(%s, %s)", delegateClassName, resourceId, readOptions);
     return delegate.open(resourceId, readOptions);
-  }
-
-  @Override
-  public void create(String bucketName) throws IOException {
-    logger.atFine().log("%s.create(%s)", delegateClassName, bucketName);
-    delegate.create(bucketName);
-  }
-
-  @Override
-  public void create(String bucketName, CreateBucketOptions options) throws IOException {
-    logger.atFine().log("%s.create(%s, %s)", delegateClassName, bucketName, options);
-    delegate.create(bucketName, options);
   }
 
   @Override
