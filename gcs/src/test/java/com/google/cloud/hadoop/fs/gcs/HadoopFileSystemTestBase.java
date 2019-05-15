@@ -310,8 +310,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     byte[] textBytes = text.getBytes(UTF_8);
     URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
     Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
-    FSDataOutputStream writeStream = null;
-    writeStream = ghfs.create(hadoopPath);
+    FSDataOutputStream writeStream = ghfs.create(hadoopPath);
 
     // Write one byte at a time.
     for (byte b : textBytes) {
