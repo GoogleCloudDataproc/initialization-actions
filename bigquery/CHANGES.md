@@ -16,6 +16,10 @@
 
 1.  Remove dependency on GCS connector code.
 
+1.  Add a property to specify BigQuery tables partitioning definition:
+
+        mapred.bq.output.table.partitioning
+
 ### 0.13.14 - 2019-02-13
 
 1.  POM updates for GCS connector 1.9.14.

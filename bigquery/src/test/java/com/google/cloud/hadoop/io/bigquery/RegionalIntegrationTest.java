@@ -221,8 +221,9 @@ public class RegionalIntegrationTest {
             .setProjectId(PROJECT_ID)
             .setDatasetId(DATASET_ID)
             .setTableId("shakespeare"),
-        null,
-        null,
+        /* schema= */ null,
+        /* timePartitioning= */ null,
+        /* kmsKeyName= */ null,
         BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
         "WRITE_EMPTY",
         ImmutableList.of("gs://" + testBucket + "/shakespeare"),

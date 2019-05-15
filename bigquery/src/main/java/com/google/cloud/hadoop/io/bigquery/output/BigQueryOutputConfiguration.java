@@ -15,6 +15,7 @@ package com.google.cloud.hadoop.io.bigquery.output;
 
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.BigQueryStrings;
@@ -309,6 +310,31 @@ public class BigQueryOutputConfiguration {
       } catch (IOException e) {
         throw new IOException(
             "Unable to parse key '" + BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY + "'.", e);
+      }
+    }
+    return Optional.empty();
+  }
+
+  /**
+   * Gets the output table time partitioning based on the given configuration.
+   *
+   * @param conf the configuration to reference the keys from.
+   * @return the derived table time partitioning, absent value if no table time partitioning exists
+   *     in the configuration.
+   * @throws IOException if a table time partitioning was set in the configuration but couldn't be
+   *     parsed.
+   */
+  static Optional<BigQueryTimePartitioning> getTablePartitioning(Configuration conf)
+      throws IOException {
+    String fieldsJson = conf.get(BigQueryConfiguration.OUTPUT_TABLE_PARTITIONING_KEY);
+    if (!Strings.isNullOrEmpty(fieldsJson)) {
+      try {
+        TimePartitioning tablePartitioning = BigQueryTimePartitioning.getFromJson(fieldsJson);
+        return Optional.of(BigQueryTimePartitioning.wrap(tablePartitioning));
+      } catch (IOException e) {
+        throw new IOException(
+            "Unable to parse key '" + BigQueryConfiguration.OUTPUT_TABLE_PARTITIONING_KEY + "'.",
+            e);
       }
     }
     return Optional.empty();

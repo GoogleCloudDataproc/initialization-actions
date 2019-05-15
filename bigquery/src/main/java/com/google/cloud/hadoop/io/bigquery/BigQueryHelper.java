@@ -13,6 +13,8 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.common.flogger.LazyArgs.lazy;
+
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.Bigquery.Jobs.Insert;
 import com.google.api.services.bigquery.model.Dataset;
@@ -26,6 +28,7 @@ import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -114,6 +117,7 @@ public class BigQueryHelper {
    * @param projectId the project on whose behalf to perform the load.
    * @param tableRef the reference to the destination table.
    * @param schema the schema of the source data to populate the destination table by.
+   * @param timePartitioning time partitioning to populate the destination table.
    * @param kmsKeyName the Cloud KMS encryption key used to protect the output table.
    * @param sourceFormat the file format of the source data.
    * @param writeDisposition the write disposition of the output table.
@@ -127,6 +131,7 @@ public class BigQueryHelper {
       String projectId,
       TableReference tableRef,
       @Nullable TableSchema schema,
+      @Nullable TimePartitioning timePartitioning,
       @Nullable String kmsKeyName,
       BigQueryFileFormat sourceFormat,
       String writeDisposition,
@@ -134,11 +139,13 @@ public class BigQueryHelper {
       boolean awaitCompletion)
       throws IOException, InterruptedException {
     logger.atInfo().log(
-        "Importing into table '%s' from %s paths; path[0] is '%s'; awaitCompletion: %s",
-        BigQueryStrings.toString(tableRef),
+        "Importing into table '%s' from %s paths; path[0] is '%s'; awaitCompletion: %s;"
+            + " timePartitioning: %s",
+        lazy(() -> BigQueryStrings.toString(tableRef)),
         gcsPaths.size(),
         gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0),
-        awaitCompletion);
+        awaitCompletion,
+        timePartitioning);
 
     // Create load conf with minimal requirements.
     JobConfigurationLoad loadConfig = new JobConfigurationLoad();
@@ -146,6 +153,7 @@ public class BigQueryHelper {
     loadConfig.setSourceFormat(sourceFormat.getFormatIdentifier());
     loadConfig.setSourceUris(gcsPaths);
     loadConfig.setDestinationTable(tableRef);
+    loadConfig.setTimePartitioning(timePartitioning);
     loadConfig.setWriteDisposition(writeDisposition);
     if (!Strings.isNullOrEmpty(kmsKeyName)) {
       loadConfig.setDestinationEncryptionConfiguration(

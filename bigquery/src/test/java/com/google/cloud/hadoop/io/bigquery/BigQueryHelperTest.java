@@ -182,6 +182,7 @@ public class BigQueryHelperTest {
         jobProjectId,
         tableRef,
         fakeTableSchema,
+        /* timePartitioning= */ null,
         kmsKeyName,
         BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
         BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_DEFAULT,

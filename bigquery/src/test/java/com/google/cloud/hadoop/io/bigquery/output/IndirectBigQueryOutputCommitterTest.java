@@ -26,6 +26,7 @@ import static org.mockito.Mockito.when;
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
+import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
@@ -68,6 +69,10 @@ public class IndirectBigQueryOutputCommitterTest {
   /** Sample qualified tableId for output. */
   private static final String QUALIFIED_TEST_TABLE_ID =
       String.format("%s:%s.%s", TEST_PROJECT_ID, TEST_DATASET_ID, TEST_TABLE_ID);
+
+  /** Sample table time partitioning used for output. */
+  private static final BigQueryTimePartitioning TEST_TIME_PARTITIONING =
+      BigQueryTimePartitioning.wrap(new TimePartitioning().setType("DAY"));
 
   /** Sample output file format for the committer. */
   private static final BigQueryFileFormat TEST_FILE_FORMAT =
@@ -151,6 +156,8 @@ public class IndirectBigQueryOutputCommitterTest {
         TEST_FILE_FORMAT,
         TEST_OUTPUT_CLASS);
     BigQueryOutputConfiguration.setKmsKeyName(conf, TEST_KMS_KEY_NAME);
+    conf.set(
+        BigQueryConfiguration.OUTPUT_TABLE_PARTITIONING_KEY, TEST_TIME_PARTITIONING.getAsJson());
 
     // Setup sample data.
     outputTableRef = BigQueryOutputConfiguration.getTableReference(conf);
@@ -204,6 +211,7 @@ public class IndirectBigQueryOutputCommitterTest {
             eq(TEST_PROJECT_ID),
             eq(outputTableRef),
             eq(TEST_TABLE_SCHEMA.get()),
+            eq(TEST_TIME_PARTITIONING.get()),
             eq(TEST_KMS_KEY_NAME),
             eq(TEST_FILE_FORMAT),
             eq(TEST_WRITE_DISPOSITION),
@@ -234,6 +242,7 @@ public class IndirectBigQueryOutputCommitterTest {
             any(String.class),
             any(TableReference.class),
             any(TableSchema.class),
+            any(TimePartitioning.class),
             anyString(),
             any(BigQueryFileFormat.class),
             any(String.class),
@@ -249,6 +258,7 @@ public class IndirectBigQueryOutputCommitterTest {
             eq(TEST_PROJECT_ID),
             eq(outputTableRef),
             eq(TEST_TABLE_SCHEMA.get()),
+            eq(TEST_TIME_PARTITIONING.get()),
             eq(TEST_KMS_KEY_NAME),
             eq(TEST_FILE_FORMAT),
             eq(TEST_WRITE_DISPOSITION),
