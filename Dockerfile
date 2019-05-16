@@ -5,4 +5,4 @@ COPY dummy_script.py /
 RUN sudo apt-get update
 RUN sudo apt-get install python
 
-CMD ["/dummy_script.py"]
+CMD ["python", "./dummy_script.py"]
