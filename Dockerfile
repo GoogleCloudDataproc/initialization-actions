@@ -1,3 +1,8 @@
 FROM alpine
 COPY main.sh /
-CMD ["/main.sh"]
+COPY dummy_script.py /
+
+RUN sudo apt-get update
+RUN sudo apt-get install python
+
+CMD ["/dummy_script.py"]
