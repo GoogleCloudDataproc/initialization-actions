@@ -2,8 +2,9 @@ steps:
 - name: 'gcr.io/cloud-builders/docker'
   args: [ 'build', '-t', 'gcr.io/google.com/hadoop-cloud-dev/dataproc-init-actions-image', '.' ]
 - name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-f', 'Dockerfile', '-t', 'script_runner', '.']
-- name: 'script-runner'
-  args: ['bash', './main.sh']
+  args: ['build', '-f', 'Dockerfile', '-t', 'gcr.io/google.com/hadoop-cloud-dev/dataproc-docker-image', '.']
+# - name: 'script-runner'
+#   args: ['bash', './main.sh']
 images:
 - 'gcr.io/google.com/hadoop-cloud-dev/dataproc-init-actions-image'
+- 'gcr.io/google.com/hadoop-cloud-dev/dataproc-docker-image'
