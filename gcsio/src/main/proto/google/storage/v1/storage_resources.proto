@@ -1,0 +1,764 @@
+syntax = "proto3";
+
+package google.storage.v1;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+
+option java_package = "com.google.google.storage.v1";
+option java_outer_classname = "CloudStorageResourcesProto";
+option java_multiple_files = true;
+
+// A bucket.
+message Bucket {
+  message Billing {
+    // When set to true, Requester Pays is enabled for this bucket.
+    bool requester_pays = 1;
+  }
+
+  message Cors {
+    // The list of <a href="https://tools.ietf.org/html/rfc6454">Origins</a>
+    // eligible to receive CORS response headers. Note: "*" is permitted in the
+    // list of origins, and means "any Origin".
+    repeated string origin = 1;
+
+    // The list of HTTP methods on which to include CORS response headers,
+    // (<code>GET</code>, <code>OPTIONS</code>, <code>POST</code>, etc) Note:
+    // "*" is permitted in the list of methods, and means "any method".
+    repeated string method = 2;
+
+    // The list of HTTP headers other than the <a
+    // href="https://www.w3.org/TR/cors/#simple-response-header">simple response
+    // headers</a> to give permission for the user-agent to share across
+    // domains.
+    repeated string response_header = 3;
+
+    // The value, in seconds, to return in the <a
+    // href="https://www.w3.org/TR/cors/#access-control-max-age-response-header">
+    // Access-Control-Max-Age header</a> used in preflight responses.
+    int32 max_age_seconds = 4;
+  }
+
+  message Encryption {
+    // A Cloud KMS key that will be used to encrypt objects inserted into this
+    // bucket, if no encryption method is specified.
+    string default_kms_key_name = 1;
+  }
+
+  message Lifecycle {
+    message Rule {
+      message Action {
+        // Type of the action. Currently, only <code>Delete</code> and
+        // <code>SetStorageClass</code> are supported.
+        string type = 1;
+
+        // Target storage class. Required iff the type of the action is
+        // SetStorageClass.
+        string storage_class = 2;
+      }
+      message Condition {
+        // Age of an object (in days). This condition is satisfied when an
+        // object reaches the specified age.
+        int32 age = 1;
+
+        // A date in <a href="https://tools.ietf.org/html/rfc3339">RFC 3339</a>
+        // format with only the date part (for instance, "2013-01-15"). This
+        // condition is satisfied when an object is created before midnight of
+        // the specified date in UTC.
+        google.protobuf.Timestamp created_before = 2;
+
+        // Relevant only for versioned objects. If the value is
+        // <code>true</code>, this condition matches live objects; if the value
+        // is <code>false</code>, it matches archived objects.
+        google.protobuf.BoolValue is_live = 3;
+
+        // Relevant only for versioned objects. If the value is <code>N</code>,
+        // this condition is satisfied when there are at least <code>N</code>
+        // versions (including the live version) newer than this version of the
+        // object.
+        int32 num_newer_versions = 4;
+
+        // Objects having any of the storage classes specified by this condition
+        // will be matched. Values include <code>MULTI_REGIONAL</code>,
+        // <code>REGIONAL</code>, <code>NEARLINE</code>, <code>COLDLINE</code>,
+        // <code>STANDARD</code>, and <code>DURABLE_REDUCED_AVAILABILITY</code>.
+        repeated string matches_storage_class = 5;
+
+        // A regular expression that satisfies the RE2 syntax. This condition is
+        // satisfied when the name of the object matches the RE2 pattern.  Note:
+        // This feature is currently in the "Early Access" launch stage and is
+        // only available to a whitelisted set of users; that means that this
+        // feature may be changed in backward-incompatible ways and that it is
+        // not guaranteed to be released.
+        string matches_pattern = 6;
+      }
+
+      // The action to take.
+      Action action = 1;
+
+      // The condition(s) under which the action will be taken.
+      Condition condition = 2;
+    }
+
+    // A lifecycle management rule, which is made of an action to take and the
+    // condition(s) under which the action will be taken.
+    repeated Rule rule = 1;
+  }
+
+  message Logging {
+    // The destination bucket where the current bucket's logs should be placed.
+    string log_bucket = 1;
+
+    // A prefix for log object names.
+    string log_object_prefix = 2;
+  }
+
+  message RetentionPolicy {
+    // Server-determined value that indicates the time from which policy was
+    // enforced and effective. This value is in <a
+    // href="https://tools.ietf.org/html/rfc3339">RFC 3339</a> format.
+    google.protobuf.Timestamp effective_time = 1
+;
+
+    // Once locked, an object retention policy cannot be modified.
+    bool is_locked = 2;
+
+    // The duration in seconds that objects need to be retained. Retention
+    // duration must be greater than zero and less than 100 years. Note that
+    // enforcement of retention periods less than a day is not guaranteed. Such
+    // periods should only be used for testing purposes.
+    int64 retention_period = 3;
+  }
+
+  message Versioning {
+    // While set to true, versioning is fully enabled for this bucket.
+    bool enabled = 1;
+  }
+
+  message Website {
+    // If the requested object path is missing, the service will ensure the path
+    // has a trailing '/', append this suffix, and attempt to retrieve the
+    // resulting object. This allows the creation of <code>index.html</code>
+    // objects to represent directory pages.
+    string main_page_suffix = 1;
+
+    // If the requested object path is missing, and any
+    // <code>mainPageSuffix</code> object is missing, if applicable, the service
+    // will return the named object from this bucket as the content for a <a
+    // href="https://tools.ietf.org/html/rfc7231#section-6.5.4"><code>404 Not
+    // Found</code></a> result.
+    string not_found_page = 2;
+  }
+
+  // Access controls on the bucket.
+  repeated BucketAccessControl acl = 1;
+
+  // Default access controls to apply to new objects when no ACL is provided.
+  repeated ObjectAccessControl default_object_acl = 2;
+
+  // The bucket's lifecycle configuration. See <a
+  // href="https://developers.google.com/storage/docs/lifecycle">lifecycle
+  // management<a> for more information.
+  Lifecycle lifecycle = 3;
+
+  // The creation time of the bucket in <a
+  // href="https://tools.ietf.org/html/rfc3339">RFC 3339</a> format.
+  // Attempting to set this field will result in an error.
+  google.protobuf.Timestamp time_created = 4;
+
+  // The ID of the bucket. For buckets, the <code>id</code> and
+  // <code>name</code> properties are the same.
+  // Attempting to update this field after the bucket is created will result in
+  // an error.
+  string id = 5;
+
+  // The name of the bucket.
+  // Attempting to update this field after the bucket is created will result in
+  // an error.
+  string name = 6;
+
+  // The project number of the project the bucket belongs to.
+  // Attempting to set this field will result in an error.
+  int64 project_number = 7
+;
+
+  // The metadata generation of this bucket.
+  // Attempting to set this field will result in an error.
+  int64 metageneration = 8;
+
+  // The bucket's <a href="https://www.w3.org/TR/cors/">Cross-Origin Resource
+  // Sharing</a> (CORS) configuration.
+  repeated Cors cors = 9;
+
+  // The location of the bucket. Object data for objects in the bucket resides
+  // in physical storage within this region.  Defaults to <code>US</code>. See
+  // the <a
+  // href="https://developers.google.com/storage/docs/concepts-techniques#specifyinglocations">
+  // developer's guide</a> for the authoritative list.
+  // Attempting to update this field after the bucket is created will result in
+  // an error.
+  string location = 10;
+
+  // The bucket's default storage class, used whenever no storageClass is
+  // specified for a newly-created object. This defines how objects in the
+  // bucket are stored and determines the SLA and the cost of storage.  Values
+  // include <code>MULTI_REGIONAL</code>, <code>REGIONAL</code>,
+  // <code>STANDARD</code>, <code>NEARLINE</code>, <code>COLDLINE</code>, and
+  // <code>DURABLE_REDUCED_AVAILABILITY</code>. If this value is not specified
+  // when the bucket is created, it will default to <code>STANDARD</code>. For
+  // more information, see <a href="/storage/docs/storage-classes">storage
+  // classes</a>.
+  string storage_class = 11;
+
+  // HTTP 1.1 <a href="https://tools.ietf.org/html/rfc7232#section-2.3">Entity
+  // tag</a> for the bucket.
+  // Attempting to set this field will result in an error.
+  string etag = 12;
+
+  // The modification time of the bucket in <a
+  // href="https://tools.ietf.org/html/rfc3339">RFC 3339</a> format.
+  // Attempting to set this field will result in an error.
+  google.protobuf.Timestamp updated = 13
+;
+
+  // The default value for event-based hold on newly created objects in this
+  // bucket.  Event-based hold is a way to retain objects indefinitely until an
+  // event occurs, signified by the
+  // hold's release. After being released, such objects will be subject to
+  // bucket-level retention (if any).  One sample use case of this flag is for
+  // banks to hold loan documents for at least 3 years after loan is paid in
+  // full. Here, bucket-level retention is 3 years and the event is loan being
+  // paid in full. In this example, these objects will be held intact for any
+  // number of years until the event has occurred (event-based hold on the
+  // object is released) and then 3 more years after that. That means retention
+  // duration of the objects begins from the moment event-based hold
+  // transitioned from true to false.  Objects under event-based hold cannot be
+  // deleted, overwritten or archived until the hold is removed.
+  bool default_event_based_hold = 14;
+
+  // User-provided labels, in key/value pairs.
+  map<string, string> labels = 15;
+
+  // The bucket's website configuration, controlling how the service behaves
+  // when accessing bucket contents as a web site. See the <a
+  // href="https://cloud.google.com/storage/docs/static-website">Static Website
+  // Examples</a> for more information.
+  Website website = 16;
+
+  // The bucket's versioning configuration.
+  Versioning versioning = 17;
+
+  // The bucket's logging configuration, which defines the destination bucket
+  // and optional name prefix for the current bucket's logs.
+  Logging logging = 18;
+
+  // The owner of the bucket. This is always the project team's owner group.
+  Owner owner = 19;
+
+  // Encryption configuration for a bucket.
+  Encryption encryption = 20;
+
+  // The bucket's billing configuration.
+  Billing billing = 21;
+
+  // The bucket's retention policy. The retention policy enforces a minimum
+  // retention time for all objects contained in the bucket, based on their
+  // creation time. Any attempt to overwrite or delete objects younger than the
+  // retention period will result in a PERMISSION_DENIED error.  An unlocked
+  // retention policy can be modified or removed from the bucket via a
+  // storage.buckets.update operation. A locked retention policy cannot be
+  // removed or shortened in duration for the lifetime of the bucket.
+  // Attempting to remove or decrease period of a locked retention policy will
+  // result in a PERMISSION_DENIED error.
+  RetentionPolicy retention_policy = 22;
+}
+
+// An access-control entry.
+message BucketAccessControl {
+  // The access permission for the entity.
+  string role = 1;
+
+  // HTTP 1.1 <a href="https://tools.ietf.org/html/rfc7232#section-2.3">Entity
+  // tag</a> for the access-control entry.
+  string etag = 2;
+
+  // The ID of the access-control entry.
+  string id = 3;
+
+  // The name of the bucket.
+  string bucket = 4;
+
+  // The entity holding the permission, in one of the following forms:
+  // <ul><li><code>user-<var>userId</var></code></li>
+  // <li><code>user-<var>email</var></code></li>
+  // <li><code>group-<var>groupId</var></code></li>
+  // <li><code>group-<var>email</var></code></li>
+  // <li><code>domain-<var>domain</var></code></li>
+  // <li><code>project-<var>team</var>-<var>projectId</var></code></li>
+  // <li><code>allUsers</code></li>
+  // <li><code>allAuthenticatedUsers</code></li></ul>  Examples: <ul><li>The
+  // user <code>liz@example.com</code> would be
+  // <code>user-liz@example.com</code>.</li> <li>The group
+  // <code>example@googlegroups.com</code> would be
+  // <code>group-example@googlegroups.com</code>.</li> <li>To refer to all
+  // members of the Google Apps for Business domain <code>example.com</code>,
+  // the entity would be <code>domain-example.com</code>.</li></ul>
+  string entity = 6;
+
+  // The ID for the entity, if any.
+  string entity_id = 7;
+
+  // The email address associated with the entity, if any.
+  string email = 8;
+
+  // The domain associated with the entity, if any.
+  string domain = 9;
+
+  // The project team associated with the entity, if any.
+  ProjectTeam project_team = 10;
+}
+
+// An access-control list.
+message BucketAccessControls {
+  // The list of items.
+  repeated BucketAccessControl items = 1;
+}
+
+// A list of buckets.
+message Buckets {
+  // The list of items.
+  repeated Bucket items = 1;
+
+  // The continuation token, used to page through large result sets. Provide
+  // this value in a subsequent request to return the next page of results.
+  string next_page_token = 2;
+}
+
+// An notification channel used to watch for resource changes.
+message Channel {
+  // A UUID or similar unique string that identifies this channel.
+  string id = 1;
+
+  // An opaque ID that identifies the resource being watched on this channel.
+  // Stable across different API versions.
+  string resource_id = 2;
+
+  // A version-specific identifier for the watched resource.
+  string resource_uri = 3;
+
+  // An arbitrary string delivered to the target address with each notification
+  // delivered over this channel. Optional.
+  string token = 4;
+
+  // Date and time of notification channel expiration, expressed as a Unix
+  // timestamp, in milliseconds. Optional.
+  google.protobuf.Timestamp expiration = 5
+;
+
+  // The type of delivery mechanism used for this channel.
+  string type = 6;
+
+  // The address where notifications are delivered for this channel.
+  string address = 7;
+
+  // Additional parameters controlling delivery channel behavior. Optional.
+  map<string, string> params = 8;
+
+  // A Boolean value to indicate whether payload is wanted. Optional.
+  bool payload = 9;
+}
+
+// A channels list response.
+message Channels {
+  message Items {
+    // User-specified name for a channel. Needed to unsubscribe.
+    string channel_id = 1;
+
+    // Opaque value generated by GCS representing a bucket. Needed to
+    // unsubscribe.
+    string resource_id = 2;
+
+    // Url used to identify where notifications are sent to.
+    string push_url = 3;
+
+    // Email address of the subscriber.
+    string subscriber_email = 4;
+
+    // Time when the channel was created.
+    google.protobuf.Timestamp creation_time = 5;
+  }
+
+  // The list of notification channels for a bucket.
+  repeated Items items = 1;
+}
+
+// Message used for storing resource checksums.
+message Checksums {
+  // CRC32C digest of the object data. Computed by the GCS service for
+  // all written objects, and validated by the GCS service against
+  // client-supplied values if present in an InsertObjectRequest.
+  google.protobuf.UInt32Value crc32c = 1;
+
+  // Hex-encoded MD5 hash of the object data (hexdigest). Whether/how this
+  // checksum is provided and validated is service-dependent.
+  string md5_hash = 2;
+}
+
+message CommonEnums {
+  enum Projection {
+    // Omit <code>owner</code>, <code>acl</code> and
+    // <code>defaultObjectAcl</code> properties.
+    NO_ACL = 0;
+
+    // Include all properties.
+    FULL = 1;
+  }
+  enum PredefinedAcl {
+    PREDEFINED_ACL_UNDEFINED = 0;
+
+    // Project team owners get <code>OWNER</code> access, and
+    // <code>allAuthenticatedUsers</code> get <code>READER</code> access.
+    AUTHENTICATED_READ = 1;
+
+    // Project team owners get <code>OWNER</code> access.
+    PRIVATE = 2;
+
+    // Project team members get access according to their roles.
+    PROJECT_PRIVATE = 3;
+
+    // Project team owners get <code>OWNER</code> access, and
+    // <code>allUsers</code> get <code>READER</code> access.
+    PUBLIC_READ = 4;
+
+    // Project team owners get <code>OWNER</code> access, and
+    // <code>allUsers</code> get <code>WRITER</code> access.
+    PUBLIC_READ_WRITE = 5;
+  }
+  enum PredefinedDefaultObjectAcl {
+    PREDEFINED_DEFAULT_OBJECT_ACL_UNDEFINED = 0;
+
+    // Object owner gets <code>OWNER</code> access, and
+    // <code>allAuthenticatedUsers</code> get <code>READER</code> access.
+    DEFAULT_OBJECT_ACL_AUTHENTICATED_READ = 1;
+
+    // Object owner gets <code>OWNER</code> access, and project team owners get
+    // <code>OWNER</code> access.
+    DEFAULT_OBJECT_ACL_BUCKET_OWNER_FULL_CONTROL = 2;
+
+    // Object owner gets <code>OWNER</code> access, and project team owners get
+    // <code>READER</code> access.
+    DEFAULT_OBJECT_ACL_BUCKET_OWNER_READ = 3;
+
+    // Object owner gets <code>OWNER</code> access.
+    DEFAULT_OBJECT_ACL_PRIVATE = 4;
+
+    // Object owner gets <code>OWNER</code> access, and project team members get
+    // access according to their roles.
+    DEFAULT_OBJECT_ACL_PROJECT_PRIVATE = 5;
+
+    // Object owner gets <code>OWNER</code> access, and <code>allUsers</code>
+    // get <code>READER</code> access.
+    DEFAULT_OBJECT_ACL_PUBLIC_READ = 6;
+  }
+}
+
+message ContentRange {
+  // The starting offset of the object data.
+  int64 start = 1;
+
+  // The ending offset of the object data.
+  int64 end = 2;
+
+  // The complete length of the object data.
+  int64 complete_length = 3;
+}
+
+// A subscription to receive Google PubSub notifications.
+message Notification {
+  // The Cloud PubSub topic to which this subscription publishes. Formatted as:
+  // '//pubsub.googleapis.com/projects/{project-identifier}/topics/{my-topic}'
+  string topic = 1;
+
+  // If present, only send notifications about listed event types. If empty,
+  // sent notifications for all event types.
+  repeated string event_types = 2;
+
+  // An optional list of additional attributes to attach to each Cloud PubSub
+  // message published for this notification subscription.
+  map<string, string> custom_attributes = 3;
+
+  // HTTP 1.1 <a href="https://tools.ietf.org/html/rfc7232#section-2.3">Entity
+  // tag</a> for this subscription notification.
+  string etag = 4;
+
+  // If present, only apply this notification configuration to object names that
+  // begin with this prefix.
+  string object_name_prefix = 5;
+
+  // The desired content of the Payload.
+  string payload_format = 6;
+
+  // The ID of the notification.
+  string id = 7;
+}
+
+// A list of notification subscriptions.
+message Notifications {
+  // The list of items.
+  repeated Notification items = 1;
+}
+
+// An object.
+message Object {
+  message CustomerEncryption {
+    // The encryption algorithm.
+    string encryption_algorithm = 1;
+
+    // SHA256 hash value of the encryption key.
+    string key_sha256 = 2;
+  }
+
+  // <a href="https://tools.ietf.org/html/rfc7231#section-3.1.2.2">
+  // Content-Encoding</a> of the object data.
+  string content_encoding = 1;
+
+  // <a href="https://tools.ietf.org/html/rfc6266">Content-Disposition</a> of
+  // the object data.
+  string content_disposition = 2;
+
+  // <a href="https://tools.ietf.org/html/rfc7234#section-5.2">Cache-Control</a>
+  // directive for the object data. If omitted, and the object is accessible to
+  // all anonymous users, the default will be <code>public, max-age=3600</code>.
+  string cache_control = 3;
+
+  // Access controls on the object.
+  repeated ObjectAccessControl acl = 4;
+
+  // <a href="https://tools.ietf.org/html/rfc7231#section-3.1.3.2">
+  // Content-Language</a> of the object data.
+  string content_language = 5;
+
+  // The version of the metadata for this object at this generation. Used for
+  // preconditions and for detecting changes in metadata. A metageneration
+  // number is only meaningful in the context of a particular generation of a
+  // particular object.
+  // Attempting to set this field will result in an error.
+  int64 metageneration = 6;
+
+  // The deletion time of the object. Will be returned if and only if this
+  // version of the object has been deleted.
+  // Attempting to set this field will result in an error.
+  google.protobuf.Timestamp time_deleted = 7
+;
+
+  // <a
+  // href="https://tools.ietf.org/html/rfc7231#section-3.1.1.5">Content-Type</a>
+  // of the object data. If an object is stored without a Content-Type, it is
+  // served as application/octet-stream.
+  string content_type = 8;
+
+  // <a
+  // href="https://tools.ietf.org/html/rfc7230#section-3.3.2">Content-Length</a>
+  // of the data in bytes.
+  // Attempting to set this field will result in an error.
+  int64 size = 9;
+
+  // The creation time of the object.
+  // Attempting to set this field will result in an error.
+  google.protobuf.Timestamp time_created = 10
+;
+
+  // CRC32c checksum. For more information about using the CRC32c
+  // checksum, see <a
+  // href="https://cloud.google.com/storage/docs/hashes-etags#_JSONAPI">Hashes
+  // and ETags: Best Practices</a>.
+  google.protobuf.UInt32Value crc32c = 11;
+
+  // Number of underlying components that make up this object. Components are
+  // accumulated by compose operations.
+  // Attempting to set this field will result in an error.
+  int32 component_count = 12;
+
+  // MD5 hash of the data; encoded using <a
+  // href="https://tools.ietf.org/html/rfc4648#section-4">base64</a>. For more
+  // information about using the MD5 hash, see <a
+  // href="https://cloud.google.com/storage/docs/hashes-etags#_JSONAPI">Hashes
+  // and ETags: Best Practices</a>.
+  string md5_hash = 13;
+
+  // HTTP 1.1 <a href="https://tools.ietf.org/html/rfc7232#section-2.3">Entity
+  // tag</a> for the object.
+  // Attempting to set this field will result in an error.
+  string etag = 14;
+
+  // The modification time of the object metadata.
+  // Attempting to set this field will result in an error.
+  google.protobuf.Timestamp updated = 15;
+
+  // Storage class of the object.
+  string storage_class = 16;
+
+  // Cloud KMS Key used to encrypt this object, if the object is encrypted by
+  // such a key.
+  string kms_key_name = 17;
+
+  // The time at which the object's storage class was last changed. When the
+  // object is initially created, it will be set to time_created.
+  // Attempting to set this field will result in an error.
+  google.protobuf.Timestamp time_storage_class_updated = 18;
+
+  // Whether an object is under temporary hold. While this flag is set to true,
+  // the object is protected against deletion and overwrites.  A common use case
+  // of this flag is regulatory investigations where objects need to be retained
+  // while the investigation is ongoing. Note that unlike event-based hold,
+  // temporary hold does not impact retention expiration time of an object.
+  bool temporary_hold = 19;
+
+  // A server-determined value that specifies the earliest time that the
+  // object's retention period expires. This value is in
+  // <a href="https://tools.ietf.org/html/rfc3339">RFC 3339</a> format.
+  // Note 1: This field is not provided for objects with an active event-based
+  // hold, since retention expiration is unknown until the hold is removed.
+  // Note 2: This value can be provided even when temporary hold is set (so that
+  // the user can reason about policy without having to first unset the
+  // temporary hold).
+  google.protobuf.Timestamp retention_expiration_time = 20;
+
+  // User-provided metadata, in key/value pairs.
+  map<string, string> metadata = 21;
+
+  // Whether an object is under event-based hold. Event-based hold is a way to
+  // retain objects until an event occurs, which is signified by the
+  // hold's release (i.e. this value is set to false). After being released (set
+  // to false), such objects will be subject to bucket-level retention (if any).
+  // One sample use case of this flag is for banks to hold loan documents for at
+  // least 3 years after loan is paid in full. Here, bucket-level retention is 3
+  // years and the event is the loan being paid in full. In this example, these
+  // objects will be held intact for any number of years until the event has
+  // occurred (event-based hold on the object is released) and then 3 more years
+  // after that. That means retention duration of the objects begins from the
+  // moment event-based hold transitioned from true to false.
+  bool event_based_hold = 22;
+
+  // The name of the object. Required if not specified by URL parameter.
+  // Attempting to update this field after the object is created will result in
+  // an error.
+  string name = 23;
+
+  // The ID of the object, including the bucket name, object name, and
+  // generation number.
+  // Attempting to update this field after the object is created will result in
+  // an error.
+  string id = 24;
+
+  // The name of the bucket containing this object.
+  // Attempting to update this field after the object is created will result in
+  // an error.
+  string bucket = 25;
+
+  // The content generation of this object. Used for object versioning.
+  // Attempting to set this field will result in an error.
+  int64 generation = 26;
+
+  // The owner of the object. This will always be the uploader of the object.
+  // Attempting to set this field will result in an error.
+  Owner owner = 27;
+
+  // Metadata of customer-supplied encryption key, if the object is encrypted by
+  // such a key.
+  CustomerEncryption customer_encryption = 28;
+}
+
+// An access-control entry.
+message ObjectAccessControl {
+  // The access permission for the entity.
+  string role = 1;
+
+  // HTTP 1.1 <a href="https://tools.ietf.org/html/rfc7232#section-2.3">Entity
+  // tag</a> for the access-control entry.
+  string etag = 2;
+
+  // The ID of the access-control entry.
+  string id = 3;
+
+  // The name of the bucket.
+  string bucket = 4;
+
+  // The name of the object, if applied to an object.
+  string object = 5;
+
+  // The content generation of the object, if applied to an object.
+  int64 generation = 6;
+
+  // The entity holding the permission, in one of the following forms:
+  // <ul><li><code>user-<var>userId</var></code></li>
+  // <li><code>user-<var>email</var></code></li>
+  // <li><code>group-<var>groupId</var></code></li>
+  // <li><code>group-<var>email</var></code></li>
+  // <li><code>domain-<var>domain</var></code></li>
+  // <li><code>project-<var>team</var>-<var>projectId</var></code></li>
+  // <li><code>allUsers</code></li>
+  // <li><code>allAuthenticatedUsers</code></li></ul>  Examples: <ul><li>The
+  // user <code>liz@example.com</code> would be
+  // <code>user-liz@example.com</code>.</li> <li>The group
+  // <code>example@googlegroups.com</code> would be
+  // <code>group-example@googlegroups.com</code>.</li> <li>To refer to all
+  // members of the Google Apps for Business domain <code>example.com</code>,
+  // the entity would be <code>domain-example.com</code>.</li></ul>
+  string entity = 7;
+
+  // The ID for the entity, if any.
+  string entity_id = 8;
+
+  // The email address associated with the entity, if any.
+  string email = 9;
+
+  // The domain associated with the entity, if any.
+  string domain = 10;
+
+  // The project team associated with the entity, if any.
+  ProjectTeam project_team = 11;
+}
+
+// An access-control list.
+message ObjectAccessControls {
+  // The list of items.
+  repeated ObjectAccessControl items = 1;
+}
+
+// A list of objects.
+message Objects {
+  // The list of prefixes of objects matching-but-not-listed up to and including
+  // the requested delimiter.
+  repeated string prefixes = 1;
+
+  // The list of items.
+  repeated Object items = 2;
+
+  // The continuation token, used to page through large result sets. Provide
+  // this value in a subsequent request to return the next page of results.
+  string next_page_token = 3;
+}
+
+message ProjectTeam {
+  // The project number.
+  string project_number = 1
+;
+
+  // The team.
+  string team = 2;
+}
+
+// A subscription to receive Google PubSub notifications.
+message ServiceAccount {
+  // The ID of the notification.
+  string email_address = 1;
+}
+
+message Owner {
+  // The entity, in the form <code>user-<var>userId</var></code>.
+  string entity = 1;
+
+  // The ID for the entity.
+  string entity_id = 2;
+}

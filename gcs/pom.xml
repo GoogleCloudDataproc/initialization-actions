@@ -276,6 +276,7 @@
               <artifactSet>
                 <includes>
                   <include>com.fasterxml.jackson.core:jackson-core</include>
+                  <include>com.google.api.grpc:proto-google-iam-v1</include>
                   <include>com.google.api-client</include>
                   <include>com.google.apis</include>
                   <include>com.google.cloud.bigdataoss:util</include>
@@ -289,13 +290,36 @@
                   <include>com.google.oauth-client:google-oauth-client-java6</include>
                   <include>io.grpc</include>
                   <include>io.opencensus</include>
+                  <include>com.google.protobuf:protobuf-java</include>
+                  <include>io.grpc:grpc-netty</include>
+                  <include>io.grpc:grpc-context</include>
+                  <include>io.grpc:grpc-core</include>
+                  <include>io.grpc:grpc-protobuf</include>
+                  <include>io.grpc:grpc-protobuf-lite</include>
+                  <include>io.grpc:grpc-stub</include>
+                  <include>io.netty:netty-buffer</include>
+                  <include>io.netty:netty-codec</include>
+                  <include>io.netty:netty-codec-http</include>
+                  <include>io.netty:netty-codec-http2</include>
+                  <include>io.netty:netty-codec-socks</include>
+                  <include>io.netty:netty-common</include>
+                  <include>io.netty:netty-handler</include>
+                  <include>io.netty:netty-handler-proxy</include>
+                  <include>io.netty:netty-resolver</include>
+                  <include>io.netty:netty-transport</include>
+                  <include>io.opencensus:opencensus-api</include>
+                  <include>io.opencensus:opencensus-contrib-grpc-metrics</include>
                   <include>org.apache.httpcomponents:httpclient</include>
                   <include>org.apache.httpcomponents:httpcore</include>
                   <!-- needed by http client and versions conflict -->
                   <include>commons-codec:commons-codec</include>
                 </includes>
               </artifactSet>
-              <minimizeJar>true</minimizeJar>
+              <!-- TODO(julianandrews): Reenable minimizeJar.
+                   Disabled because minimizeJar strips out a bunch of files
+                   needed by gRPC for instance NettyChannelProvider and all
+                   it's dependencies. -->
+              <minimizeJar>false</minimizeJar>
               <relocations>
                 <relocation>
                   <pattern>com</pattern>
@@ -306,6 +330,7 @@
                     <include>com.google.cloud.hadoop.gcsio.**</include>
                     <include>com.google.cloud.hadoop.util.**</include>
                     <include>com.google.common.**</include>
+                    <include>com.google.protobuf.**</include>
                   </includes>
                   <excludes>
                     <exclude>com.google.cloud.hadoop.util.AccessTokenProvider</exclude>
@@ -327,6 +352,15 @@
                 <relocation>
                   <pattern>io.opencensus</pattern>
                   <shadedPattern>com.google.cloud.hadoop.repackaged.gcs.io.opencensus</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io</pattern>
+                  <shadedPattern>com.google.cloud.hadoop.repackaged.gcs.io</shadedPattern>
+                  <includes>
+                    <include>io.grpc.**</include>
+                    <include>io.netty.**</include>
+                    <include>io.opencensus.**</include>
+                  </includes>
                 </relocation>
               </relocations>
               <shadedArtifactAttached>true</shadedArtifactAttached>

@@ -71,6 +71,9 @@ import com.google.common.collect.Maps;
 import com.google.common.flogger.GoogleLogger;
 import com.google.common.io.BaseEncoding;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.google.google.storage.v1.StorageObjectsGrpc;
+import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsStub;
+import io.grpc.ManagedChannelBuilder;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -112,6 +115,10 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
   private static final int MAXIMUM_PRECONDITION_FAILURES_IN_DELETE = 4;
 
   private static final String USER_PROJECT_FIELD_NAME = "userProject";
+
+  // TODO(julianandrews): Replace this with a real target once we have one.
+  // The GCS gRPC server.
+  private static final String GRPC_TARGET = "10.138.0.4:9990";
 
   // A function to encode metadata map values
   private static String encodeMetadataValues(byte[] bytes) {
@@ -158,6 +165,9 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
   // GCS access instance.
   @VisibleForTesting Storage gcs;
+
+  // GCS grpc stub.
+  private StorageObjectsStub gcsGrpcStub;
 
   // Thread-pool used for background tasks.
   private ExecutorService backgroundTasksThreadPool =
@@ -240,6 +250,11 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
             .setServicePath(options.getStorageServicePath())
             .setApplicationName(options.getAppName())
             .build();
+
+    // Create the gRPC stub;
+    this.gcsGrpcStub =
+        StorageObjectsGrpc.newStub(
+            ManagedChannelBuilder.forTarget(GRPC_TARGET).usePlaintext().build());
   }
 
   /**
@@ -361,30 +376,43 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
     Map<String, String> rewrittenMetadata = encodeMetadata(options.getMetadata());
 
-    GoogleCloudStorageWriteChannel channel =
-        new GoogleCloudStorageWriteChannel(
-            backgroundTasksThreadPool,
-            gcs,
-            clientRequestHelper,
-            resourceId.getBucketName(),
-            resourceId.getObjectName(),
-            options.getContentType(),
-            options.getContentEncoding(),
-            /* kmsKeyName= */ null,
-            storageOptions.getWriteChannelOptions(),
-            writeConditions,
-            rewrittenMetadata) {
+    if (storageOptions.isGrpcEnabled()) {
+      GoogleCloudStorageGrpcWriteChannel channel =
+          new GoogleCloudStorageGrpcWriteChannel(
+              backgroundTasksThreadPool,
+              gcsGrpcStub,
+              resourceId.getBucketName(),
+              resourceId.getObjectName(),
+              storageOptions.getWriteChannelOptions(),
+              writeConditions,
+              rewrittenMetadata,
+              options.getContentType());
+      channel.initialize();
+      return channel;
+    } else {
+      GoogleCloudStorageWriteChannel channel =
+          new GoogleCloudStorageWriteChannel(
+              backgroundTasksThreadPool,
+              gcs,
+              clientRequestHelper,
+              resourceId.getBucketName(),
+              resourceId.getObjectName(),
+              options.getContentType(),
+              options.getContentEncoding(),
+              /* kmsKeyName= */ null,
+              storageOptions.getWriteChannelOptions(),
+              writeConditions,
+              rewrittenMetadata) {
 
-          @Override
-          public Storage.Objects.Insert createRequest(InputStreamContent inputStream)
-              throws IOException {
-            return configureRequest(super.createRequest(inputStream), resourceId.getBucketName());
-          }
-        };
-
-    channel.initialize();
-
-    return channel;
+            @Override
+            public Storage.Objects.Insert createRequest(InputStreamContent inputStream)
+                throws IOException {
+              return configureRequest(super.createRequest(inputStream), resourceId.getBucketName());
+            }
+          };
+      channel.initialize();
+      return channel;
+    }
   }
 
   /**
