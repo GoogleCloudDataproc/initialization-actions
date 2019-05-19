@@ -11,22 +11,30 @@ readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-maste
 readonly MASTER_WORKER=$(/usr/share/google/get_metadata_value attributes/master-worker || echo -n 'true')
 readonly DASK_LAUNCHER='/usr/local/bin/launch-dask.sh'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/dask-cluster.service'
+# For Anaconda Dataproc component
+readonly PREFIX='/opt/conda/anaconda/envs/RAPIDS/bin'
+# For miniconda dataproc init-action
+#readonly PREFIX='/opt/conda/bin'
 
 cat << EOF > "${DASK_LAUNCHER}"
 #!/bin/bash
 if [[ "${ROLE}" == 'Master' ]]; then
   if [[ "${MASTER_WORKER}" == true ]]; then
     echo "dask-scheduler starting, logging to /var/log/dask-scheduler.log.."
-    /opt/conda/bin/dask-scheduler > /var/log/dask-scheduler.log 2>&1 &
+    #/opt/conda/anaconda/envs/rapids/bin/dask-scheduler > /var/log/dask-scheduler.log 2>&1 &
+    $PREFIX/dask-scheduler > /var/log/dask-scheduler.log 2>&1 &
 
     echo "dask-cuda-worker starting, logging to /var/log/dask-cuda-workers.log.."
-    /opt/conda/bin/dask-cuda-worker --memory-limit 0 ${MASTER}:8786 > /var/log/dask-cuda-workers.log 2>&1
+    #/opt/conda/anaconda/envs/rapids/bin/dask-cuda-worker --memory-limit 0 ${MASTER}:8786 > /var/log/dask-cuda-workers.log 2>&1
+    $PREFIX/dask-cuda-worker --memory-limit 0 ${MASTER}:8786 > /var/log/dask-cuda-workers.log 2>&1
   else
     echo "dask-scheduler starting, logging to /var/log/dask-scheduler.log.."
-    /opt/conda/bin/dask-scheduler > /var/log/dask-scheduler.log 2>&1
+    #/opt/conda/anaconda/envs/rapids/bin/dask-scheduler > /var/log/dask-scheduler.log 2>&1
+    $PREFIX/dask-scheduler > /var/log/dask-scheduler.log 2>&1
   fi
 else
-  /opt/conda/bin/dask-cuda-worker --memory-limit 0 ${MASTER}:8786 > /var/log/dask-cuda-workers.log 2>&1
+  #/opt/conda/bin/dask-cuda-worker --memory-limit 0 ${MASTER}:8786 > /var/log/dask-cuda-workers.log 2>&1
+  $PREFIX/dask-cuda-worker --memory-limit 0 ${MASTER}:8786 > /var/log/dask-cuda-workers.log 2>&1
 fi
 EOF
 chmod 750 "${DASK_LAUNCHER}"
