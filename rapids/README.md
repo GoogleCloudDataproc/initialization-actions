@@ -10,12 +10,10 @@ On the Dataproc master node:
 On the Dataproc worker nodes:
 - `dask-cuda-worker`
 
-The master Cloud Dataproc node will run the dask-scheduler _and_ dask-cuda-workers. All Cloud Dataproc workers will run dask-cuda-workers.
-
 Our initialization actions do the following:
-1. [install nvidia GPU driver](install-gpu-driver.sh)
-2. [install RAPIDS](install-rapids.sh) - [installs miniconda](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/conda), and [conda packages](conda-environment.yml)
-3. [start dask-scheduler and dask-cuda-workers](launch-dask.sh)
+1. [install nvidia GPU driver](internal/install-gpu-driver.sh)
+2. [install RAPIDS](rapids.sh) - [installs miniconda](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/conda), and [conda packages](internal/conda-environment.yml)
+3. [start dask-scheduler and dask-cuda-workers](internal/launch-dask.sh)
 
 ## Using this initialization action
 You can use this initialization action to create a new Dataproc cluster with RAPIDS installed:
@@ -26,23 +24,50 @@ You can use this initialization action to create a new Dataproc cluster with RAP
     DATAPROC_BUCKET=dataproc-initialization-actions
 
     gcloud beta dataproc clusters create <CLUSTER_NAME> \
-    --zone us-east1-c \
     --master-accelerator type=nvidia-tesla-t4,count=4 \
     --master-machine-type n1-standard-32 \
     --worker-accelerator type=nvidia-tesla-t4,count=4 \
     --worker-machine-type n1-standard-32 \
-    --initialization-actions gs://$DATAPROC_BUCKET/rapids/install-gpu-driver.sh,gs://$DATAPROC_BUCKET/rapids/install-rapids.sh,gs://$DATAPROC_BUCKET/rapids/launch-dask.sh
+    --initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
+    --optional-components=ANACONDA,JUPYTER \
+    --enable-component-gateway \
+    --image-version=1.4
     ```
 
-1. Once the cluster has been created, the Dask scheduler listens for workers on port `8786`, and its status dashboard is on port `8787` on the Dataproc master node. These ports can be changed by modifying the [launch-dask.sh](launch-dask.sh) script.
+2. Once the cluster has been created, the Dask scheduler listens for workers on port `8786`, and its status dashboard is on port `8787` on the Dataproc master node. These ports can be changed by modifying the [internal/launch-dask.sh](launch-dask.sh) script.
 
-To connect to the Dask web interface, you will need to create an SSH tunnel as described in the [dataproc web interfaces](https://cloud.google.com/dataproc/cluster-web-interfaces) documentation. You can also connect using the [Dask Client Python API](http://distributed.dask.org/en/latest/client.html) from a notebook, or a from a plain Python script or interpreter session.
+To connect to the Dask web interface, you will need to create an SSH tunnel as described in the [dataproc web interfaces](https://cloud.google.com/dataproc/cluster-web-interfaces) documentation. You can also connect using the [Dask Client Python API](http://distributed.dask.org/en/latest/client.html) from a [Jupyter notebook](https://cloud.google.com/dataproc/docs/concepts/components/jupyter), or a from a plain Python script or interpreter session.
 
-An [example notebook](notebooks/NYCTaxi-E2E.ipynb) is provided that demonstrates end to end data pre-processing (cuDF & Dask) and model training (XGBoost) with RAPIDS APIs. Additional example notebooks [are available](https://github.com/rapidsai/notebooks). See the [RAPIDS documentation](https://docs.rapids.ai/) for API details.
+See [the example notebook](https://github.com/rapidsai/notebooks-extended/tree/master/advanced/E2E/taxi/NYCTaxi-E2E.ipynb) that demonstrates end to end data pre-processing (cuDF & Dask) and model training (XGBoost) with RAPIDS APIs. Additional example notebooks [are available](https://github.com/rapidsai/notebooks). See the [RAPIDS documentation](https://docs.rapids.ai/) for API details.
 
 RAPIDS is a relatively young project with APIs evolving quickly. If you encounter unexpected errors or have feature requests, please file them at the relevant [RAPIDS repo](https://github.com/rapidsai).
 
 ### Options
+
+#### GPU Driver Configuration
+
+By default, these initialization actions assume you are using a Tesla T4 GPU. If you are using other GPU types or want to run a different driver version, [find the appropriate driver download URL](https://www.nvidia.com/Download/index.aspx?lang=en-us) for your GPU driver's `.run` file. RAPIDS works with [all "compute" GPU models](https://cloud.google.com/compute/docs/gpus/) except for the Tesla K80.
+
+* `gpu-driver-url=http://us.download.nvidia.com/tesla/410.104/NVIDIA-Linux-x86_64-410.104.run` - specify an alternate driver download URL
+
+For example:
+
+```bash
+DATAPROC_BUCKET=dataproc-initialization-actions
+
+gcloud beta dataproc clusters create <CLUSTER_NAME> \
+--master-accelerator type=nvidia-tesla-t4,count=4 \
+--master-machine-type n1-standard-32 \
+--worker-accelerator type=nvidia-tesla-t4,count=4 \
+--worker-machine-type n1-standard-32 \
+--metadata "gpu-driver-url=http://us.download.nvidia.com/tesla/410.104/NVIDIA-Linux-x86_64-410.104.run" \
+--initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
+--optional-components=ANACONDA,JUPYTER \
+--enable-component-gateway \
+--image-version=1.4
+```
+
+#### Master As Worker Configuration
 
 By default, the master node also runs dask-cuda-workers. This is useful for smaller scale jobs- processes run on 4 GPUs in a single node will usually be more performant than when run on the same number of GPUs in separate server nodes (due to higher communication costs).
 
@@ -55,40 +80,23 @@ For example:
 DATAPROC_BUCKET=dataproc-initialization-actions
 
 gcloud beta dataproc clusters create <CLUSTER_NAME> \
---zone us-east1-c \
 --master-accelerator type=nvidia-tesla-t4,count=4 \
 --master-machine-type n1-standard-32 \
 --worker-accelerator type=nvidia-tesla-t4,count=4 \
 --worker-machine-type n1-standard-32 \
---metadata "master-worker=false" \
+--metadata "run-cuda-worker-on-master=false" \
 --bucket $DATAPROC_BUCKET \
---initialization-actions gs://$DATAPROC_BUCKET/rapids/install-gpu-driver.sh,gs://$DATAPROC_BUCKET/rapids/install-rapids.sh,gs://$DATAPROC_BUCKET/rapids/launch-dask.sh
-```
-
-By default, these initialization actions assume you are using a Tesla T4 GPU. If you are using other GPU types or want to run a different driver version, [find the appropriate driver download URL](https://www.nvidia.com/Download/index.aspx?lang=en-us) for your driver's `.run` file.
-
-* `gpu-driver-url=http://us.download.nvidia.com/tesla/410.104/NVIDIA-Linux-x86_64-410.104.run` - specify an alternate driver download URL
-
-For example:
-
-```bash
-DATAPROC_BUCKET=dataproc-initialization-actions
-
-gcloud beta dataproc clusters create <CLUSTER_NAME> \
---zone us-east1-c \
---master-accelerator type=nvidia-tesla-t4,count=4 \
---master-machine-type n1-standard-32 \
---worker-accelerator type=nvidia-tesla-t4,count=4 \
---worker-machine-type n1-standard-32 \
---metadata "gpu-driver-url=http://us.download.nvidia.com/tesla/410.104/NVIDIA-Linux-x86_64-410.104.run" \
---initialization-actions gs://$DATAPROC_BUCKET/rapids/install-gpu-driver.sh,gs://$DATAPROC_BUCKET/rapids/install-rapids.sh,gs://$DATAPROC_BUCKET/rapids/launch-dask.sh
+--initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
+--optional-components=ANACONDA,JUPYTER \
+--enable-component-gateway \
+--image-version=1.4
 ```
 
 ## Important notes
-* RAPIDS is only supported on Pascal or newer GPU architectures.
-* You must set a GPU accelerator type for both master and worker nodes, else the GPU driver install will fail and the cluster will report an error state
-* We recommend an n1-standard-32 worker machine type or better to ensure sufficient host-memory for buffering data to and from GPUs.
-* [conda-environment.yml](conda-environment.yml) should be updated based on which RAPIDS versions you wish to install
+* RAPIDS is supported on Pascal or newer GPU architectures (Tesla K80s will _not_ work with RAPIDS). See [list](https://cloud.google.com/compute/docs/gpus/) of available GPU types by GCP region.
+* You must set a GPU accelerator type for both master and worker nodes, else the GPU driver install will fail and the cluster will report an error state.
+* When running RAPIDS with multiple attached GPUs, We recommend an n1-standard-32 worker machine type or better to ensure sufficient host-memory for buffering data to and from GPUs. When running with a single attached GPU, GCP only permits machine types up to 24 vCPUs.
+* [conda-environment.yml](internal/conda-environment.yml) should be updated based on which RAPIDS versions you wish to install
 * Installing the GPU driver and conda packages takes about 10 minutes
 * When deploying RAPIDS on few GPUs, ETL style processing with cuDF and Dask can run sequentially. When training ML models, you _must_ have enough total GPU memory in your cluster to hold the training set in memory.
 * Dask's status dashboard is set to use HTTP port `8787` and is accessible from the master node

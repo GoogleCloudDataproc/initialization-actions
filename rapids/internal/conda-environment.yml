@@ -1,11 +1,9 @@
-name: RAPIDS
 channels:
   - rapidsai/label/xgboost
   - rapidsai
   - nvidia
   - conda-forge
 dependencies:
-  - python=3.7
   - cudatoolkit=10.0
   - dask-cuda=0.7.*
   - cudf=0.7.*

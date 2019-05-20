@@ -8,7 +8,7 @@ echo "Installing Dask service..."
 
 readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
-readonly MASTER_WORKER=$(/usr/share/google/get_metadata_value attributes/master-worker || echo -n 'true')
+readonly RUN_CUDA_WORKER_ON_MASTER=$(/usr/share/google/get_metadata_value attributes/run-cuda-worker-on-master || echo -n 'true')
 readonly DASK_LAUNCHER='/usr/local/bin/launch-dask.sh'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/dask-cluster.service'
 # For Anaconda Dataproc component
@@ -19,7 +19,7 @@ readonly PREFIX='/opt/conda/anaconda/envs/RAPIDS/bin'
 cat << EOF > "${DASK_LAUNCHER}"
 #!/bin/bash
 if [[ "${ROLE}" == 'Master' ]]; then
-  if [[ "${MASTER_WORKER}" == true ]]; then
+  if [[ "${RUN_CUDA_WORKER_ON_MASTER}" == true ]]; then
     echo "dask-scheduler starting, logging to /var/log/dask-scheduler.log.."
     #/opt/conda/anaconda/envs/rapids/bin/dask-scheduler > /var/log/dask-scheduler.log 2>&1 &
     $PREFIX/dask-scheduler > /var/log/dask-scheduler.log 2>&1 &
