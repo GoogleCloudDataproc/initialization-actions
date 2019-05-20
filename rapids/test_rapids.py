@@ -11,7 +11,7 @@ class RapidsTestCase(DataprocTestCase):
     #INIT_ACTION = 'gs://dataproc-initialization-actions/rapids/rapids.sh'
     #METADATA = 'INIT_ACTIONS_REPO=https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git,INIT_ACTIONS_BRANCH=master'
     INIT_ACTION = 'gs://rapidsai-test-1/rapids/rapids.sh'
-    METADATA = 'INIT_ACTIONS_REPO=https://github.com/randerzander/dataproc-initialization-actions.git,INIT_ACTIONS_BRANCH=test'
+    METADATA = 'INIT_ACTIONS_REPO=https://github.com/randerzander/dataproc-initialization-actions.git,INIT_ACTIONS_BRANCH=master'
     TEST_SCRIPT_FILE_NAME = 'verify_rapids.py'
 
     def verify_instance(self, name):
@@ -39,7 +39,10 @@ class RapidsTestCase(DataprocTestCase):
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_rapids(self, configuration, dataproc_version, machine_suffixes, coordinators, workers):
         self.createCluster(configuration, self.INIT_ACTION,
-                           dataproc_version, metadata=self.METADATA)
+                           dataproc_version, metadata=self.METADATA,
+                           master_accelerator='type=nvidia-tesla-t4',
+                           worker_accelerator='type=nvidia-tesla-t4',
+                           optional_components='ANACONDA')
 
         for machine_suffix in machine_suffixes:
             self.verify_instance(
