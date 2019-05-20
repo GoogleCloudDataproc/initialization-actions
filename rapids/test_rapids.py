@@ -27,7 +27,7 @@ class RapidsTestCase(DataprocTestCase):
 
     def __verify_rapids(self, name):
         ret_code, stdout, stderr = self.run_command(
-            'gcloud compute ssh {} -- "python {}"'.format(
+            'gcloud compute ssh {} -- "source activate RAPIDS && python {}"'.format(
                 name,
                 self.TEST_SCRIPT_FILE_NAME,
             )
@@ -39,7 +39,8 @@ class RapidsTestCase(DataprocTestCase):
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_rapids(self, configuration, dataproc_version, machine_suffixes, coordinators, workers):
         self.createCluster(configuration, self.INIT_ACTION,
-                           dataproc_version, metadata=self.METADATA,
+                           dataproc_version, metadata=self.METADATA, beta=True,
+                           zone='us-east1-c',
                            master_accelerator='type=nvidia-tesla-t4',
                            worker_accelerator='type=nvidia-tesla-t4',
                            optional_components='ANACONDA')
