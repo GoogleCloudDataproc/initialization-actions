@@ -141,6 +141,7 @@ function configure_jvm(){
 -Djdk.nio.maxCachedBufferSize=2000000
 -Dhive.config.resources=/etc/hadoop/conf/core-site.xml,/etc/hadoop/conf/hdfs-site.xml
 -Djava.library.path=/usr/lib/hadoop/lib/native/:/usr/lib/
+-Djdk.nio.maxCachedBufferSize=0
 EOF
 }
 
