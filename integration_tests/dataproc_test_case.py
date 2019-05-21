@@ -43,7 +43,7 @@ class DataprocTestCase(BASE_TEST_CASE):
 
     @classmethod
     def setUpClass(cls):
-        super().setUpClass()
+        super(DataprocTestCase, cls).setUpClass()
 
         cls.INIT_ACTIONS_REPO = DataprocTestCase().stage_init_actions()
 
@@ -76,7 +76,8 @@ class DataprocTestCase(BASE_TEST_CASE):
             for i in init_actions or []
         ]
 
-        args = self.DEFAULT_ARGS[configuration].copy()
+        args = self.DEFAULT_ARGS[configuration][:] # .copy()
+        args.append("--quiet")
         if properties:
             args.append("--properties={}".format(properties))
         if scopes:
