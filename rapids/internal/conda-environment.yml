@@ -16,4 +16,5 @@ dependencies:
   - rapidsai/label/xgboost::xgboost=0.83.*
   - rapidsai/label/xgboost::dask-xgboost=0.2.*
   - gcsfs
+  - dill
   - ipykernel
