@@ -23,16 +23,18 @@ class BigTableTestCase(DataprocTestCase):
     TEST_SCRIPT_FILE_NAME = "run_hbase_commands.py"
 
     def __init__(self, methodName='runTest'):
-        super().__init__(methodName)
+        super(BigTableTestCase, self).__init__(methodName)
         self.metadata = None
         self.db_name = None
         self.zone = None
 
     def setUp(self):
-        super().setUp()
+        super(BigTableTestCase, self).setUp()
         self.db_name = "test-{}-db".format(random.randint(1, 10000))
         _, zone, _ = self.run_command("gcloud config get-value compute/zone")
         self.zone = zone.strip()
+        print(self.zone)
+        self.zone = 'us-central1-a'
         _, project, _ = self.run_command("gcloud config get-value project")
         project = project.strip()
         self.metadata = "bigtable-instance={},bigtable-project={}"\
@@ -47,7 +49,7 @@ class BigTableTestCase(DataprocTestCase):
                          .format(self.db_name, stderr))
 
     def tearDown(self):
-        super().tearDown()
+        super(BigTableTestCase, self).tearDown()
         ret_code, stdout, stderr = self.run_command(
             'gcloud beta bigtable instances delete {}'.format(self.db_name)
         )
