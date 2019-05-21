@@ -16,18 +16,15 @@ steps:
 # Create docker image from regular Dockerfile
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build', '--tag=gcr.io/google.com/hadoop-cloud-dev/git', '.']
-  dir: 'git_container'
-# Clone a public repo and write its revision to a VERSION file.
+# Clone our public repo using our built container
 - name: 'gcr.io/google.com/hadoop-cloud-dev/git'
-  args: ['clone', 'https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git']
-  dir: 'git_container'
-# The Dockerfile here uses this git builder as its base image.
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '--tag=version-file', '.']
-  dir: 'git_container'
-- name: 'version_file'
-  # args: ['VERSION']
-  dir: 'git_container/dataproc-initialization-actions'
+  args: ['clone', 'https://github.com/estebanlau/dataproc-initialization-actions.git']
+  dir: 'git_container' # Clone into git_container
+# Do something from the repo
+- name: 'gcr.io/google.com/hadoop-cloud-dev/git'
+  entrypoint: 'python'
+  args: ['bigtable/test_bigtable.py']
+  # dir: 'git_container/dataproc-initialization-actions'
 
 images:
 # - 'gcr.io/google.com/hadoop-cloud-dev/dataproc-docker-image'
