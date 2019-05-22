@@ -51,7 +51,8 @@ import org.junit.runners.JUnit4;
 public class RegionalIntegrationTest {
 
   private static final String RANDOM_STRING = UUID.randomUUID().toString().substring(0, 4);
-  private static final String LOCATION = "asia-northeast1";
+  private static final String LOCATION =
+      Boolean.parseBoolean(System.getenv("GOOGLE_CLOUD_TESTS_IN_VPCSC")) ? "US" : "asia-northeast1";
   private static final String TEST_BUCKET_PREFIX = "bq_integration_test";
   private static final String PROJECT_ID = TestConfiguration.getInstance().getProjectId();
   private static final String DATASET_ID =
@@ -119,7 +120,7 @@ public class RegionalIntegrationTest {
   @Before
   public void setup() throws Exception {
     bucketHelper = new TestBucketHelper(TEST_BUCKET_PREFIX);
-    String testBucket = bucketHelper.getUniqueBucketName(LOCATION);
+    String testBucket = bucketHelper.getUniqueBucketName(LOCATION.toLowerCase());
 
     // Define the schema we will be using for the output BigQuery table.
     List<BigQueryTableFieldSchema> outputTableFieldSchema = new ArrayList<>();
@@ -184,7 +185,7 @@ public class RegionalIntegrationTest {
     gcs = gcsFs.getGcs();
 
     // Create input dataset in `LOCATION`
-    String exportBucket = bucketHelper.getUniqueBucketName("us");
+    String exportBucket = bucketHelper.getUniqueBucketName("export-us");
     storage
         .buckets()
         .insert(PROJECT_ID, new Bucket().setName(exportBucket).setLocation("US"))
