@@ -14,7 +14,13 @@
 
 package com.google.cloud.hadoop.fs.gcs.contract;
 
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_EMAIL;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_ENABLE;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_KEY_FILE;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_PROJECT_ID;
+
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
+import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.contract.AbstractBondedFSContract;
 
@@ -29,6 +35,14 @@ public class GoogleContract extends AbstractBondedFSContract {
     super(conf);
     addConfResource(CONTRACT_XML);
     conf.set("fs.contract.test.fs.gs", "gs://" + bucketHelper.getUniqueBucketPrefix());
+
+    TestConfiguration testConf = TestConfiguration.getInstance();
+    if (testConf.getProjectId() != null) {
+      conf.setBoolean(AUTH_SERVICE_ACCOUNT_ENABLE.getKey(), true);
+      conf.set(GCS_PROJECT_ID.getKey(), testConf.getProjectId());
+      conf.set(AUTH_SERVICE_ACCOUNT_EMAIL.getKey(), testConf.getServiceAccount());
+      conf.set(AUTH_SERVICE_ACCOUNT_KEY_FILE.getKey(), testConf.getPrivateKeyFile());
+    }
   }
 
   @Override

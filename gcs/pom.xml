@@ -88,6 +88,9 @@
                 <exclude>**/LocalFileSystemIntegrationTest.java</exclude>
                 <exclude>**/WebHdfsIntegrationTest.java</exclude>
               </excludes>
+              <includes>
+                <include>**/TestGoogleContract*.java</include>
+              </includes>
             </configuration>
           </plugin>
         </plugins>
