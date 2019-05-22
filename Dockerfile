@@ -20,6 +20,8 @@ RUN ls -l `which pip`
 RUN ls -l `which pip3`
 RUN pip install -r requirements.txt
 RUN pip3 install -r requirements.txt
+
+# Use dependency versions that work
 RUN pip freeze > requirements.txt
 
 ENTRYPOINT ["git"]
