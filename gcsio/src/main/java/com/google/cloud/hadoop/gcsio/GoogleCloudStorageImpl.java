@@ -51,7 +51,6 @@ import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.cloud.hadoop.util.RetryHttpInitializer;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -113,19 +112,19 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
   private static final String USER_PROJECT_FIELD_NAME = "userProject";
 
   // A function to encode metadata map values
-  private static final Function<byte[], String> ENCODE_METADATA_VALUES =
-      bytes -> bytes == null ? Data.NULL_STRING : BaseEncoding.base64().encode(bytes);
+  private static String encodeMetadataValues(byte[] bytes) {
+    return bytes == null ? Data.NULL_STRING : BaseEncoding.base64().encode(bytes);
+  }
 
-  private static final Function<String, byte[]> DECODE_METADATA_VALUES =
-      value -> {
-        try {
-          return BaseEncoding.base64().decode(value);
-        } catch (IllegalArgumentException iae) {
-          logger.atSevere().withCause(iae).log(
-              "Failed to parse base64 encoded attribute value %s - %s", value, iae);
-          return null;
-        }
-      };
+  private static byte[] decodeMetadataValues(String value) {
+    try {
+      return BaseEncoding.base64().decode(value);
+    } catch (IllegalArgumentException iae) {
+      logger.atSevere().withCause(iae).log(
+          "Failed to parse base64 encoded attribute value %s - %s", value, iae);
+      return null;
+    }
+  }
 
   /**
    * A factory for producing BackOff objects.
@@ -1521,7 +1520,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
    */
   @VisibleForTesting
   static Map<String, String> encodeMetadata(Map<String, byte[]> metadata) {
-    return Maps.transformValues(metadata, ENCODE_METADATA_VALUES);
+    return Maps.transformValues(metadata, GoogleCloudStorageImpl::encodeMetadataValues);
   }
 
   /**
@@ -1529,7 +1528,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
    */
   @VisibleForTesting
   static Map<String, byte[]> decodeMetadata(Map<String, String> metadata) {
-    return Maps.transformValues(metadata, DECODE_METADATA_VALUES);
+    return Maps.transformValues(metadata, GoogleCloudStorageImpl::decodeMetadataValues);
   }
 
   /** See {@link GoogleCloudStorage#getItemInfos(List)} for details about expected behavior. */
