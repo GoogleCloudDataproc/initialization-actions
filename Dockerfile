@@ -2,9 +2,6 @@
 
 FROM gcr.io/cloud-builders/gcloud
 
-#COPY main.sh /
-#COPY dummy_script.py /
-#COPY requirements.txt /
 COPY . /
 RUN ls
 
@@ -23,5 +20,6 @@ RUN ls -l `which pip`
 RUN ls -l `which pip3`
 RUN pip install -r requirements.txt
 RUN pip3 install -r requirements.txt
+RUN pip freeze > requirements.txt
 
 ENTRYPOINT ["git"]
