@@ -12,6 +12,7 @@ Note:
 import unittest
 import random
 import os
+import time
 
 from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
@@ -30,7 +31,9 @@ class BigTableTestCase(DataprocTestCase):
 
     def setUp(self):
         super(BigTableTestCase, self).setUp()
-        self.db_name = "test-{}-db".format(random.randint(1, 10000))
+        curr_time = time.localtime()
+        time_str = time.strftime("%Y%m%d%H%M%S", curr_time)
+        self.db_name = "test-{}-db".format(time_str)
         _, zone, _ = self.run_command("gcloud config get-value compute/zone")
         self.zone = zone.strip()
         print(self.zone)
