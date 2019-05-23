@@ -16,14 +16,17 @@ steps:
 # Create docker image from regular Dockerfile
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build', '--tag=gcr.io/google.com/hadoop-cloud-dev/init-actions-image', '.']
-# Clone our public repo using our built container
+# Clone our public repo using our built container (not necessary if we perform a COPY operation in the Dockerfile)
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
   args: ['clone', 'https://github.com/estebanlau/dataproc-initialization-actions.git']
   dir: 'git_container' # Clone into git_container
 # Run the test from the repo
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
-  entrypoint: 'python'
-  args: ['bigtable/test_bigtable.py']
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    [[ "$BRANCH_NAME" ~= .*bigtable.* ]] && python bigtable/test_bigtable.py 
   # dir: 'git_container/dataproc-initialization-actions'
 
 images:
