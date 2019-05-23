@@ -212,9 +212,6 @@ protocol = tcp
 port = ${metastore_proxy_port}
 EOF
 
-  # Wait until mysql client can talk to the cloud sql proxy
-  run_with_retries mysql -u "${db_admin_user}" "${db_admin_password_parameter}" -e ''
-
   # Check if metastore is initialized.
   if ! mysql -u "${db_hive_user}" "${db_hive_password_parameter}" -e ''; then
     mysql -u "${db_admin_user}" "${db_admin_password_parameter}" -e \
