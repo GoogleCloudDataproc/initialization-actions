@@ -57,7 +57,7 @@ function configure_atlas(){
   local zk_quorum=$(bdconfig get_property_value --configuration_file /etc/hbase/conf/hbase-site.xml \
     --name hbase.zookeeper.quorum 2>/dev/null)
   local cluster_name=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)
-  local zk_url_for_solr="$(echo ${zk_quorum} | sed "s/,/:2181\\\/solr,/g"):2181\\/solr"
+  local zk_url_for_solr="$(echo ${zk_quorum} | sed 's/,/:2181\\\/solr,/g'):2181\\/solr"
 
   # symlink HBase conf dir
   mkdir /etc/atlas/hbase
