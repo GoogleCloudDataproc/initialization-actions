@@ -12,5 +12,4 @@ steps:
     [[ "$BRANCH_NAME" =~ .*bigtable.* ]] && python bigtable/test_bigtable.py 
 
 # images:
-# # - 'gcr.io/google.com/hadoop-cloud-dev/dataproc-docker-image'
 # - 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
