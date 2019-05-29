@@ -2,17 +2,19 @@
 
 FROM gcr.io/cloud-builders/gcloud
 
-COPY main.sh /
-COPY dummy_script.py /
+# Copy everything into the container
+COPY . /
+RUN ls
 
-RUN apt-get update
-RUN apt-get -y install python
+RUN apt-get -y update
 RUN apt-get -y install python3-pip
 
 ENV PATH=$PATH:/builder/google-cloud-sdk/bin/
-
-RUN git config --system credential.helper gcloud.sh
+ENV PYTHONPATH /
 
 RUN pip install -r requirements.txt
 
-ENTRYPOINT ["git"]
+# Make sure to use dependency versions that work
+RUN pip freeze > requirements.txt
+
+ENTRYPOINT ["python"]
