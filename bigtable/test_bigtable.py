@@ -1,10 +1,8 @@
 """
 This module provides testing functionality of the BigTable Init Action.
-
 Test logic:
 1. Create test table and fill it with some data by injecting commands into hbase shell.
 2. Validate from local station that BigTable has test table created with right data.
-
 Note:
     Test REQUIRES cbt tool installed which provides CLI access to BigTable instances.
     See: https://cloud.google.com/bigtable/docs/cbt-overview
@@ -12,7 +10,6 @@ Note:
 import unittest
 import random
 import os
-import time
 
 from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
@@ -24,20 +21,16 @@ class BigTableTestCase(DataprocTestCase):
     TEST_SCRIPT_FILE_NAME = "run_hbase_commands.py"
 
     def __init__(self, methodName='runTest'):
-        super(BigTableTestCase, self).__init__(methodName)
+        super().__init__(methodName)
         self.metadata = None
         self.db_name = None
         self.zone = None
 
     def setUp(self):
-        super(BigTableTestCase, self).setUp()
-        curr_time = time.localtime()
-        time_str = time.strftime("%Y%m%d%H%M%S", curr_time)
-        self.db_name = "test-{}-db".format(time_str)
+        super().setUp()
+        self.db_name = "test-{}-db".format(random.randint(1, 10000))
         _, zone, _ = self.run_command("gcloud config get-value compute/zone")
         self.zone = zone.strip()
-        print(self.zone)
-        self.zone = 'us-central1-a'
         _, project, _ = self.run_command("gcloud config get-value project")
         project = project.strip()
         self.metadata = "bigtable-instance={},bigtable-project={}"\
@@ -52,7 +45,7 @@ class BigTableTestCase(DataprocTestCase):
                          .format(self.db_name, stderr))
 
     def tearDown(self):
-        super(BigTableTestCase, self).tearDown()
+        super().tearDown()
         ret_code, stdout, stderr = self.run_command(
             'gcloud beta bigtable instances delete {}'.format(self.db_name)
         )
@@ -114,4 +107,3 @@ class BigTableTestCase(DataprocTestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
