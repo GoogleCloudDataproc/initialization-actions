@@ -1,10 +1,8 @@
 """
 This module provides testing functionality of the BigTable Init Action.
-
 Test logic:
 1. Create test table and fill it with some data by injecting commands into hbase shell.
 2. Validate from local station that BigTable has test table created with right data.
-
 Note:
     Test REQUIRES cbt tool installed which provides CLI access to BigTable instances.
     See: https://cloud.google.com/bigtable/docs/cbt-overview
