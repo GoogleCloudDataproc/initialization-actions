@@ -40,7 +40,7 @@ class DataprocTestCase(BASE_TEST_CASE):
 
     @classmethod
     def setUpClass(cls):
-        super(DataprocTestCase, cls).setUpClass()
+        super().setUpClass()
         assert cls.COMPONENT
         assert cls.INIT_ACTION
 
@@ -57,8 +57,7 @@ class DataprocTestCase(BASE_TEST_CASE):
         )[:50]
         self.cluster_version = None
 
-        args = self.DEFAULT_ARGS[configuration][:] # .copy()
-        args.append("--quiet")
+        args = self.DEFAULT_ARGS[configuration].copy()
         if properties:
             args.append("--properties={}".format(properties))
         if scopes:
@@ -102,7 +101,7 @@ class DataprocTestCase(BASE_TEST_CASE):
         return self.name
 
     def upload_test_file(self, testfile, name):
-        cmd = 'gcloud compute scp --zone=us-central1-a {} {}:'.format(
+        cmd = 'gcloud compute scp {} {}:'.format(
             testfile,
             name,
         )
