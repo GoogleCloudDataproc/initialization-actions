@@ -1,5 +1,3 @@
-
-
 FROM gcr.io/cloud-builders/gcloud
 
 # Copy everything into the container
