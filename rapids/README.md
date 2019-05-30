@@ -5,7 +5,7 @@ This initialization action installs the latest release version of [RAPIDS](https
 These initialization actions automate the process of setting up a Dask-cuDF cluster by running the following:
 
 On the Dataproc master node:
-- `dask-scheduler`, and optionally, `dask-cuda-worker`
+- `dask-scheduler`, and `dask-cuda-worker`
 
 On the Dataproc worker nodes:
 - `dask-cuda-worker`
@@ -46,7 +46,7 @@ RAPIDS is a relatively young project with APIs evolving quickly. If you encounte
 
 By default, these initialization actions install a CUDA 10.0 driver. If you wish to install a different driver version, [find the appropriate driver download URL](https://www.nvidia.com/Download/index.aspx?lang=en-us) for your driver's `.run` file.
 
-* `gpu-driver-url=http://us.download.nvidia.com/tesla/410.104/NVIDIA-Linux-x86_64-410.104.run` - specify an alternate driver download URL
+* `--metadata=gpu-driver-url=http://us.download.nvidia.com/tesla/410.104/NVIDIA-Linux-x86_64-410.104.run` - to specify alternate driver download URL.
 
 For example:
 
