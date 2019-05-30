@@ -3,109 +3,124 @@ steps:
 # Create docker image from regular Dockerfile
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build', '--tag=gcr.io/google.com/hadoop-cloud-dev/init-actions-image', '.']
+  id: 'create_image'
 # Run tests from the repo, based on the branch name
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    [[ "$BRANCH_NAME" == .*bigtable.* ]] && python bigtable/test_bigtable.py || exit 0
+    [[ "$BRANCH_NAME" == .*bigtable.* ]] && python bigtable/test_bigtable.py
+  waitFor: ['create_image']
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    [[ "$BRANCH_NAME" == .*drill.* ]] && python drill/test_drill.py || exit 0
+    [[ "$BRANCH_NAME" == .*drill.* ]] && python drill/test_drill.py
+  waitFor: ['create_image']
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    [[ "$BRANCH_NAME" == .*flink.* ]] && python flink/test_flink.py || exit 0
+    [[ "$BRANCH_NAME" == .*flink.* ]] && python flink/test_flink.py
+  waitFor: ['create_image']
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    [[ "$BRANCH_NAME" == .*ganglia.* ]] && python ganglia/test_ganglia.py || exit 0
+    [[ "$BRANCH_NAME" == .*ganglia.* ]] && python ganglia/test_ganglia.py
+  waitFor: ['create_image']
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    [[ "$BRANCH_NAME" == .*gpu.* ]] && python gpu/test_install_gpu_driver.py || exit 0
+    [[ "$BRANCH_NAME" == .*gpu.* ]] && python gpu/test_install_gpu_driver.py
+  waitFor: ['create_image']
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    [[ "$BRANCH_NAME" == .*hbase.* ]] && python hbase/test_hbase.py || exit 0
+    [[ "$BRANCH_NAME" == .*hbase.* ]] && python hbase/test_hbase.py
+  waitFor: ['create_image']
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    [[ "$BRANCH_NAME" == .*drill.* ]] && python hive-hcatalog/test_hive.py || exit 0
+    [[ "$BRANCH_NAME" == .*drill.* ]] && python hive-hcatalog/test_hive.py
+  waitFor: ['create_image']
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    [[ "$BRANCH_NAME" == .*hue.* ]] && python hue/test_hue.py || exit 0
+    [[ "$BRANCH_NAME" == .*hue.* ]] && python hue/test_hue.py
+  waitFor: ['create_image']
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    [[ "$BRANCH_NAME" == .*kafka.* ]] && python kafka/test_kafka.py || exit 0
+    [[ "$BRANCH_NAME" == .*kafka.* ]] && python kafka/test_kafka.py
+  waitFor: ['create_image']
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    [[ "$BRANCH_NAME" == .*livy.* ]] && python livy/test_livy.py || exit 0
+    [[ "$BRANCH_NAME" == .*livy.* ]] && python livy/test_livy.py
+  waitFor: ['create_image']
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    [[ "$BRANCH_NAME" == .*oozie.* ]] && python oozie/test_oozie.py || exit 0
+    [[ "$BRANCH_NAME" == .*oozie.* ]] && python oozie/test_oozie.py
+  waitFor: ['create_image']
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    [[ "$BRANCH_NAME" == .*presto.* ]] && python presto/test_presto.py || exit 0
+    [[ "$BRANCH_NAME" == .*presto.* ]] && python presto/test_presto.py
+  waitFor: ['create_image']
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    [[ "$BRANCH_NAME" == .*ranger.* ]] && python ranger/test_ranger.py || exit 0
+    [[ "$BRANCH_NAME" == .*ranger.* ]] && python ranger/test_ranger.py
+  waitFor: ['create_image']
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    [[ "$BRANCH_NAME" == .*solr.* ]] && python solr/test_solr.py || exit 0
+    [[ "$BRANCH_NAME" == .*solr.* ]] && python solr/test_solr.py
+  waitFor: ['create_image']
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    [[ "$BRANCH_NAME" == .*starburst.* ]] && python starburst-presto/test_presto.py || exit 0
+    [[ "$BRANCH_NAME" == .*starburst.* ]] && python starburst-presto/test_presto.py
+  waitFor: ['create_image']
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    [[ "$BRANCH_NAME" == .*tez.* ]] && python tez/test_tez.py || exit 0
+    [[ "$BRANCH_NAME" == .*tez.* ]] && python tez/test_tez.py
+  waitFor: ['create_image']
 - name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
   entrypoint: 'bash'
   args:
   - '-c'
   - |
-    [[ "$BRANCH_NAME" == .*tony.* ]] && python tony/test_tony.py || exit 0
-
-# images:
-# - 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
+    [[ "$BRANCH_NAME" == .*tony.* ]] && python tony/test_tony.py
+  waitFor: ['create_image']
