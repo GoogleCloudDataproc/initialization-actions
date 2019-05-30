@@ -1,0 +1,4 @@
+steps:
+- name: 'gcr.io/google.com/hadoop-cloud-dev/init-actions-image'
+  args:
+  - 'bigtable/test_bigtable.py'
