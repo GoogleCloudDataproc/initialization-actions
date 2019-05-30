@@ -1,10 +1,10 @@
-import cudf, dask_cudf
-
-import cuml, dask_cuml
-
+import cudf
 import cugraph
-
-import xgboost, dask_xgboost
+import cuml
+import dask_cudf
+import dask_cuml
+import dask_xgboost
+import xgboost
 
 # confirm can actually use RAPIDS libraries
 df = cudf.DataFrame()
