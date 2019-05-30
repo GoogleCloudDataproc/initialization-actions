@@ -10,9 +10,9 @@ RUN apt-get -y install python3-pip
 ENV PATH=$PATH:/builder/google-cloud-sdk/bin/
 ENV PYTHONPATH /
 
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.pip
 
 # Make sure to use dependency versions that work
-RUN pip freeze > requirements.txt
+RUN pip freeze > requirements.pip
 
 ENTRYPOINT ["python"]
