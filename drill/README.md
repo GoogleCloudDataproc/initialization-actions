@@ -70,7 +70,7 @@ apache drill 1.9.0
 In order to use Drill on single node cluster, run `/usr/lib/drill/bin/drill-embedded` or run sqlline with zk=local: `/usr/lib/drill/bin/sqlline -u jdbc:drill:zk=local`.
 
 ## Important notes
-* This script must be updated based on which Drill version you wish you install.
-* This script must be updated based on your Cloud Dataproc cluster.
+* This script must be updated based on which Drill version you wish you install
+* This script must be updated based on your Cloud Dataproc cluster
 * Access to the Drill UI is possible via SSH forwarding to port 8047 on any node, or with a [SOCKS proxy via SSH](https://cloud.google.com/solutions/connecting-securely#socks-proxy-over-ssh).
 * By default your Drill query profiles are stored in GCS in your cluster's dataproc bucket, as returned by `/usr/share/google/get_metadata_value attributes/dataproc-bucket`. You can change this in `drill.sh`.
