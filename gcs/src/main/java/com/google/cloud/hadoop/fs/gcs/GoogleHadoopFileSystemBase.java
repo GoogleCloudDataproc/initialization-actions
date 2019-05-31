@@ -880,6 +880,9 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
    */
   @Override
   public boolean rename(Path src, Path dst) throws IOException {
+    Preconditions.checkArgument(src != null, "src must not be null");
+    Preconditions.checkArgument(dst != null, "dst must not be null");
+
     // Even though the underlying GCSFS will also throw an IAE if src is root, since our filesystem
     // root happens to equal the global root, we want to explicitly check it here since derived
     // classes may not have filesystem roots equal to the global root.
@@ -889,8 +892,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     }
 
     long startTime = System.nanoTime();
-    Preconditions.checkArgument(src != null, "src must not be null");
-    Preconditions.checkArgument(dst != null, "dst must not be null");
 
     checkOpen();
 
