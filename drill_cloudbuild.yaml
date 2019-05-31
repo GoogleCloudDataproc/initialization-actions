@@ -1,0 +1,4 @@
+steps:  
+- name: 'gcr.io/google.com/cloud-dataproc-ci/init-actions-image'
+  args:
+  - 'drill/test_drill.py'
