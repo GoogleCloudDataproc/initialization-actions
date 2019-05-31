@@ -1,0 +1,6 @@
+steps:
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '--tag=gcr.io/google.com/cloud-dataproc-ci/init-actions-image', '.']
+- name: 'gcr.io/google.com/cloud-dataproc-ci/init-actions-image'
+  args:
+  - 'gpu/test_install_gpu_driver.py'
