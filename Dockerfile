@@ -15,4 +15,4 @@ RUN pip install -r requirements.pip
 # Make sure to use dependency versions that work
 RUN pip freeze > requirements.pip
 
-ENTRYPOINT ["python"]
+ENTRYPOINT ["bash"]
