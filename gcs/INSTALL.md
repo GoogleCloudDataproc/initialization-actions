@@ -78,14 +78,17 @@ values documented in the [gcs-core-default.xml](/gcs/conf/gcs-core-default.xml)
 file inside the `conf` directory.
 
 ## Configure Spark
+Note that you do not need to configure Hadoop in order to use the GCS connector
+with Spark.
 
-Spark may not install a Hadoop `core-site.xml` in its `conf` dir, so you may
-need to create one or, alternatively, set `spark.hadoop.*` properties in the
+If you are using Spark with Hadoop, Spark may not install a Hadoop
+`core-site.xml` in its `conf` dir, so you may need to create one or,
+alternatively, set `spark.hadoop.*` properties in the
 `spark-defaults.conf` file (see
 [Custom Hadoop/Hive Configuration](https://spark.apache.org/docs/latest/configuration.html#custom-hadoophive-configuration)).
 
-For example, instead of setting the required properties in `core-site.xml`, you
-can set the properties in `spark-defaults.conf`:
+Otherwise, with Spark the preferred configuration is to set the following
+properties in `spark-defaults.conf` instead of using `core-site.xml`:
 
 ```
 spark.hadoop.google.cloud.auth.service.account.enable       true
@@ -106,7 +109,11 @@ the installation.
     that you correctly set the two properties in the correct `core-site.xml`.
 *   If the test reported `java.lang.ClassNotFoundException:
     com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem`, check that you added
-    the connector to the Hadoop/Spark classpath.
+    the connector to the Hadoop/Spark classpath. If this error is noted as caused
+    by `java.lang.NoSuchMethodError: com.google.common.base.Preconditions.checkState(ZLjava/lang/String;J)V`,
+    it is likely due to a conflicting version of transitive dependencies (in this
+    case, Guava); using a [shaded version](http://repo2.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop2-1.9.17/)
+    of the `gcs-connector` jar can resolve this.
 *   If the test issued a message related to authorization, make sure that you
     have access to Cloud Storage using
     [gsutil](https://cloud.google.com/storage/docs/gsutil) (`gsutil ls -b
