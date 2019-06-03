@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+git init
+
 # Stage changed files to track their change history
 git add .
 
