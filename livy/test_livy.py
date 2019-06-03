@@ -48,4 +48,3 @@ class LivyTestCase(DataprocTestCase):
 
 if __name__ == '__main__':
     unittest.main()
-# Arbitrary change
