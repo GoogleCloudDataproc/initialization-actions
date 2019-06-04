@@ -2,7 +2,6 @@ FROM gcr.io/cloud-builders/gcloud
 
 # Copy everything into the container
 COPY . /
-COPY ./.git/ ./.git/
 RUN ls -a
 
 RUN apt-get -y update
