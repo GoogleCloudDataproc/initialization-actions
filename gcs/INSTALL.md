@@ -109,10 +109,10 @@ the installation.
     that you correctly set the two properties in the correct `core-site.xml`.
 *   If the test reported `java.lang.ClassNotFoundException:
     com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem`, check that you added
-    the connector to the Hadoop/Spark classpath. If this error is noted as caused
+    the connector to the Hadoop/Spark classpath. If this error caused
     by `java.lang.NoSuchMethodError: com.google.common.base.Preconditions.checkState(ZLjava/lang/String;J)V`,
     it is likely due to a conflicting version of transitive dependencies (in this
-    case, Guava); using a [shaded version](http://repo2.maven.org/maven2/com/google/cloud/bigdataoss/gcs-connector/hadoop2-1.9.17/)
+    case, Guava); using a [shaded version](https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-hadoop2-latest.jar)
     of the `gcs-connector` jar can resolve this.
 *   If the test issued a message related to authorization, make sure that you
     have access to Cloud Storage using
