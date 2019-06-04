@@ -2,7 +2,7 @@ FROM gcr.io/cloud-builders/gcloud
 
 # Copy everything into the container
 COPY . /
-RUN ls
+RUN ls -a
 
 RUN apt-get -y update
 RUN apt-get -y install python3-pip
