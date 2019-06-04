@@ -626,6 +626,11 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     Preconditions.checkArgument(
         resourceId.isStorageObject(), "Expected full StorageObject id, got %s", resourceId);
 
+    if (storageOptions.isGrpcEnabled()) {
+      return new GoogleCloudStorageGrpcReadChannel(
+          gcsGrpcStub, resourceId.getBucketName(), resourceId.getObjectName(), readOptions);
+    }
+
     // The underlying channel doesn't initially read data, which means that we won't see a
     // FileNotFoundException until read is called. As a result, in order to find out if the object
     // exists, we'll need to do an RPC (metadata or data). A metadata check should be a less
