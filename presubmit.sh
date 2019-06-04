@@ -1,21 +1,17 @@
 #!/bin/bash
 set -e
 
-# git fetch origin
-
 git init
 
 
-# Stage changed files to track their history
+# Stage files to track their history
 git add .
+
 git remote add origin "https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git"
 git fetch origin
 
 # Infer the files that changed
-# CHANGED_FILES=$(git diff --staged --name-only)
 CHANGED_FILES=$(git diff origin/master --name-only)
-# git diff $COMMIT_ID
-# echo $CHANGED_FILES
 echo $CHANGED_FILES
 
 # Determines whether a given string is a substring of any changed file name
