@@ -56,10 +56,11 @@ check_required_params
 
 # When tests run, they run in the root of the module directory. Anything
 # relative to our current directory won't work properly
-export GCS_TEST_PRIVATE_KEYFILE=$(readlink -f "$GCS_TEST_PRIVATE_KEYFILE")
+GCS_TEST_PRIVATE_KEYFILE=$(readlink -f "$GCS_TEST_PRIVATE_KEYFILE")
+export GCS_TEST_PRIVATE_KEYFILE
 export RUN_INTEGRATION_TESTS=true
 
-if ! which mvn > /dev/null; then
+if ! command -v mvn > /dev/null; then
   echo "Couldn't find mvn on the PATH"
   exit 1
 fi
