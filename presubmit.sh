@@ -1,19 +1,19 @@
 #!/bin/bash
 set -e
 
-git fetch origin
+# git fetch origin
 
-# git init
+git init
 
 # # Stage changed files to track their change history
-# git add .
+git add .
 
 # Infer the files that changed
 CHANGED_FILES=$(git diff --staged --name-only)
-CHANGED_FILES2=$(git diff origin/master --name-only)
+# CHANGED_FILES2=$(git diff origin/master --name-only)
 # git diff $COMMIT_ID
 echo $CHANGED_FILES
-echo $CHANGED_FILES2
+# echo $CHANGED_FILES2
 
 # Determines whether a given string is a substring of any changed file name
 contains() {
