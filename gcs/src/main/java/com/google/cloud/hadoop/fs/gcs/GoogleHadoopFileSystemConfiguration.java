@@ -354,6 +354,10 @@ public class GoogleHadoopFileSystemConfiguration {
           "fs.gs.inputstream.min.range.request.size",
           GoogleCloudStorageReadOptions.DEFAULT_MIN_RANGE_REQUEST_SIZE);
 
+  /** Configuration key for enabling use of the gRPC API for read/write. */
+  public static final HadoopConfigurationProperty<Boolean> GCS_GRPC_ENABLE =
+      new HadoopConfigurationProperty<>("fs.gs.grpc.enable", false);
+
   /** Override configuration file path. This file must be a valid Hadoop configuration file. */
   public static final HadoopConfigurationProperty<String> GCS_CONFIG_OVERRIDE_FILE =
       new HadoopConfigurationProperty<>("fs.gs.config.override.file", null);
@@ -451,7 +455,8 @@ public class GoogleHadoopFileSystemConfiguration {
         .setHttpRequestHeaders(GCS_HTTP_HEADERS.getPropsWithPrefix(config))
         .setEncryptionAlgorithm(GCS_ENCRYPTION_ALGORITHM.get(config, config::get))
         .setEncryptionKey(RedactedString.create(GCS_ENCRYPTION_KEY.getPassword(config)))
-        .setEncryptionKeyHash(RedactedString.create(GCS_ENCRYPTION_KEY_HASH.getPassword(config)));
+        .setEncryptionKeyHash(RedactedString.create(GCS_ENCRYPTION_KEY_HASH.getPassword(config)))
+        .setGrpcEnabled(GCS_GRPC_ENABLE.get(config, config::getBoolean));
   }
 
   private static PerformanceCachingGoogleCloudStorageOptions getPerformanceCachingOptions(

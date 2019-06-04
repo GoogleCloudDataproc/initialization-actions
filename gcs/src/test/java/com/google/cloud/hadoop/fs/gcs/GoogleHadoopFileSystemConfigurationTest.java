@@ -106,6 +106,7 @@ public class GoogleHadoopFileSystemConfigurationTest {
           put("fs.gs.encryption.algorithm", null);
           put("fs.gs.encryption.key", null);
           put("fs.gs.encryption.key.hash", null);
+          put("fs.gs.grpc.enable", false);
         }
       };
 
