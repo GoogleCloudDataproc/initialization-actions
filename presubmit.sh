@@ -6,17 +6,17 @@ set -e
 git init
 
 
-# # Stage changed files to track their change history
+# Stage changed files to track their history
 git add .
-git commit -m "Commit all changes"
-git remote add origin ""
+git remote add origin "https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git"
+git fetch origin
 
 # Infer the files that changed
 # CHANGED_FILES=$(git diff --staged --name-only)
-CHANGED_FILES2=$(git diff origin/master --name-only)
+CHANGED_FILES=$(git diff origin/master --name-only)
 # git diff $COMMIT_ID
 # echo $CHANGED_FILES
-echo $CHANGED_FILES2
+echo $CHANGED_FILES
 
 # Determines whether a given string is a substring of any changed file name
 contains() {
