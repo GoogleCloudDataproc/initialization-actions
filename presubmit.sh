@@ -11,7 +11,7 @@ git remote add origin "https://github.com/GoogleCloudPlatform/dataproc-initializ
 # git fetch origin
 
 # Infer the files that changed
-CHANGED_FILES=$(git diff origin/master --name-only)
+CHANGED_FILES=$(git diff origin/master master --name-only)
 echo $CHANGED_FILES
 
 # Determines whether a given string is a substring of any changed file name
