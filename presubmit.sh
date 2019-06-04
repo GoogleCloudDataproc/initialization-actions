@@ -6,7 +6,7 @@ git init
 
 # Stage files to track their history
 git add .
-git restore --staged .
+git rm --cached .
 
 git remote add origin "https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git"
 git fetch origin
