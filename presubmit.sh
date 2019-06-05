@@ -38,6 +38,10 @@ contains_prefix() {
 }
 
 # Run only the tests of the init actions that were modified
+# If a test fails, the script doesn't exit and continues running all the
+# tests it needs to run. This means that Cloud Build will show that the
+# build succeeds when tests fail. The results of the test will appear in
+# the logs.
 if contains "bigtable"; then
 	python bigtable/test_bigtable.py || true
 fi
