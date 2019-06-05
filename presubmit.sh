@@ -36,52 +36,56 @@ contains_prefix() {
 	return 1
 }
 
+isSuccess=0
+
 # Run only the tests of the init actions that were modified
 if contains "bigtable"; then
-	python bigtable/test_bigtable.py
+	python bigtable/test_bigtable.py || isSuccess=1
 fi
 if contains "drill"; then
-	python drill/test_drill.py
+	python drill/test_drill.py || isSuccess=1
 fi
 if contains "flink"; then
-	python flink/test_flink.py
+	python flink/test_flink.py || isSuccess=1
 fi
 if contains "ganglia"; then
-	python ganglia/test_ganglia.py
+	python ganglia/test_ganglia.py || isSuccess=1
 fi
 if contains "hbase"; then
-	python hbase/test_hbase.py
+	python hbase/test_hbase.py || isSuccess=1
 fi
 if contains "hive"; then
-	python hive-hcatalog/test_hive.py
+	python hive-hcatalog/test_hive.py || isSuccess=1
 fi
 if contains "hue"; then
-	python hue/test_hue.py
+	python hue/test_hue.py || isSuccess=1
 fi
 if contains "kafka"; then
-	python kafka/test_kafka.py
+	python kafka/test_kafka.py || isSuccess=1
 fi
 if contains "livy"; then
-	python livy/test_livy.py
+	python livy/test_livy.py || isSuccess=1
 fi
 if contains "oozie"; then
-	python oozie/test_oozie.py
+	python oozie/test_oozie.py || isSuccess=1
 fi
 if contains_prefix "presto"; then
-	python presto/test_presto.py
+	python presto/test_presto.py || isSuccess=1
 fi
 if contains "ranger"; then
-	python ranger/test_ranger.py
+	python ranger/test_ranger.py || isSuccess=1
 fi
 if contains "solr"; then
-	python solr/test_solr.py
+	python solr/test_solr.py || isSuccess=1
 fi
 if contains "starburst-presto"; then
-	python starburst-presto/test_presto.py
+	python starburst-presto/test_presto.py || isSuccess=1
 fi
 if contains "tez"; then
-	python tez/test_tez.py
+	python tez/test_tez.py || isSuccess=1
 fi
 if contains "tony"; then
-	python tony/test_tony.py
+	python tony/test_tony.py || isSuccess=1
 fi
+
+exit $isSuccess
