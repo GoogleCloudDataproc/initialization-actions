@@ -12,7 +12,7 @@ git fetch origin
 
 # Infer the files that changed
 CHANGED_FILES=$(git diff origin/master --name-only)
-echo $CHANGED_FILES
+echo "Files changed: $CHANGED_FILES"
 
 # Determines whether a given string is a substring of any changed file name
 contains() {
