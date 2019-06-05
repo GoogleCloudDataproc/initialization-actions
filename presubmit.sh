@@ -4,7 +4,6 @@ set -e
 
 git init
 
-
 # Stage files to track their history
 git add .
 
