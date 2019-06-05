@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 git init
 
@@ -38,55 +37,51 @@ contains_prefix() {
 }
 
 # Run only the tests of the init actions that were modified
-# If a test fails, the script doesn't exit and continues running all the
-# tests it needs to run. This means that Cloud Build will show that the
-# build succeeds when tests fail. The results of the test will appear in
-# the logs.
 if contains "bigtable"; then
-	python bigtable/test_bigtable.py || true
+	python bigtable/test_bigtable.py
 fi
 if contains "drill"; then
-	python drill/test_drill.py || true
+	python drill/test_drill.py
 fi
 if contains "flink"; then
-	python flink/test_flink.py || true
+	python flink/test_flink.py
 fi
 if contains "ganglia"; then
-	python ganglia/test_ganglia.py || true
+	python ganglia/test_ganglia.py
 fi
 if contains "hbase"; then
-	python hbase/test_hbase.py || true
+	python hbase/test_hbase.py
 fi
 if contains "hive"; then
-	python hive-hcatalog/test_hive.py || true
+	python hive-hcatalog/test_hive.py
 fi
 if contains "hue"; then
-	python hue/test_hue.py || true
+	python hue/test_hue.py
 fi
 if contains "kafka"; then
-	python kafka/test_kafka.py || true
+	python kafka/test_kafka.py
 fi
 if contains "livy"; then
-	python livy/test_livy.py || true
+	python livy/test_livy.py
 fi
 if contains "oozie"; then
-	python oozie/test_oozie.py || true
+	python oozie/test_oozie.py
 fi
 if contains_prefix "presto"; then
-	python presto/test_presto.py || true
+	python presto/test_presto.py
 fi
 if contains "ranger"; then
-	python ranger/test_ranger.py || true
+	python ranger/test_ranger.py
 fi
 if contains "solr"; then
-	python solr/test_solr.py || true
+	python solr/test_solr.py
 fi
 if contains "starburst-presto"; then
-	python starburst-presto/test_presto.py || true
+	python starburst-presto/test_presto.py
 fi
 if contains "tez"; then
-	python tez/test_tez.py || true
+	python tez/test_tez.py
 fi
 if contains "tony"; then
-	python tony/test_tony.py || true
+	python tony/test_tony.py
 fi
