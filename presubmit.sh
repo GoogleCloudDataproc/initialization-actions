@@ -37,7 +37,7 @@ contains_prefix() {
 	return 1
 }
 
-# Run the tests of the init actions that were modified
+# Run only the tests of the init actions that were modified
 if contains "bigtable"; then
 	python bigtable/test_bigtable.py || true
 fi
