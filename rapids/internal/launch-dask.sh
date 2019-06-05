@@ -11,32 +11,28 @@ readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-maste
 readonly RUN_CUDA_WORKER_ON_MASTER=$(/usr/share/google/get_metadata_value attributes/run-cuda-worker-on-master || echo -n 'true')
 readonly DASK_LAUNCHER='/usr/local/bin/launch-dask.sh'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/dask-cluster.service'
-# For Anaconda Dataproc component
 readonly PREFIX='/opt/conda/anaconda/envs/RAPIDS/bin'
-# For miniconda dataproc init-action
-#readonly PREFIX='/opt/conda/bin'
 
-cat << EOF > "${DASK_LAUNCHER}"
-#!/bin/bash
 if [[ "${ROLE}" == 'Master' ]]; then
-  if [[ "${RUN_CUDA_WORKER_ON_MASTER}" == true ]]; then
-    echo "dask-scheduler starting, logging to /var/log/dask-scheduler.log.."
-    #/opt/conda/anaconda/envs/rapids/bin/dask-scheduler > /var/log/dask-scheduler.log 2>&1 &
-    $PREFIX/dask-scheduler > /var/log/dask-scheduler.log 2>&1 &
+    cat << EOF > "${DASK_LAUNCHER}"
+#!/bin/bash
+if [[ "${RUN_CUDA_WORKER_ON_MASTER}" == true ]]; then
+  echo "dask-scheduler starting, logging to /var/log/dask-scheduler.log.."
+  $PREFIX/dask-scheduler > /var/log/dask-scheduler.log 2>&1 &
 
-    echo "dask-cuda-worker starting, logging to /var/log/dask-cuda-workers.log.."
-    #/opt/conda/anaconda/envs/rapids/bin/dask-cuda-worker --memory-limit 0 ${MASTER}:8786 > /var/log/dask-cuda-workers.log 2>&1
-    $PREFIX/dask-cuda-worker --memory-limit 0 ${MASTER}:8786 > /var/log/dask-cuda-workers.log 2>&1
-  else
-    echo "dask-scheduler starting, logging to /var/log/dask-scheduler.log.."
-    #/opt/conda/anaconda/envs/rapids/bin/dask-scheduler > /var/log/dask-scheduler.log 2>&1
-    $PREFIX/dask-scheduler > /var/log/dask-scheduler.log 2>&1
-  fi
-else
-  #/opt/conda/bin/dask-cuda-worker --memory-limit 0 ${MASTER}:8786 > /var/log/dask-cuda-workers.log 2>&1
+  echo "dask-cuda-worker starting, logging to /var/log/dask-cuda-workers.log.."
   $PREFIX/dask-cuda-worker --memory-limit 0 ${MASTER}:8786 > /var/log/dask-cuda-workers.log 2>&1
+else
+  echo "dask-scheduler starting, logging to /var/log/dask-scheduler.log.."
+  $PREFIX/dask-scheduler > /var/log/dask-scheduler.log 2>&1
 fi
 EOF
+else
+    cat << EOF > "${DASK_LAUNCHER}"
+#!/bin/bash
+$PREFIX/dask-cuda-worker --memory-limit 0 ${MASTER}:8786 > /var/log/dask-cuda-workers.log 2>&1
+EOF
+fi
 chmod 750 "${DASK_LAUNCHER}"
 
 cat << EOF > "${INIT_SCRIPT}"
@@ -59,4 +55,4 @@ systemctl enable dask-cluster
 systemctl restart dask-cluster
 systemctl status dask-cluster
 
-echo "Dask cluster instantiation successful" >&2
+echo "Dask cluster instantiation successful"

@@ -9,10 +9,8 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class RapidsTestCase(DataprocTestCase):
     COMPONENT = 'rapids'
-    #INIT_ACTION = 'gs://dataproc-initialization-actions/rapids/rapids.sh'
-    #METADATA = 'INIT_ACTIONS_REPO=https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git,INIT_ACTIONS_BRANCH=master'
-    INIT_ACTION = 'gs://rapidsai-test-1/rapids/rapids.sh'
-    METADATA = 'INIT_ACTIONS_REPO=https://github.com/randerzander/dataproc-initialization-actions.git,INIT_ACTIONS_BRANCH=master'
+    INIT_ACTION = 'gs://dataproc-initialization-actions/rapids/rapids.sh'
+    METADATA = 'INIT_ACTIONS_REPO=https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git,INIT_ACTIONS_BRANCH=master'
     TEST_SCRIPT_FILE_NAME = 'verify_rapids.py'
 
     def verify_instance(self, name):

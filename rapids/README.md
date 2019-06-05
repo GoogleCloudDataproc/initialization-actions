@@ -10,7 +10,7 @@ On the Dataproc master node:
 On the Dataproc worker nodes:
 - `dask-cuda-worker`
 
-Our initialization actions do the following:
+Our initialization action does the following:
 1. [install nvidia GPU driver](internal/install-gpu-driver.sh)
 2. [install RAPIDS](rapids.sh) - [installs miniconda](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/conda), and [conda packages](internal/conda-environment.yml)
 3. [start dask-scheduler and dask-cuda-workers](internal/launch-dask.sh)
@@ -84,8 +84,15 @@ gcloud beta dataproc clusters create <CLUSTER_NAME> \
 --worker-machine-type n1-standard-32 \
 --metadata "run-cuda-worker-on-master=false" \
 --initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
---optional-components=ANACONDA \
+--optional-components=ANACONDA
 ```
+
+#### Initialization Action Source
+
+The RAPIDS initialization action steps are performed by [rapids.sh](rapids.sh) which runs additional scripts cloned from the master branch of [Dataproc Initialization Actions repo](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions) by default. Other forks or branches may be specified as `--metadata` arguments:
+
+* `--metadata "INIT_ACTIONS_REPO=https://github.com/GoogleCloudPlatform/dataproc-initialization-actions,INIT_ACTIONS_BRANCH=master"`
+
 
 ## Important notes
 * RAPIDS init actions depend on the [Anaconda](https://cloud.google.com/dataproc/docs/concepts/components/anaconda) component, which should be included at cluster creation time via the `--optional-components=ANACONDA` argument.

@@ -14,11 +14,7 @@ git clone -b "${INIT_ACTIONS_BRANCH}" --single-branch "${INIT_ACTIONS_REPO}"
 # For use with Anaconda component
 conda env create --name RAPIDS --file dataproc-initialization-actions/rapids/internal/conda-environment.yml
 
-# For use with miniconda and jupyter init-actions instead of Anaconda component
-# bash rapids/internal/install-rapids.sh
-
 # Get Jupyter instance to pickup RAPIDS environment.
-# TODO: Detect if Jupyter optional component is configured.
 if [[ "${ROLE}" == "Master" ]]; then
     /opt/conda/anaconda/bin/conda install -y nb_conda_kernels
     service jupyter restart
