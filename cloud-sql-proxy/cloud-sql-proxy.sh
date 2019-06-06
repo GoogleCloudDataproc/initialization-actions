@@ -114,9 +114,11 @@ function is_component_selected() {
 readonly KERBEROS_ENABLED=$(is_component_selected 'kerberos' && echo 'true' || echo 'false')
 
 function get_hive_principal() {
-  local host=$(hostname)
+  # Hostname is fully qualified
+  local host=$(hostname -f)
   local domain=$(dnsdomainname)
-  echo "hive/${host}@${domain}"
+  # Realm is uppercase domain name
+  echo "hive/${host}@${domain^^}"
 }
 
 function get_hiveserver_uri() {
