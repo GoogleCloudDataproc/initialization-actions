@@ -23,7 +23,7 @@ readonly PRESTO_MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/d
 readonly WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 readonly PRESTO_MAJOR_VERSION="302"
 readonly STARBURST_PRESTO_VERSION="302-e.11"
-readonly HTTP_PORT="8080"
+readonly HTTP_PORT="8060"
 readonly INIT_SCRIPT="/usr/lib/systemd/system/presto.service"
 PRESTO_JVM_MB=0;
 PRESTO_QUERY_NODE_MB=0;
@@ -38,14 +38,13 @@ function err() {
 function wait_for_presto_cluster_ready() {
   # wait up to 120s for presto being able to run query
   for ((i = 0; i < 12; i++)); do
-    if presto --execute='select * from system.runtime.nodes;'; then
+    if presto --server="localhost:${HTTP_PORT}" --execute='select 1'; then
       return 0
     fi
     sleep 10
   done
   return 1
 }
-
 
 function get_presto(){
   # Download and unpack Presto server
@@ -123,21 +122,40 @@ function configure_hive(){
 connector.name=hive-hadoop2
 hive.metastore.uri=${metastore_uri}
 EOF
+
+# Add connectors configs here 
+  cat > presto-server/etc/catalog/tpch.properties <<EOF
+connector.name=tpch
+EOF
+
+cat > presto-server/etc/catalog/tpcds.properties <<EOF
+connector.name=tpcds
+EOF
+
+cat > presto-server/etc/catalog/jmx.properties <<EOF
+connector.name=jmx
+EOF
+
+cat > presto-server/etc/catalog/memory.properties <<EOF
+connector.name=memory
+EOF
+
 }
 
 function configure_jvm(){
   cat > presto-server/etc/jvm.config <<EOF
 -server
 -Xmx${PRESTO_JVM_MB}m
--Xmn512m
--XX:+UseConcMarkSweepGC
+-XX:-UseBiasedLocking
+-XX:+UseG1GC
+-XX:G1HeapRegionSize=32M
 -XX:+ExplicitGCInvokesConcurrent
--XX:ReservedCodeCacheSize=150M
--XX:+ExplicitGCInvokesConcurrent
--XX:+CMSClassUnloadingEnabled
--XX:+AggressiveOpts
+-XX:+ExitOnOutOfMemoryError
+-XX:+UseGCOverheadLimit
 -XX:+HeapDumpOnOutOfMemoryError
--XX:OnOutOfMemoryError=kill -9 %p
+-XX:ReservedCodeCacheSize=512M
+-Djdk.attach.allowAttachSelf=true
+-Djdk.nio.maxCachedBufferSize=2000000
 -Dhive.config.resources=/etc/hadoop/conf/core-site.xml,/etc/hadoop/conf/hdfs-site.xml
 -Djava.library.path=/usr/lib/hadoop/lib/native/:/usr/lib/
 EOF
@@ -185,14 +203,11 @@ function start_presto(){
   cat << EOF > ${INIT_SCRIPT}
 [Unit]
 Description=Presto DB
-
 [Service]
 Type=forking
 ExecStart=/presto-server/bin/launcher.py start
 ExecStop=/presto-server/bin/launcher.py stop
 Restart=always
-
-
 [Install]
 WantedBy=multi-user.target
 EOF
