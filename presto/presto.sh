@@ -29,8 +29,8 @@ else
   readonly CONNECTOR_JAR="$(find /usr/lib/hadoop/lib -name 'gcs-connector-*.jar')"
 fi
 readonly PRESTO_BASE_URL=https://repo1.maven.org/maven2/com/facebook/presto
-readonly PRESTO_VERSION='0.206'
-readonly HTTP_PORT='8080'
+readonly PRESTO_VERSION='0.220'
+readonly HTTP_PORT='8077'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/presto.service'
 PRESTO_JVM_MB=0
 PRESTO_QUERY_NODE_MB=0
@@ -43,12 +43,18 @@ function err() {
   return 1
 }
 
+# Purpose: Determine if presto is running or not
+function test_presto_with_query(){
+        # [ $(presto --server=localhost:${HTTP_PORT} --execute='select * from system.runtime.nodes;' | grep -q ${PRESTO_VERSION} && echo 0 || echo 1) -eq 0 ]
+        [ $(presto --server=localhost:${HTTP_PORT} --execute='select 1' | grep -q "1" && echo 0 || echo 1) -eq 0 ]
+}
+
 function wait_for_presto_cluster_ready() {
   # wait up to 120s for presto being able to run query
   for ((i = 0; i < 12; i++)); do
-    if presto --execute='select * from system.runtime.nodes;'; then
-      return 0
-    fi
+    # test_presto_with_query && echo "Presto is working properly." || echo "Presto is not ready, need to wait for presto cluster."
+    # if [$(test_presto_with_query && return 0) -eq 0]; then
+    test_presto_with_query && return 0
     sleep 10
   done
   return 1
@@ -130,23 +136,34 @@ function configure_hive() {
 connector.name=hive-hadoop2
 hive.metastore.uri=${metastore_uri}
 EOF
+
+# Add new connectors configs here 
+# For example: Adding jmx properties like
+  cat > presto-server-${PRESTO_VERSION}/etc/catalog/jmx.properties <<- "EOF"
+connector.name=jmx
+EOF
+
 }
 
 function configure_jvm() {
   cat >presto-server-${PRESTO_VERSION}/etc/jvm.config <<EOF
 -server
 -Xmx${PRESTO_JVM_MB}m
--Xmn512m
--XX:+UseConcMarkSweepGC
+-XX:+UseG1GC
+-XX:-UseBiasedLocking
+-XX:G1HeapRegionSize=32M
+-XX:+UseGCOverheadLimit
 -XX:+ExplicitGCInvokesConcurrent
--XX:ReservedCodeCacheSize=150M
--XX:+ExplicitGCInvokesConcurrent
+-XX:+ExitOnOutOfMemoryError
+-XX:ReservedCodeCacheSize=256M
 -XX:+CMSClassUnloadingEnabled
 -XX:+AggressiveOpts
 -XX:+HeapDumpOnOutOfMemoryError
 -XX:OnOutOfMemoryError=kill -9 %p
 -Dhive.config.resources=/etc/hadoop/conf/core-site.xml,/etc/hadoop/conf/hdfs-site.xml
 -Djava.library.path=/usr/lib/hadoop/lib/native/:/usr/lib/
+-Djdk.attach.allowAttachSelf=true
+-Djdk.nio.maxCachedBufferSize=2000000
 EOF
 }
 
