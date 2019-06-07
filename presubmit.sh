@@ -25,10 +25,11 @@ contains() {
   return 1
 }
 
+# Determines init actions directories that were modified
 declare -a DIRECTORIES_TO_TEST
 for dir in */
 do
-  # skip not init action changes
+  # Skip not init action changes
   if [[ $dir =~ ^(integration_tests/|util/)$ ]]; then
     continue
   fi
@@ -38,21 +39,24 @@ do
 done
 echo "Test directories: ${DIRECTORIES_TO_TEST[*]}"
 
-#mapfile -t -d $'\0' TESTS < <(printf "%stest.py\0" "${DIRECTORIES_TO_TEST[@]}")
-
+# Determines what tests in modified init action directories to run
 declare -a TESTS
 for test_dir in "${DIRECTORIES_TO_TEST[@]}"
 do
+  dirHasTests="false"
   for test in "${test_dir}"test*.py
   do
     TESTS+=("$test")
+    dirHasTests="true"
   done
+  if [[ $dirHasTests == "false" ]]; then
+    echo "Presubmit failed: '${test_dir}' does not have tests"
+    exit 1
+  fi
 done
 echo "Tests: ${TESTS[*]}"
 
-isSuccess=0
+# Run tests of the init actions that were modified
+python "${TESTS[@]}"
 
-# Run only the tests of the init actions that were modified
-python "${TESTS[@]}" || isSuccess=1
-
-exit $isSuccess
+exit $?
