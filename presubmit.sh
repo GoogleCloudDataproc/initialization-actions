@@ -14,45 +14,49 @@ git fetch origin master
 mapfile -t CHANGED_FILES < <(git diff origin/master --name-only)
 echo "Changed files: ${CHANGED_FILES[*]}"
 
-# Determines whether a given string is a substring of any changed file name
-contains() {
+# Determines whether a given string is a prefix string of any changed file name
+is_prefix() {
   for file in "${CHANGED_FILES[@]}"
   do
-    if [[ $file =~ $1 ]]; then
+    if [[ $file =~ ^$1 ]]
+    then
       return 0
     fi
   done
   return 1
 }
 
+# Determines init actions directories that were modified
 declare -a DIRECTORIES_TO_TEST
 for dir in */
 do
-  # skip not init action changes
-  if [[ $dir =~ ^(integration_tests/|util/)$ ]]; then
+  # Skip not init action changes
+  if [[ $dir =~ ^(integration_tests/|util/)$ ]]
+  then
     continue
   fi
-  if contains "$dir"; then
+  if is_prefix "$dir"
+  then
     DIRECTORIES_TO_TEST+=("$dir")
   fi
 done
 echo "Test directories: ${DIRECTORIES_TO_TEST[*]}"
 
-#mapfile -t -d $'\0' TESTS < <(printf "%stest.py\0" "${DIRECTORIES_TO_TEST[@]}")
-
-declare -a TESTS
+# Determines what tests in modified init action directories to run
+declare -a ALL_TESTS
 for test_dir in "${DIRECTORIES_TO_TEST[@]}"
 do
-  for test in "${test_dir}"test*.py
-  do
-    TESTS+=("$test")
-  done
+  if ! tests=$(compgen -G "${test_dir}test*.py")
+  then
+    echo "ERROR: presubmit failed - can not find tests inside '${test_dir}' directory"
+    exit 1
+  fi
+  mapfile -t tests_array < <(echo "${tests}")
+  ALL_TESTS+=("${tests_array[@]}")
 done
-echo "Tests: ${TESTS[*]}"
+echo "Tests: ${ALL_TESTS[*]}"
 
-isSuccess=0
+# Run tests of the init actions that were modified
+python -m unittest "${ALL_TESTS[@]}"
 
-# Run only the tests of the init actions that were modified
-python "${TESTS[@]}" || isSuccess=1
-
-exit $isSuccess
+exit $?
