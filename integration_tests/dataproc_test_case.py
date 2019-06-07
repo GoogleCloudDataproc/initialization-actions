@@ -48,7 +48,7 @@ class DataprocTestCase(BASE_TEST_CASE):
                       metadata=None, scopes=None, properties=None,
                       timeout_in_minutes=None, beta=False,
                       master_accelerator=None, worker_accelerator=None,
-                      optional_components=None, zone=None):
+                      optional_components=None):
         self.name = "test-{}-{}-{}-{}-{}".format(
             self.COMPONENT,
             configuration.lower(),
@@ -77,8 +77,6 @@ class DataprocTestCase(BASE_TEST_CASE):
             args.append("--worker-accelerator {}".format(worker_accelerator))
         if optional_components:
             args.append("--optional-components {}".format(optional_components))
-        if zone:
-            args.append("--zone {}".format(zone))
         cmd = "gcloud dataproc clusters create {}".format(self.name)
         if beta:
             cmd = "gcloud beta dataproc clusters create {}".format(self.name)
