@@ -18,7 +18,7 @@ echo "Changed files: ${CHANGED_FILES[*]}"
 contains() {
   for file in "${CHANGED_FILES[@]}"
   do
-    if [[ $file =~ $1 ]]; then
+    if [[ $file =~ ^$1 ]]; then
       return 0
     fi
   done
