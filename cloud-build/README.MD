@@ -1,6 +1,6 @@
 # Continuous Integration via Cloud Build
 
-Cloud Build is configured in our GCP project (google.com:cloud-dataproc-ci) to trigger whenever there are PRs from a fork to the main repository. We are using GitHub App Triggers Alpha to integrate with GitHub.
+Cloud Build is configured in our GCP project (google.com:cloud-dataproc-ci) to trigger whenever there are PRs from a fork to the main repository. We are using [GitHub App Triggers Alpha](http://go/gcb-github#github-app-triggers) to integrate with GitHub.
 
 Cloud Build triggers a set of build steps, configured in a yaml config file. These steps are:
 
