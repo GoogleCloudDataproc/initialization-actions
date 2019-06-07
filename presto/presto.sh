@@ -52,9 +52,9 @@ function test_presto_with_query(){
 function wait_for_presto_cluster_ready() {
   # wait up to 120s for presto being able to run query
   for ((i = 0; i < 12; i++)); do
-    # test_presto_with_query && echo "Presto is working properly." || echo "Presto is not ready, need to wait for presto cluster."
-    # if [$(test_presto_with_query && return 0) -eq 0]; then
-    test_presto_with_query && return 0
+    if presto --server="localhost:${HTTP_PORT}" --execute='select 1'; then
+      return 0
+    fi
     sleep 10
   done
   return 1
@@ -137,10 +137,21 @@ connector.name=hive-hadoop2
 hive.metastore.uri=${metastore_uri}
 EOF
 
-# Add new connectors configs here 
-# For example: Adding jmx properties like
-  cat > presto-server-${PRESTO_VERSION}/etc/catalog/jmx.properties <<- "EOF"
+# Add connectors configs here 
+  cat > presto-server-${PRESTO_VERSION}/etc/catalog/tpch.properties <<EOF
+connector.name=tpch
+EOF
+
+cat > presto-server-${PRESTO_VERSION}/etc/catalog/tpcds.properties <<EOF
+connector.name=tpcds
+EOF
+
+cat > presto-server-${PRESTO_VERSION}/etc/catalog/jmx.properties <<EOF
 connector.name=jmx
+EOF
+
+cat > presto-server-${PRESTO_VERSION}/etc/catalog/memory.properties <<EOF
+connector.name=memory
 EOF
 
 }
@@ -149,21 +160,18 @@ function configure_jvm() {
   cat >presto-server-${PRESTO_VERSION}/etc/jvm.config <<EOF
 -server
 -Xmx${PRESTO_JVM_MB}m
--XX:+UseG1GC
 -XX:-UseBiasedLocking
+-XX:+UseG1GC
 -XX:G1HeapRegionSize=32M
--XX:+UseGCOverheadLimit
 -XX:+ExplicitGCInvokesConcurrent
 -XX:+ExitOnOutOfMemoryError
--XX:ReservedCodeCacheSize=256M
--XX:+CMSClassUnloadingEnabled
--XX:+AggressiveOpts
+-XX:+UseGCOverheadLimit
 -XX:+HeapDumpOnOutOfMemoryError
--XX:OnOutOfMemoryError=kill -9 %p
--Dhive.config.resources=/etc/hadoop/conf/core-site.xml,/etc/hadoop/conf/hdfs-site.xml
--Djava.library.path=/usr/lib/hadoop/lib/native/:/usr/lib/
+-XX:ReservedCodeCacheSize=512M
 -Djdk.attach.allowAttachSelf=true
 -Djdk.nio.maxCachedBufferSize=2000000
+-Dhive.config.resources=/etc/hadoop/conf/core-site.xml,/etc/hadoop/conf/hdfs-site.xml
+-Djava.library.path=/usr/lib/hadoop/lib/native/:/usr/lib/
 EOF
 }
 
