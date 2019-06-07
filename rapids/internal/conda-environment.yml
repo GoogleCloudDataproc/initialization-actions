@@ -1,0 +1,20 @@
+channels:
+  - rapidsai/label/xgboost
+  - rapidsai
+  - nvidia
+  - conda-forge
+dependencies:
+  - cudatoolkit=10.0
+  - dask-cuda=0.7.*
+  - cudf=0.7.*
+  - pyarrow=0.12.1
+  - arrow-cpp=0.12.1
+  - dask-cudf=0.7.*
+  - cuml=0.7.*
+  - dask-cuml=0.7.*
+  - cugraph=0.7.*
+  - rapidsai/label/xgboost::xgboost=0.90.*
+  - rapidsai/label/xgboost::dask-xgboost=0.2.*
+  - gcsfs
+  - dill
+  - ipykernel
