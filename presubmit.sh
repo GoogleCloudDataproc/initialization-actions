@@ -14,8 +14,8 @@ git fetch origin master
 mapfile -t CHANGED_FILES < <(git diff origin/master --name-only)
 echo "Changed files: ${CHANGED_FILES[*]}"
 
-# Determines whether a given string is a substring of any changed file name
-contains() {
+# Determines whether a given string is a prefix string of any changed file name
+is_prefix() {
   for file in "${CHANGED_FILES[@]}"
   do
     if [[ $file =~ ^$1 ]]; then
@@ -33,7 +33,7 @@ do
   if [[ $dir =~ ^(integration_tests/|util/)$ ]]; then
     continue
   fi
-  if contains "$dir"; then
+  if is_prefix "$dir"; then
     DIRECTORIES_TO_TEST+=("$dir")
   fi
 done
