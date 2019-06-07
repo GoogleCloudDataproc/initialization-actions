@@ -31,7 +31,7 @@ declare -a DIRECTORIES_TO_TEST
 for dir in */
 do
   # Skip not init action changes
-  if [[ $dir =~ ^(integration_tests/|util/)$ ]]
+  if [[ $dir =~ ^(integration_tests/|util/|cloud-build/)$ ]]
   then
     continue
   fi
