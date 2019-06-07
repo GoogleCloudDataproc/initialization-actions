@@ -2,6 +2,8 @@ steps:
 # Create docker image from regular Dockerfile
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build', '--tag=gcr.io/google.com/hadoop-cloud-dev/init-actions-image', '.']
+  dir: 'cloud-build'
 - name: 'gcr.io/google.com/cloud-dataproc-ci/init-actions-image'
   entrypoint: 'bash'
   args: ['./presubmit.sh']
+  dir: cloud-build
