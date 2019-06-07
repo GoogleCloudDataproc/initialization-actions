@@ -164,7 +164,7 @@ EOF
     # Waiting until hdfs plugin will be configured on m-0
     until hadoop fs -ls /tmp/ranger-hdfs-plugin-ready &> /dev/null
     do
-	  sleep 10
+      sleep 10
     done
     systemctl stop hadoop-hdfs-namenode.service
     systemctl start hadoop-hdfs-namenode.service
@@ -186,7 +186,7 @@ function add_hive_plugin() {
     # Notify cluster that hive plugin is installed on master.
     until hadoop fs -touchz /tmp/ranger-hive-plugin-ready  &> /dev/null
     do
-	  sleep 10
+      sleep 10
     done
 
     cat << EOF > service-hive.json
@@ -210,7 +210,7 @@ EOF
     # Waiting until hive plugin will be configured on m-0
     until hadoop fs -ls /tmp/ranger-hive-plugin-ready &> /dev/null
     do
-	  sleep 10
+      sleep 10
     done
     systemctl stop hive-server2.service
     systemctl start hive-server2.service
@@ -229,7 +229,7 @@ function add_yarn_plugin() {
     # Notify cluster that yarn plugin is installed on master.
     until hadoop fs -touchz /tmp/ranger-yarn-plugin-ready  &> /dev/null
     do
-	  sleep 10
+      sleep 10
     done
 
     cat << EOF > service-yarn.json
@@ -252,7 +252,7 @@ EOF
     # Waiting until yarn plugin will be configured on m-0
     until hadoop fs -ls /tmp/ranger-yarn-plugin-ready &> /dev/null
     do
-	  sleep 10
+      sleep 10
     done
     systemctl stop hadoop-yarn-resourcemanager.service
     systemctl start hadoop-yarn-resourcemanager.service
