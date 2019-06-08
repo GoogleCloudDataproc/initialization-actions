@@ -38,12 +38,17 @@ class DataprocTestCase(BASE_TEST_CASE):
 
     COMPONENT = None
     INIT_ACTIONS = None
+    INIT_ACTIONS_REPO = None
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+
+        cls.INIT_ACTIONS_REPO = DataprocTestCase().stage_init_actions()
+
         assert cls.COMPONENT
         assert cls.INIT_ACTIONS
+        assert cls.INIT_ACTIONS_REPO
 
     def createCluster(self, configuration, init_actions, dataproc_version,
                       metadata=None, scopes=None, properties=None,
@@ -59,8 +64,8 @@ class DataprocTestCase(BASE_TEST_CASE):
         )[:50]
         self.cluster_version = None
 
-        staging_dir = self.stage_init_actions()
-        init_actions = ["{}/{}".format(staging_dir, i) for i in init_actions]
+        init_actions = [
+            "{}/{}".format(self.INIT_ACTIONS_REPO, i) for i in init_actions]
 
         args = self.DEFAULT_ARGS[configuration].copy()
         if properties:
@@ -109,9 +114,9 @@ class DataprocTestCase(BASE_TEST_CASE):
         if ret_val != 0:
             ret_val, _, stderr = self.run_command("gsutil mb {}".format(bucket))
             self.assertEqual(
-               ret_val, 0,
-               "Failed to create bucket for init actions: {}. Error: {}".format(
-                   bucket, stderr))
+                ret_val, 0,
+                "Failed to create staging bucket: {}. Error: {}".format(
+                    bucket, stderr))
 
         staging_dir = "{}/{}-{}".format(
             bucket, self.datetime_str(), self.random_str())
