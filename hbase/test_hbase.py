@@ -7,7 +7,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class HBaseTestCase(DataprocTestCase):
     COMPONENT = 'hbase'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/hbase/hbase.sh'
+    INIT_ACTION = 'hbase/hbase.sh'
     HELPER_ACTIONS = 'gs://dataproc-initialization-actions/zookeeper/zookeeper.sh'
     GCS_BUCKET = None
 

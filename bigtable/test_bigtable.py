@@ -19,7 +19,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class BigTableTestCase(DataprocTestCase):
     COMPONENT = 'bigtable'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/bigtable/bigtable.sh'
+    INIT_ACTION = 'bigtable/bigtable.sh'
     TEST_SCRIPT_FILE_NAME = "run_hbase_commands.py"
 
     def __init__(self, methodName='runTest'):

@@ -17,7 +17,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class TezTestCase(DataprocTestCase):
     COMPONENT = 'tez'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/tez/tez.sh'
+    INIT_ACTION = 'tez/tez.sh'
     TEST_SCRIPT_FILE_NAME = 'verify_tez.py'
 
     def verify_instance(self, name):

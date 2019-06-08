@@ -11,7 +11,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class RangerTestCase(DataprocTestCase):
     COMPONENT = 'ranger'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/solr/solr.sh,' \
+    INIT_ACTION = 'solr/solr.sh,' \
                   'gs://dataproc-initialization-actions/ranger/ranger.sh'
     TEST_SCRIPT_FILE_NAME = 'verify_ranger.py'
 

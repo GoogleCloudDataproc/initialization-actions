@@ -10,7 +10,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class SolrTestCase(DataprocTestCase):
     COMPONENT = 'solr'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/solr/solr.sh'
+    INIT_ACTION = 'solr/solr.sh'
     TEST_SCRIPT_FILE_NAME = 'verify_solr.py'
 
     def verify_instance(self, name):

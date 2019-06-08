@@ -8,7 +8,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class PrestoTestCase(DataprocTestCase):
     COMPONENT = 'presto'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/presto/presto.sh'
+    INIT_ACTION = 'presto/presto.sh'
 
     def verify_instance(self, name, coordinators, workers):
         schema = "schema_{}".format(random.randint(0, 1000))

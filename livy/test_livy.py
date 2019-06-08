@@ -8,7 +8,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 class LivyTestCase(DataprocTestCase):
     COMPONENT = 'livy'
     TEST_SCRIPT_FILE_NAME = 'verify_livy_running.py'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/livy/livy.sh'
+    INIT_ACTION = 'livy/livy.sh'
     INIT_ACTION_FOR_STANDARD = '\'gs://dataproc-initialization-actions/zookeeper/zookeeper.sh\',\'gs://dataproc-initialization-actions/livy/livy.sh\''
 
     def _verify_instance(self, name):

@@ -6,7 +6,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class GangliaTestCase(DataprocTestCase):
     COMPONENT = 'ganglia'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/ganglia/ganglia.sh'
+    INIT_ACTION = 'ganglia/ganglia.sh'
     TEST_SCRIPT_FILE_NAME = 'verify_ganglia_running.py'
 
     def verify_instance(self, name):

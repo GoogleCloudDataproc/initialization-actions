@@ -7,7 +7,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class HueTestCase(DataprocTestCase):
     COMPONENT = 'hue'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/hue/hue.sh'
+    INIT_ACTION = 'hue/hue.sh'
     TEST_SCRIPT_FILE_NAME = 'verify_hue_running.py'
 
     def verify_instance(self, name):

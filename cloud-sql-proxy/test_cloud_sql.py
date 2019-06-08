@@ -8,7 +8,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class CloudSqlProxyTestCase(DataprocTestCase):
     COMPONENT = 'cloud-sql-proxy'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/cloud-sql-proxy/cloud-sql-proxy.sh'
+    INIT_ACTION = 'cloud-sql-proxy/cloud-sql-proxy.sh'
     TEST_SCRIPT_LOCATION = 'dataproc-initialization-actions/cloud-sql-proxy'
     TEST_SCRIPT_FILE_NAME = 'pyspark_metastore_test.py'
     SCOPES = 'sql-admin'

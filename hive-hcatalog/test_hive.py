@@ -8,7 +8,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class HiveHCatalogTestCase(DataprocTestCase):
     COMPONENT = 'hive-hcatalog'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/hive-hcatalog/hive-hcatalog.sh'
+    INIT_ACTION = 'hive-hcatalog/hive-hcatalog.sh'
 
     def verify_instance(self, name, should_repeat_job):
         table_name = "table_{}".format(random.randint(0, 1000))

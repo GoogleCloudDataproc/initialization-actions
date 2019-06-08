@@ -6,7 +6,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class OozieTestCase(DataprocTestCase):
     COMPONENT = 'oozie'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/oozie/oozie.sh'
+    INIT_ACTION = 'oozie/oozie.sh'
     TEST_SCRIPT_FILE_NAME = 'validate.sh'
 
     def verify_instance(self, name):

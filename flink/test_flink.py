@@ -9,7 +9,7 @@ METADATA = 'flink-start-yarn-session=false'
 
 class FlinkTestCase(DataprocTestCase):
     COMPONENT = 'flink'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/flink/flink.sh'
+    INIT_ACTION = 'flink/flink.sh'
     TEST_SCRIPT_FILE_NAME = 'validate.sh'
 
     def verify_instance(self, name, yarn_session=True):

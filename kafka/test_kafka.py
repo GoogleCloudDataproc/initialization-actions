@@ -8,7 +8,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class KafkaTestCase(DataprocTestCase):
     COMPONENT = 'kafka'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/kafka/kafka.sh'
+    INIT_ACTION = 'kafka/kafka.sh'
     TEST_SCRIPT_FILE_NAME = 'validate.sh'
 
     def verify_instance(self, name):

@@ -6,7 +6,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class NvidiaGpuDriverTestCase(DataprocTestCase):
   COMPONENT = 'gpu'
-  INIT_ACTION = 'gs://dataproc-initialization-actions/gpu/install_gpu_driver.sh'
+  INIT_ACTION = 'gpu/install_gpu_driver.sh'
   MASTER_GPU_TYPE = 'type=nvidia-tesla-v100'
   WORKER_GPU_TYPE = 'type=nvidia-tesla-v100'
 

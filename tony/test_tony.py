@@ -8,7 +8,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class TonYTestCase(DataprocTestCase):
     COMPONENT = 'tony'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/tony/tony.sh'
+    INIT_ACTION = 'tony/tony.sh'
     TEST_SCRIPT_FILE_NAME = 'validate.sh'
 
     def verify_instance(self, name):
