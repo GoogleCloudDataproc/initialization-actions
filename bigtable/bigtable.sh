@@ -112,7 +112,7 @@ function main() {
   update_apt_get || err 'Unable to update packages lists.'
   install_apt_get hbase || err 'Unable to install hbase.'
 
-  install_big_table_client || err 'Unable to install big table client'.
+  install_big_table_client || err 'Unable to install big table client.'
   configure_big_table_client || err 'Failed to configure big table client.'
 
   install_shc || err 'Failed to install Spark-HBase connector.'

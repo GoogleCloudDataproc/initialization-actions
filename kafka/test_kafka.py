@@ -23,7 +23,7 @@ class KafkaTestCase(DataprocTestCase):
 
     def __run_test_script(self, name):
         ret_code, stdout, stderr = self.run_command(
-            'gcloud compute ssh {} -- "bash {}"'.format(
+            'gcloud compute ssh {} --command="bash {}"'.format(
                 name,
                 self.TEST_SCRIPT_FILE_NAME,
             )
