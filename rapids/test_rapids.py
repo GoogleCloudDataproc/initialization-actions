@@ -9,7 +9,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class RapidsTestCase(DataprocTestCase):
     COMPONENT = 'rapids'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/rapids/rapids.sh'
+    INIT_ACTIONS = ['gs://dataproc-initialization-actions/rapids/rapids.sh']
     METADATA = 'INIT_ACTIONS_REPO=https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git,INIT_ACTIONS_BRANCH=master'
     TEST_SCRIPT_FILE_NAME = 'verify_rapids.py'
 
@@ -36,7 +36,7 @@ class RapidsTestCase(DataprocTestCase):
         ("STANDARD", "1.3", ["m"])
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_rapids(self, configuration, dataproc_version, machine_suffixes):
-        self.createCluster(configuration, self.INIT_ACTION,
+        self.createCluster(configuration, self.INIT_ACTIONS,
                            dataproc_version, metadata=self.METADATA, beta=True,
                            master_accelerator='type=nvidia-tesla-p100',
                            worker_accelerator='type=nvidia-tesla-p100',

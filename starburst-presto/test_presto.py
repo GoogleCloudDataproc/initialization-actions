@@ -8,7 +8,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class PrestoTestCase(DataprocTestCase):
     COMPONENT = 'presto'
-    INIT_ACTION = 'starburst-presto/presto.sh'
+    INIT_ACTIONS = ['starburst-presto/presto.sh']
 
     def verify_instance(self, name, coordinators, workers):
         schema = "schema_{}".format(random.randint(0, 1000))
@@ -124,7 +124,7 @@ class PrestoTestCase(DataprocTestCase):
         ("HA", "1.3", ["m-0"], 1, 2),
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_presto(self, configuration, dataproc_version, machine_suffixes, coordinators, workers):
-        self.createCluster(configuration, self.INIT_ACTION, dataproc_version)
+        self.createCluster(configuration, self.INIT_ACTIONS, dataproc_version)
         for machine_suffix in machine_suffixes:
             self.verify_instance(
                 "{}-{}".format(

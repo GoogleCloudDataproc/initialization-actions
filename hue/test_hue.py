@@ -7,7 +7,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class HueTestCase(DataprocTestCase):
     COMPONENT = 'hue'
-    INIT_ACTION = 'hue/hue.sh'
+    INIT_ACTIONS = ['hue/hue.sh']
     TEST_SCRIPT_FILE_NAME = 'verify_hue_running.py'
 
     def verify_instance(self, name):
@@ -43,7 +43,7 @@ class HueTestCase(DataprocTestCase):
         ("HA", "1.3", ["m-0", "m-1", "m-2", "w-0"]),
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_hue(self, configuration, dataproc_version, machine_suffixes):
-        self.createCluster(configuration, self.INIT_ACTION, dataproc_version)
+        self.createCluster(configuration, self.INIT_ACTIONS, dataproc_version)
         for machine_suffix in machine_suffixes:
             self.verify_instance(
                 "{}-{}".format(

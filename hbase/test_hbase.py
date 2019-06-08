@@ -7,7 +7,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class HBaseTestCase(DataprocTestCase):
     COMPONENT = 'hbase'
-    INIT_ACTION = 'hbase/hbase.sh'
+    INIT_ACTIONS = ['hbase/hbase.sh']
     HELPER_ACTIONS = 'gs://dataproc-initialization-actions/zookeeper/zookeeper.sh'
     GCS_BUCKET = None
 
@@ -54,9 +54,9 @@ class HBaseTestCase(DataprocTestCase):
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_hbase(self, configuration, dataproc_version, machine_suffixes, helper_actions):
         if helper_actions:
-            init_actions = "{},{}".format(helper_actions, self.INIT_ACTION)
+            init_actions = "{},{}".format(helper_actions, self.INIT_ACTIONS)
         else:
-            init_actions = self.INIT_ACTION
+            init_actions = self.INIT_ACTIONS
         self.createCluster(configuration, init_actions, dataproc_version)
         for machine_suffix in machine_suffixes:
             self.verify_instance(
@@ -76,9 +76,9 @@ class HBaseTestCase(DataprocTestCase):
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_hbase_on_gcs(self, configuration, dataproc_version, machine_suffixes, helper_actions):
         if helper_actions:
-            init_actions = "{},{}".format(helper_actions, self.INIT_ACTION)
+            init_actions = "{},{}".format(helper_actions, self.INIT_ACTIONS)
         else:
-            init_actions = self.INIT_ACTION
+            init_actions = self.INIT_ACTIONS
         self.createCluster(configuration, init_actions, dataproc_version,
                            metadata='hbase-root-dir=gs://{}/'.format(
                                self.GCS_BUCKET)

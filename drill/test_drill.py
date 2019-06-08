@@ -7,7 +7,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 class DrillTestCase(DataprocTestCase):
     COMPONENT = 'drill'
     TEST_SCRIPT_FILE_NAME = 'validate.sh'
-    INIT_ACTION = 'drill/drill.sh'
+    INIT_ACTIONS = ['drill/drill.sh']
     INIT_ACTION_FOR_STANDARD = '\'gs://dataproc-initialization-actions/zookeeper/zookeeper.sh\',\'gs://dataproc-initialization-actions/drill/drill.sh\''
 
     def verify_instance(self, name, config, target_node):

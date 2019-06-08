@@ -8,7 +8,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class CloudSqlProxyTestCase(DataprocTestCase):
     COMPONENT = 'cloud-sql-proxy'
-    INIT_ACTION = 'cloud-sql-proxy/cloud-sql-proxy.sh'
+    INIT_ACTIONS = ['cloud-sql-proxy/cloud-sql-proxy.sh']
     TEST_SCRIPT_LOCATION = 'dataproc-initialization-actions/cloud-sql-proxy'
     TEST_SCRIPT_FILE_NAME = 'pyspark_metastore_test.py'
     SCOPES = 'sql-admin'
@@ -68,7 +68,7 @@ class CloudSqlProxyTestCase(DataprocTestCase):
     def test_cloud_sql_proxy(self, configuration, dataproc_version):
         self.createCluster(
             configuration,
-            self.INIT_ACTION,
+            self.INIT_ACTIONS,
             dataproc_version,
             metadata='hive-metastore-instance={}:{}'.format(
                 self.PROJECT_METADATA, self.DB_NAME

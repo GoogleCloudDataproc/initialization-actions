@@ -8,7 +8,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 class LivyTestCase(DataprocTestCase):
     COMPONENT = 'livy'
     TEST_SCRIPT_FILE_NAME = 'verify_livy_running.py'
-    INIT_ACTION = 'livy/livy.sh'
+    INIT_ACTIONS = ['livy/livy.sh']
     INIT_ACTION_FOR_STANDARD = '\'gs://dataproc-initialization-actions/zookeeper/zookeeper.sh\',\'gs://dataproc-initialization-actions/livy/livy.sh\''
 
     def _verify_instance(self, name):
@@ -44,7 +44,7 @@ class LivyTestCase(DataprocTestCase):
         ("HA", "1.3", ["m-0", "m-1", "m-2"]),
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_livy(self, configuration, dataproc_version, machine_suffixes):
-        self.createCluster(configuration, self.INIT_ACTION, dataproc_version)
+        self.createCluster(configuration, self.INIT_ACTIONS, dataproc_version)
         for machine_suffix in machine_suffixes:
             self._verify_instance(
                 "{}-{}".format(

@@ -37,20 +37,19 @@ class DataprocTestCase(BASE_TEST_CASE):
     }
 
     COMPONENT = None
-    INIT_ACTION = None
+    INIT_ACTIONS = None
 
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         assert cls.COMPONENT
-        assert cls.INIT_ACTION
+        assert cls.INIT_ACTIONS
 
-    def createCluster(self, configuration, init_action, dataproc_version,
+    def createCluster(self, configuration, init_actions, dataproc_version,
                       metadata=None, scopes=None, properties=None,
                       timeout_in_minutes=None, beta=False,
                       master_accelerator=None, worker_accelerator=None,
                       optional_components=None):
-        init_action = "{}/{}".format(self.stage_init_actions(), init_action)
         self.name = "test-{}-{}-{}-{}-{}".format(
             self.COMPONENT,
             configuration.lower(),
@@ -59,6 +58,9 @@ class DataprocTestCase(BASE_TEST_CASE):
             self.random_str()
         )[:50]
         self.cluster_version = None
+
+        staging_dir = self.stage_init_actions()
+        init_actions = ["{}/{}".format(staging_dir, i) for i in init_actions]
 
         args = self.DEFAULT_ARGS[configuration].copy()
         if properties:
@@ -72,8 +74,9 @@ class DataprocTestCase(BASE_TEST_CASE):
         if timeout_in_minutes:
             args.append("--initialization-action-timeout {}m".format(
                 timeout_in_minutes))
-        if init_action:
-            args.append("--initialization-actions {}".format(init_action))
+        if init_actions:
+            args.append(
+                "--initialization-actions '{}'".format(','.join(init_actions)))
         if master_accelerator:
             args.append("--master-accelerator {}".format(master_accelerator))
         if worker_accelerator:
