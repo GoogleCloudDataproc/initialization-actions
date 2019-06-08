@@ -9,7 +9,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class RapidsTestCase(DataprocTestCase):
     COMPONENT = 'rapids'
-    INIT_ACTIONS = ['gs://dataproc-initialization-actions/rapids/rapids.sh']
+    INIT_ACTIONS = ['rapids/rapids.sh']
     METADATA = 'INIT_ACTIONS_REPO=https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git,INIT_ACTIONS_BRANCH=master'
     TEST_SCRIPT_FILE_NAME = 'verify_rapids.py'
 
