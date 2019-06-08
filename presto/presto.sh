@@ -18,8 +18,6 @@ set -euxo pipefail
 # Use Python from /usr/bin instead of /opt/conda.
 export PATH=/usr/bin:$PATH
 
-readonly PRESTO_BASE_URL=https://repo1.maven.org/maven2/com/facebook/presto
-
 # Variables for running this script
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly PRESTO_MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
@@ -29,6 +27,7 @@ if [[ -d /usr/local/share/google/dataproc/lib ]]; then
 else
   readonly CONNECTOR_JAR="$(find /usr/lib/hadoop/lib -name 'gcs-connector-*.jar')"
 fi
+readonly PRESTO_BASE_URL=https://repo1.maven.org/maven2/com/facebook/presto
 readonly PRESTO_VERSION='0.206'
 readonly HTTP_PORT='8080'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/presto.service'
