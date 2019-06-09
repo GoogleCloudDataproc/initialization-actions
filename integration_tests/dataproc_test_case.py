@@ -16,6 +16,7 @@ if "fastunit" in sys.modules:
     import fastunit
     BASE_TEST_CASE = fastunit.TestCase
     PARALLEL_RUN = True
+
 logging.basicConfig(level=os.getenv("LOG_LEVEL", logging.WARNING))
 
 DEFAULT_TIMEOUT = 10  # minutes
@@ -50,22 +51,28 @@ class DataprocTestCase(BASE_TEST_CASE):
         assert cls.INIT_ACTIONS
         assert cls.INIT_ACTIONS_REPO
 
-    def createCluster(self, configuration, init_actions, dataproc_version,
-                      metadata=None, scopes=None, properties=None,
-                      timeout_in_minutes=None, beta=False,
-                      master_accelerator=None, worker_accelerator=None,
+    def createCluster(self,
+                      configuration,
+                      init_actions,
+                      dataproc_version,
+                      metadata=None,
+                      scopes=None,
+                      properties=None,
+                      timeout_in_minutes=None,
+                      beta=False,
+                      master_accelerator=None,
+                      worker_accelerator=None,
                       optional_components=None):
-        self.name = "test-{}-{}-{}-{}-{}".format(
-            self.COMPONENT,
-            configuration.lower(),
-            dataproc_version.replace(".", "-"),
-            self.datetime_str(),
-            self.random_str()
-        )[:50]
+        self.name = "test-{}-{}-{}-{}".format(
+            self.COMPONENT, configuration.lower(),
+            dataproc_version.replace(".", "-"), self.datetime_str())[:46]
+        self.name += "-{}".format(self.random_str(size=4))
         self.cluster_version = None
 
         init_actions = [
-            "{}/{}".format(self.INIT_ACTIONS_REPO, i) for i in init_actions]
+            "{}/{}".format(self.INIT_ACTIONS_REPO, i)
+            for i in init_actions or []
+        ]
 
         args = self.DEFAULT_ARGS[configuration].copy()
         if properties:
@@ -80,8 +87,8 @@ class DataprocTestCase(BASE_TEST_CASE):
             args.append("--initialization-action-timeout {}m".format(
                 timeout_in_minutes))
         if init_actions:
-            args.append(
-                "--initialization-actions '{}'".format(','.join(init_actions)))
+            args.append("--initialization-actions '{}'".format(
+                ','.join(init_actions)))
         if master_accelerator:
             args.append("--master-accelerator {}".format(master_accelerator))
         if worker_accelerator:
@@ -101,28 +108,31 @@ class DataprocTestCase(BASE_TEST_CASE):
         self.assertEqual(
             ret_val, 0,
             "Failed to create Cluster {}. Error: {}".format(self.name, stderr))
-        self.cluster_version = json.loads(stdout).get(
-            "config", {}).get("softwareConfig", {}).get("imageVersion")
+        self.cluster_version = json.loads(stdout).get("config", {}).get(
+            "softwareConfig", {}).get("imageVersion")
 
     def stage_init_actions(self):
         _, project, _ = self.run_command("gcloud config get-value project")
         bucket = "gs://dataproc-init-actions-test-{}".format(
-            re.sub("[.:]", "", project.strip().replace("google", "goog")))
+            re.sub("[.:]", "",
+                   project.strip().replace("google", "goog")))
 
         ret_val, _, _ = self.run_command("gsutil ls -b {}".format(bucket))
         # Create staging bucket if it does not exist
         if ret_val != 0:
-            ret_val, _, stderr = self.run_command("gsutil mb {}".format(bucket))
+            ret_val, _, stderr = self.run_command(
+                "gsutil mb {}".format(bucket))
             self.assertEqual(
                 ret_val, 0,
                 "Failed to create staging bucket: {}. Error: {}".format(
                     bucket, stderr))
 
-        staging_dir = "{}/{}-{}".format(
-            bucket, self.datetime_str(), self.random_str())
+        staging_dir = "{}/{}-{}".format(bucket, self.datetime_str(),
+                                        self.random_str())
 
         ret_val, _, stderr = self.run_command(
-            "gsutil -q -m rsync -r -x '.git*' ./ {}/".format(staging_dir))
+            "gsutil -q -m rsync -r -x '.git*|.idea*' ./ {}/".format(
+                staging_dir))
         self.assertEqual(
             ret_val, 0,
             "Failed to stage init actions in directory: {}. Error: {}".format(
@@ -144,13 +154,15 @@ class DataprocTestCase(BASE_TEST_CASE):
         cmd = 'gcloud compute scp {} {}:'.format(testfile, name)
         ret_code, stdout, stderr = self.run_command(cmd)
         self.assertEqual(
-            ret_code, 0, "Failed to upload test file. Error: {}".format(stderr))
+            ret_code, 0,
+            "Failed to upload test file. Error: {}".format(stderr))
 
     def remove_test_script(self, testfile, name):
-        cmd = 'gcloud compute ssh {} -- "rm {}"'.format(name, testfile)
+        cmd = 'gcloud compute ssh {} --command="rm {}"'.format(name, testfile)
         ret_code, stdout, stderr = self.run_command(cmd)
         self.assertEqual(
-            ret_code, 0, "Failed to remove test file. Error: {}".format(stderr))
+            ret_code, 0,
+            "Failed to remove test file. Error: {}".format(stderr))
 
     @staticmethod
     def datetime_str():
@@ -177,18 +189,15 @@ class DataprocTestCase(BASE_TEST_CASE):
             stdout, stderr = stdout.decode('utf-8'), stderr.decode('utf-8')
         finally:
             my_timer.cancel()
-        logging.info(
-            "Ran %s: retcode: %d, stdout: %s, stderr: %s",
-            command, p.returncode, stdout, stderr)
+        logging.info("Ran %s: retcode: %d, stdout: %s, stderr: %s", command,
+                     p.returncode, stdout, stderr)
         return p.returncode, stdout, stderr
 
     @staticmethod
     def generate_verbose_test_name(testcase_func, param_num, param):
-        return "{}.mode: {}.version: {}".format(
-            testcase_func.__name__,
-            param.args[0],
-            param.args[1].replace(".", "_"),
-        )
+        return "{} [mode={}, version={}, random_prefix={}]".format(
+            testcase_func.__name__, param.args[0],
+            param.args[1].replace(".", "_"), DataprocTestCase.random_str())
 
 
 if __name__ == '__main__':

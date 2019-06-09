@@ -48,7 +48,7 @@ while [[ ${status} != 200 ]]; do
 ) &
 
 # run embedded drill for non-zookeeper clusters
-if [[ "$1" != "ZOOKEEPER" ]]; then
+if [[ "$1" == "EMBEDDED" ]]; then
   echo "starting drill embedded for non-zookeeper cluster"
   ./bin/drill-embedded &
 fi
@@ -60,7 +60,7 @@ while ! [[ -s file ]]; do
 
 ui_result=$(<file)
 
-if [[ "$1" == "ZOOKEEPER" ]]; then
+if [[ "$1" == "DISTRIBUTED" ]]; then
   if [[ "$2" == "${hostname}" ]]; then
     echo "Trying drill distributed with local zk"
     sql_result=$(sql_distributed_local_zk)
