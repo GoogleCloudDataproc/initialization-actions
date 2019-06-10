@@ -1,3 +1,4 @@
+import json
 import unittest
 
 from parameterized import parameterized
@@ -16,21 +17,27 @@ class CloudSqlProxyTestCase(DataprocTestCase):
         super().setUpClass()
         _, region, _ = cls.run_command(
             "gcloud config get-value compute/region")
-        cls.REGION = region.strip() or "global"
+        _, zone, _ = cls.run_command("gcloud config get-value compute/zone")
+        cls.REGION = region.strip() or zone.strip()[:-2]
         _, project, _ = cls.run_command("gcloud config get-value project")
         project = project.strip()
         cls.PROJECT_METADATA = '{}:{}'.format(project, cls.REGION)
 
     def setUp(self):
         super().setUp()
-        self.DB_NAME = "test-cloud-sql-{}".format(self.datetime_str())
-        ret_code, stdout, stderr = self.run_command(
-            'gcloud sql instances create {} --region {}'.format(
-                self.DB_NAME, self.REGION))
+        self.DB_NAME = "test-cloud-sql-{}-{}".format(self.datetime_str(),
+                                                     self.random_str())
+        cmd = 'gcloud sql instances create {} --region {} {}'.format(
+            self.DB_NAME, self.REGION, "--async --format=json")
+        ret_code, stdout, stderr = self.run_command(cmd)
+        operation_id = json.loads(stdout.strip())['name']
+        cmd = 'gcloud sql operations wait {} --timeout=600'.format(
+            operation_id)
+        ret_code, stdout, stderr = self.run_command(cmd)
         self.assertEqual(
-            ret_code, 0,
-            "Failed to create sql instance {}. Last error: {}".format(
-                self.DB_NAME, stderr))
+            ret_code, 0, "Failed to create sql instance {}.".format(
+                self.DB_NAME,
+                "\nCommand:\n{}\nLast error:\n{}".format(cmd, stderr)))
 
     def tearDown(self):
         super().tearDown()
