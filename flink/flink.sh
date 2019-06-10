@@ -22,7 +22,7 @@
 # Cloud Dataproc Image Version information:
 # https://cloud.google.com/dataproc/concepts/dataproc-versions
 
-set -euxo pipefail
+set -Eeuxo pipefail
 
 # Use Python from /usr/bin instead of /opt/conda.
 export PATH=/usr/bin:$PATH
@@ -55,7 +55,7 @@ readonly FLINK_SNAPSHOT_URL_METADATA_KEY='flink-snapshot-url'
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
-  return 1
+  exit 1
 }
 
 function retry_apt_command() {
