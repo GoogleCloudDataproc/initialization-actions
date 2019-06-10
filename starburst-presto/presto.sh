@@ -129,15 +129,16 @@ function configure_jvm(){
   cat > presto-server/etc/jvm.config <<EOF
 -server
 -Xmx${PRESTO_JVM_MB}m
--Xmn512m
--XX:+UseConcMarkSweepGC
+-XX:-UseBiasedLocking
+-XX:+UseG1GC
+-XX:G1HeapRegionSize=32M
 -XX:+ExplicitGCInvokesConcurrent
--XX:ReservedCodeCacheSize=150M
--XX:+ExplicitGCInvokesConcurrent
--XX:+CMSClassUnloadingEnabled
--XX:+AggressiveOpts
+-XX:+ExitOnOutOfMemoryError
+-XX:+UseGCOverheadLimit
 -XX:+HeapDumpOnOutOfMemoryError
--XX:OnOutOfMemoryError=kill -9 %p
+-XX:ReservedCodeCacheSize=512M
+-Djdk.attach.allowAttachSelf=true
+-Djdk.nio.maxCachedBufferSize=2000000
 -Dhive.config.resources=/etc/hadoop/conf/core-site.xml,/etc/hadoop/conf/hdfs-site.xml
 -Djava.library.path=/usr/lib/hadoop/lib/native/:/usr/lib/
 EOF
