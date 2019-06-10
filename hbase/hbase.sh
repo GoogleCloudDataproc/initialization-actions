@@ -15,7 +15,7 @@
 #
 # This initialization action installs Apache HBase on Dataproc Cluster.
 
-set -euxo pipefail
+set -Eeuxo pipefail
 
 readonly HBASE_HOME='/etc/hbase'
 readonly CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)"
@@ -30,6 +30,11 @@ readonly DOMAIN=$(dnsdomainname)
 readonly REALM=$(echo "${DOMAIN}" | awk '{print toupper($0)}')
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly FQDN=$(hostname -f)
+
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
+  return 1
+}
 
 function retry_command() {
   cmd="$1"
