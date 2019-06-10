@@ -55,7 +55,7 @@ readonly FLINK_SNAPSHOT_URL_METADATA_KEY='flink-snapshot-url'
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
-  exit 1
+  return 1
 }
 
 function retry_apt_command() {
