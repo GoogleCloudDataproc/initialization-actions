@@ -16,7 +16,8 @@ class HBaseTestCase(DataprocTestCase):
         super().setUpClass()
         _, region, _ = cls.run_command(
             "gcloud config get-value compute/region")
-        cls.REGION = region.strip() or "global"
+        _, zone, _ = cls.run_command("gcloud config get-value compute/zone")
+        cls.REGION = region.strip() or zone.strip()[:-2]
 
     def setUp(self):
         super().setUp()
@@ -31,7 +32,7 @@ class HBaseTestCase(DataprocTestCase):
 
     def tearDown(self):
         super().tearDown()
-        cmd = 'gsutil rm -r gs://{}'.format(self.GCS_BUCKET)
+        cmd = 'gsutil -m rm -rf gs://{}'.format(self.GCS_BUCKET)
         ret_code, _, stderr = self.run_command(cmd)
         self.assertEqual(
             ret_code, 0, "Failed to remove bucket {}. Last error: {}".format(
@@ -81,7 +82,11 @@ class HBaseTestCase(DataprocTestCase):
         init_actions = self.INIT_ACTIONS
         if configuration != "HA":
             init_actions = self.INIT_ACTIONS_FOR_NOT_HA + init_actions
-        metadata = 'hbase-root-dir=gs://{}/'.format(self.GCS_BUCKET)
+        test_dir = "{}-{}-{}".format(configuration.lower(),
+                                     dataproc_version.replace(".", "-"),
+                                     self.random_str())
+        metadata = 'hbase-root-dir=gs://{}/{}'.format(self.GCS_BUCKET,
+                                                      test_dir)
         self.createCluster(configuration,
                            init_actions,
                            dataproc_version,
