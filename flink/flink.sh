@@ -177,12 +177,14 @@ EOF
 }
 
 function start_flink_master() {
+  local master_hostname
+  master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
   local start_yarn_session
   start_yarn_session="$(/usr/share/google/get_metadata_value \
     "attributes/${START_FLINK_YARN_SESSION_METADATA_KEY}" ||
     echo "${START_FLINK_YARN_SESSION_DEFAULT}")"
 
-  if ${start_yarn_session}; then
+  if [[ "${start_yarn_session}" == "true" && "${HOSTNAME}" == "${master_hostname}" ]]; then
     "${FLINK_YARN_SCRIPT}"
   else
     echo "Doing nothing"
@@ -190,8 +192,8 @@ function start_flink_master() {
 }
 
 function main() {
-  local master_hostname
-  master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
+  local role
+  role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 
   # check if a flink snapshot URL is specified
   if /usr/share/google/get_metadata_value "attributes/${FLINK_SNAPSHOT_URL_METADATA_KEY}"; then
@@ -201,7 +203,7 @@ function main() {
     install_apt_get flink || err "Unable to install flink"
   fi
   configure_flink || err "Flink configuration failed"
-  if [[ "${HOSTNAME}" == "${master_hostname}" ]]; then
+  if [[ "${role}" == 'Master' ]]; then
     # Start Flink master only on the master node ("0"-master in HA mode)
     start_flink_master || err "Unable to start Flink master"
   fi
