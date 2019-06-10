@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+
+set -Eeuxo pipefail
+
 readonly DRILL_HOME=/usr/lib/drill
 hostname="$(hostname)"
 status=0
@@ -30,35 +33,34 @@ EOF
 echo $?
 }
 
-
 echo '---------------------------------'
 echo "Starting validation on ${hostname}"
 echo "---------------------------------"
 
 cd ${DRILL_HOME}
-# waiting for 200 from Drill UI
+
+# Waiting for 200 from Drill UI
+if [[ "$1" == "DISTRIBUTED" ]]; then
 (
 while [[ ${status} != 200 ]]; do
   status=$(curl -s -o /dev/null -w "%{http_code}" localhost:8047)
   sleep 1
   if [[ ${status} == 200 ]]; then
-    echo ${status} > file
+        echo "${status}" >drill.status
   fi
   done
 ) &
-
-# run embedded drill for non-zookeeper clusters
-if [[ "$1" == "EMBEDDED" ]]; then
-  echo "starting drill embedded for non-zookeeper cluster"
-  ./bin/drill-embedded &
+else
+  # Skip UI testing in embedded (non-Zookeeper cluster) mode, because Drill UI is not running
+  echo "200" >drill.status
 fi
 
-while ! [[ -s file ]]; do
+while [[ ! -s drill.status ]]; do
   echo "waiting"
   sleep 2
   done
 
-ui_result=$(<file)
+ui_result=$(<drill.status)
 
 if [[ "$1" == "DISTRIBUTED" ]]; then
   if [[ "$2" == "${hostname}" ]]; then
@@ -70,19 +72,15 @@ if [[ "$1" == "DISTRIBUTED" ]]; then
   fi
 # SINGLE
 else
-  echo "Trying drill-embedded, stopping current one"
-  sudo ./bin/drillbit.sh stop
+  echo "Trying drill-embedded without zk"
   sql_result=$(sql_embedded)
 fi
 
 echo "UI validation result is ${ui_result} and SQL validation result is ${sql_result}"
-if (( ${ui_result} == 200 && ${sql_result} == 0 )); then
+if ((ui_result == 200 && sql_result == 0)); then
   echo 'Test passed'
   exit 0
-else
-  echo "Test failed"
-  exit 1
 fi
 
-
-
+  echo "Test failed"
+  exit 1
