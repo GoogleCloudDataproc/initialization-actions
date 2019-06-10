@@ -194,8 +194,7 @@ function main() {
   master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 
   # check if a flink snapshot URL is specified
-  if /usr/share/google/get_metadata_value \
-    "attributes/${FLINK_SNAPSHOT_URL_METADATA_KEY}"; then
+  if /usr/share/google/get_metadata_value "attributes/${FLINK_SNAPSHOT_URL_METADATA_KEY}"; then
     install_flink_snapshot || err "Unable to install Flink"
   else
     update_apt_get || err "Unable to update apt-get"
