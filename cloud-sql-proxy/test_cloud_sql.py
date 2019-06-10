@@ -35,7 +35,7 @@ class CloudSqlProxyTestCase(DataprocTestCase):
             operation_id)
         ret_code, stdout, stderr = self.run_command(cmd)
         self.assertEqual(
-            ret_code, 0, "Failed to create sql instance {}.".format(
+            ret_code, 0, "Failed to create sql instance {}.{}".format(
                 self.DB_NAME,
                 "\nCommand:\n{}\nLast error:\n{}".format(cmd, stderr)))
 
