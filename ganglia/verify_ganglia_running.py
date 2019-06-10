@@ -2,6 +2,7 @@
 """
 import socket
 import subprocess
+
 from requests_html import HTMLSession
 
 BASE = 'localhost'
@@ -56,6 +57,7 @@ class Ganglia(object):
         stdout, stderr = p.communicate()
         return stdout.decode("utf-8")
 
+
 def validate_homepage(ganglia):
     if ganglia.is_main_master:
         if ganglia.cluster_name in ganglia.get_homepage_title():
@@ -70,7 +72,6 @@ def validate_homepage(ganglia):
 
 
 def main():
-
     """Drives the script.
 
     Returns:
