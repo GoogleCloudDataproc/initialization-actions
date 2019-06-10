@@ -14,7 +14,7 @@
 #
 # This script installs HUE on a master node within a Google Cloud Dataproc cluster.
 
-set -Eeuxo pipefail
+set -euxo pipefail
 
 function random_string() {
   tr </dev/urandom -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1
