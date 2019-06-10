@@ -6,31 +6,31 @@ readonly DRILL_HOME=/usr/lib/drill
 hostname="$(hostname)"
 status=0
 
-function sql_embedded(){
-{
-sudo ./bin/drill-embedded <<"EOF"
+function sql_embedded() {
+  {
+    sudo ./bin/drill-embedded <<"EOF"
 SELECT * FROM cp.`employee.json` LIMIT 3;
 EOF
-} > /dev/null
-echo $?
+  } >/dev/null
+  echo $?
 }
 
-function sql_distributed_local_zk(){
-{
-sudo ./bin/drill-localhost <<"EOF"
+function sql_distributed_local_zk() {
+  {
+    sudo ./bin/drill-localhost <<"EOF"
 SELECT * FROM cp.`employee.json` LIMIT 3;
 EOF
-} > /dev/null
-echo $?
+  } >/dev/null
+  echo $?
 }
 
-function sql_distributed(){
-{
-sudo ./bin/drill-conf <<"EOF"
+function sql_distributed() {
+  {
+    sudo ./bin/drill-conf <<"EOF"
 SELECT * FROM cp.`employee.json` LIMIT 3;
 EOF
-} > /dev/null
-echo $?
+  } >/dev/null
+  echo $?
 }
 
 echo '---------------------------------'
@@ -41,15 +41,15 @@ cd ${DRILL_HOME}
 
 # Waiting for 200 from Drill UI
 if [[ "$1" == "DISTRIBUTED" ]]; then
-(
-while [[ ${status} != 200 ]]; do
-  status=$(curl -s -o /dev/null -w "%{http_code}" localhost:8047)
-  sleep 1
-  if [[ ${status} == 200 ]]; then
+  (
+    while [[ ${status} != 200 ]]; do
+      status=$(curl -s -o /dev/null -w "%{http_code}" localhost:8047)
+      sleep 1
+      if [[ ${status} == 200 ]]; then
         echo "${status}" >drill.status
-  fi
-  done
-) &
+      fi
+    done
+  ) &
 else
   # Skip UI testing in embedded (non-Zookeeper cluster) mode, because Drill UI is not running
   echo "200" >drill.status
@@ -58,7 +58,7 @@ fi
 while [[ ! -s drill.status ]]; do
   echo "waiting"
   sleep 2
-  done
+done
 
 ui_result=$(<drill.status)
 
@@ -82,5 +82,5 @@ if ((ui_result == 200 && sql_result == 0)); then
   exit 0
 fi
 
-  echo "Test failed"
-  exit 1
+echo "Test failed"
+exit 1
