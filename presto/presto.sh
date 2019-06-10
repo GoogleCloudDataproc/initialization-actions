@@ -1,4 +1,5 @@
 #!/bin/bash
+
 #    Copyright 2015 Google, Inc.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
@@ -215,7 +216,7 @@ EOF
 
 function configure_and_start_presto() {
   # Copy required Jars
-  cp ${CONNECTOR_JAR} presto-server-${PRESTO_VERSION}/plugin/hive-hadoop2
+  cp "${CONNECTOR_JAR}" "presto-server-${PRESTO_VERSION}/plugin/hive-hadoop2"
 
   # Configure Presto
   mkdir -p presto-server-${PRESTO_VERSION}/etc/catalog
