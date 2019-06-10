@@ -184,6 +184,7 @@ function start_flink_master() {
     "attributes/${START_FLINK_YARN_SESSION_METADATA_KEY}" ||
     echo "${START_FLINK_YARN_SESSION_DEFAULT}")"
 
+  # Start Flink master only on the master node ("0"-master in HA mode)
   if [[ "${start_yarn_session}" == "true" && "${HOSTNAME}" == "${master_hostname}" ]]; then
     "${FLINK_YARN_SCRIPT}"
   else
@@ -204,7 +205,6 @@ function main() {
   fi
   configure_flink || err "Flink configuration failed"
   if [[ "${role}" == 'Master' ]]; then
-    # Start Flink master only on the master node ("0"-master in HA mode)
     start_flink_master || err "Unable to start Flink master"
   fi
 }
