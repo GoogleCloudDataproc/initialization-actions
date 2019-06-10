@@ -22,7 +22,7 @@
 # Cloud Dataproc Image Version information:
 # https://cloud.google.com/dataproc/concepts/dataproc-versions
 
-set -Eeuxo pipefail
+set -euxo pipefail
 
 # Use Python from /usr/bin instead of /opt/conda.
 export PATH=/usr/bin:$PATH
@@ -74,7 +74,7 @@ function update_apt_get() {
 }
 
 function install_apt_get() {
-  pkgs="$*"
+  local pkgs="$*"
   retry_apt_command "apt-get install -y $pkgs"
 }
 
