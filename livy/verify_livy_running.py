@@ -1,6 +1,9 @@
 """verify_livy_running.py: Script for livy initialization action test.
 """
-import json, requests, textwrap, time
+import json
+import requests
+import textwrap
+import time
 
 DEFAULT_TIMEOUT = 60
 
@@ -14,13 +17,16 @@ class Livy:
 
     def create_session(self):
         timeout = DEFAULT_TIMEOUT
-        r = requests.post(self.host + '/sessions', data=json.dumps(self.session_data), headers=self.headers)
+        r = requests.post(self.host + '/sessions',
+                          data=json.dumps(self.session_data),
+                          headers=self.headers)
         while True:
             try:
                 location = r.headers['Location']
                 break
             except KeyError:
-                None
+                pass
+
             if timeout is 0:
                 print('ERROR during spark session init')
                 exit(1)
@@ -42,17 +48,19 @@ class Livy:
         self.statements_url = self.session_url + '/statements'
 
     def submit_job(self, data):
-        requests.post(self.statements_url, data=json.dumps(data), headers=self.headers)
+        requests.post(self.statements_url,
+                      data=json.dumps(data),
+                      headers=self.headers)
 
     def validate_job_result(self, expected):
         timeout = DEFAULT_TIMEOUT
         while True:
             try:
-                r = requests.get(self.statements_url, headers=self.headers)
-                if r.json()['statements'][0]['output']['data'] is not None:
-                    if expected in r.json()['statements'][0]['output']['data']['text/plain']:
-                        print("OK - Result of equation is found")
-                        break
+                resp = requests.get(self.statements_url, headers=self.headers)
+                data = resp.json()['statements'][0]['output']['data']
+                if data is not None and expected in data['text/plain']:
+                    print("OK - Result of equation is found")
+                    break
             except (KeyError, TypeError):
                 time.sleep(5)
                 timeout = timeout - 5
@@ -70,21 +78,20 @@ def main():
 
     Raises:
       Exception: If a response does not contain the expected value
-"""
+    """
     livy = Livy()
     livy.create_session()
     livy.wait_for_session_idle()
-    data = {
-        'code': textwrap.dedent("""
+    code = textwrap.dedent("""
         val NUM_SAMPLES = 100000;
         val count = sc.parallelize(1 to NUM_SAMPLES).map { i =>
           val x = Math.random();
           val y = Math.random();
           if (x*x + y*y < 1) 1 else 0
         }.reduce(_ + _);
-        println(\"Pi is roughly \" + 4.0 * count / NUM_SAMPLES)
+        println("Pi is roughly " + 4.0 * count / NUM_SAMPLES)
         """)
-    }
+    data = {'code': code}
 
     livy.submit_job(data)
     livy.validate_job_result('Pi is roughly')
