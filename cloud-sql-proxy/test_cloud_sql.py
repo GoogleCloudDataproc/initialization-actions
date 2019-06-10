@@ -54,6 +54,9 @@ class CloudSqlProxyTestCase(DataprocTestCase):
 
     @parameterized.expand(
         [
+            ("SINGLE", "1.0"),
+            ("STANDARD", "1.0"),
+            ("HA", "1.0"),
             ("SINGLE", "1.1"),
             ("STANDARD", "1.1"),
             ("HA", "1.1"),
