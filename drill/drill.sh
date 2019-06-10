@@ -1,4 +1,5 @@
 #!/bin/bash
+
 set -euxo pipefail
 
 # drill installation paths and user & version details
