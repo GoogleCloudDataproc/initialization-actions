@@ -15,20 +15,26 @@
 #
 # This initialization action installs Apache HBase on Dataproc Cluster.
 
-set -euxo pipefail
+set -Eeuxo pipefail
 
 readonly HBASE_HOME='/etc/hbase'
 readonly CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)"
 readonly WORKER_COUNT="$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)"
 readonly DATAPROC_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 readonly MASTER_ADDITIONAL=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional || true)
-readonly MASTER_HOSTNAMES=($DATAPROC_MASTER ${MASTER_ADDITIONAL//,/ })
+mapfile -t MASTER_HOSTNAMES <<<"${MASTER_ADDITIONAL//,/ }"
+readonly MASTER_HOSTNAMES=("$DATAPROC_MASTER" "${MASTER_HOSTNAMES[@]}")
 readonly ENABLE_KERBEROS="$(/usr/share/google/get_metadata_value attributes/enable-kerberos)"
 readonly KEYTAB_BUCKET="$(/usr/share/google/get_metadata_value attributes/keytab-bucket)"
 readonly DOMAIN=$(dnsdomainname)
 readonly REALM=$(echo "${DOMAIN}" | awk '{print toupper($0)}')
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly FQDN=$(hostname -f)
+
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
+  return 1
+}
 
 function retry_command() {
   cmd="$1"
@@ -46,12 +52,12 @@ function update_apt_get() {
 }
 
 function install_apt_get() {
-  pkgs="$@"
+  pkgs="$*"
   retry_command "apt-get install -y $pkgs"
 }
 
 function configure_hbase() {
-  cat << EOF > hbase-site.xml.tmp
+  cat <<EOF >hbase-site.xml.tmp
   <configuration>
     <property>
       <name>hbase.cluster.distributed</name>
@@ -64,7 +70,7 @@ function configure_hbase() {
   </configuration>
 EOF
 
-  cat << EOF > /etc/systemd/system/hbase-master.service
+  cat <<EOF >/etc/systemd/system/hbase-master.service
 [Unit]
 Description=HBase Master
 Wants=network-online.target
@@ -84,7 +90,7 @@ ExecStart=/usr/bin/hbase \
 WantedBy=multi-user.target
 EOF
 
-  cat << EOF > /etc/systemd/system/hbase-regionserver.service
+  cat <<EOF >/etc/systemd/system/hbase-regionserver.service
 [Unit]
 Description=HBase Regionserver
 Wants=network-online.target
@@ -108,12 +114,13 @@ EOF
 
   # Prepare and merge configuration values:
   # hbase.rootdir
-  local hbase_root_dir="$(/usr/share/google/get_metadata_value attributes/hbase-root-dir)"
+  local hbase_root_dir
+  hbase_root_dir="$(/usr/share/google/get_metadata_value attributes/hbase-root-dir || true)"
   if [[ -z "${hbase_root_dir}" ]]; then
-    if [[ "${MASTER_ADDITIONAL}" != "" ]]; then
-      hbase_root_dir="hdfs://${CLUSTER_NAME}:8020/hbase"
-    else
+    if [[ -z "${MASTER_ADDITIONAL}" ]]; then
       hbase_root_dir="hdfs://${CLUSTER_NAME}-m:8020/hbase"
+    else
+      hbase_root_dir="hdfs://${CLUSTER_NAME}/hbase"
     fi
   fi
   bdconfig set_property \
@@ -122,12 +129,13 @@ EOF
     --clobber
 
   # zookeeper.quorum
-  local zookeeper_nodes="$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg \
-  | uniq | cut -d '=' -f 2 | cut -d ':' -f 1 | xargs echo | sed "s/ /,/g")"
+  local zookeeper_nodes
+  zookeeper_nodes="$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg |
+    uniq | cut -d '=' -f 2 | cut -d ':' -f 1 | xargs echo | sed "s/ /,/g")"
   bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
-      --name 'hbase.zookeeper.quorum' --value "${zookeeper_nodes}" \
-      --clobber
+    --configuration_file 'hbase-site.xml.tmp' \
+    --name 'hbase.zookeeper.quorum' --value "${zookeeper_nodes}" \
+    --clobber
 
   # Prepare kerberos specific config values for hbase-site.xml
   if [ "${ENABLE_KERBEROS}" = true ]; then
@@ -216,27 +224,31 @@ EOF
     if [[ "${HOSTNAME}" == "${DATAPROC_MASTER}" ]]; then
       # Master
       for m in "${MASTER_HOSTNAMES[@]}"; do
-        sudo kadmin.local -q "addprinc -randkey hbase/${m}.${DOMAIN}@${REALM}"
+        kadmin.local -q "addprinc -randkey hbase/${m}.${DOMAIN}@${REALM}"
         echo "Generating hbase keytab..."
-        sudo kadmin.local -q "xst -k ${HBASE_HOME}/conf/hbase-${m}.keytab hbase/${m}.${DOMAIN}"
-        sudo gsutil cp ${HBASE_HOME}/conf/hbase-${m}.keytab ${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/hbase-${m}.keytab
+        kadmin.local -q "xst -k ${HBASE_HOME}/conf/hbase-${m}.keytab hbase/${m}.${DOMAIN}"
+        gsutil cp "${HBASE_HOME}/conf/hbase-${m}.keytab" \
+          "${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/hbase-${m}.keytab"
       done
 
       # Worker
-      for (( c="0"; c<$WORKER_COUNT; c++ ))
-      do
-        sudo kadmin.local -q "addprinc -randkey hbase/${CLUSTER_NAME}-w-${c}.${DOMAIN}"
+      for ((c = 0; c < WORKER_COUNT; c++)); do
+        kadmin.local -q "addprinc -randkey hbase/${CLUSTER_NAME}-w-${c}.${DOMAIN}"
         echo "Generating hbase keytab..."
-        sudo kadmin.local -q "xst -k ${HBASE_HOME}/conf/hbase-${CLUSTER_NAME}-w-${c}.keytab hbase/${CLUSTER_NAME}-w-${c}.${DOMAIN}"
-        sudo gsutil cp ${HBASE_HOME}/conf/hbase-${CLUSTER_NAME}-w-${c}.keytab ${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/hbase-${CLUSTER_NAME}-w-${c}.keytab
+        kadmin.local -q "xst -k ${HBASE_HOME}/conf/hbase-${CLUSTER_NAME}-w-${c}.keytab hbase/${CLUSTER_NAME}-w-${c}.${DOMAIN}"
+        gsutil cp "${HBASE_HOME}/conf/hbase-${CLUSTER_NAME}-w-${c}.keytab" \
+          "${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/hbase-${CLUSTER_NAME}-w-${c}.keytab"
       done
-      sudo touch /tmp/_success
-      sudo gsutil cp /tmp/_success ${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/_success
+      touch /tmp/_success
+      gsutil cp /tmp/_success "${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/_success"
     fi
     success=1
-    while [ $success -eq "1" ]; do
+    while [[ $success == "1" ]]; do
       sleep 1
-      success=$(gsutil -q stat ${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/_success; echo $?)
+      success=$(
+        gsutil -q stat "${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/_success"
+        echo $?
+      )
     done
 
     # Define keytab path based on role
@@ -247,23 +259,22 @@ EOF
     fi
 
     # Copy keytab to machine
-    sudo gsutil cp ${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/hbase-${HOSTNAME}.keytab $hbase_keytab_path
+    gsutil cp ${KEYTAB_BUCKET}/keytabs/${CLUSTER_NAME}/hbase-${HOSTNAME}.keytab $hbase_keytab_path
 
     # Change owner of keytab to hbase with read only permissions
     if [ -f $hbase_keytab_path ]; then
-      sudo chown hbase:hbase $hbase_keytab_path
-      sudo chmod 0400 $hbase_keytab_path
+      chown hbase:hbase $hbase_keytab_path
+      chmod 0400 $hbase_keytab_path
     fi
 
     # Change regionserver information
-    for (( c="0"; c<$WORKER_COUNT; c++ ))
-    do
-      echo "${CLUSTER_NAME}-w-${c}.${DOMAIN}" >> /tmp/regionservers
+    for ((c = 0; c < WORKER_COUNT; c++)); do
+      echo "${CLUSTER_NAME}-w-${c}.${DOMAIN}" >>/tmp/regionservers
     done
-    sudo mv /tmp/regionservers ${HBASE_HOME}/conf/regionservers
+    mv /tmp/regionservers ${HBASE_HOME}/conf/regionservers
 
     # Add server JAAS
-    cat > /tmp/hbase-server.jaas << EOF
+    cat >/tmp/hbase-server.jaas <<EOF
 Client {
   com.sun.security.auth.module.Krb5LoginModule required
   useKeyTab=true
@@ -275,24 +286,23 @@ Client {
 EOF
 
     # Copy JAAS file to hbase conf directory
-    sudo mv /tmp/hbase-server.jaas ${HBASE_HOME}/conf/hbase-server.jaas
+    mv /tmp/hbase-server.jaas ${HBASE_HOME}/conf/hbase-server.jaas
 
     # Add client JAAS
-    cat > /tmp/hbase-client.jaas << EOF
+    cat >/tmp/hbase-client.jaas <<EOF
 Client {
-      com.sun.security.auth.module.Krb5LoginModule required
-      useKeyTab=false
-      useTicketCache=true;
+  com.sun.security.auth.module.Krb5LoginModule required
+  useKeyTab=false
+  useTicketCache=true;
 };
 EOF
 
     # Copy JAAS file to hbase conf directory
-    sudo mv /tmp/hbase-client.jaas ${HBASE_HOME}/conf/hbase-client.jaas
-
+    mv /tmp/hbase-client.jaas ${HBASE_HOME}/conf/hbase-client.jaas
 
     # Extend hbase enviroment variable script
-    cat ${HBASE_HOME}/conf/hbase-env.sh > /tmp/hbase-env.sh
-    cat >> /tmp/hbase-env.sh << EOF
+    cat ${HBASE_HOME}/conf/hbase-env.sh >/tmp/hbase-env.sh
+    cat >>/tmp/hbase-env.sh <<EOF
 export HBASE_MANAGES_ZK=false
 export HBASE_OPTS="\$HBASE_OPTS -Djava.security.auth.login.config=/etc/hbase/conf/hbase-client.jaas"
 export HBASE_MASTER_OPTS="\$HBASE_MASTER_OPTS -Djava.security.auth.login.config=/etc/hbase/conf/hbase-server.jaas"
@@ -300,7 +310,7 @@ export HBASE_REGIONSERVER_OPTS="\$HBASE_REGIONSERVER_OPTS -Djava.security.auth.l
 EOF
 
     # Copy script to hbase conf directory
-    sudo mv /tmp/hbase-env.sh ${HBASE_HOME}/conf/hbase-env.sh
+    mv /tmp/hbase-env.sh ${HBASE_HOME}/conf/hbase-env.sh
   fi
 
   # On single node clusters we must also start regionserver on it.
@@ -308,7 +318,6 @@ EOF
     systemctl start hbase-regionserver
   fi
 }
-
 
 function main() {
   update_apt_get || err 'Unable to update packages lists.'
