@@ -25,7 +25,7 @@ readonly BIN_PKG="incubator/livy/${LIVY_VERSION}-incubating/livy-${LIVY_VERSION}
 
 # Generate livy environment file.
 function make_livy_env() {
-  cat << EOF > "${LIVY_CONF}/livy-env.sh"
+  cat <<EOF >"${LIVY_CONF}/livy-env.sh"
 export SPARK_HOME=/usr/lib/spark
 export SPARK_CONF_DIR=/etc/spark/conf
 export HADOOP_CONF_DIR=/etc/hadoop/conf
@@ -35,7 +35,7 @@ EOF
 
 # Create Livy service.
 function create_systemd_unit() {
-  cat << EOF > "/etc/systemd/system/livy.service"
+  cat <<EOF >"/etc/systemd/system/livy.service"
 [Unit]
 Description=Apache Livy service
 After=network.target
@@ -64,8 +64,8 @@ function main() {
   # Download Livy binary.
   local temp
   temp=$(mktemp -d)
-  wget -O "${temp}/livy.zip" "${APACHE_MIRROR}=${BIN_PKG}"
-  unzip "${temp}/livy.zip" -d "${temp}"
+  wget --progress=dot:mega --timeout=30 -O "${temp}/livy.zip" "${APACHE_MIRROR}=${BIN_PKG}"
+  unzip -q "${temp}/livy.zip" -d "${temp}"
 
   # Create Livy user.
   useradd -G hadoop livy
