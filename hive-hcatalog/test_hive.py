@@ -8,7 +8,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class HiveHCatalogTestCase(DataprocTestCase):
     COMPONENT = 'hive-hcatalog'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/hive-hcatalog/hive-hcatalog.sh'
+    INIT_ACTIONS = ['hive-hcatalog/hive-hcatalog.sh']
 
     def verify_instance(self, name, should_repeat_job):
         table_name = "table_{}".format(random.randint(0, 1000))
@@ -76,7 +76,7 @@ class HiveHCatalogTestCase(DataprocTestCase):
         ("HA", "1.3", True),
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_hive(self, configuration, dataproc_version, should_repeat_job):
-        self.createCluster(configuration, self.INIT_ACTION, dataproc_version)
+        self.createCluster(configuration, self.INIT_ACTIONS, dataproc_version)
         self.verify_instance(self.getClusterName(), should_repeat_job)
 
 

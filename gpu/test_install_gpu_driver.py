@@ -6,7 +6,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class NvidiaGpuDriverTestCase(DataprocTestCase):
   COMPONENT = 'gpu'
-  INIT_ACTION = 'gs://dataproc-initialization-actions/gpu/install_gpu_driver.sh'
+  INIT_ACTIONS = ['gpu/install_gpu_driver.sh']
   MASTER_GPU_TYPE = 'type=nvidia-tesla-v100'
   WORKER_GPU_TYPE = 'type=nvidia-tesla-v100'
 
@@ -37,7 +37,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
   ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
   def test_install_gpu(self, configuration, dataproc_version, machine_suffixes,
                        master_accelerator, worker_accelerator):
-    init_actions = self.INIT_ACTION
+    init_actions = self.INIT_ACTIONS
     self.createCluster(configuration, init_actions, dataproc_version,
                        beta=True,
                        master_accelerator=master_accelerator,
@@ -61,7 +61,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                              machine_suffixes, master_accelerator,
                              worker_accelerator):
 
-    init_actions = self.INIT_ACTION
+    init_actions = self.INIT_ACTIONS
     self.createCluster(configuration, init_actions, dataproc_version,
                        beta=True,
                        master_accelerator=master_accelerator,

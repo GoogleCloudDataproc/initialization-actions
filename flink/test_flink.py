@@ -9,7 +9,7 @@ METADATA = 'flink-start-yarn-session=false'
 
 class FlinkTestCase(DataprocTestCase):
     COMPONENT = 'flink'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/flink/flink.sh'
+    INIT_ACTIONS = ['flink/flink.sh']
     TEST_SCRIPT_FILE_NAME = 'validate.sh'
 
     def verify_instance(self, name, yarn_session=True):
@@ -49,7 +49,7 @@ class FlinkTestCase(DataprocTestCase):
         ("HA", "1.3", ["m-0", "m-1", "m-2"], None),
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_flink(self, configuration, dataproc_version, machine_suffixes, metadata):
-        self.createCluster(configuration, self.INIT_ACTION, dataproc_version, metadata=metadata)
+        self.createCluster(configuration, self.INIT_ACTIONS, dataproc_version, metadata=metadata)
         for machine_suffix in machine_suffixes:
             self.verify_instance(
                 "{}-{}".format(
@@ -68,7 +68,7 @@ class FlinkTestCase(DataprocTestCase):
         ("HA", "1.3", ["m-0", "m-1", "m-2"], None),
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_flink_with_optional_metadata(self, configuration, dataproc_version, machine_suffixes, metadata):
-        self.createCluster(configuration, self.INIT_ACTION, dataproc_version, metadata=metadata)
+        self.createCluster(configuration, self.INIT_ACTIONS, dataproc_version, metadata=metadata)
         for machine_suffix in machine_suffixes:
             self.verify_instance(
                 "{}-{}".format(

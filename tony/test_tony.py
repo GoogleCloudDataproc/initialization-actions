@@ -8,7 +8,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class TonYTestCase(DataprocTestCase):
     COMPONENT = 'tony'
-    INIT_ACTION = 'gs://dataproc-initialization-actions/tony/tony.sh'
+    INIT_ACTIONS = ['tony/tony.sh']
     TEST_SCRIPT_FILE_NAME = 'validate.sh'
 
     def verify_instance(self, name):
@@ -34,7 +34,7 @@ class TonYTestCase(DataprocTestCase):
       ("STANDARD", "1.3", ["m"]),
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_tony(self, configuration, dataproc_version, machine_suffixes):
-        self.createCluster(configuration, self.INIT_ACTION, dataproc_version)
+        self.createCluster(configuration, self.INIT_ACTIONS, dataproc_version)
         for machine_suffix in machine_suffixes:
             self.verify_instance(
                 "{}-{}".format(
