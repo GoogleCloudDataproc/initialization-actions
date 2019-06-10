@@ -1,3 +1,6 @@
+# This Dockerfile spins up a container where presubmit tests are run.
+# Cloud Build orchestrates this process.
+
 FROM gcr.io/cloud-builders/gcloud
 
 # Copy everything into the container
