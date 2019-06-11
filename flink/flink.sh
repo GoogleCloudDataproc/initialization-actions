@@ -91,14 +91,13 @@ function install_flink_snapshot() {
   curl -o "${flink_local}" "${flink_url}"
   tar -xzvf "${flink_local}"
   rm "${flink_local}"
+
   # only the first match of the flink toplevel pattern is used
-  local files
-  mapfile -t files < <(compgen -G "${flink_toplevel_pattern}")
-  local flink_toplevel="${files[0]}"
+  local flink_toplevel
+  flink_toplevel=$(compgen -G "${flink_toplevel_pattern}" | head -n1)
   mv "${flink_toplevel}" "${FLINK_INSTALL_DIR}"
 
   popd # work_dir
-
 }
 
 function configure_flink() {

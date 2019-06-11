@@ -1,0 +1,15 @@
+/tmp/systemd-private-0c86dbff267f41f0ac59e92a949f6036-ntp.service-N99fFG
+/tmp/tmp1hqc52__unpar__.runfiles
+/tmp/hsperfdata_idv
+/tmp/tmpuda4R3__unpar__.runfiles
+/tmp/git-difftool.NlukKU
+/tmp/tmpdkWyMF__unpar__.runfiles
+/tmp/systemd-private-0c86dbff267f41f0ac59e92a949f6036-rtkit-daemon.service-l5hMOV
+/tmp/pipercache_idv_2bae833af444be1b
+/tmp/tmpvpUCMD__unpar__.runfiles
+/tmp/qipc_systemsem_semcabadaeefbfcad57d6609f536b8d248093fd360dcbcec5dcfd8e
+/tmp/qipc_sharedmemory_cabadaeefbfc5df6d0af6b385b615e08e09c9e73ef51fd09407f
+/tmp/systemd-private-0c86dbff267f41f0ac59e92a949f6036-apache2.service-rxGdfy
+/tmp/systemd-private-0c86dbff267f41f0ac59e92a949f6036-colord.service-5uZvhx
+/tmp/tmpF8D9FV__unpar__.runfiles
+/tmp/qipc_systemsem_cabadaeefbfc5df6d0af6b385b615e08e09c9e73ef51fd09407f
