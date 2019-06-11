@@ -31,22 +31,24 @@ class CloudSqlProxyTestCase(DataprocTestCase):
             self.DB_NAME, self.REGION, "--async --format=json")
         ret_code, stdout, stderr = self.run_command(cmd)
         operation_id = json.loads(stdout.strip())['name']
+        self.wait_cloud_sql_operation(operation_id)
+
+    def tearDown(self):
+        super().tearDown()
+        cmd = 'gcloud sql instances delete {} --async --format=json'.format(
+            self.DB_NAME)
+        ret_code, stdout, stderr = self.run_command(cmd)
+        operation_id = json.loads(stdout.strip())['name']
+        self.wait_cloud_sql_operation(operation_id)
+
+    def wait_cloud_sql_operation(self, operation_id):
         cmd = 'gcloud sql operations wait {} --timeout=600'.format(
             operation_id)
         ret_code, stdout, stderr = self.run_command(cmd)
         self.assertEqual(
-            ret_code, 0, "Failed to create sql instance {}.{}".format(
-                self.DB_NAME,
+            ret_code, 0, "Failed to wait for operation {}.{}".format(
+                operation_id,
                 "\nCommand:\n{}\nLast error:\n{}".format(cmd, stderr)))
-
-    def tearDown(self):
-        super().tearDown()
-        ret_code, stdout, stderr = self.run_command(
-            'gcloud sql instances delete {}'.format(self.DB_NAME))
-        self.assertEqual(
-            ret_code, 0,
-            "Failed to delete sql instance {}. Last error: {}".format(
-                self.DB_NAME, stderr))
 
     def verify_instance(self, name):
         self.__submit_pyspark_job(name)
