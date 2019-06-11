@@ -22,11 +22,11 @@ function random_string() {
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
-  return 1
+  exit 1
 }
 
 function retry_apt_command() {
-  cmd="$1"
+  local cmd="$1"
   for ((i = 0; i < 10; i++)); do
     if eval "$cmd"; then
       return 0
@@ -43,13 +43,14 @@ function update_apt_get() {
 function install_hue_and_configure() {
   local old_hdfs_url='## webhdfs_url\=http:\/\/localhost:50070'
   local new_hdfs_url
-  new_hdfs_url='webhdfs_url\=http:\/\/'"$(hdfs getconf -confKey dfs.namenode.http-address)"
-  local old_mysql_settings='## engine=sqlite3(\s+)## host=(\s+)## port=(\s+)## user=(\s+)## password='
-  local new_mysql_settings='engine=mysql$1host=127.0.0.1$2port=3306$3user=hue$4password=hue-password'
+  new_hdfs_url="webhdfs_url\=http:\/\/$(hdfs getconf -confKey dfs.namenode.http-address)"
   local hue_password='hue-password'
-  local random
-  random=$(random_string)
+  local old_mysql_settings='## engine=sqlite3(\s+)## host=(\s+)## port=(\s+)## user=(\s+)## password='
+  local new_mysql_settings="engine=mysql\$1host=127.0.0.1\$2port=3306\$3user=hue\$4password=${hue_password}"
+  local random_secret
+  random_secret=$(random_string)
   local hadoop_conf_dir='/etc/hadoop/conf'
+
   # Install hue
   retry_apt_command "apt-get install -t $(lsb_release -sc)-backports -y hue" ||
     err "Failed to install hue"
@@ -149,7 +150,7 @@ EOF
   sed -i 's/name=\/var\/lib\/hue\/desktop.db/name=hue/' /etc/hue/conf/hue.ini
 
   # Set random secret key
-  sed -i "s/secret_key=.*/secret_key=${random}/" /etc/hue/conf/hue.ini
+  sed -i "s/secret_key=.*/secret_key=${random_secret}/" /etc/hue/conf/hue.ini
 
   # Create database, give hue user permissions
   mysql -u root -proot-password -e "
@@ -167,7 +168,8 @@ EOF
 
   # Restart servers
   systemctl restart hadoop-hdfs-namenode || err "Unable to restart hadoop-hdfs-namenode"
-  systemctl restart hadoop-yarn-resourcemanager || err "Unable to restart hadoop-yarn-resourcemanager"
+  systemctl restart hadoop-yarn-resourcemanager ||
+    err "Unable to restart hadoop-yarn-resourcemanager"
   systemctl restart hue || err "Unable to restart hue"
   systemctl restart mysql || err "Unable to restart mysql"
 }
@@ -176,13 +178,10 @@ function main() {
   # Determine the role of this node
   local master_hostname
   master_hostname=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
-  # Only run on the master node of the cluster
+  # Only run on the master node ("0"-master in HA mode) of the cluster
   if [[ "${HOSTNAME}" == "${master_hostname}" ]]; then
-    # Start Hue only on the master node ("0"-master in HA mode)
     update_apt_get || err "Unable to update apt-get"
     install_hue_and_configure || err "Hue install process failed"
-  else
-    return 0 || err "Hue can be installed only on master node - skipped for worker node"
   fi
 }
 
