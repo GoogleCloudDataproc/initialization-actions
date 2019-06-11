@@ -16,7 +16,10 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
+import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.net.URI;
@@ -28,9 +31,14 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
     extends GoogleCloudStorageIntegrationHelper {
 
   public static GoogleCloudStorageFileSystem createGcsFs(String projectId) throws IOException {
+    return createGcsFs(projectId, GoogleCloudStorageIntegrationHelper.APP_NAME);
+  }
+
+  public static GoogleCloudStorageFileSystem createGcsFs(String projectId, String appName)
+      throws IOException {
     GoogleCloudStorageOptions gcsOptions =
         GoogleCloudStorageOptions.newBuilder()
-            .setAppName(GoogleCloudStorageIntegrationHelper.APP_NAME)
+            .setAppName(appName)
             .setProjectId(projectId)
             .setCopyWithRewriteEnabled(true)
             .build();
@@ -41,6 +49,14 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
             .setEnableBucketDelete(true)
             .setCloudStorageOptionsBuilder(gcsOptions.toBuilder())
             .build());
+  }
+
+  public static GoogleCloudStorageFileSystemIntegrationHelper create(String appName)
+      throws Exception {
+    String projectId =
+        checkNotNull(TestConfiguration.getInstance().getProjectId(), "projectId can not be null");
+    GoogleCloudStorageFileSystem gcsFs = createGcsFs(projectId, appName);
+    return new GoogleCloudStorageFileSystemIntegrationHelper(gcsFs);
   }
 
   protected GoogleCloudStorageFileSystem gcsfs;

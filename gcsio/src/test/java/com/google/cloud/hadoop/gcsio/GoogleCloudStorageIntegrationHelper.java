@@ -93,8 +93,7 @@ public abstract class GoogleCloudStorageIntegrationHelper {
    * @param text file contents
    * @return number of bytes written
    */
-  protected int writeTextFile(String bucketName, String objectName, String text)
-      throws IOException {
+  public int writeTextFile(String bucketName, String objectName, String text) throws IOException {
     byte[] textBytes = text.getBytes(UTF_8);
     return writeFile(bucketName, objectName, textBytes, 1);
   }
