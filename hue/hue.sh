@@ -147,9 +147,8 @@ EOF
   # Set database name to hue
   sed -i 's/name=\/var\/lib\/hue\/desktop.db/name=hue/' /etc/hue/conf/hue.ini
 
-  # Disable logging of secret key
+  # Disable logging and set random secret key
   set +x
-  # Set random secret key
   sed -i "s/secret_key=.*/secret_key=$(random_string)/" /etc/hue/conf/hue.ini
   set -x
 
