@@ -59,6 +59,14 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
     return new GoogleCloudStorageFileSystemIntegrationHelper(gcsFs);
   }
 
+  /** Opens the given object for writing. */
+  @Override
+  protected WritableByteChannel create(
+      String bucketName, String objectName, CreateFileOptions options) throws IOException {
+    URI path = getPath(bucketName, objectName);
+    return gcsfs.create(path, options);
+  }
+
   protected GoogleCloudStorageFileSystem gcsfs;
 
   public GoogleCloudStorageFileSystemIntegrationHelper(GoogleCloudStorageFileSystem gcsfs) {
@@ -80,14 +88,6 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
       throws IOException {
     URI path = getPath(bucketName, objectName);
     return gcsfs.open(path, readOptions);
-  }
-
-  /** Opens the given object for writing. */
-  @Override
-  protected WritableByteChannel create(
-      String bucketName, String objectName, CreateFileOptions options) throws IOException {
-    URI path = getPath(bucketName, objectName);
-    return gcsfs.create(path, options);
   }
 
   /** Creates a directory. */

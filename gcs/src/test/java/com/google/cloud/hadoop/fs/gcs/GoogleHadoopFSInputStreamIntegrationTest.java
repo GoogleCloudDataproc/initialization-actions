@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 Google Inc. All Rights Reserved.
+ * Copyright 2019 Google LLC. All Rights Reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
  * in compliance with the License. You may obtain a copy of the License at
@@ -91,7 +91,7 @@ public class GoogleHadoopFSInputStreamIntegrationTest {
             new FileSystem.Statistics(ghfs.getScheme()));
 
     byte[] value = new byte[2];
-    byte[] expected = Arrays.copyOfRange(testContent.getBytes(StandardCharsets.UTF_8), 0, 2);
+    byte[] expected = Arrays.copyOf(testContent.getBytes(StandardCharsets.UTF_8), 2);
 
     assertThat(in.read(value, 0, 1)).isEqualTo(1);
     assertThat(in.read(1, value, 1, 1)).isEqualTo(1);
