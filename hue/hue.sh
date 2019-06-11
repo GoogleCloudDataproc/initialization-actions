@@ -178,7 +178,7 @@ function main() {
   master_hostname=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
   # Only run on the master node of the cluster
   if [[ "${HOSTNAME}" == "${master_hostname}" ]]; then
-    # Start Flink master only on the master node ("0"-master in HA mode)
+    # Start Hue only on the master node ("0"-master in HA mode)
     update_apt_get || err "Unable to update apt-get"
     install_hue_and_configure || err "Hue install process failed"
   else
