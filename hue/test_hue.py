@@ -1,7 +1,8 @@
+import os
 import unittest
 
 from parameterized import parameterized
-import os
+
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 
