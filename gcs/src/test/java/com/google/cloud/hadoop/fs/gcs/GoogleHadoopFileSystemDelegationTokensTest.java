@@ -17,10 +17,14 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.DELEGATION_TOKEN_BINDING_CLASS;
+import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
+import static org.junit.Assert.assertThrows;
 
+import com.google.cloud.hadoop.fs.gcs.auth.GcsDelegationTokens;
 import com.google.cloud.hadoop.fs.gcs.auth.TestDelegationTokenBindingImpl;
 import com.google.cloud.hadoop.fs.gcs.auth.TestTokenIdentifierImpl;
+import com.google.cloud.hadoop.util.AccessTokenProvider;
 import java.io.IOException;
 import java.net.URI;
 import org.apache.hadoop.conf.Configuration;
@@ -67,6 +71,57 @@ public class GoogleHadoopFileSystemDelegationTokensTest {
     assertWithMessage("Unexpected delegation token identifier kind")
         .that(identifier.getKind())
         .isEqualTo(expectedKind);
+  }
+
+  @Test
+  public void testTokensInitializationWhenConfigurationIsMissing_throwsRuntimeException()
+      throws IOException {
+    Configuration config = new Configuration();
+    GcsDelegationTokens delegationTokens = new GcsDelegationTokens();
+
+    assertThrows(IllegalStateException.class, () -> delegationTokens.init(config));
+  }
+
+  @Test
+  public void testTokensInitializationWhenFsIsMissing_throwsRuntimeException() throws IOException {
+    Configuration config = new Configuration();
+    config.set(
+        DELEGATION_TOKEN_BINDING_CLASS.getKey(), TestDelegationTokenBindingImpl.class.getName());
+    GcsDelegationTokens delegationTokens = new GcsDelegationTokens();
+
+    assertThrows(RuntimeException.class, () -> delegationTokens.init(config));
+  }
+
+  @Test
+  public void testAccessTokensProvidersValidation() throws IOException {
+    GoogleHadoopFileSystem fs = new GoogleHadoopFileSystem();
+    fs.initialize(new Path("gs://test/").toUri(), loadConfig());
+
+    Token<?> dt = fs.getDelegationToken("current-user");
+    assertThrows(
+        "GCP Delegation tokens has already been bound/deployed",
+        IllegalStateException.class,
+        () -> fs.delegationTokens.bindToAnyDelegationToken());
+
+    Token<DelegationTokenIdentifier> boundDT = fs.delegationTokens.getBoundDT();
+    assertThrows(
+        "GCP Delegation tokens has already been bound/deployed",
+        IllegalStateException.class,
+        () -> fs.delegationTokens.bindToDelegationToken(boundDT));
+
+    Token<?> dt1 = fs.getDelegationToken("current-user");
+    assertWithMessage("Tokens should be the same").that(dt1).isEqualTo(dt);
+  }
+
+  @Test
+  public void testTokenAuthValue() throws IOException {
+    GoogleHadoopFileSystem fs = new GoogleHadoopFileSystem();
+    fs.initialize(new Path("gs://test/").toUri(), loadConfig());
+
+    AccessTokenProvider tokenProvider = fs.delegationTokens.getAccessTokenProvider();
+    AccessTokenProvider.AccessToken token = tokenProvider.getAccessToken();
+
+    assertThat(token.getToken()).isEqualTo("qWDAWFA3WWFAWFAWFAW3FAWF3AWF3WFAF33GR5G5");
   }
 
   private Configuration loadConfig() {
