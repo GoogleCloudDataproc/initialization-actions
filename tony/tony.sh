@@ -14,7 +14,7 @@
 #
 # This script installs TonY on a master node within a Google Cloud Dataproc cluster.
 
-set -x -e
+set -euxo pipefail
 
 # TonY settings
 readonly TONY_INSTALL_FOLDER='/opt/tony/'
