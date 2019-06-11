@@ -47,8 +47,6 @@ function install_hue_and_configure() {
   local hue_password='hue-password'
   local old_mysql_settings='## engine=sqlite3(\s+)## host=(\s+)## port=(\s+)## user=(\s+)## password='
   local new_mysql_settings="engine=mysql\$1host=127.0.0.1\$2port=3306\$3user=hue\$4password=${hue_password}"
-  local random_secret
-  random_secret=$(random_string)
   local hadoop_conf_dir='/etc/hadoop/conf'
 
   # Install hue
@@ -149,8 +147,11 @@ EOF
   # Set database name to hue
   sed -i 's/name=\/var\/lib\/hue\/desktop.db/name=hue/' /etc/hue/conf/hue.ini
 
+  # Disable logging of secret key
+  set +x
   # Set random secret key
-  sed -i "s/secret_key=.*/secret_key=${random_secret}/" /etc/hue/conf/hue.ini
+  sed -i "s/secret_key=.*/secret_key=$(random_string)/" /etc/hue/conf/hue.ini
+  set -x
 
   # Create database, give hue user permissions
   mysql -u root -proot-password -e "
