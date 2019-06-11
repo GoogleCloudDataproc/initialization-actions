@@ -53,10 +53,8 @@ readonly START_FLINK_YARN_SESSION_DEFAULT=true
 # Set this to install flink from a snapshot URL instead of apt
 readonly FLINK_SNAPSHOT_URL_METADATA_KEY='flink-snapshot-url'
 
-
-
 function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   return 1
 }
 
@@ -76,13 +74,15 @@ function update_apt_get() {
 }
 
 function install_apt_get() {
-  pkgs="$@"
+  local pkgs="$*"
   retry_apt_command "apt-get install -y $pkgs"
 }
 
 function install_flink_snapshot() {
-  local work_dir="$(mktemp -d)"
-  local flink_url="$(/usr/share/google/get_metadata_value "attributes/${FLINK_SNAPSHOT_URL_METADATA_KEY}")"
+  local work_dir
+  work_dir="$(mktemp -d)"
+  local flink_url
+  flink_url="$(/usr/share/google/get_metadata_value "attributes/${FLINK_SNAPSHOT_URL_METADATA_KEY}")"
   local flink_local="${work_dir}/flink.tgz"
   local flink_toplevel_pattern="${work_dir}/flink-*"
 
@@ -91,22 +91,23 @@ function install_flink_snapshot() {
   curl -o "${flink_local}" "${flink_url}"
   tar -xzvf "${flink_local}"
   rm "${flink_local}"
+
   # only the first match of the flink toplevel pattern is used
-  local files=( ${flink_toplevel_pattern} )
-  local flink_toplevel="${files[0]}"
+  local flink_toplevel
+  flink_toplevel=$(compgen -G "${flink_toplevel_pattern}" | head -n1)
   mv "${flink_toplevel}" "${FLINK_INSTALL_DIR}"
 
   popd # work_dir
-
 }
 
 function configure_flink() {
   # Number of worker nodes in your cluster
-  local num_workers=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
+  local num_workers
+  num_workers=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 
   # Number of Flink TaskManagers to use. Reserve 1 node for the JobManager.
   # NB: This assumes > 1 worker node.
-  local num_taskmanagers="$(($num_workers - 1))"
+  local num_taskmanagers="$((num_workers - 1))"
 
   # Determine the number of task slots per worker.
   # TODO: Dataproc does not currently set the number of worker cores on the
@@ -114,32 +115,39 @@ function configure_flink() {
   # to be half the number of CPU cores per worker. We use this value to
   # determine the number of worker cores. Fix this hack when
   # yarn.nodemanager.resource.cpu-vcores is correctly populated.
-  local spark_executor_cores=$(\
-    grep 'spark\.executor\.cores' /etc/spark/conf/spark-defaults.conf \
-      | tail -n1 \
-      | cut -d'=' -f2)
-  local flink_taskmanager_slots="$(($spark_executor_cores * 2))"
+  local spark_executor_cores
+  spark_executor_cores=$(
+    grep 'spark\.executor\.cores' /etc/spark/conf/spark-defaults.conf |
+      tail -n1 |
+      cut -d'=' -f2
+  )
+  local flink_taskmanager_slots="$((spark_executor_cores * 2))"
 
   # Determine the default parallelism.
-  local flink_parallelism=$(python -c \
+  local flink_parallelism
+  flink_parallelism=$(python -c \
     "print ${num_taskmanagers} * ${flink_taskmanager_slots}")
 
   # Get worker memory from yarn config.
-  local worker_total_mem="$(hdfs getconf \
+  local worker_total_mem
+  worker_total_mem="$(hdfs getconf \
     -confKey yarn.nodemanager.resource.memory-mb)"
-  local flink_jobmanager_memory=$(python -c \
+  local flink_jobmanager_memory
+  flink_jobmanager_memory=$(python -c \
     "print int(${worker_total_mem} * ${FLINK_JOBMANAGER_MEMORY_FRACTION})")
-  local flink_taskmanager_memory=$(python -c \
+  local flink_taskmanager_memory
+  flink_taskmanager_memory=$(python -c \
     "print int(${worker_total_mem} * ${FLINK_TASKMANAGER_MEMORY_FRACTION})")
 
   # Fetch the primary master name from metadata.
-  local master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
+  local master_hostname
+  master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 
   # create working directory
   mkdir -p "${FLINK_WORKING_DIR}"
 
   # Apply Flink settings by appending them to the default config.
-  cat << EOF >> ${FLINK_INSTALL_DIR}/conf/flink-conf.yaml
+  cat <<EOF >>${FLINK_INSTALL_DIR}/conf/flink-conf.yaml
 # Settings applied by Cloud Dataproc initialization action
 jobmanager.rpc.address: ${master_hostname}
 jobmanager.heap.mb: ${flink_jobmanager_memory}
@@ -150,7 +158,7 @@ taskmanager.network.numberOfBuffers: ${FLINK_NETWORK_NUM_BUFFERS}
 fs.hdfs.hadoopconf: ${HADOOP_CONF_DIR}
 EOF
 
-cat > "${FLINK_YARN_SCRIPT}" << EOF
+  cat >"${FLINK_YARN_SCRIPT}" <<EOF
 #!/bin/bash
 set -exuo pipefail
 sudo -u yarn -i \
@@ -163,16 +171,20 @@ HADOOP_CONF_DIR=${HADOOP_CONF_DIR} \
   -nm flink-dataproc \
   --detached
 EOF
-chmod +x "${FLINK_YARN_SCRIPT}"
+  chmod +x "${FLINK_YARN_SCRIPT}"
 
 }
 
 function start_flink_master() {
-  local start_yarn_session="$(/usr/share/google/get_metadata_value \
-    "attributes/${START_FLINK_YARN_SESSION_METADATA_KEY}" \
-    || echo "${START_FLINK_YARN_SESSION_DEFAULT}")"
+  local master_hostname
+  master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
+  local start_yarn_session
+  start_yarn_session="$(/usr/share/google/get_metadata_value \
+    "attributes/${START_FLINK_YARN_SESSION_METADATA_KEY}" ||
+    echo "${START_FLINK_YARN_SESSION_DEFAULT}")"
 
-  if ${start_yarn_session} ; then
+  # Start Flink master only on the master node ("0"-master in HA mode)
+  if [[ "${start_yarn_session}" == "true" && "${HOSTNAME}" == "${master_hostname}" ]]; then
     "${FLINK_YARN_SCRIPT}"
   else
     echo "Doing nothing"
@@ -180,21 +192,18 @@ function start_flink_master() {
 }
 
 function main() {
-  local role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-  local snapshot_url="$(/usr/share/google/get_metadata_value \
-    "attributes/${FLINK_INSTALL_SNAPSHOT_METADATA_KEY}" \
-    || echo "${FLINK_INSTALL_SNAPSHOT_METADATA_DEFAULT}")"
+  local role
+  role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 
   # check if a flink snapshot URL is specified
-  if /usr/share/google/get_metadata_value \
-    "attributes/${FLINK_SNAPSHOT_URL_METADATA_KEY}" ; then
-      install_flink_snapshot || err "Unable to install Flink"
+  if /usr/share/google/get_metadata_value "attributes/${FLINK_SNAPSHOT_URL_METADATA_KEY}"; then
+    install_flink_snapshot || err "Unable to install Flink"
   else
     update_apt_get || err "Unable to update apt-get"
     install_apt_get flink || err "Unable to install flink"
   fi
   configure_flink || err "Flink configuration failed"
-  if [[ "${role}" == 'Master' ]] ; then
+  if [[ "${role}" == 'Master' ]]; then
     start_flink_master || err "Unable to start Flink master"
   fi
 }
