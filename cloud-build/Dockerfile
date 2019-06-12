@@ -24,10 +24,11 @@ ENV PYTHONPATH /
 
 RUN pip3 install parameterized
 
-RUN pip3 install -r cloud-build/requirements.pip
+RUN pip3 install -r requirements.pip
 
 COPY . /
 WORKDIR /
+RUN ls -a
 
 # Make sure to use dependency versions that work
 # RUN pip freeze > cloud-build/requirements.pip
