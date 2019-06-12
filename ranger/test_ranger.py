@@ -26,7 +26,7 @@ class RangerTestCase(DataprocTestCase):
 
     def __run_test_script(self, name):
         ret_code, stdout, stderr = self.run_command(
-            'gcloud compute ssh {} -- "python {}"'.format(
+            'gcloud compute ssh {} --command="python {}"'.format(
                 name,
                 self.TEST_SCRIPT_FILE_NAME,
             )

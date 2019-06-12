@@ -25,7 +25,7 @@ class RapidsTestCase(DataprocTestCase):
 
     def __run_test_script(self, name):
         ret_code, stdout, stderr = self.run_command(
-            'gcloud compute ssh {} -- "/opt/conda/anaconda/envs/RAPIDS/bin/python {}"'.format(
+            'gcloud compute ssh {} --command="/opt/conda/anaconda/envs/RAPIDS/bin/python {}"'.format(
                 name,
                 self.TEST_SCRIPT_FILE_NAME,
             )

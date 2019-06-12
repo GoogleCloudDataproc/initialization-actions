@@ -27,7 +27,7 @@ class PrestoTestCase(DataprocTestCase):
     def __create_schema_via_hive(self, name, schema):
         query = "create schema {};".format(schema)
         ret_code, stdout, stderr = self.run_command(
-            "gcloud compute ssh {} -- \"hive -e '{}'\"".format(
+            "gcloud compute ssh {} --command=\"hive -e '{}'\"".format(
                 name,
                 query,
             )
@@ -37,7 +37,7 @@ class PrestoTestCase(DataprocTestCase):
     def __verify_schema_via_presto(self, name, schema):
         query = "show schemas;"
         ret_code, stdout, stderr = self.run_command(
-            "gcloud compute ssh {} -- \"presto --catalog=hive --execute='{}' --output-format TSV\"".format(
+            "gcloud compute ssh {} --command=\"presto --catalog=hive --execute='{}' --output-format TSV\"".format(
                 name,
                 query
             )
@@ -49,7 +49,7 @@ class PrestoTestCase(DataprocTestCase):
     def __create_table(self, name, table, schema):
         query = "create table {}(number int) STORED AS SEQUENCEFILE;".format(table)
         ret_code, stdout, stderr = self.run_command(
-            "gcloud compute ssh {} -- \"hive --database {} -e '{}'\"".format(
+            "gcloud compute ssh {} --command=\"hive --database {} -e '{}'\"".format(
                 name,
                 schema,
                 query
@@ -63,7 +63,7 @@ class PrestoTestCase(DataprocTestCase):
             ",".join(["({})".format(x % 2) for x in range(400)])
         )
         ret_code, stdout, stderr = self.run_command(
-            "gcloud compute ssh {} -- \"hive --database {} -e '{}'\"".format(
+            "gcloud compute ssh {} --command=\"hive --database {} -e '{}'\"".format(
                 name,
                 schema,
                 query,
@@ -74,7 +74,7 @@ class PrestoTestCase(DataprocTestCase):
     def __validate_data_in_table_via_presto(self, name, table, schema):
         query = "SELECT number, count(*) AS total FROM {} GROUP BY number ORDER BY number DESC;".format(table)
         ret_code, stdout, stderr = self.run_command(
-            "gcloud compute ssh {} -- \"presto --catalog=hive --schema={} --execute='{}' --output-format TSV\"".format(
+            "gcloud compute ssh {} --command=\"presto --catalog=hive --schema={} --execute='{}' --output-format TSV\"".format(
                 name,
                 schema,
                 query
@@ -86,7 +86,7 @@ class PrestoTestCase(DataprocTestCase):
     def __verify_coordinators_count(self, name, coordinators):
         query = "select count(*) from system.runtime.nodes where coordinator=true"
         ret_code, stdout, stderr = self.run_command(
-            "gcloud compute ssh {} -- \"presto --execute '{}' --output-format TSV\"".format(
+            "gcloud compute ssh {} --command=\"presto --execute '{}' --output-format TSV\"".format(
                 name,
                 query,
             )
@@ -99,7 +99,7 @@ class PrestoTestCase(DataprocTestCase):
     def __verify_workers_count(self, name, workers):
         query = "select count(*) from system.runtime.nodes where coordinator=false"
         ret_code, stdout, stderr = self.run_command(
-            "gcloud compute ssh {} -- \"presto --execute '{}' --output-format TSV\"".format(
+            "gcloud compute ssh {} --command=\"presto --execute '{}' --output-format TSV\"".format(
                 name,
                 query,
             )
