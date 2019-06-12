@@ -12,7 +12,7 @@ RUN ls -a
 
 RUN apt-get -y update
 RUN apt-get -y install python3-pip
-RUN apt-get install -y python3.6
+# RUN apt-get install -y python3.6
 
 RUN python3.5 -m pip install --upgrade pip
 RUN python3.5 -m pip install -r /usr/src/app/requirements.pip # requirements.pip
