@@ -9,13 +9,16 @@ RUN ls -a
 
 RUN apt-get -y update
 RUN apt-get -y install python3-pip
+RUN add-apt-repository ppa:jonathonf/python-3.6
+RUN apt-get install -y python3.6
+
+RUN python3.6 -m pip install --upgrade pip
+RUN python3.6 -m pip install -r requirements.pip
 
 ENV PATH=$PATH:/builder/google-cloud-sdk/bin/
 ENV PYTHONPATH /
 
-RUN python3 -m pip3 install --upgrade pip
-RUN python3 -m pip3 install -r cloud-build/requirements.pip
-RUN pip3 install parameterized
+# RUN pip3 install parameterized
 
 # RUN pip3 install -r cloud-build/requirements.pip
 
