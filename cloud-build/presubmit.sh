@@ -2,6 +2,7 @@
 
 set -Eeuo pipefail
 
+python3.5 -m pip install -r cloud-build/requirements.pip
 pip3 freeze
 
 git init
