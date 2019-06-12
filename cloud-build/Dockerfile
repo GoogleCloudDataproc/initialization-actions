@@ -22,7 +22,7 @@ RUN python3.5 -V
 ENV PATH=$PATH:/builder/google-cloud-sdk/bin/
 ENV PYTHONPATH /
 
-# RUN pip3 install parameterized
+RUN pip3 install parameterized
 
 # RUN pip3 install -r cloud-build/requirements.pip
 
