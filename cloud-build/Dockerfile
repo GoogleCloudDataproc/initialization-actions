@@ -15,6 +15,7 @@ ENV PYTHONPATH /
 
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install -r cloud-build/requirements.pip
+RUN pip install parameterized
 
 # RUN pip3 install -r cloud-build/requirements.pip
 
