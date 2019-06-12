@@ -2,6 +2,8 @@
 
 set -Eeuo pipefail
 
+pip3 freeze
+
 git init
 
 # Stage files to track their history
