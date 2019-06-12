@@ -172,7 +172,10 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
         contentChannel.close();
       }
       long seekDistance = currentPosition - contentChannel.position;
-      if (seekDistance > 0 && seekDistance <= readOptions.getInplaceSeekLimit()) {
+      boolean shouldReadSequentially =
+          readOptions.getFadvise() == Fadvise.SEQUENTIAL
+              || seekDistance <= readOptions.getInplaceSeekLimit();
+      if (seekDistance > 0 && shouldReadSequentially) {
         try {
           contentChannel.skip(seekDistance);
         } catch (IOException e) {
@@ -189,8 +192,8 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
               readOptions.getInplaceSeekLimit(),
               resourceIdString);
           randomAccess = true;
-          contentChannel.close();
         }
+        contentChannel.close();
       }
     }
 
@@ -211,13 +214,13 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
 
   @Override
   public void close() throws IOException {
+    channelIsOpen = false;
     if (!channelIsOpen) {
       logger.atFine().log("Ignoring close: channel for '%s' is not open.", resourceIdString);
     } else {
       logger.atFine().log("Closing channel for '%s'", resourceIdString);
+      contentChannel.close();
     }
-    channelIsOpen = false;
-    contentChannel.close();
   }
 
   @Override
@@ -357,7 +360,11 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
       try {
         return metadataCache.get(Singleton.INSTANCE);
       } catch (ExecutionException e) {
-        throw new IOException(e.getCause());
+        if (e.getCause() instanceof IOException) {
+          throw (IOException) e.getCause();
+        } else {
+          throw new IOException(e.getCause());
+        }
       }
     }
 
