@@ -14,19 +14,19 @@
 #
 # This script installs TonY on a master node within a Google Cloud Dataproc cluster.
 
-set -x -e
+set -euxo pipefail
 
 # TonY settings
 readonly TONY_INSTALL_FOLDER='/opt/tony/'
-readonly TONY_SAMPLES_FOLDER="${TONY_INSTALL_FOLDER}"'/TonY-samples'
-readonly TONY_DEFAULT_VERSION='6273f16d9c0597b3715a04645445aeedc495baf8'
+readonly TONY_SAMPLES_FOLDER="${TONY_INSTALL_FOLDER}/TonY-samples"
+readonly TONY_DEFAULT_VERSION='6273f16d9c0597b3715a04645445aeedc495baf8' # v0.3.1
 
 # Tony configurations: https://github.com/linkedin/TonY/wiki/TonY-Configurations
 readonly PS_INSTANCES=1
 readonly PS_MEMORY='2g'
 readonly WORKER_INSTANCES=2
 readonly WORKER_MEMORY='4g'
-readonly WORKER_GPUS=0  # GPU isolation is not supported in Dataproc 1.3
+readonly WORKER_GPUS=0 # GPU isolation is not supported in Dataproc 1.3
 
 # ML frameworks versions
 readonly TENSORFLOW_VERSION='1.13.1'
@@ -34,9 +34,8 @@ readonly TENSORFLOW_GPU=false
 readonly PYTORCH_VERSION='0.4.1'
 readonly TORCHVISION_VERSION='0.2.1'
 
-
 function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   return 1
 }
 
@@ -53,54 +52,53 @@ function download_and_build_tony() {
 }
 
 function install_samples() {
-
   # Create samples directory structure.
-  mkdir -p "${TONY_SAMPLES_FOLDER}"/deps
+  mkdir -p "${TONY_SAMPLES_FOLDER}/deps"
   # Create TensorFlow directory
-  mkdir -p "${TONY_SAMPLES_FOLDER}"/jobs/TFJob/src
+  mkdir -p "${TONY_SAMPLES_FOLDER}/jobs/TFJob/src"
   # Create PyTorch directory
-  mkdir -p "${TONY_SAMPLES_FOLDER}"/jobs/PTJob/src
+  mkdir -p "${TONY_SAMPLES_FOLDER}/jobs/PTJob/src"
 
   # Copy Jar file.
   cp "${TONY_INSTALL_FOLDER}"/TonY/tony-cli/build/libs/tony-cli-*-all.jar "${TONY_SAMPLES_FOLDER}"
 
   # Collect Metadata
-  worker_instances="$(/usr/share/google/get_metadata_value attributes/worker_instances)" || worker_instances="${WORKER_INSTANCES}"
-  worker_memory="$(/usr/share/google/get_metadata_value attributes/worker_memory)" || worker_memory="${WORKER_MEMORY}"
-  ps_instances="$(/usr/share/google/get_metadata_value attributes/ps_instances)" || ps_instances="${PS_INSTANCES}"
-  ps_memory="$(/usr/share/google/get_metadata_value attributes/ps_memory)" || ps_memory="${PS_MEMORY}"
+  worker_instances="$(/usr/share/google/get_metadata_value attributes/worker_instances || echo ${WORKER_INSTANCES})"
+  worker_memory="$(/usr/share/google/get_metadata_value attributes/worker_memory || echo ${WORKER_MEMORY})"
+  ps_instances="$(/usr/share/google/get_metadata_value attributes/ps_instances || echo ${PS_INSTANCES})"
+  ps_memory="$(/usr/share/google/get_metadata_value attributes/ps_memory || echo ${PS_MEMORY})"
   # Framework versions
-  tf_version="$(/usr/share/google/get_metadata_value attributes/tf_version)" || tf_version="${TENSORFLOW_VERSION}"
-  tf_gpu="$(/usr/share/google/get_metadata_value attributes/tf_gpu)" || tf_gpu="${TENSORFLOW_GPU}"
-  torch_version="$(/usr/share/google/get_metadata_value attributes/torch_version)" || torch_version="${PYTORCH_VERSION}"
-  torchvision_version="$(/usr/share/google/get_metadata_value attributes/torchvision_version)" || torchvision_version="${TORCHVISION_VERSION}"
+  tf_version="$(/usr/share/google/get_metadata_value attributes/tf_version || echo ${TENSORFLOW_VERSION})"
+  tf_gpu="$(/usr/share/google/get_metadata_value attributes/tf_gpu || echo ${TENSORFLOW_GPU})"
+  torch_version="$(/usr/share/google/get_metadata_value attributes/torch_version || echo ${PYTORCH_VERSION})"
+  torchvision_version="$(/usr/share/google/get_metadata_value attributes/torchvision_version || echo ${TORCHVISION_VERSION})"
 
   # Install TensorFlow sample
-  cd "${TONY_SAMPLES_FOLDER}"/deps
+  cd "${TONY_SAMPLES_FOLDER}/deps"
   virtualenv -p python3 tf
   source tf/bin/activate
   # Verify you install GPU drivers, CUDA and CUDNN compatible with TensorFlow.
   if [[ "${tf_gpu}" == 'true' ]]; then
     if [[ "${tf_version}" == 'tf-nightly-gpu' ]]; then
-        pip install "${tf_version}"
+      pip install "${tf_version}"
     else
-        pip install tensorflow-gpu=="${tf_version}"
+      pip install tensorflow-gpu=="${tf_version}"
     fi
   else
     if [[ "${tf_version}" == 'tf-nightly' ]]; then
-        pip install "${tf_version}"
+      pip install "${tf_version}"
     else
-        pip install tensorflow=="${tf_version}"
+      pip install tensorflow=="${tf_version}"
     fi
   fi
   zip -r tf.zip tf
 
-  cp "${TONY_INSTALL_FOLDER}"/TonY/tony-examples/mnist-tensorflow/mnist_distributed.py \
-    "${TONY_SAMPLES_FOLDER}"/jobs/TFJob/src
-  cd "${TONY_SAMPLES_FOLDER}"/jobs/TFJob
+  cp "${TONY_INSTALL_FOLDER}/TonY/tony-examples/mnist-tensorflow/mnist_distributed.py" \
+    "${TONY_SAMPLES_FOLDER}/jobs/TFJob/src"
+  cd "${TONY_SAMPLES_FOLDER}/jobs/TFJob"
 
   # Additional configuration settings: https://github.com/linkedin/TonY/wiki/TonY-Configurations
-  cat << EOF > tony.xml
+  cat <<EOF >tony.xml
 <configuration>
  <property>
   <name>tony.application.security.enabled</name>
@@ -130,19 +128,19 @@ function install_samples() {
 EOF
 
   # Install PyTorch sample
-  cd "${TONY_SAMPLES_FOLDER}"/deps
+  cd "${TONY_SAMPLES_FOLDER}/deps"
   virtualenv -p python3 pytorch
   source pytorch/bin/activate
   pip install torch=="${torch_version}"
   pip install torchvision=="${torchvision_version}"
   pip install numpy -I
   zip -r pytorch.zip pytorch
-  cp "${TONY_INSTALL_FOLDER}"/TonY/tony-examples/mnist-pytorch/mnist_distributed.py \
-    "${TONY_SAMPLES_FOLDER}"/jobs/PTJob/src
-  cd "${TONY_SAMPLES_FOLDER}"/jobs/PTJob/
+  cp "${TONY_INSTALL_FOLDER}/TonY/tony-examples/mnist-pytorch/mnist_distributed.py" \
+    "${TONY_SAMPLES_FOLDER}/jobs/PTJob/src"
+  cd "${TONY_SAMPLES_FOLDER}/jobs/PTJob/"
 
   # Additional configuration settings: https://github.com/linkedin/TonY/wiki/TonY-Configurations
-  cat << EOF > tony.xml
+  cat <<EOF >tony.xml
 <configuration>
  <property>
   <name>tony.application.name</name>
