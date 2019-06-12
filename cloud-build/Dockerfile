@@ -4,7 +4,7 @@
 FROM gcr.io/cloud-builders/gcloud
 
 # Copy everything into the container
-COPY . /
+COPY cloud-build/requirements.pip /
 RUN ls -a
 
 RUN add-apt-repository ppa:jonathonf/python-3.6
@@ -24,7 +24,10 @@ ENV PYTHONPATH /
 
 RUN pip3 install parameterized
 
-RUN pip3 install -r cloud-build/requirements.pip --src /
+RUN pip3 install -r cloud-build/requirements.pip
+
+COPY . /
+WORKDIR /
 
 # Make sure to use dependency versions that work
 # RUN pip freeze > cloud-build/requirements.pip
