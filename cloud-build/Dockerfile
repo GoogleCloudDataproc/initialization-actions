@@ -7,18 +7,16 @@ FROM gcr.io/cloud-builders/gcloud
 COPY . /
 RUN ls -a
 
-RUN apt-get -y update
-RUN apt-get -y install python3-pip
+RUN apt-get -y update \
+    && apt-get -y install python3-pip
 
 RUN python3.5 -m pip install --upgrade pip
 RUN python3.5 -m pip install -r cloud-build/requirements.pip
 
-RUN pip3 freeze
-RUN python3 -V
-RUN python3.5 -V
-
 ENV PATH=$PATH:/builder/google-cloud-sdk/bin/
 ENV PYTHONPATH /
+
+WORKDIR /
 
 # Make sure to use dependency versions that work
 # RUN pip freeze > cloud-build/requirements.pip
