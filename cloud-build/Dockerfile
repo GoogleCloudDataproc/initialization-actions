@@ -7,9 +7,9 @@ FROM gcr.io/cloud-builders/gcloud
 COPY . /
 RUN ls -a
 
+RUN add-apt-repository ppa:jonathonf/python-3.6
 RUN apt-get -y update
 RUN apt-get -y install python3-pip
-RUN add-apt-repository ppa:jonathonf/python-3.6
 RUN apt-get install -y python3.6
 
 RUN python3.6 -m pip install --upgrade pip
