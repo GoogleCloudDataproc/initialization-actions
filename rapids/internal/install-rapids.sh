@@ -11,7 +11,7 @@ echo "Copying Conda environment from '${CONDA_ENV_YAML_REPO_PATH}' to '${CONDA_E
 cp "${CONDA_ENV_YAML_REPO_PATH}" "${CONDA_ENV_YAML_PATH}"
 
 # Install Miniconda/Conda
-bash "${LOCAL_INIT_ACTIONS_REPO}/conda/bootstrap-conda.sh"
+"${LOCAL_INIT_ACTIONS_REPO}/conda/bootstrap-conda.sh"
 # Create/Update Conda environment via Conda yaml
 CONDA_ENV_YAML=$CONDA_ENV_YAML_PATH "${LOCAL_INIT_ACTIONS_REPO}/conda/install-conda-env.sh"
 
