@@ -28,8 +28,7 @@ There are various options for customizing your Jupyter installation. These can b
 
 * `JUPYTER_PORT`=<integer>: Port on which the Jupyter server runs
 * `JUPYTER_CONDA_PACKAGES`=<colon-separated list of strings>: List of Conda packages to install.
-* `INIT_ACTIONS_REPO`=<https url>: Repo to clone to find other scripts to install/configure Conda and Jupyter.
-* `INIT_ACTIONS_BRANCH`=<string>: Branch in `INIT_ACTIONS_REPO` to use.
+* `INIT_ACTIONS_REPO`=<bucket>: GCS bucket to find other scripts to install/configure Conda and Jupyter.
 
 For example to specify a different port and specify additional packages to install:
 
@@ -51,9 +50,9 @@ Notebooks are stored and retrieved from the cluster staging bucket (Google Cloud
 
 `jupyter.sh` handles configuring and running Jupyter on the Dataproc master node by doing the following:
 
-- clones the dataproc-initialization-actions git repo/branch specified in the `INIT_ACTIONS_REPO` and `INIT_ACTIONS_BRANCH` metadata keys
-  - if these two metadata keys are not set during cluster creation, the default values `https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git` and `master` are used
-  - this is provided so that a fork/branch of the main repo can easily be used, eg, during development
+- clones the dataproc-initialization-actions GCS bucket specified in the `INIT_ACTIONS_REPO` metadata key
+  - if this metadata key is not set during cluster creation, the default value `gs:///dataproc-initialization-actions` is used
+  - this is provided so that a fork of the main repo can easily be used, eg, during development
 - executes `conda/bootstrap-conda.sh` from said repo/branch to ensure `miniconda` is available
 - executes `jupyter/internal/setup-jupyter-kernel.sh` and `jupyter/internal/launch-jupyter-kernel.sh` from said repo/branch
   - configures `jupyter` to use the *PySpark* kernel found at `jupyter/kernels/pyspark/kernel.json`
