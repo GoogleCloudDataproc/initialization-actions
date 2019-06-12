@@ -1,21 +1,18 @@
 #!/usr/bin/env bash
 
-apt install libopenblas-base libomp-dev
+readonly LOCAL_INIT_ACTIONS_REPO=/tmp/local-initialization-actions
 
-readonly DATAPROC_BUCKET="$(/usr/share/google/get_metadata_value attributes/dataproc-bucket)"
-readonly CONDA_ENV_YAML_GSC_LOC="gs://dataproc-initialization-actions/rapids/conda-environment.yml"
+readonly CONDA_ENV_YAML_REPO_PATH="${LOCAL_INIT_ACTIONS_REPO}/rapids/conda-environment.yml"
 readonly CONDA_ENV_YAML_PATH="/root/conda-environment.yml"
 
-echo "Downloading conda environment at $CONDA_ENV_YAML_GSC_LOC to $CONDA_ENV_YAML_PATH... "
-gsutil -m cp -r $CONDA_ENV_YAML_GSC_LOC $CONDA_ENV_YAML_PATH
-gsutil -m cp -r gs://dataproc-initialization-actions/conda/bootstrap-conda.sh .
-gsutil -m cp -r gs://dataproc-initialization-actions/conda/install-conda-env.sh .
+apt install libopenblas-base libomp-dev
 
-chmod 755 ./*conda*.sh
+echo "Copying Conda environment from '${CONDA_ENV_YAML_REPO_PATH}' to '${CONDA_ENV_YAML_PATH}' ... "
+cp "${CONDA_ENV_YAML_REPO_PATH}" "${CONDA_ENV_YAML_PATH}"
 
 # Install Miniconda/Conda
-./bootstrap-conda.sh
+bash "${LOCAL_INIT_ACTIONS_REPO}/conda/bootstrap-conda.sh"
 # Create/Update Conda environment via Conda yaml
-CONDA_ENV_YAML=$CONDA_ENV_YAML_PATH ./install-conda-env.sh
+CONDA_ENV_YAML=$CONDA_ENV_YAML_PATH bash "${LOCAL_INIT_ACTIONS_REPO}/conda/install-conda-env.sh"
 
 source /etc/profile.d/conda.sh
