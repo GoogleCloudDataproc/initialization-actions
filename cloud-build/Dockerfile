@@ -17,6 +17,7 @@ RUN python3.6 -m pip install -r cloud-build/requirements.pip
 
 RUN pip3 freeze
 RUN python3 -V
+RUN python3.6 -V
 
 ENV PATH=$PATH:/builder/google-cloud-sdk/bin/
 ENV PYTHONPATH /
