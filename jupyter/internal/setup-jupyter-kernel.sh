@@ -40,9 +40,9 @@ EOF
 
 echo "Installing pyspark Kernel..."
 mkdir -p "${JUPYTER_KERNEL_DIR}"
-bash "${KERNEL_GENERATOR}" >"${JUPYTER_KERNEL_DIR}/kernel.json"
+"${KERNEL_GENERATOR}" >"${JUPYTER_KERNEL_DIR}/kernel.json"
 jupyter kernelspec install "${JUPYTER_KERNEL_DIR}"
 echo "c.MappingKernelManager.default_kernel_name = 'pyspark'" >>~/.jupyter/jupyter_notebook_config.py
-bash "${TOREE_INSTALLER}"
+"${TOREE_INSTALLER}"
 
 echo "Jupyter setup!"
