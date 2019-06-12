@@ -13,7 +13,7 @@ RUN apt-get -y install python3-pip
 RUN apt-get install -y python3.6
 
 RUN python3.6 -m pip install --upgrade pip
-RUN python3.6 -m pip install -r requirements.pip
+RUN python3.6 -m pip install -r cloud-build/requirements.pip
 
 ENV PATH=$PATH:/builder/google-cloud-sdk/bin/
 ENV PYTHONPATH /
