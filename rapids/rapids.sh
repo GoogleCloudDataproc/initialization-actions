@@ -10,9 +10,10 @@ readonly LOCAL_INIT_ACTIONS_REPO=/tmp/local-initialization-actions
 echo "Cloning initialization actions from '${INIT_ACTIONS_REPO}' repo..."
 mkdir "${LOCAL_INIT_ACTIONS_REPO}"
 gsutil -m rsync -r "${INIT_ACTIONS_REPO}" "${LOCAL_INIT_ACTIONS_REPO}"
+find "${LOCAL_INIT_ACTIONS_REPO}" -name '*.sh' -exec chmod +x {} \;
 
 # Ensure we have GPU drivers installed.
-bash "${LOCAL_INIT_ACTIONS_REPO}/rapids/internal/install-gpu-driver.sh"
+"${LOCAL_INIT_ACTIONS_REPO}/rapids/internal/install-gpu-driver.sh"
 
 # For use with Anaconda component
 conda env create --name RAPIDS --file "${LOCAL_INIT_ACTIONS_REPO}/rapids/internal/conda-environment.yml"
@@ -23,4 +24,4 @@ if [[ "${ROLE}" == "Master" ]]; then
   service jupyter restart
 fi
 
-bash "${LOCAL_INIT_ACTIONS_REPO}/rapids/internal/launch-dask.sh"
+"${LOCAL_INIT_ACTIONS_REPO}/rapids/internal/launch-dask.sh"

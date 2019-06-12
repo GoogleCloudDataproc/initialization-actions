@@ -20,7 +20,19 @@ class RapidsTestCase(DataprocTestCase):
 
     def __run_test_script(self, name):
         ret_code, stdout, stderr = self.run_command(
-            'gcloud compute ssh {} --command="{}"'.format(
+<<<<<<< HEAD
+            'gcloud compute ssh {} --command="/opt/conda/anaconda/envs/RAPIDS/bin/python {}"'.format(
+                name,
+                self.TEST_SCRIPT_FILE_NAME,
+            )
+        )
+        self.assertEqual(ret_code, 0, "Failed to validate RAPIDS install. Last error: {}".format(stderr))
+
+    @parameterized.expand([
+        ("STANDARD", "1.3", ["m"])
+    ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+=======
+            'gcloud compute ssh {} -- {}'.format(
                 name, "/opt/conda/anaconda/envs/RAPIDS/bin/python {}".format(
                     self.TEST_SCRIPT_FILE_NAME)))
         self.assertEqual(
@@ -30,6 +42,7 @@ class RapidsTestCase(DataprocTestCase):
     @parameterized.expand(
         [("STANDARD", "1.3", ["m"])],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+>>>>>>> Modify RAPIDS init action to download dependencies from GCS
     def test_rapids(self, configuration, dataproc_version, machine_suffixes):
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
 

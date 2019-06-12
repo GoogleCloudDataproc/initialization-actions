@@ -24,12 +24,12 @@ You can use this initialization action to create a new Dataproc cluster with RAP
     DATAPROC_BUCKET=dataproc-initialization-actions
 
     gcloud beta dataproc clusters create <CLUSTER_NAME> \
-      --master-accelerator type=nvidia-tesla-t4,count=4 \
-      --master-machine-type n1-standard-32 \
-      --worker-accelerator type=nvidia-tesla-t4,count=4 \
-      --worker-machine-type n1-standard-32 \
-      --initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
-      --optional-components=ANACONDA
+        --master-accelerator type=nvidia-tesla-t4,count=4 \
+        --master-machine-type n1-standard-32 \
+        --worker-accelerator type=nvidia-tesla-t4,count=4 \
+        --worker-machine-type n1-standard-32 \
+        --initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
+        --optional-components=ANACONDA
     ```
 
 2. Once the cluster has been created, the Dask scheduler listens for workers on port `8786`, and its status dashboard is on port `8787` on the Dataproc master node. These ports can be changed by modifying the [internal/launch-dask.sh](launch-dask.sh) script.
@@ -54,13 +54,13 @@ For example:
 DATAPROC_BUCKET=dataproc-initialization-actions
 
 gcloud beta dataproc clusters create <CLUSTER_NAME> \
-  --master-accelerator type=nvidia-tesla-t4,count=4 \
-  --master-machine-type n1-standard-32 \
-  --worker-accelerator type=nvidia-tesla-t4,count=4 \
-  --worker-machine-type n1-standard-32 \
-  --metadata "gpu-driver-url=http://us.download.nvidia.com/tesla/410.104/NVIDIA-Linux-x86_64-410.104.run" \
-  --initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
-  --optional-components=ANACONDA
+    --master-accelerator type=nvidia-tesla-t4,count=4 \
+    --master-machine-type n1-standard-32 \
+    --worker-accelerator type=nvidia-tesla-t4,count=4 \
+    --worker-machine-type n1-standard-32 \
+    --metadata "gpu-driver-url=http://us.download.nvidia.com/tesla/410.104/NVIDIA-Linux-x86_64-410.104.run" \
+    --initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
+    --optional-components=ANACONDA
 ```
 
 RAPIDS works with [all "compute" GPU models](https://cloud.google.com/compute/docs/gpus/) except for the Tesla K80. Currently, only CUDA 10.0 is supported for RAPIDS on Dataproc.
@@ -78,20 +78,20 @@ For example:
 DATAPROC_BUCKET=dataproc-initialization-actions
 
 gcloud beta dataproc clusters create <CLUSTER_NAME> \
-  --master-accelerator type=nvidia-tesla-t4,count=4 \
-  --master-machine-type n1-standard-32 \
-  --worker-accelerator type=nvidia-tesla-t4,count=4 \
-  --worker-machine-type n1-standard-32 \
-  --metadata "run-cuda-worker-on-master=false" \
-  --initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
-  --optional-components=ANACONDA
+    --master-accelerator type=nvidia-tesla-t4,count=4 \
+    --master-machine-type n1-standard-32 \
+    --worker-accelerator type=nvidia-tesla-t4,count=4 \
+    --worker-machine-type n1-standard-32 \
+    --metadata "run-cuda-worker-on-master=false" \
+    --initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
+    --optional-components=ANACONDA
 ```
 
 #### Initialization Action Source
 
 The RAPIDS initialization action steps are performed by [rapids.sh](rapids.sh) which runs additional scripts downloaded from [Dataproc Initialization Actions repo](https://pantheon.corp.google.com/storage/browser/dataproc-initialization-actions) GCS bucket by default:
 
-* `--metadata "INIT_ACTIONS_REPO=gs://dataproc-initialization-actions"`
+* `--metadata "INIT_ACTIONS_REPO=gs://my-forked-dataproc-initialization-actions"`
 
 
 ## Important notes

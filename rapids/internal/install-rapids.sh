@@ -13,6 +13,6 @@ cp "${CONDA_ENV_YAML_REPO_PATH}" "${CONDA_ENV_YAML_PATH}"
 # Install Miniconda/Conda
 bash "${LOCAL_INIT_ACTIONS_REPO}/conda/bootstrap-conda.sh"
 # Create/Update Conda environment via Conda yaml
-CONDA_ENV_YAML=$CONDA_ENV_YAML_PATH bash "${LOCAL_INIT_ACTIONS_REPO}/conda/install-conda-env.sh"
+CONDA_ENV_YAML=$CONDA_ENV_YAML_PATH "${LOCAL_INIT_ACTIONS_REPO}/conda/install-conda-env.sh"
 
 source /etc/profile.d/conda.sh
