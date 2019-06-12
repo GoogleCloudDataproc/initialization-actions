@@ -8,6 +8,7 @@ COPY . /
 RUN ls -a
 
 RUN apt-get -y update
+RUN apt-get -y install python3.6
 RUN apt-get -y install python3-pip
 
 ENV PATH=$PATH:/builder/google-cloud-sdk/bin/
