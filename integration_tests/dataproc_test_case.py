@@ -19,7 +19,7 @@ if "fastunit" in sys.modules:
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", logging.WARNING))
 
-DEFAULT_TIMEOUT = 10  # minutes
+DEFAULT_TIMEOUT = 15  # minutes
 
 
 class DataprocTestCase(BASE_TEST_CASE):
