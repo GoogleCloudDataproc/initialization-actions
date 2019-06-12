@@ -43,14 +43,14 @@ if [[ ! -d "${MODULE}" ]]; then
 fi
 
 # Verify shell scripts have permission mode 75x.
-for file in ${MODULE}/*.sh; do
-  if [[ "$(stat -c '%a' ${file})" != 75* ]]; then
-    echo "The permission mode of script ${file} is $(stat -c '%a' ${file}), expected: 75x."
+for file in "${MODULE}/"*.sh; do
+  if [[ "$(stat -c '%a' "${file}")" != 75* ]]; then
+    echo "The permission mode of script ${file} is $(stat -c '%a' "${file}"), expected: 75x."
     exit 5
   fi
 done
 
-gsutil -m rsync -R "${MODULE}/" "${GCS_FOLDER}"
+gsutil -m rsync -R -x "__pycache__/.*" "${MODULE}/" "${GCS_FOLDER}"
 
 echo "Pushed ${MODULE}/ to ${GCS_FOLDER}."
 
