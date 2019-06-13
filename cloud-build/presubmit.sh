@@ -60,5 +60,3 @@ echo "Tests: ${ALL_TESTS[*]}"
 if [[ ${#ALL_TESTS[@]} != 0 ]]; then
   python -m unittest "${ALL_TESTS[@]}"
 fi
-
-exit $?
