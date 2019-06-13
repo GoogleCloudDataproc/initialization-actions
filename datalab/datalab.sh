@@ -61,10 +61,10 @@ function err() {
 function install_docker() {
   # Run the docker init action to install docker.
   local docker_repo
-  docker_repo=$(mktemp -d -t docker-init-action)
+  docker_repo=$(mktemp -d -t docker-init-action-XXXX)
   mkdir "${docker_repo}"
   gsutil -m rsync -r "${INIT_ACTIONS_REPO}/docker" "${docker_repo}"
-  bash ${docker_repo}/docker.sh
+  bash "${docker_repo}/docker.sh"
 }
 
 function docker_pull() {
