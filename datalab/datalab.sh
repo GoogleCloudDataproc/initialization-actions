@@ -60,15 +60,16 @@ function err() {
 
 function install_docker() {
   # Run the docker init action to install docker.
-  local local_repo=/tmp/local-initialization-actions
-  mkdir "${local_repo}"
-  gsutil -m rsync -r "${INIT_ACTIONS_REPO}" "${local_repo}"
-  bash ${local_repo}/docker/docker.sh
+  local docker_repo
+  docker_repo=$(mktemp -d -t docker-init-action)
+  mkdir "${docker_repo}"
+  gsutil -m rsync -r "${INIT_ACTIONS_REPO}/docker" "${docker_repo}"
+  bash ${docker_repo}/docker.sh
 }
 
 function docker_pull() {
   for ((i = 0; i < 10; i++)); do
-    if (gcloud docker -- pull $1); then
+    if (gcloud docker -- pull "$1"); then
       return 0
     fi
     sleep 5
