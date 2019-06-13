@@ -16,8 +16,6 @@ RUN python3.5 -m pip install -r cloud-build/requirements.pip
 ENV PATH=$PATH:/builder/google-cloud-sdk/bin/
 ENV PYTHONPATH /
 
-WORKDIR /
-
 # Make sure to use dependency versions that work
 # RUN pip freeze > cloud-build/requirements.pip
 
