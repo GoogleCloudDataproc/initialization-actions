@@ -502,7 +502,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
       public void onNext(GetObjectMediaResponse response) {
         // TODO(julianandrews): Calculate and verify checksums.
         try {
-          response.getData().writeTo(pipeSink);
+          response.getChecksummedData().getContent().writeTo(pipeSink);
         } catch (IOException e) {
           error = e;
           onCompleted();

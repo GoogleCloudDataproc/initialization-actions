@@ -1268,10 +1268,12 @@ message GetObjectMediaResponse {
   // empty for any given `ReadResponse`. This enables the service to inform the
   // client that the request is still live while it is running an operation to
   // generate more data.
-  bytes data = 1;
+  ChecksummedData checksummed_data = 1;
 
-  // The checksums of the data field.
-  Checksums checksums = 2;
+  // The checksums of the complete object. The client should compute one of
+  // these checksums over the downloaded object and compare it against the value
+  // provided here.
+  ObjectChecksums object_checksums = 2;
 
   // If read_offset and or read_limit was specified on the
   // GetObjectMediaRequest, ContentRange will be populated on the first
@@ -1352,8 +1354,10 @@ message InsertObjectRequest {
   // still live while it is running an operation to generate more data.
 
   // A portion of the data for the object.
-  oneof content {
-    bytes data = 4;
+  oneof data {
+    // The data to insert. If a crc32c checksum is provided that doesn't match
+    // the checksum computed by the service, the request will fail.
+    ChecksummedData checksummed_data = 4;
 
     // A reference to an existing object. This can be used to support
     // several use cases:
@@ -1370,10 +1374,11 @@ message InsertObjectRequest {
     GetObjectMediaRequest reference = 5;
   }
 
-  // Checksums covering the data specified in this `InsertObjectRequest`. If the
-  // data received by the service doesn't match the specified checksums the call
-  // will fail.
-  Checksums checksums = 6;
+  // Checksums for the complete object. If the checksums computed by the service
+  // don't match the specifified checksums the call will fail. May only be
+  // provided in the first or last request (either with first_message, or
+  // finish_write set).
+  ObjectChecksums object_checksums = 6;
 
   // If `true`, this indicates that the write is complete. Sending any
   // `InsertObjectRequest`s subsequent to one in which `finish_write` is `true`

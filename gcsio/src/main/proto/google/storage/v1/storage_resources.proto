@@ -117,8 +117,7 @@ message Bucket {
     // Server-determined value that indicates the time from which policy was
     // enforced and effective. This value is in <a
     // href="https://tools.ietf.org/html/rfc3339">RFC 3339</a> format.
-    google.protobuf.Timestamp effective_time = 1
-;
+    google.protobuf.Timestamp effective_time = 1;
 
     // Once locked, an object retention policy cannot be modified.
     bool is_locked = 2;
@@ -179,8 +178,7 @@ message Bucket {
 
   // The project number of the project the bucket belongs to.
   // Attempting to set this field will result in an error.
-  int64 project_number = 7
-;
+  int64 project_number = 7;
 
   // The metadata generation of this bucket.
   // Attempting to set this field will result in an error.
@@ -218,8 +216,7 @@ message Bucket {
   // The modification time of the bucket in <a
   // href="https://tools.ietf.org/html/rfc3339">RFC 3339</a> format.
   // Attempting to set this field will result in an error.
-  google.protobuf.Timestamp updated = 13
-;
+  google.protobuf.Timestamp updated = 13;
 
   // The default value for event-based hold on newly created objects in this
   // bucket.  Event-based hold is a way to retain objects indefinitely until an
@@ -352,8 +349,7 @@ message Channel {
 
   // Date and time of notification channel expiration, expressed as a Unix
   // timestamp, in milliseconds. Optional.
-  google.protobuf.Timestamp expiration = 5
-;
+  google.protobuf.Timestamp expiration = 5;
 
   // The type of delivery mechanism used for this channel.
   string type = 6;
@@ -392,8 +388,18 @@ message Channels {
   repeated Items items = 1;
 }
 
+// Message used to convey content being read or written, along with its
+// checksum.
+message ChecksummedData {
+  // The data.
+  bytes content = 1;
+
+  // CRC32C digest of the contents.
+  google.protobuf.UInt32Value crc32c = 2;
+}
+
 // Message used for storing resource checksums.
-message Checksums {
+message ObjectChecksums {
   // CRC32C digest of the object data. Computed by the GCS service for
   // all written objects, and validated by the GCS service against
   // client-supplied values if present in an InsertObjectRequest.
@@ -548,8 +554,7 @@ message Object {
   // The deletion time of the object. Will be returned if and only if this
   // version of the object has been deleted.
   // Attempting to set this field will result in an error.
-  google.protobuf.Timestamp time_deleted = 7
-;
+  google.protobuf.Timestamp time_deleted = 7;
 
   // <a
   // href="https://tools.ietf.org/html/rfc7231#section-3.1.1.5">Content-Type</a>
@@ -565,8 +570,7 @@ message Object {
 
   // The creation time of the object.
   // Attempting to set this field will result in an error.
-  google.protobuf.Timestamp time_created = 10
-;
+  google.protobuf.Timestamp time_created = 10;
 
   // CRC32c checksum. For more information about using the CRC32c
   // checksum, see <a
@@ -742,8 +746,7 @@ message Objects {
 
 message ProjectTeam {
   // The project number.
-  string project_number = 1
-;
+  string project_number = 1;
 
   // The team.
   string team = 2;

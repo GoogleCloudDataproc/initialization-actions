@@ -13,6 +13,7 @@ import static org.mockito.Mockito.verify;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
+import com.google.google.storage.v1.ChecksummedData;
 import com.google.google.storage.v1.GetObjectMediaRequest;
 import com.google.google.storage.v1.GetObjectMediaResponse;
 import com.google.google.storage.v1.GetObjectRequest;
@@ -498,9 +499,12 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
         for (int position = readStart; position < readEnd; position += CHUNK_SIZE) {
           GetObjectMediaResponse response =
               GetObjectMediaResponse.newBuilder()
-                  .setData(
-                      data.substring(
-                          position, Math.min((int) object.getSize(), position + CHUNK_SIZE)))
+                  .setChecksummedData(
+                      ChecksummedData.newBuilder()
+                          .setContent(
+                              data.substring(
+                                  position,
+                                  Math.min((int) object.getSize(), position + CHUNK_SIZE))))
                   .build();
           responseObserver.onNext(response);
         }

@@ -16,13 +16,18 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.BaseAbstractGoogleAsyncWriteChannel;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
+import com.google.google.storage.v1.ChecksummedData;
 import com.google.google.storage.v1.InsertObjectRequest;
 import com.google.google.storage.v1.InsertObjectSpec;
 import com.google.google.storage.v1.Object;
+import com.google.google.storage.v1.ObjectChecksums;
 import com.google.google.storage.v1.StartResumableWriteRequest;
 import com.google.google.storage.v1.StartResumableWriteResponse;
 import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsStub;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.UInt32Value;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientResponseObserver;
 import io.grpc.stub.StreamObserver;
@@ -104,9 +109,10 @@ public final class GoogleCloudStorageGrpcWriteChannel
       String uploadId = getUploadId();
 
       InsertChunkResponseObserver responseObserver;
+      Hasher objectHasher = Hashing.crc32c().newHasher();
       int writeOffset = 0;
       do {
-        responseObserver = new InsertChunkResponseObserver(uploadId, writeOffset);
+        responseObserver = new InsertChunkResponseObserver(uploadId, writeOffset, objectHasher);
         stub.insert(responseObserver);
         responseObserver.done.await();
 
@@ -133,6 +139,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
       private Throwable error;
       // The response from the server, populated at the end of a successful streaming RPC.
       private Object response;
+      private Hasher objectHasher;
 
       // CountDownLatch tracking completion of the streaming RPC. Set on error, or once the request
       // stream is closed.
@@ -141,9 +148,10 @@ public final class GoogleCloudStorageGrpcWriteChannel
       // The number of bytes written in this streaming RPC.
       volatile int chunkBytesWritten = 0;
 
-      InsertChunkResponseObserver(String uploadId, int chunkStart) {
+      InsertChunkResponseObserver(String uploadId, int chunkStart, Hasher objectHasher) {
         this.uploadId = uploadId;
         this.chunkStart = chunkStart;
+        this.objectHasher = objectHasher;
       }
 
       @Override
@@ -174,9 +182,21 @@ public final class GoogleCloudStorageGrpcWriteChannel
                         .setWriteOffset(chunkStart + chunkBytesWritten)
                         .setFinishWrite(streamFinished);
                 if (data.size() > 0) {
-                  // TODO(julianandrews): Calculate and set crc32c checksums.
-                  requestBuilder.setData(data);
+                  Hasher hasher = Hashing.crc32c().newHasher();
+                  hasher.putBytes(data.asReadOnlyByteBuffer());
+                  objectHasher.putBytes(data.asReadOnlyByteBuffer());
+                  int checksum = hasher.hash().asInt();
+                  requestBuilder.setChecksummedData(
+                      ChecksummedData.newBuilder()
+                          .setContent(data)
+                          .setCrc32C(UInt32Value.newBuilder().setValue(checksum)));
                   chunkBytesWritten += data.size();
+                }
+                if (streamFinished) {
+                  requestBuilder.setObjectChecksums(
+                      ObjectChecksums.newBuilder()
+                          .setCrc32C(
+                              UInt32Value.newBuilder().setValue(objectHasher.hash().asInt())));
                 }
                 requestObserver.onNext(requestBuilder.build());
 

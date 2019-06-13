@@ -13,15 +13,18 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
+import com.google.google.storage.v1.ChecksummedData;
 import com.google.google.storage.v1.InsertObjectRequest;
 import com.google.google.storage.v1.InsertObjectSpec;
 import com.google.google.storage.v1.Object;
+import com.google.google.storage.v1.ObjectChecksums;
 import com.google.google.storage.v1.StartResumableWriteRequest;
 import com.google.google.storage.v1.StartResumableWriteResponse;
 import com.google.google.storage.v1.StorageObjectsGrpc;
 import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsImplBase;
 import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsStub;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.UInt32Value;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -94,7 +97,13 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
     InsertObjectRequest expectedInsertRequest =
         InsertObjectRequest.newBuilder()
             .setUploadId(UPLOAD_ID)
-            .setData(data)
+            .setChecksummedData(
+                ChecksummedData.newBuilder()
+                    .setContent(data)
+                    .setCrc32C(UInt32Value.newBuilder().setValue(uInt32Value(863614154))))
+            .setObjectChecksums(
+                ObjectChecksums.newBuilder()
+                    .setCrc32C(UInt32Value.newBuilder().setValue(uInt32Value(863614154))))
             .setFinishWrite(true)
             .build();
 
@@ -118,17 +127,29 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
         Arrays.asList(
             InsertObjectRequest.newBuilder()
                 .setUploadId(UPLOAD_ID)
-                .setData(data.substring(0, chunkSize))
+                .setChecksummedData(
+                    ChecksummedData.newBuilder()
+                        .setContent(data.substring(0, chunkSize))
+                        .setCrc32C(UInt32Value.newBuilder().setValue(uInt32Value(1916767651L))))
                 .build(),
             InsertObjectRequest.newBuilder()
                 .setUploadId(UPLOAD_ID)
-                .setData(data.substring(chunkSize, 2 * chunkSize))
+                .setChecksummedData(
+                    ChecksummedData.newBuilder()
+                        .setContent(data.substring(chunkSize, 2 * chunkSize))
+                        .setCrc32C(UInt32Value.newBuilder().setValue(uInt32Value(2842290927L))))
                 .setWriteOffset(chunkSize)
                 .build(),
             InsertObjectRequest.newBuilder()
                 .setUploadId(UPLOAD_ID)
-                .setData(data.substring(2 * chunkSize))
+                .setChecksummedData(
+                    ChecksummedData.newBuilder()
+                        .setContent(data.substring(2 * chunkSize))
+                        .setCrc32C(UInt32Value.newBuilder().setValue(uInt32Value(2513346319L))))
                 .setWriteOffset(2 * chunkSize)
+                .setObjectChecksums(
+                    ObjectChecksums.newBuilder()
+                        .setCrc32C(UInt32Value.newBuilder().setValue(uInt32Value(157031841))))
                 .setFinishWrite(true)
                 .build());
     ArgumentCaptor<InsertObjectRequest> requestCaptor =
@@ -255,6 +276,13 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
     ObjectWriteConditions writeConditions = new ObjectWriteConditions();
 
     return newWriteChannel(options, writeConditions);
+  }
+
+  /* Returns an int with the same bytes as the uint32 representation of value. */
+  private int uInt32Value(long value) {
+    ByteBuffer buffer = ByteBuffer.allocate(4);
+    buffer.putInt(0, (int) value);
+    return buffer.getInt();
   }
 
   private ByteString createTestData(int numBytes) {
