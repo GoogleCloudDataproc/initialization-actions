@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -Eeuo pipefail
+set -euo pipefail
 
 git init
 
@@ -16,10 +16,8 @@ echo "Changed files: ${CHANGED_FILES[*]}"
 
 # Determines whether a given string is a prefix string of any changed file name
 is_prefix() {
-  for file in "${CHANGED_FILES[@]}"
-  do
-    if [[ $file =~ ^$1 ]]
-    then
+  for file in "${CHANGED_FILES[@]}"; do
+    if [[ $file =~ ^$1 ]]; then
       return 0
     fi
   done
@@ -27,36 +25,36 @@ is_prefix() {
 }
 
 # Determines init actions directories that were modified
+RUN_ALL_TESTS=false
 declare -a DIRECTORIES_TO_TEST
-for dir in */
-do
-  # Skip not init action changes
-  if [[ $dir =~ ^(integration_tests/|util/|cloud-build/)$ ]]
-  then
-    continue
+for dir in */; do
+  # Run all tests if common directories were modified
+  if [[ $dir =~ ^(integration_tests/|util/|cloud-build/)$ ]]; then
+    echo "All tests will be run: '$dir' was modified"
+    RUN_ALL_TESTS=true
+    break
   fi
-  if is_prefix "$dir"
-  then
+  if is_prefix "$dir"; then
     DIRECTORIES_TO_TEST+=("$dir")
   fi
 done
 echo "Test directories: ${DIRECTORIES_TO_TEST[*]}"
 
 # Determines what tests in modified init action directories to run
-declare -a ALL_TESTS
-for test_dir in "${DIRECTORIES_TO_TEST[@]}"
-do
-  if ! tests=$(compgen -G "${test_dir}test*.py")
-  then
+declare -a TESTS_TO_RUN
+for test_dir in "${DIRECTORIES_TO_TEST[@]}"; do
+  if ! tests=$(compgen -G "${test_dir}test*.py"); then
     echo "ERROR: presubmit failed - can not find tests inside '${test_dir}' directory"
     exit 1
   fi
   mapfile -t tests_array < <(echo "${tests}")
-  ALL_TESTS+=("${tests_array[@]}")
+  TESTS_TO_RUN+=("${tests_array[@]}")
 done
-echo "Tests: ${ALL_TESTS[*]}"
+echo "Tests: ${TESTS_TO_RUN[*]}"
 
 # Run tests of the init actions that were modified
-if [[ ${#ALL_TESTS[@]} != 0 ]]; then
-  python -m unittest "${ALL_TESTS[@]}"
+if [[ $RUN_ALL_TESTS == true ]]; then
+  python -m unittest
+elif [[ ${#TESTS_TO_RUN[@]} != 0 ]]; then
+  python -m unittest "${TESTS_TO_RUN[@]}"
 fi
