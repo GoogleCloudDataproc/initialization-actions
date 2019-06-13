@@ -60,6 +60,8 @@ done
 echo "Tests: ${ALL_TESTS[*]}"
 
 # Run tests of the init actions that were modified
-python3.5 -m unittest "${ALL_TESTS[@]}"
+if [[ ${#ALL_TESTS[@]} != 0 ]]; then
+  python -m unittest "${ALL_TESTS[@]}"
+fi
 
 exit $?
