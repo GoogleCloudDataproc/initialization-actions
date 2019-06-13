@@ -89,9 +89,9 @@ gcloud beta dataproc clusters create <CLUSTER_NAME> \
 
 #### Initialization Action Source
 
-The RAPIDS initialization action steps are performed by [rapids.sh](rapids.sh) which runs additional scripts downloaded from [Dataproc Initialization Actions repo](https://pantheon.corp.google.com/storage/browser/dataproc-initialization-actions) GCS bucket by default:
+The RAPIDS initialization action steps are performed by [rapids.sh](rapids.sh) which runs additional scripts downloaded from `rapids` directory in [Dataproc Initialization Actions repo](https://pantheon.corp.google.com/storage/browser/dataproc-initialization-actions) GCS bucket by default:
 
-* `--metadata "INIT_ACTIONS_REPO=gs://my-forked-dataproc-initialization-actions"`
+* `--metadata "RAPIDS_INIT_ACTION_GCS_DIR=gs://my-forked-dataproc-initialization-actions/rapids"`
 
 
 ## Important notes
