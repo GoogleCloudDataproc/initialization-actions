@@ -44,9 +44,9 @@ fi
 
 # Verify shell scripts have permission mode 75x.
 for file in "${MODULE}/"*.sh; do
-  status=$(stat -c '%a' "${file}")
-  if [[ ${status} != 75* ]]; then
-    echo "The permission mode of script ${file} is ${status}, expected: 75x."
+  permissions=$(stat -c '%a' "${file}")
+  if [[ ${permissions} != 75* ]]; then
+    echo "The permission mode of script ${file} is ${permissions}, expected: 75x."
     exit 5
   fi
 done
