@@ -11,9 +11,9 @@
 set -euo pipefail
 
 [[ $# -eq 2 ]] || {
-    echo "Usage: ./push-to-gcs.sh <git-ref> <module>"
-    echo "Example: ./push-to-gcs.sh cbde05 kafka"
-    exit 1
+  echo "Usage: ./push-to-gcs.sh <git-ref> <module>"
+  echo "Example: ./push-to-gcs.sh cbde05 kafka"
+  exit 1
 }
 
 set -x
@@ -44,8 +44,9 @@ fi
 
 # Verify shell scripts have permission mode 75x.
 for file in "${MODULE}/"*.sh; do
-  if [[ "$(stat -c '%a' "${file}")" != 75* ]]; then
-    echo "The permission mode of script ${file} is $(stat -c '%a' "${file}"), expected: 75x."
+  status=$(stat -c '%a' "${file}")
+  if [[ ${status} != 75* ]]; then
+    echo "The permission mode of script ${file} is ${status}, expected: 75x."
     exit 5
   fi
 done
@@ -53,4 +54,3 @@ done
 gsutil -m rsync -R -x "__pycache__/.*" "${MODULE}/" "${GCS_FOLDER}"
 
 echo "Pushed ${MODULE}/ to ${GCS_FOLDER}."
-
