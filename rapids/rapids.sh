@@ -13,7 +13,7 @@ readonly RAPIDS_INIT_ACTION_DIR
 export RAPIDS_INIT_ACTION_DIR
 
 echo "Cloning RAPIDS initialization action from '${RAPIDS_INIT_ACTION_GCS_DIR}' ..."
-gsutil -m rsync -r "${RAPIDS_INIT_ACTION_GCS_DIR}/rapids" "${RAPIDS_INIT_ACTION_DIR}"
+gsutil -m rsync -r "${RAPIDS_INIT_ACTION_GCS_DIR}" "${RAPIDS_INIT_ACTION_DIR}"
 find "${RAPIDS_INIT_ACTION_DIR}" -name '*.sh' -exec chmod +x {} \;
 
 # Ensure we have GPU drivers installed.
