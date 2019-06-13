@@ -1,0 +1,6 @@
+# Ignore IntelliJ project files
+.idea/
+*.iml
+
+# Ignore Python cache files after running tests
+*/__pycache__/
