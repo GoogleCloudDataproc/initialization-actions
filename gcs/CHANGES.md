@@ -43,6 +43,10 @@
     requests which will decrease latency but also increase cost of
     `getFileStatus` and `listStatus` method calls.
 
+1.  Add a property to enable GCS direct upload:
+
+        fs.gs.outputstream.direct.upload.enable (default: false)
+
 ### 1.9.14 - 2019-02-13
 
 1.  Implement Hadoop File System `concat` method using GCS compose API.

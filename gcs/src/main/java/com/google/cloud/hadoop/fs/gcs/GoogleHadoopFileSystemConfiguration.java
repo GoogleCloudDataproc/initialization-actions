@@ -438,6 +438,12 @@ public class GoogleHadoopFileSystemConfiguration {
               64 * 1024 * 1024,
               "fs.gs.io.buffersize.write");
 
+  /** Configuration key for enabling GCS direct upload. */
+  public static final GoogleHadoopFileSystemConfigurationProperty<Boolean>
+      GCS_OUTPUT_STREAM_DIRECT_UPLOAD_ENABLE =
+          new GoogleHadoopFileSystemConfigurationProperty<>(
+              "fs.gs.outputstream.direct.upload.enable", false);
+
   /** Configuration key for the generation consistency read model. */
   public static final GoogleHadoopFileSystemConfigurationProperty<GenerationReadConsistency>
       GCS_GENERATION_READ_CONSISTENCY =
@@ -571,10 +577,12 @@ public class GoogleHadoopFileSystemConfiguration {
   }
 
   private static AsyncWriteChannelOptions getWriteChannelOptions(Configuration config) {
-    return AsyncWriteChannelOptions.newBuilder()
+    return AsyncWriteChannelOptions.builder()
         .setBufferSize(GCS_OUTPUT_STREAM_BUFFER_SIZE.get(config, config::getInt))
         .setPipeBufferSize(GCS_OUTPUT_STREAM_PIPE_BUFFER_SIZE.get(config, config::getInt))
         .setUploadChunkSize(GCS_OUTPUT_STREAM_UPLOAD_CHUNK_SIZE.get(config, config::getInt))
+        .setDirectUploadEnabled(
+            GCS_OUTPUT_STREAM_DIRECT_UPLOAD_ENABLE.get(config, config::getBoolean))
         .build();
   }
 
