@@ -2,9 +2,6 @@
 
 set -euo pipefail
 
-#python3.5 -m pip install -r cloud-build/requirements.pip
-pip3 freeze
-
 git init
 
 # Stage files to track their history
@@ -47,7 +44,7 @@ echo "Test directories: ${DIRECTORIES_TO_TEST[*]}"
 declare -a TESTS_TO_RUN
 for test_dir in "${DIRECTORIES_TO_TEST[@]}"; do
   if ! tests=$(compgen -G "${test_dir}test*.py"); then
-    echo "ERROR: presubmit failed - can not find tests inside '${test_dir}' directory"
+    echo "ERROR: presubmit failed - cannot find tests inside '${test_dir}' directory"
     # exit 1
   fi
   mapfile -t tests_array < <(echo "${tests}")
