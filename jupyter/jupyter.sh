@@ -10,10 +10,9 @@ set -euxo pipefail
 
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 
-readonly DEAFULT_INIT_ACTIONS_REPO=gs://dataproc-initialization-actions
-readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_REPO ||
-  echo ${DEAFULT_INIT_ACTIONS_REPO})"
-readonly LOCAL_INIT_ACTIONS_REPO=/tmp/local-initialization-actions
+readonly DEAFULT_INIT_ACTIONS_GCS_DIR=gs://dataproc-initialization-actions
+readonly INIT_ACTIONS_GCS_DIR="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_DIR ||
+  echo ${DEAFULT_INIT_ACTIONS_GCS_DIR})"
 
 # Colon-separated list of conda channels to add before installing packages
 readonly JUPYTER_CONDA_CHANNELS="$(/usr/share/google/get_metadata_value attributes/JUPYTER_CONDA_CHANNELS || true)"
@@ -25,13 +24,15 @@ readonly DEAFULT_INSTALL_JUPYTER_EXT=false
 readonly INSTALL_JUPYTER_EXT="$(/usr/share/google/get_metadata_value attributes/INSTALL_JUPYTER_EXT ||
   echo ${DEAFULT_INSTALL_JUPYTER_EXT})"
 
-echo "Cloning initialization actions from '${INIT_ACTIONS_REPO}' repo..."
-mkdir "${LOCAL_INIT_ACTIONS_REPO}"
-gsutil -m rsync -r "${INIT_ACTIONS_REPO}" "${LOCAL_INIT_ACTIONS_REPO}"
-find "${LOCAL_INIT_ACTIONS_REPO}" -name '*.sh' -exec chmod +x {} \;
+echo "Cloning initialization actions from '${INIT_ACTIONS_GCS_DIR}' repo..."
+INIT_ACTIONS_DIR=$(mktemp -d -t dataproc-init-actions-XXXX)
+readonly INIT_ACTIONS_DIR
+export INIT_ACTIONS_DIR
+gsutil -m rsync -r "${INIT_ACTIONS_GCS_DIR}" "${INIT_ACTIONS_DIR}"
+find "${INIT_ACTIONS_DIR}" -name '*.sh' -exec chmod +x {} \;
 
 # Ensure we have Conda installed.
-bash "${LOCAL_INIT_ACTIONS_REPO}/conda/bootstrap-conda.sh"
+bash "${INIT_ACTIONS_DIR}/conda/bootstrap-conda.sh"
 
 if [[ -f /etc/profile.d/conda.sh ]]; then
   source /etc/profile.d/conda.sh
@@ -69,8 +70,8 @@ fi
 pip install jgscm==0.1.7
 
 if [[ "${ROLE}" == 'Master' ]]; then
-  "${LOCAL_INIT_ACTIONS_REPO}/jupyter/internal/setup-jupyter-kernel.sh"
-  "${LOCAL_INIT_ACTIONS_REPO}/jupyter/internal/launch-jupyter-kernel.sh"
+  "${INIT_ACTIONS_DIR}/jupyter/internal/setup-jupyter-kernel.sh"
+  "${INIT_ACTIONS_DIR}/jupyter/internal/launch-jupyter-kernel.sh"
 fi
 echo "Completed installing Jupyter!"
 
@@ -78,6 +79,6 @@ echo "Completed installing Jupyter!"
 # TODO: document this in readme
 if [[ "${INSTALL_JUPYTER_EXT}" == true ]]; then
   echo "Installing Jupyter Notebook extensions..."
-  "${LOCAL_INIT_ACTIONS_REPO}/jupyter/internal/bootstrap-jupyter-ext.sh"
+  "${INIT_ACTIONS_DIR}/jupyter/internal/bootstrap-jupyter-ext.sh"
   echo "Jupyter Notebook extensions installed!"
 fi

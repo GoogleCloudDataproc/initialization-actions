@@ -2,7 +2,7 @@
 
 # This script configures Jupyter
 
-set -euo pipefail
+set -euxo pipefail
 
 DIR="${BASH_SOURCE%/*}"
 [[ ! -d "${DIR}" ]] && DIR="${PWD}"
@@ -16,10 +16,9 @@ JUPYTER_PORT=$(/usr/share/google/get_metadata_value attributes/JUPYTER_PORT || t
 readonly JUPYTER_PORT
 readonly JUPYTER_AUTH_TOKEN="$(/usr/share/google/get_metadata_value attributes/JUPYTER_AUTH_TOKEN || true)"
 
-readonly LOCAL_INIT_ACTIONS_REPO=/tmp/local-initialization-actions
-readonly JUPYTER_KERNEL_DIR="${LOCAL_INIT_ACTIONS_REPO}/jupyter/kernels/pyspark"
-readonly KERNEL_GENERATOR="${LOCAL_INIT_ACTIONS_REPO}/jupyter/kernels/generate-pyspark.sh"
-readonly TOREE_INSTALLER="${LOCAL_INIT_ACTIONS_REPO}/jupyter/kernels/install-toree.sh"
+readonly JUPYTER_KERNEL_DIR="${INIT_ACTIONS_DIR}/jupyter/kernels/pyspark"
+readonly KERNEL_GENERATOR="${INIT_ACTIONS_DIR}/jupyter/kernels/generate-pyspark.sh"
+readonly TOREE_INSTALLER="${INIT_ACTIONS_DIR}/jupyter/kernels/install-toree.sh"
 
 [[ "${ROLE}" != 'Master' ]] && throw "${0} should only be run on the Master node!"
 
@@ -29,6 +28,7 @@ echo "Creating Jupyter config..."
 jupyter notebook --allow-root --generate-config -y --ip=127.0.0.1
 
 cat <<EOF >>~/.jupyter/jupyter_notebook_config.py
+
 c.Application.log_level = 'DEBUG'
 c.NotebookApp.ip = '0.0.0.0'
 c.NotebookApp.open_browser = False
