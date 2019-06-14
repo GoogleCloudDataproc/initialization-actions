@@ -10,9 +10,11 @@ set -euxo pipefail
 
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 
-readonly DEAFULT_INIT_ACTIONS_GCS_DIR=gs://dataproc-initialization-actions
-readonly INIT_ACTIONS_GCS_DIR="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_DIR ||
-  echo ${DEAFULT_INIT_ACTIONS_GCS_DIR})"
+readonly DEAFULT_INIT_ACTIONS_REPO="gs://dataproc-initialization-actions"
+readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_REPO ||
+  echo ${DEAFULT_INIT_ACTIONS_REPO})"
+readonly INIT_ACTIONS_BRANCH="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_BRANCH ||
+  echo 'master')"
 
 # Colon-separated list of conda channels to add before installing packages
 readonly JUPYTER_CONDA_CHANNELS="$(/usr/share/google/get_metadata_value attributes/JUPYTER_CONDA_CHANNELS || true)"
@@ -20,15 +22,18 @@ readonly JUPYTER_CONDA_CHANNELS="$(/usr/share/google/get_metadata_value attribut
 # Colon-separated list of conda packages to install, for example 'numpy:pandas'
 readonly JUPYTER_CONDA_PACKAGES="$(/usr/share/google/get_metadata_value attributes/JUPYTER_CONDA_PACKAGES || true)"
 
-readonly DEAFULT_INSTALL_JUPYTER_EXT=false
 readonly INSTALL_JUPYTER_EXT="$(/usr/share/google/get_metadata_value attributes/INSTALL_JUPYTER_EXT ||
-  echo ${DEAFULT_INSTALL_JUPYTER_EXT})"
+  echo 'false')"
 
-echo "Cloning initialization actions from '${INIT_ACTIONS_GCS_DIR}' repo..."
+echo "Cloning initialization actions from '${INIT_ACTIONS_REPO}' repo..."
 INIT_ACTIONS_DIR=$(mktemp -d -t dataproc-init-actions-XXXX)
 readonly INIT_ACTIONS_DIR
 export INIT_ACTIONS_DIR
-gsutil -m rsync -r "${INIT_ACTIONS_GCS_DIR}" "${INIT_ACTIONS_DIR}"
+if [[ ${INIT_ACTIONS_REPO} == gs://* ]]; then
+  gsutil -m rsync -r "${INIT_ACTIONS_REPO}" "${INIT_ACTIONS_DIR}"
+else
+  git clone -b "${INIT_ACTIONS_BRANCH}" --single-branch "${INIT_ACTIONS_REPO}" "${INIT_ACTIONS_DIR}"
+fi
 find "${INIT_ACTIONS_DIR}" -name '*.sh' -exec chmod +x {} \;
 
 # Ensure we have Conda installed.

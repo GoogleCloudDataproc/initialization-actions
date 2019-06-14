@@ -49,8 +49,9 @@ be provided as metadata keys using `--metadata`.
 *   `JUPYTER_PORT`=<integer>: Port on which the Jupyter server runs
 *   `JUPYTER_CONDA_PACKAGES`=<colon-separated list of strings>: List of Conda
     packages to install.
-*   `INIT_ACTIONS_DIR`=<bucket>: GCS bucket to find other scripts to
-    install/configure Conda and Jupyter.
+*   `INIT_ACTIONS_REPO`=<bucket>: GCS bucket or GitHub repo to find other
+    scripts to install/configure Conda and Jupyter.
+*   `INIT_ACTIONS_BRANCH`=<string>: Branch in GitHub `INIT_ACTIONS_REPO` to use.
 
 For example to specify a different port and specify additional packages to
 install:
@@ -77,10 +78,10 @@ project in the same region use the same bucket. You can explicitly provide
 `jupyter.sh` handles configuring and running Jupyter on the Dataproc master node
 by doing the following:
 
--   clones the `gs://dataproc-initialization-actions` GCS bucket specified in the
-    `INIT_ACTIONS_DIR` metadata key
-    -   if this metadata key is not set during cluster creation, the default
-        value `gs:///dataproc-initialization-actions` is used
+-   clones the GCS bucket or GitHub repo specified in the `INIT_ACTIONS_REPO`
+    and `INIT_ACTIONS_BRANCH` (for GitHub repo) metadata keys
+    -   if `INIT_ACTIONS_REPO` metadata key is not set during cluster creation,
+        the default value `gs:///dataproc-initialization-actions` is used
     -   this is provided so that a fork of the main repo can easily be used, eg,
         during development
 -   executes `conda/bootstrap-conda.sh` from said repo/branch to ensure
@@ -121,10 +122,10 @@ notebook process running on master node.
 
 ## Important notes
 
-*   This initialization clones `gs://dataproc-initialization-actions` GCS bucket
-    to run other scripts in the repo. If you plan to copy `jupyter.sh` to your
-    own GCS bucket, you will also need to fork this repository and specify the
-    `INIT_ACTIONS_DIR` metadata key.
+*   This initialization action clones `gs://dataproc-initialization-actions` GCS
+    bucket to run other scripts in the repo. If you plan to copy `jupyter.sh` to
+    your own GCS bucket, you will also need to fork this repository and specify
+    the `INIT_ACTIONS_REPO` metadata key.
 *   This initialization action runs the conda init action, which supports the
     metadata keys `CONDA_PACKAGES` and `PIP_PACKAGES`. You can also use these to
     install additional packages.

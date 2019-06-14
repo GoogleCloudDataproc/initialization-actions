@@ -31,7 +31,7 @@ class JupyterTestCase(DataprocTestCase):
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_datalab(self, configuration, dataproc_version, machine_suffixes):
-        metadata = 'INIT_ACTIONS_DIR={}'.format(self.INIT_ACTIONS_REPO)
+        metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
                            dataproc_version,
@@ -56,7 +56,7 @@ class JupyterTestCase(DataprocTestCase):
                                    machine_suffixes):
         jupyter_port = "8125"
 
-        metadata = 'INIT_ACTIONS_DIR={}'.format(self.INIT_ACTIONS_REPO)
+        metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
         metadata += ',JUPYTER_PORT={},JUPYTER_CONDA_PACKAGES={}'.format(
             jupyter_port, "numpy:pandas:scikit-learn")
 
