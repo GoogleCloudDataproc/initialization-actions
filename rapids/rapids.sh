@@ -8,11 +8,9 @@ readonly DEAFULT_RAPIDS_INIT_ACTION_GCS_DIR=gs://dataproc-initialization-actions
 readonly RAPIDS_INIT_ACTION_GCS_DIR="$(/usr/share/google/get_metadata_value attributes/RAPIDS_INIT_ACTION_DIR ||
   echo ${DEAFULT_RAPIDS_INIT_ACTION_GCS_DIR})"
 
-RAPIDS_INIT_ACTION_DIR=$(mktemp -d -t rapid-init-action-XXXX)
-readonly RAPIDS_INIT_ACTION_DIR
-export RAPIDS_INIT_ACTION_DIR
-
 echo "Cloning RAPIDS initialization action from '${RAPIDS_INIT_ACTION_GCS_DIR}' ..."
+RAPIDS_INIT_ACTION_DIR=$(mktemp -d -t rapids-init-action-XXXX)
+readonly RAPIDS_INIT_ACTION_DIR
 gsutil -m rsync -r "${RAPIDS_INIT_ACTION_GCS_DIR}" "${RAPIDS_INIT_ACTION_DIR}"
 find "${RAPIDS_INIT_ACTION_DIR}" -name '*.sh' -exec chmod +x {} \;
 
