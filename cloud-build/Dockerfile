@@ -11,7 +11,7 @@ RUN apt-get -y update \
     && apt-get -y install python3-pip
 
 RUN python3.5 -m pip install --upgrade pip
-RUN python3.5 -m pip install -r integration-tests/requirements.txt
+RUN python3.5 -m pip install -r integration_tests/requirements.txt
 RUN python3.5 integration-tests/setup.py install
 
 ENV PATH=$PATH:/builder/google-cloud-sdk/bin/
