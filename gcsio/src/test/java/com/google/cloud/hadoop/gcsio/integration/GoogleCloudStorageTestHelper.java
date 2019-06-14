@@ -83,6 +83,7 @@ public class GoogleCloudStorageTestHelper {
   }
 
   /** More efficient version of checking byte arrays than using Assert.assertArrayEquals. */
+  @SuppressWarnings("ArrayToString")
   public static void assertByteArrayEquals(byte[] expected, byte[] actual) {
     if ((expected == null) ^ (actual == null)) {
       // Don't use a fancy toString(), just display which is null,
