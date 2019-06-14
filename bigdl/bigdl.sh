@@ -1,10 +1,15 @@
 #!/bin/bash
 
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  return 1
+}
+
 set -euxo pipefail
 
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
-BIGDL_DOWNLOAD_URL=$(/usr/share/google/get_metadata_value attributes/bigdl-download-url || echo 'https://s3-ap-southeast-1.amazonaws.com/bigdl-download/dist-spark-2.2.0-scala-2.11.8-all-0.4.0-dist.zip')
+BIGDL_DOWNLOAD_URL=$(/usr/share/google/get_metadata_value attributes/bigdl-download-url || echo 'https://repo1.maven.org/maven2/com/intel/analytics/bigdl/dist-spark-2.3.1-scala-2.11.8-all/0.7.2/dist-spark-2.3.1-scala-2.11.8-all-0.7.2-dist.zip')
 
 mkdir -p /opt/intel-bigdl
 cd /opt/intel-bigdl
@@ -66,11 +71,20 @@ if [[ "${ROLE}" == "Master" ]]; then
   # will never come up.
   SPARK_NUM_EXECUTORS=$((SPARK_NUM_EXECUTORS_PER_NODE_MANAGER * CURRENTLY_RUNNING_NODEMANAGERS - 1))
 
-  cat conf/spark-bigdl.conf >> /etc/spark/conf/spark-defaults.conf
+  # Check if it BigDL conf or Zoo
+  if [ -f conf/spark-bigdl.conf ]; then
+    cat conf/spark-bigdl.conf >> /etc/spark/conf/spark-defaults.conf
+  elif [ -f conf/spark-analytics-zoo.conf ]; then
+    cat conf/spark-analytics-zoo.conf >> /etc/spark/conf/spark-defaults.conf
+  else
+    err "Can't find any suitable spark config for Intel BigDL/Zoo"
+  fi
+
   cat << EOF >> /etc/spark/conf/spark-defaults.conf
+
 spark.dynamicAllocation.enabled=false
 spark.executor.instances=${SPARK_NUM_EXECUTORS}
+
 EOF
 
 fi
-
