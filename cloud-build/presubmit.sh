@@ -54,7 +54,7 @@ echo "Tests: ${TESTS_TO_RUN[*]}"
 
 # Run tests of the init actions that were modified
 if [[ $RUN_ALL_TESTS == true ]]; then
-  python -m unittest
+  python3.5 -m fastunit
 elif [[ ${#TESTS_TO_RUN[@]} != 0 ]]; then
-  python -m unittest "${TESTS_TO_RUN[@]}"
+  python3.5 -m fastunit "${TESTS_TO_RUN[@]}"
 fi
