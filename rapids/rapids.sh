@@ -1,23 +1,29 @@
 #!/bin/bash
 
+set -euxo pipefail
+
 readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
-readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_REPO \
-  || echo 'https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git')"
-readonly INIT_ACTIONS_BRANCH="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_BRANCH \
-  || echo 'master')"
 
-echo "Cloning dataproc-initialization-actions from repo ${INIT_ACTIONS_REPO} and branch ${INIT_ACTIONS_BRANCH}..."
-git clone -b "${INIT_ACTIONS_BRANCH}" --single-branch "${INIT_ACTIONS_REPO}"
+readonly DEAFULT_INIT_ACTIONS_REPO=gs://dataproc-initialization-actions
+readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_REPO ||
+  echo ${DEAFULT_INIT_ACTIONS_REPO})"
 
-./dataproc-initialization-actions/rapids/internal/install-gpu-driver.sh
+echo "Cloning RAPIDS initialization action from '${INIT_ACTIONS_REPO}' ..."
+RAPIDS_INIT_ACTION_DIR=$(mktemp -d -t rapids-init-action-XXXX)
+readonly RAPIDS_INIT_ACTION_DIR
+gsutil -m rsync -r "${INIT_ACTIONS_REPO}/rapids" "${RAPIDS_INIT_ACTION_DIR}"
+find "${RAPIDS_INIT_ACTION_DIR}" -name '*.sh' -exec chmod +x {} \;
+
+# Ensure we have GPU drivers installed.
+"${RAPIDS_INIT_ACTION_DIR}/internal/install-gpu-driver.sh"
 
 # For use with Anaconda component
-conda env create --name RAPIDS --file dataproc-initialization-actions/rapids/internal/conda-environment.yml
+conda env create --name RAPIDS --file "${RAPIDS_INIT_ACTION_DIR}/internal/conda-environment.yml"
 
 # Get Jupyter instance to pickup RAPIDS environment.
 if [[ "${ROLE}" == "Master" ]]; then
-    /opt/conda/anaconda/bin/conda install -y nb_conda_kernels
-    service jupyter restart
+  /opt/conda/anaconda/bin/conda install -y nb_conda_kernels
+  service jupyter restart || true
 fi
 
-./dataproc-initialization-actions/rapids/internal/launch-dask.sh
+"${RAPIDS_INIT_ACTION_DIR}/internal/launch-dask.sh"
