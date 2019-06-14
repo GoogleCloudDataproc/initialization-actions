@@ -10,7 +10,6 @@ Note:
     See: https://cloud.google.com/bigtable/docs/cbt-overview
 """
 import unittest
-from integration_tests import fastunit
 import random
 import os
 
@@ -96,5 +95,5 @@ class BigTableTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    fastunit.main()
+    unittest.main()
 
