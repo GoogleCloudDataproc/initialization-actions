@@ -12,12 +12,8 @@ RUN apt-get -y update \
 
 RUN python3.5 -m pip install --upgrade pip
 RUN python3.5 -m pip install -r integration_tests/requirements.txt
-RUN python3.5 integration_tests/setup.py install
 
 ENV PATH=$PATH:/builder/google-cloud-sdk/bin/
 ENV PYTHONPATH /
-
-# Make sure to use dependency versions that work
-# RUN pip freeze > cloud-build/requirements.pip
 
 ENTRYPOINT ["bash"]
