@@ -10,7 +10,7 @@ Note:
     See: https://cloud.google.com/bigtable/docs/cbt-overview
 """
 import unittest
-import fastunit
+from integration_tests import fastunit
 import random
 import os
 
