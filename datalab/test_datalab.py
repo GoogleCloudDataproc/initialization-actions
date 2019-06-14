@@ -39,7 +39,8 @@ class DatalabTestCase(DataprocTestCase):
     def test_datalab(self, configuration, dataproc_version, machine_suffixes,
                      python):
         init_actions = self.INIT_ACTIONS
-        metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
+        metadata = 'DOCKER_INIT_ACTION_DIR={}/docker'.format(
+            self.INIT_ACTIONS_REPO)
         if python == "python3":
             init_actions = self.PYTHON_3_INIT_ACTIONS + init_actions
             metadata += ',CONDA_PACKAGES="python==3.5"'
