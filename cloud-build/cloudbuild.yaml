@@ -5,5 +5,3 @@ steps:
 - name: 'gcr.io/google.com/cloud-dataproc-ci/init-actions-image'
   entrypoint: 'bash'
   args: ['./cloud-build/presubmit.sh']
-images:
-  ['gcr.io/google.com/hadoop-cloud-dev/init-actions-image']
