@@ -24,14 +24,15 @@ readonly SPARK_PACKAGES="$(/usr/share/google/get_metadata_value attributes/spark
 readonly SPARK_CONF='/etc/spark/conf/spark-defaults.conf'
 readonly DATALAB_DIR="${HOME}/datalab"
 readonly PYTHONPATH="/env/python:$(find /usr/lib/spark/python/lib -name '*.zip' | paste -sd:)"
-readonly DOCKER_IMAGE="$(/usr/share/google/get_metadata_value attributes/docker-image || \
+readonly DOCKER_IMAGE="$(/usr/share/google/get_metadata_value attributes/docker-image ||
   echo 'gcr.io/cloud-datalab/datalab:local')"
 
 # For running the docker init action
-readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_REPO \
-  || echo 'https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git')"
-readonly INIT_ACTIONS_BRANCH="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_BRANCH \
-  || echo 'master')"
+readonly DEAFULT_INIT_ACTIONS_REPO=gs://dataproc-initialization-actions
+readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_REPO ||
+  echo ${DEAFULT_INIT_ACTIONS_REPO})"
+readonly INIT_ACTIONS_BRANCH="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_BRANCH ||
+  echo 'master')"
 
 # Expose every possible spark configuration to the container.
 VOLUMES="$(echo /etc/{hadoop*,hive*,*spark*})"
@@ -47,7 +48,7 @@ else
 fi
 if [[ -L ${CONNECTORS_LIB}/bigquery-connector.jar ]]; then
   VOLUMES+=" ${CONNECTORS_LIB}/bigquery-connector.jar"
-elif compgen -G "${CONNECTORS_LIB}/bigquery*" > /dev/null; then
+elif compgen -G "${CONNECTORS_LIB}/bigquery*" >/dev/null; then
   VOLUMES+=" $(compgen -G ${CONNECTORS_LIB}/bigquery*)"
 fi
 
@@ -55,20 +56,26 @@ readonly VOLUMES
 readonly VOLUME_FLAGS="$(echo "${VOLUMES}" | sed 's/\S*/-v &:&/g')"
 
 function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   return 1
 }
 
 function install_docker() {
   # Run the docker init action to install docker.
-  git clone -b "${INIT_ACTIONS_BRANCH}" --single-branch "${INIT_ACTIONS_REPO}"
-  chmod +x ./dataproc-initialization-actions/docker/docker.sh
-  ./dataproc-initialization-actions/docker/docker.sh
+  local init_actions_dir
+  init_actions_dir=$(mktemp -d -t dataproc-init-actions-XXXX)
+  if [[ ${INIT_ACTIONS_REPO} == gs://* ]]; then
+    gsutil -m rsync -r "${INIT_ACTIONS_REPO}" "${init_actions_dir}"
+  else
+    git clone -b "${INIT_ACTIONS_BRANCH}" --single-branch "${INIT_ACTIONS_REPO}" "${init_actions_dir}"
+  fi
+  find "${init_actions_dir}" -name '*.sh' -exec chmod +x {} \;
+  "${init_actions_dir}/docker/docker.sh"
 }
 
 function docker_pull() {
   for ((i = 0; i < 10; i++)); do
-    if (gcloud docker -- pull $1); then
+    if (gcloud docker -- pull "$1"); then
       return 0
     fi
     sleep 5
@@ -76,16 +83,16 @@ function docker_pull() {
   return 1
 }
 
-function configure_master(){
+function configure_master() {
   mkdir -p "${DATALAB_DIR}"
 
-  docker_pull ${DOCKER_IMAGE} || err "Failed to pull ${DOCKER_IMAGE}"
+  docker_pull "${DOCKER_IMAGE}" || err "Failed to pull ${DOCKER_IMAGE}"
 
   # For some reason Spark has issues resolving the user's directory inside of
   # Datalab.
   # TODO(pmkc) consider fixing in Dataproc proper.
   if ! grep -q '^spark\.sql\.warehouse\.dir=' "${SPARK_CONF}"; then
-    echo 'spark.sql.warehouse.dir=/root/spark-warehouse' >> "${SPARK_CONF}"
+    echo 'spark.sql.warehouse.dir=/root/spark-warehouse' >>"${SPARK_CONF}"
   fi
 
   # Docker gives a "too many symlinks" error if volumes are not yet automounted.
@@ -111,7 +118,7 @@ function configure_master(){
     ADD_BACKPORTS=''
   fi
   cp /etc/apt/sources.list.d/dataproc.list .
-  cat << EOF > Dockerfile
+  cat <<EOF >Dockerfile
 FROM ${DOCKER_IMAGE}
 ${ADD_BACKPORTS}
 ADD dataproc.list /etc/apt/sources.list.d/
@@ -128,7 +135,7 @@ RUN apt-get install -y hive spark-python openjdk-8-jre-headless
 # not pick up spark-env.sh. So, set PYSPARK_PYTHON explicitly to either
 # system python or conda python. It is on the user to set up the same
 # version of python for workers and the datalab docker container.
-ENV PYSPARK_PYTHON=$(ls /opt/conda/bin/python || which python)
+ENV PYSPARK_PYTHON=$(ls /opt/conda/bin/python || command -v python)
 
 ENV SPARK_HOME='/usr/lib/spark'
 ENV JAVA_HOME='${JAVA_HOME}'
@@ -142,16 +149,16 @@ EOF
 
 }
 
-function run_datalab(){
+function run_datalab() {
   if docker run -d --restart always --net=host \
-      -v "${DATALAB_DIR}:/content/datalab" ${VOLUME_FLAGS} datalab-pyspark; then
+    -v "${DATALAB_DIR}:/content/datalab" ${VOLUME_FLAGS} datalab-pyspark; then
     echo 'Cloud Datalab Jupyter server successfully deployed.'
   else
     err 'Failed to run Cloud Datalab'
   fi
 }
 
-function main(){
+function main() {
   if [[ "${ROLE}" == 'Master' ]]; then
     install_docker
     configure_master
