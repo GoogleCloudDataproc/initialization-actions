@@ -23,7 +23,7 @@ conda env create --name RAPIDS --file "${RAPIDS_INIT_ACTION_DIR}/internal/conda-
 # Get Jupyter instance to pickup RAPIDS environment.
 if [[ "${ROLE}" == "Master" ]]; then
   /opt/conda/anaconda/bin/conda install -y nb_conda_kernels
-  service jupyter restart
+  service jupyter restart || true
 fi
 
 "${RAPIDS_INIT_ACTION_DIR}/internal/launch-dask.sh"

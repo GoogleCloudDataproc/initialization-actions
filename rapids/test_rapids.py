@@ -31,9 +31,8 @@ class RapidsTestCase(DataprocTestCase):
         [("STANDARD", "1.3", ["m"])],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_rapids(self, configuration, dataproc_version, machine_suffixes):
-        metadata = ('RAPIDS_INIT_ACTION_DIR={}/rapids'
-                    ',CONDA_INIT_ACTION_DIR={}/conda').format(
-            self.INIT_ACTIONS_REPO, self.INIT_ACTIONS_REPO)
+        metadata = 'RAPIDS_INIT_ACTION_DIR={}/rapids'.format(
+            self.INIT_ACTIONS_REPO)
 
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
