@@ -44,8 +44,8 @@ echo "Test directories: ${DIRECTORIES_TO_TEST[*]}"
 declare -a TESTS_TO_RUN
 for test_dir in "${DIRECTORIES_TO_TEST[@]}"; do
   if ! tests=$(compgen -G "${test_dir}test*.py"); then
-    echo "ERROR: presubmit failed - can not find tests inside '${test_dir}' directory"
-    exit 1
+    echo "ERROR: presubmit failed - cannot find tests inside '${test_dir}' directory"
+    # exit 1
   fi
   mapfile -t tests_array < <(echo "${tests}")
   TESTS_TO_RUN+=("${tests_array[@]}")
@@ -54,7 +54,7 @@ echo "Tests: ${TESTS_TO_RUN[*]}"
 
 # Run tests of the init actions that were modified
 if [[ $RUN_ALL_TESTS == true ]]; then
-  python -m unittest
+  python3.5 -m unittest
 elif [[ ${#TESTS_TO_RUN[@]} != 0 ]]; then
-  python -m unittest "${TESTS_TO_RUN[@]}"
+  python3.5 -m unittest "${TESTS_TO_RUN[@]}"
 fi
