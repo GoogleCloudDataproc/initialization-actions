@@ -28,9 +28,11 @@ readonly DOCKER_IMAGE="$(/usr/share/google/get_metadata_value attributes/docker-
   echo 'gcr.io/cloud-datalab/datalab:local')"
 
 # For running the docker init action
-readonly DEAFULT_DOCKER_INIT_ACTION_GCS_DIR=gs://dataproc-initialization-actions/docker
-readonly DOCKER_INIT_ACTION_GCS_DIR="$(/usr/share/google/get_metadata_value attributes/DOCKER_INIT_ACTION_DIR ||
-  echo ${DEAFULT_DOCKER_INIT_ACTION_GCS_DIR})"
+readonly DEAFULT_INIT_ACTIONS_REPO=gs://dataproc-initialization-actions
+readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_REPO ||
+  echo ${DEAFULT_INIT_ACTIONS_REPO})"
+readonly INIT_ACTIONS_BRANCH="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_BRANCH ||
+  echo 'master')"
 
 # Expose every possible spark configuration to the container.
 VOLUMES="$(echo /etc/{hadoop*,hive*,*spark*})"
@@ -60,11 +62,15 @@ function err() {
 
 function install_docker() {
   # Run the docker init action to install docker.
-  local docker_init_action_dir
-  docker_init_action_dir=$(mktemp -d -t docker-init-action-XXXX)
-  gsutil -m rsync -r "${DOCKER_INIT_ACTION_GCS_DIR}" "${docker_init_action_dir}"
-  find "${docker_init_action_dir}" -name '*.sh' -exec chmod +x {} \;
-  "${docker_init_action_dir}/docker.sh"
+  local init_actions_dir
+  init_actions_dir=$(mktemp -d -t dataproc-init-actions-XXXX)
+  if [[ ${INIT_ACTIONS_REPO} == gs://* ]]; then
+    gsutil -m rsync -r "${INIT_ACTIONS_REPO}" "${init_actions_dir}"
+  else
+    git clone -b "${INIT_ACTIONS_BRANCH}" --single-branch "${INIT_ACTIONS_REPO}" "${init_actions_dir}"
+  fi
+  find "${init_actions_dir}" -name '*.sh' -exec chmod +x {} \;
+  "${init_actions_dir}/docker/docker.sh"
 }
 
 function docker_pull() {

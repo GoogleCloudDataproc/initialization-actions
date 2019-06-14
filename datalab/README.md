@@ -77,4 +77,7 @@ Python 2 or Python 3 kernels, but not both.
 *   This init action runs Datalab in Docker, and installs Docker via the
     [Docker init action](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/docker).
     To run this script with a modified Docker init action, pass `--metadata
-    "DOCKER_INIT_ACTION_DIR=gs://my-forked-dataproc-initialization-actions/docker"`
+    "INIT_ACTIONS_REPO=gs://my-forked-dataproc-initialization-actions"`, or
+    `--metadata
+    "INIT_ACTIONS_REPO=https://github.com/myfork/dataproc-initialization-actions"` 
+    and `--metadata "INIT_ACTIONS_BRANCH=branch-on-my-fork"`
