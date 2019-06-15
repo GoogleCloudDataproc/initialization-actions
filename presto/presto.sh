@@ -29,8 +29,8 @@ else
   readonly CONNECTOR_JAR="$(find /usr/lib/hadoop/lib -name 'gcs-connector-*.jar')"
 fi
 readonly PRESTO_BASE_URL=https://repo1.maven.org/maven2/com/facebook/presto
-readonly PRESTO_VERSION='0.220'
-readonly HTTP_PORT='8077'
+readonly PRESTO_VERSION='0.221'
+readonly HTTP_PORT='8060'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/presto.service'
 PRESTO_JVM_MB=0
 PRESTO_QUERY_NODE_MB=0
@@ -41,12 +41,6 @@ PRESTO_HEADROOM_NODE_MB=256
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   return 1
-}
-
-# Purpose: Determine if presto is running or not
-function test_presto_with_query(){
-        # [ $(presto --server=localhost:${HTTP_PORT} --execute='select * from system.runtime.nodes;' | grep -q ${PRESTO_VERSION} && echo 0 || echo 1) -eq 0 ]
-        [ $(presto --server=localhost:${HTTP_PORT} --execute='select 1' | grep -q "1" && echo 0 || echo 1) -eq 0 ]
 }
 
 function wait_for_presto_cluster_ready() {
@@ -220,7 +214,6 @@ function start_presto() {
   cat <<EOF >${INIT_SCRIPT}
 [Unit]
 Description=Presto DB
-
 [Service]
 Type=forking
 ExecStart=/presto-server-${PRESTO_VERSION}/bin/launcher.py start
