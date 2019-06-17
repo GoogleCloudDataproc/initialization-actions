@@ -16,8 +16,10 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.BaseAbstractGoogleAsyncWriteChannel;
+import com.google.common.collect.Maps;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
+import com.google.common.io.BaseEncoding;
 import com.google.google.storage.v1.ChecksummedData;
 import com.google.google.storage.v1.InsertObjectRequest;
 import com.google.google.storage.v1.InsertObjectSpec;
@@ -28,6 +30,7 @@ import com.google.google.storage.v1.StartResumableWriteResponse;
 import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsStub;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.UInt32Value;
+import com.google.protobuf.util.Timestamps;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientResponseObserver;
 import io.grpc.stub.StreamObserver;
@@ -35,6 +38,7 @@ import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PipedInputStream;
+import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
@@ -74,10 +78,42 @@ public final class GoogleCloudStorageGrpcWriteChannel
 
   @Override
   public void handleResponse(Object response) {
-    // TODO(julianandrews): Populate this properly.
+    Map<String, byte[]> metadata =
+        Maps.transformValues(
+            response.getMetadataMap(),
+            value -> {
+              try {
+                return BaseEncoding.base64().decode(value);
+              } catch (IllegalArgumentException iae) {
+                logger.atSevere().withCause(iae).log(
+                    "Failed to parse base64 encoded attribute value %s - %s", value, iae);
+                return null;
+              }
+            });
+
+    byte[] md5Hash =
+        response.getMd5Hash().length() > 0
+            ? BaseEncoding.base64().decode(response.getMd5Hash())
+            : null;
+    byte[] crc32c =
+        response.hasCrc32C()
+            ? ByteBuffer.allocate(4).putInt(response.getCrc32C().getValue()).array()
+            : null;
+
     completedItemInfo =
         new GoogleCloudStorageItemInfo(
-            new StorageResourceId(object.getBucket(), object.getName()), 0, 0, 0, "", "");
+            new StorageResourceId(response.getBucket(), response.getName()),
+            Timestamps.toMillis(response.getUpdated()),
+            Timestamps.toMillis(response.getUpdated()),
+            response.getSize(),
+            /* location= */ null,
+            /* storageClass= */ null,
+            response.getContentType(),
+            response.getContentEncoding(),
+            metadata,
+            response.getGeneration(),
+            response.getMetageneration(),
+            new VerificationAttributes(md5Hash, crc32c));
   }
 
   @Override

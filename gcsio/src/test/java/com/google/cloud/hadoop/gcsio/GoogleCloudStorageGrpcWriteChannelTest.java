@@ -24,6 +24,7 @@ import com.google.google.storage.v1.StorageObjectsGrpc;
 import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsImplBase;
 import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsStub;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Timestamp;
 import com.google.protobuf.UInt32Value;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
@@ -228,8 +229,60 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
   }
 
   @Test
+  public void getItemInfoReturnsCorrectItemInfo() throws Exception {
+    fakeService.setObject(
+        FakeService.DEFAULT_OBJECT.toBuilder()
+            .setSize(9)
+            .setGeneration(1)
+            .setMetageneration(2)
+            .setUpdated(Timestamp.newBuilder().setSeconds(1560495630).setNanos(123000000))
+            .setContentEncoding("content-encoding")
+            .putMetadata("metadata-key-1", "dGVzdC1tZXRhZGF0YQ==")
+            .putMetadata("metadata-key-2", "invalid~base64")
+            .setMd5Hash("k0K1eqORVuY208nAADpz6w==")
+            .setCrc32C(UInt32Value.newBuilder().setValue(uInt32Value(863614154)))
+            .build());
+    GoogleCloudStorageGrpcWriteChannel writeChannel = newWriteChannel();
+
+    ByteString data = ByteString.copyFromUtf8("test data");
+    writeChannel.initialize();
+    writeChannel.write(data.asReadOnlyByteBuffer());
+    writeChannel.close();
+    GoogleCloudStorageItemInfo itemInfo = writeChannel.getItemInfo();
+
+    byte[] expectedMd5Hash = {
+      -109, 66, -75, 122, -93, -111, 86, -26, 54, -45, -55, -64, 0, 58, 115, -21
+    };
+    byte[] expectedCrc32C = {51, 121, -76, -54};
+    Map<String, byte[]> expectedMetadata = new HashMap<>();
+    expectedMetadata.put(
+        "metadata-key-1", new byte[] {116, 101, 115, 116, 45, 109, 101, 116, 97, 100, 97, 116, 97});
+    expectedMetadata.put("metadata-key-2", null);
+    GoogleCloudStorageItemInfo expectedItemInfo =
+        new GoogleCloudStorageItemInfo(
+            new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
+            1560495630123L,
+            1560495630123L,
+            9,
+            null,
+            null,
+            CONTENT_TYPE,
+            "content-encoding",
+            expectedMetadata,
+            1,
+            2,
+            new VerificationAttributes(expectedMd5Hash, expectedCrc32C));
+
+    assertEquals(expectedItemInfo, itemInfo);
+  }
+
+  @Test
   public void getItemInfoReturnsNullBeforeClose() throws Exception {
     GoogleCloudStorageGrpcWriteChannel writeChannel = newWriteChannel();
+
+    ByteString data = ByteString.copyFromUtf8("test data");
+    writeChannel.initialize();
+    writeChannel.write(data.asReadOnlyByteBuffer());
 
     assertNull(writeChannel.getItemInfo());
   }
@@ -298,8 +351,13 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
   }
 
   private static class FakeService extends StorageObjectsImplBase {
-    private static final Object DEFAULT_OBJECT =
-        Object.newBuilder().setBucket(BUCKET_NAME).setName(OBJECT_NAME).build();
+    static final Object DEFAULT_OBJECT =
+        Object.newBuilder()
+            .setBucket(BUCKET_NAME)
+            .setName(OBJECT_NAME)
+            .setGeneration(1)
+            .setMetageneration(2)
+            .build();
 
     InsertRequestObserver insertRequestObserver = spy(new InsertRequestObserver());
 
@@ -325,6 +383,10 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
       return insertRequestObserver;
     }
 
+    public void setObject(Object object) {
+      this.insertRequestObserver.object = object;
+    }
+
     public void setStartRequestException(Throwable t) {
       startRequestException = t;
     }
@@ -335,6 +397,7 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
 
     private static class InsertRequestObserver implements StreamObserver<InsertObjectRequest> {
       private StreamObserver<Object> responseObserver;
+      private Object object = DEFAULT_OBJECT;
       Throwable insertRequestException;
 
       @Override
@@ -351,7 +414,7 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
 
       @Override
       public void onCompleted() {
-        responseObserver.onNext(DEFAULT_OBJECT);
+        responseObserver.onNext(object);
         responseObserver.onCompleted();
       }
     }
