@@ -20,6 +20,15 @@
 
         mapred.bq.output.table.partitioning
 
+1.  Add a new `DirectBigQueryInputFormat` for processing data through
+    [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/).
+   
+    This input format is configurable via properties:
+
+        mapred.bq.input.sql.filter
+        mapred.bq.input.selected.fields
+        mapred.bq.input.skew.limit
+
 ### 0.13.14 - 2019-02-13
 
 1.  POM updates for GCS connector 1.9.14.

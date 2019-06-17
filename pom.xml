@@ -90,8 +90,10 @@
     <google.api-bigquery.version>v2-rev20181221-${google.api.version}</google.api-bigquery.version>
     <google.api-storage.version>v1-rev20181109-${google.api.version}</google.api-storage.version>
     <google.auto-value.version>1.6.3</google.auto-value.version>
+    <google.cloud-bigquery-storage.version>0.95.0-beta</google.cloud-bigquery-storage.version>
     <google.flogger.version>0.3.1</google.flogger.version>
     <google.guava.version>27.0.1-jre</google.guava.version>
+    <google.protobuf.version>3.8.0</google.protobuf.version>
     <google.truth.version>0.44</google.truth.version>
     <hadoop.two.version>2.9.2</hadoop.two.version>
     <hadoop.three.version>3.2.0</hadoop.three.version>
@@ -314,10 +316,20 @@
         <version>${google.api-bigquery.version}</version>
       </dependency>
       <dependency>
+        <groupId>com.google.cloud</groupId>
+        <artifactId>google-cloud-bigquerystorage</artifactId>
+        <version>${google.cloud-bigquery-storage.version}</version>
+      </dependency>
+      <dependency>
         <groupId>com.google.code.gson</groupId>
         <artifactId>gson</artifactId>
         <version>${google.gson.version}</version>
         <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java</artifactId>
+        <version>${google.protobuf.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.guava</groupId>

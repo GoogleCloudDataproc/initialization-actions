@@ -93,8 +93,16 @@
       <artifactId>google-api-services-bigquery</artifactId>
     </dependency>
     <dependency>
+      <groupId>com.google.cloud</groupId>
+      <artifactId>google-cloud-bigquerystorage</artifactId>
+    </dependency>
+    <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
@@ -187,10 +195,28 @@
                     implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
               </transformers>
               <filters>
+                <!--minimizeJar breaks all the dynamic load hacks; add them explicitly-->
+                <filter>
+                  <artifact>io.grpc:*</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                </filter>
+                <filter>
+                  <artifact>io.opencensus:*</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                </filter>
+                <filter>
+                  <artifact>com.google.guava:*</artifact>
+                  <includes>
+                    <include>com/google/common/base/*</include>
+                  </includes>
+                </filter>
                 <filter>
                   <artifact>com.google.flogger:flogger-log4j-backend</artifact>
                   <includes>
-                    <!--Avoid cleanup with minimizeJar that breaks Log4j logging-->
                     <include>**</include>
                   </includes>
                 </filter>
@@ -200,12 +226,22 @@
                     <exclude>bigquery.v2.json</exclude>
                   </excludes>
                 </filter>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>**/*.proto</exclude>
+                  </excludes>
+                </filter>
               </filters>
               <artifactSet>
                 <includes>
                   <include>com.fasterxml.jackson.core:jackson-core</include>
+                  <include>com.google.api</include>
+                  <include>com.google.api.grpc</include>
                   <include>com.google.api-client</include>
                   <include>com.google.apis</include>
+                  <include>com.google.auth</include>
+                  <include>com.google.cloud</include>
                   <include>com.google.cloud.bigdataoss:util</include>
                   <include>com.google.cloud.bigdataoss:util-hadoop</include>
                   <include>com.google.guava</include>
@@ -214,8 +250,12 @@
                   <include>com.google.http-client:google-http-client-jackson2</include>
                   <include>com.google.oauth-client:google-oauth-client</include>
                   <include>com.google.oauth-client:google-oauth-client-java6</include>
+                  <include>com.google.protobuf</include>
+                  <include>io.grpc</include>
+                  <include>io.opencensus</include>
                   <include>org.apache.httpcomponents:httpclient</include>
                   <include>org.apache.httpcomponents:httpcore</include>
+                  <include>org.threeten</include>
                   <!-- needed by http client and versions conflict -->
                   <include>commons-codec:commons-codec</include>
                 </includes>
@@ -227,22 +267,46 @@
                   <shadedPattern>com.google.cloud.hadoop.repackaged.bigquery.com</shadedPattern>
                   <includes>
                     <include>com.fasterxml.**</include>
-                    <include>com.google.api.**</include>
-                    <include>com.google.cloud.hadoop.util.**</include>
-                    <include>com.google.common.**</include>
+                    <include>com.google.**</include>
                   </includes>
                   <excludes>
+                    <exclude>com.google.cloud.hadoop.io.bigquery.**</exclude>
+                    <exclude>com.google.cloud.hadoop.repackaged.**</exclude>
                     <exclude>com.google.cloud.hadoop.util.AccessTokenProvider</exclude>
                     <exclude>com.google.cloud.hadoop.util.AccessTokenProvider$AccessToken</exclude>
                   </excludes>
                 </relocation>
+                <!-- Take special care of grpc-netty-shaded, it uses the package
+                     io.grpc.netty.shaded.io.grpc.netty, which will cause the
+                     ServicesResourceTransformer to replace both occurrences of io.grpc -->
+                <relocation>
+                  <pattern>io.grpc.netty.shaded.io.grpc.netty</pattern>
+                  <shadedPattern>com.google.cloud.hadoop.repackaged.bigquery.io.grpc.netty</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.grpc</pattern>
+                  <shadedPattern>com.google.cloud.hadoop.repackaged.bigquery.io.grpc</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.opencensus</pattern>
+                  <shadedPattern>com.google.cloud.hadoop.repackaged.bigquery.io.opencensus</shadedPattern>
+                </relocation>
+
                 <relocation>
                   <pattern>org</pattern>
                   <shadedPattern>com.google.cloud.hadoop.repackaged.bigquery.org</shadedPattern>
                   <includes>
                     <include>org.apache.commons.codec.**</include>
                     <include>org.apache.http.**</include>
+                    <include>org.checkerframework.**</include>
+                    <include>org.codehaus.mojo.animal_sniffer.**</include>
+                    <include>org.joda.**</include>
+                    <include>org.threeten.**</include>
                   </includes>
+                </relocation>
+                <relocation>
+                  <pattern>META-INF/native/libio_grpc_netty_shaded_netty</pattern>
+                  <shadedPattern>META-INF/native/libcom_google_cloud_hadoop_repackaged_bigquery_io_grpc_netty_shaded_netty</shadedPattern>
                 </relocation>
               </relocations>
               <shadedArtifactAttached>true</shadedArtifactAttached>
