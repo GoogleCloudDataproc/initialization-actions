@@ -43,44 +43,44 @@ function update_apt_get() {
 }
 
 function install_apt_get() {
-  pkgs="$@"
+  local pkgs="$*"
   retry_apt_command "apt-get install -y $pkgs"
 }
 
 function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   return 1
 }
 
 function install_big_table_client() {
-  wget -q "${BIGTABLE_HBASE_DL_LINK}" -O "${HBASE_HOME}/lib/${BIGTABLE_HBASE_CLIENT}" \
-    || err 'Unable to install BigTable client libs.'
+  local out="${HBASE_HOME}/lib/${BIGTABLE_HBASE_CLIENT}"
+  wget --progress=dot:mega -q "${BIGTABLE_HBASE_DL_LINK}" -O "${out}" ||
+    err 'Unable to install BigTable client libs.'
 }
 
 function install_shc() {
   mkdir -p "/usr/lib/spark/external"
-  wget -q "${SPARK_HBASE_CLIENT_DL_LINK}" -O "/usr/lib/spark/external/${SPARK_HBASE_CLIENT}" \
-    || err 'Unable to install shc.'
-  ln -s "/usr/lib/spark/external/${SPARK_HBASE_CLIENT}" \
-    "/usr/lib/spark/external/shc-core.jar"
+  local out="/usr/lib/spark/external/${SPARK_HBASE_CLIENT}"
+  wget --progress=dot:mega -q "${SPARK_HBASE_CLIENT_DL_LINK}" -O ${out} ||
+    err 'Unable to install shc.'
+  ln -s "${out}" "/usr/lib/spark/external/shc-core.jar"
 }
 
 function configure_big_table_client() {
-
-#Update classpaths
-  cat << 'EOF' >> /etc/hadoop/conf/mapred-env.sh
+  #Update classpaths
+  cat <<'EOF' >>/etc/hadoop/conf/mapred-env.sh
 HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:/usr/lib/hbase/*"
 HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:/usr/lib/hbase/lib/*"
 HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:/etc/hbase/conf"
 EOF
-  cat << 'EOF' >> /etc/spark/conf/spark-env.sh
+  cat <<'EOF' >>/etc/spark/conf/spark-env.sh
 SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/usr/lib/hbase/*"
 SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/usr/lib/hbase/lib/*"
 SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/etc/hbase/conf"
 SPARK_DIST_CLASSPATH="${SPARK_DIST_CLASSPATH}:/usr/lib/spark/external/shc-core.jar"
 EOF
 
-  cat << EOF > hbase-site.xml
+  cat <<EOF >hbase-site.xml
 <?xml version="1.0"?>
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
 <configuration>
@@ -103,10 +103,8 @@ EOF
 }
 
 function main() {
-  local role
-  role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
   big_table_instance="$(/usr/share/google/get_metadata_value attributes/bigtable-instance)"
-  big_table_project="$(/usr/share/google/get_metadata_value attributes/bigtable-project || \
+  big_table_project="$(/usr/share/google/get_metadata_value attributes/bigtable-project ||
     /usr/share/google/get_metadata_value ../project/project-id)"
 
   update_apt_get || err 'Unable to update packages lists.'
