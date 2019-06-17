@@ -29,6 +29,7 @@ import com.google.google.storage.v1.StartResumableWriteRequest;
 import com.google.google.storage.v1.StartResumableWriteResponse;
 import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsStub;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Int64Value;
 import com.google.protobuf.UInt32Value;
 import com.google.protobuf.util.Timestamps;
 import io.grpc.stub.ClientCallStreamObserver;
@@ -319,10 +320,20 @@ public final class GoogleCloudStorageGrpcWriteChannel
 
     /** Send a StartResumableWriteRequest and return the uploadId of the resumable write. */
     private String getUploadId() throws InterruptedException, IOException {
-      // TODO(julianandrews): set preconditions and user project
+      // TODO(julianandrews): set user project
+      InsertObjectSpec.Builder insertObjectSpecBuilder =
+          InsertObjectSpec.newBuilder().setResource(object);
+      if (writeConditions.hasContentGenerationMatch()) {
+        insertObjectSpecBuilder.setIfGenerationMatch(
+            Int64Value.newBuilder().setValue(writeConditions.getContentGenerationMatch()));
+      }
+      if (writeConditions.hasMetaGenerationMatch()) {
+        insertObjectSpecBuilder.setIfMetagenerationMatch(
+            Int64Value.newBuilder().setValue(writeConditions.getMetaGenerationMatch()));
+      }
       StartResumableWriteRequest request =
           StartResumableWriteRequest.newBuilder()
-              .setInsertObjectSpec(InsertObjectSpec.newBuilder().setResource(object))
+              .setInsertObjectSpec(insertObjectSpecBuilder)
               .build();
 
       StartResumableWriteResponseObserver responseObserver =

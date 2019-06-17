@@ -13,6 +13,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
+import com.google.common.base.Optional;
 import com.google.google.storage.v1.ChecksummedData;
 import com.google.google.storage.v1.InsertObjectRequest;
 import com.google.google.storage.v1.InsertObjectSpec;
@@ -24,6 +25,7 @@ import com.google.google.storage.v1.StorageObjectsGrpc;
 import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsImplBase;
 import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsStub;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Int64Value;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.UInt32Value;
 import io.grpc.inprocess.InProcessChannelBuilder;
@@ -160,6 +162,44 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
     verify(fakeService.insertRequestObserver, times(3)).onNext(requestCaptor.capture());
     assertEquals(expectedRequests, requestCaptor.getAllValues());
     verify(fakeService.insertRequestObserver, atLeast(1)).onCompleted();
+  }
+
+  @Test
+  public void writeUsesContentGenerationIfProvided() throws Exception {
+    AsyncWriteChannelOptions options = AsyncWriteChannelOptions.newBuilder().build();
+    ObjectWriteConditions writeConditions =
+        new ObjectWriteConditions(Optional.of(1L), Optional.absent());
+    GoogleCloudStorageGrpcWriteChannel writeChannel = newWriteChannel(options, writeConditions);
+
+    ByteString data = ByteString.copyFromUtf8("test data");
+    writeChannel.initialize();
+    writeChannel.write(data.asReadOnlyByteBuffer());
+    writeChannel.close();
+
+    StartResumableWriteRequest.Builder expectedRequestBuilder = START_REQUEST.toBuilder();
+    expectedRequestBuilder
+        .getInsertObjectSpecBuilder()
+        .setIfGenerationMatch(Int64Value.newBuilder().setValue(1L));
+    verify(fakeService, times(1)).startResumableWrite(eq(expectedRequestBuilder.build()), any());
+  }
+
+  @Test
+  public void writeUsesMetaGenerationIfProvided() throws Exception {
+    AsyncWriteChannelOptions options = AsyncWriteChannelOptions.newBuilder().build();
+    ObjectWriteConditions writeConditions =
+        new ObjectWriteConditions(Optional.absent(), Optional.of(1L));
+    GoogleCloudStorageGrpcWriteChannel writeChannel = newWriteChannel(options, writeConditions);
+
+    ByteString data = ByteString.copyFromUtf8("test data");
+    writeChannel.initialize();
+    writeChannel.write(data.asReadOnlyByteBuffer());
+    writeChannel.close();
+
+    StartResumableWriteRequest.Builder expectedRequestBuilder = START_REQUEST.toBuilder();
+    expectedRequestBuilder
+        .getInsertObjectSpecBuilder()
+        .setIfMetagenerationMatch(Int64Value.newBuilder().setValue(1L));
+    verify(fakeService, times(1)).startResumableWrite(eq(expectedRequestBuilder.build()), any());
   }
 
   @Test
