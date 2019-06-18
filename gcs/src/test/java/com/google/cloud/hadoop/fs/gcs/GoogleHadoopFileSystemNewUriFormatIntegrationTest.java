@@ -237,5 +237,88 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
     // Validate that authorities can't be crazy:
     assertThrows(
         IllegalArgumentException.class, () -> myghfs.getGcsPath(new Path("gs://buck^et/object")));
+    assertThrows(IllegalArgumentException.class, () -> myghfs.getGcsPath(new Path("gs:///")));
+  }
+
+  @Test
+  public void testLegacyPathCodecCanBeChosen() throws IOException, URISyntaxException {
+    GoogleHadoopFileSystem testInstance = new GoogleHadoopFileSystem();
+    ghfs = testInstance;
+    ghfsFileSystemDescriptor = testInstance;
+
+    ghfsHelper = new HadoopFileSystemIntegrationHelper(ghfs, ghfsFileSystemDescriptor);
+    Configuration conf = loadConfig();
+    conf.set(
+        GoogleHadoopFileSystemConfiguration.PATH_CODEC.getKey(),
+        GoogleHadoopFileSystemBase.PATH_CODEC_USE_LEGACY_ENCODING);
+    URI initUri = new URI("gs://" + ghfsHelper.getUniqueBucketName("init"));
+    ghfs.initialize(initUri, conf);
+
+    Path filePath = ghfsHelper.castAsHadoopPath(URI.create(initUri + "test"));
+
+    ghfsHelper.writeFile(filePath, "test", 1, true);
+
+    assertThat(ghfsHelper.readTextFile(filePath)).isEqualTo("test");
+    ghfsHelper.delete(initUri, true);
+  }
+
+  @Test
+  public void testUnknownPathCodecCanBeSet() throws IOException, URISyntaxException {
+    GoogleHadoopFileSystem testInstance = new GoogleHadoopFileSystem();
+    ghfs = testInstance;
+    ghfsFileSystemDescriptor = testInstance;
+
+    ghfsHelper = new HadoopFileSystemIntegrationHelper(ghfs, ghfsFileSystemDescriptor);
+    Configuration conf = loadConfig();
+    conf.set(GoogleHadoopFileSystemConfiguration.PATH_CODEC.getKey(), "unknown");
+    URI initUri = new URI("gs://" + ghfsHelper.getUniqueBucketName("init"));
+    ghfs.initialize(initUri, conf);
+
+    ghfsHelper.ghfsFileSystemDescriptor.getFileSystemRoot();
+
+    Path filePath = ghfsHelper.castAsHadoopPath(URI.create(initUri + "test"));
+
+    ghfsHelper.writeFile(filePath, "test", 1, true);
+
+    assertThat(ghfsHelper.readTextFile(filePath)).isEqualTo("test");
+    ghfsHelper.delete(initUri, true);
+  }
+
+  @Test
+  public void testGcsLazyConfigurationEnabled() throws IOException, URISyntaxException {
+    GoogleHadoopFileSystem testInstance = new GoogleHadoopFileSystem();
+    ghfs = testInstance;
+    ghfsFileSystemDescriptor = testInstance;
+
+    ghfsHelper = new HadoopFileSystemIntegrationHelper(ghfs, ghfsFileSystemDescriptor);
+    Configuration conf = loadConfig();
+    conf.setBoolean(
+        GoogleHadoopFileSystemConfiguration.GCS_LAZY_INITIALIZATION_ENABLE.getKey(), true);
+    URI initUri = new URI("gs://" + ghfsHelper.getUniqueBucketName("init"));
+    ghfs.initialize(initUri, conf);
+    Path filePath = new Path("testfile");
+    ghfsHelper.writeFile(filePath, "test", 1, true);
+    assertThat(ghfsHelper.readTextFile(filePath)).isEqualTo("test");
+    ghfsHelper.delete(initUri, true);
+  }
+
+  @Test
+  public void testExceptionIsThrownDuringConfigurationWhenCannotCreateGcsFs()
+      throws IOException, URISyntaxException {
+    GoogleHadoopFileSystem testInstance = new GoogleHadoopFileSystem();
+    ghfs = testInstance;
+    ghfsFileSystemDescriptor = testInstance;
+
+    ghfsHelper = new HadoopFileSystemIntegrationHelper(ghfs, ghfsFileSystemDescriptor);
+    Configuration conf = loadConfig();
+    conf.setBoolean(GCS_LAZY_INITIALIZATION_ENABLE.getKey(), true);
+
+    conf.set(GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_KEY_FILE.getKey(), "1");
+    URI initUri = new URI("gs://" + ghfsHelper.getUniqueBucketName("init"));
+    ghfs.initialize(initUri, conf);
+
+    RuntimeException thrown = assertThrows(RuntimeException.class, testInstance::getGcsFs);
+
+    assertThat(thrown).hasMessageThat().contains("Failed to create GCS FS");
   }
 }

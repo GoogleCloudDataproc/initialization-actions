@@ -21,10 +21,12 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
+import com.google.cloud.hadoop.testing.TestingAccessTokenProvider;
 import com.google.common.flogger.LoggerConfig;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.logging.Level;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -141,6 +143,41 @@ public class GoogleHadoopFileSystemTest extends GoogleHadoopFileSystemIntegratio
             return new MethodOutcome(MethodOutcome.Type.RETURNS_TRUE);
           }
         });
+  }
+
+  @Test
+  public void testCouldUseFlatGlob() throws IOException, URISyntaxException {
+    Configuration lazyConf = new Configuration();
+    lazyConf.setBoolean(GCS_LAZY_INITIALIZATION_ENABLE.getKey(), true);
+    GoogleHadoopFileSystem lazyFs = new GoogleHadoopFileSystem();
+    assertThat(lazyFs.couldUseFlatGlob(new Path(new URI("gs://**/test/")))).isFalse();
+    lazyFs.close();
+  }
+
+  @Test
+  public void testTrimToPrefixWithoutGlob() {
+    GoogleHadoopFileSystem lazyFs = new GoogleHadoopFileSystem();
+    lazyFs.trimToPrefixWithoutGlob("gs://**/test");
+    assertThat(lazyFs.trimToPrefixWithoutGlob("gs://**/test")).isEqualTo("gs://");
+  }
+
+  @Test
+  public void testGetGcsPath() throws URISyntaxException {
+    GoogleHadoopFileSystem myghfs = (GoogleHadoopFileSystem) ghfs;
+    URI gcsPath = new URI("gs://" + myghfs.getUri().getAuthority() + "/dir/obj");
+    assertThat(myghfs.getGcsPath(new Path(gcsPath))).isEqualTo(gcsPath);
+  }
+
+  @Test
+  public void testGetDefaultPortIndicatesPortsAreNotUsed() throws Exception {
+    Configuration config = new Configuration();
+    config.set("fs.gs.auth.access.token.provider.impl", TestingAccessTokenProvider.class.getName());
+    URI gsUri = new URI("gs://foobar/");
+
+    GoogleHadoopFileSystem ghfs = new GoogleHadoopFileSystem();
+    ghfs.initialize(gsUri, config);
+
+    assertThat(ghfs.getDefaultPort()).isEqualTo(-1);
   }
 
   // -----------------------------------------------------------------

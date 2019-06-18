@@ -21,6 +21,7 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
+import com.google.cloud.hadoop.util.RequesterPaysOptions;
 import com.google.common.flogger.LoggerConfig;
 import com.google.common.util.concurrent.MoreExecutors;
 import java.io.IOException;
@@ -106,7 +107,10 @@ public class GoogleCloudStorageFileSystemTest
     optionsBuilder.getCloudStorageOptionsBuilder().setProjectId("");
     new GoogleCloudStorageFileSystem(cred, optionsBuilder.build());
 
-    optionsBuilder.getCloudStorageOptionsBuilder().setProjectId("projectId");
+    optionsBuilder
+        .getCloudStorageOptionsBuilder()
+        .setProjectId("projectId")
+        .setRequesterPaysOptions(RequesterPaysOptions.DEFAULT);
 
     // Verify that appName == null or empty throws IllegalArgumentException.
 
@@ -135,6 +139,8 @@ public class GoogleCloudStorageFileSystemTest
 
     // White-box testing; check a few internal outcomes of our options.
     assertThat(tmpGcsFs.getGcs()).isInstanceOf(GoogleCloudStorageImpl.class);
+    assertThat(gcsfs.getOptions().getCloudStorageOptions().getRequesterPaysOptions())
+        .isEqualTo(RequesterPaysOptions.DEFAULT);
   }
 
   /** Verify that PATH_COMPARATOR produces correct sorting order. */
