@@ -51,8 +51,12 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
             .build());
   }
 
+  static GoogleCloudStorageFileSystemIntegrationHelper create() throws IOException {
+    return create(GoogleCloudStorageIntegrationHelper.APP_NAME);
+  }
+
   public static GoogleCloudStorageFileSystemIntegrationHelper create(String appName)
-      throws Exception {
+      throws IOException {
     String projectId =
         checkNotNull(TestConfiguration.getInstance().getProjectId(), "projectId can not be null");
     GoogleCloudStorageFileSystem gcsFs = createGcsFs(projectId, appName);

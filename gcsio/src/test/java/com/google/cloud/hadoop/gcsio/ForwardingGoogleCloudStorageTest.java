@@ -14,6 +14,7 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -285,5 +286,12 @@ public class ForwardingGoogleCloudStorageTest {
     GoogleCloudStorage delegate = gcs.getDelegate();
 
     assertThat(delegate).isEqualTo(mockGcsDelegate);
+  }
+
+  @Test
+  public void delegate_throwsExceptionWhenNull() {
+    IllegalArgumentException exception =
+        assertThrows(IllegalArgumentException.class, () -> new ForwardingGoogleCloudStorage(null));
+    assertThat(exception).hasMessageThat().startsWith("delegate must not be null");
   }
 }
