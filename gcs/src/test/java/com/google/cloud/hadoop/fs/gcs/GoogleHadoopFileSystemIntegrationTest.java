@@ -213,22 +213,6 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
   }
 
   @Test
-  public void checkOpenUnchecked() throws IOException {
-    GoogleHadoopFileSystem myGhfs = new GoogleHadoopFileSystem();
-    // System.out.println(myGhfs.getStorageStatistics());
-
-    RuntimeException exception = assertThrows(RuntimeException.class, myGhfs::checkOpenUnchecked);
-    assertThat(exception)
-        .hasMessageThat()
-        .startsWith("GoogleHadoopFileSystem has been closed or not initialized");
-
-    myGhfs.initialize(ghfs.getUri(), loadConfig());
-    // System.out.println(myGhfs.getStorageStatistics());
-
-    myGhfs.checkOpenUnchecked();
-  }
-
-  @Test
   public void open_throwsExceptionWhenHadoopPathNull() {
     GoogleHadoopFileSystem myGhfs = new GoogleHadoopFileSystem();
     IllegalArgumentException exception =
@@ -634,7 +618,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
     assertThat(thrown).hasMessageThat().isEqualTo("No bucket specified in GCS URI: gs:/");
   }
 
-  private Configuration getConfigurationWtihImplementation() throws IOException {
+  private Configuration getConfigurationWithImplementation() {
     Configuration conf = loadConfig();
     conf.set("fs.gs.impl", GoogleHadoopFileSystem.class.getCanonicalName());
     return conf;
@@ -642,7 +626,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
 
   @Test
   public void testFileSystemIsRemovedFromCacheOnClose() throws IOException, URISyntaxException {
-    Configuration conf = getConfigurationWtihImplementation();
+    Configuration conf = getConfigurationWithImplementation();
 
     URI fsUri = new URI(String.format("gs://%s/", sharedBucketName1));
 
@@ -661,7 +645,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
 
   @Test
   public void testIOExceptionIsThrowAfterClose() throws IOException, URISyntaxException {
-    Configuration conf = getConfigurationWtihImplementation();
+    Configuration conf = getConfigurationWithImplementation();
 
     URI fsUri = new URI(String.format("gs://%s/", sharedBucketName1));
 
@@ -747,9 +731,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
 
   @Test
   public void getFileStatus_throwsExceptionWhenFileInfoDontExists() throws IOException {
-    Configuration conf = getConfigurationWtihImplementation();
-    GoogleHadoopFileSystem myGhfs = new GoogleHadoopFileSystem();
-    myGhfs.initialize(ghfs.getUri(), conf);
+    GoogleHadoopFileSystem myGhfs = createInMemoryGoogleHadoopFileSystem();
     URI fileUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
     Path filePath = ghfsHelper.castAsHadoopPath(fileUri);
     FileNotFoundException exception =
@@ -761,7 +743,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
   @Test
   public void testConfigurablePermissions() throws IOException {
     String testPermissions = "777";
-    Configuration conf = getConfigurationWtihImplementation();
+    Configuration conf = getConfigurationWithImplementation();
     conf.set(GoogleHadoopFileSystemConfiguration.PERMISSIONS_TO_REPORT.getKey(), testPermissions);
     GoogleHadoopFileSystem myGhfs = new GoogleHadoopFileSystem();
     myGhfs.initialize(ghfs.getUri(), conf);
@@ -785,7 +767,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
   public void testFileStatusUser() throws IOException, InterruptedException {
     String ugiUser = UUID.randomUUID().toString();
     UserGroupInformation ugi = UserGroupInformation.createRemoteUser(ugiUser);
-    Configuration conf = getConfigurationWtihImplementation();
+    Configuration conf = getConfigurationWithImplementation();
     GoogleHadoopFileSystem myGhfs = new GoogleHadoopFileSystem();
     myGhfs.initialize(ghfs.getUri(), conf);
     URI fileUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
@@ -818,10 +800,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
 
   @Test
   public void testConcat() throws IOException {
-    Configuration config = getConfigurationWtihImplementation();
-    GoogleHadoopFileSystem myGhfs = new GoogleHadoopFileSystem();
-    myGhfs.initialize(ghfs.getUri(), config);
-    Path directory = new Path(String.format("gs://%s/testConcat/", myGhfs.getRootBucketName()));
+    Path directory = new Path(ghfs.getWorkingDirectory(), "testConcat");
 
     long expectedLength = 0;
     List<Path> files = new ArrayList<>();
@@ -829,16 +808,16 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
       Path file = new Path(directory, String.format("file-%s", UUID.randomUUID()));
       ghfsHelper.writeFile(file, "data_" + file, 1, /* overwrite= */ false);
       files.add(file);
-      expectedLength += myGhfs.getFileStatus(file).getLen();
+      expectedLength += ghfs.getFileStatus(file).getLen();
     }
 
     // Create target file
     Path target = new Path(directory, "target");
     ghfsHelper.writeFile(target, new byte[0], /* numWrites= */ 1, /* overwrite= */ false);
 
-    myGhfs.concat(target, files.toArray(new Path[0]));
+    ghfs.concat(target, files.toArray(new Path[0]));
 
-    assertThat(myGhfs.getFileStatus(target).getLen()).isEqualTo(expectedLength);
+    assertThat(ghfs.getFileStatus(target).getLen()).isEqualTo(expectedLength);
 
     // cleanup
     assertThat(ghfs.delete(directory, true)).isTrue();
@@ -857,9 +836,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
 
   @Test
   public void concat_throwsExceptionWhenTargetDirectoryInSources() throws IOException {
-    Configuration config = getConfigurationWtihImplementation();
-    GoogleHadoopFileSystem myGhfs = new GoogleHadoopFileSystem();
-    myGhfs.initialize(ghfs.getUri(), config);
+    GoogleHadoopFileSystem myGhfs = createInMemoryGoogleHadoopFileSystem();
     Path directory =
         new Path(String.format("gs://%s/testConcat_exception/", myGhfs.getRootBucketName()));
     Path target = new Path(directory, "target");
@@ -897,9 +874,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
 
   @Test
   public void fileChecksum_throwsExceptionWhenFileNotFound() throws Exception {
-    Configuration config = getConfigurationWtihImplementation();
-    GoogleHadoopFileSystem myGhfs = new GoogleHadoopFileSystem();
-    myGhfs.initialize(ghfs.getUri(), config);
+    GoogleHadoopFileSystem myGhfs = createInMemoryGoogleHadoopFileSystem();
     URI fileUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
     Path filePath = ghfsHelper.castAsHadoopPath(fileUri);
     FileNotFoundException exception =
@@ -922,7 +897,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
 
   private void testFileChecksum(
       GcsFileChecksumType checksumType, Function<String, byte[]> checksumFn) throws Exception {
-    Configuration config = getConfigurationWtihImplementation();
+    Configuration config = getConfigurationWithImplementation();
     config.set("fs.gs.checksum.type", checksumType.name());
 
     GoogleHadoopFileSystem myGhfs = new GoogleHadoopFileSystem();
@@ -949,7 +924,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
   public void testInitializeWithEmptyWorkingDirectory_shouldHaveUserSpecificWorkingDirectory()
       throws IOException {
     GoogleHadoopFileSystem myGhfs = (GoogleHadoopFileSystem) ghfs;
-    Configuration config = loadConfig();
+    Configuration config = myGhfs.getConf();
     config.unset(GoogleHadoopFileSystemConfiguration.GCS_WORKING_DIRECTORY.getKey());
     ghfs.initialize(myGhfs.initUri, config);
 
@@ -969,7 +944,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
   }
 
   private void testGlobStatusFlatConcurrent(boolean flat, boolean concurrent) throws IOException {
-    Configuration configuration = getConfigurationWtihImplementation();
+    Configuration configuration = ghfs.getConf();
     configuration.setBoolean(
         GoogleHadoopFileSystemConfiguration.GCS_FLAT_GLOB_ENABLE.getKey(), flat);
     configuration.setBoolean(

@@ -1704,12 +1704,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     }
   }
 
-  protected void checkOpenUnchecked() {
-    if (isClosed()) {
-      throw new RuntimeException("GoogleHadoopFileSystem has been closed or not initialized.");
-    }
-  }
-
   private boolean isClosed() {
     return gcsFsSupplier == null || gcsFsSupplier.get() == null;
   }
