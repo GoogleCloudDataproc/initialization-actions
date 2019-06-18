@@ -26,7 +26,10 @@ import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorage.ListPage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage.ListVisibilityCalculator;
 import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorage;
@@ -273,6 +276,166 @@ public class GoogleCloudStorageTest {
     GoogleCloudStorageItemInfo itemInfo = rawStorage.getItemInfo(objectToCreate);
 
     assertThat(itemInfo.exists()).isTrue();
+    assertThat(itemInfo.getSize()).isEqualTo(0);
+  }
+
+  @Test
+  public void testCreateEmptyObjects() throws IOException {
+    String bucketName = getSharedBucketName();
+
+    List<StorageResourceId> storageResourceIds =
+        Lists.newArrayList(
+            new StorageResourceId(bucketName, "testCreateEmptyObjects_Object1"),
+            new StorageResourceId(bucketName, "testCreateEmptyObjects_Object2"));
+
+    rawStorage.createEmptyObjects(storageResourceIds);
+
+    rawStorage
+        .getItemInfos(storageResourceIds)
+        .forEach(
+            itemInfo -> {
+              assertWithMessage("%s should be empty", itemInfo).that(itemInfo.exists()).isTrue();
+              assertWithMessage("%s should be empty", itemInfo)
+                  .that(itemInfo.getSize())
+                  .isEqualTo(0);
+            });
+  }
+
+  @Test
+  public void testCreateEmptyObjectsWithOptions() throws IOException {
+    String bucketName = getSharedBucketName();
+
+    List<StorageResourceId> storageResourceIds =
+        Lists.newArrayList(
+            new StorageResourceId(bucketName, "testCreateEmptyObjectsWithOptions_Object1"),
+            new StorageResourceId(bucketName, "testCreateEmptyObjectsWithOptions_Object2"));
+
+    rawStorage.createEmptyObjects(storageResourceIds, CreateObjectOptions.DEFAULT);
+
+    rawStorage
+        .getItemInfos(storageResourceIds)
+        .forEach(
+            itemInfo -> {
+              assertWithMessage("%s should be empty", itemInfo).that(itemInfo.exists()).isTrue();
+              assertWithMessage("%s should be empty", itemInfo)
+                  .that(itemInfo.getSize())
+                  .isEqualTo(0);
+            });
+  }
+
+  @Test
+  public void testGetOptions() {
+    GoogleCloudStorageOptions options = rawStorage.getOptions();
+
+    assertThat(options.getAppName()).startsWith("GHFS/");
+  }
+
+  @Test
+  public void testOpenFileWithMatchingSize() throws IOException {
+    String bucketName = getSharedBucketName();
+
+    StorageResourceId objectToCreate =
+        new StorageResourceId(bucketName, "testOpenFileWithMatchingSize_Object");
+    byte[] objectBytes = writeObject(rawStorage, objectToCreate, /* objectSize= */ 512);
+
+    try (SeekableByteChannel channel = rawStorage.open(objectToCreate)) {
+      assertThat(channel.size()).isEqualTo(objectBytes.length);
+    }
+  }
+
+  @Test
+  public void testOpenFileWithMatchingSizeAndSpecifiedReadOptions() throws IOException {
+    String bucketName = getSharedBucketName();
+
+    StorageResourceId objectToCreate =
+        new StorageResourceId(
+            bucketName, "testOpenFileWithMatchingSizeAndSpecifiedReadOptions_Object");
+    byte[] objectBytes = writeObject(rawStorage, objectToCreate, /* objectSize= */ 512);
+
+    try (SeekableByteChannel channel =
+        rawStorage.open(objectToCreate, GoogleCloudStorageReadOptions.DEFAULT)) {
+      assertThat(channel.size()).isEqualTo(objectBytes.length);
+    }
+  }
+
+  @Test
+  public void testListObjectNames() throws IOException {
+    String bucketName = getSharedBucketName();
+
+    StorageResourceId objectToCreate =
+        new StorageResourceId(bucketName, "testListObjectNames_Object");
+
+    writeObject(rawStorage, objectToCreate, /* objectSize= */ 512);
+
+    List<String> listedName = rawStorage.listObjectNames(bucketName, "testListObjectNames", "/");
+
+    assertThat(listedName).containsExactly(objectToCreate.getObjectName());
+  }
+
+  @Test
+  public void testListObjectInfo() throws IOException {
+    String bucketName = getSharedBucketName();
+
+    StorageResourceId objectToCreate =
+        new StorageResourceId(bucketName, "testListObjectInfo_Object");
+
+    writeObject(rawStorage, objectToCreate, /* objectSize= */ 512);
+
+    List<GoogleCloudStorageItemInfo> listedObjects =
+        rawStorage.listObjectInfo(bucketName, "testListObjectInfo_", "/");
+
+    assertThat(listedObjects).hasSize(1);
+    assertThat(listedObjects.get(0).getObjectName()).isEqualTo(objectToCreate.getObjectName());
+  }
+
+  @Test
+  public void testlistObjectInfoPage() throws IOException {
+    String bucketName = getSharedBucketName();
+
+    StorageResourceId objectToCreate =
+        new StorageResourceId(bucketName, "testListObjectInfoPage_Object");
+
+    writeObject(rawStorage, objectToCreate, /* objectSize= */ 512);
+
+    ListPage<GoogleCloudStorageItemInfo> listedObjectsPage =
+        rawStorage.listObjectInfoPage(bucketName, "testListObjectInfoPage_Object", "/", "");
+
+    assertThat(listedObjectsPage.getNextPageToken()).isNull();
+    assertThat(listedObjectsPage.getItems()).hasSize(1);
+    assertThat(listedObjectsPage.getItems().get(0).getObjectName())
+        .isEqualTo(objectToCreate.getObjectName());
+  }
+
+  @Test
+  public void testComposeObjectsMovesObjectToAnother() throws IOException {
+    String bucketName = getSharedBucketName();
+
+    StorageResourceId srcObject =
+        new StorageResourceId(bucketName, "testListObjectMovesObjectToAnother_srcObject");
+    StorageResourceId dstObject =
+        new StorageResourceId(bucketName, "testListObjectMovesObjectToAnother_dstObject");
+
+    writeObject(rawStorage, srcObject, /* objectSize= */ 512);
+
+    GoogleCloudStorageItemInfo composedObject =
+        rawStorage.composeObjects(
+            ImmutableList.of(srcObject), dstObject, CreateObjectOptions.DEFAULT);
+    assertThat(composedObject.exists()).isTrue();
+    assertThat(composedObject.getObjectName()).isEqualTo(dstObject.getObjectName());
+  }
+
+  @Test
+  public void testCreateWithOptions() throws IOException {
+    String bucketName = getSharedBucketName();
+
+    StorageResourceId objectToCreate =
+        new StorageResourceId(bucketName, "testCreateWithOptions_Object");
+
+    rawStorage.create(objectToCreate, CreateObjectOptions.DEFAULT).close();
+
+    GoogleCloudStorageItemInfo itemInfo = rawStorage.getItemInfo(objectToCreate);
+    assertThat(itemInfo.exists()).isTrue();
+    assertThat(itemInfo.getObjectName()).isEqualTo(objectToCreate.getObjectName());
     assertThat(itemInfo.getSize()).isEqualTo(0);
   }
 
