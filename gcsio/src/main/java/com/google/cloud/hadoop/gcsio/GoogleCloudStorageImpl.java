@@ -52,8 +52,6 @@ import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
-import com.google.cloud.hadoop.util.RequesterPaysOptions;
-import com.google.cloud.hadoop.util.RequesterPaysOptions.RequesterPaysMode;
 import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.cloud.hadoop.util.RetryHttpInitializer;
@@ -377,6 +375,10 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     Map<String, String> rewrittenMetadata = encodeMetadata(options.getMetadata());
 
     if (storageOptions.isGrpcEnabled()) {
+      Optional<String> requesterPaysProject =
+          requesterShouldPay(resourceId.getBucketName())
+              ? Optional.of(storageOptions.getRequesterPaysOptions().getProjectId())
+              : Optional.absent();
       GoogleCloudStorageGrpcWriteChannel channel =
           new GoogleCloudStorageGrpcWriteChannel(
               backgroundTasksThreadPool,
@@ -385,6 +387,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
               resourceId.getObjectName(),
               storageOptions.getWriteChannelOptions(),
               writeConditions,
+              requesterPaysProject,
               rewrittenMetadata,
               options.getContentType());
       channel.initialize();
@@ -2125,17 +2128,25 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
   private <RequestT extends StorageRequest<?>> void setRequesterPaysProject(
       RequestT request, String bucketName) {
-    RequesterPaysOptions requesterPaysOptions = storageOptions.getRequesterPaysOptions();
-    if (bucketName == null || requesterPaysOptions.getMode() == RequesterPaysMode.DISABLED) {
-      return;
+    if (requesterShouldPay(bucketName)) {
+      setUserProject(request, storageOptions.getRequesterPaysOptions().getProjectId());
+    }
+  }
+
+  private boolean requesterShouldPay(String bucketName) {
+    if (bucketName == null) {
+      return false;
     }
 
-    if (requesterPaysOptions.getMode() == RequesterPaysMode.ENABLED
-        || (requesterPaysOptions.getMode() == RequesterPaysMode.CUSTOM
-            && requesterPaysOptions.getBuckets().contains(bucketName))
-        || (requesterPaysOptions.getMode() == RequesterPaysMode.AUTO
-            && autoBuckets.getUnchecked(bucketName))) {
-      setUserProject(request, requesterPaysOptions.getProjectId());
+    switch (storageOptions.getRequesterPaysOptions().getMode()) {
+      case ENABLED:
+        return true;
+      case CUSTOM:
+        return storageOptions.getRequesterPaysOptions().getBuckets().contains(bucketName);
+      case AUTO:
+        return autoBuckets.getUnchecked(bucketName);
+      default:
+        return false;
     }
   }
 

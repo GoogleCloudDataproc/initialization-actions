@@ -169,7 +169,8 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
     AsyncWriteChannelOptions options = AsyncWriteChannelOptions.newBuilder().build();
     ObjectWriteConditions writeConditions =
         new ObjectWriteConditions(Optional.of(1L), Optional.absent());
-    GoogleCloudStorageGrpcWriteChannel writeChannel = newWriteChannel(options, writeConditions);
+    GoogleCloudStorageGrpcWriteChannel writeChannel =
+        newWriteChannel(options, writeConditions, Optional.absent());
 
     ByteString data = ByteString.copyFromUtf8("test data");
     writeChannel.initialize();
@@ -188,7 +189,8 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
     AsyncWriteChannelOptions options = AsyncWriteChannelOptions.newBuilder().build();
     ObjectWriteConditions writeConditions =
         new ObjectWriteConditions(Optional.absent(), Optional.of(1L));
-    GoogleCloudStorageGrpcWriteChannel writeChannel = newWriteChannel(options, writeConditions);
+    GoogleCloudStorageGrpcWriteChannel writeChannel =
+        newWriteChannel(options, writeConditions, Optional.absent());
 
     ByteString data = ByteString.copyFromUtf8("test data");
     writeChannel.initialize();
@@ -199,6 +201,23 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
     expectedRequestBuilder
         .getInsertObjectSpecBuilder()
         .setIfMetagenerationMatch(Int64Value.newBuilder().setValue(1L));
+    verify(fakeService, times(1)).startResumableWrite(eq(expectedRequestBuilder.build()), any());
+  }
+
+  @Test
+  public void writeUsesRequesterPaysProjectIfProvided() throws Exception {
+    AsyncWriteChannelOptions options = AsyncWriteChannelOptions.newBuilder().build();
+    ObjectWriteConditions writeConditions = new ObjectWriteConditions();
+    GoogleCloudStorageGrpcWriteChannel writeChannel =
+        newWriteChannel(options, writeConditions, Optional.of("project-id"));
+
+    ByteString data = ByteString.copyFromUtf8("test data");
+    writeChannel.initialize();
+    writeChannel.write(data.asReadOnlyByteBuffer());
+    writeChannel.close();
+
+    StartResumableWriteRequest.Builder expectedRequestBuilder = START_REQUEST.toBuilder();
+    expectedRequestBuilder.getInsertObjectSpecBuilder().setUserProject("project-id");
     verify(fakeService, times(1)).startResumableWrite(eq(expectedRequestBuilder.build()), any());
   }
 
@@ -352,7 +371,9 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
   }
 
   private GoogleCloudStorageGrpcWriteChannel newWriteChannel(
-      AsyncWriteChannelOptions options, ObjectWriteConditions writeConditions) {
+      AsyncWriteChannelOptions options,
+      ObjectWriteConditions writeConditions,
+      Optional<String> requesterPaysProject) {
     return new GoogleCloudStorageGrpcWriteChannel(
         executor,
         stub,
@@ -360,6 +381,7 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
         OBJECT_NAME,
         options,
         writeConditions,
+        requesterPaysProject,
         OBJECT_METADATA,
         CONTENT_TYPE);
   }
@@ -368,7 +390,7 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
     AsyncWriteChannelOptions options = AsyncWriteChannelOptions.newBuilder().build();
     ObjectWriteConditions writeConditions = new ObjectWriteConditions();
 
-    return newWriteChannel(options, writeConditions);
+    return newWriteChannel(options, writeConditions, Optional.absent());
   }
 
   /* Returns an int with the same bytes as the uint32 representation of value. */

@@ -16,6 +16,7 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.BaseAbstractGoogleAsyncWriteChannel;
+import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
@@ -52,6 +53,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
 
   private final Object object;
   private final ObjectWriteConditions writeConditions;
+  private final Optional<String> requesterPaysProject;
   private final StorageObjectsStub stub;
 
   private GoogleCloudStorageItemInfo completedItemInfo = null;
@@ -63,11 +65,13 @@ public final class GoogleCloudStorageGrpcWriteChannel
       String objectName,
       AsyncWriteChannelOptions options,
       ObjectWriteConditions writeConditions,
+      Optional<String> requesterPaysProject,
       Map<String, String> objectMetadata,
       String contentType) {
     super(threadPool, options);
     this.stub = stub;
     this.writeConditions = writeConditions;
+    this.requesterPaysProject = requesterPaysProject;
     this.object =
         Object.newBuilder()
             .setName(objectName)
@@ -320,7 +324,6 @@ public final class GoogleCloudStorageGrpcWriteChannel
 
     /** Send a StartResumableWriteRequest and return the uploadId of the resumable write. */
     private String getUploadId() throws InterruptedException, IOException {
-      // TODO(julianandrews): set user project
       InsertObjectSpec.Builder insertObjectSpecBuilder =
           InsertObjectSpec.newBuilder().setResource(object);
       if (writeConditions.hasContentGenerationMatch()) {
@@ -330,6 +333,9 @@ public final class GoogleCloudStorageGrpcWriteChannel
       if (writeConditions.hasMetaGenerationMatch()) {
         insertObjectSpecBuilder.setIfMetagenerationMatch(
             Int64Value.newBuilder().setValue(writeConditions.getMetaGenerationMatch()));
+      }
+      if (requesterPaysProject.isPresent()) {
+        insertObjectSpecBuilder.setUserProject(requesterPaysProject.get());
       }
       StartResumableWriteRequest request =
           StartResumableWriteRequest.newBuilder()
