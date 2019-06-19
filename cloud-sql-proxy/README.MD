@@ -4,21 +4,27 @@ This initialization action installs a [Google Cloud SQL proxy](https://cloud.goo
 
 ## Using this initialization action
 
-You can use this initialization action to create a Dataproc cluster using a shared hive metastore.:
+Prerequisite: If this is your first time using Cloud SQL, enable the [Cloud SQL Admin API](https://cloud.google.com/sql/docs/mysql/admin-api/#enabling_the_api) before continuing.
 
-1. Using the `gcloud` command to create a new 2nd generation Cloud SQL intance (or use a previously created instance). You must enable the [Cloud SQL API](https://console.cloud.google.com/apis/library/sqladmin.googleapis.com/?q=sql) for your project.
+Choosing a region: You can find a list of regions where Cloud SQL instances are available [here](https://cloud.google.com/sql/docs/mysql/locations) and a list of regions where Dataproc clusters are available [here](https://cloud.google.com/compute/docs/regions-zones/#available). It is advisable to co-locate your Cloud SQL instances and Dataproc clusters in the same region.
+
+You can use this initialization action to create a Dataproc cluster using a shared hive metastore.
+
+1. Use the `gcloud` command to create a new 2nd generation Cloud SQL intance (or use a previously created instance).
 
     ```bash
     gcloud sql instances create <INSTANCE_NAME> \
         --tier db-n1-standard-1 \
-        --activation-policy=ALWAYS
+        --activation-policy=ALWAYS \
+	--region <REGION>
     ```
     a. Optionally create (or already have) other 2nd generation instances, which you wish to be accessible.
 
-1. Using the `gcloud` command to create a new cluster with this initialization action.
+1. Use the `gcloud` command to create a new cluster with this initialization action.
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
+    --region <REGION> \
     --scopes sql-admin \
     --initialization-actions gs://dataproc-initialization-actions/cloud-sql-proxy/cloud-sql-proxy.sh \
     --properties hive:hive.metastore.warehouse.dir=gs://<HIVE_DATA_BUCKET>/hive-warehouse \
