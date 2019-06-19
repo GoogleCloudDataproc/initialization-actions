@@ -216,7 +216,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
   public void open_throwsExceptionWhenHadoopPathNull() {
     GoogleHadoopFileSystem myGhfs = new GoogleHadoopFileSystem();
     IllegalArgumentException exception =
-        assertThrows(IllegalArgumentException.class, () -> myGhfs.open(null, 1));
+        assertThrows(IllegalArgumentException.class, () -> myGhfs.open((Path) null, 1));
     assertThat(exception).hasMessageThat().startsWith("hadoopPath must not be null");
   }
 
