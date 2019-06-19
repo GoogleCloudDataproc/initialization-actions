@@ -30,7 +30,7 @@ class JupyterTestCase(DataprocTestCase):
             ("STANDARD", "1.3", ["m"]),
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_datalab(self, configuration, dataproc_version, machine_suffixes):
+    def test_jupyter(self, configuration, dataproc_version, machine_suffixes):
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
@@ -52,7 +52,7 @@ class JupyterTestCase(DataprocTestCase):
             ("STANDARD", "1.3", ["m"]),
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_datalab_with_metadata(self, configuration, dataproc_version,
+    def test_jupyter_with_metadata(self, configuration, dataproc_version,
                                    machine_suffixes):
         jupyter_port = "8125"
 
