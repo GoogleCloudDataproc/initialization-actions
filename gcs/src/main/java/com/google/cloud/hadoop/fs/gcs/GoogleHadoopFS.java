@@ -88,6 +88,7 @@ public class GoogleHadoopFS extends AbstractFileSystem {
         checksumOpt,
         createParent);
     if (!createParent) {
+      // TODO: don't ignore 'createParent' flag
       logger.atFine().log("Ignoring createParent=false. Creating parents anyways.");
     }
     // AbstractFileSystems rely on permission to not overwrite.
