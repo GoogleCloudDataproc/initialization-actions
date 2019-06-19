@@ -60,9 +60,4 @@ GCS_TEST_PRIVATE_KEYFILE=$(readlink -f "$GCS_TEST_PRIVATE_KEYFILE")
 export GCS_TEST_PRIVATE_KEYFILE
 export RUN_INTEGRATION_TESTS=true
 
-if ! command -v mvn > /dev/null; then
-  echo "Couldn't find mvn on the PATH"
-  exit 1
-fi
-
-mvn -B -e -T1C "-P${HADOOP_VERSION}" -Pintegration-test clean test "${@:5}"
+./mvnw -B -e -T1C "-P${HADOOP_VERSION}" -Pintegration-test clean test "${@:5}"

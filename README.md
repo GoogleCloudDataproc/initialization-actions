@@ -41,9 +41,9 @@ from the main directory:
 
 ```bash
 # with Hadoop 2 and YARN support:
-mvn -P hadoop2 clean package
+./mvnw -P hadoop2 clean package
 # with Hadoop 3 and YARN support:
-mvn -P hadoop3 clean package
+./mvnw -P hadoop3 clean package
 ```
 
 In order to verify test coverage for specific Hadoop version, run the following
@@ -51,9 +51,9 @@ commands from the main directory:
 
 ```bash
 # with Hadoop 2 and YARN support:
-mvn -P hadoop2 -P coverage clean verify
+./mvnw -P hadoop2 -P coverage clean verify
 # with Hadoop 3 and YARN support:
-mvn -P hadoop3 -P coverage clean verify
+./mvnw -P hadoop3 -P coverage clean verify
 ```
 
 The GCS connector JAR can be found in `gcs/target/`. The BigQuery JAR can be

@@ -9,3 +9,6 @@ bin/
 
 # MacOS folder files
 .DS_Store
+
+# Ignore Maven wrapper jar
+.mvn/wrapper/maven-wrapper.jar
