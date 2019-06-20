@@ -4,9 +4,9 @@ lazy val commonSettings = Seq(
   organization := "com.google.cloud.bigdataoss",
   name := "spark-pubsub",
   version := "0.1.0-SNAPSHOT",
-  scalaVersion := "2.11.8",
+  scalaVersion := "2.11.12",
   crossScalaVersions := Seq("2.10.5"),
-  sparkVersion := "2.2.0",
+  sparkVersion := "2.3.3",
   spName := "google/spark-pubsub",
   sparkComponents ++= Seq("core", "streaming")
 )
@@ -38,13 +38,13 @@ val excludedOrgs = Seq(
   "org.apache.httpcomponents"
 )
 
-val googleCloudJavaVersion = "0.32.0"
-val hadoopVersion = "2.8.0"
+val googleCloudJavaVersion = "0.35.0-beta"
+val hadoopVersion = "2.9.2"
 libraryDependencies ++= (
   Seq(
-    "com.google.cloud" % "google-cloud-pubsub" % s"$googleCloudJavaVersion-beta",
-    "com.google.cloud" % "google-cloud-monitoring" % s"$googleCloudJavaVersion-beta",
-    "org.scalatest" %% "scalatest" % "3.0.1" % "test",
+    "com.google.cloud" % "google-cloud-pubsub" % s"$googleCloudJavaVersion",
+    "com.google.cloud" % "google-cloud-monitoring" % s"$googleCloudJavaVersion",
+    "org.scalatest" %% "scalatest" % "3.0.8" % "test",
     "org.mockito" % "mockito-all" % "1.10.19" % "test")
     .map(_.excludeAll(excludedOrgs.map(ExclusionRule(_)): _*))
   ++ Seq(
