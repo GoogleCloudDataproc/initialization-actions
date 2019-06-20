@@ -18,6 +18,8 @@ set -euxo pipefail
 
 readonly HADOOP_PROFILE="$1"
 
+cd /bigdata-interop
+
 # Print Maven info
 ./mvnw -v
 

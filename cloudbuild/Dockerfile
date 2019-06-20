@@ -1,7 +1,5 @@
 # This Dockerfile creates an image for running presubmit tests.
-FROM java:8
+FROM openjdk:8-jdk
 
-# Copy everything into the container
+# Copy everything into the container to allow concurrent build execution
 COPY . /bigdata-interop
-
-WORKDIR /bigdata-interop

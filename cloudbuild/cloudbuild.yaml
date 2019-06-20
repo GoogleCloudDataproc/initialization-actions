@@ -1,14 +1,21 @@
 steps:
   # 1. Create a Docker image containing bigdata-interop repo
   - name: 'gcr.io/cloud-builders/docker'
+    id: 'docker-build'
     args: ['build', '--tag=gcr.io/$PROJECT_ID/dataproc-bigdata-interop-presubmit', '-f', 'cloudbuild/Dockerfile', '.']
 
-  # 2. Run Hadoop 2 presumit tests
+  # 2. Run Hadoop 2 unit tests concurrently
   - name: 'gcr.io/$PROJECT_ID/dataproc-bigdata-interop-presubmit'
+    id: 'unit-tests-hadoop2'
+    waitFor: ['docker-build']
     entrypoint: 'bash'
     args: ['/bigdata-interop/cloudbuild/presubmit.sh', 'hadoop2']
 
-  # 3. Run Hadoop 3 presumit tests
+  # 3. Run Hadoop 3 unit tests concurrently
   - name: 'gcr.io/$PROJECT_ID/dataproc-bigdata-interop-presubmit'
+    id: 'unit-tests-hadoop3'
+    waitFor: ['docker-build']
     entrypoint: 'bash'
     args: ['/bigdata-interop/cloudbuild/presubmit.sh', 'hadoop3']
+options:
+  machineType: 'N1_HIGHCPU_8'
