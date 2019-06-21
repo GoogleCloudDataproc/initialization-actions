@@ -12,10 +12,12 @@ On the Dataproc master node: - `dask-scheduler`, and `dask-cuda-worker`
 On the Dataproc worker nodes: - `dask-cuda-worker`
 
 Our initialization action does the following:
-1. [install nvidia GPU driver](internal/install-gpu-driver.sh)
-2. [install RAPIDS](rapids.sh) - [installs miniconda](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/conda), and [conda packages](internal/conda-environment.yml)
-3. [start dask-scheduler and dask-cuda-workers](internal/launch-dask.sh)
 
+1.  [install nvidia GPU driver](internal/install-gpu-driver.sh)
+1.  [install RAPIDS](rapids.sh) -
+    [installs miniconda](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/conda),
+    and [conda packages](internal/conda-environment.yml)
+1.  [start dask-scheduler and dask-cuda-workers](internal/launch-dask.sh)
 
 ## Using this initialization action
 
@@ -38,7 +40,7 @@ RAPIDS installed:
         --optional-components=ANACONDA
     ```
 
-2.  Once the cluster has been created, the Dask scheduler listens for workers on
+1.  Once the cluster has been created, the Dask scheduler listens for workers on
     port `8786`, and its status dashboard is on port `8787` on the Dataproc
     master node. These ports can be changed by modifying the
     [internal/launch-dask.sh](launch-dask.sh) script.
@@ -108,9 +110,7 @@ configurable via a metadata key using `--metadata`.
 *   `run-cuda-worker-on-master=false` - whether to run dask-cuda-workers on the
     master node
 
-For example:
-```bash
-DATAPROC_BUCKET=dataproc-initialization-actions
+For example: ```bash DATAPROC_BUCKET=dataproc-initialization-actions
 
 gcloud beta dataproc clusters create <CLUSTER_NAME> \
 --master-accelerator type=nvidia-tesla-t4,count=4 \
@@ -119,8 +119,7 @@ gcloud beta dataproc clusters create <CLUSTER_NAME> \
 --worker-machine-type n1-standard-32 \
 --metadata "run-cuda-worker-on-master=false" \
 --initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
---optional-components=ANACONDA
-```
+--optional-components=ANACONDA ```
 
 #### Initialization Action Source
 
