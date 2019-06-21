@@ -34,12 +34,18 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
   private static final String GET_REQUEST_FORMAT =
       "GET:https://www.googleapis.com/storage/v1/b/%s/o/%s";
 
+  private static final String POST_REQUEST_FORMAT =
+      "POST:https://www.googleapis.com/storage/v1/b/%s/o/%s";
+
   private static final String UPLOAD_REQUEST_FORMAT =
       "POST:https://www.googleapis.com/upload/storage/v1/b/%s/o?uploadType=multipart:%s";
 
   private static final String LIST_REQUEST_FORMAT =
       "GET:https://www.googleapis.com/storage/v1/b/%s/o"
           + "?delimiter=/&includeTrailingDelimiter=%s&maxResults=%d%s&prefix=%s";
+
+  private static final String BATCH_REQUEST_FORMAT =
+      "POST:https://www.googleapis.com/batch/storage/v1";
 
   private static final String PAGE_TOKEN_PARAM_PATTERN = "&pageToken=[^&]+";
 
@@ -87,8 +93,16 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
     return String.format(GET_REQUEST_FORMAT, bucketName, object);
   }
 
+  public static String postRequestString(String bucketName, String object) {
+    return String.format(POST_REQUEST_FORMAT, bucketName, object);
+  }
+
   public static String uploadRequestString(String bucketName, String object) {
     return String.format(UPLOAD_REQUEST_FORMAT, bucketName, object);
+  }
+
+  public static String batchRequestString() {
+    return String.format(BATCH_REQUEST_FORMAT);
   }
 
   public static String listRequestString(
