@@ -7,9 +7,13 @@ This initialization action installs the latest release version of
 These initialization actions automate the process of setting up a Dask-cuDF
 cluster by running the following:
 
-On the Dataproc master node: - `dask-scheduler`, and `dask-cuda-worker`
+On the Dataproc master node:
 
-On the Dataproc worker nodes: - `dask-cuda-worker`
+-   `dask-scheduler`, and `dask-cuda-worker`
+
+On the Dataproc worker nodes:
+
+-   `dask-cuda-worker`
 
 Our initialization action does the following:
 
