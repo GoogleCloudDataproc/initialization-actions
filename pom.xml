@@ -92,6 +92,7 @@
     <google.api-client.version>1.30.9</google.api-client.version>
     <google.api-bigquery.version>v2-rev20200324-${google.api-client.version}</google.api-bigquery.version>
     <google.api-storage.version>v1-rev20200326-${google.api-client.version}</google.api-storage.version>
+    <google.auth.version>0.17.1</google.auth.version>
     <google.auto-value.version>1.7</google.auto-value.version>
     <google.cloud-bigquery-storage.version>0.130.0-beta</google.cloud-bigquery-storage.version>
     <!--
@@ -371,8 +372,28 @@
         <version>${google.auto-value.version}</version>
       </dependency>
       <dependency>
+        <groupId>com.google.auth</groupId>
+        <artifactId>google-auth-library-credentials</artifactId>
+        <version>${google.auth.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.auth</groupId>
+        <artifactId>google-auth-library-oauth2-http</artifactId>
+        <version>${google.auth.version}</version>
+      </dependency>
+      <dependency>
         <groupId>io.grpc</groupId>
-        <artifactId>grpc-netty</artifactId>
+        <artifactId>grpc-auth</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-alts</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-netty-shaded</artifactId>
         <version>${grpc.version}</version>
       </dependency>
       <dependency>

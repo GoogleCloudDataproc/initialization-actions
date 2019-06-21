@@ -291,7 +291,12 @@
                   <include>io.grpc</include>
                   <include>io.opencensus</include>
                   <include>com.google.protobuf:protobuf-java</include>
-                  <include>io.grpc:grpc-netty</include>
+                  <include>com.google.protobuf:protobuf-java-util</include>
+                  <include>com.google.auth:google-auth-library-oauth2-http</include>
+                  <include>com.google.auth:google-auth-library-credentials</include>
+                  <include>io.grpc:grpc-auth</include>
+                  <include>io.grpc:grpc-alts</include>
+                  <include>io.grpc:grpc-netty-shaded</include>
                   <include>io.grpc:grpc-context</include>
                   <include>io.grpc:grpc-core</include>
                   <include>io.grpc:grpc-protobuf</include>

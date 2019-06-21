@@ -71,7 +71,7 @@ import com.google.common.io.BaseEncoding;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.google.storage.v1.StorageObjectsGrpc;
 import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsStub;
-import io.grpc.ManagedChannelBuilder;
+import io.grpc.alts.GoogleDefaultChannelBuilder;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -114,9 +114,8 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
   private static final String USER_PROJECT_FIELD_NAME = "userProject";
 
-  // TODO(b/135137195): Replace this with a real target once we have one.
   // The GCS gRPC server.
-  private static final String GRPC_TARGET = "10.138.0.4:9990";
+  private static final String GRPC_TARGET = "storage.googleapis.com:443";
 
   // A function to encode metadata map values
   private static String encodeMetadataValues(byte[] bytes) {
@@ -251,8 +250,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
     // Create the gRPC stub;
     this.gcsGrpcStub =
-        StorageObjectsGrpc.newStub(
-            ManagedChannelBuilder.forTarget(GRPC_TARGET).usePlaintext().build());
+        StorageObjectsGrpc.newStub(GoogleDefaultChannelBuilder.forTarget(GRPC_TARGET).build());
   }
 
   /**

@@ -59,7 +59,11 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
   private static GetObjectRequest GET_OBJECT_REQUEST =
       GetObjectRequest.newBuilder().setBucket(BUCKET_NAME).setObject(OBJECT_NAME).build();
   private static GetObjectMediaRequest GET_OBJECT_MEDIA_REQUEST =
-      GetObjectMediaRequest.newBuilder().setBucket(BUCKET_NAME).setObject(OBJECT_NAME).setGeneration(1).build();
+      GetObjectMediaRequest.newBuilder()
+          .setBucket(BUCKET_NAME)
+          .setObject(OBJECT_NAME)
+          .setGeneration(1)
+          .build();
 
   private StorageObjectsStub stub;
   private FakeService fakeService;
