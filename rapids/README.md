@@ -110,16 +110,20 @@ configurable via a metadata key using `--metadata`.
 *   `run-cuda-worker-on-master=false` - whether to run dask-cuda-workers on the
     master node
 
-For example: ```bash DATAPROC_BUCKET=dataproc-initialization-actions
+For example:
+
+```bash
+DATAPROC_BUCKET=dataproc-initialization-actions
 
 gcloud beta dataproc clusters create <CLUSTER_NAME> \
---master-accelerator type=nvidia-tesla-t4,count=4 \
---master-machine-type n1-standard-32 \
---worker-accelerator type=nvidia-tesla-t4,count=4 \
---worker-machine-type n1-standard-32 \
---metadata "run-cuda-worker-on-master=false" \
---initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
---optional-components=ANACONDA ```
+    --master-accelerator type=nvidia-tesla-t4,count=4 \
+    --master-machine-type n1-standard-32 \
+    --worker-accelerator type=nvidia-tesla-t4,count=4 \
+    --worker-machine-type n1-standard-32 \
+    --metadata "run-cuda-worker-on-master=false" \
+    --initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
+    --optional-components=ANACONDA
+```
 
 #### Initialization Action Source
 
