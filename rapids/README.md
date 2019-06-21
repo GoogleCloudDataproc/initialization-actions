@@ -11,12 +11,11 @@ On the Dataproc master node: - `dask-scheduler`, and `dask-cuda-worker`
 
 On the Dataproc worker nodes: - `dask-cuda-worker`
 
-Our initialization action does the following: 1.
-[install nvidia GPU driver](internal/install-gpu-driver.sh) 2.
-[install RAPIDS](rapids.sh) -
-[installs miniconda](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/conda),
-and [conda packages](internal/conda-environment.yml) 3.
-[start dask-scheduler and dask-cuda-workers](internal/launch-dask.sh)
+Our initialization action does the following:
+1. [install nvidia GPU driver](internal/install-gpu-driver.sh)
+2. [install RAPIDS](rapids.sh) - [installs miniconda](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/conda), and [conda packages](internal/conda-environment.yml)
+3. [start dask-scheduler and dask-cuda-workers](internal/launch-dask.sh)
+
 
 ## Using this initialization action
 
@@ -54,7 +53,7 @@ a
 or a from a plain Python script or interpreter session.
 
 See
-[the example notebook](https://github.com/rapidsai/notebooks-extended/tree/master/advanced/E2E/taxi/NYCTaxi-E2E.ipynb)
+[the example notebook](https://github.com/rapidsai/notebooks-extended/blob/master/intermediate_notebooks/E2E/taxi/NYCTaxi-E2E.ipynb)
 that demonstrates end to end data pre-processing (cuDF & Dask) and model
 training (XGBoost) with RAPIDS APIs. Additional example notebooks
 [are available](https://github.com/rapidsai/notebooks). See the
@@ -109,7 +108,9 @@ configurable via a metadata key using `--metadata`.
 *   `run-cuda-worker-on-master=false` - whether to run dask-cuda-workers on the
     master node
 
-For example: ```bash DATAPROC_BUCKET=dataproc-initialization-actions
+For example:
+```bash
+DATAPROC_BUCKET=dataproc-initialization-actions
 
 gcloud beta dataproc clusters create <CLUSTER_NAME> \
 --master-accelerator type=nvidia-tesla-t4,count=4 \
@@ -118,7 +119,8 @@ gcloud beta dataproc clusters create <CLUSTER_NAME> \
 --worker-machine-type n1-standard-32 \
 --metadata "run-cuda-worker-on-master=false" \
 --initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
---optional-components=ANACONDA ```
+--optional-components=ANACONDA
+```
 
 #### Initialization Action Source
 
