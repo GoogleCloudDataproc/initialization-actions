@@ -26,18 +26,43 @@ readonly RANGER_VERSION='1.2.0'
 readonly SOLR_HOME='/usr/lib/solr'
 readonly MASTER_ADDITIONAL="$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)"
 readonly CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)"
+readonly DATAPROC_VERSION="$(grep DATAPROC_VERSION /etc/environment | cut -d= -f2 | sed -e 's/"//g')"
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
   return 1
 }
 
+function retry_apt_command() {
+  cmd="$1"
+  for ((i = 0; i < 10; i++)); do
+    if eval "$cmd"; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
+function update_apt_get() {
+  retry_apt_command "apt-get update"
+}
+
+function install_apt_get() {
+  local pkgs="$*"
+  retry_apt_command "apt-get install -y $pkgs"
+}
+
 function download_and_install_component() {
-  local full_component_name="$(echo ${1} | sed "s/^ranger/ranger-${RANGER_VERSION}/")"
-  gsutil cp "gs://${RANGER_GCS_BUCKET}/${full_component_name}.tar.gz" "${RANGER_INSTALL_DIR}/"
-  tar -xf "${full_component_name}.tar.gz" \
-    && ln -s "${full_component_name}" "${1}" \
-    && rm -f "${full_component_name}.tar.gz"
+  # This function is intended to run only on Dataproc 1.1 and 1.2.
+  # For Dataproc 1.3 and later. Debian package is available.
+  if [[ "${DATAPROC_VERSION}" == '1.1' ]] || [[ "${DATAPROC_VERSION}" == '1.2'  ]]; then
+    local full_component_name="$(echo ${1} | sed "s/^ranger/ranger-${RANGER_VERSION}/")"
+    gsutil cp "gs://${RANGER_GCS_BUCKET}/${full_component_name}.tar.gz" "${RANGER_INSTALL_DIR}/"
+    tar -xf "${full_component_name}.tar.gz" \
+      && ln -s "${full_component_name}" "${1}" \
+      && rm -f "${full_component_name}.tar.gz"
+  fi
 }
 
 function configure_admin() {
@@ -266,6 +291,11 @@ function main() {
     err 'Ranger admin password not set. Please use metadata flag - default-password'
   fi
   mkdir -p "${RANGER_INSTALL_DIR}" && cd "${RANGER_INSTALL_DIR}"
+
+  if [[ "${DATAPROC_VERSION}" != '1.1' ]] && [[ "${DATAPROC_VERSION}" != '1.2' ]]; then
+    update_apt_get
+    install_apt_get ranger
+  fi
 
   if [[ "${role}" == 'Master' && "${NODE_NAME}" =~ ^.*(-m|-m-0)$ ]]; then
     run_ranger_admin
