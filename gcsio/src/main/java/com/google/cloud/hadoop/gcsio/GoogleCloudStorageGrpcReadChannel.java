@@ -21,6 +21,8 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.flogger.GoogleLogger;
+import com.google.common.hash.Hasher;
+import com.google.common.hash.Hashing;
 import com.google.google.storage.v1.GetObjectMediaRequest;
 import com.google.google.storage.v1.GetObjectMediaResponse;
 import com.google.google.storage.v1.GetObjectRequest;
@@ -381,6 +383,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
   private class ContentChannel implements ReadableByteChannel {
     // TODO(julianandrews): Implement retry.
     // TODO(julianandrews): Implement BEST_EFFORT generationReadConsistency.
+    //                      Make sure to invalidate the objectHasher on generation change.
     // TODO(julianandrews): Implement minRangeRequest
     public long position;
 
@@ -388,6 +391,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
     private PipedOutputStream pipeSink;
     private boolean contentChannelIsOpen = true;
     private ResponseObserver responseObserver;
+    private Optional<Hasher> objectHasher;
 
     public ContentChannel(long readOffset, Optional<Integer> readLimit) throws IOException {
       int pipeBufferSize =
@@ -397,6 +401,12 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
       responseObserver = new ResponseObserver();
       stub.getMedia(buildRequest(readOffset, readLimit), responseObserver);
       position = readOffset;
+      boolean isGenerationReadConsistencyLatest =
+          readOptions.getGenerationReadConsistency().equals(GenerationReadConsistency.LATEST);
+      objectHasher =
+          position == 0 && !isGenerationReadConsistencyLatest
+              ? Optional.of(Hashing.crc32c().newHasher())
+              : Optional.empty();
     }
 
     @Override
@@ -419,14 +429,31 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
       }
 
       int bytesRead;
+      byte[] data;
       if (buffer.hasArray()) {
-        bytesRead = pipeSource.read(buffer.array());
+        data = buffer.array();
+        bytesRead = pipeSource.read(data);
       } else {
-        byte[] result = new byte[buffer.remaining()];
-        bytesRead = pipeSource.read(result);
-        buffer.put(result);
+        data = new byte[buffer.remaining()];
+        bytesRead = pipeSource.read(data);
+        buffer.put(data);
       }
       position += bytesRead == -1 ? 0 : bytesRead;
+      if (objectHasher.isPresent()) {
+        if (bytesRead > 0) {
+          objectHasher.get().putBytes(data, 0, bytesRead);
+        }
+        if (position >= objectMetadata.get().getSize()) {
+          int checksum = objectHasher.get().hash().asInt();
+          int expectedChecksum = objectMetadata.get().getCrc32C().getValue();
+          if (checksum != expectedChecksum) {
+            throw new IOException(
+                String.format(
+                    "Object checksum didn't match. Expected %s, got %s.",
+                    expectedChecksum, checksum));
+          }
+        }
+      }
       return bytesRead;
     }
 
@@ -456,6 +483,10 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
         if (bytesSkipped > 0) {
           totalBytesSkipped += bytesSkipped;
         }
+      }
+      if (totalBytesSkipped > 0) {
+        // Invalidate the object hasher since we're not reading sequentially.
+        objectHasher = Optional.empty();
       }
       position += totalBytesSkipped;
       return totalBytesSkipped;
@@ -500,7 +531,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
 
       @Override
       public void onNext(GetObjectMediaResponse response) {
-        // TODO(julianandrews): Calculate and verify checksums.
+        // TODO(julianandrews): Calculate and verify message checksums.
         try {
           response.getChecksummedData().getContent().writeTo(pipeSink);
         } catch (IOException e) {

@@ -22,6 +22,7 @@ import com.google.google.storage.v1.StorageObjectsGrpc;
 import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsImplBase;
 import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsStub;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.UInt32Value;
 import io.grpc.Status;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
@@ -47,11 +48,13 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
   private static final String BUCKET_NAME = "bucket-name";
   private static final String OBJECT_NAME = "object-name";
   private static final int OBJECT_SIZE = 640;
+  private static final int DEFAULT_OBJECT_CRC32C = 185327488;
   private static Object DEFAULT_OBJECT =
       Object.newBuilder()
           .setBucket(BUCKET_NAME)
           .setName(OBJECT_NAME)
           .setSize(OBJECT_SIZE)
+          .setCrc32C(UInt32Value.newBuilder().setValue(DEFAULT_OBJECT_CRC32C))
           .setGeneration(1)
           .build();
   private static GetObjectRequest GET_OBJECT_REQUEST =
@@ -140,6 +143,149 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
   }
 
   @Test
+  public void singleReadSucceedsWithValidObjectChecksum() throws Exception {
+    fakeService.setObject(
+        DEFAULT_OBJECT.toBuilder()
+            .setCrc32C(UInt32Value.newBuilder().setValue(DEFAULT_OBJECT_CRC32C))
+            .build());
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setGenerationReadConsistency(GenerationReadConsistency.STRICT)
+            .build();
+    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
+
+    ByteBuffer buffer = ByteBuffer.allocate(OBJECT_SIZE);
+    readChannel.read(buffer);
+
+    assertArrayEquals(fakeService.data.toByteArray(), buffer.array());
+  }
+
+  @Test
+  public void singleReadFailsWithInvalidObjectChecksum() throws Exception {
+    fakeService.setObject(
+        DEFAULT_OBJECT.toBuilder().setCrc32C(UInt32Value.newBuilder().setValue(0)).build());
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setGenerationReadConsistency(GenerationReadConsistency.STRICT)
+            .build();
+    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
+
+    ByteBuffer buffer = ByteBuffer.allocate(OBJECT_SIZE);
+    IOException thrown = assertThrows(IOException.class, () -> readChannel.read(buffer));
+    assertTrue(thrown.getMessage().contains("Object checksum"));
+  }
+
+  @Test
+  public void singleReadFailsWithNoObjectChecksum() throws Exception {
+    fakeService.setObject(DEFAULT_OBJECT.toBuilder().clearCrc32C().build());
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setGenerationReadConsistency(GenerationReadConsistency.STRICT)
+            .build();
+    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
+
+    ByteBuffer buffer = ByteBuffer.allocate(OBJECT_SIZE);
+    IOException thrown = assertThrows(IOException.class, () -> readChannel.read(buffer));
+    assertTrue(thrown.getMessage().contains("Object checksum"));
+  }
+
+  @Test
+  public void partialReadSucceedsWithInvalidObjectChecksum() throws Exception {
+    fakeService.setObject(
+        DEFAULT_OBJECT.toBuilder().setCrc32C(UInt32Value.newBuilder().setValue(0)).build());
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setGenerationReadConsistency(GenerationReadConsistency.STRICT)
+            .build();
+    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
+
+    ByteBuffer buffer = ByteBuffer.allocate(OBJECT_SIZE - 10);
+    readChannel.read(buffer);
+
+    assertArrayEquals(
+        fakeService.data.substring(0, OBJECT_SIZE - 10).toByteArray(), buffer.array());
+  }
+
+  @Test
+  public void multipleSequentialsReadsSucceedWithValidObjectChecksum() throws Exception {
+    fakeService.setObject(
+        DEFAULT_OBJECT.toBuilder()
+            .setCrc32C(UInt32Value.newBuilder().setValue(DEFAULT_OBJECT_CRC32C))
+            .build());
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setGenerationReadConsistency(GenerationReadConsistency.STRICT)
+            .build();
+    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
+
+    ByteBuffer firstBuffer = ByteBuffer.allocate(100);
+    ByteBuffer secondBuffer = ByteBuffer.allocate(OBJECT_SIZE - 100);
+    readChannel.read(firstBuffer);
+    readChannel.read(secondBuffer);
+
+    assertArrayEquals(fakeService.data.substring(0, 100).toByteArray(), firstBuffer.array());
+    assertArrayEquals(fakeService.data.substring(100).toByteArray(), secondBuffer.array());
+  }
+
+  @Test
+  public void multipleSequentialsReadsFailWithInvalidObjectChecksum() throws Exception {
+    fakeService.setObject(
+        DEFAULT_OBJECT.toBuilder().setCrc32C(UInt32Value.newBuilder().setValue(0)).build());
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setGenerationReadConsistency(GenerationReadConsistency.STRICT)
+            .build();
+    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
+
+    ByteBuffer firstBuffer = ByteBuffer.allocate(100);
+    ByteBuffer secondBuffer = ByteBuffer.allocate(OBJECT_SIZE - 100);
+    readChannel.read(firstBuffer);
+
+    IOException thrown = assertThrows(IOException.class, () -> readChannel.read(secondBuffer));
+    assertTrue(thrown.getMessage().contains("Object checksum"));
+  }
+
+  @Test
+  public void readIgnoresObjectChecksumAfterSeekInFadviseAuto() throws Exception {
+    fakeService.setObject(
+        DEFAULT_OBJECT.toBuilder().setCrc32C(UInt32Value.newBuilder().setValue(0)).build());
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setGenerationReadConsistency(GenerationReadConsistency.STRICT)
+            .setFadvise(Fadvise.AUTO)
+            .build();
+    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
+
+    ByteBuffer firstBuffer = ByteBuffer.allocate(99);
+    ByteBuffer secondBuffer = ByteBuffer.allocate(OBJECT_SIZE - 100);
+    readChannel.read(firstBuffer);
+    readChannel.position(100);
+    readChannel.read(secondBuffer);
+
+    assertArrayEquals(fakeService.data.substring(0, 99).toByteArray(), firstBuffer.array());
+    assertArrayEquals(fakeService.data.substring(100).toByteArray(), secondBuffer.array());
+  }
+
+  @Test
+  public void multipleReadsIgnoreObjectChecksumForLatestGenerationReads() throws Exception {
+    fakeService.setObject(
+        DEFAULT_OBJECT.toBuilder().setCrc32C(UInt32Value.newBuilder().setValue(0)).build());
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setGenerationReadConsistency(GenerationReadConsistency.LATEST)
+            .build();
+    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
+
+    ByteBuffer firstBuffer = ByteBuffer.allocate(100);
+    ByteBuffer secondBuffer = ByteBuffer.allocate(OBJECT_SIZE - 100);
+    readChannel.read(firstBuffer);
+    readChannel.read(secondBuffer);
+
+    assertArrayEquals(fakeService.data.substring(0, 100).toByteArray(), firstBuffer.array());
+    assertArrayEquals(fakeService.data.substring(100).toByteArray(), secondBuffer.array());
+  }
+
+  @Test
   public void readHandlesGetError() throws Exception {
     GoogleCloudStorageReadOptions options =
         GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(false).build();
@@ -149,7 +295,6 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
             .asException());
     GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
 
-    // TODO
     ByteBuffer buffer = ByteBuffer.allocate(10);
     IOException thrown = assertThrows(IOException.class, () -> readChannel.read(buffer));
     assertTrue(thrown.getCause().getMessage().contains("Custom error message."));
