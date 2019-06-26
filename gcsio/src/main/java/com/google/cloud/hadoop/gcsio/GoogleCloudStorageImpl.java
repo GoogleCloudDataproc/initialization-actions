@@ -114,7 +114,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
   private static final String USER_PROJECT_FIELD_NAME = "userProject";
 
-  // TODO(julianandrews): Replace this with a real target once we have one.
+  // TODO(b/135137195): Replace this with a real target once we have one.
   // The GCS gRPC server.
   private static final String GRPC_TARGET = "10.138.0.4:9990";
 

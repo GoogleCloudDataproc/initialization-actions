@@ -14,6 +14,9 @@ option java_multiple_files = true;
 option java_outer_classname = "CloudStorageProto";
 option java_package = "com.google.google.storage.v1";
 
+// TODO(b/135277729): Figure out the best way to keep this file (and
+// storage_resources.proto) in sync with the official versions.
+
 service StorageBucketAccessControls {
   // Permanently deletes the ACL entry for the specified entity on the specified
   // bucket.

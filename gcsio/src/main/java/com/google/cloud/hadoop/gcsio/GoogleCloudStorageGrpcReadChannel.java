@@ -48,7 +48,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   // Size of buffer to allocate for incoming data.
-  // TODO(julianandrews): Figure out what an appropriate default is, and how this impacts
+  // TODO(b/135137108): Figure out what an appropriate default is, and how this impacts
   // performance.
   private static final int DEFAULT_BUFFER_SIZE = 8192;
 
@@ -144,7 +144,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
 
   @Override
   public int read(ByteBuffer buffer) throws IOException {
-    // TODO(julianandrews): Implement footer prefetch?
+    // TODO(b/136088557): Implement footer prefetch?
     if (!isOpen()) {
       throw new ClosedChannelException();
     }
@@ -272,7 +272,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
 
   /** Fetch object metadata from the server. */
   private Object getMetadata() throws IOException {
-    // TODO(julianandrews): Implement retry.
+    // TODO(b/135136492): Implement retry.
     GetObjectRequest request =
         GetObjectRequest.newBuilder().setBucket(bucketName).setObject(objectName).build();
 
@@ -381,10 +381,10 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
 
   /** Internal channel wrapper around data from getMedia requests. */
   private class ContentChannel implements ReadableByteChannel {
-    // TODO(julianandrews): Implement retry.
-    // TODO(julianandrews): Implement BEST_EFFORT generationReadConsistency.
+    // TODO(b/135136492): Implement retry.
+    // TODO(b/135138893): Implement BEST_EFFORT generationReadConsistency.
     //                      Make sure to invalidate the objectHasher on generation change.
-    // TODO(julianandrews): Implement minRangeRequest
+    // TODO(b/135138159): Implement minRangeRequest
     public long position;
 
     private PipedInputStream pipeSource;
@@ -531,7 +531,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
 
       @Override
       public void onNext(GetObjectMediaResponse response) {
-        // TODO(julianandrews): Calculate and verify message checksums.
+        // TODO(b/134521856): Calculate and verify message checksums.
         try {
           response.getChecksummedData().getContent().writeTo(pipeSink);
         } catch (IOException e) {

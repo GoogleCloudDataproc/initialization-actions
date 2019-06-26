@@ -167,7 +167,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
       return responseObserver.getResponse();
     }
 
-    // TODO(julianandrews): Keep a buffer for the chunk data and resume on recoverable errors.
+    // TODO(b/135137444): Keep a buffer for the chunk data and resume on recoverable errors.
     /** Handler for responses from the Insert streaming RPC. */
     private class InsertChunkResponseObserver
         implements ClientResponseObserver<InsertObjectRequest, Object> {

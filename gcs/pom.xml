@@ -315,7 +315,7 @@
                   <include>commons-codec:commons-codec</include>
                 </includes>
               </artifactSet>
-              <!-- TODO(julianandrews): Reenable minimizeJar.
+              <!-- TODO(b/135136403): Reenable minimizeJar.
                    Disabled because minimizeJar strips out a bunch of files
                    needed by gRPC for instance NettyChannelProvider and all
                    it's dependencies. -->
