@@ -3,6 +3,7 @@
 [![GitHub release](https://img.shields.io/github/release/GoogleCloudPlatform/bigdata-interop.svg)](https://github.com/GoogleCloudPlatform/bigdata-interop/releases/latest)
 [![GitHub release date](https://img.shields.io/github/release-date/GoogleCloudPlatform/bigdata-interop.svg)](https://github.com/GoogleCloudPlatform/bigdata-interop/releases/latest)
 [![Code Quality: Java](https://img.shields.io/lgtm/grade/java/g/GoogleCloudPlatform/bigdata-interop.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/GoogleCloudPlatform/bigdata-interop/context:java)
+[![codecov](https://codecov.io/gh/GoogleCloudPlatform/bigdata-interop/branch/master/graph/badge.svg)](https://codecov.io/gh/GoogleCloudPlatform/bigdata-interop)
 
 Libraries and tools for interoperability between Apache Hadoop related
 open-source software and Google Cloud Platform.

@@ -10,6 +10,12 @@ steps:
     waitFor: ['docker-build']
     entrypoint: 'bash'
     args: ['/bigdata-interop/cloudbuild/presubmit.sh', 'hadoop2']
+    env:
+      - 'CODECOV_TOKEN=$_CODECOV_TOKEN'
+      - 'VCS_BRANCH_NAME=$BRANCH_NAME'
+      - 'VCS_COMMIT_ID=$COMMIT_SHA'
+      - 'VCS_TAG=$TAG_NAME'
+      - 'CI_BUILD_ID=$BUILD_ID'
 
   # 3. Run Hadoop 3 unit tests concurrently
   - name: 'gcr.io/$PROJECT_ID/dataproc-bigdata-interop-presubmit'
@@ -17,5 +23,12 @@ steps:
     waitFor: ['docker-build']
     entrypoint: 'bash'
     args: ['/bigdata-interop/cloudbuild/presubmit.sh', 'hadoop3']
+    env:
+      - 'CODECOV_TOKEN=$_CODECOV_TOKEN'
+      - 'VCS_BRANCH_NAME=$BRANCH_NAME'
+      - 'VCS_COMMIT_ID=$COMMIT_SHA'
+      - 'VCS_TAG=$TAG_NAME'
+      - 'CI_BUILD_ID=$BUILD_ID'
+    
 options:
   machineType: 'N1_HIGHCPU_8'
