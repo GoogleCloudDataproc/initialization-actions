@@ -243,7 +243,10 @@ def test_yarn_plugin():
     validation_string = 'org.apache.hadoop.security.AccessControlException: ' \
                         'User {} cannot submit applications to queue root.default'\
         .format(username.strip())
-    if validation_string not in stderr:
+    validation_string_deb_package = 'org.apache.hadoop.security.AccessControlException: ' \
+                                    'User {} does not have permission to submit application' \
+        .format(username.strip())
+    if (validation_string not in stderr) and (validation_string_deb_package not in stderr):
         raise Exception('Ranger yarn plugin is not working properly')
 
 
