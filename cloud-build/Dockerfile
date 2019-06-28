@@ -14,8 +14,6 @@ RUN apt-get -y update && \
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install -r integration_tests/requirements.txt
 
-# RUN python3 integration_tests/setup.py install
-
 ENV PATH=$PATH:/builder/google-cloud-sdk/bin/
 ENV PYTHONPATH /
 
