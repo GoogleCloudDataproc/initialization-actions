@@ -87,20 +87,20 @@
     <apache.avro.version>1.7.7</apache.avro.version>
     <google.gson.version>2.2.4</google.gson.version>
 
-    <apache.httpcomponents.version>4.5.6</apache.httpcomponents.version>
+    <apache.httpcomponents.version>4.5.9</apache.httpcomponents.version>
     <google.api.version>1.27.0</google.api.version>
-    <google.api-bigquery.version>v2-rev20181221-${google.api.version}</google.api-bigquery.version>
-    <google.api-storage.version>v1-rev20181109-${google.api.version}</google.api-storage.version>
-    <google.auto-value.version>1.6.3</google.auto-value.version>
-    <google.cloud-bigquery-storage.version>0.95.0-beta</google.cloud-bigquery-storage.version>
-    <google.flogger.version>0.3.1</google.flogger.version>
-    <google.guava.version>27.0.1-jre</google.guava.version>
+    <google.api-bigquery.version>v2-rev20190616-${google.api.version}</google.api-bigquery.version>
+    <google.api-storage.version>v1-rev20190523-${google.api.version}</google.api-storage.version>
+    <google.auto-value.version>1.6.5</google.auto-value.version>
+    <google.cloud-bigquery-storage.version>0.98.0-beta</google.cloud-bigquery-storage.version>
+    <google.flogger.version>0.4</google.flogger.version>
+    <google.guava.version>28.0-jre</google.guava.version>
     <google.protobuf.version>3.8.0</google.protobuf.version>
-    <google.truth.version>0.44</google.truth.version>
+    <google.truth.version>0.46</google.truth.version>
     <hadoop.two.version>2.9.2</hadoop.two.version>
     <hadoop.three.version>3.2.0</hadoop.three.version>
-    <junit.version>4.13-beta-1</junit.version>
-    <mockito.version>2.27.0</mockito.version>
+    <junit.version>4.13-beta-3</junit.version>
+    <mockito.version>2.28.2</mockito.version>
   </properties>
 
   <modules>

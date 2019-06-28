@@ -47,6 +47,8 @@
 
         fs.gs.outputstream.direct.upload.enable (default: false)
 
+1.  Update all dependencies to latest versions.
+
 ### 1.9.14 - 2019-02-13
 
 1.  Implement Hadoop File System `concat` method using GCS compose API.

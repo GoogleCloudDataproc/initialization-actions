@@ -29,6 +29,8 @@
         mapred.bq.input.selected.fields
         mapred.bq.input.skew.limit
 
+1.  Update all dependencies to latest versions.
+
 ### 0.13.14 - 2019-02-13
 
 1.  POM updates for GCS connector 1.9.14.
