@@ -71,6 +71,8 @@
   </distributionManagement>
 
   <properties>
+    <argLine/>
+
     <build.java.source.version>8</build.java.source.version>
     <build.java.target.version>8</build.java.target.version>
 
@@ -517,7 +519,7 @@
           </excludes>
           <reuseForks>false</reuseForks>
           <forkCount>2</forkCount>
-          <argLine>@{argLine} -mx2560m</argLine>
+          <argLine>@{argLine} -mx2650m</argLine>
         </configuration>
       </plugin>
       <plugin>
