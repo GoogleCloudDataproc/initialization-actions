@@ -221,14 +221,9 @@
                   </includes>
                 </filter>
                 <filter>
-                  <artifact>com.google.apis:google-api-services-bigquery</artifact>
-                  <excludes>
-                    <exclude>bigquery.v2.json</exclude>
-                  </excludes>
-                </filter>
-                <filter>
                   <artifact>*:*</artifact>
                   <excludes>
+                    <exclude>*.json</exclude>
                     <exclude>**/*.proto</exclude>
                   </excludes>
                 </filter>

@@ -239,9 +239,9 @@
                   </includes>
                 </filter>
                 <filter>
-                  <artifact>com.google.apis:google-api-services-storage</artifact>
+                  <artifact>*:*</artifact>
                   <excludes>
-                    <exclude>storage.v1.json</exclude>
+                    <exclude>*.json</exclude>
                   </excludes>
                 </filter>
               </filters>
