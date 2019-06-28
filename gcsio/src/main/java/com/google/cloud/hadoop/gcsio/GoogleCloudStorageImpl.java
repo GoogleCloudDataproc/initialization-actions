@@ -460,6 +460,24 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     }
   }
 
+  public void updateMetadata(GoogleCloudStorageItemInfo itemInfo, Map<String, byte[]> metadata)
+      throws IOException {
+    StorageResourceId resourceId = itemInfo.getResourceId();
+    Preconditions.checkArgument(
+        resourceId.isStorageObject(), "Expected full StorageObject ID, got %s", resourceId);
+
+    StorageObject storageObject = new StorageObject().setMetadata(encodeMetadata(metadata));
+
+    Storage.Objects.Patch patchObject =
+        configureRequest(
+                gcs.objects()
+                    .patch(resourceId.getBucketName(), resourceId.getObjectName(), storageObject),
+                resourceId.getBucketName())
+            .setIfMetagenerationMatch(itemInfo.getMetaGeneration());
+
+    patchObject.execute();
+  }
+
   /**
    * See {@link GoogleCloudStorage#createEmptyObject(StorageResourceId)} for details about
    * expected behavior.
@@ -515,7 +533,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
                 // Make sure to catch Throwable instead of only IOException so that we can
                 // correctly wrap other such throwables and propagate them out cleanly inside
                 // innerExceptions; common sources of non-IOExceptions include Preconditions
-                // checks which get enforced at varous layers in the library stack.
+                // checks which get enforced at various layers in the library stack.
                 innerExceptions.add(
                     new IOException("Error re-fetching after rate-limit error: " + resourceId, t));
               }
@@ -647,6 +665,14 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     if (innerExceptions.size() > 0) {
       throw GoogleCloudStorageExceptions.createCompositeException(innerExceptions);
     }
+  }
+
+  public void deleteObject(StorageResourceId resourceId, long metaGeneration) throws IOException {
+    String bucketName = resourceId.getBucketName();
+    Storage.Objects.Delete deleteObject =
+        configureRequest(gcs.objects().delete(bucketName, resourceId.getObjectName()), bucketName)
+            .setIfMetagenerationMatch(metaGeneration);
+    deleteObject.execute();
   }
 
   /** See {@link GoogleCloudStorage#deleteObjects(List)} for details about expected behavior. */
@@ -1991,7 +2017,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     return compositeInfo;
   }
 
-  private <RequestT extends StorageRequest<?>> RequestT configureRequest(
+  <RequestT extends StorageRequest<?>> RequestT configureRequest(
       RequestT request, String bucketName) {
     setRequesterPaysProject(request, bucketName);
     return request;

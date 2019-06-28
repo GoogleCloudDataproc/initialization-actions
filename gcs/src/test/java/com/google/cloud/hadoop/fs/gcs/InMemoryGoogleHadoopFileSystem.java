@@ -48,11 +48,7 @@ public class InMemoryGoogleHadoopFileSystem
     if (inMemoryGcsFs != null) {
       return inMemoryGcsFs;
     }
-    try {
-      return new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
-    } catch (IOException e) {
-      throw new RuntimeException("Could not initialize in-memory Google Cloud Storage.", e);
-    }
+    return new GoogleCloudStorageFileSystem(new InMemoryGoogleCloudStorage());
   }
 
   /**

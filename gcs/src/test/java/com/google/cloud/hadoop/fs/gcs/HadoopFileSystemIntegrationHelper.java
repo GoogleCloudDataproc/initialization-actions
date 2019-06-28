@@ -174,12 +174,9 @@ public class HadoopFileSystemIntegrationHelper
     return null;
   }
 
-  /**
-   * Helper which reads the entire file as a String.
-   */
+  /** Helper which reads the entire file as a String. */
   @Override
-  protected String readTextFile(String bucketName, String objectName)
-      throws IOException {
+  public String readTextFile(String bucketName, String objectName) throws IOException {
     Path hadoopPath = createSchemeCompatibleHadoopPath(bucketName, objectName);
     return readTextFile(hadoopPath);
   }

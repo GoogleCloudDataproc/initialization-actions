@@ -18,12 +18,15 @@ package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static org.apache.commons.codec.CharEncoding.UTF_8;
 
 import com.google.api.client.http.HttpExecuteInterceptor;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -38,7 +41,14 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
       "POST:https://www.googleapis.com/storage/v1/b/%s/o/%s";
 
   private static final String UPLOAD_REQUEST_FORMAT =
-      "POST:https://www.googleapis.com/upload/storage/v1/b/%s/o?uploadType=multipart:%s";
+      "POST:https://www.googleapis.com/upload/storage/v1/b/%s/o"
+          + "?ifGenerationMatch=0&uploadType=multipart:%s";
+
+  private static final String UPDATE_METADATA_REQUEST_FORMAT =
+      "POST:https://www.googleapis.com/storage/v1/b/%s/o/%s?ifMetagenerationMatch=%d";
+
+  private static final String DELETE_REQUEST_FORMAT =
+      "DELETE:https://www.googleapis.com/storage/v1/b/%s/o/%s?ifMetagenerationMatch=%d";
 
   private static final String LIST_REQUEST_FORMAT =
       "GET:https://www.googleapis.com/storage/v1/b/%s/o"
@@ -97,8 +107,25 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
     return String.format(POST_REQUEST_FORMAT, bucketName, object);
   }
 
-  public static String uploadRequestString(String bucketName, String object) {
-    return String.format(UPLOAD_REQUEST_FORMAT, bucketName, object);
+  public static String uploadRequestString(
+      String bucketName, String object, boolean generationMatch) {
+    String request = String.format(UPLOAD_REQUEST_FORMAT, bucketName, object);
+    return generationMatch ? request : request.replaceAll("ifGenerationMatch=0&", "");
+  }
+
+  public static String updateMetadataRequestString(
+      String bucketName, String object, int metaGeneration) throws UnsupportedEncodingException {
+    return String.format(
+        UPDATE_METADATA_REQUEST_FORMAT,
+        bucketName,
+        URLEncoder.encode(object, UTF_8),
+        metaGeneration);
+  }
+
+  public static String deleteRequestString(String bucketName, String object, long metaGeneration)
+      throws UnsupportedEncodingException {
+    return String.format(
+        DELETE_REQUEST_FORMAT, bucketName, URLEncoder.encode(object, UTF_8), metaGeneration);
   }
 
   public static String batchRequestString() {

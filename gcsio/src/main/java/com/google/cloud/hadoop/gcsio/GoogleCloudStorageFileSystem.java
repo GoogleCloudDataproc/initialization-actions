@@ -29,6 +29,8 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage.ListPage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions.TimestampUpdatePredicate;
+import com.google.cloud.hadoop.gcsio.cooplock.CoopLockOperationDao;
+import com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecordsDao;
 import com.google.cloud.hadoop.util.LazyExecutorService;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.CharMatcher;
@@ -48,6 +50,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.DirectoryNotEmptyException;
 import java.nio.file.FileAlreadyExistsException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -57,6 +60,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -101,10 +105,13 @@ public class GoogleCloudStorageFileSystem {
   // GCS access instance.
   private GoogleCloudStorage gcs;
 
-  private final PathCodec pathCodec;
-
   // FS options
   private final GoogleCloudStorageFileSystemOptions options;
+
+  private final PathCodec pathCodec;
+
+  private final CoopLockRecordsDao coopLockRecordsDao;
+  private final CoopLockOperationDao coopLockOperationDao;
 
   // Executor for updating directory timestamps.
   private ExecutorService updateTimestampsExecutor = createUpdateTimestampsExecutor();
@@ -158,12 +165,18 @@ public class GoogleCloudStorageFileSystem {
 
     checkArgument(credential != null, "credential must not be null");
 
+    GoogleCloudStorageImpl gcsImpl =
+        new GoogleCloudStorageImpl(options.getCloudStorageOptions(), credential);
+    this.gcs = gcsImpl;
     this.options = options;
-    this.gcs = new GoogleCloudStorageImpl(options.getCloudStorageOptions(), credential);
     this.pathCodec = options.getPathCodec();
 
+    this.coopLockRecordsDao = new CoopLockRecordsDao(gcsImpl);
+    this.coopLockOperationDao = new CoopLockOperationDao(gcsImpl, pathCodec);
+
     if (options.isPerformanceCacheEnabled()) {
-      gcs = new PerformanceCachingGoogleCloudStorage(gcs, options.getPerformanceCacheOptions());
+      this.gcs =
+          new PerformanceCachingGoogleCloudStorage(this.gcs, options.getPerformanceCacheOptions());
     }
   }
 
@@ -171,21 +184,45 @@ public class GoogleCloudStorageFileSystem {
    * Constructs a GoogleCloudStorageFilesystem based on an already-configured underlying
    * GoogleCloudStorage {@code gcs}.
    */
-  public GoogleCloudStorageFileSystem(GoogleCloudStorage gcs) throws IOException {
-    this(gcs, GoogleCloudStorageFileSystemOptions.newBuilder()
-        .setImmutableCloudStorageOptions(gcs.getOptions())
-        .build());
+  @VisibleForTesting
+  public GoogleCloudStorageFileSystem(GoogleCloudStorage gcs) {
+    this(
+        gcs,
+        GoogleCloudStorageFileSystemOptions.newBuilder()
+            .setImmutableCloudStorageOptions(gcs.getOptions())
+            .build());
   }
 
   /**
    * Constructs a GoogleCloudStorageFilesystem based on an already-configured underlying
    * GoogleCloudStorage {@code gcs}. Any options pertaining to GCS creation will be ignored.
    */
+  @VisibleForTesting
   public GoogleCloudStorageFileSystem(
-      GoogleCloudStorage gcs, GoogleCloudStorageFileSystemOptions options) throws IOException {
+      GoogleCloudStorage gcs, GoogleCloudStorageFileSystemOptions options) {
     this.gcs = gcs;
     this.options = options;
     this.pathCodec = options.getPathCodec();
+    this.coopLockRecordsDao = null;
+    this.coopLockOperationDao = null;
+  }
+
+  /**
+   * Constructs a GoogleCloudStorageFilesystem based on an already-configured underlying
+   * GoogleCloudStorageImpl {@code gcs}. Any options pertaining to GCS creation will be ignored.
+   */
+  @VisibleForTesting
+  public GoogleCloudStorageFileSystem(
+      GoogleCloudStorageImpl gcs, GoogleCloudStorageFileSystemOptions options) {
+    this.gcs = gcs;
+    this.options = options;
+    this.pathCodec = options.getPathCodec();
+    this.coopLockRecordsDao = new CoopLockRecordsDao(gcs);
+    this.coopLockOperationDao = new CoopLockOperationDao(gcs, pathCodec);
+  }
+
+  public CoopLockRecordsDao getCoopLockRecordsDao() {
+    return coopLockRecordsDao;
   }
 
   @VisibleForTesting
@@ -400,7 +437,25 @@ public class GoogleCloudStorageFileSystem {
       itemsToDelete.add(fileInfo);
     }
 
-    deleteInternal(itemsToDelete, bucketsToDelete);
+    if (options.enableCooperativeLocking() && fileInfo.isDirectory()) {
+      String operationId = UUID.randomUUID().toString();
+      StorageResourceId resourceId = pathCodec.validatePathAndGetId(fileInfo.getPath(), true);
+
+      coopLockRecordsDao.lockPaths(operationId, resourceId);
+      Future<?> lockUpdateFuture = Futures.immediateCancelledFuture();
+      try {
+        lockUpdateFuture =
+            coopLockOperationDao.persistDeleteOperation(
+                path, itemsToDelete, bucketsToDelete, operationId, resourceId, lockUpdateFuture);
+
+        deleteInternal(itemsToDelete, bucketsToDelete);
+        coopLockRecordsDao.unlockPaths(operationId, resourceId);
+      } finally {
+        lockUpdateFuture.cancel(/* mayInterruptIfRunning= */ true);
+      }
+    } else {
+      deleteInternal(itemsToDelete, bucketsToDelete);
+    }
 
     repairImplicitDirectory(parentInfoFuture);
 
@@ -731,8 +786,16 @@ public class GoogleCloudStorageFileSystem {
    * copied and not the content of any file.
    */
   private void renameInternal(FileInfo srcInfo, URI dst) throws IOException {
-    if (srcInfo.isDirectory()) {
-      renameDirectoryInternal(srcInfo, dst);
+    if (srcInfo.isDirectory() && options.enableCooperativeLocking()) {
+      String operationId = UUID.randomUUID().toString();
+      StorageResourceId srcResourceId = pathCodec.validatePathAndGetId(srcInfo.getPath(), true);
+      StorageResourceId dstResourceId = pathCodec.validatePathAndGetId(dst, true);
+
+      coopLockRecordsDao.lockPaths(operationId, srcResourceId, dstResourceId);
+      renameDirectoryInternal(srcInfo, dst, operationId);
+      coopLockRecordsDao.unlockPaths(operationId, srcResourceId, dstResourceId);
+    } else if (srcInfo.isDirectory()) {
+      renameDirectoryInternal(srcInfo, dst, /* operationId= */ null);
     } else {
       URI src = srcInfo.getPath();
       StorageResourceId srcResourceId = pathCodec.validatePathAndGetId(src, true);
@@ -762,7 +825,8 @@ public class GoogleCloudStorageFileSystem {
    *
    * @see #renameInternal
    */
-  private void renameDirectoryInternal(FileInfo srcInfo, URI dst) throws IOException {
+  private void renameDirectoryInternal(FileInfo srcInfo, URI dst, String operationId)
+      throws IOException {
     checkArgument(srcInfo.isDirectory(), "'%s' should be a directory", srcInfo);
 
     Pattern markerFilePattern = options.getMarkerFilePattern();
@@ -777,9 +841,8 @@ public class GoogleCloudStorageFileSystem {
     // we will try to carry out the copies in this list's order.
     List<FileInfo> srcItemInfos = listAllFileInfoForPrefix(srcInfo.getPath());
 
-    // Create the destination directory.
+    // Convert to the destination directory.
     dst = FileInfo.convertToDirectoryPath(pathCodec, dst);
-    mkdir(dst);
 
     // Create a list of sub-items to copy.
     String prefix = srcInfo.getPath().toString();
@@ -793,10 +856,32 @@ public class GoogleCloudStorageFileSystem {
       }
     }
 
+    Future<?> lockUpdateFuture = null;
+    Instant operationInstant = Instant.now();
+    if (options.enableCooperativeLocking()
+        && srcInfo.getItemInfo().getBucketName().equals(dst.getAuthority())) {
+      lockUpdateFuture =
+          coopLockOperationDao.persistUpdateOperation(
+              srcInfo,
+              dst,
+              operationId,
+              srcToDstItemNames,
+              srcToDstMarkerItemNames,
+              operationInstant);
+    }
+
+    // Create the destination directory.
+    mkdir(dst);
+
     // First, copy all items except marker items
     copyInternal(srcToDstItemNames);
     // Finally, copy marker items (if any) to mark rename operation success
     copyInternal(srcToDstMarkerItemNames);
+
+    if (options.enableCooperativeLocking()
+        && srcInfo.getItemInfo().getBucketName().equals(dst.getAuthority())) {
+      coopLockOperationDao.checkpointUpdateOperation(srcInfo, dst, operationId, operationInstant);
+    }
 
     // So far, only the destination directories are updated. Only do those now:
     if (!srcToDstItemNames.isEmpty() || !srcToDstMarkerItemNames.isEmpty()) {
@@ -830,6 +915,10 @@ public class GoogleCloudStorageFileSystem {
           srcItemInfos.stream().map(FileInfo::getPath).collect(toCollection(ArrayList::new));
       // Any path that was deleted, we should update the parent except for parents we also deleted
       tryUpdateTimestampsForParentDirectories(srcItemNames, srcItemNames);
+    }
+
+    if (lockUpdateFuture != null) {
+      lockUpdateFuture.cancel(/* mayInterruptIfRunning= */ false);
     }
   }
 
@@ -1242,14 +1331,6 @@ public class GoogleCloudStorageFileSystem {
             shutdownExecutor(updateTimestampsExecutor, /* waitSeconds= */ 10);
           } finally {
             updateTimestampsExecutor = null;
-          }
-        }
-
-        if (cachedExecutor != null) {
-          try {
-            shutdownExecutor(cachedExecutor, /* waitSeconds= */ 5);
-          } finally {
-            cachedExecutor = null;
           }
         }
       }

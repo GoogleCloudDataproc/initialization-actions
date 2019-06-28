@@ -71,7 +71,7 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
     return gcsfs.create(path, options);
   }
 
-  protected GoogleCloudStorageFileSystem gcsfs;
+  public final GoogleCloudStorageFileSystem gcsfs;
 
   public GoogleCloudStorageFileSystemIntegrationHelper(GoogleCloudStorageFileSystem gcsfs) {
     super(gcsfs.getGcs());

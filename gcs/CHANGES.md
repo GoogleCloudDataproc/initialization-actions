@@ -49,6 +49,18 @@
 
 1.  Update all dependencies to latest versions.
 
+1.  Support Cooperative Locking for directory operations:
+
+        fs.gs.cooperative.locking.enable (default: false)
+        fs.gs.cooperative.locking.expiration.timeout.ms (default: 2,000)
+
+1.  Add FSCK tool for recovery of failed Cooperative Locking for directory
+    operations:
+
+        hadoop jar /usr/lib/hadoop/lib/gcs-connector.jar \
+            com.google.cloud.hadoop.fs.gcs.CoopLockFsck \
+            --rollForward gs://my-bucket
+
 ### 1.9.14 - 2019-02-13
 
 1.  Implement Hadoop File System `concat` method using GCS compose API.
