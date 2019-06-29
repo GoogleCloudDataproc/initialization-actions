@@ -26,7 +26,7 @@
 
   <groupId>com.google.cloud.bigdataoss</groupId>
   <artifactId>bigdataoss-parent</artifactId>
-  <version>2.0.0-RC1</version>
+  <version>2.0.0-RC2-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <url>https://github.com/GoogleCloudPlatform/BigData-interop/</url>
@@ -80,8 +80,8 @@
 
     <gpg.skip>true</gpg.skip>
 
-    <bigdataoss.version>2.0.0-RC1</bigdataoss.version>
-    <bigquery-connector.version>1.0.0-RC1</bigquery-connector.version>
+    <bigdataoss.version>2.0.0-RC2-SNAPSHOT</bigdataoss.version>
+    <bigquery-connector.version>1.0.0-RC2-SNAPSHOT</bigquery-connector.version>
 
     <!-- Keep in sync with Hadoop dependencies -->
     <apache.avro.version>1.7.7</apache.avro.version>
