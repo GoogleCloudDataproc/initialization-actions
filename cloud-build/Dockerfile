@@ -10,6 +10,7 @@ COPY . init-actions/
 RUN ls -a 
 #COPY ./python3-fastunit/fastunit init-actions/
 RUN cp -r python3-fastunit/fastunit init-actions/
+RUN cp -r python3-fastunit/setup.py init-actions/
 WORKDIR init-actions/
 RUN ls -a
 
@@ -18,6 +19,8 @@ RUN apt-get -y update && \
 
 RUN python3 -m pip install --upgrade pip
 RUN python3 -m pip install -r integration_tests/requirements.txt
+
+RUN python3 setup.py install
 
 ENV PATH=$PATH:/builder/google-cloud-sdk/bin/
 ENV PYTHONPATH /
