@@ -8,7 +8,8 @@ RUN git clone https://github.com/ityoung/python3-fastunit.git
 # Copy everything into the container
 COPY . init-actions/
 RUN ls -a 
-COPY ./python3-fastunit/fastunit init-actions/
+#COPY ./python3-fastunit/fastunit init-actions/
+RUN cp -r python3-fastunit/fastunit init-actions/
 WORKDIR init-actions/
 RUN ls -a
 
