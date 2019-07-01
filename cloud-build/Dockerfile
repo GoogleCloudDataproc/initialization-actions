@@ -5,8 +5,8 @@ FROM gcr.io/cloud-builders/gcloud
 
 # Copy everything into the container
 COPY . init-actions/
-RUN ls -a 
-#COPY ./python3-fastunit/fastunit init-actions/
+
+# Get fastunit dependency
 RUN git clone https://github.com/ityoung/python3-fastunit.git
 RUN cp -r python3-fastunit/fastunit init-actions/
 RUN cp -r python3-fastunit/setup.py init-actions/
