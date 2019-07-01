@@ -45,7 +45,7 @@ declare -a TESTS_TO_RUN
 for test_dir in "${DIRECTORIES_TO_TEST[@]}"; do
   if ! tests=$(compgen -G "${test_dir}test*.py"); then
     echo "ERROR: presubmit failed - cannot find tests inside '${test_dir}' directory"
-    # exit 1
+    exit 1
   fi
   mapfile -t tests_array < <(echo "${tests}")
   TESTS_TO_RUN+=("${tests_array[@]}")
