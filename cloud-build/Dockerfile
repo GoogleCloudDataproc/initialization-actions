@@ -3,8 +3,11 @@
 
 FROM gcr.io/cloud-builders/gcloud
 
+RUN git clone git@github.com:ityoung/python3-fastunit.git
+
 # Copy everything into the container
 COPY . init-actions/
+COPY python3-fastunit/fastunit init-actions/
 WORKDIR init-actions/
 RUN ls -a
 
