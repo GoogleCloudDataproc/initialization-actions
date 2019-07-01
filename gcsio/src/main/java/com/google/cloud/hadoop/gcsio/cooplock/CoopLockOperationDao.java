@@ -1,9 +1,24 @@
+/*
+ * Copyright 2019 Google LLC. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.google.cloud.hadoop.gcsio.cooplock;
 
 import static com.google.cloud.hadoop.gcsio.CreateObjectOptions.DEFAULT_CONTENT_TYPE;
 import static com.google.cloud.hadoop.gcsio.CreateObjectOptions.EMPTY_METADATA;
 import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecordsDao.LOCK_DIRECTORY;
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
@@ -16,9 +31,9 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.PathCodec;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Streams;
 import com.google.common.flogger.GoogleLogger;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.gson.Gson;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -31,7 +46,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -43,9 +57,11 @@ import java.util.stream.Collectors;
 public class CoopLockOperationDao {
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
-  private static final Set<String> VALID_OPERATIONS = ImmutableSet.of("delete", "rename");
+  public static final String RENAME_LOG_RECORD_SEPARATOR = " -> ";
+
   private static final String OPERATION_LOG_FILE_FORMAT = "%s_%s_%s.log";
   private static final String OPERATION_LOCK_FILE_FORMAT = "%s_%s_%s.lock";
+
   private static final CreateObjectOptions CREATE_OBJECT_OPTIONS =
       new CreateObjectOptions(/* overwriteExisting= */ false, "application/text", EMPTY_METADATA);
   private static final CreateObjectOptions UPDATE_OBJECT_OPTIONS =
@@ -56,6 +72,11 @@ public class CoopLockOperationDao {
 
   private static final Gson GSON = new Gson();
 
+  private final ScheduledExecutorService scheduledThreadPool =
+      Executors.newScheduledThreadPool(
+          /* corePoolSize= */ 0,
+          new ThreadFactoryBuilder().setNameFormat("coop-lock-thread-%d").setDaemon(true).build());
+
   private GoogleCloudStorage gcs;
   private PathCodec pathCodec;
 
@@ -65,20 +86,18 @@ public class CoopLockOperationDao {
   }
 
   public Future<?> persistDeleteOperation(
-      URI path,
-      List<FileInfo> itemsToDelete,
-      List<FileInfo> bucketsToDelete,
       String operationId,
+      Instant operationInstant,
       StorageResourceId resourceId,
-      Future<?> lockUpdateFuture)
+      List<FileInfo> itemsToDelete,
+      List<FileInfo> bucketsToDelete)
       throws IOException {
-    Instant operationInstant = Instant.now();
     URI operationLockPath =
         writeOperationFile(
-            path.getAuthority(),
+            resourceId.getBucketName(),
             OPERATION_LOCK_FILE_FORMAT,
             CREATE_OBJECT_OPTIONS,
-            "delete",
+            CoopLockOperationType.DELETE,
             operationId,
             operationInstant,
             ImmutableList.of(
@@ -91,86 +110,90 @@ public class CoopLockOperationDao {
             .map(i -> i.getItemInfo().getResourceId().toString())
             .collect(toImmutableList());
     writeOperationFile(
-        path.getAuthority(),
+        resourceId.getBucketName(),
         OPERATION_LOG_FILE_FORMAT,
         CREATE_OBJECT_OPTIONS,
-        "delete",
+        CoopLockOperationType.DELETE,
         operationId,
         operationInstant,
         logRecords);
     // Schedule lock expiration update
-    lockUpdateFuture =
-        scheduleLockUpdate(
-            operationId,
-            operationLockPath,
-            DeleteOperation.class,
-            (o, i) -> o.setLockEpochSeconds(i.getEpochSecond()));
-    return lockUpdateFuture;
+    return scheduleLockUpdate(
+        operationId,
+        operationLockPath,
+        DeleteOperation.class,
+        (o, i) -> o.setLockEpochSeconds(i.getEpochSecond()));
   }
 
-  public Future<?> persistUpdateOperation(
-      FileInfo srcInfo,
-      URI dst,
+  public Future<?> persistRenameOperation(
       String operationId,
+      Instant operationInstant,
+      StorageResourceId src,
+      StorageResourceId dst,
       Map<FileInfo, URI> srcToDstItemNames,
-      Map<FileInfo, URI> srcToDstMarkerItemNames,
-      Instant operationInstant)
+      Map<FileInfo, URI> srcToDstMarkerItemNames)
       throws IOException {
-    Future<?> lockUpdateFuture;
     URI operationLockPath =
         writeOperationFile(
-            dst.getAuthority(),
+            dst.getBucketName(),
             OPERATION_LOCK_FILE_FORMAT,
             CREATE_OBJECT_OPTIONS,
-            "rename",
+            CoopLockOperationType.RENAME,
             operationId,
             operationInstant,
             ImmutableList.of(
                 GSON.toJson(
                     new RenameOperation()
                         .setLockEpochSeconds(operationInstant.getEpochSecond())
-                        .setSrcResource(srcInfo.getPath().toString())
+                        .setSrcResource(src.toString())
                         .setDstResource(dst.toString())
                         .setCopySucceeded(false))));
     List<String> logRecords =
         Streams.concat(
                 srcToDstItemNames.entrySet().stream(), srcToDstMarkerItemNames.entrySet().stream())
-            .map(e -> e.getKey().getItemInfo().getResourceId() + " -> " + e.getValue())
+            .map(
+                e ->
+                    e.getKey().getItemInfo().getResourceId()
+                        + RENAME_LOG_RECORD_SEPARATOR
+                        + e.getValue())
             .collect(toImmutableList());
     writeOperationFile(
-        dst.getAuthority(),
+        dst.getBucketName(),
         OPERATION_LOG_FILE_FORMAT,
         CREATE_OBJECT_OPTIONS,
-        "rename",
+        CoopLockOperationType.RENAME,
         operationId,
         operationInstant,
         logRecords);
     // Schedule lock expiration update
-    lockUpdateFuture =
-        scheduleLockUpdate(
-            operationId,
-            operationLockPath,
-            RenameOperation.class,
-            (o, i) -> o.setLockEpochSeconds(i.getEpochSecond()));
-    return lockUpdateFuture;
+    return scheduleLockUpdate(
+        operationId,
+        operationLockPath,
+        RenameOperation.class,
+        (o, i) -> o.setLockEpochSeconds(i.getEpochSecond()));
   }
 
-  public void checkpointUpdateOperation(
-      FileInfo srcInfo, URI dst, String operationId, Instant operationInstant) throws IOException {
+  public void checkpointRenameOperation(
+      StorageResourceId src,
+      StorageResourceId dst,
+      String operationId,
+      Instant operationInstant,
+      boolean copySucceeded)
+      throws IOException {
     writeOperationFile(
-        dst.getAuthority(),
+        dst.getBucketName(),
         OPERATION_LOCK_FILE_FORMAT,
         UPDATE_OBJECT_OPTIONS,
-        "rename",
+        CoopLockOperationType.RENAME,
         operationId,
         operationInstant,
         ImmutableList.of(
             GSON.toJson(
                 new RenameOperation()
                     .setLockEpochSeconds(Instant.now().getEpochSecond())
-                    .setSrcResource(srcInfo.getPath().toString())
+                    .setSrcResource(src.toString())
                     .setDstResource(dst.toString())
-                    .setCopySucceeded(true))));
+                    .setCopySucceeded(copySucceeded))));
   }
 
   private void renewLockOrExit(
@@ -179,9 +202,10 @@ public class CoopLockOperationDao {
     for (int i = 0; i < 10; i++) {
       try {
         renewLock(operationId, operationLockPath, renewFn);
+        return;
       } catch (IOException e) {
         logger.atWarning().withCause(e).log(
-            "Failed to renew '%s' lock for %s operation, retry #%d",
+            "Failed to renew '%s' lock for %s operation, attempt #%d",
             operationLockPath, operationId, i + 1);
       }
       sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
@@ -194,7 +218,8 @@ public class CoopLockOperationDao {
   private void renewLock(
       String operationId, URI operationLockPath, Function<String, String> renewFn)
       throws IOException {
-    StorageResourceId lockId = StorageResourceId.fromObjectName(operationLockPath.toString());
+    StorageResourceId lockId =
+        pathCodec.validatePathAndGetId(operationLockPath, /* allowEmptyObjectNames =*/ false);
     GoogleCloudStorageItemInfo lockInfo = gcs.getItemInfo(lockId);
     checkState(lockInfo.exists(), "lock file for %s operation should exist", operationId);
 
@@ -208,30 +233,23 @@ public class CoopLockOperationDao {
     CreateObjectOptions updateOptions =
         new CreateObjectOptions(
             /* overwriteExisting= */ true, DEFAULT_CONTENT_TYPE, EMPTY_METADATA);
-    StorageResourceId operationLockPathResourceId =
+    StorageResourceId lockIdWithGeneration =
         new StorageResourceId(
-            operationLockPath.getAuthority(),
-            operationLockPath.getPath(),
-            lockInfo.getContentGeneration());
-    writeOperation(operationLockPathResourceId, updateOptions, ImmutableList.of(lock));
+            lockId.getBucketName(), lockId.getObjectName(), lockInfo.getContentGeneration());
+    writeOperation(lockIdWithGeneration, updateOptions, ImmutableList.of(lock));
   }
 
   private URI writeOperationFile(
       String bucket,
       String fileNameFormat,
       CreateObjectOptions createObjectOptions,
-      String operation,
+      CoopLockOperationType operationType,
       String operationId,
       Instant operationInstant,
       List<String> records)
       throws IOException {
-    checkArgument(
-        VALID_OPERATIONS.contains(operation),
-        "operation must be one of $s, but was '%s'",
-        VALID_OPERATIONS,
-        operation);
     String date = LOCK_FILE_DATE_TIME_FORMAT.format(operationInstant);
-    String file = String.format(LOCK_DIRECTORY + fileNameFormat, date, operation, operationId);
+    String file = String.format(LOCK_DIRECTORY + fileNameFormat, date, operationType, operationId);
     URI path = pathCodec.getPath(bucket, file, /* allowEmptyObjectName= */ false);
     StorageResourceId resourceId =
         pathCodec.validatePathAndGetId(path, /* allowEmptyObjectName= */ false);
@@ -249,8 +267,6 @@ public class CoopLockOperationDao {
       }
     }
   }
-
-  private ScheduledExecutorService scheduledThreadPool = Executors.newScheduledThreadPool(1);
 
   public <T> Future<?> scheduleLockUpdate(
       String operationId, URI operationLockPath, Class<T> clazz, BiConsumer<T, Instant> renewFn) {

@@ -254,7 +254,7 @@ public class ForwardingGoogleCloudStorage implements GoogleCloudStorage {
    *
    * @return the {@link GoogleCloudStorage} objected wrapped by this class.
    */
-  protected GoogleCloudStorage getDelegate() {
+  public GoogleCloudStorage getDelegate() {
     return delegate;
   }
 }

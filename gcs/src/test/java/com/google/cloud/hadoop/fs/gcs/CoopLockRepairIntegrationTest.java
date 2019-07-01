@@ -18,6 +18,8 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.AUTHENTICATION_PREFIX;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_COOPERATIVE_LOCKING_EXPIRATION_TIMEOUT_MS;
+import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockOperationType.DELETE;
+import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockOperationType.RENAME;
 import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecordsDao.LOCK_DIRECTORY;
 import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX;
 import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX;
@@ -61,7 +63,7 @@ public class CoopLockRepairIntegrationTest {
 
   private static final Gson GSON = new Gson();
 
-  private static final String OPERATION_FILENAME_PATTERN =
+  private static final String OPERATION_FILENAME_PATTERN_FORMAT =
       "[0-9]{8}T[0-9]{6}\\.[0-9]{3}Z_%s_[a-z0-9\\-]+";
 
   private static GoogleCloudStorageOptions gcsOptions;
@@ -175,10 +177,9 @@ public class CoopLockRepairIntegrationTest {
             .collect(toList());
 
     assertThat(lockFiles).hasSize(2);
-    URI lockFileUri =
-        matchFile(lockFiles, String.format(OPERATION_FILENAME_PATTERN, "rename") + "\\.lock").get();
-    URI logFileUri =
-        matchFile(lockFiles, String.format(OPERATION_FILENAME_PATTERN, "rename") + "\\.log").get();
+    String filenamePattern = String.format(OPERATION_FILENAME_PATTERN_FORMAT, RENAME);
+    URI lockFileUri = matchFile(lockFiles, filenamePattern + "\\.lock").get();
+    URI logFileUri = matchFile(lockFiles, filenamePattern + "\\.log").get();
 
     String lockContent = gcsfsIHelper.readTextFile(bucketName, lockFileUri.getPath());
     assertThat(GSON.fromJson(lockContent, RenameOperation.class).setLockEpochSeconds(0))
@@ -248,10 +249,9 @@ public class CoopLockRepairIntegrationTest {
             .collect(toList());
 
     assertThat(lockFiles).hasSize(2);
-    URI lockFileUri =
-        matchFile(lockFiles, String.format(OPERATION_FILENAME_PATTERN, "rename") + "\\.lock").get();
-    URI logFileUri =
-        matchFile(lockFiles, String.format(OPERATION_FILENAME_PATTERN, "rename") + "\\.log").get();
+    String filenameFormat = String.format(OPERATION_FILENAME_PATTERN_FORMAT, RENAME);
+    URI lockFileUri = matchFile(lockFiles, filenameFormat + "\\.lock").get();
+    URI logFileUri = matchFile(lockFiles, filenameFormat + "\\.log").get();
 
     String lockContent = gcsfsIHelper.readTextFile(bucketName, lockFileUri.getPath());
     assertThat(GSON.fromJson(lockContent, RenameOperation.class).setLockEpochSeconds(0))
@@ -316,11 +316,14 @@ public class CoopLockRepairIntegrationTest {
             .collect(toList());
 
     assertThat(lockFiles).hasSize(2);
-    URI lockFileUri =
-        matchFile(lockFiles, String.format(OPERATION_FILENAME_PATTERN, "delete") + "\\.lock").get();
+    String filenamePattern = String.format(OPERATION_FILENAME_PATTERN_FORMAT, DELETE);
+    URI lockFileUri = matchFile(lockFiles, filenamePattern + "\\.lock").get();
+    URI logFileUri = matchFile(lockFiles, filenamePattern + "\\.log").get();
     String lockContent = gcsfsIHelper.readTextFile(bucketName, lockFileUri.getPath());
     assertThat(GSON.fromJson(lockContent, DeleteOperation.class).setLockEpochSeconds(0))
         .isEqualTo(new DeleteOperation().setLockEpochSeconds(0).setResource(dirUri.toString()));
+    assertThat(gcsfsIHelper.readTextFile(bucketName, logFileUri.getPath()))
+        .isEqualTo(dirUri.resolve(fileName) + "\n" + dirUri + "\n");
   }
 
   private Configuration getTestConfiguration() {
