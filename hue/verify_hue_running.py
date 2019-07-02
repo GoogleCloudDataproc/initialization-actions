@@ -24,7 +24,7 @@ class Hue(object):
             except requests.exceptions.RequestException as re:
                 if retries > 0:
                     retries -= 1
-                    time.sleep(3)
+                    time.sleep(5)
                     continue
                 print("Failed to get Hue status code: {}".format(re),
                       file=sys.stderr)
