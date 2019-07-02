@@ -3,11 +3,13 @@
 
 FROM gcr.io/cloud-builders/gcloud
 
-RUN ls -a .
-
 # Install Pip
 RUN apt-get -y update
 RUN apt-get -y install python3-pip
+
+COPY . /init-actions
+RUN cd /init-actions
+RUN ls -a
 
 # Install test dependencies
 RUN pip3 install -r integration_tests/requirements.txt
