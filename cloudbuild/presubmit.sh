@@ -31,7 +31,7 @@ is_prefix() {
 
 # Determines init actions directories that were modified
 RUN_ALL_TESTS=false
-declare -a DIRECTORIES_TO_TEST=()
+declare -a DIRECTORIES_TO_TEST
 for dir in */; do
   # Run all tests if common directories were modified
   if [[ $dir =~ ^(integration_tests/|util/|cloudbuild/)$ ]]; then
@@ -43,6 +43,13 @@ for dir in */; do
     DIRECTORIES_TO_TEST+=("$dir")
   fi
 done
+
+# Run all init actions tests
+if [[ $RUN_ALL_TESTS == true ]]; then
+  python3 -m fastunit
+  exit $?
+fi
+
 echo "Test directories: ${DIRECTORIES_TO_TEST[*]}"
 
 # Determines what tests in modified init action directories to run
@@ -57,9 +64,11 @@ for test_dir in "${DIRECTORIES_TO_TEST[@]}"; do
 done
 echo "Tests: ${TESTS_TO_RUN[*]}"
 
-# Run tests of the init actions that were modified
-if [[ $RUN_ALL_TESTS == true ]]; then
-  python3 -m fastunit
-elif [[ ${#TESTS_TO_RUN[@]} != 0 ]]; then
-  python3 -m fastunit "${TESTS_TO_RUN[@]}"
+# Fail if no tests were found
+if [[ ${#TESTS_TO_RUN[@]} == 0 ]]; then
+  echo "Failure: can not find tests in modified directories: ${DIRECTORIES_TO_TEST[*]}"
+  exit 1
 fi
+
+# Run tests of the init actions that were modified
+python3 -m fastunit "${TESTS_TO_RUN[@]}"
