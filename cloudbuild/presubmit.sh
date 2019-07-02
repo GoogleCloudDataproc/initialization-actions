@@ -29,7 +29,7 @@ RUN_ALL_TESTS=false
 declare -a DIRECTORIES_TO_TEST
 for dir in */; do
   # Run all tests if common directories were modified
-  if [[ $dir =~ ^(integration_tests/|util/|cloud-build/)$ ]]; then
+  if [[ $dir =~ ^(integration_tests/|util/|cloudbuild/)$ ]]; then
     echo "All tests will be run: '$dir' was modified"
     RUN_ALL_TESTS=true
     break
