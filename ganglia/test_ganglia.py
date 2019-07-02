@@ -23,17 +23,12 @@ class GangliaTestCase(DataprocTestCase):
         self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
 
     def __run_test_file(self, name):
-        cmd = 'gcloud compute ssh {} --command="python3 {}"'.format(
-            name, self.TEST_SCRIPT_FILE_NAME)
-        ret_code, stdout, stderr = self.run_command(cmd)
-        self.assertEqual(ret_code, 0,
-                         "Failed to run test file. Error: {}".format(stderr))
+        self.run_and_assert_command(
+            'gcloud compute ssh {} --command="python3 {}"'.format(name, self.TEST_SCRIPT_FILE_NAME))
 
     def __run_command_on_cluster(self, name, command):
-        cmd = 'gcloud compute ssh {} --command="{}"'.format(name, command)
-        ret_code, stdout, stderr = self.run_command(cmd)
-        self.assertEqual(ret_code, 0,
-                         "Failed to run command. Error: {}".format(stderr))
+        self.run_and_assert_command(
+            'gcloud compute ssh {} --command="{}"'.format(name, command))
 
     @parameterized.expand(
         [

@@ -39,42 +39,26 @@ class BigTableTestCase(DataprocTestCase):
         self.metadata = "bigtable-instance={},bigtable-project={}"\
             .format(self.db_name, project)
 
-        ret_code, stdout, stderr = self.run_command(
+        self.run_and_assert_command(
             'gcloud bigtable instances create {}'
             ' --cluster {} --cluster-zone {}'
             ' --display-name={} --instance-type=DEVELOPMENT'.format(
                 self.db_name, self.db_name, self.zone, self.db_name))
-        self.assertEqual(
-            ret_code, 0,
-            "Failed to create bigtable instance {}. Last error: {}".format(
-                self.db_name, stderr))
 
     def tearDown(self):
         super().tearDown()
-        ret_code, stdout, stderr = self.run_command(
+        self.run_and_assert_command(
             'gcloud bigtable instances delete {}'.format(self.db_name))
-        self.assertEqual(
-            ret_code, 0,
-            "Failed to delete bigtable instance {}. Last error: {}".format(
-                self.db_name, stderr))
 
     def _run_hbase_shell(self, name):
-        ret_code, stdout, stderr = self.run_command(
+        self.run_and_assert_command(
             'gcloud compute ssh {} --command="python {}"'.format(
                 name, self.TEST_SCRIPT_FILE_NAME))
-        self.assertEqual(
-            ret_code, 0,
-            "Failed to validate cluster. Last error: {}".format(stderr))
 
     def _validate_bigtable(self):
-        ret_code, stdout, stderr = self.run_command(
+        _, stdout, _ = self.run_and_assert_command(
             'cbt -instance {} count test-bigtable '.format(self.db_name))
-        self.assertEqual(
-            ret_code, 0,
-            "Failed to validate cluster. Last error: {}".format(stderr))
-        self.assertEqual(
-            int(float(stdout)), 4,
-            "Failed to validate cluster. Last error: {}".format(stderr))
+        self.assertEqual(int(float(stdout)), 4, "Invalid BigTable instance count")
 
     def verify_instance(self, name):
         self.upload_test_file(

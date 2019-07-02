@@ -13,16 +13,10 @@ class DatalabTestCase(DataprocTestCase):
     ]
 
     def verify_instance(self, name):
-        curl_retry_params = "--retry 10 --retry-delay 10 --retry-connrefused"
-        cmd = 'gcloud compute ssh {} --command={}'.format(
-            name,
-            '\'curl {} -L {}:8080 | grep "Google Cloud DataLab"\''.format(
-                curl_retry_params, name))
-        ret_code, _, stderr = self.run_command(cmd)
-        self.assertEqual(
-            ret_code, 0, "Failed to validate Datalab installation.\n{}".format(
-                "Validation command:\n{}\nLast error:\n{}").format(
-                    cmd, stderr))
+        verify_cmd = 'curl {} -L {}:8080 | grep "Google Cloud DataLab"'.format(
+            "--retry 10 --retry-delay 10 --retry-connrefused", name)
+        self.run_and_assert_command(
+            "gcloud compute ssh {} --command='{}'".format(name, verify_cmd))
 
     @parameterized.expand(
         [

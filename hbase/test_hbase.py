@@ -23,29 +23,18 @@ class HBaseTestCase(DataprocTestCase):
         super().setUp()
         self.GCS_BUCKET = "test-hbase-{}-{}".format(self.datetime_str(),
                                                     self.random_str())
-        cmd = 'gsutil mb -c regional -l {} gs://{}'.format(
-            self.REGION, self.GCS_BUCKET)
-        ret_code, _, stderr = self.run_command(cmd)
-        self.assertEqual(
-            ret_code, 0, "Failed to create bucket {}. Last error: {}".format(
-                self.GCS_BUCKET, stderr))
+        self.run_and_assert_command(
+            'gsutil mb -c regional -l {} gs://{}'.format(self.REGION, self.GCS_BUCKET))
 
     def tearDown(self):
         super().tearDown()
-        cmd = 'gsutil -m rm -rf gs://{}'.format(self.GCS_BUCKET)
-        ret_code, _, stderr = self.run_command(cmd)
-        self.assertEqual(
-            ret_code, 0, "Failed to remove bucket {}. Last error: {}".format(
-                self.GCS_BUCKET, stderr))
+        self.run_and_assert_command('gsutil -m rm -rf gs://{}'.format(self.GCS_BUCKET))
 
     def verify_instance(self, name):
-        ret_code, stdout, stderr = self.run_command(
+        self.run_and_assert_command(
             'gcloud compute ssh {} --command="hbase {} -r {}"'.format(
                 name, 'org.apache.hadoop.hbase.IntegrationTestsDriver',
                 'org.apache.hadoop.hbase.mapreduce.IntegrationTestImportTsv'))
-        self.assertEqual(
-            ret_code, 0,
-            "Failed to validate cluster. Error: {}".format(stderr))
 
     @parameterized.expand(
         [
