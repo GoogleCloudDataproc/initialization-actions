@@ -44,7 +44,7 @@ for dir in */; do
   fi
 done
 
-# Run all init actions tests
+# Run all init action tests
 if [[ $RUN_ALL_TESTS == true ]]; then
   python3 -m fastunit
   exit $?
@@ -63,12 +63,6 @@ for test_dir in "${DIRECTORIES_TO_TEST[@]}"; do
   TESTS_TO_RUN+=("${tests_array[@]}")
 done
 echo "Tests: ${TESTS_TO_RUN[*]}"
-
-# Fail if no tests were found
-if [[ ${#TESTS_TO_RUN[@]} == 0 ]]; then
-  echo "Failure: can not find tests in modified directories: ${DIRECTORIES_TO_TEST[*]}"
-  exit 1
-fi
 
 # Run tests of the init actions that were modified
 python3 -m fastunit "${TESTS_TO_RUN[@]}"
