@@ -91,7 +91,8 @@ def test_hdfs_plugin():
     }'''
     policy_json = json.loads(policy)
     policy_json['denyPolicyItems'][0]['users'].append(username.strip())
-    policy_json['resources']['path']['values'].append('/user/{}/test'.format(username.strip()))
+    policy_json['resources']['path']['values'].append('/user/{}/test'.format(
+        username.strip()))
 
     create_dir = 'hdfs dfs -mkdir -p /user/{}/test'.format(username.strip())
     ret_code, stdout, stderr = run_command(create_dir)
@@ -103,8 +104,9 @@ def test_hdfs_plugin():
         .format("dataproc2019", json.dumps(policy_json), 6080)
     ret_code, stdout, stderr = run_command(create_policy)
     if '"isEnabled":true,"createdBy":"Admin"' not in stdout:
-        raise Exception("Failed to create hdfs policy. Return code: {} Error: {}"
-                        .format(ret_code, stdout))
+        raise Exception(
+            "Failed to create hdfs policy. Return code: {} Error: {}".format(
+                ret_code, stdout))
 
     validate_policy = 'sleep {} && hdfs dfs -ls /user/{}/test'\
         .format(RANGER_POLICY_REFRESH_TIME, username.strip())
@@ -167,8 +169,9 @@ def test_hive_plugin():
         .format("dataproc2019", json.dumps(policy_json), 6080)
     ret_code, stdout, stderr = run_command(create_policy)
     if '"isEnabled":true,"createdBy":"Admin"' not in stdout:
-        raise Exception("Failed to create hive policy. Return code: {} Error: {}"
-                        .format(ret_code, stdout))
+        raise Exception(
+            "Failed to create hive policy. Return code: {} Error: {}".format(
+                ret_code, stdout))
 
     create_table = 'hive -e \'create database ranger_test_db; ' \
                    'use ranger_test_db; create table ranger_test_table(id int);\''
@@ -233,8 +236,9 @@ def test_yarn_plugin():
         .format("dataproc2019", json.dumps(policy_json), 6080)
     ret_code, stdout, stderr = run_command(create_policy)
     if '"isEnabled":true,"createdBy":"Admin"' not in stdout:
-        raise Exception("Failed to create yarn policy. Return code: {} Error: {}"
-                        .format(ret_code, stdout))
+        raise Exception(
+            "Failed to create yarn policy. Return code: {} Error: {}".format(
+                ret_code, stdout))
     validate_policy = 'sleep {} && find /usr/lib/hadoop-mapreduce -name ' \
                       'hadoop-mapreduce-examples-* -exec yarn jar {{}} pi 16 1000 \;'\
         .format(RANGER_POLICY_REFRESH_TIME)
@@ -246,7 +250,8 @@ def test_yarn_plugin():
     validation_string_deb_package = 'org.apache.hadoop.security.AccessControlException: ' \
                                     'User {} does not have permission to submit application' \
         .format(username.strip())
-    if (validation_string not in stderr) and (validation_string_deb_package not in stderr):
+    if (validation_string not in stderr) and (
+            validation_string_deb_package not in stderr):
         raise Exception('Ranger yarn plugin is not working properly')
 
 

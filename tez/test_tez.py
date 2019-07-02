@@ -30,7 +30,8 @@ class TezTestCase(DataprocTestCase):
 
     def __run_test_script(self, name):
         self.run_and_assert_command(
-            'gcloud compute ssh {} --command="python {}"'.format(name, self.TEST_SCRIPT_FILE_NAME))
+            'gcloud compute ssh {} --command="python {}"'.format(
+                name, self.TEST_SCRIPT_FILE_NAME))
 
     @parameterized.expand(
         [

@@ -58,7 +58,8 @@ class BigTableTestCase(DataprocTestCase):
     def _validate_bigtable(self):
         _, stdout, _ = self.run_and_assert_command(
             'cbt -instance {} count test-bigtable '.format(self.db_name))
-        self.assertEqual(int(float(stdout)), 4, "Invalid BigTable instance count")
+        self.assertEqual(int(float(stdout)), 4,
+                         "Invalid BigTable instance count")
 
     def verify_instance(self, name):
         self.upload_test_file(

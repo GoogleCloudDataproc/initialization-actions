@@ -20,8 +20,9 @@ class FlinkTestCase(DataprocTestCase):
         self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
 
     def __run_test_file(self, name, yarn_session):
-      self.run_and_assert_command('gcloud compute ssh {} --command="bash {} {}"'.format(
-            name, self.TEST_SCRIPT_FILE_NAME, yarn_session))
+        self.run_and_assert_command(
+            'gcloud compute ssh {} --command="bash {} {}"'.format(
+                name, self.TEST_SCRIPT_FILE_NAME, yarn_session))
 
     @parameterized.expand(
         [

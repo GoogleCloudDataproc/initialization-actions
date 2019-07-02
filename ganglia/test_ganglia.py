@@ -24,7 +24,8 @@ class GangliaTestCase(DataprocTestCase):
 
     def __run_test_file(self, name):
         self.run_and_assert_command(
-            'gcloud compute ssh {} --command="python3 {}"'.format(name, self.TEST_SCRIPT_FILE_NAME))
+            'gcloud compute ssh {} --command="python3 {}"'.format(
+                name, self.TEST_SCRIPT_FILE_NAME))
 
     def __run_command_on_cluster(self, name, command):
         self.run_and_assert_command(
