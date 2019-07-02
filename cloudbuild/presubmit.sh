@@ -8,14 +8,14 @@ git init
 git config user.email "presubmit@cloud.build"
 git config user.name "Cloud Build Presubmit"
 
-# Stage files to track their history
-git add --all
-git commit -m "Presubmit changes"
-
 git remote add origin "https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git"
 git fetch origin master
 
-git rebase origin/master
+git reset origin/master
+
+# Stage files to track their history
+git add --all
+git commit -m "Presubmit changes"
 
 # Infer the files that changed
 mapfile -t CHANGED_FILES < <(git diff origin/master --name-only)
