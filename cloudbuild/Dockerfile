@@ -7,9 +7,6 @@ FROM gcr.io/cloud-builders/gcloud
 RUN apt-get -y update
 RUN apt-get -y install python3-pip
 
-# Install test dependencies
-RUN pip3 install -r /workspace/integration_tests/requirements.txt
-
 # Install fastunit
 WORKDIR /tmp/fastunit/
 RUN git clone https://github.com/ityoung/python3-fastunit.git .

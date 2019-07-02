@@ -2,11 +2,10 @@
 
 set -euxo pipefail
 
-ls -a
+# Install test dependencies
+RUN pip3 install -r integration_tests/requirements.txt
 
 git init
-git config user.email "presubmit@cloud.build"
-git config user.name "Cloud Build Presubmit"
 
 git remote add origin "https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git"
 git fetch origin master
@@ -15,10 +14,9 @@ git reset origin/master
 
 # Stage files to track their history
 git add --all
-git commit -m "Presubmit changes"
 
 # Infer the files that changed
-mapfile -t CHANGED_FILES < <(git diff origin/master --name-only)
+mapfile -t CHANGED_FILES < <(git diff --cached origin/master --name-only)
 echo "Changed files: ${CHANGED_FILES[*]}"
 
 # Determines whether a given string is a prefix string of any changed file name
