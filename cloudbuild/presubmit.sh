@@ -4,13 +4,18 @@ set -euxo pipefail
 
 cd /init-actions
 
+ls -a
+
 git init
 
 # Stage files to track their history
-git add .
+git add --all
+git commit -m "latest changes"
 
 git remote add origin "https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git"
 git fetch origin master
+
+git rebase origin/master
 
 # Infer the files that changed
 mapfile -t CHANGED_FILES < <(git diff origin/master --name-only)
