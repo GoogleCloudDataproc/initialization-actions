@@ -73,10 +73,10 @@ determine_tests_to_run() {
 run_tests() {
   if [[ $RUN_ALL_TESTS == true ]]; then
     # Run all init action tests
-    python3 -m fastunit
+    python3 -m fastunit -v
   else
     # Run tests of the init actions that were modified
-    python3 -m fastunit "${TESTS_TO_RUN[@]}"
+    python3 -m fastunit -v "${TESTS_TO_RUN[@]}"
   fi
 }
 
