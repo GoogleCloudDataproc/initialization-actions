@@ -3,14 +3,13 @@
 
 FROM gcr.io/cloud-builders/gcloud
 
-RUN ls -a -R
+RUN ls -a .
 
 # Install Pip
 RUN apt-get -y update
 RUN apt-get -y install python3-pip
-RUN pip3 install --upgrade pip
 
-# Install Pip dependencies
+# Install test dependencies
 RUN pip3 install -r integration_tests/requirements.txt
 
 # Install fastunit
