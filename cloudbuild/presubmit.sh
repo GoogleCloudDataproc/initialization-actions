@@ -4,6 +4,8 @@ set -euxo pipefail
 
 # Configure gcloud
 gcloud config set core/disable_prompts TRUE
+gcloud config set compute/region us-central1
+gcloud config set compute/zone us-central1-f
 
 # Install test dependencies
 pip3 install -r integration_tests/requirements.txt
