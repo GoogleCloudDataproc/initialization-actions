@@ -4,6 +4,7 @@
 FROM gcr.io/cloud-builders/gcloud
 
 # Install Pip
+RUN apt-get -y update
 RUN apt-get -y install python3-pip
 
 # Install test dependencies
