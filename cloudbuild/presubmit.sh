@@ -2,8 +2,6 @@
 
 set -euxo pipefail
 
-cd /init-actions
-
 ls -a
 
 git init

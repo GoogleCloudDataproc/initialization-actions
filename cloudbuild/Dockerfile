@@ -3,17 +3,11 @@
 
 FROM gcr.io/cloud-builders/gcloud
 
-COPY . /init-actions
-WORKDIR /init-actions
-RUN ls -a
-
 # Install Pip
-RUN apt-get -y update
 RUN apt-get -y install python3-pip
 
-
 # Install test dependencies
-RUN pip3 install -r integration_tests/requirements.txt
+RUN pip3 install -r /workspace/integration_tests/requirements.txt
 
 # Install fastunit
 WORKDIR /tmp/fastunit/
