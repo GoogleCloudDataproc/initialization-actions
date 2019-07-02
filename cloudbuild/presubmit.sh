@@ -1,6 +1,8 @@
 #!/bin/bash
 
-set -euo pipefail
+set -euxo pipefail
+
+cd /init-actions
 
 git init
 
