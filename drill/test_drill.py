@@ -20,8 +20,9 @@ class DrillTestCase(DataprocTestCase):
         self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
 
     def __run_bash_test_file(self, name, drill_mode, target_node):
-        self.run_and_assert_command('gcloud compute ssh {} --command="sudo bash {} {} {}"'.format(
-            name, self.TEST_SCRIPT_FILE_NAME, drill_mode, target_node))
+        self.run_and_assert_command(
+            'gcloud compute ssh {} --command="sudo bash {} {} {}"'.format(
+                name, self.TEST_SCRIPT_FILE_NAME, drill_mode, target_node))
 
     @parameterized.expand(
         [

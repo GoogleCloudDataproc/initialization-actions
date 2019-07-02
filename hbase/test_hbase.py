@@ -24,11 +24,13 @@ class HBaseTestCase(DataprocTestCase):
         self.GCS_BUCKET = "test-hbase-{}-{}".format(self.datetime_str(),
                                                     self.random_str())
         self.run_and_assert_command(
-            'gsutil mb -c regional -l {} gs://{}'.format(self.REGION, self.GCS_BUCKET))
+            'gsutil mb -c regional -l {} gs://{}'.format(
+                self.REGION, self.GCS_BUCKET))
 
     def tearDown(self):
         super().tearDown()
-        self.run_and_assert_command('gsutil -m rm -rf gs://{}'.format(self.GCS_BUCKET))
+        self.run_and_assert_command('gsutil -m rm -rf gs://{}'.format(
+            self.GCS_BUCKET))
 
     def verify_instance(self, name):
         self.run_and_assert_command(

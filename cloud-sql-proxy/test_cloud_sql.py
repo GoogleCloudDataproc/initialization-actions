@@ -42,8 +42,8 @@ class CloudSqlProxyTestCase(DataprocTestCase):
         self.wait_cloud_sql_operation(operation_id)
 
     def wait_cloud_sql_operation(self, operation_id):
-        self.run_and_assert_command('gcloud sql operations wait {} --timeout=600'.format(
-            operation_id))
+        self.run_and_assert_command(
+            'gcloud sql operations wait {} --timeout=600'.format(operation_id))
 
     def verify_instance(self, name):
         self.__submit_pyspark_job(name)

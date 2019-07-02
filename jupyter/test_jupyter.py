@@ -11,7 +11,8 @@ class JupyterTestCase(DataprocTestCase):
 
     def verify_instance(self, name, jupyter_port):
         verify_cmd = 'curl {} -L {}:{} | grep "Jupyter Notebook"'.format(
-            "--retry 10 --retry-delay 10 --retry-connrefused", name, jupyter_port)
+            "--retry 10 --retry-delay 10 --retry-connrefused", name,
+            jupyter_port)
         self.run_and_assert_command(
             "gcloud compute ssh {} --command='{}'".format(name, verify_cmd))
 
