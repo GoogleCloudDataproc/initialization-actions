@@ -7,10 +7,12 @@ cd /init-actions
 ls -a
 
 git init
+git config user.email "presubmit@cloud.build"
+git config user.name "Cloud Build Presubmit"
 
 # Stage files to track their history
 git add --all
-git commit --author="Presubmit <presubmit@cloud.build>" -m "Presubmit changes"
+git commit -m "Presubmit changes"
 
 git remote add origin "https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git"
 git fetch origin master
