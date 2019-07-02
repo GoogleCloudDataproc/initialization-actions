@@ -3,7 +3,7 @@
 set -euxo pipefail
 
 # Install test dependencies
-RUN pip3 install -r integration_tests/requirements.txt
+pip3 install -r integration_tests/requirements.txt
 
 git init
 
