@@ -19,19 +19,12 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         cls.REGION = region.strip() or zone.strip()[:-2]
 
     def verify_instance(self, name):
-        ret_code, stdout, stderr = self.run_command(
-            'gcloud compute ssh {} --command="nvidia-smi"'.format(name))
-        self.assertEqual(
-            ret_code, 0,
-            "Failed to validate cluster. Error: {}".format(stderr))
+        self.run_and_assert_command('gcloud compute ssh {} --command="nvidia-smi"'.format(name))
 
     def verify_instance_gpu_agent(self, name):
-        ret_code, stdout, stderr = self.run_command(
+        self.run_and_assert_command(
             'gcloud compute ssh {} --command="{}"'.format(
                 name, "systemctl status gpu_utilization_agent.service"))
-        self.assertEqual(
-            ret_code, 0,
-            "Failed to validate cluster. Error: {}".format(stderr))
 
     @parameterized.expand(
         [

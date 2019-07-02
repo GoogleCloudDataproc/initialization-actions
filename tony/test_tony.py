@@ -31,11 +31,7 @@ class TonYTestCase(DataprocTestCase):
                 --python_venv=/opt/tony/TonY-samples/deps/tf.zip \
                 --python_binary_path=tf/bin/python3.5
             '''.format(self.name, self.TONY_VERSION)
-        ret_code, stdout, stderr = self.run_command(cmd)
-        self.assertEqual(
-            ret_code, 0,
-            "Failed to validate cluster with TensorFlow job.{}".format(
-                "\nCommand:\n{}\nLast error:\n{}".format(cmd, stderr)))
+        self.run_and_assert_command(cmd)
 
         # Verify cluster using PyTorch job
         cmd = '''
@@ -50,11 +46,7 @@ class TonYTestCase(DataprocTestCase):
                 --python_venv=/opt/tony/TonY-samples/deps/pytorch.zip \
                 --python_binary_path=pytorch/bin/python3.5
             '''.format(self.name, self.TONY_VERSION)
-        ret_code, stdout, stderr = self.run_command(cmd)
-        self.assertEqual(
-            ret_code, 0,
-            "Failed to validate cluster with PyTorch job.{}".format(
-                "\nCommand:\n{}\nLast error:\n{}".format(cmd, stderr)))
+        self.run_and_assert_command(cmd)
 
 
 if __name__ == '__main__':

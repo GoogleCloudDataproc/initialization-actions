@@ -102,12 +102,8 @@ class DataprocTestCase(BASE_TEST_CASE):
             cmd += " {}".format(flag)
         cmd += " --format=json"
 
-        ret_val, stdout, stderr = self.run_command(
+        _, stdout, _ = self.run_and_assert_command(
             cmd, timeout_in_minutes=timeout_in_minutes or DEFAULT_TIMEOUT)
-
-        self.assertEqual(
-            ret_val, 0,
-            "Failed to create Cluster {}. Error: {}".format(self.name, stderr))
         self.cluster_version = json.loads(stdout).get("config", {}).get(
             "softwareConfig", {}).get("imageVersion")
 
@@ -120,49 +116,40 @@ class DataprocTestCase(BASE_TEST_CASE):
         ret_val, _, _ = self.run_command("gsutil ls -b {}".format(bucket))
         # Create staging bucket if it does not exist
         if ret_val != 0:
-            ret_val, _, stderr = self.run_command(
-                "gsutil mb {}".format(bucket))
-            self.assertEqual(
-                ret_val, 0,
-                "Failed to create staging bucket: {}. Error: {}".format(
-                    bucket, stderr))
+            self.run_and_assert_command("gsutil mb {}".format(bucket))
 
         staging_dir = "{}/{}-{}".format(bucket, self.datetime_str(),
                                         self.random_str())
 
-        ret_val, _, stderr = self.run_command(
+        self.run_and_assert_command(
             "gsutil -q -m rsync -r -x '.git*|.idea*' ./ {}/".format(
                 staging_dir))
-        self.assertEqual(
-            ret_val, 0,
-            "Failed to stage init actions in directory: {}. Error: {}".format(
-                staging_dir, stderr))
 
         return staging_dir
 
     def tearDown(self):
-        cmd = "gcloud dataproc clusters delete {} --quiet".format(self.name)
-        ret_val, stdout, stderr = self.run_command(cmd)
-        self.assertEqual(
-            ret_val, 0,
-            "Failed to delete cluster {}. Error: {}".format(self.name, stderr))
+        self.run_and_assert_command(
+            "gcloud dataproc clusters delete {} --quiet".format(self.name))
 
     def getClusterName(self):
         return self.name
 
     def upload_test_file(self, testfile, name):
-        cmd = 'gcloud compute scp {} {}:'.format(testfile, name)
-        ret_code, stdout, stderr = self.run_command(cmd)
-        self.assertEqual(
-            ret_code, 0,
-            "Failed to upload test file. Error: {}".format(stderr))
+        self.run_and_assert_command('gcloud compute scp {} {}:'.format(
+            testfile, name))
 
     def remove_test_script(self, testfile, name):
-        cmd = 'gcloud compute ssh {} --command="rm {}"'.format(name, testfile)
-        ret_code, stdout, stderr = self.run_command(cmd)
+        self.run_and_assert_command(
+            'gcloud compute ssh {} --command="rm {}"'.format(name, testfile))
+
+    def run_and_assert_command(self, cmd, timeout_in_minutes=DEFAULT_TIMEOUT):
+        ret_code, stdout, stderr = DataprocTestCase.run_command(
+            cmd, timeout_in_minutes)
         self.assertEqual(
             ret_code, 0,
-            "Failed to remove test file. Error: {}".format(stderr))
+            "Failed to execute command:\n{}\nSTDOUT:\n{}\nSTDERR:\n{}".format(
+                cmd, stdout, stderr))
+        return ret_code, stdout, stderr
 
     @staticmethod
     def datetime_str():

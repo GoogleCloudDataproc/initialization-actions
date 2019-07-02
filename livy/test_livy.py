@@ -19,11 +19,9 @@ class LivyTestCase(DataprocTestCase):
         self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
 
     def _run_python_test_file(self, name):
-        cmd = 'gcloud compute ssh {} --command="sudo python3 {}"'.format(
-            name, self.TEST_SCRIPT_FILE_NAME)
-        ret_code, stdout, stderr = self.run_command(cmd)
-        self.assertEqual(ret_code, 0,
-                         "Failed to run test file. Error: {}".format(stderr))
+        self.run_and_assert_command(
+            'gcloud compute ssh {} --command="sudo python3 {}"'.format(
+                name, self.TEST_SCRIPT_FILE_NAME))
 
     @parameterized.expand(
         [

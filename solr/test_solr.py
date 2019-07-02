@@ -23,12 +23,8 @@ class SolrTestCase(DataprocTestCase):
         self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
 
     def __run_test_script(self, name):
-        ret_code, stdout, stderr = self.run_command(
-            'gcloud compute ssh {} --command="python3 {}"'.format(
-                name, self.TEST_SCRIPT_FILE_NAME))
-        self.assertEqual(
-            ret_code, 0,
-            "Failed to validate cluster. Last error: {}".format(stderr))
+        self.run_and_assert_command(
+            'gcloud compute ssh {} --command="python3 {}"'.format(name, self.TEST_SCRIPT_FILE_NAME))
 
     @parameterized.expand(
         [

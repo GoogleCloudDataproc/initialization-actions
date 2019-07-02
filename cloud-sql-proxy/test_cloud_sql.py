@@ -42,24 +42,16 @@ class CloudSqlProxyTestCase(DataprocTestCase):
         self.wait_cloud_sql_operation(operation_id)
 
     def wait_cloud_sql_operation(self, operation_id):
-        cmd = 'gcloud sql operations wait {} --timeout=600'.format(
-            operation_id)
-        ret_code, stdout, stderr = self.run_command(cmd)
-        self.assertEqual(
-            ret_code, 0, "Failed to wait for operation {}.{}".format(
-                operation_id,
-                "\nCommand:\n{}\nLast error:\n{}".format(cmd, stderr)))
+        self.run_and_assert_command('gcloud sql operations wait {} --timeout=600'.format(
+            operation_id))
 
     def verify_instance(self, name):
         self.__submit_pyspark_job(name)
 
     def __submit_pyspark_job(self, name):
-        ret_code, stdout, stderr = self.run_command(
+        self.run_and_assert_command(
             'gcloud dataproc jobs submit pyspark --cluster {} {}/{}'.format(
                 name, self.INIT_ACTIONS_REPO, self.TEST_SCRIPT_FILE_NAME))
-        self.assertEqual(
-            ret_code, 0,
-            "Failed to validate cluster. Last error: {}".format(stderr))
 
     @parameterized.expand(
         [
