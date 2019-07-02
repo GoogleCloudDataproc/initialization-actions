@@ -8,7 +8,7 @@ steps:
     entrypoint: 'bash'
     args: ['cloudbuild/presubmit.sh']
 
-timeout: 1200s
+timeout: 1800s
 
 options:
   machineType: 'N1_HIGHCPU_8'
