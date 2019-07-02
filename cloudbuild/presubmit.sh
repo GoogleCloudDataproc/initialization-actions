@@ -5,8 +5,6 @@ set -euxo pipefail
 # Configure gcloud
 gcloud config set core/disable_prompts TRUE
 
-gcloud auth list
-
 # Install test dependencies
 pip3 install -r integration_tests/requirements.txt
 
