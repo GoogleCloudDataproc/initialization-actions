@@ -1,4 +1,4 @@
-### 2.0.0-RC2 - 2019-07-01
+### 2.0.0-RC3 - 2019-XX-XX
 
 1.  Remove Hadoop 1.x support.
 
