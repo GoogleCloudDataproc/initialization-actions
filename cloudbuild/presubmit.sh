@@ -10,7 +10,7 @@ git init
 
 # Stage files to track their history
 git add --all
-git commit -m "latest changes"
+git commit --author="Presubmit <presubmit@cloud.build>" -m "Presubmit changes"
 
 git remote add origin "https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git"
 git fetch origin master
