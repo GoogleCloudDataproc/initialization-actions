@@ -7,3 +7,8 @@ steps:
   - name: 'gcr.io/$PROJECT_ID/init-actions-image'
     entrypoint: 'bash'
     args: ['cloudbuild/presubmit.sh']
+
+timeout: 1200s
+
+options:
+  machineType: 'N1_HIGHCPU_8'
