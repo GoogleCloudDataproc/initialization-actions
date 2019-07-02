@@ -649,7 +649,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
             "GHFS.initializeDelegationTokenSupport: Using existing delegation token.");
       }
     } catch (IllegalStateException e) {
-      logger.atInfo().log("GHFS.initializeDelegationTokenSupport: %s", e.getMessage());
+      logger.atFine().log("GHFS.initializeDelegationTokenSupport: %s", e.getMessage());
     }
   }
 
