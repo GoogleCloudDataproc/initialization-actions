@@ -16,7 +16,6 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static org.apache.commons.codec.CharEncoding.UTF_8;
 
@@ -63,17 +62,25 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
 
   private final List<HttpRequest> requests = Collections.synchronizedList(new ArrayList<>());
 
+  public TrackingHttpRequestInitializer() {
+    this(null);
+  }
+
   public TrackingHttpRequestInitializer(HttpRequestInitializer delegate) {
     this.delegate = delegate;
   }
 
   @Override
   public void initialize(HttpRequest request) throws IOException {
-    delegate.initialize(request);
-    HttpExecuteInterceptor executeInterceptor = checkNotNull(request.getInterceptor());
+    if (delegate != null) {
+      delegate.initialize(request);
+    }
+    HttpExecuteInterceptor executeInterceptor = request.getInterceptor();
     request.setInterceptor(
         r -> {
-          executeInterceptor.intercept(r);
+          if (executeInterceptor != null) {
+            executeInterceptor.intercept(r);
+          }
           requests.add(r);
         });
   }

@@ -33,12 +33,17 @@ import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
+import java.util.UUID;
 
 /** Utility class with helper methods for GCS IO tests. */
 public final class GoogleCloudStorageTestUtils {
 
   public static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
   public static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
+
+  private static final String GOOGLEAPIS_ENDPOINT = "https://www.googleapis.com";
+  private static final String RESUMABLE_UPLOAD_LOCATION_FORMAT =
+      GOOGLEAPIS_ENDPOINT + "/upload/storage/v1/b/%s/o?name=%s&uploadType=resumable&upload_id=%s";
 
   static final String BUCKET_NAME = "foo-bucket";
   static final String OBJECT_NAME = "bar-object";
@@ -98,6 +103,10 @@ public final class GoogleCloudStorageTestUtils {
     };
   }
 
+  public static MockLowLevelHttpResponse emptyResponse(int statusCode) {
+    return new MockLowLevelHttpResponse().setStatusCode(statusCode);
+  }
+
   public static MockLowLevelHttpResponse metadataResponse(StorageObject metadataObject)
       throws IOException {
     return dataResponse(JSON_FACTORY.toByteArray(metadataObject));
@@ -114,5 +123,12 @@ public final class GoogleCloudStorageTestUtils {
     return new MockLowLevelHttpResponse()
         .addHeader("Content-Length", String.valueOf(content.length))
         .setContent(content);
+  }
+
+  public static MockLowLevelHttpResponse resumableUploadResponse(String bucket, String object) {
+    String uploadId = UUID.randomUUID().toString();
+    return new MockLowLevelHttpResponse()
+        .addHeader(
+            "location", String.format(RESUMABLE_UPLOAD_LOCATION_FORMAT, bucket, object, uploadId));
   }
 }
