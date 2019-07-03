@@ -1,3 +1,4 @@
+import os
 import json
 import logging
 import unittest
@@ -5,6 +6,8 @@ import unittest
 from parameterized import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
+
+logging.basicConfig(level=os.getenv("LOG_LEVEL", logging.WARNING))
 
 
 class CloudSqlProxyTestCase(DataprocTestCase):
