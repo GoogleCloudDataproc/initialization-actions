@@ -59,14 +59,14 @@ public class FederatedBigQueryOutputCommitter extends ForwardingBigQueryFileOutp
     // Get the destination configuration information.
     Configuration conf = context.getConfiguration();
     TableReference destTable = BigQueryOutputConfiguration.getTableReference(conf);
-    String destProjectId = BigQueryOutputConfiguration.getProjectId(conf);
+    String jobProjectId = BigQueryOutputConfiguration.getJobProjectId(conf);
     Optional<BigQueryTableSchema> destSchema = BigQueryOutputConfiguration.getTableSchema(conf);
     BigQueryFileFormat outputFileFormat = BigQueryOutputConfiguration.getFileFormat(conf);
     List<String> sourceUris = getOutputFileURIs();
 
     getBigQueryHelper()
         .importFederatedFromGcs(
-            destProjectId,
+            jobProjectId,
             destTable,
             destSchema.isPresent() ? destSchema.get().get() : null,
             outputFileFormat,

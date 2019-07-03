@@ -235,6 +235,7 @@ public class BigQueryOutputConfiguration {
 
     // Run through the individual getters as they manage error handling.
     getProjectId(conf);
+    getJobProjectId(conf);
     getTableSchema(conf);
     getFileFormat(conf);
     getFileOutputFormat(conf);
@@ -252,9 +253,15 @@ public class BigQueryOutputConfiguration {
   }
 
   /**
-   * Gets the project id based on the given configuration. If the {@link
-   * BigQueryConfiguration#OUTPUT_PROJECT_ID_KEY} is missing, this resolves to referencing the
-   * {@link BigQueryConfiguration#PROJECT_ID_KEY} key.
+   * Gets the output dataset project id based on the given configuration.
+   *
+   * If the {@link BigQueryConfiguration#OUTPUT_PROJECT_ID_KEY} is missing, this
+   * resolves to referencing the {@link BigQueryConfiguration#PROJECT_ID_KEY} key.
+   *
+   * The load job can be configured with two project identifiers. Configuration key
+   * {@link BigQueryConfiguration#PROJECT_ID_KEY} can set the project on whose behalf
+   * to perform BigQuery load operation, while {@link BigQueryConfiguration#OUTPUT_PROJECT_ID_KEY}
+   * can be used to name the project that the target dataset belongs to.
    *
    * @param conf the configuration to reference the keys from.
    * @return the project id based on the given configuration.
@@ -268,8 +275,37 @@ public class BigQueryOutputConfiguration {
     }
     if (Strings.isNullOrEmpty(projectId)) {
       throw new IOException(
+              "Must supply a value for configuration setting: "
+                      + BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY);
+    }
+    return projectId;
+  }
+
+  /**
+   * Gets the project id to be used to run BQ load job based on the given configuration.
+   *
+   * If the {@link BigQueryConfiguration#PROJECT_ID_KEY} is missing, this resolves to
+   * referencing the {@link BigQueryConfiguration#OUTPUT_PROJECT_ID_KEY} key.
+   *
+   * The load job can be configured with two project identifiers. Configuration key
+   * {@link BigQueryConfiguration#PROJECT_ID_KEY} can set the project on whose behalf
+   * to perform BigQuery load operation, while {@link BigQueryConfiguration#OUTPUT_PROJECT_ID_KEY}
+   * can be used to name the project that the target dataset belongs to.
+   *
+   * @param conf the configuration to reference the keys from.
+   * @return the project id based on the given configuration.
+   * @throws IOException if a required key is missing.
+   */
+  public static String getJobProjectId(Configuration conf) throws IOException {
+    // Reference the default project ID as a backup.
+    String projectId = conf.get(BigQueryConfiguration.PROJECT_ID_KEY);
+    if (Strings.isNullOrEmpty(projectId)) {
+      projectId = conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY);
+    }
+    if (Strings.isNullOrEmpty(projectId)) {
+      throw new IOException(
           "Must supply a value for configuration setting: "
-              + BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY);
+              + BigQueryConfiguration.PROJECT_ID_KEY);
     }
     return projectId;
   }
