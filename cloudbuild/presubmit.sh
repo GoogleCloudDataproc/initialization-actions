@@ -12,6 +12,8 @@ install_test_dependencies() {
   pip3 install -r integration_tests/requirements.txt
 }
 
+# Fetches master branch from GitHub and "resets" local changes to be relative to it,
+# so we can diff what changed relatively to master branch.
 initialize_git_repo() {
   git init
 
@@ -31,6 +33,8 @@ is_prefix() {
   return 1
 }
 
+# This function adds all changed files to git "index" and diffs them against master branch
+# to determine all modified files and looks for tests in directories with modified files.
 determine_tests_to_run() {
   # Stage files to track their history
   git add --all
