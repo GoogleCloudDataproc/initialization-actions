@@ -2,6 +2,31 @@
 
 set -euxo pipefail
 
+apt-get update
+apt-get install -y telnet nmap net-tools
+
+#nmap -Pn 35.243.182.226
+#telnet 35.243.182.226 22
+
+ifconfig
+
+mkdir /builder/home/.ssh
+
+gcloud kms decrypt --location=global --keyring=presubmit --key=presubmit \
+    --ciphertext-file=cloudbuild/ssh-key.enc \
+    --plaintext-file=/builder/home/.ssh/google_compute_engine
+
+gcloud kms decrypt --location=global --keyring=presubmit --key=presubmit \
+    --ciphertext-file=cloudbuild/ssh-key.pub.enc \
+    --plaintext-file=/builder/home/.ssh/google_compute_engine.pub
+
+chmod 600 /builder/home/.ssh/google_compute_engine
+
+gcloud compute firewall-rules list
+
+gcloud beta compute ssh idv-test-m --project=cloud-dataproc-ci --zone=us-east1-b --internal-ip \
+    --verbosity=debug --command="uname -a; pwd" -- -T -vvv
+
 configure_gcloud() {
   gcloud config set core/disable_prompts TRUE
   gcloud config set compute/region us-central1

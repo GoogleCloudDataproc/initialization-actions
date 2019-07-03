@@ -3,11 +3,15 @@
 
 FROM gcr.io/cloud-builders/gcloud
 
-# Install Pip
-RUN apt-get -y update
-RUN apt-get -y install python3-pip
+RUN gcloud config set core/disable_prompts TRUE
+COPY ./cloudbuild/ssh-key.enc ./cloudbuild/ssh-key.pub.enc
+COPY ./cloudbuild/ssh-key.enc ./cloudbuild/ssh-key.pub.enc
 
-# Install fastunit
-WORKDIR /tmp/fastunit/
-RUN git clone https://github.com/ityoung/python3-fastunit.git .
-RUN python3 setup.py install
+## Install Pip
+#RUN apt-get -y update
+#RUN apt-get -y install python3-pip
+#
+## Install fastunit
+#WORKDIR /tmp/fastunit/
+#RUN git clone https://github.com/ityoung/python3-fastunit.git .
+#RUN python3 setup.py install
