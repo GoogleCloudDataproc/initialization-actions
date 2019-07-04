@@ -19,6 +19,8 @@ if "fastunit" in sys.modules:
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", logging.INFO))
 
+INTERNAL_IP_SSH = os.getenv("INTERNAL_IP_SSH", "false").lower() == "true"
+
 DEFAULT_TIMEOUT = 15  # minutes
 
 
@@ -104,7 +106,7 @@ class DataprocTestCase(BASE_TEST_CASE):
         args.append("--worker-boot-disk-size={}".format(boot_disk_size))
         args.append("--format=json")
 
-         cmd = "{} dataproc clusters create {} {}".format(
+        cmd = "{} dataproc clusters create {} {}".format(
             "gcloud beta" if beta else "gcloud", self.name, " ".join(args))
 
         _, stdout, _ = self.run_and_assert_command(
@@ -170,6 +172,13 @@ class DataprocTestCase(BASE_TEST_CASE):
 
     @staticmethod
     def run_command(cmd, timeout_in_minutes=DEFAULT_TIMEOUT):
+        cmd = cmd.replace(
+            "gcloud compute ssh ", "gcloud compute ssh --internal-ip ") if (
+                INTERNAL_IP_SSH and "gcloud compute ssh " in cmd) else cmd
+        cmd = cmd.replace("gcloud compute scp ",
+                          "gcloud beta compute scp --internal-ip ") if (
+                              INTERNAL_IP_SSH
+                              and "gcloud compute scp " in cmd) else cmd
         p = subprocess.Popen(
             cmd,
             shell=True,

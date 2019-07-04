@@ -2,35 +2,24 @@
 
 set -euxo pipefail
 
-apt-get update
-apt-get install -y telnet nmap net-tools
-
-#nmap -Pn 35.243.182.226
-#telnet 35.243.182.226 22
-
-ifconfig
-
-mkdir /builder/home/.ssh
-
-gcloud kms decrypt --location=global --keyring=presubmit --key=presubmit \
-    --ciphertext-file=cloudbuild/ssh-key.enc \
-    --plaintext-file=/builder/home/.ssh/google_compute_engine
-
-gcloud kms decrypt --location=global --keyring=presubmit --key=presubmit \
-    --ciphertext-file=cloudbuild/ssh-key.pub.enc \
-    --plaintext-file=/builder/home/.ssh/google_compute_engine.pub
-
-chmod 600 /builder/home/.ssh/google_compute_engine
-
-gcloud compute firewall-rules list
-
-gcloud beta compute ssh idv-test-m --project=cloud-dataproc-ci --zone=us-east1-b --internal-ip \
-    --verbosity=debug --command="uname -a; pwd" -- -T -vvv
-
 configure_gcloud() {
   gcloud config set core/disable_prompts TRUE
   gcloud config set compute/region us-central1
   gcloud config set compute/zone us-central1-f
+}
+
+configure_gcloud_ssh_key() {
+  mkdir "${HOME}/.ssh"
+
+  gcloud kms decrypt --location=global --keyring=presubmit --key=presubmit \
+      --ciphertext-file=cloudbuild/ssh-key.enc \
+      --plaintext-file="${HOME}/.ssh/google_compute_engine"
+
+  gcloud kms decrypt --location=global --keyring=presubmit --key=presubmit \
+      --ciphertext-file=cloudbuild/ssh-key.pub.enc \
+      --plaintext-file="${HOME}/.ssh/google_compute_engine.pub"
+
+  chmod 600 "${HOME}/.ssh/google_compute_engine"
 }
 
 install_test_dependencies() {
@@ -100,6 +89,7 @@ determine_tests_to_run() {
 }
 
 run_tests() {
+  export INTERNAL_IP_SSH=true
   if [[ $RUN_ALL_TESTS == true ]]; then
     # Run all init action tests
     python3 -m fastunit -v
@@ -110,7 +100,9 @@ run_tests() {
 }
 
 main() {
+  cd /init-actions
   configure_gcloud
+  configure_gcloud_ssh_key
   install_test_dependencies
   initialize_git_repo
   determine_tests_to_run

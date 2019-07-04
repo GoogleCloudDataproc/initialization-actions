@@ -3,15 +3,17 @@
 
 FROM gcr.io/cloud-builders/gcloud
 
-RUN gcloud config set core/disable_prompts TRUE
-COPY ./cloudbuild/ssh-key.enc ./cloudbuild/ssh-key.pub.enc
-COPY ./cloudbuild/ssh-key.enc ./cloudbuild/ssh-key.pub.enc
+RUN useradd -m -d /home/ia-tests -s /bin/bash ia-tests
 
-## Install Pip
-#RUN apt-get -y update
-#RUN apt-get -y install python3-pip
-#
-## Install fastunit
-#WORKDIR /tmp/fastunit/
-#RUN git clone https://github.com/ityoung/python3-fastunit.git .
-#RUN python3 setup.py install
+COPY --chown=ia-tests:ia-tests . /init-actions
+
+# Install Pip
+RUN apt-get -y update
+RUN apt-get -y install python3-pip
+
+# Install fastunit
+WORKDIR /tmp/fastunit
+RUN git clone https://github.com/ityoung/python3-fastunit.git .
+RUN python3 setup.py install
+
+USER ia-tests
