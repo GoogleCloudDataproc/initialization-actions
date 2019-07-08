@@ -1,4 +1,5 @@
 import json
+import logging
 import unittest
 
 from parameterized import parameterized
@@ -27,19 +28,20 @@ class CloudSqlProxyTestCase(DataprocTestCase):
         super().setUp()
         self.DB_NAME = "test-cloud-sql-{}-{}".format(self.datetime_str(),
                                                      self.random_str())
-        cmd = 'gcloud sql instances create {} --region {} {}'.format(
-            self.DB_NAME, self.REGION, "--async --format=json")
-        ret_code, stdout, stderr = self.run_command(cmd)
+        create_cmd_fmt = "gcloud sql instances create {}" \
+            " --region {} --async --format=json"
+        _, stdout, _ = self.run_and_assert_command(
+            create_cmd_fmt.format(self.DB_NAME, self.REGION))
         operation_id = json.loads(stdout.strip())['name']
         self.wait_cloud_sql_operation(operation_id)
 
     def tearDown(self):
         super().tearDown()
-        cmd = 'gcloud sql instances delete {} --async --format=json'.format(
-            self.DB_NAME)
-        ret_code, stdout, stderr = self.run_command(cmd)
-        operation_id = json.loads(stdout.strip())['name']
-        self.wait_cloud_sql_operation(operation_id)
+        ret_code, _, stderr = self.run_command(
+            'gcloud sql instances delete {} --async'.format(self.DB_NAME))
+        if ret_code != 0:
+            logging.warning("Failed to delete Cloud SQL instance %s:\n%s",
+                            self.DB_NAME, stderr)
 
     def wait_cloud_sql_operation(self, operation_id):
         self.run_and_assert_command(
