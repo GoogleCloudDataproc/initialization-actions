@@ -17,7 +17,7 @@ if "fastunit" in sys.modules:
     BASE_TEST_CASE = fastunit.TestCase
     PARALLEL_RUN = True
 
-logging.basicConfig(level=os.getenv("LOG_LEVEL", logging.WARNING))
+logging.basicConfig(level=os.getenv("LOG_LEVEL", logging.INFO))
 
 DEFAULT_TIMEOUT = 15  # minutes
 
@@ -28,12 +28,12 @@ class DataprocTestCase(BASE_TEST_CASE):
             "--single-node",
         ],
         "STANDARD": [
-            "--num-masters 1",
-            "--num-workers 2",
+            "--num-masters=1",
+            "--num-workers=2",
         ],
         "HA": [
-            "--num-masters 3",
-            "--num-workers 2",
+            "--num-masters=3",
+            "--num-workers=2",
         ]
     }
 
@@ -78,26 +78,27 @@ class DataprocTestCase(BASE_TEST_CASE):
         if properties:
             args.append("--properties={}".format(properties))
         if scopes:
-            args.append("--scopes {}".format(scopes))
+            args.append("--scopes={}".format(scopes))
         if metadata:
             args.append("--metadata={}".format(metadata))
         if dataproc_version:
             args.append("--image-version={}".format(dataproc_version))
         if timeout_in_minutes:
-            args.append("--initialization-action-timeout {}m".format(
+            args.append("--initialization-action-timeout={}m".format(
                 timeout_in_minutes))
         if init_actions:
-            args.append("--initialization-actions '{}'".format(
+            args.append("--initialization-actions='{}'".format(
                 ','.join(init_actions)))
         if master_accelerator:
-            args.append("--master-accelerator {}".format(master_accelerator))
+            args.append("--master-accelerator={}".format(master_accelerator))
         if worker_accelerator:
-            args.append("--worker-accelerator {}".format(worker_accelerator))
+            args.append("--worker-accelerator={}".format(worker_accelerator))
         if optional_components:
-            args.append("--optional-components {}".format(optional_components))
-        cmd = "gcloud dataproc clusters create {}".format(self.name)
-        if beta:
-            cmd = "gcloud beta dataproc clusters create {}".format(self.name)
+            args.append("--optional-components={}".format(optional_components))
+
+        cmd = "{} dataproc clusters create {}".format(
+            "gcloud beta" if beta else "gcloud", self.name)
+
         for flag in args:
             cmd += " {}".format(flag)
         cmd += " --format=json"
@@ -128,8 +129,12 @@ class DataprocTestCase(BASE_TEST_CASE):
         return staging_dir
 
     def tearDown(self):
-        self.run_and_assert_command(
-            "gcloud dataproc clusters delete {} --quiet".format(self.name))
+        ret_code, _, stderr = self.run_command(
+            "gcloud dataproc clusters delete {} --quiet --async".format(
+                self.name))
+        if ret_code != 0:
+            logging.warning("Failed to delete cluster %s:\n%s", self.name,
+                            stderr)
 
     def getClusterName(self):
         return self.name
@@ -160,9 +165,9 @@ class DataprocTestCase(BASE_TEST_CASE):
         return ''.join(random.choice(chars) for _ in range(size))
 
     @staticmethod
-    def run_command(command, timeout_in_minutes=DEFAULT_TIMEOUT):
+    def run_command(cmd, timeout_in_minutes=DEFAULT_TIMEOUT):
         p = subprocess.Popen(
-            command,
+            cmd,
             shell=True,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
@@ -176,8 +181,8 @@ class DataprocTestCase(BASE_TEST_CASE):
             stdout, stderr = stdout.decode('utf-8'), stderr.decode('utf-8')
         finally:
             my_timer.cancel()
-        logging.info("Ran %s: retcode: %d, stdout: %s, stderr: %s", command,
-                     p.returncode, stdout, stderr)
+        logging.debug("Ran %s: retcode: %d, stdout: %s, stderr: %s", cmd,
+                      p.returncode, stdout, stderr)
         return p.returncode, stdout, stderr
 
     @staticmethod
