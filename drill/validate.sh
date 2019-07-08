@@ -90,5 +90,5 @@ if ((ui_result == 200 && sql_result == 0)); then
   exit 0
 fi
 
-echo "  failed"
+echo "Test failed"
 exit 1
