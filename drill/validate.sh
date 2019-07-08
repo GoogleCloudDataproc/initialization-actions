@@ -43,8 +43,8 @@ cd ${DRILL_HOME}
 if [[ "$1" == "DISTRIBUTED" ]]; then
   (
     while [[ ${status} != 200 ]]; do
+      sleep 3
       status=$(curl -s -o /dev/null -w "%{http_code}" localhost:8047)
-      sleep 1
       if [[ ${status} == 200 ]]; then
         echo "${status}" >drill.status
       fi
@@ -55,10 +55,18 @@ else
   echo "200" >drill.status
 fi
 
-while [[ ! -s drill.status ]]; do
-  echo "waiting"
-  sleep 2
+for i in {0..60}; do
+  if [[ -s drill.status ]]; then
+    break
+  fi
+  echo "Waiting on Drill UI..."
+  sleep 5
 done
+
+if [[ ! -s drill.status ]]; then
+  echo "Test failed: Drill UI did not initialize"
+  exit 1
+fi
 
 ui_result=$(<drill.status)
 
@@ -82,5 +90,5 @@ if ((ui_result == 200 && sql_result == 0)); then
   exit 0
 fi
 
-echo "Test failed"
+echo "  failed"
 exit 1
