@@ -9,7 +9,7 @@ steps:
   # Run presubmit script
   - name: 'gcr.io/cloud-builders/kubectl'
     entrypoint: 'bash'
-    args: ['cloudbuild/kubectl.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID']
+    args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID']
     env:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
       - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
