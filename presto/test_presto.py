@@ -100,7 +100,10 @@ class PrestoTestCase(DataprocTestCase):
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_presto(self, configuration, dataproc_version, machine_suffixes,
                     coordinators, workers):
-        self.createCluster(configuration, self.INIT_ACTIONS, dataproc_version)
+        self.createCluster(configuration,
+                           self.INIT_ACTIONS,
+                           dataproc_version,
+                           machine_type="n1-standard-2")
         for machine_suffix in machine_suffixes:
             self.verify_instance(
                 "{}-{}".format(self.getClusterName(), machine_suffix),
