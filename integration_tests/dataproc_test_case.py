@@ -104,10 +104,8 @@ class DataprocTestCase(BASE_TEST_CASE):
         args.append("--worker-boot-disk-size={}".format(boot_disk_size))
         args.append("--format=json")
 
-        cmd = "{} dataproc clusters create {} ".format(
-            "gcloud beta" if beta else "gcloud", self.name)
-
-        cmd += " ".join(args)
+        cmd = "{} dataproc clusters create {} {}".format(
+            "gcloud beta" if beta else "gcloud", self.name, " ".join(args))
 
         _, stdout, _ = self.run_and_assert_command(
             cmd, timeout_in_minutes=timeout_in_minutes or DEFAULT_TIMEOUT)
