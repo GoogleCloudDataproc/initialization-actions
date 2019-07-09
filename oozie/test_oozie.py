@@ -41,7 +41,8 @@ class OozieTestCase(DataprocTestCase):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
                            dataproc_version,
-                           machine_type="n1-standard-2")
+                           machine_type="n1-standard-4",
+                           boot_disk_size="200GB")
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
