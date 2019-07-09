@@ -1,0 +1,4 @@
+steps:
+- name: 'gcr.io/cloud-builders/git'
+  entrypoint: 'bash'
+  args: ['./gcs_updater/push_to_gcs.sh']

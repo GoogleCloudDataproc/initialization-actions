@@ -1,0 +1,21 @@
+steps:
+  # Create Docker image from regular Dockerfile
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '--tag=gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '-f', 'cloudbuild/Dockerfile', '.']
+  # Push Docker image to GCR
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID']
+
+  # Run presubmit script
+  - name: 'gcr.io/cloud-builders/kubectl'
+    entrypoint: 'bash'
+    args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID']
+    env:
+      - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
+      - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
+
+  # Delete Docker image from GCR
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: ['container', 'images', 'delete', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID']
+
+timeout: 5400s
