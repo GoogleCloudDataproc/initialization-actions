@@ -31,7 +31,7 @@ import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.BigQueryHelper;
-import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
+import com.google.cloud.hadoop.util.testing.CredentialConfigurationUtil;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.List;

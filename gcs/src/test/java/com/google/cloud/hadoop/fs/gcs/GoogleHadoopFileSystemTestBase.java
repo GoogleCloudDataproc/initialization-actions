@@ -27,7 +27,7 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions.Timesta
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
-import com.google.cloud.hadoop.testing.TestingAccessTokenProvider;
+import com.google.cloud.hadoop.util.testing.TestingAccessTokenProvider;
 import com.google.common.base.Joiner;
 import java.io.File;
 import java.io.IOException;

@@ -16,10 +16,10 @@ package com.google.cloud.hadoop.util;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import com.google.cloud.hadoop.testing.EntriesCredentialConfigurationUtil;
-import com.google.cloud.hadoop.testing.EntriesCredentialConfigurationUtil.TestEntries;
 import com.google.cloud.hadoop.util.EntriesCredentialConfiguration.Entries;
 import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
+import com.google.cloud.hadoop.util.testing.EntriesCredentialConfigurationUtil;
+import com.google.cloud.hadoop.util.testing.EntriesCredentialConfigurationUtil.TestEntries;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.List;

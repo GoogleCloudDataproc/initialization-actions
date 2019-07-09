@@ -12,7 +12,7 @@
  * limitations under the License.
  */
 
-package com.google.cloud.hadoop.testing;
+package com.google.cloud.hadoop.util.testing;
 
 import com.google.cloud.hadoop.util.EntriesCredentialConfiguration;
 import com.google.cloud.hadoop.util.EntriesCredentialConfiguration.Entries;

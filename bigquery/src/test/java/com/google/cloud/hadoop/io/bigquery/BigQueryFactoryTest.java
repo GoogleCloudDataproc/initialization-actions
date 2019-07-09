@@ -16,7 +16,7 @@ package com.google.cloud.hadoop.io.bigquery;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.api.services.bigquery.Bigquery;
-import com.google.cloud.hadoop.testing.CredentialConfigurationUtil;
+import com.google.cloud.hadoop.util.testing.CredentialConfigurationUtil;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import org.apache.hadoop.conf.Configuration;

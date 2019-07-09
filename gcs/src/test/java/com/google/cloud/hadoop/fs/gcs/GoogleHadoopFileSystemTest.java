@@ -21,7 +21,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
-import com.google.cloud.hadoop.testing.TestingAccessTokenProvider;
+import com.google.cloud.hadoop.util.testing.TestingAccessTokenProvider;
 import com.google.common.flogger.LoggerConfig;
 import java.io.FileNotFoundException;
 import java.io.IOException;
