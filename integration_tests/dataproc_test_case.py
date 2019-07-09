@@ -62,7 +62,9 @@ class DataprocTestCase(BASE_TEST_CASE):
                       beta=False,
                       master_accelerator=None,
                       worker_accelerator=None,
-                      optional_components=None):
+                      optional_components=None,
+                      machine_type="n1-standard-1",
+                      boot_disk_size="50GB"):
         self.name = "test-{}-{}-{}-{}".format(
             self.COMPONENT, configuration.lower(),
             dataproc_version.replace(".", "-"), self.datetime_str())[:46]
@@ -96,12 +98,16 @@ class DataprocTestCase(BASE_TEST_CASE):
         if optional_components:
             args.append("--optional-components={}".format(optional_components))
 
-        cmd = "{} dataproc clusters create {}".format(
+        args.append("--master-machine-type={}".format(machine_type))
+        args.append("--worker-machine-type={}".format(machine_type))
+        args.append("--master-boot-disk-size={}".format(boot_disk_size))
+        args.append("--worker-boot-disk-size={}".format(boot_disk_size))
+        args.append("--format=json")
+
+        cmd = "{} dataproc clusters create {} ".format(
             "gcloud beta" if beta else "gcloud", self.name)
 
-        for flag in args:
-            cmd += " {}".format(flag)
-        cmd += " --format=json"
+        cmd += " ".join(args)
 
         _, stdout, _ = self.run_and_assert_command(
             cmd, timeout_in_minutes=timeout_in_minutes or DEFAULT_TIMEOUT)
