@@ -1,57 +1,45 @@
 #!/bin/bash
+
 set -euxo pipefail
 
 namenode=$(bdconfig get_property_value --configuration_file /etc/hadoop/conf/core-site.xml --name fs.default.name 2>/dev/null)
-hostname="$(hostname)"
+
+# Upload Oozie example to HDFS if it doesn't exist
 hdfs_empty=false
-echo "Starting validation script"
-
-hdfs dfs -ls /user/$(whoami)/examples || hdfs_empty=true
-if [[ ${hdfs_empty} == true ]] ; then
-  cp /usr/share/doc/oozie/oozie-examples.tar.gz ~
-  tar -zxvf oozie-examples.tar.gz
-  cat << EOF > /home/$(whoami)/examples/apps/map-reduce/job.properties
-#
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#      http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-hadoop f
-nameNode=${namenode}:8020
-jobTracker=${hostname}:8032
-queueName=default
-examplesRoot=examples
-
-oozie.wf.application.path=${namenode}/user/$(whoami)/examples/apps/map-reduce/workflow.xml
-outputDir=map-reduce
-oozie.use.system.libpath=true
-EOF
-  ln -s  /home/$(whoami)/examples/apps/map-reduce/job.properties job.properties
-  hdfs dfs -mkdir -p /user/$(whoami)/
-  hadoop fs -put ~/examples/ /user/$(whoami)/
-else
-  hdfs dfs -get /user/$(whoami)/examples/apps/map-reduce/job.properties job.properties
+hdfs dfs -ls oozie-examples || hdfs_empty=true
+if [[ ${hdfs_empty} == true ]]; then
+  tar -zxf /usr/share/doc/oozie/oozie-examples.tar.gz
+  hdfs dfs -mkdir -p "/user/${USER}/"
+  hadoop fs -put examples oozie-examples
 fi
 
+# Download Oozie `job.properties` from HDFS
+rm -f job.properties
+hdfs dfs -get "oozie-examples/apps/map-reduce/job.properties" job.properties
+
+
 echo "---------------------------------"
-echo "Starting validation on ${hostname}"
-sudo -u hdfs hadoop dfsadmin -safemode leave &> /dev/null
+echo "Starting validation on ${HOSTNAME}"
+sudo -u hdfs hadoop dfsadmin -safemode leave &>/dev/null
 oozie admin -sharelibupdate
 
-job=$(oozie job -config job.properties -run)
+# Start example Oozie job
+job=$(oozie job -config job.properties -run \
+  -D "nameNode=${namenode}:8020" -D "jobTracker=${HOSTNAME}:8032" -D examplesRoot=oozie-examples)
 job="${job:5:${#job}}"
-sleep 1m
-oozie job -oozie http://localhost:11000/oozie -info ${job} | grep "SUCCEEDED"
-exit $?
+
+# Poll Oozie job info until it's not running
+for run in {1..30}; do
+  sleep 10s
+  job_info=$(oozie job -info "${job}")
+  if [[ $job_info != *"RUNNING"* ]]; then
+    break
+  fi
+done
+
+if [[ $job_info == *"SUCCEEDED"* ]]; then
+  exit 0
+fi
+
+echo "Job ${job} did not succeed"
+exit 1
