@@ -40,7 +40,7 @@ public class BigQueryFactoryTest {
     BigQueryFactory factory = new BigQueryFactory();
     Configuration configuration = CredentialConfigurationUtil.getTestConfiguration();
     Bigquery bigquery = factory.getBigQuery(configuration);
-    assertThat(bigquery != null).isTrue();
+    assertThat(bigquery).isNotNull();
     assertThat(bigquery.getRootUrl()).isEqualTo("https://www.googleapis.com/");
   }
 
