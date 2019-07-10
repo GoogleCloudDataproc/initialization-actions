@@ -67,7 +67,6 @@ determine_tests_to_run() {
   echo "Changed directories: ${changed_dirs[*]}"
 
   # Determines what tests in changed init action directories to run
-  declare -g -a TESTS_TO_RUN
   for changed_dir in "${changed_dirs[@]}"; do
     local tests_in_dir
     if ! tests_in_dir=$(compgen -G "${changed_dir}test*.py"); then
@@ -101,5 +100,8 @@ main() {
   determine_tests_to_run
   run_tests
 }
+
+# Declare global variable for passing tests between functions
+declare -a TESTS_TO_RUN
 
 main
