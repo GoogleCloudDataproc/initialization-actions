@@ -58,7 +58,8 @@ determine_tests_to_run() {
       RUN_ALL_TESTS=true
       return 0
     fi
-
+    # Hack to workaround empty array expansion on old versions of Bash.
+    # See: https://stackoverflow.com/a/7577209/3227693
     if [[ ${changed_dirs[*]+" ${changed_dirs[*]} "} != *" ${changed_dir} "* ]]; then
       changed_dirs+=("$changed_dir")
     fi
