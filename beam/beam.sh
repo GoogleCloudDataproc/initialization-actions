@@ -1,143 +1,105 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -euxo pipefail
 
+configure_gcloud() {
+  gcloud config set core/disable_prompts TRUE
+  gcloud config set compute/region us-central1
+  gcloud config set compute/zone us-central1-f
+}
 
+configure_gcloud_ssh_key() {
+  mkdir "${HOME}/.ssh"
 
-readonly LOCAL_JAR_NAME='beam-runners-flink_2.11-job-server.jar'
-readonly SERVICE_INSTALL_DIR='/usr/lib/beam-job-service'
-readonly SERVICE_WORKING_DIR='/var/lib/beam-job-service'
-readonly SERVICE_WORKING_USER='yarn'
+  gcloud kms decrypt --location=global --keyring=presubmit --key=presubmit \
+    --ciphertext-file=cloudbuild/ssh-key.enc \
+    --plaintext-file="${HOME}/.ssh/google_compute_engine"
 
-readonly ARTIFACTS_GCS_PATH_METADATA_KEY='beam-artifacts-gcs-path'
-readonly RELEASE_SNAPSHOT_URL_METADATA_KEY="beam-job-service-snapshot"
-readonly RELEASE_SNAPSHOT_URL_DEFAULT="http://repo1.maven.org/maven2/org/apache/beam/beam-runners-flink_2.11-job-server/2.6.0/beam-runners-flink_2.11-job-server-2.6.0.jar"
+  gcloud kms decrypt --location=global --keyring=presubmit --key=presubmit \
+    --ciphertext-file=cloudbuild/ssh-key.pub.enc \
+    --plaintext-file="${HOME}/.ssh/google_compute_engine.pub"
 
-readonly BEAM_IMAGE_ENABLE_PULL_METADATA_KEY="beam-image-enable-pull"
-readonly BEAM_IMAGE_ENABLE_PULL_DEFAULT=false
-readonly BEAM_IMAGE_VERSION_METADATA_KEY="beam-image-version"
-readonly BEAM_IMAGE_VERSION_DEFAULT="master"
-readonly BEAM_IMAGE_REPOSITORY_KEY="beam-image-repository"
-readonly BEAM_IMAGE_REPOSITORY_DEFAULT="apache.bintray.io/beam"
+  chmod 600 "${HOME}/.ssh/google_compute_engine"
+}
 
+install_test_dependencies() {
+  pip3 install -r integration_tests/requirements.txt
+}
 
-readonly START_FLINK_YARN_SESSION_METADATA_KEY='flink-start-yarn-session'
-# Set this to true to start a flink yarn session at initialization time.
-readonly START_FLINK_YARN_SESSION_DEFAULT=true
+# Fetches master branch from GitHub and "resets" local changes to be relative to it,
+# so we can diff what changed relatively to master branch.
+initialize_git_repo() {
+  git init
 
-function is_master() {
-  local role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-  if [[ "$role" == 'Master' ]] ; then
-    true
+  git remote add origin "https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git"
+  git fetch origin master
+
+  git reset origin/master
+}
+
+# This function adds all changed files to git "index" and diffs them against master branch
+# to determine all changed files and looks for tests in directories with changed files.
+determine_tests_to_run() {
+  # Stage files to track their history
+  git add --all
+
+  # Infer the files that changed
+  mapfile -t CHANGED_FILES < <(git diff --cached origin/master --name-only)
+  echo "Changed files: ${CHANGED_FILES[*]}"
+
+  # Determines init actions directories that were changed
+  RUN_ALL_TESTS=false
+  declare -a changed_dirs
+  for changed_file in "${CHANGED_FILES[@]}"; do
+    local changed_dir="${changed_file/\/*/}/"
+    # Run all tests if common directories were changed
+    if [[ ${changed_dir} =~ ^(integration_tests/|util/|cloudbuild/)$ ]]; then
+      echo "All tests will be run: '${changed_dir}' was changed"
+      RUN_ALL_TESTS=true
+      return 0
+    fi
+    # Hack to workaround empty array expansion on old versions of Bash.
+    # See: https://stackoverflow.com/a/7577209/3227693
+    if [[ ${changed_dirs[*]+" ${changed_dirs[*]} "} != *" ${changed_dir} "* ]]; then
+      changed_dirs+=("$changed_dir")
+    fi
+  done
+  echo "Changed directories: ${changed_dirs[*]}"
+
+  # Determines what tests in changed init action directories to run
+  declare -a TESTS_TO_RUN
+  for changed_dir in "${changed_dirs[@]}"; do
+    local tests_in_dir
+    if ! tests_in_dir=$(compgen -G "${changed_dir}test*.py"); then
+      echo "ERROR: presubmit failed - cannot find tests inside '${changed_dir}' directory"
+      exit 1
+    fi
+    declare -a tests_array
+    mapfile -t tests_array < <(echo "${tests_in_dir}")
+    TESTS_TO_RUN+=("${tests_array[@]}")
+  done
+  echo "Tests: ${TESTS_TO_RUN[*]}"
+}
+
+run_tests() {
+  export INTERNAL_IP_SSH=true
+  if [[ $RUN_ALL_TESTS == true ]]; then
+    # Run all init action tests
+    python3 -m fastunit -v
   else
-    false
+    # Run tests for the init actions that were changed
+    python3 -m fastunit -v "${TESTS_TO_RUN[@]}"
   fi
 }
 
-function get_artifacts_dir() {
-  /usr/share/google/get_metadata_value "attributes/${ARTIFACTS_GCS_PATH_METADATA_KEY}" \
-    || echo "gs://$(/usr/share/google/get_metadata_value "attributes/dataproc-bucket")/beam-artifacts"
+main() {
+  cd /init-actions
+  configure_gcloud
+  configure_gcloud_ssh_key
+  install_test_dependencies
+  initialize_git_repo
+  determine_tests_to_run
+  run_tests
 }
 
-function download_snapshot() {
-  readonly snapshot_url="${1}"
-  readonly protocol="$(echo "${snapshot_url}" | head -c5)"
-  if [ "${protocol}" = "gs://" ]; then
-    gsutil cp "${snapshot_url}" "${LOCAL_JAR_NAME}"
-  else
-    curl -o "${LOCAL_JAR_NAME}" "${snapshot_url}"
-  fi
-}
-
-function flink_master_url() {
-  local start_flink_yarn_session="$(/usr/share/google/get_metadata_value \
-    "attributes/${START_FLINK_YARN_SESSION_METADATA_KEY}" \
-    || echo "${START_FLINK_YARN_SESSION_DEFAULT}")"
-  # TODO: delete this workaround when the beam job service is able to understand 
-  # flink in yarn mode.
-  if ${start_flink_yarn_session} ; then
-    # grab final field from the first yarn application that contains 'flink'
-    yarn application -list \
-      | grep -i 'flink' \
-      | head -n1 \
-      | awk -F $'\t' '{print $9}' \
-      | cut -c8-
-  else
-    echo "localhost:8081"
-  fi
-}
-
-function install_job_service() {
-  local master_url="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
-  local artifacts_dir="$(get_artifacts_dir)"
-  local release_snapshot_url="$(/usr/share/google/get_metadata_value \
-    "attributes/${RELEASE_SNAPSHOT_URL_METADATA_KEY}" \
-    || echo "${RELEASE_SNAPSHOT_URL_DEFAULT}")"
-
-  echo "Retrieving Beam Job Service snapshot from ${release_snapshot_url}"
-
-  local flink_master="$(flink_master_url)"
-  echo "Resolved flink master to: '${master_url}'"
-
-  mkdir -p "${SERVICE_INSTALL_DIR}"
-  pushd "${SERVICE_INSTALL_DIR}"
-  download_snapshot "${release_snapshot_url}"
-  popd
-  mkdir -p "${SERVICE_WORKING_DIR}"
-  chown -R "${SERVICE_WORKING_USER}" "${SERVICE_WORKING_DIR}"
-
-  cat > "/etc/systemd/system/beam-job-service.service" <<EOF
-[Unit]
-Description=Beam Job Service
-After=default.target
-
-[Service]
-Type=simple
-User=${SERVICE_WORKING_USER}
-WorkingDirectory=${SERVICE_WORKING_DIR}
-ExecStart=/usr/bin/java \
-  -jar ${SERVICE_INSTALL_DIR}/${LOCAL_JAR_NAME} \
-  --job-host=${master_url}\
-  --artifacts-dir=${artifacts_dir} \
-  --flink-master-url=${flink_master}
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-EOF
-systemctl enable beam-job-service
-}
-
-function run_job_service() {
-  systemctl restart beam-job-service
-}
-
-function pull_beam_images() {
-  local beam_image_version="$(/usr/share/google/get_metadata_value \
-    "attributes/${BEAM_IMAGE_VERSION_METADATA_KEY}" \
-    || echo "${BEAM_IMAGE_VERSION_DEFAULT}")"
-  local image_repo="$(/usr/share/google/get_metadata_value \
-    "attributes/${BEAM_IMAGE_REPOSITORY_KEY}" \
-    || echo "${BEAM_IMAGE_REPOSITORY_DEFAULT}")"
-  # Pull beam images with `sudo -i` since if pulling from GCR, yarn will be
-  # configured with GCR authorization
-  sudo -u yarn -i docker pull "${image_repo}/go:${beam_image_version}"
-  sudo -u yarn -i docker pull "${image_repo}/python:${beam_image_version}"
-  sudo -u yarn -i docker pull "${image_repo}/java:${beam_image_version}"
-}
-
-function main() {
-  if [[ is_master ]]; then
-    install_job_service
-    run_job_service
-  fi
-
-  local pull_images="$(/usr/share/google/get_metadata_value \
-    "attributes/${BEAM_IMAGE_ENABLE_PULL_METADATA_KEY}" \
-    || echo "${BEAM_IMAGE_ENABLE_PULL_DEFAULT}")"
-  if ${pull_images} ; then
-    pull_beam_images
-  fi
-}
-
-main "$@"
+main
