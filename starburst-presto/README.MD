@@ -1,6 +1,6 @@
 # Presto
 
-This initialization action installs Starburst Presto 302-e (https://www.starburstdata.com) on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster. Additionally, this script will configure Presto to work with Hive on the cluster. The master Cloud Dataproc node will be the coordinator and all Cloud Dataproc workers will be Presto workers.
+This initialization action installs Starburst Presto 312-e (https://www.starburstdata.com) on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster. Additionally, this script will configure Presto to work with Hive on the cluster. The master Cloud Dataproc node will be the coordinator and all Cloud Dataproc workers will be Presto workers.
 
 ## Using this initialization action
 You can use this initialization action to create a new Dataproc cluster with Presto installed:
