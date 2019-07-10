@@ -49,7 +49,7 @@ determine_tests_to_run() {
 
   # Determines init actions directories that were changed
   RUN_ALL_TESTS=false
-  local -a changed_dirs
+  local -a changed_dirs=()
   for changed_file in "${CHANGED_FILES[@]}"; do
     local changed_dir="${changed_file/\/*/}/"
     # Run all tests if common directories were changed
