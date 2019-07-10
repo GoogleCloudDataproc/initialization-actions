@@ -58,7 +58,8 @@ determine_tests_to_run() {
       RUN_ALL_TESTS=true
       return 0
     fi
-    if [[ " ${changed_dirs[*]} " != *" ${changed_dir} "* ]]; then
+
+    if [[ ${changed_dirs[*]+" ${changed_dirs[*]} "} != *" ${changed_dir} "* ]]; then
       changed_dirs+=("$changed_dir")
     fi
   done
