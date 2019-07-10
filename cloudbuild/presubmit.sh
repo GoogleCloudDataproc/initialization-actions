@@ -38,7 +38,7 @@ initialize_git_repo() {
 }
 
 # Determines whether a given string is a prefix string of any changed file name
-is_prefix() {
+is_changed_prefix() {
   for file in "${CHANGED_FILES[@]}"; do
     if [[ $file =~ ^$1 ]]; then
       return 0
@@ -62,7 +62,7 @@ determine_tests_to_run() {
   local -a modified_dirs
   for dir in */; do
     # Skip dir if it is not a prefix of any changed file
-    if ! is_prefix "$dir"; then
+    if ! is_changed_prefix "$dir"; then
       continue
     fi
     # Run all tests if common directories were modified
