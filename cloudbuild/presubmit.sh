@@ -85,7 +85,7 @@ run_tests() {
     # Run all init action tests
     python3 -m fastunit -v
   else
-    # Run tests of the init actions that were changed
+    # Run tests for the init actions that were changed
     python3 -m fastunit -v "${TESTS_TO_RUN[@]}"
   fi
 }
