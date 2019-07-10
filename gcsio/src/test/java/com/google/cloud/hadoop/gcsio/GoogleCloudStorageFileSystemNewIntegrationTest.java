@@ -21,7 +21,6 @@ import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.listR
 import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.uploadRequestString;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.truth.Truth.assertThat;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
@@ -29,7 +28,6 @@ import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.RetryHttpInitializer;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URLEncoder;
 import java.util.List;
 import java.util.UUID;
 import org.junit.AfterClass;
@@ -121,8 +119,7 @@ public class GoogleCloudStorageFileSystemNewIntegrationTest {
 
     assertThat(gcsRequestsTracker.getAllRequestStrings())
         .containsExactly(
-            getRequestString(bucketName, dirObject),
-            getRequestString(bucketName, dirObject + URLEncoder.encode("/", UTF_8.name())));
+            getRequestString(bucketName, dirObject), getRequestString(bucketName, dirObject + "/"));
 
     assertThat(dirInfo.exists()).isTrue();
     assertThat(dirInfo.getPath().toString()).isEqualTo(dirObjectUri + "/");
@@ -149,7 +146,7 @@ public class GoogleCloudStorageFileSystemNewIntegrationTest {
     assertThat(gcsRequestsTracker.getAllRequestStrings())
         .containsExactly(
             getRequestString(bucketName, dirObject),
-            getRequestString(bucketName, dirObject + URLEncoder.encode("/", UTF_8.name())),
+            getRequestString(bucketName, dirObject + "/"),
             listRequestString(
                 bucketName, dirObject + "/", /* maxResults= */ 2, /* pageToken= */ null));
 
@@ -173,8 +170,7 @@ public class GoogleCloudStorageFileSystemNewIntegrationTest {
     FileInfo dirInfo = gcsFs.getFileInfo(new URI("gs://" + bucketName).resolve(dirObject + "/"));
 
     assertThat(gcsRequestsTracker.getAllRequestStrings())
-        .containsExactly(
-            getRequestString(bucketName, dirObject + URLEncoder.encode("/", UTF_8.name())));
+        .containsExactly(getRequestString(bucketName, dirObject + "/"));
 
     assertThat(dirInfo.exists()).isTrue();
     assertThat(dirInfo.getPath().toString()).isEqualTo(dirObjectUri + "/");
@@ -200,7 +196,7 @@ public class GoogleCloudStorageFileSystemNewIntegrationTest {
 
     assertThat(gcsRequestsTracker.getAllRequestStrings())
         .containsExactly(
-            getRequestString(bucketName, dirObject + URLEncoder.encode("/", UTF_8.name())),
+            getRequestString(bucketName, dirObject + "/"),
             listRequestString(
                 bucketName, dirObject + "/", /* maxResults= */ 2, /* pageToken= */ null));
 
@@ -248,7 +244,7 @@ public class GoogleCloudStorageFileSystemNewIntegrationTest {
     assertThat(gcsRequestsTracker.getAllRequestStrings())
         .containsExactly(
             getRequestString(bucketName, fileObject),
-            getRequestString(bucketName, fileObject + URLEncoder.encode("/", UTF_8.name())),
+            getRequestString(bucketName, fileObject + "/"),
             listRequestString(
                 bucketName,
                 /* includeTrailingDelimiter= */ true,
@@ -276,7 +272,7 @@ public class GoogleCloudStorageFileSystemNewIntegrationTest {
     assertThat(gcsRequestsTracker.getAllRequestStrings())
         .containsExactly(
             getRequestString(bucketName, dirObject),
-            getRequestString(bucketName, dirObject + URLEncoder.encode("/", UTF_8.name())),
+            getRequestString(bucketName, dirObject + "/"),
             listRequestString(
                 bucketName,
                 /* includeTrailingDelimiter= */ true,
@@ -307,7 +303,7 @@ public class GoogleCloudStorageFileSystemNewIntegrationTest {
     assertThat(gcsRequestsTracker.getAllRequestStrings())
         .containsExactly(
             getRequestString(bucketName, dirObject),
-            getRequestString(bucketName, dirObject + URLEncoder.encode("/", UTF_8.name())),
+            getRequestString(bucketName, dirObject + "/"),
             listRequestString(
                 bucketName,
                 /* includeTrailingDelimiter= */ true,
