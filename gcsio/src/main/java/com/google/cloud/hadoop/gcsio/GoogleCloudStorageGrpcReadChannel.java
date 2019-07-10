@@ -63,11 +63,6 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
   // GCS resource/object path, used for logging.
   private final String resourceIdString;
 
-  // Maximum number of automatic retries when reading from the underlying channel without making
-  // progress; each time at least one byte is successfully read, the counter of attempted retries
-  // is reset.
-  private int maxRetries = 10;
-
   // True if this channel is open, false otherwise.
   private boolean channelIsOpen = true;
 
@@ -131,14 +126,10 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
     }
   }
 
-  /**
-   * Sets the number of times to automatically retry by re-opening the underlying contentChannel
-   * whenever an exception occurs while reading from it. The count of attempted retries is reset
-   * whenever at least one byte is successfully read, so this number of retries refers to retries
-   * made without achieving any forward progress.
-   */
   public void setMaxRetries(int maxRetries) {
-    this.maxRetries = maxRetries;
+    // TODO(b/137190996): Figure out if creating the stub/channel in this
+    // class to support this is worthwhile.
+    logger.atWarning().log("setMaxRetries not supported for gRPC writes.");
   }
 
   @Override
@@ -271,7 +262,6 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
 
   /** Fetch object metadata from the server. */
   private Object getMetadata() throws IOException {
-    // TODO(b/135136492): Implement retry.
     GetObjectRequest request =
         GetObjectRequest.newBuilder().setBucket(bucketName).setObject(objectName).build();
 
@@ -380,7 +370,6 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
 
   /** Internal channel wrapper around data from getMedia requests. */
   private class ContentChannel implements ReadableByteChannel {
-    // TODO(b/135136492): Implement retry.
     // TODO(b/135138893): Implement BEST_EFFORT generationReadConsistency.
     //                      Make sure to invalidate the objectHasher on generation change.
     // TODO(b/135138159): Implement minRangeRequest

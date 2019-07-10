@@ -63,6 +63,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -71,6 +72,7 @@ import com.google.common.io.BaseEncoding;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.google.storage.v1.StorageObjectsGrpc;
 import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsStub;
+import com.google.protobuf.util.Durations;
 import io.grpc.alts.GoogleDefaultChannelBuilder;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -80,6 +82,7 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.file.FileAlreadyExistsException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -116,6 +119,9 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
   // The GCS gRPC server.
   private static final String GRPC_TARGET = "storage.googleapis.com:443";
+
+  // The maximum number of times to automatically retry gRPC requests.
+  private static final double GRPC_MAX_RETRY_ATTEMPTS = 10;
 
   // A function to encode metadata map values
   private static String encodeMetadataValues(byte[] bytes) {
@@ -249,8 +255,36 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
             .build();
 
     // Create the gRPC stub;
+    Map<String, Object> serviceConfig = getGrpcServiceConfig(options.getReadChannelOptions());
     this.gcsGrpcStub =
-        StorageObjectsGrpc.newStub(GoogleDefaultChannelBuilder.forTarget(GRPC_TARGET).build());
+        StorageObjectsGrpc.newStub(
+            GoogleDefaultChannelBuilder.forTarget(GRPC_TARGET)
+                .defaultServiceConfig(serviceConfig)
+                .build());
+  }
+
+  private Map<String, Object> getGrpcServiceConfig(GoogleCloudStorageReadOptions readOptions) {
+    Map<String, Object> name = ImmutableMap.of("service", "google.storage.v1.StorageObjects");
+
+    Map<String, Object> retryPolicy =
+        ImmutableMap.<String, Object>builder()
+            .put("maxAttempts", GRPC_MAX_RETRY_ATTEMPTS)
+            .put(
+                "initialBackoff",
+                Durations.fromMillis(readOptions.getBackoffInitialIntervalMillis()).toString())
+            .put(
+                "maxBackoff",
+                Durations.fromMillis(readOptions.getBackoffMaxIntervalMillis()).toString())
+            .put("backoffMultiplier", readOptions.getBackoffMultiplier())
+            .put(
+                "retryableStatusCodes",
+                ImmutableList.of("UNAVAILABLE", "RESOURCE_EXHAUSTED"))
+            .build();
+
+    Map<String, Object> methodConfig = ImmutableMap.of(
+        "name", ImmutableList.of(name), "retryPolicy", retryPolicy);
+
+    return ImmutableMap.of("methodConfig", ImmutableList.of(methodConfig));
   }
 
   /**
