@@ -38,7 +38,7 @@ function err() {
 function wait_for_presto_cluster_ready() {
   # wait up to 120s for presto being able to run query
   for ((i = 0; i < 12; i++)); do
-    if presto --execute='select * from system.runtime.nodes;'; then
+    if presto --server="localhost:${HTTP_PORT}" --execute='select 1'; then
       return 0
     fi
     sleep 10
@@ -122,6 +122,23 @@ function configure_hive(){
   cat > presto-server/etc/catalog/hive.properties <<EOF
 connector.name=hive-hadoop2
 hive.metastore.uri=${metastore_uri}
+EOF
+
+# Add connectors configs here 
+  cat > presto-server-${PRESTO_VERSION}/etc/catalog/tpch.properties <<EOF
+connector.name=tpch
+EOF
+
+cat > presto-server/etc/catalog/tpcds.properties <<EOF
+connector.name=tpcds
+EOF
+
+cat > presto-server/etc/catalog/jmx.properties <<EOF
+connector.name=jmx
+EOF
+
+cat > presto-server/etc/catalog/memory.properties <<EOF
+connector.name=memory
 EOF
 }
 
