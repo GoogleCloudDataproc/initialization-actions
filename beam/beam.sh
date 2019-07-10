@@ -2,6 +2,8 @@
 
 set -euxo pipefail
 
+
+
 readonly LOCAL_JAR_NAME='beam-runners-flink_2.11-job-server.jar'
 readonly SERVICE_INSTALL_DIR='/usr/lib/beam-job-service'
 readonly SERVICE_WORKING_DIR='/var/lib/beam-job-service'
