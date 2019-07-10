@@ -72,7 +72,7 @@ determine_tests_to_run() {
       echo "ERROR: presubmit failed - cannot find tests inside '${changed_dir}' directory"
       exit 1
     fi
-    local -a tests_array
+    declare -a tests_array
     mapfile -t tests_array < <(echo "${tests_in_dir}")
     TESTS_TO_RUN+=("${tests_array[@]}")
   done
