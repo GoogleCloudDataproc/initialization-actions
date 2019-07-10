@@ -214,6 +214,7 @@ function start_presto() {
   cat <<EOF >${INIT_SCRIPT}
 [Unit]
 Description=Presto DB
+
 [Service]
 Type=forking
 ExecStart=/presto-server-${PRESTO_VERSION}/bin/launcher.py start
