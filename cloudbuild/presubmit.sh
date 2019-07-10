@@ -12,12 +12,12 @@ configure_gcloud_ssh_key() {
   mkdir "${HOME}/.ssh"
 
   gcloud kms decrypt --location=global --keyring=presubmit --key=presubmit \
-      --ciphertext-changed_file=cloudbuild/ssh-key.enc \
-      --plaintext-changed_file="${HOME}/.ssh/google_compute_engine"
+    --ciphertext-file=cloudbuild/ssh-key.enc \
+    --plaintext-file="${HOME}/.ssh/google_compute_engine"
 
   gcloud kms decrypt --location=global --keyring=presubmit --key=presubmit \
-      --ciphertext-changed_file=cloudbuild/ssh-key.pub.enc \
-      --plaintext-changed_file="${HOME}/.ssh/google_compute_engine.pub"
+    --ciphertext-file=cloudbuild/ssh-key.pub.enc \
+    --plaintext-file="${HOME}/.ssh/google_compute_engine.pub"
 
   chmod 600 "${HOME}/.ssh/google_compute_engine"
 }
@@ -51,7 +51,7 @@ determine_tests_to_run() {
   RUN_ALL_TESTS=false
   local -a changed_dirs
   for changed_file in "${CHANGED_FILES[@]}"; do
-    local changed_dir="${changed_file/\/*}/"
+    local changed_dir="${changed_file/\/*/}/"
     # Run all tests if common directories were changed
     if [[ ${changed_dir} =~ ^(integration_tests/|util/|cloudbuild/)$ ]]; then
       echo "All tests will be run: '${changed_dir}' was changed"
