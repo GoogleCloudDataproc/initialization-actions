@@ -14,8 +14,11 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
+import com.google.api.client.http.HttpStatusCodes;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.LowLevelHttpRequest;
 import com.google.api.client.http.LowLevelHttpResponse;
@@ -30,8 +33,10 @@ import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.io.CharStreams;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.Map;
 import java.util.UUID;
 
@@ -97,6 +102,51 @@ public final class GoogleCloudStorageTestUtils {
           @Override
           public LowLevelHttpResponse execute() {
             return responses[responsesIndex++];
+          }
+        };
+      }
+    };
+  }
+
+  public static MockHttpTransport mockBatchTransport(
+      int requestsPerBatch, LowLevelHttpResponse... responses) {
+    return new MockHttpTransport() {
+      int responsesIndex = 0;
+
+      @Override
+      public LowLevelHttpRequest buildRequest(String method, String url) {
+        return new MockLowLevelHttpRequest() {
+          @Override
+          public LowLevelHttpResponse execute() {
+            String boundary = "batch_pK7JBAk73-E=_AA5eFwv4m2Q=";
+            String contentId = "";
+
+            MockLowLevelHttpResponse response =
+                new MockLowLevelHttpResponse()
+                    .setStatusCode(HttpStatusCodes.STATUS_CODE_OK)
+                    .setContentType("multipart/mixed; boundary=" + boundary);
+
+            StringBuilder batchResponse = new StringBuilder();
+
+            for (int i = 0; i < requestsPerBatch; i++) {
+              try {
+                LowLevelHttpResponse resp = responses[responsesIndex++];
+                batchResponse
+                    .append(String.format("\n--%s\n", boundary))
+                    .append("Content-Type: application/http\n")
+                    .append(String.format("Content-ID: <response-%s%d>\n\n", contentId, i + 1))
+                    .append(String.format("HTTP/1.1 %s OK\n", resp.getStatusCode()))
+                    .append(String.format("Content-Length: %s\n\n", resp.getContentLength()))
+                    .append(CharStreams.toString(new InputStreamReader(resp.getContent(), UTF_8)))
+                    .append('\n');
+              } catch (IOException e) {
+                throw new RuntimeException(e);
+              }
+            }
+
+            batchResponse.append(String.format("\n--%s--\n", boundary));
+
+            return response.setContent(batchResponse.toString());
           }
         };
       }
