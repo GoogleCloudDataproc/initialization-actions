@@ -49,7 +49,7 @@ determine_tests_to_run() {
 
   # Determines init actions directories that were changed
   RUN_ALL_TESTS=false
-  local -a changed_dirs
+  declare -a changed_dirs
   for changed_file in "${CHANGED_FILES[@]}"; do
     local changed_dir="${changed_file/\/*/}/"
     # Run all tests if common directories were changed
@@ -58,7 +58,9 @@ determine_tests_to_run() {
       RUN_ALL_TESTS=true
       return 0
     fi
-    if [[ " ${changed_dirs[*]} " != *" ${changed_dir} "* ]]; then
+    # Hack to workaround empty array expansion on old versions of Bash.
+    # See: https://stackoverflow.com/a/7577209/3227693
+    if [[ ${changed_dirs[*]+" ${changed_dirs[*]} "} != *" ${changed_dir} "* ]]; then
       changed_dirs+=("$changed_dir")
     fi
   done
@@ -72,7 +74,7 @@ determine_tests_to_run() {
       echo "ERROR: presubmit failed - cannot find tests inside '${changed_dir}' directory"
       exit 1
     fi
-    local -a tests_array
+    declare -a tests_array
     mapfile -t tests_array < <(echo "${tests_in_dir}")
     TESTS_TO_RUN+=("${tests_array[@]}")
   done
