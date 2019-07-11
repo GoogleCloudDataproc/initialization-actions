@@ -5,47 +5,35 @@ import requests
 import textwrap
 import time
 
-DEFAULT_TIMEOUT = 60
+WAIT_SECONDS = 100
 
 
 class Livy:
     host = 'http://localhost:8998'
-    session_url = ''
-    statements_url = ''
+    session_url = None
+    statements_url = None
     session_data = {'kind': 'spark'}
     headers = {'Content-Type': 'application/json'}
 
     def create_session(self):
-        timeout = DEFAULT_TIMEOUT
-        r = requests.post(self.host + '/sessions',
-                          data=json.dumps(self.session_data),
-                          headers=self.headers)
-        while True:
-            try:
-                location = r.headers['Location']
-                break
-            except KeyError:
-                pass
-
-            if timeout is 0:
-                print('ERROR during spark session init')
-                exit(1)
-            time.sleep(5)
-            timeout = timeout - 5
-        self.session_url = self.host + location
+        resp = requests.post(self.host + '/sessions',
+                             data=json.dumps(self.session_data),
+                             headers=self.headers)
+        self.session_url = self.host + resp.headers['Location']
 
     def wait_for_session_idle(self):
-        timeout = DEFAULT_TIMEOUT
-        while True:
-            r = requests.get(self.session_url, headers=self.headers)
-            if r.json()['state'] == 'idle':
-                break
-            if timeout is 0:
-                print('Time has left - ERROR during spark session init')
-                exit(1)
+        wait_seconds_remain = WAIT_SECONDS
+        while wait_seconds_remain > 0:
+            resp = requests.get(self.session_url, headers=self.headers)
+            if resp.json()['state'] == 'idle':
+                self.statements_url = self.session_url + '/statements'
+                return
+
             time.sleep(5)
-            timeout = timeout - 5
-        self.statements_url = self.session_url + '/statements'
+            wait_seconds_remain -= 5
+
+        print('Failure - Spark session initialization to idle state timed out')
+        exit(1)
 
     def submit_job(self, data):
         requests.post(self.statements_url,
@@ -53,21 +41,22 @@ class Livy:
                       headers=self.headers)
 
     def validate_job_result(self, expected):
-        timeout = DEFAULT_TIMEOUT
-        while True:
+        wait_seconds_remain = WAIT_SECONDS
+        while wait_seconds_remain > 0:
+            resp = requests.get(self.statements_url, headers=self.headers)
             try:
-                resp = requests.get(self.statements_url, headers=self.headers)
                 data = resp.json()['statements'][0]['output']['data']
                 if data is not None and expected in data['text/plain']:
-                    print("OK - Result of equation is found")
-                    break
+                    print("OK - Spark job succeeded")
+                    return
             except (KeyError, TypeError):
-                time.sleep(5)
-                timeout = timeout - 5
+                pass
 
-            if timeout is 0:
-                print('ERROR during execution')
-                exit(1)
+            time.sleep(5)
+            wait_seconds_remain -= 5
+
+        print('Failure - Spark job execution timed out')
+        exit(1)
 
 
 def main():
