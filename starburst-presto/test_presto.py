@@ -32,7 +32,7 @@ class StarburstPrestoTestCase(DataprocTestCase):
         query = "show schemas;"
         _, stdout, _ = self.assert_instance_command(
             name,
-            "presto --catalog=hive --execute='{}' --output-format TSV".format(
+            "presto --server=localhost:8060 --catalog=hive --execute='{}' --output-format TSV".format(
                 query))
         schemas = str(stdout).split("\n")
         self.assertIn(schema, schemas,
@@ -55,14 +55,14 @@ class StarburstPrestoTestCase(DataprocTestCase):
             table)
         _, stdout, _ = self.assert_instance_command(
             name,
-            "presto --catalog=hive --schema={} --execute='{}' --output-format TSV"
+            "presto --server=localhost:8060 --catalog=hive --schema={} --execute='{}' --output-format TSV"
             .format(schema, query))
         self.assertEqual(stdout, "1\t200\n0\t200\n")
 
     def __verify_coordinators_count(self, name, coordinators):
         query = "select count(*) from system.runtime.nodes where coordinator=true"
         _, stdout, _ = self.assert_instance_command(
-            name, "presto --execute '{}' --output-format TSV".format(query))
+            name, "presto --server=localhost:8060 --execute '{}' --output-format TSV".format(query))
         self.assertEqual(
             coordinators, int(stdout),
             "Bad number of coordinators. Expected: {}\tFound: {}".format(
@@ -71,7 +71,7 @@ class StarburstPrestoTestCase(DataprocTestCase):
     def __verify_workers_count(self, name, workers):
         query = "select count(*) from system.runtime.nodes where coordinator=false"
         _, stdout, _ = self.assert_instance_command(
-            name, "presto --execute '{}' --output-format TSV".format(query))
+            name, "presto --server=localhost:8060 --execute '{}' --output-format TSV".format(query))
         self.assertEqual(
             workers, int(stdout),
             "Bad number of workers. Expected: {}\tFound: {}".format(
@@ -91,6 +91,9 @@ class StarburstPrestoTestCase(DataprocTestCase):
             ("SINGLE", "1.3", ["m"], 1, 0),
             ("STANDARD", "1.3", ["m"], 1, 2),
             ("HA", "1.3", ["m-0"], 1, 2),
+            ("SINGLE", "1.4", ["m"], 1, 0),
+            ("STANDARD", "1.4", ["m"], 1, 2),
+            ("HA", "1.4", ["m-0"], 1, 2),
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_starburst_presto(self, configuration, dataproc_version,
