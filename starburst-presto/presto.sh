@@ -125,6 +125,24 @@ hive.metastore.uri=${metastore_uri}
 EOF
 }
 
+function configure_connectors() {
+  cat > presto-server/etc/catalog/tpch.properties <<EOF
+connector.name=tpch
+EOF
+
+cat > presto-server/etc/catalog/tpcds.properties <<EOF
+connector.name=tpcds
+EOF
+
+cat > presto-server/etc/catalog/jmx.properties <<EOF
+connector.name=jmx
+EOF
+
+cat > presto-server/etc/catalog/memory.properties <<EOF
+connector.name=memory
+EOF
+}
+
 function configure_jvm(){
   cat > presto-server/etc/jvm.config <<EOF
 -server
@@ -213,6 +231,7 @@ function configure_and_start_presto(){
 
   configure_node_properties
   configure_hive
+  configure_connectors
   configure_jvm
 
   if [[ "${HOSTNAME}" == "${PRESTO_MASTER_FQDN}" ]]; then

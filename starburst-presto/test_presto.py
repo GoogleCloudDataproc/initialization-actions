@@ -6,7 +6,7 @@ from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 
-class PrestoTestCase(DataprocTestCase):
+class StarburstPrestoTestCase(DataprocTestCase):
     COMPONENT = 'presto'
     INIT_ACTIONS = ['starburst-presto/presto.sh']
 
@@ -97,8 +97,8 @@ class PrestoTestCase(DataprocTestCase):
             ("HA", "1.3", ["m-0"], 1, 2),
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_presto(self, configuration, dataproc_version, machine_suffixes,
-                    coordinators, workers):
+    def test_starburst_presto(self, configuration, dataproc_version,
+                             machine_suffixes, coordinators, workers):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
                            dataproc_version,
