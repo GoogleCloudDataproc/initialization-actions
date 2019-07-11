@@ -29,8 +29,8 @@ else
   readonly CONNECTOR_JAR="$(find /usr/lib/hadoop/lib -name 'gcs-connector-*.jar')"
 fi
 readonly PRESTO_BASE_URL=https://repo1.maven.org/maven2/com/facebook/presto
-readonly PRESTO_VERSION='0.221'
-readonly HTTP_PORT='8060'
+readonly PRESTO_VERSION='0.206'
+readonly HTTP_PORT='8080'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/presto.service'
 PRESTO_JVM_MB=0
 PRESTO_QUERY_NODE_MB=0
@@ -46,7 +46,7 @@ function err() {
 function wait_for_presto_cluster_ready() {
   # wait up to 120s for presto being able to run query
   for ((i = 0; i < 12; i++)); do
-    if presto --server="localhost:${HTTP_PORT}" --execute='select 1'; then
+    if presto --execute='select * from system.runtime.nodes;'; then
       return 0
     fi
     sleep 10
@@ -130,40 +130,21 @@ function configure_hive() {
 connector.name=hive-hadoop2
 hive.metastore.uri=${metastore_uri}
 EOF
-
-# Add connectors configs here 
-  cat > presto-server-${PRESTO_VERSION}/etc/catalog/tpch.properties <<EOF
-connector.name=tpch
-EOF
-
-cat > presto-server-${PRESTO_VERSION}/etc/catalog/tpcds.properties <<EOF
-connector.name=tpcds
-EOF
-
-cat > presto-server-${PRESTO_VERSION}/etc/catalog/jmx.properties <<EOF
-connector.name=jmx
-EOF
-
-cat > presto-server-${PRESTO_VERSION}/etc/catalog/memory.properties <<EOF
-connector.name=memory
-EOF
-
 }
 
 function configure_jvm() {
   cat >presto-server-${PRESTO_VERSION}/etc/jvm.config <<EOF
 -server
 -Xmx${PRESTO_JVM_MB}m
--XX:-UseBiasedLocking
--XX:+UseG1GC
--XX:G1HeapRegionSize=32M
+-Xmn512m
+-XX:+UseConcMarkSweepGC
 -XX:+ExplicitGCInvokesConcurrent
--XX:+ExitOnOutOfMemoryError
--XX:+UseGCOverheadLimit
+-XX:ReservedCodeCacheSize=150M
+-XX:+ExplicitGCInvokesConcurrent
+-XX:+CMSClassUnloadingEnabled
+-XX:+AggressiveOpts
 -XX:+HeapDumpOnOutOfMemoryError
--XX:ReservedCodeCacheSize=512M
--Djdk.attach.allowAttachSelf=true
--Djdk.nio.maxCachedBufferSize=2000000
+-XX:OnOutOfMemoryError=kill -9 %p
 -Dhive.config.resources=/etc/hadoop/conf/core-site.xml,/etc/hadoop/conf/hdfs-site.xml
 -Djava.library.path=/usr/lib/hadoop/lib/native/:/usr/lib/
 EOF

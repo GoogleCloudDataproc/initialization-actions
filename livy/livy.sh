@@ -20,8 +20,8 @@ readonly LIVY_BIN="${LIVY_DIR}/bin"
 readonly LIVY_CONF="${LIVY_DIR}/conf"
 
 # Apache mirror redirector.
-# readonly APACHE_MIRROR="https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename"
-# readonly BIN_PKG="incubator/livy/${LIVY_VERSION}-incubating/livy-${LIVY_VERSION}-incubating-bin.zip"
+readonly APACHE_MIRROR="https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename"
+readonly BIN_PKG="incubator/livy/${LIVY_VERSION}-incubating/apache-livy-${LIVY_VERSION}-incubating-bin.zip"
 
 # Generate livy environment file.
 function make_livy_env() {
@@ -64,8 +64,7 @@ function main() {
   # Download Livy binary.
   local temp
   temp=$(mktemp -d)
-  wget --progress=dot:mega --timeout=30 -O "${temp}/livy.zip" \
-    "http://mirrors.estointernet.in/apache/incubator/livy/${LIVY_VERSION}-incubating/apache-livy-${LIVY_VERSION}-incubating-bin.zip"
+  wget --progress=dot:mega --timeout=30 -O "${temp}/livy.zip" "${APACHE_MIRROR}=${BIN_PKG}"
   unzip -q "${temp}/livy.zip" -d "${temp}"
 
   # Create Livy user.
