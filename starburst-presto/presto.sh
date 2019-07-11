@@ -123,8 +123,9 @@ function configure_hive(){
 connector.name=hive-hadoop2
 hive.metastore.uri=${metastore_uri}
 EOF
+}
 
-# Add connectors configs here 
+function configure_connectors() {
   cat > presto-server/etc/catalog/tpch.properties <<EOF
 connector.name=tpch
 EOF
@@ -230,6 +231,7 @@ function configure_and_start_presto(){
 
   configure_node_properties
   configure_hive
+  configure_connectors
   configure_jvm
 
   if [[ "${HOSTNAME}" == "${PRESTO_MASTER_FQDN}" ]]; then
