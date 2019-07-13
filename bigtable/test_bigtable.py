@@ -39,7 +39,7 @@ class BigTableTestCase(DataprocTestCase):
         self.metadata = "bigtable-instance={},bigtable-project={}"\
             .format(self.db_name, project)
 
-        self.run_and_assert_command(
+        self.assert_command(
             'gcloud bigtable instances create {}'
             ' --cluster {} --cluster-zone {}'
             ' --display-name={} --instance-type=DEVELOPMENT'.format(
@@ -47,16 +47,11 @@ class BigTableTestCase(DataprocTestCase):
 
     def tearDown(self):
         super().tearDown()
-        self.run_and_assert_command(
-            'gcloud bigtable instances delete {}'.format(self.db_name))
-
-    def _run_hbase_shell(self, name):
-        self.run_and_assert_command(
-            'gcloud compute ssh {} --command="python {}"'.format(
-                name, self.TEST_SCRIPT_FILE_NAME))
+        self.assert_command('gcloud bigtable instances delete {}'.format(
+            self.db_name))
 
     def _validate_bigtable(self):
-        _, stdout, _ = self.run_and_assert_command(
+        _, stdout, _ = self.assert_command(
             'cbt -instance {} count test-bigtable '.format(self.db_name))
         self.assertEqual(int(float(stdout)), 4,
                          "Invalid BigTable instance count")
@@ -65,7 +60,8 @@ class BigTableTestCase(DataprocTestCase):
         self.upload_test_file(
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          self.TEST_SCRIPT_FILE_NAME), name)
-        self._run_hbase_shell(name)
+        self.assert_instance_command(
+            name, "python {}".format(self.TEST_SCRIPT_FILE_NAME))
         self._validate_bigtable()
 
     """ Dataproc versions 1.0 and 1.1 are excluded from automatic testing.

@@ -109,7 +109,7 @@ class DataprocTestCase(BASE_TEST_CASE):
         cmd = "{} dataproc clusters create {} {}".format(
             "gcloud beta" if beta else "gcloud", self.name, " ".join(args))
 
-        _, stdout, _ = self.run_and_assert_command(
+        _, stdout, _ = self.assert_command(
             cmd, timeout_in_minutes=timeout_in_minutes or DEFAULT_TIMEOUT)
         self.cluster_version = json.loads(stdout).get("config", {}).get(
             "softwareConfig", {}).get("imageVersion")
@@ -123,12 +123,12 @@ class DataprocTestCase(BASE_TEST_CASE):
         ret_val, _, _ = self.run_command("gsutil ls -b {}".format(bucket))
         # Create staging bucket if it does not exist
         if ret_val != 0:
-            self.run_and_assert_command("gsutil mb {}".format(bucket))
+            self.assert_command("gsutil mb {}".format(bucket))
 
         staging_dir = "{}/{}-{}".format(bucket, self.datetime_str(),
                                         self.random_str())
 
-        self.run_and_assert_command(
+        self.assert_command(
             "gsutil -q -m rsync -r -x '.git*|.idea*' ./ {}/".format(
                 staging_dir))
 
@@ -146,14 +146,21 @@ class DataprocTestCase(BASE_TEST_CASE):
         return self.name
 
     def upload_test_file(self, testfile, name):
-        self.run_and_assert_command('gcloud compute scp {} {}:'.format(
-            testfile, name))
+        self.assert_command('gcloud compute scp {} {}:'.format(testfile, name))
 
     def remove_test_script(self, testfile, name):
-        self.run_and_assert_command(
-            'gcloud compute ssh {} --command="rm {}"'.format(name, testfile))
+        self.assert_instance_command(name, "rm {}".format(testfile))
 
-    def run_and_assert_command(self, cmd, timeout_in_minutes=DEFAULT_TIMEOUT):
+    def assert_instance_command(self,
+                                instance,
+                                cmd,
+                                timeout_in_minutes=DEFAULT_TIMEOUT):
+        ret_code, stdout, stderr = self.assert_command(
+            'gcloud compute ssh {} --command="{}"'.format(instance, cmd),
+            timeout_in_minutes)
+        return ret_code, stdout, stderr
+
+    def assert_command(self, cmd, timeout_in_minutes=DEFAULT_TIMEOUT):
         ret_code, stdout, stderr = DataprocTestCase.run_command(
             cmd, timeout_in_minutes)
         self.assertEqual(

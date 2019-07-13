@@ -19,13 +19,11 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         cls.REGION = region.strip() or zone.strip()[:-2]
 
     def verify_instance(self, name):
-        self.run_and_assert_command(
-            'gcloud compute ssh {} --command="nvidia-smi"'.format(name))
+        self.assert_instance_command(name, "nvidia-smi")
 
     def verify_instance_gpu_agent(self, name):
-        self.run_and_assert_command(
-            'gcloud compute ssh {} --command="{}"'.format(
-                name, "systemctl status gpu_utilization_agent.service"))
+        self.assert_instance_command(
+            name, "systemctl status gpu_utilization_agent.service")
 
     @parameterized.expand(
         [

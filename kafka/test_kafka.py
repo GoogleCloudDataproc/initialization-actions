@@ -19,9 +19,8 @@ class KafkaTestCase(DataprocTestCase):
         self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
 
     def __run_test_script(self, name):
-        self.run_and_assert_command(
-            'gcloud compute ssh {} --command="bash {}"'.format(
-                name, self.TEST_SCRIPT_FILE_NAME))
+        self.assert_instance_command(
+            name, "bash {}".format(self.TEST_SCRIPT_FILE_NAME))
 
     @parameterized.expand(
         [

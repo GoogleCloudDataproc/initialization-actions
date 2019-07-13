@@ -16,20 +16,12 @@ class GangliaTestCase(DataprocTestCase):
             os.path.dirname(os.path.abspath(__file__)),
             self.TEST_SCRIPT_FILE_NAME)
         self.upload_test_file(test_script_path, name)
-        self.__run_command_on_cluster(
-            name, 'yes | sudo apt-get install python3-pip')
-        self.__run_command_on_cluster(name, 'sudo pip3 install requests-html')
-        self.__run_test_file(name)
+        self.assert_instance_command(name,
+                                     "yes | sudo apt-get install python3-pip")
+        self.assert_instance_command(name, "sudo pip3 install requests-html")
+        self.assert_instance_command(
+            name, "python3 {}".format(self.TEST_SCRIPT_FILE_NAME))
         self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
-
-    def __run_test_file(self, name):
-        self.run_and_assert_command(
-            'gcloud compute ssh {} --command="python3 {}"'.format(
-                name, self.TEST_SCRIPT_FILE_NAME))
-
-    def __run_command_on_cluster(self, name, command):
-        self.run_and_assert_command(
-            'gcloud compute ssh {} --command="{}"'.format(name, command))
 
     @parameterized.expand(
         [
