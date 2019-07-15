@@ -1310,6 +1310,42 @@ public class GoogleCloudStorageTest {
     assertThat(itemInfo.getVerificationAttributes()).isEqualTo(expectedAttributes);
   }
 
+  @Test
+  public void googleCloudStorageItemInfo_equals() throws IOException {
+    String bucketName = getSharedBucketName();
+
+    StorageResourceId object1 = new StorageResourceId(bucketName, "testEquals_Object_1");
+    StorageResourceId object2 = new StorageResourceId(bucketName, "testEquals_Object_2");
+
+    writeObject(rawStorage, object1, /* objectSize= */ 1024);
+    writeObject(rawStorage, object2, /* objectSize= */ 1024);
+
+    GoogleCloudStorageItemInfo itemInfo1 = rawStorage.getItemInfo(object1);
+    GoogleCloudStorageItemInfo itemInfo2 = rawStorage.getItemInfo(object2);
+
+    assertThat(itemInfo1.equals(itemInfo1)).isTrue();
+    assertThat(itemInfo1.equals(itemInfo2)).isFalse();
+  }
+
+  @Test
+  public void googleCloudStorageItemInfo_toString() throws IOException {
+    String bucketName = getSharedBucketName();
+
+    StorageResourceId object1 = new StorageResourceId(bucketName, "testToString_Object_1");
+    StorageResourceId object2 = new StorageResourceId(bucketName, "testToString_Object_2");
+
+    writeObject(rawStorage, object1, /* objectSize= */ 1024);
+
+    GoogleCloudStorageItemInfo itemInfo1 = rawStorage.getItemInfo(object1);
+    GoogleCloudStorageItemInfo itemInfo2 = rawStorage.getItemInfo(object2);
+
+    assertThat(itemInfo1.exists()).isTrue();
+    assertThat(itemInfo1.toString()).contains("created on:");
+
+    assertThat(itemInfo2.exists()).isFalse();
+    assertThat(itemInfo2.toString()).contains("exists: no");
+  }
+
   static <K, V> void assertMapsEqual(
       Map<K, V> expected, Map<K, V> result, Equivalence<V> valueEquivalence) {
     MapDifference<K, V> diff = Maps.difference(expected, result, valueEquivalence);
