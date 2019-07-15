@@ -15,6 +15,7 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.BUCKET_NAME;
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.HTTP_TRANSPORT;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.JSON_FACTORY;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.OBJECT_NAME;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.createReadChannel;
@@ -23,6 +24,7 @@ import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.dataResp
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.metadataResponse;
 import static com.google.common.truth.Truth.assertThat;
 import static java.util.stream.Collectors.toList;
+import static org.junit.Assert.assertThrows;
 
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.testing.http.MockHttpTransport;
@@ -30,6 +32,7 @@ import com.google.api.client.util.DateTime;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
@@ -48,15 +51,7 @@ public class GoogleCloudStorageReadChannelTest {
   @Test
   public void metadataInitialization_eager() throws IOException {
     MockHttpTransport transport =
-        GoogleCloudStorageTestUtils.mockTransport(
-            metadataResponse(
-                new StorageObject()
-                    .setBucket(BUCKET_NAME)
-                    .setName(OBJECT_NAME)
-                    .setSize(new BigInteger("123"))
-                    .setGeneration(1L)
-                    .setMetageneration(1L)
-                    .setUpdated(new DateTime(new Date()))));
+        GoogleCloudStorageTestUtils.mockTransport(metadataResponse(newStorageObject()));
 
     List<HttpRequest> requests = new ArrayList<>();
 
@@ -75,15 +70,7 @@ public class GoogleCloudStorageReadChannelTest {
   @Test
   public void metadataInitialization_lazy() throws IOException {
     MockHttpTransport transport =
-        GoogleCloudStorageTestUtils.mockTransport(
-            metadataResponse(
-                new StorageObject()
-                    .setBucket(BUCKET_NAME)
-                    .setName(OBJECT_NAME)
-                    .setSize(new BigInteger("123"))
-                    .setGeneration(1L)
-                    .setMetageneration(1L)
-                    .setUpdated(new DateTime(new Date()))));
+        GoogleCloudStorageTestUtils.mockTransport(metadataResponse(newStorageObject()));
 
     List<HttpRequest> requests = new ArrayList<>();
 
@@ -117,8 +104,7 @@ public class GoogleCloudStorageReadChannelTest {
     Storage storage = new Storage(transport, JSON_FACTORY, requests::add);
 
     GoogleCloudStorageReadOptions options =
-        GoogleCloudStorageReadOptions.builder()
-            .setFastFailOnNotFound(false)
+        newLazyReadOptionsBuilder()
             .setFadvise(Fadvise.AUTO)
             .setMinRangeRequestSize(1)
             .setInplaceSeekLimit(2)
@@ -163,11 +149,7 @@ public class GoogleCloudStorageReadChannelTest {
     Storage storage = new Storage(transport, JSON_FACTORY, requests::add);
 
     GoogleCloudStorageReadOptions options =
-        GoogleCloudStorageReadOptions.builder()
-            .setFastFailOnNotFound(false)
-            .setFadvise(Fadvise.AUTO)
-            .setMinRangeRequestSize(1)
-            .build();
+        newLazyReadOptionsBuilder().setFadvise(Fadvise.AUTO).setMinRangeRequestSize(1).build();
 
     GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options);
 
@@ -210,8 +192,7 @@ public class GoogleCloudStorageReadChannelTest {
     Storage storage = new Storage(transport, JSON_FACTORY, requests::add);
 
     GoogleCloudStorageReadOptions options =
-        GoogleCloudStorageReadOptions.builder()
-            .setFastFailOnNotFound(false)
+        newLazyReadOptionsBuilder()
             .setFadvise(Fadvise.RANDOM)
             .setMinRangeRequestSize(footeSize)
             .build();
@@ -237,5 +218,119 @@ public class GoogleCloudStorageReadChannelTest {
         requests.stream().map(r -> r.getHeaders().getRange()).collect(toList());
 
     assertThat(rangeHeaders).containsExactly("bytes=8-9", "bytes=7-7").inOrder();
+  }
+
+  @Test
+  public void read_whenBufferIsEmpty() throws IOException {
+    ByteBuffer emptyBuffer = ByteBuffer.wrap(new byte[0]);
+
+    Storage storage = new Storage(HTTP_TRANSPORT, JSON_FACTORY, r -> {});
+
+    GoogleCloudStorageReadChannel readChannel =
+        createReadChannel(storage, newLazyReadOptionsBuilder().build());
+
+    assertThat(readChannel.read(emptyBuffer)).isEqualTo(0);
+  }
+
+  @Test
+  public void read_whenPositionIsEqualToSize() throws IOException {
+    ByteBuffer readBuffer = ByteBuffer.wrap(new byte[1]);
+    StorageObject object = newStorageObject();
+
+    MockHttpTransport transport =
+        GoogleCloudStorageTestUtils.mockTransport(
+            metadataResponse(object.setSize(BigInteger.ZERO)));
+
+    Storage storage = new Storage(transport, JSON_FACTORY, r -> {});
+
+    GoogleCloudStorageReadChannel readChannel =
+        createReadChannel(storage, GoogleCloudStorageReadOptions.DEFAULT);
+
+    assertThat(readChannel.position()).isEqualTo(readChannel.size());
+    assertThat(readChannel.read(readBuffer)).isEqualTo(-1);
+  }
+
+  @Test
+  public void size_whenObjectIsGzipEncoded_shouldBeSetToMaxLongValue() throws IOException {
+    MockHttpTransport transport =
+        GoogleCloudStorageTestUtils.mockTransport(
+            metadataResponse(newStorageObject().setContentEncoding("gzip")));
+    Storage storage = new Storage(transport, JSON_FACTORY, r -> {});
+
+    GoogleCloudStorageReadChannel readChannel =
+        createReadChannel(storage, GoogleCloudStorageReadOptions.DEFAULT);
+
+    assertThat(readChannel.size()).isEqualTo(Long.MAX_VALUE);
+  }
+
+  @Test
+  public void initMetadata_throwsException_whenReadConsistencyEnabledAndGenerationIsNull()
+      throws IOException {
+    Storage storage = new Storage(HTTP_TRANSPORT, JSON_FACTORY, r -> {});
+
+    GoogleCloudStorageReadOptions options =
+        newLazyReadOptionsBuilder()
+            .setGenerationReadConsistency(GenerationReadConsistency.BEST_EFFORT)
+            .build();
+
+    GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options);
+
+    IOException e =
+        assertThrows(
+            IOException.class,
+            () ->
+                readChannel.initMetadata(
+                    "gzip", /* sizeFromMetadata= */ 1, /* generation= */ null));
+
+    assertThat(e).hasMessageThat().contains("Generation Read Consistency is");
+  }
+
+  @Test
+  public void initMetadata_succeeds_whenReadConsistencyEnabledAndGenerationIsValid()
+      throws IOException {
+    Storage storage = new Storage(HTTP_TRANSPORT, JSON_FACTORY, r -> {});
+
+    GoogleCloudStorageReadOptions options =
+        newLazyReadOptionsBuilder()
+            .setGenerationReadConsistency(GenerationReadConsistency.LATEST)
+            .build();
+
+    GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options);
+
+    readChannel.initMetadata("gzip", /* sizeFromMetadata= */ 1, /* generation= */ "1234");
+  }
+
+  @Test
+  public void read_gzipEncoded_shouldReadAllBytes() throws IOException {
+    byte[] testData = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
+
+    MockHttpTransport transport =
+        GoogleCloudStorageTestUtils.mockTransport(
+            metadataResponse(newStorageObject().setContentEncoding("gzip")),
+            dataRangeResponse(testData, 0, testData.length));
+
+    Storage storage = new Storage(transport, JSON_FACTORY, r -> {});
+
+    GoogleCloudStorageReadChannel readChannel =
+        createReadChannel(storage, GoogleCloudStorageReadOptions.DEFAULT);
+
+    assertThat(readChannel.size()).isEqualTo(Long.MAX_VALUE);
+    assertThat(readChannel.read(ByteBuffer.wrap(new byte[testData.length + 1])))
+        .isEqualTo(testData.length);
+    assertThat(readChannel.size()).isEqualTo(testData.length);
+  }
+
+  private static GoogleCloudStorageReadOptions.Builder newLazyReadOptionsBuilder() {
+    return GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(false);
+  }
+
+  private static StorageObject newStorageObject() {
+    return new StorageObject()
+        .setBucket(BUCKET_NAME)
+        .setName(OBJECT_NAME)
+        .setSize(new BigInteger("123"))
+        .setGeneration(1L)
+        .setMetageneration(1L)
+        .setUpdated(new DateTime(new Date()));
   }
 }
