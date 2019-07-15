@@ -17,12 +17,14 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.BUCKET_NAME;
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.HTTP_TRANSPORT;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.JSON_FACTORY;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.OBJECT_NAME;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.metadataResponse;
 import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.batchRequestString;
 import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.getRequestString;
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
 import com.google.api.client.googleapis.json.GoogleJsonError;
@@ -34,6 +36,7 @@ import com.google.api.services.storage.model.StorageObject;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Date;
+import java.util.concurrent.ThreadLocalRandom;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -43,34 +46,75 @@ import org.junit.runners.JUnit4;
 public class BatchHelperTest {
 
   private BatchHelper.Factory batchFactory;
+  private TrackingHttpRequestInitializer httpRequestInitializer;
 
   @Before
   public void setUp() {
     batchFactory = new BatchHelper.Factory();
+    httpRequestInitializer = new TrackingHttpRequestInitializer();
   }
 
   @Test
-  public void allRequestsAreSentInSingleBatch() throws IOException {
+  public void newBatchHelper_throwsException_whenMaxRequestsPerBatchZero() {
+    Storage storage = new Storage(HTTP_TRANSPORT, JSON_FACTORY, httpRequestInitializer);
+
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                batchFactory.newBatchHelper(
+                    httpRequestInitializer,
+                    storage,
+                    /* maxRequestsPerBatch= */ 0,
+                    /* totalRequests= */ 1,
+                    /* maxThreads= */ 1));
+
+    assertThat(e).hasMessageThat().startsWith("maxRequestsPerBatch should be greater than 0");
+  }
+
+  @Test
+  public void newBatchHelper_throwsException_whenTotalRequestsZero() {
+    Storage storage = new Storage(HTTP_TRANSPORT, JSON_FACTORY, httpRequestInitializer);
+
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                batchFactory.newBatchHelper(
+                    httpRequestInitializer,
+                    storage,
+                    /* maxRequestsPerBatch= */ 1,
+                    /* totalRequests= */ 0,
+                    /* maxThreads= */ 1));
+
+    assertThat(e).hasMessageThat().startsWith("totalRequests should be greater than 0");
+  }
+
+  @Test
+  public void newBatchHelper_throwsException_whenMaxThreadsLessThanZero() {
+    Storage storage = new Storage(HTTP_TRANSPORT, JSON_FACTORY, httpRequestInitializer);
+
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                batchFactory.newBatchHelper(
+                    httpRequestInitializer,
+                    storage,
+                    /* maxRequestsPerBatch= */ 1,
+                    /* totalRequests= */ 1,
+                    /* maxThreads= */ -1));
+
+    assertThat(e).hasMessageThat().startsWith("maxThreads should be greater or equal to 0");
+  }
+
+  @Test
+  public void allRequestsAreSentInSingleBatch_withZeroMaxThreads() throws IOException {
     // 1. Prepare test data
     String objectName1 = OBJECT_NAME + "-01";
     String objectName2 = OBJECT_NAME + "-02";
-
-    StorageObject object1 =
-        new StorageObject()
-            .setBucket(BUCKET_NAME)
-            .setName(objectName1)
-            .setSize(new BigInteger("123"))
-            .setGeneration(1L)
-            .setMetageneration(1L)
-            .setUpdated(new DateTime(new Date()));
-    StorageObject object2 =
-        new StorageObject()
-            .setBucket(BUCKET_NAME)
-            .setName(objectName2)
-            .setSize(new BigInteger("1234"))
-            .setGeneration(2L)
-            .setMetageneration(3L)
-            .setUpdated(new DateTime(new Date()));
+    StorageObject object1 = newStorageObject(objectName1);
+    StorageObject object2 = newStorageObject(objectName2);
 
     // 2. Configure mock HTTP transport with test request responses
     MockHttpTransport transport =
@@ -78,7 +122,6 @@ public class BatchHelperTest {
             /* requestsPerBatch= */ 2, metadataResponse(object1), metadataResponse(object2));
 
     // 3. Configure BatchHelper with mocked HTTP transport
-    TrackingHttpRequestInitializer httpRequestInitializer = new TrackingHttpRequestInitializer();
     Storage storage = new Storage(transport, JSON_FACTORY, httpRequestInitializer);
     BatchHelper batchHelper =
         batchFactory.newBatchHelper(
@@ -112,6 +155,98 @@ public class BatchHelperTest {
 
     // 10. Validate that `flush` method call is noop if all requests were sent already
     assertThat(httpRequestInitializer.getAllRequestStrings()).isEmpty();
+  }
+
+  @Test
+  public void allRequestsAreSentInSingleBatch_withOneMaxThreads() throws IOException {
+    // 1. Prepare test data
+    String objectName1 = OBJECT_NAME + "-01";
+    String objectName2 = OBJECT_NAME + "-02";
+    StorageObject object1 = newStorageObject(objectName1);
+    StorageObject object2 = newStorageObject(objectName2);
+
+    // 2. Configure mock HTTP transport with test request responses
+    MockHttpTransport transport =
+        GoogleCloudStorageTestUtils.mockBatchTransport(
+            /* requestsPerBatch= */ 2, metadataResponse(object1), metadataResponse(object2));
+
+    // 3. Configure BatchHelper with mocked HTTP transport
+    Storage storage = new Storage(transport, JSON_FACTORY, httpRequestInitializer);
+    BatchHelper batchHelper =
+        batchFactory.newBatchHelper(
+            httpRequestInitializer,
+            storage,
+            /* maxRequestsPerBatch= */ 2,
+            /* totalRequests= */ 2,
+            /* maxThreads= */ 1);
+
+    // 4. Queue 1st GET request to BatchHelper
+    batchHelper.queue(storage.objects().get(BUCKET_NAME, objectName1), assertCallback(object1));
+
+    // 5. Validate that no requests were sent after 1st request were queued
+    assertThat(httpRequestInitializer.getAllRequestStrings()).isEmpty();
+
+    // 6. Queue 2nd GET request to BatchHelper
+    batchHelper.queue(storage.objects().get(BUCKET_NAME, objectName2), assertCallback(object2));
+
+    // 7. Validate that no requests were sent after 2nd request were queued
+    assertThat(httpRequestInitializer.getAllRequestStrings()).isEmpty();
+
+    // 8. Call `flush` at the end.
+    batchHelper.flush();
+
+    // 9. Validate that 1 batch request consisting of 2 GET requests was sent
+    assertThat(httpRequestInitializer.getAllRequestStrings())
+        .containsExactly(
+            batchRequestString(),
+            getRequestString(BUCKET_NAME, objectName1),
+            getRequestString(BUCKET_NAME, objectName2));
+  }
+
+  @Test
+  public void queue_throwsException_afterFlushMethodWasCalled() throws IOException {
+    String objectName1 = OBJECT_NAME + "-01";
+    StorageObject object1 = newStorageObject(objectName1);
+
+    MockHttpTransport transport =
+        GoogleCloudStorageTestUtils.mockBatchTransport(
+            /* requestsPerBatch= */ 1, metadataResponse(object1));
+
+    Storage storage = new Storage(transport, JSON_FACTORY, httpRequestInitializer);
+    BatchHelper batchHelper =
+        batchFactory.newBatchHelper(httpRequestInitializer, storage, /* maxRequestsPerBatch= */ 1);
+
+    batchHelper.flush();
+
+    Storage.Objects.Get request = storage.objects().get(BUCKET_NAME, objectName1);
+    JsonBatchCallback<StorageObject> callback = assertCallback(object1);
+
+    IllegalStateException e =
+        assertThrows(IllegalStateException.class, () -> batchHelper.queue(request, callback));
+
+    assertThat(e)
+        .hasMessageThat()
+        .startsWith("requestsExecutor should not be terminated to queue batch requests");
+    assertThat(httpRequestInitializer.getAllRequests()).isEmpty();
+  }
+
+  @Test
+  public void testIsEmpty() {
+    Storage storage = new Storage(HTTP_TRANSPORT, JSON_FACTORY, httpRequestInitializer);
+    BatchHelper batchHelper =
+        batchFactory.newBatchHelper(httpRequestInitializer, storage, /* maxRequestsPerBatch= */ 2);
+
+    assertThat(batchHelper.isEmpty()).isTrue();
+  }
+
+  private StorageObject newStorageObject(String objectName) {
+    return new StorageObject()
+        .setBucket(BUCKET_NAME)
+        .setName(objectName)
+        .setSize(new BigInteger(String.valueOf(Math.abs(ThreadLocalRandom.current().nextLong()))))
+        .setGeneration(Math.abs(ThreadLocalRandom.current().nextLong()))
+        .setMetageneration(Math.abs(ThreadLocalRandom.current().nextLong()))
+        .setUpdated(new DateTime(new Date()));
   }
 
   private JsonBatchCallback<StorageObject> assertCallback(StorageObject expectedObject) {
