@@ -30,7 +30,7 @@ else
 fi
 readonly PRESTO_BASE_URL=https://repo1.maven.org/maven2/com/facebook/presto
 readonly PRESTO_VERSION='0.224'
-readonly HTTP_PORT='8060'
+readonly HTTP_PORT="$(/usr/share/google/get_metadata_value attributes/dataproc-presto-port || 8080)"
 readonly INIT_SCRIPT='/usr/lib/systemd/system/presto.service'
 PRESTO_JVM_MB=0
 PRESTO_QUERY_NODE_MB=0
