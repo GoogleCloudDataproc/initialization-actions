@@ -18,6 +18,7 @@ You can find more information about using initialization actions with Dataproc i
 ## Important notes
 * This script must be updated based on which Presto version you wish to install
 * You may need to adjust the memory settings in `jvm.config` based on your needs
-* Presto is set to use HTTP port `8060` by default
+* Presto is set to use HTTP port `8080` by default, but can be changed using --metadata. For example: 
+    `dataproc-presto-port=8060`
 * Only the Hive connector is configured by default
 * High-Availability configuration is discouraged as coordinator is started only on `m-0` and other master nodes are idle
