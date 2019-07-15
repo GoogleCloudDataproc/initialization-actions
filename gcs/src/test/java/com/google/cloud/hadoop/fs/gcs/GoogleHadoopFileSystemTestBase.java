@@ -76,12 +76,6 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     assertWithMessage("Expected value for env var %s", TestConfiguration.GCS_TEST_PROJECT_ID)
         .that(projectId)
         .isNotNull();
-    assertWithMessage("Expected value for env var %s", TestConfiguration.GCS_TEST_SERVICE_ACCOUNT)
-        .that(serviceAccount)
-        .isNotNull();
-    assertWithMessage("Expected value for env var %s", TestConfiguration.GCS_TEST_PRIVATE_KEYFILE)
-        .that(privateKeyFile)
-        .isNotNull();
     Configuration config = new Configuration();
     config.set(GoogleHadoopFileSystemConfiguration.GCS_PROJECT_ID.getKey(), projectId);
     config.set(

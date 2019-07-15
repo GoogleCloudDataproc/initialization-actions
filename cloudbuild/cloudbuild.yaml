@@ -9,7 +9,7 @@ steps:
     id: 'unit-tests-hadoop2'
     waitFor: ['docker-build']
     entrypoint: 'bash'
-    args: ['/bigdata-interop/cloudbuild/presubmit.sh', 'hadoop2']
+    args: ['/bigdata-interop/cloudbuild/presubmit.sh', 'hadoop2', 'unittest']
     env:
       - 'CODECOV_TOKEN=$_CODECOV_TOKEN'
       - 'VCS_BRANCH_NAME=$BRANCH_NAME'
@@ -22,13 +22,45 @@ steps:
     id: 'unit-tests-hadoop3'
     waitFor: ['docker-build']
     entrypoint: 'bash'
-    args: ['/bigdata-interop/cloudbuild/presubmit.sh', 'hadoop3']
+    args: ['/bigdata-interop/cloudbuild/presubmit.sh', 'hadoop3', 'unittest']
     env:
       - 'CODECOV_TOKEN=$_CODECOV_TOKEN'
       - 'VCS_BRANCH_NAME=$BRANCH_NAME'
       - 'VCS_COMMIT_ID=$COMMIT_SHA'
       - 'VCS_TAG=$TAG_NAME'
       - 'CI_BUILD_ID=$BUILD_ID'
-    
+
+  # 4. Run Hadoop 2 integration tests concurrently with Hadoop 2 and Hadoop 3 unit tests
+  - name: 'gcr.io/$PROJECT_ID/dataproc-bigdata-interop-presubmit'
+    id: 'integration-tests-hadoop2'
+    waitFor: ['docker-build']
+    entrypoint: 'bash'
+    args: ['/bigdata-interop/cloudbuild/presubmit.sh', 'hadoop2', 'integrationtest']
+    env:
+      - 'GCS_TEST_PROJECT_ID=$PROJECT_ID'
+      - 'CODECOV_TOKEN=$_CODECOV_TOKEN'
+      - 'VCS_BRANCH_NAME=$BRANCH_NAME'
+      - 'VCS_COMMIT_ID=$COMMIT_SHA'
+      - 'VCS_TAG=$TAG_NAME'
+      - 'CI_BUILD_ID=$BUILD_ID'
+
+  # 5. Run Hadoop 3 integration tests sequentially after `integration-tests-hadoop2` step
+  - name: 'gcr.io/$PROJECT_ID/dataproc-bigdata-interop-presubmit'
+    id: 'integration-tests-hadoop3'
+    waitFor: ['integration-tests-hadoop2']
+    entrypoint: 'bash'
+    args: ['/bigdata-interop/cloudbuild/presubmit.sh', 'hadoop3', 'integrationtest']
+    env:
+      - 'GCS_TEST_PROJECT_ID=$PROJECT_ID'
+      - 'CODECOV_TOKEN=$_CODECOV_TOKEN'
+      - 'VCS_BRANCH_NAME=$BRANCH_NAME'
+      - 'VCS_COMMIT_ID=$COMMIT_SHA'
+      - 'VCS_TAG=$TAG_NAME'
+      - 'CI_BUILD_ID=$BUILD_ID'
+
+# Tests take on average 17 minutes to run
+timeout: 1800s
+
 options:
-  machineType: 'N1_HIGHCPU_8'
+  machineType: 'N1_HIGHCPU_32'
+

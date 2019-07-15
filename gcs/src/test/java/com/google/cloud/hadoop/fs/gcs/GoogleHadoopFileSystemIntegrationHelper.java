@@ -14,9 +14,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
-import static com.google.cloud.hadoop.gcsio.testing.TestConfiguration.GCS_TEST_PRIVATE_KEYFILE;
 import static com.google.cloud.hadoop.gcsio.testing.TestConfiguration.GCS_TEST_PROJECT_ID;
-import static com.google.cloud.hadoop.gcsio.testing.TestConfiguration.GCS_TEST_SERVICE_ACCOUNT;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
@@ -44,12 +42,8 @@ public final class GoogleHadoopFileSystemIntegrationHelper {
     TestConfiguration testConfiguration = TestConfiguration.getInstance();
     String projectId =
         checkNotNull(testConfiguration.getProjectId(), ENV_VAR_MSG_FMT, GCS_TEST_PROJECT_ID);
-    String privateKeyFile =
-        checkNotNull(
-            testConfiguration.getPrivateKeyFile(), ENV_VAR_MSG_FMT, GCS_TEST_PRIVATE_KEYFILE);
-    String serviceAccount =
-        checkNotNull(
-            testConfiguration.getServiceAccount(), ENV_VAR_MSG_FMT, GCS_TEST_SERVICE_ACCOUNT);
+    String privateKeyFile = testConfiguration.getPrivateKeyFile();
+    String serviceAccount = testConfiguration.getPrivateKeyFile();
 
     Configuration config = new Configuration();
     config.set(GoogleHadoopFileSystemConfiguration.GCS_PROJECT_ID.getKey(), projectId);

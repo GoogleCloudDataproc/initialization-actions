@@ -17,14 +17,16 @@
 set -euxo pipefail
 
 readonly HADOOP_PROFILE="$1"
+readonly TEST_TYPE="${2:-unittest}"
 
 cd /bigdata-interop
 
-# Print Maven info
-./mvnw -v
-
-# Run unit tests and generate test coverage report
-./mvnw -B -e "-P${HADOOP_PROFILE}" -Pcoverage clean verify
+# Run unit or integration tests and generate test coverage report
+if [[ $TEST_TYPE == unittest ]]; then
+  ./mvnw -B -e "-P${HADOOP_PROFILE}" -Pcoverage clean verify
+else
+  ./mvnw -B -e "-P${HADOOP_PROFILE}" -Pintegration-test -Pcoverage clean verify
+fi
 
 # Upload test coverage report to Codecov
-bash <(curl -s https://codecov.io/bash) -K -F "${HADOOP_PROFILE}unittest"
+bash <(curl -s https://codecov.io/bash) -K -F "${HADOOP_PROFILE}${TEST_TYPE}"

@@ -14,19 +14,13 @@
 
 package com.google.cloud.hadoop.gcsio.testing;
 
-
-
-/**
- * Access to test configurations values.
- */
+/** Access to test configurations values. */
 public abstract class TestConfiguration {
   public static final String GCS_TEST_PROJECT_ID = "GCS_TEST_PROJECT_ID";
   public static final String GCS_TEST_SERVICE_ACCOUNT = "GCS_TEST_SERVICE_ACCOUNT";
   public static final String GCS_TEST_PRIVATE_KEYFILE = "GCS_TEST_PRIVATE_KEYFILE";
 
-  /**
-   * Environment-based test configuration.
-   */
+  /** Environment-based test configuration. */
   public static class EnvironmentBasedTestConfiguration extends TestConfiguration {
     @Override
     public String getProjectId() {
@@ -53,6 +47,8 @@ public abstract class TestConfiguration {
   }
 
   public abstract String getProjectId();
+
   public abstract String getServiceAccount();
+
   public abstract String getPrivateKeyFile();
 }

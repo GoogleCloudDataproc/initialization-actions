@@ -128,37 +128,40 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
    * intended for BigQueryFactory and adding them as GCS-equivalent credential settings.
    */
   public static Configuration getConfigForGcsFromBigquerySettings(
-      String projectIdvalue, String testBucket) {
+      String projectIdValue, String testBucket) {
     TestConfiguration configuration = TestConfiguration.getInstance();
 
-    String bigqueryServiceAccount = configuration.getServiceAccount();
-    if (Strings.isNullOrEmpty(bigqueryServiceAccount)) {
-      bigqueryServiceAccount = System.getenv(BigQueryFactory.BIGQUERY_SERVICE_ACCOUNT);
+    String serviceAccount = configuration.getServiceAccount();
+    if (Strings.isNullOrEmpty(serviceAccount)) {
+      serviceAccount = System.getenv(BigQueryFactory.BIGQUERY_SERVICE_ACCOUNT);
     }
 
-    String bigqueryPrivateKeyFile = configuration.getPrivateKeyFile();
-    if (Strings.isNullOrEmpty(bigqueryPrivateKeyFile)) {
-      bigqueryPrivateKeyFile = System.getenv(BigQueryFactory.BIGQUERY_PRIVATE_KEY_FILE);
+    String privateKeyFile = configuration.getPrivateKeyFile();
+    if (Strings.isNullOrEmpty(privateKeyFile)) {
+      privateKeyFile = System.getenv(BigQueryFactory.BIGQUERY_PRIVATE_KEY_FILE);
     }
+
     Configuration config = new Configuration();
-    config.set(
-        BIGQUERY_CONFIG_PREFIX + HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX,
-        "true");
-    config.set(
-        BIGQUERY_CONFIG_PREFIX + HadoopCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX,
-        bigqueryServiceAccount);
-    config.set(
-        BIGQUERY_CONFIG_PREFIX + HadoopCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX,
-        bigqueryPrivateKeyFile);
-    config.set(
-        GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_KEY_FILE.getKey(),
-        bigqueryPrivateKeyFile);
-    config.set(
-        GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_EMAIL.getKey(),
-        bigqueryServiceAccount);
-    config.set(GoogleHadoopFileSystemConfiguration.GCS_PROJECT_ID.getKey(), projectIdvalue);
-
     config.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
+    config.set(GoogleHadoopFileSystemConfiguration.GCS_PROJECT_ID.getKey(), projectIdValue);
+
+    if (serviceAccount != null && privateKeyFile != null) {
+      config.setBoolean(
+          BIGQUERY_CONFIG_PREFIX + HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX,
+          true);
+      config.set(
+          BIGQUERY_CONFIG_PREFIX + HadoopCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX,
+          serviceAccount);
+      config.set(
+          BIGQUERY_CONFIG_PREFIX + HadoopCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX,
+          privateKeyFile);
+      config.set(
+          GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_EMAIL.getKey(), serviceAccount);
+      config.set(
+          GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_KEY_FILE.getKey(),
+          privateKeyFile);
+    }
+
     return config;
   }
 

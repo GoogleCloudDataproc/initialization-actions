@@ -38,8 +38,10 @@ public class GoogleContract extends AbstractBondedFSContract {
 
     TestConfiguration testConf = TestConfiguration.getInstance();
     if (testConf.getProjectId() != null) {
-      conf.setBoolean(AUTH_SERVICE_ACCOUNT_ENABLE.getKey(), true);
       conf.set(GCS_PROJECT_ID.getKey(), testConf.getProjectId());
+    }
+    if (testConf.getServiceAccount() != null && testConf.getPrivateKeyFile() != null) {
+      conf.setBoolean(AUTH_SERVICE_ACCOUNT_ENABLE.getKey(), true);
       conf.set(AUTH_SERVICE_ACCOUNT_EMAIL.getKey(), testConf.getServiceAccount());
       conf.set(AUTH_SERVICE_ACCOUNT_KEY_FILE.getKey(), testConf.getPrivateKeyFile());
     }

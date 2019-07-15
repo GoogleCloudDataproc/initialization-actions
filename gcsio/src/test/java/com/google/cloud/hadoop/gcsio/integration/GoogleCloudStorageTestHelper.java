@@ -60,10 +60,11 @@ public class GoogleCloudStorageTestHelper {
     String serviceAccount = TestConfiguration.getInstance().getServiceAccount();
     String privateKeyfile = TestConfiguration.getInstance().getPrivateKeyFile();
 
-    assertWithMessage("privateKeyfile must not be null").that(privateKeyfile).isNotNull();
-    assertWithMessage("serviceAccount must not be null").that(serviceAccount).isNotNull();
+    CredentialFactory credentialFactory = new CredentialFactory();
     try {
-      CredentialFactory credentialFactory = new CredentialFactory();
+      if (serviceAccount == null || privateKeyfile == null) {
+        return credentialFactory.getCredentialFromMetadataServiceAccount();
+      }
       return credentialFactory.getCredentialFromPrivateKeyServiceAccount(
           serviceAccount,
           privateKeyfile,
