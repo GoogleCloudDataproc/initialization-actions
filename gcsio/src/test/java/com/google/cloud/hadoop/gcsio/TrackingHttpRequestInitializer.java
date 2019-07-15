@@ -47,7 +47,7 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
 
   private static final String UPLOAD_REQUEST_FORMAT =
       "POST:https://www.googleapis.com/upload/storage/v1/b/%s/o"
-          + "?ifGenerationMatch=0&uploadType=multipart:%s";
+          + "?ifGenerationMatch=generationId_%d&uploadType=multipart:%s";
 
   private static final String UPDATE_METADATA_REQUEST_FORMAT =
       "POST:https://www.googleapis.com/storage/v1/b/%s/o/%s?ifMetagenerationMatch=%d";
@@ -55,19 +55,20 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
   private static final String DELETE_META_REQUEST_FORMAT =
       "DELETE:https://www.googleapis.com/storage/v1/b/%s/o/%s?ifMetagenerationMatch=%d";
 
+  private static final String DELETE_REQUEST_FORMAT =
+      "DELETE:https://www.googleapis.com/storage/v1/b/%s/o/%s?ifGenerationMatch=generationId_%d";
+
   private static final String LIST_REQUEST_FORMAT =
       "GET:https://www.googleapis.com/storage/v1/b/%s/o"
           + "?delimiter=/&includeTrailingDelimiter=%s&maxResults=%d%s&prefix=%s";
 
   private static final String BATCH_REQUEST = "POST:https://www.googleapis.com/batch/storage/v1";
 
-  private static final String DELETE_REQUEST_FORMAT =
-      "DELETE:https://www.googleapis.com/storage/v1/b/%s/o/%s?%s";
-
   private static final String COMPOSE_REQUEST_FORMAT =
-      "POST:https://www.googleapis.com/storage/v1/b/%s/o/%s/compose?%s";
+      "POST:https://www.googleapis.com/storage/v1/b/%s/o/%s/compose"
+          + "?ifGenerationMatch=generationId_%d";
 
-  private static final String PAGE_TOKEN_PARAM_PATTERN = "&pageToken=[^&]+";
+  private static final String PAGE_TOKEN_PARAM_PATTERN = "pageToken=[^&]+";
 
   private static final String GENERATION_MATCH_TOKEN_PARAM_PATTERN = "ifGenerationMatch=[^&]+";
 
@@ -104,23 +105,22 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
 
   public ImmutableList<String> getAllRequestStrings() {
     AtomicLong pageTokenId = new AtomicLong();
-    AtomicLong generationMatchTokenId = new AtomicLong();
+    AtomicLong generationMatchId = new AtomicLong();
     return requests.stream()
         .map(GoogleCloudStorageIntegrationHelper::requestToString)
         // Replace randomized pageToken with predictable value so it could be asserted in tests
         .map(r -> replacePageTokenWithId(r, pageTokenId.getAndIncrement()))
-        .map(r -> replaceGenerationMatchToken(r, generationMatchTokenId.getAndIncrement()))
+        .map(r -> replaceGenerationMatchWithId(r, generationMatchId.getAndIncrement()))
         .collect(toImmutableList());
   }
 
   private String replacePageTokenWithId(String request, long pageTokenId) {
-    return request.replaceAll(PAGE_TOKEN_PARAM_PATTERN, "&pageToken=token_" + pageTokenId);
+    return request.replaceAll(PAGE_TOKEN_PARAM_PATTERN, "pageToken=token_" + pageTokenId);
   }
 
-  private String replaceGenerationMatchToken(String request, long generationMatchTokenId) {
+  private String replaceGenerationMatchWithId(String request, long generationId) {
     return request.replaceAll(
-        GENERATION_MATCH_TOKEN_PARAM_PATTERN,
-        "ifGenerationMatch=GenerationMatch_token_" + generationMatchTokenId);
+        GENERATION_MATCH_TOKEN_PARAM_PATTERN, "ifGenerationMatch=generationId_" + generationId);
   }
 
   public void reset() {
@@ -157,52 +157,43 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
         URLEncoder.encode(dstObjectName, UTF_8.name()));
   }
 
-  public static String uploadRequestString(
-      String bucketName, String object, boolean generationMatch) {
-    String request = String.format(UPLOAD_REQUEST_FORMAT, bucketName, object);
-    return generationMatch ? request : request.replaceAll("ifGenerationMatch=0&", "");
+  public static String uploadRequestString(String bucketName, String object, Integer generationId) {
+    String request = String.format(UPLOAD_REQUEST_FORMAT, bucketName, generationId, object);
+    return generationId == null ? request.replaceAll("ifGenerationMatch=[^&]+&", "") : request;
   }
 
   public static String updateMetadataRequestString(
-      String bucketName, String object, int metaGeneration) throws UnsupportedEncodingException {
+      String bucketName, String object, int metaGenerationId) throws UnsupportedEncodingException {
     return String.format(
         UPDATE_METADATA_REQUEST_FORMAT,
         bucketName,
         URLEncoder.encode(object, UTF_8.name()),
-        metaGeneration);
+        metaGenerationId);
   }
 
-  public static String deleteRequestString(String bucketName, String object, long metaGeneration)
+  public static String deleteRequestString(String bucketName, String object, int generationId)
+      throws UnsupportedEncodingException {
+    return deleteRequestString(bucketName, object, generationId, /* isMetaGeneration= */ false);
+  }
+
+  public static String deleteRequestString(
+      String bucketName, String object, int generationId, boolean isMetaGeneration)
       throws UnsupportedEncodingException {
     return String.format(
-        DELETE_META_REQUEST_FORMAT,
+        isMetaGeneration ? DELETE_META_REQUEST_FORMAT : DELETE_REQUEST_FORMAT,
         bucketName,
         URLEncoder.encode(object, UTF_8.name()),
-        metaGeneration);
+        generationId);
   }
 
   public static String batchRequestString() {
     return BATCH_REQUEST;
   }
 
-  public static String deleteRequestString(
-      String bucketName, String object, String generationMatchToken)
+  public static String composeRequestString(String bucketName, String object, Integer generationId)
       throws UnsupportedEncodingException {
     return String.format(
-        DELETE_REQUEST_FORMAT,
-        bucketName,
-        URLEncoder.encode(object, UTF_8.name()),
-        evaluateGenerationMatchToken(generationMatchToken));
-  }
-
-  public static String composeRequestString(
-      String bucketName, String object, String generationMatchToken)
-      throws UnsupportedEncodingException {
-    return String.format(
-        COMPOSE_REQUEST_FORMAT,
-        bucketName,
-        URLEncoder.encode(object, UTF_8.name()),
-        evaluateGenerationMatchToken(generationMatchToken));
+        COMPOSE_REQUEST_FORMAT, bucketName, URLEncoder.encode(object, UTF_8.name()), generationId);
   }
 
   public static String listRequestString(
@@ -220,11 +211,5 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
     String pageTokenParam = pageToken == null ? "" : "&pageToken=" + pageToken;
     return String.format(
         LIST_REQUEST_FORMAT, bucket, includeTrailingDelimiter, maxResults, pageTokenParam, prefix);
-  }
-
-  private static String evaluateGenerationMatchToken(String generationMatchToken) {
-    return generationMatchToken == null
-        ? "ifGenerationMatch=GenerationMatch_"
-        : "ifGenerationMatch=GenerationMatch_" + generationMatchToken;
   }
 }

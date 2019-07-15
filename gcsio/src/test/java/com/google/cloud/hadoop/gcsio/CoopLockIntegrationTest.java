@@ -118,9 +118,10 @@ public class CoopLockIntegrationTest {
 
     assertThat(trackingRequestInitializer.getAllRequestStrings())
         .containsAtLeast(
-            uploadRequestString(bucketName, LOCK_PATH, /* generationMatch= */ true),
-            updateMetadataRequestString(bucketName, LOCK_PATH, /* metaGeneration= */ 1),
-            deleteRequestString(bucketName, LOCK_PATH, /* metaGeneration= */ 2));
+            uploadRequestString(bucketName, LOCK_PATH, /* generationId= */ 6),
+            updateMetadataRequestString(bucketName, LOCK_PATH, /* metaGenerationId= */ 1),
+            deleteRequestString(
+                bucketName, LOCK_PATH, /* generationId= */ 2, /* isMetaGeneration= */ true));
 
     assertThat(gcsFs.exists(srcDirUri)).isFalse();
     assertThat(gcsFs.exists(srcDirUri.resolve(fileName))).isFalse();
@@ -169,9 +170,10 @@ public class CoopLockIntegrationTest {
 
     assertThat(trackingRequestInitializer.getAllRequestStrings())
         .containsAtLeast(
-            uploadRequestString(bucketName, LOCK_PATH, /* generationMatch= */ true),
-            updateMetadataRequestString(bucketName, LOCK_PATH, /* metaGeneration= */ 1),
-            deleteRequestString(bucketName, LOCK_PATH, /* metaGeneration= */ 2));
+            uploadRequestString(bucketName, LOCK_PATH, /* generationId= */ 3),
+            updateMetadataRequestString(bucketName, LOCK_PATH, /* metaGenerationId= */ 1),
+            deleteRequestString(
+                bucketName, LOCK_PATH, /* generationId= */ 2, /* isMetaGeneration= */ true));
 
     assertThat(gcsFs.exists(dirUri)).isFalse();
     assertThat(gcsFs.exists(dirUri.resolve(fileName))).isFalse();

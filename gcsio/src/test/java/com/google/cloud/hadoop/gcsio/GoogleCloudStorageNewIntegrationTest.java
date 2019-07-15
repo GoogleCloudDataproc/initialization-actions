@@ -482,8 +482,8 @@ public class GoogleCloudStorageNewIntegrationTest {
             getRequestString(testBucket, testDir + "f1"),
             getRequestString(testBucket, testDir + "f2"),
             batchRequestString(),
-            deleteRequestString(testBucket, testDir + "f1", "token_4"),
-            deleteRequestString(testBucket, testDir + "f2", "token_5"));
+            deleteRequestString(testBucket, testDir + "f1", /* generationId= */ 4),
+            deleteRequestString(testBucket, testDir + "f2", /* generationId= */ 5));
 
     List<String> listedObjects = gcs.listObjectNames(testBucket, testDir, PATH_DELIMITER);
     assertThat(listedObjects).containsExactly(testDir + "f3");
@@ -508,9 +508,9 @@ public class GoogleCloudStorageNewIntegrationTest {
     assertThat(gcsRequestsTracker.getAllRequestStrings())
         .containsExactly(
             getRequestString(testBucket, testDir + "f1"),
-            deleteRequestString(testBucket, testDir + "f1", "token_1"),
+            deleteRequestString(testBucket, testDir + "f1", /* generationId= */ 1),
             getRequestString(testBucket, testDir + "f2"),
-            deleteRequestString(testBucket, testDir + "f2", "token_3"));
+            deleteRequestString(testBucket, testDir + "f2", /* generationId= */ 3));
 
     List<String> listedObjects = gcs.listObjectNames(testBucket, testDir, PATH_DELIMITER);
     assertThat(listedObjects).containsExactly(testDir + "f3");
@@ -530,7 +530,7 @@ public class GoogleCloudStorageNewIntegrationTest {
     assertThat(gcsRequestsTracker.getAllRequestStrings())
         .containsExactly(
             getRequestString(testBucket, testDir + "f3"),
-            composeRequestString(testBucket, testDir + "f3", "token_1"));
+            composeRequestString(testBucket, testDir + "f3", /* generationId= */ 1));
 
     List<String> listedObjects = gcs.listObjectNames(testBucket, testDir, PATH_DELIMITER);
     assertThat(listedObjects).containsExactly(testDir + "f1", testDir + "f2", testDir + "f3");

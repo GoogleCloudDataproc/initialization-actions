@@ -96,7 +96,7 @@ public class GoogleCloudStorageFileSystemNewIntegrationTest {
 
     assertThat(gcsRequestsTracker.getAllRequestStrings())
         .containsExactly(
-            uploadRequestString(bucketName, dirObject + "/", /* generationMatch= */ false));
+            uploadRequestString(bucketName, dirObject + "/", /* generationId= */ null));
 
     assertThat(gcsFs.exists(dirObjectUri)).isTrue();
     assertThat(gcsFs.getFileInfo(dirObjectUri).isDirectory()).isTrue();
