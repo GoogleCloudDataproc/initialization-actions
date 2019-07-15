@@ -20,15 +20,15 @@ import com.google.common.base.MoreObjects;
 import java.util.Objects;
 
 public class DeleteOperation {
-  private long lockEpochSeconds;
+  private long lockEpochMilli;
   private String resource = null;
 
-  public long getLockEpochSeconds() {
-    return lockEpochSeconds;
+  public long getLockEpochMilli() {
+    return lockEpochMilli;
   }
 
-  public DeleteOperation setLockEpochSeconds(long lockEpochSeconds) {
-    this.lockEpochSeconds = lockEpochSeconds;
+  public DeleteOperation setLockEpochMilli(long lockEpochMilli) {
+    this.lockEpochMilli = lockEpochMilli;
     return this;
   }
 
@@ -47,19 +47,19 @@ public class DeleteOperation {
   }
 
   private boolean equalsInternal(DeleteOperation other) {
-    return Objects.equals(lockEpochSeconds, other.lockEpochSeconds)
+    return Objects.equals(lockEpochMilli, other.lockEpochMilli)
         && Objects.equals(resource, other.resource);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(lockEpochSeconds, resource);
+    return Objects.hash(lockEpochMilli, resource);
   }
 
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
-        .add("lockEpochSeconds", lockEpochSeconds)
+        .add("lockEpochMilli", lockEpochMilli)
         .add("resource", resource)
         .toString();
   }

@@ -87,12 +87,12 @@ public class CoopLockRecordsDao {
   }
 
   public void relockOperation(
-      String bucketName, String operationId, String clientId, long lockEpochSeconds)
+      String bucketName, String operationId, String clientId, long lockEpochMilli)
       throws IOException {
     long startMs = System.currentTimeMillis();
     logger.atFine().log("lockOperation(%s, %d)", operationId, clientId);
     modifyLock(
-        records -> reacquireOperationLock(records, operationId, clientId, lockEpochSeconds),
+        records -> reacquireOperationLock(records, operationId, clientId, lockEpochMilli),
         bucketName,
         operationId);
     logger.atFine().log(
@@ -233,7 +233,7 @@ public class CoopLockRecordsDao {
   }
 
   private boolean reacquireOperationLock(
-      CoopLockRecords lockRecords, String operationId, String clientId, long lockEpochSeconds) {
+      CoopLockRecords lockRecords, String operationId, String clientId, long lockEpochMilli) {
     Optional<CoopLockRecord> operationOptional =
         lockRecords.getLocks().stream()
             .filter(o -> o.getOperationId().equals(operationId))
@@ -247,11 +247,11 @@ public class CoopLockRecordsDao {
         clientId,
         operation.getClientId());
     checkState(
-        lockEpochSeconds == operation.getLockEpochSeconds(),
-        "operation %s should be locked at %s epoch seconds but was at %s",
-        lockEpochSeconds,
-        operation.getLockEpochSeconds());
-    operation.setLockEpochSeconds(Instant.now().getEpochSecond());
+        lockEpochMilli == operation.getLockEpochMilli(),
+        "operation %s should be locked at %s epoch milliseconds but was at %s",
+        lockEpochMilli,
+        operation.getLockEpochMilli());
+    operation.setLockEpochMilli(Instant.now().toEpochMilli());
     return true;
   }
 
@@ -284,8 +284,8 @@ public class CoopLockRecordsDao {
         new CoopLockRecord()
             .setClientId(newClientId(operationId))
             .setOperationId(operationId)
-            .setOperationEpochSeconds(operationInstant.getEpochSecond())
-            .setLockEpochSeconds(Instant.now().getEpochSecond())
+            .setOperationEpochMilli(operationInstant.toEpochMilli())
+            .setLockEpochMilli(Instant.now().toEpochMilli())
             .setOperationType(operationType)
             .setResources(resourcesToAdd);
     lockRecords.getLocks().add(record);

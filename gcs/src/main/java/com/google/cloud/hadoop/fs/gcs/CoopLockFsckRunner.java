@@ -177,13 +177,13 @@ class CoopLockFsckRunner {
       logger.atInfo().log("Repairing FS after %s delete operation.", operationStatus.getPath());
       DeleteOperation operationObject = getOperationObject(operationStatus, DeleteOperation.class);
       lockRecordsDao.relockOperation(
-          bucketName, operationId, operation.getClientId(), operation.getLockEpochSeconds());
+          bucketName, operationId, operation.getClientId(), operation.getLockEpochMilli());
       Future<?> lockUpdateFuture =
           lockOperationDao.scheduleLockUpdate(
               operationId,
               new URI(operationStatus.getPath().toString()),
               DeleteOperation.class,
-              (o, i) -> o.setLockEpochSeconds(i.getEpochSecond()));
+              (o, i) -> o.setLockEpochMilli(i.toEpochMilli()));
       try {
         List<String> loggedResources = getOperationLog(operationStatus, l -> l);
         deleteResource(operationObject.getResource(), loggedResources);
@@ -200,13 +200,13 @@ class CoopLockFsckRunner {
       throws IOException, URISyntaxException {
     RenameOperation operationObject = getOperationObject(operationStatus, RenameOperation.class);
     lockRecordsDao.relockOperation(
-        bucketName, operationId, operation.getClientId(), operation.getLockEpochSeconds());
+        bucketName, operationId, operation.getClientId(), operation.getLockEpochMilli());
     Future<?> lockUpdateFuture =
         lockOperationDao.scheduleLockUpdate(
             operationId,
             new URI(operationStatus.getPath().toString()),
             RenameOperation.class,
-            (o, i) -> o.setLockEpochSeconds(i.getEpochSecond()));
+            (o, i) -> o.setLockEpochMilli(i.toEpochMilli()));
     try {
       LinkedHashMap<String, String> loggedResources =
           getOperationLog(
@@ -308,7 +308,7 @@ class CoopLockFsckRunner {
         StorageResourceId.fromObjectName(operationObject.getSrcResource()),
         StorageResourceId.fromObjectName(operationObject.getDstResource()),
         operation.getOperationId(),
-        Instant.ofEpochSecond(operation.getOperationEpochSeconds()),
+        Instant.ofEpochMilli(operation.getOperationEpochMilli()),
         copySucceeded);
 
     deleteResource(srcResource, loggedSrcResources);
@@ -357,7 +357,7 @@ class CoopLockFsckRunner {
 
     FileStatus operationStatus = operationLocks[0];
 
-    Instant lockInstant = Instant.ofEpochSecond(operation.getLockEpochSeconds());
+    Instant lockInstant = Instant.ofEpochMilli(operation.getLockEpochMilli());
     if (isLockExpired(lockInstant)
         && isLockExpired(getLockRenewedInstant(operationStatus, operation))) {
       logger.atInfo().log("Operation %s expired.", operationStatus.getPath());
@@ -401,11 +401,11 @@ class CoopLockFsckRunner {
       throws IOException {
     switch (operation.getOperationType()) {
       case DELETE:
-        return Instant.ofEpochSecond(
-            getOperationObject(operationStatus, DeleteOperation.class).getLockEpochSeconds());
+        return Instant.ofEpochMilli(
+            getOperationObject(operationStatus, DeleteOperation.class).getLockEpochMilli());
       case RENAME:
-        return Instant.ofEpochSecond(
-            getOperationObject(operationStatus, RenameOperation.class).getLockEpochSeconds());
+        return Instant.ofEpochMilli(
+            getOperationObject(operationStatus, RenameOperation.class).getLockEpochMilli());
       default:
         throw new IllegalStateException("Unknown operation type: " + operationStatus.getPath());
     }

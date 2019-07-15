@@ -140,10 +140,10 @@ public class CoopLockIntegrationTest {
     URI logFileUri = matchFile(lockFiles, fileNamePattern + "\\.log").get();
 
     String lockContent = gcsfsIHelper.readTextFile(bucketName, lockFileUri.getPath());
-    assertThat(GSON.fromJson(lockContent, RenameOperation.class).setLockEpochSeconds(0))
+    assertThat(GSON.fromJson(lockContent, RenameOperation.class).setLockEpochMilli(0))
         .isEqualTo(
             new RenameOperation()
-                .setLockEpochSeconds(0)
+                .setLockEpochMilli(0)
                 .setSrcResource(srcDirUri.toString())
                 .setDstResource(dstDirUri.toString())
                 .setCopySucceeded(true));
@@ -189,8 +189,8 @@ public class CoopLockIntegrationTest {
     URI lockFileUri = matchFile(lockFiles, fileNamePattern + "\\.lock").get();
     URI logFileUri = matchFile(lockFiles, fileNamePattern + "\\.log").get();
     String lockContent = gcsfsIHelper.readTextFile(bucketName, lockFileUri.getPath());
-    assertThat(GSON.fromJson(lockContent, DeleteOperation.class).setLockEpochSeconds(0))
-        .isEqualTo(new DeleteOperation().setLockEpochSeconds(0).setResource(dirUri.toString()));
+    assertThat(GSON.fromJson(lockContent, DeleteOperation.class).setLockEpochMilli(0))
+        .isEqualTo(new DeleteOperation().setLockEpochMilli(0).setResource(dirUri.toString()));
     assertThat(gcsfsIHelper.readTextFile(bucketName, logFileUri.getPath()))
         .isEqualTo(dirUri.resolve(fileName) + "\n" + dirUri + "\n");
   }

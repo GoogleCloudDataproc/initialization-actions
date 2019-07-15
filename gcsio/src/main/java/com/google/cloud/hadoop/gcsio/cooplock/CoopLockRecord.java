@@ -24,9 +24,9 @@ import java.util.TreeSet;
 public class CoopLockRecord {
   private String clientId;
   private String operationId;
-  private long operationEpochSeconds;
+  private long operationEpochMilli;
   private CoopLockOperationType operationType;
-  private long lockEpochSeconds;
+  private long lockEpochMilli;
   private Set<String> resources = new TreeSet<>();
 
   public String getClientId() {
@@ -47,12 +47,12 @@ public class CoopLockRecord {
     return this;
   }
 
-  public long getOperationEpochSeconds() {
-    return operationEpochSeconds;
+  public long getOperationEpochMilli() {
+    return operationEpochMilli;
   }
 
-  public CoopLockRecord setOperationEpochSeconds(long operationEpochSeconds) {
-    this.operationEpochSeconds = operationEpochSeconds;
+  public CoopLockRecord setOperationEpochMilli(long operationEpochMilli) {
+    this.operationEpochMilli = operationEpochMilli;
     return this;
   }
 
@@ -65,12 +65,12 @@ public class CoopLockRecord {
     return this;
   }
 
-  public long getLockEpochSeconds() {
-    return lockEpochSeconds;
+  public long getLockEpochMilli() {
+    return lockEpochMilli;
   }
 
-  public CoopLockRecord setLockEpochSeconds(long lockEpochSeconds) {
-    this.lockEpochSeconds = lockEpochSeconds;
+  public CoopLockRecord setLockEpochMilli(long lockEpochMilli) {
+    this.lockEpochMilli = lockEpochMilli;
     return this;
   }
 
@@ -88,9 +88,9 @@ public class CoopLockRecord {
     return MoreObjects.toStringHelper(this)
         .add("clientId", clientId)
         .add("operationId", operationId)
-        .add("operationEpochSeconds", operationEpochSeconds)
+        .add("operationEpochMilli", operationEpochMilli)
         .add("operationType", operationType)
-        .add("lockEpochSeconds", lockEpochSeconds)
+        .add("lockEpochMilli", lockEpochMilli)
         .add("resources", resources)
         .toString();
   }

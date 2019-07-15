@@ -103,7 +103,7 @@ public class CoopLockOperationDao {
             ImmutableList.of(
                 GSON.toJson(
                     new DeleteOperation()
-                        .setLockEpochSeconds(operationInstant.getEpochSecond())
+                        .setLockEpochMilli(operationInstant.toEpochMilli())
                         .setResource(resourceId.toString()))));
     List<String> logRecords =
         Streams.concat(itemsToDelete.stream(), bucketsToDelete.stream())
@@ -122,7 +122,7 @@ public class CoopLockOperationDao {
         operationId,
         operationLockPath,
         DeleteOperation.class,
-        (o, i) -> o.setLockEpochSeconds(i.getEpochSecond()));
+        (o, i) -> o.setLockEpochMilli(i.toEpochMilli()));
   }
 
   public Future<?> persistRenameOperation(
@@ -144,7 +144,7 @@ public class CoopLockOperationDao {
             ImmutableList.of(
                 GSON.toJson(
                     new RenameOperation()
-                        .setLockEpochSeconds(operationInstant.getEpochSecond())
+                        .setLockEpochMilli(operationInstant.toEpochMilli())
                         .setSrcResource(src.toString())
                         .setDstResource(dst.toString())
                         .setCopySucceeded(false))));
@@ -170,7 +170,7 @@ public class CoopLockOperationDao {
         operationId,
         operationLockPath,
         RenameOperation.class,
-        (o, i) -> o.setLockEpochSeconds(i.getEpochSecond()));
+        (o, i) -> o.setLockEpochMilli(i.toEpochMilli()));
   }
 
   public void checkpointRenameOperation(
@@ -190,7 +190,7 @@ public class CoopLockOperationDao {
         ImmutableList.of(
             GSON.toJson(
                 new RenameOperation()
-                    .setLockEpochSeconds(Instant.now().getEpochSecond())
+                    .setLockEpochMilli(Instant.now().toEpochMilli())
                     .setSrcResource(src.toString())
                     .setDstResource(dst.toString())
                     .setCopySucceeded(copySucceeded))));

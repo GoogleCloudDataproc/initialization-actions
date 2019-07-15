@@ -30,7 +30,7 @@ public class CoopLockRecords {
    * <p>When making any changes to cooperative locking persistent objects format (adding, renaming
    * or removing fields), then you need to increase this version number to prevent corruption.
    */
-  public static final long FORMAT_VERSION = 2;
+  public static final long FORMAT_VERSION = 3;
 
   private long formatVersion = -1;
   private Set<CoopLockRecord> locks =

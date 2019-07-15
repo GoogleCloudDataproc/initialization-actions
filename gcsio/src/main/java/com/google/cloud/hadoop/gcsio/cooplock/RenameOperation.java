@@ -20,17 +20,17 @@ import com.google.common.base.MoreObjects;
 import java.util.Objects;
 
 public class RenameOperation {
-  private long lockEpochSeconds;
+  private long lockEpochMilli;
   private String srcResource;
   private String dstResource;
   private boolean copySucceeded;
 
-  public long getLockEpochSeconds() {
-    return lockEpochSeconds;
+  public long getLockEpochMilli() {
+    return lockEpochMilli;
   }
 
-  public RenameOperation setLockEpochSeconds(long lockEpochSeconds) {
-    this.lockEpochSeconds = lockEpochSeconds;
+  public RenameOperation setLockEpochMilli(long lockEpochMilli) {
+    this.lockEpochMilli = lockEpochMilli;
     return this;
   }
 
@@ -67,7 +67,7 @@ public class RenameOperation {
   }
 
   private boolean equalsInternal(RenameOperation other) {
-    return Objects.equals(lockEpochSeconds, other.lockEpochSeconds)
+    return Objects.equals(lockEpochMilli, other.lockEpochMilli)
         && Objects.equals(srcResource, other.srcResource)
         && Objects.equals(dstResource, other.dstResource)
         && Objects.equals(copySucceeded, other.copySucceeded);
@@ -75,13 +75,13 @@ public class RenameOperation {
 
   @Override
   public int hashCode() {
-    return Objects.hash(lockEpochSeconds, srcResource, dstResource, copySucceeded);
+    return Objects.hash(lockEpochMilli, srcResource, dstResource, copySucceeded);
   }
 
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
-        .add("lockEpochSeconds", lockEpochSeconds)
+        .add("lockEpochMilli", lockEpochMilli)
         .add("srcResource", srcResource)
         .add("dstResource", dstResource)
         .add("copySucceeded", copySucceeded)

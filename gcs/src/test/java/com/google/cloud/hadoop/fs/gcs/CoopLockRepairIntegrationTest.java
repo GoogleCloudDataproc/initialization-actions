@@ -110,15 +110,16 @@ public class CoopLockRepairIntegrationTest {
 
   @Test
   public void moveDirectoryOperationRolledForwardAfterFailedCopy() throws Exception {
-    moveDirectoryOperationRepairedAfterFailedCopy("--rollForward");
+    moveDirectoryOperationRepairedAfterFailedCopy("--rollForward", /* copySucceeded= */ true);
   }
 
   @Test
   public void moveDirectoryOperationRolledBackAfterFailedCopy() throws Exception {
-    moveDirectoryOperationRepairedAfterFailedCopy("--rollBack");
+    moveDirectoryOperationRepairedAfterFailedCopy("--rollBack", /* copySucceeded= */ false);
   }
 
-  private void moveDirectoryOperationRepairedAfterFailedCopy(String command) throws Exception {
+  private void moveDirectoryOperationRepairedAfterFailedCopy(String command, boolean copySucceeded)
+      throws Exception {
     String bucketName =
         gcsfsIHelper.createUniqueBucket(
             "cooperative-rename-" + command.toLowerCase().replace("--roll", "") + "-failed-move");
@@ -182,13 +183,13 @@ public class CoopLockRepairIntegrationTest {
     URI logFileUri = matchFile(lockFiles, filenamePattern + "\\.log").get();
 
     String lockContent = gcsfsIHelper.readTextFile(bucketName, lockFileUri.getPath());
-    assertThat(GSON.fromJson(lockContent, RenameOperation.class).setLockEpochSeconds(0))
+    assertThat(GSON.fromJson(lockContent, RenameOperation.class).setLockEpochMilli(0))
         .isEqualTo(
             new RenameOperation()
-                .setLockEpochSeconds(0)
+                .setLockEpochMilli(0)
                 .setSrcResource(srcDirUri.toString())
                 .setDstResource(dstDirUri.toString())
-                .setCopySucceeded(false));
+                .setCopySucceeded(copySucceeded));
     assertThat(gcsfsIHelper.readTextFile(bucketName, logFileUri.getPath()))
         .isEqualTo(srcDirUri.resolve(fileName) + " -> " + dstDirUri.resolve(fileName) + "\n");
   }
@@ -254,10 +255,10 @@ public class CoopLockRepairIntegrationTest {
     URI logFileUri = matchFile(lockFiles, filenameFormat + "\\.log").get();
 
     String lockContent = gcsfsIHelper.readTextFile(bucketName, lockFileUri.getPath());
-    assertThat(GSON.fromJson(lockContent, RenameOperation.class).setLockEpochSeconds(0))
+    assertThat(GSON.fromJson(lockContent, RenameOperation.class).setLockEpochMilli(0))
         .isEqualTo(
             new RenameOperation()
-                .setLockEpochSeconds(0)
+                .setLockEpochMilli(0)
                 .setSrcResource(srcDirUri.toString())
                 .setDstResource(dstDirUri.toString())
                 .setCopySucceeded(true));
@@ -320,8 +321,8 @@ public class CoopLockRepairIntegrationTest {
     URI lockFileUri = matchFile(lockFiles, filenamePattern + "\\.lock").get();
     URI logFileUri = matchFile(lockFiles, filenamePattern + "\\.log").get();
     String lockContent = gcsfsIHelper.readTextFile(bucketName, lockFileUri.getPath());
-    assertThat(GSON.fromJson(lockContent, DeleteOperation.class).setLockEpochSeconds(0))
-        .isEqualTo(new DeleteOperation().setLockEpochSeconds(0).setResource(dirUri.toString()));
+    assertThat(GSON.fromJson(lockContent, DeleteOperation.class).setLockEpochMilli(0))
+        .isEqualTo(new DeleteOperation().setLockEpochMilli(0).setResource(dirUri.toString()));
     assertThat(gcsfsIHelper.readTextFile(bucketName, logFileUri.getPath()))
         .isEqualTo(dirUri.resolve(fileName) + "\n" + dirUri + "\n");
   }
