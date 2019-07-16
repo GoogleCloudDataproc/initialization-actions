@@ -13,9 +13,9 @@ class DatalabTestCase(DataprocTestCase):
     ]
 
     def verify_instance(self, name):
-        verify_cmd = "curl {} -L {}:8080 | grep 'Google Cloud DataLab'".format(
-            "--retry 10 --retry-delay 10 --retry-connrefused", name)
-        self.assert_instance_command(name, verify_cmd)
+        self.assert_instance_command(
+            name, "curl {} -L {}:8080 | grep 'Google Cloud DataLab'".format(
+                "--retry 10 --retry-delay 10 --retry-connrefused", name))
 
     @parameterized.expand(
         [

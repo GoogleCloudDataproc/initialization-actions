@@ -155,12 +155,44 @@ class DataprocTestCase(BASE_TEST_CASE):
                                 instance,
                                 cmd,
                                 timeout_in_minutes=DEFAULT_TIMEOUT):
+        """Executes a command on VM instance and asserts that it returned 0 exit
+        code.
+
+        Args:
+            instance: VM instance name to execute command on
+            cmd: the command to execute
+            timeout_in_minutes: timeout in minutes after which process that
+                                executes command will be killed if it did not
+                                finish
+        Returns:
+            ret_code: the return code of the command
+            stdout:
+            stderr:
+        Raises:
+            AssertionError: if command returned non-0 exit code.
+        """
+
         ret_code, stdout, stderr = self.assert_command(
             'gcloud compute ssh {} --command="{}"'.format(instance, cmd),
             timeout_in_minutes)
         return ret_code, stdout, stderr
 
     def assert_command(self, cmd, timeout_in_minutes=DEFAULT_TIMEOUT):
+        """Executes a command locally and asserts that it returned 0 exit code.
+
+        Args:
+            cmd: the command to execute
+            timeout_in_minutes: timeout in minutes after which process that
+                                executes command will be killed if it did not
+                                finish
+        Returns:
+            ret_code: the return code of the command
+            stdout:
+            stderr:
+        Raises:
+            AssertionError: if command returned non-0 exit code.
+        """
+
         ret_code, stdout, stderr = DataprocTestCase.run_command(
             cmd, timeout_in_minutes)
         self.assertEqual(
