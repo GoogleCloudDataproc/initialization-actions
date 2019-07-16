@@ -30,7 +30,7 @@ class CloudSqlProxyTestCase(DataprocTestCase):
                                                      self.random_str())
         create_cmd_fmt = "gcloud sql instances create {}" \
             " --region {} --async --format=json"
-        _, stdout, _ = self.run_and_assert_command(
+        _, stdout, _ = self.assert_command(
             create_cmd_fmt.format(self.DB_NAME, self.REGION))
         operation_id = json.loads(stdout.strip())['name']
         self.wait_cloud_sql_operation(operation_id)
@@ -44,14 +44,14 @@ class CloudSqlProxyTestCase(DataprocTestCase):
                             self.DB_NAME, stderr)
 
     def wait_cloud_sql_operation(self, operation_id):
-        self.run_and_assert_command(
+        self.assert_command(
             'gcloud sql operations wait {} --timeout=600'.format(operation_id))
 
     def verify_instance(self, name):
         self.__submit_pyspark_job(name)
 
     def __submit_pyspark_job(self, name):
-        self.run_and_assert_command(
+        self.assert_command(
             'gcloud dataproc jobs submit pyspark --cluster {} {}/{}'.format(
                 name, self.INIT_ACTIONS_REPO, self.TEST_SCRIPT_FILE_NAME))
 

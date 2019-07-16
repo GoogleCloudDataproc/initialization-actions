@@ -19,9 +19,8 @@ class HueTestCase(DataprocTestCase):
         self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
 
     def __run_test_file(self, name):
-        self.run_and_assert_command(
-            'gcloud compute ssh {} --command="python3 {}"'.format(
-                name, self.TEST_SCRIPT_FILE_NAME))
+        self.assert_instance_command(
+            name, "python3 {}".format(self.TEST_SCRIPT_FILE_NAME))
 
     @parameterized.expand(
         [

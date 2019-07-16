@@ -25,16 +25,15 @@ class StarburstPrestoTestCase(DataprocTestCase):
         self.__validate_data_in_table_via_presto(name, table, schema)
 
     def __create_schema_via_hive(self, name, schema):
-        query = "create schema {};".format(schema)
-        self.run_and_assert_command(
-            "gcloud compute ssh {} --command=\"hive -e '{}'\"".format(
-                name, query))
+        self.assert_instance_command(
+            name, "hive -e 'create schema {};'".format(schema))
 
     def __verify_schema_via_presto(self, name, schema):
         query = "show schemas;"
-        _, stdout, _ = self.run_and_assert_command(
-            "gcloud compute ssh {} --command=\"presto --catalog=hive --execute='{}' --output-format TSV\""
-            .format(name, query))
+        _, stdout, _ = self.assert_instance_command(
+            name,
+            "presto --catalog=hive --execute='{}' --output-format TSV".format(
+                query))
         schemas = str(stdout).split("\n")
         self.assertIn(schema, schemas,
                       "Schema {} not found in {}".format(schema, schemas))
@@ -42,30 +41,28 @@ class StarburstPrestoTestCase(DataprocTestCase):
     def __create_table(self, name, table, schema):
         query = "create table {}(number int) STORED AS SEQUENCEFILE;".format(
             table)
-        self.run_and_assert_command(
-            "gcloud compute ssh {} --command=\"hive --database {} -e '{}'\"".
-            format(name, schema, query))
+        self.assert_instance_command(
+            name, "hive --database {} -e '{}'".format(schema, query))
 
     def __insert_data_into_table_via_hive(self, name, table, schema):
         query = "insert into {} values {};".format(
             table, ",".join(["({})".format(x % 2) for x in range(400)]))
-        self.run_and_assert_command(
-            "gcloud compute ssh {} --command=\"hive --database {} -e '{}'\"".
-            format(name, schema, query))
+        self.assert_instance_command(
+            name, "hive --database {} -e '{}'".format(schema, query))
 
     def __validate_data_in_table_via_presto(self, name, table, schema):
         query = "SELECT number, count(*) AS total FROM {} GROUP BY number ORDER BY number DESC;".format(
             table)
-        _, stdout, _ = self.run_and_assert_command(
-            "gcloud compute ssh {} --command=\"presto --catalog=hive --schema={} --execute='{}' --output-format TSV\""
-            .format(name, schema, query))
+        _, stdout, _ = self.assert_instance_command(
+            name,
+            "presto --catalog=hive --schema={} --execute='{}' --output-format TSV"
+            .format(schema, query))
         self.assertEqual(stdout, "1\t200\n0\t200\n")
 
     def __verify_coordinators_count(self, name, coordinators):
         query = "select count(*) from system.runtime.nodes where coordinator=true"
-        _, stdout, _ = self.run_and_assert_command(
-            "gcloud compute ssh {} --command=\"presto --execute '{}' --output-format TSV\""
-            .format(name, query))
+        _, stdout, _ = self.assert_instance_command(
+            name, "presto --execute '{}' --output-format TSV".format(query))
         self.assertEqual(
             coordinators, int(stdout),
             "Bad number of coordinators. Expected: {}\tFound: {}".format(
@@ -73,9 +70,8 @@ class StarburstPrestoTestCase(DataprocTestCase):
 
     def __verify_workers_count(self, name, workers):
         query = "select count(*) from system.runtime.nodes where coordinator=false"
-        _, stdout, _ = self.run_and_assert_command(
-            "gcloud compute ssh {} --command=\"presto --execute '{}' --output-format TSV\""
-            .format(name, query))
+        _, stdout, _ = self.assert_instance_command(
+            name, "presto --execute '{}' --output-format TSV".format(query))
         self.assertEqual(
             workers, int(stdout),
             "Bad number of workers. Expected: {}\tFound: {}".format(
@@ -98,7 +94,7 @@ class StarburstPrestoTestCase(DataprocTestCase):
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_starburst_presto(self, configuration, dataproc_version,
-                             machine_suffixes, coordinators, workers):
+                              machine_suffixes, coordinators, workers):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
                            dataproc_version,

@@ -21,8 +21,7 @@ class RapidsTestCase(DataprocTestCase):
     def __run_test_script(self, name):
         verify_cmd = "/opt/conda/anaconda/envs/RAPIDS/bin/python {}".format(
             self.TEST_SCRIPT_FILE_NAME)
-        self.run_and_assert_command(
-            'gcloud compute ssh {} --command="{}"'.format(name, verify_cmd))
+        self.assert_instance_command(name, verify_cmd)
 
     @parameterized.expand(
         [("STANDARD", "1.3", ["m"])],

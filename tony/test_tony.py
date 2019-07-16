@@ -19,7 +19,7 @@ class TonYTestCase(DataprocTestCase):
         self.createCluster(configuration, self.INIT_ACTIONS, dataproc_version)
 
         # Verify cluster using TensorFlow job
-        cmd = '''
+        self.assert_command('''
             gcloud dataproc jobs submit hadoop --cluster={} \
                 --class com.linkedin.tony.cli.ClusterSubmitter \
                 --jars "file:///opt/tony/TonY-samples/tony-cli-{}-all.jar" \
@@ -30,11 +30,10 @@ class TonYTestCase(DataprocTestCase):
                 --executes mnist_distributed.py \
                 --python_venv=/opt/tony/TonY-samples/deps/tf.zip \
                 --python_binary_path=tf/bin/python3.5
-            '''.format(self.name, self.TONY_VERSION)
-        self.run_and_assert_command(cmd)
+            '''.format(self.name, self.TONY_VERSION))
 
         # Verify cluster using PyTorch job
-        cmd = '''
+        self.assert_command('''
             gcloud dataproc jobs submit hadoop --cluster={} \
                 --class com.linkedin.tony.cli.ClusterSubmitter \
                 --jars "file:///opt/tony/TonY-samples/tony-cli-{}-all.jar" \
@@ -45,8 +44,7 @@ class TonYTestCase(DataprocTestCase):
                 --executes mnist_distributed.py \
                 --python_venv=/opt/tony/TonY-samples/deps/pytorch.zip \
                 --python_binary_path=pytorch/bin/python3.5
-            '''.format(self.name, self.TONY_VERSION)
-        self.run_and_assert_command(cmd)
+            '''.format(self.name, self.TONY_VERSION))
 
 
 if __name__ == '__main__':
