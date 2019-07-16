@@ -157,16 +157,15 @@ public final class GoogleCloudStorageTestUtils {
     return new MockLowLevelHttpResponse().setStatusCode(statusCode);
   }
 
-  public static MockLowLevelHttpResponse metadataResponse(StorageObject metadataObject)
-      throws IOException {
-    return dataResponse(JSON_FACTORY.toByteArray(metadataObject));
-  }
-
   public static MockLowLevelHttpResponse dataRangeResponse(
       byte[] content, long rangeStart, long totalSize) {
     long rangeEnd = rangeStart + content.length - 1;
     return dataResponse(content)
         .addHeader("Content-Range", rangeStart + "-" + rangeEnd + "/" + totalSize);
+  }
+
+  public static MockLowLevelHttpResponse jsonDataResponse(Object object) throws IOException {
+    return dataResponse(JSON_FACTORY.toByteArray(object));
   }
 
   public static MockLowLevelHttpResponse dataResponse(byte[] content) {

@@ -16,7 +16,7 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.deleteRequestString;
+import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.deleteMatchMetaGenerationRequestString;
 import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.updateMetadataRequestString;
 import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.uploadRequestString;
 import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockOperationType.DELETE;
@@ -120,8 +120,8 @@ public class CoopLockIntegrationTest {
         .containsAtLeast(
             uploadRequestString(bucketName, LOCK_PATH, /* generationId= */ 6),
             updateMetadataRequestString(bucketName, LOCK_PATH, /* metaGenerationId= */ 1),
-            deleteRequestString(
-                bucketName, LOCK_PATH, /* generationId= */ 2, /* isMetaGeneration= */ true));
+            deleteMatchMetaGenerationRequestString(
+                bucketName, LOCK_PATH, /* metaGenerationId= */ 2));
 
     assertThat(gcsFs.exists(srcDirUri)).isFalse();
     assertThat(gcsFs.exists(srcDirUri.resolve(fileName))).isFalse();
@@ -172,8 +172,8 @@ public class CoopLockIntegrationTest {
         .containsAtLeast(
             uploadRequestString(bucketName, LOCK_PATH, /* generationId= */ 3),
             updateMetadataRequestString(bucketName, LOCK_PATH, /* metaGenerationId= */ 1),
-            deleteRequestString(
-                bucketName, LOCK_PATH, /* generationId= */ 2, /* isMetaGeneration= */ true));
+            deleteMatchMetaGenerationRequestString(
+                bucketName, LOCK_PATH, /* metaGenerationId= */ 2));
 
     assertThat(gcsFs.exists(dirUri)).isFalse();
     assertThat(gcsFs.exists(dirUri.resolve(fileName))).isFalse();
