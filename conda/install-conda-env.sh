@@ -77,6 +77,21 @@ if [[ ! $CONDA_ENV_NAME == 'root' ]]
     source activate $CONDA_ENV_NAME
 fi
 
+# Pin base conda and Python versions to minor version to prevent unexpected upgrades
+# while installing conda and pip packages
+CONDA_BASE_PATH=$(conda info --base)
+CONDA_PINNED_FILE="${CONDA_BASE_PATH}/conda-meta/pinned"
+function pin_component_version() {
+  local component=$1
+
+  version=$(conda list "${component}" \
+      | grep -E "^${component}\s+" | sed -E "s/[ ]+/ /g" \
+      | cut -f2 -d' ' | cut -f1,2 -d'.')
+  echo "${component} ${version}.*" >> "${CONDA_PINNED_FILE}"
+}
+pin_component_version conda
+pin_component_version python
+
 # 3. Install conda and pip packages (if specified)
 if [[ ! -z "${CONDA_PACKAGES}" ]]; then
     echo "Installing conda packages for $CONDA_ENV_NAME..."
