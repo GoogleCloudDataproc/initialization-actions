@@ -15,6 +15,8 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.DELEGATION_TOKEN_BINDING_CLASS;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_INFER_IMPLICIT_DIRECTORIES_ENABLE;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemTestHelper.createInMemoryGoogleHadoopFileSystem;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.truth.Truth.assertThat;
@@ -426,10 +428,8 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
     assertThat(gcsOptions.isAutoRepairImplicitDirectoriesEnabled()).isTrue();
     assertThat(gcsOptions.isInferImplicitDirectoriesEnabled()).isFalse();
 
-    config.setBoolean(
-        GoogleHadoopFileSystemConfiguration.GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE.getKey(), false);
-    config.setBoolean(
-        GoogleHadoopFileSystemConfiguration.GCS_INFER_IMPLICIT_DIRECTORIES_ENABLE.getKey(), true);
+    config.setBoolean(GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE.getKey(), false);
+    config.setBoolean(GCS_INFER_IMPLICIT_DIRECTORIES_ENABLE.getKey(), true);
 
     optionsBuilder = GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config);
     options = optionsBuilder.build();
@@ -722,7 +722,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
   }
 
   @Test
-  public void getFileStatus_throwsExceptionWhenHadooptPathNull() {
+  public void getFileStatus_throwsExceptionWhenHadoopPathNull() {
     GoogleHadoopFileSystem myGhfs = new GoogleHadoopFileSystem();
     IllegalArgumentException exception =
         assertThrows(IllegalArgumentException.class, () -> myGhfs.getFileStatus(null));
@@ -731,12 +731,11 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
 
   @Test
   public void getFileStatus_throwsExceptionWhenFileInfoDontExists() throws IOException {
-    GoogleHadoopFileSystem myGhfs = createInMemoryGoogleHadoopFileSystem();
     URI fileUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
     Path filePath = ghfsHelper.castAsHadoopPath(fileUri);
-    FileNotFoundException exception =
-        assertThrows(FileNotFoundException.class, () -> myGhfs.getFileStatus(filePath));
-    assertThat(exception).hasMessageThat().startsWith("File not found");
+    FileNotFoundException e =
+        assertThrows(FileNotFoundException.class, () -> ghfs.getFileStatus(filePath));
+    assertThat(e).hasMessageThat().startsWith("File not found");
   }
 
   /** Tests getFileStatus() with non-default permissions. */
@@ -874,12 +873,11 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
 
   @Test
   public void fileChecksum_throwsExceptionWhenFileNotFound() throws Exception {
-    GoogleHadoopFileSystem myGhfs = createInMemoryGoogleHadoopFileSystem();
     URI fileUri = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
     Path filePath = ghfsHelper.castAsHadoopPath(fileUri);
-    FileNotFoundException exception =
-        assertThrows(FileNotFoundException.class, () -> myGhfs.getFileChecksum(filePath));
-    assertThat(exception.getMessage().startsWith("File not found"));
+    FileNotFoundException e =
+        assertThrows(FileNotFoundException.class, () -> ghfs.getFileChecksum(filePath));
+    assertThat(e).hasMessageThat().startsWith("File not found");
   }
 
   @Test

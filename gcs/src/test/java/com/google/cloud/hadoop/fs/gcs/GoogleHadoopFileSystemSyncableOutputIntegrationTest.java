@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_TYPE;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.OutputStreamType;
@@ -42,9 +43,7 @@ public class GoogleHadoopFileSystemSyncableOutputIntegrationTest
         public void before() throws Throwable {
           GoogleHadoopFileSystemIntegrationTest.storageResource.before();
           ghfs.getConf()
-              .set(
-                  GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_TYPE.getKey(),
-                  OutputStreamType.SYNCABLE_COMPOSITE.name());
+              .set(GCS_OUTPUT_STREAM_TYPE.getKey(), OutputStreamType.SYNCABLE_COMPOSITE.name());
         }
 
         @Override

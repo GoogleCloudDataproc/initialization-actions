@@ -14,6 +14,11 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_EMAIL;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_KEY_FILE;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_INFER_IMPLICIT_DIRECTORIES_ENABLE;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_PROJECT_ID;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE;
 import static com.google.cloud.hadoop.gcsio.testing.TestConfiguration.GCS_TEST_PROJECT_ID;
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -39,24 +44,21 @@ public final class GoogleHadoopFileSystemIntegrationHelper {
    * needed for setting up the credentials of a real GoogleCloudStorage.
    */
   public static Configuration getTestConfig() {
-    TestConfiguration testConfiguration = TestConfiguration.getInstance();
-    String projectId =
-        checkNotNull(testConfiguration.getProjectId(), ENV_VAR_MSG_FMT, GCS_TEST_PROJECT_ID);
-    String privateKeyFile = testConfiguration.getPrivateKeyFile();
-    String serviceAccount = testConfiguration.getPrivateKeyFile();
-
     Configuration config = new Configuration();
-    config.set(GoogleHadoopFileSystemConfiguration.GCS_PROJECT_ID.getKey(), projectId);
-    config.set(
-        GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_EMAIL.getKey(), serviceAccount);
-    config.set(
-        GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_KEY_FILE.getKey(), privateKeyFile);
-    config.setBoolean(
-        GoogleHadoopFileSystemConfiguration.GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE.getKey(), true);
-    config.setBoolean(
-        GoogleHadoopFileSystemConfiguration.GCS_INFER_IMPLICIT_DIRECTORIES_ENABLE.getKey(), false);
+    config.setBoolean(GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE.getKey(), true);
+    config.setBoolean(GCS_INFER_IMPLICIT_DIRECTORIES_ENABLE.getKey(), false);
     // Allow buckets to be deleted in test cleanup:
     config.setBoolean(GoogleHadoopFileSystemConfiguration.GCE_BUCKET_DELETE_ENABLE.getKey(), true);
+
+    // Configure test authentication
+    TestConfiguration testConf = TestConfiguration.getInstance();
+    String projectId = checkNotNull(testConf.getProjectId(), ENV_VAR_MSG_FMT, GCS_TEST_PROJECT_ID);
+    config.set(GCS_PROJECT_ID.getKey(), projectId);
+    if (testConf.getServiceAccount() != null && testConf.getPrivateKeyFile() != null) {
+      config.set(AUTH_SERVICE_ACCOUNT_EMAIL.getKey(), testConf.getServiceAccount());
+      config.set(AUTH_SERVICE_ACCOUNT_KEY_FILE.getKey(), testConf.getPrivateKeyFile());
+    }
+
     return config;
   }
 

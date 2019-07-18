@@ -104,7 +104,7 @@ public class CoopLockIntegrationTest {
         new TrackingHttpRequestInitializer(httpRequestInitializer);
     GoogleCloudStorageFileSystem gcsFs = newGcsFs(gcsFsOptions, trackingRequestInitializer);
 
-    String bucketName = gcsfsIHelper.createUniqueBucket("cooperative-rename");
+    String bucketName = gcsfsIHelper.createUniqueBucket("coop-rename");
     URI bucketUri = new URI("gs://" + bucketName + "/");
     String dirName = "rename_" + UUID.randomUUID();
     String fileName = "file";
@@ -158,7 +158,7 @@ public class CoopLockIntegrationTest {
         new TrackingHttpRequestInitializer(httpRequestInitializer);
     GoogleCloudStorageFileSystem gcsFs = newGcsFs(gcsFsOptions, trackingRequestInitializer);
 
-    String bucketName = gcsfsIHelper.createUniqueBucket("cooperative-delete");
+    String bucketName = gcsfsIHelper.createUniqueBucket("coop-delete");
     URI bucketUri = new URI("gs://" + bucketName + "/");
     String fileName = "file";
     URI dirUri = bucketUri.resolve("delete_" + UUID.randomUUID() + "/");

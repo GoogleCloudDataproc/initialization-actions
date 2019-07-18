@@ -13,7 +13,12 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_EMAIL;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_KEY_FILE;
 import static com.google.cloud.hadoop.io.bigquery.BigQueryFactory.BIGQUERY_CONFIG_PREFIX;
+import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX;
+import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX;
+import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.when;
@@ -29,7 +34,6 @@ import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
 import com.google.cloud.hadoop.io.bigquery.output.IndirectBigQueryOutputFormat;
-import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
@@ -129,14 +133,12 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
    */
   public static Configuration getConfigForGcsFromBigquerySettings(
       String projectIdValue, String testBucket) {
-    TestConfiguration configuration = TestConfiguration.getInstance();
-
-    String serviceAccount = configuration.getServiceAccount();
+    TestConfiguration testConf = TestConfiguration.getInstance();
+    String serviceAccount = testConf.getServiceAccount();
     if (Strings.isNullOrEmpty(serviceAccount)) {
       serviceAccount = System.getenv(BigQueryFactory.BIGQUERY_SERVICE_ACCOUNT);
     }
-
-    String privateKeyFile = configuration.getPrivateKeyFile();
+    String privateKeyFile = testConf.getPrivateKeyFile();
     if (Strings.isNullOrEmpty(privateKeyFile)) {
       privateKeyFile = System.getenv(BigQueryFactory.BIGQUERY_PRIVATE_KEY_FILE);
     }
@@ -146,20 +148,11 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     config.set(GoogleHadoopFileSystemConfiguration.GCS_PROJECT_ID.getKey(), projectIdValue);
 
     if (serviceAccount != null && privateKeyFile != null) {
-      config.setBoolean(
-          BIGQUERY_CONFIG_PREFIX + HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX,
-          true);
-      config.set(
-          BIGQUERY_CONFIG_PREFIX + HadoopCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX,
-          serviceAccount);
-      config.set(
-          BIGQUERY_CONFIG_PREFIX + HadoopCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX,
-          privateKeyFile);
-      config.set(
-          GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_EMAIL.getKey(), serviceAccount);
-      config.set(
-          GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_KEY_FILE.getKey(),
-          privateKeyFile);
+      config.setBoolean(BIGQUERY_CONFIG_PREFIX + ENABLE_SERVICE_ACCOUNTS_SUFFIX, true);
+      config.set(BIGQUERY_CONFIG_PREFIX + SERVICE_ACCOUNT_EMAIL_SUFFIX, serviceAccount);
+      config.set(BIGQUERY_CONFIG_PREFIX + SERVICE_ACCOUNT_KEYFILE_SUFFIX, privateKeyFile);
+      config.set(AUTH_SERVICE_ACCOUNT_EMAIL.getKey(), serviceAccount);
+      config.set(AUTH_SERVICE_ACCOUNT_KEY_FILE.getKey(), privateKeyFile);
     }
 
     return config;
@@ -177,8 +170,6 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
       throws IOException, GeneralSecurityException {
     MockitoAnnotations.initMocks(this);
 
-    TestConfiguration configuration = TestConfiguration.getInstance();
-
     LoggerConfig.getConfig(GsonBigQueryInputFormat.class).setLevel(Level.FINE);
     LoggerConfig.getConfig(BigQueryUtils.class).setLevel(Level.FINE);
     LoggerConfig.getConfig(GsonRecordReader.class).setLevel(Level.FINE);
@@ -187,7 +178,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     // A unique per-setUp String to avoid collisions between test runs.
     String testId = bucketHelper.getUniqueBucketPrefix();
 
-    projectIdvalue = configuration.getProjectId();
+    projectIdvalue = TestConfiguration.getInstance().getProjectId();
     if (Strings.isNullOrEmpty(projectIdvalue)) {
       projectIdvalue = System.getenv(BIGQUERY_PROJECT_ID_ENVVARNAME);
     }

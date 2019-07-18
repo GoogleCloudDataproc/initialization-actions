@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.BLOCK_SIZE;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
@@ -186,17 +187,14 @@ public class GoogleHadoopFSIntegrationTest {
   }
 
   @Test
-  public void testGetUserDefault_shouldReturnSpecifiedConfiguration()
-      throws IOException, URISyntaxException {
+  public void getServerDefaults_shouldReturnSpecifiedConfiguration() throws Exception {
     Configuration config = GoogleHadoopFileSystemIntegrationHelper.getTestConfig();
-    config.setLong(GoogleHadoopFileSystemConfiguration.BLOCK_SIZE.getKey(), 1);
-    config.setInt("io.bytes.per.checksum", 2);
+    config.setLong(BLOCK_SIZE.getKey(), 1);
     GoogleHadoopFS ghfs = new GoogleHadoopFS(initUri, config);
 
-    FsServerDefaults defaults = ghfs.getServerDefaults(new Path("gs://fake/file"));
+    FsServerDefaults defaults = ghfs.getServerDefaults();
 
     assertThat(defaults.getBlockSize()).isEqualTo(1);
-    assertThat(defaults.getBytesPerChecksum()).isEqualTo(2);
   }
 
   @Test
