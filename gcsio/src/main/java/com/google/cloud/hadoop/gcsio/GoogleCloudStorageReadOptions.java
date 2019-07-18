@@ -45,6 +45,7 @@ public abstract class GoogleCloudStorageReadOptions {
   public static final long DEFAULT_INPLACE_SEEK_LIMIT = 0L;
   public static final Fadvise DEFAULT_FADVISE = Fadvise.SEQUENTIAL;
   public static final int DEFAULT_MIN_RANGE_REQUEST_SIZE = 512 * 1024;
+  public static final boolean GRPC_CHECKSUMS_ENABLED_DEFAULT = false;
 
   // Default builder should be initialized after default values,
   // otherwise it will access not initialized default values.
@@ -62,7 +63,8 @@ public abstract class GoogleCloudStorageReadOptions {
         .setBufferSize(DEFAULT_BUFFER_SIZE)
         .setInplaceSeekLimit(DEFAULT_INPLACE_SEEK_LIMIT)
         .setFadvise(DEFAULT_FADVISE)
-        .setMinRangeRequestSize(DEFAULT_MIN_RANGE_REQUEST_SIZE);
+        .setMinRangeRequestSize(DEFAULT_MIN_RANGE_REQUEST_SIZE)
+        .setGrpcChecksumsEnabled(GRPC_CHECKSUMS_ENABLED_DEFAULT);
   }
 
   public abstract Builder toBuilder();
@@ -99,6 +101,8 @@ public abstract class GoogleCloudStorageReadOptions {
 
   /** See {@link Builder#setMinRangeRequestSize}. */
   public abstract int getMinRangeRequestSize();
+
+  public abstract Builder toBuilder();
 
   /** Mutable builder for GoogleCloudStorageReadOptions. */
   @AutoValue.Builder
@@ -188,13 +192,23 @@ public abstract class GoogleCloudStorageReadOptions {
      */
     public abstract Builder setMinRangeRequestSize(int size);
 
+    /**
+     * Sets whether to validate checksums when doing gRPC reads. If enabled, for sequential reads of
+     * a whole object, the object checksums will be validated.
+     *
+     * <p>TODO(b/134521856): Update this to discuss per-request checksums once the server supplies
+     * them and we're validating them.
+     */
+    public abstract Builder setGrpcChecksumsEnabled(boolean grpcChecksumsEnabled);
+
     abstract GoogleCloudStorageReadOptions autoBuild();
 
     public GoogleCloudStorageReadOptions build() {
       GoogleCloudStorageReadOptions options = autoBuild();
       checkState(
           options.getInplaceSeekLimit() >= 0,
-          "inplaceSeekLimit must be non-negative! Got %s", options.getInplaceSeekLimit());
+          "inplaceSeekLimit must be non-negative! Got %s",
+          options.getInplaceSeekLimit());
       return options;
     }
   }

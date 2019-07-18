@@ -100,6 +100,31 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
     InsertObjectRequest expectedInsertRequest =
         InsertObjectRequest.newBuilder()
             .setUploadId(UPLOAD_ID)
+            .setChecksummedData(ChecksummedData.newBuilder().setContent(data))
+            .setFinishWrite(true)
+            .build();
+
+    verify(fakeService, times(1)).startResumableWrite(eq(START_REQUEST), any());
+    verify(fakeService.insertRequestObserver, times(1)).onNext(expectedInsertRequest);
+    verify(fakeService.insertRequestObserver, atLeast(1)).onCompleted();
+  }
+
+  @Test
+  public void writeSendsSingleInsertObjectRequestWithChecksums() throws Exception {
+    AsyncWriteChannelOptions options =
+        AsyncWriteChannelOptions.newBuilder().setGrpcChecksumsEnabled(true).build();
+    ObjectWriteConditions writeConditions = new ObjectWriteConditions();
+    GoogleCloudStorageGrpcWriteChannel writeChannel =
+        newWriteChannel(options, writeConditions, Optional.absent());
+
+    ByteString data = ByteString.copyFromUtf8("test data");
+    writeChannel.initialize();
+    writeChannel.write(data.asReadOnlyByteBuffer());
+    writeChannel.close();
+
+    InsertObjectRequest expectedInsertRequest =
+        InsertObjectRequest.newBuilder()
+            .setUploadId(UPLOAD_ID)
             .setChecksummedData(
                 ChecksummedData.newBuilder()
                     .setContent(data)
@@ -118,6 +143,51 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
   @Test
   public void writeSendsMultipleInsertObjectRequests() throws Exception {
     GoogleCloudStorageGrpcWriteChannel writeChannel = newWriteChannel();
+    int chunkSize = writeChannel.GCS_MINIMUM_CHUNK_SIZE;
+
+    ByteString data = createTestData(chunkSize * 5 / 2);
+    writeChannel.setUploadChunkSize(chunkSize);
+    writeChannel.initialize();
+    writeChannel.write(data.asReadOnlyByteBuffer());
+    writeChannel.close();
+
+    List<InsertObjectRequest> expectedRequests =
+        Arrays.asList(
+            InsertObjectRequest.newBuilder()
+                .setUploadId(UPLOAD_ID)
+                .setChecksummedData(
+                    ChecksummedData.newBuilder().setContent(data.substring(0, chunkSize)))
+                .build(),
+            InsertObjectRequest.newBuilder()
+                .setUploadId(UPLOAD_ID)
+                .setChecksummedData(
+                    ChecksummedData.newBuilder()
+                        .setContent(data.substring(chunkSize, 2 * chunkSize)))
+                .setWriteOffset(chunkSize)
+                .build(),
+            InsertObjectRequest.newBuilder()
+                .setUploadId(UPLOAD_ID)
+                .setChecksummedData(
+                    ChecksummedData.newBuilder().setContent(data.substring(2 * chunkSize)))
+                .setWriteOffset(2 * chunkSize)
+                .setFinishWrite(true)
+                .build());
+    ArgumentCaptor<InsertObjectRequest> requestCaptor =
+        ArgumentCaptor.forClass(InsertObjectRequest.class);
+
+    verify(fakeService, times(1)).startResumableWrite(eq(START_REQUEST), any());
+    verify(fakeService.insertRequestObserver, times(3)).onNext(requestCaptor.capture());
+    assertEquals(expectedRequests, requestCaptor.getAllValues());
+    verify(fakeService.insertRequestObserver, atLeast(1)).onCompleted();
+  }
+
+  @Test
+  public void writeSendsMultipleInsertObjectRequestsWithChecksums() throws Exception {
+    AsyncWriteChannelOptions options =
+        AsyncWriteChannelOptions.newBuilder().setGrpcChecksumsEnabled(true).build();
+    ObjectWriteConditions writeConditions = new ObjectWriteConditions();
+    GoogleCloudStorageGrpcWriteChannel writeChannel =
+        newWriteChannel(options, writeConditions, Optional.absent());
     int chunkSize = writeChannel.GCS_MINIMUM_CHUNK_SIZE;
 
     ByteString data = createTestData(chunkSize * 5 / 2);

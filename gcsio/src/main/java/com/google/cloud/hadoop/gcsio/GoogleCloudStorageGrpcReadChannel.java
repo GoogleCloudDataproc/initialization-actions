@@ -15,7 +15,6 @@
 package com.google.cloud.hadoop.gcsio;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -123,7 +122,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
     this.bucketName = bucketName;
     this.objectName = objectName;
     this.readOptions = readOptions;
-    this.resourceIdString = StorageResourceId.createReadableString(bucketName, objectName);
+    this.resourceIdString = StringPaths.fromComponents(bucketName, objectName);
     this.objectMetadata = new MetadataSupplier();
     this.randomAccess = readOptions.getFadvise() == Fadvise.RANDOM;
     if (readOptions.getFastFailOnNotFound()) {
@@ -401,12 +400,8 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
       responseObserver = new ResponseObserver();
       stub.getMedia(buildRequest(readOffset, readLimit), responseObserver);
       position = readOffset;
-      boolean isGenerationReadConsistencyLatest =
-          readOptions.getGenerationReadConsistency().equals(GenerationReadConsistency.LATEST);
-      objectHasher =
-          position == 0 && !isGenerationReadConsistencyLatest
-              ? Optional.of(Hashing.crc32c().newHasher())
-              : Optional.empty();
+      boolean enableChecksums = readOptions.getGrpcChecksumsEnabled() && position == 0;
+      objectHasher = enableChecksums ? Optional.of(Hashing.crc32c().newHasher()) : Optional.empty();
     }
 
     @Override
@@ -498,14 +493,11 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
           GetObjectMediaRequest.newBuilder()
               .setBucket(bucketName)
               .setObject(objectName)
-              .setReadOffset(readOffset);
+              .setReadOffset(readOffset)
+              .setGeneration(objectMetadata.get().getGeneration());
 
       if (readLimit.isPresent()) {
         requestBuilder.setReadLimit(readLimit.get());
-      }
-
-      if (!readOptions.getGenerationReadConsistency().equals(GenerationReadConsistency.LATEST)) {
-        requestBuilder.setGeneration(objectMetadata.get().getGeneration());
       }
 
       return requestBuilder.build();

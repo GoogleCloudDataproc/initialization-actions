@@ -47,6 +47,9 @@ public abstract class AsyncWriteChannelOptions {
   /** Default of whether to use direct upload. */
   public static final boolean DIRECT_UPLOAD_ENABLED_DEFAULT = false;
 
+  /** Default of whether to enabled checksums for gRPC. */
+  public static final boolean GRPC_CHECKSUMS_ENABLED_DEFAULT = false;
+
   public static final AsyncWriteChannelOptions DEFAULT = builder().build();
 
   public static Builder builder() {
@@ -55,7 +58,8 @@ public abstract class AsyncWriteChannelOptions {
         .setPipeBufferSize(PIPE_BUFFER_SIZE_DEFAULT)
         .setUploadChunkSize(UPLOAD_CHUNK_SIZE_DEFAULT)
         .setUploadCacheSize(UPLOAD_CACHE_SIZE_DEFAULT)
-        .setDirectUploadEnabled(DIRECT_UPLOAD_ENABLED_DEFAULT);
+        .setDirectUploadEnabled(DIRECT_UPLOAD_ENABLED_DEFAULT)
+        .setGrpcChecksumsEnabled(GRPC_CHECKSUMS_ENABLED_DEFAULT);
   }
 
   public abstract Builder toBuilder();
@@ -69,6 +73,8 @@ public abstract class AsyncWriteChannelOptions {
   public abstract int getUploadCacheSize();
 
   public abstract boolean isDirectUploadEnabled();
+
+  public abstract boolean isGrpcChecksumsEnabled();
 
   /** Mutable builder for the GoogleCloudStorageWriteChannelOptions class. */
   @AutoValue.Builder
@@ -106,5 +112,7 @@ public abstract class AsyncWriteChannelOptions {
             UPLOAD_CHUNK_SIZE_GRANULARITY, chunkSize);
       }
     }
+
+    public abstract Builder setGrpcChecksumsEnabled(boolean grpcChecksumsEnabled);
   }
 }

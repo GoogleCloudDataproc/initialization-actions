@@ -55,6 +55,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
   private final ObjectWriteConditions writeConditions;
   private final Optional<String> requesterPaysProject;
   private final StorageObjectsStub stub;
+  private final boolean checksumsEnabled;
 
   private GoogleCloudStorageItemInfo completedItemInfo = null;
 
@@ -72,6 +73,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
     this.stub = stub;
     this.writeConditions = writeConditions;
     this.requesterPaysProject = requesterPaysProject;
+    this.checksumsEnabled = options.isGrpcChecksumsEnabled();
     this.object =
         Object.newBuilder()
             .setName(objectName)
@@ -223,17 +225,19 @@ public final class GoogleCloudStorageGrpcWriteChannel
                         .setWriteOffset(chunkStart + chunkBytesWritten)
                         .setFinishWrite(streamFinished);
                 if (data.size() > 0) {
-                  Hasher hasher = Hashing.crc32c().newHasher();
-                  hasher.putBytes(data.asReadOnlyByteBuffer());
-                  objectHasher.putBytes(data.asReadOnlyByteBuffer());
-                  int checksum = hasher.hash().asInt();
-                  requestBuilder.setChecksummedData(
-                      ChecksummedData.newBuilder()
-                          .setContent(data)
-                          .setCrc32C(UInt32Value.newBuilder().setValue(checksum)));
+                  ChecksummedData.Builder requestDataBuilder =
+                      ChecksummedData.newBuilder().setContent(data);
+                  if (checksumsEnabled) {
+                    Hasher hasher = Hashing.crc32c().newHasher();
+                    hasher.putBytes(data.asReadOnlyByteBuffer());
+                    objectHasher.putBytes(data.asReadOnlyByteBuffer());
+                    int checksum = hasher.hash().asInt();
+                    requestDataBuilder.setCrc32C(UInt32Value.newBuilder().setValue(checksum));
+                  }
+                  requestBuilder.setChecksummedData(requestDataBuilder);
                   chunkBytesWritten += data.size();
                 }
-                if (streamFinished) {
+                if (streamFinished && checksumsEnabled) {
                   requestBuilder.setObjectChecksums(
                       ObjectChecksums.newBuilder()
                           .setCrc32C(
