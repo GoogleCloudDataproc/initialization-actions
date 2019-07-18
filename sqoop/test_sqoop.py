@@ -15,6 +15,7 @@ class SqoopTestCase(DataprocTestCase):
         ['cloud-sql-proxy/cloud-sql-proxy.sh', 'zookeeper/zookeeper.sh', 'hbase/hbase.sh']
     CLOUD_SQL_INSTANCE_NAME = None
     CLOUD_BIGTABLE_INSTANCE_NAME = None
+    TEST_DB_NAME = None
 
     @classmethod
     def setUpClass(cls):
@@ -41,7 +42,7 @@ class SqoopTestCase(DataprocTestCase):
         )
         assert ret_code == 0, "Failed to create sql instance {}. Last error: {}".format(
             cls.CLOUD_SQL_INSTANCE_NAME, stderr)
-        ret_code, stdout, stderr = cls.run_command(
+        ret_code, _, stderr = cls.run_command(
             'gcloud beta bigtable instances create {} --cluster {} --cluster-zone {} '
             '--display-name={} --instance-type=DEVELOPMENT'.format(
                 cls.CLOUD_BIGTABLE_INSTANCE_NAME, cls.CLOUD_BIGTABLE_INSTANCE_NAME,
@@ -67,6 +68,9 @@ class SqoopTestCase(DataprocTestCase):
         assert ret_code == 0, "Failed to delete bigtable instance {}. Last error: {}".format(
             cls.CLOUD_BIGTABLE_INSTANCE_NAME, stderr)
 
+    def setUp(self):
+        self.TEST_DB_NAME = "employees_{}".format(self.random_str(4))
+
     def verify_instance(self, name):
         ret_code, _, stderr = self.run_command(
             'gcloud compute ssh {} --command "/usr/lib/sqoop/bin/sqoop version"'.format(
@@ -75,64 +79,55 @@ class SqoopTestCase(DataprocTestCase):
         )
         self.assertEqual(ret_code, 0, "Failed to validate cluster. Error: {}".format(stderr))
 
-    def verify_importing_to_hdfs(self, name):
+    def verify_importing_to_hdfs(self, name, test_db_name):
         ret_code, _, stderr = self.run_command(
             'gcloud compute ssh {} --command "/usr/lib/sqoop/bin/sqoop {}"'.format(
                 name,
-                "import --connect jdbc:mysql://localhost/employees "
+                "import --connect jdbc:mysql://localhost:3307/{} "
                 "--username root "
-                "--table employees --m 1"
+                "--table employees --m 1".format(test_db_name)
             )
         )
         self.assertEqual(ret_code, 0, "Failed to validate cluster. Error: {}".format(stderr))
 
-    def verify_importing_to_bigtable_hbase(self, name):
-        hbase_table_name = "employees-{}".format(datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
+    def verify_importing_to_bigtable_hbase(self, name, test_db_name):
+        hbase_table_name = "employees_{}".format(self.random_str(4))
         ret_code, _, stderr = self.run_command(
             'gcloud compute ssh {} --command "/usr/lib/sqoop/bin/sqoop {}"'.format(
                 name,
-                "import --connect jdbc:mysql://localhost/employees "
+                "import --connect jdbc:mysql://localhost:3307/{} "
                 "--username root --table employees --columns \"emp_no,first_name\" "
                 "--hbase-table {} --column-family my-column-family "
                 "--hbase-row-key emp_no --m 1 --hbase-create-table".format(
-                    hbase_table_name
-                )
+                    test_db_name, hbase_table_name)
             )
         )
         self.assertEqual(ret_code, 0, "Failed to validate cluster. Error: {}".format(stderr))
 
-    def populate_database_if_needed(self, name):
-        ret_code, _, _ = self.run_command(
-            'gcloud compute ssh {} --command "{}"'.format(
-                name,
-                'mysql -u root -e "show databases" | grep "employees"'
-            )
-        )
-        if ret_code != 0:
-            ret_code, _, stderr = self.run_command(
-                'gcloud compute ssh {} --command "{}"'.format(
-                    name,
-                    'git clone https://github.com/datacharmer/test_db'
-                )
-            )
-            self.assertEqual(ret_code, 0, "Failed to clone example database. Error: {}".format(stderr))
-            ret_code, _, stderr = self.run_command(
-                'gcloud compute ssh {} --command "{}"'.format(
-                    name,
-                    'cd test_db && mysql -u root < employees.sql'
-                )
-            )
-            self.assertEqual(ret_code, 0, "Failed to populate database. Error: {}".format(stderr))
-
-    def make_database_reusable(self, name):
+    def populate_database(self, name, test_db_name):
         ret_code, _, stderr = self.run_command(
             'gcloud compute ssh {} --command "{}"'.format(
                 name,
-                "mysql -u root -e 'drop database hive_metastore;'"
+                'git clone https://github.com/datacharmer/test_db'
+            )
+        )
+        self.assertEqual(ret_code, 0, "Failed to clone example database. Error: {}".format(stderr))
+
+        ret_code, _, stderr = self.run_command(
+            'gcloud compute ssh {} --command "{}"'.format(
+                name,
+                'cd test_db && sed -i -e "25,27s/employees/{}/g" employees.sql'.format(test_db_name)
+            )
+        )
+        self.assertEqual(ret_code, 0, "Failed to rename temp database name. Error: {}".format(stderr))
+
+        ret_code, _, stderr = self.run_command(
+            'gcloud compute ssh {} --command "{}"'.format(
+                name,
+                'cd test_db && mysql -u root -h 127.0.0.1 -P 3307 < employees.sql'
             )
         )
         self.assertEqual(ret_code, 0, "Failed to populate database. Error: {}".format(stderr))
-
 
     @parameterized.expand([
         ("SINGLE", "1.2", ["m"]),
@@ -164,28 +159,25 @@ class SqoopTestCase(DataprocTestCase):
             self, configuration, dataproc_version, machine_suffixes):
         init_actions = self.INIT_ACTIONS + self.SQL_TO_HDFS_HELPER_ACTIONS
         self.createCluster(configuration, init_actions, dataproc_version,
-                           metadata='hive-metastore-instance={}:{}'.format(
-                               self.CLOUD_SQL_METADATA, self.CLOUD_SQL_INSTANCE_NAME),
+                           metadata='enable-cloud-sql-hive-metastore=false,'
+                                    'additional-cloud-sql-instances={}:{}=tcp:3307'.
+                           format(self.CLOUD_SQL_METADATA, self.CLOUD_SQL_INSTANCE_NAME),
                            scopes='sql-admin'
                            )
         for machine_suffix in machine_suffixes:
-            self.populate_database_if_needed(
+            self.populate_database(
                 "{}-{}".format(
                     self.getClusterName(),
                     machine_suffix
-                )
+                ),
+                self.TEST_DB_NAME
             )
             self.verify_importing_to_hdfs(
                 "{}-{}".format(
                     self.getClusterName(),
                     machine_suffix
-                )
-            )
-            self.make_database_reusable(
-                "{}-{}".format(
-                    self.getClusterName(),
-                    machine_suffix
-                )
+                ),
+                self.TEST_DB_NAME
             )
 
     @parameterized.expand([
@@ -200,29 +192,26 @@ class SqoopTestCase(DataprocTestCase):
             self, configuration, dataproc_version, machine_suffixes):
         init_actions = self.INIT_ACTIONS + self.SQL_TO_BIGTABLE_HELPER_ACTIONS
         self.createCluster(configuration, init_actions, dataproc_version,
-                           metadata='hive-metastore-instance={}:{},{}'.format(
-                               self.CLOUD_SQL_METADATA, self.CLOUD_SQL_INSTANCE_NAME,
-                               self.CLOUD_BIGTABLE_METADATA),
+                           metadata='enable-cloud-sql-hive-metastore=false,'
+                                    'additional-cloud-sql-instances={}:{}=tcp:3307,{}'.
+                           format(self.CLOUD_SQL_METADATA, self.CLOUD_SQL_INSTANCE_NAME,
+                                  self.CLOUD_BIGTABLE_METADATA),
                            scopes='cloud-platform'
                            )
         for machine_suffix in machine_suffixes:
-            self.populate_database_if_needed(
+            self.populate_database(
                 "{}-{}".format(
                     self.getClusterName(),
                     machine_suffix
-                )
+                ),
+                self.TEST_DB_NAME
             )
             self.verify_importing_to_bigtable_hbase(
                 "{}-{}".format(
                     self.getClusterName(),
                     machine_suffix
-                )
-            )
-            self.make_database_reusable(
-                "{}-{}".format(
-                    self.getClusterName(),
-                    machine_suffix
-                )
+                ),
+                self.TEST_DB_NAME
             )
 
     @parameterized.expand([
@@ -239,28 +228,26 @@ class SqoopTestCase(DataprocTestCase):
         if configuration == "HA":
             init_actions.remove('zookeeper/zookeeper.sh')
         self.createCluster(configuration, init_actions, dataproc_version,
-                           metadata='hive-metastore-instance={}:{}'.format(
-                               self.CLOUD_SQL_METADATA, self.CLOUD_SQL_INSTANCE_NAME),
-                           scopes='sql-admin'
+                           metadata='enable-cloud-sql-hive-metastore=false,'
+                                    'additional-cloud-sql-instances={}:{}=tcp:3307'.
+                           format(self.CLOUD_SQL_METADATA, self.CLOUD_SQL_INSTANCE_NAME),
+                           scopes='sql-admin',
+                           machine_type="n1-standard-2"
                            )
         for machine_suffix in machine_suffixes:
-            self.populate_database_if_needed(
+            self.populate_database(
                 "{}-{}".format(
                     self.getClusterName(),
                     machine_suffix
-                )
+                ),
+                self.TEST_DB_NAME
             )
             self.verify_importing_to_bigtable_hbase(
                 "{}-{}".format(
                     self.getClusterName(),
                     machine_suffix
-                )
-            )
-            self.make_database_reusable(
-                "{}-{}".format(
-                    self.getClusterName(),
-                    machine_suffix
-                )
+                ),
+                self.TEST_DB_NAME
             )
 
 
