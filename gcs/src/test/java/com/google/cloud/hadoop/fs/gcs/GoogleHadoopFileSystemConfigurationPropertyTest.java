@@ -15,12 +15,23 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.assertThrows;
 
+import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.GcsFileChecksumType;
+import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.OutputStreamType;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
 import com.google.cloud.hadoop.util.EntriesCredentialConfiguration;
+import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
+import com.google.cloud.hadoop.util.RequesterPaysOptions.RequesterPaysMode;
 import com.google.common.collect.ImmutableList;
+import java.lang.reflect.Field;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Stream;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -28,6 +39,80 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class GoogleHadoopFileSystemConfigurationPropertyTest {
+
+  private static Map<String, Object> EXPECTED_DEFAULT_CONFIGURATION =
+      new HashMap<String, Object>() {
+        {
+          put("fs.gs.project.id", null);
+          put("fs.gs.working.dir", "/");
+          put("fs.gs.implicit.dir.repair.enable", true);
+          put("fs.gs.copy.with.rewrite.enable", true);
+          put("fs.gs.rewrite.max.bytes.per.call", 536870912);
+          put("fs.gs.config.override.file", null);
+          put("fs.gs.reported.permissions", "700");
+          put("fs.gs.delegation.token.binding", null);
+          put("fs.gs.bucket.delete.enable", false);
+          put("fs.gs.checksum.type", GcsFileChecksumType.NONE);
+          put("fs.gs.status.parallel.enable", false);
+          put("fs.gs.parent.timestamp.update.enable", true);
+          put("fs.gs.parent.timestamp.update.substrings.excludes", ImmutableList.of("/"));
+          put(
+              "fs.gs.parent.timestamp.update.substrings.includes",
+              ImmutableList.of(
+                  "${mapreduce.jobhistory.intermediate-done-dir}",
+                  "${mapreduce.jobhistory.done-dir}"));
+          put("fs.gs.lazy.init.enable", false);
+          put("fs.gs.path.encoding", "uri-path");
+          put("fs.gs.block.size", 67108864);
+          put("fs.gs.implicit.dir.infer.enable", true);
+          put("fs.gs.glob.flatlist.enable", true);
+          put("fs.gs.glob.concurrent.enable", true);
+          put("fs.gs.max.requests.per.batch", 15);
+          put("fs.gs.batch.threads", 15);
+          put("fs.gs.copy.max.requests.per.batch", 15);
+          put("fs.gs.copy.batch.threads", 15);
+          put("fs.gs.list.max.items.per.call", 1024);
+          put("fs.gs.max.wait.for.empty.object.creation.ms", 3000);
+          put("fs.gs.marker.file.pattern", null);
+          put("fs.gs.auth.access.token.provider.impl", null);
+          put("fs.gs.auth.service.account.enable", true);
+          put("fs.gs.auth.service.account.email", null);
+          put("fs.gs.auth.service.account.private.key.id", null);
+          put("fs.gs.auth.service.account.private.key", null);
+          put("fs.gs.auth.service.account.json.keyfile", null);
+          put("fs.gs.auth.service.account.keyfile", null);
+          put("fs.gs.auth.client.id", null);
+          put("fs.gs.auth.client.secret", null);
+          put("fs.gs.auth.client.file", null);
+          put("fs.gs.inputstream.buffer.size", 0);
+          put("fs.gs.inputstream.fast.fail.on.not.found.enable", true);
+          put("fs.gs.generation.read.consistency", GenerationReadConsistency.LATEST);
+          put("fs.gs.outputstream.buffer.size", 8388608);
+          put("fs.gs.outputstream.pipe.buffer.size", 1048576);
+          put("fs.gs.outputstream.upload.chunk.size", 67108864);
+          put("fs.gs.outputstream.direct.upload.enable", false);
+          put("fs.gs.outputstream.type", OutputStreamType.BASIC);
+          put("fs.gs.http.transport.type", HttpTransportType.JAVA_NET);
+          put("fs.gs.application.name.suffix", "");
+          put("fs.gs.proxy.address", null);
+          put("fs.gs.proxy.username", null);
+          put("fs.gs.proxy.password", null);
+          put("fs.gs.http.max.retry", 10);
+          put("fs.gs.http.connect-timeout", 20000);
+          put("fs.gs.http.read-timeout", 20000);
+          put("fs.gs.inputstream.fadvise", Fadvise.AUTO);
+          put("fs.gs.inputstream.inplace.seek.limit", 8388608);
+          put("fs.gs.inputstream.min.range.request.size", 524288);
+          put("fs.gs.performance.cache.enable", false);
+          put("fs.gs.performance.cache.max.entry.age.ms", 5000);
+          put("fs.gs.performance.cache.list.caching.enable", false);
+          put("fs.gs.requester.pays.mode", RequesterPaysMode.DISABLED);
+          put("fs.gs.requester.pays.project.id", null);
+          put("fs.gs.requester.pays.buckets", ImmutableList.of());
+          put("fs.gs.cooperative.locking.enable", false);
+          put("fs.gs.cooperative.locking.expiration.timeout.ms", 120_000);
+        }
+      };
 
   @Test
   public void testPropertyCreation_withNullDeprecationKey() {
@@ -127,5 +212,26 @@ public class GoogleHadoopFileSystemConfigurationPropertyTest {
 
     // Building configuration using deprecated key (in eg. proxy password) should fail.
     assertThrows(IllegalArgumentException.class, optionsBuilder::build);
+  }
+
+  @Test
+  public void defaultPropertiesValues() {
+    Stream.of(GoogleHadoopFileSystemConfiguration.class.getDeclaredFields())
+        .filter(f -> GoogleHadoopFileSystemConfigurationProperty.class.equals(f.getType()))
+        .map(GoogleHadoopFileSystemConfigurationPropertyTest::getDefaultProperty)
+        .forEach(
+            p ->
+                assertWithMessage("Unexpected default value for '%s' key", p.getKey())
+                    .that(p.getDefault())
+                    .isEqualTo(EXPECTED_DEFAULT_CONFIGURATION.get(p.getKey())));
+  }
+
+  private static GoogleHadoopFileSystemConfigurationProperty<?> getDefaultProperty(Field field) {
+    try {
+      return (GoogleHadoopFileSystemConfigurationProperty) field.get(null);
+    } catch (IllegalAccessException e) {
+      throw new RuntimeException(
+          String.format("Failed to get '%s' field value", field.getName()), e);
+    }
   }
 }

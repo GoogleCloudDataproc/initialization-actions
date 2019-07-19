@@ -320,6 +320,10 @@ public class GoogleHadoopFileSystemConfiguration {
       GCS_COPY_WITH_REWRITE_ENABLE =
           new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.copy.with.rewrite.enable", true);
 
+  /**
+   * Configuration key for specifying max number of bytes rewritten in a single rewrite request when
+   * fs.gs.copy.with.rewrite.enable is set to 'true'.
+   */
   public static final GoogleHadoopFileSystemConfigurationProperty<Long>
       GCS_REWRITE_MAX_BYTES_PER_CALL =
           new GoogleHadoopFileSystemConfigurationProperty<>(

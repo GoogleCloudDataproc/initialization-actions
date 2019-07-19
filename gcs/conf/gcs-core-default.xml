@@ -40,7 +40,7 @@
   </property>
   <property>
     <name>fs.gs.copy.with.rewrite.enable</name>
-    <value></value>
+    <value>true</value>
     <description>
       Whether or not to perform copy operation using Rewrite requests. Allows
       to copy files between different locations and storage classes.
@@ -175,7 +175,7 @@
 
   <property>
     <name>fs.gs.http.max.retry</name>
-    <value></value>
+    <value>10</value>
     <description>
       The maximum number of retries for low-level HTTP requests to GCS when
       server errors (code: 5XX) or I/O errors are encountered.
@@ -183,7 +183,7 @@
   </property>
   <property>
     <name>fs.gs.http.connect-timeout</name>
-    <value></value>
+    <value>20000</value>
     <description>
       Timeout in milliseconds to establish a connection.
       Use 0 for an infinite timeout.
@@ -191,7 +191,7 @@
   </property>
   <property>
     <name>fs.gs.http.read-timeout</name>
-    <value></value>
+    <value>20000</value>
     <description>
       Timeout in milliseconds to read from an established connection.
       Use 0 for an infinite timeout.
@@ -234,12 +234,12 @@
     <description>
       Optional. Accepted values: AUTO, CUSTOM, DISABLED, ENABLED.
       For each mode GCS connector functions as follow:
-        - AUTO - Requester Pays feature enabled only for GCS buckets that
-          require it;
-        - CUSTOM - Requester Pays feature enabled only for GCS buckets that are
-          specified in the `fs.gs.requester.pays.buckets`;
-        - DISABLED - Requester Pays feature disabled for all GCS buckets;
-        - ENABLED - Requester Pays feature enabled for all GCS buckets.
+      - AUTO - Requester Pays feature enabled only for GCS buckets that require
+      it;
+      - CUSTOM - Requester Pays feature enabled only for GCS buckets that are
+      specified in the `fs.gs.requester.pays.buckets`;
+      - DISABLED - Requester Pays feature disabled for all GCS buckets;
+      - ENABLED - Requester Pays feature enabled for all GCS buckets.
     </description>
   </property>
   <property>
@@ -265,6 +265,372 @@
     <description>
       Optional. Override configuration file path. Properties defined in this file overrides
       the properties defined in core-site.xml and values passed from command line.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.reported.permissions</name>
+    <value>700</value>
+    <description>
+      Permissions that are reported for a file or directory to have regardless of actual Cloud
+      Storage permissions. Can be either in octal or symbolic format that accepted by FsPermission
+      class.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.delegation.token.binding</name>
+    <description>Configuration key for Delegation Token binding class. Default value: none
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.bucket.delete.enable</name>
+    <value>false</value>
+    <description>
+      If true, recursive delete on a path that refers to a Cloud Storage bucket itself or delete on
+      that path when it is empty will result in deletion of the bucket itself. If false, any
+      operation that normally would have deleted the bucket will be ignored. Setting to 'false'
+      preserves the typical behavior of "rm -rf /" which translates to deleting everything inside of
+      root, but without clobbering the filesystem authority corresponding to that root path in the
+      process.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.checksum.type</name>
+    <value>NONE</value>
+    <description>
+      Configuration of object checksum type to return; if a particular file doesn't support the
+      requested type, then getFileChecksum() method will return 'null' for that file.
+      Supported checksum types are NONE, CRC32C and MD5
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.performance.cache.enable</name>
+    <value>false</value>
+    <description>
+      Enables a performance cache that temporarily stores successfully queried Cloud Storage objects
+      in memory. Caching provides a faster access to the recently queried objects, but because
+      objects metadata is cached, modifications made outside of this connector instance may not be
+      immediately reflected.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.performance.cache.max.entry.age.ms</name>
+    <value>5000</value>
+    <description>
+      Maximum number of milliseconds to store a cached metadata in the performance cache before
+      it's invalidated.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.performance.cache.list.caching.enable</name>
+    <value>false</value>
+    <description>Enable caching of list request results in the performance cache.</description>
+  </property>
+
+  <property>
+    <name>fs.gs.status.parallel.enable</name>
+    <value>false</value>
+    <description>
+      If true, executes Cloud Storage object requests in FileSystem listStatus and getFileStatus
+      methods in parallel to reduce latency.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.parent.timestamp.update.enable</name>
+    <value>true</value>
+    <description>
+      Enables timestamp updates for parent directories when new files created in them.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.parent.timestamp.update.substrings.excludes</name>
+    <value>/</value>
+    <description>
+      Comma-separated list of sub-strings that when matched will cause a particular directory to not
+      have its modification timestamp updated. Includes take precedence over excludes.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.parent.timestamp.update.substrings.includes</name>
+    <value>
+      ${mapreduce.jobhistory.intermediate-done-dir},${mapreduce.jobhistory.done-dir}
+    </value>
+    <description>
+      Comma-separated list of sub-strings that when matched will cause a particular directory to
+      have its modification timestamp updated. Includes take precedence over excludes.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.lazy.init.enable</name>
+    <value>false</value>
+    <description>Enables lazy initialization of GoogleHadoopFileSystem instances.</description>
+  </property>
+
+  <property>
+    <name>fs.gs.path.encoding</name>
+    <value>uri-path</value>
+    <description>
+      Path codec used that used for decoding and encoding Cloud Storage object paths.
+      Valid path codecs are 'legacy' and 'uri-path'.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.implicit.dir.infer.enable</name>
+    <value>true</value>
+    <description>
+      Enables automatic inference of implicit directories. If set to true, connector creates and
+      return in-memory directory objects on the fly when no backing object exists, but it could be
+      inferred that it should exist because there are files with the same prefix.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.glob.concurrent.enable</name>
+    <value>true</value>
+    <description>
+      Enables concurrent execution of flat and regular glob search algorithms in two parallel
+      threads to improve globbing performance. Whichever algorithm will finish first that result
+      will be returned and the other algorithm execution one will be interrupted.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.max.requests.per.batch</name>
+    <value>15</value>
+    <description>
+      Maximum number of Cloud Storage requests that could be sent in a single batch request.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.batch.threads</name>
+    <value>15</value>
+    <description>Maximum number of threads used to execute batch requests in parallel.</description>
+  </property>
+
+  <property>
+    <name>fs.gs.copy.max.requests.per.batch</name>
+    <value>15</value>
+    <description>
+      Maximum number of Cloud Storage requests that could be sent in a single batch request for copy
+      operations.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.copy.batch.threads</name>
+    <value>15</value>
+    <description>
+      Maximum number of threads used to execute batch requests in parallel for copy operations.
+    </description>
+  </property>
+
+
+  <property>
+    <name>fs.gs.rewrite.max.bytes.per.call</name>
+    <value>536870912</value>
+    <description>
+      Maximum number of bytes rewritten in a single rewrite request when
+      fs.gs.copy.with.rewrite.enable is set to 'true'.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.list.max.items.per.call</name>
+    <value>1024</value>
+    <description>
+      Maximum number of items to return in response for list Cloud Storage requests.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.proxy.address</name>
+    <value></value>
+    <description>
+      Proxy address that connector can use to send Cloud Storage requests. The proxy must be an HTTP
+      proxy and address should be in the 'host:port' form.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.proxy.username</name>
+    <value></value>
+    <description>Proxy username that connector can use to send Cloud Storage requests.</description>
+  </property>
+
+  <property>
+    <name>fs.gs.proxy.password</name>
+    <value></value>
+    <description>
+      Proxy password that connector can use to send Cloud Storage requests.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.http.transport.type</name>
+    <value>JAVA_NET</value>
+    <description>
+      HTTP transport to use for sending Cloud Storage requests.
+      Valid values are APACHE or JAVA_NET.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.application.name.suffix</name>
+    <value></value>
+    <description>
+      Suffix that will be added to HTTP User-Agent header set in all Cloud Storage requests.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.max.wait.for.empty.object.creation.ms</name>
+    <value>3000</value>
+    <description>
+      Maximum amount of time to wait after exception during empty object creation.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.outputstream.type</name>
+    <value>BASIC</value>
+    <description>
+      Configuration key for which type of output stream to use; different options may have different
+      degrees of support for advanced features like {@code hsync()} and different performance
+      characteristics. Options:
+      - BASIC - stream is closest analogue to direct wrapper around low-level HTTP stream into GCS.
+      - SYNCABLE_COMPOSITE -stream behaves similarly to BASIC when used with basic
+      create/write/close patterns, but supports hsync() by creating discrete temporary GCS objects
+      which are composed onto the destination object.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.outputstream.buffer.size</name>
+    <value>8388608</value>
+    <description>Configuration key for setting write buffer size.</description>
+  </property>
+
+  <property>
+    <name>fs.gs.outputstream.pipe.buffer.size</name>
+    <value>1048576</value>
+    <description>Pipe buffer size used for uploading Cloud Storage objects.</description>
+  </property>
+
+  <property>
+    <name>fs.gs.outputstream.direct.upload.enable</name>
+    <value>false</value>
+    <description>Enables Cloud Storage direct upload.</description>
+  </property>
+
+  <property>
+    <name>fs.gs.generation.read.consistency</name>
+    <value>LATEST</value>
+    <description>
+      Determine read consistency across different generations of a Cloud Storage object.
+
+      Supported modes:
+      - LATEST - this is the default behavior. The connector will ignore generation ID of the GCS
+      objects and always try to read the live version.
+      - BEST_EFFORT - The connector will try to read the generation determined when the
+      GoogleCloudStorageReadChannel is first opened. However if that generation cannot be found
+      anymore, connector will fall back to read the live version. This mode allows to improve
+      performance by requesting the same object generation. Using this mode connector can read
+      changing objects from GCS buckets with disabled object versioning without failure.
+      - STRICT - The connector will always try to read the generation determined when the
+      GoogleCloudStorageReadChannel is first opened, and reports FileNotFound exception when that
+      generation cannot be found anymore.
+
+      Note that this property will only apply to new streams opened after generation is determined.
+      It won't affect read from any streams that are already open, pre-fetched footer, or the
+      metadata of the object.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.inputstream.fast.fail.on.not.found.enable</name>
+    <value>true</value>
+    <description>
+      If true, on opening a file connector will proactively send a Cloud Storage metadata request to
+      check whether the object exists, even though the underlying channel will not open a data
+      stream until read() method is called so that streams can seek to nonzero file positions
+      without incurring an extra stream creation. This is necessary to technically match the
+      expected behavior of HCFS, but incurs extra latency overhead on open() call. If the client
+      code can handle late failures on not-found errors, or has independently already ensured that a
+      file exists before calling open(), then set this property to false for more efficient reads.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.inputstream.inplace.seek.limit</name>
+    <value>8388608</value>
+    <description>
+      If forward seeks are within this many bytes of the current position, seeks are performed by
+      reading and discarding bytes in-place rather than opening a new underlying stream.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.inputstream.fadvise</name>
+    <value>AUTO</value>
+    <description>
+      Tunes reading objects behavior to optimize HTTP GET requests for various use cases.
+
+      This property controls fadvise feature that allows to read objects in different modes:
+
+      - SEQUENTIAL - in this mode connector sends a single streaming (unbounded) Cloud Storage
+      request to read object from a specified position sequentially.
+
+      - RANDOM - in this mode connector will send bounded Cloud Storage range requests (specified
+      through HTTP Range header) which are more efficient in some cases (e.g. reading objects
+      in row-columnar file formats like ORC, Parquet, etc).
+
+      Range request size is limited by whatever is greater, fs.gs.io.buffer or
+      read buffer size passed by a client.
+
+      To avoid sending too small range requests (couple bytes) - could happen if fs.gs.io.buffer is
+      0 and client passes very small read buffer, minimum range request size is limited to 1 MiB by
+      default configurable through fs.gs.inputstream.min.range.request.size property
+
+      - AUTO - in this mode (adaptive range reads) connector starts to send bounded range requests
+      when reading non gzip-encoded objects instead of streaming requests as soon as first backward
+      read or forward read for more than fs.gs.inputstream.inplace.seek.limit bytes was detected.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.inputstream.min.range.request.size</name>
+    <value>524288</value>
+    <description>
+      Minimum size in bytes of the read range for Cloud Storage request when opening a new stream to
+      read an object.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.cooperative.locking.enable</name>
+    <value>false</value>
+    <description>
+      Enables cooperative locking to achieve isolation of directory mutation operations.
+    </description>
+  </property>
+
+  <property>
+    <name>fs.gs.cooperative.locking.expiration.timeout.ms</name>
+    <value>120000</value>
+    <description>
+      Lock expiration timeout used by cooperative locking feature to lock directories.
     </description>
   </property>
 </configuration>
