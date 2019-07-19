@@ -195,7 +195,7 @@
                     implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
               </transformers>
               <filters>
-                <!--minimizeJar breaks all the dynamic load hacks; add them explicitly-->
+                <!-- minimizeJar breaks all the dynamic load hacks; add them explicitly -->
                 <filter>
                   <artifact>io.grpc:*</artifact>
                   <includes>
