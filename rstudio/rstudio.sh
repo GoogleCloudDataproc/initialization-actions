@@ -68,8 +68,8 @@ function get_apt_key_for_debian() {
 }
 
 if [[ "${ROLE}" == 'Master' ]]; then
-  if (( ${#USER_PASSWORD} < 7 )) ; then
-    echo "You must specify a password of at least 7 characters for user \`$USER_NAME\` through metadata \`rstudio-password\`."
+  if [[ -n ${USER_PASSWORD} ]] && (( ${#USER_PASSWORD} < 7 )) ; then
+    echo "You must specify a password of at least 7 characters for user '$USER_NAME' through metadata 'rstudio-password'."
     exit 1
   fi
   if [[ -z "${USER_NAME}" ]] ; then
@@ -103,6 +103,13 @@ if [[ "${ROLE}" == 'Master' ]]; then
   fi
   if ! [ $(id -u "${USER_NAME}") ]; then
     useradd --create-home --gid "${USER_NAME}" "${USER_NAME}"
-    echo "${USER_NAME}:${USER_PASSWORD}" | chpasswd
+    if [[ -n "${USER_PASSWORD}" ]] ; then
+      echo "${USER_NAME}:${USER_PASSWORD}" | chpasswd
+    fi
+  fi
+  if [[ -z "${USER_PASSWORD}" ]] ; then
+    sed -i 's:ExecStart=\(.*\):Environment=USER=rstudio\nExecStart=\1 --auth-none 1:1' /etc/systemd/system/rstudio-server.service
+    systemctl daemon-reload
+    systemctl restart rstudio-server
   fi
 fi
