@@ -14,282 +14,96 @@
 
 package com.google.cloud.hadoop.gcsio;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
-import com.google.common.base.Predicate;
+import com.google.auto.value.AutoValue;
 import java.net.URI;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 
-/**
- * Configurable options for the GoogleCloudStorageFileSystem class.
- */
-public class GoogleCloudStorageFileSystemOptions {
+/** Configurable options for the {@link GoogleCloudStorageFileSystem} class. */
+@AutoValue
+public abstract class GoogleCloudStorageFileSystemOptions {
 
-  /**
-   * Callback interface that allows applications to control which directory timestamps should be
-   * modified after entries are added or removed from the directory.
-   * <p>
-   * This is provided as a performance optimization as directory timestamps end up updating
-   * object metadata which is rate-limited to 1QPS.
-   */
-  public interface TimestampUpdatePredicate {
-
-    /**
-     * Called to determine if the given URI should be updated.
-     */
-    boolean shouldUpdateTimestamp(URI item);
+  /** @deprecated use {@link #builder()} instead */
+  @Deprecated
+  public static Builder newBuilder() {
+    return builder();
   }
 
-  /**
-   * Mutable builder for GoogleCloudStorageFileSystemOptions.
-   */
-  public static class Builder {
-    private boolean performanceCacheEnabled = false;
-    private PerformanceCachingGoogleCloudStorageOptions.Builder performanceCacheOptionsBuilder =
-        PerformanceCachingGoogleCloudStorageOptions.builder();
-    private PerformanceCachingGoogleCloudStorageOptions immutablePerformanceCacheOptions = null;
+  public static Builder builder() {
+    return new AutoValue_GoogleCloudStorageFileSystemOptions.Builder()
+        .setPerformanceCacheEnabled(false)
+        .setPerformanceCacheOptions(PerformanceCachingGoogleCloudStorageOptions.DEFAULT)
+        .setCloudStorageOptions(GoogleCloudStorageOptions.DEFAULT)
+        .setShouldIncludeInTimestampUpdatesPredicate(i -> true)
+        .setPathCodec(GoogleCloudStorageFileSystem.URI_ENCODED_PATH_CODEC)
+        .setBucketDeleteEnabled(false)
+        .setMarkerFilePattern((String) null)
+        .setStatusParallelEnabled(false)
+        .setCooperativeLockingEnabled(false);
+  }
 
-    protected TimestampUpdatePredicate shouldIncludeInTimestampUpdatesPredicate =
-        new TimestampUpdatePredicate() {
-          @Override
-          public boolean shouldUpdateTimestamp(URI item) {
-            return true;
-          }
-        };
+  public abstract boolean isPerformanceCacheEnabled();
 
-    private GoogleCloudStorageOptions.Builder cloudStorageOptionsBuilder =
-        GoogleCloudStorageOptions.newBuilder();
-    private GoogleCloudStorageOptions immutableCloudStorageOptions = null;
+  public abstract PerformanceCachingGoogleCloudStorageOptions getPerformanceCacheOptions();
 
-    private PathCodec pathCodec = GoogleCloudStorageFileSystem.URI_ENCODED_PATH_CODEC;
-    private boolean enableBucketDelete = false;
-    private String markerFilePattern = null;
-    private boolean statusParallelEnabled = false;
-    private boolean enableCooperativeLocking = false;
+  public abstract GoogleCloudStorageOptions getCloudStorageOptions();
 
-    public Builder setIsPerformanceCacheEnabled(boolean performanceCacheEnabled) {
-      this.performanceCacheEnabled = performanceCacheEnabled;
-      return this;
-    }
+  public abstract Predicate<URI> getShouldIncludeInTimestampUpdatesPredicate();
 
-    /**
-     * Gets the stored {@link PerformanceCachingGoogleCloudStorageOptions.Builder}. Note: the
-     * returned builder isn't referenced if an immutable PerformanceCachingOptions instance was set
-     * previously using {@link
-     * Builder#setImmutablePerformanceCachingOptions(PerformanceCachingGoogleCloudStorageOptions)}.
-     */
-    public PerformanceCachingGoogleCloudStorageOptions.Builder
-        getPerformanceCachingOptionsBuilder() {
-      return performanceCacheOptionsBuilder;
-    }
+  public abstract PathCodec getPathCodec();
 
-    /**
-     * Mutually exclusive with setImmutablePerformanceCachingOptions; if setting this builder, then
-     * any subsequent changes made to the inner PerformanceCaching options builder will be reflected
-     * at the time PerformanceCachingGoogleCloudStorageOptions.Builder.build() is called. If this is
-     * called after calling setImmutablePerformanceCachingOptions, then the previous value of the
-     * immutablePerformanceCacheOptions is discarded, in the same way setting other single-element
-     * fields is overridden by the last call to the builder.
-     */
-    public Builder setPerformanceCachingOptionsBuilder(
-        PerformanceCachingGoogleCloudStorageOptions.Builder performanceCacheOptionsBuilder) {
-      this.performanceCacheOptionsBuilder = performanceCacheOptionsBuilder;
-      this.immutablePerformanceCacheOptions = null;
-      return this;
-    }
+  public abstract boolean isBucketDeleteEnabled();
+
+  @Nullable
+  public abstract Pattern getMarkerFilePattern();
+
+  public abstract boolean isStatusParallelEnabled();
+
+  public abstract boolean isCooperativeLockingEnabled();
+
+  public void throwIfNotValid() {
+    getCloudStorageOptions().throwIfNotValid();
+  }
+
+  public abstract Builder toBuilder();
+
+  /** Mutable builder for {@link GoogleCloudStorageFileSystemOptions}. */
+  @AutoValue.Builder
+  public abstract static class Builder {
+
+    public abstract Builder setPerformanceCacheEnabled(boolean performanceCacheEnabled);
+
+    public abstract Builder setPerformanceCacheOptions(
+        PerformanceCachingGoogleCloudStorageOptions options);
+
+    public abstract Builder setCloudStorageOptions(GoogleCloudStorageOptions options);
 
     /**
-     * Mutually exclusive with setPerformanceCachingOptionsBuilder If this is called after calling
-     * setPerformanceCachingOptionsBuilder, then the previous value of the
-     * performanceCacheOptionsBuilder is discarded, in the same way setting other single-element
-     * fields is overridden by the last call to the builder.
+     * Set a Predicate to be applied to item paths to determine if the item should have its
+     * timestamps updated
      */
-    public Builder setImmutablePerformanceCachingOptions(
-        PerformanceCachingGoogleCloudStorageOptions immutablePerformanceCacheOptions) {
-      this.immutablePerformanceCacheOptions = immutablePerformanceCacheOptions;
-      this.performanceCacheOptionsBuilder = PerformanceCachingGoogleCloudStorageOptions.builder();
-      return this;
-    }
+    public abstract Builder setShouldIncludeInTimestampUpdatesPredicate(Predicate<URI> predicate);
 
-    /**
-     * Gets the stored {@link GoogleCloudStorageOptions.Builder}. Note: the returned builder isn't
-     * referenced if an immutable GoogleCloudStorageOptions instance was set previously using {@link
-     * Builder#setImmutableCloudStorageOptions(GoogleCloudStorageOptions)}.
-     */
-    public GoogleCloudStorageOptions.Builder getCloudStorageOptionsBuilder() {
-      return cloudStorageOptionsBuilder;
-    }
+    public abstract Builder setPathCodec(PathCodec pathCodec);
 
-    /**
-     * Mutually exclusive with setImmutableCloudStorageOptions; if setting this builder, then
-     * any subsequent changes made to the inner GCS options builder will be reflected at the
-     * time GoogleCloudStorageFileSystemOptions.Builder.build() is called. If this is called
-     * after calling setImmutableCloudStorageOptions, then the previous value of the
-     * immutabelCloudStorageOptions is discarded, in the same way setting other single-element
-     * fields is overridden by the last call to the builder.
-     */
-    public Builder setCloudStorageOptionsBuilder(
-        GoogleCloudStorageOptions.Builder cloudStorageOptionsBuilder) {
-      this.cloudStorageOptionsBuilder = cloudStorageOptionsBuilder;
-      this.immutableCloudStorageOptions = null;
-      return this;
-    }
+    public abstract Builder setBucketDeleteEnabled(boolean bucketDeleteEnabled);
 
-    /**
-     * Mutually exclusive with setCloudStorageOptionsBuilder If this is called
-     * after calling setCloudStorageOptionsBuilder, then the previous value of the
-     * cloudStorageOptionsBuilder is discarded, in the same way setting other single-element
-     * fields is overridden by the last call to the builder.
-     */
-    public Builder setImmutableCloudStorageOptions(
-        GoogleCloudStorageOptions immutableCloudStorageOptions) {
-      this.immutableCloudStorageOptions = immutableCloudStorageOptions;
-      this.cloudStorageOptionsBuilder = GoogleCloudStorageOptions.newBuilder();
-      return this;
-    }
-
-    /** Set a Predicate to be applied to item paths to determine if the item should
-     * have its timestamps updated */
-    public Builder setShouldIncludeInTimestampUpdatesPredicate(
-        final Predicate<String> shouldIncludeInTimestampUpdatesPredicate) {
-      this.shouldIncludeInTimestampUpdatesPredicate = new TimestampUpdatePredicate() {
-        @Override
-        public boolean shouldUpdateTimestamp(URI item) {
-          return shouldIncludeInTimestampUpdatesPredicate.apply(item.getPath());
-        }
-      };
-      return this;
-    }
-
-    public Builder setShouldIncludeInTimestampUpdatesPredicate(
-        TimestampUpdatePredicate shouldIncludeInTimestampUpdatesPredicate) {
-      this.shouldIncludeInTimestampUpdatesPredicate = shouldIncludeInTimestampUpdatesPredicate;
-      return this;
-    }
-
-    public Builder setPathCodec(PathCodec pathCodec) {
-      this.pathCodec = pathCodec;
-      return this;
-    }
-
-    public Builder setEnableBucketDelete(boolean enableBucketDelete) {
-      this.enableBucketDelete = enableBucketDelete;
-      return this;
-    }
+    abstract Builder setMarkerFilePattern(Pattern markerFilePattern);
 
     public Builder setMarkerFilePattern(String markerFilePattern) {
-      this.markerFilePattern = markerFilePattern;
-      return this;
+      return setMarkerFilePattern(
+          markerFilePattern == null ? null : Pattern.compile("^(.+/)?" + markerFilePattern + "$"));
     }
 
     /**
      * Enables parallel execution of GCS requests in {@code listFileInfo} and {@code getFileInfo}
      * methods to reduce latency.
      */
-    public Builder setStatusParallelEnabled(boolean statusParallelEnabled) {
-      this.statusParallelEnabled = statusParallelEnabled;
-      return this;
-    }
+    public abstract Builder setStatusParallelEnabled(boolean statusParallelEnabled);
 
-    public Builder setEnableCooperativeLocking(boolean enableCooperativeLocking) {
-      this.enableCooperativeLocking = enableCooperativeLocking;
-      return this;
-    }
+    public abstract Builder setCooperativeLockingEnabled(boolean cooperativeLockingEnabled);
 
-    public GoogleCloudStorageFileSystemOptions build() {
-      return new GoogleCloudStorageFileSystemOptions(
-          immutablePerformanceCacheOptions != null
-              ? immutablePerformanceCacheOptions
-              : performanceCacheOptionsBuilder.build(),
-          performanceCacheEnabled,
-          immutableCloudStorageOptions != null
-              ? immutableCloudStorageOptions
-              : cloudStorageOptionsBuilder.build(),
-          shouldIncludeInTimestampUpdatesPredicate,
-          pathCodec,
-          enableBucketDelete,
-          markerFilePattern,
-          statusParallelEnabled,
-          enableCooperativeLocking);
-    }
-  }
-
-  public static Builder newBuilder() {
-    return new Builder();
-  }
-
-  private final PerformanceCachingGoogleCloudStorageOptions performanceCacheOptions;
-  private final boolean performanceCacheEnabled;
-  private final GoogleCloudStorageOptions cloudStorageOptions;
-  private final TimestampUpdatePredicate shouldIncludeInTimestampUpdatesPredicate;
-  private final PathCodec pathCodec;
-  private final boolean enableBucketDelete;
-  private final Pattern markerFilePattern;
-  private final boolean statusParallelEnabled;
-  private final boolean enableCooperativeLocking;
-
-  public GoogleCloudStorageFileSystemOptions(
-      PerformanceCachingGoogleCloudStorageOptions performanceCacheOptions,
-      boolean performanceCacheEnabled,
-      GoogleCloudStorageOptions cloudStorageOptions,
-      TimestampUpdatePredicate shouldIncludeInTimestampUpdatesPredicate,
-      PathCodec pathCodec,
-      boolean enableBucketDelete,
-      String markerFilePattern,
-      boolean statusParallelEnabled,
-      boolean enableCooperativeLocking) {
-    this.performanceCacheOptions = performanceCacheOptions;
-    this.performanceCacheEnabled = performanceCacheEnabled;
-    this.cloudStorageOptions = cloudStorageOptions;
-    this.shouldIncludeInTimestampUpdatesPredicate = shouldIncludeInTimestampUpdatesPredicate;
-    this.pathCodec = pathCodec;
-    this.enableBucketDelete = enableBucketDelete;
-    this.markerFilePattern = Pattern.compile("^(.+/)?" + markerFilePattern + "$");
-    this.statusParallelEnabled = statusParallelEnabled;
-    this.enableCooperativeLocking = enableCooperativeLocking;
-  }
-
-  public PerformanceCachingGoogleCloudStorageOptions getPerformanceCacheOptions() {
-    return performanceCacheOptions;
-  }
-
-  public boolean isPerformanceCacheEnabled() {
-    return performanceCacheEnabled;
-  }
-
-  public GoogleCloudStorageOptions getCloudStorageOptions() {
-    return cloudStorageOptions;
-  }
-
-  public TimestampUpdatePredicate getShouldIncludeInTimestampUpdatesPredicate() {
-    return shouldIncludeInTimestampUpdatesPredicate;
-  }
-
-  public PathCodec getPathCodec() {
-    return pathCodec;
-  }
-
-  public boolean enableBucketDelete() {
-    return enableBucketDelete;
-  }
-
-  public Pattern getMarkerFilePattern() {
-    return markerFilePattern;
-  }
-
-  public boolean enableCooperativeLocking() {
-    return enableCooperativeLocking;
-  }
-
-  public boolean isStatusParallelEnabled() {
-    return statusParallelEnabled;
-  }
-
-  public void throwIfNotValid() {
-    checkNotNull(
-        shouldIncludeInTimestampUpdatesPredicate,
-        "Predicate for ignored directory updates should not be null."
-            + " Consider Predicates.alwaysTrue");
-    cloudStorageOptions.throwIfNotValid();
+    public abstract GoogleCloudStorageFileSystemOptions build();
   }
 }

@@ -57,7 +57,7 @@ public class GoogleCloudStorageFileSystemTest
             gcsfs =
                 new GoogleCloudStorageFileSystem(
                     new InMemoryGoogleCloudStorage(),
-                    GoogleCloudStorageFileSystemOptions.newBuilder()
+                    GoogleCloudStorageFileSystemOptions.builder()
                         .setShouldIncludeInTimestampUpdatesPredicate(INCLUDE_SUBSTRINGS_PREDICATE)
                         .setMarkerFilePattern("_(FAILURE|SUCCESS)")
                         .build());
@@ -79,14 +79,15 @@ public class GoogleCloudStorageFileSystemTest
    */
   private static void setDefaultValidOptions(
       GoogleCloudStorageFileSystemOptions.Builder optionsBuilder) {
-    optionsBuilder
-        .getCloudStorageOptionsBuilder()
-        .setAppName("appName")
-        .setProjectId("projectId")
-        .setWriteChannelOptions(
-            AsyncWriteChannelOptions.newBuilder()
-                .setUploadChunkSize(UPLOAD_CHUNK_SIZE_DEFAULT)
-                .build());
+    optionsBuilder.setCloudStorageOptions(
+        GoogleCloudStorageOptions.builder()
+            .setAppName("appName")
+            .setProjectId("projectId")
+            .setWriteChannelOptions(
+                AsyncWriteChannelOptions.newBuilder()
+                    .setUploadChunkSize(UPLOAD_CHUNK_SIZE_DEFAULT)
+                    .build())
+            .build());
   }
 
   /**
@@ -96,35 +97,43 @@ public class GoogleCloudStorageFileSystemTest
   public void testConstructor() throws IOException {
     GoogleCredential cred = new GoogleCredential();
     GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
-        GoogleCloudStorageFileSystemOptions.newBuilder();
+        GoogleCloudStorageFileSystemOptions.builder();
 
     setDefaultValidOptions(optionsBuilder);
 
+    GoogleCloudStorageFileSystemOptions options = optionsBuilder.build();
+
     // Verify that projectId == null or empty does not throw.
-    optionsBuilder.getCloudStorageOptionsBuilder().setProjectId(null);
+    optionsBuilder.setCloudStorageOptions(
+        options.getCloudStorageOptions().toBuilder().setProjectId(null).build());
     new GoogleCloudStorageFileSystem(cred, optionsBuilder.build());
 
-    optionsBuilder.getCloudStorageOptionsBuilder().setProjectId("");
+    optionsBuilder.setCloudStorageOptions(
+        options.getCloudStorageOptions().toBuilder().setProjectId("").build());
     new GoogleCloudStorageFileSystem(cred, optionsBuilder.build());
 
-    optionsBuilder
-        .getCloudStorageOptionsBuilder()
-        .setProjectId("projectId")
-        .setRequesterPaysOptions(RequesterPaysOptions.DEFAULT);
+    optionsBuilder.setCloudStorageOptions(
+        options.getCloudStorageOptions().toBuilder()
+            .setProjectId("projectId")
+            .setRequesterPaysOptions(RequesterPaysOptions.DEFAULT)
+            .build());
 
     // Verify that appName == null or empty throws IllegalArgumentException.
 
-    optionsBuilder.getCloudStorageOptionsBuilder().setAppName(null);
+    optionsBuilder.setCloudStorageOptions(
+        options.getCloudStorageOptions().toBuilder().setAppName(null).build());
     assertThrows(
         IllegalArgumentException.class,
         () -> new GoogleCloudStorageFileSystem(cred, optionsBuilder.build()));
 
-    optionsBuilder.getCloudStorageOptionsBuilder().setAppName("");
+    optionsBuilder.setCloudStorageOptions(
+        options.getCloudStorageOptions().toBuilder().setAppName("").build());
     assertThrows(
         IllegalArgumentException.class,
         () -> new GoogleCloudStorageFileSystem(cred, optionsBuilder.build()));
 
-    optionsBuilder.getCloudStorageOptionsBuilder().setAppName("appName");
+    optionsBuilder.setCloudStorageOptions(
+        options.getCloudStorageOptions().toBuilder().setAppName("appName").build());
 
     // Verify that credential == null throws IllegalArgumentException.
     assertThrows(

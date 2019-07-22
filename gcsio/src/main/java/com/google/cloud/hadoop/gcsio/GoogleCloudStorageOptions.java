@@ -84,7 +84,15 @@ public abstract class GoogleCloudStorageOptions {
   public static final RequesterPaysOptions REQUESTER_PAYS_OPTIONS_DEFAULT =
       RequesterPaysOptions.DEFAULT;
 
+  public static final GoogleCloudStorageOptions DEFAULT = builder().build();
+
+  /** @deprecated use {@link #builder()} instead */
+  @Deprecated
   public static Builder newBuilder() {
+    return builder();
+  }
+
+  public static Builder builder() {
     return new AutoValue_GoogleCloudStorageOptions.Builder()
         .setAutoRepairImplicitDirectoriesEnabled(AUTO_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT)
         .setInferImplicitDirectoriesEnabled(INFER_IMPLICIT_DIRECTORIES_DEFAULT)
@@ -208,31 +216,11 @@ public abstract class GoogleCloudStorageOptions {
 
     public abstract Builder setWriteChannelOptions(AsyncWriteChannelOptions writeChannelOptions);
 
-    @Deprecated private AsyncWriteChannelOptions.Builder writeChannelOptionsBuilder;
-
-    /** @deprecated use {@link #setWriteChannelOptions} instead */
-    @Deprecated
-    public Builder setWriteChannelOptionsBuilder(AsyncWriteChannelOptions.Builder builder) {
-      writeChannelOptionsBuilder = builder;
-      return this;
-    }
-
-    /** @deprecated use {@link #setWriteChannelOptions} instead */
-    @Deprecated
-    public AsyncWriteChannelOptions.Builder getWriteChannelOptionsBuilder() {
-      return writeChannelOptionsBuilder == null
-          ? writeChannelOptionsBuilder = AsyncWriteChannelOptions.newBuilder()
-          : writeChannelOptionsBuilder;
-    }
-
     public abstract Builder setRequesterPaysOptions(RequesterPaysOptions requesterPaysOptions);
 
     abstract GoogleCloudStorageOptions autoBuild();
 
     public GoogleCloudStorageOptions build() {
-      if (writeChannelOptionsBuilder != null) {
-        setWriteChannelOptions(writeChannelOptionsBuilder.build());
-      }
       GoogleCloudStorageOptions instance = autoBuild();
       checkArgument(
           instance.getMaxBytesRewrittenPerCall() <= 0

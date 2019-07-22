@@ -108,7 +108,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
     // Setup the delegate
     clock = new TestClock();
     GoogleCloudStorage gcsImpl =
-        new InMemoryGoogleCloudStorage(GoogleCloudStorageOptions.newBuilder().build(), clock);
+        new InMemoryGoogleCloudStorage(GoogleCloudStorageOptions.DEFAULT, clock);
     gcsDelegate = spy(gcsImpl);
 
     gcs = new PerformanceCachingGoogleCloudStorage(gcsDelegate, options, cache);

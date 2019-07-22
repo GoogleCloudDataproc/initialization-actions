@@ -68,7 +68,7 @@ public class CoopLockIntegrationTest {
         checkNotNull(GoogleCloudStorageTestHelper.getCredential(), "credential must not be null");
 
     gcsOptions =
-        GoogleCloudStorageOptions.newBuilder().setAppName(appName).setProjectId(projectId).build();
+        GoogleCloudStorageOptions.builder().setAppName(appName).setProjectId(projectId).build();
     httpRequestInitializer =
         new RetryHttpInitializer(
             credential,
@@ -80,9 +80,9 @@ public class CoopLockIntegrationTest {
     GoogleCloudStorageFileSystem gcsfs =
         new GoogleCloudStorageFileSystem(
             credential,
-            GoogleCloudStorageFileSystemOptions.newBuilder()
-                .setEnableBucketDelete(true)
-                .setCloudStorageOptionsBuilder(gcsOptions.toBuilder())
+            GoogleCloudStorageFileSystemOptions.builder()
+                .setBucketDeleteEnabled(true)
+                .setCloudStorageOptions(gcsOptions)
                 .build());
 
     gcsfsIHelper = new GoogleCloudStorageFileSystemIntegrationHelper(gcsfs);
@@ -200,9 +200,9 @@ public class CoopLockIntegrationTest {
   }
 
   private GoogleCloudStorageFileSystemOptions newGcsFsOptions() {
-    return GoogleCloudStorageFileSystemOptions.newBuilder()
-        .setCloudStorageOptionsBuilder(gcsOptions.toBuilder())
-        .setEnableCooperativeLocking(true)
+    return GoogleCloudStorageFileSystemOptions.builder()
+        .setCloudStorageOptions(gcsOptions)
+        .setCooperativeLockingEnabled(true)
         .build();
   }
 

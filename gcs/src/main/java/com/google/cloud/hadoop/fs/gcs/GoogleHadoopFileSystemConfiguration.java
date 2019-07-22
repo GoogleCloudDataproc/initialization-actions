@@ -23,6 +23,7 @@ import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.GcsFileChecksum
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.OutputStreamType;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
@@ -33,6 +34,7 @@ import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import com.google.cloud.hadoop.util.RequesterPaysOptions;
 import com.google.cloud.hadoop.util.RequesterPaysOptions.RequesterPaysMode;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.GoogleLogger;
 import java.time.Duration;
@@ -524,22 +526,23 @@ public class GoogleHadoopFileSystemConfiguration {
   // Please check that removing it is correct, and remove this comment along with it.
   // @VisibleForTesting
   static GoogleCloudStorageFileSystemOptions.Builder getGcsFsOptionsBuilder(Configuration config) {
-    GoogleCloudStorageFileSystemOptions.Builder gcsFsOptionsBuilder =
-        GoogleCloudStorageFileSystemOptions.newBuilder()
-            .setEnableBucketDelete(GCE_BUCKET_DELETE_ENABLE.get(config, config::getBoolean))
-            .setShouldIncludeInTimestampUpdatesPredicate(
-                ParentTimestampUpdateIncludePredicate.create(config))
-            .setMarkerFilePattern(GCS_MARKER_FILE_PATTERN.get(config, config::get))
-            .setIsPerformanceCacheEnabled(
-                GCS_PERFORMANCE_CACHE_ENABLE.get(config, config::getBoolean))
-            .setEnableCooperativeLocking(
-                GCS_COOPERATIVE_LOCKING_ENABLE.get(config, config::getBoolean))
-            .setImmutablePerformanceCachingOptions(getPerformanceCachingOptions(config))
-            .setStatusParallelEnabled(GCS_STATUS_PARALLEL_ENABLE.get(config, config::getBoolean));
+    return GoogleCloudStorageFileSystemOptions.builder()
+        .setBucketDeleteEnabled(GCE_BUCKET_DELETE_ENABLE.get(config, config::getBoolean))
+        .setShouldIncludeInTimestampUpdatesPredicate(
+            ParentTimestampUpdateIncludePredicate.create(config))
+        .setMarkerFilePattern(GCS_MARKER_FILE_PATTERN.get(config, config::get))
+        .setPerformanceCacheEnabled(GCS_PERFORMANCE_CACHE_ENABLE.get(config, config::getBoolean))
+        .setCooperativeLockingEnabled(
+            GCS_COOPERATIVE_LOCKING_ENABLE.get(config, config::getBoolean))
+        .setPerformanceCacheOptions(getPerformanceCachingOptions(config))
+        .setStatusParallelEnabled(GCS_STATUS_PARALLEL_ENABLE.get(config, config::getBoolean))
+        .setCloudStorageOptions(getGcsOptionsBuilder(config).build());
+  }
 
+  @VisibleForTesting
+  static GoogleCloudStorageOptions.Builder getGcsOptionsBuilder(Configuration config) {
     String projectId = GCS_PROJECT_ID.get(config, config::get);
-    gcsFsOptionsBuilder
-        .getCloudStorageOptionsBuilder()
+    return GoogleCloudStorageOptions.builder()
         .setAutoRepairImplicitDirectoriesEnabled(
             GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE.get(config, config::getBoolean))
         .setInferImplicitDirectoriesEnabled(
@@ -565,8 +568,6 @@ public class GoogleHadoopFileSystemConfiguration {
         .setReadChannelOptions(getReadChannelOptions(config))
         .setWriteChannelOptions(getWriteChannelOptions(config))
         .setRequesterPaysOptions(getRequesterPaysOptions(config, projectId));
-
-    return gcsFsOptionsBuilder;
   }
 
   private static PerformanceCachingGoogleCloudStorageOptions getPerformanceCachingOptions(

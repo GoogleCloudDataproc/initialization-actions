@@ -37,7 +37,7 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
   public static GoogleCloudStorageFileSystem createGcsFs(String projectId, String appName)
       throws IOException {
     GoogleCloudStorageOptions gcsOptions =
-        GoogleCloudStorageOptions.newBuilder()
+        GoogleCloudStorageOptions.builder()
             .setAppName(appName)
             .setProjectId(projectId)
             .setCopyWithRewriteEnabled(true)
@@ -45,9 +45,9 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
 
     return new GoogleCloudStorageFileSystem(
         GoogleCloudStorageTestHelper.getCredential(),
-        GoogleCloudStorageFileSystemOptions.newBuilder()
-            .setEnableBucketDelete(true)
-            .setCloudStorageOptionsBuilder(gcsOptions.toBuilder())
+        GoogleCloudStorageFileSystemOptions.builder()
+            .setBucketDeleteEnabled(true)
+            .setCloudStorageOptions(gcsOptions)
             .build());
   }
 

@@ -21,6 +21,7 @@ import static org.junit.Assert.assertThrows;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.GcsFileChecksumType;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.OutputStreamType;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
 import com.google.cloud.hadoop.util.EntriesCredentialConfiguration;
@@ -150,8 +151,8 @@ public class GoogleHadoopFileSystemConfigurationPropertyTest {
     Configuration config = new Configuration();
     config.set(gcsProxyUsername.getKey(), gcsProxyUsername.getDefault());
     config.set(gcsProxyPassword.getKey(), gcsProxyPassword.getDefault());
-    GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
-        GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config);
+    GoogleCloudStorageOptions.Builder optionsBuilder =
+        GoogleHadoopFileSystemConfiguration.getGcsOptionsBuilder(config);
 
     assertThrows(IllegalArgumentException.class, optionsBuilder::build);
   }
@@ -207,8 +208,8 @@ public class GoogleHadoopFileSystemConfigurationPropertyTest {
     String userPass = gcsProxyPassword.getPassword(config);
     assertThat(userPass).isEqualTo("proxy-pass");
 
-    GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
-        GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config);
+    GoogleCloudStorageOptions.Builder optionsBuilder =
+        GoogleHadoopFileSystemConfiguration.getGcsOptionsBuilder(config);
 
     // Building configuration using deprecated key (in eg. proxy password) should fail.
     assertThrows(IllegalArgumentException.class, optionsBuilder::build);

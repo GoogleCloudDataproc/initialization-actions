@@ -38,27 +38,15 @@ public class GoogleHadoopFileSystemTestHelper {
    * store.
    */
   public static GoogleHadoopFileSystem createInMemoryGoogleHadoopFileSystem() throws IOException {
-    GoogleCloudStorageOptions.Builder gcsOptionsBuilder =
-        defaultStorageOptionsBuilder();
+    GoogleCloudStorageOptions gcsOptions = GoogleCloudStorageOptions.DEFAULT;
     GoogleCloudStorageFileSystemOptions.Builder fsOptionsBuilder =
-        GoogleCloudStorageFileSystemOptions.newBuilder()
-        .setCloudStorageOptionsBuilder(gcsOptionsBuilder);
-    GoogleCloudStorageFileSystem memoryGcsFs = new GoogleCloudStorageFileSystem(
-        new InMemoryGoogleCloudStorage(gcsOptionsBuilder.build()),
-        fsOptionsBuilder.build());
+        GoogleCloudStorageFileSystemOptions.builder().setCloudStorageOptions(gcsOptions);
+    GoogleCloudStorageFileSystem memoryGcsFs =
+        new GoogleCloudStorageFileSystem(
+            new InMemoryGoogleCloudStorage(gcsOptions), fsOptionsBuilder.build());
     GoogleHadoopFileSystem ghfs = new GoogleHadoopFileSystem(memoryGcsFs);
     initializeInMemoryFileSystem(ghfs, IN_MEMORY_TEST_BUCKET);
     return ghfs;
-  }
-
-  /**
-   * Get the options we want to use for our GCS instances.
-   */
-  public static GoogleCloudStorageOptions.Builder
-      defaultStorageOptionsBuilder() {
-    GoogleCloudStorageOptions.Builder optionsBuilder =
-        GoogleCloudStorageOptions.newBuilder();
-    return optionsBuilder;
   }
 
   /**

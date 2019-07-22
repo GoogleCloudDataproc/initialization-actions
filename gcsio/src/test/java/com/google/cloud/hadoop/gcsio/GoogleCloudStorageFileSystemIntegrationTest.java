@@ -108,13 +108,13 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   // I like turtles, let's always update those paths
   protected static final String INCLUDED_TIMESTAMP_SUBSTRING = "turtles/";
 
-  protected static final Predicate<String> INCLUDE_SUBSTRINGS_PREDICATE =
+  protected static final Predicate<URI> INCLUDE_SUBSTRINGS_PREDICATE =
       path -> {
-        if (path.contains(INCLUDED_TIMESTAMP_SUBSTRING)) {
+        if (path.toString().contains(INCLUDED_TIMESTAMP_SUBSTRING)) {
           return true; // Don't ignore
         }
 
-        if (path.contains(EXCLUDED_TIMESTAMP_SUBSTRING)) {
+        if (path.toString().contains(EXCLUDED_TIMESTAMP_SUBSTRING)) {
           return false; // Ignore
         }
 
@@ -148,18 +148,20 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
             assertThat(projectId).isNotNull();
 
             GoogleCloudStorageFileSystemOptions.Builder optionsBuilder =
-                GoogleCloudStorageFileSystemOptions.newBuilder()
+                GoogleCloudStorageFileSystemOptions.builder()
                     .setMarkerFilePattern("_(FAILURE|SUCCESS)");
 
             optionsBuilder
-                .setEnableBucketDelete(true)
+                .setBucketDeleteEnabled(true)
                 .setShouldIncludeInTimestampUpdatesPredicate(INCLUDE_SUBSTRINGS_PREDICATE)
-                .getCloudStorageOptionsBuilder()
-                .setAppName(appName)
-                .setProjectId(projectId)
-                .setWriteChannelOptions(
-                    AsyncWriteChannelOptions.newBuilder()
-                        .setUploadChunkSize(UPLOAD_CHUNK_SIZE_DEFAULT)
+                .setCloudStorageOptions(
+                    GoogleCloudStorageOptions.builder()
+                        .setAppName(appName)
+                        .setProjectId(projectId)
+                        .setWriteChannelOptions(
+                            AsyncWriteChannelOptions.newBuilder()
+                                .setUploadChunkSize(UPLOAD_CHUNK_SIZE_DEFAULT)
+                                .build())
                         .build());
 
             gcsfs = new GoogleCloudStorageFileSystem(credential, optionsBuilder.build());

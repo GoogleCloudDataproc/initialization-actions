@@ -268,7 +268,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
   @VisibleForTesting
   protected GoogleCloudStorageImpl() {
-    this.storageOptions = GoogleCloudStorageOptions.newBuilder().setAppName("test-app").build();
+    this.storageOptions = GoogleCloudStorageOptions.builder().setAppName("test-app").build();
   }
 
   private ExecutorService createManualBatchingThreadPool() {

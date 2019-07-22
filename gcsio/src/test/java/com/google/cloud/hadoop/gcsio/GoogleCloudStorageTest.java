@@ -134,7 +134,7 @@ public class GoogleCloudStorageTest {
   };
 
   private static final GoogleCloudStorageOptions GCS_OPTIONS =
-      GoogleCloudStorageOptions.newBuilder()
+      GoogleCloudStorageOptions.builder()
           .setProjectId(PROJECT_ID)
           .setAppName("gcs-impl-test")
           .build();
@@ -189,7 +189,7 @@ public class GoogleCloudStorageTest {
    * setting up the proper mocks.
    */
   protected GoogleCloudStorageOptions.Builder createDefaultCloudStorageOptionsBuilder() {
-    return GoogleCloudStorageOptions.newBuilder().setAppName(APP_NAME).setProjectId(PROJECT_ID);
+    return GoogleCloudStorageOptions.builder().setAppName(APP_NAME).setProjectId(PROJECT_ID);
   }
 
   /**
@@ -3333,9 +3333,7 @@ public class GoogleCloudStorageTest {
   @Test
   public void testStoragePassedConstructor() {
     GoogleCloudStorageOptions.Builder optionsBuilder =
-        GoogleCloudStorageOptions.newBuilder()
-            .setAppName("appName")
-            .setProjectId("projectId");
+        GoogleCloudStorageOptions.builder().setAppName("appName").setProjectId("projectId");
 
     // Verify that fake projectId/appName and mock storage does not throw.
     new GoogleCloudStorageImpl(optionsBuilder.build(), mockStorage);

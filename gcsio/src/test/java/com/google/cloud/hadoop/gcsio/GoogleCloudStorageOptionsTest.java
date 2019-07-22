@@ -28,8 +28,7 @@ public class GoogleCloudStorageOptionsTest {
   public void build_throwsException_whenMaxBytesRewrittenPerCallNotMbMultiple() {
     long maxBytesRewrittenPerCall = 1;
     GoogleCloudStorageOptions.Builder builder =
-        GoogleCloudStorageOptions.newBuilder()
-            .setMaxBytesRewrittenPerCall(maxBytesRewrittenPerCall);
+        GoogleCloudStorageOptions.builder().setMaxBytesRewrittenPerCall(maxBytesRewrittenPerCall);
 
     IllegalArgumentException e = assertThrows(IllegalArgumentException.class, builder::build);
 
@@ -43,7 +42,7 @@ public class GoogleCloudStorageOptionsTest {
   @Test
   public void build_throwsException_whenProxyNotSetAndPasswordNotNull() {
     GoogleCloudStorageOptions.Builder builder =
-        GoogleCloudStorageOptions.newBuilder().setProxyPassword("proxy-password");
+        GoogleCloudStorageOptions.builder().setProxyPassword("proxy-password");
 
     IllegalArgumentException e = assertThrows(IllegalArgumentException.class, builder::build);
 
@@ -56,7 +55,7 @@ public class GoogleCloudStorageOptionsTest {
   @Test
   public void build_throwsException_whenProxyNotSetAndUsernameNotNull() {
     GoogleCloudStorageOptions.Builder builder =
-        GoogleCloudStorageOptions.newBuilder().setProxyUsername("proxy-username");
+        GoogleCloudStorageOptions.builder().setProxyUsername("proxy-username");
 
     IllegalArgumentException e = assertThrows(IllegalArgumentException.class, builder::build);
 
@@ -69,7 +68,7 @@ public class GoogleCloudStorageOptionsTest {
   @Test
   public void build_throwsException_whenProxySetAndUsernameNull() {
     GoogleCloudStorageOptions.Builder builder =
-        GoogleCloudStorageOptions.newBuilder()
+        GoogleCloudStorageOptions.builder()
             .setProxyAddress("proxy-address")
             .setProxyPassword("proxy-password")
             .setProxyUsername(null);
@@ -84,7 +83,7 @@ public class GoogleCloudStorageOptionsTest {
   @Test
   public void build_throwsException_whenProxySetAndPasswordNull() {
     GoogleCloudStorageOptions.Builder builder =
-        GoogleCloudStorageOptions.newBuilder()
+        GoogleCloudStorageOptions.builder()
             .setProxyAddress("proxy-address")
             .setProxyPassword(null)
             .setProxyUsername("proxy-username");

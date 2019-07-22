@@ -76,7 +76,7 @@ public class GoogleCloudStorageTestHelper {
   }
 
   public static GoogleCloudStorageOptions.Builder getStandardOptionBuilder() {
-    return GoogleCloudStorageOptions.newBuilder()
+    return GoogleCloudStorageOptions.builder()
         .setAppName(GoogleCloudStorageTestHelper.APP_NAME)
         .setProjectId(checkNotNull(TestConfiguration.getInstance().getProjectId()))
         .setMaxListItemsPerCall(50)

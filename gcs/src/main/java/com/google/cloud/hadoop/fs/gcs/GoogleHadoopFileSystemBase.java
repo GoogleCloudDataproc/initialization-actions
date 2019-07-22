@@ -96,6 +96,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.commons.codec.binary.Hex;
@@ -387,12 +388,11 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   /**
    * A predicate that processes individual directory paths and evaluates the conditions set in
    * fs.gs.parent.timestamp.update.enable, fs.gs.parent.timestamp.update.substrings.include and
-   * fs.gs.parent.timestamp.update.substrings.exclude to determine if a path should be ignored
-   * when running directory timestamp updates. If no match is found in either include or
-   * exclude and updates are enabled, the directory timestamp will be updated.
+   * fs.gs.parent.timestamp.update.substrings.exclude to determine if a path should be ignored when
+   * running directory timestamp updates. If no match is found in either include or exclude and
+   * updates are enabled, the directory timestamp will be updated.
    */
-  public static class ParentTimestampUpdateIncludePredicate
-      implements GoogleCloudStorageFileSystemOptions.TimestampUpdatePredicate {
+  public static class ParentTimestampUpdateIncludePredicate implements Predicate<URI> {
 
     /**
      * Create a new ParentTimestampUpdateIncludePredicate from the passed Hadoop configuration
@@ -423,11 +423,12 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
 
     /**
      * Determine if updating directory timestamps should be ignored.
-     * @return True if the directory timestamp should not be updated. False to indicate it should
-     * be updated.
+     *
+     * @return True if the directory timestamp should not be updated. False to indicate it should be
+     *     updated.
      */
     @Override
-    public boolean shouldUpdateTimestamp(URI uri) {
+    public boolean test(URI uri) {
       if (!enableTimestampUpdates) {
         logger.atFine().log("Timestamp updating disabled. Not updating uri %s", uri);
         return false;

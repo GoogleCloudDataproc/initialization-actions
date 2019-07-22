@@ -29,7 +29,6 @@ import static org.junit.Assume.assumeTrue;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions.TimestampUpdatePredicate;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
@@ -44,6 +43,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Predicate;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -567,15 +567,11 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     configuration.set(
         GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES.getKey(), "");
 
-    TimestampUpdatePredicate predicate =
+    Predicate<URI> predicate =
         GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate.create(configuration);
 
-    assertWithMessage("Should be ignored")
-        .that(predicate.shouldUpdateTimestamp(new URI("/foobar")))
-        .isFalse();
-    assertWithMessage("Should be ignored")
-        .that(predicate.shouldUpdateTimestamp(new URI("")))
-        .isFalse();
+    assertWithMessage("Should be ignored").that(predicate.test(new URI("/foobar"))).isFalse();
+    assertWithMessage("Should be ignored").that(predicate.test(new URI(""))).isFalse();
 
     // 2 Enable updates, set include to everything and exclude to everything
     configuration.setBoolean(
@@ -588,12 +584,8 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     predicate = GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate
         .create(configuration);
 
-    assertWithMessage("Should be included")
-        .that(predicate.shouldUpdateTimestamp(new URI("/foobar")))
-        .isTrue();
-    assertWithMessage("Should be included")
-        .that(predicate.shouldUpdateTimestamp(new URI("")))
-        .isTrue();
+    assertWithMessage("Should be included").that(predicate.test(new URI("/foobar"))).isTrue();
+    assertWithMessage("Should be included").that(predicate.test(new URI(""))).isTrue();
 
     // 3 Enable specific paths, exclude everything:
     configuration.set(
@@ -605,18 +597,10 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     predicate = GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate
         .create(configuration);
 
-    assertWithMessage("Should be included")
-        .that(predicate.shouldUpdateTimestamp(new URI("asdf/foobar")))
-        .isTrue();
-    assertWithMessage("Should be included")
-        .that(predicate.shouldUpdateTimestamp(new URI("asdf/baz")))
-        .isTrue();
-    assertWithMessage("Should be ignored")
-        .that(predicate.shouldUpdateTimestamp(new URI("/anythingElse")))
-        .isFalse();
-    assertWithMessage("Should be ignored")
-        .that(predicate.shouldUpdateTimestamp(new URI("/")))
-        .isFalse();
+    assertWithMessage("Should be included").that(predicate.test(new URI("asdf/foobar"))).isTrue();
+    assertWithMessage("Should be included").that(predicate.test(new URI("asdf/baz"))).isTrue();
+    assertWithMessage("Should be ignored").that(predicate.test(new URI("/anythingElse"))).isFalse();
+    assertWithMessage("Should be ignored").that(predicate.test(new URI("/"))).isFalse();
 
     // 4 set to defaults, set job history paths
     configuration.set(
@@ -642,20 +626,14 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
         .isEqualTo("/tmp/hadoop-yarn/staging/done,/tmp/hadoop-yarn/done");
 
     assertWithMessage("Should be included")
-        .that(predicate.shouldUpdateTimestamp(new URI("gs://bucket/tmp/hadoop-yarn/staging/done/")))
+        .that(predicate.test(new URI("gs://bucket/tmp/hadoop-yarn/staging/done/")))
         .isTrue();
     assertWithMessage("Should be included")
-        .that(predicate.shouldUpdateTimestamp(new URI("gs://bucket/tmp/hadoop-yarn/done/")))
+        .that(predicate.test(new URI("gs://bucket/tmp/hadoop-yarn/done/")))
         .isTrue();
-    assertWithMessage("Should be ignored")
-        .that(predicate.shouldUpdateTimestamp(new URI("asdf/baz")))
-        .isFalse();
-    assertWithMessage("Should be ignored")
-        .that(predicate.shouldUpdateTimestamp(new URI("/anythingElse")))
-        .isFalse();
-    assertWithMessage("Should be ignored")
-        .that(predicate.shouldUpdateTimestamp(new URI("/")))
-        .isFalse();
+    assertWithMessage("Should be ignored").that(predicate.test(new URI("asdf/baz"))).isFalse();
+    assertWithMessage("Should be ignored").that(predicate.test(new URI("/anythingElse"))).isFalse();
+    assertWithMessage("Should be ignored").that(predicate.test(new URI("/"))).isFalse();
 
     // 5 set to defaults, set job history paths with gs:// scheme
     configuration.set(
@@ -683,22 +661,14 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
             "gs://foo-bucket/tmp/hadoop-yarn/staging/done,gs://foo-bucket/tmp/hadoop-yarn/done");
 
     assertWithMessage("Should be included")
-        .that(
-            predicate.shouldUpdateTimestamp(
-                new URI("gs://foo-bucket/tmp/hadoop-yarn/staging/done/")))
+        .that(predicate.test(new URI("gs://foo-bucket/tmp/hadoop-yarn/staging/done/")))
         .isTrue();
     assertWithMessage("Should be included")
-        .that(predicate.shouldUpdateTimestamp(new URI("gs://foo-bucket/tmp/hadoop-yarn/done/")))
+        .that(predicate.test(new URI("gs://foo-bucket/tmp/hadoop-yarn/done/")))
         .isTrue();
-    assertWithMessage("Should be ignored")
-        .that(predicate.shouldUpdateTimestamp(new URI("asdf/baz")))
-        .isFalse();
-    assertWithMessage("Should be ignored")
-        .that(predicate.shouldUpdateTimestamp(new URI("/anythingElse")))
-        .isFalse();
-    assertWithMessage("Should be ignored")
-        .that(predicate.shouldUpdateTimestamp(new URI("/")))
-        .isFalse();
+    assertWithMessage("Should be ignored").that(predicate.test(new URI("asdf/baz"))).isFalse();
+    assertWithMessage("Should be ignored").that(predicate.test(new URI("/anythingElse"))).isFalse();
+    assertWithMessage("Should be ignored").that(predicate.test(new URI("/"))).isFalse();
   }
 
   @Test

@@ -38,6 +38,8 @@ public abstract class AsyncWriteChannelOptions {
     return builder();
   }
 
+  public static final AsyncWriteChannelOptions DEFAULT = builder().build();
+
   public static Builder builder() {
     return new AutoValue_AsyncWriteChannelOptions.Builder()
         .setBufferSize(BUFFER_SIZE_DEFAULT)

@@ -28,7 +28,6 @@ import static java.util.stream.Collectors.toCollection;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage.ListPage;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions.TimestampUpdatePredicate;
 import com.google.cloud.hadoop.gcsio.cooplock.CoopLockOperationDelete;
 import com.google.cloud.hadoop.gcsio.cooplock.CoopLockOperationRename;
 import com.google.cloud.hadoop.util.LazyExecutorService;
@@ -70,6 +69,7 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 /**
@@ -179,8 +179,8 @@ public class GoogleCloudStorageFileSystem {
   public GoogleCloudStorageFileSystem(GoogleCloudStorage gcs) {
     this(
         gcs,
-        GoogleCloudStorageFileSystemOptions.newBuilder()
-            .setImmutableCloudStorageOptions(gcs.getOptions())
+        GoogleCloudStorageFileSystemOptions.builder()
+            .setCloudStorageOptions(gcs.getOptions())
             .build());
   }
 
@@ -389,7 +389,7 @@ public class GoogleCloudStorageFileSystem {
     }
 
     Optional<CoopLockOperationDelete> coopLockOp =
-        options.enableCooperativeLocking() && fileInfo.isDirectory()
+        options.isCooperativeLockingEnabled() && fileInfo.isDirectory()
             ? Optional.of(CoopLockOperationDelete.create(gcs, pathCodec, fileInfo.getPath()))
             : Optional.empty();
     coopLockOp.ifPresent(CoopLockOperationDelete::lock);
@@ -463,7 +463,7 @@ public class GoogleCloudStorageFileSystem {
         gcs.waitForBucketEmpty(resourceId.getBucketName());
         bucketNames.add(resourceId.getBucketName());
       }
-      if (options.enableBucketDelete()) {
+      if (options.isBucketDeleteEnabled()) {
         gcs.deleteBuckets(bucketNames);
       } else {
         logger.atInfo().log(
@@ -786,7 +786,7 @@ public class GoogleCloudStorageFileSystem {
     URI src = srcInfo.getPath();
 
     Optional<CoopLockOperationRename> coopLockOp =
-        options.enableCooperativeLocking() && src.getAuthority().equals(dst.getAuthority())
+        options.isCooperativeLockingEnabled() && src.getAuthority().equals(dst.getAuthority())
             ? Optional.of(CoopLockOperationRename.create(gcs, pathCodec, src, dst))
             : Optional.empty();
     coopLockOp.ifPresent(CoopLockOperationRename::lock);
@@ -1352,15 +1352,13 @@ public class GoogleCloudStorageFileSystem {
     logger.atFine().log(
         "updateTimestampsForParentDirectories(%s, %s)", modifiedObjects, excludedParents);
 
-    TimestampUpdatePredicate updatePredicate =
-        options.getShouldIncludeInTimestampUpdatesPredicate();
+    Predicate<URI> updatePredicate = options.getShouldIncludeInTimestampUpdatesPredicate();
     Set<URI> excludedParentPathsSet = new HashSet<>(excludedParents);
 
     Set<URI> parentUrisToUpdate = Sets.newHashSetWithExpectedSize(modifiedObjects.size());
     for (URI modifiedObjectUri : modifiedObjects) {
       URI parentPathUri = getParentPath(modifiedObjectUri);
-      if (!excludedParentPathsSet.contains(parentPathUri)
-          && updatePredicate.shouldUpdateTimestamp(parentPathUri)) {
+      if (!excludedParentPathsSet.contains(parentPathUri) && updatePredicate.test(parentPathUri)) {
         parentUrisToUpdate.add(parentPathUri);
       }
     }
