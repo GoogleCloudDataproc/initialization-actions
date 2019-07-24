@@ -1,0 +1,26 @@
+---
+# All the parameters in this config file can be passed as metadata as well, like --metadata master_key=secret,generate_cert=true ... 
+# In case both of them are provided, metadata has priority.
+
+  
+# set the master key of Knox. Knox uses the master key to encrypt x509 certificates and the custom credentials that are stored for each cluster.
+# The init action overrides the existing secret key and destroys previously created credential stores. 
+master_key: secret
+
+# Generate a self-signed certificate or not. 
+# If a certificate is created, it is exported back into the google storage where other configuration files resides.
+# you may pass the exported cert to establish trust like `curl --cacert=<the exported cert> "https://..."`
+generate_cert: true
+
+# Name to bind the certificate.  Default is localhost.  HOSTNAME is a reserved word for using machine name like knox-gw0-m.europe-west4-b.c.a-project.internal
+certificate_hostname: HOSTNAME
+
+# you may also pass your own certificate. Set generate_cert to false 
+# and provide the name of your certificate file that is inside configuration bucket.
+# Also mind the certificate encryption key. 
+# Checkout https://knox.apache.org/books/knox-1-1-0/user-guide.html#Using+a+CA+Signed+Key+Pair
+custom_cert_name: customcert.jks
+
+# cron statement to check for updates in topologies and gateway-site.xml
+config_update_interval: "*/1 * * * * "
+---

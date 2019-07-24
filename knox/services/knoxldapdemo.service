@@ -1,0 +1,13 @@
+[Unit]
+Description=KnoxLDAP gateway service
+
+[Service]
+User=knox
+Type=forking
+PIDFile=/usr/lib/knox/pids/ldap.pid
+ExecStart=/bin/bash -c '/usr/lib/knox/bin/ldap.sh start'
+ExecStop=/bin/bash -c '/usr/lib/knox/bin/ldap.sh stop'
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
