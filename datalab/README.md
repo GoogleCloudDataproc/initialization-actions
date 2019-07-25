@@ -12,7 +12,7 @@ Dataproc cluster. You will need to connect to Datalab using an SSH tunnel.
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://<my-bucket>/datalab/datalab.sh \
+        --initialization-actions gs://$MY_BUCKET/datalab/datalab.sh \
         --scopes cloud-platform
     ```
 
@@ -43,7 +43,7 @@ how to set up Python 3.5 on workers:
 gcloud dataproc clusters create <CLUSTER_NAME> \
     --metadata 'CONDA_PACKAGES="python==3.5"' \
     --scopes cloud-platform \
-    --initialization-actions gs://<my-bucket>/conda/bootstrap-conda.sh,gs://<my-bucket>/conda/install-conda-env.sh,gs://<my-bucket>/datalab/datalab.sh
+    --initialization-actions gs://$MY_BUCKET/conda/bootstrap-conda.sh,gs://$MY_BUCKET/conda/install-conda-env.sh,gs://$MY_BUCKET/datalab/datalab.sh
 ```
 
 In effect, this means that a particular Datalab-on-Dataproc cluster can only run

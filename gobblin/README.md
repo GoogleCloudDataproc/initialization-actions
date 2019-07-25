@@ -14,7 +14,7 @@ You can use this initialization action to create a new Dataproc cluster with Gob
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://<my-bucket>/gobblin/gobblin.sh
+        --initialization-actions gs://$MY_BUCKET/gobblin/gobblin.sh
     ```
 
 1. Submit jobs

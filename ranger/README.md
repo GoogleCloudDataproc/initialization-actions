@@ -12,8 +12,8 @@ The following command will create a new standard cluster named `<CLUSTER_NAME>` 
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-      --initialization-actions gs://<my-bucket>/solr/solr.sh,\
-    gs://<my-bucket>/ranger/ranger.sh \
+      --initialization-actions gs://$MY_BUCKET/solr/solr.sh,\
+    gs://$MY_BUCKET/ranger/ranger.sh \
       --image-version 1.2 \
       --metadata "default-admin-password=<YOUR_PASSWORD>" 
     ```
