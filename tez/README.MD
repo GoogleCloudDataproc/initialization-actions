@@ -12,7 +12,7 @@ You can use this initialization action to create a new Dataproc cluster with Apa
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-      --initialization-actions gs://dataproc-initialization-actions/tez/tez.sh
+      --initialization-actions gs://$MY_BUCKET/tez/tez.sh
     ```
 1. On Dataproc 1.3+ clusters in order to use pre-installed Tez is necessary to add the flag `--properties 'hadoop-env:HADOOP_CLASSPATH=${HADOOP_CLASSPATH}:/etc/tez/conf:/usr/lib/tez/*:/usr/lib/tez/lib/*'`.
 

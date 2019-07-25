@@ -16,7 +16,7 @@ You can use this initialization action to create a new Dataproc cluster with Ooz
 
     ```bash
     gcloud dataproc clusters create <CLUSTER-NAME> \
-      --initialization-actions gs://dataproc-initialization-actions/oozie/oozie.sh
+      --initialization-actions gs://$MY_BUCKET/oozie/oozie.sh
     ```
 1. Once the cluster has been created Oozie should be running on the master node.
 

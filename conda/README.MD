@@ -27,7 +27,7 @@ Please see the following tutorial for full details https://cloud.google.com/data
 
 ```
 gcloud dataproc clusters create foo --initialization-actions \
-  gs://dataproc-initialization-actions/conda/bootstrap-conda.sh,gs://dataproc-initialization-actions/conda/install-conda-env.sh
+  gs://$MY_BUCKET/conda/bootstrap-conda.sh,gs://$MY_BUCKET/conda/install-conda-env.sh
 ```
 
 ### Install extra conda and/or pip packages
@@ -38,7 +38,7 @@ You can add extra packages by using the metadata entries `CONDA_PACKAGES` and `P
 gcloud dataproc clusters create foo \
     --metadata 'CONDA_PACKAGES="numpy pandas",PIP_PACKAGES=pandas-gbq' \
     --initialization-actions \
-      gs://dataproc-initialization-actions/conda/bootstrap-conda.sh,gs://dataproc-initialization-actions/conda/install-conda-env.sh
+      gs://$MY_BUCKET/conda/bootstrap-conda.sh,gs://$MY_BUCKET/conda/install-conda-env.sh
 ```
 
 Alternatively, you can use environment variables, e.g.:
@@ -53,8 +53,8 @@ Where `create-my-cluster.sh` specifies a list of conda and/or pip packages to in
 ```
 #!/usr/bin/env bash
 
-gsutil -m cp -r gs://dataproc-initialization-actions/conda/bootstrap-conda.sh .
-gsutil -m cp -r gs://dataproc-initialization-actions/conda/install-conda-env.sh .
+gsutil -m cp -r gs://$MY_BUCKET/conda/bootstrap-conda.sh .
+gsutil -m cp -r gs://$MY_BUCKET/conda/install-conda-env.sh .
 
 chmod 755 ./*conda*.sh
 
@@ -77,8 +77,8 @@ CONDA_ENV_YAML_GSC_LOC="gs://my-bucket/path/to/conda-environment.yml"
 CONDA_ENV_YAML_PATH="/root/conda-environment.yml"
 echo "Downloading conda environment at $CONDA_ENV_YAML_GSC_LOC to $CONDA_ENV_YAML_PATH ... "
 gsutil -m cp -r $CONDA_ENV_YAML_GSC_LOC $CONDA_ENV_YAML_PATH
-gsutil -m cp -r gs://dataproc-initialization-actions/conda/bootstrap-conda.sh .
-gsutil -m cp -r gs://dataproc-initialization-actions/conda/install-conda-env.sh .
+gsutil -m cp -r gs://$MY_BUCKET/conda/bootstrap-conda.sh .
+gsutil -m cp -r gs://$MY_BUCKET/conda/install-conda-env.sh .
 
 chmod 755 ./*conda*.sh
 

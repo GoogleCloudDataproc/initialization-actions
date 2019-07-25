@@ -34,7 +34,7 @@ Simply modify the `POST_INIT_COMMAND` to whatever actual job submission command 
         gcloud dataproc clusters delete -q ${CLUSTER_NAME}"
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --scopes cloud-platform \
-        --initialization-actions gs://dataproc-initialization-actions/post-init/master-post-init.sh \
+        --initialization-actions gs://$MY_BUCKET/post-init/master-post-init.sh \
         --metadata post-init-command="${POST_INIT_COMMAND}"
 
 
@@ -52,7 +52,7 @@ the cluster will only be deleted if the job was successful:
         gcloud dataproc clusters delete -q ${CLUSTER_NAME}"
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --scopes cloud-platform \
-        --initialization-actions gs://dataproc-initialization-actions/post-init/master-post-init.sh \
+        --initialization-actions gs://$MY_BUCKET/post-init/master-post-init.sh \
         --metadata post-init-command="${POST_INIT_COMMAND}"
 
 ## Create a cluster which automatically resubmits a job on restart or job termination (e.g. for streaming processing)
@@ -80,5 +80,5 @@ consuming resources for the job that you want to resubmit.
         done"
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --scopes cloud-platform \
-        --metadata startup-script-url=gs://dataproc-initialization-actions/post-init/master-post-init.sh,post-init-command="${POST_INIT_COMMAND}"
+        --metadata startup-script-url=gs://$MY_BUCKET/post-init/master-post-init.sh,post-init-command="${POST_INIT_COMMAND}"
 

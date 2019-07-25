@@ -9,7 +9,7 @@ Flink and start a Flink session running on YARN.
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-    --initialization-actions gs://dataproc-initialization-actions/flink/flink.sh
+    --initialization-actions gs://$MY_BUCKET/flink/flink.sh
     ```
 
 1. You can log into the master node of the cluster to submit jobs to Flink. Flink is installed in `/usr/lib/flink` (unless you change the setting) which contains a `bin` directory with Flink. **Note** - you need to specify `HADOOP_CONF_DIR=/etc/hadoop/conf` before your Flink commands for them to execute properly.

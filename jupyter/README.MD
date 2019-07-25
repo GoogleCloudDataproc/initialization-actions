@@ -31,7 +31,7 @@ Jupyter installed:
     # Jupyter will run on port 8123 of your master node.
     CLUSTER=<CLUSTER_NAME>
     gcloud dataproc clusters create $CLUSTER \
-        --initialization-actions gs://dataproc-initialization-actions/jupyter/jupyter.sh
+        --initialization-actions gs://$MY_BUCKET/jupyter/jupyter.sh
     ```
 
 1.  Run `./launch-jupyter-interface` to connect to the Jupyter notebook running
@@ -60,7 +60,7 @@ install:
 CLUSTER=<CLUSTER_NAME>
 gcloud dataproc clusters create $CLUSTER \
     --metadata "JUPYTER_PORT=8124,JUPYTER_CONDA_PACKAGES=numpy:pandas:scikit-learn" \
-    --initialization-actions gs://dataproc-initialization-actions/jupyter/jupyter.sh \
+    --initialization-actions gs://$MY_BUCKET/jupyter/jupyter.sh \
     --properties spark:spark.executorEnv.PYTHONHASHSEED=0,spark:spark.yarn.am.memory=1024m \
     --worker-machine-type=n1-standard-4 \
     --master-machine-type=n1-standard-4
@@ -122,7 +122,7 @@ notebook process running on master node.
 
 ## Important notes
 
-*   This initialization action clones `gs://dataproc-initialization-actions` GCS
+*   This initialization action clones `gs://$MY_BUCKET` GCS
     bucket to run other scripts in the repo. If you plan to copy `jupyter.sh` to
     your own GCS bucket, you will also need to fork this repository and specify
     the `INIT_ACTIONS_REPO` metadata key.

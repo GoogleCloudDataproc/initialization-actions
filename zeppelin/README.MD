@@ -11,7 +11,7 @@ You can use this initialization action to create a new Dataproc cluster with Apa
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-      --initialization-actions gs://dataproc-initialization-actions/zeppelin/zeppelin.sh
+      --initialization-actions gs://$MY_BUCKET/zeppelin/zeppelin.sh
     ```
 1. Once the cluster has been created, Zeppelin is configured to run on port `8080` on the master node in a Dataproc cluster. To connect to the Apache Zeppelin web interface, you will need to create an SSH tunnel and use a SOCKS 5 Proxy as described in the [dataproc web interfaces](https://cloud.google.com/dataproc/cluster-web-interfaces) documentation.
 
@@ -25,7 +25,7 @@ For example:
 
 ```bash
 gcloud dataproc clusters create <CLUSTER_NAME> \
-  --initialization-actions gs://dataproc-initialization-actions/zeppelin/zeppelin.sh \
+  --initialization-actions gs://$MY_BUCKET/zeppelin/zeppelin.sh \
   --metadata zeppelin-port=8081
 ```
 

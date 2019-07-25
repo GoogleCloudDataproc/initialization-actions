@@ -9,7 +9,7 @@ You can use this initialization action to create a new Dataproc cluster with RSt
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://dataproc-initialization-actions/rstudio/rstudio.sh \
+        --initialization-actions gs://$MY_BUCKET/rstudio/rstudio.sh \
         --metadata rstudio-user=rstudio \
         --metadata rstudio-password=<PASSWORD>
     ```

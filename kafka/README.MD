@@ -14,7 +14,7 @@ You can use this initialization action to create a new Dataproc cluster with Kaf
     gcloud dataproc clusters create <CLUSTER_NAME> \
         --num-masters 3 \
         --metadata "run-on-master=true" \
-        --initialization-actions gs://dataproc-initialization-actions/kafka/kafka.sh
+        --initialization-actions gs://$MY_BUCKET/kafka/kafka.sh
     ```
 1. You can test your Kafka setup by creating a simple topic and publishing to it with Kafka's command-line tools, after SSH'ing into one of your nodes:
 
@@ -51,7 +51,7 @@ gcloud dataproc clusters create <CLUSTER_NAME> \
     --num-masters 3 \
     --metadata "run-on-master=true" \
     --metadata "kafka-enable-jmx=true" \
-    --initialization-actions gs://dataproc-initialization-actions/kafka/kafka.sh,gs://dataproc-initialization-actions/kafka/kafka-manager.sh
+    --initialization-actions gs://$MY_BUCKET/kafka/kafka.sh,gs://$MY_BUCKET/kafka/kafka-manager.sh
 ```
 
 ## Installing Cruise Control with Kafka
@@ -62,7 +62,7 @@ If you would like to use [Cruise Control](https://github.com/linkedin/cruise-con
 gcloud dataproc clusters create <CLUSTER_NAME> \
     --num-masters 3 \
     --metadata "run-on-master=true" \
-    --initialization-actions gs://dataproc-initialization-actions/kafka/kafka.sh,gs://dataproc-initialization-actions/kafka/cruise-control.sh
+    --initialization-actions gs://$MY_BUCKET/kafka/kafka.sh,gs://$MY_BUCKET/kafka/cruise-control.sh
 ```
 
 ## Installing Prometheus with Kafka
@@ -74,7 +74,7 @@ gcloud dataproc clusters create <CLUSTER_NAME> \
     --num-masters 3 \
     --metadata "run-on-master=true" \
     --metadata "prometheus-http-port=9096" \
-    --initialization-actions gs://dataproc-initialization-actions/kafka/kafka.sh,gs://dataproc-initialization-actions/prometheus/prometheus.sh
+    --initialization-actions gs://$MY_BUCKET/kafka/kafka.sh,gs://$MY_BUCKET/prometheus/prometheus.sh
 ```
 
 ## Important notes

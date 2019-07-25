@@ -10,7 +10,7 @@ You can use this initialization action to create a new Cloud Dataproc cluster wi
 
     ```bash
     gcloud dataproc clusters create <CLUSTER-NAME> \
-      --initialization-actions gs://dataproc-initialization-actions/hive-hcatalog/hive-hcatalog.sh
+      --initialization-actions gs://$MY_BUCKET/hive-hcatalog/hive-hcatalog.sh
     ```
 
 1. Once the cluster has been created HCatalog should be installed and configured for use with Pig.

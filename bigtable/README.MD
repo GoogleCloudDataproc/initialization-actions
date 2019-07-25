@@ -10,7 +10,7 @@ You can use this initialization action to create a Dataproc cluster configured t
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-    --initialization-actions gs://dataproc-initialization-actions/bigtable/bigtable.sh \
+    --initialization-actions gs://$MY_BUCKET/bigtable/bigtable.sh \
     --metadata bigtable-instance=<BIGTABLE INSTANCE>
     ```
 1. The cluster will have HBase libraries, the Bigtable client, and the [Apache Spark - Apache HBase Connector](https://github.com/hortonworks-spark/shc) installed.
@@ -29,7 +29,7 @@ You can use this initialization action to create a Dataproc cluster configured t
 1. Submit the jar with dependecies as a Dataproc job. Note that `OUTPUT_TABLE` should not already exist. This job will create the table with the correct column family.
    
     ```bash
-    gcloud dataproc jobs submit hadoop --cluster <CLUSTER_NAME> --class com.example.bigtable.sample.WordCountDriver --jars target/wordcount-mapreduce-0-SNAPSHOT-jar-with-dependencies.jar -- wordcount-hbase gs://dataproc-initialization-actions/README.md <OUTPUT_TABLE>
+    gcloud dataproc jobs submit hadoop --cluster <CLUSTER_NAME> --class com.example.bigtable.sample.WordCountDriver --jars target/wordcount-mapreduce-0-SNAPSHOT-jar-with-dependencies.jar -- wordcount-hbase gs://$MY_BUCKET/README.md <OUTPUT_TABLE>
     ```
 
 ## Running an example Spark job on cluster using SHC

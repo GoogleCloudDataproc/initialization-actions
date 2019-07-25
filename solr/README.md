@@ -10,7 +10,7 @@ You can use this initialization action to create a new Dataproc cluster with Apa
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-      --initialization-actions gs://dataproc-initialization-actions/solr/solr.sh
+      --initialization-actions gs://$MY_BUCKET/solr/solr.sh
     ```
 
 ## Solr UI

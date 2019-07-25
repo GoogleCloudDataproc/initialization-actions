@@ -10,7 +10,7 @@ Usage is similar to the original `jupyter` init action.
 
 ```
 gcloud dataproc clusters create <cluster-name> \
-  --initialization-actions gs://dataproc-initialization-actions/jupyter2/jupyter2.sh
+  --initialization-actions gs://$MY_BUCKET/jupyter2/jupyter2.sh
 ```
 
 ### Options
@@ -25,7 +25,7 @@ For example:
 
 ```
 gcloud dataproc clusters create <cluster-name> \
-  --initialization-actions gs://dataproc-initialization-actions/jupyter2/jupyter2.sh \
+  --initialization-actions gs://$MY_BUCKET/jupyter2/jupyter2.sh \
   --bucket gs://mybucket \
   --metadata JUPYTER_PORT=80,JUPYTER_AUTH_TOKEN=mytoken
 ```

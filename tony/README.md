@@ -11,14 +11,14 @@ You can use this initialization action to create a new Dataproc cluster with Ton
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-      --initialization-actions gs://dataproc-initialization-actions/tony/tony.sh
+      --initialization-actions gs://$MY_BUCKET/tony/tony.sh
     ```
 
     You can also pass specific metadata:
     
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-      --initialization-actions gs://dataproc-initialization-actions/tony/tony.sh \
+      --initialization-actions gs://$MY_BUCKET/tony/tony.sh \
       --metadata name1=value1,name2=value2... 
     ```
     
@@ -39,7 +39,7 @@ You can use this initialization action to create a new Dataproc cluster with Ton
     
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-      --initialization-actions gs://dataproc-initialization-actions/tony/tony.sh \
+      --initialization-actions gs://$MY_BUCKET/tony/tony.sh \
       --metadata worker_instances=4,worker_memory=4g,ps_instances=1,ps_memory=2g
     ```
     

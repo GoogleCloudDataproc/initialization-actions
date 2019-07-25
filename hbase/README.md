@@ -8,7 +8,7 @@ You can use this initialization action to create a new Dataproc cluster with Apa
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://dataproc-initialization-actions/hbase/hbase.sh \
+        --initialization-actions gs://$MY_BUCKET/hbase/hbase.sh \
         --num-masters 3 --num-workers 2
     ```
 1. You can validate your deployment by ssh into any node and running:
@@ -36,7 +36,7 @@ On dataproc clusters HBase uses HDFS as storage backend by default. This mode ca
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://dataproc-initialization-actions/hbase/hbase.sh \
+        --initialization-actions gs://$MY_BUCKET/hbase/hbase.sh \
         --metadata 'hbase-root-dir=gs://<BUCKET_NAME>/' \
         --num-masters 3 --num-workers 2
     ```
@@ -49,7 +49,7 @@ changes the necessary configurations and creates all keytabs necessary for HBase
 
     ```bash
     gcloud beta dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://dataproc-initialization-actions/hbase/hbase.sh \
+        --initialization-actions gs://$MY_BUCKET/hbase/hbase.sh \
         --metadata 'enable-kerberos=true,keytab-bucket=gs://<BUCKET_NAME>' \
         --num-masters 3 --num-workers 2 \
         --kerberos-root-principal-password-uri="Cloud Storage URI of KMS-encrypted password for Kerberos root principal" \
@@ -76,6 +76,6 @@ changes the necessary configurations and creates all keytabs necessary for HBase
 - In HA clusters, HBase is using Zookeeper that is pre-installed on master nodes.
 - In standard and single node clusters, it is required to install and configure Zookeeper which could be done with zookeeper init action. You can pass additional init action when creating HBase standard cluster:
     ```bash
-    --initialization-actions gs://dataproc-initialization-actions/zookeeper/zookeeper.sh,gs://dataproc-initialization-actions/hbase/hbase.sh
+    --initialization-actions gs://$MY_BUCKET/zookeeper/zookeeper.sh,gs://$MY_BUCKET/hbase/hbase.sh
     ```
 - The Kerberos version of this initialization action should be used in the HA mode. Otherwise, an additional zookeeper configuration is necessary.

@@ -8,7 +8,7 @@ You can use this initialization action to create a new Dataproc cluster with Pro
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://dataproc-initialization-actions/prometheus/prometheus.sh
+        --initialization-actions gs://$MY_BUCKET/prometheus/prometheus.sh
     ```
 1.  Prometheus UI on the master node can be accessed after connecting with the command:
     ```bash

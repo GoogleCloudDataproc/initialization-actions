@@ -10,16 +10,7 @@ Initialization actions are stored in a [Google Cloud Storage](https://cloud.goog
       [--initialization-actions [GCS_URI,...]] \
       [--initialization-action-timeout TIMEOUT]
 
-For convenience, copies of initialization actions in this repository are stored in the publicly accessible Cloud Storage bucket `gs://dataproc-initialization-actions`. The folder structure of this Cloud Storage bucket mirrors this repository. You should be able to use this Cloud Storage bucket (and the initialization scripts within it) for your clusters.
-
-For example:
-
-```bash
-gcloud dataproc clusters create my-presto-cluster \
-  --initialization-actions gs://dataproc-initialization-actions/presto/presto.sh
-```
-
-You are strongly encouraged to copy initialization actions to your own GCS bucket in automated pipelines to ensure hermetic deployments. For example:
+Before creating clusters, you need to copy initialization actions to your own GCS bucket. For example:
 
 ```bash
 MY_BUCKET=<gcs-bucket>
@@ -28,7 +19,7 @@ gcloud dataproc clusters create my-presto-cluster \
   --initialization-actions gs://$MY_BUCKET/presto.sh
 ```
 
-This is also useful if you want to modify initialization actions to fit your needs.
+You can decide when to sync your copy of the initialization action with any changes to the initialization action that occur in the GitHub repository. This is also useful if you want to modify initialization actions to fit your needs.
 
 ## Why these samples are provided
 

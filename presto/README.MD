@@ -9,7 +9,7 @@ You can use this initialization action to create a new Dataproc cluster with Pre
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-      --initialization-actions gs://dataproc-initialization-actions/presto/presto.sh
+      --initialization-actions gs://$MY_BUCKET/presto/presto.sh
     ```
 1. Once the cluster has been created, Presto is configured to run on port `8080` (though you can change this in the script) on the master node in a Cloud Dataproc cluster. To connect to the Presto web interface, you will need to create an SSH tunnel and use a SOCKS 5 Proxy as described in the [dataproc web interfaces](https://cloud.google.com/dataproc/cluster-web-interfaces) documentation. You can also use the [Presto command line interface](https://prestodb.io/docs/current/installation/cli.html) using the `presto` command on the master node.
 

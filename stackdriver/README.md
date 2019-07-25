@@ -24,7 +24,7 @@ with the Stackdriver agent installed:
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://dataproc-initialization-actions/stackdriver/stackdriver.sh \
+        --initialization-actions gs://$MY_BUCKET/stackdriver/stackdriver.sh \
         --scopes https://www.googleapis.com/auth/monitoring.write
     ```
 1. Once the cluster is online, Stackdriver should automatically start capturing data from your cluster. You can visit
@@ -38,7 +38,7 @@ To better identify your cluster in a Stackdriver dashboard, you'll likely want t
 your cluster:
 
     gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://dataproc-initialization-actions/stackdriver/stackdriver.sh \
+        --initialization-actions gs://$MY_BUCKET/stackdriver/stackdriver.sh \
         --scopes https://www.googleapis.com/auth/monitoring.write \
         --tags my-dataproc-cluster-20160901-1518
 
@@ -48,7 +48,7 @@ to Google-hosted copy of the dataproc-initialization-actions repo; for example, 
 APIs you can simply copy/paste:
 
     gcloud dataproc clusters create ${USER}-dataproc-cluster \
-        --initialization-actions gs://dataproc-initialization-actions/stackdriver/stackdriver.sh \
+        --initialization-actions gs://$MY_BUCKET/stackdriver/stackdriver.sh \
         --scopes https://www.googleapis.com/auth/monitoring.write \
         --tags ${USER}-dataproc-cluster-$(date +%Y%m%d-%H%M%S)
 

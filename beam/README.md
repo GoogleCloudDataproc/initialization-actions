@@ -111,9 +111,9 @@ shown later).
 
 ```bash
 CLUSTER_NAME="$1
-INIT_ACTIONS="gs://dataproc-initialization-actions/docker/docker.sh"
-INIT_ACTIONS+=",gs://dataproc-initialization-actions/flink/flink.sh"
-INIT_ACTIONS+=",gs://dataproc-initialization-actions/beam/beam.sh"
+INIT_ACTIONS="gs://$MY_BUCKET/docker/docker.sh"
+INIT_ACTIONS+=",gs://$MY_BUCKET/flink/flink.sh"
+INIT_ACTIONS+=",gs://$MY_BUCKET/beam/beam.sh"
 FLINK_SNAPSHOT="https://archive.apache.org/dist/flink/flink-1.5.3/flink-1.5.3-bin-hadoop28-scala_2.11.tgz"
 METADATA="beam-job-service-snapshot=<...>"
 METADATA+=",beam-image-enable-pull=true"

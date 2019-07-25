@@ -15,7 +15,7 @@ Example 1: installing one package at head
 ```
 gcloud dataproc clusters create my-cluster \
     --metadata 'PIP_PACKAGES=pandas' \
-    --initialization-actions gs://dataproc-initialization-actions/python/pip-install.sh
+    --initialization-actions gs://$MY_BUCKET/python/pip-install.sh
 ```
 
 Example 2: installing several packages with version selectors
@@ -23,7 +23,7 @@ Example 2: installing several packages with version selectors
 ```
 gcloud dataproc clusters create my-cluster \
     --metadata 'PIP_PACKAGES=pandas==0.23.0 scipy==1.1.0' \
-    --initialization-actions gs://dataproc-initialization-actions/python/pip-install.sh
+    --initialization-actions gs://$MY_BUCKET/python/pip-install.sh
 ```
 
 ## conda install packages
@@ -36,7 +36,7 @@ Example 1: installing one package at head
 ```
 gcloud dataproc clusters create my-cluster \
     --metadata 'CONDA_PACKAGES=scipy' \
-    --initialization-actions gs://dataproc-initialization-actions/python/conda-install.sh
+    --initialization-actions gs://$MY_BUCKET/python/conda-install.sh
 ```
 
 Example 2: installing several packages with version selectors
@@ -44,5 +44,5 @@ Example 2: installing several packages with version selectors
 ```
 gcloud dataproc clusters create my-cluster \
     --metadata 'CONDA_PACKAGES=scipy=0.15.0 curl=7.26.0' \
-    --initialization-actions gs://dataproc-initialization-actions/python/conda-install.sh
+    --initialization-actions gs://$MY_BUCKET/python/conda-install.sh
 ```

@@ -14,7 +14,7 @@ applications can access Docker.
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-    --initialization-actions gs://dataproc-initialization-actions/docker/docker.sh
+    --initialization-actions gs://$MY_BUCKET/docker/docker.sh
     ```
 
 1. Docker is installed and configured on all nodes of the cluster (both master

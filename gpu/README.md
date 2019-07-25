@@ -18,7 +18,7 @@ GPU driver please visit NVIDIA [site](https://www.nvidia.com/Download/index.aspx
     gcloud beta dataproc clusters create <CLUSTER_NAME> \
       --master-accelerator type=nvidia-tesla-v100 \
       --worker-accelerator type=nvidia-tesla-v100,count=4 \
-      --initialization-actions gs://dataproc-initialization-actions/gpu/install_gpu_driver.sh \
+      --initialization-actions gs://$MY_BUCKET/gpu/install_gpu_driver.sh \
       --metadata install_gpu_agent=false
     ```
 
@@ -28,7 +28,7 @@ GPU driver please visit NVIDIA [site](https://www.nvidia.com/Download/index.aspx
     gcloud beta dataproc clusters create <CLUSTER_NAME> \
       --master-accelerator type=nvidia-tesla-v100 \
       --worker-accelerator type=nvidia-tesla-v100,count=4 \
-      --initialization-actions gs://dataproc-initialization-actions/gpu/install_gpu_driver.sh \
+      --initialization-actions gs://$MY_BUCKET/gpu/install_gpu_driver.sh \
       --metadata install_gpu_agent=true \
       --scopes https://www.googleapis.com/auth/monitoring.write
     ```

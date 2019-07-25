@@ -10,7 +10,7 @@ of OpenSSL using the following command:
 
 ```bash
 gcloud dataproc clusters create <CLUSTER_NAME> \
-    --initialization-actions gs://dataproc-initialization-actions/openssl/openssl.sh
+    --initialization-actions gs://$MY_BUCKET/openssl/openssl.sh
 ```
 
 ## Important notes
