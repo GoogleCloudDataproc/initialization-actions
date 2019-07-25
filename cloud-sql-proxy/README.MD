@@ -42,7 +42,7 @@ shared hive metastore.
     gcloud dataproc clusters create <CLUSTER_NAME> \
         --region <REGION> \
         --scopes sql-admin \
-        --initialization-actions gs://dataproc-initialization-actions/cloud-sql-proxy/cloud-sql-proxy.sh \
+        --initialization-actions gs://<my-bucket>/cloud-sql-proxy/cloud-sql-proxy.sh \
         --properties hive:hive.metastore.warehouse.dir=gs://<HIVE_DATA_BUCKET>/hive-warehouse \
         --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>"
     ```
@@ -69,7 +69,7 @@ shared hive metastore.
     ```bash
     gcloud dataproc clusters create <ANOTHER_CLUSTER_NAME> \
         --scopes sql-admin \
-        --initialization-actions gs://dataproc-initialization-actions/cloud-sql-proxy/cloud-sql-proxy.sh \
+        --initialization-actions gs://<my-bucket>/cloud-sql-proxy/cloud-sql-proxy.sh \
         --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>"
     ```
 
@@ -105,7 +105,7 @@ write to Cloud SQL. Set the `enable-cloud-sql-hive-metastore` metadata key to
 ```bash
 gcloud dataproc clusters create <CLUSTER_NAME> \
     --scopes sql-admin \
-    --initialization-actions gs://dataproc-initialization-actions/cloud-sql-proxy/cloud-sql-proxy.sh \
+    --initialization-actions gs://<my-bucket>/cloud-sql-proxy/cloud-sql-proxy.sh \
     --metadata "enable-cloud-sql-hive-metastore=false" \
     --metadata "additional-cloud-sql-instances=<PROJECT_ID>:<REGION>:<ANOTHER_INSTANCE_NAME>"
 ```
@@ -180,7 +180,7 @@ additional setup.
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
         --scopes sql-admin \
-        --initialization-actions gs://dataproc-initialization-actions/cloud-sql-proxy/cloud-sql-proxy.sh \
+        --initialization-actions gs://<my-bucket>/cloud-sql-proxy/cloud-sql-proxy.sh \
         --properties hive:hive.metastore.warehouse.dir=gs://<HIVE_DATA_BUCKET>/hive-warehouse \
         --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>" \
         --metadata "use-cloud-sql-private-ip=true" \

@@ -15,7 +15,7 @@ Livy installed:
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://dataproc-initialization-actions/livy/livy.sh
+        --initialization-actions gs://<my-bucket>/livy/livy.sh
     ```
 
 1.  Once the cluster has been created, Livy is configured to run on port `8998`

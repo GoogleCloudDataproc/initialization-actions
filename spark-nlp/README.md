@@ -12,7 +12,7 @@ You can use this initialization action to create a new Cloud Dataproc cluster wi
     ```bash
     gcloud dataproc clusters create my_cluster \
       --optional-components=ANACONDA \
-      --initialization-actions gs://dataproc-initialization-actions/spark-nlp/spark-nlp.sh
+      --initialization-actions gs://<my-bucket>/spark-nlp/spark-nlp.sh
     ```
 2. To use `spark-nlp` in your code, you must include `spark-nlp` with the --properties flag when submitting a job (example shows a Python job):
 
