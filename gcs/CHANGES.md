@@ -53,6 +53,7 @@
 
         fs.gs.cooperative.locking.enable (default: false)
         fs.gs.cooperative.locking.expiration.timeout.ms (default: 120,000)
+        fs.gs.cooperative.locking.max.concurrent.operations (default: 20)
 
 1.  Add FSCK tool for recovery of failed Cooperative Locking for directory
     operations:

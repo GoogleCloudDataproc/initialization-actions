@@ -28,6 +28,7 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
 import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorageOptions;
+import com.google.cloud.hadoop.gcsio.cooplock.CooperativeLockingOptions;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.EntriesCredentialConfiguration;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
@@ -37,7 +38,6 @@ import com.google.cloud.hadoop.util.RequesterPaysOptions.RequesterPaysMode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.GoogleLogger;
-import java.time.Duration;
 import java.util.Collection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -520,7 +520,15 @@ public class GoogleHadoopFileSystemConfiguration {
   public static final GoogleHadoopFileSystemConfigurationProperty<Long>
       GCS_COOPERATIVE_LOCKING_EXPIRATION_TIMEOUT_MS =
           new GoogleHadoopFileSystemConfigurationProperty<>(
-              "fs.gs.cooperative.locking.expiration.timeout.ms", Duration.ofMinutes(2).toMillis());
+              "fs.gs.cooperative.locking.expiration.timeout.ms",
+              CooperativeLockingOptions.LOCK_EXPIRATION_TIMEOUT_MS_DEFAULT);
+
+  /** Configuration key for maximum allowed concurrent operations when using cooperative locking. */
+  public static final GoogleHadoopFileSystemConfigurationProperty<Integer>
+      GCS_COOPERATIVE_LOCKING_MAX_CONCURRENT_OPERATIONS =
+          new GoogleHadoopFileSystemConfigurationProperty<>(
+              "fs.gs.cooperative.locking.max.concurrent.operations",
+              CooperativeLockingOptions.MAX_CONCURRENT_OPERATIONS_DEFAULT);
 
   // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
   // Please check that removing it is correct, and remove this comment along with it.
@@ -567,7 +575,8 @@ public class GoogleHadoopFileSystemConfiguration {
             GCS_MAX_WAIT_MILLIS_EMPTY_OBJECT_CREATE.get(config, config::getInt))
         .setReadChannelOptions(getReadChannelOptions(config))
         .setWriteChannelOptions(getWriteChannelOptions(config))
-        .setRequesterPaysOptions(getRequesterPaysOptions(config, projectId));
+        .setRequesterPaysOptions(getRequesterPaysOptions(config, projectId))
+        .setCooperativeLockingOptions(getCooperativeLockingOptions(config));
   }
 
   private static PerformanceCachingGoogleCloudStorageOptions getPerformanceCachingOptions(
@@ -616,6 +625,15 @@ public class GoogleHadoopFileSystemConfiguration {
         .setMode(GCS_REQUESTER_PAYS_MODE.get(config, config::getEnum))
         .setProjectId(requesterPaysProjectId == null ? projectId : requesterPaysProjectId)
         .setBuckets(GCS_REQUESTER_PAYS_BUCKETS.getStringCollection(config))
+        .build();
+  }
+
+  private static CooperativeLockingOptions getCooperativeLockingOptions(Configuration config) {
+    return CooperativeLockingOptions.builder()
+        .setLockExpirationTimeoutMilli(
+            GCS_COOPERATIVE_LOCKING_EXPIRATION_TIMEOUT_MS.get(config, config::getLong))
+        .setMaxConcurrentOperations(
+            GCS_COOPERATIVE_LOCKING_MAX_CONCURRENT_OPERATIONS.get(config, config::getInt))
         .build();
   }
 }

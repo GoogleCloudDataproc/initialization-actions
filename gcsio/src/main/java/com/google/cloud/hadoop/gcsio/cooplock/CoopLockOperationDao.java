@@ -22,6 +22,8 @@ import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecordsDao.LOCK_DIR
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
+import static java.lang.Thread.currentThread;
+import static java.lang.Thread.sleep;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
@@ -30,6 +32,7 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.PathCodec;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
 import com.google.common.flogger.GoogleLogger;
@@ -41,11 +44,13 @@ import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -55,6 +60,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class CoopLockOperationDao {
+
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   public static final String RENAME_LOG_RECORD_SEPARATOR = " -> ";
@@ -67,6 +73,10 @@ public class CoopLockOperationDao {
   private static final CreateObjectOptions UPDATE_OBJECT_OPTIONS =
       new CreateObjectOptions(/* overwriteExisting= */ true, "application/text", EMPTY_METADATA);
 
+  private static final Duration LOCK_RENEW_RETRY_BACK_OFF = Duration.ofMillis(1_100);
+
+  private static final Duration MAX_LOCK_RENEW_TIMEOUT = LOCK_RENEW_RETRY_BACK_OFF.multipliedBy(10);
+
   private static DateTimeFormatter LOCK_FILE_DATE_TIME_FORMAT =
       DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss.SSSXXX").withZone(ZoneId.of("UTC"));
 
@@ -77,11 +87,13 @@ public class CoopLockOperationDao {
           /* corePoolSize= */ 0,
           new ThreadFactoryBuilder().setNameFormat("coop-lock-thread-%d").setDaemon(true).build());
 
-  private GoogleCloudStorage gcs;
-  private PathCodec pathCodec;
+  private final GoogleCloudStorage gcs;
+  private final CooperativeLockingOptions options;
+  private final PathCodec pathCodec;
 
   public CoopLockOperationDao(GoogleCloudStorage gcs, PathCodec pathCodec) {
     this.gcs = gcs;
+    this.options = gcs.getOptions().getCooperativeLockingOptions();
     this.pathCodec = pathCodec;
   }
 
@@ -197,21 +209,56 @@ public class CoopLockOperationDao {
   }
 
   private void renewLockOrExit(
-      String operationId, URI operationLockPath, Function<String, String> renewFn) {
-    // read lock file info
-    for (int i = 0; i < 10; i++) {
-      try {
-        renewLock(operationId, operationLockPath, renewFn);
-        return;
-      } catch (IOException e) {
-        logger.atWarning().withCause(e).log(
-            "Failed to renew '%s' lock for %s operation, attempt #%d",
-            operationLockPath, operationId, i + 1);
-      }
-      sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+      String operationId,
+      URI operationLockPath,
+      Function<String, String> renewFn,
+      Duration timeout) {
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    ExecutorService timeoutExecutor = Executors.newSingleThreadExecutor();
+    Future<?> timeoutFuture =
+        timeoutExecutor.submit(
+            () -> {
+              try {
+                sleep(timeout.toMillis());
+              } catch (InterruptedException e) {
+                // Proceed further if interrupted
+              }
+              // timeoutFuture was cancelled
+              if (currentThread().isInterrupted()) {
+                return;
+              }
+              logger.atSevere().log(
+                  "Renewal of '%s' lock for %s operation timed out (timeout %s), exiting",
+                  operationLockPath, operationId, timeout);
+              System.exit(1);
+            });
+
+    int attempt = 1;
+    try {
+      do {
+        try {
+          renewLock(operationId, operationLockPath, renewFn);
+          checkState(
+              timeoutFuture.cancel(/* mayInterruptIfRunning= */ true),
+              "timeoutFuture should be successfully canceled");
+          return;
+        } catch (IOException e) {
+          logger.atWarning().withCause(e).log(
+              "Failed to renew '%s' lock for %s operation, attempt #%d",
+              operationLockPath, operationId, attempt++);
+        }
+        sleepUninterruptibly(LOCK_RENEW_RETRY_BACK_OFF);
+      } while (timeout.compareTo(stopwatch.elapsed()) > 0);
+      logger.atSevere().log(
+          "Renewal of '%s' lock for %s operation timed out (timeout %s), exiting",
+          operationLockPath, operationId, timeout);
+    } catch (Exception e) {
+      logger.atSevere().withCause(e).log(
+          "Failed to renew '%s' lock for %s operation, exiting", operationLockPath, operationId);
+    } finally {
+      timeoutFuture.cancel(/* mayInterruptIfRunning= */ true);
+      timeoutExecutor.shutdownNow();
     }
-    logger.atSevere().log(
-        "Failed to renew '%s' lock for %s operation, exiting", operationLockPath, operationId);
     System.exit(1);
   }
 
@@ -270,6 +317,9 @@ public class CoopLockOperationDao {
 
   public <T> Future<?> scheduleLockUpdate(
       String operationId, URI operationLockPath, Class<T> clazz, BiConsumer<T, Instant> renewFn) {
+    long lockRenewalPeriodMilli = options.getLockExpirationTimeoutMilli() / 2;
+    long lockRenewTimeoutMilli =
+        Math.min(options.getLockExpirationTimeoutMilli() / 4, MAX_LOCK_RENEW_TIMEOUT.toMillis());
     return scheduledThreadPool.scheduleAtFixedRate(
         () ->
             renewLockOrExit(
@@ -279,9 +329,10 @@ public class CoopLockOperationDao {
                   T operation = GSON.fromJson(l, clazz);
                   renewFn.accept(operation, Instant.now());
                   return GSON.toJson(operation);
-                }),
-        /* initialDelay= */ 1,
-        /* period= */ 1,
-        TimeUnit.MINUTES);
+                },
+                Duration.ofMillis(lockRenewTimeoutMilli)),
+        /* initialDelay= */ lockRenewalPeriodMilli,
+        /* period= */ lockRenewalPeriodMilli,
+        TimeUnit.MILLISECONDS);
   }
 }

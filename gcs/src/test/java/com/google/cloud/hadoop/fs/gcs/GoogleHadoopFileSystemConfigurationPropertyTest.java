@@ -112,6 +112,7 @@ public class GoogleHadoopFileSystemConfigurationPropertyTest {
           put("fs.gs.requester.pays.buckets", ImmutableList.of());
           put("fs.gs.cooperative.locking.enable", false);
           put("fs.gs.cooperative.locking.expiration.timeout.ms", 120_000);
+          put("fs.gs.cooperative.locking.max.concurrent.operations", 20);
         }
       };
 

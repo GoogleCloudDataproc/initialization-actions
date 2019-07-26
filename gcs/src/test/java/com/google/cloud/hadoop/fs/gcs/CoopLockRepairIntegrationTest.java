@@ -27,6 +27,7 @@ import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.SERVIC
 import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.assertThrows;
 
@@ -48,6 +49,7 @@ import com.google.cloud.hadoop.util.RetryHttpInitializer;
 import com.google.gson.Gson;
 import java.io.IOException;
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -63,6 +65,8 @@ import org.junit.runners.JUnit4;
 public class CoopLockRepairIntegrationTest {
 
   private static final Gson GSON = new Gson();
+
+  private static final Duration COOP_LOCK_TIMEOUT = Duration.ofSeconds(30);
 
   private static final String OPERATION_FILENAME_PATTERN_FORMAT =
       "[0-9]{8}T[0-9]{6}\\.[0-9]{3}Z_%s_[a-z0-9\\-]+";
@@ -163,6 +167,9 @@ public class CoopLockRepairIntegrationTest {
     CoopLockFsck fsck = new CoopLockFsck();
     fsck.setConf(getTestConfiguration());
 
+    // Wait until lock will expire
+    sleepUninterruptibly(COOP_LOCK_TIMEOUT);
+
     fsck.run(new String[] {command, "gs://" + bucketName});
 
     URI deletedDirUri = "--rollForward".equals(command) ? srcDirUri : dstDirUri;
@@ -237,6 +244,9 @@ public class CoopLockRepairIntegrationTest {
     CoopLockFsck fsck = new CoopLockFsck();
     fsck.setConf(getTestConfiguration());
 
+    // Wait until lock will expire
+    sleepUninterruptibly(COOP_LOCK_TIMEOUT);
+
     fsck.run(new String[] {"--rollForward", "gs://" + bucketName});
 
     assertThat(gcsFs.exists(srcDirUri)).isFalse();
@@ -306,6 +316,9 @@ public class CoopLockRepairIntegrationTest {
     CoopLockFsck fsck = new CoopLockFsck();
     fsck.setConf(getTestConfiguration());
 
+    // Wait until lock will expire
+    sleepUninterruptibly(COOP_LOCK_TIMEOUT);
+
     fsck.run(new String[] {"--rollForward", "gs://" + bucketName});
 
     assertThat(gcsFs.exists(dirUri)).isFalse();
@@ -331,7 +344,8 @@ public class CoopLockRepairIntegrationTest {
   private Configuration getTestConfiguration() {
     Configuration conf = new Configuration();
     conf.setBoolean(AUTHENTICATION_PREFIX + ENABLE_SERVICE_ACCOUNTS_SUFFIX, true);
-    conf.setLong(GCS_COOPERATIVE_LOCKING_EXPIRATION_TIMEOUT_MS.getKey(), 0);
+    conf.setLong(
+        GCS_COOPERATIVE_LOCKING_EXPIRATION_TIMEOUT_MS.getKey(), COOP_LOCK_TIMEOUT.toMillis());
 
     // Configure test authentication
     TestConfiguration testConf = TestConfiguration.getInstance();

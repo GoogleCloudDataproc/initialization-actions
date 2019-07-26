@@ -455,3 +455,8 @@ exist at the same path on all nodes
 
     Lock expiration timeout used by cooperative locking feature to lock
     directories.
+
+*   `fs.gs.cooperative.locking.max.concurrent.operations` (default: `20`)
+
+    Maximum number of concurrent directory modification operations per bucket
+    guarded by cooperative locking feature.

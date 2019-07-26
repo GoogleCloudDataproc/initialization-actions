@@ -18,6 +18,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.auto.value.AutoValue;
+import com.google.cloud.hadoop.gcsio.cooplock.CooperativeLockingOptions;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
 import com.google.cloud.hadoop.util.RequesterPaysOptions;
@@ -32,9 +33,6 @@ public abstract class GoogleCloudStorageOptions {
 
   /** Default setting for enabling inferring of implicit directories. */
   public static final boolean INFER_IMPLICIT_DIRECTORIES_DEFAULT = true;
-
-  /** Default setting for whether or not to create a marker file when beginning file creation. */
-  public static final boolean CREATE_EMPTY_MARKER_OBJECT_DEFAULT = false;
 
   /**
    * Default setting for the length of time to wait for empty objects to appear if we believe we are
@@ -72,18 +70,6 @@ public abstract class GoogleCloudStorageOptions {
   /** Default setting for number of threads to execute GCS batch requests for copy operations. */
   public static final int COPY_BATCH_THREADS_DEFAULT = BATCH_THREADS_DEFAULT;
 
-  /** Default setting for read write channel. */
-  public static final GoogleCloudStorageReadOptions READ_CHANNEL_OPTIONS_DEFAULT =
-      GoogleCloudStorageReadOptions.DEFAULT;
-
-  /** Default setting for async write channel. */
-  public static final AsyncWriteChannelOptions ASYNC_WRITE_CHANNEL_OPTIONS_DEFAULT =
-      AsyncWriteChannelOptions.newBuilder().build();
-
-  /** Default setting for requester pays feature. */
-  public static final RequesterPaysOptions REQUESTER_PAYS_OPTIONS_DEFAULT =
-      RequesterPaysOptions.DEFAULT;
-
   public static final GoogleCloudStorageOptions DEFAULT = builder().build();
 
   /** @deprecated use {@link #builder()} instead */
@@ -108,9 +94,10 @@ public abstract class GoogleCloudStorageOptions {
         .setMaxBytesRewrittenPerCall(MAX_BYTES_REWRITTEN_PER_CALL_DEFAULT)
         .setCopyMaxRequestsPerBatch(COPY_MAX_REQUESTS_PER_BATCH_DEFAULT)
         .setCopyBatchThreads(COPY_BATCH_THREADS_DEFAULT)
-        .setReadChannelOptions(READ_CHANNEL_OPTIONS_DEFAULT)
-        .setWriteChannelOptions(ASYNC_WRITE_CHANNEL_OPTIONS_DEFAULT)
-        .setRequesterPaysOptions(REQUESTER_PAYS_OPTIONS_DEFAULT);
+        .setReadChannelOptions(GoogleCloudStorageReadOptions.DEFAULT)
+        .setWriteChannelOptions(AsyncWriteChannelOptions.DEFAULT)
+        .setRequesterPaysOptions(RequesterPaysOptions.DEFAULT)
+        .setCooperativeLockingOptions(CooperativeLockingOptions.DEFAULT);
   }
 
   @Nullable
@@ -161,6 +148,8 @@ public abstract class GoogleCloudStorageOptions {
   public abstract AsyncWriteChannelOptions getWriteChannelOptions();
 
   public abstract RequesterPaysOptions getRequesterPaysOptions();
+
+  public abstract CooperativeLockingOptions getCooperativeLockingOptions();
 
   public abstract Builder toBuilder();
 
@@ -217,6 +206,9 @@ public abstract class GoogleCloudStorageOptions {
     public abstract Builder setWriteChannelOptions(AsyncWriteChannelOptions writeChannelOptions);
 
     public abstract Builder setRequesterPaysOptions(RequesterPaysOptions requesterPaysOptions);
+
+    public abstract Builder setCooperativeLockingOptions(
+        CooperativeLockingOptions cooperativeLockingOptions);
 
     abstract GoogleCloudStorageOptions autoBuild();
 

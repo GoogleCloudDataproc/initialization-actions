@@ -37,7 +37,6 @@ import com.google.gson.Gson;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -50,6 +49,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class CoopLockRecordsDao {
+
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   public static final String LOCK_DIRECTORY = "_lock/";
@@ -58,15 +58,21 @@ public class CoopLockRecordsDao {
   public static final String LOCK_PATH = LOCK_DIRECTORY + LOCK_FILE;
 
   private static final String LOCK_METADATA_KEY = "lock";
-  private static final int MAX_LOCKS_COUNT = 20;
-  private static final int RETRY_INTERVAL_MILLIS = 2_000;
+
+  private static final int MAX_BACK_OFF_INTERVAL_MILLIS = 2_000;
+  private static final int RETRY_LOCK_INTERVAL_MILLIS = 2_000;
 
   private static final Gson GSON = new Gson();
 
+  private static final CreateObjectOptions CREATE_NEW_OBJECT_OPTIONS =
+      new CreateObjectOptions(/* overwriteExisting= */ false);
+
   private final GoogleCloudStorageImpl gcs;
+  private final CooperativeLockingOptions options;
 
   public CoopLockRecordsDao(GoogleCloudStorageImpl gcs) {
     this.gcs = gcs;
+    this.options = gcs.getOptions().getCooperativeLockingOptions();
   }
 
   public Set<CoopLockRecord> getLockedOperations(String bucketName) throws IOException {
@@ -152,7 +158,7 @@ public class CoopLockRecordsDao {
         new ExponentialBackOff.Builder()
             .setInitialIntervalMillis(100)
             .setMultiplier(1.2)
-            .setMaxIntervalMillis((int) Duration.ofSeconds(MAX_LOCKS_COUNT).toMillis())
+            .setMaxIntervalMillis(MAX_BACK_OFF_INTERVAL_MILLIS)
             .setMaxElapsedTimeMillis(Integer.MAX_VALUE)
             .build();
 
@@ -160,7 +166,7 @@ public class CoopLockRecordsDao {
       try {
         GoogleCloudStorageItemInfo lockInfo = gcs.getItemInfo(lockId);
         if (!lockInfo.exists()) {
-          gcs.createEmptyObject(lockId, new CreateObjectOptions(/* overwriteExisting= */ false));
+          gcs.createEmptyObject(lockId, CREATE_NEW_OBJECT_OPTIONS);
           lockInfo = gcs.getItemInfo(lockId);
         }
         CoopLockRecords lockRecords =
@@ -173,7 +179,7 @@ public class CoopLockRecordsDao {
           logger.atInfo().atMostEvery(5, SECONDS).log(
               "Failed to update %s entries in %s file: resources could be locked, retrying.",
               lockRecords.getLocks().size(), lockId);
-          sleepUninterruptibly(RETRY_INTERVAL_MILLIS, MILLISECONDS);
+          sleepUninterruptibly(RETRY_LOCK_INTERVAL_MILLIS, MILLISECONDS);
           continue;
         }
 
@@ -183,11 +189,11 @@ public class CoopLockRecordsDao {
           break;
         }
 
-        if (lockRecords.getLocks().size() > MAX_LOCKS_COUNT) {
+        if (lockRecords.getLocks().size() > options.getMaxConcurrentOperations()) {
           logger.atInfo().atMostEvery(5, SECONDS).log(
               "Skipping lock entries update in %s file: too many (%d) locked resources, retrying.",
               lockRecords.getLocks().size(), lockId);
-          sleepUninterruptibly(RETRY_INTERVAL_MILLIS, MILLISECONDS);
+          sleepUninterruptibly(RETRY_LOCK_INTERVAL_MILLIS, MILLISECONDS);
           continue;
         }
 

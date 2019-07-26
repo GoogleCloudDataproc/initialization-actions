@@ -618,6 +618,7 @@
     </description>
   </property>
 
+  <!-- Cooperative Locking feature configuration -->
   <property>
     <name>fs.gs.cooperative.locking.enable</name>
     <value>false</value>
@@ -625,12 +626,19 @@
       Enables cooperative locking to achieve isolation of directory mutation operations.
     </description>
   </property>
-
   <property>
     <name>fs.gs.cooperative.locking.expiration.timeout.ms</name>
     <value>120000</value>
     <description>
       Lock expiration timeout used by cooperative locking feature to lock directories.
+    </description>
+  </property>
+  <property>
+    <name>fs.gs.cooperative.locking.max.concurrent.operations</name>
+    <value>20</value>
+    <description>
+      Maximum number of concurrent directory modification operations per bucket guarded by
+      cooperative locking feature.
     </description>
   </property>
 </configuration>
