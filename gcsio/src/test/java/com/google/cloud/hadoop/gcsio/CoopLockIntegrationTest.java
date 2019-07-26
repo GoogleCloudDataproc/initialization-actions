@@ -25,10 +25,15 @@ import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecordsDao.LOCK_DIR
 import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecordsDao.LOCK_PATH;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toList;
 
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.http.HttpExecuteInterceptor;
+import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
+import com.google.cloud.hadoop.gcsio.cooplock.CooperativeLockingOptions;
 import com.google.cloud.hadoop.gcsio.cooplock.DeleteOperation;
 import com.google.cloud.hadoop.gcsio.cooplock.RenameOperation;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
@@ -37,9 +42,13 @@ import com.google.cloud.hadoop.util.RetryHttpInitializer;
 import com.google.gson.Gson;
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -54,6 +63,8 @@ public class CoopLockIntegrationTest {
 
   private static final String OPERATION_FILENAME_PATTERN_FORMAT =
       "[0-9]{8}T[0-9]{6}\\.[0-9]{3}Z_%s_[a-z0-9\\-]+";
+
+  private static final Duration COOP_LOCK_TIMEOUT = Duration.ofSeconds(30);
 
   private static GoogleCloudStorageOptions gcsOptions;
   private static RetryHttpInitializer httpRequestInitializer;
@@ -195,21 +206,103 @@ public class CoopLockIntegrationTest {
         .isEqualTo(dirUri.resolve(fileName) + "\n" + dirUri + "\n");
   }
 
-  private Optional<URI> matchFile(List<URI> files, String pattern) {
+  @Test
+  public void directoryDelete_lockRenewed() throws Exception {
+    String bucketName = gcsfsIHelper.createUniqueBucket("coop-delete-lock-renewed");
+    URI bucketUri = new URI("gs://" + bucketName + "/");
+    String fileName = "file";
+    URI dirUri = bucketUri.resolve("delete_" + UUID.randomUUID() + "/");
+    URI fileUri = dirUri.resolve(fileName);
+
+    // create file to delete
+    gcsfsIHelper.writeTextFile(bucketName, fileUri.getPath(), "file_content");
+
+    CooperativeLockingOptions coopLockOptions =
+        CooperativeLockingOptions.builder()
+            .setLockExpirationTimeoutMilli(COOP_LOCK_TIMEOUT.toMillis())
+            .build();
+    GoogleCloudStorageFileSystemOptions gcsFsOptions =
+        newGcsFsOptions(
+            gcsOptions.toBuilder().setCooperativeLockingOptions(coopLockOptions).build());
+
+    String encodedFilePath = URLEncoder.encode(fileUri.getPath().substring(1), UTF_8.name());
+    Duration expectedLockRenewTimeout = COOP_LOCK_TIMEOUT.dividedBy(2);
+    HttpRequestInitializer sleepingRequestInitializer =
+        interceptingRequestInitializer(
+            r -> {
+              String reqUrl = "/b/" + bucketName + "/o/" + encodedFilePath;
+              if ("DELETE".equals(r.getRequestMethod()) && r.getUrl().toString().contains(reqUrl)) {
+                sleepUninterruptibly(expectedLockRenewTimeout.plusSeconds(1));
+              }
+            });
+    GoogleCloudStorageFileSystem sleepingGcsFs = newGcsFs(gcsFsOptions, sleepingRequestInitializer);
+
+    Instant operationStart = Instant.now();
+    sleepingGcsFs.delete(dirUri, /* recursive= */ true);
+
+    GoogleCloudStorageFileSystem gcsFs = newGcsFs(gcsFsOptions, httpRequestInitializer);
+
+    assertThat(gcsFs.exists(dirUri)).isFalse();
+    assertThat(gcsFs.exists(fileUri)).isFalse();
+
+    // Validate lock files
+    List<URI> lockFiles =
+        gcsFs.listFileInfo(bucketUri.resolve(LOCK_DIRECTORY)).stream()
+            .map(FileInfo::getPath)
+            .collect(toList());
+
+    assertThat(lockFiles).hasSize(2);
+    String filenamePattern = String.format(OPERATION_FILENAME_PATTERN_FORMAT, DELETE);
+    URI lockFileUri = matchFile(lockFiles, filenamePattern + "\\.lock").get();
+    URI logFileUri = matchFile(lockFiles, filenamePattern + "\\.log").get();
+    String lockContent = gcsfsIHelper.readTextFile(bucketName, lockFileUri.getPath());
+    assertThat(GSON.fromJson(lockContent, DeleteOperation.class).setLockEpochMilli(0))
+        .isEqualTo(new DeleteOperation().setLockEpochMilli(0).setResource(dirUri.toString()));
+    assertThat(gcsfsIHelper.readTextFile(bucketName, logFileUri.getPath()))
+        .isEqualTo(fileUri + "\n" + dirUri + "\n");
+
+    Instant lockInstant =
+        Instant.ofEpochMilli(GSON.fromJson(lockContent, DeleteOperation.class).getLockEpochMilli());
+    assertThat(lockInstant)
+        .isGreaterThan(operationStart.plusSeconds(expectedLockRenewTimeout.getSeconds()));
+    assertThat(lockInstant)
+        .isLessThan(operationStart.plusSeconds(expectedLockRenewTimeout.getSeconds() + 5));
+  }
+
+  private static Optional<URI> matchFile(List<URI> files, String pattern) {
     return files.stream().filter(f -> f.toString().matches("^gs://.*/" + pattern + "$")).findAny();
   }
 
-  private GoogleCloudStorageFileSystemOptions newGcsFsOptions() {
+  private static GoogleCloudStorageFileSystemOptions newGcsFsOptions() {
+    return newGcsFsOptions(CoopLockIntegrationTest.gcsOptions);
+  }
+
+  private static GoogleCloudStorageFileSystemOptions newGcsFsOptions(
+      GoogleCloudStorageOptions gcsOptions) {
     return GoogleCloudStorageFileSystemOptions.builder()
         .setCloudStorageOptions(gcsOptions)
         .setCooperativeLockingEnabled(true)
         .build();
   }
 
-  private GoogleCloudStorageFileSystem newGcsFs(
+  private static GoogleCloudStorageFileSystem newGcsFs(
       GoogleCloudStorageFileSystemOptions gcsfsOptions, HttpRequestInitializer requestInitializer)
       throws IOException {
-    GoogleCloudStorageImpl gcs = new GoogleCloudStorageImpl(gcsOptions, requestInitializer);
+    GoogleCloudStorageImpl gcs =
+        new GoogleCloudStorageImpl(gcsfsOptions.getCloudStorageOptions(), requestInitializer);
     return new GoogleCloudStorageFileSystem(gcs, gcsfsOptions);
+  }
+
+  private static HttpRequestInitializer interceptingRequestInitializer(
+      Consumer<HttpRequest> interceptFn) {
+    return request -> {
+      httpRequestInitializer.initialize(request);
+      HttpExecuteInterceptor executeInterceptor = checkNotNull(request.getInterceptor());
+      request.setInterceptor(
+          interceptedRequest -> {
+            executeInterceptor.intercept(interceptedRequest);
+            interceptFn.accept(interceptedRequest);
+          });
+    };
   }
 }
