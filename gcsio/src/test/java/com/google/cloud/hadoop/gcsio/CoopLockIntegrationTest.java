@@ -129,7 +129,7 @@ public class CoopLockIntegrationTest {
 
     assertThat(trackingRequestInitializer.getAllRequestStrings())
         .containsAtLeast(
-            uploadRequestString(bucketName, LOCK_PATH, /* generationId= */ 6),
+            uploadRequestString(bucketName, LOCK_PATH, /* generationId= */ 5),
             updateMetadataRequestString(bucketName, LOCK_PATH, /* metaGenerationId= */ 1),
             deleteMatchMetaGenerationRequestString(
                 bucketName, LOCK_PATH, /* metaGenerationId= */ 2));

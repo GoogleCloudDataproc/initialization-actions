@@ -71,6 +71,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
+import javax.annotation.Nullable;
 
 /**
  * Provides a POSIX like file system layered on top of Google Cloud Storage (GCS).
@@ -598,9 +599,6 @@ public class GoogleCloudStorageFileSystem {
     Preconditions.checkNotNull(dst);
     checkArgument(!src.equals(GCS_ROOT), "Root path cannot be renamed.");
 
-    // Leaf item of the source path.
-    String srcItemName = getItemName(src);
-
     // Parent of the destination path.
     URI dstParent = getParentPath(dst);
 
@@ -612,10 +610,9 @@ public class GoogleCloudStorageFileSystem {
       // dstParent is null if dst is GCS_ROOT.
       paths.add(dstParent);
     }
-    List<FileInfo> fileInfo = getFileInfos(paths);
-    FileInfo srcInfo = fileInfo.get(0);
-    FileInfo dstInfo = fileInfo.get(1);
-    FileInfo dstParentInfo = dstParent == null ? null : fileInfo.get(2);
+    List<FileInfo> fileInfos = getFileInfos(paths);
+    FileInfo srcInfo = fileInfos.get(0);
+    FileInfo dstInfo = fileInfos.get(1);
 
     // Make sure paths match what getFileInfo() returned (it can add / at the end).
     src = srcInfo.getPath();
@@ -625,6 +622,83 @@ public class GoogleCloudStorageFileSystem {
     if (!srcInfo.exists()) {
       throw new FileNotFoundException("Item not found: " + src);
     }
+
+    Optional<CoopLockOperationRename> coopLockOp =
+        options.isCooperativeLockingEnabled()
+                && src.getAuthority().equals(dst.getAuthority())
+                && srcInfo.isDirectory()
+            ? Optional.of(CoopLockOperationRename.create(gcs, pathCodec, src, dst))
+            : Optional.empty();
+    coopLockOp.ifPresent(CoopLockOperationRename::lock);
+    if (coopLockOp.isPresent()) {
+      fileInfos = getFileInfos(paths);
+      srcInfo = fileInfos.get(0);
+      dstInfo = fileInfos.get(1);
+      if (!srcInfo.exists()) {
+        coopLockOp.ifPresent(CoopLockOperationRename::unlock);
+        throw new FileNotFoundException("Item not found: " + src);
+      }
+      if (!srcInfo.isDirectory()) {
+        coopLockOp.ifPresent(CoopLockOperationRename::unlock);
+        coopLockOp = Optional.empty();
+      }
+    }
+
+    FileInfo dstParentInfo = dstParent == null ? null : fileInfos.get(2);
+    try {
+      dst = getDstUri(srcInfo, dstInfo, dstParentInfo);
+    } catch (IOException e) {
+      coopLockOp.ifPresent(CoopLockOperationRename::unlock);
+      throw e;
+    }
+
+    // if src and dst are equal then do nothing
+    if (src.equals(dst)) {
+      coopLockOp.ifPresent(CoopLockOperationRename::unlock);
+      return;
+    }
+
+    Future<GoogleCloudStorageItemInfo> srcParentInfoFuture = null;
+    if (options.getCloudStorageOptions().isAutoRepairImplicitDirectoriesEnabled()) {
+      StorageResourceId srcParentId = pathCodec.validatePathAndGetId(getParentPath(src), true);
+      srcParentInfoFuture =
+          cachedExecutor.submit(
+              () -> getFileInfoInternal(srcParentId, /* inferImplicitDirectories= */ false));
+    }
+
+    if (srcInfo.isDirectory()) {
+      renameDirectoryInternal(srcInfo, dst, coopLockOp);
+    } else {
+      coopLockOp.ifPresent(CoopLockOperationRename::unlock);
+
+      StorageResourceId srcResourceId = pathCodec.validatePathAndGetId(src, true);
+      StorageResourceId dstResourceId = pathCodec.validatePathAndGetId(dst, true);
+
+      gcs.copy(
+          srcResourceId.getBucketName(), ImmutableList.of(srcResourceId.getObjectName()),
+          dstResourceId.getBucketName(), ImmutableList.of(dstResourceId.getObjectName()));
+
+      tryUpdateTimestampsForParentDirectories(ImmutableList.of(dst), ImmutableList.<URI>of());
+
+      // TODO(b/110833109): populate generation ID in StorageResourceId when getting info
+      gcs.deleteObjects(
+          ImmutableList.of(
+              new StorageResourceId(
+                  srcInfo.getItemInfo().getBucketName(),
+                  srcInfo.getItemInfo().getObjectName(),
+                  srcInfo.getItemInfo().getContentGeneration())));
+
+      // Any path that was deleted, we should update the parent except for parents we also deleted
+      tryUpdateTimestampsForParentDirectories(ImmutableList.of(src), ImmutableList.of());
+    }
+
+    repairImplicitDirectory(srcParentInfoFuture);
+  }
+
+  private URI getDstUri(FileInfo srcInfo, FileInfo dstInfo, @Nullable FileInfo dstParentInfo)
+      throws IOException {
+    URI src = srcInfo.getPath();
+    URI dst = dstInfo.getPath();
 
     // Throw if src is a file and dst == GCS_ROOT
     if (!srcInfo.isDirectory() && dst.equals(GCS_ROOT)) {
@@ -639,9 +713,13 @@ public class GoogleCloudStorageFileSystem {
     }
 
     // Rename operation cannot be completed if parent of destination does not exist.
-    if ((dstParentInfo != null) && !dstParentInfo.exists()) {
-      throw new IOException("Cannot rename because path does not exist: " + dstParent);
+    if (dstParentInfo != null && !dstParentInfo.exists()) {
+      throw new IOException(
+          "Cannot rename because path does not exist: " + dstParentInfo.getPath());
     }
+
+    // Leaf item of the source path.
+    String srcItemName = getItemName(src);
 
     // Having taken care of the initial checks, apply the regular rules.
     // After applying the rules, we will be left with 2 paths such that:
@@ -704,22 +782,7 @@ public class GoogleCloudStorageFileSystem {
       }
     }
 
-    // if src and dst are equal then do nothing
-    if (src.equals(dst)) {
-      return;
-    }
-
-    Future<GoogleCloudStorageItemInfo> srcParentInfoFuture = null;
-    if (options.getCloudStorageOptions().isAutoRepairImplicitDirectoriesEnabled()) {
-      StorageResourceId srcParentId = pathCodec.validatePathAndGetId(getParentPath(src), true);
-      srcParentInfoFuture =
-          cachedExecutor.submit(
-              () -> getFileInfoInternal(srcParentId, /* inferImplicitDirectories= */ false));
-    }
-
-    renameInternal(srcInfo, dst);
-
-    repairImplicitDirectory(srcParentInfoFuture);
+    return dst;
   }
 
   /**
@@ -742,54 +805,18 @@ public class GoogleCloudStorageFileSystem {
   }
 
   /**
-   * Renames the given path without checking any parameters.
+   * Renames given directory without checking any parameters.
    *
-   * <p>GCS does not support atomic renames therefore a rename is implemented as copying source
-   * metadata to destination and then deleting source metadata. Note that only the metadata is
+   * <p>GCS does not support atomic renames therefore a rename is implemented as copying source *
+   * metadata to destination and then deleting source metadata. Note that only the metadata is *
    * copied and not the content of any file.
    */
-  private void renameInternal(FileInfo srcInfo, URI dst) throws IOException {
-    if (srcInfo.isDirectory()) {
-      renameDirectoryInternal(srcInfo, dst);
-    } else {
-      URI src = srcInfo.getPath();
-      StorageResourceId srcResourceId = pathCodec.validatePathAndGetId(src, true);
-      StorageResourceId dstResourceId = pathCodec.validatePathAndGetId(dst, true);
-
-      gcs.copy(
-          srcResourceId.getBucketName(), ImmutableList.of(srcResourceId.getObjectName()),
-          dstResourceId.getBucketName(), ImmutableList.of(dstResourceId.getObjectName()));
-
-      tryUpdateTimestampsForParentDirectories(ImmutableList.of(dst), ImmutableList.<URI>of());
-
-      // TODO(b/110833109): populate generation ID in StorageResourceId when getting info
-      gcs.deleteObjects(
-          ImmutableList.of(
-              new StorageResourceId(
-                  srcInfo.getItemInfo().getBucketName(),
-                  srcInfo.getItemInfo().getObjectName(),
-                  srcInfo.getItemInfo().getContentGeneration())));
-
-      // Any path that was deleted, we should update the parent except for parents we also deleted
-      tryUpdateTimestampsForParentDirectories(ImmutableList.of(src), ImmutableList.<URI>of());
-    }
-  }
-
-  /**
-   * Renames given directory.
-   *
-   * @see #renameInternal
-   */
-  private void renameDirectoryInternal(FileInfo srcInfo, URI dst) throws IOException {
+  private void renameDirectoryInternal(
+      FileInfo srcInfo, URI dst, Optional<CoopLockOperationRename> coopLockOp) throws IOException {
     checkArgument(srcInfo.isDirectory(), "'%s' should be a directory", srcInfo);
+    checkArgument(dst.toString().endsWith(PATH_DELIMITER), "'%s' should be a directory", dst);
 
     URI src = srcInfo.getPath();
-
-    Optional<CoopLockOperationRename> coopLockOp =
-        options.isCooperativeLockingEnabled() && src.getAuthority().equals(dst.getAuthority())
-            ? Optional.of(CoopLockOperationRename.create(gcs, pathCodec, src, dst))
-            : Optional.empty();
-    coopLockOp.ifPresent(CoopLockOperationRename::lock);
 
     // Mapping from each src to its respective dst.
     // Sort src items so that parent directories appear before their children.
@@ -800,9 +827,6 @@ public class GoogleCloudStorageFileSystem {
     // List of individual paths to rename;
     // we will try to carry out the copies in this list's order.
     List<FileInfo> srcItemInfos = listAllFileInfoForPrefix(src);
-
-    // Convert to the destination directory.
-    dst = FileInfo.convertToDirectoryPath(pathCodec, dst);
 
     // Create a list of sub-items to copy.
     Pattern markerFilePattern = options.getMarkerFilePattern();

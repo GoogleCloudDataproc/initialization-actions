@@ -519,7 +519,7 @@
           </excludes>
           <reuseForks>false</reuseForks>
           <forkCount>2</forkCount>
-          <argLine>@{argLine} -mx2650m</argLine>
+          <argLine>@{argLine} -mx3g</argLine>
         </configuration>
       </plugin>
       <plugin>

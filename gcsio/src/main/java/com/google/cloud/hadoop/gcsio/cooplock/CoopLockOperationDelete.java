@@ -17,6 +17,7 @@
 package com.google.cloud.hadoop.gcsio.cooplock;
 
 import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockOperationType.DELETE;
+import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockUtils.normalizeLockedResource;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.cloud.hadoop.gcsio.FileInfo;
@@ -65,7 +66,8 @@ public class CoopLockOperationDelete {
     return new CoopLockOperationDelete(
         (GoogleCloudStorageImpl) gcs,
         pathCodec,
-        pathCodec.validatePathAndGetId(path, /* allowEmptyObjectName= */ true));
+        pathCodec.validatePathAndGetId(
+            normalizeLockedResource(path), /* allowEmptyObjectName= */ true));
   }
 
   public void lock() {
