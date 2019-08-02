@@ -177,9 +177,9 @@ these credentials, which are mutually exclusive.
 *   `fs.gs.auth.service.account.email` (not set by default)
 
     The email address is associated with the service account used for GCS access
-    when fs.gs.auth.service.account.enable is true. Required when authentication
-    key specified in the Configuration file (Method 1) or a PKCS12 certificate
-    (Method 3) is being used.
+    when `fs.gs.auth.service.account.enable` is `true`. Required when
+    authentication key specified in the Configuration file (Method 1) or a
+    PKCS12 certificate (Method 3) is being used.
 
 #### Method 1
 
@@ -217,8 +217,8 @@ exist at the same path on all nodes
     The PKCS12 (p12) certificate file of the service account used for GCS access
     when `fs.gs.auth.service.account.enable` is `true`.
 
-    The following properties are required when fs.gs.auth.service.account.enable
-    is false.
+    The following properties are required when
+    `fs.gs.auth.service.account.enable` is `false`.
 
 *   `fs.gs.auth.client.id` (not set by default)
 
