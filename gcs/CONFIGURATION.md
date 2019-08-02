@@ -164,7 +164,7 @@ provider.
 *   `fs.gs.auth.service.account.enable` (default: `true`)
 
     Whether to use a service account for GCS authorization. If an email and
-    keyfile are provided (see fs.gs.auth.service.account.email and
+    keyfile are provided (see `fs.gs.auth.service.account.email` and
     `fs.gs.auth.service.account.keyfile`), then that service account will be
     used. Otherwise the connector will look to see if it is running on a GCE VM
     with some level of GCS access in it's service account scope, and use that
