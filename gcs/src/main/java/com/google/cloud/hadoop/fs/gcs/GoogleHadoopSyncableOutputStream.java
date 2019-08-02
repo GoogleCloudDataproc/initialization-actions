@@ -229,13 +229,6 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
     throwIfNotOpen();
   }
 
-  /**
-   * @throws CompositeLimitExceededException if this hsync() call would require any future close()
-   *     call to exceed the component limit. If CompositeLimitExceededException is thrown, no actual
-   *     GCS operations are taken and it's safe to subsequently call close() on this stream as
-   *     normal; it just means data written since the last successful hsync() has not yet been
-   *     committed.
-   */
   @Override
   public void hsync() throws IOException {
     logger.atFine().log(

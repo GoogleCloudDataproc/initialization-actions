@@ -137,7 +137,9 @@ public class GoogleCloudStorageFileSystem {
   static final Comparator<FileInfo> FILE_INFO_PATH_COMPARATOR =
       comparing(FileInfo::getPath, PATH_COMPARATOR);
 
-  /** A PathCodec that maintains compatibility with versions of GCS FS < 1.4.5. */
+  /**
+   * A PathCodec that maintains compatibility with versions of GCS FS prior to the 1.4.5 version.
+   */
   public static final PathCodec LEGACY_PATH_CODEC = new LegacyPathCodec();
 
   /**
@@ -567,26 +569,34 @@ public class GoogleCloudStorageFileSystem {
   /**
    * Renames the given item's path.
    *
-   * The operation is disallowed if any of the following is true:
-   * -- src == GCS_ROOT
-   * -- src is a file and dst == GCS_ROOT
-   * -- src does not exist
-   * -- dst is a file that already exists
-   * -- parent of the destination does not exist.
+   * <p>The operation is disallowed if any of the following is true:
    *
-   * Otherwise, the expected behavior is as follows:
-   * -- if src is a directory
-   *    -- dst is an existing file => disallowed
-   *    -- dst is a directory => rename the directory.
+   * <ul>
+   *   <li>src equals GCS_ROOT
+   *   <li>src is a file and dst equals GCS_ROOT
+   *   <li>src does not exist
+   *   <li>dst is a file that already exists
+   *   <li>parent of the destination does not exist
+   * </ul>
    *
-   * -- if src is a file
-   *    -- dst is a file => rename the file.
-   *    -- dst is a directory => similar to the previous case after
-   *                             appending src file-name to dst
+   * <p>Otherwise, the expected behavior is as follows:
    *
-   * Note:
-   * This function is very expensive to call for directories that
-   * have many sub-items.
+   * <ul>
+   *   <li>if src is a directory:
+   *       <ul>
+   *         <li>if dst is an existing file then disallowed
+   *         <li>if dst is a directory then rename the directory
+   *       </ul>
+   *       <p>
+   *   <li>if src is a file:
+   *       <ul>
+   *         <li>if dst is a file then rename the file.
+   *         <li>if dst is a directory then similar to the previous case after appending src
+   *             file-name to dst
+   *       </ul>
+   * </ul>
+   *
+   * <p>Note: This function is very expensive to call for directories that have many sub-items.
    *
    * @param src Path of the item to rename.
    * @param dst New path of the item.
@@ -1410,7 +1420,7 @@ public class GoogleCloudStorageFileSystem {
    * For each listed modified object, attempt to update the modification time of the parent
    * directory.
    *
-   * <p>This method will log & swallow exceptions thrown by the GCSIO layer.
+   * <p>This method will log and swallow exceptions thrown by the GCSIO layer.
    *
    * @param modifiedObjects The objects that have been modified
    * @param excludedParents A list of parent directories that we shouldn't attempt to update.

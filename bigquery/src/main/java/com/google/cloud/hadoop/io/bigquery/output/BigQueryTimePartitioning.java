@@ -24,7 +24,7 @@ import java.io.IOException;
  * <p>This class is used to avoid client code to depend on BigQuery API classes, so that there is no
  * potential conflict between different versions of BigQuery API libraries in the client.
  *
- * @see TimePartitioning.
+ * @see TimePartitioning
  */
 public class BigQueryTimePartitioning {
   private final TimePartitioning timePartitioning;

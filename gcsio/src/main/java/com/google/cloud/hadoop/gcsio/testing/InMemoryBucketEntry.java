@@ -18,7 +18,6 @@ import com.google.cloud.hadoop.gcsio.CreateBucketOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.common.base.MoreObjects;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -38,8 +37,8 @@ public class InMemoryBucketEntry {
   private GoogleCloudStorageItemInfo info;
 
   /**
-   * @param bucketName The name representing the bucketName portion of a GCS path, e.g.
-   *     gs://<bucketName>/<objectName>.
+   * @param bucketName The name representing the bucketName portion of a GCS path, e.g. {@code
+   *     gs://<bucketName>/<objectName>}.
    */
   public InMemoryBucketEntry(
       String bucketName, long createTimeMillis, CreateBucketOptions options) {

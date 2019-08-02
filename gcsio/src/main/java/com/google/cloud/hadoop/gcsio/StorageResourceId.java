@@ -193,9 +193,7 @@ public class StorageResourceId {
     return generationId != UNKNOWN_GENERATION_ID;
   }
 
-  /**
-   * Returns a string of the form gs://<bucketName>/<objectName>.
-   */
+  /** Returns a string of the form {@code gs://<bucketName>/<objectName>}. */
   @Override
   public String toString() {
     return readableString;

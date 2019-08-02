@@ -13,10 +13,11 @@
  */
 package com.google.cloud.hadoop.io.bigquery.output;
 
+import static java.util.stream.Collectors.toList;
+
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.common.base.Preconditions;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Wrapper for BigQuery {@link TableFieldSchema}.
@@ -77,18 +78,16 @@ public class BigQueryTableFieldSchema {
    * @see TableFieldSchema#getFields()
    */
   public List<BigQueryTableFieldSchema> getFields() {
-    return get().getFields().stream()
-        .map(field -> new BigQueryTableFieldSchema(field))
-        .collect(Collectors.toList());
+    return get().getFields().stream().map(BigQueryTableFieldSchema::new).collect(toList());
   }
 
   /**
    * Sets the nested schema fields if the type property is set to RECORD.
    *
-   * @see TableFieldSchema#setFields(java.util.List<TableFieldSchema> fields)
+   * @see TableFieldSchema#setFields(List)
    */
   public BigQueryTableFieldSchema setFields(java.util.List<BigQueryTableFieldSchema> fields) {
-    fieldSchema.setFields(fields.stream().map(field -> field.get()).collect(Collectors.toList()));
+    fieldSchema.setFields(fields.stream().map(BigQueryTableFieldSchema::get).collect(toList()));
     return this;
   }
 

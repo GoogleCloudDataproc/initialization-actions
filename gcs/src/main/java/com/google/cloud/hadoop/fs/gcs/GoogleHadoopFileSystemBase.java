@@ -488,13 +488,13 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   /**
    * Gets Hadoop path corresponding to the given GCS path.
    *
-   * @param gcsPath Fully-qualified GCS path, of the form gs://<bucket>/<object>.
+   * @param gcsPath Fully-qualified GCS path, of the form gs://bucket/object-path.
    */
   public abstract Path getHadoopPath(URI gcsPath);
 
   /**
    * Gets GCS path corresponding to the given Hadoop path, which can be relative or absolute, and
-   * can have either gs://<path> or gs:/<path> forms.
+   * can have either {@code gs://<path>} or {@code gs:/<path>} forms.
    *
    * @param hadoopPath Hadoop path.
    */
