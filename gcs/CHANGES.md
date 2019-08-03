@@ -62,6 +62,8 @@
             com.google.cloud.hadoop.fs.gcs.CoopLockFsck \
             --rollForward gs://my-bucket
 
+1.  Implement Hadoop File System `append` method using GCS compose API.
+
 ### 1.9.14 - 2019-02-13
 
 1.  Implement Hadoop File System `concat` method using GCS compose API.

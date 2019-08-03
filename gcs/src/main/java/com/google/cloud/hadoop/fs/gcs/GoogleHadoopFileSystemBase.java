@@ -29,6 +29,7 @@ import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_WORKING_DIRECTORY;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PATH_CODEC;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PERMISSIONS_TO_REPORT;
+import static com.google.cloud.hadoop.gcsio.CreateFileOptions.DEFAULT_NO_OVERWRITE;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
@@ -825,16 +826,22 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   @Override
   public FSDataOutputStream append(Path hadoopPath, int bufferSize, Progressable progress)
       throws IOException {
-
     long startTime = System.nanoTime();
     Preconditions.checkArgument(hadoopPath != null, "hadoopPath must not be null");
 
     logger.atFine().log("GHFS.append: %s, bufferSize: %d (ignored)", hadoopPath, bufferSize);
 
+    URI filePath = getGcsPath(hadoopPath);
+    FSDataOutputStream appendStream =
+        new FSDataOutputStream(
+            new GoogleHadoopSyncableOutputStream(
+                this, filePath, statistics, DEFAULT_NO_OVERWRITE, /* appendMode= */ true),
+            statistics);
+
     long duration = System.nanoTime() - startTime;
     increment(Counter.APPEND);
     increment(Counter.APPEND_TIME, duration);
-    throw new IOException("The append operation is not supported.");
+    return appendStream;
   }
 
   /**

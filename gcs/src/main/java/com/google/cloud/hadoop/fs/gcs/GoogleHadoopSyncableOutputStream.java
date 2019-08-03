@@ -140,7 +140,24 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
       FileSystem.Statistics statistics,
       CreateFileOptions createFileOptions)
       throws IOException {
-    this(ghfs, gcsPath, statistics, createFileOptions, TEMPFILE_CLEANUP_THREADPOOL);
+    this(
+        ghfs,
+        gcsPath,
+        statistics,
+        createFileOptions,
+        TEMPFILE_CLEANUP_THREADPOOL,
+        /* appendMode= */ false);
+  }
+
+  /** Creates a new GoogleHadoopSyncableOutputStream suitable for appending to existing files. */
+  public GoogleHadoopSyncableOutputStream(
+      GoogleHadoopFileSystemBase ghfs,
+      URI gcsPath,
+      FileSystem.Statistics statistics,
+      CreateFileOptions createFileOptions,
+      boolean appendMode)
+      throws IOException {
+    this(ghfs, gcsPath, statistics, createFileOptions, TEMPFILE_CLEANUP_THREADPOOL, appendMode);
   }
 
   GoogleHadoopSyncableOutputStream(
@@ -148,7 +165,8 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
       URI gcsPath,
       FileSystem.Statistics statistics,
       CreateFileOptions createFileOptions,
-      ExecutorService cleanupThreadpool)
+      ExecutorService cleanupThreadpool,
+      boolean appendMode)
       throws IOException {
     logger.atFine().log("GoogleHadoopSyncableOutputStream(%s)", gcsPath);
     this.ghfs = ghfs;
@@ -158,16 +176,19 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
     this.deletionFutures = new ArrayList<>();
     this.cleanupThreadpool = cleanupThreadpool;
 
-    // The first component of the stream will go straight to the destination filename to optimize
-    // the case where no hsync() or a single hsync() is called during the lifetime of the stream;
-    // committing the first component thus doesn't require any compose() call under the hood.
-    this.curGcsPath = gcsPath;
+    if (appendMode) {
+      // When appending first component has to go to new temporary file.
+      this.curGcsPath = getNextTemporaryPath();
+      this.curComponentIndex = 1;
+    } else {
+      // The first component of the stream will go straight to the destination filename to optimize
+      // the case where no hsync() or a single hsync() is called during the lifetime of the stream;
+      // committing the first component thus doesn't require any compose() call under the hood.
+      this.curGcsPath = gcsPath;
+      this.curComponentIndex = 0;
+    }
+
     this.curDelegate = new GoogleHadoopOutputStream(ghfs, curGcsPath, statistics, fileOptions);
-
-    // TODO(user): Make sure to initialize this to the correct value if a new stream is created to
-    // "append" to an existing file.
-    this.curComponentIndex = 0;
-
     this.curDestGenerationId = StorageResourceId.UNKNOWN_GENERATION_ID;
   }
 

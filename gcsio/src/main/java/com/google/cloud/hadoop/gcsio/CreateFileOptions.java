@@ -26,8 +26,15 @@ import java.util.Map;
 public class CreateFileOptions {
   public static final ImmutableMap<String, byte[]> EMPTY_ATTRIBUTES = ImmutableMap.of();
   public static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
-  public static final CreateFileOptions DEFAULT =
+
+  public static final CreateFileOptions DEFAULT_OVERWRITE =
       new CreateFileOptions(/* overwriteExisting= */ true, DEFAULT_CONTENT_TYPE, EMPTY_ATTRIBUTES);
+
+  public static final CreateFileOptions DEFAULT_NO_OVERWRITE =
+      new CreateFileOptions(/* overwriteExisting= */ true, DEFAULT_CONTENT_TYPE, EMPTY_ATTRIBUTES);
+
+  /** @deprecated use {@link #DEFAULT_NO_OVERWRITE} instead */
+  @Deprecated public static final CreateFileOptions DEFAULT = DEFAULT_OVERWRITE;
 
   private final boolean overwriteExisting;
   private final String contentType;
