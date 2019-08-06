@@ -46,7 +46,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +59,10 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * DAO class for operation lock metadata (persisted in {@code gs://<BUCKET>/_lock/<OPERATION>.lock}
+ * file) and operation logs (persisted in {@code gs://<BUCKET>/_lock/<OPERATION>.log} file)
+ */
 public class CoopLockOperationDao {
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
@@ -77,8 +81,8 @@ public class CoopLockOperationDao {
 
   private static final Duration MAX_LOCK_RENEW_TIMEOUT = LOCK_RENEW_RETRY_BACK_OFF.multipliedBy(10);
 
-  private static DateTimeFormatter LOCK_FILE_DATE_TIME_FORMAT =
-      DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss.SSSXXX").withZone(ZoneId.of("UTC"));
+  private static final DateTimeFormatter LOCK_FILE_DATE_TIME_FORMAT =
+      DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss.SSSXXX").withZone(ZoneOffset.UTC);
 
   private static final Gson GSON = new Gson();
 
@@ -221,7 +225,7 @@ public class CoopLockOperationDao {
               try {
                 sleep(timeout.toMillis());
               } catch (InterruptedException e) {
-                // Proceed further if interrupted
+                currentThread().interrupt();
               }
               // timeoutFuture was cancelled
               if (currentThread().isInterrupted()) {
@@ -266,7 +270,7 @@ public class CoopLockOperationDao {
       String operationId, URI operationLockPath, Function<String, String> renewFn)
       throws IOException {
     StorageResourceId lockId =
-        pathCodec.validatePathAndGetId(operationLockPath, /* allowEmptyObjectNames =*/ false);
+        pathCodec.validatePathAndGetId(operationLockPath, /* allowEmptyObjectName= */ false);
     GoogleCloudStorageItemInfo lockInfo = gcs.getItemInfo(lockId);
     checkState(lockInfo.exists(), "lock file for %s operation should exist", operationId);
 

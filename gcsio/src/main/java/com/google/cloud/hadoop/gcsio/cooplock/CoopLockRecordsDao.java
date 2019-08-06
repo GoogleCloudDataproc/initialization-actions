@@ -24,7 +24,6 @@ import static com.google.common.collect.ImmutableSet.toImmutableSet;
 import static com.google.common.flogger.LazyArgs.lazy;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.google.api.client.util.ExponentialBackOff;
@@ -38,6 +37,7 @@ import com.google.gson.Gson;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -49,6 +49,13 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * DAO class for {@link CoopLockRecords} class (persisted in {@code gs://<BUCKET>/_lock/all.lock}
+ * file).
+ *
+ * <p>Main function of this class is to perform atomic acuisiton and release of a lock for resources
+ * specified in {@link CoopLockRecord} class.
+ */
 public class CoopLockRecordsDao {
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
@@ -98,7 +105,7 @@ public class CoopLockRecordsDao {
       String bucketName, String operationId, String clientId, long lockEpochMilli)
       throws IOException {
     long startMs = System.currentTimeMillis();
-    logger.atFine().log("lockOperation(%s, %d)", operationId, clientId);
+    logger.atFine().log("lockOperation(%s, %s)", operationId, clientId);
     modifyLock(
         records -> reacquireOperationLock(records, operationId, clientId, lockEpochMilli),
         bucketName,
@@ -139,7 +146,7 @@ public class CoopLockRecordsDao {
         System.currentTimeMillis() - startMs, operationId, lazy(() -> Arrays.toString(resources)));
   }
 
-  private Set<String> validateResources(StorageResourceId[] resources) {
+  private static Set<String> validateResources(StorageResourceId[] resources) {
     checkNotNull(resources, "resources should not be null");
     checkArgument(resources.length > 0, "resources should not be empty");
     String bucketName = resources[0].getBucketName();
@@ -181,7 +188,7 @@ public class CoopLockRecordsDao {
           logger.atInfo().atMostEvery(5, SECONDS).log(
               "Failed to update %s entries in %s file: resources could be locked, retrying.",
               lockRecords.getLocks().size(), lockId);
-          sleepUninterruptibly(RETRY_LOCK_INTERVAL_MILLIS, MILLISECONDS);
+          sleepUninterruptibly(Duration.ofMillis(RETRY_LOCK_INTERVAL_MILLIS));
           continue;
         }
 
@@ -194,8 +201,8 @@ public class CoopLockRecordsDao {
         if (lockRecords.getLocks().size() > options.getMaxConcurrentOperations()) {
           logger.atInfo().atMostEvery(5, SECONDS).log(
               "Skipping lock entries update in %s file: too many (%d) locked resources, retrying.",
-              lockRecords.getLocks().size(), lockId);
-          sleepUninterruptibly(RETRY_LOCK_INTERVAL_MILLIS, MILLISECONDS);
+              lockId, lockRecords.getLocks().size());
+          sleepUninterruptibly(Duration.ofMillis(RETRY_LOCK_INTERVAL_MILLIS));
           continue;
         }
 
@@ -224,27 +231,27 @@ public class CoopLockRecordsDao {
           logger.atWarning().withCause(e).log(
               "Failed to modify lock for %s operation, retrying.", operationId);
         }
-        sleepUninterruptibly(backOff.nextBackOffMillis(), MILLISECONDS);
+        sleepUninterruptibly(Duration.ofMillis(backOff.nextBackOffMillis()));
       }
     } while (true);
   }
 
-  private StorageResourceId getLockId(String bucketName) {
+  private static StorageResourceId getLockId(String bucketName) {
     return new StorageResourceId(bucketName, LOCK_PATH);
   }
 
-  private CoopLockRecords getLockRecords(GoogleCloudStorageItemInfo lockInfo) {
+  private static CoopLockRecords getLockRecords(GoogleCloudStorageItemInfo lockInfo) {
     String lockContent = new String(lockInfo.getMetadata().get(LOCK_METADATA_KEY), UTF_8);
     CoopLockRecords lockRecords = GSON.fromJson(lockContent, CoopLockRecords.class);
     checkState(
         lockRecords.getFormatVersion() == CoopLockRecords.FORMAT_VERSION,
-        "Unsupported metadata format: expected %d, but was %d",
+        "Unsupported metadata format: expected %s, but was %s",
         lockRecords.getFormatVersion(),
         CoopLockRecords.FORMAT_VERSION);
     return lockRecords;
   }
 
-  private boolean reacquireOperationLock(
+  private static boolean reacquireOperationLock(
       CoopLockRecords lockRecords, String operationId, String clientId, long lockEpochMilli) {
     Optional<CoopLockRecord> operationOptional =
         lockRecords.getLocks().stream()
@@ -267,7 +274,7 @@ public class CoopLockRecordsDao {
     return true;
   }
 
-  private boolean addLockRecords(
+  private static boolean addLockRecords(
       CoopLockRecords lockRecords,
       String operationId,
       Instant operationInstant,
@@ -305,11 +312,11 @@ public class CoopLockRecordsDao {
     return true;
   }
 
-  private boolean isChildObject(String parent, String child) {
+  private static boolean isChildObject(String parent, String child) {
     return parent.startsWith(child.endsWith(PATH_DELIMITER) ? child : child + PATH_DELIMITER);
   }
 
-  private boolean removeLockRecords(
+  private static boolean removeLockRecords(
       CoopLockRecords lockRecords, String operationId, Set<String> resourcesToRemove) {
     List<CoopLockRecord> recordsToRemove =
         lockRecords.getLocks().stream()

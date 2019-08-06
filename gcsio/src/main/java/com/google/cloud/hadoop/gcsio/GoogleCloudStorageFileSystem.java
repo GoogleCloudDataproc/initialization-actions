@@ -76,9 +76,9 @@ import javax.annotation.Nullable;
 /**
  * Provides a POSIX like file system layered on top of Google Cloud Storage (GCS).
  *
- * All file system aspects (eg, path) are encapsulated in this class, they are
- * not exposed to the underlying layer. That is, all interactions with the
- * underlying layer are strictly in terms of buckets and objects.
+ * <p>All file system aspects (eg, path) are encapsulated in this class, they are not exposed to the
+ * underlying layer. That is, all interactions with the underlying layer are strictly in terms of
+ * buckets and objects.
  */
 public class GoogleCloudStorageFileSystem {
 
@@ -142,23 +142,19 @@ public class GoogleCloudStorageFileSystem {
    */
   public static final PathCodec LEGACY_PATH_CODEC = new LegacyPathCodec();
 
-  /**
-   * A PathCodec that expects URIs to be of the form:
-   * gs://authority/properly/encoded/path.
-   */
+  /** A PathCodec that expects URIs to be of the form: gs://authority/properly/encoded/path. */
   public static final PathCodec URI_ENCODED_PATH_CODEC = new UriEncodingPathCodec();
 
   /**
    * Constructs an instance of GoogleCloudStorageFileSystem.
    *
    * @param credential OAuth2 credential that allows access to GCS.
-   * @param options Options for how this filesystem should operate and configure its
-   *    underlying storage.
+   * @param options Options for how this filesystem should operate and configure its underlying
+   *     storage.
    * @throws IOException
    */
   public GoogleCloudStorageFileSystem(
-      Credential credential,
-      GoogleCloudStorageFileSystemOptions options) throws IOException {
+      Credential credential, GoogleCloudStorageFileSystemOptions options) throws IOException {
     logger.atFine().log("GCSFS(%s)", options.getCloudStorageOptions().getAppName());
     options.throwIfNotValid();
 
@@ -209,7 +205,8 @@ public class GoogleCloudStorageFileSystem {
         new ThreadPoolExecutor(
             /* corePoolSize= */ 2,
             /* maximumPoolSize= */ 2,
-            /* keepAliveTime= */ 5, TimeUnit.SECONDS,
+            /* keepAliveTime= */ 5,
+            TimeUnit.SECONDS,
             new LinkedBlockingQueue<>(1000),
             new ThreadFactoryBuilder()
                 .setNameFormat("gcsfs-timestamp-updates-%d")
@@ -225,7 +222,8 @@ public class GoogleCloudStorageFileSystem {
         new ThreadPoolExecutor(
             /* corePoolSize= */ 2,
             /* maximumPoolSize= */ Integer.MAX_VALUE,
-            /* keepAliveTime= */ 30, TimeUnit.SECONDS,
+            /* keepAliveTime= */ 30,
+            TimeUnit.SECONDS,
             new SynchronousQueue<>(),
             new ThreadFactoryBuilder().setNameFormat("gcsfs-misc-%d").setDaemon(true).build());
     service.allowCoreThreadTimeOut(true);
@@ -233,10 +231,7 @@ public class GoogleCloudStorageFileSystem {
     return service;
   }
 
-  /**
-   * Retrieve the options that were used to create this
-   * GoogleCloudStorageFileSystem.
-   */
+  /** Retrieve the options that were used to create this GoogleCloudStorageFileSystem. */
   public GoogleCloudStorageFileSystemOptions getOptions() {
     return options;
   }
@@ -248,8 +243,7 @@ public class GoogleCloudStorageFileSystem {
   }
 
   /**
-   * Creates and opens an object for writing.
-   * If the object already exists, it is deleted.
+   * Creates and opens an object for writing. If the object already exists, it is deleted.
    *
    * @param path Object full path of the form gs://bucket/object-path.
    * @return A channel for writing to the given object.
@@ -295,23 +289,22 @@ public class GoogleCloudStorageFileSystem {
   }
 
   /**
-   * Creates and opens an object for writing.
-   * If the object already exists, it is deleted.
+   * Creates and opens an object for writing. If the object already exists, it is deleted.
    *
    * @param path Object full path of the form gs://bucket/object-path.
    * @return A channel for writing to the given object.
    * @throws IOException
    */
-  WritableByteChannel createInternal(URI path, CreateFileOptions options)
-      throws IOException {
+  WritableByteChannel createInternal(URI path, CreateFileOptions options) throws IOException {
 
     // Validate the given path. false == do not allow empty object name.
     StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, false);
     if (options.getExistingGenerationId() != StorageResourceId.UNKNOWN_GENERATION_ID) {
-      resourceId = new StorageResourceId(
-          resourceId.getBucketName(),
-          resourceId.getObjectName(),
-          options.getExistingGenerationId());
+      resourceId =
+          new StorageResourceId(
+              resourceId.getBucketName(),
+              resourceId.getObjectName(),
+              options.getExistingGenerationId());
     }
     WritableByteChannel channel = gcs.create(resourceId, objectOptionsFromFileOptions(options));
     tryUpdateTimestampsForParentDirectories(ImmutableList.of(path), ImmutableList.<URI>of());
@@ -326,8 +319,7 @@ public class GoogleCloudStorageFileSystem {
    * @throws FileNotFoundException if the given path does not exist.
    * @throws IOException if object exists but cannot be opened.
    */
-  public SeekableByteChannel open(URI path)
-      throws IOException {
+  public SeekableByteChannel open(URI path) throws IOException {
     return open(path, GoogleCloudStorageReadOptions.DEFAULT);
   }
 
@@ -482,8 +474,7 @@ public class GoogleCloudStorageFileSystem {
    * @return true if the given item exists, false otherwise.
    * @throws IOException
    */
-  public boolean exists(URI path)
-      throws IOException {
+  public boolean exists(URI path) throws IOException {
     logger.atFine().log("exists(%s)", path);
     return getFileInfo(path).exists();
   }
@@ -716,9 +707,7 @@ public class GoogleCloudStorageFileSystem {
     }
 
     // Throw if the destination is a file that already exists and it's not a source file.
-    if (dstInfo.exists()
-        && !dstInfo.isDirectory()
-        && (srcInfo.isDirectory() || !dst.equals(src))) {
+    if (dstInfo.exists() && !dstInfo.isDirectory() && (srcInfo.isDirectory() || !dst.equals(src))) {
       throw new IOException("Cannot overwrite existing file: " + dst);
     }
 
@@ -817,8 +806,8 @@ public class GoogleCloudStorageFileSystem {
   /**
    * Renames given directory without checking any parameters.
    *
-   * <p>GCS does not support atomic renames therefore a rename is implemented as copying source *
-   * metadata to destination and then deleting source metadata. Note that only the metadata is *
+   * <p>GCS does not support atomic renames therefore a rename is implemented as copying source
+   * metadata to destination and then deleting source metadata. Note that only the metadata is
    * copied and not the content of any file.
    */
   private void renameDirectoryInternal(
@@ -934,30 +923,28 @@ public class GoogleCloudStorageFileSystem {
   }
 
   /**
-   * If the given item is a directory then the paths of its immediate
-   * children are returned, otherwise the path of the given item is returned.
+   * If the given item is a directory then the paths of its immediate children are returned,
+   * otherwise the path of the given item is returned.
    *
    * @param fileInfo FileInfo of an item.
    * @return Paths of children (if directory) or self path.
    * @throws IOException
    */
-  public List<URI> listFileNames(FileInfo fileInfo)
-      throws IOException {
+  public List<URI> listFileNames(FileInfo fileInfo) throws IOException {
     return listFileNames(fileInfo, false);
   }
 
   /**
-   * If the given item is a directory then the paths of its
-   * children are returned, otherwise the path of the given item is returned.
+   * If the given item is a directory then the paths of its children are returned, otherwise the
+   * path of the given item is returned.
    *
    * @param fileInfo FileInfo of an item.
-   * @param recursive If true, path of all children are returned;
-   *                  else, only immediate children are returned.
+   * @param recursive If true, path of all children are returned; else, only immediate children are
+   *     returned.
    * @return Paths of children (if directory) or self path.
    * @throws IOException
    */
-  public List<URI> listFileNames(FileInfo fileInfo, boolean recursive)
-      throws IOException {
+  public List<URI> listFileNames(FileInfo fileInfo, boolean recursive) throws IOException {
 
     Preconditions.checkNotNull(fileInfo);
     URI path = fileInfo.getPath();
@@ -1337,22 +1324,19 @@ public class GoogleCloudStorageFileSystem {
   /**
    * Creates a directory at the specified path.
    *
-   * There are two conventions for using objects as directories in GCS.
-   * 1. An object of zero size with name ending in /
-   * 2. An object of zero size with name ending in _$folder$
+   * <p>There are two conventions for using objects as directories in GCS. 1. An object of zero size
+   * with name ending in / 2. An object of zero size with name ending in _$folder$
    *
-   * #1 is the recommended convention by the GCS team. We use it when
-   * creating a directory.
+   * <p>#1 is the recommended convention by the GCS team. We use it when creating a directory.
    *
-   * However, some old tools still use #2. We will decide based on customer
-   * use cases whether to support #2 as well. For now, we only support #1.
+   * <p>However, some old tools still use #2. We will decide based on customer use cases whether to
+   * support #2 as well. For now, we only support #1.
    *
-   * Note that a bucket is always considered a directory.
-   * Doesn't create parent directories; normal use cases should only call mkdirs().
+   * <p>Note that a bucket is always considered a directory. Doesn't create parent directories;
+   * normal use cases should only call mkdirs().
    */
   @VisibleForTesting
-  public void mkdir(URI path)
-      throws IOException {
+  public void mkdir(URI path) throws IOException {
 
     logger.atFine().log("mkdir(%s)", path);
     Preconditions.checkNotNull(path);
@@ -1376,8 +1360,9 @@ public class GoogleCloudStorageFileSystem {
   }
 
   /**
-   * For each listed modified object, attempt to update the modification time
-   * of the parent directory.
+   * For each listed modified object, attempt to update the modification time of the parent
+   * directory.
+   *
    * @param modifiedObjects The objects that have been modified
    * @param excludedParents A list of parent directories that we shouldn't attempt to update.
    */
@@ -1480,12 +1465,11 @@ public class GoogleCloudStorageFileSystem {
   }
 
   /**
-   * Validate the given bucket name to make sure that it can be used
-   * as a part of a file system path.
+   * Validate the given bucket name to make sure that it can be used as a part of a file system
+   * path.
    *
-   * Note: this is not designed to duplicate the exact checks that GCS
-   * would perform on the server side. We make some checks
-   * that are relevant to using GCS as a file system.
+   * <p>Note: this is not designed to duplicate the exact checks that GCS would perform on the
+   * server side. We make some checks that are relevant to using GCS as a file system.
    *
    * @param bucketName Bucket name to check.
    */
@@ -1495,8 +1479,7 @@ public class GoogleCloudStorageFileSystem {
     bucketName = FileInfo.convertToFilePath(bucketName);
 
     if (Strings.isNullOrEmpty(bucketName)) {
-      throw new IllegalArgumentException(
-          "Google Cloud Storage bucket name cannot be empty.");
+      throw new IllegalArgumentException("Google Cloud Storage bucket name cannot be empty.");
     }
 
     if (!BUCKET_NAME_CHAR_MATCHER.matchesAllOf(bucketName)) {
@@ -1510,12 +1493,11 @@ public class GoogleCloudStorageFileSystem {
   }
 
   /**
-   * Validate the given object name to make sure that it can be used
-   * as a part of a file system path.
+   * Validate the given object name to make sure that it can be used as a part of a file system
+   * path.
    *
-   * Note: this is not designed to duplicate the exact checks that GCS
-   * would perform on the server side. We make some checks
-   * that are relevant to using GCS as a file system.
+   * <p>Note: this is not designed to duplicate the exact checks that GCS would perform on the
+   * server side. We make some checks that are relevant to using GCS as a file system.
    *
    * @param objectName Object name to check.
    * @param allowEmptyObjectName If true, a missing object name is not considered invalid.
@@ -1552,9 +1534,7 @@ public class GoogleCloudStorageFileSystem {
     return objectName;
   }
 
-  /**
-   * Gets the leaf item of the given path.
-   */
+  /** Gets the leaf item of the given path. */
   String getItemName(URI path) {
     Preconditions.checkNotNull(path);
 
@@ -1579,16 +1559,12 @@ public class GoogleCloudStorageFileSystem {
     return index < 0 ? objectName : objectName.substring(index + 1);
   }
 
-  /**
-   * Retrieve our internal gcs.
-   */
+  /** Retrieve our internal gcs. */
   public GoogleCloudStorage getGcs() {
     return gcs;
   }
 
-  /**
-   * The PathCodec in use by this file system.
-   */
+  /** The PathCodec in use by this file system. */
   public PathCodec getPathCodec() {
     return pathCodec;
   }

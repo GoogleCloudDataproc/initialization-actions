@@ -27,6 +27,7 @@ import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.listR
 import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.postRequestString;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.truth.Truth.assertThat;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toList;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -352,7 +353,8 @@ public class GoogleCloudStorageNewIntegrationTest {
     String testDir = createObjectsInTestDir(testBucket, "f1");
 
     StorageResourceId resourceId = new StorageResourceId(testBucket, testDir + "f1");
-    Map<String, byte[]> updatedMetadata = ImmutableMap.of("test-metadata", "test-value".getBytes());
+    Map<String, byte[]> updatedMetadata =
+        ImmutableMap.of("test-metadata", "test-value".getBytes(UTF_8));
 
     List<GoogleCloudStorageItemInfo> updatedObjects =
         gcs.updateItems(ImmutableList.of(new UpdatableItemInfo(resourceId, updatedMetadata)));
@@ -376,7 +378,8 @@ public class GoogleCloudStorageNewIntegrationTest {
     String testBucket = gcsfsIHelper.sharedBucketName1;
     String testDir = createObjectsInTestDir(testBucket, "f1", "f2", "f3");
 
-    Map<String, byte[]> updatedMetadata = ImmutableMap.of("test-metadata", "test-value".getBytes());
+    Map<String, byte[]> updatedMetadata =
+        ImmutableMap.of("test-metadata", "test-value".getBytes(UTF_8));
 
     List<GoogleCloudStorageItemInfo> updatedObjects =
         gcs.updateItems(

@@ -19,6 +19,7 @@ package com.google.cloud.hadoop.gcsio.cooplock;
 import com.google.common.base.MoreObjects;
 import java.util.Objects;
 
+/** A data class that represents delete operation lock metadata. */
 public class DeleteOperation {
   private long lockEpochMilli;
   private String resource = null;
@@ -47,8 +48,7 @@ public class DeleteOperation {
   }
 
   private boolean equalsInternal(DeleteOperation other) {
-    return Objects.equals(lockEpochMilli, other.lockEpochMilli)
-        && Objects.equals(resource, other.resource);
+    return lockEpochMilli == other.lockEpochMilli && Objects.equals(resource, other.resource);
   }
 
   @Override

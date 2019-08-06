@@ -18,7 +18,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.auto.value.AutoValue;
 import java.time.Duration;
 
-/** Options for the GCS Requester Pays feature. */
+/** Options for the Cooperative Locking feature. */
 @AutoValue
 public abstract class CooperativeLockingOptions {
 

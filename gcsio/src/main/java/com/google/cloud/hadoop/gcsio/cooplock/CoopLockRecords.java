@@ -23,6 +23,10 @@ import java.util.Comparator;
 import java.util.Set;
 import java.util.TreeSet;
 
+/**
+ * A data class that represents lock records for all cooperative locking operations. This records
+ * file is used to aqcuire and release locks atomcially.
+ */
 public class CoopLockRecords {
   /**
    * Supported version of operation locks persistent objects format.

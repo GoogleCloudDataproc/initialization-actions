@@ -125,7 +125,7 @@ public final class LazyExecutorService implements ExecutorService {
     shutdown();
     // Cancel all unfinished tasks.
     // Get a snapshot because future.cancel modifies pendingTasks.
-    Future<?>[] runningTasks = pendingTasks.toArray(new Future[0]);
+    Future<?>[] runningTasks = pendingTasks.toArray(new Future<?>[0]);
     for (Future<?> future : runningTasks) {
       // Cancel may not succeed, but it's best effort.
       future.cancel(true);

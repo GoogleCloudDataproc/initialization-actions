@@ -20,6 +20,7 @@ import static com.google.cloud.hadoop.gcsio.GoogleCloudStorage.PATH_DELIMITER;
 
 import java.net.URI;
 
+/** Utility methods for cooperative locking. */
 public final class CoopLockUtils {
 
   private CoopLockUtils() {}

@@ -48,6 +48,7 @@ import com.google.cloud.hadoop.gcsio.cooplock.RenameOperation;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.RetryHttpInitializer;
+import com.google.common.base.Ascii;
 import com.google.gson.Gson;
 import java.io.IOException;
 import java.net.URI;
@@ -258,9 +259,9 @@ public class CoopLockRepairIntegrationTest {
     failedDirectoryRename_successfullyRepaired("--rollBack", /* failCopy= */ false);
   }
 
-  private void failedDirectoryRename_successfullyRepaired(String command, boolean failCopy)
+  private static void failedDirectoryRename_successfullyRepaired(String command, boolean failCopy)
       throws Exception {
-    String commandSuffix = command.toLowerCase().replace("--roll", "");
+    String commandSuffix = Ascii.toLowerCase(command).replace("--roll", "");
     String bucketName =
         gcsfsIHelper.createUniqueBucket(
             String.format("coop-rename-%s-failed-%s", commandSuffix, failCopy ? "copy" : "delete"));
@@ -328,7 +329,7 @@ public class CoopLockRepairIntegrationTest {
         .isEqualTo(srcDirUri.resolve(fileName) + " -> " + dstDirUri.resolve(fileName) + "\n");
   }
 
-  private void failRenameOperation(
+  private static void failRenameOperation(
       URI srcDirUri,
       URI dstDirUri,
       GoogleCloudStorageFileSystemOptions options,
@@ -352,10 +353,10 @@ public class CoopLockRepairIntegrationTest {
     failedDirectoryDelete_successfullyRepaired("--rollBack");
   }
 
-  private void failedDirectoryDelete_successfullyRepaired(String command) throws Exception {
+  private static void failedDirectoryDelete_successfullyRepaired(String command) throws Exception {
     String bucketName =
         gcsfsIHelper.createUniqueBucket(
-            "coop-delete-" + command.toLowerCase().replace("--roll", "") + "-failed");
+            "coop-delete-" + Ascii.toLowerCase(command).replace("--roll", "") + "-failed");
     URI bucketUri = new URI("gs://" + bucketName + "/");
     String fileName = "file";
     URI dirUri = bucketUri.resolve("delete_" + UUID.randomUUID() + "/");
@@ -433,6 +434,7 @@ public class CoopLockRepairIntegrationTest {
 
   private static Configuration getTestConfiguration() {
     Configuration conf = new Configuration();
+    conf.set("fs.gs.impl", GoogleHadoopFileSystem.class.getName());
     conf.setBoolean(AUTHENTICATION_PREFIX + ENABLE_SERVICE_ACCOUNTS_SUFFIX, true);
     conf.setLong(
         GCS_COOPERATIVE_LOCKING_EXPIRATION_TIMEOUT_MS.getKey(), COOP_LOCK_TIMEOUT.toMillis());

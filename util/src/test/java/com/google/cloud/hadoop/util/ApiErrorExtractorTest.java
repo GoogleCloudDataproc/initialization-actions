@@ -438,8 +438,8 @@ public class ApiErrorExtractorTest {
 
   @Test
   public void testToUserPresentableMessage() {
-    assertThat(
-        errorExtractor.toUserPresentableMessage(new IOException(accessDenied)).equals("Forbidden"));
+    assertThat(errorExtractor.toUserPresentableMessage(new IOException(accessDenied)))
+        .isEqualTo("Forbidden");
   }
 
   @Test

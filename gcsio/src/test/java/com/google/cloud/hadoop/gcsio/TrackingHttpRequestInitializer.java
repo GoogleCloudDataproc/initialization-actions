@@ -157,7 +157,7 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
         : request;
   }
 
-  private String replaceResumableUploadIdWithId(String request, long uploadId) {
+  private static String replaceResumableUploadIdWithId(String request, long uploadId) {
     return request.replaceAll(UPLOAD_ID_PARAM_PATTERN, "upload_id=upload_" + uploadId);
   }
 

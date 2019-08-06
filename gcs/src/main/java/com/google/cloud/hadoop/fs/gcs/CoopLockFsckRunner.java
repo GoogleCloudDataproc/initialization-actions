@@ -20,7 +20,7 @@ import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_COOPERATIVE_LOCKING_EXPIRATION_TIMEOUT_MS;
 import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockOperationDao.RENAME_LOG_RECORD_SEPARATOR;
 import static com.google.common.base.Preconditions.checkState;
-import static java.time.temporal.ChronoUnit.MILLIS;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
@@ -34,8 +34,8 @@ import com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecord;
 import com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecordsDao;
 import com.google.cloud.hadoop.gcsio.cooplock.DeleteOperation;
 import com.google.cloud.hadoop.gcsio.cooplock.RenameOperation;
-import com.google.common.base.Charsets;
 import com.google.common.base.Splitter;
+import com.google.common.collect.Iterables;
 import com.google.common.flogger.GoogleLogger;
 import com.google.common.io.ByteSource;
 import com.google.gson.Gson;
@@ -62,6 +62,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+/** Cooperative locking FSCK tool runner that contains logic for all FSCK commands */
 class CoopLockFsckRunner {
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
@@ -129,9 +130,6 @@ class CoopLockFsckRunner {
               case RENAME:
                 repairRenameOperation(operationStatus, operation, operationId);
                 break;
-              default:
-                throw new IllegalStateException(
-                    "Unsupported operation type: " + operationStatus.getPath());
             }
           } catch (Exception e) {
             throw new RuntimeException("Failed to recover operation: " + operation, e);
@@ -393,7 +391,7 @@ class CoopLockFsckRunner {
 
   private boolean isLockExpired(Instant lockInstant) {
     return lockInstant
-        .plus(GCS_COOPERATIVE_LOCKING_EXPIRATION_TIMEOUT_MS.get(conf, conf::getLong), MILLIS)
+        .plusMillis(GCS_COOPERATIVE_LOCKING_EXPIRATION_TIMEOUT_MS.get(conf, conf::getLong))
         .isBefore(operationExpirationInstant);
   }
 
@@ -406,9 +404,8 @@ class CoopLockFsckRunner {
       case RENAME:
         return Instant.ofEpochMilli(
             getOperationObject(operationStatus, RenameOperation.class).getLockEpochMilli());
-      default:
-        throw new IllegalStateException("Unknown operation type: " + operationStatus.getPath());
     }
+    throw new IllegalStateException("Unknown operation type: " + operationStatus.getPath());
   }
 
   private <T> T getOperationObject(FileStatus operation, Class<T> clazz) throws IOException {
@@ -419,7 +416,7 @@ class CoopLockFsckRunner {
             return ghfs.open(operation.getPath());
           }
         };
-    String operationContent = operationByteSource.asCharSource(Charsets.UTF_8).read();
+    String operationContent = operationByteSource.asCharSource(UTF_8).read();
     return GSON.fromJson(operationContent, clazz);
   }
 
@@ -427,7 +424,8 @@ class CoopLockFsckRunner {
       throws IOException {
     List<T> log = new ArrayList<>();
     Path operationLog = new Path(operation.getPath().toString().replace(".lock", ".log"));
-    try (BufferedReader in = new BufferedReader(new InputStreamReader(ghfs.open(operationLog)))) {
+    try (BufferedReader in =
+        new BufferedReader(new InputStreamReader(ghfs.open(operationLog), UTF_8))) {
       String line;
       while ((line = in.readLine()) != null) {
         log.add(logRecordFn.apply(line));
@@ -437,7 +435,7 @@ class CoopLockFsckRunner {
   }
 
   private static String getOperationId(FileStatus operation) {
-    String[] fileParts = operation.getPath().toString().split("_");
-    return fileParts[fileParts.length - 1].split("\\.")[0];
+    List<String> fileParts = Splitter.on('_').splitToList(operation.getPath().toString());
+    return Iterables.get(Splitter.on('.').split(Iterables.getLast(fileParts)), 0);
   }
 }

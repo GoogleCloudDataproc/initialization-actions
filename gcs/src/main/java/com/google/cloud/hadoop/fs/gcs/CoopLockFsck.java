@@ -22,7 +22,6 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.common.collect.ImmutableSet;
 import java.net.URI;
 import java.util.Arrays;
-import java.util.Set;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.util.Tool;
@@ -43,7 +42,7 @@ public class CoopLockFsck extends Configured implements Tool {
   static final String COMMAND_ROLL_FORWARD = "--rollForward";
   static final String COMMAND_ROLL_BACK = "--rollBack";
 
-  private static final Set<String> FSCK_COMMANDS =
+  private static final ImmutableSet<String> FSCK_COMMANDS =
       ImmutableSet.of(COMMAND_CHECK, COMMAND_ROLL_FORWARD, COMMAND_ROLL_BACK);
 
   public static void main(String[] args) throws Exception {
@@ -88,4 +87,3 @@ public class CoopLockFsck extends Configured implements Tool {
     return new CoopLockFsckRunner(getConf(), URI.create(bucket), command).run();
   }
 }
-

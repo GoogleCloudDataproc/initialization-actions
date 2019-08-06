@@ -16,7 +16,7 @@
 
 package com.google.cloud.hadoop.gcsio.cooplock;
 
-/** Enum that represent cooperative locking operation type */
+/** Enum that represent cooperative locking operations type */
 public enum CoopLockOperationType {
   RENAME,
   DELETE

@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Future;
 
+/** This class incapsulates logic for managing cooperative locking for delete directory operation */
 public class CoopLockOperationDelete {
 
   private final String operationId = UUID.randomUUID().toString();

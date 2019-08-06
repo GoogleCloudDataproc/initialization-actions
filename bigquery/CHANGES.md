@@ -22,7 +22,7 @@
 
 1.  Add a new `DirectBigQueryInputFormat` for processing data through
     [BigQuery Storage API](https://cloud.google.com/bigquery/docs/reference/storage/).
-   
+
     This input format is configurable via properties:
 
         mapred.bq.input.sql.filter

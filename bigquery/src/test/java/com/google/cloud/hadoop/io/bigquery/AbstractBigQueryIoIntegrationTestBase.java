@@ -89,7 +89,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
   private static final Text EMPTY_KEY = new Text("");
 
   // Populated by command-line projectId and falls back to env.
-  private String projectIdvalue;
+  private String projectIdValue;
 
   private TestBucketHelper bucketHelper;
 
@@ -159,7 +159,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
   }
 
   private void setConfigForGcsFromBigquerySettings() {
-    Configuration conf = getConfigForGcsFromBigquerySettings(projectIdvalue, testBucket);
+    Configuration conf = getConfigForGcsFromBigquerySettings(projectIdValue, testBucket);
     for (Entry<String, String> entry : conf) {
       config.set(entry.getKey(), entry.getValue());
     }
@@ -178,13 +178,13 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     // A unique per-setUp String to avoid collisions between test runs.
     String testId = bucketHelper.getUniqueBucketPrefix();
 
-    projectIdvalue = TestConfiguration.getInstance().getProjectId();
-    if (Strings.isNullOrEmpty(projectIdvalue)) {
-      projectIdvalue = System.getenv(BIGQUERY_PROJECT_ID_ENVVARNAME);
+    projectIdValue = TestConfiguration.getInstance().getProjectId();
+    if (Strings.isNullOrEmpty(projectIdValue)) {
+      projectIdValue = System.getenv(BIGQUERY_PROJECT_ID_ENVVARNAME);
     }
 
     checkArgument(
-        !Strings.isNullOrEmpty(projectIdvalue), "Must provide %s", BIGQUERY_PROJECT_ID_ENVVARNAME);
+        !Strings.isNullOrEmpty(projectIdValue), "Must provide %s", BIGQUERY_PROJECT_ID_ENVVARNAME);
     testDataset = testId + "_dataset";
     testBucket = testId + "_bucket";
 
@@ -193,18 +193,18 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     // BigQueryOutputCommitter.
     Dataset outputDataset = new Dataset();
     DatasetReference datasetReference = new DatasetReference();
-    datasetReference.setProjectId(projectIdvalue);
+    datasetReference.setProjectId(projectIdValue);
     datasetReference.setDatasetId(testDataset);
 
-    config = getConfigForGcsFromBigquerySettings(projectIdvalue, testBucket);
+    config = getConfigForGcsFromBigquerySettings(projectIdValue, testBucket);
     BigQueryFactory factory = new BigQueryFactory();
     bigqueryInstance = factory.getBigQuery(config);
 
     Bigquery.Datasets datasets = bigqueryInstance.datasets();
     outputDataset.setDatasetReference(datasetReference);
     logger.atInfo().log(
-        "Creating temporary dataset '%s' for project '%s'", testDataset, projectIdvalue);
-    datasets.insert(projectIdvalue, outputDataset).execute();
+        "Creating temporary dataset '%s' for project '%s'", testDataset, projectIdValue);
+    datasets.insert(projectIdValue, outputDataset).execute();
 
     Path toCreate = new Path(String.format("gs://%s", testBucket));
     FileSystem fs = toCreate.getFileSystem(config);
@@ -243,8 +243,8 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     // TODO(user): Move this into library shared by BigQueryOutputCommitter.
     Bigquery.Datasets datasets = bigqueryInstance.datasets();
     logger.atInfo().log(
-        "Deleting temporary test dataset '%s' for project '%s'", testDataset, projectIdvalue);
-    datasets.delete(projectIdvalue, testDataset).setDeleteContents(true).execute();
+        "Deleting temporary test dataset '%s' for project '%s'", testDataset, projectIdValue);
+    datasets.delete(projectIdValue, testDataset).setDeleteContents(true).execute();
 
     // Recursively delete the testBucket.
     setConfigForGcsFromBigquerySettings();
@@ -252,7 +252,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     FileSystem fs = toDelete.getFileSystem(config);
     if ("gs".equals(fs.getScheme())) {
       bucketHelper.cleanup(
-          GoogleCloudStorageFileSystemIntegrationHelper.createGcsFs(projectIdvalue).getGcs());
+          GoogleCloudStorageFileSystemIntegrationHelper.createGcsFs(projectIdValue).getGcs());
     } else {
       logger.atInfo().log("Deleting temporary test bucket '%s'", toDelete);
       fs.delete(toDelete, true);
@@ -264,7 +264,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     // Prepare the output settings.
     BigQueryOutputConfiguration.configure(
         config,
-        String.format("%s:%s.%s", projectIdvalue, testDataset, testTable),
+        String.format("%s:%s.%s", projectIdValue, testDataset, testTable),
         TABLE_SCHEMA,
         String.format(
             "gs://%s/%s/testBasicWriteAndRead/output/",
@@ -308,8 +308,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     // Set up the InputFormat to do a direct read of a table; no "query" or temporary extra table.
     config.clear();
     setConfigForGcsFromBigquerySettings();
-    BigQueryConfiguration.configureBigQueryInput(
-        config, projectIdvalue, testDataset, testTable);
+    BigQueryConfiguration.configureBigQueryInput(config, projectIdValue, testDataset, testTable);
     config.set(BigQueryConfiguration.GCS_BUCKET_KEY, testBucket);
 
     // Invoke the export/read flow by calling getSplits and createRecordReader.

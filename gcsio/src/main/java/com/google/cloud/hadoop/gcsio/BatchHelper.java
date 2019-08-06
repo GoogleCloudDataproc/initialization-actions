@@ -170,7 +170,7 @@ public class BatchHelper {
     }
   }
 
-  private <T> void execute(StorageRequest<T> req, JsonBatchCallback<T> callback)
+  private static <T> void execute(StorageRequest<T> req, JsonBatchCallback<T> callback)
       throws IOException {
     try {
       T result = req.execute();

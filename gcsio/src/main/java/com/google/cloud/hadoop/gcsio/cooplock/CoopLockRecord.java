@@ -20,7 +20,10 @@ import com.google.common.base.MoreObjects;
 import java.util.Set;
 import java.util.TreeSet;
 
-/** Class that represent cooperative locking operation */
+/**
+ * A data class that represent a single lock record that corresponds to the specific cooperative
+ * locking operation. This record is used to aqcuire and release lock atomcially.
+ */
 public class CoopLockRecord {
   private String clientId;
   private String operationId;

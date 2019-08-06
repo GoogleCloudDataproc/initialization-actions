@@ -149,9 +149,9 @@ public class GoogleHadoopFileSystemTest extends GoogleHadoopFileSystemIntegratio
   public void testCouldUseFlatGlob() throws IOException, URISyntaxException {
     Configuration lazyConf = new Configuration();
     lazyConf.setBoolean(GCS_LAZY_INITIALIZATION_ENABLE.getKey(), true);
-    GoogleHadoopFileSystem lazyFs = new GoogleHadoopFileSystem();
-    assertThat(lazyFs.couldUseFlatGlob(new Path(new URI("gs://**/test/")))).isFalse();
-    lazyFs.close();
+    try (GoogleHadoopFileSystem lazyFs = new GoogleHadoopFileSystem()) {
+      assertThat(lazyFs.couldUseFlatGlob(new Path(new URI("gs://**/test/")))).isFalse();
+    }
   }
 
   @Test
@@ -161,6 +161,7 @@ public class GoogleHadoopFileSystemTest extends GoogleHadoopFileSystemIntegratio
     assertThat(lazyFs.trimToPrefixWithoutGlob("gs://**/test")).isEqualTo("gs://");
   }
 
+  @Override
   @Test
   public void testGetGcsPath() throws URISyntaxException {
     GoogleHadoopFileSystem myghfs = (GoogleHadoopFileSystem) ghfs;

@@ -70,6 +70,7 @@ import java.lang.reflect.Field;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.FileAlreadyExistsException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashSet;
@@ -142,10 +143,11 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
   private final LoadingCache<String, Boolean> autoBuckets =
       CacheBuilder.newBuilder()
-          .expireAfterWrite(1, TimeUnit.HOURS)
+          .expireAfterWrite(Duration.ofHours(1))
           .build(
               new CacheLoader<String, Boolean>() {
                 final List<String> iamPermissions = ImmutableList.of("storage.buckets.get");
+
                 @Override
                 public Boolean load(String bucketName) throws Exception {
                   try {

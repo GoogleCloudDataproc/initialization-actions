@@ -19,6 +19,7 @@ package com.google.cloud.hadoop.gcsio.cooplock;
 import com.google.common.base.MoreObjects;
 import java.util.Objects;
 
+/** A data class that represents rename operation lock metadata. */
 public class RenameOperation {
   private long lockEpochMilli;
   private String srcResource;
@@ -67,7 +68,7 @@ public class RenameOperation {
   }
 
   private boolean equalsInternal(RenameOperation other) {
-    return Objects.equals(lockEpochMilli, other.lockEpochMilli)
+    return lockEpochMilli == other.lockEpochMilli
         && Objects.equals(srcResource, other.srcResource)
         && Objects.equals(dstResource, other.dstResource)
         && Objects.equals(copySucceeded, other.copySucceeded);

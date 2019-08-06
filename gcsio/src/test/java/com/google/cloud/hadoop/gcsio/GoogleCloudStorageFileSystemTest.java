@@ -84,7 +84,7 @@ public class GoogleCloudStorageFileSystemTest
             .setAppName("appName")
             .setProjectId("projectId")
             .setWriteChannelOptions(
-                AsyncWriteChannelOptions.newBuilder()
+                AsyncWriteChannelOptions.builder()
                     .setUploadChunkSize(UPLOAD_CHUNK_SIZE_DEFAULT)
                     .build())
             .build());

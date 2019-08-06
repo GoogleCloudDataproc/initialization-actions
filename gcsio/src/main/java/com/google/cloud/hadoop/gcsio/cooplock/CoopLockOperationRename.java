@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Future;
 
+/** This class incapsulates logic for managing cooperative locking for rename directory operation */
 public class CoopLockOperationRename {
 
   private final String operationId = UUID.randomUUID().toString();

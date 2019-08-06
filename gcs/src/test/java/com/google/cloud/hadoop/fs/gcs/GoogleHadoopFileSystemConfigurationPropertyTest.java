@@ -29,10 +29,10 @@ import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import com.google.cloud.hadoop.util.RequesterPaysOptions.RequesterPaysMode;
 import com.google.common.collect.ImmutableList;
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Stream;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -41,7 +41,8 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class GoogleHadoopFileSystemConfigurationPropertyTest {
 
-  private static Map<String, Object> EXPECTED_DEFAULT_CONFIGURATION =
+  @SuppressWarnings("DoubleBraceInitialization")
+  private static final Map<String, Object> expectedDefaultConfiguration =
       new HashMap<String, Object>() {
         {
           put("fs.gs.project.id", null);
@@ -218,14 +219,14 @@ public class GoogleHadoopFileSystemConfigurationPropertyTest {
 
   @Test
   public void defaultPropertiesValues() {
-    Stream.of(GoogleHadoopFileSystemConfiguration.class.getDeclaredFields())
+    Arrays.stream(GoogleHadoopFileSystemConfiguration.class.getDeclaredFields())
         .filter(f -> GoogleHadoopFileSystemConfigurationProperty.class.equals(f.getType()))
         .map(GoogleHadoopFileSystemConfigurationPropertyTest::getDefaultProperty)
         .forEach(
             p ->
                 assertWithMessage("Unexpected default value for '%s' key", p.getKey())
                     .that(p.getDefault())
-                    .isEqualTo(EXPECTED_DEFAULT_CONFIGURATION.get(p.getKey())));
+                    .isEqualTo(expectedDefaultConfiguration.get(p.getKey())));
   }
 
   private static GoogleHadoopFileSystemConfigurationProperty<?> getDefaultProperty(Field field) {

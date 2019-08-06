@@ -31,17 +31,14 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class BigQueryFactoryTest {
-  /**
-   * Test for getBigQuery method. This should return a BigQuery set up for local development.
-   */
+  /** Test for getBigQuery method. This should return a BigQuery set up for local development. */
   @Test
-  public void testGetBigQuery()
-      throws GeneralSecurityException, IOException {
+  public void testGetBigQuery() throws GeneralSecurityException, IOException {
     BigQueryFactory factory = new BigQueryFactory();
     Configuration configuration = CredentialConfigurationUtil.getTestConfiguration();
     Bigquery bigquery = factory.getBigQuery(configuration);
     assertThat(bigquery).isNotNull();
-    assertThat(bigquery.getRootUrl()).isEqualTo("https://bigquery.googleapis.com/");
+    assertThat(bigquery.getRootUrl()).isEqualTo("https://www.googleapis.com/");
   }
 
   @Test

@@ -214,10 +214,11 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     // Get list of actual paths.
     URI path = ghfsHelper.getPath(bucketName, objectNamePrefix, true);
     Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
-    FileStatus[] fileStatus = null;
+    FileStatus[] fileStatus;
     try {
       fileStatus = ghfsHelper.listStatus(hadoopPath);
     } catch (FileNotFoundException fnfe) {
+      fileStatus = null;
       assertWithMessage("Hadoop path %s expected to exist", hadoopPath)
           .that(pathExpectedToExist)
           .isFalse();
@@ -231,7 +232,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       // LocalFileSystem -> ChecksumFileSystem will return an empty array instead of null for
       // nonexistent paths.
       if (!pathExpectedToExist && fileStatus != null) {
-        assertThat(fileStatus.length).isEqualTo(0);
+        assertThat(fileStatus).isEmpty();
       }
     }
 

@@ -18,6 +18,7 @@ import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_INFER_IMPLICIT_DIRECTORIES_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemTestHelper.createInMemoryGoogleHadoopFileSystem;
+import static com.google.common.base.StandardSystemProperty.USER_NAME;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
@@ -45,7 +46,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileChecksum;
@@ -618,7 +618,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
     assertThat(thrown).hasMessageThat().isEqualTo("No bucket specified in GCS URI: gs:/");
   }
 
-  private Configuration getConfigurationWithImplementation() {
+  private static Configuration getConfigurationWithImplementation() {
     Configuration conf = loadConfig();
     conf.set("fs.gs.impl", GoogleHadoopFileSystem.class.getCanonicalName());
     return conf;
@@ -893,7 +893,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
         GcsFileChecksumType.MD5, content -> Hashing.md5().hashString(content, UTF_8).asBytes());
   }
 
-  private void testFileChecksum(
+  private static void testFileChecksum(
       GcsFileChecksumType checksumType, Function<String, byte[]> checksumFn) throws Exception {
     Configuration config = getConfigurationWithImplementation();
     config.set("fs.gs.checksum.type", checksumType.name());
@@ -927,8 +927,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
     ghfs.initialize(myGhfs.initUri, config);
 
     String expectedHomeDir =
-        String.format(
-            "gs://%s/user/%s", myGhfs.getRootBucketName(), System.getProperty("user.name"));
+        String.format("gs://%s/user/%s", myGhfs.getRootBucketName(), USER_NAME.value());
 
     assertThat(ghfs.getHomeDirectory().toString()).startsWith(expectedHomeDir);
   }
@@ -957,7 +956,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
 
     FileStatus[] rootDirStatuses = ghfs.globStatus(new Path("/d*"));
     List<String> rootDirs =
-        Stream.of(rootDirStatuses).map(d -> d.getPath().toString()).collect(toImmutableList());
+        Arrays.stream(rootDirStatuses).map(d -> d.getPath().toString()).collect(toImmutableList());
 
     assertThat(rootDirs).containsExactly(ghfs.getWorkingDirectory() + "directory1");
 
