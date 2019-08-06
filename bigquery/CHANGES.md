@@ -31,6 +31,11 @@
 
 1.  Update all dependencies to latest versions.
 
+1.  Add a property to control max number of attempts when polling for next file.
+    By default max number of attempts is unlimited (`-1` value):
+
+        mapred.bq.dynamic.file.list.record.reader.poll.max.attempts (default: -1)
+
 ### 0.13.14 - 2019-02-13
 
 1.  POM updates for GCS connector 1.9.14.

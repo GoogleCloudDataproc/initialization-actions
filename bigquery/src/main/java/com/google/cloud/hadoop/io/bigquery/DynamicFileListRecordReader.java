@@ -13,8 +13,6 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
-import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
-
 import com.google.api.client.util.Sleeper;
 import com.google.cloud.hadoop.util.HadoopToStringUtil;
 import com.google.common.annotations.VisibleForTesting;
@@ -25,7 +23,6 @@ import java.util.ArrayDeque;
 import java.util.HashSet;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.hadoop.conf.Configuration;
@@ -182,7 +179,11 @@ public class DynamicFileListRecordReader<K, V>
       needRefresh = !isNextFileReady() && shouldExpectMoreFiles();
       if (needRefresh) {
         logger.atFine().log("No new files found, sleeping before trying again...");
-        sleepUninterruptibly(pollIntervalMs, TimeUnit.MILLISECONDS);
+        try {
+          sleeper.sleep(pollIntervalMs);
+        } catch (InterruptedException ie) {
+          logger.atWarning().withCause(ie).log("Interrupted while sleeping.");
+        }
         context.progress();
         pollAttempt++;
       }

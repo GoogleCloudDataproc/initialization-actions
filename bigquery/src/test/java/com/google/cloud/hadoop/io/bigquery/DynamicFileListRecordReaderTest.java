@@ -33,6 +33,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.junit.After;
 import org.junit.Before;
@@ -138,10 +139,13 @@ public class DynamicFileListRecordReaderTest {
 
   /** Creates file {@code outfile} adding a newline between each element of {@code lines}. */
   private void writeFile(Path outfile, List<String> lines) throws IOException {
+    Text lineText = new Text();
+    Text newLine = new Text("\n");
     try (FSDataOutputStream dataOut = fileSystem.create(outfile)) {
       for (String line : lines) {
-        dataOut.writeChars(line);
-        dataOut.writeChar('\n');
+        lineText.set(line);
+        dataOut.write(lineText.getBytes(), 0, lineText.getLength());
+        dataOut.write(newLine.getBytes(), 0, newLine.getLength());
       }
     }
   }
@@ -182,6 +186,7 @@ public class DynamicFileListRecordReaderTest {
   public void nextKeyValue_whenNoFilesAndMaxAttemptsReached_throwsException() throws Exception {
     config.setInt(BigQueryConfiguration.DYNAMIC_FILE_LIST_RECORD_READER_POLL_MAX_ATTEMPTS_KEY, 1);
     resetRecordReader();
+    recordReader.setSleeper(Sleeper.DEFAULT);
 
     IllegalStateException e =
         assertThrows(IllegalStateException.class, () -> recordReader.nextKeyValue());

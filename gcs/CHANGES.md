@@ -64,11 +64,6 @@
 
 1.  Implement Hadoop File System `append` method using GCS compose API.
 
-1.  Add a property to control max number of attempts when polling for next file.
-    By default max number of attempts is unlimited (`-1` value):
-
-        mapred.bq.dynamic.file.list.record.reader.poll.max.attempts (default: -1)
-
 ### 1.9.14 - 2019-02-13
 
 1.  Implement Hadoop File System `concat` method using GCS compose API.
