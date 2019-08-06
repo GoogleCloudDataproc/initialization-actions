@@ -3713,7 +3713,7 @@ public class GoogleCloudStorageTest {
     return new StorageObject()
         .setBucket(bucketName)
         .setName(objectName)
-        .setSize(new BigInteger(64, r))
+        .setSize(BigInteger.valueOf(r.nextInt(Integer.MAX_VALUE)))
         .setGeneration((long) r.nextInt(Integer.MAX_VALUE))
         .setMetageneration((long) r.nextInt(Integer.MAX_VALUE))
         .setUpdated(new DateTime(new Date()));

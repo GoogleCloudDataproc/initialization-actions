@@ -33,9 +33,6 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.InputSplit;
-import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.junit.After;
 import org.junit.Before;
@@ -45,15 +42,16 @@ import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/**
- * Unit tests for DynamicFileListRecordReader using an in-memory GHFS.
- */
+/** Unit tests for DynamicFileListRecordReader using an in-memory GHFS. */
 @RunWith(JUnit4.class)
 public class DynamicFileListRecordReaderTest {
+
   // Data we will write and read back.
   private static final String RECORD_0 = "{'day':'Sunday','letters':'6'}";
   private static final String RECORD_1 = "{'day':'Monday','letters':'6'}";
   private static final String RECORD_2 = "{'day':'Tuesday','letters':'7'}";
+
+  private static final String SLEEP_ID = "test-sleep-id-12345";
 
   // Used to parse text lines into JsonObjects.
   private JsonParser jsonParser = new JsonParser();
@@ -86,16 +84,14 @@ public class DynamicFileListRecordReaderTest {
   private FileSystem fileSystem;
 
   @Before
-  public void setUp()
-      throws IOException, InterruptedException {
+  public void setUp() throws Exception {
     MockitoAnnotations.initMocks(this);
 
     LoggerConfig.getConfig(DynamicFileListRecordReader.class).setLevel(Level.FINE);
 
     // Set up a Configuration which will case "gs://" to grab an InMemoryGoogleHadoopFileSystem.
     config = InMemoryGoogleHadoopFileSystem.getSampleConfiguration();
-    when(mockTaskContext.getConfiguration())
-        .thenReturn(config);
+    when(mockTaskContext.getConfiguration()).thenReturn(config);
 
     basePath = new Path("gs://foo-bucket/");
     shardPath = new Path(basePath, "shard0/data-*.json");
@@ -106,35 +102,24 @@ public class DynamicFileListRecordReaderTest {
 
     // Instead of actually blocking, make our mockSleeper throw an exception that we can catch
     // whenever the reader would otherwise be blocking.
-    doThrow(new RuntimeException("test-sleep-id-12345")).when(mockSleeper).sleep(anyLong());
+    doThrow(new RuntimeException(SLEEP_ID)).when(mockSleeper).sleep(anyLong());
 
     resetRecordReader();
   }
 
   @After
-  public void tearDown()
-      throws IOException {
+  public void tearDown() throws IOException {
     // Delete everything in basePath.
     fileSystem.delete(basePath, true);
     recordReader.close();
   }
 
   private DynamicFileListRecordReader<LongWritable, JsonObject> createReader() {
-    return new DynamicFileListRecordReader<>(
-        new DelegateRecordReaderFactory<LongWritable, JsonObject>() {
-          @Override
-          public RecordReader<LongWritable, JsonObject> createDelegateRecordReader(
-              InputSplit split, Configuration configuration)
-              throws IOException, InterruptedException {
-            return new GsonRecordReader();
-          }
-        });
+    return new DynamicFileListRecordReader<>((split, configuration) -> new GsonRecordReader());
   }
-  /**
-   * Returns the recordReader to clean state.
-   */
-  private void resetRecordReader()
-      throws IOException {
+
+  /** Returns the recordReader to clean state. */
+  private void resetRecordReader() throws IOException {
     inputSplit = new ShardedInputSplit(shardPath, estimatedNumRecords);
     recordReader = createReader();
     recordReader.initialize(inputSplit, mockTaskContext);
@@ -142,34 +127,27 @@ public class DynamicFileListRecordReaderTest {
   }
 
   /**
-   * Since we set up the mockSleeper to throw an exception with a test-idenfiable string, this
-   * helper method checks that invoking nextKeyValue would've blocked but threw the fake
-   * exception instead.
+   * Since we set up the mockSleeper to throw an exception with a test-identifiable string, this
+   * helper method checks that invoking nextKeyValue would've blocked but threw the fake exception
+   * instead.
    */
-  private void checkNextKeyValueWouldBlock() throws IOException, InterruptedException {
-    RuntimeException re = assertThrows(RuntimeException.class, () -> recordReader.nextKeyValue());
-    assertThat(re).hasMessageThat().contains("test-sleep-id-12345");
+  private void checkNextKeyValueWouldBlock() {
+    RuntimeException e = assertThrows(RuntimeException.class, () -> recordReader.nextKeyValue());
+    assertThat(e).hasMessageThat().contains(SLEEP_ID);
   }
 
-  /**
-   * Creates file {@code outfile} adding a newline between each element of {@code lines}.
-   */
-  private void writeFile(Path outfile, List<String> lines)
-      throws IOException {
-    FSDataOutputStream dataOut = fileSystem.create(outfile);
-    Text newline = new Text("\n");
-    Text textLine = new Text();
-    for (String line : lines) {
-      textLine.set(line);
-      dataOut.write(textLine.getBytes(), 0, textLine.getLength());
-      dataOut.write(newline.getBytes(), 0, newline.getLength());
+  /** Creates file {@code outfile} adding a newline between each element of {@code lines}. */
+  private void writeFile(Path outfile, List<String> lines) throws IOException {
+    try (FSDataOutputStream dataOut = fileSystem.create(outfile)) {
+      for (String line : lines) {
+        dataOut.writeChars(line);
+        dataOut.writeChar('\n');
+      }
     }
-    dataOut.close();
   }
 
   @Test
-  public void testInitializeCreatesShardDirectory()
-      throws IOException {
+  public void testInitializeCreatesShardDirectory() throws IOException {
     fileSystem.delete(shardPath.getParent(), true);
     assertThat(fileSystem.exists(shardPath.getParent())).isFalse();
     resetRecordReader();
@@ -177,16 +155,14 @@ public class DynamicFileListRecordReaderTest {
   }
 
   @Test
-  public void testGetCurrentBeforeFirstRecord()
-      throws IOException {
+  public void testGetCurrentBeforeFirstRecord() {
     assertThat(recordReader.getCurrentKey()).isNull();
     assertThat(recordReader.getCurrentValue()).isNull();
     assertThat(recordReader.getProgress()).isZero();
   }
 
   @Test
-  public void testGetProgressZeroEstimatedRecords()
-      throws IOException {
+  public void testGetProgressZeroEstimatedRecords() throws IOException {
     inputSplit = new ShardedInputSplit(shardPath, 0);
     recordReader = createReader();
     recordReader.initialize(inputSplit, mockTaskContext);
@@ -194,8 +170,7 @@ public class DynamicFileListRecordReaderTest {
   }
 
   @Test
-  public void testEmptyFileIsOnlyFileAndZeroIndex()
-      throws IOException, InterruptedException {
+  public void testEmptyFileIsOnlyFileAndZeroIndex() throws Exception {
     checkNextKeyValueWouldBlock();
     fileSystem.createNewFile(new Path(shardPath.getParent(), "data-000.json"));
     assertThat(recordReader.nextKeyValue()).isFalse();
@@ -204,8 +179,19 @@ public class DynamicFileListRecordReaderTest {
   }
 
   @Test
-  public void testEmptyFileIsOnlyFileAndNotZeroIndex()
-      throws IOException, InterruptedException {
+  public void nextKeyValue_whenNoFilesAndMaxAttemptsReached_throwsException() throws Exception {
+    config.setInt(BigQueryConfiguration.DYNAMIC_FILE_LIST_RECORD_READER_POLL_MAX_ATTEMPTS_KEY, 1);
+    resetRecordReader();
+
+    IllegalStateException e =
+        assertThrows(IllegalStateException.class, () -> recordReader.nextKeyValue());
+
+    assertThat(e).hasMessageThat().doesNotContain(SLEEP_ID);
+    assertThat(e).hasMessageThat().contains("Couldn't obtain any files after 1 attempt(s).");
+  }
+
+  @Test
+  public void testEmptyFileIsOnlyFileAndNotZeroIndex() throws IOException {
     fileSystem.createNewFile(new Path(shardPath.getParent(), "data-001.json"));
     checkNextKeyValueWouldBlock();
     fileSystem.createNewFile(new Path(shardPath.getParent(), "data-002.json"));
@@ -214,8 +200,7 @@ public class DynamicFileListRecordReaderTest {
   }
 
   @Test
-  public void testEmptyFileThenDataFile()
-      throws IOException, InterruptedException {
+  public void testEmptyFileThenDataFile() throws Exception {
     checkNextKeyValueWouldBlock();
 
     fileSystem.createNewFile(new Path(shardPath.getParent(), "data-001.json"));
@@ -230,8 +215,7 @@ public class DynamicFileListRecordReaderTest {
   }
 
   @Test
-  public void testEmptyFileIndexLessThanOtherFileBadKnownFile()
-      throws IOException, InterruptedException {
+  public void testEmptyFileIndexLessThanOtherFileBadKnownFile() throws Exception {
     writeFile(new Path(shardPath.getParent(), "data-000.json"), ImmutableList.of(RECORD_0));
     writeFile(new Path(shardPath.getParent(), "data-002.json"), ImmutableList.of(RECORD_1));
     assertThat(recordReader.nextKeyValue()).isTrue();
@@ -249,8 +233,7 @@ public class DynamicFileListRecordReaderTest {
   }
 
   @Test
-  public void testEmptyFileIndexLessThanOtherFileBadNewFile()
-      throws IOException, InterruptedException {
+  public void testEmptyFileIndexLessThanOtherFileBadNewFile() throws Exception {
     writeFile(new Path(shardPath.getParent(), "data-000.json"), ImmutableList.of(RECORD_0));
     fileSystem.createNewFile(new Path(shardPath.getParent(), "data-002.json"));
     assertThat(recordReader.nextKeyValue()).isTrue();
@@ -263,10 +246,10 @@ public class DynamicFileListRecordReaderTest {
   }
 
   @Test
-  public void testSingleDataFile()
-      throws IOException, InterruptedException {
-    writeFile(new Path(shardPath.getParent(), "data-000.json"),
-              ImmutableList.of(RECORD_0, RECORD_1, RECORD_2));
+  public void testSingleDataFile() throws Exception {
+    writeFile(
+        new Path(shardPath.getParent(), "data-000.json"),
+        ImmutableList.of(RECORD_0, RECORD_1, RECORD_2));
     assertThat(recordReader.nextKeyValue()).isTrue();
     assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(0));
     assertThat(recordReader.getCurrentValue()).isEqualTo(jsonParser.parse(RECORD_0));
@@ -284,11 +267,10 @@ public class DynamicFileListRecordReaderTest {
   }
 
   @Test
-  public void testMultipleDataFilesInSingleList()
-      throws IOException, InterruptedException {
+  public void testMultipleDataFilesInSingleList() throws Exception {
     writeFile(new Path(shardPath.getParent(), "data-000.json"), ImmutableList.of(RECORD_0));
-    writeFile(new Path(shardPath.getParent(), "data-001.json"),
-              ImmutableList.of(RECORD_1, RECORD_2));
+    writeFile(
+        new Path(shardPath.getParent(), "data-001.json"), ImmutableList.of(RECORD_1, RECORD_2));
     fileSystem.createNewFile(new Path(shardPath.getParent(), "data-002.json"));
 
     assertThat(recordReader.nextKeyValue()).isTrue();
@@ -304,8 +286,7 @@ public class DynamicFileListRecordReaderTest {
   }
 
   @Test
-  public void testMultipleFilesThenHangBeforeEmptyFileAppears()
-      throws IOException, InterruptedException {
+  public void testMultipleFilesThenHangBeforeEmptyFileAppears() throws Exception {
     writeFile(new Path(shardPath.getParent(), "data-000.json"), ImmutableList.of(RECORD_0));
     writeFile(new Path(shardPath.getParent(), "data-001.json"), ImmutableList.of(RECORD_1));
 
@@ -322,10 +303,9 @@ public class DynamicFileListRecordReaderTest {
   }
 
   @Test
-  public void testCloseBeforeEnd()
-      throws IOException, InterruptedException {
-    writeFile(new Path(shardPath.getParent(), "data-000.json"),
-              ImmutableList.of(RECORD_0, RECORD_1));
+  public void testCloseBeforeEnd() throws Exception {
+    writeFile(
+        new Path(shardPath.getParent(), "data-000.json"), ImmutableList.of(RECORD_0, RECORD_1));
 
     assertThat(recordReader.nextKeyValue()).isTrue();
     assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(0));
@@ -335,8 +315,7 @@ public class DynamicFileListRecordReaderTest {
   }
 
   @Test
-  public void testThreeBatchesEndFileInMiddleBatch()
-      throws IOException, InterruptedException {
+  public void testThreeBatchesEndFileInMiddleBatch() throws Exception {
     writeFile(new Path(shardPath.getParent(), "data-000.json"), ImmutableList.of(RECORD_0));
     assertThat(recordReader.nextKeyValue()).isTrue();
     assertThat(recordReader.getCurrentKey()).isEqualTo(new LongWritable(0));
@@ -359,8 +338,7 @@ public class DynamicFileListRecordReaderTest {
   }
 
   @Test
-  public void testBadFilename()
-      throws IOException, InterruptedException {
+  public void testBadFilename() throws Exception {
     String outOfBounds = String.format("data-%d.json", 1L + Integer.MAX_VALUE);
     fileSystem.createNewFile(new Path(shardPath.getParent(), outOfBounds));
     assertThrows(IndexOutOfBoundsException.class, () -> recordReader.nextKeyValue());
