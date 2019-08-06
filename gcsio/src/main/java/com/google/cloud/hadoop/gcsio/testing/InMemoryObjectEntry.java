@@ -32,8 +32,8 @@ import java.nio.channels.Channels;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.time.Duration;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
@@ -206,7 +206,7 @@ public class InMemoryObjectEntry {
 
     // because currentTimeMillis() is not very precise
     // we need to sleep to allow it to change between calls
-    sleepUninterruptibly(10, TimeUnit.MILLISECONDS);
+    sleepUninterruptibly(Duration.ofMillis(10));
 
     copy.info =
         new GoogleCloudStorageItemInfo(

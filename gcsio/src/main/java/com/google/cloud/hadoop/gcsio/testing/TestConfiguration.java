@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.gcsio.testing;
 
+
 /** Access to test configurations values. */
 public abstract class TestConfiguration {
   public static final String GCS_TEST_PROJECT_ID = "GCS_TEST_PROJECT_ID";
