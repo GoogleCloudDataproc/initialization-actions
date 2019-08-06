@@ -320,6 +320,40 @@ public class GoogleCloudStorageReadChannelTest {
     assertThat(readChannel.size()).isEqualTo(testData.length);
   }
 
+  @Test
+  public void open_gzipContentEncoding_succeeds_whenContentEncodingSupported() throws Exception {
+    MockHttpTransport transport =
+        GoogleCloudStorageTestUtils.mockTransport(
+            jsonDataResponse(newStorageObject().setContentEncoding("gzip")));
+
+    Storage storage = new Storage(transport, JSON_FACTORY, r -> {});
+
+    GoogleCloudStorageReadOptions readOptions =
+        GoogleCloudStorageReadOptions.builder().setSupportGzipEncoding(true).build();
+
+    try (GoogleCloudStorageReadChannel channel = createReadChannel(storage, readOptions)) {
+      channel.position();
+    }
+  }
+
+  @Test
+  public void open_gzipContentEncoding_throwsIOException_ifContentEncodingNotSupported()
+      throws Exception {
+    MockHttpTransport transport =
+        GoogleCloudStorageTestUtils.mockTransport(
+            jsonDataResponse(newStorageObject().setContentEncoding("gzip")));
+
+    Storage storage = new Storage(transport, JSON_FACTORY, r -> {});
+
+    GoogleCloudStorageReadOptions readOptions =
+        GoogleCloudStorageReadOptions.builder().setSupportGzipEncoding(false).build();
+
+    IOException e = assertThrows(IOException.class, () -> createReadChannel(storage, readOptions));
+    assertThat(e)
+        .hasMessageThat()
+        .isEqualTo("Can't read GZIP encoded files - content encoding support is disabled.");
+  }
+
   private static GoogleCloudStorageReadOptions.Builder newLazyReadOptionsBuilder() {
     return GoogleCloudStorageReadOptions.builder().setFastFailOnNotFound(false);
   }

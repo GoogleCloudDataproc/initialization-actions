@@ -51,7 +51,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
       new CreateBucketOptions("test_location", "test_storage_class");
 
   private static final CreateObjectOptions CREATE_OBJECT_OPTIONS =
-      new CreateObjectOptions(true, "test_content_type", TEST_METADATA, true);
+      new CreateObjectOptions(/* overwriteExisting= */ true, "test_content_type", TEST_METADATA);
 
   // Sample bucket names.
   private static final String BUCKET_A = "alpha";
@@ -464,7 +464,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
         /* location= */ null,
         /* storageClass= */ null,
         createObjectOptions.getContentType(),
-        /* contentEncoding= */ null,
+        createObjectOptions.getContentEncoding(),
         createObjectOptions.getMetadata(),
         /* contentGeneration= */ 1,
         /* metaGeneration= */ 1,

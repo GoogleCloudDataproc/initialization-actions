@@ -58,8 +58,8 @@ steps:
       - 'VCS_TAG=$TAG_NAME'
       - 'CI_BUILD_ID=$BUILD_ID'
 
-# Tests take on average 17 minutes to run
-timeout: 1800s
+# Tests take on average 25 minutes to run
+timeout: 2400s
 
 options:
   machineType: 'N1_HIGHCPU_32'

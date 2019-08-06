@@ -22,13 +22,17 @@ import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.compo
 import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.copyRequestString;
 import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.deleteRequestString;
 import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.getBucketRequestString;
+import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.getMediaRequestString;
 import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.getRequestString;
 import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.listRequestString;
 import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.postRequestString;
+import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.resumableUploadChunkRequestString;
+import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.resumableUploadRequestString;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toList;
+import static org.junit.Assert.assertThrows;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
@@ -36,10 +40,16 @@ import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.RetryHttpInitializer;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.SeekableByteChannel;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.zip.GZIPOutputStream;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -51,6 +61,14 @@ import org.junit.runners.JUnit4;
 /** Integration tests for GoogleCloudStorageFileSystem class. */
 @RunWith(JUnit4.class)
 public class GoogleCloudStorageNewIntegrationTest {
+
+  private static final CreateObjectOptions GZIP_CREATE_OPTIONS =
+      new CreateObjectOptions(
+          /* overwriteExisting= */ false,
+          CreateObjectOptions.DEFAULT_CONTENT_TYPE,
+          "gzip",
+          CreateObjectOptions.EMPTY_METADATA,
+          /* requireMetadataMatchForEmptyObjects= */ true);
 
   private static GoogleCloudStorageOptions gcsOptions;
   private static RetryHttpInitializer httpRequestsInitializer;
@@ -539,14 +557,102 @@ public class GoogleCloudStorageNewIntegrationTest {
     assertThat(listedObjects).containsExactly(testDir + "f1", testDir + "f2", testDir + "f3");
   }
 
+  @Test
+  public void create_gzipEncodedFile() throws Exception {
+    String testBucket = gcsfsIHelper.sharedBucketName1;
+    StorageResourceId testFile = new StorageResourceId(testBucket, getTestResource());
+
+    TrackingHttpRequestInitializer gcsRequestsTracker =
+        new TrackingHttpRequestInitializer(httpRequestsInitializer);
+    GoogleCloudStorage gcs = new GoogleCloudStorageImpl(gcsOptions, gcsRequestsTracker);
+
+    try (OutputStream os =
+        new GZIPOutputStream(Channels.newOutputStream(gcs.create(testFile, GZIP_CREATE_OPTIONS)))) {
+      os.write("content".getBytes(UTF_8));
+    }
+
+    assertThat(gcsRequestsTracker.getAllRequestStrings())
+        .containsExactly(
+            getRequestString(testBucket, testFile.getObjectName()),
+            resumableUploadRequestString(
+                testBucket,
+                testFile.getObjectName(),
+                /* generationId= */ 1,
+                /* replaceGenerationId= */ true),
+            resumableUploadChunkRequestString(
+                testBucket, testFile.getObjectName(), /* generationId= */ 2, /* uploadId= */ 2));
+
+    assertThat(gcs.getItemInfo(testFile).getContentEncoding()).isEqualTo("gzip");
+  }
+
+  @Test
+  public void open_gzipEncoded_succeeds_ifContentEncodingSupportEnabled() throws Exception {
+    String testBucket = gcsfsIHelper.sharedBucketName1;
+    StorageResourceId testFile = new StorageResourceId(testBucket, getTestResource());
+
+    try (OutputStream os =
+        new GZIPOutputStream(
+            Channels.newOutputStream(gcsfsIHelper.gcs.create(testFile, GZIP_CREATE_OPTIONS)))) {
+      os.write("content".getBytes(UTF_8));
+    }
+
+    TrackingHttpRequestInitializer gcsRequestsTracker =
+        new TrackingHttpRequestInitializer(httpRequestsInitializer);
+    GoogleCloudStorage gcs = new GoogleCloudStorageImpl(gcsOptions, gcsRequestsTracker);
+
+    byte[] readContent = new byte[7];
+    final GoogleCloudStorageReadOptions readOptions =
+        GoogleCloudStorageReadOptions.builder().setSupportGzipEncoding(true).build();
+    try (SeekableByteChannel channel = gcs.open(testFile, readOptions)) {
+      channel.read(ByteBuffer.wrap(readContent));
+    }
+
+    assertThat(new String(readContent, UTF_8)).isEqualTo("content");
+
+    assertThat(gcsRequestsTracker.getAllRequestStrings())
+        .containsExactly(
+            getRequestString(testBucket, testFile.getObjectName()),
+            getMediaRequestString(testBucket, testFile.getObjectName()));
+  }
+
+  @Test
+  public void open_gzipEncoded_succeeds_ifContentEncodingSupportDisabled() throws Exception {
+    String testBucket = gcsfsIHelper.sharedBucketName1;
+    StorageResourceId testFile = new StorageResourceId(testBucket, getTestResource());
+
+    try (OutputStream os =
+        new GZIPOutputStream(
+            Channels.newOutputStream(gcsfsIHelper.gcs.create(testFile, GZIP_CREATE_OPTIONS)))) {
+      os.write("content".getBytes(UTF_8));
+    }
+
+    TrackingHttpRequestInitializer gcsRequestsTracker =
+        new TrackingHttpRequestInitializer(httpRequestsInitializer);
+    GoogleCloudStorage gcs = new GoogleCloudStorageImpl(gcsOptions, gcsRequestsTracker);
+
+    GoogleCloudStorageReadOptions readOptions =
+        GoogleCloudStorageReadOptions.builder().setSupportGzipEncoding(false).build();
+    IOException e = assertThrows(IOException.class, () -> gcs.open(testFile, readOptions));
+    assertThat(e)
+        .hasMessageThat()
+        .isEqualTo("Can't read GZIP encoded files - content encoding support is disabled.");
+
+    assertThat(gcsRequestsTracker.getAllRequestStrings())
+        .containsExactly(getRequestString(testBucket, testFile.getObjectName()));
+  }
+
   private static List<String> toObjectNames(List<GoogleCloudStorageItemInfo> listedObjects) {
     return listedObjects.stream().map(GoogleCloudStorageItemInfo::getObjectName).collect(toList());
   }
 
   private String createObjectsInTestDir(String bucketName, String... objects) throws Exception {
-    String testDir = name.getMethodName() + "_" + UUID.randomUUID() + "/";
+    String testDir = getTestResource() + "/";
     String[] objectPaths = Arrays.stream(objects).map(o -> testDir + o).toArray(String[]::new);
     gcsfsIHelper.createObjectsWithSubdirs(bucketName, objectPaths);
     return testDir;
+  }
+
+  private String getTestResource() {
+    return name.getMethodName() + "_" + UUID.randomUUID();
   }
 }

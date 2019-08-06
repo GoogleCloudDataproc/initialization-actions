@@ -253,6 +253,15 @@ exist at the same path on all nodes
     has independently already ensured that a file exists before calling open(),
     then set this property to false for more efficient reads.
 
+*   `fs.gs.inputstream.support.gzip.encoding.enable` (default: `false`)
+
+    If set to `false` then reading files with GZIP content encoding (HTTP header
+    `Content-Encoding: gzip`) will result in failure (`IOException` is thrown).
+
+    This feature is disabled by default because processing of
+    [GZIP encoded](https://cloud.google.com/storage/docs/transcoding#decompressive_transcoding)
+    files is inefficient and error-prone in Hadoop and Spark.
+
 *   `fs.gs.generation.read.consistency` (default: `LATEST`)
 
     Determines read consistency across different generations of a Cloud Storage

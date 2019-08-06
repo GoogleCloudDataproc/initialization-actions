@@ -64,6 +64,15 @@
 
 1.  Implement Hadoop File System `append` method using GCS compose API.
 
+1.  Disable support for reading GZIP encoded files (HTTP header
+    `Content-Encoding: gzip`) because processing of
+    [GZIP encoded](https://cloud.google.com/storage/docs/transcoding#decompressive_transcoding)
+    files is inefficient and error-prone in Hadoop and Spark.
+
+    This feature is configurable with the property:
+
+        fs.gs.inputstream.support.gzip.encoding.enable (default: false)
+
 ### 1.9.14 - 2019-02-13
 
 1.  Implement Hadoop File System `concat` method using GCS compose API.

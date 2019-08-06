@@ -88,6 +88,7 @@ public class GoogleHadoopFileSystemConfigurationPropertyTest {
           put("fs.gs.auth.client.file", null);
           put("fs.gs.inputstream.buffer.size", 0);
           put("fs.gs.inputstream.fast.fail.on.not.found.enable", true);
+          put("fs.gs.inputstream.support.gzip.encoding.enable", false);
           put("fs.gs.generation.read.consistency", GenerationReadConsistency.LATEST);
           put("fs.gs.outputstream.buffer.size", 8388608);
           put("fs.gs.outputstream.pipe.buffer.size", 1048576);

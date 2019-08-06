@@ -108,6 +108,7 @@ public class InMemoryObjectEntry {
       String objectName,
       long createTimeMillis,
       String contentType,
+      String contentEncoding,
       Map<String, byte[]> metadata) {
     // Override close() to commit its completed byte array into completedContents to reflect
     // the behavior that any readable contents are only well-defined if the writeStream is closed.
@@ -155,7 +156,7 @@ public class InMemoryObjectEntry {
             /* location= */ null,
             /* storageClass= */ null,
             contentType,
-            /* contentEncoding= */ null,
+            contentEncoding,
             ImmutableMap.copyOf(metadata),
             /* contentGeneration= */ 0,
             /* metaGeneration= */ 0);

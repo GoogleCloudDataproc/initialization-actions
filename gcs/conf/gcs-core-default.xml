@@ -573,6 +573,15 @@
   </property>
 
   <property>
+    <name>fs.gs.inputstream.support.gzip.encoding.enable</name>
+    <value>false</value>
+    <description>
+      If set to false then reading files with GZIP content encoding (HTTP header
+      "Content-Encoding: gzip") will result in failure (`IOException` is thrown).
+    </description>
+  </property>
+
+  <property>
     <name>fs.gs.inputstream.inplace.seek.limit</name>
     <value>8388608</value>
     <description>

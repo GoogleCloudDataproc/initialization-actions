@@ -143,6 +143,7 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
             resourceId.getObjectName(),
             clock.currentTimeMillis(),
             options.getContentType(),
+            options.getContentEncoding(),
             options.getMetadata());
     bucketLookup.get(resourceId.getBucketName()).add(entry);
     return entry.getWriteChannel();

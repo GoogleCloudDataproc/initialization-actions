@@ -479,6 +479,15 @@ public class GoogleHadoopFileSystemConfiguration {
               "fs.gs.inputstream.fast.fail.on.not.found.enable", true);
 
   /**
+   * If true, reading a file with GZIP content encoding (HTTP header "Content-Encoding: gzip") will
+   * result in failure (IOException is thrown).
+   */
+  public static final GoogleHadoopFileSystemConfigurationProperty<Boolean>
+      GCS_INPUT_STREAM_SUPPORT_GZIP_ENCODING_ENABLE =
+          new GoogleHadoopFileSystemConfigurationProperty<>(
+              "fs.gs.inputstream.support.gzip.encoding.enable", false);
+
+  /**
    * If forward seeks are within this many bytes of the current position, seeks are performed by
    * reading and discarding bytes in-place rather than opening a new underlying stream.
    */
@@ -600,6 +609,8 @@ public class GoogleHadoopFileSystemConfiguration {
     return GoogleCloudStorageReadOptions.builder()
         .setFastFailOnNotFound(
             GCS_INPUT_STREAM_FAST_FAIL_ON_NOT_FOUND_ENABLE.get(config, config::getBoolean))
+        .setSupportGzipEncoding(
+            GCS_INPUT_STREAM_SUPPORT_GZIP_ENCODING_ENABLE.get(config, config::getBoolean))
         .setInplaceSeekLimit(GCS_INPUT_STREAM_INPLACE_SEEK_LIMIT.get(config, config::getLong))
         .setBufferSize(GCS_INPUT_STREAM_BUFFER_SIZE.get(config, config::getInt))
         .setFadvise(GCS_INPUT_STREAM_FADVISE.get(config, config::getEnum))

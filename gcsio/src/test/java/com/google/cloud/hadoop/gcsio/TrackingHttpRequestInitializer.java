@@ -36,6 +36,9 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
   private static final String GET_REQUEST_FORMAT =
       "GET:https://www.googleapis.com/storage/v1/b/%s/o/%s";
 
+  private static final String GET_MEDIA_REQUEST_FORMAT =
+      "GET:https://www.googleapis.com/download/storage/v1/b/%s/o/%s?alt=media";
+
   private static final String GET_BUCKET_REQUEST_FORMAT =
       "GET:https://www.googleapis.com/storage/v1/b/%s";
 
@@ -55,7 +58,7 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
 
   private static final String RESUMABLE_UPLOAD_CHUNK_REQUEST_FORMAT =
       "PUT:https://www.googleapis.com/upload/storage/v1/b/%s/o"
-          + "?name=%s&uploadType=resumable&upload_id=upload_%s";
+          + "?%sname=%s&uploadType=resumable&upload_id=upload_%s";
 
   private static final String UPDATE_METADATA_REQUEST_FORMAT =
       "POST:https://www.googleapis.com/storage/v1/b/%s/o/%s?ifMetagenerationMatch=%d";
@@ -169,6 +172,10 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
     return String.format(GET_REQUEST_FORMAT, bucketName, urlEncode(object));
   }
 
+  public static String getMediaRequestString(String bucketName, String object) {
+    return String.format(GET_MEDIA_REQUEST_FORMAT, bucketName, urlEncode(object));
+  }
+
   public static String getBucketRequestString(String bucketName) {
     return String.format(GET_BUCKET_REQUEST_FORMAT, bucketName);
   }
@@ -206,7 +213,16 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
 
   public static String resumableUploadChunkRequestString(
       String bucketName, String object, Integer uploadId) {
-    return String.format(RESUMABLE_UPLOAD_CHUNK_REQUEST_FORMAT, bucketName, object, uploadId);
+    return resumableUploadChunkRequestString(
+        bucketName, object, /* generationId= */ null, uploadId);
+  }
+
+  public static String resumableUploadChunkRequestString(
+      String bucketName, String object, Integer generationId, Integer uploadId) {
+    final String generationIdParameter =
+        generationId == null ? "" : "ifGenerationMatch=generationId_" + generationId + "&";
+    return String.format(
+        RESUMABLE_UPLOAD_CHUNK_REQUEST_FORMAT, bucketName, generationIdParameter, object, uploadId);
   }
 
   public static String updateMetadataRequestString(

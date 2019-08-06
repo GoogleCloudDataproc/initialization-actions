@@ -28,7 +28,7 @@ import com.google.auto.value.AutoValue;
 public abstract class GoogleCloudStorageReadOptions {
 
   /** Operational modes of fadvise feature. */
-  public static enum Fadvise {
+  public enum Fadvise {
     AUTO,
     RANDOM,
     SEQUENTIAL
@@ -47,6 +47,7 @@ public abstract class GoogleCloudStorageReadOptions {
   public static final int DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS = 10 * 1000;
   public static final int DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS = 2 * 60 * 1000;
   public static final boolean DEFAULT_FAST_FAIL_ON_NOT_FOUND = true;
+  public static final boolean DEFAULT_SUPPORT_GZIP_ENCODING = true;
   public static final int DEFAULT_BUFFER_SIZE = 0;
   public static final long DEFAULT_INPLACE_SEEK_LIMIT = 0L;
   public static final Fadvise DEFAULT_FADVISE = Fadvise.SEQUENTIAL;
@@ -66,6 +67,7 @@ public abstract class GoogleCloudStorageReadOptions {
         .setBackoffMaxIntervalMillis(DEFAULT_BACKOFF_MAX_INTERVAL_MILLIS)
         .setBackoffMaxElapsedTimeMillis(DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS)
         .setFastFailOnNotFound(DEFAULT_FAST_FAIL_ON_NOT_FOUND)
+        .setSupportGzipEncoding(DEFAULT_SUPPORT_GZIP_ENCODING)
         .setBufferSize(DEFAULT_BUFFER_SIZE)
         .setInplaceSeekLimit(DEFAULT_INPLACE_SEEK_LIMIT)
         .setFadvise(DEFAULT_FADVISE)
@@ -90,6 +92,9 @@ public abstract class GoogleCloudStorageReadOptions {
 
   /** See {@link Builder#setFastFailOnNotFound}. */
   public abstract boolean getFastFailOnNotFound();
+
+  /** See {@link Builder#setSupportGzipEncoding}. */
+  public abstract boolean getSupportGzipEncoding();
 
   /** See {@link Builder#setBufferSize}. */
   public abstract int getBufferSize();
@@ -152,6 +157,13 @@ public abstract class GoogleCloudStorageReadOptions {
      * extraneous checks on open().
      */
     public abstract Builder setFastFailOnNotFound(boolean fastFailOnNotFound);
+
+    /**
+     * If false then reading a file with GZIP content encoding (HTTP header "Content-Encoding:
+     * gzip") will result in failure (IOException is thrown). If true then GZIP-encoded files will
+     * be read successfully.
+     */
+    public abstract Builder setSupportGzipEncoding(boolean supportGzipEncoding);
 
     /**
      * If set to a positive value, low-level streams will be wrapped inside a BufferedInputStream of
