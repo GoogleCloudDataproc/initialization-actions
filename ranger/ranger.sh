@@ -20,13 +20,10 @@ set -euxo pipefail
 readonly NODE_NAME="$(/usr/share/google/get_metadata_value name)"
 readonly RANGER_ADMIN_PORT="$(/usr/share/google/get_metadata_value attributes/ranger-port || echo '6080')"
 readonly RANGER_ADMIN_PASS="$(/usr/share/google/get_metadata_value attributes/default-admin-password)"
-readonly RANGER_GCS_BUCKET='apache-ranger-1-2-0-artifacts'
 readonly RANGER_INSTALL_DIR='/usr/lib/ranger'
-readonly RANGER_VERSION='1.2.0'
 readonly SOLR_HOME='/usr/lib/solr'
 readonly MASTER_ADDITIONAL="$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)"
 readonly CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)"
-readonly DATAPROC_VERSION="$(grep DATAPROC_VERSION /etc/environment | cut -d= -f2 | sed -e 's/"//g')"
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
@@ -51,18 +48,6 @@ function update_apt_get() {
 function install_apt_get() {
   local pkgs="$*"
   retry_apt_command "apt-get install -y $pkgs"
-}
-
-function download_and_install_component() {
-  # This function is intended to run only on Dataproc 1.1 and 1.2.
-  # For Dataproc 1.3 and later. Debian package is available.
-  if [[ "${DATAPROC_VERSION}" == '1.1' ]] || [[ "${DATAPROC_VERSION}" == '1.2'  ]]; then
-    local full_component_name="$(echo ${1} | sed "s/^ranger/ranger-${RANGER_VERSION}/")"
-    gsutil cp "gs://${RANGER_GCS_BUCKET}/${full_component_name}.tar.gz" "${RANGER_INSTALL_DIR}/"
-    tar -xf "${full_component_name}.tar.gz" \
-      && ln -s "${full_component_name}" "${1}" \
-      && rm -f "${full_component_name}.tar.gz"
-  fi
 }
 
 function configure_admin() {
@@ -96,7 +81,6 @@ function configure_admin() {
 }
 
 function run_ranger_admin() {
-  download_and_install_component "ranger-admin"
   configure_admin
   pushd "${RANGER_INSTALL_DIR}/ranger-admin" && ./set_globals.sh && ./setup.sh
   ranger-admin start
@@ -104,7 +88,6 @@ function run_ranger_admin() {
 }
 
 function add_usersync_plugin() {
-  download_and_install_component "ranger-usersync"
   mkdir -p /var/log/ranger-usersync && chown ranger /var/log/ranger-usersync \
     && chgrp ranger /var/log/ranger-usersync
 
@@ -152,7 +135,6 @@ function create_symlinks_to_hadoop_conf() {
 }
 
 function add_hdfs_plugin() {
-  download_and_install_component "ranger-hdfs-plugin"
   apply_common_plugin_configuration "ranger-hdfs-plugin" "hadoop-dataproc"
 
   pushd ranger-hdfs-plugin && ./enable-hdfs-plugin.sh && popd
@@ -197,7 +179,6 @@ EOF
 }
 
 function add_hive_plugin() {
-  download_and_install_component "ranger-hive-plugin"
   apply_common_plugin_configuration "ranger-hive-plugin" "hive-dataproc"
   mkdir -p hive \
     && ln -s /etc/hive/conf hive \
@@ -243,7 +224,6 @@ EOF
 }
 
 function add_yarn_plugin() {
-  download_and_install_component "ranger-yarn-plugin"
   apply_common_plugin_configuration "ranger-yarn-plugin" "yarn-dataproc"
   pushd ranger-yarn-plugin && ./enable-yarn-plugin.sh && popd
 
@@ -292,10 +272,8 @@ function main() {
   fi
   mkdir -p "${RANGER_INSTALL_DIR}" && cd "${RANGER_INSTALL_DIR}"
 
-  if [[ "${DATAPROC_VERSION}" != '1.1' ]] && [[ "${DATAPROC_VERSION}" != '1.2' ]]; then
-    update_apt_get
-    install_apt_get ranger
-  fi
+  update_apt_get
+  install_apt_get ranger
 
   if [[ "${role}" == 'Master' && "${NODE_NAME}" =~ ^.*(-m|-m-0)$ ]]; then
     run_ranger_admin
