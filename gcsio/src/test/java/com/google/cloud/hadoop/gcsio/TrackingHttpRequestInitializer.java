@@ -79,6 +79,9 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
       "GET:https://www.googleapis.com/storage/v1/b/%s/o"
           + "?delimiter=/&includeTrailingDelimiter=%s&maxResults=%d%s&prefix=%s";
 
+  private static final String LIST_SIMPLE_REQUEST_FORMAT =
+      "GET:https://www.googleapis.com/storage/v1/b/%s/o?maxResults=%d&prefix=%s";
+
   private static final String BATCH_REQUEST = "POST:https://www.googleapis.com/batch/storage/v1";
 
   private static final String COMPOSE_REQUEST_FORMAT =
@@ -141,27 +144,37 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
     return requests.stream()
         .map(GoogleCloudStorageIntegrationHelper::requestToString)
         // Replace randomized pageToken with predictable value so it could be asserted in tests
-        .map(r -> replacePageTokenWithId(r, pageTokenId.getAndIncrement()))
-        .map(r -> replaceGenerationMatchWithId(r, generationMatchId.getAndIncrement()))
-        .map(r -> replaceResumableUploadIdWithId(r, resumableUploadId.getAndIncrement()))
+        .map(r -> replacePageTokenWithId(r, pageTokenId))
+        .map(r -> replaceGenerationMatchWithId(r, generationMatchId))
+        .map(r -> replaceResumableUploadIdWithId(r, resumableUploadId))
         .collect(toImmutableList());
   }
 
-  private String replacePageTokenWithId(String request, long pageTokenId) {
+  private String replacePageTokenWithId(String request, AtomicLong pageTokenId) {
     return replaceRequestParams
-        ? request.replaceAll(PAGE_TOKEN_PARAM_PATTERN, "pageToken=token_" + pageTokenId)
+        ? replaceWithId(request, PAGE_TOKEN_PARAM_PATTERN, "pageToken=token_", pageTokenId)
         : request;
   }
 
-  private String replaceGenerationMatchWithId(String request, long generationId) {
+  private String replaceGenerationMatchWithId(String request, AtomicLong generationId) {
+    String idPrefix = "ifGenerationMatch=generationId_";
     return replaceRequestParams
-        ? request.replaceAll(
-            GENERATION_MATCH_TOKEN_PARAM_PATTERN, "ifGenerationMatch=generationId_" + generationId)
+        ? replaceWithId(request, GENERATION_MATCH_TOKEN_PARAM_PATTERN, idPrefix, generationId)
         : request;
   }
 
-  private static String replaceResumableUploadIdWithId(String request, long uploadId) {
-    return request.replaceAll(UPLOAD_ID_PARAM_PATTERN, "upload_id=upload_" + uploadId);
+  private static String replaceResumableUploadIdWithId(String request, AtomicLong uploadId) {
+    return replaceWithId(request, UPLOAD_ID_PARAM_PATTERN, "upload_id=upload_", uploadId);
+  }
+
+  private static String replaceWithId(
+      String request, String pattern, String idPrefix, AtomicLong id) {
+    long nextId = id.get() + 1;
+    String replacedRequest = request.replaceAll(pattern, idPrefix + nextId);
+    if (!request.equals(replacedRequest)) {
+      id.incrementAndGet();
+    }
+    return replacedRequest;
   }
 
   public void reset() {
@@ -265,6 +278,10 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
 
   public static String listBucketsRequestString(String projectId) {
     return String.format(LIST_BUCKETS_REQUEST_FORMAT, projectId);
+  }
+
+  public static String listRequestString(String bucket, String prefix, int maxResults) {
+    return String.format(LIST_SIMPLE_REQUEST_FORMAT, bucket, maxResults, prefix);
   }
 
   public static String listRequestString(

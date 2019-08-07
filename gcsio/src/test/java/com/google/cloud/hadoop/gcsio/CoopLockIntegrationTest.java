@@ -129,7 +129,7 @@ public class CoopLockIntegrationTest {
 
     assertThat(trackingRequestInitializer.getAllRequestStrings())
         .containsAtLeast(
-            uploadRequestString(bucketName, LOCK_PATH, /* generationId= */ 5),
+            uploadRequestString(bucketName, LOCK_PATH, /* generationId= */ 1),
             updateMetadataRequestString(bucketName, LOCK_PATH, /* metaGenerationId= */ 1),
             deleteMatchMetaGenerationRequestString(
                 bucketName, LOCK_PATH, /* metaGenerationId= */ 2));
@@ -181,7 +181,7 @@ public class CoopLockIntegrationTest {
 
     assertThat(trackingRequestInitializer.getAllRequestStrings())
         .containsAtLeast(
-            uploadRequestString(bucketName, LOCK_PATH, /* generationId= */ 3),
+            uploadRequestString(bucketName, LOCK_PATH, /* generationId= */ 1),
             updateMetadataRequestString(bucketName, LOCK_PATH, /* metaGenerationId= */ 1),
             deleteMatchMetaGenerationRequestString(
                 bucketName, LOCK_PATH, /* metaGenerationId= */ 2));

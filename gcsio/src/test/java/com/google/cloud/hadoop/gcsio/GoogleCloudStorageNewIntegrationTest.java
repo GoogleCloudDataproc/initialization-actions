@@ -503,8 +503,8 @@ public class GoogleCloudStorageNewIntegrationTest {
             getRequestString(testBucket, testDir + "f1"),
             getRequestString(testBucket, testDir + "f2"),
             batchRequestString(),
-            deleteRequestString(testBucket, testDir + "f1", /* generationId= */ 4),
-            deleteRequestString(testBucket, testDir + "f2", /* generationId= */ 5));
+            deleteRequestString(testBucket, testDir + "f1", /* generationId= */ 1),
+            deleteRequestString(testBucket, testDir + "f2", /* generationId= */ 2));
 
     List<String> listedObjects = gcs.listObjectNames(testBucket, testDir, PATH_DELIMITER);
     assertThat(listedObjects).containsExactly(testDir + "f3");
@@ -531,7 +531,7 @@ public class GoogleCloudStorageNewIntegrationTest {
             getRequestString(testBucket, testDir + "f1"),
             deleteRequestString(testBucket, testDir + "f1", /* generationId= */ 1),
             getRequestString(testBucket, testDir + "f2"),
-            deleteRequestString(testBucket, testDir + "f2", /* generationId= */ 3));
+            deleteRequestString(testBucket, testDir + "f2", /* generationId= */ 2));
 
     List<String> listedObjects = gcs.listObjectNames(testBucket, testDir, PATH_DELIMITER);
     assertThat(listedObjects).containsExactly(testDir + "f3");
@@ -580,7 +580,7 @@ public class GoogleCloudStorageNewIntegrationTest {
                 /* generationId= */ 1,
                 /* replaceGenerationId= */ true),
             resumableUploadChunkRequestString(
-                testBucket, testFile.getObjectName(), /* generationId= */ 2, /* uploadId= */ 2));
+                testBucket, testFile.getObjectName(), /* generationId= */ 2, /* uploadId= */ 1));
 
     assertThat(gcs.getItemInfo(testFile).getContentEncoding()).isEqualTo("gzip");
   }
