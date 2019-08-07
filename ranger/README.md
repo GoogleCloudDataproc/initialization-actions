@@ -27,4 +27,4 @@ to create a SOCKS5 proxy to view `http://clustername-m:6080` in your browser.
 * You can override default 6080 port by setting metadata flag `ranger-port`.
 * Apache Ranger Policy Manager and usersync plugin are installed on master nodes only(m-0 in HA mode).
 * This script will install hdfs, hive and yarn plugin by default.
-* Ranger is only supported on Dataproc version 1.3 and above. Dataproc 1.3 supports only hdfs and hive plugin at this moment.
+* Ranger is only supported on Dataproc version 1.3 and above.
