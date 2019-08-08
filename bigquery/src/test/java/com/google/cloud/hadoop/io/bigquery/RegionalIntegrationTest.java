@@ -230,6 +230,7 @@ public class RegionalIntegrationTest {
         /* timePartitioning= */ null,
         /* kmsKeyName= */ null,
         BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
+        BigQueryConfiguration.OUTPUT_TABLE_CREATE_DISPOSITION_DEFAULT,
         "WRITE_EMPTY",
         ImmutableList.of("gs://" + testBucket + "/shakespeare"),
         /* awaitCompletion= */ true);

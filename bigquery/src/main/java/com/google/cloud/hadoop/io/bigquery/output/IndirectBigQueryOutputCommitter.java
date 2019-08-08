@@ -61,6 +61,7 @@ public class IndirectBigQueryOutputCommitter extends ForwardingBigQueryFileOutpu
     TableReference destTable = BigQueryOutputConfiguration.getTableReference(conf);
     String jobProjectId = BigQueryOutputConfiguration.getJobProjectId(conf);
     String writeDisposition = BigQueryOutputConfiguration.getWriteDisposition(conf);
+    String createDisposition = BigQueryOutputConfiguration.getCreateDisposition(conf);
     Optional<BigQueryTableSchema> destSchema = BigQueryOutputConfiguration.getTableSchema(conf);
     Optional<BigQueryTimePartitioning> timePartitioning =
         BigQueryOutputConfiguration.getTablePartitioning(conf);
@@ -77,6 +78,7 @@ public class IndirectBigQueryOutputCommitter extends ForwardingBigQueryFileOutpu
               timePartitioning.isPresent() ? timePartitioning.get().get() : null,
               kmsKeyName,
               outputFileFormat,
+              createDisposition,
               writeDisposition,
               sourceUris,
               true);

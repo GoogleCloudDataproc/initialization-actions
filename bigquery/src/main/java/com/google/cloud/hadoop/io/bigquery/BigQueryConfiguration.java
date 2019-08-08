@@ -136,6 +136,19 @@ public class BigQueryConfiguration {
   public static final String OUTPUT_TABLE_WRITE_DISPOSITION_DEFAULT = "WRITE_APPEND";
 
   /**
+   * Configuration key for the create disposition of the output table. This specifies if job should
+   * create a table for loading data. This key is stored as a {@link String}.
+   */
+  public static final String OUTPUT_TABLE_CREATE_DISPOSITION_KEY =
+      "mapred.bq.output.table.createdisposition";
+
+  /**
+   * The default create disposition for the output table. By default, if the table does not exist,
+   * BigQuery creates the table.
+   */
+  public static final String OUTPUT_TABLE_CREATE_DISPOSITION_DEFAULT = "CREATE_IF_NEEDED";
+
+  /**
    * Configuration key for the file format of the files outputted by the wrapped FileOutputFormat.
    * This key is stored as a serialized {@link BigQueryFileFormat}.
    */

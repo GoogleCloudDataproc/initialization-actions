@@ -82,6 +82,10 @@ public class IndirectBigQueryOutputCommitterTest {
   private static final String TEST_WRITE_DISPOSITION =
       BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_DEFAULT;
 
+  /** Sample create disposition. */
+  private static final String TEST_CREATE_DISPOSITION =
+      BigQueryConfiguration.OUTPUT_TABLE_CREATE_DISPOSITION_DEFAULT;
+
   /** Sample output format class for the configuration. */
   @SuppressWarnings("rawtypes")
   private static final Class<? extends FileOutputFormat> TEST_OUTPUT_CLASS = TextOutputFormat.class;
@@ -214,6 +218,7 @@ public class IndirectBigQueryOutputCommitterTest {
             eq(TEST_TIME_PARTITIONING.get()),
             eq(TEST_KMS_KEY_NAME),
             eq(TEST_FILE_FORMAT),
+            eq(TEST_CREATE_DISPOSITION),
             eq(TEST_WRITE_DISPOSITION),
             gcsOutputFileCaptor.capture(),
             eq(true));
@@ -246,6 +251,7 @@ public class IndirectBigQueryOutputCommitterTest {
             anyString(),
             any(BigQueryFileFormat.class),
             any(String.class),
+            any(String.class),
             any(List.class),
             eq(true));
 
@@ -261,6 +267,7 @@ public class IndirectBigQueryOutputCommitterTest {
             eq(TEST_TIME_PARTITIONING.get()),
             eq(TEST_KMS_KEY_NAME),
             eq(TEST_FILE_FORMAT),
+            eq(TEST_CREATE_DISPOSITION),
             eq(TEST_WRITE_DISPOSITION),
             any(List.class), // Tested, no need to capture
             eq(true));

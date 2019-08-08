@@ -460,6 +460,20 @@ public class BigQueryOutputConfiguration {
   }
 
   /**
+   * Gets the create disposition of the output table. This specifies if the job should create a
+   * table for loading data.
+   *
+   * @param conf the configuration to reference the keys from.
+   * @return the create disposition of the output table.
+   */
+  public static String getCreateDisposition(Configuration conf) {
+    return conf.get(
+        BigQueryConfiguration.OUTPUT_TABLE_CREATE_DISPOSITION_KEY,
+        BigQueryConfiguration.OUTPUT_TABLE_CREATE_DISPOSITION_DEFAULT);
+  }
+
+
+  /**
    * Gets the write disposition of the output table. This specifies the action that occurs if the
    * destination table already exists. By default, if the table already exists, BigQuery appends
    * data to the output table.

@@ -120,6 +120,7 @@ public class BigQueryHelper {
    * @param timePartitioning time partitioning to populate the destination table.
    * @param kmsKeyName the Cloud KMS encryption key used to protect the output table.
    * @param sourceFormat the file format of the source data.
+   * @param createDisposition the create disposition of the output table.
    * @param writeDisposition the write disposition of the output table.
    * @param gcsPaths the location of the source data in GCS.
    * @param awaitCompletion if true, block and poll until job completes, otherwise return as soon as
@@ -134,6 +135,7 @@ public class BigQueryHelper {
       @Nullable TimePartitioning timePartitioning,
       @Nullable String kmsKeyName,
       BigQueryFileFormat sourceFormat,
+      String createDisposition,
       String writeDisposition,
       List<String> gcsPaths,
       boolean awaitCompletion)
@@ -154,6 +156,7 @@ public class BigQueryHelper {
     loadConfig.setSourceUris(gcsPaths);
     loadConfig.setDestinationTable(tableRef);
     loadConfig.setTimePartitioning(timePartitioning);
+    loadConfig.setCreateDisposition(createDisposition);
     loadConfig.setWriteDisposition(writeDisposition);
     if (!Strings.isNullOrEmpty(kmsKeyName)) {
       loadConfig.setDestinationEncryptionConfiguration(
