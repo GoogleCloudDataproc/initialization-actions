@@ -638,18 +638,18 @@ public class GoogleCloudStorageFileSystemNewIntegrationTest {
     return name.getMethodName() + "_" + UUID.randomUUID();
   }
 
-  private FileInfo inferredDirInfo(
+  private static FileInfo inferredDirInfo(
       GoogleCloudStorageFileSystem gcsFs, String bucketName, String dirObject) {
     StorageResourceId resourceId =
         new StorageResourceId(bucketName, dirObject.endsWith("/") ? dirObject : dirObject + "/");
     return fromItemInfo(gcsFs.getPathCodec(), createInferredDirectory(resourceId));
   }
 
-  private GoogleCloudStorageFileSystemOptions.Builder newGcsFsOptions() {
+  private static GoogleCloudStorageFileSystemOptions.Builder newGcsFsOptions() {
     return GoogleCloudStorageFileSystemOptions.builder().setCloudStorageOptions(gcsOptions);
   }
 
-  private GoogleCloudStorageFileSystem newGcsFs(
+  private static GoogleCloudStorageFileSystem newGcsFs(
       GoogleCloudStorageFileSystemOptions gcsfsOptions,
       TrackingHttpRequestInitializer gcsRequestsTracker)
       throws IOException {
