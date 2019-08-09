@@ -1,5 +1,4 @@
-"""
-This module provides testing functionality of the Apache Ranger Init Action.
+"""This module provides testing functionality of the Apache Ranger Init Action.
 """
 import unittest
 import os
@@ -10,9 +9,9 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 
 class RangerTestCase(DataprocTestCase):
-    COMPONENT = 'ranger'
-    INIT_ACTIONS = ['solr/solr.sh', 'ranger/ranger.sh']
-    TEST_SCRIPT_FILE_NAME = 'verify_ranger.py'
+    COMPONENT = "ranger"
+    INIT_ACTIONS = ["solr/solr.sh", "ranger/ranger.sh"]
+    TEST_SCRIPT_FILE_NAME = "verify_ranger.py"
 
     def verify_instance(self, name):
         self.upload_test_file(
@@ -27,9 +26,6 @@ class RangerTestCase(DataprocTestCase):
 
     @parameterized.expand(
         [
-            ("SINGLE", "1.2", ["m"]),
-            ("STANDARD", "1.2", ["m"]),
-            ("HA", "1.2", ["m-0"]),
             ("SINGLE", "1.3", ["m"]),
             ("STANDARD", "1.3", ["m"]),
             ("HA", "1.3", ["m-0"]),
@@ -48,5 +44,5 @@ class RangerTestCase(DataprocTestCase):
                                                 machine_suffix))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
