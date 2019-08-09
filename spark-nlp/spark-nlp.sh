@@ -14,4 +14,4 @@
 #
 # This script installs spark-nlp version 2.0.8 on all nodes of a Cloud Dataproc cluster.
 
-conda install -c johnsnowlabs spark-nlp=2.0.8
+conda install -c johnsnowlabs spark-nlp=2.1.0
