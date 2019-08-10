@@ -106,8 +106,10 @@ public class BigQueryUtils {
         if (pollJob.getStatus().getErrorResult() != null) {
           throw new IOException(
               String.format(
-                  "Job %s failed: %s",
-                  jobReference.getJobId(), pollJob.getStatus().getErrorResult()));
+                  "Job %s failed: %s. Errors: %s",
+                  jobReference.getJobId(),
+                  pollJob.getStatus().getErrorResult(),
+                  pollJob.getStatus().getErrors()));
         }
       } else {
         long millisToWait = pollBackOff.nextBackOffMillis();
