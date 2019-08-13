@@ -55,8 +55,8 @@ Once you have the JSON key file, you need to configure following properties in
   <value>true</value>
   <description>
     Whether to use a service account for GCS authorization.
-    If set to `false` then GCE VM metadata service will be used for
-    authorization.
+    Setting this property to `false` will disable use of service accounts for
+    authentication.
   </description>
 </property>
 <property>
