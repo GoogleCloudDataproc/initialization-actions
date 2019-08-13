@@ -211,7 +211,11 @@ class CoopLockFsckRunner {
                   operationStatus,
                   l -> {
                     List<String> srcToDst = RENAME_LOG_RECORD_SPLITTER.splitToList(l);
-                    checkState(srcToDst.size() == 2);
+                    checkState(
+                        srcToDst.size() == 2,
+                        "2 elements should be in rename operation log record, but was %s: %s",
+                        srcToDst.size(),
+                        srcToDst);
                     return new AbstractMap.SimpleEntry<>(srcToDst.get(0), srcToDst.get(1));
                   })
               .stream()
@@ -229,7 +233,6 @@ class CoopLockFsckRunner {
           deleteAndRenameToRepairRenameOperation(
               operationStatus,
               operation,
-              operationObject,
               operationObject.getDstResource(),
               new ArrayList<>(loggedResources.values()),
               operationObject.getSrcResource(),
@@ -254,7 +257,6 @@ class CoopLockFsckRunner {
           deleteAndRenameToRepairRenameOperation(
               operationStatus,
               operation,
-              operationObject,
               operationObject.getSrcResource(),
               new ArrayList<>(loggedResources.keySet()),
               operationObject.getDstResource(),
@@ -287,7 +289,6 @@ class CoopLockFsckRunner {
   private void deleteAndRenameToRepairRenameOperation(
       FileStatus operationLock,
       CoopLockRecord operation,
-      RenameOperation operationObject,
       String srcResource,
       List<String> loggedSrcResources,
       String dstResource,
@@ -303,8 +304,7 @@ class CoopLockFsckRunner {
 
     // Update rename operation checkpoint before proceeding to allow repair of failed repair
     lockOperationDao.checkpointRenameOperation(
-        StorageResourceId.fromObjectName(operationObject.getSrcResource()),
-        StorageResourceId.fromObjectName(operationObject.getDstResource()),
+        bucketName,
         operation.getOperationId(),
         Instant.ofEpochMilli(operation.getOperationEpochMilli()),
         copySucceeded);

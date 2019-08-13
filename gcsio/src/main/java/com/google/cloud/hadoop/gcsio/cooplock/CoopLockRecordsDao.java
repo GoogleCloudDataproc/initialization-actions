@@ -270,7 +270,7 @@ public class CoopLockRecordsDao {
         "operation %s should be locked at %s epoch milliseconds but was at %s",
         lockEpochMilli,
         operation.getLockEpochMilli());
-    operation.setLockEpochMilli(Instant.now().toEpochMilli());
+    operation.setClientId(newClientId(operationId)).setLockEpochMilli(Instant.now().toEpochMilli());
     return true;
   }
 

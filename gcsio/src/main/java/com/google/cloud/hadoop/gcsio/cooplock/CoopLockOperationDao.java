@@ -16,7 +16,6 @@
 
 package com.google.cloud.hadoop.gcsio.cooplock;
 
-import static com.google.cloud.hadoop.gcsio.CreateObjectOptions.DEFAULT_CONTENT_TYPE;
 import static com.google.cloud.hadoop.gcsio.CreateObjectOptions.EMPTY_METADATA;
 import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecordsDao.LOCK_DIRECTORY;
 import static com.google.common.base.Preconditions.checkState;
@@ -25,7 +24,9 @@ import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterrup
 import static java.lang.Thread.currentThread;
 import static java.lang.Thread.sleep;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import com.google.api.client.util.ExponentialBackOff;
 import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
 import com.google.cloud.hadoop.gcsio.FileInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
@@ -54,7 +55,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -77,9 +77,9 @@ public class CoopLockOperationDao {
   private static final CreateObjectOptions UPDATE_OBJECT_OPTIONS =
       new CreateObjectOptions(/* overwriteExisting= */ true, "application/text", EMPTY_METADATA);
 
-  private static final Duration LOCK_RENEW_RETRY_BACK_OFF = Duration.ofMillis(1_100);
+  private static final int LOCK_MODIFY_RETRY_BACK_OFF_MILLIS = 1_100;
 
-  private static final Duration MAX_LOCK_RENEW_TIMEOUT = LOCK_RENEW_RETRY_BACK_OFF.multipliedBy(10);
+  private static final int MAX_LOCK_RENEW_TIMEOUT_MILLIS = LOCK_MODIFY_RETRY_BACK_OFF_MILLIS * 10;
 
   private static final DateTimeFormatter LOCK_FILE_DATE_TIME_FORMAT =
       DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss.SSSXXX").withZone(ZoneOffset.UTC);
@@ -190,26 +190,39 @@ public class CoopLockOperationDao {
   }
 
   public void checkpointRenameOperation(
-      StorageResourceId src,
-      StorageResourceId dst,
-      String operationId,
-      Instant operationInstant,
-      boolean copySucceeded)
+      String bucketName, String operationId, Instant operationInstant, boolean copySucceeded)
       throws IOException {
-    writeOperationFile(
-        dst.getBucketName(),
-        OPERATION_LOCK_FILE_FORMAT,
-        UPDATE_OBJECT_OPTIONS,
-        CoopLockOperationType.RENAME,
-        operationId,
-        operationInstant,
-        ImmutableList.of(
-            GSON.toJson(
-                new RenameOperation()
-                    .setLockEpochMilli(Instant.now().toEpochMilli())
-                    .setSrcResource(src.toString())
-                    .setDstResource(dst.toString())
-                    .setCopySucceeded(copySucceeded))));
+    URI operationLockPath =
+        getOperationFilePath(
+            bucketName,
+            OPERATION_LOCK_FILE_FORMAT,
+            CoopLockOperationType.RENAME,
+            operationId,
+            operationInstant);
+    ExponentialBackOff backOff = newLockModifyBackoff();
+    for (int i = 0; i < 10; i++) {
+      try {
+        modifyOperationLock(
+            operationId,
+            operationLockPath,
+            l -> {
+              RenameOperation operation = GSON.fromJson(l, RenameOperation.class);
+              operation
+                  .setLockEpochMilli(Instant.now().toEpochMilli())
+                  .setCopySucceeded(copySucceeded);
+              return GSON.toJson(operation);
+            });
+        return;
+      } catch (IOException e) {
+        logger.atWarning().withCause(e).log(
+            "Failed to checkpoint '%s' lock for %s operation, attempt #%d",
+            operationLockPath, operationId, i + 1);
+        sleepUninterruptibly(backOff.nextBackOffMillis(), MILLISECONDS);
+      }
+    }
+    throw new IOException(
+        String.format(
+            "Failed to checkpoint '%s' lock for %s operation", operationLockPath, operationId));
   }
 
   private void renewLockOrExit(
@@ -238,10 +251,11 @@ public class CoopLockOperationDao {
             });
 
     int attempt = 1;
+    ExponentialBackOff backoff = newLockModifyBackoff();
     try {
       do {
         try {
-          renewLock(operationId, operationLockPath, renewFn);
+          modifyOperationLock(operationId, operationLockPath, renewFn);
           checkState(
               timeoutFuture.cancel(/* mayInterruptIfRunning= */ true),
               "timeoutFuture should be successfully canceled");
@@ -251,7 +265,7 @@ public class CoopLockOperationDao {
               "Failed to renew '%s' lock for %s operation, attempt #%d",
               operationLockPath, operationId, attempt++);
         }
-        sleepUninterruptibly(LOCK_RENEW_RETRY_BACK_OFF);
+        sleepUninterruptibly(backoff.nextBackOffMillis(), MILLISECONDS);
       } while (timeout.compareTo(stopwatch.elapsed()) > 0);
       logger.atSevere().log(
           "Renewal of '%s' lock for %s operation timed out (timeout %s), exiting",
@@ -266,8 +280,8 @@ public class CoopLockOperationDao {
     System.exit(1);
   }
 
-  private void renewLock(
-      String operationId, URI operationLockPath, Function<String, String> renewFn)
+  private void modifyOperationLock(
+      String operationId, URI operationLockPath, Function<String, String> modifyFn)
       throws IOException {
     StorageResourceId lockId =
         pathCodec.validatePathAndGetId(operationLockPath, /* allowEmptyObjectName= */ false);
@@ -280,14 +294,11 @@ public class CoopLockOperationDao {
       lock = reader.lines().collect(Collectors.joining());
     }
 
-    lock = renewFn.apply(lock);
-    CreateObjectOptions updateOptions =
-        new CreateObjectOptions(
-            /* overwriteExisting= */ true, DEFAULT_CONTENT_TYPE, EMPTY_METADATA);
+    lock = modifyFn.apply(lock);
     StorageResourceId lockIdWithGeneration =
         new StorageResourceId(
             lockId.getBucketName(), lockId.getObjectName(), lockInfo.getContentGeneration());
-    writeOperation(lockIdWithGeneration, updateOptions, ImmutableList.of(lock));
+    writeOperation(lockIdWithGeneration, UPDATE_OBJECT_OPTIONS, ImmutableList.of(lock));
   }
 
   private URI writeOperationFile(
@@ -299,13 +310,23 @@ public class CoopLockOperationDao {
       Instant operationInstant,
       List<String> records)
       throws IOException {
-    String date = LOCK_FILE_DATE_TIME_FORMAT.format(operationInstant);
-    String file = String.format(LOCK_DIRECTORY + fileNameFormat, date, operationType, operationId);
-    URI path = pathCodec.getPath(bucket, file, /* allowEmptyObjectName= */ false);
+    URI path =
+        getOperationFilePath(bucket, fileNameFormat, operationType, operationId, operationInstant);
     StorageResourceId resourceId =
         pathCodec.validatePathAndGetId(path, /* allowEmptyObjectName= */ false);
     writeOperation(resourceId, createObjectOptions, records);
     return path;
+  }
+
+  private URI getOperationFilePath(
+      String bucket,
+      String fileNameFormat,
+      CoopLockOperationType operationType,
+      String operationId,
+      Instant operationInstant) {
+    String date = LOCK_FILE_DATE_TIME_FORMAT.format(operationInstant);
+    String file = String.format(LOCK_DIRECTORY + fileNameFormat, date, operationType, operationId);
+    return pathCodec.getPath(bucket, file, /* allowEmptyObjectName= */ false);
   }
 
   private void writeOperation(
@@ -323,7 +344,7 @@ public class CoopLockOperationDao {
       String operationId, URI operationLockPath, Class<T> clazz, BiConsumer<T, Instant> renewFn) {
     long lockRenewalPeriodMilli = options.getLockExpirationTimeoutMilli() / 2;
     long lockRenewTimeoutMilli =
-        Math.min(options.getLockExpirationTimeoutMilli() / 4, MAX_LOCK_RENEW_TIMEOUT.toMillis());
+        Math.min(options.getLockExpirationTimeoutMilli() / 4, MAX_LOCK_RENEW_TIMEOUT_MILLIS);
     return scheduledThreadPool.scheduleAtFixedRate(
         () ->
             renewLockOrExit(
@@ -337,6 +358,16 @@ public class CoopLockOperationDao {
                 Duration.ofMillis(lockRenewTimeoutMilli)),
         /* initialDelay= */ lockRenewalPeriodMilli,
         /* period= */ lockRenewalPeriodMilli,
-        TimeUnit.MILLISECONDS);
+        MILLISECONDS);
+  }
+
+  private static ExponentialBackOff newLockModifyBackoff() {
+    return new ExponentialBackOff.Builder()
+        .setInitialIntervalMillis(LOCK_MODIFY_RETRY_BACK_OFF_MILLIS)
+        .setMultiplier(1.1)
+        .setRandomizationFactor(0.2)
+        .setMaxIntervalMillis((int) (LOCK_MODIFY_RETRY_BACK_OFF_MILLIS * 1.25))
+        .setMaxElapsedTimeMillis(Integer.MAX_VALUE)
+        .build();
   }
 }
