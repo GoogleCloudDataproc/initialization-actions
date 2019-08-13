@@ -217,8 +217,8 @@ exist at the same path on all nodes
     The PKCS12 (p12) certificate file of the service account used for GCS access
     when `fs.gs.auth.service.account.enable` is `true`.
 
-    The following properties are required when
-    `fs.gs.auth.service.account.enable` is `false`.
+The following properties are required when `fs.gs.auth.service.account.enable`
+is `false`.
 
 *   `fs.gs.auth.client.id` (not set by default)
 
