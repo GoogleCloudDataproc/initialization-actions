@@ -170,6 +170,8 @@ provider.
     with some level of GCS access in it's service account scope, and use that
     service account.
 
+#### Service account authentication
+
 The following properties are required only when running not on a GCE VM and
 `fs.gs.auth.service.account.enable` is `true`. There are 3 ways to configure
 these credentials, which are mutually exclusive.
@@ -181,7 +183,7 @@ these credentials, which are mutually exclusive.
     authentication key specified in the Configuration file (Method 1) or a
     PKCS12 certificate (Method 3) is being used.
 
-#### Method 1
+##### Method 1
 
 Configure service account details directly in the Configuration file or via
 [Hadoop Credentials](https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-common/CredentialProviderAPI.html).
@@ -198,7 +200,7 @@ Configure service account details directly in the Configuration file or via
     This can be extracted from the json keyfile generated via the Google Cloud
     Console.
 
-#### Method 2
+##### Method 2
 
 Configure service account credentials using a json keyfile. The file must exist
 at the same path on all nodes
@@ -207,7 +209,7 @@ at the same path on all nodes
 
     The path to the json keyfile for the service account.
 
-#### Method 3
+##### Method 3
 
 Configure service account credentials using a P12 certificate. The file must
 exist at the same path on all nodes
@@ -216,6 +218,8 @@ exist at the same path on all nodes
 
     The PKCS12 (p12) certificate file of the service account used for GCS access
     when `fs.gs.auth.service.account.enable` is `true`.
+
+#### Client secret authentication
 
 The following properties are required when `fs.gs.auth.service.account.enable`
 is `false`.
