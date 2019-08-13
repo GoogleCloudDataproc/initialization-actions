@@ -51,7 +51,7 @@ function configure_jupyter() {
 ## Configs generated in Dataproc init action
 c.Application.log_level = 'DEBUG'
 c.JupyterApp.answer_yes = True
-c.NotebookApp.ip = '*'
+c.NotebookApp.ip = '0.0.0.0'
 c.NotebookApp.allow_root= True
 c.NotebookApp.open_browser = False
 c.NotebookApp.port = ${JUPYTER_PORT}
