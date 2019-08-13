@@ -317,7 +317,7 @@ public class BigQueryHelperTest {
     when(mockErrorExtractor.itemNotFound(any(IOException.class))).thenReturn(false);
 
     IOException thrown = assertThrows(IOException.class, () -> helper.tableExists(tableRef));
-    assertThat(thrown).isEqualTo(fakeUnhandledException);
+    assertThat(thrown).hasCauseThat().isEqualTo(fakeUnhandledException);
 
     // Verify correct calls are made.
     verify(mockBigquery, times(1)).tables();

@@ -13,10 +13,10 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.flogger.LazyArgs.lazy;
 
 import com.google.api.services.bigquery.Bigquery;
-import com.google.api.services.bigquery.Bigquery.Jobs.Insert;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.ExternalDataConfiguration;
@@ -39,9 +39,7 @@ import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nullable;
 
-/**
- * Wrapper for BigQuery API.
- */
+/** Wrapper for BigQuery API. */
 public class BigQueryHelper {
   // BigQuery job_ids must match this pattern.
   public static final String BIGQUERY_JOB_ID_PATTERN = "[a-zA-Z0-9_-]+";
@@ -60,9 +58,7 @@ public class BigQueryHelper {
     this.service = service;
   }
 
-  /**
-   * Returns the underlying Bigquery instance used for communicating with the BigQuery API.
-   */
+  /** Returns the underlying Bigquery instance used for communicating with the BigQuery API. */
   public Bigquery getRawBigquery() {
     return service;
   }
@@ -90,24 +86,28 @@ public class BigQueryHelper {
         gcsPaths.size(),
         gcsPaths.isEmpty() ? "(empty)" : gcsPaths.get(0));
 
-    ExternalDataConfiguration externalConf = new ExternalDataConfiguration();
-    externalConf.setSchema(schema);
-    externalConf.setSourceUris(gcsPaths);
-    externalConf.setSourceFormat(sourceFormat.getFormatIdentifier());
+    ExternalDataConfiguration externalConf =
+        new ExternalDataConfiguration()
+            .setSchema(schema)
+            .setSourceUris(gcsPaths)
+            .setSourceFormat(sourceFormat.getFormatIdentifier());
 
     // Auto detect the schema if we're not given one, otherwise use the passed schema.
     if (schema == null) {
       logger.atInfo().log("No federated import schema provided, auto detecting schema.");
       externalConf.setAutodetect(true);
     } else {
-      logger.atInfo().log("Using provided federated import schema '%s'.", schema.toString());
+      logger.atInfo().log("Using provided federated import schema '%s'.", schema);
     }
 
-    Table table = new Table();
-    table.setTableReference(tableRef);
-    table.setExternalDataConfiguration(externalConf);
+    Table table =
+        new Table().setTableReference(tableRef).setExternalDataConfiguration(externalConf);
 
-    service.tables().insert(projectId, tableRef.getDatasetId(), table).execute();
+    try {
+      service.tables().insert(projectId, tableRef.getDatasetId(), table).execute();
+    } catch (IOException e) {
+      throw new IOException(String.format("Failed to insert table '%s'", table), e);
+    }
   }
 
   /**
@@ -167,15 +167,23 @@ public class BigQueryHelper {
       logger.atInfo().log("No import schema provided, auto detecting schema.");
       loadConfig.setAutodetect(true);
     } else {
-      logger.atInfo().log("Using provided import schema '%s'.", schema.toString());
+      logger.atInfo().log("Using provided import schema '%s'.", schema);
     }
 
     JobConfiguration config = new JobConfiguration();
     config.setLoad(loadConfig);
 
     // Get the dataset to determine the location
-    Dataset dataset =
-        service.datasets().get(tableRef.getProjectId(), tableRef.getDatasetId()).execute();
+    Dataset dataset;
+    try {
+      dataset = service.datasets().get(tableRef.getProjectId(), tableRef.getDatasetId()).execute();
+    } catch (IOException ioe) {
+      throw new IOException(
+          String.format(
+              "Failed to get dataset '%s' in project '%s' for table '%s'",
+              tableRef.getDatasetId(), tableRef.getProjectId(), tableRef),
+          ioe);
+    }
 
     JobReference jobReference =
         createJobReference(projectId, "direct-bigqueryhelper-import", dataset.getLocation());
@@ -199,13 +207,13 @@ public class BigQueryHelper {
    * @param tableRef the table to export.
    * @param gcsPaths the GCS paths to export to.
    * @param awaitCompletion if true, block and poll until job completes, otherwise return as soon as
-   *        the job has been successfully dispatched.
-   *
+   *     the job has been successfully dispatched.
    * @throws IOException on IO error.
    * @throws InterruptedException on interrupt.
    */
-  public void exportBigQueryToGcs(String projectId, TableReference tableRef, List<String> gcsPaths,
-      boolean awaitCompletion) throws IOException, InterruptedException {
+  public void exportBigQueryToGcs(
+      String projectId, TableReference tableRef, List<String> gcsPaths, boolean awaitCompletion)
+      throws IOException, InterruptedException {
     logger.atFine().log(
         "exportBigQueryToGcs(bigquery, '%s', '%s', '%s', '%s')",
         projectId, BigQueryStrings.toString(tableRef), gcsPaths, awaitCompletion);
@@ -248,23 +256,23 @@ public class BigQueryHelper {
     }
   }
 
-  /**
-   * Returns true if the table exists, or false if not.
-   */
+  /** Returns true if the table exists, or false if not. */
   public boolean tableExists(TableReference tableRef) throws IOException {
     try {
-      Table fetchedTable = service.tables().get(
-          tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()).execute();
+      Table fetchedTable =
+          service
+              .tables()
+              .get(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId())
+              .execute();
       logger.atFine().log(
           "Successfully fetched table '%s' for tableRef '%s'", fetchedTable, tableRef);
       return true;
     } catch (IOException ioe) {
       if (errorExtractor.itemNotFound(ioe)) {
         return false;
-      } else {
-        // Unhandled exceptions should just propagate up.
-        throw ioe;
       }
+      throw new IOException(
+          String.format("Unhandled exception trying to get table '%s'", tableRef), ioe);
     }
   }
 
@@ -276,11 +284,15 @@ public class BigQueryHelper {
    * @return The table resource, which describes the structure of this table.
    * @throws IOException
    */
-  public Table getTable(TableReference tableRef)
-      throws IOException {
-    Bigquery.Tables.Get getTablesReply = service.tables().get(
-        tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId());
-    return getTablesReply.execute();
+  public Table getTable(TableReference tableRef) throws IOException {
+    try {
+      return service
+          .tables()
+          .get(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId())
+          .execute();
+    } catch (IOException ioe) {
+      throw new IOException(String.format("Failed to get table '%s'", tableRef), ioe);
+    }
   }
 
   /**
@@ -289,15 +301,21 @@ public class BigQueryHelper {
    */
   public JobReference createJobReference(
       String projectId, String jobIdPrefix, @Nullable String location) {
-    Preconditions.checkArgument(projectId != null, "projectId must not be null.");
-    Preconditions.checkArgument(jobIdPrefix != null, "jobIdPrefix must not be null.");
-    Preconditions.checkArgument(jobIdPrefix.matches(BIGQUERY_JOB_ID_PATTERN),
-        "jobIdPrefix '%s' must match pattern '%s'", jobIdPrefix, BIGQUERY_JOB_ID_PATTERN);
+    checkArgument(projectId != null, "projectId must not be null.");
+    checkArgument(jobIdPrefix != null, "jobIdPrefix must not be null.");
+    checkArgument(
+        jobIdPrefix.matches(BIGQUERY_JOB_ID_PATTERN),
+        "jobIdPrefix '%s' must match pattern '%s'",
+        jobIdPrefix,
+        BIGQUERY_JOB_ID_PATTERN);
 
-    String fullJobId = String.format("%s-%s", jobIdPrefix, UUID.randomUUID().toString());
-    Preconditions.checkArgument(fullJobId.length() <= BIGQUERY_JOB_ID_MAX_LENGTH,
+    String fullJobId = String.format("%s-%s", jobIdPrefix, UUID.randomUUID());
+    checkArgument(
+        fullJobId.length() <= BIGQUERY_JOB_ID_MAX_LENGTH,
         "fullJobId '%s' has length '%s'; must be less than or equal to %s",
-        fullJobId, fullJobId.length(), BIGQUERY_JOB_ID_MAX_LENGTH);
+        fullJobId,
+        fullJobId.length(),
+        BIGQUERY_JOB_ID_MAX_LENGTH);
     return new JobReference().setProjectId(projectId).setJobId(fullJobId).setLocation(location);
   }
 
@@ -306,41 +324,49 @@ public class BigQueryHelper {
    * between {@code expected} and {@code actual}, using Preconditions.checkState.
    */
   public void checkJobIdEquality(Job expected, Job actual) {
-    Preconditions.checkState(actual.getJobReference() != null
-        && actual.getJobReference().getJobId() != null
-        && expected.getJobReference() != null
-        && expected.getJobReference().getJobId() != null
-        && actual.getJobReference().getJobId().equals(expected.getJobReference().getJobId()),
+    Preconditions.checkState(
+        actual.getJobReference() != null
+            && actual.getJobReference().getJobId() != null
+            && expected.getJobReference() != null
+            && expected.getJobReference().getJobId() != null
+            && actual.getJobReference().getJobId().equals(expected.getJobReference().getJobId()),
         "jobIds must match in '[expected|actual].getJobReference()' (got '%s' vs '%s')",
-        expected.getJobReference(), actual.getJobReference());
+        expected.getJobReference(),
+        actual.getJobReference());
   }
 
   /**
    * Tries to run jobs().insert(...) with the provided {@code projectId} and {@code job}, which
-   * returns a {@code Job} under normal operation, which is then returned from this method.
-   * In case of an exception being thrown, if the cause was "409 conflict", then we issue a
-   * separate "jobs().get(...)" request and return the results of that fetch instead.
-   * Other exceptions propagate out as normal.
+   * returns a {@code Job} under normal operation, which is then returned from this method. In case
+   * of an exception being thrown, if the cause was "409 conflict", then we issue a separate
+   * "jobs().get(...)" request and return the results of that fetch instead. Other exceptions
+   * propagate out as normal.
    */
   public Job insertJobOrFetchDuplicate(String projectId, Job job) throws IOException {
-    Preconditions.checkArgument(
+    checkArgument(
         job.getJobReference() != null && job.getJobReference().getJobId() != null,
         "Require non-null JobReference and JobId inside; getJobReference() == '%s'",
         job.getJobReference());
-    Insert insert = service.jobs().insert(projectId, job);
-    Job response = null;
+    Job response;
     try {
-      response = insert.execute();
+      response = service.jobs().insert(projectId, job).execute();
       logger.atFine().log("Successfully inserted job '%s'. Response: '%s'", job, response);
-    } catch (IOException ioe) {
-      if (errorExtractor.itemAlreadyExists(ioe)) {
-        logger.atInfo().withCause(ioe).log(
+    } catch (IOException insertJobException) {
+      if (errorExtractor.itemAlreadyExists(insertJobException)) {
+        logger.atInfo().withCause(insertJobException).log(
             "Fetching existing job after catching exception for duplicate jobId '%s'",
             job.getJobReference().getJobId());
-        response = service.jobs().get(projectId, job.getJobReference().getJobId()).execute();
+        try {
+          response = service.jobs().get(projectId, job.getJobReference().getJobId()).execute();
+        } catch (IOException getJobException) {
+          getJobException.addSuppressed(insertJobException);
+          throw new IOException(
+              String.format("Failed to get duplicate job '%s'", job), getJobException);
+        }
       } else {
         throw new IOException(
-            String.format("Unhandled exception trying to insert job '%s'", job), ioe);
+            String.format("Unhandled exception trying to insert job '%s'", job),
+            insertJobException);
       }
     }
     checkJobIdEquality(job, response);
