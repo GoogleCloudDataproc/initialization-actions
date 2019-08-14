@@ -326,7 +326,10 @@ public class CoopLockRepairIntegrationTest {
                 .setDstResource(dstDirUri.toString())
                 .setCopySucceeded("--rollForward".equals(command)));
     assertThat(gcsfsIHelper.readTextFile(bucketName, logFileUri.getPath()))
-        .isEqualTo(srcDirUri.resolve(fileName) + " -> " + dstDirUri.resolve(fileName) + "\n");
+        .isEqualTo(
+            String.format(
+                "{\"src\":\"%s\",\"dst\":\"%s\"}\n",
+                srcDirUri.resolve(fileName), dstDirUri.resolve(fileName)));
   }
 
   private static void failRenameOperation(

@@ -159,7 +159,10 @@ public class CoopLockIntegrationTest {
                 .setDstResource(dstDirUri.toString())
                 .setCopySucceeded(true));
     assertThat(gcsfsIHelper.readTextFile(bucketName, logFileUri.getPath()))
-        .isEqualTo(srcDirUri.resolve(fileName) + " -> " + dstDirUri.resolve(fileName) + "\n");
+        .isEqualTo(
+            String.format(
+                "{\"src\":\"%s\",\"dst\":\"%s\"}\n",
+                srcDirUri.resolve(fileName), dstDirUri.resolve(fileName)));
   }
 
   @Test

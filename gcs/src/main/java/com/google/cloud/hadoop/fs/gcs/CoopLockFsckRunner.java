@@ -18,7 +18,6 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_COOPERATIVE_LOCKING_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_COOPERATIVE_LOCKING_EXPIRATION_TIMEOUT_MS;
-import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockOperationDao.RENAME_LOG_RECORD_SEPARATOR;
 import static com.google.common.base.Preconditions.checkState;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toList;
@@ -34,6 +33,7 @@ import com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecord;
 import com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecordsDao;
 import com.google.cloud.hadoop.gcsio.cooplock.DeleteOperation;
 import com.google.cloud.hadoop.gcsio.cooplock.RenameOperation;
+import com.google.cloud.hadoop.gcsio.cooplock.RenameOperationLogRecord;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Iterables;
 import com.google.common.flogger.GoogleLogger;
@@ -68,9 +68,6 @@ class CoopLockFsckRunner {
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   private static final Gson GSON = new Gson();
-
-  private static final Splitter RENAME_LOG_RECORD_SPLITTER =
-      Splitter.on(RENAME_LOG_RECORD_SEPARATOR);
 
   private final Instant operationExpirationInstant = Instant.now();
 
@@ -207,22 +204,12 @@ class CoopLockFsckRunner {
             (o, i) -> o.setLockEpochMilli(i.toEpochMilli()));
     try {
       LinkedHashMap<String, String> loggedResources =
-          getOperationLog(
-                  operationStatus,
-                  l -> {
-                    List<String> srcToDst = RENAME_LOG_RECORD_SPLITTER.splitToList(l);
-                    checkState(
-                        srcToDst.size() == 2,
-                        "2 elements should be in rename operation log record, but was %s: %s",
-                        srcToDst.size(),
-                        srcToDst);
-                    return new AbstractMap.SimpleEntry<>(srcToDst.get(0), srcToDst.get(1));
-                  })
+          getOperationLog(operationStatus, l -> GSON.fromJson(l, RenameOperationLogRecord.class))
               .stream()
               .collect(
                   toMap(
-                      AbstractMap.SimpleEntry::getKey,
-                      AbstractMap.SimpleEntry::getValue,
+                      RenameOperationLogRecord::getSrc,
+                      RenameOperationLogRecord::getDst,
                       (e1, e2) -> {
                         throw new RuntimeException(
                             String.format("Found entries with duplicate keys: %s and %s", e1, e2));
