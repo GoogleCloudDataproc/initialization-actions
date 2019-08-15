@@ -22,12 +22,14 @@ import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration
 import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockOperationType.DELETE;
 import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockOperationType.RENAME;
 import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecordsDao.LOCK_DIRECTORY;
+import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecordsDao.LOCK_PATH;
 import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX;
 import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX;
 import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.assertThrows;
 
@@ -42,6 +44,7 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageIntegrationHelper;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
+import com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecords;
 import com.google.cloud.hadoop.gcsio.cooplock.CooperativeLockingOptions;
 import com.google.cloud.hadoop.gcsio.cooplock.DeleteOperation;
 import com.google.cloud.hadoop.gcsio.cooplock.RenameOperation;
@@ -49,6 +52,7 @@ import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.RetryHttpInitializer;
 import com.google.common.base.Ascii;
+import com.google.common.collect.Iterables;
 import com.google.gson.Gson;
 import java.io.IOException;
 import java.net.URI;
@@ -118,21 +122,45 @@ public class CoopLockRepairIntegrationTest {
   }
 
   @Test
+  public void emptyArgs() {
+    String[] args = {};
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> CoopLockFsck.main(args));
+    assertThat(e).hasMessageThat().isEqualTo("No arguments are specified");
+  }
+
+  @Test
   public void helpCommand() throws Exception {
     CoopLockFsck.main(new String[] {"--help"});
   }
 
   @Test
-  public void validRepairCommand_withoutParameter() {
-    String[] args = {"--rollBack"};
+  public void validRepairCommand_withoutBucketParameter() {
+    String[] args = {"--check"};
     IllegalArgumentException e =
         assertThrows(IllegalArgumentException.class, () -> CoopLockFsck.main(args));
     assertThat(e).hasMessageThat().contains("2 arguments should be specified");
   }
 
   @Test
-  public void validRepairCommand_withInvalidParameter() {
-    String[] args = {"--rollBack", "bucket"};
+  public void validRepairCommand_withoutBucketAndOperationIdParameters() {
+    String[] args = {"--rollBack"};
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> CoopLockFsck.main(args));
+    assertThat(e).hasMessageThat().contains("3 arguments should be specified");
+  }
+
+  @Test
+  public void validRepairCommand_withoutOperationIdParameter() {
+    String[] args = {"--rollForward", "gs://bucket"};
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> CoopLockFsck.main(args));
+    assertThat(e).hasMessageThat().contains("3 arguments should be specified");
+  }
+
+  @Test
+  public void validRepairCommand_withInvalidBucketParameter() {
+    String[] args = {"--rollBack", "bucket", "operation-id"};
     IllegalArgumentException e =
         assertThrows(IllegalArgumentException.class, () -> CoopLockFsck.main(args));
     assertThat(e).hasMessageThat().contains("bucket parameter should have 'gs://' scheme");
@@ -140,10 +168,38 @@ public class CoopLockRepairIntegrationTest {
 
   @Test
   public void invalidRepairCommand_withValidParameter() {
-    String[] args = {"--invalidCommand", "gs://bucket"};
+    String[] args = {"--invalidCommand", "gs://bucket", "operation-id"};
     IllegalArgumentException e =
         assertThrows(IllegalArgumentException.class, () -> CoopLockFsck.main(args));
     assertThat(e).hasMessageThat().contains("Unknown --invalidCommand command");
+  }
+
+  @Test
+  public void noOperations_checkSucceeds() throws Exception {
+    String bucketName = gcsfsIHelper.createUniqueBucket("coop-no-op-check-succeeds");
+    URI bucketUri = new URI("gs://" + bucketName + "/");
+    String fileName = "file";
+    URI dirUri = bucketUri.resolve("delete_" + UUID.randomUUID() + "/");
+
+    // create file to delete
+    gcsfsIHelper.writeTextFile(bucketName, dirUri.resolve(fileName).getPath(), "file_content");
+
+    GoogleCloudStorageFileSystemOptions gcsFsOptions = newGcsFsOptions();
+
+    GoogleCloudStorageFileSystem gcsFs = newGcsFs(gcsFsOptions, httpRequestInitializer);
+
+    assertThat(gcsFs.exists(dirUri)).isTrue();
+    assertThat(gcsFs.exists(dirUri.resolve(fileName))).isTrue();
+
+    CoopLockFsck fsck = new CoopLockFsck();
+    fsck.setConf(getTestConfiguration());
+
+    fsck.run(new String[] {"--check", "gs://" + bucketName});
+
+    assertThat(gcsFs.exists(dirUri)).isTrue();
+    assertThat(gcsFs.exists(dirUri.resolve(fileName))).isTrue();
+
+    assertThat(gcsFs.exists(bucketUri.resolve(LOCK_DIRECTORY))).isFalse();
   }
 
   @Test
@@ -192,6 +248,108 @@ public class CoopLockRepairIntegrationTest {
   }
 
   @Test
+  public void failedDirectoryDelete_rollForward_withWrongId_fails() throws Exception {
+    String bucketName = gcsfsIHelper.createUniqueBucket("coop-delete-fwd-fail-bad-id");
+    URI bucketUri = new URI("gs://" + bucketName + "/");
+    String fileName = "file";
+    URI dirUri = bucketUri.resolve("delete_" + UUID.randomUUID() + "/");
+
+    // create file to delete
+    gcsfsIHelper.writeTextFile(bucketName, dirUri.resolve(fileName).getPath(), "file_content");
+
+    GoogleCloudStorageFileSystemOptions gcsFsOptions = newGcsFsOptions();
+
+    failDeleteOperation(bucketName, gcsFsOptions, dirUri);
+
+    GoogleCloudStorageFileSystem gcsFs = newGcsFs(gcsFsOptions, httpRequestInitializer);
+
+    assertThat(gcsFs.exists(dirUri)).isTrue();
+    assertThat(gcsFs.exists(dirUri.resolve(fileName))).isTrue();
+
+    CoopLockFsck fsck = new CoopLockFsck();
+    fsck.setConf(getTestConfiguration());
+
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> fsck.run(new String[] {"--rollForward", "gs://" + bucketName, "wrong-op-id"}));
+
+    assertThat(e).hasMessageThat().isEqualTo("wrong-op-id operation not found");
+
+    assertThat(gcsFs.exists(dirUri)).isTrue();
+    assertThat(gcsFs.exists(dirUri.resolve(fileName))).isTrue();
+
+    // Validate lock files
+    List<URI> lockFiles =
+        gcsFs.listFileInfo(bucketUri.resolve(LOCK_DIRECTORY)).stream()
+            .map(FileInfo::getPath)
+            .collect(toList());
+
+    assertThat(lockFiles).hasSize(3);
+    assertThat(matchFile(lockFiles, "all\\.lock")).isNotNull();
+    String filenamePattern = String.format(OPERATION_FILENAME_PATTERN_FORMAT, DELETE);
+    URI lockFileUri = matchFile(lockFiles, filenamePattern + "\\.lock").get();
+    URI logFileUri = matchFile(lockFiles, filenamePattern + "\\.log").get();
+    String lockContent = gcsfsIHelper.readTextFile(bucketName, lockFileUri.getPath());
+    assertThat(GSON.fromJson(lockContent, DeleteOperation.class).setLockEpochMilli(0))
+        .isEqualTo(new DeleteOperation().setLockEpochMilli(0).setResource(dirUri.toString()));
+    assertThat(gcsfsIHelper.readTextFile(bucketName, logFileUri.getPath()))
+        .isEqualTo(dirUri.resolve(fileName) + "\n" + dirUri + "\n");
+  }
+
+  @Test
+  public void failedDirectoryDelete_rollForward_withCorrectId_succeeds() throws Exception {
+    String bucketName = gcsfsIHelper.createUniqueBucket("coop-delete-fwd-fail-id");
+    URI bucketUri = new URI("gs://" + bucketName + "/");
+    String fileName = "file";
+    URI dirUri = bucketUri.resolve("delete_" + UUID.randomUUID() + "/");
+
+    // create file to delete
+    gcsfsIHelper.writeTextFile(bucketName, dirUri.resolve(fileName).getPath(), "file_content");
+
+    GoogleCloudStorageFileSystemOptions gcsFsOptions = newGcsFsOptions();
+
+    failDeleteOperation(bucketName, gcsFsOptions, dirUri);
+
+    GoogleCloudStorageFileSystem gcsFs = newGcsFs(gcsFsOptions, httpRequestInitializer);
+
+    assertThat(gcsFs.exists(dirUri)).isTrue();
+    assertThat(gcsFs.exists(dirUri.resolve(fileName))).isTrue();
+
+    FileInfo lockInfo = gcsFs.getFileInfo(bucketUri.resolve(LOCK_PATH));
+    String locks = new String(lockInfo.getAttributes().get("lock"), UTF_8);
+    CoopLockRecords lockRecords = GSON.fromJson(locks, CoopLockRecords.class);
+    String operationId = Iterables.getOnlyElement(lockRecords.getLocks()).getOperationId();
+
+    CoopLockFsck fsck = new CoopLockFsck();
+    fsck.setConf(getTestConfiguration());
+
+    // Wait until lock will expire
+    sleepUninterruptibly(COOP_LOCK_TIMEOUT);
+
+    fsck.run(new String[] {"--rollForward", "gs://" + bucketName, operationId});
+
+    assertThat(gcsFs.exists(dirUri)).isFalse();
+    assertThat(gcsFs.exists(dirUri.resolve(fileName))).isFalse();
+
+    // Validate lock files
+    List<URI> lockFiles =
+        gcsFs.listFileInfo(bucketUri.resolve(LOCK_DIRECTORY)).stream()
+            .map(FileInfo::getPath)
+            .collect(toList());
+
+    assertThat(lockFiles).hasSize(2);
+    String filenamePattern = String.format(OPERATION_FILENAME_PATTERN_FORMAT, DELETE);
+    URI lockFileUri = matchFile(lockFiles, filenamePattern + "\\.lock").get();
+    URI logFileUri = matchFile(lockFiles, filenamePattern + "\\.log").get();
+    String lockContent = gcsfsIHelper.readTextFile(bucketName, lockFileUri.getPath());
+    assertThat(GSON.fromJson(lockContent, DeleteOperation.class).setLockEpochMilli(0))
+        .isEqualTo(new DeleteOperation().setLockEpochMilli(0).setResource(dirUri.toString()));
+    assertThat(gcsfsIHelper.readTextFile(bucketName, logFileUri.getPath()))
+        .isEqualTo(dirUri.resolve(fileName) + "\n" + dirUri + "\n");
+  }
+
+  @Test
   public void successfulDirectoryDelete_rollForward() throws Exception {
     String bucketName = gcsfsIHelper.createUniqueBucket("coop-delete-forward-successful");
 
@@ -217,7 +375,7 @@ public class CoopLockRepairIntegrationTest {
     CoopLockFsck fsck = new CoopLockFsck();
     fsck.setConf(getTestConfiguration());
 
-    fsck.run(new String[] {"--rollForward", "gs://" + bucketName});
+    fsck.run(new String[] {"--rollForward", "gs://" + bucketName, "all"});
 
     assertThat(gcsFs.exists(dirUri)).isFalse();
     assertThat(gcsFs.exists(dirUri.resolve(fileName))).isFalse();
@@ -297,7 +455,7 @@ public class CoopLockRepairIntegrationTest {
     // Wait until lock will expire
     sleepUninterruptibly(COOP_LOCK_TIMEOUT);
 
-    fsck.run(new String[] {command, "gs://" + bucketName});
+    fsck.run(new String[] {command, "gs://" + bucketName, "all"});
 
     URI deletedDirUri = "--rollForward".equals(command) ? srcDirUri : dstDirUri;
     URI repairedDirUri = "--rollForward".equals(command) ? dstDirUri : srcDirUri;
@@ -382,7 +540,7 @@ public class CoopLockRepairIntegrationTest {
     // Wait until lock will expire
     sleepUninterruptibly(COOP_LOCK_TIMEOUT);
 
-    fsck.run(new String[] {command, "gs://" + bucketName});
+    fsck.run(new String[] {command, "gs://" + bucketName, "all"});
 
     assertThat(gcsFs.exists(dirUri)).isEqualTo(!"--rollForward".equals(command));
     assertThat(gcsFs.exists(dirUri.resolve(fileName))).isEqualTo(!"--rollForward".equals(command));
