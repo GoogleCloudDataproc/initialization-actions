@@ -518,6 +518,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
   }
 
   /** Validates initialize() with configuration key fs.gs.working.dir set. */
+  @Override
   @Test
   public void testInitializeWithWorkingDirectory() throws Exception {
     // We can just test by calling initialize multiple times (for each test condition) because

@@ -983,6 +983,8 @@ public class GoogleCloudStorageTest {
     assertThat(thrown).hasMessageThat().isEqualTo("fake generic IOException");
     assertThat(thrown.getSuppressed()).hasLength(1);
     assertThat(thrown.getSuppressed()[0]).isEqualTo(interrupt);
+    assertThat(Thread.interrupted()).isTrue();
+
     verify(mockStorage, atLeastOnce()).objects();
     verify(mockStorageObjects, atLeastOnce()).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockClientRequestHelper).getRequestHeaders(any(Storage.Objects.Get.class));

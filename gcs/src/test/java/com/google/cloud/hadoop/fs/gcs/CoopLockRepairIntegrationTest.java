@@ -499,9 +499,9 @@ public class CoopLockRepairIntegrationTest {
     HttpRequestInitializer failingRequestInitializer = newFailingRequestInitializer(failPredicate);
     GoogleCloudStorageFileSystem failingGcsFs = newGcsFs(options, failingRequestInitializer);
 
-    RuntimeException e =
-        assertThrows(RuntimeException.class, () -> failingGcsFs.rename(srcDirUri, dstDirUri));
-    assertThat(e).hasCauseThat().hasMessageThat().endsWith("Injected failure");
+    IOException e =
+        assertThrows(IOException.class, () -> failingGcsFs.rename(srcDirUri, dstDirUri));
+    assertThat(e).hasCauseThat().hasCauseThat().hasMessageThat().endsWith("Injected failure");
   }
 
   @Test
@@ -572,10 +572,10 @@ public class CoopLockRepairIntegrationTest {
                     && request.getUrl().toString().contains("/b/" + bucketName + "/o/"));
     GoogleCloudStorageFileSystem failingGcsFs = newGcsFs(gcsFsOptions, failingRequestInitializer);
 
-    RuntimeException e =
+    IOException e =
         assertThrows(
-            RuntimeException.class, () -> failingGcsFs.delete(dirUri, /* recursive= */ true));
-    assertThat(e).hasCauseThat().hasMessageThat().endsWith("Injected failure");
+            IOException.class, () -> failingGcsFs.delete(dirUri, /* recursive= */ true));
+    assertThat(e).hasCauseThat().hasCauseThat().hasMessageThat().endsWith("Injected failure");
   }
 
   private static HttpRequestInitializer newFailingRequestInitializer(

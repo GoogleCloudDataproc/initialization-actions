@@ -76,7 +76,7 @@ public class AvroRecordReaderTest {
   }
 
   /** Collect all values contained in the field "key" within all records in the given reader. */
-  private List<String> collectRecordKeys(AvroRecordReader recordReader) throws IOException {
+  private static List<String> collectRecordKeys(AvroRecordReader recordReader) throws IOException {
     List<String> result = new ArrayList<>();
     while (recordReader.nextKeyValue()) {
       result.add(recordReader.currentRecord.get("key").toString());
@@ -85,7 +85,7 @@ public class AvroRecordReaderTest {
   }
 
   /** Count all records available until the reader reports that no more are available. */
-  private int remainingRecordCount(AvroRecordReader recordReader) throws IOException {
+  private static int remainingRecordCount(AvroRecordReader recordReader) throws IOException {
     return collectRecordKeys(recordReader).size();
   }
 
