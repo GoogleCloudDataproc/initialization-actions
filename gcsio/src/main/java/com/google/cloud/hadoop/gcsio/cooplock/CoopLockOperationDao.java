@@ -211,7 +211,7 @@ public class CoopLockOperationDao {
         logger.atWarning().withCause(e).log(
             "Failed to checkpoint '%s' lock for %s operation, attempt #%d",
             operationLockPath, operationId, i + 1);
-        sleepUninterruptibly(backOff.nextBackOffMillis(), MILLISECONDS);
+        sleepUninterruptibly(Duration.ofMillis(backOff.nextBackOffMillis()));
       }
     }
     throw new IOException(
@@ -259,7 +259,7 @@ public class CoopLockOperationDao {
               "Failed to renew '%s' lock for %s operation, attempt #%d",
               operationLockPath, operationId, attempt++);
         }
-        sleepUninterruptibly(backoff.nextBackOffMillis(), MILLISECONDS);
+        sleepUninterruptibly(Duration.ofMillis(backoff.nextBackOffMillis()));
       } while (timeout.compareTo(stopwatch.elapsed()) > 0);
       logger.atSevere().log(
           "Renewal of '%s' lock for %s operation timed out (timeout %s), exiting",

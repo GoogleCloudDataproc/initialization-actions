@@ -516,7 +516,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   public abstract String getScheme();
 
   /**
-   * Overridden to make root it's own parent. This is POSIX compliant, but more importantly guards
+   * Overridden to make root its own parent. This is POSIX compliant, but more importantly guards
    * against poor directory accounting in the PathData class of Hadoop 2's FsShell.
    */
   @Override
@@ -1841,7 +1841,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     if (!fileInfo.exists()) {
       throw new FileNotFoundException(
           String.format(
-              "%s not found: ", fileInfo.isDirectory() ? "Directory" : "File", hadoopPath));
+              "%s not found: %s", fileInfo.isDirectory() ? "Directory" : "File", hadoopPath));
     }
     FileChecksum checksum = getFileChecksum(checksumType, fileInfo);
     logger.atFinest().log(
