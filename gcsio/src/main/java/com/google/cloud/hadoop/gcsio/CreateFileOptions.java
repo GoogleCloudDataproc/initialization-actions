@@ -16,6 +16,7 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
@@ -174,5 +175,17 @@ public class CreateFileOptions {
    */
   public long getExistingGenerationId() {
     return existingGenerationId;
+  }
+
+  @Override
+  public String toString() {
+    return MoreObjects.toStringHelper(this)
+        .add("overwriteExisting", overwriteExisting)
+        .add("contentType", contentType)
+        .add("attributes", attributes)
+        .add("checkNoDirectoryConflict", checkNoDirectoryConflict)
+        .add("ensureParentDirectoriesExist", ensureParentDirectoriesExist)
+        .add("resources", existingGenerationId)
+        .toString();
   }
 }

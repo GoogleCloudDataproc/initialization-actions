@@ -30,7 +30,8 @@ class UriEncodingPathCodec implements PathCodec {
 
   @Override
   public StorageResourceId validatePathAndGetId(URI path, boolean allowEmptyObjectName) {
-    logger.atFine().log("validatePathAndGetId('%s', %s)", path, allowEmptyObjectName);
+    logger.atFinest().log(
+        "validatePathAndGetId(path: '%s', allowEmptyObjectName: %b)", path, allowEmptyObjectName);
     Preconditions.checkNotNull(path);
 
     if (!GoogleCloudStorageFileSystem.SCHEME.equals(path.getScheme())) {
@@ -57,6 +58,9 @@ class UriEncodingPathCodec implements PathCodec {
 
   @Override
   public URI getPath(String bucketName, String objectName, boolean allowEmptyObjectName) {
+    logger.atFinest().log(
+        "getPath(bucketName: '%s', objectName: '%s', allowEmptyObjectName: %b)",
+        bucketName, objectName, allowEmptyObjectName);
     if (allowEmptyObjectName && bucketName == null && objectName == null) {
       return GoogleCloudStorageFileSystem.GCS_ROOT;
     }

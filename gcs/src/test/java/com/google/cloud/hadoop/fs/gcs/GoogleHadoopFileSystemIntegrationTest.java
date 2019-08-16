@@ -830,7 +830,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
     Path target = new Path(directory, "target");
     IllegalArgumentException exception =
         assertThrows(IllegalArgumentException.class, () -> myGhfs.concat(target, new Path[0]));
-    assertThat(exception).hasMessageThat().contains("psrcs must have at least one source");
+    assertThat(exception).hasMessageThat().contains("srcs must have at least one source");
   }
 
   @Test
