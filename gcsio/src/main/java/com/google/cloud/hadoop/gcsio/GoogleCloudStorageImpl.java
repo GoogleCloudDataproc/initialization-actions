@@ -466,6 +466,18 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     }
   }
 
+  /**
+   * See {@link GoogleCloudStorage#createEmptyObject(StorageResourceId)} for details about expected
+   * behavior.
+   */
+  @Override
+  public void createEmptyObject(StorageResourceId resourceId) throws IOException {
+    logger.atFine().log("createEmptyObject(%s)", resourceId);
+    Preconditions.checkArgument(
+        resourceId.isStorageObject(), "Expected full StorageObject id, got %s", resourceId);
+    createEmptyObject(resourceId, CreateObjectOptions.DEFAULT);
+  }
+
   public void updateMetadata(GoogleCloudStorageItemInfo itemInfo, Map<String, byte[]> metadata)
       throws IOException {
     StorageResourceId resourceId = itemInfo.getResourceId();
@@ -484,23 +496,9 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     patchObject.execute();
   }
 
-  /**
-   * See {@link GoogleCloudStorage#createEmptyObject(StorageResourceId)} for details about
-   * expected behavior.
-   */
-  @Override
-  public void createEmptyObject(StorageResourceId resourceId)
-      throws IOException {
-    logger.atFine().log("createEmptyObject(%s)", resourceId);
-    Preconditions.checkArgument(
-        resourceId.isStorageObject(), "Expected full StorageObject id, got %s", resourceId);
-    createEmptyObject(resourceId, CreateObjectOptions.DEFAULT);
-  }
-
   @Override
   public void createEmptyObjects(
-      List<StorageResourceId> resourceIds, final CreateObjectOptions options)
-      throws IOException {
+      List<StorageResourceId> resourceIds, final CreateObjectOptions options) throws IOException {
     // TODO(user): This method largely follows a pattern similar to
     // deleteObjects(List<StorageResourceId>); extract a generic method for both.
     logger.atFine().log("createEmptyObjects(%s)", resourceIds);

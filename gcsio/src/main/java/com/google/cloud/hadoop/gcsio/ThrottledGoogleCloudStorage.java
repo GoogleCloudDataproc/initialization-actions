@@ -110,6 +110,18 @@ public class ThrottledGoogleCloudStorage implements GoogleCloudStorage {
   }
 
   @Override
+  public void create(String bucketName) throws IOException {
+    throttle(StorageOperation.CREATE_BUCKET);
+    wrappedGcs.create(bucketName);
+  }
+
+  @Override
+  public void create(String bucketName, CreateBucketOptions options) throws IOException {
+    throttle(StorageOperation.CREATE_BUCKET);
+    wrappedGcs.create(bucketName, options);
+  }
+
+  @Override
   public void createEmptyObject(StorageResourceId resourceId) throws IOException {
     throttle(StorageOperation.CREATE_OBJECT);
     wrappedGcs.createEmptyObject(resourceId);
@@ -149,18 +161,6 @@ public class ThrottledGoogleCloudStorage implements GoogleCloudStorage {
       throws IOException {
     throttle(StorageOperation.OPEN_OBJECT);
     return wrappedGcs.open(resourceId, readOptions);
-  }
-
-  @Override
-  public void create(String bucketName) throws IOException {
-    throttle(StorageOperation.CREATE_BUCKET);
-    wrappedGcs.create(bucketName);
-  }
-
-  @Override
-  public void create(String bucketName, CreateBucketOptions options) throws IOException {
-    throttle(StorageOperation.CREATE_BUCKET);
-    wrappedGcs.create(bucketName, options);
   }
 
   @Override
