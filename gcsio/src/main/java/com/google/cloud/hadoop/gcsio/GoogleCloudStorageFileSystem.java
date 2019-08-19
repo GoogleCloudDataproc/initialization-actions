@@ -454,9 +454,7 @@ public class GoogleCloudStorageFileSystem {
     if (!bucketsToDelete.isEmpty()) {
       List<String> bucketNames = new ArrayList<>(bucketsToDelete.size());
       for (FileInfo bucketInfo : bucketsToDelete) {
-        StorageResourceId resourceId = bucketInfo.getItemInfo().getResourceId();
-        gcs.waitForBucketEmpty(resourceId.getBucketName());
-        bucketNames.add(resourceId.getBucketName());
+        bucketNames.add(bucketInfo.getItemInfo().getResourceId().getBucketName());
       }
       if (options.isBucketDeleteEnabled()) {
         gcs.deleteBuckets(bucketNames);
@@ -1006,7 +1004,7 @@ public class GoogleCloudStorageFileSystem {
         options.getCloudStorageOptions().isAutoRepairImplicitDirectoriesEnabled(),
         "implicit directories auto repair should be enabled");
 
-    GoogleCloudStorageItemInfo info = getFromFuture(infoFuture, "Failed to get info from future");
+    GoogleCloudStorageItemInfo info = getFromFuture(infoFuture);
     StorageResourceId resourceId = info.getResourceId();
     logger.atFinest().log("repairImplicitDirectory(resourceId: %s)", resourceId);
 
@@ -1032,14 +1030,14 @@ public class GoogleCloudStorageFileSystem {
     }
   }
 
-  private static <T> T getFromFuture(Future<T> future, String message) throws IOException {
+  private static <T> T getFromFuture(Future<T> future) throws IOException {
     try {
       return future.get();
     } catch (InterruptedException | ExecutionException e) {
       if (e instanceof InterruptedException) {
         Thread.currentThread().interrupt();
       }
-      throw new IOException(message, e);
+      throw new IOException("Failed to get info from future", e);
     }
   }
 

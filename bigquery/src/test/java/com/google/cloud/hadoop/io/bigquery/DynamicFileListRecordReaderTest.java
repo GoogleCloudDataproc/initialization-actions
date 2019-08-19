@@ -120,7 +120,7 @@ public class DynamicFileListRecordReaderTest {
   }
 
   /** Returns the recordReader to clean state. */
-  private void resetRecordReader() throws IOException {
+  private void resetRecordReader() throws Exception {
     inputSplit = new ShardedInputSplit(shardPath, estimatedNumRecords);
     recordReader = createReader();
     recordReader.initialize(inputSplit, mockTaskContext);
@@ -151,7 +151,7 @@ public class DynamicFileListRecordReaderTest {
   }
 
   @Test
-  public void testInitializeCreatesShardDirectory() throws IOException {
+  public void testInitializeCreatesShardDirectory() throws Exception {
     fileSystem.delete(shardPath.getParent(), true);
     assertThat(fileSystem.exists(shardPath.getParent())).isFalse();
     resetRecordReader();
@@ -166,7 +166,7 @@ public class DynamicFileListRecordReaderTest {
   }
 
   @Test
-  public void testGetProgressZeroEstimatedRecords() throws IOException {
+  public void testGetProgressZeroEstimatedRecords() throws Exception {
     inputSplit = new ShardedInputSplit(shardPath, 0);
     recordReader = createReader();
     recordReader.initialize(inputSplit, mockTaskContext);

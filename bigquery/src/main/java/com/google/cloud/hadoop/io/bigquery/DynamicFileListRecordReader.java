@@ -102,14 +102,11 @@ public class DynamicFileListRecordReader<K, V>
   }
 
   @Override
-  public void initialize(InputSplit genericSplit, TaskAttemptContext context) throws IOException {
-    try {
+  public void initialize(InputSplit genericSplit, TaskAttemptContext context)
+      throws IOException, InterruptedException {
       logger.atInfo().log(
           "Initializing DynamicFileListRecordReader with split '%s', task context '%s'",
           HadoopToStringUtil.toString(genericSplit), HadoopToStringUtil.toString(context));
-    } catch (InterruptedException ie) {
-      logger.atWarning().withCause(ie).log("InterruptedException when logging InputSplit.");
-    }
     Preconditions.checkArgument(genericSplit instanceof ShardedInputSplit,
         "InputSplit genericSplit should be an instance of ShardedInputSplit.");
 
@@ -179,11 +176,7 @@ public class DynamicFileListRecordReader<K, V>
       needRefresh = !isNextFileReady() && shouldExpectMoreFiles();
       if (needRefresh) {
         logger.atFine().log("No new files found, sleeping before trying again...");
-        try {
-          sleeper.sleep(pollIntervalMs);
-        } catch (InterruptedException ie) {
-          logger.atWarning().withCause(ie).log("Interrupted while sleeping.");
-        }
+        sleeper.sleep(pollIntervalMs);
         context.progress();
         pollAttempt++;
       }

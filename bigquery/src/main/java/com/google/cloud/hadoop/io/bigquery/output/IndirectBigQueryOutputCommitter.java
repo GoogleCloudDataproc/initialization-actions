@@ -83,6 +83,7 @@ public class IndirectBigQueryOutputCommitter extends ForwardingBigQueryFileOutpu
               sourceUris,
               true);
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       throw new IOException("Failed to import GCS into BigQuery", e);
     }
 

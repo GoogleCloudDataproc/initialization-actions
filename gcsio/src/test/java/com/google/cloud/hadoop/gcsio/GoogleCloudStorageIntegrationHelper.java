@@ -306,8 +306,7 @@ public abstract class GoogleCloudStorageIntegrationHelper {
    *
    * <p>For example, foo/bar/zoo => creates: foo/, foo/bar/, foo/bar/zoo.
    */
-  public void createObjectsWithSubdirs(String bucketName, String... objectNames)
-      throws IOException {
+  public void createObjectsWithSubdirs(String bucketName, String... objectNames) throws Exception {
     List<String> allNames = new ArrayList<>();
     Set<String> created = new HashSet<>();
     for (String objectName : objectNames) {
@@ -358,8 +357,7 @@ public abstract class GoogleCloudStorageIntegrationHelper {
   }
 
   /** Creates objects with the given names in the given bucket. */
-  private void createObjects(final String bucketName, String[] objectNames) throws IOException {
-
+  private void createObjects(final String bucketName, String[] objectNames) throws Exception {
     final ExecutorService threadPool = Executors.newCachedThreadPool();
     final CountDownLatch counter = new CountDownLatch(objectNames.length);
     List<Future<?>> futures = new ArrayList<>();
@@ -387,17 +385,10 @@ public abstract class GoogleCloudStorageIntegrationHelper {
 
     try {
       counter.await();
-    } catch (InterruptedException ie) {
-      throw new IOException("Interrupted while awaiting object creation!", ie);
     } finally {
       threadPool.shutdown();
-      try {
-        if (!threadPool.awaitTermination(10L, TimeUnit.SECONDS)) {
-          System.err.println("Failed to awaitTermination! Forcing executor shutdown.");
-          threadPool.shutdownNow();
-        }
-      } catch (InterruptedException ie) {
-        System.err.println("Interrupted during awaitTermination! Forcing executor shutdown.");
+      if (!threadPool.awaitTermination(10L, TimeUnit.SECONDS)) {
+        System.err.println("Failed to awaitTermination! Forcing executor shutdown.");
         threadPool.shutdownNow();
       }
     }

@@ -106,7 +106,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
   /** Validates rename(). */
   @Test
   @Override
-  public void testRename() throws IOException {
+  public void testRename() throws Exception {
     renameHelper(
         new HdfsBehavior() {
           /**
@@ -519,7 +519,7 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
 
   /** Validates initialize() with configuration key fs.gs.working.dir set. */
   @Test
-  public void testInitializeWithWorkingDirectory() throws IOException, URISyntaxException {
+  public void testInitializeWithWorkingDirectory() throws Exception {
     // We can just test by calling initialize multiple times (for each test condition) because
     // there is nothing in initialize() which must be run only once. If this changes, this test
     // method will need to resort to using a new GoogleHadoopFileSystem() for each item
@@ -757,13 +757,9 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
     assertThat(ghfs.delete(filePath, /* recursive= */ true)).isTrue();
   }
 
-  /**
-   * Test getFileStatus() uses the user reported by UGI
-   *
-   * @throws IOException
-   */
+  /** Test getFileStatus() uses the user reported by UGI */
   @Test
-  public void testFileStatusUser() throws IOException, InterruptedException {
+  public void testFileStatusUser() throws Exception {
     String ugiUser = UUID.randomUUID().toString();
     UserGroupInformation ugi = UserGroupInformation.createRemoteUser(ugiUser);
     Configuration conf = getConfigurationWithImplementation();

@@ -72,12 +72,9 @@ public class GsonRecordReaderTest {
     ghfs = new InMemoryGoogleHadoopFileSystem();
   }
 
-  /**
-   * Iterates through all of the nextKeyValue method of GsonRecordReader.
-   */
+  /** Iterates through all of the nextKeyValue method of GsonRecordReader. */
   @Test
-  public void testIterateNextKeyValue()
-      throws IOException {
+  public void testIterateNextKeyValue() throws Exception {
     // Load RecordReader with no records.
     GsonRecordReader recordReader = getRecordReader(0);
 
@@ -110,12 +107,9 @@ public class GsonRecordReaderTest {
     multipleRecordReader.close();
   }
 
-  /**
-   * Tests getCurrentValue method of GsonRecordReader.
-   */
+  /** Tests getCurrentValue method of GsonRecordReader. */
   @Test
-  public void testGetCurrentValue()
-      throws IOException {
+  public void testGetCurrentValue() throws Exception {
     // Create Json objects from text values.
     JsonParser jsonParser = new JsonParser();
     JsonObject json1 = (JsonObject) jsonParser.parse(value1.toString());
@@ -136,12 +130,9 @@ public class GsonRecordReaderTest {
     multipleRecordReader.close();
   }
 
-  /**
-   * Tests getCurrentKey method of GsonRecordReader.
-   */
+  /** Tests getCurrentKey method of GsonRecordReader. */
   @Test
-  public void testGetCurrentKey()
-      throws IOException {
+  public void testGetCurrentKey() throws Exception {
     // Load RecordReader with multiple records. Set length of input split to 60 chars.
     GsonRecordReader multipleRecordReader = getRecordReader(60);
 
@@ -157,12 +148,9 @@ public class GsonRecordReaderTest {
     multipleRecordReader.close();
   }
 
-  /**
-   * Tests getProgress method of GsonRecordReader.
-   */
+  /** Tests getProgress method of GsonRecordReader. */
   @Test
-  public void testGetProgress()
-      throws IOException {
+  public void testGetProgress() throws Exception {
     // Load RecordReader with multiple records. Set length of input split to 60 chars.
     GsonRecordReader multipleRecordReader = getRecordReader(60);
 
@@ -184,8 +172,7 @@ public class GsonRecordReaderTest {
    * @param splitLength the length of the inputSplit in number of chars.
    * @throws IOException on IO Error.
    */
-  public GsonRecordReader getRecordReader(int splitLength)
-      throws IOException {
+  public GsonRecordReader getRecordReader(int splitLength) throws Exception {
     // Create the task context.
     TaskAttemptContext mockJob = Mockito.mock(TaskAttemptContext.class);
     Mockito.when(mockJob.getConfiguration()).thenReturn(config);

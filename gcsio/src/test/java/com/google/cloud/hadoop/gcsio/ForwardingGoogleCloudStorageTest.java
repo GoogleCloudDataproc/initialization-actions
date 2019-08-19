@@ -258,13 +258,6 @@ public class ForwardingGoogleCloudStorageTest {
   }
 
   @Test
-  public void testWaitForBucketEmpty() throws IOException {
-    gcs.waitForBucketEmpty(TEST_STRING);
-
-    verify(mockGcsDelegate).waitForBucketEmpty(eq(TEST_STRING));
-  }
-
-  @Test
   public void testCompose() throws IOException {
     gcs.compose(TEST_STRING, TEST_STRINGS, TEST_STRING, TEST_STRING);
 

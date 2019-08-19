@@ -21,7 +21,6 @@ import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecordsDao.LOCK_DIR
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
-import static java.lang.Thread.currentThread;
 import static java.lang.Thread.sleep;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -232,10 +231,10 @@ public class CoopLockOperationDao {
               try {
                 sleep(timeout.toMillis());
               } catch (InterruptedException e) {
-                currentThread().interrupt();
+                Thread.currentThread().interrupt();
               }
               // timeoutFuture was cancelled
-              if (currentThread().isInterrupted()) {
+              if (Thread.currentThread().isInterrupted()) {
                 return;
               }
               logger.atSevere().log(

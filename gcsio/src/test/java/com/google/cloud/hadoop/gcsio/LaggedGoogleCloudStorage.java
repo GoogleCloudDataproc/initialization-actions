@@ -159,11 +159,6 @@ public class LaggedGoogleCloudStorage implements GoogleCloudStorage  {
   }
 
   @Override
-  public void waitForBucketEmpty(String bucketName) throws IOException {
-    delegate.waitForBucketEmpty(bucketName);
-  }
-
-  @Override
   public void compose(
       String bucketName, List<String> sources, String destination, String contentType)
       throws IOException {

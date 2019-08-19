@@ -25,7 +25,6 @@ import com.google.common.base.Strings;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -325,30 +324,24 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     assertWithMessage("testWrite1Byte: write-read mismatch").that(readText).isEqualTo(text);
   }
 
-  /**
-   * Validates delete().
-   */
-  @Test @Override
-  public void testDelete()
-      throws IOException {
+  /** Validates delete(). */
+  @Test
+  @Override
+  public void testDelete() throws Exception {
     deleteHelper(new HdfsBehavior());
   }
 
-  /**
-   * Validates mkdirs().
-   */
-  @Test @Override
-  public void testMkdirs()
-      throws IOException, URISyntaxException {
+  /** Validates mkdirs(). */
+  @Test
+  @Override
+  public void testMkdirs() throws Exception {
     mkdirsHelper(new HdfsBehavior());
   }
 
-  /**
-   * Validates rename().
-   */
-  @Test @Override
-  public void testRename()
-      throws IOException {
+  /** Validates rename(). */
+  @Test
+  @Override
+  public void testRename() throws Exception {
     renameHelper(new HdfsBehavior());
   }
 
@@ -659,11 +652,10 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
   }
 
   /**
-   * Helper for creating the necessary objects for testing working directory settings, returns
-   * a list of WorkingDirData where each element represents a different test condition.
+   * Helper for creating the necessary objects for testing working directory settings, returns a
+   * list of WorkingDirData where each element represents a different test condition.
    */
-  protected List<WorkingDirData> setUpWorkingDirectoryTest()
-      throws IOException {
+  protected List<WorkingDirData> setUpWorkingDirectoryTest() throws Exception {
     // Objects created for this test.
     String[] objectNames = {
       "f1",
@@ -702,12 +694,9 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     return wddList;
   }
 
-  /**
-   * Validates setWorkingDirectory() and getWorkingDirectory().
-   */
+  /** Validates setWorkingDirectory() and getWorkingDirectory(). */
   @Test
-  public void testWorkingDirectory()
-      throws IOException {
+  public void testWorkingDirectory() throws Exception {
     List<WorkingDirData> wddList = setUpWorkingDirectoryTest();
 
     // -------------------------------------------------------

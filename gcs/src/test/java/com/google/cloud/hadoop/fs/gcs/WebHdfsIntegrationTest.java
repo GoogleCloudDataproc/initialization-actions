@@ -21,7 +21,6 @@ import static org.junit.Assert.assertThrows;
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -104,30 +103,24 @@ public class WebHdfsIntegrationTest extends HadoopFileSystemTestBase {
   // Tests that exercise behavior defined in HdfsBehavior.
   // -----------------------------------------------------------------
 
-  /**
-   * Validates delete().
-   */
-  @Test @Override
-  public void testDelete()
-      throws IOException {
+  /** Validates delete(). */
+  @Test
+  @Override
+  public void testDelete() throws Exception {
     deleteHelper(new HdfsBehavior());
   }
 
-  /**
-   * Validates mkdirs().
-   */
-  @Test @Override
-  public void testMkdirs()
-      throws IOException, URISyntaxException {
+  /** Validates mkdirs(). */
+  @Test
+  @Override
+  public void testMkdirs() throws Exception {
     mkdirsHelper(new HdfsBehavior());
   }
 
-  /**
-   * Validates rename().
-   */
-  @Test @Override
-  public void testRename()
-      throws IOException {
+  /** Validates rename(). */
+  @Test
+  @Override
+  public void testRename() throws Exception {
     renameHelper(new HdfsBehavior() {
         @Override
         public MethodOutcome renameRootOutcome() {

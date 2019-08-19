@@ -244,6 +244,7 @@ public class BatchHelper {
           requestsExecutor.shutdownNow();
         }
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         logger.atFine().withCause(e).log(
             "Failed to await termination: forcibly shutting down batch helper thread pool.");
         requestsExecutor.shutdownNow();
@@ -263,10 +264,10 @@ public class BatchHelper {
       try {
         responseFutures.remove().get();
       } catch (InterruptedException | ExecutionException e) {
-        if (e.getCause() instanceof IOException) {
-          throw (IOException) e.getCause();
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
         }
-        throw new RuntimeException("Failed to execute batch", e);
+        throw new IOException("Failed to execute batch", e);
       }
     }
   }

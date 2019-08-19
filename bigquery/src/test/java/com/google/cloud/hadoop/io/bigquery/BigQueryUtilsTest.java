@@ -116,12 +116,9 @@ public class BigQueryUtilsTest {
     mockProgressable = mock(Progressable.class);
   }
 
-  /**
-   * Tests waitForJobCompletion method of BigQueryUtils when the job has been completed.
-   */
+  /** Tests waitForJobCompletion method of BigQueryUtils when the job has been completed. */
   @Test
-  public void testWaitForJobCompletion()
-      throws IOException, InterruptedException {
+  public void testWaitForJobCompletion() throws Exception {
     // Return completed job.
     when(mockJobsGet.execute()).thenReturn(job);
 
@@ -135,12 +132,9 @@ public class BigQueryUtilsTest {
     verify(mockProgressable, never()).progress();
   }
 
-  /**
-   * Tests waitForJobCompletion method of BigQueryUtils when the job status changes.
-   */
+  /** Tests waitForJobCompletion method of BigQueryUtils when the job status changes. */
   @Test
-  public void testWaitForJobCompletionChange()
-      throws IOException, InterruptedException {
+  public void testWaitForJobCompletionChange() throws Exception {
     // Return unfinished job the return finished job.
     when(mockJobsGet.execute()).thenReturn(notDoneJob).thenReturn(job);
 

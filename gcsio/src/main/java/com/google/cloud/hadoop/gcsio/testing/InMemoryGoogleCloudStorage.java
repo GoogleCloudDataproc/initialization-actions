@@ -462,9 +462,7 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
             .getInfo();
       }
     }
-    GoogleCloudStorageItemInfo notFoundItemInfo =
-        new GoogleCloudStorageItemInfo(resourceId, 0, -1, null, null);
-    return notFoundItemInfo;
+    return new GoogleCloudStorageItemInfo(resourceId, 0, -1, null, null);
   }
 
   @Override
@@ -510,11 +508,6 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
 
   @Override
   public void close() {
-  }
-
-  @Override
-  public void waitForBucketEmpty(String bucketName)
-      throws IOException {
   }
 
   @Override

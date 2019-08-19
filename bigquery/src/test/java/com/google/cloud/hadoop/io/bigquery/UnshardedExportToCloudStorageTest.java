@@ -16,7 +16,6 @@ package com.google.cloud.hadoop.io.bigquery;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.common.collect.ImmutableList;
-import java.io.IOException;
 import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -36,7 +35,7 @@ import org.junit.runners.JUnit4;
 public class UnshardedExportToCloudStorageTest {
 
   @Test
-  public void testGetSplits() throws IOException, InterruptedException {
+  public void testGetSplits() throws Exception {
     Configuration conf = new Configuration();
 
     UnshardedExportToCloudStorage export =
@@ -49,8 +48,7 @@ public class UnshardedExportToCloudStorageTest {
             null, /* table */
             new InputFormat<LongWritable, Text>() {
               @Override
-              public List<InputSplit> getSplits(JobContext jobContext)
-                  throws IOException, InterruptedException {
+              public List<InputSplit> getSplits(JobContext jobContext) {
                 return ImmutableList.<InputSplit>builder()
                     .add(new FileSplit(new Path("Foo"), 0L, 1L, new String[0]))
                     .add(new FileSplit(new Path("Bar"), 0L, 1L, new String[0]))
@@ -59,8 +57,7 @@ public class UnshardedExportToCloudStorageTest {
 
               @Override
               public RecordReader<LongWritable, Text> createRecordReader(
-                  InputSplit inputSplit,
-                  TaskAttemptContext taskAttemptContext) throws IOException, InterruptedException {
+                  InputSplit inputSplit, TaskAttemptContext taskAttemptContext) {
                 throw new UnsupportedOperationException("Not implemented.");
               }
             });

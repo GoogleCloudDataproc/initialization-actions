@@ -21,9 +21,7 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-/**
- * strings for org.apache.hadoop.mapreduce objects
- */
+/** Strings for org.apache.hadoop.mapreduce objects */
 public class HadoopToStringUtil {
 
   public static String toString(InputSplit input) throws IOException, InterruptedException {

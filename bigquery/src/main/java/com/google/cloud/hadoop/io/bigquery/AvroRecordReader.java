@@ -47,12 +47,11 @@ public class AvroRecordReader extends RecordReader<LongWritable, GenericData.Rec
 
   @Override
   public void initialize(InputSplit inputSplit, TaskAttemptContext taskAttemptContext)
-      throws IOException, InterruptedException {
+      throws IOException {
     initializeInternal(inputSplit, taskAttemptContext.getConfiguration());
   }
 
-  protected void initializeInternal(InputSplit inputSplit, Configuration conf)
-      throws IOException, InterruptedException {
+  protected void initializeInternal(InputSplit inputSplit, Configuration conf) throws IOException {
     Preconditions.checkState(
         inputSplit instanceof FileSplit, "AvroRecordReader requires FileSplit input splits.");
     FileSplit fileSplit = (FileSplit) inputSplit;
@@ -65,32 +64,35 @@ public class AvroRecordReader extends RecordReader<LongWritable, GenericData.Rec
     inputFileLength = status.getLen();
 
     final FSDataInputStream stream = fs.open(filePath);
-    dataFileReader = DataFileReader.openReader(
-        new SeekableInput() {
-          @Override
-          public void seek(long offset) throws IOException {
-            stream.seek(offset);
-          }
+    dataFileReader =
+        DataFileReader.openReader(
+            new SeekableInput() {
+              @Override
+              public void seek(long offset) throws IOException {
+                stream.seek(offset);
+              }
 
-          @Override
-          public long tell() throws IOException {
-            return stream.getPos();
-          }
-          @Override
-          public long length() throws IOException {
-            return inputFileLength;
-          }
+              @Override
+              public long tell() throws IOException {
+                return stream.getPos();
+              }
 
-          @Override
-          public int read(byte[] bytes, int offset, int length) throws IOException {
-            return stream.read(bytes, offset, length);
-          }
+              @Override
+              public long length() {
+                return inputFileLength;
+              }
 
-          @Override
-          public void close() throws IOException {
-            stream.close();
-          }
-        }, new GenericDatumReader<GenericData.Record>());
+              @Override
+              public int read(byte[] bytes, int offset, int length) throws IOException {
+                return stream.read(bytes, offset, length);
+              }
+
+              @Override
+              public void close() throws IOException {
+                stream.close();
+              }
+            },
+            new GenericDatumReader<GenericData.Record>());
     // Sync to the first sync point after the start of the split:
     dataFileReader.sync(fileSplit.getStart());
     schema = dataFileReader.getSchema();
@@ -98,7 +100,7 @@ public class AvroRecordReader extends RecordReader<LongWritable, GenericData.Rec
   }
 
   @Override
-  public boolean nextKeyValue() throws IOException, InterruptedException {
+  public boolean nextKeyValue() throws IOException {
     Preconditions.checkState(currentRecord != null);
     // Stop reading as soon as we hit a sync point out of our split:
     if (dataFileReader.hasNext() && !dataFileReader.pastSync(splitStart + splitLength)) {
@@ -111,17 +113,17 @@ public class AvroRecordReader extends RecordReader<LongWritable, GenericData.Rec
   }
 
   @Override
-  public LongWritable getCurrentKey() throws IOException, InterruptedException {
+  public LongWritable getCurrentKey() {
     return currentKey;
   }
 
   @Override
-  public GenericData.Record getCurrentValue() throws IOException, InterruptedException {
+  public GenericData.Record getCurrentValue() {
     return currentRecord;
   }
 
   @Override
-  public float getProgress() throws IOException, InterruptedException {
+  public float getProgress() throws IOException {
     Preconditions.checkState(dataFileReader != null);
     if (splitLength == 0) {
       return 1.0f;

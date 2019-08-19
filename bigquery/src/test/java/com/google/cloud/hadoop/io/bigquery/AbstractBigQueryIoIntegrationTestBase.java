@@ -125,7 +125,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
 
   /** Read the current value from the given record reader and return record fields in a Map. */
   protected abstract Map<String, Object> readRecord(RecordReader<?, T> recordReader)
-      throws IOException, InterruptedException;
+      throws Exception;
 
   /**
    * Helper method for grabbing service-account email and private keyfile name based on settings
@@ -260,7 +260,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
   }
 
   @Test
-  public void testBasicWriteAndRead() throws IOException, InterruptedException {
+  public void testBasicWriteAndRead() throws Exception {
     // Prepare the output settings.
     BigQueryOutputConfiguration.configure(
         config,

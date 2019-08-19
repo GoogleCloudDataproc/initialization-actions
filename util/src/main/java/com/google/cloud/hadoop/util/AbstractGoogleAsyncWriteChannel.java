@@ -296,6 +296,7 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
     try {
       return uploadOperation.get();
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       // If we were interrupted, we need to cancel the upload operation.
       uploadOperation.cancel(true);
       IOException exception = new ClosedByInterruptException();

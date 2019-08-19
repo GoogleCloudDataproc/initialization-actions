@@ -41,11 +41,9 @@ public class UnshardedInputSplitTest {
   // Sample path value for testing.
   private static final Path PATH = new Path("test/path");
 
-  /**
-   * Tests the getLength method.
-   */
+  /** Tests the getLength method. */
   @Test
-  public void testGetLength() throws IOException, InterruptedException {
+  public void testGetLength() {
     // Create a new InputSplit containing the values.
     UnshardedInputSplit bqInputSplit =
         new UnshardedInputSplit(PATH, START, START + LENGTH, new String[0]);
@@ -54,12 +52,9 @@ public class UnshardedInputSplitTest {
     assertThat(bqInputSplit.getLength()).isEqualTo(LENGTH);
   }
 
-  /**
-   * Tests the getLocations method.
-   */
+  /** Tests the getLocations method. */
   @Test
-  public void testGetLocations() 
-      throws IOException, InterruptedException {
+  public void testGetLocations() throws IOException {
     // Create a new InputSplit containing the values.
     UnshardedInputSplit bqInputSplit =
         new UnshardedInputSplit(PATH, START, START + LENGTH, new String[0]);
@@ -95,12 +90,9 @@ public class UnshardedInputSplitTest {
     assertThat(bqInputSplit.toString()).isEqualTo(inputSplit.toString());
   }
 
-  /**
-   * Tests the serialization methods.
-   */
+  /** Tests the serialization methods. */
   @Test
-  public void testReadWriteFields() 
-      throws IOException, InterruptedException {
+  public void testReadWriteFields() throws IOException {
     // Create a new InputSplit containing the values.
     UnshardedInputSplit bqInputSplit =
         new UnshardedInputSplit(PATH, START, START + LENGTH, new String[0]);

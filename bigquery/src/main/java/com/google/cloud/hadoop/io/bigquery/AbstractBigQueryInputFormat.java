@@ -118,7 +118,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
     logger.atFine().log("getSplits(%s)", lazy(() -> HadoopToStringUtil.toString(context)));
 
     final Configuration configuration = context.getConfiguration();
-    BigQueryHelper bigQueryHelper = null;
+    BigQueryHelper bigQueryHelper;
     try {
       bigQueryHelper = getBigQueryHelper(configuration);
     } catch (GeneralSecurityException gse) {
@@ -141,20 +141,16 @@ public abstract class AbstractBigQueryInputFormat<K, V>
     try {
       export.beginExport();
       export.waitForUsableMapReduceInput();
-    } catch (IOException | InterruptedException ie) {
-      throw new IOException("Error while exporting", ie);
+    } catch (IOException ie) {
+      throw new IOException("Error while exporting: " + HadoopToStringUtil.toString(context), ie);
     }
 
     List<InputSplit> splits = export.getSplits(context);
 
     if (logger.atFine().isEnabled()) {
-      try {
-        // Stringifying a really big list of splits can be expensive, so we guard with
-        // isDebugEnabled().
-        logger.atFine().log("getSplits -> %s", HadoopToStringUtil.toString(splits));
-      } catch (InterruptedException e) {
-        logger.atFine().log("getSplits -> %s", "*exception on toString()*");
-      }
+      // Stringifying a really big list of splits can be expensive, so we guard with
+      // isDebugEnabled().
+      logger.atFine().log("getSplits -> %s", HadoopToStringUtil.toString(splits));
     }
     return splits;
   }

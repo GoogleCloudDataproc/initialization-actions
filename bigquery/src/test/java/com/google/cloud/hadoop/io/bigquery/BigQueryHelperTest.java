@@ -161,7 +161,7 @@ public class BigQueryHelperTest {
 
   /** Tests importBigQueryFromGcs method of BigQueryHelper. */
   @Test
-  public void testImportBigQueryFromGcs() throws IOException, InterruptedException {
+  public void testImportBigQueryFromGcs() throws Exception {
     when(mockBigqueryTablesGet.execute()).thenReturn(fakeTable);
 
     final ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
@@ -215,8 +215,7 @@ public class BigQueryHelperTest {
 
   /** Tests exportBigQueryToGCS method of BigQueryHelper. */
   @Test
-  public void testExportBigQueryToGcsSingleShardAwaitCompletion()
-      throws IOException, InterruptedException {
+  public void testExportBigQueryToGcsSingleShardAwaitCompletion() throws Exception {
     when(mockBigqueryTablesGet.execute()).thenReturn(fakeTable);
 
     final ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);

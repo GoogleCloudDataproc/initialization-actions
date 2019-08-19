@@ -197,7 +197,7 @@ public class IndirectBigQueryOutputCommitterTest {
    * Test that a BigQuery import request is made with the correct files under normal circumstances.
    */
   @Test
-  public void testCommitJob() throws IOException, InterruptedException {
+  public void testCommitJob() throws Exception {
     // Setup the sample directory.
     generateSampleFiles();
 
@@ -233,7 +233,7 @@ public class IndirectBigQueryOutputCommitterTest {
   /** Test to make sure an IOException is thrown on interrupt of the BigQuery import call. */
   @SuppressWarnings("unchecked")
   @Test
-  public void testCommitJobInterrupt() throws IOException, InterruptedException {
+  public void testCommitJobInterrupt() throws Exception {
     // Setup the sample directory.
     generateSampleFiles();
 

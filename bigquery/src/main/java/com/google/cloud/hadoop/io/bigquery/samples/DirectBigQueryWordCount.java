@@ -47,7 +47,7 @@ public class DirectBigQueryWordCount {
     private final LongWritable count = new LongWritable();
 
     @Override
-    public void setup(Context context) throws IOException, InterruptedException {}
+    public void setup(Context context) {}
 
     @Override
     public void map(NullWritable unusedKey, GenericRecord row, Context context)

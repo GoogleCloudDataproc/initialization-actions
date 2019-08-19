@@ -1269,7 +1269,10 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     try {
       return executorService.invokeAny(Arrays.asList(flatGlobTask, nonFlatGlobTask));
     } catch (InterruptedException | ExecutionException e) {
-      throw (e.getCause() instanceof IOException) ? (IOException) e.getCause() : new IOException(e);
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+      throw new IOException("Concurrent glob execution failed", e);
     } finally {
       executorService.shutdownNow();
     }

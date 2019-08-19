@@ -122,8 +122,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
       throws IOException, URISyntaxException;
 
   @Test
-  public abstract void testInitializeWithWorkingDirectory()
-      throws IOException, URISyntaxException;
+  public abstract void testInitializeWithWorkingDirectory() throws Exception;
 
   @Test
   public abstract void testConfigureBucketsSuccess()

@@ -75,11 +75,8 @@ public class AvroRecordReaderTest {
     allAddedKeys = addedKeysBuilder.build();
   }
 
-  /**
-   * Collect all values contained in the field "key" within all records in the given reader.
-   */
-  private List<String> collectRecordKeys(AvroRecordReader recordReader)
-      throws IOException, InterruptedException {
+  /** Collect all values contained in the field "key" within all records in the given reader. */
+  private List<String> collectRecordKeys(AvroRecordReader recordReader) throws IOException {
     List<String> result = new ArrayList<>();
     while (recordReader.nextKeyValue()) {
       result.add(recordReader.currentRecord.get("key").toString());
@@ -87,16 +84,13 @@ public class AvroRecordReaderTest {
     return result;
   }
 
-  /**
-   * Count all records available until the reader reports that no more are available.
-   */
-  private int remainingRecordCount(AvroRecordReader recordReader)
-      throws IOException, InterruptedException {
+  /** Count all records available until the reader reports that no more are available. */
+  private int remainingRecordCount(AvroRecordReader recordReader) throws IOException {
     return collectRecordKeys(recordReader).size();
   }
 
   @Test
-  public void testSingleSplit() throws IOException, InterruptedException {
+  public void testSingleSplit() throws IOException {
     FileSplit fileSplit =
         new FileSplit(
             new Path("file", null,  testAvroFile.getAbsolutePath()),
@@ -110,7 +104,7 @@ public class AvroRecordReaderTest {
   }
 
   @Test
-  public void testMultipleSplits() throws IOException, InterruptedException {
+  public void testMultipleSplits() throws IOException {
     long fileLength = testAvroFile.length();
     List<FileSplit> splits = new ArrayList<>();
     Path hadoopPath = new Path("file", null,  testAvroFile.getAbsolutePath());

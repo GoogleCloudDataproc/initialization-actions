@@ -37,7 +37,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -414,12 +413,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     }
   }
 
-  /**
-   * Validates delete().
-   */
+  /** Validates delete(). */
   @Test
-  public void testDelete()
-      throws IOException {
+  public void testDelete() throws Exception {
     deleteHelper(new DeletionBehavior() {
       @Override
       public MethodOutcome nonEmptyDeleteOutcome() {
@@ -440,12 +436,11 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   /**
    * Tests listObjectNames() and getItemInfo().
    *
-   * The data required for the 2 tests is expensive to create therefore
-   * we combine the tests into one.
+   * <p>The data required for the 2 tests is expensive to create therefore we combine the tests into
+   * one.
    */
   @Test
-  public void testListObjectNamesAndGetItemInfo()
-      throws IOException {
+  public void testListObjectNamesAndGetItemInfo() throws Exception {
 
     // Objects created for this test.
     String[] objectNames = {
@@ -675,11 +670,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
         () -> gcsiHelper.readTextFile(bucketName, objectName, 0, 100, true));
   }
 
-  /**
-   * Validates delete().
-   */
-  public void deleteHelper(DeletionBehavior behavior)
-      throws IOException {
+  /** Validates delete(). */
+  public void deleteHelper(DeletionBehavior behavior) throws Exception {
     String bucketName = sharedBucketName1;
 
     // Objects created for this test.
@@ -835,12 +827,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     gcsiHelper.delete(bucketName, uniqueDirName);
   }
 
-  /**
-   * Validates mkdirs().
-   */
+  /** Validates mkdirs(). */
   @Test
-  public void testMkdirs()
-      throws IOException, URISyntaxException {
+  public void testMkdirs() throws Exception {
     mkdirsHelper(new MkdirsBehavior() {
       @Override
       public MethodOutcome mkdirsRootOutcome() {
@@ -854,11 +843,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     });
   }
 
-  /**
-   * Validates mkdirs().
-   */
-  public void mkdirsHelper(MkdirsBehavior behavior)
-      throws IOException, URISyntaxException {
+  /** Validates mkdirs(). */
+  public void mkdirsHelper(MkdirsBehavior behavior) throws Exception {
     String bucketName = sharedBucketName1;
 
     // Objects created for this test.
@@ -956,12 +942,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     }
   }
 
-  /**
-   * Validates getFileInfos().
-   */
+  /** Validates getFileInfos(). */
   @Test
-  public void testGetFileInfos()
-      throws IOException, URISyntaxException {
+  public void testGetFileInfos() throws Exception {
     String bucketName = sharedBucketName1;
     // Objects created for this test.
     String[] objectNames = {
@@ -1070,12 +1053,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     }
   }
 
-  /**
-   * Validates rename().
-   */
+  /** Validates rename(). */
   @Test
-  public void testRename()
-      throws IOException {
+  public void testRename() throws Exception {
     renameHelper(new RenameBehavior() {
       @Override
       public MethodOutcome renameFileIntoRootOutcome() {
@@ -1128,11 +1108,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     });
   }
 
-  /**
-   * Validates rename().
-   */
-  protected void renameHelper(RenameBehavior behavior)
-      throws IOException {
+  /** Validates rename(). */
+  protected void renameHelper(RenameBehavior behavior) throws Exception {
     String bucketName = sharedBucketName1;
     String otherBucketName = sharedBucketName2;
 
@@ -1405,11 +1382,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
                   }
                 });
       }
-      try {
-        checkStartCounter.await();
-      } catch (InterruptedException ie) {
-        throw new IOException("Interrupted while awaiting counter!", ie);
-      }
+
+      checkStartCounter.await();
+
       if (!errorList.isEmpty()) {
         AssertionError error = new AssertionError();
         for (Throwable t : errorList) {
@@ -1469,11 +1444,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
                   }
                 });
       }
-      try {
-        renameCounter.await();
-      } catch (InterruptedException ie) {
-        throw new IOException("Interrupted while awaiting counter!", ie);
-      }
+
+      renameCounter.await();
+
       if (!errorList.isEmpty()) {
         AssertionError error = new AssertionError();
         for (Throwable t : errorList) {
@@ -1520,11 +1493,9 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
                   }
                 });
       }
-      try {
+
         checkDestCounter.await();
-      } catch (InterruptedException ie) {
-        throw new IOException("Interrupted while awaiting counter!", ie);
-      }
+
       if (!errorList.isEmpty()) {
         AssertionError error = new AssertionError();
         for (Throwable t : errorList) {
@@ -1534,21 +1505,15 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
       }
     } finally {
       threadPool.shutdown();
-      try {
-        if (!threadPool.awaitTermination(10L, TimeUnit.SECONDS)) {
-          logger.atSevere().log("Failed to awaitTermination! Forcing executor shutdown.");
-          threadPool.shutdownNow();
-        }
-      } catch (InterruptedException ie) {
-        logger.atSevere().withCause(ie).log("Interrupted while shutting down threadpool!");
+      if (!threadPool.awaitTermination(10L, TimeUnit.SECONDS)) {
+        logger.atSevere().log("Failed to awaitTermination! Forcing executor shutdown.");
         threadPool.shutdownNow();
       }
     }
   }
 
   @Test
-  public void testRenameWithContentChecking()
-      throws IOException {
+  public void testRenameWithContentChecking() throws Exception {
     String bucketName = sharedBucketName1;
     // TODO(user): Split out separate test cases, extract a suitable variant of RenameData to
     // follow same pattern of iterating over subcases.
@@ -1644,8 +1609,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   }
 
   @Test
-  public void testFileCreationUpdatesParentDirectoryModificationTimestamp()
-      throws IOException, InterruptedException {
+  public void testFileCreationUpdatesParentDirectoryModificationTimestamp() throws Exception {
     URI directory =
         gcsiHelper.getPath(sharedBucketName1, "test-modification-timestamps/create-dir/");
 
@@ -1677,8 +1641,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   }
 
   @Test
-  public void testPredicateIsConsultedForModificationTimestamps()
-      throws IOException, InterruptedException {
+  public void testPredicateIsConsultedForModificationTimestamps() throws Exception {
     URI directory =
         gcsiHelper.getPath(sharedBucketName1, "test-modification-predicates/mkdirs-dir/");
     URI directoryToUpdate = directory.resolve("subdirectory-1/");
@@ -1721,8 +1684,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   }
 
   @Test
-  public void testMkdirsUpdatesParentDirectoryModificationTimestamp()
-      throws IOException, InterruptedException {
+  public void testMkdirsUpdatesParentDirectoryModificationTimestamp() throws Exception {
     URI directory =
         gcsiHelper.getPath(sharedBucketName1, "test-modification-timestamps/mkdirs-dir/");
     URI directoryToUpdate = directory.resolve("subdirectory-1/");
@@ -1762,8 +1724,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
   }
 
   @Test
-  public void testDeleteUpdatesDirectoryModificationTimestamps()
-      throws IOException, InterruptedException {
+  public void testDeleteUpdatesDirectoryModificationTimestamps() throws Exception {
     URI directory =
         gcsiHelper.getPath(sharedBucketName1, "test-modification-timestamps/delete-dir/");
 

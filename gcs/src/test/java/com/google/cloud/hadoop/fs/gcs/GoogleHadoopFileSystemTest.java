@@ -128,10 +128,10 @@ public class GoogleHadoopFileSystemTest extends GoogleHadoopFileSystemIntegratio
   // Tests that exercise behavior defined in HdfsBehavior.
   // -----------------------------------------------------------------
 
-  /** Validates {@link GoogleHadoopFileSystem#rename}. */
+  /** Validates {@link GoogleHadoopFileSystem#rename(Path, Path)}. */
   @Test
   @Override
-  public void testRename() throws IOException {
+  public void testRename() throws Exception {
     renameHelper(
         new HdfsBehavior() {
           /**

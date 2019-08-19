@@ -309,7 +309,8 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
       throw errorExtractor.itemNotFound(e)
           ? GoogleCloudStorageExceptions.getFileNotFoundException(bucketName, objectName)
           : new IOException("Error reading " + resourceIdString, e);
-    } catch (InterruptedException e) { // From the sleep
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       throw new IOException("Thread interrupt received.", e);
     }
     return createItemInfoForStorageObject(new StorageResourceId(bucketName, objectName), object);
@@ -459,6 +460,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
             throw ioe;
           }
         } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
           logger.atSevere().log(
               "Interrupted while sleeping before retry. Giving up after %s/%s retries for '%s'",
               retriesAttempted, maxRetries, resourceIdString);

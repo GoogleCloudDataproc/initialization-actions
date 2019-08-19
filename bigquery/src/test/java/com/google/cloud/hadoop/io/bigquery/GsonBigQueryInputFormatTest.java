@@ -206,12 +206,9 @@ public class GsonBigQueryInputFormatTest {
     verifyNoMoreInteractions(mockBigQueryHelper);
   }
 
-  /**
-   * Tests createRecordReader method of GsonBigQueryInputFormat.
-   */
+  /** Tests createRecordReader method of GsonBigQueryInputFormat. */
   @Test
-  public void testCreateRecordReader()
-      throws IOException, InterruptedException {
+  public void testCreateRecordReader() throws Exception {
 
     when(mockTaskAttemptContext.getConfiguration()).thenReturn(config);
     when(mockTaskAttemptContext.getJobID()).thenReturn(new JobID());
@@ -235,12 +232,9 @@ public class GsonBigQueryInputFormatTest {
     assertThat(recordReader.nextKeyValue()).isFalse();
   }
 
-  /**
-   * Tests getSplits method of GsonBigQueryInputFormat in unsharded-export mode.
-   */
+  /** Tests getSplits method of GsonBigQueryInputFormat in unsharded-export mode. */
   @Test
-  public void testGetSplitsUnshardedBlocking()
-      throws IOException, InterruptedException {
+  public void testGetSplitsUnshardedBlocking() throws Exception {
     JobContext jobContext = new JobContextImpl(config, new JobID());
     when(mockInputFormat.getSplits(eq(jobContext)))
         .thenReturn(ImmutableList.of(new FileSplit(new Path("file1"), 0, 100, new String[0])));
@@ -268,12 +262,9 @@ public class GsonBigQueryInputFormatTest {
     verify(mockBigQueryHelper).getRawBigquery();
   }
 
-  /**
-   * Tests getSplits method of GsonBigQueryInputFormat with federated data.
-   */
+  /** Tests getSplits method of GsonBigQueryInputFormat with federated data. */
   @Test
-  public void testGetSplitsFederated()
-      throws IOException, InterruptedException {
+  public void testGetSplitsFederated() throws Exception {
     JobContext jobContext = new JobContextImpl(config, new JobID());
 
     table.setType("EXTERNAL")
@@ -299,12 +290,9 @@ public class GsonBigQueryInputFormatTest {
     verifyNoMoreInteractions(mockBigquery);
   }
 
-  /**
-   * Tests getSplits method of GsonBigQueryInputFormat when Bigquery connection error is thrown.
-   */
+  /** Tests getSplits method of GsonBigQueryInputFormat when Bigquery connection error is thrown. */
   @Test
-  public void testGetSplitsSecurityException()
-      throws IOException, InterruptedException {
+  public void testGetSplitsSecurityException() throws IOException {
     when(mockBigquery.tables()).thenReturn(mockBigqueryTables);
 
     // Write values to file.

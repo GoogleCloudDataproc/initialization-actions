@@ -425,10 +425,11 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     checkNotNull(options, "options must not be null");
     checkNotNull(storageOptions.getProjectId(), "projectId must not be null");
 
-    Bucket bucket = new Bucket();
-    bucket.setName(bucketName);
-    bucket.setLocation(options.getLocation());
-    bucket.setStorageClass(options.getStorageClass());
+    Bucket bucket =
+        new Bucket()
+            .setName(bucketName)
+            .setLocation(options.getLocation())
+            .setStorageClass(options.getStorageClass());
     Storage.Buckets.Insert insertBucket =
         configureRequest(gcs.buckets().insert(storageOptions.getProjectId(), bucket), bucketName);
     // TODO(user): To match the behavior of throwing FileNotFoundException for 404, we probably
@@ -441,7 +442,8 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
           IOException.class,
           sleeper);
     } catch (InterruptedException e) {
-      throw new IOException(e); // From sleep
+      Thread.currentThread().interrupt();
+      throw new IOException("Failed to create bucket", e);
     }
   }
 
@@ -558,7 +560,8 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     try {
       latch.await();
     } catch (InterruptedException ie) {
-      throw new IOException(ie);
+      Thread.currentThread().interrupt();
+      throw new IOException("Failed to create empty objects", ie);
     }
 
     if (!innerExceptions.isEmpty()) {
@@ -663,7 +666,8 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
           innerExceptions.add(new IOException("Error deleting " + bucketName, e));
         }
       } catch (InterruptedException e) {
-        throw new IOException(e);  // From sleep
+        Thread.currentThread().interrupt();
+        throw new IOException("Failed to delete buckets", e);
       }
     }
     if (innerExceptions.size() > 0) {
@@ -1941,30 +1945,6 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
       }
     }
     return false;
-  }
-
-  /**
-   * See {@link GoogleCloudStorage#waitForBucketEmpty(String)} for details about expected behavior.
-   */
-  @Override
-  public void waitForBucketEmpty(String bucketName)
-      throws IOException {
-    Preconditions.checkArgument(!Strings.isNullOrEmpty(bucketName),
-        "bucketName must not be null or empty");
-
-    for (int i = 0; i < BUCKET_EMPTY_MAX_RETRIES; i++) {
-      // We only need one item to see the bucket is not yet empty.
-      List<String> objectNames = listObjectNames(bucketName, null, PATH_DELIMITER, 1);
-      if (objectNames.isEmpty()) {
-        return;
-      }
-      try {
-        sleeper.sleep(BUCKET_EMPTY_WAIT_TIME_MS);
-      } catch (InterruptedException ignored) {
-        // Ignore the exception and loop.
-      }
-    }
-    throw new IOException("Internal error: bucket not empty: " + bucketName);
   }
 
   @Override

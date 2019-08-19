@@ -115,8 +115,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.stubbing.Answer;
-import org.mockito.stubbing.OngoingStubbing;
-import org.mockito.verification.VerificationMode;
 
 /**
  * UnitTests for GoogleCloudStorage class. The underlying Storage API object is mocked, in order
@@ -656,7 +654,7 @@ public class GoogleCloudStorageTest {
   }
 
   @Test
-  public void testOpenWithSomeExceptionsDuringRead() throws IOException, InterruptedException {
+  public void testOpenWithSomeExceptionsDuringRead() throws Exception {
     setUpBasicMockBehaviorForOpeningReadChannel();
 
     // First returned timeout stream will timout; we'll expect a re-opening where we'll return the
@@ -703,8 +701,7 @@ public class GoogleCloudStorageTest {
   }
 
   @Test
-  public void testOpenWithExceptionDuringReadAndCloseForRetry()
-      throws IOException, InterruptedException {
+  public void testOpenWithExceptionDuringReadAndCloseForRetry() throws Exception {
     setUpBasicMockBehaviorForOpeningReadChannel();
 
     // First returned timeout stream will timout; we'll expect a re-opening where we'll return the
@@ -819,8 +816,7 @@ public class GoogleCloudStorageTest {
   }
 
   @Test
-  public void testOpenAndReadWithPrematureEndOfStreamRetriesFail()
-      throws IOException, InterruptedException {
+  public void testOpenAndReadWithPrematureEndOfStreamRetriesFail() throws Exception {
     setUpBasicMockBehaviorForOpeningReadChannel();
 
     // We'll claim a Content-Length of testData.length, but then only return a stream containing
@@ -870,8 +866,7 @@ public class GoogleCloudStorageTest {
   }
 
   @Test
-  public void testOpenAndReadWithPrematureEndOfStreamRetriesSucceed()
-      throws IOException, InterruptedException {
+  public void testOpenAndReadWithPrematureEndOfStreamRetriesSucceed() throws Exception {
     setUpBasicMockBehaviorForOpeningReadChannel();
 
     // We'll claim a Content-Length of testData.length, but then only return a stream containing
@@ -963,8 +958,7 @@ public class GoogleCloudStorageTest {
   }
 
   @Test
-  public void testOpenExceptionsDuringReadInterruptedDuringSleep()
-      throws IOException, InterruptedException {
+  public void testOpenExceptionsDuringReadInterruptedDuringSleep() throws Exception {
     setUpBasicMockBehaviorForOpeningReadChannel();
 
     InputStream mockExceptionStream = mock(InputStream.class);
@@ -1003,8 +997,7 @@ public class GoogleCloudStorageTest {
   }
 
   @Test
-  public void testOpenTooManyExceptionsDuringRead()
-      throws IOException, InterruptedException {
+  public void testOpenTooManyExceptionsDuringRead() throws Exception {
     setUpBasicMockBehaviorForOpeningReadChannel();
 
     InputStream mockExceptionStream = mock(InputStream.class);
@@ -1045,8 +1038,7 @@ public class GoogleCloudStorageTest {
   }
 
   @Test
-  public void testOpenTwoTimeoutsWithIntermittentProgress()
-      throws IOException, InterruptedException {
+  public void testOpenTwoTimeoutsWithIntermittentProgress() throws Exception {
     setUpBasicMockBehaviorForOpeningReadChannel();
 
     // This stream will immediately timeout.
@@ -1702,12 +1694,9 @@ public class GoogleCloudStorageTest {
     verify(mockStorageBucketsInsert).execute();
   }
 
-  /**
-   * Test handling of rate-limiting and back-off in GoogleCloudStorage.create(String).
-   */
+  /** Test handling of rate-limiting and back-off in GoogleCloudStorage.create(String). */
   @Test
-  public void testCreateBucketRateLimited()
-      throws IOException, InterruptedException {
+  public void testCreateBucketRateLimited() throws Exception {
     when(mockStorage.buckets()).thenReturn(mockStorageBuckets);
     when(mockStorageBuckets.insert(eq(PROJECT_ID), any(Bucket.class)))
         .thenReturn(mockStorageBucketsInsert);
@@ -1778,12 +1767,9 @@ public class GoogleCloudStorageTest {
         .inOrder();
   }
 
-  /**
-   * Test handling of rate-limiting and back-off in GoogleCloudStorage.delete(1).
-   */
+  /** Test handling of rate-limiting and back-off in GoogleCloudStorage.delete(1). */
   @Test
-  public void testDeleteBucketRateLimited()
-      throws IOException, InterruptedException {
+  public void testDeleteBucketRateLimited() throws Exception {
     when(mockStorage.buckets()).thenReturn(mockStorageBuckets);
     when(mockStorageBuckets.delete(eq(BUCKET_NAME)))
         .thenReturn(mockStorageBucketsDelete);
@@ -3204,72 +3190,6 @@ public class GoogleCloudStorageTest {
     assertThat(executorService.isShutdown()).isTrue();
   }
 
-  /** Test for argument sanitization in GoogleCloudStorage.waitForBucketEmpty(1). */
-  @Test
-  public void testWaitForBucketEmptyIllegalArguments() {
-    assertThrows(IllegalArgumentException.class, () -> gcs.waitForBucketEmpty(null));
-    assertThrows(IllegalArgumentException.class, () -> gcs.waitForBucketEmpty(""));
-  }
-
-  /**
-   * Test for successful GoogleCloudStorage.waitForBucketEmpty(1) including a sleep/retry.
-   */
-  @Test
-  public void testWaitForBucketEmptySuccess()
-      throws IOException, InterruptedException {
-    when(mockStorage.objects()).thenReturn(mockStorageObjects);
-    when(mockStorageObjects.list(eq(BUCKET_NAME))).thenReturn(mockStorageObjectsList);
-    when(mockStorageObjectsList.execute())
-        .thenReturn(new Objects().setPrefixes(ImmutableList.of("foo")).setItems(ImmutableList.of()))
-        .thenReturn(new Objects().setPrefixes(ImmutableList.of()).setItems(ImmutableList.of()));
-
-    gcs.waitForBucketEmpty(BUCKET_NAME);
-
-    verify(mockStorage, times(2)).objects();
-    verify(mockStorageObjects, times(2)).list(eq(BUCKET_NAME));
-    verify(mockStorageObjectsList, times(2)).setMaxResults(eq(2L));
-    verify(mockStorageObjectsList, times(2)).setDelimiter(eq(GoogleCloudStorage.PATH_DELIMITER));
-    verify(mockStorageObjectsList, times(2)).setIncludeTrailingDelimiter(eq(Boolean.FALSE));
-    verify(mockStorageObjectsList, times(2)).getPrefix();
-    verify(mockStorageObjectsList, times(2)).execute();
-    verify(mockSleeper).sleep(eq((long) GoogleCloudStorageImpl.BUCKET_EMPTY_WAIT_TIME_MS));
-  }
-
-  /**
-   * Test for failed GoogleCloudStorage.waitForBucketEmpty(1) after exhausting allowable retries.
-   */
-  @Test
-  public void testWaitForBucketEmptyFailure()
-      throws IOException, InterruptedException {
-    assertThrows(IllegalArgumentException.class, () -> gcs.waitForBucketEmpty(null));
-    assertThrows(IllegalArgumentException.class, () -> gcs.waitForBucketEmpty(""));
-
-    when(mockStorage.objects()).thenReturn(mockStorageObjects);
-
-    when(mockStorageObjects.list(eq(BUCKET_NAME))).thenReturn(mockStorageObjectsList);
-
-    OngoingStubbing<Objects> stub = when(mockStorageObjectsList.execute());
-    for (int i = 0; i < GoogleCloudStorageImpl.BUCKET_EMPTY_MAX_RETRIES; i++) {
-      stub =
-          stub.thenReturn(
-              new Objects().setPrefixes(ImmutableList.of("foo")).setItems(ImmutableList.of()));
-    }
-
-    IOException e = assertThrows(IOException.class, () -> gcs.waitForBucketEmpty(BUCKET_NAME));
-    assertThat(e).hasMessageThat().contains("not empty");
-
-    VerificationMode retryTimes = times(GoogleCloudStorageImpl.BUCKET_EMPTY_MAX_RETRIES);
-    verify(mockStorage, retryTimes).objects();
-    verify(mockStorageObjects, retryTimes).list(eq(BUCKET_NAME));
-    verify(mockStorageObjectsList, retryTimes).setMaxResults(eq(2L));
-    verify(mockStorageObjectsList, retryTimes).setDelimiter(eq(GoogleCloudStorage.PATH_DELIMITER));
-    verify(mockStorageObjectsList, retryTimes).setIncludeTrailingDelimiter(eq(Boolean.FALSE));
-    verify(mockStorageObjectsList, retryTimes).getPrefix();
-    verify(mockStorageObjectsList, retryTimes).execute();
-    verify(mockSleeper, retryTimes).sleep(
-        eq((long) GoogleCloudStorageImpl.BUCKET_EMPTY_WAIT_TIME_MS));
-  }
-
   @Test
   public void testComposeSuccess() throws Exception {
     String destination = "composedObject";
@@ -3620,8 +3540,7 @@ public class GoogleCloudStorageTest {
   }
 
   @Test
-  public void testIgnoreExceptionsOnCreateEmptyObjectsWithMultipleRetries()
-      throws IOException, InterruptedException {
+  public void testIgnoreExceptionsOnCreateEmptyObjectsWithMultipleRetries() throws Exception {
     IOException notFoundException = new IOException("NotFound");
     IOException rateLimitException = new IOException("RateLimited");
     when(mockStorage.objects()).thenReturn(mockStorageObjects);

@@ -16,7 +16,6 @@ package com.google.cloud.hadoop.io.bigquery;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.hadoop.mapreduce.RecordReader;
@@ -34,7 +33,7 @@ public class GsonBigQueryIoIntegrationTest
 
   @Override
   protected Map<String, Object> readRecord(RecordReader<?, JsonObject> recordReader)
-      throws IOException, InterruptedException {
+      throws Exception {
     Map<String, Object> result = new HashMap<>();
     JsonObject currentValue = recordReader.getCurrentValue();
     for (Map.Entry<String, JsonElement> entry : currentValue.entrySet()) {

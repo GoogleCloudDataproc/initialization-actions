@@ -177,19 +177,17 @@ public class RetryHttpInitializerTest {
   }
 
   @Test
-  public void testErrorCodeTransientServerError() throws IOException, InterruptedException {
+  public void testErrorCodeTransientServerError() throws Exception {
     testRetriesForErrorCode(503);
   }
 
   @Test
-  public void testErrorCodeRateLimitExceeded() throws IOException, InterruptedException {
+  public void testErrorCodeRateLimitExceeded() throws Exception {
     testRetriesForErrorCode(429);
   }
 
-  /**
-   * Helper for test cases wanting to test retries kicking in for particular error codes.
-   */
-  private void testRetriesForErrorCode(int code) throws IOException, InterruptedException {
+  /** Helper for test cases wanting to test retries kicking in for particular error codes. */
+  private void testRetriesForErrorCode(int code) throws Exception {
     final String authHeaderValue = "Bearer a1b2c3d4";
     final HttpRequest req = requestFactory.buildGetRequest(new GenericUrl("http://fake-url.com"));
     assertThat(req.getHeaders().getUserAgent()).isEqualTo("foo-user-agent");
@@ -233,7 +231,7 @@ public class RetryHttpInitializerTest {
   }
 
   @Test
-  public void testThrowIOException() throws IOException, InterruptedException {
+  public void testThrowIOException() throws Exception {
     final String authHeaderValue = "Bearer a1b2c3d4";
     final HttpRequest req = requestFactory.buildGetRequest(new GenericUrl("http://fake-url.com"));
     assertThat(req.getHeaders().getUserAgent()).isEqualTo("foo-user-agent");

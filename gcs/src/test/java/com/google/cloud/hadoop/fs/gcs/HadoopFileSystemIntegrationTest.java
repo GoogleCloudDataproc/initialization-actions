@@ -116,19 +116,19 @@ public class HadoopFileSystemIntegrationTest extends HadoopFileSystemTestBase {
 
   @Test
   @Override
-  public void testDelete() throws IOException {
+  public void testDelete() throws Exception {
     deleteHelper(new HdfsBehavior());
   }
 
   @Test
   @Override
-  public void testMkdirs() throws IOException, URISyntaxException {
+  public void testMkdirs() throws Exception {
     mkdirsHelper(new HdfsBehavior());
   }
 
   @Test
   @Override
-  public void testRename() throws IOException {
+  public void testRename() throws Exception {
     renameHelper(new HdfsBehavior());
   }
 }

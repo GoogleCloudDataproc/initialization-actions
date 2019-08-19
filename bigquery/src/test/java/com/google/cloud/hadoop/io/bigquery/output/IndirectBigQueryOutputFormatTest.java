@@ -97,7 +97,7 @@ public class IndirectBigQueryOutputFormatTest {
   /** Verify exceptions are being thrown. */
   /** Sets up common objects for testing before each test. */
   @Before
-  public void setUp() throws IOException, InterruptedException {
+  public void setUp() throws Exception {
     // Generate Mocks.
     MockitoAnnotations.initMocks(this);
 

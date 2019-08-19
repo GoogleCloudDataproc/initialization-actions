@@ -226,12 +226,11 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
     for (Future<?> deletion : deletionFutures) {
       try {
         deletion.get();
-      } catch (ExecutionException | InterruptedException ee) {
-        if (ee.getCause() instanceof IOException) {
-          throw (IOException) ee.getCause();
-        } else {
-          throw new IOException(ee);
+      } catch (ExecutionException | InterruptedException e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
         }
+        throw new IOException("Failed to delete files while closing stream", e);
       }
     }
   }

@@ -13,7 +13,6 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.avro.Schema;
@@ -33,7 +32,7 @@ public class AvroBigQueryIoIntegrationTest
 
   @Override
   protected Map<String, Object> readRecord(RecordReader<?, GenericData.Record> recordReader)
-      throws IOException, InterruptedException {
+      throws Exception {
     Map<String, Object> result = new HashMap<>();
     GenericData.Record currentValue = recordReader.getCurrentValue();
     Schema schema = currentValue.getSchema();

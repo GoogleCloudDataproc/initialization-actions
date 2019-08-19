@@ -267,12 +267,6 @@ public class ThrottledGoogleCloudStorage implements GoogleCloudStorage {
   }
 
   @Override
-  public void waitForBucketEmpty(String bucketName) throws IOException {
-    throttle(StorageOperation.LIST_OBJECTS);
-    wrappedGcs.waitForBucketEmpty(bucketName);
-  }
-
-  @Override
   public void compose(
       String bucketName, List<String> sources, String destination, String contentType)
       throws IOException {

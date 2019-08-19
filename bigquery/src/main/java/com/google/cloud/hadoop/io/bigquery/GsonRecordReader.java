@@ -61,16 +61,11 @@ public class GsonRecordReader extends RecordReader<LongWritable, JsonObject> {
    */
   @Override
   public void initialize(InputSplit genericSplit, TaskAttemptContext context)
-      throws IOException {
+      throws IOException, InterruptedException {
     if (logger.atFine().isEnabled()) {
-      try {
         logger.atFine().log(
             "initialize('%s', '%s')",
             HadoopToStringUtil.toString(genericSplit), HadoopToStringUtil.toString(context));
-      } catch (InterruptedException ie) {
-        logger.atFine().withCause(ie).log(
-            "InterruptedException during HadoopToStringUtil.toString");
-      }
     }
     Preconditions.checkArgument(genericSplit instanceof FileSplit,
         "InputSplit genericSplit should be an instance of FileSplit.");

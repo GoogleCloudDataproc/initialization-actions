@@ -93,21 +93,17 @@ public class LocalFileSystemIntegrationTest
   // Tests that exercise behavior defined in HdfsBehavior.
   // -----------------------------------------------------------------
 
-  /**
-   * Validates delete().
-   */
-  @Test @Override
-  public void testDelete()
-      throws IOException {
+  /** Validates delete(). */
+  @Test
+  @Override
+  public void testDelete() throws Exception {
     deleteHelper(new HdfsBehavior());
   }
 
-  /**
-   * Validates mkdirs().
-   */
-  @Test @Override
-  public void testMkdirs()
-      throws IOException, URISyntaxException {
+  /** Validates mkdirs(). */
+  @Test
+  @Override
+  public void testMkdirs() throws Exception {
     mkdirsHelper(new HdfsBehavior() {
         @Override
         public MethodOutcome fileAlreadyExistsOutcome() {
@@ -118,12 +114,10 @@ public class LocalFileSystemIntegrationTest
       });
   }
 
-  /**
-   * Validates rename().
-   */
-  @Test @Override
-  public void testRename()
-      throws IOException {
+  /** Validates rename(). */
+  @Test
+  @Override
+  public void testRename() throws Exception {
 
     try {
       renameHelper(

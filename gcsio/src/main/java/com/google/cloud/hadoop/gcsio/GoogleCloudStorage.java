@@ -365,19 +365,6 @@ public interface GoogleCloudStorage {
   void close();
 
   /**
-   * Waits for the given bucket to be empty.
-   *
-   *
-   * Note:
-   * GCS only supports eventual consistency of object lists.
-   * When a user deletes a top-level directory recursively,
-   * the fact that all items have gone away is not reflected instantly.
-   * We retry and wait for that to happen.
-   */
-  void waitForBucketEmpty(String bucketName)
-      throws IOException;
-
-  /**
    * Composes inputs into a single GCS object. This performs a GCS Compose. Objects will be composed
    * according to the order they appear in the input. The destination object, if already present,
    * will be overwritten. Sources and destination are assumed to be in the same bucket.
