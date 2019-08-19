@@ -517,6 +517,7 @@
           <reuseForks>false</reuseForks>
           <forkCount>2</forkCount>
           <argLine>@{argLine} -mx2750m</argLine>
+          <reportNameSuffix>sponge_log</reportNameSuffix>
         </configuration>
       </plugin>
       <plugin>
