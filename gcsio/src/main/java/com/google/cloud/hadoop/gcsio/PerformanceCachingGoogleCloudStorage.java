@@ -17,7 +17,6 @@ import static com.google.api.client.util.Strings.isNullOrEmpty;
 import static com.google.common.base.Strings.nullToEmpty;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -34,8 +33,6 @@ import javax.annotation.Nullable;
  * outside of this instance may not be immediately reflected.
  */
 public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudStorage {
-
-  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /** Cache to hold item info and manage invalidation. */
   private final PrefixMappedItemCache cache;
