@@ -23,9 +23,6 @@ import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_FLAT_GLOB_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_LAZY_INITIALIZATION_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_TYPE;
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_ENABLE;
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES;
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_WORKING_DIRECTORY;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PATH_CODEC;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PERMISSIONS_TO_REPORT;
@@ -98,7 +95,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.commons.codec.binary.Hex;
@@ -384,73 +380,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     @Override
     public String toString() {
       return getAlgorithmName() + ": " + (bytes == null ? null : new String(Hex.encodeHex(bytes)));
-    }
-  }
-
-  /**
-   * A predicate that processes individual directory paths and evaluates the conditions set in
-   * fs.gs.parent.timestamp.update.enable, fs.gs.parent.timestamp.update.substrings.include and
-   * fs.gs.parent.timestamp.update.substrings.exclude to determine if a path should be ignored when
-   * running directory timestamp updates. If no match is found in either include or exclude and
-   * updates are enabled, the directory timestamp will be updated.
-   */
-  public static class ParentTimestampUpdateIncludePredicate implements Predicate<URI> {
-
-    /**
-     * Create a new ParentTimestampUpdateIncludePredicate from the passed Hadoop configuration
-     * object.
-     */
-    public static ParentTimestampUpdateIncludePredicate create(Configuration config) {
-      return new ParentTimestampUpdateIncludePredicate(
-          GCS_PARENT_TIMESTAMP_UPDATE_ENABLE.get(config, config::getBoolean),
-          GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES.getStringCollection(config),
-          GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES.getStringCollection(config));
-    }
-
-    // Include and exclude lists are intended to be small N and checked relatively
-    // infrequently. If that becomes not that case, consider Aho-Corasick or similar matching
-    // algorithms.
-    private final Collection<String> includeSubstrings;
-    private final Collection<String> excludeSubstrings;
-    private final boolean enableTimestampUpdates;
-
-    public ParentTimestampUpdateIncludePredicate(
-        boolean enableTimestampUpdates,
-        Collection<String> includeSubstrings,
-        Collection<String> excludeSubstrings) {
-      this.includeSubstrings = includeSubstrings;
-      this.excludeSubstrings = excludeSubstrings;
-      this.enableTimestampUpdates = enableTimestampUpdates;
-    }
-
-    /**
-     * Determine if updating directory timestamps should be ignored.
-     *
-     * @return True if the directory timestamp should not be updated. False to indicate it should be
-     *     updated.
-     */
-    @Override
-    public boolean test(URI uri) {
-      if (!enableTimestampUpdates) {
-        logger.atFinest().log("test(uri: %s): false [timestamp updating disabled]", uri);
-        return false;
-      }
-
-      for (String include : includeSubstrings) {
-        if (uri.toString().contains(include)) {
-          logger.atFinest().log("test(uri: %s): true [matches included path %s]", uri, include);
-          return true;
-        }
-      }
-
-      for (String exclude : excludeSubstrings) {
-        if (uri.toString().contains(exclude)) {
-          logger.atFinest().log("test(uri: %s): false [matches excluded path %s]", uri, exclude);
-          return false;
-        }
-      }
-      logger.atFinest().log("test(uri: %s): true", uri);
-      return true;
     }
   }
 

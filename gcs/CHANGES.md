@@ -73,6 +73,16 @@
 
         fs.gs.inputstream.support.gzip.encoding.enable (default: false)
 
+1.  Remove parent directory timestamp update feature and related properties:
+
+        fs.gs.parent.timestamp.update.enable
+        fs.gs.parent.timestamp.update.substrings.excludes
+        fs.gs.parent.timestamp.update.substrings.includes
+
+    This feature was enabled by default only for job history files, but it's not
+    necessary anymore for Job History Server to work properly after
+    [MAPREDUCE-7101](https://issues.apache.org/jira/browse/MAPREDUCE-7101).
+
 ### 1.9.14 - 2019-02-13
 
 1.  Implement Hadoop File System `concat` method using GCS compose API.

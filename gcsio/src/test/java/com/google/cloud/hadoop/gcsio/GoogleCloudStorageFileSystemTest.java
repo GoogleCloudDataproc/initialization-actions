@@ -58,10 +58,8 @@ public class GoogleCloudStorageFileSystemTest
                 new GoogleCloudStorageFileSystem(
                     new InMemoryGoogleCloudStorage(),
                     GoogleCloudStorageFileSystemOptions.builder()
-                        .setShouldIncludeInTimestampUpdatesPredicate(INCLUDE_SUBSTRINGS_PREDICATE)
                         .setMarkerFilePattern("_(FAILURE|SUCCESS)")
                         .build());
-            gcsfs.setUpdateTimestampsExecutor(MoreExecutors.newDirectExecutorService());
             gcs = gcsfs.getGcs();
             GoogleCloudStorageFileSystemIntegrationTest.postCreateInit();
           }

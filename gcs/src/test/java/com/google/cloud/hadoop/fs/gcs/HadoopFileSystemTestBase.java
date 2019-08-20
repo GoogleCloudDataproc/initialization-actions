@@ -801,22 +801,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
   public void testFileCreationSetsAttributes() {}
 
   @Override
-  public void testFileCreationUpdatesParentDirectoryModificationTimestamp() {}
-
-  @Override
-  public void testMkdirsUpdatesParentDirectoryModificationTimestamp() {}
-
-  @Override
-  public void testDeleteUpdatesDirectoryModificationTimestamps() {}
-
-  @Override
   public void renameDirectoryShouldCopyMarkerFilesLast() {}
-
-  @Override
-  public void testRenameUpdatesParentDirectoryModificationTimestamps() {}
-
-  @Override
-  public void testPredicateIsConsultedForModificationTimestamps() {}
 
   @Override
   public void testComposeSuccess() throws IOException {}

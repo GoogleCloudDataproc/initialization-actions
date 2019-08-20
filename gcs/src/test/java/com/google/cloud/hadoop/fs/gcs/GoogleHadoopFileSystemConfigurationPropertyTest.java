@@ -56,13 +56,6 @@ public class GoogleHadoopFileSystemConfigurationPropertyTest {
           put("fs.gs.bucket.delete.enable", false);
           put("fs.gs.checksum.type", GcsFileChecksumType.NONE);
           put("fs.gs.status.parallel.enable", false);
-          put("fs.gs.parent.timestamp.update.enable", true);
-          put("fs.gs.parent.timestamp.update.substrings.excludes", ImmutableList.of("/"));
-          put(
-              "fs.gs.parent.timestamp.update.substrings.includes",
-              ImmutableList.of(
-                  "${mapreduce.jobhistory.intermediate-done-dir}",
-                  "${mapreduce.jobhistory.done-dir}"));
           put("fs.gs.lazy.init.enable", false);
           put("fs.gs.path.encoding", "uri-path");
           put("fs.gs.block.size", 67108864);

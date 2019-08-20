@@ -21,7 +21,6 @@ import static com.google.common.base.Strings.nullToEmpty;
 
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.GcsFileChecksumType;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.OutputStreamType;
-import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.ParentTimestampUpdateIncludePredicate;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
@@ -213,38 +212,6 @@ public class GoogleHadoopFileSystemConfiguration {
   public static final GoogleHadoopFileSystemConfigurationProperty<Boolean>
       GCS_STATUS_PARALLEL_ENABLE =
           new GoogleHadoopFileSystemConfigurationProperty<>("fs.gs.status.parallel.enable", false);
-
-  /**
-   * Configuration key for whether or not we should update timestamps for parent directories when we
-   * create new files in them.
-   */
-  public static final GoogleHadoopFileSystemConfigurationProperty<Boolean>
-      GCS_PARENT_TIMESTAMP_UPDATE_ENABLE =
-          new GoogleHadoopFileSystemConfigurationProperty<>(
-              "fs.gs.parent.timestamp.update.enable", true);
-
-  /**
-   * Configuration key containing a comma-separated list of sub-strings that when matched will cause
-   * a particular directory to not have its modification timestamp updated. Includes take precedence
-   * over excludes.
-   */
-  public static final GoogleHadoopFileSystemConfigurationProperty<Collection<String>>
-      GCS_PARENT_TIMESTAMP_UPDATE_EXCLUDES =
-          new GoogleHadoopFileSystemConfigurationProperty<>(
-              "fs.gs.parent.timestamp.update.substrings.excludes", ImmutableList.of("/"));
-
-  /**
-   * Configuration key containing a comma-separated list of sub-strings that when matched will cause
-   * a particular directory to have its modification timestamp updated. Includes take precedence
-   * over excludes.
-   */
-  public static final GoogleHadoopFileSystemConfigurationProperty<Collection<String>>
-      GCS_PARENT_TIMESTAMP_UPDATE_INCLUDES =
-          new GoogleHadoopFileSystemConfigurationProperty<>(
-              "fs.gs.parent.timestamp.update.substrings.includes",
-              ImmutableList.of(
-                  "${" + MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY + "}",
-                  "${" + MR_JOB_HISTORY_DONE_DIR_KEY + "}"));
 
   /** Configuration key for enabling lazy initialization of GCS FS instance. */
   public static final GoogleHadoopFileSystemConfigurationProperty<Boolean>
@@ -545,8 +512,6 @@ public class GoogleHadoopFileSystemConfiguration {
   static GoogleCloudStorageFileSystemOptions.Builder getGcsFsOptionsBuilder(Configuration config) {
     return GoogleCloudStorageFileSystemOptions.builder()
         .setBucketDeleteEnabled(GCE_BUCKET_DELETE_ENABLE.get(config, config::getBoolean))
-        .setShouldIncludeInTimestampUpdatesPredicate(
-            ParentTimestampUpdateIncludePredicate.create(config))
         .setMarkerFilePattern(GCS_MARKER_FILE_PATTERN.get(config, config::get))
         .setPerformanceCacheEnabled(GCS_PERFORMANCE_CACHE_ENABLE.get(config, config::getBoolean))
         .setCooperativeLockingEnabled(

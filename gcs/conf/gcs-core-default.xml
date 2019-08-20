@@ -343,34 +343,6 @@
   </property>
 
   <property>
-    <name>fs.gs.parent.timestamp.update.enable</name>
-    <value>true</value>
-    <description>
-      Enables timestamp updates for parent directories when new files created in them.
-    </description>
-  </property>
-
-  <property>
-    <name>fs.gs.parent.timestamp.update.substrings.excludes</name>
-    <value>/</value>
-    <description>
-      Comma-separated list of sub-strings that when matched will cause a particular directory to not
-      have its modification timestamp updated. Includes take precedence over excludes.
-    </description>
-  </property>
-
-  <property>
-    <name>fs.gs.parent.timestamp.update.substrings.includes</name>
-    <value>
-      ${mapreduce.jobhistory.intermediate-done-dir},${mapreduce.jobhistory.done-dir}
-    </value>
-    <description>
-      Comma-separated list of sub-strings that when matched will cause a particular directory to
-      have its modification timestamp updated. Includes take precedence over excludes.
-    </description>
-  </property>
-
-  <property>
     <name>fs.gs.lazy.init.enable</name>
     <value>false</value>
     <description>Enables lazy initialization of GoogleHadoopFileSystem instances.</description>

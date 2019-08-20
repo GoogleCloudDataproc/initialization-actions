@@ -21,7 +21,6 @@ import com.google.api.client.util.Clock;
 import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage.ListVisibilityCalculator;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
 import com.google.common.collect.ImmutableList;
-import com.google.common.util.concurrent.MoreExecutors;
 import java.io.IOException;
 import java.util.Collection;
 import org.junit.BeforeClass;
@@ -90,17 +89,12 @@ public class GoogleCloudStorageFileSystemOptionsUnitTest
     // isInferImplicitDirectoriesEnabled in gcsfs.
     GoogleCloudStorageFileSystemOptions.Builder fsOptionsBuilder =
         GoogleCloudStorageFileSystemOptions.builder();
-    // .setShouldIncludeInTimestampUpdatesPredicate(
-    // INCLUDE_SUBSTRINGS_PREDICATE)
     GoogleCloudStorageOptions gcsOptions =
         GoogleCloudStorageOptions.builder()
             .setInferImplicitDirectoriesEnabled(inferDirectories)
             .build();
     GoogleCloudStorage gcs = this.gcsCreator.createGcs(gcsOptions);
-    GoogleCloudStorageFileSystem gcsfs =
-        new GoogleCloudStorageFileSystem(gcs, fsOptionsBuilder.build());
-    gcsfs.setUpdateTimestampsExecutor(MoreExecutors.newDirectExecutorService());
-    return gcsfs;
+    return new GoogleCloudStorageFileSystem(gcs, fsOptionsBuilder.build());
   }
 
   @Test

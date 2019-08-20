@@ -20,6 +20,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import com.google.api.client.util.Clock;
+import com.google.cloud.hadoop.gcsio.testing.GcsItemInfoTestBuilder;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
 import com.google.common.base.Ticker;
 import com.google.common.collect.ImmutableList;
@@ -430,6 +431,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
     return new GoogleCloudStorageItemInfo(
         new StorageResourceId(bucketName),
         /* creationTime= */ 0,
+        /* modificationTime= */ 0,
         /* size= */ 0,
         CREATE_BUCKET_OPTIONS.getLocation(),
         CREATE_BUCKET_OPTIONS.getStorageClass());
@@ -457,18 +459,21 @@ public class PerformanceCachingGoogleCloudStorageTest {
    */
   public static GoogleCloudStorageItemInfo createObjectItemInfo(
       String bucketName, String objectName, CreateObjectOptions createObjectOptions) {
-    return new GoogleCloudStorageItemInfo(
-        new StorageResourceId(bucketName, objectName),
-        /* creationTime= */ 0,
-        /* size= */ 0,
-        /* location= */ null,
-        /* storageClass= */ null,
-        createObjectOptions.getContentType(),
-        createObjectOptions.getContentEncoding(),
-        createObjectOptions.getMetadata(),
-        /* contentGeneration= */ 1,
-        /* metaGeneration= */ 1,
-        new VerificationAttributes(EMPTY_OBJECT_MD5.asBytes(), EMPTY_OBJECT_CRC32C.asBytes()));
+    return GcsItemInfoTestBuilder.create()
+        .setStorageResourceId(new StorageResourceId(bucketName, objectName))
+        .setCreationTime(0)
+        .setModificationTime(0)
+        .setSize(0)
+        .setLocation(null)
+        .setStorageClass(null)
+        .setContentType(createObjectOptions.getContentType())
+        .setContentEncoding(createObjectOptions.getContentEncoding())
+        .setMetadata(createObjectOptions.getMetadata())
+        .setContentGeneration(1)
+        .setMetaGeneration(1)
+        .setVerificationAttributes(
+            new VerificationAttributes(EMPTY_OBJECT_MD5.asBytes(), EMPTY_OBJECT_CRC32C.asBytes()))
+        .build();
   }
 
   public static GoogleCloudStorageItemInfo createInferredDirectory(
@@ -482,6 +487,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
     return new GoogleCloudStorageItemInfo(
         object.getResourceId(),
         object.getCreationTime(),
+        object.getModificationTime(),
         object.getSize(),
         object.getLocation(),
         object.getStorageClass(),

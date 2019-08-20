@@ -143,6 +143,7 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
             resourceId.getBucketName(),
             resourceId.getObjectName(),
             clock.currentTimeMillis(),
+            clock.currentTimeMillis(),
             options.getContentType(),
             options.getContentEncoding(),
             options.getMetadata());
@@ -163,7 +164,9 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
     }
     if (!bucketLookup.containsKey(bucketName)) {
       bucketLookup.put(
-          bucketName, new InMemoryBucketEntry(bucketName, clock.currentTimeMillis(), options));
+          bucketName,
+          new InMemoryBucketEntry(
+              bucketName, clock.currentTimeMillis(), clock.currentTimeMillis(), options));
     } else {
       throw new IOException("Bucket '" + bucketName + "'already exists");
     }
@@ -463,7 +466,14 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
             .getInfo();
       }
     }
-    return new GoogleCloudStorageItemInfo(resourceId, 0, -1, null, null);
+    // return not found item
+    return new GoogleCloudStorageItemInfo(
+        resourceId,
+        /* creationTime= */ 0,
+        /* modificationTime= */ 0,
+        /* size= */ -1,
+        /* location= */ null,
+        /* storageClass= */ null);
   }
 
   @Override

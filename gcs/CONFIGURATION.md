@@ -65,24 +65,6 @@
     If true, executes Cloud Storage object requests in FileSystem listStatus and
     getFileStatus methods in parallel to reduce latency.
 
-*   `fs.gs.parent.timestamp.update.enable` (default: `true`)
-
-    Enables timestamp updates for parent directories when new files created in
-    them.
-
-*   `fs.gs.parent.timestamp.update.substrings.excludes` (default: `/`)
-
-    Comma-separated list of sub-strings that when matched will cause a
-    particular directory to not have its modification timestamp updated.
-    Includes take precedence over excludes.
-
-*   `fs.gs.parent.timestamp.update.substrings.includes` (default:
-    `${mapreduce.jobhistory.intermediate-done-dir},${mapreduce.jobhistory.done-dir}`)
-
-    Comma-separated list of sub-strings that when matched will cause a
-    particular directory to have its modification timestamp updated. Includes
-    take precedence over excludes.
-
 *   `fs.gs.lazy.init.enable` (default: `false`)
 
     Enables lazy initialization of `GoogleHadoopFileSystem` instances.

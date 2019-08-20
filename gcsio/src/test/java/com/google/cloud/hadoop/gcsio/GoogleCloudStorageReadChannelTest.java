@@ -365,6 +365,7 @@ public class GoogleCloudStorageReadChannelTest {
         .setSize(new BigInteger("123"))
         .setGeneration(1L)
         .setMetageneration(1L)
+        .setTimeCreated(new DateTime(new Date()))
         .setUpdated(new DateTime(new Date()));
   }
 }

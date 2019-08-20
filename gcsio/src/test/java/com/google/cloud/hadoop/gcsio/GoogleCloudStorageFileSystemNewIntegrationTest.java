@@ -491,8 +491,6 @@ public class GoogleCloudStorageFileSystemNewIntegrationTest {
   public void delete_file_sequential() throws Exception {
     GoogleCloudStorageFileSystemOptions gcsFsOptions =
         newGcsFsOptions()
-            // disable timestamp updater
-            .setShouldIncludeInTimestampUpdatesPredicate(ignore -> false)
             .build();
 
     TrackingHttpRequestInitializer gcsRequestsTracker =
@@ -522,8 +520,6 @@ public class GoogleCloudStorageFileSystemNewIntegrationTest {
   public void delete_file_parallel() throws Exception {
     GoogleCloudStorageFileSystemOptions gcsFsOptions =
         newGcsFsOptions()
-            // disable timestamp updater
-            .setShouldIncludeInTimestampUpdatesPredicate(ignore -> false)
             .setStatusParallelEnabled(true)
             .build();
 
@@ -555,8 +551,6 @@ public class GoogleCloudStorageFileSystemNewIntegrationTest {
   public void rename_file_sequential() throws Exception {
     GoogleCloudStorageFileSystemOptions gcsFsOptions =
         newGcsFsOptions()
-            // disable timestamp updater
-            .setShouldIncludeInTimestampUpdatesPredicate(ignore -> false)
             .build();
 
     TrackingHttpRequestInitializer gcsRequestsTracker =
@@ -593,8 +587,6 @@ public class GoogleCloudStorageFileSystemNewIntegrationTest {
   public void rename_file_parallel() throws Exception {
     GoogleCloudStorageFileSystemOptions gcsFsOptions =
         newGcsFsOptions()
-            // disable timestamp updater
-            .setShouldIncludeInTimestampUpdatesPredicate(ignore -> false)
             .setStatusParallelEnabled(true)
             .build();
 

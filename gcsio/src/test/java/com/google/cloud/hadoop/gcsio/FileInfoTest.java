@@ -17,9 +17,9 @@ package com.google.cloud.hadoop.gcsio;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.truth.Correspondence;
 import java.net.URI;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Arrays;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -27,61 +27,44 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class FileInfoTest {
 
-  PathCodec simplePathCodec = new PathCodec() {
-    @Override
-    public StorageResourceId validatePathAndGetId(URI path, boolean allowEmptyObjectName) {
-      return new StorageResourceId(path.getAuthority(), path.getPath());
-    }
+  private static final PathCodec SIMPLE_PATH_CODEC =
+      new PathCodec() {
+        @Override
+        public StorageResourceId validatePathAndGetId(URI path, boolean allowEmptyObjectName) {
+          return new StorageResourceId(path.getAuthority(), path.getPath());
+        }
 
-    @Override
-    public URI getPath(String bucketName, String objectName, boolean allowEmptyObjectName) {
-      return URI.create(String.format("gs://%s/%s", bucketName, objectName));
-    }
-  };
-
-  @Test
-  public void nullModificationTimeResultInCreationTimeBeingReturned() {
-    // ImmutableMap doesn't play well with null values:
-    Map<String, byte[]> metadata = new HashMap<>();
-    metadata.put(FileInfo.FILE_MODIFICATION_TIMESTAMP_KEY, null);
-    GoogleCloudStorageItemInfo itemInfo =
-        new GoogleCloudStorageItemInfo(
-            new StorageResourceId("testBucket", "testObject"),
-            /* creationTime= */ 10L,
-            /* size= */ 200L,
-            "location",
-            "storage class",
-            "text/plain",
-            /* contentEncoding= */ null,
-            metadata,
-            0L,
-            0L);
-
-    FileInfo fileInfo = FileInfo.fromItemInfo(simplePathCodec, itemInfo);
-
-    assertThat(fileInfo.getModificationTime()).isEqualTo(10L);
-  }
+        @Override
+        public URI getPath(String bucketName, String objectName, boolean allowEmptyObjectName) {
+          return URI.create(String.format("gs://%s/%s", bucketName, objectName));
+        }
+      };
 
   @Test
-  public void modificationTimeParsingFailuresResultInCreationTimeBeingReturned() {
-    // Failures occur when there aren't 8 bytes for modification timestamp
-    Map<String, byte[]> metadata =
-        ImmutableMap.of(FileInfo.FILE_MODIFICATION_TIMESTAMP_KEY, new byte[2]);
+  public void fromItemInfo() throws Exception {
     GoogleCloudStorageItemInfo itemInfo =
         new GoogleCloudStorageItemInfo(
-            new StorageResourceId("testBucket", "testObject"),
+            new StorageResourceId("foo-test-bucket", "bar/test/object"),
             /* creationTime= */ 10L,
+            /* modificationTime= */ 15L,
             /* size= */ 200L,
-            "location",
-            "storage class",
+            "us-east1",
+            "nearline",
             "text/plain",
-            /* contentEncoding= */ null,
-            metadata,
-            0L,
-            0L);
+            /* contentEncoding= */ "lzma",
+            /* metadata= */ ImmutableMap.of("foo-meta", new byte[] {5, 66, 56}),
+            /* contentGeneration= */ 312432L,
+            /* metaGeneration= */ 2L);
 
-    FileInfo fileInfo = FileInfo.fromItemInfo(simplePathCodec, itemInfo);
+    FileInfo fileInfo = FileInfo.fromItemInfo(SIMPLE_PATH_CODEC, itemInfo);
 
-    assertThat(fileInfo.getModificationTime()).isEqualTo(10L);
+    assertThat(fileInfo.getPath()).isEqualTo(new URI("gs://foo-test-bucket/bar/test/object"));
+    assertThat(fileInfo.getCreationTime()).isEqualTo(10L);
+    assertThat(fileInfo.getModificationTime()).isEqualTo(15L);
+    assertThat(fileInfo.getSize()).isEqualTo(200);
+    assertThat(fileInfo.getAttributes())
+        .<byte[], byte[]>comparingValuesUsing(Correspondence.from(Arrays::equals, "Arrays.equals"))
+        .containsExactly("foo-meta", new byte[] {5, 66, 56});
+    assertThat(fileInfo.getItemInfo()).isEqualTo(itemInfo);
   }
 }
