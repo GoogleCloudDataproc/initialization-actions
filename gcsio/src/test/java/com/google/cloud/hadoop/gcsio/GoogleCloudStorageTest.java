@@ -45,6 +45,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
@@ -1933,13 +1934,8 @@ public class GoogleCloudStorageTest {
             })
         .when(mockBatchHelper)
         .queue(any(), any());
-
-    when(mockErrorExtractor.itemNotFound(eq(notFoundError)))
-        .thenReturn(true);
-    when(mockErrorExtractor.itemNotFound(eq(unexpectedError)))
-        .thenReturn(false);
-    when(mockErrorExtractor.preconditionNotMet(any(GoogleJsonError.class)))
-        .thenReturn(false);
+    doReturn(true).doReturn(false).when(mockErrorExtractor).itemNotFound(any(IOException.class));
+    when(mockErrorExtractor.preconditionNotMet(any(IOException.class))).thenReturn(false);
 
     // First time is the notFoundException; expect the impl to ignore it completely.
     try {
@@ -1963,8 +1959,8 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjects, times(2)).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockStorageObjectsDelete, times(2)).setIfGenerationMatch(eq(1L));
     verify(mockBatchHelper, times(4)).queue(any(), any());
-    verify(mockErrorExtractor, times(2)).itemNotFound(any(GoogleJsonError.class));
-    verify(mockErrorExtractor).preconditionNotMet(any(GoogleJsonError.class));
+    verify(mockErrorExtractor, times(2)).itemNotFound(any(IOException.class));
+    verify(mockErrorExtractor).preconditionNotMet(any(IOException.class));
     verify(mockBatchHelper, times(2)).flush();
   }
 
@@ -2065,10 +2061,7 @@ public class GoogleCloudStorageTest {
             })
         .when(mockBatchHelper)
         .queue(eq(mockStorageObjectsCopy), any());
-    when(mockErrorExtractor.itemNotFound(eq(notFoundError)))
-        .thenReturn(true);
-    when(mockErrorExtractor.itemNotFound(eq(unexpectedError)))
-        .thenReturn(false);
+    doReturn(true).doReturn(false).when(mockErrorExtractor).itemNotFound(any(IOException.class));
 
     // Make the test output a little more friendly in case the exception class differs.
     assertThrows(
@@ -2091,7 +2084,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorageObjects, times(2))
         .copy(eq(BUCKET_NAME), eq(OBJECT_NAME), eq(BUCKET_NAME), eq(dstObjectName), isNull());
     verify(mockBatchHelper, times(2)).queue(eq(mockStorageObjectsCopy), any());
-    verify(mockErrorExtractor, times(2)).itemNotFound(any(GoogleJsonError.class));
+    verify(mockErrorExtractor, times(2)).itemNotFound(any(IOException.class));
     verify(mockBatchHelper, times(2)).flush();
   }
 
@@ -3078,8 +3071,7 @@ public class GoogleCloudStorageTest {
         .queue(eq(mockStorageObjectsGet), any());
 
     // We will claim both GoogleJsonErrors are "not found" errors.
-    when(mockErrorExtractor.itemNotFound(eq(notFoundError)))
-        .thenReturn(true);
+    when(mockErrorExtractor.itemNotFound(any(IOException.class))).thenReturn(true);
 
     // Call in order of StorageObject, ROOT, Bucket.
     List<GoogleCloudStorageItemInfo> itemInfos = gcs.getItemInfos(ImmutableList.of(
@@ -3104,7 +3096,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorage).objects();
     verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockBatchHelper).queue(eq(mockStorageObjectsGet), any());
-    verify(mockErrorExtractor, times(2)).itemNotFound(any(GoogleJsonError.class));
+    verify(mockErrorExtractor, times(2)).itemNotFound(any(IOException.class));
     verify(mockBatchHelper).flush();
   }
 
@@ -3155,8 +3147,7 @@ public class GoogleCloudStorageTest {
         .queue(eq(mockStorageObjectsGet), any());
 
     // We will claim both GoogleJsonErrors are unexpected errors.
-    when(mockErrorExtractor.itemNotFound(eq(unexpectedError)))
-        .thenReturn(false);
+    when(mockErrorExtractor.itemNotFound(any(IOException.class))).thenReturn(false);
 
     // Call in order of StorageObject, ROOT, Bucket.
     IOException ioe =
@@ -3179,7 +3170,7 @@ public class GoogleCloudStorageTest {
     verify(mockStorage).objects();
     verify(mockStorageObjects).get(eq(BUCKET_NAME), eq(OBJECT_NAME));
     verify(mockBatchHelper).queue(eq(mockStorageObjectsGet), any());
-    verify(mockErrorExtractor, times(2)).itemNotFound(any(GoogleJsonError.class));
+    verify(mockErrorExtractor, times(2)).itemNotFound(any(IOException.class));
     verify(mockBatchHelper).flush();
   }
 
@@ -3485,7 +3476,7 @@ public class GoogleCloudStorageTest {
     when(mockStorageObjectsInsert.execute())
         .thenThrow(new IOException("forbidden"));
     when(mockErrorExtractor.rateLimited(any(IOException.class))).thenReturn(false);
-    when(mockErrorExtractor.isInternalServerError(any(IOException.class))).thenReturn(false);
+    when(mockErrorExtractor.internalServerError(any(IOException.class))).thenReturn(false);
 
     assertThrows(
         IOException.class,
@@ -3500,7 +3491,7 @@ public class GoogleCloudStorageTest {
     verify(mockClientRequestHelper).setDirectUploadEnabled(eq(mockStorageObjectsInsert), eq(true));
     verify(mockStorageObjectsInsert).execute();
     verify(mockErrorExtractor).rateLimited(any(IOException.class));
-    verify(mockErrorExtractor).isInternalServerError(any(IOException.class));
+    verify(mockErrorExtractor).internalServerError(any(IOException.class));
   }
 
   @Test

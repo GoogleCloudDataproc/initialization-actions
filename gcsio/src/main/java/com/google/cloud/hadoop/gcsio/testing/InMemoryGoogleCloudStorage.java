@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.gcsio.testing;
 
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageExceptions.createFileNotFoundException;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.client.util.Clock;
@@ -207,9 +208,9 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
   public SeekableByteChannel open(
       StorageResourceId resourceId, GoogleCloudStorageReadOptions readOptions) throws IOException {
     if (!getItemInfo(resourceId).exists()) {
-      final IOException notFoundException =
-          GoogleCloudStorageExceptions.getFileNotFoundException(
-              resourceId.getBucketName(), resourceId.getObjectName());
+      IOException notFoundException =
+          createFileNotFoundException(
+              resourceId.getBucketName(), resourceId.getObjectName(), /* cause= */ null);
       if (readOptions.getFastFailOnNotFound()) {
         throw notFoundException;
       } else {
@@ -333,8 +334,8 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
       // contents; the write-once constraint means this behavior is indistinguishable from a deep
       // copy, but the behavior might have to become complicated if GCS ever supports appends.
       if (!getItemInfo(new StorageResourceId(srcBucketName, srcObjectNames.get(i))).exists()) {
-        innerExceptions.add(GoogleCloudStorageExceptions.getFileNotFoundException(
-            srcBucketName, srcObjectNames.get(i)));
+        innerExceptions.add(
+            createFileNotFoundException(srcBucketName, srcObjectNames.get(i), /* cause= */ null));
         continue;
       }
 

@@ -76,11 +76,11 @@ public class ApiErrorExtractorTest {
     alreadyExists = googleJsonResponseException(409, "409", "409");
     resourceNotReady =
         googleJsonResponseException(
-            400, ApiErrorExtractor.RESOURCE_NOT_READY_REASON_CODE, "Resource not ready");
+            400, ApiErrorExtractor.RESOURCE_NOT_READY_REASON, "Resource not ready");
 
     // This works because googleJsonResponseException takes final ErrorInfo
     ErrorInfo errorInfo = new ErrorInfo();
-    errorInfo.setReason(ApiErrorExtractor.RATE_LIMITED_REASON_CODE);
+    errorInfo.setReason(ApiErrorExtractor.RATE_LIMITED_REASON);
     notRateLimited = googleJsonResponseException(POSSIBLE_RATE_LIMIT, errorInfo, "");
     errorInfo.setDomain(ApiErrorExtractor.USAGE_LIMITS_DOMAIN);
     rateLimited = googleJsonResponseException(POSSIBLE_RATE_LIMIT, errorInfo, "");
@@ -123,7 +123,6 @@ public class ApiErrorExtractorTest {
     assertThat(errorExtractor.itemNotFound(notFound)).isTrue();
     GoogleJsonError gje = new GoogleJsonError();
     gje.setCode(HttpStatusCodes.STATUS_CODE_NOT_FOUND);
-    assertThat(errorExtractor.itemNotFound(gje)).isTrue();
     assertThat(errorExtractor.itemNotFound(new IOException(notFound))).isTrue();
     assertThat(errorExtractor.itemNotFound(new IOException(new IOException(notFound)))).isTrue();
 
@@ -160,7 +159,7 @@ public class ApiErrorExtractorTest {
     assertThat(errorExtractor.rateLimited(notRateLimited)).isFalse();
     assertThat(errorExtractor.rateLimited(new IOException(notRateLimited))).isFalse();
     assertThat(errorExtractor.rateLimited(new IOException(statusOk))).isFalse();
-    assertThat(errorExtractor.rateLimited((Throwable) null)).isFalse();
+    assertThat(errorExtractor.rateLimited(null)).isFalse();
   }
 
   /** Validates rateLimited() with BigQuery domain / reason codes */
@@ -258,7 +257,7 @@ public class ApiErrorExtractorTest {
     // Check failure case.
     assertThat(errorExtractor.resourceNotReady(statusOk)).isFalse();
     assertThat(errorExtractor.resourceNotReady(new IOException(statusOk))).isFalse();
-    assertThat(errorExtractor.resourceNotReady((IOException) null)).isFalse();
+    assertThat(errorExtractor.resourceNotReady(null)).isFalse();
   }
 
   @Test
@@ -281,7 +280,7 @@ public class ApiErrorExtractorTest {
     IOException withJsonError =
         googleJsonResponseException(
             HttpStatusCodes.STATUS_CODE_FORBIDDEN,
-            ApiErrorExtractor.ACCOUNT_DISABLED_REASON_CODE,
+            ApiErrorExtractor.ACCOUNT_DISABLED_REASON,
             "Forbidden",
             "Forbidden");
     assertThat(errorExtractor.accessDeniedNonRecoverable(withJsonError)).isTrue();
@@ -293,7 +292,7 @@ public class ApiErrorExtractorTest {
     IOException withJsonError =
         googleJsonResponseException(
             HttpStatusCodes.STATUS_CODE_FORBIDDEN,
-            ApiErrorExtractor.ACCESS_NOT_CONFIGURED_REASON_CODE,
+            ApiErrorExtractor.ACCESS_NOT_CONFIGURED_REASON,
             "Forbidden",
             "Forbidden");
     assertThat(errorExtractor.accessDeniedNonRecoverable(withJsonError)).isTrue();
@@ -306,12 +305,12 @@ public class ApiErrorExtractorTest {
 
   @Test
   public void accessDeniedNonRecoverable_GoogleJsonErrorAsNullReturnFalse() {
-    assertThat(errorExtractor.accessDeniedNonRecoverable((IOException) null)).isFalse();
+    assertThat(errorExtractor.accessDeniedNonRecoverable(null)).isFalse();
   }
 
   @Test
   public void isClientError_GoogleJsonErrorWithAccessDeniedReturnTrue() {
-    assertThat(errorExtractor.isClientError(accessDenied)).isTrue();
+    assertThat(errorExtractor.clientError(accessDenied)).isTrue();
   }
 
   @Test
@@ -319,17 +318,17 @@ public class ApiErrorExtractorTest {
     IOException withJsonError =
         googleJsonResponseException(
             HttpStatusCodes.STATUS_CODE_BAD_GATEWAY, "Bad gateway", "Bad gateway", "Bad gateway");
-    assertThat(errorExtractor.isClientError(withJsonError)).isFalse();
+    assertThat(errorExtractor.clientError(withJsonError)).isFalse();
   }
 
   @Test
   public void isClientError_GoogleJsonErrorAsNullReturnFalse() {
-    assertThat(errorExtractor.isClientError(null)).isFalse();
+    assertThat(errorExtractor.clientError(null)).isFalse();
   }
 
   @Test
   public void isInternalServerError_GoogleJsonErrorWithAccessDeniedReturnFalse() {
-    assertThat(errorExtractor.isInternalServerError(accessDenied)).isFalse();
+    assertThat(errorExtractor.internalServerError(accessDenied)).isFalse();
   }
 
   @Test
@@ -338,12 +337,12 @@ public class ApiErrorExtractorTest {
     IOException withJsonError =
         googleJsonResponseException(
             HttpStatusCodes.STATUS_CODE_BAD_GATEWAY, "Bad gateway", "Bad gateway", "Bad gateway");
-    assertThat(errorExtractor.isInternalServerError(withJsonError)).isTrue();
+    assertThat(errorExtractor.internalServerError(withJsonError)).isTrue();
   }
 
   @Test
   public void isInternalServerError_GoogleJsonErrorAsNullReturnFalse() {
-    assertThat(errorExtractor.isInternalServerError(null)).isFalse();
+    assertThat(errorExtractor.internalServerError(null)).isFalse();
   }
 
   @Test
@@ -357,7 +356,7 @@ public class ApiErrorExtractorTest {
     IOException withJsonError =
         googleJsonResponseException(
             /* httpStatus= */ 413,
-            ApiErrorExtractor.FIELD_SIZE_TOO_LARGE,
+            ApiErrorExtractor.FIELD_SIZE_TOO_LARGE_REASON,
             "Value for field 'foo' is too large",
             "Value for field 'foo' is too large");
     assertThat(errorExtractor.fieldSizeTooLarge(withJsonError)).isTrue();
@@ -365,7 +364,7 @@ public class ApiErrorExtractorTest {
 
   @Test
   public void fieldSizeTooLarge_GoogleJsonErrorAsNullReturnFalse() {
-    assertThat(errorExtractor.fieldSizeTooLarge((IOException) null)).isFalse();
+    assertThat(errorExtractor.fieldSizeTooLarge(null)).isFalse();
   }
 
   @Test
@@ -373,25 +372,11 @@ public class ApiErrorExtractorTest {
       throws IOException {
     IOException withJsonError =
         googleJsonResponseException(
-            ApiErrorExtractor.STATUS_CODE_PRECONDITION_FAILED,
+            HttpStatusCodes.STATUS_CODE_PRECONDITION_FAILED,
             "preconditionNotMet",
             "Precondition not met",
             "Precondition not met");
     assertThat(errorExtractor.preconditionNotMet(withJsonError)).isTrue();
-  }
-
-  @Test
-  public void preconditionNotMet_GoogleJsonErrorPredictionFailedReturnTrue() {
-    GoogleJsonError gje = new GoogleJsonError();
-    gje.setCode(HttpStatusCodes.STATUS_CODE_PRECONDITION_FAILED);
-    assertThat(errorExtractor.preconditionNotMet(gje)).isTrue();
-  }
-
-  @Test
-  public void preconditionNotMet_GoogleJsonErrorBadGatewayReturnFalse() {
-    GoogleJsonError gje = new GoogleJsonError();
-    gje.setCode(HttpStatusCodes.STATUS_CODE_BAD_GATEWAY);
-    assertThat(errorExtractor.preconditionNotMet(gje)).isFalse();
   }
 
   @Test

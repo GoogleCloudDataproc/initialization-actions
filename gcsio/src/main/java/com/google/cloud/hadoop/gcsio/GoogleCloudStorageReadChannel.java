@@ -16,6 +16,7 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageExceptions.createFileNotFoundException;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl.createItemInfoForStorageObject;
 import static com.google.cloud.hadoop.gcsio.StorageResourceId.createReadableString;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -307,7 +308,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
               sleeper);
     } catch (IOException e) {
       throw errorExtractor.itemNotFound(e)
-          ? GoogleCloudStorageExceptions.getFileNotFoundException(bucketName, objectName)
+          ? createFileNotFoundException(bucketName, objectName, e)
           : new IOException("Error reading " + resourceIdString, e);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
@@ -1152,7 +1153,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
           return handleExecuteMediaException(e1, getObject, /* retryWithLiveVersion= */ false);
         }
       }
-      throw GoogleCloudStorageExceptions.getFileNotFoundException(bucketName, objectName);
+      throw createFileNotFoundException(bucketName, objectName, e);
     }
     String msg =
         String.format("Error reading '%s' at position %d", resourceIdString, currentPosition);

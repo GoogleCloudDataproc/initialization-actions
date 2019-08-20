@@ -16,12 +16,11 @@
 
 package com.google.cloud.hadoop.util;
 
-import static com.google.api.client.http.HttpStatusCodes.STATUS_CODE_BAD_REQUEST;
-
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpStatusCodes;
+import com.google.common.collect.ImmutableList;
 import java.io.IOError;
 import java.io.IOException;
 import java.net.SocketException;
@@ -31,28 +30,27 @@ import javax.annotation.Nullable;
 import javax.net.ssl.SSLException;
 
 /**
- * Translates exceptions from API calls into higher-level meaning, while allowing injectability
- * for testing how API errors are handled.
+ * Translates exceptions from API calls into higher-level meaning, while allowing injectability for
+ * testing how API errors are handled.
  */
 public class ApiErrorExtractor {
 
   /** Singleton instance of the ApiErrorExtractor. */
   public static final ApiErrorExtractor INSTANCE = new ApiErrorExtractor();
 
-  // TODO(user): Move this into HttpStatusCodes.java.
-  public static final int STATUS_CODE_CONFLICT = 409;
-  public static final int STATUS_CODE_PRECONDITION_FAILED = 412;
   public static final int STATUS_CODE_RANGE_NOT_SATISFIABLE = 416;
+
   public static final String GLOBAL_DOMAIN = "global";
   public static final String USAGE_LIMITS_DOMAIN = "usageLimits";
-  public static final String RATE_LIMITED_REASON_CODE = "rateLimitExceeded";
-  public static final String USER_RATE_LIMITED_REASON_CODE = "userRateLimitExceeded";
+
+  public static final String RATE_LIMITED_REASON = "rateLimitExceeded";
+  public static final String USER_RATE_LIMITED_REASON = "userRateLimitExceeded";
 
   // These come with "The account for ... has been disabled" message.
-  public static final String ACCOUNT_DISABLED_REASON_CODE = "accountDisabled";
+  public static final String ACCOUNT_DISABLED_REASON = "accountDisabled";
 
   // These come with "Project marked for deletion" message.
-  public static final String ACCESS_NOT_CONFIGURED_REASON_CODE = "accessNotConfigured";
+  public static final String ACCESS_NOT_CONFIGURED_REASON = "accessNotConfigured";
 
   // These are 400 error codes with "resource 'xyz' is not ready" message.
   // These sometimes happens when create operation is still in-flight but resource
@@ -60,13 +58,13 @@ public class ApiErrorExtractor {
   // Only explanation I could find for this is described here:
   //    java/com/google/cloud/cluster/data/cognac/cognac.proto
   // with an example "because resource is being created in reconciler."
-  public static final String RESOURCE_NOT_READY_REASON_CODE = "resourceNotReady";
+  public static final String RESOURCE_NOT_READY_REASON = "resourceNotReady";
 
   // HTTP 413 with message "Value for field 'foo' is too large".
-  public static final String FIELD_SIZE_TOO_LARGE = "fieldSizeTooLarge";
+  public static final String FIELD_SIZE_TOO_LARGE_REASON = "fieldSizeTooLarge";
 
   // HTTP 400 message for 'USER_PROJECT_MISSING' error.
-  public static final String USER_PROJECT_MISSING =
+  public static final String USER_PROJECT_MISSING_MESSAGE =
       "Bucket is requester pays bucket but no user project provided.";
 
   // The debugInfo field present on Errors collection in GoogleJsonException
@@ -77,222 +75,137 @@ public class ApiErrorExtractor {
   @Deprecated
   public ApiErrorExtractor() {}
 
-  // Public methods here are in alphabetical order.
-
+  /**
+   * Determines if the given exception indicates intermittent request failure or failure caused by
+   * user error.
+   */
+  public boolean requestFailure(IOException e) {
+    GoogleJsonResponseException jsonException = getJsonResponseException(e);
+    return jsonException != null
+        && (accessDenied(jsonException)
+            || badRequest(jsonException)
+            || internalServerError(jsonException)
+            || rateLimited(jsonException)
+            || socketError(jsonException)
+            || unauthorized(jsonException));
+  }
 
   /**
-   * Determines if the given exception indicates 'access denied'.
-   * Recursively checks getCause() if outer exception isn't
-   * an instance of the correct class.
+   * Determines if the given exception indicates 'access denied'. Recursively checks getCause() if
+   * outer exception isn't an instance of the correct class.
    *
-   * <p> Warning: this method only checks for access denied status code,
-   * however this may include potentially recoverable reason codes such as
-   * rate limiting. For alternative, see
-   * {@link #accessDeniedNonRecoverable(IOException)}.
+   * <p>Warning: this method only checks for access denied status code, however this may include
+   * potentially recoverable reason codes such as rate limiting. For alternative, see {@link
+   * #accessDeniedNonRecoverable(IOException)}.
    */
   public boolean accessDenied(IOException e) {
     return recursiveCheckForCode(e, HttpStatusCodes.STATUS_CODE_FORBIDDEN);
   }
 
+  /** Determines if the given exception indicates bad request. */
+  public boolean badRequest(IOException e) {
+    return recursiveCheckForCode(e, HttpStatusCodes.STATUS_CODE_BAD_REQUEST);
+  }
 
   /**
-   * Determine if the given exception indicates the request was unauthenticated.
-   * This can be caused by attaching invalid credentials to a request.
+   * Determines if the given exception indicates the request was unauthenticated. This can be caused
+   * by attaching invalid credentials to a request.
    */
   public boolean unauthorized(IOException e) {
     return recursiveCheckForCode(e, HttpStatusCodes.STATUS_CODE_UNAUTHORIZED);
   }
 
   /**
-   * Determine if the exception is a non-recoverable access denied code
-   * (such as account closed or marked for deletion).
+   * Determines if the exception is a non-recoverable access denied code (such as account closed or
+   * marked for deletion).
    */
   public boolean accessDeniedNonRecoverable(IOException e) {
-    GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(e);
-    if (jsonException != null) {
-      return accessDeniedNonRecoverable(getDetails(jsonException));
-    }
-    return false;
-  }
-
-  /**
-   * Determine if a given GoogleJsonError is caused by, and only by,
-   * account disabled error.
-   */
-  public boolean accessDeniedNonRecoverable(GoogleJsonError e) {
     ErrorInfo errorInfo = getErrorInfo(e);
-    if (errorInfo != null) {
-      String reason = errorInfo.getReason();
-      return ACCOUNT_DISABLED_REASON_CODE.equals(reason)
-          || ACCESS_NOT_CONFIGURED_REASON_CODE.equals(reason);
-    }
-    return false;
+    String reason = errorInfo != null ? errorInfo.getReason() : null;
+    return ACCOUNT_DISABLED_REASON.equals(reason) || ACCESS_NOT_CONFIGURED_REASON.equals(reason);
+  }
+
+  /** Determines if the exception is a client error. */
+  public boolean clientError(IOException e) {
+    GoogleJsonResponseException jsonException = getJsonResponseException(e);
+    return jsonException != null && getHttpStatusCode(jsonException) / 100 == 4;
+  }
+
+  /** Determines if the exception is an internal server error. */
+  public boolean internalServerError(IOException e) {
+    GoogleJsonResponseException jsonException = getJsonResponseException(e);
+    return jsonException != null && getHttpStatusCode(jsonException) / 100 == 5;
   }
 
   /**
-   * Determines if the exception is a client error.
-   */
-  public boolean isClientError(IOException e) {
-    GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(e);
-    if (jsonException != null) {
-      return getHttpStatusCode(jsonException) / 100 == 4;
-    }
-    return false;
-  }
-
-  /**
-   * Determines if the exception is an internal server error.
-   */
-  public boolean isInternalServerError(IOException e) {
-    GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(e);
-    if (jsonException != null) {
-      return getHttpStatusCode(jsonException) / 100 == 5;
-    }
-    return false;
-  }
-
-  /**
-   * Determines if the given exception indicates 'item already exists'.
-   * Recursively checks getCause() if outer exception isn't
-   * an instance of the correct class.
+   * Determines if the given exception indicates 'item already exists'. Recursively checks
+   * getCause() if outer exception isn't an instance of the correct class.
    */
   public boolean itemAlreadyExists(IOException e) {
-      return recursiveCheckForCode(e, STATUS_CODE_CONFLICT);
+    return recursiveCheckForCode(e, HttpStatusCodes.STATUS_CODE_CONFLICT);
   }
 
   /**
-   * Determines if the given GoogleJsonError indicates 'item not found'.
-   */
-  public boolean itemNotFound(GoogleJsonError e) {
-    return e.getCode() == HttpStatusCodes.STATUS_CODE_NOT_FOUND;
-  }
-
-  /**
-   * Determines if the given exception indicates 'item not found'.
-   * Recursively checks getCause() if outer exception isn't
-   * an instance of the correct class.
+   * Determines if the given exception indicates 'item not found'. Recursively checks getCause() if
+   * outer exception isn't an instance of the correct class.
    */
   public boolean itemNotFound(IOException e) {
     return recursiveCheckForCode(e, HttpStatusCodes.STATUS_CODE_NOT_FOUND);
   }
 
   /**
-   * Determines if the given GoogleJsonError indicates 'field size too large'.
-   */
-  public boolean fieldSizeTooLarge(GoogleJsonError e) {
-    ErrorInfo errorInfo = getErrorInfo(e);
-    if (errorInfo != null) {
-      String reason = errorInfo.getReason();
-      return FIELD_SIZE_TOO_LARGE.equals(reason);
-    }
-    return false;
-  }
-
-  /**
-   * Determines if the given exception indicates 'field size too large'.
-   * Recursively checks getCause() if outer exception isn't
-   * an instance of the correct class.
+   * Determines if the given exception indicates 'field size too large'. Recursively checks
+   * getCause() if outer exception isn't an instance of the correct class.
    */
   public boolean fieldSizeTooLarge(IOException e) {
-    GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(e);
-    if (jsonException != null) {
-      return fieldSizeTooLarge(getDetails(jsonException));
-    }
-    return false;
-  }
-
-  /**
-   * Determines if the given GoogleJsonError indicates 'resource not ready'.
-   */
-  public boolean resourceNotReady(GoogleJsonError e) {
     ErrorInfo errorInfo = getErrorInfo(e);
-    if (errorInfo != null) {
-      String reason = errorInfo.getReason();
-      return RESOURCE_NOT_READY_REASON_CODE.equals(reason);
-    }
-    return false;
+    return errorInfo != null && FIELD_SIZE_TOO_LARGE_REASON.equals(errorInfo.getReason());
   }
 
   /**
-   * Determines if the given exception indicates 'resource not ready'.
-   * Recursively checks getCause() if outer exception isn't
-   * an instance of the correct class.
+   * Determines if the given exception indicates 'resource not ready'. Recursively checks getCause()
+   * if outer exception isn't an instance of the correct class.
    */
   public boolean resourceNotReady(IOException e) {
-    GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(e);
-    if (jsonException != null) {
-      return resourceNotReady(getDetails(jsonException));
-    }
-    return false;
+    ErrorInfo errorInfo = getErrorInfo(e);
+    return errorInfo != null && RESOURCE_NOT_READY_REASON.equals(errorInfo.getReason());
   }
 
   /**
-   * Determines if the given GoogleJsonError indicates 'precondition not met'
-   */
-  public boolean preconditionNotMet(GoogleJsonError e) {
-    return e.getCode() == STATUS_CODE_PRECONDITION_FAILED;
-  }
-
-  /**
-   * Determine if the given IOException indicates 'precondition not met'
-   * Recursively checks getCause() if outer exception isn't
-   * an instance of the correct class.
+   * Determines if the given IOException indicates 'precondition not met' Recursively checks
+   * getCause() if outer exception isn't an instance of the correct class.
    */
   public boolean preconditionNotMet(IOException e) {
-    return recursiveCheckForCode(e, STATUS_CODE_PRECONDITION_FAILED);
+    return recursiveCheckForCode(e, HttpStatusCodes.STATUS_CODE_PRECONDITION_FAILED);
   }
 
   /**
-   * Determines if the given exception indicates 'range not satisfiable'.
-   * Recursively checks getCause() if outer exception isn't
-   * an instance of the correct class.
+   * Determines if the given exception indicates 'range not satisfiable'. Recursively checks
+   * getCause() if outer exception isn't an instance of the correct class.
    */
   public boolean rangeNotSatisfiable(IOException e) {
     return recursiveCheckForCode(e, STATUS_CODE_RANGE_NOT_SATISFIABLE);
   }
 
   /**
-   * Determine if a given GoogleJsonError is caused by, and only by,
-   * a rate limit being applied.
-   * @param e The GoogleJsonError returned by the request
-   * @return True if the error is caused by a rate limit being applied.
+   * Determines if a given Throwable is caused by a rate limit being applied. Recursively checks
+   * getCause() if outer exception isn't an instance of the correct class.
+   *
+   * @param e The Throwable to check.
+   * @return True if the Throwable is a result of rate limiting being applied.
    */
-  public boolean rateLimited(GoogleJsonError e) {
+  public boolean rateLimited(IOException e) {
     ErrorInfo errorInfo = getErrorInfo(e);
     if (errorInfo != null) {
       String domain = errorInfo.getDomain();
-      String reason = errorInfo.getReason();
       boolean isRateLimitedOrGlobalDomain =
           USAGE_LIMITS_DOMAIN.equals(domain) || GLOBAL_DOMAIN.equals(domain);
+      String reason = errorInfo.getReason();
       boolean isRateLimitedReason =
-          RATE_LIMITED_REASON_CODE.equals(reason) || USER_RATE_LIMITED_REASON_CODE.equals(reason);
+          RATE_LIMITED_REASON.equals(reason) || USER_RATE_LIMITED_REASON.equals(reason);
       return isRateLimitedOrGlobalDomain && isRateLimitedReason;
     }
     return false;
-  }
-
-  /**
-   * Determine if a given Throwable is caused by a rate limit being applied.
-   * Recursively checks getCause() if outer exception isn't
-   * an instance of the correct class.
-   * @param throwable The Throwable to check.
-   * @return True if the Throwable is a result of rate limiting being applied.
-   */
-  // TODO(user): change to accept IOException, in line with other methods.
-  public boolean rateLimited(Throwable throwable) {
-    GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(throwable);
-    if (jsonException != null) {
-      return rateLimited(getDetails(jsonException));
-    }
-    return false;
-  }
-
-  /** Determines if the given GoogleJsonError indicates that 'userProject' is missing in request */
-  public boolean userProjectMissing(GoogleJsonError e) {
-    ErrorInfo errorInfo = getErrorInfo(e);
-    return errorInfo != null
-        && e.getCode() == STATUS_CODE_BAD_REQUEST
-        && USER_PROJECT_MISSING.equals(errorInfo.getMessage());
   }
 
   /**
@@ -300,30 +213,31 @@ public class ApiErrorExtractor {
    * Recursively checks getCause() if outer exception isn't an instance of the correct class.
    */
   public boolean userProjectMissing(IOException e) {
-    GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(e);
-    return jsonException != null && userProjectMissing(jsonException.getDetails());
+    GoogleJsonError jsonError = getJsonError(e);
+    return jsonError != null
+        && jsonError.getCode() == HttpStatusCodes.STATUS_CODE_BAD_REQUEST
+        && USER_PROJECT_MISSING_MESSAGE.equals(jsonError.getMessage());
   }
 
   /**
-   * Determine if a given Throwable is caused by an IO error.
-   * Recursively checks getCause() if outer exception isn't an instance of the
-   * correct class.
+   * Determines if a given Throwable is caused by an IO error. Recursively checks getCause() if
+   * outer exception isn't an instance of the correct class.
    *
    * @param throwable The Throwable to check.
    * @return True if the Throwable is a result of an IO error.
    */
-
   public boolean ioError(Throwable throwable) {
     if (throwable instanceof IOException || throwable instanceof IOError) {
       return true;
     }
-    return throwable.getCause() != null && ioError(throwable.getCause());
+    Throwable cause = throwable.getCause();
+    return cause != null && ioError(cause);
   }
 
   /**
-   * Determine if a given Throwable is caused by a socket error.
-   * Recursively checks getCause() if outer exception isn't
-   * an instance of the correct class.
+   * Determines if a given Throwable is caused by a socket error. Recursively checks getCause() if
+   * outer exception isn't an instance of the correct class.
+   *
    * @param throwable The Throwable to check.
    * @return True if the Throwable is a result of a socket error.
    */
@@ -340,82 +254,60 @@ public class ApiErrorExtractor {
     return cause != null && socketError(cause);
   }
 
-  /**
-   * True if the exception is a "read timed out".
-   */
-  public boolean readTimedOut(IOException ex) {
-    if (!(ex instanceof SocketTimeoutException)) {
-      return false;
-    }
-    return (ex.getMessage().equals("Read timed out"));
+  /** True if the exception is a "read timed out". */
+  public boolean readTimedOut(IOException e) {
+    return e instanceof SocketTimeoutException && e.getMessage().equals("Read timed out");
   }
 
   /** Extracts the error message. */
   public String getErrorMessage(IOException e) {
     // Prefer to use message from GJRE.
-    GoogleJsonResponseException gjre = getJsonResponseExceptionOrNull(e);
-
-    if (gjre != null && gjre.getDetails() != null) {
-      return gjre.getDetails().getMessage();
-    }
-    return e.getMessage();
+    GoogleJsonError jsonError = getJsonError(e);
+    return jsonError == null ? e.getMessage() : jsonError.getMessage();
   }
 
   /**
-   * Converts the exception to a user-presentable error message. Specifically,
-   * extracts message field for HTTP 4xx codes, and creates a generic
-   * "Internal Server Error" for HTTP 5xx codes.
+   * Converts the exception to a user-presentable error message. Specifically, extracts message
+   * field for HTTP 4xx codes, and creates a generic "Internal Server Error" for HTTP 5xx codes.
    *
-   * @param ioe the exception
+   * @param e the exception
    * @param action the description of the action being performed at the time of error.
    * @see #toUserPresentableMessage(IOException, String)
    */
-  public IOException toUserPresentableException(IOException ioe, String action) throws IOException {
-    throw new IOException(toUserPresentableMessage(ioe, action), ioe);
+  public IOException toUserPresentableException(IOException e, String action) throws IOException {
+    throw new IOException(toUserPresentableMessage(e, action), e);
   }
 
   /**
-   * Converts the exception to a user-presentable error message. Specifically,
-   * extracts message field for HTTP 4xx codes, and creates a generic
-   * "Internal Server Error" for HTTP 5xx codes.
+   * Converts the exception to a user-presentable error message. Specifically, extracts message
+   * field for HTTP 4xx codes, and creates a generic "Internal Server Error" for HTTP 5xx codes.
    */
-  public String toUserPresentableMessage(IOException ioe, @Nullable String action) {
+  public String toUserPresentableMessage(IOException e, @Nullable String action) {
     String message = "Internal server error";
-    if (isClientError(ioe)) {
-      message = getErrorMessage(ioe);
+    if (clientError(e)) {
+      message = getErrorMessage(e);
     }
-
-    if (action == null) {
-      return message;
-    } else {
-      return String.format("Encountered an error while %s: %s", action, message);
-    }
+    return action == null
+        ? message
+        : String.format("Encountered an error while %s: %s", action, message);
   }
 
-  /**
-   * @see #toUserPresentableMessage(IOException, String)
-   */
-  public String toUserPresentableMessage(IOException ioe) {
-    return toUserPresentableMessage(ioe, null);
+  /** @see #toUserPresentableMessage(IOException, String) */
+  public String toUserPresentableMessage(IOException e) {
+    return toUserPresentableMessage(e, null);
   }
 
   @Nullable
-  public String getDebugInfo(IOException ioe) {
-    ErrorInfo info = getErrorInfo(ioe);
-    if (info != null) {
-      if (info.getUnknownKeys().containsKey(DEBUG_INFO_FIELD)) {
-        return (String) info.getUnknownKeys().get(DEBUG_INFO_FIELD);
-      }
-    }
-    return null;
+  public String getDebugInfo(IOException e) {
+    ErrorInfo errorInfo = getErrorInfo(e);
+    return errorInfo != null ? (String) errorInfo.getUnknownKeys().get(DEBUG_INFO_FIELD) : null;
   }
 
   /**
    * Returns HTTP status code from the given exception.
    *
-   * <p> Note: GoogleJsonResponseException.getStatusCode() method is marked final
-   * therefore it cannot be mocked using Mockito. We use this helper so that
-   * we can override it in tests.
+   * <p>Note: GoogleJsonResponseException.getStatusCode() method is marked final therefore it cannot
+   * be mocked using Mockito. We use this helper so that we can override it in tests.
    */
   protected int getHttpStatusCode(GoogleJsonResponseException e) {
     return e.getStatusCode();
@@ -425,46 +317,38 @@ public class ApiErrorExtractor {
    * Get the first ErrorInfo from an IOException if it is an instance of
    * GoogleJsonResponseException, otherwise return null.
    */
+  @Nullable
   protected ErrorInfo getErrorInfo(IOException e) {
-    GoogleJsonError gjre = getDetails(e);
-    if (gjre != null) {
-      return getErrorInfo(gjre);
-    }
-    return null;
-  }
-
-  /** Get the first ErrorInfo from a GoogleJsonError, or null if there is not one. */
-  protected ErrorInfo getErrorInfo(GoogleJsonError details) {
-    if (details == null) {
-      return null;
-    }
-    List<ErrorInfo> errors = details.getErrors();
-    return errors.isEmpty() ? null : errors.get(0);
+    GoogleJsonError jsonError = getJsonError(e);
+    List<ErrorInfo> errors = jsonError != null ? jsonError.getErrors() : ImmutableList.of();
+    return jsonError != null ? errors.isEmpty() ? null : errors.get(0) : null;
   }
 
   /** If the exception is a GoogleJsonResponseException, get the error details, else return null. */
-  protected GoogleJsonError getDetails(IOException e) {
-    if (e instanceof GoogleJsonResponseException) {
-      return ((GoogleJsonResponseException) e).getDetails();
-    }
-    return null;
+  @Nullable
+  protected GoogleJsonError getJsonError(IOException e) {
+    GoogleJsonResponseException jsonException = getJsonResponseException(e);
+    return jsonException == null ? null : jsonException.getDetails();
   }
 
   /** Recursively checks getCause() if outer exception isn't an instance of the correct class. */
-  protected boolean recursiveCheckForCode(Throwable e, int code) {
-    GoogleJsonResponseException jsonException = getJsonResponseExceptionOrNull(e);
-    if (jsonException != null) {
-      return getHttpStatusCode(jsonException) == code;
-    }
-    return false;
+  protected boolean recursiveCheckForCode(IOException e, int code) {
+    GoogleJsonResponseException jsonException = getJsonResponseException(e);
+    return jsonException != null && getHttpStatusCode(jsonException) == code;
   }
 
   @Nullable
-  public static GoogleJsonResponseException getJsonResponseExceptionOrNull(Throwable t) {
-    Throwable cause = t;
+  public static GoogleJsonResponseException getJsonResponseException(Throwable throwable) {
+    Throwable cause = throwable;
     while (cause != null) {
       if (cause instanceof GoogleJsonResponseException) {
         return (GoogleJsonResponseException) cause;
+      }
+      for (Throwable suppressed : cause.getSuppressed()) {
+        GoogleJsonResponseException suppressedJsonException = getJsonResponseException(suppressed);
+        if (suppressedJsonException != null) {
+          return suppressedJsonException;
+        }
       }
       cause = cause.getCause();
     }

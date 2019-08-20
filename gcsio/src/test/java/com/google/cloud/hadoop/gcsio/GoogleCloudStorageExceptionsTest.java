@@ -14,11 +14,12 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageExceptions.createCompositeException;
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageExceptions.createFileNotFoundException;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
@@ -26,82 +27,77 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/**
- * Unit tests for GoogleCloudStorageExceptions class.
- */
+/** Unit tests for {@link GoogleCloudStorageExceptions} class. */
 @RunWith(JUnit4.class)
 public class GoogleCloudStorageExceptionsTest {
   @Test
   public void testGetFileNotFoundExceptionThrowsWhenBucketNameIsNull() {
     assertThrows(
         IllegalArgumentException.class,
-        () -> GoogleCloudStorageExceptions.getFileNotFoundException(null, "obj"));
+        () -> createFileNotFoundException(/* bucketName= */ null, "obj", /* cause= */ null));
   }
 
   @Test
   public void testGetFileNotFoundExceptionThrowsWhenBucketNameIsEmpty() {
     assertThrows(
         IllegalArgumentException.class,
-        () -> GoogleCloudStorageExceptions.getFileNotFoundException("", "obj"));
+        () -> createFileNotFoundException("", "obj", /* cause= */ null));
   }
 
-  /** Validates getFileNotFoundException(). */
   @Test
   public void testGetFileNotFoundException() {
-    // objectName is null or empty
-    FileNotFoundException e = GoogleCloudStorageExceptions.getFileNotFoundException("bucket", null);
-    assertThat(e).hasMessageThat().startsWith("Item not found: 'gs://bucket/'.");
-    assertThat(GoogleCloudStorageExceptions.getFileNotFoundException("bucket", ""))
+    assertThat(createFileNotFoundException("bucket", /* objectName= */ null, /* cause= */ null))
         .hasMessageThat()
-        .isEqualTo(e.getMessage());
+        .startsWith("Item not found: 'gs://bucket/'.");
 
-    assertThat(GoogleCloudStorageExceptions.getFileNotFoundException("bucket", "obj"))
+    assertThat(createFileNotFoundException("bucket", "", /* cause= */ null))
+        .hasMessageThat()
+        .startsWith("Item not found: 'gs://bucket/'.");
+
+    assertThat(createFileNotFoundException("bucket", "obj", /* cause= */ null))
         .hasMessageThat()
         .startsWith("Item not found: 'gs://bucket/obj'.");
   }
 
   @Test
+  public void createFileNotFoundException_withCause() {
+    IOException cause = new IOException("cause exception");
+    FileNotFoundException e = createFileNotFoundException("bucket", "object", cause);
+    assertThat(e).hasCauseThat().isSameInstanceAs(cause);
+  }
+
+  @Test
   public void testConstructorThrowsWhenInnerExceptionsAreEmpty() {
-    List<IOException> emptyList = Lists.newArrayList(new IOException[0]);
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> GoogleCloudStorageExceptions.createCompositeException(emptyList));
+    List<IOException> emptyList = ImmutableList.of();
+    assertThrows(IllegalArgumentException.class, () -> createCompositeException(emptyList));
   }
 
   @Test
   public void testConstructorThrowsWhenInnerExceptionsAreNull() {
     assertThrows(
         IllegalArgumentException.class,
-        () -> GoogleCloudStorageExceptions.createCompositeException(null));
+        () -> createCompositeException(/* innerExceptions= */ null));
   }
 
-  /**
-   * Validates createCompositeException().
-   */
   @Test
-  public void testCreateCompositeException() {
-    IOException compositeException;
+  public void createCompositeException_withSingleInnerException() {
+    IOException inner = new IOException("inner exception");
+    IOException compositeException = createCompositeException(ImmutableList.of(inner));
+    assertThat(inner).isSameInstanceAs(compositeException);
+  }
 
-    // Exactly 1 inner exception should be returned unwrapped.
-    IOException inner1 = new IOException("inner1");
-    compositeException =
-        GoogleCloudStorageExceptions.createCompositeException(ImmutableList.of(inner1));
-    assertThat(inner1 == compositeException).isTrue();
+  @Test
+  public void createCompositeException_withMultipleInnerExceptions() {
+    IOException inner1 = new IOException("inner exception 1");
+    IOException inner2 = new IOException("inner exception 2");
 
-    // More than 1 inner exceptions should be wrapped.
-    IOException inner2 = new IOException("inner2");
-    compositeException =
-        GoogleCloudStorageExceptions.createCompositeException(ImmutableList.of(inner1, inner2));
-    assertThat(inner1 == compositeException).isFalse();
-    assertThat(inner2 == compositeException).isFalse();
+    IOException compositeException = createCompositeException(ImmutableList.of(inner1, inner2));
+
+    assertThat(inner1).isNotSameInstanceAs(compositeException);
+    assertThat(inner2).isNotSameInstanceAs(compositeException);
     assertThat(compositeException).hasMessageThat().isEqualTo("Multiple IOExceptions.");
-  }
-
-  /**
-   * Provides coverage for default constructor. No real validation is performed.
-   */
-  @Test
-  public void testCoverDefaultConstructor() {
-    new GoogleCloudStorageExceptions();
+    assertThat(compositeException.getSuppressed()).isEqualTo(new Throwable[] {inner1, inner2});
+    assertThat(compositeException.getSuppressed()[0]).isSameInstanceAs(inner1);
+    assertThat(compositeException.getSuppressed()[1]).isSameInstanceAs(inner2);
   }
 }

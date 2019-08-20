@@ -176,11 +176,11 @@ public class BatchHelper {
       T result = req.execute();
       callback.onSuccess(result, req.getLastResponseHeaders());
     } catch (IOException e) {
-      GoogleJsonResponseException je = ApiErrorExtractor.getJsonResponseExceptionOrNull(e);
-      if (je == null) {
+      GoogleJsonResponseException jsonException = ApiErrorExtractor.getJsonResponseException(e);
+      if (jsonException == null) {
         throw e;
       }
-      callback.onFailure(je.getDetails(), je.getHeaders());
+      callback.onFailure(jsonException.getDetails(), jsonException.getHeaders());
     }
   }
 

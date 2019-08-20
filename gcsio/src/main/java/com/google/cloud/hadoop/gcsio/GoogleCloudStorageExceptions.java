@@ -19,27 +19,38 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.base.Strings.nullToEmpty;
 
+import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.HttpHeaders;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
+import javax.annotation.Nullable;
 
 /**
  * Miscellaneous helper methods for standardizing the types of exceptions thrown by the various
  * GCS-based FileSystems.
  */
-public class GoogleCloudStorageExceptions {
+public final class GoogleCloudStorageExceptions {
+
+  private GoogleCloudStorageExceptions() {}
 
   /** Creates FileNotFoundException with suitable message for a GCS bucket or object. */
-  public static FileNotFoundException getFileNotFoundException(
-      String bucketName, String objectName) {
+  public static FileNotFoundException createFileNotFoundException(
+      String bucketName, String objectName, @Nullable IOException cause) {
     checkArgument(!isNullOrEmpty(bucketName), "bucketName must not be null or empty");
-    return new FileNotFoundException(
-        String.format(
-            "Item not found: '%s'."
-                + " If you enabled STRICT generation consistency, it is possible that"
-                + " the live version is still available but the intended generation is deleted.",
-            StorageResourceId.createReadableString(bucketName, nullToEmpty(objectName))));
+    FileNotFoundException fileNotFoundException =
+        new FileNotFoundException(
+            String.format(
+                "Item not found: '%s'. If you enabled STRICT generation consistency, it is"
+                    + " possible that the live version is still available but the intended"
+                    + " generation is deleted.",
+                StorageResourceId.createReadableString(bucketName, nullToEmpty(objectName))));
+    if (cause != null) {
+      fileNotFoundException.initCause(cause);
+    }
+    return fileNotFoundException;
   }
 
   /**
@@ -49,7 +60,8 @@ public class GoogleCloudStorageExceptions {
   public static IOException createCompositeException(Collection<IOException> innerExceptions) {
     checkArgument(
         innerExceptions != null && !innerExceptions.isEmpty(),
-        "innerExceptions (%s) must be not null and contain at least one element", innerExceptions);
+        "innerExceptions (%s) must be not null and contain at least one element",
+        innerExceptions);
 
     Iterator<IOException> innerExceptionIterator = innerExceptions.iterator();
 
@@ -62,5 +74,11 @@ public class GoogleCloudStorageExceptions {
       combined.addSuppressed(innerExceptionIterator.next());
     }
     return combined;
+  }
+
+  public static GoogleJsonResponseException createJsonResponseException(
+      GoogleJsonError e, HttpHeaders responseHeaders) {
+    return new GoogleJsonResponseException(
+        new GoogleJsonResponseException.Builder(e.getCode(), e.getMessage(), responseHeaders), e);
   }
 }

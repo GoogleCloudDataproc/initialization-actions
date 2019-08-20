@@ -16,6 +16,8 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageExceptions.createFileNotFoundException;
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageExceptions.createJsonResponseException;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.Sets.newConcurrentHashSet;
@@ -23,6 +25,7 @@ import static com.google.common.collect.Sets.newConcurrentHashSet;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
 import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.ByteArrayContent;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequestInitializer;
@@ -602,8 +605,8 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     if (readOptions.getFastFailOnNotFound()) {
       info = getItemInfo(resourceId);
       if (!info.exists()) {
-        throw GoogleCloudStorageExceptions.getFileNotFoundException(
-            resourceId.getBucketName(), resourceId.getObjectName());
+        throw createFileNotFoundException(
+            resourceId.getBucketName(), resourceId.getObjectName(), /* cause= */ null);
       }
     } else {
       info = null;
@@ -656,19 +659,16 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
             IOException.class,
             sleeper);
       } catch (IOException e) {
-        if (errorExtractor.itemNotFound(e)) {
-          FileNotFoundException fnfe =
-              GoogleCloudStorageExceptions.getFileNotFoundException(bucketName, null);
-          innerExceptions.add((FileNotFoundException) fnfe.initCause(e));
-        } else {
-          innerExceptions.add(new IOException("Error deleting " + bucketName, e));
-        }
+        innerExceptions.add(
+            errorExtractor.itemNotFound(e)
+                ? createFileNotFoundException(bucketName, null, e)
+                : new IOException(String.format("Error deleting '%s' bucket", bucketName), e));
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new IOException("Failed to delete buckets", e);
       }
     }
-    if (innerExceptions.size() > 0) {
+    if (!innerExceptions.isEmpty()) {
       throw GoogleCloudStorageExceptions.createCompositeException(innerExceptions);
     }
   }
@@ -713,7 +713,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
     batchHelper.flush();
 
-    if (innerExceptions.size() > 0) {
+    if (!innerExceptions.isEmpty()) {
       throw GoogleCloudStorageExceptions.createCompositeException(innerExceptions);
     }
   }
@@ -732,26 +732,29 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
       }
 
       @Override
-      public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) throws IOException {
-        if (errorExtractor.itemNotFound(e)) {
+      public void onFailure(GoogleJsonError jsonError, HttpHeaders responseHeaders)
+          throws IOException {
+        GoogleJsonResponseException cause = createJsonResponseException(jsonError, responseHeaders);
+        if (errorExtractor.itemNotFound(cause)) {
           // Ignore item-not-found errors. We do not have to delete what we cannot find. This
           // error typically shows up when we make a request to delete something and the server
           // receives the request but we get a retry-able error before we get a response.
           // During a retry, we no longer find the item because the server had deleted
           // it already.
-          logger.atFine().log("deleteObjects(%s): delete not found:%n%s", resourceId, e);
-        } else if (errorExtractor.preconditionNotMet(e)
+          logger.atFine().log("Delete object '%s' not found:%n%s", resourceId, jsonError);
+        } else if (errorExtractor.preconditionNotMet(cause)
             && attempt <= MAXIMUM_PRECONDITION_FAILURES_IN_DELETE) {
           logger.atInfo().log(
-              "Precondition not met while deleting %s at generation %s. Attempt %s. Retrying:%n%s",
-              resourceId, generation, attempt, e);
+              "Precondition not met while deleting '%s' at generation %s. Attempt %s."
+                  + " Retrying:%n%s",
+              resourceId, generation, attempt, jsonError);
           queueSingleObjectDelete(resourceId, innerExceptions, batchHelper, attempt + 1);
         } else {
           innerExceptions.add(
               new IOException(
                   String.format(
-                      "Error deleting %s, stage 2 with generation %s:%n%s",
-                      resourceId, generation, e)));
+                      "Error deleting '%s', stage 2 with generation %s", resourceId, generation),
+                  cause));
         }
       }
     };
@@ -798,15 +801,17 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
             }
 
             @Override
-            public void onFailure(GoogleJsonError e, HttpHeaders httpHeaders) {
-              if (errorExtractor.itemNotFound(e)) {
+            public void onFailure(GoogleJsonError jsonError, HttpHeaders responseHeaders) {
+              GoogleJsonResponseException cause =
+                  createJsonResponseException(jsonError, responseHeaders);
+              if (errorExtractor.itemNotFound(cause)) {
                 // If the item isn't found, treat it the same as if it's not found in the delete
                 // case: assume the user wanted the object gone and now it is.
-                logger.atFine().log("deleteObjects(%s): get not found:%n%s", resourceId, e);
+                logger.atFine().log("deleteObjects(%s): get not found:%n%s", resourceId, jsonError);
               } else {
                 innerExceptions.add(
                     new IOException(
-                        String.format("Error deleting %s, stage 1:%n%s", resourceId, e)));
+                        String.format("Error deleting '%s', stage 1", resourceId), cause));
               }
             }
           });
@@ -994,7 +999,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
           @Override
           public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) {
-            onCopyFailure(innerExceptions, e, srcBucketName, srcObjectName);
+            onCopyFailure(innerExceptions, e, responseHeaders, srcBucketName, srcObjectName);
           }
         });
   }
@@ -1026,8 +1031,9 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
           }
 
           @Override
-          public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) {
-            onCopyFailure(innerExceptions, e, srcBucketName, srcObjectName);
+          public void onFailure(GoogleJsonError jsonError, HttpHeaders responseHeaders) {
+            onCopyFailure(
+                innerExceptions, jsonError, responseHeaders, srcBucketName, srcObjectName);
           }
         });
   }
@@ -1035,16 +1041,19 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
   /** Processes failed copy requests */
   private void onCopyFailure(
       KeySetView<IOException, Boolean> innerExceptions,
-      GoogleJsonError e,
-      String srcBucketName, String srcObjectName) {
-    if (errorExtractor.itemNotFound(e)) {
-      FileNotFoundException fnfe =
-          GoogleCloudStorageExceptions.getFileNotFoundException(srcBucketName, srcObjectName);
-      innerExceptions.add((FileNotFoundException) fnfe.initCause(new IOException(e.toString())));
-    } else {
-      String srcString = StorageResourceId.createReadableString(srcBucketName, srcObjectName);
-      innerExceptions.add(new IOException(String.format("Error copying %s:%n%s", srcString, e)));
-    }
+      GoogleJsonError jsonError,
+      HttpHeaders responseHeaders,
+      String srcBucketName,
+      String srcObjectName) {
+    GoogleJsonResponseException cause = createJsonResponseException(jsonError, responseHeaders);
+    innerExceptions.add(
+        errorExtractor.itemNotFound(cause)
+            ? createFileNotFoundException(srcBucketName, srcObjectName, cause)
+            : new IOException(
+                String.format(
+                    "Error copying '%s'",
+                    StorageResourceId.createReadableString(srcBucketName, srcObjectName)),
+                cause));
   }
 
   /**
@@ -1604,16 +1613,19 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
               }
 
               @Override
-              public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) {
-                if (errorExtractor.itemNotFound(e)) {
+              public void onFailure(GoogleJsonError jsonError, HttpHeaders responseHeaders) {
+                GoogleJsonResponseException cause =
+                    createJsonResponseException(jsonError, responseHeaders);
+                if (errorExtractor.itemNotFound(cause)) {
                   logger.atFine().log(
-                      "getItemInfos: bucket not found %s:%n%s", resourceId.getBucketName(), e);
+                      "getItemInfos: bucket '%s' not found:%n%s",
+                      resourceId.getBucketName(), jsonError);
                   itemInfos.put(resourceId, GoogleCloudStorageItemInfo.createNotFound(resourceId));
                 } else {
                   innerExceptions.add(
                       new IOException(
-                          String.format(
-                              "Error getting Bucket %s:%n%s", resourceId.getBucketName(), e)));
+                          String.format("Error getting '%s' bucket", resourceId.getBucketName()),
+                          cause));
                 }
               }
             });
@@ -1632,14 +1644,17 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
               }
 
               @Override
-              public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) {
-                if (errorExtractor.itemNotFound(e)) {
-                  logger.atFine().log("getItemInfos: object not found %s:%n%s", resourceId, e);
+              public void onFailure(GoogleJsonError jsonError, HttpHeaders responseHeaders) {
+                GoogleJsonResponseException cause =
+                    createJsonResponseException(jsonError, responseHeaders);
+                if (errorExtractor.itemNotFound(cause)) {
+                  logger.atFine().log(
+                      "getItemInfos: object '%s' not found:%n%s", resourceId, jsonError);
                   itemInfos.put(resourceId, GoogleCloudStorageItemInfo.createNotFound(resourceId));
                 } else {
                   innerExceptions.add(
                       new IOException(
-                          String.format("Error getting StorageObject %s:%n%s", resourceId, e)));
+                          String.format("Error getting '%s' object", resourceId), cause));
                 }
               }
             });
@@ -1648,7 +1663,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
     batchHelper.flush();
 
-    if (innerExceptions.size() > 0) {
+    if (!innerExceptions.isEmpty()) {
       throw GoogleCloudStorageExceptions.createCompositeException(innerExceptions);
     }
 
@@ -1723,22 +1738,24 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
             }
 
             @Override
-            public void onFailure(GoogleJsonError e, HttpHeaders responseHeaders) {
-              if (errorExtractor.itemNotFound(e)) {
-                logger.atFine().log("updateItems: object not found %s:%n%s", resourceId, e);
+            public void onFailure(GoogleJsonError jsonError, HttpHeaders responseHeaders) {
+              GoogleJsonResponseException cause =
+                  createJsonResponseException(jsonError, responseHeaders);
+              if (errorExtractor.itemNotFound(cause)) {
+                logger.atFine().log("updateItems: object not found %s:%n%s", resourceId, jsonError);
                 resultItemInfos.put(
                     resourceId, GoogleCloudStorageItemInfo.createNotFound(resourceId));
               } else {
                 innerExceptions.add(
                     new IOException(
-                        String.format("Error getting StorageObject %s:%n%s", resourceId, e)));
+                        String.format("Error updating '%s' object", resourceId), cause));
               }
             }
           });
     }
     batchHelper.flush();
 
-    if (innerExceptions.size() > 0) {
+    if (!innerExceptions.isEmpty()) {
       throw GoogleCloudStorageExceptions.createCompositeException(innerExceptions);
     }
 
@@ -1895,7 +1912,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     // TODO(user): Maybe also add 409 and even 412 errors if they pop up in this use case.
     // 500 ISE and 503 Service Unavailable tend to be raised when spamming GCS with create requests:
     if (errorExtractor.rateLimited(exceptionOnCreate)
-        || errorExtractor.isInternalServerError(exceptionOnCreate)) {
+        || errorExtractor.internalServerError(exceptionOnCreate)) {
       // We know that this is an error that is most often associated with trying to create an empty
       // object from multiple workers at the same time. We perform the following assuming that we
       // will eventually succeed and find an existing object. This will add up to a user-defined

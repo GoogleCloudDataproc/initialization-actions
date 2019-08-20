@@ -52,6 +52,7 @@ import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.UpdatableItemInfo;
 import com.google.cloud.hadoop.util.AccessTokenProvider;
 import com.google.cloud.hadoop.util.AccessTokenProviderClassFromConfigFactory;
+import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.CredentialFactory;
 import com.google.cloud.hadoop.util.CredentialFromAccessTokenProviderClassFactory;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
@@ -672,14 +673,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     return result;
   }
 
-  // TODO(user): Improve conversion of exceptions to 'false'.
-  // Hadoop is inconsistent about when methods are expected to throw
-  // and when they should return false. The FileSystem documentation
-  // is unclear on this and many other aspects. For now, we convert
-  // all IOExceptions to false which is not the right thing to do.
-  // We need to find a way to only convert known cases to 'false'
-  // and let the other exceptions bubble up.
-
   /**
    * Opens the given file for reading.
    *
@@ -879,8 +872,8 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
    *
    * @param src Source path.
    * @param dst Destination path.
-   * @return true if rename succeeds.
-   * @throws FileNotFoundException if src does not exist.
+   * @return true if successful, or false if the old name does not exist or if the new name already
+   *     belongs to the namespace.
    * @throws IOException if an error occurs.
    */
   @Override
@@ -906,13 +899,10 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     try {
       getGcsFs().rename(srcPath, dstPath);
     } catch (IOException e) {
-      // Occasionally log exceptions that have a cause at info level,
-      // because they could surface real issues and help with troubleshooting
-      (logger.atFine().isEnabled() || e.getCause() == null
-              ? logger.atFine()
-              : logger.atInfo().atMostEvery(5, TimeUnit.MINUTES))
-          .withCause(e)
-          .log("rename(src: %s, dst: %s): false [failed]", src, dst);
+      if (ApiErrorExtractor.INSTANCE.requestFailure(e)) {
+        throw e;
+      }
+      logger.atFiner().withCause(e).log("rename(src: %s, dst: %s): false [failed]", src, dst);
       return false;
     }
 
@@ -946,13 +936,11 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     } catch (DirectoryNotEmptyException e) {
       throw e;
     } catch (IOException e) {
-      // Occasionally log exceptions that have a cause at info level,
-      // because they could surface real issues and help with troubleshooting
-      (logger.atFine().isEnabled() || e.getCause() == null
-              ? logger.atFine()
-              : logger.atInfo().atMostEvery(5, TimeUnit.MINUTES))
-          .withCause(e)
-          .log("delete(hadoopPath: %s, recursive: %b): false [failed]", hadoopPath, recursive);
+      if (ApiErrorExtractor.INSTANCE.requestFailure(e)) {
+        throw e;
+      }
+      logger.atFiner().withCause(e).log(
+          "delete(hadoopPath: %s, recursive: %b): false [failed]", hadoopPath, recursive);
       return false;
     }
 
