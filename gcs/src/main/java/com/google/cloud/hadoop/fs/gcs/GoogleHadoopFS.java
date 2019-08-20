@@ -179,7 +179,7 @@ public class GoogleHadoopFS extends AbstractFileSystem {
   @Override
   public void renameInternal(final Path src, final Path dst) throws IOException {
     logger.atFinest().log("renameInternal(src: %s, dst: %s)", src, dst);
-    ghfs.rename(src, dst);
+    ghfs.renameInternal(src, dst);
   }
 
   @Override

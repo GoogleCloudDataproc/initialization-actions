@@ -810,8 +810,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     Preconditions.checkArgument(src != null, "src must not be null");
     Preconditions.checkArgument(dst != null, "dst must not be null");
 
-    long startTime = System.nanoTime();
-
     // Even though the underlying GCSFS will also throw an IAE if src is root, since our filesystem
     // root happens to equal the global root, we want to explicitly check it here since derived
     // classes may not have filesystem roots equal to the global root.
@@ -819,14 +817,8 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
       logger.atFiner().log("rename(src: %s, dst: %s): false [src is a root]", src, dst);
       return false;
     }
-
-    checkOpen();
-
-    URI srcPath = getGcsPath(src);
-    URI dstPath = getGcsPath(dst);
-
     try {
-      getGcsFs().rename(srcPath, dstPath);
+      renameInternal(src, dst);
     } catch (IOException e) {
       if (ApiErrorExtractor.INSTANCE.requestFailure(e)) {
         throw e;
@@ -834,12 +826,33 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
       logger.atFiner().withCause(e).log("rename(src: %s, dst: %s): false [failed]", src, dst);
       return false;
     }
+    return true;
+  }
+
+  /**
+   * Renames src to dst.
+   *
+   * @param src Source path.
+   * @param dst Destination path.
+   * @throws IOException if an error occurs.
+   */
+  void renameInternal(Path src, Path dst) throws IOException {
+    Preconditions.checkArgument(src != null, "src must not be null");
+    Preconditions.checkArgument(dst != null, "dst must not be null");
+
+    long startTime = System.nanoTime();
+
+    checkOpen();
+
+    URI srcPath = getGcsPath(src);
+    URI dstPath = getGcsPath(dst);
+
+    getGcsFs().rename(srcPath, dstPath);
 
     long duration = System.nanoTime() - startTime;
     increment(Counter.RENAME);
     increment(Counter.RENAME_TIME, duration);
     logger.atFiner().log("rename(src: %s, dst: %s): true", src, dst);
-    return true;
   }
 
   /**
