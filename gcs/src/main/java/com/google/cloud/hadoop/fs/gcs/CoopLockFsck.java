@@ -17,7 +17,6 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.flogger.LazyArgs.lazy;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.common.collect.ImmutableSet;
@@ -89,7 +88,8 @@ public class CoopLockFsck extends Configured implements Tool {
         args.length == expectedArgsNumber,
         "%s arguments should be specified for %s command, but were: %s",
         expectedArgsNumber,
-        lazy(() -> Arrays.toString(args)));
+        command,
+        Arrays.asList(args));
 
     String bucket = args[1];
     checkArgument(
