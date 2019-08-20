@@ -18,7 +18,6 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.flogger.GoogleLogger;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Date;
@@ -35,11 +34,9 @@ import java.util.Map;
  */
 public class FileInfo {
 
-  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
-
   // Info about the root path.
-  public static final FileInfo ROOT_INFO = new FileInfo(
-      GoogleCloudStorageFileSystem.GCS_ROOT, GoogleCloudStorageItemInfo.ROOT_INFO);
+  public static final FileInfo ROOT_INFO =
+      new FileInfo(GoogleCloudStorageFileSystem.GCS_ROOT, GoogleCloudStorageItemInfo.ROOT_INFO);
 
   // Path of this file or directory.
   private final URI path;

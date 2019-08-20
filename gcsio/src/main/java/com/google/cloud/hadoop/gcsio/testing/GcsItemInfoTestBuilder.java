@@ -22,6 +22,7 @@ import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 
+/** Builder used in tests for {@link GoogleCloudStorageItemInfo} class */
 @AutoValue
 public abstract class GcsItemInfoTestBuilder {
 
@@ -61,7 +62,7 @@ public abstract class GcsItemInfoTestBuilder {
   @Nullable
   public abstract String getContentEncoding();
 
-  public abstract Map<String, byte[]> getMetadata();
+  public abstract ImmutableMap<String, byte[]> getMetadata();
 
   public abstract long getContentGeneration();
 

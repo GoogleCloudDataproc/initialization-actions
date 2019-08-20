@@ -23,7 +23,6 @@ import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.RequesterPaysOptions;
 import com.google.common.flogger.LoggerConfig;
-import com.google.common.util.concurrent.MoreExecutors;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;

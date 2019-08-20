@@ -21,6 +21,7 @@ import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpStatusCodes;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import java.io.IOError;
 import java.io.IOException;
 import java.net.SocketException;
@@ -125,6 +126,12 @@ public class ApiErrorExtractor {
     return ACCOUNT_DISABLED_REASON.equals(reason) || ACCESS_NOT_CONFIGURED_REASON.equals(reason);
   }
 
+  /** @deprecated use {@link #clientError(IOException)} instead */
+  @Deprecated
+  public boolean isClientError(IOException e) {
+    return clientError(e);
+  }
+
   /** Determines if the exception is a client error. */
   public boolean clientError(IOException e) {
     GoogleJsonResponseException jsonException = getJsonResponseException(e);
@@ -143,6 +150,12 @@ public class ApiErrorExtractor {
    */
   public boolean itemAlreadyExists(IOException e) {
     return recursiveCheckForCode(e, HttpStatusCodes.STATUS_CODE_CONFLICT);
+  }
+
+  /** @deprecated use {@link #itemNotFound(IOException)} instead */
+  @Deprecated
+  public boolean itemNotFound(GoogleJsonError e) {
+    return e.getCode() == HttpStatusCodes.STATUS_CODE_NOT_FOUND;
   }
 
   /**
@@ -292,7 +305,7 @@ public class ApiErrorExtractor {
         : String.format("Encountered an error while %s: %s", action, message);
   }
 
-  /** @see #toUserPresentableMessage(IOException, String) */
+  /** See {@link #toUserPresentableMessage(IOException, String)}. */
   public String toUserPresentableMessage(IOException e) {
     return toUserPresentableMessage(e, null);
   }
@@ -321,7 +334,7 @@ public class ApiErrorExtractor {
   protected ErrorInfo getErrorInfo(IOException e) {
     GoogleJsonError jsonError = getJsonError(e);
     List<ErrorInfo> errors = jsonError != null ? jsonError.getErrors() : ImmutableList.of();
-    return jsonError != null ? errors.isEmpty() ? null : errors.get(0) : null;
+    return errors != null ? Iterables.getFirst(errors, null) : null;
   }
 
   /** If the exception is a GoogleJsonResponseException, get the error details, else return null. */

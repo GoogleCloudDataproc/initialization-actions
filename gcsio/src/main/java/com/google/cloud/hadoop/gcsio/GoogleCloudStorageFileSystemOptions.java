@@ -15,8 +15,6 @@
 package com.google.cloud.hadoop.gcsio;
 
 import com.google.auto.value.AutoValue;
-import java.net.URI;
-import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 
