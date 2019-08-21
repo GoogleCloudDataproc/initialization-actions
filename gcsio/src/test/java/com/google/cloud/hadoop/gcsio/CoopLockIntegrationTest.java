@@ -269,7 +269,7 @@ public class CoopLockIntegrationTest {
     assertThat(lockInstant)
         .isGreaterThan(operationStart.plusSeconds(expectedLockRenewTimeout.getSeconds()));
     assertThat(lockInstant)
-        .isLessThan(operationStart.plusSeconds(expectedLockRenewTimeout.getSeconds() + 5));
+        .isLessThan(operationStart.plusSeconds(expectedLockRenewTimeout.getSeconds() + 10));
   }
 
   private static Optional<URI> matchFile(List<URI> files, String pattern) {
