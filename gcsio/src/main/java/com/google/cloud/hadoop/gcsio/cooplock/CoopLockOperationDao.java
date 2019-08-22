@@ -81,7 +81,7 @@ public class CoopLockOperationDao {
   private static final DateTimeFormatter LOCK_FILE_DATE_TIME_FORMAT =
       DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss.SSSXXX").withZone(ZoneOffset.UTC);
 
-  private static final Gson GSON = new Gson();
+  private static final Gson GSON = CoopLockRecordsDao.createGson();
 
   private final ScheduledExecutorService scheduledThreadPool =
       Executors.newScheduledThreadPool(
@@ -116,7 +116,8 @@ public class CoopLockOperationDao {
             ImmutableList.of(
                 GSON.toJson(
                     new DeleteOperation()
-                        .setLockEpochMilli(operationInstant.toEpochMilli())
+                        .setLockExpiration(
+                            Instant.now().plusMillis(options.getLockExpirationTimeoutMilli()))
                         .setResource(resourceId.toString()))));
     List<String> logRecords =
         Streams.concat(itemsToDelete.stream(), bucketsToDelete.stream())
@@ -135,7 +136,9 @@ public class CoopLockOperationDao {
         operationId,
         operationLockPath,
         DeleteOperation.class,
-        (o, i) -> o.setLockEpochMilli(i.toEpochMilli()));
+        (operation, updateInstant) ->
+            operation.setLockExpiration(
+                updateInstant.plusMillis(options.getLockExpirationTimeoutMilli())));
   }
 
   public Future<?> persistRenameOperation(
@@ -157,7 +160,8 @@ public class CoopLockOperationDao {
             ImmutableList.of(
                 GSON.toJson(
                     new RenameOperation()
-                        .setLockEpochMilli(operationInstant.toEpochMilli())
+                        .setLockExpiration(
+                            Instant.now().plusMillis(options.getLockExpirationTimeoutMilli()))
                         .setSrcResource(src.toString())
                         .setDstResource(dst.toString())
                         .setCopySucceeded(false))));
@@ -179,7 +183,8 @@ public class CoopLockOperationDao {
         operationId,
         operationLockPath,
         RenameOperation.class,
-        (o, i) -> o.setLockEpochMilli(i.toEpochMilli()));
+        (o, updateInstant) ->
+            o.setLockExpiration(updateInstant.plusMillis(options.getLockExpirationTimeoutMilli())));
   }
 
   public void checkpointRenameOperation(
@@ -201,7 +206,8 @@ public class CoopLockOperationDao {
             l -> {
               RenameOperation operation = GSON.fromJson(l, RenameOperation.class);
               operation
-                  .setLockEpochMilli(Instant.now().toEpochMilli())
+                  .setLockExpiration(
+                      Instant.now().plusMillis(options.getLockExpirationTimeoutMilli()))
                   .setCopySucceeded(copySucceeded);
               return GSON.toJson(operation);
             });

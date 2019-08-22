@@ -17,6 +17,8 @@
 package com.google.cloud.hadoop.gcsio.cooplock;
 
 import com.google.common.base.MoreObjects;
+import java.time.Instant;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -27,9 +29,9 @@ import java.util.TreeSet;
 public class CoopLockRecord {
   private String clientId;
   private String operationId;
-  private long operationEpochMilli;
+  private Instant operationTime;
   private CoopLockOperationType operationType;
-  private long lockEpochMilli;
+  private Instant lockExpiration;
   private Set<String> resources = new TreeSet<>();
 
   public String getClientId() {
@@ -50,12 +52,12 @@ public class CoopLockRecord {
     return this;
   }
 
-  public long getOperationEpochMilli() {
-    return operationEpochMilli;
+  public Instant getOperationTime() {
+    return operationTime;
   }
 
-  public CoopLockRecord setOperationEpochMilli(long operationEpochMilli) {
-    this.operationEpochMilli = operationEpochMilli;
+  public CoopLockRecord setOperationTime(Instant operationTime) {
+    this.operationTime = operationTime;
     return this;
   }
 
@@ -68,12 +70,12 @@ public class CoopLockRecord {
     return this;
   }
 
-  public long getLockEpochMilli() {
-    return lockEpochMilli;
+  public Instant getLockExpiration() {
+    return lockExpiration;
   }
 
-  public CoopLockRecord setLockEpochMilli(long lockEpochMilli) {
-    this.lockEpochMilli = lockEpochMilli;
+  public CoopLockRecord setLockExpiration(Instant lockExpiration) {
+    this.lockExpiration = lockExpiration;
     return this;
   }
 
@@ -87,13 +89,34 @@ public class CoopLockRecord {
   }
 
   @Override
+  public boolean equals(Object obj) {
+    return this == obj
+        || (obj != null && getClass() == obj.getClass() && equalsInternal((CoopLockRecord) obj));
+  }
+
+  private boolean equalsInternal(CoopLockRecord other) {
+    return Objects.equals(clientId, other.clientId)
+        && Objects.equals(operationId, other.operationId)
+        && Objects.equals(operationTime, other.operationTime)
+        && operationType == other.operationType
+        && Objects.equals(lockExpiration, other.lockExpiration)
+        && Objects.equals(resources, other.resources);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+        clientId, operationId, operationTime, operationType, lockExpiration, resources);
+  }
+
+  @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
         .add("clientId", clientId)
         .add("operationId", operationId)
-        .add("operationEpochMilli", operationEpochMilli)
+        .add("operationTime", operationTime)
         .add("operationType", operationType)
-        .add("lockEpochMilli", lockEpochMilli)
+        .add("lockExpiration", lockExpiration)
         .add("resources", resources)
         .toString();
   }

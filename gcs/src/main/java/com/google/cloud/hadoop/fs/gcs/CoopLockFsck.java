@@ -62,7 +62,7 @@ public class CoopLockFsck extends Configured implements Tool {
                       + " --{check,rollBack,rollForward} gs://<bucket_name> [all|<operation_id>]",
                   CoopLockFsck.class.getCanonicalName())
               + "\n\nSupported commands:"
-              + String.format("\n\t%s - prints out failed operation for the bucket", COMMAND_CHECK)
+              + String.format("\n\t%s - print out operations status in the bucket", COMMAND_CHECK)
               + String.format(
                   "\n\t%s - recover directory operations in the bucket by rolling them forward",
                   COMMAND_ROLL_FORWARD)

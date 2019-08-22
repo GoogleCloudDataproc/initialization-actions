@@ -33,6 +33,7 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.HttpExecuteInterceptor;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpRequestInitializer;
+import com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecordsDao;
 import com.google.cloud.hadoop.gcsio.cooplock.CooperativeLockingOptions;
 import com.google.cloud.hadoop.gcsio.cooplock.DeleteOperation;
 import com.google.cloud.hadoop.gcsio.cooplock.RenameOperation;
@@ -59,7 +60,7 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class CoopLockIntegrationTest {
 
-  private static final Gson GSON = new Gson();
+  private static final Gson GSON = CoopLockRecordsDao.createGson();
 
   private static final String OPERATION_FILENAME_PATTERN_FORMAT =
       "[0-9]{8}T[0-9]{6}\\.[0-9]{3}Z_%s_[a-z0-9\\-]+";
@@ -151,10 +152,10 @@ public class CoopLockIntegrationTest {
     URI logFileUri = matchFile(lockFiles, fileNamePattern + "\\.log").get();
 
     String lockContent = gcsfsIHelper.readTextFile(bucketName, lockFileUri.getPath());
-    assertThat(GSON.fromJson(lockContent, RenameOperation.class).setLockEpochMilli(0))
+    assertThat(GSON.fromJson(lockContent, RenameOperation.class).setLockExpiration(null))
         .isEqualTo(
             new RenameOperation()
-                .setLockEpochMilli(0)
+                .setLockExpiration(null)
                 .setSrcResource(srcDirUri.toString())
                 .setDstResource(dstDirUri.toString())
                 .setCopySucceeded(true));
@@ -203,8 +204,8 @@ public class CoopLockIntegrationTest {
     URI lockFileUri = matchFile(lockFiles, fileNamePattern + "\\.lock").get();
     URI logFileUri = matchFile(lockFiles, fileNamePattern + "\\.log").get();
     String lockContent = gcsfsIHelper.readTextFile(bucketName, lockFileUri.getPath());
-    assertThat(GSON.fromJson(lockContent, DeleteOperation.class).setLockEpochMilli(0))
-        .isEqualTo(new DeleteOperation().setLockEpochMilli(0).setResource(dirUri.toString()));
+    assertThat(GSON.fromJson(lockContent, DeleteOperation.class).setLockExpiration(null))
+        .isEqualTo(new DeleteOperation().setLockExpiration(null).setResource(dirUri.toString()));
     assertThat(gcsfsIHelper.readTextFile(bucketName, logFileUri.getPath()))
         .isEqualTo(dirUri.resolve(fileName) + "\n" + dirUri + "\n");
   }
@@ -228,19 +229,22 @@ public class CoopLockIntegrationTest {
         newGcsFsOptions(
             gcsOptions.toBuilder().setCooperativeLockingOptions(coopLockOptions).build());
 
+    Duration lockRenewalDelay = COOP_LOCK_TIMEOUT.dividedBy(2);
+    Duration lockRenewalTimeout = COOP_LOCK_TIMEOUT.dividedBy(4);
+
     String encodedFilePath = URLEncoder.encode(fileUri.getPath().substring(1), UTF_8.name());
-    Duration expectedLockRenewTimeout = COOP_LOCK_TIMEOUT.dividedBy(2);
     HttpRequestInitializer sleepingRequestInitializer =
         interceptingRequestInitializer(
             r -> {
               String reqUrl = "/b/" + bucketName + "/o/" + encodedFilePath;
               if ("DELETE".equals(r.getRequestMethod()) && r.getUrl().toString().contains(reqUrl)) {
-                sleepUninterruptibly(expectedLockRenewTimeout.plusSeconds(1));
+                sleepUninterruptibly(lockRenewalDelay.plusSeconds(1));
               }
             });
     GoogleCloudStorageFileSystem sleepingGcsFs = newGcsFs(gcsFsOptions, sleepingRequestInitializer);
 
     Instant operationStart = Instant.now();
+
     sleepingGcsFs.delete(dirUri, /* recursive= */ true);
 
     GoogleCloudStorageFileSystem gcsFs = newGcsFs(gcsFsOptions, httpRequestInitializer);
@@ -259,17 +263,19 @@ public class CoopLockIntegrationTest {
     URI lockFileUri = matchFile(lockFiles, filenamePattern + "\\.lock").get();
     URI logFileUri = matchFile(lockFiles, filenamePattern + "\\.log").get();
     String lockContent = gcsfsIHelper.readTextFile(bucketName, lockFileUri.getPath());
-    assertThat(GSON.fromJson(lockContent, DeleteOperation.class).setLockEpochMilli(0))
-        .isEqualTo(new DeleteOperation().setLockEpochMilli(0).setResource(dirUri.toString()));
+    assertThat(GSON.fromJson(lockContent, DeleteOperation.class).setLockExpiration(null))
+        .isEqualTo(new DeleteOperation().setLockExpiration(null).setResource(dirUri.toString()));
     assertThat(gcsfsIHelper.readTextFile(bucketName, logFileUri.getPath()))
         .isEqualTo(fileUri + "\n" + dirUri + "\n");
 
-    Instant lockInstant =
-        Instant.ofEpochMilli(GSON.fromJson(lockContent, DeleteOperation.class).getLockEpochMilli());
-    assertThat(lockInstant)
-        .isGreaterThan(operationStart.plusSeconds(expectedLockRenewTimeout.getSeconds()));
-    assertThat(lockInstant)
-        .isLessThan(operationStart.plusSeconds(expectedLockRenewTimeout.getSeconds() + 10));
+    Instant expectedRenewedLockExpiration =
+        operationStart.plus(COOP_LOCK_TIMEOUT).plus(lockRenewalDelay);
+
+    Instant renewedLockExpiration =
+        GSON.fromJson(lockContent, DeleteOperation.class).getLockExpiration();
+    assertThat(renewedLockExpiration).isGreaterThan(expectedRenewedLockExpiration);
+    assertThat(renewedLockExpiration)
+        .isLessThan(expectedRenewedLockExpiration.plus(lockRenewalTimeout));
   }
 
   private static Optional<URI> matchFile(List<URI> files, String pattern) {

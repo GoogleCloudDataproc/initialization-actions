@@ -34,6 +34,10 @@ import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.common.flogger.GoogleLogger;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializer;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -71,7 +75,7 @@ public class CoopLockRecordsDao {
   private static final int MAX_BACK_OFF_INTERVAL_MILLIS = 2_000;
   private static final int RETRY_LOCK_INTERVAL_MILLIS = 2_000;
 
-  private static final Gson GSON = new Gson();
+  private static final Gson GSON = createGson();
 
   private static final CreateObjectOptions CREATE_NEW_OBJECT_OPTIONS =
       new CreateObjectOptions(/* overwriteExisting= */ false);
@@ -86,7 +90,6 @@ public class CoopLockRecordsDao {
 
   public Set<CoopLockRecord> getLockedOperations(String bucketName) throws IOException {
     long startMs = System.currentTimeMillis();
-    logger.atFine().log("getLockedOperations(%s)", bucketName);
     StorageResourceId lockId = getLockId(bucketName);
     GoogleCloudStorageItemInfo lockInfo = gcs.getItemInfo(lockId);
     Set<CoopLockRecord> operations =
@@ -101,15 +104,13 @@ public class CoopLockRecordsDao {
     return operations;
   }
 
-  public void relockOperation(
-      String bucketName, String operationId, String clientId, long lockEpochMilli)
+  public void relockOperation(String bucketName, CoopLockRecord operationRecord)
       throws IOException {
     long startMs = System.currentTimeMillis();
-    logger.atFine().log("lockOperation(%s, %s)", operationId, clientId);
+    String operationId = operationRecord.getOperationId();
+    String clientId = operationRecord.getClientId();
     modifyLock(
-        records -> reacquireOperationLock(records, operationId, clientId, lockEpochMilli),
-        bucketName,
-        operationId);
+        records -> reacquireOperationLock(records, operationRecord), bucketName, operationId);
     logger.atFine().log(
         "[%dms] lockOperation(%s, %s)",
         System.currentTimeMillis() - startMs, operationId, clientId);
@@ -122,7 +123,6 @@ public class CoopLockRecordsDao {
       StorageResourceId... resources)
       throws IOException {
     long startMs = System.currentTimeMillis();
-    logger.atFine().log("lockPaths(%s, %s)", operationId, lazy(() -> Arrays.toString(resources)));
     Set<String> objects = validateResources(resources);
     String bucketName = resources[0].getBucketName();
     modifyLock(
@@ -136,7 +136,6 @@ public class CoopLockRecordsDao {
 
   public void unlockPaths(String operationId, StorageResourceId... resources) throws IOException {
     long startMs = System.currentTimeMillis();
-    logger.atFine().log("unlockPaths(%s, %s)", operationId, lazy(() -> Arrays.toString(resources)));
     Set<String> objects = validateResources(resources);
     String bucketName = resources[0].getBucketName();
     modifyLock(
@@ -251,30 +250,20 @@ public class CoopLockRecordsDao {
     return lockRecords;
   }
 
-  private static boolean reacquireOperationLock(
-      CoopLockRecords lockRecords, String operationId, String clientId, long lockEpochMilli) {
+  private boolean reacquireOperationLock(
+      CoopLockRecords lockRecords, CoopLockRecord operationRecord) {
     Optional<CoopLockRecord> operationOptional =
-        lockRecords.getLocks().stream()
-            .filter(o -> o.getOperationId().equals(operationId))
-            .findAny();
-    checkState(operationOptional.isPresent(), "operation %s not found", operationId);
-    CoopLockRecord operation = operationOptional.get();
+        lockRecords.getLocks().stream().filter(o -> o.equals(operationRecord)).findAny();
     checkState(
-        clientId.equals(operation.getClientId()),
-        "operation %s should be locked by %s client, but was %s",
-        operationId,
-        clientId,
-        operation.getClientId());
-    checkState(
-        lockEpochMilli == operation.getLockEpochMilli(),
-        "operation %s should be locked at %s epoch milliseconds but was at %s",
-        lockEpochMilli,
-        operation.getLockEpochMilli());
-    operation.setClientId(newClientId(operationId)).setLockEpochMilli(Instant.now().toEpochMilli());
+        operationOptional.isPresent(), "operation %s not found", operationRecord.getOperationId());
+    operationOptional
+        .get()
+        .setClientId(newClientId(operationRecord.getOperationId()))
+        .setLockExpiration(Instant.now().plusMillis(options.getLockExpirationTimeoutMilli()));
     return true;
   }
 
-  private static boolean addLockRecords(
+  private boolean addLockRecords(
       CoopLockRecords lockRecords,
       String operationId,
       Instant operationInstant,
@@ -303,8 +292,8 @@ public class CoopLockRecordsDao {
         new CoopLockRecord()
             .setClientId(newClientId(operationId))
             .setOperationId(operationId)
-            .setOperationEpochMilli(operationInstant.toEpochMilli())
-            .setLockEpochMilli(Instant.now().toEpochMilli())
+            .setOperationTime(operationInstant)
+            .setLockExpiration(Instant.now().plusMillis(options.getLockExpirationTimeoutMilli()))
             .setOperationType(operationType)
             .setResources(resourcesToAdd);
     lockRecords.getLocks().add(record);
@@ -357,5 +346,18 @@ public class CoopLockRecordsDao {
     }
     String epochMillis = String.valueOf(Instant.now().toEpochMilli());
     return localHost.getCanonicalHostName() + "-" + epochMillis.substring(epochMillis.length() - 6);
+  }
+
+  public static Gson createGson() {
+    return new GsonBuilder()
+        .registerTypeAdapter(
+            Instant.class,
+            (JsonSerializer<Instant>)
+                (instant, type, context) -> new JsonPrimitive(instant.toString()))
+        .registerTypeAdapter(
+            Instant.class,
+            (JsonDeserializer<Instant>)
+                (json, type, context) -> Instant.parse(json.getAsJsonPrimitive().getAsString()))
+        .create();
   }
 }

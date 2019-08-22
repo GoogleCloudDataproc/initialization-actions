@@ -17,21 +17,22 @@
 package com.google.cloud.hadoop.gcsio.cooplock;
 
 import com.google.common.base.MoreObjects;
+import java.time.Instant;
 import java.util.Objects;
 
 /** A data class that represents rename operation lock metadata. */
 public class RenameOperation {
-  private long lockEpochMilli;
+  private Instant lockExpiration;
   private String srcResource;
   private String dstResource;
   private boolean copySucceeded;
 
-  public long getLockEpochMilli() {
-    return lockEpochMilli;
+  public Instant getLockExpiration() {
+    return lockExpiration;
   }
 
-  public RenameOperation setLockEpochMilli(long lockEpochMilli) {
-    this.lockEpochMilli = lockEpochMilli;
+  public RenameOperation setLockExpiration(Instant lockExpiration) {
+    this.lockExpiration = lockExpiration;
     return this;
   }
 
@@ -64,11 +65,12 @@ public class RenameOperation {
 
   @Override
   public boolean equals(Object obj) {
-    return obj instanceof RenameOperation && equalsInternal((RenameOperation) obj);
+    return this == obj
+        || (obj != null && getClass() == obj.getClass() && equalsInternal((RenameOperation) obj));
   }
 
   private boolean equalsInternal(RenameOperation other) {
-    return lockEpochMilli == other.lockEpochMilli
+    return Objects.equals(lockExpiration, other.lockExpiration)
         && Objects.equals(srcResource, other.srcResource)
         && Objects.equals(dstResource, other.dstResource)
         && Objects.equals(copySucceeded, other.copySucceeded);
@@ -76,13 +78,13 @@ public class RenameOperation {
 
   @Override
   public int hashCode() {
-    return Objects.hash(lockEpochMilli, srcResource, dstResource, copySucceeded);
+    return Objects.hash(lockExpiration, srcResource, dstResource, copySucceeded);
   }
 
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
-        .add("lockEpochMilli", lockEpochMilli)
+        .add("lockExpiration", lockExpiration)
         .add("srcResource", srcResource)
         .add("dstResource", dstResource)
         .add("copySucceeded", copySucceeded)

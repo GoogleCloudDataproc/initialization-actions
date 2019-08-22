@@ -17,19 +17,20 @@
 package com.google.cloud.hadoop.gcsio.cooplock;
 
 import com.google.common.base.MoreObjects;
+import java.time.Instant;
 import java.util.Objects;
 
 /** A data class that represents delete operation lock metadata. */
 public class DeleteOperation {
-  private long lockEpochMilli;
+  private Instant lockExpiration;
   private String resource = null;
 
-  public long getLockEpochMilli() {
-    return lockEpochMilli;
+  public Instant getLockExpiration() {
+    return lockExpiration;
   }
 
-  public DeleteOperation setLockEpochMilli(long lockEpochMilli) {
-    this.lockEpochMilli = lockEpochMilli;
+  public DeleteOperation setLockExpiration(Instant lockExpiration) {
+    this.lockExpiration = lockExpiration;
     return this;
   }
 
@@ -44,22 +45,24 @@ public class DeleteOperation {
 
   @Override
   public boolean equals(Object obj) {
-    return obj instanceof DeleteOperation && equalsInternal((DeleteOperation) obj);
+    return this == obj
+        || (obj != null && getClass() == obj.getClass() && equalsInternal((DeleteOperation) obj));
   }
 
   private boolean equalsInternal(DeleteOperation other) {
-    return lockEpochMilli == other.lockEpochMilli && Objects.equals(resource, other.resource);
+    return Objects.equals(lockExpiration, other.lockExpiration)
+        && Objects.equals(resource, other.resource);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(lockEpochMilli, resource);
+    return Objects.hash(lockExpiration, resource);
   }
 
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
-        .add("lockEpochMilli", lockEpochMilli)
+        .add("lockExpiration", lockExpiration)
         .add("resource", resource)
         .toString();
   }

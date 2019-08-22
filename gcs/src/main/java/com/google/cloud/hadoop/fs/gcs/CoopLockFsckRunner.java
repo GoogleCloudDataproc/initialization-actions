@@ -17,8 +17,8 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.cloud.hadoop.fs.gcs.CoopLockFsck.ARGUMENT_ALL_OPERATIONS;
+import static com.google.cloud.hadoop.fs.gcs.CoopLockFsck.COMMAND_ROLL_FORWARD;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_COOPERATIVE_LOCKING_ENABLE;
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_COOPERATIVE_LOCKING_EXPIRATION_TIMEOUT_MS;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -33,12 +33,11 @@ import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.cooplock.CoopLockOperationDao;
 import com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecord;
 import com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecordsDao;
+import com.google.cloud.hadoop.gcsio.cooplock.CooperativeLockingOptions;
 import com.google.cloud.hadoop.gcsio.cooplock.DeleteOperation;
 import com.google.cloud.hadoop.gcsio.cooplock.RenameOperation;
 import com.google.cloud.hadoop.gcsio.cooplock.RenameOperationLogRecord;
-import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.flogger.GoogleLogger;
 import com.google.common.io.ByteSource;
 import com.google.gson.Gson;
@@ -70,18 +69,18 @@ class CoopLockFsckRunner {
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
-  private static final Gson GSON = new Gson();
+  private static final Gson GSON = CoopLockRecordsDao.createGson();
 
   private final Instant operationExpirationInstant = Instant.now();
 
-  private final Configuration conf;
   private final String bucketName;
   private final String command;
-  private final String operationId;
+  private final String fsckOperationId;
 
   private final GoogleHadoopFileSystem ghfs;
   private final GoogleCloudStorageFileSystem gcsFs;
   private final GoogleCloudStorageImpl gcs;
+  private final CooperativeLockingOptions options;
   private final CoopLockRecordsDao lockRecordsDao;
   private final CoopLockOperationDao lockOperationDao;
 
@@ -90,14 +89,14 @@ class CoopLockFsckRunner {
     // Disable cooperative locking to prevent blocking
     conf.setBoolean(GCS_COOPERATIVE_LOCKING_ENABLE.getKey(), false);
 
-    this.conf = conf;
     this.bucketName = bucketUri.getAuthority();
     this.command = command;
-    this.operationId = operationId;
+    this.fsckOperationId = operationId;
 
     this.ghfs = (GoogleHadoopFileSystem) FileSystem.get(bucketUri, conf);
     this.gcsFs = ghfs.getGcsFs();
     this.gcs = (GoogleCloudStorageImpl) gcsFs.getGcs();
+    this.options = gcs.getOptions().getCooperativeLockingOptions();
     this.lockRecordsDao = new CoopLockRecordsDao(gcs);
     this.lockOperationDao = new CoopLockOperationDao(gcs, gcsFs.getPathCodec());
   }
@@ -121,104 +120,96 @@ class CoopLockFsckRunner {
       return 0;
     }
 
-    if (!ARGUMENT_ALL_OPERATIONS.equals(operationId)) {
+    if (!ARGUMENT_ALL_OPERATIONS.equals(fsckOperationId)) {
       Optional<Map.Entry<FileStatus, CoopLockRecord>> operationEntry =
           expiredOperations.entrySet().stream()
-              .filter(e -> e.getValue().getOperationId().equals(operationId))
+              .filter(e -> e.getValue().getOperationId().equals(fsckOperationId))
               .findAny();
-      checkArgument(operationEntry.isPresent(), "%s operation not found", operationId);
+      checkArgument(operationEntry.isPresent(), "%s operation not found", fsckOperationId);
       expiredOperations =
           ImmutableMap.of(operationEntry.get().getKey(), operationEntry.get().getValue());
     }
 
-    Function<Map.Entry<FileStatus, CoopLockRecord>, Boolean> operationRecovery =
-        expiredOperation -> {
-          FileStatus operationStatus = expiredOperation.getKey();
-          CoopLockRecord operation = expiredOperation.getValue();
-          String operationId = getOperationId(operationStatus);
+    expiredOperations.forEach(
+        (operationStatus, operationRecord) -> {
+          long start = System.currentTimeMillis();
           try {
-            switch (operation.getOperationType()) {
-              case DELETE:
-                repairDeleteOperation(operationStatus, operation, operationId);
-                break;
-              case RENAME:
-                repairRenameOperation(operationStatus, operation, operationId);
-                break;
-            }
+            repairOperation(operationStatus, operationRecord);
+            logger.atInfo().log(
+                "Operation %s successfully %s in %dms",
+                operationStatus.getPath(),
+                COMMAND_ROLL_FORWARD.equals(command) ? "rolled forward" : "rolled back",
+                System.currentTimeMillis() - start);
           } catch (Exception e) {
-            throw new RuntimeException("Failed to recover operation: " + operation, e);
+            logger.atSevere().withCause(e).log(
+                "Operation %s failed to %s in %dms",
+                operationStatus.getPath(),
+                COMMAND_ROLL_FORWARD.equals(command) ? "roll forward" : "roll back",
+                System.currentTimeMillis() - start);
           }
-          return true;
-        };
-
-    for (Map.Entry<FileStatus, CoopLockRecord> expiredOperation : expiredOperations.entrySet()) {
-      long start = System.currentTimeMillis();
-      try {
-        boolean succeeded = operationRecovery.apply(expiredOperation);
-        long finish = System.currentTimeMillis();
-        if (succeeded) {
-          logger.atInfo().log(
-              "Operation %s successfully %s in %dms",
-              expiredOperation,
-              CoopLockFsck.COMMAND_ROLL_FORWARD.equals(command) ? "rolled forward" : "rolled back",
-              finish - start);
-        } else {
-          logger.atSevere().log(
-              "Operation %s failed to %s in %dms",
-              expiredOperation,
-              CoopLockFsck.COMMAND_ROLL_FORWARD.equals(command) ? "rolled forward" : "rolled back",
-              finish - start);
-        }
-      } catch (Exception e) {
-        long finish = System.currentTimeMillis();
-        logger.atSevere().withCause(e).log(
-            "Operation %s failed to roll forward in %dms", expiredOperation, finish - start);
-      }
-    }
+        });
     return 0;
   }
 
-  private void repairDeleteOperation(
-      FileStatus operationStatus, CoopLockRecord operation, String operationId)
+  private void repairOperation(FileStatus operationStatus, CoopLockRecord operationRecord)
+      throws IOException, URISyntaxException {
+    switch (operationRecord.getOperationType()) {
+      case DELETE:
+        repairDeleteOperation(operationStatus, operationRecord);
+        return;
+      case RENAME:
+        repairRenameOperation(operationStatus, operationRecord);
+        return;
+    }
+    throw new IllegalStateException(
+        String.format(
+            "Unknown %s operation type: %s",
+            operationRecord.getOperationId(), operationRecord.getOperationType()));
+  }
+
+  private void repairDeleteOperation(FileStatus operationStatus, CoopLockRecord operationRecord)
       throws IOException, URISyntaxException {
     if (CoopLockFsck.COMMAND_ROLL_BACK.equals(command)) {
       logger.atInfo().log(
           "Rolling back delete operations (%s) not supported, skipping.",
           operationStatus.getPath());
-    } else {
-      logger.atInfo().log("Repairing FS after %s delete operation.", operationStatus.getPath());
-      DeleteOperation operationObject = getOperationObject(operationStatus, DeleteOperation.class);
-      lockRecordsDao.relockOperation(
-          bucketName, operationId, operation.getClientId(), operation.getLockEpochMilli());
-      Future<?> lockUpdateFuture =
-          lockOperationDao.scheduleLockUpdate(
-              operationId,
-              new URI(operationStatus.getPath().toString()),
-              DeleteOperation.class,
-              (o, i) -> o.setLockEpochMilli(i.toEpochMilli()));
-      try {
-        List<String> loggedResources = getOperationLog(operationStatus, l -> l);
-        deleteResource(operationObject.getResource(), loggedResources);
-        lockRecordsDao.unlockPaths(
-            operationId, StorageResourceId.fromObjectName(operationObject.getResource()));
-      } finally {
-        lockUpdateFuture.cancel(/* mayInterruptIfRunning= */ true);
-      }
+      return;
+    }
+
+    logger.atInfo().log("Repairing FS after %s delete operation.", operationStatus.getPath());
+    DeleteOperation operation = getOperation(operationStatus, DeleteOperation.class);
+    lockRecordsDao.relockOperation(bucketName, operationRecord);
+    Future<?> lockUpdateFuture =
+        lockOperationDao.scheduleLockUpdate(
+            operationRecord.getOperationId(),
+            new URI(operationStatus.getPath().toString()),
+            DeleteOperation.class,
+            (o, updateInstant) ->
+                o.setLockExpiration(
+                    updateInstant.plusMillis(options.getLockExpirationTimeoutMilli())));
+    try {
+      List<String> loggedResources = getOperationLog(operationStatus, l -> l);
+      deleteResource(operation.getResource(), loggedResources);
+      lockRecordsDao.unlockPaths(
+          operationRecord.getOperationId(),
+          StorageResourceId.fromObjectName(operation.getResource()));
+    } finally {
+      lockUpdateFuture.cancel(/* mayInterruptIfRunning= */ true);
     }
   }
 
-  private void repairRenameOperation(
-      FileStatus operationStatus, CoopLockRecord operation, String operationId)
+  private void repairRenameOperation(FileStatus operationStatus, CoopLockRecord operationRecord)
       throws IOException, URISyntaxException {
-    RenameOperation operationObject = getOperationObject(operationStatus, RenameOperation.class);
-    lockRecordsDao.relockOperation(
-        bucketName, operationId, operation.getClientId(), operation.getLockEpochMilli());
+    RenameOperation operation = getOperation(operationStatus, RenameOperation.class);
+    lockRecordsDao.relockOperation(bucketName, operationRecord);
     Future<?> lockUpdateFuture =
         lockOperationDao.scheduleLockUpdate(
-            operationId,
+            operationRecord.getOperationId(),
             new URI(operationStatus.getPath().toString()),
             RenameOperation.class,
-            (o, i) -> o.setLockEpochMilli(i.toEpochMilli()));
+            (o, updateInstant) ->
+                o.setLockExpiration(
+                    updateInstant.plusMillis(options.getLockExpirationTimeoutMilli())));
     try {
       LinkedHashMap<String, String> loggedResources =
           getOperationLog(operationStatus, l -> GSON.fromJson(l, RenameOperationLogRecord.class))
@@ -232,47 +223,41 @@ class CoopLockFsckRunner {
                             String.format("Found entries with duplicate keys: %s and %s", e1, e2));
                       },
                       LinkedHashMap::new));
-      if (operationObject.getCopySucceeded()) {
+      if (operation.getCopySucceeded()) {
         if (CoopLockFsck.COMMAND_ROLL_BACK.equals(command)) {
           deleteAndRenameToRepairRenameOperation(
               operationStatus,
-              operation,
-              operationObject.getDstResource(),
+              operationRecord,
+              operation.getDstResource(),
               new ArrayList<>(loggedResources.values()),
-              operationObject.getSrcResource(),
+              operation.getSrcResource(),
               "source",
               new ArrayList<>(loggedResources.keySet()),
               /* copySucceeded= */ false);
         } else {
           deleteToRepairRenameOperation(
-              operationStatus,
-              operationObject.getSrcResource(),
-              "source",
-              loggedResources.keySet());
+              operationStatus, operation.getSrcResource(), "source", loggedResources.keySet());
         }
       } else {
         if (CoopLockFsck.COMMAND_ROLL_BACK.equals(command)) {
           deleteToRepairRenameOperation(
-              operationStatus,
-              operationObject.getDstResource(),
-              "destination",
-              loggedResources.values());
+              operationStatus, operation.getDstResource(), "destination", loggedResources.values());
         } else {
           deleteAndRenameToRepairRenameOperation(
               operationStatus,
-              operation,
-              operationObject.getSrcResource(),
+              operationRecord,
+              operation.getSrcResource(),
               new ArrayList<>(loggedResources.keySet()),
-              operationObject.getDstResource(),
+              operation.getDstResource(),
               "destination",
               new ArrayList<>(loggedResources.values()),
               /* copySucceeded= */ true);
         }
       }
       lockRecordsDao.unlockPaths(
-          operationId,
-          StorageResourceId.fromObjectName(operationObject.getSrcResource()),
-          StorageResourceId.fromObjectName(operationObject.getDstResource()));
+          operationRecord.getOperationId(),
+          StorageResourceId.fromObjectName(operation.getSrcResource()),
+          StorageResourceId.fromObjectName(operation.getDstResource()));
     } finally {
       lockUpdateFuture.cancel(/* mayInterruptIfRunning= */ true);
     }
@@ -308,10 +293,7 @@ class CoopLockFsckRunner {
 
     // Update rename operation checkpoint before proceeding to allow repair of failed repair
     lockOperationDao.checkpointRenameOperation(
-        bucketName,
-        operation.getOperationId(),
-        Instant.ofEpochMilli(operation.getOperationEpochMilli()),
-        copySucceeded);
+        bucketName, operation.getOperationId(), operation.getOperationTime(), copySucceeded);
 
     deleteResource(srcResource, loggedSrcResources);
   }
@@ -333,37 +315,37 @@ class CoopLockFsckRunner {
   }
 
   private Optional<Map.Entry<FileStatus, CoopLockRecord>> getOperationLockIfExpired(
-      String bucketName, CoopLockRecord operation) throws IOException {
-    String operationId = operation.getOperationId();
-    String globPath = CoopLockRecordsDao.LOCK_DIRECTORY + "*" + operationId + "*.lock";
+      String bucketName, CoopLockRecord operationRecord) throws IOException {
+    String globPath =
+        CoopLockRecordsDao.LOCK_DIRECTORY + "*" + operationRecord.getOperationId() + "*.lock";
     URI globUri =
         gcsFs.getPathCodec().getPath(bucketName, globPath, /* allowEmptyObjectName= */ false);
     FileStatus[] operationLocks = ghfs.globStatus(new Path(globUri));
     checkState(
         operationLocks.length < 2,
         "operation %s should not have more than one lock file",
-        operationId);
+        operationRecord.getOperationId());
 
     // Lock file not created - nothing to repair
     if (operationLocks.length == 0) {
       logger.atInfo().log(
           "Operation %s for %s resources doesn't have lock file, unlocking",
-          operation.getOperationId(), operation.getResources());
+          operationRecord.getOperationId(), operationRecord.getResources());
       StorageResourceId[] lockedResources =
-          operation.getResources().stream()
+          operationRecord.getResources().stream()
               .map(resource -> new StorageResourceId(bucketName, resource))
               .toArray(StorageResourceId[]::new);
-      lockRecordsDao.unlockPaths(operation.getOperationId(), lockedResources);
+      lockRecordsDao.unlockPaths(operationRecord.getOperationId(), lockedResources);
       return Optional.empty();
     }
 
     FileStatus operationStatus = operationLocks[0];
 
-    Instant lockInstant = Instant.ofEpochMilli(operation.getLockEpochMilli());
-    if (isLockExpired(lockInstant)
-        && isLockExpired(getLockRenewedInstant(operationStatus, operation))) {
+    if (operationRecord.getLockExpiration().isBefore(operationExpirationInstant)
+        && getRenewedLockExpiration(operationStatus, operationRecord)
+            .isBefore(operationExpirationInstant)) {
       logger.atInfo().log("Operation %s expired.", operationStatus.getPath());
-      return Optional.of(new AbstractMap.SimpleEntry<>(operationStatus, operation));
+      return Optional.of(new AbstractMap.SimpleEntry<>(operationStatus, operationRecord));
     }
 
     logger.atInfo().log("Operation %s not expired.", operationStatus.getPath());
@@ -393,41 +375,36 @@ class CoopLockFsckRunner {
     }
   }
 
-  private boolean isLockExpired(Instant lockInstant) {
-    return lockInstant
-        .plusMillis(GCS_COOPERATIVE_LOCKING_EXPIRATION_TIMEOUT_MS.get(conf, conf::getLong))
-        .isBefore(operationExpirationInstant);
-  }
-
-  private Instant getLockRenewedInstant(FileStatus operationStatus, CoopLockRecord operation)
-      throws IOException {
-    switch (operation.getOperationType()) {
+  private Instant getRenewedLockExpiration(
+      FileStatus operationStatus, CoopLockRecord operationRecord) throws IOException {
+    switch (operationRecord.getOperationType()) {
       case DELETE:
-        return Instant.ofEpochMilli(
-            getOperationObject(operationStatus, DeleteOperation.class).getLockEpochMilli());
+        return getOperation(operationStatus, DeleteOperation.class).getLockExpiration();
       case RENAME:
-        return Instant.ofEpochMilli(
-            getOperationObject(operationStatus, RenameOperation.class).getLockEpochMilli());
+        return getOperation(operationStatus, RenameOperation.class).getLockExpiration();
     }
-    throw new IllegalStateException("Unknown operation type: " + operationStatus.getPath());
+    throw new IllegalStateException(
+        String.format(
+            "Unknown %s operation type: %s",
+            operationStatus.getPath(), operationRecord.getOperationType()));
   }
 
-  private <T> T getOperationObject(FileStatus operation, Class<T> clazz) throws IOException {
+  private <T> T getOperation(FileStatus operationStatus, Class<T> clazz) throws IOException {
     ByteSource operationByteSource =
         new ByteSource() {
           @Override
           public InputStream openStream() throws IOException {
-            return ghfs.open(operation.getPath());
+            return ghfs.open(operationStatus.getPath());
           }
         };
     String operationContent = operationByteSource.asCharSource(UTF_8).read();
     return GSON.fromJson(operationContent, clazz);
   }
 
-  private <T> List<T> getOperationLog(FileStatus operation, Function<String, T> logRecordFn)
+  private <T> List<T> getOperationLog(FileStatus operationStatus, Function<String, T> logRecordFn)
       throws IOException {
     List<T> log = new ArrayList<>();
-    Path operationLog = new Path(operation.getPath().toString().replace(".lock", ".log"));
+    Path operationLog = new Path(operationStatus.getPath().toString().replace(".lock", ".log"));
     try (BufferedReader in =
         new BufferedReader(new InputStreamReader(ghfs.open(operationLog), UTF_8))) {
       String line;
@@ -436,10 +413,5 @@ class CoopLockFsckRunner {
       }
     }
     return log;
-  }
-
-  private static String getOperationId(FileStatus operation) {
-    List<String> fileParts = Splitter.on('_').splitToList(operation.getPath().toString());
-    return Iterables.get(Splitter.on('.').split(Iterables.getLast(fileParts)), 0);
   }
 }
