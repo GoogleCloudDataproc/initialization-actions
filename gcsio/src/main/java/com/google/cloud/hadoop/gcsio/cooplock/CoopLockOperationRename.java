@@ -122,7 +122,7 @@ public class CoopLockOperationRename {
   }
 
   public void cancelRenewal() {
-    lockUpdateFuture.cancel(/* mayInterruptIfRunning= */ true);
+    lockUpdateFuture.cancel(/* mayInterruptIfRunning= */ false);
   }
 
   @Override

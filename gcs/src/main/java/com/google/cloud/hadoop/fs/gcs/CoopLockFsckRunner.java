@@ -194,7 +194,7 @@ class CoopLockFsckRunner {
           operationRecord.getOperationId(),
           StorageResourceId.fromObjectName(operation.getResource()));
     } finally {
-      lockUpdateFuture.cancel(/* mayInterruptIfRunning= */ true);
+      lockUpdateFuture.cancel(/* mayInterruptIfRunning= */ false);
     }
   }
 
@@ -259,7 +259,7 @@ class CoopLockFsckRunner {
           StorageResourceId.fromObjectName(operation.getSrcResource()),
           StorageResourceId.fromObjectName(operation.getDstResource()));
     } finally {
-      lockUpdateFuture.cancel(/* mayInterruptIfRunning= */ true);
+      lockUpdateFuture.cancel(/* mayInterruptIfRunning= */ false);
     }
   }
 

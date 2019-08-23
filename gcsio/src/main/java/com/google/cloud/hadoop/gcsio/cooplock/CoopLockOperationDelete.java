@@ -99,7 +99,7 @@ public class CoopLockOperationDelete {
   }
 
   public void cancelRenewal() {
-    lockUpdateFuture.cancel(/* mayInterruptIfRunning= */ true);
+    lockUpdateFuture.cancel(/* mayInterruptIfRunning= */ false);
   }
 
   @Override

@@ -21,7 +21,6 @@ import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecordsDao.LOCK_DIR
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
-import static java.lang.Thread.sleep;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
@@ -50,10 +49,10 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -230,48 +229,49 @@ public class CoopLockOperationDao {
       Function<String, String> renewFn,
       Duration timeout) {
     Stopwatch stopwatch = Stopwatch.createStarted();
-    ExecutorService timeoutExecutor = Executors.newSingleThreadExecutor();
+    AtomicBoolean renewalSucceeded = new AtomicBoolean(false);
+    ScheduledExecutorService timeoutExecutor = Executors.newSingleThreadScheduledExecutor();
     Future<?> timeoutFuture =
-        timeoutExecutor.submit(
+        timeoutExecutor.schedule(
             () -> {
-              try {
-                sleep(timeout.toMillis());
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-              }
-              // timeoutFuture was cancelled
-              if (Thread.currentThread().isInterrupted()) {
+              if (renewalSucceeded.get()) {
                 return;
               }
               logger.atSevere().log(
-                  "Renewal of '%s' lock for %s operation timed out (timeout %s), exiting",
+                  "Renewal of '%s' lock for %s operation timed out in %s, exiting",
                   operationLockPath, operationId, timeout);
               System.exit(1);
-            });
+            },
+            timeout.toMillis(),
+            MILLISECONDS);
 
     int attempt = 1;
     ExponentialBackOff backoff = newLockModifyBackoff();
     try {
       do {
         try {
+          logger.atFine().log(
+              "Renewing '%s' lock for %s operation with %s timeout after %s, attempt %d",
+              operationLockPath, operationId, timeout, stopwatch.elapsed(), attempt);
           modifyOperationLock(operationId, operationLockPath, renewFn);
-          checkState(
-              timeoutFuture.cancel(/* mayInterruptIfRunning= */ true),
-              "timeoutFuture should be successfully canceled");
+          renewalSucceeded.set(true);
           return;
         } catch (IOException e) {
           logger.atWarning().withCause(e).log(
-              "Failed to renew '%s' lock for %s operation, attempt #%d",
-              operationLockPath, operationId, attempt++);
+              "Failed to renew '%s' lock for %s operation with %s timeout after %s, attempt #%d",
+              operationLockPath, operationId, timeout, stopwatch.elapsed(), attempt++);
         }
         sleepUninterruptibly(Duration.ofMillis(backoff.nextBackOffMillis()));
       } while (timeout.compareTo(stopwatch.elapsed()) > 0);
       logger.atSevere().log(
-          "Renewal of '%s' lock for %s operation timed out (timeout %s), exiting",
-          operationLockPath, operationId, timeout);
+          "Renewal of '%s' lock for %s operation with %s timeout in %s, exiting",
+          operationLockPath, operationId, timeout, stopwatch.elapsed());
+      System.exit(1);
     } catch (Exception e) {
       logger.atSevere().withCause(e).log(
-          "Failed to renew '%s' lock for %s operation, exiting", operationLockPath, operationId);
+          "Failed to renew '%s' lock for %s operation with %s timeout in %s, exiting",
+          operationLockPath, operationId, timeout, stopwatch.elapsed());
+      System.exit(1);
     } finally {
       timeoutFuture.cancel(/* mayInterruptIfRunning= */ true);
       timeoutExecutor.shutdownNow();

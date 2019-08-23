@@ -238,7 +238,7 @@ public class CoopLockIntegrationTest {
             r -> {
               String reqUrl = "/b/" + bucketName + "/o/" + encodedFilePath;
               if ("DELETE".equals(r.getRequestMethod()) && r.getUrl().toString().contains(reqUrl)) {
-                sleepUninterruptibly(lockRenewalDelay.plusSeconds(1));
+                sleepUninterruptibly(lockRenewalDelay.plus(lockRenewalTimeout));
               }
             });
     GoogleCloudStorageFileSystem sleepingGcsFs = newGcsFs(gcsFsOptions, sleepingRequestInitializer);
