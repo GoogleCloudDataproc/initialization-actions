@@ -90,8 +90,7 @@ public class CoopLockRecord {
 
   @Override
   public boolean equals(Object obj) {
-    return this == obj
-        || (obj != null && getClass() == obj.getClass() && equalsInternal((CoopLockRecord) obj));
+    return this == obj || (obj instanceof CoopLockRecord && equalsInternal((CoopLockRecord) obj));
   }
 
   private boolean equalsInternal(CoopLockRecord other) {

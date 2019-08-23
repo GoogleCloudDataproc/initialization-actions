@@ -45,8 +45,7 @@ public class DeleteOperation {
 
   @Override
   public boolean equals(Object obj) {
-    return this == obj
-        || (obj != null && getClass() == obj.getClass() && equalsInternal((DeleteOperation) obj));
+    return this == obj || (obj instanceof DeleteOperation && equalsInternal((DeleteOperation) obj));
   }
 
   private boolean equalsInternal(DeleteOperation other) {

@@ -65,8 +65,7 @@ public class RenameOperation {
 
   @Override
   public boolean equals(Object obj) {
-    return this == obj
-        || (obj != null && getClass() == obj.getClass() && equalsInternal((RenameOperation) obj));
+    return this == obj || (obj instanceof RenameOperation && equalsInternal((RenameOperation) obj));
   }
 
   private boolean equalsInternal(RenameOperation other) {
