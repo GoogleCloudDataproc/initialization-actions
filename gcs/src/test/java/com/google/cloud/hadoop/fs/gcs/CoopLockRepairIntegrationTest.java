@@ -27,6 +27,7 @@ import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.ENABLE
 import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX;
 import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -244,6 +245,58 @@ public class CoopLockRepairIntegrationTest {
     String lockContent = gcsfsIHelper.readTextFile(bucketName, lockFileUri.getPath());
     assertThat(GSON.fromJson(lockContent, DeleteOperation.class).setLockExpiration(null))
         .isEqualTo(new DeleteOperation().setLockExpiration(null).setResource(dirUri.toString()));
+    assertThat(gcsfsIHelper.readTextFile(bucketName, logFileUri.getPath()))
+        .isEqualTo(dirUri.resolve(fileName) + "\n" + dirUri + "\n");
+  }
+
+  @Test
+  public void failedDirectoryDelete_noLockFile_checkSucceeds() throws Exception {
+    String bucketName = gcsfsIHelper.createUniqueBucket("coop-delete-check-no-lock-failed");
+    URI bucketUri = new URI("gs://" + bucketName + "/");
+    String fileName = "file";
+    URI dirUri = bucketUri.resolve("delete_" + UUID.randomUUID() + "/");
+
+    // create file to delete
+    gcsfsIHelper.writeTextFile(bucketName, dirUri.resolve(fileName).getPath(), "file_content");
+
+    GoogleCloudStorageFileSystemOptions gcsFsOptions = newGcsFsOptions();
+
+    failDeleteOperation(bucketName, gcsFsOptions, dirUri);
+
+    GoogleCloudStorageFileSystem gcsFs = newGcsFs(gcsFsOptions, httpRequestInitializer);
+
+    // delete operation lock file
+    List<URI> lockFile =
+        gcsFs.listFileInfo(bucketUri.resolve(LOCK_DIRECTORY)).stream()
+            .filter(
+                f ->
+                    !f.getPath().toString().endsWith("/all.lock")
+                        && f.getPath().toString().endsWith(".lock"))
+            .map(FileInfo::getPath)
+            .collect(toImmutableList());
+    gcsFs.delete(Iterables.getOnlyElement(lockFile), /* recursive */ false);
+
+    assertThat(gcsFs.exists(dirUri)).isTrue();
+    assertThat(gcsFs.exists(dirUri.resolve(fileName))).isTrue();
+
+    CoopLockFsck fsck = new CoopLockFsck();
+    fsck.setConf(getTestConfiguration());
+
+    fsck.run(new String[] {"--check", "gs://" + bucketName});
+
+    assertThat(gcsFs.exists(dirUri)).isTrue();
+    assertThat(gcsFs.exists(dirUri.resolve(fileName))).isTrue();
+
+    // Validate lock files
+    List<URI> lockFiles =
+        gcsFs.listFileInfo(bucketUri.resolve(LOCK_DIRECTORY)).stream()
+            .map(FileInfo::getPath)
+            .collect(toList());
+
+    assertThat(lockFiles).hasSize(2);
+    assertThat(matchFile(lockFiles, "all\\.lock")).isNotNull();
+    String filenamePattern = String.format(OPERATION_FILENAME_PATTERN_FORMAT, DELETE);
+    URI logFileUri = matchFile(lockFiles, filenamePattern + "\\.log").get();
     assertThat(gcsfsIHelper.readTextFile(bucketName, logFileUri.getPath()))
         .isEqualTo(dirUri.resolve(fileName) + "\n" + dirUri + "\n");
   }
@@ -574,8 +627,7 @@ public class CoopLockRepairIntegrationTest {
     GoogleCloudStorageFileSystem failingGcsFs = newGcsFs(gcsFsOptions, failingRequestInitializer);
 
     IOException e =
-        assertThrows(
-            IOException.class, () -> failingGcsFs.delete(dirUri, /* recursive= */ true));
+        assertThrows(IOException.class, () -> failingGcsFs.delete(dirUri, /* recursive= */ true));
     assertThat(e).hasCauseThat().hasCauseThat().hasMessageThat().endsWith("Injected failure");
   }
 

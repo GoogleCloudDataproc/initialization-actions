@@ -17,6 +17,7 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.cloud.hadoop.fs.gcs.CoopLockFsck.ARGUMENT_ALL_OPERATIONS;
+import static com.google.cloud.hadoop.fs.gcs.CoopLockFsck.COMMAND_CHECK;
 import static com.google.cloud.hadoop.fs.gcs.CoopLockFsck.COMMAND_ROLL_FORWARD;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_COOPERATIVE_LOCKING_ENABLE;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -328,14 +329,24 @@ class CoopLockFsckRunner {
 
     // Lock file not created - nothing to repair
     if (operationLocks.length == 0) {
-      logger.atInfo().log(
-          "Operation %s for %s resources doesn't have lock file, unlocking",
-          operationRecord.getOperationId(), operationRecord.getResources());
-      StorageResourceId[] lockedResources =
-          operationRecord.getResources().stream()
-              .map(resource -> new StorageResourceId(bucketName, resource))
-              .toArray(StorageResourceId[]::new);
-      lockRecordsDao.unlockPaths(operationRecord.getOperationId(), lockedResources);
+      // Release lock if this is not a "check" command
+      // and if it processes this specific operation or "all" operations
+      if (!COMMAND_CHECK.equals(command)
+          && (ARGUMENT_ALL_OPERATIONS.equals(fsckOperationId)
+              || fsckOperationId.equals(operationRecord.getOperationId()))) {
+        logger.atInfo().log(
+            "Operation %s for %s resources doesn't have lock file, unlocking",
+            operationRecord.getOperationId(), operationRecord.getResources());
+        StorageResourceId[] lockedResources =
+            operationRecord.getResources().stream()
+                .map(resource -> new StorageResourceId(bucketName, resource))
+                .toArray(StorageResourceId[]::new);
+        lockRecordsDao.unlockPaths(operationRecord.getOperationId(), lockedResources);
+      } else {
+        logger.atInfo().log(
+            "Operation %s for %s resources doesn't have lock file, skipping",
+            operationRecord.getOperationId(), operationRecord.getResources());
+      }
       return Optional.empty();
     }
 
