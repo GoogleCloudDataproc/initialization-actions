@@ -684,6 +684,25 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     return size;
   }
 
+  /**
+   * Returns generation of the object to which this channel is connected.
+   *
+   * <p>Note: this method will return null until metadata will be lazily initialized during first
+   * {@link #read} method call.
+   *
+   * @return generation of the object to which this channel is connected after metadata was
+   *     initialized (during first read) or {@code null} otherwise.
+   * @throws IOException on IO error
+   */
+  @Nullable
+  public Long getGeneration() throws IOException {
+    throwIfNotOpen();
+    if (!metadataInitialized) {
+      initMetadata(fetchInitialMetadata());
+    }
+    return generation;
+  }
+
   /** Sets size of this channel to the given value. */
   // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
   // Please check that removing it is correct, and remove this comment along with it.
