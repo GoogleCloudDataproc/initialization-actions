@@ -35,7 +35,7 @@ The Google Cloud Pub/Sub connector for Spark Streaming enables running Spark
 Streaming Job on topics in Pub/Sub by implementing the InputDStream interface.
 For more details see [the README](pubsub/README.md)
 
-## Building the Cloud Storage (GCS) and BigQuery connectors
+## Building the Cloud Storage and BigQuery connectors
 
 To build the connector for specific Hadoop version, run the following commands
 from the main directory:
@@ -57,15 +57,15 @@ commands from the main directory:
 ./mvnw -P hadoop3 -P coverage clean verify
 ```
 
-The GCS connector JAR can be found in `gcs/target/`. The BigQuery JAR can be
-found in `bigquery/target/`.
+The Cloud Storage connector JAR can be found in `gcs/target/`. The BigQuery
+connector JAR can be found in `bigquery/target/`.
 
 ### Building the Google Cloud Pub/Sub connector
 
 Building the Pub/Sub Connector is described in
 [its README](pubsub/README.md#building-and-testing).
 
-## Adding the Cloud Storage (GCS) and BigQuery connectors to your build
+## Adding the Cloud Storage and BigQuery connectors to your build
 
 Maven group ID is `com.google.cloud.bigdataoss` and artifact ID for Cloud
 Storage connector is `gcs-connector` and for BigQuery connectors is
