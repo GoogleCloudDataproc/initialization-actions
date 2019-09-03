@@ -1,4 +1,4 @@
-"""This module provides testing functionality of the Apache Ranger Init Action.
+"""This module provides testing functionality of the H2O Sparkling Water Init Action.
 """
 import unittest
 import os
