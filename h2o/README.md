@@ -1,8 +1,8 @@
 # H2O Sparkling Water Initialization Action
 
 This [initialization action](https://cloud.google.com/dataproc/init-actions) installs version
-`3.26.2-2.4` of [H2O Sparkling Water](http://docs.h2o.ai/sparkling-water/2.4/latest-stable/doc/deployment/sw_google_cloud_dataproc.html) on all nodes within
-[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with version `1.4-debian9`.
+`3.26.2-2.4` of [H2O Sparkling Water](http://docs.h2o.ai/sparkling-water/2.4/latest-stable/doc/deployment/sw_google_cloud_dataproc.html) on all nodes of
+[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster. Currently, it only work with image version `1.4-debian9`.
 
 ## Using this initialization action
 
@@ -12,9 +12,6 @@ You can use this initialization action to create a new Dataproc cluster with H2O
 
     ```bash
     gcloud beta dataproc clusters create <CLUSTER_NAME> \
-    --enable-component-gateway \
-    --subnet default \
-    --zone us-central1-a \
     --image-version 1.4-debian9 \
     --scopes 'https://www.googleapis.com/auth/cloud-platform' \
     --initialization-actions 'gs://<GCS BUCKET>/<PATH>/h2o-dataproc-install-python_pip.sh','gs://<GCS BUCKET>/<PATH>/h2o-dataproc-tune.sh'
@@ -24,17 +21,14 @@ You can use this initialization action to create a new Dataproc cluster with H2O
 
     ```bash
     gcloud beta dataproc clusters create <CLUSTER_NAME> \
-    --enable-component-gateway \
-    --subnet default \
-    --zone us-central1-a \
     --image-version 1.4-debian9 \
     --optional-components ANACONDA \
     --scopes 'https://www.googleapis.com/auth/cloud-platform' \
     --initialization-actions 'gs://<GCS BUCKET>/<PATH>/h2o-dataproc-install-conda_pip.sh','gs://<GCS BUCKET>/<PATH>/h2o-dataproc-tune.sh'
     ```
 
-1. Submit jobs (assuming above mentioned cluster was created with [global endpoint](https://cloud.google.com/dataproc/docs/concepts/regional-endpoints))
+1. Submit sample job.
 
     ```bash
-    gcloud dataproc jobs submit pyspark --cluster <CLUSTER_NAME> --region global  sample-script.py
+    gcloud dataproc jobs submit pyspark --cluster <CLUSTER_NAME>  sample-script.py
     ```
