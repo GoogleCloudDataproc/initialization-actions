@@ -1,8 +1,7 @@
 #!/bin/bash
 echo "BEGIN Stage 2 : Tune Spark default conf for H2O"
 
-METADATA_ROOT='http://metadata/computeMetadata/v1/instance/attributes'
-CLUSTER_NAME=$(curl -f -s -H Metadata-Flavor:Google ${METADATA_ROOT}/dataproc-cluster-name)
+CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)"
 ZONE=$(gcloud compute instances list --filter="name=`hostname`" --format "value(zone)")
 REGION=$(gcloud beta compute instances describe `hostname` --format='default(labels)' --zone=$ZONE | grep "goog-dataproc-location" | cut -d ':' -f 2)
 
