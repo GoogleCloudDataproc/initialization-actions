@@ -20,43 +20,88 @@ readonly MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc
 
 # The following properties must be manually configured
 ## BEGIN CONFIGURATION ##
-ALLUXIO_VERSION=1.8.1
-HADOOP_VERSION=2.8
+ALLUXIO_VERSION=2.0.1
 ## END CONFIGURATION ##
 
+# Script constants
+ALLUXIO_HOME=/opt/alluxio
+ALLUXIO_SITE_PROPERTIES=${ALLUXIO_HOME}/conf/alluxio-site.properties
+ALLUXIO_DOWNLOAD_URL=https://downloads.alluxio.io/downloads/files/${ALLUXIO_VERSION}/alluxio-${ALLUXIO_VERSION}-bin.tar.gz
+
+# Appends a property KV pair to the alluxio-site.properties file
+#
+# Args:
+#   $1: property name
+#   $2: property value
+append_alluxio_property() {
+  local property="$1"
+  local value="$2"
+
+  grep -qe "^\s*${property}=" ${ALLUXIO_SITE_PROPERTIES} 2> /dev/null
+  local rv=$?
+  if [[ $rv -ne 0 ]]; then
+    echo '${property}=${value}' >> ${ALLUXIO_SITE_PROPERTIES}
+  fi
+}
+
+# Calculates the default memory size as 1/3 of the total system memory
+#
+# Echo's the result to stdout. To store the return value in a variable use
+# val=$(get_defaultmem_size)
+get_default_mem_size() {
+  local mem_div=3
+  local phy_total=$(free -m | grep -oP '\d+' | head -n1)
+  local mem_size=$(( ${phy_total} / ${mem_div} ))
+  echo "${mem_size}MB"
+}
+
+# Download the Alluxio tarball and untar to ALLUXIO_HOME
 function bootstrap_alluxio() {
-  sudo apt-get install jq
-
-  # Download Alluxio
-  cd /opt
-  VERSION=alluxio-${ALLUXIO_VERSION}-hadoop-${HADOOP_VERSION}
-  sudo wget http://downloads.alluxio.org/downloads/files/${ALLUXIO_VERSION}/${VERSION}-bin.tar.gz
-  sudo tar -zxf ${VERSION}-bin.tar.gz
-  sudo chown -R hadoop:hadoop ${VERSION}
-  cd ${VERSION}
+  local tarball_name=${ALLUXIO_DOWNLOAD_URL##*/}
+  sudo wget ${ALLUXIO_DOWNLOAD_URL}
+  sudo tar -zxf ${tarball_name} -C ${ALLUXIO_HOME} --strip-components 1
+  sudo chown -R hadoop:hadoop ${ALLUXIO_HOME}
 }
 
+# Configure alluxio-site.properties
 function configure_alluxio() {
-  sudo chown -R hadoop:hadoop .
+  sudo ${ALLUXIO_HOME}/bin/alluxio bootstrapConf "${MASTER_FQDN}"
+  cp ${ALLUXIO_HOME}/conf/alluxio-site.properties.template ${ALLUXIO_SITE_PROPERTIES}
 
-  sudo ./bin/alluxio bootstrapConf "${MASTER_FQDN}"
+  local root_ufs_uri=$(/usr/share/google/get_metadata_value attributes/root_ufs_uri)
+  append_alluxio_property alluxio.master.mount.table.root.ufs "${root_ufs_uri}"
 
-  cp conf/alluxio-site.properties.template conf/alluxio-site.properties
-  echo "alluxio.master.security.impersonation.root.users=*" >> ./conf/alluxio-site.properties
-  echo "alluxio.master.security.impersonation.root.groups=*" >> ./conf/alluxio-site.properties
-  echo "alluxio.master.security.impersonation.client.users=*" >> ./conf/alluxio-site.properties
-  echo "alluxio.master.security.impersonation.client.groups=*" >> ./conf/alluxio-site.properties
-  echo "alluxio.security.login.impersonation.username=none" >> ./conf/alluxio-site.properties
-  echo "alluxio.security.authorization.permission.enabled=false" >> ./conf/alluxio-site.properties
-  echo "alluxio.user.block.size.bytes.default=128MB" >> ./conf/alluxio-site.properties
+  local mem_size=$(get_default_mem_size)
+  append_alluxio_property alluxio.worker.memory.size "${mem_size}"
+  append_alluxio_property alluxio.worker.tieredstore.level0.alias "MEM"
+  append_alluxio_property alluxio.worker.tieredstore.level0.dirs.path "/mnt/ramdisk"
+  append_alluxio_property alluxio.worker.tieredstore.levels "1"
+
+  append_alluxio_property alluxio.master.security.impersonation.root.users "*"
+  append_alluxio_property alluxio.master.security.impersonation.root.groups "*"
+  append_alluxio_property alluxio.master.security.impersonation.client.users "*"
+  append_alluxio_property alluxio.master.security.impersonation.client.groups "*"
+  append_alluxio_property alluxio.security.login.impersonation.username "none"
+  append_alluxio_property alluxio.security.authorization.permission.enabled "false"
+
+  local delimited_properties=$(/usr/share/google/get_metadata_value attributes/delimited_properties)
+  if [[ "${delimited_properties}" ]]; then
+    IFS="${property_delimiter}" read -ra conf <<< "${delimited_properties}"
+    for property in "${conf[@]}"; do
+      local key=${property%%"="*}
+      local value=${property#*"="}
+      append_alluxio_property "${key}" "${value}"
+    done
+  fi
 }
 
+# Start the Alluxio server process
 function start_alluxio() {
   if [[ "${ROLE}" == "Master" ]]; then
-    sudo ./bin/alluxio format
+    sudo ./bin/alluxio formatMaster
     sudo ./bin/alluxio-start.sh master
   else
-    sudo ./bin/alluxio format
+    sudo ./bin/alluxio formatWorker
     sudo ./bin/alluxio-start.sh worker Mount
   fi
 }
