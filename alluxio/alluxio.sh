@@ -57,7 +57,6 @@ function bootstrap_alluxio() {
   sudo wget ${ALLUXIO_DOWNLOAD_URL}
   local tarball_name=${ALLUXIO_DOWNLOAD_URL##*/}
   sudo tar -zxf ${tarball_name} -C ${ALLUXIO_HOME} --strip-components 1
-  sudo chown -R hadoop:hadoop ${ALLUXIO_HOME}
 }
 
 # Configure alluxio-site.properties
