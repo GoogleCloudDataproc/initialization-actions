@@ -37,11 +37,7 @@ append_alluxio_property() {
   local property="$1"
   local value="$2"
 
-  grep -qe "^\s*${property}=" ${ALLUXIO_SITE_PROPERTIES} 2> /dev/null
-  local rv=$?
-  if [[ $rv -ne 0 ]]; then
-    echo '${property}=${value}' >> ${ALLUXIO_SITE_PROPERTIES}
-  fi
+  echo "${property}=${value}" >> ${ALLUXIO_SITE_PROPERTIES}
 }
 
 # Calculates the default memory size as 1/3 of the total system memory
@@ -57,16 +53,18 @@ get_default_mem_size() {
 
 # Download the Alluxio tarball and untar to ALLUXIO_HOME
 function bootstrap_alluxio() {
-  local tarball_name=${ALLUXIO_DOWNLOAD_URL##*/}
+  mkdir ${ALLUXIO_HOME}
   sudo wget ${ALLUXIO_DOWNLOAD_URL}
+  local tarball_name=${ALLUXIO_DOWNLOAD_URL##*/}
   sudo tar -zxf ${tarball_name} -C ${ALLUXIO_HOME} --strip-components 1
   sudo chown -R hadoop:hadoop ${ALLUXIO_HOME}
 }
 
 # Configure alluxio-site.properties
 function configure_alluxio() {
-  sudo ${ALLUXIO_HOME}/bin/alluxio bootstrapConf "${MASTER_FQDN}"
   cp ${ALLUXIO_HOME}/conf/alluxio-site.properties.template ${ALLUXIO_SITE_PROPERTIES}
+
+  append_alluxio_property alluxio.master.hostname "${MASTER_FQDN}"
 
   local root_ufs_uri=$(/usr/share/google/get_metadata_value attributes/root_ufs_uri)
   append_alluxio_property alluxio.master.mount.table.root.ufs "${root_ufs_uri}"
@@ -98,11 +96,12 @@ function configure_alluxio() {
 # Start the Alluxio server process
 function start_alluxio() {
   if [[ "${ROLE}" == "Master" ]]; then
-    sudo ./bin/alluxio formatMaster
-    sudo ./bin/alluxio-start.sh master
+    sudo ${ALLUXIO_HOME}/bin/alluxio formatMaster
+    sudo ${ALLUXIO_HOME}/bin/alluxio-start.sh master
   else
-    sudo ./bin/alluxio formatWorker
-    sudo ./bin/alluxio-start.sh worker Mount
+    sudo ${ALLUXIO_HOME}/bin/alluxio-mount.sh SudoMount local
+    sudo ${ALLUXIO_HOME}/bin/alluxio formatWorker
+    sudo ${ALLUXIO_HOME}/bin/alluxio-start.sh worker NoMount
   fi
 }
 
