@@ -126,7 +126,9 @@ ADD trusted.gpg /tmp/vm_trusted.gpg
 
 RUN apt-key add /tmp/vm_trusted.gpg
 RUN apt-get update
-RUN apt-get install -y hive spark-python openjdk-8-jre-headless
+# TODO: Remove --allow-unauthenticated after the expired gpg key problem is fixed,
+# https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/issues/619.
+RUN apt-get install -y --allow-unauthenticated hive spark-python openjdk-8-jre-headless
 
 # Workers do not run docker, so have a different python environment.
 # To run python3, you need to run the conda init action.
