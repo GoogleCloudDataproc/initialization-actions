@@ -57,6 +57,7 @@ function bootstrap_alluxio() {
   sudo wget ${ALLUXIO_DOWNLOAD_URL}
   local tarball_name=${ALLUXIO_DOWNLOAD_URL##*/}
   sudo tar -zxf ${tarball_name} -C ${ALLUXIO_HOME} --strip-components 1
+  sudo ln -s ${ALLUXIO_HOME}/client/*client.jar ${ALLUXIO_HOME}/client/alluxio-client.jar
 }
 
 # Configure alluxio-site.properties
