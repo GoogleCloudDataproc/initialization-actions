@@ -18,12 +18,8 @@
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 
-# The following properties must be manually configured
-## BEGIN CONFIGURATION ##
-ALLUXIO_VERSION=2.0.1
-## END CONFIGURATION ##
-
 # Script constants
+ALLUXIO_VERSION=2.0.1
 ALLUXIO_HOME=/opt/alluxio
 ALLUXIO_SITE_PROPERTIES=${ALLUXIO_HOME}/conf/alluxio-site.properties
 ALLUXIO_DOWNLOAD_URL=https://downloads.alluxio.io/downloads/files/${ALLUXIO_VERSION}/alluxio-${ALLUXIO_VERSION}-bin.tar.gz
@@ -62,6 +58,8 @@ function bootstrap_alluxio() {
   # Configure client applications
   sudo mkdir -p /usr/lib/spark/jars/
   sudo ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" /usr/lib/spark/jars/alluxio-client.jar
+  sudo mkdir -p /usr/lib/presto/plugin/hive-hadoop2/
+  sudo ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" /usr/lib/presto/plugin/hive-hadoop2/alluxio-client.jar
 }
 
 # Configure alluxio-site.properties
@@ -86,10 +84,10 @@ function configure_alluxio() {
   append_alluxio_property alluxio.security.login.impersonation.username "none"
   append_alluxio_property alluxio.security.authorization.permission.enabled "false"
 
-  local delimited_properties=$(/usr/share/google/get_metadata_value attributes/delimited_properties)
+  local site_properties=$(/usr/share/google/get_metadata_value attributes/site_properties)
   local property_delimiter=";"
-  if [[ "${delimited_properties}" ]]; then
-    IFS="${property_delimiter}" read -ra conf <<< "${delimited_properties}"
+  if [[ "${site_properties}" ]]; then
+    IFS="${property_delimiter}" read -ra conf <<< "${site_properties}"
     for property in "${conf[@]}"; do
       local key=${property%%"="*}
       local value=${property#*"="}
