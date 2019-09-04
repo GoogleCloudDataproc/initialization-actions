@@ -98,6 +98,7 @@ function start_alluxio() {
     sudo ${ALLUXIO_HOME}/bin/alluxio formatMaster
     sudo ${ALLUXIO_HOME}/bin/alluxio-start.sh master
   else
+    sleep 60 # TODO: Remove sleep after making AlluxioWorkerMonitor retry configurable
     sudo ${ALLUXIO_HOME}/bin/alluxio-mount.sh SudoMount local
     sudo ${ALLUXIO_HOME}/bin/alluxio formatWorker
     sudo ${ALLUXIO_HOME}/bin/alluxio-start.sh worker NoMount
