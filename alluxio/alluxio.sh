@@ -82,6 +82,7 @@ function configure_alluxio() {
   append_alluxio_property alluxio.security.authorization.permission.enabled "false"
 
   local delimited_properties=$(/usr/share/google/get_metadata_value attributes/delimited_properties)
+  local property_delimiter=";"
   if [[ "${delimited_properties}" ]]; then
     IFS="${property_delimiter}" read -ra conf <<< "${delimited_properties}"
     for property in "${conf[@]}"; do
