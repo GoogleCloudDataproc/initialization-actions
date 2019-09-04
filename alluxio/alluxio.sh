@@ -89,7 +89,6 @@ function bootstrap_alluxio() {
       download_file "${file}"
       sudo mv "${filename}" "${ALLUXIO_HOME}/conf/${filename}"
     done
-    sudo chown -R alluxio:alluxio "${ALLUXIO_HOME}/conf"
   fi
 
   # Configure client applications
