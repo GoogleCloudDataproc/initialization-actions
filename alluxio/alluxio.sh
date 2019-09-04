@@ -14,6 +14,14 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
+set -o errexit  # exit when a command fails - append "|| true" to allow a
+                # command to fail
+set -o nounset  # exit when attempting to use undeclared variables
+
+# Show commands being run - useful to keep by default so that failures
+# are easy to debug
+set -x
+
 # Variables for running this script
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
@@ -23,6 +31,22 @@ ALLUXIO_VERSION=2.0.1
 ALLUXIO_HOME=/opt/alluxio
 ALLUXIO_SITE_PROPERTIES=${ALLUXIO_HOME}/conf/alluxio-site.properties
 ALLUXIO_DOWNLOAD_URL=https://downloads.alluxio.io/downloads/files/${ALLUXIO_VERSION}/alluxio-${ALLUXIO_VERSION}-bin.tar.gz
+
+# Downloads a file to the local machine from a remote HTTP(S) or GCS URI into the cwd
+#
+# Args:
+#   $1: URI - the remote location to retrieve the file from
+download_file() {
+  local uri="$1"
+
+  if [[ "${uri}" == gs://* ]]
+  then
+    sudo gsutil cp "${uri}" ./
+  else
+    # TODO Add metadata header tag to the wget for filtering out in download metrics.
+    sudo wget -nv "${uri}"
+  fi
+}
 
 # Appends a property KV pair to the alluxio-site.properties file
 #
@@ -50,10 +74,23 @@ get_default_mem_size() {
 # Download the Alluxio tarball and untar to ALLUXIO_HOME
 function bootstrap_alluxio() {
   mkdir ${ALLUXIO_HOME}
-  sudo wget ${ALLUXIO_DOWNLOAD_URL}
+  download_file ${ALLUXIO_DOWNLOAD_URL}
   local tarball_name=${ALLUXIO_DOWNLOAD_URL##*/}
   sudo tar -zxf ${tarball_name} -C ${ALLUXIO_HOME} --strip-components 1
   sudo ln -s ${ALLUXIO_HOME}/client/*client.jar ${ALLUXIO_HOME}/client/alluxio-client.jar
+
+  # Download files to /opt/alluxio/conf
+  local download_files_list=$(/usr/share/google/get_metadata_value attributes/download_files_list)
+  local download_delimiter=";"
+  IFS="${download_delimiter}" read -ra files_to_be_downloaded <<< "${download_files_list}"
+  if [ "${#files_to_be_downloaded[@]}" -gt "0" ]; then
+    for file in "${files_to_be_downloaded[@]}"; do
+      local filename="$(basename ${file})"
+      download_file "${file}"
+      sudo mv "${filename}" "${ALLUXIO_HOME}/conf/${filename}"
+    done
+    sudo chown -R alluxio:alluxio "${ALLUXIO_HOME}/conf"
+  fi
 
   # Configure client applications
   sudo mkdir -p /usr/lib/spark/jars/
