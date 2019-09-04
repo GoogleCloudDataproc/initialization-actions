@@ -22,5 +22,5 @@ You can find more information about using initialization actions with Dataproc i
   ```bash
   gcloud dataproc clusters create <cluster_name> \
     --initialization-actions gs://$my_bucket/alluxio/alluxio.sh \
-    --metadata root_ufs_uri=<understorage address>,delimited_properties="alluxio.master.mount.table.root.option.fs.gcs.accessKeyId=<GCS_ACCESS_KEY_ID>;alluxio.master.mount.table.root.option.fs.gcs.secretAccessKey=<GCS_SECRET_ACCESS_KEY>"
+    --metadata root_ufs_uri=<UNDERSTORAGE_ADDRESS>,delimited_properties="alluxio.master.mount.table.root.option.fs.gcs.accessKeyId=<GCS_ACCESS_KEY_ID>;alluxio.master.mount.table.root.option.fs.gcs.secretAccessKey=<GCS_SECRET_ACCESS_KEY>"
   ```
