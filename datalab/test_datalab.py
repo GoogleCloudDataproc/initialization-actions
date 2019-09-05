@@ -42,7 +42,7 @@ class DatalabTestCase(DataprocTestCase):
                            dataproc_version,
                            metadata=metadata,
                            scopes='cloud-platform',
-                           timeout_in_minutes=20)
+                           timeout_in_minutes=30)
 
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
