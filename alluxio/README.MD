@@ -15,6 +15,10 @@ You can use this initialization action to create a new Dataproc cluster with All
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
 
+## Run a Spark Job
+To run a Spark application accessing data from Alluxio, simply refer to the path as `alluxio://<cluster_name>-m:19998/<path_to_file>`; where `<cluster_name>-m` is the dataproc master hostname.
+Refer to Alluxio on Spark [documentation](https://docs.alluxio.io/os/user/stable/en/compute/Spark.html#examples-use-alluxio-as-input-and-output) for additional getting started resources.
+
 ## Notes
 * This script must be updated to specify the Alluxio version to install.
 * `root_ufs_uri` is a required parameter to specify the root under storage location for Alluxio.
