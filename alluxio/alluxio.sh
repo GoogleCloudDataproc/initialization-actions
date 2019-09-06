@@ -26,6 +26,15 @@ set -x
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 
+#SPARK_HOME="$(/usr/share/google/get_metadata_value attributes/spark_home)"
+SPARK_HOME=${SPARK_HOME:-"/usr/lib/spark"}
+#HIVE_HOME="$(/usr/share/google/get_metadata_value attributes/hive_home)"
+HIVE_HOME=${HIVE_HOME:-"/usr/lib/hive"}
+#HADOOP_HOME="$(/usr/share/google/get_metadata_value attributes/hadoop_home)"
+HADOOP_HOME=${HADOOP_HOME:-"/usr/lib/hadoop"}
+#PRESTO_HOME="$(/usr/share/google/get_metadata_value attributes/presto_home)"
+PRESTO_HOME=${PRESTO_HOME:-"/presto-server-0.224"}
+
 # Script constants
 ALLUXIO_VERSION=2.0.1
 ALLUXIO_HOME=/opt/alluxio
@@ -92,10 +101,16 @@ function bootstrap_alluxio() {
   fi
 
   # Configure client applications
-  sudo mkdir -p /usr/lib/spark/jars/
-  sudo ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" /usr/lib/spark/jars/alluxio-client.jar
-  sudo mkdir -p /usr/lib/presto/plugin/hive-hadoop2/
-  sudo ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" /usr/lib/presto/plugin/hive-hadoop2/alluxio-client.jar
+  sudo mkdir -p ${SPARK_HOME}/jars/
+  sudo ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" ${SPARK_HOME}/jars/alluxio-client.jar
+  sudo mkdir -p ${HIVE_HOME}/lib/
+  sudo ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" ${HIVE_HOME}/lib/alluxio-client.jar
+  sudo mkdir -p ${HADOOP_HOME}/lib/
+  sudo ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" ${HADOOP_HOME}/lib/alluxio-client.jar
+  sudo mkdir -p ${PRESTO_HOME}/plugin/hive-hadoop2/
+  sudo ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" ${PRESTO_HOME}/plugin/hive-hadoop2/alluxio-client.jar
+  sudo systemctl restart hive-metastore
+  sudo systemctl restart hive-server2
 }
 
 # Configure alluxio-site.properties
