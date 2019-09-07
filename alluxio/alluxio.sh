@@ -26,14 +26,10 @@ set -x
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 
-#SPARK_HOME="$(/usr/share/google/get_metadata_value attributes/spark_home)"
 SPARK_HOME=${SPARK_HOME:-"/usr/lib/spark"}
-#HIVE_HOME="$(/usr/share/google/get_metadata_value attributes/hive_home)"
 HIVE_HOME=${HIVE_HOME:-"/usr/lib/hive"}
-#HADOOP_HOME="$(/usr/share/google/get_metadata_value attributes/hadoop_home)"
 HADOOP_HOME=${HADOOP_HOME:-"/usr/lib/hadoop"}
-#PRESTO_HOME="$(/usr/share/google/get_metadata_value attributes/presto_home)"
-PRESTO_HOME=${PRESTO_HOME:-"/presto-server-0.224"}
+PRESTO_HOME=${PRESTO_HOME:-$(ls -d -- /presto-server*)}
 
 # Script constants
 ALLUXIO_VERSION=2.0.1
