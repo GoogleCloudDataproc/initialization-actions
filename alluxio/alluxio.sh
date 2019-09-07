@@ -29,7 +29,6 @@ readonly MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc
 SPARK_HOME=${SPARK_HOME:-"/usr/lib/spark"}
 HIVE_HOME=${HIVE_HOME:-"/usr/lib/hive"}
 HADOOP_HOME=${HADOOP_HOME:-"/usr/lib/hadoop"}
-PRESTO_HOME=${PRESTO_HOME:-$(ls -d -- /presto-server*)}
 
 # Script constants
 ALLUXIO_VERSION=2.0.1
@@ -103,10 +102,19 @@ function bootstrap_alluxio() {
   sudo ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" ${HIVE_HOME}/lib/alluxio-client.jar
   sudo mkdir -p ${HADOOP_HOME}/lib/
   sudo ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" ${HADOOP_HOME}/lib/alluxio-client.jar
-  sudo mkdir -p ${PRESTO_HOME}/plugin/hive-hadoop2/
-  sudo ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" ${PRESTO_HOME}/plugin/hive-hadoop2/alluxio-client.jar
   sudo systemctl restart hive-metastore
   sudo systemctl restart hive-server2
+
+  # Optionally configure presto
+  # OK to fail in this section
+  set +o errexit
+  PRESTO_HOME=${PRESTO_HOME:-$(ls -d -- /presto-server*)}
+  if [ ! -z $PRESTO_HOME ]; then
+    sudo mkdir -p ${PRESTO_HOME}/plugin/hive-hadoop2/
+    sudo ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" ${PRESTO_HOME}/plugin/hive-hadoop2/alluxio-client.jar
+    sudo systemctl restart presto
+  fi
+  set -o errexit # errors not ok anymore
 }
 
 # Configure alluxio-site.properties
