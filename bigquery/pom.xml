@@ -209,12 +209,6 @@
                   </includes>
                 </filter>
                 <filter>
-                  <artifact>com.google.guava:*</artifact>
-                  <includes>
-                    <include>com/google/common/base/*</include>
-                  </includes>
-                </filter>
-                <filter>
                   <artifact>com.google.flogger:flogger-log4j-backend</artifact>
                   <includes>
                     <include>**</include>
@@ -239,8 +233,8 @@
                   <include>com.google.cloud</include>
                   <include>com.google.cloud.bigdataoss:util</include>
                   <include>com.google.cloud.bigdataoss:util-hadoop</include>
-                  <include>com.google.guava</include>
                   <include>com.google.flogger</include>
+                  <include>com.google.guava</include>
                   <include>com.google.http-client:google-http-client</include>
                   <include>com.google.http-client:google-http-client-jackson2</include>
                   <include>com.google.oauth-client:google-oauth-client</include>
@@ -266,7 +260,6 @@
                   </includes>
                   <excludes>
                     <exclude>com.google.cloud.hadoop.io.bigquery.**</exclude>
-                    <exclude>com.google.cloud.hadoop.repackaged.**</exclude>
                     <exclude>com.google.cloud.hadoop.util.AccessTokenProvider</exclude>
                     <exclude>com.google.cloud.hadoop.util.AccessTokenProvider$AccessToken</exclude>
                   </excludes>
