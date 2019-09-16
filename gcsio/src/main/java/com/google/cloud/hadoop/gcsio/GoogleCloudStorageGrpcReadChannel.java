@@ -425,18 +425,21 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
 
       int bytesRead;
       byte[] data;
+      int arrayOffset;
       if (buffer.hasArray()) {
         data = buffer.array();
-        bytesRead = pipeSource.read(data);
+        arrayOffset = buffer.arrayOffset();
+        bytesRead = pipeSource.read(data, arrayOffset, buffer.remaining());
       } else {
         data = new byte[buffer.remaining()];
+        arrayOffset = 0;
         bytesRead = pipeSource.read(data);
         buffer.put(data);
       }
       position += bytesRead == -1 ? 0 : bytesRead;
       if (objectHasher.isPresent()) {
         if (bytesRead > 0) {
-          objectHasher.get().putBytes(data, 0, bytesRead);
+          objectHasher.get().putBytes(data, arrayOffset, bytesRead);
         }
         if (position >= objectMetadata.get().getSize()) {
           int checksum = objectHasher.get().hash().asInt();

@@ -131,6 +131,22 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
   }
 
   @Test
+  public void readToBufferWithArrayOffset() throws Exception {
+    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel();
+    fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).build());
+
+    byte[] array = new byte[200];
+    // `slice` generates a ByteBuffer with a non-zero `arrayOffset`.
+    ByteBuffer buffer = ByteBuffer.wrap(array, 50, 150).slice();
+    readChannel.read(buffer);
+
+    verify(fakeService, times(1)).get(eq(GET_OBJECT_REQUEST), any());
+    verify(fakeService, times(1)).getMedia(eq(GET_OBJECT_MEDIA_REQUEST), any());
+    byte[] expected = ByteString.copyFrom(array, 50, 100).toByteArray();
+    assertArrayEquals(fakeService.data.substring(0, 100).toByteArray(), expected);
+  }
+
+  @Test
   public void readSucceedsAfterSeek() throws Exception {
     GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel();
     fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).build());
@@ -233,6 +249,47 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
     readChannel.read(firstBuffer);
 
     IOException thrown = assertThrows(IOException.class, () -> readChannel.read(secondBuffer));
+    assertTrue(thrown.getMessage().contains("Object checksum"));
+  }
+
+  @Test
+  public void readToBufferWithArrayOffsetSucceedsWithValidObjectChecksum() throws Exception {
+    fakeService.setObject(
+        DEFAULT_OBJECT.toBuilder()
+            .setCrc32C(UInt32Value.newBuilder().setValue(DEFAULT_OBJECT_CRC32C))
+            .build());
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setGenerationReadConsistency(GenerationReadConsistency.STRICT)
+            .setGrpcChecksumsEnabled(true)
+            .build();
+    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
+
+    byte[] array = new byte[OBJECT_SIZE + 100];
+    // `ByteBuffer.slice` generates a ByteBuffer with a non-zero `arrayOffset`.
+    ByteBuffer buffer = ByteBuffer.wrap(array, 50, OBJECT_SIZE).slice();
+    readChannel.read(buffer);
+
+    byte[] expected = ByteString.copyFrom(array, 50, OBJECT_SIZE).toByteArray();
+    assertArrayEquals(fakeService.data.toByteArray(), expected);
+  }
+
+  @Test
+  public void readToBufferWithArrayOffsetFailsWithInvalidObjectChecksum() throws Exception {
+    fakeService.setObject(
+        DEFAULT_OBJECT.toBuilder().setCrc32C(UInt32Value.newBuilder().setValue(0)).build());
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setGenerationReadConsistency(GenerationReadConsistency.STRICT)
+            .setGrpcChecksumsEnabled(true)
+            .build();
+    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
+
+    byte[] array = new byte[OBJECT_SIZE + 100];
+    // `ByteBuffer.slice` generates a ByteBuffer with a non-zero `arrayOffset`.
+    ByteBuffer buffer = ByteBuffer.wrap(array, 50, OBJECT_SIZE).slice();
+
+    IOException thrown = assertThrows(IOException.class, () -> readChannel.read(buffer));
     assertTrue(thrown.getMessage().contains("Object checksum"));
   }
 
