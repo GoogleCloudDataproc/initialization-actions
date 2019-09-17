@@ -2,6 +2,8 @@
 
 1.  POM updates for GCS connector 2.1.0.
 
+1.  Fix shaded jar - add back missing relocated dependencies.
+
 ### 1.0.0 - 2019-08-23
 
 1.  POM updates for GCS connector 2.0.0.
