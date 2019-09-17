@@ -531,13 +531,13 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
               boolean canIgnoreException = false;
               try {
                 canIgnoreException = canIgnoreExceptionForEmptyObject(ioe, resourceId, options);
-              } catch (Throwable t) {
-                // Make sure to catch Throwable instead of only IOException so that we can
-                // correctly wrap other such throwables and propagate them out cleanly inside
+              } catch (Exception e) {
+                // Make sure to catch Exception instead of only IOException so that we can
+                // correctly wrap other such exceptions and propagate them out cleanly inside
                 // innerExceptions; common sources of non-IOExceptions include Preconditions
                 // checks which get enforced at various layers in the library stack.
                 innerExceptions.add(
-                    new IOException("Error re-fetching after rate-limit error: " + resourceId, t));
+                    new IOException("Error re-fetching after rate-limit error: " + resourceId, e));
               }
               if (canIgnoreException) {
                 logger.atInfo().withCause(ioe).log(
@@ -545,8 +545,8 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
               } else {
                 innerExceptions.add(new IOException("Error inserting " + resourceId, ioe));
               }
-            } catch (Throwable t) {
-              innerExceptions.add(new IOException("Error inserting " + resourceId, t));
+            } catch (Exception e) {
+              innerExceptions.add(new IOException("Error inserting " + resourceId, e));
             } finally {
               latch.countDown();
             }
