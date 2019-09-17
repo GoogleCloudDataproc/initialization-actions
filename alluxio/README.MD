@@ -10,7 +10,7 @@ You can use this initialization action to create a new Dataproc cluster with All
   ```bash
   gcloud dataproc clusters create <cluster_name> \
     --initialization-actions gs://$my_bucket/alluxio/alluxio.sh \
-    --metadata root_ufs_uri=<UNDERSTORAGE_ADDRESS>
+    --metadata alluxio_root_ufs_uri=<UNDERSTORAGE_ADDRESS>
   ```
 
 You can find more information about using initialization actions with Dataproc in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
@@ -26,11 +26,11 @@ Refer to Alluxio on Spark [documentation](https://docs.alluxio.io/os/user/stable
   ```bash
   gcloud dataproc clusters create <cluster_name> \
     ...
-    --metadata root_ufs_uri=<UNDERSTORAGE_ADDRESS>,site_properties="alluxio.master.mount.table.root.option.fs.gcs.accessKeyId=<GCS_ACCESS_KEY_ID>;alluxio.master.mount.table.root.option.fs.gcs.secretAccessKey=<GCS_SECRET_ACCESS_KEY>"
+    --metadata alluxio_root_ufs_uri=<UNDERSTORAGE_ADDRESS>,site_properties="alluxio.master.mount.table.root.option.fs.gcs.accessKeyId=<GCS_ACCESS_KEY_ID>;alluxio.master.mount.table.root.option.fs.gcs.secretAccessKey=<GCS_SECRET_ACCESS_KEY>"
   ```
-* Additional files can be downloaded into `/opt/alluxio/conf` using the metadata key `download_files_list` by specifying `http(s)` or `gs` uris delimited using `;`
+* Additional files can be downloaded into `/opt/alluxio/conf` using the metadata key `alluxio_download_files_list` by specifying `http(s)` or `gs` uris delimited using `;`
   ```bash
   gcloud dataproc clusters create <cluster_name> \
     ...
-    --metadata root_ufs_uri=<UNDERSTORAGE_ADDRESS>,download_files_list="gs://$my_bucket/$my_file;https://$server/$file"
+    --metadata alluxio_root_ufs_uri=<UNDERSTORAGE_ADDRESS>,alluxio_download_files_list="gs://$my_bucket/$my_file;https://$server/$file"
   ```

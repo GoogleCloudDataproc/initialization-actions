@@ -84,7 +84,7 @@ function bootstrap_alluxio() {
   sudo ln -s ${ALLUXIO_HOME}/client/*client.jar ${ALLUXIO_HOME}/client/alluxio-client.jar
 
   # Download files to /opt/alluxio/conf
-  local download_files_list=$(/usr/share/google/get_metadata_value attributes/download_files_list)
+  local download_files_list=$(/usr/share/google/get_metadata_value attributes/alluxio_download_files_list)
   local download_delimiter=";"
   IFS="${download_delimiter}" read -ra files_to_be_downloaded <<< "${download_files_list}"
   if [ "${#files_to_be_downloaded[@]}" -gt "0" ]; then
@@ -108,7 +108,7 @@ function bootstrap_alluxio() {
   # Optionally configure presto
   # OK to fail in this section
   set +o errexit
-  PRESTO_HOME=${PRESTO_HOME:-$(ls -d -- /presto-server*)}
+  PRESTO_HOME=${PRESTO_HOME:-$(ls -d -- /presto-server-*)}
   if [ ! -z $PRESTO_HOME ]; then
     sudo mkdir -p ${PRESTO_HOME}/plugin/hive-hadoop2/
     sudo ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" ${PRESTO_HOME}/plugin/hive-hadoop2/alluxio-client.jar
@@ -123,7 +123,7 @@ function configure_alluxio() {
 
   append_alluxio_property alluxio.master.hostname "${MASTER_FQDN}"
 
-  local root_ufs_uri=$(/usr/share/google/get_metadata_value attributes/root_ufs_uri)
+  local root_ufs_uri=$(/usr/share/google/get_metadata_value attributes/alluxio_root_ufs_uri)
   append_alluxio_property alluxio.master.mount.table.root.ufs "${root_ufs_uri}"
 
   local mem_size=$(get_default_mem_size)
@@ -139,7 +139,7 @@ function configure_alluxio() {
   append_alluxio_property alluxio.security.login.impersonation.username "none"
   append_alluxio_property alluxio.security.authorization.permission.enabled "false"
 
-  local site_properties=$(/usr/share/google/get_metadata_value attributes/site_properties)
+  local site_properties=$(/usr/share/google/get_metadata_value attributes/alluxio_site_properties)
   local property_delimiter=";"
   if [[ "${site_properties}" ]]; then
     IFS="${property_delimiter}" read -ra conf <<< "${site_properties}"
