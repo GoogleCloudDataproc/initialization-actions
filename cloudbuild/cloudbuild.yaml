@@ -44,10 +44,10 @@ steps:
       - 'VCS_TAG=$TAG_NAME'
       - 'CI_BUILD_ID=$BUILD_ID'
 
-  # 5. Run Hadoop 3 integration tests sequentially after `integration-tests-hadoop2` step
+  # 5. Run Hadoop 3 integration tests concurrently with Hadoop 2 integration tests
   - name: 'gcr.io/$PROJECT_ID/dataproc-bigdata-interop-presubmit'
     id: 'integration-tests-hadoop3'
-    waitFor: ['integration-tests-hadoop2']
+    waitFor: ['unit-tests-hadoop2', 'unit-tests-hadoop3']
     entrypoint: 'bash'
     args: ['/bigdata-interop/cloudbuild/presubmit.sh', 'hadoop3', 'integrationtest']
     env:
