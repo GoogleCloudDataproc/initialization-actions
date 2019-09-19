@@ -152,7 +152,10 @@ public class ApiErrorExtractor {
     return recursiveCheckForCode(e, HttpStatusCodes.STATUS_CODE_CONFLICT);
   }
 
-  /** @deprecated use {@link #itemNotFound(IOException)} instead */
+  /**
+   * @deprecated use {@link #itemNotFound(IOException)} or {@code e.getCode() ==
+   *     HttpStatusCodes.STATUS_CODE_NOT_FOUND} instead
+   */
   @Deprecated
   public boolean itemNotFound(GoogleJsonError e) {
     return e.getCode() == HttpStatusCodes.STATUS_CODE_NOT_FOUND;
