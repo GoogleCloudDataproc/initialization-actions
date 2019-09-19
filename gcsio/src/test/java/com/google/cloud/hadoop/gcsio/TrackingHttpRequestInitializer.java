@@ -16,6 +16,7 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.GOOGLEAPIS_ENDPOINT;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -34,61 +35,65 @@ import java.util.concurrent.atomic.AtomicLong;
 public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
 
   private static final String GET_REQUEST_FORMAT =
-      "GET:https://www.googleapis.com/storage/v1/b/%s/o/%s";
+      "GET:" + GOOGLEAPIS_ENDPOINT + "/storage/v1/b/%s/o/%s";
 
   private static final String GET_MEDIA_REQUEST_FORMAT =
-      "GET:https://www.googleapis.com/download/storage/v1/b/%s/o/%s?alt=media";
+      "GET:" + GOOGLEAPIS_ENDPOINT + "/download/storage/v1/b/%s/o/%s?alt=media";
 
   private static final String GET_BUCKET_REQUEST_FORMAT =
-      "GET:https://www.googleapis.com/storage/v1/b/%s";
+      "GET:" + GOOGLEAPIS_ENDPOINT + "/storage/v1/b/%s";
 
   private static final String POST_REQUEST_FORMAT =
-      "POST:https://www.googleapis.com/storage/v1/b/%s/o/%s";
+      "POST:" + GOOGLEAPIS_ENDPOINT + "/storage/v1/b/%s/o/%s";
 
   private static final String POST_COPY_REQUEST_FORMAT =
-      "POST:https://www.googleapis.com/storage/v1/b/%s/o/%s/%s/b/%s/o/%s";
+      "POST:" + GOOGLEAPIS_ENDPOINT + "/storage/v1/b/%s/o/%s/%s/b/%s/o/%s";
 
   private static final String UPLOAD_REQUEST_FORMAT =
-      "POST:https://www.googleapis.com/upload/storage/v1/b/%s/o"
-          + "?ifGenerationMatch=generationId_%d&uploadType=multipart:%s";
+      "POST:"
+          + GOOGLEAPIS_ENDPOINT
+          + "/upload/storage/v1/b/%s/o?ifGenerationMatch=generationId_%d&uploadType=multipart:%s";
 
   private static final String RESUMABLE_UPLOAD_REQUEST_FORMAT =
-      "POST:https://www.googleapis.com/upload/storage/v1/b/%s/o"
-          + "?ifGenerationMatch=%s&name=%s&uploadType=resumable";
+      "POST:"
+          + GOOGLEAPIS_ENDPOINT
+          + "/upload/storage/v1/b/%s/o?ifGenerationMatch=%s&name=%s&uploadType=resumable";
 
   private static final String RESUMABLE_UPLOAD_CHUNK_REQUEST_FORMAT =
-      "PUT:https://www.googleapis.com/upload/storage/v1/b/%s/o"
-          + "?%sname=%s&uploadType=resumable&upload_id=upload_%s";
+      "PUT:"
+          + GOOGLEAPIS_ENDPOINT
+          + "/upload/storage/v1/b/%s/o?%sname=%s&uploadType=resumable&upload_id=upload_%s";
 
   private static final String UPDATE_METADATA_REQUEST_FORMAT =
-      "POST:https://www.googleapis.com/storage/v1/b/%s/o/%s?ifMetagenerationMatch=%d";
+      "POST:" + GOOGLEAPIS_ENDPOINT + "/storage/v1/b/%s/o/%s?ifMetagenerationMatch=%d";
 
   private static final String DELETE_BUCKET_REQUEST_FORMAT =
-      "DELETE:https://www.googleapis.com/storage/v1/b/%s";
+      "DELETE:" + GOOGLEAPIS_ENDPOINT + "/storage/v1/b/%s";
 
   private static final String DELETE_META_REQUEST_FORMAT =
-      "DELETE:https://www.googleapis.com/storage/v1/b/%s/o/%s?ifMetagenerationMatch=%d";
+      "DELETE:" + GOOGLEAPIS_ENDPOINT + "/storage/v1/b/%s/o/%s?ifMetagenerationMatch=%d";
 
   private static final String DELETE_REQUEST_FORMAT =
-      "DELETE:https://www.googleapis.com/storage/v1/b/%s/o/%s?ifGenerationMatch=%s";
+      "DELETE:" + GOOGLEAPIS_ENDPOINT + "/storage/v1/b/%s/o/%s?ifGenerationMatch=%s";
 
   private static final String LIST_BUCKETS_REQUEST_FORMAT =
-      "GET:https://www.googleapis.com/storage/v1/b?maxResults=1024&project=%s";
+      "GET:" + GOOGLEAPIS_ENDPOINT + "/storage/v1/b?maxResults=1024&project=%s";
 
   private static final String LIST_REQUEST_FORMAT =
-      "GET:https://www.googleapis.com/storage/v1/b/%s/o"
-          + "?delimiter=/&includeTrailingDelimiter=%s&maxResults=%d%s&prefix=%s";
+      "GET:"
+          + GOOGLEAPIS_ENDPOINT
+          + "/storage/v1/b/%s/o?delimiter=/&includeTrailingDelimiter=%s&maxResults=%d%s&prefix=%s";
 
   private static final String LIST_SIMPLE_REQUEST_FORMAT =
-      "GET:https://www.googleapis.com/storage/v1/b/%s/o?maxResults=%d&prefix=%s";
+      "GET:" + GOOGLEAPIS_ENDPOINT + "/storage/v1/b/%s/o?maxResults=%d&prefix=%s";
 
-  private static final String BATCH_REQUEST = "POST:https://www.googleapis.com/batch/storage/v1";
+  private static final String BATCH_REQUEST = "POST:" + GOOGLEAPIS_ENDPOINT + "/batch/storage/v1";
 
   private static final String COMPOSE_REQUEST_FORMAT =
-      "POST:https://www.googleapis.com/storage/v1/b/%s/o/%s/compose?ifGenerationMatch=%s";
+      "POST:" + GOOGLEAPIS_ENDPOINT + "/storage/v1/b/%s/o/%s/compose?ifGenerationMatch=%s";
 
   private static final String CREATE_BUCKET_REQUEST_FORMAT =
-      "POST:https://www.googleapis.com/storage/v1/b?project=%s";
+      "POST:" + GOOGLEAPIS_ENDPOINT + "/storage/v1/b?project=%s";
 
   private static final String PAGE_TOKEN_PARAM_PATTERN = "pageToken=[^&]+";
 
