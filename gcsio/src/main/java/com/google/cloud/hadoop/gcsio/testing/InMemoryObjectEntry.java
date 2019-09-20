@@ -244,8 +244,9 @@ public class InMemoryObjectEntry {
    * writer must have already closed the associated WritableByteChannel to commit the byte contents
    * and make them available for reading.
    */
-  public synchronized SeekableByteChannel getReadChannel() throws IOException {
-    return getReadChannel(GoogleCloudStorageReadOptions.DEFAULT);
+  public synchronized SeekableByteChannel getReadChannel(String bucketName, String objectName)
+      throws IOException {
+    return getReadChannel(bucketName, objectName, GoogleCloudStorageReadOptions.DEFAULT);
   }
 
   /**
@@ -253,7 +254,8 @@ public class InMemoryObjectEntry {
    * writer must have already closed the associated WritableByteChannel to commit the byte contents
    * and make them available for reading.
    */
-  public synchronized SeekableByteChannel getReadChannel(GoogleCloudStorageReadOptions readOptions)
+  public synchronized SeekableByteChannel getReadChannel(
+      String bucketName, String objectName, GoogleCloudStorageReadOptions readOptions)
       throws IOException {
     if (!isCompleted()) {
       throw new IOException(
@@ -261,7 +263,7 @@ public class InMemoryObjectEntry {
               "Cannot getReadChannel() before writes have been committed! Object = %s",
               this.getObjectName()));
     }
-    return new InMemoryObjectReadChannel(completedContents, readOptions) {
+    return new InMemoryObjectReadChannel(bucketName, objectName, completedContents, readOptions) {
       @Nullable
       @Override
       protected GoogleCloudStorageItemInfo getInitialMetadata() throws IOException {

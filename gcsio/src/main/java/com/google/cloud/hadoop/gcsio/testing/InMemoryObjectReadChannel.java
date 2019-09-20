@@ -34,17 +34,22 @@ public class InMemoryObjectReadChannel extends GoogleCloudStorageReadChannel {
   private final byte[] content;
 
   /** Creates a new instance of InMemoryObjectReadChannel. */
-  public InMemoryObjectReadChannel(byte[] content) throws IOException {
-    this(content, GoogleCloudStorageReadOptions.DEFAULT);
+  public InMemoryObjectReadChannel(String bucketName, String objectName, byte[] content)
+      throws IOException {
+    this(bucketName, objectName, content, GoogleCloudStorageReadOptions.DEFAULT);
   }
 
   /**
    * Creates a new instance of InMemoryObjectReadChannel with {@code readOptions} plumbed into the
    * base class.
    */
-  public InMemoryObjectReadChannel(byte[] content, GoogleCloudStorageReadOptions readOptions)
+  public InMemoryObjectReadChannel(
+      String bucketName,
+      String objectName,
+      byte[] content,
+      GoogleCloudStorageReadOptions readOptions)
       throws IOException {
-    super(readOptions);
+    super(bucketName, objectName, readOptions);
     this.content = checkNotNull(content, "channelContents could not be null");
   }
 

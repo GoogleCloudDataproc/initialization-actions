@@ -233,12 +233,13 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
   // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
   // Please check that removing it is correct, and remove this comment along with it.
   // @VisibleForTesting
-  protected GoogleCloudStorageReadChannel(@Nonnull GoogleCloudStorageReadOptions readOptions)
+  protected GoogleCloudStorageReadChannel(
+      String bucketName, String objectName, @Nonnull GoogleCloudStorageReadOptions readOptions)
       throws IOException {
     this(
         /* gcs= */ null,
-        /* bucketName= */ null,
-        /* objectName= */ null,
+        bucketName,
+        objectName,
         /* errorExtractor= */ null,
         /* requestHelper= */ null,
         readOptions);

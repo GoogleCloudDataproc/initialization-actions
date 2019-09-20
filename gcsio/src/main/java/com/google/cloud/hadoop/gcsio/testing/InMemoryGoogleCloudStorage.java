@@ -269,7 +269,7 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
     return bucketLookup
         .get(resourceId.getBucketName())
         .get(resourceId.getObjectName())
-        .getReadChannel(readOptions);
+        .getReadChannel(resourceId.getBucketName(), resourceId.getObjectName(), readOptions);
   }
 
   @Override
