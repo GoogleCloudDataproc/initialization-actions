@@ -23,10 +23,8 @@ import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * An implementation of GoogleCloudStorage that allows injection of lag to list operations
- */
-public class LaggedGoogleCloudStorage implements GoogleCloudStorage  {
+/** An implementation of GoogleCloudStorage that allows injection of lag to list operations */
+public class LaggedGoogleCloudStorage implements GoogleCloudStorage {
 
   public static interface ListVisibilityCalculator {
     public static final ListVisibilityCalculator IMMEDIATELY_VISIBLE =

@@ -14,8 +14,21 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.api.client.http.HttpStatusCodes.STATUS_CODE_NOT_FOUND;
+import static com.google.api.client.http.HttpStatusCodes.STATUS_CODE_SERVER_ERROR;
+import static com.google.api.client.http.HttpStatusCodes.STATUS_CODE_SERVICE_UNAVAILABLE;
+import static com.google.cloud.hadoop.util.ApiErrorExtractor.GLOBAL_DOMAIN;
+import static com.google.cloud.hadoop.util.ApiErrorExtractor.RATE_LIMITED_REASON;
+import static com.google.cloud.hadoop.util.ApiErrorExtractor.USAGE_LIMITS_DOMAIN;
+import static com.google.common.net.HttpHeaders.CONTENT_ENCODING;
+import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
+import static com.google.common.net.HttpHeaders.CONTENT_RANGE;
+import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.http.HttpStatus.SC_GONE;
+import static org.apache.http.HttpStatus.SC_REQUESTED_RANGE_NOT_SATISFIABLE;
 
+import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponse;
 import com.google.api.client.http.HttpStatusCodes;
@@ -23,6 +36,8 @@ import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.LowLevelHttpRequest;
 import com.google.api.client.http.LowLevelHttpResponse;
 import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.GenericJson;
+import com.google.api.client.json.Json;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.client.testing.http.HttpTesting;
 import com.google.api.client.testing.http.MockHttpTransport;
@@ -37,11 +52,69 @@ import com.google.common.io.CharStreams;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 
 /** Utility class with helper methods for GCS IO tests. */
 public final class GoogleCloudStorageTestUtils {
+
+  public enum ErrorResponses {
+    GONE(SC_GONE, STATUS_CODE_SERVICE_UNAVAILABLE, "backendError", "Backend Error", GLOBAL_DOMAIN),
+    NOT_FOUND(STATUS_CODE_NOT_FOUND, "notFound", "Not Found", GLOBAL_DOMAIN),
+    RANGE_NOT_SATISFIABLE(
+        SC_REQUESTED_RANGE_NOT_SATISFIABLE,
+        "requestedRangeNotSatisfiable",
+        "Request range not satisfiable",
+        GLOBAL_DOMAIN),
+    RATE_LIMITED(429, RATE_LIMITED_REASON, "The total number of changes ...", USAGE_LIMITS_DOMAIN),
+    SERVER_ERROR(STATUS_CODE_SERVER_ERROR, "backendError", "Backend Error", GLOBAL_DOMAIN);
+
+    private final int responseCode;
+    private final int errorCode;
+    private final String errorReason;
+    private final String errorMessage;
+    private final String errorDomain;
+
+    ErrorResponses(int statusCode, String errorReason, String errorMessage, String errorDomain) {
+      this(statusCode, statusCode, errorReason, errorMessage, errorDomain);
+    }
+
+    ErrorResponses(
+        int responseCode,
+        int errorCode,
+        String errorReason,
+        String errorMessage,
+        String errorDomain) {
+      this.responseCode = responseCode;
+      this.errorCode = errorCode;
+      this.errorReason = errorReason;
+      this.errorMessage = errorMessage;
+      this.errorDomain = errorDomain;
+    }
+
+    public int getResponseCode() {
+      return responseCode;
+    }
+
+    public int getErrorCode() {
+      return errorCode;
+    }
+
+    public String getErrorReason() {
+      return errorReason;
+    }
+
+    public String getErrorMessage() {
+      return errorMessage;
+    }
+
+    public String getErrorDomain() {
+      return errorDomain;
+    }
+  }
+
+  private static final int UNKNOWN_CONTENT_LENGTH = -1;
 
   public static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
   public static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
@@ -101,6 +174,7 @@ public final class GoogleCloudStorageTestUtils {
         return new MockLowLevelHttpRequest() {
           @Override
           public LowLevelHttpResponse execute() {
+            assertThat(responsesIndex).isLessThan(responses.length);
             return responses[responsesIndex++];
           }
         };
@@ -130,6 +204,7 @@ public final class GoogleCloudStorageTestUtils {
 
             for (int i = 0; i < requestsPerBatch; i++) {
               try {
+                assertThat(responsesIndex).isLessThan(responses.length);
                 LowLevelHttpResponse resp = responses[responsesIndex++];
                 batchResponse
                     .append(String.format("\n--%s\n", boundary))
@@ -161,7 +236,7 @@ public final class GoogleCloudStorageTestUtils {
       byte[] content, long rangeStart, long totalSize) {
     long rangeEnd = rangeStart + content.length - 1;
     return dataResponse(content)
-        .addHeader("Content-Range", rangeStart + "-" + rangeEnd + "/" + totalSize);
+        .addHeader(CONTENT_RANGE, rangeStart + "-" + rangeEnd + "/" + totalSize);
   }
 
   public static MockLowLevelHttpResponse jsonDataResponse(Object object) throws IOException {
@@ -169,9 +244,35 @@ public final class GoogleCloudStorageTestUtils {
   }
 
   public static MockLowLevelHttpResponse dataResponse(byte[] content) {
-    return new MockLowLevelHttpResponse()
-        .addHeader("Content-Length", String.valueOf(content.length))
+    return dataResponse(ImmutableMap.of(CONTENT_LENGTH, String.valueOf(content.length)), content);
+  }
+
+  public static MockLowLevelHttpResponse dataResponse(Map<String, Object> headers, byte[] content) {
+    return setHeaders(new MockLowLevelHttpResponse(), headers, (long) content.length)
         .setContent(content);
+  }
+
+  public static MockLowLevelHttpResponse jsonErrorResponse(ErrorResponses errorResponse)
+      throws IOException {
+    GoogleJsonError.ErrorInfo errorInfo = new GoogleJsonError.ErrorInfo();
+    errorInfo.setReason(errorResponse.getErrorReason());
+    errorInfo.setDomain(errorResponse.getErrorDomain());
+    errorInfo.setFactory(JSON_FACTORY);
+
+    GoogleJsonError jsonError = new GoogleJsonError();
+    jsonError.setCode(errorResponse.getErrorCode());
+    jsonError.setErrors(Collections.singletonList(errorInfo));
+    jsonError.setMessage(errorResponse.getErrorMessage());
+    jsonError.setFactory(JSON_FACTORY);
+
+    GenericJson errorResponseJson = new GenericJson();
+    errorResponseJson.set("error", jsonError);
+    errorResponseJson.setFactory(JSON_FACTORY);
+
+    return new MockLowLevelHttpResponse()
+        .setContent(errorResponseJson.toPrettyString())
+        .setContentType(Json.MEDIA_TYPE)
+        .setStatusCode(errorResponse.getResponseCode());
   }
 
   public static MockLowLevelHttpResponse resumableUploadResponse(String bucket, String object) {
@@ -179,5 +280,26 @@ public final class GoogleCloudStorageTestUtils {
     return new MockLowLevelHttpResponse()
         .addHeader(
             "location", String.format(RESUMABLE_UPLOAD_LOCATION_FORMAT, bucket, object, uploadId));
+  }
+
+  public static MockLowLevelHttpResponse inputStreamResponse(
+      String header, Object headerValue, InputStream content) {
+    return inputStreamResponse(ImmutableMap.of(header, headerValue), content);
+  }
+
+  public static MockLowLevelHttpResponse inputStreamResponse(
+      Map<String, Object> headers, InputStream content) {
+    return setHeaders(new MockLowLevelHttpResponse(), headers, UNKNOWN_CONTENT_LENGTH)
+        .setContent(content);
+  }
+
+  private static MockLowLevelHttpResponse setHeaders(
+      MockLowLevelHttpResponse response, Map<String, Object> headers, long defaultContentLength) {
+    Object contentLength = headers.getOrDefault(CONTENT_LENGTH, defaultContentLength);
+    Object contentEncoding = headers.get(CONTENT_ENCODING);
+    headers.forEach((h, hv) -> response.addHeader(h, String.valueOf(hv)));
+    return response
+        .setContentLength(Long.parseLong(String.valueOf(contentLength)))
+        .setContentEncoding(contentEncoding == null ? null : String.valueOf(contentEncoding));
   }
 }

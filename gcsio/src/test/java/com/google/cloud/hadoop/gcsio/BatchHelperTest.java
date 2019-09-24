@@ -16,6 +16,7 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTest.newStorageObject;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.BUCKET_NAME;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.HTTP_TRANSPORT;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.JSON_FACTORY;
@@ -30,13 +31,9 @@ import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.testing.http.MockHttpTransport;
-import com.google.api.client.util.DateTime;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.StorageObject;
 import java.io.IOException;
-import java.math.BigInteger;
-import java.util.Date;
-import java.util.concurrent.ThreadLocalRandom;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -113,8 +110,8 @@ public class BatchHelperTest {
     // 1. Prepare test data
     String objectName1 = OBJECT_NAME + "-01";
     String objectName2 = OBJECT_NAME + "-02";
-    StorageObject object1 = newStorageObject(objectName1);
-    StorageObject object2 = newStorageObject(objectName2);
+    StorageObject object1 = newStorageObject(BUCKET_NAME, objectName1);
+    StorageObject object2 = newStorageObject(BUCKET_NAME, objectName2);
 
     // 2. Configure mock HTTP transport with test request responses
     MockHttpTransport transport =
@@ -162,8 +159,8 @@ public class BatchHelperTest {
     // 1. Prepare test data
     String objectName1 = OBJECT_NAME + "-01";
     String objectName2 = OBJECT_NAME + "-02";
-    StorageObject object1 = newStorageObject(objectName1);
-    StorageObject object2 = newStorageObject(objectName2);
+    StorageObject object1 = newStorageObject(BUCKET_NAME, objectName1);
+    StorageObject object2 = newStorageObject(BUCKET_NAME, objectName2);
 
     // 2. Configure mock HTTP transport with test request responses
     MockHttpTransport transport =
@@ -206,7 +203,7 @@ public class BatchHelperTest {
   @Test
   public void queue_throwsException_afterFlushMethodWasCalled() throws IOException {
     String objectName1 = OBJECT_NAME + "-01";
-    StorageObject object1 = newStorageObject(objectName1);
+    StorageObject object1 = newStorageObject(BUCKET_NAME, objectName1);
 
     MockHttpTransport transport =
         GoogleCloudStorageTestUtils.mockBatchTransport(
@@ -237,16 +234,6 @@ public class BatchHelperTest {
         batchFactory.newBatchHelper(httpRequestInitializer, storage, /* maxRequestsPerBatch= */ 2);
 
     assertThat(batchHelper.isEmpty()).isTrue();
-  }
-
-  private StorageObject newStorageObject(String objectName) {
-    return new StorageObject()
-        .setBucket(BUCKET_NAME)
-        .setName(objectName)
-        .setSize(new BigInteger(String.valueOf(Math.abs(ThreadLocalRandom.current().nextLong()))))
-        .setGeneration(Math.abs(ThreadLocalRandom.current().nextLong()))
-        .setMetageneration(Math.abs(ThreadLocalRandom.current().nextLong()))
-        .setUpdated(new DateTime(new Date()));
   }
 
   private JsonBatchCallback<StorageObject> assertCallback(StorageObject expectedObject) {
