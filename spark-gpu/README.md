@@ -76,27 +76,27 @@ training with RAPIDS Spark GPU APIs. Additional examples
 
 To submit such a job run:
     ```bash
-        export STORAGE_BUCKET=dongm-gcp-shared
-        export MAIN_CLASS=ai.rapids.spark.examples.mortgage.GPUMain
-        export RAPIDS_JARS=gs://$STORAGE_BUCKET/sparkGPU_init/sample_xgboost_apps-0.1.4-jar-with-dependencies.jar
-        export DATA_PATH=hdfs:///tmp/xgboost4j_spark/mortgage/csv
-        export TREE_METHOD=gpu_hist
-        export SPARK_NUM_EXECUTORS=4
+    export STORAGE_BUCKET=dongm-gcp-shared
+    export MAIN_CLASS=ai.rapids.spark.examples.mortgage.GPUMain
+    export RAPIDS_JARS=gs://$STORAGE_BUCKET/sparkGPU_init/sample_xgboost_apps-0.1.4-jar-with-dependencies.jar
+    export DATA_PATH=hdfs:///tmp/xgboost4j_spark/mortgage/csv
+    export TREE_METHOD=gpu_hist
+    export SPARK_NUM_EXECUTORS=4
 
-        gcloud beta dataproc jobs submit spark \
-          --cluster=$CLUSTER_NAME \
-          --region=$REGION \
-          --class=$MAIN_CLASS \
-          --jars=$RAPIDS_JARS \
-          --properties=spark.executor.cores=1,spark.executor.instances=${SPARK_NUM_EXECUTORS},spark.executor.memory=8G,spark.executorEnv.LD_LIBRARY_PATH=/usr/local/lib/x86_64-linux-gnu:/usr/local/cuda-10.0/lib64:${LD_LIBRARY_PATH} \
-          -- \
-          -format=csv \
-          -numRound=100 \
-          -numWorkers=${SPARK_NUM_EXECUTORS} \
-          -treeMethod=${TREE_METHOD} \
-          -trainDataPath=${DATA_PATH}/train/mortgage_train_merged.csv \
-           -evalDataPath=${DATA_PATH}/test/mortgage_eval_merged.csv \
-           -maxDepth=8 
+    gcloud beta dataproc jobs submit spark \
+      --cluster=$CLUSTER_NAME \
+      --region=$REGION \
+      --class=$MAIN_CLASS \
+      --jars=$RAPIDS_JARS \
+      --properties=spark.executor.cores=1,spark.executor.instances=${SPARK_NUM_EXECUTORS},spark.executor.memory=8G,spark.executorEnv.LD_LIBRARY_PATH=/usr/local/lib/x86_64-linux-gnu:/usr/local/cuda-10.0/lib64:${LD_LIBRARY_PATH} \
+      -- \
+      -format=csv \
+      -numRound=100 \
+      -numWorkers=${SPARK_NUM_EXECUTORS} \
+      -treeMethod=${TREE_METHOD} \
+      -trainDataPath=${DATA_PATH}/train/mortgage_train_merged.csv \
+       -evalDataPath=${DATA_PATH}/test/mortgage_eval_merged.csv \
+       -maxDepth=8 
     ```
 
 
