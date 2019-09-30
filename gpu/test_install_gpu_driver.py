@@ -27,12 +27,41 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
     @parameterized.expand(
         [
-            ("STANDARD", "1.3", ["m"], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
+            ("STANDARD", "1.2", ["m", "w-0"
+                                 ], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
+            ("STANDARD", "1.3", ["m", "w-0"
+                                 ], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
+            ("STANDARD", "1.4", ["m", "w-0"
+                                 ], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_install_gpu(self, configuration, dataproc_version,
                          machine_suffixes, master_accelerator,
                          worker_accelerator):
+        init_actions = self.INIT_ACTIONS
+        self.createCluster(configuration,
+                           init_actions,
+                           dataproc_version,
+                           beta=True,
+                           master_accelerator=master_accelerator,
+                           worker_accelerator=worker_accelerator)
+        for machine_suffix in machine_suffixes:
+            self.verify_instance("{}-{}".format(self.getClusterName(),
+                                                machine_suffix))
+
+    @parameterized.expand(
+        [
+            ("STANDARD", "1.2", ["m", "w-0"
+                                 ], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
+            ("STANDARD", "1.3", ["m", "w-0"
+                                 ], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
+            ("STANDARD", "1.4", ["m", "w-0"
+                                 ], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
+        ],
+        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    def test_install_gpu_no_agent(self, configuration, dataproc_version,
+                                  machine_suffixes, master_accelerator,
+                                  worker_accelerator):
         init_actions = self.INIT_ACTIONS
         self.createCluster(configuration,
                            init_actions,
@@ -47,8 +76,12 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
     @parameterized.expand(
         [
-            ("STANDARD", "1.2", ["m"], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
-            ("STANDARD", "1.3", ["m"], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
+            ("STANDARD", "1.2", ["m", "w-0"
+                                 ], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
+            ("STANDARD", "1.3", ["m", "w-0"
+                                 ], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
+            ("STANDARD", "1.4", ["m", "w-0"
+                                 ], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_install_gpu_agent(self, configuration, dataproc_version,
@@ -66,6 +99,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
             metadata='install_gpu_agent=true',
             scopes='https://www.googleapis.com/auth/monitoring.write')
         for machine_suffix in machine_suffixes:
+            self.verify_instance("{}-{}".format(self.getClusterName(),
+                                                machine_suffix))
             self.verify_instance_gpu_agent("{}-{}".format(
                 self.getClusterName(), machine_suffix))
 
