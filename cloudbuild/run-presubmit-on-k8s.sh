@@ -5,7 +5,7 @@ set -euxo pipefail
 readonly IMAGE=$1
 readonly BUILD_ID=$2
 
-readonly POD_NAME=presubmit-${BUILD_ID}
+readonly POD_NAME=presubmit-${BUILD_ID/_/-}
 
 gcloud container clusters get-credentials "${CLOUDSDK_CONTAINER_CLUSTER}"
 
