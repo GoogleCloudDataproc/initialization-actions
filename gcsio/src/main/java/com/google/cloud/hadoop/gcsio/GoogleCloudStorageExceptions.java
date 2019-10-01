@@ -53,6 +53,12 @@ public final class GoogleCloudStorageExceptions {
     return fileNotFoundException;
   }
 
+  public static FileNotFoundException createFileNotFoundException(
+      StorageResourceId resourceId, @Nullable IOException cause) {
+    return createFileNotFoundException(
+        resourceId.getBucketName(), resourceId.getObjectName(), cause);
+  }
+
   /**
    * Creates a composite IOException out of multiple IOExceptions. If there is only a single {@code
    * innerException}, it will be returned as-is without wrapping into an outer exception.

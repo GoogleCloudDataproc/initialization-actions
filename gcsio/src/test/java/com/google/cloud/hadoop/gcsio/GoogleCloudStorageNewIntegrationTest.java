@@ -635,7 +635,7 @@ public class GoogleCloudStorageNewIntegrationTest {
     IOException e = assertThrows(IOException.class, () -> gcs.open(testFile, readOptions));
     assertThat(e)
         .hasMessageThat()
-        .isEqualTo("Can't read GZIP encoded files - content encoding support is disabled.");
+        .isEqualTo("Cannot read GZIP encoded files - content encoding support is disabled.");
 
     assertThat(gcsRequestsTracker.getAllRequestStrings())
         .containsExactly(getRequestString(testBucket, testFile.getObjectName()));

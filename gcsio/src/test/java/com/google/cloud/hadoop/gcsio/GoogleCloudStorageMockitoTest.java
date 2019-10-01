@@ -678,7 +678,6 @@ public class GoogleCloudStorageMockitoTest {
     verify(mockHeaders).setRange(eq("bytes=3-"));
     verify(mockStorageObjectsGet).execute();
     verify(mockStorageObjectsGet, times(2)).executeMedia();
-    verify(mockStorageObjectsGet, times(2)).setGeneration(eq(null));
     verify(mockExceptionStream, times(2)).read(any(byte[].class), eq(0), anyInt());
   }
 }

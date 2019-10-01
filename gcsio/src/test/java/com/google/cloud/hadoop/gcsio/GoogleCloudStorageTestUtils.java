@@ -139,6 +139,16 @@ public final class GoogleCloudStorageTestUtils {
         storage, BUCKET_NAME, OBJECT_NAME, ERROR_EXTRACTOR, REQUEST_HELPER, options);
   }
 
+  public static GoogleCloudStorageReadChannel createReadChannel(
+      Storage storage, GoogleCloudStorageReadOptions options, long generation) throws IOException {
+    return new GoogleCloudStorageReadChannel(
+        storage,
+        new StorageResourceId(BUCKET_NAME, OBJECT_NAME, generation),
+        ERROR_EXTRACTOR,
+        REQUEST_HELPER,
+        options);
+  }
+
   public static HttpResponse fakeResponse(String header, Object headerValue, InputStream content)
       throws IOException {
     return fakeResponse(ImmutableMap.of(header, headerValue), content);

@@ -34,10 +34,13 @@ public abstract class GoogleCloudStorageReadOptions {
     SEQUENTIAL
   }
 
-  /** Options of read consistency on generations. */
+  /** Specifies how the read channel enforces which version of a file to return */
   public enum GenerationReadConsistency {
+    /** Grab the latest version, ignoring other read options */
     LATEST,
+    /** Grab the requested generation of file, but fall back to latest if not found */
     BEST_EFFORT,
+    /** Always use the generation requested, and fail if that exact generation does not exist */
     STRICT
   }
 

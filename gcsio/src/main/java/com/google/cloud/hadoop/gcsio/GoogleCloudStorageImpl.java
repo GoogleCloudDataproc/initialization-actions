@@ -608,12 +608,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     }
 
     return new GoogleCloudStorageReadChannel(
-        gcs,
-        resourceId.getBucketName(),
-        resourceId.getObjectName(),
-        errorExtractor,
-        clientRequestHelper,
-        readOptions) {
+        gcs, resourceId, errorExtractor, clientRequestHelper, readOptions) {
 
       @Override
       @Nullable

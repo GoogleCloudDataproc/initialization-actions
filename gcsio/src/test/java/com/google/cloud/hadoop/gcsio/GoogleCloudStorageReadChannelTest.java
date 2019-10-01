@@ -23,6 +23,7 @@ import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.createRe
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.dataRangeResponse;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.dataResponse;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.jsonDataResponse;
+import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.jsonErrorResponse;
 import static com.google.common.truth.Truth.assertThat;
 import static java.util.stream.Collectors.toList;
 import static org.junit.Assert.assertThrows;
@@ -33,6 +34,8 @@ import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.ErrorResponses;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
@@ -277,14 +280,13 @@ public class GoogleCloudStorageReadChannelTest {
 
     GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options);
 
-    IOException e =
+    IllegalStateException e =
         assertThrows(
-            IOException.class,
+            IllegalStateException.class,
             () ->
-                readChannel.initMetadata(
-                    "gzip", /* sizeFromMetadata= */ 1, /* generation= */ null));
+                readChannel.initMetadata("gzip", /* sizeFromMetadata= */ 1, /* generation= */ -1));
 
-    assertThat(e).hasMessageThat().contains("Generation Read Consistency is");
+    assertThat(e).hasMessageThat().contains("Generation parameter of -1 is invalid");
   }
 
   @Test
@@ -299,7 +301,7 @@ public class GoogleCloudStorageReadChannelTest {
 
     GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options);
 
-    readChannel.initMetadata("gzip", /* sizeFromMetadata= */ 1, /* generation= */ "1234");
+    readChannel.initMetadata("gzip", /* sizeFromMetadata= */ 1, /* generation= */ 1234L);
   }
 
   @Test
@@ -319,12 +321,13 @@ public class GoogleCloudStorageReadChannelTest {
             .build();
 
     GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options);
-
-    assertThat(readChannel.getGeneration()).isNull();
+    // initialize metadata
+    readChannel.size();
+    assertThat(readChannel.generation()).isEqualTo(StorageResourceId.UNKNOWN_GENERATION_ID);
   }
 
   @Test
-  public void initGeneration_succeeds_whenReadConsistencyLatest() throws IOException {
+  public void lazyInitGeneration_succeeds_whenReadConsistencyStrict() throws IOException {
     MockHttpTransport transport =
         GoogleCloudStorageTestUtils.mockTransport(
             jsonDataResponse(newStorageObject(BUCKET_NAME, OBJECT_NAME).setGeneration(5L)));
@@ -340,8 +343,193 @@ public class GoogleCloudStorageReadChannelTest {
             .build();
 
     GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options);
+    // initialize metadata
+    readChannel.size();
+    assertThat(readChannel.generation()).isEqualTo(5L);
+  }
 
-    assertThat(readChannel.getGeneration()).isEqualTo(5L);
+  @Test
+  public void lazyReadFileAtSpecificGeneration_succeeds_whenReadConsistencyLatest()
+      throws IOException {
+    long generation = 5L;
+    MockHttpTransport transport =
+        GoogleCloudStorageTestUtils.mockTransport(
+            jsonDataResponse(newStorageObject(BUCKET_NAME, OBJECT_NAME)));
+
+    List<HttpRequest> requests = new ArrayList<>();
+
+    Storage storage = new Storage(transport, JSON_FACTORY, requests::add);
+
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setFastFailOnNotFound(false)
+            .setGenerationReadConsistency(GenerationReadConsistency.LATEST)
+            .build();
+
+    GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options, generation);
+    readChannel.size();
+    assertThat(readChannel.generation()).isEqualTo(StorageResourceId.UNKNOWN_GENERATION_ID);
+  }
+
+  @Test
+  public void lazyReadFileAtSpecificGeneration_succeeds_whenReadConsistencyBestEffort()
+      throws IOException {
+    long requestedGeneration = 5L;
+    long actualGeneration = 8L;
+    MockHttpTransport transport =
+        GoogleCloudStorageTestUtils.mockTransport(
+            jsonDataResponse(
+                newStorageObject(BUCKET_NAME, OBJECT_NAME).setGeneration(actualGeneration)));
+
+    List<HttpRequest> requests = new ArrayList<>();
+
+    Storage storage = new Storage(transport, JSON_FACTORY, requests::add);
+
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setFastFailOnNotFound(false)
+            .setGenerationReadConsistency(GenerationReadConsistency.BEST_EFFORT)
+            .build();
+
+    GoogleCloudStorageReadChannel readChannel =
+        createReadChannel(storage, options, requestedGeneration);
+    // initialize metadata
+    readChannel.size();
+    assertThat(readChannel.generation()).isEqualTo(actualGeneration);
+  }
+
+  @Test
+  public void eagerReadFileAtSpecificGeneration_succeeds_whenReadConsistencyBestEffort()
+      throws IOException {
+    long requestedGeneration = 5L;
+    long actualGeneration = 8L;
+    MockHttpTransport transport =
+        GoogleCloudStorageTestUtils.mockTransport(
+            jsonDataResponse(
+                newStorageObject(BUCKET_NAME, OBJECT_NAME).setGeneration(actualGeneration)));
+
+    List<HttpRequest> requests = new ArrayList<>();
+
+    Storage storage = new Storage(transport, JSON_FACTORY, requests::add);
+
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setFastFailOnNotFound(true)
+            .setGenerationReadConsistency(GenerationReadConsistency.BEST_EFFORT)
+            .build();
+
+    GoogleCloudStorageReadChannel readChannel =
+        createReadChannel(storage, options, requestedGeneration);
+    assertThat(readChannel.generation()).isEqualTo(actualGeneration);
+  }
+
+  @Test
+  public void lazyReadFileAtSpecificGeneration_succeeds_whenReadConsistencyStrict()
+      throws IOException {
+    long generation = 5L;
+    MockHttpTransport transport =
+        GoogleCloudStorageTestUtils.mockTransport(
+            jsonDataResponse(newStorageObject(BUCKET_NAME, OBJECT_NAME).setGeneration(generation)));
+
+    List<HttpRequest> requests = new ArrayList<>();
+
+    Storage storage = new Storage(transport, JSON_FACTORY, requests::add);
+
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setFastFailOnNotFound(false)
+            .setGenerationReadConsistency(GenerationReadConsistency.STRICT)
+            .build();
+
+    GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options, generation);
+    // initialize metadata
+    readChannel.size();
+    assertThat(readChannel.generation()).isEqualTo(generation);
+  }
+
+  @Test
+  public void eagerReadFileAtSpecificGeneration_succeeds_whenReadConsistencyStrict()
+      throws IOException {
+    long generation = 5L;
+    MockHttpTransport transport =
+        GoogleCloudStorageTestUtils.mockTransport(
+            jsonDataResponse(newStorageObject(BUCKET_NAME, OBJECT_NAME).setGeneration(generation)));
+
+    List<HttpRequest> requests = new ArrayList<>();
+
+    Storage storage = new Storage(transport, JSON_FACTORY, requests::add);
+
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setFastFailOnNotFound(true)
+            .setGenerationReadConsistency(GenerationReadConsistency.STRICT)
+            .build();
+
+    GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options, generation);
+    assertThat(readChannel.generation()).isEqualTo(generation);
+  }
+
+  @Test
+  public void lazyReadFileAtSpecificGeneration_fails_whenReadConsistencyStrict()
+      throws IOException {
+    long generation = 5L;
+    MockHttpTransport transport =
+        GoogleCloudStorageTestUtils.mockTransport(jsonErrorResponse(ErrorResponses.NOT_FOUND));
+
+    List<HttpRequest> requests = new ArrayList<>();
+
+    Storage storage = new Storage(transport, JSON_FACTORY, requests::add);
+
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setFastFailOnNotFound(false)
+            .setGenerationReadConsistency(GenerationReadConsistency.STRICT)
+            .build();
+    GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options, generation);
+    assertThrows(FileNotFoundException.class, () -> readChannel.size());
+  }
+
+  @Test
+  public void eagerReadFileAtSpecificGeneration_fails_whenReadConsistencyStrict()
+      throws IOException {
+    long generation = 5L;
+    MockHttpTransport transport =
+        GoogleCloudStorageTestUtils.mockTransport(jsonErrorResponse(ErrorResponses.NOT_FOUND));
+
+    List<HttpRequest> requests = new ArrayList<>();
+
+    Storage storage = new Storage(transport, JSON_FACTORY, requests::add);
+
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setFastFailOnNotFound(true)
+            .setGenerationReadConsistency(GenerationReadConsistency.STRICT)
+            .build();
+    assertThrows(
+        FileNotFoundException.class, () -> createReadChannel(storage, options, generation));
+  }
+
+  @Test
+  public void afterRetry_subsequentReads_succeed() throws IOException {
+    long generation = 5L;
+    MockHttpTransport transport =
+        GoogleCloudStorageTestUtils.mockTransport(
+            jsonErrorResponse(ErrorResponses.NOT_FOUND),
+            jsonDataResponse(newStorageObject(BUCKET_NAME, OBJECT_NAME).setGeneration(generation)));
+
+    List<HttpRequest> requests = new ArrayList<>();
+
+    Storage storage = new Storage(transport, JSON_FACTORY, requests::add);
+
+    GoogleCloudStorageReadOptions options =
+        GoogleCloudStorageReadOptions.builder()
+            .setFastFailOnNotFound(false)
+            .setGenerationReadConsistency(GenerationReadConsistency.BEST_EFFORT)
+            .build();
+    GoogleCloudStorageReadChannel readChannel = createReadChannel(storage, options, generation);
+    assertThrows(FileNotFoundException.class, () -> readChannel.size());
+    assertThat(readChannel.size()).isNotEqualTo(0);
+    assertThat(readChannel.generation()).isEqualTo(generation);
   }
 
   @Test
@@ -397,7 +585,7 @@ public class GoogleCloudStorageReadChannelTest {
     IOException e = assertThrows(IOException.class, () -> createReadChannel(storage, readOptions));
     assertThat(e)
         .hasMessageThat()
-        .isEqualTo("Can't read GZIP encoded files - content encoding support is disabled.");
+        .isEqualTo("Cannot read GZIP encoded files - content encoding support is disabled.");
   }
 
   private static GoogleCloudStorageReadOptions.Builder newLazyReadOptionsBuilder() {
