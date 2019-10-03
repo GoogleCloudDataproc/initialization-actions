@@ -1,3 +1,7 @@
+---
+# NOTE: *this initialization action is deprecated because it can lead to an issue when nodes do not join cluster.*
+---
+
 # Google Cloud Storage and BigQuery connectors
 
 This initialization action installs specified versions of
