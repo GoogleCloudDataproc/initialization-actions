@@ -1,171 +1,217 @@
+// Copyright 2019 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 syntax = "proto3";
 
 package google.storage.v1;
 
-import "google/api/annotations.proto";
 import "google/iam/v1/iam_policy.proto";
 import "google/iam/v1/policy.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/wrappers.proto";
 import "google/storage/v1/storage_resources.proto";
+import "google/api/client.proto";
 
+option go_package = "google.golang.org/genproto/googleapis/storage/v1;storage";
 option java_multiple_files = true;
-option java_outer_classname = "CloudStorageProto";
 option java_package = "com.google.google.storage.v1";
 
-// TODO(b/135277729): Figure out the best way to keep this file (and
-// storage_resources.proto) in sync with the official versions.
+// Manages Google Cloud Storage resources.
+service Storage {
+  option (google.api.default_host) = "storage.googleapis.com";
+  option (google.api.oauth_scopes) =
+      "https://www.googleapis.com/auth/cloud-platform,"
+      "https://www.googleapis.com/auth/cloud-platform.read-only,"
+      "https://www.googleapis.com/auth/devstorage.full_control,"
+      "https://www.googleapis.com/auth/devstorage.read_only,"
+      "https://www.googleapis.com/auth/devstorage.read_write";
 
-service StorageBucketAccessControls {
   // Permanently deletes the ACL entry for the specified entity on the specified
   // bucket.
-  rpc Delete(DeleteBucketAccessControlRequest) returns (google.protobuf.Empty) {
+  rpc DeleteBucketAccessControl(DeleteBucketAccessControlRequest) returns (google.protobuf.Empty) {
   }
 
   // Returns the ACL entry for the specified entity on the specified bucket.
-  rpc Get(GetBucketAccessControlRequest) returns (BucketAccessControl) {}
+  rpc GetBucketAccessControl(GetBucketAccessControlRequest) returns (BucketAccessControl) {
+  }
 
   // Creates a new ACL entry on the specified bucket.
-  rpc Insert(InsertBucketAccessControlRequest) returns (BucketAccessControl) {}
+  rpc InsertBucketAccessControl(InsertBucketAccessControlRequest) returns (BucketAccessControl) {
+  }
 
   // Retrieves ACL entries on the specified bucket.
-  rpc List(ListBucketAccessControlsRequest) returns (BucketAccessControls) {}
+  rpc ListBucketAccessControls(ListBucketAccessControlsRequest) returns (ListBucketAccessControlsResponse) {
+  }
 
-  // Patches an ACL entry on the specified bucket.
-  rpc Patch(PatchBucketAccessControlRequest) returns (BucketAccessControl) {}
+  // Updates an ACL entry on the specified bucket. Equivalent to
+  // PatchBucketAccessControl, but all unspecified fields will be
+  // reset to their default values.
+  rpc UpdateBucketAccessControl(UpdateBucketAccessControlRequest) returns (BucketAccessControl) {
+  }
 
   // Updates an ACL entry on the specified bucket.
-  rpc Update(UpdateBucketAccessControlRequest) returns (BucketAccessControl) {}
-}
+  rpc PatchBucketAccessControl(PatchBucketAccessControlRequest) returns (BucketAccessControl) {
+  }
 
-service StorageBuckets {
   // Permanently deletes an empty bucket.
-  rpc Delete(DeleteBucketRequest) returns (google.protobuf.Empty) {}
+  rpc DeleteBucket(DeleteBucketRequest) returns (google.protobuf.Empty) {
+  }
 
   // Returns metadata for the specified bucket.
-  rpc Get(GetBucketRequest) returns (Bucket) {}
-
-  // Returns an IAM policy for the specified bucket.
-  rpc GetIamPolicy(GetBucketIamPolicyRequest) returns (google.iam.v1.Policy) {}
+  rpc GetBucket(GetBucketRequest) returns (Bucket) {
+  }
 
   // Creates a new bucket.
-  rpc Insert(InsertBucketRequest) returns (Bucket) {}
+  rpc InsertBucket(InsertBucketRequest) returns (Bucket) {
+  }
 
   // Retrieves a list of buckets for a given project.
-  rpc List(ListBucketsRequest) returns (Buckets) {}
+  rpc ListBuckets(ListBucketsRequest) returns (ListBucketsResponse) {
+  }
 
   // Locks retention policy on a bucket.
-  rpc LockRetentionPolicy(LockRetentionPolicyRequest) returns (Bucket) {}
+  rpc LockBucketRetentionPolicy(LockRetentionPolicyRequest) returns (Bucket) {
+  }
 
-  // Updates a bucket. Changes to the bucket will be readable immediately after
-  // writing, but configuration changes may take time to propagate. This method
-  // supports patch semantics.
-  rpc Patch(PatchBucketRequest) returns (Bucket) {}
+  // Gets the IAM policy for the specified bucket.
+  rpc GetBucketIamPolicy(google.iam.v1.GetIamPolicyRequest) returns (google.iam.v1.Policy) {
+  }
 
   // Updates an IAM policy for the specified bucket.
-  rpc SetIamPolicy(SetBucketIamPolicyRequest) returns (google.iam.v1.Policy) {}
+  rpc SetBucketIamPolicy(google.iam.v1.SetIamPolicyRequest) returns (google.iam.v1.Policy) {
+  }
 
-  // Tests a set of permissions on the given bucket to see which, if any, are
-  // held by the caller.
-  rpc TestIamPermissions(google.iam.v1.TestIamPermissionsRequest)
-      returns (google.iam.v1.TestIamPermissionsResponse) {}
+  // Tests a set of permissions on the given bucket to see which, if
+  // any, are held by the caller.
+  rpc TestBucketIamPermissions(google.iam.v1.TestIamPermissionsRequest) returns (google.iam.v1.TestIamPermissionsResponse) {
+  }
 
   // Updates a bucket. Changes to the bucket will be readable immediately after
   // writing, but configuration changes may take time to propagate.
-  rpc Update(UpdateBucketRequest) returns (Bucket) {}
-}
+  rpc PatchBucket(PatchBucketRequest) returns (Bucket) {
+  }
 
-service StorageChannels {
-  // Stop watching resources through this channel.
-  rpc Stop(StopChannelRequest) returns (google.protobuf.Empty) {}
-}
+  // Updates a bucket. Equivalent to PatchBucket, but always replaces all
+  // mutatable fields of the bucket with new values, reverting all
+  // unspecified fields to their default values.
+  // Like PatchBucket, Changes to the bucket will be readable immediately after
+  // writing, but configuration changes may take time to propagate.
+  rpc UpdateBucket(UpdateBucketRequest) returns (Bucket) {
+  }
 
-service StorageDefaultObjectAccessControls {
+  // Halts "Object Change Notification" push messagages.
+  // See https://cloud.google.com/storage/docs/object-change-notification
+  // Note: this is not related to the newer "Notifications" resource, which
+  // are stopped using DeleteNotification.
+  rpc StopChannel(StopChannelRequest) returns (google.protobuf.Empty) {
+  }
+
   // Permanently deletes the default object ACL entry for the specified entity
   // on the specified bucket.
-  rpc Delete(DeleteDefaultObjectAccessControlRequest)
-      returns (google.protobuf.Empty) {}
+  rpc DeleteDefaultObjectAccessControl(DeleteDefaultObjectAccessControlRequest) returns (google.protobuf.Empty) {
+  }
 
   // Returns the default object ACL entry for the specified entity on the
   // specified bucket.
-  rpc Get(GetDefaultObjectAccessControlRequest) returns (ObjectAccessControl) {}
+  rpc GetDefaultObjectAccessControl(GetDefaultObjectAccessControlRequest) returns (ObjectAccessControl) {
+  }
 
   // Creates a new default object ACL entry on the specified bucket.
-  rpc Insert(InsertDefaultObjectAccessControlRequest)
-      returns (ObjectAccessControl) {}
+  rpc InsertDefaultObjectAccessControl(InsertDefaultObjectAccessControlRequest) returns (ObjectAccessControl) {
+  }
 
   // Retrieves default object ACL entries on the specified bucket.
-  rpc List(ListDefaultObjectAccessControlsRequest)
-      returns (ObjectAccessControls) {}
-
-  // Patches a default object ACL entry on the specified bucket.
-  rpc Patch(PatchDefaultObjectAccessControlRequest)
-      returns (ObjectAccessControl) {}
+  rpc ListDefaultObjectAccessControls(ListDefaultObjectAccessControlsRequest) returns (ListObjectAccessControlsResponse) {
+  }
 
   // Updates a default object ACL entry on the specified bucket.
-  rpc Update(UpdateDefaultObjectAccessControlRequest)
-      returns (ObjectAccessControl) {}
-}
+  rpc PatchDefaultObjectAccessControl(PatchDefaultObjectAccessControlRequest) returns (ObjectAccessControl) {
+  }
 
-service StorageNotifications {
+  // Updates a default object ACL entry on the specified bucket. Equivalent to
+  // PatchDefaultObjectAccessControl, but modifies all unspecified fields to
+  // their default values.
+  rpc UpdateDefaultObjectAccessControl(UpdateDefaultObjectAccessControlRequest) returns (ObjectAccessControl) {
+  }
+
   // Permanently deletes a notification subscription.
-  rpc Delete(DeleteNotificationRequest) returns (google.protobuf.Empty) {}
+  // Note: Older, "Object Change Notification" push subscriptions should be
+  // deleted using StopChannel instead.
+  rpc DeleteNotification(DeleteNotificationRequest) returns (google.protobuf.Empty) {
+  }
 
   // View a notification configuration.
-  rpc Get(GetNotificationRequest) returns (Notification) {}
+  rpc GetNotification(GetNotificationRequest) returns (Notification) {
+  }
 
   // Creates a notification subscription for a given bucket.
-  rpc Insert(InsertNotificationRequest) returns (Notification) {}
+  // These notifications, when triggered, publish messages to the specified
+  // Cloud Pub/Sub topics.
+  // See https://cloud.google.com/storage/docs/pubsub-notifications.
+  rpc InsertNotification(InsertNotificationRequest) returns (Notification) {
+  }
 
   // Retrieves a list of notification subscriptions for a given bucket.
-  rpc List(ListNotificationsRequest) returns (Notifications) {}
-}
+  rpc ListNotifications(ListNotificationsRequest) returns (ListNotificationsResponse) {
+  }
 
-service StorageObjectAccessControls {
   // Permanently deletes the ACL entry for the specified entity on the specified
   // object.
-  rpc Delete(DeleteObjectAccessControlRequest) returns (google.protobuf.Empty) {
+  rpc DeleteObjectAccessControl(DeleteObjectAccessControlRequest) returns (google.protobuf.Empty) {
   }
 
   // Returns the ACL entry for the specified entity on the specified object.
-  rpc Get(GetObjectAccessControlRequest) returns (ObjectAccessControl) {}
+  rpc GetObjectAccessControl(GetObjectAccessControlRequest) returns (ObjectAccessControl) {
+  }
 
   // Creates a new ACL entry on the specified object.
-  rpc Insert(InsertObjectAccessControlRequest) returns (ObjectAccessControl) {}
+  rpc InsertObjectAccessControl(InsertObjectAccessControlRequest) returns (ObjectAccessControl) {
+  }
 
   // Retrieves ACL entries on the specified object.
-  rpc List(ListObjectAccessControlsRequest) returns (ObjectAccessControls) {}
-
-  // Patches an ACL entry on the specified object.
-  rpc Patch(PatchObjectAccessControlRequest) returns (ObjectAccessControl) {}
+  rpc ListObjectAccessControls(ListObjectAccessControlsRequest) returns (ListObjectAccessControlsResponse) {
+  }
 
   // Updates an ACL entry on the specified object.
-  rpc Update(UpdateObjectAccessControlRequest) returns (ObjectAccessControl) {}
-}
+  rpc UpdateObjectAccessControl(UpdateObjectAccessControlRequest) returns (ObjectAccessControl) {
+  }
 
-service StorageObjects {
   // Concatenates a list of existing objects into a new object in the same
   // bucket.
-  rpc Compose(ComposeObjectRequest) returns (Object) {}
+  rpc ComposeObject(ComposeObjectRequest) returns (Object) {
+  }
 
   // Copies a source object to a destination object. Optionally overrides
   // metadata.
-  rpc Copy(CopyObjectRequest) returns (Object) {}
+  rpc CopyObject(CopyObjectRequest) returns (Object) {
+  }
 
   // Deletes an object and its metadata. Deletions are permanent if versioning
   // is not enabled for the bucket, or if the <code>generation</code> parameter
   // is used.
-  rpc Delete(DeleteObjectRequest) returns (google.protobuf.Empty) {}
+  rpc DeleteObject(DeleteObjectRequest) returns (google.protobuf.Empty) {
+  }
 
   // Retrieves an object's metadata.
-  rpc Get(GetObjectRequest) returns (Object) {}
+  rpc GetObject(GetObjectRequest) returns (Object) {
+  }
 
   // Reads an object's data.
-  rpc GetMedia(GetObjectMediaRequest) returns (stream GetObjectMediaResponse) {}
-
-  // Returns an IAM policy for the specified object.
-  rpc GetIamPolicy(GetObjectIamPolicyRequest) returns (google.iam.v1.Policy) {}
+  rpc GetObjectMedia(GetObjectMediaRequest) returns (stream GetObjectMediaResponse) {
+  }
 
   // Stores a new object and metadata.
   //
@@ -179,13 +225,11 @@ service StorageObjects {
   // For a resumable write, the client should instead call
   // `StartResumableWrite()` and provide that method an `InsertObjectSpec.`
   // They should then attach the returned `upload_id` to the first message of
-  // each following call to `Insert`. Each resumable `Insert` stream other than
-  // the final one must have size that's a multiple of 256 KiB (256 x 1024
-  // bytes). If there is an error or the connection is broken during the
-  // resumable `Insert()`, the client should check the status of the `Insert()`
-  // by calling `QueryWriteStatus()` and continue writing from the returned
-  // `committed_size`. This may be less than the amount of data the client
-  // previously sent.
+  // each following call to `Insert`. If there is an error or the connection is
+  // broken during the resumable `Insert()`, the client should check the status
+  // of the `Insert()` by calling `QueryWriteStatus()` and continue writing from
+  // the returned `committed_size`. This may be less than the amount of data the
+  // client previously sent.
   //
   // The service will not view the object as complete until the client has
   // sent an `Insert` with `finish_write` set to `true`. Sending any
@@ -193,27 +237,23 @@ service StorageObjects {
   // `true` will cause an error. The client **should** check the
   // `Object` it receives to determine how much data the service was
   // able to commit and whether the service views the object as complete.
-  rpc Insert(stream InsertObjectRequest) returns (Object) {}
+  rpc InsertObject(stream InsertObjectRequest) returns (Object) {
+  }
 
   // Retrieves a list of objects matching the criteria.
-  rpc List(ListObjectsRequest) returns (Objects) {}
-
-  // Patches an object's metadata.
-  rpc Patch(PatchObjectRequest) returns (Object) {}
+  rpc ListObjects(ListObjectsRequest) returns (ListObjectsResponse) {
+  }
 
   // Rewrites a source object to a destination object. Optionally overrides
   // metadata.
-  rpc Rewrite(RewriteObjectRequest) returns (RewriteResponse) {}
-
-  // Updates an IAM policy for the specified object.
-  rpc SetIamPolicy(google.iam.v1.SetIamPolicyRequest)
-      returns (google.iam.v1.Policy) {}
+  rpc RewriteObject(RewriteObjectRequest) returns (RewriteResponse) {
+  }
 
   // Starts a resumable write. How long the write operation remains valid, and
   // what happens when the write operation becomes invalid, are
   // service-dependent.
-  rpc StartResumableWrite(StartResumableWriteRequest)
-      returns (StartResumableWriteResponse) {}
+  rpc StartResumableWrite(StartResumableWriteRequest) returns (StartResumableWriteResponse) {
+  }
 
   // Determines the `committed_size` for an object that is being written, which
   // can then be used as the `write_offset` for the next `Write()` call.
@@ -228,27 +268,42 @@ service StorageObjects {
   // evicted. For any sequence of `QueryWriteStatus()` calls for a given
   // object name, the sequence of returned `committed_size` values will be
   // non-decreasing.
-  rpc QueryWriteStatus(QueryWriteStatusRequest)
-      returns (QueryWriteStatusResponse) {}
-
-  // Tests a set of permissions on the given object to see which, if any, are
-  // held by the caller.
-  rpc TestIamPermissions(google.iam.v1.TestIamPermissionsRequest)
-      returns (google.iam.v1.TestIamPermissionsResponse) {}
+  rpc QueryWriteStatus(QueryWriteStatusRequest) returns (QueryWriteStatusResponse) {
+  }
 
   // Updates an object's metadata.
-  rpc Update(UpdateObjectRequest) returns (Object) {}
+  rpc PatchObject(PatchObjectRequest) returns (Object) {
+  }
+
+  // Updates an object's metadata. Equivalent to PatchObject, but always
+  // replaces all mutatable fields of the bucket with new values, reverting all
+  // unspecified fields to their default values.
+  rpc UpdateObject(UpdateObjectRequest) returns (Object) {
+  }
+
+  // Gets the IAM policy for the specified object.
+  rpc GetObjectIamPolicy(google.iam.v1.GetIamPolicyRequest) returns (google.iam.v1.Policy) {
+  }
+
+  // Updates an IAM policy for the specified object.
+  rpc SetObjectIamPolicy(google.iam.v1.SetIamPolicyRequest) returns (google.iam.v1.Policy) {
+  }
+
+  // Tests a set of permissions on the given object to see which, if
+  // any, are held by the caller.
+  rpc TestObjectIamPermissions(google.iam.v1.TestIamPermissionsRequest) returns (google.iam.v1.TestIamPermissionsResponse) {
+  }
 
   // Watch for changes on all objects in a bucket.
-  rpc WatchAll(WatchAllObjectsRequest) returns (Channel) {}
+  rpc WatchAllObjects(WatchAllObjectsRequest) returns (Channel) {
+  }
+
+  // Retrieves the name of a project's Google Cloud Storage service account.
+  rpc GetServiceAccount(GetProjectServiceAccountRequest) returns (ServiceAccount) {
+  }
 }
 
-service StorageProjectsServiceAccount {
-  // Get the email address of this project's Google Cloud Storage service
-  // account.
-  rpc Get(GetProjectServiceAccountRequest) returns (ServiceAccount) {}
-}
-
+// Request message for DeleteBucketAccessControl.
 message DeleteBucketAccessControlRequest {
   // Name of a bucket.
   // Required.
@@ -267,9 +322,11 @@ message DeleteBucketAccessControlRequest {
   // buckets.
   string user_project = 3;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 4;
 }
 
+// Request message for GetBucketAccessControl.
 message GetBucketAccessControlRequest {
   // Name of a bucket.
   // Required.
@@ -288,9 +345,11 @@ message GetBucketAccessControlRequest {
   // buckets.
   string user_project = 3;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 4;
 }
 
+// Request message for InsertBucketAccessControl.
 message InsertBucketAccessControlRequest {
   // Name of a bucket.
   // Required.
@@ -300,11 +359,14 @@ message InsertBucketAccessControlRequest {
   // buckets.
   string user_project = 2;
 
+  // Properties of the new bucket access control being inserted.
   BucketAccessControl bucket_access_control = 3;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 4;
 }
 
+// Request message for ListBucketAccessControl.
 message ListBucketAccessControlsRequest {
   // Name of a bucket.
   // Required.
@@ -314,9 +376,11 @@ message ListBucketAccessControlsRequest {
   // buckets.
   string user_project = 2;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 3;
 }
 
+// Request for PatchBucketAccessControl.
 message PatchBucketAccessControlRequest {
   // Name of a bucket.
   // Required.
@@ -335,15 +399,21 @@ message PatchBucketAccessControlRequest {
   // buckets.
   string user_project = 3;
 
-  // The BucketAccessControl for patching.
+  // The BucketAccessControl for updating.
   BucketAccessControl bucket_access_control = 4;
 
-  // Set of fields to replace or clear from the BucketAccessControl.
+  // List of fields to be updated.
+  //
+  // To specify ALL fields, equivalent to the JSON API's "update" function,
+  // specify a single field with the value `*`.
+  //
   google.protobuf.FieldMask update_mask = 5;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 6;
 }
 
+// Request for UpdateBucketAccessControl.
 message UpdateBucketAccessControlRequest {
   // Name of a bucket.
   // Required.
@@ -365,9 +435,11 @@ message UpdateBucketAccessControlRequest {
   // The BucketAccessControl for updating.
   BucketAccessControl bucket_access_control = 4;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 5;
 }
 
+// Request message for DeleteBucket.
 message DeleteBucketRequest {
   // Name of a bucket.
   // Required.
@@ -384,20 +456,11 @@ message DeleteBucketRequest {
   // buckets.
   string user_project = 4;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 5;
 }
 
-message GetBucketIamPolicyRequest {
-  // The IAM policy request.
-  google.iam.v1.GetIamPolicyRequest iam_policy_request = 1;
-
-  // The project to be billed for this request. Required for Requester Pays
-  // buckets.
-  string user_project = 2;
-
-  CommonRequestParams common_request_params = 3;
-}
-
+// Request message for GetBucket.
 message GetBucketRequest {
   // Name of a bucket.
   // Required.
@@ -418,15 +481,17 @@ message GetBucketRequest {
   // buckets.
   string user_project = 5;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 6;
 }
 
+// Request message for InsertBucket.
 message InsertBucketRequest {
   // Apply a predefined set of access controls to this bucket.
-  CommonEnums.PredefinedAcl predefined_acl = 1;
+  CommonEnums.PredefinedBucketAcl predefined_acl = 1;
 
   // Apply a predefined set of default object access controls to this bucket.
-  CommonEnums.PredefinedDefaultObjectAcl predefined_default_object_acl = 2;
+  CommonEnums.PredefinedObjectAcl predefined_default_object_acl = 2;
 
   // A valid API project identifier.
   // Required.
@@ -440,23 +505,14 @@ message InsertBucketRequest {
   // The project to be billed for this request.
   string user_project = 5;
 
+  // Properties of the new bucket being inserted, including its name.
   Bucket bucket = 6;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 7;
 }
 
-message ListChannelsRequest {
-  // Name of a bucket.
-  // Required.
-  string bucket = 1;
-
-  // The project to be billed for this request.
-  // Required for Requester Pays buckets.
-  string user_project = 2;
-
-  CommonRequestParams common_request_params = 3;
-}
-
+// Request message for ListBuckets.
 message ListBucketsRequest {
   // Maximum number of buckets to return in a single response. The service will
   // use this parameter or 1,000 items, whichever is smaller.
@@ -479,9 +535,11 @@ message ListBucketsRequest {
   // The project to be billed for this request.
   string user_project = 6;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 7;
 }
 
+// Request message for LockRetentionPolicy.
 message LockRetentionPolicyRequest {
   // Name of a bucket.
   // Required.
@@ -495,9 +553,11 @@ message LockRetentionPolicyRequest {
   // Required for Requester Pays buckets.
   string user_project = 3;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 4;
 }
 
+// Request for PatchBucket method.
 message PatchBucketRequest {
   // Name of a bucket.
   // Required.
@@ -512,10 +572,10 @@ message PatchBucketRequest {
   google.protobuf.Int64Value if_metageneration_not_match = 3;
 
   // Apply a predefined set of access controls to this bucket.
-  CommonEnums.PredefinedAcl predefined_acl = 4;
+  CommonEnums.PredefinedBucketAcl predefined_acl = 4;
 
   // Apply a predefined set of default object access controls to this bucket.
-  CommonEnums.PredefinedDefaultObjectAcl predefined_default_object_acl = 5;
+  CommonEnums.PredefinedObjectAcl predefined_default_object_acl = 5;
 
   // Set of properties to return. Defaults to <code>FULL</code>.
   CommonEnums.Projection projection = 6;
@@ -524,46 +584,26 @@ message PatchBucketRequest {
   // Required for Requester Pays buckets.
   string user_project = 7;
 
-  // The Bucket metadata for patching. metadata.name must match `bucket` field.
+  // The Bucket metadata for updating.
   Bucket metadata = 8;
 
-  // Set of fields to replace or clear from the Bucket metadata.
+  // List of fields to be updated.
+  //
+  // To specify ALL fields, equivalent to the JSON API's "update" function,
+  // specify a single field with the value `*`. Note: not recommended. If a new
+  // field is introduced at a later time, an older client updating with the `*`
+  // may accidentally reset the new field's value.
+  //
+  // Not specifying any fields is an error.
+  // Not specifying a field while setting that field to a non-default value is
+  // an error.
   google.protobuf.FieldMask update_mask = 9;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 10;
 }
 
-message SetBucketIamPolicyRequest {
-  // Name of a bucket.
-  // Required.
-  string bucket = 1;
-
-  // The project to be billed for this request.
-  // Required for Requester Pays buckets.
-  string user_project = 2;
-
-  // The IAM policy.
-  google.iam.v1.Policy policy = 3;
-
-  CommonRequestParams common_request_params = 4;
-}
-
-message TestBucketIamPermissionsRequest {
-  // Name of a bucket.
-  // Required.
-  string bucket = 1;
-
-  // Permissions to test.
-  // Required.
-  repeated string permissions = 2;
-
-  // The project to be billed for this request.
-  // Required for Requester Pays buckets.
-  string user_project = 3;
-
-  CommonRequestParams common_request_params = 4;
-}
-
+// Request for UpdateBucket method.
 message UpdateBucketRequest {
   // Name of a bucket.
   // Required.
@@ -578,10 +618,10 @@ message UpdateBucketRequest {
   google.protobuf.Int64Value if_metageneration_not_match = 3;
 
   // Apply a predefined set of access controls to this bucket.
-  CommonEnums.PredefinedAcl predefined_acl = 4;
+  CommonEnums.PredefinedBucketAcl predefined_acl = 4;
 
   // Apply a predefined set of default object access controls to this bucket.
-  CommonEnums.PredefinedDefaultObjectAcl predefined_default_object_acl = 5;
+  CommonEnums.PredefinedObjectAcl predefined_default_object_acl = 5;
 
   // Set of properties to return. Defaults to <code>FULL</code>.
   CommonEnums.Projection projection = 6;
@@ -593,15 +633,20 @@ message UpdateBucketRequest {
   // The Bucket metadata for updating.
   Bucket metadata = 8;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 9;
 }
 
+// Request message for StopChannel.
 message StopChannelRequest {
+  // The channel to be stopped.
   Channel channel = 1;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 2;
 }
 
+// Request message for DeleteDefaultObjectAccessControl.
 message DeleteDefaultObjectAccessControlRequest {
   // Name of a bucket.
   // Required.
@@ -620,9 +665,11 @@ message DeleteDefaultObjectAccessControlRequest {
   // Required for Requester Pays buckets.
   string user_project = 3;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 4;
 }
 
+// Request message for GetDefaultObjectAccessControl.
 message GetDefaultObjectAccessControlRequest {
   // Name of a bucket.
   // Required.
@@ -641,9 +688,11 @@ message GetDefaultObjectAccessControlRequest {
   // Required for Requester Pays buckets.
   string user_project = 3;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 4;
 }
 
+// Request message for InsertDefaultObjectAccessControl.
 message InsertDefaultObjectAccessControlRequest {
   // Name of a bucket.
   // Required.
@@ -653,11 +702,14 @@ message InsertDefaultObjectAccessControlRequest {
   // Required for Requester Pays buckets.
   string user_project = 2;
 
+  // Properties of the object access control being inserted.
   ObjectAccessControl object_access_control = 3;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 4;
 }
 
+// Request message for ListDefaultObjectAccessControls.
 message ListDefaultObjectAccessControlsRequest {
   // Name of a bucket.
   // Required.
@@ -675,9 +727,11 @@ message ListDefaultObjectAccessControlsRequest {
   // Required for Requester Pays buckets.
   string user_project = 4;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 5;
 }
 
+// Request message for PatchDefaultObjectAccessControl.
 message PatchDefaultObjectAccessControlRequest {
   // Name of a bucket.
   // Required.
@@ -696,15 +750,26 @@ message PatchDefaultObjectAccessControlRequest {
   // Required for Requester Pays buckets.
   string user_project = 3;
 
-  // The ObjectAccessControl for patching.
+  // The ObjectAccessControl for updating.
   ObjectAccessControl object_access_control = 4;
 
-  // Set of fields to replace or clear from the ObjectAccessControl.
+  // List of fields to be updated.
+  //
+  // To specify ALL fields, equivalent to the JSON API's "update" function,
+  // specify a single field with the value `*`. Note: not recommended. If a new
+  // field is introduced at a later time, an older client updating with the `*`
+  // may accidentally reset the new field's value.
+  //
+  // Not specifying any fields is an error.
+  // Not specifying a field while setting that field to a non-default value is
+  // an error.
   google.protobuf.FieldMask update_mask = 5;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 6;
 }
 
+// Request message for UpdateDefaultObjectAccessControl.
 message UpdateDefaultObjectAccessControlRequest {
   // Name of a bucket.
   // Required.
@@ -726,9 +791,11 @@ message UpdateDefaultObjectAccessControlRequest {
   // The ObjectAccessControl for updating.
   ObjectAccessControl object_access_control = 4;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 5;
 }
 
+// Request message for DeleteNotification.
 message DeleteNotificationRequest {
   // The parent bucket of the notification.
   // Required.
@@ -742,9 +809,11 @@ message DeleteNotificationRequest {
   // Required for Requester Pays buckets.
   string user_project = 3;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 4;
 }
 
+// Request message for GetNotification.
 message GetNotificationRequest {
   // The parent bucket of the notification.
   // Required.
@@ -758,9 +827,11 @@ message GetNotificationRequest {
   // Required for Requester Pays buckets.
   string user_project = 3;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 4;
 }
 
+// Request message for InsertNotification.
 message InsertNotificationRequest {
   // The parent bucket of the notification.
   // Required.
@@ -770,11 +841,14 @@ message InsertNotificationRequest {
   // Required for Requester Pays buckets.
   string user_project = 2;
 
+  // Properties of the notification to be inserted.
   Notification notification = 3;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 4;
 }
 
+// Request message for ListNotifications.
 message ListNotificationsRequest {
   // Name of a Google Cloud Storage bucket.
   // Required.
@@ -784,9 +858,11 @@ message ListNotificationsRequest {
   // Required for Requester Pays buckets.
   string user_project = 2;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 3;
 }
 
+// Request message for DeleteObjectAccessControl.
 message DeleteObjectAccessControlRequest {
   // Name of a bucket.
   // Required.
@@ -813,9 +889,11 @@ message DeleteObjectAccessControlRequest {
   // Required for Requester Pays buckets.
   string user_project = 5;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 6;
 }
 
+// Request message for GetObjectAccessControl.
 message GetObjectAccessControlRequest {
   // Name of a bucket.
   // Required.
@@ -842,9 +920,11 @@ message GetObjectAccessControlRequest {
   // Required for Requester Pays buckets.
   string user_project = 5;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 6;
 }
 
+// Request message for InsertObjectAccessControl.
 message InsertObjectAccessControlRequest {
   // Name of a bucket.
   // Required.
@@ -862,11 +942,14 @@ message InsertObjectAccessControlRequest {
   // Required for Requester Pays buckets.
   string user_project = 4;
 
+  // Properties of the object access control to be inserted.
   ObjectAccessControl object_access_control = 5;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 6;
 }
 
+// Request message for ListObjectAccessControls.
 message ListObjectAccessControlsRequest {
   // Name of a bucket.
   // Required.
@@ -884,44 +967,11 @@ message ListObjectAccessControlsRequest {
   // Required for Requester Pays buckets.
   string user_project = 4;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 5;
 }
 
-message PatchObjectAccessControlRequest {
-  // Name of a bucket.
-  // Required.
-  string bucket = 1;
-
-  // The entity holding the permission. Can be
-  // <code>user-<var>userId</var></code>,
-  // <code>user-<var>emailAddress</var></code>,
-  // <code>group-<var>groupId</var></code>,
-  // <code>group-<var>emailAddress</var></code>, <code>allUsers</code>, or
-  // <code>allAuthenticatedUsers</code>.
-  // Required.
-  string entity = 2;
-
-  // Name of the object.
-  // Required.
-  string object = 3;
-
-  // If present, selects a specific revision of this object (as opposed to the
-  // latest version, the default).
-  int64 generation = 4;
-
-  // The project to be billed for this request.
-  // Required for Requester Pays buckets.
-  string user_project = 5;
-
-  // The ObjectAccessControl for patching.
-  ObjectAccessControl object_access_control = 6;
-
-  // Set of fields to replace or clear from the ObjectAccessControl.
-  google.protobuf.FieldMask update_mask = 7;
-
-  CommonRequestParams common_request_params = 8;
-}
-
+// Request message for UpdateObjetAccessControl.
 message UpdateObjectAccessControlRequest {
   // Name of a bucket.
   // Required.
@@ -951,11 +1001,27 @@ message UpdateObjectAccessControlRequest {
   // The ObjectAccessControl for updating.
   ObjectAccessControl object_access_control = 6;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 7;
+
+  // List of fields to be updated.
+  //
+  // To specify ALL fields, equivalent to the JSON API's "update" function,
+  // specify a single field with the value `*`. Note: not recommended. If a new
+  // field is introduced at a later time, an older client updating with the `*`
+  // may accidentally reset the new field's value.
+  //
+  // Not specifying any fields is an error.
+  // Not specifying a field while setting that field to a non-default value is
+  // an error.
+  google.protobuf.FieldMask update_mask = 8;
 }
 
+// Request message for ComposeObject.
 message ComposeObjectRequest {
+  // Description of a source object for a composition request.
   message SourceObjects {
+    // Preconditions for a source object of a composition request.
     message ObjectPreconditions {
       // Only perform the composition if the generation of the source object
       // that would be used matches this value.  If this value and a generation
@@ -984,7 +1050,7 @@ message ComposeObjectRequest {
   string destination_object = 2;
 
   // Apply a predefined set of access controls to the destination object.
-  CommonEnums.PredefinedAcl destination_predefined_acl = 3;
+  CommonEnums.PredefinedObjectAcl destination_predefined_acl = 3;
 
   // Properties of the resulting object.
   Object destination = 11;
@@ -1011,11 +1077,14 @@ message ComposeObjectRequest {
   // Required for Requester Pays buckets.
   string user_project = 7;
 
+  // A set of parameters common to Storage API requests concerning an object.
   CommonObjectRequestParams common_object_request_params = 9;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 10;
 }
 
+// Request message for CopyObject.
 message CopyObjectRequest {
   // Name of the bucket in which to store the new object. Overrides the provided
   // object
@@ -1030,7 +1099,7 @@ message CopyObjectRequest {
   string destination_object = 2;
 
   // Apply a predefined set of access controls to the destination object.
-  CommonEnums.PredefinedAcl destination_predefined_acl = 3;
+  CommonEnums.PredefinedObjectAcl destination_predefined_acl = 3;
 
   // Makes the operation conditional on whether the destination object's current
   // generation matches the given value. Setting to 0 makes the operation
@@ -1092,8 +1161,16 @@ message CopyObjectRequest {
   // source object.
   Object destination = 17;
 
+  // Resource name of the Cloud KMS key, of the form
+  // <code>projects/my-project/locations/my-location/keyRings/my-kr/cryptoKeys/my-key</code>,
+  // that will be used to encrypt the object. Overrides the object
+  // metadata's <code>kms_key_name</code> value, if any.
+  string destination_kms_key_name = 20;
+
+  // A set of parameters common to Storage API requests concerning an object.
   CommonObjectRequestParams common_object_request_params = 18;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 19;
 }
 
@@ -1140,33 +1217,14 @@ message DeleteObjectRequest {
   // Required for Requester Pays buckets.
   string user_project = 9;
 
+  // A set of parameters common to Storage API requests concerning an object.
   CommonObjectRequestParams common_object_request_params = 10;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 11;
 }
 
-message GetObjectIamPolicyRequest {
-  // Name of the bucket in which the object resides.
-  // Required.
-  string bucket = 1;
-
-  // Name of the object.
-  // Required.
-  string object = 2;
-
-  // If present, selects a specific revision of this object (as opposed to the
-  // latest version, the default).
-  int64 generation = 3;
-
-  // The project to be billed for this request.
-  // Required for Requester Pays buckets.
-  string user_project = 4;
-
-  CommonObjectRequestParams common_object_request_params = 5;
-
-  CommonRequestParams common_request_params = 6;
-}
-
+// Request message for GetObjectMedia.
 message GetObjectMediaRequest {
   // The name of the bucket containing the object to read.
   string bucket = 1;
@@ -1217,11 +1275,14 @@ message GetObjectMediaRequest {
   // Required for Requester Pays buckets.
   string user_project = 10;
 
+  // A set of parameters common to Storage API requests concerning an object.
   CommonObjectRequestParams common_object_request_params = 11;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 12;
 }
 
+// Request message for GetObject.
 message GetObjectRequest {
   // Name of the bucket in which the object resides.
   // Required.
@@ -1261,11 +1322,14 @@ message GetObjectRequest {
   // Required for Requester Pays buckets.
   string user_project = 9;
 
+  // A set of parameters common to Storage API requests concerning an object.
   CommonObjectRequestParams common_object_request_params = 10;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 11;
 }
 
+// Response message for GetObject.
 message GetObjectMediaResponse {
   // A portion of the data for the object. The service **may** leave `data`
   // empty for any given `ReadResponse`. This enables the service to inform the
@@ -1290,7 +1354,7 @@ message InsertObjectSpec {
   Object resource = 1;
 
   // Apply a predefined set of access controls to this object.
-  CommonEnums.PredefinedAcl predefined_acl = 2;
+  CommonEnums.PredefinedObjectAcl predefined_acl = 2;
 
   // Makes the operation conditional on whether the object's current
   // generation matches the given value. Setting to 0 makes the operation
@@ -1350,12 +1414,6 @@ message InsertObjectRequest {
   // An incorrect value will cause an error.
   int64 write_offset = 3;
 
-  // For each InsertObjectRequest either a data buffer (data) or a reference to
-  // a slice of an existing object (reference) can be used.
-  // The client **may** leave both data and reference empty for any given
-  // request. This enables the client to inform the service that the request is
-  // still live while it is running an operation to generate more data.
-
   // A portion of the data for the object.
   oneof data {
     // The data to insert. If a crc32c checksum is provided that doesn't match
@@ -1391,11 +1449,14 @@ message InsertObjectRequest {
   // stream.
   bool finish_write = 7;
 
+  // A set of parameters common to Storage API requests concerning an object.
   CommonObjectRequestParams common_object_request_params = 8;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 9;
 }
 
+// Request message for ListObjects.
 message ListObjectsRequest {
   // Name of the bucket in which to look for objects.
   // Required.
@@ -1439,59 +1500,8 @@ message ListObjectsRequest {
   // href="/storage/docs/object-versioning">Object Versioning</a>.
   bool versions = 9;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 10;
-}
-
-message PatchObjectRequest {
-  // Name of the bucket in which the object resides.
-  // Required.
-  string bucket = 1;
-
-  // Name of the object.
-  // Required.
-  string object = 2;
-
-  // If present, selects a specific revision of this object (as opposed to the
-  // latest version, the default).
-  int64 generation = 3;
-
-  // Makes the operation conditional on whether the object's current generation
-  // matches the given value. Setting to 0 makes the operation succeed only if
-  // there are no live versions of the object.
-  google.protobuf.Int64Value if_generation_match = 4;
-
-  // Makes the operation conditional on whether the object's current generation
-  // does not match the given value. If no live object exists, the precondition
-  // fails. Setting to 0 makes the operation succeed only if there is a live
-  // version of the object.
-  google.protobuf.Int64Value if_generation_not_match = 5;
-
-  // Makes the operation conditional on whether the object's current
-  // metageneration matches the given value.
-  google.protobuf.Int64Value if_metageneration_match = 6;
-
-  // Makes the operation conditional on whether the object's current
-  // metageneration does not match the given value.
-  google.protobuf.Int64Value if_metageneration_not_match = 7;
-
-  // Apply a predefined set of access controls to this object.
-  CommonEnums.PredefinedAcl predefined_acl = 8;
-
-  // Set of properties to return. Defaults to <code>FULL</code>.
-  CommonEnums.Projection projection = 9;
-
-  // The project to be billed for this request, for Requester Pays buckets.
-  string user_project = 10;
-
-  // The Object metadata for patching.
-  Object metadata = 11;
-
-  // Set of fields to replace or clear from the Object.
-  google.protobuf.FieldMask update_mask = 12;
-
-  CommonObjectRequestParams common_object_request_params = 13;
-
-  CommonRequestParams common_request_params = 14;
 }
 
 // Request object for `ByteStream.QueryWriteStatus`.
@@ -1501,8 +1511,10 @@ message QueryWriteStatusRequest {
   // Required.
   string upload_id = 1;
 
+  // A set of parameters common to Storage API requests concerning an object.
   CommonObjectRequestParams common_object_request_params = 2;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 3;
 }
 
@@ -1516,6 +1528,7 @@ message QueryWriteStatusResponse {
   bool complete = 2;
 }
 
+// Request message for RewriteObject.
 message RewriteObjectRequest {
   // Name of the bucket in which to store the new object. Overrides the provided
   // object metadata's <code>bucket</code> value, if any.
@@ -1535,7 +1548,7 @@ message RewriteObjectRequest {
   string destination_kms_key_name = 3;
 
   // Apply a predefined set of access controls to the destination object.
-  CommonEnums.PredefinedAcl destination_predefined_acl = 4;
+  CommonEnums.PredefinedObjectAcl destination_predefined_acl = 4;
 
   // Makes the operation conditional on whether the object's current generation
   // matches the given value. Setting to 0 makes the operation succeed only if
@@ -1610,16 +1623,22 @@ message RewriteObjectRequest {
   // Required for Requester Pays buckets.
   string user_project = 19;
 
+  // Properties of the destination, post-rewrite object.
   Object object = 20;
 
+  // The algorithm used to encrypt the source object, if any.
   string copy_source_encryption_algorithm = 21;
 
+  // The encryption key used to encrypt the source object, if any.
   string copy_source_encryption_key = 22;
 
+  // The SHA-256 hash of the key used to encrypt the source object, if any.
   string copy_source_encryption_key_sha256 = 23;
 
+  // A set of parameters common to Storage API requests concerning an object.
   CommonObjectRequestParams common_object_request_params = 24;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 25;
 }
 
@@ -1651,8 +1670,10 @@ message StartResumableWriteRequest {
   // The destination bucket, object, and metadata, as well as any preconditions.
   InsertObjectSpec insert_object_spec = 1;
 
+  // A set of parameters common to Storage API requests concerning an object.
   CommonObjectRequestParams common_object_request_params = 3;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 4;
 }
 
@@ -1663,6 +1684,72 @@ message StartResumableWriteResponse {
   string upload_id = 1;
 }
 
+// Request message for PatchObject.
+message PatchObjectRequest {
+  // Name of the bucket in which the object resides.
+  // Required.
+  string bucket = 1;
+
+  // Name of the object.
+  // Required.
+  string object = 2;
+
+  // If present, selects a specific revision of this object (as opposed to the
+  // latest version, the default).
+  int64 generation = 3;
+
+  // Makes the operation conditional on whether the object's current generation
+  // matches the given value. Setting to 0 makes the operation succeed only if
+  // there are no live versions of the object.
+  google.protobuf.Int64Value if_generation_match = 4;
+
+  // Makes the operation conditional on whether the object's current generation
+  // does not match the given value. If no live object exists, the precondition
+  // fails. Setting to 0 makes the operation succeed only if there is a live
+  // version of the object.
+  google.protobuf.Int64Value if_generation_not_match = 5;
+
+  // Makes the operation conditional on whether the object's current
+  // metageneration matches the given value.
+  google.protobuf.Int64Value if_metageneration_match = 6;
+
+  // Makes the operation conditional on whether the object's current
+  // metageneration does not match the given value.
+  google.protobuf.Int64Value if_metageneration_not_match = 7;
+
+  // Apply a predefined set of access controls to this object.
+  CommonEnums.PredefinedObjectAcl predefined_acl = 8;
+
+  // Set of properties to return. Defaults to <code>FULL</code>.
+  CommonEnums.Projection projection = 9;
+
+  // The project to be billed for this request.
+  // Required for Requester Pays buckets.
+  string user_project = 10;
+
+  // The Object metadata for updating.
+  Object metadata = 11;
+
+  // List of fields to be updated.
+  //
+  // To specify ALL fields, equivalent to the JSON API's "update" function,
+  // specify a single field with the value `*`. Note: not recommended. If a new
+  // field is introduced at a later time, an older client updating with the `*`
+  // may accidentally reset the new field's value.
+  //
+  // Not specifying any fields is an error.
+  // Not specifying a field while setting that field to a non-default value is
+  // an error.
+  google.protobuf.FieldMask update_mask = 12;
+
+  // A set of parameters common to Storage API requests concerning an object.
+  CommonObjectRequestParams common_object_request_params = 13;
+
+  // A set of parameters common to all Storage API requests.
+  CommonRequestParams common_request_params = 14;
+}
+
+// Request message for UpdateObject.
 message UpdateObjectRequest {
   // Name of the bucket in which the object resides.
   // Required.
@@ -1696,7 +1783,7 @@ message UpdateObjectRequest {
   google.protobuf.Int64Value if_metageneration_not_match = 7;
 
   // Apply a predefined set of access controls to this object.
-  CommonEnums.PredefinedAcl predefined_acl = 8;
+  CommonEnums.PredefinedObjectAcl predefined_acl = 8;
 
   // Set of properties to return. Defaults to <code>FULL</code>.
   CommonEnums.Projection projection = 9;
@@ -1708,11 +1795,14 @@ message UpdateObjectRequest {
   // The Object metadata for updating.
   Object metadata = 11;
 
+  // A set of parameters common to Storage API requests concerning an object.
   CommonObjectRequestParams common_object_request_params = 12;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 13;
 }
 
+// Request message for WatchAllObjects.
 message WatchAllObjectsRequest {
   // Name of the bucket in which to look for objects.
   string bucket = 1;
@@ -1754,11 +1844,15 @@ message WatchAllObjectsRequest {
   // The project to be billed for this request.
   // Required for Requester Pays buckets.
   string user_project = 9;
+
+  // Properties of the channel to be inserted.
   Channel channel = 10;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 11;
 }
 
+// Request message for GetProjectServiceAccount.
 message GetProjectServiceAccountRequest {
   // Project ID.
   // Required.
@@ -1767,6 +1861,7 @@ message GetProjectServiceAccountRequest {
   // The project to be billed for this request.
   string user_project = 2;
 
+  // A set of parameters common to all Storage API requests.
   CommonRequestParams common_request_params = 3;
 }
 
@@ -1807,37 +1902,46 @@ message CommonRequestParams {
 
 // Shared constants.
 message ServiceConstants {
+  // A collection of constant values meaningful to the Storage API.
   enum Values {
     option allow_alias = true;
 
-    SIZE_UNSPECIFIED = 0;  // Unused. Proto3 requires first enum to be 0.
+    // Unused. Proto3 requires first enum to be 0.
+    SIZE_UNSPECIFIED = 0;
 
     // The maximum size chunk that can will be returned in a single
     // ReadRequest.
-    MAX_READ_CHUNK_BYTES = 2097152;  // 2 MiB.
+    // 2 MiB.
+    MAX_READ_CHUNK_BYTES = 2097152;
 
     // The maximum size chunk that can be sent in a single InsertObjectRequest.
-    MAX_WRITE_CHUNK_BYTES = 2097152;  // 2 MiB.
+    // 2 MiB.
+    MAX_WRITE_CHUNK_BYTES = 2097152;
 
     // The maximum size of an object in MB - whether written in a single stream
     // or composed from multiple other objects.
-    MAX_OBJECT_SIZE_MB = 5242880;  // 5 TiB.
+    // 5 TiB.
+    MAX_OBJECT_SIZE_MB = 5242880;
 
     // The maximum length field name that can be sent in a single
     // custom metadata field.
-    MAX_CUSTOM_METADATA_FIELD_NAME_BYTES = 1024;  // 1 KiB.
+    // 1 KiB.
+    MAX_CUSTOM_METADATA_FIELD_NAME_BYTES = 1024;
 
     // The maximum length field value that can be sent in a single
     // custom_metadata field.
-    MAX_CUSTOM_METADATA_FIELD_VALUE_BYTES = 4096;  // 4 KiB.
+    // 4 KiB.
+    MAX_CUSTOM_METADATA_FIELD_VALUE_BYTES = 4096;
 
     // The maximum total bytes that can be populated into all field names and
     // values of the custom_metadata for one object.
-    MAX_CUSTOM_METADATA_TOTAL_SIZE_BYTES = 8192;  // 8 KiB.
+    // 8 KiB.
+    MAX_CUSTOM_METADATA_TOTAL_SIZE_BYTES = 8192;
 
     // The maximum total bytes that can be populated into all bucket metadata
     // fields.
-    MAX_BUCKET_METADATA_TOTAL_SIZE_BYTES = 20480;  // 20 KiB.
+    // 20 KiB.
+    MAX_BUCKET_METADATA_TOTAL_SIZE_BYTES = 20480;
 
     // The maximum number of NotificationConfigurations that can be registered
     // for a given bucket.
@@ -1877,4 +1981,6 @@ message ServiceConstants {
     // GetListObjectsSplitPoints RPC is valid.
     SPLIT_TOKEN_MAX_VALID_DAYS = 14;
   }
+
+
 }

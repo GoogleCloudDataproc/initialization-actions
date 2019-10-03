@@ -28,7 +28,7 @@ import com.google.google.storage.v1.Object;
 import com.google.google.storage.v1.ObjectChecksums;
 import com.google.google.storage.v1.StartResumableWriteRequest;
 import com.google.google.storage.v1.StartResumableWriteResponse;
-import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsStub;
+import com.google.google.storage.v1.StorageGrpc.StorageStub;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.UInt32Value;
@@ -54,14 +54,14 @@ public final class GoogleCloudStorageGrpcWriteChannel
   private final Object object;
   private final ObjectWriteConditions writeConditions;
   private final Optional<String> requesterPaysProject;
-  private final StorageObjectsStub stub;
+  private final StorageStub stub;
   private final boolean checksumsEnabled;
 
   private GoogleCloudStorageItemInfo completedItemInfo = null;
 
   public GoogleCloudStorageGrpcWriteChannel(
       ExecutorService threadPool,
-      StorageObjectsStub stub,
+      StorageStub stub,
       String bucketName,
       String objectName,
       AsyncWriteChannelOptions options,
@@ -156,7 +156,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
       int writeOffset = 0;
       do {
         responseObserver = new InsertChunkResponseObserver(uploadId, writeOffset, objectHasher);
-        stub.insert(responseObserver);
+        stub.insertObject(responseObserver);
         responseObserver.done.await();
 
         writeOffset += responseObserver.chunkBytesWritten;

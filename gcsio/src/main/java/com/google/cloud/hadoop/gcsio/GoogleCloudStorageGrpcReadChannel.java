@@ -26,7 +26,7 @@ import com.google.google.storage.v1.GetObjectMediaRequest;
 import com.google.google.storage.v1.GetObjectMediaResponse;
 import com.google.google.storage.v1.GetObjectRequest;
 import com.google.google.storage.v1.Object;
-import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsStub;
+import com.google.google.storage.v1.StorageGrpc.StorageStub;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import java.io.EOFException;
@@ -52,7 +52,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
   private static final int DEFAULT_BUFFER_SIZE = 8192;
 
   // GCS gRPC stub.
-  private final StorageObjectsStub stub;
+  private final StorageStub stub;
 
   // Name of the bucket containing the object being read.
   private final String bucketName;
@@ -92,8 +92,8 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
    * @param objectName name of the object to read
    * @throws IOException on IO error
    */
-  public GoogleCloudStorageGrpcReadChannel(
-      StorageObjectsStub stub, String bucketName, String objectName) throws IOException {
+  public GoogleCloudStorageGrpcReadChannel(StorageStub stub, String bucketName, String objectName)
+      throws IOException {
     this(stub, bucketName, objectName, GoogleCloudStorageReadOptions.DEFAULT);
   }
 
@@ -108,7 +108,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
    * @throws IOException on IO error
    */
   public GoogleCloudStorageGrpcReadChannel(
-      StorageObjectsStub stub,
+      StorageStub stub,
       String bucketName,
       String objectName,
       @Nonnull GoogleCloudStorageReadOptions readOptions)
@@ -267,7 +267,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
 
     GetMetadataObserver responseObserver = new GetMetadataObserver();
 
-    stub.get(request, responseObserver);
+    stub.getObject(request, responseObserver);
     try {
       responseObserver.done.await();
     } catch (InterruptedException e) {
@@ -387,7 +387,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
       pipeSource = new PipedInputStream(pipeBufferSize);
       pipeSink = new PipedOutputStream(pipeSource);
       responseObserver = new ResponseObserver();
-      stub.getMedia(buildRequest(readOffset, readLimit), responseObserver);
+      stub.getObjectMedia(buildRequest(readOffset, readLimit), responseObserver);
       position = readOffset;
       boolean enableChecksums = readOptions.getGrpcChecksumsEnabled() && position == 0;
       objectHasher = enableChecksums ? Optional.of(Hashing.crc32c().newHasher()) : Optional.empty();

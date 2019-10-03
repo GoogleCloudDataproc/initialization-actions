@@ -1,3 +1,18 @@
+// Copyright 2019 Google LLC.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 syntax = "proto3";
 
 package google.storage.v1;
@@ -5,83 +20,95 @@ package google.storage.v1;
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/wrappers.proto";
 
-option java_package = "com.google.google.storage.v1";
-option java_outer_classname = "CloudStorageResourcesProto";
+option go_package = "google.golang.org/genproto/googleapis/storage/v1;storage";
 option java_multiple_files = true;
+option java_outer_classname = "CloudStorageResourcesProto";
+option java_package = "com.google.google.storage.v1";
 
 // A bucket.
 message Bucket {
+  // Billing properties of a bucket.
   message Billing {
     // When set to true, Requester Pays is enabled for this bucket.
     bool requester_pays = 1;
   }
 
+  // Cross-Origin Response sharing (CORS) properties for a bucket.
+  // For more on GCS and CORS, see
+  // https://cloud.google.com/storage/docs/cross-origin.
+  // For more on CORS in general, see https://tools.ietf.org/html/rfc6454.
   message Cors {
-    // The list of <a href="https://tools.ietf.org/html/rfc6454">Origins</a>
-    // eligible to receive CORS response headers. Note: "*" is permitted in the
-    // list of origins, and means "any Origin".
+    // The list of Origins eligible to receive CORS response headers. See
+    // [https://tools.ietf.org/html/rfc6454][RFC 6454] for more on origins.
+    // Note: "*" is permitted in the list of origins, and means "any Origin".
     repeated string origin = 1;
 
     // The list of HTTP methods on which to include CORS response headers,
-    // (<code>GET</code>, <code>OPTIONS</code>, <code>POST</code>, etc) Note:
-    // "*" is permitted in the list of methods, and means "any method".
+    // (`GET`, `OPTIONS`, `POST`, etc) Note: "*" is permitted in the list of
+    // methods, and means "any method".
     repeated string method = 2;
 
-    // The list of HTTP headers other than the <a
-    // href="https://www.w3.org/TR/cors/#simple-response-header">simple response
-    // headers</a> to give permission for the user-agent to share across
-    // domains.
+    // The list of HTTP headers other than the
+    // [https://www.w3.org/TR/cors/#simple-response-header][simple response
+    // headers] to give permission for the user-agent to share across domains.
     repeated string response_header = 3;
 
-    // The value, in seconds, to return in the <a
-    // href="https://www.w3.org/TR/cors/#access-control-max-age-response-header">
-    // Access-Control-Max-Age header</a> used in preflight responses.
+    // The value, in seconds, to return in the
+    // [https://www.w3.org/TR/cors/#access-control-max-age-response-header][Access-Control-Max-Age
+    // header] used in preflight responses.
     int32 max_age_seconds = 4;
   }
 
+  // Encryption properties of a bucket.
   message Encryption {
     // A Cloud KMS key that will be used to encrypt objects inserted into this
     // bucket, if no encryption method is specified.
     string default_kms_key_name = 1;
   }
 
+  // Lifecycle properties of a bucket.
+  // For more information, see https://cloud.google.com/storage/docs/lifecycle.
   message Lifecycle {
+    // A lifecycle Rule, combining an action to take on an object and a
+    // condition which will trigger that action.
     message Rule {
+      // An action to take on an object.
       message Action {
-        // Type of the action. Currently, only <code>Delete</code> and
-        // <code>SetStorageClass</code> are supported.
+        // Type of the action. Currently, only `Delete` and
+        // `SetStorageClass` are supported.
         string type = 1;
 
         // Target storage class. Required iff the type of the action is
         // SetStorageClass.
         string storage_class = 2;
       }
+
+      // A condition of an object which triggers some action.
       message Condition {
         // Age of an object (in days). This condition is satisfied when an
         // object reaches the specified age.
         int32 age = 1;
 
-        // A date in <a href="https://tools.ietf.org/html/rfc3339">RFC 3339</a>
-        // format with only the date part (for instance, "2013-01-15"). This
-        // condition is satisfied when an object is created before midnight of
-        // the specified date in UTC.
+        // A date in [RFC 3339][1] format with only the date part (for
+        // instance, "2013-01-15"). This condition is satisfied when an
+        // object is created before midnight of the specified date in UTC.
+        // [1]: https://tools.ietf.org/html/rfc3339
         google.protobuf.Timestamp created_before = 2;
 
         // Relevant only for versioned objects. If the value is
-        // <code>true</code>, this condition matches live objects; if the value
-        // is <code>false</code>, it matches archived objects.
+        // `true`, this condition matches live objects; if the value
+        // is `false`, it matches archived objects.
         google.protobuf.BoolValue is_live = 3;
 
-        // Relevant only for versioned objects. If the value is <code>N</code>,
-        // this condition is satisfied when there are at least <code>N</code>
-        // versions (including the live version) newer than this version of the
-        // object.
+        // Relevant only for versioned objects. If the value is N, this
+        // condition is satisfied when there are at least N versions (including
+        // the live version) newer than this version of the object.
         int32 num_newer_versions = 4;
 
         // Objects having any of the storage classes specified by this condition
-        // will be matched. Values include <code>MULTI_REGIONAL</code>,
-        // <code>REGIONAL</code>, <code>NEARLINE</code>, <code>COLDLINE</code>,
-        // <code>STANDARD</code>, and <code>DURABLE_REDUCED_AVAILABILITY</code>.
+        // will be matched. Values include `MULTI_REGIONAL`, `REGIONAL`,
+        // `NEARLINE`, `COLDLINE`, `STANDARD`, and
+        // `DURABLE_REDUCED_AVAILABILITY`.
         repeated string matches_storage_class = 5;
 
         // A regular expression that satisfies the RE2 syntax. This condition is
@@ -105,6 +132,7 @@ message Bucket {
     repeated Rule rule = 1;
   }
 
+  // Logging-related properties of a bucket.
   message Logging {
     // The destination bucket where the current bucket's logs should be placed.
     string log_bucket = 1;
@@ -113,10 +141,11 @@ message Bucket {
     string log_object_prefix = 2;
   }
 
+  // Retention policy properties of a bucket.
   message RetentionPolicy {
     // Server-determined value that indicates the time from which policy was
-    // enforced and effective. This value is in <a
-    // href="https://tools.ietf.org/html/rfc3339">RFC 3339</a> format.
+    // enforced and effective. This value is in
+    // [https://tools.ietf.org/html/rfc3339][RFC 3339] format.
     google.protobuf.Timestamp effective_time = 1;
 
     // Once locked, an object retention policy cannot be modified.
@@ -129,23 +158,29 @@ message Bucket {
     int64 retention_period = 3;
   }
 
+  // Properties of a bucket related to versioning.
+  // For more on GCS versioning, see
+  // https://cloud.google.com/storage/docs/object-versioning.
   message Versioning {
     // While set to true, versioning is fully enabled for this bucket.
     bool enabled = 1;
   }
 
+  // Properties of a bucket related to accessing the contents as a static
+  // website. For more on hosting a static website via GCS, see
+  // https://cloud.google.com/storage/docs/hosting-static-website.
   message Website {
     // If the requested object path is missing, the service will ensure the path
     // has a trailing '/', append this suffix, and attempt to retrieve the
-    // resulting object. This allows the creation of <code>index.html</code>
+    // resulting object. This allows the creation of `index.html`
     // objects to represent directory pages.
     string main_page_suffix = 1;
 
     // If the requested object path is missing, and any
-    // <code>mainPageSuffix</code> object is missing, if applicable, the service
-    // will return the named object from this bucket as the content for a <a
-    // href="https://tools.ietf.org/html/rfc7231#section-6.5.4"><code>404 Not
-    // Found</code></a> result.
+    // `mainPageSuffix` object is missing, if applicable, the service
+    // will return the named object from this bucket as the content for a
+    // [https://tools.ietf.org/html/rfc7231#section-6.5.4][404 Not Found]
+    // result.
     string not_found_page = 2;
   }
 
@@ -155,18 +190,18 @@ message Bucket {
   // Default access controls to apply to new objects when no ACL is provided.
   repeated ObjectAccessControl default_object_acl = 2;
 
-  // The bucket's lifecycle configuration. See <a
-  // href="https://developers.google.com/storage/docs/lifecycle">lifecycle
-  // management<a> for more information.
+  // The bucket's lifecycle configuration. See
+  // [https://developers.google.com/storage/docs/lifecycle]Lifecycle Management]
+  // for more information.
   Lifecycle lifecycle = 3;
 
-  // The creation time of the bucket in <a
-  // href="https://tools.ietf.org/html/rfc3339">RFC 3339</a> format.
+  // The creation time of the bucket in
+  // [https://tools.ietf.org/html/rfc3339][RFC 3339] format.
   // Attempting to set this field will result in an error.
   google.protobuf.Timestamp time_created = 4;
 
-  // The ID of the bucket. For buckets, the <code>id</code> and
-  // <code>name</code> properties are the same.
+  // The ID of the bucket. For buckets, the `id` and `name` properties are the
+  // same.
   // Attempting to update this field after the bucket is created will result in
   // an error.
   string id = 5;
@@ -184,37 +219,31 @@ message Bucket {
   // Attempting to set this field will result in an error.
   int64 metageneration = 8;
 
-  // The bucket's <a href="https://www.w3.org/TR/cors/">Cross-Origin Resource
-  // Sharing</a> (CORS) configuration.
+  // The bucket's [https://www.w3.org/TR/cors/][Cross-Origin Resource Sharing]
+  // (CORS) configuration.
   repeated Cors cors = 9;
 
   // The location of the bucket. Object data for objects in the bucket resides
-  // in physical storage within this region.  Defaults to <code>US</code>. See
-  // the <a
-  // href="https://developers.google.com/storage/docs/concepts-techniques#specifyinglocations">
-  // developer's guide</a> for the authoritative list.
-  // Attempting to update this field after the bucket is created will result in
-  // an error.
+  // in physical storage within this region.  Defaults to `US`. See the
+  // [https://developers.google.com/storage/docs/concepts-techniques#specifyinglocations"][developer's
+  // guide] for the authoritative list. Attempting to update this field after
+  // the bucket is created will result in an error.
   string location = 10;
 
   // The bucket's default storage class, used whenever no storageClass is
   // specified for a newly-created object. This defines how objects in the
-  // bucket are stored and determines the SLA and the cost of storage.  Values
-  // include <code>MULTI_REGIONAL</code>, <code>REGIONAL</code>,
-  // <code>STANDARD</code>, <code>NEARLINE</code>, <code>COLDLINE</code>, and
-  // <code>DURABLE_REDUCED_AVAILABILITY</code>. If this value is not specified
-  // when the bucket is created, it will default to <code>STANDARD</code>. For
-  // more information, see <a href="/storage/docs/storage-classes">storage
-  // classes</a>.
+  // bucket are stored and determines the SLA and the cost of storage.
+  // If this value is not specified when the bucket is created, it will default
+  // to `STANDARD`. For more information, see
+  // https://developers.google.com/storage/docs/storage-classes.
   string storage_class = 11;
 
-  // HTTP 1.1 <a href="https://tools.ietf.org/html/rfc7232#section-2.3">Entity
-  // tag</a> for the bucket.
+  // HTTP 1.1 [https://tools.ietf.org/html/rfc7232#section-2.3"]Entity tag]
+  // for the bucket.
   // Attempting to set this field will result in an error.
   string etag = 12;
 
-  // The modification time of the bucket in <a
-  // href="https://tools.ietf.org/html/rfc3339">RFC 3339</a> format.
+  // The modification time of the bucket.
   // Attempting to set this field will result in an error.
   google.protobuf.Timestamp updated = 13;
 
@@ -237,9 +266,9 @@ message Bucket {
   map<string, string> labels = 15;
 
   // The bucket's website configuration, controlling how the service behaves
-  // when accessing bucket contents as a web site. See the <a
-  // href="https://cloud.google.com/storage/docs/static-website">Static Website
-  // Examples</a> for more information.
+  // when accessing bucket contents as a web site. See the
+  // [https://cloud.google.com/storage/docs/static-website][Static Website
+  // Examples] for more information.
   Website website = 16;
 
   // The bucket's versioning configuration.
@@ -275,8 +304,8 @@ message BucketAccessControl {
   // The access permission for the entity.
   string role = 1;
 
-  // HTTP 1.1 <a href="https://tools.ietf.org/html/rfc7232#section-2.3">Entity
-  // tag</a> for the access-control entry.
+  // HTTP 1.1 ["https://tools.ietf.org/html/rfc7232#section-2.3][Entity tag]
+  // for the access-control entry.
   string etag = 2;
 
   // The ID of the access-control entry.
@@ -286,20 +315,20 @@ message BucketAccessControl {
   string bucket = 4;
 
   // The entity holding the permission, in one of the following forms:
-  // <ul><li><code>user-<var>userId</var></code></li>
-  // <li><code>user-<var>email</var></code></li>
-  // <li><code>group-<var>groupId</var></code></li>
-  // <li><code>group-<var>email</var></code></li>
-  // <li><code>domain-<var>domain</var></code></li>
-  // <li><code>project-<var>team</var>-<var>projectId</var></code></li>
-  // <li><code>allUsers</code></li>
-  // <li><code>allAuthenticatedUsers</code></li></ul>  Examples: <ul><li>The
-  // user <code>liz@example.com</code> would be
-  // <code>user-liz@example.com</code>.</li> <li>The group
-  // <code>example@googlegroups.com</code> would be
-  // <code>group-example@googlegroups.com</code>.</li> <li>To refer to all
-  // members of the Google Apps for Business domain <code>example.com</code>,
-  // the entity would be <code>domain-example.com</code>.</li></ul>
+  // * `user-{userid}`
+  // * `user-{email}`
+  // * `group-{groupid}`
+  // * `group-{email}`
+  // * `domain-{domain}`
+  // * `project-{team-projectid}`
+  // * `allUsers`
+  // * `allAuthenticatedUsers`
+  // Examples:
+  // * The user `liz@example.com` would be `user-liz@example.com`.
+  // * The group `example@googlegroups.com` would be
+  // `group-example@googlegroups.com`
+  // * All members of the Google Apps for Business domain `example.com` would be
+  // `domain-example.com`
   string entity = 6;
 
   // The ID for the entity, if any.
@@ -315,14 +344,14 @@ message BucketAccessControl {
   ProjectTeam project_team = 10;
 }
 
-// An access-control list.
-message BucketAccessControls {
+// The response to a call to BucketAccessControls.ListBucketAccessControls.
+message ListBucketAccessControlsResponse {
   // The list of items.
   repeated BucketAccessControl items = 1;
 }
 
-// A list of buckets.
-message Buckets {
+// The result of a call to Buckets.ListBuckets
+message ListBucketsResponse {
   // The list of items.
   repeated Bucket items = 1;
 
@@ -347,8 +376,7 @@ message Channel {
   // delivered over this channel. Optional.
   string token = 4;
 
-  // Date and time of notification channel expiration, expressed as a Unix
-  // timestamp, in milliseconds. Optional.
+  // Date and time of notification channel expiration. Optional.
   google.protobuf.Timestamp expiration = 5;
 
   // The type of delivery mechanism used for this channel.
@@ -364,30 +392,6 @@ message Channel {
   bool payload = 9;
 }
 
-// A channels list response.
-message Channels {
-  message Items {
-    // User-specified name for a channel. Needed to unsubscribe.
-    string channel_id = 1;
-
-    // Opaque value generated by GCS representing a bucket. Needed to
-    // unsubscribe.
-    string resource_id = 2;
-
-    // Url used to identify where notifications are sent to.
-    string push_url = 3;
-
-    // Email address of the subscriber.
-    string subscriber_email = 4;
-
-    // Time when the channel was created.
-    google.protobuf.Timestamp creation_time = 5;
-  }
-
-  // The list of notification channels for a bucket.
-  repeated Items items = 1;
-}
-
 // Message used to convey content being read or written, along with its
 // checksum.
 message ChecksummedData {
@@ -398,7 +402,7 @@ message ChecksummedData {
   google.protobuf.UInt32Value crc32c = 2;
 }
 
-// Message used for storing resource checksums.
+// Message used for storing full (not subrange) object checksums.
 message ObjectChecksums {
   // CRC32C digest of the object data. Computed by the GCS service for
   // all written objects, and validated by the GCS service against
@@ -410,64 +414,77 @@ message ObjectChecksums {
   string md5_hash = 2;
 }
 
+// A collection of enums used in multiple places throughout the API.
 message CommonEnums {
+  // A set of properties to return in a response.
   enum Projection {
-    // Omit <code>owner</code>, <code>acl</code> and
-    // <code>defaultObjectAcl</code> properties.
-    NO_ACL = 0;
+    // No specified projection.
+    PROJECTION_UNSPECIFIED = 0;
+
+    // Omit `owner`, `acl`, and `defaultObjectAcl` properties.
+    NO_ACL = 1;
 
     // Include all properties.
-    FULL = 1;
+    FULL = 2;
   }
-  enum PredefinedAcl {
-    PREDEFINED_ACL_UNDEFINED = 0;
 
-    // Project team owners get <code>OWNER</code> access, and
-    // <code>allAuthenticatedUsers</code> get <code>READER</code> access.
-    AUTHENTICATED_READ = 1;
+  // Predefined or "canned" aliases for sets of specific bucket ACL entries.
+  enum PredefinedBucketAcl {
+    // No predefined ACL.
+    PREDEFINED_BUCKET_ACL_UNSPECIFIED = 0;
 
-    // Project team owners get <code>OWNER</code> access.
-    PRIVATE = 2;
+    // Project team owners get `OWNER` access, and
+    // `allAuthenticatedUsers` get `READER` access.
+    BUCKET_ACL_AUTHENTICATED_READ = 1;
+
+    // Project team owners get `OWNER` access.
+    BUCKET_ACL_PRIVATE = 2;
 
     // Project team members get access according to their roles.
-    PROJECT_PRIVATE = 3;
+    BUCKET_ACL_PROJECT_PRIVATE = 3;
 
-    // Project team owners get <code>OWNER</code> access, and
-    // <code>allUsers</code> get <code>READER</code> access.
-    PUBLIC_READ = 4;
+    // Project team owners get `OWNER` access, and
+    // `allUsers` get `READER` access.
+    BUCKET_ACL_PUBLIC_READ = 4;
 
-    // Project team owners get <code>OWNER</code> access, and
-    // <code>allUsers</code> get <code>WRITER</code> access.
-    PUBLIC_READ_WRITE = 5;
+    // Project team owners get `OWNER` access, and
+    // `allUsers` get `WRITER` access.
+    BUCKET_ACL_PUBLIC_READ_WRITE = 5;
   }
-  enum PredefinedDefaultObjectAcl {
-    PREDEFINED_DEFAULT_OBJECT_ACL_UNDEFINED = 0;
 
-    // Object owner gets <code>OWNER</code> access, and
-    // <code>allAuthenticatedUsers</code> get <code>READER</code> access.
-    DEFAULT_OBJECT_ACL_AUTHENTICATED_READ = 1;
+  // Predefined or "canned" aliases for sets of specific object ACL entries.
+  enum PredefinedObjectAcl {
+    // No predefined ACL.
+    PREDEFINED_OBJECT_ACL_UNSPECIFIED = 0;
 
-    // Object owner gets <code>OWNER</code> access, and project team owners get
-    // <code>OWNER</code> access.
-    DEFAULT_OBJECT_ACL_BUCKET_OWNER_FULL_CONTROL = 2;
+    // Object owner gets `OWNER` access, and
+    // `allAuthenticatedUsers` get `READER` access.
+    OBJECT_ACL_AUTHENTICATED_READ = 1;
 
-    // Object owner gets <code>OWNER</code> access, and project team owners get
-    // <code>READER</code> access.
-    DEFAULT_OBJECT_ACL_BUCKET_OWNER_READ = 3;
+    // Object owner gets `OWNER` access, and project team owners get
+    // `OWNER` access.
+    OBJECT_ACL_BUCKET_OWNER_FULL_CONTROL = 2;
 
-    // Object owner gets <code>OWNER</code> access.
-    DEFAULT_OBJECT_ACL_PRIVATE = 4;
+    // Object owner gets `OWNER` access, and project team owners get
+    // `READER` access.
+    OBJECT_ACL_BUCKET_OWNER_READ = 3;
 
-    // Object owner gets <code>OWNER</code> access, and project team members get
+    // Object owner gets `OWNER` access.
+    OBJECT_ACL_PRIVATE = 4;
+
+    // Object owner gets `OWNER` access, and project team members get
     // access according to their roles.
-    DEFAULT_OBJECT_ACL_PROJECT_PRIVATE = 5;
+    OBJECT_ACL_PROJECT_PRIVATE = 5;
 
-    // Object owner gets <code>OWNER</code> access, and <code>allUsers</code>
-    // get <code>READER</code> access.
-    DEFAULT_OBJECT_ACL_PUBLIC_READ = 6;
+    // Object owner gets `OWNER` access, and `allUsers`
+    // get `READER` access.
+    OBJECT_ACL_PUBLIC_READ = 6;
   }
+
+
 }
 
+// Specifies a requested range of bytes to download.
 message ContentRange {
   // The starting offset of the object data.
   int64 start = 1;
@@ -493,8 +510,8 @@ message Notification {
   // message published for this notification subscription.
   map<string, string> custom_attributes = 3;
 
-  // HTTP 1.1 <a href="https://tools.ietf.org/html/rfc7232#section-2.3">Entity
-  // tag</a> for this subscription notification.
+  // HTTP 1.1 [https://tools.ietf.org/html/rfc7232#section-2.3][Entity tag]
+  // for this subscription notification.
   string etag = 4;
 
   // If present, only apply this notification configuration to object names that
@@ -508,14 +525,15 @@ message Notification {
   string id = 7;
 }
 
-// A list of notification subscriptions.
-message Notifications {
+// The result of a call to Notifications.ListNotifications
+message ListNotificationsResponse {
   // The list of items.
   repeated Notification items = 1;
 }
 
 // An object.
 message Object {
+  // Describes the customer-specified mechanism used to store the data at rest.
   message CustomerEncryption {
     // The encryption algorithm.
     string encryption_algorithm = 1;
@@ -524,24 +542,25 @@ message Object {
     string key_sha256 = 2;
   }
 
-  // <a href="https://tools.ietf.org/html/rfc7231#section-3.1.2.2">
-  // Content-Encoding</a> of the object data.
+  // Content-Encoding of the object data, matching
+  // [https://tools.ietf.org/html/rfc7231#section-3.1.2.2][RFC 7231 §3.1.2.2]
   string content_encoding = 1;
 
-  // <a href="https://tools.ietf.org/html/rfc6266">Content-Disposition</a> of
-  // the object data.
+  // Content-Disposition of the object data, matching
+  // [https://tools.ietf.org/html/rfc6266][RFC 6266].
   string content_disposition = 2;
 
-  // <a href="https://tools.ietf.org/html/rfc7234#section-5.2">Cache-Control</a>
-  // directive for the object data. If omitted, and the object is accessible to
-  // all anonymous users, the default will be <code>public, max-age=3600</code>.
+  // Cache-Control directive for the object data, matching
+  // [https://tools.ietf.org/html/rfc7234#section-5.2"][RFC 7234 §5.2].
+  // If omitted, and the object is accessible to all anonymous users, the
+  // default will be `public, max-age=3600`.
   string cache_control = 3;
 
   // Access controls on the object.
   repeated ObjectAccessControl acl = 4;
 
-  // <a href="https://tools.ietf.org/html/rfc7231#section-3.1.3.2">
-  // Content-Language</a> of the object data.
+  // Content-Language of the object data, matching
+  // [https://tools.ietf.org/html/rfc7231#section-3.1.3.2][RFC 7231 §3.1.3.2].
   string content_language = 5;
 
   // The version of the metadata for this object at this generation. Used for
@@ -556,15 +575,14 @@ message Object {
   // Attempting to set this field will result in an error.
   google.protobuf.Timestamp time_deleted = 7;
 
-  // <a
-  // href="https://tools.ietf.org/html/rfc7231#section-3.1.1.5">Content-Type</a>
-  // of the object data. If an object is stored without a Content-Type, it is
-  // served as application/octet-stream.
+  // Content-Type of the object data, matching
+  // [https://tools.ietf.org/html/rfc7231#section-3.1.1.5][RFC 7231 §3.1.1.5].
+  // If an object is stored without a Content-Type, it is served as
+  // `application/octet-stream`.
   string content_type = 8;
 
-  // <a
-  // href="https://tools.ietf.org/html/rfc7230#section-3.3.2">Content-Length</a>
-  // of the data in bytes.
+  // Content-Length of the object data in bytes, matching
+  // [https://tools.ietf.org/html/rfc7230#section-3.3.2][RFC 7230 §3.3.2].
   // Attempting to set this field will result in an error.
   int64 size = 9;
 
@@ -573,9 +591,12 @@ message Object {
   google.protobuf.Timestamp time_created = 10;
 
   // CRC32c checksum. For more information about using the CRC32c
-  // checksum, see <a
-  // href="https://cloud.google.com/storage/docs/hashes-etags#_JSONAPI">Hashes
-  // and ETags: Best Practices</a>.
+  // checksum, see
+  // [https://cloud.google.com/storage/docs/hashes-etags#_JSONAPI][Hashes and
+  // ETags: Best Practices]. This is a server determined value and should not be
+  // supplied by the user when sending an Object. The server will ignore any
+  // value provided. Users should instead use the object_checksums field on the
+  // InsertObjectRequest when uploading an object.
   google.protobuf.UInt32Value crc32c = 11;
 
   // Number of underlying components that make up this object. Components are
@@ -583,15 +604,18 @@ message Object {
   // Attempting to set this field will result in an error.
   int32 component_count = 12;
 
-  // MD5 hash of the data; encoded using <a
-  // href="https://tools.ietf.org/html/rfc4648#section-4">base64</a>. For more
-  // information about using the MD5 hash, see <a
-  // href="https://cloud.google.com/storage/docs/hashes-etags#_JSONAPI">Hashes
-  // and ETags: Best Practices</a>.
+  // MD5 hash of the data; encoded using base64 as per
+  // [https://tools.ietf.org/html/rfc4648#section-4][RFC 4648 §4]. For more
+  // information about using the MD5 hash, see
+  // [https://cloud.google.com/storage/docs/hashes-etags#_JSONAPI][Hashes and
+  // ETags: Best Practices]. This is a server determined value and should not be
+  // supplied by the user when sending an Object. The server will ignore any
+  // value provided. Users should instead use the object_checksums field on the
+  // InsertObjectRequest when uploading an object.
   string md5_hash = 13;
 
-  // HTTP 1.1 <a href="https://tools.ietf.org/html/rfc7232#section-2.3">Entity
-  // tag</a> for the object.
+  // HTTP 1.1 Entity tag for the object. See
+  // [https://tools.ietf.org/html/rfc7232#section-2.3][RFC 7232 §2.3].
   // Attempting to set this field will result in an error.
   string etag = 14;
 
@@ -620,7 +644,7 @@ message Object {
 
   // A server-determined value that specifies the earliest time that the
   // object's retention period expires. This value is in
-  // <a href="https://tools.ietf.org/html/rfc3339">RFC 3339</a> format.
+  // [https://tools.ietf.org/html/rfc3339][RFC 3339] format.
   // Note 1: This field is not provided for objects with an active event-based
   // hold, since retention expiration is unknown until the hold is removed.
   // Note 2: This value can be provided even when temporary hold is set (so that
@@ -642,7 +666,7 @@ message Object {
   // occurred (event-based hold on the object is released) and then 3 more years
   // after that. That means retention duration of the objects begins from the
   // moment event-based hold transitioned from true to false.
-  bool event_based_hold = 22;
+  google.protobuf.BoolValue event_based_hold = 29;
 
   // The name of the object. Required if not specified by URL parameter.
   // Attempting to update this field after the object is created will result in
@@ -678,8 +702,8 @@ message ObjectAccessControl {
   // The access permission for the entity.
   string role = 1;
 
-  // HTTP 1.1 <a href="https://tools.ietf.org/html/rfc7232#section-2.3">Entity
-  // tag</a> for the access-control entry.
+  // HTTP 1.1 Entity tag for the access-control entry.
+  // See [https://tools.ietf.org/html/rfc7232#section-2.3][RFC 7232 §2.3].
   string etag = 2;
 
   // The ID of the access-control entry.
@@ -695,20 +719,20 @@ message ObjectAccessControl {
   int64 generation = 6;
 
   // The entity holding the permission, in one of the following forms:
-  // <ul><li><code>user-<var>userId</var></code></li>
-  // <li><code>user-<var>email</var></code></li>
-  // <li><code>group-<var>groupId</var></code></li>
-  // <li><code>group-<var>email</var></code></li>
-  // <li><code>domain-<var>domain</var></code></li>
-  // <li><code>project-<var>team</var>-<var>projectId</var></code></li>
-  // <li><code>allUsers</code></li>
-  // <li><code>allAuthenticatedUsers</code></li></ul>  Examples: <ul><li>The
-  // user <code>liz@example.com</code> would be
-  // <code>user-liz@example.com</code>.</li> <li>The group
-  // <code>example@googlegroups.com</code> would be
-  // <code>group-example@googlegroups.com</code>.</li> <li>To refer to all
-  // members of the Google Apps for Business domain <code>example.com</code>,
-  // the entity would be <code>domain-example.com</code>.</li></ul>
+  // * `user-{userid}`
+  // * `user-{email}`
+  // * `group-{groupid}`
+  // * `group-{email}`
+  // * `domain-{domain}`
+  // * `project-{team-projectid}`
+  // * `allUsers`
+  // * `allAuthenticatedUsers`
+  // Examples:
+  // * The user `liz@example.com` would be `user-liz@example.com`.
+  // * The group `example@googlegroups.com` would be
+  // `group-example@googlegroups.com`.
+  // * All members of the Google Apps for Business domain `example.com` would be
+  // `domain-example.com`.
   string entity = 7;
 
   // The ID for the entity, if any.
@@ -724,14 +748,14 @@ message ObjectAccessControl {
   ProjectTeam project_team = 11;
 }
 
-// An access-control list.
-message ObjectAccessControls {
+// The result of a call to ObjectAccessControls.ListObjectAccessControls.
+message ListObjectAccessControlsResponse {
   // The list of items.
   repeated ObjectAccessControl items = 1;
 }
 
-// A list of objects.
-message Objects {
+// The result of a call to Objects.ListObjects
+message ListObjectsResponse {
   // The list of prefixes of objects matching-but-not-listed up to and including
   // the requested delimiter.
   repeated string prefixes = 1;
@@ -744,6 +768,7 @@ message Objects {
   string next_page_token = 3;
 }
 
+// Represents the Viewers, Editors, or Owners of a given project.
 message ProjectTeam {
   // The project number.
   string project_number = 1;
@@ -758,8 +783,9 @@ message ServiceAccount {
   string email_address = 1;
 }
 
+// The owner of a specific resource.
 message Owner {
-  // The entity, in the form <code>user-<var>userId</var></code>.
+  // The entity, in the form `user-`*userId*.
   string entity = 1;
 
   // The ID for the entity.

@@ -21,9 +21,9 @@ import com.google.google.storage.v1.Object;
 import com.google.google.storage.v1.ObjectChecksums;
 import com.google.google.storage.v1.StartResumableWriteRequest;
 import com.google.google.storage.v1.StartResumableWriteResponse;
-import com.google.google.storage.v1.StorageObjectsGrpc;
-import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsImplBase;
-import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsStub;
+import com.google.google.storage.v1.StorageGrpc;
+import com.google.google.storage.v1.StorageGrpc.StorageImplBase;
+import com.google.google.storage.v1.StorageGrpc.StorageStub;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.Timestamp;
@@ -68,7 +68,7 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
 
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
 
-  private StorageObjectsStub stub;
+  private StorageStub stub;
   private FakeService fakeService;
   private ExecutorService executor = Executors.newCachedThreadPool();
 
@@ -83,7 +83,7 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
             .build()
             .start());
     stub =
-        StorageObjectsGrpc.newStub(
+        StorageGrpc.newStub(
             grpcCleanup.register(
                 InProcessChannelBuilder.forName(serverName).directExecutor().build()));
   }
@@ -482,7 +482,7 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
     return ByteString.copyFrom(result);
   }
 
-  private static class FakeService extends StorageObjectsImplBase {
+  private static class FakeService extends StorageImplBase {
     static final Object DEFAULT_OBJECT =
         Object.newBuilder()
             .setBucket(BUCKET_NAME)
@@ -510,7 +510,8 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
     }
 
     @Override
-    public StreamObserver<InsertObjectRequest> insert(StreamObserver<Object> responseObserver) {
+    public StreamObserver<InsertObjectRequest> insertObject(
+        StreamObserver<Object> responseObserver) {
       insertRequestObserver.responseObserver = responseObserver;
       return insertRequestObserver;
     }

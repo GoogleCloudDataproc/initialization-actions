@@ -277,6 +277,7 @@
                 <includes>
                   <include>com.fasterxml.jackson.core:jackson-core</include>
                   <include>com.google.api.grpc:proto-google-iam-v1</include>
+                  <include>com.google.api.grpc:proto-google-common-protos</include>
                   <include>com.google.api-client</include>
                   <include>com.google.apis</include>
                   <include>com.google.cloud.bigdataoss:util</include>

@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.Sets.newConcurrentHashSet;
 
+import com.google.api.ClientProto;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
 import com.google.api.client.googleapis.json.GoogleJsonError;
@@ -70,8 +71,9 @@ import com.google.common.collect.Maps;
 import com.google.common.flogger.GoogleLogger;
 import com.google.common.io.BaseEncoding;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.google.google.storage.v1.StorageObjectsGrpc;
-import com.google.google.storage.v1.StorageObjectsGrpc.StorageObjectsStub;
+import com.google.google.storage.v1.StorageGrpc;
+import com.google.google.storage.v1.StorageGrpc.StorageStub;
+import com.google.google.storage.v1.StorageOuterClass;
 import com.google.protobuf.util.Durations;
 import io.grpc.alts.GoogleDefaultChannelBuilder;
 import java.io.FileNotFoundException;
@@ -82,7 +84,6 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.file.FileAlreadyExistsException;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -118,7 +119,11 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
   private static final String USER_PROJECT_FIELD_NAME = "userProject";
 
   // The GCS gRPC server.
-  private static final String GRPC_TARGET = "storage.googleapis.com:443";
+  private static final String GRPC_TARGET =
+      StorageOuterClass.getDescriptor()
+          .findServiceByName("Storage")
+          .getOptions()
+          .getExtension(ClientProto.defaultHost);
 
   // The maximum number of times to automatically retry gRPC requests.
   private static final double GRPC_MAX_RETRY_ATTEMPTS = 10;
@@ -170,7 +175,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
   @VisibleForTesting Storage gcs;
 
   // GCS grpc stub.
-  private StorageObjectsStub gcsGrpcStub;
+  private StorageStub gcsGrpcStub;
 
   // Thread-pool used for background tasks.
   private ExecutorService backgroundTasksThreadPool =
@@ -257,14 +262,14 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     // Create the gRPC stub;
     Map<String, Object> serviceConfig = getGrpcServiceConfig(options.getReadChannelOptions());
     this.gcsGrpcStub =
-        StorageObjectsGrpc.newStub(
+        StorageGrpc.newStub(
             GoogleDefaultChannelBuilder.forTarget(GRPC_TARGET)
                 .defaultServiceConfig(serviceConfig)
                 .build());
   }
 
   private Map<String, Object> getGrpcServiceConfig(GoogleCloudStorageReadOptions readOptions) {
-    Map<String, Object> name = ImmutableMap.of("service", "google.storage.v1.StorageObjects");
+    Map<String, Object> name = ImmutableMap.of("service", "google.storage.v1.Storage");
 
     Map<String, Object> retryPolicy =
         ImmutableMap.<String, Object>builder()
@@ -276,13 +281,11 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
                 "maxBackoff",
                 Durations.fromMillis(readOptions.getBackoffMaxIntervalMillis()).toString())
             .put("backoffMultiplier", readOptions.getBackoffMultiplier())
-            .put(
-                "retryableStatusCodes",
-                ImmutableList.of("UNAVAILABLE", "RESOURCE_EXHAUSTED"))
+            .put("retryableStatusCodes", ImmutableList.of("UNAVAILABLE", "RESOURCE_EXHAUSTED"))
             .build();
 
-    Map<String, Object> methodConfig = ImmutableMap.of(
-        "name", ImmutableList.of(name), "retryPolicy", retryPolicy);
+    Map<String, Object> methodConfig =
+        ImmutableMap.of("name", ImmutableList.of(name), "retryPolicy", retryPolicy);
 
     return ImmutableMap.of("methodConfig", ImmutableList.of(methodConfig));
   }
