@@ -20,6 +20,16 @@ NEW_NAME_MIN_CONNECTOR_VERSIONS=(
 BIGQUERY_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/bigquery-connector-version || true)
 GCS_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/gcs-connector-version || true)
 
+is_worker() {
+  local role
+  role="$(/usr/share/google/get_metadata_value attributes/dataproc-role || true)"
+  if [[ $role != Master ]]; then
+    true
+  else
+    false
+  fi
+}
+
 min_version() {
   echo -e "$1\n$2" | sort -r -t'.' -n -k1,1 -k2,2 -k3,3 | tail -n1
 }
@@ -84,3 +94,32 @@ fi
 
 update_connector "bigquery" "$BIGQUERY_CONNECTOR_VERSION"
 update_connector "gcs" "$GCS_CONNECTOR_VERSION"
+
+# Restart YARN NodeManager service on worker nodes so they can pick up updated GCS connector
+if is_worker; then
+  systemctl restart hadoop-yarn-nodemanager
+fi
+
+# Restarts Dataproc Agent after successful initialization
+# WARNING: this function relies on undocumented and not officially supported Dataproc Agent
+# "sentinel" files to determine successful Agent initialization and not guaranteed
+# to work in the future. Use at your own risk!
+restart_dataproc_agent() {
+  # Because Dataproc Agent should be restarted after initialization, we need to wait until
+  # it will create a sentinel file that signals initialization competition (success or failure)
+  while [[ ! -f /var/lib/google/dataproc/has_run_before ]]; do
+    sleep 1
+  done
+  # If Dataproc Agent didn't create a sentinel file that signals initialization
+  # failure then it means that initialization succeded and it should be restarted
+  if [[ ! -f /var/lib/google/dataproc/has_failed_before ]]; then
+    pkill -SIGKILL -f com.google.cloud.hadoop.services.agent.AgentMain
+  fi
+}
+export -f restart_dataproc_agent
+
+# Schedule asynchronous Dataproc Agent restart so it will use updated connectors.
+# It could not be restarted sycnhronously because Dataproc Agent should be restarted
+# after its initialization, including init actions execution, has been completed.
+bash -c restart_dataproc_agent &
+disown
