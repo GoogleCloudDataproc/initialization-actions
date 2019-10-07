@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------------
 
-# NOTE: *this initialization action is deprecated for updating Cloud Storage Connector*
+# NOTE: *Updating Cloud Storage Connector with this initialization action is not recommended*
 
 **You can update Cloud Storage Connector through `GCS_CONNECTOR_VERSION`
 metadata value on supported Dataproc images.**
