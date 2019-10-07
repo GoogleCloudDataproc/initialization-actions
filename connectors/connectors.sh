@@ -11,7 +11,7 @@ MIN_CONNECTOR_VERSIONS=(
   ["gcs"]="1.7.0")
 
 # Starting from these versions connectors name changed:
-# "...-<version>-hadoop2.jar" -> "...-hadoop2-<version>.jar" 
+# "...-<version>-hadoop2.jar" -> "...-hadoop2-<version>.jar"
 declare -A NEW_NAME_MIN_CONNECTOR_VERSIONS
 NEW_NAME_MIN_CONNECTOR_VERSIONS=(
   ["bigquery"]="0.13.5"
@@ -55,13 +55,13 @@ update_connector() {
     # 1) gs://hadoop-lib/${name}/${name}-connector-hadoop2-${version}.jar
     # 2) gs://hadoop-lib/${name}/${name}-connector-${version}-hadoop2.jar
     local new_name_min_version=${NEW_NAME_MIN_CONNECTOR_VERSIONS[$name]}
-    if [[ "$(min_version "$new_name_min_version" "$version")" = "$new_name_min_version" ]]; then
+    if [[ "$(min_version "$new_name_min_version" "$version")" == "$new_name_min_version" ]]; then
       local jar_name="${name}-connector-hadoop2-${version}.jar"
     else
       local jar_name="${name}-connector-${version}-hadoop2.jar"
     fi
     gsutil cp "gs://hadoop-lib/${name}/${jar_name}" "${vm_connectors_dir}/"
-    
+
     # Update or create version-less connector link
     ln -s -f "${vm_connectors_dir}/${jar_name}" "${vm_connectors_dir}/${name}-connector.jar"
   fi
@@ -75,10 +75,10 @@ fi
 # because connectors from 1.7 branch are not compatible with previous connectors
 # versions (they have the same class relocation paths) we need to update both
 # of them, even if only one connector version is set
-if [[ -z $BIGQUERY_CONNECTOR_VERSION ]]  && [[ $GCS_CONNECTOR_VERSION = "1.7.0" ]]; then
+if [[ -z $BIGQUERY_CONNECTOR_VERSION ]] && [[ $GCS_CONNECTOR_VERSION == "1.7.0" ]]; then
   BIGQUERY_CONNECTOR_VERSION="0.11.0"
 fi
-if [[ $BIGQUERY_CONNECTOR_VERSION = "0.11.0" ]]  && [[ -z $GCS_CONNECTOR_VERSION ]]; then
+if [[ $BIGQUERY_CONNECTOR_VERSION == "0.11.0" ]] && [[ -z $GCS_CONNECTOR_VERSION ]]; then
   GCS_CONNECTOR_VERSION="1.7.0"
 fi
 
@@ -98,7 +98,7 @@ restart_dataproc_agent() {
   # If Dataproc Agent didn't create a sentinel file that signals initialization
   # failure then it means that initialization succeded and it should be restarted
   if [[ ! -f /var/lib/google/dataproc/has_failed_before ]]; then
-    pkill -f com.google.cloud.hadoop.services.agent.AgentMain
+    pkill -SIGKILL -f com.google.cloud.hadoop.services.agent.AgentMain
   fi
 }
 export -f restart_dataproc_agent
@@ -106,4 +106,5 @@ export -f restart_dataproc_agent
 # Schedule asynchronous Dataproc Agent restart so it will use updated connectors.
 # It could not be restarted sycnhronously because Dataproc Agent should be restarted
 # after its initialization, including init actions execution, has been completed.
-bash -c restart_dataproc_agent & disown
+bash -c restart_dataproc_agent &
+disown
