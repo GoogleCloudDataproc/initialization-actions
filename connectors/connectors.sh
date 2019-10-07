@@ -20,16 +20,6 @@ NEW_NAME_MIN_CONNECTOR_VERSIONS=(
 BIGQUERY_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/bigquery-connector-version || true)
 GCS_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/gcs-connector-version || true)
 
-is_worker() {
-  local role
-  role="$(/usr/share/google/get_metadata_value attributes/dataproc-role || true)"
-  if [[ $role != Master ]]; then
-    true
-  else
-    false
-  fi
-}
-
 min_version() {
   echo -e "$1\n$2" | sort -r -t'.' -n -k1,1 -k2,2 -k3,3 | tail -n1
 }
@@ -94,11 +84,6 @@ fi
 
 update_connector "bigquery" "$BIGQUERY_CONNECTOR_VERSION"
 update_connector "gcs" "$GCS_CONNECTOR_VERSION"
-
-# Restart YARN NodeManager service on worker nodes so they can pick up updated GCS connector
-if is_worker; then
-  systemctl restart hadoop-yarn-nodemanager
-fi
 
 # Restarts Dataproc Agent after successful initialization
 # WARNING: this function relies on undocumented and not officially supported Dataproc Agent
