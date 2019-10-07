@@ -136,10 +136,10 @@ class DataprocTestCase(BASE_TEST_CASE):
         bucket = "gs://dataproc-init-actions-test-{}".format(
             re.sub("[.:]", "", project.replace("google", "goog")))
 
-        ret_val, _, _ = self.run_command("gsutil ls -b {}".format(bucket))
+        ret_val, _, _ = self.run_command("gsutil -q ls -b {}".format(bucket))
         # Create staging bucket if it does not exist
         if ret_val != 0:
-            self.assert_command("gsutil mb {}".format(bucket))
+            self.assert_command("gsutil -q mb {}".format(bucket))
 
         staging_dir = "{}/{}-{}".format(bucket, self.datetime_str(),
                                         self.random_str())
