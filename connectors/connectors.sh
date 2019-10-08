@@ -20,6 +20,17 @@ NEW_NAME_MIN_CONNECTOR_VERSIONS=(
 BIGQUERY_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/bigquery-connector-version || true)
 GCS_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/gcs-connector-version || true)
 
+UPDATED_GCS_CONNECTOR=false
+
+is_worker() {
+  local role
+  role="$(/usr/share/google/get_metadata_value attributes/dataproc-role || true)"
+  if [[ $role != Master ]]; then
+    return 0
+  fi
+  return 1
+}
+
 min_version() {
   echo -e "$1\n$2" | sort -r -t'.' -n -k1,1 -k2,2 -k3,3 | tail -n1
 }
@@ -38,6 +49,10 @@ update_connector() {
   local name=$1    # connector name: "bigquery" or "gcs"
   local version=$2 # connector version
   if [[ $version ]]; then
+    if [[ $name == gcs ]]; then
+      UPDATED_GCS_CONNECTOR=true
+    fi
+
     # validate new connector version
     validate_version "$name" "$version"
 
@@ -85,6 +100,16 @@ fi
 update_connector "bigquery" "$BIGQUERY_CONNECTOR_VERSION"
 update_connector "gcs" "$GCS_CONNECTOR_VERSION"
 
+if [[ $UPDATED_GCS_CONNECTOR != true ]]; then
+  echo "GCS connector wasn't updated - no need to restart any services"
+  exit 0
+fi
+
+# Restart YARN NodeManager service on worker nodes so they can pick up updated GCS connector
+if is_worker; then
+  systemctl kill -s KILL hadoop-yarn-nodemanager
+fi
+
 # Restarts Dataproc Agent after successful initialization
 # WARNING: this function relies on undocumented and not officially supported Dataproc Agent
 # "sentinel" files to determine successful Agent initialization and not guaranteed
@@ -98,7 +123,7 @@ restart_dataproc_agent() {
   # If Dataproc Agent didn't create a sentinel file that signals initialization
   # failure then it means that initialization succeded and it should be restarted
   if [[ ! -f /var/lib/google/dataproc/has_failed_before ]]; then
-    pkill -SIGKILL -f com.google.cloud.hadoop.services.agent.AgentMain
+    systemctl kill -s KILL google-dataproc-agent
   fi
 }
 export -f restart_dataproc_agent
