@@ -108,7 +108,7 @@ fi
 
 # Restart YARN NodeManager service on worker nodes so they can pick up updated GCS connector
 if is_worker; then
-  systemctl restart hadoop-yarn-nodemanager
+  systemctl kill -s KILL hadoop-yarn-nodemanager
 fi
 
 # Restarts Dataproc Agent after successful initialization
@@ -124,7 +124,7 @@ restart_dataproc_agent() {
   # If Dataproc Agent didn't create a sentinel file that signals initialization
   # failure then it means that initialization succeded and it should be restarted
   if [[ ! -f /var/lib/google/dataproc/has_failed_before ]]; then
-    pkill -SIGKILL -f com.google.cloud.hadoop.services.agent.AgentMain
+    systemctl kill -s KILL google-dataproc-agent
   fi
 }
 export -f restart_dataproc_agent
