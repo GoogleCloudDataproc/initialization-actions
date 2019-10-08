@@ -26,10 +26,9 @@ is_worker() {
   local role
   role="$(/usr/share/google/get_metadata_value attributes/dataproc-role || true)"
   if [[ $role != Master ]]; then
-    true
-  else
-    false
+    return 0
   fi
+  return 1
 }
 
 min_version() {
