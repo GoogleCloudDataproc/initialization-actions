@@ -70,8 +70,8 @@ determine_tests_to_run() {
   for changed_dir in "${changed_dirs[@]}"; do
     local tests_in_dir
     if ! tests_in_dir=$(compgen -G "${changed_dir}test*.py"); then
-      echo "ERROR: presubmit failed - cannot find tests inside '${changed_dir}' directory"
-      exit 1
+      echo "WARNING: cannot find tests inside '${changed_dir}' directory"
+      continue
     fi
     declare -a tests_array
     mapfile -t tests_array < <(echo "${tests_in_dir}")
