@@ -7,11 +7,13 @@ readonly PACKAGES=$(/usr/share/google/get_metadata_value attributes/PIP_PACKAGES
 function install_pip() {
   if command -v pip >/dev/null; then
     echo "pip is already installed."
+    return 0
   fi
 
   if command -v easy_install >/dev/null; then
     echo "Installing pip with easy_install..."
     easy_install pip
+    return 0
   fi
 
   echo "Installing python-pip..."
