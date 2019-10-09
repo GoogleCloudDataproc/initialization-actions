@@ -412,23 +412,38 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
         }
       }
 
-      int bytesRead;
+      int totalBytesRead = 0;
+      int lastBytesRead = 0;
       byte[] data;
       int arrayOffset;
       if (buffer.hasArray()) {
         data = buffer.array();
         arrayOffset = buffer.arrayOffset();
-        bytesRead = pipeSource.read(data, arrayOffset, buffer.remaining());
       } else {
         data = new byte[buffer.remaining()];
         arrayOffset = 0;
-        bytesRead = pipeSource.read(data);
-        buffer.put(data);
       }
-      position += bytesRead == -1 ? 0 : bytesRead;
+      long maxReadBytes = size() - position;
+
+      while (buffer.hasRemaining() && totalBytesRead < maxReadBytes && lastBytesRead != -1) {
+        lastBytesRead = pipeSource.read(data, arrayOffset + totalBytesRead, buffer.remaining());
+        if (buffer.hasArray()) {
+          if (lastBytesRead > 0) {
+            buffer.position(buffer.position() + lastBytesRead);
+          }
+        } else {
+          buffer.put(data);
+        }
+        if (lastBytesRead > 0) {
+          totalBytesRead += lastBytesRead;
+        }
+      }
+
+      position += totalBytesRead;
+
       if (objectHasher.isPresent()) {
-        if (bytesRead > 0) {
-          objectHasher.get().putBytes(data, arrayOffset, bytesRead);
+        if (totalBytesRead > 0) {
+          objectHasher.get().putBytes(data, arrayOffset, totalBytesRead);
         }
         if (position >= objectMetadata.get().getSize()) {
           int checksum = objectHasher.get().hash().asInt();
@@ -441,7 +456,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
           }
         }
       }
-      return bytesRead;
+      return totalBytesRead;
     }
 
     @Override
@@ -499,8 +514,6 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
     private class ResponseObserver implements StreamObserver<GetObjectMediaResponse> {
       // The last error to occur during the RPC. Present only on error.
       private Throwable error;
-
-      public ResponseObserver() {}
 
       public boolean hasError() {
         return error != null;
