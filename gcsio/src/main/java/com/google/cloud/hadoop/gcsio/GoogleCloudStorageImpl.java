@@ -265,7 +265,8 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
         StorageGrpc.newStub(
             GoogleDefaultChannelBuilder.forTarget(GRPC_TARGET)
                 .defaultServiceConfig(serviceConfig)
-                .build());
+                .build())
+            .withExecutor(backgroundTasksThreadPool);
   }
 
   private Map<String, Object> getGrpcServiceConfig(GoogleCloudStorageReadOptions readOptions) {
