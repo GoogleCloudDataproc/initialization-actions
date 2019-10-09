@@ -34,17 +34,18 @@ initialize_git_repo() {
   git remote add origin "https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git"
   git fetch origin master
 
-  git reset origin/master
+  git reset "${BASE_BRANCH}"
+
+  git commit -a -m "Presubmit changes"
+
+  git rebase origin/master
 }
 
 # This function adds all changed files to git "index" and diffs them against master branch
 # to determine all changed files and looks for tests in directories with changed files.
 determine_tests_to_run() {
-  # Stage files to track their history
-  git add --all
-
   # Infer the files that changed
-  mapfile -t CHANGED_FILES < <(git diff --cached origin/master --name-only)
+  mapfile -t CHANGED_FILES < <(git diff origin/master --name-only)
   echo "Changed files: ${CHANGED_FILES[*]}"
 
   # Determines init actions directories that were changed
