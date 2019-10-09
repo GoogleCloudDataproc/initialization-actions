@@ -30,6 +30,7 @@ install_test_dependencies() {
 # so we can diff what changed relatively to master branch.
 initialize_git_repo() {
   git init
+  git config user.email "ia-tests@presubmit.example.com"
 
   git remote add origin "https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git"
   git fetch origin master
