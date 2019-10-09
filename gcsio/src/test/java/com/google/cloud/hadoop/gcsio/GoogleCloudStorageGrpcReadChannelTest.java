@@ -89,8 +89,8 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
 
   @Test
   public void readSingleChunkSucceeds() throws Exception {
-    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel();
     fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).build());
+    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel();
 
     ByteBuffer buffer = ByteBuffer.allocate(100);
     readChannel.read(buffer);
@@ -102,9 +102,9 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
 
   @Test
   public void readMultipleChunksSucceeds() throws Exception {
-    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel();
     // Enough to require multiple chunks.
     fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(5120).build());
+    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel();
 
     ByteBuffer buffer = ByteBuffer.allocate(5120);
     readChannel.read(buffer);
@@ -116,8 +116,8 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
 
   @Test
   public void multipleSequentialReads() throws Exception {
-    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel();
     fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).build());
+    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel();
 
     ByteBuffer first_buffer = ByteBuffer.allocate(10);
     ByteBuffer second_buffer = ByteBuffer.allocate(20);
@@ -132,8 +132,8 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
 
   @Test
   public void readToBufferWithArrayOffset() throws Exception {
-    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel();
     fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).build());
+    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel();
 
     byte[] array = new byte[200];
     // `slice` generates a ByteBuffer with a non-zero `arrayOffset`.
@@ -148,8 +148,8 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
 
   @Test
   public void readSucceedsAfterSeek() throws Exception {
-    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel();
     fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).build());
+    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel();
 
     ByteBuffer buffer = ByteBuffer.allocate(10);
     readChannel.position(50);
@@ -350,7 +350,6 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
     GoogleCloudStorageReadOptions options = GoogleCloudStorageReadOptions.builder().build();
     GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
 
-    fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).setGeneration(1).build());
     ByteBuffer buffer = ByteBuffer.allocate(10);
     readChannel.read(buffer);
     fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).setGeneration(2).build());
@@ -371,13 +370,13 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
 
   @Test
   public void seekUnderInplaceSeekLimitInFadviseAutoReadsSequentially() throws Exception {
+    fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).build());
     GoogleCloudStorageReadOptions options =
         GoogleCloudStorageReadOptions.builder()
             .setFadvise(Fadvise.AUTO)
             .setInplaceSeekLimit(10)
             .build();
     GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
-    fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).build());
 
     ByteBuffer buffer = ByteBuffer.allocate(20);
     readChannel.read(buffer);
@@ -392,10 +391,10 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
 
   @Test
   public void seekBackwardsInFadviseAutoTriggersRandomAccessReads() throws Exception {
+    fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).build());
     GoogleCloudStorageReadOptions options =
         GoogleCloudStorageReadOptions.builder().setFadvise(Fadvise.AUTO).build();
     GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
-    fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).build());
 
     ByteBuffer buffer = ByteBuffer.allocate(20);
     readChannel.read(buffer);
@@ -417,13 +416,13 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
 
   @Test
   public void seekPastInplaceSeekLimitInFadviseAutoTriggersRandomAccessReads() throws Exception {
+    fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).build());
     GoogleCloudStorageReadOptions options =
         GoogleCloudStorageReadOptions.builder()
             .setFadvise(Fadvise.AUTO)
             .setInplaceSeekLimit(10)
             .build();
     GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
-    fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).build());
 
     ByteBuffer buffer = ByteBuffer.allocate(10);
     readChannel.read(buffer);
@@ -445,10 +444,10 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
 
   @Test
   public void seekReadsSequentiallyInSequentialMode() throws Exception {
+    fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).build());
     GoogleCloudStorageReadOptions options =
         GoogleCloudStorageReadOptions.builder().setFadvise(Fadvise.SEQUENTIAL).build();
     GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
-    fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).build());
 
     ByteBuffer buffer = ByteBuffer.allocate(10);
     readChannel.read(buffer);
@@ -463,10 +462,10 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
 
   @Test
   public void seekReadsRandomlyInRandomMode() throws Exception {
+    fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).build());
     GoogleCloudStorageReadOptions options =
         GoogleCloudStorageReadOptions.builder().setFadvise(Fadvise.RANDOM).build();
     GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
-    fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).build());
 
     ByteBuffer buffer = ByteBuffer.allocate(10);
     readChannel.read(buffer);
@@ -502,8 +501,8 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
 
   @Test
   public void positionUpdatesOnRead() throws Exception {
-    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel();
     fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).build());
+    GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel();
 
     ByteBuffer buffer = ByteBuffer.allocate(50);
     readChannel.read(buffer);
