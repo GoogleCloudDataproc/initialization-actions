@@ -9,11 +9,11 @@ Note:
     Test REQUIRES cbt tool installed which provides CLI access to BigTable instances.
     See: https://cloud.google.com/bigtable/docs/cbt-overview
 """
-import unittest
-import random
 import os
+import unittest
 
 from parameterized import parameterized
+
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 
@@ -26,24 +26,19 @@ class BigTableTestCase(DataprocTestCase):
         super().__init__(method_name)
         self.metadata = None
         self.db_name = None
-        self.zone = None
 
     def setUp(self):
         super().setUp()
         self.db_name = "test-bt-{}-{}".format(self.datetime_str(),
                                               self.random_str())
-        _, zone, _ = self.run_command("gcloud config get-value compute/zone")
-        self.zone = zone.strip()
-        _, project, _ = self.run_command("gcloud config get-value project")
-        project = project.strip()
-        self.metadata = "bigtable-instance={},bigtable-project={}"\
-            .format(self.db_name, project)
+        self.metadata = "bigtable-instance={},bigtable-project={}".format(
+            self.db_name, self.PROJECT)
 
         self.assert_command(
             'gcloud bigtable instances create {}'
             ' --cluster {} --cluster-zone {}'
             ' --display-name={} --instance-type=DEVELOPMENT'.format(
-                self.db_name, self.db_name, self.zone, self.db_name))
+                self.db_name, self.db_name, self.ZONE, self.db_name))
 
     def tearDown(self):
         super().tearDown()

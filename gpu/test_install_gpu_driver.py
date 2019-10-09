@@ -10,14 +10,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     MASTER_GPU_TYPE = 'type=nvidia-tesla-v100'
     WORKER_GPU_TYPE = 'type=nvidia-tesla-v100'
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        _, region, _ = cls.run_command(
-            "gcloud config get-value compute/region")
-        _, zone, _ = cls.run_command("gcloud config get-value compute/zone")
-        cls.REGION = region.strip() or zone.strip()[:-2]
-
     def verify_instance(self, name):
         self.assert_instance_command(name, "nvidia-smi")
 

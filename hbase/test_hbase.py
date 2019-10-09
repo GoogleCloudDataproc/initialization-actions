@@ -11,14 +11,6 @@ class HBaseTestCase(DataprocTestCase):
     INIT_ACTIONS_FOR_NOT_HA = ['zookeeper/zookeeper.sh']
     GCS_BUCKET = None
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        _, region, _ = cls.run_command(
-            "gcloud config get-value compute/region")
-        _, zone, _ = cls.run_command("gcloud config get-value compute/zone")
-        cls.REGION = region.strip() or zone.strip()[:-2]
-
     def setUp(self):
         super().setUp()
         self.GCS_BUCKET = "test-hbase-{}-{}".format(self.datetime_str(),

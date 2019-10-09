@@ -31,9 +31,7 @@ class ConnectorsTestCase(DataprocTestCase):
         return "/usr/local/share/google/dataproc/lib"
 
     def __submit_pig_job(self, cluster_name, job):
-        self.assert_command(
-            "gcloud dataproc jobs submit pig --format json --cluster {} -e '{}'"
-            .format(cluster_name, job))
+        self.assert_dataproc_job(cluster_name, 'pig', "-e '{}'".format(job))
 
     @parameterized.expand(
         [
