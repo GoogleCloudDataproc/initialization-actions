@@ -11,7 +11,7 @@ gcloud container clusters get-credentials "${CLOUDSDK_CONTAINER_CLUSTER}"
 
 kubectl run "${POD_NAME}" --generator=run-pod/v1 --image="$IMAGE" \
   --requests "cpu=2,memory=2Gi" --restart=Never \
-  --env="BASE_BRANCH=$BASE_BRANCH" \
+  --env="COMMIT_SHA=$COMMIT_SHA" \
   --command -- bash /init-actions/cloudbuild/presubmit.sh
 
 trap 'kubectl delete pods "${POD_NAME}"' EXIT

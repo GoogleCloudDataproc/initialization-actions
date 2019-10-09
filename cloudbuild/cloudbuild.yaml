@@ -11,7 +11,7 @@ steps:
     entrypoint: 'bash'
     args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID']
     env:
-      - 'BASE_BRANCH=$BASE_BRANCH'
+      - 'COMMIT_SHA=$COMMIT_SHA'
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
       - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
 
