@@ -4,10 +4,14 @@
 
 set -euxo pipefail
 
+MASTER_HOSTNAME=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+readonly MASTER_HOSTNAME
+
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   return 1
 }
+
 function prepare_env() {
   cat <<'EOF' >>~/.bashrc
 export ACTIVATOR_HOME=/usr/lib/typesafe-activator
@@ -51,7 +55,7 @@ function build() {
 
   hadoop_version=$(hadoop version 2>&1 | sed -n 's/.*Hadoop[[:blank:]]\+\([0-9]\+\.[0-9]\.[0-9]\+\+\).*/\1/p' | head -n1)
   export hadoop_version
-  spark_version=$(spark-submit --version 2>&1  | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\.[0-9]\+\+\).*/\1/p' | head -n1)
+  spark_version=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\.[0-9]\+\+\).*/\1/p' | head -n1)
   export spark_version
 
   # Build Dr. Elephant and move outputs
@@ -59,7 +63,7 @@ function build() {
 
   unzip ./dist/dr-elephant-2.1.7.zip -d ./dist/
 
-#  popd
+  #  popd
 }
 
 function configure() {
@@ -200,14 +204,11 @@ function run_dr() {
   bash ./dist/dr-elephant-2.1.7/bin/start.sh
 }
 
-function main() {
-  # Install on master node
-  [[ "$(/usr/share/google/get_metadata_value attributes/dataproc-role)" == 'Master' ]] || exit 0
+# Install on master node
+if [[ "${HOSTNAME}" == "${MASTER_HOSTNAME}" ]]; then
   prepare_env || err 'Env configuration failed'
   build || err 'Build step failed'
   configure || err 'Configuration failed'
   prepare_mysql || err 'Could not proceed with mysql'
   run_dr || err 'Cannot launch dr-elephant'
-}
-
-main
+fi
