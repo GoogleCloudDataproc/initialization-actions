@@ -24,8 +24,9 @@ If installing the optional Presto component, Presto must be installed before All
 
 ## Notes
 * This script must be updated to specify the Alluxio version to install.
-* `root_ufs_uri` is a required parameter to specify the root under storage location for Alluxio.
-* Additional properties can be specified using the metadata key `site_properties` delimited using `;`
+* `alluxio_version` is an an optional parameter to override the default Alluxio version to install.
+* `alluxio_root_ufs_uri` is a required parameter to specify the root under storage location for Alluxio.
+* Additional properties can be specified using the metadata key `alluxio_site_properties` delimited using `;`
   ```bash
   gcloud dataproc clusters create <cluster_name> \
     ...
