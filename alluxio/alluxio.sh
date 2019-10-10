@@ -20,7 +20,7 @@ set -euxo pipefail
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 
-ALLUXIO_VERSION="$(/usr/share/google/get_metadata_value attributes/alluxio_version)"
+ALLUXIO_VERSION=$(/usr/share/google/get_metadata_value attributes/alluxio_version) || true
 ALLUXIO_VERSION=${ALLUXIO_VERSION:-"2.0.1"}
 
 SPARK_HOME=${SPARK_HOME:-"/usr/lib/spark"}
@@ -102,8 +102,10 @@ function bootstrap_alluxio() {
   ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" "${HIVE_HOME}/lib/alluxio-client.jar"
   mkdir -p "${HADOOP_HOME}/lib/"
   ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" "${HADOOP_HOME}/lib/alluxio-client.jar"
-  systemctl restart hive-metastore
-  systemctl restart hive-server2
+  if [[ "${ROLE}" == "Master" ]]; then
+    systemctl restart hive-metastore
+    systemctl restart hive-server2
+  fi
 
   # Optionally configure presto
   # OK to fail in this section
