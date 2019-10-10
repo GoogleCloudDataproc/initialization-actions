@@ -28,8 +28,8 @@ tables = sqlContext.read.jdbc(
                                                   HIVE_USER_PASSWORD), 'TBLS')
 test_table = tables.where(tables.TBL_NAME == test_table_name).collect()[0]
 
-print 'Successfully found table {} in Cloud SQL Hive metastore'.format(
-    test_table.TBL_NAME)
+print('Successfully found table {} in Cloud SQL Hive metastore'.format(
+    test_table.TBL_NAME))
 
 # Clean up table.
 sqlContext.sql('DROP TABLE ' + test_table_name)
