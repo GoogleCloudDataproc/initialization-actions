@@ -23,7 +23,7 @@ readonly PRESTO_MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/d
 readonly WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 readonly PRESTO_MAJOR_VERSION="312"
 readonly STARBURST_PRESTO_VERSION="312-e.1"
-readonly HTTP_PORT="8080"
+readonly HTTP_PORT="$(/usr/share/google/get_metadata_value attributes/presto-port || echo 8080)"
 readonly INIT_SCRIPT="/usr/lib/systemd/system/presto.service"
 PRESTO_JVM_MB=0;
 PRESTO_QUERY_NODE_MB=0;
@@ -38,7 +38,7 @@ function err() {
 function wait_for_presto_cluster_ready() {
   # wait up to 120s for presto being able to run query
   for ((i = 0; i < 12; i++)); do
-    if presto --execute='select * from system.runtime.nodes;'; then
+    if presto --server="localhost:${HTTP_PORT}" --execute='select * from system.runtime.nodes;'; then
       return 0
     fi
     sleep 10
