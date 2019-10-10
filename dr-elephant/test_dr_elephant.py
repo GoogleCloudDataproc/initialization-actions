@@ -1,4 +1,6 @@
 import unittest
+
+import time
 from parameterized import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
@@ -34,15 +36,22 @@ class DrElephantTestCase(DataprocTestCase):
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_dr_elephant(self, configuration, dataproc_version,
                          machine_suffixes):
-        self.createCluster(configuration, self.INIT_ACTIONS, dataproc_version)
+        self.createCluster(configuration,
+                           self.INIT_ACTIONS,
+                           dataproc_version,
+                           timeout_in_minutes=30,
+                           machine_type="n1-standard-2")
 
         # Submit a job to check if statistic is generated
         self.assert_dataproc_job(
-            self.name, 'spark', '''
+            self.name, 'spark', '''\
                 --class org.apache.spark.examples.SparkPi \
                 --jars file:///usr/lib/spark/examples/jars/spark-examples.jar \
-                -- 20000
+                -- 1000
             ''')
+
+        # Wait until Dr. Elephant will scan Spark job
+        time.sleep(180)
 
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),

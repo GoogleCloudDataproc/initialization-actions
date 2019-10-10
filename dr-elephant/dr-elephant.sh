@@ -4,6 +4,9 @@
 
 set -euxo pipefail
 
+readonly TYPESAFE_ACTIVATOR_URL=https://downloads.typesafe.com/typesafe-activator/1.3.12/typesafe-activator-1.3.12.zip
+readonly DR_ELEPHANT_REVISION=bdf9adeea91264aefabebd392d63602a130a3f05
+
 MASTER_HOSTNAME=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 readonly MASTER_HOSTNAME
 
@@ -12,68 +15,62 @@ function err() {
   return 1
 }
 
-function prepare_env() {
-  cat <<'EOF' >>~/.bashrc
-export ACTIVATOR_HOME=/usr/lib/typesafe-activator
-export HADOOP_HOME='/usr/lib/hadoop'
-export HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop
-export SPARK_HOME='/usr/lib/spark'
-export SPARK_CONF_DIR='/usr/lib/spark/conf'
-export PATH=$PATH:$HADOOP_HOME:$HADOOP_CONF_DIR:$SPARK_HOME:$SPARK_CONF_DIR:$ACTIVATOR_HOME/bin/
-EOF
-  source ~/.bashrc
-}
-
 function build() {
-  local old_port="val DFS_HTTP_PORT = 50070"
-  local new_port
-  new_port="val DFS_HTTP_PORT = $(hdfs getconf -confKey dfs.namenode.http-address | cut -d ":" -f 2)"
+  # Download and install Typesafe Activator
+  wget --progress=dot:mega -O /tmp/typesafe-activator.zip ${TYPESAFE_ACTIVATOR_URL}
+  unzip -q /tmp/typesafe-activator.zip -d /tmp/
+  mv /tmp/activator-dist-* /tmp/typesafe-activator
+  export PATH=${PATH}:/tmp/typesafe-activator/bin/
 
-  # Download and install build tools
-  wget --progress=dot:mega https://downloads.typesafe.com/typesafe-activator/1.3.12/typesafe-activator-1.3.12.zip
-  unzip typesafe-activator-1.3.12.zip -d /tmp/
-  mv /tmp/activator-dist-1.3.12 /usr/lib/typesafe-activator
+  # Download and install Dr. Elephant
+  git clone https://github.com/linkedin/dr-elephant.git /tmp/dr-elephant
+  pushd /tmp/dr-elephant
+  git reset --hard ${DR_ELEPHANT_REVISION}
 
+  # Install dependencies for new Dr. Elephant UI
   curl -sL https://deb.nodesource.com/setup_8.x | bash -
   apt-get install -y nodejs
   npm install -g bower
-
-  # Download and install Dr. Elephant
-  git clone https://github.com/linkedin/dr-elephant.git
-  pushd dr-elephant
-  git reset --hard bdf9adeea91264aefabebd392d63602a130a3f05
-
-  # Fix hardcoded HDFS port problem for 1.3 images
-  sed -i "s/${old_port}/${new_port}/g" app/com/linkedin/drelephant/util/SparkUtils.scala
-
-  # Disable tests
-  sed -i 's/ $OPTS clean compile test $extra_commands/ $OPTS clean compile $extra_commands/g' compile.sh
-
   pushd web
   bower --allow-root install
   popd
 
-  hadoop_version=$(hadoop version 2>&1 | sed -n 's/.*Hadoop[[:blank:]]\+\([0-9]\+\.[0-9]\.[0-9]\+\+\).*/\1/p' | head -n1)
-  export hadoop_version
-  spark_version=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\.[0-9]\+\+\).*/\1/p' | head -n1)
-  export spark_version
+  # Fix hardcoded HDFS port problem for 1.3 images
+  local dfs_port
+  dfs_port=$(hdfs getconf -confKey dfs.namenode.http-address | cut -d ":" -f 2)
+  sed -i "s/val DFS_HTTP_PORT = [0-9]\+/val DFS_HTTP_PORT = ${dfs_port}/" \
+    app/com/linkedin/drelephant/util/SparkUtils.scala
+
+  # Disable tests
+  sed -i 's/ $OPTS clean compile test $extra_commands/ $OPTS clean compile $extra_commands/' compile.sh
+
+  # Set Hadoop and Spark versions
+  # TODO: fix build with overriden Hadoop and Spark versions
+  #  local hadoop_version
+  #  hadoop_version=$(hadoop version 2>&1 | sed -n 's/.*Hadoop[[:blank:]]\+\([0-9]\+\.[0-9]\.[0-9]\+\+\).*/\1/p' | head -n1)
+  #  local spark_version
+  #  spark_version=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\.[0-9]\+\+\).*/\1/p' | head -n1)
+  #  sed -i "s/hadoop_version=[0-9.]\+/hadoop_version=${hadoop_version}/" compile.conf
+  #  sed -i "s/spark_version=[0-9.]\+/spark_version=${spark_version}/" compile.conf
 
   # Build Dr. Elephant and move outputs
-  bash ./compile.sh compile.conf
+  bash compile.sh compile.conf
+  unzip -q dist/dr-elephant-*.zip -d dist-unpacked/
+  mv dist-unpacked/dr-elephant-* /opt/dr-elephant
 
-  unzip ./dist/dr-elephant-2.1.7.zip -d ./dist/
-
-  #  popd
+  popd
 }
 
 function configure() {
+  sed -i 's/^db_password=""/db_password="root-password"/' /opt/dr-elephant/app-conf/elephant.conf
   local old_java_line='#export JAVA_HOME={JAVA_HOME}'
   local new_java_line='export JAVA_HOME=/usr/bin/java/'
-  sed -i 's/^db_password=""/db_password="root-password"/' ./dist/dr-elephant-2.1.7/app-conf/elephant.conf
-  sed -i "s@^$old_java_line@$new_java_line@" /usr/lib/hadoop/etc/hadoop/hadoop-env.sh
+  sed -i "s@^$old_java_line@$new_java_line@" /usr/lib/hadoop/etc/hadoop/hado-env.sh
+
   # Setup Fetchers
-  cat <<EOF >./dist/dr-elephant-2.1.7/app-conf/FetcherConf.xml
+  cat <<EOF >/opt/dr-elephant/app-conf/FetcherConf.xml
 <?xml version="1.0" encoding="UTF-8"?>
+
 <!--
 Copyright 2016 LinkedIn Corp.
 
@@ -90,107 +87,25 @@ License for the specific language governing permissions and limitations under
 the License.
 -->
 
-<!-- Data fetchers configurations
-A Fetcher implements ElephantFetcher interface and help fetch a certain application type data.
-
-Example:
-<fetcher>
-# Choose the application type that this fetcher is for
-<applicationtype>mapreduce</applicationtype>
-
-
-# Specify the implementation class
-<classname>com.linkedin.drelephant.mapreduce.fetchers.MapReduceFetcherHadoop2</classname>
-</fetcher>
--->
 <fetchers>
-<!--
-REST based fetcher for Tez jobs which pulls job metrics and data from Timeline Server API
--->
-
-<!--
-<fetcher>
-<applicationtype>mapreduce</applicationtype>
-<classname>com.linkedin.drelephant.mapreduce.fetchers.MapReduceFetcherHadoop2</classname>
-<params>
-<sampling_enabled>false</sampling_enabled>
-</params>
-</fetcher>
--->
-<!--
-This is a replacement for the MapReduceFetcherHadoop2 that attempts to burn
-through queues of jobs faster by pulling data directly from HDFS rather than going through
-the job history server.
-
-Increasing the param history_log_size_limit_in_mb allows this fetcher to accept larger log
-files, but also increase the risk of OutOfMemory error. The default heap size of Dr. Elephant
-is 1024MB. To increase this, e.g. to 2048MB, update the below mem conf in app-conf/elephant.conf:
-jvm_args="-mem 2048"
-
-To work properly, this fetcher should use the same timezone with the job history server.
-If not set, the local timezone will be used.
--->
-
-<fetcher>
-<applicationtype>mapreduce</applicationtype>
-<classname>com.linkedin.drelephant.mapreduce.fetchers.MapReduceFSFetcherHadoop2</classname>
-<params>
-<sampling_enabled>false</sampling_enabled>
-<history_log_size_limit_in_mb>500</history_log_size_limit_in_mb>
-<history_server_time_zone>PST</history_server_time_zone>
-</params>
-</fetcher>
-
-
-<!--
-FSFetcher for Spark. Loads the eventlog from HDFS and replays to get the metrics and application properties
-
-Param Description:
-*event_log_size_limit_in_mb* sets the threshold for the size of the eventlog. Increasing it will necessiate
-increase in heap size. default is 100
-
-*event_log_location_uri* can be used to specify the fully qualified uri for the location in hdfs for eventlogs
-if this is not specified, the fetcher will try to deduce it from the spark-conf
-
-eg:
-<params>
-<event_log_size_limit_in_mb>500</event_log_size_limit_in_mb>
-<event_log_location_uri>webhdfs://localhost:50070/system/spark-history</event_log_location_uri>
-</params>
--->
-<fetcher>
-<applicationtype>spark</applicationtype>
-<classname>com.linkedin.drelephant.spark.fetchers.FSFetcher</classname>
-</fetcher>
-
-<!--
-This is an experimental fetcher for Spark applications which uses SHS REST API to get application metrics
-and WebHDFS to get application properties from eventlogs.
-
-<fetcher>
-<applicationtype>spark</applicationtype>
-<classname>com.linkedin.drelephant.spark.fetchers.SparkFetcher</classname>
-</fetcher>
-
-Param Description (Requires Spark >= 1.5.0):
-*use_rest_for_eventlogs* enables the fetcher to get eventlogs via SHS REST API to derive application properties.
-*should_process_logs_locally* if use_rest_for_eventlogs is true, then enabling this flag will enable fetcher to just
-get eventlogs via SHS REST API and derives application metrics and properties from eventlogs.
-Therefore, fetcher does not use other REST calls, which may have significant memory overhead on SHS.
-
-<fetcher>
-<applicationtype>spark</applicationtype>
-<classname>com.linkedin.drelephant.spark.fetchers.SparkFetcher</classname>
-<params>
-<use_rest_for_eventlogs>true</use_rest_for_eventlogs>
-<should_process_logs_locally>true</should_process_logs_locally>
-</params>
-</fetcher>
--->
+   <fetcher>
+      <applicationtype>mapreduce</applicationtype>
+      <classname>com.linkedin.drelephant.mapreduce.fetchers.MapReduceFSFetcherHadoop2</classname>
+      <params>
+         <sampling_enabled>false</sampling_enabled>
+         <history_log_size_limit_in_mb>500</history_log_size_limit_in_mb>
+         <history_server_time_zone>PST</history_server_time_zone>
+      </params>
+   </fetcher>
+   <fetcher>
+      <applicationtype>spark</applicationtype>
+      <classname>com.linkedin.drelephant.spark.fetchers.FSFetcher</classname>
+   </fetcher>
 </fetchers>
 EOF
+
   # Enable compress for making metrics accessible by dr elephant
-  echo "spark.eventLog.compress = true" >>"${SPARK_CONF_DIR}/spark-defaults.conf"
+  echo "spark.eventLog.compress = true" >>"/usr/lib/spark/conf/spark-defaults.conf"
 }
 
 function prepare_mysql() {
@@ -201,12 +116,11 @@ function prepare_mysql() {
 function run_dr() {
   # Restart History Server
   systemctl restart spark-historyserver
-  bash ./dist/dr-elephant-2.1.7/bin/start.sh
+  bash /opt/dr-elephant/bin/start.sh
 }
 
 # Install on master node
 if [[ "${HOSTNAME}" == "${MASTER_HOSTNAME}" ]]; then
-  prepare_env || err 'Env configuration failed'
   build || err 'Build step failed'
   configure || err 'Configuration failed'
   prepare_mysql || err 'Could not proceed with mysql'
