@@ -1,80 +1,74 @@
 #!/usr/bin/env bash
+
 # Init action for Dr.Elephant
-set -x -e
+
+set -euxo pipefail
 
 function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   return 1
 }
-function prepare_env(){
-  cat << 'EOF' >> ~/.bashrc
-export ACTIVATOR_HOME=/usr/lib/activator-dist-1.3.12/activator-dist-1.3.12
+function prepare_env() {
+  cat <<'EOF' >>~/.bashrc
+export ACTIVATOR_HOME=/usr/lib/typesafe-activator
 export HADOOP_HOME='/usr/lib/hadoop'
 export HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop
 export SPARK_HOME='/usr/lib/spark'
 export SPARK_CONF_DIR='/usr/lib/spark/conf'
 export PATH=$PATH:$HADOOP_HOME:$HADOOP_CONF_DIR:$SPARK_HOME:$SPARK_CONF_DIR:$ACTIVATOR_HOME/bin/
 EOF
-  readonly enable_cloud_sql_metastore="$(/usr/share/google/get_metadata_value attributes/enable-cloud-sql-hive-metastore || echo 'true')"
-  cd /root/
-  source .bashrc
+  source ~/.bashrc
 }
 
-function build(){
+function build() {
   local old_port="val DFS_HTTP_PORT = 50070"
-  local new_port="val DFS_HTTP_PORT = $(echo "$(hdfs getconf -confKey dfs.namenode.http-address)" | cut -d ":" -f 2)"
+  local new_port
+  new_port="val DFS_HTTP_PORT = $(hdfs getconf -confKey dfs.namenode.http-address | cut -d ":" -f 2)"
 
-  # Download and install dr elephant and build tools
-  git clone https://github.com/linkedin/dr-elephant.git
-  wget https://downloads.typesafe.com/typesafe-activator/1.3.12/typesafe-activator-1.3.12.zip
-  unzip typesafe-activator-1.3.12.zip -d /usr/lib/activator-dist-1.3.12
-  sudo apt-get install apt-transport-https
-  echo "deb https://dl.bintray.com/sbt/debian /" | sudo tee -a /etc/apt/sources.list.d/sbt.list
-  sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 2EE0EA64E40A89B84B2DF73499E82A75642AC823
-  sudo apt-get update
-  yes | sudo apt-get install sbt
+  # Download and install build tools
+  wget --progress=dot:mega https://downloads.typesafe.com/typesafe-activator/1.3.12/typesafe-activator-1.3.12.zip
+  unzip typesafe-activator-1.3.12.zip -d /tmp/
+  mv /tmp/activator-dist-1.3.12 /usr/lib/typesafe-activator
 
-  # Fix hardcoded hdfs port problem for 1.3 images
-  cd dr-elephant*
-  sed -i 's@'"${old_port}"'@'"${new_port}"'@' app/com/linkedin/drelephant/util/SparkUtils.scala
-
-  # Symbolic link to proceed with activator during build
-  ln -s /usr/lib/activator-dist-1.3.12/activator-dist-1.3.12/bin/activator activator
-
-  # Install node and required dependencies
-  sudo apt-get remove nodejs npm
-  curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
-  sudo apt-get install -y nodejs
-  npm install -g n
-  n stable
-  n rm v0.10.29
-  npm -v
+  curl -sL https://deb.nodesource.com/setup_8.x | bash -
+  apt-get install -y nodejs
   npm install -g bower
-  npm install -g ember-inflector@^1.9.4
-  yes | sudo apt-get install ant
-  git clone git://github.com/playframework/play.git
-  cd play/framework
-  ant
-  cd ..; cd ..
 
-  ln -s /usr/bin/nodejs /usr/bin/node || echo "symbolic link already exists"
-  cd web; bower --allow-root install; cd ..
+  # Download and install Dr. Elephant
+  git clone https://github.com/linkedin/dr-elephant.git
+  pushd dr-elephant
+  git reset --hard bdf9adeea91264aefabebd392d63602a130a3f05
+
+  # Fix hardcoded HDFS port problem for 1.3 images
+  sed -i "s/${old_port}/${new_port}/g" app/com/linkedin/drelephant/util/SparkUtils.scala
 
   # Disable tests
-  sed -i 's|^play_command $OPTS clean test compile dist*|./activator $OPTS clean compile dist|' compile.sh
+  sed -i 's/ $OPTS clean compile test $extra_commands/ $OPTS clean compile $extra_commands/g' compile.sh
 
-  # Build dr elephant and move outputs
+  pushd web
+  bower --allow-root install
+  popd
+
+  hadoop_version=$(hadoop version 2>&1 | sed -n 's/.*Hadoop[[:blank:]]\+\([0-9]\+\.[0-9]\.[0-9]\+\+\).*/\1/p' | head -n1)
+  export hadoop_version
+  spark_version=$(spark-submit --version 2>&1  | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\.[0-9]\+\+\).*/\1/p' | head -n1)
+  export spark_version
+
+  # Build Dr. Elephant and move outputs
   bash ./compile.sh compile.conf
-  unzip /root/dr-elephant/dist/dr-elephant-2.1.7.zip -d /root/dr-elephant/dist/
+
+  unzip ./dist/dr-elephant-2.1.7.zip -d ./dist/
+
+#  popd
 }
 
-function configure(){
+function configure() {
   local old_java_line='#export JAVA_HOME={JAVA_HOME}'
   local new_java_line='export JAVA_HOME=/usr/bin/java/'
-  sed -i 's/^db_password=""/db_password="root-password"/' dist/dr-elephant-2.1.7/app-conf/elephant.conf
+  sed -i 's/^db_password=""/db_password="root-password"/' ./dist/dr-elephant-2.1.7/app-conf/elephant.conf
   sed -i "s@^$old_java_line@$new_java_line@" /usr/lib/hadoop/etc/hadoop/hadoop-env.sh
   # Setup Fetchers
-  cat <<EOF > /root/dr-elephant/dist/dr-elephant-2.1.7/app-conf/FetcherConf.xml
+  cat <<EOF >./dist/dr-elephant-2.1.7/app-conf/FetcherConf.xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
 Copyright 2016 LinkedIn Corp.
@@ -192,24 +186,21 @@ Therefore, fetcher does not use other REST calls, which may have significant mem
 </fetchers>
 EOF
   # Enable compress for making metrics accessible by dr elephant
-  echo "spark.eventLog.compress = true" >> $SPARK_CONF_DIR/spark-defaults.conf
+  echo "spark.eventLog.compress = true" >>"${SPARK_CONF_DIR}/spark-defaults.conf"
 }
 
-
-function prepare_mysql(){
+function prepare_mysql() {
   systemctl restart mysql
-  mysql -u root -proot-password -e " \
-  CREATE DATABASE drelephant;"
+  mysql -u root -proot-password -e "CREATE DATABASE drelephant;"
 }
 
-
-function run_dr(){
+function run_dr() {
   # Restart History Server
   systemctl restart spark-historyserver
-  bash /root/dr-elephant/dist/dr-elephant-2.1.7/bin/start.sh
+  bash ./dist/dr-elephant-2.1.7/bin/start.sh
 }
 
-function main(){
+function main() {
   # Install on master node
   [[ "$(/usr/share/google/get_metadata_value attributes/dataproc-role)" == 'Master' ]] || exit 0
   prepare_env || err 'Env configuration failed'

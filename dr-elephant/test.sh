@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
-# This script is used for testing dr-elephant on 1.1,1.2,1.3 dataproc images with single,
-# standard and HA configurations. After clusters are created, script submit spark jobs on them.
+
+# This script is used for testing Dr. Elephant on Dataproc images.
+# After clusters are created, script submit spark jobs on them.
 # Dr Elephant UI can be accessed after connection with command:
 # gcloud compute ssh ${cluster_prefix}-*config*-${suffix}-m* -- -L 8080:${cluster_prefix}-*config*-${suffix}-m*:8080
 # Then just open a browser and type localhost:8080 address.
-set -x
+
+set -euxo pipefail
 gsutil cp dr-elephant.sh ${bucket_name}/dr-elephant/
 cluster_prefix=$1
 bucket_name=$2
+
 # 1.1
 image='1.1-deb9'
 suffix='1-1'
