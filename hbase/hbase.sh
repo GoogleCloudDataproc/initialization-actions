@@ -22,8 +22,7 @@ readonly CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/datapro
 readonly WORKER_COUNT="$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)"
 readonly DATAPROC_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 readonly MASTER_ADDITIONAL=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional || true)
-mapfile -t MASTER_HOSTNAMES <<<"${MASTER_ADDITIONAL//,/ }"
-readonly MASTER_HOSTNAMES=("$DATAPROC_MASTER" "${MASTER_HOSTNAMES[@]}")
+IFS=' ' read -a MASTER_HOSTNAMES <<<"${DATAPROC_MASTER} ${MASTER_ADDITIONAL//,/ }"
 readonly ENABLE_KERBEROS="$(/usr/share/google/get_metadata_value attributes/enable-kerberos)"
 readonly KEYTAB_BUCKET="$(/usr/share/google/get_metadata_value attributes/keytab-bucket)"
 readonly DOMAIN=$(dnsdomainname)
