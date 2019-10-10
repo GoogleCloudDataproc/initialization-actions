@@ -31,9 +31,7 @@ function build() {
   curl -sL https://deb.nodesource.com/setup_8.x | bash -
   apt-get install -y nodejs
   npm install -g bower
-  pushd web
-  bower --allow-root install
-  popd
+  pushd web; bower --allow-root install; popd
 
   # Fix hardcoded HDFS port problem for 1.3 images
   local dfs_port
@@ -63,9 +61,6 @@ function build() {
 
 function configure() {
   sed -i 's/^db_password=""/db_password="root-password"/' /opt/dr-elephant/app-conf/elephant.conf
-  local old_java_line='#export JAVA_HOME={JAVA_HOME}'
-  local new_java_line='export JAVA_HOME=/usr/bin/java/'
-  sed -i "s@^$old_java_line@$new_java_line@" /usr/lib/hadoop/etc/hadoop/hado-env.sh
 
   # Setup Fetchers
   cat <<EOF >/opt/dr-elephant/app-conf/FetcherConf.xml
