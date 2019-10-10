@@ -51,7 +51,7 @@ class DrElephantTestCase(DataprocTestCase):
             ''')
 
         # Wait until Dr. Elephant will scan Spark job
-        time.sleep(180)
+        time.sleep(300)
 
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
