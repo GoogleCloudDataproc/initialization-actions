@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#    Copyright 2015 Google, Inc.
+#    Copyright 2019 Google LLC.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License");
 #    you may not use this file except in compliance with the License.
@@ -14,24 +14,20 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 
-set -o errexit  # exit when a command fails - append "|| true" to allow a
-                # command to fail
-set -o nounset  # exit when attempting to use undeclared variables
-
-# Show commands being run - useful to keep by default so that failures
-# are easy to debug
-set -x
+set -euxo pipefail
 
 # Variables for running this script
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
+
+ALLUXIO_VERSION="$(/usr/share/google/get_metadata_value attributes/alluxio_version)"
+ALLUXIO_VERSION=${ALLUXIO_VERSION:-"2.0.1"}
 
 SPARK_HOME=${SPARK_HOME:-"/usr/lib/spark"}
 HIVE_HOME=${HIVE_HOME:-"/usr/lib/hive"}
 HADOOP_HOME=${HADOOP_HOME:-"/usr/lib/hadoop"}
 
 # Script constants
-ALLUXIO_VERSION=2.0.1
 ALLUXIO_HOME=/opt/alluxio
 ALLUXIO_SITE_PROPERTIES=${ALLUXIO_HOME}/conf/alluxio-site.properties
 ALLUXIO_DOWNLOAD_URL=https://downloads.alluxio.io/downloads/files/${ALLUXIO_VERSION}/alluxio-${ALLUXIO_VERSION}-bin.tar.gz
@@ -45,10 +41,10 @@ download_file() {
 
   if [[ "${uri}" == gs://* ]]
   then
-    sudo gsutil cp "${uri}" ./
+    gsutil cp "${uri}" ./
   else
     # TODO Add metadata header tag to the wget for filtering out in download metrics.
-    sudo wget -nv "${uri}"
+    wget -nv "${uri}"
   fi
 }
 
@@ -70,8 +66,10 @@ append_alluxio_property() {
 # val=$(get_defaultmem_size)
 get_default_mem_size() {
   local mem_div=3
-  local phy_total=$(free -m | grep -oP '\d+' | head -n1)
-  local mem_size=$(( ${phy_total} / ${mem_div} ))
+  local phy_total
+  phy_total=$(free -m | grep -oP '\d+' | head -n1)
+  local mem_size
+  mem_size=$(( phy_total / mem_div ))
   echo "${mem_size}MB"
 }
 
@@ -80,46 +78,48 @@ function bootstrap_alluxio() {
   mkdir ${ALLUXIO_HOME}
   download_file ${ALLUXIO_DOWNLOAD_URL}
   local tarball_name=${ALLUXIO_DOWNLOAD_URL##*/}
-  sudo tar -zxf ${tarball_name} -C ${ALLUXIO_HOME} --strip-components 1
-  sudo ln -s ${ALLUXIO_HOME}/client/*client.jar ${ALLUXIO_HOME}/client/alluxio-client.jar
+  tar -zxf ${tarball_name} -C ${ALLUXIO_HOME} --strip-components 1
+  ln -s "${ALLUXIO_HOME}/client/*client.jar" "${ALLUXIO_HOME}/client/alluxio-client.jar"
 
   # Download files to /opt/alluxio/conf
-  local download_files_list=$(/usr/share/google/get_metadata_value attributes/alluxio_download_files_list)
+  local download_files_list
+  download_files_list=$(/usr/share/google/get_metadata_value attributes/alluxio_download_files_list)
   local download_delimiter=";"
   IFS="${download_delimiter}" read -ra files_to_be_downloaded <<< "${download_files_list}"
   if [ "${#files_to_be_downloaded[@]}" -gt "0" ]; then
     for file in "${files_to_be_downloaded[@]}"; do
-      local filename="$(basename ${file})"
+      local filename
+      filename="$(basename ${file})"
       download_file "${file}"
-      sudo mv "${filename}" "${ALLUXIO_HOME}/conf/${filename}"
+      mv "${filename}" "${ALLUXIO_HOME}/conf/${filename}"
     done
   fi
 
   # Configure client applications
-  sudo mkdir -p ${SPARK_HOME}/jars/
-  sudo ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" ${SPARK_HOME}/jars/alluxio-client.jar
-  sudo mkdir -p ${HIVE_HOME}/lib/
-  sudo ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" ${HIVE_HOME}/lib/alluxio-client.jar
-  sudo mkdir -p ${HADOOP_HOME}/lib/
-  sudo ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" ${HADOOP_HOME}/lib/alluxio-client.jar
-  sudo systemctl restart hive-metastore
-  sudo systemctl restart hive-server2
+  mkdir -p "${SPARK_HOME}/jars/"
+  ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" "${SPARK_HOME}/jars/alluxio-client.jar"
+  mkdir -p "${HIVE_HOME}/lib/"
+  ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" "${HIVE_HOME}/lib/alluxio-client.jar"
+  mkdir -p "${HADOOP_HOME}/lib/"
+  ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" "${HADOOP_HOME}/lib/alluxio-client.jar"
+  systemctl restart hive-metastore
+  systemctl restart hive-server2
 
   # Optionally configure presto
   # OK to fail in this section
   set +o errexit
   PRESTO_HOME=${PRESTO_HOME:-$(ls -d -- /presto-server-*)}
-  if [ ! -z $PRESTO_HOME ]; then
-    sudo mkdir -p ${PRESTO_HOME}/plugin/hive-hadoop2/
-    sudo ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" ${PRESTO_HOME}/plugin/hive-hadoop2/alluxio-client.jar
-    sudo systemctl restart presto
+  if [[ -n $PRESTO_HOME ]]; then
+    mkdir -p "${PRESTO_HOME}/plugin/hive-hadoop2/"
+    ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" "${PRESTO_HOME}/plugin/hive-hadoop2/alluxio-client.jar"
+    systemctl restart presto
   fi
   set -o errexit # errors not ok anymore
 }
 
 # Configure alluxio-site.properties
 function configure_alluxio() {
-  cp ${ALLUXIO_HOME}/conf/alluxio-site.properties.template ${ALLUXIO_SITE_PROPERTIES}
+  cp "${ALLUXIO_HOME}/conf/alluxio-site.properties.template" ${ALLUXIO_SITE_PROPERTIES}
 
   append_alluxio_property alluxio.master.hostname "${MASTER_FQDN}"
 
@@ -154,13 +154,13 @@ function configure_alluxio() {
 # Start the Alluxio server process
 function start_alluxio() {
   if [[ "${ROLE}" == "Master" ]]; then
-    sudo ${ALLUXIO_HOME}/bin/alluxio formatMaster
-    sudo ${ALLUXIO_HOME}/bin/alluxio-start.sh master
+    ${ALLUXIO_HOME}/bin/alluxio formatMaster
+    ${ALLUXIO_HOME}/bin/alluxio-start.sh master
   else
     sleep 60 # TODO: Remove sleep after making AlluxioWorkerMonitor retry configurable
-    sudo ${ALLUXIO_HOME}/bin/alluxio-mount.sh SudoMount local
-    sudo ${ALLUXIO_HOME}/bin/alluxio formatWorker
-    sudo ${ALLUXIO_HOME}/bin/alluxio-start.sh worker NoMount
+    ${ALLUXIO_HOME}/bin/alluxio-mount.sh SudoMount local
+    ${ALLUXIO_HOME}/bin/alluxio formatWorker
+    ${ALLUXIO_HOME}/bin/alluxio-start.sh worker NoMount
   fi
 }
 
