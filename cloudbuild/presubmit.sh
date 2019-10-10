@@ -38,7 +38,7 @@ initialize_git_repo() {
   # Fetch all PRs to get history for PRs created from forked repos
   git fetch origin +refs/pull/*/merge:refs/remotes/origin/pr/*
 
-  git reset --hard "${COMMIT_SHA}"
+  git reset "${COMMIT_SHA}"
 
   git rebase origin/master
 }
