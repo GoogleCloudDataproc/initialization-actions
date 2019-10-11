@@ -1,9 +1,14 @@
 import os
+import sys
 import unittest
 
+from absl import flags
 from parameterized import parameterized
-
 from integration_tests.dataproc_test_case import DataprocTestCase
+
+FLAGS = flags.FLAGS
+flags.DEFINE_multi_string('params', '', 'Configuration to test')
+FLAGS(sys.argv)
 
 
 class RapidsTestCase(DataprocTestCase):
@@ -23,8 +28,22 @@ class RapidsTestCase(DataprocTestCase):
             self.TEST_SCRIPT_FILE_NAME)
         self.assert_instance_command(name, verify_cmd)
 
+    def buildParameters():
+        """Builds parameters from flags arguments passed to the test."""
+        params = []
+        if not FLAGS.params[0]:
+            # Default parameters
+            params = [("STANDARD", "1.3", ["m"])]
+        else:
+            for param in FLAGS.params:
+                (config, version, machine_suffixes) = param.split()
+                machine_suffixes = (machine_suffixes.split(',')
+                    if ',' in machine_suffixes
+                    else [machine_suffixes])
+                params.append((config, version, machine_suffixes))
+        return params
     @parameterized.expand(
-        [("STANDARD", "1.3", ["m"])],
+        buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_rapids(self, configuration, dataproc_version, machine_suffixes):
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
@@ -45,4 +64,5 @@ class RapidsTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
+    del sys.argv[1:]
     unittest.main()

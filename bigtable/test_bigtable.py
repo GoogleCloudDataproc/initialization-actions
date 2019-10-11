@@ -15,29 +15,13 @@ import random
 import os
 import logging
 import sys
-from absl import flags
 
+from absl import flags
 from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
-# parser = argparse.ArgumentParser()
-# parser.add_argument('-p', '--parameter_list', type=list, nargs='+')
-# parser.add_argument('unittest_args', type=list, nargs='*')
-# # parser.add_argument('-p', '--parameter_list', action='append', nargs=3,
-# #     metavar=('config', 'version', 'machine_suffixes'))
-# args = parser.parse_args()
-
-# parser = argparse.ArgumentParser()
-# parser.add_argument('--parameter_list', action='append', nargs='+')
-# parser.add_argument('--parameter_list', type=str)
-# args = parser.parse_args()
-
-# del_all_flags(flags.FLAGS)
-
 FLAGS = flags.FLAGS
-
-
-flags.DEFINE_multi_string('params', 'SINGLE 1.3 m', 'Configuration to test')
+flags.DEFINE_multi_string('params', '', 'Configuration to test')
 FLAGS(sys.argv)
 
 
@@ -75,20 +59,26 @@ class BigTableTestCase(DataprocTestCase):
             self.db_name))
 
     def buildParameters():
-        # print("Hello")
-        # print(args.parameter_list)
-        # parameters = [
-        #     (parameters.split()[0], parameters.split()[1], [parameters.split()[2]])
-        #     for _,_, parameters in args.parameter_list]
+        """Builds parameters from flags arguments passed to the test."""
         flags_parameters = FLAGS.params
-        print(flags_parameters)
         params = []
-        for param in flags_parameters:
-            (config, version, machine_suffixes) = param.split()
-            machine_suffixes = (machine_suffixes.split(',')
-                if ',' in machine_suffixes
-                else [machine_suffixes])
-            params.append((config, version, machine_suffixes))
+        if not flags_parameters[0]:
+            # Default parameters
+            params = [
+                ("SINGLE", "1.2", ["m"]),
+                ("STANDARD", "1.2", ["m"]),
+                ("HA", "1.2", ["m-0"]),
+                ("SINGLE", "1.3", ["m"]),
+                ("STANDARD", "1.3", ["m"]),
+                ("HA", "1.3", ["m-0"])
+            ]
+        else:
+            for param in flags_parameters:
+                (config, version, machine_suffixes) = param.split()
+                machine_suffixes = (machine_suffixes.split(',')
+                    if ',' in machine_suffixes
+                    else [machine_suffixes])
+                params.append((config, version, machine_suffixes))
         return params
 
     def _validate_bigtable(self):
@@ -112,21 +102,9 @@ class BigTableTestCase(DataprocTestCase):
 
     @parameterized.expand(
         buildParameters(),
-        # [
-        #     ("SINGLE", "1.2", ["m"]),
-        #     ("STANDARD", "1.2", ["m"]),
-        #     ("HA", "1.2", ["m-0"]),
-        #     ("SINGLE", "1.3", ["m"]),
-        #     ("STANDARD", "1.3", ["m"]),
-        #     ("HA", "1.3", ["m-0"]),
-        # ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name,
         skip_on_empty=True)
     def test_bigtable(self, configuration, dataproc_version, machine_suffixes):
-        # print(PARAMETERS)
-        # print(self.PARAMETERS)
-        # for param in self.PARAMETERS:
-        #     configuration, dataproc_version, machine_suffixes = param
         log = logging.getLogger( "BigTableTestCase.test_bigtable" )
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
@@ -137,12 +115,8 @@ class BigTableTestCase(DataprocTestCase):
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
 
-def del_all_flags(FLAGS):
-    flags_dict = FLAGS._flags()    
-    keys_list = [keys for keys in flags_dict]    
-    for keys in keys_list:
-        FLAGS.__delattr__(keys)
 
 
 if __name__ == '__main__':
-    unittest.main(argv=FLAGS.params)
+    del sys.argv[1:]
+    unittest.main()
