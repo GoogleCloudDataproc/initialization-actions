@@ -1,17 +1,18 @@
 package(default_visibility = ["//visibility:public"])
 
 py_test(
-	name = "test_bigtable",
-	srcs = ["test_bigtable.py"],
+	name = "test_ranger",
+	srcs = ["test_ranger.py"],
 	deps = ["//integration_tests:dataproc_test_case",
-			":run_hbase_commands",
+			":verify_ranger",
 			"//absl/flags",],
-	data = ["bigtable.sh"],
+	data = ["ranger.sh",
+			"//solr:solr.sh"],
 	local = True,
 	size = "enormous",
 )
 
 py_library(
-	name = "run_hbase_commands",
-	srcs = ["run_hbase_commands.py"],
+	name = "verify_ranger",
+	srcs = ["verify_ranger.py"],
 )

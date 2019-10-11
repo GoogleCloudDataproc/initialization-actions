@@ -1,17 +1,16 @@
 package(default_visibility = ["//visibility:public"])
 
 py_test(
-	name = "test_bigtable",
-	srcs = ["test_bigtable.py"],
+	name = "test_ganglia",
+	srcs = ["test_ganglia.py"],
 	deps = ["//integration_tests:dataproc_test_case",
-			":run_hbase_commands",
+			":verify_ganglia_running",
 			"//absl/flags",],
-	data = ["bigtable.sh"],
 	local = True,
 	size = "enormous",
 )
 
 py_library(
-	name = "run_hbase_commands",
-	srcs = ["run_hbase_commands.py"],
+	name = "verify_ganglia_running",
+	srcs = ["verify_ganglia_running.py"],
 )

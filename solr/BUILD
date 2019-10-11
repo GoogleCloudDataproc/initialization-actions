@@ -1,17 +1,19 @@
 package(default_visibility = ["//visibility:public"])
 
+exports_files(["solr.sh"])
+
 py_test(
-	name = "test_bigtable",
-	srcs = ["test_bigtable.py"],
+	name = "test_solr",
+	srcs = ["test_solr.py"],
 	deps = ["//integration_tests:dataproc_test_case",
-			":run_hbase_commands",
+			":verify_solr",
 			"//absl/flags",],
-	data = ["bigtable.sh"],
+	data = ["solr.sh"],
 	local = True,
 	size = "enormous",
 )
 
 py_library(
-	name = "run_hbase_commands",
-	srcs = ["run_hbase_commands.py"],
+	name = "verify_solr",
+	srcs = ["verify_solr.py"],
 )

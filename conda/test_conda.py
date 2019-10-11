@@ -1,22 +1,27 @@
 import json
 import unittest
+import sys
 
+from absl import flags
 from parameterized import parameterized
-
 from integration_tests.dataproc_test_case import DataprocTestCase
+
+FLAGS = flags.FLAGS
+flags.DEFINE_multi_string('params', '', 'Configuration to test')
+FLAGS(sys.argv)
 
 CONDA_BINARY = "/opt/conda/bin/conda"
 PIP_BINARY = "/opt/conda/bin/pip"
 PYTHON_VERSION_KEY = "python_version"
 
+# Test packages
+CONDA_PKGS = ["numpy", "pandas", "jupyter"]
+PIP_PKGS = ["pandas-gbq"]
+
 
 class CondaTestCase(DataprocTestCase):
     COMPONENT = "conda"
     INIT_ACTIONS = ["conda/bootstrap-conda.sh", "conda/install-conda-env.sh"]
-
-    # Test packages
-    CONDA_PKGS = ["numpy", "pandas", "jupyter"]
-    PIP_PKGS = ["pandas-gbq"]
 
     def _verify_python_version(self, instance, expected_python):
         _, stdout, _ = self.assert_instance_command(
@@ -52,19 +57,52 @@ class CondaTestCase(DataprocTestCase):
         return set(l.split()[0] for l in stdout.splitlines()
                    if not l.startswith("#"))
 
+    def buildParameters():
+        """Builds parameters from flags arguments passed to the test.
+
+        If specified, parameters are given as strings, example:
+        'STANDARD 1.0 3.5 pkg1,pkg2 empty'
+
+        Otherwise, the default set of parameters is used.
+
+        Note: empty denotes that the list of packages is empty.
+        """
+        flags_parameters = FLAGS.params
+        params = []
+        if not flags_parameters[0]:
+            # Default parameters
+            params = [
+                ("STANDARD", "1.0", "3.5", [], []),
+                ("STANDARD", "1.0", "3.5", CONDA_PKGS, PIP_PKGS),
+                ("STANDARD", "1.1", "3.5", [], []),
+                ("STANDARD", "1.1", "3.5", CONDA_PKGS, PIP_PKGS),
+                ("STANDARD", "1.2", "3.6", [], []),
+                ("STANDARD", "1.2", "3.6", CONDA_PKGS, PIP_PKGS),
+                ("STANDARD", "1.3", "3.6", [], []),
+                ("STANDARD", "1.3", "3.6", CONDA_PKGS, PIP_PKGS),
+                ("STANDARD", "1.4", "3.6", [], []),
+                ("STANDARD", "1.4", "3.6", CONDA_PKGS, PIP_PKGS),
+            ]
+        else:
+            for param in flags_parameters:
+                (config, version, expected_python, conda_pkgs, pip_pkgs) = param.split()
+                conda_pkgs = (conda_pkgs.split(',')
+                    if ',' in conda_pkgs
+                    else [conda_pkgs])
+                if conda_pkgs == 'empty':
+                    conda_pkgs = []
+                pip_pkgs = (pip_pkgs.split(',')
+                    if ',' in pip_pkgs
+                    else [pip_pkgs])
+                if pip_pkgs == 'empty':
+                    pip_pkgs = []
+                params.append(
+                    (config, version, expected_python, conda_pkgs, pip_pkgs))
+        return params
+
+
     @parameterized.expand(
-        [
-            ("STANDARD", "1.0", "3.5", [], []),
-            ("STANDARD", "1.0", "3.5", CONDA_PKGS, PIP_PKGS),
-            ("STANDARD", "1.1", "3.5", [], []),
-            ("STANDARD", "1.1", "3.5", CONDA_PKGS, PIP_PKGS),
-            ("STANDARD", "1.2", "3.6", [], []),
-            ("STANDARD", "1.2", "3.6", CONDA_PKGS, PIP_PKGS),
-            ("STANDARD", "1.3", "3.6", [], []),
-            ("STANDARD", "1.3", "3.6", CONDA_PKGS, PIP_PKGS),
-            ("STANDARD", "1.4", "3.6", [], []),
-            ("STANDARD", "1.4", "3.6", CONDA_PKGS, PIP_PKGS),
-        ],
+        buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_conda(self, configuration, dataproc_version, expected_python,
                    conda_packages, pip_packages):
@@ -83,4 +121,5 @@ class CondaTestCase(DataprocTestCase):
 
 
 if __name__ == "__main__":
+    del sys.argv[1:]
     unittest.main()

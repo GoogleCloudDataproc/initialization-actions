@@ -2,10 +2,15 @@
 """
 import unittest
 import os
+import sys
 
+from absl import flags
 from parameterized import parameterized
-
 from integration_tests.dataproc_test_case import DataprocTestCase
+
+FLAGS = flags.FLAGS
+flags.DEFINE_multi_string('params', '', 'Configuration to test')
+FLAGS(sys.argv)
 
 
 class RangerTestCase(DataprocTestCase):
@@ -24,12 +29,28 @@ class RangerTestCase(DataprocTestCase):
         self.assert_instance_command(
             name, "python {}".format(self.TEST_SCRIPT_FILE_NAME))
 
+    def buildParameters():
+        """Builds parameters from flags arguments passed to the test."""
+        flags_parameters = FLAGS.params
+        params = []
+        if not flags_parameters[0]:
+            # Default parameters
+            params = [
+                ("SINGLE", "1.3", ["m"]),
+                ("STANDARD", "1.3", ["m"]),
+                ("HA", "1.3", ["m-0"]),
+            ]
+        else:
+            for param in flags_parameters:
+                (config, version, machine_suffixes) = param.split()
+                machine_suffixes = (machine_suffixes.split(',')
+                    if ',' in machine_suffixes
+                    else [machine_suffixes])
+                params.append((config, version, machine_suffixes))
+        return params
+
     @parameterized.expand(
-        [
-            ("SINGLE", "1.3", ["m"]),
-            ("STANDARD", "1.3", ["m"]),
-            ("HA", "1.3", ["m-0"]),
-        ],
+        buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_ranger(self, configuration, dataproc_version, machine_suffixes):
         self.createCluster(
@@ -45,4 +66,5 @@ class RangerTestCase(DataprocTestCase):
 
 
 if __name__ == "__main__":
+    del sys.argv[1:]
     unittest.main()
