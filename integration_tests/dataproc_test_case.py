@@ -39,6 +39,10 @@ class DataprocTestCase(BASE_TEST_CASE):
         ]
     }
 
+    PROJECT = None
+    REGION = None
+    ZONE = None
+
     COMPONENT = None
     INIT_ACTIONS = None
     INIT_ACTIONS_REPO = None
@@ -47,7 +51,21 @@ class DataprocTestCase(BASE_TEST_CASE):
     def setUpClass(cls):
         super().setUpClass()
 
-        cls.INIT_ACTIONS_REPO = DataprocTestCase().stage_init_actions()
+        _, project, _ = cls.run_command("gcloud config get-value project")
+        cls.PROJECT = project.strip()
+
+        _, region, _ = cls.run_command(
+            "gcloud config get-value compute/region")
+        _, zone, _ = cls.run_command("gcloud config get-value compute/zone")
+        cls.REGION = region.strip() or zone.strip()[:-2]
+        cls.ZONE = zone.strip()
+
+        assert cls.PROJECT
+        assert cls.REGION
+        assert cls.ZONE
+
+        cls.INIT_ACTIONS_REPO = DataprocTestCase().stage_init_actions(
+            cls.PROJECT)
 
         assert cls.COMPONENT
         assert cls.INIT_ACTIONS
@@ -106,6 +124,8 @@ class DataprocTestCase(BASE_TEST_CASE):
         args.append("--worker-boot-disk-size={}".format(boot_disk_size))
         args.append("--format=json")
 
+        args.append("--region={}".format(self.REGION))
+
         cmd = "{} dataproc clusters create {} {}".format(
             "gcloud beta" if beta else "gcloud", self.name, " ".join(args))
 
@@ -114,11 +134,9 @@ class DataprocTestCase(BASE_TEST_CASE):
         self.cluster_version = json.loads(stdout).get("config", {}).get(
             "softwareConfig", {}).get("imageVersion")
 
-    def stage_init_actions(self):
-        _, project, _ = self.run_command("gcloud config get-value project")
+    def stage_init_actions(self, project):
         bucket = "gs://dataproc-init-actions-test-{}".format(
-            re.sub("[.:]", "",
-                   project.strip().replace("google", "goog")))
+            re.sub("[.:]", "", project.replace("google", "goog")))
 
         ret_val, _, _ = self.run_command("gsutil -q ls -b {}".format(bucket))
         # Create staging bucket if it does not exist
@@ -136,8 +154,8 @@ class DataprocTestCase(BASE_TEST_CASE):
 
     def tearDown(self):
         ret_code, _, stderr = self.run_command(
-            "gcloud dataproc clusters delete {} --quiet --async".format(
-                self.name))
+            "gcloud dataproc clusters delete {} --region={} --quiet --async".
+            format(self.name, self.REGION))
         if ret_code != 0:
             logging.warning("Failed to delete cluster %s:\n%s", self.name,
                             stderr)
@@ -166,8 +184,8 @@ class DataprocTestCase(BASE_TEST_CASE):
                                 finish
         Returns:
             ret_code: the return code of the command
-            stdout:
-            stderr:
+            stdout: standard output of the command
+            stderr: error output of the command
         Raises:
             AssertionError: if command returned non-0 exit code.
         """
@@ -175,6 +193,35 @@ class DataprocTestCase(BASE_TEST_CASE):
         ret_code, stdout, stderr = self.assert_command(
             'gcloud compute ssh {} --command="{}"'.format(instance, cmd),
             timeout_in_minutes)
+        return ret_code, stdout, stderr
+
+    def assert_dataproc_job(self,
+                            cluster_name,
+                            job_type,
+                            job_params,
+                            timeout_in_minutes=DEFAULT_TIMEOUT):
+        """Executes Dataproc job on a cluster and asserts that it returned 0
+        exit code.
+
+        Args:
+            cluster_name: cluster name to submit job to
+            job_type: job type (hadoop, spark, etc)
+            job_params: job command parameters
+            timeout_in_minutes: timeout in minutes after which process that
+                                waits on job will be killed if job did not
+                                finish
+        Returns:
+            ret_code: the return code of the job
+            stdout: standard output of the job
+            stderr: error output of the job
+        Raises:
+            AssertionError: if job returned non-0 exit code.
+        """
+
+        ret_code, stdout, stderr = self.assert_command(
+            'gcloud dataproc jobs submit {} --cluster={} --region={} {}'.
+            format(job_type, cluster_name, self.REGION,
+                   job_params), timeout_in_minutes)
         return ret_code, stdout, stderr
 
     def assert_command(self, cmd, timeout_in_minutes=DEFAULT_TIMEOUT):

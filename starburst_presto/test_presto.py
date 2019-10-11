@@ -16,11 +16,11 @@ class StarburstPrestoTestCase(DataprocTestCase):
     INIT_ACTIONS = ['starburst-presto/presto.sh']
 
     def verify_instance(self, name, coordinators, workers):
-        schema = "schema_{}".format(random.randint(0, 1000))
-        table = "table_{}".format(random.randint(0, 1000))
-
         self.__verify_coordinators_count(name, coordinators)
         self.__verify_workers_count(name, workers)
+
+        schema = "schema_{}".format(random.randint(0, 1000))
+        table = "table_{}".format(random.randint(0, 1000))
 
         self.__create_schema_via_hive(name, schema)
         self.__verify_schema_via_presto(name, schema)
@@ -64,19 +64,21 @@ class StarburstPrestoTestCase(DataprocTestCase):
             .format(schema, query))
         self.assertEqual(stdout, "1\t200\n0\t200\n")
 
-    def __verify_coordinators_count(self, name, coordinators):
+    def __verify_coordinators_count(self, name, coordinators, server_param=""):
         query = "select count(*) from system.runtime.nodes where coordinator=true"
         _, stdout, _ = self.assert_instance_command(
-            name, "presto --execute '{}' --output-format TSV".format(query))
+            name, "presto {} --execute '{}' --output-format TSV".format(
+                server_param, query))
         self.assertEqual(
             coordinators, int(stdout),
             "Bad number of coordinators. Expected: {}\tFound: {}".format(
                 coordinators, stdout))
 
-    def __verify_workers_count(self, name, workers):
+    def __verify_workers_count(self, name, workers, server_param=""):
         query = "select count(*) from system.runtime.nodes where coordinator=false"
         _, stdout, _ = self.assert_instance_command(
-            name, "presto --execute '{}' --output-format TSV".format(query))
+            name, "presto {} --execute '{}' --output-format TSV".format(
+                server_param, query))
         self.assertEqual(
             workers, int(stdout),
             "Bad number of workers. Expected: {}\tFound: {}".format(
@@ -93,18 +95,15 @@ class StarburstPrestoTestCase(DataprocTestCase):
         if not flags_parameters[0]:
             # Default parameters
             params = [
-                ("SINGLE", "1.0", ["m"], 1, 0),
-                ("STANDARD", "1.0", ["m"], 1, 2),
-                ("HA", "1.0", ["m-0"], 1, 2),
-                ("SINGLE", "1.1", ["m"], 1, 0),
-                ("STANDARD", "1.1", ["m"], 1, 2),
-                ("HA", "1.1", ["m-0"], 1, 2),
                 ("SINGLE", "1.2", ["m"], 1, 0),
                 ("STANDARD", "1.2", ["m"], 1, 2),
                 ("HA", "1.2", ["m-0"], 1, 2),
                 ("SINGLE", "1.3", ["m"], 1, 0),
                 ("STANDARD", "1.3", ["m"], 1, 2),
                 ("HA", "1.3", ["m-0"], 1, 2),
+                ("SINGLE", "1.4", ["m"], 1, 0),
+                ("STANDARD", "1.4", ["m"], 1, 2),
+                ("HA", "1.4", ["m-0"], 1, 2),
             ]
         else:
             for param in flags_parameters:
@@ -128,6 +127,29 @@ class StarburstPrestoTestCase(DataprocTestCase):
             self.verify_instance(
                 "{}-{}".format(self.getClusterName(), machine_suffix),
                 coordinators, workers)
+
+    @parameterized.expand(
+        [
+            ("SINGLE", "1.2", ["m"], 1, 0),
+            ("SINGLE", "1.3", ["m"], 1, 0),
+            ("SINGLE", "1.4", ["m"], 1, 0),
+        ],
+        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    def test_starburst_presto_custom_port(self, configuration,
+                                          dataproc_version, machine_suffixes,
+                                          coordinators, workers):
+        self.createCluster(configuration,
+                           self.INIT_ACTIONS,
+                           dataproc_version,
+                           machine_type="n1-standard-2",
+                           metadata="presto-port=8060")
+        for machine_suffix in machine_suffixes:
+            machine_name = "{}-{}".format(self.getClusterName(),
+                                          machine_suffix)
+            self.__verify_coordinators_count(machine_name, coordinators,
+                                             "--server=localhost:8060")
+            self.__verify_workers_count(machine_name, workers,
+                                        "--server=localhost:8060")
 
 
 if __name__ == '__main__':

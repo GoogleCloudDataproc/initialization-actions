@@ -51,12 +51,12 @@ class HiveHCatalogTestCase(DataprocTestCase):
                 "Failed to read value from table. Error: {}".format(stderr))
 
     def __submit_hive_job(self, cluster_name, job, should_repeat_job=False):
-        status = None
-        cmd = "gcloud dataproc jobs submit hive --format json --cluster {} -e \"{}\"".format(
-            cluster_name, job)
+        jop_params = "--format json -e \"{}\"".format(job)
         if should_repeat_job:
-            cmd += " --max-failures-per-hour=5"
-        ret_code, stdout, stderr = self.run_command(cmd)
+            jop_params += " --max-failures-per-hour=5"
+        ret_code, stdout, stderr = self.assert_dataproc_job(
+            cluster_name, 'hive', jop_params)
+        status = None
         if ret_code == 0:
             stdout_dict = json.loads(stdout)
             status = stdout_dict.get("status", {}).get("state")
@@ -73,18 +73,15 @@ class HiveHCatalogTestCase(DataprocTestCase):
         if not flags_parameters[0]:
             # Default parameters
             params = [
-                ("SINGLE", "1.0", False),
-                ("STANDARD", "1.0", False),
-                ("HA", "1.0", False),
-                ("SINGLE", "1.1", False),
-                ("STANDARD", "1.1", False),
-                ("HA", "1.1", False),
                 ("SINGLE", "1.2", False),
                 ("STANDARD", "1.2", False),
                 ("HA", "1.2", False),
                 ("SINGLE", "1.3", True),
                 ("STANDARD", "1.3", True),
                 ("HA", "1.3", True),
+                ("SINGLE", "1.4", True),
+                ("STANDARD", "1.4", True),
+                ("HA", "1.4", True),
             ]
         else:
             for param in flags_parameters:

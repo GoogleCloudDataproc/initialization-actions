@@ -1,6 +1,11 @@
----
-# NOTE: *this initialization action is deprecated because it can lead to an issue when nodes do not join cluster.*
----
+--------------------------------------------------------------------------------
+
+# NOTE: *Updating Cloud Storage Connector with this initialization action is not recommended*
+
+**You can update Cloud Storage Connector through `GCS_CONNECTOR_VERSION`
+metadata value on supported Dataproc images.**
+
+--------------------------------------------------------------------------------
 
 # Google Cloud Storage and BigQuery connectors
 

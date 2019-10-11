@@ -22,13 +22,8 @@ class CloudSqlProxyTestCase(DataprocTestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        _, region, _ = cls.run_command(
-            "gcloud config get-value compute/region")
-        _, zone, _ = cls.run_command("gcloud config get-value compute/zone")
-        cls.REGION = region.strip() or zone.strip()[:-2]
-        _, project, _ = cls.run_command("gcloud config get-value project")
-        project = project.strip()
-        cls.PROJECT_METADATA = '{}:{}'.format(project, cls.REGION)
+
+        cls.PROJECT_METADATA = '{}:{}'.format(cls.PROJECT, cls.REGION)
 
     def setUp(self):
         super().setUp()
@@ -53,9 +48,10 @@ class CloudSqlProxyTestCase(DataprocTestCase):
         self.assert_command(
             'gcloud sql operations wait {} --timeout=600'.format(operation_id))
 
-    def verify_instance(self, name):
+    def verify_cluster(self, name):
         self.__submit_pyspark_job(name)
 
+<<<<<<< HEAD:cloud_sql_proxy/test_cloud_sql.py
     def __submit_pyspark_job(self, name):
         self.assert_command(
             'gcloud dataproc jobs submit pyspark --cluster {} {}/{}'.format(
@@ -67,24 +63,26 @@ class CloudSqlProxyTestCase(DataprocTestCase):
         if not flags_parameters[0]:
             # Default parameters
             params = [
-                ("SINGLE", "1.0"),
-                ("STANDARD", "1.0"),
-                ("HA", "1.0"),
-                ("SINGLE", "1.1"),
-                ("STANDARD", "1.1"),
-                ("HA", "1.1"),
                 ("SINGLE", "1.2"),
                 ("STANDARD", "1.2"),
                 ("HA", "1.2"),
                 ("SINGLE", "1.3"),
                 ("STANDARD", "1.3"),
                 ("HA", "1.3"),
+                ("SINGLE", "1.4"),
+                ("STANDARD", "1.4"),
+                ("HA", "1.4"),
             ]
         else:
             for param in flags_parameters:
                 (config, version) = param.split()
                 params.append((config, version))
         return params
+
+    def __submit_pyspark_job(self, cluster_name):
+        self.assert_dataproc_job(
+            cluster_name, 'pyspark',
+            '{}/{}'.format(self.INIT_ACTIONS_REPO, self.TEST_SCRIPT_FILE_NAME))
 
     @parameterized.expand(
         buildParameters(),
@@ -99,7 +97,7 @@ class CloudSqlProxyTestCase(DataprocTestCase):
                            metadata=metadata,
                            scopes='sql-admin')
 
-        self.verify_instance(self.getClusterName())
+        self.verify_cluster(self.getClusterName())
 
 
 if __name__ == '__main__':
