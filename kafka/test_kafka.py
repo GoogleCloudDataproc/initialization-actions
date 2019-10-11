@@ -1,9 +1,14 @@
 import os
+import sys
 import unittest
 
+from absl import flags
 from parameterized import parameterized
-
 from integration_tests.dataproc_test_case import DataprocTestCase
+
+FLAGS = flags.FLAGS
+flags.DEFINE_multi_string('params', '', 'Configuration to test')
+FLAGS(sys.argv)
 
 
 class KafkaTestCase(DataprocTestCase):
@@ -22,11 +27,27 @@ class KafkaTestCase(DataprocTestCase):
         self.assert_instance_command(
             name, "bash {}".format(self.TEST_SCRIPT_FILE_NAME))
 
+    def buildParameters():
+        """Builds parameters from flags arguments passed to the test."""
+        flags_parameters = FLAGS.params
+        params = []
+        if not flags_parameters[0]:
+            # Default parameters
+            params = [
+                ("HA", "1.2", ["m-0", "m-1", "m-2"]),
+                ("HA", "1.3", ["m-0", "m-1", "m-2"]),
+            ]
+        else:
+            for param in flags_parameters:
+                (config, version, machine_suffixes) = param.split()
+                machine_suffixes = (machine_suffixes.split(',')
+                    if ',' in machine_suffixes
+                    else [machine_suffixes])
+                params.append((config, version, machine_suffixes))
+        return params
+
     @parameterized.expand(
-        [
-            ("HA", "1.2", ["m-0", "m-1", "m-2"]),
-            ("HA", "1.3", ["m-0", "m-1", "m-2"]),
-        ],
+        buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_kafka(self, configuration, dataproc_version, machine_suffixes):
         self.createCluster(configuration,
@@ -39,4 +60,5 @@ class KafkaTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
+    del sys.argv[1:]
     unittest.main()

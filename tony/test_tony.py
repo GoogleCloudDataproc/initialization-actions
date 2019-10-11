@@ -1,20 +1,35 @@
+import sys
 import unittest
 
+from absl import flags
 from parameterized import parameterized
-
 from integration_tests.dataproc_test_case import DataprocTestCase
+
+FLAGS = flags.FLAGS
+flags.DEFINE_multi_string('params', '', 'Configuration to test')
+FLAGS(sys.argv)
 
 
 class TonYTestCase(DataprocTestCase):
     COMPONENT = 'tony'
     INIT_ACTIONS = ['tony/tony.sh']
 
+    def buildParameters():
+        """Builds parameters from flags arguments passed to the test."""
+        params = []
+        if not FLAGS.params[0]:
+            # Default parameters
+            params = [
+                ("STANDARD", "1.3"),
+            ]
+        else:
+            for param in FLAGS.params:
+                (config, version) = param.split()
+                params.append((config, version))
+        return params
+
     @parameterized.expand(
-        [
-            ("STANDARD", "1.2"),
-            ("STANDARD", "1.3"),
-            ("STANDARD", "1.4"),
-        ],
+        buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_tony(self, configuration, dataproc_version):
         self.createCluster(configuration,
@@ -53,4 +68,5 @@ class TonYTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
+    del sys.argv[1:]
     unittest.main()

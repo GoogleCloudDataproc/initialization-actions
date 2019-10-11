@@ -1,17 +1,17 @@
 package(default_visibility = ["//visibility:public"])
 
 py_test(
-	name = "test_bigtable",
-	srcs = ["test_bigtable.py"],
+	name = "test_hue",
+	srcs = ["test_hue.py"],
 	deps = ["//integration_tests:dataproc_test_case",
-			":run_hbase_commands",
+			":verify_hue_running",
 			"//absl/flags",],
-	data = ["bigtable.sh"],
+	data = ["hue.sh"],
 	local = True,
 	size = "enormous",
 )
 
 py_library(
-	name = "run_hbase_commands",
-	srcs = ["run_hbase_commands.py"],
+	name = "verify_hue_running",
+	srcs = ["verify_hue_running.py"],
 )

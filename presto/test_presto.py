@@ -1,9 +1,14 @@
 import random
+import sys
 import unittest
 
+from absl import flags
 from parameterized import parameterized
-
 from integration_tests.dataproc_test_case import DataprocTestCase
+
+FLAGS = flags.FLAGS
+flags.DEFINE_multi_string('params', '', 'Configuration to test')
+FLAGS(sys.argv)
 
 
 class PrestoTestCase(DataprocTestCase):
@@ -79,18 +84,41 @@ class PrestoTestCase(DataprocTestCase):
             "Bad number of workers. Expected: {}\tFound: {}".format(
                 workers, stdout))
 
+    def buildParameters():
+        """Builds parameters from flags arguments passed to the test.
+
+        If specified, parameters are given as strings, example:
+        'STANDARD 1.0 3.5 m,m-0 1 2'
+        """
+        flags_parameters = FLAGS.params
+        params = []
+        if not flags_parameters[0]:
+            # Default parameters
+            params = [
+                ("SINGLE", "1.0", ["m"], 1, 0),
+                ("STANDARD", "1.0", ["m"], 1, 2),
+                ("HA", "1.0", ["m-0"], 1, 2),
+                ("SINGLE", "1.1", ["m"], 1, 0),
+                ("STANDARD", "1.1", ["m"], 1, 2),
+                ("HA", "1.1", ["m-0"], 1, 2),
+                ("SINGLE", "1.2", ["m"], 1, 0),
+                ("STANDARD", "1.2", ["m"], 1, 2),
+                ("HA", "1.2", ["m-0"], 1, 2),
+                ("SINGLE", "1.3", ["m"], 1, 0),
+                ("STANDARD", "1.3", ["m"], 1, 2),
+                ("HA", "1.3", ["m-0"], 1, 2),
+            ]
+        else:
+            for param in flags_parameters:
+                (config, version, machine_suffixes, coordinators, workers) = param.split()
+                machine_suffixes = (machine_suffixes.split(',')
+                    if ',' in machine_suffixes
+                    else [machine_suffixes])
+                params.append((config, version, machine_suffixes, int(coordinators), int(workers)))
+        return params
+
     @parameterized.expand(
-        [
-            ("SINGLE", "1.2", ["m"], 1, 0),
-            ("STANDARD", "1.2", ["m"], 1, 2),
-            ("HA", "1.2", ["m-0"], 1, 2),
-            ("SINGLE", "1.3", ["m"], 1, 0),
-            ("STANDARD", "1.3", ["m"], 1, 2),
-            ("HA", "1.3", ["m-0"], 1, 2),
-            ("SINGLE", "1.4", ["m"], 1, 0),
-            ("STANDARD", "1.4", ["m"], 1, 2),
-            ("HA", "1.4", ["m-0"], 1, 2),
-        ],
+        buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_presto(self, configuration, dataproc_version, machine_suffixes,
                     coordinators, workers):
@@ -127,4 +155,5 @@ class PrestoTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
+    del sys.argv[1:]
     unittest.main()

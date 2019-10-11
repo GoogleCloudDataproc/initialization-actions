@@ -1,11 +1,17 @@
 import json
 import logging
+import sys
 import unittest
 
+from absl import flags
 from parameterized import parameterized
-
 from integration_tests.dataproc_test_case import DataprocTestCase
 
+
+FLAGS = flags.FLAGS
+
+flags.DEFINE_multi_string('params', '', 'Configuration to test')
+FLAGS(sys.argv)
 
 class CloudSqlProxyTestCase(DataprocTestCase):
     COMPONENT = 'cloud-sql-proxy'
@@ -49,19 +55,34 @@ class CloudSqlProxyTestCase(DataprocTestCase):
         self.assert_dataproc_job(
             cluster_name, 'pyspark',
             '{}/{}'.format(self.INIT_ACTIONS_REPO, self.TEST_SCRIPT_FILE_NAME))
+    def buildParameters():
+        """Builds parameters from flags arguments passed to the test."""
+        flags_parameters = FLAGS.params
+        params = []
+        if not flags_parameters[0]:
+            # Default parameters
+            params = [
+                ("SINGLE", "1.0"),
+                ("STANDARD", "1.0"),
+                ("HA", "1.0"),
+                ("SINGLE", "1.1"),
+                ("STANDARD", "1.1"),
+                ("HA", "1.1"),
+                ("SINGLE", "1.2"),
+                ("STANDARD", "1.2"),
+                ("HA", "1.2"),
+                ("SINGLE", "1.3"),
+                ("STANDARD", "1.3"),
+                ("HA", "1.3"),
+            ]
+        else:
+            for param in flags_parameters:
+                (config, version) = param.split()
+                params.append((config, version))
+        return params
 
     @parameterized.expand(
-        [
-            ("SINGLE", "1.2"),
-            ("STANDARD", "1.2"),
-            ("HA", "1.2"),
-            ("SINGLE", "1.3"),
-            ("STANDARD", "1.3"),
-            ("HA", "1.3"),
-            ("SINGLE", "1.4"),
-            ("STANDARD", "1.4"),
-            ("HA", "1.4"),
-        ],
+        buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_cloud_sql_proxy(self, configuration, dataproc_version):
         metadata = 'hive-metastore-instance={}:{}'.format(
@@ -77,4 +98,5 @@ class CloudSqlProxyTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
+    del sys.argv[1:]
     unittest.main()

@@ -1,8 +1,13 @@
+import sys
 import unittest
 
+from absl import flags
 from parameterized import parameterized
-
 from integration_tests.dataproc_test_case import DataprocTestCase
+
+FLAGS = flags.FLAGS
+flags.DEFINE_multi_string('params', '', 'Configuration to test')
+FLAGS(sys.argv)
 
 
 class HBaseTestCase(DataprocTestCase):
@@ -28,18 +33,31 @@ class HBaseTestCase(DataprocTestCase):
                 'org.apache.hadoop.hbase.IntegrationTestsDriver',
                 'org.apache.hadoop.hbase.mapreduce.IntegrationTestImportTsv'))
 
+    def buildParameters():
+        """Builds parameters from flags arguments passed to the test."""
+        flags_parameters = FLAGS.params
+        params = []
+        if not flags_parameters[0]:
+            # Default parameters
+            params = [
+                ("SINGLE", "1.2", ["m"]),
+                ("STANDARD", "1.2", ["m"]),
+                ("HA", "1.2", ["m-0"]),
+                ("SINGLE", "1.3", ["m"]),
+                ("STANDARD", "1.3", ["m"]),
+                ("HA", "1.3", ["m-0"])
+            ]
+        else:
+            for param in flags_parameters:
+                (config, version, machine_suffixes) = param.split()
+                machine_suffixes = (machine_suffixes.split(',')
+                    if ',' in machine_suffixes
+                    else [machine_suffixes])
+                params.append((config, version, machine_suffixes))
+        return params
+
     @parameterized.expand(
-        [
-            ("SINGLE", "1.2", ["m"]),
-            ("STANDARD", "1.2", ["m"]),
-            ("HA", "1.2", ["m-0"]),
-            ("SINGLE", "1.3", ["m"]),
-            ("STANDARD", "1.3", ["m"]),
-            ("HA", "1.3", ["m-0"]),
-            ("SINGLE", "1.4", ["m"]),
-            ("STANDARD", "1.4", ["m"]),
-            ("HA", "1.4", ["m-0"]),
-        ],
+        buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_hbase(self, configuration, dataproc_version, machine_suffixes):
         init_actions = self.INIT_ACTIONS
@@ -55,17 +73,7 @@ class HBaseTestCase(DataprocTestCase):
                                                 machine_suffix))
 
     @parameterized.expand(
-        [
-            ("SINGLE", "1.2", ["m"]),
-            ("STANDARD", "1.2", ["m"]),
-            ("HA", "1.2", ["m-0"]),
-            ("SINGLE", "1.3", ["m"]),
-            ("STANDARD", "1.3", ["m"]),
-            ("HA", "1.3", ["m-0"]),
-            ("SINGLE", "1.4", ["m"]),
-            ("STANDARD", "1.4", ["m"]),
-            ("HA", "1.4", ["m-0"]),
-        ],
+        buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_hbase_on_gcs(self, configuration, dataproc_version,
                           machine_suffixes):
@@ -89,4 +97,6 @@ class HBaseTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
+    del sys.argv[1:]
     unittest.main()
+

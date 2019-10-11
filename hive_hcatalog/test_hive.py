@@ -1,9 +1,15 @@
 import json
 import random
+import sys
 import unittest
-from parameterized import parameterized
 
+from absl import flags
+from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
+
+FLAGS = flags.FLAGS
+flags.DEFINE_multi_string('params', '', 'Configuration to test')
+FLAGS(sys.argv)
 
 
 class HiveHCatalogTestCase(DataprocTestCase):
@@ -56,18 +62,41 @@ class HiveHCatalogTestCase(DataprocTestCase):
             status = stdout_dict.get("status", {}).get("state")
         return status, stderr
 
+    def buildParameters():
+        """Builds parameters from flags arguments passed to the test.
+        
+        If specified, parameters are given as strings, example:
+        'STANDARD 1.3 True'
+        """
+        flags_parameters = FLAGS.params
+        params = []
+        if not flags_parameters[0]:
+            # Default parameters
+            params = [
+                ("SINGLE", "1.0", False),
+                ("STANDARD", "1.0", False),
+                ("HA", "1.0", False),
+                ("SINGLE", "1.1", False),
+                ("STANDARD", "1.1", False),
+                ("HA", "1.1", False),
+                ("SINGLE", "1.2", False),
+                ("STANDARD", "1.2", False),
+                ("HA", "1.2", False),
+                ("SINGLE", "1.3", True),
+                ("STANDARD", "1.3", True),
+                ("HA", "1.3", True),
+            ]
+        else:
+            for param in flags_parameters:
+                (config, version, should_repeat_job) = param.split()
+                should_repeat_job = (True
+                                     if should_repeat_job == "True"
+                                     else False)
+                params.append((config, version, should_repeat_job))
+        return params
+
     @parameterized.expand(
-        [
-            ("SINGLE", "1.2", False),
-            ("STANDARD", "1.2", False),
-            ("HA", "1.2", False),
-            ("SINGLE", "1.3", True),
-            ("STANDARD", "1.3", True),
-            ("HA", "1.3", True),
-            ("SINGLE", "1.4", True),
-            ("STANDARD", "1.4", True),
-            ("HA", "1.4", True),
-        ],
+        buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_hive(self, configuration, dataproc_version, should_repeat_job):
         self.createCluster(configuration, self.INIT_ACTIONS, dataproc_version)
@@ -75,4 +104,5 @@ class HiveHCatalogTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
+    del sys.argv[1:]
     unittest.main()
