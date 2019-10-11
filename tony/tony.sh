@@ -17,9 +17,9 @@
 set -euxo pipefail
 
 # TonY settings
-readonly TONY_INSTALL_FOLDER='/opt/tony/'
+readonly TONY_INSTALL_FOLDER='/opt/tony'
 readonly TONY_SAMPLES_FOLDER="${TONY_INSTALL_FOLDER}/TonY-samples"
-readonly TONY_DEFAULT_VERSION='6273f16d9c0597b3715a04645445aeedc495baf8' # v0.3.1
+readonly TONY_DEFAULT_VERSION='v0.3.22'
 
 # Tony configurations: https://github.com/linkedin/TonY/wiki/TonY-Configurations
 readonly PS_INSTANCES=1
@@ -29,10 +29,13 @@ readonly WORKER_MEMORY='4g'
 readonly WORKER_GPUS=0 # GPU isolation is not supported in Dataproc 1.3
 
 # ML frameworks versions
-readonly TENSORFLOW_VERSION='1.13.1'
+readonly TENSORFLOW_VERSION='1.13.2'
 readonly TENSORFLOW_GPU=false
 readonly PYTORCH_VERSION='0.4.1'
 readonly TORCHVISION_VERSION='0.2.1'
+
+ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
+readonly ROLE
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
@@ -48,7 +51,6 @@ function download_and_build_tony() {
   git checkout "${TONY_DEFAULT_VERSION}"
   # Build TonY without tests.
   ./gradlew build -x test
-  return 0
 }
 
 function install_samples() {
@@ -63,32 +65,43 @@ function install_samples() {
   cp "${TONY_INSTALL_FOLDER}"/TonY/tony-cli/build/libs/tony-cli-*-all.jar "${TONY_SAMPLES_FOLDER}"
 
   # Collect Metadata
+  local worker_instances
   worker_instances="$(/usr/share/google/get_metadata_value attributes/worker_instances || echo ${WORKER_INSTANCES})"
+  local worker_memory
   worker_memory="$(/usr/share/google/get_metadata_value attributes/worker_memory || echo ${WORKER_MEMORY})"
+  local ps_instances
   ps_instances="$(/usr/share/google/get_metadata_value attributes/ps_instances || echo ${PS_INSTANCES})"
+  local ps_memory
   ps_memory="$(/usr/share/google/get_metadata_value attributes/ps_memory || echo ${PS_MEMORY})"
   # Framework versions
+  local tf_version
   tf_version="$(/usr/share/google/get_metadata_value attributes/tf_version || echo ${TENSORFLOW_VERSION})"
+  local tf_gpu
   tf_gpu="$(/usr/share/google/get_metadata_value attributes/tf_gpu || echo ${TENSORFLOW_GPU})"
+  local torch_version
   torch_version="$(/usr/share/google/get_metadata_value attributes/torch_version || echo ${PYTORCH_VERSION})"
+  local torchvision_version
   torchvision_version="$(/usr/share/google/get_metadata_value attributes/torchvision_version || echo ${TORCHVISION_VERSION})"
 
   # Install TensorFlow sample
   cd "${TONY_SAMPLES_FOLDER}/deps"
   virtualenv -p python3 tf
+  set +u
   source tf/bin/activate
+  set -u
+
   # Verify you install GPU drivers, CUDA and CUDNN compatible with TensorFlow.
   if [[ "${tf_gpu}" == 'true' ]]; then
     if [[ "${tf_version}" == 'tf-nightly-gpu' ]]; then
       pip install "${tf_version}"
     else
-      pip install tensorflow-gpu=="${tf_version}"
+      pip install "tensorflow-gpu==${tf_version}"
     fi
   else
     if [[ "${tf_version}" == 'tf-nightly' ]]; then
       pip install "${tf_version}"
     else
-      pip install tensorflow=="${tf_version}"
+      pip install "tensorflow==${tf_version}"
     fi
   fi
   zip -r tf.zip tf
@@ -130,10 +143,12 @@ EOF
   # Install PyTorch sample
   cd "${TONY_SAMPLES_FOLDER}/deps"
   virtualenv -p python3 pytorch
+  set +u
   source pytorch/bin/activate
-  pip install torch=="${torch_version}"
-  pip install torchvision=="${torchvision_version}"
-  pip install numpy -I
+  set -u
+
+  pip install "torch==${torch_version}" "torchvision==${torchvision_version}"
+  pip install -I numpy
   zip -r pytorch.zip pytorch
   cp "${TONY_INSTALL_FOLDER}/TonY/tony-examples/mnist-pytorch/mnist_distributed.py" \
     "${TONY_SAMPLES_FOLDER}/jobs/PTJob/src"
@@ -180,19 +195,11 @@ EOF
   echo 'TonY successfully added samples'
 }
 
-function main() {
-  # Determine the role of this node
-  local role
-  role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-  # Only run on the master node of the cluster
-  if [[ "${role}" == 'Master' ]]; then
-    download_and_build_tony || err "TonY install process failed"
-    install_samples || err "Unable to install samples"
-    echo 'TonY successfully deployed.'
-  else
-    echo 'TonY can be installed only on master node - skipped for worker node'
-    return 0
-  fi
-}
-
-main
+# Only run on the master node of the cluster
+if [[ "${ROLE}" == "Master" ]]; then
+  download_and_build_tony || err "TonY install process failed"
+  install_samples || err "Unable to install samples"
+  echo 'TonY successfully deployed.'
+else
+  echo 'TonY can be installed only on master node - skipped for worker node'
+fi
