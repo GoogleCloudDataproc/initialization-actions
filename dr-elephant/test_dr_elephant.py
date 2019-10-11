@@ -10,8 +10,13 @@ class DrElephantTestCase(DataprocTestCase):
     INIT_ACTIONS = ['dr-elephant/dr-elephant.sh']
 
     def verify_instance(self, instance_name):
-        verify_cmd_fmt = '''\
-            while ! curl -L {}:8080 | grep '{}'; do sleep 5; done
+        verify_cmd_fmt = '''
+            COUNTER=0
+            until curl -L {}:8080 | grep '{}' && exit 0 || ((COUNTER >= 60)); do
+              ((COUNTER++))
+              sleep 5
+            done
+            exit 1
             '''
         self.assert_instance_command(
             instance_name,
@@ -19,7 +24,7 @@ class DrElephantTestCase(DataprocTestCase):
                 instance_name, "<p>I looked through <b>1</b> jobs today.<br>"))
         self.assert_instance_command(
             instance_name,
-            verify_cmd_fmt.format(instance_name, "<div>Spark Pi</div>"))
+            verify_cmd_fmt.format(instance_name, "<div>QuasiMonteCarlo</div>"))
 
     @parameterized.expand(
         [
@@ -41,10 +46,9 @@ class DrElephantTestCase(DataprocTestCase):
 
         # Submit a job to check if statistic is generated
         self.assert_dataproc_job(
-            self.name, 'spark', '''\
-                --class org.apache.spark.examples.SparkPi \
-                --jars file:///usr/lib/spark/examples/jars/spark-examples.jar \
-                -- 1000
+            self.name, 'hadoop', '''\
+                --jar file:///usr/lib/hadoop-mapreduce/hadoop-mapreduce-examples.jar \
+                -- pi 4 1000
             ''')
 
         for machine_suffix in machine_suffixes:

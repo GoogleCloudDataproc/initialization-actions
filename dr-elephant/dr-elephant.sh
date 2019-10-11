@@ -31,7 +31,9 @@ function build() {
   curl -sL https://deb.nodesource.com/setup_8.x | bash -
   apt-get install -y nodejs
   npm install -g bower
-  pushd web; bower --allow-root install; popd
+  pushd web
+  bower --allow-root install
+  popd
 
   # Fix hardcoded HDFS port problem for 1.3 images
   local dfs_port
@@ -83,23 +85,55 @@ the License.
 -->
 
 <fetchers>
-   <fetcher>
-      <applicationtype>mapreduce</applicationtype>
-      <classname>com.linkedin.drelephant.mapreduce.fetchers.MapReduceFSFetcherHadoop2</classname>
-      <params>
-         <sampling_enabled>false</sampling_enabled>
-         <history_log_size_limit_in_mb>500</history_log_size_limit_in_mb>
-         <history_server_time_zone>PST</history_server_time_zone>
-      </params>
-   </fetcher>
-   <fetcher>
-      <applicationtype>spark</applicationtype>
-      <classname>com.linkedin.drelephant.spark.fetchers.FSFetcher</classname>
-   </fetcher>
+  <!--
+  <fetcher>
+    <applicationtype>tez</applicationtype>
+    <classname>com.linkedin.drelephant.tez.fetchers.TezFetcher</classname>
+  </fetcher>
+  -->
+  <fetcher>
+    <applicationtype>mapreduce</applicationtype>
+    <classname>com.linkedin.drelephant.mapreduce.fetchers.MapReduceFetcherHadoop2</classname>
+    <params>
+      <sampling_enabled>false</sampling_enabled>
+    </params>
+  </fetcher>
+  <fetcher>
+    <applicationtype>mapreduce</applicationtype>
+    <classname>com.linkedin.drelephant.mapreduce.fetchers.MapReduceFSFetcherHadoop2</classname>
+    <params>
+      <sampling_enabled>false</sampling_enabled>
+      <history_log_size_limit_in_mb>500</history_log_size_limit_in_mb>
+      <history_server_time_zone>UTC</history_server_time_zone>
+    </params>
+  </fetcher>
+  <fetcher>
+    <applicationtype>spark</applicationtype>
+    <classname>com.linkedin.drelephant.spark.fetchers.FSFetcher</classname>
+  </fetcher>
+  <fetcher>
+    <applicationtype>spark</applicationtype>
+    <classname>com.linkedin.drelephant.spark.fetchers.SparkFetcher</classname>
+    <params>
+      <use_rest_for_eventlogs>true</use_rest_for_eventlogs>
+      <should_process_logs_locally>true</should_process_logs_locally>
+    </params>
+  </fetcher>
+  <!--
+  <fetcher>
+    <applicationtype>tony</applicationtype>
+    <classname>com.linkedin.drelephant.tony.fetchers.TonyFetcher</classname>
+  </fetcher>
+  -->
 </fetchers>
 EOF
 
-  # Enable compress for making metrics accessible by dr elephant
+  bdconfig set_property \
+      --configuration_file "/opt/dr-elephant/app-conf/GeneralConf.xml" \
+      --name 'drelephant.analysis.backfill.enabled' --value 'true' \
+      --clobber
+
+  # Enable compression to make metrics accessible by Dr. Elephant
   echo "spark.eventLog.compress = true" >>"/usr/lib/spark/conf/spark-defaults.conf"
 }
 
@@ -110,7 +144,7 @@ function prepare_mysql() {
 
 function run_dr() {
   # Restart History Server
-  systemctl restart spark-historyserver
+  systemctl restart spark-history-server
   bash /opt/dr-elephant/bin/start.sh
 }
 
