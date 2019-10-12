@@ -63,6 +63,7 @@ function install_samples() {
 
   # Copy Jar file.
   cp "${TONY_INSTALL_FOLDER}"/TonY/tony-cli/build/libs/tony-cli-*-all.jar "${TONY_SAMPLES_FOLDER}"
+  ln -s "${TONY_SAMPLES_FOLDER}"/tony-cli-*-all.jar "${TONY_SAMPLES_FOLDER}/tony-cli-all.jar"
 
   # Collect Metadata
   local worker_instances
@@ -85,7 +86,7 @@ function install_samples() {
 
   # Install TensorFlow sample
   cd "${TONY_SAMPLES_FOLDER}/deps"
-  virtualenv -p python3 tf
+  virtualenv -p python3.5 tf
   set +u
   source tf/bin/activate
   set -u
@@ -142,7 +143,7 @@ EOF
 
   # Install PyTorch sample
   cd "${TONY_SAMPLES_FOLDER}/deps"
-  virtualenv -p python3 pytorch
+  virtualenv -p python3.5 pytorch
   set +u
   source pytorch/bin/activate
   set -u
