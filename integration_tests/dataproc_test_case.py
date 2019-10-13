@@ -54,11 +54,9 @@ class DataprocTestCase(BASE_TEST_CASE):
         _, project, _ = cls.run_command("gcloud config get-value project")
         cls.PROJECT = project.strip()
 
-        _, region, _ = cls.run_command(
-            "gcloud config get-value compute/region")
         _, zone, _ = cls.run_command("gcloud config get-value compute/zone")
-        cls.REGION = region.strip() or zone.strip()[:-2]
         cls.ZONE = zone.strip()
+        cls.REGION = cls.ZONE[:-2]
 
         assert cls.PROJECT
         assert cls.REGION
