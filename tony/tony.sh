@@ -19,7 +19,7 @@ set -euxo pipefail
 # TonY settings
 readonly TONY_INSTALL_FOLDER='/opt/tony'
 readonly TONY_SAMPLES_FOLDER="${TONY_INSTALL_FOLDER}/TonY-samples"
-readonly TONY_DEFAULT_VERSION='b1cb37a1c8448dad88a1a0b48e66cb63a017bf25'
+readonly TONY_DEFAULT_VERSION='8e2e90b48d5863c61ca06e10bef3df8fd578f41b'
 
 # Tony configurations: https://github.com/linkedin/TonY/wiki/TonY-Configurations
 readonly PS_INSTANCES=1
@@ -46,7 +46,7 @@ function download_and_build_tony() {
   # Download TonY latest distribution.
   mkdir "${TONY_INSTALL_FOLDER}"
   cd "${TONY_INSTALL_FOLDER}"
-  git clone https://github.com/medb/TonY.git
+  git clone https://github.com/linkedin/TonY.git
   cd TonY
   git checkout "${TONY_DEFAULT_VERSION}"
   # Build TonY without tests.
