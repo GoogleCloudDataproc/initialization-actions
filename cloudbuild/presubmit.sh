@@ -4,7 +4,6 @@ set -euxo pipefail
 
 configure_gcloud() {
   gcloud config set core/disable_prompts TRUE
-  gcloud config set compute/region us-central1
   gcloud config set compute/zone us-central1-f
 }
 
