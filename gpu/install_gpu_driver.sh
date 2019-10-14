@@ -16,9 +16,8 @@
 
 set -euxo pipefail
 
-# Download settings
-readonly REQUIREMENTS_URL='https://raw.githubusercontent.com/GoogleCloudPlatform/ml-on-gcp/master/dlvm/gcp-gpu-utilization-metrics/requirements.txt'
-readonly REPORT_GPU_URL='https://raw.githubusercontent.com/GoogleCloudPlatform/ml-on-gcp/master/dlvm/gcp-gpu-utilization-metrics/report_gpu_metrics.py'
+# Download URLs
+readonly GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatform/ml-on-gcp/master/dlvm/gcp-gpu-utilization-metrics'
 
 # Whether to install GPU monitoring agent that sends GPU metrics to StackDriver
 INSTALL_GPU_AGENT="$(/usr/share/google/get_metadata_value attributes/install_gpu_agent || true)"
@@ -92,10 +91,10 @@ function install_gpu_agent_service() {
   if ! command -v pip; then
     apt-get install -y python-pip
   fi
-  local install_dir=/root/gpu_utilization_agent
+  local install_dir=/opt/gpu_utilization_agent
   mkdir "${install_dir}"
-  wget -O "${install_dir}/report_gpu_metrics.py" "${REPORT_GPU_URL}"
-  wget -O "${install_dir}/requirements.txt" "${REQUIREMENTS_URL}"
+  wget -O "${install_dir}/requirements.txt" "${GPU_AGENT_REPO_URL}/requirements.txt"
+  wget -O "${install_dir}/report_gpu_metrics.py" "${GPU_AGENT_REPO_URL}/report_gpu_metrics.py"
   pip install -r "${install_dir}/requirements.txt"
 
   # Generate GPU service.
@@ -116,9 +115,8 @@ EOF
   # Reload systemd manager configuration
   systemctl daemon-reload
   # Enable gpu_utilization_agent service
-  systemctl --no-reload --now enable /lib/systemd/system/gpu_utilization_agent.service
+  systemctl --now enable gpu_utilization_agent.service
 }
-
 
 # Install GPU NVIDIA Drivers
 install_gpu_driver || err "Installation of Drivers failed"
