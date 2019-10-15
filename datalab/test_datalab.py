@@ -8,9 +8,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 class DatalabTestCase(DataprocTestCase):
     COMPONENT = 'datalab'
     INIT_ACTIONS = ['datalab/datalab.sh']
-    PYTHON_3_INIT_ACTIONS = [
-        'conda/bootstrap-conda.sh', 'conda/install-conda-env.sh'
-    ]
+    PYTHON_3_INIT_ACTIONS = ['conda/bootstrap-conda.sh']
 
     def verify_instance(self, name):
         self.assert_instance_command(
@@ -32,7 +30,6 @@ class DatalabTestCase(DataprocTestCase):
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
         if python == "python3":
             init_actions = self.PYTHON_3_INIT_ACTIONS + init_actions
-            metadata += ',CONDA_PACKAGES="python=3"'
 
         self.createCluster(configuration,
                            init_actions,
