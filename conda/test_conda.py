@@ -54,10 +54,6 @@ class CondaTestCase(DataprocTestCase):
 
     @parameterized.expand(
         [
-            ("STANDARD", "1.0", "3.5", [], []),
-            ("STANDARD", "1.0", "3.5", CONDA_PKGS, PIP_PKGS),
-            ("STANDARD", "1.1", "3.5", [], []),
-            ("STANDARD", "1.1", "3.5", CONDA_PKGS, PIP_PKGS),
             ("STANDARD", "1.2", "3.6", [], []),
             ("STANDARD", "1.2", "3.6", CONDA_PKGS, PIP_PKGS),
             ("STANDARD", "1.3", "3.6", [], []),
