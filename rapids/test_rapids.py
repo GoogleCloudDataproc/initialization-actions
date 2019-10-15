@@ -24,7 +24,10 @@ class RapidsTestCase(DataprocTestCase):
         self.assert_instance_command(name, verify_cmd)
 
     @parameterized.expand(
-        [("STANDARD", "1.3", ["m"])],
+        [
+            ("STANDARD", "1.3", ["m"]),
+            ("STANDARD", "1.4", ["m"]),
+        ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_rapids(self, configuration, dataproc_version, machine_suffixes):
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
@@ -37,6 +40,7 @@ class RapidsTestCase(DataprocTestCase):
                            master_accelerator='type=nvidia-tesla-p100',
                            worker_accelerator='type=nvidia-tesla-p100',
                            optional_components='ANACONDA',
+                           machine_type='n1-standard-2',
                            timeout_in_minutes=20)
 
         for machine_suffix in machine_suffixes:
