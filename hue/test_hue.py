@@ -16,16 +16,19 @@ class HueTestCase(DataprocTestCase):
     INIT_ACTIONS = ['hue/hue.sh']
     TEST_SCRIPT_FILE_NAME = 'verify_hue_running.py'
 
-    def verify_instance(self, name):
-        self.upload_test_file(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         self.TEST_SCRIPT_FILE_NAME), name)
-        self.__run_test_file(name)
-        self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
-
-    def __run_test_file(self, name):
+    def verify_instance(self, instance_name):
+        verify_cmd_fmt = '''
+            COUNTER=0
+            until curl -L {}:8888 | grep '{}' && exit 0 || ((COUNTER >= 60)); do
+              ((COUNTER++))
+              sleep 5
+            done
+            exit 1
+            '''
         self.assert_instance_command(
-            name, "python3 {}".format(self.TEST_SCRIPT_FILE_NAME))
+            instance_name,
+            verify_cmd_fmt.format(instance_name,
+                                  "<h3>Query. Explore. Repeat.</h3>"))
 
     def buildParameters():
         """Builds parameters from flags arguments passed to the test."""

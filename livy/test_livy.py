@@ -25,6 +25,10 @@ class LivyTestCase(DataprocTestCase):
 
     def _run_python_test_file(self, name):
         self.assert_instance_command(
+            name,
+            "sudo apt-get install -y python3-pip && sudo pip3 install requests"
+        )
+        self.assert_instance_command(
             name, "sudo python3 {}".format(self.TEST_SCRIPT_FILE_NAME))
 
     def buildParameters():

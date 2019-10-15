@@ -40,7 +40,6 @@ class TezTestCase(DataprocTestCase):
     def buildParameters():
         """Builds parameters from flags arguments passed to the test."""
         params = []
-        print(FLAGS.params)
         if not FLAGS.params[0]:
             # Default parameters
             params = [
@@ -61,7 +60,6 @@ class TezTestCase(DataprocTestCase):
         buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_tez(self, configuration, machine_suffixes):
-        print(FLAGS.image_version)
         if FLAGS.image_version == "1.3":
             tez_classpath = "/etc/tez/conf:/usr/lib/tez/*:/usr/lib/tez/lib/*"
             self.createCluster(
