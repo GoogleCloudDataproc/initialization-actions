@@ -20,16 +20,14 @@ class LivyTestCase(DataprocTestCase):
 
     def _run_python_test_file(self, name):
         self.assert_instance_command(
+            name,
+            "sudo apt-get install -y python3-pip && sudo pip3 install requests"
+        )
+        self.assert_instance_command(
             name, "sudo python3 {}".format(self.TEST_SCRIPT_FILE_NAME))
 
     @parameterized.expand(
         [
-            ("SINGLE", "1.0", ["m"]),
-            ("STANDARD", "1.0", ["m"]),
-            ("HA", "1.0", ["m-0", "m-1", "m-2"]),
-            ("SINGLE", "1.1", ["m"]),
-            ("STANDARD", "1.1", ["m"]),
-            ("HA", "1.1", ["m-0", "m-1", "m-2"]),
             ("SINGLE", "1.2", ["m"]),
             ("STANDARD", "1.2", ["m"]),
             ("HA", "1.2", ["m-0", "m-1", "m-2"]),

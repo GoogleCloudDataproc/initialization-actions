@@ -73,7 +73,8 @@ function main() {
   # Download Livy binary.
   local temp
   temp=$(mktemp -d)
-  wget --progress=dot:mega --timeout=30 -O "${temp}/livy.zip" "${APACHE_MIRROR}=${PKG_PATH}"
+  wget --progress=dot:mega --timeout=30 --tries=5 --retry-connrefused \
+    -O "${temp}/livy.zip" "${APACHE_MIRROR}=${PKG_PATH}"
   unzip -q "${temp}/livy.zip" -d "${temp}"
 
   # Create Livy user.
