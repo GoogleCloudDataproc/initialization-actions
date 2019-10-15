@@ -4,7 +4,7 @@ py_test(
 	name = "test_conda",
 	srcs = ["test_conda.py"],
 	deps = ["//integration_tests:dataproc_test_case",
-			"//absl/flags",
+			"@io_abseil_py//absl/flags",
 			":get_sys_exec"],
 	data = ["install-conda-env.sh",
 			"bootstrap-conda.sh"],

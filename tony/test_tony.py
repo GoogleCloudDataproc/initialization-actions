@@ -21,21 +21,18 @@ class TonYTestCase(DataprocTestCase):
         if not FLAGS.params[0]:
             # Default parameters
             params = [
-                ("STANDARD", "1.2"),
-                ("STANDARD", "1.3"),
-                ("STANDARD", "1.4"),
+                ("STANDARD"),
             ]
         else:
             for param in FLAGS.params:
-                (config, version) = param.split()
-                params.append((config, version))
+                params.append((param))
         return params
 
     @parameterized.expand(
         buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_tony(self, configuration, dataproc_version):
-        self.createCluster(configuration, self.INIT_ACTIONS, dataproc_version)
+    def test_tony(self, configuration):
+        self.createCluster(configuration, self.INIT_ACTIONS)
 
         # Verify cluster using TensorFlow job
         self.assert_dataproc_job(

@@ -5,7 +5,7 @@ py_test(
 	srcs = ["test_livy.py"],
 	deps = ["//integration_tests:dataproc_test_case",
 			":verify_livy_running",
-			"//absl/flags",],
+			"@io_abseil_py//absl/flags"],
 	data = ["livy.sh"],
 	local = True,
 	size = "enormous",

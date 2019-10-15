@@ -34,25 +34,23 @@ class KafkaTestCase(DataprocTestCase):
         if not flags_parameters[0]:
             # Default parameters
             params = [
-                ("HA", "1.2", ["m-0", "m-1", "m-2"]),
-                ("HA", "1.3", ["m-0", "m-1", "m-2"]),
+                ("HA", ["m-0", "m-1", "m-2"]),
             ]
         else:
             for param in flags_parameters:
-                (config, version, machine_suffixes) = param.split()
+                (config, machine_suffixes) = param.split()
                 machine_suffixes = (machine_suffixes.split(',')
                     if ',' in machine_suffixes
                     else [machine_suffixes])
-                params.append((config, version, machine_suffixes))
+                params.append((config, machine_suffixes))
         return params
 
     @parameterized.expand(
         buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_kafka(self, configuration, dataproc_version, machine_suffixes):
+    def test_kafka(self, configuration, machine_suffixes):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           dataproc_version,
                            machine_type="n1-standard-2")
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),

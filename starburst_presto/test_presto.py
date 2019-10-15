@@ -84,7 +84,7 @@ class StarburstPrestoTestCase(DataprocTestCase):
             "Bad number of workers. Expected: {}\tFound: {}".format(
                 workers, stdout))
 
-    def buildParameters():
+    def buildParameters(custom_port):
         """Builds parameters from flags arguments passed to the test.
 
         If specified, parameters are given as strings, example:
@@ -94,34 +94,32 @@ class StarburstPrestoTestCase(DataprocTestCase):
         params = []
         if not flags_parameters[0]:
             # Default parameters
-            params = [
-                ("SINGLE", "1.2", ["m"], 1, 0),
-                ("STANDARD", "1.2", ["m"], 1, 2),
-                ("HA", "1.2", ["m-0"], 1, 2),
-                ("SINGLE", "1.3", ["m"], 1, 0),
-                ("STANDARD", "1.3", ["m"], 1, 2),
-                ("HA", "1.3", ["m-0"], 1, 2),
-                ("SINGLE", "1.4", ["m"], 1, 0),
-                ("STANDARD", "1.4", ["m"], 1, 2),
-                ("HA", "1.4", ["m-0"], 1, 2),
-            ]
+            if custom_port:
+                params = [
+                    ("SINGLE", ["m"], 1, 0),
+                ]
+            else:
+                params = [
+                    ("SINGLE", ["m"], 1, 0),
+                    ("STANDARD", ["m"], 1, 2),
+                    ("HA", ["m-0"], 1, 2),
+                ]
         else:
             for param in flags_parameters:
-                (config, version, machine_suffixes, coordinators, workers) = param.split()
+                (config, machine_suffixes, coordinators, workers) = param.split()
                 machine_suffixes = (machine_suffixes.split(',')
                     if ',' in machine_suffixes
                     else [machine_suffixes])
-                params.append((config, version, machine_suffixes, int(coordinators), int(workers)))
+                params.append((config, machine_suffixes, int(coordinators), int(workers)))
         return params
 
     @parameterized.expand(
-        buildParameters(),
+        buildParameters(custom_port=False),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_starburst_presto(self, configuration, dataproc_version,
+    def test_starburst_presto(self, configuration,
                               machine_suffixes, coordinators, workers):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           dataproc_version,
                            machine_type="n1-standard-2")
         for machine_suffix in machine_suffixes:
             self.verify_instance(
@@ -129,18 +127,12 @@ class StarburstPrestoTestCase(DataprocTestCase):
                 coordinators, workers)
 
     @parameterized.expand(
-        [
-            ("SINGLE", "1.2", ["m"], 1, 0),
-            ("SINGLE", "1.3", ["m"], 1, 0),
-            ("SINGLE", "1.4", ["m"], 1, 0),
-        ],
+        buildParameters(custom_port=True),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_starburst_presto_custom_port(self, configuration,
-                                          dataproc_version, machine_suffixes,
+    def test_starburst_presto_custom_port(self, configuration, machine_suffixes,
                                           coordinators, workers):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           dataproc_version,
                            machine_type="n1-standard-2",
                            metadata="presto-port=8060")
         for machine_suffix in machine_suffixes:

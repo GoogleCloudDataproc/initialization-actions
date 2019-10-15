@@ -57,20 +57,17 @@ class BigTableTestCase(DataprocTestCase):
         if not flags_parameters[0]:
             # Default parameters
             params = [
-                ("SINGLE", "1.2", ["m"]),
-                ("STANDARD", "1.2", ["m"]),
-                ("HA", "1.2", ["m-0"]),
-                ("SINGLE", "1.3", ["m"]),
-                ("STANDARD", "1.3", ["m"]),
-                ("HA", "1.3", ["m-0"])
+                ("SINGLE", ["m"]),
+                ("STANDARD", ["m"]),
+                ("HA", ["m-0"]),
             ]
         else:
             for param in flags_parameters:
-                (config, version, machine_suffixes) = param.split()
+                (config, machine_suffixes) = param.split()
                 machine_suffixes = (machine_suffixes.split(',')
                     if ',' in machine_suffixes
                     else [machine_suffixes])
-                params.append((config, version, machine_suffixes))
+                params.append((config, machine_suffixes))
         return params
 
     def _validate_bigtable(self):
@@ -96,11 +93,10 @@ class BigTableTestCase(DataprocTestCase):
         buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name,
         skip_on_empty=True)
-    def test_bigtable(self, configuration, dataproc_version, machine_suffixes):
+    def test_bigtable(self, configuration, machine_suffixes):
         log = logging.getLogger( "BigTableTestCase.test_bigtable" )
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           dataproc_version,
                            metadata=self.metadata)
 
         for machine_suffix in machine_suffixes:

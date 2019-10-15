@@ -40,30 +40,27 @@ class HBaseTestCase(DataprocTestCase):
         if not flags_parameters[0]:
             # Default parameters
             params = [
-                ("SINGLE", "1.2", ["m"]),
-                ("STANDARD", "1.2", ["m"]),
-                ("HA", "1.2", ["m-0"]),
-                ("SINGLE", "1.3", ["m"]),
-                ("STANDARD", "1.3", ["m"]),
-                ("HA", "1.3", ["m-0"])
+                ("SINGLE", ["m"]),
+                ("STANDARD", ["m"]),
+                ("HA", ["m-0"]),
             ]
         else:
             for param in flags_parameters:
-                (config, version, machine_suffixes) = param.split()
+                (config,  machine_suffixes) = param.split()
                 machine_suffixes = (machine_suffixes.split(',')
                     if ',' in machine_suffixes
                     else [machine_suffixes])
-                params.append((config, version, machine_suffixes))
+                params.append((config, machine_suffixes))
         return params
 
     @parameterized.expand(
         buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_hbase(self, configuration, dataproc_version, machine_suffixes):
+    def test_hbase(self, configuration, machine_suffixes):
         init_actions = self.INIT_ACTIONS
         if configuration != "HA":
             init_actions = self.INIT_ACTIONS_FOR_NOT_HA + init_actions
-        self.createCluster(configuration, init_actions, dataproc_version)
+        self.createCluster(configuration, init_actions)
 
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
@@ -72,19 +69,18 @@ class HBaseTestCase(DataprocTestCase):
     @parameterized.expand(
         buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_hbase_on_gcs(self, configuration, dataproc_version,
+    def test_hbase_on_gcs(self, configuration,
                           machine_suffixes):
         init_actions = self.INIT_ACTIONS
         if configuration != "HA":
             init_actions = self.INIT_ACTIONS_FOR_NOT_HA + init_actions
         test_dir = "{}-{}-{}".format(configuration.lower(),
-                                     dataproc_version.replace(".", "-"),
+                                     FLAGS.image_version.replace(".", "-"),
                                      self.random_str())
         metadata = 'hbase-root-dir=gs://{}/{}'.format(self.GCS_BUCKET,
                                                       test_dir)
         self.createCluster(configuration,
                            init_actions,
-                           dataproc_version,
                            metadata=metadata)
 
         for machine_suffix in machine_suffixes:

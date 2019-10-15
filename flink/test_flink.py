@@ -38,39 +38,30 @@ class FlinkTestCase(DataprocTestCase):
             # Default parameters
             if with_optional_metadata:
                 params = [
-                    ("STANDARD", "1.1", ["m"]),
-                    ("HA", "1.1", ["m-0", "m-1", "m-2"]),
-                    ("STANDARD", "1.2", ["m"]),
-                    ("HA", "1.2", ["m-0", "m-1", "m-2"]),
-                    ("SINGLE", "1.3", ["m"]),
-                    ("STANDARD", "1.3", ["m"]),
-                    ("HA", "1.3", ["m-0", "m-1", "m-2"]),
+                    ("STANDARD", ["m"]),
+                    ("HA", ["m-0", "m-1", "m-2"]),
+                    ("SINGLE", ["m"]),
                 ]
             else:
                 params = [
-                    ("STANDARD", "1.1", ["m"]),
-                    ("HA", "1.1", ["m-0", "m-1", "m-2"]),
-                    ("STANDARD", "1.2", ["m"]),
-                    ("HA", "1.2", ["m-0", "m-1", "m-2"]),
-                    ("STANDARD", "1.3", ["m"]),
-                    ("HA", "1.3", ["m-0", "m-1", "m-2"]),
+                    ("STANDARD", ["m"]),
+                    ("HA", ["m-0", "m-1", "m-2"]),
                 ]
         else:
             for param in flags_parameters:
-                (config, version, machine_suffixes) = param.split()
+                (config, machine_suffixes) = param.split()
                 machine_suffixes = (machine_suffixes.split(',')
                     if ',' in machine_suffixes
                     else [machine_suffixes])
-                params.append((config, version, machine_suffixes))
+                params.append((config, machine_suffixes))
         return params
 
     @parameterized.expand(
         buildParameters(with_optional_metadata=False),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_flink(self, configuration, dataproc_version, machine_suffixes):
+    def test_flink(self, configuration, machine_suffixes):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           dataproc_version,
                            machine_type="n1-standard-2")
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
@@ -80,10 +71,9 @@ class FlinkTestCase(DataprocTestCase):
         buildParameters(with_optional_metadata=True),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_flink_with_optional_metadata(self, configuration,
-                                          dataproc_version, machine_suffixes):
+                                          machine_suffixes):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           dataproc_version,
                            machine_type="n1-standard-2",
                            metadata="flink-start-yarn-session=false")
         for machine_suffix in machine_suffixes:

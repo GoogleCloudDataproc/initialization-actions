@@ -5,7 +5,7 @@ py_test(
 	srcs = ["test_ranger.py"],
 	deps = ["//integration_tests:dataproc_test_case",
 			":verify_ranger",
-			"//absl/flags",],
+			"@io_abseil_py//absl/flags"],
 	data = ["ranger.sh",
 			"//solr:solr.sh"],
 	local = True,

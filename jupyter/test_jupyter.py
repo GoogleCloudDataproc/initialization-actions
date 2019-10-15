@@ -27,30 +27,25 @@ class JupyterTestCase(DataprocTestCase):
         if not flags_parameters[0]:
             # Default parameters
             params = [
-                ("SINGLE", "1.1", ["m"]),
-                ("STANDARD", "1.1", ["m"]),
-                ("SINGLE", "1.2", ["m"]),
-                ("STANDARD", "1.2", ["m"]),
-                ("SINGLE", "1.3", ["m"]),
-                ("STANDARD", "1.3", ["m"]),
+                ("SINGLE", ["m"]),
+                ("STANDARD", ["m"]),
             ]
         else:
             for param in flags_parameters:
-                (config, version, machine_suffixes) = param.split()
+                (config, machine_suffixes) = param.split()
                 machine_suffixes = (machine_suffixes.split(',')
                     if ',' in machine_suffixes
                     else [machine_suffixes])
-                params.append((config, version, machine_suffixes))
+                params.append((config, machine_suffixes))
         return params
 
     @parameterized.expand(
         buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_jupyter(self, configuration, dataproc_version, machine_suffixes):
+    def test_jupyter(self, configuration, machine_suffixes):
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           dataproc_version,
                            metadata=metadata,
                            timeout_in_minutes=15,
                            machine_type="n1-standard-2")
@@ -62,8 +57,7 @@ class JupyterTestCase(DataprocTestCase):
     @parameterized.expand(
         buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_jupyter_with_metadata(self, configuration, dataproc_version,
-                                   machine_suffixes):
+    def test_jupyter_with_metadata(self, configuration, machine_suffixes):
         jupyter_port = "8125"
 
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
@@ -72,7 +66,6 @@ class JupyterTestCase(DataprocTestCase):
 
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           dataproc_version,
                            metadata=metadata,
                            timeout_in_minutes=15,
                            machine_type="n1-standard-2")

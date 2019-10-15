@@ -5,7 +5,7 @@ py_test(
 	srcs = ["test_tez.py"],
 	deps = ["//integration_tests:dataproc_test_case",
 			":verify_tez",
-			"//absl/flags",],
+			"@io_abseil_py//absl/flags"],
 	data = ["tez.sh"],
 	local = True,
 	size = "enormous",

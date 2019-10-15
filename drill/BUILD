@@ -4,7 +4,7 @@ py_test(
 	name = "test_drill",
 	srcs = ["test_drill.py"],
 	deps = ["//integration_tests:dataproc_test_case",
-			"//absl/flags"],
+			"@io_abseil_py//absl/flags"],
 	data = ["drill.sh",
 			"validate.sh",
 			"//zookeeper:zookeeper.sh"],
