@@ -19,8 +19,8 @@ class HBaseTestCase(DataprocTestCase):
             self.REGION, self.GCS_BUCKET))
 
     def tearDown(self):
-        super().tearDown()
         self.assert_command('gsutil -m rm -rf gs://{}'.format(self.GCS_BUCKET))
+        super().tearDown()
 
     def verify_instance(self, name):
         self.assert_instance_command(
