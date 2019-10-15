@@ -34,7 +34,6 @@ class SolrTestCase(DataprocTestCase):
     def buildParameters():
         """Builds parameters from flags arguments passed to the test."""
         params = []
-        print(FLAGS.params)
         if not FLAGS.params[0]:
             # Default parameters
             params = [
@@ -49,7 +48,6 @@ class SolrTestCase(DataprocTestCase):
                     if ',' in machine_suffixes
                     else [machine_suffixes])
                 params.append((config, machine_suffixes))
-        print(params)
         return params
 
     @parameterized.expand(
