@@ -36,13 +36,19 @@ class HBaseTestCase(DataprocTestCase):
             ("SINGLE", "1.3", ["m"]),
             ("STANDARD", "1.3", ["m"]),
             ("HA", "1.3", ["m-0"]),
+            ("SINGLE", "1.4", ["m"]),
+            ("STANDARD", "1.4", ["m"]),
+            ("HA", "1.4", ["m-0"]),
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_hbase(self, configuration, dataproc_version, machine_suffixes):
         init_actions = self.INIT_ACTIONS
         if configuration != "HA":
             init_actions = self.INIT_ACTIONS_FOR_NOT_HA + init_actions
-        self.createCluster(configuration, init_actions, dataproc_version)
+        self.createCluster(configuration,
+                           init_actions,
+                           dataproc_version,
+                           machine_type="n1-standard-2")
 
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
@@ -56,6 +62,9 @@ class HBaseTestCase(DataprocTestCase):
             ("SINGLE", "1.3", ["m"]),
             ("STANDARD", "1.3", ["m"]),
             ("HA", "1.3", ["m-0"]),
+            ("SINGLE", "1.4", ["m"]),
+            ("STANDARD", "1.4", ["m"]),
+            ("HA", "1.4", ["m-0"]),
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_hbase_on_gcs(self, configuration, dataproc_version,
@@ -71,7 +80,8 @@ class HBaseTestCase(DataprocTestCase):
         self.createCluster(configuration,
                            init_actions,
                            dataproc_version,
-                           metadata=metadata)
+                           metadata=metadata,
+                           machine_type="n1-standard-2")
 
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
