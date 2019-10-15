@@ -12,8 +12,6 @@ class RStudioTestCase(DataprocTestCase):
 
     @parameterized.expand(
         [
-            ("SINGLE", "1.0", "rstudio", "password"),
-            ("SINGLE", "1.1", "rstudio", "password"),
             ("SINGLE", "1.2", "rstudio", "password"),
             ("SINGLE", "1.3", "rstudio", "password"),
             ("SINGLE", "1.3", "", "password"),  # default username
