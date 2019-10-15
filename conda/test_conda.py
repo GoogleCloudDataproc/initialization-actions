@@ -72,20 +72,12 @@ class CondaTestCase(DataprocTestCase):
         if not flags_parameters[0]:
             # Default parameters
             params = [
-                ("STANDARD", "1.0", "3.5", [], []),
-                ("STANDARD", "1.0", "3.5", CONDA_PKGS, PIP_PKGS),
-                ("STANDARD", "1.1", "3.5", [], []),
-                ("STANDARD", "1.1", "3.5", CONDA_PKGS, PIP_PKGS),
-                ("STANDARD", "1.2", "3.6", [], []),
-                ("STANDARD", "1.2", "3.6", CONDA_PKGS, PIP_PKGS),
-                ("STANDARD", "1.3", "3.6", [], []),
-                ("STANDARD", "1.3", "3.6", CONDA_PKGS, PIP_PKGS),
-                ("STANDARD", "1.4", "3.6", [], []),
-                ("STANDARD", "1.4", "3.6", CONDA_PKGS, PIP_PKGS),
+                ("STANDARD", "3.5", [], []),
+                ("STANDARD", "3.5", CONDA_PKGS, PIP_PKGS),
             ]
         else:
             for param in flags_parameters:
-                (config, version, expected_python, conda_pkgs, pip_pkgs) = param.split()
+                (config, expected_python, conda_pkgs, pip_pkgs) = param.split()
                 conda_pkgs = (conda_pkgs.split(',')
                     if ',' in conda_pkgs
                     else [conda_pkgs])
@@ -97,20 +89,19 @@ class CondaTestCase(DataprocTestCase):
                 if pip_pkgs == 'empty':
                     pip_pkgs = []
                 params.append(
-                    (config, version, expected_python, conda_pkgs, pip_pkgs))
+                    (config, expected_python, conda_pkgs, pip_pkgs))
         return params
 
 
     @parameterized.expand(
         buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_conda(self, configuration, dataproc_version, expected_python,
+    def test_conda(self, configuration, expected_python,
                    conda_packages, pip_packages):
         metadata = "'CONDA_PACKAGES={},PIP_PACKAGES={}'".format(
             " ".join(conda_packages), " ".join(pip_packages))
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           dataproc_version,
                            machine_type="n1-standard-2",
                            metadata=metadata)
 

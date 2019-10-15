@@ -36,27 +36,26 @@ class RangerTestCase(DataprocTestCase):
         if not flags_parameters[0]:
             # Default parameters
             params = [
-                ("SINGLE", "1.3", ["m"]),
-                ("STANDARD", "1.3", ["m"]),
-                ("HA", "1.3", ["m-0"]),
+                ("SINGLE", ["m"]),
+                ("STANDARD", ["m"]),
+                ("HA", ["m-0"]),
             ]
         else:
             for param in flags_parameters:
-                (config, version, machine_suffixes) = param.split()
+                (config,  machine_suffixes) = param.split()
                 machine_suffixes = (machine_suffixes.split(',')
                     if ',' in machine_suffixes
                     else [machine_suffixes])
-                params.append((config, version, machine_suffixes))
+                params.append((config, machine_suffixes))
         return params
 
     @parameterized.expand(
         buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_ranger(self, configuration, dataproc_version, machine_suffixes):
+    def test_ranger(self, configuration, machine_suffixes):
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
-            dataproc_version,
             machine_type="n1-standard-2",
             metadata="ranger-port={},default-admin-password={}".format(
                 6080, "dataproc2019"))

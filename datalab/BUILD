@@ -5,7 +5,7 @@ py_test(
 	srcs = ["test_datalab.py"],
 	deps = ["//integration_tests:dataproc_test_case",
 			"//absl:app",
-			"//absl/flags"],
+			"@io_abseil_py//absl/flags"],
 	data = ["datalab.sh"],
 	local = True,
 	size = "enormous",

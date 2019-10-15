@@ -7,7 +7,8 @@ py_test(
 	srcs = ["test_solr.py"],
 	deps = ["//integration_tests:dataproc_test_case",
 			":verify_solr",
-			"//absl/flags",],
+			"@io_abseil_py//absl/flags"
+		   ],
 	data = ["solr.sh"],
 	local = True,
 	size = "enormous",

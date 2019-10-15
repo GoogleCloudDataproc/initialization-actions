@@ -30,32 +30,26 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         if not flags_parameters[0]:
             # Default parameters
             params = [
-                ("STANDARD", "1.2", ["m", "w-0"
-                                 ], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
-                ("STANDARD", "1.3", ["m", "w-0"
-                                     ], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
-                ("STANDARD", "1.4", ["m", "w-0"
-                                     ], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
+                ("STANDARD", ["m", "w-0"], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
             ]
         else:
             for param in flags_parameters:
-                (config, version, machine_suffixes, master_gpu_type, worker_gpu_type) = param.split()
+                (config, machine_suffixes, master_gpu_type, worker_gpu_type) = param.split()
                 machine_suffixes = (machine_suffixes.split(',')
                     if ',' in machine_suffixes
                     else [machine_suffixes])
-                params.append((config, version, machine_suffixes, master_gpu_type, worker_gpu_type))
+                params.append((config, machine_suffixes, master_gpu_type, worker_gpu_type))
         return params
 
     @parameterized.expand(
         buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_install_gpu(self, configuration, dataproc_version,
+    def test_install_gpu(self, configuration,
                          machine_suffixes, master_accelerator,
                          worker_accelerator):
         init_actions = self.INIT_ACTIONS
         self.createCluster(configuration,
                            init_actions,
-                           dataproc_version,
                            beta=True,
                            master_accelerator=master_accelerator,
                            worker_accelerator=worker_accelerator)
@@ -66,13 +60,12 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     @parameterized.expand(
         buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_install_gpu_no_agent(self, configuration, dataproc_version,
+    def test_install_gpu_no_agent(self, configuration,
                                   machine_suffixes, master_accelerator,
                                   worker_accelerator):
         init_actions = self.INIT_ACTIONS
         self.createCluster(configuration,
                            init_actions,
-                           dataproc_version,
                            beta=True,
                            master_accelerator=master_accelerator,
                            worker_accelerator=worker_accelerator,
@@ -84,7 +77,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
     @parameterized.expand(
         buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_install_gpu_agent(self, configuration, dataproc_version,
+    def test_install_gpu_agent(self, configuration,
                                machine_suffixes, master_accelerator,
                                worker_accelerator):
 
@@ -92,7 +85,6 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         self.createCluster(
             configuration,
             init_actions,
-            dataproc_version,
             beta=True,
             master_accelerator=master_accelerator,
             worker_accelerator=worker_accelerator,

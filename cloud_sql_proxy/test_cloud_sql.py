@@ -62,34 +62,23 @@ class CloudSqlProxyTestCase(DataprocTestCase):
         if not flags_parameters[0]:
             # Default parameters
             params = [
-                ("SINGLE", "1.0"),
-                ("STANDARD", "1.0"),
-                ("HA", "1.0"),
-                ("SINGLE", "1.1"),
-                ("STANDARD", "1.1"),
-                ("HA", "1.1"),
-                ("SINGLE", "1.2"),
-                ("STANDARD", "1.2"),
-                ("HA", "1.2"),
-                ("SINGLE", "1.3"),
-                ("STANDARD", "1.3"),
-                ("HA", "1.3"),
+                ("SINGLE"),
+                ("STANDARD"),
+                ("HA"),
             ]
         else:
-            for param in flags_parameters:
-                (config, version) = param.split()
-                params.append((config, version))
+            for config in flags_parameters:
+                params.append((config))
         return params
 
     @parameterized.expand(
         buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_cloud_sql_proxy(self, configuration, dataproc_version):
+    def test_cloud_sql_proxy(self, configuration):
         metadata = 'hive-metastore-instance={}:{}'.format(
             self.PROJECT_METADATA, self.DB_NAME)
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           dataproc_version,
                            machine_type="n1-standard-2",
                            metadata=metadata,
                            scopes='sql-admin')

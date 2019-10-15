@@ -4,7 +4,7 @@ py_test(
 	name = "test_oozie",
 	srcs = ["test_oozie.py"],
 	deps = ["//integration_tests:dataproc_test_case",
-			"//absl/flags",],
+			"@io_abseil_py//absl/flags"],
 	data = ["oozie.sh",
 			"validate.sh"],
 	local = True,

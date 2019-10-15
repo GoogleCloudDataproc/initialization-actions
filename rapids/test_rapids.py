@@ -33,24 +33,23 @@ class RapidsTestCase(DataprocTestCase):
         params = []
         if not FLAGS.params[0]:
             # Default parameters
-            params = [("STANDARD", "1.3", ["m"])]
+            params = [("STANDARD", ["m"])]
         else:
             for param in FLAGS.params:
-                (config, version, machine_suffixes) = param.split()
+                (config, machine_suffixes) = param.split()
                 machine_suffixes = (machine_suffixes.split(',')
                     if ',' in machine_suffixes
                     else [machine_suffixes])
-                params.append((config, version, machine_suffixes))
+                params.append((config, machine_suffixes))
         return params
     @parameterized.expand(
         buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_rapids(self, configuration, dataproc_version, machine_suffixes):
+    def test_rapids(self, configuration, machine_suffixes):
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
 
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           dataproc_version,
                            metadata=metadata,
                            beta=True,
                            master_accelerator='type=nvidia-tesla-p100',

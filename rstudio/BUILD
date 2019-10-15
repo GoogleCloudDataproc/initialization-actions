@@ -4,7 +4,7 @@ py_test(
 	name = "test_rstudio",
 	srcs = ["test_rstudio.py"],
 	deps = ["//integration_tests:dataproc_test_case",
-			"//absl/flags",],
+			"@io_abseil_py//absl/flags"],
 	data = ["rstudio.sh"],
 	local = True,
 	size = "enormous",

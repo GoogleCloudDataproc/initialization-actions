@@ -5,7 +5,7 @@ py_test(
 	srcs = ["test_ganglia.py"],
 	deps = ["//integration_tests:dataproc_test_case",
 			":verify_ganglia_running",
-			"//absl/flags",],
+			"@io_abseil_py//absl/flags"],
 	local = True,
 	size = "enormous",
 )

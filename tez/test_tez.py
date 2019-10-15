@@ -37,60 +37,46 @@ class TezTestCase(DataprocTestCase):
         self.assert_instance_command(
             name, "python {}".format(self.TEST_SCRIPT_FILE_NAME))
 
-    def buildParameters(on_image_1_3):
+    def buildParameters():
         """Builds parameters from flags arguments passed to the test."""
         params = []
         print(FLAGS.params)
         if not FLAGS.params[0]:
             # Default parameters
-            if on_image_1_3:
-                params = [
-                    ("SINGLE", "1.3", ["m"]),
-                    ("STANDARD", "1.3", ["m"]),
-                    ("HA", "1.3", ["m-0", "m-1", "m-2"]),
-                ]
-            else:
-                params = [
-                    ("SINGLE", "1.1", ["m"]),
-                    ("STANDARD", "1.1", ["m"]),
-                    ("HA", "1.1", ["m-0", "m-1", "m-2"]),
-                    ("SINGLE", "1.2", ["m"]),
-                    ("STANDARD", "1.2", ["m"]),
-                    ("HA", "1.2", ["m-0", "m-1", "m-2"]),
-                ]
+            params = [
+                ("SINGLE", ["m"]),
+                ("STANDARD", ["m"]),
+                ("HA", ["m-0", "m-1", "m-2"]),
+            ]
         else:
             for param in FLAGS.params:
-                (config, version, machine_suffixes) = param.split()
+                (config, machine_suffixes) = param.split()
                 machine_suffixes = (machine_suffixes.split(',')
                     if ',' in machine_suffixes
                     else [machine_suffixes])
-                params.append((config, version, machine_suffixes))
+                params.append((config, machine_suffixes))
         return params
 
     @parameterized.expand(
-        buildParameters(on_image_1_3=False),
+        buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_tez(self, configuration, dataproc_version, machine_suffixes):
-        self.createCluster(configuration, self.INIT_ACTIONS, dataproc_version)
-        for machine_suffix in machine_suffixes:
-            self.verify_instance("{}-{}".format(self.getClusterName(),
-                                                machine_suffix))
-
-    @parameterized.expand(
-        buildParameters(on_image_1_3=True),
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_tez_on_image_version_1_3(self, configuration, dataproc_version,
-                                      machine_suffixes):
-        tez_classpath = "/etc/tez/conf:/usr/lib/tez/*:/usr/lib/tez/lib/*"
-        self.createCluster(
-            configuration,
-            init_actions=[],
-            dataproc_version=dataproc_version,
-            properties="'hadoop-env:HADOOP_CLASSPATH={}:{}'".format(
-                "${HADOOP_CLASSPATH}", tez_classpath))
-        for machine_suffix in machine_suffixes:
-            self.verify_instance("{}-{}".format(self.getClusterName(),
-                                                machine_suffix))
+    def test_tez(self, configuration, machine_suffixes):
+        print(FLAGS.image_version)
+        if FLAGS.image_version == "1.3":
+            tez_classpath = "/etc/tez/conf:/usr/lib/tez/*:/usr/lib/tez/lib/*"
+            self.createCluster(
+                configuration,
+                init_actions=[],
+                properties="'hadoop-env:HADOOP_CLASSPATH={}:{}'".format(
+                    "${HADOOP_CLASSPATH}", tez_classpath))
+            for machine_suffix in machine_suffixes:
+                self.verify_instance("{}-{}".format(self.getClusterName(),
+                                                    machine_suffix))
+        else:
+            self.createCluster(configuration, self.INIT_ACTIONS)
+            for machine_suffix in machine_suffixes:
+                self.verify_instance("{}-{}".format(self.getClusterName(),
+                                                    machine_suffix))
 
 
 if __name__ == '__main__':

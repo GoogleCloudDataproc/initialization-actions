@@ -4,7 +4,7 @@ py_test(
 	name = "test_hbase",
 	srcs = ["test_hbase.py"],
 	deps = ["//integration_tests:dataproc_test_case",
-			"//absl/flags",],
+			"@io_abseil_py//absl/flags"],
 	data = ["hbase.sh"],
 	local = True,
 	size = "enormous",

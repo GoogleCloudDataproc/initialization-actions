@@ -9,6 +9,11 @@ import datetime
 import unittest
 import subprocess
 from threading import Timer
+from absl import flags
+
+FLAGS = flags.FLAGS
+flags.DEFINE_string('image_version', '1.3', 'dataproc_version, e.g. 1.2')
+# FLAGS(sys.argv)
 
 BASE_TEST_CASE = unittest.TestCase
 PARALLEL_RUN = False
@@ -72,7 +77,7 @@ class DataprocTestCase(BASE_TEST_CASE):
     def createCluster(self,
                       configuration,
                       init_actions,
-                      dataproc_version,
+                      # dataproc_version,
                       metadata=None,
                       scopes=None,
                       properties=None,
@@ -85,7 +90,7 @@ class DataprocTestCase(BASE_TEST_CASE):
                       boot_disk_size="50GB"):
         self.name = "test-{}-{}-{}-{}".format(
             self.COMPONENT, configuration.lower(),
-            dataproc_version.replace(".", "-"), self.datetime_str())[:46]
+            FLAGS.image_version.replace(".", "-"), self.datetime_str())[:46]
         self.name += "-{}".format(self.random_str(size=4))
         self.cluster_version = None
 
@@ -101,8 +106,9 @@ class DataprocTestCase(BASE_TEST_CASE):
             args.append("--scopes={}".format(scopes))
         if metadata:
             args.append("--metadata={}".format(metadata))
-        if dataproc_version:
-            args.append("--image-version={}".format(dataproc_version))
+        if FLAGS.image_version:
+            print(FLAGS.image_version)
+            args.append("--image-version={}".format(FLAGS.image_version))
         if timeout_in_minutes:
             args.append("--initialization-action-timeout={}m".format(
                 timeout_in_minutes))
@@ -286,10 +292,11 @@ class DataprocTestCase(BASE_TEST_CASE):
     def generate_verbose_test_name(testcase_func, param_num, param):
         return "{} [mode={}, version={}, random_prefix={}]".format(
             testcase_func.__name__, param.args[0],
-            param.args[1].replace(".", "_"), DataprocTestCase.random_str())
+            FLAGS.image_version.replace(".", "_"), DataprocTestCase.random_str())
 
 
 if __name__ == '__main__':
+    del sys.argv[1:]
     if PARALLEL_RUN:
         fastunit.main()
     else:

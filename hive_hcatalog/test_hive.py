@@ -73,33 +73,27 @@ class HiveHCatalogTestCase(DataprocTestCase):
         if not flags_parameters[0]:
             # Default parameters
             params = [
-                ("SINGLE", "1.0", False),
-                ("STANDARD", "1.0", False),
-                ("HA", "1.0", False),
-                ("SINGLE", "1.1", False),
-                ("STANDARD", "1.1", False),
-                ("HA", "1.1", False),
-                ("SINGLE", "1.2", False),
-                ("STANDARD", "1.2", False),
-                ("HA", "1.2", False),
-                ("SINGLE", "1.3", True),
-                ("STANDARD", "1.3", True),
-                ("HA", "1.3", True),
+                ("SINGLE", False),
+                ("STANDARD", False),
+                ("HA", False),
+                ("SINGLE", True),
+                ("STANDARD", True),
+                ("HA", True),
             ]
         else:
             for param in flags_parameters:
-                (config, version, should_repeat_job) = param.split()
+                (config, should_repeat_job) = param.split()
                 should_repeat_job = (True
                                      if should_repeat_job == "True"
                                      else False)
-                params.append((config, version, should_repeat_job))
+                params.append((config, should_repeat_job))
         return params
 
     @parameterized.expand(
         buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_hive(self, configuration, dataproc_version, should_repeat_job):
-        self.createCluster(configuration, self.INIT_ACTIONS, dataproc_version)
+    def test_hive(self, configuration, should_repeat_job):
+        self.createCluster(configuration, self.INIT_ACTIONS)
         self.verify_instance(self.getClusterName(), should_repeat_job)
 
 

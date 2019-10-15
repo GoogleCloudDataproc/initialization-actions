@@ -5,7 +5,7 @@ py_test(
 	srcs = ["test_bigtable.py"],
 	deps = ["//integration_tests:dataproc_test_case",
 			":run_hbase_commands",
-			"//absl/flags",],
+			"@io_abseil_py//absl/flags"],
 	data = ["bigtable.sh"],
 	local = True,
 	size = "enormous",

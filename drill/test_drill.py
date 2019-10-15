@@ -35,7 +35,10 @@ class DrillTestCase(DataprocTestCase):
         """Builds parameters from flags arguments passed to the test.
 
         If specified, parameters are given as strings, example:
-        'STANDARD 1.3-deb9 m,w-0;m,m'
+        'STANDARD m,w-0;m,m'
+
+        The image_version flag for this test must be provided as
+        <major>.<minor>-os, e.g. 1.3-deb9
 
         For verify options, tuples are separated by ';' and elements
         within each tuple are separated by ','.
@@ -45,16 +48,13 @@ class DrillTestCase(DataprocTestCase):
         if not flags_parameters[0]:
             # Default parameters
             params = [
-                ("SINGLE", "1.3-deb9", [("m", "m")]),
-                ("SINGLE", "1.2-deb9", [("m", "m")]),
-                ("STANDARD", "1.3-deb9", [("m", "w-0"), ("m", "m")]),
-                ("STANDARD", "1.2-deb9", [("m", "w-0"), ("m", "m")]),
-                ("HA", "1.3-deb9", [("m-0", "w-0"), ("w-0", "m-1")]),
-                ("HA", "1.2-deb9", [("m-0", "w-0"), ("w-0", "m-1")]),
+                ("SINGLE", [("m", "m")]),
+                ("STANDARD", [("m", "w-0"), ("m", "m")]),
+                ("HA", [("m-0", "w-0"), ("w-0", "m-1")]),
             ]
         else:
             for param in flags_parameters:
-                (config, version, verify_options) = param.split()
+                (config, verify_options) = param.split()
                 verify_options = (verify_options.split(';')
                     if ';' in verify_options
                     else [verify_options])
@@ -64,19 +64,20 @@ class DrillTestCase(DataprocTestCase):
                         if ',' in verify_option
                         else (verify_option,))
                     verify_options_list.append(machine_suffixes)
-                params.append((config, version, verify_options_list))
+                params.append((config, verify_options_list))
         return params
 
     @parameterized.expand(
         buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_drill(self, configuration, dataproc_version, verify_options):
+    def test_drill(self, configuration, verify_options):
         init_actions = self.INIT_ACTIONS
         if configuration == "STANDARD":
             init_actions = self.INIT_ACTIONS_FOR_STANDARD + init_actions
+        FLAGS.image_version = "1.3-deb9" if FLAGS.image_version == "1.3"  # Change default
+        print(FLAGS.image_version)
         self.createCluster(configuration,
                            init_actions,
-                           dataproc_version,
                            machine_type="n1-standard-2")
 
         drill_mode = "DISTRIBUTED"

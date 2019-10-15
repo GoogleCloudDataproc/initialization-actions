@@ -27,28 +27,22 @@ class DatalabTestCase(DataprocTestCase):
         if not flags_parameters[0]:
             # Default parameters
             params = [
-                ("STANDARD", "1.1", ["m"], "python2"),
-                ("STANDARD", "1.1", ["m"], "python3"),
-                ("STANDARD", "1.2", ["m"], "python2"),
-                ("STANDARD", "1.2", ["m"], "python3"),
-                ("STANDARD", "1.3", ["m"], "python2"),
-                ("STANDARD", "1.3", ["m"], "python3"),
-                ("STANDARD", "1.4", ["m"], "python2"),
-                ("STANDARD", "1.4", ["m"], "python3"),
+                ("STANDARD", ["m"], "python2"),
+                ("STANDARD", ["m"], "python3"),
             ]
         else:
             for param in flags_parameters:
-                (config, version, machine_suffixes, python_version) = param.split()
+                (config, machine_suffixes, python_version) = param.split()
                 machine_suffixes = (machine_suffixes.split(',')
                     if ',' in machine_suffixes
                     else [machine_suffixes])
-                params.append((config, version, machine_suffixes, python_version))
+                params.append((config, machine_suffixes, python_version))
         return params
 
     @parameterized.expand(
         buildParameters(),
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_datalab(self, configuration, dataproc_version, machine_suffixes,
+    def test_datalab(self, configuration, machine_suffixes,
                      python):
         init_actions = self.INIT_ACTIONS
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
@@ -57,7 +51,6 @@ class DatalabTestCase(DataprocTestCase):
 
         self.createCluster(configuration,
                            init_actions,
-                           dataproc_version,
                            metadata=metadata,
                            scopes='cloud-platform',
                            timeout_in_minutes=30)

@@ -5,7 +5,7 @@ py_test(
 	srcs = ["test_rapids.py"],
 	deps = ["//integration_tests:dataproc_test_case",
 			":verify_rapids",
-			"//absl/flags",],
+			"@io_abseil_py//absl/flags"],
 	data = ["rapids.sh"],
 	local = True,
 	size = "enormous",
