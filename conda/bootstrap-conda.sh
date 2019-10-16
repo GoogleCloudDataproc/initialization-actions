@@ -13,7 +13,7 @@ MINICONDA_VARIANT=$(/usr/share/google/get_metadata_value attributes/MINICONDA_VA
 MINICONDA_VERSION=$(/usr/share/google/get_metadata_value attributes/MINICONDA_VERSION || true)
 
 OLD_MINICONDA_VERSION="4.2.12"
-NEW_MINICONDA_VERSION="4.5.4"
+NEW_MINICONDA_VERSION="4.7.10"
 MIN_SPARK_VERSION_FOR_NEWER_MINICONDA="2.2.0"
 
 if [[ -f /etc/profile.d/effective-python.sh ]]; then

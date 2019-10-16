@@ -54,12 +54,12 @@ class CondaTestCase(DataprocTestCase):
 
     @parameterized.expand(
         [
-            ("STANDARD", "1.2", "3.6", [], []),
-            ("STANDARD", "1.2", "3.6", CONDA_PKGS, PIP_PKGS),
-            ("STANDARD", "1.3", "3.6", [], []),
-            ("STANDARD", "1.3", "3.6", CONDA_PKGS, PIP_PKGS),
-            ("STANDARD", "1.4", "3.6", [], []),
-            ("STANDARD", "1.4", "3.6", CONDA_PKGS, PIP_PKGS),
+            ("STANDARD", "1.2", "3.7", [], []),
+            ("STANDARD", "1.2", "3.7", CONDA_PKGS, PIP_PKGS),
+            ("STANDARD", "1.3", "3.7", [], []),
+            ("STANDARD", "1.3", "3.7", CONDA_PKGS, PIP_PKGS),
+            ("STANDARD", "1.4", "3.7", [], []),
+            ("STANDARD", "1.4", "3.7", CONDA_PKGS, PIP_PKGS),
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_conda(self, configuration, dataproc_version, expected_python,
