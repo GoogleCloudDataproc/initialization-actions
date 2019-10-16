@@ -1,7 +1,8 @@
-"""This module provides testing functionality of the H2O Sparkling Water Init Action.
+"""This module provides testing functionality of the H2O Sparkling Water
+Initialization Action.
 """
+
 import unittest
-import os
 
 from parameterized import parameterized
 
@@ -10,43 +11,37 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class H2OTestCase(DataprocTestCase):
     COMPONENT = "h2o"
-    INIT_ACTIONS = ["h2o/h2o-dataproc-install-conda_pip.sh", "h2o/h2o-dataproc-tune.sh"]
-    TEST_SCRIPT_FILE_NAME = "verify_h2o.py"
-    SAMPLE_H2O_JOB_FILE_NAME = "sample-script.py"
-
-    def verify_instance(self, name):
-        self.upload_test_file(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         self.TEST_SCRIPT_FILE_NAME), name)
-        self.upload_test_file(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         self.SAMPLE_H2O_JOB_FILE_NAME), name)
-        self.__run_test_script(name)
-        self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
-        self.remove_test_script(self.SAMPLE_H2O_JOB_FILE_NAME, name)
-
-    def __run_test_script(self, name):
-        self.assert_instance_command(
-            name, "python {} {} {}".format(self.TEST_SCRIPT_FILE_NAME, self.getClusterName(), self.SAMPLE_H2O_JOB_FILE_NAME))
+    INIT_ACTIONS = ["h2o/h2o.sh"]
+    SAMPLE_H2O_JOB_PATH = "h2o/sample-script.py"
 
     @parameterized.expand(
         [
-            ("SINGLE", "1.4", ["m"]),
-            ("STANDARD", "1.4", ["m"]),
-            ("HA", "1.4", ["m-0"]),
+            ("SINGLE", "1.3"),
+            ("STANDARD", "1.3"),
+            ("HA", "1.3"),
+            ("SINGLE", "1.4"),
+            ("STANDARD", "1.4"),
+            ("HA", "1.4"),
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_h2o(self, configuration, dataproc_version, machine_suffixes):
+    def test_h2o(self, configuration, dataproc_version):
+        init_actions = self.INIT_ACTIONS
+        optional_components = "ANACONDA"
+        if dataproc_version == "1.3":
+            init_actions = ["conda/bootstrap-conda.sh"] + init_actions
+            optional_components = None
+
         self.createCluster(
             configuration,
-            self.INIT_ACTIONS,
+            init_actions,
             dataproc_version,
-            machine_type="n1-standard-8",
-            optional_components="ANACONDA",
-            scopes="https://www.googleapis.com/auth/cloud-platform")
-        for machine_suffix in machine_suffixes:
-            self.verify_instance("{}-{}".format(self.getClusterName(),
-                                                machine_suffix))
+            optional_components=optional_components,
+            scopes="https://www.googleapis.com/auth/cloud-platform",
+            machine_type="n1-standard-2")
+
+        self.assert_dataproc_job(
+            self.name, "pyspark", "{}/{}".format(self.INIT_ACTIONS_REPO,
+                                                 self.SAMPLE_H2O_JOB_PATH))
 
 
 if __name__ == "__main__":
