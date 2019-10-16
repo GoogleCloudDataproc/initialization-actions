@@ -7,7 +7,7 @@ from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 FLAGS = flags.FLAGS
-FLAGS(sys.argv)s
+FLAGS(sys.argv)
 
 CONDA_BINARY = "/opt/conda/bin/conda"
 PIP_BINARY = "/opt/conda/bin/pip"

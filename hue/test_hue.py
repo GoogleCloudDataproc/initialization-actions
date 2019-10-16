@@ -12,7 +12,6 @@ FLAGS(sys.argv)
 class HueTestCase(DataprocTestCase):
     COMPONENT = 'hue'
     INIT_ACTIONS = ['hue/hue.sh']
-    TEST_SCRIPT_FILE_NAME = 'verify_hue_running.py'
 
     def verify_instance(self, instance_name):
         verify_cmd_fmt = '''
