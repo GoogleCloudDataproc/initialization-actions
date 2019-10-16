@@ -7,11 +7,9 @@ from absl import flags
 from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
-
 FLAGS = flags.FLAGS
-
-flags.DEFINE_multi_string('params', '', 'Configuration to test')
 FLAGS(sys.argv)
+
 
 class CloudSqlProxyTestCase(DataprocTestCase):
     COMPONENT = 'cloud-sql-proxy'
@@ -51,26 +49,10 @@ class CloudSqlProxyTestCase(DataprocTestCase):
     def verify_cluster(self, name):
         self.__submit_pyspark_job(name)
 
-<<<<<<< HEAD:cloud_sql_proxy/test_cloud_sql.py
     def __submit_pyspark_job(self, name):
         self.assert_command(
             'gcloud dataproc jobs submit pyspark --cluster {} {}/{}'.format(
                 name, self.INIT_ACTIONS_REPO, self.TEST_SCRIPT_FILE_NAME))
-    def buildParameters():
-        """Builds parameters from flags arguments passed to the test."""
-        flags_parameters = FLAGS.params
-        params = []
-        if not flags_parameters[0]:
-            # Default parameters
-            params = [
-                ("SINGLE"),
-                ("STANDARD"),
-                ("HA"),
-            ]
-        else:
-            for config in flags_parameters:
-                params.append((config))
-        return params
 
     def __submit_pyspark_job(self, cluster_name):
         self.assert_dataproc_job(
@@ -78,7 +60,11 @@ class CloudSqlProxyTestCase(DataprocTestCase):
             '{}/{}'.format(self.INIT_ACTIONS_REPO, self.TEST_SCRIPT_FILE_NAME))
 
     @parameterized.expand(
-        buildParameters(),
+        [
+            ("SINGLE"),
+            ("STANDARD"),
+            ("HA"),
+        ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_cloud_sql_proxy(self, configuration):
         metadata = 'hive-metastore-instance={}:{}'.format(

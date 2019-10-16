@@ -6,7 +6,6 @@ from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 FLAGS = flags.FLAGS
-flags.DEFINE_multi_string('params', '', 'Configuration to test')
 FLAGS(sys.argv)
 
 
@@ -54,7 +53,11 @@ class HBaseTestCase(DataprocTestCase):
         return params
 
     @parameterized.expand(
-        buildParameters(),
+        [
+            ("SINGLE", ["m"]),
+            ("STANDARD", ["m"]),
+            ("HA", ["m-0"]),
+        ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_hbase(self, configuration, machine_suffixes):
         init_actions = self.INIT_ACTIONS
@@ -67,7 +70,11 @@ class HBaseTestCase(DataprocTestCase):
                                                 machine_suffix))
 
     @parameterized.expand(
-        buildParameters(),
+        [
+            ("SINGLE", ["m"]),
+            ("STANDARD", ["m"]),
+            ("HA", ["m-0"]),
+        ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_hbase_on_gcs(self, configuration,
                           machine_suffixes):

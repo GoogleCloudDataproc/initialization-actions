@@ -6,7 +6,6 @@ from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 FLAGS = flags.FLAGS
-flags.DEFINE_multi_string('params', '', 'Configuration to test')
 FLAGS(sys.argv)
 
 
@@ -20,27 +19,11 @@ class JupyterTestCase(DataprocTestCase):
             jupyter_port)
         self.assert_instance_command(name, verify_cmd)
 
-    def buildParameters():
-        """Builds parameters from flags arguments passed to the test."""
-        flags_parameters = FLAGS.params
-        params = []
-        if not flags_parameters[0]:
-            # Default parameters
-            params = [
-                ("SINGLE", ["m"]),
-                ("STANDARD", ["m"]),
-            ]
-        else:
-            for param in flags_parameters:
-                (config, machine_suffixes) = param.split()
-                machine_suffixes = (machine_suffixes.split(',')
-                    if ',' in machine_suffixes
-                    else [machine_suffixes])
-                params.append((config, machine_suffixes))
-        return params
-
     @parameterized.expand(
-        buildParameters(),
+        [
+            ("SINGLE", ["m"]),
+            ("STANDARD", ["m"]),
+        ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_jupyter(self, configuration, machine_suffixes):
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)

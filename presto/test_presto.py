@@ -7,7 +7,6 @@ from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 FLAGS = flags.FLAGS
-flags.DEFINE_multi_string('params', '', 'Configuration to test')
 FLAGS(sys.argv)
 
 
@@ -84,35 +83,12 @@ class PrestoTestCase(DataprocTestCase):
             "Bad number of workers. Expected: {}\tFound: {}".format(
                 workers, stdout))
 
-    def buildParameters(custom_port):
-        """Builds parameters from flags arguments passed to the test.
-
-        If specified, parameters are given as strings, example:
-        'STANDARD 1.0 3.5 m,m-0 1 2'
-        """
-        flags_parameters = FLAGS.params
-        params = []
-        if not flags_parameters[0]:
-            # Default parameters
-            if custom_port:
-                params = [("SINGLE",  ["m"], 1, 0),]
-            else:
-                params = [
-                    ("SINGLE", ["m"], 1, 0),
-                    ("STANDARD", ["m"], 1, 2),
-                    ("HA", ["m-0"], 1, 2),
-                ]
-        else:
-            for param in flags_parameters:
-                (config, machine_suffixes, coordinators, workers) = param.split()
-                machine_suffixes = (machine_suffixes.split(',')
-                    if ',' in machine_suffixes
-                    else [machine_suffixes])
-                params.append((config, machine_suffixes, int(coordinators), int(workers)))
-        return params
-
     @parameterized.expand(
-        buildParameters(custom_port=False),
+        [
+            ("SINGLE", ["m"], 1, 0),
+            ("STANDARD", ["m"], 1, 2),
+            ("HA", ["m-0"], 1, 2),
+        ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_presto(self, configuration, machine_suffixes,
                     coordinators, workers):
@@ -126,7 +102,7 @@ class PrestoTestCase(DataprocTestCase):
 
     @parameterized.expand(
         [
-            
+            ("SINGLE",  ["m"], 1, 0)
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_presto_custom_port(self, configuration,

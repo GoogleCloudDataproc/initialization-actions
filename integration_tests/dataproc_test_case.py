@@ -296,7 +296,6 @@ class DataprocTestCase(BASE_TEST_CASE):
 
 
 if __name__ == '__main__':
-    del sys.argv[1:]
     if PARALLEL_RUN:
         fastunit.main()
     else:
