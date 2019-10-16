@@ -7,7 +7,6 @@ from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 FLAGS = flags.FLAGS
-flags.DEFINE_multi_string('params', '', 'Configuration to test')
 FLAGS(sys.argv)
 
 
@@ -28,26 +27,13 @@ class RapidsTestCase(DataprocTestCase):
             self.TEST_SCRIPT_FILE_NAME)
         self.assert_instance_command(name, verify_cmd)
 
-    def buildParameters():
-        """Builds parameters from flags arguments passed to the test."""
-        params = []
-        if not FLAGS.params[0]:
-            # Default parameters
-            params = [("STANDARD", ["m"])]
-        else:
-            for param in FLAGS.params:
-                (config, machine_suffixes) = param.split()
-                machine_suffixes = (machine_suffixes.split(',')
-                    if ',' in machine_suffixes
-                    else [machine_suffixes])
-                params.append((config, machine_suffixes))
-        return params
     @parameterized.expand(
-        buildParameters(),
+        [
+            ("STANDARD", ["m"])
+        ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_rapids(self, configuration, machine_suffixes):
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
-
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
                            metadata=metadata,

@@ -1,14 +1,13 @@
 import json
-import unittest
 import sys
+import unittest
 
 from absl import flags
 from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 FLAGS = flags.FLAGS
-flags.DEFINE_multi_string('params', '', 'Configuration to test')
-FLAGS(sys.argv)
+FLAGS(sys.argv)s
 
 CONDA_BINARY = "/opt/conda/bin/conda"
 PIP_BINARY = "/opt/conda/bin/pip"
@@ -57,44 +56,11 @@ class CondaTestCase(DataprocTestCase):
         return set(l.split()[0] for l in stdout.splitlines()
                    if not l.startswith("#"))
 
-    def buildParameters():
-        """Builds parameters from flags arguments passed to the test.
-
-        If specified, parameters are given as strings, example:
-        'STANDARD 1.0 3.5 pkg1,pkg2 empty'
-
-        Otherwise, the default set of parameters is used.
-
-        Note: empty denotes that the list of packages is empty.
-        """
-        flags_parameters = FLAGS.params
-        params = []
-        if not flags_parameters[0]:
-            # Default parameters
-            params = [
-                ("STANDARD", "3.5", [], []),
-                ("STANDARD", "3.5", CONDA_PKGS, PIP_PKGS),
-            ]
-        else:
-            for param in flags_parameters:
-                (config, expected_python, conda_pkgs, pip_pkgs) = param.split()
-                conda_pkgs = (conda_pkgs.split(',')
-                    if ',' in conda_pkgs
-                    else [conda_pkgs])
-                if conda_pkgs == 'empty':
-                    conda_pkgs = []
-                pip_pkgs = (pip_pkgs.split(',')
-                    if ',' in pip_pkgs
-                    else [pip_pkgs])
-                if pip_pkgs == 'empty':
-                    pip_pkgs = []
-                params.append(
-                    (config, expected_python, conda_pkgs, pip_pkgs))
-        return params
-
-
     @parameterized.expand(
-        buildParameters(),
+        [
+            ("STANDARD", "3.5", [], []),
+            ("STANDARD", "3.5", CONDA_PKGS, PIP_PKGS),
+        ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_conda(self, configuration, expected_python,
                    conda_packages, pip_packages):

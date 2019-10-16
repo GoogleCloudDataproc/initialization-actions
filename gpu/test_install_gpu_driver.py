@@ -6,7 +6,6 @@ from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 FLAGS = flags.FLAGS
-flags.DEFINE_multi_string('params', '', 'Configuration to test')
 FLAGS(sys.argv)
 
 
@@ -23,26 +22,10 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         self.assert_instance_command(
             name, "systemctl status gpu_utilization_agent.service")
 
-    def buildParameters():
-        """Builds parameters from flags arguments passed to the test."""
-        flags_parameters = FLAGS.params
-        params = []
-        if not flags_parameters[0]:
-            # Default parameters
-            params = [
-                ("STANDARD", ["m", "w-0"], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
-            ]
-        else:
-            for param in flags_parameters:
-                (config, machine_suffixes, master_gpu_type, worker_gpu_type) = param.split()
-                machine_suffixes = (machine_suffixes.split(',')
-                    if ',' in machine_suffixes
-                    else [machine_suffixes])
-                params.append((config, machine_suffixes, master_gpu_type, worker_gpu_type))
-        return params
-
     @parameterized.expand(
-        buildParameters(),
+        [
+            ("STANDARD", ["m", "w-0"], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
+        ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_install_gpu(self, configuration,
                          machine_suffixes, master_accelerator,
@@ -58,7 +41,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                                 machine_suffix))
 
     @parameterized.expand(
-        buildParameters(),
+        [
+            ("STANDARD", ["m", "w-0"], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
+        ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_install_gpu_no_agent(self, configuration,
                                   machine_suffixes, master_accelerator,
@@ -75,7 +60,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                                                 machine_suffix))
 
     @parameterized.expand(
-        buildParameters(),
+        [
+            ("STANDARD", ["m", "w-0"], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
+        ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_install_gpu_agent(self, configuration,
                                machine_suffixes, master_accelerator,

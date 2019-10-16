@@ -8,7 +8,6 @@ from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 FLAGS = flags.FLAGS
-flags.DEFINE_multi_string('params', '', 'Configuration to test')
 FLAGS(sys.argv)
 
 
@@ -62,35 +61,15 @@ class HiveHCatalogTestCase(DataprocTestCase):
             status = stdout_dict.get("status", {}).get("state")
         return status, stderr
 
-    def buildParameters():
-        """Builds parameters from flags arguments passed to the test.
-        
-        If specified, parameters are given as strings, example:
-        'STANDARD 1.3 True'
-        """
-        flags_parameters = FLAGS.params
-        params = []
-        if not flags_parameters[0]:
-            # Default parameters
-            params = [
-                ("SINGLE", False),
-                ("STANDARD", False),
-                ("HA", False),
-                ("SINGLE", True),
-                ("STANDARD", True),
-                ("HA", True),
-            ]
-        else:
-            for param in flags_parameters:
-                (config, should_repeat_job) = param.split()
-                should_repeat_job = (True
-                                     if should_repeat_job == "True"
-                                     else False)
-                params.append((config, should_repeat_job))
-        return params
-
     @parameterized.expand(
-        buildParameters(),
+        [
+            ("SINGLE", False),
+            ("STANDARD", False),
+            ("HA", False),
+            ("SINGLE", True),
+            ("STANDARD", True),
+            ("HA", True),
+        ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_hive(self, configuration, should_repeat_job):
         self.createCluster(configuration, self.INIT_ACTIONS)

@@ -6,7 +6,6 @@ from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 FLAGS = flags.FLAGS
-flags.DEFINE_multi_string('params', '', 'Configuration to test')
 FLAGS(sys.argv)
 
 
@@ -14,21 +13,10 @@ class TonYTestCase(DataprocTestCase):
     COMPONENT = 'tony'
     INIT_ACTIONS = ['tony/tony.sh']
 
-    def buildParameters():
-        """Builds parameters from flags arguments passed to the test."""
-        params = []
-        if not FLAGS.params[0]:
-            # Default parameters
-            params = [
-                ("STANDARD"),
-            ]
-        else:
-            for param in FLAGS.params:
-                params.append((param))
-        return params
-
     @parameterized.expand(
-        buildParameters(),
+        [
+            ("STANDARD"),
+        ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_tony(self, configuration):
         self.createCluster(configuration, self.INIT_ACTIONS,

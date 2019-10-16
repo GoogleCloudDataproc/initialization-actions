@@ -20,7 +20,6 @@ from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 FLAGS = flags.FLAGS
-flags.DEFINE_multi_string('params', '', 'Configuration to test')
 FLAGS(sys.argv)
 
 
@@ -52,26 +51,6 @@ class BigTableTestCase(DataprocTestCase):
         self.assert_command('gcloud bigtable instances delete {}'.format(
             self.db_name))
 
-    def buildParameters():
-        """Builds parameters from flags arguments passed to the test."""
-        flags_parameters = FLAGS.params
-        params = []
-        if not flags_parameters[0]:
-            # Default parameters
-            params = [
-                ("SINGLE", ["m"]),
-                ("STANDARD", ["m"]),
-                ("HA", ["m-0"]),
-            ]
-        else:
-            for param in flags_parameters:
-                (config, machine_suffixes) = param.split()
-                machine_suffixes = (machine_suffixes.split(',')
-                    if ',' in machine_suffixes
-                    else [machine_suffixes])
-                params.append((config, machine_suffixes))
-        return params
-
     def _validate_bigtable(self):
         _, stdout, _ = self.assert_command(
             'cbt -instance {} count test-bigtable '.format(self.db_name))
@@ -92,7 +71,11 @@ class BigTableTestCase(DataprocTestCase):
     """
 
     @parameterized.expand(
-        buildParameters(),
+        [
+            ("SINGLE", ["m"]),
+            ("STANDARD", ["m"]),
+            ("HA", ["m-0"]),
+        ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name,
         skip_on_empty=True)
     def test_bigtable(self, configuration, machine_suffixes):
