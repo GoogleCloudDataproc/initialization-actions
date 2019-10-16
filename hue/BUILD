@@ -4,14 +4,8 @@ py_test(
 	name = "test_hue",
 	srcs = ["test_hue.py"],
 	deps = ["//integration_tests:dataproc_test_case",
-			":verify_hue_running",
 			"@io_abseil_py//absl/flags"],
 	data = ["hue.sh"],
 	local = True,
 	size = "enormous",
-)
-
-py_library(
-	name = "verify_hue_running",
-	srcs = ["verify_hue_running.py"],
 )

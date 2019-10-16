@@ -32,26 +32,6 @@ class HBaseTestCase(DataprocTestCase):
                 'org.apache.hadoop.hbase.IntegrationTestsDriver',
                 'org.apache.hadoop.hbase.mapreduce.IntegrationTestImportTsv'))
 
-    def buildParameters():
-        """Builds parameters from flags arguments passed to the test."""
-        flags_parameters = FLAGS.params
-        params = []
-        if not flags_parameters[0]:
-            # Default parameters
-            params = [
-                ("SINGLE", ["m"]),
-                ("STANDARD", ["m"]),
-                ("HA", ["m-0"]),
-            ]
-        else:
-            for param in flags_parameters:
-                (config,  machine_suffixes) = param.split()
-                machine_suffixes = (machine_suffixes.split(',')
-                    if ',' in machine_suffixes
-                    else [machine_suffixes])
-                params.append((config, machine_suffixes))
-        return params
-
     @parameterized.expand(
         [
             ("SINGLE", ["m"]),
