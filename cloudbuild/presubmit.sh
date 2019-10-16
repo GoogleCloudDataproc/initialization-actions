@@ -86,7 +86,7 @@ run_tests() {
   export INTERNAL_IP_SSH=true
   if [[ $RUN_ALL_TESTS == true ]]; then
     # Run all init action tests
-    python3 -m fastunit -v
+    python3 -m fastunit -v */test_*.py
   else
     # Run tests for the init actions that were changed
     python3 -m fastunit -v "${TESTS_TO_RUN[@]}"

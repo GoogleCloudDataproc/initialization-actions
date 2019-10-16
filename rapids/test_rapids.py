@@ -41,6 +41,7 @@ class RapidsTestCase(DataprocTestCase):
                            master_accelerator='type=nvidia-tesla-p100',
                            worker_accelerator='type=nvidia-tesla-p100',
                            optional_components='ANACONDA',
+                           machine_type='n1-standard-2',
                            timeout_in_minutes=20)
 
         for machine_suffix in machine_suffixes:
