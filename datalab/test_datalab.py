@@ -12,9 +12,7 @@ FLAGS(sys.argv)
 class DatalabTestCase(DataprocTestCase):
     COMPONENT = 'datalab'
     INIT_ACTIONS = ['datalab/datalab.sh']
-    PYTHON_3_INIT_ACTIONS = [
-        'conda/bootstrap-conda.sh', 'conda/install-conda-env.sh'
-    ]
+    PYTHON_3_INIT_ACTIONS = ['conda/bootstrap-conda.sh']
 
     def verify_instance(self, name):
         self.assert_instance_command(
@@ -25,6 +23,7 @@ class DatalabTestCase(DataprocTestCase):
         [
             ("STANDARD", ["m"], "python2"),
             ("STANDARD", ["m"], "python3"),
+            ("STANDARD", ["m"], "python3-default"),
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_datalab(self, configuration, machine_suffixes,
@@ -33,7 +32,6 @@ class DatalabTestCase(DataprocTestCase):
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
         if python == "python3":
             init_actions = self.PYTHON_3_INIT_ACTIONS + init_actions
-            metadata += ',CONDA_PACKAGES="python==3.5"'
 
         self.createCluster(configuration,
                            init_actions,

@@ -42,7 +42,7 @@ class DrillTestCase(DataprocTestCase):
         FLAGS.image_version = (
             "1.3-deb9"
             if FLAGS.image_version == "1.3"
-            else FLAGS.image_version)  # Change default
+            else FLAGS.image_version)  # Change default 1.3 to 1.3-deb9
         self.createCluster(configuration,
                            init_actions,
                            machine_type="n1-standard-2")

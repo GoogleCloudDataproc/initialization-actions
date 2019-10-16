@@ -78,4 +78,3 @@ class HBaseTestCase(DataprocTestCase):
 if __name__ == '__main__':
     del sys.argv[1:]
     unittest.main()
-
