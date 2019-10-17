@@ -16,7 +16,7 @@ from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 FLAGS = flags.FLAGS
-FLAGS(sys.argv)
+#FLAGS(sys.argv)
 
 
 class TezTestCase(DataprocTestCase):
@@ -62,5 +62,5 @@ class TezTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    del sys.argv[1:]
+    # del sys.argv[1:]
     unittest.main()

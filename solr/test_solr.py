@@ -3,15 +3,10 @@ This module provides testing functionality of the Apache Solr Init Action.
 """
 
 import os
-import sys
 import unittest
 
-from absl import flags
 from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
-
-FLAGS = flags.FLAGS
-FLAGS(sys.argv)
 
 
 class SolrTestCase(DataprocTestCase):
@@ -45,5 +40,4 @@ class SolrTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    del sys.argv[1:]
     unittest.main()

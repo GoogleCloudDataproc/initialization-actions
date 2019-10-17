@@ -13,7 +13,7 @@ from absl import flags
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('image_version', '1.3', 'dataproc_version, e.g. 1.2')
-# FLAGS(sys.argv)
+FLAGS(sys.argv)
 
 BASE_TEST_CASE = unittest.TestCase
 PARALLEL_RUN = False
