@@ -2,14 +2,9 @@
 """
 import unittest
 import os
-import sys
 
-from absl import flags
 from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
-
-FLAGS = flags.FLAGS
-FLAGS(sys.argv)
 
 
 class RangerTestCase(DataprocTestCase):
@@ -48,5 +43,4 @@ class RangerTestCase(DataprocTestCase):
 
 
 if __name__ == "__main__":
-    del sys.argv[1:]
     unittest.main()

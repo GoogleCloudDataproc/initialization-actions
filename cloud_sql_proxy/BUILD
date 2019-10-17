@@ -4,7 +4,6 @@ py_test(
 	name = "test_cloud_sql",
 	srcs = ["test_cloud_sql.py"],
 	deps = ["//integration_tests:dataproc_test_case",
-			"@io_abseil_py//absl/flags",
 			":pyspark_metastore_test"],
 	data = ["cloud-sql-proxy.sh"],
 	local = True,

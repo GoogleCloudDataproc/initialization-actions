@@ -1,12 +1,7 @@
-import sys
 import unittest
 
-from absl import flags
 from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
-
-FLAGS = flags.FLAGS
-FLAGS(sys.argv)
 
 
 class NvidiaGpuDriverTestCase(DataprocTestCase):
@@ -85,5 +80,4 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    del sys.argv[1:]
     unittest.main()

@@ -12,15 +12,10 @@ Note:
 import argparse
 import unittest
 import logging
-import sys
 
-from absl import flags
 from parameterized import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
-
-FLAGS = flags.FLAGS
-FLAGS(sys.argv)
 
 
 class BigTableTestCase(DataprocTestCase):
@@ -76,10 +71,8 @@ class BigTableTestCase(DataprocTestCase):
             ("STANDARD", ["m"]),
             ("HA", ["m-0"]),
         ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name,
-        skip_on_empty=True)
+        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_bigtable(self, configuration, machine_suffixes):
-        log = logging.getLogger( "BigTableTestCase.test_bigtable" )
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
                            metadata=self.metadata)
@@ -91,5 +84,4 @@ class BigTableTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    del sys.argv[1:]
     unittest.main()

@@ -3,8 +3,7 @@ package(default_visibility = ["//visibility:public"])
 py_test(
 	name = "test_presto",
 	srcs = ["test_presto.py"],
-	deps = ["//integration_tests:dataproc_test_case",
-			"@io_abseil_py//absl/flags"],
+	deps = ["//integration_tests:dataproc_test_case"],
 	data = ["presto.sh"],
 	local = True,
 	size = "enormous",
