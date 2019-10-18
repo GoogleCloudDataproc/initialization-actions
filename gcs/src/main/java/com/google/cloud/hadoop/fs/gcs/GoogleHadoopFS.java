@@ -138,7 +138,7 @@ public class GoogleHadoopFS extends AbstractFileSystem {
     ghfs.checkPath(path);
   }
 
-  // TODO(user): Implement GoogleHadoopFileSystemBase.getServerDefaults(Path)
+  // TODO: Implement GoogleHadoopFileSystemBase.getServerDefaults(Path)
   @SuppressWarnings("deprecation")
   @Override
   public FsServerDefaults getServerDefaults() throws IOException {
