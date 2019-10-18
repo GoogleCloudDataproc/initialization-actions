@@ -9,7 +9,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 class CloudSqlProxyTestCase(DataprocTestCase):
     COMPONENT = 'cloud-sql-proxy'
     INIT_ACTIONS = ['cloud-sql-proxy/cloud-sql-proxy.sh']
-    TEST_SCRIPT_FILE_NAME = 'cloud-sql-proxy/pyspark_metastore_test.py'
+    TEST_SCRIPT_FILE_NAME = 'cloud_sql_proxy/pyspark_metastore_test.py'
     DB_NAME = None
 
     @classmethod
