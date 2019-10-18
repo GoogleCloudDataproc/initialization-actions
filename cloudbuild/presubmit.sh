@@ -42,6 +42,11 @@ initialize_git_repo() {
   git rebase origin/master
 }
 
+# Determines if an element is in a list
+contains() {
+    [[ $1 =~ (^|[[:space:]])$2($|[[:space:]]) ]] && exit(0) || exit(1)
+}
+
 # This function adds all changed files to git "index" and diffs them against master branch
 # to determine all changed files and looks for tests in directories with changed files.
 determine_tests_to_run() {
@@ -68,6 +73,8 @@ determine_tests_to_run() {
   done
   echo "Changed directories: ${changed_dirs[*]}"
 
+  SPECIAL_INIT_ACTIONS=(cloud-sql-proxy/ starburst-presto/ hive-hcatalog/)
+
   # Determines what tests in changed init action directories to run
   for changed_dir in "${changed_dirs[@]}"; do
     local tests_in_dir
@@ -76,7 +83,12 @@ determine_tests_to_run() {
       exit 1
     fi
     declare -a tests_array
-    mapfile -t tests_array < <(echo "${tests_in_dir}")
+    if contains $changed_dir SPECIAL_INIT_ACTIONS; then
+      # Some of our py_tests are defined in the top-level directory
+      mapfile -t tests_array < <(echo ":test_${changed_dir::-1}")
+    else 
+      mapfile -t tests_array < <(echo "${changed_dir::-1}:test_${changed_dir::-1}")
+    fi
     TESTS_TO_RUN+=("${tests_array[@]}")
   done
   echo "Tests: ${TESTS_TO_RUN[*]}"
@@ -86,10 +98,10 @@ run_tests() {
   export INTERNAL_IP_SSH=true
   if [[ $RUN_ALL_TESTS == true ]]; then
     # Run all init action tests
-    python3 -m fastunit -v */test_*.py
+    bazel test :DataprocInitActionsTestSuite --jobs 15
   else
     # Run tests for the init actions that were changed
-    python3 -m fastunit -v "${TESTS_TO_RUN[@]}"
+    bazel test "${TESTS_TO_RUN[@]}"
   fi
 }
 

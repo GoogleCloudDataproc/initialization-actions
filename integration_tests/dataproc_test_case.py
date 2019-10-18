@@ -77,7 +77,6 @@ class DataprocTestCase(BASE_TEST_CASE):
     def createCluster(self,
                       configuration,
                       init_actions,
-                      # dataproc_version,
                       metadata=None,
                       scopes=None,
                       properties=None,
