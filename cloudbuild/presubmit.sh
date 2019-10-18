@@ -39,7 +39,7 @@ initialize_git_repo() {
 
   git reset "${COMMIT_SHA}"
 
-  git rebase origin/master
+  # git rebase origin/master
 }
 
 # Determines if an element is in a list
