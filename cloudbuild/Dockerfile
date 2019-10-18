@@ -16,4 +16,14 @@ WORKDIR /tmp/fastunit
 RUN git clone https://github.com/ityoung/python3-fastunit.git .
 RUN python3 setup.py install
 
+# Install Bazel (https://docs.bazel.build/versions/master/install-ubuntu.html)
+RUN \
+	apt-get -y install openjdk-8-jdk && \
+    echo "deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable jdk1.8" | tee /etc/apt/sources.list.d/bazel.list && \
+    curl https://bazel.build/bazel-release.pub.gpg | apt-key add - && \
+    apt-get update && \
+
+    apt-get -y install bazel && \
+    apt-get -y upgrade bazel
+
 USER ia-tests
