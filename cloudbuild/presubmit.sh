@@ -44,7 +44,7 @@ initialize_git_repo() {
 
 # Determines if an element is in a list
 contains() {
-    [[ $1 =~ (^|[[:space:]])$2($|[[:space:]]) ]] && exit(0) || exit(1)
+    [[ $1 =~ (^|[[:space:]])$2($|[[:space:]]) ]] && exit 0 || exit 1
 }
 
 # This function adds all changed files to git "index" and diffs them against master branch
