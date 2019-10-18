@@ -8,14 +8,14 @@ CONDA_BINARY = "/opt/conda/bin/conda"
 PIP_BINARY = "/opt/conda/bin/pip"
 PYTHON_VERSION_KEY = "python_version"
 
-# Test packages
-CONDA_PKGS = ["numpy", "pandas", "jupyter"]
-PIP_PKGS = ["pandas-gbq"]
-
 
 class CondaTestCase(DataprocTestCase):
     COMPONENT = "conda"
     INIT_ACTIONS = ["conda/bootstrap-conda.sh", "conda/install-conda-env.sh"]
+
+    # Test packages
+    CONDA_PKGS = ["numpy", "pandas", "jupyter"]
+    PIP_PKGS = ["pandas-gbq"]
 
     def _verify_python_version(self, instance, expected_python):
         _, stdout, _ = self.assert_instance_command(
