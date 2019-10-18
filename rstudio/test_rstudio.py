@@ -1,7 +1,6 @@
 import random
 import unittest
 
-from absl import flags
 from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
