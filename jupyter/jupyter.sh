@@ -49,9 +49,6 @@ fi
 
 # Install jupyter on all nodes to start with a consistent python environment
 # on all nodes. See issue #300 for more information.
-CONDA=$(whereis conda | cut -d' ' -f2)
-PYTHON="${CONDA%/*}/python"
-PYTHON_VERSION="$(${PYTHON} --version 2>&1 | cut -d ' ' -f 2)"
 set +u
 conda install jupyter matplotlib 'testpath<0.4'
 set -u
