@@ -85,6 +85,7 @@ determine_tests_to_run() {
     declare -a tests_array
     if contains $changed_dir SPECIAL_INIT_ACTIONS; then
       # Some of our py_tests are defined in the top-level directory
+      # NOTE: The ::-1 removes the trailing '/'
       mapfile -t tests_array < <(echo ":test_${changed_dir::-1}")
     else 
       mapfile -t tests_array < <(echo "${changed_dir::-1}:test_${changed_dir::-1}")
