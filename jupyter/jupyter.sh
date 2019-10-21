@@ -48,14 +48,13 @@ if [[ -f /etc/profile.d/effective-python.sh ]]; then
 fi
 
 # Install jupyter on all nodes to start with a consistent python environment
-# on all nodes. Also, pin the python version to ensure that conda does not
-# update python because the latest version of jupyter supports a higher version
-# than the one already installed. See issue #300 for more information.
-PYTHON="$(ls /opt/conda/bin/python || command -v python)"
+# on all nodes. See issue #300 for more information.
+CONDA=$(whereis conda | cut -d' ' -f2)
+PYTHON="${CONDA%/*}/python"
 PYTHON_VERSION="$(${PYTHON} --version 2>&1 | cut -d ' ' -f 2)"
-conda install jupyter matplotlib "python==${PYTHON_VERSION}"
-
-conda install 'testpath<0.4'
+set +u
+conda install jupyter matplotlib 'testpath<0.4'
+set -u
 
 if [ -n "${JUPYTER_CONDA_CHANNELS}" ]; then
   IFS=":" read -r -a channels <<<"${JUPYTER_CONDA_CHANNELS}"
