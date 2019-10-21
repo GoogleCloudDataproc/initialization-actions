@@ -47,9 +47,10 @@ if [[ -f /etc/profile.d/effective-python.sh ]]; then
   source /etc/profile.d/effective-python.sh
 fi
 
+# Disable nounset option, because conda install fails otherwise
+set +u
 # Install jupyter on all nodes to start with a consistent python environment
 # on all nodes. See issue #300 for more information.
-set +u
 conda install jupyter matplotlib 'testpath<0.4'
 set -u
 
