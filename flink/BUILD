@@ -1,11 +1,13 @@
 package(default_visibility = ["//visibility:public"])
 
 py_test(
-	name = "test_flink",
-	srcs = ["test_flink.py"],
-	deps = ["//integration_tests:dataproc_test_case"],
-	data = ["flink.sh",
-			"validate.sh"],
-	local = True,
-	size = "enormous",
+    name = "test_flink",
+    size = "enormous",
+    srcs = ["test_flink.py"],
+    data = [
+        "flink.sh",
+        "validate.sh",
+    ],
+    local = True,
+    deps = ["//integration_tests:dataproc_test_case"],
 )

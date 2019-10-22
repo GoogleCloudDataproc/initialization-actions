@@ -1,10 +1,10 @@
 package(default_visibility = ["//visibility:public"])
 
 py_test(
-	name = "test_presto",
-	srcs = ["test_presto.py"],
-	deps = ["//integration_tests:dataproc_test_case"],
-	data = ["presto.sh"],
-	local = True,
-	size = "enormous",
+    name = "test_presto",
+    size = "enormous",
+    srcs = ["test_presto.py"],
+    data = ["presto.sh"],
+    local = True,
+    deps = ["//integration_tests:dataproc_test_case"],
 )
