@@ -77,7 +77,8 @@ function install_oozie(){
 
   if [[ ${node_name} == ${master_node} ]]; then
     # The ext library is needed to enable the Oozie web console
-    wget http://archive.cloudera.com/gplextras/misc/ext-2.2.zip || err 'Unable to download ext-2.2.zip'
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      http://archive.cloudera.com/gplextras/misc/ext-2.2.zip
     unzip ext-2.2.zip -d /var/lib/oozie
     # Install share lib
     install -d /usr/lib/oozie

@@ -242,8 +242,8 @@ function main() {
   mkdir -p ${DRILL_HOME} && chown ${DRILL_USER}:${DRILL_USER} ${DRILL_HOME}
 
   # Download and unpack Drill as the pseudo-user.
-  wget https://archive.apache.org/dist/drill/drill-${DRILL_VERSION}/apache-drill-${DRILL_VERSION}.tar.gz || \
-    err "Unable to download archive"
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    https://archive.apache.org/dist/drill/drill-${DRILL_VERSION}/apache-drill-${DRILL_VERSION}.tar.gz
   tar -xvzf apache-drill-${DRILL_VERSION}.tar.gz -C ${DRILL_HOME} --strip 1
 
   # Replace default configuration with cluster-specific.

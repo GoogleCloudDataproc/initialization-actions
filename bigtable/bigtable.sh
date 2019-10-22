@@ -54,15 +54,15 @@ function err() {
 
 function install_big_table_client() {
   local out="${HBASE_HOME}/lib/${BIGTABLE_HBASE_CLIENT}"
-  wget --progress=dot:mega -q "${BIGTABLE_HBASE_DL_LINK}" -O "${out}" ||
-    err 'Unable to install BigTable client libs.'
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${BIGTABLE_HBASE_DL_LINK}" -O "${out}"
 }
 
 function install_shc() {
   mkdir -p "/usr/lib/spark/external"
   local out="/usr/lib/spark/external/${SPARK_HBASE_CLIENT}"
-  wget --progress=dot:mega -q "${SPARK_HBASE_CLIENT_DL_LINK}" -O ${out} ||
-    err 'Unable to install shc.'
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${SPARK_HBASE_CLIENT_DL_LINK}" -O ${out}
   ln -s "${out}" "/usr/lib/spark/external/shc-core.jar"
 }
 

@@ -84,7 +84,8 @@ else
       echo "Found existing Miniconda script at: $MINICONDA_SCRIPT_PATH"
     else
       echo "Downloading Miniconda script to: $MINICONDA_SCRIPT_PATH ..."
-      wget https://repo.continuum.io/miniconda/$MINICONDA_FULL_NAME -P "$PROJ_DIR"
+      wget -nv --timeout=30 --tries=5 --retry-connrefused \
+        https://repo.continuum.io/miniconda/$MINICONDA_FULL_NAME -P "$PROJ_DIR"
       echo "Downloaded $MINICONDA_FULL_NAME!"
       ls -al $MINICONDA_SCRIPT_PATH
       chmod 755 $MINICONDA_SCRIPT_PATH

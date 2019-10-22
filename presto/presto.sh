@@ -56,7 +56,8 @@ function wait_for_presto_cluster_ready() {
 
 function get_presto() {
   # Download and unpack Presto server
-  wget ${PRESTO_BASE_URL}/presto-server/${PRESTO_VERSION}/presto-server-${PRESTO_VERSION}.tar.gz
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    ${PRESTO_BASE_URL}/presto-server/${PRESTO_VERSION}/presto-server-${PRESTO_VERSION}.tar.gz
   tar -zxvf presto-server-${PRESTO_VERSION}.tar.gz
   mkdir -p /var/presto/data
 }
@@ -190,7 +191,8 @@ discovery.uri=http://${PRESTO_MASTER_FQDN}:${HTTP_PORT}
 EOF
 
   # Install cli
-  wget ${PRESTO_BASE_URL}/presto-cli/${PRESTO_VERSION}/presto-cli-${PRESTO_VERSION}-executable.jar -O /usr/bin/presto
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    ${PRESTO_BASE_URL}/presto-cli/${PRESTO_VERSION}/presto-cli-${PRESTO_VERSION}-executable.jar -O /usr/bin/presto
   chmod a+x /usr/bin/presto
 }
 

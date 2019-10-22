@@ -9,7 +9,8 @@ readonly GPU_DRIVER_URL=$(/usr/share/google/get_metadata_value attributes/gpu-dr
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y pciutils "linux-headers-$(uname -r)"
 
-wget --progress=dot:mega -O driver.run "${GPU_DRIVER_URL}"
+wget -nv --timeout=30 --tries=5 --retry-connrefused \
+  "${GPU_DRIVER_URL}" -O driver.run
 chmod +x "./driver.run"
 
 "./driver.run" --silent
