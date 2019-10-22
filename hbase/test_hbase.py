@@ -1,6 +1,7 @@
 import unittest
 
 from parameterized import parameterized
+
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 
@@ -38,7 +39,8 @@ class HBaseTestCase(DataprocTestCase):
         init_actions = self.INIT_ACTIONS
         if configuration != "HA":
             init_actions = self.INIT_ACTIONS_FOR_NOT_HA + init_actions
-        self.createCluster(configuration, init_actions,
+        self.createCluster(configuration,
+                           init_actions,
                            machine_type="n1-standard-2")
 
         for machine_suffix in machine_suffixes:
@@ -57,11 +59,7 @@ class HBaseTestCase(DataprocTestCase):
         init_actions = self.INIT_ACTIONS
         if configuration != "HA":
             init_actions = self.INIT_ACTIONS_FOR_NOT_HA + init_actions
-        test_dir = "{}-{}-{}".format(configuration.lower(),
-                                     FLAGS.image_version.replace(".", "-"),
-                                     self.random_str())
-        metadata = 'hbase-root-dir=gs://{}/{}'.format(self.GCS_BUCKET,
-                                                      test_dir)
+        metadata = 'hbase-root-dir=gs://{}/test-dir'.format(self.GCS_BUCKET)
         self.createCluster(configuration,
                            init_actions,
                            metadata=metadata,

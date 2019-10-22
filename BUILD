@@ -1,48 +1,15 @@
 package(default_visibility = ["//visibility:public"])
 
-py_test(
-    name = "test_cloud_sql_proxy",
-    size = "enormous",
-    srcs = ["cloud-sql-proxy/test_cloud_sql_proxy.py"],
-    data = ["cloud-sql-proxy/cloud-sql-proxy.sh"],
-    local = True,
-    deps = [
-        ":pyspark_metastore_test",
-        "//integration_tests:dataproc_test_case",
-    ],
-)
-
-py_library(
-    name = "pyspark_metastore_test",
-    srcs = ["cloud-sql-proxy/pyspark_metastore_test.py"],
-)
-
-py_test(
-    name = "test_starburst_presto",
-    size = "enormous",
-    srcs = ["starburst-presto/test_starburst_presto.py"],
-    data = ["starburst-presto/presto.sh"],
-    local = True,
-    deps = ["//integration_tests:dataproc_test_case"],
-)
-
-py_test(
-    name = "test_hive_hcatalog",
-    size = "enormous",
-    srcs = ["hive-hcatalog/test_hive_hcatalog.py"],
-    data = ["hive-hcatalog/hive-hcatalog.sh"],
-    local = True,
-    deps = ["//integration_tests:dataproc_test_case"],
-)
-
 test_suite(
     name = "DataprocInitActionsTestSuite",
     tests = [
         ":test_cloud_sql_proxy",
+        ":test_dr_elephant",
         ":test_hive_hcatalog",
         ":test_starburst_presto",
         "//bigtable:test_bigtable",
         "//conda:test_conda",
+        "//connectors:test_connectors",
         "//datalab:test_datalab",
         "//drill:test_drill",
         "//flink:test_flink",
@@ -62,4 +29,49 @@ test_suite(
         "//tez:test_tez",
         "//tony:test_tony",
     ],
+)
+
+py_test(
+    name = "test_cloud_sql_proxy",
+    size = "enormous",
+    srcs = ["cloud-sql-proxy/test_cloud_sql_proxy.py"],
+    data = ["cloud-sql-proxy/cloud-sql-proxy.sh"],
+    local = True,
+    deps = [
+        ":pyspark_metastore_test",
+        "//integration_tests:dataproc_test_case",
+    ],
+)
+
+py_test(
+    name = "test_dr_elephant",
+    size = "enormous",
+    srcs = ["dr-elephant/test_dr_elephant.py"],
+    data = ["dr-elephant/dr-elephant.sh"],
+    local = True,
+    deps = ["//integration_tests:dataproc_test_case"],
+)
+
+py_test(
+    name = "test_hive_hcatalog",
+    size = "enormous",
+    srcs = ["hive-hcatalog/test_hive_hcatalog.py"],
+    data = ["hive-hcatalog/hive-hcatalog.sh"],
+    local = True,
+    deps = ["//integration_tests:dataproc_test_case"],
+)
+
+py_test(
+    name = "test_starburst_presto",
+    size = "enormous",
+    srcs = ["starburst-presto/test_starburst_presto.py"],
+    data = ["starburst-presto/presto.sh"],
+    local = True,
+    deps = ["//integration_tests:dataproc_test_case"],
+)
+
+py_library(
+    name = "pyspark_metastore_test",
+    testonly = True,
+    srcs = ["cloud-sql-proxy/pyspark_metastore_test.py"],
 )

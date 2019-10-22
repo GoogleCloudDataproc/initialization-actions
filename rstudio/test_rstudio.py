@@ -2,6 +2,7 @@ import random
 import unittest
 
 from parameterized import parameterized
+
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 
@@ -27,6 +28,7 @@ class RStudioTestCase(DataprocTestCase):
         instance_name = self.getClusterName() + "-m"
         self.assert_instance_command(
             instance_name, "curl http://{}:8787".format(instance_name))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -28,19 +28,14 @@ class DrElephantTestCase(DataprocTestCase):
 
     @parameterized.expand(
         [
-            ("STANDARD", "1.2", ["m"]),
-            ("HA", "1.2", ["m-0"]),
-            ("STANDARD", "1.3", ["m"]),
-            ("HA", "1.3", ["m-0"]),
-            ("STANDARD", "1.4", ["m"]),
-            ("HA", "1.4", ["m-0"]),
+            ("STANDARD", ["m"]),
+            ("HA", ["m-0"]),
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_dr_elephant(self, configuration, dataproc_version,
+    def test_dr_elephant(self, configuration,
                          machine_suffixes):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           dataproc_version,
                            timeout_in_minutes=30,
                            machine_type="n1-standard-2")
 

@@ -4,6 +4,9 @@ py_test(
     name = "test_ganglia",
     size = "enormous",
     srcs = ["test_ganglia.py"],
+    data = [
+        "ganglia.sh",
+    ],
     local = True,
     deps = [
         ":verify_ganglia_running",

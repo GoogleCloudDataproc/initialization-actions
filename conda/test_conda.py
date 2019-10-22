@@ -2,6 +2,7 @@ import json
 import unittest
 
 from parameterized import parameterized
+
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 CONDA_BINARY = "/opt/conda/bin/conda"
@@ -53,12 +54,11 @@ class CondaTestCase(DataprocTestCase):
 
     @parameterized.expand(
         [
-            ("STANDARD", "3.5", [], []),
-            ("STANDARD", "3.5", CONDA_PKGS, PIP_PKGS),
+            ("STANDARD", [], []),
+            ("STANDARD", CONDA_PKGS, PIP_PKGS),
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_conda(self, configuration, expected_python,
-                   conda_packages, pip_packages):
+    def test_conda(self, configuration, conda_packages, pip_packages):
         metadata = "'CONDA_PACKAGES={},PIP_PACKAGES={}'".format(
             " ".join(conda_packages), " ".join(pip_packages))
         self.createCluster(configuration,
@@ -67,7 +67,7 @@ class CondaTestCase(DataprocTestCase):
                            metadata=metadata)
 
         instance_name = self.getClusterName() + "-m"
-        self._verify_python_version(instance_name, expected_python)
+        self._verify_python_version(instance_name, "3.7")
         self._verify_pip_packages(instance_name, pip_packages)
         self._verify_conda_packages(instance_name, conda_packages)
 

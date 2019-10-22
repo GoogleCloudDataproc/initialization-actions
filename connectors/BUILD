@@ -1,13 +1,10 @@
 package(default_visibility = ["//visibility:public"])
 
 py_test(
-    name = "test_hbase",
+    name = "test_connectors",
     size = "enormous",
-    srcs = ["test_hbase.py"],
-    data = [
-        "hbase.sh",
-        "//zookeeper:zookeeper.sh",
-    ],
+    srcs = ["test_connectors.py"],
+    data = ["connectors.sh"],
     local = True,
     deps = ["//integration_tests:dataproc_test_case"],
 )

@@ -8,15 +8,12 @@ executed on every master node. Test script run example Tez job and successful ex
 flag. Test script is executed on every master node.
 """
 import os
-import sys
 import unittest
+import pkg_resources
 
-from absl import flags
 from parameterized import parameterized
-from integration_tests.dataproc_test_case import DataprocTestCase
 
-FLAGS = flags.FLAGS
-#FLAGS(sys.argv)
+from integration_tests.dataproc_test_case import DataprocTestCase
 
 
 class TezTestCase(DataprocTestCase):
@@ -44,8 +41,7 @@ class TezTestCase(DataprocTestCase):
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_tez(self, configuration, machine_suffixes):
-        print(FLAGS.image_version)
-        if FLAGS.image_version == "1.3":
+        if self.getImageVersion() >= pkg_resources.parse_version("1.3"):
             tez_classpath = "/etc/tez/conf:/usr/lib/tez/*:/usr/lib/tez/lib/*"
             self.createCluster(
                 configuration,
@@ -63,5 +59,4 @@ class TezTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    # del sys.argv[1:]
     unittest.main()

@@ -14,5 +14,6 @@ py_test(
 
 py_library(
     name = "verify_livy_running",
+    testonly = True,
     srcs = ["verify_livy_running.py"],
 )

@@ -1,5 +1,7 @@
 package(default_visibility = ["//visibility:public"])
 
+exports_files(["bootstrap-conda.sh"])
+
 py_test(
     name = "test_conda",
     size = "enormous",
@@ -17,5 +19,6 @@ py_test(
 
 py_library(
     name = "get_sys_exec",
+    testonly = True,
     srcs = ["get-sys-exec.py"],
 )

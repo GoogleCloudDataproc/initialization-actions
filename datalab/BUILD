@@ -4,7 +4,11 @@ py_test(
     name = "test_datalab",
     size = "enormous",
     srcs = ["test_datalab.py"],
-    data = ["datalab.sh"],
+    data = [
+        "datalab.sh",
+        "//conda:bootstrap-conda.sh",
+        "//docker:docker.sh",
+    ],
     local = True,
     deps = ["//integration_tests:dataproc_test_case"],
 )

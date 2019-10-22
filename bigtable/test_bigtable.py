@@ -82,6 +82,5 @@ class BigTableTestCase(DataprocTestCase):
                                                 machine_suffix))
 
 
-
 if __name__ == '__main__':
     unittest.main()

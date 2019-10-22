@@ -4,7 +4,7 @@ py_test(
     name = "test_rapids",
     size = "enormous",
     srcs = ["test_rapids.py"],
-    data = ["rapids.sh"],
+    data = ["rapids.sh"] + glob(["internal/*"]),
     local = True,
     deps = [
         ":verify_rapids",
@@ -14,5 +14,6 @@ py_test(
 
 py_library(
     name = "verify_rapids",
+    testonly = True,
     srcs = ["verify_rapids.py"],
 )

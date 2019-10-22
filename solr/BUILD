@@ -16,5 +16,6 @@ py_test(
 
 py_library(
     name = "verify_solr",
+    testonly = True,
     srcs = ["verify_solr.py"],
 )

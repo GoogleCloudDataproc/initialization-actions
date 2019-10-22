@@ -10,8 +10,5 @@ py_test(
         "//zookeeper:zookeeper.sh",
     ],
     local = True,
-    deps = [
-        "//integration_tests:dataproc_test_case",
-        "@io_abseil_py//absl/flags",
-    ],
+    deps = ["//integration_tests:dataproc_test_case"],
 )

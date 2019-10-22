@@ -1,6 +1,7 @@
 import unittest
 
 from parameterized import parameterized
+
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 
@@ -25,8 +26,8 @@ class HueTestCase(DataprocTestCase):
     @parameterized.expand(
         [
             ("SINGLE", ["m"]),
-            ("STANDARD", ["m", "w-0"]),
-            ("HA", ["m-0", "m-1", "m-2", "w-0"]),
+            ("STANDARD", ["m"]),
+            ("HA", ["m-0"]),
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_hue(self, configuration, machine_suffixes):

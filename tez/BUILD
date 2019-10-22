@@ -9,11 +9,11 @@ py_test(
     deps = [
         ":verify_tez",
         "//integration_tests:dataproc_test_case",
-        "@io_abseil_py//absl/flags",
     ],
 )
 
 py_library(
     name = "verify_tez",
+    testonly = True,
     srcs = ["verify_tez.py"],
 )

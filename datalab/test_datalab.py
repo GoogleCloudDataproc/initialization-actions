@@ -1,6 +1,8 @@
 import unittest
 
+import pkg_resources
 from parameterized import parameterized
+
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 
@@ -20,12 +22,14 @@ class DatalabTestCase(DataprocTestCase):
             ("STANDARD", ["m"], "python3"),
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_datalab(self, configuration, machine_suffixes,
-                     python):
+    def test_datalab(self, configuration, machine_suffixes, python):
         init_actions = self.INIT_ACTIONS
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
-        if python == "python3":
-            init_actions = self.PYTHON_3_INIT_ACTIONS + init_actions
+        if self.getImageVersion() <= pkg_resources.parse_version("1.3"):
+            if python == "python3":
+                init_actions = self.PYTHON_3_INIT_ACTIONS + init_actions
+        elif python == "python2":
+            return
 
         self.createCluster(configuration,
                            init_actions,

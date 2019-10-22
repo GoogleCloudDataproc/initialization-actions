@@ -17,5 +17,6 @@ py_test(
 
 py_library(
     name = "verify_ranger",
+    testonly = True,
     srcs = ["verify_ranger.py"],
 )

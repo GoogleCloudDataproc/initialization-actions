@@ -7,7 +7,12 @@ py_test(
     data = [
         "jupyter.sh",
         "launch-jupyter-interface.sh",
-    ],
+        "//conda:bootstrap-conda.sh",
+        "//util:utils.sh",
+    ] + glob([
+        "internal/*",
+        "kernels/*",
+    ]),
     local = True,
     deps = ["//integration_tests:dataproc_test_case"],
 )

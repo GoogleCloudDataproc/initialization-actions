@@ -1,14 +1,16 @@
-import os
-import re
-import sys
-import json
-import random
-import string
-import logging
 import datetime
-import unittest
+import json
+import logging
+import os
+import random
+import re
+import string
 import subprocess
+import sys
+import unittest
 from threading import Timer
+
+import pkg_resources
 from absl import flags
 
 FLAGS = flags.FLAGS
@@ -16,11 +18,6 @@ flags.DEFINE_string('image_version', '1.3', 'dataproc_version, e.g. 1.2')
 FLAGS(sys.argv)
 
 BASE_TEST_CASE = unittest.TestCase
-PARALLEL_RUN = False
-if "fastunit" in sys.modules:
-    import fastunit
-    BASE_TEST_CASE = fastunit.TestCase
-    PARALLEL_RUN = True
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", logging.INFO))
 
@@ -165,6 +162,10 @@ class DataprocTestCase(BASE_TEST_CASE):
     def getClusterName(self):
         return self.name
 
+    @staticmethod
+    def getImageVersion():
+        return pkg_resources.parse_version(FLAGS.image_version)
+
     def upload_test_file(self, testfile, name):
         self.assert_command('gcloud compute scp {} {}:'.format(testfile, name))
 
@@ -294,7 +295,4 @@ class DataprocTestCase(BASE_TEST_CASE):
 
 
 if __name__ == '__main__':
-    if PARALLEL_RUN:
-        fastunit.main()
-    else:
-        unittest.main()
+    unittest.main()
