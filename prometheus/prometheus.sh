@@ -42,12 +42,13 @@ function is_kafka_installed {
 }
 
 function install_prometheus {
-  mkdir -p /etc/prometheus /var/lib/prometheus 
-  wget -q "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VER}/prometheus-${PROMETHEUS_VER}.linux-amd64.tar.gz" && \
-  tar -xf "prometheus-${PROMETHEUS_VER}.linux-amd64.tar.gz" && \
-  cp "prometheus-${PROMETHEUS_VER}.linux-amd64/prometheus" /usr/local/bin/ && \
-  cp "prometheus-${PROMETHEUS_VER}.linux-amd64/promtool" /usr/local/bin/ && \
-  cp -r "prometheus-${PROMETHEUS_VER}.linux-amd64/consoles" /etc/prometheus && \
+  mkdir -p /etc/prometheus /var/lib/prometheus
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VER}/prometheus-${PROMETHEUS_VER}.linux-amd64.tar.gz"
+  tar -xf "prometheus-${PROMETHEUS_VER}.linux-amd64.tar.gz"
+  cp "prometheus-${PROMETHEUS_VER}.linux-amd64/prometheus" /usr/local/bin/
+  cp "prometheus-${PROMETHEUS_VER}.linux-amd64/promtool" /usr/local/bin/
+  cp -r "prometheus-${PROMETHEUS_VER}.linux-amd64/consoles" /etc/prometheus
   cp -r "prometheus-${PROMETHEUS_VER}.linux-amd64/console_libraries" /etc/prometheus
 
   rm -rf "prometheus-${PROMETHEUS_VER}.linux-amd64.tar.gz" "prometheus-${PROMETHEUS_VER}.linux-amd64"
@@ -100,12 +101,13 @@ EOF
 
 function install_statsd_exporter {
   mkdir -p /var/lib/statsd
-  wget -q "https://github.com/prometheus/statsd_exporter/releases/download/v${STATSD_EXPORTER_VER}/statsd_exporter-${STATSD_EXPORTER_VER}.linux-amd64.tar.gz" && \
-    tar -xf "statsd_exporter-${STATSD_EXPORTER_VER}.linux-amd64.tar.gz" && \
-    cp "statsd_exporter-${STATSD_EXPORTER_VER}.linux-amd64/statsd_exporter" /var/lib/statsd/statsd_exporter
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "https://github.com/prometheus/statsd_exporter/releases/download/v${STATSD_EXPORTER_VER}/statsd_exporter-${STATSD_EXPORTER_VER}.linux-amd64.tar.gz"
+  tar -xf "statsd_exporter-${STATSD_EXPORTER_VER}.linux-amd64.tar.gz"
+  cp "statsd_exporter-${STATSD_EXPORTER_VER}.linux-amd64/statsd_exporter" /var/lib/statsd/statsd_exporter
 
   rm -rf "statsd_exporter-${STATSD_EXPORTER_VER}.linux-amd64.tar.gz" "statsd_exporter-${STATSD_EXPORTER_VER}.linux-amd64"
- 
+
 cat << EOF > /etc/systemd/system/statsd-exporter.service
 [Unit]
 Description=Statsd
@@ -117,7 +119,7 @@ User=root
 Group=root
 Type=simple
 ExecStart=/var/lib/statsd/statsd_exporter \
-    --web.listen-address=:9102 
+    --web.listen-address=:9102
 
 [Install]
 WantedBy=multi-user.target
@@ -125,8 +127,10 @@ EOF
 }
 
 function install_jmx_exporter {
-  wget "${KAFKA_JMX_JAVAAGENT_URI}" -P "${KAFKA_LIBS_DIR}" -nv
-  wget "${KAFKA_JMX_EXPORTER_CONFIG_URI}" -P "${KAFKA_CONFIG_DIR}" -nv
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+     "${KAFKA_JMX_JAVAAGENT_URI}" -P "${KAFKA_LIBS_DIR}"
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+     "${KAFKA_JMX_EXPORTER_CONFIG_URI}" -P "${KAFKA_CONFIG_DIR}"
   sed -i "/kafka-run-class.sh/i export KAFKA_OPTS=\"\${KAFKA_OPTS} -javaagent:${KAFKA_LIBS_DIR}/${KAFKA_JMX_JAVAAGENT_NAME}=${KAFKA_JMX_EXPORTER_PORT}:${KAFKA_CONFIG_DIR}/${KAFKA_JMX_EXPORTER_CONFIG_NAME}\"" \
         /usr/lib/kafka/bin/kafka-server-start.sh
 }

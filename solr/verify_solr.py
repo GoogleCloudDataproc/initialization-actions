@@ -61,7 +61,8 @@ def use_api_to_create_catch_all_rule():
 
 def post_test_data():
     ret_code, stdout, stderr = run_command(
-        "wget -q {} -O /tmp/films.json".format(SOLR_EXAMPLE_DOC))
+        "wget -nv --timeout=30 --tries=5 --retry-connrefused {} -O /tmp/films.json"
+        .format(SOLR_EXAMPLE_DOC))
     assert ret_code == 0, "Failed to get test data. Error: {}".format(stderr)
 
     ret_code, stdout, stderr = run_command(

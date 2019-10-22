@@ -49,7 +49,8 @@ function wait_for_presto_cluster_ready() {
 
 function get_presto(){
   # Download and unpack Presto server
-  wget "https://storage.googleapis.com/starburstdata/presto/${PRESTO_MAJOR_VERSION}e/${STARBURST_PRESTO_VERSION}/presto-server-${STARBURST_PRESTO_VERSION}.tar.gz" -O "presto-server-${STARBURST_PRESTO_VERSION}.tar.gz"
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "https://storage.googleapis.com/starburstdata/presto/${PRESTO_MAJOR_VERSION}e/${STARBURST_PRESTO_VERSION}/presto-server-${STARBURST_PRESTO_VERSION}.tar.gz"
   tar -zxvf presto-server-${STARBURST_PRESTO_VERSION}.tar.gz
   ln -s "presto-server-${STARBURST_PRESTO_VERSION}" "presto-server"
   mkdir -p /var/presto/data
@@ -182,7 +183,8 @@ discovery-server.enabled=true
 discovery.uri=http://${PRESTO_MASTER_FQDN}:${HTTP_PORT}
 EOF
   # Install cli
-  wget "https://storage.googleapis.com/starburstdata/presto/${PRESTO_MAJOR_VERSION}e/${STARBURST_PRESTO_VERSION}/presto-cli-${STARBURST_PRESTO_VERSION}-executable.jar" -O /usr/bin/presto
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "https://storage.googleapis.com/starburstdata/presto/${PRESTO_MAJOR_VERSION}e/${STARBURST_PRESTO_VERSION}/presto-cli-${STARBURST_PRESTO_VERSION}-executable.jar" -O /usr/bin/presto
   chmod a+x /usr/bin/presto
 }
 

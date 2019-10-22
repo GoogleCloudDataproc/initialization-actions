@@ -93,8 +93,10 @@ function install_gpu_agent_service() {
   fi
   local install_dir=/opt/gpu_utilization_agent
   mkdir "${install_dir}"
-  wget -O "${install_dir}/requirements.txt" "${GPU_AGENT_REPO_URL}/requirements.txt"
-  wget -O "${install_dir}/report_gpu_metrics.py" "${GPU_AGENT_REPO_URL}/report_gpu_metrics.py"
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${GPU_AGENT_REPO_URL}/requirements.txt" -P "${install_dir}"
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${GPU_AGENT_REPO_URL}/report_gpu_metrics.py" -P "${install_dir}"
   pip install -r "${install_dir}/requirements.txt"
 
   # Generate GPU service.

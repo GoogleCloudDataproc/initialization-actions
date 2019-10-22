@@ -17,7 +17,8 @@ function err() {
 
 function build() {
   # Download and install Typesafe Activator
-  wget --progress=dot:mega -O /tmp/typesafe-activator.zip ${TYPESAFE_ACTIVATOR_URL}
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    ${TYPESAFE_ACTIVATOR_URL} -O /tmp/typesafe-activator.zip
   unzip -q /tmp/typesafe-activator.zip -d /tmp/
   mv /tmp/activator-dist-* /tmp/typesafe-activator
   export PATH=${PATH}:/tmp/typesafe-activator/bin/

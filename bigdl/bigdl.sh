@@ -14,7 +14,7 @@ BIGDL_DOWNLOAD_URL=$(/usr/share/google/get_metadata_value attributes/bigdl-downl
 mkdir -p /opt/intel-bigdl
 cd /opt/intel-bigdl
 
-wget "${BIGDL_DOWNLOAD_URL}"
+wget -nv --timeout=30 --tries=5 --retry-connrefused "${BIGDL_DOWNLOAD_URL}"
 unzip *.zip
 
 JAR=`realpath lib/*.jar`

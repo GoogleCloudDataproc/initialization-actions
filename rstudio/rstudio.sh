@@ -95,7 +95,8 @@ if [[ "${ROLE}" == 'Master' ]]; then
   update_apt_get
   apt install -y r-base r-base-dev gdebi-core
 
-  cd /tmp; wget https://download2.rstudio.org/${rstudio_server_package}
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    https://download2.rstudio.org/${rstudio_server_package} -P /tmp
   gdebi -n /tmp/${rstudio_server_package}
 
   if ! [ $(getent group "${USER_NAME}") ]; then

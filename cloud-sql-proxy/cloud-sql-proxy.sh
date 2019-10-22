@@ -189,8 +189,8 @@ function configure_proxy_flags() {
 
 function install_cloud_sql_proxy() {
   # Install proxy.
-  wget -q https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64 \
-    || err 'Unable to download cloud-sql-proxy binary'
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    https://dl.google.com/cloudsql/cloud_sql_proxy.linux.amd64
   mv cloud_sql_proxy.linux.amd64 ${PROXY_BIN}
   chmod +x ${PROXY_BIN}
 
