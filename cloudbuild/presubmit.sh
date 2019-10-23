@@ -2,6 +2,11 @@
 
 set -euxo pipefail
 
+# Declare global variable for passing tests between functions
+declare -a TESTS_TO_RUN
+
+readonly IMAGE_VERSIONS_TO_TEST=("1.2" "1.3" "1.4")
+
 configure_gcloud() {
   gcloud config set core/disable_prompts TRUE
   gcloud config set compute/zone us-central1-f
@@ -21,10 +26,6 @@ configure_gcloud_ssh_key() {
   chmod 600 "${HOME}/.ssh/google_compute_engine"
 }
 
-install_test_dependencies() {
-  pip3 install -r integration_tests/requirements.txt
-}
-
 # Fetches master branch from GitHub and "resets" local changes to be relative to it,
 # so we can diff what changed relatively to master branch.
 initialize_git_repo() {
@@ -42,11 +43,6 @@ initialize_git_repo() {
   git rebase origin/master
 }
 
-# Determines if an element is in a list
-contains() {
-    [[ $1 =~ (^|[[:space:]])$2($|[[:space:]]) ]] && exit 0 || exit 1
-}
-
 # This function adds all changed files to git "index" and diffs them against master branch
 # to determine all changed files and looks for tests in directories with changed files.
 determine_tests_to_run() {
@@ -55,14 +51,13 @@ determine_tests_to_run() {
   echo "Changed files: ${CHANGED_FILES[*]}"
 
   # Determines init actions directories that were changed
-  RUN_ALL_TESTS=false
   declare -a changed_dirs
   for changed_file in "${CHANGED_FILES[@]}"; do
     local changed_dir="${changed_file/\/*/}/"
     # Run all tests if common directories were changed
     if [[ ${changed_dir} =~ ^(integration_tests/|util/|cloudbuild/)$ ]]; then
       echo "All tests will be run: '${changed_dir}' was changed"
-      RUN_ALL_TESTS=true
+      TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
       return 0
     fi
     # Hack to workaround empty array expansion on old versions of Bash.
@@ -73,50 +68,34 @@ determine_tests_to_run() {
   done
   echo "Changed directories: ${changed_dirs[*]}"
 
-  SPECIAL_INIT_ACTIONS=(cloud-sql-proxy/ starburst-presto/ hive-hcatalog/)
-
-  # Determines what tests in changed init action directories to run
+  # Determines test target in changed init action directories to run
   for changed_dir in "${changed_dirs[@]}"; do
-    local tests_in_dir
-    if ! tests_in_dir=$(compgen -G "${changed_dir}test*.py"); then
-      echo "ERROR: presubmit failed - cannot find tests inside '${changed_dir}' directory"
-      exit 1
+    # NOTE: The ::-1 removes the trailing '/'
+    local test_name=${changed_dir::-1}
+    # Some of our py_tests (that has dashes in the name) are defined in the top-level directory
+    if [[ $test_name == *"-"* ]]; then
+      local test_target=":test_${test_name//-/_}"
+    else
+      local test_target="${test_name}:test_${test_name}"
     fi
-    declare -a tests_array
-    if contains $changed_dir SPECIAL_INIT_ACTIONS; then
-      # Some of our py_tests are defined in the top-level directory
-      # NOTE: The ::-1 removes the trailing '/'
-      mapfile -t tests_array < <(echo ":test_${changed_dir::-1}")
-    else 
-      mapfile -t tests_array < <(echo "${changed_dir::-1}:test_${changed_dir::-1}")
-    fi
-    TESTS_TO_RUN+=("${tests_array[@]}")
+    TESTS_TO_RUN+=("${test_target}")
   done
   echo "Tests: ${TESTS_TO_RUN[*]}"
 }
 
 run_tests() {
   export INTERNAL_IP_SSH=true
-  if [[ $RUN_ALL_TESTS == true ]]; then
-    # Run all init action tests
-    bazel test :DataprocInitActionsTestSuite --jobs 15
-  else
-    # Run tests for the init actions that were changed
-    bazel test "${TESTS_TO_RUN[@]}"
-  fi
+  bazel test --jobs=50 --local_cpu_resources=50 --local_ram_resources=$((50 * 1024)) \
+    --test_arg="--image_version=${IMAGE_VERSION}" "${TESTS_TO_RUN[@]}"
 }
 
 main() {
   cd /init-actions
   configure_gcloud
   configure_gcloud_ssh_key
-  install_test_dependencies
   initialize_git_repo
   determine_tests_to_run
   run_tests
 }
-
-# Declare global variable for passing tests between functions
-declare -a TESTS_TO_RUN
 
 main
