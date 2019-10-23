@@ -149,9 +149,10 @@ class DataprocTestCase(parameterized.TestCase):
         return staging_dir
 
     def tearDown(self):
-        if not self.name:
-            logging.info("Skipping cluster delete (%s): name undefined",
-                         self.name)
+        try:
+            self.name
+        except AttributeError:
+            logging.info("Skipping cluster delete: name undefined")
             return
 
         ret_code, _, stderr = self.run_command(

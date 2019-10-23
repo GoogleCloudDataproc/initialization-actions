@@ -11,7 +11,7 @@ readonly POD_NAME=presubmit-${DATAPROC_IMAGE_VERSION//./-}-${BUILD_ID//_/-}
 gcloud container clusters get-credentials "${CLOUDSDK_CONTAINER_CLUSTER}"
 
 kubectl run "${POD_NAME}" --generator=run-pod/v1 --image="$IMAGE" \
-  --requests "cpu=2,memory=2Gi" --restart=Never \
+  --requests "cpu=4,memory=12Gi" --restart=Never \
   --env="COMMIT_SHA=$COMMIT_SHA" \
   --env="IMAGE_VERSION=$DATAPROC_IMAGE_VERSION" \
   --command -- bash /init-actions/cloudbuild/presubmit.sh

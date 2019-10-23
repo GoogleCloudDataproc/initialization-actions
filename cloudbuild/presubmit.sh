@@ -5,8 +5,6 @@ set -euxo pipefail
 # Declare global variable for passing tests between functions
 declare -a TESTS_TO_RUN
 
-readonly IMAGE_VERSIONS_TO_TEST=("1.2" "1.3" "1.4")
-
 configure_gcloud() {
   gcloud config set core/disable_prompts TRUE
   gcloud config set compute/zone us-central1-f
@@ -84,9 +82,8 @@ determine_tests_to_run() {
 }
 
 run_tests() {
-  export INTERNAL_IP_SSH=true
-  bazel test --test_output=errors \
-    --jobs=50 --local_cpu_resources=50 --local_ram_resources=$((50 * 1024)) \
+  bazel test --jobs=15 --local_cpu_resources=15 --local_ram_resources=$((15 * 1024)) \
+    --action_env=INTERNAL_IP_SSH=true --test_output=errors \
     --test_arg="--image_version=${IMAGE_VERSION}" "${TESTS_TO_RUN[@]}"
 }
 
