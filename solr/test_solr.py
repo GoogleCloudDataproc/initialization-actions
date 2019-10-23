@@ -27,8 +27,11 @@ class SolrTestCase(DataprocTestCase):
         self.assert_instance_command(
             name, "python3 {}".format(self.TEST_SCRIPT_FILE_NAME))
 
-    @parameterized.parameters(("SINGLE", ["m"]), ("STANDARD", ["m"]),
-                              ("HA", ["m-0"]))
+    @parameterized.parameters(
+        ("SINGLE", ["m"]),
+        ("STANDARD", ["m"]),
+        ("HA", ["m-0"]),
+    )
     def test_solr(self, configuration, machine_suffixes):
         self.createCluster(configuration, self.INIT_ACTIONS)
         for machine_suffix in machine_suffixes:

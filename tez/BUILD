@@ -6,6 +6,7 @@ py_test(
     srcs = ["test_tez.py"],
     data = ["tez.sh"],
     local = True,
+    shard_count = 3,
     deps = [
         ":verify_tez",
         "//integration_tests:dataproc_test_case",

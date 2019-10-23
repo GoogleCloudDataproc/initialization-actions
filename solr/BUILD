@@ -8,6 +8,7 @@ py_test(
     srcs = ["test_solr.py"],
     data = ["solr.sh"],
     local = True,
+    shard_count = 3,
     deps = [
         ":verify_solr",
         "//integration_tests:dataproc_test_case",

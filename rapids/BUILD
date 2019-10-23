@@ -6,6 +6,7 @@ py_test(
     srcs = ["test_rapids.py"],
     data = ["rapids.sh"] + glob(["internal/*"]),
     local = True,
+    shard_count = 1,
     deps = [
         ":verify_rapids",
         "//integration_tests:dataproc_test_case",
