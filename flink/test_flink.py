@@ -25,32 +25,32 @@ class FlinkTestCase(DataprocTestCase):
                                       yarn_session))
 
     @parameterized.parameters(
-            ("STANDARD", ["m"]),
-            ("HA", ["m-0", "m-1", "m-2"]),
+        ("STANDARD", ["m"]),
+        ("HA", ["m-0", "m-1", "m-2"]),
     )
     def test_flink(self, configuration, machine_suffixes):
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           machine_type="n1-standard-2")
+        self.createCluster(
+            configuration, self.INIT_ACTIONS, machine_type="n1-standard-2")
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
 
     @parameterized.parameters(
-            ("STANDARD", ["m"]),
-            ("HA", ["m-0", "m-1", "m-2"]),
-            ("SINGLE", ["m"]),
+        ("STANDARD", ["m"]),
+        ("HA", ["m-0", "m-1", "m-2"]),
+        ("SINGLE", ["m"]),
     )
     def test_flink_with_optional_metadata(self, configuration,
                                           machine_suffixes):
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           machine_type="n1-standard-2",
-                           metadata="flink-start-yarn-session=false")
+        self.createCluster(
+            configuration,
+            self.INIT_ACTIONS,
+            machine_type="n1-standard-2",
+            metadata="flink-start-yarn-session=false")
         for machine_suffix in machine_suffixes:
-            self.verify_instance("{}-{}".format(self.getClusterName(),
-                                                machine_suffix),
-                                 yarn_session=False)
+            self.verify_instance(
+                "{}-{}".format(self.getClusterName(), machine_suffix),
+                yarn_session=False)
 
 
 if __name__ == '__main__':

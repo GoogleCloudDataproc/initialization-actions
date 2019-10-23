@@ -31,12 +31,11 @@ class StarburstPrestoTestCase(DataprocTestCase):
     def __verify_schema_via_presto(self, name, schema):
         query = "show schemas;"
         _, stdout, _ = self.assert_instance_command(
-            name,
-            "presto --catalog=hive --execute='{}' --output-format TSV".format(
-                query))
+            name, "presto --catalog=hive --execute='{}' --output-format TSV".
+            format(query))
         schemas = str(stdout).split("\n")
-        self.assertIn(schema, schemas,
-                      "Schema {} not found in {}".format(schema, schemas))
+        self.assertIn(schema, schemas, "Schema {} not found in {}".format(
+            schema, schemas))
 
     def __create_table(self, name, table, schema):
         query = "create table {}(number int) STORED AS SEQUENCEFILE;".format(
@@ -80,29 +79,28 @@ class StarburstPrestoTestCase(DataprocTestCase):
                 workers, stdout))
 
     @parameterized.parameters(
-            ("SINGLE", ["m"], 1, 0),
-            ("STANDARD", ["m"], 1, 2),
-            ("HA", ["m-0"], 1, 2),
+        ("SINGLE", ["m"], 1, 0),
+        ("STANDARD", ["m"], 1, 2),
+        ("HA", ["m-0"], 1, 2),
     )
-    def test_starburst_presto(self, configuration,
-                              machine_suffixes, coordinators, workers):
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           machine_type="n1-standard-2")
+    def test_starburst_presto(self, configuration, machine_suffixes,
+                              coordinators, workers):
+        self.createCluster(
+            configuration, self.INIT_ACTIONS, machine_type="n1-standard-2")
         for machine_suffix in machine_suffixes:
             self.verify_instance(
                 "{}-{}".format(self.getClusterName(), machine_suffix),
                 coordinators, workers)
 
     @parameterized.parameters(
-            ("SINGLE", ["m"], 1, 0),
-    )
-    def test_starburst_presto_custom_port(self, configuration, machine_suffixes,
-                                          coordinators, workers):
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           machine_type="n1-standard-2",
-                           metadata="presto-port=8060")
+        ("SINGLE", ["m"], 1, 0), )
+    def test_starburst_presto_custom_port(
+            self, configuration, machine_suffixes, coordinators, workers):
+        self.createCluster(
+            configuration,
+            self.INIT_ACTIONS,
+            machine_type="n1-standard-2",
+            metadata="presto-port=8060")
         for machine_suffix in machine_suffixes:
             machine_name = "{}-{}".format(self.getClusterName(),
                                           machine_suffix)

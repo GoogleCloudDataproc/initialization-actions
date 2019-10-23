@@ -24,15 +24,16 @@ class OozieTestCase(DataprocTestCase):
             name, "bash {}".format(self.TEST_SCRIPT_FILE_NAME))
 
     @parameterized.parameters(
-            ("SINGLE", ["m"]),
-            ("STANDARD", ["m"]),
-            ("HA", ["m-0", "m-1", "m-2"]),
+        ("SINGLE", ["m"]),
+        ("STANDARD", ["m"]),
+        ("HA", ["m-0", "m-1", "m-2"]),
     )
     def test_oozie(self, configuration, machine_suffixes):
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           machine_type="n1-standard-4",
-                           boot_disk_size="200GB")
+        self.createCluster(
+            configuration,
+            self.INIT_ACTIONS,
+            machine_type="n1-standard-4",
+            boot_disk_size="200GB")
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))

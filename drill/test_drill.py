@@ -14,8 +14,9 @@ class DrillTestCase(DataprocTestCase):
 
     def verify_instance(self, name, drill_mode, target_node):
         self.upload_test_file(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         self.TEST_SCRIPT_FILE_NAME), name)
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                self.TEST_SCRIPT_FILE_NAME), name)
         self.__run_bash_test_file(name, drill_mode, target_node)
         self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
 
@@ -25,17 +26,16 @@ class DrillTestCase(DataprocTestCase):
                                               drill_mode, target_node))
 
     @parameterized.parameters(
-            ("SINGLE", [("m", "m")]),
-            ("STANDARD", [("m", "w-0"), ("m", "m")]),
-            ("HA", [("m-0", "w-0"), ("w-0", "m-1")]),
+        ("SINGLE", [("m", "m")]),
+        ("STANDARD", [("m", "w-0"), ("m", "m")]),
+        ("HA", [("m-0", "w-0"), ("w-0", "m-1")]),
     )
     def test_drill(self, configuration, verify_options):
         init_actions = self.INIT_ACTIONS
         if configuration == "STANDARD":
             init_actions = self.INIT_ACTIONS_FOR_STANDARD + init_actions
-        self.createCluster(configuration,
-                           init_actions,
-                           machine_type="n1-standard-2")
+        self.createCluster(
+            configuration, init_actions, machine_type="n1-standard-2")
 
         drill_mode = "DISTRIBUTED"
         if configuration == "SINGLE":

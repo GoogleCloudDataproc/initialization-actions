@@ -9,18 +9,16 @@ class RStudioTestCase(DataprocTestCase):
     INIT_ACTIONS = ['rstudio/rstudio.sh']
 
     @parameterized.parameters(
-            ("SINGLE", "rstudio", "password"),
-            ("SINGLE", "", "password"),  # default username
-            ("SINGLE", "rstudio", ""),  # no auth
-            ("SINGLE", "", ""),  # default username and no auth
+        ("SINGLE", "rstudio", "password"),
+        ("SINGLE", "", "password"),  # default username
+        ("SINGLE", "rstudio", ""),  # no auth
+        ("SINGLE", "", ""),  # default username and no auth
     )
     def test_rstudio(self, configuration, user, password):
         metadata = "rstudio-password={}".format(password)
         if user:
             metadata += ",rstudio-user={}".format(user)
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           metadata=metadata)
+        self.createCluster(configuration, self.INIT_ACTIONS, metadata=metadata)
         instance_name = self.getClusterName() + "-m"
         self.assert_instance_command(
             instance_name, "curl http://{}:8787".format(instance_name))

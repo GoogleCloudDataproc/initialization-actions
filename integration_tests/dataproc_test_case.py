@@ -143,9 +143,8 @@ class DataprocTestCase(parameterized.TestCase):
         staging_dir = "{}/{}-{}".format(bucket, self.datetime_str(),
                                         self.random_str())
 
-        self.assert_command(
-            "gsutil -q -m rsync -r -x '.git*|.idea*' ./ {}/".format(
-                staging_dir))
+        self.assert_command("gsutil -q -m rsync -r -x '.git*|.idea*' ./ {}/".
+                            format(staging_dir))
 
         return staging_dir
 
@@ -289,4 +288,3 @@ class DataprocTestCase(parameterized.TestCase):
         logging.debug("Ran %s: retcode: %d, stdout: %s, stderr: %s", cmd,
                       p.returncode, stdout, stderr)
         return p.returncode, stdout, stderr
-

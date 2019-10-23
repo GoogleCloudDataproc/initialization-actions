@@ -28,37 +28,36 @@ class HBaseTestCase(DataprocTestCase):
                 'org.apache.hadoop.hbase.mapreduce.IntegrationTestImportTsv'))
 
     @parameterized.parameters(
-            ("SINGLE", ["m"]),
-            ("STANDARD", ["m"]),
-            ("HA", ["m-0"]),
+        ("SINGLE", ["m"]),
+        ("STANDARD", ["m"]),
+        ("HA", ["m-0"]),
     )
     def test_hbase(self, configuration, machine_suffixes):
         init_actions = self.INIT_ACTIONS
         if configuration != "HA":
             init_actions = self.INIT_ACTIONS_FOR_NOT_HA + init_actions
-        self.createCluster(configuration,
-                           init_actions,
-                           machine_type="n1-standard-2")
+        self.createCluster(
+            configuration, init_actions, machine_type="n1-standard-2")
 
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
 
     @parameterized.parameters(
-            ("SINGLE", ["m"]),
-            ("STANDARD", ["m"]),
-            ("HA", ["m-0"]),
+        ("SINGLE", ["m"]),
+        ("STANDARD", ["m"]),
+        ("HA", ["m-0"]),
     )
-    def test_hbase_on_gcs(self, configuration,
-                          machine_suffixes):
+    def test_hbase_on_gcs(self, configuration, machine_suffixes):
         init_actions = self.INIT_ACTIONS
         if configuration != "HA":
             init_actions = self.INIT_ACTIONS_FOR_NOT_HA + init_actions
         metadata = 'hbase-root-dir=gs://{}/test-dir'.format(self.GCS_BUCKET)
-        self.createCluster(configuration,
-                           init_actions,
-                           metadata=metadata,
-                           machine_type="n1-standard-2")
+        self.createCluster(
+            configuration,
+            init_actions,
+            metadata=metadata,
+            machine_type="n1-standard-2")
 
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),

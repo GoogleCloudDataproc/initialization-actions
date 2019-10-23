@@ -18,44 +18,40 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
             name, "systemctl status gpu_utilization_agent.service")
 
     @parameterized.parameters(
-            ("STANDARD", ["m", "w-0"], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
-    )
-    def test_install_gpu(self, configuration,
-                         machine_suffixes, master_accelerator,
-                         worker_accelerator):
+        ("STANDARD", ["m", "w-0"], MASTER_GPU_TYPE, WORKER_GPU_TYPE), )
+    def test_install_gpu(self, configuration, machine_suffixes,
+                         master_accelerator, worker_accelerator):
         init_actions = self.INIT_ACTIONS
-        self.createCluster(configuration,
-                           init_actions,
-                           beta=True,
-                           master_accelerator=master_accelerator,
-                           worker_accelerator=worker_accelerator)
+        self.createCluster(
+            configuration,
+            init_actions,
+            beta=True,
+            master_accelerator=master_accelerator,
+            worker_accelerator=worker_accelerator)
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
 
     @parameterized.parameters(
-            ("STANDARD", ["m", "w-0"], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
-    )
-    def test_install_gpu_no_agent(self, configuration,
-                                  machine_suffixes, master_accelerator,
-                                  worker_accelerator):
+        ("STANDARD", ["m", "w-0"], MASTER_GPU_TYPE, WORKER_GPU_TYPE), )
+    def test_install_gpu_no_agent(self, configuration, machine_suffixes,
+                                  master_accelerator, worker_accelerator):
         init_actions = self.INIT_ACTIONS
-        self.createCluster(configuration,
-                           init_actions,
-                           beta=True,
-                           master_accelerator=master_accelerator,
-                           worker_accelerator=worker_accelerator,
-                           metadata='install_gpu_agent=false')
+        self.createCluster(
+            configuration,
+            init_actions,
+            beta=True,
+            master_accelerator=master_accelerator,
+            worker_accelerator=worker_accelerator,
+            metadata='install_gpu_agent=false')
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
 
     @parameterized.parameters(
-            ("STANDARD", ["m", "w-0"], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
-    )
-    def test_install_gpu_agent(self, configuration,
-                               machine_suffixes, master_accelerator,
-                               worker_accelerator):
+        ("STANDARD", ["m", "w-0"], MASTER_GPU_TYPE, WORKER_GPU_TYPE), )
+    def test_install_gpu_agent(self, configuration, machine_suffixes,
+                               master_accelerator, worker_accelerator):
 
         init_actions = self.INIT_ACTIONS
         self.createCluster(

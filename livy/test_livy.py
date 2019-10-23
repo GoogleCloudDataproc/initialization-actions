@@ -13,8 +13,9 @@ class LivyTestCase(DataprocTestCase):
 
     def _verify_instance(self, name):
         self.upload_test_file(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         self.TEST_SCRIPT_FILE_NAME), name)
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                self.TEST_SCRIPT_FILE_NAME), name)
         self._run_python_test_file(name)
         self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
 
@@ -27,9 +28,9 @@ class LivyTestCase(DataprocTestCase):
             name, "sudo python3 {}".format(self.TEST_SCRIPT_FILE_NAME))
 
     @parameterized.parameters(
-            ("SINGLE",  ["m"]),
-            ("STANDARD", ["m"]),
-            ("HA", ["m-0", "m-1", "m-2"]),
+        ("SINGLE", ["m"]),
+        ("STANDARD", ["m"]),
+        ("HA", ["m-0", "m-1", "m-2"]),
     )
     def test_livy(self, configuration, machine_suffixes):
         self.createCluster(configuration, self.INIT_ACTIONS)

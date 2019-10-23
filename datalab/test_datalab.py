@@ -16,8 +16,8 @@ class DatalabTestCase(DataprocTestCase):
                 "--retry 10 --retry-delay 10 --retry-connrefused", name))
 
     @parameterized.parameters(
-            ("STANDARD", ["m"], "python2"),
-            ("STANDARD", ["m"], "python3"),
+        ("STANDARD", ["m"], "python2"),
+        ("STANDARD", ["m"], "python3"),
     )
     def test_datalab(self, configuration, machine_suffixes, python):
         init_actions = self.INIT_ACTIONS
@@ -28,11 +28,12 @@ class DatalabTestCase(DataprocTestCase):
         elif python == "python2":
             return
 
-        self.createCluster(configuration,
-                           init_actions,
-                           metadata=metadata,
-                           scopes='cloud-platform',
-                           timeout_in_minutes=30)
+        self.createCluster(
+            configuration,
+            init_actions,
+            metadata=metadata,
+            scopes='cloud-platform',
+            timeout_in_minutes=30)
 
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),

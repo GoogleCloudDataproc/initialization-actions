@@ -13,8 +13,9 @@ class KafkaTestCase(DataprocTestCase):
 
     def verify_instance(self, name):
         self.upload_test_file(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         self.TEST_SCRIPT_FILE_NAME), name)
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                self.TEST_SCRIPT_FILE_NAME), name)
         self.__run_test_script(name)
         self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
 
@@ -23,12 +24,10 @@ class KafkaTestCase(DataprocTestCase):
             name, "bash {}".format(self.TEST_SCRIPT_FILE_NAME))
 
     @parameterized.parameters(
-            ("HA", ["m-0", "m-1", "m-2"]),
-    )
+        ("HA", ["m-0", "m-1", "m-2"]), )
     def test_kafka(self, configuration, machine_suffixes):
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           machine_type="n1-standard-2")
+        self.createCluster(
+            configuration, self.INIT_ACTIONS, machine_type="n1-standard-2")
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))

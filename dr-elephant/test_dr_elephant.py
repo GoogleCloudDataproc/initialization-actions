@@ -26,15 +26,15 @@ class DrElephantTestCase(DataprocTestCase):
             verify_cmd_fmt.format(instance_name, "<div>QuasiMonteCarlo</div>"))
 
     @parameterized.parameters(
-            ("STANDARD", ["m"]),
-            ("HA", ["m-0"]),
+        ("STANDARD", ["m"]),
+        ("HA", ["m-0"]),
     )
-    def test_dr_elephant(self, configuration,
-                         machine_suffixes):
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           timeout_in_minutes=30,
-                           machine_type="n1-standard-2")
+    def test_dr_elephant(self, configuration, machine_suffixes):
+        self.createCluster(
+            configuration,
+            self.INIT_ACTIONS,
+            timeout_in_minutes=30,
+            machine_type="n1-standard-2")
 
         # Submit a job to check if statistic is generated
         self.assert_dataproc_job(

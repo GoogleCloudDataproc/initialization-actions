@@ -12,17 +12,14 @@ class ConnectorsTestCase(DataprocTestCase):
     BQ_CONNECTOR_VERSION = "1.0.0"
     GCS_CONNECTOR_VERSION = "2.0.0"
 
-    def verify_instance(self, name, connector,
-                        connector_version):
+    def verify_instance(self, name, connector, connector_version):
         self.__submit_pig_job(
             name, "sh test -f {}/{}-hadoop2-{}.jar".format(
-                self.__connectors_dir(), connector,
-                connector_version))
+                self.__connectors_dir(), connector, connector_version))
 
         self.__submit_pig_job(
-            name, "sh test -L {}/{}.jar".format(
-                self.__connectors_dir(), connector,
-                connector_version))
+            name, "sh test -L {}/{}.jar".format(self.__connectors_dir(),
+                                                connector, connector_version))
 
     def __connectors_dir(self):
         if self.getImageVersion() < pkg_resources.parse_version("1.4"):
@@ -33,30 +30,32 @@ class ConnectorsTestCase(DataprocTestCase):
         self.assert_dataproc_job(cluster_name, 'pig', "-e '{}'".format(job))
 
     @parameterized.parameters(
-            "SINGLE",
-            "STANDARD",
-            "HA",
+        "SINGLE",
+        "STANDARD",
+        "HA",
     )
     def test_gcs_connector(self, configuration):
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           metadata="gcs-connector-version={}".format(
-                               self.GCS_CONNECTOR_VERSION))
-        self.verify_instance(self.getClusterName(),
-                             "gcs-connector", self.GCS_CONNECTOR_VERSION)
+        self.createCluster(
+            configuration,
+            self.INIT_ACTIONS,
+            metadata="gcs-connector-version={}".format(
+                self.GCS_CONNECTOR_VERSION))
+        self.verify_instance(self.getClusterName(), "gcs-connector",
+                             self.GCS_CONNECTOR_VERSION)
 
     @parameterized.parameters(
-            "SINGLE",
-            "STANDARD",
-            "HA",
+        "SINGLE",
+        "STANDARD",
+        "HA",
     )
     def test_bq_connector(self, configuration):
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           metadata="bigquery-connector-version={}".format(
-                               self.BQ_CONNECTOR_VERSION))
-        self.verify_instance(self.getClusterName(),
-                             "bigquery-connector", self.BQ_CONNECTOR_VERSION)
+        self.createCluster(
+            configuration,
+            self.INIT_ACTIONS,
+            metadata="bigquery-connector-version={}".format(
+                self.BQ_CONNECTOR_VERSION))
+        self.verify_instance(self.getClusterName(), "bigquery-connector",
+                             self.BQ_CONNECTOR_VERSION)
 
 
 if __name__ == '__main__':

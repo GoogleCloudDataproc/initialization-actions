@@ -49,13 +49,14 @@ class BigTableTestCase(DataprocTestCase):
     def _validate_bigtable(self):
         _, stdout, _ = self.assert_command(
             'cbt -instance {} count test-bigtable '.format(self.db_name))
-        self.assertEqual(int(float(stdout)), 4,
-                         "Invalid BigTable instance count")
+        self.assertEqual(
+            int(float(stdout)), 4, "Invalid BigTable instance count")
 
     def verify_instance(self, name):
         self.upload_test_file(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         self.TEST_SCRIPT_FILE_NAME), name)
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                self.TEST_SCRIPT_FILE_NAME), name)
         self.assert_instance_command(
             name, "python {}".format(self.TEST_SCRIPT_FILE_NAME))
         self._validate_bigtable()
@@ -66,14 +67,13 @@ class BigTableTestCase(DataprocTestCase):
     """
 
     @parameterized.parameters(
-            ("SINGLE", ["m"]),
-            ("STANDARD", ["m"]),
-            ("HA", ["m-0"]),
+        ("SINGLE", ["m"]),
+        ("STANDARD", ["m"]),
+        ("HA", ["m-0"]),
     )
     def test_bigtable(self, configuration, machine_suffixes):
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           metadata=self.metadata)
+        self.createCluster(
+            configuration, self.INIT_ACTIONS, metadata=self.metadata)
 
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),

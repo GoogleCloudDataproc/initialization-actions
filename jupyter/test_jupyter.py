@@ -15,24 +15,25 @@ class JupyterTestCase(DataprocTestCase):
         self.assert_instance_command(name, verify_cmd)
 
     @parameterized.parameters(
-            ("SINGLE", ["m"]),
-            ("STANDARD", ["m"]),
+        ("SINGLE", ["m"]),
+        ("STANDARD", ["m"]),
     )
     def test_jupyter(self, configuration, machine_suffixes):
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           metadata=metadata,
-                           timeout_in_minutes=15,
-                           machine_type="n1-standard-2")
+        self.createCluster(
+            configuration,
+            self.INIT_ACTIONS,
+            metadata=metadata,
+            timeout_in_minutes=15,
+            machine_type="n1-standard-2")
 
         for machine_suffix in machine_suffixes:
             self.verify_instance(
                 "{}-{}".format(self.getClusterName(), machine_suffix), "8123")
 
     @parameterized.parameters(
-            ("SINGLE", ["m"]),
-            ("STANDARD", ["m"]),
+        ("SINGLE", ["m"]),
+        ("STANDARD", ["m"]),
     )
     def test_jupyter_with_metadata(self, configuration, machine_suffixes):
         jupyter_port = "8125"
@@ -41,11 +42,12 @@ class JupyterTestCase(DataprocTestCase):
         metadata += ',JUPYTER_PORT={},JUPYTER_CONDA_PACKAGES={}'.format(
             jupyter_port, "numpy:pandas:scikit-learn")
 
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           metadata=metadata,
-                           timeout_in_minutes=15,
-                           machine_type="n1-standard-2")
+        self.createCluster(
+            configuration,
+            self.INIT_ACTIONS,
+            metadata=metadata,
+            timeout_in_minutes=15,
+            machine_type="n1-standard-2")
 
         for machine_suffix in machine_suffixes:
             self.verify_instance(

@@ -24,9 +24,9 @@ class GangliaTestCase(DataprocTestCase):
         self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
 
     @parameterized.parameters(
-            ("SINGLE", ["m"]),
-            ("STANDARD", ["m", "w-0"]),
-            ("HA", ["m-0", "m-1", "m-2", "w-0"]),
+        ("SINGLE", ["m"]),
+        ("STANDARD", ["m", "w-0"]),
+        ("HA", ["m-0", "m-1", "m-2", "w-0"]),
     )
     def test_ganglia(self, configuration, machine_suffixes):
         self.createCluster(configuration, self.INIT_ACTIONS)

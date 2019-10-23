@@ -58,12 +58,12 @@ class HiveHCatalogTestCase(DataprocTestCase):
         return status, stderr
 
     @parameterized.parameters(
-            ("SINGLE", False),
-            ("STANDARD", False),
-            ("HA", False),
-            ("SINGLE", True),
-            ("STANDARD", True),
-            ("HA", True),
+        ("SINGLE", False),
+        ("STANDARD", False),
+        ("HA", False),
+        ("SINGLE", True),
+        ("STANDARD", True),
+        ("HA", True),
     )
     def test_hive(self, configuration, should_repeat_job):
         self.createCluster(configuration, self.INIT_ACTIONS)

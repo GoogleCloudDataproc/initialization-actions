@@ -23,9 +23,9 @@ class HueTestCase(DataprocTestCase):
                                   "<h3>Query. Explore. Repeat.</h3>"))
 
     @parameterized.parameters(
-            ("SINGLE", ["m"]),
-            ("STANDARD", ["m"]),
-            ("HA", ["m-0"]),
+        ("SINGLE", ["m"]),
+        ("STANDARD", ["m"]),
+        ("HA", ["m-0"]),
     )
     def test_hue(self, configuration, machine_suffixes):
         self.createCluster(configuration, self.INIT_ACTIONS)

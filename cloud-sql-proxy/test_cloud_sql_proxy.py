@@ -51,18 +51,19 @@ class CloudSqlProxyTestCase(DataprocTestCase):
             '{}/{}'.format(self.INIT_ACTIONS_REPO, self.TEST_SCRIPT_FILE_NAME))
 
     @parameterized.parameters(
-            "SINGLE",
-            "STANDARD",
-            "HA",
+        "SINGLE",
+        "STANDARD",
+        "HA",
     )
     def test_cloud_sql_proxy(self, configuration):
         metadata = 'hive-metastore-instance={}:{}'.format(
             self.PROJECT_METADATA, self.DB_NAME)
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           machine_type="n1-standard-2",
-                           metadata=metadata,
-                           scopes='sql-admin')
+        self.createCluster(
+            configuration,
+            self.INIT_ACTIONS,
+            machine_type="n1-standard-2",
+            metadata=metadata,
+            scopes='sql-admin')
 
         self.verify_cluster(self.getClusterName())
 

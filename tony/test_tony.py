@@ -10,17 +10,19 @@ class TonYTestCase(DataprocTestCase):
     INIT_ACTIONS = ['tony/tony.sh']
 
     @parameterized.parameters(
-            "SINGLE",
-            "STANDARD",
+        "SINGLE",
+        "STANDARD",
     )
     def test_tony(self, configuration):
         # Init action supported on Dataproc 1.3+
         if self.getImageVersion() < pkg_resources.parse_version("1.3"):
             return
 
-        self.createCluster(configuration, self.INIT_ACTIONS,
-                           timeout_in_minutes=30,
-                           machine_type="n1-standard-4")
+        self.createCluster(
+            configuration,
+            self.INIT_ACTIONS,
+            timeout_in_minutes=30,
+            machine_type="n1-standard-4")
 
         # Verify cluster using TensorFlow job
         self.assert_dataproc_job(

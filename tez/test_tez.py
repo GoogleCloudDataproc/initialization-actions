@@ -34,9 +34,9 @@ class TezTestCase(DataprocTestCase):
             name, "python {}".format(self.TEST_SCRIPT_FILE_NAME))
 
     @parameterized.parameters(
-            ("SINGLE", ["m"]),
-            ("STANDARD", ["m"]),
-            ("HA", ["m-0", "m-1", "m-2"]),
+        ("SINGLE", ["m"]),
+        ("STANDARD", ["m"]),
+        ("HA", ["m-0", "m-1", "m-2"]),
     )
     def test_tez(self, configuration, machine_suffixes):
         init_actions = self.INIT_ACTIONS
@@ -45,7 +45,7 @@ class TezTestCase(DataprocTestCase):
             # Remove init action - in Dataproc 1.3+ Tez installed by default
             init_actions = []
             tez_classpath = "/etc/tez/conf:/usr/lib/tez/*:/usr/lib/tez/lib/*"
-            properties="'hadoop-env:HADOOP_CLASSPATH={}:{}'".format(
+            properties = "'hadoop-env:HADOOP_CLASSPATH={}:{}'".format(
                 "${HADOOP_CLASSPATH}", tez_classpath)
 
         self.createCluster(configuration, init_actions, properties=properties)

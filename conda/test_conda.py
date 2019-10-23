@@ -49,20 +49,21 @@ class CondaTestCase(DataprocTestCase):
 
     @staticmethod
     def _parse_packages(stdout):
-        return set(l.split()[0] for l in stdout.splitlines()
-                   if not l.startswith("#"))
+        return set(
+            l.split()[0] for l in stdout.splitlines() if not l.startswith("#"))
 
     @parameterized.parameters(
-            ("STANDARD", [], []),
-            ("STANDARD", CONDA_PKGS, PIP_PKGS),
+        ("STANDARD", [], []),
+        ("STANDARD", CONDA_PKGS, PIP_PKGS),
     )
     def test_conda(self, configuration, conda_packages, pip_packages):
         metadata = "'CONDA_PACKAGES={},PIP_PACKAGES={}'".format(
             " ".join(conda_packages), " ".join(pip_packages))
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           machine_type="n1-standard-2",
-                           metadata=metadata)
+        self.createCluster(
+            configuration,
+            self.INIT_ACTIONS,
+            machine_type="n1-standard-2",
+            metadata=metadata)
 
         instance_name = self.getClusterName() + "-m"
         self._verify_python_version(instance_name, "3.7")

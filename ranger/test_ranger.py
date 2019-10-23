@@ -16,8 +16,9 @@ class RangerTestCase(DataprocTestCase):
 
     def verify_instance(self, name):
         self.upload_test_file(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         self.TEST_SCRIPT_FILE_NAME), name)
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                self.TEST_SCRIPT_FILE_NAME), name)
         self.__run_test_script(name)
         self.remove_test_script(self.TEST_SCRIPT_FILE_NAME, name)
 
@@ -26,9 +27,9 @@ class RangerTestCase(DataprocTestCase):
             name, "python {}".format(self.TEST_SCRIPT_FILE_NAME))
 
     @parameterized.parameters(
-            ("SINGLE", ["m"]),
-            ("STANDARD", ["m"]),
-            ("HA", ["m-0"]),
+        ("SINGLE", ["m"]),
+        ("STANDARD", ["m"]),
+        ("HA", ["m-0"]),
     )
     def test_ranger(self, configuration, machine_suffixes):
         # Init action supported on Dataproc 1.3+
