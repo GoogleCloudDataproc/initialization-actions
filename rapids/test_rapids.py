@@ -1,7 +1,8 @@
 import os
-import unittest
 
-from parameterized import parameterized
+import pkg_resources
+from absl.testing import absltest
+from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
@@ -23,12 +24,14 @@ class RapidsTestCase(DataprocTestCase):
             self.TEST_SCRIPT_FILE_NAME)
         self.assert_instance_command(name, verify_cmd)
 
-    @parameterized.expand(
-        [
+    @parameterized.parameters(
             ("STANDARD", ["m"])
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    )
     def test_rapids(self, configuration, machine_suffixes):
+        # Init action supported on Dataproc 1.3+
+        if self.getImageVersion() < pkg_resources.parse_version("1.3"):
+            return
+
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
@@ -46,4 +49,4 @@ class RapidsTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()

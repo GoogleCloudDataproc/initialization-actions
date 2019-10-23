@@ -1,7 +1,7 @@
 import random
-import unittest
 
-from parameterized import parameterized
+from absl.testing import absltest
+from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
@@ -79,13 +79,11 @@ class PrestoTestCase(DataprocTestCase):
             "Bad number of workers. Expected: {}\tFound: {}".format(
                 workers, stdout))
 
-    @parameterized.expand(
-        [
+    @parameterized.parameters(
             ("SINGLE", ["m"], 1, 0),
             ("STANDARD", ["m"], 1, 2),
             ("HA", ["m-0"], 1, 2),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    )
     def test_presto(self, configuration, machine_suffixes,
                     coordinators, workers):
         self.createCluster(configuration,
@@ -96,11 +94,9 @@ class PrestoTestCase(DataprocTestCase):
                 "{}-{}".format(self.getClusterName(), machine_suffix),
                 coordinators, workers)
 
-    @parameterized.expand(
-        [
+    @parameterized.parameters(
             ("SINGLE",  ["m"], 1, 0)
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    )
     def test_presto_custom_port(self, configuration,
                                 machine_suffixes, coordinators, workers):
         self.createCluster(configuration,
@@ -117,4 +113,4 @@ class PrestoTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()

@@ -1,6 +1,5 @@
-import unittest
-
-from parameterized import parameterized
+from absl.testing import absltest
+from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
@@ -28,13 +27,11 @@ class HBaseTestCase(DataprocTestCase):
                 'org.apache.hadoop.hbase.IntegrationTestsDriver',
                 'org.apache.hadoop.hbase.mapreduce.IntegrationTestImportTsv'))
 
-    @parameterized.expand(
-        [
+    @parameterized.parameters(
             ("SINGLE", ["m"]),
             ("STANDARD", ["m"]),
             ("HA", ["m-0"]),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    )
     def test_hbase(self, configuration, machine_suffixes):
         init_actions = self.INIT_ACTIONS
         if configuration != "HA":
@@ -47,13 +44,11 @@ class HBaseTestCase(DataprocTestCase):
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
 
-    @parameterized.expand(
-        [
+    @parameterized.parameters(
             ("SINGLE", ["m"]),
             ("STANDARD", ["m"]),
             ("HA", ["m-0"]),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    )
     def test_hbase_on_gcs(self, configuration,
                           machine_suffixes):
         init_actions = self.INIT_ACTIONS
@@ -71,5 +66,5 @@ class HBaseTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()
 

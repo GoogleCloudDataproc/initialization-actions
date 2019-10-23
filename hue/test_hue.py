@@ -1,6 +1,5 @@
-import unittest
-
-from parameterized import parameterized
+from absl.testing import absltest
+from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
@@ -23,13 +22,11 @@ class HueTestCase(DataprocTestCase):
             verify_cmd_fmt.format(instance_name,
                                   "<h3>Query. Explore. Repeat.</h3>"))
 
-    @parameterized.expand(
-        [
+    @parameterized.parameters(
             ("SINGLE", ["m"]),
             ("STANDARD", ["m"]),
             ("HA", ["m-0"]),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    )
     def test_hue(self, configuration, machine_suffixes):
         self.createCluster(configuration, self.INIT_ACTIONS)
         for machine_suffix in machine_suffixes:
@@ -38,4 +35,4 @@ class HueTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()

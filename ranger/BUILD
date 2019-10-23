@@ -12,6 +12,7 @@ py_test(
     deps = [
         ":verify_ranger",
         "//integration_tests:dataproc_test_case",
+        "@io_abseil_py//absl/testing:parameterized",
     ],
 )
 

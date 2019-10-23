@@ -6,5 +6,8 @@ py_test(
     srcs = ["test_rstudio.py"],
     data = ["rstudio.sh"],
     local = True,
-    deps = ["//integration_tests:dataproc_test_case"],
+    deps = [
+        "//integration_tests:dataproc_test_case",
+        "@io_abseil_py//absl/testing:parameterized",
+    ],
 )

@@ -1,6 +1,5 @@
-import unittest
-
-from parameterized import parameterized
+from absl.testing import absltest
+from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
@@ -15,12 +14,10 @@ class JupyterTestCase(DataprocTestCase):
             jupyter_port)
         self.assert_instance_command(name, verify_cmd)
 
-    @parameterized.expand(
-        [
+    @parameterized.parameters(
             ("SINGLE", ["m"]),
             ("STANDARD", ["m"]),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    )
     def test_jupyter(self, configuration, machine_suffixes):
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
         self.createCluster(configuration,
@@ -33,12 +30,10 @@ class JupyterTestCase(DataprocTestCase):
             self.verify_instance(
                 "{}-{}".format(self.getClusterName(), machine_suffix), "8123")
 
-    @parameterized.expand(
-        [
+    @parameterized.parameters(
             ("SINGLE", ["m"]),
             ("STANDARD", ["m"]),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    )
     def test_jupyter_with_metadata(self, configuration, machine_suffixes):
         jupyter_port = "8125"
 
@@ -59,4 +54,4 @@ class JupyterTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()

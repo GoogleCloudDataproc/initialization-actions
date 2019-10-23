@@ -1,6 +1,6 @@
-import unittest
+from absl.testing import absltest
+from absl.testing import parameterized
 
-from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 
@@ -17,11 +17,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
         self.assert_instance_command(
             name, "systemctl status gpu_utilization_agent.service")
 
-    @parameterized.expand(
-        [
+    @parameterized.parameters(
             ("STANDARD", ["m", "w-0"], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    )
     def test_install_gpu(self, configuration,
                          machine_suffixes, master_accelerator,
                          worker_accelerator):
@@ -35,11 +33,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
 
-    @parameterized.expand(
-        [
+    @parameterized.parameters(
             ("STANDARD", ["m", "w-0"], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    )
     def test_install_gpu_no_agent(self, configuration,
                                   machine_suffixes, master_accelerator,
                                   worker_accelerator):
@@ -54,11 +50,9 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
 
-    @parameterized.expand(
-        [
+    @parameterized.parameters(
             ("STANDARD", ["m", "w-0"], MASTER_GPU_TYPE, WORKER_GPU_TYPE),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    )
     def test_install_gpu_agent(self, configuration,
                                machine_suffixes, master_accelerator,
                                worker_accelerator):
@@ -80,4 +74,4 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()

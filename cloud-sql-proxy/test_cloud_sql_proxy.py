@@ -1,8 +1,9 @@
 import json
 import logging
-import unittest
 
-from parameterized import parameterized
+from absl.testing import absltest
+from absl.testing import parameterized
+
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 
@@ -49,13 +50,11 @@ class CloudSqlProxyTestCase(DataprocTestCase):
             cluster_name, 'pyspark',
             '{}/{}'.format(self.INIT_ACTIONS_REPO, self.TEST_SCRIPT_FILE_NAME))
 
-    @parameterized.expand(
-        [
-            ("SINGLE"),
-            ("STANDARD"),
-            ("HA"),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    @parameterized.parameters(
+            "SINGLE",
+            "STANDARD",
+            "HA",
+    )
     def test_cloud_sql_proxy(self, configuration):
         metadata = 'hive-metastore-instance={}:{}'.format(
             self.PROJECT_METADATA, self.DB_NAME)
@@ -69,4 +68,4 @@ class CloudSqlProxyTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()

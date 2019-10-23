@@ -1,7 +1,7 @@
 import os
-import unittest
 
-from parameterized import parameterized
+from absl.testing import absltest
+from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
@@ -23,13 +23,11 @@ class OozieTestCase(DataprocTestCase):
         self.assert_instance_command(
             name, "bash {}".format(self.TEST_SCRIPT_FILE_NAME))
 
-    @parameterized.expand(
-        [
+    @parameterized.parameters(
             ("SINGLE", ["m"]),
             ("STANDARD", ["m"]),
             ("HA", ["m-0", "m-1", "m-2"]),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    )
     def test_oozie(self, configuration, machine_suffixes):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
@@ -41,4 +39,4 @@ class OozieTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()

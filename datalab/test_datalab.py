@@ -1,7 +1,6 @@
-import unittest
-
 import pkg_resources
-from parameterized import parameterized
+from absl.testing import absltest
+from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
@@ -16,12 +15,10 @@ class DatalabTestCase(DataprocTestCase):
             name, "curl {} -L {}:8080 | grep 'Google Cloud DataLab'".format(
                 "--retry 10 --retry-delay 10 --retry-connrefused", name))
 
-    @parameterized.expand(
-        [
+    @parameterized.parameters(
             ("STANDARD", ["m"], "python2"),
             ("STANDARD", ["m"], "python3"),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    )
     def test_datalab(self, configuration, machine_suffixes, python):
         init_actions = self.INIT_ACTIONS
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
@@ -43,4 +40,4 @@ class DatalabTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()

@@ -7,26 +7,24 @@ import re
 import string
 import subprocess
 import sys
-import unittest
 from threading import Timer
 
 import pkg_resources
 from absl import flags
+from absl.testing import parameterized
+
+logging.basicConfig(level=os.getenv("LOG_LEVEL", logging.INFO))
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('image_version', '1.3', 'dataproc_version, e.g. 1.2')
 FLAGS(sys.argv)
-
-BASE_TEST_CASE = unittest.TestCase
-
-logging.basicConfig(level=os.getenv("LOG_LEVEL", logging.INFO))
 
 INTERNAL_IP_SSH = os.getenv("INTERNAL_IP_SSH", "false").lower() == "true"
 
 DEFAULT_TIMEOUT = 15  # minutes
 
 
-class DataprocTestCase(BASE_TEST_CASE):
+class DataprocTestCase(parameterized.TestCase):
     DEFAULT_ARGS = {
         "SINGLE": [
             "--single-node",
@@ -152,6 +150,11 @@ class DataprocTestCase(BASE_TEST_CASE):
         return staging_dir
 
     def tearDown(self):
+        if not self.name:
+            logging.info("Skipping cluster delete (%s): name undefined",
+                         self.name)
+            return
+
         ret_code, _, stderr = self.run_command(
             "gcloud dataproc clusters delete {} --region={} --quiet --async".
             format(self.name, self.REGION))
@@ -287,12 +290,3 @@ class DataprocTestCase(BASE_TEST_CASE):
                       p.returncode, stdout, stderr)
         return p.returncode, stdout, stderr
 
-    @staticmethod
-    def generate_verbose_test_name(testcase_func, param_num, param):
-        return "{} [mode={}, version={}, random_prefix={}]".format(
-            testcase_func.__name__, param.args[0],
-            FLAGS.image_version.replace(".", "_"), DataprocTestCase.random_str())
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -9,6 +9,7 @@ py_test(
     deps = [
         ":verify_livy_running",
         "//integration_tests:dataproc_test_case",
+        "@io_abseil_py//absl/testing:parameterized",
     ],
 )
 

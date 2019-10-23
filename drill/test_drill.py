@@ -1,7 +1,7 @@
 import os
-import unittest
 
-from parameterized import parameterized
+from absl.testing import absltest
+from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
@@ -24,13 +24,11 @@ class DrillTestCase(DataprocTestCase):
             name, "sudo bash {} {} {}".format(self.TEST_SCRIPT_FILE_NAME,
                                               drill_mode, target_node))
 
-    @parameterized.expand(
-        [
+    @parameterized.parameters(
             ("SINGLE", [("m", "m")]),
             ("STANDARD", [("m", "w-0"), ("m", "m")]),
             ("HA", [("m-0", "w-0"), ("w-0", "m-1")]),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    )
     def test_drill(self, configuration, verify_options):
         init_actions = self.INIT_ACTIONS
         if configuration == "STANDARD":
@@ -52,4 +50,4 @@ class DrillTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()

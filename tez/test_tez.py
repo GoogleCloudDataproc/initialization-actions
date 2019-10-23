@@ -8,10 +8,10 @@ executed on every master node. Test script run example Tez job and successful ex
 flag. Test script is executed on every master node.
 """
 import os
-import unittest
-import pkg_resources
 
-from parameterized import parameterized
+import pkg_resources
+from absl.testing import absltest
+from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
@@ -33,30 +33,27 @@ class TezTestCase(DataprocTestCase):
         self.assert_instance_command(
             name, "python {}".format(self.TEST_SCRIPT_FILE_NAME))
 
-    @parameterized.expand(
-        [
+    @parameterized.parameters(
             ("SINGLE", ["m"]),
             ("STANDARD", ["m"]),
             ("HA", ["m-0", "m-1", "m-2"]),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    )
     def test_tez(self, configuration, machine_suffixes):
+        init_actions = self.INIT_ACTIONS
+        properties = None
         if self.getImageVersion() >= pkg_resources.parse_version("1.3"):
+            # Remove init action - in Dataproc 1.3+ Tez installed by default
+            init_actions = []
             tez_classpath = "/etc/tez/conf:/usr/lib/tez/*:/usr/lib/tez/lib/*"
-            self.createCluster(
-                configuration,
-                init_actions=[],
-                properties="'hadoop-env:HADOOP_CLASSPATH={}:{}'".format(
-                    "${HADOOP_CLASSPATH}", tez_classpath))
-            for machine_suffix in machine_suffixes:
-                self.verify_instance("{}-{}".format(self.getClusterName(),
-                                                    machine_suffix))
-        else:
-            self.createCluster(configuration, self.INIT_ACTIONS)
-            for machine_suffix in machine_suffixes:
-                self.verify_instance("{}-{}".format(self.getClusterName(),
-                                                    machine_suffix))
+            properties="'hadoop-env:HADOOP_CLASSPATH={}:{}'".format(
+                "${HADOOP_CLASSPATH}", tez_classpath)
+
+        self.createCluster(configuration, init_actions, properties=properties)
+
+        for machine_suffix in machine_suffixes:
+            self.verify_instance("{}-{}".format(self.getClusterName(),
+                                                machine_suffix))
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()

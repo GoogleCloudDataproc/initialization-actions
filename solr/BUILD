@@ -11,6 +11,7 @@ py_test(
     deps = [
         ":verify_solr",
         "//integration_tests:dataproc_test_case",
+        "@io_abseil_py//absl/testing:parameterized",
     ],
 )
 

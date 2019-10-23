@@ -1,6 +1,5 @@
-import unittest
-
-from parameterized import parameterized
+from absl.testing import absltest
+from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
@@ -26,12 +25,10 @@ class DrElephantTestCase(DataprocTestCase):
             instance_name,
             verify_cmd_fmt.format(instance_name, "<div>QuasiMonteCarlo</div>"))
 
-    @parameterized.expand(
-        [
+    @parameterized.parameters(
             ("STANDARD", ["m"]),
             ("HA", ["m-0"]),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    )
     def test_dr_elephant(self, configuration,
                          machine_suffixes):
         self.createCluster(configuration,
@@ -52,4 +49,4 @@ class DrElephantTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()

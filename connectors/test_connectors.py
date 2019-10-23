@@ -1,7 +1,6 @@
-import unittest
-
 import pkg_resources
-from parameterized import parameterized
+from absl.testing import absltest
+from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
@@ -33,13 +32,11 @@ class ConnectorsTestCase(DataprocTestCase):
     def __submit_pig_job(self, cluster_name, job):
         self.assert_dataproc_job(cluster_name, 'pig', "-e '{}'".format(job))
 
-    @parameterized.expand(
-        [
-            ("SINGLE"),
-            ("STANDARD"),
-            ("HA"),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    @parameterized.parameters(
+            "SINGLE",
+            "STANDARD",
+            "HA",
+    )
     def test_gcs_connector(self, configuration):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
@@ -48,13 +45,11 @@ class ConnectorsTestCase(DataprocTestCase):
         self.verify_instance(self.getClusterName(),
                              "gcs-connector", self.GCS_CONNECTOR_VERSION)
 
-    @parameterized.expand(
-        [
-            ("SINGLE"),
-            ("STANDARD"),
-            ("HA"),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    @parameterized.parameters(
+            "SINGLE",
+            "STANDARD",
+            "HA",
+    )
     def test_bq_connector(self, configuration):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
@@ -65,4 +60,4 @@ class ConnectorsTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()

@@ -1,7 +1,7 @@
 import json
-import unittest
 
-from parameterized import parameterized
+from absl.testing import absltest
+from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
@@ -52,12 +52,10 @@ class CondaTestCase(DataprocTestCase):
         return set(l.split()[0] for l in stdout.splitlines()
                    if not l.startswith("#"))
 
-    @parameterized.expand(
-        [
+    @parameterized.parameters(
             ("STANDARD", [], []),
             ("STANDARD", CONDA_PKGS, PIP_PKGS),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    )
     def test_conda(self, configuration, conda_packages, pip_packages):
         metadata = "'CONDA_PACKAGES={},PIP_PACKAGES={}'".format(
             " ".join(conda_packages), " ".join(pip_packages))
@@ -73,4 +71,4 @@ class CondaTestCase(DataprocTestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    absltest.main()

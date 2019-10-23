@@ -9,6 +9,7 @@ py_test(
     deps = [
         ":run_hbase_commands",
         "//integration_tests:dataproc_test_case",
+        "@io_abseil_py//absl/testing:parameterized",
     ],
 )
 

@@ -6,5 +6,8 @@ py_test(
     srcs = ["test_presto.py"],
     data = ["presto.sh"],
     local = True,
-    deps = ["//integration_tests:dataproc_test_case"],
+    deps = [
+        "//integration_tests:dataproc_test_case",
+        "@io_abseil_py//absl/testing:parameterized",
+    ],
 )

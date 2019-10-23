@@ -3,9 +3,9 @@ This module provides testing functionality of the Apache Solr Init Action.
 """
 
 import os
-import unittest
 
-from parameterized import parameterized
+from absl.testing import absltest
+from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
@@ -26,13 +26,11 @@ class SolrTestCase(DataprocTestCase):
         self.assert_instance_command(
             name, "python3 {}".format(self.TEST_SCRIPT_FILE_NAME))
 
-    @parameterized.expand(
-        [
+    @parameterized.parameters(
             ("SINGLE", ["m"]),
             ("STANDARD", ["m"]),
             ("HA", ["m-0"])
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    )
     def test_solr(self, configuration, machine_suffixes):
         self.createCluster(configuration, self.INIT_ACTIONS)
         for machine_suffix in machine_suffixes:
@@ -41,4 +39,4 @@ class SolrTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()
