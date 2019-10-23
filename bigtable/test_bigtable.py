@@ -9,8 +9,7 @@ Note:
     Test REQUIRES cbt tool installed which provides CLI access to BigTable instances.
     See: https://cloud.google.com/bigtable/docs/cbt-overview
 """
-import argparse
-import logging
+import os
 
 from absl.testing import absltest
 from absl.testing import parameterized

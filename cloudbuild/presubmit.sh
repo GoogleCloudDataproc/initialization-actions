@@ -85,7 +85,8 @@ determine_tests_to_run() {
 
 run_tests() {
   export INTERNAL_IP_SSH=true
-  bazel test --jobs=50 --local_cpu_resources=50 --local_ram_resources=$((50 * 1024)) \
+  bazel test --test_output=errors \
+    --jobs=50 --local_cpu_resources=50 --local_ram_resources=$((50 * 1024)) \
     --test_arg="--image_version=${IMAGE_VERSION}" "${TESTS_TO_RUN[@]}"
 }
 

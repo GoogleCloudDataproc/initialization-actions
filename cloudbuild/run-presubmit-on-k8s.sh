@@ -6,7 +6,7 @@ readonly IMAGE=$1
 readonly BUILD_ID=$2
 readonly DATAPROC_IMAGE_VERSION=$3
 
-readonly POD_NAME=presubmit-${DATAPROC_IMAGE_VERSION/./-}-${BUILD_ID/_/-}
+readonly POD_NAME=presubmit-${DATAPROC_IMAGE_VERSION//./-}-${BUILD_ID//_/-}
 
 gcloud container clusters get-credentials "${CLOUDSDK_CONTAINER_CLUSTER}"
 
