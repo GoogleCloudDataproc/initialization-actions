@@ -9,8 +9,9 @@ COPY --chown=ia-tests:ia-tests . /init-actions
 
 # Install Bazel:
 # https://docs.bazel.build/versions/master/install-ubuntu.html
-RUN echo "deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable jdk1.8" | tee /etc/apt/sources.list.d/bazel.list && \
-    curl https://bazel.build/bazel-release.pub.gpg | apt-key add -
-RUN apt-get update && apt-get -y install openjdk-8-jdk bazel
+RUN echo "deb [arch=amd64] http://storage.googleapis.com/bazel-apt stable jdk1.8" | tee /etc/apt/sources.list.d/bazel.list
+RUN curl https://bazel.build/bazel-release.pub.gpg | apt-key add -
+RUN apt-get update && apt-get install -y python3-pip openjdk-8-jdk bazel
+RUN pip3 install setuptools
 
 USER ia-tests

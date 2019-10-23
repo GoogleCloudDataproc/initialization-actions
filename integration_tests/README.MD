@@ -5,7 +5,8 @@ real Dataproc cluster and validates if software is properly installed.
 
 ## Requirements
 
-In order to run tests you need [Bazel](https://bazel.build/).
+In order to run tests you need Python with [setuptools](https://pypi.org/project/setuptools/)
+installed and [Bazel](https://bazel.build/).
 
 You also need to have `gcloud` CLI configured to use your GCP project.
 
