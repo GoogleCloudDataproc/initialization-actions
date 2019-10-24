@@ -10,9 +10,9 @@ Note:
     See: https://cloud.google.com/bigtable/docs/cbt-overview
 """
 import os
-import unittest
 
-from parameterized import parameterized
+from absl.testing import absltest
+from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
@@ -48,13 +48,14 @@ class BigTableTestCase(DataprocTestCase):
     def _validate_bigtable(self):
         _, stdout, _ = self.assert_command(
             'cbt -instance {} count test-bigtable '.format(self.db_name))
-        self.assertEqual(int(float(stdout)), 4,
-                         "Invalid BigTable instance count")
+        self.assertEqual(
+            int(float(stdout)), 4, "Invalid BigTable instance count")
 
     def verify_instance(self, name):
         self.upload_test_file(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         self.TEST_SCRIPT_FILE_NAME), name)
+            os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                self.TEST_SCRIPT_FILE_NAME), name)
         self.assert_instance_command(
             name, "python {}".format(self.TEST_SCRIPT_FILE_NAME))
         self._validate_bigtable()
@@ -64,21 +65,14 @@ class BigTableTestCase(DataprocTestCase):
     admin commands are provided from text file.
     """
 
-    @parameterized.expand(
-        [
-            ("SINGLE", "1.2", ["m"]),
-            ("STANDARD", "1.2", ["m"]),
-            ("HA", "1.2", ["m-0"]),
-            ("SINGLE", "1.3", ["m"]),
-            ("STANDARD", "1.3", ["m"]),
-            ("HA", "1.3", ["m-0"]),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_bigtable(self, configuration, dataproc_version, machine_suffixes):
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           dataproc_version,
-                           metadata=self.metadata)
+    @parameterized.parameters(
+        ("SINGLE", ["m"]),
+        ("STANDARD", ["m"]),
+        ("HA", ["m-0"]),
+    )
+    def test_bigtable(self, configuration, machine_suffixes):
+        self.createCluster(
+            configuration, self.INIT_ACTIONS, metadata=self.metadata)
 
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
@@ -86,4 +80,4 @@ class BigTableTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()

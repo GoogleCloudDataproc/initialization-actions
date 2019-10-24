@@ -1,6 +1,5 @@
-import unittest
-
-from parameterized import parameterized
+from absl.testing import absltest
+from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
@@ -28,60 +27,37 @@ class HBaseTestCase(DataprocTestCase):
                 'org.apache.hadoop.hbase.IntegrationTestsDriver',
                 'org.apache.hadoop.hbase.mapreduce.IntegrationTestImportTsv'))
 
-    @parameterized.expand(
-        [
-            ("SINGLE", "1.2", ["m"]),
-            ("STANDARD", "1.2", ["m"]),
-            ("HA", "1.2", ["m-0"]),
-            ("SINGLE", "1.3", ["m"]),
-            ("STANDARD", "1.3", ["m"]),
-            ("HA", "1.3", ["m-0"]),
-            ("SINGLE", "1.4", ["m"]),
-            ("STANDARD", "1.4", ["m"]),
-            ("HA", "1.4", ["m-0"]),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_hbase(self, configuration, dataproc_version, machine_suffixes):
+    @parameterized.parameters(
+        ("SINGLE", ["m"]),
+        ("STANDARD", ["m"]),
+        ("HA", ["m-0"]),
+    )
+    def test_hbase(self, configuration, machine_suffixes):
         init_actions = self.INIT_ACTIONS
         if configuration != "HA":
             init_actions = self.INIT_ACTIONS_FOR_NOT_HA + init_actions
-        self.createCluster(configuration,
-                           init_actions,
-                           dataproc_version,
-                           machine_type="n1-standard-2")
+        self.createCluster(
+            configuration, init_actions, machine_type="n1-standard-2")
 
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
 
-    @parameterized.expand(
-        [
-            ("SINGLE", "1.2", ["m"]),
-            ("STANDARD", "1.2", ["m"]),
-            ("HA", "1.2", ["m-0"]),
-            ("SINGLE", "1.3", ["m"]),
-            ("STANDARD", "1.3", ["m"]),
-            ("HA", "1.3", ["m-0"]),
-            ("SINGLE", "1.4", ["m"]),
-            ("STANDARD", "1.4", ["m"]),
-            ("HA", "1.4", ["m-0"]),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_hbase_on_gcs(self, configuration, dataproc_version,
-                          machine_suffixes):
+    @parameterized.parameters(
+        ("SINGLE", ["m"]),
+        ("STANDARD", ["m"]),
+        ("HA", ["m-0"]),
+    )
+    def test_hbase_on_gcs(self, configuration, machine_suffixes):
         init_actions = self.INIT_ACTIONS
         if configuration != "HA":
             init_actions = self.INIT_ACTIONS_FOR_NOT_HA + init_actions
-        test_dir = "{}-{}-{}".format(configuration.lower(),
-                                     dataproc_version.replace(".", "-"),
-                                     self.random_str())
-        metadata = 'hbase-root-dir=gs://{}/{}'.format(self.GCS_BUCKET,
-                                                      test_dir)
-        self.createCluster(configuration,
-                           init_actions,
-                           dataproc_version,
-                           metadata=metadata,
-                           machine_type="n1-standard-2")
+        metadata = 'hbase-root-dir=gs://{}/test-dir'.format(self.GCS_BUCKET)
+        self.createCluster(
+            configuration,
+            init_actions,
+            metadata=metadata,
+            machine_type="n1-standard-2")
 
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
@@ -89,4 +65,5 @@ class HBaseTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()
+

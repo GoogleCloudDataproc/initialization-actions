@@ -1,30 +1,30 @@
-import os
-import re
-import sys
-import json
-import random
-import string
-import logging
 import datetime
-import unittest
+import json
+import logging
+import os
+import random
+import re
+import string
 import subprocess
+import sys
 from threading import Timer
 
-BASE_TEST_CASE = unittest.TestCase
-PARALLEL_RUN = False
-if "fastunit" in sys.modules:
-    import fastunit
-    BASE_TEST_CASE = fastunit.TestCase
-    PARALLEL_RUN = True
+import pkg_resources
+from absl import flags
+from absl.testing import parameterized
 
 logging.basicConfig(level=os.getenv("LOG_LEVEL", logging.INFO))
+
+FLAGS = flags.FLAGS
+flags.DEFINE_string('image_version', '1.3', 'dataproc_version, e.g. 1.2')
+FLAGS(sys.argv)
 
 INTERNAL_IP_SSH = os.getenv("INTERNAL_IP_SSH", "false").lower() == "true"
 
 DEFAULT_TIMEOUT = 15  # minutes
 
 
-class DataprocTestCase(BASE_TEST_CASE):
+class DataprocTestCase(parameterized.TestCase):
     DEFAULT_ARGS = {
         "SINGLE": [
             "--single-node",
@@ -72,7 +72,6 @@ class DataprocTestCase(BASE_TEST_CASE):
     def createCluster(self,
                       configuration,
                       init_actions,
-                      dataproc_version,
                       metadata=None,
                       scopes=None,
                       properties=None,
@@ -85,7 +84,7 @@ class DataprocTestCase(BASE_TEST_CASE):
                       boot_disk_size="50GB"):
         self.name = "test-{}-{}-{}-{}".format(
             self.COMPONENT, configuration.lower(),
-            dataproc_version.replace(".", "-"), self.datetime_str())[:46]
+            FLAGS.image_version.replace(".", "-"), self.datetime_str())[:46]
         self.name += "-{}".format(self.random_str(size=4))
         self.cluster_version = None
 
@@ -101,8 +100,8 @@ class DataprocTestCase(BASE_TEST_CASE):
             args.append("--scopes={}".format(scopes))
         if metadata:
             args.append("--metadata={}".format(metadata))
-        if dataproc_version:
-            args.append("--image-version={}".format(dataproc_version))
+        if FLAGS.image_version:
+            args.append("--image-version={}".format(FLAGS.image_version))
         if timeout_in_minutes:
             args.append("--initialization-action-timeout={}m".format(
                 timeout_in_minutes))
@@ -144,13 +143,18 @@ class DataprocTestCase(BASE_TEST_CASE):
         staging_dir = "{}/{}-{}".format(bucket, self.datetime_str(),
                                         self.random_str())
 
-        self.assert_command(
-            "gsutil -q -m rsync -r -x '.git*|.idea*' ./ {}/".format(
-                staging_dir))
+        self.assert_command("gsutil -q -m rsync -r -x '.git*|.idea*' ./ {}/".
+                            format(staging_dir))
 
         return staging_dir
 
     def tearDown(self):
+        try:
+            self.name
+        except AttributeError:
+            logging.info("Skipping cluster delete: name undefined")
+            return
+
         ret_code, _, stderr = self.run_command(
             "gcloud dataproc clusters delete {} --region={} --quiet --async".
             format(self.name, self.REGION))
@@ -160,6 +164,10 @@ class DataprocTestCase(BASE_TEST_CASE):
 
     def getClusterName(self):
         return self.name
+
+    @staticmethod
+    def getImageVersion():
+        return pkg_resources.parse_version(FLAGS.image_version)
 
     def upload_test_file(self, testfile, name):
         self.assert_command('gcloud compute scp {} {}:'.format(testfile, name))
@@ -281,16 +289,3 @@ class DataprocTestCase(BASE_TEST_CASE):
         logging.debug("Ran %s: retcode: %d, stdout: %s, stderr: %s", cmd,
                       p.returncode, stdout, stderr)
         return p.returncode, stdout, stderr
-
-    @staticmethod
-    def generate_verbose_test_name(testcase_func, param_num, param):
-        return "{} [mode={}, version={}, random_prefix={}]".format(
-            testcase_func.__name__, param.args[0],
-            param.args[1].replace(".", "_"), DataprocTestCase.random_str())
-
-
-if __name__ == '__main__':
-    if PARALLEL_RUN:
-        fastunit.main()
-    else:
-        unittest.main()

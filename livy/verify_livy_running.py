@@ -16,9 +16,10 @@ class Livy:
     headers = {'Content-Type': 'application/json'}
 
     def create_session(self):
-        resp = requests.post(self.host + '/sessions',
-                             data=json.dumps(self.session_data),
-                             headers=self.headers)
+        resp = requests.post(
+            self.host + '/sessions',
+            data=json.dumps(self.session_data),
+            headers=self.headers)
         self.session_url = self.host + resp.headers['Location']
 
     def wait_for_session_idle(self):
@@ -36,9 +37,8 @@ class Livy:
         exit(1)
 
     def submit_job(self, data):
-        requests.post(self.statements_url,
-                      data=json.dumps(data),
-                      headers=self.headers)
+        requests.post(
+            self.statements_url, data=json.dumps(data), headers=self.headers)
 
     def validate_job_result(self, expected):
         wait_seconds_remain = WAIT_SECONDS

@@ -1,6 +1,6 @@
-import unittest
-
-from parameterized import parameterized
+import pkg_resources
+from absl.testing import absltest
+from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
@@ -9,19 +9,20 @@ class TonYTestCase(DataprocTestCase):
     COMPONENT = 'tony'
     INIT_ACTIONS = ['tony/tony.sh']
 
-    @parameterized.expand(
-        [
-            ("STANDARD", "1.2"),
-            ("STANDARD", "1.3"),
-            ("STANDARD", "1.4"),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_tony(self, configuration, dataproc_version):
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           dataproc_version,
-                           timeout_in_minutes=30,
-                           machine_type="n1-standard-4")
+    @parameterized.parameters(
+        "SINGLE",
+        "STANDARD",
+    )
+    def test_tony(self, configuration):
+        # Init action supported on Dataproc 1.3+
+        if self.getImageVersion() < pkg_resources.parse_version("1.3"):
+            return
+
+        self.createCluster(
+            configuration,
+            self.INIT_ACTIONS,
+            timeout_in_minutes=30,
+            machine_type="n1-standard-4")
 
         # Verify cluster using TensorFlow job
         self.assert_dataproc_job(
@@ -53,4 +54,4 @@ class TonYTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()

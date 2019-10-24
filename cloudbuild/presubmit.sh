@@ -2,6 +2,9 @@
 
 set -euxo pipefail
 
+# Declare global variable for passing tests between functions
+declare -a TESTS_TO_RUN
+
 configure_gcloud() {
   gcloud config set core/disable_prompts TRUE
   gcloud config set compute/zone us-central1-f
@@ -19,10 +22,6 @@ configure_gcloud_ssh_key() {
     --plaintext-file="${HOME}/.ssh/google_compute_engine.pub"
 
   chmod 600 "${HOME}/.ssh/google_compute_engine"
-}
-
-install_test_dependencies() {
-  pip3 install -r integration_tests/requirements.txt
 }
 
 # Fetches master branch from GitHub and "resets" local changes to be relative to it,
@@ -50,14 +49,13 @@ determine_tests_to_run() {
   echo "Changed files: ${CHANGED_FILES[*]}"
 
   # Determines init actions directories that were changed
-  RUN_ALL_TESTS=false
   declare -a changed_dirs
   for changed_file in "${CHANGED_FILES[@]}"; do
     local changed_dir="${changed_file/\/*/}/"
     # Run all tests if common directories were changed
     if [[ ${changed_dir} =~ ^(integration_tests/|util/|cloudbuild/)$ ]]; then
       echo "All tests will be run: '${changed_dir}' was changed"
-      RUN_ALL_TESTS=true
+      TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
       return 0
     fi
     # Hack to workaround empty array expansion on old versions of Bash.
@@ -68,42 +66,34 @@ determine_tests_to_run() {
   done
   echo "Changed directories: ${changed_dirs[*]}"
 
-  # Determines what tests in changed init action directories to run
+  # Determines test target in changed init action directories to run
   for changed_dir in "${changed_dirs[@]}"; do
-    local tests_in_dir
-    if ! tests_in_dir=$(compgen -G "${changed_dir}test*.py"); then
-      echo "ERROR: presubmit failed - cannot find tests inside '${changed_dir}' directory"
-      exit 1
+    # NOTE: The ::-1 removes the trailing '/'
+    local test_name=${changed_dir::-1}
+    # Some of our py_tests (that has dashes in the name) are defined in the top-level directory
+    if [[ $test_name == *"-"* ]]; then
+      local test_target=":test_${test_name//-/_}"
+    else
+      local test_target="${test_name}:test_${test_name}"
     fi
-    declare -a tests_array
-    mapfile -t tests_array < <(echo "${tests_in_dir}")
-    TESTS_TO_RUN+=("${tests_array[@]}")
+    TESTS_TO_RUN+=("${test_target}")
   done
   echo "Tests: ${TESTS_TO_RUN[*]}"
 }
 
 run_tests() {
-  export INTERNAL_IP_SSH=true
-  if [[ $RUN_ALL_TESTS == true ]]; then
-    # Run all init action tests
-    python3 -m fastunit -v */test_*.py
-  else
-    # Run tests for the init actions that were changed
-    python3 -m fastunit -v "${TESTS_TO_RUN[@]}"
-  fi
+  bazel test --jobs=15 --local_cpu_resources=15 --local_ram_resources=$((15 * 1024)) \
+    --action_env=INTERNAL_IP_SSH=true --test_output=errors \
+    --test_arg="--image_version=${IMAGE_VERSION}" "${TESTS_TO_RUN[@]}"
 }
 
 main() {
   cd /init-actions
   configure_gcloud
   configure_gcloud_ssh_key
-  install_test_dependencies
   initialize_git_repo
   determine_tests_to_run
   run_tests
 }
-
-# Declare global variable for passing tests between functions
-declare -a TESTS_TO_RUN
 
 main

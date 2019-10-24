@@ -1,6 +1,5 @@
-import unittest
-
-from parameterized import parameterized
+from absl.testing import absltest
+from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
@@ -26,23 +25,16 @@ class DrElephantTestCase(DataprocTestCase):
             instance_name,
             verify_cmd_fmt.format(instance_name, "<div>QuasiMonteCarlo</div>"))
 
-    @parameterized.expand(
-        [
-            ("STANDARD", "1.2", ["m"]),
-            ("HA", "1.2", ["m-0"]),
-            ("STANDARD", "1.3", ["m"]),
-            ("HA", "1.3", ["m-0"]),
-            ("STANDARD", "1.4", ["m"]),
-            ("HA", "1.4", ["m-0"]),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_dr_elephant(self, configuration, dataproc_version,
-                         machine_suffixes):
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           dataproc_version,
-                           timeout_in_minutes=30,
-                           machine_type="n1-standard-2")
+    @parameterized.parameters(
+        ("STANDARD", ["m"]),
+        ("HA", ["m-0"]),
+    )
+    def test_dr_elephant(self, configuration, machine_suffixes):
+        self.createCluster(
+            configuration,
+            self.INIT_ACTIONS,
+            timeout_in_minutes=30,
+            machine_type="n1-standard-2")
 
         # Submit a job to check if statistic is generated
         self.assert_dataproc_job(
@@ -57,4 +49,4 @@ class DrElephantTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()
