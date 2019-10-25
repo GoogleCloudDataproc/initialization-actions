@@ -38,12 +38,11 @@ ALLUXIO_DOWNLOAD_URL=https://downloads.alluxio.io/downloads/files/${ALLUXIO_VERS
 download_file() {
   local uri="$1"
 
-  if [[ "${uri}" == gs://* ]]
-  then
+  if [[ "${uri}" == gs://* ]]; then
     gsutil cp "${uri}" ./
   else
     # TODO Add metadata header tag to the wget for filtering out in download metrics.
-    wget -nv "${uri}"
+    wget -nv --timeout=30 --tries=5 --retry-connrefused "${uri}"
   fi
 }
 
@@ -56,7 +55,7 @@ append_alluxio_property() {
   local property="$1"
   local value="$2"
 
-  echo "${property}=${value}" >> ${ALLUXIO_SITE_PROPERTIES}
+  echo "${property}=${value}" >>${ALLUXIO_SITE_PROPERTIES}
 }
 
 # Calculates the default memory size as 1/3 of the total system memory
@@ -68,27 +67,27 @@ get_default_mem_size() {
   local phy_total
   phy_total=$(free -m | grep -oP '\d+' | head -n1)
   local mem_size
-  mem_size=$(( phy_total / mem_div ))
+  mem_size=$((phy_total / mem_div))
   echo "${mem_size}MB"
 }
 
 # Download the Alluxio tarball and untar to ALLUXIO_HOME
 function bootstrap_alluxio() {
   mkdir ${ALLUXIO_HOME}
-  download_file ${ALLUXIO_DOWNLOAD_URL}
+  download_file "${ALLUXIO_DOWNLOAD_URL}"
   local tarball_name=${ALLUXIO_DOWNLOAD_URL##*/}
-  tar -zxf ${tarball_name} -C ${ALLUXIO_HOME} --strip-components 1
+  tar -zxf "${tarball_name}" -C ${ALLUXIO_HOME} --strip-components 1
   ln -s "${ALLUXIO_HOME}/client/*client.jar" "${ALLUXIO_HOME}/client/alluxio-client.jar"
 
   # Download files to /opt/alluxio/conf
   local download_files_list
-  download_files_list=$(/usr/share/google/get_metadata_value attributes/alluxio_download_files_list)
+  download_files_list=$(/usr/share/google/get_metadata_value attributes/alluxio_download_files_list || true)
   local download_delimiter=";"
-  IFS="${download_delimiter}" read -ra files_to_be_downloaded <<< "${download_files_list}"
+  IFS="${download_delimiter}" read -ra files_to_be_downloaded <<<"${download_files_list}"
   if [ "${#files_to_be_downloaded[@]}" -gt "0" ]; then
     for file in "${files_to_be_downloaded[@]}"; do
       local filename
-      filename="$(basename ${file})"
+      filename="$(basename "${file}")"
       download_file "${file}"
       mv "${filename}" "${ALLUXIO_HOME}/conf/${filename}"
     done
@@ -102,11 +101,10 @@ function bootstrap_alluxio() {
   mkdir -p "${HADOOP_HOME}/lib/"
   ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" "${HADOOP_HOME}/lib/alluxio-client.jar"
   if [[ "${ROLE}" == "Master" ]]; then
-    systemctl restart hive-metastore
-    systemctl restart hive-server2
+    systemctl restart hive-metastore hive-server2
   fi
 
-  # Optionally configure presto
+  # Optionally configure Presto
   # OK to fail in this section
   set +o errexit
   PRESTO_HOME=${PRESTO_HOME:-$(ls -d -- /presto-server-*)}
@@ -124,10 +122,12 @@ function configure_alluxio() {
 
   append_alluxio_property alluxio.master.hostname "${MASTER_FQDN}"
 
-  local root_ufs_uri=$(/usr/share/google/get_metadata_value attributes/alluxio_root_ufs_uri)
+  local root_ufs_uri
+  root_ufs_uri=$(/usr/share/google/get_metadata_value attributes/alluxio_root_ufs_uri)
   append_alluxio_property alluxio.master.mount.table.root.ufs "${root_ufs_uri}"
 
-  local mem_size=$(get_default_mem_size)
+  local mem_size
+  mem_size=$(get_default_mem_size)
   append_alluxio_property alluxio.worker.memory.size "${mem_size}"
   append_alluxio_property alluxio.worker.tieredstore.level0.alias "MEM"
   append_alluxio_property alluxio.worker.tieredstore.level0.dirs.path "/mnt/ramdisk"
@@ -140,10 +140,11 @@ function configure_alluxio() {
   append_alluxio_property alluxio.security.login.impersonation.username "none"
   append_alluxio_property alluxio.security.authorization.permission.enabled "false"
 
-  local site_properties=$(/usr/share/google/get_metadata_value attributes/alluxio_site_properties)
+  local site_properties
+  site_properties=$(/usr/share/google/get_metadata_value attributes/alluxio_site_properties || true)
   local property_delimiter=";"
   if [[ "${site_properties}" ]]; then
-    IFS="${property_delimiter}" read -ra conf <<< "${site_properties}"
+    IFS="${property_delimiter}" read -ra conf <<<"${site_properties}"
     for property in "${conf[@]}"; do
       local key=${property%%"="*}
       local value=${property#*"="}

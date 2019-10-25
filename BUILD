@@ -7,6 +7,7 @@ test_suite(
         ":test_dr_elephant",
         ":test_hive_hcatalog",
         ":test_starburst_presto",
+        "//alluxio:test_alluxio",
         "//bigtable:test_bigtable",
         "//conda:test_conda",
         "//connectors:test_connectors",
