@@ -10,7 +10,7 @@ class AlluxioTestCase(DataprocTestCase):
 
     def verify_instance(self, name):
         # Ping Alluxio master
-        self.assert_instance_command(name, "alluxio fs leader")
+        self.assert_instance_command(name, "/opt/alluxio/bin/alluxio fs leader")
 
     @parameterized.parameters(
         ("STANDARD", ["m"]), )
