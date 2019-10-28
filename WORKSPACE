@@ -8,9 +8,9 @@ http_archive(
 
 http_archive(
     name = "io_abseil_py",
-    sha256 = "9b324bc96587819a1420c592cf5d54424456645719f1de6bb22f7045bb6dbc6b",
-    strip_prefix = "abseil-py-master",
-    url = "https://github.com/abseil/abseil-py/archive/master.zip",
+    sha256 = "0a145cb81101d1add8b87eaae58c5d51521084bf7cc4e4654928b326a864c6c3",
+    strip_prefix = "abseil-py-pypi-v0.8.1",
+    url = "https://github.com/abseil/abseil-py/archive/pypi-v0.8.1.tar.gz",
 )
 
 http_archive(
