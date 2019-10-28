@@ -18,8 +18,8 @@ class AlluxioTestCase(DataprocTestCase):
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
-            metadata="alluxio_root_ufs_uri={}/alluxio_ufs_root_{}".format(
-                self.INIT_ACTIONS_REPO, self.random_str()),
+            metadata="alluxio_root_ufs_uri={}".format(
+                "/opt/alluxio/underFSStorage/"),
             timeout_in_minutes=30,
             machine_type="n1-standard-4")
         for machine_suffix in machine_suffixes:
