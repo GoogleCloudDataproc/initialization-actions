@@ -1,13 +1,11 @@
 # Jupyter Notebook with Sparkmonitor
 
-This folder contains the initialization action `jupyter.sh` to quickly setup and
+This folder contains the initialization action `sparkmonitor.sh` to quickly setup and
 launch [Jupyter Notebook](http://jupyter.org/), (the successor of IPython
 notebook) and a script to be run on the user's local machine to access the
 Jupyter notebook server.
 
-Note: This init action uses Conda and Python 3. Python 2 and `pip` users should
-consider using the
-[jupyter2 action](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/jupyter2).
+Note: This init action uses Conda and Python 3. 
 
 __Use the Dataproc
 [Jupyter Optional Component](https://cloud.google.com/dataproc/docs/concepts/components/jupyter)__.
@@ -31,7 +29,7 @@ Jupyter installed:
     # Jupyter will run on port 8123 of your master node.
     CLUSTER=<CLUSTER_NAME>
     gcloud dataproc clusters create $CLUSTER \
-        --initialization-actions gs://$MY_BUCKET/jupyter/jupyter.sh
+        --initialization-actions gs://$MY_BUCKET/jupyter-sparkmonitor/sparkmonitor.sh
     ```
 
 1.  Run `./launch-jupyter-interface` to connect to the Jupyter notebook running
