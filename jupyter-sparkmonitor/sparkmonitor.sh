@@ -20,14 +20,10 @@
 set -euxo pipefail
 
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-readonly DEAFULT_INIT_ACTIONS_REPO="gs://dataproc-initialization-actions"
-readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_REPO ||
-  echo ${DEAFULT_INIT_ACTIONS_REPO})"
-  readonly INIT_ACTIONS_BRANCH="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_BRANCH ||
-  echo 'master')"
 
 readonly JUPYTER_INIT_SCRIPT='/usr/lib/systemd/system/jupyter.service'
-readonly CONDA_DIRECTORY='/opt/conda/anaconda'
+readonly CONDA_DIRECTORY='/opt/conda/default'
+readonly PYTHON_PATH="${CONDA_DIRECTORY}/bin/python"
 readonly EXISTING_PYSPARK_KERNEL='pyspark'
 
 function retry_apt_command() {
@@ -57,15 +53,15 @@ function err() {
 
 function install_sparkmonitor(){
   # Install asyncio
-  retry_apt_command "/opt/conda/default/bin/pip install asyncio" ||
+  retry_apt_command "${CONDA_DIRECTORY}/bin/pip install asyncio" ||
     err "Failed to install asyncio"
 
   # Remove existing PySpark kernel as it uses pyspark shell instead of ipython
-  retry_apt_command "/opt/conda/default/bin/jupyter kernelspec remove ${EXISTING_PYSPARK_KERNEL} -f" ||
+  retry_apt_command "${CONDA_DIRECTORY}/bin/jupyter kernelspec remove ${EXISTING_PYSPARK_KERNEL} -f" ||
     err "Failed to remove existing PySpark kernel"
 
   # Install sparkmonitor. Don't mind if it fails to start the first time.
-  retry_apt_command "/opt/conda/default/bin/pip install sparkmonitor"
+  retry_apt_command "/${CONDA_DIRECTORY}/bin/pip install sparkmonitor"
   if [ $? != 0 ]; then
     err 'Failed to install sparkmonitor'
   fi
@@ -73,15 +69,36 @@ function install_sparkmonitor(){
 
 function configure_sparkmonitor(){
   local sparkmonitor_version;
-  sparkmonitor_version="$(/opt/conda/default/bin/pip list | grep -i sparkmonitor | awk 'END {print $2}')"
-  retry_apt_command "/opt/conda/default/bin/jupyter nbextension install sparkmonitor --py --system --symlink"
-  retry_apt_command "/opt/conda/default/bin/jupyter nbextension enable sparkmonitor --py --system"
-  retry_apt_command "/opt/conda/default/bin/jupyter serverextension enable --py --system sparkmonitor"
-  retry_apt_command "/opt/conda/default/bin/ipython profile create"
-  local ipython_profile_location="$(/opt/conda/default/bin/ipython profile locate default)"
+  sparkmonitor_version="$(${CONDA_DIRECTORY}/bin/pip list | grep -i sparkmonitor | awk 'END {print $2}')"
+  retry_apt_command "${CONDA_DIRECTORY}/bin/jupyter nbextension install sparkmonitor --py --system --symlink"
+  retry_apt_command "${CONDA_DIRECTORY}/bin/jupyter nbextension enable sparkmonitor --py --system"
+  retry_apt_command "${CONDA_DIRECTORY}/bin/jupyter serverextension enable --py --system sparkmonitor"
+  retry_apt_command "${CONDA_DIRECTORY}/bin/ipython profile create"
+  local ipython_profile_location="$(${CONDA_DIRECTORY}/bin/ipython profile locate default)"
   echo "c.InteractiveShellApp.extensions.append('sparkmonitor.kernelextension')" >>  ${ipython_profile_location}/ipython_kernel_config.py
 }
 
+function install_pyspark_kernel() {
+  echo "Installing pyspark Kernel..."
+  local pyspark_kernel_tmp_dir=$(mktemp -d -t dataproc-init-actions-sparkmonitor-XXXX)
+
+  cat << EOF >"${pyspark_kernel_tmp_dir}/kernel.json"
+  {
+   "argv": [
+      "python", "-m", "ipykernel", "-f", "{connection_file}"],
+   "display_name": "PySpark",
+   "language": "python",
+   "env": {
+      "SPARK_HOME": "/usr/lib/spark/",
+      "PYTHONPATH": "${PYTHON_PATH}"
+   }
+  }
+EOF
+
+  /opt/conda/default/bin/jupyter kernelspec install "${pyspark_kernel_tmp_dir}"
+  rm -rf $pyspark_kernel_tmp_dir
+  echo "PySpark kernel setup completed!"
+}
 function main() {
   if [[ ! -f "${JUPYTER_INIT_SCRIPT}" ]]; then
     err "Jupyter component is missing"
@@ -93,20 +110,6 @@ function main() {
     exit 1
   fi
 
-  echo "Cloning initialization actions from '${INIT_ACTIONS_REPO}' repo..."
-  INIT_ACTIONS_DIR=$(mktemp -d -t dataproc-init-actions-XXXX)
-  readonly INIT_ACTIONS_DIR
-  export INIT_ACTIONS_DIR
-  if [[ ${INIT_ACTIONS_REPO} == gs://* ]]; then
-    gsutil -m rsync -r "${INIT_ACTIONS_REPO}" "${INIT_ACTIONS_DIR}"
-  else
-    git clone -b "${INIT_ACTIONS_BRANCH}" --single-branch "${INIT_ACTIONS_REPO}" "${INIT_ACTIONS_DIR}"
-  fi
-  find "${INIT_ACTIONS_DIR}" -name '*.sh' -exec chmod +x {} \;
-
-  # Ensure we have Conda installed.
-  bash "${INIT_ACTIONS_DIR}/conda/bootstrap-conda.sh"
-
   if [[ -f /etc/profile.d/conda.sh ]]; then
     source /etc/profile.d/conda.sh
   fi
@@ -116,7 +119,7 @@ function main() {
   fi
 
   if [[ "${ROLE}" == 'Master' ]]; then
-    "${INIT_ACTIONS_DIR}/jupyter-sparkmonitor/internal/setup-jupyter-kernel.sh"
+    install_pyspark_kernel
   fi
 
   update_apt_get || err 'Failed to update apt-get'
