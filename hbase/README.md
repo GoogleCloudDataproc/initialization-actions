@@ -25,9 +25,13 @@ Apache HBase installed on every node:
     ```
 
 1.  Apache HBase UI on the master node can be accessed after connecting with the
-    command: `bash gcloud compute ssh <CLUSTER_NAME>-m-0 -- -L
-    16010:<CLUSTER_NAME>-m-0:16010` Then just open a browser and type
-    `localhost:16010` address.
+    command:
+
+    ```bash
+    gcloud compute ssh <CLUSTER_NAME>-m-0 -- -L 16010:<CLUSTER_NAME>-m-0:16010
+    ```
+
+    Then just open a browser and type `localhost:16010` address.
 
 1.  HBase running on dataproc can be easily scaled up. The following command
     will add three additional workers (RegionServers) to previously created
