@@ -1,6 +1,6 @@
 # Apache HBase
 
-This script installs [Apache HBase](https://hbase.apache.org/) on dataproc
+This script installs [Apache HBase](https://hbase.apache.org/) on Dataproc
 clusters. Apache HBase is a distributed and scalable Hadoop database.
 
 ## Using this initialization action
@@ -33,7 +33,7 @@ Apache HBase installed on every node:
 
     Then just open a browser and type `localhost:16010` address.
 
-1.  HBase running on dataproc can be easily scaled up. The following command
+1.  HBase running on Dataproc can be easily scaled up. The following command
     will add three additional workers (RegionServers) to previously created
     cluster named `<CLUSTER_NAME>`.
 
@@ -60,7 +60,7 @@ metadata during the cluster creation process.
 
 ## Using of Kerberos authentication and rpc encryption for HBase
 
-On dataproc clusters HBase uses no Kerberos authentication by default. This mode
+On Dataproc clusters HBase uses no Kerberos authentication by default. This mode
 can be changed by passing `enable-kerberos` and `keytab-bucket` as cluster
 metadata during cluster creation process. The script automatically changes the
 necessary configurations and creates all keytabs necessary for HBase.
@@ -99,7 +99,7 @@ necessary configurations and creates all keytabs necessary for HBase.
 
 ## Important notes
 
--   This initialization works with all cluster configuration on dataproc version
+-   This initialization works with all cluster configuration on Dataproc version
     1.3 and 1.2, but it is intended to be used in the HA mode.
 -   In HA clusters, HBase is using Zookeeper that is pre-installed on master
     nodes.
