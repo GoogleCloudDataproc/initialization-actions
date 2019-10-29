@@ -22,10 +22,14 @@ set -euxo pipefail
 export PATH=/usr/bin:$PATH
 
 readonly HBASE_HOME='/usr/lib/hbase'
-readonly BIGTABLE_HBASE_CLIENT='bigtable-hbase-1.x-hadoop-1.3.0.jar'
-readonly BIGTABLE_HBASE_DL_LINK="http://central.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-1.x-hadoop/1.3.0/${BIGTABLE_HBASE_CLIENT}"
-readonly SPARK_HBASE_CLIENT='shc-core-1.1.1-2.1-s_2.11.jar'
-readonly SPARK_HBASE_CLIENT_DL_LINK="http://repo.hortonworks.com/content/groups/public/com/hortonworks/shc-core/1.1.1-2.1-s_2.11/${SPARK_HBASE_CLIENT}"
+
+readonly BIGTABLE_HBASE_VERSION='1.12.1'
+readonly BIGTABLE_HBASE_CLIENT="bigtable-hbase-1.x-hadoop-${BIGTABLE_HBASE_VERSION}.jar"
+readonly BIGTABLE_HBASE_DL_LINK="http://central.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-1.x-hadoop/${BIGTABLE_HBASE_VERSION}/${BIGTABLE_HBASE_CLIENT}"
+
+readonly SPARK_HBASE_VERSION='1.1.1-2.1-s_2.11'
+readonly SPARK_HBASE_CLIENT="shc-core-${SPARK_HBASE_VERSION}.jar"
+readonly SPARK_HBASE_CLIENT_DL_LINK="http://repo.hortonworks.com/content/groups/public/com/hortonworks/shc-core/${SPARK_HBASE_VERSION}/${SPARK_HBASE_CLIENT}"
 
 function retry_apt_command() {
   cmd="$1"
@@ -62,7 +66,7 @@ function install_shc() {
   mkdir -p "/usr/lib/spark/external"
   local out="/usr/lib/spark/external/${SPARK_HBASE_CLIENT}"
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${SPARK_HBASE_CLIENT_DL_LINK}" -O ${out}
+    "${SPARK_HBASE_CLIENT_DL_LINK}" -O "${out}"
   ln -s "${out}" "/usr/lib/spark/external/shc-core.jar"
 }
 
@@ -108,7 +112,7 @@ function main() {
     /usr/share/google/get_metadata_value ../project/project-id)"
 
   update_apt_get || err 'Unable to update packages lists.'
-  install_apt_get hbase || err 'Unable to install hbase.'
+  install_apt_get hbase || err 'Unable to install HBase.'
 
   install_big_table_client || err 'Unable to install big table client.'
   configure_big_table_client || err 'Failed to configure big table client.'
