@@ -14,9 +14,13 @@ class JupyterTestCase(DataprocTestCase):
             jupyter_port)
         self.assert_instance_command(name, verify_cmd)
 
-    @parameterized.parameters(
-        ("SINGLE", ["m"]),
-        ("STANDARD", ["m"]),
+    @parameterized.expand(
+        [
+            ("SINGLE", "1.3", ["m"]),
+            ("STANDARD", "1.3", ["m"]),
+            ("SINGLE", "1.4", ["m"]),
+            ("STANDARD", "1.4", ["m"]),
+        ]
     )
     def test_sparkmonitor(self, configuration, dataproc_version, machine_suffixes):
         self.createCluster(configuration,
