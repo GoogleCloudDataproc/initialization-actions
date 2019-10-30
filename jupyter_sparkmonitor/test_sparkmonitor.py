@@ -22,7 +22,7 @@ class JupyterTestCase(DataprocTestCase):
             ("STANDARD", "1.4", ["m"]),
         ],
         testcase_func_name=DataprocTestCase.generate_verbose_test_name)
-    def test_jupyter_sparkmonitor(self, configuration, dataproc_version, machine_suffixes):
+    def test_sparkmonitor(self, configuration, dataproc_version, machine_suffixes):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
                            dataproc_version,
