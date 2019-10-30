@@ -1,12 +1,11 @@
 import unittest
 
 from parameterized import parameterized
-
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 
 class JupyterTestCase(DataprocTestCase):
-    COMPONENT = 'jupyter-sparkmonitor'
+    COMPONENT = 'JUPYTER,ANACONDA'
     INIT_ACTIONS = ['jupyter-sparkmonitor/sparkmonitor.sh']
 
     def verify_instance(self, name, jupyter_port):
