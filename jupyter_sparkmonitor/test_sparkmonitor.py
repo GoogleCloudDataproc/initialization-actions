@@ -1,6 +1,6 @@
-import unittest
-
-from parameterized import parameterized
+import pkg_resources
+from absl.testing import absltest
+from absl.testing import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 
