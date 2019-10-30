@@ -5,7 +5,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 
 class JupyterTestCase(DataprocTestCase):
-    COMPONENT = 'JUPYTER,ANACONDA'
+    COMPONENT = 'jupyter_sparkmonitor'
     INIT_ACTIONS = ['jupyter_sparkmonitor/sparkmonitor.sh']
 
     def verify_instance(self, name, jupyter_port):
@@ -14,14 +14,10 @@ class JupyterTestCase(DataprocTestCase):
             jupyter_port)
         self.assert_instance_command(name, verify_cmd)
 
-    @parameterized.expand(
-        [
-            ("SINGLE", "1.3", ["m"]),
-            ("STANDARD", "1.3", ["m"]),
-            ("SINGLE", "1.4", ["m"]),
-            ("STANDARD", "1.4", ["m"]),
-        ],
-        testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    @parameterized.parameters(
+        ("SINGLE", ["m"]),
+        ("STANDARD", ["m"]),
+    )
     def test_sparkmonitor(self, configuration, dataproc_version, machine_suffixes):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
@@ -35,4 +31,4 @@ class JupyterTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()
