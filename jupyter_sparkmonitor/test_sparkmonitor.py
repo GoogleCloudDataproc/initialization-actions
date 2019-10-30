@@ -5,6 +5,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 
 class JupyterTestCase(DataprocTestCase):
+    OPTIONAL_COMPONENTS = 'ANACONDA,JUPYTER'
     COMPONENT = 'jupyter_sparkmonitor'
     INIT_ACTIONS = ['jupyter_sparkmonitor/sparkmonitor.sh']
 
@@ -18,10 +19,10 @@ class JupyterTestCase(DataprocTestCase):
         ("SINGLE", ["m"]),
         ("STANDARD", ["m"]),
     )
-    def test_sparkmonitor(self, configuration, dataproc_version, machine_suffixes):
+    def test_sparkmonitor(self, configuration, machine_suffixes):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           dataproc_version,
+                           optional_components=self.OPTIONAL_COMPONENTS,
                            timeout_in_minutes=15,
                            machine_type="n1-standard-2")
 
