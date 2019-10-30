@@ -26,7 +26,7 @@ readonly CONDA_DIRECTORY='/opt/conda/default'
 readonly PYTHON_PATH="${CONDA_DIRECTORY}/bin/python"
 readonly EXISTING_PYSPARK_KERNEL='pyspark'
 
-function retry_apt_command() {
+function retry_command() {
   cmd="$1"
   for ((i = 0; i < 10; i++)); do
     if eval "$cmd"; then
@@ -38,12 +38,12 @@ function retry_apt_command() {
 }
 
 function update_apt_get() {
-  retry_apt_command "apt-get update"
+  retry_command "apt-get update"
 }
 
 function install_apt_get() {
   pkgs="$@"
-  retry_apt_command "apt-get install -y $pkgs"
+  retry_command "apt-get install -y $pkgs"
 }
 
 function err() {
@@ -53,15 +53,15 @@ function err() {
 
 function install_sparkmonitor(){
   # Install asyncio
-  retry_apt_command "${CONDA_DIRECTORY}/bin/pip install asyncio" ||
+  retry_command "${CONDA_DIRECTORY}/bin/pip install asyncio" ||
     err "Failed to install asyncio"
 
   # Remove existing PySpark kernel as it uses pyspark shell instead of ipython
-  retry_apt_command "${CONDA_DIRECTORY}/bin/jupyter kernelspec remove ${EXISTING_PYSPARK_KERNEL} -f" ||
+  ${CONDA_DIRECTORY}/bin/jupyter kernelspec remove ${EXISTING_PYSPARK_KERNEL} -f ||
     err "Failed to remove existing PySpark kernel"
 
   # Install sparkmonitor. Don't mind if it fails to start the first time.
-  retry_apt_command "/${CONDA_DIRECTORY}/bin/pip install sparkmonitor"
+  retry_command "/${CONDA_DIRECTORY}/bin/pip install sparkmonitor"
   if [ $? != 0 ]; then
     err 'Failed to install sparkmonitor'
   fi
@@ -70,14 +70,16 @@ function install_sparkmonitor(){
 function configure_sparkmonitor(){
   local sparkmonitor_version;
   sparkmonitor_version="$(${CONDA_DIRECTORY}/bin/pip list | grep -i sparkmonitor | awk 'END {print $2}')"
-  retry_apt_command "${CONDA_DIRECTORY}/bin/jupyter nbextension install sparkmonitor --py --system --symlink"
-  retry_apt_command "${CONDA_DIRECTORY}/bin/jupyter nbextension enable sparkmonitor --py --system"
-  retry_apt_command "${CONDA_DIRECTORY}/bin/jupyter serverextension enable --py --system sparkmonitor"
-  retry_apt_command "${CONDA_DIRECTORY}/bin/ipython profile create"
+  ${CONDA_DIRECTORY}/bin/jupyter nbextension install sparkmonitor --py --system --symlink
+  ${CONDA_DIRECTORY}/bin/jupyter nbextension enable sparkmonitor --py --system
+  ${CONDA_DIRECTORY}/bin/jupyter serverextension enable --py --system sparkmonitor
+  ${CONDA_DIRECTORY}/bin/ipython profile create
   local ipython_profile_location="$(${CONDA_DIRECTORY}/bin/ipython profile locate default)"
   echo "c.InteractiveShellApp.extensions.append('sparkmonitor.kernelextension')" >>  ${ipython_profile_location}/ipython_kernel_config.py
 }
 
+# Modify a PySpark kernel because Sparkmonitor requires IPython Kernel to be used.
+# But the default PySpark kernel uses pyspark shell.
 function install_pyspark_kernel() {
   echo "Installing pyspark Kernel..."
   local pyspark_kernel_tmp_dir=$(mktemp -d -t dataproc-init-actions-sparkmonitor-XXXX)
@@ -100,6 +102,10 @@ EOF
   echo "PySpark kernel setup completed!"
 }
 function main() {
+  if [[ "${ROLE}" != 'Master' ]]; then
+    exit 0
+  fi
+
   if [[ ! -f "${JUPYTER_INIT_SCRIPT}" ]]; then
     err "Jupyter component is missing"
     exit 1
@@ -118,13 +124,11 @@ function main() {
     source /etc/profile.d/effective-python.sh
   fi
 
-  if [[ "${ROLE}" == 'Master' ]]; then
-    install_pyspark_kernel
-  fi
-
   update_apt_get || err 'Failed to update apt-get'
   install_sparkmonitor
   configure_sparkmonitor
+  install_pyspark_kernel
+
   systemctl daemon-reload
   systemctl restart jupyter.service
 }

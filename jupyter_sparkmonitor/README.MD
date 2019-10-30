@@ -29,7 +29,7 @@ Sparkmonitor installed:
     CLUSTER=<CLUSTER_NAME>
     gcloud dataproc clusters create $CLUSTER \
         --optional-components ANACONDA,JUPYTER --enable-component-gateway \
-        --initialization-actions gs://$MY_BUCKET/jupyter-sparkmonitor/sparkmonitor.sh
+        --initialization-actions gs://$MY_BUCKET/jupyter_sparkmonitor/sparkmonitor.sh
     ```
 
 1.  To access to the Jupter web interface, you can just use the Component Gatway on the
@@ -50,8 +50,6 @@ on the Dataproc master node by doing the following:
     -   Remove existing *PySpark* kernel under`jupyter/kernels/pyspark/kernel.json`
     -   Generate a new *PySpark* kernel and add to the same location
     -   Refresh Jupyter config and restart Jupyter service
-
-**NOTE**: to be run as an init action.
 
 ## Important notes
 
