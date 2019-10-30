@@ -6,7 +6,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class JupyterTestCase(DataprocTestCase):
     COMPONENT = 'JUPYTER,ANACONDA'
-    INIT_ACTIONS = ['jupyter-sparkmonitor/sparkmonitor.sh']
+    INIT_ACTIONS = ['jupyter_sparkmonitor/sparkmonitor.sh']
 
     def verify_instance(self, name, jupyter_port):
         verify_cmd = "curl {} -L {}:{} | grep 'Jupyter Notebook'".format(
