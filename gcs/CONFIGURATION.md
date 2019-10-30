@@ -345,7 +345,7 @@ is `false`.
 
 *   `fs.gs.http.read-timeout` (default: `20000`)
 
-    Timeout in milliseconds to read from an established connection. Use 0 for an
+    Timeout in milliseconds to read from an established connection. Use `0` for an
     infinite timeout.
 
 ### Fadvise feature configuration
