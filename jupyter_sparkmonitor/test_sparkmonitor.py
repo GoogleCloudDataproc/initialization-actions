@@ -14,7 +14,7 @@ class JupyterTestCase(DataprocTestCase):
             jupyter_port)
         self.assert_instance_command(name, verify_cmd)
 
-    @parameterized.expand(
+    @parameterized.parameters(
         [
             ("SINGLE", "1.3", ["m"]),
             ("STANDARD", "1.3", ["m"]),
