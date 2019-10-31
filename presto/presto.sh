@@ -54,11 +54,12 @@ function wait_for_presto_cluster_ready() {
   return 1
 }
 
+# Download and unpack Presto Server
 function get_presto() {
-  # Download and unpack Presto server
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    ${PRESTO_BASE_URL}/presto-server/${PRESTO_VERSION}/presto-server-${PRESTO_VERSION}.tar.gz
-  tar -zxvf presto-server-${PRESTO_VERSION}.tar.gz
+    ${PRESTO_BASE_URL}/presto-server/${PRESTO_VERSION}/presto-server-${PRESTO_VERSION}.tar.gz -O - |
+    tar -xzf - -C /opt
+  ln -s /opt/presto-server-${PRESTO_VERSION} /opt/presto-server
   mkdir -p /var/presto/data
 }
 
@@ -114,7 +115,7 @@ function calculate_memory() {
 }
 
 function configure_node_properties() {
-  cat >presto-server-${PRESTO_VERSION}/etc/node.properties <<EOF
+  cat >/opt/presto-server/etc/node.properties <<EOF
 node.environment=production
 node.id=$(uuidgen)
 node.data-dir=/var/presto/data
@@ -127,32 +128,32 @@ function configure_hive() {
     --configuration_file /etc/hive/conf/hive-site.xml \
     --name hive.metastore.uris 2>/dev/null)
 
-  cat >presto-server-${PRESTO_VERSION}/etc/catalog/hive.properties <<EOF
+  cat >/opt/presto-server/etc/catalog/hive.properties <<EOF
 connector.name=hive-hadoop2
 hive.metastore.uri=${metastore_uri}
 EOF
 }
 
 function configure_connectors() {
-  cat >presto-server-${PRESTO_VERSION}/etc/catalog/tpch.properties <<EOF
+  cat >/opt/presto-server/etc/catalog/tpch.properties <<EOF
 connector.name=tpch
 EOF
 
-  cat >presto-server-${PRESTO_VERSION}/etc/catalog/tpcds.properties <<EOF
+  cat >/opt/presto-server/etc/catalog/tpcds.properties <<EOF
 connector.name=tpcds
 EOF
 
-  cat >presto-server-${PRESTO_VERSION}/etc/catalog/jmx.properties <<EOF
+  cat >/opt/presto-server/etc/catalog/jmx.properties <<EOF
 connector.name=jmx
 EOF
 
-  cat >presto-server-${PRESTO_VERSION}/etc/catalog/memory.properties <<EOF
+  cat >/opt/presto-server/etc/catalog/memory.properties <<EOF
 connector.name=memory
 EOF
 }
 
 function configure_jvm() {
-  cat >presto-server-${PRESTO_VERSION}/etc/jvm.config <<EOF
+  cat >/opt/presto-server/etc/jvm.config <<EOF
 -server
 -Xmx${PRESTO_JVM_MB}m
 -Xmn512m
@@ -169,15 +170,15 @@ function configure_jvm() {
 EOF
 }
 
+# Configure master properties
 function configure_master() {
-  # Configure master properties
   if [[ ${WORKER_COUNT} == 0 ]]; then
     # master on single-node is also worker
     include_coordinator='true'
   else
     include_coordinator='false'
   fi
-  cat >presto-server-${PRESTO_VERSION}/etc/config.properties <<EOF
+  cat >/opt/presto-server/etc/config.properties <<EOF
 coordinator=true
 node-scheduler.include-coordinator=${include_coordinator}
 http-server.http.port=${HTTP_PORT}
@@ -190,14 +191,14 @@ discovery-server.enabled=true
 discovery.uri=http://${PRESTO_MASTER_FQDN}:${HTTP_PORT}
 EOF
 
-  # Install cli
+  # Install CLI
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
     ${PRESTO_BASE_URL}/presto-cli/${PRESTO_VERSION}/presto-cli-${PRESTO_VERSION}-executable.jar -O /usr/bin/presto
   chmod a+x /usr/bin/presto
 }
 
 function configure_worker() {
-  cat >presto-server-${PRESTO_VERSION}/etc/config.properties <<EOF
+  cat >/opt/presto-server/etc/config.properties <<EOF
 coordinator=false
 http-server.http.port=${HTTP_PORT}
 query.max-memory=999TB
@@ -209,17 +210,16 @@ discovery.uri=http://${PRESTO_MASTER_FQDN}:${HTTP_PORT}
 EOF
 }
 
+# Start Presto as SystemD service
 function start_presto() {
-  # Start presto as systemd job
-
   cat <<EOF >${INIT_SCRIPT}
 [Unit]
 Description=Presto DB
 
 [Service]
 Type=forking
-ExecStart=/presto-server-${PRESTO_VERSION}/bin/launcher.py start
-ExecStop=/presto-server-${PRESTO_VERSION}/bin/launcher.py stop
+ExecStart=/opt/presto-server/bin/launcher.py start
+ExecStop=/opt/presto-server/bin/launcher.py stop
 Restart=always
 
 [Install]
@@ -236,10 +236,10 @@ EOF
 
 function configure_and_start_presto() {
   # Copy required Jars
-  cp "${CONNECTOR_JAR}" "presto-server-${PRESTO_VERSION}/plugin/hive-hadoop2"
+  cp "${CONNECTOR_JAR}" /opt/presto-server/plugin/hive-hadoop2
 
   # Configure Presto
-  mkdir -p presto-server-${PRESTO_VERSION}/etc/catalog
+  mkdir -p /opt/presto-server/etc/catalog
 
   configure_node_properties
   configure_hive
@@ -259,6 +259,11 @@ function configure_and_start_presto() {
 }
 
 function main() {
+  if [[ -d /opt/presto-server ]]; then
+    echo "Presto already installed in the '/opt/presto-server' directory"
+    exit 1
+  fi
+
   get_presto
   calculate_memory
   configure_and_start_presto
