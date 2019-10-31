@@ -145,6 +145,8 @@ EOF
     systemctl restart presto
   fi
   set -o errexit # errors not ok anymore
+
+  ln -s "${ALLUXIO_HOME}/bin/alluxio" /usr/bin
 }
 
 # Configure alluxio-site.properties
