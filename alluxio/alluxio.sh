@@ -137,16 +137,12 @@ EOF
     systemctl restart hive-metastore hive-server2
   fi
 
-  # Optionally configure Presto
-  # OK to fail in this section
-  set +o errexit
-  PRESTO_HOME=${PRESTO_HOME:-$(ls -d -- /presto-server-*)}
-  if [[ -n $PRESTO_HOME ]]; then
+  PRESTO_HOME=${PRESTO_HOME:-/opt/presto-server}
+  if [[ -d $PRESTO_HOME ]]; then
     mkdir -p "${PRESTO_HOME}/plugin/hive-hadoop2/"
     ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" "${PRESTO_HOME}/plugin/hive-hadoop2/alluxio-client.jar"
     systemctl restart presto
   fi
-  set -o errexit # errors not ok anymore
 
   ln -s "${ALLUXIO_HOME}/bin/alluxio" /usr/bin
 }
