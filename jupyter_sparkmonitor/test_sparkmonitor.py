@@ -1,12 +1,14 @@
-import pkg_resources
 from absl.testing import absltest
 from absl.testing import parameterized
+
+from absl import flags
+
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 
 class JupyterTestCase(DataprocTestCase):
     OPTIONAL_COMPONENTS = 'ANACONDA,JUPYTER'
-    COMPONENT = 'jupyter_sparkmonitor'
+    COMPONENT = 'sparkmonitor'
     INIT_ACTIONS = ['jupyter_sparkmonitor/sparkmonitor.sh']
 
     def verify_instance(self, name, jupyter_port):
@@ -20,15 +22,19 @@ class JupyterTestCase(DataprocTestCase):
         ("STANDARD", ["m"]),
     )
     def test_sparkmonitor(self, configuration, machine_suffixes):
+        dataproc_image_version = '1.4-debian9'
+        FLAGS = flags.FLAGS
+        flags.DEFINE_string('image_version', '1.4', 'dataproc_version, e.g. 1.2')
+        jupyter_port = "8123"
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
                            optional_components=self.OPTIONAL_COMPONENTS,
-                           timeout_in_minutes=15,
+                           timeout_in_minutes=10,
                            machine_type="n1-standard-2")
 
         for machine_suffix in machine_suffixes:
             self.verify_instance(
-                "{}-{}".format(self.getClusterName(), machine_suffix), "8123")
+                "{}-{}".format(self.getClusterName(), machine_suffix), jupyter_port)
 
 
 if __name__ == '__main__':
