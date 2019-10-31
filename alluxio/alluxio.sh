@@ -93,8 +93,9 @@ function bootstrap_alluxio() {
     done
   fi
 
-  # Configure systemd services
-  cat > "/etc/systemd/system/alluxio-master.service" <<EOF
+  if [[ "${ROLE}" == "Master" ]]; then
+    # Configure systemd services
+    cat >"/etc/systemd/system/alluxio-master.service" <<EOF
 [Unit]
 Description=Alluxio Master
 After=default.target
@@ -107,9 +108,9 @@ Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 EOF
-  systemctl enable alluxio-master
-
-  cat > "/etc/systemd/system/alluxio-worker.service" <<EOF
+    systemctl enable alluxio-master
+  else
+    cat >"/etc/systemd/system/alluxio-worker.service" <<EOF
 [Unit]
 Description=Alluxio Worker
 After=default.target
@@ -122,7 +123,8 @@ Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 EOF
-  systemctl enable alluxio-worker
+    systemctl enable alluxio-worker
+  fi
 
   # Configure client applications
   mkdir -p "${SPARK_HOME}/jars/"
