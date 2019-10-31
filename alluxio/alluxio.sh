@@ -93,8 +93,8 @@ function bootstrap_alluxio() {
     done
   fi
 
+  # Configure systemd services
   if [[ "${ROLE}" == "Master" ]]; then
-    # Configure systemd services
     cat >"/etc/systemd/system/alluxio-master.service" <<EOF
 [Unit]
 Description=Alluxio Master
