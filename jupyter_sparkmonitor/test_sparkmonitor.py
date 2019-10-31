@@ -17,14 +17,18 @@ class JupyterTestCase(DataprocTestCase):
             jupyter_port)
         self.assert_instance_command(name, verify_cmd)
 
+        verify_cmd_pip_check = "/opt/conda/default/bin/pip list | grep 'sparkmonitor'"
+        self.assert_instance_command(name, verify_cmd_pip_check)
+
     @parameterized.parameters(
         ("SINGLE", ["m"]),
         ("STANDARD", ["m"]),
     )
     def test_sparkmonitor(self, configuration, machine_suffixes):
+        # Use 1.4 version of Dataproc to test because it requires Python 3
         dataproc_image_version = '1.4-debian9'
         FLAGS = flags.FLAGS
-        flags.DEFINE_string('image_version', '1.4', 'dataproc_version, e.g. 1.2')
+        FLAGS.image_version = dataproc_image_version
         jupyter_port = "8123"
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
