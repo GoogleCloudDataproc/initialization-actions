@@ -30,6 +30,7 @@ These samples are provided to show how various packages and components can be in
 This repository presently offers the following actions for use with Cloud Dataproc clusters.
 
 * Install additional Apache Hadoop ecosystem components
+  * [Alluxio](https://www.alluxio.io/)
   * [Apache Drill](http://drill.apache.org)
   * [Apache Flink](http://flink.apache.org)
   * [Apache Gobblin](https://gobblin.apache.org/)

@@ -1,14 +1,15 @@
 package(default_visibility = ["//visibility:public"])
 
-exports_files(["presto.sh"])
-
 py_test(
-    name = "test_presto",
+    name = "test_alluxio",
     size = "enormous",
-    srcs = ["test_presto.py"],
-    data = ["presto.sh"],
+    srcs = ["test_alluxio.py"],
+    data = [
+        "alluxio.sh",
+        "//presto:presto.sh",
+    ],
     local = True,
-    shard_count = 4,
+    shard_count = 2,
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",
