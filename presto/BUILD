@@ -1,5 +1,7 @@
 package(default_visibility = ["//visibility:public"])
 
+exports_files(["presto.sh"])
+
 py_test(
     name = "test_presto",
     size = "enormous",
