@@ -93,6 +93,37 @@ function bootstrap_alluxio() {
     done
   fi
 
+  # Configure systemd services
+  cat > "/etc/systemd/system/alluxio-master.service" <<EOF
+[Unit]
+Description=Alluxio Master
+After=default.target
+[Service]
+Type=simple
+User=root
+WorkingDirectory=${ALLUXIO_HOME}
+ExecStart=${ALLUXIO_HOME}/bin/alluxio-start.sh master
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+EOF
+  systemctl enable alluxio-master
+
+  cat > "/etc/systemd/system/alluxio-worker.service" <<EOF
+[Unit]
+Description=Alluxio Worker
+After=default.target
+[Service]
+Type=simple
+User=root
+WorkingDirectory=${ALLUXIO_HOME}
+ExecStart=${ALLUXIO_HOME}/bin/alluxio-start.sh worker NoMount
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+EOF
+  systemctl enable alluxio-worker
+
   # Configure client applications
   mkdir -p "${SPARK_HOME}/jars/"
   ln -s "${ALLUXIO_HOME}/client/alluxio-client.jar" "${SPARK_HOME}/jars/alluxio-client.jar"
@@ -157,12 +188,12 @@ function configure_alluxio() {
 function start_alluxio() {
   if [[ "${ROLE}" == "Master" ]]; then
     ${ALLUXIO_HOME}/bin/alluxio formatMaster
-    ${ALLUXIO_HOME}/bin/alluxio-start.sh master
+    systemctl restart alluxio-master
   else
     sleep 60 # TODO: Remove sleep after making AlluxioWorkerMonitor retry configurable
     ${ALLUXIO_HOME}/bin/alluxio-mount.sh SudoMount local
     ${ALLUXIO_HOME}/bin/alluxio formatWorker
-    ${ALLUXIO_HOME}/bin/alluxio-start.sh worker NoMount
+    systemctl restart alluxio-worker
   fi
 }
 
