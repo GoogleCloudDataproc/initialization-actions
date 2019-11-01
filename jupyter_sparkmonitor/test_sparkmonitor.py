@@ -12,13 +12,14 @@ class JupyterTestCase(DataprocTestCase):
     INIT_ACTIONS = ['jupyter_sparkmonitor/sparkmonitor.sh']
 
     def verify_instance(self, name, jupyter_port):
+        verify_cmd_pip_check = "/opt/conda/default/bin/pip list | grep 'sparkmonitor'"
+        self.assert_instance_command(name, verify_cmd_pip_check)
+
         verify_cmd = "curl {} -L {}:{} | grep 'Jupyter Notebook'".format(
             "--retry 10 --retry-delay 10 --retry-connrefused", name,
             jupyter_port)
         self.assert_instance_command(name, verify_cmd)
 
-        verify_cmd_pip_check = "/opt/conda/default/bin/pip list | grep 'sparkmonitor'"
-        self.assert_instance_command(name, verify_cmd_pip_check)
 
     @parameterized.parameters(
         ("SINGLE", ["m"]),

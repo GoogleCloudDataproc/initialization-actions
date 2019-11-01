@@ -25,6 +25,8 @@ readonly JUPYTER_INIT_SCRIPT='/usr/lib/systemd/system/jupyter.service'
 readonly CONDA_DIRECTORY='/opt/conda/default'
 readonly PYTHON_PATH="${CONDA_DIRECTORY}/bin/python"
 readonly EXISTING_PYSPARK_KERNEL='pyspark'
+readonly DATAPROC_VERSION="$(grep DATAPROC_VERSION /etc/environment | cut -d= -f2 | sed -e 's/"//g')"
+
 
 function retry_command() {
   cmd="$1"
@@ -102,6 +104,11 @@ EOF
   echo "PySpark kernel setup completed!"
 }
 function main() {
+  if [[ ${DATAPROC_VERSION} < '1.4' ]]; then
+    err "Must use Dataproc image version 1.4 or higher"
+    exit 1
+  fi
+
   if [[ "${ROLE}" != 'Master' ]]; then
     exit 0
   fi
