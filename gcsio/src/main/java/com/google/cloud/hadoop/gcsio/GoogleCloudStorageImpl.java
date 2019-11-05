@@ -259,14 +259,19 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
             .setApplicationName(options.getAppName())
             .build();
 
-    // Create the gRPC stub;
-    Map<String, Object> serviceConfig = getGrpcServiceConfig(options.getReadChannelOptions());
-    this.gcsGrpcStub =
-        StorageGrpc.newStub(
-            GoogleDefaultChannelBuilder.forTarget(GRPC_TARGET)
-                .defaultServiceConfig(serviceConfig)
-                .build())
-            .withExecutor(backgroundTasksThreadPool);
+    // Create the gRPC stub if necessary;
+    if (storageOptions.isGrpcEnabled()) {
+      if (System.getProperty("io.grpc.internal.DnsNameResolverProvider.enable_grpclb") == null) {
+        System.setProperty("io.grpc.internal.DnsNameResolverProvider.enable_grpclb", "true");
+      }
+      Map<String, Object> serviceConfig = getGrpcServiceConfig(options.getReadChannelOptions());
+      this.gcsGrpcStub =
+          StorageGrpc.newStub(
+              GoogleDefaultChannelBuilder.forTarget(GRPC_TARGET)
+              .defaultServiceConfig(serviceConfig)
+              .build())
+          .withExecutor(backgroundTasksThreadPool);
+    }
   }
 
   private Map<String, Object> getGrpcServiceConfig(GoogleCloudStorageReadOptions readOptions) {
