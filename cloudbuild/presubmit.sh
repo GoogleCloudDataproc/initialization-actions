@@ -51,8 +51,9 @@ determine_tests_to_run() {
   # Determines init actions directories that were changed
   declare -a changed_dirs
   for changed_file in "${CHANGED_FILES[@]}"; do
-    local changed_dir="${changed_file/\/*/}/"
-    # Run all tests if common directories were changed
+    local changed_dir
+    changed_dir="$(dirname "${changed_file}")/"
+    # Run all tests if common directories modified
     if [[ ${changed_dir} =~ ^(integration_tests/|util/|cloudbuild/)$ ]]; then
       echo "All tests will be run: '${changed_dir}' was changed"
       TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
@@ -60,7 +61,7 @@ determine_tests_to_run() {
     fi
     # Hack to workaround empty array expansion on old versions of Bash.
     # See: https://stackoverflow.com/a/7577209/3227693
-    if [[ ${changed_dirs[*]+" ${changed_dirs[*]} "} != *" ${changed_dir} "* ]]; then
+    if [[ $changed_dir != ./ ]] && [[ ${changed_dirs[*]+" ${changed_dirs[*]} "} != *" ${changed_dir} "* ]]; then
       changed_dirs+=("$changed_dir")
     fi
   done
@@ -82,9 +83,16 @@ determine_tests_to_run() {
 }
 
 run_tests() {
-  bazel test --jobs=15 --local_cpu_resources=15 --local_ram_resources=$((15 * 1024)) \
-    --action_env=INTERNAL_IP_SSH=true --test_output=errors \
-    --test_arg="--image_version=${IMAGE_VERSION}" "${TESTS_TO_RUN[@]}"
+  bazel test \
+    --jobs=15 \
+    --local_cpu_resources=15 \
+    --local_ram_resources=$((15 * 1024)) \
+    --action_env=INTERNAL_IP_SSH=true \
+    --test_output=errors \
+    --noshow_progress \
+    --noshow_loading_progress \
+    --test_arg="--image_version=${IMAGE_VERSION}" \
+    "${TESTS_TO_RUN[@]}"
 }
 
 main() {
