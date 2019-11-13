@@ -294,6 +294,7 @@
                   <include>commons-codec:commons-codec</include>
                   <include>io.grpc</include>
                   <include>io.opencensus</include>
+                  <include>io.perfmark</include>
                   <include>org.apache.httpcomponents</include>
                 </includes>
               </artifactSet>
@@ -343,6 +344,7 @@
                   <includes>
                     <include>io.grpc.**</include>
                     <include>io.opencensus.**</include>
+                    <include>io.perfmark.**</include>
                   </includes>
                 </relocation>
                 <relocation>
