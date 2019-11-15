@@ -37,6 +37,16 @@ SparkMonitor installed:
     Gateway on the GCP Dataproc cluster console. Alternatively, you can access
     following the instructions in
     [connecting to cluster web interfaces](https://cloud.google.com/dataproc/docs/concepts/cluster-web-interfaces).
+1.  After open Jupyter notebook, make sure you select the Python3 kernel
+    instead of the PySpark kernel.
+1.  Inside your notebook, you can get SparkContext and SparkSession using
+    the following code
+    ```
+    from pyspark import SparkContext
+    from pyspark.sql import SparkSession
+    sc = SparkContext.getOrCreate(conf=conf)
+    spark = SparkSession.build..appName('YOUR APP NAME').getOrCreate()
+    ```
 
 ## Internal details
 
@@ -48,13 +58,9 @@ Jupyter on the Dataproc master node by doing the following:
 -   Check to see if Conda and Jupyter Optional Components installed. Fail if
     not.
 -   Installing SparkMonitor using Python Pip.
--   Enable the SparkMonitor as Jupyter Extension and configure IPython to load
-    it.
--   Configure Jupyter PySpark Kernel to use SparkMonitor
-    -   Remove existing *PySpark* kernel
-        under`jupyter/kernels/pyspark/kernel.json`.
-    -   Generate a new *PySpark* kernel and add to the same location.
-    -   Refresh Jupyter config and restart Jupyter service.
+-   Enable the SparkMonitor as Jupyter Extension and configure IPython kernel
+    to load the extension.
+-   Refresh Jupyter config and restart Jupyter service.
 
 ## Important notes
 
