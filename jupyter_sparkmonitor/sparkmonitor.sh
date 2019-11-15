@@ -21,7 +21,7 @@ set -euxo pipefail
 
 source '/usr/local/share/google/dataproc/bdutil/bdutil_helpers.sh'
 
-readonly SPARKMONITOR_VERSION=0.0.10
+readonly SPARKMONITOR_VERSION=0.0.11
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly JUPYTER_INIT_SCRIPT='/usr/lib/systemd/system/jupyter.service'
 readonly CONDA_DIRECTORY='/opt/conda/default'
