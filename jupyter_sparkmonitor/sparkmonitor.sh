@@ -1,5 +1,6 @@
 #!/bin/bash
-# Copyright 2019 Google, Inc.
+
+# Copyright 2019 Google LLC.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -29,7 +30,6 @@ readonly PYTHON_PATH="${CONDA_DIRECTORY}/bin/python"
 readonly EXISTING_PYSPARK_KERNEL='pyspark'
 readonly DATAPROC_VERSION="$(grep DATAPROC_VERSION /etc/environment | cut -d= -f2 | sed -e 's/"//g')"
 
-
 function retry_command() {
   cmd="$1"
   for ((i = 0; i < 10; i++)); do
@@ -46,42 +46,38 @@ function update_apt_get() {
 }
 
 function install_apt_get() {
-  pkgs="$@"
+  pkgs="$*"
   retry_command "apt-get install -y $pkgs"
 }
 
 function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
-  return 1
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
+  exit 1
 }
 
-function install_sparkmonitor(){
+function install_sparkmonitor() {
   # Install asyncio
   retry_command "${CONDA_DIRECTORY}/bin/pip install asyncio" ||
     err "Failed to install asyncio"
 
   # Install sparkmonitor. Don't mind if it fails to start the first time.
-  retry_command "/${CONDA_DIRECTORY}/bin/pip install 'sparkmonitor-s==${SPARKMONITOR_VERSION}'"
-  if [ $? != 0 ]; then
+  retry_command "/${CONDA_DIRECTORY}/bin/pip install 'sparkmonitor-s==${SPARKMONITOR_VERSION}'" ||
     err 'Failed to install sparkmonitor'
-  fi
 }
 
-function configure_sparkmonitor(){
-  local sparkmonitor_version;
-  sparkmonitor_version="$(${CONDA_DIRECTORY}/bin/pip list | grep -i sparkmonitor | awk 'END {print $2}')"
+function configure_sparkmonitor() {
   ${CONDA_DIRECTORY}/bin/jupyter nbextension install sparkmonitor --py --system --symlink
   ${CONDA_DIRECTORY}/bin/jupyter nbextension enable sparkmonitor --py --system
   ${CONDA_DIRECTORY}/bin/jupyter serverextension enable --py --system sparkmonitor
   ${CONDA_DIRECTORY}/bin/ipython profile create
-  local ipython_profile_location="$(${CONDA_DIRECTORY}/bin/ipython profile locate default)"
-  echo "c.InteractiveShellApp.extensions.append('sparkmonitor.kernelextension')" >>  ${ipython_profile_location}/ipython_kernel_config.py
+  local ipython_profile_location
+  ipython_profile_location="$(${CONDA_DIRECTORY}/bin/ipython profile locate default)"
+  echo "c.InteractiveShellApp.extensions.append('sparkmonitor.kernelextension')" >>"${ipython_profile_location}/ipython_kernel_config.py"
 }
 
 function main() {
-  if if_version_at_least "${DATAPROC_VERSION}"  "1.4"; then
+  if if_version_at_least "${DATAPROC_VERSION}" "1.4"; then
     err "Must use Dataproc image version 1.4 or higher"
-    exit 1
   fi
 
   if [[ "${ROLE}" != 'Master' ]]; then
@@ -90,12 +86,10 @@ function main() {
 
   if [[ ! -f "${JUPYTER_INIT_SCRIPT}" ]]; then
     err "Jupyter component is missing"
-    exit 1
   fi
 
   if [[ ! -d "${CONDA_DIRECTORY}" ]]; then
     err "Anaconda component is missing"
-    exit 1
   fi
 
   if [[ -f /etc/profile.d/conda.sh ]]; then
@@ -107,8 +101,8 @@ function main() {
   fi
 
   update_apt_get || err 'Failed to update apt-get'
-  install_sparkmonitor
-  configure_sparkmonitor
+  install_sparkmonitor || err 'Failed to install Spark Monitor'
+  configure_sparkmonitor || err 'Failed to configure Spark Monitor'
 
   systemctl daemon-reload
   systemctl restart jupyter.service
