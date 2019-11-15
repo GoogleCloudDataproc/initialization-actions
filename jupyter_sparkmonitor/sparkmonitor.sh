@@ -108,7 +108,7 @@ function main() {
 
   update_apt_get || err 'Failed to update apt-get'
   install_sparkmonitor
-  install_pyspark_kernel
+  configure_sparkmonitor
 
   systemctl daemon-reload
   systemctl restart jupyter.service
