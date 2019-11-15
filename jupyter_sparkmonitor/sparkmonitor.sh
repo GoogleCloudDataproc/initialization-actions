@@ -19,8 +19,10 @@
 
 set -euxo pipefail
 
-readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+source '/usr/local/share/google/dataproc/bdutil/bdutil_helpers.sh'
 
+readonly SPARKMONITOR_VERSION=0.0.10
+readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly JUPYTER_INIT_SCRIPT='/usr/lib/systemd/system/jupyter.service'
 readonly CONDA_DIRECTORY='/opt/conda/default'
 readonly PYTHON_PATH="${CONDA_DIRECTORY}/bin/python"
@@ -58,12 +60,8 @@ function install_sparkmonitor(){
   retry_command "${CONDA_DIRECTORY}/bin/pip install asyncio" ||
     err "Failed to install asyncio"
 
-  # Remove existing PySpark kernel as it uses pyspark shell instead of ipython
-  ${CONDA_DIRECTORY}/bin/jupyter kernelspec remove ${EXISTING_PYSPARK_KERNEL} -f ||
-    err "Failed to remove existing PySpark kernel"
-
   # Install sparkmonitor. Don't mind if it fails to start the first time.
-  retry_command "/${CONDA_DIRECTORY}/bin/pip install sparkmonitor"
+  retry_command "/${CONDA_DIRECTORY}/bin/pip install 'sparkmonitor-s==${SPARKMONITOR_VERSION}'"
   if [ $? != 0 ]; then
     err 'Failed to install sparkmonitor'
   fi
@@ -80,31 +78,8 @@ function configure_sparkmonitor(){
   echo "c.InteractiveShellApp.extensions.append('sparkmonitor.kernelextension')" >>  ${ipython_profile_location}/ipython_kernel_config.py
 }
 
-# Modify a PySpark kernel because Sparkmonitor requires IPython Kernel to be used.
-# But the default PySpark kernel uses pyspark shell.
-function install_pyspark_kernel() {
-  echo "Installing pyspark Kernel..."
-  local pyspark_kernel_tmp_dir=$(mktemp -d -t dataproc-init-actions-sparkmonitor-XXXX)
-
-  cat << EOF >"${pyspark_kernel_tmp_dir}/kernel.json"
-  {
-   "argv": [
-      "python", "-m", "ipykernel", "-f", "{connection_file}"],
-   "display_name": "PySpark",
-   "language": "python",
-   "env": {
-      "SPARK_HOME": "/usr/lib/spark/",
-      "PYTHONPATH": "${PYTHON_PATH}"
-   }
-  }
-EOF
-
-  /opt/conda/default/bin/jupyter kernelspec install "${pyspark_kernel_tmp_dir}"
-  rm -rf $pyspark_kernel_tmp_dir
-  echo "PySpark kernel setup completed!"
-}
 function main() {
-  if [[ ${DATAPROC_VERSION} < '1.4' ]]; then
+  if if_version_at_least "${DATAPROC_VERSION}"  "1.4"; then
     err "Must use Dataproc image version 1.4 or higher"
     exit 1
   fi
@@ -133,7 +108,6 @@ function main() {
 
   update_apt_get || err 'Failed to update apt-get'
   install_sparkmonitor
-  configure_sparkmonitor
   install_pyspark_kernel
 
   systemctl daemon-reload

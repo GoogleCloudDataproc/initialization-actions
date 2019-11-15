@@ -1,3 +1,4 @@
+import pkg_resources
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -27,9 +28,11 @@ class JupyterTestCase(DataprocTestCase):
     )
     def test_sparkmonitor(self, configuration, machine_suffixes):
         # Use 1.4 version of Dataproc to test because it requires Python 3
-        dataproc_image_version = '1.4-debian9'
-        FLAGS = flags.FLAGS
-        FLAGS.image_version = dataproc_image_version
+        if self.getImageVersion() < pkg_resources.parse_version("1.4"):
+            return
+        #dataproc_image_version = '1.4-debian9'
+        #FLAGS = flags.FLAGS
+        #FLAGS.image_version = dataproc_image_version
         jupyter_port = "8123"
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
