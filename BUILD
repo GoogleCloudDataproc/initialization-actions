@@ -19,6 +19,7 @@ test_suite(
         "//hbase:test_hbase",
         "//hue:test_hue",
         "//jupyter:test_jupyter",
+        "//jupyter_sparkmonitor:test_jupyter_sparkmonitor",
         "//kafka:test_kafka",
         "//livy:test_livy",
         "//oozie:test_oozie",
