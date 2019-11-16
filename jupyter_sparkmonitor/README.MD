@@ -25,10 +25,8 @@ SparkMonitor installed:
     `<CLUSTER_NAME>`.
 
     ```bash
-    # Simple one-liner; just use all default settings for your cluster.
     # Jupyter will run on port 8123 of your master node.
-    CLUSTER=<CLUSTER_NAME>
-    gcloud dataproc clusters create $CLUSTER \
+    gcloud dataproc clusters create <CLUSTER_NAME> \
         --optional-components ANACONDA,JUPYTER --enable-component-gateway \
         --initialization-actions gs://$MY_BUCKET/jupyter_sparkmonitor/sparkmonitor.sh
     ```
@@ -37,15 +35,16 @@ SparkMonitor installed:
     Gateway on the GCP Dataproc cluster console. Alternatively, you can access
     following the instructions in
     [connecting to cluster web interfaces](https://cloud.google.com/dataproc/docs/concepts/cluster-web-interfaces).
-1.  After open Jupyter notebook, make sure you select the Python3 kernel
-    instead of the PySpark kernel.
-1.  Inside your notebook, you can get SparkContext and SparkSession using
+1.  After open Jupyter notebook, make sure you select the `Python3` kernel
+    instead of the `PySpark` kernel.
+1.  Inside your notebook, you can get `SparkContext` and `SparkSession` using
     the following code
     ```
     from pyspark import SparkContext
     from pyspark.sql import SparkSession
+
     sc = SparkContext.getOrCreate(conf=conf)
-    spark = SparkSession.build..appName('YOUR APP NAME').getOrCreate()
+    spark = SparkSession.build.appName('YOUR APP NAME').getOrCreate()
     ```
 
 ## Internal details
@@ -57,7 +56,7 @@ Jupyter on the Dataproc master node by doing the following:
 
 -   Check to see if Conda and Jupyter Optional Components installed. Fail if
     not.
--   Installing SparkMonitor using Python Pip.
+-   Installing SparkMonitor using `pip`.
 -   Enable the SparkMonitor as Jupyter Extension and configure IPython kernel
     to load the extension.
 -   Refresh Jupyter config and restart Jupyter service.
