@@ -2,14 +2,6 @@
 
 set -euxo pipefail
 
-readonly DEFAULT_GPU_DRIVER_VERSION='418'
-readonly GPU_DRIVER_VERSION=$(/usr/share/google/get_metadata_value attributes/gpu-driver-version ||
-  echo -n "${DEFAULT_GPU_DRIVER_VERSION}")
-
-readonly DEFAULT_CUDA_URL='https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-repo-ubuntu1804_10.0.130-1_amd64.deb'
-readonly CUDA_URL=$(/usr/share/google/get_metadata_value attributes/cuda-url ||
-  echo -n "${DEFAULT_CUDA_URL}")
-
 readonly DEFAULT_CUDA_VERSION='10-0'
 readonly CUDA_VERSION=$(/usr/share/google/get_metadata_value attributes/cuda-version ||
   echo -n "${DEFAULT_CUDA_VERSION}")
@@ -24,17 +16,18 @@ readonly NCCL_VERSION=$(/usr/share/google/get_metadata_value attributes/nccl-ver
 
 apt-get update
 apt-get install build-essential
-DEBIAN_FRONTEND=noninteractive apt-get install -y pciutils "linux-headers-$(uname -r)"
 
-add-apt-repository ppa:graphics-drivers/ppa -y
-apt update
-apt install "nvidia-driver-${GPU_DRIVER_VERSION}" -y 
-wget --progress=dot:mega -O cuda.deb "${CUDA_URL}"
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-ubuntu1804.pin
+mv cuda-ubuntu1804.pin /etc/apt/preferences.d/cuda-repository-pin-600
+apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub
+add-apt-repository "deb http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/ /"
+apt-get update
 
-dpkg -i cuda.deb 
-apt-key adv --fetch-keys "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/7fa2af80.pub"
-apt update
-apt install "cuda-${CUDA_VERSION}" -y 
+if [[ "${CUDA_VERSION}" != '10-0' ]]; then
+  apt-get -y install cuda
+else
+  apt-get -y install cuda-10-0
+fi
 
 wget --progress=dot:mega -O nccl.deb "${NCCL_URL}"
 dpkg -i nccl.deb
