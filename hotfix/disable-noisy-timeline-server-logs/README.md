@@ -20,6 +20,34 @@ fills up, causing HDFS to enter
 [Safemode](https://hadoop.apache.org/docs/r2.9.2/hadoop-project-dist/hadoop-hdfs/HdfsUserGuide.html#Safemode),
 which can impact running workloads.
 
+## Identifying the Issue
+The real impact of this issue is caused by HDFS entering Safemode. You can
+determine if your HDFS has entered Safemode by running the following command
+from your Dataproc Master node.
+
+```bash
+hdfs dfsadmin -safemode get
+```
+
+If your HDFS has entered Safemode, you can further verify that the cause was
+disk space by looking in the HDFS Namenode logs on your Dataproc Master node.
+
+```bash
+grep 'NameNode low on available disk space' /var/log/hadoop-hdfs/hadoop-hdfs-namenode-$(hostname).log*
+```
+
+Once you know that HDFS entered Safemode due to lack of disk space, you can
+further verify that the size of the YARN Timeline Server logs were indeed the
+cause of your disk filling up by checking their size from your Dataproc Master
+node.
+
+```bash
+du -h /var/log/hadoop-yarn/yarn-yarn-timelineserver-$(hostname).out*
+```
+
+If the size of those files represent a significant portion of your disk space,
+this issue is probably your root cause.
+
 ## Fixing the Issue
 The provided script can be used as an initialization action or run on live
 clusters. Do note that there is always some risk associated with restarting
@@ -44,5 +72,22 @@ not impacted by this issue:
    ```bash
    gcloud dataproc clusters create <CLUSTER_NAME> \
      --initialization-actions=gs://<YOUR_GCS_BUCKET>/disable-noisy-timeline-server-logs.sh
+   ```
+
+### Fixing a Running Cluster
+If your running Cluster has entered Safemode and you wish to recover it without
+recreating it, you can run the above script on your Dataproc Cluster's Master
+nodes as root and then manually exit Safemode.
+
+1. Run the initialization action as a script (on your Master nodes).
+
+   ```bash
+   sudo bash ./disable-noisy-timeline-server-logs.sh
+   ```
+
+1. Exit HDFS Safemode.
+
+   ```bash
+   hdfs dfsadmin -safemode leave
    ```
 
