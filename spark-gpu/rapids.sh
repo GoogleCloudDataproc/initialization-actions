@@ -5,21 +5,21 @@ set -euxo pipefail
 readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 readonly LINUX_DIST=$(/usr/share/google/get_metadata_value attributes/linux-dist)
 
-readonly DEAFULT_INIT_ACTIONS_REPO=gs://dataproc-initialization-actions
+readonly DEFAULT_INIT_ACTIONS_REPO=gs://dataproc-initialization-actions
 readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_REPO ||
-  echo ${DEAFULT_INIT_ACTIONS_REPO})"
+  echo ${DEFAULT_INIT_ACTIONS_REPO})"
 
-readonly DEAFULT_GCS_BUCKET=gs://my-bucket
+readonly DEFAULT_GCS_BUCKET=gs://my-bucket
 readonly GCS_BUCKET="$(/usr/share/google/get_metadata_value attributes/GCS_BUCKET ||
-  echo ${DEAFULT_GCS_BUCKET})"
+  echo ${DEFAULT_GCS_BUCKET})"
 
-readonly DEAFULT_RAPIDS_SPARK_VERSION=2.x-1.0.0-Beta3
+readonly DEFAULT_RAPIDS_SPARK_VERSION=2.x-1.0.0-Beta3
 readonly RAPIDS_SPARK_VERSION="$(/usr/share/google/get_metadata_value attributes/RAPIDS_SPARK_VERSION ||
-  echo ${DEAFULT_RAPIDS_SPARK_VERSION})"
+  echo ${DEFAULT_RAPIDS_SPARK_VERSION})"
 
-readonly DEAFULT_RAPIDS_CUDF_VERSION=0.9.2-cuda10
+readonly DEFAULT_RAPIDS_CUDF_VERSION=0.9.2-cuda10
 readonly RAPIDS_CUDF_VERSION="$(/usr/share/google/get_metadata_value attributes/RAPIDS_CUDF_VERSION ||
-  echo ${DEAFULT_RAPIDS_CUDF_VERSION})"
+  echo ${DEFAULT_RAPIDS_CUDF_VERSION})"
 
 echo "Cloning RAPIDS initialization action from '${INIT_ACTIONS_REPO}' ..."
 RAPIDS_INIT_ACTION_DIR=$(mktemp -d -t rapids-init-action-XXXX)

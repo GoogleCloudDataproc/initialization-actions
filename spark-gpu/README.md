@@ -65,8 +65,8 @@ The following command will create a new cluster named `<CLUSTER_NAME>`. Before t
 `<dataproc-initialization-actions>` bucket, user need to copy the sparkgpu initialization script into a accessible GCS and into following structure. Ubuntu is recommended as CUDA support ubuntu, debian could be used by modifying `image-version` and `linux-dist` accordingly.
 
     ```bash
-    /$GCS_BUCKET/sparkgpu/rapids.sh
-    /$GCS_BUCKET/sparkgpu/internal/install-gpu-driver*.sh
+    /$GCS_BUCKET/spark-gpu/rapids.sh
+    /$GCS_BUCKET/spark-gpu/internal/install-gpu-driver*.sh
     ```
     
     ```bash
