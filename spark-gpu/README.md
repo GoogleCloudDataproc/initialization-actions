@@ -18,18 +18,53 @@ Prerequisites
 
 Our initialization action does the following:
 
-1.  [install nvidia GPU driver, cuda 10.0 toolkit and nccl 2.4.8](internal/install-gpu-driver.sh)
+### Step 1.  Initialization steps to download required files for Spark RAPIDS XGBoost app
 
-## Using this initialization action
+Before you create a cluster, please git clone the [spark-examples directory](https://github.com/rapidsai/spark-examples) to your local machine. `cd` into the spark-examples/getting-started-guides/csp/gcp/spark-gpu directory. Open the rapids.sh script using a text editor.  Modify the `GCS_BUCKET=my-bucket` line and `INIT_ACTIONS_BUCKET=my-bucket`(this parameter will not be required after init action merged into dataproc official repo) to specify your google GCP bucket name.  
 
-You can use this initialization action to create a new Dataproc cluster with
-all prerequisites installed:
+Execute the commands below while in the spark-examples folder.  These commands will copy the following files into your GCP bucket: 
 
-1.  Using the `gcloud` command to create a new cluster with this initialization
-    action. The following command will create a new cluster named
-    `<CLUSTER_NAME>`. Before the init script fully merged into `<dataproc-initialization-actions>` bucket, user need to copy the sparkgpu initialization script into a accessible GCS and into following structure. Ubuntu is recommended as CUDA support ubuntu, debian could be used by modifying `image-version` and `linux-dist` accordingly.
+1. Initialization scripts for GPU and RAPIDS Spark, 
+2. PySpark app files  
+3. A sample dataset for a XGBoost PySpark app 
+4. The latest Spark RAPIDS XGBoost jar files from the public maven repository
 
-    ```
+```bash
+export GCS_BUCKET=my-bucket
+export RAPIDS_SPARK_VERSION='2.x-1.0.0-Beta3'
+export RAPIDS_CUDF_VERSION='0.9.2-cuda10'
+pushd getting-started-guides/csp/gcp/spark-gpu
+gsutil cp -r internal gs://$GCS_BUCKET/spark-gpu/
+gsutil cp rapids.sh gs://$GCS_BUCKET/spark-gpu/rapids.sh
+popd
+pushd datasets/
+tar -xvf mortgage-small.tar.gz
+gsutil cp -r mortgage-small/ gs://$GCS_BUCKET/
+popd
+wget -O cudf-${RAPIDS_CUDF_VERSION}.jar https://repo1.maven.org/maven2/ai/rapids/cudf/${RAPIDS_CUDF_VERSION%-*}/cudf-${RAPIDS_CUDF_VERSION}.jar
+wget -O xgboost4j_${RAPIDS_SPARK_VERSION}.jar https://repo1.maven.org/maven2/ai/rapids/xgboost4j_${RAPIDS_SPARK_VERSION/-/\/}/xgboost4j_${RAPIDS_SPARK_VERSION}.jar
+wget -O xgboost4j-spark_${RAPIDS_SPARK_VERSION}.jar https://repo1.maven.org/maven2/ai/rapids/xgboost4j-spark_${RAPIDS_SPARK_VERSION/-/\/}/xgboost4j-spark_${RAPIDS_SPARK_VERSION}.jar
+gsutil cp cudf-${RAPIDS_CUDF_VERSION}.jar xgboost4j-spark_${RAPIDS_SPARK_VERSION}.jar xgboost4j_${RAPIDS_SPARK_VERSION}.jar gs://$GCS_BUCKET/
+````
+
+After executing these commands, use your web browser to navigate to Google Cloud Platform console and make sure your Google storage bucket “my-bucket” directory structure has the following files:
+* gs://my-bucket/spark-gpu/rapids.sh
+* gs://my-bucket/spark-gpu/internal/install-gpu-driver-debian.sh
+* gs://my-bucket/spark-gpu/internal/install-gpu-driver-ubuntu.sh
+* gs://my-bucket/cudf-${RAPIDS_CUDF_VERSION}.jar
+* gs://my-bucket/xgboost4j-spark_${RAPIDS_SPARK_VERSION}.jar
+* gs://my-bucket/xgboost4j_${RAPIDS_SPARK_VERSION}.jar
+* gs://my-bucket/mortgage-small/eval/mortgage-small.csv
+* gs://my-bucket/mortgage-small/eval/mortgage-small.csv
+* gs://my-bucket/mortgage-small/trainWithEval/test.csv
+
+
+### Step 2 Using the `gcloud` command to create a new cluster with this initialization action. 
+
+The following command will create a new cluster named `<CLUSTER_NAME>`. Before the init script fully merged into 
+`<dataproc-initialization-actions>` bucket, user need to copy the sparkgpu initialization script into a accessible GCS and into following structure. Ubuntu is recommended as CUDA support ubuntu, debian could be used by modifying `image-version` and `linux-dist` accordingly.
+
+    ```bash
     /$GCS_BUCKET/sparkgpu/rapids.sh
     /$GCS_BUCKET/sparkgpu/internal/install-gpu-driver*.sh
     ```
@@ -42,6 +77,8 @@ all prerequisites installed:
     export INIT_ACTIONS_BUCKET=my-bucket
     export NUM_GPUS=2
     export NUM_WORKERS=2
+    export RAPIDS_SPARK_VERSION='2.x-1.0.0-Beta3'
+    export RAPIDS_CUDF_VERSION='0.9.2-cuda10'
      
     gcloud beta dataproc clusters create $CLUSTER_NAME  \
         --zone $ZONE \
@@ -55,16 +92,18 @@ all prerequisites installed:
         --num-workers $NUM_WORKERS \
         --image-version 1.4-ubuntu18 \
         --bucket $GCS_BUCKET \
-        --metadata JUPYTER_PORT=8123,INIT_ACTIONS_REPO="gs://$INIT_ACTIONS_BUCKET",linux-dist="ubuntu",
-        GCS_BUCKET="gs://$GCS_BUCKET" \
+        --metadata JUPYTER_PORT=8123,INIT_ACTIONS_REPO="gs://$INIT_ACTIONS_BUCKET",linux-dist="ubuntu",GCS_BUCKET="gs://$GCS_BUCKET" \
         --initialization-actions gs://$INIT_ACTIONS_BUCKET/spark-gpu/rapids.sh \
         --optional-components=ANACONDA,JUPYTER \
         --subnet=default \
-        --properties '^#^spark:spark.dynamicAllocation.enabled=false#spark:spark.shuffle.service.enabled=false#spark:spark.submit.pyFiles=/usr/lib/spark/python/lib/xgboost4j-spark_2.11-1.0.0-Beta2.jar#spark:spark.jars=/usr/lib/spark/jars/xgboost4j-spark_2.11-1.0.0-Beta2.jar,/usr/lib/spark/jars/xgboost4j_2.11-1.0.0-Beta2.jar,/usr/lib/spark/jars/cudf-0.9.1-cuda10.jar' \
+        --properties "^#^spark:spark.dynamicAllocation.enabled=false#spark:spark.shuffle.service.enabled=false#spark:spark.submit.pyFiles=/usr/lib/spark/python/lib/xgboost4j-spark_${RAPIDS_SPARK_VERSION}.jar#spark:spark.jars=/usr/lib/spark/jars/xgboost4j-spark_${RAPIDS_SPARK_VERSION}.jar,/usr/lib/spark/jars/xgboost4j_${RAPIDS_SPARK_VERSION}.jar,/usr/lib/spark/jars/cudf-${RAPIDS_CUDF_VERSION}.jar" \
         --enable-component-gateway   
     ```
 
-2.  Once the cluster has been created, yarn resource manager could be accessed on port `8088` on the Dataproc master node. 
+### Step 3, execute the sample app 
+
+Once the cluster has been created, yarn resource manager could be accessed on port `8088` on the Dataproc master 
+node. 
 
 To connect to the dataproc web interface, you will need to create an SSH tunnel as
 described in the
