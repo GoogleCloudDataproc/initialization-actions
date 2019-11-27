@@ -37,6 +37,6 @@ wget --progress=dot:mega -O nccl.deb "${GPU_NCCL_URL}"
 chmod +x "./nccl.deb"
 dpkg -i nccl.deb
 apt update
-apt install "libnccl2=${NCCL_VERSION}-1+cuda${CUDA_VERSION//\-/\.}" "libnccl-dev=${NCCL_VERSION}-1+cuda${CUDA_VERSION//\-/\.}" -y 
+apt install "libnccl2=${NCCL_VERSION}-1+cuda${CUDA_VERSION//\-/\.}" "libnccl-dev=${NCCL_VERSION}-1+cuda${CUDA_VERSION//\-/\.}" -y
 
 /usr/bin/nvidia-smi -c EXCLUSIVE_PROCESS

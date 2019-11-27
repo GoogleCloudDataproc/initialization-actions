@@ -33,15 +33,12 @@ else
 fi
 find "${RAPIDS_INIT_ACTION_DIR}" -name '*.sh' -exec chmod +x {} \;
 
-if [[ "${ROLE}" != 'Master' ]]; then
+if [[ "${ROLE}" == 'Master' ]]; then
+  gsutil -m cp "${GCS_BUCKET}/xgboost4j-spark_${RAPIDS_SPARK_VERSION}.jar" /usr/lib/spark/python/lib/
+  gsutil -m cp "${GCS_BUCKET}/xgboost4j-spark_${RAPIDS_SPARK_VERSION}.jar" /usr/lib/spark/jars/
+  gsutil -m cp "${GCS_BUCKET}/xgboost4j_${RAPIDS_SPARK_VERSION}.jar" /usr/lib/spark/jars/
+  gsutil -m cp "${GCS_BUCKET}/cudf-${RAPIDS_CUDF_VERSION}.jar" /usr/lib/spark/jars/
+else
   # Ensure we have GPU drivers installed.
   "${RAPIDS_INIT_ACTION_DIR}/internal/install-gpu-driver.sh"
-else
-  gsutil cp ${GCS_BUCKET}/xgboost4j-spark_${RAPIDS_SPARK_VERSION}.jar /usr/lib/spark/python/lib/
-  gsutil cp ${GCS_BUCKET}/xgboost4j-spark_${RAPIDS_SPARK_VERSION}.jar /usr/lib/spark/jars/
-  gsutil cp ${GCS_BUCKET}/xgboost4j_${RAPIDS_SPARK_VERSION}.jar /usr/lib/spark/jars/
-  gsutil cp ${GCS_BUCKET}/cudf-${RAPIDS_CUDF_VERSION}.jar /usr/lib/spark/jars/
 fi
-
-
-
