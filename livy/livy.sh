@@ -32,6 +32,14 @@ readonly LIVY_CONF="${LIVY_DIR}/conf"
 readonly APACHE_MIRROR="https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename"
 readonly PKG_PATH="incubator/livy/${LIVY_VERSION}-incubating/${LIVY_PKG_NAME}.zip"
 
+# Generate livy configuration file.
+function make_livy_conf() {
+  cat <<EOF >"${LIVY_CONF}/livy.conf"
+livy.spark.master = $(grep spark.master /etc/spark/conf/spark-defaults.conf | cut -d= -f2)
+livy.spark.deploy-mode = $(grep spark.submit.deployMode /etc/spark/conf/spark-defaults.conf | cut -d= -f2)
+EOF
+}
+
 # Generate livy environment file.
 function make_livy_env() {
   cat <<EOF >"${LIVY_CONF}/livy-env.sh"
@@ -84,6 +92,9 @@ function main() {
   install -d "${LIVY_DIR}"
   cp -r "${temp}/${LIVY_PKG_NAME}/"* "${LIVY_DIR}"
   chown -R "livy:livy" "${LIVY_DIR}"
+
+  # Generate livy configuration file.
+  make_livy_conf
 
   # Setup log directory.
   mkdir /var/log/livy

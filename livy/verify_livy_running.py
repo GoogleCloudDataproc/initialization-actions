@@ -12,6 +12,7 @@ class Livy:
     host = 'http://localhost:8998'
     session_url = None
     statements_url = None
+    statement_id = -1
     session_data = {'kind': 'spark'}
     headers = {'Content-Type': 'application/json'}
 
@@ -37,6 +38,7 @@ class Livy:
         exit(1)
 
     def submit_job(self, data):
+        self.statement_id = self.statement_id + 1
         requests.post(
             self.statements_url, data=json.dumps(data), headers=self.headers)
 
@@ -45,7 +47,7 @@ class Livy:
         while wait_seconds_remain > 0:
             resp = requests.get(self.statements_url, headers=self.headers)
             try:
-                data = resp.json()['statements'][0]['output']['data']
+                data = resp.json()['statements'][self.statement_id]['output']['data']
                 if data is not None and expected in data['text/plain']:
                     print("OK - Spark job succeeded")
                     return
@@ -85,6 +87,8 @@ def main():
     livy.submit_job(data)
     livy.validate_job_result('Pi is roughly')
 
+    livy.submit_job({'code': """println("Using spark master " + spark.conf.get("spark.master"))""" })
+    livy.validate_job_result('Using spark master yarn')
 
 if __name__ == '__main__':
     main()
