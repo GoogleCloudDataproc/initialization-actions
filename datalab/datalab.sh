@@ -138,7 +138,7 @@ RUN apt-get install -y hive spark-python openjdk-8-jre-headless
 ENV PYSPARK_PYTHON=$(ls /opt/conda/bin/python || command -v python)
 
 ENV SPARK_HOME='/usr/lib/spark'
-ENV JAVA_HOME='${JAVA_HOME}'
+ENV JAVA_HOME='/usr/lib/jvm/java-8-openjdk-amd64'
 ENV PYTHONPATH='${PYTHONPATH}'
 ENV PYTHONSTARTUP='/usr/lib/spark/python/pyspark/shell.py'
 ENV PYSPARK_SUBMIT_ARGS='${pyspark_submit_args}'
