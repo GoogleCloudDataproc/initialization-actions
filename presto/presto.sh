@@ -29,7 +29,7 @@ else
   readonly CONNECTOR_JAR="$(find /usr/lib/hadoop/lib -name 'gcs-connector-*.jar')"
 fi
 readonly PRESTO_BASE_URL=https://repo1.maven.org/maven2/com/facebook/presto
-readonly PRESTO_VERSION='0.224'
+readonly PRESTO_VERSION='0.229'
 readonly HTTP_PORT="$(/usr/share/google/get_metadata_value attributes/presto-port || echo 8080)"
 readonly INIT_SCRIPT='/usr/lib/systemd/system/presto.service'
 PRESTO_JVM_MB=0
