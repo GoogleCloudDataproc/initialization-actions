@@ -89,7 +89,7 @@ if [[ "${ROLE}" == 'Master' ]]; then
     rstudio_server_package=rstudio-server-${RSTUDIO_VERSION}-amd64.deb
   else
     run_with_retries get_apt_key_for_debian
-    add-apt-repository "deb http://cran.r-project.org/bin/linux/debian ${OS_CODE}-cran34/"
+    add-apt-repository "deb http://cran.r-project.org/bin/linux/debian ${OS_CODE}-cran35/"
     rstudio_server_package=rstudio-server-${OS_CODE}-${RSTUDIO_VERSION}-amd64.deb
   fi
   update_apt_get
