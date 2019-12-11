@@ -17,10 +17,10 @@ cd /opt/intel-bigdl
 wget -nv --timeout=30 --tries=5 --retry-connrefused "${BIGDL_DOWNLOAD_URL}"
 unzip *.zip
 
-JAR=`realpath lib/*.jar`
-PYTHON_ZIP=`realpath lib/*.zip`
+JAR=$(realpath lib/*.jar)
+PYTHON_ZIP=$(realpath lib/*.zip)
 
-cat << EOF >> /etc/spark/conf/spark-env.sh
+cat <<EOF >>/etc/spark/conf/spark-env.sh
 SPARK_DIST_CLASSPATH="\$SPARK_DIST_CLASSPATH:$JAR"
 PYTHONPATH="\$PYTHONPATH:$PYTHON_ZIP"
 EOF
@@ -30,20 +30,20 @@ EOF
 
 if [[ "${ROLE}" == "Master" ]]; then
   NUM_NODEMANAGERS_TARGET="${WORKER_COUNT}"
-  if (( "${WORKER_COUNT}" == 0 )); then
+  if (("${WORKER_COUNT}" == 0)); then
     # Single node clusters have one node manager
     NUM_NODEMANAGERS_TARGET=1
   fi
   # Wait for 5 minutes for Node Managers to register and run.
   # Break early if the expected number of node managers have registered.
-  for (( i=0; i < 5*60; i++ )); do
+  for ((i = 0; i < 5 * 60; i++)); do
     CURRENTLY_RUNNING_NODEMANAGERS=$(yarn node -list | grep RUNNING | wc -l)
-    if (( CURRENTLY_RUNNING_NODEMANAGERS == NUM_NODEMANAGERS_TARGET )); then
+    if ((CURRENTLY_RUNNING_NODEMANAGERS == NUM_NODEMANAGERS_TARGET)); then
       break
     fi
     sleep 1
   done
-  if (( CURRENTLY_RUNNING_NODEMANAGERS == 0 )); then
+  if ((CURRENTLY_RUNNING_NODEMANAGERS == 0)); then
     echo "No node managers running. Cluster creation likely failed"
     exit 1
   fi
@@ -73,14 +73,14 @@ if [[ "${ROLE}" == "Master" ]]; then
 
   # Check if it BigDL conf or Zoo
   if [ -f conf/spark-bigdl.conf ]; then
-    cat conf/spark-bigdl.conf >> /etc/spark/conf/spark-defaults.conf
+    cat conf/spark-bigdl.conf >>/etc/spark/conf/spark-defaults.conf
   elif [ -f conf/spark-analytics-zoo.conf ]; then
-    cat conf/spark-analytics-zoo.conf >> /etc/spark/conf/spark-defaults.conf
+    cat conf/spark-analytics-zoo.conf >>/etc/spark/conf/spark-defaults.conf
   else
     err "Can't find any suitable spark config for Intel BigDL/Zoo"
   fi
 
-  cat << EOF >> /etc/spark/conf/spark-defaults.conf
+  cat <<EOF >>/etc/spark/conf/spark-defaults.conf
 
 spark.dynamicAllocation.enabled=false
 spark.executor.instances=${SPARK_NUM_EXECUTORS}

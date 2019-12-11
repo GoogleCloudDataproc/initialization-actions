@@ -14,7 +14,7 @@ readonly INIT_SCRIPT='/usr/lib/systemd/system/dask-cluster.service'
 readonly PREFIX='/opt/conda/anaconda/envs/RAPIDS/bin'
 
 if [[ "${ROLE}" == 'Master' ]]; then
-    cat << EOF > "${DASK_LAUNCHER}"
+  cat <<EOF >"${DASK_LAUNCHER}"
 #!/bin/bash
 if [[ "${RUN_CUDA_WORKER_ON_MASTER}" == true ]]; then
   echo "dask-scheduler starting, logging to /var/log/dask-scheduler.log.."
@@ -28,14 +28,14 @@ else
 fi
 EOF
 else
-    cat << EOF > "${DASK_LAUNCHER}"
+  cat <<EOF >"${DASK_LAUNCHER}"
 #!/bin/bash
 $PREFIX/dask-cuda-worker --memory-limit 0 ${MASTER}:8786 > /var/log/dask-cuda-workers.log 2>&1
 EOF
 fi
 chmod 750 "${DASK_LAUNCHER}"
 
-cat << EOF > "${INIT_SCRIPT}"
+cat <<EOF >"${INIT_SCRIPT}"
 [Unit]
 Description=Dask Cluster Service
 [Service]

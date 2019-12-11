@@ -51,10 +51,10 @@ function err() {
 function install_and_configure_solr() {
   local solr_home_dir
   local zookeeper_nodes
-  zookeeper_nodes="$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg \
-    | uniq | cut -d '=' -f 2 | cut -d ':' -f 1 | xargs echo | sed "s/ /,/g")"
+  zookeeper_nodes="$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg |
+    uniq | cut -d '=' -f 2 | cut -d ':' -f 1 | xargs echo | sed "s/ /,/g")"
 
-# Install deb packages from GS
+  # Install deb packages from GS
   update_apt_get
   install_apt_get solr
 
@@ -75,12 +75,12 @@ function install_and_configure_solr() {
   else
     solr_home_dir="hdfs://${CLUSTER_NAME}-m:8020/solr"
   fi
-  cat << EOF >> "${SOLR_CONF_FILE}"
+  cat <<EOF >>"${SOLR_CONF_FILE}"
 SOLR_OPTS="\${SOLR_OPTS} -Dsolr.directoryFactory=HdfsDirectoryFactory -Dsolr.lock.type=hdfs \
  -Dsolr.hdfs.home=${solr_home_dir}"
 EOF
 
-  cat << EOF > /etc/systemd/system/solr.service
+  cat <<EOF >/etc/systemd/system/solr.service
 [Unit]
 Description=Apache SOLR
 ConditionPathExists=/usr/lib/solr/bin

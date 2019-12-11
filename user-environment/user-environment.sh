@@ -38,7 +38,7 @@ update-alternatives --set editor /usr/bin/vim.basic
 #apt-get install -y tmux sl
 
 ## The following script will get run as each user in their home directory.
-cat << 'EOF' > /tmp/customize_home_dir.sh
+cat <<'EOF' >/tmp/customize_home_dir.sh
 set -o errexit
 set -o nounset
 set -o xtrace

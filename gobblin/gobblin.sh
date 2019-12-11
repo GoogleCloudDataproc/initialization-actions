@@ -27,7 +27,7 @@ readonly JAR_NAME_CANONICALIZER="s/([-a-zA-Z0-9]+?)[-]([0-9][0-9.]+?)([-.].*?)?.
 
 function maybe_symlink() {
   local jar=$1
-  if [[ ! -f "${HADOOP_LIB}/${jar}" ]] ; then
+  if [[ ! -f "${HADOOP_LIB}/${jar}" ]]; then
     ln -s "${INSTALL_LIB}/${jar}" "${HADOOP_LIB}/${jar}"
   fi
 }
@@ -37,14 +37,14 @@ function configure_env() {
   # Use hdfs:/// so we don't have to disambiguate between Highly Available
   # and regular cluster types.
   sed -E "s/(fs.uri)=(.+)$/\1=hdfs:\/\/\//" \
-      -i "${INSTALL_CONF}/gobblin-mapreduce.properties"
+    -i "${INSTALL_CONF}/gobblin-mapreduce.properties"
 
   sed -E "s/env:GOBBLIN_WORK_DIR/fs.uri/g" \
-      -i "${INSTALL_CONF}/gobblin-mapreduce.properties"
+    -i "${INSTALL_CONF}/gobblin-mapreduce.properties"
 
-  echo "export HADOOP_USER_CLASSPATH_FIRST=true" >> "/etc/hadoop/conf/hadoop-env.sh"
+  echo "export HADOOP_USER_CLASSPATH_FIRST=true" >>"/etc/hadoop/conf/hadoop-env.sh"
 
-  cat << EOF >> "${INSTALL_BIN}/gobblin-env.sh"
+  cat <<EOF >>"${INSTALL_BIN}/gobblin-env.sh"
 export JAVA_HOME=${JAVA_HOME}
 export HADOOP_BIN_DIR=/usr/lib/hadoop/bin
 EOF
@@ -82,7 +82,7 @@ EOF
   rm -f "${HADOOP_LIB}/guava"*
 
   for prefix in "${lib_prefixes[@]}"; do
-    for jar in `ls ${INSTALL_LIB}/${prefix}* | sed 's#.*/##'`; do
+    for jar in $(ls ${INSTALL_LIB}/${prefix}* | sed 's#.*/##'); do
       maybe_symlink "${jar}"
     done
   done
@@ -108,4 +108,3 @@ function main() {
 }
 
 main
-

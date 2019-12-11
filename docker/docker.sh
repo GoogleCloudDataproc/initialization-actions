@@ -8,10 +8,9 @@ readonly OS_CODE=$(lsb_release -cs)
 readonly DOCKER_VERSION="18.06.0~ce~3-0~${OS_ID}"
 readonly CREDENTIAL_HELPER_VERSION='1.5.0'
 
-
 function is_master() {
   local role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-  if [[ "$role" == 'Master' ]] ; then
+  if [[ "$role" == 'Master' ]]; then
     true
   else
     false
@@ -23,7 +22,7 @@ function get_docker_gpg() {
 }
 
 function update_apt_get() {
-  for ((i = 0; i < 10; i++)) ; do
+  for ((i = 0; i < 10; i++)); do
     if apt-get update; then
       return 0
     fi
@@ -44,9 +43,9 @@ function install_docker() {
 function configure_gcr() {
   # this standalone method is recommended here:
   # https://cloud.google.com/container-registry/docs/advanced-authentication#standalone_docker_credential_helper
-  curl -fsSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v${CREDENTIAL_HELPER_VERSION}/docker-credential-gcr_linux_amd64-${CREDENTIAL_HELPER_VERSION}.tar.gz" \
-    | tar xz --to-stdout ./docker-credential-gcr \
-    > /usr/local/bin/docker-credential-gcr && chmod +x /usr/local/bin/docker-credential-gcr
+  curl -fsSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v${CREDENTIAL_HELPER_VERSION}/docker-credential-gcr_linux_amd64-${CREDENTIAL_HELPER_VERSION}.tar.gz" |
+    tar xz --to-stdout ./docker-credential-gcr \
+      >/usr/local/bin/docker-credential-gcr && chmod +x /usr/local/bin/docker-credential-gcr
 
   # this command configures docker on a per-user basis. Therefore we configure
   # the root user, as well as the yarn user which is part of the docker group.
@@ -64,7 +63,7 @@ function configure_docker() {
 
   systemctl enable docker
   # Restart YARN daemons to pick up new group without restarting nodes.
-  if is_master ; then
+  if is_master; then
     systemctl restart hadoop-yarn-resourcemanager
   else
     systemctl restart hadoop-yarn-nodemanager

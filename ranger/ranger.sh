@@ -60,14 +60,14 @@ function configure_admin() {
   sed -i 's/^audit_solr_user=/audit_solr_user=solr/' \
     "${RANGER_INSTALL_DIR}/ranger-admin/install.properties"
   bdconfig set_property \
-      --configuration_file "${RANGER_INSTALL_DIR}/ranger-admin/ews/webapp/WEB-INF/classes/conf.dist/ranger-admin-site.xml" \
-      --name 'ranger.service.http.port' --value "${RANGER_ADMIN_PORT}" \
-      --clobber
+    --configuration_file "${RANGER_INSTALL_DIR}/ranger-admin/ews/webapp/WEB-INF/classes/conf.dist/ranger-admin-site.xml" \
+    --name 'ranger.service.http.port' --value "${RANGER_ADMIN_PORT}" \
+    --clobber
   mysql -u root -proot-password -e "CREATE USER 'rangeradmin'@'localhost' IDENTIFIED BY 'rangerpass';"
   mysql -u root -proot-password -e "CREATE DATABASE ranger;"
   mysql -u root -proot-password -e "GRANT ALL PRIVILEGES ON ranger.* TO 'rangeradmin'@'localhost';"
 
-  if [[ "${MASTER_ADDITIONAL}" != "" ]] ; then
+  if [[ "${MASTER_ADDITIONAL}" != "" ]]; then
     sed -i "s/^audit_solr_zookeepers=/audit_solr_zookeepers=${CLUSTER_NAME}-m-0:2181,${CLUSTER_NAME}-m-1:2181,${CLUSTER_NAME}-m-2:2181\/solr/" \
       "${RANGER_INSTALL_DIR}/ranger-admin/install.properties"
     sed -i 's/^audit_solr_urls=/audit_solr_urls=none/' \
@@ -88,8 +88,8 @@ function run_ranger_admin() {
 }
 
 function add_usersync_plugin() {
-  mkdir -p /var/log/ranger-usersync && chown ranger /var/log/ranger-usersync \
-    && chgrp ranger /var/log/ranger-usersync
+  mkdir -p /var/log/ranger-usersync && chown ranger /var/log/ranger-usersync &&
+    chgrp ranger /var/log/ranger-usersync
 
   sed -i 's/^logdir=logs/logdir=\/var\/log\/ranger-usersync/' \
     "${RANGER_INSTALL_DIR}/ranger-usersync/install.properties"
@@ -144,12 +144,11 @@ function add_hdfs_plugin() {
     systemctl start hadoop-hdfs-namenode.service
 
     # Notify cluster that plugin is installed on master.
-    until hadoop fs -touchz /tmp/ranger-hdfs-plugin-ready  &> /dev/null
-    do
+    until hadoop fs -touchz /tmp/ranger-hdfs-plugin-ready &>/dev/null; do
       sleep 10
     done
 
-    cat << EOF > service-hdfs.json
+    cat <<EOF >service-hdfs.json
 {
     "configs": {
         "username": "admin",
@@ -165,12 +164,11 @@ function add_hdfs_plugin() {
     "version": 1
 }
 EOF
-    curl --user "admin:${RANGER_ADMIN_PASS}" -H "Content-Type: application/json"  \
+    curl --user "admin:${RANGER_ADMIN_PASS}" -H "Content-Type: application/json" \
       -X POST -d @service-hdfs.json "http://localhost:${RANGER_ADMIN_PORT}/service/public/v2/api/service"
   elif [[ "${NODE_NAME}" =~ ^.*(-m-1)$ ]]; then
     # Waiting until hdfs plugin will be configured on m-0
-    until hadoop fs -ls /tmp/ranger-hdfs-plugin-ready &> /dev/null
-    do
+    until hadoop fs -ls /tmp/ranger-hdfs-plugin-ready &>/dev/null; do
       sleep 10
     done
     systemctl stop hadoop-hdfs-namenode.service
@@ -180,9 +178,9 @@ EOF
 
 function add_hive_plugin() {
   apply_common_plugin_configuration "ranger-hive-plugin" "hive-dataproc"
-  mkdir -p hive \
-    && ln -s /etc/hive/conf hive \
-    && ln -s /usr/lib/hive/lib hive
+  mkdir -p hive &&
+    ln -s /etc/hive/conf hive &&
+    ln -s /usr/lib/hive/lib hive
   pushd ranger-hive-plugin && ./enable-hive-plugin.sh && popd
 
   if [[ "${NODE_NAME}" =~ ^.*(-m|-m-0)$ ]]; then
@@ -190,12 +188,11 @@ function add_hive_plugin() {
     systemctl start hive-server2.service
 
     # Notify cluster that hive plugin is installed on master.
-    until hadoop fs -touchz /tmp/ranger-hive-plugin-ready  &> /dev/null
-    do
+    until hadoop fs -touchz /tmp/ranger-hive-plugin-ready &>/dev/null; do
       sleep 10
     done
 
-    cat << EOF > service-hive.json
+    cat <<EOF >service-hive.json
 {
     "configs": {
         "username": "admin",
@@ -210,12 +207,11 @@ function add_hive_plugin() {
     "version": 1
 }
 EOF
-    curl --user "admin:${RANGER_ADMIN_PASS}" -H "Content-Type: application/json"  \
+    curl --user "admin:${RANGER_ADMIN_PASS}" -H "Content-Type: application/json" \
       -X POST -d @service-hive.json "http://localhost:${RANGER_ADMIN_PORT}/service/public/v2/api/service"
   elif [[ "${NODE_NAME}" =~ ^.*(-m-1|-m-2)$ ]]; then
     # Waiting until hive plugin will be configured on m-0
-    until hadoop fs -ls /tmp/ranger-hive-plugin-ready &> /dev/null
-    do
+    until hadoop fs -ls /tmp/ranger-hive-plugin-ready &>/dev/null; do
       sleep 10
     done
     systemctl stop hive-server2.service
@@ -232,12 +228,11 @@ function add_yarn_plugin() {
     systemctl start hadoop-yarn-resourcemanager.service
 
     # Notify cluster that yarn plugin is installed on master.
-    until hadoop fs -touchz /tmp/ranger-yarn-plugin-ready  &> /dev/null
-    do
+    until hadoop fs -touchz /tmp/ranger-yarn-plugin-ready &>/dev/null; do
       sleep 10
     done
 
-    cat << EOF > service-yarn.json
+    cat <<EOF >service-yarn.json
 {
     "configs": {
         "username": "admin",
@@ -251,12 +246,11 @@ function add_yarn_plugin() {
     "version": 1
 }
 EOF
-    curl --user "admin:${RANGER_ADMIN_PASS}" -H "Content-Type: application/json"  \
+    curl --user "admin:${RANGER_ADMIN_PASS}" -H "Content-Type: application/json" \
       -X POST -d @service-yarn.json "http://localhost:${RANGER_ADMIN_PORT}/service/public/v2/api/service"
   elif [[ "${NODE_NAME}" =~ ^.*(-m-1|-m-2)$ ]]; then
     # Waiting until yarn plugin will be configured on m-0
-    until hadoop fs -ls /tmp/ranger-yarn-plugin-ready &> /dev/null
-    do
+    until hadoop fs -ls /tmp/ranger-yarn-plugin-ready &>/dev/null; do
       sleep 10
     done
     systemctl stop hadoop-yarn-resourcemanager.service

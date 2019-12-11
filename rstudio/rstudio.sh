@@ -42,12 +42,12 @@ function run_with_retries() {
       break
     else
       local sleep_time=${retry_backoff[$i]}
-      echo "'${cmd[*]}' attempt $(( $i + 1 )) failed! Sleeping ${sleep_time}." >&2
+      echo "'${cmd[*]}' attempt $(($i + 1)) failed! Sleeping ${sleep_time}." >&2
       sleep ${sleep_time}
     fi
   done
 
-  if ! (( ${succeeded} )); then
+  if ! ((${succeeded})); then
     echo "Final attempt of '${cmd[*]}'..."
     # Let any final error propagate all the way out to any error traps.
     "${cmd[@]}"
@@ -63,20 +63,20 @@ OS_ID=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
 OS_CODE=$(lsb_release -cs)
 
 function get_apt_key_for_debian() {
-  apt-key adv --no-tty --keyserver keys.gnupg.net --recv-key E19F5F87128899B192B1A2C2AD5F960A256A04AF || \
-      apt-key adv --no-tty --keyserver pgp.mit.edu --recv-key E19F5F87128899B192B1A2C2AD5F960A256A04AF
+  apt-key adv --no-tty --keyserver keys.gnupg.net --recv-key E19F5F87128899B192B1A2C2AD5F960A256A04AF ||
+    apt-key adv --no-tty --keyserver pgp.mit.edu --recv-key E19F5F87128899B192B1A2C2AD5F960A256A04AF
 }
 
 if [[ "${ROLE}" == 'Master' ]]; then
-  if [[ -n ${USER_PASSWORD} ]] && (( ${#USER_PASSWORD} < 7 )) ; then
+  if [[ -n ${USER_PASSWORD} ]] && ((${#USER_PASSWORD} < 7)); then
     echo "You must specify a password of at least 7 characters for user '$USER_NAME' through metadata 'rstudio-password'."
     exit 1
   fi
-  if [[ -z "${USER_NAME}" ]] ; then
+  if [[ -z "${USER_NAME}" ]]; then
     echo "RStudio user name must not be empty."
     exit 2
   fi
-  if [[ "${USER_NAME}" == "${USER_PASSWORD}" ]] ; then
+  if [[ "${USER_NAME}" == "${USER_PASSWORD}" ]]; then
     echo "RStudio user name and password must not be the same."
     exit 3
   fi
@@ -104,11 +104,11 @@ if [[ "${ROLE}" == 'Master' ]]; then
   fi
   if ! [ $(id -u "${USER_NAME}") ]; then
     useradd --create-home --gid "${USER_NAME}" "${USER_NAME}"
-    if [[ -n "${USER_PASSWORD}" ]] ; then
+    if [[ -n "${USER_PASSWORD}" ]]; then
       echo "${USER_NAME}:${USER_PASSWORD}" | chpasswd
     fi
   fi
-  if [[ -z "${USER_PASSWORD}" ]] ; then
+  if [[ -z "${USER_PASSWORD}" ]]; then
     sed -i 's:ExecStart=\(.*\):Environment=USER=rstudio\nExecStart=\1 --auth-none 1:1' /etc/systemd/system/rstudio-server.service
     systemctl daemon-reload
     systemctl restart rstudio-server

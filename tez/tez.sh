@@ -57,15 +57,15 @@ function err() {
 
 function configure_master_node() {
   update_apt_get || err 'Unable to update packages lists.'
-  install_apt_get tez hadoop-yarn-timelineserver \
-    || err 'Failed to install required packages.'
+  install_apt_get tez hadoop-yarn-timelineserver ||
+    err 'Failed to install required packages.'
 
   # Copy to hdfs from one master only to avoid race
   if [[ "${HOSTNAME}" == "${master_hostname}" ]]; then
     # Stage Tez
     hadoop fs -mkdir -p ${TEZ_HDFS_PATH}
-    hadoop fs -copyFromLocal ${TEZ_JARS}/* ${TEZ_HDFS_PATH}/ \
-      || err 'Unable to copy tez jars to hdfs destination.'
+    hadoop fs -copyFromLocal ${TEZ_JARS}/* ${TEZ_HDFS_PATH}/ ||
+      err 'Unable to copy tez jars to hdfs destination.'
   fi
 
   # Update the hadoop-env.sh
@@ -73,7 +73,7 @@ function configure_master_node() {
     echo 'export TEZ_CONF_DIR=/etc/tez/'
     echo "export TEZ_JARS=${TEZ_JARS}"
     echo "HADOOP_CLASSPATH=\$HADOOP_CLASSPATH:${TEZ_CONF_DIR}:${TEZ_JARS}/*:${TEZ_JARS}/lib/*"
-  } >> /etc/hadoop/conf/hadoop-env.sh
+  } >>/etc/hadoop/conf/hadoop-env.sh
 
   # Configure YARN to enable the Application Timeline Server.
   bdconfig set_property \
@@ -140,18 +140,18 @@ function configure_master_node() {
 
   # Restart resource manager
   systemctl restart hadoop-yarn-resourcemanager
-  systemctl status hadoop-yarn-resourcemanager  # Ensure it started successfully
+  systemctl status hadoop-yarn-resourcemanager # Ensure it started successfully
 
   # Enable timeline server
   systemctl enable hadoop-yarn-timelineserver
   systemctl restart hadoop-yarn-timelineserver
-  systemctl status hadoop-yarn-timelineserver  # Ensure it started successfully
+  systemctl status hadoop-yarn-timelineserver # Ensure it started successfully
 
   # Check hive-server2 status
-  if ( systemctl is-enabled --quiet hive-server2 ); then
+  if (systemctl is-enabled --quiet hive-server2); then
     # Restart hive server2 if it is enabled
     systemctl restart hive-server2
-    systemctl status hive-server2  # Ensure it started successfully
+    systemctl status hive-server2 # Ensure it started successfully
   else
     echo "Service hive-server2 is not enabled"
   fi

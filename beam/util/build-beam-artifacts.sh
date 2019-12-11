@@ -2,7 +2,7 @@
 
 set -exuo pipefail
 
-if [ "$#" -lt 2 ] ; then
+if [ "$#" -lt 2 ]; then
   echo "Usage: $0 <BEAM_JOB_SERVICE_DESTINATION> <BEAM_CONTAINER_IMAGE_DESTINATION> [<BEAM_SOURCE_VERSION> [<BEAM_SOURCE_DIRECTORY>]]" >&2
   exit 1
 fi
@@ -20,10 +20,10 @@ function build_job_service() {
 
 function build_container() {
   ./gradlew docker
-  local images=($(docker images \
-    | grep '.*-docker-apache' \
-    | awk '{print $1}'))
-  for image in ${images} ; do
+  local images=($(docker images |
+    grep '.*-docker-apache' |
+    awk '{print $1}'))
+  for image in ${images}; do
     local image_destination="${BEAM_CONTAINER_IMAGE_DESTINATION}/$(basename ${image}):${BEAM_SOURCE_VERSION}"
     docker tag $image:latest ${image_destination}
     docker push ${image_destination}
@@ -31,7 +31,7 @@ function build_container() {
 }
 
 function main() {
-  if [[ $# -eq 4 ]] ; then
+  if [[ $# -eq 4 ]]; then
     # if there is a 4th argument, use it as the beam source directory
     pushd "$4"
   else

@@ -15,17 +15,16 @@ function err() {
 }
 
 function print_err_logs() {
-  for i in ${DRILL_LOG_DIR}/*;
-  do
+  for i in ${DRILL_LOG_DIR}/*; do
     echo ">>> $i"
-    cat "$i";
+    cat "$i"
   done
   return 1
 }
 
 function create_hive_storage_plugin() {
   # Create the hive storage plugin
-  cat > /tmp/hive_plugin.json <<EOF
+  cat >/tmp/hive_plugin.json <<EOF
 {
 "name": "hive",
 "config": {
@@ -45,7 +44,7 @@ EOF
 
 function create_gcs_storage_plugin() {
   # Create GCS storage plugin
-  cat > /tmp/gcs_plugin.json <<EOF
+  cat >/tmp/gcs_plugin.json <<EOF
 {
     "config": {
         "connection": "${gs_plugin_bucket}",
@@ -116,7 +115,7 @@ EOF
 
 function create_hdfs_storage_plugin() {
   # Create/Update hdfs storage plugin
-  cat > /tmp/hdfs_plugin.json <<EOF
+  cat >/tmp/hdfs_plugin.json <<EOF
 {
     "config": {
         "connection": "${hdfs}",
@@ -192,8 +191,8 @@ EOF
 
 function start_drillbit() {
   # Start drillbit
-  sudo -u ${DRILL_USER} ${DRILL_HOME}/bin/drillbit.sh status \
-    || sudo -u ${DRILL_USER} ${DRILL_HOME}/bin/drillbit.sh start && sleep 60
+  sudo -u ${DRILL_USER} ${DRILL_HOME}/bin/drillbit.sh status ||
+    sudo -u ${DRILL_USER} ${DRILL_HOME}/bin/drillbit.sh start && sleep 60
   create_hive_storage_plugin
   create_gcs_storage_plugin
   create_hdfs_storage_plugin
@@ -215,17 +214,17 @@ function main() {
 
   # intelligently generate the zookeeper string
   readonly zookeeper_cfg="/etc/zookeeper/conf/zoo.cfg"
-  readonly zookeeper_client_port=$(grep 'clientPort' ${zookeeper_cfg} \
-    | tail -n 1 \
-    | cut -d '=' -f 2)
-  readonly zookeeper_list=$(grep '^server\.' ${zookeeper_cfg} \
-    | tac \
-    | sort -u -t '='  -k1,1 \
-    | cut -d '=' -f 2 \
-    | cut -d ':' -f 1 \
-    | sed "s/$/:${zookeeper_client_port}/" \
-    | xargs echo \
-    | sed "s/ /,/g")
+  readonly zookeeper_client_port=$(grep 'clientPort' ${zookeeper_cfg} |
+    tail -n 1 |
+    cut -d '=' -f 2)
+  readonly zookeeper_list=$(grep '^server\.' ${zookeeper_cfg} |
+    tac |
+    sort -u -t '=' -k1,1 |
+    cut -d '=' -f 2 |
+    cut -d ':' -f 1 |
+    sed "s/$/:${zookeeper_client_port}/" |
+    xargs echo |
+    sed "s/ /,/g")
 
   # Get hive metastore thrift and HDFS URIs
   local hivemeta=$(bdconfig get_property_value \
@@ -256,7 +255,7 @@ function main() {
   mkdir -p /etc/drill && ln -sf ${DRILL_HOME}/conf /etc/drill/
 
   # Point drill logs to $DRILL_LOG_DIR
-  echo DRILL_LOG_DIR=${DRILL_LOG_DIR} >> ${DRILL_HOME}/conf/drill-env.sh
+  echo DRILL_LOG_DIR=${DRILL_LOG_DIR} >>${DRILL_HOME}/conf/drill-env.sh
 
   # Link GCS connector to drill 3rdparty jars
   local connector_dir
@@ -276,7 +275,7 @@ function main() {
   # Set ZK PStore to use a GCS Bucket
   # Using GCS makes all Drill profiles available from any drillbit, and also
   # persists the profiles past the lifetime of a cluster.
-  cat >> ${DRILL_HOME}/conf/drill-override.conf <<EOF
+  cat >>${DRILL_HOME}/conf/drill-override.conf <<EOF
 drill.exec: { sys.store.provider.zk.blobroot: "${profile_store}" }
 EOF
   chown -R drill:drill /etc/drill/conf/*

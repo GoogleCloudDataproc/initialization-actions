@@ -25,12 +25,12 @@ if [[ "${ROLE}" != 'Master' ]]; then
 fi
 
 CLUSTER_NAME=$(curl -f -s -H Metadata-Flavor:Google \
-    ${METADATA_ROOT}/dataproc-cluster-name)
+  ${METADATA_ROOT}/dataproc-cluster-name)
 
 # Fetch the actual command we want to run once the cluster is healthy.
 # The command is specified with the 'post-init-command' key.
 POST_INIT_COMMAND=$(curl -f -s -H Metadata-Flavor:Google \
-    ${METADATA_ROOT}/post-init-command)
+  ${METADATA_ROOT}/post-init-command)
 
 if [ -z ${POST_INIT_COMMAND} ]; then
   echo "Failed to find metadata key 'post-init-command'"
@@ -39,7 +39,7 @@ fi
 
 # We must put the bulk of the login in a separate helper script so that we can
 # 'nohup' it.
-cat << EOF > /usr/local/bin/await_cluster_and_run_command.sh
+cat <<EOF >/usr/local/bin/await_cluster_and_run_command.sh
 #!/bin/bash
 
 # Helper to get current cluster state.
@@ -73,5 +73,5 @@ chmod 750 /usr/local/bin/await_cluster_and_run_command.sh
 # Uncomment this following line and comment out the line after it to throw away
 # the stdout/stderr of the command instead of logging it.
 #nohup /usr/local/bin/await_cluster_and_run_command.sh &>> /dev/null &
-nohup /usr/local/bin/await_cluster_and_run_command.sh &>> \
-    /var/log/master-post-init.log &
+nohup /usr/local/bin/await_cluster_and_run_command.sh &>>/var/log/master-post-init.log \
+  ;

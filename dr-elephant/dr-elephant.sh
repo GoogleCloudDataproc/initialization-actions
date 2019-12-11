@@ -130,9 +130,9 @@ the License.
 EOF
 
   bdconfig set_property \
-      --configuration_file "/opt/dr-elephant/app-conf/GeneralConf.xml" \
-      --name 'drelephant.analysis.backfill.enabled' --value 'true' \
-      --clobber
+    --configuration_file "/opt/dr-elephant/app-conf/GeneralConf.xml" \
+    --name 'drelephant.analysis.backfill.enabled' --value 'true' \
+    --clobber
 
   # Enable compression to make metrics accessible by Dr. Elephant
   echo "spark.eventLog.compress = true" >>"/usr/lib/spark/conf/spark-defaults.conf"

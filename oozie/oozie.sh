@@ -62,7 +62,7 @@ function main() {
   fi
 }
 
-function install_oozie(){
+function install_oozie() {
   local master_node=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
   local node_name=${HOSTNAME}
 
@@ -71,7 +71,7 @@ function install_oozie(){
   install_apt_get oozie oozie-client || err 'Unable to install oozie-client'
   # Remove Log4j 2 jar not compatible with Log4j 1 that was brought by Hive 2
   # TODO: remove after upgrade to Oozie 5.1
-  if compgen -G "/usr/lib/oozie/lib/log4j-1.2.*.jar" > /dev/null; then
+  if compgen -G "/usr/lib/oozie/lib/log4j-1.2.*.jar" >/dev/null; then
     rm -f /usr/lib/oozie/lib/log4j-1.2-api*.jar
   fi
 
@@ -100,36 +100,35 @@ function install_oozie(){
   # Hadoop must allow impersonation for Oozie to work properly
 
   bdconfig set_property \
-      --configuration_file "/etc/hadoop/conf/core-site.xml" \
-      --name 'hadoop.proxyuser.oozie.hosts' --value '*' \
-      --clobber
+    --configuration_file "/etc/hadoop/conf/core-site.xml" \
+    --name 'hadoop.proxyuser.oozie.hosts' --value '*' \
+    --clobber
 
   bdconfig set_property \
     --configuration_file "/etc/hadoop/conf/core-site.xml" \
     --name 'hadoop.proxyuser.oozie.groups' --value '*' \
     --clobber
 
-
   # Detect if current node configuration is HA and then set oozie servers
   local additional_nodes=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional | sed 's/,/\n/g' | wc -l)
   if [[ ${additional_nodes} -ge 2 ]]; then
     echo 'Starting configuration for HA'
     # List of servers is used for proper zookeeper configuration. It is needed to replace original ports range with specific one
-    local servers=$(cat /usr/lib/zookeeper/conf/zoo.cfg \
-      | grep 'server.' \
-      | sed 's/server.//g' \
-      | sed 's/:2888:3888//g' \
-      | cut -d'=' -f2- \
-      | sed 's/\n/,/g' \
-      | head -n 3 \
-      | sed 's/$/:2181,/g' \
-      | xargs -L3 \
-      | sed 's/.$//g')
+    local servers=$(cat /usr/lib/zookeeper/conf/zoo.cfg |
+      grep 'server.' |
+      sed 's/server.//g' |
+      sed 's/:2888:3888//g' |
+      cut -d'=' -f2- |
+      sed 's/\n/,/g' |
+      head -n 3 |
+      sed 's/$/:2181,/g' |
+      xargs -L3 |
+      sed 's/.$//g')
 
     bdconfig set_property \
       --configuration_file "/etc/oozie/conf/oozie-site.xml" \
       --name 'oozie.services.ext' --value \
-        'org.apache.oozie.service.ZKLocksService,
+      'org.apache.oozie.service.ZKLocksService,
         org.apache.oozie.service.ZKXLogStreamingService,
         org.apache.oozie.service.ZKJobsConcurrencyService,
         org.apache.oozie.service.ZKUUIDService' \
@@ -145,7 +144,7 @@ function install_oozie(){
   /usr/lib/zookeeper/bin/zkServer.sh restart
   # HDFS and YARN must be cycled; restart to clean things up
   for service in hadoop-hdfs-namenode hadoop-hdfs-secondarynamenode hadoop-yarn-resourcemanager oozie; do
-    if [[ $(systemctl list-unit-files | grep ${service}) != '' ]] && \
+    if [[ $(systemctl list-unit-files | grep ${service}) != '' ]] &&
       [[ $(systemctl is-enabled ${service}) == 'enabled' ]]; then
       systemctl restart ${service}
     fi
