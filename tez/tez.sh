@@ -21,8 +21,6 @@ set -euxo pipefail
 # Use Python from /usr/bin instead of /opt/conda.
 export PATH=/usr/bin:$PATH
 
-readonly TEZ_VERSION='0.7.0'
-readonly PROTOBUF_VERSION='2.5.0'
 readonly TEZ_HDFS_PATH='/apps/tez'
 readonly TEZ_JARS='/usr/lib/tez'
 readonly TEZ_CONF_DIR='/etc/tez/conf'
@@ -46,12 +44,12 @@ function update_apt_get() {
 }
 
 function install_apt_get() {
-  pkgs="$@"
+  local pkgs="$*"
   retry_apt_command "apt-get install -y $pkgs"
 }
 
 function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   return 1
 }
 
@@ -70,7 +68,7 @@ function configure_master_node() {
 
   # Update the hadoop-env.sh
   {
-    echo 'export TEZ_CONF_DIR=/etc/tez/'
+    echo "export TEZ_CONF_DIR=${TEZ_CONF_DIR}"
     echo "export TEZ_JARS=${TEZ_JARS}"
     echo "HADOOP_CLASSPATH=\$HADOOP_CLASSPATH:${TEZ_CONF_DIR}:${TEZ_JARS}/*:${TEZ_JARS}/lib/*"
   } >>/etc/hadoop/conf/hadoop-env.sh
@@ -163,17 +161,16 @@ function main() {
   local master_hostname
   master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 
-  # Let spark continue using the existing hive configuration, as it will
+  # Let Spark continue using the existing hive configuration, as it will
   # not want to use hive on tez.
   cp ${HIVE_CONF_DIR}/* ${SPARK_CONF_DIR}/
   # Remove lines containing /etc/hive/conf from spark-env.sh
   sudo sed -i '\#CLASSPATH=.*/etc/hive/conf#d' /etc/spark/conf/spark-env.sh
 
-  # Only run the installation on workers; verify zookeeper on master(s).
+  # Only run the installation on workers; verify Zookeeper on master(s).
   if [[ "${role}" == 'Master' ]]; then
     configure_master_node
   fi
-
 }
 
 main
