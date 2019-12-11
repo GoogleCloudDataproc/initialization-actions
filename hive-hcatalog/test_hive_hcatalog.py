@@ -65,7 +65,7 @@ class HiveHCatalogTestCase(DataprocTestCase):
         ("STANDARD", True),
         ("HA", True),
     )
-    def test_hive(self, configuration, should_repeat_job):
+    def test_hive_hcatalog(self, configuration, should_repeat_job):
         self.createCluster(configuration, self.INIT_ACTIONS)
         self.verify_instance(self.getClusterName(), should_repeat_job)
 
