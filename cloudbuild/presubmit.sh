@@ -38,6 +38,9 @@ initialize_git_repo() {
 
   git reset "${COMMIT_SHA}"
 
+  git status "${COMMIT_SHA}"
+  git diff "${COMMIT_SHA}"
+
   git rebase origin/master
 }
 
