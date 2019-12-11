@@ -57,7 +57,7 @@ function update_kafka_metrics_reporter() {
   fi
 
   cp ${CRUISE_CONTROL_HOME}/cruise-control-metrics-reporter/build/libs/cruise-control-metrics-reporter-${CRUISE_CONTROL_VERSION}.jar \
-      ${KAFKA_HOME}/libs
+    ${KAFKA_HOME}/libs
   cat >>${KAFKA_CONFIG_FILE} <<EOF
 
 # Properties added by Cruise Control init action.
@@ -86,7 +86,7 @@ EOF
 
 function start_cruise_control_server() {
   # Wait for the metrics topic to be created.
-  for ((i=1; i<=20; i++)); do
+  for ((i = 1; i <= 20; i++)); do
     local metrics_topic=$(/usr/lib/kafka/bin/kafka-topics.sh --list --zookeeper localhost:2181 | grep __CruiseControlMetrics)
     if [[ -n "${metrics_topic}" ]]; then
       break

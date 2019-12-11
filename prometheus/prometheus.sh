@@ -32,7 +32,7 @@ readonly KAFKA_JMX_JAVAAGENT_URI="http://central.maven.org/maven2/io/prometheus/
 readonly KAFKA_JMX_EXPORTER_CONFIG_NAME="kafka-0-8-2.yml"
 readonly KAFKA_JMX_EXPORTER_CONFIG_URI="https://raw.githubusercontent.com/prometheus/jmx_exporter/master/example_configs/${KAFKA_JMX_EXPORTER_CONFIG_NAME}"
 
-function is_kafka_installed {
+function is_kafka_installed() {
   local result="$(cat ${KAFKA_CONFIG_FILE} | grep broker.id | tail -1)"
   if [[ "${result}" == "broker.id=0" ]]; then
     return 1
@@ -41,7 +41,7 @@ function is_kafka_installed {
   fi
 }
 
-function install_prometheus {
+function install_prometheus() {
   mkdir -p /etc/prometheus /var/lib/prometheus
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
     "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VER}/prometheus-${PROMETHEUS_VER}.linux-amd64.tar.gz"
@@ -53,7 +53,7 @@ function install_prometheus {
 
   rm -rf "prometheus-${PROMETHEUS_VER}.linux-amd64.tar.gz" "prometheus-${PROMETHEUS_VER}.linux-amd64"
 
-cat << EOF > /etc/systemd/system/prometheus.service
+  cat <<EOF >/etc/systemd/system/prometheus.service
 [Unit]
 Description=Prometheus
 Wants=network-online.target
@@ -75,9 +75,9 @@ WantedBy=multi-user.target
 EOF
 }
 
-function configure_prometheus {
+function configure_prometheus() {
   # Statsd for Hadoop and Spark.
-  cat << EOF > /etc/prometheus/prometheus.yml
+  cat <<EOF >/etc/prometheus/prometheus.yml
 global:
   scrape_interval: 10s
   evaluation_interval: 10s
@@ -91,7 +91,7 @@ EOF
 
   # Kafka JMX exporter.
   if [[ "${MONITOR_KAFKA}" == "true" ]] && is_kafka_installed; then
-    cat << EOF >> /etc/prometheus/prometheus.yml
+    cat <<EOF >>/etc/prometheus/prometheus.yml
   - job_name: 'kafka'
     static_configs:
       - targets: ['localhost:${KAFKA_JMX_EXPORTER_PORT}']
@@ -99,7 +99,7 @@ EOF
   fi
 }
 
-function install_statsd_exporter {
+function install_statsd_exporter() {
   mkdir -p /var/lib/statsd
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
     "https://github.com/prometheus/statsd_exporter/releases/download/v${STATSD_EXPORTER_VER}/statsd_exporter-${STATSD_EXPORTER_VER}.linux-amd64.tar.gz"
@@ -108,7 +108,7 @@ function install_statsd_exporter {
 
   rm -rf "statsd_exporter-${STATSD_EXPORTER_VER}.linux-amd64.tar.gz" "statsd_exporter-${STATSD_EXPORTER_VER}.linux-amd64"
 
-cat << EOF > /etc/systemd/system/statsd-exporter.service
+  cat <<EOF >/etc/systemd/system/statsd-exporter.service
 [Unit]
 Description=Statsd
 Wants=network-online.target
@@ -126,23 +126,23 @@ WantedBy=multi-user.target
 EOF
 }
 
-function install_jmx_exporter {
+function install_jmx_exporter() {
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
-     "${KAFKA_JMX_JAVAAGENT_URI}" -P "${KAFKA_LIBS_DIR}"
+    "${KAFKA_JMX_JAVAAGENT_URI}" -P "${KAFKA_LIBS_DIR}"
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
-     "${KAFKA_JMX_EXPORTER_CONFIG_URI}" -P "${KAFKA_CONFIG_DIR}"
+    "${KAFKA_JMX_EXPORTER_CONFIG_URI}" -P "${KAFKA_CONFIG_DIR}"
   sed -i "/kafka-run-class.sh/i export KAFKA_OPTS=\"\${KAFKA_OPTS} -javaagent:${KAFKA_LIBS_DIR}/${KAFKA_JMX_JAVAAGENT_NAME}=${KAFKA_JMX_EXPORTER_PORT}:${KAFKA_CONFIG_DIR}/${KAFKA_JMX_EXPORTER_CONFIG_NAME}\"" \
-        /usr/lib/kafka/bin/kafka-server-start.sh
+    /usr/lib/kafka/bin/kafka-server-start.sh
 }
 
-function start_services {
+function start_services() {
   systemctl daemon-reload
   systemctl start statsd-exporter
   systemctl start prometheus
 }
 
-function configure_hadoop {
-  cat << EOF > /etc/hadoop/conf/hadoop-metrics2.properties
+function configure_hadoop() {
+  cat <<EOF >/etc/hadoop/conf/hadoop-metrics2.properties
 resourcemanager.sink.statsd.class=org.apache.hadoop.metrics2.sink.StatsDSink
 resourcemanager.sink.statsd.server.host=${HOSTNAME}
 resourcemanager.sink.statsd.server.port=9125
@@ -163,20 +163,20 @@ EOF
   fi
 }
 
-function configure_spark {
-  cat << EOF > /etc/spark/conf/metrics.properties
+function configure_spark() {
+  cat <<EOF >/etc/spark/conf/metrics.properties
 *.sink.statsd.class=org.apache.spark.metrics.sink.StatsdSink
 *.sink.statsd.prefix=spark
 *.sink.statsd.port=9125
 EOF
 }
 
-function configure_kafka {
+function configure_kafka() {
   install_jmx_exporter
   systemctl restart kafka-server.service
 }
 
-function configure_components {
+function configure_components() {
   if [[ "${MONITOR_HADOOP}" == "true" || "${MONITOR_SPARK}" == "true" ]]; then
     install_statsd_exporter
 
@@ -194,13 +194,13 @@ function configure_components {
   fi
 }
 
-function restart_service_gracefully {
+function restart_service_gracefully() {
   while true; do
-    if systemctl status "$1"| grep -q 'Active: active (running)'; then
+    if systemctl status "$1" | grep -q 'Active: active (running)'; then
       systemctl restart "$1"
-      break;
+      break
     fi
-    sleep 5;
+    sleep 5
   done
 }
 

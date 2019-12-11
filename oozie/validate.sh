@@ -17,7 +17,6 @@ fi
 rm -f job.properties
 hdfs dfs -get "oozie-examples/apps/map-reduce/job.properties" job.properties
 
-
 echo "---------------------------------"
 echo "Starting validation on ${HOSTNAME}"
 sudo -u hdfs hadoop dfsadmin -safemode leave &>/dev/null

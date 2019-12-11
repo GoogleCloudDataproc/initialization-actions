@@ -55,4 +55,3 @@ if [[ ! -d "${RISE_PATH}" ]]; then
 else
   echo "Existing directory at path: ${RISE_PATH}, skipping install!"
 fi
-

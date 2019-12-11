@@ -59,10 +59,10 @@ function err() {
 # Returns the list of broker IDs registered in ZooKeeper, e.g., " 0, 2, 1,".
 function get_broker_list() {
   ${KAFKA_HOME}/bin/zookeeper-shell.sh "${ZOOKEEPER_ADDRESS}" \
-      <<< "ls /brokers/ids" \
-      | grep '\[.*\]' \
-      | sed 's/\[/ /' \
-      | sed 's/\]/,/'
+    <<<"ls /brokers/ids" |
+    grep '\[.*\]' |
+    sed 's/\[/ /' |
+    sed 's/\]/,/'
 }
 
 # Waits for zookeeper to be up or time out.
@@ -97,19 +97,19 @@ function wait_for_kafka() {
 function install_and_configure_kafka_server() {
   # Find zookeeper list first, before attempting any installation.
   local zookeeper_client_port
-  zookeeper_client_port=$(grep 'clientPort' /etc/zookeeper/conf/zoo.cfg \
-    | tail -n 1 \
-    | cut -d '=' -f 2)
+  zookeeper_client_port=$(grep 'clientPort' /etc/zookeeper/conf/zoo.cfg |
+    tail -n 1 |
+    cut -d '=' -f 2)
 
   local zookeeper_list
-  zookeeper_list=$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg \
-    | cut -d '=' -f 2 \
-    | cut -d ':' -f 1 \
-    | sort \
-    | uniq \
-    | sed "s/$/:${zookeeper_client_port}/" \
-    | xargs echo  \
-    | sed "s/ /,/g")
+  zookeeper_list=$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg |
+    cut -d '=' -f 2 |
+    cut -d ':' -f 1 |
+    sort |
+    uniq |
+    sed "s/$/:${zookeeper_client_port}/" |
+    xargs echo |
+    sed "s/ /,/g")
 
   if [[ -z "${zookeeper_list}" ]]; then
     # Didn't find zookeeper quorum in zoo.cfg, but possibly workers just didn't
@@ -127,8 +127,8 @@ function install_and_configure_kafka_server() {
   ZOOKEEPER_ADDRESS="${zookeeper_list%%,*}"
 
   # Install Kafka from Dataproc distro.
-  install_apt_get kafka-server || dpkg -l kafka-server \
-    || err 'Unable to install and find kafka-server.'
+  install_apt_get kafka-server || dpkg -l kafka-server ||
+    err 'Unable to install and find kafka-server.'
 
   mkdir -p /var/lib/kafka-logs
   chown kafka:kafka -R /var/lib/kafka-logs
@@ -152,8 +152,8 @@ function install_and_configure_kafka_server() {
     "${KAFKA_PROP_FILE}"
   sed -i 's,^\(broker\.id=\).*,\1'${BROKER_ID}',' \
     "${KAFKA_PROP_FILE}"
-  echo -e '\nreserved.broker.max.id=100000' >> "${KAFKA_PROP_FILE}"
-  echo -e '\ndelete.topic.enable=true' >> "${KAFKA_PROP_FILE}"
+  echo -e '\nreserved.broker.max.id=100000' >>"${KAFKA_PROP_FILE}"
+  echo -e '\ndelete.topic.enable=true' >>"${KAFKA_PROP_FILE}"
 
   if [[ "${KAFKA_ENABLE_JMX}" == "true" ]]; then
     sed -i '/kafka-run-class.sh/i export KAFKA_JMX_OPTS="-Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=localhost -Djava.net.preferIPv4Stack=true"' /usr/lib/kafka/bin/kafka-server-start.sh
@@ -173,16 +173,16 @@ function main() {
 
   # Only run the installation on workers; verify zookeeper on master(s).
   if [[ "${ROLE}" == 'Master' ]]; then
-    service zookeeper-server status \
-      || err 'Required zookeeper-server not running on master!'
+    service zookeeper-server status ||
+      err 'Required zookeeper-server not running on master!'
     if [[ "${RUN_ON_MASTER}" == "true" ]]; then
       # Run installation on masters.
       install_and_configure_kafka_server
     else
       # On master nodes, just install kafka command-line tools and libs but not
       # kafka-server.
-      install_apt_get kafka \
-        || err 'Unable to install kafka libraries on master!'
+      install_apt_get kafka ||
+        err 'Unable to install kafka libraries on master!'
     fi
   else
     # Run installation on workers.

@@ -39,7 +39,6 @@ function update_apt_get() {
   return 1
 }
 
-
 update_apt_get
 
 # Install the hive-hcatalog package

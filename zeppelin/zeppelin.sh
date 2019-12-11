@@ -19,7 +19,6 @@
 
 set -euxo pipefail
 
-
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly INTERPRETER_FILE='/etc/zeppelin/conf/interpreter.json'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/zeppelin-notebook.service'
@@ -49,7 +48,7 @@ function err() {
   return 1
 }
 
-function install_zeppelin(){
+function install_zeppelin() {
   # Install zeppelin. Don't mind if it fails to start the first time.
   retry_apt_command "apt-get install -t $(lsb_release -sc)-backports -y zeppelin" || dpkg -l zeppelin
   if [ $? != 0 ]; then
@@ -68,8 +67,8 @@ function install_zeppelin(){
   fi
 }
 
-function configure_zeppelin(){
-  local zeppelin_version;
+function configure_zeppelin() {
+  local zeppelin_version
   zeppelin_version="$(dpkg-query --showformat='${Version}' --show zeppelin)"
 
   # Only use sed to modify interpreter.json prior to Zeppelin 0.8.0.
@@ -101,7 +100,7 @@ function configure_zeppelin(){
     sed -i '/spark\.executor\.memory/d' "${INTERPRETER_FILE}"
 
     # Set BigQuery project ID if present.
-    local project_id;
+    local project_id
     project_id="$(/usr/share/google/get_metadata_value ../project/project-id)"
     sed -i "s/\(\"zeppelin.bigquery.project_id\"\)[^,}]*/\1: \"${project_id}\"/" \
       "${INTERPRETER_FILE}"
@@ -110,11 +109,11 @@ function configure_zeppelin(){
   # Link in hive configuration.
   ln -s /etc/hive/conf/hive-site.xml /etc/zeppelin/conf
 
-  local zeppelin_port;
+  local zeppelin_port
   zeppelin_port="$(/usr/share/google/get_metadata_value attributes/zeppelin-port || true)"
   if [[ -n "${zeppelin_port}" ]]; then
     echo "export ZEPPELIN_PORT=${zeppelin_port}" \
-      >> /etc/zeppelin/conf/zeppelin-env.sh
+      >>/etc/zeppelin/conf/zeppelin-env.sh
   fi
 
   # Install matplotlib. Note that this will work in Zeppelin, but not

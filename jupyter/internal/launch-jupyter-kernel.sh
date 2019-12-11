@@ -11,7 +11,7 @@ echo "Installing Jupyter service..."
 readonly JUPYTER_LAUNCHER='/usr/local/bin/launch_jupyter.sh'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/jupyter-notebook.service'
 
-cat << EOF > "${JUPYTER_LAUNCHER}"
+cat <<EOF >"${JUPYTER_LAUNCHER}"
 #!/bin/bash
 
 source /etc/profile.d/conda.sh
@@ -19,7 +19,7 @@ source /etc/profile.d/conda.sh
 EOF
 chmod 750 "${JUPYTER_LAUNCHER}"
 
-cat << EOF > "${INIT_SCRIPT}"
+cat <<EOF >"${INIT_SCRIPT}"
 [Unit]
 Description=Jupyter Notebook Server
 

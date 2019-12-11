@@ -46,7 +46,7 @@ function configure_jupyter() {
   echo "Creating Jupyter config..."
   jupyter notebook --allow-root --generate-config -y
 
-  cat << EOF >> ~/.jupyter/jupyter_notebook_config.py
+  cat <<EOF >>~/.jupyter/jupyter_notebook_config.py
 
 ## Configs generated in Dataproc init action
 c.Application.log_level = 'DEBUG'
@@ -65,7 +65,7 @@ EOF
   # {connection_file} is a magic variable that Jupyter fills in for us
   # Note: we can only use it in argv, so cannot use env to set those
   # environment variables.
-  cat << EOF > "${KERNELSPEC_FILE}"
+  cat <<EOF >"${KERNELSPEC_FILE}"
 {
  "argv": [
     "bash",
@@ -78,7 +78,7 @@ EOF
   # Ensure Jupyter has picked up the new kernel
   jupyter kernelspec list | grep pyspark || err "Failed to create kernelspec"
 
-  cat << EOF > "${INIT_SCRIPT}"
+  cat <<EOF >"${INIT_SCRIPT}"
 [Unit]
 Description=Jupyter Notebook Server
 After=hadoop-yarn-resourcemanager.service
@@ -116,4 +116,3 @@ function main() {
 }
 
 main
-

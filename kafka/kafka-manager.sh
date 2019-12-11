@@ -52,17 +52,17 @@ function build_kafka_manager() {
 
 # Returns list of zookeeper servers configured in the zoo.cfg file.
 function get_zookeeper_list() {
-  local zookeeper_client_port=$(grep 'clientPort' "${ZOOKEEPER_CONFIG}" \
-      | tail -n 1 \
-      | cut -d '=' -f 2)
-  local zookeeper_list=$(grep '^server.' "${ZOOKEEPER_CONFIG}" \
-      | tac \
-      | sort -u -t '=' -k1,1 \
-      | cut -d '=' -f 2 \
-      | cut -d ':' -f 1 \
-      | sed "s/$/:${zookeeper_client_port}/" \
-      | xargs echo \
-      | sed "s/ /,/g")
+  local zookeeper_client_port=$(grep 'clientPort' "${ZOOKEEPER_CONFIG}" |
+    tail -n 1 |
+    cut -d '=' -f 2)
+  local zookeeper_list=$(grep '^server.' "${ZOOKEEPER_CONFIG}" |
+    tac |
+    sort -u -t '=' -k1,1 |
+    cut -d '=' -f 2 |
+    cut -d ':' -f 1 |
+    sed "s/$/:${zookeeper_client_port}/" |
+    xargs echo |
+    sed "s/ /,/g")
   echo "${zookeeper_list}"
 }
 
@@ -149,9 +149,9 @@ function start_kafka_manager() {
 
   echo "Starting Kafka Manager server on ${HOSTNAME}:${KAFKA_MANAGER_HTTP_PORT}."
   ${KAFKA_MANAGER_HOME}/bin/kafka-manager \
-      -Dconfig.file=${KAFKA_MANAGER_CONFIG} \
-      -Dapplication.home=${KAFKA_MANAGER_HOME} \
-      -Dhttp.port=${KAFKA_MANAGER_HTTP_PORT} &
+    -Dconfig.file=${KAFKA_MANAGER_CONFIG} \
+    -Dapplication.home=${KAFKA_MANAGER_HOME} \
+    -Dhttp.port=${KAFKA_MANAGER_HTTP_PORT} &
 
   # Wait until znode /kafka-manager/configs is created by Kafka Manager.
   wait_for_zookeeper /kafka-manager/configs

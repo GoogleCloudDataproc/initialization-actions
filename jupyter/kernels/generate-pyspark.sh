@@ -6,7 +6,7 @@
 
 set -e
 
-SPARK_MAJOR_VERSION=$(spark-submit --version |& \
+SPARK_MAJOR_VERSION=$(spark-submit --version |&
   grep 'version' | head -n 1 | sed 's/.*version //' | cut -d '.' -f 1)
 echo "Determined SPARK_MAJOR_VERSION to be '${SPARK_MAJOR_VERSION}'" >&2
 
@@ -18,13 +18,13 @@ PY4J_ZIP=$(ls /usr/lib/spark/python/lib/py4j-*.zip)
 PY4J_ZIP=$(echo ${PY4J_ZIP} | cut -d ' ' -f 1)
 echo "Found PY4J_ZIP: '${PY4J_ZIP}'" >&2
 
-if (( "${SPARK_MAJOR_VERSION}" >= 2 )); then
+if (("${SPARK_MAJOR_VERSION}" >= 2)); then
   PACKAGES_ARG=''
 else
   PACKAGES_ARG='--packages com.databricks:spark-csv_2.10:1.3.0'
 fi
 
-cat << EOF
+cat <<EOF
 {
  "argv": [
     "python", "-m", "ipykernel", "-f", "{connection_file}"],

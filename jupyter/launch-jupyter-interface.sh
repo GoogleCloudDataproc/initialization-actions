@@ -11,8 +11,8 @@ readonly DIR
 
 source "${DIR}/../util/utils.sh"
 
-function usage {
-  cat << EOF
+function usage() {
+  cat <<EOF
 Creates an SSH tunnel and socks proxy and launches Chrome, using the environment
 variable DATAPROC_CLUSTER_NAME for the unique cluster name. The cluster metadata
 must contain a value for the key 'JUPYTER_PORT'.
@@ -29,22 +29,21 @@ EOF
   exit 1
 }
 
-for i in "$@"
-do
+for i in "$@"; do
   case $i in
-    -z=*)
-      ZONE="${i#*=}"
-      shift # past argument=value
-      ;;
-    -c=*)
-      DATAPROC_CLUSTER_NAME="${i#*=}"
-      shift # past argument=value
-      ;;
-    -h)
-      usage
-      ;;
-    *)
-      ;;
+  -z=*)
+    ZONE="${i#*=}"
+    shift # past argument=value
+    ;;
+  -c=*)
+    DATAPROC_CLUSTER_NAME="${i#*=}"
+    shift # past argument=value
+    ;;
+  -h)
+    usage
+    ;;
+  *) ;;
+
   esac
 done
 
