@@ -111,7 +111,6 @@ function configure_master() {
   mkdir -p datalab-pyspark
   pushd datalab-pyspark
   cp /etc/apt/trusted.gpg .
-  local backports_param
   cp /etc/apt/sources.list.d/dataproc.list .
   cat <<EOF >Dockerfile
 FROM ${DOCKER_IMAGE}
