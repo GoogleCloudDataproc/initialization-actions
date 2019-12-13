@@ -114,8 +114,13 @@ function configure_master() {
   cp /etc/apt/sources.list.d/dataproc.list .
   cat <<EOF >Dockerfile
 FROM ${DOCKER_IMAGE}
+
 ADD dataproc.list /etc/apt/sources.list.d/
 ADD trusted.gpg /tmp/vm_trusted.gpg
+
+RUN apt-get update
+RUN apt-get install -y software-properties-common
+RUN add-apt-repository 'deb http://archive.ubuntu.com/ubuntu bionic main'
 
 RUN apt-key add /tmp/vm_trusted.gpg
 RUN apt-get update
@@ -139,7 +144,6 @@ ENV DATALAB_ENV='GCE'
 EOF
   docker build -t datalab-pyspark .
   popd
-
 }
 
 function run_datalab() {
