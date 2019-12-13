@@ -42,7 +42,7 @@ function run_with_retries() {
       break
     else
       local sleep_time=${retry_backoff[$i]}
-      echo "'${cmd[*]}' attempt $(($i + 1)) failed! Sleeping ${sleep_time}." >&2
+      echo "'${cmd[*]}' attempt $((i + 1)) failed! Sleeping ${sleep_time}." >&2
       sleep "${sleep_time}"
     fi
   done
