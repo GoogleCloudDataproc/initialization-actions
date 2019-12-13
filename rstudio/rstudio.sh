@@ -43,11 +43,11 @@ function run_with_retries() {
     else
       local sleep_time=${retry_backoff[$i]}
       echo "'${cmd[*]}' attempt $(($i + 1)) failed! Sleeping ${sleep_time}." >&2
-      sleep ${sleep_time}
+      sleep "${sleep_time}"
     fi
   done
 
-  if ! ((${succeeded})); then
+  if ! ((succeeded)); then
     echo "Final attempt of '${cmd[*]}'..."
     # Let any final error propagate all the way out to any error traps.
     "${cmd[@]}"
@@ -79,20 +79,20 @@ if [[ "${ROLE}" == 'Master' ]]; then
     echo "RStudio user name and password must not be the same."
     exit 3
   fi
+
   # Install RStudio Server
-  update_apt_get
-  apt-get install -y software-properties-common
-  add-apt-repository "deb http://cran.r-project.org/bin/linux/${OS_ID} ${OS_CODE}-cran35/"
   if [[ "${OS_ID}" == "ubuntu" ]]; then
     REPOSITORY_KEY=E298A3A825C0D65DFD57CBB651716619E084DAB9
   else
     REPOSITORY_KEY=E19F5F87128899B192B1A2C2AD5F960A256A04AF
   fi
   run_with_retries apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys ${REPOSITORY_KEY}
+  apt-get install -y software-properties-common
+  add-apt-repository "deb http://cran.r-project.org/bin/linux/${OS_ID} ${OS_CODE}-cran35/"
   update_apt_get
   apt-get install -y r-base r-base-dev gdebi-core
 
-  # Download and install RStudio Server:
+  # Download and install RStudio Server package:
   # https://rstudio.com/products/rstudio/download-server/debian-ubuntu/
   if [[ ${OS_CODE} == stretch ]]; then
     RSTUDIO_SERVER_URL=https://download2.rstudio.org/server/debian9/x86_64
