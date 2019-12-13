@@ -111,16 +111,10 @@ function configure_master() {
   mkdir -p datalab-pyspark
   pushd datalab-pyspark
   cp /etc/apt/trusted.gpg .
-  if [[ -f /etc/apt/sources.list.d/backports.list ]]; then
-    cp /etc/apt/sources.list.d/backports.list .
-    ADD_BACKPORTS='ADD backports.list /etc/apt/sources.list.d/'
-  else
-    ADD_BACKPORTS=''
-  fi
+  local backports_param
   cp /etc/apt/sources.list.d/dataproc.list .
   cat <<EOF >Dockerfile
 FROM ${DOCKER_IMAGE}
-${ADD_BACKPORTS}
 ADD dataproc.list /etc/apt/sources.list.d/
 ADD trusted.gpg /tmp/vm_trusted.gpg
 
