@@ -17,6 +17,18 @@
 
 set -euxo pipefail
 
+# Only run on the master node
+ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+
+USER_NAME="$(/usr/share/google/get_metadata_value attributes/rstudio-user || echo rstudio)"
+USER_PASSWORD="$(/usr/share/google/get_metadata_value attributes/rstudio-password || true)"
+
+RSTUDIO_SERVER_VERSION=1.2.5019
+RSTUDIO_SERVER_PACKAGE=rstudio-server-${RSTUDIO_SERVER_VERSION}-amd64.deb
+
+OS_ID=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+OS_CODE=$(lsb_release -cs)
+
 function update_apt_get() {
   for ((i = 0; i < 10; i++)); do
     if apt-get update; then
@@ -35,11 +47,9 @@ function run_with_retries() {
   local -a cmd=("$@")
   echo "About to run '${cmd[*]}' with retries..."
 
-  local succeeded=0
   for ((i = 0; i < ${#retry_backoff[@]}; i++)); do
     if "${cmd[@]}"; then
-      succeeded=1
-      break
+      return 0
     else
       local sleep_time=${retry_backoff[$i]}
       echo "'${cmd[*]}' attempt $((i + 1)) failed! Sleeping ${sleep_time}." >&2
@@ -47,24 +57,10 @@ function run_with_retries() {
     fi
   done
 
-  if ! ((succeeded)); then
-    echo "Final attempt of '${cmd[*]}'..."
-    # Let any final error propagate all the way out to any error traps.
-    "${cmd[@]}"
-  fi
+  echo "Final attempt of '${cmd[*]}'..."
+  # Let any final error propagate all the way out to any error traps.
+  "${cmd[@]}"
 }
-
-# Only run on the master node
-ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-
-USER_NAME="$(/usr/share/google/get_metadata_value attributes/rstudio-user || echo rstudio)"
-USER_PASSWORD="$(/usr/share/google/get_metadata_value attributes/rstudio-password || true)"
-
-RSTUDIO_SERVER_VERSION=1.2.5019
-RSTUDIO_SERVER_PACKAGE=rstudio-server-${RSTUDIO_SERVER_VERSION}-amd64.deb
-
-OS_ID=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
-OS_CODE=$(lsb_release -cs)
 
 if [[ "${ROLE}" == 'Master' ]]; then
   if [[ -n ${USER_PASSWORD} ]] && ((${#USER_PASSWORD} < 7)); then
