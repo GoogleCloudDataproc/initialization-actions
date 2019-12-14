@@ -20,5 +20,5 @@ You can find more information about using initialization actions with Dataproc i
 
 ## Important notes
 * RStudio is licensed under [AGPL v3](https://www.gnu.org/licenses/agpl-3.0-standalone.html)
-* This installs RStudio Server 1.1.422
-* Initial login is set to rstudio / rstudio
+* This installs RStudio Server
+* Initial login is set to `rstudio` / `rstudio`

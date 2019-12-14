@@ -15,7 +15,19 @@
 # This init script installs RStudio Server on the master node of a Cloud
 # Dataproc cluster.
 
-set -x -e
+set -euxo pipefail
+
+# Only run on the master node
+ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+
+USER_NAME="$(/usr/share/google/get_metadata_value attributes/rstudio-user || echo rstudio)"
+USER_PASSWORD="$(/usr/share/google/get_metadata_value attributes/rstudio-password || true)"
+
+RSTUDIO_SERVER_VERSION=1.2.5019
+RSTUDIO_SERVER_PACKAGE=rstudio-server-${RSTUDIO_SERVER_VERSION}-amd64.deb
+
+OS_ID=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+OS_CODE=$(lsb_release -cs)
 
 function update_apt_get() {
   for ((i = 0; i < 10; i++)); do
@@ -35,36 +47,19 @@ function run_with_retries() {
   local -a cmd=("$@")
   echo "About to run '${cmd[*]}' with retries..."
 
-  local succeeded=0
   for ((i = 0; i < ${#retry_backoff[@]}; i++)); do
     if "${cmd[@]}"; then
-      succeeded=1
-      break
+      return 0
     else
       local sleep_time=${retry_backoff[$i]}
-      echo "'${cmd[*]}' attempt $(($i + 1)) failed! Sleeping ${sleep_time}." >&2
-      sleep ${sleep_time}
+      echo "'${cmd[*]}' attempt $((i + 1)) failed! Sleeping ${sleep_time}." >&2
+      sleep "${sleep_time}"
     fi
   done
 
-  if ! ((${succeeded})); then
-    echo "Final attempt of '${cmd[*]}'..."
-    # Let any final error propagate all the way out to any error traps.
-    "${cmd[@]}"
-  fi
-}
-
-# Only run on the master node
-ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-USER_NAME="$(/usr/share/google/get_metadata_value attributes/rstudio-user || echo rstudio)"
-USER_PASSWORD="$(/usr/share/google/get_metadata_value attributes/rstudio-password || true)"
-RSTUDIO_VERSION=1.1.463
-OS_ID=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
-OS_CODE=$(lsb_release -cs)
-
-function get_apt_key_for_debian() {
-  apt-key adv --no-tty --keyserver keys.gnupg.net --recv-key E19F5F87128899B192B1A2C2AD5F960A256A04AF ||
-    apt-key adv --no-tty --keyserver pgp.mit.edu --recv-key E19F5F87128899B192B1A2C2AD5F960A256A04AF
+  echo "Final attempt of '${cmd[*]}'..."
+  # Let any final error propagate all the way out to any error traps.
+  "${cmd[@]}"
 }
 
 if [[ "${ROLE}" == 'Master' ]]; then
@@ -80,29 +75,34 @@ if [[ "${ROLE}" == 'Master' ]]; then
     echo "RStudio user name and password must not be the same."
     exit 3
   fi
+
   # Install RStudio Server
-  update_apt_get
-  apt-get install -y software-properties-common
   if [[ "${OS_ID}" == "ubuntu" ]]; then
-    run_with_retries apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E298A3A825C0D65DFD57CBB651716619E084DAB9
-    add-apt-repository "deb http://cran.r-project.org/bin/linux/ubuntu ${OS_CODE}-cran35/"
-    rstudio_server_package=rstudio-server-${RSTUDIO_VERSION}-amd64.deb
+    REPOSITORY_KEY=E298A3A825C0D65DFD57CBB651716619E084DAB9
   else
-    run_with_retries get_apt_key_for_debian
-    add-apt-repository "deb http://cran.r-project.org/bin/linux/debian ${OS_CODE}-cran35/"
-    rstudio_server_package=rstudio-server-${OS_CODE}-${RSTUDIO_VERSION}-amd64.deb
+    REPOSITORY_KEY=E19F5F87128899B192B1A2C2AD5F960A256A04AF
   fi
+  run_with_retries apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys ${REPOSITORY_KEY}
+  apt-get install -y software-properties-common
+  add-apt-repository "deb http://cran.r-project.org/bin/linux/${OS_ID} ${OS_CODE}-cran35/"
   update_apt_get
-  apt install -y r-base r-base-dev gdebi-core
+  apt-get install -y r-base r-base-dev gdebi-core
 
+  # Download and install RStudio Server package:
+  # https://rstudio.com/products/rstudio/download-server/debian-ubuntu/
+  if [[ ${OS_CODE} == stretch ]]; then
+    RSTUDIO_SERVER_URL=https://download2.rstudio.org/server/debian9/x86_64
+  else
+    RSTUDIO_SERVER_URL=https://download2.rstudio.org/server/bionic/amd64
+  fi
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    https://download2.rstudio.org/${rstudio_server_package} -P /tmp
-  gdebi -n /tmp/${rstudio_server_package}
+    ${RSTUDIO_SERVER_URL}/${RSTUDIO_SERVER_PACKAGE} -P /tmp
+  gdebi -n /tmp/${RSTUDIO_SERVER_PACKAGE}
 
-  if ! [ $(getent group "${USER_NAME}") ]; then
+  if ! getent group "${USER_NAME}"; then
     groupadd "${USER_NAME}"
   fi
-  if ! [ $(id -u "${USER_NAME}") ]; then
+  if ! id -u "${USER_NAME}"; then
     useradd --create-home --gid "${USER_NAME}" "${USER_NAME}"
     if [[ -n "${USER_PASSWORD}" ]]; then
       echo "${USER_NAME}:${USER_PASSWORD}" | chpasswd
