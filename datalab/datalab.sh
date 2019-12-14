@@ -111,20 +111,20 @@ function configure_master() {
   mkdir -p datalab-pyspark
   pushd datalab-pyspark
   cp /etc/apt/trusted.gpg .
-  if [[ -f /etc/apt/sources.list.d/backports.list ]]; then
-    cp /etc/apt/sources.list.d/backports.list .
-    ADD_BACKPORTS='ADD backports.list /etc/apt/sources.list.d/'
-  else
-    ADD_BACKPORTS=''
-  fi
   cp /etc/apt/sources.list.d/dataproc.list .
   cat <<EOF >Dockerfile
 FROM ${DOCKER_IMAGE}
-${ADD_BACKPORTS}
+
 ADD dataproc.list /etc/apt/sources.list.d/
 ADD trusted.gpg /tmp/vm_trusted.gpg
-
 RUN apt-key add /tmp/vm_trusted.gpg
+
+# Add Ubuntu 18.04 LTS (bionic) repository to Ubuntu 16.04 LTS (xenial) container,
+# so pacakges built on Debian 10 can pull in their dependencies.
+RUN apt-get update
+RUN apt-get install -y software-properties-common
+RUN add-apt-repository 'deb http://archive.ubuntu.com/ubuntu bionic main'
+
 RUN apt-get update
 RUN apt-get install -y hive spark-python openjdk-8-jre-headless
 
@@ -146,7 +146,6 @@ ENV DATALAB_ENV='GCE'
 EOF
   docker build -t datalab-pyspark .
   popd
-
 }
 
 function run_datalab() {
