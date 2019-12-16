@@ -59,7 +59,9 @@ function install_gpu_driver() {
     packages+=(nvidia-driver nvidia-kernel-common nvidia-smi)
     modules+=(nvidia-current)
     local nvblas_cpu_blas_lib=/usr/lib/libblas.so
-  else
+  fi
+
+  if [[ ${OS_NAME} == ubuntu ]]; then
     # Ubuntu-specific Nvidia driver pacakges and modules
     packages+=("nvidia-driver-${NVIDIA_DRIVER_VERSION_UBUNTU}"
       "nvidia-kernel-common-${NVIDIA_DRIVER_VERSION_UBUNTU}")
