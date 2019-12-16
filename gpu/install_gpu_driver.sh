@@ -16,17 +16,24 @@
 
 set -euxo pipefail
 
-# Download URLs
+function get_metadata_attribute() {
+  local attribute_name=$1
+  local default_value=$2
+  /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
+}
+
 readonly GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatform/ml-on-gcp/master/dlvm/gcp-gpu-utilization-metrics'
 
 # Whether to install GPU monitoring agent that sends GPU metrics to StackDriver
-INSTALL_GPU_AGENT="$(/usr/share/google/get_metadata_value attributes/install_gpu_agent || true)"
+INSTALL_GPU_AGENT=$(get_metadata_attribute 'install_gpu_agent' 'false')
 readonly INSTALL_GPU_AGENT
 
-function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
-  exit 1
-}
+OS_NAME=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+readonly OS_NAME
+OS_DIST=$(lsb_release -cs)
+readonly OS_DIST
+
+readonly NVIDIA_DRIVER_VERSION_UBUNTU='435'
 
 function install_gpu_driver() {
   # Detect NVIDIA GPU
@@ -37,16 +44,31 @@ function install_gpu_driver() {
     exit 0
   fi
 
-  # Add non-free Debian 9 Stretch packages.
+  local packages=(nvidia-cuda-toolkit)
+  local modules=(nvidia-drm nvidia-uvm drm)
+
+  # Add non-free Debian packages.
   # See https://www.debian.org/distrib/packages#note
-  for type in deb deb-src; do
-    for distro in stretch stretch-backports; do
-      for component in contrib non-free; do
-        echo "${type} http://deb.debian.org/debian/ ${distro} ${component}" \
+  if [[ ${OS_NAME} == debian ]]; then
+    for type in deb deb-src; do
+      for distro in ${OS_DIST} ${OS_DIST}-backports; do
+        echo "${type} http://deb.debian.org/debian ${distro} contrib non-free" \
           >>/etc/apt/sources.list.d/non-free.list
       done
     done
-  done
+    packages+=(nvidia-driver nvidia-kernel-common nvidia-smi)
+    modules+=(nvidia-current)
+    local nvblas_cpu_blas_lib=/usr/lib/libblas.so
+  elif [[ ${OS_NAME} == ubuntu ]]; then
+    # Ubuntu-specific Nvidia driver pacakges and modules
+    packages+=("nvidia-driver-${NVIDIA_DRIVER_VERSION_UBUNTU}"
+      "nvidia-kernel-common-${NVIDIA_DRIVER_VERSION_UBUNTU}")
+    modules+=(nvidia)
+    local nvblas_cpu_blas_lib=/usr/lib/x86_64-linux-gnu/libblas.so
+  else
+    echo "Unsupported OS: '${OS_NAME}'"
+    exit 1
+  fi
 
   apt-get update
   # Install proprietary NVIDIA Drivers and CUDA
@@ -54,31 +76,32 @@ function install_gpu_driver() {
   export DEBIAN_FRONTEND=noninteractive
   apt-get install -y "linux-headers-$(uname -r)"
   # Without --no-install-recommends this takes a very long time.
-  apt-get install -y -t stretch-backports --no-install-recommends \
-    nvidia-cuda-toolkit nvidia-kernel-common nvidia-driver nvidia-smi
+  apt-get install -y -t "${OS_DIST}-backports" --no-install-recommends "${packages[@]}"
 
   # Create a system wide NVBLAS config
   # See http://docs.nvidia.com/cuda/nvblas/
-  NVBLAS_CONFIG_FILE=/etc/nvidia/nvblas.conf
-  cat <<EOF >>${NVBLAS_CONFIG_FILE}
+  local nvblas_config_file=/etc/nvidia/nvblas.conf
+  # Create config file if it does not exist - this file doesn't exist by default in Ubuntu
+  mkdir -p "$(dirname ${nvblas_config_file})"
+  cat <<EOF >>${nvblas_config_file}
 # Insert here the CPU BLAS fallback library of your choice.
 # The standard libblas.so.3 defaults to OpenBLAS, which does not have the
 # requisite CBLAS API.
-NVBLAS_CPU_BLAS_LIB /usr/lib/libblas/libblas.so
+NVBLAS_CPU_BLAS_LIB ${nvblas_cpu_blas_lib}
 # Use all GPUs
 NVBLAS_GPU_LIST ALL
 # Add more configuration here.
 EOF
-  echo "NVBLAS_CONFIG_FILE=${NVBLAS_CONFIG_FILE}" >>/etc/environment
+  echo "NVBLAS_CONFIG_FILE=${nvblas_config_file}" >>/etc/environment
 
   # Rebooting during an initialization action is not recommended, so just
   # dynamically load kernel modules. If you want to run an X server, it is
   # recommended that you schedule a reboot to occur after the initialization
   # action finishes.
   modprobe -r nouveau
-  modprobe nvidia-current nvidia-drm nvidia-uvm drm
+  modprobe "${modules[@]}"
 
-  # Restart any NodeManagers so they pick up the NVBLAS config.
+  # Restart any NodeManagers, so they pick up the NVBLAS config.
   if systemctl status hadoop-yarn-nodemanager; then
     systemctl restart hadoop-yarn-nodemanager
   fi
@@ -103,6 +126,7 @@ function install_gpu_agent_service() {
   cat <<EOF >/lib/systemd/system/gpu_utilization_agent.service
 [Unit]
 Description=GPU Utilization Metric Agent
+
 [Service]
 Type=simple
 PIDFile=/run/gpu_agent.pid
@@ -111,6 +135,7 @@ User=root
 Group=root
 WorkingDirectory=/
 Restart=always
+
 [Install]
 WantedBy=multi-user.target
 EOF
@@ -120,13 +145,17 @@ EOF
   systemctl --now enable gpu_utilization_agent.service
 }
 
-# Install GPU NVIDIA Drivers
-install_gpu_driver || err "Installation of Drivers failed"
+function main() {
+  # Install GPU NVIDIA Drivers
+  install_gpu_driver
 
-# Install GPU metrics collection in Stackdriver if needed
-if [[ ${INSTALL_GPU_AGENT} == true ]]; then
-  install_gpu_agent_service || err "GPU metrics install process failed"
-  echo 'GPU agent successfully deployed.'
-else
-  echo 'GPU metrics will not be installed.'
-fi
+  # Install GPU metrics collection in Stackdriver if needed
+  if [[ ${INSTALL_GPU_AGENT} == true ]]; then
+    install_gpu_agent_service
+    echo 'GPU agent successfully deployed.'
+  else
+    echo 'GPU metrics will not be installed.'
+  fi
+}
+
+main
