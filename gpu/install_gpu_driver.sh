@@ -16,7 +16,12 @@
 
 set -euxo pipefail
 
-# Download URLs
+function get_metadata_attribute() {
+  local attribute_name=$1
+  local default_value=$2
+  /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
+}
+
 readonly GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatform/ml-on-gcp/master/dlvm/gcp-gpu-utilization-metrics'
 
 # Whether to install GPU monitoring agent that sends GPU metrics to StackDriver
@@ -29,12 +34,6 @@ OS_DIST=$(lsb_release -cs)
 readonly OS_DIST
 
 readonly NVIDIA_DRIVER_VERSION_UBUNTU='435'
-
-function get_metadata_attribute() {
-  local attribute_name=$1
-  local default_value=$2
-  /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
-}
 
 function install_gpu_driver() {
   # Detect NVIDIA GPU
