@@ -59,14 +59,15 @@ function install_gpu_driver() {
     packages+=(nvidia-driver nvidia-kernel-common nvidia-smi)
     modules+=(nvidia-current)
     local nvblas_cpu_blas_lib=/usr/lib/libblas.so
-  fi
-
-  if [[ ${OS_NAME} == ubuntu ]]; then
+  elif [[ ${OS_NAME} == ubuntu ]]; then
     # Ubuntu-specific Nvidia driver pacakges and modules
     packages+=("nvidia-driver-${NVIDIA_DRIVER_VERSION_UBUNTU}"
       "nvidia-kernel-common-${NVIDIA_DRIVER_VERSION_UBUNTU}")
     modules+=(nvidia)
     local nvblas_cpu_blas_lib=/usr/lib/x86_64-linux-gnu/libblas.so
+  else
+    echo "Unsupported OS: '${OS_NAME}'"
+    exit 1
   fi
 
   apt-get update
