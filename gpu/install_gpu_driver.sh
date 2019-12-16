@@ -81,7 +81,7 @@ function install_gpu_driver() {
   # See http://docs.nvidia.com/cuda/nvblas/
   local nvblas_config_file=/etc/nvidia/nvblas.conf
   # Create config file if it does not exist - this file doesn't exist by default in Ubuntu
-  mkdir "$(dirname ${nvblas_config_file})"
+  mkdir -p "$(dirname ${nvblas_config_file})"
   cat <<EOF >>${nvblas_config_file}
 # Insert here the CPU BLAS fallback library of your choice.
 # The standard libblas.so.3 defaults to OpenBLAS, which does not have the
