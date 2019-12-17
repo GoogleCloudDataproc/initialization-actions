@@ -42,33 +42,33 @@ readonly kms_key_uri="$(/usr/share/google/get_metadata_value attributes/kms-key-
 readonly db_admin_password_uri="$(/usr/share/google/get_metadata_value attributes/db-admin-password-uri)"
 if [[ -n "${db_admin_password_uri}" ]]; then
   # Decrypt password
-  readonly db_admin_password="$(gsutil cat $db_admin_password_uri |
+  readonly db_admin_password="$(gsutil cat "${db_admin_password_uri}" |
     gcloud kms decrypt \
       --ciphertext-file - \
       --plaintext-file - \
-      --key $kms_key_uri)"
+      --key "${kms_key_uri}")"
 else
   readonly db_admin_password=''
 fi
-if [ "${db_admin_password}" == "" ]; then
+if [[ -z ${db_admin_password} ]]; then
   readonly db_admin_password_parameter=""
 else
   readonly db_admin_password_parameter="-p${db_admin_password}"
 fi
 
-# Database password to use to access metastore.
+# Database password used to access metastore.
 readonly db_hive_password_uri="$(/usr/share/google/get_metadata_value attributes/db-hive-password-uri)"
 if [[ -n "${db_hive_password_uri}" ]]; then
   # Decrypt password
-  readonly db_hive_password="$(gsutil cat $db_hive_password_uri |
+  readonly db_hive_password="$(gsutil cat "${db_hive_password_uri}" |
     gcloud kms decrypt \
       --ciphertext-file - \
       --plaintext-file - \
-      --key $kms_key_uri)"
+      --key "${kms_key_uri}")"
 else
   readonly db_hive_password='hive-password'
 fi
-if [ "${db_hive_password}" == "" ]; then
+if [[ -z ${db_hive_password} ]]; then
   readonly db_hive_password_parameter=""
 else
   readonly db_hive_password_parameter="-p${db_hive_password}"
@@ -85,38 +85,40 @@ readonly DATAPROC_MASTER=$(/usr/share/google/get_metadata_value attributes/datap
 function get_java_property() {
   local property_file=$1
   local property_name=$2
-  local property_value=$(grep "^${property_name}=" "${property_file}" |
+  local property_value
+  property_value=$(grep "^${property_name}=" "${property_file}" |
     tail -n 1 | cut -d '=' -f 2- | sed -r 's/\\([#!=:])/\1/g')
   echo "${property_value}"
 }
 
 function get_dataproc_property() {
   local property_name=$1
-  local property_value=$(get_java_property \
-    /etc/google-dataproc/dataproc.properties \
-    "${property_name}")
+  local property_value
+  property_value=$(get_java_property \
+    /etc/google-dataproc/dataproc.properties "${property_name}")
   echo "${property_value}"
 }
 
 function is_component_selected() {
   local component=$1
 
-  local activated_components=$(get_dataproc_property \
-    dataproc.components.activate)
+  local activated_components
+  activated_components=$(get_dataproc_property dataproc.components.activate)
 
   if [[ ${activated_components} == *${component}* ]]; then
     return 0
-  else
-    return 1
   fi
+  return 1
 }
 
 readonly KERBEROS_ENABLED=$(is_component_selected 'kerberos' && echo 'true' || echo 'false')
 
 function get_hive_principal() {
   # Hostname is fully qualified
-  local host=$(hostname -f)
-  local domain=$(dnsdomainname)
+  local host
+  host=$(hostname -f)
+  local domain
+  domain=$(dnsdomainname)
   # Realm is uppercase domain name
   echo "hive/${host}@${domain^^}"
 }
@@ -124,7 +126,8 @@ function get_hive_principal() {
 function get_hiveserver_uri() {
   local base_connect_string="jdbc:hive2://localhost:10000"
   if [[ "${KERBEROS_ENABLED}" == 'true' ]]; then
-    local hive_principal=$(get_hive_principal)
+    local hive_principal
+    hive_principal=$(get_hive_principal)
     echo "${base_connect_string}/;principal=${hive_principal}"
   else
     echo "${base_connect_string}"
@@ -132,7 +135,7 @@ function get_hiveserver_uri() {
 }
 
 function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   return 1
 }
 
@@ -144,23 +147,18 @@ function run_with_retries() {
   local -a cmd=("$@")
   echo "About to run '${cmd[*]}' with retries..."
 
-  local update_succeeded=0
   for ((i = 0; i < ${#retry_backoff[@]}; i++)); do
     if "${cmd[@]}"; then
-      update_succeeded=1
-      break
-    else
-      local sleep_time=${retry_backoff[$i]}
-      echo "'${cmd[*]}' attempt $(($i + 1)) failed! Sleeping ${sleep_time}." >&2
-      sleep ${sleep_time}
+      return 0
     fi
+    local sleep_time=${retry_backoff[$i]}
+    echo "'${cmd[*]}' attempt $((i + 1)) failed! Sleeping ${sleep_time}." >&2
+    sleep "${sleep_time}"
   done
 
-  if ! ((${update_succeeded})); then
-    echo "Final attempt of '${cmd[*]}'..."
-    # Let any final error propagate all the way out to any error traps.
-    "${cmd[@]}"
-  fi
+  echo "Final attempt of '${cmd[*]}'..."
+  # Let any final error propagate all the way out to any error traps.
+  "${cmd[@]}"
 }
 
 function configure_proxy_flags() {
@@ -219,7 +217,7 @@ EOF
     err 'Unable to start cloud-sql-proxy service'
 
   if [[ $enable_cloud_sql_metastore == "true" ]]; then
-    run_with_retries nc -zv localhost ${metastore_proxy_port}
+    run_with_retries nc -zv localhost "${metastore_proxy_port}"
   fi
 
   echo 'Cloud SQL Proxy installation succeeded' >&2
@@ -275,9 +273,9 @@ EOF
       --configuration_file /etc/hive/conf/hive-site.xml \
       --clobber
   else
-    # Initialize database with current warehouse URI.
+    # Initialize a database with current warehouse URI.
     mysql -u "${db_admin_user}" "${db_admin_password_parameter}" -e \
-      "CREATE DATABASE ${metastore_db}; \
+      "CREATE DATABASE ${metastore_db};
        GRANT ALL PRIVILEGES ON ${metastore_db}.* TO '${db_hive_user}';"
     /usr/lib/hive/bin/schematool -dbType mysql -initSchema ||
       err 'Failed to set mysql schema.'
@@ -300,8 +298,9 @@ function run_validation() {
     err 'Run /usr/lib/hive/bin/schematool -dbType mysql -upgradeSchemaFrom <schema-version> to upgrade the schema. Note that this may break Hive metastores that depend on the old schema'
 
   # Validate it's functioning.
-  local hiveserver_uri=$(get_hiveserver_uri)
-  if ! timeout 60s beeline -u ${hiveserver_uri} -e 'SHOW TABLES;' >&/dev/null; then
+  local hiveserver_uri
+  hiveserver_uri=$(get_hiveserver_uri)
+  if ! timeout 60s beeline -u "${hiveserver_uri}" -e 'SHOW TABLES;' >&/dev/null; then
     err 'Failed to bring up Cloud SQL Metastore'
   else
     echo 'Cloud SQL Hive Metastore initialization succeeded' >&2
@@ -313,9 +312,9 @@ function configure_hive_warehouse_dir() {
   # Wait for master 0 to create the metastore db if necessary.
   run_with_retries run_validation
 
-  local hiveserver_uri=$(get_hiveserver_uri)
-  HIVE_WAREHOURSE_URI=$(beeline -u ${hiveserver_uri} \
-    -e "describe database default;" |
+  local hiveserver_uri
+  hiveserver_uri=$(get_hiveserver_uri)
+  HIVE_WAREHOURSE_URI=$(beeline -u "${hiveserver_uri}" -e "describe database default;" |
     sed '4q;d' | cut -d "|" -f4 | tr -d '[:space:]')
 
   echo "Hive warehouse uri: $HIVE_WAREHOURSE_URI"
@@ -329,7 +328,6 @@ function configure_hive_warehouse_dir() {
 }
 
 function main() {
-
   local role
   role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 
