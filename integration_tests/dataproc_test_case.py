@@ -69,6 +69,10 @@ class DataprocTestCase(parameterized.TestCase):
         assert cls.INIT_ACTIONS
         assert cls.INIT_ACTIONS_REPO
 
+    def __init__(self, *args, **kwargs):
+        super(parameterized.TestCase, self).__init__(*args, **kwargs)
+        self.name = None
+
     def initClusterName(self, configuration):
         if self.name:
             return
