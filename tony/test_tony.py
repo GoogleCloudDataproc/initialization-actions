@@ -13,7 +13,7 @@ class TonYTestCase(DataprocTestCase):
         "SINGLE",
         "STANDARD",
     )
-    def test_tony(self, configuration):
+    def test_tony_tf(self, configuration):
         # Init action supported on Dataproc 1.3+
         if self.getImageVersion() < pkg_resources.parse_version("1.3"):
             return
@@ -24,7 +24,7 @@ class TonYTestCase(DataprocTestCase):
             timeout_in_minutes=30,
             machine_type="n1-standard-4")
 
-        # Verify cluster using TensorFlow job
+        # Verify a cluster using TensorFlow job
         self.assert_dataproc_job(
             self.name, 'hadoop', '''\
                 --class=com.linkedin.tony.cli.ClusterSubmitter \
@@ -35,10 +35,20 @@ class TonYTestCase(DataprocTestCase):
                 --conf_file=/opt/tony/TonY-samples/jobs/TFJob/tony.xml \
                 --executes=mnist_distributed.py \
                 --python_venv=/opt/tony/TonY-samples/deps/tf.zip \
-                --python_binary_path=tf/bin/python3.5
+                --python_binary_path=tf/bin/python3
             ''')
 
-        # Verify cluster using PyTorch job
+    def test_tony_torch(self):
+        # Init action supported on Dataproc 1.3+
+        if self.getImageVersion() < pkg_resources.parse_version("1.3"):
+            return
+
+        self.createCluster(
+            "STANDARD",
+            self.INIT_ACTIONS,
+            timeout_in_minutes=30,
+            machine_type="n1-standard-2")
+
         self.assert_dataproc_job(
             self.name, 'hadoop', '''\
                 --class=com.linkedin.tony.cli.ClusterSubmitter \
@@ -49,7 +59,7 @@ class TonYTestCase(DataprocTestCase):
                 --conf_file=/opt/tony/TonY-samples/jobs/PTJob/tony.xml \
                 --executes=mnist_distributed.py \
                 --python_venv=/opt/tony/TonY-samples/deps/pytorch.zip \
-                --python_binary_path=pytorch/bin/python3.5
+                --python_binary_path=pytorch/bin/python3
             ''')
 
 
