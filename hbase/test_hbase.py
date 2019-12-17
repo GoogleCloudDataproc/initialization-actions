@@ -1,3 +1,4 @@
+import pkg_resources
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -52,7 +53,11 @@ class HBaseTestCase(DataprocTestCase):
         init_actions = self.INIT_ACTIONS
         if configuration != "HA":
             init_actions = self.INIT_ACTIONS_FOR_NOT_HA + init_actions
+
         metadata = 'hbase-root-dir=gs://{}/test-dir'.format(self.GCS_BUCKET)
+        if self.getImageVersion() > pkg_resources.parse_version("1.4"):
+            metadata += 'hbase-wal-dir=hdfs:///hbase-wal'
+
         self.createCluster(
             configuration,
             init_actions,
@@ -66,4 +71,3 @@ class HBaseTestCase(DataprocTestCase):
 
 if __name__ == '__main__':
     absltest.main()
-
