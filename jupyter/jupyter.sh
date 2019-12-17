@@ -65,7 +65,9 @@ fi
 if [ -n "${JUPYTER_CONDA_PACKAGES}" ]; then
   IFS=":" read -r -a packages <<<"${JUPYTER_CONDA_PACKAGES}"
   echo "Installing custom conda packages '${packages[*]}'"
+  set +u
   conda install "${packages[@]}"
+  set -u
 fi
 
 # For storing notebooks on GCS. Pin version to make this script hermetic.
