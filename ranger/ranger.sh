@@ -17,16 +17,19 @@
 
 set -euxo pipefail
 
-readonly NODE_NAME="$(/usr/share/google/get_metadata_value name)"
-readonly RANGER_ADMIN_PORT="$(/usr/share/google/get_metadata_value attributes/ranger-port || echo '6080')"
-readonly RANGER_ADMIN_PASS="$(/usr/share/google/get_metadata_value attributes/default-admin-password)"
+# Use Python from /usr/bin instead of /opt/conda.
+export PATH=/usr/bin:$PATH
+
+readonly NODE_NAME=$(/usr/share/google/get_metadata_value name)
+readonly RANGER_ADMIN_PORT=$(/usr/share/google/get_metadata_value attributes/ranger-port || echo '6080')
+readonly RANGER_ADMIN_PASS=$(/usr/share/google/get_metadata_value attributes/default-admin-password)
 readonly RANGER_INSTALL_DIR='/usr/lib/ranger'
 readonly SOLR_HOME='/usr/lib/solr'
-readonly MASTER_ADDITIONAL="$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)"
-readonly CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)"
+readonly MASTER_ADDITIONAL=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)
+readonly CLUSTER_NAME=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)
 
 function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   return 1
 }
 
@@ -143,7 +146,7 @@ function add_hdfs_plugin() {
     systemctl stop hadoop-hdfs-namenode.service
     systemctl start hadoop-hdfs-namenode.service
 
-    # Notify cluster that plugin is installed on master.
+    # Notify a cluster that plugin installed on master.
     until hadoop fs -touchz /tmp/ranger-hdfs-plugin-ready &>/dev/null; do
       sleep 10
     done
@@ -167,7 +170,7 @@ EOF
     curl --user "admin:${RANGER_ADMIN_PASS}" -H "Content-Type: application/json" \
       -X POST -d @service-hdfs.json "http://localhost:${RANGER_ADMIN_PORT}/service/public/v2/api/service"
   elif [[ "${NODE_NAME}" =~ ^.*(-m-1)$ ]]; then
-    # Waiting until hdfs plugin will be configured on m-0
+    # Waiting until HDFS plugin will be configured on m-0
     until hadoop fs -ls /tmp/ranger-hdfs-plugin-ready &>/dev/null; do
       sleep 10
     done
