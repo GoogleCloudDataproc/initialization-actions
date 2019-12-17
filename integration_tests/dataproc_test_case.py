@@ -69,6 +69,19 @@ class DataprocTestCase(parameterized.TestCase):
         assert cls.INIT_ACTIONS
         assert cls.INIT_ACTIONS_REPO
 
+    def __init__(self, *args, **kwargs):
+        super(parameterized.TestCase, self).__init__(*args, **kwargs)
+        self.name = None
+
+    def initClusterName(self, configuration):
+        if self.name:
+            return
+        self.name = "test-{}-{}-{}-{}".format(
+            self.COMPONENT, configuration.lower(),
+            str(self.getImageVersion()).replace(".", "-"),
+            self.datetime_str())[:46]
+        self.name += "-{}".format(self.random_str(size=4))
+
     def createCluster(self,
                       configuration,
                       init_actions,
@@ -82,10 +95,7 @@ class DataprocTestCase(parameterized.TestCase):
                       optional_components=None,
                       machine_type="n1-standard-1",
                       boot_disk_size="50GB"):
-        self.name = "test-{}-{}-{}-{}".format(
-            self.COMPONENT, configuration.lower(),
-            FLAGS.image_version.replace(".", "-"), self.datetime_str())[:46]
-        self.name += "-{}".format(self.random_str(size=4))
+        self.initClusterName(configuration)
         self.cluster_version = None
 
         init_actions = [

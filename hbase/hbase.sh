@@ -18,22 +18,17 @@
 set -Eeuxo pipefail
 
 readonly HBASE_HOME='/etc/hbase'
-readonly CLUSTER_NAME="$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)"
-readonly WORKER_COUNT="$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)"
+readonly CLUSTER_NAME=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)
+readonly WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 readonly DATAPROC_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 readonly MASTER_ADDITIONAL=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional || true)
 IFS=' ' read -r -a MASTER_HOSTNAMES <<<"${DATAPROC_MASTER} ${MASTER_ADDITIONAL//,/ }"
-readonly ENABLE_KERBEROS="$(/usr/share/google/get_metadata_value attributes/enable-kerberos)"
-readonly KEYTAB_BUCKET="$(/usr/share/google/get_metadata_value attributes/keytab-bucket)"
+readonly ENABLE_KERBEROS=$(/usr/share/google/get_metadata_value attributes/enable-kerberos)
+readonly KEYTAB_BUCKET=$(/usr/share/google/get_metadata_value attributes/keytab-bucket)
 readonly DOMAIN=$(dnsdomainname)
 readonly REALM=$(echo "${DOMAIN}" | awk '{print toupper($0)}')
-readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 readonly FQDN=$(hostname -f)
-
-function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
-  return 1
-}
 
 function retry_command() {
   cmd="$1"
@@ -127,7 +122,7 @@ EOF
     --clobber
 
   local hbase_wal_dir
-  hbase_wal_dir="$(/usr/share/google/get_metadata_value attributes/hbase-wal-dir || true)"
+  hbase_wal_dir=$(/usr/share/google/get_metadata_value attributes/hbase-wal-dir || true)
   if [[ -n ${hbase_wal_dir} ]]; then
     bdconfig set_property \
       --configuration_file 'hbase-site.xml.tmp' \
@@ -327,8 +322,8 @@ EOF
 }
 
 function main() {
-  update_apt_get || err 'Unable to update packages lists.'
-  install_apt_get hbase || err 'Unable to install hbase.'
+  update_apt_get
+  install_apt_get hbase
 
   configure_hbase
 
