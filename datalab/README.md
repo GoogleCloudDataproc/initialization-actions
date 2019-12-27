@@ -17,9 +17,10 @@ Dataproc cluster. You will need to connect to Datalab using an SSH tunnel.
     ```
 
 1.  Once the cluster has been created, Datalab is configured to run on port
-    `8080` on the master node in a Dataproc cluster. To connect to the Datalab
-    web interface, you will need to create an SSH tunnel and use a SOCKS5 proxy
-    as described in the
+    `8080` by default on the master node in a Dataproc cluster. You can change
+    it by adding the `--metadata datalab-port=<port>` flag. To connect to the
+    Datalab web interface, you will need to create an SSH tunnel and use a
+    SOCKS5 proxy as described in the
     [Dataproc web interfaces](https://cloud.google.com/dataproc/cluster-web-interfaces)
     documentation.
 
@@ -58,7 +59,6 @@ Python 2 or Python 3 kernels, but not both.
         can fill a cluster.
     *   Datalab has a number of notebooks documenting its
         [Pandas](http://pandas.pydata.org/)' integrations.
-*   Datalab run on port `8080` by default, you can change it with `--metadata datalab-port=<port>`.
 *   If you
     [build your own Datalab images](https://github.com/googledatalab/datalab/wiki/Development-Environment),
     you can specify `--metadata=docker-image=gcr.io/<PROJECT>/<IMAGE>` to point
