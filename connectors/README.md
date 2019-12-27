@@ -22,8 +22,8 @@ Google Cloud Storage and BigQuery connector installed:
 ```
 gcloud dataproc clusters create <CLUSTER_NAME> \
     --initialization-actions gs://$MY_BUCKET/connectors/connectors.sh \
-    --metadata gcs-connector-version=1.9.16 \
-    --metadata bigquery-connector-version=0.13.16
+    --metadata gcs-connector-version=2.0.0 \
+    --metadata bigquery-connector-version=1.0.0
 ```
 
 This script downloads specified version of Google Cloud Storage and BigQuery connector and deletes
