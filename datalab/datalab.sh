@@ -26,6 +26,7 @@ readonly DATALAB_DIR="${HOME}/datalab"
 readonly PYTHONPATH="/env/python:$(find /usr/lib/spark/python/lib -name '*.zip' | paste -sd:)"
 readonly DOCKER_IMAGE="$(/usr/share/google/get_metadata_value attributes/docker-image ||
   echo 'gcr.io/cloud-datalab/datalab:local')"
+readonly DATALAB_PORT="$(/usr/share/google/get_metadata_value attributes/datalab-port || echo 8080)"
 
 # For running the docker init action
 readonly DEAFULT_INIT_ACTIONS_REPO=gs://dataproc-initialization-actions
@@ -149,8 +150,9 @@ EOF
 }
 
 function run_datalab() {
-  if docker run -d --restart always --net=host \
-    -v "${DATALAB_DIR}:/content/datalab" ${VOLUME_FLAGS} datalab-pyspark; then
+  if docker run -d --restart always -p "${DATALAB_PORT}:8080" \
+      -v "${DATALAB_DIR}:/content/datalab" ${VOLUME_FLAGS} datalab-pyspark
+  then
     echo 'Cloud Datalab Jupyter server successfully deployed.'
   else
     err 'Failed to run Cloud Datalab'

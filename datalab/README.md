@@ -58,10 +58,7 @@ Python 2 or Python 3 kernels, but not both.
         can fill a cluster.
     *   Datalab has a number of notebooks documenting its
         [Pandas](http://pandas.pydata.org/)' integrations.
-*   This script requires that Datalab run on port `:8080`. If you normally run
-    another server on that port (e.g. Zeppelin), consider moving it. Note
-    running multiple Spark sessions can consume a lot of cluster resources and
-    can cause problems on moderately small clusters.
+*   Datalab run on port `8080` by default, you can change it with `--metadata datalab-port=<port>`.
 *   If you
     [build your own Datalab images](https://github.com/googledatalab/datalab/wiki/Development-Environment),
     you can specify `--metadata=docker-image=gcr.io/<PROJECT>/<IMAGE>` to point
