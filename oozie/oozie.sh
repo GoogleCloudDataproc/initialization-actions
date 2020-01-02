@@ -64,9 +64,11 @@ function install_oozie() {
     find /usr/lib/oozie/lib -name "log4j-core*-2.*.jar" | cut -d '/' -f 6 | cut -d '-' -f 3
   )
   log4j2_version=${log4j2_version/.jar/}
-  local log4j2_to_slf4j=log4j-to-slf4j-${log4j2_version}.jar
-  local log4j2_to_slf4j_url=https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-to-slf4j/${log4j2_version}/${log4j2_to_slf4j}
-  wget -nv --timeout=30 --tries=5 --retry-connrefused "${log4j2_to_slf4j_url}" -P /usr/lib/oozie/lib
+  if [[ -n ${log4j2_version} ]]; then
+    local log4j2_to_slf4j=log4j-to-slf4j-${log4j2_version}.jar
+    local log4j2_to_slf4j_url=https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-to-slf4j/${log4j2_version}/${log4j2_to_slf4j}
+    wget -nv --timeout=30 --tries=5 --retry-connrefused "${log4j2_to_slf4j_url}" -P /usr/lib/oozie/lib
+  fi
 
   # Delete old versions of Jetty jars brought in by dependencies
   find /usr/lib/oozie/ -name "jetty*-6.*.jar" -delete
@@ -74,7 +76,7 @@ function install_oozie() {
   local oozie_version
   oozie_version=$(oozie version 2>&1 |
     sed -n 's/.*Oozie[^:]\+:[[:blank:]]\+\([0-9]\+\.[0-9]\.[0-9]\+\+\).*/\1/p' | head -n1)
-  if [[ $(min_version '5.0.0' "${oozie_version}") != 5.0.0 ]]; then
+  if [[ $(min_version '5.0.0' "${oozie_version}") == 5.0.0 ]]; then
     find /usr/lib/oozie/ -name "jetty*-7.*.jar" -delete
   fi
 
