@@ -80,7 +80,7 @@ function install_oozie() {
 
   if [[ "${HOSTNAME}" == "${master_node}" ]]; then
     local tmp_dir
-    tmp_dir=$(mktemp -d -t oozie-XXXX)
+    tmp_dir=$(mktemp -d -t oozie-install-XXXX)
 
     # The ext library is needed to enable the Oozie web console
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
