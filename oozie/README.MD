@@ -32,7 +32,7 @@ You can test this Oozie installation by running the `oozie-examples` included wi
     ```
 1. Decompress the archive:<br/>
     ```
-    tar -zxvf oozie-examples.tar.gz
+    tar -xzf oozie-examples.tar.gz
     ```
 1. Edit the MapReduce example (`~/examples/apps/map-reduce/job.properties`) with details for your cluster:
 
