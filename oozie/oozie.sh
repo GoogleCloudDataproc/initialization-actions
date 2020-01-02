@@ -59,7 +59,11 @@ function install_oozie() {
   find /usr/lib/oozie/lib -name "log4j-slf4j-impl*.jar" -delete
 
   # Redirect Log4j2 logging to Slf4j backend
-  local log4j2_version=2.6.2
+  local log4j2_version
+  log4j2_version=$(
+    find /usr/lib/oozie/lib -name "log4j-core*-2.*.jar" | cut -d '/' -f 6 | cut -d '-' -f 3
+  )
+  log4j2_version=${log4j2_version/.jar/}
   local log4j2_to_slf4j=log4j-to-slf4j-${log4j2_version}.jar
   local log4j2_to_slf4j_url=https://repo1.maven.org/maven2/org/apache/logging/log4j/log4j-to-slf4j/${log4j2_version}/${log4j2_to_slf4j}
   wget -nv --timeout=30 --tries=5 --retry-connrefused "${log4j2_to_slf4j_url}" -P /usr/lib/oozie/lib
