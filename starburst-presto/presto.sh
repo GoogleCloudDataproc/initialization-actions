@@ -21,25 +21,51 @@ export PATH=/usr/bin:$PATH
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly PRESTO_MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 readonly WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
-readonly PRESTO_BASE_URL=https://storage.googleapis.com/starburstdata/presto
-readonly PRESTO_MAJOR_VERSION="312"
-readonly PRESTO_VERSION="${PRESTO_MAJOR_VERSION}-e.1"
-readonly HTTP_PORT="$(/usr/share/google/get_metadata_value attributes/presto-port || echo 8080)"
+readonly PRESTO_MAJOR_VERSION="$(/usr/share/google/get_metadata_value attributes/presto_major_version || echo '323')"
+readonly STARBURST_PRESTO_VERSION="$(/usr/share/google/get_metadata_value attributes/sbpresto_version || echo '323-e.3')" 
+readonly HTTP_PORT="$(/usr/share/google/get_metadata_value attributes/presto-port || echo 8060)"
 readonly INIT_SCRIPT="/usr/lib/systemd/system/presto.service"
-PRESTO_JVM_MB=0
-PRESTO_QUERY_NODE_MB=0
+PRESTO_JVM_MB=0;
+PRESTO_QUERY_NODE_MB=0;
 # Allocate some headroom for untracked memory usage (in the heap and to help GC).
-PRESTO_HEADROOM_NODE_MB=256
+PRESTO_HEADROOM_NODE_MB=256;
+
+# Add GCS Hive connector Jar
+if [[ -d /usr/local/share/google/dataproc/lib ]]; then
+  readonly CONNECTOR_JAR="$(find /usr/local/share/google/dataproc/lib -name 'gcs-connector-*.jar')"
+else
+  readonly CONNECTOR_JAR="$(find /usr/lib/hadoop/lib -name 'gcs-connector-*.jar')"
+fi
 
 function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
   return 1
+}
+
+function retry_apt_command() {
+  cmd="$1"
+  for ((i = 0; i < 10; i++)); do
+    if eval "$cmd"; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
+function update_apt_get() {
+  retry_apt_command "apt-get update"
+}
+
+function install_apt_get() {
+  local pkgs="$*"
+  retry_apt_command "apt-get install -y $pkgs"
 }
 
 function wait_for_presto_cluster_ready() {
   # wait up to 120s for presto being able to run query
   for ((i = 0; i < 12; i++)); do
-    if presto --server="localhost:${HTTP_PORT}" --execute='select * from system.runtime.nodes;'; then
+    if presto --server="localhost:${HTTP_PORT}" --execute='select 1'; then
       return 0
     fi
     sleep 10
@@ -47,51 +73,53 @@ function wait_for_presto_cluster_ready() {
   return 1
 }
 
-# Download and unpack Presto Server
+
 function get_presto() {
+  # Download and unpack Presto server
   wget -nv --timeout=30 --tries=5 --retry-connrefused -O - \
-    "${PRESTO_BASE_URL}/${PRESTO_MAJOR_VERSION}e/${PRESTO_VERSION}/presto-server-${PRESTO_VERSION}.tar.gz" |
+    "https://starburstdata.s3.us-east-2.amazonaws.com/presto/starburst/${PRESTO_MAJOR_VERSION}e/${STARBURST_PRESTO_VERSION}/presto-server-${STARBURST_PRESTO_VERSION}.tar.gz" |
     tar -xzf - -C /opt
-  ln -s "/opt/presto-server-${PRESTO_VERSION}" "/opt/presto-server"
+  ln -s "/opt/presto-server-${STARBURST_PRESTO_VERSION}" "/opt/presto-server"
   mkdir -p /var/presto/data
 }
 
+# Configure master properties
 function calculate_memory() {
   # Compute memory settings based on Spark's settings.
   # We use "tail -n 1" since overrides are applied just by order of appearance.
-  local spark_executor_mb
+  local spark_executor_mb;
   spark_executor_mb=$(grep spark.executor.memory \
-    /etc/spark/conf/spark-defaults.conf |
-    tail -n 1 |
-    sed 's/.*[[:space:]=]\+\([[:digit:]]\+\).*/\1/')
+    /etc/spark/conf/spark-defaults.conf \
+    | tail -n 1  \
+    | sed 's/.*[[:space:]=]\+\([[:digit:]]\+\).*/\1/')
 
-  local spark_executor_cores
+  local spark_executor_cores;
   spark_executor_cores=$(grep spark.executor.cores \
-    /etc/spark/conf/spark-defaults.conf |
-    tail -n 1 |
-    sed 's/.*[[:space:]=]\+\([[:digit:]]\+\).*/\1/')
+    /etc/spark/conf/spark-defaults.conf \
+    | tail -n 1 \
+    | sed 's/.*[[:space:]=]\+\([[:digit:]]\+\).*/\1/')
 
-  local spark_executor_overhead_mb
+  local spark_executor_overhead_mb;
   if (grep spark.yarn.executor.memoryOverhead /etc/spark/conf/spark-defaults.conf); then
     spark_executor_overhead_mb=$(grep spark.yarn.executor.memoryOverhead \
-      /etc/spark/conf/spark-defaults.conf |
-      tail -n 1 |
-      sed 's/.*[[:space:]=]\+\([[:digit:]]\+\).*/\1/')
+      /etc/spark/conf/spark-defaults.conf \
+      | tail -n 1 \
+      | sed 's/.*[[:space:]=]\+\([[:digit:]]\+\).*/\1/')
   else
     # When spark.yarn.executor.memoryOverhead couldn't be found in
     # spark-defaults.conf, use Spark default properties:
     # executorMemory * 0.10, with minimum of 384
     local min_executor_overhead=384
-    spark_executor_overhead_mb=$((spark_executor_mb / 10))
-    spark_executor_overhead_mb=$((spark_executor_overhead_mb > min_executor_overhead ? spark_executor_overhead_mb : min_executor_overhead))
+    spark_executor_overhead_mb=$(( ${spark_executor_mb} / 10 ))
+    spark_executor_overhead_mb=$(( ${spark_executor_overhead_mb}>${min_executor_overhead}?${spark_executor_overhead_mb}:${min_executor_overhead} ))
   fi
-  local spark_executor_count
-  spark_executor_count=$(($(nproc) / spark_executor_cores))
+  local spark_executor_count;
+  spark_executor_count=$(( $(nproc) / ${spark_executor_cores} ))
 
   # Add up overhead and allocated executor MB for container size.
-  local spark_container_mb
-  spark_container_mb=$((spark_executor_mb + spark_executor_overhead_mb))
-  PRESTO_JVM_MB=$((spark_container_mb * spark_executor_count))
+  local spark_container_mb;
+  spark_container_mb=$(( ${spark_executor_mb} + ${spark_executor_overhead_mb} ))
+  PRESTO_JVM_MB=$(( ${spark_container_mb} * ${spark_executor_count} ))
   readonly PRESTO_JVM_MB
 
   # Give query.max-memory-per-node 60% of Xmx; this more-or-less assumes a
@@ -101,9 +129,8 @@ function calculate_memory() {
   # system MB as a crude approximation of other unaccounted overhead that we need
   # to leave betweenused bytes and Xmx bytes. Rounding down by integer division
   # here also effectively places round-down bytes in the "general" pool.
-  PRESTO_QUERY_NODE_MB=$((PRESTO_JVM_MB * 6 / 10 - spark_executor_overhead_mb))
+  PRESTO_QUERY_NODE_MB=$(( ${PRESTO_JVM_MB} * 6 / 10 - ${spark_executor_overhead_mb} ))
   readonly PRESTO_QUERY_NODE_MB
-  readonly PRESTO_RESERVED_SYSTEM_MB
 }
 
 function configure_node_properties() {
@@ -123,6 +150,16 @@ function configure_hive() {
   cat >/opt/presto-server/etc/catalog/hive.properties <<EOF
 connector.name=hive-hadoop2
 hive.metastore.uri=${metastore_uri}
+hive.non-managed-table-writes-enabled=true
+hive.recursive-directories=false
+hive.storage-format=ORC
+hive.compression-codec=GZIP
+hive.immutable-partitions=false
+hive.create-empty-bucket-files=true
+hive.max-partitions-per-writers=200
+hive.non-managed-table-writes-enabled=true
+hive.non-managed-table-creates-enabled=true
+hive.file-status-cache-expire-time=10m
 EOF
 }
 
@@ -142,6 +179,7 @@ EOF
   cat >/opt/presto-server/etc/catalog/memory.properties <<EOF
 connector.name=memory
 EOF
+
 }
 
 function configure_jvm() {
@@ -163,8 +201,8 @@ function configure_jvm() {
 EOF
 }
 
-# Configure master properties
-function configure_master() {
+function configure_master(){
+  # Configure master properties
   if [[ ${WORKER_COUNT} == 0 ]]; then
     # master on single-node is also worker
     include_coordinator='true'
@@ -185,7 +223,7 @@ EOF
 
   # Install CLI
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${PRESTO_BASE_URL}/${PRESTO_MAJOR_VERSION}e/${PRESTO_VERSION}/presto-cli-${PRESTO_VERSION}-executable.jar" -O /usr/bin/presto
+    "https://s3.us-east-2.amazonaws.com/starburstdata/presto/starburst/${PRESTO_MAJOR_VERSION}e/${STARBURST_PRESTO_VERSION}/presto-cli-${STARBURST_PRESTO_VERSION}-executable.jar" -O /usr/bin/presto
   chmod a+x /usr/bin/presto
 }
 
@@ -206,13 +244,11 @@ function start_presto() {
   cat <<EOF >${INIT_SCRIPT}
 [Unit]
 Description=Presto SQL
-
 [Service]
 Type=forking
 ExecStart=/opt/presto-server/bin/launcher.py start
 ExecStop=/opt/presto-server/bin/launcher.py stop
 Restart=always
-
 [Install]
 WantedBy=multi-user.target
 EOF
@@ -225,9 +261,15 @@ EOF
   systemctl status presto
 }
 
-# Configure Presto
 function configure_and_start_presto() {
+  # Copy required Jars
+  cp "${CONNECTOR_JAR}" /opt/presto-server/plugin/hive-hadoop2
+
+  # Configure Presto
   mkdir -p /opt/presto-server/etc/catalog
+
+  update_apt_get
+  install_apt_get openjdk-11-jre
 
   configure_node_properties
   configure_hive
