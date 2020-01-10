@@ -121,7 +121,7 @@ function install_and_configure_kafka_server() {
 
   # If all attempts failed, error out.
   if [[ -z "${zookeeper_list}" ]]; then
-    err 'Failed to find configured Zookeeper list; try --num-masters=3 for HA'
+    err 'Failed to find configured Zookeeper list; try "--num-masters=3" for HA'
   fi
 
   ZOOKEEPER_ADDRESS="${zookeeper_list%%,*}"

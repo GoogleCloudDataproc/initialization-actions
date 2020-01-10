@@ -27,7 +27,8 @@ SparkMonitor installed:
     ```bash
     # Jupyter will run on port 8123 of your master node.
     gcloud dataproc clusters create <CLUSTER_NAME> \
-        --optional-components ANACONDA,JUPYTER --enable-component-gateway \
+        --optional-components ANACONDA,JUPYTER \
+        --enable-component-gateway \
         --initialization-actions gs://$MY_BUCKET/jupyter_sparkmonitor/sparkmonitor.sh
     ```
 

@@ -64,11 +64,11 @@ Python 2 or Python 3 kernels, but not both.
     can cause problems on moderately small clusters.
 *   If you
     [build your own Datalab images](https://github.com/googledatalab/datalab/wiki/Development-Environment),
-    you can specify `--metadata=docker-image=gcr.io/<PROJECT>/<IMAGE>` to point
+    you can specify `--metadata docker-image=gcr.io/<PROJECT>/<IMAGE>` to point
     to your image.
 *   If you normally only run Datalab kernels on VMs and connect to them with a
     local Docker frontend, set the flag
-    `--metadata=docker-image=gcr.io/cloud-datalab/datalab-gateway` and then set
+    `--metadata docker-image=gcr.io/cloud-datalab/datalab-gateway` and then set
     `GATEWAY_VM` to your cluster's master node in your local `docker` command
     [as described here](https://cloud.google.com/datalab/docs/quickstarts/quickstart-gce#install_the_datalab_docker_container_on_your_computer).
 *   You can pass Spark packages as a comma separated list with `--metadata

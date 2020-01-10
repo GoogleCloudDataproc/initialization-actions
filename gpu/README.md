@@ -20,11 +20,11 @@ need a more recent GPU driver please visit NVIDIA
     `<CLUSTER_NAME>` and install GPU drivers.
 
     ```bash
-    gcloud beta dataproc clusters create <CLUSTER_NAME> \
-      --master-accelerator type=nvidia-tesla-v100 \
-      --worker-accelerator type=nvidia-tesla-v100,count=4 \
-      --initialization-actions gs://$MY_BUCKET/gpu/install_gpu_driver.sh \
-      --metadata install_gpu_agent=false
+    gcloud dataproc clusters create <CLUSTER_NAME> \
+        --master-accelerator type=nvidia-tesla-v100 \
+        --worker-accelerator type=nvidia-tesla-v100,count=4 \
+        --initialization-actions gs://$MY_BUCKET/gpu/install_gpu_driver.sh \
+        --metadata install_gpu_agent=false
     ```
 
 2.  Use the `gcloud` command to create a new cluster with this initialization
@@ -32,12 +32,12 @@ need a more recent GPU driver please visit NVIDIA
     `<CLUSTER_NAME>`, install GPU drivers and add the GPU monitoring service.
 
     ```bash
-    gcloud beta dataproc clusters create <CLUSTER_NAME> \
-      --master-accelerator type=nvidia-tesla-v100 \
-      --worker-accelerator type=nvidia-tesla-v100,count=4 \
-      --initialization-actions gs://$MY_BUCKET/gpu/install_gpu_driver.sh \
-      --metadata install_gpu_agent=true \
-      --scopes https://www.googleapis.com/auth/monitoring.write
+    gcloud dataproc clusters create <CLUSTER_NAME> \
+        --master-accelerator type=nvidia-tesla-v100 \
+        --worker-accelerator type=nvidia-tesla-v100,count=4 \
+        --initialization-actions gs://$MY_BUCKET/gpu/install_gpu_driver.sh \
+        --metadata install_gpu_agent=true \
+        --scopes https://www.googleapis.com/auth/monitoring.write
     ```
 
 #### Supported metadata parameters:

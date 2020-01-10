@@ -11,15 +11,15 @@ You can use this initialization action to create a new Cloud Dataproc cluster wi
 
     ```bash
     gcloud dataproc clusters create my_cluster \
-      --optional-components=ANACONDA \
+      --optional-components ANACONDA \
       --initialization-actions gs://$MY_BUCKET/spark-nlp/spark-nlp.sh
     ```
 2. To use `spark-nlp` in your code, you must include `spark-nlp` with the --properties flag when submitting a job (example shows a Python job):
 
     ```bash
     gcloud dataproc jobs submit pyspark --cluster my-cluster \
-      --properties=spark:spark.jars.packages=JohnSnowLabs:spark-nlp:2.0.8 \
-      my_job.py
+        --properties spark:spark.jars.packages=JohnSnowLabs:spark-nlp:2.0.8 \
+        my_job.py
     ```
 
 Note: `spark-nlp` is available for Java and Scala as well. 

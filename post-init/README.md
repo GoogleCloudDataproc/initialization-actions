@@ -30,6 +30,7 @@ Simply modify the `POST_INIT_COMMAND` to whatever actual job submission command 
         gcloud dataproc jobs submit hadoop \
             --cluster ${CLUSTER_NAME} \
             --jar file:///usr/lib/hadoop-mapreduce/hadoop-mapreduce-examples.jar \
+            -- \
             teragen 10000 /tmp/teragen; \
         gcloud dataproc clusters delete -q ${CLUSTER_NAME}"
     gcloud dataproc clusters create ${CLUSTER_NAME} \

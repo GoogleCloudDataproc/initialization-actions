@@ -197,7 +197,7 @@ additional setup.
 
     **Important notes:**
 
-    Make sure to pass the flag `--metadata=use-cloud-sql-private-ip=true`. This
+    Make sure to pass the flag `--metadata use-cloud-sql-private-ip=true`. This
     tells the Cloud SQL proxy to use the private IP address of the Cloud SQL
     instance, not the public one.
 

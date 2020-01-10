@@ -15,7 +15,7 @@ installed:
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-      --initialization-actions gs://$MY_BUCKET/hue/hue.sh
+        --initialization-actions gs://$MY_BUCKET/hue/hue.sh
     ```
 
 1.  Once the cluster has been created, Hue is configured to run on port `8888`

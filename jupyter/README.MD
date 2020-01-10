@@ -62,8 +62,8 @@ gcloud dataproc clusters create $CLUSTER \
     --metadata "JUPYTER_PORT=8124,JUPYTER_CONDA_PACKAGES=numpy:pandas:scikit-learn" \
     --initialization-actions gs://$MY_BUCKET/jupyter/jupyter.sh \
     --properties spark:spark.executorEnv.PYTHONHASHSEED=0,spark:spark.yarn.am.memory=1024m \
-    --worker-machine-type=n1-standard-4 \
-    --master-machine-type=n1-standard-4
+    --worker-machine-type n1-standard-4 \
+    --master-machine-type n1-standard-4
 ```
 
 Notebooks are stored and retrieved from the cluster staging bucket (Google Cloud

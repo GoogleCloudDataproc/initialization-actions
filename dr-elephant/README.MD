@@ -10,7 +10,7 @@ Elephant installed.
 
 ```bash
 gcloud dataproc clusters ${CLUSTER_NAME} \
-    --initialization-actions=gs://$MY_BUCKET/dr-elephant/dr-elephant.sh
+    --initialization-actions gs://$MY_BUCKET/dr-elephant/dr-elephant.sh
 ```
 
 Once the cluster has been created, Dr. Elephant is configured to run on port

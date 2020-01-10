@@ -26,8 +26,9 @@ Please see the following tutorial for full details https://cloud.google.com/data
 ### Just install and configure conda environment
 
 ```
-gcloud dataproc clusters create foo --initialization-actions \
-  gs://$MY_BUCKET/conda/bootstrap-conda.sh,gs://$MY_BUCKET/conda/install-conda-env.sh
+gcloud dataproc clusters create foo \
+    --initialization-actions \
+        gs://$MY_BUCKET/conda/bootstrap-conda.sh,gs://$MY_BUCKET/conda/install-conda-env.sh
 ```
 
 ### Install extra conda and/or pip packages
@@ -38,7 +39,7 @@ You can add extra packages by using the metadata entries `CONDA_PACKAGES` and `P
 gcloud dataproc clusters create foo \
     --metadata 'CONDA_PACKAGES="numpy pandas",PIP_PACKAGES=pandas-gbq' \
     --initialization-actions \
-      gs://$MY_BUCKET/conda/bootstrap-conda.sh,gs://$MY_BUCKET/conda/install-conda-env.sh
+        gs://$MY_BUCKET/conda/bootstrap-conda.sh,gs://$MY_BUCKET/conda/install-conda-env.sh
 ```
 
 Alternatively, you can use environment variables, e.g.:

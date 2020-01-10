@@ -12,8 +12,7 @@ Check the variables set in the script to ensure they're to your liking.
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://$MY_BUCKET/zookeeper/zookeeper.sh \
-        --initialization-actions gs://$MY_BUCKET/drill/drill.sh
+        --initialization-actions gs://$MY_BUCKET/zookeeper/zookeeper.sh,gs://$MY_BUCKET/drill/drill.sh
     ```
 
     High availability cluster (Zookeeper comes pre-installed)

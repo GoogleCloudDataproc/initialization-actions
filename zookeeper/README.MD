@@ -15,8 +15,8 @@ You can use this initialization action to create a new Dataproc cluster with Zoo
 
     ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
-      --initialization-actions gs://$MY_BUCKET/zookeeper/zookeeper.sh \
-      [--properties zookeeper:<key>=<value>,...]
+        --initialization-actions gs://$MY_BUCKET/zookeeper/zookeeper.sh \
+        [--properties zookeeper:<key>=<value>,...]
     ```
 
 1. Once the cluster has been created, ZooKeeper is configured to run on port `2181` (though you can change this in the script.)

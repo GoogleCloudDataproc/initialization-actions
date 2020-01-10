@@ -25,8 +25,8 @@ For example:
 
 ```
 gcloud dataproc clusters create <cluster-name> \
-  --initialization-actions gs://$MY_BUCKET/jupyter2/jupyter2.sh \
-  --bucket gs://mybucket \
-  --metadata JUPYTER_PORT=80,JUPYTER_AUTH_TOKEN=mytoken
+    --initialization-actions gs://$MY_BUCKET/jupyter2/jupyter2.sh \
+    --bucket gs://mybucket \
+    --metadata JUPYTER_PORT=80,JUPYTER_AUTH_TOKEN=mytoken
 ```
 

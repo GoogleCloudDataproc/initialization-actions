@@ -123,9 +123,9 @@ METADATA+=",flink-start-yarn-session=true"
 METADATA+=",flink-snapshot-url=${FLINK_SNAPSHOT}"
 
 gcloud dataproc clusters create "${CLUSTER_NAME}" \
-  --initialization-actions="${INIT_ACTIONS}" \
-  --image-version="1.2" \
-  --metadata="${METADATA}"
+  --initialization-actions "${INIT_ACTIONS}" \
+  --image-version "1.2" \
+  --metadata "${METADATA}"
 ```
 
 The Beam Job Service runs on port `8099` of the master node. You can submit
