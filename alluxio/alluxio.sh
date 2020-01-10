@@ -20,7 +20,7 @@ set -euxo pipefail
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 
-ALLUXIO_VERSION=$(/usr/share/google/get_metadata_value attributes/alluxio_version || echo "2.0.1")
+ALLUXIO_VERSION=$(/usr/share/google/get_metadata_value attributes/alluxio_version || echo "2.1.1")
 
 SPARK_HOME=${SPARK_HOME:-"/usr/lib/spark"}
 HIVE_HOME=${HIVE_HOME:-"/usr/lib/hive"}
