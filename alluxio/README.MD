@@ -51,7 +51,7 @@ must precede the Alluxio action.
     gcloud dataproc clusters create <cluster_name> \
       --initialization-actions gs://$my_bucket/alluxio/alluxio.sh \
       --metadata alluxio_root_ufs_uri=<UNDERSTORAGE_ADDRESS>
-      --metadata site_properties="alluxio.master.mount.table.root.option.fs.gcs.accessKeyId=<GCS_ACCESS_KEY_ID>;alluxio.master.mount.table.root.option.fs.gcs.secretAccessKey=<GCS_SECRET_ACCESS_KEY>"
+      --metadata alluxio_site_properties="alluxio.master.mount.table.root.option.fs.gcs.accessKeyId=<GCS_ACCESS_KEY_ID>;alluxio.master.mount.table.root.option.fs.gcs.secretAccessKey=<GCS_SECRET_ACCESS_KEY>"
     ```
 
 *   Additional files can be downloaded into `/opt/alluxio/conf` using the
