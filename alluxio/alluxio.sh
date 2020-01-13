@@ -77,7 +77,7 @@ function bootstrap_alluxio() {
   download_file "${ALLUXIO_DOWNLOAD_URL}"
   local tarball_name=${ALLUXIO_DOWNLOAD_URL##*/}
   tar -zxf "${tarball_name}" -C ${ALLUXIO_HOME} --strip-components 1
-  ln -s "${ALLUXIO_HOME}/client/*client.jar" "${ALLUXIO_HOME}/client/alluxio-client.jar"
+  ln -s "${ALLUXIO_HOME}/client/alluxio-${ALLUXIO_VERSION}-client.jar" "${ALLUXIO_HOME}/client/alluxio-client.jar"
 
   # Download files to /opt/alluxio/conf
   local download_files_list
@@ -95,6 +95,8 @@ function bootstrap_alluxio() {
 
   # Configure systemd services
   if [[ "${ROLE}" == "Master" ]]; then
+    # The master role runs 2 daemons: AlluxioMaster and AlluxioJobMaster
+    # Service for AlluxioMaster JVM
     cat >"/etc/systemd/system/alluxio-master.service" <<EOF
 [Unit]
 Description=Alluxio Master
@@ -103,13 +105,31 @@ After=default.target
 Type=simple
 User=root
 WorkingDirectory=${ALLUXIO_HOME}
-ExecStart=${ALLUXIO_HOME}/bin/alluxio-start.sh master
+ExecStart=${ALLUXIO_HOME}/bin/launch-process master -c
 Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 EOF
     systemctl enable alluxio-master
+    # Service for AlluxioJobMaster JVM
+    cat >"/etc/systemd/system/alluxio-job-master.service" <<EOF
+[Unit]
+Description=Alluxio Job Master
+After=default.target
+[Service]
+Type=simple
+User=root
+WorkingDirectory=${ALLUXIO_HOME}
+ExecStart=${ALLUXIO_HOME}/bin/launch-process job_master -c
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl enable alluxio-job-master
+
   else
+    # The worker role runs 2 daemons: AlluxioWorker and AlluxioJobWorker
+    # Service for AlluxioWorker JVM
     cat >"/etc/systemd/system/alluxio-worker.service" <<EOF
 [Unit]
 Description=Alluxio Worker
@@ -118,12 +138,27 @@ After=default.target
 Type=simple
 User=root
 WorkingDirectory=${ALLUXIO_HOME}
-ExecStart=${ALLUXIO_HOME}/bin/alluxio-start.sh worker NoMount
+ExecStart=${ALLUXIO_HOME}/bin/launch-process worker -c
 Restart=on-failure
 [Install]
 WantedBy=multi-user.target
 EOF
     systemctl enable alluxio-worker
+    # Service for AlluxioJobWorker JVM
+    cat >"/etc/systemd/system/alluxio-job-worker.service" <<EOF
+[Unit]
+Description=Alluxio Job Worker
+After=default.target
+[Service]
+Type=simple
+User=root
+WorkingDirectory=${ALLUXIO_HOME}
+ExecStart=${ALLUXIO_HOME}/bin/launch-process job_worker -c
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl enable alluxio-job-worker
   fi
 
   # Configure client applications
@@ -152,6 +187,7 @@ function configure_alluxio() {
   cp "${ALLUXIO_HOME}/conf/alluxio-site.properties.template" ${ALLUXIO_SITE_PROPERTIES}
 
   append_alluxio_property alluxio.master.hostname "${MASTER_FQDN}"
+  append_alluxio_property alluxio.master.journal.type "UFS"
 
   local root_ufs_uri
   root_ufs_uri=$(/usr/share/google/get_metadata_value attributes/alluxio_root_ufs_uri)
@@ -188,12 +224,12 @@ function configure_alluxio() {
 function start_alluxio() {
   if [[ "${ROLE}" == "Master" ]]; then
     ${ALLUXIO_HOME}/bin/alluxio formatMaster
-    systemctl restart alluxio-master
+    systemctl restart alluxio-master alluxio-job-master
   else
     sleep 60 # TODO: Remove sleep after making AlluxioWorkerMonitor retry configurable
     ${ALLUXIO_HOME}/bin/alluxio-mount.sh SudoMount local
     ${ALLUXIO_HOME}/bin/alluxio formatWorker
-    systemctl restart alluxio-worker
+    systemctl restart alluxio-worker alluxio-job-worker
   fi
 }
 
