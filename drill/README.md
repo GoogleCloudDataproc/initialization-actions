@@ -4,7 +4,7 @@ This initialization action installs [Apache Drill](http://drill.apache.org) on a
 
 ## Using this initialization action
 
-**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+**:warning: NOTICE:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
 Check the variables set in the script to ensure they're to your liking.
 

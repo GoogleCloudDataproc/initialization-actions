@@ -4,7 +4,7 @@ This initialization action installs [Hive HCatalog](https://cwiki.apache.org/con
 
 ## Using this initialization action
 
-**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+**:warning: NOTICE:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
 You can use this initialization action to create a new Cloud Dataproc cluster with HCatalog installed by doing the following.
 

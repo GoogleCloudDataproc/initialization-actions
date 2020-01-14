@@ -22,7 +22,7 @@ gcloud dataproc clusters create ${CLUSTER} \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/presto/presto.sh
 ```
 
-**:warning: WARNING:** For production usage, before creating clusters it's strongly recommended copying
+**:warning: NOTICE:** For production usage, before creating clusters it's strongly recommended copying
 initialization actions to your own Cloud Storage bucket to prevent unintended upgrades from upstream
 and guarantee consistent use of the same initialization action code across all nodes in the cluster:
 

@@ -8,7 +8,7 @@ metadata on a given Cloud SQL instance.
 
 ## Using this initialization action
 
-**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+**:warning: NOTICE:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
 Prerequisite: If this is your first time using Cloud SQL, enable the
 [Cloud SQL Admin API](https://cloud.google.com/sql/docs/mysql/admin-api/#enabling_the_api)

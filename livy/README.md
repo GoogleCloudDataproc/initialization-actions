@@ -7,7 +7,7 @@ installs version 0.6.0 (version 0.5.0 for Dataproc 1.0 and 1.1) of
 
 ## Using this initialization action
 
-**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+**:warning: NOTICE:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
 You can use this initialization action to create a new Dataproc cluster with
 Livy installed:

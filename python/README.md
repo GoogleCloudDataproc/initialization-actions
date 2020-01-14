@@ -2,7 +2,7 @@
 
 ## Using this initialization action
 
-**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+**:warning: NOTICE:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
 ## pip install packages
 

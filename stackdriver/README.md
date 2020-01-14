@@ -10,7 +10,7 @@ analyze the performance of your cluster.
 
 ## Using this initialization action
 
-**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+**:warning: NOTICE:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
 **You need to configure Stackdriver before you use this initialization action.** Specifically, you must create a group
 based on the cluster name prefix of your cluster. Once you do, Stackdriver will detect any new instances created
