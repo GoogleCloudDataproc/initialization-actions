@@ -6,16 +6,20 @@ a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
 
 ## Using this initialization action
 
+**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 You can use this initialization action to create a new Dataproc cluster with Hue
 installed:
 
 1.  Use the `gcloud` command to create a new cluster with this initialization
-    action. The following command will create a new cluster named
-    `<CLUSTER_NAME>`.
+    action:
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://$MY_BUCKET/hue/hue.sh
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/hue/hue.sh
     ```
 
 1.  Once the cluster has been created, Hue is configured to run on port `8888`

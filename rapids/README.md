@@ -15,7 +15,7 @@ On the Dataproc worker nodes:
 
 -   `dask-cuda-worker`
 
-Our initialization action does the following:
+This initialization action does the following:
 
 1.  [install nvidia GPU driver](internal/install-gpu-driver.sh)
 1.  [install RAPIDS](rapids.sh) -
@@ -25,22 +25,24 @@ Our initialization action does the following:
 
 ## Using this initialization action
 
+**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 You can use this initialization action to create a new Dataproc cluster with
 RAPIDS installed:
 
 1.  Using the `gcloud` command to create a new cluster with this initialization
-    action. The following command will create a new cluster named
-    `<CLUSTER_NAME>`.
+    action.
 
     ```bash
-    DATAPROC_BUCKET=dataproc-initialization-actions
-
-    gcloud dataproc clusters create <CLUSTER_NAME> \
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
         --master-accelerator type=nvidia-tesla-t4,count=4 \
         --master-machine-type n1-standard-32 \
         --worker-accelerator type=nvidia-tesla-t4,count=4 \
         --worker-machine-type n1-standard-32 \
-        --initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
         --optional-components ANACONDA
     ```
 
@@ -84,15 +86,16 @@ for your driver's `.run` file.
 For example:
 
 ```bash
-DATAPROC_BUCKET=dataproc-initialization-actions
-
-gcloud dataproc clusters create <CLUSTER_NAME> \
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
     --master-accelerator type=nvidia-tesla-t4,count=4 \
     --master-machine-type n1-standard-32 \
     --worker-accelerator type=nvidia-tesla-t4,count=4 \
     --worker-machine-type n1-standard-32 \
     --metadata "gpu-driver-url=http://us.download.nvidia.com/tesla/410.104/NVIDIA-Linux-x86_64-410.104.run" \
-    --initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
     --optional-components ANACONDA
 ```
 
@@ -117,15 +120,16 @@ configurable via a metadata key using `--metadata`.
 For example:
 
 ```bash
-DATAPROC_BUCKET=dataproc-initialization-actions
-
-gcloud dataproc clusters create <CLUSTER_NAME> \
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
     --master-accelerator type=nvidia-tesla-t4,count=4 \
     --master-machine-type n1-standard-32 \
     --worker-accelerator type=nvidia-tesla-t4,count=4 \
     --worker-machine-type n1-standard-32 \
     --metadata "run-cuda-worker-on-master=false" \
-    --initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
     --optional-components ANACONDA
 ```
 

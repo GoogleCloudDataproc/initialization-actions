@@ -8,13 +8,17 @@ applications can access Docker.
 
 ## Using this initialization action
 
+**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 1. Use the `gcloud` command to create a new cluster with this initialization
-   action. The following command will create a new cluster named
-   `<CLUSTER_NAME>`:
+   action:
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-    --initialization-actions gs://$MY_BUCKET/docker/docker.sh
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/docker/docker.sh
     ```
 
 1. Docker is installed and configured on all nodes of the cluster (both master

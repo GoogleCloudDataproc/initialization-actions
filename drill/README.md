@@ -4,6 +4,8 @@ This initialization action installs [Apache Drill](http://drill.apache.org) on a
 
 ## Using this initialization action
 
+**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 Check the variables set in the script to ensure they're to your liking.
 
 1. Use the `gcloud` command to create a new cluster with Drill installed. Run one of the following commands depending on your desired cluster type.
@@ -11,24 +13,33 @@ Check the variables set in the script to ensure they're to your liking.
     Standard cluster (requires Zookeeper init action)
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://$MY_BUCKET/zookeeper/zookeeper.sh,gs://$MY_BUCKET/drill/drill.sh
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/zookeeper/zookeeper.sh,gs://goog-dataproc-initialization-actions-${REGION}/drill/drill.sh
     ```
 
     High availability cluster (Zookeeper comes pre-installed)
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
         --num-masters 3 \
-        --initialization-actions gs://$MY_BUCKET/drill/drill.sh
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/drill/drill.sh
     ```
 
     Single node cluster (Zookeeper is unnecessary)
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
         --single-node \
-        --initialization-actions gs://$MY_BUCKET/drill/drill.sh
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/drill/drill.sh
     ```
 
 1. Once the cluster has been created, Drillbits will start on all nodes. You can log into any node of the cluster to run Drill queries. Drill is installed in `/usr/lib/drill` (unless you change the setting) which contains a `bin` directory with `sqlline`.

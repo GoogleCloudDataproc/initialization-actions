@@ -8,6 +8,8 @@ metadata on a given Cloud SQL instance.
 
 ## Using this initialization action
 
+**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 Prerequisite: If this is your first time using Cloud SQL, enable the
 [Cloud SQL Admin API](https://cloud.google.com/sql/docs/mysql/admin-api/#enabling_the_api)
 before continuing.
@@ -22,7 +24,7 @@ same region.
 You can use this initialization action to create a Dataproc cluster using a
 shared hive metastore.
 
-1.  Use the `gcloud` command to create a new 2nd generation Cloud SQL intance
+1.  Use the `gcloud` command to create a new 2nd generation Cloud SQL instance
     (or use a previously created instance).
 
     ```bash
@@ -39,12 +41,17 @@ shared hive metastore.
     action.
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-        --region <REGION> \
+    HIVE_DATA_BUCKET=<data_bucket>
+    PROJECT_ID=<project_id>
+    REGION=<region>
+    INSTANCE_NAME=<cloud_sql_instance_name>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
         --scopes sql-admin \
-        --initialization-actions gs://$MY_BUCKET/cloud-sql-proxy/cloud-sql-proxy.sh \
-        --properties hive:hive.metastore.warehouse.dir=gs://<HIVE_DATA_BUCKET>/hive-warehouse \
-        --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>"
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/cloud-sql-proxy/cloud-sql-proxy.sh \
+        --properties hive:hive.metastore.warehouse.dir=gs://${HIVE_DATA_BUCKET}/hive-warehouse \
+        --metadata "hive-metastore-instance=${PROJECT_ID}:${REGION}:${INSTANCE_NAME}"
     ```
 
     a. Optionally add other instances, paired with distict TCP ports for further
@@ -67,10 +74,15 @@ shared hive metastore.
 1.  Create another dataproc cluster with the same Cloud SQL metastore.
 
     ```bash
-    gcloud dataproc clusters create <ANOTHER_CLUSTER_NAME> \
+    PROJECT_ID=<project_id>
+    REGION=<region>
+    INSTANCE_NAME=<cloud_sql_instance_name>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
         --scopes sql-admin \
-        --initialization-actions gs://$MY_BUCKET/cloud-sql-proxy/cloud-sql-proxy.sh \
-        --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>"
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/cloud-sql-proxy/cloud-sql-proxy.sh \
+        --metadata "hive-metastore-instance=${PROJECT_ID}:${REGION}:${INSTANCE_NAME}"
     ```
 
 1.  The two clusters should now be sharing Hive Tables and Spark SQL Dataframes
@@ -103,11 +115,16 @@ write to Cloud SQL. Set the `enable-cloud-sql-hive-metastore` metadata key to
 `additional-cloud-sql-instances` to install one or more proxies. For example:
 
 ```bash
-gcloud dataproc clusters create <CLUSTER_NAME> \
+PROJECT_ID=<project_id>
+REGION=<region>
+INSTANCE_NAME=<cloud_sql_instance_name>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
     --scopes sql-admin \
-    --initialization-actions gs://$MY_BUCKET/cloud-sql-proxy/cloud-sql-proxy.sh \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/cloud-sql-proxy/cloud-sql-proxy.sh \
     --metadata "enable-cloud-sql-hive-metastore=false" \
-    --metadata "additional-cloud-sql-instances=<PROJECT_ID>:<REGION>:<ANOTHER_INSTANCE_NAME>"
+    --metadata "additional-cloud-sql-instances=${PROJECT_ID}:${REGION}:${INSTANCE_NAME}"
 ```
 
 ## Private IP Clusters and Cloud SQL Instances
@@ -178,14 +195,20 @@ additional setup.
     the following:
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
+    HIVE_DATA_BUCKET=<data_bucket>
+    PROJECT_ID=<project_id>
+    REGION=<region>
+    INSTANCE_NAME=<cloud_sql_instance_name>
+    CLUSTER_NAME=<cluster_name>
+    SUBNET=<subnetwork_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
         --scopes sql-admin \
-        --initialization-actions gs://$MY_BUCKET/cloud-sql-proxy/cloud-sql-proxy.sh \
-        --properties hive:hive.metastore.warehouse.dir=gs://<HIVE_DATA_BUCKET>/hive-warehouse \
-        --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>" \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/cloud-sql-proxy/cloud-sql-proxy.sh \
+        --properties hive:hive.metastore.warehouse.dir=gs://${HIVE_DATA_BUCKET}/hive-warehouse \
+        --metadata "hive-metastore-instance=${PROJECT_ID}:${REGION}:${INSTANCE_NAME}" \
         --metadata "use-cloud-sql-private-ip=true" \
-        --subnet <SUBNET> \
-        --region <REGION> \
+        --subnet ${SUBNET} \
         --no-address
     ```
 
@@ -272,26 +295,41 @@ the `hive` user does not already exist in MySQL. Proceed as follows:
     following command to specify both the `root` and `hive` passwords:
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
+    HIVE_DATA_BUCKET=<data_bucket>
+    SECRETS_BUCKET=<secrets_bucket>
+    PROJECT_ID=<project_id>
+    REGION=<region>
+    INSTANCE_NAME=<cloud_sql_instance_name>
+    CLUSTER_NAME=<cluster_name>
+    SUBNET=<subnetwork_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
         --scopes cloud-platform \
-        --initialization-actions gs://<INIT_ACTION_BUCKET>/cloud-sql-proxy.sh \
-        --properties hive:hive.metastore.warehouse.dir=gs://<HIVE_DATA_BUCKET>/hive-warehouse \
-        --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>" \
-        --metadata "kms-key-uri=projects/<PROJECT_ID>/locations/global/keyRings/my-key-ring/cryptoKeys/my-key" \
-        --metadata "db-admin-password-uri=gs://<SECRETS_BUCKET>/admin-password.encrypted" \
-        --metadata "db-hive-password-uri=gs://<SECRETS_BUCKET>/hive-password.encrypted"
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/cloud-sql-proxy.sh \
+        --properties hive:hive.metastore.warehouse.dir=gs://${HIVE_DATA_BUCKET}/hive-warehouse \
+        --metadata "hive-metastore-instance=${PROJECT_ID}:${REGION}:${INSTANCE_NAME}" \
+        --metadata "kms-key-uri=projects/${PROJECT_ID}/locations/global/keyRings/my-key-ring/cryptoKeys/my-key" \
+        --metadata "db-admin-password-uri=gs://${SECRETS_BUCKET}/admin-password.encrypted" \
+        --metadata "db-hive-password-uri=gs://${SECRETS_BUCKET}/hive-password.encrypted"
     ```
 
     If you have already created a `hive` user in MySQL, use the following
     command, which does not require the `root` password:
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
+    SECRETS_BUCKET=<secrets_bucket>
+    PROJECT_ID=<project_id>
+    REGION=<region>
+    INSTANCE_NAME=<cloud_sql_instance_name>
+    CLUSTER_NAME=<cluster_name>
+    SUBNET=<subnetwork_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
         --scopes cloud-platform \
-        --initialization-actions gs://<INIT_ACTION_BUCKET>/cloud-sql-proxy.sh \
-        --metadata "hive-metastore-instance=<PROJECT_ID>:<REGION>:<INSTANCE_NAME>" \
-        --metadata "kms-key-uri=projects/<PROJECT_ID>/locations/global/keyRings/my-key-ring/cryptoKeys/my-key" \
-        --metadata "db-hive-password-uri=gs://<SECRETS_BUCKET>/hive-password.encrypted"
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/cloud-sql-proxy.sh \
+        --metadata "hive-metastore-instance=${PROJECT_ID}:${REGION}:${INSTANCE_NAME}" \
+        --metadata "kms-key-uri=projects/${PROJECT_ID}/locations/global/keyRings/my-key-ring/cryptoKeys/my-key" \
+        --metadata "db-hive-password-uri=gs://${SECRETS_BUCKET}/hive-password.encrypted"
     ```
 
 8.  Upgrading schema (create cluster step failed on new Dataproc version):

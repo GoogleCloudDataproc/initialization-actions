@@ -6,11 +6,16 @@ __Use the Dataproc [Jupyter Optional Component](https://cloud.google.com/datapro
 
 ## Using this initialization action
 
+**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 Usage is similar to the original `jupyter` init action.
 
 ```
-gcloud dataproc clusters create <cluster-name> \
-  --initialization-actions gs://$MY_BUCKET/jupyter2/jupyter2.sh
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/jupyter2/jupyter2.sh
 ```
 
 ### Options
@@ -24,8 +29,11 @@ A few of same options are supported here:
 For example:
 
 ```
-gcloud dataproc clusters create <cluster-name> \
-    --initialization-actions gs://$MY_BUCKET/jupyter2/jupyter2.sh \
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/jupyter2/jupyter2.sh \
     --bucket gs://mybucket \
     --metadata JUPYTER_PORT=80,JUPYTER_AUTH_TOKEN=mytoken
 ```

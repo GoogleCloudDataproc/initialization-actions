@@ -8,9 +8,9 @@ installations script. This will enable monitoring for a Cloud Dataproc cluster w
 you can, for example, look at fine-grained resource use across the cluster, alarm on various triggers, or
 analyze the performance of your cluster. 
 
-
-
 ## Using this initialization action
+
+**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
 **You need to configure Stackdriver before you use this initialization action.** Specifically, you must create a group
 based on the cluster name prefix of your cluster. Once you do, Stackdriver will detect any new instances created
@@ -20,11 +20,14 @@ group through the [Stackdriver user interface](https://app.google.stackdriver.co
 Once you have configured a copy of this script, you can use this initialization action to create a new Dataproc cluster
 with the Stackdriver agent installed:
 
-1. Use the `gcloud` command to create a new cluster with this initialization action. You must add the [requisite stackdriver monitoring scope(s)](https://cloud.google.com/monitoring/api/authentication#cloud_monitoring_scopes). The following command will create a new cluster named `<CLUSTER_NAME>`.
+1. Use the `gcloud` command to create a new cluster with this initialization action. You must add the [requisite stackdriver monitoring scope(s)](https://cloud.google.com/monitoring/api/authentication#cloud_monitoring_scopes).
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://$MY_BUCKET/stackdriver/stackdriver.sh \
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/stackdriver/stackdriver.sh \
         --scopes https://www.googleapis.com/auth/monitoring.write
     ```
 1. Once the cluster is online, Stackdriver should automatically start capturing data from your cluster. You can visit
@@ -37,18 +40,24 @@ You can find more information about using initialization actions with Dataproc i
 To better identify your cluster in a Stackdriver dashboard, you'll likely want to append a unique tag when creating
 your cluster:
 
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://$MY_BUCKET/stackdriver/stackdriver.sh \
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/stackdriver/stackdriver.sh \
         --scopes https://www.googleapis.com/auth/monitoring.write \
         --tags my-dataproc-cluster-20160901-1518
 
-This way, even if you reuse your `<CLUSTER_NAME>` in the future, you can easily disambiguate which incarnation
+This way, even if you reuse your cluster in the future, you can easily disambiguate which incarnation
 of the cluster you want to look at in your Stackdriver dashboards. For convenience, you may also want to use
 to Google-hosted copy of the dataproc-initialization-actions repo; for example, once you've enabled the Stackdriver
 APIs you can simply copy/paste:
 
-    gcloud dataproc clusters create ${USER}-dataproc-cluster \
-        --initialization-actions gs://$MY_BUCKET/stackdriver/stackdriver.sh \
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/stackdriver/stackdriver.sh \
         --scopes https://www.googleapis.com/auth/monitoring.write \
         --tags ${USER}-dataproc-cluster-$(date +%Y%m%d-%H%M%S)
 

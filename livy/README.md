@@ -7,6 +7,8 @@ installs version 0.6.0 (version 0.5.0 for Dataproc 1.0 and 1.1) of
 
 ## Using this initialization action
 
+**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 You can use this initialization action to create a new Dataproc cluster with
 Livy installed:
 
@@ -14,8 +16,11 @@ Livy installed:
     action.
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://$MY_BUCKET/livy/livy.sh
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/livy/livy.sh
     ```
 
 1.  Once the cluster has been created, Livy is configured to run on port `8998`

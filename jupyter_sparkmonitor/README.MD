@@ -17,19 +17,23 @@ Component.
 
 ## Using this initialization action
 
+**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 You can use this initialization action to create a new Dataproc cluster with
 SparkMonitor installed:
 
 1.  Use the `gcloud` command to create a new cluster with this initialization
-    action. The following command will create a new cluster named
-    `<CLUSTER_NAME>`.
+    action:
 
     ```bash
     # Jupyter will run on port 8123 of your master node.
-    gcloud dataproc clusters create <CLUSTER_NAME> \
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
         --optional-components ANACONDA,JUPYTER \
         --enable-component-gateway \
-        --initialization-actions gs://$MY_BUCKET/jupyter_sparkmonitor/sparkmonitor.sh
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/jupyter_sparkmonitor/sparkmonitor.sh
     ```
 
 1.  To access to the Jupyter web interface, you can just use the Component

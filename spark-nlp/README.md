@@ -5,14 +5,19 @@ on all nodes within a [Google Cloud Dataproc](https://cloud.google.com/dataproc)
 
 ## Using this initialization action
 
+**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 You can use this initialization action to create a new Cloud Dataproc cluster with spark-nlp version 2.0.8 installed. You must also include Anaconda as an [Optional Component](https://cloud.google.com/dataproc/docs/concepts/components/overview) when creating the cluster:
 
 1. Use the `gcloud` command to create a new cluster with this initialization action.  The following command will create a new cluster named `my_cluster`:
 
     ```bash
-    gcloud dataproc clusters create my_cluster \
-      --optional-components ANACONDA \
-      --initialization-actions gs://$MY_BUCKET/spark-nlp/spark-nlp.sh
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --optional-components ANACONDA \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/spark-nlp/spark-nlp.sh
     ```
 2. To use `spark-nlp` in your code, you must include `spark-nlp` with the --properties flag when submitting a job (example shows a Python job):
 

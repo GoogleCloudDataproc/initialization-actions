@@ -6,13 +6,17 @@ Dataproc cluster. You will need to connect to Datalab using an SSH tunnel.
 
 ## Using this initialization action
 
+**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 1.  Use the `gcloud` command to create a new cluster with this initialization
-    action. The following command will create a new cluster named
-    `<CLUSTER_NAME>`.
+    action:
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://$MY_BUCKET/datalab/datalab.sh \
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/datalab/datalab.sh \
         --scopes cloud-platform
     ```
 
@@ -40,10 +44,13 @@ must be at the same minor version. Currently, Datalab uses Python 3.5. Here is
 how to set up Python 3.5 on workers:
 
 ```bash
-gcloud dataproc clusters create <CLUSTER_NAME> \
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
     --metadata 'CONDA_PACKAGES="python==3.5"' \
     --scopes cloud-platform \
-    --initialization-actions gs://$MY_BUCKET/conda/bootstrap-conda.sh,gs://$MY_BUCKET/conda/install-conda-env.sh,gs://$MY_BUCKET/datalab/datalab.sh
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/conda/bootstrap-conda.sh,gs://goog-dataproc-initialization-actions-${REGION}/conda/install-conda-env.sh,gs://goog-dataproc-initialization-actions-${REGION}/datalab/datalab.sh
 ```
 
 In effect, this means that a particular Datalab-on-Dataproc cluster can only run

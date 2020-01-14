@@ -19,19 +19,22 @@ without using SSH tunnels.
 
 ## Using this initialization action
 
+**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 You can use this initialization action to create a new Dataproc cluster with
 Jupyter installed:
 
 1.  Use the `gcloud` command to create a new cluster with this initialization
-    action. The following command will create a new cluster named
-    `<CLUSTER_NAME>`.
+    action:
 
     ```bash
     # Simple one-liner; just use all default settings for your cluster.
     # Jupyter will run on port 8123 of your master node.
-    CLUSTER=<CLUSTER_NAME>
-    gcloud dataproc clusters create $CLUSTER \
-        --initialization-actions gs://$MY_BUCKET/jupyter/jupyter.sh
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/jupyter/jupyter.sh
     ```
 
 1.  Run `./launch-jupyter-interface` to connect to the Jupyter notebook running
@@ -57,10 +60,12 @@ For example to specify a different port and specify additional packages to
 install:
 
 ```bash
-CLUSTER=<CLUSTER_NAME>
-gcloud dataproc clusters create $CLUSTER \
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
     --metadata "JUPYTER_PORT=8124,JUPYTER_CONDA_PACKAGES=numpy:pandas:scikit-learn" \
-    --initialization-actions gs://$MY_BUCKET/jupyter/jupyter.sh \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/jupyter/jupyter.sh \
     --properties spark:spark.executorEnv.PYTHONHASHSEED=0,spark:spark.yarn.am.memory=1024m \
     --worker-machine-type n1-standard-4 \
     --master-machine-type n1-standard-4
@@ -81,7 +86,7 @@ by doing the following:
 -   clones the GCS bucket or GitHub repo specified in the `INIT_ACTIONS_REPO`
     and `INIT_ACTIONS_BRANCH` (for GitHub repo) metadata keys
     -   if `INIT_ACTIONS_REPO` metadata key is not set during cluster creation,
-        the default value `gs:///dataproc-initialization-actions` is used
+        the default value `gs://dataproc-initialization-actions` is used
     -   this is provided so that a fork of the main repo can easily be used, eg,
         during development
 -   executes `conda/bootstrap-conda.sh` from said repo/branch to ensure
@@ -122,7 +127,7 @@ notebook process running on master node.
 
 ## Important notes
 
-*   This initialization action clones `gs://$MY_BUCKET` GCS
+*   This initialization action clones `gs://goog-dataproc-initialization-actions-${REGION}` GCS
     bucket to run other scripts in the repo. If you plan to copy `jupyter.sh` to
     your own GCS bucket, you will also need to fork this repository and specify
     the `INIT_ACTIONS_REPO` metadata key.

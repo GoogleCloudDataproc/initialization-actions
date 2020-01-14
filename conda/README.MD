@@ -23,12 +23,17 @@ Please see the following tutorial for full details https://cloud.google.com/data
 
 ## Using this initialization action
 
+**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 ### Just install and configure conda environment
 
 ```
-gcloud dataproc clusters create foo \
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
     --initialization-actions \
-        gs://$MY_BUCKET/conda/bootstrap-conda.sh,gs://$MY_BUCKET/conda/install-conda-env.sh
+        gs://goog-dataproc-initialization-actions-${REGION}/conda/bootstrap-conda.sh,gs://goog-dataproc-initialization-actions-${REGION}/conda/install-conda-env.sh
 ```
 
 ### Install extra conda and/or pip packages
@@ -36,17 +41,23 @@ gcloud dataproc clusters create foo \
 You can add extra packages by using the metadata entries `CONDA_PACKAGES` and `PIP_PACKAGES`. These variables provide a space separated list of additional packages to install.
 
 ```
-gcloud dataproc clusters create foo \
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
     --metadata 'CONDA_PACKAGES="numpy pandas",PIP_PACKAGES=pandas-gbq' \
     --initialization-actions \
-        gs://$MY_BUCKET/conda/bootstrap-conda.sh,gs://$MY_BUCKET/conda/install-conda-env.sh
+        gs://goog-dataproc-initialization-actions-${REGION}/conda/bootstrap-conda.sh,gs://goog-dataproc-initialization-actions-${REGION}/conda/install-conda-env.sh
 ```
 
 Alternatively, you can use environment variables, e.g.:
 
 ```
-gcloud dataproc clusters create foo \
-  --initialization-actions gs://<YOUR-BUCKET>/create-my-cluster.sh
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/create-my-cluster.sh
 ```
 
 Where `create-my-cluster.sh` specifies a list of conda and/or pip packages to install:
@@ -54,8 +65,8 @@ Where `create-my-cluster.sh` specifies a list of conda and/or pip packages to in
 ```
 #!/usr/bin/env bash
 
-gsutil -m cp -r gs://$MY_BUCKET/conda/bootstrap-conda.sh .
-gsutil -m cp -r gs://$MY_BUCKET/conda/install-conda-env.sh .
+gsutil -m cp -r gs://goog-dataproc-initialization-actions-${REGION}/conda/bootstrap-conda.sh .
+gsutil -m cp -r gs://goog-dataproc-initialization-actions-${REGION}/conda/install-conda-env.sh .
 
 chmod 755 ./*conda*.sh
 
@@ -78,8 +89,8 @@ CONDA_ENV_YAML_GSC_LOC="gs://my-bucket/path/to/conda-environment.yml"
 CONDA_ENV_YAML_PATH="/root/conda-environment.yml"
 echo "Downloading conda environment at $CONDA_ENV_YAML_GSC_LOC to $CONDA_ENV_YAML_PATH ... "
 gsutil -m cp -r $CONDA_ENV_YAML_GSC_LOC $CONDA_ENV_YAML_PATH
-gsutil -m cp -r gs://$MY_BUCKET/conda/bootstrap-conda.sh .
-gsutil -m cp -r gs://$MY_BUCKET/conda/install-conda-env.sh .
+gsutil -m cp -r gs://goog-dataproc-initialization-actions-${REGION}/conda/bootstrap-conda.sh .
+gsutil -m cp -r gs://goog-dataproc-initialization-actions-${REGION}/conda/install-conda-env.sh .
 
 chmod 755 ./*conda*.sh
 

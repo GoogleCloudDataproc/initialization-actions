@@ -14,6 +14,10 @@ Due to the current development
 portability framework, you are responsible for building and maintaining their
 own Beam artifacts manually. Instructions are included below.
 
+## Using this initialization action
+
+**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 ## Building Beam Artifacts
 
 You will generate two categories of artifacts for this initialization action:
@@ -110,10 +114,11 @@ You should explicitly set the Beam and Flink metadata variables (use a script as
 shown later).
 
 ```bash
-CLUSTER_NAME="$1
-INIT_ACTIONS="gs://$MY_BUCKET/docker/docker.sh"
-INIT_ACTIONS+=",gs://$MY_BUCKET/flink/flink.sh"
-INIT_ACTIONS+=",gs://$MY_BUCKET/beam/beam.sh"
+REGION=<region>
+CLUSTER_NAME="$1"
+INIT_ACTIONS="gs://goog-dataproc-initialization-actions-${REGION}/docker/docker.sh"
+INIT_ACTIONS+=",gs://goog-dataproc-initialization-actions-${REGION}/flink/flink.sh"
+INIT_ACTIONS+=",gs://goog-dataproc-initialization-actions-${REGION}/beam/beam.sh"
 FLINK_SNAPSHOT="https://archive.apache.org/dist/flink/flink-1.5.3/flink-1.5.3-bin-hadoop28-scala_2.11.tgz"
 METADATA="beam-job-service-snapshot=<...>"
 METADATA+=",beam-image-enable-pull=true"
@@ -123,9 +128,9 @@ METADATA+=",flink-start-yarn-session=true"
 METADATA+=",flink-snapshot-url=${FLINK_SNAPSHOT}"
 
 gcloud dataproc clusters create "${CLUSTER_NAME}" \
-  --initialization-actions "${INIT_ACTIONS}" \
-  --image-version "1.2" \
-  --metadata "${METADATA}"
+    --initialization-actions "${INIT_ACTIONS}" \
+    --image-version "1.2" \
+    --metadata "${METADATA}"
 ```
 
 The Beam Job Service runs on port `8099` of the master node. You can submit
@@ -135,11 +140,11 @@ on the master node, upload the wordcount job binary, and then run:
 
 ```bash
 ./wordcount \
-  --runner flink \
-  --endpoint localhost:8099 \
-  --experiments beam_fn_api \
-  --output=<out> \
-  --container_image <BEAM_CONTAINER_DESTINATION>/go:<BEAM_SOURCE_VERSION>
+    --runner flink \
+    --endpoint localhost:8099 \
+    --experiments beam_fn_api \
+    --output=<out> \
+    --container_image <BEAM_CONTAINER_DESTINATION>/go:<BEAM_SOURCE_VERSION>
 ```
 
 The Beam Job Service port must be opened to submit beam jobs from machines

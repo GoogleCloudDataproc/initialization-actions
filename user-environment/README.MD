@@ -5,11 +5,16 @@ This initialization action customizes the environment of all current and future 
 By default it only enables the options already present in the .bashrc that Debian provides, but it documents where further changes can be made and gives some commented out examples.
 
 ## Using this initialization action
+
+**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 You can use this initialization action by:
 
 1. Editing and uploading a copy of this initialization action (`user-environment.sh`) to [Google Cloud Storage](https://cloud.google.com/storage).
-1. Using the `gcloud` command to create a new cluster with this initialization action. The following command will create a new cluster named `<CLUSTER_NAME>`, specify the initialization action stored in `<GCS_BUCKET>`:
+1. Using the `gcloud` command to create a new cluster with this initialization action.
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-    --initialization-actions gs://<GCS_BUCKET>/user-environment
+    REGION=<region>
+    CLUSTER=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/user-environment

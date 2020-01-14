@@ -5,13 +5,19 @@ This initialization action installs the latest version of [Apache Zeppelin](http
 __Use the Dataproc [Zeppelin Optional Component](https://cloud.google.com/dataproc/docs/concepts/components/zeppelin)__. Clusters created with Cloud Dataproc image version 1.3 and later can install Zeppelin Notebook without using this initialization action. The Zeppelin Optional Component's web interface can be accessed via [Component Gateway](https://cloud.google.com/dataproc/docs/concepts/accessing/dataproc-gateways) without using SSH tunnels.
 
 ## Using this initialization action
+
+**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 You can use this initialization action to create a new Dataproc cluster with Apache Zeppelin installed:
 
-1. Use the `gcloud` command to create a new cluster with this initialization action. The following command will create a new cluster named `<CLUSTER_NAME>`.
+1. Use the `gcloud` command to create a new cluster with this initialization action.
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://$MY_BUCKET/zeppelin/zeppelin.sh
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/zeppelin/zeppelin.sh
     ```
 1. Once the cluster has been created, Zeppelin is configured to run on port `8080` on the master node in a Dataproc cluster. To connect to the Apache Zeppelin web interface, you will need to create an SSH tunnel and use a SOCKS 5 Proxy as described in the [dataproc web interfaces](https://cloud.google.com/dataproc/cluster-web-interfaces) documentation.
 
@@ -24,8 +30,11 @@ This option can be provided as a metadata key using `--metadata`.
 For example:
 
 ```bash
-gcloud dataproc clusters create <CLUSTER_NAME> \
-    --initialization-actions gs://$MY_BUCKET/zeppelin/zeppelin.sh \
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/zeppelin/zeppelin.sh \
     --metadata zeppelin-port=8081
 ```
 

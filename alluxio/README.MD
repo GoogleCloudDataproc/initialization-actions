@@ -7,17 +7,20 @@ will be Alluxio workers.
 
 ## Using this initialization action
 
+**:warning: WARNING:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 You can use this initialization action to create a new Dataproc cluster with
 Alluxio installed:
 
 1.  Using the `gcloud` command to create a new cluster with this initialization
-    action. The following command will create a new cluster named
-    `<CLUSTER_NAME>`.
+    action:
 
     ```bash
-    gcloud dataproc clusters create <cluster_name> \
-      --initialization-actions gs://$my_bucket/alluxio/alluxio.sh \
-      --metadata alluxio_root_ufs_uri=<UNDERSTORAGE_ADDRESS>
+    REGION=<region>
+    CLUSTER=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/alluxio/alluxio.sh \
+        --metadata alluxio_root_ufs_uri=<UNDERSTORAGE_ADDRESS>
     ```
 
 You can find more information about using initialization actions with Dataproc
@@ -48,10 +51,12 @@ must precede the Alluxio action.
     `alluxio_site_properties` delimited using `;`.
 
     ```bash
-    gcloud dataproc clusters create <cluster_name> \
-      --initialization-actions gs://$my_bucket/alluxio/alluxio.sh \
-      --metadata alluxio_root_ufs_uri=<UNDERSTORAGE_ADDRESS>
-      --metadata alluxio_site_properties="alluxio.master.mount.table.root.option.fs.gcs.accessKeyId=<GCS_ACCESS_KEY_ID>;alluxio.master.mount.table.root.option.fs.gcs.secretAccessKey=<GCS_SECRET_ACCESS_KEY>"
+    REGION=<region>
+    CLUSTER=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/alluxio/alluxio.sh \
+        --metadata alluxio_root_ufs_uri=<UNDERSTORAGE_ADDRESS>
+        --metadata alluxio_site_properties="alluxio.master.mount.table.root.option.fs.gcs.accessKeyId=<GCS_ACCESS_KEY_ID>;alluxio.master.mount.table.root.option.fs.gcs.secretAccessKey=<GCS_SECRET_ACCESS_KEY>"
     ```
 
 *   Additional files can be downloaded into `/opt/alluxio/conf` using the
@@ -59,8 +64,10 @@ must precede the Alluxio action.
     uris delimited using `;`.
 
     ```bash
-    gcloud dataproc clusters create <cluster_name> \
-      --initialization-actions gs://$my_bucket/alluxio/alluxio.sh \
-      --metadata alluxio_root_ufs_uri=<UNDERSTORAGE_ADDRESS> \
-      --metadata alluxio_download_files_list="gs://$my_bucket/$my_file;https://$server/$file"
+    REGION=<region>
+    CLUSTER=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/alluxio/alluxio.sh \
+        --metadata alluxio_root_ufs_uri=<UNDERSTORAGE_ADDRESS> \
+        --metadata alluxio_download_files_list="gs://goog-dataproc-initialization-actions-${REGION}/$my_file;https://$server/$file"
     ```
