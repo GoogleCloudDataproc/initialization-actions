@@ -4,7 +4,7 @@ When creating a [Google Cloud Dataproc](https://cloud.google.com/dataproc/) clus
 
 ## How initialization actions are used
 
-Initialization actions should be stored in a [Google Cloud Storage](https://cloud.google.com/storage) bucket and can be passed as a parameter to the `gcloud` command or the `clusters.create` API when creating a Cloud Dataproc cluster. For example, to specify an initialization action when creating a cluster with the `gcloud` command, you can run:
+Initialization actions must be stored in a [Google Cloud Storage](https://cloud.google.com/storage) bucket and can be passed as a parameter to the `gcloud` command or the `clusters.create` API when creating a Cloud Dataproc cluster. For example, to specify an initialization action when creating a cluster with the `gcloud` command, you can run:
 
 ```bash
 gcloud dataproc clusters create <CLUSTER_NAME> \
@@ -22,9 +22,10 @@ gcloud dataproc clusters create ${CLUSTER} \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/presto/presto.sh
 ```
 
-**:warning: NOTICE:** For production usage, before creating clusters it's strongly recommended copying
-initialization actions to your own Cloud Storage bucket to prevent unintended upgrades from upstream
-and guarantee consistent use of the same initialization action code across all nodes in the cluster:
+**:warning: NOTICE:** For production usage, before creating clusters it's strongly recommended
+copying initialization actions to your own Cloud Storage bucket to guarantee consistent use of the
+same initialization action code across all Dataproc cluster nodes and prevent unintended upgrades
+from upstream in the cluster:
 
 ```bash
 BUCKET=<your_init_actions_bucket>
