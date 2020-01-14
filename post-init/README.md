@@ -8,6 +8,8 @@ or submitting a job.
 
 ## Using this initialization action
 
+**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 For now, the script relies on polling the Dataproc API to determine an authoritative state
 of cluster health on startup, so requires the `--scopes cloud-platform` flag; do not use
 this initialization action if you are unwilling to grant your Dataproc clusters' service
@@ -25,16 +27,20 @@ logs also in the `/var/log` directory.
 
 Simply modify the `POST_INIT_COMMAND` to whatever actual job submission command you want to run:
 
+    export REGION=<region>
     export CLUSTER_NAME=${USER}-shortlived-cluster
     export POST_INIT_COMMAND=" \
         gcloud dataproc jobs submit hadoop \
+            --region ${REGION} \
             --cluster ${CLUSTER_NAME} \
             --jar file:///usr/lib/hadoop-mapreduce/hadoop-mapreduce-examples.jar \
+            -- \
             teragen 10000 /tmp/teragen; \
-        gcloud dataproc clusters delete -q ${CLUSTER_NAME}"
+        gcloud dataproc clusters delete -q ${CLUSTER_NAME} --region ${REGION}"
     gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
         --scopes cloud-platform \
-        --initialization-actions gs://$MY_BUCKET/post-init/master-post-init.sh \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/post-init/master-post-init.sh \
         --metadata post-init-command="${POST_INIT_COMMAND}"
 
 
@@ -46,13 +52,16 @@ the cluster will only be deleted if the job was successful:
     export CLUSTER_NAME=${USER}-shortlived-cluster
     export POST_INIT_COMMAND=" \
         gcloud dataproc jobs submit hadoop \
+            --region ${REGION} \
             --cluster ${CLUSTER_NAME} \
             --jar file:///usr/lib/hadoop-mapreduce/hadoop-mapreduce-examples.jar \
+            -- \
             teragen 10000 /tmp/teragen && \
-        gcloud dataproc clusters delete -q ${CLUSTER_NAME}"
+        gcloud dataproc clusters delete -q ${CLUSTER_NAME} --region ${REGION}"
     gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
         --scopes cloud-platform \
-        --initialization-actions gs://$MY_BUCKET/post-init/master-post-init.sh \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/post-init/master-post-init.sh \
         --metadata post-init-command="${POST_INIT_COMMAND}"
 
 ## Create a cluster which automatically resubmits a job on restart or job termination (e.g. for streaming processing)
@@ -71,14 +80,17 @@ to be orphaned from a failed job driver/client program; this makes it safe to re
 the job on reboot without manually tracking down orphaned YARN applications which may be
 consuming resources for the job that you want to resubmit.
 
+    export REGION=<region>
     export CLUSTER_NAME=${USER}-longrunning-job-cluster
     export POST_INIT_COMMAND=" \
         while true; do \
           gcloud dataproc jobs submit spark \
+              --region ${REGION} \
               --cluster ${CLUSTER_NAME} \
               --jar gs://${BUCKET}/my-longlived-job.jar foo args; \
         done"
     gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
         --scopes cloud-platform \
-        --metadata startup-script-url=gs://$MY_BUCKET/post-init/master-post-init.sh,post-init-command="${POST_INIT_COMMAND}"
+        --metadata startup-script-url=gs://goog-dataproc-initialization-actions-${REGION}/post-init/master-post-init.sh,post-init-command="${POST_INIT_COMMAND}"
 

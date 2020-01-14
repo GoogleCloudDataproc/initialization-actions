@@ -10,34 +10,40 @@ GPU drivers for NVIDIA on master and workers node in a
 
 ## Using this initialization action
 
+**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 You can use this initialization action to create a new Dataproc cluster with GPU
 support: this initialization action will install GPU drivers and CUDA. If you
 need a more recent GPU driver please visit NVIDIA
 [site](https://www.nvidia.com/Download/index.aspx?lang=en-us).
 
 1.  Use the `gcloud` command to create a new cluster with this initialization
-    action. The following command will create a new cluster named
-    `<CLUSTER_NAME>` and install GPU drivers.
+    action.
 
     ```bash
-    gcloud beta dataproc clusters create <CLUSTER_NAME> \
-      --master-accelerator type=nvidia-tesla-v100 \
-      --worker-accelerator type=nvidia-tesla-v100,count=4 \
-      --initialization-actions gs://$MY_BUCKET/gpu/install_gpu_driver.sh \
-      --metadata install_gpu_agent=false
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --master-accelerator type=nvidia-tesla-v100 \
+        --worker-accelerator type=nvidia-tesla-v100,count=4 \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh \
+        --metadata install_gpu_agent=false
     ```
 
 2.  Use the `gcloud` command to create a new cluster with this initialization
-    action. The following command will create a new cluster named
-    `<CLUSTER_NAME>`, install GPU drivers and add the GPU monitoring service.
+    action. The following command will create a new cluster, install GPU drivers and add the GPU monitoring service.
 
     ```bash
-    gcloud beta dataproc clusters create <CLUSTER_NAME> \
-      --master-accelerator type=nvidia-tesla-v100 \
-      --worker-accelerator type=nvidia-tesla-v100,count=4 \
-      --initialization-actions gs://$MY_BUCKET/gpu/install_gpu_driver.sh \
-      --metadata install_gpu_agent=true \
-      --scopes https://www.googleapis.com/auth/monitoring.write
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --master-accelerator type=nvidia-tesla-v100 \
+        --worker-accelerator type=nvidia-tesla-v100,count=4 \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh \
+        --metadata install_gpu_agent=true \
+        --scopes https://www.googleapis.com/auth/monitoring.write
     ```
 
 #### Supported metadata parameters:

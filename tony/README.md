@@ -5,21 +5,29 @@ on a master node within a [Google Cloud Dataproc](https://cloud.google.com/datap
 
 ## Using this initialization action
 
+**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 You can use this initialization action to create a new Dataproc cluster with TonY installed:
 
-1. Use the `gcloud` command to create a new cluster with this initialization action.  The following command will create a new cluster named `<CLUSTER_NAME>`.
+1. Use the `gcloud` command to create a new cluster with this initialization action.
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-      --initialization-actions gs://$MY_BUCKET/tony/tony.sh
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/tony/tony.sh
     ```
 
     You can also pass specific metadata:
     
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-      --initialization-actions gs://$MY_BUCKET/tony/tony.sh \
-      --metadata name1=value1,name2=value2... 
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/tony/tony.sh \
+        --metadata name1=value1,name2=value2... 
     ```
     
     Supported metadata parameters:
@@ -38,9 +46,12 @@ You can use this initialization action to create a new Dataproc cluster with Ton
     Example:
     
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-      --initialization-actions gs://$MY_BUCKET/tony/tony.sh \
-      --metadata worker_instances=4,worker_memory=4g,ps_instances=1,ps_memory=2g
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/tony/tony.sh \
+        --metadata worker_instances=4,worker_memory=4g,ps_instances=1,ps_memory=2g
     ```
     
     **Note:** For settings not defined in this configuration, you can pass a separate configuration when launching tasks

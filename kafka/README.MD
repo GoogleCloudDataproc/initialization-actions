@@ -6,15 +6,20 @@ By default, Kafka brokers run only on all worker nodes in the cluster, and Kafka
 
 ## Using this initialization action
 
+**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 You can use this initialization action to create a new Dataproc cluster with Kafka installed:
 
-1. Use the `gcloud` command to create a new cluster with this initialization action. The following command will create a new high availability cluster named `<CLUSTER_NAME>`.
+1. Use the `gcloud` command to create a new cluster with this initialization action.
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
         --num-masters 3 \
         --metadata "run-on-master=true" \
-        --initialization-actions gs://$MY_BUCKET/kafka/kafka.sh
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/kafka/kafka.sh
     ```
 1. You can test your Kafka setup by creating a simple topic and publishing to it with Kafka's command-line tools, after SSH'ing into one of your nodes:
 
@@ -29,9 +34,9 @@ You can use this initialization action to create a new Dataproc cluster with Kaf
     # Use worker 0 as broker to publish 100 messages over 100 seconds
     # asynchronously.
     CLUSTER_NAME=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)
-    for i in {0..100}; do echo "message${i}"; sleep 1; done | \
+    for i in {0..100}; do echo "message${i}"; sleep 1; done |
         /usr/lib/kafka/bin/kafka-console-producer.sh \
-        --broker-list ${CLUSTER_NAME}-w-0:9092 --topic test &
+            --broker-list ${CLUSTER_NAME}-w-0:9092 --topic test &
 
     # User worker 1 as broker to consume those 100 messages as they come.
     # This can also be run in any other master or worker node of the cluster.
@@ -47,11 +52,14 @@ You can find more information about using initialization actions with Dataproc i
 If you would like to use [Kafka Manager](https://github.com/yahoo/kafka-manager) to manage your Kafka cluster through web UI, use the `gcloud` command to create a new Kafka cluster with the Kafka Manager initialization action. The following command will create a new high availability Kafka cluster with Kafka Manager running on the first master node. The default HTTP port for Kafka Manager is 9000. Follow the instructions at [Dataproc cluster web interfaces](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces) to access the web UI.
 
 ```bash
-gcloud dataproc clusters create <CLUSTER_NAME> \
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
     --num-masters 3 \
     --metadata "run-on-master=true" \
     --metadata "kafka-enable-jmx=true" \
-    --initialization-actions gs://$MY_BUCKET/kafka/kafka.sh,gs://$MY_BUCKET/kafka/kafka-manager.sh
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/kafka/kafka.sh,gs://goog-dataproc-initialization-actions-${REGION}/kafka/kafka-manager.sh
 ```
 
 ## Installing Cruise Control with Kafka
@@ -59,10 +67,13 @@ gcloud dataproc clusters create <CLUSTER_NAME> \
 If you would like to use [Cruise Control](https://github.com/linkedin/cruise-control) to automate common Kafka operations, e.g., automatically fixing under-replicated partitions caused by broker failures, use the `gcloud` command to create a new Kafka cluster with the Cruise Control initialization action. The following command will create a new high availability Kafka cluster with Cruise Control running on the first master node. The default HTTP port for Cruise Control is 9090. Follow the instructions at [Dataproc cluster web interfaces](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces) to access the web UI.
 
 ```bash
-gcloud dataproc clusters create <CLUSTER_NAME> \
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
     --num-masters 3 \
     --metadata "run-on-master=true" \
-    --initialization-actions gs://$MY_BUCKET/kafka/kafka.sh,gs://$MY_BUCKET/kafka/cruise-control.sh
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/kafka/kafka.sh,gs://goog-dataproc-initialization-actions-${REGION}/kafka/cruise-control.sh
 ```
 
 ## Installing Prometheus with Kafka
@@ -70,11 +81,14 @@ gcloud dataproc clusters create <CLUSTER_NAME> \
 If you would like to use [Prometheus](https://github.com/prometheus/prometheus) to monitor your Kafka cluster, use the `gcloud` command to create a new Kafka cluster with the Prometheus initialization action. The following command will create a new high availability Kafka cluster with Prometheus server listening on port 9096 of each node. Follow the instructions at [Dataproc cluster web interfaces](https://cloud.google.com/dataproc/docs/concepts/accessing/cluster-web-interfaces) to access the web UI.
 
 ```bash
-gcloud dataproc clusters create <CLUSTER_NAME> \
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
     --num-masters 3 \
     --metadata "run-on-master=true" \
     --metadata "prometheus-http-port=9096" \
-    --initialization-actions gs://$MY_BUCKET/kafka/kafka.sh,gs://$MY_BUCKET/prometheus/prometheus.sh
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/kafka/kafka.sh,gs://goog-dataproc-initialization-actions-${REGION}/prometheus/prometheus.sh
 ```
 
 ## Important notes

@@ -15,7 +15,7 @@ On the Dataproc worker nodes:
 
 -   `dask-cuda-worker`
 
-Our initialization action does the following:
+This initialization action does the following:
 
 1.  [install nvidia GPU driver](internal/install-gpu-driver.sh)
 1.  [install RAPIDS](rapids.sh) -
@@ -25,23 +25,25 @@ Our initialization action does the following:
 
 ## Using this initialization action
 
+**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 You can use this initialization action to create a new Dataproc cluster with
 RAPIDS installed:
 
 1.  Using the `gcloud` command to create a new cluster with this initialization
-    action. The following command will create a new cluster named
-    `<CLUSTER_NAME>`.
+    action.
 
     ```bash
-    DATAPROC_BUCKET=dataproc-initialization-actions
-
-    gcloud beta dataproc clusters create <CLUSTER_NAME> \
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
         --master-accelerator type=nvidia-tesla-t4,count=4 \
         --master-machine-type n1-standard-32 \
         --worker-accelerator type=nvidia-tesla-t4,count=4 \
         --worker-machine-type n1-standard-32 \
-        --initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
-        --optional-components=ANACONDA
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
+        --optional-components ANACONDA
     ```
 
 1.  Once the cluster has been created, the Dask scheduler listens for workers on
@@ -78,22 +80,23 @@ to install a different driver version,
 [find the appropriate driver download URL](https://www.nvidia.com/Download/index.aspx?lang=en-us)
 for your driver's `.run` file.
 
-*   `--metadata=gpu-driver-url=http://us.download.nvidia.com/tesla/410.104/NVIDIA-Linux-x86_64-410.104.run` -
+*   `--metadata gpu-driver-url=http://us.download.nvidia.com/tesla/410.104/NVIDIA-Linux-x86_64-410.104.run` -
     to specify alternate driver download URL.
 
 For example:
 
 ```bash
-DATAPROC_BUCKET=dataproc-initialization-actions
-
-gcloud beta dataproc clusters create <CLUSTER_NAME> \
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
     --master-accelerator type=nvidia-tesla-t4,count=4 \
     --master-machine-type n1-standard-32 \
     --worker-accelerator type=nvidia-tesla-t4,count=4 \
     --worker-machine-type n1-standard-32 \
     --metadata "gpu-driver-url=http://us.download.nvidia.com/tesla/410.104/NVIDIA-Linux-x86_64-410.104.run" \
-    --initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
-    --optional-components=ANACONDA
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
+    --optional-components ANACONDA
 ```
 
 RAPIDS works with
@@ -117,16 +120,17 @@ configurable via a metadata key using `--metadata`.
 For example:
 
 ```bash
-DATAPROC_BUCKET=dataproc-initialization-actions
-
-gcloud beta dataproc clusters create <CLUSTER_NAME> \
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
     --master-accelerator type=nvidia-tesla-t4,count=4 \
     --master-machine-type n1-standard-32 \
     --worker-accelerator type=nvidia-tesla-t4,count=4 \
     --worker-machine-type n1-standard-32 \
     --metadata "run-cuda-worker-on-master=false" \
-    --initialization-actions gs://$DATAPROC_BUCKET/rapids/rapids.sh \
-    --optional-components=ANACONDA
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
+    --optional-components ANACONDA
 ```
 
 #### Initialization Action Source
@@ -144,7 +148,7 @@ GCS bucket by default:
 *   RAPIDS init actions depend on the
     [Anaconda](https://cloud.google.com/dataproc/docs/concepts/components/anaconda)
     component, which should be included at cluster creation time via the
-    `--optional-components=ANACONDA` argument.
+    `--optional-components ANACONDA` argument.
 *   RAPIDS is supported on Pascal or newer GPU architectures (Tesla K80s will
     _not_ work with RAPIDS). See
     [list](https://cloud.google.com/compute/docs/gpus/) of available GPU types

@@ -10,11 +10,19 @@ More information [project's website](https://analytics-zoo.github.io)
 
 ## Using this initialization action
 
+**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 You can use this initialization to create a new Dataproc cluster with BigDL's Spark and PySpark libraries installed.
 
+Because of a time needed to install BigDL on the cluster nodes we need to set
+`--initialization-action-timeout 10m` property to prevent cluster creation timeout. 
+
 ```
-gcloud dataproc clusters create <CLUSTER_NAME> \
-    --initialization-actions gs://$MY_BUCKET/bigdl/bigdl.sh \
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/bigdl/bigdl.sh \
     --initialization-action-timeout 10m
 ```
 
@@ -28,9 +36,12 @@ The URL should end in `-dist.zip`.
 For example, for Dataproc 1.0 (Spark 1.6 and Scala 2.10) and BigDL v0.7.2:
 
 ```
-gcloud dataproc clusters create <CLUSTER_NAME> \
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
     --image-version 1.0 \
-    --initialization-actions gs://$MY_BUCKET/bigdl/bigdl.sh \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/bigdl/bigdl.sh \
     --initialization-action-timeout 10m \
     --metadata 'bigdl-download-url=https://repo1.maven.org/maven2/com/intel/analytics/bigdl/dist-spark-1.6.2-scala-2.10.5-all/0.7.2/dist-spark-1.6.2-scala-2.10.5-all-0.7.2-dist.zip'
 ```
@@ -38,9 +49,12 @@ gcloud dataproc clusters create <CLUSTER_NAME> \
 Or, for example, to download Analytics Zoo 0.4.0 with BigDL v0.7.2 for Dataproc 1.3 (Spark 2.3) use this:
 
 ```
-gcloud dataproc clusters create <CLUSTER_NAME> \
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
     --image-version 1.3 \
-    --initialization-actions gs://$MY_BUCKET/bigdl/bigdl.sh \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/bigdl/bigdl.sh \
     --initialization-action-timeout 10m \
     --metadata 'bigdl-download-url=https://repo1.maven.org/maven2/com/intel/analytics/zoo/analytics-zoo-bigdl_0.7.2-spark_2.3.1/0.4.0/analytics-zoo-bigdl_0.7.2-spark_2.3.1-0.4.0-dist-all.zip'
 ```

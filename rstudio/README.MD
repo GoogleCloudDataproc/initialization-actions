@@ -3,13 +3,19 @@
 This initialization action installs the Open Source Edition of [RStudio Server](https://www.rstudio.com/products/rstudio/#Server) on the master node of a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
 
 ## Using this initialization action
+
+**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 You can use this initialization action to create a new Dataproc cluster with RStudio Server installed by:
 
-1. Using the `gcloud` command to create a new cluster with this initialization action. The following command will create a new cluster named `<CLUSTER_NAME>`. The password must be at least 7 characters.
+1. Using the `gcloud` command to create a new cluster with this initialization action. The password must be at least 7 characters.
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://$MY_BUCKET/rstudio/rstudio.sh \
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/rstudio/rstudio.sh \
         --metadata rstudio-user=rstudio \
         --metadata rstudio-password=<PASSWORD>
     ```

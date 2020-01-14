@@ -5,12 +5,17 @@ dataproc clusters.
 
 ## Using this initialization action
 
+**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 You can use this initialization action to create a new Dataproc cluster with Dr.
 Elephant installed.
 
 ```bash
-gcloud dataproc clusters ${CLUSTER_NAME} \
-    --initialization-actions=gs://$MY_BUCKET/dr-elephant/dr-elephant.sh
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/dr-elephant/dr-elephant.sh
 ```
 
 Once the cluster has been created, Dr. Elephant is configured to run on port

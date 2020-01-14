@@ -16,12 +16,17 @@ on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
 
 ## Using this initialization action
 
+**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 You can use this initialization action to create a new Dataproc cluster with specific version of
 Google Cloud Storage and BigQuery connector installed:
 
 ```
-gcloud dataproc clusters create <CLUSTER_NAME> \
-    --initialization-actions gs://$MY_BUCKET/connectors/connectors.sh \
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/connectors/connectors.sh \
     --metadata gcs-connector-version=2.0.0 \
     --metadata bigquery-connector-version=1.0.0
 ```
@@ -42,15 +47,21 @@ For example:
   specified, then Google Cloud Storage connector will be updated to 1.7.0 version and BigQuery connector
   will be updated to 0.11.0 version:
   ```
-  gcloud dataproc clusters create <CLUSTER_NAME> \
-      --initialization-actions gs://$MY_BUCKET/connectors/connectors.sh \
+  REGION=<region>
+  CLUSTER_NAME=<cluster_name>
+  gcloud dataproc clusters create ${CLUSTER_NAME} \
+      --region ${REGION} \
+      --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/connectors/connectors.sh \
       --metadata gcs-connector-version=1.7.0
   ```
 * if Google Cloud Storage connector 1.8.0 version is specified and BigQuery connector version is not
   specified, then only Google Cloud Storage connector will be updated to 1.8.0 version and BigQuery
-  connector will be left intact:
+  connector will be left unchanged:
   ```
-  gcloud dataproc clusters create <CLUSTER_NAME> \
-      --initialization-actions gs://$MY_BUCKET/connectors/connectors.sh \
+  REGION=<region>
+  CLUSTER_NAME=<cluster_name>
+  gcloud dataproc clusters create ${CLUSTER_NAME} \
+      --region ${REGION} \
+      --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/connectors/connectors.sh \
       --metadata gcs-connector-version=1.8.0
   ```

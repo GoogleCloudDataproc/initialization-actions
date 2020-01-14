@@ -5,11 +5,16 @@ Flink and start a Flink session running on YARN.
 
 ## Using this initialization action
 
-1. Use the `gcloud` command to create a new cluster with this initialization action. The following command will create a new cluster named `<CLUSTER_NAME>`.
+**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
+1. Use the `gcloud` command to create a new cluster with this initialization action.
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-    --initialization-actions gs://$MY_BUCKET/flink/flink.sh
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/flink/flink.sh
     ```
 
 1. You can log into the master node of the cluster to submit jobs to Flink. Flink is installed in `/usr/lib/flink` (unless you change the setting) which contains a `bin` directory with Flink. **Note** - you need to specify `HADOOP_CONF_DIR=/etc/hadoop/conf` before your Flink commands for them to execute properly.

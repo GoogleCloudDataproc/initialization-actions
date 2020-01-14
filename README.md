@@ -4,19 +4,36 @@ When creating a [Google Cloud Dataproc](https://cloud.google.com/dataproc/) clus
 
 ## How initialization actions are used
 
-Initialization actions are stored in a [Google Cloud Storage](https://cloud.google.com/storage) bucket and can be passed as a parameter to the `gcloud` command or the `clusters.create` API when creating a Cloud Dataproc cluster. For example, to specify an initialization action when creating a cluster with the `gcloud` command, you can run:
-
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-      [--initialization-actions [GCS_URI,...]] \
-      [--initialization-action-timeout TIMEOUT]
-
-Before creating clusters, you need to copy initialization actions to your own GCS bucket. For example:
+Initialization actions must be stored in a [Google Cloud Storage](https://cloud.google.com/storage) bucket and can be passed as a parameter to the `gcloud` command or the `clusters.create` API when creating a Cloud Dataproc cluster. For example, to specify an initialization action when creating a cluster with the `gcloud` command, you can run:
 
 ```bash
-MY_BUCKET=<gcs-bucket>
-gsutil cp presto/presto.sh gs://$MY_BUCKET/
-gcloud dataproc clusters create my-presto-cluster \
-  --initialization-actions gs://$MY_BUCKET/presto.sh
+gcloud dataproc clusters create <CLUSTER_NAME> \
+    [--initialization-actions [GCS_URI,...]] \
+    [--initialization-action-timeout TIMEOUT]
+```
+
+During development, you can create Dataproc cluster using Dataproc-provided
+[regional](https://cloud.google.com/dataproc/docs/concepts/regional-endpoints) initialization
+actions buckets (for example `goog-dataproc-initialization-actions-us-east1`):
+
+```bash
+REGION=<region>
+CLUSTER=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER} \
+    --region ${REGION} \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/presto/presto.sh
+```
+
+**:warning: NOTICE:** For production usage, before creating clusters it's strongly recommended
+copying initialization actions to your own Cloud Storage bucket to guarantee consistent use of the
+same initialization action code across all Dataproc cluster nodes and prevent unintended upgrades
+from upstream in the cluster:
+
+```bash
+BUCKET=<your_init_actions_bucket>
+CLUSTER=<cluster_name>
+gsutil cp presto/presto.sh gs://${BUCKET}/
+gcloud dataproc clusters create ${CLUSTER} --initialization-actions gs://${BUCKET}/presto.sh
 ```
 
 You can decide when to sync your copy of the initialization action with any changes to the initialization action that occur in the GitHub repository. This is also useful if you want to modify initialization actions to fit your needs.
@@ -92,9 +109,9 @@ custom metadata:
 
 ```bash
 gcloud dataproc clusters create cluster-name \
-  --initialization-actions ... \
-  --metadata name1=value1,name2=value2... \
-  ... other flags ...
+    --initialization-actions ... \
+    --metadata name1=value1,name2=value2,... \
+    ... other flags ...
 ```
 
 ## For more information
