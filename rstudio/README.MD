@@ -4,7 +4,7 @@ This initialization action installs the Open Source Edition of [RStudio Server](
 
 ## Using this initialization action
 
-**:warning: NOTICE:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
 You can use this initialization action to create a new Dataproc cluster with RStudio Server installed by:
 

@@ -6,7 +6,7 @@ __Use the Dataproc [Jupyter Optional Component](https://cloud.google.com/datapro
 
 ## Using this initialization action
 
-**:warning: NOTICE:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
 Usage is similar to the original `jupyter` init action.
 

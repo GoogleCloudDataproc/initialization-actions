@@ -10,7 +10,7 @@ More information [project's website](https://analytics-zoo.github.io)
 
 ## Using this initialization action
 
-**:warning: NOTICE:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
 You can use this initialization to create a new Dataproc cluster with BigDL's Spark and PySpark libraries installed.
 

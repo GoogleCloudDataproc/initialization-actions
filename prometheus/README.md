@@ -3,7 +3,7 @@ This script installs [Prometheus](https://prometheus.io/) on Dataproc clusters, 
 
 ## Using this initialization action
 
-**:warning: NOTICE:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
 You can use this initialization action to create a new Dataproc cluster with Prometheus installed on every node:
 

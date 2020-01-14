@@ -6,7 +6,7 @@ By default it only enables the options already present in the .bashrc that Debia
 
 ## Using this initialization action
 
-**:warning: NOTICE:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
 You can use this initialization action by:
 

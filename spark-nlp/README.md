@@ -5,7 +5,7 @@ on all nodes within a [Google Cloud Dataproc](https://cloud.google.com/dataproc)
 
 ## Using this initialization action
 
-**:warning: NOTICE:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
 You can use this initialization action to create a new Cloud Dataproc cluster with spark-nlp version 2.0.8 installed. You must also include Anaconda as an [Optional Component](https://cloud.google.com/dataproc/docs/concepts/components/overview) when creating the cluster:
 

@@ -8,7 +8,7 @@ or submitting a job.
 
 ## Using this initialization action
 
-**:warning: NOTICE:** See [best practices](README.md#how-initialization-actions-are-used) of using initialization actions in production.
+**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
 For now, the script relies on polling the Dataproc API to determine an authoritative state
 of cluster health on startup, so requires the `--scopes cloud-platform` flag; do not use
