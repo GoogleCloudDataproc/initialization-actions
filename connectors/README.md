@@ -56,7 +56,7 @@ For example:
   ```
 * if Google Cloud Storage connector 1.8.0 version is specified and BigQuery connector version is not
   specified, then only Google Cloud Storage connector will be updated to 1.8.0 version and BigQuery
-  connector will be left intact:
+  connector will be left unchanged:
   ```
   REGION=<region>
   CLUSTER_NAME=<cluster_name>

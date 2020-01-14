@@ -14,6 +14,9 @@ More information [project's website](https://analytics-zoo.github.io)
 
 You can use this initialization to create a new Dataproc cluster with BigDL's Spark and PySpark libraries installed.
 
+Because of a time needed to install BigDL on the cluster nodes we need to set
+`--initialization-action-timeout 10m` property to prevent cluster creation timeout. 
+
 ```
 REGION=<region>
 CLUSTER_NAME=<cluster_name>

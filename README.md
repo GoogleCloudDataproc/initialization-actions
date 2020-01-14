@@ -12,7 +12,9 @@ gcloud dataproc clusters create <CLUSTER_NAME> \
     [--initialization-action-timeout TIMEOUT]
 ```
 
-During development, you can create Dataproc cluster using Dataproc-provided regional initialization actions buckets:
+During development, you can create Dataproc cluster using Dataproc-provided
+[regional](https://cloud.google.com/dataproc/docs/concepts/regional-endpoints) initialization
+actions buckets (for example `goog-dataproc-initialization-actions-us-east1`):
 
 ```bash
 REGION=<region>
