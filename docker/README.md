@@ -11,7 +11,7 @@ applications can access Docker.
 **:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
 1. Use the `gcloud` command to create a new cluster with this initialization
-   action:
+   action.
 
     ```bash
     REGION=<region>

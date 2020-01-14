@@ -14,7 +14,7 @@ You can use this initialization action to create a new Dataproc cluster with
 Presto installed:
 
 1.  Using the `gcloud` command to create a new cluster with this initialization
-    action:
+    action.
 
     ```bash
     REGION=<region>

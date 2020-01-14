@@ -23,7 +23,7 @@ You can use this initialization action to create a new Dataproc cluster with
 SparkMonitor installed:
 
 1.  Use the `gcloud` command to create a new cluster with this initialization
-    action:
+    action.
 
     ```bash
     # Jupyter will run on port 8123 of your master node.

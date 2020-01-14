@@ -25,7 +25,7 @@ You can use this initialization action to create a new Dataproc cluster with
 Jupyter installed:
 
 1.  Use the `gcloud` command to create a new cluster with this initialization
-    action:
+    action.
 
     ```bash
     # Simple one-liner; just use all default settings for your cluster.

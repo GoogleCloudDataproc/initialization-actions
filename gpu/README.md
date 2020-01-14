@@ -18,7 +18,7 @@ need a more recent GPU driver please visit NVIDIA
 [site](https://www.nvidia.com/Download/index.aspx?lang=en-us).
 
 1.  Use the `gcloud` command to create a new cluster with this initialization
-    action:
+    action.
 
     ```bash
     REGION=<region>
