@@ -1,6 +1,6 @@
 # Kafka
 
-This initialization action installs [Kafka](http://kafka.apache.org) on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster. Kafka depends on Zookeeper, which can either be installed with [Zookeeper component](https://cloud.google.com/dataproc/docs/concepts/components/zookeeper) or by simply creating a "High Availability" cluster using `--num-masters 3` paramter.
+This initialization action installs [Kafka](http://kafka.apache.org) on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster. Kafka depends on Zookeeper, which can either be installed with [Zookeeper component](https://cloud.google.com/dataproc/docs/concepts/components/zookeeper) or by simply creating a "High Availability" cluster using `--num-masters 3` parameter.
 
 By default, Kafka brokers run only on all worker nodes in the cluster, and Kafka libraries and command-line tools are installed on the master node(s) at `/usr/lib/kafka`. But you can specify to run Kafka broker(s) on master node(s) with `--metadata "run-on-master=true"`.
 
