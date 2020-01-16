@@ -70,10 +70,10 @@ function install_shc() {
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
     "${SPARK_HBASE_CLIENT_DL_LINK}" -O "${out}"
   ln -s "${out}" "/usr/lib/spark/external/shc-core.jar"
-  local example_out="/usr/lib/spark/external/${SPARK_HBASE_CLIENT_EXAMPLE}"
+  local example_out="/usr/lib/spark/examples/jars/${SPARK_HBASE_CLIENT_EXAMPLE}"
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
     "${SPARK_HBASE_CLIENT_EXAMPLE_LINK}" -O "${example_out}"
-  ln -s "${example_out}" "/usr/lib/spark/external/shc-example.jar"
+  ln -s "${example_out}" "/usr/lib/spark/examples/jars/shc-example.jar"
 }
 
 function configure_big_table_client() {
