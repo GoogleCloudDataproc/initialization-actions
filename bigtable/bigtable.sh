@@ -25,7 +25,7 @@ readonly HBASE_HOME='/usr/lib/hbase'
 
 readonly BIGTABLE_HBASE_VERSION='1.12.1'
 readonly BIGTABLE_HBASE_CLIENT="bigtable-hbase-1.x-hadoop-${BIGTABLE_HBASE_VERSION}.jar"
-readonly BIGTABLE_HBASE_DL_LINK="http://central.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-1.x-hadoop/${BIGTABLE_HBASE_VERSION}/${BIGTABLE_HBASE_CLIENT}"
+readonly BIGTABLE_HBASE_DL_LINK="https://repo1.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-1.x-hadoop/${BIGTABLE_HBASE_VERSION}/${BIGTABLE_HBASE_CLIENT}"
 
 readonly SPARK_HBASE_VERSION='1.1.1-2.1-s_2.11'
 readonly SPARK_HBASE_CLIENT="shc-core-${SPARK_HBASE_VERSION}.jar"
