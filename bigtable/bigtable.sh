@@ -29,7 +29,9 @@ readonly BIGTABLE_HBASE_DL_LINK="https://repo1.maven.org/maven2/com/google/cloud
 
 readonly SPARK_HBASE_VERSION='1.1.1-2.1-s_2.11'
 readonly SPARK_HBASE_CLIENT="shc-core-${SPARK_HBASE_VERSION}.jar"
-readonly SPARK_HBASE_CLIENT_DL_LINK="http://repo.hortonworks.com/content/groups/public/com/hortonworks/shc-core/${SPARK_HBASE_VERSION}/${SPARK_HBASE_CLIENT}"
+readonly SPARK_HBASE_CLIENT_EXAMPLE="shc-examples-${SPARK_HBASE_VERSION}.jar"
+readonly SPARK_HBASE_CLIENT_DL_LINK="https://repo.hortonworks.com/content/groups/public/com/hortonworks/shc-core/${SPARK_HBASE_VERSION}/${SPARK_HBASE_CLIENT}"
+readonly SPARK_HBASE_CLIENT_EXAMPLE_LINK="https://repo.hortonworks.com/content/groups/public/com/hortonworks/shc-examples/${SPARK_HBASE_VERSION}/${SPARK_HBASE_CLIENT_EXAMPLE}"
 
 function retry_apt_command() {
   cmd="$1"
@@ -68,6 +70,10 @@ function install_shc() {
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
     "${SPARK_HBASE_CLIENT_DL_LINK}" -O "${out}"
   ln -s "${out}" "/usr/lib/spark/external/shc-core.jar"
+  local example_out="/usr/lib/spark/external/${SPARK_HBASE_CLIENT_EXAMPLE}"
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${SPARK_HBASE_CLIENT_EXAMPLE_LINK}" -O "${example_out}"
+  ln -s "${example_out}" "/usr/lib/spark/external/shc-example.jar"
 }
 
 function configure_big_table_client() {
