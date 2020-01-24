@@ -6,6 +6,7 @@ test_suite(
         ":test_cloud_sql_proxy",
         ":test_dr_elephant",
         ":test_hive_hcatalog",
+        ":test_spark_gpu",
         ":test_starburst_presto",
         "//alluxio:test_alluxio",
         "//bigtable:test_bigtable",
@@ -54,6 +55,19 @@ py_test(
     data = ["dr-elephant/dr-elephant.sh"],
     local = True,
     shard_count = 2,
+    deps = [
+        "//integration_tests:dataproc_test_case",
+        "@io_abseil_py//absl/testing:parameterized",
+    ],
+)
+
+py_test(
+    name = "test_spark_gpu",
+    size = "enormous",
+    srcs = ["spark-gpu/test_spark_gpu.py"],
+    data = ["spark-gpu/rapids.sh"],
+    local = True,
+    shard_count = 3,
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",
