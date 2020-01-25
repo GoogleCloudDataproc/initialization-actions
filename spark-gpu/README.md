@@ -108,7 +108,7 @@ gcloud beta dataproc clusters create $CLUSTER_NAME  \
     --bucket $GCS_BUCKET \
     --metadata JUPYTER_PORT=8123,INIT_ACTIONS_REPO="gs://$INIT_ACTIONS_BUCKET",linux-dist="ubuntu",GCS_BUCKET="gs://$GCS_BUCKET" \
     --initialization-actions gs://$INIT_ACTIONS_BUCKET/spark-gpu/rapids.sh \
-    --optional-components=ANACONDA,JUPYTER \
+    --optional-components=JUPYTER \
     --subnet=default \
     --properties "^#^spark:spark.dynamicAllocation.enabled=false#spark:spark.shuffle.service.enabled=false#spark:spark.submit.pyFiles=/usr/lib/spark/python/lib/xgboost4j-spark_${RAPIDS_SPARK_VERSION}.jar#spark:spark.jars=/usr/lib/spark/jars/xgboost4j-spark_${RAPIDS_SPARK_VERSION}.jar,/usr/lib/spark/jars/xgboost4j_${RAPIDS_SPARK_VERSION}.jar,/usr/lib/spark/jars/cudf-${RAPIDS_CUDF_VERSION}.jar" \
     --enable-component-gateway

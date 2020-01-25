@@ -14,8 +14,8 @@ readonly DEFAULT_NCCL_VERSION='2.4.8'
 readonly NCCL_VERSION=$(/usr/share/google/get_metadata_value attributes/nccl-version ||
   echo -n "${DEFAULT_NCCL_VERSION}")
 
-apt-get update && apt-get upgrade
-apt-get install build-essential
+apt-get update
+apt-get -y install build-essential
 
 wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-ubuntu1804.pin
 mv cuda-ubuntu1804.pin /etc/apt/preferences.d/cuda-repository-pin-600
@@ -34,6 +34,7 @@ fi
 wget --progress=dot:mega -O nccl.deb "${NCCL_URL}"
 dpkg -i nccl.deb
 apt update
-apt install "libnccl2=${NCCL_VERSION}-1+cuda${CUDA_VERSION//\-/\.}" "libnccl-dev=${NCCL_VERSION}-1+cuda${CUDA_VERSION//\-/\.}" -y
+apt -y install "libnccl2=${NCCL_VERSION}-1+cuda${CUDA_VERSION//\-/\.}"
+"libnccl-dev=${NCCL_VERSION}-1+cuda${CUDA_VERSION//\-/\.}" -y
 
 /usr/bin/nvidia-smi -c EXCLUSIVE_PROCESS
