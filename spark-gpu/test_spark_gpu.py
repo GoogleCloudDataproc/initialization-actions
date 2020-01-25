@@ -12,7 +12,7 @@ class SparkGPUTestCase(DataprocTestCase):
         self.assert_instance_command(name, "nvidia-smi")
 
     @parameterized.parameters(
-        ("STANDARD", ["m", "w-0"], 'type=nvidia-tesla-t4,count=1'), )
+        ("STANDARD", ["w-0"], 'type=nvidia-tesla-t4,count=1'), )
     def test_spark_gpu(self, configuration, machine_suffixes, worker_accelerator):
         init_actions = self.INIT_ACTIONS
 
