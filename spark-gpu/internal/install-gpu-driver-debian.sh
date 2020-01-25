@@ -33,7 +33,7 @@ wget --progress=dot:mega -O cuda.run "${CUDA_URL}"
 chmod +x "./cuda.run"
 "./cuda.run" --silent --toolkit --no-opengl-libs
 
-wget --progress=dot:mega -O nccl.deb "${GPU_NCCL_URL}"
+wget --progress=dot:mega -O nccl.deb "${NCCL_URL}"
 chmod +x "./nccl.deb"
 dpkg -i nccl.deb
 apt update
