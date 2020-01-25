@@ -14,7 +14,7 @@ readonly DEFAULT_NCCL_VERSION='2.4.8'
 readonly NCCL_VERSION=$(/usr/share/google/get_metadata_value attributes/nccl-version ||
   echo -n "${DEFAULT_NCCL_VERSION}")
 
-apt-get update
+apt-get update && apt-get upgrade
 apt-get install build-essential
 
 wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-ubuntu1804.pin
@@ -23,10 +23,12 @@ apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repo
 add-apt-repository "deb http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/ /"
 apt-get update
 
-if [[ "${CUDA_VERSION}" != '10-0' ]]; then
-  apt-get -y install cuda
-else
+if [[ "${CUDA_VERSION}" == '10-0' ]]; then
   apt-get -y install cuda-10-0
+elif [[ "${CUDA_VERSION}" == '10-1' ]]; then
+  apt-get -y install cuda-10-1
+else
+  apt-get -y install cuda
 fi
 
 wget --progress=dot:mega -O nccl.deb "${NCCL_URL}"
