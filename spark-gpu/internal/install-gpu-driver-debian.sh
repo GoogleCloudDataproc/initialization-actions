@@ -22,7 +22,7 @@ readonly DEFAULT_NCCL_VERSION='2.4.8'
 readonly NCCL_VERSION=$(/usr/share/google/get_metadata_value attributes/nccl-version ||
   echo -n "${DEFAULT_NCCL_VERSION}")
 
-apt-get update && apt-get upgrade
+apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y pciutils "linux-headers-$(uname -r)"
 
 wget --progress=dot:mega -O driver.run "${GPU_DRIVER_URL}"
@@ -37,6 +37,7 @@ wget --progress=dot:mega -O nccl.deb "${NCCL_URL}"
 chmod +x "./nccl.deb"
 dpkg -i nccl.deb
 apt update
-apt install "libnccl2=${NCCL_VERSION}-1+cuda${CUDA_VERSION//\-/\.}" "libnccl-dev=${NCCL_VERSION}-1+cuda${CUDA_VERSION//\-/\.}" -y
+apt -y install "libnccl2=${NCCL_VERSION}-1+cuda${CUDA_VERSION//\-/\.}"
+"libnccl-dev=${NCCL_VERSION}-1+cuda${CUDA_VERSION//\-/\.}" -y
 
 /usr/bin/nvidia-smi -c EXCLUSIVE_PROCESS
