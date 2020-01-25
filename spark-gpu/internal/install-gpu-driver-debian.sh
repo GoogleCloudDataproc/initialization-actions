@@ -22,7 +22,7 @@ readonly DEFAULT_NCCL_VERSION='2.4.8'
 readonly NCCL_VERSION=$(/usr/share/google/get_metadata_value attributes/nccl-version ||
   echo -n "${DEFAULT_NCCL_VERSION}")
 
-apt-get update
+apt-get update && apt-get upgrade
 DEBIAN_FRONTEND=noninteractive apt-get install -y pciutils "linux-headers-$(uname -r)"
 
 wget --progress=dot:mega -O driver.run "${GPU_DRIVER_URL}"
