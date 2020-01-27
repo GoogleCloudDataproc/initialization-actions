@@ -10,15 +10,21 @@ GPU drivers for NVIDIA on master and workers node in a
 
 ## Using this initialization action
 
-**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
+**:warning: NOTICE:** See
+[best practices](/README.md#how-initialization-actions-are-used) of using
+initialization actions in production.
 
 You can use this initialization action to create a new Dataproc cluster with GPU
-support: this initialization action will install GPU drivers and CUDA. If you
-need a more recent GPU driver please visit NVIDIA
-[site](https://www.nvidia.com/Download/index.aspx?lang=en-us).
+support - it will install NVIDIA GPU drivers and CUDA on cluster nodes with
+attached GPU adapters.
 
-1.  Use the `gcloud` command to create a new cluster with this initialization
-    action.
+This initialization action supports installation of OS-provided and
+NVIDIA-provided GPU drivers and CUDA. By default, this initialization action
+installs OS-provided GPU drivers and CUDA, to chose provider use `--metadata
+gpu-driver-provider=<OS|NVIDIA>` metadata value.
+
+1.  Use the `gcloud` command to create a new cluster with OS-provided GPU driver
+    and CUDA installed by initialization action.
 
     ```bash
     REGION=<region>
@@ -27,12 +33,11 @@ need a more recent GPU driver please visit NVIDIA
         --region ${REGION} \
         --master-accelerator type=nvidia-tesla-v100 \
         --worker-accelerator type=nvidia-tesla-v100,count=4 \
-        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh \
-        --metadata install_gpu_agent=false
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh
     ```
 
-2.  Use the `gcloud` command to create a new cluster with this initialization
-    action. The following command will create a new cluster, install GPU drivers and add the GPU monitoring service.
+1.  Use the `gcloud` command to create a new cluster with NVIDIA-provided GPU
+    driver and CUDA installed by initialization action.
 
     ```bash
     REGION=<region>
@@ -42,17 +47,46 @@ need a more recent GPU driver please visit NVIDIA
         --master-accelerator type=nvidia-tesla-v100 \
         --worker-accelerator type=nvidia-tesla-v100,count=4 \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh \
-        --metadata install_gpu_agent=true \
+        --metadata install-gpu-agent=false \
+        --metadata gpu-driver-provider=NVIDIA
+    ```
+
+1.  Use the `gcloud` command to create a new cluster with OS-provided GPU driver
+    and CUDA installed by initialization action. Additionally, it installs GPU
+    monitoring service.
+
+    ```bash
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --master-accelerator type=nvidia-tesla-v100 \
+        --worker-accelerator type=nvidia-tesla-v100,count=4 \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh \
+        --metadata install-gpu-agent=true \
         --scopes https://www.googleapis.com/auth/monitoring.write
     ```
 
 #### Supported metadata parameters:
 
--   `install_gpu_agent: true|false` - this is an optional parameter with case
-    sensitive value.
+-   `install-gpu-agent: true|false` - this is an optional parameter with
+    case-sensitive value.
 
     **Note:** This parameter will collect GPU utilization and send statistics to
-    StackDriver. Make sure you add the correct scope to access StackDriver.
+    Stackdriver. Make sure you add the correct scope to access Stackdriver.
+
+-   `gpu-driver-provider: OS|NVIDIA` - this is an optional parameter with
+    case-sensitive value.
+
+-   `gpu-driver-url: <URL>` - this is an optional parameter for customizing
+    NVIDIA-provided GPU driver on Debian.
+
+-   `cuda-url: <URL>` - this is an optional parameter for customizing
+    NVIDIA-provided CUDA on Debian.
+
+-   `cuda-url: 10.0|10.1|10.2` - this is an optional parameter for customizing
+    NVIDIA-provided CUDA version on Ubuntu. If set to empty then the latest
+    available CUDA version will be installed.
 
 #### Verification
 
@@ -67,7 +101,7 @@ need a more recent GPU driver please visit NVIDIA
     following command:
 
     ```bash
-    sudo systemctl status gpu_utilization_agent.service
+    sudo systemctl status gpu-utilization-agent.service
     ```
 
 For more information about GPU support, take a look at
@@ -94,6 +128,7 @@ following commands:
 pip3 install -r ./requirements.txt
 python3 create_gpu_metrics.py
 ```
+
 Example:
 
 ```
@@ -103,7 +138,7 @@ Created projects/project-sample/metricDescriptors/custom.googleapis.com/gpu_memo
 
 ### Troubleshooting
 
-Problem: Error when running report_gpu_metrics
+Problem: Error when running `report_gpu_metrics`
 
 ```
 google.api_core.exceptions.InvalidArgument: 400 One or more TimeSeries could not be written:
@@ -113,13 +148,14 @@ One or more points were written more frequently than the maximum sampling period
 
 Solution: Verify service is running in background
 
-```
-sudo systemctl status gpu_utilization_agent.service
+```bash
+sudo systemctl status gpu-utilization-agent.service
 ```
 
 ## Important notes
 
 *   This initialization script will install NVIDIA GPU drivers in all nodes in
     which a GPU is detected.
-*   This initialization script uses Debian packages to install CUDA driver
+*   This initialization script can use OS-provided (Debian or Ubuntu) or
+    NVIDIA-provided packages to install GPU drivers and CUDA.
 *   Tested with Dataproc 1.2+.
