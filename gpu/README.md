@@ -47,7 +47,6 @@ gpu-driver-provider=<OS|NVIDIA>` metadata value.
         --master-accelerator type=nvidia-tesla-v100 \
         --worker-accelerator type=nvidia-tesla-v100,count=4 \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh \
-        --metadata install-gpu-agent=false \
         --metadata gpu-driver-provider=NVIDIA
     ```
 
