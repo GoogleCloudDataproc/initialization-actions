@@ -4,28 +4,20 @@ This initialization action installs the latest release version of
 [RAPIDS](https://rapids.ai/) on a
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
 
-These initialization actions automate the process of setting up a Dask-cuDF
-cluster by running the following:
+This initialization action automates the process of setting up a Dask-cuDF
+cluster:
 
-On the Dataproc master node:
-
--   `dask-scheduler`, and `dask-cuda-worker`
-
-On the Dataproc worker nodes:
-
--   `dask-cuda-worker`
-
-This initialization action does the following:
-
-1.  [install nvidia GPU driver](internal/install-gpu-driver.sh)
-1.  [install RAPIDS](rapids.sh) -
-    [installs miniconda](https://github.com/GoogleCloudPlatform/dataproc-initialization-actions/tree/master/conda),
-    and [conda packages](internal/conda-environment.yml)
-1.  [start dask-scheduler and dask-cuda-workers](internal/launch-dask.sh)
+-   creates `RAPIDS` conda environment and install RAPIDS conda packages.
+-   starts systemd services of Dask CUDA cluster:
+    -   `dask-scheduler` and optionally `dask-cuda-worker` on the Dataproc
+        master node.
+    -   `dask-cuda-worker` on the Dataproc worker nodes.
 
 ## Using this initialization action
 
-**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
+**:warning: NOTICE:** See
+[best practices](/README.md#how-initialization-actions-are-used) of using
+initialization actions in production.
 
 You can use this initialization action to create a new Dataproc cluster with
 RAPIDS installed:
@@ -42,14 +34,16 @@ RAPIDS installed:
         --master-machine-type n1-standard-32 \
         --worker-accelerator type=nvidia-tesla-t4,count=4 \
         --worker-machine-type n1-standard-32 \
-        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
-        --optional-components ANACONDA
+        --optional-components ANACONDA \
+        --initialization-actions \
+            gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
+        --metadata gpu-driver-provider=NVIDIA
     ```
 
 1.  Once the cluster has been created, the Dask scheduler listens for workers on
     port `8786`, and its status dashboard is on port `8787` on the Dataproc
     master node. These ports can be changed by modifying the
-    [internal/launch-dask.sh](launch-dask.sh) script.
+    `install_systemd_dask_service` function in the initialization action script.
 
 To connect to the Dask web interface, you will need to create an SSH tunnel as
 described in the
@@ -75,29 +69,10 @@ relevant [RAPIDS repo](https://github.com/rapidsai).
 
 #### GPU Types & Driver Configuration
 
-By default, these initialization actions install a CUDA 10.0 driver. If you wish
-to install a different driver version,
-[find the appropriate driver download URL](https://www.nvidia.com/Download/index.aspx?lang=en-us)
-for your driver's `.run` file.
-
-*   `--metadata gpu-driver-url=http://us.download.nvidia.com/tesla/410.104/NVIDIA-Linux-x86_64-410.104.run` -
-    to specify alternate driver download URL.
-
-For example:
-
-```bash
-REGION=<region>
-CLUSTER_NAME=<cluster_name>
-gcloud dataproc clusters create ${CLUSTER_NAME} \
-    --region ${REGION} \
-    --master-accelerator type=nvidia-tesla-t4,count=4 \
-    --master-machine-type n1-standard-32 \
-    --worker-accelerator type=nvidia-tesla-t4,count=4 \
-    --worker-machine-type n1-standard-32 \
-    --metadata "gpu-driver-url=http://us.download.nvidia.com/tesla/410.104/NVIDIA-Linux-x86_64-410.104.run" \
-    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
-    --optional-components ANACONDA
-```
+By default, this initialization action uses NVIDIA-provided GPU driver and CUDA
+installed by [GPU initialization action](/gpu/install_gpu_driver.sh). If you
+wish to install a different GPU driver and CUDA version see
+[GPU initialization action README](/gpu/README.md) file for instructions.
 
 RAPIDS works with
 [all "compute" GPU models](https://cloud.google.com/compute/docs/gpus/) except
@@ -106,16 +81,16 @@ Dataproc.
 
 #### Master As Worker Configuration
 
-By default, the master node also runs dask-cuda-workers. This is useful for
-smaller scale jobs- processes run on 4 GPUs in a single node will usually be
+By default, the master node also runs `dask-cuda-worker`. This is useful for
+smaller scale jobs - processes run on 4 GPUs in a single node will usually be
 more performant than when run on the same number of GPUs in separate server
 nodes (due to higher communication costs).
 
 If you want to save the master's GPU(s) for other purposes, this behavior is
 configurable via a metadata key using `--metadata`.
 
-*   `run-cuda-worker-on-master=false` - whether to run dask-cuda-workers on the
-    master node
+*   `dask-cuda-worker-on-master=false` - whether to run `dask-cuda-worker` on
+    the master node
 
 For example:
 
@@ -128,27 +103,25 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
     --master-machine-type n1-standard-32 \
     --worker-accelerator type=nvidia-tesla-t4,count=4 \
     --worker-machine-type n1-standard-32 \
-    --metadata "run-cuda-worker-on-master=false" \
-    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
-    --optional-components ANACONDA
+    --optional-components ANACONDA \
+    --initialization-actions \
+        gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
+    --metadata dask-cuda-worker-on-master=false \
+    --metadata gpu-driver-provider=NVIDIA
 ```
-
-#### Initialization Action Source
-
-The RAPIDS initialization action steps are performed by [rapids.sh](rapids.sh)
-which runs additional scripts downloaded from `rapids` directory in
-[Dataproc Initialization Actions repo](https://pantheon.corp.google.com/storage/browser/dataproc-initialization-actions)
-GCS bucket by default:
-
-*   `--metadata
-    "INIT_ACTIONS_REPO=gs://my-forked-dataproc-initialization-actions"`
 
 ## Important notes
 
-*   RAPIDS init actions depend on the
+*   RAPIDS initialization action depends on the
     [Anaconda](https://cloud.google.com/dataproc/docs/concepts/components/anaconda)
     component, which should be included at cluster creation time via the
-    `--optional-components ANACONDA` argument.
+    `--optional-components-ANACONDA` argument.
+*   RAPIDS initialization action depends on the [GPU](/gpu/README.md)
+    initialization action, which should be included at cluster creation time via
+    the `--initialization-actions
+    gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh`
+    argument and configured to install NVIDIA-provided GPU driver via
+    `--metadata gpu-driver-provider=NVIDIA`.
 *   RAPIDS is supported on Pascal or newer GPU architectures (Tesla K80s will
     _not_ work with RAPIDS). See
     [list](https://cloud.google.com/compute/docs/gpus/) of available GPU types
@@ -156,11 +129,11 @@ GCS bucket by default:
 *   You must set a GPU accelerator type for both master and worker nodes, else
     the GPU driver install will fail and the cluster will report an error state.
 *   When running RAPIDS with multiple attached GPUs, We recommend an
-    n1-standard-32 worker machine type or better to ensure sufficient
+    `n1-standard-32` worker machine type or better to ensure sufficient
     host-memory for buffering data to and from GPUs. When running with a single
     attached GPU, GCP only permits machine types up to 24 vCPUs.
-*   [conda-environment.yml](internal/conda-environment.yml) can be updated based
-    on which RAPIDS versions you wish to install
+*   `conda-environment.yml` in the initalization action can be updated based on
+    which RAPIDS versions you wish to install
 *   Installing the GPU driver and conda packages takes about 10 minutes
 *   When deploying RAPIDS on few GPUs, ETL style processing with cuDF and Dask
     can run sequentially. When training ML models, you _must_ have enough total

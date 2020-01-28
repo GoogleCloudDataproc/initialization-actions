@@ -1,5 +1,7 @@
 package(default_visibility = ["//visibility:public"])
 
+exports_files(["install_gpu_driver.sh"])
+
 py_test(
     name = "test_gpu",
     size = "enormous",
