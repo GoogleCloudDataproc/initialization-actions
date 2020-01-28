@@ -1,13 +1,12 @@
 # RAPIDS
 
-This initialization action installs the latest release version of
-[RAPIDS](https://rapids.ai/) on a
+This initialization action installs [RAPIDS](https://rapids.ai/) on a
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
 
 This initialization action automates the process of setting up a Dask-cuDF
 cluster:
 
--   creates `RAPIDS` conda environment and install RAPIDS conda packages.
+-   creates `RAPIDS` conda environment and installs RAPIDS conda packages.
 -   starts systemd services of Dask CUDA cluster:
     -   `dask-scheduler` and optionally `dask-cuda-worker` on the Dataproc
         master node.
@@ -132,8 +131,8 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
     `n1-standard-32` worker machine type or better to ensure sufficient
     host-memory for buffering data to and from GPUs. When running with a single
     attached GPU, GCP only permits machine types up to 24 vCPUs.
-*   `conda-environment.yml` in the initalization action can be updated based on
-    which RAPIDS versions you wish to install
+*   `conda-environment.yaml` embedded in the initalization action can be updated
+    based on which RAPIDS versions you wish to install
 *   Installing the GPU driver and conda packages takes about 10 minutes
 *   When deploying RAPIDS on few GPUs, ETL style processing with cuDF and Dask
     can run sequentially. When training ML models, you _must_ have enough total

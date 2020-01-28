@@ -13,6 +13,8 @@ readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-maste
 
 readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
 
+readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '10.0')
+
 readonly DASK_LAUNCHER='/usr/local/bin/dask-launcher.sh'
 readonly DASK_SERVICE='dask-cluster'
 readonly RAPIDS_ENV='RAPIDS'
@@ -24,14 +26,15 @@ readonly BUILD_DIR
 function create_conda_env() {
   echo "Create RAPIDS Conda environment..."
   # For use with Anaconda component
-  cat <<EOF >"${BUILD_DIR}/conda-environment.yml"
+  local -r conda_env_file="${BUILD_DIR}/conda-environment.yaml"
+  cat <<EOF >"${conda_env_file}"
 channels:
   - rapidsai/label/xgboost
   - rapidsai
   - nvidia
   - conda-forge
 dependencies:
-  - cudatoolkit=10.0
+  - cudatoolkit=${CUDA_VERSION}
   - dask-cuda=0.7.*
   - cudf=0.7.*
   - pyarrow=0.12.1
@@ -46,7 +49,7 @@ dependencies:
   - dill
   - ipykernel
 EOF
-  conda env create --name "${RAPIDS_ENV}" --file "${BUILD_DIR}/conda-environment.yml"
+  conda env create --name "${RAPIDS_ENV}" --file "${conda_env_file}"
 }
 
 function install_conda_kernel() {
