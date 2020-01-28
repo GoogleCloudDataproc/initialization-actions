@@ -16,7 +16,9 @@ from absl.testing import parameterized
 logging.basicConfig(level=os.getenv("LOG_LEVEL", logging.INFO))
 
 FLAGS = flags.FLAGS
-flags.DEFINE_string('image_version', '1.3', 'dataproc_version, e.g. 1.2')
+flags.DEFINE_string('image', None, 'Dataproc image URL')
+flags.DEFINE_string('image_version', None, 'Dataproc version, e.g. 1.4')
+flags.DEFINE_boolean('skip_cleanup', False, 'Skip cleanup of test resources')
 FLAGS(sys.argv)
 
 INTERNAL_IP_SSH = os.getenv("INTERNAL_IP_SSH", "false").lower() == "true"
@@ -110,6 +112,8 @@ class DataprocTestCase(parameterized.TestCase):
             args.append("--scopes={}".format(scopes))
         if metadata:
             args.append("--metadata={}".format(metadata))
+        if FLAGS.image:
+            args.append("--image={}".format(FLAGS.image))
         if FLAGS.image_version:
             args.append("--image-version={}".format(FLAGS.image_version))
         if timeout_in_minutes:
@@ -153,8 +157,9 @@ class DataprocTestCase(parameterized.TestCase):
         staging_dir = "{}/{}-{}".format(bucket, self.datetime_str(),
                                         self.random_str())
 
-        self.assert_command("gsutil -q -m rsync -r -x '.git*|.idea*' ./ {}/".
-                            format(staging_dir))
+        self.assert_command(
+            "gsutil -q -m rsync -r -x '.git*|.idea*' ./ {}/".format(
+                staging_dir))
 
         return staging_dir
 
@@ -162,14 +167,21 @@ class DataprocTestCase(parameterized.TestCase):
         try:
             self.name
         except AttributeError:
-            logging.info("Skipping cluster delete: name undefined")
+            logging.warning("Skipping cluster delete: name undefined")
+            return
+
+        if FLAGS.skip_cleanup:
+            logging.warning(
+                "Skipping cleanup because 'skip_cleanup' was"
+                " specified! Please manually delete '%s' cluster"
+                " when you have finished inspecting it.", self.name)
             return
 
         ret_code, _, stderr = self.run_command(
             "gcloud dataproc clusters delete {} --region={} --quiet --async".
             format(self.name, self.REGION))
         if ret_code != 0:
-            logging.warning("Failed to delete cluster %s:\n%s", self.name,
+            logging.warning("Failed to delete '%s' cluster:\n%s", self.name,
                             stderr)
 
     def getClusterName(self):
@@ -177,7 +189,8 @@ class DataprocTestCase(parameterized.TestCase):
 
     @staticmethod
     def getImageVersion():
-        return pkg_resources.parse_version(FLAGS.image_version)
+        # get a numeric version from the version flag: '1.5-debian10' -> '1.5'
+        return pkg_resources.parse_version(FLAGS.image_version.split('-')[0])
 
     def upload_test_file(self, testfile, name):
         self.assert_command('gcloud compute scp {} {}:'.format(testfile, name))
