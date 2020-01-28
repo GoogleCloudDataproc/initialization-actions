@@ -13,7 +13,13 @@ readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-maste
 
 readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
 
+readonly DEFAULT_NCCL_REPO_URL='https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb'
+readonly NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
+
 readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '10.0')
+readonly CUDF_VERSION=$(get_metadata_attribute 'cudf-version' '0.9.2')
+readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.4.8')
+readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' '1.0.0-Beta4')
 
 readonly DASK_LAUNCHER='/usr/local/bin/dask-launcher.sh'
 readonly DASK_SERVICE='dask-cluster'
@@ -22,6 +28,44 @@ readonly RAPIDS_ENV_BIN="/opt/conda/anaconda/envs/${RAPIDS_ENV}/bin"
 
 BUILD_DIR=$(mktemp -d -t rapids-init-action-XXXX)
 readonly BUILD_DIR
+
+function execute_with_retries() {
+  local -r cmd=$1
+  for ((i = 0; i < 10; i++)); do
+    if eval "$cmd"; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
+function install_xgboost4j() {
+  local -r repo_url='https://repo1.maven.org/maven2/ai/rapids'
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${repo_url}/xgboost4j-spark_2.x/${RAPIDS_VERSION}/xgboost4j-spark_2.x-${RAPIDS_VERSION}.jar" \
+    -P /usr/lib/spark/jars/
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${repo_url}/xgboost4j_2.x/${RAPIDS_VERSION}/xgboost4j_2.x-${RAPIDS_VERSION}.jar" \
+    -P /usr/lib/spark/jars/
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${repo_url}/cudf/${CUDF_VERSION}/cudf-${CUDF_VERSION}.jar" \
+    -P /usr/lib/spark/jars/
+}
+
+function install_nccl() {
+  wget -nv --timeout=30 --tries=5 --retry-connrefused -O - \
+    "${NCCL_REPO_URL}" -O "${BUILD_DIR}/nvidia-ml-repo.deb"
+  dpkg -i "${BUILD_DIR}/nvidia-ml-repo.deb"
+
+  execute_with_retries "apt-get update"
+
+  local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
+  execute_with_retries \
+    "apt-get -y -q install --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
+
+  nvidia-smi -c EXCLUSIVE_PROCESS
+}
 
 function create_conda_env() {
   echo "Create RAPIDS Conda environment..."
@@ -97,12 +141,18 @@ EOF
 }
 
 function main() {
+  export DEBIAN_FRONTEND=noninteractive
+
+  install_nccl
+
+  install_xgboost4j
+
   create_conda_env
   if [[ "${ROLE}" == "Master" ]]; then
     install_conda_kernel
   fi
-  install_systemd_dask_service
 
+  install_systemd_dask_service
   echo "Starting Dask cluster..."
   systemctl start "${DASK_SERVICE}"
   echo "Dask cluster instantiation successful"

@@ -9,7 +9,7 @@ py_test(
         "//gpu:install_gpu_driver.sh",
     ],
     local = True,
-    shard_count = 1,
+    shard_count = 2,
     deps = [
         ":verify_rapids",
         "//integration_tests:dataproc_test_case",

@@ -26,16 +26,20 @@ class RapidsTestCase(DataprocTestCase):
             self.TEST_SCRIPT_FILE_NAME)
         self.assert_instance_command(name, verify_cmd)
 
-    @parameterized.parameters(("STANDARD", ["m"], GPU_P100, GPU_P100))
+    @parameterized.parameters(("STANDARD", ["m"], GPU_P100, GPU_P100, False),
+                              ("STANDARD", ["m"], GPU_P100, GPU_P100, True))
     def test_rapids(self, configuration, machine_suffixes, master_accelerator,
-                    worker_accelerator):
+                    worker_accelerator, dask_cuda_worker_on_master):
         # Init action supported on Dataproc 1.3+
         if self.getImageVersion() < pkg_resources.parse_version("1.3"):
             return
 
+        metadata = 'gpu-driver-provider=NVIDIA'
+        if not dask_cuda_worker_on_master:
+            metadata += ',dask-cuda-worker-on-master=false'
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           metadata='gpu-driver-provider=NVIDIA',
+                           metadata=metadata,
                            beta=True,
                            master_accelerator=master_accelerator,
                            worker_accelerator=worker_accelerator,
