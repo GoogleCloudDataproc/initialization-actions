@@ -21,6 +21,7 @@ test_suite(
         "//jupyter:test_jupyter",
         "//jupyter_sparkmonitor:test_jupyter_sparkmonitor",
         "//kafka:test_kafka",
+        "//knox:test_knox",
         "//livy:test_livy",
         "//oozie:test_oozie",
         "//presto:test_presto",
