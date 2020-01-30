@@ -1,3 +1,4 @@
+import pkg_resources
 import os
 
 from absl.testing import absltest
@@ -36,6 +37,10 @@ class KnoxTestCase(DataprocTestCase):
       ("HA", ["m-2", "w-0"])
   )
   def test_knox_localhost_cert(self, configuration, machine_suffixes):
+    # Init action supported on Dataproc 1.3+
+    if self.getImageVersion() < pkg_resources.parse_version("1.3"):
+      return
+
     self.createCluster(configuration,
                        self.INIT_ACTIONS,
                        machine_type="n1-standard-2",
@@ -57,6 +62,10 @@ class KnoxTestCase(DataprocTestCase):
       ("HA", ["m-1", "m-0"])
   )
   def test_knox_hostname_cert(self, configuration, machine_suffixes):
+    # Init action supported on Dataproc 1.3+
+    if self.getImageVersion() < pkg_resources.parse_version("1.3"):
+      return
+
     self.createCluster(configuration,
                        self.INIT_ACTIONS,
                        machine_type="n1-standard-2",
