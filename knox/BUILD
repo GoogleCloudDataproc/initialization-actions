@@ -7,11 +7,16 @@ py_test(
     size = "enormous",
     srcs = ["test_knox.py"],
     data = [
+        "gateway-site.xml",
         "knox.sh",
+        "knox-config.yaml",
         "verify_knox.sh",
-    ],
+    ] + glob([
+        "services/*",
+        "topologies/*",
+    ]),
     local = True,
-    shard_count = 2,
+    shard_count = 6,
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",
