@@ -13,14 +13,24 @@ You also need to have `gcloud` CLI configured to use your GCP project.
 
 ## Running tests
 
-To run all tests for default image version use command in project root: `bash
-bazel test :DataprocInitActionsTestSuite --jobs=25`
+To run all tests for default image version use command in project root:
 
-To run all tests for default image version use command in project root: `bash
-bazel test :DataprocInitActionsTestSuite --test_arg=--image_version=1.4`
+```bash
+bazel test :DataprocInitActionsTestSuite --jobs=25
+```
+
+To run all tests for default image version use command in project root:
+
+```bash
+bazel test :DataprocInitActionsTestSuite --test_arg=--image_version=1.4
+```
 
 To run tests for specific initialization action use its package name and test
-name: `bash bazel test gpu:test_gpu`
+name:
+
+```bash
+bazel test gpu:test_gpu
+```
 
 ## Test flags
 
