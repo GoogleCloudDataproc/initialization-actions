@@ -3,7 +3,7 @@
 This [initialization action](https://cloud.google.com/dataproc/init-actions)
 installs [Apache Knox](https://knox.apache.org/) on the first master node within a
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster. The Knox distributed
-by the BigTop project is installed via `apt-get` so it may not be the latest Knox.
+by the Bigtop project is installed via `apt-get` so it may not be the latest Knox.
 
 Moreover, initialization action configures the knox gateway by:
 - adding topologies for backend clusters
@@ -20,15 +20,20 @@ Moreover, initialization action configures the knox gateway by:
 
 ## Using this initialization action
 
+**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
+
 This initialization action requires a bucket that stores configuration. By providing a bucket with configurations, you can create a Dataproc cluster with Knox installed as follows:
 
 1.  Use the `gcloud` command to create a new cluster with this initialization
     action. 
 
     ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://dataproc-initialization-actions/knox/knox.sh \
-        --metadata knox-gw-config-gs=<your knox configuration directory without gs:// prefix>
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION}
+        --initialization-actions gs://dataproc-initialization-actions-${REGION}/knox/knox.sh \
+        --metadata knox-gw-config=<your knox configuration directory without gs:// prefix>
     ```
     The configuration bucket should be a modified copy of this git directory. The bucket structure is:
     ```
@@ -83,7 +88,7 @@ To use Knox as a Hive gateway, you should configure Hive and set the transport p
 ```bash
     gcloud dataproc clusters create <CLUSTER_NAME> \
         --initialization-actions gs://dataproc-initialization-actions/knox/knox.sh \
-        --metadata knox-gw-config-gs=<your knox configuration directory without gs:// prefix> \
+        --metadata knox-gw-config=<your knox configuration directory without gs:// prefix> \
         --properties="hive:hive.server2.thrift.http.port=10000,hive:hive.server2.thrift.http.path=cliservice,hive:hive.server2.transport.mode=http"
 ```
 

@@ -14,14 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This init script installs Apache Zeppelin on the master node of a Cloud
-# Dataproc cluster. Zeppelin is also configured based on the size of your
-# cluster and the versions of Spark/Hadoop which are installed.
+# This init script installs Apache Knox on the master node of a Cloud
+# Dataproc cluster.
 
 set -euxo pipefail
 
-readonly KNOX_GW_CONFIG_GS=$(/usr/share/google/get_metadata_value attributes/knox-gw-config-gs)
-readonly KNOX_GW_CONFIG=/knox-config
+readonly KNOX_GW_CONFIG_GS="$(/usr/share/google/get_metadata_value attributes/knox-gw-config)"
+readonly KNOX_GW_CONFIG="$(sudo -u knox mktemp -d -t knox-init-action-config-XXXX)"
 readonly GATEWAY_HOME=/usr/lib/knox
 
 function retry_install_command() {
@@ -120,15 +119,9 @@ function generate_or_replace_certificate(){
 		gsutil cp $GATEWAY_HOME/data/security/keystores/gateway-identity.pem gs://$KNOX_GW_CONFIG_GS/exported-certs/
 		gsutil cp $GATEWAY_HOME/data/security/keystores/gateway-client.jks gs://$KNOX_GW_CONFIG_GS/exported-certs/
 
-	elif [[ ! -z "${custom_cert_name}" ]]; then
+	elif [[ -n "${custom_cert_name}" ]]; then
 		sudo -u knox cp $KNOX_GW_CONFIG/$custom_cert_name $GATEWAY_HOME/data/security/keystores/gateway.jks
 	fi
-}
-
-function configure_knox(){
-	mkdir -p $KNOX_GW_CONFIG
-	chown -R knox:knox $KNOX_GW_CONFIG
-  update	
 }
 
 function initialize_crontab(){
@@ -140,12 +133,12 @@ function initialize_crontab(){
 function install(){
 	local MASTER_NAME=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
   if [[ "${MASTER_NAME}" == $(hostname) ]]; then
-		[[ -z "$KNOX_GW_CONFIG_GS" ]] && err "metadata knox-gw-config-gs is not provided. knox-gw-config-gs stores the configuration files for knox."
+		[[ -z "$KNOX_GW_CONFIG_GS" ]] && err "metadata knox-gw-config is not provided. knox-gw-config stores the configuration files for knox."
 		
 			
 		update_apt_get || err 'Failed to update apt-get'
 		install_dependencies
-		configure_knox
+		update
 		enable_demo_ldap_for_dev_testing
     get_config_parameters
     replace_the_master_key

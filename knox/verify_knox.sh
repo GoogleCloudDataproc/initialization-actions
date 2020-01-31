@@ -3,7 +3,7 @@
 set -ux 
 
 readonly test_type="$1"
-readonly KNOX_GW_CONFIG_GS=$(/usr/share/google/get_metadata_value attributes/knox-gw-config-gs)
+readonly KNOX_GW_CONFIG_GS=$(/usr/share/google/get_metadata_value attributes/knox-gw-config)
 readonly MASTER_NAME=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
 

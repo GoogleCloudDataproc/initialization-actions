@@ -48,7 +48,7 @@ class KnoxTestCase(DataprocTestCase):
                        # since it overrides our changes in the tests.
                        # So we assign cron date to 31/December. Hopefully
                        # no one runs a test on that day
-                       metadata="knox-gw-config-gs={}/knox,"
+                       metadata="knox-gw-config={}/knox,"
                                 "certificate_hostname=localhost,"
                                 "config_update_interval=\"0 0 31 12 * \""
                        .format(
@@ -73,7 +73,7 @@ class KnoxTestCase(DataprocTestCase):
                        # since it overrides our changes in the tests.
                        # So we assign cron date to 31/December.
                        # Hopefully no one runs a test on that day
-                       metadata="knox-gw-config-gs={}/knox,"
+                       metadata="knox-gw-config={}/knox,"
                                 "certificate_hostname=HOSTNAME,"
                                 "config_update_interval=\"0 0 31 12 * \""
                        .format(
