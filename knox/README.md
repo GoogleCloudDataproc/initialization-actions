@@ -37,7 +37,7 @@ This initialization action requires a bucket that stores configuration. By provi
     ```
     The configuration bucket should be a modified copy of this git directory. The bucket structure is:
     ```
-     <your gs bucket>
+     <your GCS path>
        |
        |- gateway-site.xml  --> main gateway configuration file.
        |- knox-config.yaml  --> variables to setup master key and certificates. 
@@ -76,20 +76,22 @@ This init action can be tested with automated script `test_knox.py`. In order to
 run just use the below command from project top directory.
 
 ```bash
-python3 -m unittest knox.test_knox -v
+IMAGE_VERSION=<image_version>
+bazel test knox:test_knox --test_arg=--image_version=${IMAGE_VERSION}
 ```
-
-For parallel runs, you may use [python3-fastunit](https://github.com/ityoung/python3-fastunit). For details checkout [integration tests](../integration_tests).
 
 ## Additional setup for Hive
 
 To use Knox as a Hive gateway, you should configure Hive and set the transport protocol to Http. Knox currently does not support the Hive binary transport protocol. The below command sets the required properties:
 
 ```bash
-    gcloud dataproc clusters create <CLUSTER_NAME> \
-        --initialization-actions gs://dataproc-initialization-actions/knox/knox.sh \
-        --metadata knox-gw-config=<your knox configuration directory without gs:// prefix> \
-        --properties="hive:hive.server2.thrift.http.port=10000,hive:hive.server2.thrift.http.path=cliservice,hive:hive.server2.transport.mode=http"
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION}
+    --initialization-actions gs://dataproc-initialization-actions-${REGION}/knox/knox.sh \
+    --metadata knox-gw-config=<your knox configuration directory without gs:// prefix> \
+    --properties="hive:hive.server2.thrift.http.port=10000,hive:hive.server2.thrift.http.path=cliservice,hive:hive.server2.transport.mode=http"
 ```
 
 You may test access to Hive by using beeline. Beeline is already installed in the Dataproc cluster, so you may use the master node for testing.
