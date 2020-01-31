@@ -23,7 +23,7 @@ readonly KNOX_GW_CONFIG_GS="$(/usr/share/google/get_metadata_value attributes/kn
 readonly KNOX_GW_CONFIG="$(sudo -u knox mktemp -d -t knox-init-action-config-XXXX)"
 readonly GATEWAY_HOME=/usr/lib/knox
 
-function retry_install_command() {
+function retry_command() {
   cmd="$1"
 	local output=1
   for ((i = 0; i < 10; i++)); do
@@ -35,7 +35,7 @@ function retry_install_command() {
   done
 
 	if [ $output -ne 0 ]; then
-		err "Failed to install: '$cmd' "
+		err "Failed to run: '$cmd' "
 		return 1
 	else
 		return 0
@@ -43,7 +43,7 @@ function retry_install_command() {
 }
 
 function update_apt_get() {
-  retry_install_command "apt-get update"
+  retry_command "apt-get update"
 }
 
 
@@ -53,8 +53,8 @@ function err() {
 }
 
 function install_dependencies(){
-	retry_install_command 'apt install knox jq python-pip -y'
-	retry_install_command 'pip install yq'
+	retry_command 'apt install knox jq python-pip -y'
+	retry_command 'pip install yq'
 }
 
 function enable_demo_ldap_for_dev_testing(){
@@ -91,14 +91,14 @@ function get_config_parameters(){
 	config_update_interval=$(read_from_config_file_or_metadata "config_update_interval")
 }
 
-	# Deletes all the existing credentials in keystores so it is best to re-add secrets if you have any
+# Deletes all the existing credentials in keystores so it is best to re-add secrets if you have any
 function replace_the_master_key(){
 	systemctl stop knox
-	[[ -f "/lib/systemd/system/knoxldapdemo.service" ]] && sudo systemctl stop knoxldapdemo
+	[[ -f "/lib/systemd/system/knoxldapdemo.service" ]] && systemctl stop knoxldapdemo
 	sudo -u knox $GATEWAY_HOME/bin/knoxcli.sh create-master --force --master $master_key
 	# we delete existing keystores. If you have existing credentials, you should re-add them. 
 	# You may add the credentials into config file and add via knoxcli.
-	sudo rm -rf  $GATEWAY_HOME/data/security/keystores/*
+	rm -rf  $GATEWAY_HOME/data/security/keystores/*
 	systemctl start knox
 }
 
@@ -154,7 +154,7 @@ function install(){
 
 has_gateway_config_changed=""
 function update(){
-	sudo -u knox gsutil rsync -d -r gs://$KNOX_GW_CONFIG_GS $KNOX_GW_CONFIG
+	gsutil rsync -d -r gs://$KNOX_GW_CONFIG_GS $KNOX_GW_CONFIG
 	[[ $? -eq 1 ]] && err "Failed to download configurations from the bucket: $KNOX_GW_CONFIG_GS"
 	# updates topologies. No need to restart knox since it applies the changes automatically
 	rsync -avh --delete $KNOX_GW_CONFIG/topologies/ /etc/knox/conf/topologies/ 
@@ -170,7 +170,7 @@ function update(){
 if [[ $# > 0 && "$1" == "update" ]]; then
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: checking for updates"
   update
-	[[ ! -z "$has_gateway_config_changed" ]] && systemctl restart knox
+	[[ -n "$has_gateway_config_changed" ]] && systemctl restart knox
 else
   install
 fi
