@@ -1,0 +1,14 @@
+[Unit]
+Description=Knox gateway service
+After=knoxldapdemo.service
+
+[Service]
+User=knox
+Type=forking
+PIDFile=/usr/lib/knox/pids/gateway.pid
+ExecStart=/bin/bash -c '/usr/lib/knox/bin/gateway.sh start'
+ExecStop=/bin/bash -c '/usr/lib/knox/bin/gateway.sh stop'
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
