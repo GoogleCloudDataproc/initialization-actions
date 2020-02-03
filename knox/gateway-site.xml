@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <property>
+        <name>default.app.topology.name</name>
+        <value>example-hive-nonpii</value>
+        <description>The name of the topology to deploy as default</description>
+    </property>
+
+    <property>
+        <name>ssl.enabled</name>
+        <value>true</value>
+        <description>Indicates whether SSL is enabled for the gateway</description>
+    </property>
+
+    <property>
+        <name>gateway.port</name>
+        <value>8443</value>
+        <description>The HTTP port for the Gateway.</description>
+    </property>
+
+    <property>
+        <name>gateway.path</name>
+        <value>gateway</value>
+        <description>The default context path for the gateway.</description>
+    </property>
+
+    <property>
+        <name>gateway.gateway.conf.dir</name>
+        <value>deployments</value>
+        <description>The directory within GATEWAY_HOME that contains gateway topology files and deployments.</description>
+    </property>
+
+    <property>
+        <name>gateway.hadoop.kerberos.secured</name>
+        <value>false</value>
+        <description>Boolean flag indicating whether the Hadoop cluster protected by Gateway is secured with Kerberos</description>
+    </property>
+
+    <property>
+        <name>gateway.websocket.feature.enabled</name>
+        <value>true</value>
+        <description>Enable/Disable websocket feature.</description>
+    </property>
+
+    <property>
+        <name>gateway.scope.cookies.feature.enabled</name>
+        <value>false</value>
+        <description>Enable/Disable cookie scoping feature.</description>
+    </property>
+
+    <property>
+        <name>gateway.cluster.config.monitor.ambari.enabled</name>
+        <value>false</value>
+        <description>Enable/disable Ambari cluster configuration monitoring.</description>
+    </property>
+
+    <property>
+        <name>gateway.knox.admin.groups</name>
+        <value>admin</value>
+    </property>
+
+    <!-- Don't compress text/html files to allow websocket shims to be inserted -->
+    <property>
+        <name>gateway.gzip.compress.mime.types</name>
+        <value>text/plain,text/xml,text/css,application/javascript,text/javascript,application/x-javascript</value>
+    </property>
+
+    <!-- Increase socket timeout to accomodate hanging GETS (mostly for Rstudio) -->
+    <property>
+        <name>gateway.httpclient.socketTimeout</name>
+        <value>120s</value>
+    </property>
+</configuration>
