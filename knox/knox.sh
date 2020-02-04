@@ -19,158 +19,154 @@
 
 set -euxo pipefail
 
-readonly KNOX_GW_CONFIG_GS="$(/usr/share/google/get_metadata_value attributes/knox-gw-config)"
+readonly KNOX_GW_CONFIG_GCS="$(/usr/share/google/get_metadata_value attributes/knox-gw-config)"
 readonly KNOX_GW_CONFIG="$(sudo -u knox mktemp -d -t knox-init-action-config-XXXX)"
-readonly GATEWAY_HOME=/usr/lib/knox
+
+readonly KNOX_HOME=/usr/lib/knox
+
+function err() {
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
+  exit 1
+}
 
 function retry_command() {
-  cmd="$1"
-	local output=1
+  local -r cmd="${1}"
   for ((i = 0; i < 10; i++)); do
-    if eval "$cmd"; then
-      output=0
-			break
+    if eval "${cmd}"; then
+      return 0
     fi
     sleep 5
   done
-
-	if [ $output -ne 0 ]; then
-		err "Failed to run: '$cmd' "
-		return 1
-	else
-		return 0
-	fi 
+  err "Failed to run: '${cmd}'"
 }
 
-function update_apt_get() {
-  retry_command "apt-get update"
+function install_dependencies() {
+  retry_command 'apt install -y knox jq python-pip'
+  retry_command 'pip install yq'
 }
 
-
-function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
-  return 1
+function enable_demo_ldap_for_dev_testing() {
+  # We enable demo ldap service that comes with knox installation to
+  # ease development. For production, you must replace demo ldap with your own ldap.
+  if [[ ! -f "/lib/systemd/system/knoxldapdemo.service" ]] &&
+    [[ -f ${KNOX_GW_CONFIG}/services/knoxldapdemo.service ]]; then
+    cp "${KNOX_GW_CONFIG}/services/"* "/lib/systemd/system/"
+    systemctl daemon-reload
+    systemctl enable knoxldapdemo.service
+    systemctl reenable knox.service
+  fi
 }
 
-function install_dependencies(){
-	retry_command 'apt install knox jq python-pip -y'
-	retry_command 'pip install yq'
+function read_from_config_file_or_metadata() {
+  local -r config_parameter="$1"
+  local temp
+  temp=$(/usr/share/google/get_metadata_value "attributes/${config_parameter}")
+  if [[ -z "${temp}" ]]; then
+    temp=$(yq -r ".${config_parameter}" "${KNOX_GW_CONFIG}/knox-config.yaml" | grep -v null)
+  fi
+  echo "${temp}"
 }
 
-function enable_demo_ldap_for_dev_testing(){
-	# We enable demo ldap service that comes with knox installation to 
-	# ease development. For production, you must replace demo ldap with your own ldap.
-	if [[ ! -f "/lib/systemd/system/knoxldapdemo.service" && -f $KNOX_GW_CONFIG/services/knoxldapdemo.service ]]; then
-		cp $KNOX_GW_CONFIG/services/* /lib/systemd/system/
-		systemctl daemon-reload
-		systemctl enable knoxldapdemo.service
-		systemctl reenable knox.service
-	fi
-}
-
-function read_from_config_file_or_metadata(){
-	local config_parameter="$1"
-  local temp=$(/usr/share/google/get_metadata_value attributes/$config_parameter)
-	if [[ -z "$temp" ]]; then
-	  temp=$(yq -r .$config_parameter $KNOX_GW_CONFIG/knox-config.yaml | grep -v null)
-	fi
-	echo "$temp" 
-}
-
-function get_config_parameters(){
-	# COLLECT CONFIGS
-
-	master_key=$(read_from_config_file_or_metadata "master_key")
-	[[ -z "$master_key" ]] && err "you have to pass a master key"
-	generate_cert=$(read_from_config_file_or_metadata "generate_cert")
-	echo "generate_cert=${generate_cert}"
-	certificate_hostname=$(read_from_config_file_or_metadata "certificate_hostname")
-	echo "certificate_hostname=${certificate_hostname}"
-	custom_cert_name=$(read_from_config_file_or_metadata "custom_cert_name")
-	echo "custom_cert_name: $custom_cert_name"
-	config_update_interval=$(read_from_config_file_or_metadata "config_update_interval")
+function get_config_parameters() {
+  # COLLECT CONFIGS
+  master_key=$(read_from_config_file_or_metadata "master_key")
+  [[ -z "${master_key}" ]] && err "you have to pass a master key"
+  generate_cert=$(read_from_config_file_or_metadata "generate_cert")
+  echo "generate_cert=${generate_cert}"
+  certificate_hostname=$(read_from_config_file_or_metadata "certificate_hostname")
+  echo "certificate_hostname=${certificate_hostname}"
+  custom_cert_name=$(read_from_config_file_or_metadata "custom_cert_name")
+  echo "custom_cert_name: ${custom_cert_name}"
+  config_update_interval=$(read_from_config_file_or_metadata "config_update_interval")
 }
 
 # Deletes all the existing credentials in keystores so it is best to re-add secrets if you have any
-function replace_the_master_key(){
-	systemctl stop knox
-	[[ -f "/lib/systemd/system/knoxldapdemo.service" ]] && systemctl stop knoxldapdemo
-	sudo -u knox $GATEWAY_HOME/bin/knoxcli.sh create-master --force --master $master_key
-	# we delete existing keystores. If you have existing credentials, you should re-add them. 
-	# You may add the credentials into config file and add via knoxcli.
-	rm -rf  $GATEWAY_HOME/data/security/keystores/*
-	systemctl start knox
+function replace_the_master_key() {
+  systemctl stop knox
+  [[ -f "/lib/systemd/system/knoxldapdemo.service" ]] && systemctl stop knoxldapdemo
+  sudo -u knox "${KNOX_HOME}/bin/knoxcli.sh" create-master --force --master "${master_key}"
+  # we delete existing keystores. If you have existing credentials, you should re-add them.
+  # You may add the credentials into config file and add via knox CLI.
+  rm -rf "${KNOX_HOME}/data/security/keystores/"*
+  systemctl start knox
 }
 
-function generate_or_replace_certificate(){
-	if [[ "$generate_cert" == "true" ]]; then
-		# set the hostname to machine name id reserved word HOSTNAME is passed
-		[[ "$certificate_hostname" == "HOSTNAME" ]] && certificate_hostname=`hostname -A | tr -d '[:space:]'`
-		sudo -u knox $GATEWAY_HOME/bin/knoxcli.sh create-cert --hostname $certificate_hostname
-	
-		# we have not used export cert command for JKS since we wanted to provide our own storepass, which is the master key
-		sudo -u knox keytool -export -alias gateway-identity -file $GATEWAY_HOME/data/security/keystores/gateway-client.crt \
-		       -keystore $GATEWAY_HOME/data/security/keystores/gateway.jks -storepass $master_key -noprompt
-		sudo -u knox keytool -importcert -file $GATEWAY_HOME/data/security/keystores/gateway-client.crt \
-		       -keystore $GATEWAY_HOME/data/security/keystores/gateway-client.jks -alias "gateway-identity" -storepass $master_key -noprompt
-		
-		sudo -u knox $GATEWAY_HOME/bin/knoxcli.sh export-cert --type PEM
+function generate_or_replace_certificate() {
+  if [[ "$generate_cert" == "true" ]]; then
+    # set the hostname to machine name id reserved word HOSTNAME is passed
+    [[ "${certificate_hostname}" == "HOSTNAME" ]] && certificate_hostname=$(hostname -A | tr -d '[:space:]')
+    sudo -u knox "${KNOX_HOME}/bin/knoxcli.sh" create-cert --hostname "${certificate_hostname}"
 
-		gsutil cp $GATEWAY_HOME/data/security/keystores/gateway-identity.pem gs://$KNOX_GW_CONFIG_GS/exported-certs/
-		gsutil cp $GATEWAY_HOME/data/security/keystores/gateway-client.jks gs://$KNOX_GW_CONFIG_GS/exported-certs/
+    # we have not used export cert command for JKS since we wanted to provide our own storepass, which is the master key
+    sudo -u knox keytool -export -alias "gateway-identity" \
+      -file "${KNOX_HOME}/data/security/keystores/gateway-client.crt" \
+      -keystore "${KNOX_HOME}/data/security/keystores/gateway.jks" \
+      -storepass "${master_key}" \
+      -noprompt
+    sudo -u knox keytool -importcert -alias "gateway-identity" \
+      -file ${KNOX_HOME}/data/security/keystores/gateway-client.crt \
+      -keystore "${KNOX_HOME}/data/security/keystores/gateway-client.jks" \
+      -storepass "${master_key}" \
+      -noprompt
 
-	elif [[ -n "${custom_cert_name}" ]]; then
-		sudo -u knox cp $KNOX_GW_CONFIG/$custom_cert_name $GATEWAY_HOME/data/security/keystores/gateway.jks
-	fi
+    sudo -u knox "${KNOX_HOME}/bin/knoxcli.sh" export-cert --type PEM
+
+    gsutil cp "${KNOX_HOME}/data/security/keystores/gateway-identity.pem" "${KNOX_GW_CONFIG_GCS}/exported-certs/"
+    gsutil cp "${KNOX_HOME}/data/security/keystores/gateway-client.jks" "${KNOX_GW_CONFIG_GCS}/exported-certs/"
+
+  elif [[ -n "${custom_cert_name}" ]]; then
+    sudo -u knox cp "${KNOX_GW_CONFIG}/${custom_cert_name}" "${KNOX_HOME}/data/security/keystores/gateway.jks"
+  fi
 }
 
-function initialize_crontab(){
-	echo "$config_update_interval /bin/bash $(readlink -f $0) update > /var/log/knox-cron.log 2>&1" | crontab -
+function initialize_crontab() {
+  echo "$config_update_interval /bin/bash $(readlink -f "${0}") update > /var/log/knox-cron.log 2>&1" | crontab -
 }
 
 ########### INSTALL #############
 
-function install(){
-	local MASTER_NAME=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
-  if [[ "${MASTER_NAME}" == $(hostname) ]]; then
-		[[ -z "$KNOX_GW_CONFIG_GS" ]] && err "metadata knox-gw-config is not provided. knox-gw-config stores the configuration files for knox."
-		
-			
-		update_apt_get || err 'Failed to update apt-get'
-		install_dependencies
-		update
-		enable_demo_ldap_for_dev_testing
+function install() {
+  local master_name
+  master_name=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+  if [[ "${master_name}" == $(hostname) ]]; then
+    [[ -z "${KNOX_GW_CONFIG_GCS}" ]] && err "Metadata knox-gw-config is not provided. knox-gw-config stores the configuration files for knox."
+
+    retry_command "apt-get update"
+    install_dependencies
+    update
+    enable_demo_ldap_for_dev_testing
     get_config_parameters
     replace_the_master_key
     generate_or_replace_certificate
-		initialize_crontab
+    initialize_crontab
 
-		[[ -f "/lib/systemd/system/knoxldapdemo.service" ]] && systemctl restart knoxldapdemo
-		systemctl restart knox
-	fi
+    [[ -f "/lib/systemd/system/knoxldapdemo.service" ]] && systemctl restart knoxldapdemo
+    systemctl restart knox
+  fi
 }
 
 ########### UPDATE ############
 
 has_gateway_config_changed=""
-function update(){
-	gsutil rsync -d -r gs://$KNOX_GW_CONFIG_GS $KNOX_GW_CONFIG
-	[[ $? -eq 1 ]] && err "Failed to download configurations from the bucket: $KNOX_GW_CONFIG_GS"
-	# updates topologies. No need to restart knox since it applies the changes automatically
-	rsync -avh --delete $KNOX_GW_CONFIG/topologies/ /etc/knox/conf/topologies/ 
-	# update gateway-site.xml
+function update() {
+  gsutil -m rsync -d -r "${KNOX_GW_CONFIG_GCS}" "${KNOX_GW_CONFIG}"
+  [[ $? -eq 1 ]] && err "Failed to download configurations from the '${KNOX_GW_CONFIG_GCS}'"
 
-	if [[ -f "$KNOX_GW_CONFIG/gateway-site.xml" ]]; then 
-	  has_gateway_config_changed="$(rsync -avh $KNOX_GW_CONFIG/gateway-site.xml /etc/knox/conf/gateway-site.xml | grep gateway-site.xml || :)" 
-	fi
+  # Updates topologies. No need to restart Knox since it applies the changes automatically.
+  rsync -avh --delete "${KNOX_GW_CONFIG}/topologies/" "/etc/knox/conf/topologies/"
+
+  # Update gateway-site.xml
+  if [[ -f "${KNOX_GW_CONFIG}/gateway-site.xml" ]]; then
+    has_gateway_config_changed="$(rsync -avh "${KNOX_GW_CONFIG}/gateway-site.xml" "/etc/knox/conf/gateway-site.xml" | grep gateway-site.xml || true)"
+  fi
 }
 
 ########### MAIN ################
 
-if [[ $# > 0 && "$1" == "update" ]]; then
+if [[ $# -gt 0 && "${1}" == "update" ]]; then
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: checking for updates"
   update
-	[[ -n "$has_gateway_config_changed" ]] && systemctl restart knox
+  [[ -n "$has_gateway_config_changed" ]] && systemctl restart knox
 else
   install
 fi
