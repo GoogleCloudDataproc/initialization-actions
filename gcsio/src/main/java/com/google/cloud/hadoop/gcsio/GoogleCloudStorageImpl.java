@@ -290,7 +290,21 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     Map<String, Object> methodConfig =
         ImmutableMap.of("name", ImmutableList.of(name), "retryPolicy", retryPolicy);
 
-    return ImmutableMap.of("methodConfig", ImmutableList.of(methodConfig));
+    // When channel pooling is enabled, force the pick_first grpclb strategy.
+    // This is necessary to avoid the multiplicative effect of creating channel pool with
+    // `poolSize` number of `ManagedChannel`s, each with a `subSetting` number of number of subchannels.
+    // See the service config proto definition for more details:
+    // https://github.com/grpc/grpc-proto/blob/master/grpc/service_config/service_config.proto#L182
+    Map<String, Object> pickFirstStrategy = ImmutableMap.of("pick_first", ImmutableMap.of());
+
+    Map<String, Object> childPolicy =
+        ImmutableMap.of("childPolicy", ImmutableList.of(pickFirstStrategy));
+
+    Map<String, Object> grpcLbPolicy = ImmutableMap.of("grpclb", childPolicy);
+
+    return ImmutableMap.of(
+        "methodConfig", ImmutableList.of(methodConfig),
+        "loadBalancingConfig", ImmutableList.of(grpcLbPolicy));
   }
 
   /**
