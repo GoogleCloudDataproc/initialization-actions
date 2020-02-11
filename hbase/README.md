@@ -60,8 +60,8 @@ metadata during the cluster creation process.
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --region ${REGION} \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/hbase/hbase.sh \
-        --metadata 'hbase-root-dir=gs://<BUCKET_NAME>/' \
-        --metadata 'hbase-wak-dir=hdfs://path/to/wal' \
+        --metadata 'hbase-root-dir=gs://<bucket_name>/' \
+        --metadata 'hbase-wal-dir=hdfs://[host:port]/<path_to_wal>/' \
         --num-masters 3 --num-workers 2
     ```
 
