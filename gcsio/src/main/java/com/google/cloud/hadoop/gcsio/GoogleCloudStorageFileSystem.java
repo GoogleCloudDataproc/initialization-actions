@@ -646,9 +646,9 @@ public class GoogleCloudStorageFileSystem {
       throw new IOException("A file cannot be created in root.");
     }
 
-    // Throw if the destination is a file that already exists and it's not a source file.
+    // Throw if the destination is a file that already exists, and it's not a source file.
     if (dstInfo.exists() && !dstInfo.isDirectory() && (srcInfo.isDirectory() || !dst.equals(src))) {
-      throw new IOException("Cannot overwrite existing file: " + dst);
+      throw new IOException("Cannot overwrite an existing file: " + dst);
     }
 
     // Rename operation cannot be completed if parent of destination does not exist.
@@ -686,7 +686,7 @@ public class GoogleCloudStorageFileSystem {
       URI dstRelativeToSrc = src.relativize(dst);
       // Throw if dst URI relative to src is not equal to dst,
       // because this means that src is a parent directory of dst
-      // and src can not be "renamed" to its subdirectory
+      // and src cannot be "renamed" to its subdirectory
       if (!dstRelativeToSrc.equals(dst)) {
         throw new IOException("Rename to subdir is forbidden");
       }
