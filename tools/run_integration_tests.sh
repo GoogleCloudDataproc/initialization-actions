@@ -21,30 +21,30 @@ set -Eeuo pipefail
 HADOOP_VERSION=$1
 export GCS_TEST_PROJECT_ID=$2
 export GCS_TEST_SERVICE_ACCOUNT=$3
-export GCS_TEST_PRIVATE_KEYFILE=$4
+GCS_TEST_PRIVATE_KEYFILE=$4
 
 print_usage() {
   echo -n "$0 (hadoop2 | hadoop3) <project ID> <service_account_email> <path_to_p12> [optional_maven_parameters, [...]]"
 }
 
 check_required_param() {
-  local value=$1
-  local msg=$2
-  if [[ "x" = "x$value" ]]; then
-    echo "$msg"
+  local -r value=$1
+  local -r error_msg=$2
+  if [[ -z ${value} ]]; then
+    echo "${error_msg}"
     print_usage
     exit 1
   fi
 }
 
 check_required_params() {
-  check_required_param "$HADOOP_VERSION" "Hadoop version required."
-  check_required_param "$GCS_TEST_PROJECT_ID" "Project ID required."
-  check_required_param "$GCS_TEST_SERVICE_ACCOUNT" "Service account email is required."
-  check_required_param "$GCS_TEST_PRIVATE_KEYFILE" "Private key file is required."
+  check_required_param "${HADOOP_VERSION}" "Hadoop version required."
+  check_required_param "${GCS_TEST_PROJECT_ID}" "Project ID required."
+  check_required_param "${GCS_TEST_SERVICE_ACCOUNT}" "Service account email is required."
+  check_required_param "${GCS_TEST_PRIVATE_KEYFILE}" "Private key file is required."
 
-  if [[ ! -f "$GCS_TEST_PRIVATE_KEYFILE" ]]; then
-    echo "Can't find private key file $GCS_TEST_PRIVATE_KEYFILE"
+  if [[ ! -f "${GCS_TEST_PRIVATE_KEYFILE}" ]]; then
+    echo "Can't find private key file ${GCS_TEST_PRIVATE_KEYFILE}"
     print_Usage
     exit 1
   fi
@@ -56,7 +56,7 @@ check_required_params
 
 # When tests run, they run in the root of the module directory. Anything
 # relative to our current directory won't work properly
-GCS_TEST_PRIVATE_KEYFILE=$(readlink -f "$GCS_TEST_PRIVATE_KEYFILE")
+GCS_TEST_PRIVATE_KEYFILE=$(readlink -f "${GCS_TEST_PRIVATE_KEYFILE}")
 export GCS_TEST_PRIVATE_KEYFILE
 export RUN_INTEGRATION_TESTS=true
 
