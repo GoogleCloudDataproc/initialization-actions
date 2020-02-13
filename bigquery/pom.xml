@@ -256,10 +256,16 @@
                   <shadedPattern>com.google.cloud.hadoop.repackaged.bigquery.com</shadedPattern>
                   <includes>
                     <include>com.fasterxml.**</include>
-                    <include>com.google.**</include>
+                    <include>com.google.api.**</include>
+                    <include>com.google.auth.**</include>
+                    <include>com.google.cloud.bigquery.**</include>
+                    <include>com.google.cloud.hadoop.util.**</include>
+                    <include>com.google.common.**</include>
+                    <include>com.google.longrunning.**</include>
+                    <include>com.google.protobuf.**</include>
+                    <include>com.google.rpc.**</include>
                   </includes>
                   <excludes>
-                    <exclude>com.google.cloud.hadoop.io.bigquery.**</exclude>
                     <exclude>com.google.cloud.hadoop.util.AccessTokenProvider</exclude>
                     <exclude>com.google.cloud.hadoop.util.AccessTokenProvider$AccessToken</exclude>
                   </excludes>
