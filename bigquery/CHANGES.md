@@ -1,4 +1,4 @@
-### 1.1.0 - 2019-XX-XX
+### 1.0.1 - 2019-02-13
 
 1.  POM updates for GCS connector 2.1.0.
 

@@ -1,4 +1,4 @@
-### 2.1.0 - 2019-XX-XX
+### 2.0.1 - 2019-02-13
 
 1.  Cooperative Locking FSCK tool: fix recovery of operations that failed before
     creating an operation log file.
