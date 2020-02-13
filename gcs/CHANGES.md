@@ -3,6 +3,8 @@
 1.  Cooperative Locking FSCK tool: fix recovery of operations that failed before
     creating an operation log file.
 
+1.  Change Gson dependency scope from `provided` to `compile` in `gsio` library.
+
 ### 2.0.0 - 2019-08-23
 
 1.  Remove Hadoop 1.x support.
