@@ -19,20 +19,20 @@ set -euxo pipefail
 # TonY settings
 readonly TONY_INSTALL_FOLDER='/opt/tony'
 readonly TONY_SAMPLES_FOLDER="${TONY_INSTALL_FOLDER}/TonY-samples"
-readonly TONY_DEFAULT_VERSION='0c4bd4095d21b2d1ebbf7441d59fe42022714464'
+readonly TONY_DEFAULT_VERSION='d7931aaa44d5807aec85338a8a89aa65fcc4e4ec' # v0.3.24
 
 # Tony configurations: https://github.com/linkedin/TonY/wiki/TonY-Configurations
 readonly PS_INSTANCES=1
 readonly PS_MEMORY='2g'
 readonly WORKER_INSTANCES=2
 readonly WORKER_MEMORY='4g'
-readonly WORKER_GPUS=0 # GPU isolation is not supported in Dataproc 1.3
+readonly WORKER_GPUS=0 # GPU isolation is not supported in Dataproc 1.4
 
 # ML frameworks versions
-readonly TENSORFLOW_VERSION='1.13.2'
+readonly TENSORFLOW_VERSION='1.15.0'
 readonly TENSORFLOW_GPU=false
-readonly TORCH_VERSION='0.4.1.post2'
-readonly TORCHVISION_VERSION='0.2.1'
+readonly TORCH_VERSION='1.4.0'
+readonly TORCHVISION_VERSION='0.5.0'
 
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 readonly ROLE
