@@ -49,7 +49,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
   // Size of buffer to allocate for incoming data.
   // TODO(b/135137108): Figure out what an appropriate default is, and how this impacts
   // performance.
-  private static final int DEFAULT_BUFFER_SIZE = 8192;
+  private static final int DEFAULT_BUFFER_SIZE = 2 * 1024 * 1024;
 
   // GCS gRPC stub.
   private final StorageStub stub;
