@@ -40,6 +40,7 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.StorageRequest;
 import com.google.api.services.storage.model.Bucket;
+import com.google.api.services.storage.model.Bucket.RetentionPolicy;
 import com.google.api.services.storage.model.Buckets;
 import com.google.api.services.storage.model.ComposeRequest;
 import com.google.api.services.storage.model.Objects;
@@ -417,6 +418,11 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
             .setName(bucketName)
             .setLocation(options.getLocation())
             .setStorageClass(options.getStorageClass());
+    if (options.getRetentionPeriod() != null) {
+      bucket.setRetentionPolicy(
+          new RetentionPolicy().setRetentionPeriod(options.getRetentionPeriod().getSeconds()));
+    }
+
     Storage.Buckets.Insert insertBucket =
         configureRequest(gcs.buckets().insert(storageOptions.getProjectId(), bucket), bucketName);
     // TODO(user): To match the behavior of throwing FileNotFoundException for 404, we probably

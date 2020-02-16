@@ -16,6 +16,7 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import java.time.Duration;
 import javax.annotation.Nullable;
 
 /**
@@ -31,6 +32,7 @@ public class CreateBucketOptions {
 
   private final String location;
   private final String storageClass;
+  private final Duration retentionPeriod;
 
   /**
    * Create a bucket with all default settings.
@@ -43,10 +45,23 @@ public class CreateBucketOptions {
    * Create a bucket with specified location.
    *
    * @param location Bucket location
+   * @param storageClass Bucket location
    */
   public CreateBucketOptions(String location, String storageClass) {
+    this(location, storageClass, /* retentionPeriod= */ null);
+  }
+
+  /**
+   * Create a bucket with specified location.
+   *
+   * @param location Bucket location
+   * @param storageClass Bucket storage class
+   * @param retentionPeriod Bucket retention period in seconds
+   */
+  public CreateBucketOptions(String location, String storageClass, Duration retentionPeriod) {
     this.location = location;
     this.storageClass = storageClass;
+    this.retentionPeriod = retentionPeriod;
   }
 
   /**
@@ -63,5 +78,11 @@ public class CreateBucketOptions {
   @Nullable
   public String getStorageClass() {
     return storageClass;
+  }
+
+  /** Returns the bucket retention period. */
+  @Nullable
+  public Duration getRetentionPeriod() {
+    return retentionPeriod;
   }
 }
