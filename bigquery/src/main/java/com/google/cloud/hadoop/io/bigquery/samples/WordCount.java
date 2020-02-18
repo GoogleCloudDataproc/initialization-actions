@@ -8,6 +8,7 @@ import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
 import com.google.cloud.hadoop.io.bigquery.output.IndirectBigQueryOutputFormat;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Streams;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.io.IOException;
@@ -21,27 +22,25 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.GenericOptionsParser;
 
-/** Sample program to run the Hadoop Wordcount example over tables in BigQuery. */
+/**
+ * An example Hadoop WordCount program that counts the number of times a word appears in a BigQuery
+ * table column.
+ */
 public class WordCount {
 
-  // The configuration key used to specify the BigQuery field name
-  // ("column name").
+  /** The configuration key used to specify the BigQuery field name ("column name"). */
   public static final String WORDCOUNT_WORD_FIELDNAME_KEY = "mapred.bq.samples.wordcount.word.key";
 
-  // Default value for the configuration entry specified by
-  // WORDCOUNT_WORD_FIELDNAME_KEY. Examples: 'word' in
-  // publicdata:samples.shakespeare or 'repository_name'
-  // in publicdata:samples.github_timeline.
+  /**
+   * Default value for the configuration entry specified by {@code WORDCOUNT_WORD_FIELDNAME_KEY}.
+   * Examples: {@code word} in {@code publicdata:samples.shakespeare} or {@code repository_name} in
+   * {@code publicdata:samples.github_timeline}.
+   */
   public static final String WORDCOUNT_WORD_FIELDNAME_VALUE_DEFAULT = "word";
 
-  // Guava might not be available, so define a null / empty helper:
-  private static boolean isStringNullOrEmpty(String toTest) {
-    return toTest == null || "".equals(toTest);
-  }
-
   /**
-   * The mapper function for WordCount. For input, it consumes a LongWritable and JsonObject as the
-   * key and value. These correspond to a row identifier and Json representation of the row's
+   * Mapper function for the WordCount job. For input, it consumes a LongWritable and JsonObject as
+   * the key and value. These correspond to a row identifier and Json representation of the row's
    * values/columns. For output, it produces Text and a LongWritable as the key and value. These
    * correspond to the word and a count for the number of times it has occurred.
    */
@@ -52,15 +51,18 @@ public class WordCount {
     private String wordKey;
 
     @Override
-    public void setup(Context context) throws IOException, InterruptedException {
-      // Find the runtime-configured key for the field name we're looking for in
-      // the map task.
+    public void setup(Mapper<LongWritable, JsonObject, Text, LongWritable>.Context context)
+        throws IOException, InterruptedException {
+      // Find the runtime-configured key for the field name we're looking for in the map task.
       Configuration conf = context.getConfiguration();
       wordKey = conf.get(WORDCOUNT_WORD_FIELDNAME_KEY, WORDCOUNT_WORD_FIELDNAME_VALUE_DEFAULT);
     }
 
     @Override
-    public void map(LongWritable key, JsonObject value, Context context)
+    public void map(
+        LongWritable key,
+        JsonObject value,
+        Mapper<LongWritable, JsonObject, Text, LongWritable>.Context context)
         throws IOException, InterruptedException {
       JsonElement countElement = value.get(wordKey);
       if (countElement != null) {
@@ -74,8 +76,8 @@ public class WordCount {
   }
 
   /**
-   * Reducer function for WordCount. For input, it consumes the Text and LongWritable that the
-   * mapper produced. For output, it produces a JsonObject and NullWritable. The JsonObject
+   * Reducer function for the WordCount job. For input, it consumes the Text and LongWritable that
+   * the mapper produced. For output, it produces a JsonObject and NullWritable. The JsonObject
    * represents the data that will be loaded into BigQuery.
    */
   public static class Reduce extends Reducer<Text, LongWritable, JsonObject, NullWritable> {
@@ -84,10 +86,7 @@ public class WordCount {
     public void reduce(Text key, Iterable<LongWritable> values, Context context)
         throws IOException, InterruptedException {
       // Add up the values to get a total number of occurrences of our word.
-      long count = 0;
-      for (LongWritable val : values) {
-        count = count + val.get();
-      }
+      long count = Streams.stream(values).mapToLong(LongWritable::get).sum();
 
       JsonObject jsonObject = new JsonObject();
       jsonObject.addProperty("Word", key.toString());
@@ -98,23 +97,26 @@ public class WordCount {
   }
 
   /**
-   * Configures and runs the main Hadoop job. Takes a String[] of 5 parameters: [ProjectId]
-   * [QualifiedInputTableId] [InputTableFieldName] [QualifiedOutputTableId] [GcsOutputPath]
+   * Configures and runs the main Hadoop job. Takes a String[] of 5 parameters with the format:
+   * {@code [ProjectId] [QualifiedInputTableId] [InputTableFieldName] [QualifiedOutputTableId]
+   * [GcsOutputPath]}
    *
-   * <p>ProjectId - Project under which to issue the BigQuery operations. Also serves as the default
-   * project for table IDs that don't specify a project for the table.
+   * <p><strong>ProjectId</strong> - Project under which to issue the BigQuery operations. Also
+   * serves as the default project for table IDs that don't explicitly specify a project for the
+   * table.
    *
-   * <p>QualifiedInputTableId - Input table ID of the form (Optional
-   * ProjectId):[DatasetId].[TableId]
+   * <p><strong>QualifiedInputTableId</strong> - Input table ID of the form {@code (Optional
+   * ProjectId):[DatasetId].[TableId]}
    *
-   * <p>InputTableFieldName - Name of the field to count in the input table, e.g., 'word' in
-   * publicdata:samples.shakespeare or 'repository_name' in publicdata:samples.github_timeline.
+   * <p><strong>InputTableFieldName</strong> - Name of the field to count in the input table, e.g.
+   * {@code word} in {@code publicdata:samples.shakespeare} or {@code repository_name} in {@code
+   * publicdata:samples.github_timeline}.
    *
-   * <p>QualifiedOutputTableId - Input table ID of the form (Optional
-   * ProjectId):[DatasetId].[TableId]
+   * <p><strong>QualifiedOutputTableId</strong> - Input table ID of the form {@code (Optional
+   * ProjectId):[DatasetId].[TableId]}
    *
-   * <p>GcsOutputPath - The output path to store temporary Cloud Storage data, e.g.,
-   * gs://bucket/dir/
+   * <p><strong>GcsOutputPath</strong> - The output path to store temporary Cloud Storage data,
+   * e.g., {@code gs://bucket/dir/}
    *
    * @param args a String[] containing ProjectId, QualifiedInputTableId, InputTableFieldName,
    *     QualifiedOutputTableId, and GcsOutputPath.
@@ -195,10 +197,11 @@ public class WordCount {
     // Tell the job what data the mapper will output.
     job.setOutputKeyClass(Text.class);
     job.setOutputValueClass(LongWritable.class);
+
     job.setMapperClass(Map.class);
     job.setReducerClass(Reduce.class);
-    job.setInputFormatClass(GsonBigQueryInputFormat.class);
 
+    job.setInputFormatClass(GsonBigQueryInputFormat.class);
     // Instead of using BigQueryOutputFormat, we use the newer
     // IndirectBigQueryOutputFormat, which works by first buffering all the data
     // into a Cloud Storage temporary file, and then on commitJob, copies all data from
