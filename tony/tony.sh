@@ -37,6 +37,12 @@ readonly TORCHVISION_VERSION='0.5.0'
 ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 readonly ROLE
 
+function prebuild_setup() {
+  # Install python3-venv
+  apt-get update
+  apt-get install python3-venv
+}
+
 function download_and_build_tony() {
   # Download TonY distribution.
   mkdir "${TONY_INSTALL_FOLDER}"
@@ -84,7 +90,7 @@ function install_samples() {
 
   # Install TensorFlow sample
   cd "${TONY_SAMPLES_FOLDER}/deps"
-  virtualenv -p python3 tf
+  python3 -m venv --copies tf
   set +u
   source tf/bin/activate
   set -u
@@ -141,7 +147,7 @@ EOF
 
   # Install PyTorch sample
   cd "${TONY_SAMPLES_FOLDER}/deps"
-  virtualenv -p python3 pytorch
+  python3 -m venv --copies pytorch
   set +u
   source pytorch/bin/activate
   set -u
@@ -196,6 +202,7 @@ EOF
 
 # Only run on the master node of the cluster
 if [[ "${ROLE}" == "Master" ]]; then
+  prebuild_setup
   download_and_build_tony
   install_samples
   echo 'TonY successfully deployed.'
