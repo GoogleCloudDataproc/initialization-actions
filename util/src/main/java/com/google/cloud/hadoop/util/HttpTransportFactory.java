@@ -175,6 +175,8 @@ public class HttpTransportFactory {
         "if proxyUri is null than proxyAuth should be null too");
 
     if (proxyAuth != null) {
+      // Enable "Basic" authentication on JDK 8+
+      System.setProperty("jdk.http.auth.tunneling.disabledSchemes", "");
       Authenticator.setDefault(
           new Authenticator() {
             @Override

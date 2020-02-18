@@ -4,6 +4,8 @@
 
 1.  Use `storage.googleapis.com` API endpoint.
 
+1.  Fix proxy authentication when using `JAVA_NET` transport.
+
 ### 2.0.1 - 2020-02-13
 
 1.  Cooperative Locking FSCK tool: fix recovery of operations that failed before

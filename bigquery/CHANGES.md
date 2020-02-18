@@ -4,6 +4,8 @@
 
 1.  Use `bigquery.googleapis.com` API endpoint.
 
+1.  Fix proxy authentication when using `JAVA_NET` transport.
+
 ### 1.0.1 - 2020-02-13
 
 1.  Fix shaded jar - add back missing relocated dependencies.
