@@ -29,6 +29,7 @@ import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth8.assertThat;
 import static com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.Collectors.toList;
@@ -343,7 +344,7 @@ public class CoopLockRepairIntegrationTest {
     assertThat(lockFiles).hasSize(2);
     assertThat(matchFile(lockFiles, "all\\.lock")).isNotNull();
     String filenamePattern = String.format(OPERATION_FILENAME_PATTERN_FORMAT, DELETE);
-    assertThat(matchFile(lockFiles, filenamePattern + "\\.log").isPresent()).isFalse();
+    assertThat(matchFile(lockFiles, filenamePattern + "\\.log")).isEmpty();
   }
 
   @Test
@@ -558,7 +559,7 @@ public class CoopLockRepairIntegrationTest {
                 .setSrcResource(srcDirUri.toString())
                 .setDstResource(dstDirUri.toString())
                 .setCopySucceeded(false));
-    assertThat(matchFile(lockFiles, filenameFormat + "\\.log").isPresent()).isFalse();
+    assertThat(matchFile(lockFiles, filenameFormat + "\\.log")).isEmpty();
   }
 
   @Test
