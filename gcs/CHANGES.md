@@ -1,5 +1,8 @@
 ### 2.1.0 - 2020-XX-XX
 
+1.  Update all dependencies to latest versions.
+
+1.  Use `storage.googleapis.com` API endpoint.
 
 ### 2.0.1 - 2020-02-13
 

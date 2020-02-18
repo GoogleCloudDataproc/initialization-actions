@@ -87,20 +87,22 @@
     <apache.avro.version>1.7.7</apache.avro.version>
     <google.gson.version>2.2.4</google.gson.version>
 
-    <apache.httpclient.version>4.5.9</apache.httpclient.version>
-    <google.api.version>1.30.1</google.api.version>
-    <google.api-bigquery.version>v2-rev20190807-${google.api.version}</google.api-bigquery.version>
-    <google.api-storage.version>v1-rev20190624-${google.api.version}</google.api-storage.version>
-    <google.auto-value.version>1.6.5</google.auto-value.version>
-    <google.cloud-bigquery-storage.version>0.105.0-beta</google.cloud-bigquery-storage.version>
+    <apache.httpclient.version>4.5.11</apache.httpclient.version>
+    <google.api-client.version>1.30.8</google.api-client.version>
+    <google.api-bigquery.version>v2-rev20191211-${google.api-client.version}</google.api-bigquery.version>
+    <google.api-storage.version>v1-rev20191127-${google.api-client.version}</google.api-storage.version>
+    <google.auto-value.version>1.7</google.auto-value.version>
+    <google.cloud-bigquery-storage.version>0.124.0-beta</google.cloud-bigquery-storage.version>
     <google.flogger.version>0.4</google.flogger.version>
-    <google.guava.version>28.0-jre</google.guava.version>
-    <google.protobuf.version>3.9.1</google.protobuf.version>
-    <google.truth.version>1.0</google.truth.version>
-    <hadoop.two.version>2.9.2</hadoop.two.version>
-    <hadoop.three.version>3.2.0</hadoop.three.version>
-    <junit.version>4.13-beta-3</junit.version>
-    <mockito.version>3.0.0</mockito.version>
+    <google.guava.version>28.2-jre</google.guava.version>
+    <google.http-client.version>1.34.2</google.http-client.version>
+    <google.oauth-client.version>1.30.5</google.oauth-client.version>
+    <google.protobuf.version>3.11.4</google.protobuf.version>
+    <google.truth.version>1.0.1</google.truth.version>
+    <hadoop.two.version>2.10.0</hadoop.two.version>
+    <hadoop.three.version>3.2.1</hadoop.three.version>
+    <junit.version>4.13</junit.version>
+    <mockito.version>3.2.4</mockito.version>
   </properties>
 
   <modules>
@@ -272,27 +274,27 @@
       <dependency>
         <groupId>com.google.api-client</groupId>
         <artifactId>google-api-client-jackson2</artifactId>
-        <version>${google.api.version}</version>
+        <version>${google.api-client.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.http-client</groupId>
         <artifactId>google-http-client</artifactId>
-        <version>${google.api.version}</version>
+        <version>${google.http-client.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.http-client</groupId>
         <artifactId>google-http-client-jackson</artifactId>
-        <version>${google.api.version}</version>
+        <version>${google.http-client.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.http-client</groupId>
         <artifactId>google-http-client-protobuf</artifactId>
-        <version>${google.api.version}</version>
+        <version>${google.http-client.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.api-client</groupId>
         <artifactId>google-api-client-java6</artifactId>
-        <version>${google.api.version}</version>
+        <version>${google.api-client.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.apis</groupId>
@@ -302,12 +304,12 @@
       <dependency>
         <groupId>com.google.oauth-client</groupId>
         <artifactId>google-oauth-client</artifactId>
-        <version>${google.api.version}</version>
+        <version>${google.oauth-client.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.oauth-client</groupId>
         <artifactId>google-oauth-client-java6</artifactId>
-        <version>${google.api.version}</version>
+        <version>${google.oauth-client.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.apis</groupId>

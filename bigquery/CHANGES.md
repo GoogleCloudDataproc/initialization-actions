@@ -1,15 +1,14 @@
 ### 1.1.0 - 2020-XX-XX
 
+1.  Update all dependencies to latest versions.
+
+1.  Use `bigquery.googleapis.com` API endpoint.
 
 ### 1.0.1 - 2020-02-13
-
-1.  POM updates for GCS connector 2.1.0.
 
 1.  Fix shaded jar - add back missing relocated dependencies.
 
 ### 1.0.0 - 2019-08-23
-
-1.  POM updates for GCS connector 2.0.0.
 
 1.  Remove Hadoop 1.x support.
 

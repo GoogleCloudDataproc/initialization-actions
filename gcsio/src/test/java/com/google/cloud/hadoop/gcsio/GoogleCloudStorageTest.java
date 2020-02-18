@@ -44,7 +44,6 @@ import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.uploa
 import static com.google.common.net.HttpHeaders.CONTENT_LENGTH;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
@@ -2510,26 +2509,21 @@ public class GoogleCloudStorageTest {
   private static InputStream partialReadTimeoutStream(
       byte[] data, double readFraction, String timeoutMessage) {
     return new InputStream() {
-      private boolean throwOnNextRead;
-      private boolean failOnNextRead;
-      private int pos = 0;
+      private int position = 0;
       private final int maxPos = (int) (data.length * readFraction);
 
       @Override
       public int read() throws IOException {
-        if (failOnNextRead) {
-          fail("No more reads are expected");
-        }
-        if (throwOnNextRead) {
-          failOnNextRead = true;
+        if (position == maxPos) {
+          // increment position, so read()) will return `-1` on subsequent read() calls.
+          position++;
           throw new SocketTimeoutException(timeoutMessage);
         }
-        if (pos == maxPos) {
-          throwOnNextRead = true;
+        if (position >= maxPos) {
           return -1;
         }
-        assertThat(pos).isLessThan(maxPos);
-        return data[pos++] & 0xff;
+        assertThat(position).isLessThan(maxPos);
+        return data[position++] & 0xff;
       }
     };
   }

@@ -119,7 +119,7 @@ public final class GoogleCloudStorageTestUtils {
   public static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
   public static final JacksonFactory JSON_FACTORY = JacksonFactory.getDefaultInstance();
 
-  static final String GOOGLEAPIS_ENDPOINT = "https://www.googleapis.com";
+  static final String GOOGLEAPIS_ENDPOINT = "https://storage.googleapis.com";
 
   private static final String RESUMABLE_UPLOAD_LOCATION_FORMAT =
       GOOGLEAPIS_ENDPOINT + "/upload/storage/v1/b/%s/o?name=%s&uploadType=resumable&upload_id=%s";
