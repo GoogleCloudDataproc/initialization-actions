@@ -99,12 +99,6 @@ import javax.annotation.Nullable;
  */
 public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
-  // Number of retries to make when waiting for a bucket to be empty.
-  public static final int BUCKET_EMPTY_MAX_RETRIES = 20;
-
-  // Duration of wait (in milliseconds) per retry for a bucket to be empty.
-  public static final int BUCKET_EMPTY_WAIT_TIME_MS = 500;
-
   // JSON factory used for formatting GCS JSON API payloads.
   private static final JsonFactory JSON_FACTORY = new JacksonFactory();
 
@@ -130,16 +124,9 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     }
   }
 
-  /**
-   * A factory for producing BackOff objects.
-   */
-  public static interface BackOffFactory {
-    public static final BackOffFactory DEFAULT = new BackOffFactory() {
-      @Override
-      public BackOff newBackOff() {
-        return new ExponentialBackOff();
-      }
-    };
+  /** A factory for producing BackOff objects. */
+  public interface BackOffFactory {
+    BackOffFactory DEFAULT = ExponentialBackOff::new;
 
     BackOff newBackOff();
   }

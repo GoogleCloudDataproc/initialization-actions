@@ -392,8 +392,7 @@ public class CredentialFactory {
     PKCS8EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(bytes);
     try {
       KeyFactory keyFactory = SecurityUtils.getRsaKeyFactory();
-      PrivateKey privateKey = keyFactory.generatePrivate(keySpec);
-      return privateKey;
+      return keyFactory.generatePrivate(keySpec);
     } catch (NoSuchAlgorithmException | InvalidKeySpecException exception) {
       throw new IOException("Unexpected expcetion reading PKCS data", exception);
     }

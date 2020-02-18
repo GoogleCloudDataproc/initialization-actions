@@ -45,13 +45,6 @@ import org.apache.hadoop.fs.permission.FsPermission;
 public class GoogleHadoopFileSystemConfiguration {
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
-  /** Configuration key for the MR intermediate done dir. */
-  public static final String MR_JOB_HISTORY_INTERMEDIATE_DONE_DIR_KEY =
-      "mapreduce.jobhistory.intermediate-done-dir";
-
-  /** Configuration key of the MR done directory. */
-  public static final String MR_JOB_HISTORY_DONE_DIR_KEY = "mapreduce.jobhistory.done-dir";
-
   // -----------------------------------------------------------------
   // Configuration settings.
   // -----------------------------------------------------------------
