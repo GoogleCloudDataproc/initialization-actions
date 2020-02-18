@@ -27,8 +27,8 @@ CLUSTER_NAME=<cluster_name>
 gcloud dataproc clusters create ${CLUSTER_NAME} \
     --region ${REGION} \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/connectors/connectors.sh \
-    --metadata gcs-connector-version=2.0.0 \
-    --metadata bigquery-connector-version=1.0.0
+    --metadata gcs-connector-version=2.0.1 \
+    --metadata bigquery-connector-version=1.0.1
 ```
 
 This script downloads specified version of Google Cloud Storage and BigQuery connector and deletes
