@@ -170,10 +170,6 @@
       <groupId>com.google.flogger</groupId>
       <artifactId>flogger-system-backend</artifactId>
     </dependency>
-    <dependency>
-      <groupId>com.google.flogger</groupId>
-      <artifactId>flogger-log4j-backend</artifactId>
-    </dependency>
   </dependencies>
   <build>
     <plugins>
@@ -233,12 +229,6 @@
               </transformers>
               <filters>
                 <!-- minimizeJar breaks all the dynamic load hacks; add them explicitly -->
-                <filter>
-                  <artifact>com.google.flogger:flogger-log4j-backend</artifact>
-                  <includes>
-                    <include>**</include>
-                  </includes>
-                </filter>
                 <filter>
                   <artifact>io.grpc:*</artifact>
                   <includes>

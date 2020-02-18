@@ -6,6 +6,8 @@
 
 1.  Fix proxy authentication when using `JAVA_NET` transport.
 
+1.  Remove Log4j backend for Google Flogger.
+
 ### 2.0.1 - 2020-02-13
 
 1.  Cooperative Locking FSCK tool: fix recovery of operations that failed before
