@@ -56,8 +56,6 @@ import org.junit.Test;
  */
 public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTestBase {
 
-  private static final Joiner COMMA_JOINER = Joiner.on(',');
-
   /**
    * Helper to load all the GHFS-specific config values from environment variables, such as those
    * needed for setting up the credentials of a real GoogleCloudStorage.

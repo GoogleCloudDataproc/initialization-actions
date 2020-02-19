@@ -83,9 +83,8 @@ public class GoogleHadoopFileSystemTest extends GoogleHadoopFileSystemIntegratio
   @Test
   public void lazyInitialization_deleteCall_fails_withInvalidCredentialsConfiguration()
       throws Exception {
-    new GoogleHadoopFileSystem();
     Configuration lazyConf = new Configuration();
-    lazyConf.set(GCS_LAZY_INITIALIZATION_ENABLE.getKey(), "true");
+    lazyConf.setBoolean(GCS_LAZY_INITIALIZATION_ENABLE.getKey(), true);
     lazyConf.set(AUTHENTICATION_PREFIX + JSON_KEYFILE_SUFFIX, "non-existent.json");
     GoogleHadoopFileSystem lazyFs = new GoogleHadoopFileSystem();
 
