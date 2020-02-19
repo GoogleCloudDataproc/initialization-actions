@@ -73,7 +73,7 @@ function install_shc() {
   local example_out="/usr/lib/spark/examples/jars/${SPARK_HBASE_CLIENT_EXAMPLE}"
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
     "${SPARK_HBASE_CLIENT_EXAMPLE_LINK}" -O "${example_out}"
-  ln -s "${example_out}" "/usr/lib/spark/examples/jars/shc-example.jar"
+  ln -s "${example_out}" "/usr/lib/spark/examples/jars/shc-examples.jar"
 }
 
 function configure_big_table_client() {
