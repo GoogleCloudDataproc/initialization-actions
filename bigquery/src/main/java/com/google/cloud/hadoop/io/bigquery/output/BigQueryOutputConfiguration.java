@@ -13,13 +13,27 @@
  */
 package com.google.cloud.hadoop.io.bigquery.output;
 
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.OUTPUT_CLEANUP_TEMP;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.OUTPUT_DATASET_ID;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.OUTPUT_FILE_FORMAT;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.OUTPUT_FORMAT_CLASS;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.OUTPUT_PROJECT_ID;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.OUTPUT_TABLE_CREATE_DISPOSITION;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.OUTPUT_TABLE_ID;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.OUTPUT_TABLE_KMS_KEY_NAME;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.OUTPUT_TABLE_PARTITIONING;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.OUTPUT_TABLE_SCHEMA;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.PROJECT_ID;
+import static com.google.cloud.hadoop.util.ConfigurationUtil.getMandatoryConfig;
+
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.BigQueryStrings;
-import com.google.cloud.hadoop.util.ConfigurationUtil;
+import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -42,12 +56,8 @@ import org.apache.hadoop.util.ReflectionUtils;
 public class BigQueryOutputConfiguration {
 
   /** A list of keys that are required for this output connector. */
-  public static final ImmutableList<String> REQUIRED_KEYS =
-      ImmutableList.of(
-          BigQueryConfiguration.OUTPUT_DATASET_ID_KEY,
-          BigQueryConfiguration.OUTPUT_TABLE_ID_KEY,
-          BigQueryConfiguration.OUTPUT_FILE_FORMAT_KEY,
-          BigQueryConfiguration.OUTPUT_FORMAT_CLASS_KEY);
+  public static final ImmutableList<HadoopConfigurationProperty<?>> REQUIRED_PROPERTIES =
+      ImmutableList.of(OUTPUT_DATASET_ID, OUTPUT_TABLE_ID, OUTPUT_FILE_FORMAT, OUTPUT_FORMAT_CLASS);
 
   /**
    * A helper function to set the required output keys in the given configuration.
@@ -55,7 +65,7 @@ public class BigQueryOutputConfiguration {
    * @param conf the configuration to set the keys on.
    * @param qualifiedOutputTableId the qualified id of the output table in the form: <code>(Optional
    *     ProjectId):[DatasetId].[TableId]</code>. If the project id is missing, the default project
-   *     id is attempted {@link BigQueryConfiguration#PROJECT_ID_KEY}.
+   *     id is attempted {@link BigQueryConfiguration#PROJECT_ID}.
    * @param outputTableSchemaJson the schema of the BigQuery output table.
    * @param outputGcsPath the path in GCS to stage data in. Example: 'gs://bucket/job'.
    * @param outputFileFormat the formatting of the data being written by the output format class.
@@ -91,7 +101,7 @@ public class BigQueryOutputConfiguration {
    *
    * @param conf the configuration to set the keys on.
    * @param outputProjectId the id of the output project. If the project id is null, the default
-   *     project id is attempted {@link BigQueryConfiguration#PROJECT_ID_KEY}.
+   *     project id is attempted {@link BigQueryConfiguration#PROJECT_ID}.
    * @param outputDatasetId the id of the output dataset.
    * @param outputTableId the id of the output table.
    * @param outputTableSchemaJson the schema of the BigQuery output table. If the schema is null,
@@ -116,7 +126,7 @@ public class BigQueryOutputConfiguration {
 
     // Use the default project ID as a backup.
     if (Strings.isNullOrEmpty(outputProjectId)) {
-      outputProjectId = conf.get(BigQueryConfiguration.PROJECT_ID_KEY);
+      outputProjectId = PROJECT_ID.get(conf, conf::get);
     }
 
     Preconditions.checkArgument(
@@ -130,12 +140,11 @@ public class BigQueryOutputConfiguration {
     Preconditions.checkNotNull(outputFileFormat, "outputFileFormat must not be null.");
     Preconditions.checkNotNull(outputFormatClass, "outputFormatClass must not be null.");
 
-    conf.set(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY, outputProjectId);
-    conf.set(BigQueryConfiguration.OUTPUT_DATASET_ID_KEY, outputDatasetId);
-    conf.set(BigQueryConfiguration.OUTPUT_TABLE_ID_KEY, outputTableId);
-    conf.set(BigQueryConfiguration.OUTPUT_FILE_FORMAT_KEY, outputFileFormat.name());
-    conf.setClass(
-        BigQueryConfiguration.OUTPUT_FORMAT_CLASS_KEY, outputFormatClass, FileOutputFormat.class);
+    conf.set(OUTPUT_PROJECT_ID.getKey(), outputProjectId);
+    conf.set(OUTPUT_DATASET_ID.getKey(), outputDatasetId);
+    conf.set(OUTPUT_TABLE_ID.getKey(), outputTableId);
+    conf.set(OUTPUT_FILE_FORMAT.getKey(), outputFileFormat.name());
+    conf.setClass(OUTPUT_FORMAT_CLASS.getKey(), outputFormatClass, FileOutputFormat.class);
 
     setFileOutputFormatOutputPath(conf, outputGcsPath);
 
@@ -143,7 +152,7 @@ public class BigQueryOutputConfiguration {
     if (outputTableSchemaJson.isPresent()) {
       TableSchema tableSchema = BigQueryTableHelper.parseTableSchema(outputTableSchemaJson.get());
       String fieldsJson = BigQueryTableHelper.getTableFieldsJson(tableSchema);
-      conf.set(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY, fieldsJson);
+      conf.set(OUTPUT_TABLE_SCHEMA.getKey(), fieldsJson);
     }
   }
 
@@ -153,7 +162,7 @@ public class BigQueryOutputConfiguration {
    * @param conf the configuration to set the keys on.
    * @param qualifiedOutputTableId the qualified id of the output table in the form: <code>(Optional
    *     ProjectId):[DatasetId].[TableId]</code>. If the project id is missing, the default project
-   *     id is attempted {@link BigQueryConfiguration#PROJECT_ID_KEY}.
+   *     id is attempted {@link BigQueryConfiguration#PROJECT_ID}.
    * @param outputTableSchema the schema of the BigQuery output table. If the schema is null,
    *     BigQuery will attempt to auto detect the schema. When using avro formatted data, a schema
    *     is not required as avro stores the schema in the file.
@@ -188,7 +197,7 @@ public class BigQueryOutputConfiguration {
    * @param conf the configuration to set the keys on.
    * @param qualifiedOutputTableId the qualified id of the output table in the form: <code>(Optional
    *     ProjectId):[DatasetId].[TableId]</code>. If the project id is missing, the default project
-   *     id is attempted {@link BigQueryConfiguration#PROJECT_ID_KEY}.
+   *     id is attempted {@link BigQueryConfiguration#PROJECT_ID}.
    * @param outputGcsPath the path in GCS to stage data in. Example: 'gs://bucket/job'.
    * @param outputFileFormat the formatting of the data being written by the output format class.
    * @param outputFormatClass the file output format that will write files to GCS.
@@ -217,7 +226,7 @@ public class BigQueryOutputConfiguration {
   public static void setKmsKeyName(Configuration conf, String kmsKeyName) {
     Preconditions.checkArgument(
         !Strings.isNullOrEmpty(kmsKeyName), "kmsKeyName must not be null or empty.");
-    conf.set(BigQueryConfiguration.OUTPUT_TABLE_KMS_KEY_NAME_KEY, kmsKeyName);
+    conf.set(OUTPUT_TABLE_KMS_KEY_NAME.getKey(), kmsKeyName);
   }
 
   /**
@@ -231,7 +240,7 @@ public class BigQueryOutputConfiguration {
    */
   public static void validateConfiguration(Configuration conf) throws IOException {
     // Ensure the BigQuery output information is valid.
-    ConfigurationUtil.getMandatoryConfig(conf, REQUIRED_KEYS);
+    getMandatoryConfig(conf, REQUIRED_PROPERTIES);
 
     // Run through the individual getters as they manage error handling.
     getProjectId(conf);
@@ -249,19 +258,19 @@ public class BigQueryOutputConfiguration {
    * @return true if the flag is enabled or missing, false otherwise.
    */
   public static boolean getCleanupTemporaryDataFlag(Configuration conf) {
-    return conf.getBoolean(BigQueryConfiguration.OUTPUT_CLEANUP_TEMP_KEY, true);
+    return OUTPUT_CLEANUP_TEMP.get(conf, conf::getBoolean);
   }
 
   /**
    * Gets the output dataset project id based on the given configuration.
    *
-   * <p>If the {@link BigQueryConfiguration#OUTPUT_PROJECT_ID_KEY} is missing, this resolves to
-   * referencing the {@link BigQueryConfiguration#PROJECT_ID_KEY} key.
+   * <p>If the {@link BigQueryConfiguration#OUTPUT_PROJECT_ID} is missing, this resolves to
+   * referencing the {@link BigQueryConfiguration#PROJECT_ID} key.
    *
    * <p>The load job can be configured with two project identifiers. Configuration key {@link
-   * BigQueryConfiguration#PROJECT_ID_KEY} can set the project on whose behalf to perform BigQuery
-   * load operation, while {@link BigQueryConfiguration#OUTPUT_PROJECT_ID_KEY} can be used to name
-   * the project that the target dataset belongs to.
+   * BigQueryConfiguration#PROJECT_ID} can set the project on whose behalf to perform BigQuery load
+   * operation, while {@link BigQueryConfiguration#OUTPUT_PROJECT_ID} can be used to name the
+   * project that the target dataset belongs to.
    *
    * @param conf the configuration to reference the keys from.
    * @return the project id based on the given configuration.
@@ -269,14 +278,13 @@ public class BigQueryOutputConfiguration {
    */
   public static String getProjectId(Configuration conf) throws IOException {
     // Reference the default project ID as a backup.
-    String projectId = conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY);
+    String projectId = OUTPUT_PROJECT_ID.get(conf, conf::get);
     if (Strings.isNullOrEmpty(projectId)) {
-      projectId = conf.get(BigQueryConfiguration.PROJECT_ID_KEY);
+      projectId = PROJECT_ID.get(conf, conf::get);
     }
     if (Strings.isNullOrEmpty(projectId)) {
       throw new IOException(
-          "Must supply a value for configuration setting: "
-              + BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY);
+          "Must supply a value for configuration setting: " + OUTPUT_PROJECT_ID.getKey());
     }
     return projectId;
   }
@@ -284,13 +292,13 @@ public class BigQueryOutputConfiguration {
   /**
    * Gets the project id to be used to run BQ load job based on the given configuration.
    *
-   * <p>If the {@link BigQueryConfiguration#PROJECT_ID_KEY} is missing, this resolves to referencing
-   * the {@link BigQueryConfiguration#OUTPUT_PROJECT_ID_KEY} key.
+   * <p>If the {@link BigQueryConfiguration#PROJECT_ID} is missing, this resolves to referencing the
+   * {@link BigQueryConfiguration#OUTPUT_PROJECT_ID} key.
    *
    * <p>The load job can be configured with two project identifiers. Configuration key {@link
-   * BigQueryConfiguration#PROJECT_ID_KEY} can set the project on whose behalf to perform BigQuery
-   * load operation, while {@link BigQueryConfiguration#OUTPUT_PROJECT_ID_KEY} can be used to name
-   * the project that the target dataset belongs to.
+   * BigQueryConfiguration#PROJECT_ID} can set the project on whose behalf to perform BigQuery load
+   * operation, while {@link BigQueryConfiguration#OUTPUT_PROJECT_ID} can be used to name the
+   * project that the target dataset belongs to.
    *
    * @param conf the configuration to reference the keys from.
    * @return the project id based on the given configuration.
@@ -298,21 +306,21 @@ public class BigQueryOutputConfiguration {
    */
   public static String getJobProjectId(Configuration conf) throws IOException {
     // Reference the default project ID as a backup.
-    String projectId = conf.get(BigQueryConfiguration.PROJECT_ID_KEY);
+    String projectId = PROJECT_ID.get(conf, conf::get);
     if (Strings.isNullOrEmpty(projectId)) {
-      projectId = conf.get(BigQueryConfiguration.OUTPUT_PROJECT_ID_KEY);
+      projectId = OUTPUT_PROJECT_ID.get(conf, conf::get);
     }
     if (Strings.isNullOrEmpty(projectId)) {
       throw new IOException(
-          "Must supply a value for configuration setting: " + BigQueryConfiguration.PROJECT_ID_KEY);
+          "Must supply a value for configuration setting: " + PROJECT_ID.getKey());
     }
     return projectId;
   }
 
   /**
    * Gets the output table reference based on the given configuration. If the {@link
-   * BigQueryConfiguration#OUTPUT_PROJECT_ID_KEY} is missing, this resolves to referencing the
-   * {@link BigQueryConfiguration#PROJECT_ID_KEY} key.
+   * BigQueryConfiguration#OUTPUT_PROJECT_ID} is missing, this resolves to referencing the
+   * {@link BigQueryConfiguration#PROJECT_ID} key.
    *
    * @param conf the configuration to reference the keys from.
    * @return a reference to the derived output table in the format of "<project>:<dataset>.<table>".
@@ -321,10 +329,8 @@ public class BigQueryOutputConfiguration {
   static TableReference getTableReference(Configuration conf) throws IOException {
     // Ensure the BigQuery output information is valid.
     String projectId = getProjectId(conf);
-    String datasetId =
-        ConfigurationUtil.getMandatoryConfig(conf, BigQueryConfiguration.OUTPUT_DATASET_ID_KEY);
-    String tableId =
-        ConfigurationUtil.getMandatoryConfig(conf, BigQueryConfiguration.OUTPUT_TABLE_ID_KEY);
+    String datasetId = getMandatoryConfig(conf, OUTPUT_DATASET_ID);
+    String tableId = getMandatoryConfig(conf, OUTPUT_TABLE_ID);
 
     return new TableReference().setProjectId(projectId).setDatasetId(datasetId).setTableId(tableId);
   }
@@ -337,14 +343,13 @@ public class BigQueryOutputConfiguration {
    * @throws IOException if a table schema was set in the configuration but couldn't be parsed.
    */
   static Optional<BigQueryTableSchema> getTableSchema(Configuration conf) throws IOException {
-    String fieldsJson = conf.get(BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY);
+    String fieldsJson = OUTPUT_TABLE_SCHEMA.get(conf, conf::get);
     if (!Strings.isNullOrEmpty(fieldsJson)) {
       try {
         TableSchema tableSchema = BigQueryTableHelper.createTableSchemaFromFields(fieldsJson);
         return Optional.of(BigQueryTableSchema.wrap(tableSchema));
       } catch (IOException e) {
-        throw new IOException(
-            "Unable to parse key '" + BigQueryConfiguration.OUTPUT_TABLE_SCHEMA_KEY + "'.", e);
+        throw new IOException("Unable to parse key '" + OUTPUT_TABLE_SCHEMA.getKey() + "'.", e);
       }
     }
     return Optional.empty();
@@ -361,15 +366,14 @@ public class BigQueryOutputConfiguration {
    */
   static Optional<BigQueryTimePartitioning> getTablePartitioning(Configuration conf)
       throws IOException {
-    String fieldsJson = conf.get(BigQueryConfiguration.OUTPUT_TABLE_PARTITIONING_KEY);
+    String fieldsJson = OUTPUT_TABLE_PARTITIONING.get(conf, conf::get);
     if (!Strings.isNullOrEmpty(fieldsJson)) {
       try {
         TimePartitioning tablePartitioning = BigQueryTimePartitioning.getFromJson(fieldsJson);
         return Optional.of(BigQueryTimePartitioning.wrap(tablePartitioning));
       } catch (IOException e) {
         throw new IOException(
-            "Unable to parse key '" + BigQueryConfiguration.OUTPUT_TABLE_PARTITIONING_KEY + "'.",
-            e);
+            "Unable to parse key '" + OUTPUT_TABLE_PARTITIONING.getKey() + "'.", e);
       }
     }
     return Optional.empty();
@@ -383,7 +387,7 @@ public class BigQueryOutputConfiguration {
    *     configuration.
    */
   public static String getKmsKeyName(Configuration conf) throws IOException {
-    return conf.get(BigQueryConfiguration.OUTPUT_TABLE_KMS_KEY_NAME_KEY);
+    return OUTPUT_TABLE_KMS_KEY_NAME.get(conf, conf::get);
   }
 
   /**
@@ -395,8 +399,7 @@ public class BigQueryOutputConfiguration {
    */
   public static BigQueryFileFormat getFileFormat(Configuration conf) throws IOException {
     // Ensure the BigQuery output information is valid.
-    String fileFormatName =
-        ConfigurationUtil.getMandatoryConfig(conf, BigQueryConfiguration.OUTPUT_FILE_FORMAT_KEY);
+    String fileFormatName = getMandatoryConfig(conf, OUTPUT_FILE_FORMAT);
 
     return BigQueryFileFormat.fromName(fileFormatName);
   }
@@ -412,15 +415,15 @@ public class BigQueryOutputConfiguration {
   @SuppressWarnings("rawtypes")
   public static FileOutputFormat getFileOutputFormat(Configuration conf) throws IOException {
     // Ensure the BigQuery output information is valid.
-    ConfigurationUtil.getMandatoryConfig(conf, BigQueryConfiguration.OUTPUT_FORMAT_CLASS_KEY);
+    getMandatoryConfig(conf, OUTPUT_FORMAT_CLASS);
 
-    Class<?> confClass = conf.getClass(BigQueryConfiguration.OUTPUT_FORMAT_CLASS_KEY, null);
+    Class<?> confClass = OUTPUT_FORMAT_CLASS.get(conf, conf::getClass);
 
     // Fail if the default value was used, or the class isn't a FileOutputFormat.
     if (confClass == null) {
       throw new IOException(
           "Unable to resolve value for the configuration key '"
-              + BigQueryConfiguration.OUTPUT_FORMAT_CLASS_KEY
+              + OUTPUT_FORMAT_CLASS.getKey()
               + "'.");
     } else if (!FileOutputFormat.class.isAssignableFrom(confClass)) {
       throw new IOException("The class " + confClass.getName() + " is not a FileOutputFormat.");
@@ -467,9 +470,7 @@ public class BigQueryOutputConfiguration {
    * @return the create disposition of the output table.
    */
   public static String getCreateDisposition(Configuration conf) {
-    return conf.get(
-        BigQueryConfiguration.OUTPUT_TABLE_CREATE_DISPOSITION_KEY,
-        BigQueryConfiguration.OUTPUT_TABLE_CREATE_DISPOSITION_DEFAULT);
+    return OUTPUT_TABLE_CREATE_DISPOSITION.get(conf, conf::get);
   }
 
 
@@ -482,9 +483,7 @@ public class BigQueryOutputConfiguration {
    * @return the write disposition of the output table.
    */
   public static String getWriteDisposition(Configuration conf) {
-    return conf.get(
-        BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_KEY,
-        BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_DEFAULT);
+    return OUTPUT_TABLE_WRITE_DISPOSITION.get(conf, conf::get);
   }
 
   /**

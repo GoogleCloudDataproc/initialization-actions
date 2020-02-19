@@ -13,6 +13,9 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.DYNAMIC_FILE_LIST_RECORD_READER_POLL_INTERVAL_MS;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.DYNAMIC_FILE_LIST_RECORD_READER_POLL_MAX_ATTEMPTS;
+
 import com.google.api.client.util.Sleeper;
 import com.google.cloud.hadoop.util.HadoopToStringUtil;
 import com.google.common.annotations.VisibleForTesting;
@@ -125,15 +128,9 @@ public class DynamicFileListRecordReader<K, V>
     Configuration conf = context.getConfiguration();
 
     // Grab pollIntervalMs out of the config.
-    pollIntervalMs =
-        conf.getInt(
-            BigQueryConfiguration.DYNAMIC_FILE_LIST_RECORD_READER_POLL_INTERVAL_MS_KEY,
-            BigQueryConfiguration.DYNAMIC_FILE_LIST_RECORD_READER_POLL_INTERVAL_MS_DEFAULT);
+    pollIntervalMs = DYNAMIC_FILE_LIST_RECORD_READER_POLL_INTERVAL_MS.get(conf, conf::getInt);
     // max number of attempts to wait for next file
-    maxPollAttempts =
-        conf.getInt(
-            BigQueryConfiguration.DYNAMIC_FILE_LIST_RECORD_READER_POLL_MAX_ATTEMPTS_KEY,
-            BigQueryConfiguration.DYNAMIC_FILE_LIST_RECORD_READER_POLL_MAX_ATTEMPTS_DEFAULT);
+    maxPollAttempts = DYNAMIC_FILE_LIST_RECORD_READER_POLL_MAX_ATTEMPTS.get(conf, conf::getInt);
 
     fileSystem = inputDirectoryAndPattern.getFileSystem(conf);
 

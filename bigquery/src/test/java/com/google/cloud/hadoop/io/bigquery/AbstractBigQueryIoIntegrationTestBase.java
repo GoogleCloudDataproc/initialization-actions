@@ -15,7 +15,7 @@ package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_EMAIL;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_KEY_FILE;
-import static com.google.cloud.hadoop.io.bigquery.BigQueryFactory.BIGQUERY_CONFIG_PREFIX;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.BIGQUERY_CONFIG_PREFIX;
 import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX;
 import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX;
 import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX;
@@ -309,7 +309,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     config.clear();
     setConfigForGcsFromBigquerySettings();
     BigQueryConfiguration.configureBigQueryInput(config, projectIdValue, testDataset, testTable);
-    config.set(BigQueryConfiguration.GCS_BUCKET_KEY, testBucket);
+    config.set(BigQueryConfiguration.GCS_BUCKET.getKey(), testBucket);
 
     // Invoke the export/read flow by calling getSplits and createRecordReader.
     List<InputSplit> splits = inputFormat.getSplits(mockJobContext);

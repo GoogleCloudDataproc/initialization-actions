@@ -13,6 +13,16 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.INPUT_DATASET_ID;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.INPUT_PROJECT_ID;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.INPUT_TABLE_ID;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.MANDATORY_CONFIG_PROPERTIES_INPUT;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.PROJECT_ID;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.SELECTED_FIELDS;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.SKEW_LIMIT;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.SQL_FILTER;
+import static com.google.cloud.hadoop.util.ConfigurationUtil.getMandatoryConfig;
+
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.bigquery.storage.v1beta1.BigQueryStorageClient;
@@ -22,7 +32,7 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionReques
 import com.google.cloud.bigquery.storage.v1beta1.Storage.DataFormat;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
 import com.google.cloud.bigquery.storage.v1beta1.TableReferenceProto;
-import com.google.cloud.hadoop.util.ConfigurationUtil;
+import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
 import com.google.common.base.Preconditions;
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -53,8 +63,8 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 @InterfaceStability.Evolving
 public class DirectBigQueryInputFormat extends InputFormat<NullWritable, GenericRecord> {
 
-  private static final String DIRECT_PARALLELISM_KEY = MRJobConfig.NUM_MAPS;
-  private static final int DIRECT_PARALLELISM_DEFAULT = 10;
+  private static final HadoopConfigurationProperty<Integer> DIRECT_PARALLELISM =
+      new HadoopConfigurationProperty<>(MRJobConfig.NUM_MAPS, 10);
 
   @Override
   public List<InputSplit> getSplits(JobContext context) throws IOException {
@@ -66,13 +76,11 @@ public class DirectBigQueryInputFormat extends InputFormat<NullWritable, Generic
     } catch (GeneralSecurityException gse) {
       throw new IOException("Failed to create BigQuery client", gse);
     }
-    double skewLimit =
-        configuration.getDouble(
-            BigQueryConfiguration.SKEW_LIMIT_KEY, BigQueryConfiguration.SKEW_LIMIT_DEFAULT);
+    double skewLimit = SKEW_LIMIT.get(configuration, configuration::getDouble);
     Preconditions.checkArgument(
         skewLimit >= 1.0,
         "%s is less than 1; not all records would be read. Exiting",
-        BigQueryConfiguration.SKEW_LIMIT_KEY);
+        SKEW_LIMIT.getKey());
     Table table = getTable(configuration, bigQueryHelper);
     ReadSession session = startSession(configuration, table, client);
     long numRows = table.getNumRows().longValue();
@@ -89,11 +97,10 @@ public class DirectBigQueryInputFormat extends InputFormat<NullWritable, Generic
   private static Table getTable(Configuration configuration, BigQueryHelper bigQueryHelper)
       throws IOException {
     Map<String, String> mandatoryConfig =
-        ConfigurationUtil.getMandatoryConfig(
-            configuration, BigQueryConfiguration.MANDATORY_CONFIG_PROPERTIES_INPUT);
-    String inputProjectId = mandatoryConfig.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY);
-    String datasetId = mandatoryConfig.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY);
-    String tableName = mandatoryConfig.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY);
+        getMandatoryConfig(configuration, MANDATORY_CONFIG_PROPERTIES_INPUT);
+    String inputProjectId = mandatoryConfig.get(INPUT_PROJECT_ID.getKey());
+    String datasetId = mandatoryConfig.get(INPUT_DATASET_ID.getKey());
+    String tableName = mandatoryConfig.get(INPUT_TABLE_ID.getKey());
 
     TableReference tableReference =
         new TableReference()
@@ -106,10 +113,9 @@ public class DirectBigQueryInputFormat extends InputFormat<NullWritable, Generic
   private static ReadSession startSession(
       Configuration configuration, Table table, BigQueryStorageClient client) {
     // Extract relevant configuration settings.
-    String jobProjectId = configuration.get(BigQueryConfiguration.PROJECT_ID_KEY);
-    String filter = configuration.get(BigQueryConfiguration.SQL_FILTER_KEY, "");
-    Collection<String> selectedFields =
-        configuration.getStringCollection(BigQueryConfiguration.SELECTED_FIELDS_KEY);
+    String jobProjectId = PROJECT_ID.get(configuration, configuration::get);
+    String filter = SQL_FILTER.get(configuration, configuration::get);
+    Collection<String> selectedFields = SELECTED_FIELDS.getStringCollection(configuration);
 
     Builder readOptions = TableReadOptions.newBuilder().setRowRestriction(filter);
     if (!selectedFields.isEmpty()) {
@@ -122,16 +128,12 @@ public class DirectBigQueryInputFormat extends InputFormat<NullWritable, Generic
                     .setProjectId(table.getTableReference().getProjectId())
                     .setDatasetId(table.getTableReference().getDatasetId())
                     .setTableId(table.getTableReference().getTableId()))
-            .setRequestedStreams(getParallelism(configuration))
+            .setRequestedStreams(DIRECT_PARALLELISM.get(configuration, configuration::getInt))
             .setParent("projects/" + jobProjectId)
             .setReadOptions(readOptions)
             .setFormat(DataFormat.AVRO)
             .build();
     return client.createReadSession(request);
-  }
-
-  private static int getParallelism(Configuration configuration) {
-    return configuration.getInt(DIRECT_PARALLELISM_KEY, DIRECT_PARALLELISM_DEFAULT);
   }
 
   @Override

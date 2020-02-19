@@ -1,5 +1,7 @@
 package com.google.cloud.hadoop.io.bigquery.samples;
 
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.PROJECT_ID;
+
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.GsonBigQueryInputFormat;
@@ -7,6 +9,7 @@ import com.google.cloud.hadoop.io.bigquery.output.BigQueryOutputConfiguration;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableFieldSchema;
 import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
 import com.google.cloud.hadoop.io.bigquery.output.IndirectBigQueryOutputFormat;
+import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
 import com.google.gson.JsonElement;
@@ -28,15 +31,13 @@ import org.apache.hadoop.util.GenericOptionsParser;
  */
 public class WordCount {
 
-  /** The configuration key used to specify the BigQuery field name ("column name"). */
-  public static final String WORDCOUNT_WORD_FIELDNAME_KEY = "mapred.bq.samples.wordcount.word.key";
-
   /**
-   * Default value for the configuration entry specified by {@code WORDCOUNT_WORD_FIELDNAME_KEY}.
-   * Examples: {@code word} in {@code publicdata:samples.shakespeare} or {@code repository_name} in
-   * {@code publicdata:samples.github_timeline}.
+   * The configuration key used to specify the BigQuery field name ("column name"). Examples: {@code
+   * word} in {@code publicdata:samples.shakespeare} or {@code repository_name} in {@code
+   * publicdata:samples.github_timeline}.
    */
-  public static final String WORDCOUNT_WORD_FIELDNAME_VALUE_DEFAULT = "word";
+  public static final HadoopConfigurationProperty<String> WORDCOUNT_WORD_FIELDNAME =
+      new HadoopConfigurationProperty<>("mapred.bq.samples.wordcount.word.key", "word");
 
   /**
    * Mapper function for the WordCount job. For input, it consumes a LongWritable and JsonObject as
@@ -55,7 +56,7 @@ public class WordCount {
         throws IOException, InterruptedException {
       // Find the runtime-configured key for the field name we're looking for in the map task.
       Configuration conf = context.getConfiguration();
-      wordKey = conf.get(WORDCOUNT_WORD_FIELDNAME_KEY, WORDCOUNT_WORD_FIELDNAME_VALUE_DEFAULT);
+      wordKey = WORDCOUNT_WORD_FIELDNAME.get(conf, conf::get);
     }
 
     @Override
@@ -175,7 +176,7 @@ public class WordCount {
     Configuration conf = job.getConfiguration();
 
     // Set the job-level projectId.
-    conf.set(BigQueryConfiguration.PROJECT_ID_KEY, projectId);
+    conf.set(PROJECT_ID.getKey(), projectId);
 
     // Configure input and output.
     BigQueryConfiguration.configureBigQueryInput(conf, inputQualifiedTableId);
@@ -187,7 +188,7 @@ public class WordCount {
         BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
         TextOutputFormat.class);
 
-    conf.set(WORDCOUNT_WORD_FIELDNAME_KEY, inputTableFieldId);
+    conf.set(WORDCOUNT_WORD_FIELDNAME.getKey(), inputTableFieldId);
 
     // This helps Hadoop identify the Jar which contains the mapper and reducer
     // by specifying a class in that Jar. This is required if the jar is being

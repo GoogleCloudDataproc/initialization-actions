@@ -13,12 +13,19 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.INPUT_DATASET_ID;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.INPUT_PROJECT_ID;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.INPUT_TABLE_ID;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.MANDATORY_CONFIG_PROPERTIES_INPUT;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.PROJECT_ID;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.TEMP_GCS_PATH;
+import static com.google.cloud.hadoop.util.ConfigurationUtil.getMandatoryConfig;
 import static com.google.common.flogger.LazyArgs.lazy;
 
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.Table;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.cloud.hadoop.util.ConfigurationUtil;
+import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
 import com.google.cloud.hadoop.util.HadoopToStringUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -48,10 +55,11 @@ public abstract class AbstractBigQueryInputFormat<K, V>
     extends InputFormat<K, V> implements DelegateRecordReaderFactory<K, V> {
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
-  /**
-   * Configuration key for InputFormat class name.
-   */
-  public static final String INPUT_FORMAT_CLASS_KEY = "mapreduce.inputformat.class";
+
+  /** Configuration key for InputFormat class name. */
+  public static final HadoopConfigurationProperty<Class<?>> INPUT_FORMAT_CLASS =
+      new HadoopConfigurationProperty<>(
+          "mapreduce.inputformat.class", AbstractBigQueryInputFormat.class);
 
   /**
    * The keyword for the type of BigQueryTable store externally.
@@ -86,7 +94,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
    * Configure a directory to which we will export BigQuery data
    */
   public static void setTemporaryCloudStorageDirectory(Configuration configuration, String path) {
-    configuration.set(BigQueryConfiguration.TEMP_GCS_PATH_KEY, path);
+    configuration.set(TEMP_GCS_PATH.getKey(), path);
   }
 
   /** Get the ExportFileFormat that this input format supports. */
@@ -96,7 +104,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
   protected static ExportFileFormat getExportFileFormat(Configuration configuration) {
     Class<? extends AbstractBigQueryInputFormat<?, ?>> clazz =
         (Class<? extends AbstractBigQueryInputFormat<?, ?>>)
-            configuration.getClass(INPUT_FORMAT_CLASS_KEY, AbstractBigQueryInputFormat.class);
+            INPUT_FORMAT_CLASS.get(configuration, configuration::getClass);
     Preconditions.checkState(
         AbstractBigQueryInputFormat.class.isAssignableFrom(clazz),
         "Expected input format to derive from AbstractBigQueryInputFormat");
@@ -127,7 +135,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
 
     String exportPath =
         BigQueryConfiguration.getTemporaryPathRoot(configuration, context.getJobID());
-    configuration.set(BigQueryConfiguration.TEMP_GCS_PATH_KEY, exportPath);
+    configuration.set(TEMP_GCS_PATH.getKey(), exportPath);
 
     Export export = constructExport(
         configuration,
@@ -182,12 +190,12 @@ public abstract class AbstractBigQueryInputFormat<K, V>
     logger.atFine().log("constructExport() with export path %s", exportPath);
 
     // Extract relevant configuration settings.
-    Map<String, String> mandatoryConfig = ConfigurationUtil.getMandatoryConfig(
-        configuration, BigQueryConfiguration.MANDATORY_CONFIG_PROPERTIES_INPUT);
-    String jobProjectId = mandatoryConfig.get(BigQueryConfiguration.PROJECT_ID_KEY);
-    String inputProjectId = mandatoryConfig.get(BigQueryConfiguration.INPUT_PROJECT_ID_KEY);
-    String datasetId = mandatoryConfig.get(BigQueryConfiguration.INPUT_DATASET_ID_KEY);
-    String tableName = mandatoryConfig.get(BigQueryConfiguration.INPUT_TABLE_ID_KEY);
+    Map<String, String> mandatoryConfig =
+        getMandatoryConfig(configuration, MANDATORY_CONFIG_PROPERTIES_INPUT);
+    String jobProjectId = mandatoryConfig.get(PROJECT_ID.getKey());
+    String inputProjectId = mandatoryConfig.get(INPUT_PROJECT_ID.getKey());
+    String datasetId = mandatoryConfig.get(INPUT_DATASET_ID.getKey());
+    String tableName = mandatoryConfig.get(INPUT_TABLE_ID.getKey());
 
     TableReference exportTableReference = new TableReference()
         .setDatasetId(datasetId)
@@ -220,8 +228,8 @@ public abstract class AbstractBigQueryInputFormat<K, V>
    */
   public static void cleanupJob(Configuration configuration, JobID jobId) throws IOException {
     String exportPathRoot = BigQueryConfiguration.getTemporaryPathRoot(configuration, jobId);
-    configuration.set(BigQueryConfiguration.TEMP_GCS_PATH_KEY, exportPathRoot);
-    Bigquery bigquery = null;
+    configuration.set(TEMP_GCS_PATH.getKey(), exportPathRoot);
+    Bigquery bigquery;
     try {
       bigquery = new BigQueryFactory().getBigQuery(configuration);
     } catch (GeneralSecurityException gse) {
@@ -242,8 +250,7 @@ public abstract class AbstractBigQueryInputFormat<K, V>
       throws IOException {
     logger.atFine().log("cleanupJob(Bigquery, Configuration)");
 
-    String gcsPath = ConfigurationUtil.getMandatoryConfig(
-        config, BigQueryConfiguration.TEMP_GCS_PATH_KEY);
+    String gcsPath = getMandatoryConfig(config, TEMP_GCS_PATH);
 
     Export export = constructExport(
         config, getExportFileFormat(config), gcsPath, bigQueryHelper, null);

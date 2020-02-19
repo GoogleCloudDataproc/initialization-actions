@@ -80,11 +80,11 @@ public class IndirectBigQueryOutputCommitterTest {
 
   /** Sample write disposition. */
   private static final String TEST_WRITE_DISPOSITION =
-      BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_DEFAULT;
+      BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION.getDefault();
 
   /** Sample create disposition. */
   private static final String TEST_CREATE_DISPOSITION =
-      BigQueryConfiguration.OUTPUT_TABLE_CREATE_DISPOSITION_DEFAULT;
+      BigQueryConfiguration.OUTPUT_TABLE_CREATE_DISPOSITION.getDefault();
 
   /** Sample output format class for the configuration. */
   @SuppressWarnings("rawtypes")
@@ -161,7 +161,8 @@ public class IndirectBigQueryOutputCommitterTest {
         TEST_OUTPUT_CLASS);
     BigQueryOutputConfiguration.setKmsKeyName(conf, TEST_KMS_KEY_NAME);
     conf.set(
-        BigQueryConfiguration.OUTPUT_TABLE_PARTITIONING_KEY, TEST_TIME_PARTITIONING.getAsJson());
+        BigQueryConfiguration.OUTPUT_TABLE_PARTITIONING.getKey(),
+        TEST_TIME_PARTITIONING.getAsJson());
 
     // Setup sample data.
     outputTableRef = BigQueryOutputConfiguration.getTableReference(conf);

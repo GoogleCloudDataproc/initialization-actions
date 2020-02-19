@@ -13,6 +13,8 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.BIGQUERY_CONFIG_PREFIX;
+
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
@@ -35,7 +37,6 @@ import org.apache.hadoop.conf.Configuration;
  */
 public class BigQueryFactory {
 
-  public static final String BIGQUERY_CONFIG_PREFIX = "mapred.bq";
   // BigQuery scopes for OAUTH.
   public static final ImmutableList<String> BIGQUERY_OAUTH_SCOPES =
       ImmutableList.of("https://www.googleapis.com/auth/bigquery");
@@ -70,7 +71,7 @@ public class BigQueryFactory {
   static {
     VERSION = PropertyUtil.getPropertyOrDefault(
         BigQueryFactory.class, PROPERTIES_FILE, VERSION_PROPERTY, UNKNOWN_VERSION);
-    logger.atInfo().log("Bigquery connector version %s", VERSION);
+    logger.atInfo().log("BigQuery connector version %s", VERSION);
     BQC_ID = String.format("Hadoop BigQuery Connector/%s", VERSION);
   }
 

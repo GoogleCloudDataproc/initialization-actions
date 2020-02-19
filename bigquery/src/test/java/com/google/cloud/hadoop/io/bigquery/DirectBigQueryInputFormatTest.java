@@ -89,14 +89,14 @@ public class DirectBigQueryInputFormatTest {
     when(bqHelper.getTable(any(TableReference.class))).thenReturn(table);
 
     config = new JobConf();
-    config.set(BigQueryConfiguration.PROJECT_ID_KEY, jobProjectId);
-    config.set(BigQueryConfiguration.INPUT_PROJECT_ID_KEY, dataProjectId);
-    config.set(BigQueryConfiguration.INPUT_DATASET_ID_KEY, datasetId);
-    config.set(BigQueryConfiguration.INPUT_TABLE_ID_KEY, tableId);
+    config.set(BigQueryConfiguration.PROJECT_ID.getKey(), jobProjectId);
+    config.set(BigQueryConfiguration.INPUT_PROJECT_ID.getKey(), dataProjectId);
+    config.set(BigQueryConfiguration.INPUT_DATASET_ID.getKey(), datasetId);
+    config.set(BigQueryConfiguration.INPUT_TABLE_ID.getKey(), tableId);
     config.set(MRJobConfig.NUM_MAPS, "3");
-    config.set(BigQueryConfiguration.SKEW_LIMIT_KEY, "1.2");
-    config.set(BigQueryConfiguration.SQL_FILTER_KEY, "foo == 0");
-    config.set(BigQueryConfiguration.SELECTED_FIELDS_KEY, "foo,bar");
+    config.set(BigQueryConfiguration.SKEW_LIMIT.getKey(), "1.2");
+    config.set(BigQueryConfiguration.SQL_FILTER.getKey(), "foo == 0");
+    config.set(BigQueryConfiguration.SELECTED_FIELDS.getKey(), "foo,bar");
 
     input = new TestDirectBigQueryInputFormat();
   }

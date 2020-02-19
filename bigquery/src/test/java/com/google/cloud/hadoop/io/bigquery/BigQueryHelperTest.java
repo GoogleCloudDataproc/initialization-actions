@@ -185,8 +185,8 @@ public class BigQueryHelperTest {
         /* timePartitioning= */ null,
         kmsKeyName,
         BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
-        BigQueryConfiguration.OUTPUT_TABLE_CREATE_DISPOSITION_DEFAULT,
-        BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION_DEFAULT,
+        BigQueryConfiguration.OUTPUT_TABLE_CREATE_DISPOSITION.getDefault(),
+        BigQueryConfiguration.OUTPUT_TABLE_WRITE_DISPOSITION.getDefault(),
         ImmutableList.of("test-import-path"),
         true);
 

@@ -13,6 +13,10 @@
  */
 package com.google.cloud.hadoop.io.bigquery.samples;
 
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.PROJECT_ID;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.SELECTED_FIELDS;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.SQL_FILTER;
+
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.DirectBigQueryInputFormat;
 import java.io.IOException;
@@ -107,14 +111,14 @@ public class DirectBigQueryWordCount {
     Configuration conf = job.getConfiguration();
 
     // Set the job-level projectId.
-    conf.set(BigQueryConfiguration.PROJECT_ID_KEY, projectId);
+    conf.set(PROJECT_ID.getKey(), projectId);
 
     // Configure input and output.
     BigQueryConfiguration.configureBigQueryInput(conf, inputQualifiedTableId);
 
     // Set column and predicate filters
-    conf.set(BigQueryConfiguration.SELECTED_FIELDS_KEY, "word,word_count");
-    conf.set(BigQueryConfiguration.SQL_FILTER_KEY, "word >= 'A' AND word <= 'zzz'");
+    conf.set(SELECTED_FIELDS.getKey(), "word,word_count");
+    conf.set(SQL_FILTER.getKey(), "word >= 'A' AND word <= 'zzz'");
     conf.set(MRJobConfig.NUM_MAPS, "999");
 
     // This helps Hadoop identify the Jar which contains the mapper and reducer by specifying a

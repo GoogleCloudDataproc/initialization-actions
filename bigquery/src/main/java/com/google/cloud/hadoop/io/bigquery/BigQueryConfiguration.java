@@ -13,10 +13,11 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.cloud.hadoop.util.ConfigurationUtil.getMandatoryConfig;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.cloud.hadoop.util.ConfigurationUtil;
+import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
@@ -37,52 +38,62 @@ import org.apache.hadoop.mapreduce.JobID;
  * Alternatively, the properties can be set in the configuration xml files with proper values.
  */
 public class BigQueryConfiguration {
+
+  public static final String BIGQUERY_CONFIG_PREFIX = "mapred.bq";
+
   /**
    * Configuration key for project ID on whose behalf to perform BigQuery operations, and the
    * default project for referencing datasets when input/output datasets are not explicitly
    * specified.
    */
-  public static final String PROJECT_ID_KEY = "mapred.bq.project.id";
+  public static final HadoopConfigurationProperty<String> PROJECT_ID =
+      new HadoopConfigurationProperty<>("mapred.bq.project.id");
 
   // Configuration keys for input connector.
 
   /** Configuration key for project ID of the dataset accessed by this input connector. */
-  public static final String INPUT_PROJECT_ID_KEY = "mapred.bq.input.project.id";
+  public static final HadoopConfigurationProperty<String> INPUT_PROJECT_ID =
+      new HadoopConfigurationProperty<>("mapred.bq.input.project.id");
 
   /** Configuration key for ID of the dataset accessed by this input connector. */
-  public static final String INPUT_DATASET_ID_KEY = "mapred.bq.input.dataset.id";
+  public static final HadoopConfigurationProperty<String> INPUT_DATASET_ID =
+      new HadoopConfigurationProperty<>("mapred.bq.input.dataset.id");
 
   /** Configuration key for ID of the table written by this input connector. */
-  public static final String INPUT_TABLE_ID_KEY = "mapred.bq.input.table.id";
+  public static final HadoopConfigurationProperty<String> INPUT_TABLE_ID =
+      new HadoopConfigurationProperty<>("mapred.bq.input.table.id");
 
   /** Configuration key for the GCS temp path this connector uses. */
-  public static final String TEMP_GCS_PATH_KEY = "mapred.bq.temp.gcs.path";
+  public static final HadoopConfigurationProperty<String> TEMP_GCS_PATH =
+      new HadoopConfigurationProperty<>("mapred.bq.temp.gcs.path");
 
-  /** Configuration key for the GCS bucket holding TEMP_GCS_PATH_KEY */
-  public static final String GCS_BUCKET_KEY = "mapred.bq.gcs.bucket";
+  /** Configuration key for the GCS bucket holding TEMP_GCS_PATH */
+  public static final HadoopConfigurationProperty<String> GCS_BUCKET =
+      new HadoopConfigurationProperty<>("mapred.bq.gcs.bucket");
 
   /** Configuration key for whether to delete the intermediate GCS-export files. */
-  public static final String DELETE_EXPORT_FILES_FROM_GCS_KEY =
-      "mapred.bq.input.export.files.delete";
-  public static final boolean DELETE_EXPORT_FILES_FROM_GCS_DEFAULT = true;
+  public static final HadoopConfigurationProperty<Boolean> DELETE_EXPORT_FILES_FROM_GCS =
+      new HadoopConfigurationProperty<>("mapred.bq.input.export.files.delete", true);
 
   /**
-   * Number of milliseconds to wait between listStatus calls inside of nextKeyValue when no
-   * new files are available yet for reading; not that this polling is not done when files
-   * are already available for reading.
+   * Number of milliseconds to wait between listStatus calls inside of nextKeyValue when no new
+   * files are available yet for reading; not that this polling is not done when files are already
+   * available for reading.
    */
-  public static final String DYNAMIC_FILE_LIST_RECORD_READER_POLL_INTERVAL_MS_KEY =
-      "mapred.bq.dynamic.file.list.record.reader.poll.interval";
-  public static final int DYNAMIC_FILE_LIST_RECORD_READER_POLL_INTERVAL_MS_DEFAULT = 10_000;
+  public static final HadoopConfigurationProperty<Integer>
+      DYNAMIC_FILE_LIST_RECORD_READER_POLL_INTERVAL_MS =
+          new HadoopConfigurationProperty<>(
+              "mapred.bq.dynamic.file.list.record.reader.poll.interval", 10_000);
 
-  public static final String DYNAMIC_FILE_LIST_RECORD_READER_POLL_MAX_ATTEMPTS_KEY =
-      "mapred.bq.dynamic.file.list.record.reader.poll.max.attempts";
-  public static final int DYNAMIC_FILE_LIST_RECORD_READER_POLL_MAX_ATTEMPTS_DEFAULT = -1;
+  public static final HadoopConfigurationProperty<Integer>
+      DYNAMIC_FILE_LIST_RECORD_READER_POLL_MAX_ATTEMPTS =
+          new HadoopConfigurationProperty<>(
+              "mapred.bq.dynamic.file.list.record.reader.poll.max.attempts", -1);
 
   /** A list of all necessary Configuration keys for input connector. */
-  public static final ImmutableList<String> MANDATORY_CONFIG_PROPERTIES_INPUT =
-      ImmutableList.of(
-          PROJECT_ID_KEY, INPUT_PROJECT_ID_KEY, INPUT_DATASET_ID_KEY, INPUT_TABLE_ID_KEY);
+  public static final ImmutableList<HadoopConfigurationProperty<?>>
+      MANDATORY_CONFIG_PROPERTIES_INPUT =
+          ImmutableList.of(PROJECT_ID, INPUT_PROJECT_ID, INPUT_DATASET_ID, INPUT_TABLE_ID);
 
   // Configuration keys for output connector.
 
@@ -90,111 +101,108 @@ public class BigQueryConfiguration {
    * Configuration key for the output project ID of the dataset accessed by the output format. This
    * key is stored as a {@link String}.
    */
-  public static final String OUTPUT_PROJECT_ID_KEY = "mapred.bq.output.project.id";
+  public static final HadoopConfigurationProperty<String> OUTPUT_PROJECT_ID =
+      new HadoopConfigurationProperty<>("mapred.bq.output.project.id");
 
   /**
    * Configuration key for numeric ID of the output dataset accessed by the output format. This key
    * is stored as a {@link String}.
    */
-  public static final String OUTPUT_DATASET_ID_KEY = "mapred.bq.output.dataset.id";
+  public static final HadoopConfigurationProperty<String> OUTPUT_DATASET_ID =
+      new HadoopConfigurationProperty<>("mapred.bq.output.dataset.id");
 
   /**
    * Configuration key for numeric ID of the output table written by the output format. This key is
    * stored as a {@link String}.
    */
-  public static final String OUTPUT_TABLE_ID_KEY = "mapred.bq.output.table.id";
+  public static final HadoopConfigurationProperty<String> OUTPUT_TABLE_ID =
+      new HadoopConfigurationProperty<>("mapred.bq.output.table.id");
 
   /**
    * Configuration key for the output table schema used by the output format. This key is stored as
    * a {@link String}.
    */
-  public static final String OUTPUT_TABLE_SCHEMA_KEY = "mapred.bq.output.table.schema";
+  public static final HadoopConfigurationProperty<String> OUTPUT_TABLE_SCHEMA =
+      new HadoopConfigurationProperty<>("mapred.bq.output.table.schema");
 
   /**
    * Configuration key for the output table partitioning used by the output format. This key is
    * stored as a {@link String}.
    */
-  public static final String OUTPUT_TABLE_PARTITIONING_KEY = "mapred.bq.output.table.partitioning";
+  public static final HadoopConfigurationProperty<String> OUTPUT_TABLE_PARTITIONING =
+      new HadoopConfigurationProperty<>("mapred.bq.output.table.partitioning");
 
   /**
    * Configuration key for the Cloud KMS encryption key that will be used to protect output BigQuery
    * table. This key is stored as a {@link String}.
    */
-  public static final String OUTPUT_TABLE_KMS_KEY_NAME_KEY = "mapred.bq.output.table.kmskeyname";
+  public static final HadoopConfigurationProperty<String> OUTPUT_TABLE_KMS_KEY_NAME =
+      new HadoopConfigurationProperty<>("mapred.bq.output.table.kmskeyname");
 
   /**
    * Configuration key for the write disposition of the output table. This specifies the action that
-   * occurs if the destination table already exists. This key is stored as a {@link String}.
+   * occurs if the destination table already exists. This key is stored as a {@link String}. By
+   * default, if the table already exists, * BigQuery appends data to the output table.
    */
-  public static final String OUTPUT_TABLE_WRITE_DISPOSITION_KEY =
-      "mapred.bq.output.table.writedisposition";
-
-  /**
-   * The default write disposition for the output table. By default, if the table already exists,
-   * BigQuery appends data to the output table.
-   */
-  public static final String OUTPUT_TABLE_WRITE_DISPOSITION_DEFAULT = "WRITE_APPEND";
+  public static final HadoopConfigurationProperty<String> OUTPUT_TABLE_WRITE_DISPOSITION =
+      new HadoopConfigurationProperty<>("mapred.bq.output.table.writedisposition", "WRITE_APPEND");
 
   /**
    * Configuration key for the create disposition of the output table. This specifies if job should
-   * create a table for loading data. This key is stored as a {@link String}.
+   * create a table for loading data. This key is stored as a {@link String}. By default, if the
+   * table does not exist, * BigQuery creates the table.
    */
-  public static final String OUTPUT_TABLE_CREATE_DISPOSITION_KEY =
-      "mapred.bq.output.table.createdisposition";
-
-  /**
-   * The default create disposition for the output table. By default, if the table does not exist,
-   * BigQuery creates the table.
-   */
-  public static final String OUTPUT_TABLE_CREATE_DISPOSITION_DEFAULT = "CREATE_IF_NEEDED";
+  public static final HadoopConfigurationProperty<String> OUTPUT_TABLE_CREATE_DISPOSITION =
+      new HadoopConfigurationProperty<>(
+          "mapred.bq.output.table.createdisposition", "CREATE_IF_NEEDED");
 
   /**
    * Configuration key for the file format of the files outputted by the wrapped FileOutputFormat.
    * This key is stored as a serialized {@link BigQueryFileFormat}.
    */
-  public static final String OUTPUT_FILE_FORMAT_KEY = "mapred.bq.output.gcs.fileformat";
+  public static final HadoopConfigurationProperty<String> OUTPUT_FILE_FORMAT =
+      new HadoopConfigurationProperty<>("mapred.bq.output.gcs.fileformat");
 
   /**
    * Configuration key for the FileOutputFormat class that's going to be wrapped by the output
    * format. This key is stored as a {@link Class}.
    */
-  public static final String OUTPUT_FORMAT_CLASS_KEY = "mapred.bq.output.gcs.outputformatclass";
+  public static final HadoopConfigurationProperty<Class<?>> OUTPUT_FORMAT_CLASS =
+      new HadoopConfigurationProperty<>("mapred.bq.output.gcs.outputformatclass");
 
   /**
    * Configuration key indicating whether temporary data stored in GCS should be deleted after the
    * output job is complete. This is true by default. This key is ignored when using federated
    * storage. This key is stored as a {@link Boolean}.
    */
-  public static final String OUTPUT_CLEANUP_TEMP_KEY = "mapred.bq.output.gcs.cleanup";
+  public static final HadoopConfigurationProperty<Boolean> OUTPUT_CLEANUP_TEMP =
+      new HadoopConfigurationProperty<>("mapred.bq.output.gcs.cleanup", true);
 
   /** Size of the output buffer, in bytes, to use for BigQuery output. */
-  public static final String OUTPUT_WRITE_BUFFER_SIZE_KEY = "mapred.bq.output.buffer.size";
-
-  /** 64MB default write buffer size. */
-  public static final int OUTPUT_WRITE_BUFFER_SIZE_DEFAULT = 64 * 1024 * 1024;
+  public static final HadoopConfigurationProperty<Integer> OUTPUT_WRITE_BUFFER_SIZE =
+      new HadoopConfigurationProperty<>("mapred.bq.output.buffer.size", 64 * 1024 * 1024);
 
   /**
-   * Configure the location of the temporary dataset.
-   * Currently supported values are "US" and "EU".
+   * Configure the location of the temporary dataset. Currently supported values are "US" and "EU".
    */
-  public static final String DATA_LOCATION_KEY = "mapred.bq.output.location";
-
-    /** The default dataset location is US */
-  public static final String DATA_LOCATION_DEFAULT = "US";
+  public static final HadoopConfigurationProperty<String> DATA_LOCATION =
+      new HadoopConfigurationProperty<>("mapred.bq.output.location", "US");
 
   /** A list of all necessary Configuration keys. */
   public static final ImmutableList<String> MANDATORY_CONFIG_PROPERTIES_OUTPUT =
       ImmutableList.of(
-          PROJECT_ID_KEY,
-          OUTPUT_PROJECT_ID_KEY,
-          OUTPUT_DATASET_ID_KEY,
-          OUTPUT_TABLE_ID_KEY,
-          OUTPUT_TABLE_SCHEMA_KEY);
+          PROJECT_ID.getKey(),
+          OUTPUT_PROJECT_ID.getKey(),
+          OUTPUT_DATASET_ID.getKey(),
+          OUTPUT_TABLE_ID.getKey(),
+          OUTPUT_TABLE_SCHEMA.getKey());
 
-  public static final String SQL_FILTER_KEY = "mapred.bq.input.sql.filter";
-  public static final String SELECTED_FIELDS_KEY = "mapred.bq.input.selected.fields";
-  public static final String SKEW_LIMIT_KEY = "mapred.bq.input.skew.limit";
-  public static final double SKEW_LIMIT_DEFAULT = 1.5;
+  public static final HadoopConfigurationProperty<String> SQL_FILTER =
+      new HadoopConfigurationProperty<>("mapred.bq.input.sql.filter", "");
+  public static final HadoopConfigurationProperty<String> SELECTED_FIELDS =
+      new HadoopConfigurationProperty<>("mapred.bq.input.selected.fields");
+  public static final HadoopConfigurationProperty<Double> SKEW_LIMIT =
+      new HadoopConfigurationProperty<>("mapred.bq.input.skew.limit", 1.5);
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
@@ -221,25 +229,25 @@ public class BigQueryConfiguration {
     // Project is optional, if not set use default project.
     if (!Strings.isNullOrEmpty(projectId)) {
       logger.atInfo().log("Using specified project-id '%s' for input", projectId);
-      config.set(INPUT_PROJECT_ID_KEY, projectId);
+      config.set(INPUT_PROJECT_ID.getKey(), projectId);
 
       // For user-friendliness, we'll helpfully backfill the input-specific projectId into the
       // "global" projectId for now.
       // TODO(user): Maybe don't try to be user-friendly here.
-      if (Strings.isNullOrEmpty(config.get(PROJECT_ID_KEY))) {
+      if (Strings.isNullOrEmpty(PROJECT_ID.get(config, config::get))) {
         logger.atWarning().log(
             "No job-level projectId specified in '%s', using '%s' for it.",
-            PROJECT_ID_KEY, projectId);
-        config.set(PROJECT_ID_KEY, projectId);
+            PROJECT_ID.getKey(), projectId);
+        config.set(PROJECT_ID.getKey(), projectId);
       }
     } else {
-      String defaultProjectId = ConfigurationUtil.getMandatoryConfig(config, PROJECT_ID_KEY);
+      String defaultProjectId = getMandatoryConfig(config, PROJECT_ID);
       logger.atInfo().log(
           "Using default project-id '%s' since none specified for input.", defaultProjectId);
-      config.set(INPUT_PROJECT_ID_KEY, defaultProjectId);
+      config.set(INPUT_PROJECT_ID.getKey(), defaultProjectId);
     }
-    config.set(INPUT_DATASET_ID_KEY, datasetId);
-    config.set(INPUT_TABLE_ID_KEY, tableId);
+    config.set(INPUT_DATASET_ID.getKey(), datasetId);
+    config.set(INPUT_TABLE_ID.getKey(), tableId);
   }
 
   /**
@@ -284,26 +292,26 @@ public class BigQueryConfiguration {
     // Project is optional, if not set use default project.
     if (!Strings.isNullOrEmpty(projectId)) {
       logger.atInfo().log("Using specified project-id '%s' for output", projectId);
-      config.set(OUTPUT_PROJECT_ID_KEY, projectId);
+      config.set(OUTPUT_PROJECT_ID.getKey(), projectId);
 
       // For user-friendliness, we'll helpfully backfill the input-specific projectId into the
       // "global" projectId for now.
       // TODO(user): Maybe don't try to be user-friendly here.
-      if (Strings.isNullOrEmpty(config.get(PROJECT_ID_KEY))) {
+      if (Strings.isNullOrEmpty(PROJECT_ID.get(config, config::get))) {
         logger.atWarning().log(
             "No job-level projectId specified in '%s', using '%s' for it.",
-            PROJECT_ID_KEY, projectId);
-        config.set(PROJECT_ID_KEY, projectId);
+            PROJECT_ID.getKey(), projectId);
+        config.set(PROJECT_ID.getKey(), projectId);
       }
     } else {
-      String defaultProjectId = ConfigurationUtil.getMandatoryConfig(config, PROJECT_ID_KEY);
+      String defaultProjectId = getMandatoryConfig(config, PROJECT_ID);
       logger.atInfo().log(
           "Using default project-id '%s' since none specified for output.", defaultProjectId);
-      config.set(OUTPUT_PROJECT_ID_KEY, defaultProjectId);
+      config.set(OUTPUT_PROJECT_ID.getKey(), defaultProjectId);
     }
-    config.set(OUTPUT_DATASET_ID_KEY, datasetId);
-    config.set(OUTPUT_TABLE_ID_KEY, tableId);
-    config.set(OUTPUT_TABLE_SCHEMA_KEY, tableSchema);
+    config.set(OUTPUT_DATASET_ID.getKey(), datasetId);
+    config.set(OUTPUT_TABLE_ID.getKey(), tableId);
+    config.set(OUTPUT_TABLE_SCHEMA.getKey(), tableSchema);
   }
 
   /**
@@ -324,28 +332,30 @@ public class BigQueryConfiguration {
   }
 
   /**
-   * Resolves to provided {@link #TEMP_GCS_PATH_KEY} or fallbacks to a temporary path based on
-   * {@link #GCS_BUCKET_KEY} and {@code jobId}.
+   * Resolves to provided {@link #TEMP_GCS_PATH} or fallbacks to a temporary path based on {@link
+   * #GCS_BUCKET} and {@code jobId}.
    *
    * @param conf the configuration to fetch the keys from.
    * @param jobId the ID of the job requesting a working path. Optional (could be {@code null}) if
-   *     {@link #TEMP_GCS_PATH_KEY} is provided.
+   *     {@link #TEMP_GCS_PATH} is provided.
    * @return the temporary directory path.
    * @throws IOException if the file system of the derived working path isn't GCS.
    */
   public static String getTemporaryPathRoot(Configuration conf, @Nullable JobID jobId)
       throws IOException {
     // Try using the temporary gcs path.
-    String pathRoot = conf.get(BigQueryConfiguration.TEMP_GCS_PATH_KEY);
+    String pathRoot = conf.get(BigQueryConfiguration.TEMP_GCS_PATH.getKey());
 
     if (Strings.isNullOrEmpty(pathRoot)) {
-      checkNotNull(jobId, "jobId is required if '%s' is not set", TEMP_GCS_PATH_KEY);
+      checkNotNull(jobId, "jobId is required if '%s' is not set", TEMP_GCS_PATH.getKey());
       logger.atInfo().log(
-          "Fetching key '%s' since '%s' isn't set explicitly.", GCS_BUCKET_KEY, TEMP_GCS_PATH_KEY);
+          "Fetching key '%s' since '%s' isn't set explicitly.",
+          GCS_BUCKET.getKey(), TEMP_GCS_PATH.getKey());
 
-      String gcsBucket = conf.get(GCS_BUCKET_KEY);
+      String gcsBucket = conf.get(GCS_BUCKET.getKey());
       if (Strings.isNullOrEmpty(gcsBucket)) {
-        throw new IOException("Must supply a value for configuration setting: " + GCS_BUCKET_KEY);
+        throw new IOException(
+            "Must supply a value for configuration setting: " + GCS_BUCKET.getKey());
       }
 
       pathRoot = String.format("gs://%s/hadoop/tmp/bigquery/%s", gcsBucket, jobId);

@@ -13,12 +13,15 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.DELETE_EXPORT_FILES_FROM_GCS;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.TEMP_GCS_PATH;
+import static com.google.cloud.hadoop.util.ConfigurationUtil.getMandatoryConfig;
+
 import com.google.api.services.bigquery.model.Job;
 import com.google.api.services.bigquery.model.JobConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationExtract;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.Table;
-import com.google.cloud.hadoop.util.ConfigurationUtil;
 import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import org.apache.hadoop.conf.Configuration;
@@ -110,12 +113,8 @@ public abstract class AbstractExportToCloudStorage implements Export {
   @Override
   public void cleanupExport() throws IOException {
     // Delete temporary GCS directory.
-    if (configuration.getBoolean(
-        BigQueryConfiguration.DELETE_EXPORT_FILES_FROM_GCS_KEY,
-        BigQueryConfiguration.DELETE_EXPORT_FILES_FROM_GCS_DEFAULT)) {
-      Path tempPath = new Path(
-          ConfigurationUtil.getMandatoryConfig(
-              configuration, BigQueryConfiguration.TEMP_GCS_PATH_KEY));
+    if (DELETE_EXPORT_FILES_FROM_GCS.get(configuration, configuration::getBoolean)) {
+      Path tempPath = new Path(getMandatoryConfig(configuration, TEMP_GCS_PATH));
       try {
         FileSystem fs = tempPath.getFileSystem(configuration);
         if (fs.exists(tempPath)) {

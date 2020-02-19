@@ -184,7 +184,8 @@ public class DynamicFileListRecordReaderTest {
 
   @Test
   public void nextKeyValue_whenNoFilesAndMaxAttemptsReached_throwsException() throws Exception {
-    config.setInt(BigQueryConfiguration.DYNAMIC_FILE_LIST_RECORD_READER_POLL_MAX_ATTEMPTS_KEY, 1);
+    config.setInt(
+        BigQueryConfiguration.DYNAMIC_FILE_LIST_RECORD_READER_POLL_MAX_ATTEMPTS.getKey(), 1);
     resetRecordReader();
     recordReader.setSleeper(Sleeper.DEFAULT);
 

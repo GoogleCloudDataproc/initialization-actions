@@ -29,32 +29,28 @@ import org.apache.hadoop.conf.Configuration;
  * Helpers for checking the validity of Hadoop configurations.
  */
 public class ConfigurationUtil {
-  /**
-   * Gets value for the given key or throws if value is not found.
-   */
-  public static String getMandatoryConfig(Configuration config, String key)
-      throws IOException {
-    String value = config.get(key);
+
+  /** Gets value for the given key or throws if value is not found. */
+  public static String getMandatoryConfig(
+      Configuration config, HadoopConfigurationProperty<?> property) throws IOException {
+    String value = config.get(property.getKey());
     if (Strings.isNullOrEmpty(value)) {
-      throw new IOException("Must supply a value for configuration setting: " + key);
+      throw new IOException("Must supply a value for configuration setting: " + property.getKey());
     }
     return value;
   }
 
-  /**
-   * Gets value for the given keys or throws if one or more values are not found.
-   */
+  /** Gets value for the given keys or throws if one or more values are not found. */
   public static Map<String, String> getMandatoryConfig(
-      Configuration config, List<String> keys)
-      throws IOException {
+      Configuration config, List<HadoopConfigurationProperty<?>> properties) throws IOException {
     List<String> missingKeys = new ArrayList<>();
     Map<String, String> values = new HashMap<>();
-    for (String key : keys) {
-      String value = config.get(key);
+    for (HadoopConfigurationProperty<?> property : properties) {
+      String value = config.get(property.getKey());
       if (Strings.isNullOrEmpty(value)) {
-        missingKeys.add(key);
+        missingKeys.add(property.getKey());
       } else {
-        values.put(key, value);
+        values.put(property.getKey(), value);
       }
     }
     if (missingKeys.size() > 0) {

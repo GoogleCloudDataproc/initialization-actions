@@ -135,7 +135,7 @@ public class RegionalIntegrationTest {
     conf =
         AbstractBigQueryIoIntegrationTestBase.getConfigForGcsFromBigquerySettings(
             PROJECT_ID, testBucket);
-    conf.set(BigQueryConfiguration.GCS_BUCKET_KEY, testBucket);
+    conf.set(BigQueryConfiguration.GCS_BUCKET.getKey(), testBucket);
 
     String qualifiedInputTableId =
         String.format(QUALIFIED_TABLE_ID_FMT, PROJECT_ID, DATASET_ID, "shakespeare");
@@ -148,10 +148,10 @@ public class RegionalIntegrationTest {
     conf = job.getConfiguration();
 
     // Set the job-level projectId.
-    conf.set(BigQueryConfiguration.PROJECT_ID_KEY, PROJECT_ID);
+    conf.set(BigQueryConfiguration.PROJECT_ID.getKey(), PROJECT_ID);
 
     // Set region for job to run in
-    conf.set(BigQueryConfiguration.DATA_LOCATION_KEY, LOCATION);
+    conf.set(BigQueryConfiguration.DATA_LOCATION.getKey(), LOCATION);
 
     // Configure input and output.
     BigQueryConfiguration.configureBigQueryInput(conf, qualifiedInputTableId);
@@ -230,7 +230,7 @@ public class RegionalIntegrationTest {
         /* timePartitioning= */ null,
         /* kmsKeyName= */ null,
         BigQueryFileFormat.NEWLINE_DELIMITED_JSON,
-        BigQueryConfiguration.OUTPUT_TABLE_CREATE_DISPOSITION_DEFAULT,
+        BigQueryConfiguration.OUTPUT_TABLE_CREATE_DISPOSITION.getDefault(),
         "WRITE_EMPTY",
         ImmutableList.of("gs://" + testBucket + "/shakespeare"),
         /* awaitCompletion= */ true);

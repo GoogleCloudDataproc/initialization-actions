@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.util;
 
+import static com.google.cloud.hadoop.util.ConfigurationUtil.getMandatoryConfig;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
@@ -31,10 +32,12 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class ConfigurationUtilTest {
-  private static final String KEY_ONE = "test";
-  private static final String VALUE_ONE = "test";
-  private static final String KEY_TWO = "test2";
-  private static final String VALUE_TWO = "test2";
+  private static final HadoopConfigurationProperty<String> PROPERTY_ONE =
+      new HadoopConfigurationProperty<>("test-key");
+  private static final String VALUE_ONE = "test-value";
+  private static final HadoopConfigurationProperty<String> PROPERTY_TWO =
+      new HadoopConfigurationProperty<>("test-key2");
+  private static final String VALUE_TWO = "test-value2";
 
   /**
    * Verifies getMandatoryConfig method for single strings.
@@ -43,15 +46,15 @@ public class ConfigurationUtilTest {
   public void testSingleStringGetMandatoryConfig() throws IOException {
     // Test null value.
     Configuration config = new Configuration();
-    assertThrows(IOException.class, () -> ConfigurationUtil.getMandatoryConfig(config, KEY_ONE));
+    assertThrows(IOException.class, () -> getMandatoryConfig(config, PROPERTY_ONE));
 
     // Test empty string.
-    config.set(KEY_ONE, "");
-    assertThrows(IOException.class, () -> ConfigurationUtil.getMandatoryConfig(config, KEY_ONE));
+    config.set(PROPERTY_ONE.getKey(), "");
+    assertThrows(IOException.class, () -> getMandatoryConfig(config, PROPERTY_ONE));
 
     // Test proper setting.
-    config.set(KEY_ONE, VALUE_ONE);
-    assertThat(ConfigurationUtil.getMandatoryConfig(config, KEY_ONE)).isEqualTo(VALUE_ONE);
+    config.set(PROPERTY_ONE.getKey(), VALUE_ONE);
+    assertThat(getMandatoryConfig(config, PROPERTY_ONE)).isEqualTo(VALUE_ONE);
   }
 
   /**
@@ -61,25 +64,25 @@ public class ConfigurationUtilTest {
   public void testListGetMandatoryConfig() throws IOException {
     // Test one null value.
     Configuration config = new Configuration();
-    config.set(KEY_ONE, VALUE_ONE);
+    config.set(PROPERTY_ONE.getKey(), VALUE_ONE);
 
     assertThrows(
         IOException.class,
-        () -> ConfigurationUtil.getMandatoryConfig(config, Lists.newArrayList(KEY_ONE, KEY_TWO)));
+        () -> getMandatoryConfig(config, Lists.newArrayList(PROPERTY_ONE, PROPERTY_TWO)));
 
     // Test one empty string.
-    config.set(KEY_TWO, "");
+    config.set(PROPERTY_TWO.getKey(), "");
     assertThrows(
         IOException.class,
-        () -> ConfigurationUtil.getMandatoryConfig(config, Lists.newArrayList(KEY_ONE, KEY_TWO)));
+        () -> getMandatoryConfig(config, Lists.newArrayList(PROPERTY_ONE, PROPERTY_TWO)));
 
     // Test proper setting.
-    config.set(KEY_TWO, VALUE_TWO);
+    config.set(PROPERTY_TWO.getKey(), VALUE_TWO);
     Map<String, String> expectedMap = new HashMap<>();
-    expectedMap.put(KEY_ONE, VALUE_ONE);
-    expectedMap.put(KEY_TWO, VALUE_TWO);
+    expectedMap.put(PROPERTY_ONE.getKey(), VALUE_ONE);
+    expectedMap.put(PROPERTY_TWO.getKey(), VALUE_TWO);
 
-    assertThat(ConfigurationUtil.getMandatoryConfig(config, Lists.newArrayList(KEY_ONE, KEY_TWO)))
+    assertThat(getMandatoryConfig(config, Lists.newArrayList(PROPERTY_ONE, PROPERTY_TWO)))
         .isEqualTo(expectedMap);
   }
 }
