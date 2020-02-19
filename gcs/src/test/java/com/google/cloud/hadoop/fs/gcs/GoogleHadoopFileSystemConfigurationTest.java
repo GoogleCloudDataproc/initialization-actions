@@ -25,12 +25,12 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
 import com.google.cloud.hadoop.util.EntriesCredentialConfiguration;
+import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
 import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import com.google.cloud.hadoop.util.RequesterPaysOptions.RequesterPaysMode;
 import com.google.common.collect.ImmutableList;
 import java.lang.reflect.Field;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
@@ -39,7 +39,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
-public class GoogleHadoopFileSystemConfigurationPropertyTest {
+public class GoogleHadoopFileSystemConfigurationTest {
 
   @SuppressWarnings("DoubleBraceInitialization")
   private static final Map<String, Object> expectedDefaultConfiguration =
@@ -112,36 +112,12 @@ public class GoogleHadoopFileSystemConfigurationPropertyTest {
       };
 
   @Test
-  public void testPropertyCreation_withNullDeprecationKey() {
-    GoogleHadoopFileSystemConfigurationProperty<Integer> newKeyWithoutDeprecatedKey =
-        new GoogleHadoopFileSystemConfigurationProperty<>("actual.key", 0, (String[]) null);
-
-    assertThat(newKeyWithoutDeprecatedKey.getDefault()).isEqualTo(0);
-  }
-
-  @Test
-  public void getStringCollection_throwsExceptionOnNonCollectionProperty() {
-    Configuration config = new Configuration();
-    GoogleHadoopFileSystemConfigurationProperty<String> stringKey =
-        new GoogleHadoopFileSystemConfigurationProperty<>("actual.key", "default-string");
-    GoogleHadoopFileSystemConfigurationProperty<Integer> integerKey =
-        new GoogleHadoopFileSystemConfigurationProperty<>("actual.key", 1);
-    GoogleHadoopFileSystemConfigurationProperty<Collection<String>> collectionKey =
-        new GoogleHadoopFileSystemConfigurationProperty<>(
-            "collection.key", ImmutableList.of("key1", "key2"));
-
-    assertThrows(IllegalStateException.class, () -> stringKey.getStringCollection(config));
-    assertThrows(IllegalStateException.class, () -> integerKey.getStringCollection(config));
-    assertThat(collectionKey.getStringCollection(config)).containsExactly("key1", "key2").inOrder();
-  }
-
-  @Test
   public void testProxyProperties_throwsExceptionWhenMissingProxyAddress() {
-    GoogleHadoopFileSystemConfigurationProperty<String> gcsProxyUsername =
-        new GoogleHadoopFileSystemConfigurationProperty<>(
+    HadoopConfigurationProperty<String> gcsProxyUsername =
+        new HadoopConfigurationProperty<>(
             EntriesCredentialConfiguration.PROXY_USERNAME_KEY, "proxy-user");
-    GoogleHadoopFileSystemConfigurationProperty<String> gcsProxyPassword =
-        new GoogleHadoopFileSystemConfigurationProperty<>(
+    HadoopConfigurationProperty<String> gcsProxyPassword =
+        new HadoopConfigurationProperty<>(
             EntriesCredentialConfiguration.PROXY_PASSWORD_KEY, "proxy-pass");
 
     Configuration config = new Configuration();
@@ -155,14 +131,14 @@ public class GoogleHadoopFileSystemConfigurationPropertyTest {
 
   @Test
   public void testProxyPropertiesAll() {
-    GoogleHadoopFileSystemConfigurationProperty<String> gcsProxyUsername =
-        new GoogleHadoopFileSystemConfigurationProperty<>(
+    HadoopConfigurationProperty<String> gcsProxyUsername =
+        new HadoopConfigurationProperty<>(
             EntriesCredentialConfiguration.PROXY_USERNAME_KEY, "proxy-user");
-    GoogleHadoopFileSystemConfigurationProperty<String> gcsProxyPassword =
-        new GoogleHadoopFileSystemConfigurationProperty<>(
+    HadoopConfigurationProperty<String> gcsProxyPassword =
+        new HadoopConfigurationProperty<>(
             EntriesCredentialConfiguration.PROXY_PASSWORD_KEY, "proxy-pass");
-    GoogleHadoopFileSystemConfigurationProperty<String> gcsProxyAddress =
-        new GoogleHadoopFileSystemConfigurationProperty<>(
+    HadoopConfigurationProperty<String> gcsProxyAddress =
+        new HadoopConfigurationProperty<>(
             EntriesCredentialConfiguration.PROXY_ADDRESS_KEY, "proxy-address");
 
     Configuration config = new Configuration();
@@ -179,18 +155,18 @@ public class GoogleHadoopFileSystemConfigurationPropertyTest {
 
   @Test
   public void testDeprecatedKeys_throwsExceptionWhenDeprecatedKeyIsUsed() {
-    GoogleHadoopFileSystemConfigurationProperty<String> gcsProxyAddress =
-        new GoogleHadoopFileSystemConfigurationProperty<>(
+    HadoopConfigurationProperty<String> gcsProxyAddress =
+        new HadoopConfigurationProperty<>(
             EntriesCredentialConfiguration.PROXY_ADDRESS_KEY,
             "proxy-address",
             "fs.gs.proxy.deprecated.address");
 
-    GoogleHadoopFileSystemConfigurationProperty<Integer> gcsProxyUsername =
-        new GoogleHadoopFileSystemConfigurationProperty<>(
+    HadoopConfigurationProperty<Integer> gcsProxyUsername =
+        new HadoopConfigurationProperty<>(
             EntriesCredentialConfiguration.PROXY_USERNAME_KEY, 1234, "fs.gs.proxy.deprecated.user");
 
-    GoogleHadoopFileSystemConfigurationProperty<String> gcsProxyPassword =
-        new GoogleHadoopFileSystemConfigurationProperty<>(
+    HadoopConfigurationProperty<String> gcsProxyPassword =
+        new HadoopConfigurationProperty<>(
             EntriesCredentialConfiguration.PROXY_PASSWORD_KEY,
             "proxy-pass",
             "fs.gs.proxy.deprecated.pass");
@@ -214,8 +190,8 @@ public class GoogleHadoopFileSystemConfigurationPropertyTest {
   @Test
   public void defaultPropertiesValues() {
     Arrays.stream(GoogleHadoopFileSystemConfiguration.class.getDeclaredFields())
-        .filter(f -> GoogleHadoopFileSystemConfigurationProperty.class.equals(f.getType()))
-        .map(GoogleHadoopFileSystemConfigurationPropertyTest::getDefaultProperty)
+        .filter(f -> HadoopConfigurationProperty.class.equals(f.getType()))
+        .map(GoogleHadoopFileSystemConfigurationTest::getDefaultProperty)
         .forEach(
             p ->
                 assertWithMessage("Unexpected default value for '%s' key", p.getKey())
@@ -223,9 +199,9 @@ public class GoogleHadoopFileSystemConfigurationPropertyTest {
                     .isEqualTo(expectedDefaultConfiguration.get(p.getKey())));
   }
 
-  private static GoogleHadoopFileSystemConfigurationProperty<?> getDefaultProperty(Field field) {
+  private static HadoopConfigurationProperty<?> getDefaultProperty(Field field) {
     try {
-      return (GoogleHadoopFileSystemConfigurationProperty) field.get(null);
+      return (HadoopConfigurationProperty) field.get(null);
     } catch (IllegalAccessException e) {
       throw new RuntimeException(
           String.format("Failed to get '%s' field value", field.getName()), e);

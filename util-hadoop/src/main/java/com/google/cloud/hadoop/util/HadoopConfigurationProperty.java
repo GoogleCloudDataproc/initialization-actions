@@ -1,4 +1,4 @@
-package com.google.cloud.hadoop.fs.gcs;
+package com.google.cloud.hadoop.util;
 
 import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.nullToEmpty;
@@ -13,8 +13,8 @@ import java.util.List;
 import java.util.function.BiFunction;
 import org.apache.hadoop.conf.Configuration;
 
-/** GHFS configuration property */
-public class GoogleHadoopFileSystemConfigurationProperty<T> {
+/** Hadoop configuration property */
+public class HadoopConfigurationProperty<T> {
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
@@ -25,12 +25,11 @@ public class GoogleHadoopFileSystemConfigurationProperty<T> {
   private final List<String> deprecatedKeys;
   private final T defaultValue;
 
-  public GoogleHadoopFileSystemConfigurationProperty(String key) {
+  public HadoopConfigurationProperty(String key) {
     this(key, null);
   }
 
-  public GoogleHadoopFileSystemConfigurationProperty(
-      String key, T defaultValue, String... deprecatedKeys) {
+  public HadoopConfigurationProperty(String key, T defaultValue, String... deprecatedKeys) {
     this.key = key;
     this.deprecatedKeys =
         deprecatedKeys == null ? ImmutableList.of() : ImmutableList.copyOf(deprecatedKeys);
@@ -45,12 +44,12 @@ public class GoogleHadoopFileSystemConfigurationProperty<T> {
     return defaultValue;
   }
 
-  T get(Configuration config, BiFunction<String, T, T> getterFn) {
+  public T get(Configuration config, BiFunction<String, T, T> getterFn) {
     String lookupKey = getLookupKey(config, key, deprecatedKeys);
     return logProperty(lookupKey, getterFn.apply(lookupKey, defaultValue));
   }
 
-  String getPassword(Configuration config) {
+  public String getPassword(Configuration config) {
     checkState(defaultValue == null || defaultValue instanceof String, "Not a string property");
     String lookupKey = getLookupKey(config, key, deprecatedKeys);
     char[] value;
@@ -62,7 +61,7 @@ public class GoogleHadoopFileSystemConfigurationProperty<T> {
     return logProperty(lookupKey, value == null ? (String) defaultValue : String.valueOf(value));
   }
 
-  Collection<String> getStringCollection(Configuration config) {
+  public Collection<String> getStringCollection(Configuration config) {
     checkState(
         defaultValue == null || defaultValue instanceof Collection, "Not a collection property");
     String lookupKey = getLookupKey(config, key, deprecatedKeys);
@@ -74,8 +73,7 @@ public class GoogleHadoopFileSystemConfigurationProperty<T> {
     return logProperty(lookupKey, value);
   }
 
-  private static String getLookupKey(
-      Configuration config, String key, List<String> deprecatedKeys) {
+  private String getLookupKey(Configuration config, String key, List<String> deprecatedKeys) {
     if (config.get(key) != null) {
       return key;
     }
