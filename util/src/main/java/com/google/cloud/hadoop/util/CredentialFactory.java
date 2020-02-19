@@ -166,8 +166,8 @@ public class CredentialFactory {
                 .setRequestInitializer(getRequestInitializer());
         request.put("assertion", assertion);
         return request.execute();
-      } catch (GeneralSecurityException exception) {
-        throw (IOException) new IOException().initCause(exception);
+      } catch (GeneralSecurityException e) {
+        throw new IOException("Failed to refresh token", e);
       }
     }
   }
