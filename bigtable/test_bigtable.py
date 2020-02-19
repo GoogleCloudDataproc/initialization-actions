@@ -60,11 +60,6 @@ class BigTableTestCase(DataprocTestCase):
             name, "python {}".format(self.TEST_SCRIPT_FILE_NAME))
         self._validate_bigtable()
 
-    """ Dataproc versions 1.0 and 1.1 are excluded from automatic testing.
-    Hbase shell is not working properly on older Dataproc Clusters when
-    admin commands are provided from text file.
-    """
-
     @parameterized.parameters(
         ("SINGLE", ["m"]),
         ("STANDARD", ["m"]),
