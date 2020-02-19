@@ -16,9 +16,9 @@ package com.google.cloud.hadoop.io.bigquery;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_EMAIL;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_KEY_FILE;
 import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.BIGQUERY_CONFIG_PREFIX;
-import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX;
-import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX;
-import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.when;
@@ -148,9 +148,9 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     config.set(GoogleHadoopFileSystemConfiguration.GCS_PROJECT_ID.getKey(), projectIdValue);
 
     if (serviceAccount != null && privateKeyFile != null) {
-      config.setBoolean(BIGQUERY_CONFIG_PREFIX + ENABLE_SERVICE_ACCOUNTS_SUFFIX, true);
-      config.set(BIGQUERY_CONFIG_PREFIX + SERVICE_ACCOUNT_EMAIL_SUFFIX, serviceAccount);
-      config.set(BIGQUERY_CONFIG_PREFIX + SERVICE_ACCOUNT_KEYFILE_SUFFIX, privateKeyFile);
+      config.setBoolean(BIGQUERY_CONFIG_PREFIX + ENABLE_SERVICE_ACCOUNTS_SUFFIX.getKey(), true);
+      config.set(BIGQUERY_CONFIG_PREFIX + SERVICE_ACCOUNT_EMAIL_SUFFIX.getKey(), serviceAccount);
+      config.set(BIGQUERY_CONFIG_PREFIX + SERVICE_ACCOUNT_KEYFILE_SUFFIX.getKey(), privateKeyFile);
       config.set(AUTH_SERVICE_ACCOUNT_EMAIL.getKey(), serviceAccount);
       config.set(AUTH_SERVICE_ACCOUNT_KEY_FILE.getKey(), privateKeyFile);
     }

@@ -24,8 +24,8 @@ import org.apache.hadoop.conf.Configuration;
 public class CredentialConfigurationUtil {
 
   public static void addTestConfigurationSettings(Configuration configuration) {
-    configuration.setBoolean(BASE_KEY_PREFIX + ENABLE_SERVICE_ACCOUNTS_SUFFIX, false);
-    configuration.setBoolean(BASE_KEY_PREFIX + ENABLE_NULL_CREDENTIAL_SUFFIX, true);
+    configuration.setBoolean(BASE_KEY_PREFIX + ENABLE_SERVICE_ACCOUNTS_SUFFIX.getKey(), false);
+    configuration.setBoolean(BASE_KEY_PREFIX + ENABLE_NULL_CREDENTIAL_SUFFIX.getKey(), true);
   }
 
   public static Configuration getTestConfiguration() {

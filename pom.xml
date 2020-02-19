@@ -102,6 +102,7 @@
     <hadoop.two.version>2.10.0</hadoop.two.version>
     <hadoop.three.version>3.2.1</hadoop.three.version>
     <junit.version>4.13</junit.version>
+    <junit.system-rules.version>1.19.0</junit.system-rules.version>
     <mockito.version>3.2.4</mockito.version>
   </properties>
 
@@ -365,6 +366,12 @@
         <groupId>com.google.truth</groupId>
         <artifactId>truth</artifactId>
         <version>${google.truth.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.github.stefanbirkner</groupId>
+        <artifactId>system-rules</artifactId>
+        <version>${junit.system-rules.version}</version>
         <scope>test</scope>
       </dependency>
       <dependency>

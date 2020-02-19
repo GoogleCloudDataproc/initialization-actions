@@ -25,6 +25,8 @@ public class HadoopConfigurationProperty<T> {
   private final List<String> deprecatedKeys;
   private final T defaultValue;
 
+  private List<String> keyPrefixes = ImmutableList.of("");
+
   public HadoopConfigurationProperty(String key) {
     this(key, null);
   }
@@ -34,6 +36,11 @@ public class HadoopConfigurationProperty<T> {
     this.deprecatedKeys =
         deprecatedKeys == null ? ImmutableList.of() : ImmutableList.copyOf(deprecatedKeys);
     this.defaultValue = defaultValue;
+  }
+
+  public HadoopConfigurationProperty<T> withPrefixes(List<String> keyPrefixes) {
+    this.keyPrefixes = ImmutableList.copyOf(keyPrefixes);
+    return this;
   }
 
   public String getKey() {
@@ -74,17 +81,22 @@ public class HadoopConfigurationProperty<T> {
   }
 
   private String getLookupKey(Configuration config, String key, List<String> deprecatedKeys) {
-    if (config.get(key) != null) {
-      return key;
-    }
-    for (String deprecatedKey : deprecatedKeys) {
-      if (config.get(deprecatedKey) != null) {
-        logger.atWarning().log(
-            "Using deprecated key '%s', use '%s' key instead.", deprecatedKey, key);
-        return deprecatedKey;
+    for (String prefix : keyPrefixes) {
+      String prefixedKey = prefix + key;
+      if (config.get(prefixedKey) != null) {
+        return prefixedKey;
+      }
+      for (String deprecatedKey : deprecatedKeys) {
+        String prefixedDeprecatedKey = prefix + deprecatedKey;
+        if (config.get(prefixedDeprecatedKey) != null) {
+          logger.atWarning().log(
+              "Using deprecated key '%s', use '%s' key instead.",
+              prefixedDeprecatedKey, prefixedKey);
+          return prefixedDeprecatedKey;
+        }
       }
     }
-    return key;
+    return keyPrefixes.get(0) + key;
   }
 
   private static <S> S logProperty(String key, S value) {

@@ -23,9 +23,9 @@ import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockOperationType.DELET
 import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockOperationType.RENAME;
 import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecordsDao.LOCK_DIRECTORY;
 import static com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecordsDao.LOCK_PATH;
-import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX;
-import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX;
-import static com.google.cloud.hadoop.util.EntriesCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.truth.Truth.assertThat;
@@ -757,7 +757,7 @@ public class CoopLockRepairIntegrationTest {
   private static Configuration getTestConfiguration() {
     Configuration conf = new Configuration();
     conf.set("fs.gs.impl", GoogleHadoopFileSystem.class.getName());
-    conf.setBoolean(AUTHENTICATION_PREFIX + ENABLE_SERVICE_ACCOUNTS_SUFFIX, true);
+    conf.setBoolean(AUTHENTICATION_PREFIX + ENABLE_SERVICE_ACCOUNTS_SUFFIX.getKey(), true);
     conf.setLong(
         GCS_COOPERATIVE_LOCKING_EXPIRATION_TIMEOUT_MS.getKey(), COOP_LOCK_TIMEOUT.toMillis());
 
@@ -765,9 +765,12 @@ public class CoopLockRepairIntegrationTest {
     TestConfiguration testConf = TestConfiguration.getInstance();
     conf.set(GCS_PROJECT_ID.getKey(), testConf.getProjectId());
     if (testConf.getServiceAccount() != null && testConf.getPrivateKeyFile() != null) {
-      conf.set(AUTHENTICATION_PREFIX + SERVICE_ACCOUNT_EMAIL_SUFFIX, testConf.getServiceAccount());
       conf.set(
-          AUTHENTICATION_PREFIX + SERVICE_ACCOUNT_KEYFILE_SUFFIX, testConf.getPrivateKeyFile());
+          AUTHENTICATION_PREFIX + SERVICE_ACCOUNT_EMAIL_SUFFIX.getKey(),
+          testConf.getServiceAccount());
+      conf.set(
+          AUTHENTICATION_PREFIX + SERVICE_ACCOUNT_KEYFILE_SUFFIX.getKey(),
+          testConf.getPrivateKeyFile());
     }
     return conf;
   }

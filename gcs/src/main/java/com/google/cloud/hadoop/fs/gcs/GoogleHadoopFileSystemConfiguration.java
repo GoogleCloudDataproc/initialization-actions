@@ -29,7 +29,6 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationRea
 import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.cooplock.CooperativeLockingOptions;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
-import com.google.cloud.hadoop.util.EntriesCredentialConfiguration;
 import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
@@ -293,36 +292,28 @@ public class GoogleHadoopFileSystemConfiguration {
    * must be an HTTP proxy of the form "host:port".
    */
   public static final HadoopConfigurationProperty<String> GCS_PROXY_ADDRESS =
-      new HadoopConfigurationProperty<>(
-          EntriesCredentialConfiguration.PROXY_ADDRESS_KEY,
-          EntriesCredentialConfiguration.PROXY_ADDRESS_DEFAULT);
+      HadoopCredentialConfiguration.PROXY_ADDRESS;
 
   /**
    * Configuration key for setting a proxy username for the connector to use to authenticate with
    * proxy used to connect to GCS.
    */
   public static final HadoopConfigurationProperty<String> GCS_PROXY_USERNAME =
-      new HadoopConfigurationProperty<>(
-          EntriesCredentialConfiguration.PROXY_USERNAME_KEY,
-          EntriesCredentialConfiguration.PROXY_USERNAME_DEFAULT);
+      HadoopCredentialConfiguration.PROXY_USERNAME;
 
   /**
    * Configuration key for setting a proxy password for the connector to use to authenticate with
    * proxy used to connect to GCS.
    */
   public static final HadoopConfigurationProperty<String> GCS_PROXY_PASSWORD =
-      new HadoopConfigurationProperty<>(
-          EntriesCredentialConfiguration.PROXY_PASSWORD_KEY,
-          EntriesCredentialConfiguration.PROXY_PASSWORD_DEFAULT);
+      HadoopCredentialConfiguration.PROXY_PASSWORD;
 
   /**
    * Configuration key for the name of HttpTransport class to use for connecting to GCS. Must be the
    * name of an HttpTransportFactory.HttpTransportType (APACHE or JAVA_NET).
    */
   public static final HadoopConfigurationProperty<HttpTransportType> GCS_HTTP_TRANSPORT =
-      new HadoopConfigurationProperty<>(
-          EntriesCredentialConfiguration.HTTP_TRANSPORT_KEY,
-          EntriesCredentialConfiguration.HTTP_TRANSPORT_DEFAULT);
+      HadoopCredentialConfiguration.HTTP_TRANSPORT;
 
   /** Configuration key for adding a suffix to the GHFS application name sent to GCS. */
   public static final HadoopConfigurationProperty<String> GCS_APPLICATION_NAME_SUFFIX =

@@ -21,7 +21,6 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.bigquery.Bigquery;
-import com.google.cloud.hadoop.util.AccessTokenProviderClassFromConfigFactory;
 import com.google.cloud.hadoop.util.CredentialFromAccessTokenProviderClassFactory;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.PropertyUtil;
@@ -88,17 +87,13 @@ public class BigQueryFactory {
       throws GeneralSecurityException, IOException {
     Credential credential =
         CredentialFromAccessTokenProviderClassFactory.credential(
-            new AccessTokenProviderClassFromConfigFactory().withOverridePrefix("mapred.bq"),
-            config,
-            BIGQUERY_OAUTH_SCOPES);
+            config, ImmutableList.of(BIGQUERY_CONFIG_PREFIX), BIGQUERY_OAUTH_SCOPES);
     if (credential != null) {
       return credential;
     }
 
-    return HadoopCredentialConfiguration.newBuilder()
-        .withConfiguration(config)
-        .withOverridePrefix(BIGQUERY_CONFIG_PREFIX)
-        .build()
+    return HadoopCredentialConfiguration.getCredentialFactory(
+            config, ImmutableList.of(BIGQUERY_CONFIG_PREFIX))
         .getCredential(BIGQUERY_OAUTH_SCOPES);
   }
 

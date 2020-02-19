@@ -24,8 +24,8 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
-import com.google.cloud.hadoop.util.EntriesCredentialConfiguration;
 import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
+import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import com.google.cloud.hadoop.util.RequesterPaysOptions.RequesterPaysMode;
 import com.google.common.collect.ImmutableList;
@@ -115,10 +115,10 @@ public class GoogleHadoopFileSystemConfigurationTest {
   public void testProxyProperties_throwsExceptionWhenMissingProxyAddress() {
     HadoopConfigurationProperty<String> gcsProxyUsername =
         new HadoopConfigurationProperty<>(
-            EntriesCredentialConfiguration.PROXY_USERNAME_KEY, "proxy-user");
+            HadoopCredentialConfiguration.PROXY_USERNAME.getKey(), "proxy-user");
     HadoopConfigurationProperty<String> gcsProxyPassword =
         new HadoopConfigurationProperty<>(
-            EntriesCredentialConfiguration.PROXY_PASSWORD_KEY, "proxy-pass");
+            HadoopCredentialConfiguration.PROXY_PASSWORD.getKey(), "proxy-pass");
 
     Configuration config = new Configuration();
     config.set(gcsProxyUsername.getKey(), gcsProxyUsername.getDefault());
@@ -133,13 +133,13 @@ public class GoogleHadoopFileSystemConfigurationTest {
   public void testProxyPropertiesAll() {
     HadoopConfigurationProperty<String> gcsProxyUsername =
         new HadoopConfigurationProperty<>(
-            EntriesCredentialConfiguration.PROXY_USERNAME_KEY, "proxy-user");
+            HadoopCredentialConfiguration.PROXY_USERNAME.getKey(), "proxy-user");
     HadoopConfigurationProperty<String> gcsProxyPassword =
         new HadoopConfigurationProperty<>(
-            EntriesCredentialConfiguration.PROXY_PASSWORD_KEY, "proxy-pass");
+            HadoopCredentialConfiguration.PROXY_PASSWORD.getKey(), "proxy-pass");
     HadoopConfigurationProperty<String> gcsProxyAddress =
         new HadoopConfigurationProperty<>(
-            EntriesCredentialConfiguration.PROXY_ADDRESS_KEY, "proxy-address");
+            HadoopCredentialConfiguration.PROXY_ADDRESS.getKey(), "proxy-address");
 
     Configuration config = new Configuration();
     config.set(gcsProxyUsername.getKey(), gcsProxyUsername.getDefault());
@@ -157,17 +157,19 @@ public class GoogleHadoopFileSystemConfigurationTest {
   public void testDeprecatedKeys_throwsExceptionWhenDeprecatedKeyIsUsed() {
     HadoopConfigurationProperty<String> gcsProxyAddress =
         new HadoopConfigurationProperty<>(
-            EntriesCredentialConfiguration.PROXY_ADDRESS_KEY,
+            HadoopCredentialConfiguration.PROXY_ADDRESS.getKey(),
             "proxy-address",
             "fs.gs.proxy.deprecated.address");
 
     HadoopConfigurationProperty<Integer> gcsProxyUsername =
         new HadoopConfigurationProperty<>(
-            EntriesCredentialConfiguration.PROXY_USERNAME_KEY, 1234, "fs.gs.proxy.deprecated.user");
+            HadoopCredentialConfiguration.PROXY_USERNAME.getKey(),
+            1234,
+            "fs.gs.proxy.deprecated.user");
 
     HadoopConfigurationProperty<String> gcsProxyPassword =
         new HadoopConfigurationProperty<>(
-            EntriesCredentialConfiguration.PROXY_PASSWORD_KEY,
+            HadoopCredentialConfiguration.PROXY_PASSWORD.getKey(),
             "proxy-pass",
             "fs.gs.proxy.deprecated.pass");
 

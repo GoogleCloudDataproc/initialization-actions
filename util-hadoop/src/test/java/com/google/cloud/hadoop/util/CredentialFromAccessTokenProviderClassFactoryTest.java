@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.util;
 
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.ACCESS_TOKEN_PROVIDER_IMPL_SUFFIX;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -35,19 +36,19 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class CredentialFromAccessTokenProviderClassFactoryTest {
 
-  private AccessTokenProviderClassFromConfigFactory providerClassFactory;
+  private static final String TEST_PROPERTY_PREFIX = "test.prefix";
+
   private Configuration config;
   @Mock private Clock clock;
 
   @Before
   public void setUp() {
     MockitoAnnotations.initMocks(this);
-    providerClassFactory =
-        new AccessTokenProviderClassFromConfigFactory().withOverridePrefix("testing");
     config = new Configuration();
-    config.set(
-        "testing" + AccessTokenProviderClassFromConfigFactory.ACCESS_TOKEN_PROVIDER_IMPL_SUFFIX,
-        TestingAccessTokenProvider.class.getName());
+    config.setClass(
+        TEST_PROPERTY_PREFIX + ACCESS_TOKEN_PROVIDER_IMPL_SUFFIX.getKey(),
+        TestingAccessTokenProvider.class,
+        AccessTokenProvider.class);
   }
 
   @Test
@@ -55,7 +56,7 @@ public class CredentialFromAccessTokenProviderClassFactoryTest {
       throws IOException, GeneralSecurityException {
     Credential credential =
         CredentialFromAccessTokenProviderClassFactory.credential(
-            providerClassFactory, config, ImmutableList.of());
+            config, ImmutableList.of(TEST_PROPERTY_PREFIX), ImmutableList.of());
 
     assertThat(credential.getAccessToken()).isEqualTo(TestingAccessTokenProvider.FAKE_ACCESS_TOKEN);
     assertThat(credential.getExpirationTimeMilliseconds())

@@ -14,181 +14,191 @@
 
 package com.google.cloud.hadoop.util;
 
+import static com.google.cloud.hadoop.util.CredentialFactory.CREDENTIAL_ENV_VAR;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.CLIENT_ID_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.CLIENT_SECRET_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.ENABLE_NULL_CREDENTIAL_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.OAUTH_CLIENT_FILE_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE_ACCOUNT_JSON_KEYFILE_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE_ACCOUNT_PRIVATE_KEY_ID_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE_ACCOUNT_PRIVATE_KEY_SUFFIX;
+import static com.google.cloud.hadoop.util.testing.MockHttpTransportHelper.jsonDataResponse;
+import static com.google.cloud.hadoop.util.testing.MockHttpTransportHelper.mockTransport;
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 
+import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.auth.oauth2.TokenResponse;
+import com.google.api.client.http.HttpTransport;
+import com.google.api.client.testing.http.MockHttpTransport;
+import com.google.cloud.hadoop.util.CredentialFactory.GoogleCredentialWithRetry;
 import com.google.common.collect.ImmutableList;
-import java.util.List;
+import com.google.common.io.Resources;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import org.apache.hadoop.conf.Configuration;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.contrib.java.lang.system.EnvironmentVariables;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class HadoopCredentialConfigurationTest {
 
-  private static void setConfigurationKey(Configuration conf, String key, String value) {
-    conf.set(HadoopCredentialConfiguration.BASE_KEY_PREFIX + key, value);
+  private static final ImmutableList<String> TEST_SCOPES = ImmutableList.of("scope1", "scope2");
+
+  @Rule public final EnvironmentVariables environmentVariables = new EnvironmentVariables();
+
+  private Configuration configuration;
+
+  private static String getConfigKey(HadoopConfigurationProperty<?> suffixProperty) {
+    return HadoopCredentialConfiguration.BASE_KEY_PREFIX + suffixProperty.getKey();
   }
 
-  private static String getConfigurationKey(Configuration conf, String key) {
-    return conf.get(HadoopCredentialConfiguration.BASE_KEY_PREFIX + key);
+  @Before
+  public void setUp() {
+    configuration = new Configuration();
   }
 
-  @Test
-  public void componentsCanOverrideBaseConfiguration() {
-    Configuration configuration = new Configuration();
-    // Overall, use service accounts
-    configuration.set(
-        HadoopCredentialConfiguration.BASE_KEY_PREFIX
-            + HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX,
-        "true");
+  private CredentialFactory getCredentialFactory() {
+    return getCredentialFactory(new MockHttpTransport());
+  }
 
-    // In the testing prefix, disable service accounts
-    configuration.set(
-        "testing." + HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX, "false");
-
-    configuration.set("testing." + HadoopCredentialConfiguration.CLIENT_ID_SUFFIX, "aClientId");
-    configuration.set(
-        "testing." + HadoopCredentialConfiguration.CLIENT_SECRET_SUFFIX, "aClientSecret");
-    configuration.set(
-        "testing." + HadoopCredentialConfiguration.OAUTH_CLIENT_FILE_SUFFIX, "aCredentialFile");
-
-    CredentialConfiguration credentialConfiguration =
-        HadoopCredentialConfiguration.newBuilder()
-            .withConfiguration(configuration)
-            .withOverridePrefix("testing.")
-            .build();
-
-    assertThat(credentialConfiguration.getClientId()).isEqualTo("aClientId");
-    assertThat(credentialConfiguration.getClientSecret()).isEqualTo("aClientSecret");
-    assertThat(credentialConfiguration.getOAuthCredentialFile()).isEqualTo("aCredentialFile");
+  private CredentialFactory getCredentialFactory(HttpTransport transport) {
+    CredentialFactory credentialFactory =
+        HadoopCredentialConfiguration.getCredentialFactory(configuration, ImmutableList.of());
+    credentialFactory.setTransport(transport);
+    return credentialFactory;
   }
 
   @Test
-  public void setConfiugrationSetsValuesAsExpected() {
-    Configuration conf = new Configuration();
+  public void nullCredentialsAreCreatedForTesting() throws IOException, GeneralSecurityException {
+    configuration.setBoolean(getConfigKey(ENABLE_SERVICE_ACCOUNTS_SUFFIX), false);
+    configuration.setBoolean(getConfigKey(ENABLE_NULL_CREDENTIAL_SUFFIX), true);
 
-    setConfigurationKey(
-        conf, HadoopCredentialConfiguration.SERVICE_ACCOUNT_PRIVATE_KEY_ID_SUFFIX, "aPrivateKeyId");
-    setConfigurationKey(
-        conf, HadoopCredentialConfiguration.SERVICE_ACCOUNT_PRIVATE_KEY_SUFFIX, "aPrivateKey");
-    setConfigurationKey(
-        conf,
-        HadoopCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX,
-        "anEmail");
-    setConfigurationKey(
-        conf,
-        HadoopCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX,
-        "aKeyFile");
-    setConfigurationKey(
-        conf,
-        HadoopCredentialConfiguration.JSON_KEYFILE_SUFFIX,
-        "aJsonFile");
-    setConfigurationKey(
-        conf,
-        HadoopCredentialConfiguration.CLIENT_SECRET_SUFFIX,
-        "aClientSecret");
-    setConfigurationKey(
-        conf,
-        HadoopCredentialConfiguration.CLIENT_ID_SUFFIX,
-        "aClientId");
-    setConfigurationKey(
-        conf,
-        HadoopCredentialConfiguration.OAUTH_CLIENT_FILE_SUFFIX,
-        "aClientOAuthFile");
-    setConfigurationKey(
-        conf,
-        HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX,
-        "false");
-    setConfigurationKey(
-        conf,
-        HadoopCredentialConfiguration.ENABLE_NULL_CREDENTIAL_SUFFIX,
-        "true");
+    CredentialFactory credentialFactory = getCredentialFactory();
 
-    CredentialConfiguration credentialConfiguration = HadoopCredentialConfiguration
-        .newBuilder()
-        .withConfiguration(conf)
-        .build();
-
-    assertThat(credentialConfiguration.getServiceAccountPrivateKeyId()).isEqualTo("aPrivateKeyId");
-    assertThat(credentialConfiguration.getServiceAccountPrivateKey()).isEqualTo("aPrivateKey");
-    assertThat(credentialConfiguration.getServiceAccountEmail()).isEqualTo("anEmail");
-    assertThat(credentialConfiguration.getServiceAccountKeyFile()).isEqualTo("aKeyFile");
-    assertThat(credentialConfiguration.getServiceAccountJsonKeyFile()).isEqualTo("aJsonFile");
-    assertThat(credentialConfiguration.getClientSecret()).isEqualTo("aClientSecret");
-    assertThat(credentialConfiguration.getClientId()).isEqualTo("aClientId");
-    assertThat(credentialConfiguration.getOAuthCredentialFile()).isEqualTo("aClientOAuthFile");
-    assertThat(credentialConfiguration.isServiceAccountEnabled()).isFalse();
-    assertThat(credentialConfiguration.isNullCredentialEnabled()).isTrue();
+    assertThat(credentialFactory.getCredential(TEST_SCOPES)).isNull();
   }
 
   @Test
-  public void getConfigurationSetsValuesAsExpected() {
-    List<String> prefixes = ImmutableList.of(HadoopCredentialConfiguration.BASE_KEY_PREFIX);
+  public void exceptionIsThrownForNoServiceAccountEmail() {
+    // No email set, keyfile doesn't exist, but that's OK.
+    configuration.set(getConfigKey(SERVICE_ACCOUNT_KEYFILE_SUFFIX), "aFile");
 
-    HadoopCredentialConfiguration credentialConfiguration =
-        new HadoopCredentialConfiguration(prefixes);
+    CredentialFactory credentialFactory = getCredentialFactory();
 
-    credentialConfiguration.setServiceAccountEmail("anEmail");
-    Configuration conf = credentialConfiguration.getConf();
-    String writtenValue = getConfigurationKey(
-        conf,
-        HadoopCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX);
-    assertThat(writtenValue).isEqualTo("anEmail");
+    assertThrows(IllegalStateException.class, () -> credentialFactory.getCredential(TEST_SCOPES));
+  }
 
-    credentialConfiguration.setServiceAccountKeyFile("aKeyFile");
-    conf = credentialConfiguration.getConf();
-    writtenValue = getConfigurationKey(
-        conf,
-        HadoopCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX);
-    assertThat(writtenValue).isEqualTo("aKeyFile");
+  @Test
+  public void exceptionIsThrownForNoCredentialOptions() {
+    configuration.setBoolean(getConfigKey(ENABLE_SERVICE_ACCOUNTS_SUFFIX), false);
 
-    credentialConfiguration.setServiceAccountJsonKeyFile("aJsonFile");
-    conf = credentialConfiguration.getConf();
-    writtenValue = getConfigurationKey(
-        conf,
-        HadoopCredentialConfiguration.JSON_KEYFILE_SUFFIX);
-    assertThat(writtenValue).isEqualTo("aJsonFile");
+    CredentialFactory credentialFactory = getCredentialFactory();
 
-    credentialConfiguration.setServiceAccountPrivateKeyId("aPrivateKeyId");
-    conf = credentialConfiguration.getConf();
-    writtenValue =
-        getConfigurationKey(
-            conf, HadoopCredentialConfiguration.SERVICE_ACCOUNT_PRIVATE_KEY_ID_SUFFIX);
-    assertThat(writtenValue).isEqualTo("aPrivateKeyId");
+    IllegalStateException thrown =
+        assertThrows(
+            IllegalStateException.class, () -> credentialFactory.getCredential(TEST_SCOPES));
+    assertThat(thrown).hasMessageThat().contains("No valid credential configuration discovered.");
+  }
 
-    credentialConfiguration.setServiceAccountPrivateKey("aPrivateKey");
-    conf = credentialConfiguration.getConf();
-    writtenValue =
-        getConfigurationKey(conf, HadoopCredentialConfiguration.SERVICE_ACCOUNT_PRIVATE_KEY_SUFFIX);
-    assertThat(writtenValue).isEqualTo("aPrivateKey");
+  @Test
+  public void metadataServiceIsUsedByDefault() throws IOException, GeneralSecurityException {
+    TokenResponse token = new TokenResponse().setAccessToken("metadata-test-token");
 
-    credentialConfiguration.setClientSecret("clientSecret");
-    conf = credentialConfiguration.getConf();
-    writtenValue = getConfigurationKey(
-        conf,
-        HadoopCredentialConfiguration.CLIENT_SECRET_SUFFIX);
-    assertThat(writtenValue).isEqualTo("clientSecret");
+    MockHttpTransport transport = mockTransport(jsonDataResponse(token));
+    CredentialFactory.setStaticHttpTransport(transport);
 
-    credentialConfiguration.setClientId("clientId");
-    conf = credentialConfiguration.getConf();
-    writtenValue = getConfigurationKey(
-        conf,
-        HadoopCredentialConfiguration.CLIENT_ID_SUFFIX);
-    assertThat(writtenValue).isEqualTo("clientId");
+    CredentialFactory credentialFactory = getCredentialFactory();
+    Credential credential = credentialFactory.getCredential(TEST_SCOPES);
 
-    credentialConfiguration.setEnableServiceAccounts(false);
-    conf = credentialConfiguration.getConf();
-    writtenValue = getConfigurationKey(
-        conf,
-        HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX);
-    assertThat(writtenValue).isEqualTo("false");
+    assertThat(credential.getAccessToken()).isEqualTo("metadata-test-token");
+  }
 
-    credentialConfiguration.setNullCredentialEnabled(true);
-    conf = credentialConfiguration.getConf();
-    writtenValue = getConfigurationKey(
-        conf,
-        HadoopCredentialConfiguration.ENABLE_NULL_CREDENTIAL_SUFFIX);
-    assertThat(writtenValue).isEqualTo("true");
+  @Test
+  public void applicationDefaultServiceAccountWhenConfigured()
+      throws IOException, GeneralSecurityException {
+    environmentVariables.set(
+        CREDENTIAL_ENV_VAR, Resources.getResource("test-credential.json").getFile());
+
+    CredentialFactory credentialFactory = getCredentialFactory();
+
+    GoogleCredentialWithRetry credential =
+        (GoogleCredentialWithRetry) credentialFactory.getCredential(TEST_SCOPES);
+
+    assertThat(credential.getServiceAccountId()).isEqualTo("test-email@gserviceaccount.com");
+    assertThat(credential.getServiceAccountPrivateKeyId()).isEqualTo("test-key-id");
+  }
+
+  @Test
+  public void p12KeyFileUsedWhenConfigured() throws IOException, GeneralSecurityException {
+    configuration.set(getConfigKey(SERVICE_ACCOUNT_EMAIL_SUFFIX), "foo@example.com");
+    configuration.set(
+        getConfigKey(SERVICE_ACCOUNT_KEYFILE_SUFFIX),
+        Resources.getResource("test-key.p12").getFile());
+
+    CredentialFactory credentialFactory = getCredentialFactory();
+
+    GoogleCredentialWithRetry credential =
+        (GoogleCredentialWithRetry) credentialFactory.getCredential(TEST_SCOPES);
+
+    assertThat(credential.getServiceAccountId()).isEqualTo("foo@example.com");
+  }
+
+  @Test
+  public void jsonKeyFileUsedWhenConfigured() throws IOException, GeneralSecurityException {
+    configuration.set(
+        getConfigKey(SERVICE_ACCOUNT_JSON_KEYFILE_SUFFIX),
+        Resources.getResource("test-credential.json").getFile());
+
+    CredentialFactory credentialFactory = getCredentialFactory();
+
+    GoogleCredentialWithRetry credential =
+        (GoogleCredentialWithRetry) credentialFactory.getCredential(TEST_SCOPES);
+
+    assertThat(credential.getServiceAccountId()).isEqualTo("test-email@gserviceaccount.com");
+    assertThat(credential.getServiceAccountPrivateKeyId()).isEqualTo("test-key-id");
+  }
+
+  @Test
+  public void configurationSAUsedWhenConfigured() throws IOException, GeneralSecurityException {
+    configuration.set(getConfigKey(SERVICE_ACCOUNT_EMAIL_SUFFIX), "foo@example.com");
+    configuration.set(getConfigKey(SERVICE_ACCOUNT_PRIVATE_KEY_ID_SUFFIX), "privatekey");
+    configuration.set(
+        getConfigKey(SERVICE_ACCOUNT_PRIVATE_KEY_SUFFIX),
+        Resources.toString(Resources.getResource("test-key.txt"), StandardCharsets.UTF_8));
+
+    CredentialFactory credentialFactory = getCredentialFactory();
+
+    GoogleCredentialWithRetry credential =
+        (GoogleCredentialWithRetry) credentialFactory.getCredential(TEST_SCOPES);
+
+    assertThat(credential.getServiceAccountId()).isEqualTo("foo@example.com");
+    assertThat(credential.getServiceAccountPrivateKeyId()).isEqualTo("privatekey");
+  }
+
+  @Test
+  public void installedAppWorkflowUsedWhenConfigured()
+      throws IOException, GeneralSecurityException {
+    configuration.setBoolean(getConfigKey(ENABLE_SERVICE_ACCOUNTS_SUFFIX), false);
+    configuration.set(getConfigKey(CLIENT_ID_SUFFIX), "aClientId");
+    configuration.set(getConfigKey(CLIENT_SECRET_SUFFIX), "aClientSecret");
+    configuration.set(
+        getConfigKey(OAUTH_CLIENT_FILE_SUFFIX),
+        Resources.getResource("test-client-credential.json").getFile());
+
+    CredentialFactory credentialFactory = getCredentialFactory();
+
+    Credential credential = credentialFactory.getCredential(TEST_SCOPES);
+
+    assertThat(credential.getAccessToken()).isEqualTo("test-client-access-token");
+    assertThat(credential.getRefreshToken()).isEqualTo("test-client-refresh-token");
   }
 }

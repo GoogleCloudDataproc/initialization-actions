@@ -24,11 +24,12 @@ import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Collection;
+import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 
 /**
- * Given an {@link AccessTokenProviderClassFromConfigFactory} and a Hadoop {@link Configuration},
- * generate a {@link Credential}.
+ * Given an {@link HadoopCredentialConfiguration#getAccessTokenProviderImplClass(Configuration,
+ * List)} and a Hadoop {@link Configuration}, generate a {@link Credential}.
  */
 public final class CredentialFromAccessTokenProviderClassFactory {
 
@@ -92,16 +93,14 @@ public final class CredentialFromAccessTokenProviderClassFactory {
   /**
    * Generate the credential.
    *
-   * <p>If the {@link AccessTokenProviderClassFromConfigFactory} generates no Class for the
-   * provider, return null.
+   * <p>If the {@link HadoopCredentialConfiguration#getAccessTokenProviderImplClass(Configuration,
+   * List)} generates no Class for the provider, return null.
    */
   public static Credential credential(
-      AccessTokenProviderClassFromConfigFactory providerClassFactory,
-      Configuration config,
-      Collection<String> scopes)
+      Configuration config, List<String> keyPrefixes, Collection<String> scopes)
       throws IOException, GeneralSecurityException {
     Class<? extends AccessTokenProvider> clazz =
-        providerClassFactory.getAccessTokenProviderClass(config);
+        HadoopCredentialConfiguration.getAccessTokenProviderImplClass(config, keyPrefixes);
     if (clazz != null) {
       logger.atFine().log("Using AccessTokenProvider (%s)", clazz.getName());
       try {

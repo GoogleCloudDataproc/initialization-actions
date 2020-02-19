@@ -17,6 +17,7 @@ package com.google.cloud.hadoop.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -27,6 +28,7 @@ import com.google.api.client.extensions.java6.auth.oauth2.FileCredentialStore;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
+import com.google.api.client.googleapis.auth.oauth2.GoogleOAuthConstants;
 import com.google.api.client.googleapis.compute.ComputeCredential;
 import com.google.api.client.googleapis.extensions.java6.auth.oauth2.GooglePromptReceiver;
 import com.google.api.client.http.GenericUrl;
@@ -46,6 +48,7 @@ import com.google.api.client.util.PemReader.Section;
 import com.google.api.client.util.SecurityUtils;
 import com.google.api.services.storage.StorageScopes;
 import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.ImmutableList;
@@ -213,6 +216,19 @@ public class CredentialFactory {
     return staticHttpTransport;
   }
 
+  @VisibleForTesting
+  static synchronized void setStaticHttpTransport(HttpTransport transport) {
+    staticHttpTransport = transport;
+  }
+
+  private final CredentialOptions options;
+
+  private HttpTransport transport;
+
+  public CredentialFactory(CredentialOptions options) {
+    this.options = options;
+  }
+
   /**
    * Initializes OAuth2 credential using preconfigured ServiceAccount settings on the local GCE VM.
    * See: <a href="https://developers.google.com/compute/docs/authentication">Authenticating from
@@ -363,7 +379,7 @@ public class CredentialFactory {
    *
    * <p>In this class for testability.
    */
-  boolean hasApplicationDefaultCredentialsConfigured() {
+  private boolean hasApplicationDefaultCredentialsConfigured() {
     return System.getenv(CREDENTIAL_ENV_VAR) != null;
   }
 
@@ -396,5 +412,146 @@ public class CredentialFactory {
     } catch (NoSuchAlgorithmException | InvalidKeySpecException exception) {
       throw new IOException("Unexpected expcetion reading PKCS data", exception);
     }
+  }
+
+  /**
+   * Get the credential as configured.
+   *
+   * <p>The following is the order in which properties are applied to create the Credential:
+   *
+   * <ol>
+   *   <li>If service accounts are not disabled and no service account key file or service account
+   *       parameters are set, use the metadata service.
+   *   <li>If service accounts are not disabled and a service-account email and keyfile, or service
+   *       account parameters are provided, use service account authentication with the given
+   *       parameters.
+   *   <li>If service accounts are disabled and client id, client secret and OAuth credential file
+   *       is provided, use the Installed App authentication flow.
+   *   <li>If service accounts are disabled and null credentials are enabled for unit testing,
+   *       return null
+   * </ol>
+   *
+   * @throws IllegalStateException if none of the above conditions are met and a Credential cannot
+   *     be created
+   */
+  public Credential getCredential(List<String> scopes)
+      throws IOException, GeneralSecurityException {
+
+    if (options.isServiceAccountEnabled()) {
+      logger.atFine().log("Using service account credentials");
+
+      // By default, we want to use service accounts with the meta-data service (assuming we're
+      // running in GCE).
+      if (shouldUseMetadataService()) {
+        logger.atFine().log("Getting service account credentials from meta data service.");
+        // TODO(user): Validate the returned credential has access to the given scopes.
+        return getCredentialFromMetadataServiceAccount();
+      }
+
+      if (!isNullOrEmpty(options.getServiceAccountPrivateKeyId())) {
+        logger.atFine().log("Attempting to get credentials from Configuration");
+        checkState(
+            !isNullOrEmpty(options.getServiceAccountPrivateKey()),
+            "privateKeyId must be set if using credentials configured directly in configuration");
+        checkState(
+            !isNullOrEmpty(options.getServiceAccountEmail()),
+            "clientEmail must be set if using credentials configured directly in configuration");
+        checkArgument(
+            isNullOrEmpty(options.getServiceAccountKeyFile()),
+            "A P12 key file may not be specified at the same time as credentials"
+                + " via configuration.");
+        checkArgument(
+            isNullOrEmpty(options.getServiceAccountJsonKeyFile()),
+            "A JSON key file may not be specified at the same time as credentials"
+                + " via configuration.");
+        return getCredentialsFromSAParameters(
+            options.getServiceAccountPrivateKeyId(),
+            options.getServiceAccountPrivateKey(),
+            options.getServiceAccountEmail(),
+            scopes,
+            getTransport());
+      }
+
+      if (!isNullOrEmpty(options.getServiceAccountJsonKeyFile())) {
+        logger.atFine().log("Using JSON keyfile %s", options.getServiceAccountJsonKeyFile());
+        checkArgument(
+            isNullOrEmpty(options.getServiceAccountKeyFile()),
+            "A P12 key file may not be specified at the same time as a JSON key file.");
+        checkArgument(
+            isNullOrEmpty(options.getServiceAccountEmail()),
+            "Service account email may not be specified at the same time as a JSON key file.");
+        return getCredentialFromJsonKeyFile(
+            options.getServiceAccountJsonKeyFile(), scopes, getTransport());
+      }
+
+      if (!isNullOrEmpty(options.getServiceAccountKeyFile())) {
+        // A key file is specified, use email-address and p12 based authentication.
+        checkState(
+            !isNullOrEmpty(options.getServiceAccountEmail()),
+            "Email must be set if using service account auth and a key file is specified.");
+        logger.atFine().log(
+            "Using service account email %s and private key file %s",
+            options.getServiceAccountEmail(), options.getServiceAccountKeyFile());
+
+        return getCredentialFromPrivateKeyServiceAccount(
+            options.getServiceAccountEmail(),
+            options.getServiceAccountKeyFile(),
+            scopes,
+            getTransport());
+      }
+
+      if (shouldUseApplicationDefaultCredentials()) {
+        logger.atFine().log("Getting Application Default Credentials");
+        return getApplicationDefaultCredentials(scopes, getTransport());
+      }
+    } else if (options.getOAuthCredentialFile() != null
+        && options.getClientId() != null
+        && options.getClientSecret() != null) {
+      logger.atFine().log(
+          "Using installed app credentials in file %s", options.getOAuthCredentialFile());
+
+      return getCredentialFromFileCredentialStoreForInstalledApp(
+          options.getClientId(),
+          options.getClientSecret(),
+          options.getOAuthCredentialFile(),
+          scopes,
+          getTransport());
+    } else if (options.isNullCredentialEnabled()) {
+      logger.atWarning().log(
+          "Allowing null credentials for unit testing. This should not be used in production");
+
+      return null;
+    }
+
+    logger.atSevere().log("Credential configuration is not valid. Configuration: %s", this);
+    throw new IllegalStateException("No valid credential configuration discovered.");
+  }
+
+  private boolean shouldUseMetadataService() {
+    return isNullOrEmpty(options.getServiceAccountKeyFile())
+        && isNullOrEmpty(options.getServiceAccountJsonKeyFile())
+        && isNullOrEmpty(options.getServiceAccountPrivateKey())
+        && !shouldUseApplicationDefaultCredentials();
+  }
+
+  private boolean shouldUseApplicationDefaultCredentials() {
+    return hasApplicationDefaultCredentialsConfigured();
+  }
+
+  private HttpTransport getTransport() throws IOException {
+    if (transport == null) {
+      transport =
+          HttpTransportFactory.createHttpTransport(
+              options.getTransportType(),
+              options.getProxyAddress(),
+              options.getProxyUsername(),
+              options.getProxyPassword());
+    }
+    return transport;
+  }
+
+  @VisibleForTesting
+  void setTransport(HttpTransport transport) {
+    this.transport = transport;
   }
 }
