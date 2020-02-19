@@ -15,7 +15,7 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTest.newStorageObject;
-import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.fakeResponse;
+import static com.google.cloud.hadoop.util.testing.MockHttpTransportHelper.fakeResponse;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.assertThrows;

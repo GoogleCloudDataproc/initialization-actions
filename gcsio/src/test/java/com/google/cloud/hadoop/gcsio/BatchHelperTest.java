@@ -21,9 +21,10 @@ import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.BUCKET_N
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.HTTP_TRANSPORT;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.JSON_FACTORY;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.OBJECT_NAME;
-import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.jsonDataResponse;
 import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.batchRequestString;
 import static com.google.cloud.hadoop.gcsio.TrackingHttpRequestInitializer.getRequestString;
+import static com.google.cloud.hadoop.util.testing.MockHttpTransportHelper.jsonDataResponse;
+import static com.google.cloud.hadoop.util.testing.MockHttpTransportHelper.mockBatchTransport;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
@@ -115,7 +116,7 @@ public class BatchHelperTest {
 
     // 2. Configure mock HTTP transport with test request responses
     MockHttpTransport transport =
-        GoogleCloudStorageTestUtils.mockBatchTransport(
+        mockBatchTransport(
             /* requestsPerBatch= */ 2, jsonDataResponse(object1), jsonDataResponse(object2));
 
     // 3. Configure BatchHelper with mocked HTTP transport
@@ -164,7 +165,7 @@ public class BatchHelperTest {
 
     // 2. Configure mock HTTP transport with test request responses
     MockHttpTransport transport =
-        GoogleCloudStorageTestUtils.mockBatchTransport(
+        mockBatchTransport(
             /* requestsPerBatch= */ 2, jsonDataResponse(object1), jsonDataResponse(object2));
 
     // 3. Configure BatchHelper with mocked HTTP transport
@@ -206,8 +207,7 @@ public class BatchHelperTest {
     StorageObject object1 = newStorageObject(BUCKET_NAME, objectName1);
 
     MockHttpTransport transport =
-        GoogleCloudStorageTestUtils.mockBatchTransport(
-            /* requestsPerBatch= */ 1, jsonDataResponse(object1));
+        mockBatchTransport(/* requestsPerBatch= */ 1, jsonDataResponse(object1));
 
     Storage storage = new Storage(transport, JSON_FACTORY, httpRequestInitializer);
     BatchHelper batchHelper =
