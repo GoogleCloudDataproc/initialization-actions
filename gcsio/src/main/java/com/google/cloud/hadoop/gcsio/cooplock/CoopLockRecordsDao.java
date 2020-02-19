@@ -73,7 +73,7 @@ public class CoopLockRecordsDao {
 
   private static final int MIN_BACK_OFF_INTERVAL_MILLIS = 500;
   private static final int MAX_BACK_OFF_INTERVAL_MILLIS = 2_000;
-  private static final int RETRY_LOCK_INTERVAL_MILLIS = 2_000;
+  private static final Duration RETRY_LOCK_INTERVAL = Duration.ofMillis(2_000);
 
   private static final Gson GSON = createGson();
 
@@ -187,7 +187,7 @@ public class CoopLockRecordsDao {
           logger.atInfo().atMostEvery(5, SECONDS).log(
               "Failed to update %s entries in %s file: resources could be locked, retrying.",
               lockRecords.getLocks().size(), lockId);
-          sleepUninterruptibly(Duration.ofMillis(RETRY_LOCK_INTERVAL_MILLIS));
+          sleepUninterruptibly(RETRY_LOCK_INTERVAL);
           continue;
         }
 
@@ -201,7 +201,7 @@ public class CoopLockRecordsDao {
           logger.atInfo().atMostEvery(5, SECONDS).log(
               "Skipping lock entries update in %s file: too many (%d) locked resources, retrying.",
               lockId, lockRecords.getLocks().size());
-          sleepUninterruptibly(Duration.ofMillis(RETRY_LOCK_INTERVAL_MILLIS));
+          sleepUninterruptibly(RETRY_LOCK_INTERVAL);
           continue;
         }
 
