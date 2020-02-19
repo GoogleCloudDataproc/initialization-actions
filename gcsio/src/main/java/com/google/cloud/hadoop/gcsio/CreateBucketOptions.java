@@ -32,7 +32,7 @@ public class CreateBucketOptions {
 
   private final String location;
   private final String storageClass;
-  private final Duration retentionPeriod;
+  private final Duration ttl;
 
   /**
    * Create a bucket with all default settings.
@@ -56,12 +56,12 @@ public class CreateBucketOptions {
    *
    * @param location Bucket location
    * @param storageClass Bucket storage class
-   * @param retentionPeriod Bucket retention period in seconds
+   * @param ttl Bucket objects TTL
    */
-  public CreateBucketOptions(String location, String storageClass, Duration retentionPeriod) {
+  public CreateBucketOptions(String location, String storageClass, Duration ttl) {
     this.location = location;
     this.storageClass = storageClass;
-    this.retentionPeriod = retentionPeriod;
+    this.ttl = ttl;
   }
 
   /**
@@ -82,7 +82,7 @@ public class CreateBucketOptions {
 
   /** Returns the bucket retention period. */
   @Nullable
-  public Duration getRetentionPeriod() {
-    return retentionPeriod;
+  public Duration getTtl() {
+    return ttl;
   }
 }

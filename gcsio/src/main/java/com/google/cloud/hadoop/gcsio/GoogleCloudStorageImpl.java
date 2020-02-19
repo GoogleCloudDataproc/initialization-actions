@@ -40,7 +40,10 @@ import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.StorageRequest;
 import com.google.api.services.storage.model.Bucket;
-import com.google.api.services.storage.model.Bucket.RetentionPolicy;
+import com.google.api.services.storage.model.Bucket.Lifecycle;
+import com.google.api.services.storage.model.Bucket.Lifecycle.Rule;
+import com.google.api.services.storage.model.Bucket.Lifecycle.Rule.Action;
+import com.google.api.services.storage.model.Bucket.Lifecycle.Rule.Condition;
 import com.google.api.services.storage.model.Buckets;
 import com.google.api.services.storage.model.ComposeRequest;
 import com.google.api.services.storage.model.Objects;
@@ -418,9 +421,16 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
             .setName(bucketName)
             .setLocation(options.getLocation())
             .setStorageClass(options.getStorageClass());
-    if (options.getRetentionPeriod() != null) {
-      bucket.setRetentionPolicy(
-          new RetentionPolicy().setRetentionPeriod(options.getRetentionPeriod().getSeconds()));
+    if (options.getTtl() != null) {
+      bucket.setLifecycle(
+          new Lifecycle()
+              .setRule(
+                  ImmutableList.of(
+                      new Rule()
+                          .setAction(new Action().setType("Delete"))
+                          .setCondition(
+                              new Condition()
+                                  .setAge(Math.toIntExact(options.getTtl().toDays()))))));
     }
 
     Storage.Buckets.Insert insertBucket =
