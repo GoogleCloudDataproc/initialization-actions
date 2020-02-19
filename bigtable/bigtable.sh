@@ -23,20 +23,26 @@ export PATH=/usr/bin:$PATH
 
 readonly HBASE_HOME='/usr/lib/hbase'
 
-readonly BIGTABLE_HBASE_VERSION='1.12.1'
-readonly BIGTABLE_HBASE_CLIENT="bigtable-hbase-1.x-hadoop-${BIGTABLE_HBASE_VERSION}.jar"
-readonly BIGTABLE_HBASE_DL_LINK="https://repo1.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-1.x-hadoop/${BIGTABLE_HBASE_VERSION}/${BIGTABLE_HBASE_CLIENT}"
+readonly BIGTABLE_HBASE_CLIENT_REPO="https://repo1.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-1.x-hadoop"
+readonly BIGTABLE_HBASE_CLIENT_VERSION='1.13.0'
+readonly BIGTABLE_HBASE_CLIENT_JAR="bigtable-hbase-1.x-hadoop-${BIGTABLE_HBASE_CLIENT_VERSION}.jar"
+readonly BIGTABLE_HBASE_CLIENT_URL="${BIGTABLE_HBASE_CLIENT_REPO}/${BIGTABLE_HBASE_CLIENT_VERSION}/${BIGTABLE_HBASE_CLIENT_JAR}"
 
-readonly SPARK_HBASE_VERSION='1.1.1-2.1-s_2.11'
-readonly SPARK_HBASE_CLIENT="shc-core-${SPARK_HBASE_VERSION}.jar"
-readonly SPARK_HBASE_CLIENT_EXAMPLE="shc-examples-${SPARK_HBASE_VERSION}.jar"
-readonly SPARK_HBASE_CLIENT_DL_LINK="https://repo.hortonworks.com/content/groups/public/com/hortonworks/shc-core/${SPARK_HBASE_VERSION}/${SPARK_HBASE_CLIENT}"
-readonly SPARK_HBASE_CLIENT_EXAMPLE_LINK="https://repo.hortonworks.com/content/groups/public/com/hortonworks/shc-examples/${SPARK_HBASE_VERSION}/${SPARK_HBASE_CLIENT_EXAMPLE}"
+readonly SCH_REPO="https://repo.hortonworks.com/content/groups/public/com/hortonworks"
+readonly SHC_VERSION='1.1.1-2.1-s_2.11'
+readonly SHC_JAR="shc-core-${SHC_VERSION}.jar"
+readonly SHC_EXAMPLES_JAR="shc-examples-${SHC_VERSION}.jar"
+readonly SHC_URL="${SCH_REPO}/shc-core/${SHC_VERSION}/${SHC_JAR}"
+readonly SHC_EXAMPLES_URL="${SCH_REPO}/shc-examples/${SHC_VERSION}/${SHC_EXAMPLES_JAR}"
+
+readonly BIGTABLE_INSTANCE="$(/usr/share/google/get_metadata_value attributes/bigtable-instance)"
+readonly BIGTABLE_PROJECT="$(/usr/share/google/get_metadata_value attributes/bigtable-project ||
+    /usr/share/google/get_metadata_value ../project/project-id)"
 
 function retry_apt_command() {
-  cmd="$1"
+  local -r cmd="${1}"
   for ((i = 0; i < 10; i++)); do
-    if eval "$cmd"; then
+    if eval "${cmd}"; then
       return 0
     fi
     sleep 5
@@ -44,39 +50,30 @@ function retry_apt_command() {
   return 1
 }
 
-function update_apt_get() {
-  retry_apt_command "apt-get update"
-}
-
-function install_apt_get() {
-  local pkgs="$*"
-  retry_apt_command "apt-get install -y $pkgs"
-}
-
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   return 1
 }
 
-function install_big_table_client() {
-  local out="${HBASE_HOME}/lib/${BIGTABLE_HBASE_CLIENT}"
+function install_bigtable_client() {
+  local out="${HBASE_HOME}/lib/${BIGTABLE_HBASE_CLIENT_JAR}"
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${BIGTABLE_HBASE_DL_LINK}" -O "${out}"
+    "${BIGTABLE_HBASE_CLIENT_URL}" -O "${out}"
 }
 
 function install_shc() {
   mkdir -p "/usr/lib/spark/external"
-  local out="/usr/lib/spark/external/${SPARK_HBASE_CLIENT}"
+  local out="/usr/lib/spark/external/${SHC_JAR}"
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${SPARK_HBASE_CLIENT_DL_LINK}" -O "${out}"
+    "${SHC_URL}" -O "${out}"
   ln -s "${out}" "/usr/lib/spark/external/shc-core.jar"
-  local example_out="/usr/lib/spark/examples/jars/${SPARK_HBASE_CLIENT_EXAMPLE}"
+  local example_out="/usr/lib/spark/examples/jars/${SHC_EXAMPLES_JAR}"
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${SPARK_HBASE_CLIENT_EXAMPLE_LINK}" -O "${example_out}"
+    "${SHC_EXAMPLES_URL}" -O "${example_out}"
   ln -s "${example_out}" "/usr/lib/spark/examples/jars/shc-examples.jar"
 }
 
-function configure_big_table_client() {
+function configure_bigtable_client() {
   #Update classpaths
   cat <<'EOF' >>/etc/hadoop/conf/mapred-env.sh
 HADOOP_CLASSPATH="${HADOOP_CLASSPATH}:/usr/lib/hbase/*"
@@ -94,8 +91,8 @@ EOF
 <?xml version="1.0"?>
 <?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
 <configuration>
-  <property><name>google.bigtable.project.id</name><value>${big_table_project}</value></property>
-  <property><name>google.bigtable.instance.id</name><value>${big_table_instance}</value></property>
+  <property><name>google.bigtable.project.id</name><value>${BIGTABLE_PROJECT}</value></property>
+  <property><name>google.bigtable.instance.id</name><value>${BIGTABLE_INSTANCE}</value></property>
   <property>
     <name>hbase.client.connection.impl</name>
     <value>com.google.cloud.bigtable.hbase1_x.BigtableConnection</value>
@@ -113,15 +110,11 @@ EOF
 }
 
 function main() {
-  big_table_instance="$(/usr/share/google/get_metadata_value attributes/bigtable-instance)"
-  big_table_project="$(/usr/share/google/get_metadata_value attributes/bigtable-project ||
-    /usr/share/google/get_metadata_value ../project/project-id)"
+  retry_apt_command "apt-get update" || err 'Unable to update packages lists.'
+  retry_apt_command "apt-get install -y hbase" || err 'Unable to install HBase.'
 
-  update_apt_get || err 'Unable to update packages lists.'
-  install_apt_get hbase || err 'Unable to install HBase.'
-
-  install_big_table_client || err 'Unable to install big table client.'
-  configure_big_table_client || err 'Failed to configure big table client.'
+  install_bigtable_client || err 'Unable to install big table client.'
+  configure_bigtable_client || err 'Failed to configure big table client.'
 
   install_shc || err 'Failed to install Spark-HBase connector.'
 }
