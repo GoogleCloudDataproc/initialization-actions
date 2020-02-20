@@ -14,11 +14,12 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_EMAIL;
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_ENABLE;
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_KEY_FILE;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONFIG_PREFIX;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_LAZY_INITIALIZATION_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PATH_CODEC;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX;
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -279,9 +280,10 @@ public class GoogleHadoopFileSystemNewUriFormatIntegrationTest
     GoogleHadoopFileSystem lazyGhfs = new GoogleHadoopFileSystem();
     Configuration conf = new Configuration();
     conf.setBoolean(GCS_LAZY_INITIALIZATION_ENABLE.getKey(), true);
-    conf.setBoolean(AUTH_SERVICE_ACCOUNT_ENABLE.getKey(), true);
-    conf.set(AUTH_SERVICE_ACCOUNT_EMAIL.getKey(), "account-email@example.com");
-    conf.set(AUTH_SERVICE_ACCOUNT_KEY_FILE.getKey(), "not-existent.key");
+    conf.setBoolean(GCS_CONFIG_PREFIX + ENABLE_SERVICE_ACCOUNTS_SUFFIX.getKey(), true);
+    conf.set(
+        GCS_CONFIG_PREFIX + SERVICE_ACCOUNT_EMAIL_SUFFIX.getKey(), "account-email@example.com");
+    conf.set(GCS_CONFIG_PREFIX + SERVICE_ACCOUNT_KEYFILE_SUFFIX.getKey(), "not-existent.key");
     lazyGhfs.initialize(getInitUri(), conf);
 
     RuntimeException e = assertThrows(RuntimeException.class, lazyGhfs::getGcsFs);

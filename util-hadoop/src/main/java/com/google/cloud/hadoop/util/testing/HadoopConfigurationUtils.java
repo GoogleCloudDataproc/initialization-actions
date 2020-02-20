@@ -27,7 +27,15 @@ public class HadoopConfigurationUtils {
     return Arrays.stream(configurationClass.getDeclaredFields())
         .filter(f -> HadoopConfigurationProperty.class.equals(f.getType()))
         .map(HadoopConfigurationUtils::getDefaultProperty)
-        .collect(HashMap::new, (map, p) -> map.put(p.getKey(), p.getDefault()), HashMap::putAll);
+        .collect(
+            HashMap::new,
+            (map, p) -> {
+              for (String deprecatedKey : p.getDeprecatedKeys()) {
+                map.put(deprecatedKey, p.getDefault());
+              }
+              map.put(p.getKey(), p.getDefault());
+            },
+            HashMap::putAll);
   }
 
   private static HadoopConfigurationProperty<?> getDefaultProperty(Field field) {

@@ -59,14 +59,19 @@ public class HadoopCredentialConfigurationTest {
       new HashMap<String, Object>() {
         {
           put(".auth.access.token.provider.impl", null);
-          put(".auth.client.file", null);
+          put(".auth.client.file", System.getProperty("user.home") + "/.credentials/storage.json");
           put(".auth.client.id", null);
+          put(".client.id", null);
           put(".auth.client.secret", null);
+          put(".client.secret", null);
           put(".auth.null.enable", false);
           put(".auth.service.account.email", null);
+          put(".service.account.auth.email", null);
           put(".auth.service.account.enable", true);
+          put(".enable.service.account.auth", true);
           put(".auth.service.account.json.keyfile", null);
           put(".auth.service.account.keyfile", null);
+          put(".service.account.auth.keyfile", null);
           put(".auth.service.account.private.key", null);
           put(".auth.service.account.private.key.id", null);
           put(".token.server.url", "https://oauth2.googleapis.com/token");

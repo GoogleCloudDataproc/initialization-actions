@@ -19,6 +19,7 @@ package com.google.cloud.hadoop.fs.gcs;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.BLOCK_SIZE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONCURRENT_GLOB_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONFIG_OVERRIDE_FILE;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONFIG_PREFIX;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_FILE_CHECKSUM_TYPE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_FLAT_GLOB_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_LAZY_INITIALIZATION_ENABLE;
@@ -188,9 +189,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
 
   /** Default PathFilter that accepts all paths. */
   public static final PathFilter DEFAULT_FILTER = path -> true;
-
-  /** Prefix to use for common authentication keys. */
-  public static final String AUTHENTICATION_PREFIX = "fs.gs";
 
   /** A resource file containing GCS related build properties. */
   public static final String PROPERTIES_FILE = "gcs.properties";
@@ -1433,44 +1431,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   }
 
   /**
-   * Copy deprecated configuration options to new keys, if present.
-   */
-  private static void copyDeprecatedConfigurationOptions(Configuration config) {
-    copyIfNotPresent(
-        config,
-        GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_ENABLE.getKey(),
-        AUTHENTICATION_PREFIX
-            + HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX.getKey());
-    copyIfNotPresent(
-        config,
-        GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_KEY_FILE.getKey(),
-        AUTHENTICATION_PREFIX
-            + HadoopCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX.getKey());
-    copyIfNotPresent(
-        config,
-        GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_EMAIL.getKey(),
-        AUTHENTICATION_PREFIX
-            + HadoopCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX.getKey());
-    copyIfNotPresent(
-        config,
-        GoogleHadoopFileSystemConfiguration.AUTH_CLIENT_ID.getKey(),
-        AUTHENTICATION_PREFIX + HadoopCredentialConfiguration.CLIENT_ID_SUFFIX.getKey());
-    copyIfNotPresent(
-        config,
-        GoogleHadoopFileSystemConfiguration.AUTH_CLIENT_SECRET.getKey(),
-        AUTHENTICATION_PREFIX + HadoopCredentialConfiguration.CLIENT_SECRET_SUFFIX.getKey());
-
-    String oauthClientFileKey =
-        AUTHENTICATION_PREFIX + HadoopCredentialConfiguration.OAUTH_CLIENT_FILE_SUFFIX.getKey();
-    if (config.get(oauthClientFileKey) == null) {
-      // No property to copy, but we can set this fairly safely (it's only invoked if client ID,
-      // client secret are set and we're not using service accounts).
-      config.set(
-          oauthClientFileKey, System.getProperty("user.home") + "/.credentials/storage.json");
-    }
-  }
-
-  /**
    * Retrieve user's Credential. If user implemented {@link AccessTokenProvider} and provided the
    * class name (See {@link HadoopCredentialConfiguration#ACCESS_TOKEN_PROVIDER_IMPL_SUFFIX} then
    * build a credential with access token provided by this provider; Otherwise obtain credential
@@ -1496,14 +1456,14 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
       // to acquire the Google credentials using it
       credential =
           CredentialFromAccessTokenProviderClassFactory.credential(
-              config, ImmutableList.of(AUTHENTICATION_PREFIX), CredentialFactory.GCS_SCOPES);
+              config, ImmutableList.of(GCS_CONFIG_PREFIX), CredentialFactory.GCS_SCOPES);
 
       if (credential == null) {
         // Finally, if no credentials have been acquired at this point, employ
         // the default mechanism.
         credential =
             HadoopCredentialConfiguration.getCredentialFactory(
-                    config, ImmutableList.of(AUTHENTICATION_PREFIX))
+                    config, ImmutableList.of(GCS_CONFIG_PREFIX))
                 .getCredential(CredentialFactory.GCS_SCOPES);
       }
     }
@@ -1520,7 +1480,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     logger.atFine().log("GHFS_ID=%s: configure(config: %s)", GHFS_ID, config);
 
     overrideConfigFromFile(config);
-    copyDeprecatedConfigurationOptions(config);
     // Set this configuration as the default config for this instance.
     setConf(config);
 

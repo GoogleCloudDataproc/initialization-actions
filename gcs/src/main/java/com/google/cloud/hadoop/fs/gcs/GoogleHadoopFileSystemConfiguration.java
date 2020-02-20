@@ -45,6 +45,8 @@ import org.apache.hadoop.fs.permission.FsPermission;
 public class GoogleHadoopFileSystemConfiguration {
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
+  public static final String GCS_CONFIG_PREFIX = "fs.gs";
+
   // -----------------------------------------------------------------
   // Configuration settings.
   // -----------------------------------------------------------------
@@ -76,50 +78,6 @@ public class GoogleHadoopFileSystemConfiguration {
    */
   public static final HadoopConfigurationProperty<Long> BLOCK_SIZE =
       new HadoopConfigurationProperty<>("fs.gs.block.size", 64 * 1024 * 1024L);
-
-  /**
-   * Configuration key for enabling GCE service account authentication. This key is deprecated. See
-   * {@link HadoopCredentialConfiguration} for current key names.
-   */
-  public static final HadoopConfigurationProperty<String> AUTH_SERVICE_ACCOUNT_ENABLE =
-      new HadoopConfigurationProperty<>("fs.gs.enable.service.account.auth");
-
-  /**
-   * Configuration key specifying the email address of the service-account with which to
-   * authenticate. Only required if {@link #AUTH_SERVICE_ACCOUNT_ENABLE} is true AND we're using
-   * fs.gs.service.account.auth.keyfile to authenticate with a private keyfile. NB: Once GCE
-   * supports setting multiple service account email addresses for metadata auth, this key will also
-   * be used in the metadata auth flow. This key is deprecated. See {@link
-   * HadoopCredentialConfiguration} for current key names.
-   */
-  public static final HadoopConfigurationProperty<String> AUTH_SERVICE_ACCOUNT_EMAIL =
-      new HadoopConfigurationProperty<>("fs.gs.service.account.auth.email");
-
-  /**
-   * Configuration key specifying local file containing a service-account private .p12 keyfile. Only
-   * used if {@link #AUTH_SERVICE_ACCOUNT_ENABLE} is true; if provided, the keyfile will be used for
-   * service-account authentication. Otherwise, it is assumed that we are on a GCE VM with
-   * metadata-authentication for service-accounts enabled, and the metadata server will be used
-   * instead. Default value: none This key is deprecated. See {@link HadoopCredentialConfiguration}
-   * for current key names.
-   */
-  public static final HadoopConfigurationProperty<String> AUTH_SERVICE_ACCOUNT_KEY_FILE =
-      new HadoopConfigurationProperty<>("fs.gs.service.account.auth.keyfile");
-
-  /**
-   * Configuration key for GCS client ID. Required if {@link #AUTH_SERVICE_ACCOUNT_ENABLE} == false.
-   * Default value: none This key is deprecated. See {@link HadoopCredentialConfiguration} for
-   * current key names.
-   */
-  public static final HadoopConfigurationProperty<String> AUTH_CLIENT_ID =
-      new HadoopConfigurationProperty<>("fs.gs.client.id");
-  /**
-   * Configuration key for GCS client secret. Required if {@link #AUTH_SERVICE_ACCOUNT_ENABLE} ==
-   * false. Default value: none This key is deprecated. See HadoopCredentialConfiguration for
-   * current key names.
-   */
-  public static final HadoopConfigurationProperty<String> AUTH_CLIENT_SECRET =
-      new HadoopConfigurationProperty<>("fs.gs.client.secret");
 
   /** Configuration key for Delegation Token binding class. Default value: none */
   public static final HadoopConfigurationProperty<String> DELEGATION_TOKEN_BINDING_CLASS =

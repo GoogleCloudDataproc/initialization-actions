@@ -47,6 +47,10 @@ public class HadoopConfigurationProperty<T> {
     return key;
   }
 
+  public List<String> getDeprecatedKeys() {
+    return deprecatedKeys;
+  }
+
   public T getDefault() {
     return defaultValue;
   }

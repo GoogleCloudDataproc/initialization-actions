@@ -2,6 +2,7 @@ package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.HTTP_TRANSPORT;
 import static com.google.cloud.hadoop.gcsio.GoogleCloudStorageTestUtils.JSON_FACTORY;
+import static com.google.cloud.hadoop.io.bigquery.AbstractBigQueryIoIntegrationTestBase.getConfigForGcsFromBigquerySettings;
 import static com.google.cloud.hadoop.io.bigquery.BigQueryFactory.BQC_ID;
 import static org.junit.Assume.assumeFalse;
 
@@ -132,9 +133,7 @@ public class RegionalIntegrationTest {
     outputTableFieldSchema.add(new BigQueryTableFieldSchema().setName("Count").setType("INTEGER"));
     BigQueryTableSchema outputSchema = new BigQueryTableSchema().setFields(outputTableFieldSchema);
 
-    conf =
-        AbstractBigQueryIoIntegrationTestBase.getConfigForGcsFromBigquerySettings(
-            PROJECT_ID, testBucket);
+    conf = getConfigForGcsFromBigquerySettings(PROJECT_ID);
     conf.set(BigQueryConfiguration.GCS_BUCKET.getKey(), testBucket);
 
     String qualifiedInputTableId =

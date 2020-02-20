@@ -13,8 +13,7 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_EMAIL;
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_KEY_FILE;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONFIG_PREFIX;
 import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.BIGQUERY_CONFIG_PREFIX;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE_ACCOUNT_EMAIL_SUFFIX;
@@ -131,8 +130,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
    * Helper method for grabbing service-account email and private keyfile name based on settings
    * intended for BigQueryFactory and adding them as GCS-equivalent credential settings.
    */
-  public static Configuration getConfigForGcsFromBigquerySettings(
-      String projectIdValue, String testBucket) {
+  public static Configuration getConfigForGcsFromBigquerySettings(String projectIdValue) {
     TestConfiguration testConf = TestConfiguration.getInstance();
     String serviceAccount = testConf.getServiceAccount();
     if (Strings.isNullOrEmpty(serviceAccount)) {
@@ -151,15 +149,15 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
       config.setBoolean(BIGQUERY_CONFIG_PREFIX + ENABLE_SERVICE_ACCOUNTS_SUFFIX.getKey(), true);
       config.set(BIGQUERY_CONFIG_PREFIX + SERVICE_ACCOUNT_EMAIL_SUFFIX.getKey(), serviceAccount);
       config.set(BIGQUERY_CONFIG_PREFIX + SERVICE_ACCOUNT_KEYFILE_SUFFIX.getKey(), privateKeyFile);
-      config.set(AUTH_SERVICE_ACCOUNT_EMAIL.getKey(), serviceAccount);
-      config.set(AUTH_SERVICE_ACCOUNT_KEY_FILE.getKey(), privateKeyFile);
+      config.set(GCS_CONFIG_PREFIX + SERVICE_ACCOUNT_EMAIL_SUFFIX.getKey(), serviceAccount);
+      config.set(GCS_CONFIG_PREFIX + SERVICE_ACCOUNT_KEYFILE_SUFFIX.getKey(), privateKeyFile);
     }
 
     return config;
   }
 
   private void setConfigForGcsFromBigquerySettings() {
-    Configuration conf = getConfigForGcsFromBigquerySettings(projectIdValue, testBucket);
+    Configuration conf = getConfigForGcsFromBigquerySettings(projectIdValue);
     for (Entry<String, String> entry : conf) {
       config.set(entry.getKey(), entry.getValue());
     }
@@ -196,7 +194,7 @@ public abstract class AbstractBigQueryIoIntegrationTestBase<T> {
     datasetReference.setProjectId(projectIdValue);
     datasetReference.setDatasetId(testDataset);
 
-    config = getConfigForGcsFromBigquerySettings(projectIdValue, testBucket);
+    config = getConfigForGcsFromBigquerySettings(projectIdValue);
     BigQueryFactory factory = new BigQueryFactory();
     bigqueryInstance = factory.getBigQuery(config);
 

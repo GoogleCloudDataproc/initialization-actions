@@ -15,9 +15,12 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.DELEGATION_TOKEN_BINDING_CLASS;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONFIG_PREFIX;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_INFER_IMPLICIT_DIRECTORIES_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemTestHelper.createInMemoryGoogleHadoopFileSystem;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.CLIENT_ID_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX;
 import static com.google.common.base.StandardSystemProperty.USER_NAME;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.truth.Truth.assertThat;
@@ -497,11 +500,10 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
     URI gsUri = new URI("gs://foobar/");
     String fakeProjectId = "123456";
     Configuration config = new Configuration();
-    config.setBoolean(
-        GoogleHadoopFileSystemConfiguration.AUTH_SERVICE_ACCOUNT_ENABLE.getKey(), false);
+    config.setBoolean(GCS_CONFIG_PREFIX + ENABLE_SERVICE_ACCOUNTS_SUFFIX.getKey(), false);
     // Set project ID and client ID but no client secret.
     config.set(GoogleHadoopFileSystemConfiguration.GCS_PROJECT_ID.getKey(), fakeProjectId);
-    config.set(GoogleHadoopFileSystemConfiguration.AUTH_CLIENT_ID.getKey(), fakeClientId);
+    config.set(GCS_CONFIG_PREFIX + CLIENT_ID_SUFFIX.getKey(), fakeClientId);
 
     GoogleHadoopFileSystem ghfs = new GoogleHadoopFileSystem();
 
