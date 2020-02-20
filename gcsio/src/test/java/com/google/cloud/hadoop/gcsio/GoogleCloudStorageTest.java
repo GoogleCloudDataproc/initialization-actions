@@ -1253,7 +1253,9 @@ public class GoogleCloudStorageTest {
 
     // TODO(user): Switch to testing for FileExistsException once implemented.
     IOException exception = assertThrows(IOException.class, () -> gcs.create(BUCKET_NAME));
-    assertThat(exception.getMessage()).contains("\"code\" : " + ErrorResponses.GONE.getErrorCode());
+    assertThat(exception)
+        .hasMessageThat()
+        .contains("\"code\" : " + ErrorResponses.GONE.getErrorCode());
 
     assertThat(trackingHttpRequestInitializer.getAllRequestStrings())
         .containsExactly(createBucketRequestString(PROJECT_ID))
