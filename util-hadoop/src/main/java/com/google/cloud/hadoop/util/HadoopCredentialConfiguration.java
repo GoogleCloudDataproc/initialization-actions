@@ -151,15 +151,11 @@ public class HadoopCredentialConfiguration {
                     .withPrefixes(keyPrefixes)
                     .get(config, config::getBoolean))
             .setServiceAccountPrivateKeyId(
-                SERVICE_ACCOUNT_PRIVATE_KEY_ID_SUFFIX
-                    .withPrefixes(keyPrefixes)
-                    .get(config, config::get))
+                SERVICE_ACCOUNT_PRIVATE_KEY_ID_SUFFIX.withPrefixes(keyPrefixes).getPassword(config))
             .setServiceAccountPrivateKey(
-                SERVICE_ACCOUNT_PRIVATE_KEY_SUFFIX
-                    .withPrefixes(keyPrefixes)
-                    .get(config, config::get))
+                SERVICE_ACCOUNT_PRIVATE_KEY_SUFFIX.withPrefixes(keyPrefixes).getPassword(config))
             .setServiceAccountEmail(
-                SERVICE_ACCOUNT_EMAIL_SUFFIX.withPrefixes(keyPrefixes).get(config, config::get))
+                SERVICE_ACCOUNT_EMAIL_SUFFIX.withPrefixes(keyPrefixes).getPassword(config))
             .setServiceAccountKeyFile(
                 SERVICE_ACCOUNT_KEYFILE_SUFFIX.withPrefixes(keyPrefixes).get(config, config::get))
             .setServiceAccountJsonKeyFile(
@@ -179,8 +175,8 @@ public class HadoopCredentialConfiguration {
             .setTokenServerUrl(
                 TOKEN_SERVER_URL_SUFFIX.withPrefixes(keyPrefixes).get(config, config::get))
             .setProxyAddress(PROXY_ADDRESS.get(config, config::get))
-            .setProxyUsername(PROXY_USERNAME.get(config, config::get))
-            .setProxyPassword(PROXY_PASSWORD.get(config, config::get))
+            .setProxyUsername(PROXY_USERNAME.getPassword(config))
+            .setProxyPassword(PROXY_PASSWORD.getPassword(config))
             .build();
     return new CredentialFactory(credentialOptions);
   }
