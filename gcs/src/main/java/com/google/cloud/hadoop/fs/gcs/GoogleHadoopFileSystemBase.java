@@ -1434,7 +1434,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
    * Retrieve user's Credential. If user implemented {@link AccessTokenProvider} and provided the
    * class name (See {@link HadoopCredentialConfiguration#ACCESS_TOKEN_PROVIDER_IMPL_SUFFIX} then
    * build a credential with access token provided by this provider; Otherwise obtain credential
-   * through {@link HadoopCredentialConfiguration#getCredentialFactory(Configuration, List)}.
+   * through {@link HadoopCredentialConfiguration#getCredentialFactory(Configuration, String...)}.
    */
   private Credential getCredential(Configuration config)
       throws IOException, GeneralSecurityException {
@@ -1462,8 +1462,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
         // Finally, if no credentials have been acquired at this point, employ
         // the default mechanism.
         credential =
-            HadoopCredentialConfiguration.getCredentialFactory(
-                    config, ImmutableList.of(GCS_CONFIG_PREFIX))
+            HadoopCredentialConfiguration.getCredentialFactory(config, GCS_CONFIG_PREFIX)
                 .getCredential(CredentialFactory.GCS_SCOPES);
       }
     }

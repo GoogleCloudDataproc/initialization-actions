@@ -94,13 +94,14 @@ public final class CredentialFromAccessTokenProviderClassFactory {
    * Generate the credential.
    *
    * <p>If the {@link HadoopCredentialConfiguration#getAccessTokenProviderImplClass(Configuration,
-   * List)} generates no Class for the provider, return null.
+   * String...)} generates no Class for the provider, return {@code null}.
    */
   public static Credential credential(
       Configuration config, List<String> keyPrefixes, Collection<String> scopes)
       throws IOException, GeneralSecurityException {
     Class<? extends AccessTokenProvider> clazz =
-        HadoopCredentialConfiguration.getAccessTokenProviderImplClass(config, keyPrefixes);
+        HadoopCredentialConfiguration.getAccessTokenProviderImplClass(
+            config, keyPrefixes.toArray(new String[0]));
     if (clazz != null) {
       logger.atFine().log("Using AccessTokenProvider (%s)", clazz.getName());
       try {

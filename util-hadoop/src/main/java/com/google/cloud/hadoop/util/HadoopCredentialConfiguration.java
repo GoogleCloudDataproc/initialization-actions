@@ -127,38 +127,38 @@ public class HadoopCredentialConfiguration {
    * Configuration key for setting a proxy for the connector to use to connect to GCS. The proxy
    * must be an HTTP proxy of the form "host:port".
    */
-  public static final HadoopConfigurationProperty<String> PROXY_ADDRESS =
-      new HadoopConfigurationProperty<>("fs.gs.proxy.address");
+  public static final HadoopConfigurationProperty<String> PROXY_ADDRESS_SUFFIX =
+      new HadoopConfigurationProperty<>(".proxy.address");
 
   /**
    * Configuration key for setting a proxy username for the connector to use to authenticate with
    * proxy used to connect to GCS.
    */
-  public static final HadoopConfigurationProperty<String> PROXY_USERNAME =
-      new HadoopConfigurationProperty<>("fs.gs.proxy.username");
+  public static final HadoopConfigurationProperty<String> PROXY_USERNAME_SUFFIX =
+      new HadoopConfigurationProperty<>(".proxy.username");
 
   /**
    * Configuration key for setting a proxy password for the connector to use to authenticate with
    * proxy used to connect to GCS.
    */
-  public static final HadoopConfigurationProperty<String> PROXY_PASSWORD =
-      new HadoopConfigurationProperty<>("fs.gs.proxy.password");
+  public static final HadoopConfigurationProperty<String> PROXY_PASSWORD_SUFFIX =
+      new HadoopConfigurationProperty<>(".proxy.password");
 
   /**
    * Configuration key for the name of HttpTransport class to use for connecting to GCS. Must be the
    * name of an HttpTransportFactory.HttpTransportType (APACHE or JAVA_NET).
    */
-  public static final HadoopConfigurationProperty<HttpTransportType> HTTP_TRANSPORT =
+  public static final HadoopConfigurationProperty<HttpTransportType> HTTP_TRANSPORT_SUFFIX =
       new HadoopConfigurationProperty<>(
-          "fs.gs.http.transport.type", CredentialOptions.HTTP_TRANSPORT_TYPE_DEFAULT);
+          ".http.transport.type", CredentialOptions.HTTP_TRANSPORT_TYPE_DEFAULT);
 
   public static final HadoopConfigurationProperty<Class<? extends AccessTokenProvider>>
       ACCESS_TOKEN_PROVIDER_IMPL_SUFFIX =
           new HadoopConfigurationProperty<>(".auth.access.token.provider.impl");
 
   public static CredentialFactory getCredentialFactory(
-      Configuration config, List<String> keyPrefixes) {
-    keyPrefixes = allConfigKeyPrefixes(keyPrefixes);
+      Configuration config, String... keyPrefixesVararg) {
+    List<String> keyPrefixes = getConfigKeyPrefixes(keyPrefixesVararg);
     CredentialOptions credentialOptions =
         CredentialOptions.builder()
             .setServiceAccountEnabled(
@@ -186,24 +186,29 @@ public class HadoopCredentialConfiguration {
                 ENABLE_NULL_CREDENTIAL_SUFFIX
                     .withPrefixes(keyPrefixes)
                     .get(config, config::getBoolean))
-            .setTransportType(HTTP_TRANSPORT.get(config, config::getEnum))
+            .setTransportType(
+                HTTP_TRANSPORT_SUFFIX.withPrefixes(keyPrefixes).get(config, config::getEnum))
             .setTokenServerUrl(
                 TOKEN_SERVER_URL_SUFFIX.withPrefixes(keyPrefixes).get(config, config::get))
-            .setProxyAddress(PROXY_ADDRESS.get(config, config::get))
-            .setProxyUsername(PROXY_USERNAME.getPassword(config))
-            .setProxyPassword(PROXY_PASSWORD.getPassword(config))
+            .setProxyAddress(
+                PROXY_ADDRESS_SUFFIX.withPrefixes(keyPrefixes).get(config, config::get))
+            .setProxyUsername(PROXY_USERNAME_SUFFIX.withPrefixes(keyPrefixes).getPassword(config))
+            .setProxyPassword(PROXY_PASSWORD_SUFFIX.withPrefixes(keyPrefixes).getPassword(config))
             .build();
     return new CredentialFactory(credentialOptions);
   }
 
   public static Class<? extends AccessTokenProvider> getAccessTokenProviderImplClass(
-      Configuration config, List<String> keyPrefixes) {
+      Configuration config, String... keyPrefixes) {
     return ACCESS_TOKEN_PROVIDER_IMPL_SUFFIX
-        .withPrefixes(allConfigKeyPrefixes(keyPrefixes))
+        .withPrefixes(getConfigKeyPrefixes(keyPrefixes))
         .get(config, (k, d) -> config.getClass(k, d, AccessTokenProvider.class));
   }
 
-  private static ImmutableList<String> allConfigKeyPrefixes(List<String> keyPrefixes) {
-    return ImmutableList.<String>builder().addAll(keyPrefixes).add(BASE_KEY_PREFIX).build();
+  /**
+   * Returns full list of config prefixes that will be resolved based on the order in returned list.
+   */
+  public static List<String> getConfigKeyPrefixes(String... keyPrefixes) {
+    return ImmutableList.<String>builder().add(keyPrefixes).add(BASE_KEY_PREFIX).build();
   }
 }

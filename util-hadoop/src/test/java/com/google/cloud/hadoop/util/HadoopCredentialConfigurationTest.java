@@ -75,10 +75,10 @@ public class HadoopCredentialConfigurationTest {
           put(".auth.service.account.private.key", null);
           put(".auth.service.account.private.key.id", null);
           put(".token.server.url", "https://oauth2.googleapis.com/token");
-          put("fs.gs.http.transport.type", JAVA_NET);
-          put("fs.gs.proxy.address", null);
-          put("fs.gs.proxy.password", null);
-          put("fs.gs.proxy.username", null);
+          put(".http.transport.type", JAVA_NET);
+          put(".proxy.address", null);
+          put(".proxy.password", null);
+          put(".proxy.username", null);
         }
       };
 
@@ -103,7 +103,7 @@ public class HadoopCredentialConfigurationTest {
 
   private CredentialFactory getCredentialFactory(HttpTransport transport) {
     CredentialFactory credentialFactory =
-        HadoopCredentialConfiguration.getCredentialFactory(configuration, ImmutableList.of());
+        HadoopCredentialConfiguration.getCredentialFactory(configuration);
     credentialFactory.setTransport(transport);
     return credentialFactory;
   }
