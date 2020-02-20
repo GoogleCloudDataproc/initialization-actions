@@ -9,7 +9,7 @@ apt-get update
 
 
 ## Set Spark and Sparkling water versions
-H2O_SPARKLING_WATER_VERSION="3.28.0.1-1"
+H2O_SPARKLING_WATER_VERSION="3.28.0.3-1"
 SPARK_VERSION=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
 echo $SPARK_VERSION
 
