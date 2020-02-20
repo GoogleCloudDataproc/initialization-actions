@@ -13,12 +13,15 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.cloud.hadoop.util.testing.HadoopConfigurationUtils.getDefaultProperties;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.when;
 
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapreduce.JobID;
@@ -34,6 +37,40 @@ import org.mockito.MockitoAnnotations;
  */
 @RunWith(JUnit4.class)
 public class BigQueryConfigurationTest {
+
+  @SuppressWarnings("DoubleBraceInitialization")
+  private static final Map<String, Object> expectedDefaultConfiguration =
+      new HashMap<String, Object>() {
+        {
+          put("mapred.bq.bigquery.root.url", "https://bigquery.googleapis.com/");
+          put("mapred.bq.dynamic.file.list.record.reader.poll.interval", 10000);
+          put("mapred.bq.dynamic.file.list.record.reader.poll.max.attempts", -1);
+          put("mapred.bq.gcs.bucket", null);
+          put("mapred.bq.input.dataset.id", null);
+          put("mapred.bq.input.export.files.delete", true);
+          put("mapred.bq.input.project.id", null);
+          put("mapred.bq.input.selected.fields", null);
+          put("mapred.bq.input.skew.limit", 1.5);
+          put("mapred.bq.input.sql.filter", "");
+          put("mapred.bq.input.table.id", null);
+          put("mapred.bq.output.buffer.size", 67108864);
+          put("mapred.bq.output.dataset.id", null);
+          put("mapred.bq.output.gcs.cleanup", true);
+          put("mapred.bq.output.gcs.fileformat", null);
+          put("mapred.bq.output.gcs.outputformatclass", null);
+          put("mapred.bq.output.location", "US");
+          put("mapred.bq.output.project.id", null);
+          put("mapred.bq.output.table.createdisposition", "CREATE_IF_NEEDED");
+          put("mapred.bq.output.table.id", null);
+          put("mapred.bq.output.table.kmskeyname", null);
+          put("mapred.bq.output.table.partitioning", null);
+          put("mapred.bq.output.table.schema", null);
+          put("mapred.bq.output.table.writedisposition", "WRITE_APPEND");
+          put("mapred.bq.project.id", null);
+          put("mapred.bq.temp.gcs.path", null);
+        }
+      };
+
   /** Sample jobProjectId. */
   private static final String JOB_PROJECT_ID = "google.com:foo-project";
 
@@ -287,5 +324,11 @@ public class BigQueryConfigurationTest {
 
     // Job level projectId remains unaltered by setting input/output projects.
     assertThat(BigQueryConfiguration.PROJECT_ID.get(conf, conf::get)).isEqualTo(JOB_PROJECT_ID);
+  }
+
+  @Test
+  public void defaultPropertiesValues() {
+    assertThat(getDefaultProperties(BigQueryConfiguration.class))
+        .containsExactlyEntriesIn(expectedDefaultConfiguration);
   }
 }

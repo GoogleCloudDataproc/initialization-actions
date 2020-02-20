@@ -26,6 +26,8 @@ import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE_ACCOUNT_PRIVATE_KEY_ID_SUFFIX;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE_ACCOUNT_PRIVATE_KEY_SUFFIX;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.TOKEN_SERVER_URL_SUFFIX;
+import static com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType.JAVA_NET;
+import static com.google.cloud.hadoop.util.testing.HadoopConfigurationUtils.getDefaultProperties;
 import static com.google.cloud.hadoop.util.testing.MockHttpTransportHelper.jsonDataResponse;
 import static com.google.cloud.hadoop.util.testing.MockHttpTransportHelper.mockTransport;
 import static com.google.common.truth.Truth.assertThat;
@@ -39,6 +41,8 @@ import com.google.cloud.hadoop.util.CredentialFactory.GoogleCredentialWithRetry;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Resources;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Before;
 import org.junit.Rule;
@@ -49,6 +53,29 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class HadoopCredentialConfigurationTest {
+
+  @SuppressWarnings("DoubleBraceInitialization")
+  private static final Map<String, Object> expectedDefaultConfiguration =
+      new HashMap<String, Object>() {
+        {
+          put(".auth.access.token.provider.impl", null);
+          put(".auth.client.file", null);
+          put(".auth.client.id", null);
+          put(".auth.client.secret", null);
+          put(".auth.null.enable", false);
+          put(".auth.service.account.email", null);
+          put(".auth.service.account.enable", true);
+          put(".auth.service.account.json.keyfile", null);
+          put(".auth.service.account.keyfile", null);
+          put(".auth.service.account.private.key", null);
+          put(".auth.service.account.private.key.id", null);
+          put(".token.server.url", "https://oauth2.googleapis.com/token");
+          put("fs.gs.http.transport.type", JAVA_NET);
+          put("fs.gs.proxy.address", null);
+          put("fs.gs.proxy.password", null);
+          put("fs.gs.proxy.username", null);
+        }
+      };
 
   private static final ImmutableList<String> TEST_SCOPES = ImmutableList.of("scope1", "scope2");
 
@@ -212,5 +239,11 @@ public class HadoopCredentialConfigurationTest {
         (GoogleCredentialWithRetry) credentialFactory.getCredential(TEST_SCOPES);
 
     assertThat(credential.getTokenServerEncodedUrl()).isEqualTo("https://test.oauth.com/token");
+  }
+
+  @Test
+  public void defaultPropertiesValues() {
+    assertThat(getDefaultProperties(HadoopCredentialConfiguration.class))
+        .containsExactlyEntriesIn(expectedDefaultConfiguration);
   }
 }
