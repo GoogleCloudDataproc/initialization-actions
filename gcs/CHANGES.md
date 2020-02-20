@@ -781,7 +781,7 @@
     `rateLimitExceeded (429)` errors by fetching the fresh underlying info and
     ignoring the error if the object already exists with the intended metadata
     and size. This fixes an
-    [issue](https://github.com/GoogleCloudDataproc/bigdata-interop/issues/10)
+    [issue](https://github.com/GoogleCloudDataproc/hadoop-connectors/issues/10)
     which mostly affects Spark.
 
 1.  Added logging in `GoogleCloudStorageReadChannel` for high-level retries.
@@ -822,7 +822,7 @@
     with different locations and storage classes.
 
 1.  Fixed
-    [issue](https://github.com/GoogleCloudDataproc/bigdata-interop/issues/5)
+    [issue](https://github.com/GoogleCloudDataproc/hadoop-connectors/issues/5)
     where stale cache entries caused stuck phantom directories if the
     directories were deleted using non-Hadoop-based GCS clients.
 
