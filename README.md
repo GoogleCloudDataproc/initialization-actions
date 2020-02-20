@@ -1,4 +1,4 @@
-# bigdata-interop
+# Apache Hadoop Connectors
 
 [![GitHub release](https://img.shields.io/github/release/GoogleCloudDataproc/bigdata-interop.svg)](https://github.com/GoogleCloudDataproc/bigdata-interop/releases/latest)
 [![GitHub release date](https://img.shields.io/github/release-date/GoogleCloudDataproc/bigdata-interop.svg)](https://github.com/GoogleCloudDataproc/bigdata-interop/releases/latest)
