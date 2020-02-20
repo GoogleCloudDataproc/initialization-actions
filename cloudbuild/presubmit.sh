@@ -19,7 +19,7 @@ set -euxo pipefail
 readonly HADOOP_PROFILE="$1"
 readonly TEST_TYPE="${2:-unittest}"
 
-cd /bigdata-interop
+cd /hadoop-connectors
 
 # Run unit or integration tests and generate test coverage report
 if [[ $TEST_TYPE == unittest ]]; then

@@ -2,4 +2,4 @@
 FROM openjdk:8-jdk
 
 # Copy everything into the container to allow concurrent build execution
-COPY . /bigdata-interop
+COPY . /hadoop-connectors
