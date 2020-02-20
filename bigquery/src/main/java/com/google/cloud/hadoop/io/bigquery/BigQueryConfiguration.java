@@ -16,6 +16,7 @@ package com.google.cloud.hadoop.io.bigquery;
 import static com.google.cloud.hadoop.util.ConfigurationUtil.getMandatoryConfig;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
 import com.google.common.base.Preconditions;
@@ -40,6 +41,10 @@ import org.apache.hadoop.mapreduce.JobID;
 public class BigQueryConfiguration {
 
   public static final String BIGQUERY_CONFIG_PREFIX = "mapred.bq";
+
+  /** Configuration key for the BigQuery API endpoint root URL. */
+  public static final HadoopConfigurationProperty<String> BQ_ROOT_URL =
+      new HadoopConfigurationProperty<>("mapred.bq.bigquery.root.url", Bigquery.DEFAULT_ROOT_URL);
 
   /**
    * Configuration key for project ID on whose behalf to perform BigQuery operations, and the

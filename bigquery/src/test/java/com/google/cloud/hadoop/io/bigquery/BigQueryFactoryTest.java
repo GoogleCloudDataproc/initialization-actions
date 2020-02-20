@@ -13,12 +13,11 @@
  */
 package com.google.cloud.hadoop.io.bigquery;
 
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.BQ_ROOT_URL;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.api.services.bigquery.Bigquery;
 import com.google.cloud.hadoop.util.testing.CredentialConfigurationUtil;
-import java.io.IOException;
-import java.security.GeneralSecurityException;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -31,14 +30,28 @@ import org.junit.runners.JUnit4;
  */
 @RunWith(JUnit4.class)
 public class BigQueryFactoryTest {
-  /** Test for getBigQuery method. This should return a BigQuery set up for local development. */
+
   @Test
-  public void testGetBigQuery() throws GeneralSecurityException, IOException {
+  public void getBigQuery_localDev() throws Exception {
     BigQueryFactory factory = new BigQueryFactory();
     Configuration configuration = CredentialConfigurationUtil.getTestConfiguration();
+
     Bigquery bigquery = factory.getBigQuery(configuration);
+
     assertThat(bigquery).isNotNull();
     assertThat(bigquery.getRootUrl()).isEqualTo("https://bigquery.googleapis.com/");
+  }
+
+  @Test
+  public void getBigQuery_customEndpoint() throws Exception {
+    BigQueryFactory factory = new BigQueryFactory();
+    Configuration configuration = CredentialConfigurationUtil.getTestConfiguration();
+    configuration.set(BQ_ROOT_URL.getKey(), "https://unit-test-bigquery.googleapis.com/");
+
+    Bigquery bigquery = factory.getBigQuery(configuration);
+
+    assertThat(bigquery).isNotNull();
+    assertThat(bigquery.getRootUrl()).isEqualTo("https://unit-test-bigquery.googleapis.com/");
   }
 
   @Test

@@ -14,6 +14,7 @@
 package com.google.cloud.hadoop.io.bigquery;
 
 import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.BIGQUERY_CONFIG_PREFIX;
+import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.BQ_ROOT_URL;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.HttpTransport;
@@ -116,13 +117,12 @@ public class BigQueryFactory {
     logger.atInfo().log("Creating BigQuery from default credential.");
     Credential credential = createBigQueryCredential(config);
     // Use the credential to create an authorized BigQuery client
-    return getBigQueryFromCredential(credential, BQC_ID);
+    return getBigQueryFromCredential(config, credential, BQC_ID);
   }
 
-  /**
-   * Constructs a BigQuery from a given Credential.
-   */
-  public Bigquery getBigQueryFromCredential(Credential credential, String appName) {
+  /** Constructs a BigQuery from a given Credential. */
+  public Bigquery getBigQueryFromCredential(
+      Configuration config, Credential credential, String appName) {
     logger.atInfo().log("Creating BigQuery from given credential.");
     // Use the credential to create an authorized BigQuery client
     if (credential != null) {
@@ -130,7 +130,9 @@ public class BigQueryFactory {
           .Builder(HTTP_TRANSPORT, JSON_FACTORY, new RetryHttpInitializer(credential, appName))
           .setApplicationName(appName).build();
     }
-    return new Bigquery.Builder(HTTP_TRANSPORT, JSON_FACTORY, null)
-        .setApplicationName(appName).build();
+    return new Bigquery.Builder(HTTP_TRANSPORT, JSON_FACTORY, /* httpRequestInitializer= */ null)
+        .setRootUrl(BQ_ROOT_URL.get(config, config::get))
+        .setApplicationName(appName)
+        .build();
   }
 }

@@ -149,6 +149,20 @@ public class GoogleCloudStorageTest {
         getStorageObjectForEmptyObjectWithMetadata(metadata));
   }
 
+  @Test
+  public void customStorageApiEndpoint() throws Exception {
+    GoogleCloudStorageOptions options =
+        GoogleCloudStorageOptions.builder()
+            .setAppName("testAppName")
+            .setProjectId("testProjectId")
+            .setStorageRootUrl("https://unit-test-storage.googleapis.com/")
+            .build();
+
+    GoogleCloudStorageImpl gcsImpl = new GoogleCloudStorageImpl(options, request -> {});
+
+    assertThat(gcsImpl.gcs.getRootUrl()).isEqualTo("https://unit-test-storage.googleapis.com/");
+  }
+
   /** Test argument sanitization for GoogleCloudStorage.create(2). */
   @Test
   public void testCreateObjectIllegalArguments() {

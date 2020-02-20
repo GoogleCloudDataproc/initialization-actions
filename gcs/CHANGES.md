@@ -8,6 +8,11 @@
 
 1.  Remove Log4j backend for Google Flogger.
 
+1.  Add properties to override Google Cloud API endpoints: 
+
+        fs.gs.storage.root.url
+        fs.gs.token.server.url
+
 ### 2.0.1 - 2020-02-13
 
 1.  Cooperative Locking FSCK tool: fix recovery of operations that failed before

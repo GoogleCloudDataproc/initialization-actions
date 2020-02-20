@@ -103,6 +103,11 @@ public class HadoopCredentialConfiguration {
       new HadoopConfigurationProperty<>(
           ".auth.null.enable", CredentialOptions.NULL_CREDENTIALS_ENABLED_DEFAULT);
 
+  /** Configuration key for setting a token server URL to use to refresh OAuth token. */
+  public static final HadoopConfigurationProperty<String> TOKEN_SERVER_URL_SUFFIX =
+      new HadoopConfigurationProperty<>(
+          ".token.server.url", CredentialOptions.TOKEN_SERVER_URL_DEFAULT);
+
   /**
    * Configuration key for setting a proxy for the connector to use to connect to GCS. The proxy
    * must be an HTTP proxy of the form "host:port".
@@ -123,7 +128,6 @@ public class HadoopCredentialConfiguration {
    */
   public static final HadoopConfigurationProperty<String> PROXY_PASSWORD =
       new HadoopConfigurationProperty<>("fs.gs.proxy.password");
-  ;
 
   /**
    * Configuration key for the name of HttpTransport class to use for connecting to GCS. Must be the
@@ -172,6 +176,8 @@ public class HadoopCredentialConfiguration {
                     .withPrefixes(keyPrefixes)
                     .get(config, config::getBoolean))
             .setTransportType(HTTP_TRANSPORT.get(config, config::getEnum))
+            .setTokenServerUrl(
+                TOKEN_SERVER_URL_SUFFIX.withPrefixes(keyPrefixes).get(config, config::get))
             .setProxyAddress(PROXY_ADDRESS.get(config, config::get))
             .setProxyUsername(PROXY_USERNAME.get(config, config::get))
             .setProxyPassword(PROXY_PASSWORD.get(config, config::get))

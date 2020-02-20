@@ -25,6 +25,7 @@ import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE_ACCOUNT_KEYFILE_SUFFIX;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE_ACCOUNT_PRIVATE_KEY_ID_SUFFIX;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE_ACCOUNT_PRIVATE_KEY_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.TOKEN_SERVER_URL_SUFFIX;
 import static com.google.cloud.hadoop.util.testing.MockHttpTransportHelper.jsonDataResponse;
 import static com.google.cloud.hadoop.util.testing.MockHttpTransportHelper.mockTransport;
 import static com.google.common.truth.Truth.assertThat;
@@ -37,9 +38,7 @@ import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.cloud.hadoop.util.CredentialFactory.GoogleCredentialWithRetry;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Resources;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Before;
 import org.junit.Rule;
@@ -78,7 +77,7 @@ public class HadoopCredentialConfigurationTest {
   }
 
   @Test
-  public void nullCredentialsAreCreatedForTesting() throws IOException, GeneralSecurityException {
+  public void nullCredentialsAreCreatedForTesting() throws Exception {
     configuration.setBoolean(getConfigKey(ENABLE_SERVICE_ACCOUNTS_SUFFIX), false);
     configuration.setBoolean(getConfigKey(ENABLE_NULL_CREDENTIAL_SUFFIX), true);
 
@@ -110,7 +109,7 @@ public class HadoopCredentialConfigurationTest {
   }
 
   @Test
-  public void metadataServiceIsUsedByDefault() throws IOException, GeneralSecurityException {
+  public void metadataServiceIsUsedByDefault() throws Exception {
     TokenResponse token = new TokenResponse().setAccessToken("metadata-test-token");
 
     MockHttpTransport transport = mockTransport(jsonDataResponse(token));
@@ -123,8 +122,7 @@ public class HadoopCredentialConfigurationTest {
   }
 
   @Test
-  public void applicationDefaultServiceAccountWhenConfigured()
-      throws IOException, GeneralSecurityException {
+  public void applicationDefaultServiceAccountWhenConfigured() throws Exception {
     environmentVariables.set(
         CREDENTIAL_ENV_VAR, Resources.getResource("test-credential.json").getFile());
 
@@ -138,7 +136,7 @@ public class HadoopCredentialConfigurationTest {
   }
 
   @Test
-  public void p12KeyFileUsedWhenConfigured() throws IOException, GeneralSecurityException {
+  public void p12KeyFileUsedWhenConfigured() throws Exception {
     configuration.set(getConfigKey(SERVICE_ACCOUNT_EMAIL_SUFFIX), "foo@example.com");
     configuration.set(
         getConfigKey(SERVICE_ACCOUNT_KEYFILE_SUFFIX),
@@ -153,7 +151,7 @@ public class HadoopCredentialConfigurationTest {
   }
 
   @Test
-  public void jsonKeyFileUsedWhenConfigured() throws IOException, GeneralSecurityException {
+  public void jsonKeyFileUsedWhenConfigured() throws Exception {
     configuration.set(
         getConfigKey(SERVICE_ACCOUNT_JSON_KEYFILE_SUFFIX),
         Resources.getResource("test-credential.json").getFile());
@@ -168,7 +166,7 @@ public class HadoopCredentialConfigurationTest {
   }
 
   @Test
-  public void configurationSAUsedWhenConfigured() throws IOException, GeneralSecurityException {
+  public void configurationSAUsedWhenConfigured() throws Exception {
     configuration.set(getConfigKey(SERVICE_ACCOUNT_EMAIL_SUFFIX), "foo@example.com");
     configuration.set(getConfigKey(SERVICE_ACCOUNT_PRIVATE_KEY_ID_SUFFIX), "privatekey");
     configuration.set(
@@ -185,8 +183,7 @@ public class HadoopCredentialConfigurationTest {
   }
 
   @Test
-  public void installedAppWorkflowUsedWhenConfigured()
-      throws IOException, GeneralSecurityException {
+  public void installedAppWorkflowUsedWhenConfigured() throws Exception {
     configuration.setBoolean(getConfigKey(ENABLE_SERVICE_ACCOUNTS_SUFFIX), false);
     configuration.set(getConfigKey(CLIENT_ID_SUFFIX), "aClientId");
     configuration.set(getConfigKey(CLIENT_SECRET_SUFFIX), "aClientSecret");
@@ -200,5 +197,20 @@ public class HadoopCredentialConfigurationTest {
 
     assertThat(credential.getAccessToken()).isEqualTo("test-client-access-token");
     assertThat(credential.getRefreshToken()).isEqualTo("test-client-refresh-token");
+  }
+
+  @Test
+  public void customTokenServerUrl() throws Exception {
+    configuration.set(
+        getConfigKey(SERVICE_ACCOUNT_JSON_KEYFILE_SUFFIX),
+        Resources.getResource("test-credential.json").getFile());
+    configuration.set(getConfigKey(TOKEN_SERVER_URL_SUFFIX), "https://test.oauth.com/token");
+
+    CredentialFactory credentialFactory = getCredentialFactory();
+
+    GoogleCredentialWithRetry credential =
+        (GoogleCredentialWithRetry) credentialFactory.getCredential(TEST_SCOPES);
+
+    assertThat(credential.getTokenServerEncodedUrl()).isEqualTo("https://test.oauth.com/token");
   }
 }

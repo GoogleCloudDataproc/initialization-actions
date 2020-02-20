@@ -153,7 +153,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
               });
 
   // GCS access instance.
-  private Storage gcs;
+  @VisibleForTesting Storage gcs;
 
   // Thread-pool used for background tasks.
   private ExecutorService backgroundTasksThreadPool =
@@ -231,6 +231,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     // Create GCS instance.
     this.gcs =
         new Storage.Builder(httpTransport, JSON_FACTORY, httpRequestInitializer)
+            .setRootUrl(options.getStorageRootUrl())
             .setApplicationName(options.getAppName())
             .build();
   }
