@@ -22,6 +22,7 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
 import com.google.api.services.bigquery.Bigquery;
+import com.google.api.services.bigquery.BigqueryScopes;
 import com.google.cloud.hadoop.util.CredentialFromAccessTokenProviderClassFactory;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.PropertyUtil;
@@ -39,7 +40,7 @@ public class BigQueryFactory {
 
   // BigQuery scopes for OAUTH.
   public static final ImmutableList<String> BIGQUERY_OAUTH_SCOPES =
-      ImmutableList.of("https://www.googleapis.com/auth/bigquery");
+      ImmutableList.of(BigqueryScopes.BIGQUERY);
 
   // Service account environment variable name for BigQuery Authentication.
   public static final String BIGQUERY_SERVICE_ACCOUNT = "BIGQUERY_SERVICE_ACCOUNT";
