@@ -563,6 +563,18 @@
   </property>
 
   <property>
+    <name>fs.gs.storage.root.url</name>
+    <value></value>
+    <description>Google Cloud Storage root URL.</description>
+  </property>
+
+  <property>
+    <name>fs.gs.token.server.url</name>
+    <value></value>
+    <description>Google Token Server root URL.</description>
+  </property>
+
+  <property>
     <name>fs.gs.inputstream.fadvise</name>
     <value>AUTO</value>
     <description>

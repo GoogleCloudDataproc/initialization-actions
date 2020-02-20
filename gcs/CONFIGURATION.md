@@ -348,6 +348,16 @@ is `false`.
     Timeout in milliseconds to read from an established connection. Use `0` for an
     infinite timeout.
 
+### API client configuration
+
+*   `fs.gs.storage.root.url`
+    
+    Google Cloud Storage root URL.
+
+*   `fs.gs.token.server.url`
+    
+    Google Token Server root URL.
+
 ### Fadvise feature configuration
 
 *   `fs.gs.inputstream.fadvise` (default: `AUTO`)
