@@ -30,7 +30,6 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
 import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.cooplock.CooperativeLockingOptions;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
@@ -299,13 +298,6 @@ public class GoogleHadoopFileSystemConfiguration {
   public static final HadoopConfigurationProperty<Boolean> GCS_OUTPUT_STREAM_DIRECT_UPLOAD_ENABLE =
       new HadoopConfigurationProperty<>("fs.gs.outputstream.direct.upload.enable", false);
 
-  /** Configuration key for the generation consistency read model. */
-  public static final HadoopConfigurationProperty<GenerationReadConsistency>
-      GCS_GENERATION_READ_CONSISTENCY =
-          new HadoopConfigurationProperty<>(
-              "fs.gs.generation.read.consistency",
-              GoogleCloudStorageReadOptions.DEFAULT_GENERATION_READ_CONSISTENCY);
-
   /** Configuration key for setting read buffer size. */
   public static final HadoopConfigurationProperty<Integer> GCS_INPUT_STREAM_BUFFER_SIZE =
       new HadoopConfigurationProperty<>("fs.gs.inputstream.buffer.size", 0, "fs.gs.io.buffersize");
@@ -457,7 +449,6 @@ public class GoogleHadoopFileSystemConfiguration {
         .setBufferSize(GCS_INPUT_STREAM_BUFFER_SIZE.get(config, config::getInt))
         .setFadvise(GCS_INPUT_STREAM_FADVISE.get(config, config::getEnum))
         .setMinRangeRequestSize(GCS_INPUT_STREAM_MIN_RANGE_REQUEST_SIZE.get(config, config::getInt))
-        .setGenerationReadConsistency(GCS_GENERATION_READ_CONSISTENCY.get(config, config::getEnum))
         .build();
   }
 

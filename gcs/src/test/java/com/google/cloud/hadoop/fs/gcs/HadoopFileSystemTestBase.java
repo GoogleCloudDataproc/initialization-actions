@@ -804,11 +804,8 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
   public void renameDirectoryShouldCopyMarkerFilesLast() {}
 
   @Override
-  public void testComposeSuccess() throws IOException {}
+  public void testComposeSuccess() {}
 
   @Override
-  public void testReadGenerationBestEffort() throws IOException {}
-
-  @Override
-  public void testReadGenerationStrict() throws IOException {}
+  public void read_failure_ifObjectWasModifiedDuringRead() {}
 }

@@ -22,7 +22,6 @@ import static org.junit.Assert.assertThrows;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper;
 import com.google.cloud.hadoop.gcsio.testing.TestConfiguration;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
@@ -559,53 +558,8 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     assertWithMessage("partial read mismatch").that(message2).isEqualTo(message.substring(offset));
   }
 
-  /** Validates that read operations by default always read the latest generation. */
   @Test
-  public void testReadGenerationBestEffort() throws IOException {
-    String bucketName = sharedBucketName1;
-    String object = "generation-best-effort-" + UUID.randomUUID();
-    String message1 = "Hello world!\n";
-    String message2 = "Sayonara world!\n";
-    gcsiHelper.writeTextFile(bucketName, object, message1);
-    int offset = 5;
-    int footerLength = 1;
-    String footer = message1.substring(message1.length() - footerLength);
-    // These read options force the readChannel to open stream again on second read.
-    // Also, we will prefetch footer content (with length 1).
-    GoogleCloudStorageReadOptions readOptions =
-        GoogleCloudStorageReadOptions.builder()
-            .setGenerationReadConsistency(GenerationReadConsistency.BEST_EFFORT)
-            .setFadvise(Fadvise.RANDOM)
-            .setMinRangeRequestSize(footerLength)
-            .build();
-    try (SeekableByteChannel readChannel = gcsiHelper.open(bucketName, object, readOptions)) {
-      String read1 = gcsiHelper.readText(readChannel, 0, offset, false);
-      // Force lazy footer caching
-      String readFooter =
-          gcsiHelper.readText(readChannel, message1.length() - 1, footerLength, true);
-      gcsiHelper.writeTextFileOverwriting(bucketName, object, message2);
-      String read2 = gcsiHelper.readText(readChannel, offset, message1.length() - offset, true);
-      assertWithMessage("file beginning read mismatch")
-          .that(read1)
-          .isEqualTo(message1.substring(0, offset));
-      assertWithMessage("footer read mismatch").that(readFooter).isEqualTo(footer);
-      // The readChannel will still just try to read the remaining 8 characters, but this time from
-      // the live version ("Sayonara, world!\n"), also, since the last character is already
-      // pre-fetched, this second read will only read 7 characters, and concatenate the footer
-      // (in this test case, the '\n' character). Thus, instead of reading " world!\n", it actually
-      // reads "ara wor\n".
-      assertWithMessage("file ending read mismatch")
-          .that(read2)
-          .isEqualTo(message2.substring(offset, message1.length()));
-    }
-  }
-
-  /**
-   * Validates that generation-read-consistency "STRICT" will error if intended generation is
-   * deleted/overwritten.
-   */
-  @Test
-  public void testReadGenerationStrict() throws IOException {
+  public void read_failure_ifObjectWasModifiedDuringRead() throws IOException {
     String bucketName = sharedBucketName1;
     String object = "generation-strict-" + UUID.randomUUID();
     String message1 = "Hello world!\n";
@@ -616,7 +570,6 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
     // These read options force the readChannel to open stream again on second read.
     GoogleCloudStorageReadOptions readOptions =
         GoogleCloudStorageReadOptions.builder()
-            .setGenerationReadConsistency(GenerationReadConsistency.STRICT)
             .setFadvise(Fadvise.RANDOM)
             .setMinRangeRequestSize(0)
             .build();
@@ -630,7 +583,11 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
           assertThrows(
               FileNotFoundException.class,
               () -> gcsiHelper.readText(readChannel, offset, message1.length() - offset, true));
-      assertThat(expected).hasMessageThat().contains("generation");
+      assertThat(expected)
+          .hasMessageThat()
+          .contains(
+              "Note, it is possible that the live version is still available"
+                  + " but the requested generation is deleted.");
     }
   }
 

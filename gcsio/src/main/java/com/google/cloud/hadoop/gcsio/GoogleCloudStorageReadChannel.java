@@ -34,7 +34,6 @@ import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.Storage.Objects.Get;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.ClientRequestHelper;
 import com.google.cloud.hadoop.util.ResilientOperation;
@@ -225,7 +224,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     this.clientRequestHelper = requestHelper;
     this.errorExtractor = errorExtractor;
     this.readOptions = readOptions;
-    this.resourceId = buildResourceId(resourceId.getGenerationId(), resourceId);
+    this.resourceId = resourceId;
 
     // Initialize metadata if available.
     GoogleCloudStorageItemInfo info = getInitialMetadata();
@@ -256,25 +255,6 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         /* errorExtractor= */ null,
         /* requestHelper= */ null,
         readOptions);
-  }
-
-  /* Sets generation ID, enforcing the read consistency invariant */
-  private void setGeneration(long generation) {
-    this.resourceId = buildResourceId(generation, this.resourceId);
-  }
-
-  /* Builds, enforcing the read consistency invariant in ReadOptions */
-  private StorageResourceId buildResourceId(long generation, StorageResourceId storageResourceId) {
-    if (readOptions.getGenerationReadConsistency()
-        == GoogleCloudStorageReadOptions.GenerationReadConsistency.LATEST) {
-      return new StorageResourceId(
-          storageResourceId.getBucketName(),
-          storageResourceId.getObjectName(),
-          StorageResourceId.UNKNOWN_GENERATION_ID);
-    } else {
-      return new StorageResourceId(
-          storageResourceId.getBucketName(), storageResourceId.getObjectName(), generation);
-    }
   }
 
   /** Sets the Sleeper used for sleeping between retries. */
@@ -827,17 +807,11 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         "Cannot initialize metadata, it already initialized for '%s'",
         resourceId);
 
-    long generation = StorageResourceId.UNKNOWN_GENERATION_ID;
-    if (readOptions.getGenerationReadConsistency() != GenerationReadConsistency.LATEST) {
-      String generationString = headers.getFirstHeaderStringValue("x-goog-generation");
-      if (generationString == null) {
-        throw new IOException(
-            String.format(
-                "Generation Read Consistency is '%s', but failed to retrieve generation for '%s'.",
-                readOptions.getGenerationReadConsistency(), generationString));
-      }
-      generation = Long.parseLong(generationString);
+    String generationString = headers.getFirstHeaderStringValue("x-goog-generation");
+    if (generationString == null) {
+      throw new IOException(String.format("Failed to retrieve generation for '%s'", resourceId));
     }
+    long generation = Long.parseLong(generationString);
 
     String range = headers.getContentRange();
     long sizeFromMetadata =
@@ -856,11 +830,9 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         "Cannot initialize metadata, it already initialized for '%s'",
         resourceId);
     checkState(
-        readOptions.getGenerationReadConsistency() == GenerationReadConsistency.LATEST
-            || (generation != StorageResourceId.UNKNOWN_GENERATION_ID),
-        "Generation parameter of %s is invalid with read consistency %s and resourceId of %s",
+        generation != StorageResourceId.UNKNOWN_GENERATION_ID,
+        "Generation parameter of %s is invalid for resourceId of '%s'",
         generation,
-        readOptions.getGenerationReadConsistency(),
         resourceId);
     gzipEncoded = nullToEmpty(encoding).contains(GZIP_ENCODING);
     if (gzipEncoded && !readOptions.getSupportGzipEncoding()) {
@@ -871,7 +843,17 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     randomAccess = !gzipEncoded && readOptions.getFadvise() == Fadvise.RANDOM;
     checkEncodingAndAccess();
 
-    setGeneration(generation);
+    if (resourceId.hasGenerationId()) {
+      checkState(
+          resourceId.getGenerationId() == generation,
+          "Provided generation (%s) should be equal to fetched generation (%s) for '%s'",
+          resourceId.getGenerationId(),
+          generation,
+          resourceId);
+    } else {
+      resourceId =
+          new StorageResourceId(resourceId.getBucketName(), resourceId.getObjectName(), generation);
+    }
 
     metadataInitialized = true;
 
@@ -1020,7 +1002,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
         size = 0;
         return new ByteArrayInputStream(new byte[0]);
       }
-      response = handleExecuteMediaException(e, getObject, shouldRetryWithLiveVersion());
+      response = handleExecuteMediaException(e);
     }
 
     if (!metadataInitialized) {
@@ -1088,7 +1070,7 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
             response = getObject.executeMedia();
             // TODO(b/110832992): validate response range header against expected/request range.
           } catch (IOException e1) {
-            response = handleExecuteMediaException(e1, getObject, shouldRetryWithLiveVersion());
+            response = handleExecuteMediaException(e1);
           }
         }
       }
@@ -1168,37 +1150,18 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
     return Math.max(0, currentPosition - (readOptions.getMinRangeRequestSize() - bytesToRead));
   }
 
-  private boolean shouldRetryWithLiveVersion() {
-    return resourceId.hasGenerationId()
-        && readOptions.getGenerationReadConsistency().equals(GenerationReadConsistency.BEST_EFFORT);
-  }
-
   /**
    * When an IOException is thrown, depending on if the exception is caused by non-existent object
    * generation, and depending on the generation read consistency setting, either retry the read (of
    * the latest generation), or handle the exception directly.
    *
    * @param e IOException thrown while reading from GCS.
-   * @param getObject the Get request to GCS.
-   * @param retryWithLiveVersion flag indicating whether we should strip the generation (thus read
-   *     from the latest generation) and retry.
    * @return the HttpResponse of reading from GCS from possible retry.
    * @throws IOException either error on retry, or thrown because the original read encounters
    *     error.
    */
-  private HttpResponse handleExecuteMediaException(
-      IOException e, Get getObject, boolean retryWithLiveVersion) throws IOException {
+  private HttpResponse handleExecuteMediaException(IOException e) throws IOException {
     if (errorExtractor.itemNotFound(e)) {
-      if (retryWithLiveVersion) {
-        setGeneration(StorageResourceId.UNKNOWN_GENERATION_ID);
-        footerContent = null;
-        getObject.setGeneration(null);
-        try {
-          return getObject.executeMedia();
-        } catch (IOException e1) {
-          return handleExecuteMediaException(e1, getObject, /* retryWithLiveVersion= */ false);
-        }
-      }
       throw createFileNotFoundException(resourceId, e);
     }
     String msg = String.format("Error reading '%s' at position %d", resourceId, currentPosition);
@@ -1223,23 +1186,15 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
 
   protected Get createRequest() throws IOException {
     // Start with unset generation and determine what to ask for based on read consistency.
-    Get get = gcs.objects().get(resourceId.getBucketName(), resourceId.getObjectName());
-    switch (readOptions.getGenerationReadConsistency()) {
-      case STRICT:
-        checkState(
-            !metadataInitialized || resourceId.hasGenerationId(),
-            "Generation should always be included in STRICT mode for resource %s", resourceId);
-        // fall through
-      case BEST_EFFORT:
-        // Generation value could be either set or unset for BEST_EFFORT
-        if (resourceId.hasGenerationId()) {
-          get.setGeneration(resourceId.getGenerationId());
-        }
-        break;
-      case LATEST:
-        // Ignore generation for LATEST
+    Get getObject = gcs.objects().get(resourceId.getBucketName(), resourceId.getObjectName());
+    checkState(
+        !metadataInitialized || resourceId.hasGenerationId(),
+        "Generation should always be included for resource '%s'",
+        resourceId);
+    if (resourceId.hasGenerationId()) {
+      getObject.setGeneration(resourceId.getGenerationId());
     }
-    return get;
+    return getObject;
   }
 
   /** Throws if this channel is not currently open. */

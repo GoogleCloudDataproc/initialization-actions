@@ -206,8 +206,7 @@ public final class MockHttpTransportHelper {
   }
 
   public static MockLowLevelHttpResponse dataResponse(Map<String, Object> headers, byte[] content) {
-    return setHeaders(new MockLowLevelHttpResponse(), headers, (long) content.length)
-        .setContent(content);
+    return setHeaders(new MockLowLevelHttpResponse(), headers, content.length).setContent(content);
   }
 
   public static MockLowLevelHttpResponse jsonErrorResponse(ErrorResponses errorResponse)
@@ -249,6 +248,9 @@ public final class MockHttpTransportHelper {
     Object contentLength = headers.getOrDefault(CONTENT_LENGTH, defaultContentLength);
     Object contentEncoding = headers.get(CONTENT_ENCODING);
     headers.forEach((h, hv) -> response.addHeader(h, String.valueOf(hv)));
+    if (!response.getHeaderNames().contains("x-goog-generation")) {
+      response.addHeader("x-goog-generation", "1");
+    }
     return response
         .setContentLength(Long.parseLong(String.valueOf(contentLength)))
         .setContentEncoding(contentEncoding == null ? null : String.valueOf(contentEncoding));

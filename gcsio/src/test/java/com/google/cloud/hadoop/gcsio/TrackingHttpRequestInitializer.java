@@ -193,7 +193,12 @@ public class TrackingHttpRequestInitializer implements HttpRequestInitializer {
   }
 
   public static String getMediaRequestString(String bucketName, String object) {
-    return String.format(GET_MEDIA_REQUEST_FORMAT, bucketName, urlEncode(object));
+    return getMediaRequestString(bucketName, object, /* generationId= */ null);
+  }
+
+  public static String getMediaRequestString(String bucketName, String object, Long generationId) {
+    return String.format(GET_MEDIA_REQUEST_FORMAT, bucketName, urlEncode(object))
+        + (generationId == null ? "" : "&generation=" + generationId);
   }
 
   public static String getBucketRequestString(String bucketName) {

@@ -329,9 +329,11 @@ public class GoogleCloudStorageTest {
 
     byte[] testData = {0x01, 0x02, 0x03, 0x05, 0x08};
 
+    StorageObject storageObject = newStorageObject(BUCKET_NAME, OBJECT_NAME);
+
     MockHttpTransport transport =
         mockTransport(
-            jsonDataResponse(newStorageObject(BUCKET_NAME, OBJECT_NAME)),
+            jsonDataResponse(storageObject),
             inputStreamResponse(CONTENT_LENGTH, testData.length, timeoutStream),
             inputStreamResponse(CONTENT_LENGTH, testData.length, sslExceptionStream),
             inputStreamResponse(CONTENT_LENGTH, testData.length, ioExceptionStream),
@@ -355,10 +357,10 @@ public class GoogleCloudStorageTest {
     assertThat(trackingHttpRequestInitializer.getAllRequestStrings())
         .containsExactly(
             getRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME))
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()))
         .inOrder();
   }
 
@@ -369,9 +371,11 @@ public class GoogleCloudStorageTest {
             new SSLException("read SSLException"), new SSLException("close SSLException"));
     byte[] testData = {0x01, 0x02, 0x03, 0x05, 0x08};
 
+    StorageObject storageObject = newStorageObject(BUCKET_NAME, OBJECT_NAME);
+
     MockHttpTransport transport =
         mockTransport(
-            jsonDataResponse(newStorageObject(BUCKET_NAME, OBJECT_NAME)),
+            jsonDataResponse(storageObject),
             inputStreamResponse(CONTENT_LENGTH, testData.length, failedStream),
             dataResponse(testData));
 
@@ -392,8 +396,8 @@ public class GoogleCloudStorageTest {
     assertThat(trackingHttpRequestInitializer.getAllRequestStrings())
         .containsExactly(
             getRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME))
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()))
         .inOrder();
   }
 
@@ -404,10 +408,11 @@ public class GoogleCloudStorageTest {
             new RuntimeException("read RuntimeException"),
             new RuntimeException("close RuntimeException"));
 
+    StorageObject storageObject = newStorageObject(BUCKET_NAME, OBJECT_NAME);
+
     MockHttpTransport transport =
         mockTransport(
-            jsonDataResponse(newStorageObject(BUCKET_NAME, OBJECT_NAME)),
-            inputStreamResponse(CONTENT_LENGTH, 1, failedStream));
+            jsonDataResponse(storageObject), inputStreamResponse(CONTENT_LENGTH, 1, failedStream));
 
     GoogleCloudStorage gcs = mockedGcs(transport);
 
@@ -432,7 +437,7 @@ public class GoogleCloudStorageTest {
     assertThat(trackingHttpRequestInitializer.getAllRequestStrings())
         .containsExactly(
             getRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME))
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()))
         .inOrder();
   }
 
@@ -441,10 +446,11 @@ public class GoogleCloudStorageTest {
     InputStream failedStream =
         new ThrowingInputStream(/* readException= */ null, new SSLException("close SSLException"));
 
+    StorageObject storageObject = newStorageObject(BUCKET_NAME, OBJECT_NAME);
+
     MockHttpTransport transport =
         mockTransport(
-            jsonDataResponse(newStorageObject(BUCKET_NAME, OBJECT_NAME)),
-            inputStreamResponse(CONTENT_LENGTH, 1, failedStream));
+            jsonDataResponse(storageObject), inputStreamResponse(CONTENT_LENGTH, 1, failedStream));
 
     GoogleCloudStorage gcs = mockedGcs(transport);
 
@@ -463,7 +469,7 @@ public class GoogleCloudStorageTest {
     assertThat(trackingHttpRequestInitializer.getAllRequestStrings())
         .containsExactly(
             getRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME))
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()))
         .inOrder();
   }
 
@@ -476,9 +482,11 @@ public class GoogleCloudStorageTest {
     byte[] truncatedData = {0x01, 0x02, 0x03};
     byte[] truncatedRetryData = {0x11};
 
+    StorageObject storageObject = newStorageObject(BUCKET_NAME, OBJECT_NAME);
+
     MockHttpTransport transport =
         mockTransport(
-            jsonDataResponse(newStorageObject(BUCKET_NAME, OBJECT_NAME)),
+            jsonDataResponse(storageObject),
             // First time: Claim  we'll provide 5 bytes, but only give 3.
             inputStreamResponse(
                 CONTENT_LENGTH, testLength, new ByteArrayInputStream(truncatedData)),
@@ -511,9 +519,9 @@ public class GoogleCloudStorageTest {
     assertThat(trackingHttpRequestInitializer.getAllRequestStrings())
         .containsExactly(
             getRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME))
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()))
         .inOrder();
   }
 
@@ -527,9 +535,11 @@ public class GoogleCloudStorageTest {
     byte[] secondReadData = {0x11};
     byte[] thirdReadData = {0x21};
 
+    StorageObject storageObject = newStorageObject(BUCKET_NAME, OBJECT_NAME);
+
     MockHttpTransport transport =
         mockTransport(
-            jsonDataResponse(newStorageObject(BUCKET_NAME, OBJECT_NAME)),
+            jsonDataResponse(storageObject),
             // First time: Claim  we'll provide 5 bytes, but only give 3.
             inputStreamResponse(
                 CONTENT_LENGTH, testData.length, new ByteArrayInputStream(firstReadData)),
@@ -561,9 +571,9 @@ public class GoogleCloudStorageTest {
     assertThat(trackingHttpRequestInitializer.getAllRequestStrings())
         .containsExactly(
             getRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME))
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()))
         .inOrder();
   }
 
@@ -581,9 +591,11 @@ public class GoogleCloudStorageTest {
             Duration.ofMillis(3).toNanos(),
             Duration.ofMillis(3).plusMillis(DEFAULT_BACKOFF_MAX_ELAPSED_TIME_MILLIS).toNanos());
 
+    StorageObject storageObject = newStorageObject(BUCKET_NAME, OBJECT_NAME);
+
     MockHttpTransport transport =
         mockTransport(
-            jsonDataResponse(newStorageObject(BUCKET_NAME, OBJECT_NAME)),
+            jsonDataResponse(storageObject),
             inputStreamResponse(CONTENT_LENGTH, 1, new ThrowingInputStream(readException1)),
             inputStreamResponse(CONTENT_LENGTH, 1, new ThrowingInputStream(readException2)));
 
@@ -602,8 +614,8 @@ public class GoogleCloudStorageTest {
     assertThat(trackingHttpRequestInitializer.getAllRequestStrings())
         .containsExactly(
             getRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME))
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()))
         .inOrder();
   }
 
@@ -615,9 +627,11 @@ public class GoogleCloudStorageTest {
 
     doThrow(sleepException).when(spySleeper).sleep(anyLong());
 
+    StorageObject storageObject = newStorageObject(BUCKET_NAME, OBJECT_NAME);
+
     MockHttpTransport transport =
         mockTransport(
-            jsonDataResponse(newStorageObject(BUCKET_NAME, OBJECT_NAME)),
+            jsonDataResponse(storageObject),
             inputStreamResponse(
                 CONTENT_LENGTH, 1, new ThrowingInputStream(new IOException("read IOException"))));
 
@@ -639,7 +653,7 @@ public class GoogleCloudStorageTest {
     assertThat(trackingHttpRequestInitializer.getAllRequestStrings())
         .containsExactly(
             getRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME))
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()))
         .inOrder();
   }
 
@@ -649,9 +663,11 @@ public class GoogleCloudStorageTest {
     InputStream sslExceptionStream = new ThrowingInputStream(new SSLException("read SSLException"));
     IOException readIOException = new IOException("read IOException");
 
+    StorageObject storageObject = newStorageObject(BUCKET_NAME, OBJECT_NAME);
+
     MockHttpTransport transport =
         mockTransport(
-            jsonDataResponse(newStorageObject(BUCKET_NAME, OBJECT_NAME)),
+            jsonDataResponse(storageObject),
             inputStreamResponse(CONTENT_LENGTH, 1, timeoutStream),
             inputStreamResponse(CONTENT_LENGTH, 1, sslExceptionStream),
             inputStreamResponse(CONTENT_LENGTH, 1, new ThrowingInputStream(readIOException)));
@@ -671,9 +687,9 @@ public class GoogleCloudStorageTest {
     assertThat(trackingHttpRequestInitializer.getAllRequestStrings())
         .containsExactly(
             getRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME))
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()))
         .inOrder();
   }
 
@@ -708,9 +724,11 @@ public class GoogleCloudStorageTest {
           }
         };
 
+    StorageObject storageObject = newStorageObject(BUCKET_NAME, OBJECT_NAME);
+
     MockHttpTransport transport =
         mockTransport(
-            jsonDataResponse(newStorageObject(BUCKET_NAME, OBJECT_NAME)),
+            jsonDataResponse(storageObject),
             inputStreamResponse(CONTENT_LENGTH, testData.length, timeoutStream),
             inputStreamResponse(CONTENT_LENGTH, testData.length, intermittentProgressTimeoutStream),
             inputStreamResponse(
@@ -736,9 +754,9 @@ public class GoogleCloudStorageTest {
     assertThat(trackingHttpRequestInitializer.getAllRequestStrings())
         .containsExactly(
             getRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME))
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()))
         .inOrder();
   }
 
@@ -752,12 +770,14 @@ public class GoogleCloudStorageTest {
     Map<String, Object> responseHeaders =
         ImmutableMap.of(CONTENT_LENGTH, compressedData.length, "Content-Encoding", "gzip");
 
+    StorageObject storageObject =
+        newStorageObject(BUCKET_NAME, OBJECT_NAME)
+            .setSize(BigInteger.valueOf(compressedData.length))
+            .setContentEncoding("gzip");
+
     MockHttpTransport transport =
         mockTransport(
-            jsonDataResponse(
-                newStorageObject(BUCKET_NAME, OBJECT_NAME)
-                    .setSize(BigInteger.valueOf(compressedData.length))
-                    .setContentEncoding("gzip")),
+            jsonDataResponse(storageObject),
             dataResponse(responseHeaders, compressedData),
             dataResponse(responseHeaders, compressedData),
             dataResponse(responseHeaders, compressedData));
@@ -821,9 +841,9 @@ public class GoogleCloudStorageTest {
     assertThat(trackingHttpRequestInitializer.getAllRequestStrings())
         .containsExactly(
             getRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME))
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()))
         .inOrder();
   }
 
@@ -947,11 +967,11 @@ public class GoogleCloudStorageTest {
   public void testUnusedBackwardSeekIgnored() throws Exception {
     byte[] testData = {0x01, 0x02, 0x03, 0x05, 0x08};
 
+    StorageObject storageObject = newStorageObject(BUCKET_NAME, OBJECT_NAME);
+
     MockHttpTransport transport =
         mockTransport(
-            jsonDataResponse(newStorageObject(BUCKET_NAME, OBJECT_NAME)),
-            dataResponse(testData),
-            dataResponse(testData));
+            jsonDataResponse(storageObject), dataResponse(testData), dataResponse(testData));
 
     GoogleCloudStorage gcs = mockedGcs(transport);
 
@@ -996,8 +1016,8 @@ public class GoogleCloudStorageTest {
     assertThat(trackingHttpRequestInitializer.getAllRequestStrings())
         .containsExactly(
             getRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME))
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()))
         .inOrder();
   }
 
@@ -1014,12 +1034,14 @@ public class GoogleCloudStorageTest {
     Map<String, Object> responseHeaders =
         ImmutableMap.of(CONTENT_LENGTH, compressedData.length, "Content-Encoding", "gzip");
 
+    StorageObject storageObject =
+        newStorageObject(BUCKET_NAME, OBJECT_NAME)
+            .setSize(BigInteger.valueOf(compressedData.length))
+            .setContentEncoding("gzip");
+
     MockHttpTransport transport =
         mockTransport(
-            jsonDataResponse(
-                newStorageObject(BUCKET_NAME, OBJECT_NAME)
-                    .setSize(BigInteger.valueOf(compressedData.length))
-                    .setContentEncoding("gzip")),
+            jsonDataResponse(storageObject),
             inputStreamResponse(
                 responseHeaders,
                 partialReadTimeoutStream(
@@ -1049,9 +1071,9 @@ public class GoogleCloudStorageTest {
     assertThat(trackingHttpRequestInitializer.getAllRequestStrings())
         .containsExactly(
             getRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME))
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()))
         .inOrder();
   }
 
@@ -1061,13 +1083,12 @@ public class GoogleCloudStorageTest {
     byte[] testData = {0x01, 0x02, 0x11, 0x12, 0x13};
     byte[] testData2 = {0x11, 0x12, 0x13};
 
+    StorageObject storageObject =
+        newStorageObject(BUCKET_NAME, OBJECT_NAME).setSize(BigInteger.valueOf(testData.length));
+
     MockHttpTransport transport =
         mockTransport(
-            jsonDataResponse(
-                newStorageObject(BUCKET_NAME, OBJECT_NAME)
-                    .setSize(BigInteger.valueOf(testData.length))),
-            dataResponse(testData),
-            dataResponse(testData2));
+            jsonDataResponse(storageObject), dataResponse(testData), dataResponse(testData2));
 
     GoogleCloudStorage gcs = mockedGcs(transport);
 
@@ -1122,8 +1143,8 @@ public class GoogleCloudStorageTest {
     assertThat(trackingHttpRequestInitializer.getAllRequestStrings())
         .containsExactly(
             getRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME))
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject.getGeneration()))
         .inOrder();
   }
 
@@ -1133,12 +1154,15 @@ public class GoogleCloudStorageTest {
    */
   @Test
   public void testOpenObjectApiException() throws IOException {
+    StorageObject storageObject1 = newStorageObject(BUCKET_NAME, OBJECT_NAME);
+    StorageObject storageObject2 = newStorageObject(BUCKET_NAME, OBJECT_NAME);
+
     MockHttpTransport transport =
         mockTransport(
             jsonErrorResponse(ErrorResponses.NOT_FOUND),
-            jsonDataResponse(newStorageObject(BUCKET_NAME, OBJECT_NAME)),
+            jsonDataResponse(storageObject1),
             jsonErrorResponse(ErrorResponses.RANGE_NOT_SATISFIABLE),
-            jsonDataResponse(newStorageObject(BUCKET_NAME, OBJECT_NAME)),
+            jsonDataResponse(storageObject2),
             jsonErrorResponse(ErrorResponses.GONE));
 
     GoogleCloudStorage gcs = mockedGcs(transport);
@@ -1169,9 +1193,9 @@ public class GoogleCloudStorageTest {
         .containsExactly(
             getRequestString(BUCKET_NAME, OBJECT_NAME),
             getRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME),
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject1.getGeneration()),
             getRequestString(BUCKET_NAME, OBJECT_NAME),
-            getMediaRequestString(BUCKET_NAME, OBJECT_NAME))
+            getMediaRequestString(BUCKET_NAME, OBJECT_NAME, storageObject2.getGeneration()))
         .inOrder();
   }
 

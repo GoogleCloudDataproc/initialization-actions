@@ -43,9 +43,8 @@ public final class GoogleCloudStorageExceptions {
     FileNotFoundException fileNotFoundException =
         new FileNotFoundException(
             String.format(
-                "Item not found: '%s'. If you enabled STRICT generation consistency, it is"
-                    + " possible that the live version is still available but the intended"
-                    + " generation is deleted.",
+                "Item not found: '%s'. Note, it is possible that the live version"
+                    + " is still available but the requested generation is deleted.",
                 StorageResourceId.createReadableString(bucketName, nullToEmpty(objectName))));
     if (cause != null) {
       fileNotFoundException.initCause(cause);

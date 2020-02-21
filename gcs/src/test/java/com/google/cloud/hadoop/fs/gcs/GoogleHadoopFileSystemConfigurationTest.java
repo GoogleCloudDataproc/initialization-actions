@@ -29,7 +29,6 @@ import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.OutputStreamTyp
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.GenerationReadConsistency;
 import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
 import com.google.cloud.hadoop.util.RequesterPaysOptions.RequesterPaysMode;
 import com.google.common.collect.ImmutableList;
@@ -76,7 +75,6 @@ public class GoogleHadoopFileSystemConfigurationTest {
           put("fs.gs.io.buffersize", 0);
           put("fs.gs.inputstream.fast.fail.on.not.found.enable", true);
           put("fs.gs.inputstream.support.gzip.encoding.enable", false);
-          put("fs.gs.generation.read.consistency", GenerationReadConsistency.LATEST);
           put("fs.gs.outputstream.buffer.size", 8_388_608);
           put("fs.gs.outputstream.pipe.buffer.size", 1_048_576);
           put("fs.gs.outputstream.upload.chunk.size", 67_108_864);

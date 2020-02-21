@@ -248,34 +248,6 @@ is `false`.
     [GZIP encoded](https://cloud.google.com/storage/docs/transcoding#decompressive_transcoding)
     files is inefficient and error-prone in Hadoop and Spark.
 
-*   `fs.gs.generation.read.consistency` (default: `LATEST`)
-
-    Determines read consistency across different generations of a Cloud Storage
-    object.
-
-    Supported modes:
-
-    *   `LATEST` - this is the default behavior. The connector will ignore
-        generation ID of the GCS objects and always try to read the live
-        version.
-
-    *   `BEST_EFFORT` - The connector will try to read the generation determined
-        when the `GoogleCloudStorageReadChannel` is first opened. However if
-        that generation cannot be found anymore, connector will fall back to
-        read the live version. This mode allows to improve performance by
-        requesting the same object generation. Using this mode connector can
-        read changing objects from GCS buckets with disabled object versioning
-        without failure.
-
-    *   `STRICT` - The connector will always try to read the generation
-        determined when the `GoogleCloudStorageReadChannel` is first opened, and
-        reports FileNotFound exception when that generation cannot be found
-        anymore.
-
-        Note that this property will only apply to new streams opened after
-        generation is determined. It won't affect read from any streams that are
-        already open, pre-fetched footer, or the metadata of the object.
-
 *   `fs.gs.outputstream.buffer.size` (default: `8388608`)
 
     Write buffer size.

@@ -596,6 +596,8 @@ public class GoogleCloudStorageNewIntegrationTest {
       os.write("content".getBytes(UTF_8));
     }
 
+    long generationId = gcsfsIHelper.gcs.getItemInfo(testFile).getContentGeneration();
+
     TrackingHttpRequestInitializer gcsRequestsTracker =
         new TrackingHttpRequestInitializer(httpRequestsInitializer);
     GoogleCloudStorage gcs = new GoogleCloudStorageImpl(gcsOptions, gcsRequestsTracker);
@@ -612,7 +614,7 @@ public class GoogleCloudStorageNewIntegrationTest {
     assertThat(gcsRequestsTracker.getAllRequestStrings())
         .containsExactly(
             getRequestString(testBucket, testFile.getObjectName()),
-            getMediaRequestString(testBucket, testFile.getObjectName()));
+            getMediaRequestString(testBucket, testFile.getObjectName(), generationId));
   }
 
   @Test
