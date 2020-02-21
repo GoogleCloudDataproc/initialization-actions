@@ -4,7 +4,9 @@ set -euxo pipefail
 apt-get update
 
 ## Set Spark and Sparkling water versions
-readonly H2O_SPARKLING_WATER_VERSION="3.28.0.3-1"
+readonly DEFAULT_H2O_SPARKLING_WATER_VERSION="3.28.0.3-1"
+readonly H2O_SPARKLING_WATER_VERSION="$(/usr/share/google/get_metadata_value attributes/H2O_SPARKLING_WATER_VERSION || echo ${DEFAULT_H2O_SPARKLING_WATER_VERSION})"
+echo $H2O_SPARKLING_WATER_VERSION
 readonly SPARK_VERSION=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
 echo $SPARK_VERSION
 readonly SPARKLING_WATER="http://h2o-release.s3.amazonaws.com/sparkling-water/spark-$SPARK_VERSION/$H2O_SPARKLING_WATER_VERSION-$SPARK_VERSION/sparkling-water-$H2O_SPARKLING_WATER_VERSION-$SPARK_VERSION.zip"
