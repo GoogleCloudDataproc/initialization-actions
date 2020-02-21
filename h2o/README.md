@@ -21,8 +21,8 @@ Sparkling Water installed by:
     MY_BUCKET=<gcs-bucket>
     gcloud dataproc clusters create <CLUSTER_NAME> \
         --image-version 1.3 \
-        --scopes 'https://www.googleapis.com/auth/cloud-platform' \
-        --initialization-actions 'gs://$MY_BUCKET/conda/bootstrap-conda.sh,gs://$MY_BUCKET/h2o/h2o.sh'
+        --scopes "https://www.googleapis.com/auth/cloud-platform" \
+        --initialization-actions "gs://$MY_BUCKET/conda/bootstrap-conda.sh,gs://$MY_BUCKET/h2o/h2o.sh"
     ```
 
     To create Dataproc 1.4 cluster and newer use `ANACONDA` optional component:
@@ -32,13 +32,13 @@ Sparkling Water installed by:
     gcloud dataproc clusters create <CLUSTER_NAME> \
         --image-version 1.4 \
         --optional-components ANACONDA \
-        --scopes 'https://www.googleapis.com/auth/cloud-platform' \
-        --initialization-actions 'gs://$MY_BUCKET/h2o/h2o.sh'
+        --scopes "https://www.googleapis.com/auth/cloud-platform" \
+        --initialization-actions "gs://$MY_BUCKET/h2o/h2o.sh"
     ```
 
 1.  Submit sample job.
 
     ```bash
     MY_BUCKET=<gcs-bucket>
-    gcloud dataproc jobs submit pyspark --cluster <CLUSTER_NAME> gs://$MY_BUCKET/h2o/sample-script.py
+    gcloud dataproc jobs submit pyspark --cluster <CLUSTER_NAME> "gs://$MY_BUCKET/h2o/sample-script.py"
     ```
