@@ -21,6 +21,7 @@ Sparkling Water installed by:
     MY_BUCKET=<gcs-bucket>
     gcloud dataproc clusters create <CLUSTER_NAME> \
         --image-version 1.3 \
+        --metadata 'H2O_SPARKLING_WATER_VERSION=3.28.0.1-1' \
         --scopes "https://www.googleapis.com/auth/cloud-platform" \
         --initialization-actions "gs://$MY_BUCKET/conda/bootstrap-conda.sh,gs://$MY_BUCKET/h2o/h2o.sh"
     ```
@@ -32,6 +33,7 @@ Sparkling Water installed by:
     gcloud dataproc clusters create <CLUSTER_NAME> \
         --image-version 1.4 \
         --optional-components ANACONDA \
+        --metadata 'H2O_SPARKLING_WATER_VERSION=3.28.0.3-1' \
         --scopes "https://www.googleapis.com/auth/cloud-platform" \
         --initialization-actions "gs://$MY_BUCKET/h2o/h2o.sh"
     ```
