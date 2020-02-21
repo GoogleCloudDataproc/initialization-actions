@@ -207,7 +207,8 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
             options.getAppName(),
             options.getMaxHttpRequestRetries(),
             options.getHttpRequestConnectTimeout(),
-            options.getHttpRequestReadTimeout()));
+            options.getHttpRequestReadTimeout(),
+            options.getHttpRequestHeaders()));
   }
 
   @VisibleForTesting

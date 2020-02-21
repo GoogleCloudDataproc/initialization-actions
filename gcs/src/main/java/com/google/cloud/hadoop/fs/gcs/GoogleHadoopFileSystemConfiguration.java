@@ -38,8 +38,10 @@ import com.google.cloud.hadoop.util.RequesterPaysOptions;
 import com.google.cloud.hadoop.util.RequesterPaysOptions.RequesterPaysMode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.flogger.GoogleLogger;
 import java.util.Collection;
+import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.permission.FsPermission;
 
@@ -370,6 +372,10 @@ public class GoogleHadoopFileSystemConfiguration {
               "fs.gs.cooperative.locking.max.concurrent.operations",
               CooperativeLockingOptions.MAX_CONCURRENT_OPERATIONS_DEFAULT);
 
+  /** Configuration key for the headers for HTTP request to GCS. */
+  public static final HadoopConfigurationProperty<Map<String, String>> GCS_HTTP_HEADERS =
+      new HadoopConfigurationProperty<>("fs.gs.storage.http.headers.", ImmutableMap.of());
+
   // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
   // Please check that removing it is correct, and remove this comment along with it.
   // @VisibleForTesting
@@ -419,7 +425,8 @@ public class GoogleHadoopFileSystemConfiguration {
         .setReadChannelOptions(getReadChannelOptions(config))
         .setWriteChannelOptions(getWriteChannelOptions(config))
         .setRequesterPaysOptions(getRequesterPaysOptions(config, projectId))
-        .setCooperativeLockingOptions(getCooperativeLockingOptions(config));
+        .setCooperativeLockingOptions(getCooperativeLockingOptions(config))
+        .setHttpRequestHeaders(GCS_HTTP_HEADERS.getPropsWithPrefix(config));
   }
 
   private static PerformanceCachingGoogleCloudStorageOptions getPerformanceCachingOptions(

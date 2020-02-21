@@ -13,6 +13,18 @@
         fs.gs.storage.root.url
         fs.gs.token.server.url
 
+1.  Support adding custom HTTP headers to Cloud Storage API requests:
+
+        fs.gs.storage.http.headers.<HEADER>=<VALUE> (not set by default)
+
+    Example:
+
+    ```bash
+    fs.gs.storage.http.headers.x-goog-encryption-algorithm=AES256
+    fs.gs.storage.http.headers.x-goog-encryption-key=NwbyGGmcKAX4FxGpOERG2Ap33m5NVOgmXznSGTEvG0I=
+    fs.gs.storage.http.headers.x-goog-encryption-key-sha256=+eBzkZBt1Mj2CZx69L3c8yXoZB6DtRLlSvXMJB9JGIQ=
+    ```
+
 1.  Always set `generation` parameter for read requests and remove
     `fs.gs.generation.read.consistency` property.
 

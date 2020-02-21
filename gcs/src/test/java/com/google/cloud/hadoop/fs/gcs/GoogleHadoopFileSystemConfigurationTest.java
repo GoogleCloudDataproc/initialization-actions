@@ -15,6 +15,7 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONFIG_PREFIX;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_HTTP_HEADERS;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_ROOT_URL;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.PROXY_ADDRESS_SUFFIX;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.PROXY_PASSWORD_SUFFIX;
@@ -32,6 +33,7 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
 import com.google.cloud.hadoop.util.RequesterPaysOptions.RequesterPaysMode;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
@@ -97,6 +99,7 @@ public class GoogleHadoopFileSystemConfigurationTest {
           put("fs.gs.cooperative.locking.enable", false);
           put("fs.gs.cooperative.locking.expiration.timeout.ms", 120_000L);
           put("fs.gs.cooperative.locking.max.concurrent.operations", 20);
+          put("fs.gs.storage.http.headers.", ImmutableMap.of());
         }
       };
 
@@ -176,6 +179,42 @@ public class GoogleHadoopFileSystemConfigurationTest {
 
     // Building configuration using deprecated key (in eg. proxy password) should fail.
     assertThrows(IllegalArgumentException.class, optionsBuilder::build);
+  }
+
+  @Test
+  public void testHttpHeadersProperties_singleHeader() {
+    Configuration config = new Configuration();
+    config.set(GCS_HTTP_HEADERS.getKey() + "header-key", "val=ue");
+
+    GoogleCloudStorageFileSystemOptions options =
+        GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config).build();
+
+    assertThat(options.getCloudStorageOptions().getHttpRequestHeaders())
+        .containsExactly("header-key", "val=ue");
+  }
+
+  @Test
+  public void testHttpHeadersProperties_multipleHeaders() {
+    Configuration config = new Configuration();
+    config.set(GCS_HTTP_HEADERS.getKey() + "x-goog-encryption-algorithm", "AES256");
+    config.set(
+        GCS_HTTP_HEADERS.getKey() + "x-goog-encryption-key",
+        "NwbyGGmcKAX4FxGpOERG2Ap33m5NVOgmXznSGTEvG0I=");
+    config.set(
+        GCS_HTTP_HEADERS.getKey() + "x-goog-encryption-key-sha256",
+        "+eBzkZBt1Mj2CZx69L3c8yXoZB6DtRLlSvXMJB9JGIQ=");
+
+    GoogleCloudStorageFileSystemOptions options =
+        GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config).build();
+
+    assertThat(options.getCloudStorageOptions().getHttpRequestHeaders())
+        .containsExactly(
+            "x-goog-encryption-algorithm",
+            "AES256",
+            "x-goog-encryption-key",
+            "NwbyGGmcKAX4FxGpOERG2Ap33m5NVOgmXznSGTEvG0I=",
+            "x-goog-encryption-key-sha256",
+            "+eBzkZBt1Mj2CZx69L3c8yXoZB6DtRLlSvXMJB9JGIQ=");
   }
 
   @Test

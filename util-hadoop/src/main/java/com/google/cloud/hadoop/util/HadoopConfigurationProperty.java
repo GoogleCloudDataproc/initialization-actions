@@ -10,6 +10,7 @@ import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.function.BiFunction;
 import org.apache.hadoop.conf.Configuration;
 
@@ -56,13 +57,13 @@ public class HadoopConfigurationProperty<T> {
   }
 
   public T get(Configuration config, BiFunction<String, T, T> getterFn) {
-    String lookupKey = getLookupKey(config, key, deprecatedKeys);
+    String lookupKey = getLookupKey(config, key, deprecatedKeys, (c, k) -> c.get(k) != null);
     return logProperty(lookupKey, getterFn.apply(lookupKey, defaultValue));
   }
 
   public String getPassword(Configuration config) {
     checkState(defaultValue == null || defaultValue instanceof String, "Not a string property");
-    String lookupKey = getLookupKey(config, key, deprecatedKeys);
+    String lookupKey = getLookupKey(config, key, deprecatedKeys, (c, k) -> c.get(k) != null);
     char[] value;
     try {
       value = config.getPassword(lookupKey);
@@ -75,7 +76,7 @@ public class HadoopConfigurationProperty<T> {
   public Collection<String> getStringCollection(Configuration config) {
     checkState(
         defaultValue == null || defaultValue instanceof Collection, "Not a collection property");
-    String lookupKey = getLookupKey(config, key, deprecatedKeys);
+    String lookupKey = getLookupKey(config, key, deprecatedKeys, (c, k) -> c.get(k) != null);
     String valueString =
         config.get(
             lookupKey,
@@ -84,15 +85,29 @@ public class HadoopConfigurationProperty<T> {
     return logProperty(lookupKey, value);
   }
 
-  private String getLookupKey(Configuration config, String key, List<String> deprecatedKeys) {
+  public Map<String, String> getPropsWithPrefix(Configuration config) {
+    checkState(defaultValue instanceof Map, "Not a map property");
+    String lookupKey =
+        getLookupKey(config, key, deprecatedKeys, (c, k) -> !c.getPropsWithPrefix(k).isEmpty());
+    Map<String, String> propsWithPrefix = config.getPropsWithPrefix(lookupKey);
+    return logProperty(
+        lookupKey,
+        propsWithPrefix.isEmpty() ? (Map<String, String>) defaultValue : propsWithPrefix);
+  }
+
+  private String getLookupKey(
+      Configuration config,
+      String key,
+      List<String> deprecatedKeys,
+      BiFunction<Configuration, String, Boolean> checkFn) {
     for (String prefix : keyPrefixes) {
       String prefixedKey = prefix + key;
-      if (config.get(prefixedKey) != null) {
+      if (checkFn.apply(config, prefixedKey)) {
         return prefixedKey;
       }
       for (String deprecatedKey : deprecatedKeys) {
         String prefixedDeprecatedKey = prefix + deprecatedKey;
-        if (config.get(prefixedDeprecatedKey) != null) {
+        if (checkFn.apply(config, prefixedDeprecatedKey)) {
           logger.atWarning().log(
               "Using deprecated key '%s', use '%s' key instead.",
               prefixedDeprecatedKey, prefixedKey);

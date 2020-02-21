@@ -31,9 +31,11 @@ import com.google.api.client.util.Sleeper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
+import java.util.Map;
 import java.util.Set;
 import org.apache.http.HttpStatus;
 
@@ -60,6 +62,8 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
   // Default number of read timeout (20 seconds).
   private static final int DEFAULT_READ_TIMEOUT = 20 * 1000;
 
+  private static final ImmutableMap<String, String> DEFAULT_HTTP_HEADERS = ImmutableMap.of();
+
   // To be used as a request interceptor for filling in the "Authorization" header field, as well
   // as a response handler for certain unsuccessful error codes wherein the Credential must refresh
   // its token for a retry.
@@ -80,6 +84,9 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
 
   // Read timeout, in milliseconds.
   private final int readTimeoutMillis;
+
+  // HTTP request headers.
+  private final ImmutableMap<String, String> headers;
 
   /** A HttpUnsuccessfulResponseHandler logs the URL that generated certain failures. */
   private static class LoggingResponseHandler
@@ -226,7 +233,8 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
       String defaultUserAgent,
       int maxRequestRetries,
       int connectTimeoutMillis,
-      int readTimeoutMillis) {
+      int readTimeoutMillis,
+      Map<String, String> headers) {
     Preconditions.checkNotNull(credential, "A valid Credential is required");
     this.credential = credential;
     this.sleeperOverride = null;
@@ -234,6 +242,7 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
     this.maxRequestRetries = maxRequestRetries;
     this.connectTimeoutMillis = connectTimeoutMillis;
     this.readTimeoutMillis = readTimeoutMillis;
+    this.headers = ImmutableMap.copyOf(headers);
   }
 
   /**
@@ -255,7 +264,8 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
         defaultUserAgent,
         DEFAULT_MAX_REQUEST_RETRIES,
         DEFAULT_CONNECT_TIMEOUT,
-        DEFAULT_READ_TIMEOUT);
+        DEFAULT_READ_TIMEOUT,
+        DEFAULT_HTTP_HEADERS);
   }
 
   @Override
@@ -294,6 +304,10 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
       logger.atFiner().log(
           "Request is missing a user-agent, adding default value of '%s'", defaultUserAgent);
       request.getHeaders().setUserAgent(defaultUserAgent);
+    }
+
+    for (Map.Entry<String, String> header : headers.entrySet()) {
+      request.getHeaders().set(header.getKey(), header.getValue());
     }
   }
 
