@@ -113,7 +113,8 @@ update_connector() {
   fi
 }
 
-if [[ -z $BIGQUERY_CONNECTOR_VERSION && -z $GCS_CONNECTOR_VERSION && -z $BIGQUERY_CONNECTOR_URL && -z $GCS_CONNECTOR_URL ]]; then
+if [[ -z $BIGQUERY_CONNECTOR_VERSION && -z $GCS_CONNECTOR_VERSION
+    && -z $BIGQUERY_CONNECTOR_URL && -z $GCS_CONNECTOR_URL ]]; then
   echo "ERROR: None of connector versions or URLs are specified"
   exit 1
 fi
@@ -126,11 +127,6 @@ if [[ -z $BIGQUERY_CONNECTOR_VERSION ]] && [[ $GCS_CONNECTOR_VERSION == "1.7.0" 
 fi
 if [[ $BIGQUERY_CONNECTOR_VERSION == "0.11.0" ]] && [[ -z $GCS_CONNECTOR_VERSION ]]; then
   GCS_CONNECTOR_VERSION="1.7.0"
-fi
-
-if [[ -n $BIGQUERY_CONNECTOR_VERSION && -n $BIGQUERY_CONNECTOR_URL ]] || [[ -n $GCS_CONNECTOR_VERSION && -n $GCS_CONNECTOR_URL ]]; then
-  echo "ERROR: Both, connector version and URL are specified for the same connector"
-  exit 1
 fi
 
 update_connector "bigquery" "$BIGQUERY_CONNECTOR_VERSION" "$BIGQUERY_CONNECTOR_URL"
