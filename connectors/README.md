@@ -21,24 +21,40 @@ on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
 [best practices](/README.md#how-initialization-actions-are-used) of using
 initialization actions in production.
 
-You can use this initialization action to create a new Dataproc cluster with
-specific version of Google Cloud Storage and BigQuery connector installed:
+You can use this initialization action to create a new Dataproc cluster with an
+updated Google Cloud Storage and BigQuery connector installed:
 
-```
-REGION=<region>
-CLUSTER_NAME=<cluster_name>
-gcloud dataproc clusters create ${CLUSTER_NAME} \
-    --region ${REGION} \
-    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/connectors/connectors.sh \
-    --metadata gcs-connector-version=2.0.1 \
-    --metadata bigquery-connector-version=1.0.1
-```
+-   to update connector by specifying version, use `gcs-connector-version` and
+    `bigquery-connector-version` metadata values:
 
-This script downloads specified version of Google Cloud Storage and BigQuery
-connector and deletes old version of these connectors.
+    ```
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/connectors/connectors.sh \
+        --metadata gcs-connector-version=2.0.1 \
+        --metadata bigquery-connector-version=1.0.1
+    ```
+
+-   to update connector by specifying URL, use `gcs-connector-url` and
+    `bigquery-connector-url` metadata values:
+
+    ```
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/connectors/connectors.sh \
+        --metadata gcs-connector-url=gs://path/to/custom/gcs/connector.jar \
+        --metadata bigquery-connector-url=gs://path/to/custom/bigquery/connector.jar
+    ```
+
+This script downloads specified Google Cloud Storage and BigQuery connector and
+deletes an old version of these connectors.
 
 To specify connector version, find the needed released connector version on the
-[connectors releases page](https://github.com/GoogleCloudPlatform/bigdata-interop/releases),
+[connectors releases page](https://github.com/GoogleCloudDataproc/hadoop-connectors/releases),
 and set it as the `gcs-connector-version` or `bigquery-connector-version`
 metadata key value.
 
