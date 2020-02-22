@@ -50,7 +50,7 @@ validate_version() {
 
 function update_connector_url() {
   local -r name=$1
-  local -r url=$1
+  local -r url=$2
 
   if [[ $name == gcs ]]; then
     UPDATED_GCS_CONNECTOR=true
