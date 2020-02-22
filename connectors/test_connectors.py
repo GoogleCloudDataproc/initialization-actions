@@ -9,8 +9,11 @@ class ConnectorsTestCase(DataprocTestCase):
     COMPONENT = "connectors"
     INIT_ACTIONS = ['connectors/connectors.sh']
 
-    BQ_CONNECTOR_VERSION = "1.0.0"
-    GCS_CONNECTOR_VERSION = "2.0.0"
+    BQ_CONNECTOR_VERSION = "1.0.1"
+    GCS_CONNECTOR_VERSION = "2.0.1"
+
+    BQ_CONNECTOR_URL = "gs://hadoop-lib/bigquery/bigquery-connector-hadoop2-1.0.1.jar"
+    GCS_CONNECTOR_URL = "gs://hadoop-lib/gcs/gcs-connector-hadoop2-2.0.1.jar"
 
     def verify_instance(self, name, connector, connector_version):
         self.__submit_pig_job(
@@ -31,10 +34,9 @@ class ConnectorsTestCase(DataprocTestCase):
 
     @parameterized.parameters(
         "SINGLE",
-        "STANDARD",
         "HA",
     )
-    def test_gcs_connector(self, configuration):
+    def test_gcs_connector_version(self, configuration):
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
@@ -45,10 +47,9 @@ class ConnectorsTestCase(DataprocTestCase):
 
     @parameterized.parameters(
         "SINGLE",
-        "STANDARD",
         "HA",
     )
-    def test_bq_connector(self, configuration):
+    def test_bq_connector_version(self, configuration):
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
@@ -57,6 +58,31 @@ class ConnectorsTestCase(DataprocTestCase):
         self.verify_instance(self.getClusterName(), "bigquery-connector",
                              self.BQ_CONNECTOR_VERSION)
 
+    @parameterized.parameters(
+        "SINGLE",
+        "HA",
+    )
+    def test_gcs_connector_url(self, configuration):
+        self.createCluster(
+            configuration,
+            self.INIT_ACTIONS,
+            metadata="gcs-connector-url={}".format(
+                self.GCS_CONNECTOR_URL))
+        self.verify_instance(self.getClusterName(), "gcs-connector",
+                             self.GCS_CONNECTOR_VERSION)
+
+    @parameterized.parameters(
+        "SINGLE",
+        "HA",
+    )
+    def test_bq_connector_url(self, configuration):
+        self.createCluster(
+            configuration,
+            self.INIT_ACTIONS,
+            metadata="bigquery-connector-url={}".format(
+                self.BQ_CONNECTOR_URL))
+        self.verify_instance(self.getClusterName(), "bigquery-connector",
+                             self.BQ_CONNECTOR_VERSION)
 
 if __name__ == '__main__':
     absltest.main()
