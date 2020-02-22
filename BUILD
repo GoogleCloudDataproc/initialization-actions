@@ -16,6 +16,7 @@ test_suite(
         "//flink:test_flink",
         "//ganglia:test_ganglia",
         "//gpu:test_gpu",
+        "//h2o:test_h2o",
         "//hbase:test_hbase",
         "//hue:test_hue",
         "//jupyter:test_jupyter",
