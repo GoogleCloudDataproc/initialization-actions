@@ -28,7 +28,7 @@ UPDATED_GCS_CONNECTOR=false
 is_worker() {
   local role
   role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-  if [[ ${role} != Master ]]; then
+  if [[ $role != Master ]]; then
     return 0
   fi
   return 1
@@ -48,7 +48,7 @@ validate_version() {
   fi
 }
 
-function update_connector_url() {
+update_connector_url() {
   local -r name=$1
   local -r url=$2
 
@@ -94,6 +94,25 @@ update_connector_version() {
   update_connector_url "${name}" "gs://hadoop-lib/${name}/${jar_name}"
 }
 
+update_connector() {
+  local -r name=$1
+  local -r version=$2
+  local -r url=$3
+
+  if [[ -n $version && -n $url ]]; then
+    echo "ERROR: Both, connector version and URL are specified for the same connector"
+    exit 1
+  fi
+
+  if [[ -n $version ]]; then
+    update_connector_version "$name" "$version"
+  fi
+
+  if [[ -n $url ]]; then
+    update_connector_url "$name" "$url"
+  fi
+}
+
 if [[ -z $BIGQUERY_CONNECTOR_VERSION && -z $GCS_CONNECTOR_VERSION && -z $BIGQUERY_CONNECTOR_URL && -z $GCS_CONNECTOR_URL ]]; then
   echo "ERROR: None of connector versions or URLs are specified"
   exit 1
@@ -114,18 +133,8 @@ if [[ -n $BIGQUERY_CONNECTOR_VERSION && -n $BIGQUERY_CONNECTOR_URL ]] || [[ -n $
   exit 1
 fi
 
-if [[ -n $BIGQUERY_CONNECTOR_VERSION ]]; then
-  update_connector_version "bigquery" "$BIGQUERY_CONNECTOR_VERSION"
-fi
-if [[ -n $BIGQUERY_CONNECTOR_URL ]]; then
-  update_connector_url "bigquery" "$BIGQUERY_CONNECTOR_URL"
-fi
-if [[ -n $GCS_CONNECTOR_VERSION ]]; then
-  update_connector_version "gcs" "$GCS_CONNECTOR_VERSION"
-fi
-if [[ -n $GCS_CONNECTOR_URL ]]; then
-  update_connector_url "gcs" "$GCS_CONNECTOR_URL"
-fi
+update_connector "bigquery" "$BIGQUERY_CONNECTOR_VERSION" "$BIGQUERY_CONNECTOR_URL"
+update_connector "gcs" "$GCS_CONNECTOR_VERSION" "$GCS_CONNECTOR_URL"
 
 if [[ $UPDATED_GCS_CONNECTOR != true ]]; then
   echo "GCS connector wasn't updated - no need to restart any services"
