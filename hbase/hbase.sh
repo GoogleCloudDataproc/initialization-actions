@@ -213,13 +213,12 @@ EOF
       --configuration_file 'hbase-site.xml.tmp' \
       --name 'hbase.rpc.protection' --value "privacy" \
       --clobber
-
   fi
 
   # Merge all config values to hbase-site.xml
   bdconfig merge_configurations \
-    --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
-    --source_configuration_file hbase-site.xml.tmp \
+    --configuration_file hbase-site.xml.tmp \
+    --source_configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
     --clobber
 
   if [ "${ENABLE_KERBEROS}" = true ]; then
