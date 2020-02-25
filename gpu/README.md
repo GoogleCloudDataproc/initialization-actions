@@ -3,7 +3,7 @@
 GPUs require special drivers and software which are not pre-installed on
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) clusters by default. Initialization actions in this (https://cloud.google.com/dataproc/init-actions) installs
 GPU drivers for NVIDIA on master and workers node in a
-Cloud Dataproc cluster.
+[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
 
 **Note:** This feature is in Beta mode.
 
