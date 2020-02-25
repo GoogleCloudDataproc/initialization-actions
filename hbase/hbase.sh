@@ -51,18 +51,15 @@ function install_apt_get() {
 }
 
 function configure_hbase() {
-  cat <<EOF >hbase-site.xml.tmp
-  <configuration>
-    <property>
-      <name>hbase.cluster.distributed</name>
-      <value>true</value>
-    </property>
-    <property>
-      <name>hbase.zookeeper.property.initLimit</name>
-      <value>20</value>
-    </property>
-  </configuration>
-EOF
+  bdconfig set_property \
+    --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
+    --name 'hbase.cluster.distributed' --value 'true' \
+    --clobber
+
+  bdconfig set_property \
+    --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
+    --name 'hbase.zookeeper.property.initLimit' --value '20' \
+    --clobber
 
   cat <<EOF >/etc/systemd/system/hbase-master.service
 [Unit]
@@ -117,7 +114,7 @@ EOF
   hbase_root_dir="$(/usr/share/google/get_metadata_value attributes/hbase-root-dir ||
     echo "${hdfs_root}/hbase")"
   bdconfig set_property \
-    --configuration_file 'hbase-site.xml.tmp' \
+    --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
     --name 'hbase.rootdir' --value "${hbase_root_dir}" \
     --clobber
 
@@ -125,7 +122,7 @@ EOF
   hbase_wal_dir=$(/usr/share/google/get_metadata_value attributes/hbase-wal-dir || true)
   if [[ -n ${hbase_wal_dir} ]]; then
     bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
+      --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
       --name 'hbase.wal.dir' --value "${hbase_wal_dir}" \
       --clobber
   fi
@@ -135,7 +132,7 @@ EOF
   zookeeper_nodes="$(grep '^server\.' /etc/zookeeper/conf/zoo.cfg |
     sort | uniq | cut -d '=' -f 2 | cut -d ':' -f 1 | xargs echo | sed "s/ /,/g")"
   bdconfig set_property \
-    --configuration_file 'hbase-site.xml.tmp' \
+    --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
     --name 'hbase.zookeeper.quorum' --value "${zookeeper_nodes}" \
     --clobber
 
@@ -144,84 +141,77 @@ EOF
 
     # Kerberos authentication
     bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
+      --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
       --name 'hbase.security.authentication' --value "kerberos" \
       --clobber
 
     # Security authorization
     bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
+      --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
       --name 'hbase.security.authorization' --value "true" \
       --clobber
 
     # Kerberos master principal
     bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
+      --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
       --name 'hbase.master.kerberos.principal' --value "hbase/_HOST@${REALM}" \
       --clobber
 
     # Kerberos region server principal
     bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
+      --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
       --name 'hbase.regionserver.kerberos.principal' --value "hbase/_HOST@${REALM}" \
       --clobber
 
     # Kerberos master server keytab file path
     bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
+      --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
       --name 'hbase.master.keytab.file' --value "/etc/hbase/conf/hbase-master.keytab" \
       --clobber
 
     # Kerberos region server keytab file path
     bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
+      --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
       --name 'hbase.regionserver.keytab.file' --value "/etc/hbase/conf/hbase-region.keytab" \
       --clobber
 
     # Zookeeper authentication provider
     bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
+      --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
       --name 'hbase.zookeeper.property.authProvider.1' --value "org.apache.zookeeper.server.auth.SASLAuthenticationProvider" \
       --clobber
 
     # HBase coprocessor region classes
     bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
+      --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
       --name 'hbase.coprocessor.region.classes' --value "org.apache.hadoop.hbase.security.token.TokenProvider" \
       --clobber
 
     # Zookeeper remove host from principal
     bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
+      --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
       --name 'hbase.zookeeper.property.kerberos.removeHostFromPrincipal' --value "true" \
       --clobber
 
     # Zookeeper remove realm from principal
     bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
+      --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
       --name 'hbase.zookeeper.property.kerberos.removeRealmFromPrincipal' --value "true" \
       --clobber
 
     # Zookeeper znode
     bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
+      --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
       --name 'zookeeper.znode.parent' --value "/hbase-secure" \
       --clobber
 
     # HBase RPC protection
     bdconfig set_property \
-      --configuration_file 'hbase-site.xml.tmp' \
+      --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
       --name 'hbase.rpc.protection' --value "privacy" \
       --clobber
-
   fi
-
-  # Merge all config values to hbase-site.xml
-  bdconfig merge_configurations \
-    --configuration_file "${HBASE_HOME}/conf/hbase-site.xml" \
-    --source_configuration_file hbase-site.xml.tmp \
-    --clobber
-
+  
   if [ "${ENABLE_KERBEROS}" = true ]; then
     if [[ "${HOSTNAME}" == "${DATAPROC_MASTER}" ]]; then
       # Master
