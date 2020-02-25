@@ -46,4 +46,6 @@ public class HadoopConfigurationUtils {
           String.format("Failed to get '%s' field value", field.getName()), e);
     }
   }
+
+  private HadoopConfigurationUtils() {}
 }

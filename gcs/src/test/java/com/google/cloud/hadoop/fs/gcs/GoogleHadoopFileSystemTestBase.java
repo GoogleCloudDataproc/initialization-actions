@@ -390,7 +390,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     qualifiedPaths.put(fsRoot + "..foo/bar", fsRoot + "..foo/bar");
     qualifiedPaths.put("..foo/bar", workingDir + "/..foo/bar");
 
-    // GHFS specific behavior where root is it's own parent.
+    // GHFS specific behavior where root is its own parent.
     qualifiedPaths.put("/..", fsRoot);
     qualifiedPaths.put("/../../..", fsRoot);
     qualifiedPaths.put("/../foo/", fsRoot + "foo");
@@ -447,7 +447,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     qualifiedPaths.put(fsRoot + "..foo/bar", fsRoot + "..foo/bar");
     qualifiedPaths.put("..foo/bar", fsRoot + "..foo/bar");
 
-    // GHFS specific behavior where root is it's own parent.
+    // GHFS specific behavior where root is its own parent.
     qualifiedPaths.put("/..", fsRoot);
     qualifiedPaths.put("/../../..", fsRoot);
     qualifiedPaths.put("/../foo/", fsRoot + "foo");

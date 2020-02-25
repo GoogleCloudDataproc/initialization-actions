@@ -30,7 +30,9 @@ import static com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportTyp
 import static com.google.cloud.hadoop.util.testing.HadoopConfigurationUtils.getDefaultProperties;
 import static com.google.cloud.hadoop.util.testing.MockHttpTransportHelper.jsonDataResponse;
 import static com.google.cloud.hadoop.util.testing.MockHttpTransportHelper.mockTransport;
+import static com.google.common.base.StandardSystemProperty.USER_HOME;
 import static com.google.common.truth.Truth.assertThat;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -40,7 +42,8 @@ import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.cloud.hadoop.util.CredentialFactory.GoogleCredentialWithRetry;
 import com.google.common.collect.ImmutableList;
 import com.google.common.io.Resources;
-import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
@@ -59,7 +62,7 @@ public class HadoopCredentialConfigurationTest {
       new HashMap<String, Object>() {
         {
           put(".auth.access.token.provider.impl", null);
-          put(".auth.client.file", System.getProperty("user.home") + "/.credentials/storage.json");
+          put(".auth.client.file", USER_HOME.value() + "/.credentials/storage.json");
           put(".auth.client.id", null);
           put(".client.id", null);
           put(".auth.client.secret", null);
@@ -155,8 +158,7 @@ public class HadoopCredentialConfigurationTest {
 
   @Test
   public void applicationDefaultServiceAccountWhenConfigured() throws Exception {
-    environmentVariables.set(
-        CREDENTIAL_ENV_VAR, Resources.getResource("test-credential.json").getFile());
+    environmentVariables.set(CREDENTIAL_ENV_VAR, getStringPath("test-credential.json"));
 
     CredentialFactory credentialFactory = getCredentialFactory();
 
@@ -170,9 +172,7 @@ public class HadoopCredentialConfigurationTest {
   @Test
   public void p12KeyFileUsedWhenConfigured() throws Exception {
     configuration.set(getConfigKey(SERVICE_ACCOUNT_EMAIL_SUFFIX), "foo@example.com");
-    configuration.set(
-        getConfigKey(SERVICE_ACCOUNT_KEYFILE_SUFFIX),
-        Resources.getResource("test-key.p12").getFile());
+    configuration.set(getConfigKey(SERVICE_ACCOUNT_KEYFILE_SUFFIX), getStringPath("test-key.p12"));
 
     CredentialFactory credentialFactory = getCredentialFactory();
 
@@ -185,8 +185,7 @@ public class HadoopCredentialConfigurationTest {
   @Test
   public void jsonKeyFileUsedWhenConfigured() throws Exception {
     configuration.set(
-        getConfigKey(SERVICE_ACCOUNT_JSON_KEYFILE_SUFFIX),
-        Resources.getResource("test-credential.json").getFile());
+        getConfigKey(SERVICE_ACCOUNT_JSON_KEYFILE_SUFFIX), getStringPath("test-credential.json"));
 
     CredentialFactory credentialFactory = getCredentialFactory();
 
@@ -203,7 +202,7 @@ public class HadoopCredentialConfigurationTest {
     configuration.set(getConfigKey(SERVICE_ACCOUNT_PRIVATE_KEY_ID_SUFFIX), "privatekey");
     configuration.set(
         getConfigKey(SERVICE_ACCOUNT_PRIVATE_KEY_SUFFIX),
-        Resources.toString(Resources.getResource("test-key.txt"), StandardCharsets.UTF_8));
+        Resources.toString(getPath("test-key.txt").toUri().toURL(), UTF_8));
 
     CredentialFactory credentialFactory = getCredentialFactory();
 
@@ -220,8 +219,7 @@ public class HadoopCredentialConfigurationTest {
     configuration.set(getConfigKey(CLIENT_ID_SUFFIX), "aClientId");
     configuration.set(getConfigKey(CLIENT_SECRET_SUFFIX), "aClientSecret");
     configuration.set(
-        getConfigKey(OAUTH_CLIENT_FILE_SUFFIX),
-        Resources.getResource("test-client-credential.json").getFile());
+        getConfigKey(OAUTH_CLIENT_FILE_SUFFIX), getStringPath("test-client-credential.json"));
 
     CredentialFactory credentialFactory = getCredentialFactory();
 
@@ -234,8 +232,7 @@ public class HadoopCredentialConfigurationTest {
   @Test
   public void customTokenServerUrl() throws Exception {
     configuration.set(
-        getConfigKey(SERVICE_ACCOUNT_JSON_KEYFILE_SUFFIX),
-        Resources.getResource("test-credential.json").getFile());
+        getConfigKey(SERVICE_ACCOUNT_JSON_KEYFILE_SUFFIX), getStringPath("test-credential.json"));
     configuration.set(getConfigKey(TOKEN_SERVER_URL_SUFFIX), "https://test.oauth.com/token");
 
     CredentialFactory credentialFactory = getCredentialFactory();
@@ -250,5 +247,13 @@ public class HadoopCredentialConfigurationTest {
   public void defaultPropertiesValues() {
     assertThat(getDefaultProperties(HadoopCredentialConfiguration.class))
         .containsExactlyEntriesIn(expectedDefaultConfiguration);
+  }
+
+  private static String getStringPath(String resource) throws Exception {
+    return getPath(resource).toString();
+  }
+
+  private static Path getPath(String resource) throws Exception {
+    return Paths.get(Resources.getResource(resource).getFile());
   }
 }

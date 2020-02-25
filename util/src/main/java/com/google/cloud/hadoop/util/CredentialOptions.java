@@ -94,7 +94,7 @@ public abstract class CredentialOptions {
   public abstract Builder toBuilder();
 
   @Override
-  public String toString() {
+  public final String toString() {
     return "CredentialOptions{\n"
         + ("serviceAccountEnabled: " + isServiceAccountEnabled() + '\n')
         + ("serviceAccountPrivateKeyId: " + toSecretString(getServiceAccountPrivateKeyId()) + '\n')
@@ -114,6 +114,7 @@ public abstract class CredentialOptions {
         + "}";
   }
 
+  /** Builder for {@link CredentialOptions} */
   @AutoValue.Builder
   public abstract static class Builder {
 

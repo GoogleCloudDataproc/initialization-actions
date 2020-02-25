@@ -335,11 +335,11 @@ is `false`.
 ### API client configuration
 
 *   `fs.gs.storage.root.url`
-    
+
     Google Cloud Storage root URL.
 
 *   `fs.gs.token.server.url`
-    
+
     Google Token Server root URL.
 
 ### Fadvise feature configuration

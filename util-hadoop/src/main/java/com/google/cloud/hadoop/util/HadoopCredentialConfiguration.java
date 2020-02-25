@@ -14,6 +14,8 @@
 
 package com.google.cloud.hadoop.util;
 
+import static com.google.common.base.StandardSystemProperty.USER_HOME;
+
 import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
@@ -108,7 +110,7 @@ public class HadoopCredentialConfiguration {
    */
   public static final HadoopConfigurationProperty<String> OAUTH_CLIENT_FILE_SUFFIX =
       new HadoopConfigurationProperty<>(
-          ".auth.client.file", System.getProperty("user.home") + "/.credentials/storage.json");
+          ".auth.client.file", USER_HOME.value() + "/.credentials/storage.json");
 
   /**
    * For unit-testing, the key suffix allowing null to be returned from credential creation instead
@@ -208,7 +210,9 @@ public class HadoopCredentialConfiguration {
   /**
    * Returns full list of config prefixes that will be resolved based on the order in returned list.
    */
-  public static List<String> getConfigKeyPrefixes(String... keyPrefixes) {
+  public static ImmutableList<String> getConfigKeyPrefixes(String... keyPrefixes) {
     return ImmutableList.<String>builder().add(keyPrefixes).add(BASE_KEY_PREFIX).build();
   }
+
+  private HadoopCredentialConfiguration() {}
 }

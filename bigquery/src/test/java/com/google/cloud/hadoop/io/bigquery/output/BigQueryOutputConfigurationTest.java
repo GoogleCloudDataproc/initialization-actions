@@ -20,6 +20,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.cloud.hadoop.fs.gcs.InMemoryGoogleHadoopFileSystem;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
+import com.google.common.base.Ascii;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import java.util.Optional;
@@ -418,7 +419,8 @@ public class BigQueryOutputConfigurationTest {
   @Test
   public void testGetFileFormatMalformed() throws IOException {
     conf.set(
-        BigQueryConfiguration.OUTPUT_FILE_FORMAT.getKey(), TEST_FILE_FORMAT.name().toLowerCase());
+        BigQueryConfiguration.OUTPUT_FILE_FORMAT.getKey(),
+        Ascii.toLowerCase(TEST_FILE_FORMAT.name()));
 
     assertThrows(
         IllegalArgumentException.class, () -> BigQueryOutputConfiguration.getFileFormat(conf));

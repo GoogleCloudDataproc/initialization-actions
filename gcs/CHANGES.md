@@ -8,7 +8,7 @@
 
 1.  Remove Log4j backend for Google Flogger.
 
-1.  Add properties to override Google Cloud API endpoints: 
+1.  Add properties to override Google Cloud API endpoints:
 
         fs.gs.storage.root.url
         fs.gs.token.server.url

@@ -1,6 +1,7 @@
 package com.google.cloud.hadoop.io.bigquery.samples;
 
 import static com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration.PROJECT_ID;
+import static com.google.common.collect.Streams.stream;
 
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
@@ -11,7 +12,6 @@ import com.google.cloud.hadoop.io.bigquery.output.BigQueryTableSchema;
 import com.google.cloud.hadoop.io.bigquery.output.IndirectBigQueryOutputFormat;
 import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Streams;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import java.io.IOException;
@@ -87,7 +87,7 @@ public class WordCount {
     public void reduce(Text key, Iterable<LongWritable> values, Context context)
         throws IOException, InterruptedException {
       // Add up the values to get a total number of occurrences of our word.
-      long count = Streams.stream(values).mapToLong(LongWritable::get).sum();
+      long count = stream(values).mapToLong(LongWritable::get).sum();
 
       JsonObject jsonObject = new JsonObject();
       jsonObject.addProperty("Word", key.toString());

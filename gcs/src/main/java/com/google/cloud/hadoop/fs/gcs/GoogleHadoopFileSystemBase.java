@@ -1417,20 +1417,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   }
 
   /**
-   * Copy the value of the deprecated key to the new key if a value is present for the deprecated
-   * key, but not the new key.
-   */
-  private static void copyIfNotPresent(Configuration config, String deprecatedKey, String newKey) {
-    String deprecatedValue = config.get(deprecatedKey);
-    if (config.get(newKey) == null && deprecatedValue != null) {
-      logger.atWarning().log(
-          "Key %s is deprecated. Copying the value of key %s to new key %s",
-          deprecatedKey, deprecatedKey, newKey);
-      config.set(newKey, deprecatedValue);
-    }
-  }
-
-  /**
    * Retrieve user's Credential. If user implemented {@link AccessTokenProvider} and provided the
    * class name (See {@link HadoopCredentialConfiguration#ACCESS_TOKEN_PROVIDER_IMPL_SUFFIX} then
    * build a credential with access token provided by this provider; Otherwise obtain credential

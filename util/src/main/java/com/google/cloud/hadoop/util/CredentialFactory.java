@@ -227,8 +227,12 @@ public class CredentialFactory {
    * Initializes OAuth2 credential using preconfigured ServiceAccount settings on the local GCE VM.
    * See: <a href="https://developers.google.com/compute/docs/authentication">Authenticating from
    * Google Compute Engine</a>.
+   *
+   * @deprecated Use properly configured {@ CredentialOptions} with {@link
+   *     CredentialFactory#getCredential(List<String>)}
    */
-  private Credential getCredentialFromMetadataServiceAccount()
+  @Deprecated
+  public static Credential getCredentialFromMetadataServiceAccount()
       throws IOException, GeneralSecurityException {
     logger.atFine().log("getCredentialFromMetadataServiceAccount()");
     Credential cred =
@@ -254,8 +258,11 @@ public class CredentialFactory {
    * @param privateKeyFile Full local path to private keyfile.
    * @param scopes List of well-formed desired scopes to use with the credential.
    * @param transport The HttpTransport used for authorization
+   * @deprecated Use properly configured {@ CredentialOptions} with {@link
+   *     CredentialFactory#getCredential(List<String>)}
    */
-  private Credential getCredentialFromPrivateKeyServiceAccount(
+  @Deprecated
+  public static Credential getCredentialFromPrivateKeyServiceAccount(
       String serviceAccountEmail,
       String privateKeyFile,
       List<String> scopes,
@@ -284,7 +291,7 @@ public class CredentialFactory {
    * @param scopes The OAuth scopes that the credential should be valid for.
    * @param transport The HttpTransport used for authorization
    */
-  private Credential getCredentialFromJsonKeyFile(
+  private static Credential getCredentialFromJsonKeyFile(
       String serviceAccountJsonKeyFile,
       List<String> scopes,
       HttpTransport transport,
@@ -299,7 +306,7 @@ public class CredentialFactory {
     }
   }
 
-  private Credential getCredentialsFromSAParameters(
+  private static Credential getCredentialsFromSAParameters(
       String privateKeyId,
       String privateKeyPem,
       String serviceAccountEmail,
@@ -338,8 +345,11 @@ public class CredentialFactory {
    * @param transport The HttpTransport used for authorization
    * @return credential with desired scopes, possibly obtained from loading {@code filePath}.
    * @throws IOException on IO error
+   * @deprecated Use properly configured {@ CredentialOptions} with {@link
+   *     CredentialFactory#getCredential(List<String>)}
    */
-  private Credential getCredentialFromFileCredentialStoreForInstalledApp(
+  @Deprecated
+  public static Credential getCredentialFromFileCredentialStoreForInstalledApp(
       String clientId,
       String clientSecret,
       String filePath,
@@ -381,7 +391,7 @@ public class CredentialFactory {
    *
    * <p>In this class for testability.
    */
-  private boolean hasApplicationDefaultCredentialsConfigured() {
+  private static boolean hasApplicationDefaultCredentialsConfigured() {
     return System.getenv(CREDENTIAL_ENV_VAR) != null;
   }
 
@@ -392,7 +402,7 @@ public class CredentialFactory {
    *
    * @param scopes The OAuth scopes that the credential should be valid for.
    */
-  private Credential getApplicationDefaultCredentials(
+  private static Credential getApplicationDefaultCredentials(
       List<String> scopes, HttpTransport transport, String tokenServerUrl)
       throws IOException, GeneralSecurityException {
     logger.atFine().log("getApplicationDefaultCredential(%s)", scopes);
@@ -545,7 +555,7 @@ public class CredentialFactory {
         && !shouldUseApplicationDefaultCredentials();
   }
 
-  private boolean shouldUseApplicationDefaultCredentials() {
+  private static boolean shouldUseApplicationDefaultCredentials() {
     return hasApplicationDefaultCredentialsConfigured();
   }
 
