@@ -76,7 +76,7 @@ function bootstrap_alluxio() {
   mkdir ${ALLUXIO_HOME}
   download_file "${ALLUXIO_DOWNLOAD_URL}"
   local tarball_name=${ALLUXIO_DOWNLOAD_URL##*/}
-  tar -zxf "${tarball_name}" -C ${ALLUXIO_HOME} --strip-components 1
+  tar -xzf "${tarball_name}" -C ${ALLUXIO_HOME} --strip-components 1
   ln -s "${ALLUXIO_HOME}/client/alluxio-${ALLUXIO_VERSION}-client.jar" "${ALLUXIO_HOME}/client/alluxio-client.jar"
 
   # Download files to /opt/alluxio/conf
