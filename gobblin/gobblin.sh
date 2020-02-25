@@ -92,7 +92,7 @@ function install_package() {
   # Download binary.
   local temp=$(mktemp -d)
   gsutil cp "${PACKAGE_URL}" "${temp}/package.tar.gz"
-  tar -xvf "${temp}/package.tar.gz" -C "${temp}"
+  tar -xf "${temp}/package.tar.gz" -C "${temp}"
 
   # Setup package.
   install -d "${INSTALL_DIR}"

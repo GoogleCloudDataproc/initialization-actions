@@ -89,7 +89,7 @@ function install_flink_snapshot() {
   pushd "${work_dir}"
 
   curl -o "${flink_local}" "${flink_url}"
-  tar -xzvf "${flink_local}"
+  tar -xzf "${flink_local}"
   rm "${flink_local}"
 
   # only the first match of the flink toplevel pattern is used

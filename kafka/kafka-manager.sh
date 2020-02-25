@@ -45,7 +45,7 @@ function build_kafka_manager() {
   popd
 
   pushd /opt/
-  unzip /opt/kafka-manager-${KAFKA_MANAGER_VERSION}.zip
+  unzip -q /opt/kafka-manager-${KAFKA_MANAGER_VERSION}.zip
   rm -f /opt/kafka-manager-${KAFKA_MANAGER_VERSION}.zip
   popd
 }

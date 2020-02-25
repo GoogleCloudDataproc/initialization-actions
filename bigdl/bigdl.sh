@@ -15,7 +15,7 @@ mkdir -p /opt/intel-bigdl
 cd /opt/intel-bigdl
 
 wget -nv --timeout=30 --tries=5 --retry-connrefused "${BIGDL_DOWNLOAD_URL}"
-unzip *.zip
+unzip -q ./*.zip
 
 JAR=$(realpath lib/*.jar)
 PYTHON_ZIP=$(realpath lib/*.zip)

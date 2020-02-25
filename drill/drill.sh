@@ -243,7 +243,7 @@ function main() {
   # Download and unpack Drill as the pseudo-user.
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
     https://archive.apache.org/dist/drill/drill-${DRILL_VERSION}/apache-drill-${DRILL_VERSION}.tar.gz
-  tar -xvzf apache-drill-${DRILL_VERSION}.tar.gz -C ${DRILL_HOME} --strip 1
+  tar -xzf apache-drill-${DRILL_VERSION}.tar.gz -C ${DRILL_HOME} --strip 1
 
   # Replace default configuration with cluster-specific.
   sed -i "s/drillbits1/${cluster_name}/" ${DRILL_HOME}/conf/drill-override.conf
