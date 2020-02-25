@@ -1,4 +1,4 @@
-# GPU drivers installation
+# Dataproc - GPU driver installation
 
 GPUs require special drivers and software which are not pre-installed on
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) clusters by default. Initialization actions in this (https://cloud.google.com/dataproc/init-actions) installs
@@ -65,7 +65,7 @@ gpu-driver-provider=<OS|NVIDIA>` metadata value.
         --scopes https://www.googleapis.com/auth/monitoring.write
     ```
 
-#### Metadata parameters:
+#### Supported metadata parameters:
 
 -   `install-gpu-agent: true|false` - this is an optional parameter with
     case-sensitive value.
