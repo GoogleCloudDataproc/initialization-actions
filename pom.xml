@@ -93,6 +93,11 @@
     <google.api-storage.version>v1-rev20191127-${google.api-client.version}</google.api-storage.version>
     <google.auto-value.version>1.7</google.auto-value.version>
     <google.cloud-bigquery-storage.version>0.124.0-beta</google.cloud-bigquery-storage.version>
+    <!--
+        When updating Flogger version, also update DefaultPlatform class
+        source code in util-hadoop module with code from new Flogger version
+        and override default SimpleBackendFactory with Slf4jBackendFactory
+    -->
     <google.flogger.version>0.4</google.flogger.version>
     <google.guava.version>28.2-jre</google.guava.version>
     <google.http-client.version>1.34.2</google.http-client.version>
@@ -399,6 +404,12 @@
       <dependency>
         <groupId>com.google.flogger</groupId>
         <artifactId>flogger-system-backend</artifactId>
+        <version>${google.flogger.version}</version>
+        <scope>runtime</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.google.flogger</groupId>
+        <artifactId>flogger-slf4j-backend</artifactId>
         <version>${google.flogger.version}</version>
         <scope>runtime</scope>
       </dependency>

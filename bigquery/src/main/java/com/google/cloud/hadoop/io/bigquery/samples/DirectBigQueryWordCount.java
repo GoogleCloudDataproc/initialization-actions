@@ -35,15 +35,12 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.GenericOptionsParser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An example Hadoop WordCount program that counts the number of times a word appears in a BigQuery
  * table column.
  */
 public class DirectBigQueryWordCount {
-  private static final Logger log = LoggerFactory.getLogger(DirectBigQueryWordCount.class);
 
   /** The mapper for our WordCount job. */
   public static class Map extends Mapper<NullWritable, GenericRecord, Text, LongWritable> {

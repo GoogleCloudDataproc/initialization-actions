@@ -174,6 +174,10 @@
       <groupId>com.google.flogger</groupId>
       <artifactId>flogger-system-backend</artifactId>
     </dependency>
+    <dependency>
+      <groupId>com.google.flogger</groupId>
+      <artifactId>flogger-slf4j-backend</artifactId>
+    </dependency>
   </dependencies>
   <build>
     <plugins>
@@ -232,7 +236,24 @@
                     implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
               </transformers>
               <filters>
+                <!--
+                    Exclude DefaultPlatform from Flogger jar because we have
+                    our own customized version of it
+                -->
+                <filter>
+                  <artifact>com.google.flogger:flogger-system-backend</artifact>
+                  <excludes>
+                    <exclude>com.google.common.flogger.backend.system.DefaultPlatform</exclude>
+                  </excludes>
+                </filter>
+
                 <!-- minimizeJar breaks all the dynamic load hacks; add them explicitly -->
+                <filter>
+                  <artifact>com.google.flogger:flogger-slf4j-backend</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                </filter>
                 <filter>
                   <artifact>io.grpc:*</artifact>
                   <includes>
