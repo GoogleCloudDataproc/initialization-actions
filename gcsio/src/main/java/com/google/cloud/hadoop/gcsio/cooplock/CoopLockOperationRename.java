@@ -24,7 +24,6 @@ import com.google.cloud.hadoop.gcsio.FileInfo;
 import com.google.cloud.hadoop.gcsio.ForwardingGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
-import com.google.cloud.hadoop.gcsio.PathCodec;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.common.base.MoreObjects;
 import java.io.IOException;
@@ -50,17 +49,15 @@ public class CoopLockOperationRename {
 
   private CoopLockOperationRename(
       GoogleCloudStorageImpl gcs,
-      PathCodec pathCodec,
       StorageResourceId srcResourceId,
       StorageResourceId dstResourceId) {
     this.srcResourceId = srcResourceId;
     this.dstResourceId = dstResourceId;
     this.coopLockRecordsDao = new CoopLockRecordsDao(gcs);
-    this.coopLockOperationDao = new CoopLockOperationDao(gcs, pathCodec);
+    this.coopLockOperationDao = new CoopLockOperationDao(gcs);
   }
 
-  public static CoopLockOperationRename create(
-      GoogleCloudStorage gcs, PathCodec pathCodec, URI src, URI dst) {
+  public static CoopLockOperationRename create(GoogleCloudStorage gcs, URI src, URI dst) {
     while (gcs instanceof ForwardingGoogleCloudStorage) {
       gcs = ((ForwardingGoogleCloudStorage) gcs).getDelegate();
     }
@@ -71,10 +68,9 @@ public class CoopLockOperationRename {
         gcs.getClass());
     return new CoopLockOperationRename(
         (GoogleCloudStorageImpl) gcs,
-        pathCodec,
-        pathCodec.validatePathAndGetId(
+        StorageResourceId.fromUriPath(
             normalizeLockedResource(src), /* allowEmptyObjectName= */ true),
-        pathCodec.validatePathAndGetId(
+        StorageResourceId.fromUriPath(
             normalizeLockedResource(dst), /* allowEmptyObjectName= */ true));
   }
 

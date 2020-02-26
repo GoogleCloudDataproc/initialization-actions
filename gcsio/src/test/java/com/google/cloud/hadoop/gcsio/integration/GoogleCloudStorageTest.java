@@ -35,6 +35,7 @@ import com.google.cloud.hadoop.gcsio.LaggedGoogleCloudStorage.ListVisibilityCalc
 import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
+import com.google.cloud.hadoop.gcsio.StringPaths;
 import com.google.cloud.hadoop.gcsio.UpdatableItemInfo;
 import com.google.cloud.hadoop.gcsio.VerificationAttributes;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
@@ -1136,8 +1137,7 @@ public class GoogleCloudStorageTest {
         .isEqualTo(GoogleCloudStorageItemInfo.ROOT_INFO);
 
     assertThrows(
-        IllegalArgumentException.class,
-        () -> StorageResourceId.createReadableString(null, "objectName"));
+        IllegalArgumentException.class, () -> StringPaths.fromComponents(null, "objectName"));
   }
 
   @Test

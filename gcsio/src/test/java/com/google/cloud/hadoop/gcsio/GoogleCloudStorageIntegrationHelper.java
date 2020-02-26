@@ -291,16 +291,6 @@ public abstract class GoogleCloudStorageIntegrationHelper {
   }
 
   /**
-   * Indicates whether the given object name looks like a directory path.
-   *
-   * @param objectName name of the object to inspect
-   * @return whether the given object name looks like a directory path
-   */
-  public static boolean objectHasDirectoryPath(String objectName) {
-    return FileInfo.objectHasDirectoryPath(objectName);
-  }
-
-  /**
    * Creates objects in the given bucket. For objects whose name looks like a path (foo/bar/zoo),
    * creates objects for intermediate sub-paths.
    *

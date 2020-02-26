@@ -23,6 +23,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationHelper;
+import com.google.cloud.hadoop.gcsio.UriPaths;
 import com.google.cloud.hadoop.gcsio.testing.InMemoryGoogleCloudStorage;
 import com.google.common.base.Strings;
 import java.io.FileNotFoundException;
@@ -488,6 +489,6 @@ public class HadoopFileSystemIntegrationHelper
   }
 
   public URI getPath(String bucketName, String objectName, boolean allowEmpty) {
-    return gcsfs.getPathCodec().getPath(bucketName, objectName, allowEmpty);
+    return UriPaths.fromStringPathComponents(bucketName, objectName, allowEmpty);
   }
 }

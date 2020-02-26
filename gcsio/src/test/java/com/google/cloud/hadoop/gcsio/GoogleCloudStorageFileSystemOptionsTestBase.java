@@ -162,8 +162,7 @@ public abstract class GoogleCloudStorageFileSystemOptionsTestBase {
   private void createEmptyFile(
       GoogleCloudStorage gcs, String path)
       throws IOException, URISyntaxException {
-    StorageResourceId id =
-        gcsfs.getPathCodec().validatePathAndGetId(new URI(path), false);
+    StorageResourceId id = StorageResourceId.fromUriPath(new URI(path), false);
     gcs.createEmptyObject(id);
   }
 }

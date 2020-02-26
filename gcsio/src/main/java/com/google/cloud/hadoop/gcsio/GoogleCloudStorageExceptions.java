@@ -45,7 +45,7 @@ public final class GoogleCloudStorageExceptions {
             String.format(
                 "Item not found: '%s'. Note, it is possible that the live version"
                     + " is still available but the requested generation is deleted.",
-                StorageResourceId.createReadableString(bucketName, nullToEmpty(objectName))));
+                StringPaths.fromComponents(bucketName, nullToEmpty(objectName))));
     if (cause != null) {
       fileNotFoundException.initCause(cause);
     }

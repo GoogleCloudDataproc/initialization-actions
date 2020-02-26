@@ -199,8 +199,7 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
       assertThat(fileInfo.getSize()).isEqualTo(expectedSize);
     }
 
-    boolean expectedDirectory =
-        (objectName == null) || FileInfo.objectHasDirectoryPath(objectName);
+    boolean expectedDirectory = (objectName == null) || StringPaths.isDirectoryPath(objectName);
     assertWithMessage("isDirectory for bucketName '%s' objectName '%s'", bucketName, objectName)
         .that(fileInfo.isDirectory())
         .isEqualTo(expectedDirectory);

@@ -27,11 +27,10 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class UriEncodingPathCodecTest {
-  UriEncodingPathCodec codec = new UriEncodingPathCodec();
 
   @Test
   public void testGetPath_PathEncoding() {
-    URI id = codec.getPath("b1", "/path/to/!@#$%&*()_/my/resource", false);
+    URI id = UriPaths.fromStringPathComponents("b1", "/path/to/!@#$%&*()_/my/resource", false);
 
     Truth.assertThat(id.getAuthority()).isEqualTo("b1");
     Truth.assertThat(id.getScheme()).isEqualTo("gs");
@@ -43,7 +42,7 @@ public class UriEncodingPathCodecTest {
 
   @Test
   public void testGetPath_BadFragments() {
-    URI id = codec.getPath("b1", "/path/to/segment1_#Foo#bar#123", false);
+    URI id = UriPaths.fromStringPathComponents("b1", "/path/to/segment1_#Foo#bar#123", false);
 
     Truth.assertThat(id.getAuthority()).isEqualTo("b1");
     Truth.assertThat(id.getScheme()).isEqualTo("gs");
@@ -55,18 +54,21 @@ public class UriEncodingPathCodecTest {
 
   @Test
   public void testGetPath_InvalidObjectName() {
-    assertThrows(IllegalArgumentException.class, () -> codec.getPath("b1", "", false));
+    assertThrows(
+        IllegalArgumentException.class, () -> UriPaths.fromStringPathComponents("b1", "", false));
   }
 
   @Test
   public void testGetPath_InvalidBucketName() {
-    assertThrows(IllegalArgumentException.class, () -> codec.getPath("", "/foo/bar", false));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> UriPaths.fromStringPathComponents("", "/foo/bar", false));
   }
 
   @Test
   public void testValidatePathAndGetId_Foo() throws URISyntaxException {
     StorageResourceId id =
-        codec.validatePathAndGetId(new URI("gs", "bucket-name", "/object/name", null), true);
+        StorageResourceId.fromUriPath(new URI("gs", "bucket-name", "/object/name", null), true);
 
     Truth.assertThat(id.getBucketName()).isEqualTo("bucket-name");
     Truth.assertThat(id.getObjectName()).isEqualTo("object/name");
@@ -76,8 +78,9 @@ public class UriEncodingPathCodecTest {
   public void testRoundTrip() {
     String objectName = "foo/!@#$%&*()@#$& %%()/bar";
     StorageResourceId rid1 = new StorageResourceId("bucket1", objectName);
-    URI encodedURI = codec.getPath(rid1.getBucketName(), rid1.getObjectName(), true);
-    StorageResourceId rid2 = codec.validatePathAndGetId(encodedURI, true);
+    URI encodedURI =
+        UriPaths.fromStringPathComponents(rid1.getBucketName(), rid1.getObjectName(), true);
+    StorageResourceId rid2 = StorageResourceId.fromUriPath(encodedURI, true);
 
     Truth.assertThat(rid1).isEqualTo(rid2);
 
@@ -88,7 +91,8 @@ public class UriEncodingPathCodecTest {
   @Test
   public void testAuthorityAllowsNonHostCharacters() {
     // Ensure that buckets do not require hostname parsing:
-    URI withRegistryBasedAuthority = codec.getPath("foo_bar", "/some/object/name", true);
+    URI withRegistryBasedAuthority =
+        UriPaths.fromStringPathComponents("foo_bar", "/some/object/name", true);
 
     Truth.assertThat(withRegistryBasedAuthority.getAuthority()).isEqualTo("foo_bar");
     Truth.assertThat(withRegistryBasedAuthority.getRawAuthority()).isEqualTo("foo_bar");

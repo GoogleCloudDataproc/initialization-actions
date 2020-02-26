@@ -222,7 +222,7 @@ public class GoogleCloudStorageFileSystemTest
     for (String invalidPath : invalidPaths) {
       assertThrows(
           IllegalArgumentException.class,
-          () -> gcsfs.getPathCodec().validatePathAndGetId(new URI(invalidPath), false));
+          () -> StorageResourceId.fromUriPath(new URI(invalidPath), false));
     }
 
     String[] validPaths = {
@@ -233,13 +233,13 @@ public class GoogleCloudStorageFileSystemTest
     };
 
     for (String validPath : validPaths) {
-      gcsfs.getPathCodec().validatePathAndGetId(new URI(validPath), false);
+      StorageResourceId.fromUriPath(new URI(validPath), false);
     }
 
     String invalidBucketName = "bucket-name-has-invalid-char^";
     assertThrows(
         IllegalArgumentException.class,
-        () -> gcsfs.getPathCodec().getPath(invalidBucketName, null, true));
+        () -> UriPaths.fromStringPathComponents(invalidBucketName, null, true));
   }
 
   /**
@@ -305,7 +305,7 @@ public class GoogleCloudStorageFileSystemTest
 
     List<URI> actualPaths = new ArrayList<>();
     for (URI inputPath : inputPaths) {
-      actualPaths.add(gcsfs.getParentPath(inputPath));
+      actualPaths.add(UriPaths.getParentPath(inputPath));
     }
     assertThat(actualPaths.toArray(new URI[0])).isEqualTo(expectedPaths);
   }
@@ -326,8 +326,7 @@ public class GoogleCloudStorageFileSystemTest
 
     for (String bucketName : invalidBucketNames) {
       assertThrows(
-          IllegalArgumentException.class,
-          () -> GoogleCloudStorageFileSystem.validateBucketName(bucketName));
+          IllegalArgumentException.class, () -> StringPaths.validateBucketName(bucketName));
     }
 
     String[] validBucketNames = {
@@ -336,7 +335,7 @@ public class GoogleCloudStorageFileSystemTest
     };
 
     for (String bucketName : validBucketNames) {
-      GoogleCloudStorageFileSystem.validateBucketName(bucketName);
+      StringPaths.validateBucketName(bucketName);
     }
   }
 
@@ -363,13 +362,12 @@ public class GoogleCloudStorageFileSystemTest
 
     for (String objectName : invalidObjectNames) {
       assertThrows(
-          IllegalArgumentException.class,
-          () -> GoogleCloudStorageFileSystem.validateObjectName(objectName, false));
+          IllegalArgumentException.class, () -> StringPaths.validateObjectName(objectName, false));
     }
 
     // Verify that an empty object name is allowed when explicitly allowed.
-    GoogleCloudStorageFileSystem.validateObjectName(null, true);
-    GoogleCloudStorageFileSystem.validateObjectName("", true);
+    StringPaths.validateObjectName(null, true);
+    StringPaths.validateObjectName("", true);
 
     String[] validObjectNames = {
       "foo",
@@ -378,7 +376,7 @@ public class GoogleCloudStorageFileSystemTest
     };
 
     for (String objectName : validObjectNames) {
-      GoogleCloudStorageFileSystem.validateObjectName(objectName, false);
+      StringPaths.validateObjectName(objectName, false);
     }
   }
 

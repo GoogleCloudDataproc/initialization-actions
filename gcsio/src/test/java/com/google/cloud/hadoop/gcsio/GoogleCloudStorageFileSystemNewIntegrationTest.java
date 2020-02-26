@@ -327,7 +327,7 @@ public class GoogleCloudStorageFileSystemNewIntegrationTest {
         bucketName, dirObject + "/f1", dirObject + "/f2", dirObject + "/subdir/f3");
 
     List<URI> listedNames =
-        gcsFs.listFileNames(inferredDirInfo(gcsFs, bucketName, dirObject), /* recursive= */ false);
+        gcsFs.listFileNames(inferredDirInfo(bucketName, dirObject), /* recursive= */ false);
 
     assertThat(listedNames)
         .containsExactly(
@@ -352,7 +352,7 @@ public class GoogleCloudStorageFileSystemNewIntegrationTest {
         bucketName, dirObject + "/f1", dirObject + "/f2", dirObject + "/subdir/f3");
 
     List<URI> listedNames =
-        gcsFs.listFileNames(inferredDirInfo(gcsFs, bucketName, dirObject), /* recursive= */ true);
+        gcsFs.listFileNames(inferredDirInfo(bucketName, dirObject), /* recursive= */ true);
 
     assertThat(listedNames)
         .containsExactly(
@@ -631,11 +631,10 @@ public class GoogleCloudStorageFileSystemNewIntegrationTest {
     return name.getMethodName() + "_" + UUID.randomUUID();
   }
 
-  private static FileInfo inferredDirInfo(
-      GoogleCloudStorageFileSystem gcsFs, String bucketName, String dirObject) {
+  private static FileInfo inferredDirInfo(String bucketName, String dirObject) {
     StorageResourceId resourceId =
         new StorageResourceId(bucketName, dirObject.endsWith("/") ? dirObject : dirObject + "/");
-    return fromItemInfo(gcsFs.getPathCodec(), createInferredDirectory(resourceId));
+    return fromItemInfo(createInferredDirectory(resourceId));
   }
 
   private static GoogleCloudStorageFileSystemOptions.Builder newGcsFsOptions() {

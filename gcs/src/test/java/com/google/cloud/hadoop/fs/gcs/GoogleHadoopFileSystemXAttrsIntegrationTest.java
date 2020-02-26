@@ -99,7 +99,7 @@ public final class GoogleHadoopFileSystemXAttrsIntegrationTest {
 
     UpdatableItemInfo updateInfo =
         new UpdatableItemInfo(
-            StorageResourceId.fromObjectName(filePath.toString()),
+            StorageResourceId.fromStringPath(filePath.toString()),
             ImmutableMap.of("non-ghfs-xattr-key", "non-ghfs-xattr-value".getBytes(UTF_8)));
     gcsFs.getGcs().updateItems(ImmutableList.of(updateInfo));
 

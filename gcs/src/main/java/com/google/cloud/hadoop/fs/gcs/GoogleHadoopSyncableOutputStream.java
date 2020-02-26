@@ -295,9 +295,9 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
     // the temporary object.
     if (!finalGcsPath.equals(curGcsPath)) {
       StorageResourceId destResourceId =
-          StorageResourceId.fromObjectName(finalGcsPath.toString(), curDestGenerationId);
+          StorageResourceId.fromStringPath(finalGcsPath.toString(), curDestGenerationId);
       final StorageResourceId tempResourceId =
-          StorageResourceId.fromObjectName(curGcsPath.toString(), generationId);
+          StorageResourceId.fromStringPath(curGcsPath.toString(), generationId);
       if (!destResourceId.getBucketName().equals(tempResourceId.getBucketName())) {
         throw new IllegalStateException(String.format(
             "Destination bucket in path '%s' doesn't match temp file bucket in path '%s'",

@@ -27,19 +27,6 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class FileInfoTest {
 
-  private static final PathCodec SIMPLE_PATH_CODEC =
-      new PathCodec() {
-        @Override
-        public StorageResourceId validatePathAndGetId(URI path, boolean allowEmptyObjectName) {
-          return new StorageResourceId(path.getAuthority(), path.getPath());
-        }
-
-        @Override
-        public URI getPath(String bucketName, String objectName, boolean allowEmptyObjectName) {
-          return URI.create(String.format("gs://%s/%s", bucketName, objectName));
-        }
-      };
-
   @Test
   public void fromItemInfo() throws Exception {
     GoogleCloudStorageItemInfo itemInfo =
@@ -56,7 +43,7 @@ public class FileInfoTest {
             /* contentGeneration= */ 312432L,
             /* metaGeneration= */ 2L);
 
-    FileInfo fileInfo = FileInfo.fromItemInfo(SIMPLE_PATH_CODEC, itemInfo);
+    FileInfo fileInfo = FileInfo.fromItemInfo(itemInfo);
 
     assertThat(fileInfo.getPath()).isEqualTo(new URI("gs://foo-test-bucket/bar/test/object"));
     assertThat(fileInfo.getCreationTime()).isEqualTo(10L);

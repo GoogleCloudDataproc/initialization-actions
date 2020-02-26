@@ -349,15 +349,6 @@
   </property>
 
   <property>
-    <name>fs.gs.path.encoding</name>
-    <value>uri-path</value>
-    <description>
-      Path codec used that used for decoding and encoding Cloud Storage object paths.
-      Valid path codecs are 'legacy' and 'uri-path'.
-    </description>
-  </property>
-
-  <property>
     <name>fs.gs.implicit.dir.infer.enable</name>
     <value>true</value>
     <description>

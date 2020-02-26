@@ -20,7 +20,6 @@ import static com.google.cloud.hadoop.gcsio.GoogleCloudStorage.PATH_DELIMITER;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
-import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.util.Comparator.comparing;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -29,7 +28,6 @@ import com.google.cloud.hadoop.gcsio.cooplock.CoopLockOperationDelete;
 import com.google.cloud.hadoop.gcsio.cooplock.CoopLockOperationRename;
 import com.google.cloud.hadoop.util.LazyExecutorService;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.CharMatcher;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
@@ -83,22 +81,11 @@ public class GoogleCloudStorageFileSystem {
   // URI of the root path.
   public static final URI GCS_ROOT = URI.create(SCHEME + ":/");
 
-  // 14x faster (20ns vs 280ns) than "^[a-z0-9_.-]+$" regex
-  private static final CharMatcher BUCKET_NAME_CHAR_MATCHER =
-      CharMatcher.ascii()
-          .and(
-              CharMatcher.inRange('0', '9')
-                  .or(CharMatcher.inRange('a', 'z'))
-                  .or(CharMatcher.anyOf("_.-")))
-          .precomputed();
-
   // GCS access instance.
   private GoogleCloudStorage gcs;
 
   // FS options
   private final GoogleCloudStorageFileSystemOptions options;
-
-  private final PathCodec pathCodec;
 
   /** Cached executor for async task. */
   private ExecutorService cachedExecutor = createCachedExecutor();
@@ -125,14 +112,6 @@ public class GoogleCloudStorageFileSystem {
       comparing(FileInfo::getPath, PATH_COMPARATOR);
 
   /**
-   * A PathCodec that maintains compatibility with versions of GCS FS prior to the 1.4.5 version.
-   */
-  public static final PathCodec LEGACY_PATH_CODEC = new LegacyPathCodec();
-
-  /** A PathCodec that expects URIs to be of the form: gs://authority/properly/encoded/path. */
-  public static final PathCodec URI_ENCODED_PATH_CODEC = new UriEncodingPathCodec();
-
-  /**
    * Constructs an instance of GoogleCloudStorageFileSystem.
    *
    * @param credential OAuth2 credential that allows access to GCS.
@@ -147,9 +126,8 @@ public class GoogleCloudStorageFileSystem {
 
     checkArgument(credential != null, "credential must not be null");
 
-    this.gcs = new GoogleCloudStorageImpl(options.getCloudStorageOptions(), credential);
     this.options = options;
-    this.pathCodec = options.getPathCodec();
+    this.gcs = new GoogleCloudStorageImpl(options.getCloudStorageOptions(), credential);
 
     if (options.isPerformanceCacheEnabled()) {
       this.gcs =
@@ -179,7 +157,6 @@ public class GoogleCloudStorageFileSystem {
       GoogleCloudStorage gcs, GoogleCloudStorageFileSystemOptions options) {
     this.gcs = gcs;
     this.options = options;
-    this.pathCodec = options.getPathCodec();
   }
 
   private static ExecutorService createCachedExecutor() {
@@ -229,40 +206,31 @@ public class GoogleCloudStorageFileSystem {
   public WritableByteChannel create(URI path, CreateFileOptions options) throws IOException {
     logger.atFine().log("create(path: %s, options: %s)", path, options);
     Preconditions.checkNotNull(path, "path could not be null");
-    if (FileInfo.isDirectoryPath(path)) {
+    StorageResourceId resourceId =
+        StorageResourceId.fromUriPath(path, /* allowEmptyObjectName=*/ true);
+
+    if (resourceId.isDirectory()) {
       throw new IOException(
-          String.format("Cannot create a file whose name looks like a directory. Got '%s'", path));
+          String.format(
+              "Cannot create a file whose name looks like a directory: '%s'", resourceId));
     }
 
     // Check if a directory of that name exists.
-    if (options.checkNoDirectoryConflict()) {
-      URI dirPath = FileInfo.convertToDirectoryPath(pathCodec, path);
-      if (exists(dirPath)) {
-        throw new FileAlreadyExistsException("A directory with that name exists: " + path);
-      }
+    if (options.checkNoDirectoryConflict()
+        && getFileInfoInternal(
+                resourceId.toDirectoryId(), gcs.getOptions().isInferImplicitDirectoriesEnabled())
+            .exists()) {
+      throw new FileAlreadyExistsException("A directory with that name exists: " + path);
     }
 
     // Ensure that parent directories exist.
     if (options.ensureParentDirectoriesExist()) {
-      URI parentPath = getParentPath(path);
+      URI parentPath = UriPaths.getParentPath(path);
       if (parentPath != null) {
         mkdirs(parentPath);
       }
     }
 
-    return createInternal(path, options);
-  }
-
-  /**
-   * Creates and opens an object for writing. If the object already exists, it is deleted.
-   *
-   * @param path Object full path of the form gs://bucket/object-path.
-   * @return A channel for writing to the given object.
-   * @throws IOException
-   */
-  WritableByteChannel createInternal(URI path, CreateFileOptions options) throws IOException {
-    // Validate the given path. false == do not allow empty object name.
-    StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, false);
     if (options.getExistingGenerationId() != StorageResourceId.UNKNOWN_GENERATION_ID) {
       resourceId =
           new StorageResourceId(
@@ -297,11 +265,11 @@ public class GoogleCloudStorageFileSystem {
   public SeekableByteChannel open(URI path, GoogleCloudStorageReadOptions readOptions)
       throws IOException {
     logger.atFine().log("open(path: %s, readOptions: %s)", path, readOptions);
-    Preconditions.checkNotNull(path);
-    checkArgument(!FileInfo.isDirectoryPath(path), "Cannot open a directory for reading: %s", path);
+    Preconditions.checkNotNull(path, "path should not be null");
+    StorageResourceId resourceId =
+        StorageResourceId.fromUriPath(path, /* allowEmptyObjectName= */ false);
+    checkArgument(!resourceId.isDirectory(), "Cannot open a directory for reading: %s", path);
 
-    // Validate the given path. false == do not allow empty object name.
-    StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, false);
     return gcs.open(resourceId, readOptions);
   }
 
@@ -339,7 +307,8 @@ public class GoogleCloudStorageFileSystem {
 
     Future<GoogleCloudStorageItemInfo> parentInfoFuture = null;
     if (options.getCloudStorageOptions().isAutoRepairImplicitDirectoriesEnabled()) {
-      StorageResourceId parentId = pathCodec.validatePathAndGetId(getParentPath(path), true);
+      StorageResourceId parentId =
+          StorageResourceId.fromUriPath(UriPaths.getParentPath(path), true);
       parentInfoFuture =
           cachedExecutor.submit(
               () -> getFileInfoInternal(parentId, /* inferImplicitDirectories= */ false));
@@ -347,7 +316,7 @@ public class GoogleCloudStorageFileSystem {
 
     Optional<CoopLockOperationDelete> coopLockOp =
         options.isCooperativeLockingEnabled() && fileInfo.isDirectory()
-            ? Optional.of(CoopLockOperationDelete.create(gcs, pathCodec, fileInfo.getPath()))
+            ? Optional.of(CoopLockOperationDelete.create(gcs, fileInfo.getPath()))
             : Optional.empty();
     coopLockOp.ifPresent(CoopLockOperationDelete::lock);
 
@@ -440,15 +409,18 @@ public class GoogleCloudStorageFileSystem {
    */
   public void mkdirs(URI path) throws IOException {
     logger.atFine().log("mkdirs(path: %s)", path);
-    Preconditions.checkNotNull(path);
+    Preconditions.checkNotNull(path, "path should not be null");
 
-    if (path.equals(GCS_ROOT)) {
+    mkdirsInternal(StorageResourceId.fromUriPath(path, true));
+  }
+
+  public void mkdirsInternal(StorageResourceId resourceId) throws IOException {
+    if (resourceId.isRoot()) {
       // GCS_ROOT directory always exists, no need to go through the rest of the method.
       return;
     }
 
-    StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, true);
-    resourceId = FileInfo.convertToDirectoryPath(resourceId);
+    resourceId = resourceId.toDirectoryId();
 
     // Create a list of all intermediate paths.
     // For example,
@@ -464,7 +436,7 @@ public class GoogleCloudStorageFileSystem {
       itemIds.add(new StorageResourceId(resourceId.getBucketName(), subdir));
       if (!Strings.isNullOrEmpty(subdir)) {
         itemIds.add(
-            new StorageResourceId(resourceId.getBucketName(), FileInfo.convertToFilePath(subdir)));
+            new StorageResourceId(resourceId.getBucketName(), StringPaths.toFilePath(subdir)));
       }
     }
     // Add the bucket portion.
@@ -546,7 +518,7 @@ public class GoogleCloudStorageFileSystem {
     checkArgument(!src.equals(GCS_ROOT), "Root path cannot be renamed.");
 
     // Parent of the destination path.
-    URI dstParent = getParentPath(dst);
+    URI dstParent = UriPaths.getParentPath(dst);
 
     // Obtain info on source, destination and destination-parent.
     List<URI> paths = new ArrayList<>();
@@ -573,7 +545,7 @@ public class GoogleCloudStorageFileSystem {
         options.isCooperativeLockingEnabled()
                 && src.getAuthority().equals(dst.getAuthority())
                 && srcInfo.isDirectory()
-            ? Optional.of(CoopLockOperationRename.create(gcs, pathCodec, src, dst))
+            ? Optional.of(CoopLockOperationRename.create(gcs, src, dst))
             : Optional.empty();
     coopLockOp.ifPresent(CoopLockOperationRename::lock);
     if (coopLockOp.isPresent()) {
@@ -606,7 +578,9 @@ public class GoogleCloudStorageFileSystem {
 
     Future<GoogleCloudStorageItemInfo> srcParentInfoFuture = null;
     if (options.getCloudStorageOptions().isAutoRepairImplicitDirectoriesEnabled()) {
-      StorageResourceId srcParentId = pathCodec.validatePathAndGetId(getParentPath(src), true);
+      StorageResourceId srcParentId =
+          StorageResourceId.fromUriPath(
+              UriPaths.getParentPath(src), /* allowEmptyObjectName= */ true);
       srcParentInfoFuture =
           cachedExecutor.submit(
               () -> getFileInfoInternal(srcParentId, /* inferImplicitDirectories= */ false));
@@ -617,8 +591,10 @@ public class GoogleCloudStorageFileSystem {
     } else {
       coopLockOp.ifPresent(CoopLockOperationRename::unlock);
 
-      StorageResourceId srcResourceId = pathCodec.validatePathAndGetId(src, true);
-      StorageResourceId dstResourceId = pathCodec.validatePathAndGetId(dst, true);
+      StorageResourceId srcResourceId =
+          StorageResourceId.fromUriPath(src, /* allowEmptyObjectName= */ true);
+      StorageResourceId dstResourceId =
+          StorageResourceId.fromUriPath(dst, /* allowEmptyObjectName= */ true);
 
       gcs.copy(
           srcResourceId.getBucketName(), ImmutableList.of(srcResourceId.getObjectName()),
@@ -674,7 +650,7 @@ public class GoogleCloudStorageFileSystem {
       // directory path. This is because users often type 'mv foo bar'
       // rather than 'mv foo bar/'.
       if (!dstInfo.isDirectory()) {
-        dst = FileInfo.convertToDirectoryPath(pathCodec, dst);
+        dst = UriPaths.toDirectory(dst);
         dstInfo = getFileInfo(dst);
       }
 
@@ -693,9 +669,11 @@ public class GoogleCloudStorageFileSystem {
 
       if (dstInfo.exists()) {
         if (dst.equals(GCS_ROOT)) {
-          dst = pathCodec.getPath(srcItemName, null, true);
+          dst =
+              UriPaths.fromStringPathComponents(
+                  srcItemName, /* objectName= */ null, /* allowEmptyObjectName= */ true);
         } else {
-          dst = FileInfo.convertToDirectoryPath(pathCodec, dst.resolve(srcItemName));
+          dst = UriPaths.toDirectory(dst.resolve(srcItemName));
         }
       }
     } else {
@@ -713,7 +691,7 @@ public class GoogleCloudStorageFileSystem {
       } else {
         // Destination is a file.
         // See if there is a directory of that name.
-        URI dstDir = FileInfo.convertToDirectoryPath(pathCodec, dst);
+        URI dstDir = UriPaths.toDirectory(dst);
         FileInfo dstDirInfo = getFileInfo(dstDir);
         if (dstDirInfo.exists()) {
           dst = dstDir.resolve(srcItemName);
@@ -735,10 +713,10 @@ public class GoogleCloudStorageFileSystem {
    * @throws IOException if the Compose operation was unsuccessful
    */
   public void compose(List<URI> sources, URI destination, String contentType) throws IOException {
-    StorageResourceId destResource = StorageResourceId.fromObjectName(destination.toString());
+    StorageResourceId destResource = StorageResourceId.fromStringPath(destination.toString());
     List<String> sourceObjects =
         Lists.transform(
-            sources, uri -> StorageResourceId.fromObjectName(uri.toString()).getObjectName());
+            sources, uri -> StorageResourceId.fromStringPath(uri.toString()).getObjectName());
     gcs.compose(
         destResource.getBucketName(), sourceObjects, destResource.getObjectName(), contentType);
   }
@@ -834,7 +812,7 @@ public class GoogleCloudStorageFileSystem {
       srcObjectNames.add(srcObjectName);
 
       StorageResourceId dstResourceId =
-          pathCodec.validatePathAndGetId(srcToDstItemName.getValue(), true);
+          StorageResourceId.fromUriPath(srcToDstItemName.getValue(), true);
       dstBucketName = dstResourceId.getBucketName();
       String dstObjectName = dstResourceId.getObjectName();
       dstObjectNames.add(dstObjectName);
@@ -881,7 +859,9 @@ public class GoogleCloudStorageFileSystem {
 
           // Obtain path for each child.
           for (String childName : childNames) {
-            URI childPath = pathCodec.getPath(childName, null, true);
+            URI childPath =
+                UriPaths.fromStringPathComponents(
+                    childName, /* objectName= */ null, /* allowEmptyObjectName= */ true);
             paths.add(childPath);
             logger.atFinest().log("listFileNames: added %s path", childPath);
           }
@@ -900,7 +880,9 @@ public class GoogleCloudStorageFileSystem {
 
           // Obtain path for each child.
           for (String childName : childNames) {
-            URI childPath = pathCodec.getPath(itemInfo.getBucketName(), childName, false);
+            URI childPath =
+                UriPaths.fromStringPathComponents(
+                    itemInfo.getBucketName(), childName, /* allowEmptyObjectName= */ false);
             paths.add(childPath);
             logger.atFinest().log("listFileNames: added %s path", childPath);
           }
@@ -974,7 +956,7 @@ public class GoogleCloudStorageFileSystem {
     List<GoogleCloudStorageItemInfo> itemInfos =
         gcs.listObjectInfo(
             prefixId.getBucketName(), prefixId.getObjectName(), /* delimiter= */ null);
-    List<FileInfo> fileInfos = FileInfo.fromItemInfos(pathCodec, itemInfos);
+    List<FileInfo> fileInfos = FileInfo.fromItemInfos(itemInfos);
     fileInfos.sort(FILE_INFO_PATH_COMPARATOR);
     return fileInfos;
   }
@@ -994,7 +976,7 @@ public class GoogleCloudStorageFileSystem {
     ListPage<GoogleCloudStorageItemInfo> itemInfosPage =
         gcs.listObjectInfoPage(
             prefixId.getBucketName(), prefixId.getObjectName(), /* delimiter= */ null, pageToken);
-    List<FileInfo> fileInfosPage = FileInfo.fromItemInfos(pathCodec, itemInfosPage.getItems());
+    List<FileInfo> fileInfosPage = FileInfo.fromItemInfos(itemInfosPage.getItems());
     fileInfosPage.sort(FILE_INFO_PATH_COMPARATOR);
     return new ListPage<>(fileInfosPage, itemInfosPage.getNextPageToken());
   }
@@ -1002,7 +984,7 @@ public class GoogleCloudStorageFileSystem {
   private StorageResourceId getPrefixId(URI prefix) {
     Preconditions.checkNotNull(prefix, "prefix could not be null");
 
-    StorageResourceId prefixId = pathCodec.validatePathAndGetId(prefix, true);
+    StorageResourceId prefixId = StorageResourceId.fromUriPath(prefix, true);
     Preconditions.checkArgument(
         !prefixId.isRoot(), "prefix must not be global root, got '%s'", prefix);
 
@@ -1026,9 +1008,8 @@ public class GoogleCloudStorageFileSystem {
     Preconditions.checkNotNull(path, "path can not be null");
     logger.atFinest().log("listFileInfo(path: %s)", path);
 
-    StorageResourceId pathId = pathCodec.validatePathAndGetId(path, true);
-    StorageResourceId dirId =
-        pathCodec.validatePathAndGetId(FileInfo.convertToDirectoryPath(pathCodec, path), true);
+    StorageResourceId pathId = StorageResourceId.fromUriPath(path, true);
+    StorageResourceId dirId = StorageResourceId.fromUriPath(UriPaths.toDirectory(path), true);
 
     ExecutorService dirExecutor =
         options.isStatusParallelEnabled()
@@ -1050,7 +1031,7 @@ public class GoogleCloudStorageFileSystem {
         GoogleCloudStorageItemInfo pathInfo = gcs.getItemInfo(pathId);
         if (pathInfo.exists()) {
           List<FileInfo> listedInfo = new ArrayList<>();
-          listedInfo.add(FileInfo.fromItemInfo(pathCodec, pathInfo));
+          listedInfo.add(FileInfo.fromItemInfo(pathInfo));
           return listedInfo;
         }
       }
@@ -1062,7 +1043,7 @@ public class GoogleCloudStorageFileSystem {
           throw new FileNotFoundException("Item not found: " + path);
         }
 
-        List<FileInfo> fileInfos = FileInfo.fromItemInfos(pathCodec, dirItemInfos);
+        List<FileInfo> fileInfos = FileInfo.fromItemInfos(dirItemInfos);
         fileInfos.sort(FILE_INFO_PATH_COMPARATOR);
         return fileInfos;
       } catch (InterruptedException | ExecutionException e) {
@@ -1088,10 +1069,9 @@ public class GoogleCloudStorageFileSystem {
     // Validate the given path. true == allow empty object name.
     // One should be able to get info about top level directory (== bucket),
     // therefore we allow object name to be empty.
-    StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, true);
+    StorageResourceId resourceId = StorageResourceId.fromUriPath(path, true);
     FileInfo fileInfo =
         FileInfo.fromItemInfo(
-            pathCodec,
             getFileInfoInternal(resourceId, gcs.getOptions().isInferImplicitDirectoriesEnabled()));
     logger.atFinest().log("getFileInfo(path: %s): %s", path, fileInfo);
     return fileInfo;
@@ -1103,7 +1083,7 @@ public class GoogleCloudStorageFileSystem {
     if (resourceId.isRoot() || resourceId.isBucket()) {
       return gcs.getItemInfo(resourceId);
     }
-    StorageResourceId dirId = FileInfo.convertToDirectoryPath(resourceId);
+    StorageResourceId dirId = resourceId.toDirectoryId();
 
     ExecutorService dirExecutor =
         options.isStatusParallelEnabled()
@@ -1236,7 +1216,7 @@ public class GoogleCloudStorageFileSystem {
     logger.atFine().log("mkdir(path: %s)", path);
     checkArgument(!path.equals(GCS_ROOT), "Cannot create root directory.");
 
-    StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, true);
+    StorageResourceId resourceId = StorageResourceId.fromUriPath(path, true);
 
     // If this is a top level directory, create the corresponding bucket.
     if (resourceId.isBucket()) {
@@ -1245,7 +1225,7 @@ public class GoogleCloudStorageFileSystem {
     }
 
     // Ensure that the path looks like a directory path.
-    resourceId = FileInfo.convertToDirectoryPath(resourceId);
+    resourceId = resourceId.toDirectoryId();
 
     // Not a top-level directory, create 0 sized object.
     gcs.createEmptyObject(resourceId);
@@ -1280,73 +1260,6 @@ public class GoogleCloudStorageFileSystem {
     return subdirs;
   }
 
-  /**
-   * Validate the given bucket name to make sure that it can be used as a part of a file system
-   * path.
-   *
-   * <p>Note: this is not designed to duplicate the exact checks that GCS would perform on the
-   * server side. We make some checks that are relevant to using GCS as a file system.
-   *
-   * @param bucketName Bucket name to check.
-   */
-  static String validateBucketName(String bucketName) {
-
-    // If the name ends with /, remove it.
-    bucketName = FileInfo.convertToFilePath(bucketName);
-
-    if (Strings.isNullOrEmpty(bucketName)) {
-      throw new IllegalArgumentException("Google Cloud Storage bucket name cannot be empty.");
-    }
-
-    if (!BUCKET_NAME_CHAR_MATCHER.matchesAllOf(bucketName)) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Invalid bucket name '%s': bucket name must contain only 'a-z0-9_.-' characters.",
-              bucketName));
-    }
-
-    return bucketName;
-  }
-
-  /**
-   * Validate the given object name to make sure that it can be used as a part of a file system
-   * path.
-   *
-   * <p>Note: this is not designed to duplicate the exact checks that GCS would perform on the
-   * server side. We make some checks that are relevant to using GCS as a file system.
-   *
-   * @param objectName Object name to check.
-   * @param allowEmptyObjectName If true, a missing object name is not considered invalid.
-   */
-  static String validateObjectName(String objectName, boolean allowEmptyObjectName) {
-    String validObjectName = validateObjectNameInternal(objectName, allowEmptyObjectName);
-    logger.atFinest().log(
-        "validateObjectName(objectName: '%s', allowEmptyObjectName: %s): %s",
-        objectName, allowEmptyObjectName, validObjectName);
-    return validObjectName;
-  }
-
-  private static String validateObjectNameInternal(
-      String objectName, boolean allowEmptyObjectName) {
-    if (isNullOrEmpty(objectName) || objectName.equals(PATH_DELIMITER)) {
-      if (allowEmptyObjectName) {
-        return "";
-      }
-      throw new IllegalArgumentException(
-          "Google Cloud Storage path must include non-empty object name.");
-    }
-
-    // We want objectName to look like a traditional file system path,
-    // therefore, disallow objectName with consecutive '/' chars.
-    checkArgument(
-        !objectName.contains(PATH_DELIMITER + PATH_DELIMITER),
-        "Google Cloud Storage path must not have consecutive '/' characters, got '%s'",
-        objectName);
-
-    // Remove leading '/' if it exists.
-    return objectName.startsWith(PATH_DELIMITER) ? objectName.substring(1) : objectName;
-  }
-
   /** Gets the leaf item of the given path. */
   String getItemName(URI path) {
     Preconditions.checkNotNull(path);
@@ -1356,71 +1269,22 @@ public class GoogleCloudStorageFileSystem {
       return null;
     }
 
-    StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, true);
+    StorageResourceId resourceId = StorageResourceId.fromUriPath(path, true);
 
     if (resourceId.isBucket()) {
       return resourceId.getBucketName();
     }
 
-    int index;
     String objectName = resourceId.getObjectName();
-    if (FileInfo.objectHasDirectoryPath(objectName)) {
-      index = objectName.lastIndexOf(PATH_DELIMITER, objectName.length() - 2);
-    } else {
-      index = objectName.lastIndexOf(PATH_DELIMITER);
-    }
+    int index =
+        StringPaths.isDirectoryPath(objectName)
+            ? objectName.lastIndexOf(PATH_DELIMITER, objectName.length() - 2)
+            : objectName.lastIndexOf(PATH_DELIMITER);
     return index < 0 ? objectName : objectName.substring(index + 1);
   }
 
   /** Retrieve our internal gcs. */
   public GoogleCloudStorage getGcs() {
     return gcs;
-  }
-
-  /** The PathCodec in use by this file system. */
-  public PathCodec getPathCodec() {
-    return pathCodec;
-  }
-
-  /**
-   * Gets the parent directory of the given path.
-   *
-   * @param path Path to convert.
-   * @return Path of parent directory of the given item or null for root path.
-   */
-  public URI getParentPath(URI path) {
-    return getParentPath(getPathCodec(), path);
-  }
-
-  /**
-   * Gets the parent directory of the given path.
-   *
-   * @param path Path to convert.
-   * @return Path of parent directory of the given item or null for root path.
-   */
-  private static URI getParentPath(PathCodec pathCodec, URI path) {
-    Preconditions.checkNotNull(path);
-
-    // Root path has no parent.
-    if (path.equals(GCS_ROOT)) {
-      return null;
-    }
-
-    StorageResourceId resourceId = pathCodec.validatePathAndGetId(path, true);
-
-    if (resourceId.isBucket()) {
-      return GCS_ROOT;
-    }
-
-    int index;
-    String objectName = resourceId.getObjectName();
-    if (FileInfo.objectHasDirectoryPath(objectName)) {
-      index = objectName.lastIndexOf(PATH_DELIMITER, objectName.length() - 2);
-    } else {
-      index = objectName.lastIndexOf(PATH_DELIMITER);
-    }
-    return index < 0
-        ? pathCodec.getPath(resourceId.getBucketName(), null, true)
-        : pathCodec.getPath(resourceId.getBucketName(), objectName.substring(0, index + 1), false);
   }
 }

@@ -877,9 +877,10 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
           "dstObjectName must not be null or empty");
       if (srcBucketName.equals(dstBucketName)
           && srcObjectNames.get(i).equals(dstObjectNames.get(i))) {
-        throw new IllegalArgumentException(String.format(
-            "Copy destination must be different from source for %s.",
-            StorageResourceId.createReadableString(srcBucketName, srcObjectNames.get(i))));
+        throw new IllegalArgumentException(
+            String.format(
+                "Copy destination must be different from source for %s.",
+                StringPaths.fromComponents(srcBucketName, srcObjectNames.get(i))));
       }
     }
   }
@@ -963,8 +964,8 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
         new JsonBatchCallback<RewriteResponse>() {
           @Override
           public void onSuccess(RewriteResponse rewriteResponse, HttpHeaders responseHeaders) {
-            String srcString = StorageResourceId.createReadableString(srcBucketName, srcObjectName);
-            String dstString = StorageResourceId.createReadableString(dstBucketName, dstObjectName);
+            String srcString = StringPaths.fromComponents(srcBucketName, srcObjectName);
+            String dstString = StringPaths.fromComponents(dstBucketName, dstObjectName);
 
             if (rewriteResponse.getDone()) {
               logger.atFine().log("Successfully copied %s to %s", srcString, dstString);
@@ -1020,8 +1021,8 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
         new JsonBatchCallback<StorageObject>() {
           @Override
           public void onSuccess(StorageObject copyResponse, HttpHeaders responseHeaders) {
-            String srcString = StorageResourceId.createReadableString(srcBucketName, srcObjectName);
-            String dstString = StorageResourceId.createReadableString(dstBucketName, dstObjectName);
+            String srcString = StringPaths.fromComponents(srcBucketName, srcObjectName);
+            String dstString = StringPaths.fromComponents(dstBucketName, dstObjectName);
             logger.atFine().log("Successfully copied %s to %s", srcString, dstString);
           }
 
@@ -1046,8 +1047,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
             ? createFileNotFoundException(srcBucketName, srcObjectName, cause)
             : new IOException(
                 String.format(
-                    "Error copying '%s'",
-                    StorageResourceId.createReadableString(srcBucketName, srcObjectName)),
+                    "Error copying '%s'", StringPaths.fromComponents(srcBucketName, srcObjectName)),
                 cause));
   }
 
@@ -1229,8 +1229,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     try {
       items = listObject.execute();
     } catch (IOException e) {
-      String resource =
-          StorageResourceId.createReadableString(listObject.getBucket(), listObject.getPrefix());
+      String resource = StringPaths.fromComponents(listObject.getBucket(), listObject.getPrefix());
       if (errorExtractor.itemNotFound(e)) {
         logger.atFine().withCause(e).log(
             "listStorageObjectsAndPrefixesPage(%s, %d): item not found", resource, maxResults);

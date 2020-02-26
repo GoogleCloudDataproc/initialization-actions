@@ -25,7 +25,6 @@ import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_LAZY_INITIALIZATION_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_TYPE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_WORKING_DIRECTORY;
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PATH_CODEC;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PERMISSIONS_TO_REPORT;
 import static com.google.cloud.hadoop.gcsio.CreateFileOptions.DEFAULT_NO_OVERWRITE;
 import static com.google.common.base.Preconditions.checkArgument;
@@ -45,9 +44,9 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
-import com.google.cloud.hadoop.gcsio.PathCodec;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.UpdatableItemInfo;
+import com.google.cloud.hadoop.gcsio.UriPaths;
 import com.google.cloud.hadoop.util.AccessTokenProvider;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.CredentialFactory;
@@ -55,7 +54,6 @@ import com.google.cloud.hadoop.util.CredentialFromAccessTokenProviderClassFactor
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
 import com.google.cloud.hadoop.util.PropertyUtil;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Ascii;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Suppliers;
@@ -179,11 +177,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     }
   }
 
-  /** Use new URI_ENCODED_PATH_CODEC. */
-  public static final String PATH_CODEC_USE_URI_ENCODING = "uri-path";
-  /** Use LEGACY_PATH_CODEC. */
-  public static final String PATH_CODEC_USE_LEGACY_ENCODING = "legacy";
-
   /** Default value of replication factor. */
   public static final short REPLICATION_FACTOR_DEFAULT = 3;
 
@@ -239,7 +232,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   private Supplier<GoogleCloudStorageFileSystem> gcsFsSupplier;
 
   private boolean gcsFsInitialized = false;
-  protected PathCodec pathCodec;
 
   /**
    * Current working directory; overridden in initialize() if {@link
@@ -401,7 +393,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   private void setGcsFs(GoogleCloudStorageFileSystem gcsFs) {
     this.gcsFsSupplier = Suppliers.ofInstance(gcsFs);
     this.gcsFsInitialized = true;
-    this.pathCodec = gcsFs.getPathCodec();
   }
 
   /**
@@ -713,7 +704,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
       Progressable progress)
       throws IOException {
     URI gcsPath = getGcsPath(checkNotNull(hadoopPath, "hadoopPath must not be null"));
-    URI parentGcsPath = getGcsFs().getParentPath(gcsPath);
+    URI parentGcsPath = UriPaths.getParentPath(gcsPath);
     GoogleCloudStorageItemInfo parentInfo = getGcsFs().getFileInfo(parentGcsPath).getItemInfo();
     if (!parentInfo.isRoot() && !parentInfo.isBucket() && !parentInfo.exists()) {
       throw new FileNotFoundException(
@@ -942,7 +933,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     long startTime = System.nanoTime();
     Preconditions.checkArgument(hadoopPath != null, "hadoopPath must not be null");
 
-    URI gcsPath = FileInfo.convertToDirectoryPath(pathCodec, getGcsPath(hadoopPath));
+    URI gcsPath = UriPaths.toDirectory(getGcsPath(hadoopPath));
     Path newPath = getHadoopPath(gcsPath);
 
     // Ideally we should check (as we did earlier) if the given path really points to an existing
@@ -1215,7 +1206,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
       // Path strips a trailing slash unless it's the 'root' path. We want to keep the trailing
       // slash so that we don't wastefully list sibling files which may match the directory-name
       // as a strict prefix but would've been omitted due to not containing the '/' at the end.
-      prefixUri = FileInfo.convertToDirectoryPath(pathCodec, prefixUri);
+      prefixUri = UriPaths.toDirectory(prefixUri);
     }
 
     // Get everything matching the non-glob prefix.
@@ -1287,20 +1278,20 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     // populate the missing entries explicitly here. Necessary for getFileStatus(parentOfInfo)
     // to work when using an instance of this class.
     for (FileInfo fileInfo : fileInfos) {
-      URI parentPath = getGcsFs().getParentPath(fileInfo.getPath());
+      URI parentPath = UriPaths.getParentPath(fileInfo.getPath());
       while (parentPath != null && !parentPath.equals(GoogleCloudStorageFileSystem.GCS_ROOT)) {
         if (!filePaths.contains(parentPath)) {
           logger.atFinest().log("Adding fake entry for missing parent path '%s'", parentPath);
-          StorageResourceId id = pathCodec.validatePathAndGetId(parentPath, true);
+          StorageResourceId id = StorageResourceId.fromUriPath(parentPath, true);
 
           GoogleCloudStorageItemInfo fakeItemInfo =
               GoogleCloudStorageItemInfo.createInferredDirectory(id);
-          FileInfo fakeFileInfo = FileInfo.fromItemInfo(pathCodec, fakeItemInfo);
+          FileInfo fakeFileInfo = FileInfo.fromItemInfo(fakeItemInfo);
 
           filePaths.add(parentPath);
           fileStatuses.add(getFileStatus(fakeFileInfo, userName));
         }
-        parentPath = getGcsFs().getParentPath(parentPath);
+        parentPath = UriPaths.getParentPath(parentPath);
       }
     }
 
@@ -1482,7 +1473,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
                   try {
                     GoogleCloudStorageFileSystem gcsFs = createGcsFs(config);
 
-                    pathCodec = gcsFs.getPathCodec();
                     configureBuckets(gcsFs);
                     configureWorkingDirectory(config);
                     gcsFsInitialized = true;
@@ -1492,7 +1482,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
                     throw new RuntimeException("Failed to create GCS FS", e);
                   }
                 });
-        pathCodec = getPathCodec(config);
       } else {
         setGcsFs(createGcsFs(config));
         configureBuckets(getGcsFs());
@@ -1515,20 +1504,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     }
   }
 
-  private static PathCodec getPathCodec(Configuration config) {
-    String specifiedPathCodec = Ascii.toLowerCase(PATH_CODEC.get(config, config::get));
-    switch (specifiedPathCodec) {
-      case PATH_CODEC_USE_LEGACY_ENCODING:
-        return GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
-      case PATH_CODEC_USE_URI_ENCODING:
-        return GoogleCloudStorageFileSystem.URI_ENCODED_PATH_CODEC;
-      default:
-        logger.atWarning().log(
-            "Unknown path codec specified %s. Using default / legacy.", specifiedPathCodec);
-        return GoogleCloudStorageFileSystem.LEGACY_PATH_CODEC;
-    }
-  }
-
   private GoogleCloudStorageFileSystem createGcsFs(Configuration config) throws IOException {
     Credential credential;
     try {
@@ -1539,7 +1514,6 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
 
     GoogleCloudStorageFileSystemOptions gcsFsOptions =
         GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config)
-            .setPathCodec(getPathCodec(config))
             .build();
 
     return new GoogleCloudStorageFileSystem(credential, gcsFsOptions);

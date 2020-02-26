@@ -112,9 +112,8 @@ public class GoogleCloudStorageNewIntegrationTest {
     GoogleCloudStorage gcs = gcsfsIHelper.gcs;
     String bucketPath1 = "gs://" + gcsfsIHelper.sharedBucketName1;
     String bucketPath2 = "gs://" + gcsfsIHelper.sharedBucketName2;
-
-    assertThat(gcs.getItemInfo(StorageResourceId.fromObjectName(bucketPath1)).exists()).isFalse();
-    assertThat(gcs.getItemInfo(StorageResourceId.fromObjectName(bucketPath2)).exists()).isFalse();
+    assertThat(gcs.getItemInfo(StorageResourceId.fromStringPath(bucketPath1)).exists()).isFalse();
+    assertThat(gcs.getItemInfo(StorageResourceId.fromStringPath(bucketPath2)).exists()).isFalse();
   }
 
   @Test

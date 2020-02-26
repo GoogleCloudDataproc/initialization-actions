@@ -218,7 +218,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     // neither the subdir nor gs://<bucket>/<generated-tempdir> exist yet.
     Path emptyObject = new Path(dirPath, "empty-object");
     URI objUri = myghfs.getGcsPath(emptyObject);
-    StorageResourceId resource = gcsfs.getPathCodec().validatePathAndGetId(objUri, false);
+    StorageResourceId resource = StorageResourceId.fromUriPath(objUri, false);
     gcs.createEmptyObject(resource);
 
     boolean inferImplicitDirectories =
@@ -256,7 +256,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     // neither the subdir nor gs://<bucket>/<generated-tempdir> exist yet.
     Path emptyObject = new Path(subDir, "empty-object");
     URI objUri = myghfs.getGcsPath(emptyObject);
-    StorageResourceId resource = gcsfs.getPathCodec().validatePathAndGetId(objUri, false);
+    StorageResourceId resource = StorageResourceId.fromUriPath(objUri, false);
     gcs.createEmptyObject(resource);
 
     boolean autoRepairImplicitDirectories =
@@ -287,7 +287,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     // neither the subdir nor gs://<bucket>/<generated-tempdir> exist yet.
     Path emptyObject = new Path(dirPath, "empty-object");
     URI objUri = myghfs.getGcsPath(emptyObject);
-    StorageResourceId resource = gcsfs.getPathCodec().validatePathAndGetId(objUri, false);
+    StorageResourceId resource = StorageResourceId.fromUriPath(objUri, false);
     gcs.createEmptyObject(resource);
 
     boolean inferImplicitDirectories =
@@ -326,7 +326,7 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
     // neither the subdir nor gs://<bucket>/<generated-tempdir> exist yet.
     Path emptyObject = new Path(subDir, "empty-object");
     URI objUri = myghfs.getGcsPath(emptyObject);
-    StorageResourceId resource = gcsfs.getPathCodec().validatePathAndGetId(objUri, false);
+    StorageResourceId resource = StorageResourceId.fromUriPath(objUri, false);
     gcs.createEmptyObject(resource);
 
     boolean autoRepairImplicitDirectories =

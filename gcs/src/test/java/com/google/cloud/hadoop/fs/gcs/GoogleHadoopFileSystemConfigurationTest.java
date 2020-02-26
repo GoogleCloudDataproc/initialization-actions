@@ -61,7 +61,6 @@ public class GoogleHadoopFileSystemConfigurationTest {
           put("fs.gs.checksum.type", GcsFileChecksumType.NONE);
           put("fs.gs.status.parallel.enable", false);
           put("fs.gs.lazy.init.enable", false);
-          put("fs.gs.path.encoding", "uri-path");
           put("fs.gs.block.size", 67_108_864L);
           put("fs.gs.implicit.dir.infer.enable", true);
           put("fs.gs.glob.flatlist.enable", true);

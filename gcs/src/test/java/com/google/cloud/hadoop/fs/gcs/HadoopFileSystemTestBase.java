@@ -20,7 +20,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertThrows;
 
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationTest;
-import com.google.cloud.hadoop.gcsio.GoogleCloudStorageIntegrationHelper;
+import com.google.cloud.hadoop.gcsio.StringPaths;
 import com.google.common.base.Strings;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -120,8 +120,7 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
       }
 
       boolean expectedToBeDir =
-          Strings.isNullOrEmpty(objectName)
-              || GoogleCloudStorageIntegrationHelper.objectHasDirectoryPath(objectName);
+          Strings.isNullOrEmpty(objectName) || StringPaths.isDirectoryPath(objectName);
       assertWithMessage("%s", fileStatus.getPath())
           .that(fileStatus.isDir())
           .isEqualTo(expectedToBeDir);

@@ -17,8 +17,12 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.common.base.Strings;
+import com.google.common.flogger.GoogleLogger;
+import java.net.URI;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -30,6 +34,9 @@ import java.util.regex.Pattern;
  * if bucketName and objectName are both non-null, this refers to a GCS StorageObject.
  */
 public class StorageResourceId {
+
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+
   // The generationId used to denote "unknown"; if given to a method expecting generationId
   // constraints, the method may perform extra low-level GETs to determine an existing generationId
   // if idempotency constraints require doing so.
@@ -43,8 +50,7 @@ public class StorageResourceId {
   // 3 = /foo/bar/baz
   // 4 = foo/bar/baz
   // Groups 2 and 4 can be used to create an instance.
-  private static final Pattern OBJECT_NAME_IN_GCS_PATTERN =
-      Pattern.compile("gs://(([^/]+)(/(.+)?)?)?");
+  private static final Pattern GCS_PATH_PATTERN = Pattern.compile("gs://(([^/]+)(/(.+)?)?)?");
 
   // The singleton instance identifying the GCS root (gs://). Both getObjectName() and
   // getBucketName() will return null.
@@ -57,7 +63,7 @@ public class StorageResourceId {
   private final String objectName;
 
   // Human-readable String to be returned by toString(); kept as 'final' member for efficiency.
-  private final String readableString;
+  private final String stringPath;
 
   // The generationId to be used with precondition checks when using this StorageResourceId
   // as an identifier for mutation requests.
@@ -70,7 +76,7 @@ public class StorageResourceId {
   private StorageResourceId() {
     this.bucketName = null;
     this.objectName = null;
-    this.readableString = createReadableString(bucketName, objectName);
+    this.stringPath = StringPaths.fromComponents(bucketName, objectName);
     this.generationId = UNKNOWN_GENERATION_ID;
   }
 
@@ -86,7 +92,7 @@ public class StorageResourceId {
 
     this.bucketName = bucketName;
     this.objectName = null;
-    this.readableString = createReadableString(bucketName, objectName);
+    this.stringPath = StringPaths.fromComponents(bucketName, objectName);
     this.generationId = UNKNOWN_GENERATION_ID;
   }
 
@@ -105,7 +111,7 @@ public class StorageResourceId {
 
     this.bucketName = bucketName;
     this.objectName = objectName;
-    this.readableString = createReadableString(bucketName, objectName);
+    this.stringPath = StringPaths.fromComponents(bucketName, objectName);
     this.generationId = UNKNOWN_GENERATION_ID;
   }
 
@@ -126,7 +132,7 @@ public class StorageResourceId {
 
     this.bucketName = bucketName;
     this.objectName = objectName;
-    this.readableString = createReadableString(bucketName, objectName);
+    this.stringPath = StringPaths.fromComponents(bucketName, objectName);
     this.generationId = generationId;
   }
 
@@ -160,7 +166,7 @@ public class StorageResourceId {
    * for exists() to be true on a corresponding GoogleCloudStorageItemInfo.
    */
   public boolean isDirectory() {
-    return isRoot() || isBucket() || objectHasDirectoryPath(objectName);
+    return isRoot() || isBucket() || StringPaths.isDirectoryPath(objectName);
   }
 
   /**
@@ -196,7 +202,7 @@ public class StorageResourceId {
   /** Returns a string of the form {@code gs://<bucketName>/<objectName>}. */
   @Override
   public String toString() {
-    return readableString;
+    return stringPath;
   }
 
   @Override
@@ -211,85 +217,81 @@ public class StorageResourceId {
 
   @Override
   public int hashCode() {
-    return readableString.hashCode();
+    return stringPath.hashCode();
   }
 
   /**
-   * Helper for standardizing the way various human-readable messages in logs/exceptions that refer
-   * to a bucket/object pair.
-   */
-  public static String createReadableString(String bucketName, String objectName) {
-    if (bucketName == null && objectName != null) {
-      throw new IllegalArgumentException(
-          String.format("Invalid bucketName/objectName pair: gs://%s/%s", bucketName, objectName));
-    }
-    // TODO(user): Unify this method with other methods that convert bucketName/objectName
-    // to a URI; maybe use the single slash for compatibility.
-    StringBuilder result = new StringBuilder("gs://");
-    if (bucketName != null) {
-      result.append(bucketName);
-    }
-    if (objectName != null) {
-      result.append('/').append(objectName);
-    }
-    return result.toString();
-  }
-
-  /**
-   * Indicates whether the given object name looks like a directory path.
+   * Converts StorageResourceId instance to look like a directory path. If the path already looks
+   * like a directory path then this call is a no-op.
    *
-   * @param objectName Name of the object to inspect.
-   * @return Whether the given object name looks like a directory path.
+   * @return A resourceId with a directory path corresponding to the given resourceId.
    */
-  static boolean objectHasDirectoryPath(String objectName) {
-    return !Strings.isNullOrEmpty(objectName)
-        && objectName.endsWith(GoogleCloudStorage.PATH_DELIMITER);
-  }
-
-  /**
-   * Converts the given object name to look like a directory path.
-   * If the object name already looks like a directory path then
-   * this call is a no-op.
-   * <p>
-   * If the object name is null or empty, it is returned as-is.
-   *
-   * @param objectName Name of the object to inspect.
-   * @return Directory path for the given path.
-   */
-  static String convertToDirectoryPath(String objectName) {
-    if (!Strings.isNullOrEmpty(objectName)) {
-      if (!objectHasDirectoryPath(objectName)) {
-        objectName += GoogleCloudStorage.PATH_DELIMITER;
-      }
+  public StorageResourceId toDirectoryId() {
+    if (isStorageObject() && !StringPaths.isDirectoryPath(getObjectName())) {
+      return new StorageResourceId(getBucketName(), StringPaths.toDirectoryPath(getObjectName()));
     }
-    return objectName;
+    return this;
   }
 
-  /**
-   * Parses {@link StorageResourceId} from specified string.
-   */
-  public static StorageResourceId fromObjectName(String objectName) {
-    return fromObjectName(objectName, UNKNOWN_GENERATION_ID);
+  /** Parses {@link StorageResourceId} from specified string. */
+  public static StorageResourceId fromStringPath(String path) {
+    return fromStringPath(path, UNKNOWN_GENERATION_ID);
   }
 
-  /**
-   * Parses {@link StorageResourceId} from specified string and generationId.
-   */
-  public static StorageResourceId fromObjectName(String objectName, long generationId) {
-    Matcher matcher = OBJECT_NAME_IN_GCS_PATTERN.matcher(objectName);
-    checkArgument(matcher.matches(), "'%s' is not a valid GCS object name.", objectName);
+  /** Parses {@link StorageResourceId} from specified string and generationId. */
+  public static StorageResourceId fromStringPath(String path, long generationId) {
+    Matcher matcher = GCS_PATH_PATTERN.matcher(path);
+    checkArgument(matcher.matches(), "'%s' is not a valid GCS object name.", path);
 
     String bucketName = matcher.group(2);
     String relativePath = matcher.group(4);
     if (bucketName == null) {
-      checkArgument(generationId == UNKNOWN_GENERATION_ID,
-          "Cannot specify generationId '%s' for root object '%s'", generationId, objectName);
+      checkArgument(
+          generationId == UNKNOWN_GENERATION_ID,
+          "Cannot specify generationId '%s' for root object '%s'",
+          generationId,
+          path);
       return ROOT;
     } else if (relativePath != null) {
       return new StorageResourceId(bucketName, relativePath, generationId);
     }
-    checkArgument(generationId == UNKNOWN_GENERATION_ID,
-        "Cannot specify generationId '%s' for bucket '%s'", generationId, objectName);
+    checkArgument(
+        generationId == UNKNOWN_GENERATION_ID,
+        "Cannot specify generationId '%s' for bucket '%s'",
+        generationId,
+        path);
     return new StorageResourceId(bucketName);
+  }
+
+  /**
+   * Validates the given URI and if valid, returns the associated StorageResourceId.
+   *
+   * @param path The GCS URI to validate.
+   * @param allowEmptyObjectName If true, a missing object name is not considered invalid.
+   * @return a StorageResourceId that may be the GCS root, a Bucket, or a StorageObject.
+   */
+  public static StorageResourceId fromUriPath(URI path, boolean allowEmptyObjectName) {
+    logger.atFine().log("fromUriPath('%s', %s)", path, allowEmptyObjectName);
+    checkNotNull(path);
+
+    if (!GoogleCloudStorageFileSystem.SCHEME.equals(path.getScheme())) {
+      throw new IllegalArgumentException(
+          String.format(
+              "GCS path supports only '%s' scheme, instead got '%s' from '%s'.",
+              GoogleCloudStorageFileSystem.SCHEME, path.getScheme(), path));
+    }
+
+    if (path.equals(GoogleCloudStorageFileSystem.GCS_ROOT)) {
+      return StorageResourceId.ROOT;
+    }
+
+    String bucketName = StringPaths.validateBucketName(path.getAuthority());
+    // Note that we're using getPath here instead of rawPath, etc. This is because it is assumed
+    // that the path was properly encoded in getPath (or another similar method):
+    String objectName = StringPaths.validateObjectName(path.getPath(), allowEmptyObjectName);
+
+    return isNullOrEmpty(objectName)
+        ? new StorageResourceId(bucketName)
+        : new StorageResourceId(bucketName, objectName);
   }
 }

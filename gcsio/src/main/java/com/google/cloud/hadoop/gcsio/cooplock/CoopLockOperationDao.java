@@ -29,8 +29,8 @@ import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
 import com.google.cloud.hadoop.gcsio.FileInfo;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
-import com.google.cloud.hadoop.gcsio.PathCodec;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
+import com.google.cloud.hadoop.gcsio.UriPaths;
 import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
@@ -89,12 +89,10 @@ public class CoopLockOperationDao {
 
   private final GoogleCloudStorage gcs;
   private final CooperativeLockingOptions options;
-  private final PathCodec pathCodec;
 
-  public CoopLockOperationDao(GoogleCloudStorage gcs, PathCodec pathCodec) {
+  public CoopLockOperationDao(GoogleCloudStorage gcs) {
     this.gcs = gcs;
     this.options = gcs.getOptions().getCooperativeLockingOptions();
-    this.pathCodec = pathCodec;
   }
 
   public Future<?> persistDeleteOperation(
@@ -283,7 +281,7 @@ public class CoopLockOperationDao {
       String operationId, URI operationLockPath, Function<String, String> modifyFn)
       throws IOException {
     StorageResourceId lockId =
-        pathCodec.validatePathAndGetId(operationLockPath, /* allowEmptyObjectName= */ false);
+        StorageResourceId.fromUriPath(operationLockPath, /* allowEmptyObjectName= */ false);
     GoogleCloudStorageItemInfo lockInfo = gcs.getItemInfo(lockId);
     checkState(lockInfo.exists(), "lock file for %s operation should exist", operationId);
 
@@ -312,7 +310,7 @@ public class CoopLockOperationDao {
     URI path =
         getOperationFilePath(bucket, fileNameFormat, operationType, operationId, operationInstant);
     StorageResourceId resourceId =
-        pathCodec.validatePathAndGetId(path, /* allowEmptyObjectName= */ false);
+        StorageResourceId.fromUriPath(path, /* allowEmptyObjectName= */ false);
     writeOperation(resourceId, createObjectOptions, records);
     return path;
   }
@@ -325,7 +323,7 @@ public class CoopLockOperationDao {
       Instant operationInstant) {
     String date = LOCK_FILE_DATE_TIME_FORMAT.format(operationInstant);
     String file = String.format(LOCK_DIRECTORY + fileNameFormat, date, operationType, operationId);
-    return pathCodec.getPath(bucket, file, /* allowEmptyObjectName= */ false);
+    return UriPaths.fromStringPathComponents(bucket, file, /* allowEmptyObjectName= */ false);
   }
 
   private void writeOperation(

@@ -24,7 +24,6 @@ import com.google.cloud.hadoop.gcsio.FileInfo;
 import com.google.cloud.hadoop.gcsio.ForwardingGoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
-import com.google.cloud.hadoop.gcsio.PathCodec;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.common.base.MoreObjects;
 import java.io.IOException;
@@ -47,15 +46,13 @@ public class CoopLockOperationDelete {
 
   private Future<?> lockUpdateFuture;
 
-  private CoopLockOperationDelete(
-      GoogleCloudStorageImpl gcs, PathCodec pathCodec, StorageResourceId resourceId) {
+  private CoopLockOperationDelete(GoogleCloudStorageImpl gcs, StorageResourceId resourceId) {
     this.resourceId = resourceId;
     this.coopLockRecordsDao = new CoopLockRecordsDao(gcs);
-    this.coopLockOperationDao = new CoopLockOperationDao(gcs, pathCodec);
+    this.coopLockOperationDao = new CoopLockOperationDao(gcs);
   }
 
-  public static CoopLockOperationDelete create(
-      GoogleCloudStorage gcs, PathCodec pathCodec, URI path) {
+  public static CoopLockOperationDelete create(GoogleCloudStorage gcs, URI path) {
     while (gcs instanceof ForwardingGoogleCloudStorage) {
       gcs = ((ForwardingGoogleCloudStorage) gcs).getDelegate();
     }
@@ -66,8 +63,7 @@ public class CoopLockOperationDelete {
         gcs.getClass());
     return new CoopLockOperationDelete(
         (GoogleCloudStorageImpl) gcs,
-        pathCodec,
-        pathCodec.validatePathAndGetId(
+        StorageResourceId.fromUriPath(
             normalizeLockedResource(path), /* allowEmptyObjectName= */ true));
   }
 

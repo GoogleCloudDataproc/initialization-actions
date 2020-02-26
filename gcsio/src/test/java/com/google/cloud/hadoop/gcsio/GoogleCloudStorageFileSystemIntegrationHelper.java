@@ -174,11 +174,12 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
 
   /** Helper to construct a path. */
   protected URI getPath(String bucketName, String objectName) {
-    return gcsfs.getPathCodec().getPath(bucketName, objectName, /* allowEmptyObjectName= */ true);
+    return UriPaths.fromStringPathComponents(
+        bucketName, objectName, /* allowEmptyObjectName= */ true);
   }
 
   public StorageResourceId validatePathAndGetId(URI path, boolean allowEmpty) {
-    return gcsfs.getPathCodec().validatePathAndGetId(path, allowEmpty);
+    return StorageResourceId.fromUriPath(path, allowEmpty);
   }
 
   public String getItemName(URI src) {

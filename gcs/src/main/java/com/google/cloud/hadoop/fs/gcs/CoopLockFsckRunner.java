@@ -31,6 +31,7 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
+import com.google.cloud.hadoop.gcsio.UriPaths;
 import com.google.cloud.hadoop.gcsio.cooplock.CoopLockOperationDao;
 import com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecord;
 import com.google.cloud.hadoop.gcsio.cooplock.CoopLockRecordsDao;
@@ -99,7 +100,7 @@ class CoopLockFsckRunner {
     this.gcs = (GoogleCloudStorageImpl) gcsFs.getGcs();
     this.options = gcs.getOptions().getCooperativeLockingOptions();
     this.lockRecordsDao = new CoopLockRecordsDao(gcs);
-    this.lockOperationDao = new CoopLockOperationDao(gcs, gcsFs.getPathCodec());
+    this.lockOperationDao = new CoopLockOperationDao(gcs);
   }
 
   public int run() throws IOException {
@@ -194,7 +195,7 @@ class CoopLockFsckRunner {
       deleteResource(operation.getResource(), loggedResources);
       lockRecordsDao.unlockPaths(
           operationRecord.getOperationId(),
-          StorageResourceId.fromObjectName(operation.getResource()));
+          StorageResourceId.fromStringPath(operation.getResource()));
     } finally {
       lockUpdateFuture.cancel(/* mayInterruptIfRunning= */ false);
     }
@@ -258,8 +259,8 @@ class CoopLockFsckRunner {
       }
       lockRecordsDao.unlockPaths(
           operationRecord.getOperationId(),
-          StorageResourceId.fromObjectName(operation.getSrcResource()),
-          StorageResourceId.fromObjectName(operation.getDstResource()));
+          StorageResourceId.fromStringPath(operation.getSrcResource()),
+          StorageResourceId.fromStringPath(operation.getDstResource()));
     } finally {
       lockUpdateFuture.cancel(/* mayInterruptIfRunning= */ false);
     }
@@ -302,7 +303,7 @@ class CoopLockFsckRunner {
 
   private static List<String> toNames(List<String> resources) {
     return resources.stream()
-        .map(r -> StorageResourceId.fromObjectName(r).getObjectName())
+        .map(r -> StorageResourceId.fromStringPath(r).getObjectName())
         .collect(toList());
   }
 
@@ -321,7 +322,7 @@ class CoopLockFsckRunner {
     String globPath =
         CoopLockRecordsDao.LOCK_DIRECTORY + "*" + operationRecord.getOperationId() + "*.lock";
     URI globUri =
-        gcsFs.getPathCodec().getPath(bucketName, globPath, /* allowEmptyObjectName= */ false);
+        UriPaths.fromStringPathComponents(bucketName, globPath, /* allowEmptyObjectName= */ false);
     FileStatus[] operationLock = ghfs.globStatus(new Path(globUri));
     checkState(
         operationLock.length < 2,
@@ -367,7 +368,7 @@ class CoopLockFsckRunner {
     String globPath =
         CoopLockRecordsDao.LOCK_DIRECTORY + "*" + operationRecord.getOperationId() + "*.log";
     URI globUri =
-        gcsFs.getPathCodec().getPath(bucketName, globPath, /* allowEmptyObjectName= */ false);
+        UriPaths.fromStringPathComponents(bucketName, globPath, /* allowEmptyObjectName= */ false);
     FileStatus[] operationLog = ghfs.globStatus(new Path(globUri));
     checkState(
         operationLog.length < 2,
@@ -415,7 +416,7 @@ class CoopLockFsckRunner {
     List<StorageResourceId> objectsToDelete = new ArrayList<>(loggedResources.size());
     for (String loggedObject : loggedResources) {
       if (allObjects.contains(loggedObject)) {
-        objectsToDelete.add(StorageResourceId.fromObjectName(loggedObject));
+        objectsToDelete.add(StorageResourceId.fromStringPath(loggedObject));
       }
     }
     GoogleCloudStorage gcs = ghfs.getGcsFs().getGcs();

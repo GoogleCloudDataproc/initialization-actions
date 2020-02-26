@@ -1004,4 +1004,111 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
         IllegalArgumentException.class,
         () -> ghfs.setWorkingDirectory(null));
   }
+
+  @Test
+  public void testGlobStatusWithNewUriScheme() throws IOException {
+    Path globRoot = new Path("/newuriencoding_globs/");
+    ghfs.mkdirs(globRoot);
+    ghfs.mkdirs(new Path("/newuriencoding_globs/subdirectory1"));
+    ghfs.mkdirs(new Path("/newuriencoding_globs/#this#is#a&subdir/"));
+
+    byte[] data = new byte[10];
+    for (int i = 0; i < data.length; i++) {
+      data[i] = (byte) i;
+    }
+
+    createFile(new Path("/newuriencoding_globs/subdirectory1/file1"), data);
+    createFile(new Path("/newuriencoding_globs/subdirectory1/file2"), data);
+    createFile(new Path("/newuriencoding_globs/#this#is#a&subdir/file1"), data);
+    createFile(new Path("/newuriencoding_globs/#this#is#a&subdir/file2"), data);
+    createFile(new Path("/newuriencoding_globs/#this#is#a&subdir/file2"), data);
+
+    FileStatus[] rootDirectories = ghfs.globStatus(new Path("/new*"));
+    assertThat(rootDirectories).hasLength(1);
+    assertThat(rootDirectories[0].getPath().getName()).isEqualTo("newuriencoding_globs");
+
+    FileStatus[] subDirectories = ghfs.globStatus(new Path("/newuriencoding_globs/s*"));
+    assertThat(subDirectories).hasLength(1);
+    assertThat(subDirectories[0].getPath().getName()).isEqualTo("subdirectory1");
+
+    FileStatus[] subDirectories2 = ghfs.globStatus(new Path("/newuriencoding_globs/#this*"));
+    assertThat(subDirectories2).hasLength(1);
+    assertThat(subDirectories2[0].getPath().getName()).isEqualTo("#this#is#a&subdir");
+
+    FileStatus[] subDirectories3 = ghfs.globStatus(new Path("/newuriencoding_globs/#this?is?a&*"));
+    assertThat(subDirectories3).hasLength(1);
+    assertThat(subDirectories3[0].getPath().getName()).isEqualTo("#this#is#a&subdir");
+
+    FileStatus[] subDirectory1Files =
+        ghfs.globStatus(new Path("/newuriencoding_globs/subdirectory1/*"));
+    assertThat(subDirectory1Files).hasLength(2);
+    assertThat(subDirectory1Files[0].getPath().getName()).isEqualTo("file1");
+    assertThat(subDirectory1Files[1].getPath().getName()).isEqualTo("file2");
+
+    FileStatus[] subDirectory2Files =
+        ghfs.globStatus(new Path("/newuriencoding_globs/#this#is#a&subdir/f*"));
+    assertThat(subDirectory2Files).hasLength(2);
+    assertThat(subDirectory2Files[0].getPath().getName()).isEqualTo("file1");
+    assertThat(subDirectory2Files[1].getPath().getName()).isEqualTo("file2");
+
+    FileStatus[] subDirectory2Files2 =
+        ghfs.globStatus(new Path("/newuriencoding_globs/#this#is#a&subdir/file?"));
+    assertThat(subDirectory2Files2).hasLength(2);
+    assertThat(subDirectory2Files2[0].getPath().getName()).isEqualTo("file1");
+    assertThat(subDirectory2Files2[1].getPath().getName()).isEqualTo("file2");
+
+    FileStatus[] subDirectory2Files3 =
+        ghfs.globStatus(new Path("/newuriencoding_globs/#this#is#a&subdir/file[0-9]"));
+    assertThat(subDirectory2Files3).hasLength(2);
+    assertThat(subDirectory2Files3[0].getPath().getName()).isEqualTo("file1");
+    assertThat(subDirectory2Files3[1].getPath().getName()).isEqualTo("file2");
+
+    FileStatus[] subDirectory2Files4 =
+        ghfs.globStatus(new Path("/newuriencoding_globs/#this#is#a&subdir/file[^1]"));
+    assertThat(subDirectory2Files4).hasLength(1);
+    assertThat(subDirectory2Files4[0].getPath().getName()).isEqualTo("file2");
+
+    FileStatus[] subDirectory2Files5 =
+        ghfs.globStatus(new Path("/newuriencoding_globs/#this#is#a&subdir/file{1,2}"));
+    assertThat(subDirectory2Files5).hasLength(2);
+    assertThat(subDirectory2Files5[0].getPath().getName()).isEqualTo("file1");
+    assertThat(subDirectory2Files5[1].getPath().getName()).isEqualTo("file2");
+
+    ghfs.delete(globRoot, true);
+  }
+
+  @Test
+  public void testPathsOnlyValidInNewUriScheme() throws IOException {
+    GoogleHadoopFileSystem typedFs = (GoogleHadoopFileSystem) ghfs;
+
+    Path directory =
+        new Path(
+            String.format(
+                "gs://%s/testPathsOnlyValidInNewUriScheme/", typedFs.getRootBucketName()));
+    Path p = new Path(directory, "foo#bar#baz");
+    assertThrows(FileNotFoundException.class, () -> ghfs.getFileStatus(p));
+
+    ghfsHelper.writeFile(p, "SomeText", 100, /* overwrite= */ false);
+
+    FileStatus status = ghfs.getFileStatus(p);
+    assertThat(status.getPath()).isEqualTo(p);
+    ghfs.delete(directory, true);
+  }
+
+  @Override
+  public void testGetGcsPath() throws URISyntaxException {
+    GoogleHadoopFileSystem myghfs = (GoogleHadoopFileSystem) ghfs;
+    URI gcsPath = new URI("gs://" + myghfs.getRootBucketName() + "/dir/obj");
+    URI convertedPath = myghfs.getGcsPath(new Path(gcsPath));
+    assertThat(convertedPath).isEqualTo(gcsPath);
+
+    // When using the LegacyPathCodec this will fail, but it's perfectly fine to encode
+    // this in the UriPathCodec. Note that new Path("/buck^et", "object")
+    // isn't actually using bucket as a bucket, but instead as a part of the path...
+    myghfs.getGcsPath(new Path("/buck^et", "object"));
+
+    // Validate that authorities can't be crazy:
+    assertThrows(
+        IllegalArgumentException.class, () -> myghfs.getGcsPath(new Path("gs://buck^et/object")));
+  }
 }

@@ -307,6 +307,22 @@ public class GoogleCloudStorageItemInfo {
   }
 
   /**
+   * Indicates whether this instance has information about the unique, shared root of the underlying
+   * storage system.
+   */
+  public boolean isGlobalRoot() {
+    return isRoot() && exists();
+  }
+
+  /**
+   * Indicates whether {@code itemInfo} is a directory; static version of {@link #isDirectory()} to
+   * avoid having to create a FileInfo object just to use this logic.
+   */
+  public boolean isDirectory() {
+    return isGlobalRoot() || isBucket() || resourceId.isDirectory();
+  }
+
+  /**
    * Indicates whether this item exists.
    */
   public boolean exists() {

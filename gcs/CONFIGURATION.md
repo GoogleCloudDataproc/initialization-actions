@@ -69,11 +69,6 @@
 
     Enables lazy initialization of `GoogleHadoopFileSystem` instances.
 
-*   `fs.gs.path.encoding` (default: `uri-path`)
-
-    Path codec used that used for decoding and encoding Cloud Storage object
-    paths. Valid path codecs are `legacy` and `uri-path`.
-
 *   `fs.gs.block.size` (default: `67108864`)
 
     The reported block size of the file system. This does not change any

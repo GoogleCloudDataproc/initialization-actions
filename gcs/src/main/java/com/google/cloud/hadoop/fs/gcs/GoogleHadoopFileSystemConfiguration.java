@@ -16,7 +16,6 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.PATH_CODEC_USE_URI_ENCODING;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.HTTP_TRANSPORT_SUFFIX;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.PROXY_ADDRESS_SUFFIX;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.PROXY_PASSWORD_SUFFIX;
@@ -171,10 +170,6 @@ public class GoogleHadoopFileSystemConfiguration {
    */
   public static final HadoopConfigurationProperty<Boolean> GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE =
       new HadoopConfigurationProperty<>("fs.gs.implicit.dir.repair.enable", true);
-
-  /** Configuration key for changing the path codec from legacy to 'uri path encoding'. */
-  public static final HadoopConfigurationProperty<String> PATH_CODEC =
-      new HadoopConfigurationProperty<>("fs.gs.path.encoding", PATH_CODEC_USE_URI_ENCODING);
 
   /**
    * Configuration key for enabling automatic inference of implicit directories. If set, we create
