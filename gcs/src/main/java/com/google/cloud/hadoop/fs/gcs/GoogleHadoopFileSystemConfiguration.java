@@ -146,13 +146,6 @@ public class GoogleHadoopFileSystemConfiguration {
           "fs.gs.performance.cache.max.entry.age.ms",
           PerformanceCachingGoogleCloudStorageOptions.MAX_ENTRY_AGE_MILLIS_DEFAULT);
 
-  /** Configuration key for whether or not to enable list caching for the performance cache. */
-  public static final HadoopConfigurationProperty<Boolean>
-      GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE =
-          new HadoopConfigurationProperty<>(
-              "fs.gs.performance.cache.list.caching.enable",
-              PerformanceCachingGoogleCloudStorageOptions.LIST_CACHING_ENABLED);
-
   /**
    * If true, executes GCS requests in {@code listStatus} and {@code getFileStatus} methods in
    * parallel to reduce latency.
@@ -429,8 +422,6 @@ public class GoogleHadoopFileSystemConfiguration {
     return PerformanceCachingGoogleCloudStorageOptions.builder()
         .setMaxEntryAgeMillis(
             GCS_PERFORMANCE_CACHE_MAX_ENTRY_AGE_MILLIS.get(config, config::getLong))
-        .setListCachingEnabled(
-            GCS_PERFORMANCE_CACHE_LIST_CACHING_ENABLE.get(config, config::getBoolean))
         .build();
   }
 

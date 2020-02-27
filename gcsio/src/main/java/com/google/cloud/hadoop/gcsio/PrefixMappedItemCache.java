@@ -13,22 +13,19 @@
  */
 package com.google.cloud.hadoop.gcsio;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Strings.nullToEmpty;
 import static java.util.Comparator.naturalOrder;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Ticker;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.NavigableMap;
 import java.util.SortedMap;
 import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 /**
@@ -38,31 +35,30 @@ import javax.annotation.Nullable;
  * prefixes.
  */
 public class PrefixMappedItemCache {
+
   /** Map to hold item info. */
   private final TreeMap<PrefixKey, CacheValue<GoogleCloudStorageItemInfo>> itemMap;
-
-  /** Map to hold known prefixes. */
-  private final TreeMap<PrefixKey, CacheValue<Object>> prefixMap;
 
   /** The time in nanoseconds before an entry expires. */
   private final long maxEntryAgeNanos;
 
-  /** Ticker for tracking expirations. */
+  /** Ticker for tracking expiration. */
   private final Ticker ticker;
 
   /**
    * Creates a new {@link PrefixMappedItemCache}.
    *
-   * @param config the configuration parameters to initialize the cache with. The configuration
-   *     parameters are copied during construction, future modifications to the configuration will
-   *     not be reflected in the cache.
+   * @param maxEntryAge time after which entries in cache expire.
    */
-  public PrefixMappedItemCache(Config config) {
-    itemMap = new TreeMap<PrefixKey, CacheValue<GoogleCloudStorageItemInfo>>(PrefixKey.COMPARATOR);
-    prefixMap = new TreeMap<PrefixKey, CacheValue<Object>>(PrefixKey.COMPARATOR);
+  public PrefixMappedItemCache(Duration maxEntryAge) {
+    this(Ticker.systemTicker(), maxEntryAge);
+  }
 
-    maxEntryAgeNanos = TimeUnit.MILLISECONDS.toNanos(config.getMaxEntryAgeMillis());
-    ticker = config.getTicker();
+  @VisibleForTesting
+  PrefixMappedItemCache(Ticker ticker, Duration maxEntryAge) {
+    this.itemMap = new TreeMap<>(PrefixKey.COMPARATOR);
+    this.ticker = ticker;
+    this.maxEntryAgeNanos = maxEntryAge.toNanos();
   }
 
   /**
@@ -82,46 +78,10 @@ public class PrefixMappedItemCache {
 
     if (isExpired(value)) {
       itemMap.remove(key);
-      cleanupLists(key);
       return null;
     }
 
     return value.getValue();
-  }
-
-  /**
-   * Gets the cached list associated with the given bucket and object name prefix.
-   *
-   * @param bucket the bucket where the entries are being retrieved from.
-   * @param objectNamePrefix the object name prefix to match against. If this is empty string or
-   *     null, it will match everything in the bucket.
-   * @return a list of items matching in the given bucket matching the given object name prefix,
-   *     null if a list isn't found or the is expired.
-   */
-  public synchronized List<GoogleCloudStorageItemInfo> getList(
-      String bucket, @Nullable String objectNamePrefix) {
-    PrefixKey key = new PrefixKey(bucket, objectNamePrefix);
-    Entry<PrefixKey, CacheValue<Object>> entry = getParentEntry(prefixMap, key);
-
-    if (entry == null) {
-      return null;
-    }
-
-    if (isExpired(entry.getValue())) {
-      cleanupLists(key);
-      return null;
-    }
-
-    return listItems(key);
-  }
-
-  synchronized List<GoogleCloudStorageItemInfo> listItems(
-      String bucket, @Nullable String objectNamePrefix) {
-   return listItems(new PrefixKey(bucket, objectNamePrefix));
-  }
-
-  private List<GoogleCloudStorageItemInfo> listItems(PrefixKey key) {
-    return aggregateCacheValues(getPrefixSubMap(itemMap, key));
   }
 
   /**
@@ -134,52 +94,9 @@ public class PrefixMappedItemCache {
   public synchronized GoogleCloudStorageItemInfo putItem(GoogleCloudStorageItemInfo item) {
     StorageResourceId id = item.getResourceId();
     PrefixKey key = new PrefixKey(id.getBucketName(), id.getObjectName());
-    CacheValue<GoogleCloudStorageItemInfo> value =
-        new CacheValue<GoogleCloudStorageItemInfo>(item, ticker.read());
-
+    CacheValue<GoogleCloudStorageItemInfo> value = new CacheValue<>(item, ticker.read());
     CacheValue<GoogleCloudStorageItemInfo> oldValue = itemMap.put(key, value);
-
-    if (oldValue == null) {
-      return null;
-    }
-
-    if (isExpired(oldValue)) {
-      cleanupLists(key);
-      return null;
-    }
-
-    return oldValue.getValue();
-  }
-
-  /**
-   * Inserts a list entry and the given items into the cache. If a list entry under the same
-   * bucket/objectNamePrefix is present, its expiration time is reset. If an item with the same
-   * resource id is present, it is overwritten by the new item.
-   *
-   * @param bucket the bucket to index the items by.
-   * @param objectNamePrefix the object name prefix to index the items by. If this is null, it will
-   *     be converted to empty string.
-   * @param items the list of items to insert.
-   */
-  public synchronized void putList(
-      String bucket, @Nullable String objectNamePrefix, List<GoogleCloudStorageItemInfo> items) {
-    // Give all entries the same creation time so they expire at the same time.
-    long creationTime = ticker.read();
-    PrefixKey key = new PrefixKey(bucket, objectNamePrefix);
-
-    // The list being inserted is always fresher than any child lists.
-    getPrefixSubMap(itemMap, key).clear();
-    getPrefixSubMap(prefixMap, key).clear();
-
-    // Populate the maps.
-    prefixMap.put(key, new CacheValue<Object>(null, creationTime));
-    for (GoogleCloudStorageItemInfo item : items) {
-      StorageResourceId itemId = item.getResourceId();
-      PrefixKey itemKey = new PrefixKey(itemId.getBucketName(), itemId.getObjectName());
-      CacheValue<GoogleCloudStorageItemInfo> itemValue =
-          new CacheValue<GoogleCloudStorageItemInfo>(item, creationTime);
-      itemMap.put(itemKey, itemValue);
-    }
+    return oldValue == null || isExpired(oldValue) ? null : oldValue.getValue();
   }
 
   /**
@@ -191,17 +108,10 @@ public class PrefixMappedItemCache {
   public synchronized GoogleCloudStorageItemInfo removeItem(StorageResourceId id) {
     PrefixKey key = new PrefixKey(id.getBucketName(), id.getObjectName());
     CacheValue<GoogleCloudStorageItemInfo> value = itemMap.remove(key);
-
-    if (value == null) {
-      return null;
+    if (id.isDirectory()) {
+      getPrefixSubMap(itemMap, key).clear();
     }
-
-    if (isExpired(value)) {
-      cleanupLists(key);
-      return null;
-    }
-
-    return value.getValue();
+    return value == null || isExpired(value) ? null : value.getValue();
   }
 
   /**
@@ -213,13 +123,11 @@ public class PrefixMappedItemCache {
     PrefixKey key = new PrefixKey(bucket, "");
 
     getPrefixSubMap(itemMap, key).clear();
-    getPrefixSubMap(prefixMap, key).clear();
   }
 
   /** Invalidates all entries in the cache. */
   public synchronized void invalidateAll() {
     itemMap.clear();
-    prefixMap.clear();
   }
 
   /**
@@ -229,36 +137,8 @@ public class PrefixMappedItemCache {
    * @return true if the value has expired, false otherwise.
    */
   private <V> boolean isExpired(CacheValue<V> value) {
-    long diff = ticker.read() - value.getCreationTime();
+    long diff = ticker.read() - value.getCreationTimeNanos();
     return diff > maxEntryAgeNanos;
-  }
-
-  /**
-   * Removes expired list entries that contain the given key. If a list was removed, it's contained
-   * items are checked for expiration too.
-   *
-   * @param key the key to cleanup the list entries for.
-   */
-  private void cleanupLists(PrefixKey key) {
-    // Remove expired list entries. Keep track of the last list removed.
-    NavigableMap<PrefixKey, CacheValue<Object>> head = prefixMap.headMap(key, true).descendingMap();
-    Iterator<Entry<PrefixKey, CacheValue<Object>>> headItr = head.entrySet().iterator();
-    Entry<PrefixKey, CacheValue<Object>> last = null;
-
-    while (headItr.hasNext()) {
-      Entry<PrefixKey, CacheValue<Object>> entry = headItr.next();
-      if (isExpired(entry.getValue()) && key.isParent(entry.getKey())) {
-        last = entry;
-        headItr.remove();
-      }
-    }
-
-    // If a list was removed, check its contained items for expiration.
-    if (last != null) {
-      SortedMap<PrefixKey, CacheValue<GoogleCloudStorageItemInfo>> prefix =
-          getPrefixSubMap(itemMap, last.getKey());
-      prefix.entrySet().removeIf(entry -> isExpired(entry.getValue()));
-    }
   }
 
   /**
@@ -289,67 +169,10 @@ public class PrefixMappedItemCache {
     return map.subMap(lowerBound, upperBound);
   }
 
-  /**
-   * Helper function that finds the parent entry (inclusive) for the given upper bound. This is like
-   * {@link TreeMap#floorEntry(Object)}, but does additional filtering.
-   *
-   * @param map the map to find the parent entry in.
-   * @param upperBound the upper bound to search for a parent.
-   * @return the parent entry for the given upper bound, null if no entry was found.
-   */
-  private static <E> Entry<PrefixKey, E> getParentEntry(
-      TreeMap<PrefixKey, E> map, PrefixKey upperBound) {
-    NavigableMap<PrefixKey, E> head = map.headMap(upperBound, true).descendingMap();
-    for (Entry<PrefixKey, E> entry : head.entrySet()) {
-      if (upperBound.isParent(entry.getKey())) {
-        return entry;
-      }
-    }
-    return null;
-  }
-
   /** Gets all the items in the item map without modifying the map. Used for testing only. */
   @VisibleForTesting
   List<GoogleCloudStorageItemInfo> getAllItemsRaw() {
     return aggregateCacheValues(itemMap);
-  }
-
-  /** Checks if the prefix map contains an exact entry for the given bucket/objectName. */
-  @VisibleForTesting
-  boolean containsListRaw(String bucket, String objectName) {
-    return prefixMap.containsKey(new PrefixKey(bucket, objectName));
-  }
-
-  /**
-   * Container for various cache-configuration parameters used by a {@link PrefixMappedItemCache}
-   * when managing expiration/retention policies, etc.
-   */
-  public static class Config {
-    /** The time in milliseconds before an entry expires. */
-    private long maxEntryAgeMillis;
-
-    /** Ticker for tracking expirations. */
-    private Ticker ticker = Ticker.systemTicker();
-
-    /** Gets the time in milliseconds before an entry expires. */
-    public long getMaxEntryAgeMillis() {
-      return maxEntryAgeMillis;
-    }
-
-    /** Sets the time in milliseconds before an entry expires. */
-    public void setMaxEntryAgeMillis(long maxEntryAgeMillis) {
-      this.maxEntryAgeMillis = maxEntryAgeMillis;
-    }
-
-    /** Gets the ticker for tracking expirations. */
-    public Ticker getTicker() {
-      return ticker;
-    }
-
-    /** Sets the ticker for tracking expirations. */
-    public void setTicker(Ticker ticker) {
-      this.ticker = ticker;
-    }
   }
 
   /**
@@ -362,17 +185,17 @@ public class PrefixMappedItemCache {
     private final V value;
 
     /** The time the entry was created in nanoseconds. */
-    private final long creationTime;
+    private final long creationTimeNanos;
 
     /**
      * Creates a new {@link CacheValue}.
      *
      * @param value the value being cached.
-     * @param creationTime the time the entry was created in nanoseconds.
+     * @param creationTimeNanos the time the entry was created in nanoseconds.
      */
-    public CacheValue(V value, long creationTime) {
+    public CacheValue(V value, long creationTimeNanos) {
       this.value = value;
-      this.creationTime = creationTime;
+      this.creationTimeNanos = creationTimeNanos;
     }
 
     /** Gets the value being cached. */
@@ -381,13 +204,13 @@ public class PrefixMappedItemCache {
     }
 
     /** Gets the time the entry was created in nanoseconds. */
-    public long getCreationTime() {
-      return creationTime;
+    public long getCreationTimeNanos() {
+      return creationTimeNanos;
     }
 
     @Override
     public String toString() {
-      return "CacheValue [value=" + value + ", creationTime=" + creationTime + "]";
+      return "CacheValue [value=" + value + ", creationTimeNanos=" + creationTimeNanos + "]";
     }
   }
 
@@ -417,7 +240,7 @@ public class PrefixMappedItemCache {
      * @throws IllegalArgumentException if the bucket is null and object is not null.
      */
     public PrefixKey(String bucket, @Nullable String objectName) {
-      Preconditions.checkArgument(
+      checkArgument(
           bucket != null || objectName == null, "bucket must not be null if object is not null.");
       this.bucket = nullToEmpty(bucket);
       this.objectName = nullToEmpty(objectName);
@@ -482,11 +305,7 @@ public class PrefixMappedItemCache {
 
       PrefixKey other = (PrefixKey) obj;
 
-      if (!bucket.equals(other.bucket) || !objectName.equals(other.objectName)) {
-        return false;
-      }
-
-      return true;
+      return bucket.equals(other.bucket) && objectName.equals(other.objectName);
     }
   }
 }

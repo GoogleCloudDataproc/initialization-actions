@@ -140,10 +140,7 @@ public class GoogleCloudStorageTest {
             ListVisibilityCalculator.IMMEDIATELY_VISIBLE);
     GoogleCloudStorage performanceCachingGcs =
         new PerformanceCachingGoogleCloudStorage(
-            new InMemoryGoogleCloudStorage(),
-            PerformanceCachingGoogleCloudStorageOptions.builder()
-                .setListCachingEnabled(true)
-                .build());
+            new InMemoryGoogleCloudStorage(), PerformanceCachingGoogleCloudStorageOptions.DEFAULT);
     return Arrays.asList(
         new Object[] {gcs}, new Object[] {zeroLaggedGcs}, new Object[] {performanceCachingGcs});
   }
@@ -813,7 +810,8 @@ public class GoogleCloudStorageTest {
     GoogleCloudStorageItemInfo d2Info =
         rawStorage.getItemInfo(
             new StorageResourceId(bucketName, "testListObjectInfoWithDirectoryRepair_d2/"));
-    assertThat(d2Info.exists()).isFalse();
+    assertThat(d2Info.exists())
+        .isEqualTo(rawStorage instanceof PerformanceCachingGoogleCloudStorage);
 
     List<GoogleCloudStorageItemInfo> d2ItemInfo =
         rawStorage.listObjectInfo(

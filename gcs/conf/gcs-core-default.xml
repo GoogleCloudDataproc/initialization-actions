@@ -328,12 +328,6 @@
   </property>
 
   <property>
-    <name>fs.gs.performance.cache.list.caching.enable</name>
-    <value>false</value>
-    <description>Enable caching of list request results in the performance cache.</description>
-  </property>
-
-  <property>
     <name>fs.gs.status.parallel.enable</name>
     <value>false</value>
     <description>

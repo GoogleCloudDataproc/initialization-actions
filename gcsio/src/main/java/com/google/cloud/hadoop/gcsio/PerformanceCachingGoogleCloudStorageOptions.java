@@ -22,22 +22,15 @@ public abstract class PerformanceCachingGoogleCloudStorageOptions {
   /** Max age of an item in cache in milliseconds. */
   public static final long MAX_ENTRY_AGE_MILLIS_DEFAULT = 5_000;
 
-  /** Flag to enable list caching. */
-  public static final boolean LIST_CACHING_ENABLED = false;
-
   public static final PerformanceCachingGoogleCloudStorageOptions DEFAULT = builder().build();
 
   public static Builder builder() {
     return new AutoValue_PerformanceCachingGoogleCloudStorageOptions.Builder()
-        .setMaxEntryAgeMillis(MAX_ENTRY_AGE_MILLIS_DEFAULT)
-        .setListCachingEnabled(LIST_CACHING_ENABLED);
+        .setMaxEntryAgeMillis(MAX_ENTRY_AGE_MILLIS_DEFAULT);
   }
 
   /** Gets the max age of an item in cache in milliseconds. */
   public abstract long getMaxEntryAgeMillis();
-
-  /** Gets if list caching is enabled. */
-  public abstract boolean isListCachingEnabled();
 
   public abstract Builder toBuilder();
 
@@ -47,9 +40,6 @@ public abstract class PerformanceCachingGoogleCloudStorageOptions {
 
     /** Sets the max age of an item in cache in milliseconds. */
     public abstract Builder setMaxEntryAgeMillis(long maxEntryAgeMillis);
-
-    /** Setting for enabling list caching. */
-    public abstract Builder setListCachingEnabled(boolean listCachingEnabled);
 
     public abstract PerformanceCachingGoogleCloudStorageOptions build();
   }

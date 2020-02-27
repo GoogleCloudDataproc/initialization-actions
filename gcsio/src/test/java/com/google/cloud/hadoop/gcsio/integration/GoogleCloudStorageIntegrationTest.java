@@ -52,7 +52,7 @@ public class GoogleCloudStorageIntegrationTest extends GoogleCloudStorageTest {
   private static GoogleCloudStorage getPerformanceCachingGoogleCloudStorage() throws IOException {
     return new PerformanceCachingGoogleCloudStorage(
         getGoogleCloudStorage(GoogleCloudStorageTestHelper.getStandardOptionBuilder()),
-        PerformanceCachingGoogleCloudStorageOptions.builder().setListCachingEnabled(true).build());
+        PerformanceCachingGoogleCloudStorageOptions.DEFAULT);
   }
 
   private static GoogleCloudStorage getGoogleCloudStorage() throws IOException {

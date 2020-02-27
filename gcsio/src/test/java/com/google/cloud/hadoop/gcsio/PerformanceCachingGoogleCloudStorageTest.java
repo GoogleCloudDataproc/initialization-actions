@@ -17,6 +17,7 @@ import static com.google.cloud.hadoop.gcsio.GoogleCloudStorage.MAX_RESULTS_UNLIM
 import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.google.api.client.util.Clock;
@@ -30,6 +31,7 @@ import com.google.common.collect.Lists;
 import com.google.common.hash.HashCode;
 import com.google.common.hash.Hashing;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
@@ -97,14 +99,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
     MockitoAnnotations.initMocks(this);
 
     // Create the cache configuration.
-    PrefixMappedItemCache.Config cacheConfig = new PrefixMappedItemCache.Config();
-    cacheConfig.setMaxEntryAgeMillis(10);
-    cacheConfig.setTicker(new TestTicker());
-    cache = new PrefixMappedItemCache(cacheConfig);
-
-    // Create the cache configuration.
-    PerformanceCachingGoogleCloudStorageOptions options =
-        PerformanceCachingGoogleCloudStorageOptions.builder().setListCachingEnabled(true).build();
+    cache = new PrefixMappedItemCache(new TestTicker(), Duration.ofMillis(10));
 
     // Setup the delegate
     clock = new TestClock();
@@ -112,7 +107,7 @@ public class PerformanceCachingGoogleCloudStorageTest {
         new InMemoryGoogleCloudStorage(GoogleCloudStorageOptions.DEFAULT, clock);
     gcsDelegate = spy(gcsImpl);
 
-    gcs = new PerformanceCachingGoogleCloudStorage(gcsDelegate, options, cache);
+    gcs = new PerformanceCachingGoogleCloudStorage(gcsDelegate, cache);
 
     // Prepare the delegate.
     gcsDelegate.create(BUCKET_A, CREATE_BUCKET_OPTIONS);
@@ -210,7 +205,8 @@ public class PerformanceCachingGoogleCloudStorageTest {
     assertThat(cache.getAllItemsRaw()).containsExactlyElementsIn(expectedAllCachedItems);
 
     verify(gcsDelegate).listBucketInfo();
-    verify(gcsDelegate).listObjectInfo(eq(BUCKET_A), eq(null), eq(null), eq(MAX_RESULTS_UNLIMITED));
+    verify(gcsDelegate, times(2))
+        .listObjectInfo(eq(BUCKET_A), eq(null), eq(null), eq(MAX_RESULTS_UNLIMITED));
   }
 
   @Test
@@ -218,15 +214,14 @@ public class PerformanceCachingGoogleCloudStorageTest {
     GoogleCloudStorageItemInfo itemAAPrefix = createInferredDirectory(BUCKET_A, PREFIX_A + "/");
 
     List<GoogleCloudStorageItemInfo> expectedResult = Lists.newArrayList(ITEM_A_A, itemAAPrefix);
-    List<GoogleCloudStorageItemInfo> expectedCached =
-        Lists.newArrayList(ITEM_A_A, ITEM_A_AA, ITEM_A_ABA);
+    List<GoogleCloudStorageItemInfo> expectedCached = Lists.newArrayList(ITEM_A_A, itemAAPrefix);
 
     List<GoogleCloudStorageItemInfo> result =
         gcs.listObjectInfo(BUCKET_A, PREFIX_A, "/", MAX_RESULTS_UNLIMITED);
 
     // Verify the delegate call.
     verify(gcsDelegate)
-        .listObjectInfo(eq(BUCKET_A), eq(PREFIX_A), eq(null), eq(MAX_RESULTS_UNLIMITED));
+        .listObjectInfo(eq(BUCKET_A), eq(PREFIX_A), eq("/"), eq(MAX_RESULTS_UNLIMITED));
 
     // Verify the result.
     assertThat(result).containsExactlyElementsIn(expectedResult);
@@ -243,14 +238,14 @@ public class PerformanceCachingGoogleCloudStorageTest {
     GoogleCloudStorageItemInfo itemABAPrefix = createInferredDirectory(BUCKET_A, prefixABADir);
 
     List<GoogleCloudStorageItemInfo> expectedResult = Lists.newArrayList(ITEM_A_AA, itemABAPrefix);
-    List<GoogleCloudStorageItemInfo> expectedCached = Lists.newArrayList(ITEM_A_AA, ITEM_A_ABA);
+    List<GoogleCloudStorageItemInfo> expectedCached = Lists.newArrayList(ITEM_A_AA, itemABAPrefix);
 
     List<GoogleCloudStorageItemInfo> result =
         gcs.listObjectInfo(BUCKET_A, prefixADir, "/", MAX_RESULTS_UNLIMITED);
 
     // Verify the delegate call.
     verify(gcsDelegate)
-        .listObjectInfo(eq(BUCKET_A), eq(prefixADir), eq(null), eq(MAX_RESULTS_UNLIMITED));
+        .listObjectInfo(eq(BUCKET_A), eq(prefixADir), eq("/"), eq(MAX_RESULTS_UNLIMITED));
 
     // Verify the result.
     assertThat(result).containsExactlyElementsIn(expectedResult);
@@ -267,7 +262,12 @@ public class PerformanceCachingGoogleCloudStorageTest {
 
     // Verify the delegate call.
     verify(gcsDelegate)
-        .listObjectInfo(eq(BUCKET_B), ArgumentMatchers.eq(null), ArgumentMatchers.eq(null));
+        .listObjectInfo(
+            eq(BUCKET_B),
+            ArgumentMatchers.eq(null),
+            ArgumentMatchers.eq(null),
+            eq(MAX_RESULTS_UNLIMITED));
+
     assertThat(result).containsExactlyElementsIn(expected);
     // Verify the state of the cache.
     assertThat(cache.getAllItemsRaw()).containsExactlyElementsIn(expected);
@@ -284,8 +284,12 @@ public class PerformanceCachingGoogleCloudStorageTest {
     List<GoogleCloudStorageItemInfo> result = gcs.listObjectInfo(BUCKET_A, null, null);
 
     // Verify the delegate call once.
-    verify(gcsDelegate)
-        .listObjectInfo(eq(BUCKET_A), ArgumentMatchers.eq(null), ArgumentMatchers.eq(null));
+    verify(gcsDelegate, times(2))
+        .listObjectInfo(
+            eq(BUCKET_A),
+            ArgumentMatchers.eq(null),
+            ArgumentMatchers.eq(null),
+            eq(MAX_RESULTS_UNLIMITED));
     assertThat(result).containsExactlyElementsIn(expected);
     // Verify the state of the cache.
     assertThat(cache.getAllItemsRaw()).containsExactlyElementsIn(expected);

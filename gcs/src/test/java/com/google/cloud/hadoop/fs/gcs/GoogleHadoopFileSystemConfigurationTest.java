@@ -91,7 +91,6 @@ public class GoogleHadoopFileSystemConfigurationTest {
           put("fs.gs.inputstream.min.range.request.size", 524_288);
           put("fs.gs.performance.cache.enable", false);
           put("fs.gs.performance.cache.max.entry.age.ms", 5_000L);
-          put("fs.gs.performance.cache.list.caching.enable", false);
           put("fs.gs.requester.pays.mode", RequesterPaysMode.DISABLED);
           put("fs.gs.requester.pays.project.id", null);
           put("fs.gs.requester.pays.buckets", ImmutableList.of());

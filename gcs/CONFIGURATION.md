@@ -395,10 +395,6 @@ is `false`.
     Maximum number of milliseconds to store a cached metadata in the performance
     cache before it's invalidated.
 
-*   `fs.gs.performance.cache.list.caching.enable` (default: `false`)
-
-    Enable caching of list request results in the performance cache.
-
 ### Cloud Storage [Requester Pays](https://cloud.google.com/storage/docs/requester-pays) feature configuration:
 
 *   `fs.gs.requester.pays.mode` (default: `DISABLED`)

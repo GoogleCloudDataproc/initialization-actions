@@ -114,7 +114,7 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
 
   @Override
   public synchronized WritableByteChannel create(
-      StorageResourceId resourceId, final CreateObjectOptions options) throws IOException {
+      StorageResourceId resourceId, CreateObjectOptions options) throws IOException {
     if (!bucketLookup.containsKey(resourceId.getBucketName())) {
       throw new IOException(
           String.format(
@@ -371,17 +371,14 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
 
   @Override
   public synchronized List<String> listObjectNames(
-      String bucketName, String objectNamePrefix, String delimiter)
-      throws IOException {
+      String bucketName, String objectNamePrefix, String delimiter) {
     return listObjectNames(bucketName, objectNamePrefix, delimiter,
         GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
   }
 
   @Override
   public synchronized List<String> listObjectNames(
-      String bucketName, String objectNamePrefix, String delimiter,
-      long maxResults)
-      throws IOException {
+      String bucketName, String objectNamePrefix, String delimiter, long maxResults) {
     InMemoryBucketEntry bucketEntry = bucketLookup.get(bucketName);
     if (bucketEntry == null) {
       return new ArrayList<>();
@@ -410,16 +407,14 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
 
   @Override
   public synchronized List<GoogleCloudStorageItemInfo> listObjectInfo(
-      final String bucketName, String objectNamePrefix, String delimiter)
-      throws IOException {
+      String bucketName, String objectNamePrefix, String delimiter) throws IOException {
     return listObjectInfo(bucketName, objectNamePrefix, delimiter,
         GoogleCloudStorage.MAX_RESULTS_UNLIMITED);
   }
 
   @Override
   public synchronized List<GoogleCloudStorageItemInfo> listObjectInfo(
-      final String bucketName, String objectNamePrefix, String delimiter,
-      long maxResults)
+      String bucketName, String objectNamePrefix, String delimiter, long maxResults)
       throws IOException {
     // Since we're just in memory, we can do the naive implementation of just listing names and
     // then calling getItemInfo for each.
@@ -478,8 +473,7 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
 
   @Override
   public synchronized List<GoogleCloudStorageItemInfo> getItemInfos(
-      List<StorageResourceId> resourceIds)
-      throws IOException {
+      List<StorageResourceId> resourceIds) throws IOException {
     List<GoogleCloudStorageItemInfo> itemInfos = new ArrayList<>();
     for (StorageResourceId resourceId : resourceIds) {
       try {
@@ -523,7 +517,7 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
 
   @Override
   public void compose(
-      final String bucketName, List<String> sources, String destination, String contentType)
+      String bucketName, List<String> sources, String destination, String contentType)
       throws IOException {
     List<StorageResourceId> sourceResourcesIds =
         Lists.transform(sources, s -> new StorageResourceId(bucketName, s));
@@ -535,9 +529,7 @@ public class InMemoryGoogleCloudStorage implements GoogleCloudStorage {
 
   @Override
   public GoogleCloudStorageItemInfo composeObjects(
-      List<StorageResourceId> sources,
-      final StorageResourceId destination,
-      CreateObjectOptions options)
+      List<StorageResourceId> sources, StorageResourceId destination, CreateObjectOptions options)
       throws IOException {
     checkArgument(
         sources.size() <= MAX_COMPOSE_OBJECTS,
