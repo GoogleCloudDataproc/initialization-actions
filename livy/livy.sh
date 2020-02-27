@@ -14,23 +14,13 @@
 
 set -euxo pipefail
 
-readonly DATAPROC_VERSION="$(grep DATAPROC_VERSION /etc/environment | cut -d= -f2 | sed -e 's/"//g')"
-
-if [[ "${DATAPROC_VERSION}" == '1.0' ]] || [[ "${DATAPROC_VERSION}" == '1.1' ]]; then
-  readonly LIVY_VERSION="0.5.0"
-  readonly LIVY_PKG_NAME="livy-${LIVY_VERSION}-incubating-bin"
-else
-  readonly LIVY_VERSION="0.6.0"
-  readonly LIVY_PKG_NAME="apache-livy-${LIVY_VERSION}-incubating-bin"
-fi
+readonly LIVY_VERSION="0.7.0"
+readonly LIVY_PKG_NAME="apache-livy-${LIVY_VERSION}-incubating-bin"
+readonly LIVY_URL="https://archive.apache.org/dist/incubator/livy/${LIVY_VERSION}-incubating/${LIVY_PKG_NAME}.zip"
 
 readonly LIVY_DIR="/usr/local/lib/livy"
 readonly LIVY_BIN="${LIVY_DIR}/bin"
 readonly LIVY_CONF="${LIVY_DIR}/conf"
-
-# Apache mirror redirector.
-readonly APACHE_MIRROR="https://www.apache.org/dyn/mirrors/mirrors.cgi?action=download&filename"
-readonly PKG_PATH="incubator/livy/${LIVY_VERSION}-incubating/${LIVY_PKG_NAME}.zip"
 
 # Generate livy configuration file.
 function make_livy_conf() {
@@ -80,18 +70,18 @@ function main() {
 
   # Download Livy binary.
   local temp
-  temp=$(mktemp -d)
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${APACHE_MIRROR}=${PKG_PATH}" -O "${temp}/livy.zip"
-  unzip -q "${temp}/livy.zip" -d "${temp}"
+  temp=$(mktemp -d -t livy-init-action-XXXX)
+
+  wget -nv --timeout=30 --tries=5 --retry-connrefused "${LIVY_URL}" -P "${temp}"
+
+  unzip -q "${temp}/${LIVY_PKG_NAME}.zip" -d "/usr/local/lib/"
+  ln -s "/usr/local/lib/${LIVY_PKG_NAME}" "${LIVY_DIR}"
 
   # Create Livy user.
   useradd -G hadoop livy
 
   # Setup livy package.
-  install -d "${LIVY_DIR}"
-  cp -r "${temp}/${LIVY_PKG_NAME}/"* "${LIVY_DIR}"
-  chown -R "livy:livy" "${LIVY_DIR}"
+  chown -R -L "livy:livy" "${LIVY_DIR}"
 
   # Generate livy configuration file.
   make_livy_conf
