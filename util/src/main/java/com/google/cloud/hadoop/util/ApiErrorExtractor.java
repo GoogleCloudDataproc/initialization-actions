@@ -360,12 +360,6 @@ public class ApiErrorExtractor {
       if (cause instanceof GoogleJsonResponseException) {
         return (GoogleJsonResponseException) cause;
       }
-      for (Throwable suppressed : cause.getSuppressed()) {
-        GoogleJsonResponseException suppressedJsonException = getJsonResponseException(suppressed);
-        if (suppressedJsonException != null) {
-          return suppressedJsonException;
-        }
-      }
       cause = cause.getCause();
     }
     return null;
