@@ -1055,8 +1055,8 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
                 "Successfully cached footer after %s retries for '%s'", retriesCount, resourceId);
           }
           break;
-        } catch (IOException e) {
-          logger.atInfo().withCause(e).log(
+        } catch (IOException footerException) {
+          logger.atInfo().withCause(footerException).log(
               "Failed to prefetch footer (retry #%s/%s) for '%s'",
               retriesCount + 1, maxRetries, resourceId);
           if (retriesCount == 0) {
@@ -1064,13 +1064,13 @@ public class GoogleCloudStorageReadChannel implements SeekableByteChannel {
           }
           if (retriesCount == maxRetries) {
             resetContentChannel();
-            throw e;
+            throw footerException;
           }
           try {
             response = getObject.executeMedia();
             // TODO(b/110832992): validate response range header against expected/request range.
-          } catch (IOException e1) {
-            response = handleExecuteMediaException(e1);
+          } catch (IOException e) {
+            response = handleExecuteMediaException(e);
           }
         }
       }
