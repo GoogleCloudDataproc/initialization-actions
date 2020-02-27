@@ -28,25 +28,16 @@ import org.junit.runners.JUnit4;
 public class PrefixMappedItemCacheTest {
   // Sample bucket names.
   private static final String BUCKET_A = "alpha";
-  private static final String BUCKET_B = "alph";
 
   // Sample object names.
   private static final String PREFIX_A = "bar";
   private static final String PREFIX_AA = "bar/apple";
-  private static final String PREFIX_ABA = "bar/berry/foo";
-  private static final String PREFIX_B = "baz";
 
   // Sample item info.
   private static final GoogleCloudStorageItemInfo ITEM_A_A =
       createObjectItemInfo(BUCKET_A, PREFIX_A);
   private static final GoogleCloudStorageItemInfo ITEM_A_AA =
       createObjectItemInfo(BUCKET_A, PREFIX_AA);
-  private static final GoogleCloudStorageItemInfo ITEM_A_ABA =
-      createObjectItemInfo(BUCKET_A, PREFIX_ABA);
-  private static final GoogleCloudStorageItemInfo ITEM_A_B =
-      createObjectItemInfo(BUCKET_A, PREFIX_B);
-  private static final GoogleCloudStorageItemInfo ITEM_B_A =
-      createObjectItemInfo(BUCKET_B, PREFIX_A);
 
   /** Ticker implementation for testing the cache. */
   private TestTicker ticker;
