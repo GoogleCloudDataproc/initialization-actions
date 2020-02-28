@@ -17,14 +17,15 @@ class Livy:
     headers = {'Content-Type': 'application/json'}
 
     def create_session(self):
-        resp = requests.post(
-            self.host + '/sessions',
-            data=json.dumps(self.session_data),
-            headers=self.headers)
-        self.session_url = self.host + resp.headers['Location']
+        resp = requests.post(self.host + '/sessions',
+                             data=json.dumps(self.session_data),
+                             headers=self.headers)
+        self.session_url = '{}/sessions/{}'.format(self.host,
+                                                   resp.json()['id'])
 
     def wait_for_session_idle(self):
         wait_seconds_remain = WAIT_SECONDS
+        resp = None
         while wait_seconds_remain > 0:
             resp = requests.get(self.session_url, headers=self.headers)
             if resp.json()['state'] == 'idle':
@@ -34,20 +35,25 @@ class Livy:
             time.sleep(5)
             wait_seconds_remain -= 5
 
-        print('Failure - Spark session initialization to idle state timed out')
+        print('ERROR: Failed to initialize Spark session:{}{}'.format(
+            '\nURL: {}'.format(self.session_url),
+            '\nResponse: {}\n{}'.format(resp, resp.json())))
         exit(1)
 
     def submit_job(self, data):
         self.statement_id = self.statement_id + 1
-        requests.post(
-            self.statements_url, data=json.dumps(data), headers=self.headers)
+        requests.post(self.statements_url,
+                      data=json.dumps(data),
+                      headers=self.headers)
 
     def validate_job_result(self, expected):
         wait_seconds_remain = WAIT_SECONDS
+        resp = None
         while wait_seconds_remain > 0:
             resp = requests.get(self.statements_url, headers=self.headers)
             try:
-                data = resp.json()['statements'][self.statement_id]['output']['data']
+                data = resp.json()['statements'][
+                    self.statement_id]['output']['data']
                 if data is not None and expected in data['text/plain']:
                     print("OK - Spark job succeeded")
                     return
@@ -57,7 +63,9 @@ class Livy:
             time.sleep(5)
             wait_seconds_remain -= 5
 
-        print('Failure - Spark job execution timed out')
+        print('ERROR: Failed to execute Spark job:{}{}'.format(
+            '\nURL: {}'.format(self.statements_url),
+            '\nResponse: {}\n{}'.format(resp, resp.json())))
         exit(1)
 
 
@@ -87,8 +95,15 @@ def main():
     livy.submit_job(data)
     livy.validate_job_result('Pi is roughly')
 
-    livy.submit_job({'code': """println("Using spark master " + spark.conf.get("spark.master"))""" })
+    livy.submit_job({
+        'code':
+        """println("Using spark master " + spark.conf.get("spark.master"))"""
+    })
     livy.validate_job_result('Using spark master yarn')
+
+    # Cleanup - kill session after running test jobs.
+    requests.delete(livy.session_url, headers=livy.headers)
+
 
 if __name__ == '__main__':
     main()
