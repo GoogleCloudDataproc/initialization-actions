@@ -2,28 +2,160 @@
 
 set -euxo pipefail
 
+function get_metadata_attribute() {
+  local -r attribute_name=$1
+  local -r default_value=$2
+  /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
+}
+
 readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
+readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
-readonly DEAFULT_INIT_ACTIONS_REPO=gs://dataproc-initialization-actions
-readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_REPO ||
-  echo ${DEAFULT_INIT_ACTIONS_REPO})"
+readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
 
-echo "Cloning RAPIDS initialization action from '${INIT_ACTIONS_REPO}' ..."
-RAPIDS_INIT_ACTION_DIR=$(mktemp -d -t rapids-init-action-XXXX)
-readonly RAPIDS_INIT_ACTION_DIR
-gsutil -m rsync -r "${INIT_ACTIONS_REPO}/rapids" "${RAPIDS_INIT_ACTION_DIR}"
-find "${RAPIDS_INIT_ACTION_DIR}" -name '*.sh' -exec chmod +x {} \;
+readonly DEFAULT_NCCL_REPO_URL='https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb'
+readonly NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
 
-# Ensure we have GPU drivers installed.
-"${RAPIDS_INIT_ACTION_DIR}/internal/install-gpu-driver.sh"
+readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '10.0')
+readonly CUDF_VERSION=$(get_metadata_attribute 'cudf-version' '0.9.2')
+readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.4.8')
+readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' '1.0.0-Beta4')
 
-# For use with Anaconda component
-conda env create --name RAPIDS --file "${RAPIDS_INIT_ACTION_DIR}/internal/conda-environment.yml"
+readonly DASK_LAUNCHER='/usr/local/bin/dask-launcher.sh'
+readonly DASK_SERVICE='dask-cluster'
+readonly RAPIDS_ENV='RAPIDS'
+readonly RAPIDS_ENV_BIN="/opt/conda/anaconda/envs/${RAPIDS_ENV}/bin"
 
-# Get Jupyter instance to pickup RAPIDS environment.
-if [[ "${ROLE}" == "Master" ]]; then
+BUILD_DIR=$(mktemp -d -t rapids-init-action-XXXX)
+readonly BUILD_DIR
+
+function execute_with_retries() {
+  local -r cmd=$1
+  for ((i = 0; i < 10; i++)); do
+    if eval "$cmd"; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
+function install_xgboost4j() {
+  local -r repo_url='https://repo1.maven.org/maven2/ai/rapids'
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${repo_url}/xgboost4j-spark_2.x/${RAPIDS_VERSION}/xgboost4j-spark_2.x-${RAPIDS_VERSION}.jar" \
+    -P /usr/lib/spark/jars/
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${repo_url}/xgboost4j_2.x/${RAPIDS_VERSION}/xgboost4j_2.x-${RAPIDS_VERSION}.jar" \
+    -P /usr/lib/spark/jars/
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${repo_url}/cudf/${CUDF_VERSION}/cudf-${CUDF_VERSION}.jar" \
+    -P /usr/lib/spark/jars/
+}
+
+function install_nccl() {
+  wget -nv --timeout=30 --tries=5 --retry-connrefused -O - \
+    "${NCCL_REPO_URL}" -O "${BUILD_DIR}/nvidia-ml-repo.deb"
+  dpkg -i "${BUILD_DIR}/nvidia-ml-repo.deb"
+
+  execute_with_retries "apt-get update"
+
+  local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
+  execute_with_retries \
+    "apt-get -y -q install --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
+
+  nvidia-smi -c EXCLUSIVE_PROCESS
+}
+
+function create_conda_env() {
+  echo "Create RAPIDS Conda environment..."
+  # For use with Anaconda component
+  local -r conda_env_file="${BUILD_DIR}/conda-environment.yaml"
+  cat <<EOF >"${conda_env_file}"
+channels:
+  - rapidsai/label/xgboost
+  - rapidsai
+  - nvidia
+  - conda-forge
+dependencies:
+  - cudatoolkit=${CUDA_VERSION}
+  - dask-cuda=0.7.*
+  - cudf=0.7.*
+  - pyarrow=0.12.1
+  - arrow-cpp=0.12.1
+  - dask-cudf=0.7.*
+  - cuml=0.7.*
+  - dask-cuml=0.7.*
+  - cugraph=0.7.*
+  - rapidsai/label/xgboost::xgboost=0.90.*
+  - rapidsai/label/xgboost::dask-xgboost=0.2.*
+  - gcsfs
+  - dill
+  - ipykernel
+EOF
+  conda env create --name "${RAPIDS_ENV}" --file "${conda_env_file}"
+}
+
+function install_conda_kernel() {
   /opt/conda/anaconda/bin/conda install -y nb_conda_kernels
+  # Restart Jupyter service to pickup RAPIDS environment.
   service jupyter restart || true
-fi
+}
 
-"${RAPIDS_INIT_ACTION_DIR}/internal/launch-dask.sh"
+install_systemd_dask_service() {
+  echo "Installing systemd Dask service..."
+
+  if [[ "${ROLE}" == "Master" ]]; then
+    cat <<EOF >"${DASK_LAUNCHER}"
+#!/bin/bash
+if [[ "${RUN_WORKER_ON_MASTER}" == true ]]; then
+  echo "dask-cuda-worker starting, logging to /var/log/dask-cuda-worker.log."
+  $RAPIDS_ENV_BIN/dask-cuda-worker --memory-limit 0 ${MASTER}:8786 > /var/log/dask-cuda-worker.log 2>&1 &
+fi
+echo "dask-scheduler starting, logging to /var/log/dask-scheduler.log."
+$RAPIDS_ENV_BIN/dask-scheduler > /var/log/dask-scheduler.log 2>&1
+EOF
+  else
+    cat <<EOF >"${DASK_LAUNCHER}"
+#!/bin/bash
+$RAPIDS_ENV_BIN/dask-cuda-worker --memory-limit 0 ${MASTER}:8786 > /var/log/dask-cuda-worker.log 2>&1
+EOF
+  fi
+  chmod 750 "${DASK_LAUNCHER}"
+
+  local -r dask_service_file=/usr/lib/systemd/system/${DASK_SERVICE}.service
+  cat <<EOF >"${dask_service_file}"
+[Unit]
+Description=Dask Cluster Service
+[Service]
+Type=simple
+Restart=on-failure
+ExecStart=/bin/bash -c 'exec ${DASK_LAUNCHER}'
+[Install]
+WantedBy=multi-user.target
+EOF
+  chmod a+r "${dask_service_file}"
+
+  systemctl daemon-reload
+  systemctl enable "${DASK_SERVICE}"
+}
+
+function main() {
+  export DEBIAN_FRONTEND=noninteractive
+
+  install_nccl
+
+  install_xgboost4j
+
+  create_conda_env
+  if [[ "${ROLE}" == "Master" ]]; then
+    install_conda_kernel
+  fi
+
+  install_systemd_dask_service
+  echo "Starting Dask cluster..."
+  systemctl start "${DASK_SERVICE}"
+  echo "Dask cluster instantiation successful"
+}
+
+main

@@ -53,8 +53,10 @@ determine_tests_to_run() {
   for changed_file in "${CHANGED_FILES[@]}"; do
     local changed_dir
     changed_dir="$(dirname "${changed_file}")/"
-    # Run all tests if common directories modified
-    if [[ ${changed_dir} =~ ^(integration_tests/|util/|cloudbuild/)$ ]]; then
+    # Convert `init/internal/` dir to `init/`
+    changed_dir="${changed_dir%%/*}/"
+    # Run all tests if common directories or root directory ('./') modified
+    if [[ ${changed_dir} =~ ^(integration_tests|util|cloudbuild|\.)/$ ]]; then
       echo "All tests will be run: '${changed_dir}' was changed"
       TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
       return 0

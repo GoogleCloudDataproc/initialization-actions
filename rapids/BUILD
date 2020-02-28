@@ -4,9 +4,12 @@ py_test(
     name = "test_rapids",
     size = "enormous",
     srcs = ["test_rapids.py"],
-    data = ["rapids.sh"] + glob(["internal/*"]),
+    data = [
+        "rapids.sh",
+        "//gpu:install_gpu_driver.sh",
+    ],
     local = True,
-    shard_count = 1,
+    shard_count = 2,
     deps = [
         ":verify_rapids",
         "//integration_tests:dataproc_test_case",
