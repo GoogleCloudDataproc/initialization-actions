@@ -24,6 +24,17 @@ Livy installed:
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/livy/livy.sh
     ```
 
+1.  To change installed Livy version, use `livy-version` metadata value:
+    
+    ```bash
+    REGION=<region>
+    CLUSTER_NAME=<cluster_name>
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
+        --region ${REGION} \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/livy/livy.sh \
+        --metadata livy-version=0.7.0
+    ```
+
 1.  Once the cluster has been created, Livy is configured to run on port `8998`
     on the master node in a Dataproc cluster.
 

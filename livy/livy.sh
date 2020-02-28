@@ -14,13 +14,13 @@
 
 set -euxo pipefail
 
-readonly LIVY_VERSION="0.7.0"
-readonly LIVY_PKG_NAME="apache-livy-${LIVY_VERSION}-incubating-bin"
-readonly LIVY_URL="https://archive.apache.org/dist/incubator/livy/${LIVY_VERSION}-incubating/${LIVY_PKG_NAME}.zip"
+readonly LIVY_VERSION=$(/usr/share/google/get_metadata_value attributes/livy-version || echo 0.7.0)
+readonly LIVY_PKG_NAME=apache-livy-${LIVY_VERSION}-incubating-bin
+readonly LIVY_URL=https://archive.apache.org/dist/incubator/livy/${LIVY_VERSION}-incubating/${LIVY_PKG_NAME}.zip
 
-readonly LIVY_DIR="/usr/local/lib/livy"
-readonly LIVY_BIN="${LIVY_DIR}/bin"
-readonly LIVY_CONF="${LIVY_DIR}/conf"
+readonly LIVY_DIR=/usr/local/lib/livy
+readonly LIVY_BIN=${LIVY_DIR}/bin
+readonly LIVY_CONF=${LIVY_DIR}/conf
 
 # Generate livy configuration file.
 function make_livy_conf() {
@@ -64,7 +64,7 @@ function main() {
   # Only run this initialization action on the master node.
   local role
   role=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
-  if [[ "${role}" != 'Master' ]]; then
+  if [[ ${role} != Master ]]; then
     exit 0
   fi
 
@@ -74,21 +74,21 @@ function main() {
 
   wget -nv --timeout=30 --tries=5 --retry-connrefused "${LIVY_URL}" -P "${temp}"
 
-  unzip -q "${temp}/${LIVY_PKG_NAME}.zip" -d "/usr/local/lib/"
+  unzip -q "${temp}/${LIVY_PKG_NAME}.zip" -d /usr/local/lib/
   ln -s "/usr/local/lib/${LIVY_PKG_NAME}" "${LIVY_DIR}"
 
   # Create Livy user.
   useradd -G hadoop livy
 
   # Setup livy package.
-  chown -R -L "livy:livy" "${LIVY_DIR}"
+  chown -R -L livy:livy "${LIVY_DIR}"
 
   # Generate livy configuration file.
   make_livy_conf
 
   # Setup log directory.
   mkdir /var/log/livy
-  chown -R "livy:livy" /var/log/livy
+  chown -R livy:livy /var/log/livy
 
   # Cleanup temp files.
   rm -Rf "${temp}"
