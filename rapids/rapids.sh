@@ -11,15 +11,14 @@ function get_metadata_attribute() {
 readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
+readonly PLATFORM=$(get_metadata_attribute 'rapids-runtime' 'SPARK')
 readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
-
-readonly DEFAULT_NCCL_REPO_URL='https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb'
-readonly NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
 
 readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '10.0')
 readonly CUDF_VERSION=$(get_metadata_attribute 'cudf-version' '0.9.2')
-readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.4.8')
+
 readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' '1.0.0-Beta4')
+readonly RAPIDS_SPARK_VERSION=$(get_metadata_attribute 'rapids-spark-version' '2.x')
 
 readonly DASK_LAUNCHER='/usr/local/bin/dask-launcher.sh'
 readonly DASK_SERVICE='dask-cluster'
@@ -42,29 +41,22 @@ function execute_with_retries() {
 
 function install_xgboost4j() {
   local -r repo_url='https://repo1.maven.org/maven2/ai/rapids'
+  if [[ "${CUDA_VERSION}" == "10.0" ]]; then
+    CUDF_CUDA_VERSION="10"
+  else
+    CUDF_CUDA_VERSION="${CUDA_VERSION//\./-}"
+  fi
+
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${repo_url}/xgboost4j-spark_2.x/${RAPIDS_VERSION}/xgboost4j-spark_2.x-${RAPIDS_VERSION}.jar" \
+    "${repo_url}/xgboost4j-spark_${RAPIDS_SPARK_VERSION}/${RAPIDS_VERSION}/xgboost4j-spark_${RAPIDS_SPARK_VERSION}-${RAPIDS_VERSION}.jar" \
     -P /usr/lib/spark/jars/
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${repo_url}/xgboost4j_2.x/${RAPIDS_VERSION}/xgboost4j_2.x-${RAPIDS_VERSION}.jar" \
+    "${repo_url}/xgboost4j_${RAPIDS_SPARK_VERSION}/${RAPIDS_VERSION}/xgboost4j_${RAPIDS_SPARK_VERSION}-${RAPIDS_VERSION}.jar" \
     -P /usr/lib/spark/jars/
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${repo_url}/cudf/${CUDF_VERSION}/cudf-${CUDF_VERSION}.jar" \
+    "${repo_url}/cudf/${CUDF_VERSION}/cudf-${CUDF_VERSION}-cuda${CUDF_CUDA_VERSION}.jar" \
     -P /usr/lib/spark/jars/
-}
-
-function install_nccl() {
-  wget -nv --timeout=30 --tries=5 --retry-connrefused -O - \
-    "${NCCL_REPO_URL}" -O "${BUILD_DIR}/nvidia-ml-repo.deb"
-  dpkg -i "${BUILD_DIR}/nvidia-ml-repo.deb"
-
-  execute_with_retries "apt-get update"
-
-  local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
-  execute_with_retries \
-    "apt-get -y -q install --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
-
-  nvidia-smi -c EXCLUSIVE_PROCESS
+  cp /usr/lib/spark/jars/xgboost4j-spark_${RAPIDS_SPARK_VERSION}-${RAPIDS_VERSION}.jar /usr/lib/spark/python/lib/
 }
 
 function create_conda_env() {
@@ -73,25 +65,14 @@ function create_conda_env() {
   local -r conda_env_file="${BUILD_DIR}/conda-environment.yaml"
   cat <<EOF >"${conda_env_file}"
 channels:
-  - rapidsai/label/xgboost
   - rapidsai
   - nvidia
   - conda-forge
+  - defaults
 dependencies:
-  - cudatoolkit=${CUDA_VERSION}
-  - dask-cuda=0.7.*
-  - cudf=0.7.*
-  - pyarrow=0.12.1
-  - arrow-cpp=0.12.1
-  - dask-cudf=0.7.*
-  - cuml=0.7.*
-  - dask-cuml=0.7.*
-  - cugraph=0.7.*
-  - rapidsai/label/xgboost::xgboost=0.90.*
-  - rapidsai/label/xgboost::dask-xgboost=0.2.*
+  - rapids=0.12
+  - python=3.7
   - gcsfs
-  - dill
-  - ipykernel
 EOF
   conda env create --name "${RAPIDS_ENV}" --file "${conda_env_file}"
 }
@@ -143,19 +124,22 @@ EOF
 function main() {
   export DEBIAN_FRONTEND=noninteractive
 
-  install_nccl
-
   install_xgboost4j
 
-  create_conda_env
-  if [[ "${ROLE}" == "Master" ]]; then
-    install_conda_kernel
+  if [[ "${PLATFORM}" == "DASK" ]]; then
+    create_conda_env
+    if [[ "${ROLE}" == "Master" ]]; then
+      install_conda_kernel
+    fi
+    install_systemd_dask_service
+    echo "Starting Dask cluster..."
+    systemctl start "${DASK_SERVICE}"
+    echo "Dask cluster instantiation successful"
+  elif [[ "${PLATFORM}" != "SPARK" ]]; then
+    echo 'unsupported RAPIDS Runtime'
+  else
+    echo 'deployed Spark Based RAPIDS'
   fi
-
-  install_systemd_dask_service
-  echo "Starting Dask cluster..."
-  systemctl start "${DASK_SERVICE}"
-  echo "Dask cluster instantiation successful"
 }
 
 main
