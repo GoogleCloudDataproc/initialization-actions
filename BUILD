@@ -6,7 +6,6 @@ test_suite(
         ":test_cloud_sql_proxy",
         ":test_dr_elephant",
         ":test_hive_hcatalog",
-        ":test_spark_gpu",
         ":test_starburst_presto",
         "//alluxio:test_alluxio",
         "//bigtable:test_bigtable",
