@@ -211,18 +211,31 @@ RAPIDS installed:
     action.
 
     ```bash
-    REGION=<region>
-    CLUSTER_NAME=<cluster_name>
-    gcloud dataproc clusters create ${CLUSTER_NAME} \
-        --region ${REGION} \
-        --master-accelerator type=nvidia-tesla-t4,count=4 \
+    export GCS_BUCKET=<gcs_bucket_name>
+    export CLUSTER_NAME=<cluster_name>
+    export ZONE=<zone>
+    export REGION=<region>
+    export NUM_GPUS=4
+    export NUM_WORKERS=2
+    
+    gcloud beta dataproc clusters create $CLUSTER_NAME  \
+        --zone $ZONE \
+        --region $REGION \
         --master-machine-type n1-standard-32 \
-        --worker-accelerator type=nvidia-tesla-t4,count=4 \
+        --master-accelerator type=nvidia-tesla-t4,count=$NUM_GPUS \
+        --master-boot-disk-size 200 \
+        --worker-accelerator type=nvidia-tesla-t4,count=$NUM_GPUS \
         --worker-machine-type n1-standard-32 \
-        --optional-components ANACONDA \
-        --initialization-actions \
-            gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
-        --metadata gpu-driver-provider=NVIDIA
+        --worker-boot-disk-size 200 \
+        --num-workers $NUM_WORKERS \
+        --image-version 1.4-ubuntu18 \
+        --bucket $GCS_BUCKET \
+        --metadata gpu-driver-provider="NVIDIA",rapids-runtime="DASK" \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
+        --optional-components=ANACONDA \
+        --subnet=default \
+        --initialization-action-timeout=60m \
+        --enable-component-gateway
     ```
 
 2.  Once the cluster has been created, the Dask scheduler listens for workers on
@@ -280,19 +293,30 @@ configurable via a metadata key using `--metadata`.
 For example:
 
 ```bash
-REGION=<region>
-CLUSTER_NAME=<cluster_name>
-gcloud dataproc clusters create ${CLUSTER_NAME} \
-    --region ${REGION} \
-    --master-accelerator type=nvidia-tesla-t4,count=4 \
-    --master-machine-type n1-standard-32 \
-    --worker-accelerator type=nvidia-tesla-t4,count=4 \
-    --worker-machine-type n1-standard-32 \
-    --optional-components ANACONDA \
-    --initialization-actions \
-        gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
-    --metadata dask-cuda-worker-on-master=false \
-    --metadata gpu-driver-provider=NVIDIA
+    export GCS_BUCKET=<gcs_bucket_name>
+    export CLUSTER_NAME=<cluster_name>
+    export ZONE=<zone>
+    export REGION=<region>
+    export NUM_GPUS=4
+    export NUM_WORKERS=2
+    
+    gcloud beta dataproc clusters create $CLUSTER_NAME  \
+        --zone $ZONE \
+        --region $REGION \
+        --master-machine-type n1-standard-32 \
+        --master-boot-disk-size 200 \
+        --worker-accelerator type=nvidia-tesla-t4,count=$NUM_GPUS \
+        --worker-machine-type n1-standard-32 \
+        --worker-boot-disk-size 200 \
+        --num-workers $NUM_WORKERS \
+        --image-version 1.4-ubuntu18 \
+        --bucket $GCS_BUCKET \
+        --metadata gpu-driver-provider="NVIDIA",rapids-runtime="DASK",dask-cuda-worker-on-master=false \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
+        --optional-components=ANACONDA \
+        --subnet=default \
+        --initialization-action-timeout=60m \
+        --enable-component-gateway
 ```
 
 ## Important notes
