@@ -62,19 +62,6 @@ py_test(
 )
 
 py_test(
-    name = "test_spark_gpu",
-    size = "enormous",
-    srcs = ["spark-gpu/test_spark_gpu.py"],
-    data = ["spark-gpu/rapids.sh"],
-    local = True,
-    shard_count = 3,
-    deps = [
-        "//integration_tests:dataproc_test_case",
-        "@io_abseil_py//absl/testing:parameterized",
-    ],
-)
-
-py_test(
     name = "test_hive_hcatalog",
     size = "enormous",
     srcs = ["hive-hcatalog/test_hive_hcatalog.py"],
