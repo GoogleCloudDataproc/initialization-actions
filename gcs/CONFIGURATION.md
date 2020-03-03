@@ -133,10 +133,9 @@
 
     Example:
 
-    ```bash
-    fs.gs.storage.http.headers.x-goog-encryption-algorithm=AES256
-    fs.gs.storage.http.headers.x-goog-encryption-key=NwbyGGmcKAX4FxGpOERG2Ap33m5NVOgmXznSGTEvG0I=
-    fs.gs.storage.http.headers.x-goog-encryption-key-sha256=+eBzkZBt1Mj2CZx69L3c8yXoZB6DtRLlSvXMJB9JGIQ=
+    ```
+    fs.gs.storage.http.headers.some-custom-header=custom_value
+    fs.gs.storage.http.headers.another-custom-header=another_custom_value
     ```
 
 ### Authentication
