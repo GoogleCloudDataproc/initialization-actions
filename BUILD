@@ -29,6 +29,7 @@ test_suite(
         "//rapids:test_rapids",
         "//rstudio:test_rstudio",
         "//solr:test_solr",
+        "//spark_bigquery_connector:test_spark_bigquery_connector",
         "//tez:test_tez",
         "//tony:test_tony",
     ],

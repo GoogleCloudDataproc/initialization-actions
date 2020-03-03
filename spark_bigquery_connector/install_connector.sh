@@ -1,5 +1,7 @@
 #!/bin/bash
 #
+# Copyright 2020 Google LLC
+# 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -24,20 +26,35 @@
 #     --metadata 'SPARK_BIGQUERY_CONNECTOR_VERSION=spark-bigquery-latest_2.12.jar' \
 #     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/spark-bigquery-connector/install_connector.sh
 
+set -exo pipefail
+
 echo "Installing spark-bigquery-connector"
-readonly VERSION=$(/usr/share/google/get_metadata_value attributes/SPARK_BIGQUERY_CONNECTOR_VERSION || true)
+readonly METADATA=$(/usr/share/google/get_metadata_value attributes/SPARK_BIGQUERY_CONNECTOR_VERSION || true)
 readonly DEFAULT_VERSION=spark-bigquery-latest.jar
 
-if [[ -z "${VERSION}"]]; then
+if [ -z "${METADATA}"]; then
   VERSION=${DEFAULT_VERSION}
+else
+  VERSION=${METADATA}
 fi
 
+readonly SPARK_CONF=/etc/spark/conf/spark-defaults.conf
 readonly SPARK_BIGQUERY_CONNECTOR_BUCKET=gs://spark-lib/bigquery/${VERSION}
-readonly INSTALL_LOCATION=/opt/spark-bigquery-connector
-readonly SPARK_BIGQUERY_PATH=${INSTALL_LOCATION}/${VERSION}
+readonly CONNECTOR_LOCATION=/opt/spark-bigquery-connector/connector
+readonly TEST_LOCATION=/opt/spark-bigquery-connector/tests
+readonly SPARK_BIGQUERY_PATH=${CONNECTOR_LOCATION}/${VERSION}
 
-mkdir -p ${INSTALL_LOCATION}
+mkdir -p ${CONNECTOR_LOCATION}
+mkdir -p ${TEST_LOCATION}
 gsutil cp "${SPARK_BIGQUERY_CONNECTOR_BUCKET}" "${SPARK_BIGQUERY_PATH}"
+
+# Add a test file
+cat <<EOF > ${TEST_LOCATION}/spark_bq_test.py 
+from pyspark.sql import SparkSession
+spark = SparkSession.builder.appName("test").getOrCreate()
+table = "bigquery-public-data.chicago_taxi_trips.taxi_trips"
+spark.read.format('bigquery').option('table', table).load().take(1)
+EOF
 
 # Edit the spark-conf to enable Spark to be able to find the jar
 if grep -q "spark.driver.extraClassPath" "${SPARK_CONF}"; then
