@@ -92,6 +92,10 @@ public class PrefixMappedItemCache {
    * @return the overwritten item, null if no item was overwritten.
    */
   public synchronized GoogleCloudStorageItemInfo putItem(GoogleCloudStorageItemInfo item) {
+    if (!item.exists()) {
+      return null;
+    }
+
     StorageResourceId id = item.getResourceId();
     PrefixKey key = new PrefixKey(id.getBucketName(), id.getObjectName());
     CacheValue<GoogleCloudStorageItemInfo> value = new CacheValue<>(item, ticker.read());

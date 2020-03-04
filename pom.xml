@@ -551,6 +551,11 @@
               <artifactId>auto-value</artifactId>
               <version>${google.auto-value.version}</version>
             </path>
+            <path>
+              <groupId>com.google.auto.service</groupId>
+              <artifactId>auto-service</artifactId>
+              <version>1.0-rc6</version>
+            </path>
           </annotationProcessorPaths>
         </configuration>
       </plugin>

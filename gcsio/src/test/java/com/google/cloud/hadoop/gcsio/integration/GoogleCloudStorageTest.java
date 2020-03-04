@@ -1248,6 +1248,141 @@ public class GoogleCloudStorageTest {
   }
 
   @Test
+  public void testGetBeforeAndAfterCreateObject() throws IOException {
+    StorageResourceId resourceId =
+        new StorageResourceId(getSharedBucketName(), "testGetBeforeAndAfterCreateObject_Object");
+
+    assertThat(rawStorage.getItemInfo(resourceId).exists()).isFalse();
+
+    byte[] objectContent = writeObject(rawStorage, resourceId, /* objectSize= */ 512);
+    assertObjectContent(rawStorage, resourceId, objectContent);
+
+    GoogleCloudStorageItemInfo itemInfo = rawStorage.getItemInfo(resourceId);
+    assertThat(itemInfo.exists()).isTrue();
+    assertThat(itemInfo.getSize()).isEqualTo(512);
+  }
+
+  @Test
+  public void testGetMultipleBeforeAndAfterCreateObject() throws IOException {
+    String bucketName = getSharedBucketName();
+
+    List<StorageResourceId> resourceIds =
+        ImmutableList.of(
+            new StorageResourceId(bucketName, "testGetMultipleBeforeAndAfterCreateObject_Object1"),
+            new StorageResourceId(bucketName, "testGetMultipleBeforeAndAfterCreateObject_Object2"),
+            new StorageResourceId(bucketName, "testGetMultipleBeforeAndAfterCreateObject_Object3"));
+
+    for (GoogleCloudStorageItemInfo itemInfo : rawStorage.getItemInfos(resourceIds)) {
+      assertThat(itemInfo.exists()).isFalse();
+    }
+
+    rawStorage.createEmptyObjects(resourceIds);
+
+    List<GoogleCloudStorageItemInfo> itemInfos = rawStorage.getItemInfos(resourceIds);
+    for (int i = 0; i < resourceIds.size(); i++) {
+      StorageResourceId resourceId = resourceIds.get(i);
+      GoogleCloudStorageItemInfo itemInfo = itemInfos.get(i);
+
+      assertThat(itemInfo.getResourceId()).isEqualTo(resourceId);
+      assertThat(itemInfo.getSize()).isEqualTo(0);
+      assertThat(itemInfo.exists()).isTrue();
+      assertThat(itemInfo.getCreationTime()).isNotEqualTo(0);
+      assertThat(itemInfo.isBucket()).isFalse();
+      assertThat(itemInfo.isDirectory()).isFalse();
+    }
+  }
+
+  @Test
+  public void testListObjectInfoBeforeAndAfterCreate() throws IOException {
+    String bucketName = getSharedBucketName();
+    String objectName = "testListObjectInfoBeforeAndAfterCreate_";
+
+    List<StorageResourceId> resourceIds =
+        ImmutableList.of(
+            new StorageResourceId(bucketName, objectName + "x"),
+            new StorageResourceId(bucketName, objectName + "y"),
+            new StorageResourceId(bucketName, objectName + "z"));
+
+    assertThat(rawStorage.listObjectInfo(bucketName, objectName, "/")).isEmpty();
+
+    rawStorage.createEmptyObjects(resourceIds);
+
+    assertThat(rawStorage.listObjectInfo(bucketName, objectName, "/")).hasSize(3);
+  }
+
+  @Test
+  public void testlistObjectInfoPageBeforeAndAfterCreate() throws IOException {
+    String bucketName = getSharedBucketName();
+    String objectName = "testlistObjectInfoPageBeforeAndAfterCreate_Object";
+
+    StorageResourceId resourceId = new StorageResourceId(bucketName, objectName);
+
+    ListPage<GoogleCloudStorageItemInfo> itemInfosPage =
+        rawStorage.listObjectInfoPage(bucketName, objectName, "/", /* pageToken= */ null);
+
+    assertThat(itemInfosPage.getNextPageToken()).isNull();
+    assertThat(itemInfosPage.getItems()).isEmpty();
+
+    writeObject(rawStorage, resourceId, /* objectSize= */ 512);
+
+    itemInfosPage =
+        rawStorage.listObjectInfoPage(bucketName, objectName, "/", /* pageToken= */ null);
+
+    assertThat(itemInfosPage.getNextPageToken()).isNull();
+    assertThat(itemInfosPage.getItems()).hasSize(1);
+    assertThat(itemInfosPage.getItems().get(0).getResourceId()).isEqualTo(resourceId);
+  }
+
+  @Test
+  public void testOverwriteExistingObject() throws IOException {
+    String bucketName = getSharedBucketName();
+
+    StorageResourceId resourceId =
+        new StorageResourceId(bucketName, "testOverwriteExistingObject_Object");
+
+    assertThat(rawStorage.getItemInfo(resourceId).exists()).isFalse();
+
+    writeObject(rawStorage, resourceId, /* objectSize= */ 128);
+
+    GoogleCloudStorageItemInfo createdItemInfo = rawStorage.getItemInfo(resourceId);
+    assertThat(createdItemInfo.exists()).isTrue();
+    assertThat(createdItemInfo.getSize()).isEqualTo(128);
+
+    byte[] objectContent = writeObject(rawStorage, resourceId, /* objectSize= */ 256);
+
+    GoogleCloudStorageItemInfo overwrittenItemInfo = rawStorage.getItemInfo(resourceId);
+    assertThat(overwrittenItemInfo.exists()).isTrue();
+    assertThat(overwrittenItemInfo.getSize()).isEqualTo(256);
+    assertObjectContent(rawStorage, resourceId, objectContent);
+  }
+
+  @Test
+  public void testMoveSingleItem() throws IOException {
+    String bucketName = getSharedBucketName();
+
+    StorageResourceId srcResourceId = new StorageResourceId(bucketName, "testMoveSingleItem_src");
+    StorageResourceId dstResourceId = new StorageResourceId(bucketName, "testMoveSingleItem_dst");
+
+    assertThat(rawStorage.getItemInfo(srcResourceId).exists()).isFalse();
+    assertThat(rawStorage.getItemInfo(dstResourceId).exists()).isFalse();
+
+    byte[] objectContent = writeObject(rawStorage, srcResourceId, /* objectSize= */ 4096);
+
+    rawStorage.copy(
+        bucketName, ImmutableList.of(srcResourceId.getObjectName()),
+        bucketName, ImmutableList.of(dstResourceId.getObjectName()));
+
+    assertThat(rawStorage.getItemInfo(srcResourceId).exists()).isTrue();
+    assertThat(rawStorage.getItemInfo(dstResourceId).exists()).isTrue();
+    assertObjectContent(rawStorage, dstResourceId, objectContent);
+
+    rawStorage.deleteObjects(ImmutableList.of(srcResourceId));
+
+    assertThat(rawStorage.getItemInfo(srcResourceId).exists()).isFalse();
+    assertThat(rawStorage.getItemInfo(dstResourceId).exists()).isTrue();
+  }
+
+  @Test
   public void testCompose() throws Exception {
     String bucketName = getSharedBucketName();
 

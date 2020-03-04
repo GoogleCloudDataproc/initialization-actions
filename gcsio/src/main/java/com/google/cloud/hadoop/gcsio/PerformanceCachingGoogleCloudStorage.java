@@ -16,6 +16,7 @@ package com.google.cloud.hadoop.gcsio;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
+import java.nio.channels.WritableByteChannel;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -61,6 +62,17 @@ public class PerformanceCachingGoogleCloudStorage extends ForwardingGoogleCloudS
   private static PrefixMappedItemCache createCache(
       PerformanceCachingGoogleCloudStorageOptions options) {
     return new PrefixMappedItemCache(Duration.ofMillis(options.getMaxEntryAgeMillis()));
+  }
+
+  @Override
+  public WritableByteChannel create(StorageResourceId resourceId) throws IOException {
+    // If the item exists in cache upon creation, remove it from cache so that later getItemInfo
+    // will pull the most updated item info.
+    if (cache.getItem(resourceId) != null) {
+      cache.removeItem(resourceId);
+    }
+
+    return super.create(resourceId);
   }
 
   @Override
