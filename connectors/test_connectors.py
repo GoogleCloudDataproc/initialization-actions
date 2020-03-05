@@ -15,6 +15,9 @@ class ConnectorsTestCase(DataprocTestCase):
     GCS_CONNECTOR_VERSION = "2.0.1"
     GCS_CONNECTOR_URL = "gs://hadoop-lib/gcs/gcs-connector-hadoop2-2.0.1.jar"
 
+    SPARK_BQ_CONNECTOR_VERSION = "latest"
+    SPARK_BQ_CONNECTOR_URL = "gs://spark-lib/bigquery/spark-bigquery-latest.jar"
+
     def verify_instances(self, cluster, instances, connector,
                          connector_version):
         for instance in instances:
@@ -22,14 +25,26 @@ class ConnectorsTestCase(DataprocTestCase):
                                   connector_version)
 
     def _verify_instance(self, instance, connector, connector_version):
-        self.assert_instance_command(
-            instance,
-            "test -f {}/{}-hadoop2-{}.jar".format(self._connectors_dir(),
-                                                  connector,
-                                                  connector_version))
-        self.assert_instance_command(
-            instance, "test -L {}/{}.jar".format(self._connectors_dir(),
-                                                 connector, connector_version))
+        if connector == "spark-bigquery-connector":
+            self.assert_instance_command(
+                instance,
+                ("cat << EOF > ./spark_bq_test.py\n" +
+                "from pyspark.sql import SparkSession\n"
+                "spark = SparkSession.builder.appName(\\\"test\\\").getOrCreate()\n" +
+                 "table = \\\"bigquery-public-data.austin_311.311_request\\\"\n" +
+                "spark.read.format(\\\"bigquery\\\").option(\\\"table\\\", table).load().take(1)\n" +
+                "EOF\n" +
+                "spark-submit spark_bq_test.py")
+            )
+        else:
+            self.assert_instance_command(
+                instance,
+                "test -f {}/{}-hadoop2-{}.jar".format(self._connectors_dir(),
+                                                    connector,
+                                                    connector_version))
+            self.assert_instance_command(
+                instance, "test -L {}/{}.jar".format(self._connectors_dir(),
+                                                    connector, connector_version))
 
     def _connectors_dir(self):
         if self.getImageVersion() < pkg_resources.parse_version("1.4"):
@@ -58,6 +73,16 @@ class ConnectorsTestCase(DataprocTestCase):
 
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
+    def test_spark_bq_connector_version(self, configuration, instances):
+        self.createCluster(configuration,
+                           self.INIT_ACTIONS,
+                           metadata="spark-bigquery-connector-version={}".format(
+                               self.SPARK_BQ_CONNECTOR_VERSION))
+        self.verify_instances(self.getClusterName(), instances,
+                              "spark-bigquery-connector", self.SPARK_BQ_CONNECTOR_VERSION)
+
+    @parameterized.parameters(("SINGLE", ["m"]),
+                              ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_gcs_connector_url(self, configuration, instances):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
@@ -75,6 +100,16 @@ class ConnectorsTestCase(DataprocTestCase):
                                self.BQ_CONNECTOR_URL))
         self.verify_instances(self.getClusterName(), instances,
                               "bigquery-connector", self.BQ_CONNECTOR_VERSION)
+
+    @parameterized.parameters(("SINGLE", ["m"]),
+                              ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
+    def test_spark_bq_connector_url(self, configuration, instances):
+        self.createCluster(configuration,
+                           self.INIT_ACTIONS,
+                           metadata="spark-bigquery-connector-url={}".format(
+                               self.SPARK_BQ_CONNECTOR_URL))
+        self.verify_instances(self.getClusterName(), instances,
+                              "spark-bigquery-connector", self.SPARK_BQ_CONNECTOR_VERSION)
 
 
 if __name__ == '__main__':
