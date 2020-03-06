@@ -15,8 +15,8 @@ class ConnectorsTestCase(DataprocTestCase):
     GCS_CONNECTOR_VERSION = "2.0.1"
     GCS_CONNECTOR_URL = "gs://hadoop-lib/gcs/gcs-connector-hadoop2-2.0.1.jar"
 
-    SPARK_BQ_CONNECTOR_VERSION = "latest"
-    SPARK_BQ_CONNECTOR_URL = "gs://spark-lib/bigquery/spark-bigquery-latest.jar"
+    SPARK_BQ_CONNECTOR_VERSION = "0.13.1"
+    SPARK_BQ_CONNECTOR_URL = "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.11-0.13.1-beta.jar"
 
     def verify_instances(self, cluster, instances, connector,
                          connector_version):

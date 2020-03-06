@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Installs any of the gcs, bigquery or spark-bigquery connectors onto a Cloud Dataproc instance.
+
 set -euxo pipefail
 
 readonly VM_CONNECTORS_HADOOP_DIR=/usr/lib/hadoop/lib
@@ -8,20 +10,8 @@ readonly VM_CONNECTORS_DATAPROC_DIR=/usr/local/share/google/dataproc/lib
 declare -A MIN_CONNECTOR_VERSIONS
 MIN_CONNECTOR_VERSIONS=(
   ["bigquery"]="0.11.0"
-  ["gcs"]="1.7.0")
-
-# Starting from these versions connectors name changed:
-# "...-<version>-hadoop2.jar" -> "...-hadoop2-<version>.jar"
-declare -A NEW_NAME_MIN_CONNECTOR_VERSIONS
-NEW_NAME_MIN_CONNECTOR_VERSIONS=(
-  ["bigquery"]="0.13.5"
-  ["gcs"]="1.9.5")
-
-SPARK_BIGQUERY_CONNECTOR_VERSIONS=(
-  "2.11"
-  "2.12"
-  "latest"
-)
+  ["gcs"]="1.7.0"
+  ["spark-bigquery"]="0.5.0")
 
 readonly BIGQUERY_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/bigquery-connector-version || true)
 readonly GCS_CONNECTOR_VERSION=$(/usr/share/google/get_metadata_value attributes/gcs-connector-version || true)
@@ -36,7 +26,7 @@ UPDATED_GCS_CONNECTOR=false
 is_worker() {
   local role
   role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-  if [[ $role != Master ]]; then
+  if [[ "${role}" != Master ]]; then
     return
   fi
   return 1
@@ -46,24 +36,65 @@ min_version() {
   echo -e "$1\n$2" | sort -r -t'.' -n -k1,1 -k2,2 -k3,3 | tail -n1
 }
 
+get_connector_url() {
+  # Connector names have changed as of certain versions. 
+  #
+  # bigquery + gcs connectors:
+  #   bigquery-connector version < 0.13.5 / gcs-connector version < 1.9.5:
+  #   gs://hadoop-lib/${name}/${name}-connector-${version}-hadoop2.jar
+  #
+  #   bigquery-connector version >= 0.13.5 / gcs-connector version >= 1.9.5:
+  #   gs://hadoop-lib/${name}/${name}-connector-hadoop2-${version}.jar
+  #
+  # spark-bigquery-connector:
+  #   0.5.0 <= version < 0.9.0: 
+  #   spark-bigquery-assembly-${version}-beta.jar
+  #
+  #   0.9.0 <= version < 0.12.0:
+  #   spark-bigquery_${scala_version}-${version}-beta-shaded.jar
+  # 
+  #   0.12.0 < version:
+  #   spark-bigquery-with-dependencies_${scala_version}-${version}-beta.jar
+  local -r name=$1
+  local -r version=$2
+
+  if [[ "${name}" == "spark-bigquery" ]]; then
+    # DATAPROC_VERSION is an environment variable set on the cluster. 
+    # We will use this to determine the appropriate connector to use
+    # based on the scala version.
+    if [[ "$(min_version "${DATAPROC_VERSION}" "1.5")" != "1.5" ]]; then
+      local scala_version=2.11
+    else
+      local scala_version=2.12
+    fi
+
+    if [[ "$(min_version "${version}" "0.9.0")" != "0.9.0" ]]; then
+      local jar_name="spark-bigquery-assembly-${version}-beta.jar"
+    elif [[ "$(min_version "${version}" "0.12.0")" != "0.12.0" ]]; then
+      local jar_name="spark-bigquery_${scala_version}-${version}-beta-shaded.jar"
+    else
+      local jar_name="spark-bigquery-with-dependencies_${scala_version}-${version}-beta.jar"
+    fi
+
+    echo "gs://spark-lib/bigquery/${jar_name}"
+  else
+    if [[ "${name}" == "gcs" && "$(min_version "${version}" "1.9.5")" != "1.9.5" ]] \
+    || [[ "${name}" == "bigquery" && "$(min_version "${version}" "0.13.5")" != "0.13.5" ]]; then
+      local jar_name="${name}-connector-${version}-hadoop2.jar"
+    else
+      local jar_name="${name}-connector-hadoop2-${version}.jar"
+    fi
+
+    echo "gs://hadoop-lib/${name}/${jar_name}"
+  fi
+}
+
 validate_version() {
   local name=$1    # connector name: "bigquery", "spark-bigquery" or "gcs"
   local version=$2 # connector version
-  
-  if [[ $name == "spark-bigquery" ]]; then
-    for vers in "${SPARK_BIGQUERY_CONNECTOR_VERSIONS[@]}"; do
-      if [[ $vers == "$version" ]]; then
-        return
-      fi 
-    done
-    echo "ERROR: $name-connector version should be one of:" 
-    echo "${SPARK_BIGQUERY_CONNECTOR_VERSIONS[@]}"  
-    return 1
-  fi
-
-  local min_valid_version=${MIN_CONNECTOR_VERSIONS[$name]}
-  if [[ "$(min_version "$min_valid_version" "$version")" != "$min_valid_version" ]]; then
-    echo "ERROR: $name-connector version should be greater than or equal to $min_valid_version, but was $version"
+  local min_valid_version="${MIN_CONNECTOR_VERSIONS[$name]}"
+  if [[ "$(min_version "${min_valid_version}" "${version}")" != "${min_valid_version}" ]]; then
+    echo "ERROR: ${name}-connector version should be greater than or equal to $min_valid_version, but was $version"
     return 1
   fi
 }
@@ -72,66 +103,37 @@ update_connector_url() {
   local -r name=$1
   local -r url=$2
 
-  if [[ $name == gcs ]]; then
+  if [[ "${name}" == gcs ]]; then
     UPDATED_GCS_CONNECTOR=true
   fi
 
-  if [[ -d ${VM_CONNECTORS_DATAPROC_DIR} ]]; then
-    local vm_connectors_dir=${VM_CONNECTORS_DATAPROC_DIR}
+  if [[ -d "${VM_CONNECTORS_DATAPROC_DIR}" ]]; then
+    local vm_connectors_dir="${VM_CONNECTORS_DATAPROC_DIR}"
   else
-    local vm_connectors_dir=${VM_CONNECTORS_HADOOP_DIR}
+    local vm_connectors_dir="${VM_CONNECTORS_HADOOP_DIR}"
   fi
 
   # remove old connector
-  if [[ $name == "spark-bigquery" ]]; then
-    find ${vm_connectors_dir}/* -name "*spark-bigquery*" -exec rm -f {} \; 
-  else
-    rm -f "${vm_connectors_dir}/${name}-connector-"*
-  fi
+  find "${vm_connectors_dir}" -name "*${name}*" -exec rm -f {} \; 
 
   gsutil cp "${url}" "${vm_connectors_dir}/"
 
-  local -r jar_name=${url##*/}
+  local -r jar_name="${url##*/}"
 
   # Update or create version-less connector link
   ln -s -f "${vm_connectors_dir}/${jar_name}" "${vm_connectors_dir}/${name}-connector.jar"
 }
 
 update_connector_version() {
-  local name=$1    # connector name: "bigquery", "spark-bigquery" or "gcs"
-  local version=$2 # connector version
+  local -r name=$1    # connector name: "bigquery", "spark-bigquery" or "gcs"
+  local -r version=$2 # connector version
 
   # validate new connector version
-  validate_version "$name" "$version"
+  validate_version "${name}" "${version}"
+  
+  local -r url=$(get_connector_url "${name}" "${version}")
 
-  # download new connector
-  #
-  # gcs and bigquery connector names could be in one of 2 formats:
-  # 1) gs://hadoop-lib/${name}/${name}-connector-hadoop2-${version}.jar
-  # 2) gs://hadoop-lib/${name}/${name}-connector-${version}-hadoop2.jar
-  #
-  # spark-bigquery connector can be one of two different formats:
-  # 1) gs://spark-lib/bigquery/spark-bigquery-latest.jar
-  # 2) gs://spark-lib/bigquery/spark-bigquery-latest_${version}.jar 
-
-  if [[ $name == "spark-bigquery" ]]; then
-      local bucket="gs://spark-lib/bigquery"
-      if [[ $version == "latest" ]]; then
-        local jar_name="spark-bigquery-latest.jar"
-      else
-        local jar_name="spark-bigquery-latest_${version}.jar"
-      fi
-  else
-    local bucket="gs://hadoop-lib/${name}"
-    local new_name_min_version=${NEW_NAME_MIN_CONNECTOR_VERSIONS[$name]}
-    if [[ "$(min_version "$new_name_min_version" "$version")" == "$new_name_min_version" ]]; then
-      local jar_name="${name}-connector-hadoop2-${version}.jar"
-    else
-      local jar_name="${name}-connector-${version}-hadoop2.jar"
-    fi
-  fi
-
-  update_connector_url "${name}" "${bucket}/${jar_name}"
+  update_connector_url "${name}" "${url}"
 }
 
 update_connector() {
@@ -139,23 +141,23 @@ update_connector() {
   local -r version=$2
   local -r url=$3
 
-  if [[ -n $version && -n $url ]]; then
+  if [[ -n "${version}" && -n "${url}" ]]; then
     echo "ERROR: Both, connector version and URL are specified for the same connector"
     exit 1
   fi
 
-  if [[ -n $version ]]; then
-    update_connector_version "$name" "$version"
+  if [[ -n "${version}" ]]; then
+    update_connector_version "${name}" "${version}"
   fi
 
-  if [[ -n $url ]]; then
-    update_connector_url "$name" "$url"
+  if [[ -n "${url}" ]]; then
+    update_connector_url "${name}" "${url}"
   fi
 }
 
-if [[ -z $BIGQUERY_CONNECTOR_VERSION && -z $GCS_CONNECTOR_VERSION
-    && -z $SPARK_BIGQUERY_CONNECTOR_VERSION && -z $BIGQUERY_CONNECTOR_URL 
-    && -z $GCS_CONNECTOR_URL && -z $SPARK_BIGQUERY_CONNECTOR_URL ]]; then
+if [[ -z "${BIGQUERY_CONNECTOR_VERSION}" && -z "${GCS_CONNECTOR_VERSION}"
+    && -z "${SPARK_BIGQUERY_CONNECTOR_VERSION}" && -z "${BIGQUERY_CONNECTOR_URL}"
+    && -z "${GCS_CONNECTOR_URL}" && -z "${SPARK_BIGQUERY_CONNECTOR_URL}" ]]; then
   echo "ERROR: None of connector versions or URLs are specified"
   exit 1
 fi
@@ -163,18 +165,18 @@ fi
 # because connectors from 1.7 branch are not compatible with previous connectors
 # versions (they have the same class relocation paths) we need to update both
 # of them, even if only one connector version is set
-if [[ -z $BIGQUERY_CONNECTOR_VERSION ]] && [[ $GCS_CONNECTOR_VERSION == "1.7.0" ]]; then
+if [[ -z "${BIGQUERY_CONNECTOR_VERSION}" ]] && [[ "${GCS_CONNECTOR_VERSION}" == "1.7.0" ]]; then
   BIGQUERY_CONNECTOR_VERSION="0.11.0"
 fi
-if [[ $BIGQUERY_CONNECTOR_VERSION == "0.11.0" ]] && [[ -z $GCS_CONNECTOR_VERSION ]]; then
+if [[ "${BIGQUERY_CONNECTOR_VERSION}" == "0.11.0" ]] && [[ -z "${GCS_CONNECTOR_VERSION}" ]]; then
   GCS_CONNECTOR_VERSION="1.7.0"
 fi
 
-update_connector "bigquery" "$BIGQUERY_CONNECTOR_VERSION" "$BIGQUERY_CONNECTOR_URL"
-update_connector "gcs" "$GCS_CONNECTOR_VERSION" "$GCS_CONNECTOR_URL"
-update_connector "spark-bigquery" "$SPARK_BIGQUERY_CONNECTOR_VERSION" "$SPARK_BIGQUERY_CONNECTOR_URL"
+update_connector "bigquery" "${BIGQUERY_CONNECTOR_VERSION}" "${BIGQUERY_CONNECTOR_URL}"
+update_connector "gcs" "${GCS_CONNECTOR_VERSION}" "${GCS_CONNECTOR_URL}"
+update_connector "spark-bigquery" "${SPARK_BIGQUERY_CONNECTOR_VERSION}" "${SPARK_BIGQUERY_CONNECTOR_URL}"
 
-if [[ $UPDATED_GCS_CONNECTOR != true ]]; then
+if [[ "${UPDATED_GCS_CONNECTOR}" != true ]]; then
   echo "GCS connector wasn't updated - no need to restart any services"
   exit 0
 fi
