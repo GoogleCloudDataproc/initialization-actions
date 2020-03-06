@@ -18,12 +18,12 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.services.bigquery.Bigquery;
 import com.google.api.services.bigquery.model.TableReference;
-import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
+import java.util.List;
 import javax.annotation.Nullable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -96,9 +96,8 @@ public class BigQueryConfiguration {
               "mapred.bq.dynamic.file.list.record.reader.poll.max.attempts", -1);
 
   /** A list of all necessary Configuration keys for input connector. */
-  public static final ImmutableList<HadoopConfigurationProperty<?>>
-      MANDATORY_CONFIG_PROPERTIES_INPUT =
-          ImmutableList.of(PROJECT_ID, INPUT_PROJECT_ID, INPUT_DATASET_ID, INPUT_TABLE_ID);
+  public static final List<HadoopConfigurationProperty<?>> MANDATORY_CONFIG_PROPERTIES_INPUT =
+      ImmutableList.of(PROJECT_ID, INPUT_PROJECT_ID, INPUT_DATASET_ID, INPUT_TABLE_ID);
 
   // Configuration keys for output connector.
 
@@ -192,15 +191,6 @@ public class BigQueryConfiguration {
    */
   public static final HadoopConfigurationProperty<String> DATA_LOCATION =
       new HadoopConfigurationProperty<>("mapred.bq.output.location", "US");
-
-  /** A list of all necessary Configuration keys. */
-  public static final ImmutableList<String> MANDATORY_CONFIG_PROPERTIES_OUTPUT =
-      ImmutableList.of(
-          PROJECT_ID.getKey(),
-          OUTPUT_PROJECT_ID.getKey(),
-          OUTPUT_DATASET_ID.getKey(),
-          OUTPUT_TABLE_ID.getKey(),
-          OUTPUT_TABLE_SCHEMA.getKey());
 
   public static final HadoopConfigurationProperty<String> SQL_FILTER =
       new HadoopConfigurationProperty<>("mapred.bq.input.sql.filter", "");

@@ -31,6 +31,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 
 /**
@@ -39,7 +40,7 @@ import org.apache.hadoop.conf.Configuration;
 public class BigQueryFactory {
 
   // BigQuery scopes for OAUTH.
-  public static final ImmutableList<String> BIGQUERY_OAUTH_SCOPES =
+  public static final List<String> BIGQUERY_OAUTH_SCOPES =
       ImmutableList.of(BigqueryScopes.BIGQUERY);
 
   // Service account environment variable name for BigQuery Authentication.

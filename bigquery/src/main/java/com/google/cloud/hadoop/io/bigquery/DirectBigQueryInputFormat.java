@@ -32,7 +32,6 @@ import com.google.cloud.bigquery.storage.v1beta1.Storage.CreateReadSessionReques
 import com.google.cloud.bigquery.storage.v1beta1.Storage.DataFormat;
 import com.google.cloud.bigquery.storage.v1beta1.Storage.ReadSession;
 import com.google.cloud.bigquery.storage.v1beta1.TableReferenceProto;
-import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
 import com.google.common.base.Preconditions;
 import java.io.DataInput;
 import java.io.DataOutput;

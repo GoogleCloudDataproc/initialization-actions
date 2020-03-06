@@ -210,7 +210,7 @@ public class HadoopCredentialConfiguration {
   /**
    * Returns full list of config prefixes that will be resolved based on the order in returned list.
    */
-  public static ImmutableList<String> getConfigKeyPrefixes(String... keyPrefixes) {
+  public static List<String> getConfigKeyPrefixes(String... keyPrefixes) {
     return ImmutableList.<String>builder().add(keyPrefixes).add(BASE_KEY_PREFIX).build();
   }
 

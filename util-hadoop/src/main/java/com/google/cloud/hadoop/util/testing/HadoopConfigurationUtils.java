@@ -25,7 +25,7 @@ public class HadoopConfigurationUtils {
 
   public static Map<String, ?> getDefaultProperties(Class<?> configurationClass) {
     return Arrays.stream(configurationClass.getDeclaredFields())
-        .filter(f -> HadoopConfigurationProperty.class.equals(f.getType()))
+        .filter(f -> HadoopConfigurationProperty.class.isAssignableFrom(f.getType()))
         .map(HadoopConfigurationUtils::getDefaultProperty)
         .collect(
             HashMap::new,

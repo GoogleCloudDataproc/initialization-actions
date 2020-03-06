@@ -32,14 +32,15 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.cooplock.CooperativeLockingOptions;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
-import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
 import com.google.cloud.hadoop.util.RequesterPaysOptions;
 import com.google.cloud.hadoop.util.RequesterPaysOptions.RequesterPaysMode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.flogger.GoogleLogger;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.permission.FsPermission;
@@ -50,7 +51,7 @@ public class GoogleHadoopFileSystemConfiguration {
 
   public static final String GCS_CONFIG_PREFIX = "fs.gs";
 
-  public static final ImmutableList<String> CONFIG_KEY_PREFIXES =
+  public static final List<String> CONFIG_KEY_PREFIXES =
       ImmutableList.copyOf(getConfigKeyPrefixes(GCS_CONFIG_PREFIX));
 
   // -----------------------------------------------------------------
@@ -461,7 +462,7 @@ public class GoogleHadoopFileSystemConfiguration {
     return RequesterPaysOptions.builder()
         .setMode(GCS_REQUESTER_PAYS_MODE.get(config, config::getEnum))
         .setProjectId(requesterPaysProjectId == null ? projectId : requesterPaysProjectId)
-        .setBuckets(GCS_REQUESTER_PAYS_BUCKETS.getStringCollection(config))
+        .setBuckets(ImmutableSet.copyOf(GCS_REQUESTER_PAYS_BUCKETS.getStringCollection(config)))
         .build();
   }
 

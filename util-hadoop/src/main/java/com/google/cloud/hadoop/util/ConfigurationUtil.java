@@ -31,8 +31,8 @@ import org.apache.hadoop.conf.Configuration;
 public class ConfigurationUtil {
 
   /** Gets value for the given key or throws if value is not found. */
-  public static String getMandatoryConfig(
-      Configuration config, HadoopConfigurationProperty<?> property) throws IOException {
+  public static <T extends HadoopConfigurationProperty<?>> String getMandatoryConfig(
+      Configuration config, T property) throws IOException {
     String value = config.get(property.getKey());
     if (Strings.isNullOrEmpty(value)) {
       throw new IOException("Must supply a value for configuration setting: " + property.getKey());
@@ -41,8 +41,8 @@ public class ConfigurationUtil {
   }
 
   /** Gets value for the given keys or throws if one or more values are not found. */
-  public static Map<String, String> getMandatoryConfig(
-      Configuration config, List<HadoopConfigurationProperty<?>> properties) throws IOException {
+  public static <T extends HadoopConfigurationProperty<?>> Map<String, String> getMandatoryConfig(
+      Configuration config, List<T> properties) throws IOException {
     List<String> missingKeys = new ArrayList<>();
     Map<String, String> values = new HashMap<>();
     for (HadoopConfigurationProperty<?> property : properties) {

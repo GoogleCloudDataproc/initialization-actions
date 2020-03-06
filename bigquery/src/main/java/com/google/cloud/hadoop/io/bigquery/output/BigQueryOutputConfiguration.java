@@ -33,12 +33,13 @@ import com.google.api.services.bigquery.model.TimePartitioning;
 import com.google.cloud.hadoop.io.bigquery.BigQueryConfiguration;
 import com.google.cloud.hadoop.io.bigquery.BigQueryFileFormat;
 import com.google.cloud.hadoop.io.bigquery.BigQueryStrings;
-import com.google.cloud.hadoop.util.HadoopConfigurationProperty;
+import com.google.cloud.hadoop.io.bigquery.HadoopConfigurationProperty;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 import org.apache.hadoop.classification.InterfaceStability;
 import org.apache.hadoop.conf.Configuration;
@@ -56,7 +57,7 @@ import org.apache.hadoop.util.ReflectionUtils;
 public class BigQueryOutputConfiguration {
 
   /** A list of keys that are required for this output connector. */
-  public static final ImmutableList<HadoopConfigurationProperty<?>> REQUIRED_PROPERTIES =
+  public static final List<HadoopConfigurationProperty<?>> REQUIRED_PROPERTIES =
       ImmutableList.of(OUTPUT_DATASET_ID, OUTPUT_TABLE_ID, OUTPUT_FILE_FORMAT, OUTPUT_FORMAT_CLASS);
 
   /**
