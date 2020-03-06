@@ -48,7 +48,7 @@ public class CreateBucketOptions {
    * @param storageClass Bucket location
    */
   public CreateBucketOptions(String location, String storageClass) {
-    this(location, storageClass, /* retentionPeriod= */ null);
+    this(location, storageClass, /* ttl= */ null);
   }
 
   /**
