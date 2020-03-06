@@ -73,7 +73,7 @@ public class CoopLockRecordsDao {
 
   private static final int MIN_BACK_OFF_INTERVAL_MILLIS = 500;
   private static final int MAX_BACK_OFF_INTERVAL_MILLIS = 2_000;
-  private static final Duration RETRY_LOCK_INTERVAL = Duration.ofMillis(2_000);
+  private static final Duration RETRY_LOCK_INTERVAL = Duration.ofSeconds(2);
 
   private static final Gson GSON = createGson();
 
