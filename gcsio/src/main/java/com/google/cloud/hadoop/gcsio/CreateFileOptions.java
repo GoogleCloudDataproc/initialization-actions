@@ -25,7 +25,7 @@ import java.util.Map;
  * Options that can be specified when creating a file in the {@code GoogleCloudFileSystem}.
  */
 public class CreateFileOptions {
-  public static final Map<String, byte[]> EMPTY_ATTRIBUTES = ImmutableMap.of();
+  public static final ImmutableMap<String, byte[]> EMPTY_ATTRIBUTES = ImmutableMap.of();
   public static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
 
   public static final CreateFileOptions DEFAULT_OVERWRITE =

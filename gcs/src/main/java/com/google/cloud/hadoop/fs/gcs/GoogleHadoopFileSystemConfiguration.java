@@ -37,7 +37,6 @@ import com.google.cloud.hadoop.util.RequesterPaysOptions.RequesterPaysMode;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.flogger.GoogleLogger;
 import java.util.Collection;
 import java.util.List;
@@ -462,7 +461,7 @@ public class GoogleHadoopFileSystemConfiguration {
     return RequesterPaysOptions.builder()
         .setMode(GCS_REQUESTER_PAYS_MODE.get(config, config::getEnum))
         .setProjectId(requesterPaysProjectId == null ? projectId : requesterPaysProjectId)
-        .setBuckets(ImmutableSet.copyOf(GCS_REQUESTER_PAYS_BUCKETS.getStringCollection(config)))
+        .setBuckets(GCS_REQUESTER_PAYS_BUCKETS.getStringCollection(config))
         .build();
   }
 

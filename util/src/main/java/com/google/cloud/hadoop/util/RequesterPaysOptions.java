@@ -15,7 +15,7 @@ package com.google.cloud.hadoop.util;
 
 import com.google.auto.value.AutoValue;
 import com.google.common.collect.ImmutableSet;
-import java.util.Set;
+import java.util.Collection;
 import javax.annotation.Nullable;
 
 /** Options for the GCS Requester Pays feature. */
@@ -34,7 +34,7 @@ public abstract class RequesterPaysOptions {
   public static final RequesterPaysMode REQUESTER_PAYS_MODE_DEFAULT = RequesterPaysMode.DISABLED;
 
   /** Default value for {@link RequesterPaysOptions#getBuckets}. */
-  public static final Set<String> REQUESTER_PAYS_BUCKETS_DEFAULT = ImmutableSet.of();
+  public static final ImmutableSet<String> REQUESTER_PAYS_BUCKETS_DEFAULT = ImmutableSet.of();
 
   public static final RequesterPaysOptions DEFAULT = builder().build();
 
@@ -49,7 +49,7 @@ public abstract class RequesterPaysOptions {
   @Nullable
   public abstract String getProjectId();
 
-  public abstract Set<String> getBuckets();
+  public abstract ImmutableSet<String> getBuckets();
 
   public abstract Builder toBuilder();
 
@@ -60,7 +60,9 @@ public abstract class RequesterPaysOptions {
 
     public abstract Builder setProjectId(@Nullable String projectId);
 
-    public abstract Builder setBuckets(Set<String> value);
+    public abstract Builder setBuckets(Collection<String> value);
+
+    public abstract Builder setBuckets(String... value);
 
     public abstract RequesterPaysOptions build();
   }

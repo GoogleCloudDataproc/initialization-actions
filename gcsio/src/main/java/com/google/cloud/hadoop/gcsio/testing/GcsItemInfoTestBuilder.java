@@ -62,7 +62,7 @@ public abstract class GcsItemInfoTestBuilder {
   @Nullable
   public abstract String getContentEncoding();
 
-  public abstract Map<String, byte[]> getMetadata();
+  public abstract ImmutableMap<String, byte[]> getMetadata();
 
   public abstract long getContentGeneration();
 

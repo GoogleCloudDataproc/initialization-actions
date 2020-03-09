@@ -186,7 +186,7 @@ public class CredentialFactory {
   }
 
   // List of GCS scopes to specify when obtaining a credential.
-  public static final List<String> GCS_SCOPES =
+  public static final ImmutableList<String> GCS_SCOPES =
       ImmutableList.of(StorageScopes.DEVSTORAGE_FULL_CONTROL);
 
   // JSON factory used for formatting credential-handling payloads.
