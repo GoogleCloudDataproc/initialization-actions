@@ -1,4 +1,4 @@
-### 1.1.0 - 2020-XX-XX
+### 1.1.0 - 2020-03-09
 
 1.  Update all dependencies to latest versions.
 
@@ -14,6 +14,8 @@
         mapred.bq.token.server.url
 
 1.  Use Slf4j backend by default for Google Flogger.
+
+1.  Stop caching non-existent (not found) items in performance cache.
 
 ### 1.0.1 - 2020-02-13
 
