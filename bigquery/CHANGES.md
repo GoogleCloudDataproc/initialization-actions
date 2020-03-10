@@ -15,8 +15,6 @@
 
 1.  Use Slf4j backend by default for Google Flogger.
 
-1.  Stop caching non-existent (not found) items in performance cache.
-
 ### 1.0.1 - 2020-02-13
 
 1.  Fix shaded jar - add back missing relocated dependencies.

@@ -34,6 +34,8 @@
 1.  Remove list requests caching in the `PerformanceCachingGoogleCloudStorage`
     and `fs.gs.performance.cache.list.caching.enable` property.
 
+1.  Stop caching non-existent (not found) items in performance cache.
+
 ### 2.0.1 - 2020-02-13
 
 1.  Cooperative Locking FSCK tool: fix recovery of operations that failed before
