@@ -220,6 +220,12 @@
                   </includes>
                 </filter>
                 <filter>
+                  <artifact>io.perfmark:*</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                </filter>
+                <filter>
                   <artifact>com.google.flogger:flogger-slf4j-backend</artifact>
                   <includes>
                     <include>**</include>
@@ -253,6 +259,7 @@
                   <include>com.google.protobuf</include>
                   <include>io.grpc</include>
                   <include>io.opencensus</include>
+                  <include>io.perfmark</include>
                   <include>org.apache.httpcomponents:httpclient</include>
                   <include>org.apache.httpcomponents:httpcore</include>
                   <include>org.threeten</include>
@@ -289,12 +296,13 @@
                   <shadedPattern>com.google.cloud.hadoop.repackaged.bigquery.io.grpc.netty</shadedPattern>
                 </relocation>
                 <relocation>
-                  <pattern>io.grpc</pattern>
-                  <shadedPattern>com.google.cloud.hadoop.repackaged.bigquery.io.grpc</shadedPattern>
-                </relocation>
-                <relocation>
-                  <pattern>io.opencensus</pattern>
-                  <shadedPattern>com.google.cloud.hadoop.repackaged.bigquery.io.opencensus</shadedPattern>
+                  <pattern>io</pattern>
+                  <shadedPattern>com.google.cloud.hadoop.repackaged.bigquery.io</shadedPattern>
+                  <includes>
+                    <include>io.grpc.**</include>
+                    <include>io.opencensus.**</include>
+                    <include>io.perfmark.**</include>
+                  </includes>
                 </relocation>
 
                 <relocation>
