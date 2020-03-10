@@ -1,3 +1,7 @@
+### 1.1.1 - 2020-XX-XX
+
+1.  POM updates for BigQuery connector 1.1.1.
+
 ### 1.1.0 - 2020-03-09
 
 1.  Update all dependencies to latest versions.
