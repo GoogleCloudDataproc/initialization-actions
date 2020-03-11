@@ -1,4 +1,4 @@
-### 2.1.1 - 2020-XX-XX
+### 2.1.1 - 2020-03-11
 
 1.  Add upload cache to support high-level retries of failed uploads. Cache size
     configured via property and disabled by default (zero or negative value):
