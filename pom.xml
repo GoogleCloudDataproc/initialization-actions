@@ -26,7 +26,7 @@
 
   <groupId>com.google.cloud.bigdataoss</groupId>
   <artifactId>bigdataoss-parent</artifactId>
-  <version>2.1.1</version>
+  <version>2.1.2-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <url>https://github.com/GoogleCloudDataproc/hadoop-connectors</url>
@@ -80,8 +80,8 @@
 
     <gpg.skip>true</gpg.skip>
 
-    <bigdataoss.version>2.1.1</bigdataoss.version>
-    <bigquery-connector.version>1.1.1</bigquery-connector.version>
+    <bigdataoss.version>2.1.2-SNAPSHOT</bigdataoss.version>
+    <bigquery-connector.version>1.1.2-SNAPSHOT</bigquery-connector.version>
 
     <!-- Keep in sync with Hadoop dependencies -->
     <apache.avro.version>1.7.7</apache.avro.version>
@@ -89,8 +89,8 @@
 
     <apache.httpclient.version>4.5.11</apache.httpclient.version>
     <google.api-client.version>1.30.8</google.api-client.version>
-    <google.api-bigquery.version>v2-rev20191211-${google.api-client.version}</google.api-bigquery.version>
-    <google.api-storage.version>v1-rev20191127-${google.api-client.version}</google.api-storage.version>
+    <google.api-bigquery.version>v2-rev2.1.2-SNAPSHOT.2-SNAPSHOT1-${google.api-client.version}</google.api-bigquery.version>
+    <google.api-storage.version>v1-rev2.1.2-SNAPSHOT127-${google.api-client.version}</google.api-storage.version>
     <google.auto-value.version>1.7</google.auto-value.version>
     <google.cloud-bigquery-storage.version>0.124.0-beta</google.cloud-bigquery-storage.version>
     <!--

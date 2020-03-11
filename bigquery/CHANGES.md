@@ -1,3 +1,7 @@
+### 1.1.2 - 2020-XX-XX
+
+1.  POM updates for BigQuery connector 1.1.1.
+
 ### 1.1.1 - 2020-03-11
 
 1.  Fix shaded jar - add back missing relocated dependencies.
