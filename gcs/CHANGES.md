@@ -1,5 +1,10 @@
 ### 2.1.1 - 2020-XX-XX
 
+1.  Add upload cache to support high-level retries of failed uploads. Cache size
+    configured via property and disabled by default (zero or negative value):
+
+        fs.gs.outputstream.upload.cache.size (deafult: 0)
+
 ### 2.1.0 - 2020-03-09
 
 1.  Update all dependencies to latest versions.

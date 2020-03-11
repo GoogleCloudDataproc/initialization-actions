@@ -284,6 +284,10 @@ public class GoogleHadoopFileSystemConfiguration {
       new HadoopConfigurationProperty<>(
           "fs.gs.outputstream.upload.chunk.size", 64 * 1024 * 1024, "fs.gs.io.buffersize.write");
 
+  /** Configuration for setting GCS upload cache size. */
+  public static final HadoopConfigurationProperty<Integer> GCS_OUTPUT_STREAM_UPLOAD_CACHE_SIZE =
+      new HadoopConfigurationProperty<>("fs.gs.outputstream.upload.cache.size", 0);
+
   /** Configuration key for enabling GCS direct upload. */
   public static final HadoopConfigurationProperty<Boolean> GCS_OUTPUT_STREAM_DIRECT_UPLOAD_ENABLE =
       new HadoopConfigurationProperty<>("fs.gs.outputstream.direct.upload.enable", false);
@@ -450,6 +454,7 @@ public class GoogleHadoopFileSystemConfiguration {
         .setBufferSize(GCS_OUTPUT_STREAM_BUFFER_SIZE.get(config, config::getInt))
         .setPipeBufferSize(GCS_OUTPUT_STREAM_PIPE_BUFFER_SIZE.get(config, config::getInt))
         .setUploadChunkSize(GCS_OUTPUT_STREAM_UPLOAD_CHUNK_SIZE.get(config, config::getInt))
+        .setUploadCacheSize(GCS_OUTPUT_STREAM_UPLOAD_CACHE_SIZE.get(config, config::getInt))
         .setDirectUploadEnabled(
             GCS_OUTPUT_STREAM_DIRECT_UPLOAD_ENABLE.get(config, config::getBoolean))
         .build();

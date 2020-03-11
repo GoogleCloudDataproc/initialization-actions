@@ -217,6 +217,11 @@
     <description>The number of bytes in one GCS upload request.</description>
   </property>
   <property>
+    <name>fs.gs.outputstream.upload.cache.size</name>
+    <value>0</value>
+    <description>The number of bytes in upload cache that used for high-level retries.</description>
+  </property>
+  <property>
     <name>fs.gs.marker.file.pattern</name>
     <value></value>
     <description>

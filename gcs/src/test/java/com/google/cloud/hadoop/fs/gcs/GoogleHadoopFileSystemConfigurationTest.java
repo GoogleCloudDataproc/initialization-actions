@@ -78,6 +78,7 @@ public class GoogleHadoopFileSystemConfigurationTest {
           put("fs.gs.outputstream.buffer.size", 8_388_608);
           put("fs.gs.outputstream.pipe.buffer.size", 1_048_576);
           put("fs.gs.outputstream.upload.chunk.size", 67_108_864);
+          put("fs.gs.outputstream.upload.cache.size", 0);
           put("fs.gs.io.buffersize.write", 67_108_864);
           put("fs.gs.outputstream.direct.upload.enable", false);
           put("fs.gs.outputstream.type", OutputStreamType.BASIC);

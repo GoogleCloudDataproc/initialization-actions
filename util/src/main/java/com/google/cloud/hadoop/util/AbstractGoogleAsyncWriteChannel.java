@@ -61,7 +61,7 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
   // write channel (pipeSinkChannel below). The pipe is formed by connecting pipeSink to pipeSource
   private final ExecutorService threadPool;
 
-  private boolean isInitialized = false;
+  private boolean initialized = false;
 
   // Size of buffer used by upload pipe.
   private final int pipeBufferSize;
@@ -78,11 +78,16 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
   // When enabled, we get higher throughput for writing small files.
   private boolean directUploadEnabled = false;
 
+  private ByteBuffer uploadCache = null;
+
   /** Construct a new channel using the given ExecutorService to run background uploads. */
   public AbstractGoogleAsyncWriteChannel(
       ExecutorService threadPool, AsyncWriteChannelOptions options) {
     this.threadPool = threadPool;
     this.pipeBufferSize = options.getPipeBufferSize();
+    if (options.getUploadCacheSize() > 0) {
+      this.uploadCache = ByteBuffer.allocate(options.getUploadCacheSize());
+    }
     setUploadChunkSize(options.getUploadChunkSize());
     setDirectUploadEnabled(options.isDirectUploadEnabled());
     setContentType("application/octet-stream");
@@ -175,7 +180,7 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
    */
   @Override
   public synchronized int write(ByteBuffer buffer) throws IOException {
-    checkState(isInitialized, "initialize() must be invoked before use.");
+    checkState(initialized, "initialize() must be invoked before use.");
     if (!isOpen()) {
       throw new ClosedChannelException();
     }
@@ -183,6 +188,14 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
     // No point in writing further if upload failed on another thread.
     if (uploadOperation.isDone()) {
       waitForCompletionAndThrowIfUploadFailed();
+    }
+
+    if (uploadCache != null && uploadCache.remaining() >= buffer.remaining()) {
+      int position = buffer.position();
+      uploadCache.put(buffer);
+      buffer.position(position);
+    } else {
+      uploadCache = null;
     }
 
     return pipeSinkChannel.write(buffer);
@@ -208,16 +221,49 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
    */
   @Override
   public void close() throws IOException {
-    checkState(isInitialized, "initialize() must be invoked before use.");
-    if (isOpen()) {
-      try {
-        pipeSinkChannel.close();
-        handleResponse(waitForCompletionAndThrowIfUploadFailed());
-      } finally {
-        pipeSinkChannel = null;
-        uploadOperation = null;
-      }
+    checkState(initialized, "initialize() must be invoked before use.");
+    if (!isOpen()) {
+      return;
     }
+    try {
+      pipeSinkChannel.close();
+      handleResponse(waitForCompletionAndThrowIfUploadFailed());
+    } catch (IOException e) {
+      if (uploadCache == null) {
+        throw e;
+      }
+      logger.atWarning().withCause(e).log("Reuploading using cached data");
+      reuploadFromCache();
+    } finally {
+      closeInternal();
+    }
+  }
+
+  private void reuploadFromCache() throws IOException {
+    closeInternal();
+    initialized = false;
+
+    initialize();
+
+    // Set cache to null so it will not be re-cached during retry.
+    ByteBuffer reuploadData = uploadCache;
+    uploadCache = null;
+
+    reuploadData.flip();
+
+    try {
+      write(reuploadData);
+    } finally {
+      close();
+    }
+  }
+
+  private void closeInternal() {
+    pipeSinkChannel = null;
+    if (uploadOperation != null && !uploadOperation.isDone()) {
+      uploadOperation.cancel(/* mayInterruptIfRunning= */ true);
+    }
+    uploadOperation = null;
   }
 
   /**
@@ -248,7 +294,7 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
     // to each other, we need to start the upload operation on a separate thread.
     uploadOperation = threadPool.submit(new UploadOperation(request, pipeSource));
 
-    isInitialized = true;
+    initialized = true;
   }
 
   class UploadOperation implements Callable<S> {
