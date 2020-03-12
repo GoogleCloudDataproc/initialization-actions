@@ -9,7 +9,7 @@ py_test(
         "//gpu:install_gpu_driver.sh",
     ],
     local = True,
-    shard_count = 2,
+    shard_count = 3,
     deps = [
         ":verify_rapids",
         "//integration_tests:dataproc_test_case",
@@ -20,5 +20,5 @@ py_test(
 py_library(
     name = "verify_rapids",
     testonly = True,
-    srcs = ["verify_rapids.py"],
+    srcs = ["verify_rapids_dask.py"],
 )

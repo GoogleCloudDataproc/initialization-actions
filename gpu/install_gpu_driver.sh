@@ -43,8 +43,6 @@ readonly NVIDIA_UBUNTU_REPOSITORY_CUDA_PIN="${NVIDIA_UBUNTU_REPOSITORY_URL}/cuda
 readonly DEFAULT_NCCL_REPO_URL='https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb'
 readonly NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
 readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.4.8')
-BUILD_DIR=$(mktemp -d -t gpu-init-action-XXXX)
-readonly BUILD_DIR
 
 # Parameters for Ubuntu-provided NVIDIA GPU driver
 readonly NVIDIA_DRIVER_VERSION_UBUNTU='435'
@@ -70,16 +68,19 @@ function execute_with_retries() {
   return 1
 }
 
-function install_nccl() {
-  wget -nv --timeout=30 --tries=5 --retry-connrefused -O - \
-    "${NCCL_REPO_URL}" -O "${BUILD_DIR}/nvidia-ml-repo.deb"
-  dpkg -i "${BUILD_DIR}/nvidia-ml-repo.deb"
+function install_nvidia_nccl() {
+  local tmp_dir
+  tmp_dir=$(mktemp -d -t gpu-init-action-nccl-XXXX)
+
+  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    "${NCCL_REPO_URL}" -O "${tmp_dir}/nvidia-ml-repo.deb"
+  dpkg -i "${tmp_dir}/nvidia-ml-repo.deb"
 
   execute_with_retries "apt-get update"
 
   local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
   execute_with_retries \
-    "apt-get -y -q install --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
+    "apt-get install -y --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
 
   nvidia-smi -c EXCLUSIVE_PROCESS
 }
@@ -240,10 +241,9 @@ function main() {
   execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
   if [[ ${GPU_DRIVER_PROVIDER} == 'NVIDIA' ]]; then
     install_nvidia_gpu_driver
-    install_nccl
+    install_nvidia_nccl
   elif [[ ${GPU_DRIVER_PROVIDER} == 'OS' ]]; then
     install_os_gpu_driver
-    install_nccl
   else
     echo "Unsupported GPU driver provider: '${GPU_DRIVER_PROVIDER}'"
     exit 1
