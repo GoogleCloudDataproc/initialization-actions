@@ -9,14 +9,14 @@ class ConnectorsTestCase(DataprocTestCase):
     COMPONENT = "connectors"
     INIT_ACTIONS = ['connectors/connectors.sh']
 
-    BQ_CONNECTOR_VERSION = "1.0.1"
-    BQ_CONNECTOR_URL = "gs://hadoop-lib/bigquery/bigquery-connector-hadoop2-1.0.1.jar"
+    BQ_CONNECTOR_VERSION = "1.1.1"
+    BQ_CONNECTOR_URL = "gs://hadoop-lib/bigquery/bigquery-connector-hadoop2-1.1.1.jar"
 
-    GCS_CONNECTOR_VERSION = "2.0.1"
-    GCS_CONNECTOR_URL = "gs://hadoop-lib/gcs/gcs-connector-hadoop2-2.0.1.jar"
+    GCS_CONNECTOR_VERSION = "2.1.1"
+    GCS_CONNECTOR_URL = "gs://hadoop-lib/gcs/gcs-connector-hadoop2-2.1.1.jar"
 
-    SPARK_BQ_CONNECTOR_VERSION = "0.13.1"
-    SPARK_BQ_CONNECTOR_URL = "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.11-0.13.1-beta.jar"
+    SPARK_BQ_CONNECTOR_VERSION = "0.13.1-beta"
+    SPARK_BQ_CONNECTOR_URL = "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_{}-0.13.1-beta.jar"
 
     def verify_instances(self, cluster, instances, connector,
                          connector_version):
@@ -26,30 +26,28 @@ class ConnectorsTestCase(DataprocTestCase):
 
     def _verify_instance(self, instance, connector, connector_version):
         if connector == "spark-bigquery-connector":
-            self.assert_instance_command(
-                instance,
-                ("cat << EOF > ./spark_bq_test.py\n" +
-                "from pyspark.sql import SparkSession\n"
-                "spark = SparkSession.builder.appName(\\\"test\\\").getOrCreate()\n" +
-                 "table = \\\"bigquery-public-data.austin_311.311_request\\\"\n" +
-                "spark.read.format(\\\"bigquery\\\").option(\\\"table\\\", table).load().take(1)\n" +
-                "EOF\n" +
-                "spark-submit spark_bq_test.py")
-            )
+            connector_jar = "spark-bigquery-with-dependencies_{}-{}.jar".format(
+                self._scala_version(), connector_version)
         else:
-            self.assert_instance_command(
-                instance,
-                "test -f {}/{}-hadoop2-{}.jar".format(self._connectors_dir(),
-                                                    connector,
-                                                    connector_version))
-            self.assert_instance_command(
-                instance, "test -L {}/{}.jar".format(self._connectors_dir(),
-                                                    connector, connector_version))
+            connector_jar = "{}-hadoop2-{}.jar".format(connector,
+                                                       connector_version)
+
+        self.assert_instance_command(
+            instance, "test -f {}/{}".format(self._connectors_dir(),
+                                             connector_jar))
+        self.assert_instance_command(
+            instance, "test -L {}/{}.jar".format(self._connectors_dir(),
+                                                 connector))
 
     def _connectors_dir(self):
         if self.getImageVersion() < pkg_resources.parse_version("1.4"):
             return "/usr/lib/hadoop/lib"
         return "/usr/local/share/google/dataproc/lib"
+
+    def _scala_version(self):
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return "2.11"
+        return "2.12"
 
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
@@ -74,12 +72,14 @@ class ConnectorsTestCase(DataprocTestCase):
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_spark_bq_connector_version(self, configuration, instances):
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           metadata="spark-bigquery-connector-version={}".format(
-                               self.SPARK_BQ_CONNECTOR_VERSION))
+        self.createCluster(
+            configuration,
+            self.INIT_ACTIONS,
+            metadata="spark-bigquery-connector-version={}".format(
+                self.SPARK_BQ_CONNECTOR_VERSION))
         self.verify_instances(self.getClusterName(), instances,
-                              "spark-bigquery-connector", self.SPARK_BQ_CONNECTOR_VERSION)
+                              "spark-bigquery-connector",
+                              self.SPARK_BQ_CONNECTOR_VERSION)
 
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
@@ -107,9 +107,11 @@ class ConnectorsTestCase(DataprocTestCase):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
                            metadata="spark-bigquery-connector-url={}".format(
-                               self.SPARK_BQ_CONNECTOR_URL))
+                               self.SPARK_BQ_CONNECTOR_URL.format(
+                                   self._scala_version())))
         self.verify_instances(self.getClusterName(), instances,
-                              "spark-bigquery-connector", self.SPARK_BQ_CONNECTOR_VERSION)
+                              "spark-bigquery-connector",
+                              self.SPARK_BQ_CONNECTOR_VERSION)
 
 
 if __name__ == '__main__':
