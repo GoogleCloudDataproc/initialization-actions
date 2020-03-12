@@ -1,6 +1,6 @@
 --------------------------------------------------------------------------------
 
-# NOTE: *Updating Cloud Storage Connector with this initialization action is not recommended*
+# NOTE: *Updating Cloud Storage connector with this initialization action is not recommended*
 
 **You can update Cloud Storage Connector through `GCS_CONNECTOR_VERSION`
 metadata value on supported Dataproc images.**
@@ -10,9 +10,10 @@ metadata value on supported Dataproc images.**
 # Google Cloud Storage and BigQuery connectors
 
 This initialization action installs specified versions of
-[Google Cloud Storage connector](https://github.com/GoogleCloudPlatform/bigdata-interop/tree/master/gcs)
+[Google Cloud Storage connector](https://github.com/GoogleCloudDataproc/hadoop-connectors/tree/master/gcs),
+[Hadoop BigQuery connector](https://github.com/GoogleCloudDataproc/hadoop-connectors/tree/master/bigquery)
 and
-[BigQuery connector](https://github.com/GoogleCloudPlatform/bigdata-interop/tree/master/bigquery)
+[Spark BigQuery connector](https://github.com/GoogleCloudDataproc/spark-bigquery-connector)
 on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
 
 ## Using this initialization action
@@ -22,10 +23,12 @@ on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
 initialization actions in production.
 
 You can use this initialization action to create a new Dataproc cluster with an
-updated Google Cloud Storage and BigQuery connector installed:
+updated Google Cloud Storage connector, Hadoop BigQuery connector and Spark
+BigQuery connector installed:
 
--   to update connector by specifying version, use `gcs-connector-version` and
-    `bigquery-connector-version` metadata values:
+-   to update connector by specifying version, use `gcs-connector-version`,
+    `bigquery-connector-version` and `spark-bigquery-connector-version` metadata
+    values:
 
     ```
     REGION=<region>
@@ -33,12 +36,13 @@ updated Google Cloud Storage and BigQuery connector installed:
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --region ${REGION} \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/connectors/connectors.sh \
-        --metadata gcs-connector-version=2.0.1 \
-        --metadata bigquery-connector-version=1.0.1
+        --metadata gcs-connector-version=2.1.1 \
+        --metadata bigquery-connector-version=1.1.1 \
+        --metadata spark-bigquery-connector-version=0.13.1-beta
     ```
 
--   to update connector by specifying URL, use `gcs-connector-url` and
-    `bigquery-connector-url` metadata values:
+-   to update connector by specifying URL, use `gcs-connector-url`,
+    `bigquery-connector-url`and `spark-bigquery-connector-url` metadata values:
 
     ```
     REGION=<region>
@@ -47,27 +51,29 @@ updated Google Cloud Storage and BigQuery connector installed:
         --region ${REGION} \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/connectors/connectors.sh \
         --metadata gcs-connector-url=gs://path/to/custom/gcs/connector.jar \
-        --metadata bigquery-connector-url=gs://path/to/custom/bigquery/connector.jar
+        --metadata bigquery-connector-url=gs://path/to/custom/hadoop/bigquery/connector.jar \
+        --metadata spark-bigquery-connector-url=gs://path/to/custom/spark/bigquery/connector.jar
     ```
 
-This script downloads specified Google Cloud Storage and BigQuery connector and
-deletes an old version of these connectors.
+This script downloads specified Google Cloud Storage connector, Hadoop BigQuery
+connector and Spark BigQuery connector and deletes an old version of these
+connectors if they were installed.
 
-To specify connector version, find the needed released connector version on the
-[connectors releases page](https://github.com/GoogleCloudDataproc/hadoop-connectors/releases),
-and set it as the `gcs-connector-version` or `bigquery-connector-version`
-metadata key value.
+To specify connector version, find the connector version on the
+[Hadoop connectors releases page](https://github.com/GoogleCloudDataproc/hadoop-connectors/releases)
+and
+[Spark BigQuery connector releases page](https://github.com/GoogleCloudDataproc/spark-bigquery-connector/releases),
+and set it as the `gcs-connector-version`, `bigquery-connector-version` or
+`spark-bigquery-connector-version` metadata key value.
 
-If only one connector version is specified (Google Cloud Storage or Bigquery)
-then only this connector will be updated, but Google Cloud Storage connector
-1.7.0 and BigQuery connector 0.11.0 are always updated together if only one of
-them is specified and another is not specified.
+If only one connector version is specified (Google Cloud Storage, Hadoop
+BigQuery or Spark BigQuery) then only this connector will be updated.
 
 For example:
 
-*   if Google Cloud Storage connector 1.7.0 version is specified and BigQuery
-    connector version is not specified, then Google Cloud Storage connector will
-    be updated to 1.7.0 version and BigQuery connector will be updated to 0.11.0
+*   if Google Cloud Storage connector 2.1.1 version is specified and neither
+    Hadoop BigQuery connector not Spark BigQuery connector versions are
+    specified, then only Google Cloud Storage connector will be updated to 2.1.1
     version:
 
     ```
@@ -76,19 +82,5 @@ For example:
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --region ${REGION} \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/connectors/connectors.sh \
-        --metadata gcs-connector-version=1.7.0
-    ```
-
-*   if Google Cloud Storage connector 1.8.0 version is specified and BigQuery
-    connector version is not specified, then only Google Cloud Storage connector
-    will be updated to 1.8.0 version and BigQuery connector will be left
-    unchanged:
-
-    ```
-    REGION=<region>
-    CLUSTER_NAME=<cluster_name>
-    gcloud dataproc clusters create ${CLUSTER_NAME} \
-        --region ${REGION} \
-        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/connectors/connectors.sh \
-        --metadata gcs-connector-version=1.8.0
+        --metadata gcs-connector-version=2.1.1
     ```
