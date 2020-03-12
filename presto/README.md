@@ -1,3 +1,11 @@
+--------------------------------------------------------------------------------
+
+# NOTE: *The Presto initialization action has been deprecated. Please use the Presto Optional Component*
+
+**The [Presto Optional Component](https://cloud.google.com/dataproc/docs/concepts/components/presto) is the best way to use Presto with Cloud Dataproc. To learn more about Optional Components see [here](https://cloud.google.com/dataproc/docs/concepts/components/overview).**
+
+--------------------------------------------------------------------------------
+
 # Presto
 
 This initialization action installs the latest version of [Presto](prestodb.io)
