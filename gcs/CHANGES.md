@@ -1,7 +1,5 @@
 ### 2.1.2 - 2020-XX-XX
 
-1.  POM updates for GCS connector 2.1.1.
-
 ### 2.1.1 - 2020-03-11
 
 1.  Add upload cache to support high-level retries of failed uploads. Cache size
