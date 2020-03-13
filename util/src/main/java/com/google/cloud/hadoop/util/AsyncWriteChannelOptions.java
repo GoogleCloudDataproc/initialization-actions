@@ -35,14 +35,6 @@ public abstract class AsyncWriteChannelOptions {
   /** Default of whether to use direct upload. */
   public static final boolean DIRECT_UPLOAD_ENABLED_DEFAULT = false;
 
-  /** @deprecated use {@link #builder} */
-  @Deprecated
-  public static Builder newBuilder() {
-    return builder();
-  }
-
-  public abstract Builder toBuilder();
-
   public static final AsyncWriteChannelOptions DEFAULT = builder().build();
 
   public static Builder builder() {
@@ -53,6 +45,8 @@ public abstract class AsyncWriteChannelOptions {
         .setUploadCacheSize(UPLOAD_CACHE_SIZE_DEFAULT)
         .setDirectUploadEnabled(DIRECT_UPLOAD_ENABLED_DEFAULT);
   }
+
+  public abstract Builder toBuilder();
 
   public abstract int getBufferSize();
 

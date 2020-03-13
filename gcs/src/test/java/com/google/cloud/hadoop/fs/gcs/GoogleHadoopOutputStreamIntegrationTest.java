@@ -70,7 +70,7 @@ public class GoogleHadoopOutputStreamIntegrationTest {
             ghfs,
             new URI(testFile.toString()),
             new FileSystem.Statistics(ghfs.getScheme()),
-            CreateFileOptions.DEFAULT)) {
+            CreateFileOptions.DEFAULT_OVERWRITE)) {
       out.write(1);
     }
 

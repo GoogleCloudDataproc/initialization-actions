@@ -1,4 +1,6 @@
-### 2.1.2 - 2020-XX-XX
+### 2.2.0 - 2020-XX-XX
+
+1. Delete deprecated methods.
 
 ### 2.1.1 - 2020-03-11
 

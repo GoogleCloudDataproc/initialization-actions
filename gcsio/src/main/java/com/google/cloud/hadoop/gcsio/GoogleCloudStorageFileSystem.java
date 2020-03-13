@@ -193,7 +193,7 @@ public class GoogleCloudStorageFileSystem {
    */
   public WritableByteChannel create(URI path) throws IOException {
     logger.atFine().log("create(path: %s)", path);
-    return create(path, CreateFileOptions.DEFAULT);
+    return create(path, CreateFileOptions.DEFAULT_OVERWRITE);
   }
 
   /**

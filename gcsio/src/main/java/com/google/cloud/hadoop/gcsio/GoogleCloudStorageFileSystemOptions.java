@@ -22,12 +22,6 @@ import javax.annotation.Nullable;
 @AutoValue
 public abstract class GoogleCloudStorageFileSystemOptions {
 
-  /** @deprecated use {@link #builder()} instead */
-  @Deprecated
-  public static Builder newBuilder() {
-    return builder();
-  }
-
   public static Builder builder() {
     return new AutoValue_GoogleCloudStorageFileSystemOptions.Builder()
         .setPerformanceCacheEnabled(false)
@@ -38,6 +32,8 @@ public abstract class GoogleCloudStorageFileSystemOptions {
         .setStatusParallelEnabled(false)
         .setCooperativeLockingEnabled(false);
   }
+
+  public abstract Builder toBuilder();
 
   public abstract boolean isPerformanceCacheEnabled();
 
@@ -57,8 +53,6 @@ public abstract class GoogleCloudStorageFileSystemOptions {
   public void throwIfNotValid() {
     getCloudStorageOptions().throwIfNotValid();
   }
-
-  public abstract Builder toBuilder();
 
   /** Mutable builder for {@link GoogleCloudStorageFileSystemOptions}. */
   @AutoValue.Builder

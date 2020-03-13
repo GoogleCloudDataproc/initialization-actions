@@ -81,12 +81,6 @@ public abstract class GoogleCloudStorageOptions {
 
   public static final GoogleCloudStorageOptions DEFAULT = builder().build();
 
-  /** @deprecated use {@link #builder()} instead */
-  @Deprecated
-  public static Builder newBuilder() {
-    return builder();
-  }
-
   public static Builder builder() {
     return new AutoValue_GoogleCloudStorageOptions.Builder()
         .setStorageRootUrl(STORAGE_ROOT_URL_DEFAULT)
@@ -110,6 +104,8 @@ public abstract class GoogleCloudStorageOptions {
         .setCooperativeLockingOptions(CooperativeLockingOptions.DEFAULT)
         .setHttpRequestHeaders(HTTP_REQUEST_HEADERS_DEFAULT);
   }
+
+  public abstract Builder toBuilder();
 
   public abstract String getStorageRootUrl();
 
@@ -165,8 +161,6 @@ public abstract class GoogleCloudStorageOptions {
   public abstract CooperativeLockingOptions getCooperativeLockingOptions();
 
   public abstract ImmutableMap<String, String> getHttpRequestHeaders();
-
-  public abstract Builder toBuilder();
 
   public void throwIfNotValid() {
     checkArgument(!isNullOrEmpty(getAppName()), "appName must not be null or empty");

@@ -44,14 +44,14 @@ public abstract class RequesterPaysOptions {
         .setBuckets(REQUESTER_PAYS_BUCKETS_DEFAULT);
   }
 
+  public abstract Builder toBuilder();
+
   public abstract RequesterPaysMode getMode();
 
   @Nullable
   public abstract String getProjectId();
 
   public abstract ImmutableSet<String> getBuckets();
-
-  public abstract Builder toBuilder();
 
   /** Builder for {@link RequesterPaysOptions} */
   @AutoValue.Builder

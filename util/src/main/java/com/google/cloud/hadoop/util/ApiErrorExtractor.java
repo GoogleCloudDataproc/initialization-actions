@@ -72,10 +72,6 @@ public class ApiErrorExtractor {
   // as an unknown key.
   private static final String DEBUG_INFO_FIELD = "debugInfo";
 
-  /** @deprecated use {@link #INSTANCE} instead */
-  @Deprecated
-  public ApiErrorExtractor() {}
-
   /**
    * Determines if the given exception indicates intermittent request failure or failure caused by
    * user error.
@@ -126,12 +122,6 @@ public class ApiErrorExtractor {
     return ACCOUNT_DISABLED_REASON.equals(reason) || ACCESS_NOT_CONFIGURED_REASON.equals(reason);
   }
 
-  /** @deprecated use {@link #clientError(IOException)} instead */
-  @Deprecated
-  public boolean isClientError(IOException e) {
-    return clientError(e);
-  }
-
   /** Determines if the exception is a client error. */
   public boolean clientError(IOException e) {
     GoogleJsonResponseException jsonException = getJsonResponseException(e);
@@ -150,15 +140,6 @@ public class ApiErrorExtractor {
    */
   public boolean itemAlreadyExists(IOException e) {
     return recursiveCheckForCode(e, HttpStatusCodes.STATUS_CODE_CONFLICT);
-  }
-
-  /**
-   * @deprecated use {@link #itemNotFound(IOException)} or {@code e.getCode() ==
-   *     HttpStatusCodes.STATUS_CODE_NOT_FOUND} instead
-   */
-  @Deprecated
-  public boolean itemNotFound(GoogleJsonError e) {
-    return e.getCode() == HttpStatusCodes.STATUS_CODE_NOT_FOUND;
   }
 
   /**

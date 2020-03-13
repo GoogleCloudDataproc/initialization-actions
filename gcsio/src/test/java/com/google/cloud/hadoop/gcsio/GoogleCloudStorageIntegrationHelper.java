@@ -244,7 +244,7 @@ public abstract class GoogleCloudStorageIntegrationHelper {
 
   /** Opens the given object for writing. */
   protected WritableByteChannel create(String bucketName, String objectName) throws IOException {
-    return create(bucketName, objectName, CreateFileOptions.DEFAULT);
+    return create(bucketName, objectName, CreateFileOptions.DEFAULT_OVERWRITE);
   }
 
   /** Opens the given object for writing. */

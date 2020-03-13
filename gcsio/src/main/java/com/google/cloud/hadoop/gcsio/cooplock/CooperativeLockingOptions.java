@@ -38,11 +38,11 @@ public abstract class CooperativeLockingOptions {
         .setMaxConcurrentOperations(MAX_CONCURRENT_OPERATIONS_DEFAULT);
   }
 
+  public abstract Builder toBuilder();
+
   public abstract long getLockExpirationTimeoutMilli();
 
   public abstract int getMaxConcurrentOperations();
-
-  public abstract Builder toBuilder();
 
   /** Builder for {@link CooperativeLockingOptions} */
   @AutoValue.Builder

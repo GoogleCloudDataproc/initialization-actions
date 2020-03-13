@@ -42,6 +42,8 @@ public abstract class CredentialOptions {
         .setTokenServerUrl(TOKEN_SERVER_URL_DEFAULT);
   }
 
+  public abstract Builder toBuilder();
+
   public abstract boolean isServiceAccountEnabled();
 
   // The following 2 parameters are used for credentials set directly via Hadoop Configuration
@@ -90,8 +92,6 @@ public abstract class CredentialOptions {
 
   @Nullable
   public abstract String getProxyPassword();
-
-  public abstract Builder toBuilder();
 
   @Override
   public final String toString() {

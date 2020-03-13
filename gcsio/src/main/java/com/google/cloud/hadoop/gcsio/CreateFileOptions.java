@@ -34,9 +34,6 @@ public class CreateFileOptions {
   public static final CreateFileOptions DEFAULT_NO_OVERWRITE =
       new CreateFileOptions(/* overwriteExisting= */ true, DEFAULT_CONTENT_TYPE, EMPTY_ATTRIBUTES);
 
-  /** @deprecated use {@link #DEFAULT_NO_OVERWRITE} instead */
-  @Deprecated public static final CreateFileOptions DEFAULT = DEFAULT_OVERWRITE;
-
   private final boolean overwriteExisting;
   private final String contentType;
   private final Map<String, byte[]> attributes;

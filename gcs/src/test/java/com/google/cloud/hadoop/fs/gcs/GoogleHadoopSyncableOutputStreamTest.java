@@ -124,7 +124,7 @@ public class GoogleHadoopSyncableOutputStreamTest {
             ghfs,
             ghfs.getGcsPath(objectPath),
             new FileSystem.Statistics(ghfs.getScheme()),
-            CreateFileOptions.DEFAULT,
+            CreateFileOptions.DEFAULT_OVERWRITE,
             mockExecutorService,
             /* appendMode= */ false);
 

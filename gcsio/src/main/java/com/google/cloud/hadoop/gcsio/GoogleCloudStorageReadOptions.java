@@ -65,6 +65,8 @@ public abstract class GoogleCloudStorageReadOptions {
         .setMinRangeRequestSize(DEFAULT_MIN_RANGE_REQUEST_SIZE);
   }
 
+  public abstract Builder toBuilder();
+
   /** See {@link Builder#setBackoffInitialIntervalMillis}. */
   public abstract int getBackoffInitialIntervalMillis();
 
@@ -97,8 +99,6 @@ public abstract class GoogleCloudStorageReadOptions {
 
   /** See {@link Builder#setMinRangeRequestSize}. */
   public abstract int getMinRangeRequestSize();
-
-  public abstract Builder toBuilder();
 
   /** Mutable builder for GoogleCloudStorageReadOptions. */
   @AutoValue.Builder

@@ -88,8 +88,8 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
     if (options.getUploadCacheSize() > 0) {
       this.uploadCache = ByteBuffer.allocate(options.getUploadCacheSize());
     }
-    setUploadChunkSize(options.getUploadChunkSize());
-    setDirectUploadEnabled(options.isDirectUploadEnabled());
+    this.uploadChunkSize = validateUploadChunkSize(options.getUploadChunkSize());
+    this.directUploadEnabled = options.isDirectUploadEnabled();
     setContentType("application/octet-stream");
   }
 
@@ -128,17 +128,11 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
    * may override this method to return the expected "identifier" response. Return null to let the
    * exception propagate through correctly.
    */
-  public S createResponseFromException(IOException ioe) {
+  public S createResponseFromException(IOException e) {
     return null;
   }
 
-  @Deprecated
-  public void setUploadBufferSize(int bufferSize) {
-    setUploadChunkSize(bufferSize);
-  }
-
-  /** Sets size of upload buffer used. */
-  public void setUploadChunkSize(int chunkSize) {
+  private static int validateUploadChunkSize(int chunkSize) {
     Preconditions.checkArgument(chunkSize > 0, "Upload chunk size must be great than 0.");
     Preconditions.checkArgument(
         chunkSize % MediaHttpUploader.MINIMUM_CHUNK_SIZE == 0,
@@ -148,16 +142,7 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
           "Upload chunk size should be a multiple of %s for best performance, got %s",
           GCS_UPLOAD_GRANULARITY, chunkSize);
     }
-    uploadChunkSize = chunkSize;
-  }
-
-  /**
-   * Enables or disables direct uploads.
-   *
-   * @see MediaHttpUploader#setDirectUploadEnabled(boolean)
-   */
-  public void setDirectUploadEnabled(boolean enableDirectUpload) {
-    directUploadEnabled = enableDirectUpload;
+    return chunkSize;
   }
 
   /** Returns true if direct media uploads are enabled. */
