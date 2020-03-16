@@ -104,7 +104,8 @@ public final class GoogleCloudStorageGrpcWriteChannel
                 return BaseEncoding.base64().decode(value);
               } catch (IllegalArgumentException iae) {
                 logger.atSevere().withCause(iae).log(
-                    "In: " + this + "Failed to parse base64 encoded attribute value %s - %s", value,
+                    "In: " + this + "Failed to parse base64 encoded attribute value %s - %s",
+                    value,
                     iae);
                 return null;
               }
@@ -168,8 +169,10 @@ public final class GoogleCloudStorageGrpcWriteChannel
         return doResumableUpload();
       } catch (Exception e) {
         throw new RuntimeException(
-            "UploadOperation.call Caught exception for: " + googleCloudStorageGrpcWriteChannel
-                + " :", e);
+            "UploadOperation.call Caught exception for: "
+                + googleCloudStorageGrpcWriteChannel
+                + " :",
+            e);
       }
     }
 
@@ -199,7 +202,8 @@ public final class GoogleCloudStorageGrpcWriteChannel
         //     committed offset (per call to getCommittedWriteSize); (b) remove chunks from the list
         //     that have been persisted.
         //  3. Limit the list size to some number (possibly flag-controlled) of sent chunks.
-        throw new IOException("Insert failed for: " + googleCloudStorageGrpcWriteChannel,
+        throw new IOException(
+            "Insert failed for: " + googleCloudStorageGrpcWriteChannel,
             responseObserver.getError());
       }
 
@@ -229,7 +233,10 @@ public final class GoogleCloudStorageGrpcWriteChannel
 
       InsertChunkResponseObserver(
           GoogleCloudStorageGrpcWriteChannel googleCloudStorageGrpcWriteChannel,
-          String uploadId, ByteString chunkData, long writeOffset, Hasher objectHasher) {
+          String uploadId,
+          ByteString chunkData,
+          long writeOffset,
+          Hasher objectHasher) {
         this.googleCloudStorageGrpcWriteChannel = googleCloudStorageGrpcWriteChannel;
         this.uploadId = uploadId;
         this.chunkData = chunkData;
@@ -251,8 +258,12 @@ public final class GoogleCloudStorageGrpcWriteChannel
                 try {
                   chunkData = readRequestData();
                 } catch (IOException e) {
-                  error = new RuntimeException("InsertChunkResponseObserver.beforeStart for "
-                      + googleCloudStorageGrpcWriteChannel + " caught ", e);
+                  error =
+                      new RuntimeException(
+                          "InsertChunkResponseObserver.beforeStart for "
+                              + googleCloudStorageGrpcWriteChannel
+                              + " caught ",
+                          e);
                   return;
                 }
 
@@ -331,7 +342,8 @@ public final class GoogleCloudStorageGrpcWriteChannel
 
       public Throwable getError() {
         if (error == null) {
-          throw new IllegalStateException("Error not present: " + googleCloudStorageGrpcWriteChannel);
+          throw new IllegalStateException(
+              "Error not present: " + googleCloudStorageGrpcWriteChannel);
         }
         return error;
       }
@@ -347,8 +359,8 @@ public final class GoogleCloudStorageGrpcWriteChannel
 
       @Override
       public void onError(Throwable t) {
-        error = new Throwable("Caught Throwable for " + googleCloudStorageGrpcWriteChannel + ": ",
-            t);
+        error =
+            new Throwable("Caught Throwable for " + googleCloudStorageGrpcWriteChannel + ": ", t);
         done.countDown();
       }
 
@@ -464,8 +476,12 @@ public final class GoogleCloudStorageGrpcWriteChannel
 
   @Override
   public String toString() {
-    return "GoogleCloudStorageGrpcWriteChannel for bucket: " + object.getBucket() + ", object: "
-        + object.getName() + ", generation: " + object.getGeneration();
+    return "GoogleCloudStorageGrpcWriteChannel for bucket: "
+        + object.getBucket()
+        + ", object: "
+        + object.getName()
+        + ", generation: "
+        + object.getGeneration();
   }
 
   /**

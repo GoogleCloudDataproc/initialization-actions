@@ -333,7 +333,8 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
     Preconditions.checkArgument(
         newPosition < size(),
         "Read position must be before end of file (%s), but was %s",
-        size(), newPosition);
+        size(),
+        newPosition);
     if (newPosition == position) {
       return this;
     }
@@ -392,7 +393,11 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
 
   @Override
   public String toString() {
-    return "GoogleCloudStorageGrpcReadChannel for bucket: " + bucketName + ", object: " + objectName
-        + ", generation: " + objectGeneration;
+    return "GoogleCloudStorageGrpcReadChannel for bucket: "
+        + bucketName
+        + ", object: "
+        + objectName
+        + ", generation: "
+        + objectGeneration;
   }
 }

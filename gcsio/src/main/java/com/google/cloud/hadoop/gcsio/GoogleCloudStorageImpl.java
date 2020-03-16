@@ -267,10 +267,10 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
       Map<String, Object> serviceConfig = getGrpcServiceConfig(options.getReadChannelOptions());
       this.gcsGrpcStub =
           StorageGrpc.newStub(
-              GoogleDefaultChannelBuilder.forTarget(GRPC_TARGET)
-              .defaultServiceConfig(serviceConfig)
-              .build())
-          .withExecutor(backgroundTasksThreadPool);
+                  GoogleDefaultChannelBuilder.forTarget(GRPC_TARGET)
+                      .defaultServiceConfig(serviceConfig)
+                      .build())
+              .withExecutor(backgroundTasksThreadPool);
       this.gcsGrpcBlockingStub =
           StorageGrpc.newBlockingStub(
               ComputeEngineChannelBuilder.forAddress("storage.googleapis.com", 443)
@@ -300,7 +300,8 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
     // When channel pooling is enabled, force the pick_first grpclb strategy.
     // This is necessary to avoid the multiplicative effect of creating channel pool with
-    // `poolSize` number of `ManagedChannel`s, each with a `subSetting` number of number of subchannels.
+    // `poolSize` number of `ManagedChannel`s, each with a `subSetting` number of number of
+    // subchannels.
     // See the service config proto definition for more details:
     // https://github.com/grpc/grpc-proto/blob/master/grpc/service_config/service_config.proto#L182
     Map<String, Object> pickFirstStrategy = ImmutableMap.of("pick_first", ImmutableMap.of());
