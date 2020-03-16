@@ -78,6 +78,7 @@ readonly PROXY_DIR='/var/run/cloud_sql_proxy'
 readonly PROXY_BIN='/usr/local/bin/cloud_sql_proxy'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/cloud-sql-proxy.service'
 readonly ADDITIONAL_INSTANCES_KEY='attributes/additional-cloud-sql-instances'
+readonly PROXY_LOG_DIR='/var/log/cloud-sql-proxy'
 
 # Dataproc master nodes information
 readonly DATAPROC_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
@@ -193,7 +194,7 @@ function install_cloud_sql_proxy() {
   chmod +x ${PROXY_BIN}
 
   mkdir -p ${PROXY_DIR}
-
+  mkdir -p ${PROXY_LOG_DIR}
   # Install proxy as systemd service for reboot tolerance.
   cat <<EOF >${INIT_SCRIPT}
 [Unit]
@@ -204,9 +205,9 @@ Before=shutdown.target
 
 [Service]
 Type=simple
-ExecStart=${PROXY_BIN} \
+ExecStart=/bin/sh -c '${PROXY_BIN} \
   -dir=${PROXY_DIR} \
-  ${proxy_instances_flags}
+  ${proxy_instances_flags} >> /var/log/cloud-sql-proxy/cloud-sql-proxy.log 2>&1'
 
 [Install]
 WantedBy=multi-user.target
@@ -221,6 +222,7 @@ EOF
   fi
 
   echo 'Cloud SQL Proxy installation succeeded' >&2
+  echo 'Logs can be found in /var/log/cloud-sql-proxy/cloud-sql-proxy.log' >&2
 
   if [[ $enable_cloud_sql_metastore == "true" ]]; then
     # Update hive-site.xml
