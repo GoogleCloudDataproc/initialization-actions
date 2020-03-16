@@ -227,8 +227,8 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
         if (calculatedChecksum != expectedChecksum) {
           throw new IOException(
               String.format(
-                  "Message checksum didn't match. Expected %s, got %s.",
-                  expectedChecksum, calculatedChecksum));
+                  "For %s: Message checksum didn't match. Expected %s, got %s.",
+                  this, expectedChecksum, calculatedChecksum));
         }
       }
 
@@ -305,8 +305,8 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
   }
 
   @Override
-  public int write(ByteBuffer byteBuffer) throws IOException {
-    throw new UnsupportedOperationException("Cannot mutate read-only channel");
+  public int write(ByteBuffer byteBuffer) {
+    throw new UnsupportedOperationException("Cannot mutate read-only channel: " + this);
   }
 
   @Override
@@ -385,8 +385,14 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     cancelCurrentRequest();
     channelIsOpen = false;
+  }
+
+  @Override
+  public String toString() {
+    return "GoogleCloudStorageGrpcReadChannel for bucket: " + bucketName + ", object: " + objectName
+        + ", generation: " + objectGeneration;
   }
 }

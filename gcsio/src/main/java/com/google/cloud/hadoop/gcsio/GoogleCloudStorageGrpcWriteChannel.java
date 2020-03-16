@@ -104,7 +104,8 @@ public final class GoogleCloudStorageGrpcWriteChannel
                 return BaseEncoding.base64().decode(value);
               } catch (IllegalArgumentException iae) {
                 logger.atSevere().withCause(iae).log(
-                    "Failed to parse base64 encoded attribute value %s - %s", value, iae);
+                    "In: " + this + "Failed to parse base64 encoded attribute value %s - %s", value,
+                    iae);
                 return null;
               }
             });
@@ -138,15 +139,24 @@ public final class GoogleCloudStorageGrpcWriteChannel
   public void startUpload(PipedInputStream pipeSource) {
     // Given that the two ends of the pipe must operate asynchronous relative
     // to each other, we need to start the upload operation on a separate thread.
-    uploadOperation = threadPool.submit(new UploadOperation(pipeSource));
+    try {
+      uploadOperation = threadPool.submit(new UploadOperation(this, pipeSource));
+    } catch (Exception e) {
+      throw new RuntimeException(
+          "GoogleCloudStorageGrpcWriteChannel.startUpload Caught exception in: " + this, e);
+    }
   }
 
   private class UploadOperation implements Callable<Object> {
     // Read end of the pipe.
     private final BufferedInputStream pipeSource;
+    private final GoogleCloudStorageGrpcWriteChannel googleCloudStorageGrpcWriteChannel;
 
-    UploadOperation(InputStream pipeSource) {
+    UploadOperation(
+        GoogleCloudStorageGrpcWriteChannel googleCloudStorageGrpcWriteChannel,
+        InputStream pipeSource) {
       // Buffer the input stream by 1 byte so we can peek ahead for the end of the stream.
+      this.googleCloudStorageGrpcWriteChannel = googleCloudStorageGrpcWriteChannel;
       this.pipeSource = new BufferedInputStream(pipeSource, 1);
     }
 
@@ -156,6 +166,10 @@ public final class GoogleCloudStorageGrpcWriteChannel
       // the writer at the other end will not hang indefinitely.
       try (InputStream uploadPipeSource = pipeSource) {
         return doResumableUpload();
+      } catch (Exception e) {
+        throw new RuntimeException(
+            "UploadOperation.call Caught exception for: " + googleCloudStorageGrpcWriteChannel
+                + " :", e);
       }
     }
 
@@ -185,7 +199,8 @@ public final class GoogleCloudStorageGrpcWriteChannel
         //     committed offset (per call to getCommittedWriteSize); (b) remove chunks from the list
         //     that have been persisted.
         //  3. Limit the list size to some number (possibly flag-controlled) of sent chunks.
-        throw new IOException("Insert failed", responseObserver.getError());
+        throw new IOException("Insert failed for: " + googleCloudStorageGrpcWriteChannel,
+            responseObserver.getError());
       }
 
       return responseObserver.getResponse();
@@ -198,6 +213,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
       private final int MAX_BYTES_PER_MESSAGE = MAX_WRITE_CHUNK_BYTES.getNumber();
 
       private final long writeOffset;
+      private GoogleCloudStorageGrpcWriteChannel googleCloudStorageGrpcWriteChannel;
       private final String uploadId;
       private volatile boolean objectFinalized = false;
       // The last error to occur during the streaming RPC. Present only on error.
@@ -212,7 +228,9 @@ public final class GoogleCloudStorageGrpcWriteChannel
       final CountDownLatch done = new CountDownLatch(1);
 
       InsertChunkResponseObserver(
+          GoogleCloudStorageGrpcWriteChannel googleCloudStorageGrpcWriteChannel,
           String uploadId, ByteString chunkData, long writeOffset, Hasher objectHasher) {
+        this.googleCloudStorageGrpcWriteChannel = googleCloudStorageGrpcWriteChannel;
         this.uploadId = uploadId;
         this.chunkData = chunkData;
         this.writeOffset = writeOffset;
@@ -233,7 +251,8 @@ public final class GoogleCloudStorageGrpcWriteChannel
                 try {
                   chunkData = readRequestData();
                 } catch (IOException e) {
-                  error = e;
+                  error = new RuntimeException("InsertChunkResponseObserver.beforeStart for "
+                      + googleCloudStorageGrpcWriteChannel + " caught ", e);
                   return;
                 }
 
@@ -296,7 +315,8 @@ public final class GoogleCloudStorageGrpcWriteChannel
 
       public Object getResponse() {
         if (response == null) {
-          throw new IllegalStateException("Response not present.");
+          throw new IllegalStateException(
+              "Response not present for: " + googleCloudStorageGrpcWriteChannel);
         }
         return response;
       }
@@ -311,7 +331,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
 
       public Throwable getError() {
         if (error == null) {
-          throw new IllegalStateException("Error not present.");
+          throw new IllegalStateException("Error not present: " + googleCloudStorageGrpcWriteChannel);
         }
         return error;
       }
@@ -327,7 +347,8 @@ public final class GoogleCloudStorageGrpcWriteChannel
 
       @Override
       public void onError(Throwable t) {
-        error = t;
+        error = new Throwable("Caught Throwable for " + googleCloudStorageGrpcWriteChannel + ": ",
+            t);
         done.countDown();
       }
 
@@ -365,7 +386,9 @@ public final class GoogleCloudStorageGrpcWriteChannel
       responseObserver.done.await();
 
       if (responseObserver.hasError()) {
-        throw new IOException("StartResumableWriteRequest failed", responseObserver.getError());
+        throw new IOException(
+            "StartResumableWriteRequest failed for: " + googleCloudStorageGrpcWriteChannel,
+            responseObserver.getError());
       }
 
       return responseObserver.getResponse().getUploadId();
@@ -384,7 +407,9 @@ public final class GoogleCloudStorageGrpcWriteChannel
       responseObserver.done.await();
 
       if (responseObserver.hasError()) {
-        throw new IOException("QueryWriteStatusRequest failed", responseObserver.getError());
+        throw new IOException(
+            "QueryWriteStatusRequest failed for: " + googleCloudStorageGrpcWriteChannel,
+            responseObserver.getError());
       }
 
       return responseObserver.getResponse().getCommittedSize();
@@ -403,7 +428,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
 
       public T getResponse() {
         if (response == null) {
-          throw new IllegalStateException("Response not present.");
+          throw new IllegalStateException("Response not present for: " + this);
         }
         return response;
       }
@@ -414,7 +439,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
 
       public Throwable getError() {
         if (error == null) {
-          throw new IllegalStateException("Error not present.");
+          throw new IllegalStateException("Error not present for: " + this);
         }
         return error;
       }
@@ -435,6 +460,12 @@ public final class GoogleCloudStorageGrpcWriteChannel
         done.countDown();
       }
     }
+  }
+
+  @Override
+  public String toString() {
+    return "GoogleCloudStorageGrpcWriteChannel for bucket: " + object.getBucket() + ", object: "
+        + object.getName() + ", generation: " + object.getGeneration();
   }
 
   /**
