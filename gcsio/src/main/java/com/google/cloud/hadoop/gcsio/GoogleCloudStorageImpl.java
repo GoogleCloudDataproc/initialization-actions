@@ -383,8 +383,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
           new GoogleCloudStorageGrpcWriteChannel(
               backgroundTasksThreadPool,
               gcsGrpcStub,
-              resourceId.getBucketName(),
-              resourceId.getObjectName(),
+              resourceId,
               storageOptions.getWriteChannelOptions(),
               writeConditions,
               requesterPaysProject,

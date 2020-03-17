@@ -233,6 +233,8 @@ public abstract class BaseAbstractGoogleAsyncWriteChannel<T> implements Writable
     this.contentType = contentType;
   }
 
+  protected abstract String getResourceString();
+
   /**
    * Throws if upload operation failed. Propagates any errors.
    *
@@ -252,7 +254,8 @@ public abstract class BaseAbstractGoogleAsyncWriteChannel<T> implements Writable
       if (e.getCause() instanceof Error) {
         throw (Error) e.getCause();
       }
-      throw new IOException("Upload failed", e.getCause());
+      throw new IOException(
+          String.format("Upload failed for '%s'", getResourceString()), e.getCause());
     }
   }
 }

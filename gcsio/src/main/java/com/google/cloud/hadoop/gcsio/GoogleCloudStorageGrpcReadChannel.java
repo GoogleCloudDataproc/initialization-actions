@@ -144,7 +144,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
       return GoogleCloudStorageExceptions.createFileNotFoundException(
           bucketName, objectName, new IOException(msg, error));
     } else if (statusCode == Status.Code.OUT_OF_RANGE) {
-      return new EOFException(msg);
+      return (IOException) new EOFException(msg).initCause(error);
     } else {
       return new IOException(msg, error);
     }

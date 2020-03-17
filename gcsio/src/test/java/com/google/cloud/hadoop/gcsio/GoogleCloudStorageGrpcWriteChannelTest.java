@@ -1,6 +1,6 @@
 package com.google.cloud.hadoop.gcsio;
 
-import static org.junit.Assert.assertEquals;
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
@@ -15,6 +15,7 @@ import static org.mockito.Mockito.verify;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.google.storage.v1.ChecksummedData;
 import com.google.google.storage.v1.InsertObjectRequest;
 import com.google.google.storage.v1.InsertObjectSpec;
@@ -301,7 +302,7 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
   public void writeHandlesErrorOnQueryWriteStatusRequest() throws Exception {
     GoogleCloudStorageGrpcWriteChannel writeChannel = newWriteChannel();
     int chunkSize = GoogleCloudStorageGrpcWriteChannel.GCS_MINIMUM_CHUNK_SIZE;
-    fakeService.setQueryWriteStatusException(new IOException("Error!"));
+    fakeService.setQueryWriteStatusException(new IOException("Test error!"));
     ByteString data = createTestData(chunkSize * 2);
 
     writeChannel.initialize();
@@ -350,10 +351,10 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
             .setSize(9)
             .setGeneration(1)
             .setMetageneration(2)
+            .setTimeCreated(Timestamp.newBuilder().setSeconds(1560485630).setNanos(7000000))
             .setUpdated(Timestamp.newBuilder().setSeconds(1560495630).setNanos(123000000))
             .setContentEncoding("content-encoding")
             .putMetadata("metadata-key-1", "dGVzdC1tZXRhZGF0YQ==")
-            .putMetadata("metadata-key-2", "invalid~base64")
             .setMd5Hash("k0K1eqORVuY208nAADpz6w==")
             .setCrc32C(UInt32Value.newBuilder().setValue(uInt32Value(863614154)))
             .build());
@@ -369,18 +370,18 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
       -109, 66, -75, 122, -93, -111, 86, -26, 54, -45, -55, -64, 0, 58, 115, -21
     };
     byte[] expectedCrc32C = {51, 121, -76, -54};
-    Map<String, byte[]> expectedMetadata = new HashMap<>();
-    expectedMetadata.put(
-        "metadata-key-1", new byte[] {116, 101, 115, 116, 45, 109, 101, 116, 97, 100, 97, 116, 97});
-    expectedMetadata.put("metadata-key-2", null);
+    Map<String, byte[]> expectedMetadata =
+        ImmutableMap.of(
+            "metadata-key-1",
+            new byte[] {116, 101, 115, 116, 45, 109, 101, 116, 97, 100, 97, 116, 97});
     GoogleCloudStorageItemInfo expectedItemInfo =
         new GoogleCloudStorageItemInfo(
             new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
+            1560485630007L,
             1560495630123L,
-            1560495630123L,
-            9,
-            null,
-            null,
+            /* size= */ 9,
+            /* location= */ null,
+            /* storageClass= */ null,
             CONTENT_TYPE,
             "content-encoding",
             expectedMetadata,
@@ -388,7 +389,7 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
             2,
             new VerificationAttributes(expectedMd5Hash, expectedCrc32C));
 
-    assertEquals(expectedItemInfo, itemInfo);
+    assertThat(itemInfo).isEqualTo(expectedItemInfo);
   }
 
   @Test
@@ -433,8 +434,7 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
     return new GoogleCloudStorageGrpcWriteChannel(
         executor,
         stub,
-        BUCKET_NAME,
-        OBJECT_NAME,
+        new StorageResourceId(BUCKET_NAME, OBJECT_NAME),
         options,
         writeConditions,
         requesterPaysProject,

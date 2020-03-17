@@ -114,6 +114,11 @@ public class GoogleCloudStorageWriteChannel
         new StorageResourceId(bucketName, objectName), response);
   }
 
+  @Override
+  protected String getResourceString() {
+    return new StorageResourceId(bucketName, objectName).toString();
+  }
+
   /**
    * Returns non-null only if close() has been called and the underlying object has been
    * successfully committed.
