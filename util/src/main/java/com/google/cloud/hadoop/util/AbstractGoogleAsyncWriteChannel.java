@@ -16,11 +16,9 @@ package com.google.cloud.hadoop.util;
 
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.api.client.googleapis.media.MediaHttpUploader;
 import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
 import com.google.api.client.http.InputStreamContent;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
 import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
 import java.io.InputStream;
@@ -42,15 +40,6 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
-  // Default GCS upload granularity.
-  public static final int GCS_UPLOAD_GRANULARITY = 8 * 1024 * 1024;
-
-  // Chunk size to use.
-  public static final int UPLOAD_CHUNK_SIZE_DEFAULT =
-      Runtime.getRuntime().maxMemory() < 512 * 1024 * 1024
-          ? GCS_UPLOAD_GRANULARITY
-          : 8 * GCS_UPLOAD_GRANULARITY;
-
   private String contentType;
 
   // ClientRequestHelper to be used instead of calling final methods in client requests.
@@ -67,7 +56,7 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
   private final int pipeBufferSize;
 
   // Chunk size to use.
-  private int uploadChunkSize = UPLOAD_CHUNK_SIZE_DEFAULT;
+  private final int uploadChunkSize;
 
   // A channel wrapper over pipeSink.
   private WritableByteChannel pipeSinkChannel;
@@ -76,7 +65,7 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
   private Future<S> uploadOperation;
 
   // When enabled, we get higher throughput for writing small files.
-  private boolean directUploadEnabled = false;
+  private final boolean directUploadEnabled;
 
   private ByteBuffer uploadCache = null;
 
@@ -88,7 +77,7 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
     if (options.getUploadCacheSize() > 0) {
       this.uploadCache = ByteBuffer.allocate(options.getUploadCacheSize());
     }
-    this.uploadChunkSize = validateUploadChunkSize(options.getUploadChunkSize());
+    this.uploadChunkSize = options.getUploadChunkSize();
     this.directUploadEnabled = options.isDirectUploadEnabled();
     setContentType("application/octet-stream");
   }
@@ -130,19 +119,6 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
    */
   public S createResponseFromException(IOException e) {
     return null;
-  }
-
-  private static int validateUploadChunkSize(int chunkSize) {
-    Preconditions.checkArgument(chunkSize > 0, "Upload chunk size must be great than 0.");
-    Preconditions.checkArgument(
-        chunkSize % MediaHttpUploader.MINIMUM_CHUNK_SIZE == 0,
-        "Upload chunk size must be a multiple of MediaHttpUploader.MINIMUM_CHUNK_SIZE");
-    if ((chunkSize > GCS_UPLOAD_GRANULARITY) && (chunkSize % GCS_UPLOAD_GRANULARITY != 0)) {
-      logger.atWarning().log(
-          "Upload chunk size should be a multiple of %s for best performance, got %s",
-          GCS_UPLOAD_GRANULARITY, chunkSize);
-    }
-    return chunkSize;
   }
 
   /** Returns true if direct media uploads are enabled. */

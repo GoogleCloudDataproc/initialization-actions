@@ -14,11 +14,17 @@
 
 package com.google.cloud.hadoop.util;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
+import com.google.api.client.googleapis.media.MediaHttpUploader;
 import com.google.auto.value.AutoValue;
+import com.google.common.flogger.GoogleLogger;
 
 /** Options for the {@link AbstractGoogleAsyncWriteChannel}. */
 @AutoValue
 public abstract class AsyncWriteChannelOptions {
+
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   /** Default upload buffer size. */
   public static final int BUFFER_SIZE_DEFAULT = 8 * 1024 * 1024;
@@ -26,8 +32,14 @@ public abstract class AsyncWriteChannelOptions {
   /** Default pipe buffer size. */
   public static final int PIPE_BUFFER_SIZE_DEFAULT = 1024 * 1024;
 
+  /** Upload chunk size granularity */
+  public static final int UPLOAD_CHUNK_SIZE_GRANULARITY = 8 * 1024 * 1024;
+
   /** Default upload chunk size. */
-  public static final int UPLOAD_CHUNK_SIZE_DEFAULT = 64 * 1024 * 1024;
+  public static final int UPLOAD_CHUNK_SIZE_DEFAULT =
+      Runtime.getRuntime().maxMemory() < 512 * 1024 * 1024
+          ? UPLOAD_CHUNK_SIZE_GRANULARITY
+          : 8 * UPLOAD_CHUNK_SIZE_GRANULARITY;
 
   /** Default upload cache size. */
   public static final int UPLOAD_CACHE_SIZE_DEFAULT = 0;
@@ -72,6 +84,27 @@ public abstract class AsyncWriteChannelOptions {
 
     public abstract Builder setDirectUploadEnabled(boolean directUploadEnabled);
 
-    public abstract AsyncWriteChannelOptions build();
+    abstract AsyncWriteChannelOptions autoBuild();
+
+    public AsyncWriteChannelOptions build() {
+      AsyncWriteChannelOptions options = autoBuild();
+      checkUploadChunkSize(options.getUploadChunkSize());
+      return options;
+    }
+
+    private static void checkUploadChunkSize(int chunkSize) {
+      checkArgument(
+          chunkSize > 0, "Upload chunk size must be great than 0, but was $%s", chunkSize);
+      checkArgument(
+          chunkSize % MediaHttpUploader.MINIMUM_CHUNK_SIZE == 0,
+          "Upload chunk size must be a multiple of %s",
+          MediaHttpUploader.MINIMUM_CHUNK_SIZE);
+      if (chunkSize > UPLOAD_CHUNK_SIZE_GRANULARITY
+          && chunkSize % UPLOAD_CHUNK_SIZE_GRANULARITY != 0) {
+        logger.atWarning().log(
+            "Upload chunk size should be a multiple of %s for the best performance, got %s",
+            UPLOAD_CHUNK_SIZE_GRANULARITY, chunkSize);
+      }
+    }
   }
 }
