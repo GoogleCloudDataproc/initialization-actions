@@ -31,6 +31,9 @@ import javax.annotation.Nullable;
 @AutoValue
 public abstract class GoogleCloudStorageOptions {
 
+  /** Default setting for enabling use of GCS gRPC API. */
+  public static final boolean ENABLE_GRPC_DEFAULT = false;
+
   /** Default root URL for Cloud Storage API endpoint. */
   public static final String STORAGE_ROOT_URL_DEFAULT = Storage.DEFAULT_ROOT_URL;
 
@@ -83,6 +86,7 @@ public abstract class GoogleCloudStorageOptions {
 
   public static Builder builder() {
     return new AutoValue_GoogleCloudStorageOptions.Builder()
+        .setGrpcEnabled(ENABLE_GRPC_DEFAULT)
         .setStorageRootUrl(STORAGE_ROOT_URL_DEFAULT)
         .setAutoRepairImplicitDirectoriesEnabled(AUTO_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT)
         .setInferImplicitDirectoriesEnabled(INFER_IMPLICIT_DIRECTORIES_DEFAULT)
@@ -106,6 +110,8 @@ public abstract class GoogleCloudStorageOptions {
   }
 
   public abstract Builder toBuilder();
+
+  public abstract boolean isGrpcEnabled();
 
   public abstract String getStorageRootUrl();
 
@@ -169,6 +175,8 @@ public abstract class GoogleCloudStorageOptions {
   /** Mutable builder for the {@link GoogleCloudStorageOptions} class. */
   @AutoValue.Builder
   public abstract static class Builder {
+
+    public abstract Builder setGrpcEnabled(boolean grpcEnabled);
 
     public abstract Builder setStorageRootUrl(String rootUrl);
 
