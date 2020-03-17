@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.collect.Sets.newConcurrentHashSet;
 
-import com.google.api.ClientProto;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.googleapis.batch.json.JsonBatchCallback;
 import com.google.api.client.googleapis.json.GoogleJsonError;
@@ -64,20 +63,13 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.flogger.GoogleLogger;
 import com.google.common.io.BaseEncoding;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import com.google.google.storage.v1.StorageGrpc;
-import com.google.google.storage.v1.StorageGrpc.StorageBlockingStub;
 import com.google.google.storage.v1.StorageGrpc.StorageStub;
-import com.google.google.storage.v1.StorageOuterClass;
-import com.google.protobuf.util.Durations;
-import io.grpc.alts.ComputeEngineChannelBuilder;
-import io.grpc.alts.GoogleDefaultChannelBuilder;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -119,13 +111,6 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
   private static final int MAXIMUM_PRECONDITION_FAILURES_IN_DELETE = 4;
 
   private static final String USER_PROJECT_FIELD_NAME = "userProject";
-
-  // The GCS gRPC server.
-  private static final String GRPC_TARGET =
-      StorageOuterClass.getDescriptor()
-          .findServiceByName("Storage")
-          .getOptions()
-          .getExtension(ClientProto.defaultHost);
 
   // The maximum number of times to automatically retry gRPC requests.
   private static final double GRPC_MAX_RETRY_ATTEMPTS = 10;
@@ -178,7 +163,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
   // GCS grpc stub.
   private StorageStub gcsGrpcStub;
-  private StorageBlockingStub gcsGrpcBlockingStub;
+  private StorageStubProvider storageStubProvider;
 
   // Thread-pool used for background tasks.
   private ExecutorService backgroundTasksThreadPool =
@@ -264,56 +249,10 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
     // Create the gRPC stub if necessary;
     if (storageOptions.isGrpcEnabled()) {
-      Map<String, Object> serviceConfig = getGrpcServiceConfig(options.getReadChannelOptions());
-      this.gcsGrpcStub =
-          StorageGrpc.newStub(
-                  GoogleDefaultChannelBuilder.forTarget(GRPC_TARGET)
-                      .defaultServiceConfig(serviceConfig)
-                      .build())
-              .withExecutor(backgroundTasksThreadPool);
-      this.gcsGrpcBlockingStub =
-          StorageGrpc.newBlockingStub(
-              ComputeEngineChannelBuilder.forAddress("storage.googleapis.com", 443)
-                  .defaultServiceConfig(serviceConfig)
-                  .build());
+      this.storageStubProvider =
+          new StorageStubProvider(options.getReadChannelOptions(), backgroundTasksThreadPool);
+      this.gcsGrpcStub = storageStubProvider.buildAsyncStub();
     }
-  }
-
-  private Map<String, Object> getGrpcServiceConfig(GoogleCloudStorageReadOptions readOptions) {
-    Map<String, Object> name = ImmutableMap.of("service", "google.storage.v1.Storage");
-
-    Map<String, Object> retryPolicy =
-        ImmutableMap.<String, Object>builder()
-            .put("maxAttempts", GRPC_MAX_RETRY_ATTEMPTS)
-            .put(
-                "initialBackoff",
-                Durations.fromMillis(readOptions.getBackoffInitialIntervalMillis()).toString())
-            .put(
-                "maxBackoff",
-                Durations.fromMillis(readOptions.getBackoffMaxIntervalMillis()).toString())
-            .put("backoffMultiplier", readOptions.getBackoffMultiplier())
-            .put("retryableStatusCodes", ImmutableList.of("UNAVAILABLE", "RESOURCE_EXHAUSTED"))
-            .build();
-
-    Map<String, Object> methodConfig =
-        ImmutableMap.of("name", ImmutableList.of(name), "retryPolicy", retryPolicy);
-
-    // When channel pooling is enabled, force the pick_first grpclb strategy.
-    // This is necessary to avoid the multiplicative effect of creating channel pool with
-    // `poolSize` number of `ManagedChannel`s, each with a `subSetting` number of number of
-    // subchannels.
-    // See the service config proto definition for more details:
-    // https://github.com/grpc/grpc-proto/blob/master/grpc/service_config/service_config.proto#L182
-    Map<String, Object> pickFirstStrategy = ImmutableMap.of("pick_first", ImmutableMap.of());
-
-    Map<String, Object> childPolicy =
-        ImmutableMap.of("childPolicy", ImmutableList.of(pickFirstStrategy));
-
-    Map<String, Object> grpcLbPolicy = ImmutableMap.of("grpclb", childPolicy);
-
-    return ImmutableMap.of(
-        "methodConfig", ImmutableList.of(methodConfig),
-        "loadBalancingConfig", ImmutableList.of(grpcLbPolicy));
   }
 
   /**
@@ -453,30 +392,32 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
               options.getContentType());
       channel.initialize();
       return channel;
-    } else {
-      GoogleCloudStorageWriteChannel channel =
-          new GoogleCloudStorageWriteChannel(
-              backgroundTasksThreadPool,
-              gcs,
-              clientRequestHelper,
-              resourceId.getBucketName(),
-              resourceId.getObjectName(),
-              options.getContentType(),
-              options.getContentEncoding(),
-              /* kmsKeyName= */ null,
-              storageOptions.getWriteChannelOptions(),
-              writeConditions,
-              rewrittenMetadata) {
-
-            @Override
-            public Storage.Objects.Insert createRequest(InputStreamContent inputStream)
-                throws IOException {
-              return configureRequest(super.createRequest(inputStream), resourceId.getBucketName());
-            }
-          };
-      channel.initialize();
-      return channel;
     }
+
+    GoogleCloudStorageWriteChannel channel =
+        new GoogleCloudStorageWriteChannel(
+            backgroundTasksThreadPool,
+            gcs,
+            clientRequestHelper,
+            resourceId.getBucketName(),
+            resourceId.getObjectName(),
+            options.getContentType(),
+            options.getContentEncoding(),
+            /* kmsKeyName= */ null,
+            storageOptions.getWriteChannelOptions(),
+            writeConditions,
+            rewrittenMetadata) {
+
+          @Override
+          public Storage.Objects.Insert createRequest(InputStreamContent inputStream)
+              throws IOException {
+            return configureRequest(super.createRequest(inputStream), resourceId.getBucketName());
+          }
+        };
+
+    channel.initialize();
+
+    return channel;
   }
 
   /**
@@ -692,7 +633,10 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
 
     if (storageOptions.isGrpcEnabled()) {
       return GoogleCloudStorageGrpcReadChannel.open(
-          gcsGrpcBlockingStub, resourceId.getBucketName(), resourceId.getObjectName(), readOptions);
+          storageStubProvider.buildBlockingStub(),
+          resourceId.getBucketName(),
+          resourceId.getObjectName(),
+          readOptions);
     }
 
     // The underlying channel doesn't initially read data, which means that we won't see a
