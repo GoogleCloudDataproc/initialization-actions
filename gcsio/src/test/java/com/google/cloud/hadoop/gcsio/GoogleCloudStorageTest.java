@@ -1495,7 +1495,8 @@ public class GoogleCloudStorageTest {
 
     String location = "some-location";
     String storageClass = "storage-class";
-    CreateBucketOptions bucketOptions = new CreateBucketOptions(location, storageClass);
+    CreateBucketOptions bucketOptions =
+        CreateBucketOptions.builder().setLocation(location).setStorageClass(storageClass).build();
 
     gcs.create(BUCKET_NAME, bucketOptions);
 

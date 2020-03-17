@@ -51,7 +51,10 @@ public class PerformanceCachingGoogleCloudStorageTest {
       ImmutableMap.of("test_key", new byte[] {2});
 
   private static final CreateBucketOptions CREATE_BUCKET_OPTIONS =
-      new CreateBucketOptions("test_location", "test_storage_class");
+      CreateBucketOptions.builder()
+          .setLocation("test_location")
+          .setStorageClass("test_storage_class")
+          .build();
 
   private static final CreateObjectOptions CREATE_OBJECT_OPTIONS =
       new CreateObjectOptions(/* overwriteExisting= */ true, "test_content_type", TEST_METADATA);

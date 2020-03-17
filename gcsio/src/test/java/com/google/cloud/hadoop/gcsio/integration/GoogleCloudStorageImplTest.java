@@ -192,7 +192,7 @@ public class GoogleCloudStorageImplTest {
     String dstBucketName = BUCKET_HELPER.getUniqueBucketName("copy-with-rewrite-dst");
     // Create destination bucket with different location and storage class,
     // because this is supported by rewrite but not copy requests
-    gcs.create(dstBucketName, new CreateBucketOptions(null, "coldline"));
+    gcs.create(dstBucketName, CreateBucketOptions.builder().setStorageClass("coldline").build());
 
     StorageResourceId resourceId =
         new StorageResourceId(srcBucketName, "testCopySingleItemWithRewrite_SourceObject");

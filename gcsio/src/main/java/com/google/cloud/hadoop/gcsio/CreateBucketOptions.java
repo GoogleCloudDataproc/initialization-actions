@@ -16,73 +16,44 @@
 
 package com.google.cloud.hadoop.gcsio;
 
+import com.google.auto.value.AutoValue;
 import java.time.Duration;
 import javax.annotation.Nullable;
 
-/**
- * Options that can be specified when creating a bucket in the
- * {@code GoogleCloudStorage}.
- */
-public class CreateBucketOptions {
+/** Options that can be specified when creating a bucket in the {@code GoogleCloudStorage}. */
+@AutoValue
+public abstract class CreateBucketOptions {
 
-  /**
-   * Create bucket with all default settings.
-   */
-  public static final CreateBucketOptions DEFAULT = new CreateBucketOptions();
+  /** Create bucket with all default settings. */
+  public static final CreateBucketOptions DEFAULT = builder().build();
 
-  private final String location;
-  private final String storageClass;
-  private final Duration ttl;
-
-  /**
-   * Create a bucket with all default settings.
-   */
-  private CreateBucketOptions() {
-    this(null, null);
+  public static Builder builder() {
+    return new AutoValue_CreateBucketOptions.Builder();
   }
 
-  /**
-   * Create a bucket with specified location.
-   *
-   * @param location Bucket location
-   * @param storageClass Bucket location
-   */
-  public CreateBucketOptions(String location, String storageClass) {
-    this(location, storageClass, /* ttl= */ null);
-  }
+  public abstract Builder toBuilder();
 
-  /**
-   * Create a bucket with specified location.
-   *
-   * @param location Bucket location
-   * @param storageClass Bucket storage class
-   * @param ttl Bucket objects TTL
-   */
-  public CreateBucketOptions(String location, String storageClass, Duration ttl) {
-    this.location = location;
-    this.storageClass = storageClass;
-    this.ttl = ttl;
-  }
-
-  /**
-   * Returns the bucket location.
-   */
+  /** Returns the bucket location. */
   @Nullable
-  public String getLocation() {
-    return location;
-  }
+  public abstract String getLocation();
 
-  /**
-   * Returns the bucket storage class.
-   */
+  /** Returns the bucket storage class. */
   @Nullable
-  public String getStorageClass() {
-    return storageClass;
-  }
+  public abstract String getStorageClass();
 
   /** Returns the bucket retention period. */
   @Nullable
-  public Duration getTtl() {
-    return ttl;
+  public abstract Duration getTtl();
+
+  /** Builder for {@link CreateBucketOptions} */
+  @AutoValue.Builder
+  public abstract static class Builder {
+    public abstract Builder setLocation(String location);
+
+    public abstract Builder setStorageClass(String storageClass);
+
+    public abstract Builder setTtl(Duration ttl);
+
+    public abstract CreateBucketOptions build();
   }
 }
