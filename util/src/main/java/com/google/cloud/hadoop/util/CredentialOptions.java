@@ -15,6 +15,8 @@
 package com.google.cloud.hadoop.util;
 
 import static com.google.cloud.hadoop.util.HttpTransportFactory.toSecretString;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleOAuthConstants;
 import com.google.auto.value.AutoValue;
@@ -148,6 +150,61 @@ public abstract class CredentialOptions {
 
     public abstract Builder setProxyPassword(String proxyPassword);
 
-    public abstract CredentialOptions build();
+    abstract CredentialOptions autoBuild();
+
+    public CredentialOptions build() {
+      CredentialOptions options = autoBuild();
+
+      if (options.isServiceAccountEnabled()) {
+        if (!isNullOrEmpty(options.getServiceAccountPrivateKeyId())) {
+          checkArgument(
+              !isNullOrEmpty(options.getServiceAccountPrivateKey()),
+              "privateKeyId must be set if using credentials configured directly in"
+                  + " configuration.");
+          checkArgument(
+              !isNullOrEmpty(options.getServiceAccountEmail()),
+              "clientEmail must be set if using credentials configured directly in configuration.");
+
+          checkArgument(
+              isNullOrEmpty(options.getServiceAccountKeyFile()),
+              "A P12 key file may not be specified at the same time as credentials"
+                  + " via configuration.");
+          checkArgument(
+              isNullOrEmpty(options.getServiceAccountJsonKeyFile()),
+              "A JSON key file may not be specified at the same time as credentials"
+                  + " via configuration.");
+        }
+
+        if (!isNullOrEmpty(options.getServiceAccountJsonKeyFile())) {
+          checkArgument(
+              isNullOrEmpty(options.getServiceAccountKeyFile()),
+              "A P12 key file may not be specified at the same time as a JSON key file.");
+          checkArgument(
+              isNullOrEmpty(options.getServiceAccountEmail()),
+              "Service account email may not be specified at the same time as a JSON key file.");
+        }
+
+        if (!isNullOrEmpty(options.getServiceAccountKeyFile())) {
+          // A key file is specified, use email-address and p12 based authentication.
+          checkArgument(
+              !isNullOrEmpty(options.getServiceAccountEmail()),
+              "Email must be set if using service account auth and a key file is specified.");
+        }
+      } else if (!isNullOrEmpty(options.getClientId())) {
+        checkArgument(
+            !isNullOrEmpty(options.getClientSecret()),
+            "clientSecret must be set if using OAuth-based Installed App authentication.");
+        checkArgument(
+            !isNullOrEmpty(options.getOAuthCredentialFile()),
+            "credentialFile must be set if using OAuth-based Installed App authentication.");
+      } else {
+        checkArgument(
+            options.isNullCredentialEnabled(),
+            "No valid credential configuration discovered: ",
+            options);
+      }
+
+      return options;
+    }
   }
 }

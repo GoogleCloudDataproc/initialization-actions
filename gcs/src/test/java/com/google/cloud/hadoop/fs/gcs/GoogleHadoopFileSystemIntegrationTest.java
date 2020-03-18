@@ -19,7 +19,6 @@ import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_INFER_IMPLICIT_DIRECTORIES_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemTestHelper.createInMemoryGoogleHadoopFileSystem;
-import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.CLIENT_ID_SUFFIX;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.ENABLE_SERVICE_ACCOUNTS_SUFFIX;
 import static com.google.common.base.StandardSystemProperty.USER_NAME;
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -496,27 +495,25 @@ public class GoogleHadoopFileSystemIntegrationTest extends GoogleHadoopFileSyste
 
   @Test
   public void testInitializeThrowsWhenCredentialsNotFound() throws URISyntaxException, IOException {
-    String fakeClientId = "fooclient";
     URI gsUri = new URI("gs://foobar/");
     String fakeProjectId = "123456";
     Configuration config = new Configuration();
     config.setBoolean(GCS_CONFIG_PREFIX + ENABLE_SERVICE_ACCOUNTS_SUFFIX.getKey(), false);
-    // Set project ID and client ID but no client secret.
+    // Set project ID.
     config.set(GoogleHadoopFileSystemConfiguration.GCS_PROJECT_ID.getKey(), fakeProjectId);
-    config.set(GCS_CONFIG_PREFIX + CLIENT_ID_SUFFIX.getKey(), fakeClientId);
 
     GoogleHadoopFileSystem ghfs = new GoogleHadoopFileSystem();
 
-    IllegalStateException thrown;
+    IllegalArgumentException thrown;
     if (GoogleHadoopFileSystemConfiguration.GCS_LAZY_INITIALIZATION_ENABLE.get(
         config, config::getBoolean)) {
       ghfs.initialize(gsUri, config);
-      thrown = assertThrows(IllegalStateException.class, ghfs::getGcsFs);
+      thrown = assertThrows(IllegalArgumentException.class, ghfs::getGcsFs);
     } else {
-      thrown = assertThrows(IllegalStateException.class, () -> ghfs.initialize(gsUri, config));
+      thrown = assertThrows(IllegalArgumentException.class, () -> ghfs.initialize(gsUri, config));
     }
 
-    assertThat(thrown).hasMessageThat().contains("No valid credential configuration discovered");
+    assertThat(thrown).hasMessageThat().startsWith("No valid credential configuration discovered:");
   }
 
   /** Validates initialize() with configuration key fs.gs.working.dir set. */

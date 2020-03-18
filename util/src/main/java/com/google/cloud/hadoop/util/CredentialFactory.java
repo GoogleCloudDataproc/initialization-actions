@@ -15,9 +15,7 @@
  */
 package com.google.cloud.hadoop.util;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -97,6 +95,8 @@ public class CredentialFactory {
 
     private static final int DEFAULT_TOKEN_EXPIRATION_SECONDS = 3600;
 
+    private static final Joiner WHITESPACE_JOINER = Joiner.on(' ');
+
     /** Create a new GoogleCredentialWithRetry from a GoogleCredential. */
     static GoogleCredentialWithRetry fromGoogleCredential(
         GoogleCredential credential, String tokenServerUrl) {
@@ -145,7 +145,7 @@ public class CredentialFactory {
               .setIssuedAtTimeSeconds(currentTime / 1000)
               .setExpirationTimeSeconds(currentTime / 1000 + DEFAULT_TOKEN_EXPIRATION_SECONDS)
               .setSubject(getServiceAccountUser());
-      payload.put("scope", Joiner.on(' ').join(getServiceAccountScopes()));
+      payload.put("scope", WHITESPACE_JOINER.join(getServiceAccountScopes()));
 
       try {
         String assertion =
@@ -227,14 +227,10 @@ public class CredentialFactory {
    * Initializes OAuth2 credential using preconfigured ServiceAccount settings on the local GCE VM.
    * See: <a href="https://developers.google.com/compute/docs/authentication">Authenticating from
    * Google Compute Engine</a>.
-   *
-   * @deprecated Use properly configured {@ CredentialOptions} with {@link
-   *     CredentialFactory#getCredential(List<String>)}
    */
-  @Deprecated
   public static Credential getCredentialFromMetadataServiceAccount()
       throws IOException, GeneralSecurityException {
-    logger.atFine().log("getCredentialFromMetadataServiceAccount()");
+    logger.atFine().log("Getting service account credentials from meta data service.");
     Credential cred =
         new ComputeCredentialWithRetry(
             new ComputeCredential.Builder(getStaticHttpTransport(), JSON_FACTORY)
@@ -254,83 +250,57 @@ public class CredentialFactory {
    * href="https://code.google.com/p/google-api-java-client/wiki/OAuth2#Service_Accounts" > OAuth2
    * Service Accounts</a>.
    *
-   * @param serviceAccountEmail Email address of the service account associated with the keyfile.
-   * @param privateKeyFile Full local path to private keyfile.
    * @param scopes List of well-formed desired scopes to use with the credential.
    * @param transport The HttpTransport used for authorization
-   * @deprecated Use properly configured {@ CredentialOptions} with {@link
-   *     CredentialFactory#getCredential(List<String>)}
    */
-  @Deprecated
-  public static Credential getCredentialFromPrivateKeyServiceAccount(
-      String serviceAccountEmail,
-      String privateKeyFile,
-      List<String> scopes,
-      HttpTransport transport,
-      String tokenServerUrl)
-      throws IOException, GeneralSecurityException {
+  public Credential getCredentialFromPrivateKeyServiceAccount(
+      List<String> scopes, HttpTransport transport) throws IOException, GeneralSecurityException {
     logger.atFine().log(
-        "getCredentialFromPrivateKeyServiceAccount(%s, %s, %s)",
-        serviceAccountEmail, privateKeyFile, scopes);
+        "getCredentialFromPrivateKeyServiceAccount(%s, %s) for '%s' from '%s'",
+        scopes, transport, options.getServiceAccountEmail(), options.getServiceAccountKeyFile());
 
     return new GoogleCredentialWithRetry(
         new GoogleCredential.Builder()
             .setTransport(transport)
             .setJsonFactory(JSON_FACTORY)
-            .setServiceAccountId(serviceAccountEmail)
+            .setServiceAccountId(options.getServiceAccountEmail())
             .setServiceAccountScopes(scopes)
-            .setServiceAccountPrivateKeyFromP12File(new File(privateKeyFile))
+            .setServiceAccountPrivateKeyFromP12File(new File(options.getServiceAccountKeyFile()))
             .setRequestInitializer(new CredentialHttpRetryInitializer()),
-        tokenServerUrl);
+        options.getTokenServerUrl());
   }
 
   /**
    * Get credentials listed in a JSON file.
    *
-   * @param serviceAccountJsonKeyFile A file path pointing to a JSON file containing credentials.
    * @param scopes The OAuth scopes that the credential should be valid for.
    * @param transport The HttpTransport used for authorization
    */
-  private static Credential getCredentialFromJsonKeyFile(
-      String serviceAccountJsonKeyFile,
-      List<String> scopes,
-      HttpTransport transport,
-      String tokenServerUrl)
-      throws IOException, GeneralSecurityException {
-    logger.atFine().log("getCredentialFromJsonKeyFile(%s, %s)", serviceAccountJsonKeyFile, scopes);
+  private Credential getCredentialFromJsonKeyFile(List<String> scopes, HttpTransport transport)
+      throws IOException {
+    logger.atFine().log(
+        "getCredentialFromJsonKeyFile(%s, %s) from '%s'",
+        scopes, transport, options.getServiceAccountJsonKeyFile());
 
-    try (FileInputStream fis = new FileInputStream(serviceAccountJsonKeyFile)) {
+    try (FileInputStream fis = new FileInputStream(options.getServiceAccountJsonKeyFile())) {
       return GoogleCredentialWithRetry.fromGoogleCredential(
           GoogleCredential.fromStream(fis, transport, JSON_FACTORY).createScoped(scopes),
-          tokenServerUrl);
+          options.getTokenServerUrl());
     }
   }
 
-  private static Credential getCredentialsFromSAParameters(
-      String privateKeyId,
-      String privateKeyPem,
-      String serviceAccountEmail,
-      List<String> scopes,
-      HttpTransport transport,
-      String tokenServerUrl)
+  private Credential getCredentialsFromSAParameters(List<String> scopes, HttpTransport transport)
       throws IOException {
-    logger.atFine().log(
-        "getServiceAccountCredentialFromHadoopConfiguration(%s)", serviceAccountEmail);
-    if (serviceAccountEmail == null || privateKeyPem == null || privateKeyId == null) {
-      throw new IOException(
-          "Error reading service account credential from stream, "
-              + "expecting, 'client_email', 'private_key' and 'private_key_id'.");
-    }
-    PrivateKey privateKey = privateKeyFromPkcs8(privateKeyPem);
+    logger.atFine().log("getCredentialsFromSAParameters(%s, %s)", scopes, transport);
     GoogleCredential.Builder builder =
         new GoogleCredential.Builder()
             .setTransport(transport)
             .setJsonFactory(JSON_FACTORY)
-            .setServiceAccountId(serviceAccountEmail)
+            .setServiceAccountId(options.getServiceAccountEmail())
             .setServiceAccountScopes(scopes)
-            .setServiceAccountPrivateKey(privateKey)
-            .setServiceAccountPrivateKeyId(privateKeyId);
-    return new GoogleCredentialWithRetry(builder, tokenServerUrl);
+            .setServiceAccountPrivateKey(privateKeyFromPkcs8(options.getServiceAccountPrivateKey()))
+            .setServiceAccountPrivateKeyId(options.getServiceAccountPrivateKeyId());
+    return new GoogleCredentialWithRetry(builder, options.getTokenServerUrl());
   }
 
   /**
@@ -338,47 +308,34 @@ public class CredentialFactory {
    * typically represents an actual end user (instead of a service account), and is stored as a
    * refresh token in a local FileCredentialStore.
    *
-   * @param clientId OAuth2 client ID identifying the 'installed app'
-   * @param clientSecret OAuth2 client secret
-   * @param filePath full path to a ".json" file for storing the credential
    * @param scopes list of well-formed scopes desired in the credential
    * @param transport The HttpTransport used for authorization
    * @return credential with desired scopes, possibly obtained from loading {@code filePath}.
    * @throws IOException on IO error
-   * @deprecated Use properly configured {@ CredentialOptions} with {@link
-   *     CredentialFactory#getCredential(List<String>)}
    */
-  @Deprecated
-  public static Credential getCredentialFromFileCredentialStoreForInstalledApp(
-      String clientId,
-      String clientSecret,
-      String filePath,
-      List<String> scopes,
-      HttpTransport transport,
-      String tokenServerUrl)
-      throws IOException, GeneralSecurityException {
+  private Credential getCredentialFromFileCredentialStoreForInstalledApp(
+      List<String> scopes, HttpTransport transport) throws IOException {
     logger.atFine().log(
-        "getCredentialFromFileCredentialStoreForInstalledApp(%s, %s, %s, %s)",
-        clientId, clientSecret, filePath, scopes);
-    checkArgument(!isNullOrEmpty(clientId), "clientId must not be null or empty");
-    checkArgument(!isNullOrEmpty(clientSecret), "clientSecret must not be null or empty");
-    checkArgument(!isNullOrEmpty(filePath), "filePath must not be null or empty");
-    checkNotNull(scopes, "scopes must not be null");
+        "getCredentialFromFileCredentialStoreForInstalledApp(%s, %s) from '%s'",
+        scopes, transport, options.getOAuthCredentialFile());
 
     // Initialize client secrets.
     GoogleClientSecrets.Details details =
-        new GoogleClientSecrets.Details().setClientId(clientId).setClientSecret(clientSecret);
+        new GoogleClientSecrets.Details()
+            .setClientId(options.getClientId())
+            .setClientSecret(options.getClientSecret());
     GoogleClientSecrets clientSecrets = new GoogleClientSecrets().setInstalled(details);
 
     // Set up file credential store.
-    FileCredentialStore credentialStore = new FileCredentialStore(new File(filePath), JSON_FACTORY);
+    FileCredentialStore credentialStore =
+        new FileCredentialStore(new File(options.getOAuthCredentialFile()), JSON_FACTORY);
 
     // Set up authorization code flow.
     GoogleAuthorizationCodeFlow flow =
         new GoogleAuthorizationCodeFlow.Builder(transport, JSON_FACTORY, clientSecrets, scopes)
             .setCredentialStore(credentialStore)
             .setRequestInitializer(new CredentialHttpRetryInitializer())
-            .setTokenServerUrl(new GenericUrl(tokenServerUrl))
+            .setTokenServerUrl(new GenericUrl(options.getTokenServerUrl()))
             .build();
 
     // Authorize access.
@@ -391,7 +348,7 @@ public class CredentialFactory {
    *
    * <p>In this class for testability.
    */
-  private static boolean hasApplicationDefaultCredentialsConfigured() {
+  private static boolean isApplicationDefaultCredentialsConfigured() {
     return System.getenv(CREDENTIAL_ENV_VAR) != null;
   }
 
@@ -402,13 +359,12 @@ public class CredentialFactory {
    *
    * @param scopes The OAuth scopes that the credential should be valid for.
    */
-  private static Credential getApplicationDefaultCredentials(
-      List<String> scopes, HttpTransport transport, String tokenServerUrl)
-      throws IOException, GeneralSecurityException {
-    logger.atFine().log("getApplicationDefaultCredential(%s)", scopes);
+  private Credential getApplicationDefaultCredentials(List<String> scopes, HttpTransport transport)
+      throws IOException {
+    logger.atFine().log("getApplicationDefaultCredential(%s, %s)", scopes, transport);
     return GoogleCredentialWithRetry.fromGoogleCredential(
         GoogleCredential.getApplicationDefault(transport, JSON_FACTORY).createScoped(scopes),
-        tokenServerUrl);
+        options.getTokenServerUrl());
   }
 
   // TODO: Copied (mostly) over from Google Credential since it has private scope
@@ -424,7 +380,7 @@ public class CredentialFactory {
       KeyFactory keyFactory = SecurityUtils.getRsaKeyFactory();
       return keyFactory.generatePrivate(keySpec);
     } catch (NoSuchAlgorithmException | InvalidKeySpecException exception) {
-      throw new IOException("Unexpected expcetion reading PKCS data", exception);
+      throw new IOException("Unexpected exception reading PKCS data", exception);
     }
   }
 
@@ -450,113 +406,49 @@ public class CredentialFactory {
    */
   public Credential getCredential(List<String> scopes)
       throws IOException, GeneralSecurityException {
+    checkNotNull(scopes, "scopes must not be null");
 
     if (options.isServiceAccountEnabled()) {
       logger.atFine().log("Using service account credentials");
 
-      // By default, we want to use service accounts with the meta-data service (assuming we're
-      // running in GCE).
-      if (shouldUseMetadataService()) {
-        logger.atFine().log("Getting service account credentials from meta data service.");
+      // By default, we want to use service accounts with the meta-data service
+      // (assuming we're running in GCE).
+      if (useMetadataService()) {
         // TODO(user): Validate the returned credential has access to the given scopes.
         return getCredentialFromMetadataServiceAccount();
       }
 
       if (!isNullOrEmpty(options.getServiceAccountPrivateKeyId())) {
-        logger.atFine().log("Attempting to get credentials from Configuration");
-        checkState(
-            !isNullOrEmpty(options.getServiceAccountPrivateKey()),
-            "privateKeyId must be set if using credentials configured directly in configuration");
-        checkState(
-            !isNullOrEmpty(options.getServiceAccountEmail()),
-            "clientEmail must be set if using credentials configured directly in configuration");
-        checkArgument(
-            isNullOrEmpty(options.getServiceAccountKeyFile()),
-            "A P12 key file may not be specified at the same time as credentials"
-                + " via configuration.");
-        checkArgument(
-            isNullOrEmpty(options.getServiceAccountJsonKeyFile()),
-            "A JSON key file may not be specified at the same time as credentials"
-                + " via configuration.");
-        return getCredentialsFromSAParameters(
-            options.getServiceAccountPrivateKeyId(),
-            options.getServiceAccountPrivateKey(),
-            options.getServiceAccountEmail(),
-            scopes,
-            getTransport(),
-            options.getTokenServerUrl());
+        return getCredentialsFromSAParameters(scopes, getTransport());
       }
 
       if (!isNullOrEmpty(options.getServiceAccountJsonKeyFile())) {
-        logger.atFine().log("Using JSON keyfile %s", options.getServiceAccountJsonKeyFile());
-        checkArgument(
-            isNullOrEmpty(options.getServiceAccountKeyFile()),
-            "A P12 key file may not be specified at the same time as a JSON key file.");
-        checkArgument(
-            isNullOrEmpty(options.getServiceAccountEmail()),
-            "Service account email may not be specified at the same time as a JSON key file.");
-        return getCredentialFromJsonKeyFile(
-            options.getServiceAccountJsonKeyFile(),
-            scopes,
-            getTransport(),
-            options.getTokenServerUrl());
+        return getCredentialFromJsonKeyFile(scopes, getTransport());
       }
 
       if (!isNullOrEmpty(options.getServiceAccountKeyFile())) {
-        // A key file is specified, use email-address and p12 based authentication.
-        checkState(
-            !isNullOrEmpty(options.getServiceAccountEmail()),
-            "Email must be set if using service account auth and a key file is specified.");
-        logger.atFine().log(
-            "Using service account email %s and private key file %s",
-            options.getServiceAccountEmail(), options.getServiceAccountKeyFile());
-
-        return getCredentialFromPrivateKeyServiceAccount(
-            options.getServiceAccountEmail(),
-            options.getServiceAccountKeyFile(),
-            scopes,
-            getTransport(),
-            options.getTokenServerUrl());
+        return getCredentialFromPrivateKeyServiceAccount(scopes, getTransport());
       }
 
-      if (shouldUseApplicationDefaultCredentials()) {
-        logger.atFine().log("Getting Application Default Credentials");
-        return getApplicationDefaultCredentials(
-            scopes, getTransport(), options.getTokenServerUrl());
+      if (isApplicationDefaultCredentialsConfigured()) {
+        return getApplicationDefaultCredentials(scopes, getTransport());
       }
-    } else if (options.getOAuthCredentialFile() != null
-        && options.getClientId() != null
-        && options.getClientSecret() != null) {
-      logger.atFine().log(
-          "Using installed app credentials in file %s", options.getOAuthCredentialFile());
-
-      return getCredentialFromFileCredentialStoreForInstalledApp(
-          options.getClientId(),
-          options.getClientSecret(),
-          options.getOAuthCredentialFile(),
-          scopes,
-          getTransport(),
-          options.getTokenServerUrl());
+    } else if (!isNullOrEmpty(options.getClientId())) {
+      return getCredentialFromFileCredentialStoreForInstalledApp(scopes, getTransport());
     } else if (options.isNullCredentialEnabled()) {
       logger.atWarning().log(
           "Allowing null credentials for unit testing. This should not be used in production");
-
       return null;
     }
 
-    logger.atSevere().log("Credential configuration is not valid. Configuration: %s", this);
-    throw new IllegalStateException("No valid credential configuration discovered.");
+    throw new IllegalStateException("No valid credential configuration discovered: " + this);
   }
 
-  private boolean shouldUseMetadataService() {
+  private boolean useMetadataService() {
     return isNullOrEmpty(options.getServiceAccountKeyFile())
         && isNullOrEmpty(options.getServiceAccountJsonKeyFile())
         && isNullOrEmpty(options.getServiceAccountPrivateKey())
-        && !shouldUseApplicationDefaultCredentials();
-  }
-
-  private static boolean shouldUseApplicationDefaultCredentials() {
-    return hasApplicationDefaultCredentialsConfigured();
+        && !isApplicationDefaultCredentialsConfigured();
   }
 
   private HttpTransport getTransport() throws IOException {

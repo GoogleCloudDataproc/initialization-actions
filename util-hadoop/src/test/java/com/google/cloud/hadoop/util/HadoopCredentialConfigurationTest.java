@@ -37,7 +37,6 @@ import static org.junit.Assert.assertThrows;
 
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.auth.oauth2.TokenResponse;
-import com.google.api.client.http.HttpTransport;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.cloud.hadoop.util.CredentialFactory.GoogleCredentialWithRetry;
 import com.google.common.collect.ImmutableList;
@@ -101,13 +100,9 @@ public class HadoopCredentialConfigurationTest {
   }
 
   private CredentialFactory getCredentialFactory() {
-    return getCredentialFactory(new MockHttpTransport());
-  }
-
-  private CredentialFactory getCredentialFactory(HttpTransport transport) {
     CredentialFactory credentialFactory =
         HadoopCredentialConfiguration.getCredentialFactory(configuration);
-    credentialFactory.setTransport(transport);
+    credentialFactory.setTransport(new MockHttpTransport());
     return credentialFactory;
   }
 
@@ -126,21 +121,22 @@ public class HadoopCredentialConfigurationTest {
     // No email set, keyfile doesn't exist, but that's OK.
     configuration.set(getConfigKey(SERVICE_ACCOUNT_KEYFILE_SUFFIX), "aFile");
 
-    CredentialFactory credentialFactory = getCredentialFactory();
+    IllegalArgumentException thrown =
+        assertThrows(IllegalArgumentException.class, this::getCredentialFactory);
 
-    assertThrows(IllegalStateException.class, () -> credentialFactory.getCredential(TEST_SCOPES));
+    assertThat(thrown)
+        .hasMessageThat()
+        .isEqualTo("Email must be set if using service account auth and a key file is specified.");
   }
 
   @Test
   public void exceptionIsThrownForNoCredentialOptions() {
     configuration.setBoolean(getConfigKey(ENABLE_SERVICE_ACCOUNTS_SUFFIX), false);
 
-    CredentialFactory credentialFactory = getCredentialFactory();
+    IllegalArgumentException thrown =
+        assertThrows(IllegalArgumentException.class, this::getCredentialFactory);
 
-    IllegalStateException thrown =
-        assertThrows(
-            IllegalStateException.class, () -> credentialFactory.getCredential(TEST_SCOPES));
-    assertThat(thrown).hasMessageThat().contains("No valid credential configuration discovered.");
+    assertThat(thrown).hasMessageThat().startsWith("No valid credential configuration discovered:");
   }
 
   @Test
