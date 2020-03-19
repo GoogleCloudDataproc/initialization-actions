@@ -49,7 +49,7 @@ SparkMonitor installed:
     from pyspark.sql import SparkSession
     
     sc = SparkContext.getOrCreate(conf=conf)
-    spark = SparkSession.build.appName('YOUR APP NAME').getOrCreate()
+    spark = SparkSession.builder.appName('YOUR APP NAME').getOrCreate()
     ```
 
 ## Internal details
