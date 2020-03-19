@@ -81,7 +81,7 @@
       <build>
         <plugins>
           <plugin>
-            <artifactId>maven-surefire-plugin</artifactId>
+            <artifactId>maven-failsafe-plugin</artifactId>
             <configuration>
               <excludes>
                 <exclude>**/HadoopFileSystemIntegrationTest.java</exclude>

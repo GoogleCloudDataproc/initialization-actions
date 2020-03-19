@@ -60,4 +60,4 @@ GCS_TEST_PRIVATE_KEYFILE=$(readlink -f "${GCS_TEST_PRIVATE_KEYFILE}")
 export GCS_TEST_PRIVATE_KEYFILE
 export RUN_INTEGRATION_TESTS=true
 
-./mvnw -B -e -T1C "-P${HADOOP_VERSION}" -Pintegration-test clean test "${@:5}"
+./mvnw -B -e -T1C "-P${HADOOP_VERSION}" -Pintegration-test clean verify "${@:5}"
