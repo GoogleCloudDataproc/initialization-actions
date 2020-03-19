@@ -265,6 +265,30 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
    * @param defaultUserAgent A String to set as the user-agent when initializing an HttpRequest if
    *     the HttpRequest doesn't already have a user-agent header.
    */
+  public RetryHttpInitializer(
+      Credential credential, String defaultUserAgent, Map<String, String> headers) {
+    this(
+        credential,
+        defaultUserAgent,
+        DEFAULT_MAX_REQUEST_RETRIES,
+        DEFAULT_CONNECT_TIMEOUT,
+        DEFAULT_READ_TIMEOUT,
+        headers);
+  }
+
+  /**
+   * {@code maxRequestRetries} defaults to {@link RetryHttpInitializer#DEFAULT_MAX_REQUEST_RETRIES}.
+   *
+   * <p>{@code connectTimeoutMillis} defaults to {@link
+   * RetryHttpInitializer#DEFAULT_CONNECT_TIMEOUT}.
+   *
+   * <p>{@code readTimeoutMillis} defaults to {@link RetryHttpInitializer#DEFAULT_READ_TIMEOUT}.
+   *
+   * @param credential A credential which will be set as an interceptor on HttpRequests and as the
+   *     delegate for a CredentialOrBackoffResponseHandler.
+   * @param defaultUserAgent A String to set as the user-agent when initializing an HttpRequest if
+   *     the HttpRequest doesn't already have a user-agent header.
+   */
   public RetryHttpInitializer(Credential credential, String defaultUserAgent) {
     this(
         credential,
