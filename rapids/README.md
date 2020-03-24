@@ -66,6 +66,7 @@ with installed GPU drivers, Spark RAPIDS XGBoost libraries and Jupyter Notebook.
 
 ```bash
 export CLUSTER_NAME=<cluster_name>
+export GCS_BUCKET=<your bucket for the logs and notebooks>
 export REGION=<region>
 export RAPIDS_SPARK_VERSION=2.x
 export RAPIDS_VERSION=1.0.0-Beta4
@@ -76,7 +77,7 @@ gcloud beta dataproc clusters create $CLUSTER_NAME \
     --worker-machine-type n1-highmem-32 \
     --worker-accelerator type=nvidia-tesla-t4,count=2 \
     --optional-components=ANACONDA,JUPYTER,ZEPPELIN \
-    --initialization-actions gs://${GCS_BUCKET}/gpu/install_gpu_driver.sh,gs://${GCS_BUCKET}/rapids/rapids.sh \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
     --metadata gpu-driver-provider=NVIDIA \
     --metadata rapids-runtime=SPARK \
     --bucket $GCS_BUCKET \
@@ -197,8 +198,8 @@ gcloud dataproc jobs submit pyspark \
     --numRound=100 \
     --numWorkers=$SPARK_NUM_EXECUTORS \
     --treeMethod=gpu_hist \
-    --trainDataPath=gs://${GCS_BUCKET}/mortgage/csv/train \
-    --evalDataPath=gs://${GCS_BUCKET}/mortgage/csv/test \
+    --trainDataPath=gs://${GCS_BUCKET}/mortgage-small/train \
+    --evalDataPath=gs://${GCS_BUCKET}/mortgage-small/eval \
     --maxDepth=8
 ```
 
