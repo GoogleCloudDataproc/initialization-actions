@@ -65,20 +65,25 @@ The following command will create a new Dataproc cluster named `CLUSTER_NAME`
 with installed GPU drivers, Spark RAPIDS XGBoost libraries and Jupyter Notebook.
 
 ```bash
-CLUSTER_NAME=<cluster_name>
-REGION=<region>
+export CLUSTER_NAME=<cluster_name>
+export GCS_BUCKET=<your bucket for the logs and notebooks>
+export REGION=<region>
+export RAPIDS_SPARK_VERSION=2.x
+export RAPIDS_VERSION=1.0.0-Beta4
 gcloud beta dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
     --image-version 1.4-ubuntu18 \
-    --master-machine-type n1-standard-16 \
-    --worker-machine-type n1-standard-32 \
+    --master-machine-type n1-standard-8 \
+    --worker-machine-type n1-highmem-32 \
     --worker-accelerator type=nvidia-tesla-t4,count=2 \
-    --optional-components=ANACONDA,JUPYTER \
+    --optional-components=ANACONDA,JUPYTER,ZEPPELIN \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
     --metadata gpu-driver-provider=NVIDIA \
     --metadata rapids-runtime=SPARK \
-    --properties "spark:spark.dynamicAllocation.enabled=false,spark:spark.shuffle.service.enabled=false" \
-    --enable-component-gateway
+    --bucket $GCS_BUCKET \
+    --properties "spark:spark.dynamicAllocation.enabled=false,spark:spark.shuffle.service.enabled=false,spark:spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j-spark_${RAPIDS_SPARK_VERSION}-${RAPIDS_VERSION}.jar" \
+    --enable-component-gateway \
+    --subnet=default 
 ```
 
 After submitting this command, please go to the Google Cloud Platform console on
@@ -176,11 +181,16 @@ SPARK_NUM_CORES_PER_EXECUTOR=12
 SPARK_EXECUTOR_MEMORY=22G
 SPARK_DRIVER_MEMORY=10g
 SPARK_EXECUTOR_MEMORYOVERHEAD=22G
+RAPIDS_SPARK_VERSION=2.x
+RAPIDS_VERSION=1.0.0-Beta4
+
+wget "https://repo1.maven.org/maven2/ai/rapids/xgboost4j-spark_${RAPIDS_SPARK_VERSION}/${RAPIDS_VERSION}/xgboost4j-spark_${RAPIDS_SPARK_VERSION}-${RAPIDS_VERSION}.jar"
+
 gcloud dataproc jobs submit pyspark \
     --cluster=$CLUSTER_NAME \
     --region=$REGION \
+    --py-files=xgboost4j-spark_${RAPIDS_SPARK_VERSION}-${RAPIDS_VERSION}.jar,gs://${GCS_BUCKET}/pyspark/samples.zip \
     gs://${GCS_BUCKET}/pyspark/main.py \
-    --py-files=gs://${GCS_BUCKET}/pyspark/samples.zip \
     --properties=spark.executor.cores=${SPARK_NUM_CORES_PER_EXECUTOR},spark.task.cpus=${SPARK_NUM_CORES_PER_EXECUTOR},spark.executor.instances=${SPARK_NUM_EXECUTORS},spark.driver.memory=${SPARK_DRIVER_MEMORY},spark.executor.memoryOverhead=${SPARK_EXECUTOR_MEMORYOVERHEAD},spark.executor.memory=${SPARK_EXECUTOR_MEMORY},spark.executorEnv.LD_LIBRARY_PATH=/usr/local/lib/x86_64-linux-gnu:/usr/local/cuda-10.0/lib64:\${LD_LIBRARY_PATH} \
     -- \
     --mainClass=ai.rapids.spark.examples.mortgage.gpu_main \
