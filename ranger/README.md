@@ -1,3 +1,15 @@
+--------------------------------------------------------------------------------
+
+# NOTE: *The Ranger initialization action has been deprecated. Please use the Ranger Component*
+
+**The
+[Ranger Component](https://cloud.google.com/dataproc/docs/concepts/components/ranger)
+is the best way to use Apache Ranger with Cloud Dataproc. To learn more about
+Dataproc Components see
+[here](https://cloud.google.com/dataproc/docs/concepts/components/overview).**
+
+--------------------------------------------------------------------------------
+
 # Apache Ranger
 
 This initialization action installs [Apache Ranger](https://ranger.apache.org/) on a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.

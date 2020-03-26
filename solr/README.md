@@ -1,3 +1,15 @@
+--------------------------------------------------------------------------------
+
+# NOTE: *The Solr initialization action has been deprecated. Please use the Solr Component*
+
+**The
+[Solr Component](https://cloud.google.com/dataproc/docs/concepts/components/solr)
+is the best way to use Apache Solr with Cloud Dataproc. To learn more about
+Dataproc Components see
+[here](https://cloud.google.com/dataproc/docs/concepts/components/overview).**
+
+--------------------------------------------------------------------------------
+
 # Apache Solr
 
 This initialization action installs [Apache Solr](https://lucene.apache.org/solr/) on [Google Cloud Dataproc](https://cloud.google.com/dataproc) clusters. Solr is an enterprise search platform with REST-like API that allows to put and query documents via HTTP. You can learn more about Solr features [here](https://lucene.apache.org/solr/features.html).

@@ -1,3 +1,15 @@
+--------------------------------------------------------------------------------
+
+# NOTE: *The Zeppelin initialization action has been deprecated. Please use the Zeppelin Component*
+
+**The
+[Zeppelin Component](https://cloud.google.com/dataproc/docs/concepts/components/zeppelin)
+is the best way to use Apache Zeppelin with Cloud Dataproc. To learn more about
+Dataproc Components see
+[here](https://cloud.google.com/dataproc/docs/concepts/components/overview).**
+
+--------------------------------------------------------------------------------
+
 # Apache Zeppelin
 
 This initialization action installs the latest version of [Apache Zeppelin](https://zeppelin.apache.org/) on a master node within a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.

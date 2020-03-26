@@ -1,3 +1,15 @@
+--------------------------------------------------------------------------------
+
+# NOTE: *The Jupyter initialization action has been deprecated. Please use the Jupyter Component*
+
+**The
+[Jupyter Component](https://cloud.google.com/dataproc/docs/concepts/components/jupyter)
+is the best way to use Anaconda with Cloud Dataproc. To learn more about
+Dataproc Components see
+[here](https://cloud.google.com/dataproc/docs/concepts/components/overview).**
+
+--------------------------------------------------------------------------------
+
 # Jupyter Notebook
 
 This folder contains the initialization action `jupyter.sh` to quickly setup and
