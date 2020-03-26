@@ -1,3 +1,15 @@
+--------------------------------------------------------------------------------
+
+# NOTE: *The Zookeeper initialization action has been deprecated. Please use the Zookeeper Component*
+
+**The
+[Zookeeper Component](https://cloud.google.com/dataproc/docs/concepts/components/zookeeper)
+is the best way to use Apache Zookeeper with Cloud Dataproc. To learn more about
+Dataproc Components see
+[here](https://cloud.google.com/dataproc/docs/concepts/components/overview).**
+
+--------------------------------------------------------------------------------
+
 # ZooKeeper
 
 Though High Availability clusters have ZooKeeper pre-configured, Standard [Google Cloud Dataproc](https://cloud.google.com) clusters do not have [ZooKeeper](http://zookeeper.apache.org) insalled. This may change in the future; in the interim, this initialization action installs ZooKeeper on a Standard and Single node Cloud Dataproc cluster.

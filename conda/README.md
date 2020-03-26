@@ -1,3 +1,15 @@
+--------------------------------------------------------------------------------
+
+# NOTE: *The Conda initialization action has been deprecated. Please use the Anaconda Component*
+
+**The
+[Anaconda Component](https://cloud.google.com/dataproc/docs/concepts/components/anaconda)
+is the best way to use Anaconda with Cloud Dataproc. To learn more about
+Dataproc Components see
+[here](https://cloud.google.com/dataproc/docs/concepts/components/overview).**
+
+--------------------------------------------------------------------------------
+
 # Miniconda (a Python distro, along with package and environment manager, from Continuum Analytics)
 
 ## Overview

@@ -1,3 +1,15 @@
+--------------------------------------------------------------------------------
+
+# NOTE: *The HBase initialization action has been deprecated. Please use the HBase Component*
+
+**The
+[HBase Component](https://cloud.google.com/dataproc/docs/concepts/components/hbase)
+is the best way to use Apache HBase with Cloud Dataproc. To learn more about
+Dataproc Components see
+[here](https://cloud.google.com/dataproc/docs/concepts/components/overview).**
+
+--------------------------------------------------------------------------------
+
 # Apache HBase
 
 This script installs [Apache HBase](https://hbase.apache.org/) on Dataproc
