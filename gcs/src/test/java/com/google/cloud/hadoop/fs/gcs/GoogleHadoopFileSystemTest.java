@@ -22,12 +22,12 @@ import static org.junit.Assert.assertThrows;
 
 import com.google.cloud.hadoop.gcsio.MethodOutcome;
 import com.google.cloud.hadoop.util.testing.TestingAccessTokenProvider;
-import com.google.common.flogger.LoggerConfig;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -46,7 +46,9 @@ public class GoogleHadoopFileSystemTest extends GoogleHadoopFileSystemIntegratio
         @Override
         public void before() throws Throwable {
           // Disable logging.
-          LoggerConfig.getConfig("").setLevel(Level.OFF);
+          // Normally you would need to keep a strong reference to any logger used for
+          // configuration, but the "root" logger is always present.
+          Logger.getLogger("").setLevel(Level.OFF);
 
           ghfs = GoogleHadoopFileSystemTestHelper.createInMemoryGoogleHadoopFileSystem();
           ghfsFileSystemDescriptor = (FileSystemDescriptor) ghfs;

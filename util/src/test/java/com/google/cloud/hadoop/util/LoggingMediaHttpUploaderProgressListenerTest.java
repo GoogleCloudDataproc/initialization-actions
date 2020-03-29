@@ -19,11 +19,11 @@ package com.google.cloud.hadoop.util;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.api.client.googleapis.media.MediaHttpUploader.UploadState;
-import com.google.common.flogger.LoggerConfig;
 import java.io.ByteArrayOutputStream;
 import java.util.logging.Formatter;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 import java.util.logging.StreamHandler;
 import org.junit.After;
 import org.junit.Before;
@@ -34,6 +34,9 @@ import org.junit.runners.JUnit4;
 /** Unit tests for {@link LoggingMediaHttpUploaderProgressListener}. */
 @RunWith(JUnit4.class)
 public class LoggingMediaHttpUploaderProgressListenerTest {
+  // We need to keep a strong reference to any loggers used for config to prevent GC.
+  private static final Logger jdkLoggerForConfig =
+      Logger.getLogger(LoggingMediaHttpUploaderProgressListener.class.getCanonicalName());
 
   private static final Formatter LOG_FORMATTER =
       new Formatter() {
@@ -52,19 +55,16 @@ public class LoggingMediaHttpUploaderProgressListenerTest {
   public void setUp() {
     listener = new LoggingMediaHttpUploaderProgressListener("NAME", 60000L);
 
-    LoggerConfig config = LoggerConfig.getConfig(LoggingMediaHttpUploaderProgressListener.class);
-    config.setLevel(Level.FINE);
-
+    jdkLoggerForConfig.setLevel(Level.FINE);
     logCapturingStream = new ByteArrayOutputStream();
     customLogHandler = new StreamHandler(logCapturingStream, LOG_FORMATTER);
     customLogHandler.setLevel(Level.FINE);
-    config.addHandler(customLogHandler);
+    jdkLoggerForConfig.addHandler(customLogHandler);
   }
 
   @After
   public void verifyAndRemoveAssertingHandler() {
-    LoggerConfig.getConfig(LoggingMediaHttpUploaderProgressListener.class)
-        .removeHandler(customLogHandler);
+    jdkLoggerForConfig.removeHandler(customLogHandler);
   }
 
   @Test

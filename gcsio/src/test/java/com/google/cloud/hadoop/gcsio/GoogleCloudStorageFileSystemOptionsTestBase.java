@@ -19,12 +19,12 @@ import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
 import com.google.common.collect.ObjectArrays;
-import com.google.common.flogger.LoggerConfig;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -70,7 +70,9 @@ public abstract class GoogleCloudStorageFileSystemOptionsTestBase {
   @BeforeClass
   public static void beforeAllTests() throws IOException {
     // Disable logging.
-    LoggerConfig.getConfig("").setLevel(Level.OFF);
+    // Normally you would need to keep a strong reference to any logger used for
+    // configuration, but the "root" logger is always present.
+    Logger.getLogger("").setLevel(Level.OFF);
   }
 
   @After
