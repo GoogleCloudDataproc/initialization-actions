@@ -69,7 +69,7 @@ steps:
     id: 'dataproc-1.5-debian10-tests'
     waitFor: ['gcr-push']
     entrypoint: 'bash'
-    args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID', 'preview']
+    args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID', '1.5-debian10']
     env:
       - 'COMMIT_SHA=$COMMIT_SHA'
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
@@ -80,7 +80,7 @@ steps:
     id: 'dataproc-1.5-ubuntu18-tests'
     waitFor: ['gcr-push']
     entrypoint: 'bash'
-    args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID', 'preview-ubuntu18']
+    args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID', '1.5-ubuntu18']
     env:
       - 'COMMIT_SHA=$COMMIT_SHA'
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
