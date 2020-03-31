@@ -1127,7 +1127,7 @@ public class GoogleCloudStorageFileSystem {
         if (e instanceof InterruptedException) {
           Thread.currentThread().interrupt();
         }
-        throw new IOException(String.format("Filed to get file info for '%s'", resourceId), e);
+        throw new IOException(String.format("Failed to get dir info for '%s'", resourceId), e);
       }
     } finally {
       dirExecutor.shutdownNow();
