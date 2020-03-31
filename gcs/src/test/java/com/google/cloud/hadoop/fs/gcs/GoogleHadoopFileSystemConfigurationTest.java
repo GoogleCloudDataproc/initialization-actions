@@ -15,6 +15,9 @@
 package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONFIG_PREFIX;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_ENCRYPTION_ALGORITHM;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_ENCRYPTION_KEY;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_ENCRYPTION_KEY_HASH;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_HTTP_HEADERS;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_ROOT_URL;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.PROXY_ADDRESS_SUFFIX;
@@ -98,6 +101,9 @@ public class GoogleHadoopFileSystemConfigurationTest {
           put("fs.gs.cooperative.locking.expiration.timeout.ms", 120_000L);
           put("fs.gs.cooperative.locking.max.concurrent.operations", 20);
           put("fs.gs.storage.http.headers.", ImmutableMap.of());
+          put("fs.gs.encryption.algorithm", null);
+          put("fs.gs.encryption.key", null);
+          put("fs.gs.encryption.key.hash", null);
         }
       };
 
@@ -202,6 +208,22 @@ public class GoogleHadoopFileSystemConfigurationTest {
 
     assertThat(options.getCloudStorageOptions().getHttpRequestHeaders())
         .containsExactly("test-header", "test-VAL", "key-in-header", "+G2Ap33m5NVOgmXznSGTEvG0I=");
+  }
+
+  @Test
+  public void testEncryptionProperties() {
+    Configuration config = new Configuration();
+    config.set(GCS_ENCRYPTION_ALGORITHM.getKey(), "AES256");
+    config.set(GCS_ENCRYPTION_KEY.getKey(), "+G2Ap33m5NVOgmXznSGTEvG0I=");
+    config.set(GCS_ENCRYPTION_KEY_HASH.getKey(), "LpH4y6BkG/1B+n3FwORpdoyQ=");
+
+    GoogleCloudStorageFileSystemOptions options =
+        GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config).build();
+    assertThat(options.getCloudStorageOptions().getEncryptionAlgorithm()).isEqualTo("AES256");
+    assertThat(options.getCloudStorageOptions().getEncryptionKey())
+        .isEqualTo("+G2Ap33m5NVOgmXznSGTEvG0I=");
+    assertThat(options.getCloudStorageOptions().getEncryptionKeyHash())
+        .isEqualTo("LpH4y6BkG/1B+n3FwORpdoyQ=");
   }
 
   @Test

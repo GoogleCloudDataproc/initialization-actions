@@ -368,6 +368,18 @@ public class GoogleHadoopFileSystemConfiguration {
   public static final HadoopConfigurationProperty<Map<String, String>> GCS_HTTP_HEADERS =
       new HadoopConfigurationProperty<>("fs.gs.storage.http.headers.", ImmutableMap.of());
 
+  /** Configuration key for the CSEK encryption algorithm. */
+  public static final HadoopConfigurationProperty<String> GCS_ENCRYPTION_ALGORITHM =
+      new HadoopConfigurationProperty<>("fs.gs.encryption.algorithm");
+
+  /** Configuration key for the CSEK encryption key. */
+  public static final HadoopConfigurationProperty<String> GCS_ENCRYPTION_KEY =
+      new HadoopConfigurationProperty<>("fs.gs.encryption.key");
+
+  /** Configuration key for sha256 hash of the CSEK encryption key. */
+  public static final HadoopConfigurationProperty<String> GCS_ENCRYPTION_KEY_HASH =
+      new HadoopConfigurationProperty<>("fs.gs.encryption.key.hash");
+
   // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
   // Please check that removing it is correct, and remove this comment along with it.
   // @VisibleForTesting
@@ -418,7 +430,10 @@ public class GoogleHadoopFileSystemConfiguration {
         .setWriteChannelOptions(getWriteChannelOptions(config))
         .setRequesterPaysOptions(getRequesterPaysOptions(config, projectId))
         .setCooperativeLockingOptions(getCooperativeLockingOptions(config))
-        .setHttpRequestHeaders(GCS_HTTP_HEADERS.getPropsWithPrefix(config));
+        .setHttpRequestHeaders(GCS_HTTP_HEADERS.getPropsWithPrefix(config))
+        .setEncryptionAlgorithm(GCS_ENCRYPTION_ALGORITHM.get(config, config::get))
+        .setEncryptionKey(GCS_ENCRYPTION_KEY.get(config, config::get))
+        .setEncryptionKeyHash(GCS_ENCRYPTION_KEY_HASH.get(config, config::get));
   }
 
   private static PerformanceCachingGoogleCloudStorageOptions getPerformanceCachingOptions(

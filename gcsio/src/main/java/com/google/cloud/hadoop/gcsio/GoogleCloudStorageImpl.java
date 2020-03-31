@@ -2032,7 +2032,57 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
   <RequestT extends StorageRequest<?>> RequestT configureRequest(
       RequestT request, String bucketName) {
     setRequesterPaysProject(request, bucketName);
+
+    if (request instanceof Storage.Objects.Get || request instanceof Storage.Objects.Insert) {
+      setEncryptionHeaders(request);
+    }
+
+    if (request instanceof Storage.Objects.Rewrite || request instanceof Storage.Objects.Copy) {
+      setEncryptionHeaders(request);
+      setDecryptionHeaders(request);
+    }
+
     return request;
+  }
+
+  private <RequestT extends StorageRequest<?>> void setEncryptionHeaders(RequestT request) {
+    if (storageOptions.getEncryptionKey() == null) {
+      return;
+    }
+
+    request
+        .getRequestHeaders()
+        .set(
+            "x-goog-encryption-algorithm",
+            checkNotNull(
+                storageOptions.getEncryptionAlgorithm(), "encryption algorithm must not be null"))
+        .set(
+            "x-goog-encryption-key",
+            checkNotNull(storageOptions.getEncryptionKey(), "encryption key must not be null"))
+        .set(
+            "x-goog-encryption-key-sha256",
+            checkNotNull(
+                storageOptions.getEncryptionKeyHash(), "encryption key hash must not be null"));
+  }
+
+  private <RequestT extends StorageRequest<?>> void setDecryptionHeaders(RequestT request) {
+    if (storageOptions.getEncryptionKey() == null) {
+      return;
+    }
+
+    request
+        .getRequestHeaders()
+        .set(
+            "x-goog-copy-source-encryption-algorithm",
+            checkNotNull(
+                storageOptions.getEncryptionAlgorithm(), "encryption algorithm must not be null"))
+        .set(
+            "x-goog-copy-source-encryption-key",
+            checkNotNull(storageOptions.getEncryptionKey(), "encryption key must not be null"))
+        .set(
+            "x-goog-copy-source-encryption-key-sha256",
+            checkNotNull(
+                storageOptions.getEncryptionKeyHash(), "encryption key hash must not be null"));
   }
 
   private <RequestT extends StorageRequest<?>> void setRequesterPaysProject(

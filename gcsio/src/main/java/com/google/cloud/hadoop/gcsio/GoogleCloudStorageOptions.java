@@ -168,6 +168,15 @@ public abstract class GoogleCloudStorageOptions {
 
   public abstract ImmutableMap<String, String> getHttpRequestHeaders();
 
+  @Nullable
+  public abstract String getEncryptionAlgorithm();
+
+  @Nullable
+  public abstract String getEncryptionKey();
+
+  @Nullable
+  public abstract String getEncryptionKeyHash();
+
   public void throwIfNotValid() {
     checkArgument(!isNullOrEmpty(getAppName()), "appName must not be null or empty");
   }
@@ -231,6 +240,12 @@ public abstract class GoogleCloudStorageOptions {
 
     public abstract Builder setHttpRequestHeaders(Map<String, String> httpRequestHeaders);
 
+    public abstract Builder setEncryptionAlgorithm(String encryptionAlgorithm);
+
+    public abstract Builder setEncryptionKey(String encryptionKey);
+
+    public abstract Builder setEncryptionKeyHash(String encryptionKeyHash);
+
     abstract GoogleCloudStorageOptions autoBuild();
 
     public GoogleCloudStorageOptions build() {
@@ -247,7 +262,20 @@ public abstract class GoogleCloudStorageOptions {
       checkArgument(
           (instance.getProxyUsername() == null) == (instance.getProxyPassword() == null),
           "both proxyUsername and proxyPassword should be null or not null together");
+      checkArgument(
+          isAllEncryptionOptionsSetOrUnset(instance),
+          "encryptionAlgorithm, encryptionKey and encryptionKeyHash should be null or not null"
+              + " together");
       return instance;
+    }
+
+    private boolean isAllEncryptionOptionsSetOrUnset(GoogleCloudStorageOptions instance) {
+      return (instance.getEncryptionAlgorithm() != null
+              && instance.getEncryptionKey() != null
+              && instance.getEncryptionKeyHash() != null)
+          || (instance.getEncryptionAlgorithm() == null
+              && instance.getEncryptionKey() == null
+              && instance.getEncryptionKeyHash() == null);
     }
   }
 }
