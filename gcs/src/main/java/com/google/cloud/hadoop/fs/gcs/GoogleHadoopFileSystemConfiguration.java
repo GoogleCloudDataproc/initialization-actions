@@ -363,7 +363,7 @@ public class GoogleHadoopFileSystemConfiguration {
       new HadoopConfigurationProperty<>("fs.gs.grpc.checksums.enable", false);
 
   /** Configuration key for the Cloud Storage gRPC server address. */
-  public static final HadoopConfigurationProperty<String> GCS_GRPC_SERVERE_ADDRESS =
+  public static final HadoopConfigurationProperty<String> GCS_GRPC_SERVER_ADDRESS =
       new HadoopConfigurationProperty<>("fs.gs.grpc.server.address", "storage.googleapis.com:443");
 
   /** Override configuration file path. This file must be a valid Hadoop configuration file. */
@@ -493,7 +493,7 @@ public class GoogleHadoopFileSystemConfiguration {
         .setFadvise(GCS_INPUT_STREAM_FADVISE.get(config, config::getEnum))
         .setMinRangeRequestSize(GCS_INPUT_STREAM_MIN_RANGE_REQUEST_SIZE.get(config, config::getInt))
         .setGrpcChecksumsEnabled(GCS_GRPC_CHECKSUMS_ENABLE.get(config, config::getBoolean))
-        .setGrpcServerAddress(GCS_GRPC_SERVERE_ADDRESS.get(config, config::get))
+        .setGrpcServerAddress(GCS_GRPC_SERVER_ADDRESS.get(config, config::get))
         .build();
   }
 
