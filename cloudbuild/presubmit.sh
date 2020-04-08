@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euxo pipefail
+set -uxo pipefail
 
 # Declare global variable for passing tests between functions
 declare -a TESTS_TO_RUN
