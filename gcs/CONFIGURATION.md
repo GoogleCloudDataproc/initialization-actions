@@ -442,7 +442,6 @@ is `false`.
     specified and GCS Requester Pays is active then value of the
     `fs.gs.project.id` property will be used.
 
-
 *   `fs.gs.requester.pays.buckets` (not set by default)
 
     Comma-separated list of Google Cloud Storage Buckets for which GCS Requester
