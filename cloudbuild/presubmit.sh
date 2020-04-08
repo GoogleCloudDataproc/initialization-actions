@@ -34,11 +34,11 @@ initialize_git_repo() {
   git remote add origin "https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git"
   git fetch origin master
   # Fetch all PRs to get history for PRs created from forked repos
-  git fetch origin +refs/pull/*/merge:refs/remotes/origin/pr/*
+  #git fetch origin +refs/pull/*/merge:refs/remotes/origin/pr/*
 
-  git reset --hard "${COMMIT_SHA}"
+  #git reset --hard "${COMMIT_SHA}"
 
-  git rebase origin/master
+  #git rebase origin/master
 }
 
 # This function adds all changed files to git "index" and diffs them against master branch
@@ -102,8 +102,12 @@ main() {
   configure_gcloud
   configure_gcloud_ssh_key
   initialize_git_repo
-  determine_tests_to_run
+  #determine_tests_to_run
+  TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
   run_tests
+  ls
+  echo "Listing test logs..."
+  ls bazel-testlogs
 }
 
 main

@@ -12,7 +12,7 @@ gcloud container clusters get-credentials "${CLOUDSDK_CONTAINER_CLUSTER}"
 
 kubectl run "${POD_NAME}" --generator=run-pod/v1 --image="$IMAGE" \
   --requests "cpu=4,memory=12Gi" --restart=Never \
-  --env="COMMIT_SHA=$COMMIT_SHA" \
+  --env="COMMIT_SHA=commit_sha" #$COMMIT_SHA" \
   --env="IMAGE_VERSION=$DATAPROC_IMAGE_VERSION" \
   --command -- bash /init-actions/cloudbuild/presubmit.sh
 
