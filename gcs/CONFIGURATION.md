@@ -142,16 +142,19 @@
 
 *   `fs.gs.encryption.algorithm` (not set by default)
 
-    The encryption algorithm to use. For [CSEK](https://cloud.google.com/storage/docs/encryption/customer-supplied-keys)
-    Only `AES256` value is supported.
+    The encryption algorithm to use. For
+    [CSEK](https://cloud.google.com/storage/docs/encryption/customer-supplied-keys)
+    only `AES256` value is supported.
 
 *   `fs.gs.encryption.key` (not set by default)
 
-    An RFC 4648 Base64-encoded string of the source object's AES-256 encryption key.
+    An RFC 4648 Base64-encoded string of the source object's AES-256 encryption
+    key.
 
 *   `fs.gs.encryption.key.hash` (not set by default)
 
-    An RFC 4648 Base64-encoded string of the SHA256 hash of the source object's encryption key.
+    An RFC 4648 Base64-encoded string of the SHA256 hash of the source object's
+    encryption key.
 
 ### Authentication
 
@@ -286,7 +289,7 @@ is `false`.
     The upload cache size in bytes used for high-level upload retries. To
     disable this feature set this property to zero or negative value. Retry will
     be performed if total size of written/uploaded data to the object is less
-    than or equal to the cache size. 
+    than or equal to the cache size.
 
 *   `fs.gs.outputstream.direct.upload.enable` (default: `false`)
 
@@ -438,6 +441,7 @@ is `false`.
     Pays feature is active (in `AUTO`, `CUSTOM` or `ENABLED` mode). If not
     specified and GCS Requester Pays is active then value of the
     `fs.gs.project.id` property will be used.
+
 
 *   `fs.gs.requester.pays.buckets` (not set by default)
 
