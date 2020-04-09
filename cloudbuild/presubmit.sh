@@ -103,12 +103,13 @@ main() {
   configure_gcloud_ssh_key
   initialize_git_repo
   #determine_tests_to_run
-  TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
-  #run_tests
-  bash cloudbuild/run-all-tests.sh
+  TESTS_TO_RUN=("//hue:test_hue") #(":DataprocInitActionsTestSuite")
+  run_tests
+  # bash cloudbuild/run-all-tests.sh
   ls
   echo "Listing test logs..."
   ls bazel-testlogs
+  ls bazel-testlogs/hue
 }
 
 main
