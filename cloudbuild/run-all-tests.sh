@@ -7,7 +7,7 @@ cleanup() {
 	ls bazel-testlogs/hue
 }
 
-trap cleanup ERR
+trap cleanup EXIT
 
 TESTS_TO_RUN=":DataprocInitActionsTestSuite"
 
