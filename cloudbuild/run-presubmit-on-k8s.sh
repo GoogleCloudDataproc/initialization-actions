@@ -20,7 +20,6 @@ trap 'kubectl delete pods "${POD_NAME}"' EXIT
 kubectl wait --for=condition=Ready "pod/${POD_NAME}" --timeout=600s
 
 kubectl logs -f "${POD_NAME}"
-kubectl exec "${POD_NAME}" ls
 
 readonly EXIT_CODE=$(kubectl get pod "${POD_NAME}" \
   -o go-template="{{range .status.containerStatuses}}{{.state.terminated.exitCode}}{{end}}")
