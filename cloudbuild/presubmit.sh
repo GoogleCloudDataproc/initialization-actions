@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -uxo pipefail
+set -euxo pipefail
 
 # Declare global variable for passing tests between functions
 declare -a TESTS_TO_RUN
@@ -104,7 +104,8 @@ main() {
   initialize_git_repo
   #determine_tests_to_run
   TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
-  run_tests
+  #run_tests
+  bash cloudbuild/run-all-tests.sh
   ls
   echo "Listing test logs..."
   ls bazel-testlogs
