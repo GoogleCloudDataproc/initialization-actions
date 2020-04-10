@@ -12,11 +12,12 @@ gcloud container clusters get-credentials "${CLOUDSDK_CONTAINER_CLUSTER}"
 
 ARGS=("--generator=run-pod/v1"
 	  "--image=$IMAGE"
-	  "--requests=\"cpu=4,memory=12Gi\""
+	  "--requests"
+	  '"cpu=4,memory=12Gi"'
 	  "--restart=Never"
 	  "--env=IMAGE_VERSION=$DATAPROC_IMAGE_VERSION")
 
-if [[ -n "${RUN_ALL_TESTS}" ]]; then
+if [[ "${RUN_ALL_TESTS}" == "true" ]]; then
 	ARGS+=("--env=RUN_ALL_TESTS=true")
 fi
 
