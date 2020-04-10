@@ -4,6 +4,7 @@ set -euxo pipefail
 
 # Declare global variable for passing tests between functions
 declare -a TESTS_TO_RUN
+declare -a CHANGED_FILES
 
 configure_gcloud() {
   gcloud config set core/disable_prompts TRUE
@@ -93,6 +94,7 @@ run_tests() {
     --test_output=errors \
     --noshow_progress \
     --noshow_loading_progress \
+    --keep_going \
     --test_arg="--image_version=${IMAGE_VERSION}" \
     "${TESTS_TO_RUN[@]}"
 }
