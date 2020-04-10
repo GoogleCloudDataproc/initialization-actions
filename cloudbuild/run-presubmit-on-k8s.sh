@@ -13,7 +13,7 @@ gcloud container clusters get-credentials "${CLOUDSDK_CONTAINER_CLUSTER}"
 ARGS=("--generator=run-pod/v1"
 	  "--image=$IMAGE"
 	  "--requests"
-	  '"cpu=4,memory=12Gi"'
+	  "cpu=4,memory=12Gi"
 	  "--restart=Never"
 	  "--env=IMAGE_VERSION=$DATAPROC_IMAGE_VERSION")
 
