@@ -267,7 +267,7 @@ public class GoogleCloudStorageTest {
     assertThat(writeChannel.isOpen()).isTrue();
 
     IOException thrown = assertThrows(IOException.class, writeChannel::close);
-    assertThat(thrown).hasMessageThat().isEqualTo("Upload failed");
+    assertThat(thrown).hasMessageThat().isEqualTo("Upload failed for 'gs://foo-bucket/bar-object'");
     assertThat(trackingHttpRequestInitializer.getAllRequestStrings())
         .containsExactly(
             getRequestString(BUCKET_NAME, OBJECT_NAME),
