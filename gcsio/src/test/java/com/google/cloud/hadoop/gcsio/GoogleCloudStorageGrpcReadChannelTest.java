@@ -126,8 +126,11 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
     ByteBuffer bufferAtBeginning = ByteBuffer.allocate(20);
     readChannel.read(bufferAtBeginning);
     readChannel.position(25);
-    ByteBuffer bufferFromSkippedSection = ByteBuffer.allocate(5);
-    readChannel.read(bufferFromSkippedSection);
+    ByteBuffer bufferFromSkippedSection1 = ByteBuffer.allocate(5);
+    readChannel.read(bufferFromSkippedSection1);
+    readChannel.position(35);
+    ByteBuffer bufferFromSkippedSection2 = ByteBuffer.allocate(10);
+    readChannel.read(bufferFromSkippedSection2);
     ByteBuffer bufferFromReposition = ByteBuffer.allocate(10);
     readChannel.position(1);
     readChannel.read(bufferFromReposition);
@@ -136,7 +139,9 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
     verify(fakeService, times(1)).getObjectMedia(eq(GET_OBJECT_MEDIA_REQUEST), any());
     assertArrayEquals(fakeService.data.substring(0, 20).toByteArray(), bufferAtBeginning.array());
     assertArrayEquals(
-        fakeService.data.substring(25, 30).toByteArray(), bufferFromSkippedSection.array());
+        fakeService.data.substring(25, 30).toByteArray(), bufferFromSkippedSection1.array());
+    assertArrayEquals(
+        fakeService.data.substring(40, 50).toByteArray(), bufferFromSkippedSection2.array());
     assertArrayEquals(
         fakeService.data.substring(1, 11).toByteArray(), bufferFromReposition.array());
   }

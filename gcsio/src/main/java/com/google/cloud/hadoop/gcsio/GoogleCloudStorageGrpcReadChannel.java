@@ -152,25 +152,29 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
 
   private int readBufferedContentInto(ByteBuffer byteBuffer) {
     // Handle skipping forward through the buffer for a seek.
-    long remainingBufferedBytes = bufferedContent.size() - bufferedContentReadOffset;
-    long bufferSkip = Math.min(remainingBufferedBytes, bytesToSkipBeforeReading);
+    long bufferSkip =
+        Math.min(bufferedContent.size() - bufferedContentReadOffset, bytesToSkipBeforeReading);
     bufferedContentReadOffset += bufferSkip;
     bytesToSkipBeforeReading -= bufferSkip;
+    int remainingBufferedBytes = bufferedContent.size() - bufferedContentReadOffset;
 
-    if (remainingBufferedBytes <= byteBuffer.remaining()) {
-      int bytesToWrite = bufferedContent.size() - bufferedContentReadOffset;
-      byteBuffer.put(bufferedContent.toByteArray(), bufferedContentReadOffset, bytesToWrite);
-      position += bytesToWrite;
+    boolean remainingBufferedContentLargerThanByteBuffer =
+        remainingBufferedBytes > byteBuffer.remaining();
+    int bytesToWrite =
+        remainingBufferedContentLargerThanByteBuffer
+            ? byteBuffer.remaining()
+            : remainingBufferedBytes;
+    byteBuffer.put(bufferedContent.toByteArray(), bufferedContentReadOffset, bytesToWrite);
+    position += bytesToWrite;
+
+    if (remainingBufferedContentLargerThanByteBuffer) {
+      bufferedContentReadOffset += bytesToWrite;
+    } else {
       bufferedContent = null;
       bufferedContentReadOffset = 0;
-      return bytesToWrite;
-    } else {
-      int bytesToWrite = byteBuffer.remaining();
-      byteBuffer.put(bufferedContent.toByteArray(), bufferedContentReadOffset, bytesToWrite);
-      position += bytesToWrite;
-      bufferedContentReadOffset += bytesToWrite;
-      return bytesToWrite;
     }
+
+    return bytesToWrite;
   }
 
   @Override
@@ -206,11 +210,11 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
       }
       requestObjectMedia(bytesToRead);
     }
-    while (moreServerContent()) {
+    while (moreServerContent() && byteBuffer.hasRemaining()) {
       GetObjectMediaResponse res = resIterator.next();
 
       ByteString content = res.getChecksummedData().getContent();
-      if (bytesToSkipBeforeReading > 0 && bytesToSkipBeforeReading < content.size()) {
+      if (bytesToSkipBeforeReading >= 0 && bytesToSkipBeforeReading < content.size()) {
         content = res.getChecksummedData().getContent().substring((int) bytesToSkipBeforeReading);
         bytesToSkipBeforeReading = 0;
       } else if (bytesToSkipBeforeReading >= content.size()) {
@@ -232,24 +236,16 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
         }
       }
 
-      int responseSize = content.size();
-      if (responseSize > byteBuffer.remaining()) {
-        int bytesToWrite = byteBuffer.remaining();
-        byteBuffer.put(content.toByteArray(), 0, bytesToWrite);
-        position += bytesToWrite;
-        bytesRead += bytesToWrite;
+      boolean responseSizeLargerThanRemainingBuffer = content.size() > byteBuffer.remaining();
+      int bytesToWrite =
+          responseSizeLargerThanRemainingBuffer ? byteBuffer.remaining() : content.size();
+      byteBuffer.put(content.toByteArray(), 0, bytesToWrite);
+      bytesRead += bytesToWrite;
+      position += bytesToWrite;
 
-        int bytesToStore = responseSize - byteBuffer.remaining();
+      if (responseSizeLargerThanRemainingBuffer) {
         bufferedContent = content;
         bufferedContentReadOffset = bytesToWrite;
-        break;
-      }
-      // System.arraycopy() would also work,but a quick performance test suggests this is equivalent
-      byteBuffer.put(content.toByteArray(), 0, responseSize);
-      bytesRead += responseSize;
-      position += responseSize;
-      if (!byteBuffer.hasRemaining()) {
-        break;
       }
     }
     return bytesRead;
@@ -347,7 +343,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
       }
     }
 
-    if (seekDistance > 0 && seekDistance < readOptions.getInplaceSeekLimit()) {
+    if (seekDistance > 0 && seekDistance <= readOptions.getInplaceSeekLimit()) {
       bytesToSkipBeforeReading = seekDistance;
       return this;
     }
