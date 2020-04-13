@@ -54,7 +54,8 @@ hermetic.
 
 ### Options
 
--   `CONDA_CHANNELS` - a space separated list of channels to configure.
+-   `CONDA_CHANNELS` - a space separated list of new channels to configure in
+    addition to default channels.
 -   `CONDA_PACKAGES` - a space separated list of packages to install. Packages
     can contain version selectors.
 
