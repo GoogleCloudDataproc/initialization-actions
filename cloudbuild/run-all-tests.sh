@@ -26,6 +26,8 @@ bazel test \
 	"${TESTS_TO_RUN}"
 
 ls bazel-testlogs -R
+cat bazel-testlogs/hue/shard_1_of_3/test.cache_status
+cat bazel-testlogs/hue/shard_1_of_3/test.log
 #ls bazel-testlogs/hue/test_hue
 
 
