@@ -2,19 +2,29 @@
 
 ## Using this initialization action
 
-**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
+**:warning: NOTICE:** See
+[best practices](/README.md#how-initialization-actions-are-used) of using
+initialization actions in production.
 
-## pip install packages
+## Install PyPI packages
 
-Install pip packages into user python environment. The full list of packages is specified
-as `PIP_PACKAGES` metadata key. Packages are space separated and can contain version selectors.
+Install [PyPI](https://pypi.org) packages into user Python environment using
+`pip` command.
 
-Note: when using this initialization action with automation, pinning package versions
-(see Example 2) is strongly encouraged to make cluster environments hermetic.
+**Note:** when using this initialization action with automation, pinning package
+versions (see examples) is strongly encouraged to make cluster environment
+hermetic.
 
-Example 1: installing one package at head
+### Options
 
-```
+-   `PIP_PACKAGES` - a space separated list of packages to install. Packages can
+    contain version selectors.
+
+### Examples
+
+Installing one package at head
+
+```bash
 REGION=<region>
 CLUSTER_NAME=<cluster_name>
 gcloud dataproc clusters create ${CLUSTER_NAME} \
@@ -23,9 +33,9 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/python/pip-install.sh
 ```
 
-Example 2: installing several packages with version selectors
+Installing several packages with version selectors
 
-```
+```bash
 REGION=<region>
 CLUSTER_NAME=<cluster_name>
 gcloud dataproc clusters create ${CLUSTER_NAME} \
@@ -34,14 +44,25 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/python/pip-install.sh
 ```
 
-## conda install packages
+## Install Conda packages
 
-Install conda packages into user python environment. The full list of packages is specified
-as `CONDA_PACKAGES` metadata key. Packages are space separated and can contain version selectors.
+Install Conda packages into user Python environment using `conda` command.
 
-Example 1: installing one package at head
+**Note:** when using this initialization action with automation, pinning package
+versions (see examples) is strongly encouraged to make cluster environment
+hermetic.
 
-```
+### Options
+
+-   `CONDA_CHANNELS` - a space separated list of channels to configure.
+-   `CONDA_PACKAGES` - a space separated list of packages to install. Packages
+    can contain version selectors.
+
+### Examples
+
+Installing one package at head
+
+```bash
 REGION=<region>
 CLUSTER_NAME=<cluster_name>
 gcloud dataproc clusters create ${CLUSTER_NAME} \
@@ -50,13 +71,25 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/python/conda-install.sh
 ```
 
-Example 2: installing several packages with version selectors
+Installing several packages with version selectors
 
-```
+```bash
 REGION=<region>
 CLUSTER_NAME=<cluster_name>
 gcloud dataproc clusters create ${CLUSTER_NAME} \
     --region ${REGION} \
     --metadata 'CONDA_PACKAGES=scipy=0.15.0 curl=7.26.0' \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/python/conda-install.sh
+```
+
+Installing packages from a new channel
+
+```bash
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
+    --metadata 'CONDA_CHANNELS=bioconda' \
+    --metadata 'CONDA_PACKAGES=recentrifuge=1.0.0' \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/python/conda-install.sh
 ```
