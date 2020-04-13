@@ -115,7 +115,7 @@ main() {
     # bash cloudbuild/run-all-tests.sh
     ls
     echo "Listing test logs..."
-    ls bazel-testlogs
+    ls bazel-testlogs -R
     ls bazel-testlogs/hue/test_hue
   fi
 }

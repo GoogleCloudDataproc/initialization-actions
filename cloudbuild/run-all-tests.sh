@@ -24,3 +24,6 @@ bazel test \
 
 ls
 ls bazel-testlogs/hue/test_hue
+
+echo "rand contents" > rand_file.txt
+gsutil cp rand_file.txt gs://init-action-github-tests/logs/init_actions_tests/1/rand_file.txt

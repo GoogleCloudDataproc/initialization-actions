@@ -15,7 +15,8 @@ ARGS=("--generator=run-pod/v1"
 	  "--requests"
 	  "cpu=4,memory=12Gi"
 	  "--restart=Never"
-	  "--env=IMAGE_VERSION=$DATAPROC_IMAGE_VERSION")
+	  "--env=IMAGE_VERSION=$DATAPROC_IMAGE_VERSION"
+	  "--env=BUILD_ID=$BUILD_ID")
 
 if [[ "${RUN_ALL_TESTS}" == "true" ]]; then
 	ARGS+=("--env=RUN_ALL_TESTS=true")
