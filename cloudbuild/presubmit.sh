@@ -104,19 +104,20 @@ main() {
   configure_gcloud
   configure_gcloud_ssh_key
   initialize_git_repo
-  if [[ $RUN_ALL_TESTS="true" ]]; then
+  if [[ $RUN_ALL_TESTS=="true" ]]; then
     TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
+    bash run-all-tests.sh
   else
     determine_tests_to_run
+    #determine_tests_to_run
+    # TESTS_TO_RUN=("//hue:test_hue") #(":DataprocInitActionsTestSuite")
+    run_tests
+    # bash cloudbuild/run-all-tests.sh
+    ls
+    echo "Listing test logs..."
+    ls bazel-testlogs
+    ls bazel-testlogs/hue/test_hue
   fi
-  #determine_tests_to_run
-  # TESTS_TO_RUN=("//hue:test_hue") #(":DataprocInitActionsTestSuite")
-  run_tests
-  # bash cloudbuild/run-all-tests.sh
-  ls
-  echo "Listing test logs..."
-  ls bazel-testlogs
-  ls bazel-testlogs/hue/test_hue
 }
 
 main

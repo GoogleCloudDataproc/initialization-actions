@@ -2,14 +2,14 @@
 
 set -uxo pipefail
 
-cleanup() {
-	ls
-	ls bazel-testlogs/hue
-}
+# cleanup() {
+# 	ls
+# 	ls bazel-testlogs/hue
+# }
 
-trap cleanup EXIT
+# trap cleanup EXIT
 
-TESTS_TO_RUN=":DataprocInitActionsTestSuite"
+TESTS_TO_RUN="//hue:test_hue" #":DataprocInitActionsTestSuite"
 
 bazel test \
 	--jobs=15 \
@@ -21,3 +21,6 @@ bazel test \
 	--noshow_loading_progress \
 	--test_arg="--image_version=${IMAGE_VERSION}" \
 	"${TESTS_TO_RUN}"
+
+ls
+ls bazel-testlogs/hue/test_hue
