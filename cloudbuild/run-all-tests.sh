@@ -9,6 +9,9 @@ set -uxo pipefail
 
 # trap cleanup EXIT
 
+echo "rand contents" > rand_file.txt
+gsutil cp rand_file.txt gs://init-actions-github-tests/logs/init_actions_tests/1/rand_file.txt
+
 TESTS_TO_RUN="//hue:test_hue" #":DataprocInitActionsTestSuite"
 
 bazel test \
@@ -25,5 +28,5 @@ bazel test \
 ls
 ls bazel-testlogs/hue/test_hue
 
-echo "rand contents" > rand_file.txt
-gsutil cp rand_file.txt gs://init-action-github-tests/logs/init_actions_tests/1/rand_file.txt
+# echo "rand contents" > rand_file.txt
+# gsutil cp rand_file.txt gs://init-actions-github-tests/logs/init_actions_tests/1/rand_file.txt
