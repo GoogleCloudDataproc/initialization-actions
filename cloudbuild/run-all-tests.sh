@@ -29,10 +29,24 @@ ls bazel-init-actions -R
 ls bazel-bin -R
 ls bazel-out -R
 ls bazel-testlogs -R
+
+get_cache_status() {
+	cache_status_filepath=$(readlink -f bazel-testlogs/hue/test_hue/shard_1_of_3/test.cache_status)
+	cache_status=$(cat cache_status_filepath)
+	echo $cache_status
+}
+
+get_test_logs() {
+	logs_filepath=$(readlink -f bazel-testlogs/hue/test_hue/shard_1_of_3/test.log)
+	logs=$(cat logs_filepath)
+	echo $logs
+}
+
 cat bazel-out/k8-fastbuild/testlogs/hue/test_hue/shard_1_of_3/test.log
-echo $(readlink -f bazel-testlogs/hue/test_hue/shard_1_of_3/test.cache_status) > cache_file.txt
+
+echo $(get_cache_status) > cache_file.txt
 gsutil cp cache_file.txt gs://init-actions-github-tests/logs/init_actions_tests/1/cache_file.txt
-echo $(readlink -f bazel-testlogs/hue/test_hue/shard_1_of_3/test.log) > test_file.txt
+echo $(get_test_logs) > test_file.txt
 gsutil cp test_file.txt gs://init-actions-github-tests/logs/init_actions_tests/1/test_file.txt
 #ls bazel-testlogs/hue/test_hue
 
