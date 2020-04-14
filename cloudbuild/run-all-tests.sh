@@ -25,6 +25,9 @@ bazel test \
 	--test_arg="--image_version=${IMAGE_VERSION}" \
 	"${TESTS_TO_RUN}"
 
+ls bazel-init-actions -R
+ls bazel-bin -R
+ls bazel-out -R
 ls bazel-testlogs -R
 cat bazel-testlogs/hue/test_hue/shard_1_of_3/test.cache_status
 cat bazel-testlogs/hue/test_hue/shard_1_of_3/test.log
