@@ -32,13 +32,13 @@ ls bazel-testlogs -R
 
 get_cache_status() {
 	cache_status_filepath=$(readlink -f bazel-testlogs/hue/test_hue/shard_1_of_3/test.cache_status)
-	cache_status=$(cat cache_status_filepath)
+	cache_status=$(cat $cache_status_filepath)
 	echo $cache_status
 }
 
 get_test_logs() {
 	logs_filepath=$(readlink -f bazel-testlogs/hue/test_hue/shard_1_of_3/test.log)
-	logs=$(cat logs_filepath)
+	logs=$(cat $logs_filepath)
 	echo $logs
 }
 
