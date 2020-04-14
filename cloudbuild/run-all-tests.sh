@@ -29,8 +29,8 @@ ls bazel-init-actions -R
 ls bazel-bin -R
 ls bazel-out -R
 ls bazel-testlogs -R
-cat $(readlink bazel-testlogs/hue/test_hue/shard_1_of_3/test.cache_status)
-cat $(readlink bazel-testlogs/hue/test_hue/shard_1_of_3/test.log)
+cat $(readlink -f bazel-testlogs/hue/test_hue/shard_1_of_3/test.cache_status)
+cat $(readlink -f bazel-testlogs/hue/test_hue/shard_1_of_3/test.log)
 #ls bazel-testlogs/hue/test_hue
 
 
