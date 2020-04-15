@@ -63,6 +63,8 @@ for dir in "${COMPONENT_DIRS[@]}"; do
   # Create started.json, finished.json and build-log.txt
   echo $(get_test_logs $dir) > build-log.txt
   echo $(get_test_xml $dir) > test.xml
+  failures_num=$(grep -oP '(?<=failures=)"(.*?)"' "test.xml")
+  echo $failures_num
 
   # Upload to GCS
   gsutil cp build-log.txt gs://init-actions-github-tests/logs/init_actions_tests/${BUILD_ID}/${dir}/build-log.txt
