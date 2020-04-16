@@ -36,26 +36,6 @@ function err() {
   return 1
 }
 
-function retry_apt_command() {
-  cmd="$1"
-  for ((i = 0; i < 10; i++)); do
-    if eval "$cmd"; then
-      return 0
-    fi
-    sleep 5
-  done
-  return 1
-}
-
-function update_apt_get() {
-  retry_apt_command "apt-get update"
-}
-
-function install_apt_get() {
-  local pkgs="$*"
-  retry_apt_command "apt-get install -y $pkgs"
-}
-
 function wait_for_presto_cluster_ready() {
   # wait up to 120s for presto being able to run query
   for ((i = 0; i < 12; i++)); do
@@ -180,6 +160,7 @@ function configure_jvm() {
 -Djdk.nio.maxCachedBufferSize=2000000
 -Dhive.config.resources=/etc/hadoop/conf/core-site.xml,/etc/hadoop/conf/hdfs-site.xml
 -Djava.library.path=/usr/lib/hadoop/lib/native/:/usr/lib/
+-Dpresto-temporarily-allow-java8=true
 EOF
 }
 
@@ -248,9 +229,6 @@ EOF
 # Configure Presto
 function configure_and_start_presto() {
   mkdir -p /opt/presto-server/etc/catalog
-
-  update_apt_get
-  install_apt_get openjdk-11-jre
 
   configure_node_properties
   configure_hive
