@@ -2,15 +2,6 @@
 
 set -uxo pipefail
 
-# cleanup() {
-# 	ls
-# 	ls bazel-testlogs/hue
-# }
-
-# trap cleanup EXIT
-
-echo "rand contents" > rand_file.txt
-gsutil cp rand_file.txt gs://init-actions-github-tests/logs/init_actions_tests/1/rand_file.txt
 
 TESTS_TO_RUN="//hue:test_hue" #":DataprocInitActionsTestSuite"
 
@@ -71,10 +62,14 @@ for dir in "${COMPONENT_DIRS[@]}"; do
   # Create finished.json
   create_finished_json $dir
 
+  #Get build number
+  build_num=(($(cat cloudbuild/counter.txt)+1))
+  echo "$build_num" > counter.txt
+
   # Upload to GCS
-  gsutil cp finished.json gs://init-actions-github-tests/logs/init_actions_tests/${BUILD_ID}/${dir}/finished.json
-  gsutil cp build-log.txt gs://init-actions-github-tests/logs/init_actions_tests/${BUILD_ID}/${dir}/build-log.txt
-  gsutil cp test.xml gs://init-actions-github-tests/logs/init_actions_tests/${BUILD_ID}/${dir}/test.xml
+  gsutil cp finished.json gs://init-actions-github-tests/logs/init_actions_tests/${build_num}/${dir}/finished.json
+  gsutil cp build-log.txt gs://init-actions-github-tests/logs/init_actions_tests/${build_num}/${dir}/build-log.txt
+  gsutil cp test.xml gs://init-actions-github-tests/logs/init_actions_tests/${build_num}/${dir}/test.xml
 done
 #echo $(get_test_logs) > test_file.txt
 #gsutil cp test_file.txt gs://init-actions-github-tests/logs/init_actions_tests/1/test_file.txt

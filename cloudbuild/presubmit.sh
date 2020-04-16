@@ -109,14 +109,7 @@ main() {
     bash cloudbuild/run-all-tests.sh
   else
     determine_tests_to_run
-    #determine_tests_to_run
-    # TESTS_TO_RUN=("//hue:test_hue") #(":DataprocInitActionsTestSuite")
     run_tests
-    # bash cloudbuild/run-all-tests.sh
-    ls
-    echo "Listing test logs..."
-    ls bazel-testlogs -R
-    ls bazel-testlogs/hue/test_hue
   fi
 }
 
