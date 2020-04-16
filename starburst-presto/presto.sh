@@ -22,8 +22,8 @@ readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly PRESTO_MASTER_FQDN="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 readonly WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)
 readonly PRESTO_BASE_URL=https://storage.googleapis.com/starburstdata/presto
-readonly PRESTO_MAJOR_VERSION="323"
-readonly PRESTO_VERSION="${PRESTO_MAJOR_VERSION}-e.3"
+readonly PRESTO_MAJOR_VERSION="332"
+readonly PRESTO_VERSION="${PRESTO_MAJOR_VERSION}-e.0"
 readonly HTTP_PORT="$(/usr/share/google/get_metadata_value attributes/presto-port || echo 8080)"
 readonly INIT_SCRIPT="/usr/lib/systemd/system/presto.service"
 PRESTO_JVM_MB=0
@@ -160,6 +160,7 @@ function configure_jvm() {
 -Djdk.nio.maxCachedBufferSize=2000000
 -Dhive.config.resources=/etc/hadoop/conf/core-site.xml,/etc/hadoop/conf/hdfs-site.xml
 -Djava.library.path=/usr/lib/hadoop/lib/native/:/usr/lib/
+-Dpresto-temporarily-allow-java8=true
 EOF
 }
 
