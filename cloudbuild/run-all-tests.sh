@@ -50,8 +50,8 @@ get_test_xml() {
 create_finished_json() {
   component=$1
   echo $(get_test_xml $component) > test.xml
-  failures_num=$(grep -oP '(?<=failures=")(\d)' "test.xml")
-  errors_num=$(grep -oP '(?<=errors=")(\d)' "test.xml")
+  failures_num=$(grep -oP '(?<=failures=")(\d)' "test.xml" | tr -d "'")
+  errors_num=$(grep -oP '(?<=errors=")(\d)' "test.xml" | tr -d "'")
   if [ "$errors_num" == "0" ] && [ "$failures_num" == "0" ]; then
   	status="SUCCESS"
   else
@@ -78,7 +78,3 @@ for dir in "${COMPONENT_DIRS[@]}"; do
   gsutil cp build-log.txt gs://init-actions-github-tests/logs/init_actions_tests/${dir}/${BUILD_NUM}/build-log.txt
   gsutil cp test.xml gs://init-actions-github-tests/logs/init_actions_tests/${dir}/${BUILD_NUM}/test.xml
 done
-#echo $(get_test_logs) > test_file.txt
-#gsutil cp test_file.txt gs://init-actions-github-tests/logs/init_actions_tests/1/test_file.txt
-#ls bazel-testlogs/hue/test_hue
-
