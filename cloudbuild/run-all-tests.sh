@@ -19,10 +19,18 @@ bazel test \
 	--test_arg="--image_version=${IMAGE_VERSION}" \
 	"${TESTS_TO_RUN[@]}"
 
+ls
 ls bazel-init-actions -R
 ls bazel-bin -R
 ls bazel-out -R
 ls bazel-testlogs -R
+
+get_build_num() {
+	build_num=$(($(gsutil cat gs://init-actions-github-tests/counter.txt)-1))
+	echo $build_num
+}
+
+BUILD_NUM=$(get_build_num)
 
 # Reads the test log of a given component
 get_test_logs() {

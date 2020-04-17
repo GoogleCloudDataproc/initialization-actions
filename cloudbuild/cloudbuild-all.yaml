@@ -27,7 +27,6 @@ steps:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
       - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
       - 'RUN_ALL_TESTS=true'
-      - 'BUILD_NUM=$(cat /workspace/counter.txt)'
 
   # Run presubmit tests in parallel for 1.3 Debian image
   - name: 'gcr.io/cloud-builders/kubectl'
@@ -39,7 +38,6 @@ steps:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
       - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
       - 'RUN_ALL_TESTS=true'
-      - 'BUILD_NUM=$(cat /workspace/counter.txt)'
 
   # Run presubmit tests in parallel for 1.3 Ubuntu image
   - name: 'gcr.io/cloud-builders/kubectl'
@@ -51,7 +49,6 @@ steps:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
       - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
       - 'RUN_ALL_TESTS=true'
-      - 'BUILD_NUM=$(cat /workspace/counter.txt)'
 
   # Run presubmit tests in parallel for 1.4 Debian image
   - name: 'gcr.io/cloud-builders/kubectl'
@@ -63,7 +60,6 @@ steps:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
       - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
       - 'RUN_ALL_TESTS=true'
-      - 'BUILD_NUM=$(cat /workspace/counter.txt)'
 
   # Run presubmit tests in parallel for 1.4 Ubuntu image
   - name: 'gcr.io/cloud-builders/kubectl'
@@ -75,7 +71,6 @@ steps:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
       - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
       - 'RUN_ALL_TESTS=true'
-      - 'BUILD_NUM=$(cat /workspace/counter.txt)'
 
   # Run presubmit tests in parallel for 1.5 Debian image
   - name: 'gcr.io/cloud-builders/kubectl'
@@ -87,7 +82,6 @@ steps:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
       - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
       - 'RUN_ALL_TESTS=true'
-      - 'BUILD_NUM=$(cat /workspace/counter.txt)'
 
   # Run presubmit tests in parallel for 1.5 Ubuntu image
   - name: 'gcr.io/cloud-builders/kubectl'
@@ -99,7 +93,6 @@ steps:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
       - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
       - 'RUN_ALL_TESTS=true'
-      - 'BUILD_NUM=$(cat /workspace/counter.txt)'
 
   # Delete Docker image from GCR
   - name: 'gcr.io/cloud-builders/gcloud'
