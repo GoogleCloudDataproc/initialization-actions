@@ -5,6 +5,7 @@ steps:
     args:
       - -c
       - |
+        chmod +x cloudbuild/get-and-update-build-num.sh &&
         cloudbuild/get-and-update-build-num.sh
   # Create Docker image from regular Dockerfile
   - name: 'gcr.io/cloud-builders/docker'
