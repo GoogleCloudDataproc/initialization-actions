@@ -106,6 +106,7 @@ main() {
   initialize_git_repo
   if [[ $RUN_ALL_TESTS=="true" ]]; then
     TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
+    
     bash cloudbuild/run-all-tests.sh
   else
     determine_tests_to_run

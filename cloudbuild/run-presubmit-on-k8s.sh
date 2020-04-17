@@ -21,6 +21,9 @@ ARGS=("--generator=run-pod/v1"
 if [[ "${RUN_ALL_TESTS}" == "true" ]]; then
 	ARGS+=("--env=RUN_ALL_TESTS=true")
 fi
+if [[ -n "${BUILD_NUM}" ]]; then
+	ARGS+=("--env=BUILD_NUM=$BUILD_NUM")
+fi
 
 kubectl run "${POD_NAME}" "${ARGS[@]}" \
 	--command -- bash /init-actions/cloudbuild/presubmit.sh

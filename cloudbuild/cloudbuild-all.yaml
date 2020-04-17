@@ -1,4 +1,11 @@
 steps:
+  - name: 'gcr.io/cloud-builders/gsutil'
+    id: 'get-build-num'
+    entrypoint: /bin/bash
+    args:
+      - -c
+      - |
+        cloudbuild/get-and-update-build-num.sh
   # Create Docker image from regular Dockerfile
   - name: 'gcr.io/cloud-builders/docker'
     id: 'docker-build'
@@ -12,13 +19,14 @@ steps:
   # Run presubmit tests in parallel for 1.2 Debian image
   - name: 'gcr.io/cloud-builders/kubectl'
     id: 'dataproc-1.2-debian9-tests'
-    waitFor: ['gcr-push']
+    waitFor: ['gcr-push', 'get-build-num']
     entrypoint: 'bash'
     args: ['cloudbuild/run-presubmit-on-k8s.sh', 'gcr.io/$PROJECT_ID/init-actions-image:$BUILD_ID', '$BUILD_ID', '1.2-debian9']
     env:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
       - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
       - 'RUN_ALL_TESTS=true'
+      - 'BUILD_NUM=$(cat /workspace/counter.txt)'
 
   # Run presubmit tests in parallel for 1.3 Debian image
   - name: 'gcr.io/cloud-builders/kubectl'
@@ -30,6 +38,7 @@ steps:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
       - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
       - 'RUN_ALL_TESTS=true'
+      - 'BUILD_NUM=$(cat /workspace/counter.txt)'
 
   # Run presubmit tests in parallel for 1.3 Ubuntu image
   - name: 'gcr.io/cloud-builders/kubectl'
@@ -41,6 +50,7 @@ steps:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
       - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
       - 'RUN_ALL_TESTS=true'
+      - 'BUILD_NUM=$(cat /workspace/counter.txt)'
 
   # Run presubmit tests in parallel for 1.4 Debian image
   - name: 'gcr.io/cloud-builders/kubectl'
@@ -52,6 +62,7 @@ steps:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
       - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
       - 'RUN_ALL_TESTS=true'
+      - 'BUILD_NUM=$(cat /workspace/counter.txt)'
 
   # Run presubmit tests in parallel for 1.4 Ubuntu image
   - name: 'gcr.io/cloud-builders/kubectl'
@@ -63,6 +74,7 @@ steps:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
       - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
       - 'RUN_ALL_TESTS=true'
+      - 'BUILD_NUM=$(cat /workspace/counter.txt)'
 
   # Run presubmit tests in parallel for 1.5 Debian image
   - name: 'gcr.io/cloud-builders/kubectl'
@@ -74,6 +86,7 @@ steps:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
       - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
       - 'RUN_ALL_TESTS=true'
+      - 'BUILD_NUM=$(cat /workspace/counter.txt)'
 
   # Run presubmit tests in parallel for 1.5 Ubuntu image
   - name: 'gcr.io/cloud-builders/kubectl'
@@ -85,6 +98,7 @@ steps:
       - 'CLOUDSDK_COMPUTE_ZONE=us-central1-f'
       - 'CLOUDSDK_CONTAINER_CLUSTER=init-actions-presubmit'
       - 'RUN_ALL_TESTS=true'
+      - 'BUILD_NUM=$(cat /workspace/counter.txt)'
 
   # Delete Docker image from GCR
   - name: 'gcr.io/cloud-builders/gcloud'
