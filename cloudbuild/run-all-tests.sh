@@ -58,7 +58,7 @@ create_finished_json() {
   	status="FAILED"
   fi
   jq -n \
-  	--arg timestamp $(date +%s) \
+  	--argjson timestamp $(date +%s) \
   	--arg result $status \
   	'{"timestamp":$timestamp, "result":$result, "metadata": {}}' > finished.json
 }
