@@ -37,7 +37,7 @@ public class StorageStubProvider {
 
   public StorageBlockingStub buildBlockingStub() {
     return StorageGrpc.newBlockingStub(
-        ComputeEngineChannelBuilder.forAddress("storage.googleapis.com", 443)
+        ComputeEngineChannelBuilder.forTarget(readOptions.getGrpcServerAddress())
             .defaultServiceConfig(getGrpcServiceConfig())
             .build());
   }
