@@ -60,6 +60,7 @@ create_finished_json() {
   jq -n \
   	--argjson timestamp $(date +%s) \
   	--arg result $status \
+  	--arg component $component \
   	'{"timestamp":$timestamp, "result":$result, "job-version":"e8dcf26a1666f990efb9125e0297ac26fef892f9", "metadata": {"component":$component}}' > finished.json
 }
 
