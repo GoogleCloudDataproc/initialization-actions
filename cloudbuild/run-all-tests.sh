@@ -55,12 +55,12 @@ create_finished_json() {
   if [ "$errors_num" == "0" ] && [ "$failures_num" == "0" ]; then
   	status="SUCCESS"
   else
-  	status="FAILED"
+  	status="FAILURE"
   fi
   jq -n \
   	--argjson timestamp $(date +%s) \
   	--arg result $status \
-  	'{"timestamp":$timestamp, "result":$result, "job-version":"e8dcf26a1666f990efb9125e0297ac26fef892f9", "metadata": {}}' > finished.json
+  	'{"timestamp":$timestamp, "result":$result, "job-version":"e8dcf26a1666f990efb9125e0297ac26fef892f9", "metadata": {"component":$component}}' > finished.json
 }
 
 shopt -s nullglob
