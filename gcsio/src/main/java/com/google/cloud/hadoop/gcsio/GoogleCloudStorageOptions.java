@@ -173,10 +173,10 @@ public abstract class GoogleCloudStorageOptions {
   public abstract String getEncryptionAlgorithm();
 
   @Nullable
-  public abstract String getEncryptionKey();
+  public abstract RedactedString getEncryptionKey();
 
   @Nullable
-  public abstract String getEncryptionKeyHash();
+  public abstract RedactedString getEncryptionKeyHash();
 
   public void throwIfNotValid() {
     checkArgument(!isNullOrEmpty(getAppName()), "appName must not be null or empty");
@@ -243,9 +243,9 @@ public abstract class GoogleCloudStorageOptions {
 
     public abstract Builder setEncryptionAlgorithm(String encryptionAlgorithm);
 
-    public abstract Builder setEncryptionKey(String encryptionKey);
+    public abstract Builder setEncryptionKey(RedactedString encryptionKey);
 
-    public abstract Builder setEncryptionKeyHash(String encryptionKeyHash);
+    public abstract Builder setEncryptionKeyHash(RedactedString encryptionKeyHash);
 
     abstract GoogleCloudStorageOptions autoBuild();
 

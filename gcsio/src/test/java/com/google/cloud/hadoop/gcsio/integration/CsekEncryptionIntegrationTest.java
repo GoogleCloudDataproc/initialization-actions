@@ -25,6 +25,7 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.integration.GoogleCloudStorageTestHelper.TestBucketHelper;
+import com.google.cloud.hadoop.util.RedactedString;
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
 import org.junit.AfterClass;
@@ -98,7 +99,8 @@ public class CsekEncryptionIntegrationTest {
   private static GoogleCloudStorageOptions.Builder getCsekStorageOptions() {
     return GoogleCloudStorageTestHelper.getStandardOptionBuilder()
         .setEncryptionAlgorithm("AES256")
-        .setEncryptionKey("CSX19s0epGWZP3h271Idu8xma2WhMuKT8ZisYfcjLM8=")
-        .setEncryptionKeyHash("LpH4y6Bki5zIhYrjGo1J4BuSt12G/1B+n3FwORpdoyQ=");
+        .setEncryptionKey(RedactedString.create("CSX19s0epGWZP3h271Idu8xma2WhMuKT8ZisYfcjLM8="))
+        .setEncryptionKeyHash(
+            RedactedString.create("LpH4y6Bki5zIhYrjGo1J4BuSt12G/1B+n3FwORpdoyQ="));
   }
 }

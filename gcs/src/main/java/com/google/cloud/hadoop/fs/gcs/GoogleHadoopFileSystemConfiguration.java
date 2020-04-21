@@ -374,11 +374,11 @@ public class GoogleHadoopFileSystemConfiguration {
       new HadoopConfigurationProperty<>("fs.gs.encryption.algorithm");
 
   /** Configuration key for the CSEK encryption key. */
-  public static final HadoopConfigurationProperty<String> GCS_ENCRYPTION_KEY =
+  public static final HadoopConfigurationProperty<RedactedString> GCS_ENCRYPTION_KEY =
       new HadoopConfigurationProperty<>("fs.gs.encryption.key");
 
   /** Configuration key for sha256 hash of the CSEK encryption key. */
-  public static final HadoopConfigurationProperty<String> GCS_ENCRYPTION_KEY_HASH =
+  public static final HadoopConfigurationProperty<RedactedString> GCS_ENCRYPTION_KEY_HASH =
       new HadoopConfigurationProperty<>("fs.gs.encryption.key.hash");
 
   // TODO(b/120887495): This @VisibleForTesting annotation was being ignored by prod code.
@@ -435,8 +435,8 @@ public class GoogleHadoopFileSystemConfiguration {
         .setCooperativeLockingOptions(getCooperativeLockingOptions(config))
         .setHttpRequestHeaders(GCS_HTTP_HEADERS.getPropsWithPrefix(config))
         .setEncryptionAlgorithm(GCS_ENCRYPTION_ALGORITHM.get(config, config::get))
-        .setEncryptionKey(GCS_ENCRYPTION_KEY.get(config, config::get))
-        .setEncryptionKeyHash(GCS_ENCRYPTION_KEY_HASH.get(config, config::get));
+        .setEncryptionKey(RedactedString.create(GCS_ENCRYPTION_KEY.getPassword(config)))
+        .setEncryptionKeyHash(RedactedString.create(GCS_ENCRYPTION_KEY_HASH.getPassword(config)));
   }
 
   private static PerformanceCachingGoogleCloudStorageOptions getPerformanceCachingOptions(
