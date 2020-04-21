@@ -353,11 +353,11 @@ is `false`.
 
 ### API client configuration
 
-*   `fs.gs.storage.root.url`
+*   `fs.gs.storage.root.url` (default: `https://storage.googleapis.com/`)
 
     Google Cloud Storage root URL.
 
-*   `fs.gs.token.server.url`
+*   `fs.gs.token.server.url` (default: `https://oauth2.googleapis.com/token`)
 
     Google Token Server root URL.
 

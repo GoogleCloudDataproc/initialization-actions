@@ -18,8 +18,8 @@
 
 1.  Add properties to override Google Cloud API endpoints:
 
-        mapred.bq.bigquery.root.url
-        mapred.bq.token.server.url
+        mapred.bq.bigquery.root.url (default: https://bigquery.googleapis.com/)
+        mapred.bq.token.server.url (default: https://oauth2.googleapis.com/token)
 
 1.  Use Slf4j backend by default for Google Flogger.
 

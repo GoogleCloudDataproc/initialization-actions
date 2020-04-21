@@ -27,7 +27,6 @@ import static com.google.cloud.hadoop.util.testing.HadoopConfigurationUtils.getD
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
-import com.google.api.services.storage.Storage;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.GcsFileChecksumType;
 import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.OutputStreamType;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
@@ -56,7 +55,7 @@ public class GoogleHadoopFileSystemConfigurationTest {
           put("fs.gs.copy.with.rewrite.enable", true);
           put("fs.gs.rewrite.max.bytes.per.call", 536_870_912L);
           put("fs.gs.config.override.file", null);
-          put("fs.gs.storage.root.url", Storage.DEFAULT_ROOT_URL);
+          put("fs.gs.storage.root.url", "https://storage.googleapis.com/");
           put("fs.gs.reported.permissions", "700");
           put("fs.gs.delegation.token.binding", null);
           put("fs.gs.bucket.delete.enable", false);

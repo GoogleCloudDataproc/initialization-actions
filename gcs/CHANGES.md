@@ -29,8 +29,8 @@
 
 1.  Add properties to override Google Cloud API endpoints:
 
-        fs.gs.storage.root.url
-        fs.gs.token.server.url
+        fs.gs.storage.root.url (default: https://storage.googleapis.com/)
+        fs.gs.token.server.url (default: https://oauth2.googleapis.com/token)
 
 1.  Support adding custom HTTP headers to Cloud Storage API requests:
 
@@ -317,7 +317,7 @@
 1.  Do not send batch request when performing operations (rename, delete, copy)
     on 1 object.
 
-1.  Add `fs.gs.performance.cache.dir.metadata.prefetch.limit` (default=`1000`)
+1.  Add `fs.gs.performance.cache.dir.metadata.prefetch.limit` (default: `1000`)
     configuration property to control number of prefetched metadata objects in
     the same directory by `PerformanceCachingGoogleCloudStorage`.
 
@@ -344,7 +344,7 @@
 
 ### 1.9.4 - 2018-08-07
 
-1.  Add `fs.gs.generation.read.consistency (default : LATEST)` property to
+1.  Add `fs.gs.generation.read.consistency (default: LATEST)` property to
     determine read consistency across different generations of a GCS object.
 
     Three modes are supported:
@@ -571,9 +571,9 @@
 1.  Support GCS Requester Pays feature that could be configured with new
     properties:
 
-        fs.gs.requester.pays.mode (default=DISABLED)
-        fs.gs.requester.pays.project.id (no default value)
-        fs.gs.requester.pays.buckets (no default value)
+        fs.gs.requester.pays.mode (default: DISABLED)
+        fs.gs.requester.pays.project.id (not set by default)
+        fs.gs.requester.pays.buckets (not set by default)
 
 1.  Change relocation package in shaded jar to be connector-specific.
 
@@ -639,14 +639,14 @@
     in-memory cache to enhance performance of some workloads. By default this
     feature is disabled, and can be controlled with the config settings:
 
-        fs.gs.performance.cache.enable=true (default=false)
-        fs.gs.performance.cache.list.caching.enable=true (default=false)
+        fs.gs.performance.cache.enable=true (default: false)
+        fs.gs.performance.cache.list.caching.enable=true (default: false)
 
     The first option enables the cache to serve `getFileStatus` requests, while
     the second option additionally enables serving `listStatus`. The duration of
     cache entries can be controlled with:
 
-        fs.gs.performance.cache.max.entry.age.ms (default=3000)
+        fs.gs.performance.cache.max.entry.age.ms (default: 3000)
 
     It is not recommended to always run with this feature enabled; it should be
     used specifically to address cases where frameworks perform redundant
@@ -751,20 +751,20 @@
         reads without noticeable impact on large reads. Old behavior can be
         specified by setting:
 
-            fs.gs.inputstream.internalbuffer.enable=true (default=false)
+            fs.gs.inputstream.internalbuffer.enable=true (default: false)
 
     *   Added option to save an extra metadata GET on first read of a channel if
         objects are known not to use the 'Content-Encoding' header. To use this
         optimization set:
 
-            fs.gs.inputstream.support.content.encoding.enable=false (default=true)
+            fs.gs.inputstream.support.content.encoding.enable=false (default: true)
 
     *   Added option to save an extra metadata `GET` on `FileSystem.open(Path)`
         if objects are known to exist already, or the caller is resilient to
         delayed errors for nonexistent objects which occur at read time, rather
         than immediately on open(). To use this optimization set:
 
-            fs.gs.inputstream.fast.fail.on.not.found.enable=false (default=true)
+            fs.gs.inputstream.fast.fail.on.not.found.enable=false (default: true)
 
     *   Added support for "in-place" small seeks by defining a byte limit where
         forward seeks smaller than the limit will be done by reading/discarding
@@ -774,7 +774,7 @@
         in-place. Disable by setting the value to 0, or adjust to other
         thresholds:
 
-            fs.gs.inputstream.inplace.seek.limit=0 (default=8388608)
+            fs.gs.inputstream.inplace.seek.limit=0 (default: 8388608)
 
 ### 1.4.5 - 2016-03-24
 
