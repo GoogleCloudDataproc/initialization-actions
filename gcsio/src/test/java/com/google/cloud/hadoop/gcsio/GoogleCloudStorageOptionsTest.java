@@ -17,6 +17,7 @@ package com.google.cloud.hadoop.gcsio;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import com.google.cloud.hadoop.util.RedactedString;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -42,7 +43,8 @@ public class GoogleCloudStorageOptionsTest {
   @Test
   public void build_throwsException_whenProxyNotSetAndPasswordNotNull() {
     GoogleCloudStorageOptions.Builder builder =
-        GoogleCloudStorageOptions.builder().setProxyPassword("proxy-password");
+        GoogleCloudStorageOptions.builder()
+            .setProxyPassword(RedactedString.create("proxy-password"));
 
     IllegalArgumentException e = assertThrows(IllegalArgumentException.class, builder::build);
 
@@ -55,7 +57,8 @@ public class GoogleCloudStorageOptionsTest {
   @Test
   public void build_throwsException_whenProxyNotSetAndUsernameNotNull() {
     GoogleCloudStorageOptions.Builder builder =
-        GoogleCloudStorageOptions.builder().setProxyUsername("proxy-username");
+        GoogleCloudStorageOptions.builder()
+            .setProxyUsername(RedactedString.create("proxy-username"));
 
     IllegalArgumentException e = assertThrows(IllegalArgumentException.class, builder::build);
 
@@ -70,7 +73,7 @@ public class GoogleCloudStorageOptionsTest {
     GoogleCloudStorageOptions.Builder builder =
         GoogleCloudStorageOptions.builder()
             .setProxyAddress("proxy-address")
-            .setProxyPassword("proxy-password")
+            .setProxyPassword(RedactedString.create("proxy-password"))
             .setProxyUsername(null);
 
     IllegalArgumentException e = assertThrows(IllegalArgumentException.class, builder::build);
@@ -86,7 +89,7 @@ public class GoogleCloudStorageOptionsTest {
         GoogleCloudStorageOptions.builder()
             .setProxyAddress("proxy-address")
             .setProxyPassword(null)
-            .setProxyUsername("proxy-username");
+            .setProxyUsername(RedactedString.create("proxy-username"));
 
     IllegalArgumentException e = assertThrows(IllegalArgumentException.class, builder::build);
 

@@ -298,8 +298,9 @@ public class CredentialFactory {
             .setJsonFactory(JSON_FACTORY)
             .setServiceAccountId(options.getServiceAccountEmail())
             .setServiceAccountScopes(scopes)
-            .setServiceAccountPrivateKey(privateKeyFromPkcs8(options.getServiceAccountPrivateKey()))
-            .setServiceAccountPrivateKeyId(options.getServiceAccountPrivateKeyId());
+            .setServiceAccountPrivateKey(
+                privateKeyFromPkcs8(options.getServiceAccountPrivateKey().value()))
+            .setServiceAccountPrivateKeyId(options.getServiceAccountPrivateKeyId().value());
     return new GoogleCredentialWithRetry(builder, options.getTokenServerUrl());
   }
 
@@ -322,8 +323,8 @@ public class CredentialFactory {
     // Initialize client secrets.
     GoogleClientSecrets.Details details =
         new GoogleClientSecrets.Details()
-            .setClientId(options.getClientId())
-            .setClientSecret(options.getClientSecret());
+            .setClientId(options.getClientId().value())
+            .setClientSecret(options.getClientSecret().value());
     GoogleClientSecrets clientSecrets = new GoogleClientSecrets().setInstalled(details);
 
     // Set up file credential store.
@@ -418,7 +419,7 @@ public class CredentialFactory {
         return getCredentialFromMetadataServiceAccount();
       }
 
-      if (!isNullOrEmpty(options.getServiceAccountPrivateKeyId())) {
+      if (options.getServiceAccountPrivateKeyId() != null) {
         return getCredentialsFromSAParameters(scopes, getTransport());
       }
 
@@ -433,7 +434,7 @@ public class CredentialFactory {
       if (isApplicationDefaultCredentialsConfigured()) {
         return getApplicationDefaultCredentials(scopes, getTransport());
       }
-    } else if (!isNullOrEmpty(options.getClientId())) {
+    } else if (options.getClientId() != null) {
       return getCredentialFromFileCredentialStoreForInstalledApp(scopes, getTransport());
     } else if (options.isNullCredentialEnabled()) {
       logger.atWarning().log(
@@ -447,7 +448,7 @@ public class CredentialFactory {
   private boolean useMetadataService() {
     return isNullOrEmpty(options.getServiceAccountKeyFile())
         && isNullOrEmpty(options.getServiceAccountJsonKeyFile())
-        && isNullOrEmpty(options.getServiceAccountPrivateKey())
+        && options.getServiceAccountPrivateKey() == null
         && !isApplicationDefaultCredentialsConfigured();
   }
 

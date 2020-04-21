@@ -144,8 +144,16 @@ public class GoogleHadoopFileSystemConfigurationTest {
     GoogleCloudStorageFileSystemOptions options =
         GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config).build();
 
-    assertThat(options.getCloudStorageOptions().getProxyUsername()).isEqualTo("proxy-user");
-    assertThat(options.getCloudStorageOptions().getProxyPassword()).isEqualTo("proxy-pass");
+    assertThat(options.getCloudStorageOptions().getProxyUsername()).isNotNull();
+    assertThat(options.getCloudStorageOptions().getProxyUsername().value()).isEqualTo("proxy-user");
+    assertThat(options.getCloudStorageOptions().getProxyUsername().toString())
+        .isEqualTo("<redacted>");
+
+    assertThat(options.getCloudStorageOptions().getProxyPassword()).isNotNull();
+    assertThat(options.getCloudStorageOptions().getProxyPassword().value()).isEqualTo("proxy-pass");
+    assertThat(options.getCloudStorageOptions().getProxyPassword().toString())
+        .isEqualTo("<redacted>");
+
     assertThat(options.getCloudStorageOptions().getProxyAddress()).isEqualTo("proxy-address");
   }
 

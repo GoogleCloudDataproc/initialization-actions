@@ -22,6 +22,7 @@ import com.google.auto.value.AutoValue;
 import com.google.cloud.hadoop.gcsio.cooplock.CooperativeLockingOptions;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
+import com.google.cloud.hadoop.util.RedactedString;
 import com.google.cloud.hadoop.util.RequesterPaysOptions;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
@@ -149,10 +150,10 @@ public abstract class GoogleCloudStorageOptions {
   public abstract String getProxyAddress();
 
   @Nullable
-  public abstract String getProxyUsername();
+  public abstract RedactedString getProxyUsername();
 
   @Nullable
-  public abstract String getProxyPassword();
+  public abstract RedactedString getProxyPassword();
 
   public abstract boolean isCopyWithRewriteEnabled();
 
@@ -217,9 +218,9 @@ public abstract class GoogleCloudStorageOptions {
 
     public abstract Builder setProxyAddress(String proxyAddress);
 
-    public abstract Builder setProxyUsername(String proxyUsername);
+    public abstract Builder setProxyUsername(RedactedString proxyUsername);
 
-    public abstract Builder setProxyPassword(String proxyPassword);
+    public abstract Builder setProxyPassword(RedactedString proxyPassword);
 
     public abstract Builder setCopyWithRewriteEnabled(boolean copyWithRewrite);
 

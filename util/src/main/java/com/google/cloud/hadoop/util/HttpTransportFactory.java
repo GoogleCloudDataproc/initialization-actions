@@ -85,12 +85,11 @@ public class HttpTransportFactory {
   public static HttpTransport createHttpTransport(
       HttpTransportType type,
       @Nullable String proxyAddress,
-      @Nullable String proxyUsername,
-      @Nullable String proxyPassword)
+      @Nullable RedactedString proxyUsername,
+      @Nullable RedactedString proxyPassword)
       throws IOException {
     logger.atFine().log(
-        "createHttpTransport(%s, %s, %s, %s)",
-        type, proxyAddress, toSecretString(proxyUsername), toSecretString(proxyPassword));
+        "createHttpTransport(%s, %s, %s, %s)", type, proxyAddress, proxyUsername, proxyPassword);
     checkArgument(
         proxyAddress != null || (proxyUsername == null && proxyPassword == null),
         "if proxyAddress is null then proxyUsername and proxyPassword should be null too");
@@ -103,13 +102,14 @@ public class HttpTransportFactory {
         case APACHE:
           Credentials proxyCredentials =
               proxyUsername != null
-                  ? new UsernamePasswordCredentials(proxyUsername, proxyPassword)
+                  ? new UsernamePasswordCredentials(proxyUsername.value(), proxyPassword.value())
                   : null;
           return createApacheHttpTransport(proxyUri, proxyCredentials);
         case JAVA_NET:
           PasswordAuthentication proxyAuth =
               proxyUsername != null
-                  ? new PasswordAuthentication(proxyUsername, proxyPassword.toCharArray())
+                  ? new PasswordAuthentication(
+                      proxyUsername.value(), proxyPassword.value().toCharArray())
                   : null;
           return createNetHttpTransport(proxyUri, proxyAuth);
         default:
@@ -119,10 +119,6 @@ public class HttpTransportFactory {
     } catch (GeneralSecurityException e) {
       throw new IOException(e);
     }
-  }
-
-  static String toSecretString(@Nullable String secret) {
-    return secret == null ? "<not provided>" : "<provided, but not displayed>";
   }
 
   /**

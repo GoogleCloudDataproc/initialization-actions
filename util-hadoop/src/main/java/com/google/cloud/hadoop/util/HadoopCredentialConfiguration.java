@@ -168,9 +168,15 @@ public class HadoopCredentialConfiguration {
                     .withPrefixes(keyPrefixes)
                     .get(config, config::getBoolean))
             .setServiceAccountPrivateKeyId(
-                SERVICE_ACCOUNT_PRIVATE_KEY_ID_SUFFIX.withPrefixes(keyPrefixes).getPassword(config))
+                RedactedString.create(
+                    SERVICE_ACCOUNT_PRIVATE_KEY_ID_SUFFIX
+                        .withPrefixes(keyPrefixes)
+                        .getPassword(config)))
             .setServiceAccountPrivateKey(
-                SERVICE_ACCOUNT_PRIVATE_KEY_SUFFIX.withPrefixes(keyPrefixes).getPassword(config))
+                RedactedString.create(
+                    SERVICE_ACCOUNT_PRIVATE_KEY_SUFFIX
+                        .withPrefixes(keyPrefixes)
+                        .getPassword(config)))
             .setServiceAccountEmail(
                 SERVICE_ACCOUNT_EMAIL_SUFFIX.withPrefixes(keyPrefixes).getPassword(config))
             .setServiceAccountKeyFile(
@@ -179,9 +185,12 @@ public class HadoopCredentialConfiguration {
                 SERVICE_ACCOUNT_JSON_KEYFILE_SUFFIX
                     .withPrefixes(keyPrefixes)
                     .get(config, config::get))
-            .setClientId(CLIENT_ID_SUFFIX.withPrefixes(keyPrefixes).get(config, config::get))
+            .setClientId(
+                RedactedString.create(
+                    CLIENT_ID_SUFFIX.withPrefixes(keyPrefixes).get(config, config::get)))
             .setClientSecret(
-                CLIENT_SECRET_SUFFIX.withPrefixes(keyPrefixes).get(config, config::get))
+                RedactedString.create(
+                    CLIENT_SECRET_SUFFIX.withPrefixes(keyPrefixes).get(config, config::get)))
             .setOAuthCredentialFile(
                 OAUTH_CLIENT_FILE_SUFFIX.withPrefixes(keyPrefixes).get(config, config::get))
             .setNullCredentialEnabled(
@@ -194,8 +203,12 @@ public class HadoopCredentialConfiguration {
                 TOKEN_SERVER_URL_SUFFIX.withPrefixes(keyPrefixes).get(config, config::get))
             .setProxyAddress(
                 PROXY_ADDRESS_SUFFIX.withPrefixes(keyPrefixes).get(config, config::get))
-            .setProxyUsername(PROXY_USERNAME_SUFFIX.withPrefixes(keyPrefixes).getPassword(config))
-            .setProxyPassword(PROXY_PASSWORD_SUFFIX.withPrefixes(keyPrefixes).getPassword(config))
+            .setProxyUsername(
+                RedactedString.create(
+                    PROXY_USERNAME_SUFFIX.withPrefixes(keyPrefixes).getPassword(config)))
+            .setProxyPassword(
+                RedactedString.create(
+                    PROXY_PASSWORD_SUFFIX.withPrefixes(keyPrefixes).getPassword(config)))
             .build();
     return new CredentialFactory(credentialOptions);
   }
