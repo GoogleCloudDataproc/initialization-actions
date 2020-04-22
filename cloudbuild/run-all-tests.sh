@@ -2,10 +2,14 @@
 
 set -uxo pipefail
 
-
 TESTS_TO_RUN=(
-	"//hue:test_hue"
-	"//tony:test_tony"
+	"//presto:test_presto"
+    "//ranger:test_ranger"
+    "//rapids:test_rapids"
+    "//rstudio:test_rstudio"
+    "//solr:test_solr"
+    "//tez:test_tez"
+    "//tony:test_tony"
 ) #":DataprocInitActionsTestSuite"
 
 bazel test \
@@ -61,8 +65,10 @@ create_finished_json() {
   	--argjson timestamp $(date +%s) \
   	--arg result $status \
   	--arg component $component \
-  	'{"timestamp":$timestamp, "result":$result, "job-version":"e8dcf26a1666f990efb9125e0297ac26fef892f9", "metadata": {"component":$component}}' > finished.json
+  	'{"timestamp":$timestamp, "result":$result, "metadata": {"component":$component}}' > finished.json
 }
+
+#"job-version":"e8dcf26a1666f990efb9125e0297ac26fef892f9"
 
 shopt -s nullglob
 COMPONENT_DIRS=(bazel-testlogs/*)
