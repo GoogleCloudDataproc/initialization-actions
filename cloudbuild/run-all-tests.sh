@@ -56,7 +56,7 @@ create_finished_json() {
   echo $(get_test_xml $component) > test.xml
   failures_num=$(grep -oP '(?<=failures=")(\d)' "test.xml" | tr -d "'")
   errors_num=$(grep -oP '(?<=errors=")(\d)' "test.xml" | tr -d "'")
-  if [ "$errors_num" == "0" ] && [ "$failures_num" == "0" ]; then
+  if [ "$errors_num" == "0'" ] && [ "$failures_num" == "0'" ]; then
   	status="SUCCESS"
   else
   	status="FAILURE"
@@ -65,7 +65,8 @@ create_finished_json() {
   	--argjson timestamp $(date +%s) \
   	--arg result $status \
   	--arg component $component \
-  	'{"timestamp":$timestamp, "result":$result, "metadata": {"component":$component}}' > finished.json
+  	--arg version $IMAGE_VERSION \
+  	'{"timestamp":$timestamp, "result":$result, "metadata": {"component":$component, "version":$version}}' > finished.json
 }
 
 #"job-version":"e8dcf26a1666f990efb9125e0297ac26fef892f9"
