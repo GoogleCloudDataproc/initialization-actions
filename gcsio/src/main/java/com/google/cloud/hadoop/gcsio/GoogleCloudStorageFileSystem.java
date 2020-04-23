@@ -513,7 +513,6 @@ public class GoogleCloudStorageFileSystem {
    * @param src Path of the item to rename.
    * @param dst New path of the item.
    * @throws FileNotFoundException if src does not exist.
-   * @throws IOException
    */
   public void rename(URI src, URI dst) throws IOException {
     logger.atFine().log("rename(src: %s, dst: %s)", src, dst);
@@ -846,7 +845,6 @@ public class GoogleCloudStorageFileSystem {
    * @param recursive If true, path of all children are returned; else, only immediate children are
    *     returned.
    * @return Paths of children (if directory) or self path.
-   * @throws IOException
    */
   public List<URI> listFileNames(FileInfo fileInfo, boolean recursive) throws IOException {
     Preconditions.checkNotNull(fileInfo);
@@ -1006,7 +1004,6 @@ public class GoogleCloudStorageFileSystem {
    * @param path Given path.
    * @return Information about a file or children of a directory.
    * @throws FileNotFoundException if the given path does not exist.
-   * @throws IOException
    */
   public List<FileInfo> listFileInfo(URI path) throws IOException {
     Preconditions.checkNotNull(path, "path can not be null");
@@ -1066,7 +1063,6 @@ public class GoogleCloudStorageFileSystem {
    *
    * @param path The path we want information about.
    * @return Information about the given path item.
-   * @throws IOException
    */
   public FileInfo getFileInfo(URI path) throws IOException {
     checkArgument(path != null, "path must not be null");
@@ -1144,7 +1140,6 @@ public class GoogleCloudStorageFileSystem {
    *
    * @param paths List of paths.
    * @return Information about each path in the given list.
-   * @throws IOException
    */
   public List<FileInfo> getFileInfos(List<URI> paths) throws IOException {
     checkArgument(paths != null, "paths must not be null");
