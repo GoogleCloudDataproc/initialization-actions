@@ -22,6 +22,7 @@ import static com.google.common.base.Strings.nullToEmpty;
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpHeaders;
+import com.google.api.client.http.HttpResponseException;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
@@ -84,6 +85,6 @@ public final class GoogleCloudStorageExceptions {
   public static GoogleJsonResponseException createJsonResponseException(
       GoogleJsonError e, HttpHeaders responseHeaders) {
     return new GoogleJsonResponseException(
-        new GoogleJsonResponseException.Builder(e.getCode(), e.getMessage(), responseHeaders), e);
+        new HttpResponseException.Builder(e.getCode(), e.getMessage(), responseHeaders), e);
   }
 }
