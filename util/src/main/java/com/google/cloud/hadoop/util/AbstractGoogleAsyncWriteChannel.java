@@ -46,7 +46,6 @@ public abstract class AbstractGoogleAsyncWriteChannel<T extends AbstractGoogleCl
    * Create an API request to upload the given InputStreamContent.
    *
    * @return An initialized request.
-   * @throws IOException
    */
   public abstract T createRequest(InputStreamContent inputStream) throws IOException;
 

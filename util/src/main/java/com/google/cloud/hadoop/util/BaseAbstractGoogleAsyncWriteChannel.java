@@ -215,11 +215,7 @@ public abstract class BaseAbstractGoogleAsyncWriteChannel<T> implements Writable
     uploadOperation = null;
   }
 
-  /**
-   * Initialize this channel object for writing.
-   *
-   * @throws IOException
-   */
+  /** Initialize this channel object for writing. */
   public void initialize() throws IOException {
     // Create a pipe such that its one end is connected to the input stream used by
     // the uploader and the other end is the write channel used by the caller.
