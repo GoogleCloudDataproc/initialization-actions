@@ -29,6 +29,8 @@ ls bazel-bin -R
 ls bazel-out -R
 ls bazel-testlogs -R
 
+COMMIT=$(git rev-parse HEAD)
+
 get_build_num() {
 	build_num=$(($(gsutil cat gs://init-actions-github-tests/counter.txt)-1))
 	echo $build_num
@@ -66,7 +68,10 @@ create_finished_json() {
   	--arg result $status \
   	--arg component $component \
   	--arg version $IMAGE_VERSION \
-  	'{"timestamp":$timestamp, "result":$result, "metadata": {"component":$component, "version":$version}}' > finished.json
+  	--arg build_num $BUILD_NUM \
+  	--arg build_id $BUILD_ID \
+  	--arg commit $COMMIT \
+  	'{"timestamp":$timestamp, "result":$result, "job_version":$commit, "metadata": {"component":$component, "version":$version, "build_num":$build_num, "build_id":$build_id}}' > finished.json
 }
 
 #"job-version":"e8dcf26a1666f990efb9125e0297ac26fef892f9"
