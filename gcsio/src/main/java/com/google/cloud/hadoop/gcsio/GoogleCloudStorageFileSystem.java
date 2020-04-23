@@ -193,7 +193,6 @@ public class GoogleCloudStorageFileSystem {
    *
    * @param path Object full path of the form gs://bucket/object-path.
    * @return A channel for writing to the given object.
-   * @throws IOException
    */
   public WritableByteChannel create(URI path) throws IOException {
     logger.atFine().log("create(path: %s)", path);
@@ -205,7 +204,6 @@ public class GoogleCloudStorageFileSystem {
    *
    * @param path Object full path of the form gs://bucket/object-path.
    * @return A channel for writing to the given object.
-   * @throws IOException
    */
   public WritableByteChannel create(URI path, CreateFileOptions options) throws IOException {
     logger.atFine().log("create(path: %s, options: %s)", path, options);
@@ -831,7 +829,6 @@ public class GoogleCloudStorageFileSystem {
    *
    * @param fileInfo FileInfo of an item.
    * @return Paths of children (if directory) or self path.
-   * @throws IOException
    */
   public List<URI> listFileNames(FileInfo fileInfo) throws IOException {
     return listFileNames(fileInfo, false);
