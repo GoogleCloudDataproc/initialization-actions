@@ -81,9 +81,10 @@ class AtlasTestCase(DataprocTestCase):
             1
         ))
 
-    @parameterized.expand([
-        ("STANDARD", "1.5", ["m"]),
-    ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    @parameterized.parameters(
+        ("SINGLE", ["m"]),
+        ("STANDARD", ["m"]),
+    )
     def test_atlas(self, configuration, dataproc_version, machine_suffixes):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
@@ -120,9 +121,9 @@ class AtlasTestCase(DataprocTestCase):
           optional_components=self.OPTIONAL_COMPONENTS, machine_type="n1-standard-4")
         self.verify_instance("{}-m".format(self.getClusterName()), username, password)
 
-    @parameterized.expand([
-        ("HA", "1.5", ["m-0", "m-1", "m-2"]),
-    ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
+    @parameterized.parameters(
+        ("HA", ["m-0", "m-1", "m-2"]),
+    )
     def test_atlas_HA(self, configuration, dataproc_version, machine_suffixes):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
