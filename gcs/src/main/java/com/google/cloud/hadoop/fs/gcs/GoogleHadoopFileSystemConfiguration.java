@@ -364,7 +364,7 @@ public class GoogleHadoopFileSystemConfiguration {
 
   /** Configuration key for the Cloud Storage gRPC server address. */
   public static final HadoopConfigurationProperty<String> GCS_GRPC_SERVER_ADDRESS =
-      new HadoopConfigurationProperty<>("fs.gs.grpc.server.address", "storage.googleapis.com:443");
+      new HadoopConfigurationProperty<>("fs.gs.grpc.server.address");
 
   /** Override configuration file path. This file must be a valid Hadoop configuration file. */
   public static final HadoopConfigurationProperty<String> GCS_CONFIG_OVERRIDE_FILE =

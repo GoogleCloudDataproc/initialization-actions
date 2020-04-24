@@ -19,6 +19,7 @@ package com.google.cloud.hadoop.gcsio;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import javax.annotation.Nullable;
 
 /**
  * Advanced options for reading GoogleCloudStorage objects. Immutable; callers must use the inner
@@ -46,7 +47,6 @@ public abstract class GoogleCloudStorageReadOptions {
   public static final Fadvise DEFAULT_FADVISE = Fadvise.SEQUENTIAL;
   public static final int DEFAULT_MIN_RANGE_REQUEST_SIZE = 512 * 1024;
   public static final boolean GRPC_CHECKSUMS_ENABLED_DEFAULT = false;
-  public static final String GRPC_SERVER_ADDRESS = "storage.googleapis.com:443";
 
   // Default builder should be initialized after default values,
   // otherwise it will access not initialized default values.
@@ -65,8 +65,7 @@ public abstract class GoogleCloudStorageReadOptions {
         .setInplaceSeekLimit(DEFAULT_INPLACE_SEEK_LIMIT)
         .setFadvise(DEFAULT_FADVISE)
         .setMinRangeRequestSize(DEFAULT_MIN_RANGE_REQUEST_SIZE)
-        .setGrpcChecksumsEnabled(GRPC_CHECKSUMS_ENABLED_DEFAULT)
-        .setGrpcServerAddress(GRPC_SERVER_ADDRESS);
+        .setGrpcChecksumsEnabled(GRPC_CHECKSUMS_ENABLED_DEFAULT);
   }
 
   public abstract Builder toBuilder();
@@ -105,6 +104,7 @@ public abstract class GoogleCloudStorageReadOptions {
   public abstract int getMinRangeRequestSize();
 
   /** See {@link Builder#setGrpcServerAddress}. */
+  @Nullable
   public abstract String getGrpcServerAddress();
 
   /** Mutable builder for GoogleCloudStorageReadOptions. */

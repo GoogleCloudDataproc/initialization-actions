@@ -1869,11 +1869,17 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     // therefore no need to guard against that by setting threadPool to null.
     logger.atFine().log("close()");
     try {
+      // TODO: add try-catch around each shutdown() call to make sure
+      //  that all resources are shut down
       backgroundTasksThreadPool.shutdown();
       manualBatchingThreadPool.shutdown();
+      if (storageStubProvider != null) {
+        storageStubProvider.shutdown();
+      }
     } finally {
       backgroundTasksThreadPool = null;
       manualBatchingThreadPool = null;
+      storageStubProvider = null;
     }
   }
 
