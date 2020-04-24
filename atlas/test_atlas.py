@@ -17,6 +17,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class AtlasTestCase(DataprocTestCase):
     COMPONENT = 'atlas'
+    OPTIONAL_COMPONENTS = 'ZOOKEEPER'
     ATLAS_HOME = '/usr/lib/atlas/apache-atlas-1.2.0'
     INIT_ACTION = 'gs://roderickyao/atlas/atlas.sh'  # TODO(yhqs540): change to official init-action before merging
     ZK_INIT_ACTION = 'gs://dataproc-initialization-actions/zookeeper/zookeeper.sh'
@@ -82,17 +83,19 @@ class AtlasTestCase(DataprocTestCase):
         ))
 
     @parameterized.expand([
-        # ("SINGLE", "1.5", ["m"]),
         ("STANDARD", "1.5", ["m"]),
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_atlas(self, configuration, dataproc_version, machine_suffixes):
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+
         init_actions = ",".join([
-            self.ZK_INIT_ACTION,
             self.HBASE_INIT_ACTION,
             self.SOLR_INIT_ACTION,
             self.INIT_ACTION
         ])
-        self.createCluster(configuration, init_actions, dataproc_version, timeout_in_minutes=30)
+        self.createCluster(configuration, optional_components=self.OPTIONAL_COMPONENTS, 
+          init_actions, dataproc_version, timeout_in_minutes=30)
 
         for machine_suffix in machine_suffixes:
             self.verify_instance(
@@ -103,8 +106,10 @@ class AtlasTestCase(DataprocTestCase):
             )
 
     def test_atlas_overrides_admin_credentials(self):
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+
         init_actions = ",".join([
-            self.ZK_INIT_ACTION,
             self.HBASE_INIT_ACTION,
             self.SOLR_INIT_ACTION,
             self.INIT_ACTION
@@ -115,13 +120,17 @@ class AtlasTestCase(DataprocTestCase):
             username,
             hashlib.sha256(password.encode('utf-8')).hexdigest()
         )
-        self.createCluster("SINGLE", init_actions, "1.5", timeout_in_minutes=30, metadata=metadata)
+        self.createCluster("SINGLE", optional_components=self.OPTIONAL_COMPONENTS, 
+          init_actions, "1.5", timeout_in_minutes=30, metadata=metadata)
         self.verify_instance("{}-m".format(self.getClusterName()), username, password)
 
     @parameterized.expand([
         ("HA", "1.5", ["m-0", "m-1", "m-2"]),
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_atlas_HA(self, configuration, dataproc_version, machine_suffixes):
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+
         init_actions = ",".join([
             self.HBASE_INIT_ACTION,
             self.KAFKA_INIT_ACTION,
@@ -136,13 +145,16 @@ class AtlasTestCase(DataprocTestCase):
             self.verify_instance(machine_name)
             _, out, _ = self.run_command_on_cluster(
                 machine_name,
-                "sudo {}}/bin/atlas_admin.py -u admin:admin -status".format(ATLAS_HOME)
+                "sudo {}}/bin/atlas_admin.py -u admin:admin -status".format(self.ATLAS_HOME)
             )
             atlas_statuses.append(out.strip())
         self.assertEqual(1, atlas_statuses.count("ACTIVE"))
         self.assertEqual(2, atlas_statuses.count("PASSIVE"))
 
     def test_atlas_fails_without_zookeeper(self):
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+
         init_actions = ",".join([
             self.HBASE_INIT_ACTION,
             self.SOLR_INIT_ACTION,
@@ -152,24 +164,33 @@ class AtlasTestCase(DataprocTestCase):
             self.createCluster("SINGLE", init_actions, "1.5")
 
     def test_atlas_fails_without_hbase(self):
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+
         init_actions = ",".join([
-            self.ZK_INIT_ACTION,
             self.SOLR_INIT_ACTION,
             self.INIT_ACTION
         ])
         with self.assertRaises(AssertionError):
-            self.createCluster("SINGLE", init_actions, "1.5")
+            self.createCluster("SINGLE", optional_components=self.OPTIONAL_COMPONENTS,
+              init_actions, "1.5")
 
     def test_atlas_fails_without_solr(self):
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+
         init_actions = ",".join([
-            self.ZK_INIT_ACTION,
             self.HBASE_INIT_ACTION,
             self.INIT_ACTION
         ])
         with self.assertRaises(AssertionError):
-            self.createCluster("SINGLE", init_actions, "1.5")
+            self.createCluster("SINGLE", optional_components=self.OPTIONAL_COMPONENTS,
+              init_actions, "1.5")
 
     def test_atlas_fails_without_kafka_on_HA(self):
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+
         init_actions = ",".join([
             self.HBASE_INIT_ACTION,
             self.SOLR_INIT_ACTION,
