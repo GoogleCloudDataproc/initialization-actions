@@ -63,6 +63,11 @@ public class GoogleHadoopFileSystemConfiguration {
       new HadoopConfigurationProperty<>(
           "fs.gs.storage.root.url", GoogleCloudStorageOptions.STORAGE_ROOT_URL_DEFAULT);
 
+  /** Configuration key for the Cloud Storage API endpoint service path. */
+  public static final HadoopConfigurationProperty<String> GCS_SERVICE_PATH =
+      new HadoopConfigurationProperty<>(
+          "fs.gs.storage.service.path", GoogleCloudStorageOptions.STORAGE_SERVICE_PATH_DEFAULT);
+
   /**
    * Key for the permissions that we report a file or directory to have. Can either be octal or
    * symbolic mode accepted by {@link FsPermission#FsPermission(String)}
@@ -401,6 +406,7 @@ public class GoogleHadoopFileSystemConfiguration {
     String projectId = GCS_PROJECT_ID.get(config, config::get);
     return GoogleCloudStorageOptions.builder()
         .setStorageRootUrl(GCS_ROOT_URL.get(config, config::get))
+        .setStorageServicePath(GCS_SERVICE_PATH.get(config, config::get))
         .setAutoRepairImplicitDirectoriesEnabled(
             GCS_REPAIR_IMPLICIT_DIRECTORIES_ENABLE.get(config, config::getBoolean))
         .setInferImplicitDirectoriesEnabled(

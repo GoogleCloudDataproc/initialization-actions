@@ -20,6 +20,7 @@ import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_ENCRYPTION_KEY_HASH;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_HTTP_HEADERS;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_ROOT_URL;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_SERVICE_PATH;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.PROXY_ADDRESS_SUFFIX;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.PROXY_PASSWORD_SUFFIX;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.PROXY_USERNAME_SUFFIX;
@@ -56,6 +57,7 @@ public class GoogleHadoopFileSystemConfigurationTest {
           put("fs.gs.rewrite.max.bytes.per.call", 536_870_912L);
           put("fs.gs.config.override.file", null);
           put("fs.gs.storage.root.url", "https://storage.googleapis.com/");
+          put("fs.gs.storage.service.path", "storage/v1/");
           put("fs.gs.reported.permissions", "700");
           put("fs.gs.delegation.token.binding", null);
           put("fs.gs.bucket.delete.enable", false);
@@ -251,10 +253,12 @@ public class GoogleHadoopFileSystemConfigurationTest {
   public void customPropertiesValues() {
     Configuration config = new Configuration();
     config.set(GCS_ROOT_URL.getKey(), "https://unit-test-storage.googleapis.com/");
+    config.set(GCS_SERVICE_PATH.getKey(), "storage/dev_v1/");
 
     GoogleCloudStorageOptions options =
         GoogleHadoopFileSystemConfiguration.getGcsOptionsBuilder(config).build();
 
     assertThat(options.getStorageRootUrl()).isEqualTo("https://unit-test-storage.googleapis.com/");
+    assertThat(options.getStorageServicePath()).isEqualTo("storage/dev_v1/");
   }
 }

@@ -38,6 +38,9 @@ public abstract class GoogleCloudStorageOptions {
   /** Default root URL for Cloud Storage API endpoint. */
   public static final String STORAGE_ROOT_URL_DEFAULT = Storage.DEFAULT_ROOT_URL;
 
+  /** Default service Path for Cloud Storage API endpoint. */
+  public static final String STORAGE_SERVICE_PATH_DEFAULT = Storage.DEFAULT_SERVICE_PATH;
+
   /** Default setting for enabling auto-repair of implicit directories. */
   public static final boolean AUTO_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT = true;
 
@@ -89,6 +92,7 @@ public abstract class GoogleCloudStorageOptions {
     return new AutoValue_GoogleCloudStorageOptions.Builder()
         .setGrpcEnabled(ENABLE_GRPC_DEFAULT)
         .setStorageRootUrl(STORAGE_ROOT_URL_DEFAULT)
+        .setStorageServicePath(STORAGE_SERVICE_PATH_DEFAULT)
         .setAutoRepairImplicitDirectoriesEnabled(AUTO_REPAIR_IMPLICIT_DIRECTORIES_DEFAULT)
         .setInferImplicitDirectoriesEnabled(INFER_IMPLICIT_DIRECTORIES_DEFAULT)
         .setMaxWaitMillisForEmptyObjectCreation(MAX_WAIT_MILLIS_FOR_EMPTY_OBJECT_CREATION)
@@ -115,6 +119,8 @@ public abstract class GoogleCloudStorageOptions {
   public abstract boolean isGrpcEnabled();
 
   public abstract String getStorageRootUrl();
+
+  public abstract String getStorageServicePath();
 
   @Nullable
   public abstract String getProjectId();
@@ -189,6 +195,8 @@ public abstract class GoogleCloudStorageOptions {
     public abstract Builder setGrpcEnabled(boolean grpcEnabled);
 
     public abstract Builder setStorageRootUrl(String rootUrl);
+
+    public abstract Builder setStorageServicePath(String servicePath);
 
     public abstract Builder setProjectId(String projectId);
 
