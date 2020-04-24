@@ -6,6 +6,9 @@ Test logic:
 2. Query for data via Atlas REST API
 3. Validate that response returns expected result
 """
+import pkg_resources
+from absl.testing import absltest
+from absl.testing import parameterized
 import hashlib
 import random
 import unittest
