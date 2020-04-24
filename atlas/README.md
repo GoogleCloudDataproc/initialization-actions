@@ -7,13 +7,12 @@ Apache Atlas is a Data Governance and Metadata framework for Hadoop. More inform
 
 ## Using this initialization action
 
-This init-action can currently run on all custer configurations, but it has different requirements
-depending on the configuration.
+This init-action can only be run on Dataproc version higher than 1.5. This init-action can currently run on all custer configurations, but it has different requirements depending on the configuration.
 
 ### Single-node and Standard
 
 Atlas requires following components to be available:
-* zookeeper
+* Zookeeper
 * HBase
 * Solr
 
@@ -22,7 +21,8 @@ The init action will fail if any of those services is not available.
 Use the following command to create standard Dataproc cluster with Atlas:
 ```
 gcloud dataproc clusters create <CLUSTER_NAME> \
-    --initialization-actions 'gs://dataproc-initialization-actions/zookeeper/zookeeper.sh','gs://dataproc-initialization-actions/hbase/hbase.sh','gs://dataproc-initialization-actions/solr/solr.sh',"gs://dataproc-initialization-actions/atlas/atlas.sh" \
+    --optional-component ZOOKEEPER \
+    --initialization-actions 'gs://dataproc-initialization-actions/hbase/hbase.sh','gs://dataproc-initialization-actions/solr/solr.sh',"gs://dataproc-initialization-actions/atlas/atlas.sh" \
     --initialization-action-timeout 30m 
 ```
 

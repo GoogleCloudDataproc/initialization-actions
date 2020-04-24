@@ -17,7 +17,8 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class AtlasTestCase(DataprocTestCase):
     COMPONENT = 'atlas'
-    INIT_ACTION = 'gs://dariusz-init-actions/atlas/atlas.sh'  # TODO(Aniszewski): change to official init-action before merging
+    ATLAS_HOME = '/usr/lib/atlas/apache-atlas-1.2.0'
+    INIT_ACTION = 'gs://roderickyao/atlas/atlas.sh'  # TODO(yhqs540): change to official init-action before merging
     ZK_INIT_ACTION = 'gs://dataproc-initialization-actions/zookeeper/zookeeper.sh'
     HBASE_INIT_ACTION = 'gs://dataproc-initialization-actions/hbase/hbase.sh'
     SOLR_INIT_ACTION = 'gs://dataproc-initialization-actions/solr/solr.sh'
@@ -81,8 +82,8 @@ class AtlasTestCase(DataprocTestCase):
         ))
 
     @parameterized.expand([
-        # ("SINGLE", "1.3", ["m"]),
-        ("STANDARD", "1.3", ["m"]),
+        # ("SINGLE", "1.5", ["m"]),
+        ("STANDARD", "1.5", ["m"]),
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_atlas(self, configuration, dataproc_version, machine_suffixes):
         init_actions = ",".join([
@@ -114,11 +115,11 @@ class AtlasTestCase(DataprocTestCase):
             username,
             hashlib.sha256(password.encode('utf-8')).hexdigest()
         )
-        self.createCluster("SINGLE", init_actions, "1.3", timeout_in_minutes=30, metadata=metadata)
+        self.createCluster("SINGLE", init_actions, "1.5", timeout_in_minutes=30, metadata=metadata)
         self.verify_instance("{}-m".format(self.getClusterName()), username, password)
 
     @parameterized.expand([
-        ("HA", "1.3", ["m-0", "m-1", "m-2"]),
+        ("HA", "1.5", ["m-0", "m-1", "m-2"]),
     ], testcase_func_name=DataprocTestCase.generate_verbose_test_name)
     def test_atlas_HA(self, configuration, dataproc_version, machine_suffixes):
         init_actions = ",".join([
@@ -135,7 +136,7 @@ class AtlasTestCase(DataprocTestCase):
             self.verify_instance(machine_name)
             _, out, _ = self.run_command_on_cluster(
                 machine_name,
-                "sudo /etc/atlas/bin/atlas_admin.py -u admin:admin -status"
+                "sudo {}}/bin/atlas_admin.py -u admin:admin -status".format(ATLAS_HOME)
             )
             atlas_statuses.append(out.strip())
         self.assertEqual(1, atlas_statuses.count("ACTIVE"))
@@ -148,7 +149,7 @@ class AtlasTestCase(DataprocTestCase):
             self.INIT_ACTION
         ])
         with self.assertRaises(AssertionError):
-            self.createCluster("SINGLE", init_actions, "1.3")
+            self.createCluster("SINGLE", init_actions, "1.5")
 
     def test_atlas_fails_without_hbase(self):
         init_actions = ",".join([
@@ -157,7 +158,7 @@ class AtlasTestCase(DataprocTestCase):
             self.INIT_ACTION
         ])
         with self.assertRaises(AssertionError):
-            self.createCluster("SINGLE", init_actions, "1.3")
+            self.createCluster("SINGLE", init_actions, "1.5")
 
     def test_atlas_fails_without_solr(self):
         init_actions = ",".join([
@@ -166,7 +167,7 @@ class AtlasTestCase(DataprocTestCase):
             self.INIT_ACTION
         ])
         with self.assertRaises(AssertionError):
-            self.createCluster("SINGLE", init_actions, "1.3")
+            self.createCluster("SINGLE", init_actions, "1.5")
 
     def test_atlas_fails_without_kafka_on_HA(self):
         init_actions = ",".join([
@@ -175,7 +176,7 @@ class AtlasTestCase(DataprocTestCase):
             self.INIT_ACTION
         ])
         with self.assertRaises(AssertionError):
-            self.createCluster("HA", init_actions, "1.3")
+            self.createCluster("HA", init_actions, "1.5")
 
 
 if __name__ == '__main__':

@@ -2,18 +2,32 @@
 
 set -euxo pipefail
 
-readonly ATLAS_VERSION='1.1.0'
-readonly ATLAS_FILE="apache-atlas-${ATLAS_VERSION}-bin"
-readonly ATLAS_GCS_URL="gs://dariusz-init-actions/atlas/${ATLAS_FILE}.tar.gz" # TODO(Aniszewski): change to official GCS location before merging
-readonly ATLAS_HOME='/etc/atlas'
+source "/usr/local/share/google/dataproc/bdutil/bdutil_helpers.sh"
+
+readonly ATLAS_VERSION='1.2.0'
+readonly ATLAS_HOME='/usr/lib/atlas/apache-atlas-1.2.0'
 readonly ATLAS_CONFIG="${ATLAS_HOME}/conf/atlas-application.properties"
-readonly ATLAS_TMP_TARBALL_PATH='/tmp/atlas-${ATLAS_VERSION}.tar.gz'
 readonly INIT_SCRIPT='/usr/lib/systemd/system/atlas.service'
 readonly ATLAS_ADMIN_USERNAME="$(/usr/share/google/get_metadata_value attributes/ATLAS_ADMIN_USERNAME)"
 readonly ATLAS_ADMIN_PASSWORD_SHA256="$(/usr/share/google/get_metadata_value attributes/ATLAS_ADMIN_PASSWORD_SHA256)"
 readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 readonly ADDITIONAL_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)
 
+function retry_apt_command() {
+  cmd="$1"
+  for ((i = 0; i < 10; i++)); do
+    if eval "$cmd"; then
+      return 0
+    fi
+    sleep 5
+  done
+  return 1
+}
+
+function install_apt_get() {
+  pkgs="$@"
+  retry_apt_command "apt-get install -y $pkgs"
+}
 
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
@@ -25,7 +39,12 @@ function check_prerequisites(){
   # check for Zookeeper
   echo stat | nc localhost 2181 || err 'Zookeeper not found'
 
-  # check for HBase
+  # check for HBase 
+  if [[ $(hostname) == "${MASTER}" ]]; then
+    systemctl is-active hbase-master || err 'HBase Master is not active'
+  elif
+    systemctl is-active hbase-regionserver || err 'HBase Region Server is not active'
+  fi
   echo "list" | hbase shell || err 'HBase not found'
 
   # check for Solr
@@ -37,11 +56,9 @@ function check_prerequisites(){
   fi
 }
 
-function download_atlas(){
-  gsutil cp "${ATLAS_GCS_URL}" "${ATLAS_TMP_TARBALL_PATH}"
-  tar -xf "${ATLAS_TMP_TARBALL_PATH}"
-  rm "${ATLAS_TMP_TARBALL_PATH}"
-  mv "apache-atlas-${ATLAS_VERSION}" "${ATLAS_HOME}"
+function install_atlas(){
+  install_apt_get atlas
+  ln -s "${ATLAS_HOME}/conf" "/etc/atlas/conf"
 }
 
 function configure_solr(){
@@ -60,8 +77,8 @@ function configure_atlas(){
   local zk_url_for_solr="$(echo ${zk_quorum} | sed 's/,/:2181\\\/solr,/g'):2181\\/solr"
 
   # symlink HBase conf dir
-  mkdir /etc/atlas/hbase
-  ln -s /etc/hbase/conf /etc/atlas/hbase/conf
+  mkdir "${ATLAS_HOME}/hbase"
+  ln -s "/etc/hbase/conf" "${ATLAS_HOME}/hbase/conf"
 
   # configure atlas
   sed -i "s/atlas.graph.storage.hostname=.*/atlas.graph.storage.hostname=${zk_quorum}/" ${ATLAS_CONFIG}
@@ -123,8 +140,8 @@ Description=Apache Atlas
 
 [Service]
 Type=forking
-ExecStart=/etc/atlas/bin/atlas_start.py
-ExecStop=/etc/atlas/bin/atlas_stop.py
+ExecStart=${ATLAS_HOME}/bin/atlas_start.py
+ExecStop=${ATLAS_HOME}/bin/atlas_stop.py
 RemainAfterExit=yes
 TimeoutSec=10m
 
@@ -139,19 +156,19 @@ EOF
 function wait_for_atlas_to_start(){
   # atlas start script exits prematurely, before atlas actually starts
   # thus wait up to 10 minutes until atlas is fully working
-
+  wait_for_port "Atlas web server" localhost 21000
   cmd='curl localhost:21000/api/atlas/admin/status'
   for ((i = 0; i < 60; i++)); do
     if eval "${cmd}"; then
       return 0
     fi
-    sleep 10
+    sleep 20
   done
   return 1
 }
 
 function wait_for_atlas_becomes_active_or_passive(){
-  cmd="sudo /etc/atlas/bin/atlas_admin.py -u doesnt:matter -status 2>/dev/null" # public check, but some username:password has to be given
+  cmd="sudo ${ATLAS_HOME}/bin/atlas_admin.py -u doesnt:matter -status 2>/dev/null" # public check, but some username:password has to be given
   for ((i = 0; i < 60; i++)); do
     status=$(eval "${cmd}")
     if [[ ${status} == 'ACTIVE' || ${status} == 'PASSIVE' ]]; then
@@ -180,7 +197,7 @@ function enable_hbase_hook(){
     --configuration_file '/etc/hbase/conf/hbase-site.xml' \
     --clobber
 
-  ln -s /etc/atlas/hook/hbase/* /usr/lib/hbase/lib/
+  ln -s ${ATLAS_HOME}/hook/hbase/* /usr/lib/hbase/lib/
   ln -s ${ATLAS_CONFIG} /etc/hbase/conf/
 
   sudo service hbase-master restart
@@ -202,7 +219,7 @@ function enable_sqoop_hook(){
     --configuration_file '/usr/lib/sqoop/conf/sqoop-site.xml' \
     --clobber
 
-  ln -s /etc/atlas/hook/sqoop/* /usr/lib/sqoop/lib
+  ln -s ${ATLAS_HOME}/hook/sqoop/* /usr/lib/sqoop/lib
   ln -s ${ATLAS_CONFIG} /usr/lib/sqoop/conf
 
   sudo service hbase-master restart
@@ -211,18 +228,19 @@ function enable_sqoop_hook(){
 function main() {
   local role
   role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-
-  if [[ "${role}" == 'Master' ]]; then
-    check_prerequisites
-    download_atlas
-    configure_solr
-    configure_atlas
-    enable_hive_hook
-    enable_hbase_hook
-    enable_sqoop_hook
-    start_atlas
-    wait_for_atlas_to_start
-    wait_for_atlas_becomes_active_or_passive
+  if is_version_at_least "${DATAPROC_VERSION}" 1.5; then
+    if [[ "${role}" == 'Master' ]]; then
+      check_prerequisites
+      install_atlas
+      configure_solr
+      configure_atlas
+      enable_hive_hook
+      enable_hbase_hook
+      enable_sqoop_hook
+      start_atlas
+      wait_for_atlas_to_start
+      wait_for_atlas_becomes_active_or_passive
+    fi
   fi
 }
 
