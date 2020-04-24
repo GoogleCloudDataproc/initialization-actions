@@ -42,7 +42,7 @@ function check_prerequisites(){
   # check for HBase 
   if [[ $(hostname) == "${MASTER}" ]]; then
     systemctl is-active hbase-master || err 'HBase Master is not active'
-  elif
+  else
     systemctl is-active hbase-regionserver || err 'HBase Region Server is not active'
   fi
   echo "list" | hbase shell || err 'HBase not found'
