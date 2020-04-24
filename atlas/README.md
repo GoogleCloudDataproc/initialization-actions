@@ -21,8 +21,8 @@ The init action will fail if any of those services is not available.
 Use the following command to create standard Dataproc cluster with Atlas:
 ```
 gcloud dataproc clusters create <CLUSTER_NAME> \
-    --optional-component ZOOKEEPER \
-    --initialization-actions 'gs://dataproc-initialization-actions/hbase/hbase.sh','gs://dataproc-initialization-actions/solr/solr.sh',"gs://dataproc-initialization-actions/atlas/atlas.sh" \
+    --optional-component ZOOKEEPER,HBASE,SOLR \
+    --initialization-actions "gs://dataproc-initialization-actions/atlas/atlas.sh" \
     --initialization-action-timeout 30m 
 ```
 
@@ -40,7 +40,8 @@ _ACTIVE_ node is the only one that handles requests, _PASSIVE_ nodes are redirec
 Use the following command to create HA cluster with Atlas:
 ```
 gcloud dataproc clusters create <CLUSTER_NAME> \
-    --initialization-actions 'gs://dataproc-initialization-actions/kafka/kafka.sh','gs://dataproc-initialization-actions/hbase/hbase.sh','gs://dataproc-initialization-actions/solr/solr.sh',"gs://dataproc-initialization-actions/atlas/atlas.sh" \
+    --optional-component ZOOKEEPER,HBASE,SOLR \
+    --initialization-actions "gs://dataproc-initialization-actions/kafka/kafka.sh","gs://dataproc-initialization-actions/atlas/atlas.sh" \
     --num-masters 3, \
     --initialization-action-timeout 30m 
 ```
