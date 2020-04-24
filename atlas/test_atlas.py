@@ -11,18 +11,14 @@ import random
 import unittest
 import os
 
-from parameterized import parameterized
 from integration_tests.dataproc_test_case import DataprocTestCase
 
 
 class AtlasTestCase(DataprocTestCase):
     COMPONENT = 'atlas'
-    OPTIONAL_COMPONENTS = 'ZOOKEEPER'
+    OPTIONAL_COMPONENTS = 'ZOOKEEPER,HBASE,SOLR'
     ATLAS_HOME = '/usr/lib/atlas/apache-atlas-1.2.0'
     INIT_ACTION = 'gs://roderickyao/atlas/atlas.sh'  # TODO(yhqs540): change to official init-action before merging
-    ZK_INIT_ACTION = 'gs://dataproc-initialization-actions/zookeeper/zookeeper.sh'
-    HBASE_INIT_ACTION = 'gs://dataproc-initialization-actions/hbase/hbase.sh'
-    SOLR_INIT_ACTION = 'gs://dataproc-initialization-actions/solr/solr.sh'
     KAFKA_INIT_ACTION = 'gs://dataproc-initialization-actions/kafka/kafka.sh'
 
     POPULATE_SCRIPT = 'populate_atlas.sh'
@@ -90,8 +86,6 @@ class AtlasTestCase(DataprocTestCase):
             return
 
         init_actions = ",".join([
-            self.HBASE_INIT_ACTION,
-            self.SOLR_INIT_ACTION,
             self.INIT_ACTION
         ])
         self.createCluster(configuration, init_actions, timeout_in_minutes=30,
@@ -110,8 +104,6 @@ class AtlasTestCase(DataprocTestCase):
             return
 
         init_actions = ",".join([
-            self.HBASE_INIT_ACTION,
-            self.SOLR_INIT_ACTION,
             self.INIT_ACTION
         ])
         username = 'dataproc-user'
@@ -133,12 +125,11 @@ class AtlasTestCase(DataprocTestCase):
             return
 
         init_actions = ",".join([
-            self.HBASE_INIT_ACTION,
             self.KAFKA_INIT_ACTION,
-            self.SOLR_INIT_ACTION,
             self.INIT_ACTION,
         ])
         self.createCluster(configuration, init_actions, timeout_in_minutes=30,
+          optional_components=self.OPTIONAL_COMPONENTS,
           machine_type="n1-standard-4")
 
         atlas_statuses = []
@@ -158,52 +149,48 @@ class AtlasTestCase(DataprocTestCase):
             return
 
         init_actions = ",".join([
-            self.HBASE_INIT_ACTION,
-            self.SOLR_INIT_ACTION,
             self.INIT_ACTION
         ])
         with self.assertRaises(AssertionError):
             self.createCluster("SINGLE", init_actions,
-              timeout_in_minutes=30, machine_type="n1-standard-4")
+              timeout_in_minutes=30, machine_type="n1-standard-4",
+              optional_components="HBASE,SOLR")
 
     def test_atlas_fails_without_hbase(self):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
         init_actions = ",".join([
-            self.SOLR_INIT_ACTION,
             self.INIT_ACTION
         ])
         with self.assertRaises(AssertionError):
             self.createCluster("SINGLE", init_actions, timeout_in_minutes=30,
               machine_type="n1-standard-4",
-              optional_components=self.OPTIONAL_COMPONENTS)
+              optional_components="ZOOKEEPER,SOLR")
 
     def test_atlas_fails_without_solr(self):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
         init_actions = ",".join([
-            self.HBASE_INIT_ACTION,
             self.INIT_ACTION
         ])
         with self.assertRaises(AssertionError):
             self.createCluster("SINGLE", init_actions,timeout_in_minutes=30,
               machine_type="n1-standard-4",
-              optional_components=self.OPTIONAL_COMPONENTS)
+              optional_components="ZOOKEEPER,HBASE")
 
     def test_atlas_fails_without_kafka_on_HA(self):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
         init_actions = ",".join([
-            self.HBASE_INIT_ACTION,
-            self.SOLR_INIT_ACTION,
             self.INIT_ACTION
         ])
         with self.assertRaises(AssertionError):
             self.createCluster("HA", init_actions, timeout_in_minutes=30,
-              machine_type="n1-standard-4")
+              machine_type="n1-standard-4",
+              optional_components=self.OPTIONAL_COMPONENTS)
 
 
 if __name__ == '__main__':
