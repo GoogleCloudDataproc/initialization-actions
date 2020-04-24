@@ -94,7 +94,8 @@ class AtlasTestCase(DataprocTestCase):
             self.SOLR_INIT_ACTION,
             self.INIT_ACTION
         ])
-        self.createCluster(configuration, init_actions, dataproc_version, timeout_in_minutes=30, optional_components=self.OPTIONAL_COMPONENTS)
+        self.createCluster(configuration, init_actions, timeout_in_minutes=30,
+          optional_components=self.OPTIONAL_COMPONENTS, machine_type="n1-standard-4")
 
         for machine_suffix in machine_suffixes:
             self.verify_instance(
@@ -119,7 +120,9 @@ class AtlasTestCase(DataprocTestCase):
             username,
             hashlib.sha256(password.encode('utf-8')).hexdigest()
         )
-        self.createCluster("SINGLE", init_actions, "1.5", timeout_in_minutes=30, metadata=metadata, optional_components=self.OPTIONAL_COMPONENTS)
+        self.createCluster("SINGLE", init_actions, timeout_in_minutes=30,
+          metadata=metadata,
+          optional_components=self.OPTIONAL_COMPONENTS, machine_type="n1-standard-4")
         self.verify_instance("{}-m".format(self.getClusterName()), username, password)
 
     @parameterized.expand([
@@ -135,7 +138,8 @@ class AtlasTestCase(DataprocTestCase):
             self.SOLR_INIT_ACTION,
             self.INIT_ACTION,
         ])
-        self.createCluster(configuration, init_actions, dataproc_version, timeout_in_minutes=30)
+        self.createCluster(configuration, init_actions, timeout_in_minutes=30,
+          machine_type="n1-standard-4")
 
         atlas_statuses = []
         for machine_suffix in machine_suffixes:
@@ -159,7 +163,8 @@ class AtlasTestCase(DataprocTestCase):
             self.INIT_ACTION
         ])
         with self.assertRaises(AssertionError):
-            self.createCluster("SINGLE", init_actions, "1.5")
+            self.createCluster("SINGLE", init_actions,
+              timeout_in_minutes=30, machine_type="n1-standard-4")
 
     def test_atlas_fails_without_hbase(self):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
@@ -170,7 +175,9 @@ class AtlasTestCase(DataprocTestCase):
             self.INIT_ACTION
         ])
         with self.assertRaises(AssertionError):
-            self.createCluster("SINGLE", init_actions, "1.5", optional_components=self.OPTIONAL_COMPONENTS)
+            self.createCluster("SINGLE", init_actions, timeout_in_minutes=30,
+              machine_type="n1-standard-4",
+              optional_components=self.OPTIONAL_COMPONENTS)
 
     def test_atlas_fails_without_solr(self):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
@@ -181,7 +188,9 @@ class AtlasTestCase(DataprocTestCase):
             self.INIT_ACTION
         ])
         with self.assertRaises(AssertionError):
-            self.createCluster("SINGLE", init_actions, "1.5", optional_components=self.OPTIONAL_COMPONENTS)
+            self.createCluster("SINGLE", init_actions,timeout_in_minutes=30,
+              machine_type="n1-standard-4",
+              optional_components=self.OPTIONAL_COMPONENTS)
 
     def test_atlas_fails_without_kafka_on_HA(self):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
@@ -193,7 +202,8 @@ class AtlasTestCase(DataprocTestCase):
             self.INIT_ACTION
         ])
         with self.assertRaises(AssertionError):
-            self.createCluster("HA", init_actions, "1.5")
+            self.createCluster("HA", init_actions, timeout_in_minutes=30,
+              machine_type="n1-standard-4")
 
 
 if __name__ == '__main__':
