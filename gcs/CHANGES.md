@@ -10,6 +10,10 @@
         fs.gs.encryption.key (not set by default)
         fs.gs.encryption.key.hash (not set by default)
 
+1.  Add a property to override storage service path:
+
+        fs.gs.storage.service.path (default: `storage/v1/`)
+
 ### 2.1.1 - 2020-03-11
 
 1.  Add upload cache to support high-level retries of failed uploads. Cache size

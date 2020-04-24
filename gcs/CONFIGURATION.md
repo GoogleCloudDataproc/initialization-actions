@@ -357,6 +357,10 @@ is `false`.
 
     Google Cloud Storage root URL.
 
+*   `fs.gs.storage.service.path` (default: `storage/v1/`)
+
+    Google Cloud Storage service path.
+
 *   `fs.gs.token.server.url` (default: `https://oauth2.googleapis.com/token`)
 
     Google Token Server root URL.
