@@ -198,4 +198,4 @@ class AtlasTestCase(DataprocTestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    absltest.main()
