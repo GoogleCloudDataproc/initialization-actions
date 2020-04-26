@@ -89,9 +89,7 @@ class AtlasTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
-        init_actions = ",".join([
-            self.INIT_ACTION
-        ])
+        init_actions = [self.INIT_ACTION]
         self.createCluster(configuration, init_actions, timeout_in_minutes=30,
           optional_components=self.OPTIONAL_COMPONENTS, machine_type="n1-standard-4")
 
@@ -107,9 +105,7 @@ class AtlasTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
-        init_actions = ",".join([
-            self.INIT_ACTION
-        ])
+        init_actions =[self.INIT_ACTION]
         username = 'dataproc-user'
         password = 'dataproc-password'
         metadata = "ATLAS_ADMIN_USERNAME={},ATLAS_ADMIN_PASSWORD_SHA256={}".format(
@@ -130,7 +126,7 @@ class AtlasTestCase(DataprocTestCase):
 
         init_actions = ",".join([
             self.KAFKA_INIT_ACTION,
-            self.INIT_ACTION,
+            self.INIT_ACTION
         ])
         self.createCluster(configuration, init_actions, timeout_in_minutes=30,
           optional_components=self.OPTIONAL_COMPONENTS,
@@ -152,9 +148,7 @@ class AtlasTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
-        init_actions = ",".join([
-            self.INIT_ACTION
-        ])
+        init_actions =[self.INIT_ACTION]
         with self.assertRaises(AssertionError):
             self.createCluster("SINGLE", init_actions,
               timeout_in_minutes=30, machine_type="n1-standard-4",
@@ -164,9 +158,7 @@ class AtlasTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
-        init_actions = ",".join([
-            self.INIT_ACTION
-        ])
+        init_actions =[self.INIT_ACTION]
         with self.assertRaises(AssertionError):
             self.createCluster("SINGLE", init_actions, timeout_in_minutes=30,
               machine_type="n1-standard-4",
@@ -176,9 +168,7 @@ class AtlasTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
-        init_actions = ",".join([
-            self.INIT_ACTION
-        ])
+        init_actions =[self.INIT_ACTION]
         with self.assertRaises(AssertionError):
             self.createCluster("SINGLE", init_actions,timeout_in_minutes=30,
               machine_type="n1-standard-4",
@@ -188,9 +178,7 @@ class AtlasTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
-        init_actions = ",".join([
-            self.INIT_ACTION
-        ])
+        init_actions =[self.INIT_ACTION]
         with self.assertRaises(AssertionError):
             self.createCluster("HA", init_actions, timeout_in_minutes=30,
               machine_type="n1-standard-4",
