@@ -85,7 +85,7 @@ class AtlasTestCase(DataprocTestCase):
         ("SINGLE", ["m"]),
         ("STANDARD", ["m"]),
     )
-    def test_atlas(self, configuration, dataproc_version, machine_suffixes):
+    def test_atlas(self, configuration, machine_suffixes):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
@@ -124,7 +124,7 @@ class AtlasTestCase(DataprocTestCase):
     @parameterized.parameters(
         ("HA", ["m-0", "m-1", "m-2"]),
     )
-    def test_atlas_HA(self, configuration, dataproc_version, machine_suffixes):
+    def test_atlas_HA(self, configuration, machine_suffixes):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
