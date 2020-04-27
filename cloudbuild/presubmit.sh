@@ -110,11 +110,11 @@ main() {
   configure_gcloud_ssh_key
   if [[ $RUN_ALL_TESTS=="true" ]]; then
     # Run periodic
-    initialize_git_repo "true"
+    initialize_git_repo "false"
     bash cloudbuild/periodic/run-all-tests.sh
   else
     # Run presubmit
-    initialize_git_repo "false"
+    initialize_git_repo "true"
     determine_tests_to_run
     run_tests
   fi
