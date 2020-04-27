@@ -58,7 +58,9 @@ create_finished_json() {
   echo $(get_test_xml $component) > test.xml
   failures_num=$(grep -oP '(?<=failures=")(\d)' "test.xml" | tr -d "'")
   errors_num=$(grep -oP '(?<=errors=")(\d)' "test.xml" | tr -d "'")
-  if [ "$errors_num" == "0'" ] && [ "$failures_num" == "0'" ]; then
+  failures=$(xmllint --xpath 'string(/testsuites/@failures)' parse-test.xml)
+  errors=$(xmllint --xpath 'string(/testsuites/@errors)' parse-test.xml)
+  if [ "$errors" == "0" ] && [ "$failures" == "0" ]; then
   	status="SUCCESS"
   else
   	status="FAILURE"
