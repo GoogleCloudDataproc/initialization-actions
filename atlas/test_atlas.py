@@ -21,7 +21,7 @@ class AtlasTestCase(DataprocTestCase):
     COMPONENT = 'atlas'
     OPTIONAL_COMPONENTS = 'ZOOKEEPER,HBASE,SOLR'
     ATLAS_HOME = '/usr/lib/atlas/apache-atlas-1.2.0'
-    INIT_ACTION = 'gs://roderickyao/atlas/atlas.sh'  # TODO(yhqs540): change to official init-action before merging
+    INIT_ACTIONS = ['gs://roderickyao/atlas/atlas.sh']  # TODO(yhqs540): change to official init-action before merging
     KAFKA_INIT_ACTION = 'gs://dataproc-initialization-actions/kafka/kafka.sh'
 
     POPULATE_SCRIPT = 'populate_atlas.sh'
@@ -89,8 +89,7 @@ class AtlasTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
-        init_actions = [self.INIT_ACTION]
-        self.createCluster(configuration, init_actions, timeout_in_minutes=30,
+        self.createCluster(configuration, self.INIT_ACTIONS, timeout_in_minutes=30,
           optional_components=self.OPTIONAL_COMPONENTS, machine_type="n1-standard-4")
 
         for machine_suffix in machine_suffixes:
@@ -105,14 +104,13 @@ class AtlasTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
-        init_actions =[self.INIT_ACTION]
         username = 'dataproc-user'
         password = 'dataproc-password'
         metadata = "ATLAS_ADMIN_USERNAME={},ATLAS_ADMIN_PASSWORD_SHA256={}".format(
             username,
             hashlib.sha256(password.encode('utf-8')).hexdigest()
         )
-        self.createCluster("SINGLE", init_actions, timeout_in_minutes=30,
+        self.createCluster("SINGLE", self.INIT_ACTIONS, timeout_in_minutes=30,
           metadata=metadata,
           optional_components=self.OPTIONAL_COMPONENTS, machine_type="n1-standard-4")
         self.verify_instance("{}-m".format(self.getClusterName()), username, password)
@@ -148,9 +146,8 @@ class AtlasTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
-        init_actions =[self.INIT_ACTION]
         with self.assertRaises(AssertionError):
-            self.createCluster("SINGLE", init_actions,
+            self.createCluster("SINGLE", self.INIT_ACTIONS,
               timeout_in_minutes=30, machine_type="n1-standard-4",
               optional_components="HBASE,SOLR")
 
@@ -158,9 +155,8 @@ class AtlasTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
-        init_actions =[self.INIT_ACTION]
         with self.assertRaises(AssertionError):
-            self.createCluster("SINGLE", init_actions, timeout_in_minutes=30,
+            self.createCluster("SINGLE", self.INIT_ACTIONS, timeout_in_minutes=30,
               machine_type="n1-standard-4",
               optional_components="ZOOKEEPER,SOLR")
 
@@ -168,9 +164,8 @@ class AtlasTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
-        init_actions =[self.INIT_ACTION]
         with self.assertRaises(AssertionError):
-            self.createCluster("SINGLE", init_actions,timeout_in_minutes=30,
+            self.createCluster("SINGLE", self.INIT_ACTIONS,timeout_in_minutes=30,
               machine_type="n1-standard-4",
               optional_components="ZOOKEEPER,HBASE")
 
@@ -178,9 +173,8 @@ class AtlasTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
-        init_actions =[self.INIT_ACTION]
         with self.assertRaises(AssertionError):
-            self.createCluster("HA", init_actions, timeout_in_minutes=30,
+            self.createCluster("HA", self.INIT_ACTIONS, timeout_in_minutes=30,
               machine_type="n1-standard-4",
               optional_components=self.OPTIONAL_COMPONENTS)
 
