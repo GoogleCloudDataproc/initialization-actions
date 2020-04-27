@@ -58,8 +58,8 @@ create_finished_json() {
   echo $(get_test_xml $component) > test.xml
   failures_num=$(grep -oP '(?<=failures=")(\d)' "test.xml" | tr -d "'")
   errors_num=$(grep -oP '(?<=errors=")(\d)' "test.xml" | tr -d "'")
-  failures=$(xmllint --xpath 'string(/testsuites/@failures)' parse-test.xml)
-  errors=$(xmllint --xpath 'string(/testsuites/@errors)' parse-test.xml)
+  failures=$(xmllint --xpath 'string(/testsuites/@failures)' test.xml)
+  errors=$(xmllint --xpath 'string(/testsuites/@errors)' test.xml)
   if [ "$errors" == "0" ] && [ "$failures" == "0" ]; then
   	status="SUCCESS"
   else
@@ -73,7 +73,7 @@ create_finished_json() {
   	--arg build_num $BUILD_NUM \
   	--arg build_id $BUILD_ID \
   	--arg commit $COMMIT \
-  	'{"timestamp":$timestamp, "result":$result, "job_version":$commit, "metadata": {"component":$component, "version":$version, "build_num":$build_num, "build_id":$build_id}}' > finished.json
+  	'{"timestamp":$timestamp, "result":$result, "job-version":$commit, "metadata": {"component":$component, "version":$version, "build_num":$build_num, "build_id":$build_id}}' > finished.json
 }
 
 #"job-version":"e8dcf26a1666f990efb9125e0297ac26fef892f9"
