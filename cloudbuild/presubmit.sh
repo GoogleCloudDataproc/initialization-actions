@@ -28,18 +28,23 @@ configure_gcloud_ssh_key() {
 # Fetches master branch from GitHub and "resets" local changes to be relative to it,
 # so we can diff what changed relatively to master branch.
 initialize_git_repo() {
+  run_as_presubmit=$1
+
   git init
   git config user.email "ia-tests@presubmit.example.com"
   git config user.name "ia-tests"
 
   git remote add origin "https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git"
   git fetch origin master
-  # Fetch all PRs to get history for PRs created from forked repos
-  #git fetch origin +refs/pull/*/merge:refs/remotes/origin/pr/*
 
-  #git reset --hard "${COMMIT_SHA}"
+  if [[ $run_as_presubmit == "true" ]]; then
+    # Fetch all PRs to get history for PRs created from forked repos
+    git fetch origin +refs/pull/*/merge:refs/remotes/origin/pr/*
 
-  #git rebase origin/master
+    git reset --hard "${COMMIT_SHA}"
+
+    git rebase origin/master
+  fi
 }
 
 # This function adds all changed files to git "index" and diffs them against master branch
@@ -103,12 +108,13 @@ main() {
   cd /init-actions
   configure_gcloud
   configure_gcloud_ssh_key
-  initialize_git_repo
   if [[ $RUN_ALL_TESTS=="true" ]]; then
-    TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
-    
-    bash cloudbuild/run-all-tests.sh
+    # Run periodic
+    initialize_git_repo "true"
+    bash cloudbuild/periodic/run-all-tests.sh
   else
+    # Run presubmit
+    initialize_git_repo "false"
     determine_tests_to_run
     run_tests
   fi
