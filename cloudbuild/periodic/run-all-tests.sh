@@ -3,14 +3,16 @@
 set -uxo pipefail
 
 TESTS_TO_RUN=(
-	"//presto:test_presto"
-    "//ranger:test_ranger"
-    "//rapids:test_rapids"
-    "//rstudio:test_rstudio"
-    "//solr:test_solr"
-    "//tez:test_tez"
-    "//tony:test_tony"
-) #":DataprocInitActionsTestSuite"
+  ":DataprocInitActionsTestSuite"
+)
+
+# "//presto:test_presto"
+#   "//ranger:test_ranger"
+#   "//rapids:test_rapids"
+#   "//rstudio:test_rstudio"
+#   "//solr:test_solr"
+#   "//tez:test_tez"
+#   "//tony:test_tony"
 
 bazel test \
 	--jobs=15 \
@@ -56,8 +58,6 @@ get_test_xml() {
 create_finished_json() {
   component=$1
   echo $(get_test_xml $component) > test.xml
-  failures_num=$(grep -oP '(?<=failures=")(\d)' "test.xml" | tr -d "'")
-  errors_num=$(grep -oP '(?<=errors=")(\d)' "test.xml" | tr -d "'")
   failures=$(xmllint --xpath 'string(/testsuites/@failures)' test.xml)
   errors=$(xmllint --xpath 'string(/testsuites/@errors)' test.xml)
   if [ "$errors" == "0" ] && [ "$failures" == "0" ]; then
@@ -75,8 +75,6 @@ create_finished_json() {
   	--arg commit $COMMIT \
   	'{"timestamp":$timestamp, "result":$result, "job-version":$commit, "metadata": {"component":$component, "version":$version, "build_num":$build_num, "build_id":$build_id}}' > finished.json
 }
-
-#"job-version":"e8dcf26a1666f990efb9125e0297ac26fef892f9"
 
 shopt -s nullglob
 COMPONENT_DIRS=(bazel-testlogs/*)

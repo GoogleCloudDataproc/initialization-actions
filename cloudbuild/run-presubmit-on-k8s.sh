@@ -23,7 +23,7 @@ if [[ "${RUN_ALL_TESTS}" == "true" ]]; then
 fi
 
 kubectl run "${POD_NAME}" "${ARGS[@]}" \
-	--command -- bash /init-actions/cloudbuild/presubmit.sh
+	--command -- bash /init-actions/cloudbuild/run-tests.sh
 
 # kubectl run "${POD_NAME}" --generator=run-pod/v1 --image="$IMAGE" \
 #   --requests "cpu=4,memory=12Gi" --restart=Never \
