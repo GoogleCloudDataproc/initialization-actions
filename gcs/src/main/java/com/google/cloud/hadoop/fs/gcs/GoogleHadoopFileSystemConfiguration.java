@@ -358,6 +358,10 @@ public class GoogleHadoopFileSystemConfiguration {
   public static final HadoopConfigurationProperty<Boolean> GCS_GRPC_ENABLE =
       new HadoopConfigurationProperty<>("fs.gs.grpc.enable", false);
 
+  /** Configuration key for enabling auto-tuning flow-control window size. */
+  public static final HadoopConfigurationProperty<Boolean> GCS_GRPC_AUTO_WINDOW_ENABLE =
+      new HadoopConfigurationProperty<>("fs.gs.grpc.auto.window.enable", false);
+
   /** Configuration key for enabling checksum validation for the gRPC API. */
   public static final HadoopConfigurationProperty<Boolean> GCS_GRPC_CHECKSUMS_ENABLE =
       new HadoopConfigurationProperty<>("fs.gs.grpc.checksums.enable", false);
@@ -464,7 +468,8 @@ public class GoogleHadoopFileSystemConfiguration {
         .setEncryptionAlgorithm(GCS_ENCRYPTION_ALGORITHM.get(config, config::get))
         .setEncryptionKey(RedactedString.create(GCS_ENCRYPTION_KEY.getPassword(config)))
         .setEncryptionKeyHash(RedactedString.create(GCS_ENCRYPTION_KEY_HASH.getPassword(config)))
-        .setGrpcEnabled(GCS_GRPC_ENABLE.get(config, config::getBoolean));
+        .setGrpcEnabled(GCS_GRPC_ENABLE.get(config, config::getBoolean))
+        .setGrpcAutoWindowEnabled(GCS_GRPC_AUTO_WINDOW_ENABLE.get(config, config::getBoolean));
   }
 
   private static PerformanceCachingGoogleCloudStorageOptions getPerformanceCachingOptions(
