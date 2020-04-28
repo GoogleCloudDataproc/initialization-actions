@@ -86,8 +86,10 @@ for dir in "${COMPONENT_DIRS[@]}"; do
   # Create finished.json
   create_finished_json $dir
 
+  output_dir="${dir}-${IMAGE_VERSION}"
+
   # Upload to GCS
-  gsutil cp finished.json gs://init-actions-github-tests/logs/init_actions_tests/${dir}/${BUILD_NUM}/finished.json
-  gsutil cp build-log.txt gs://init-actions-github-tests/logs/init_actions_tests/${dir}/${BUILD_NUM}/build-log.txt
-  gsutil cp test.xml gs://init-actions-github-tests/logs/init_actions_tests/${dir}/${BUILD_NUM}/test.xml
+  gsutil cp finished.json gs://init-actions-github-tests/logs/init_actions_tests/${output_dir}/${BUILD_NUM}/finished.json
+  gsutil cp build-log.txt gs://init-actions-github-tests/logs/init_actions_tests/${output_dir}/${BUILD_NUM}/build-log.txt
+  gsutil cp test.xml gs://init-actions-github-tests/logs/init_actions_tests/${output_dir}/${BUILD_NUM}/test.xml
 done
