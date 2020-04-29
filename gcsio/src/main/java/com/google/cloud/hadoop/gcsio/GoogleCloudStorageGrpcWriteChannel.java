@@ -105,7 +105,8 @@ public final class GoogleCloudStorageGrpcWriteChannel
   public void handleResponse(Object response) {
     checkArgument(
         !response.getBucket().isEmpty(),
-        "Got response from service with empty/missing bucketName: %s", response);
+        "Got response from service with empty/missing bucketName: %s",
+        response);
     Map<String, byte[]> metadata =
         response.getMetadataMap().entrySet().stream()
             .collect(
@@ -231,10 +232,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
       final CountDownLatch done = new CountDownLatch(1);
 
       InsertChunkResponseObserver(
-          String uploadId,
-          ByteString chunkData,
-          long writeOffset,
-          Hasher objectHasher) {
+          String uploadId, ByteString chunkData, long writeOffset, Hasher objectHasher) {
         this.uploadId = uploadId;
         this.chunkData = chunkData;
         this.writeOffset = writeOffset;

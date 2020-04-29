@@ -268,9 +268,7 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
             .setCrc32C(UInt32Value.newBuilder().setValue(DEFAULT_OBJECT_CRC32C))
             .build());
     GoogleCloudStorageReadOptions options =
-        GoogleCloudStorageReadOptions.builder()
-            .setGrpcChecksumsEnabled(true)
-            .build();
+        GoogleCloudStorageReadOptions.builder().setGrpcChecksumsEnabled(true).build();
     GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
 
     ByteBuffer buffer = ByteBuffer.allocate(OBJECT_SIZE);
@@ -284,9 +282,7 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
     fakeService.setObject(
         DEFAULT_OBJECT.toBuilder().setCrc32C(UInt32Value.newBuilder().setValue(0)).build());
     GoogleCloudStorageReadOptions options =
-        GoogleCloudStorageReadOptions.builder()
-            .setGrpcChecksumsEnabled(true)
-            .build();
+        GoogleCloudStorageReadOptions.builder().setGrpcChecksumsEnabled(true).build();
     GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
 
     ByteBuffer buffer = ByteBuffer.allocate(OBJECT_SIZE - 10);
@@ -303,9 +299,7 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
             .setCrc32C(UInt32Value.newBuilder().setValue(DEFAULT_OBJECT_CRC32C))
             .build());
     GoogleCloudStorageReadOptions options =
-        GoogleCloudStorageReadOptions.builder()
-            .setGrpcChecksumsEnabled(true)
-            .build();
+        GoogleCloudStorageReadOptions.builder().setGrpcChecksumsEnabled(true).build();
     GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
 
     ByteBuffer firstBuffer = ByteBuffer.allocate(100);
@@ -367,9 +361,7 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
     fakeService.setObject(
         DEFAULT_OBJECT.toBuilder().setCrc32C(UInt32Value.newBuilder().setValue(0)).build());
     GoogleCloudStorageReadOptions options =
-        GoogleCloudStorageReadOptions.builder()
-            .setGrpcChecksumsEnabled(true)
-            .build();
+        GoogleCloudStorageReadOptions.builder().setGrpcChecksumsEnabled(true).build();
     GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
 
     ByteBuffer firstBuffer = ByteBuffer.allocate(100);
@@ -419,9 +411,7 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
   @Test
   public void readWithStrictGenerationReadConsistencySucceeds() throws Exception {
     fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).setGeneration(1).build());
-    GoogleCloudStorageReadOptions options =
-        GoogleCloudStorageReadOptions.builder()
-            .build();
+    GoogleCloudStorageReadOptions options = GoogleCloudStorageReadOptions.builder().build();
     GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
 
     ByteBuffer buffer = ByteBuffer.allocate(10);
@@ -448,9 +438,7 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
   @Test
   public void readWithLatestGenerationReadConsistencySucceeds() throws Exception {
     fakeService.setObject(DEFAULT_OBJECT.toBuilder().setSize(100).setGeneration(1).build());
-    GoogleCloudStorageReadOptions options =
-        GoogleCloudStorageReadOptions.builder()
-            .build();
+    GoogleCloudStorageReadOptions options = GoogleCloudStorageReadOptions.builder().build();
     GoogleCloudStorageGrpcReadChannel readChannel = newReadChannel(options);
 
     ByteBuffer buffer = ByteBuffer.allocate(10);
