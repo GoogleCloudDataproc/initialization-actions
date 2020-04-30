@@ -163,7 +163,11 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
         remainingBufferedContentLargerThanByteBuffer
             ? byteBuffer.remaining()
             : remainingBufferedBytes;
-    byteBuffer.put(bufferedContent.toByteArray(), bufferedContentReadOffset, bytesToWrite);
+    ByteString bufferToReturn = bufferedContent.substring(bufferedContentReadOffset,
+        bufferedContentReadOffset+bytesToWrite);
+    for( ByteBuffer bufferPiece : bufferToReturn.asReadOnlyByteBufferList()) {
+      byteBuffer.put(bufferPiece);
+    }
     position += bytesToWrite;
 
     if (remainingBufferedContentLargerThanByteBuffer) {
