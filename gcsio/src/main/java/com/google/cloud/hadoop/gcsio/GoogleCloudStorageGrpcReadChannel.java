@@ -149,6 +149,14 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
     }
   }
 
+  /** Writes part of a ByteString into a ByteBuffer with as little copying as possible */
+  private final static void put(ByteString source, int offset, int size, ByteBuffer dest) {
+    ByteString croppedSource = source.substring(offset, offset+size);
+    for( ByteBuffer sourcePiece : croppedSource.asReadOnlyByteBufferList()) {
+      dest.put(sourcePiece);
+    }
+  }
+
   private int readBufferedContentInto(ByteBuffer byteBuffer) {
     // Handle skipping forward through the buffer for a seek.
     long bufferSkip =
@@ -163,11 +171,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
         remainingBufferedContentLargerThanByteBuffer
             ? byteBuffer.remaining()
             : remainingBufferedBytes;
-    ByteString bufferToReturn = bufferedContent.substring(bufferedContentReadOffset,
-        bufferedContentReadOffset+bytesToWrite);
-    for( ByteBuffer bufferPiece : bufferToReturn.asReadOnlyByteBufferList()) {
-      byteBuffer.put(bufferPiece);
-    }
+    put(bufferedContent, bufferedContentReadOffset, bytesToWrite, byteBuffer);
     position += bytesToWrite;
 
     if (remainingBufferedContentLargerThanByteBuffer) {
@@ -242,7 +246,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
       boolean responseSizeLargerThanRemainingBuffer = content.size() > byteBuffer.remaining();
       int bytesToWrite =
           responseSizeLargerThanRemainingBuffer ? byteBuffer.remaining() : content.size();
-      byteBuffer.put(content.toByteArray(), 0, bytesToWrite);
+      put(content, 0, bytesToWrite, byteBuffer);
       bytesRead += bytesToWrite;
       position += bytesToWrite;
 
