@@ -15,9 +15,7 @@ status = status_response.content
 if status == "ACTIVE":
     response = requests.get(
         'http://localhost:21000/api/atlas/v2/search/basic',
-        params={
-            'query': query
-        },
+        params={'query': query},
         auth=(username, password),
         allow_redirects=False,
     )
@@ -28,9 +26,7 @@ if status == "ACTIVE":
 elif status == "PASSIVE":
     response = requests.get(
         'http://localhost:21000/api/atlas/v2/search/basic',
-        params={
-            'query': query
-        },
+        params={'query': query},
         auth=(username, password),
         allow_redirects=False,
     )
