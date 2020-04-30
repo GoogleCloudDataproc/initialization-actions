@@ -16,7 +16,7 @@ class H2OTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.3"):
             return
         init_actions = self.INIT_ACTIONS
-        optional_components = "ANACONDA"
+        optional_components = ["ANACONDA"]
         if self.getImageVersion() < pkg_resources.parse_version("1.4"):
             init_actions = ["conda/bootstrap-conda.sh"] + init_actions
             optional_components = None

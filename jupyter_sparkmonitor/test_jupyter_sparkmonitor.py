@@ -6,7 +6,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 
 class JupyterTestCase(DataprocTestCase):
-    OPTIONAL_COMPONENTS = 'ANACONDA,JUPYTER'
+    OPTIONAL_COMPONENTS = ['ANACONDA', 'JUPYTER']
     COMPONENT = 'sparkmonitor'
     INIT_ACTIONS = ['jupyter_sparkmonitor/sparkmonitor.sh']
 
