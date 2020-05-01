@@ -150,9 +150,9 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
   }
 
   /** Writes part of a ByteString into a ByteBuffer with as little copying as possible */
-  private final static void put(ByteString source, int offset, int size, ByteBuffer dest) {
-    ByteString croppedSource = source.substring(offset, offset+size);
-    for( ByteBuffer sourcePiece : croppedSource.asReadOnlyByteBufferList()) {
+  private static final void put(ByteString source, int offset, int size, ByteBuffer dest) {
+    ByteString croppedSource = source.substring(offset, offset + size);
+    for (ByteBuffer sourcePiece : croppedSource.asReadOnlyByteBufferList()) {
       dest.put(sourcePiece);
     }
   }
