@@ -42,6 +42,7 @@ get_test_logs() {
     logs_filepath=$(readlink -f ${shard}/test.log)
     logs=$(cat $logs_filepath)
     all_logs="${all_logs} \n\n ${logs}"
+  done
 	echo -e $all_logs
 }
 
@@ -61,6 +62,7 @@ get_test_status() {
     else
       test_results+=("FAILURE")
     fi
+  done
   # If there's a single test shard that fails, the test is considered a failure.
   if [[ " ${test_results[@]} " =~ "FAILURE" ]]; then
     status="FAILURE"
