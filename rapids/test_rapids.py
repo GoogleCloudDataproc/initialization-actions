@@ -49,7 +49,7 @@ class RapidsTestCase(DataprocTestCase):
                            metadata=metadata,
                            master_accelerator=master_accelerator,
                            worker_accelerator=accelerator,
-                           optional_components='ANACONDA',
+                           optional_components=['ANACONDA'],
                            machine_type='n1-standard-2',
                            timeout_in_minutes=20)
 

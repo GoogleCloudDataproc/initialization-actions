@@ -127,7 +127,8 @@ class DataprocTestCase(parameterized.TestCase):
         if worker_accelerator:
             args.append("--worker-accelerator={}".format(worker_accelerator))
         if optional_components:
-            args.append("--optional-components={}".format(optional_components))
+            args.append("--optional-components={}".format(
+                ','.join(optional_components)))
 
         args.append("--master-machine-type={}".format(machine_type))
         args.append("--worker-machine-type={}".format(machine_type))
