@@ -6,14 +6,6 @@ TESTS_TO_RUN=(
   ":DataprocInitActionsTestSuite"
 )
 
-# "//presto:test_presto"
-#   "//ranger:test_ranger"
-#   "//rapids:test_rapids"
-#   "//rstudio:test_rstudio"
-#   "//solr:test_solr"
-#   "//tez:test_tez"
-#   "//tony:test_tony"
-
 bazel test \
 	--jobs=15 \
 	--local_cpu_resources=15 \
@@ -40,31 +32,46 @@ get_build_num() {
 
 BUILD_NUM=$(get_build_num)
 
-# Reads the test log of a given component
+# Reads the test logs of a given component by compiling all the logs of all its shards
 get_test_logs() {
 	component=$1
-	logs_filepath=$(readlink -f bazel-testlogs/${component}/test_${component}/shard_1_of_3/test.log)
-	logs=$(cat $logs_filepath)
-	echo $logs
+  SHARD_PATHS=(bazel-testlogs/${component}/test_${component}/shard*)
+  #SHARD_DIRS=("${SHARD_PATHS[@]##*/}")
+  all_logs=""
+  for shard in "${SHARD_PATHS[@]}"; do
+    logs_filepath=$(readlink -f ${shard}/test.log)
+    logs=$(cat $logs_filepath)
+    all_logs="${all_logs} \n\n ${logs}"
+	echo -e $all_logs
 }
 
-get_test_xml() {
+get_test_status() {
 	component=$1
-	xml_filepath=$(readlink -f bazel-testlogs/${component}/test_${component}/shard_1_of_3/test.xml)
+  SHARD_PATHS=(bazel-testlogs/${component}/test_${component}/shard*)
+  #SHARD_DIRS=("${SHARD_PATHS[@]##*/}")
+  declare -a test_results=()
+  for shard in "${SHARD_PATHS[@]}"; do
+  	xml_filepath=$(readlink -f ${shard}/test.xml)
     xml=$(cat $xml_filepath)
-	echo $xml
+    # Parse the XML and determine if test passed or failed
+    failures=$(xmllint --xpath 'string(/testsuites/@failures)' test.xml)
+    errors=$(xmllint --xpath 'string(/testsuites/@errors)' test.xml)
+    if [ "$errors" == "0" ] && [ "$failures" == "0" ]; then
+      test_results+=("SUCCESS")
+    else
+      test_results+=("FAILURE")
+    fi
+  # If there's a single test shard that fails, the test is considered a failure.
+  if [[ " ${test_results[@]} " =~ "FAILURE" ]]; then
+    status="FAILURE"
+  else
+    status="SUCCESS"
+	echo $status
 }
 
 create_finished_json() {
   component=$1
-  echo $(get_test_xml $component) > test.xml
-  failures=$(xmllint --xpath 'string(/testsuites/@failures)' test.xml)
-  errors=$(xmllint --xpath 'string(/testsuites/@errors)' test.xml)
-  if [ "$errors" == "0" ] && [ "$failures" == "0" ]; then
-  	status="SUCCESS"
-  else
-  	status="FAILURE"
-  fi
+  status=$(get_test_status $component)
   jq -n \
   	--argjson timestamp $(date +%s) \
   	--arg result $status \
