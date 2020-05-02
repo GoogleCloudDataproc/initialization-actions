@@ -68,6 +68,7 @@ get_test_status() {
     status="FAILURE"
   else
     status="SUCCESS"
+  fi
 	echo $status
 }
 
