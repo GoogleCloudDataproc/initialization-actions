@@ -19,14 +19,17 @@ import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.GoogleLogger;
+import com.google.common.util.concurrent.RateLimiter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.WritableByteChannel;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -111,6 +114,10 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
   // List of file-deletion futures accrued during the lifetime of this output stream.
   private final List<Future<Void>> deletionFutures;
 
+  private final SyncableOutputStreamOptions options;
+
+  private final RateLimiter syncRateLimiter;
+
   private final ExecutorService cleanupThreadpool;
 
   // Current GCS path pointing at the "tail" file which will be appended to the destination
@@ -129,56 +136,39 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
   // StorageResourceId.UNKNOWN_GENERATION_ID if unknown.
   private long curDestGenerationId;
 
-  /**
-   * Creates a new GoogleHadoopSyncableOutputStream with initial stream initialized and expected to
-   * begin at file-offset 0. This constructor is not suitable for "appending" to already existing
-   * files.
-   */
-  public GoogleHadoopSyncableOutputStream(
-      GoogleHadoopFileSystemBase ghfs,
-      URI gcsPath,
-      FileSystem.Statistics statistics,
-      CreateFileOptions createFileOptions)
-      throws IOException {
-    this(
-        ghfs,
-        gcsPath,
-        statistics,
-        createFileOptions,
-        TEMPFILE_CLEANUP_THREADPOOL,
-        /* appendMode= */ false);
-  }
-
-  /** Creates a new GoogleHadoopSyncableOutputStream suitable for appending to existing files. */
+  /** Creates a new GoogleHadoopSyncableOutputStream. */
   public GoogleHadoopSyncableOutputStream(
       GoogleHadoopFileSystemBase ghfs,
       URI gcsPath,
       FileSystem.Statistics statistics,
       CreateFileOptions createFileOptions,
-      boolean appendMode)
+      SyncableOutputStreamOptions options)
       throws IOException {
-    this(ghfs, gcsPath, statistics, createFileOptions, TEMPFILE_CLEANUP_THREADPOOL, appendMode);
+    this(ghfs, gcsPath, statistics, createFileOptions, options, TEMPFILE_CLEANUP_THREADPOOL);
   }
 
-  GoogleHadoopSyncableOutputStream(
+  @VisibleForTesting
+  public GoogleHadoopSyncableOutputStream(
       GoogleHadoopFileSystemBase ghfs,
       URI gcsPath,
       FileSystem.Statistics statistics,
       CreateFileOptions createFileOptions,
-      ExecutorService cleanupThreadpool,
-      boolean appendMode)
+      SyncableOutputStreamOptions options,
+      ExecutorService cleanupThreadpool)
       throws IOException {
     logger.atFine().log(
-        "GoogleHadoopSyncableOutputStream(gcsPath: %s, createFileOptions:  %s)",
-        gcsPath, createFileOptions);
+        "GoogleHadoopSyncableOutputStream(gcsPath: %s, createFileOptions:  %s, options: %s)",
+        gcsPath, createFileOptions, options);
     this.ghfs = ghfs;
     this.finalGcsPath = gcsPath;
     this.statistics = statistics;
     this.fileOptions = createFileOptions;
     this.deletionFutures = new ArrayList<>();
     this.cleanupThreadpool = cleanupThreadpool;
+    this.options = options;
+    this.syncRateLimiter = createRateLimiter(options.getMinSyncInterval());
 
-    if (appendMode) {
+    if (options.isAppendEnabled()) {
       // When appending first component has to go to new temporary file.
       this.curGcsPath = getNextTemporaryPath();
       this.curComponentIndex = 1;
@@ -192,6 +182,14 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
 
     this.curDelegate = new GoogleHadoopOutputStream(ghfs, curGcsPath, statistics, fileOptions);
     this.curDestGenerationId = StorageResourceId.UNKNOWN_GENERATION_ID;
+  }
+
+  private static RateLimiter createRateLimiter(Duration minSyncInterval) {
+    if (minSyncInterval.isNegative() || minSyncInterval.isZero()) {
+      return null;
+    }
+    double permitsPerSecond = 1000.0 / minSyncInterval.toMillis();
+    return RateLimiter.create(permitsPerSecond);
   }
 
   @Override
@@ -241,21 +239,50 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
 
   /**
    * There is no way to flush data to become available for readers without a full-fledged hsync(),
-   * so this method is a no-op.
+   * If the output stream is only syncable, this method is a no-op. If the output stream is also
+   * flushable, this method will simply use the same implementation of hsync().
+   *
+   * <p>If it is rate limited, unlike hsync(), which will try to acquire the permits and block, it
+   * will do nothing.
    */
   @Override
   public void hflush() throws IOException {
+    long startTimeNs = System.nanoTime();
+    if (!options.isSyncOnFlushEnabled()) {
+      logger.atWarning().log(
+          "hflush(): No-op: readers will *not* yet see flushed data for %s", finalGcsPath);
+      throwIfNotOpen();
+      return;
+    }
+    // If rate limit not set or permit acquired than use hsync()
+    if (syncRateLimiter == null || syncRateLimiter.tryAcquire()) {
+      logger.atFine().log("hflush() uses hsync() for %s", finalGcsPath);
+      hsyncInternal(startTimeNs);
+      return;
+    }
     logger.atWarning().log(
-        "hflush() is a no-op; readers will *not* yet see flushed data for %s", finalGcsPath);
+        "hflush(): No-op due to rate limit (%s): readers will *not* yet see flushed data for %s",
+        syncRateLimiter, finalGcsPath);
     throwIfNotOpen();
   }
 
   @Override
   public void hsync() throws IOException {
+    long startTimeNs = System.nanoTime();
+    if (syncRateLimiter != null) {
+      logger.atFine().log(
+          "hsync(): Rate limited (%s) with blocking permit acquisition for %s",
+          syncRateLimiter, finalGcsPath);
+      syncRateLimiter.acquire();
+    }
+    hsyncInternal(startTimeNs);
+  }
+
+  /** Internal implementation of hsync, can be reused by hflush() as well. */
+  private void hsyncInternal(long startTimeNs) throws IOException {
     logger.atFine().log(
         "hsync(): Committing tail file %s to final destination %s", curGcsPath, finalGcsPath);
     throwIfNotOpen();
-    long startTime = System.nanoTime();
 
     commitCurrentFile();
 
@@ -269,8 +296,9 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
         curGcsPath, curComponentIndex);
     curDelegate =
         new GoogleHadoopOutputStream(ghfs, curGcsPath, statistics, TEMPFILE_CREATE_OPTIONS);
-    long endTime = System.nanoTime();
-    logger.atFine().log("Took %d ns to hsync()", endTime - startTime);
+
+    long finishTimeNs = System.nanoTime();
+    logger.atFine().log("Took %d ns to sync() for %s", finishTimeNs - startTimeNs, finalGcsPath);
   }
 
   private void commitCurrentFile() throws IOException {

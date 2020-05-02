@@ -14,6 +14,8 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_SYNC_MIN_INTERVAL_MS;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_TYPE;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
@@ -22,16 +24,20 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.OutputStreamType;
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.common.util.concurrent.Futures;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
+import java.time.Duration;
 import java.util.Random;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.junit.After;
@@ -55,12 +61,8 @@ public class GoogleHadoopSyncableOutputStreamTest {
   public void setUp() throws IOException {
     MockitoAnnotations.initMocks(this);
 
-    ghfs = (GoogleHadoopFileSystemBase) GoogleHadoopFileSystemTestHelper
-        .createInMemoryGoogleHadoopFileSystem();
-    ghfs.getConf()
-        .set(
-            GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_TYPE.getKey(),
-            GoogleHadoopFileSystemBase.OutputStreamType.SYNCABLE_COMPOSITE.toString());
+    ghfs = GoogleHadoopFileSystemTestHelper.createInMemoryGoogleHadoopFileSystem();
+    ghfs.getConf().setEnum(GCS_OUTPUT_STREAM_TYPE.getKey(), OutputStreamType.SYNCABLE_COMPOSITE);
   }
 
   @After
@@ -125,8 +127,8 @@ public class GoogleHadoopSyncableOutputStreamTest {
             ghfs.getGcsPath(objectPath),
             new FileSystem.Statistics(ghfs.getScheme()),
             CreateFileOptions.DEFAULT_OVERWRITE,
-            mockExecutorService,
-            /* appendMode= */ false);
+            SyncableOutputStreamOptions.DEFAULT,
+            mockExecutorService);
 
     IOException fakeIoException = new IOException("fake io exception");
     when(mockExecutorService.submit(any(Callable.class)))
@@ -181,7 +183,7 @@ public class GoogleHadoopSyncableOutputStreamTest {
     FSDataOutputStream fout = ghfs.create(objectPath);
     fout.close();
 
-    assertThrows(ClosedChannelException.class, () -> fout.hsync());
+    assertThrows(ClosedChannelException.class, fout::hsync);
   }
 
   @Test
@@ -199,11 +201,49 @@ public class GoogleHadoopSyncableOutputStreamTest {
       }
     }
 
-    byte[] actual = new byte[expected.length];
-    try (FSDataInputStream fin = ghfs.open(objectPath)) {
-      fin.read(actual);
+    assertThat(readFile(objectPath)).isEqualTo(expected);
+  }
+
+  @Test
+  public void hflush_rateLimited_writesEverything() throws Exception {
+    ghfs.getConf()
+        .set(GCS_OUTPUT_STREAM_TYPE.getKey(), OutputStreamType.FLUSHABLE_COMPOSITE.name());
+    ghfs.getConf()
+        .setLong(GCS_OUTPUT_STREAM_SYNC_MIN_INTERVAL_MS.getKey(), Duration.ofDays(1).toMillis());
+
+    Path objectPath = new Path(ghfs.getFileSystemRoot(), "hflush_rateLimited_writesEverything.bin");
+
+    byte[] testData = new byte[100];
+    new Random().nextBytes(testData);
+
+    try (FSDataOutputStream out = ghfs.create(objectPath)) {
+      for (byte testDataByte : testData) {
+        out.write(testDataByte);
+        out.hflush();
+
+        // Validate partly composed data always just contain the first byte because only the
+        // first hflush() succeeds and all subsequent hflush() calls should be rate limited.
+        assertThat(ghfs.getFileStatus(objectPath).getLen()).isEqualTo(1);
+        assertThat(readFile(objectPath)).isEqualTo(new byte[] {testData[0]});
+      }
     }
 
-    assertThat(actual).isEqualTo(expected);
+    // Assert that data was fully written after close
+    assertThat(ghfs.getFileStatus(objectPath).getLen()).isEqualTo(testData.length);
+    assertThat(readFile(objectPath)).isEqualTo(testData);
+  }
+
+  private byte[] readFile(Path objectPath) throws IOException {
+    FileStatus status = ghfs.getFileStatus(objectPath);
+    ByteArrayOutputStream allReadBytes =
+        new ByteArrayOutputStream(Math.toIntExact(status.getLen()));
+    byte[] readBuffer = new byte[1024 * 1024];
+    try (FSDataInputStream in = ghfs.open(objectPath)) {
+      int readBytes;
+      while ((readBytes = in.read(readBuffer)) > 0) {
+        allReadBytes.write(readBuffer, 0, readBytes);
+      }
+    }
+    return allReadBytes.toByteArray();
   }
 }

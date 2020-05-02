@@ -16,6 +16,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.OutputStreamType.FLUSHABLE_COMPOSITE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.BLOCK_SIZE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONCURRENT_GLOB_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONFIG_OVERRIDE_FILE;
@@ -23,6 +24,7 @@ import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_FILE_CHECKSUM_TYPE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_FLAT_GLOB_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_LAZY_INITIALIZATION_ENABLE;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_SYNC_MIN_INTERVAL_MS;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_TYPE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_WORKING_DIRECTORY;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PERMISSIONS_TO_REPORT;
@@ -74,6 +76,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.DirectoryNotEmptyException;
 import java.security.GeneralSecurityException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -148,6 +151,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
    */
   public enum OutputStreamType {
     BASIC,
+    FLUSHABLE_COMPOSITE,
     SYNCABLE_COMPOSITE
   }
 
@@ -674,10 +678,36 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
             new GoogleHadoopOutputStream(
                 this, gcsPath, statistics, new CreateFileOptions(overwrite));
         break;
-      case SYNCABLE_COMPOSITE:
+      case FLUSHABLE_COMPOSITE:
+        SyncableOutputStreamOptions flushableOutputStreamOptions =
+            SyncableOutputStreamOptions.builder()
+                .setMinSyncInterval(
+                    Duration.ofMillis(
+                        GCS_OUTPUT_STREAM_SYNC_MIN_INTERVAL_MS.get(getConf(), getConf()::getInt)))
+                .setSyncOnFlushEnabled(true)
+                .build();
         out =
             new GoogleHadoopSyncableOutputStream(
-                this, gcsPath, statistics, new CreateFileOptions(overwrite));
+                this,
+                gcsPath,
+                statistics,
+                new CreateFileOptions(overwrite),
+                flushableOutputStreamOptions);
+        break;
+      case SYNCABLE_COMPOSITE:
+        SyncableOutputStreamOptions syncableOutputStreamOptions =
+            SyncableOutputStreamOptions.builder()
+                .setMinSyncInterval(
+                    Duration.ofMillis(
+                        GCS_OUTPUT_STREAM_SYNC_MIN_INTERVAL_MS.get(getConf(), getConf()::getInt)))
+                .build();
+        out =
+            new GoogleHadoopSyncableOutputStream(
+                this,
+                gcsPath,
+                statistics,
+                new CreateFileOptions(overwrite),
+                syncableOutputStreamOptions);
         break;
       default:
         throw new IOException(
@@ -741,10 +771,19 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
         "append(hadoopPath: %s, bufferSize: %d [ignored])", hadoopPath, bufferSize);
 
     URI filePath = getGcsPath(hadoopPath);
+    SyncableOutputStreamOptions syncableOutputStreamOptions =
+        SyncableOutputStreamOptions.builder()
+            .setAppendEnabled(true)
+            .setMinSyncInterval(
+                Duration.ofMillis(
+                    GCS_OUTPUT_STREAM_SYNC_MIN_INTERVAL_MS.get(getConf(), getConf()::getInt)))
+            .setSyncOnFlushEnabled(
+                GCS_OUTPUT_STREAM_TYPE.get(getConf(), getConf()::getEnum) == FLUSHABLE_COMPOSITE)
+            .build();
     FSDataOutputStream appendStream =
         new FSDataOutputStream(
             new GoogleHadoopSyncableOutputStream(
-                this, filePath, statistics, DEFAULT_NO_OVERWRITE, /* appendMode= */ true),
+                this, filePath, statistics, DEFAULT_NO_OVERWRITE, syncableOutputStreamOptions),
             statistics);
 
     long duration = System.nanoTime() - startTime;

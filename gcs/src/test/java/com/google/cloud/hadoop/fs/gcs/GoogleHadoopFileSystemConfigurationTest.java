@@ -86,6 +86,7 @@ public class GoogleHadoopFileSystemConfigurationTest {
           put("fs.gs.io.buffersize.write", 67_108_864);
           put("fs.gs.outputstream.direct.upload.enable", false);
           put("fs.gs.outputstream.type", OutputStreamType.BASIC);
+          put("fs.gs.outputstream.sync.min.interval.ms", 0);
           put("fs.gs.application.name.suffix", "");
           put("fs.gs.http.max.retry", 10);
           put("fs.gs.http.connect-timeout", 20_000);

@@ -271,6 +271,9 @@ public class GoogleHadoopFileSystemConfiguration {
    * <p>SYNCABLE_COMPOSITE: Stream behaves similarly to BASIC when used with basic
    * create/write/close patterns, but supports hsync() by creating discrete temporary GCS objects
    * which are composed onto the destination object.
+   *
+   * <p>FLUSHABLE_COMPOSITE: Stream behaves similarly to SYNCABLE_COMPOSITE, except hflush() is also
+   * supported. It will use the same implementation of hsync().
    */
   public static final HadoopConfigurationProperty<OutputStreamType> GCS_OUTPUT_STREAM_TYPE =
       new HadoopConfigurationProperty<>("fs.gs.outputstream.type", OutputStreamType.BASIC);
@@ -297,6 +300,12 @@ public class GoogleHadoopFileSystemConfiguration {
   /** Configuration key for enabling GCS direct upload. */
   public static final HadoopConfigurationProperty<Boolean> GCS_OUTPUT_STREAM_DIRECT_UPLOAD_ENABLE =
       new HadoopConfigurationProperty<>("fs.gs.outputstream.direct.upload.enable", false);
+
+  /**
+   * Configuration key for the minimal time interval between consecutive sync/hsync/hflush calls.
+   */
+  public static final HadoopConfigurationProperty<Integer> GCS_OUTPUT_STREAM_SYNC_MIN_INTERVAL_MS =
+      new HadoopConfigurationProperty<>("fs.gs.outputstream.sync.min.interval.ms", 0);
 
   /** Configuration key for setting read buffer size. */
   public static final HadoopConfigurationProperty<Integer> GCS_INPUT_STREAM_BUFFER_SIZE =

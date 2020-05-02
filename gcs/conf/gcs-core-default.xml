@@ -222,6 +222,15 @@
     <description>The number of bytes in upload cache that used for high-level retries.</description>
   </property>
   <property>
+    <name>fs.gs.outputstream.sync.min.interval.ms</name>
+    <value>0</value>
+    <description>
+      Minimum time interval between consecutive hsync/hflush calls. When the functions are called
+      too closely with each other the second one call will be a no-op for hflush call and blocking
+      for hsync call.
+    </description>
+  </property>
+  <property>
     <name>fs.gs.marker.file.pattern</name>
     <value></value>
     <description>
@@ -472,9 +481,12 @@
       degrees of support for advanced features like {@code hsync()} and different performance
       characteristics. Options:
       - BASIC - stream is closest analogue to direct wrapper around low-level HTTP stream into GCS.
-      - SYNCABLE_COMPOSITE -stream behaves similarly to BASIC when used with basic
+      - SYNCABLE_COMPOSITE - stream behaves similarly to BASIC when used with basic
       create/write/close patterns, but supports hsync() by creating discrete temporary GCS objects
       which are composed onto the destination object.
+      - FLUSHABLE_COMPOSITE - stream behaves similarly to SYNCABLE_COMPOSITE,
+      except hflush() is also supported. It will use the same implementation of
+      hsync().
     </description>
   </property>
 
