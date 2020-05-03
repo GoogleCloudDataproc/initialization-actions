@@ -11,6 +11,7 @@ readonly INIT_SCRIPT="/usr/lib/systemd/system/atlas.service"
 readonly ATLAS_ADMIN_USERNAME="$(/usr/share/google/get_metadata_value attributes/ATLAS_ADMIN_USERNAME || echo '')"
 readonly ATLAS_ADMIN_PASSWORD_SHA256="$(/usr/share/google/get_metadata_value attributes/ATLAS_ADMIN_PASSWORD_SHA256 || echo '')"
 readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 readonly ADDITIONAL_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)
 
 function retry_command() {
@@ -34,7 +35,7 @@ function check_prerequisites() {
   echo stat | nc localhost 2181 || err 'Zookeeper not found'
 
   # check for HBase
-  if [[ $(hostname) == "${MASTER}" ]]; then
+  if [[ "${ROLE}" == 'Master' ]]; then
     systemctl is-active hbase-master || err 'HBase Master is not active'
   else
     systemctl is-active hbase-regionserver || err 'HBase Region Server is not active'
@@ -232,9 +233,7 @@ function main() {
     err "Dataproc ${DATAPROC_VERSION} is not supported"
   fi
 
-  local role
-  role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-  if [[ "${role}" == 'Master' ]]; then
+  if [[ "${ROLE}" == 'Master' ]]; then
     check_prerequisites
     install_atlas
     configure_solr
