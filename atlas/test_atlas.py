@@ -169,7 +169,7 @@ class AtlasTestCase(DataprocTestCase):
             self.createCluster("HA",
                                self.INIT_ACTIONS,
                                timeout_in_minutes=30,
-                               beta=true,
+                               beta=True,
                                machine_type="n1-standard-4",
                                optional_components=self.OPTIONAL_COMPONENTS_HA)
 

@@ -55,7 +55,7 @@ function install_atlas() {
   # TODO: fix in the deb package
   ln -s "${ATLAS_HOME}"-?.?.? "${ATLAS_HOME}" || true
   rm -rf "${ATLAS_HOME}/conf"
-  ln -s "/etc/atlas/conf" "${ATLAS_HOME/conf}" || true
+  ln -s "/etc/atlas/conf" "${ATLAS_HOME}/conf" || true
 }
 
 function configure_solr() {
