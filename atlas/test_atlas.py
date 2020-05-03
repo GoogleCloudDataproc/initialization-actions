@@ -101,7 +101,7 @@ class AtlasTestCase(DataprocTestCase):
 
         self.createCluster(configuration,
                            init_actions,
-                           beta=true,
+                           beta=True,
                            timeout_in_minutes=30,
                            optional_components=optional_components,
                            machine_type="n1-standard-4")
@@ -137,7 +137,7 @@ class AtlasTestCase(DataprocTestCase):
               username, password_sha256)
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           beta=true,
+                           beta=True,
                            timeout_in_minutes=30,
                            metadata=metadata,
                            optional_components=self.OPTIONAL_COMPONENTS,
@@ -156,7 +156,7 @@ class AtlasTestCase(DataprocTestCase):
             self.createCluster(
                 "SINGLE",
                 self.INIT_ACTIONS,
-                beta=true,
+                beta=True,
                 timeout_in_minutes=30,
                 machine_type="n1-standard-4",
                 optional_components=self.OPTIONAL_COMPONENTS.remove(component))
