@@ -31,7 +31,7 @@ Use the following command to create a standard cluster with Atlas:
 ```bash
 REGION=<region>
 CLUSTER_NAME=<cluster_name>
-gcloud dataproc clusters create ${CLUSTER_NAME} \
+gcloud beta dataproc clusters create ${CLUSTER_NAME} \
     --region ${REGION}
     --optional-components ZOOKEEPER,HBASE,SOLR \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/atlas/atlas.sh \
@@ -59,7 +59,7 @@ Use the following command to create HA cluster with Atlas:
 ```bash
 REGION=<region>
 CLUSTER_NAME=<cluster_name>
-gcloud dataproc clusters create ${CLUSTER_NAME} \
+gcloud beta dataproc clusters create ${CLUSTER_NAME} \
     --region ${REGION}
     --num-masters 3 \
     --optional-component HBASE,SOLR \
