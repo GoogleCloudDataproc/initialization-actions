@@ -2,6 +2,7 @@
 
 set -uxo pipefail
 
+COMMIT=$(git rev-parse HEAD)
 TESTS_TO_RUN=(
   "//hue:test_hue"
   "//datalab:test_datalab"
@@ -9,24 +10,18 @@ TESTS_TO_RUN=(
 
 # ":DataprocInitActionsTestSuite"
 
-bazel test \
-	--jobs=15 \
-	--local_cpu_resources=15 \
-	--local_ram_resources=$((15 * 1024)) \
-	--action_env=INTERNAL_IP_SSH=true \
-	--test_output=errors \
-	--noshow_progress \
-	--noshow_loading_progress \
-	--test_arg="--image_version=${IMAGE_VERSION}" \
-	"${TESTS_TO_RUN[@]}"
-
-ls
-ls bazel-init-actions -R
-ls bazel-bin -R
-ls bazel-out -R
-ls bazel-testlogs -R
-
-COMMIT=$(git rev-parse HEAD)
+run_tests() {
+  bazel test \
+  	--jobs=15 \
+  	--local_cpu_resources=15 \
+  	--local_ram_resources=$((15 * 1024)) \
+  	--action_env=INTERNAL_IP_SSH=true \
+  	--test_output=errors \
+  	--noshow_progress \
+  	--noshow_loading_progress \
+  	--test_arg="--image_version=${IMAGE_VERSION}" \
+  	"${TESTS_TO_RUN[@]}"
+}
 
 get_build_num() {
 	build_num=$(($(gsutil cat gs://init-actions-github-tests/counter.txt)-1))
@@ -56,7 +51,6 @@ get_test_status() {
   declare -a test_results=()
   for shard in "${SHARD_PATHS[@]}"; do
   	xml_filepath=$(readlink -f ${shard}/test.xml)
-    xml=$(cat $xml_filepath)
     # Parse the XML and determine if test passed or failed
     failures=$(xmllint --xpath 'string(/testsuites/@failures)' ${xml_filepath})
     errors=$(xmllint --xpath 'string(/testsuites/@errors)' ${xml_filepath})
@@ -89,20 +83,29 @@ create_finished_json() {
   	'{"timestamp":$timestamp, "result":$result, "job-version":$commit, "metadata": {"component":$component, "version":$version, "build_num":$build_num, "build_id":$build_id}}' > finished.json
 }
 
-shopt -s nullglob
-COMPONENT_DIRS=(bazel-testlogs/*)
-COMPONENT_DIRS=("${COMPONENT_DIRS[@]##*/}") # Get only the component name
-for dir in "${COMPONENT_DIRS[@]}"; do
-  # Create build-log.txt
-  echo $(get_test_logs $dir) > build-log.txt
+get_and_upload_test_results() {
+  shopt -s nullglob
+  COMPONENT_DIRS=(bazel-testlogs/*)
+  COMPONENT_DIRS=("${COMPONENT_DIRS[@]##*/}") # Get only the component name
+  for dir in "${COMPONENT_DIRS[@]}"; do
+    # Create build-log.txt from Bazel output
+    echo $(get_test_logs $dir) > build-log.txt
 
-  # Create finished.json
-  create_finished_json $dir
+    # Create finished.json
+    create_finished_json $dir
 
-  output_dir="${dir}-${IMAGE_VERSION}"
+    output_dir="${dir}-${IMAGE_VERSION}"
 
-  # Upload to GCS
-  gsutil cp finished.json gs://init-actions-github-tests/logs/init_actions_tests/${output_dir}/${BUILD_NUM}/finished.json
-  gsutil cp build-log.txt gs://init-actions-github-tests/logs/init_actions_tests/${output_dir}/${BUILD_NUM}/build-log.txt
-  # gsutil cp test.xml gs://init-actions-github-tests/logs/init_actions_tests/${output_dir}/${BUILD_NUM}/test.xml
-done
+    # Upload to GCS
+    gsutil cp finished.json gs://init-actions-github-tests/logs/init_actions_tests/${output_dir}/${BUILD_NUM}/finished.json
+    gsutil cp build-log.txt gs://init-actions-github-tests/logs/init_actions_tests/${output_dir}/${BUILD_NUM}/build-log.txt
+  done
+}
+
+
+main() {
+  run_tests
+  get_and_upload_test_results
+}
+
+main
