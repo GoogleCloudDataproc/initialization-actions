@@ -58,8 +58,8 @@ get_test_status() {
   	xml_filepath=$(readlink -f ${shard}/test.xml)
     xml=$(cat $xml_filepath)
     # Parse the XML and determine if test passed or failed
-    failures=$(xmllint --xpath 'string(/testsuites/@failures)' test.xml)
-    errors=$(xmllint --xpath 'string(/testsuites/@errors)' test.xml)
+    failures=$(xmllint --xpath 'string(/testsuites/@failures)' ${xml_filepath})
+    errors=$(xmllint --xpath 'string(/testsuites/@errors)' ${xml_filepath})
     if [ "$errors" == "0" ] && [ "$failures" == "0" ]; then
       test_results+=("SUCCESS")
     else
