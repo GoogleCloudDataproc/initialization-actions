@@ -36,23 +36,15 @@ class AtlasTestCase(DataprocTestCase):
         # Upload files to populate Atlas and to verify it
         populate_atlas_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), self.POPULATE_SCRIPT)
-        populate_atlas_remote_path = os.path.join('/tmp', self.POPULATE_SCRIPT)
-        self.upload_test_file(
-            populate_atlas_path, "{}:{}".format(instance,
-                                                populate_atlas_remote_path))
+        self.upload_test_file(populate_atlas_path, instance)
 
         validate_atlas_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), self.VALIDATE_SCRIPT)
-        validate_atlas_remote_path = os.path.join('/tmp', self.VALIDATE_SCRIPT)
-        self.upload_test_file(
-            validate_atlas_path, "{}:{}".format(instance,
-                                                validate_atlas_remote_path))
+        self.upload_test_file(validate_atlas_path, instance)
 
         # Populate test data from Atlas provided quick_start.py
         self.assert_instance_command(
-            instance, "chmod +x {}".format(populate_atlas_remote_path))
-        self.assert_instance_command(
-            instance, "sudo {} {} {}".format(populate_atlas_remote_path,
+            instance, "sudo sh {} {} {}".format(self.POPULATE_SCRIPT,
                                              username, password))
 
         # Creating Hive table
@@ -70,20 +62,21 @@ class AtlasTestCase(DataprocTestCase):
 
         # Validate quick_start.py artifacts
         self.assert_instance_command(
-            instance, "python {} {} {}".format(validate_atlas_remote_path,
+            instance, "python {} {} {}".format(self.VALIDATE_SCRIPT,
                                                username, password))
 
         # Checking Hive table info in Atlas
         self.assert_instance_command(
-            instance, "python {} {} {}".format(
-                os.path.join('/tmp', self.VALIDATE_SCRIPT), username, password,
-                hive_table_name, 2))
+            instance, "python {} {} {}".format(self.VALIDATE_SCRIPT,
+                username, password, hive_table_name, 2))
 
         # Checking HBase table info in Atlas
         self.assert_instance_command(
-            instance, "python {} {} {}".format(
-                os.path.join('/tmp', self.VALIDATE_SCRIPT), username, password,
-                hbase_table_name, 1))
+            instance, "python {} {} {}".format(self.VALIDATE_SCRIPT,
+                username, password, hbase_table_name, 1))
+
+        self.remove_test_script(self.VALIDATE_SCRIPT, instance)
+        self.remove_test_script(self.POPULATE_SCRIPT, instance)
 
     @parameterized.parameters(
         ("SINGLE", ["m"]),
