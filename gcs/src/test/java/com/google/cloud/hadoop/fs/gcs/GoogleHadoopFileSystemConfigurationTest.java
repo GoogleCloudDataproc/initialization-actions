@@ -79,11 +79,11 @@ public class GoogleHadoopFileSystemConfigurationTest {
           put("fs.gs.io.buffersize", 0);
           put("fs.gs.inputstream.fast.fail.on.not.found.enable", true);
           put("fs.gs.inputstream.support.gzip.encoding.enable", false);
-          put("fs.gs.outputstream.buffer.size", 8_388_608);
-          put("fs.gs.outputstream.pipe.buffer.size", 1_048_576);
-          put("fs.gs.outputstream.upload.chunk.size", 67_108_864);
+          put("fs.gs.outputstream.buffer.size", 8 * 1024 * 1024);
+          put("fs.gs.outputstream.pipe.buffer.size", 1024 * 1024);
+          put("fs.gs.outputstream.upload.chunk.size", 64 * 1024 * 1024);
           put("fs.gs.outputstream.upload.cache.size", 0);
-          put("fs.gs.io.buffersize.write", 67_108_864);
+          put("fs.gs.io.buffersize.write", 64 * 1024 * 1024);
           put("fs.gs.outputstream.direct.upload.enable", false);
           put("fs.gs.outputstream.type", OutputStreamType.BASIC);
           put("fs.gs.outputstream.sync.min.interval.ms", 0);
@@ -92,8 +92,8 @@ public class GoogleHadoopFileSystemConfigurationTest {
           put("fs.gs.http.connect-timeout", 20_000);
           put("fs.gs.http.read-timeout", 20_000);
           put("fs.gs.inputstream.fadvise", Fadvise.AUTO);
-          put("fs.gs.inputstream.inplace.seek.limit", 8_388_608L);
-          put("fs.gs.inputstream.min.range.request.size", 524_288);
+          put("fs.gs.inputstream.inplace.seek.limit", 8 * 1024 * 1024L);
+          put("fs.gs.inputstream.min.range.request.size", 512 * 1024);
           put("fs.gs.performance.cache.enable", false);
           put("fs.gs.performance.cache.max.entry.age.ms", 5_000L);
           put("fs.gs.requester.pays.mode", RequesterPaysMode.DISABLED);

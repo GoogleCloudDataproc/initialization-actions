@@ -36,6 +36,8 @@ public class GoogleContract extends AbstractBondedFSContract {
     super(conf);
     addConfResource(CONTRACT_XML);
     conf.set("fs.contract.test.fs.gs", "gs://" + bucketHelper.getUniqueBucketPrefix());
+    // TODO: remove when GCS fixes non-retriable "410 Gone" responses
+    conf.setInt("fs.gs.outputstream.upload.cache.size", 1024 * 1024);
 
     TestConfiguration testConf = TestConfiguration.getInstance();
     if (testConf.getProjectId() != null) {
