@@ -3,8 +3,11 @@
 set -uxo pipefail
 
 TESTS_TO_RUN=(
-  ":DataprocInitActionsTestSuite"
+  "//hue:test_hue",
+  "//datalab:test_datalab",
 )
+
+# ":DataprocInitActionsTestSuite"
 
 bazel test \
 	--jobs=15 \
