@@ -3,8 +3,8 @@
 set -uxo pipefail
 
 TESTS_TO_RUN=(
-  "//hue:test_hue",
-  "//datalab:test_datalab",
+  "//hue:test_hue"
+  "//datalab:test_datalab"
 )
 
 # ":DataprocInitActionsTestSuite"
