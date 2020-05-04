@@ -364,13 +364,6 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
   }
 
   @Test
-  public void setUploadChunkSizeFailsOnNegative() {
-    GoogleCloudStorageGrpcWriteChannel writeChannel = newWriteChannel();
-
-    assertThrows(IllegalArgumentException.class, () -> writeChannel.setUploadChunkSize(-1));
-  }
-
-  @Test
   public void closeFailsBeforeInitilize() {
     GoogleCloudStorageGrpcWriteChannel writeChannel = newWriteChannel();
 

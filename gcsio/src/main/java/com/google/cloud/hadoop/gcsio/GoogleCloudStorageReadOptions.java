@@ -103,6 +103,9 @@ public abstract class GoogleCloudStorageReadOptions {
   /** See {@link Builder#setMinRangeRequestSize}. */
   public abstract int getMinRangeRequestSize();
 
+  /** See {@link Builder#setGrpcChecksumsEnabled}. */
+  public abstract boolean isGrpcChecksumsEnabled();
+
   /** See {@link Builder#setGrpcServerAddress}. */
   @Nullable
   public abstract String getGrpcServerAddress();

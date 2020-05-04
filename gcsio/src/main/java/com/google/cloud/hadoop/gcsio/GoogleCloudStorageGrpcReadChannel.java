@@ -229,7 +229,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
         continue;
       }
 
-      if (readOptions.getGrpcChecksumsEnabled() && res.getChecksummedData().hasCrc32C()) {
+      if (readOptions.isGrpcChecksumsEnabled() && res.getChecksummedData().hasCrc32C()) {
         // TODO: Concatenate all these hashes together and compare the result at the end.
         Hasher messageHasher = Hashing.crc32c().newHasher();
         messageHasher.putBytes(res.getChecksummedData().getContent().toByteArray());

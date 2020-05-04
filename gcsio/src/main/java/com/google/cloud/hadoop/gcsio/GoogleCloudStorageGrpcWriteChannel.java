@@ -61,6 +61,9 @@ public final class GoogleCloudStorageGrpcWriteChannel
     extends BaseAbstractGoogleAsyncWriteChannel<Object>
     implements GoogleCloudStorageItemInfo.Provider {
 
+  // Default GCS upload granularity.
+  static final int GCS_MINIMUM_CHUNK_SIZE = 256 * 1024;
+
   private static final Duration START_RESUMABLE_WRITE_TIMEOUT = Duration.ofSeconds(10);
   private static final Duration QUERY_WRITE_STATUS_TIMEOUT = Duration.ofSeconds(10);
   private static final Duration WRITE_STREAM_TIMEOUT = Duration.ofSeconds(20);
