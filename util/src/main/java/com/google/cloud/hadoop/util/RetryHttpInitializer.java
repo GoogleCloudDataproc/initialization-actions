@@ -93,7 +93,7 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
       implements HttpUnsuccessfulResponseHandler, HttpIOExceptionHandler {
 
     private static final String LOG_MESSAGE_FORMAT =
-        "Encountered status code %d when accessing URL '%s'. "
+        "Encountered status code %d when sending %s request to URL '%s'. "
             + "Delegating to response handler for possible retry.";
 
     private final HttpUnsuccessfulResponseHandler delegateResponseHandler;
@@ -128,16 +128,23 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
         switch (httpResponse.getStatusCode()) {
           case HTTP_SC_TOO_MANY_REQUESTS:
             logger.atInfo().atMostEvery(10, SECONDS).log(
-                LOG_MESSAGE_FORMAT, httpResponse.getStatusCode(), httpRequest.getUrl());
+                LOG_MESSAGE_FORMAT,
+                httpResponse.getStatusCode(),
+                httpRequest.getRequestMethod(),
+                httpRequest.getUrl());
             break;
           default:
             logger.atInfo().atMostEvery(10, SECONDS).log(
-                "Encountered status code %d (and maybe others) when accessing URL '%s'."
+                "Encountered status code %d (and maybe others) when sending %s request to URL '%s'."
                     + " Delegating to response handler for possible retry.",
-                httpResponse.getStatusCode(), httpRequest.getUrl());
+                httpResponse.getStatusCode(), httpRequest.getRequestMethod(), httpRequest.getUrl());
         }
       } else if (responseCodesToLog.contains(httpResponse.getStatusCode())) {
-        logger.atInfo().log(LOG_MESSAGE_FORMAT, httpResponse.getStatusCode(), httpRequest.getUrl());
+        logger.atInfo().log(
+            LOG_MESSAGE_FORMAT,
+            httpResponse.getStatusCode(),
+            httpRequest.getRequestMethod(),
+            httpRequest.getUrl());
       }
 
       return delegateResponseHandler.handleResponse(httpRequest, httpResponse, supportsRetry);
