@@ -36,15 +36,20 @@ class AtlasTestCase(DataprocTestCase):
         # Upload files to populate Atlas and to verify it
         populate_atlas_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), self.POPULATE_SCRIPT)
-        self.upload_test_file(populate_atlas_path, instance)
+        self.assert_command('gcloud compute scp {} {}:/tmp'.format(populate_atlas_path, instance))
 
         validate_atlas_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), self.VALIDATE_SCRIPT)
-        self.upload_test_file(validate_atlas_path, instance)
+        self.assert_command('gcloud compute scp {} {}:/tmp'.format(validate_atlas_path, instance))
+
+        self.assert_instance_command(
+                    instance, "chmod +x /tmp/{}".format(self.POPULATE_SCRIPT))
+        self.assert_instance_command(
+                    instance, "chmod +x /tmp/{}".format(self.VALIDATE_SCRIPT))
 
         # Populate test data from Atlas provided quick_start.py
         self.assert_instance_command(
-            instance, "sudo sh {} {} {}".format(self.POPULATE_SCRIPT,
+            instance, "sudo {} {} {}".format(self.POPULATE_SCRIPT,
                                              username, password))
 
         # Creating Hive table
