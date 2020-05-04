@@ -148,7 +148,7 @@ public class GoogleHadoopSyncableOutputStream extends OutputStream implements Sy
   }
 
   @VisibleForTesting
-  public GoogleHadoopSyncableOutputStream(
+  GoogleHadoopSyncableOutputStream(
       GoogleHadoopFileSystemBase ghfs,
       URI gcsPath,
       FileSystem.Statistics statistics,

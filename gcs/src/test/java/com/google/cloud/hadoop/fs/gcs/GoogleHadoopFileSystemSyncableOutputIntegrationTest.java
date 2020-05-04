@@ -157,6 +157,7 @@ public class GoogleHadoopFileSystemSyncableOutputIntegrationTest
   public void hflush_syncsEverything() throws Exception {
     ghfs.getConf()
         .set(GCS_OUTPUT_STREAM_TYPE.getKey(), OutputStreamType.FLUSHABLE_COMPOSITE.name());
+    ghfs.getConf().setInt(GCS_OUTPUT_STREAM_SYNC_MIN_INTERVAL_MS.getKey(), 0);
 
     URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
     Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
