@@ -49,7 +49,7 @@ class AtlasTestCase(DataprocTestCase):
 
         # Populate test data from Atlas provided quick_start.py
         self.assert_instance_command(
-            instance, "sudo {} {} {}".format(self.POPULATE_SCRIPT,
+            instance, "sudo /tmp/{} {} {}".format(self.POPULATE_SCRIPT,
                                              username, password))
 
         # Creating Hive table
@@ -67,21 +67,21 @@ class AtlasTestCase(DataprocTestCase):
 
         # Validate quick_start.py artifacts
         self.assert_instance_command(
-            instance, "python {} {} {}".format(self.VALIDATE_SCRIPT,
+            instance, "python /tmp/{} {} {}".format(self.VALIDATE_SCRIPT,
                                                username, password))
 
         # Checking Hive table info in Atlas
         self.assert_instance_command(
-            instance, "python {} {} {}".format(self.VALIDATE_SCRIPT,
+            instance, "python /tmp/{} {} {}".format(self.VALIDATE_SCRIPT,
                 username, password, hive_table_name, 2))
 
         # Checking HBase table info in Atlas
         self.assert_instance_command(
-            instance, "python {} {} {}".format(self.VALIDATE_SCRIPT,
+            instance, "python /tmp/{} {} {}".format(self.VALIDATE_SCRIPT,
                 username, password, hbase_table_name, 1))
 
-        self.remove_test_script(self.VALIDATE_SCRIPT, instance)
-        self.remove_test_script(self.POPULATE_SCRIPT, instance)
+        self.remove_test_script(os.path.join('/tmp', self.VALIDATE_SCRIPT), instance)
+        self.remove_test_script(os.path.join('/tmp', self.POPULATE_SCRIPT), instance)
 
     @parameterized.parameters(
         ("SINGLE", ["m"]),
@@ -96,6 +96,7 @@ class AtlasTestCase(DataprocTestCase):
         if configuration == "HA":
             init_actions = ['kafka/kafka.sh'] + init_actions
             optional_components = self.OPTIONAL_COMPONENTS_HA
+            metadata = 'run-on-master=true'
 
         self.createCluster(configuration,
                            init_actions,
@@ -108,12 +109,16 @@ class AtlasTestCase(DataprocTestCase):
         for machine_suffix in machine_suffixes:
             machine_name = "{}-{}".format(self.getClusterName(),
                                           machine_suffix)
-            self.verify_instance(machine_name)
 
             _, out, _ = self.assert_instance_command(
                 machine_name,
                 "sudo {}/bin/atlas_admin.py -u admin:admin -status".format(
                     self.ATLAS_HOME))
+
+            # In the case of HA, the populate script should only be ran on
+            # the ACTIVE Atlas node.
+            if out.strip() == "ACTIVE":
+                self.verify_instance(machine_name)
 
             atlas_statuses.append(out.strip())
 

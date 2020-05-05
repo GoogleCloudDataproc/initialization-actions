@@ -62,6 +62,7 @@ CLUSTER_NAME=<cluster_name>
 gcloud beta dataproc clusters create ${CLUSTER_NAME} \
     --region ${REGION}
     --num-masters 3 \
+    --metadata "run-on-master=true" \
     --optional-component HBASE,SOLR \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/kafka/kafka.sh,gs://goog-dataproc-initialization-actions-${REGION}/atlas/atlas.sh \
     --initialization-action-timeout 30m
