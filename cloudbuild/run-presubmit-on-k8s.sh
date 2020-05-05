@@ -25,11 +25,6 @@ fi
 kubectl run "${POD_NAME}" "${ARGS[@]}" \
 	--command -- bash /init-actions/cloudbuild/run-tests.sh
 
-# kubectl run "${POD_NAME}" --generator=run-pod/v1 --image="$IMAGE" \
-#   --requests "cpu=4,memory=12Gi" --restart=Never \
-#   --env="IMAGE_VERSION=$DATAPROC_IMAGE_VERSION" \
-#   --command -- bash /init-actions/cloudbuild/presubmit.sh
-
 trap 'kubectl delete pods "${POD_NAME}"' EXIT
 
 kubectl wait --for=condition=Ready "pod/${POD_NAME}" --timeout=600s
