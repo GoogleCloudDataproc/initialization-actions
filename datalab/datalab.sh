@@ -115,14 +115,16 @@ function configure_master() {
   cat <<EOF >Dockerfile
 FROM ${DOCKER_IMAGE}
 
+# Enabling APT to download from HTTPS repository.
+RUN apt-get update
+RUN apt-get install -y dirmngr apt-transport-https software-properties-common
+
 ADD dataproc.list /etc/apt/sources.list.d/
 ADD trusted.gpg /tmp/vm_trusted.gpg
 RUN apt-key add /tmp/vm_trusted.gpg
 
 # Add Ubuntu 18.04 LTS (bionic) repository to Ubuntu 16.04 LTS (xenial) container,
 # so pacakges built on Debian 10 can pull in their dependencies.
-RUN apt-get update
-RUN apt-get install -y software-properties-common
 RUN add-apt-repository 'deb http://archive.ubuntu.com/ubuntu bionic main'
 
 RUN apt-get update
