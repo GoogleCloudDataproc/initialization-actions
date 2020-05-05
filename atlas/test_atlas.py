@@ -96,14 +96,22 @@ class AtlasTestCase(DataprocTestCase):
         if configuration == "HA":
             init_actions = ['kafka/kafka.sh'] + init_actions
             optional_components = self.OPTIONAL_COMPONENTS_HA
+            # Kafka requires property under HA
             metadata = 'run-on-master=true'
-
-        self.createCluster(configuration,
-                           init_actions,
-                           beta=True,
-                           timeout_in_minutes=30,
-                           optional_components=optional_components,
-                           machine_type="n1-standard-4")
+            self.createCluster(configuration,
+                                       init_actions,
+                                       beta=True,
+                                       metadata=metadata,
+                                       timeout_in_minutes=30,
+                                       optional_components=optional_components,
+                                       machine_type="n1-standard-4")
+        else:
+            self.createCluster(configuration,
+                               init_actions,
+                               beta=True,
+                               timeout_in_minutes=30,
+                               optional_components=optional_components,
+                               machine_type="n1-standard-4")
 
         atlas_statuses = []
         for machine_suffix in machine_suffixes:
