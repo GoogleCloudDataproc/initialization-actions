@@ -117,7 +117,7 @@ FROM ${DOCKER_IMAGE}
 
 # Enabling APT to download from HTTPS repository.
 RUN apt-get update
-RUN apt-get install -y dirmngr apt-transport-https software-properties-common
+RUN apt-get install -y apt-transport-https software-properties-common
 
 ADD dataproc.list /etc/apt/sources.list.d/
 ADD trusted.gpg /tmp/vm_trusted.gpg
