@@ -10,10 +10,20 @@ readonly POD_NAME=presubmit-${DATAPROC_IMAGE_VERSION//./-}-${BUILD_ID//_/-}
 
 gcloud container clusters get-credentials "${CLOUDSDK_CONTAINER_CLUSTER}"
 
-kubectl run "${POD_NAME}" --generator=run-pod/v1 --image="$IMAGE" \
-  --requests "cpu=4,memory=12Gi" --restart=Never \
-  --env="IMAGE_VERSION=$DATAPROC_IMAGE_VERSION" \
-  --command -- bash /init-actions/cloudbuild/presubmit.sh
+ARGS=("--generator=run-pod/v1"
+	  "--image=$IMAGE"
+	  "--requests"
+	  "cpu=4,memory=12Gi"
+	  "--restart=Never"
+	  "--env=IMAGE_VERSION=$DATAPROC_IMAGE_VERSION"
+	  "--env=BUILD_ID=$BUILD_ID")
+
+if [[ "${RUN_ALL_TESTS}" == "true" ]]; then
+	ARGS+=("--env=RUN_ALL_TESTS=true")
+fi
+
+kubectl run "${POD_NAME}" "${ARGS[@]}" \
+	--command -- bash /init-actions/cloudbuild/run-tests.sh
 
 trap 'kubectl delete pods "${POD_NAME}"' EXIT
 
