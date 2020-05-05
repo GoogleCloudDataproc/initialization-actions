@@ -136,11 +136,6 @@ public abstract class GoogleHadoopFileSystemTestBase extends HadoopFileSystemTes
   // Tests that aren't supported by all configurations of GHFS.
   // -----------------------------------------------------------------------------------------
 
-  @Test @Override
-  public void testHsync() throws Exception {
-    // hsync() is not supported in the default setup.
-  }
-
   /** Tests getGcsPath(). */
   @Test
   public void testGetGcsPath() throws URISyntaxException {

@@ -14,26 +14,29 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
-import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemIntegrationHelper.getTestConfig;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_TYPE;
 import static com.google.common.truth.Truth.assertThat;
 
+import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.OutputStreamType;
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationHelper;
-import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.Collection;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 
-@RunWith(JUnit4.class)
+@RunWith(Parameterized.class)
 public class GoogleHadoopOutputStreamIntegrationTest {
+
   private static GoogleCloudStorageFileSystemIntegrationHelper gcsFsIHelper;
 
   @BeforeClass
@@ -49,17 +52,35 @@ public class GoogleHadoopOutputStreamIntegrationTest {
     gcsFsIHelper.afterAllTests();
   }
 
+  @Parameters
+  public static Collection<Object[]> getConstructorArguments() {
+    return Arrays.asList(
+        new Object[] {OutputStreamType.BASIC},
+        new Object[] {OutputStreamType.FLUSHABLE_COMPOSITE},
+        new Object[] {OutputStreamType.SYNCABLE_COMPOSITE});
+  }
+
+  private final OutputStreamType outputStreamType;
+
+  public GoogleHadoopOutputStreamIntegrationTest(OutputStreamType outputStreamType) {
+    this.outputStreamType = outputStreamType;
+  }
+
+  private Configuration getTestConfig() {
+    Configuration conf = GoogleHadoopFileSystemIntegrationHelper.getTestConfig();
+    conf.setEnum(GCS_OUTPUT_STREAM_TYPE.getKey(), outputStreamType);
+    return conf;
+  }
+
   @Test
   public void write_withZeroBufferSize() throws Exception {
-    StorageResourceId testFile =
-        new StorageResourceId(
-            gcsFsIHelper.sharedBucketName1, "GHFSOutputStream_write_withZeroBufferSize");
+    URI testFile = gcsFsIHelper.getUniqueObjectUri("GHFSOutputStream_write_withZeroBufferSize");
 
     Configuration config = getTestConfig();
     config.setInt(GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_BUFFER_SIZE.getKey(), 0);
 
     GoogleHadoopFileSystem ghfs =
-        GoogleHadoopFileSystemIntegrationHelper.createGhfs(testFile.toString(), config);
+        GoogleHadoopFileSystemIntegrationHelper.createGhfs(testFile, config);
 
     AsyncWriteChannelOptions writeOptions =
         ghfs.getGcsFs().getOptions().getCloudStorageOptions().getWriteChannelOptions();
@@ -68,13 +89,13 @@ public class GoogleHadoopOutputStreamIntegrationTest {
     try (GoogleHadoopOutputStream out =
         new GoogleHadoopOutputStream(
             ghfs,
-            new URI(testFile.toString()),
+            testFile,
             new FileSystem.Statistics(ghfs.getScheme()),
             CreateFileOptions.DEFAULT_OVERWRITE)) {
       out.write(1);
     }
 
-    FileStatus fileStatus = ghfs.getFileStatus(new Path(testFile.toString()));
+    FileStatus fileStatus = ghfs.getFileStatus(ghfs.getHadoopPath(testFile));
 
     assertThat(fileStatus.getLen()).isEqualTo(1);
   }

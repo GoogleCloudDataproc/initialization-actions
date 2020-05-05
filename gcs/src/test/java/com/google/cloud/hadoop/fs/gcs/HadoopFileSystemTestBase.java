@@ -715,11 +715,6 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
   }
 
   @Test
-  public void testHsync() throws Exception {
-    internalTestHsync();
-  }
-
-  @Test
   public void testReadToEOFAndRewind() throws IOException {
     URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
 
@@ -740,52 +735,6 @@ public abstract class HadoopFileSystemTestBase extends GoogleCloudStorageFileSys
     } finally {
       ghfs.delete(hadoopPath);
     }
-  }
-
-  protected void internalTestHsync() throws Exception {
-    String line1 = "hello\n";
-    byte[] line1Bytes = line1.getBytes(UTF_8);
-    String line2 = "world\n";
-    byte[] line2Bytes = line2.getBytes(UTF_8);
-    String line3 = "foobar\n";
-    byte[] line3Bytes = line3.getBytes(UTF_8);
-
-    URI path = GoogleCloudStorageFileSystemIntegrationTest.getTempFilePath();
-    Path hadoopPath = ghfsHelper.castAsHadoopPath(path);
-    FSDataOutputStream writeStream = ghfs.create(hadoopPath);
-
-    StringBuilder expected = new StringBuilder();
-
-    // Write first line one byte at a time.
-    for (byte b : line1Bytes) {
-      writeStream.write(b);
-    }
-    expected.append(line1);
-
-    writeStream.hsync();
-
-    String readText = ghfsHelper.readTextFile(hadoopPath);
-    assertWithMessage("Expected line1 after first sync()")
-        .that(readText)
-        .isEqualTo(expected.toString());
-
-    // Write second line, sync() again.
-    writeStream.write(line2Bytes, 0, line2Bytes.length);
-    expected.append(line2);
-    writeStream.hsync();
-    readText = ghfsHelper.readTextFile(hadoopPath);
-    assertWithMessage("Expected line1 + line2 after second sync()")
-        .that(readText)
-        .isEqualTo(expected.toString());
-
-    // Write third line, close() without sync().
-    writeStream.write(line3Bytes, 0, line3Bytes.length);
-    expected.append(line3);
-    writeStream.close();
-    readText = ghfsHelper.readTextFile(hadoopPath);
-    assertWithMessage("Expected line1 + line2 + line3 after close()")
-        .that(readText)
-        .isEqualTo(expected.toString());
   }
 
   // -----------------------------------------------------------------

@@ -65,9 +65,7 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
 
   /** Opens the given object for writing. */
   @Override
-  protected WritableByteChannel create(
-      String bucketName, String objectName, CreateFileOptions options) throws IOException {
-    URI path = getPath(bucketName, objectName);
+  protected WritableByteChannel create(URI path, CreateFileOptions options) throws IOException {
     return gcsfs.create(path, options);
   }
 
@@ -85,12 +83,25 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
     return gcsfs.open(path);
   }
 
+  /** Opens the given object for reading. */
+  @Override
+  protected SeekableByteChannel open(URI path) throws IOException {
+    return gcsfs.open(path);
+  }
+
   /** Opens the given object for reading, with the specified read options. */
   @Override
   protected SeekableByteChannel open(
       String bucketName, String objectName, GoogleCloudStorageReadOptions readOptions)
       throws IOException {
     URI path = getPath(bucketName, objectName);
+    return open(path, readOptions);
+  }
+
+  /** Opens the given object for reading, with the specified read options. */
+  @Override
+  protected SeekableByteChannel open(URI path, GoogleCloudStorageReadOptions readOptions)
+      throws IOException {
     return gcsfs.open(path, readOptions);
   }
 
@@ -176,10 +187,6 @@ public class GoogleCloudStorageFileSystemIntegrationHelper
   protected URI getPath(String bucketName, String objectName) {
     return UriPaths.fromStringPathComponents(
         bucketName, objectName, /* allowEmptyObjectName= */ true);
-  }
-
-  public StorageResourceId validatePathAndGetId(URI path, boolean allowEmpty) {
-    return StorageResourceId.fromUriPath(path, allowEmpty);
   }
 
   public String getItemName(URI src) {

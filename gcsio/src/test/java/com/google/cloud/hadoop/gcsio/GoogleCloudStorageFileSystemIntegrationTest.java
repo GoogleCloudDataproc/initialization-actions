@@ -559,12 +559,11 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
   @Test
   public void read_failure_ifObjectWasModifiedDuringRead() throws IOException {
-    String bucketName = sharedBucketName1;
-    String object = "generation-strict-" + UUID.randomUUID();
+    URI testObject = gcsiHelper.getUniqueObjectUri("generation-strict");
     String message1 = "Hello world!\n";
     String message2 = "Sayonara world!\n";
 
-    gcsiHelper.writeTextFile(bucketName, object, message1);
+    gcsiHelper.writeTextFile(testObject, message1);
     int offset = 5;
     // These read options force the readChannel to open stream again on second read.
     GoogleCloudStorageReadOptions readOptions =
@@ -572,12 +571,12 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
             .setFadvise(Fadvise.RANDOM)
             .setMinRangeRequestSize(0)
             .build();
-    try (SeekableByteChannel readChannel = gcsiHelper.open(bucketName, object, readOptions)) {
+    try (SeekableByteChannel readChannel = gcsiHelper.open(testObject, readOptions)) {
       String read1 = gcsiHelper.readText(readChannel, 0, offset, false);
       assertWithMessage("partial read mismatch")
           .that(read1)
           .isEqualTo(message1.substring(0, offset));
-      gcsiHelper.writeTextFileOverwriting(bucketName, object, message2);
+      gcsiHelper.writeTextFileOverwriting(testObject, message2);
       FileNotFoundException expected =
           assertThrows(
               FileNotFoundException.class,
@@ -1619,15 +1618,14 @@ public class GoogleCloudStorageFileSystemIntegrationTest {
 
   /**
    * Returns intermediate sub-paths for the given path.
-   * <p>
-   * For example,
-   * getSubDirPaths(gs://foo/bar/zoo) returns: (gs://foo/, gs://foo/bar/)
+   *
+   * <p>For example, getSubDirPaths(gs://foo/bar/zoo) returns: (gs://foo/, gs://foo/bar/)
    *
    * @param path Path to get sub-paths of.
    * @return List of sub-directory paths.
    */
   private List<URI> getSubDirPaths(URI path) {
-    StorageResourceId resourceId = gcsiHelper.validatePathAndGetId(path, true);
+    StorageResourceId resourceId = StorageResourceId.fromUriPath(path, true);
 
     List<String> subdirs = GoogleCloudStorageFileSystem.getSubDirs(resourceId.getObjectName());
     List<URI> subDirPaths = new ArrayList<>(subdirs.size());

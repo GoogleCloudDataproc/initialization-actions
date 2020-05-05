@@ -33,10 +33,9 @@ public final class GoogleHadoopFileSystemIntegrationHelper {
 
   public static final String APP_NAME = "GHFS-test";
 
-  public static GoogleHadoopFileSystem createGhfs(String path, Configuration config)
-      throws Exception {
+  public static GoogleHadoopFileSystem createGhfs(URI path, Configuration config) throws Exception {
     GoogleHadoopFileSystem ghfs = new GoogleHadoopFileSystem();
-    ghfs.initialize(new URI(path), config);
+    ghfs.initialize(path, config);
     return ghfs;
   }
 

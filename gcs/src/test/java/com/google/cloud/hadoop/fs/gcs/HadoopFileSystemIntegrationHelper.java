@@ -166,12 +166,9 @@ public class HadoopFileSystemIntegrationHelper
     return null;
   }
 
-  /**
-   * Opens the given object for writing.
-   */
+  /** Opens the given object for writing. */
   @Override
-  protected WritableByteChannel create(
-      String bucketName, String objectName, CreateFileOptions options) throws IOException {
+  protected WritableByteChannel create(URI path, CreateFileOptions options) throws IOException {
     return null;
   }
 
@@ -332,37 +329,46 @@ public class HadoopFileSystemIntegrationHelper
   // -----------------------------------------------------------------
 
   /**
-   * Gets a Hadoop path using bucketName and objectName as components of a GCS URI, then casting
-   * to a no-authority Hadoop path which follows the scheme indicated by the
-   * ghfsFileSystemDescriptor.
+   * Gets a Hadoop path using bucketName and objectName as components of a GCS URI, then casting to
+   * a no-authority Hadoop path which follows the scheme indicated by the ghfsFileSystemDescriptor.
    */
   protected Path createSchemeCompatibleHadoopPath(String bucketName, String objectName) {
-    URI gcsPath = getPath(bucketName, objectName);
-    return castAsHadoopPath(gcsPath);
+    return createSchemeCompatibleHadoopPath(getPath(bucketName, objectName));
+  }
+
+  /**
+   * Gets a Hadoop path using GCS URI, then casting to a no-authority Hadoop path which follows the
+   * scheme indicated by the ghfsFileSystemDescriptor.
+   */
+  protected Path createSchemeCompatibleHadoopPath(URI path) {
+    return castAsHadoopPath(path);
   }
 
   /**
    * Synthesizes a Hadoop path for the given GCS path by casting straight into the scheme indicated
-   * by the ghfsFileSystemDescriptor instance; if the URI contains an 'authority', the authority
-   * is re-interpreted as the topmost path component of a URI sitting inside the fileSystemRoot
+   * by the ghfsFileSystemDescriptor instance; if the URI contains an 'authority', the authority is
+   * re-interpreted as the topmost path component of a URI sitting inside the fileSystemRoot
    * indicated by the ghfsFileSystemDescriptor.
-   * <p>
-   * Examples:
-   *   gs:/// -> gsg:/
-   *   gs://foo/bar -> gs://root-bucket/foo/bar
-   *   gs://foo/bar -> hdfs:/foo/bar
-   * <p>
-   * Note that it cannot be generally assumed that GCS-based filesystems will "invert" this path
-   * back into the same GCS path internally; for example, if a bucket-rooted filesystem is based
-   * in 'my-system-bucket', then this method will convert:
-   * <p>
-   *   gs://foo/bar -> gs:/foo/bar
-   * <p>
-   * which will then be converted internally:
-   * <p>
-   *   gs:/foo/bar -> gs://my-system-bucket/foo/bar
-   * <p>
-   * when the bucket-rooted FileSystem creates actual data in the underlying GcsFs.
+   *
+   * <p>Examples:
+   *
+   * <ul>
+   *   <li>{@code gs:/// -> gsg:/}
+   *   <li>{@code gs://foo/bar -> gs://root-bucket/foo/bar}
+   *   <li>{@code gs://foo/bar -> hdfs:/foo/bar}
+   * </ul>
+   *
+   * <p>Note that it cannot be generally assumed that GCS-based filesystems will "invert" this path
+   * back into the same GCS path internally; for example, if a bucket-rooted filesystem is based in
+   * 'my-system-bucket', then this method will convert:
+   *
+   * <p>{@code gs://foo/bar -> gs:/foo/bar}
+   *
+   * <p>which will then be converted internally:
+   *
+   * <p>{@code gs:/foo/bar -> gs://my-system-bucket/foo/bar}
+   *
+   * <p>when the bucket-rooted FileSystem creates actual data in the underlying GcsFs.
    */
   protected Path castAsHadoopPath(URI gcsPath) {
     String childPath = gcsPath.getRawPath();
@@ -400,16 +406,14 @@ public class HadoopFileSystemIntegrationHelper
   /**
    * Writes a file with the given buffer repeated numWrites times.
    *
-   * @param bucketName Name of the bucket to create object in.
-   * @param objectName Name of the object to create.
+   * @param path Full path of the object to create
    * @param buffer Data to write
    * @param numWrites Number of times to repeat the data.
    * @return Number of bytes written.
    */
   @Override
-  protected int writeFile(String bucketName, String objectName, byte[] buffer, int numWrites)
-      throws IOException {
-    Path hadoopPath = createSchemeCompatibleHadoopPath(bucketName, objectName);
+  protected int writeFile(URI path, byte[] buffer, int numWrites) throws IOException {
+    Path hadoopPath = createSchemeCompatibleHadoopPath(path);
     return writeFile(hadoopPath, buffer, numWrites, /* overwrite= */ true);
   }
 

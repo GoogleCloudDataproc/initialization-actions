@@ -206,8 +206,7 @@ public class GoogleHadoopSyncableOutputStreamTest {
 
   @Test
   public void hflush_rateLimited_writesEverything() throws Exception {
-    ghfs.getConf()
-        .set(GCS_OUTPUT_STREAM_TYPE.getKey(), OutputStreamType.FLUSHABLE_COMPOSITE.name());
+    ghfs.getConf().setEnum(GCS_OUTPUT_STREAM_TYPE.getKey(), OutputStreamType.FLUSHABLE_COMPOSITE);
     ghfs.getConf()
         .setLong(GCS_OUTPUT_STREAM_SYNC_MIN_INTERVAL_MS.getKey(), Duration.ofDays(1).toMillis());
 
