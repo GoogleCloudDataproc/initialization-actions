@@ -4,11 +4,8 @@ set -uxo pipefail
 
 COMMIT=$(git rev-parse HEAD)
 TESTS_TO_RUN=(
-  "//hue:test_hue"
-  "//datalab:test_datalab"
-)
-
-# ":DataprocInitActionsTestSuite"
+  ":DataprocInitActionsTestSuite"
+) 
 
 run_tests() {
   bazel test \
