@@ -24,12 +24,12 @@ public abstract class PerformanceCachingGoogleCloudStorageOptions {
 
   public static final PerformanceCachingGoogleCloudStorageOptions DEFAULT = builder().build();
 
-  public abstract Builder toBuilder();
-
   public static Builder builder() {
     return new AutoValue_PerformanceCachingGoogleCloudStorageOptions.Builder()
         .setMaxEntryAgeMillis(MAX_ENTRY_AGE_MILLIS_DEFAULT);
   }
+
+  public abstract Builder toBuilder();
 
   /** Gets the max age of an item in cache in milliseconds. */
   public abstract long getMaxEntryAgeMillis();

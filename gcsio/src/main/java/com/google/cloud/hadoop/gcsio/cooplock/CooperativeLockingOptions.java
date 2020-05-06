@@ -28,9 +28,9 @@ public abstract class CooperativeLockingOptions {
   /** Default value for {@link #getMaxConcurrentOperations}. */
   public static final int MAX_CONCURRENT_OPERATIONS_DEFAULT = 20;
 
-  public static final CooperativeLockingOptions DEFAULT = builder().build();
-
   private static final long MIN_LOCK_EXPIRATION_TIMEOUT_MS = Duration.ofSeconds(30).toMillis();
+
+  public static final CooperativeLockingOptions DEFAULT = builder().build();
 
   public static Builder builder() {
     return new AutoValue_CooperativeLockingOptions.Builder()

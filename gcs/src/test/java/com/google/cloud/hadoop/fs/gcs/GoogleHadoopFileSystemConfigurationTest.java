@@ -54,7 +54,7 @@ public class GoogleHadoopFileSystemConfigurationTest {
           put("fs.gs.working.dir", "/");
           put("fs.gs.implicit.dir.repair.enable", true);
           put("fs.gs.copy.with.rewrite.enable", true);
-          put("fs.gs.rewrite.max.bytes.per.call", 536_870_912L);
+          put("fs.gs.rewrite.max.bytes.per.call", 512 * 1024 * 1024L);
           put("fs.gs.config.override.file", null);
           put("fs.gs.storage.root.url", "https://storage.googleapis.com/");
           put("fs.gs.storage.service.path", "storage/v1/");
@@ -64,7 +64,7 @@ public class GoogleHadoopFileSystemConfigurationTest {
           put("fs.gs.checksum.type", GcsFileChecksumType.NONE);
           put("fs.gs.status.parallel.enable", false);
           put("fs.gs.lazy.init.enable", false);
-          put("fs.gs.block.size", 67_108_864L);
+          put("fs.gs.block.size", 64 * 1024 * 1024L);
           put("fs.gs.implicit.dir.infer.enable", true);
           put("fs.gs.glob.flatlist.enable", true);
           put("fs.gs.glob.concurrent.enable", true);
@@ -72,7 +72,7 @@ public class GoogleHadoopFileSystemConfigurationTest {
           put("fs.gs.batch.threads", 15);
           put("fs.gs.copy.max.requests.per.batch", 15L);
           put("fs.gs.copy.batch.threads", 15);
-          put("fs.gs.list.max.items.per.call", 1_024L);
+          put("fs.gs.list.max.items.per.call", 1024L);
           put("fs.gs.max.wait.for.empty.object.creation.ms", 3_000);
           put("fs.gs.marker.file.pattern", null);
           put("fs.gs.inputstream.buffer.size", 0);
