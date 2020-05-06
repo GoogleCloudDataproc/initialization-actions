@@ -13,11 +13,11 @@ config file. These steps are:
     [Container Registry](https://cloud.google.com/container-registry/)
 1.  Run the presubmit Docker container on
     [Kubernetes Engine](https://cloud.google.com/kubernetes-engine/) cluster. It
-    will execute `presubmit.sh` script that configures test environment,
+    will execute `run-tests.sh` script that configures test environment,
     determines which tests that need to be run and runs them concurrently.
 1.  Delete the presubmit Docker container from Container Registry.
 
-Main responsibilities of `presubmit.sh` script:
+Main responsibilities of `run-tests.sh` script:
 
 1.  Configure `gcloud` to use encrypted SSH key (`ssh-key.enc` and
     `ssh-key.pub.enc` files) to SSH into Dataproc cluster VMs during tests
