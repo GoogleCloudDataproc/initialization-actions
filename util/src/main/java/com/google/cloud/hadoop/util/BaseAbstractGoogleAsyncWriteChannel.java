@@ -140,7 +140,14 @@ public abstract class BaseAbstractGoogleAsyncWriteChannel<T> implements Writable
       uploadCache = null;
     }
 
-    return pipeSinkChannel.write(buffer);
+    try {
+      return pipeSinkChannel.write(buffer);
+    } catch (IOException e) {
+      throw new IOException(
+          String.format(
+              "Failed to write %d bytes in '%s'", buffer.remaining(), getResourceString()),
+          e);
+    }
   }
 
   /**
