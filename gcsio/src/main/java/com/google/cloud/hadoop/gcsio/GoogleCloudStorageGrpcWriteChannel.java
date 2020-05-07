@@ -17,6 +17,7 @@ package com.google.cloud.hadoop.gcsio;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.google.storage.v1.ServiceConstants.Values.MAX_WRITE_CHUNK_BYTES;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.stream.Collectors.toMap;
 
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
@@ -54,7 +55,6 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /** Implements WritableByteChannel to provide write access to GCS via gRPC. */
 public final class GoogleCloudStorageGrpcWriteChannel
@@ -64,9 +64,9 @@ public final class GoogleCloudStorageGrpcWriteChannel
   // Default GCS upload granularity.
   static final int GCS_MINIMUM_CHUNK_SIZE = 256 * 1024;
 
-  private static final Duration START_RESUMABLE_WRITE_TIMEOUT = Duration.ofSeconds(10);
-  private static final Duration QUERY_WRITE_STATUS_TIMEOUT = Duration.ofSeconds(10);
-  private static final Duration WRITE_STREAM_TIMEOUT = Duration.ofSeconds(20);
+  private static final Duration START_RESUMABLE_WRITE_TIMEOUT = Duration.ofMinutes(10);
+  private static final Duration QUERY_WRITE_STATUS_TIMEOUT = Duration.ofMinutes(10);
+  private static final Duration WRITE_STREAM_TIMEOUT = Duration.ofMinutes(20);
   // Maximum number of automatic retries for each data chunk
   // when writing to underlying channel raises error.
   private static final int WRITE_CHUNK_RETRIES = 10;
@@ -186,7 +186,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
         responseObserver =
             new InsertChunkResponseObserver(uploadId, chunkData, writeOffset, objectHasher);
         // TODO(b/151184800): Implement per-message timeout, in addition to stream timeout.
-        stub.withDeadlineAfter(WRITE_STREAM_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
+        stub.withDeadlineAfter(WRITE_STREAM_TIMEOUT.toMillis(), MILLISECONDS)
             .insertObject(responseObserver);
         responseObserver.done.await();
 
@@ -387,7 +387,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
       SimpleResponseObserver<StartResumableWriteResponse> responseObserver =
           new SimpleResponseObserver<>();
 
-      stub.withDeadlineAfter(START_RESUMABLE_WRITE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
+      stub.withDeadlineAfter(START_RESUMABLE_WRITE_TIMEOUT.toMillis(), MILLISECONDS)
           .startResumableWrite(request, responseObserver);
       responseObserver.done.await();
 
@@ -408,7 +408,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
       SimpleResponseObserver<QueryWriteStatusResponse> responseObserver =
           new SimpleResponseObserver<>();
 
-      stub.withDeadlineAfter(QUERY_WRITE_STATUS_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
+      stub.withDeadlineAfter(QUERY_WRITE_STATUS_TIMEOUT.toMillis(), MILLISECONDS)
           .queryWriteStatus(request, responseObserver);
       responseObserver.done.await();
 

@@ -13,6 +13,8 @@
  */
 package com.google.cloud.hadoop.gcsio;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.common.base.Preconditions;
 import com.google.common.flogger.GoogleLogger;
@@ -35,14 +37,13 @@ import java.nio.channels.SeekableByteChannel;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.OptionalInt;
-import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
-  private static final Duration READ_STREAM_TIMEOUT = Duration.ofSeconds(20);
+  private static final Duration READ_STREAM_TIMEOUT = Duration.ofMinutes(20);
 
   // Context of the request that returned resIterator.
   @Nullable CancellableContext requestContext;
@@ -107,7 +108,7 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
     try {
       // TODO(b/151184800): Implement per-message timeout, in addition to stream timeout.
       getObjectResult =
-          stub.withDeadlineAfter(READ_STREAM_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)
+          stub.withDeadlineAfter(READ_STREAM_TIMEOUT.toMillis(), MILLISECONDS)
               .getObject(
                   GetObjectRequest.newBuilder()
                       .setBucket(bucketName)
