@@ -20,10 +20,8 @@ import static com.google.google.storage.v1.ServiceConstants.Values.MAX_WRITE_CHU
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.stream.Collectors.toMap;
 
-import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.BaseAbstractGoogleAsyncWriteChannel;
-import com.google.cloud.hadoop.util.RetryDeterminer;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.Hasher;
