@@ -59,7 +59,7 @@ readonly INSTALL_GPU_AGENT
 
 function execute_with_retries() {
   local -r cmd=$1
-  for ((i = 0; i < 10; i++)); do
+  for ((i = 0; i < 20; i++)); do
     if eval "$cmd"; then
       return 0
     fi
@@ -72,7 +72,7 @@ function install_nvidia_nccl() {
   local tmp_dir
   tmp_dir=$(mktemp -d -t gpu-init-action-nccl-XXXX)
 
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+  wget -nv --timeout=30 --tries=5 --retry-connrefused --retry-on-http-error=503,504 \
     "${NCCL_REPO_URL}" -O "${tmp_dir}/nvidia-ml-repo.deb"
   dpkg -i "${tmp_dir}/nvidia-ml-repo.deb"
 
@@ -88,14 +88,15 @@ function install_nvidia_nccl() {
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
   if [[ ${OS_NAME} == debian ]]; then
-    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    wget -nv --timeout=30 --tries=5 --retry-connrefused --retry-on-http-error=503,504 \
       "${NVIDIA_DEBIAN_GPU_DRIVER_URL}" -O driver.run
     bash "./driver.run" --silent
 
-    wget -nv --timeout=30 --tries=5 --retry-connrefused "${NVIDIA_DEBIAN_CUDA_URL}" -O cuda.run
+    wget -nv --timeout=30 --tries=5 --retry-connrefused --retry-on-http-error=503,504 \
+      "${NVIDIA_DEBIAN_CUDA_URL}" -O cuda.run
     bash "./cuda.run" --silent --toolkit --no-opengl-libs
   elif [[ ${OS_NAME} == ubuntu ]]; then
-    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+    wget -nv --timeout=30 --tries=5 --retry-connrefused --retry-on-http-error=503,504 \
       "${NVIDIA_UBUNTU_REPOSITORY_CUDA_PIN}" -O /etc/apt/preferences.d/cuda-repository-pin-600
 
     curl --retry 5 "${NVIDIA_UBUNTU_REPOSITORY_KEY}" | apt-key add -
@@ -192,9 +193,9 @@ function install_gpu_agent() {
   fi
   local install_dir=/opt/gpu-utilization-agent
   mkdir "${install_dir}"
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+  wget -nv --timeout=30 --tries=5 --retry-connrefused --retry-on-http-error=503,504 \
     "${GPU_AGENT_REPO_URL}/requirements.txt" -P "${install_dir}"
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
+  wget -nv --timeout=30 --tries=5 --retry-connrefused --retry-on-http-error=503,504 \
     "${GPU_AGENT_REPO_URL}/report_gpu_metrics.py" -P "${install_dir}"
   pip install -r "${install_dir}/requirements.txt"
 
