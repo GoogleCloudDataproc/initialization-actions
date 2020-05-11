@@ -72,8 +72,8 @@ function install_nvidia_nccl() {
   local tmp_dir
   tmp_dir=$(mktemp -d -t gpu-init-action-nccl-XXXX)
 
-curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
-  "${NCCL_REPO_URL}" -o "${tmp_dir}/nvidia-ml-repo.deb"
+  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    "${NCCL_REPO_URL}" -o "${tmp_dir}/nvidia-ml-repo.deb"
   dpkg -i "${tmp_dir}/nvidia-ml-repo.deb"
 
   execute_with_retries "apt-get update"
