@@ -143,6 +143,7 @@ public class StorageStubProvider {
                 isNullOrEmpty(readOptions.getGrpcServerAddress())
                     ? DEFAULT_GCS_GRPC_SERVER_ADDRESS
                     : readOptions.getGrpcServerAddress())
+            .enableRetry()
             .defaultServiceConfig(getGrpcServiceConfig())
             .intercept(counter)
             .build();
