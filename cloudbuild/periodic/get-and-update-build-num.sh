@@ -2,10 +2,6 @@
 
 set -euxo pipefail
 
-# build_num=$(($(gsutil cat gs://init-actions-github-tests/counter.txt)+1))
-# echo "$build_num" > counter.txt
-# gsutil cp counter.txt gs://init-actions-github-tests/counter.txt
-
 shopt -s extglob;
 DIRS=$(gsutil ls gs://init-actions-github-tests/logs/init_actions_tests/hue-1.4-debian9)
 DIRS=("${DIRS[@]%/}") # Remove trailing "/" 
