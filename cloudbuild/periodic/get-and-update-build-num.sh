@@ -12,4 +12,4 @@ DIRS=("${DIRS[@]%/}") # Remove trailing "/"
 DIRS=("${DIRS[@]##*/}") # Get only the directory name (i.e. build number)
 build_number="${DIRS[0]}" # Get latest build number
 
-echo "$((${build_number}+1))" > /workspace/counter.txt
+echo "$((${build_number}+1))" > counter.txt

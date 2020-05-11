@@ -21,7 +21,7 @@ run_tests() {
 }
 
 get_build_num() {
-	build_num=$(($(gsutil cat gs://init-actions-github-tests/counter.txt)-1))
+	build_num=$(cat counter.txt)
 	echo $build_num
 }
 
