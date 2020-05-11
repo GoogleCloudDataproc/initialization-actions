@@ -1,7 +1,7 @@
 #!/usr/bin/expect
 
 set -euxo pipefail
-set timeout 30
+set timeout 180
 set USERNAME [lindex $argv 0]
 set PASSWORD [lindex $argv 1]
 log_user 1
