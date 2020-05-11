@@ -17,7 +17,7 @@ run_tests() {
   	--noshow_progress \
   	--noshow_loading_progress \
   	--test_arg="--image_version=${IMAGE_VERSION}" \
-  	"${TESTS_TO_RUN[@]}"
+  	"${TESTS_TO_RUN[@]}" || true
 }
 
 get_build_num() {
