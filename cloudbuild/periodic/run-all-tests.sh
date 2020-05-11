@@ -17,11 +17,11 @@ run_tests() {
   	--noshow_progress \
   	--noshow_loading_progress \
   	--test_arg="--image_version=${IMAGE_VERSION}" \
-  	"${TESTS_TO_RUN[@]}"
+  	"${TESTS_TO_RUN[@]}" || true
 }
 
 get_build_num() {
-	build_num=$(($(gsutil cat gs://init-actions-github-tests/counter.txt)-1))
+	build_num=$(cat counter.txt)
 	echo $build_num
 }
 
