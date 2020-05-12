@@ -186,10 +186,11 @@ public class StorageStubProvider {
             .put("maxAttempts", GRPC_MAX_RETRY_ATTEMPTS)
             .put(
                 "initialBackoff",
-                Durations.fromMillis(readOptions.getBackoffInitialIntervalMillis()).toString())
+                Durations.toString(
+                    Durations.fromMillis(readOptions.getBackoffInitialIntervalMillis())))
             .put(
                 "maxBackoff",
-                Durations.fromMillis(readOptions.getBackoffMaxIntervalMillis()).toString())
+                Durations.toString(Durations.fromMillis(readOptions.getBackoffMaxIntervalMillis())))
             .put("backoffMultiplier", readOptions.getBackoffMultiplier())
             .put("retryableStatusCodes", ImmutableList.of("UNAVAILABLE", "RESOURCE_EXHAUSTED"))
             .build();
