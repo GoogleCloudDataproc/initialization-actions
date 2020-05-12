@@ -87,6 +87,7 @@ function install_nvidia_nccl() {
 
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
+  curl --retry 5 "${NVIDIA_UBUNTU_REPOSITORY_KEY}" | apt-key add -
   if [[ ${OS_NAME} == debian ]]; then
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_DEBIAN_GPU_DRIVER_URL}" -o driver.run
@@ -99,7 +100,6 @@ function install_nvidia_gpu_driver() {
     curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
       "${NVIDIA_UBUNTU_REPOSITORY_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
 
-    curl --retry 5 "${NVIDIA_UBUNTU_REPOSITORY_KEY}" | apt-key add -
     add-apt-repository "deb ${NVIDIA_UBUNTU_REPOSITORY_URL} /"
     execute_with_retries "apt-get update"
 
