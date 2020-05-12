@@ -32,7 +32,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                            beta=True,
                            master_accelerator=master_accelerator,
                            worker_accelerator=worker_accelerator,
-                           metadata=metadata)
+                           metadata=metadata,
+                           timeout_in_minutes=20)
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
@@ -53,7 +54,8 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
                            beta=True,
                            master_accelerator=master_accelerator,
                            worker_accelerator=worker_accelerator,
-                           metadata=metadata)
+                           metadata=metadata,
+                           timeout_in_minutes=20)
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
@@ -76,6 +78,7 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
             master_accelerator=master_accelerator,
             worker_accelerator=worker_accelerator,
             metadata=metadata,
+            timeout_in_minutes=20,
             scopes='https://www.googleapis.com/auth/monitoring.write')
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
