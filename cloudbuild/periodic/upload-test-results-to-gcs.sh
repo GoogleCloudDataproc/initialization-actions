@@ -2,8 +2,6 @@
 
 set -uxo pipefail
 
-COMMIT=$(git rev-parse HEAD)
-
 get_build_num() {
 	build_num=$(cat counter.txt)
 	echo $build_num
@@ -60,7 +58,7 @@ create_finished_json() {
   	--arg version $IMAGE_VERSION \
   	--arg build_num $BUILD_NUM \
   	--arg build_id $BUILD_ID \
-  	--arg commit $COMMIT \
+  	--arg commit $COMMIT_SHA \
   	'{"timestamp":$timestamp, "result":$result, "job-version":$commit, "metadata": {"component":$component, "version":$version, "build_num":$build_num, "build_id":$build_id}}' > finished.json
 }
 

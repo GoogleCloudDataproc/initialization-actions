@@ -109,7 +109,7 @@ main() {
   configure_gcloud_ssh_key
   if [[ $RUN_ALL_TESTS=="true" ]]; then
     # Run periodic
-    initialize_git_repo "false"
+    # initialize_git_repo "false"
     TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
     run_tests || true
     bash cloudbuild/periodic/upload-test-results-to-gcs.sh
