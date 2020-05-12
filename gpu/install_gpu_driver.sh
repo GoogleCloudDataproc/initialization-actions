@@ -72,8 +72,8 @@ function install_nvidia_nccl() {
   local tmp_dir
   tmp_dir=$(mktemp -d -t gpu-init-action-nccl-XXXX)
 
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${NCCL_REPO_URL}" -O "${tmp_dir}/nvidia-ml-repo.deb"
+  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    "${NCCL_REPO_URL}" -o "${tmp_dir}/nvidia-ml-repo.deb"
   dpkg -i "${tmp_dir}/nvidia-ml-repo.deb"
 
   execute_with_retries "apt-get update"
@@ -88,15 +88,16 @@ function install_nvidia_nccl() {
 # Install NVIDIA GPU driver provided by NVIDIA
 function install_nvidia_gpu_driver() {
   if [[ ${OS_NAME} == debian ]]; then
-    wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      "${NVIDIA_DEBIAN_GPU_DRIVER_URL}" -O driver.run
+    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+      "${NVIDIA_DEBIAN_GPU_DRIVER_URL}" -o driver.run
     bash "./driver.run" --silent
 
-    wget -nv --timeout=30 --tries=5 --retry-connrefused "${NVIDIA_DEBIAN_CUDA_URL}" -O cuda.run
+    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+      "${NVIDIA_DEBIAN_CUDA_URL}" -o cuda.run
     bash "./cuda.run" --silent --toolkit --no-opengl-libs
   elif [[ ${OS_NAME} == ubuntu ]]; then
-    wget -nv --timeout=30 --tries=5 --retry-connrefused \
-      "${NVIDIA_UBUNTU_REPOSITORY_CUDA_PIN}" -O /etc/apt/preferences.d/cuda-repository-pin-600
+    curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+      "${NVIDIA_UBUNTU_REPOSITORY_CUDA_PIN}" -o /etc/apt/preferences.d/cuda-repository-pin-600
 
     curl --retry 5 "${NVIDIA_UBUNTU_REPOSITORY_KEY}" | apt-key add -
     add-apt-repository "deb ${NVIDIA_UBUNTU_REPOSITORY_URL} /"
@@ -192,10 +193,10 @@ function install_gpu_agent() {
   fi
   local install_dir=/opt/gpu-utilization-agent
   mkdir "${install_dir}"
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${GPU_AGENT_REPO_URL}/requirements.txt" -P "${install_dir}"
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${GPU_AGENT_REPO_URL}/report_gpu_metrics.py" -P "${install_dir}"
+  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    "${GPU_AGENT_REPO_URL}/requirements.txt" -o "${install_dir}/requirements.txt"
+  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    "${GPU_AGENT_REPO_URL}/report_gpu_metrics.py" -o "${install_dir}/report_gpu_metrics.py"
   pip install -r "${install_dir}/requirements.txt"
 
   # Generate GPU service.
