@@ -1,12 +1,12 @@
 steps:
-  # - name: 'gcr.io/cloud-builders/gsutil'
-  #   id: 'get-build-num'
-  #   entrypoint: /bin/bash
-  #   args:
-  #     - -c
-  #     - |
-  #       chmod +x cloudbuild/periodic/get-and-update-build-num.sh &&
-  #       cloudbuild/periodic/get-and-update-build-num.sh
+  - name: 'gcr.io/cloud-builders/gsutil'
+    id: 'get-build-num'
+    entrypoint: /bin/bash
+    args:
+      - -c
+      - |
+        chmod +x cloudbuild/periodic/get-and-update-build-num.sh &&
+        cloudbuild/periodic/get-and-update-build-num.sh
 
   # Create Docker image from regular Dockerfile
   - name: 'gcr.io/cloud-builders/docker'

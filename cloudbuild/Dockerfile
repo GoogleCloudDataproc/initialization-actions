@@ -14,7 +14,4 @@ RUN curl https://bazel.build/bazel-release.pub.gpg | apt-key add -
 RUN apt-get update
 RUN apt-get install -y openjdk-8-jdk python3-setuptools bazel libxml2-utils jq
 
-RUN chmod +x /init-actions/cloudbuild/periodic/get-and-update-build-num.sh
-RUN bash /init-actions/cloudbuild/periodic/get-and-update-build-num.sh
-
 USER ia-tests
