@@ -3,22 +3,6 @@
 set -uxo pipefail
 
 COMMIT=$(git rev-parse HEAD)
-TESTS_TO_RUN=(
-  ":DataprocInitActionsTestSuite"
-) 
-
-run_tests() {
-  bazel test \
-  	--jobs=15 \
-  	--local_cpu_resources=15 \
-  	--local_ram_resources=$((15 * 1024)) \
-  	--action_env=INTERNAL_IP_SSH=true \
-  	--test_output=errors \
-  	--noshow_progress \
-  	--noshow_loading_progress \
-  	--test_arg="--image_version=${IMAGE_VERSION}" \
-  	"${TESTS_TO_RUN[@]}" || true
-}
 
 get_build_num() {
 	build_num=$(cat counter.txt)
@@ -101,7 +85,6 @@ get_and_upload_test_results() {
 
 
 main() {
-  run_tests
   get_and_upload_test_results
 }
 

@@ -99,7 +99,6 @@ run_tests() {
     --test_output=errors \
     --noshow_progress \
     --noshow_loading_progress \
-    --keep_going \
     --test_arg="--image_version=${IMAGE_VERSION}" \
     "${TESTS_TO_RUN[@]}"
 }
@@ -111,7 +110,9 @@ main() {
   if [[ $RUN_ALL_TESTS=="true" ]]; then
     # Run periodic
     initialize_git_repo "false"
-    bash cloudbuild/periodic/run-all-tests.sh
+    TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
+    run_tests || true
+    bash cloudbuild/periodic/upload-test-results-to-gcs.sh
   else
     # Run presubmit
     initialize_git_repo "true"
