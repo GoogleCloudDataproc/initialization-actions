@@ -285,6 +285,10 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
   }
 
   private void cancelCurrentRequest() {
+    bufferedContent = null;
+    bufferedContentReadOffset = 0;
+    bytesToSkipBeforeReading = 0;
+
     if (requestContext != null) {
       requestContext.close();
       requestContext = null;
@@ -350,24 +354,21 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
 
     long seekDistance = newPosition - position;
 
+    if (seekDistance >= 0 && seekDistance <= readOptions.getInplaceSeekLimit()) {
+      bytesToSkipBeforeReading = seekDistance;
+      return this;
+    }
+
     if (readStrategy == Fadvise.AUTO) {
       if (seekDistance < 0 || seekDistance > readOptions.getInplaceSeekLimit()) {
         readStrategy = Fadvise.RANDOM;
       }
     }
 
-    if (seekDistance >= 0 && seekDistance <= readOptions.getInplaceSeekLimit()) {
-      bytesToSkipBeforeReading = seekDistance;
-      return this;
-    }
-
     // Reset any ongoing read operations or local data caches.
     cancelCurrentRequest();
-    this.bufferedContent = null;
-    this.bufferedContentReadOffset = 0;
-    this.bytesToSkipBeforeReading = 0;
 
-    this.position = newPosition;
+    position = newPosition;
     return this;
   }
 
