@@ -36,9 +36,9 @@ function check_prerequisites() {
 
   # check for HBase
   if [[ "${ROLE}" == 'Master' ]]; then
-    systemctl is-active hbase-master || err 'HBase Master is not active'
+    retry_command systemctl is-active hbase-master
   else
-    systemctl is-active hbase-regionserver || err 'HBase Region Server is not active'
+    retry_command systemctl is-active hbase-regionserver
   fi
 
   # Systemd and port checking are not deterministic for HBase Master
