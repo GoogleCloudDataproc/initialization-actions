@@ -42,6 +42,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.UInt32Value;
 import com.google.protobuf.util.Timestamps;
+import io.grpc.Status;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientResponseObserver;
 import io.grpc.stub.StreamObserver;
@@ -162,18 +163,15 @@ public final class GoogleCloudStorageGrpcWriteChannel
     }
 
     @Override
-    public Object call() throws IOException, InterruptedException {
+    public Object call() throws IOException {
       // Try-with-resource will close this end of the pipe so that
       // the writer at the other end will not hang indefinitely.
       try (InputStream toClose = pipeSource) {
         return doResumableUpload();
-      } catch (Exception e) {
-        throw new IOException(
-            String.format("Caught exception during upload for '%s'", resourceId), e);
       }
     }
 
-    private Object doResumableUpload() throws IOException, InterruptedException {
+    private Object doResumableUpload() throws IOException {
       // Send the initial StartResumableWrite request to get an uploadId.
       String uploadId = startResumableUpload();
       InsertChunkResponseObserver responseObserver;
@@ -186,7 +184,13 @@ public final class GoogleCloudStorageGrpcWriteChannel
         // TODO(b/151184800): Implement per-message timeout, in addition to stream timeout.
         stub.withDeadlineAfter(WRITE_STREAM_TIMEOUT.toMillis(), MILLISECONDS)
             .insertObject(responseObserver);
-        responseObserver.done.await();
+        try {
+          responseObserver.done.await();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          throw new IOException(
+              String.format("Resumable upload failed for '%s'", getResourceString()), e);
+        }
 
         if (responseObserver.hasError()) {
           long committedSize = getCommittedWriteSize(uploadId);
@@ -209,7 +213,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
           throw new IOException(
               String.format("Insert failed for '%s'", resourceId), responseObserver.getError());
         }
-      } while (!responseObserver.isFinished());
+      } while (!responseObserver.hasFinalized());
 
       return responseObserver.getResponse();
     }
@@ -222,7 +226,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
       private final String uploadId;
       private volatile boolean objectFinalized = false;
       // The last error to occur during the streaming RPC. Present only on error.
-      private Throwable error;
+      private IOException error;
       // The response from the server, populated at the end of a successful streaming RPC.
       private Object response;
       private ByteString chunkData;
@@ -312,7 +316,10 @@ public final class GoogleCloudStorageGrpcWriteChannel
             });
       }
 
-      public Object getResponse() {
+      public Object getResponse() throws IOException {
+        if (hasError()) {
+          throw getError();
+        }
         return checkNotNull(response, "Response not present for '%s'", resourceId);
       }
 
@@ -324,12 +331,12 @@ public final class GoogleCloudStorageGrpcWriteChannel
         return chunkData.size();
       }
 
-      public Throwable getError() {
+      public IOException getError() {
         return checkNotNull(error, "Error not present for '%s'", resourceId);
       }
 
-      boolean isFinished() {
-        return objectFinalized || hasError();
+      boolean hasFinalized() {
+        return objectFinalized;
       }
 
       @Override
@@ -339,11 +346,14 @@ public final class GoogleCloudStorageGrpcWriteChannel
 
       @Override
       public void onError(Throwable t) {
+        Status s = Status.fromThrowable(t);
+        String statusDesc = s == null ? "" : s.getDescription();
         error =
             new IOException(
                 String.format(
-                    "Caught exception for '%s', while uploading to uploadId %s at writeOffset %d",
-                    resourceId, uploadId, writeOffset),
+                    "Caught exception for '%s', while uploading to uploadId %s at writeOffset %d."
+                        + " Status: %s",
+                    resourceId, uploadId, writeOffset, statusDesc),
                 t);
         done.countDown();
       }
@@ -368,7 +378,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
     }
 
     /** Send a StartResumableWriteRequest and return the uploadId of the resumable write. */
-    private String startResumableUpload() throws InterruptedException, IOException {
+    private String startResumableUpload() throws IOException {
       InsertObjectSpec.Builder insertObjectSpecBuilder =
           InsertObjectSpec.newBuilder()
               .setResource(
@@ -404,7 +414,9 @@ public final class GoogleCloudStorageGrpcWriteChannel
               responseObserver.done.await();
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
-              throw new RuntimeException("Failed to start resumable upload.", e);
+              throw new RuntimeException(
+                  String.format("Failed to start resumable upload for '%s'", getResourceString()),
+                  e);
             }
           },
           responseObserver);
@@ -413,7 +425,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
     }
 
     // TODO(b/150892988): Call this to find resume point after a transient error.
-    private long getCommittedWriteSize(String uploadId) throws InterruptedException, IOException {
+    private long getCommittedWriteSize(String uploadId) throws IOException {
       QueryWriteStatusRequest request =
           QueryWriteStatusRequest.newBuilder().setUploadId(uploadId).build();
 
@@ -427,7 +439,9 @@ public final class GoogleCloudStorageGrpcWriteChannel
               responseObserver.done.await();
             } catch (InterruptedException e) {
               Thread.currentThread().interrupt();
-              throw new RuntimeException("Failed to get committed write size.", e);
+              throw new RuntimeException(
+                  String.format("Failed to get committed write size for '%s'", getResourceString()),
+                  e);
             }
           },
           responseObserver);
