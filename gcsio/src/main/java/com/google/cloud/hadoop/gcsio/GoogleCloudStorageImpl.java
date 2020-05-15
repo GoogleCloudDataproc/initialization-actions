@@ -1877,10 +1877,13 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     try {
       // TODO: add try-catch around each shutdown() call to make sure
       //  that all resources are shut down
-      backgroundTasksThreadPool.shutdown();
-      manualBatchingThreadPool.shutdown();
-      if (storageStubProvider != null) {
-        storageStubProvider.shutdown();
+      try {
+        if (storageStubProvider != null) {
+          storageStubProvider.shutdown();
+        }
+      } finally {
+        backgroundTasksThreadPool.shutdown();
+        manualBatchingThreadPool.shutdown();
       }
     } finally {
       backgroundTasksThreadPool = null;
