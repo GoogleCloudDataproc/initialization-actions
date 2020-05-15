@@ -40,7 +40,11 @@ function check_prerequisites() {
   else
     systemctl is-active hbase-regionserver || err 'HBase Region Server is not active'
   fi
-  echo "list" | hbase shell || err 'HBase not found'
+
+  # Systemd and port checking are not deterministic for HBase Master
+  retry_command echo "create '$(hostname)','$(hostname)'" | hbase shell -n
+  retry_command echo "disable '$(hostname)'" | hbase shell -n
+  retry_command echo "drop '$(hostname)'" | hbase shell -n
 
   # check for Solr
   curl 'http://localhost:8983/solr' || err 'Solr not found'

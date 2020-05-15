@@ -33,7 +33,9 @@ class AtlasTestCase(DataprocTestCase):
         self.assert_instance_command(instance,
                                      "sudo apt-get install -y expect")
         self.assert_instance_command(instance,
-                                             "sudo pip install requests")
+                                     "sudo apt-get install -y python-pip")
+        self.assert_instance_command(instance,
+                                     "pip install requests")
 
         # Upload files to populate Atlas and to verify it
         populate_atlas_path = os.path.join(
