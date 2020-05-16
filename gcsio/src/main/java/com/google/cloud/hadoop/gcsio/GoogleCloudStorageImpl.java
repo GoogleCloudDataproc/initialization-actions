@@ -69,7 +69,6 @@ import com.google.common.collect.Maps;
 import com.google.common.flogger.GoogleLogger;
 import com.google.common.io.BaseEncoding;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.grpc.netty.shaded.io.grpc.netty.InternalHandlerSettings;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -250,11 +249,6 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
     if (storageOptions.isGrpcEnabled()) {
       this.storageStubProvider =
           new StorageStubProvider(options.getReadChannelOptions(), backgroundTasksThreadPool);
-      // Enable gRPC auto flow-control window if set.
-      if (storageOptions.isGrpcAutoWindowEnabled()) {
-        InternalHandlerSettings.enable(true);
-        InternalHandlerSettings.autoWindowOn(true);
-      }
     }
   }
 
