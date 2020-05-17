@@ -36,15 +36,15 @@ function check_prerequisites() {
 
   # check for HBase
   if [[ "${ROLE}" == 'Master' ]]; then
-    retry_command systemctl is-active hbase-master
+    retry_command "systemctl is-active hbase-master"
   else
-    retry_command systemctl is-active hbase-regionserver
+    retry_command "systemctl is-active hbase-regionserver"
   fi
 
   # Systemd and port checking are not deterministic for HBase Master
-  retry_command echo "create '$(hostname)','$(hostname)'" | hbase shell -n
-  retry_command echo "disable '$(hostname)'" | hbase shell -n
-  retry_command echo "drop '$(hostname)'" | hbase shell -n
+  retry_command "echo create \'$(hostname)\',\'$(hostname)\' | hbase shell -n"
+  retry_command "echo disable \'$(hostname)\' | hbase shell -n"
+  retry_command "echo drop \'$(hostname)\' | hbase shell -n"
 
   # check for Solr
   curl 'http://localhost:8983/solr' || err 'Solr not found'
