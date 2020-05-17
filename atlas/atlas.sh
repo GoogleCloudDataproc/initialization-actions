@@ -36,15 +36,15 @@ function check_prerequisites() {
 
   # check for HBase
   if [[ "${ROLE}" == 'Master' ]]; then
-    retry_command "systemctl is-active hbase-master"
+    run_with_retries "systemctl is-active hbase-master"
   else
-    retry_command "systemctl is-active hbase-regionserver"
+    run_with_retries "systemctl is-active hbase-regionserver"
   fi
 
   # Systemd and port checking are not deterministic for HBase Master
-  retry_command "echo create \'$(hostname)\',\'$(hostname)\' | hbase shell -n"
-  retry_command "echo disable \'$(hostname)\' | hbase shell -n"
-  retry_command "echo drop \'$(hostname)\' | hbase shell -n"
+  run_with_retries "echo create \'$(hostname)\',\'$(hostname)\' | hbase shell -n"
+  run_with_retries "echo disable \'$(hostname)\' | hbase shell -n"
+  run_with_retries "echo drop \'$(hostname)\' | hbase shell -n"
 
   # check for Solr
   curl 'http://localhost:8983/solr' || err 'Solr not found'
@@ -56,7 +56,7 @@ function check_prerequisites() {
 }
 
 function install_atlas() {
-  retry_command "apt-get install -q -y atlas"
+  apt_get_install atlas
   # TODO: fix in the deb package
   ln -s "${ATLAS_HOME}"-?.?.? "${ATLAS_HOME}" || true
   rm -rf "${ATLAS_HOME}/conf"
