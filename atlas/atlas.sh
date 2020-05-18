@@ -15,14 +15,27 @@ readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 readonly ADDITIONAL_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)
 
 function retry_command() {
-  local -r cmd="$1"
-  for ((i = 0; i < 10; i++)); do
-    if eval "$cmd"; then
-      return 0
+  local retry_backoff=(1 1 2 3 5 8 13 21 34 55 89 144)
+  local -a cmd=("$@")
+  loginfo "About to run '${cmd[*]}' with retries..."
+
+  local update_succeeded=0
+  for ((i = 0; i < ${#retry_backoff[@]}; i++)); do
+    if eval "${cmd[@]}"; then
+      update_succeeded=1
+      break
+    else
+      local sleep_time=${retry_backoff[$i]}
+      loginfo "'${cmd[*]}' attempt $((i + 1)) failed! Sleeping ${sleep_time}." >&2
+      sleep "${sleep_time}"
     fi
-    sleep 5
   done
-  return 1
+
+  if ! ((update_succeeded)); then
+    loginfo "Final attempt of '${cmd[*]}'..."
+    # Let any final error propagate all the way out to any error traps.
+    "${cmd[@]}"
+  fi
 }
 
 function err() {
@@ -36,15 +49,15 @@ function check_prerequisites() {
 
   # check for HBase
   if [[ "${ROLE}" == 'Master' ]]; then
-    run_with_retries "systemctl is-active hbase-master"
+    retry_command "systemctl is-active hbase-master"
   else
-    run_with_retries "systemctl is-active hbase-regionserver"
+    retry_command "systemctl is-active hbase-regionserver"
   fi
 
   # Systemd and port checking are not deterministic for HBase Master
-  run_with_retries "echo create \'$(hostname)\',\'$(hostname)\' | hbase shell -n"
-  run_with_retries "echo disable \'$(hostname)\' | hbase shell -n"
-  run_with_retries "echo drop \'$(hostname)\' | hbase shell -n"
+  retry_command "echo create \'$(hostname)\',\'$(hostname)\' | hbase shell -n"
+  retry_command "echo disable \'$(hostname)\' | hbase shell -n"
+  retry_command "echo drop \'$(hostname)\' | hbase shell -n"
 
   # check for Solr
   curl 'http://localhost:8983/solr' || err 'Solr not found'
@@ -77,7 +90,7 @@ function configure_atlas() {
   zk_quorum=$(bdconfig get_property_value --configuration_file /etc/hbase/conf/hbase-site.xml \
     --name hbase.zookeeper.quorum 2>/dev/null)
   local zk_url_for_solr
-  zk_url_for_solr="$(echo "${zk_quorum}" | sed 's/,/:2181\\\/solr,/g'):2181\\/solr"
+  zk_url_for_solr="$(echo "${zk_quorum}" | sed 's/:2181/:2181\/solr/g')"
 
   local cluster_name
   cluster_name=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)
@@ -98,7 +111,8 @@ function configure_atlas() {
     sed -i "s/atlas.server.ha.enabled=.*/atlas.server.ha.enabled=true/" ${ATLAS_CONFIG}
     sed -i "s/atlas.server.ha.zookeeper.connect=.*/atlas.server.ha.zookeeper.connect=${zk_quorum}/" ${ATLAS_CONFIG}
     sed -i "s/atlas.graph.index.search.solr.wait-searcher=.*/#atlas.graph.index.search.solr.wait-searcher=.*/" ${ATLAS_CONFIG}
-    sed -i "s/atlas.graph.index.search.solr.zookeeper-url=.*/atlas.graph.index.search.solr.zookeeper-url=${zk_url_for_solr}/" ${ATLAS_CONFIG}
+    # Use pipe to escape values in the variable
+    sed -i "s|atlas.graph.index.search.solr.zookeeper-url=.*|atlas.graph.index.search.solr.zookeeper-url=${zk_url_for_solr}|" ${ATLAS_CONFIG}
 
     cat <<EOF >>${ATLAS_CONFIG}
 atlas.server.ids=m0,m1,m2
@@ -164,7 +178,7 @@ function wait_for_atlas_to_start() {
   # atlas start script exits prematurely, before atlas actually starts
   # thus wait up to 10 minutes until atlas is fully working
   wait_for_port "Atlas web server" localhost 21000
-  local -r cmd='curl localhost:21000/api/atlas/admin/status'
+  local -r cmd="curl localhost:21000/api/atlas/admin/status"
   for ((i = 0; i < 60; i++)); do
     if eval "${cmd}"; then
       return 0
@@ -175,7 +189,7 @@ function wait_for_atlas_to_start() {
 }
 
 function wait_for_atlas_becomes_active_or_passive() {
-  cmd="sudo ${ATLAS_HOME}/bin/atlas_admin.py -u doesnt:matter -status 2>/dev/null" # public check, but some username:password has to be given
+  local -r cmd="sudo ${ATLAS_HOME}/bin/atlas_admin.py -u doesnt:matter -status 2>/dev/null" # public check, but some username:password has to be given
   for ((i = 0; i < 60; i++)); do
     status=$(eval "${cmd}")
     if [[ ${status} == 'ACTIVE' || ${status} == 'PASSIVE' ]]; then
