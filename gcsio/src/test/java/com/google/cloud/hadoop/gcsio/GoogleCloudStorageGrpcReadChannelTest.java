@@ -141,7 +141,7 @@ public final class GoogleCloudStorageGrpcReadChannelTest {
     assertArrayEquals(
         fakeService.data.substring(25, 30).toByteArray(), bufferFromSkippedSection1.array());
     assertArrayEquals(
-        fakeService.data.substring(35, 45).toByteArray(), bufferFromSkippedSection2.array());
+        fakeService.data.substring(40, 50).toByteArray(), bufferFromSkippedSection2.array());
     assertArrayEquals(
         fakeService.data.substring(1, 11).toByteArray(), bufferFromReposition.array());
   }

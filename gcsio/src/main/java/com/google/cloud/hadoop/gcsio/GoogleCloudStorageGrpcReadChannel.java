@@ -285,10 +285,6 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
   }
 
   private void cancelCurrentRequest() {
-    bufferedContent = null;
-    bufferedContentReadOffset = 0;
-    bytesToSkipBeforeReading = 0;
-
     if (requestContext != null) {
       requestContext.close();
       requestContext = null;
@@ -367,6 +363,9 @@ public class GoogleCloudStorageGrpcReadChannel implements SeekableByteChannel {
 
     // Reset any ongoing read operations or local data caches.
     cancelCurrentRequest();
+    bufferedContent = null;
+    bufferedContentReadOffset = 0;
+    bytesToSkipBeforeReading = 0;
 
     position = newPosition;
     return this;
