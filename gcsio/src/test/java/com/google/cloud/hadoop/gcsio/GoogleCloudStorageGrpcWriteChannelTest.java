@@ -343,6 +343,27 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
   }
 
   @Test
+  public void writeHandlesErrorOnInsertRequestWithLongUncommittedData() throws Exception {
+    GoogleCloudStorageGrpcWriteChannel writeChannel = newWriteChannel();
+    long chunkSize = GoogleCloudStorageGrpcWriteChannel.GCS_MINIMUM_CHUNK_SIZE * 1024L * 1024L;
+    fakeService.setInsertRequestException(new IOException("Error!"));
+    fakeService.setResumeFromInsertException(true);
+    fakeService.setQueryWriteStatusResponses(
+        ImmutableList.of(
+                QueryWriteStatusResponse.newBuilder().setCommittedSize(chunkSize * 3 / 4).build())
+            .iterator());
+
+    ByteString data = createTestData(GoogleCloudStorageGrpcWriteChannel.GCS_MINIMUM_CHUNK_SIZE);
+    writeChannel.initialize();
+    writeChannel.write(data.asReadOnlyByteBuffer());
+    writeChannel.close();
+
+    verify(fakeService, times(1)).startResumableWrite(eq(START_REQUEST), any());
+    verify(fakeService, atLeast(1)).queryWriteStatus(eq(WRITE_STATUS_REQUEST), any());
+    verify(fakeService.insertRequestObserver, atLeast(1)).onCompleted();
+  }
+
+  @Test
   public void writeFailsBeforeInitialize() {
     GoogleCloudStorageGrpcWriteChannel writeChannel = newWriteChannel();
 
@@ -563,15 +584,23 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
       insertRequestObserver.insertRequestException = t;
     }
 
+    void setResumeFromInsertException(boolean resumable) {
+      insertRequestObserver.resumeFromInsertException = resumable;
+    }
+
     private static class InsertRequestObserver implements StreamObserver<InsertObjectRequest> {
       private StreamObserver<Object> responseObserver;
       private Object object = DEFAULT_OBJECT;
       Throwable insertRequestException;
+      boolean resumeFromInsertException = false;
 
       @Override
       public void onNext(InsertObjectRequest request) {
         if (insertRequestException != null) {
           responseObserver.onError(insertRequestException);
+          if (resumeFromInsertException) {
+            insertRequestException = null;
+          }
         }
       }
 

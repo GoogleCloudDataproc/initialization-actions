@@ -199,7 +199,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
           // input stream.
           pipeSource.reset();
           if (committedSize > writeOffset) {
-            int uploadedDataChunkSize = Math.toIntExact(committedSize - writeOffset);
+            long uploadedDataChunkSize = committedSize - writeOffset;
             pipeSource.skip(uploadedDataChunkSize);
             writeOffset += uploadedDataChunkSize;
           }
@@ -213,7 +213,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
           throw new IOException(
               String.format("Insert failed for '%s'", resourceId), responseObserver.getError());
         }
-      } while (!responseObserver.hasFinalized());
+      } while (!responseObserver.hasFinalized() || responseObserver.hasError());
 
       return responseObserver.getResponse();
     }
@@ -310,7 +310,8 @@ public final class GoogleCloudStorageGrpcWriteChannel
                 ByteString data =
                     ByteString.readFrom(ByteStreams.limit(pipeSource, MAX_BYTES_PER_MESSAGE));
 
-                objectFinalized = data.size() < MAX_BYTES_PER_MESSAGE || pipeSource.available() > 0;
+                objectFinalized =
+                    data.size() < MAX_BYTES_PER_MESSAGE || pipeSource.available() <= 0;
                 return data;
               }
             });
