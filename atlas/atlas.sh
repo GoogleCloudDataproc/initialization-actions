@@ -171,7 +171,22 @@ WantedBy=multi-user.target
 EOF
   chmod a+rw ${INIT_SCRIPT}
   systemctl enable atlas
-  systemctl start atlas || err 'Unable to start atlas service'
+  nohup systemctl start atlas || err 'Unable to start atlas service'
+
+  # Check if 'atlas' table gets created and disabled. Make sure that
+  # it is enabled to avoid Atlas failures.
+  for ((i = 0; i < 60; i++)); do
+    cmd_check_table_exist="echo exists \'atlas\' | hbase shell -n | grep -q 'does exist'"
+    if eval "${cmd_check_table_exist}"; then
+      cmd_is_disabled="echo is_disabled \'atlas\' | hbase shell -n | grep -q 'true'"
+      if eval "${cmd_is_disabled}"; then
+        retry_command "echo enable \'atlas\' | hbase shell -n"
+      else
+        break
+      fi
+    fi
+    sleep 20
+  done
 }
 
 function wait_for_atlas_to_start() {
@@ -191,9 +206,10 @@ function wait_for_atlas_to_start() {
 function wait_for_atlas_becomes_active_or_passive() {
   local -r cmd="sudo ${ATLAS_HOME}/bin/atlas_admin.py -u doesnt:matter -status 2>/dev/null" # public check, but some username:password has to be given
   for ((i = 0; i < 60; i++)); do
-    status=$(eval "${cmd}")
-    if [[ ${status} == 'ACTIVE' || ${status} == 'PASSIVE' ]]; then
-      return 0
+    if status=$(eval "${cmd}"); then
+      if [[ ${status} == 'ACTIVE' || ${status} == 'PASSIVE' ]]; then
+        return 0
+      fi
     fi
     sleep 10
   done
