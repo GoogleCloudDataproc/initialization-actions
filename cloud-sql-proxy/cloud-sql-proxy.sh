@@ -329,6 +329,11 @@ function configure_hive_warehouse_dir() {
   echo "Updated hive warehouse dir"
 }
 
+function reload_function() {
+  beeline -u "$(get_hiveserver_uri)" -e "reload function;"
+  echo "Reloaded permanent functions"
+}
+
 function main() {
   local role
   role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
@@ -390,6 +395,9 @@ function main() {
         # Set hive.metastore.warehouse.dir only on other masters.
         configure_hive_warehouse_dir
       fi
+      # Execute the Hive "reload function" DDL to reflect permanent functions
+      # that have already been created in the HiveServer.
+      reload_function
     fi
   else
     # This part runs on workers.
