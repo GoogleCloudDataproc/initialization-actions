@@ -227,5 +227,5 @@ public class HadoopCredentialConfiguration {
     return ImmutableList.<String>builder().add(keyPrefixes).add(BASE_KEY_PREFIX).build();
   }
 
-  private HadoopCredentialConfiguration() {}
+  protected HadoopCredentialConfiguration() {}
 }
