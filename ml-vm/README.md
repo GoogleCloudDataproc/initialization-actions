@@ -34,7 +34,6 @@ a set of preconfigured machine learning packages.:
         --metadata gcs-connector-version=2.1.1 \
         --metadata bigquery-connector-version=1.1.1 \
         --metadata spark-bigquery-connector-version=0.13.1-beta \
-        --metadata PIP_PACKAGES="google-cloud-bigquery google-cloud-datalabeling google-cloud-storage google-cloud-bigtable google-cloud-dataproc google-api-python-client mxnet tensorflow numpy rapidsai scikit-learn keras spark-nlp xgboost torch torchvision" \
         --metadata gpu-driver-provider=NVIDIA \
         --metadata rapids-runtime=SPARK \
         --scopes "cloud-platform" \
