@@ -24,7 +24,9 @@ import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.HttpTransportFactory;
 import com.google.cloud.hadoop.util.RedactedString;
 import com.google.cloud.hadoop.util.RequesterPaysOptions;
+import com.google.cloud.hadoop.util.RetryHttpInitializerOptions;
 import com.google.common.collect.ImmutableMap;
+import java.time.Duration;
 import java.util.Map;
 import javax.annotation.Nullable;
 
@@ -183,6 +185,16 @@ public abstract class GoogleCloudStorageOptions {
 
   @Nullable
   public abstract RedactedString getEncryptionKeyHash();
+
+  public RetryHttpInitializerOptions toRetryHttpInitializerOptions() {
+    return RetryHttpInitializerOptions.builder()
+        .setDefaultUserAgent(getAppName())
+        .setHttpHeaders(getHttpRequestHeaders())
+        .setMaxRequestRetries(getMaxHttpRequestRetries())
+        .setConnectTimeout(Duration.ofMillis(getHttpRequestConnectTimeout()))
+        .setReadTimeout(Duration.ofMillis(getHttpRequestReadTimeout()))
+        .build();
+  }
 
   public void throwIfNotValid() {
     checkArgument(!isNullOrEmpty(getAppName()), "appName must not be null or empty");

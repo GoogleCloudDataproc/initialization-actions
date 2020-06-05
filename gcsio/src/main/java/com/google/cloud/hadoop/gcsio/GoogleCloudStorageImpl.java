@@ -212,11 +212,7 @@ public class GoogleCloudStorageImpl implements GoogleCloudStorage {
         options,
         new RetryHttpInitializer(
             checkNotNull(credential, "credential must not be null"),
-            options.getAppName(),
-            options.getMaxHttpRequestRetries(),
-            options.getHttpRequestConnectTimeout(),
-            options.getHttpRequestReadTimeout(),
-            options.getHttpRequestHeaders()));
+            options.toRetryHttpInitializerOptions()));
   }
 
   @VisibleForTesting

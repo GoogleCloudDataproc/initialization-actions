@@ -62,13 +62,7 @@ public class CoopLockLoadIntegrationTest {
     gcsOptions =
         GoogleCloudStorageOptions.builder().setAppName(appName).setProjectId(projectId).build();
     httpRequestInitializer =
-        new RetryHttpInitializer(
-            credential,
-            gcsOptions.getAppName(),
-            gcsOptions.getMaxHttpRequestRetries(),
-            gcsOptions.getHttpRequestConnectTimeout(),
-            gcsOptions.getHttpRequestReadTimeout(),
-            gcsOptions.getHttpRequestHeaders());
+        new RetryHttpInitializer(credential, gcsOptions.toRetryHttpInitializerOptions());
 
     GoogleCloudStorageFileSystem gcsfs =
         new GoogleCloudStorageFileSystem(

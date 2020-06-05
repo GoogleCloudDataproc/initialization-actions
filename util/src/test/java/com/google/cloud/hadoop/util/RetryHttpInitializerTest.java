@@ -36,6 +36,7 @@ import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.util.Sleeper;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
+import java.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -43,8 +44,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 
 /**
  * Basic unittests for RetryHttpInitializer to check the proper wiring of various interceptors
@@ -64,13 +63,6 @@ public class RetryHttpInitializerTest {
   // Mock sleeper for backoff handlers to check when exponential backoff retries kick in.
   @Mock private Sleeper mockSleeper;
 
-  // A fake instance we'll set up to record interaction data and return the mockLowLevelRequest
-  // when creating HttpRequests.
-  private MockHttpTransport fakeTransport;
-
-  // The initializer being tested.
-  private RetryHttpInitializer initializer;
-
   // A fake factory set up to use the initializer we are testing.
   private HttpRequestFactory requestFactory;
 
@@ -78,23 +70,25 @@ public class RetryHttpInitializerTest {
   public void setUp() {
     MockitoAnnotations.initMocks(this);
 
-    fakeTransport = new MockHttpTransport() {
-      // Only override the method for retrieving a LowLevelHttpRequest.
-      @Override
-      public LowLevelHttpRequest buildRequest(String method, String url)
-          throws IOException {
-        // TODO(user): Also record and test the number of calls to this and the method/url.
-        return mockLowLevelRequest;
-      }
-    };
-    initializer =
+    MockHttpTransport fakeTransport =
+        new MockHttpTransport() {
+          // Only override the method for retrieving a LowLevelHttpRequest.
+          @Override
+          public LowLevelHttpRequest buildRequest(String method, String url) {
+            // TODO(user): Also record and test the number of calls to this and the method/url.
+            return mockLowLevelRequest;
+          }
+        };
+    RetryHttpInitializer initializer =
         new RetryHttpInitializer(
             mockCredential,
-            "foo-user-agent",
-            HttpRequest.DEFAULT_NUMBER_OF_RETRIES,
-            20_000,
-            20_000,
-            ImmutableMap.of("header-key", "header=value"));
+            RetryHttpInitializerOptions.builder()
+                .setDefaultUserAgent("foo-user-agent")
+                .setHttpHeaders(ImmutableMap.of("header-key", "header=value"))
+                .setMaxRequestRetries(HttpRequest.DEFAULT_NUMBER_OF_RETRIES)
+                .setConnectTimeout(Duration.ofMillis(20_000))
+                .setReadTimeout(Duration.ofMillis(20_000))
+                .build());
     initializer.setSleeperOverride(mockSleeper);
     requestFactory = fakeTransport.createRequestFactory(initializer);
   }
@@ -120,13 +114,13 @@ public class RetryHttpInitializerTest {
     assertThat(req.getInterceptor()).isEqualTo(mockCredential);
 
     // Simulate the actual behavior of inserting a header for the credential.
-    doAnswer(new Answer<Void>() {
-          @Override
-          public Void answer(InvocationOnMock unused) {
-            req.getHeaders().setAuthorization(authHeaderValue);
-            return null;
-          }
-        }).when(mockCredential).intercept(eq(req));
+    doAnswer(
+            unused -> {
+              req.getHeaders().setAuthorization(authHeaderValue);
+              return null;
+            })
+        .when(mockCredential)
+        .intercept(eq(req));
 
     when(mockLowLevelRequest.execute())
         .thenReturn(mockLowLevelResponse);
@@ -150,21 +144,18 @@ public class RetryHttpInitializerTest {
     assertThat(req.getInterceptor()).isEqualTo(mockCredential);
 
     // Simulate the actual behavior of inserting a header for the credential.
-    doAnswer(new Answer<Void>() {
-          @Override
-          public Void answer(InvocationOnMock unused) {
-            req.getHeaders().setAuthorization(authHeaderValue);
-            return null;
-          }
-        })
-    .doAnswer(new Answer<Void>() {
-          @Override
-          public Void answer(InvocationOnMock unused) {
-            req.getHeaders().setAuthorization(authHeaderValue);
-            return null;
-          }
-        })
-    .when(mockCredential).intercept(eq(req));
+    doAnswer(
+            unused -> {
+              req.getHeaders().setAuthorization(authHeaderValue);
+              return null;
+            })
+        .doAnswer(
+            unused -> {
+              req.getHeaders().setAuthorization(authHeaderValue);
+              return null;
+            })
+        .when(mockCredential)
+        .intercept(eq(req));
 
     when(mockLowLevelRequest.execute())
         .thenReturn(mockLowLevelResponse)
@@ -203,21 +194,18 @@ public class RetryHttpInitializerTest {
     assertThat(req.getInterceptor()).isEqualTo(mockCredential);
 
     // Simulate the actual behavior of inserting a header for the credential.
-    doAnswer(new Answer<Void>() {
-          @Override
-          public Void answer(InvocationOnMock unused) {
-            req.getHeaders().setAuthorization(authHeaderValue);
-            return null;
-          }
-        })
-    .doAnswer(new Answer<Void>() {
-          @Override
-          public Void answer(InvocationOnMock unused) {
-            req.getHeaders().setAuthorization(authHeaderValue);
-            return null;
-          }
-        })
-    .when(mockCredential).intercept(eq(req));
+    doAnswer(
+            unused -> {
+              req.getHeaders().setAuthorization(authHeaderValue);
+              return null;
+            })
+        .doAnswer(
+            unused -> {
+              req.getHeaders().setAuthorization(authHeaderValue);
+              return null;
+            })
+        .when(mockCredential)
+        .intercept(eq(req));
 
     when(mockLowLevelRequest.execute())
         .thenReturn(mockLowLevelResponse)
@@ -247,21 +235,18 @@ public class RetryHttpInitializerTest {
     assertThat(req.getInterceptor()).isEqualTo(mockCredential);
 
     // Simulate the actual behavior of inserting a header for the credential.
-    doAnswer(new Answer<Void>() {
-          @Override
-          public Void answer(InvocationOnMock unused) {
-            req.getHeaders().setAuthorization(authHeaderValue);
-            return null;
-          }
-        })
-    .doAnswer(new Answer<Void>() {
-          @Override
-          public Void answer(InvocationOnMock unused) {
-            req.getHeaders().setAuthorization(authHeaderValue);
-            return null;
-          }
-        })
-    .when(mockCredential).intercept(eq(req));
+    doAnswer(
+            unused -> {
+              req.getHeaders().setAuthorization(authHeaderValue);
+              return null;
+            })
+        .doAnswer(
+            unused -> {
+              req.getHeaders().setAuthorization(authHeaderValue);
+              return null;
+            })
+        .when(mockCredential)
+        .intercept(eq(req));
 
     when(mockLowLevelRequest.execute())
         .thenThrow(new IOException("fake IOException"))

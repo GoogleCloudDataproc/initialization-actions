@@ -82,7 +82,7 @@ public class BigQueryUtils {
 
     // While job is incomplete continue to poll.
     while (notDone) {
-      BackOff operationBackOff = new ExponentialBackOff.Builder().build();
+      BackOff operationBackOff = new ExponentialBackOff();
       Get get =
           bigquery
               .jobs()

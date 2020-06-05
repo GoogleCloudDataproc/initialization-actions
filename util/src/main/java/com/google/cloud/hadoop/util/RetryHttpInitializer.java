@@ -15,6 +15,8 @@
  */
 package com.google.cloud.hadoop.util;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import com.google.api.client.auth.oauth2.Credential;
@@ -29,13 +31,9 @@ import com.google.api.client.http.HttpUnsuccessfulResponseHandler;
 import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.flogger.GoogleLogger;
 import java.io.IOException;
-import java.util.Map;
 import java.util.Set;
 import org.apache.http.HttpStatus;
 
@@ -47,46 +45,22 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
   private static final int HTTP_SC_TOO_MANY_REQUESTS = 429;
 
   // Base impl of BackOffRequired determining the default set of cases where we'll retry on
-  // unsuccessful HTTP responses; we'll mix in additional retriable response cases on top
+  // unsuccessful HTTP responses; we'll mix in additional retryable response cases on top
   // of the bases cases defined by this instance.
   private static final HttpBackOffUnsuccessfulResponseHandler.BackOffRequired
       BASE_HTTP_BACKOFF_REQUIRED =
           HttpBackOffUnsuccessfulResponseHandler.BackOffRequired.ON_SERVER_ERROR;
-
-  // Default number of retries.
-  private static final int DEFAULT_MAX_REQUEST_RETRIES = HttpRequest.DEFAULT_NUMBER_OF_RETRIES;
-
-  // Default number of connection timeout (20 seconds).
-  private static final int DEFAULT_CONNECT_TIMEOUT = 20 * 1000;
-
-  // Default number of read timeout (20 seconds).
-  private static final int DEFAULT_READ_TIMEOUT = 20 * 1000;
-
-  private static final ImmutableMap<String, String> DEFAULT_HTTP_HEADERS = ImmutableMap.of();
 
   // To be used as a request interceptor for filling in the "Authorization" header field, as well
   // as a response handler for certain unsuccessful error codes wherein the Credential must refresh
   // its token for a retry.
   private final Credential credential;
 
+  private final RetryHttpInitializerOptions options;
+
   // If non-null, the backoff handlers will be set to use this sleeper instead of their defaults.
   // Only used for testing.
   private Sleeper sleeperOverride;
-
-  // String to set as user-agent when initializing HttpRequests if none already set.
-  private String defaultUserAgent;
-
-  // Max number of retires.
-  private final int maxRequestRetries;
-
-  // Connect timeout, in milliseconds.
-  private final int connectTimeoutMillis;
-
-  // Read timeout, in milliseconds.
-  private final int readTimeoutMillis;
-
-  // HTTP request headers.
-  private final ImmutableMap<String, String> headers;
 
   /** A HttpUnsuccessfulResponseHandler logs the URL that generated certain failures. */
   private static class LoggingResponseHandler
@@ -174,13 +148,9 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
       HttpBackOffUnsuccessfulResponseHandler errorCodeHandler =
           new HttpBackOffUnsuccessfulResponseHandler(new ExponentialBackOff());
       errorCodeHandler.setBackOffRequired(
-          new HttpBackOffUnsuccessfulResponseHandler.BackOffRequired() {
-            @Override
-            public boolean isRequired(HttpResponse response) {
-              return BASE_HTTP_BACKOFF_REQUIRED.isRequired(response)
-                  || response.getStatusCode() == HTTP_SC_TOO_MANY_REQUESTS;
-            }
-          });
+          response ->
+              BASE_HTTP_BACKOFF_REQUIRED.isRequired(response)
+                  || response.getStatusCode() == HTTP_SC_TOO_MANY_REQUESTS);
       if (sleeperOverride != null) {
         errorCodeHandler.setSleeper(sleeperOverride);
       }
@@ -226,65 +196,6 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
 
   /**
    * @param credential A credential which will be set as an interceptor on HttpRequests and as the
-   *     delegate for a CredentialOrBackoffResponsehandler.
-   * @param defaultUserAgent A String to set as the user-agent when initializing an HttpRequest if
-   *     the HttpRequest doesn't already have a user-agent header.
-   * @param maxRequestRetries An int to indicate the max number of retries of an HttpRequest.
-   * @param connectTimeoutMillis An int to indicate the number of milliseconds for connection
-   *     timeout. Use {@code 0} for infinite timeout.
-   * @param readTimeoutMillis An int to indicate the number of milliseconds for read timeout from an
-   *     established connection. Use {@code 0} for infinite timeout.
-   */
-  public RetryHttpInitializer(
-      Credential credential,
-      String defaultUserAgent,
-      int maxRequestRetries,
-      int connectTimeoutMillis,
-      int readTimeoutMillis,
-      Map<String, String> headers) {
-    Preconditions.checkNotNull(credential, "A valid Credential is required");
-    this.credential = credential;
-    this.sleeperOverride = null;
-    this.defaultUserAgent = defaultUserAgent;
-    this.maxRequestRetries = maxRequestRetries;
-    this.connectTimeoutMillis = connectTimeoutMillis;
-    this.readTimeoutMillis = readTimeoutMillis;
-    this.headers = ImmutableMap.copyOf(headers);
-  }
-
-  /**
-   * {@code maxRequestRetries} defaults to {@link RetryHttpInitializer#DEFAULT_MAX_REQUEST_RETRIES}.
-   *
-   * <p>{@code connectTimeoutMillis} defaults to {@link
-   * RetryHttpInitializer#DEFAULT_CONNECT_TIMEOUT}.
-   *
-   * <p>{@code readTimeoutMillis} defaults to {@link RetryHttpInitializer#DEFAULT_READ_TIMEOUT}.
-   *
-   * @param credential A credential which will be set as an interceptor on HttpRequests and as the
-   *     delegate for a CredentialOrBackoffResponseHandler.
-   * @param defaultUserAgent A String to set as the user-agent when initializing an HttpRequest if
-   *     the HttpRequest doesn't already have a user-agent header.
-   */
-  public RetryHttpInitializer(
-      Credential credential, String defaultUserAgent, Map<String, String> headers) {
-    this(
-        credential,
-        defaultUserAgent,
-        DEFAULT_MAX_REQUEST_RETRIES,
-        DEFAULT_CONNECT_TIMEOUT,
-        DEFAULT_READ_TIMEOUT,
-        headers);
-  }
-
-  /**
-   * {@code maxRequestRetries} defaults to {@link RetryHttpInitializer#DEFAULT_MAX_REQUEST_RETRIES}.
-   *
-   * <p>{@code connectTimeoutMillis} defaults to {@link
-   * RetryHttpInitializer#DEFAULT_CONNECT_TIMEOUT}.
-   *
-   * <p>{@code readTimeoutMillis} defaults to {@link RetryHttpInitializer#DEFAULT_READ_TIMEOUT}.
-   *
-   * @param credential A credential which will be set as an interceptor on HttpRequests and as the
    *     delegate for a CredentialOrBackoffResponseHandler.
    * @param defaultUserAgent A String to set as the user-agent when initializing an HttpRequest if
    *     the HttpRequest doesn't already have a user-agent header.
@@ -292,11 +203,20 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
   public RetryHttpInitializer(Credential credential, String defaultUserAgent) {
     this(
         credential,
-        defaultUserAgent,
-        DEFAULT_MAX_REQUEST_RETRIES,
-        DEFAULT_CONNECT_TIMEOUT,
-        DEFAULT_READ_TIMEOUT,
-        DEFAULT_HTTP_HEADERS);
+        RetryHttpInitializerOptions.DEFAULT.toBuilder()
+            .setDefaultUserAgent(defaultUserAgent)
+            .build());
+  }
+
+  /**
+   * @param credential A credential which will be set as an interceptor on HttpRequests and as the
+   *     delegate for a CredentialOrBackoffResponseHandler.
+   * @param options An options that configure {@link RetryHttpInitializer} instance behaviour.
+   */
+  public RetryHttpInitializer(Credential credential, RetryHttpInitializerOptions options) {
+    this.credential = checkNotNull(credential, "A valid Credential is required");
+    this.options = options;
+    this.sleeperOverride = null;
   }
 
   @Override
@@ -305,11 +225,11 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
     request.setInterceptor(credential);
 
     // Request will be retried if server errors (5XX) or I/O errors are encountered.
-    request.setNumberOfRetries(maxRequestRetries);
+    request.setNumberOfRetries(options.getMaxRequestRetries());
 
     // Set the timeout configurations.
-    request.setConnectTimeout(connectTimeoutMillis);
-    request.setReadTimeout(readTimeoutMillis);
+    request.setConnectTimeout(Math.toIntExact(options.getConnectTimeout().toMillis()));
+    request.setReadTimeout(Math.toIntExact(options.getReadTimeout().toMillis()));
 
     // IOExceptions such as "socket timed out" of "insufficient bytes written" will follow a
     // straightforward backoff.
@@ -331,15 +251,15 @@ public class RetryHttpInitializer implements HttpRequestInitializer {
     request.setUnsuccessfulResponseHandler(loggingResponseHandler);
     request.setIOExceptionHandler(loggingResponseHandler);
 
-    if (Strings.isNullOrEmpty(request.getHeaders().getUserAgent())) {
+    if (isNullOrEmpty(request.getHeaders().getUserAgent())
+        && !isNullOrEmpty(options.getDefaultUserAgent())) {
       logger.atFiner().log(
-          "Request is missing a user-agent, adding default value of '%s'", defaultUserAgent);
-      request.getHeaders().setUserAgent(defaultUserAgent);
+          "Request is missing a user-agent, adding default value of '%s'",
+          options.getDefaultUserAgent());
+      request.getHeaders().setUserAgent(options.getDefaultUserAgent());
     }
 
-    for (Map.Entry<String, String> header : headers.entrySet()) {
-      request.getHeaders().set(header.getKey(), header.getValue());
-    }
+    request.getHeaders().putAll(options.getHttpHeaders());
   }
 
   /** Overrides the default Sleepers used in backoff retry handler instances. */
