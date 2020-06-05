@@ -14,6 +14,7 @@
 
 package com.google.cloud.hadoop.fs.gcs;
 
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_PIPE_TYPE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_OUTPUT_STREAM_TYPE;
 import static com.google.common.truth.Truth.assertThat;
 
@@ -21,6 +22,7 @@ import com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.OutputStreamTyp
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemIntegrationHelper;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
+import com.google.cloud.hadoop.util.AsyncWriteChannelOptions.PipeType;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.Collection;
@@ -55,20 +57,25 @@ public class GoogleHadoopOutputStreamIntegrationTest {
   @Parameters
   public static Collection<Object[]> getConstructorArguments() {
     return Arrays.asList(
-        new Object[] {OutputStreamType.BASIC},
-        new Object[] {OutputStreamType.FLUSHABLE_COMPOSITE},
-        new Object[] {OutputStreamType.SYNCABLE_COMPOSITE});
+        new Object[] {OutputStreamType.BASIC, PipeType.IO_STREAM_PIPE},
+        new Object[] {OutputStreamType.BASIC, PipeType.NIO_CHANNEL_PIPE},
+        new Object[] {OutputStreamType.FLUSHABLE_COMPOSITE, PipeType.IO_STREAM_PIPE},
+        new Object[] {OutputStreamType.SYNCABLE_COMPOSITE, PipeType.IO_STREAM_PIPE});
   }
 
   private final OutputStreamType outputStreamType;
+  private final PipeType pipeType;
 
-  public GoogleHadoopOutputStreamIntegrationTest(OutputStreamType outputStreamType) {
+  public GoogleHadoopOutputStreamIntegrationTest(
+      OutputStreamType outputStreamType, PipeType pipeType) {
     this.outputStreamType = outputStreamType;
+    this.pipeType = pipeType;
   }
 
   private Configuration getTestConfig() {
     Configuration conf = GoogleHadoopFileSystemIntegrationHelper.getTestConfig();
     conf.setEnum(GCS_OUTPUT_STREAM_TYPE.getKey(), outputStreamType);
+    conf.setEnum(GCS_OUTPUT_STREAM_PIPE_TYPE.getKey(), pipeType);
     return conf;
   }
 

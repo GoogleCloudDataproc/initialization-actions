@@ -32,6 +32,7 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions.Fadvise;
 import com.google.cloud.hadoop.gcsio.PerformanceCachingGoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.cooplock.CooperativeLockingOptions;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
+import com.google.cloud.hadoop.util.AsyncWriteChannelOptions.PipeType;
 import com.google.cloud.hadoop.util.RedactedString;
 import com.google.cloud.hadoop.util.RequesterPaysOptions;
 import com.google.cloud.hadoop.util.RequesterPaysOptions.RequesterPaysMode;
@@ -286,6 +287,10 @@ public class GoogleHadoopFileSystemConfiguration {
   public static final HadoopConfigurationProperty<Integer> GCS_OUTPUT_STREAM_PIPE_BUFFER_SIZE =
       new HadoopConfigurationProperty<>("fs.gs.outputstream.pipe.buffer.size", 1024 * 1024);
 
+  /** Configuration key for setting pipe type. */
+  public static final HadoopConfigurationProperty<PipeType> GCS_OUTPUT_STREAM_PIPE_TYPE =
+      new HadoopConfigurationProperty<>("fs.gs.outputstream.pipe.type", PipeType.IO_STREAM_PIPE);
+
   /** Configuration key for setting GCS upload chunk size. */
   // chunk size etc. Get the following value from GCSWC class in a better way. For now, we hard code
   // it to a known good value.
@@ -501,6 +506,7 @@ public class GoogleHadoopFileSystemConfiguration {
     return AsyncWriteChannelOptions.builder()
         .setBufferSize(GCS_OUTPUT_STREAM_BUFFER_SIZE.get(config, config::getInt))
         .setPipeBufferSize(GCS_OUTPUT_STREAM_PIPE_BUFFER_SIZE.get(config, config::getInt))
+        .setPipeType(GCS_OUTPUT_STREAM_PIPE_TYPE.get(config, config::getEnum))
         .setUploadChunkSize(GCS_OUTPUT_STREAM_UPLOAD_CHUNK_SIZE.get(config, config::getInt))
         .setUploadCacheSize(GCS_OUTPUT_STREAM_UPLOAD_CACHE_SIZE.get(config, config::getInt))
         .setDirectUploadEnabled(

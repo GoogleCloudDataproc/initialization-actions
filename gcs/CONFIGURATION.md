@@ -280,6 +280,27 @@ is `false`.
 
     Pipe buffer size used for uploading Cloud Storage objects.
 
+*   `fs.gs.outputstream.pipe.type` (default: `IO_STREAM_PIPE`)
+
+    Pipe type used for uploading Cloud Storage objects.
+
+    Valid values:
+
+    *   `NIO_CHANNEL_PIPE` - use
+        [Java NIO Pipe](https://docs.oracle.com/javase/8/docs/api/java/nio/channels/Pipe.html)
+        in output stream that writes to Cloud Storage. When using this pipe type
+        client can reliably write in the output stream from multiple threads
+        without *"Pipe broken"* exceptions. Note that when using this pipe type
+        Cloud Storage upload throughput can decrease by 10%;
+
+    *   `IO_STREAM_PIPE` - use
+        [PipedInputStream](https://docs.oracle.com/javase/8/docs/api/java/io/PipedInputStream.html)
+        and
+        [PipedOutputStream](https://docs.oracle.com/javase/8/docs/api/java/io/PipedOutputStream.html)
+        in output stream that writes to Cloud Storage. When using this pipe type
+        client cannot reliably write in the output stream from multiple threads
+        without triggering *"Pipe broken"* exceptions;
+
 *   `fs.gs.outputstream.upload.chunk.size` (default: `67108864`)
 
     The number of bytes in one GCS upload request.

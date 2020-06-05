@@ -49,7 +49,6 @@ import io.grpc.stub.StreamObserver;
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PipedInputStream;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Map;
@@ -142,7 +141,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
   }
 
   @Override
-  public void startUpload(PipedInputStream pipeSource) {
+  public void startUpload(InputStream pipeSource) {
     // Given that the two ends of the pipe must operate asynchronous relative
     // to each other, we need to start the upload operation on a separate thread.
     try {
@@ -158,7 +157,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
     private final BufferedInputStream pipeSource;
     private final int MAX_BYTES_PER_MESSAGE = MAX_WRITE_CHUNK_BYTES.getNumber();
 
-    UploadOperation(PipedInputStream pipeSource) {
+    UploadOperation(InputStream pipeSource) {
       this.pipeSource = new BufferedInputStream(pipeSource, MAX_BYTES_PER_MESSAGE);
     }
 
@@ -166,7 +165,7 @@ public final class GoogleCloudStorageGrpcWriteChannel
     public Object call() throws IOException {
       // Try-with-resource will close this end of the pipe so that
       // the writer at the other end will not hang indefinitely.
-      try (InputStream toClose = pipeSource) {
+      try (InputStream ignore = pipeSource) {
         return doResumableUpload();
       }
     }

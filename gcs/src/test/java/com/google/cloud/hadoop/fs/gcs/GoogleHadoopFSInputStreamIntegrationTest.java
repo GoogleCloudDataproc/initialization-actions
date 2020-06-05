@@ -100,7 +100,7 @@ public class GoogleHadoopFSInputStreamIntegrationTest {
     gcsFsIHelper.writeTextFile(path, testContent);
 
     GoogleHadoopFSInputStream in = createGhfsInputStream(ghfs, path);
-    try (GoogleHadoopFSInputStream toClose = in) {
+    try (GoogleHadoopFSInputStream ignore = in) {
       assertThat(in.available()).isEqualTo(0);
     }
 

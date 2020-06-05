@@ -503,6 +503,12 @@
   </property>
 
   <property>
+    <name>fs.gs.outputstream.pipe.type</name>
+    <value>IO_STREAM_PIPE</value>
+    <description>Pipe type used for uploading Cloud Storage objects.</description>
+  </property>
+
+  <property>
     <name>fs.gs.outputstream.direct.upload.enable</name>
     <value>false</value>
     <description>Enables Cloud Storage direct upload.</description>

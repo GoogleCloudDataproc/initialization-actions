@@ -26,6 +26,12 @@ public abstract class AsyncWriteChannelOptions {
 
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
+  /** Pipe used for output stream. */
+  public enum PipeType {
+    NIO_CHANNEL_PIPE,
+    IO_STREAM_PIPE,
+  }
+
   /** Default upload buffer size. */
   public static final int BUFFER_SIZE_DEFAULT = 8 * 1024 * 1024;
 
@@ -50,12 +56,15 @@ public abstract class AsyncWriteChannelOptions {
   /** Default of whether to enabled checksums for gRPC. */
   public static final boolean GRPC_CHECKSUMS_ENABLED_DEFAULT = true;
 
+  public static final PipeType PIPE_TYPE_DEFAULT = PipeType.IO_STREAM_PIPE;
+
   public static final AsyncWriteChannelOptions DEFAULT = builder().build();
 
   public static Builder builder() {
     return new AutoValue_AsyncWriteChannelOptions.Builder()
         .setBufferSize(BUFFER_SIZE_DEFAULT)
         .setPipeBufferSize(PIPE_BUFFER_SIZE_DEFAULT)
+        .setPipeType(PIPE_TYPE_DEFAULT)
         .setUploadChunkSize(UPLOAD_CHUNK_SIZE_DEFAULT)
         .setUploadCacheSize(UPLOAD_CACHE_SIZE_DEFAULT)
         .setDirectUploadEnabled(DIRECT_UPLOAD_ENABLED_DEFAULT)
@@ -67,6 +76,8 @@ public abstract class AsyncWriteChannelOptions {
   public abstract int getBufferSize();
 
   public abstract int getPipeBufferSize();
+
+  public abstract PipeType getPipeType();
 
   public abstract int getUploadChunkSize();
 
@@ -83,6 +94,8 @@ public abstract class AsyncWriteChannelOptions {
     public abstract Builder setBufferSize(int bufferSize);
 
     public abstract Builder setPipeBufferSize(int pipeBufferSize);
+
+    public abstract Builder setPipeType(PipeType pipeType);
 
     public abstract Builder setUploadChunkSize(int uploadChunkSize);
 
