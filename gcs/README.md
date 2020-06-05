@@ -51,7 +51,7 @@ the Hadoop configuration directory on the machine on which the connector is
 installed.
 
 For a complete list of configuration keys and their default values see
-`gcs-core-default.xml`.
+[CONFIGURATION.md](/gcs/CONFIGURATION.md).
 
 ## Accessing Cloud Storage data
 

@@ -74,8 +74,7 @@ You can alternatively set the environment variable
 
 Additional properties can be specified for the Cloud Storage connector,
 including alternative authentication options. For more information, see the
-values documented in the [gcs-core-default.xml](/gcs/conf/gcs-core-default.xml)
-file inside the `conf` directory.
+documentation in the [CONFIGURATION.md](/gcs/CONFIGURATION.md).
 
 ## Configure Spark
 
