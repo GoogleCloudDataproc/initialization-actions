@@ -227,7 +227,8 @@
                 <include>**/*IntegrationTest.java</include>
               </includes>
               <reuseForks>false</reuseForks>
-              <forkCount>2</forkCount>
+              <forkCount>4</forkCount>
+              <argLine>-Xmx2g @{argLine}</argLine>
               <reportNameSuffix>sponge_log</reportNameSuffix>
             </configuration>
           </plugin>
@@ -618,8 +619,8 @@
             <exclude>**/*IntegrationTest.java</exclude>
           </excludes>
           <reuseForks>false</reuseForks>
-          <forkCount>2</forkCount>
-          <argLine>@{argLine} -mx3g</argLine>
+          <forkCount>3</forkCount>
+          <argLine>-Xmx3g @{argLine}</argLine>
           <reportNameSuffix>sponge_log</reportNameSuffix>
         </configuration>
       </plugin>
