@@ -1,3 +1,9 @@
+--------------------------------------------------------------------------------
+
+# NOTE: *The OpenSSL initialization action has been deprecated.*
+
+--------------------------------------------------------------------------------
+
 # OpenSSL Upgrade
 
 This [initialization action](https://cloud.google.com/dataproc/init-actions) installs OpenSSL 1.0.2

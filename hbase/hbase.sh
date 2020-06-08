@@ -17,6 +17,10 @@
 
 set -Eeuxo pipefail
 
+readonly NOT_SUPPORTED_MESSAGE="HBase initialization action is not supported on Dataproc 2.0+.
+Use HBase Component instead: https://cloud.google.com/dataproc/docs/concepts/components/hbase"
+[[ $DATAPROC_VERSION = 2.* ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
+
 readonly HBASE_HOME='/etc/hbase'
 readonly CLUSTER_NAME=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)
 readonly WORKER_COUNT=$(/usr/share/google/get_metadata_value attributes/dataproc-worker-count)

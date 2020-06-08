@@ -1,6 +1,10 @@
 #!/bin/bash
 set -exo pipefail
 
+readonly NOT_SUPPORTED_MESSAGE="Conda initialization action is not supported on Dataproc 2.0+.
+Use Anaconda Component instead: https://cloud.google.com/dataproc/docs/concepts/components/anaconda"
+[[ $DATAPROC_VERSION = 2.* ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
+
 if [[ -f /etc/profile.d/effective-python.sh ]]; then
   PROFILE_SCRIPT_PATH=/etc/profile.d/effective-python.sh
 elif [[ -f /etc/profile.d/conda.sh ]]; then

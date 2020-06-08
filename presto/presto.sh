@@ -16,6 +16,10 @@
 
 set -euxo pipefail
 
+readonly NOT_SUPPORTED_MESSAGE="Presto initialization action is not supported on Dataproc 2.0+.
+Use Presto Component instead: https://cloud.google.com/dataproc/docs/concepts/components/presto"
+[[ $DATAPROC_VERSION = 2.* ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
+
 # Use Python from /usr/bin instead of /opt/conda.
 export PATH=/usr/bin:$PATH
 

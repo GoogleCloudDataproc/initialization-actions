@@ -18,6 +18,10 @@
 
 set -exo pipefail
 
+readonly NOT_SUPPORTED_MESSAGE="Datalab initialization action is not supported on Dataproc 2.0+.
+Use Jupyter Component instead: https://cloud.google.com/dataproc/docs/concepts/components/jupyter"
+[[ $DATAPROC_VERSION = 2.* ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
+
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 readonly PROJECT="$(/usr/share/google/get_metadata_value ../project/project-id)"
 readonly SPARK_PACKAGES="$(/usr/share/google/get_metadata_value attributes/spark-packages || true)"
