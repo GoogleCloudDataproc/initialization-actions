@@ -25,14 +25,12 @@ a set of preconfigured machine learning packages.:
     ```bash
     REGION=<region>
     CLUSTER_NAME=<cluster_name>
-        gcloud beta dataproc clusters create ${CLUSTER_NAME} \
+    gcloud beta dataproc clusters create ${CLUSTER_NAME} \
         --region ${REGION} \
         --master-machine-type n1-standard-8 \
         --worker-machine-type n1-highmem-32 \
         --worker-accelerator type=nvidia-tesla-t4,count=2 \
         --image-version 1.5-ubuntu \
-        --metadata gcs-connector-version=2.1.1 \
-        --metadata bigquery-connector-version=1.1.1 \
         --metadata spark-bigquery-connector-version=0.13.1-beta \
         --metadata gpu-driver-provider=NVIDIA \
         --metadata rapids-runtime=SPARK \
