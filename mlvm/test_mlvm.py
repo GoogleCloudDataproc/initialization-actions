@@ -10,6 +10,7 @@ class MLVMTestCase(DataprocTestCase):
     COMPONENT = "mlvm"
     INIT_ACTIONS = ["mlvm/mlvm.sh"]
     OPTIONAL_COMPONENTS = ["ANACONDA", "JUPYTER"]
+    SUPPORTED_IMAGE_VERSION = "1.5"
 
     def createCluster(self, configuration, **config):
         config["optional_components"] = self.OPTIONAL_COMPONENTS
@@ -17,19 +18,20 @@ class MLVMTestCase(DataprocTestCase):
         config["beta"] = True
         config["timeout_in_minutes"] = 60
 
-        super().createCluster(
-            configuration,
-            self.INIT_ACTIONS,
-            **config
-       )
+        super().createCluster(configuration,self.INIT_ACTIONS,
+                              **config)
+
 
 class H2OTestCase(MLVMTestCase):
     SAMPLE_H2O_JOB_PATH = "mlvm/scripts/sample-h20-script.py"
 
     @parameterized.parameters("SINGLE", "STANDARD", "HA")
-    def test_h2o(self, configuration):
-        self.createCluster(configuration)
+    def test_h2o(self, configuration):  
+        # Init action supported on Dataproc 1.5+
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
 
+        self.createCluster(configuration)
         self.assert_dataproc_job(
             self.name, "pyspark", "{}/{}".format(self.INIT_ACTIONS_REPO,
                                                  self.SAMPLE_H2O_JOB_PATH))
@@ -73,6 +75,10 @@ class ConnectorsTestCase(MLVMTestCase):
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_gcs_connector_version(self, configuration, instances):
+        # Init action supported on Dataproc 1.5+
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+
         self.createCluster(configuration,
                            metadata="gcs-connector-version={}".format(
                                self.GCS_CONNECTOR_VERSION))
@@ -82,6 +88,10 @@ class ConnectorsTestCase(MLVMTestCase):
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_bq_connector_version(self, configuration, instances):
+        # Init action supported on Dataproc 1.5+
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+        
         self.createCluster(configuration,
                            metadata="bigquery-connector-version={}".format(
                                self.BQ_CONNECTOR_VERSION))
@@ -91,6 +101,10 @@ class ConnectorsTestCase(MLVMTestCase):
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_spark_bq_connector_version(self, configuration, instances):
+        # Init action supported on Dataproc 1.5+
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+        
         self.createCluster(
             configuration,
             metadata="spark-bigquery-connector-version={}".format(
@@ -102,6 +116,10 @@ class ConnectorsTestCase(MLVMTestCase):
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_gcs_connector_url(self, configuration, instances):
+        # Init action supported on Dataproc 1.5+
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+        
         self.createCluster(configuration,
                            metadata="gcs-connector-url={}".format(
                                self.GCS_CONNECTOR_URL))
@@ -111,6 +129,10 @@ class ConnectorsTestCase(MLVMTestCase):
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_bq_connector_url(self, configuration, instances):
+        # Init action supported on Dataproc 1.5+
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+        
         self.createCluster(configuration,
                            metadata="bigquery-connector-url={}".format(
                                self.BQ_CONNECTOR_URL))
@@ -120,6 +142,10 @@ class ConnectorsTestCase(MLVMTestCase):
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
     def test_spark_bq_connector_url(self, configuration, instances):
+        # Init action supported on Dataproc 1.5+
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+
         self.createCluster(configuration,
                            metadata="spark-bigquery-connector-url={}".format(
                                self.SPARK_BQ_CONNECTOR_URL.format(
@@ -146,6 +172,10 @@ class NvidiaGpuDriverTestCase(MLVMTestCase):
     def test_install_gpu_default_agent(self, configuration, machine_suffixes,
                                        master_accelerator, worker_accelerator,
                                        driver_provider):
+        # Init action supported on Dataproc 1.5+
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+
         metadata = "include_gpus=true"
         if driver_provider is not None:
             metadata = ",gpu-driver-provider={}".format(driver_provider)
@@ -166,6 +196,10 @@ class NvidiaGpuDriverTestCase(MLVMTestCase):
     def test_install_gpu_without_agent(self, configuration, machine_suffixes,
                                        master_accelerator, worker_accelerator,
                                        driver_provider):
+        # Init action supported on Dataproc 1.5+
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+
         metadata = 'include_gpus=true,install-gpu-agent=false'
         if driver_provider is not None:
             metadata += ",gpu-driver-provider={}".format(driver_provider)
@@ -185,6 +219,10 @@ class NvidiaGpuDriverTestCase(MLVMTestCase):
     def test_install_gpu_with_agent(self, configuration, machine_suffixes,
                                     master_accelerator, worker_accelerator,
                                     driver_provider):
+        # Init action supported on Dataproc 1.5+
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+
         metadata = 'include_gpus=true,install-gpu-agent=true'
         if driver_provider is not None:
             metadata += ",gpu-driver-provider={}".format(driver_provider)
@@ -224,6 +262,10 @@ class RapidsTestCase(MLVMTestCase):
                               ("STANDARD", ["m"], GPU_P100, True))
     def test_rapids_dask(self, configuration, machine_suffixes, accelerator,
                          dask_cuda_worker_on_master):
+        # Init action supported on Dataproc 1.5+
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+
         metadata = 'include_gpus=true,gpu-driver-provider=NVIDIA,rapids-runtime=DASK'
         if dask_cuda_worker_on_master:
             master_accelerator = accelerator
@@ -242,6 +284,10 @@ class RapidsTestCase(MLVMTestCase):
 
     @parameterized.parameters(("STANDARD", ["w-0"], GPU_P100))
     def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
+        # Init action supported on Dataproc 1.5+
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+
         self.createCluster(
             configuration,
             metadata='include_gpus=true,gpu-driver-provider=NVIDIA,rapids-runtime=SPARK',
@@ -258,6 +304,10 @@ class PythonTestCase(MLVMTestCase):
           
     @parameterized.parameters(("STANDARD",))
     def test_python(self, configuration):
+        # Init action supported on Dataproc 1.5+
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+
         self.createCluster(configuration)
 
         self.assert_dataproc_job(
@@ -269,6 +319,10 @@ class RTestCase(MLVMTestCase):
     SAMPLE_R_SCRIPT = "mlvm/scripts/r-script.R"
 
     def test_r(self, configuration):
+        # Init action supported on Dataproc 1.5+
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return
+
         self.createCluster(configuration)
 
         self.assert_dataproc_job(
