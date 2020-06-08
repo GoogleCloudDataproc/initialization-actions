@@ -127,7 +127,7 @@ function install_horovod() {
   readonly MPI_VERSION="4.0.3"
   readonly MPI_URL="https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-${MPI_VERSION}.tar.gz"
 
-  tmp_dir=$(mktemp -d -t ml-vm-horovod-mpi-XXXX)
+  tmp_dir=$(mktemp -d -t mlvm-horovod-mpi-XXXX)
   wget -nv --timeout=30 --tries=5 --retry-connrefused -P ${tmp_dir} "${MPI_URL}" 
   gunzip -c "${tmp_dir}/openmpi-${MPI_VERSION}.tar.gz" | tar xf - -C ${tmp_dir}
 

@@ -8,7 +8,7 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class MLVMTestCase(DataprocTestCase):
     COMPONENT = "mlvm"
-    INIT_ACTIONS = ["mlvm/ml-vm.sh"]
+    INIT_ACTIONS = ["mlvm/mlvm.sh"]
     OPTIONAL_COMPONENTS = ["ANACONDA", "JUPYTER"]
 
     def createCluster(self, configuration, **config):
@@ -24,7 +24,7 @@ class MLVMTestCase(DataprocTestCase):
        )
 
 class H2OTestCase(MLVMTestCase):
-    SAMPLE_H2O_JOB_PATH = "ml-vm/scripts/sample-h20-script.py"
+    SAMPLE_H2O_JOB_PATH = "mlvm/scripts/sample-h20-script.py"
 
     @parameterized.parameters("SINGLE", "STANDARD", "HA")
     def test_h2o(self, configuration):
@@ -203,7 +203,7 @@ class NvidiaGpuDriverTestCase(MLVMTestCase):
 class RapidsTestCase(MLVMTestCase):
     GPU_P100 = 'type=nvidia-tesla-p100'
 
-    DASK_TEST_SCRIPT_FILE_NAME = 'ml-vm/scripts/verify_rapids_dask.py'
+    DASK_TEST_SCRIPT_FILE_NAME = 'mlvm/scripts/verify_rapids_dask.py'
 
     def verify_dask_instance(self, name):
         self.upload_test_file(
@@ -254,7 +254,7 @@ class RapidsTestCase(MLVMTestCase):
 
 
 class PythonTestCase(MLVMTestCase):
-    PYTHON_SCRIPT = "ml-vm/scripts/python-script.py"
+    PYTHON_SCRIPT = "mlvm/scripts/python-script.py"
           
     @parameterized.parameters(("STANDARD",))
     def test_python(self, configuration):
@@ -266,7 +266,7 @@ class PythonTestCase(MLVMTestCase):
 
 
 class RTestCase(MLVMTestCase):
-    SAMPLE_R_SCRIPT = "ml-vm/scripts/r-script.R"
+    SAMPLE_R_SCRIPT = "mlvm/scripts/r-script.R"
 
     def test_r(self, configuration):
         self.createCluster(configuration)

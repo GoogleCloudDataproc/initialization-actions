@@ -37,7 +37,7 @@ a set of preconfigured machine learning packages.:
         --scopes "cloud-platform" \
         --optional-components ANACONDA,JUPYTER \
         --properties "spark:spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j-spark_2.x-1.0.0-Beta4.jar" \
-        --initialization-actions gs://dataproc-initialization-actions/ml-vm/ml-vm.sh \
+        --initialization-actions gs://dataproc-initialization-actions/mlvm/mlvm.sh \
         --subnet=default \
         --enable-component-gateway  
     ```
