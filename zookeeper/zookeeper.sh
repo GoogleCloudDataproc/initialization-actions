@@ -15,6 +15,10 @@
 set -o errexit
 set -o xtrace
 
+readonly NOT_SUPPORTED_MESSAGE="Zookeeper initialization action is not supported on Dataproc 2.0+.
+Use Zookeeper Component instead: https://cloud.google.com/dataproc/docs/concepts/components/zookeeper"
+[[ $DATAPROC_VERSION = 2.* ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
+
 function retry_apt_command() {
   cmd="$1"
   for ((i = 0; i < 10; i++)); do

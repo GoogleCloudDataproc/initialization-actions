@@ -92,6 +92,8 @@ if [[ "${ROLE}" == 'Master' ]]; then
   # https://rstudio.com/products/rstudio/download-server/debian-ubuntu/
   if [[ ${OS_CODE} == stretch ]]; then
     RSTUDIO_SERVER_URL=https://download2.rstudio.org/server/debian9/x86_64
+  elif [[ ${OS_CODE} == buster ]]; then
+    RSTUDIO_SERVER_URL=https://download2.rstudio.org/server/debian10/x86_64
   else
     RSTUDIO_SERVER_URL=https://download2.rstudio.org/server/bionic/amd64
   fi
