@@ -131,6 +131,9 @@ function install_horovod() {
   wget -nv --timeout=30 --tries=5 --retry-connrefused -P ${tmp_dir} "${MPI_URL}" 
   gunzip -c "${tmp_dir}/openmpi-${MPI_VERSION}.tar.gz" | tar xf - -C ${tmp_dir}
 
+  mv /usr/bin/mpirun /usr/bin/bk_mpirun
+  mv /usr/bin/mpirun.openmpi /usr/bin/bk_mpirun.openmpi
+
   cur_dir=$(pwd)  
   cd "${tmp_dir}/openmpi-${MPI_VERSION}"
   ./configure --prefix=/usr/local
@@ -248,8 +251,8 @@ function main () {
   install_rapids
 
   # Install Horovod
-  echo_wrap "Installing Horovod"
-  install_horovod
+  # echo_wrap "Installing Horovod"
+  # install_horovod
 }
 
 main
