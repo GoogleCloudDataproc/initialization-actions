@@ -214,40 +214,36 @@ function install_r_packages() {
   done
 }
 
-function echo_wrap () {
-  echo "BRADBRAD:"$1
-}
-
 function main () {
   # Download initialization actions
-  echo_wrap "Downloading initialization actions"
+  "Downloading initialization actions"
   download_init_actions
 
   # Install GPU Drivers
-  echo_wrap "Installing GPU drivers"
+  "Installing GPU drivers"
   install_gpu_drivers
 
   # Install Python packages
-  echo_wrap "Installing pip packages"
+  "Installing pip packages"
   install_pip_packages
 
   # Install R packages
-  echo_wrap "Installing R Packages"
+  "Installing R Packages"
   install_r_packages
 
   # Install Spark Libraries
-  echo_wrap "Installing Spark-NLP"
+  "Installing Spark-NLP"
   install_spark_nlp
 
-  echo_wrap "Installing H20"
+  "Installing H20"
   install_h2o_sparkling_water
 
   # Install GCP Connectors
-  echo_wrap "Installing GCP Connectors"
+  "Installing GCP Connectors"
   install_connectors
 
   # Install RAPIDS
-  echo_wrap "Installing rapids"
+  "Installing rapids"
   install_rapids
 
   # Install Horovod
