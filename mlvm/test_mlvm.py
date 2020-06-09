@@ -318,6 +318,7 @@ class PythonTestCase(MLVMTestCase):
 class RTestCase(MLVMTestCase):
     SAMPLE_R_SCRIPT = "mlvm/scripts/r-script.R"
 
+    @parameterized.parameters(("STANDARD",))
     def test_r(self, configuration):
         # Init action supported on Dataproc 1.5+
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
@@ -330,7 +331,8 @@ class RTestCase(MLVMTestCase):
                                                 self.R_SCRIPT))
 #TODO
 class HorovodTestCase(MLVMTestCase):
-          
+    
+    @parameterized.parameters(("STANDARD",))
     def test_horovod(self, configuration):
         pass
 
