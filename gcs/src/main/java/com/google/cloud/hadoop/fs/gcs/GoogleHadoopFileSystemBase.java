@@ -18,6 +18,7 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemBase.OutputStreamType.FLUSHABLE_COMPOSITE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.BLOCK_SIZE;
+import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.CONFIG_KEY_PREFIXES;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONCURRENT_GLOB_ENABLE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONFIG_OVERRIDE_FILE;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONFIG_PREFIX;
@@ -29,14 +30,18 @@ import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_WORKING_DIRECTORY;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PERMISSIONS_TO_REPORT;
 import static com.google.cloud.hadoop.gcsio.CreateFileOptions.DEFAULT_NO_OVERWRITE;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.IMPERSONATION_SERVICE_ACCOUNT_SUFFIX;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static com.google.common.flogger.LazyArgs.lazy;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
+import com.google.api.client.http.HttpTransport;
 import com.google.cloud.hadoop.fs.gcs.auth.GcsDelegationTokens;
 import com.google.cloud.hadoop.gcsio.CreateFileOptions;
 import com.google.cloud.hadoop.gcsio.FileInfo;
@@ -45,6 +50,7 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorage.ListPage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystem;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageFileSystemOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageItemInfo;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.hadoop.gcsio.UpdatableItemInfo;
@@ -52,12 +58,14 @@ import com.google.cloud.hadoop.gcsio.UriPaths;
 import com.google.cloud.hadoop.util.AccessTokenProvider;
 import com.google.cloud.hadoop.util.ApiErrorExtractor;
 import com.google.cloud.hadoop.util.CredentialFactory;
+import com.google.cloud.hadoop.util.CredentialFactory.CredentialHttpRetryInitializer;
 import com.google.cloud.hadoop.util.CredentialFromAccessTokenProviderClassFactory;
+import com.google.cloud.hadoop.util.GoogleCredentialWithIamAccessToken;
 import com.google.cloud.hadoop.util.HadoopCredentialConfiguration;
+import com.google.cloud.hadoop.util.HttpTransportFactory;
 import com.google.cloud.hadoop.util.PropertyUtil;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -88,6 +96,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -1124,7 +1133,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
     }
 
     // To use a flat glob, there must be an authority defined.
-    if (Strings.isNullOrEmpty(fixedPath.toUri().getAuthority())) {
+    if (isNullOrEmpty(fixedPath.toUri().getAuthority())) {
       logger.atFinest().log(
           "Flat glob is on, but Path '%s' has a empty authority, using default behavior.",
           fixedPath);
@@ -1483,7 +1492,43 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
       }
     }
 
-    return credential;
+    // If impersonation service account exists, then use current credential to request access token
+    // for the impersonating service account.
+    return getImpersonatedCredential(config, credential).orElse(credential);
+  }
+
+  /**
+   * Generate a {@link Credential} from the internal access token provider based on the service
+   * account to impersonate.
+   */
+  private static Optional<Credential> getImpersonatedCredential(
+      Configuration config, Credential credential) throws IOException {
+    String serviceAccountToImpersonate =
+        IMPERSONATION_SERVICE_ACCOUNT_SUFFIX
+            .withPrefixes(CONFIG_KEY_PREFIXES)
+            .get(config, config::get);
+
+    if (isNullOrEmpty(serviceAccountToImpersonate)) {
+      return Optional.empty();
+    }
+
+    GoogleCloudStorageOptions options =
+        GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config)
+            .build()
+            .getCloudStorageOptions();
+    HttpTransport httpTransport =
+        HttpTransportFactory.createHttpTransport(
+            options.getTransportType(),
+            options.getProxyAddress(),
+            options.getProxyUsername(),
+            options.getProxyPassword());
+    GoogleCredential impersonatedCredential =
+        new GoogleCredentialWithIamAccessToken(
+            httpTransport,
+            new CredentialHttpRetryInitializer(credential),
+            serviceAccountToImpersonate,
+            CredentialFactory.GCS_SCOPES);
+    return Optional.of(impersonatedCredential.createScoped(CredentialFactory.GCS_SCOPES));
   }
 
   /**
@@ -1574,7 +1619,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
 
     Path newWorkingDirectory;
     String configWorkingDirectory = GCS_WORKING_DIRECTORY.get(config, config::get);
-    if (Strings.isNullOrEmpty(configWorkingDirectory)) {
+    if (isNullOrEmpty(configWorkingDirectory)) {
       newWorkingDirectory = getDefaultWorkingDirectory();
       logger.atWarning().log(
           "No working directory configured, using default: '%s'", newWorkingDirectory);

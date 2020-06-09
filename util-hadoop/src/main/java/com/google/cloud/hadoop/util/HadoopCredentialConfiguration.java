@@ -158,6 +158,13 @@ public class HadoopCredentialConfiguration {
       ACCESS_TOKEN_PROVIDER_IMPL_SUFFIX =
           new HadoopConfigurationProperty<>(".auth.access.token.provider.impl");
 
+  /**
+   * Key suffix specifying the impersonating service account with which to call GCS API to get
+   * access token.
+   */
+  public static final HadoopConfigurationProperty<String> IMPERSONATION_SERVICE_ACCOUNT_SUFFIX =
+      new HadoopConfigurationProperty<>(".auth.impersonation.service.account");
+
   public static CredentialFactory getCredentialFactory(
       Configuration config, String... keyPrefixesVararg) {
     List<String> keyPrefixes = getConfigKeyPrefixes(keyPrefixesVararg);

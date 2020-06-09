@@ -92,6 +92,7 @@
     <google.api.grpc.proto-google-common-protos.version>1.18.0</google.api.grpc.proto-google-common-protos.version>
     <google.api-client.version>1.30.9</google.api-client.version>
     <google.api-bigquery.version>v2-rev20200324-${google.api-client.version}</google.api-bigquery.version>
+    <google.api-iamcredentials.version>v1-rev20200515-${google.api-client.version}</google.api-iamcredentials.version>
     <google.api-storage.version>v1-rev20200326-${google.api-client.version}</google.api-storage.version>
     <google.auth.version>0.20.0</google.auth.version>
     <google.auto-value.version>1.7.1</google.auto-value.version>
@@ -320,6 +321,11 @@
         <groupId>com.google.api-client</groupId>
         <artifactId>google-api-client-java6</artifactId>
         <version>${google.api-client.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.google.apis</groupId>
+        <artifactId>google-api-services-iamcredentials</artifactId>
+        <version>${google.api-iamcredentials.version}</version>
       </dependency>
       <dependency>
         <groupId>com.google.apis</groupId>

@@ -245,6 +245,15 @@ is `false`.
     The client credential file for GCS access in the OAuth 2.0 installed
     application flow (when `fs.gs.auth.service.account.enable` is `false`).
 
+#### Service account impersonation
+
+If the following property is set, the service account specified will be
+impersonated by generating a short-lived credential when accessing GCS.
+Configured authentication method authentications will be used to authenticate
+the request to generate this short-lived credential.
+
+*   `fs.gs.auth.impersonation.service.account` (not set by default)
+
 ### IO configuration
 
 *   `fs.gs.inputstream.buffer.size` (default: `0`)

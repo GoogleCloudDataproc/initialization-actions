@@ -124,11 +124,6 @@ public final class CredentialFromAccessTokenProviderClassFactory {
     GoogleCredential credential =
         GoogleCredentialWithAccessTokenProvider.fromAccessTokenProvider(
             Clock.SYSTEM, accessTokenProvider);
-    // TODO: credential.createScoped does nothing at the moment, since
-    //  GoogleCredentialWithAccessTokenProvider never sets the serviceAccountPrivateKey.
-    //  The AccessTokenProvider interface does not provide a mechanism to return a private key,
-    //  and scopes cannot be sent down to the AccessTokenProvider
-    //  so they're essentially ignored at the moment.
     return credential.createScoped(scopes);
   }
 }

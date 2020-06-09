@@ -75,8 +75,21 @@ public class CredentialFactory {
    */
   public static class CredentialHttpRetryInitializer implements HttpRequestInitializer {
 
+    private final Credential credential;
+
+    public CredentialHttpRetryInitializer() {
+      this(null);
+    }
+
+    public CredentialHttpRetryInitializer(Credential credential) {
+      this.credential = credential;
+    }
+
     @Override
     public void initialize(HttpRequest httpRequest) throws IOException {
+      if (credential != null) {
+        httpRequest.setInterceptor(credential);
+      }
       httpRequest.setIOExceptionHandler(
           new HttpBackOffIOExceptionHandler(new ExponentialBackOff()));
       httpRequest.setUnsuccessfulResponseHandler(
