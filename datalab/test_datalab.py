@@ -20,6 +20,10 @@ class DatalabTestCase(DataprocTestCase):
         ("STANDARD", ["m"], "python3"),
     )
     def test_datalab(self, configuration, machine_suffixes, python):
+        # Skip on 2.0+ version of Dataproc because it's not supported
+        if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
+            return
+
         init_actions = self.INIT_ACTIONS
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
         if self.getImageVersion() <= pkg_resources.parse_version("1.3"):

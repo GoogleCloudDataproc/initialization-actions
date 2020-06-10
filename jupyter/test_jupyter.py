@@ -1,3 +1,4 @@
+import pkg_resources
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -19,6 +20,10 @@ class JupyterTestCase(DataprocTestCase):
         ("STANDARD", ["m"]),
     )
     def test_jupyter(self, configuration, machine_suffixes):
+        # Skip on 2.0+ version of Dataproc because it's not supported
+        if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
+            return
+
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)
         self.createCluster(
             configuration,
@@ -36,6 +41,10 @@ class JupyterTestCase(DataprocTestCase):
         ("STANDARD", ["m"]),
     )
     def test_jupyter_with_metadata(self, configuration, machine_suffixes):
+        # Skip on 2.0+ version of Dataproc because it's not supported
+        if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
+            return
+
         jupyter_port = "8125"
 
         metadata = 'INIT_ACTIONS_REPO={}'.format(self.INIT_ACTIONS_REPO)

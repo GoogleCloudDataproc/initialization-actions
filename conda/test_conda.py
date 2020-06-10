@@ -1,5 +1,6 @@
 import json
 
+import pkg_resources
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -57,6 +58,10 @@ class CondaTestCase(DataprocTestCase):
         ("STANDARD", CONDA_PKGS, PIP_PKGS),
     )
     def test_conda(self, configuration, conda_packages, pip_packages):
+        # Skip on 2.0+ version of Dataproc because it's not supported
+        if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
+            return
+
         metadata = "'CONDA_PACKAGES={},PIP_PACKAGES={}'".format(
             " ".join(conda_packages), " ".join(pip_packages))
         self.createCluster(
