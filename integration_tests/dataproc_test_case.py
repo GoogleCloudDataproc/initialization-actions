@@ -171,6 +171,10 @@ class DataprocTestCase(parameterized.TestCase):
             logging.warning("Skipping cluster delete: name undefined")
             return
 
+        if self.name is None:
+            logging.warning("Skipping cluster delete: name is None")
+            return
+
         if FLAGS.skip_cleanup:
             logging.warning(
                 "Skipping cleanup because 'skip_cleanup' was"
@@ -190,8 +194,12 @@ class DataprocTestCase(parameterized.TestCase):
 
     @staticmethod
     def getImageVersion():
-        # get a numeric version from the version flag: '1.5-debian10' -> '1.5'
-        return pkg_resources.parse_version(FLAGS.image_version.split('-')[0])
+        # Get a numeric version from the version flag: '1.5-debian10' -> '1.5'.
+        # Special case a 'preview' image versions and return a large number
+        # instead to make it a higher image version in comparisons
+        version = FLAGS.image_version
+        return pkg_resources.parse_version('999') if version.startswith(
+            'preview') else pkg_resources.parse_version(version.split('-')[0])
 
     def upload_test_file(self, testfile, name):
         self.assert_command('gcloud compute scp {} {}:'.format(testfile, name))

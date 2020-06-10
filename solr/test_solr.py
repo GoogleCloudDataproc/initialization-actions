@@ -4,6 +4,7 @@ This module provides testing functionality of the Apache Solr Init Action.
 
 import os
 
+import pkg_resources
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -33,6 +34,10 @@ class SolrTestCase(DataprocTestCase):
         ("HA", ["m-0"]),
     )
     def test_solr(self, configuration, machine_suffixes):
+        # Skip on 2.0+ version of Dataproc because it's not supported
+        if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
+            return
+
         self.createCluster(configuration, self.INIT_ACTIONS)
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),

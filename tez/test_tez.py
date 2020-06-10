@@ -39,6 +39,10 @@ class TezTestCase(DataprocTestCase):
         ("HA", ["m-0", "m-1", "m-2"]),
     )
     def test_tez(self, configuration, machine_suffixes):
+        # Skip on 2.0+ version of Dataproc because it's not supported
+        if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
+            return
+
         init_actions = self.INIT_ACTIONS
         properties = None
         if self.getImageVersion() >= pkg_resources.parse_version("1.3"):

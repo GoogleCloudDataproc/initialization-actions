@@ -1,5 +1,6 @@
 import random
 
+import pkg_resources
 from absl.testing import absltest
 from absl.testing import parameterized
 
@@ -85,6 +86,10 @@ class PrestoTestCase(DataprocTestCase):
     )
     def test_presto(self, configuration, machine_suffixes, coordinators,
                     workers):
+        # Skip on 2.0+ version of Dataproc because it's not supported
+        if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
+            return
+
         self.createCluster(
             configuration, self.INIT_ACTIONS, machine_type="n1-standard-2")
         for machine_suffix in machine_suffixes:
@@ -95,6 +100,10 @@ class PrestoTestCase(DataprocTestCase):
     @parameterized.parameters(("SINGLE", ["m"], 1, 0))
     def test_presto_custom_port(self, configuration, machine_suffixes,
                                 coordinators, workers):
+        # Skip on 2.0+ version of Dataproc because it's not supported
+        if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
+            return
+
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
