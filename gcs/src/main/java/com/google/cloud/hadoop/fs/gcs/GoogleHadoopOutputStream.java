@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.nio.channels.Channels;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.WritableByteChannel;
 import org.apache.hadoop.fs.FileAlreadyExistsException;
 import org.apache.hadoop.fs.FileSystem;
@@ -98,6 +99,7 @@ class GoogleHadoopOutputStream extends OutputStream {
   /** Writes the specified byte to this output stream. */
   @Override
   public void write(int b) throws IOException {
+    throwIfNotOpen();
     long startTime = System.nanoTime();
     out.write(b);
     statistics.incrementBytesWritten(1);
@@ -111,6 +113,7 @@ class GoogleHadoopOutputStream extends OutputStream {
    */
   @Override
   public void write(byte[] b, int offset, int len) throws IOException {
+    throwIfNotOpen();
     long startTime = System.nanoTime();
     out.write(b, offset, len);
     statistics.incrementBytesWritten(len);
@@ -138,6 +141,16 @@ class GoogleHadoopOutputStream extends OutputStream {
         channel = null;
       }
     }
+  }
+
+  private boolean isOpen() {
+     return out != null;
+  }
+
+  private void throwIfNotOpen() throws IOException {
+     if (!isOpen()) {
+        throw new ClosedChannelException();
+     }
   }
 
   WritableByteChannel getInternalChannel() {
