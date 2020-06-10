@@ -144,13 +144,13 @@ class GoogleHadoopOutputStream extends OutputStream {
   }
 
   private boolean isOpen() {
-     return out != null;
+    return out != null;
   }
 
   private void throwIfNotOpen() throws IOException {
-     if (!isOpen()) {
-        throw new ClosedChannelException();
-     }
+    if (!isOpen()) {
+      throw new ClosedChannelException();
+    }
   }
 
   WritableByteChannel getInternalChannel() {

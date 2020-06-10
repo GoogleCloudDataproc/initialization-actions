@@ -68,6 +68,10 @@
     (`roles/iam.serviceAccountTokenCreator`) on the service account to
     impersonate.
 
+1.  Throw `ClosedChannelException` in `GoogleHadoopOutputStream.write` methods
+    if stream already closed. This fixes Spark Streaming jobs checkpointing to
+    Cloud Storage.
+
 ### 2.1.1 - 2020-03-11
 
 1.  Add upload cache to support high-level retries of failed uploads. Cache size
