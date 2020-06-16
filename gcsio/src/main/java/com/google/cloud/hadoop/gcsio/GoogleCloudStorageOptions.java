@@ -88,6 +88,10 @@ public abstract class GoogleCloudStorageOptions {
   /** Default setting for GCS HTTP request headers. */
   public static final ImmutableMap<String, String> HTTP_REQUEST_HEADERS_DEFAULT = ImmutableMap.of();
 
+  /** Default setting for impersonation service accounts. */
+  public static final ImmutableMap<String, String> IMPERSONATION_SERVICE_ACCOUNTS =
+      ImmutableMap.of();
+
   public static final GoogleCloudStorageOptions DEFAULT = builder().build();
 
   public static Builder builder() {
@@ -113,7 +117,9 @@ public abstract class GoogleCloudStorageOptions {
         .setWriteChannelOptions(AsyncWriteChannelOptions.DEFAULT)
         .setRequesterPaysOptions(RequesterPaysOptions.DEFAULT)
         .setCooperativeLockingOptions(CooperativeLockingOptions.DEFAULT)
-        .setHttpRequestHeaders(HTTP_REQUEST_HEADERS_DEFAULT);
+        .setHttpRequestHeaders(HTTP_REQUEST_HEADERS_DEFAULT)
+        .setUserImpersonationServiceAccounts(IMPERSONATION_SERVICE_ACCOUNTS)
+        .setGroupImpersonationServiceAccounts(IMPERSONATION_SERVICE_ACCOUNTS);
   }
 
   public abstract Builder toBuilder();
@@ -185,6 +191,12 @@ public abstract class GoogleCloudStorageOptions {
 
   @Nullable
   public abstract RedactedString getEncryptionKeyHash();
+
+  @Nullable
+  public abstract Map<String, String> getUserImpersonationServiceAccounts();
+
+  @Nullable
+  public abstract Map<String, String> getGroupImpersonationServiceAccounts();
 
   public RetryHttpInitializerOptions toRetryHttpInitializerOptions() {
     return RetryHttpInitializerOptions.builder()
@@ -266,6 +278,12 @@ public abstract class GoogleCloudStorageOptions {
     public abstract Builder setEncryptionKey(RedactedString encryptionKey);
 
     public abstract Builder setEncryptionKeyHash(RedactedString encryptionKeyHash);
+
+    public abstract Builder setUserImpersonationServiceAccounts(
+        Map<String, String> userImpersonationServiceAccounts);
+
+    public abstract Builder setGroupImpersonationServiceAccounts(
+        Map<String, String> groupImpersonationServiceAccounts);
 
     abstract GoogleCloudStorageOptions autoBuild();
 

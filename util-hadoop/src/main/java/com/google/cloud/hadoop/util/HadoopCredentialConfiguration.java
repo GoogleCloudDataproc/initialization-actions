@@ -18,7 +18,9 @@ import static com.google.common.base.StandardSystemProperty.USER_HOME;
 
 import com.google.cloud.hadoop.util.HttpTransportFactory.HttpTransportType;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 
 /**
@@ -164,6 +166,24 @@ public class HadoopCredentialConfiguration {
    */
   public static final HadoopConfigurationProperty<String> IMPERSONATION_SERVICE_ACCOUNT_SUFFIX =
       new HadoopConfigurationProperty<>(".auth.impersonation.service.account");
+
+  /**
+   * Key prefix for the user identifier associated with the service account to impersonate when
+   * accessing GCS.
+   */
+  public static final HadoopConfigurationProperty<Map<String, String>>
+      IMPERSONATION_SERVICE_ACCOUNT_FOR_USER_SUFFIX =
+          new HadoopConfigurationProperty<>(
+              ".auth.impersonation.service.account.for.user.", ImmutableMap.of());
+
+  /**
+   * Key prefix for the group identifier associated with the service account to impersonate when
+   * accessing GCS.
+   */
+  public static final HadoopConfigurationProperty<Map<String, String>>
+      IMPERSONATION_SERVICE_ACCOUNT_FOR_GROUP_SUFFIX =
+          new HadoopConfigurationProperty<>(
+              ".auth.impersonation.service.account.for.group.", ImmutableMap.of());
 
   public static CredentialFactory getCredentialFactory(
       Configuration config, String... keyPrefixesVararg) {

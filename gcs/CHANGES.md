@@ -72,6 +72,20 @@
     if stream already closed. This fixes Spark Streaming jobs checkpointing to
     Cloud Storage.
 
+1.  Add properties to impersonate a service account through user or group name:
+
+    ```
+    fs.gs.auth.impersonation.service.account.for.user.<USER_NAME> (not set by default)
+    fs.gs.auth.impersonation.service.account.for.group.<GROUP_NAME> (not set by default)
+    ```
+
+    If any of these properties is set, an access token will be generated for
+    the service account associated with specified user name or group name in
+    order to access GCS. The caller who issues a request for the access token
+    must have been granted the Service Account Token Creator role
+    (`roles/iam.serviceAccountTokenCreator`) on the service account to
+    impersonate.
+
 ### 2.1.1 - 2020-03-11
 
 1.  Add upload cache to support high-level retries of failed uploads. Cache size

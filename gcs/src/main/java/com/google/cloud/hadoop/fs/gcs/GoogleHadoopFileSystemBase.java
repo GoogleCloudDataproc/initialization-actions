@@ -1503,19 +1503,33 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
    */
   private static Optional<Credential> getImpersonatedCredential(
       Configuration config, Credential credential) throws IOException {
+    GoogleCloudStorageOptions options =
+        GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config)
+            .build()
+            .getCloudStorageOptions();
+
     String serviceAccountToImpersonate =
         IMPERSONATION_SERVICE_ACCOUNT_SUFFIX
             .withPrefixes(CONFIG_KEY_PREFIXES)
             .get(config, config::get);
+    if (isNullOrEmpty(serviceAccountToImpersonate)) {
+      Optional<String> serviceAccountToImpersonateFromUser =
+          getMatchedServiceAccountToImpersonateFromGroup(
+              options.getUserImpersonationServiceAccounts(),
+              ImmutableList.of(UserGroupInformation.getCurrentUser().getShortUserName()));
+      Optional<String> serviceAccountToImpersonateFromGroup =
+          getMatchedServiceAccountToImpersonateFromGroup(
+              options.getGroupImpersonationServiceAccounts(),
+              ImmutableList.copyOf(UserGroupInformation.getCurrentUser().getGroupNames()));
+      serviceAccountToImpersonate =
+          serviceAccountToImpersonateFromUser.orElse(
+              serviceAccountToImpersonateFromGroup.orElse(null));
+    }
 
     if (isNullOrEmpty(serviceAccountToImpersonate)) {
       return Optional.empty();
     }
 
-    GoogleCloudStorageOptions options =
-        GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config)
-            .build()
-            .getCloudStorageOptions();
     HttpTransport httpTransport =
         HttpTransportFactory.createHttpTransport(
             options.getTransportType(),
@@ -1529,6 +1543,16 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
             serviceAccountToImpersonate,
             CredentialFactory.GCS_SCOPES);
     return Optional.of(impersonatedCredential.createScoped(CredentialFactory.GCS_SCOPES));
+  }
+
+  private static Optional<String> getMatchedServiceAccountToImpersonateFromGroup(
+      Map<String, String> serviceAccountMapping, List<String> userGroups) {
+    for (Map.Entry<String, String> entry : serviceAccountMapping.entrySet()) {
+      if (userGroups.contains(entry.getKey())) {
+        return Optional.of(entry.getValue());
+      }
+    }
+    return Optional.empty();
   }
 
   /**

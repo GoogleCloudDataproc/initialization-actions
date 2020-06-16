@@ -254,6 +254,15 @@ the request to generate this short-lived credential.
 
 *   `fs.gs.auth.impersonation.service.account` (not set by default)
 
+If any of the following properties is set, the service account specified will be
+impersonated by generating a short-lived credential when accessing GCS if the
+current user or group name matches with specified user or group name.
+If both are set, then the service account associated with the user name will
+take precedence over the service account associated with the group name.
+
+*   `fs.gs.auth.impersonation.service.account.for.user.<USER_NAME>` (not set by default)
+*   `fs.gs.auth.impersonation.service.account.for.group.<GROUP_NAME>` (not set by default)
+
 ### IO configuration
 
 *   `fs.gs.inputstream.buffer.size` (default: `0`)
