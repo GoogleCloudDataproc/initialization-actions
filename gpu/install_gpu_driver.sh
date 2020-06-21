@@ -82,7 +82,6 @@ function install_nvidia_nccl() {
   execute_with_retries \
     "apt-get install -y --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
 
-  nvidia-smi -c EXCLUSIVE_PROCESS
 }
 
 # Install NVIDIA GPU driver provided by NVIDIA
@@ -250,7 +249,10 @@ function main() {
     echo "Unsupported GPU driver provider: '${GPU_DRIVER_PROVIDER}'"
     exit 1
   fi
-
+  
+  # include exclusive mode on GPU
+  nvidia-smi -c EXCLUSIVE_PROCESS
+  
   # Install GPU metrics collection in Stackdriver if needed
   if [[ ${INSTALL_GPU_AGENT} == true ]]; then
     install_gpu_agent
