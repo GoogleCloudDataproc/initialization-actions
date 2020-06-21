@@ -258,6 +258,11 @@ function main() {
   else
     echo 'GPU metrics will not be installed.'
   fi
+  
+  chown :yarn -R /sys/fs/cgroup/cpu,cpuacct
+  chmod g+rwx -R /sys/fs/cgroup/cpu,cpuacct
+  chown :yarn -R /sys/fs/cgroup/devices
+  chmod g+rwx -R /sys/fs/cgroup/devices
 }
 
 main
