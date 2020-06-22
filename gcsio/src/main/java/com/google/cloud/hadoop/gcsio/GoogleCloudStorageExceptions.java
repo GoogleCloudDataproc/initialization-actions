@@ -84,7 +84,10 @@ public final class GoogleCloudStorageExceptions {
 
   public static GoogleJsonResponseException createJsonResponseException(
       GoogleJsonError e, HttpHeaders responseHeaders) {
-    return new GoogleJsonResponseException(
-        new HttpResponseException.Builder(e.getCode(), e.getMessage(), responseHeaders), e);
+    if (e != null) {
+      return new GoogleJsonResponseException(
+          new HttpResponseException.Builder(e.getCode(), e.getMessage(), responseHeaders), e);
+    }
+    return null;
   }
 }
