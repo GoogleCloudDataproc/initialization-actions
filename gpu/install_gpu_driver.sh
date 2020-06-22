@@ -275,9 +275,6 @@ function main() {
     exit 1
   fi
   
-  # include exclusive mode on GPU
-  nvidia-smi -c EXCLUSIVE_PROCESS
-  
   # Install GPU metrics collection in Stackdriver if needed
   if [[ ${INSTALL_GPU_AGENT} == true ]]; then
     install_gpu_agent
