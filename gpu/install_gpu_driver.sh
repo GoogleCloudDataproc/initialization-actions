@@ -222,29 +222,29 @@ EOF
   systemctl --now enable gpu-utilization-agent.service
 }
 
- function config_gpu_isolation {
-   # check if running spark3, if not, enable GPU exclusive mode
-   spark-submit --version &> /tmp/version.txt
-   if ! grep -q "version 3" "/tmp/version.txt" ; then
-     # include exclusive mode on GPU
-     nvidia-smi -c EXCLUSIVE_PROCESS
-   fi
+function config_gpu_isolation {
+  # check if running spark3, if not, enable GPU exclusive mode
+  spark-submit --version &> /tmp/version.txt
+  if ! grep -q "version 3" "/tmp/version.txt" ; then
+    # include exclusive mode on GPU
+    nvidia-smi -c EXCLUSIVE_PROCESS
+  fi
    
-   # download GPU discovery script
-   mkdir -p /usr/lib/spark/scripts/gpu/
-   cd /usr/lib/spark/scripts/gpu/
-   wget https://raw.githubusercontent.com/apache/spark/master/examples/src/main/scripts/getGpusResources.sh
-   chmod -R 777 /usr/lib/spark/scripts/gpu/
+  # download GPU discovery script
+  mkdir -p /usr/lib/spark/scripts/gpu/
+  cd /usr/lib/spark/scripts/gpu/
+  wget https://raw.githubusercontent.com/apache/spark/master/examples/src/main/scripts/getGpusResources.sh
+  chmod -R 777 /usr/lib/spark/scripts/gpu/
  
-   # enable GPU isolation
-   chown :yarn -R /sys/fs/cgroup/cpu,cpuacct
-   chmod g+rwx -R /sys/fs/cgroup/cpu,cpuacct
-   chown :yarn -R /sys/fs/cgroup/devices
-   chmod g+rwx -R /sys/fs/cgroup/devices
-   chown yarn:yarn -R /hadoop/yarn
-   chmod g+rwx -R /hadoop/yarn
-   sed -i "s/yarn.nodemanager\.linux\-container\-executor\.group\=/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn\n\n\[gpu\]\nmodule\.enable\=true\n\[cgroups\]\nroot\=\/sys\/fs\/cgroup\nyarn\-hierachy\=yarn\n/g" /etc/hadoop/conf/container-executor.cfg
- }
+  # enable GPU isolation
+  chown :yarn -R /sys/fs/cgroup/cpu,cpuacct
+  chmod g+rwx -R /sys/fs/cgroup/cpu,cpuacct
+  chown :yarn -R /sys/fs/cgroup/devices
+  chmod g+rwx -R /sys/fs/cgroup/devices
+  chown yarn:yarn -R /hadoop/yarn
+  chmod g+rwx -R /hadoop/yarn
+  sed -i "s/yarn.nodemanager\.linux\-container\-executor\.group\=/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn\n\n\[gpu\]\nmodule\.enable\=true\n\[cgroups\]\nroot\=\/sys\/fs\/cgroup\nyarn\-hierachy\=yarn\n/g" /etc/hadoop/conf/container-executor.cfg
+}
 
 
 function main() {
@@ -257,6 +257,8 @@ function main() {
 
   execute_with_retries "apt-get update"
   execute_with_retries "apt-get install -y -q pciutils"
+
+  config_gpu_isolation
 
   # Detect NVIDIA GPU
   if ! (lspci | grep -q NVIDIA); then
@@ -282,8 +284,6 @@ function main() {
   else
     echo 'GPU metrics will not be installed.'
   fi
-  
-  config_gpu_isolation
   
 }
 
