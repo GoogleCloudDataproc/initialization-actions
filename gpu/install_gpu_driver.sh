@@ -241,7 +241,7 @@ function config_gpu_isolation {
  
   # enable GPU isolation
   sed -i "s/yarn.nodemanager\.linux\-container\-executor\.group\=/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" /etc/hadoop/conf/container-executor.cfg
-  printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierachy=yarn\n' >> /etc/hadoop/conf/container-executor.cfg
+  printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' >> /etc/hadoop/conf/container-executor.cfg
 
   chown :yarn -R /sys/fs/cgroup/cpu,cpuacct
   chmod g+rwx -R /sys/fs/cgroup/cpu,cpuacct
