@@ -265,6 +265,10 @@ function main() {
   chmod g+rwx -R /sys/fs/cgroup/cpu,cpuacct
   chown :yarn -R /sys/fs/cgroup/devices
   chmod g+rwx -R /sys/fs/cgroup/devices
+  chown yarn:yarn -R /hadoop/yarn
+  chmod g+rwx -R /hadoop/yarn
+  sed -i "s/yarn.nodemanager\.linux\-container\-executor\.group\=/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn\n\n\[gpu\]\nmodule\.enable\=true\n\[cgroups\]\nroot\=\/sys\/fs\/cgroup\nyarn\-hierachy\=yarn\n/g" /etc/hadoop/conf/container-executor.cfg
+
 }
 
 main
