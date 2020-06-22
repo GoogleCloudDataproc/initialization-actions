@@ -223,6 +223,34 @@ EOF
   systemctl --now enable gpu-utilization-agent.service
 }
 
+function config_gpu_exclusive_mode {
+  # check if running spark3, if not, enable GPU exclusive mode
+  spark-submit --version &> /tmp/version.txt
+  if ! grep -q "version 3" "/tmp/version.txt" ; then
+    # include exclusive mode on GPU
+    nvidia-smi -c EXCLUSIVE_PROCESS
+  fi
+}
+
+function config_gpu_isolation {
+  # download GPU discovery script
+  mkdir -p /usr/lib/spark/scripts/gpu/
+  cd /usr/lib/spark/scripts/gpu/
+  wget https://raw.githubusercontent.com/apache/spark/master/examples/src/main/scripts/getGpusResources.sh
+  chmod -R 777 /usr/lib/spark/scripts/gpu/
+ 
+  # enable GPU isolation
+  sed -i "s/yarn.nodemanager\.linux\-container\-executor\.group\=/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" /etc/hadoop/conf/container-executor.cfg
+  printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierachy=yarn\n' >> /etc/hadoop/conf/container-executor.cfg
+
+  chown :yarn -R /sys/fs/cgroup/cpu,cpuacct
+  chmod g+rwx -R /sys/fs/cgroup/cpu,cpuacct
+  chown :yarn -R /sys/fs/cgroup/devices
+  chmod g+rwx -R /sys/fs/cgroup/devices
+  chown yarn:yarn -R /hadoop/yarn
+  chmod g+rwx -R /hadoop/yarn  
+}
+
 function main() {
   if [[ ${OS_NAME} != debian ]] && [[ ${OS_NAME} != ubuntu ]]; then
     echo "Unsupported OS: '${OS_NAME}'"
