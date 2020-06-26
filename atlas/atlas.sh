@@ -4,8 +4,9 @@ set -euxo pipefail
 
 source "/usr/local/share/google/dataproc/bdutil/bdutil_helpers.sh"
 
-readonly ATLAS_HOME="/usr/lib/atlas/apache-atlas"
-readonly ATLAS_CONFIG="/etc/atlas/atlas-application.properties"
+readonly ATLAS_HOME="/usr/lib/atlas"
+readonly ATLAS_ETC_DIR="/etc/atlas/conf"
+readonly ATLAS_CONFIG="${ATLAS_ETC_DIR}/atlas-application.properties"
 readonly INIT_SCRIPT="/usr/lib/systemd/system/atlas.service"
 
 readonly ATLAS_ADMIN_USERNAME="$(/usr/share/google/get_metadata_value attributes/ATLAS_ADMIN_USERNAME || echo '')"
@@ -45,13 +46,15 @@ function err() {
 
 function check_prerequisites() {
   # check for Zookeeper
-  echo stat | nc localhost 2181 || err 'Zookeeper not found'
+  wait_for_port "Zookeeper" localhost 2181
 
   # check for HBase
   if [[ "${ROLE}" == 'Master' ]]; then
-    retry_command "systemctl is-active hbase-master"
+    # systemctl is-active hbase-master || err 'HBase Master is not active'
+    wait_for_port "HBase Master" localhost 16010
+    retry_command systemctl is-active hbase-master
   else
-    retry_command "systemctl is-active hbase-regionserver"
+    retry_command systemctl is-active hbase-regionserver
   fi
 
   # Systemd and port checking are not deterministic for HBase Master
@@ -68,20 +71,12 @@ function check_prerequisites() {
   fi
 }
 
-function install_atlas() {
-  apt_get_install atlas
-  # TODO: fix in the deb package
-  ln -s "${ATLAS_HOME}"-?.?.? "${ATLAS_HOME}" || true
-  rm -rf "${ATLAS_HOME}/conf"
-  ln -s "/etc/atlas" "${ATLAS_HOME}/conf" || true
-}
-
 function configure_solr() {
   if [[ $(hostname) == "${MASTER}" ]]; then
     # configure Solr only on the one actual Master node
-    runuser -l solr -s /bin/bash -c "/usr/lib/solr/bin/solr create -c vertex_index -d /etc/atlas/solr -shards 3"
-    runuser -l solr -s /bin/bash -c "/usr/lib/solr/bin/solr create -c edge_index -d /etc/atlas/solr -shards 3"
-    runuser -l solr -s /bin/bash -c "/usr/lib/solr/bin/solr create -c fulltext_index -d /etc/atlas/solr -shards 3"
+    runuser -l solr -s /bin/bash -c "/usr/lib/solr/bin/solr create -c vertex_index -d ${ATLAS_ETC_DIR}/solr -shards 3"
+    runuser -l solr -s /bin/bash -c "/usr/lib/solr/bin/solr create -c edge_index -d ${ATLAS_ETC_DIR}/solr -shards 3"
+    runuser -l solr -s /bin/bash -c "/usr/lib/solr/bin/solr create -c fulltext_index -d ${ATLAS_ETC_DIR}/solr -shards 3"
   fi
 }
 
@@ -111,7 +106,6 @@ function configure_atlas() {
     sed -i "s/atlas.server.ha.enabled=.*/atlas.server.ha.enabled=true/" ${ATLAS_CONFIG}
     sed -i "s/atlas.server.ha.zookeeper.connect=.*/atlas.server.ha.zookeeper.connect=${zk_quorum}/" ${ATLAS_CONFIG}
     sed -i "s/atlas.graph.index.search.solr.wait-searcher=.*/#atlas.graph.index.search.solr.wait-searcher=.*/" ${ATLAS_CONFIG}
-    # Use pipe to escape values in the variable
     sed -i "s|atlas.graph.index.search.solr.zookeeper-url=.*|atlas.graph.index.search.solr.zookeeper-url=${zk_url_for_solr}|" ${ATLAS_CONFIG}
 
     cat <<EOF >>${ATLAS_CONFIG}
@@ -154,7 +148,6 @@ EOF
 }
 
 function start_atlas() {
-  # TODO: move to DEB package
   cat <<EOF >${INIT_SCRIPT}
 [Unit]
 Description=Apache Atlas
@@ -193,7 +186,7 @@ function wait_for_atlas_to_start() {
   # atlas start script exits prematurely, before atlas actually starts
   # thus wait up to 10 minutes until atlas is fully working
   wait_for_port "Atlas web server" localhost 21000
-  local -r cmd="curl localhost:21000/api/atlas/admin/status"
+  local -r cmd='curl localhost:21000/api/atlas/admin/status'
   for ((i = 0; i < 60; i++)); do
     if eval "${cmd}"; then
       return 0
@@ -204,7 +197,7 @@ function wait_for_atlas_to_start() {
 }
 
 function wait_for_atlas_becomes_active_or_passive() {
-  local -r cmd="sudo ${ATLAS_HOME}/bin/atlas_admin.py -u doesnt:matter -status 2>/dev/null" # public check, but some username:password has to be given
+  cmd="sudo ${ATLAS_HOME}/bin/atlas_admin.py -u doesnt:matter -status 2>/dev/null" # public check, but some username:password has to be given
   for ((i = 0; i < 60; i++)); do
     if status=$(eval "${cmd}"); then
       if [[ ${status} == 'ACTIVE' || ${status} == 'PASSIVE' ]]; then
@@ -269,7 +262,7 @@ function main() {
 
   if [[ "${ROLE}" == 'Master' ]]; then
     check_prerequisites
-    install_atlas
+    retry_command "apt-get install -q -y atlas"
     configure_solr
     configure_atlas
     enable_hive_hook

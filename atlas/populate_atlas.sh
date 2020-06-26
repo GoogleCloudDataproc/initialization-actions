@@ -11,7 +11,7 @@ if {[llength $argv] == 0} {
   exit 1
 }
 
-spawn /usr/lib/atlas/apache-atlas/bin/quick_start.py
+spawn /usr/lib/atlas/bin/quick_start.py
 expect -exact "Enter username for atlas :-"
 send -- "$USERNAME\n"
 expect -exact "Enter password for atlas :-"

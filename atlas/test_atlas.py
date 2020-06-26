@@ -22,7 +22,7 @@ class AtlasTestCase(DataprocTestCase):
     COMPONENT = 'atlas'
     OPTIONAL_COMPONENTS = ['ZOOKEEPER', 'HBASE', 'SOLR']
     OPTIONAL_COMPONENTS_HA = ['ZOOKEEPER', 'HBASE', 'SOLR']
-    ATLAS_HOME = '/usr/lib/atlas/apache-atlas'
+    ATLAS_HOME = '/usr/lib/atlas'
     INIT_ACTIONS = ['atlas/atlas.sh']
 
     POPULATE_SCRIPT = 'populate_atlas.sh'
