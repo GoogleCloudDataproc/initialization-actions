@@ -262,6 +262,8 @@ function main() {
   execute_with_retries "apt-get update"
   execute_with_retries "apt-get install -y -q pciutils"
 
+  config_gpu_isolation
+
   # Detect NVIDIA GPU
   if ! (lspci | grep -q NVIDIA); then
     echo 'No NVIDIA card detected. Skipping installation.' >&2
@@ -286,6 +288,7 @@ function main() {
   else
     echo 'GPU metrics will not be installed.'
   fi
+  config_gpu_exclusive_mode
 }
 
 main
