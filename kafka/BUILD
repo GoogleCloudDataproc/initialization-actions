@@ -1,5 +1,7 @@
 package(default_visibility = ["//visibility:public"])
 
+exports_files(["kafka.sh"])
+
 py_test(
     name = "test_kafka",
     size = "enormous",

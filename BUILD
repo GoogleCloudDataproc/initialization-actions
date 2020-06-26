@@ -8,6 +8,7 @@ test_suite(
         ":test_hive_hcatalog",
         ":test_starburst_presto",
         "//alluxio:test_alluxio",
+        "//atlas:test_atlas",
         "//bigtable:test_bigtable",
         "//conda:test_conda",
         "//connectors:test_connectors",
