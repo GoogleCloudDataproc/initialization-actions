@@ -34,6 +34,26 @@ function retry_command() {
   fi
 }
 
+function is_version_at_least() {
+  local -r ver1="${1#v}.0.0.0.0"
+  local -r ver2="${2#v}"
+  local log
+  log="$(mktemp)"
+
+  dpkg --compare-versions "${ver1}" '>=' "${ver2}" >&"${log}"
+  err_code="$?"
+
+  if grep -C 10 -i warning "${log}"; then
+    # The grep will show the specific warnings too
+    echo 'Error: invalid versions compared'
+
+    exit "${EXIT_CODE_INTERNAL_ERROR}"
+  fi
+
+  rm -f "${log}"
+  return "${err_code}"
+}
+
 # Retries command until successful or up to a variable number of seconds.
 # Sleeps for N seconds between the attempts.
 function retry_constant_custom() {
