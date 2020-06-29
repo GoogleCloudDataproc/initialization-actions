@@ -2,8 +2,6 @@
 
 set -euxo pipefail
 
-source "/usr/local/share/google/dataproc/bdutil/bdutil_helpers.sh"
-
 readonly ATLAS_HOME="/usr/lib/atlas"
 readonly ATLAS_ETC_DIR="/etc/atlas/conf"
 readonly ATLAS_CONFIG="${ATLAS_ETC_DIR}/atlas-application.properties"
@@ -18,7 +16,6 @@ readonly ADDITIONAL_MASTER=$(/usr/share/google/get_metadata_value attributes/dat
 function retry_command() {
   local retry_backoff=(1 1 2 3 5 8 13 21 34 55 89 144)
   local -a cmd=("$@")
-  loginfo "About to run '${cmd[*]}' with retries..."
 
   local update_succeeded=0
   for ((i = 0; i < ${#retry_backoff[@]}; i++)); do
@@ -27,16 +24,44 @@ function retry_command() {
       break
     else
       local sleep_time=${retry_backoff[$i]}
-      loginfo "'${cmd[*]}' attempt $((i + 1)) failed! Sleeping ${sleep_time}." >&2
       sleep "${sleep_time}"
     fi
   done
 
   if ! ((update_succeeded)); then
-    loginfo "Final attempt of '${cmd[*]}'..."
-    # Let any final error propagate all the way out to any error traps.
+    echo "Final attempt of '${cmd[*]}'..."
     "${cmd[@]}"
   fi
+}
+
+# Retries command until successful or up to a variable number of seconds.
+# Sleeps for N seconds between the attempts.
+function retry_constant_custom() {
+  local -r max_retry_time="$1"
+  local -r retry_delay="$2"
+  local -r cmd=("${@:3}")
+
+  local -r max_retries=$((max_retry_time / retry_delay))
+
+  # Disable debug logs to not polute logs with retry attempts
+  local last_log_timestamp="0"
+  for ((i = 1; i < ${max_retries}; i++)); do
+    if "${cmd[@]}"; then
+      return 0
+    fi
+
+    local timestamp
+    timestamp=$(date +%s)
+    # Log at most once per 10 seconds
+    if ((timestamp - last_log_timestamp > 10 )); then
+      last_log_timestamp="${timestamp}"
+    fi
+    sleep "${retry_delay}"
+  done
+
+  echo "Final attempt of '${cmd[*]}'..."
+  set -x
+  "${cmd[@]}"
 }
 
 function err() {
@@ -44,13 +69,23 @@ function err() {
   exit 1
 }
 
-function check_prerequisites() {
-  # check for Zookeeper
-  wait_for_port "Zookeeper" localhost 2181
+# Waits for service on a given port to come up.
+function wait_for_port() {
+  local -r name="$1"
+  local -r host="$2"
+  local -r port="$3"
+  local -r timeout="${4:-300}"
 
-  # check for HBase
+  # We only respect timeouts up to 1800 seconds (30 minutes).
+  local -r capped_timeout=$((timeout > 1800 ? 1800 : timeout))
+
+  retry_constant_custom \
+    "${capped_timeout}" 1 nc -v -z -w 0 "${host}" "${port}"
+  echo "Service up on host=${host} port=${port} name=${name}."
+}
+
+function wait_for_hbase() {
   if [[ "${ROLE}" == 'Master' ]]; then
-    # systemctl is-active hbase-master || err 'HBase Master is not active'
     wait_for_port "HBase Master" localhost 16010
     retry_command systemctl is-active hbase-master
   else
@@ -61,6 +96,13 @@ function check_prerequisites() {
   retry_command "echo create \'$(hostname)\',\'$(hostname)\' | hbase shell -n"
   retry_command "echo disable \'$(hostname)\' | hbase shell -n"
   retry_command "echo drop \'$(hostname)\' | hbase shell -n"
+}
+
+function check_prerequisites() {
+  # check for Zookeeper
+  wait_for_port "Zookeeper" localhost 2181
+  # check for HBase
+  wait_for_hbase
 
   # check for Solr
   curl 'http://localhost:8983/solr' || err 'Solr not found'
