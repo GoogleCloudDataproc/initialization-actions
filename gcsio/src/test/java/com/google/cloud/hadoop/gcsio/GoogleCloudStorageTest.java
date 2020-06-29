@@ -911,9 +911,7 @@ public class GoogleCloudStorageTest {
     IOException thrown =
         assertThrows(IOException.class, () -> readChannel.read(ByteBuffer.allocate(1)));
     assertThat(thrown).hasMessageThat().isEqualTo("read IOException");
-
     assertThat(thrown.getSuppressed()).isEqualTo(new Throwable[] {sleepException});
-    assertThat(Thread.interrupted()).isTrue();
 
     assertThat(trackingHttpRequestInitializer.getAllRequestStrings())
         .containsExactly(
