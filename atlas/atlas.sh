@@ -2,50 +2,107 @@
 
 set -euxo pipefail
 
-source "/usr/local/share/google/dataproc/bdutil/bdutil_helpers.sh"
+readonly ATLAS_HOME="/usr/lib/atlas"
+readonly ATLAS_ETC_DIR="/etc/atlas/conf"
+readonly ATLAS_CONFIG="${ATLAS_ETC_DIR}/atlas-application.properties"
+readonly INIT_SCRIPT="/usr/lib/systemd/system/atlas.service"
 
-readonly ATLAS_VERSION='1.2.0'
-readonly ATLAS_HOME='/usr/lib/atlas/apache-atlas-1.2.0'
-readonly ATLAS_CONFIG="${ATLAS_HOME}/conf/atlas-application.properties"
-readonly INIT_SCRIPT='/usr/lib/systemd/system/atlas.service'
-readonly ATLAS_ADMIN_USERNAME="$(/usr/share/google/get_metadata_value attributes/ATLAS_ADMIN_USERNAME)"
-readonly ATLAS_ADMIN_PASSWORD_SHA256="$(/usr/share/google/get_metadata_value attributes/ATLAS_ADMIN_PASSWORD_SHA256)"
+readonly ATLAS_ADMIN_USERNAME="$(/usr/share/google/get_metadata_value attributes/ATLAS_ADMIN_USERNAME || echo '')"
+readonly ATLAS_ADMIN_PASSWORD_SHA256="$(/usr/share/google/get_metadata_value attributes/ATLAS_ADMIN_PASSWORD_SHA256 || echo '')"
 readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 readonly ADDITIONAL_MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)
 
-function retry_apt_command() {
-  cmd="$1"
-  for ((i = 0; i < 10; i++)); do
-    if eval "$cmd"; then
-      return 0
+function retry_command() {
+  local retry_backoff=(1 1 2 3 5 8 13 21 34 55 89 144)
+  local -a cmd=("$@")
+
+  local update_succeeded=0
+  for ((i = 0; i < ${#retry_backoff[@]}; i++)); do
+    if eval "${cmd[@]}"; then
+      update_succeeded=1
+      break
+    else
+      local sleep_time=${retry_backoff[$i]}
+      sleep "${sleep_time}"
     fi
-    sleep 5
   done
-  return 1
+
+  if ! ((update_succeeded)); then
+    echo "Final attempt of '${cmd[*]}'..."
+    "${cmd[@]}"
+  fi
 }
 
-function install_apt_get() {
-  pkgs="$@"
-  retry_apt_command "apt-get install -y $pkgs"
+# Retries command until successful or up to a variable number of seconds.
+# Sleeps for N seconds between the attempts.
+function retry_constant_custom() {
+  local -r max_retry_time="$1"
+  local -r retry_delay="$2"
+  local -r cmd=("${@:3}")
+
+  local -r max_retries=$((max_retry_time / retry_delay))
+
+  # Disable debug logs to not polute logs with retry attempts
+  local last_log_timestamp="0"
+  for ((i = 1; i < ${max_retries}; i++)); do
+    if "${cmd[@]}"; then
+      return 0
+    fi
+
+    local timestamp
+    timestamp=$(date +%s)
+    # Log at most once per 10 seconds
+    if ((timestamp - last_log_timestamp > 10 )); then
+      last_log_timestamp="${timestamp}"
+    fi
+    sleep "${retry_delay}"
+  done
+
+  echo "Final attempt of '${cmd[*]}'..."
+  set -x
+  "${cmd[@]}"
 }
 
 function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $@" >&2
-  return 1
+  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
+  exit 1
 }
 
+# Waits for service on a given port to come up.
+function wait_for_port() {
+  local -r name="$1"
+  local -r host="$2"
+  local -r port="$3"
+  local -r timeout="${4:-300}"
 
-function check_prerequisites(){
-  # check for Zookeeper
-  echo stat | nc localhost 2181 || err 'Zookeeper not found'
+  # We only respect timeouts up to 1800 seconds (30 minutes).
+  local -r capped_timeout=$((timeout > 1800 ? 1800 : timeout))
 
-  # check for HBase 
-  if [[ $(hostname) == "${MASTER}" ]]; then
-    systemctl is-active hbase-master || err 'HBase Master is not active'
+  retry_constant_custom \
+    "${capped_timeout}" 1 nc -v -z -w 0 "${host}" "${port}"
+  echo "Service up on host=${host} port=${port} name=${name}."
+}
+
+function wait_for_hbase() {
+  if [[ "${ROLE}" == 'Master' ]]; then
+    wait_for_port "HBase Master" localhost 16010
+    retry_command systemctl is-active hbase-master
   else
-    systemctl is-active hbase-regionserver || err 'HBase Region Server is not active'
+    retry_command systemctl is-active hbase-regionserver
   fi
-  echo "list" | hbase shell || err 'HBase not found'
+
+  # Systemd and port checking are not deterministic for HBase Master
+  retry_command "echo create \'$(hostname)\',\'$(hostname)\' | hbase shell -n"
+  retry_command "echo disable \'$(hostname)\' | hbase shell -n"
+  retry_command "echo drop \'$(hostname)\' | hbase shell -n"
+}
+
+function check_prerequisites() {
+  # check for Zookeeper
+  wait_for_port "Zookeeper" localhost 2181
+  # check for HBase
+  wait_for_hbase
 
   # check for Solr
   curl 'http://localhost:8983/solr' || err 'Solr not found'
@@ -56,31 +113,30 @@ function check_prerequisites(){
   fi
 }
 
-function install_atlas(){
-  install_apt_get atlas
-  ln -s "${ATLAS_HOME}/conf" "/etc/atlas/conf"
-}
-
-function configure_solr(){
+function configure_solr() {
   if [[ $(hostname) == "${MASTER}" ]]; then
     # configure Solr only on the one actual Master node
-    runuser -l solr -s /bin/bash -c "/usr/lib/solr/bin/solr create -c vertex_index -d /etc/atlas/conf/solr -shards 3"
-    runuser -l solr -s /bin/bash -c "/usr/lib/solr/bin/solr create -c edge_index -d /etc/atlas/conf/solr -shards 3"
-    runuser -l solr -s /bin/bash -c "/usr/lib/solr/bin/solr create -c fulltext_index -d /etc/atlas/conf/solr -shards 3"
+    runuser -l solr -s /bin/bash -c "/usr/lib/solr/bin/solr create -c vertex_index -d ${ATLAS_ETC_DIR}/solr -shards 3"
+    runuser -l solr -s /bin/bash -c "/usr/lib/solr/bin/solr create -c edge_index -d ${ATLAS_ETC_DIR}/solr -shards 3"
+    runuser -l solr -s /bin/bash -c "/usr/lib/solr/bin/solr create -c fulltext_index -d ${ATLAS_ETC_DIR}/solr -shards 3"
   fi
 }
 
-function configure_atlas(){
-  local zk_quorum=$(bdconfig get_property_value --configuration_file /etc/hbase/conf/hbase-site.xml \
+function configure_atlas() {
+  local zk_quorum
+  zk_quorum=$(bdconfig get_property_value --configuration_file /etc/hbase/conf/hbase-site.xml \
     --name hbase.zookeeper.quorum 2>/dev/null)
-  local cluster_name=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)
-  local zk_url_for_solr="$(echo ${zk_quorum} | sed 's/,/:2181\\\/solr,/g'):2181\\/solr"
+  local zk_url_for_solr
+  zk_url_for_solr="$(echo "${zk_quorum}" | sed 's/:2181/:2181\/solr/g')"
 
-  # symlink HBase conf dir
+  local cluster_name
+  cluster_name=$(/usr/share/google/get_metadata_value attributes/dataproc-cluster-name)
+
+  # Symlink HBase conf dir
   mkdir "${ATLAS_HOME}/hbase"
   ln -s "/etc/hbase/conf" "${ATLAS_HOME}/hbase/conf"
 
-  # configure atlas
+  # Configure Atlas
   sed -i "s/atlas.graph.storage.hostname=.*/atlas.graph.storage.hostname=${zk_quorum}/" ${ATLAS_CONFIG}
   sed -i "s/atlas.graph.storage.hbase.table=.*/atlas.graph.storage.hbase.table=atlas/" ${ATLAS_CONFIG}
 
@@ -88,14 +144,13 @@ function configure_atlas(){
   sed -i "s/atlas.audit.hbase.zookeeper.quorum=.*/atlas.audit.hbase.zookeeper.quorum=${zk_quorum}/" ${ATLAS_CONFIG}
 
   if [[ -n "${ADDITIONAL_MASTER}" ]]; then
-    # configure HA
-
+    # Configure HA
     sed -i "s/atlas.server.ha.enabled=.*/atlas.server.ha.enabled=true/" ${ATLAS_CONFIG}
     sed -i "s/atlas.server.ha.zookeeper.connect=.*/atlas.server.ha.zookeeper.connect=${zk_quorum}/" ${ATLAS_CONFIG}
     sed -i "s/atlas.graph.index.search.solr.wait-searcher=.*/#atlas.graph.index.search.solr.wait-searcher=.*/" ${ATLAS_CONFIG}
-    sed -i "s/atlas.graph.index.search.solr.zookeeper-url=.*/atlas.graph.index.search.solr.zookeeper-url=${zk_url_for_solr}/" ${ATLAS_CONFIG}
+    sed -i "s|atlas.graph.index.search.solr.zookeeper-url=.*|atlas.graph.index.search.solr.zookeeper-url=${zk_url_for_solr}|" ${ATLAS_CONFIG}
 
-    cat << EOF >> /etc/atlas/conf/atlas-application.properties
+    cat <<EOF >>${ATLAS_CONFIG}
 atlas.server.ids=m0,m1,m2
 atlas.server.address.m0=${cluster_name}-m-0:21000
 atlas.server.address.m1=${cluster_name}-m-1:21000
@@ -104,27 +159,28 @@ atlas.server.ha.zookeeper.zkroot=/apache_atlas
 atlas.client.ha.retries=4
 atlas.client.ha.sleep.interval.ms=5000
 EOF
-
   else
-    # disable solr cloud
+
+    # Disable Solr Cloud
     sed -i "s/atlas.graph.index.search.solr.mode=cloud/#atlas.graph.index.search.solr.mode=cloud/" ${ATLAS_CONFIG}
     sed -i "s/atlas.graph.index.search.solr.zookeeper-url=.*/#atlas.graph.index.search.solr.zookeeper-url=.*/" ${ATLAS_CONFIG}
     sed -i "s/atlas.graph.index.search.solr.zookeeper-connect-timeout=.*/#atlas.graph.index.search.solr.zookeeper-connect-timeout=.*/" ${ATLAS_CONFIG}
     sed -i "s/atlas.graph.index.search.solr.zookeeper-session-timeout=.*/#atlas.graph.index.search.solr.zookeeper-session-timeout=.*/" ${ATLAS_CONFIG}
     sed -i "s/atlas.graph.index.search.solr.wait-searcher=.*/#atlas.graph.index.search.solr.wait-searcher=.*/" ${ATLAS_CONFIG}
 
-    # enable solr http
+    # Enable Solr HTTP
     sed -i "s/#atlas.graph.index.search.solr.mode=http/atlas.graph.index.search.solr.mode=http/" ${ATLAS_CONFIG}
     sed -i "s/#atlas.graph.index.search.solr.http-urls=.*/atlas.graph.index.search.solr.http-urls=http:\/\/${MASTER}:8983\/solr/" ${ATLAS_CONFIG}
 
   fi
 
-  # override default admin username:password
+  # Override default admin username:password
   if [[ -n "${ATLAS_ADMIN_USERNAME}" && -n "${ATLAS_ADMIN_PASSWORD_SHA256}" ]]; then
-    sed -i "s/admin=.*/${ATLAS_ADMIN_USERNAME}=ROLE_ADMIN::${ATLAS_ADMIN_PASSWORD_SHA256}/" "${ATLAS_HOME}/conf/users-credentials.properties"
+    sed -i "s/admin=.*/${ATLAS_ADMIN_USERNAME}=ROLE_ADMIN::${ATLAS_ADMIN_PASSWORD_SHA256}/" \
+      "${ATLAS_HOME}/conf/users-credentials.properties"
   fi
 
-  # configure for local Kafka
+  # Configure to use local Kafka
   if ls /usr/lib/kafka &>/dev/null; then
     sed -i "s/atlas.notification.embedded=.*/atlas.notification.embedded=false/" ${ATLAS_CONFIG}
     sed -i "s/atlas.kafka.zookeeper.connect=.*/atlas.kafka.zookeeper.connect=${zk_quorum}/" ${ATLAS_CONFIG}
@@ -133,8 +189,8 @@ EOF
 
 }
 
-function start_atlas(){
-  cat << EOF > ${INIT_SCRIPT}
+function start_atlas() {
+  cat <<EOF >${INIT_SCRIPT}
 [Unit]
 Description=Apache Atlas
 
@@ -150,14 +206,29 @@ WantedBy=multi-user.target
 EOF
   chmod a+rw ${INIT_SCRIPT}
   systemctl enable atlas
-  systemctl start atlas || err 'Unable to start atlas service'
+  nohup systemctl start atlas || err 'Unable to start atlas service'
+
+  # Check if 'atlas' table gets created and disabled. Make sure that
+  # it is enabled to avoid Atlas failures.
+  for ((i = 0; i < 60; i++)); do
+    cmd_check_table_exist="echo exists \'atlas\' | hbase shell -n | grep -q 'does exist'"
+    if eval "${cmd_check_table_exist}"; then
+      cmd_is_disabled="echo is_disabled \'atlas\' | hbase shell -n | grep -q 'true'"
+      if eval "${cmd_is_disabled}"; then
+        retry_command "echo enable \'atlas\' | hbase shell -n"
+      else
+        break
+      fi
+    fi
+    sleep 20
+  done
 }
 
-function wait_for_atlas_to_start(){
+function wait_for_atlas_to_start() {
   # atlas start script exits prematurely, before atlas actually starts
   # thus wait up to 10 minutes until atlas is fully working
   wait_for_port "Atlas web server" localhost 21000
-  cmd='curl localhost:21000/api/atlas/admin/status'
+  local -r cmd='curl localhost:21000/api/atlas/admin/status'
   for ((i = 0; i < 60; i++)); do
     if eval "${cmd}"; then
       return 0
@@ -167,30 +238,31 @@ function wait_for_atlas_to_start(){
   return 1
 }
 
-function wait_for_atlas_becomes_active_or_passive(){
+function wait_for_atlas_becomes_active_or_passive() {
   cmd="sudo ${ATLAS_HOME}/bin/atlas_admin.py -u doesnt:matter -status 2>/dev/null" # public check, but some username:password has to be given
   for ((i = 0; i < 60; i++)); do
-    status=$(eval "${cmd}")
-    if [[ ${status} == 'ACTIVE' || ${status} == 'PASSIVE' ]]; then
-      return 0
+    if status=$(eval "${cmd}"); then
+      if [[ ${status} == 'ACTIVE' || ${status} == 'PASSIVE' ]]; then
+        return 0
+      fi
     fi
     sleep 10
   done
   return 1
 }
 
-function enable_hive_hook(){
+function enable_hive_hook() {
   bdconfig set_property \
     --name 'hive.exec.post.hooks' \
     --value 'org.apache.atlas.hive.hook.HiveHook' \
     --configuration_file '/etc/hive/conf/hive-site.xml' \
     --clobber
 
-  echo "export HIVE_AUX_JARS_PATH=${ATLAS_HOME}/hook/hive" >> /etc/hive/conf/hive-env.sh
+  echo "export HIVE_AUX_JARS_PATH=${ATLAS_HOME}/hook/hive" >>/etc/hive/conf/hive-env.sh
   ln -s ${ATLAS_CONFIG} /etc/hive/conf/
 }
 
-function enable_hbase_hook(){
+function enable_hbase_hook() {
   bdconfig set_property \
     --name 'hbase.coprocessor.master.classes' \
     --value 'org.apache.atlas.hbase.hook.HBaseAtlasCoprocessor' \
@@ -203,13 +275,13 @@ function enable_hbase_hook(){
   sudo service hbase-master restart
 }
 
-function enable_sqoop_hook(){
-  if [[ ! -f  /usr/lib/sqoop ]]; then
+function enable_sqoop_hook() {
+  if [[ ! -f /usr/lib/sqoop ]]; then
     echo 'Sqoop not found, not configuring hook'
     return
   fi
 
-  if [[ ! -f  /usr/lib/sqoop/conf/sqoop-site.xml ]]; then
+  if [[ ! -f /usr/lib/sqoop/conf/sqoop-site.xml ]]; then
     cp /usr/lib/sqoop/conf/sqoop-site-template.xml /usr/lib/sqoop/conf/sqoop-site.xml
   fi
 
@@ -226,21 +298,21 @@ function enable_sqoop_hook(){
 }
 
 function main() {
-  local role
-  role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-  if is_version_at_least "${DATAPROC_VERSION}" 1.5; then
-    if [[ "${role}" == 'Master' ]]; then
-      check_prerequisites
-      install_atlas
-      configure_solr
-      configure_atlas
-      enable_hive_hook
-      enable_hbase_hook
-      enable_sqoop_hook
-      start_atlas
-      wait_for_atlas_to_start
-      wait_for_atlas_becomes_active_or_passive
-    fi
+   if ! is_version_at_least "${DATAPROC_VERSION}" "1.5"; then
+    err "Dataproc ${DATAPROC_VERSION} is not supported"
+  fi
+
+  if [[ "${ROLE}" == 'Master' ]]; then
+    check_prerequisites
+    retry_command "apt-get install -q -y atlas"
+    configure_solr
+    configure_atlas
+    enable_hive_hook
+    enable_hbase_hook
+    enable_sqoop_hook
+    start_atlas
+    wait_for_atlas_to_start
+    wait_for_atlas_becomes_active_or_passive
   fi
 }
 
