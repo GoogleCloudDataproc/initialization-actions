@@ -30,7 +30,9 @@ import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_WORKING_DIRECTORY;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.PERMISSIONS_TO_REPORT;
 import static com.google.cloud.hadoop.gcsio.CreateFileOptions.DEFAULT_NO_OVERWRITE;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.GROUP_IMPERSONATION_SERVICE_ACCOUNT_SUFFIX;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.IMPERSONATION_SERVICE_ACCOUNT_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.USER_IMPERSONATION_SERVICE_ACCOUNT_SUFFIX;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
@@ -107,6 +109,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.ContentSummary;
@@ -1461,7 +1464,8 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
    * build a credential with access token provided by this provider; Otherwise obtain credential
    * through {@link HadoopCredentialConfiguration#getCredentialFactory(Configuration, String...)}.
    */
-  private Credential getCredential(Configuration config)
+  private Credential getCredential(
+      Configuration config, GoogleCloudStorageFileSystemOptions gcsFsOptions)
       throws IOException, GeneralSecurityException {
     Credential credential = null;
 
@@ -1494,7 +1498,7 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
 
     // If impersonation service account exists, then use current credential to request access token
     // for the impersonating service account.
-    return getImpersonatedCredential(config, credential).orElse(credential);
+    return getImpersonatedCredential(config, gcsFsOptions, credential).orElse(credential);
   }
 
   /**
@@ -1502,57 +1506,64 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
    * account to impersonate.
    */
   private static Optional<Credential> getImpersonatedCredential(
-      Configuration config, Credential credential) throws IOException {
-    GoogleCloudStorageOptions options =
-        GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config)
-            .build()
-            .getCloudStorageOptions();
+      Configuration config, GoogleCloudStorageFileSystemOptions gcsFsOptions, Credential credential)
+      throws IOException {
+    GoogleCloudStorageOptions options = gcsFsOptions.getCloudStorageOptions();
+    UserGroupInformation currentUser = UserGroupInformation.getCurrentUser();
+    Optional<String> serviceAccountToImpersonate =
+        Stream.of(
+                () ->
+                    getServiceAccountToImpersonateForUserGroup(
+                        USER_IMPERSONATION_SERVICE_ACCOUNT_SUFFIX
+                            .withPrefixes(CONFIG_KEY_PREFIXES)
+                            .getPropsWithPrefix(config),
+                        ImmutableList.of(currentUser.getShortUserName())),
+                () ->
+                    getServiceAccountToImpersonateForUserGroup(
+                        GROUP_IMPERSONATION_SERVICE_ACCOUNT_SUFFIX
+                            .withPrefixes(CONFIG_KEY_PREFIXES)
+                            .getPropsWithPrefix(config),
+                        ImmutableList.copyOf(currentUser.getGroupNames())),
+                (Supplier<Optional<String>>)
+                    () ->
+                        Optional.ofNullable(
+                            IMPERSONATION_SERVICE_ACCOUNT_SUFFIX
+                                .withPrefixes(CONFIG_KEY_PREFIXES)
+                                .get(config, config::get)))
+            .map(Supplier::get)
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            .filter(sa -> !isNullOrEmpty(sa))
+            .findFirst();
 
-    String serviceAccountToImpersonate =
-        IMPERSONATION_SERVICE_ACCOUNT_SUFFIX
-            .withPrefixes(CONFIG_KEY_PREFIXES)
-            .get(config, config::get);
-    if (isNullOrEmpty(serviceAccountToImpersonate)) {
-      Optional<String> serviceAccountToImpersonateFromUser =
-          getMatchedServiceAccountToImpersonateFromGroup(
-              options.getUserImpersonationServiceAccounts(),
-              ImmutableList.of(UserGroupInformation.getCurrentUser().getShortUserName()));
-      Optional<String> serviceAccountToImpersonateFromGroup =
-          getMatchedServiceAccountToImpersonateFromGroup(
-              options.getGroupImpersonationServiceAccounts(),
-              ImmutableList.copyOf(UserGroupInformation.getCurrentUser().getGroupNames()));
-      serviceAccountToImpersonate =
-          serviceAccountToImpersonateFromUser.orElse(
-              serviceAccountToImpersonateFromGroup.orElse(null));
+    if (serviceAccountToImpersonate.isPresent()) {
+      HttpTransport httpTransport =
+          HttpTransportFactory.createHttpTransport(
+              options.getTransportType(),
+              options.getProxyAddress(),
+              options.getProxyUsername(),
+              options.getProxyPassword());
+      GoogleCredential impersonatedCredential =
+          new GoogleCredentialWithIamAccessToken(
+              httpTransport,
+              new CredentialHttpRetryInitializer(credential),
+              serviceAccountToImpersonate.get(),
+              CredentialFactory.GCS_SCOPES);
+      logger.atFine().log(
+          "Impersonating '%s' service account for '%s' user",
+          serviceAccountToImpersonate.get(), currentUser);
+      return Optional.of(impersonatedCredential.createScoped(CredentialFactory.GCS_SCOPES));
     }
 
-    if (isNullOrEmpty(serviceAccountToImpersonate)) {
-      return Optional.empty();
-    }
-
-    HttpTransport httpTransport =
-        HttpTransportFactory.createHttpTransport(
-            options.getTransportType(),
-            options.getProxyAddress(),
-            options.getProxyUsername(),
-            options.getProxyPassword());
-    GoogleCredential impersonatedCredential =
-        new GoogleCredentialWithIamAccessToken(
-            httpTransport,
-            new CredentialHttpRetryInitializer(credential),
-            serviceAccountToImpersonate,
-            CredentialFactory.GCS_SCOPES);
-    return Optional.of(impersonatedCredential.createScoped(CredentialFactory.GCS_SCOPES));
+    return Optional.empty();
   }
 
-  private static Optional<String> getMatchedServiceAccountToImpersonateFromGroup(
+  private static Optional<String> getServiceAccountToImpersonateForUserGroup(
       Map<String, String> serviceAccountMapping, List<String> userGroups) {
-    for (Map.Entry<String, String> entry : serviceAccountMapping.entrySet()) {
-      if (userGroups.contains(entry.getKey())) {
-        return Optional.of(entry.getValue());
-      }
-    }
-    return Optional.empty();
+    return serviceAccountMapping.entrySet().stream()
+        .filter(e -> userGroups.contains(e.getKey()))
+        .map(Map.Entry::getValue)
+        .findFirst();
   }
 
   /**
@@ -1613,16 +1624,15 @@ public abstract class GoogleHadoopFileSystemBase extends FileSystem
   }
 
   private GoogleCloudStorageFileSystem createGcsFs(Configuration config) throws IOException {
+    GoogleCloudStorageFileSystemOptions gcsFsOptions =
+        GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config).build();
+
     Credential credential;
     try {
-      credential = getCredential(config);
+      credential = getCredential(config, gcsFsOptions);
     } catch (GeneralSecurityException e) {
       throw new RuntimeException(e);
     }
-
-    GoogleCloudStorageFileSystemOptions gcsFsOptions =
-        GoogleHadoopFileSystemConfiguration.getGcsFsOptionsBuilder(config)
-            .build();
 
     return new GoogleCloudStorageFileSystem(credential, gcsFsOptions);
   }

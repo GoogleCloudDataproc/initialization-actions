@@ -172,7 +172,7 @@ public class HadoopCredentialConfiguration {
    * accessing GCS.
    */
   public static final HadoopConfigurationProperty<Map<String, String>>
-      IMPERSONATION_SERVICE_ACCOUNT_FOR_USER_SUFFIX =
+      USER_IMPERSONATION_SERVICE_ACCOUNT_SUFFIX =
           new HadoopConfigurationProperty<>(
               ".auth.impersonation.service.account.for.user.", ImmutableMap.of());
 
@@ -181,7 +181,7 @@ public class HadoopCredentialConfiguration {
    * accessing GCS.
    */
   public static final HadoopConfigurationProperty<Map<String, String>>
-      IMPERSONATION_SERVICE_ACCOUNT_FOR_GROUP_SUFFIX =
+      GROUP_IMPERSONATION_SERVICE_ACCOUNT_SUFFIX =
           new HadoopConfigurationProperty<>(
               ".auth.impersonation.service.account.for.group.", ImmutableMap.of());
 

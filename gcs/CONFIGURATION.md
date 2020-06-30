@@ -247,21 +247,34 @@ is `false`.
 
 #### Service account impersonation
 
-If the following property is set, the service account specified will be
-impersonated by generating a short-lived credential when accessing GCS.
-Configured authentication method authentications will be used to authenticate
-the request to generate this short-lived credential.
+Service account impersonation can be configured for a specific user name and a
+group name, or for all users by default using below properties:
+
+*   `fs.gs.auth.impersonation.service.account.for.user.<USER_NAME>` (not set by
+    default)
+
+    The service account impersonation for a specific user.
+
+*   `fs.gs.auth.impersonation.service.account.for.group.<GROUP_NAME>` (not set
+    by default)
+
+    The service account impersonation for a specific group.
 
 *   `fs.gs.auth.impersonation.service.account` (not set by default)
 
-If any of the following properties is set, the service account specified will be
-impersonated by generating a short-lived credential when accessing GCS if the
-current user or group name matches with specified user or group name.
-If both are set, then the service account associated with the user name will
-take precedence over the service account associated with the group name.
+    Default service account impersonation for all users.
 
-*   `fs.gs.auth.impersonation.service.account.for.user.<USER_NAME>` (not set by default)
-*   `fs.gs.auth.impersonation.service.account.for.group.<GROUP_NAME>` (not set by default)
+If any of the above properties are set then the service account specified will
+be impersonated by generating a short-lived credential when accessing Google
+Cloud Storage.
+
+Configured authentication method will be used to authenticate the request to
+generate this short-lived credential.
+
+If more than one property is set then the service account associated with the
+user name will take precedence over the service account associated with the
+group name for a matching user and group, which in turn will take precedence
+over default service account impersonation.
 
 ### IO configuration
 

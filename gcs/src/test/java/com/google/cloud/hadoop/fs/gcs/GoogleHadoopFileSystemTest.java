@@ -16,10 +16,10 @@ package com.google.cloud.hadoop.fs.gcs;
 
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_CONFIG_PREFIX;
 import static com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystemConfiguration.GCS_LAZY_INITIALIZATION_ENABLE;
-import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.IMPERSONATION_SERVICE_ACCOUNT_FOR_GROUP_SUFFIX;
-import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.IMPERSONATION_SERVICE_ACCOUNT_FOR_USER_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.GROUP_IMPERSONATION_SERVICE_ACCOUNT_SUFFIX;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.IMPERSONATION_SERVICE_ACCOUNT_SUFFIX;
 import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.SERVICE_ACCOUNT_JSON_KEYFILE_SUFFIX;
+import static com.google.cloud.hadoop.util.HadoopCredentialConfiguration.USER_IMPERSONATION_SERVICE_ACCOUNT_SUFFIX;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
@@ -226,7 +226,7 @@ public class GoogleHadoopFileSystemTest extends GoogleHadoopFileSystemIntegratio
         AccessTokenProvider.class);
     config.set(
         GCS_CONFIG_PREFIX
-            + IMPERSONATION_SERVICE_ACCOUNT_FOR_USER_SUFFIX.getKey()
+            + USER_IMPERSONATION_SERVICE_ACCOUNT_SUFFIX.getKey()
             + UserGroupInformation.getCurrentUser().getShortUserName(),
         "test-service-account");
 
@@ -251,7 +251,7 @@ public class GoogleHadoopFileSystemTest extends GoogleHadoopFileSystemIntegratio
         AccessTokenProvider.class);
     config.set(
         GCS_CONFIG_PREFIX
-            + IMPERSONATION_SERVICE_ACCOUNT_FOR_GROUP_SUFFIX.getKey()
+            + GROUP_IMPERSONATION_SERVICE_ACCOUNT_SUFFIX.getKey()
             + UserGroupInformation.getCurrentUser().getGroupNames()[0],
         "test-service-account");
 
@@ -276,12 +276,12 @@ public class GoogleHadoopFileSystemTest extends GoogleHadoopFileSystemIntegratio
         AccessTokenProvider.class);
     config.set(
         GCS_CONFIG_PREFIX
-            + IMPERSONATION_SERVICE_ACCOUNT_FOR_USER_SUFFIX.getKey()
+            + USER_IMPERSONATION_SERVICE_ACCOUNT_SUFFIX.getKey()
             + UserGroupInformation.getCurrentUser().getShortUserName(),
         "test-service-account1");
     config.set(
         GCS_CONFIG_PREFIX
-            + IMPERSONATION_SERVICE_ACCOUNT_FOR_GROUP_SUFFIX.getKey()
+            + GROUP_IMPERSONATION_SERVICE_ACCOUNT_SUFFIX.getKey()
             + UserGroupInformation.getCurrentUser().getGroupNames()[0],
         "test-service-account2");
 
@@ -308,12 +308,12 @@ public class GoogleHadoopFileSystemTest extends GoogleHadoopFileSystemIntegratio
         GCS_CONFIG_PREFIX + IMPERSONATION_SERVICE_ACCOUNT_SUFFIX.getKey(), "test-service-account1");
     config.set(
         GCS_CONFIG_PREFIX
-            + IMPERSONATION_SERVICE_ACCOUNT_FOR_USER_SUFFIX.getKey()
+            + USER_IMPERSONATION_SERVICE_ACCOUNT_SUFFIX.getKey()
             + UserGroupInformation.getCurrentUser().getShortUserName(),
         "test-service-account2");
     config.set(
         GCS_CONFIG_PREFIX
-            + IMPERSONATION_SERVICE_ACCOUNT_FOR_GROUP_SUFFIX.getKey()
+            + GROUP_IMPERSONATION_SERVICE_ACCOUNT_SUFFIX.getKey()
             + UserGroupInformation.getCurrentUser().getGroupNames()[0],
         "test-service-account3");
 
@@ -337,7 +337,7 @@ public class GoogleHadoopFileSystemTest extends GoogleHadoopFileSystemIntegratio
         TestingAccessTokenProvider.class,
         AccessTokenProvider.class);
     config.set(
-        GCS_CONFIG_PREFIX + IMPERSONATION_SERVICE_ACCOUNT_FOR_USER_SUFFIX.getKey() + "invalid-user",
+        GCS_CONFIG_PREFIX + USER_IMPERSONATION_SERVICE_ACCOUNT_SUFFIX.getKey() + "invalid-user",
         "test-service-account");
 
     URI gsUri = new URI("gs://foobar/");
