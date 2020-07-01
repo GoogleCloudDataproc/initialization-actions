@@ -4,6 +4,7 @@ set -euxo pipefail
 
 # Declare global variable for passing tests between functions
 declare -a TESTS_TO_RUN
+declare -a CHANGED_FILES
 
 configure_gcloud() {
   gcloud config set core/disable_prompts TRUE
@@ -27,18 +28,23 @@ configure_gcloud_ssh_key() {
 # Fetches master branch from GitHub and "resets" local changes to be relative to it,
 # so we can diff what changed relatively to master branch.
 initialize_git_repo() {
+  run_as_presubmit=$1
+
   git init
   git config user.email "ia-tests@presubmit.example.com"
   git config user.name "ia-tests"
 
   git remote add origin "https://github.com/GoogleCloudPlatform/dataproc-initialization-actions.git"
   git fetch origin master
-  # Fetch all PRs to get history for PRs created from forked repos
-  git fetch origin +refs/pull/*/merge:refs/remotes/origin/pr/*
 
-  git reset --hard "${COMMIT_SHA}"
+  if [[ $run_as_presubmit == "true" ]]; then
+    # Fetch all PRs to get history for PRs created from forked repos
+    git fetch origin +refs/pull/*/merge:refs/remotes/origin/pr/*
 
-  git rebase origin/master
+    git reset --hard "${COMMIT_SHA}"
+
+    git rebase origin/master
+  fi
 }
 
 # This function adds all changed files to git "index" and diffs them against master branch
@@ -101,9 +107,18 @@ main() {
   cd /init-actions
   configure_gcloud
   configure_gcloud_ssh_key
-  initialize_git_repo
-  determine_tests_to_run
-  run_tests
+  if [[ $RUN_ALL_TESTS=="true" ]]; then
+    # Run periodic
+    initialize_git_repo "false"
+    TESTS_TO_RUN=(":DataprocInitActionsTestSuite")
+    run_tests || true
+    bash cloudbuild/periodic/upload-test-results-to-gcs.sh
+  else
+    # Run presubmit
+    initialize_git_repo "true"
+    determine_tests_to_run
+    run_tests
+  fi
 }
 
 main
