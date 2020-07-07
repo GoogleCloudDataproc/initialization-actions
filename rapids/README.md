@@ -62,7 +62,7 @@ gcloud beta dataproc clusters create $CLUSTER_NAME  \
     --worker-accelerator type=nvidia-tesla-t4,count=$NUM_GPUS \
     --worker-machine-type n1-standard-16 \
     --worker-boot-disk-size 400 \
-    --master-boot-disk-type pd-ssd \
+    --worker-boot-disk-type pd-ssd \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
     --optional-components=ANACONDA,JUPYTER,ZEPPELIN \
     --metadata gpu-driver-provider="NVIDIA" \
