@@ -306,11 +306,11 @@ function config_gpu_isolation {
   printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' >> /etc/hadoop/conf/container-executor.cfg
 
   chown :yarn -R /sys/fs/cgroup/cpu,cpuacct
-  chmod g+rwx -R /sys/fs/cgroup/cpu,cpuacct
+  chmod a+rwx -R /sys/fs/cgroup/cpu,cpuacct
   chown :yarn -R /sys/fs/cgroup/devices
-  chmod g+rwx -R /sys/fs/cgroup/devices
+  chmod a+rwx -R /sys/fs/cgroup/devices
   chown yarn:yarn -R /hadoop/yarn
-  chmod g+rwx -R /hadoop/yarn  
+  chmod a+rwx -R /hadoop/yarn  
 }
 
 function main() {
