@@ -67,7 +67,7 @@ gpu-driver-provider=<OS|NVIDIA>` metadata value.
     ```
 #### GPU Scheduling in Yarn:
 
-Yarn is the default resouce manager for DataProc. To use GPU scheduling feature in Spark, it requires YARN version >= 2.10 or >=3.1.1. If intended to use spark with Deep Learning use case, it recommended to use Yarn >= 3.1.3 to get support for nvidia-docker version 2. 
+Yarn is the default resouce manager for Dataproc. To use GPU scheduling feature in Spark, it requires YARN version >= 2.10 or >=3.1.1. If intended to use spark with Deep Learning use case, it recommended to use Yarn >= 3.1.3 to get support for nvidia-docker version 2. 
 
 In Current DataProc set up, we enable GPU resource issolation by initialization script, you can find more information at [NVIDIA spark rapids getting started guide](https://nvidia.github.io/spark-rapids/).
 
