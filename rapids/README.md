@@ -71,7 +71,7 @@ gcloud beta dataproc clusters create $CLUSTER_NAME  \
     --bucket $GCS_BUCKET \
     --subnet=default \
     --enable-component-gateway \
-    --properties="^#^spark:spark.dynamicAllocation.enabled=false#spark:spark.shuffle.service.enabled=false#spark:spark.yarn.unmanagedAM.enabled=false#spark:spark.task.resource.gpu.amount=0.125#spark:spark.executor.cores=8#spark:spark.executor.memory=20G"
+    --properties="^#^spark:spark.yarn.unmanagedAM.enabled=false#spark:spark.task.resource.gpu.amount=0.125#spark:spark.executor.cores=8#spark:spark.executor.memory=20G"
 ```
 
 After submitting this command, please go to the Google Cloud Platform console on

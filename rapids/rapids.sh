@@ -98,6 +98,8 @@ spark.locality.wait=0s
 spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh
 spark.sql.shuffle.partitions=48
 spark.sql.files.maxPartitionBytes=512m
+spark.dynamicAllocation.enabled=false
+spark.shuffle.service.enabled=false
 ###### END   : NVIDIA GPU specific properties ######
 EOF
 }
@@ -136,7 +138,7 @@ install_systemd_dask_service() {
 #!/bin/bash
 if [[ "${RUN_WORKER_ON_MASTER}" == true ]]; then
   echo "dask-cuda-worker starting, logging to /var/log/dask-cuda-worker.log."
-  $RAPIDS_ENV_BIN/dask-cuda-worker --memory-limit 0 ${MASTER}:8786 > /var/log/dask-cuda-worker.log 2>&1 &
+  $RAPIDS_ENV_BIN/dask-cuda-worker ${MASTER}:8786 --memory-limit 0 > /var/log/dask-cuda-worker.log 2>&1 &
 fi
 echo "dask-scheduler starting, logging to /var/log/dask-scheduler.log."
 $RAPIDS_ENV_BIN/dask-scheduler > /var/log/dask-scheduler.log 2>&1
@@ -144,7 +146,7 @@ EOF
   else
     cat <<EOF >"${DASK_LAUNCHER}"
 #!/bin/bash
-$RAPIDS_ENV_BIN/dask-cuda-worker --memory-limit 0 ${MASTER}:8786 > /var/log/dask-cuda-worker.log 2>&1
+$RAPIDS_ENV_BIN/dask-cuda-worker ${MASTER}:8786 --memory-limit 0 > /var/log/dask-cuda-worker.log 2>&1
 EOF
   fi
   chmod 750 "${DASK_LAUNCHER}"
