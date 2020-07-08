@@ -347,7 +347,10 @@ function main() {
     else
       echo 'GPU metrics will not be installed.'
     fi
-    config_gpu_exclusive_mode
+
+    if ! [[ "${ROLE}" == "Master" ]]; then
+      config_gpu_exclusive_mode
+    fi
   fi
 
 }

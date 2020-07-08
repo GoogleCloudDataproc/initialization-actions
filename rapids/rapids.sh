@@ -132,13 +132,15 @@ function install_conda_kernel() {
 
 install_systemd_dask_service() {
   echo "Installing systemd Dask service..."
-
+  local -r dask_worker_local_dir="/tmp/rapids"
+  local -r mem_total=$(free -m | grep -oP '\d+' | head -n1)
+  
   if [[ "${ROLE}" == "Master" ]]; then
     cat <<EOF >"${DASK_LAUNCHER}"
 #!/bin/bash
 if [[ "${RUN_WORKER_ON_MASTER}" == true ]]; then
   echo "dask-cuda-worker starting, logging to /var/log/dask-cuda-worker.log."
-  $RAPIDS_ENV_BIN/dask-cuda-worker ${MASTER}:8786 --memory-limit 0 > /var/log/dask-cuda-worker.log 2>&1 &
+  $RAPIDS_ENV_BIN/dask-cuda-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-cuda-worker.log 2>&1 &
 fi
 echo "dask-scheduler starting, logging to /var/log/dask-scheduler.log."
 $RAPIDS_ENV_BIN/dask-scheduler > /var/log/dask-scheduler.log 2>&1
@@ -146,7 +148,7 @@ EOF
   else
     cat <<EOF >"${DASK_LAUNCHER}"
 #!/bin/bash
-$RAPIDS_ENV_BIN/dask-cuda-worker ${MASTER}:8786 --memory-limit 0 > /var/log/dask-cuda-worker.log 2>&1
+$RAPIDS_ENV_BIN/dask-cuda-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-cuda-worker.log 2>&1
 EOF
   fi
   chmod 750 "${DASK_LAUNCHER}"
