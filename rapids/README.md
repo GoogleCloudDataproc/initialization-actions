@@ -47,12 +47,10 @@ A few notes:
 export CLUSTER_NAME=<cluster_name>
 export GCS_BUCKET=<your bucket for the logs and notebooks>
 export REGION=<region>
-export ZONE=<zone>
 export NUM_GPUS=2
 export NUM_WORKERS=2
 
 gcloud beta dataproc clusters create $CLUSTER_NAME  \
-    --zone $ZONE \
     --region $REGION \
     --image-version=2.0.0-RC2-ubuntu18 \
     --master-machine-type n1-standard-4 \
