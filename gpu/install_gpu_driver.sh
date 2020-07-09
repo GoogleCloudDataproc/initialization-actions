@@ -305,12 +305,17 @@ function config_gpu_isolation {
   sed -i "s/yarn.nodemanager\.linux\-container\-executor\.group\=/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" /etc/hadoop/conf/container-executor.cfg
   printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' >> /etc/hadoop/conf/container-executor.cfg
 
+  local -r local_dirs=$(bdconfig get_property_value \
+    --configuration_file /etc/hadoop/conf/yarn-site.xml \
+    --name yarn.nodemanager.local-dirs 2>/dev/null)
+  local -r mod_local_dirs=${local_dirs//\,/ }
+
   chown :yarn -R /sys/fs/cgroup/cpu,cpuacct
   chmod a+rwx -R /sys/fs/cgroup/cpu,cpuacct
   chown :yarn -R /sys/fs/cgroup/devices
   chmod a+rwx -R /sys/fs/cgroup/devices
-  chown yarn:yarn -R /hadoop/yarn
-  chmod a+rwx -R /hadoop/yarn  
+  chown yarn:yarn -R ${mod_local_dirs} 
+  chmod a+rwx -R ${mod_local_dirs}  
 }
 
 function main() {
