@@ -69,14 +69,14 @@ function install_spark_rapids() {
       -P /usr/lib/spark/jars/
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "${nvidia_repo_url}/rapids-4-spark_2.12/${SPARK_RAPIDS_VERSION}/rapids-4-spark_2.12-${SPARK_RAPIDS_VERSION}.jar" \
-      -P /usr/lib/spark/jars/ 
+      -P /usr/lib/spark/jars/
   else
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "${rapids_repo_url}/xgboost4j-spark_${SPARK_VERSION}/${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}.jar" \
       -P /usr/lib/spark/jars/
     wget -nv --timeout=30 --tries=5 --retry-connrefused \
       "${rapids_repo_url}/xgboost4j_${SPARK_VERSION}/${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}/xgboost4j_${SPARK_VERSION}-${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}.jar" \
-      -P /usr/lib/spark/jars/    
+      -P /usr/lib/spark/jars/
   fi
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
     "${rapids_repo_url}/cudf/${CUDF_VERSION}/cudf-${CUDF_VERSION}-cuda${cudf_cuda_version}.jar" \
@@ -91,7 +91,6 @@ spark.rapids.sql.concurrentGpuTasks=2
 spark.executor.resource.gpu.amount=1
 spark.rapids.memory.pinnedPool.size=2G
 spark.executor.memoryOverhead=2G
-spark.task.cpus=1
 spark.plugins=com.nvidia.spark.SQLPlugin
 spark.executor.extraJavaOptions='-Dai.rapids.cudf.prefer-pinned=true'
 spark.locality.wait=0s
@@ -134,7 +133,7 @@ install_systemd_dask_service() {
   echo "Installing systemd Dask service..."
   local -r dask_worker_local_dir="/tmp/rapids"
   local -r mem_total=$(free -m | grep -oP '\d+' | head -n1)
-  
+
   if [[ "${ROLE}" == "Master" ]]; then
     cat <<EOF >"${DASK_LAUNCHER}"
 #!/bin/bash
@@ -186,7 +185,7 @@ function main() {
 
     if ! [[ "${ROLE}" == "Master" ]]; then
       systemctl restart hadoop-yarn-nodemanager.service
-    else 
+    else
       systemctl restart hadoop-yarn-resourcemanager.service
     fi
     echo "RAPIDS initialized with Spark runtime"
