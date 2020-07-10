@@ -30,14 +30,13 @@ readonly DASK_SERVICE='dask-cluster'
 readonly RAPIDS_ENV='RAPIDS'
 readonly RAPIDS_ENV_BIN="/opt/conda/anaconda/envs/${RAPIDS_ENV}/bin"
 
-# DataProc configurations
+# Dataproc configurations
 readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
 readonly HIVE_CONF_DIR='/etc/hive/conf'
 readonly SPARK_CONF_DIR='/etc/spark/conf'
 
 BUILD_DIR=$(mktemp -d -t rapids-init-action-XXXX)
 readonly BUILD_DIR
-
 
 function execute_with_retries() {
   local -r cmd=$1
@@ -83,7 +82,7 @@ function install_spark_rapids() {
     -P /usr/lib/spark/jars/
 }
 
-function update_spark_default_config {
+function configure_spark() {
   cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
 
 ###### BEGIN : NVIDIA GPU specific properties ######
@@ -181,12 +180,12 @@ function main() {
     echo "RAPIDS initialized with Dask runtime"
   elif [[ "${RUNTIME}" == "SPARK" ]]; then
     install_spark_rapids
-    update_spark_default_config
+    configure_spark
 
-    if ! [[ "${ROLE}" == "Master" ]]; then
-      systemctl restart hadoop-yarn-nodemanager.service
-    else
+    if [[ "${ROLE}" == "Master" ]]; then
       systemctl restart hadoop-yarn-resourcemanager.service
+    else
+      systemctl restart hadoop-yarn-nodemanager.service
     fi
     echo "RAPIDS initialized with Spark runtime"
   else

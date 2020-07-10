@@ -27,7 +27,7 @@ readonly OS_NAME
 OS_DIST=$(lsb_release -cs)
 readonly OS_DIST
 
-# DataProc role
+# Dataproc role
 readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
 
 # Parameters for NVIDIA-provided Debian GPU driver
@@ -60,7 +60,7 @@ readonly GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatfo
 INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'false')
 readonly INSTALL_GPU_AGENT
 
-# DataProc configurations
+# Dataproc configurations
 readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
 readonly HIVE_CONF_DIR='/etc/hive/conf'
 readonly SPARK_CONF_DIR='/etc/spark/conf'
@@ -230,60 +230,47 @@ EOF
   systemctl --now enable gpu-utilization-agent.service
 }
 
-function update_yarn_site_config {
+function set_hadoop_property() {
+  local -r config_file=$1
+  local -r property=$2
+  local -r value=$3
   bdconfig set_property \
-    --configuration_file "${HADOOP_CONF_DIR}/capacity-scheduler.xml" \
-    --name 'yarn.scheduler.capacity.resource-calculator' --value "org.apache.hadoop.yarn.util.resource.DominantResourceCalculator" \
+    --configuration_file "${HADOOP_CONF_DIR}/${config_file}" \
+    --name "${property}" --value "${value}" \
     --clobber
-
-  bdconfig set_property \
-    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
-    --name 'yarn.resource-types' --value "yarn.io/gpu" \
-    --clobber
-  
-  bdconfig set_property \
-    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
-    --name 'yarn.nodemanager.resource-plugins' --value "yarn.io/gpu" \
-    --clobber  
-
-  bdconfig set_property \
-    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
-    --name 'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' --value "auto" \
-    --clobber
-  
-  bdconfig set_property \
-    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
-    --name 'yarn.nodemanager.resource-plugins.gpu.path-to-discovery-executables' --value "/usr/bin" \
-    --clobber
-
-  bdconfig set_property \
-    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
-    --name 'yarn.nodemanager.linux-container-executor.cgroups.mount' --value "true" \
-    --clobber  
-
-  bdconfig set_property \
-    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
-    --name 'yarn.nodemanager.linux-container-executor.cgroups.mount-path' --value "/sys/fs/cgroup" \
-    --clobber  
-
-  bdconfig set_property \
-    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
-    --name 'yarn.nodemanager.linux-container-executor.cgroups.hierarchy' --value "yarn" \
-    --clobber  
-
-  bdconfig set_property \
-    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
-    --name 'yarn.nodemanager.container-executor.class' --value "org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor" \
-    --clobber 
-
-  bdconfig set_property \
-    --configuration_file "${HADOOP_CONF_DIR}/yarn-site.xml" \
-    --name 'yarn.nodemanager.linux-container-executor.group' --value "yarn" \
-    --clobber   
 }
 
-function config_gpu_exclusive_mode {
-  # check if running spark3, if not, enable GPU exclusive mode
+function configure_yarn() {
+  set_hadoop_property 'capacity-scheduler.xml' \
+    'yarn.scheduler.capacity.resource-calculator' \
+    'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
+
+  set_hadoop_property 'yarn-site.xml' 'yarn.resource-types' 'yarn.io/gpu'
+  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.resource-plugins.gpu.path-to-discovery-executables' '/usr/bin'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.linux-container-executor.cgroups.mount' 'true'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.linux-container-executor.cgroups.mount-path' '/sys/fs/cgroup'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.linux-container-executor.cgroups.hierarchy' 'yarn'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.container-executor.class' \
+    'org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor'
+  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.linux-container-executor.group' 'yarn'
+
+  local yarn_local_dirs=()
+  readarray -d ',' yarn_local_dirs < <(bdconfig get_property_value \
+    --configuration_file "/etc/hadoop/conf/yarn-site.xml" \
+    --name "yarn.nodemanager.local-dirs" 2>/dev/null | tr -d '\n')
+  chown yarn:yarn -R "${yarn_local_dirs[@]}"
+}
+
+function configure_gpu_exclusive_mode() {
+  # check if running spark 3, if not, enable GPU exclusive mode
   local spark_version
   spark_version=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
   if ! [[ ${spark_version} == 3.* ]]; then
@@ -292,30 +279,21 @@ function config_gpu_exclusive_mode {
   fi
 }
 
-function config_gpu_isolation {
+function configure_gpu_isolation() {
   # download GPU discovery script
   local -r spark_gpu_script_dir='/usr/lib/spark/scripts/gpu'
   mkdir -p ${spark_gpu_script_dir}
   local -r gpu_resources_url=https://raw.githubusercontent.com/apache/spark/master/examples/src/main/scripts/getGpusResources.sh
   curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
     "${gpu_resources_url}" -o ${spark_gpu_script_dir}/getGpusResources.sh
-  chmod a+rwx -R ${spark_gpu_script_dir} 
- 
+  chmod a+rwx -R ${spark_gpu_script_dir}
+
   # enable GPU isolation
   sed -i "s/yarn.nodemanager\.linux\-container\-executor\.group\=/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" /etc/hadoop/conf/container-executor.cfg
-  printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' >> /etc/hadoop/conf/container-executor.cfg
+  printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' >>/etc/hadoop/conf/container-executor.cfg
 
-  local -r local_dirs=$(bdconfig get_property_value \
-    --configuration_file /etc/hadoop/conf/yarn-site.xml \
-    --name yarn.nodemanager.local-dirs 2>/dev/null)
-  local -r mod_local_dirs=${local_dirs//\,/ }
-
-  chown :yarn -R /sys/fs/cgroup/cpu,cpuacct
   chmod a+rwx -R /sys/fs/cgroup/cpu,cpuacct
-  chown :yarn -R /sys/fs/cgroup/devices
   chmod a+rwx -R /sys/fs/cgroup/devices
-  chown yarn:yarn -R ${mod_local_dirs} 
-  chmod a+rwx -R ${mod_local_dirs}  
 }
 
 function main() {
@@ -325,19 +303,18 @@ function main() {
   fi
 
   export DEBIAN_FRONTEND=noninteractive
-
   execute_with_retries "apt-get update"
   execute_with_retries "apt-get install -y -q pciutils"
 
-  config_gpu_isolation
-  update_yarn_site_config
+  configure_gpu_isolation
+  configure_yarn
 
   # Detect NVIDIA GPU
   if (lspci | grep -q NVIDIA); then
     execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
     if [[ ${GPU_DRIVER_PROVIDER} == 'NVIDIA' ]]; then
       install_nvidia_gpu_driver
-     install_nvidia_nccl
+      install_nvidia_nccl
     elif [[ ${GPU_DRIVER_PROVIDER} == 'OS' ]]; then
       install_os_gpu_driver
     else
@@ -353,11 +330,10 @@ function main() {
       echo 'GPU metrics will not be installed.'
     fi
 
-    if ! [[ "${ROLE}" == "Master" ]]; then
-      config_gpu_exclusive_mode
+    if [[ "${ROLE}" != "Master" ]]; then
+      configure_gpu_exclusive_mode
     fi
   fi
-
 }
 
 main

@@ -19,6 +19,7 @@ initialization actions in production.
 ### Prerequisites
 
 To use Spark Rapids SQL plugin, XGBoost4j with Spark 3
+
 *   Apache Spark 3.0.0 RC1+
 *   Hardware Requirements
     *   NVIDIA Pascal™ GPU architecture or better (V100, P100, T4 and later)
@@ -29,19 +30,26 @@ To use Spark Rapids SQL plugin, XGBoost4j with Spark 3
     *   NCCL 2.4.7 and later
 
 This section describes how to create
-[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with [Spark RAPIDS SQL plugin](https://github.com/NVIDIA/spark-rapids) and [XGBoost4j](https://github.com/rapidsai/spark-examples/tree/support-spark3.0).
+[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with
+[Spark RAPIDS SQL plugin](https://github.com/NVIDIA/spark-rapids) and
+[XGBoost4j](https://github.com/rapidsai/spark-examples/tree/support-spark3.0).
 
 ### Step 1. Create Dataproc cluster with Spark RAPIDS Accelerator
 
 The following command will create a new Dataproc cluster named `CLUSTER_NAME`
-with installed GPU drivers, Spark RAPIDS Accelerator, Spark RAPIDS XGBoost libraries and Jupyter Notebook.
+with installed GPU drivers, Spark RAPIDS Accelerator, Spark RAPIDS XGBoost
+libraries and Jupyter Notebook.
 
 A few notes:
 
-* spark.yarn.unmanagedAM.enabled=false is set since it current breaks SparkUI, will remove later
-* for better GPU performance we recommend to remove IO bottleneck as much as possible, that includes faster disk/networking.
-* Adjust spark properties in cluster creation command to the hardware availabilty 
-* For best practice, please refer to NVIDIA [getting started guide](https://nvidia.github.io/spark-rapids/)
+*   `spark.yarn.unmanagedAM.enabled=false` is set since it current breaks
+    SparkUI, will remove later
+*   for better GPU performance it's recommended to remove IO bottleneck as much
+    as possible, that includes faster disk/networking.
+*   Adjust spark properties in cluster creation command to the hardware
+    availability
+*   For best practice, please refer to NVIDIA
+    [getting started guide](https://nvidia.github.io/spark-rapids/)
 
 ```bash
 export CLUSTER_NAME=<cluster_name>
@@ -75,9 +83,11 @@ clusters created under your project directory. You can see `CLUSTER_NAME` with
 status "Running". This cluster is now ready to host RAPIDS Spark XGBoost
 applications.
 
-### Step 2. Run a sample query and exam GPU usage 
+### Step 2. Run a sample query and exam GPU usage
 
-Once you have started your spark shell or zeppelin notebook you can run the following commands to do a basic join and look at the UI to see that it runs on the GPU.
+Once you have started your spark shell or zeppelin notebook you can run the
+following commands to do a basic join and look at the UI to see that it runs on
+the GPU.
 
 ```scala
 val df = sc.makeRDD(1 to 10000000, 6).toDF
@@ -87,18 +97,23 @@ out.count()
 out.explain()
 ```
 
-From `out.explain()`, you should see GpuRowToColumn, GpuFilter, GpuColumnarExchange, those all indicate things that would run on the GPU.
+From `out.explain()`, you should see GpuRowToColumn, GpuFilter,
+GpuColumnarExchange, those all indicate things that would run on the GPU.
 
-Or go to the Spark UI and click on the application you ran and on the “SQL” tab. If you click the operation “count at ...”, you should see the graph of Spark Execs and some of those should have the label Gpu as well. 
+Or go to the Spark UI and click on the application you ran and on the "SQL" tab.
+If you click the operation "count at ...", you should see the graph of Spark
+Executors and some of those should have the "GPU" label as well.
 
-## Spark 2.x RAPIDS XGBoost 
+## Spark 2.x RAPIDS XGBoost
 
 This section describes how to create
-[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with [XGBoost4j](https://github.com/rapidsai/spark-examples).
+[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with
+[XGBoost4j](https://github.com/rapidsai/spark-examples).
 
 ### Prerequisites
 
 To use XGBoost4j with Spark 2
+
 *   Apache Spark 2.3+
 *   Hardware Requirements
     *   NVIDIA Pascal™ GPU architecture or better (V100, P100, T4 and later)
@@ -160,7 +175,7 @@ gcloud beta dataproc clusters create $CLUSTER_NAME \
     --bucket $GCS_BUCKET \
     --properties "spark:spark.dynamicAllocation.enabled=false,spark:spark.shuffle.service.enabled=false,spark:spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j-spark_${RAPIDS_SPARK_VERSION}-${RAPIDS_VERSION}.jar" \
     --enable-component-gateway \
-    --subnet=default 
+    --subnet=default
 ```
 
 After submitting this command, please go to the Google Cloud Platform console on
