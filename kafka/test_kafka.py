@@ -26,8 +26,7 @@ class KafkaTestCase(DataprocTestCase):
     @parameterized.parameters(
         ("HA", ["m-0", "m-1", "m-2"]), )
     def test_kafka(self, configuration, machine_suffixes):
-        self.createCluster(
-            configuration, self.INIT_ACTIONS, machine_type="n1-standard-2")
+        self.createCluster(configuration, self.INIT_ACTIONS)
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))

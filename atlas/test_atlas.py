@@ -108,14 +108,14 @@ class AtlasTestCase(DataprocTestCase):
                                        metadata=metadata,
                                        timeout_in_minutes=30,
                                        optional_components=optional_components,
-                                       machine_type="n1-standard-4")
+                                       machine_type="e2-standard-4")
         else:
             self.createCluster(configuration,
                                init_actions,
                                beta=True,
                                timeout_in_minutes=30,
                                optional_components=optional_components,
-                               machine_type="n1-standard-4")
+                               machine_type="e2-standard-4")
 
         atlas_statuses = []
         for machine_suffix in machine_suffixes:
@@ -156,7 +156,7 @@ class AtlasTestCase(DataprocTestCase):
                            timeout_in_minutes=30,
                            metadata=metadata,
                            optional_components=self.OPTIONAL_COMPONENTS,
-                           machine_type="n1-standard-4")
+                           machine_type="e2-standard-4")
         for machine_suffix in machine_suffixes:
             self.verify_instance(
                 "{}-{}".format(self.getClusterName(), machine_suffix),
@@ -173,7 +173,7 @@ class AtlasTestCase(DataprocTestCase):
                 self.INIT_ACTIONS,
                 beta=True,
                 timeout_in_minutes=30,
-                machine_type="n1-standard-4",
+                machine_type="e2-standard-4",
                 optional_components=self.OPTIONAL_COMPONENTS.remove(component))
 
     def test_atlas_ha_fails_without_kafka(self):
@@ -185,7 +185,7 @@ class AtlasTestCase(DataprocTestCase):
                                self.INIT_ACTIONS,
                                timeout_in_minutes=30,
                                beta=True,
-                               machine_type="n1-standard-4",
+                               machine_type="e2-standard-4",
                                optional_components=self.OPTIONAL_COMPONENTS_HA)
 
 

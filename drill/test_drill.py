@@ -34,8 +34,7 @@ class DrillTestCase(DataprocTestCase):
         init_actions = self.INIT_ACTIONS
         if configuration == "STANDARD":
             init_actions = self.INIT_ACTIONS_FOR_STANDARD + init_actions
-        self.createCluster(
-            configuration, init_actions, machine_type="n1-standard-2")
+        self.createCluster(configuration, init_actions)
 
         drill_mode = "DISTRIBUTED"
         if configuration == "SINGLE":

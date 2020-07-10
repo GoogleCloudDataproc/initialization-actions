@@ -29,8 +29,7 @@ class FlinkTestCase(DataprocTestCase):
         ("HA", ["m-0", "m-1", "m-2"]),
     )
     def test_flink(self, configuration, machine_suffixes):
-        self.createCluster(
-            configuration, self.INIT_ACTIONS, machine_type="n1-standard-2")
+        self.createCluster(configuration, self.INIT_ACTIONS)
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
@@ -45,7 +44,6 @@ class FlinkTestCase(DataprocTestCase):
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
-            machine_type="n1-standard-2",
             metadata="flink-start-yarn-session=false")
         for machine_suffix in machine_suffixes:
             self.verify_instance(

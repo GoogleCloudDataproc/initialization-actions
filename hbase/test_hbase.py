@@ -41,8 +41,7 @@ class HBaseTestCase(DataprocTestCase):
         init_actions = self.INIT_ACTIONS
         if configuration != "HA":
             init_actions = self.INIT_ACTIONS_FOR_NOT_HA + init_actions
-        self.createCluster(
-            configuration, init_actions, machine_type="n1-standard-2")
+        self.createCluster(configuration, init_actions)
 
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
@@ -73,8 +72,7 @@ class HBaseTestCase(DataprocTestCase):
         self.createCluster(
             configuration,
             init_actions,
-            metadata=metadata,
-            machine_type="n1-standard-2")
+            metadata=metadata)
 
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),

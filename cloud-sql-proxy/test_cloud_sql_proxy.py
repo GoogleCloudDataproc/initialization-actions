@@ -61,7 +61,6 @@ class CloudSqlProxyTestCase(DataprocTestCase):
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
-            machine_type="n1-standard-2",
             metadata=metadata,
             scopes='sql-admin')
 

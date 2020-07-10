@@ -36,7 +36,6 @@ class KnoxTestCase(DataprocTestCase):
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
-            machine_type="n1-standard-2",
             # we don't want to run the auto update during the tests
             # since it overrides our changes in the tests.
             # So we assign cron date to 31/December. Hopefully
@@ -60,7 +59,6 @@ class KnoxTestCase(DataprocTestCase):
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
-            machine_type="n1-standard-2",
             # we don't want to run the auto update during the tests
             # since it overrides our changes in the tests.
             # So we assign cron date to 31/December.

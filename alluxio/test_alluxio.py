@@ -20,7 +20,7 @@ class AlluxioTestCase(DataprocTestCase):
             configuration,
             self.INIT_ACTIONS,
             metadata=self.METADATA,
-            machine_type="n1-standard-4")
+            machine_type="e2-standard-4")
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
@@ -33,7 +33,7 @@ class AlluxioTestCase(DataprocTestCase):
             configuration,
             init_actions,
             metadata=self.METADATA,
-            machine_type="n1-standard-4")
+            machine_type="e2-standard-4")
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))

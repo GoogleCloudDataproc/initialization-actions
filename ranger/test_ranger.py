@@ -43,7 +43,6 @@ class RangerTestCase(DataprocTestCase):
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
-            machine_type="n1-standard-2",
             metadata="ranger-port={},default-admin-password={}".format(
                 6080, "dataproc2019"))
         for machine_suffix in machine_suffixes:

@@ -47,10 +47,10 @@ class RapidsTestCase(DataprocTestCase):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
                            metadata=metadata,
+                           machine_type='n1-standard-2',
                            master_accelerator=master_accelerator,
                            worker_accelerator=accelerator,
                            optional_components=['ANACONDA'],
-                           machine_type='n1-standard-2',
                            timeout_in_minutes=70)
 
         for machine_suffix in machine_suffixes:

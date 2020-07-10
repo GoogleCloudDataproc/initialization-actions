@@ -33,8 +33,7 @@ class DrElephantTestCase(DataprocTestCase):
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
-            timeout_in_minutes=30,
-            machine_type="n1-standard-2")
+            timeout_in_minutes=30)
 
         # Submit a job to check if statistic is generated
         self.assert_dataproc_job(
