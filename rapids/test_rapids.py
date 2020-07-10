@@ -30,20 +30,14 @@ class RapidsTestCase(DataprocTestCase):
     def verify_spark_instance(self, name):
         self.assert_instance_command(name, "nvidia-smi")
 
-    @parameterized.parameters(("STANDARD", ["m"], GPU_P100, False),
-                              ("STANDARD", ["m"], GPU_P100, True))
-    def test_rapids_dask(self, configuration, machine_suffixes, accelerator,
-                         dask_cuda_worker_on_master):
+    @parameterized.parameters(("STANDARD", ["m"], GPU_P100))
+    def test_rapids_dask(self, configuration, machine_suffixes, accelerator):
         # Init action supported on Dataproc 1.3+
         if self.getImageVersion() < pkg_resources.parse_version("1.3"):
             return
 
         metadata = 'gpu-driver-provider=NVIDIA,rapids-runtime=DASK'
-        if dask_cuda_worker_on_master:
-            master_accelerator = accelerator
-        else:
-            metadata += ',dask-cuda-worker-on-master=false'
-            master_accelerator = None
+        master_accelerator = accelerator
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
                            metadata=metadata,
