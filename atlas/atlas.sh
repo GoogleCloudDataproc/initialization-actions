@@ -73,7 +73,7 @@ function retry_constant_custom() {
     local timestamp
     timestamp=$(date +%s)
     # Log at most once per 10 seconds
-    if ((timestamp - last_log_timestamp > 10 )); then
+    if ((timestamp - last_log_timestamp > 10)); then
       last_log_timestamp="${timestamp}"
     fi
     sleep "${retry_delay}"
@@ -248,9 +248,8 @@ function wait_for_atlas_to_start() {
   # atlas start script exits prematurely, before atlas actually starts
   # thus wait up to 10 minutes until atlas is fully working
   wait_for_port "Atlas web server" localhost 21000
-  local -r cmd='curl localhost:21000/api/atlas/admin/status'
   for ((i = 0; i < 60; i++)); do
-    if eval "${cmd}"; then
+    if curl localhost:21000/api/atlas/admin/status; then
       return 0
     fi
     sleep 20
@@ -259,9 +258,9 @@ function wait_for_atlas_to_start() {
 }
 
 function wait_for_atlas_becomes_active_or_passive() {
-  cmd="sudo ${ATLAS_HOME}/bin/atlas_admin.py -u doesnt:matter -status 2>/dev/null" # public check, but some username:password has to be given
   for ((i = 0; i < 60; i++)); do
-    if status=$(eval "${cmd}"); then
+    # public check, but some username:password has to be given
+    if status=$(${ATLAS_HOME}/bin/atlas_admin.py -u doesnt:matter -status 2>/dev/null); then
       if [[ ${status} == 'ACTIVE' || ${status} == 'PASSIVE' ]]; then
         return 0
       fi
@@ -318,7 +317,7 @@ function enable_sqoop_hook() {
 }
 
 function main() {
-   if ! is_version_at_least "${DATAPROC_VERSION}" "1.5"; then
+  if ! is_version_at_least "${DATAPROC_VERSION}" "1.5"; then
     err "Dataproc ${DATAPROC_VERSION} is not supported"
   fi
 
