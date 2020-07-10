@@ -54,22 +54,18 @@ gcloud beta dataproc clusters create $CLUSTER_NAME  \
     --region $REGION \
     --image-version=2.0.0-RC2-ubuntu18 \
     --master-machine-type n1-standard-4 \
-    --master-boot-disk-size 400 \
-    --master-boot-disk-type pd-ssd \
+    --master-boot-disk-size 200 \
     --num-workers $NUM_WORKERS \
     --worker-accelerator type=nvidia-tesla-t4,count=$NUM_GPUS \
     --worker-machine-type n1-standard-16 \
-    --worker-boot-disk-size 400 \
-    --worker-boot-disk-type pd-ssd \
+    --num-worker-local-ssds 2 \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
     --optional-components=ANACONDA,JUPYTER,ZEPPELIN \
-    --metadata gpu-driver-provider="NVIDIA" \
-    --metadata rapids-runtime=SPARK \
-    --metadata install-gpu-agent=true \
+    --metadata gpu-driver-provider="NVIDIA",rapids-runtime="SPARK" \
     --bucket $GCS_BUCKET \
     --subnet=default \
     --enable-component-gateway \
-    --properties="^#^spark:spark.yarn.unmanagedAM.enabled=false#spark:spark.task.resource.gpu.amount=0.125#spark:spark.executor.cores=8#spark:spark.executor.memory=20G"
+    --properties="^#^spark:spark.yarn.unmanagedAM.enabled=false#spark:spark.task.resource.gpu.amount=0.125#spark:spark.executor.cores=8#spark:spark.task.cpus=1#spark:spark.executor.memory=20G"
 ```
 
 After submitting this command, please go to the Google Cloud Platform console on
