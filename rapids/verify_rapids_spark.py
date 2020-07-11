@@ -2,7 +2,6 @@ from pyspark.sql import SparkSession
 from pyspark import SparkConf, SparkContext
 
 conf = SparkConf().setAppName("NYTaxiXGBoost4j")
-conf.set('spark.submit.pyFiles', '/usr/lib/spark/jars/xgboost4j-spark_3.0-1.0.0-0.1.0.jar')
 conf.set("spark.executor.instances", "1")
 conf.set("spark.executor.cores", "1") # spark.executor.cores times spark.executor.instances should equal total cores.
 conf.set("spark.task.cpus", "1")
