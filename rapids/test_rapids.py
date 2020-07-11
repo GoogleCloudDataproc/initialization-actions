@@ -14,6 +14,7 @@ class RapidsTestCase(DataprocTestCase):
     GPU_P100 = 'type=nvidia-tesla-p100'
 
     DASK_TEST_SCRIPT_FILE_NAME = 'verify_rapids_dask.py'
+    SPARK_TEST_SCRIPT_FILE_NAME = 'verify_rapids_spark.py'
 
     def verify_dask_instance(self, name):
         self.upload_test_file(
@@ -28,9 +29,11 @@ class RapidsTestCase(DataprocTestCase):
         self.assert_instance_command(name, verify_cmd)
 
     def verify_spark_instance(self, name):
-        self.assert_instance_command(name, "nvidia-smi")
+        self.assert_dataproc_job(
+            self.name, "pyspark", "{}/{}".format(self.INIT_ACTIONS_REPO,
+                                                 self.SPARK_TEST_SCRIPT_FILE_NAME))
 
-    @parameterized.parameters(("STANDARD", ["m"], GPU_P100))
+    @parameterized.parameters(("STANDARD", ["m", "w-0"], GPU_P100))
     def test_rapids_dask(self, configuration, machine_suffixes, accelerator):
         # Init action supported on Dataproc 1.3+
         if self.getImageVersion() < pkg_resources.parse_version("1.3"):
@@ -45,13 +48,13 @@ class RapidsTestCase(DataprocTestCase):
                            worker_accelerator=accelerator,
                            optional_components=['ANACONDA'],
                            machine_type='n1-standard-2',
-                           timeout_in_minutes=20)
+                           timeout_in_minutes=30)
 
         for machine_suffix in machine_suffixes:
             self.verify_dask_instance("{}-{}".format(self.getClusterName(),
                                                      machine_suffix))
 
-    @parameterized.parameters(("STANDARD", ["w-0"], GPU_P100))
+    @parameterized.parameters(("STANDARD", ["m"], GPU_P100))
     def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
         # Init action supported on Dataproc 1.3+
         if self.getImageVersion() < pkg_resources.parse_version("1.3"):
@@ -63,7 +66,7 @@ class RapidsTestCase(DataprocTestCase):
             metadata='gpu-driver-provider=NVIDIA,rapids-runtime=SPARK',
             machine_type='n1-standard-2',
             worker_accelerator=accelerator,
-            timeout_in_minutes=20)
+            timeout_in_minutes=30)
         for machine_suffix in machine_suffixes:
             self.verify_spark_instance("{}-{}".format(self.getClusterName(),
                                                       machine_suffix))
