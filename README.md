@@ -25,7 +25,7 @@ interface. For details, see [the README](gcs/README.md).
 [![Maven Central](https://img.shields.io/maven-central/v/com.google.cloud.bigdataoss/bigquery-connector/hadoop3.svg?label=Maven%20Central)](https://search.maven.org/search?q=g:com.google.cloud.bigdataoss%20AND%20a:bigquery-connector%20AND%20v:hadoop3-*)
 
 The Google BigQuery connector for Hadoop MapReduce enables running MapReduce
-jobs on data in BigQuery by implementing the InputFormat & OutputFormat
+jobs on data in BigQuery by implementing the `InputFormat` & `OutputFormat`
 interfaces. For more details see
 [the documentation](https://cloud.google.com/dataproc/docs/concepts/connectors/bigquery)
 
@@ -42,6 +42,7 @@ from the main directory:
 ```bash
 # with Hadoop 2 and YARN support:
 ./mvnw -P hadoop2 clean package
+
 # with Hadoop 3 and YARN support:
 ./mvnw -P hadoop3 clean package
 ```
