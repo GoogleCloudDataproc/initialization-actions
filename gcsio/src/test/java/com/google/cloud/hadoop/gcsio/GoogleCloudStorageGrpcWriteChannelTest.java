@@ -1,6 +1,7 @@
 package com.google.cloud.hadoop.gcsio;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.google.storage.v1.ServiceConstants.Values.MAX_WRITE_CHUNK_BYTES;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
@@ -16,6 +17,7 @@ import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.google.storage.v1.ChecksummedData;
 import com.google.google.storage.v1.InsertObjectRequest;
 import com.google.google.storage.v1.InsertObjectSpec;
@@ -32,6 +34,8 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.Int64Value;
 import com.google.protobuf.Timestamp;
 import com.google.protobuf.UInt32Value;
+import io.grpc.Status;
+import io.grpc.StatusException;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -39,8 +43,10 @@ import io.grpc.testing.GrpcCleanupRule;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedChannelException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -343,23 +349,111 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
   }
 
   @Test
-  public void writeHandlesErrorOnInsertRequestWithLongUncommittedData() throws Exception {
-    GoogleCloudStorageGrpcWriteChannel writeChannel = newWriteChannel();
-    long chunkSize = GoogleCloudStorageGrpcWriteChannel.GCS_MINIMUM_CHUNK_SIZE * 1024L * 1024L;
-    fakeService.setInsertRequestException(new IOException("Error!"));
-    fakeService.setResumeFromInsertException(true);
+  public void writeOneChunkWithSingleErrorAndResume() throws Exception {
+    int chunkSize = GoogleCloudStorageGrpcWriteChannel.GCS_MINIMUM_CHUNK_SIZE;
+    AsyncWriteChannelOptions options =
+        AsyncWriteChannelOptions.builder().setUploadChunkSize(chunkSize).build();
+    ObjectWriteConditions writeConditions = new ObjectWriteConditions();
+    GoogleCloudStorageGrpcWriteChannel writeChannel =
+        newWriteChannel(options, writeConditions, Optional.absent());
+    fakeService.setInsertObjectExceptions(
+        ImmutableList.of(new StatusException(Status.DEADLINE_EXCEEDED)));
     fakeService.setQueryWriteStatusResponses(
-        ImmutableList.of(
-                QueryWriteStatusResponse.newBuilder().setCommittedSize(chunkSize * 3 / 4).build())
+        ImmutableList.of(QueryWriteStatusResponse.newBuilder().setCommittedSize(0).build())
             .iterator());
+    ByteString chunk = createTestData(chunkSize);
+    List<InsertObjectRequest> expectedRequests =
+        Arrays.asList(
+            InsertObjectRequest.newBuilder()
+                .setUploadId(UPLOAD_ID)
+                .setChecksummedData(
+                    ChecksummedData.newBuilder()
+                        .setContent(chunk)
+                        .setCrc32C(UInt32Value.newBuilder().setValue(uInt32Value(1916767651))))
+                .setObjectChecksums(
+                    ObjectChecksums.newBuilder()
+                        .setCrc32C(UInt32Value.newBuilder().setValue(uInt32Value(1916767651))))
+                .setFinishWrite(true)
+                .build());
+    ArgumentCaptor<InsertObjectRequest> requestCaptor =
+        ArgumentCaptor.forClass(InsertObjectRequest.class);
 
-    ByteString data = createTestData(GoogleCloudStorageGrpcWriteChannel.GCS_MINIMUM_CHUNK_SIZE);
     writeChannel.initialize();
-    writeChannel.write(data.asReadOnlyByteBuffer());
+    writeChannel.write(chunk.asReadOnlyByteBuffer());
     writeChannel.close();
 
     verify(fakeService, times(1)).startResumableWrite(eq(START_REQUEST), any());
-    verify(fakeService, atLeast(1)).queryWriteStatus(eq(WRITE_STATUS_REQUEST), any());
+    verify(fakeService, times(1)).queryWriteStatus(eq(WRITE_STATUS_REQUEST), any());
+    verify(fakeService.insertRequestObserver, atLeast(1)).onNext(requestCaptor.capture());
+    // TODO(hgong): Figure out a way to check the expected requests and actual reqeusts builder.
+    // assertEquals(expectedRequests, requestCaptor.getAllValues());
+    verify(fakeService.insertRequestObserver, atLeast(1)).onCompleted();
+  }
+
+  @Test
+  public void writeOneChunkWithSingleErrorFailedToResume() throws Exception {
+    int chunkSize = GoogleCloudStorageGrpcWriteChannel.GCS_MINIMUM_CHUNK_SIZE;
+    AsyncWriteChannelOptions options =
+        AsyncWriteChannelOptions.builder().setUploadChunkSize(chunkSize).build();
+    ObjectWriteConditions writeConditions = new ObjectWriteConditions();
+    GoogleCloudStorageGrpcWriteChannel writeChannel =
+        newWriteChannel(options, writeConditions, Optional.absent());
+    fakeService.setInsertObjectExceptions(
+        ImmutableList.of(new StatusException(Status.DEADLINE_EXCEEDED)));
+    fakeService.setQueryWriteStatusResponses(
+        ImmutableList.of(QueryWriteStatusResponse.newBuilder().setCommittedSize(-1).build())
+            .iterator());
+    ByteString chunk = createTestData(chunkSize);
+
+    writeChannel.initialize();
+    writeChannel.write(chunk.asReadOnlyByteBuffer());
+
+    assertThrows(IOException.class, writeChannel::close);
+  }
+
+  @Test
+  public void writeTwoChunksWithSingleErrorAndResume() throws Exception {
+    GoogleCloudStorageGrpcWriteChannel writeChannel = newWriteChannel();
+    fakeService.setInsertObjectExceptions(
+        ImmutableList.of(
+            new Throwable(), // Empty cause means don't throw for first insert request
+            new StatusException(Status.DEADLINE_EXCEEDED)));
+    fakeService.setQueryWriteStatusResponses(
+        ImmutableList.of(QueryWriteStatusResponse.newBuilder().setCommittedSize(0).build())
+            .iterator());
+    ByteString stream_data = createTestData(2 * MAX_WRITE_CHUNK_BYTES.getNumber());
+    List<InsertObjectRequest> expectedRequests =
+        Arrays.asList(
+            InsertObjectRequest.newBuilder()
+                .setUploadId(UPLOAD_ID)
+                .setChecksummedData(
+                    ChecksummedData.newBuilder()
+                        .setContent(stream_data)
+                        .setCrc32C(UInt32Value.newBuilder().setValue(uInt32Value(1916767651))))
+                .build(),
+            InsertObjectRequest.newBuilder()
+                .setUploadId(UPLOAD_ID)
+                .setChecksummedData(
+                    ChecksummedData.newBuilder()
+                        .setContent(stream_data)
+                        .setCrc32C(UInt32Value.newBuilder().setValue(uInt32Value(1559022432))))
+                .setObjectChecksums(
+                    ObjectChecksums.newBuilder()
+                        .setCrc32C(UInt32Value.newBuilder().setValue(uInt32Value(1275609548))))
+                .setFinishWrite(true)
+                .build());
+    ArgumentCaptor<InsertObjectRequest> requestCaptor =
+        ArgumentCaptor.forClass(InsertObjectRequest.class);
+
+    writeChannel.initialize();
+    writeChannel.write(stream_data.asReadOnlyByteBuffer());
+    writeChannel.close();
+
+    verify(fakeService, times(1)).startResumableWrite(eq(START_REQUEST), any());
+    verify(fakeService, times(1)).queryWriteStatus(eq(WRITE_STATUS_REQUEST), any());
+    verify(fakeService.insertRequestObserver, atLeast(1)).onNext(requestCaptor.capture());
+    // TODO(hgong): Figure out a way to check the expected requests and actual reqeusts builder.
+    // assertEquals(expectedRequests, requestCaptor.getAllValues());
     verify(fakeService.insertRequestObserver, atLeast(1)).onCompleted();
   }
 
@@ -527,6 +621,7 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
     InsertRequestObserver insertRequestObserver = spy(new InsertRequestObserver());
 
     private Throwable startRequestException;
+    private List<Throwable> insertObjectExceptions;
     private Throwable queryWriteStatusException;
     private Iterator<QueryWriteStatusResponse> queryWriteStatusResponses;
 
@@ -560,6 +655,14 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
     @Override
     public StreamObserver<InsertObjectRequest> insertObject(
         StreamObserver<Object> responseObserver) {
+      if (insertObjectExceptions != null && insertObjectExceptions.size() > 0) {
+        Throwable throwable = insertObjectExceptions.remove(0);
+        if (!throwable.getClass().isAssignableFrom(Throwable.class)
+            || throwable.getCause() != null) {
+          insertRequestObserver.insertRequestException = throwable;
+          insertRequestObserver.resumeFromInsertException = true;
+        }
+      }
       insertRequestObserver.responseObserver = responseObserver;
       return insertRequestObserver;
     }
@@ -584,8 +687,10 @@ public final class GoogleCloudStorageGrpcWriteChannelTest {
       insertRequestObserver.insertRequestException = t;
     }
 
-    void setResumeFromInsertException(boolean resumable) {
-      insertRequestObserver.resumeFromInsertException = resumable;
+    public void setInsertObjectExceptions(List<Throwable> insertObjectExceptions) {
+      // Make a copy so caller can pass in an immutable list (this implementation needs to update
+      // the list).
+      this.insertObjectExceptions = Lists.newArrayList(insertObjectExceptions);
     }
 
     private static class InsertRequestObserver implements StreamObserver<InsertObjectRequest> {
