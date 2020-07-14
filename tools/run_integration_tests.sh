@@ -50,14 +50,30 @@ check_required_params() {
   fi
 }
 
-export HDFS_ROOT=file:///tmp
-
 check_required_params
 
 # When tests run, they run in the root of the module directory. Anything
 # relative to our current directory won't work properly
-GCS_TEST_PRIVATE_KEYFILE=$(readlink -f "${GCS_TEST_PRIVATE_KEYFILE}")
+if [[ $(uname -s) == Darwin ]]; then
+  # On MacOS `readlink` does not support `-f` parameter
+  # so we need manually resolve absolute path and symlink after that
+  abs_path() {    
+   echo "$(cd $(dirname "$1"); pwd)/$(basename "$1")"
+  }
+  GCS_TEST_PRIVATE_KEYFILE=$(abs_path "${GCS_TEST_PRIVATE_KEYFILE}")
+  while [[ -L $GCS_TEST_PRIVATE_KEYFILE ]]; do
+    GCS_TEST_PRIVATE_KEYFILE=$(readlink -n "${GCS_TEST_PRIVATE_KEYFILE}")
+  done
+else
+  GCS_TEST_PRIVATE_KEYFILE=$(readlink -n -f "${GCS_TEST_PRIVATE_KEYFILE}")
+fi
+if [[ ! -f $GCS_TEST_PRIVATE_KEYFILE ]]; then
+  echo "Resolved '${GCS_TEST_PRIVATE_KEYFILE}' keyfile does not exist."
+  exit 1
+fi
+
 export GCS_TEST_PRIVATE_KEYFILE
+export HDFS_ROOT=file:///tmp
 export RUN_INTEGRATION_TESTS=true
 
 ./mvnw -B -e -T1C "-P${HADOOP_VERSION}" -Pintegration-test clean verify "${@:5}"
