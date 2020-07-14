@@ -45,7 +45,7 @@ readonly NVIDIA_UBUNTU_REPOSITORY_CUDA_PIN="${NVIDIA_UBUNTU_REPOSITORY_URL}/cuda
 # Parameters for NVIDIA-provided NCCL library
 readonly DEFAULT_NCCL_REPO_URL='https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb'
 readonly NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
-readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.7.5')
+readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.7.6')
 
 # Parameters for Ubuntu-provided NVIDIA GPU driver
 readonly NVIDIA_DRIVER_VERSION_UBUNTU='440'
