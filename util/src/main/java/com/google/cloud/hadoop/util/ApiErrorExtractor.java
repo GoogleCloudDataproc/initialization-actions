@@ -47,6 +47,8 @@ public class ApiErrorExtractor {
   public static final String RATE_LIMITED_REASON = "rateLimitExceeded";
   public static final String USER_RATE_LIMITED_REASON = "userRateLimitExceeded";
 
+  public static final String QUOTA_EXCEEDED_REASON = "quotaExceeded";
+
   // These come with "The account for ... has been disabled" message.
   public static final String ACCOUNT_DISABLED_REASON = "accountDisabled";
 
@@ -203,6 +205,15 @@ public class ApiErrorExtractor {
       return isRateLimitedOrGlobalDomain && isRateLimitedReason;
     }
     return false;
+  }
+
+  /**
+   * Determines if a given Throwable is caused by Quota Exceeded. Recursively checks getCause() if
+   * outer exception isn't an instance of the correct class.
+   */
+  public boolean quotaExceeded(IOException e) {
+    ErrorInfo errorInfo = getErrorInfo(e);
+    return errorInfo != null && QUOTA_EXCEEDED_REASON.equals(errorInfo.getReason());
   }
 
   /**

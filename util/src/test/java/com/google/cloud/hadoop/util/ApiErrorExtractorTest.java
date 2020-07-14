@@ -55,6 +55,7 @@ public class ApiErrorExtractorTest {
   private GoogleJsonResponseException alreadyExists; // STATUS_CODE_CONFLICT
   private GoogleJsonResponseException rateLimited; // rate limited
   private GoogleJsonResponseException notRateLimited; // not rate limited because of domain
+  private GoogleJsonResponseException quotaExceeded; // quotaExceeded
   private GoogleJsonResponseException resourceNotReady;
   private GoogleJsonResponseException bigqueryRateLimited; // bigquery rate limited
   private static final int POSSIBLE_RATE_LIMIT = 429; // Can be many things, but not STATUS_CODE_OK
@@ -86,6 +87,8 @@ public class ApiErrorExtractorTest {
     rateLimited = googleJsonResponseException(POSSIBLE_RATE_LIMIT, errorInfo, "");
     errorInfo.setDomain(ApiErrorExtractor.GLOBAL_DOMAIN);
     bigqueryRateLimited = googleJsonResponseException(POSSIBLE_RATE_LIMIT, errorInfo, "");
+    errorInfo.setReason(ApiErrorExtractor.QUOTA_EXCEEDED_REASON);
+    quotaExceeded = googleJsonResponseException(POSSIBLE_RATE_LIMIT, errorInfo, "");
   }
 
   /** Validates accessDenied(). */
@@ -160,6 +163,22 @@ public class ApiErrorExtractorTest {
     assertThat(errorExtractor.rateLimited(new IOException(notRateLimited))).isFalse();
     assertThat(errorExtractor.rateLimited(new IOException(statusOk))).isFalse();
     assertThat(errorExtractor.rateLimited(null)).isFalse();
+  }
+
+  /** Validates quotaExceeded(). */
+  @Test
+  public void testQuotaExceeded() {
+    // Check success case.
+    assertThat(errorExtractor.quotaExceeded(quotaExceeded)).isTrue();
+    assertThat(errorExtractor.quotaExceeded(new IOException(quotaExceeded))).isTrue();
+    assertThat(errorExtractor.quotaExceeded(new IOException(new IOException(quotaExceeded))))
+        .isTrue();
+
+    // Check failure cases.
+    assertThat(errorExtractor.quotaExceeded(statusOk)).isFalse();
+    assertThat(errorExtractor.quotaExceeded(new IOException())).isFalse();
+    assertThat(errorExtractor.quotaExceeded(new IOException(new IOException()))).isFalse();
+    assertThat(errorExtractor.quotaExceeded(null)).isFalse();
   }
 
   /** Validates rateLimited() with BigQuery domain / reason codes */
