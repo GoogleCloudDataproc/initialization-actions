@@ -41,7 +41,11 @@ function retry_command() {
 }
 
 function install_dependencies() {
+<<<<<<< HEAD
   retry_command 'apt install -y knox jq rsync'
+=======
+  retry_command 'apt install -y knox jq python-pip rsync'
+>>>>>>> corrects the init action bucket address and adds rsync to the list of applications needed for 1.5 release
   retry_command 'pip install yq'
 }
 
