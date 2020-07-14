@@ -41,7 +41,7 @@ function retry_command() {
 }
 
 function install_dependencies() {
-  retry_command 'apt install -y knox jq python-pip'
+  retry_command 'apt install -y knox jq python-pip rsync'
   retry_command 'pip install yq'
 }
 
