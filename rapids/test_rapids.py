@@ -30,7 +30,7 @@ class RapidsTestCase(DataprocTestCase):
 
     def verify_spark_instance(self, name):
         self.assert_dataproc_job(
-            self.name, "pyspark", "{}/{}".format(self.INIT_ACTIONS_REPO,
+            self.name, "pyspark", "{}/rapids/{}".format(self.INIT_ACTIONS_REPO,
                                                  self.SPARK_TEST_SCRIPT_FILE_NAME))
 
     @parameterized.parameters(("STANDARD", ["m", "w-0"], GPU_P100))
