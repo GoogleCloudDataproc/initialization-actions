@@ -89,7 +89,6 @@ function install_nvidia_nccl() {
   local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
   execute_with_retries \
     "apt-get install -y --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
-
 }
 
 # Install NVIDIA GPU driver provided by NVIDIA
@@ -273,7 +272,7 @@ function configure_gpu_exclusive_mode() {
   # check if running spark 3, if not, enable GPU exclusive mode
   local spark_version
   spark_version=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
-  if ! [[ ${spark_version} == 3.* ]]; then
+  if [[ ${spark_version} != 3.* ]]; then
     # include exclusive mode on GPU
     nvidia-smi -c EXCLUSIVE_PROCESS
   fi

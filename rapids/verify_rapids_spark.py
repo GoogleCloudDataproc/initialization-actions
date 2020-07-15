@@ -3,7 +3,8 @@ from pyspark import SparkConf, SparkContext
 
 conf = SparkConf().setAppName("NYTaxiXGBoost4j")
 conf.set("spark.executor.instances", "1")
-conf.set("spark.executor.cores", "1") # spark.executor.cores times spark.executor.instances should equal total cores.
+# spark.executor.cores times spark.executor.instances should equal total cores.
+conf.set("spark.executor.cores", "1")
 conf.set("spark.task.cpus", "1")
 conf.set("spark.executor.memory", "2g")
 conf.set("spark.task.resource.gpu.amount", "1")

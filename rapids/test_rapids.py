@@ -28,18 +28,18 @@ class RapidsTestCase(DataprocTestCase):
             self.DASK_TEST_SCRIPT_FILE_NAME)
         self.assert_instance_command(name, verify_cmd)
 
-    def verify_spark3_instance(self, name):
+    def verify_spark2_instance(self, name):
+        self.assert_instance_command(name, "nvidia-smi")
+
+    def verify_spark3_job(self):
         self.assert_dataproc_job(
             self.name, "pyspark", "{}/rapids/{}".format(self.INIT_ACTIONS_REPO,
                                                         self.SPARK_TEST_SCRIPT_FILE_NAME))
 
-    def verify_spark2_instance(self, name):
-        self.assert_instance_command(name, "nvidia-smi")
-
     @parameterized.parameters(("STANDARD", ["m", "w-0"], GPU_P100))
     def test_rapids_dask(self, configuration, machine_suffixes, accelerator):
-        # Init action supported on Dataproc 1.3+, rapids dask works with 2.0/preview and up
-        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+        # RAPIDS Dask supported on Datparoc 1.5+
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
         metadata = 'gpu-driver-provider=NVIDIA,rapids-runtime=DASK'
@@ -59,10 +59,6 @@ class RapidsTestCase(DataprocTestCase):
 
     @parameterized.parameters(("STANDARD", ["w-0"], GPU_P100))
     def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
-        # Init action supported on Dataproc 2.0+
-        if self.getImageVersion() < pkg_resources.parse_version("1.3"):
-            return
-
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
@@ -75,9 +71,7 @@ class RapidsTestCase(DataprocTestCase):
                 self.verify_spark2_instance("{}-{}".format(self.getClusterName(),
                                                            machine_suffix))
         else:
-            for machine_suffix in machine_suffixes:
-                self.verify_spark3_instance("{}-{}".format(self.getClusterName(),
-                                                           machine_suffix))
+            self.verify_spark3_job()
 
 
 if __name__ == '__main__':
