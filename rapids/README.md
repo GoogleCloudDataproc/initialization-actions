@@ -331,7 +331,8 @@ Dask-cuDF cluster:
 ### Create Dataroc cluster with Dask RAPIDS
 
 Using the `gcloud` command to create a new cluster with this initialization
-action.
+action. Due a anaconda version conflict, we only support dask in dataproc with
+version > 2.0
 
 ```bash
 GCS_BUCKET=<bucket_name>
