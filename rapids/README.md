@@ -58,7 +58,7 @@ export REGION=<region>
 export NUM_GPUS=1
 export NUM_WORKERS=2
 
-gcloud beta dataproc clusters create $CLUSTER_NAME  \
+gcloud dataproc clusters create $CLUSTER_NAME  \
     --region $REGION \
     --image-version=preview-ubuntu \
     --master-machine-type n1-standard-4 \
@@ -73,8 +73,17 @@ gcloud beta dataproc clusters create $CLUSTER_NAME  \
     --bucket $GCS_BUCKET \
     --subnet=default \
     --enable-component-gateway \
-    --properties="^#^spark:spark.yarn.unmanagedAM.enabled=false#spark:spark.task.resource.gpu.amount=0.125#spark:spark.executor.cores=8#spark:spark.task.cpus=1#spark:spark.executor.memory=4G"
+    --properties="^#^spark:spark.yarn.unmanagedAM.enabled=false"
 ```
+User can adjust spark resource default allocation by adding following to `--properties flag.
+The numbers should be adjusted given the hardware resource availability, spark job requirement.   
+```bash
+spark:spark.task.resource.gpu.amount=0.125
+spark:spark.executor.cores=8
+spark:spark.task.cpus=1
+spark:spark.executor.memory=4G
+``` 
+
 
 After submitting this command, please go to the Google Cloud Platform console on
 your browser. Search for "Dataproc" and click on the "Dataproc" icon. This will
@@ -162,7 +171,7 @@ export GCS_BUCKET=<your bucket for the logs and notebooks>
 export REGION=<region>
 export RAPIDS_SPARK_VERSION=2.x
 export RAPIDS_VERSION=1.0.0-Beta4
-gcloud beta dataproc clusters create $CLUSTER_NAME \
+gcloud dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
     --image-version 1.4-ubuntu18 \
     --master-machine-type n1-standard-4 \
@@ -328,7 +337,7 @@ action.
 GCS_BUCKET=<bucket_name>
 CLUSTER_NAME=<cluster_name>
 REGION=<region>
-gcloud beta dataproc clusters create $CLUSTER_NAME \
+gcloud dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
     --image-version 1.4-ubuntu18 \
     --master-machine-type n1-standard-32 \
@@ -401,7 +410,7 @@ For example:
 ```bash
 CLUSTER_NAME=<cluster_name>
 REGION=<region>
-gcloud beta dataproc clusters create $CLUSTER_NAME \
+gcloud dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
     --image-version 1.4-ubuntu18 \
     --master-machine-type n1-standard-32 \
