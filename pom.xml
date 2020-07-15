@@ -100,8 +100,6 @@
     <google.auth.version>0.21.1</google.auth.version>
     <google.auto-value.version>1.7.4</google.auto-value.version>
     <google.cloud-bigquery-storage.version>0.134.1-beta</google.cloud-bigquery-storage.version>
-    <google.errorprone.version>2.4.0</google.errorprone.version>
-    <google.findbugs.version>3.0.2</google.findbugs.version>
     <!--
         When updating Flogger version, also update DefaultPlatform class
         source code in util-hadoop module with code from new Flogger version
@@ -356,14 +354,9 @@
         <version>${google.guava.version}</version>
       </dependency>
       <dependency>
-        <groupId>com.google.code.findbugs</groupId>
-        <artifactId>jsr305</artifactId>
-        <version>${google.findbugs.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.google.errorprone</groupId>
-        <artifactId>error_prone_annotations</artifactId>
-        <version>${google.errorprone.version}</version>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-alts</artifactId>
+        <version>${grpc.version}</version>
       </dependency>
       <dependency>
         <groupId>io.grpc</groupId>
@@ -372,7 +365,7 @@
       </dependency>
       <dependency>
         <groupId>io.grpc</groupId>
-        <artifactId>grpc-alts</artifactId>
+        <artifactId>grpc-auth</artifactId>
         <version>${grpc.version}</version>
       </dependency>
       <dependency>
@@ -387,6 +380,11 @@
       </dependency>
       <dependency>
         <groupId>io.grpc</groupId>
+        <artifactId>grpc-grpclb</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.grpc</groupId>
         <artifactId>grpc-netty-shaded</artifactId>
         <version>${grpc.version}</version>
         <scope>runtime</scope>
@@ -394,6 +392,11 @@
       <dependency>
         <groupId>io.grpc</groupId>
         <artifactId>grpc-protobuf</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-protobuf-lite</artifactId>
         <version>${grpc.version}</version>
       </dependency>
       <dependency>
@@ -624,6 +627,16 @@
                 <requireMavenVersion>
                   <version>[3.3.9,)</version>
                 </requireMavenVersion>
+                <requireSameVersions>
+                  <dependencies>
+                    <dependency>io.grpc</dependency>
+                  </dependencies>
+                </requireSameVersions>
+                <requireSameVersions>
+                  <dependencies>
+                    <dependency>com.google.protobuf</dependency>
+                  </dependencies>
+                </requireSameVersions>
               </rules>
             </configuration>
           </execution>
