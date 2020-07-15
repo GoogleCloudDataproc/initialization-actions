@@ -150,6 +150,7 @@ install_systemd_dask_service() {
     cat <<EOF >"${DASK_LAUNCHER}"
 #!/bin/bash
 if [[ "${RUN_WORKER_ON_MASTER}" == true ]]; then
+  nvidia-smi -c DEFAULT
   echo "dask-cuda-worker starting, logging to /var/log/dask-cuda-worker.log."
   $RAPIDS_ENV_BIN/dask-cuda-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-cuda-worker.log 2>&1 &
 fi
@@ -157,6 +158,7 @@ echo "dask-scheduler starting, logging to /var/log/dask-scheduler.log."
 $RAPIDS_ENV_BIN/dask-scheduler > /var/log/dask-scheduler.log 2>&1
 EOF
   else
+    nvidia-smi -c DEFAULT
     cat <<EOF >"${DASK_LAUNCHER}"
 #!/bin/bash
 $RAPIDS_ENV_BIN/dask-cuda-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-cuda-worker.log 2>&1
