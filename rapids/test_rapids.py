@@ -56,7 +56,7 @@ class RapidsTestCase(DataprocTestCase):
 
     @parameterized.parameters(("STANDARD", ["m"], GPU_P100))
     def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
-        # Init action supported on Dataproc 1.3+
+        # Init action supported on Dataproc 2.0+
         if self.getImageVersion() < pkg_resources.parse_version("2.0"):
             return
 
