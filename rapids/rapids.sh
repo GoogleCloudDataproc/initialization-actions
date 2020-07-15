@@ -89,6 +89,9 @@ function configure_spark() {
 ###### BEGIN : NVIDIA GPU specific properties ######
 spark.rapids.sql.concurrentGpuTasks=2
 spark.executor.resource.gpu.amount=1
+spark.executor.cores=2
+spark.task.cpus=1
+spark.task.resource.gpu.amount=0.5
 spark.rapids.memory.pinnedPool.size=2G
 spark.executor.memoryOverhead=2G
 spark.plugins=com.nvidia.spark.SQLPlugin
