@@ -28,10 +28,13 @@ class RapidsTestCase(DataprocTestCase):
             self.DASK_TEST_SCRIPT_FILE_NAME)
         self.assert_instance_command(name, verify_cmd)
 
-    def verify_spark_instance(self, name):
+    def verify_spark3_instance(self, name):
         self.assert_dataproc_job(
             self.name, "pyspark", "{}/rapids/{}".format(self.INIT_ACTIONS_REPO,
-                                                 self.SPARK_TEST_SCRIPT_FILE_NAME))
+                                                        self.SPARK_TEST_SCRIPT_FILE_NAME))
+
+    def verify_spark2_instance(self, name):
+        self.assert_instance_command(name, "nvidia-smi")
 
     @parameterized.parameters(("STANDARD", ["m", "w-0"], GPU_P100))
     def test_rapids_dask(self, configuration, machine_suffixes, accelerator):
@@ -54,10 +57,10 @@ class RapidsTestCase(DataprocTestCase):
             self.verify_dask_instance("{}-{}".format(self.getClusterName(),
                                                      machine_suffix))
 
-    @parameterized.parameters(("STANDARD", ["m"], GPU_P100))
+    @parameterized.parameters(("STANDARD", ["w-0"], GPU_P100))
     def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
         # Init action supported on Dataproc 2.0+
-        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+        if self.getImageVersion() < pkg_resources.parse_version("1.3"):
             return
 
         self.createCluster(
@@ -67,9 +70,14 @@ class RapidsTestCase(DataprocTestCase):
             machine_type='n1-standard-2',
             worker_accelerator=accelerator,
             timeout_in_minutes=30)
-        for machine_suffix in machine_suffixes:
-            self.verify_spark_instance("{}-{}".format(self.getClusterName(),
-                                                      machine_suffix))
+        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+            for machine_suffix in machine_suffixes:
+                self.verify_spark2_instance("{}-{}".format(self.getClusterName(),
+                                                           machine_suffix))
+        else:
+            for machine_suffix in machine_suffixes:
+                self.verify_spark3_instance("{}-{}".format(self.getClusterName(),
+                                                           machine_suffix))
 
 
 if __name__ == '__main__':

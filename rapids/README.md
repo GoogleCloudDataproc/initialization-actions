@@ -55,25 +55,25 @@ A few notes:
 export CLUSTER_NAME=<cluster_name>
 export GCS_BUCKET=<your bucket for the logs and notebooks>
 export REGION=<region>
-export NUM_GPUS=2
+export NUM_GPUS=1
 export NUM_WORKERS=2
 
 gcloud beta dataproc clusters create $CLUSTER_NAME  \
     --region $REGION \
-    --image-version=2.0.0-RC2-ubuntu18 \
+    --image-version=preview-ubuntu \
     --master-machine-type n1-standard-4 \
     --master-boot-disk-size 200 \
     --num-workers $NUM_WORKERS \
     --worker-accelerator type=nvidia-tesla-t4,count=$NUM_GPUS \
     --worker-machine-type n1-standard-16 \
-    --num-worker-local-ssds 2 \
+    --num-worker-local-ssds 1 \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
     --optional-components=ANACONDA,JUPYTER,ZEPPELIN \
     --metadata gpu-driver-provider="NVIDIA",rapids-runtime="SPARK" \
     --bucket $GCS_BUCKET \
     --subnet=default \
     --enable-component-gateway \
-    --properties="^#^spark:spark.yarn.unmanagedAM.enabled=false#spark:spark.task.resource.gpu.amount=0.125#spark:spark.executor.cores=8#spark:spark.task.cpus=1#spark:spark.executor.memory=20G"
+    --properties="^#^spark:spark.yarn.unmanagedAM.enabled=false#spark:spark.task.resource.gpu.amount=0.125#spark:spark.executor.cores=8#spark:spark.task.cpus=1#spark:spark.executor.memory=4G"
 ```
 
 After submitting this command, please go to the Google Cloud Platform console on
@@ -165,17 +165,17 @@ export RAPIDS_VERSION=1.0.0-Beta4
 gcloud beta dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
     --image-version 1.4-ubuntu18 \
-    --master-machine-type n1-standard-8 \
-    --worker-machine-type n1-highmem-32 \
-    --worker-accelerator type=nvidia-tesla-t4,count=2 \
+    --master-machine-type n1-standard-4 \
+    --worker-machine-type n1-highmem-16 \
+    --worker-accelerator type=nvidia-tesla-t4,count=1 \
     --optional-components=ANACONDA,JUPYTER,ZEPPELIN \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
     --metadata gpu-driver-provider=NVIDIA \
     --metadata rapids-runtime=SPARK \
+    --metadata spark-version=2.x,spark-rapids-version=Beta5,cuda-version=10.1,cudf-version=0.9.2 \
     --bucket $GCS_BUCKET \
     --properties "spark:spark.dynamicAllocation.enabled=false,spark:spark.shuffle.service.enabled=false,spark:spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j-spark_${RAPIDS_SPARK_VERSION}-${RAPIDS_VERSION}.jar" \
-    --enable-component-gateway \
-    --subnet=default
+    --enable-component-gateway 
 ```
 
 After submitting this command, please go to the Google Cloud Platform console on

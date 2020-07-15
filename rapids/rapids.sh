@@ -83,7 +83,8 @@ function install_spark_rapids() {
 }
 
 function configure_spark() {
-  cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
+  if [[ "${SPARK_VERSION}" == "3"* ]]; then
+    cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
 
 ###### BEGIN : NVIDIA GPU specific properties ######
 spark.rapids.sql.concurrentGpuTasks=2
@@ -100,6 +101,15 @@ spark.dynamicAllocation.enabled=false
 spark.shuffle.service.enabled=false
 ###### END   : NVIDIA GPU specific properties ######
 EOF
+  else
+    cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
+
+###### BEGIN : NVIDIA GPU specific properties ######
+spark.dynamicAllocation.enabled=false
+spark.shuffle.service.enabled=false
+###### END   : NVIDIA GPU specific properties ######
+EOF
+  fi
 }
 
 function create_conda_env() {
