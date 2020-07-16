@@ -27,14 +27,17 @@ readonly OS_NAME
 OS_DIST=$(lsb_release -cs)
 readonly OS_DIST
 
+# Dataproc role
+readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+
 # Parameters for NVIDIA-provided Debian GPU driver
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL='http://us.download.nvidia.com/XFree86/Linux-x86_64/440.82/NVIDIA-Linux-x86_64-440.82.run'
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL='http://us.download.nvidia.com/XFree86/Linux-x86_64/450.51/NVIDIA-Linux-x86_64-450.51.run'
 readonly NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL}")
-readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL='https://developer.nvidia.com/compute/cuda/10.0/Prod/local_installers/cuda_10.0.130_410.48_linux'
+readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL='http://developer.download.nvidia.com/compute/cuda/10.2/Prod/local_installers/cuda_10.2.89_440.33.01_linux.run'
 readonly NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEBIAN_CUDA_URL}")
 
 # Parameters for NVIDIA-provided Ubuntu GPU driver
-readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '10.0')
+readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '10.2')
 readonly NVIDIA_UBUNTU_REPOSITORY_URL='https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64'
 readonly NVIDIA_UBUNTU_REPOSITORY_KEY="${NVIDIA_UBUNTU_REPOSITORY_URL}/7fa2af80.pub"
 readonly NVIDIA_UBUNTU_REPOSITORY_CUDA_PIN="${NVIDIA_UBUNTU_REPOSITORY_URL}/cuda-ubuntu1804.pin"
@@ -42,10 +45,10 @@ readonly NVIDIA_UBUNTU_REPOSITORY_CUDA_PIN="${NVIDIA_UBUNTU_REPOSITORY_URL}/cuda
 # Parameters for NVIDIA-provided NCCL library
 readonly DEFAULT_NCCL_REPO_URL='https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb'
 readonly NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
-readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.4.8')
+readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.7.6')
 
 # Parameters for Ubuntu-provided NVIDIA GPU driver
-readonly NVIDIA_DRIVER_VERSION_UBUNTU='435'
+readonly NVIDIA_DRIVER_VERSION_UBUNTU='440'
 
 # Whether to install NVIDIA-provided or OS-provided GPU driver
 GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'OS')
@@ -56,6 +59,11 @@ readonly GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatfo
 # Whether to install GPU monitoring agent that sends GPU metrics to Stackdriver
 INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'false')
 readonly INSTALL_GPU_AGENT
+
+# Dataproc configurations
+readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
+readonly HIVE_CONF_DIR='/etc/hive/conf'
+readonly SPARK_CONF_DIR='/etc/spark/conf'
 
 function execute_with_retries() {
   local -r cmd=$1
@@ -81,8 +89,6 @@ function install_nvidia_nccl() {
   local -r nccl_version="${NCCL_VERSION}-1+cuda${CUDA_VERSION}"
   execute_with_retries \
     "apt-get install -y --allow-unauthenticated libnccl2=${nccl_version} libnccl-dev=${nccl_version}"
-
-  nvidia-smi -c EXCLUSIVE_PROCESS
 }
 
 # Install NVIDIA GPU driver provided by NVIDIA
@@ -133,7 +139,6 @@ function install_os_gpu_driver() {
           >>/etc/apt/sources.list.d/non-free.list
       done
     done
-    execute_with_retries "apt-get update"
 
     packages+=(nvidia-driver nvidia-kernel-common nvidia-smi)
     modules+=(nvidia-current)
@@ -152,6 +157,7 @@ function install_os_gpu_driver() {
   # Install proprietary NVIDIA drivers and CUDA
   # See https://wiki.debian.org/NvidiaGraphicsDrivers
   # Without --no-install-recommends this takes a very long time.
+  execute_with_retries "apt-get update"
   execute_with_retries \
     "apt-get install -y -q -t ${OS_DIST}-backports --no-install-recommends ${packages[*]}"
 
@@ -223,6 +229,72 @@ EOF
   systemctl --now enable gpu-utilization-agent.service
 }
 
+function set_hadoop_property() {
+  local -r config_file=$1
+  local -r property=$2
+  local -r value=$3
+  bdconfig set_property \
+    --configuration_file "${HADOOP_CONF_DIR}/${config_file}" \
+    --name "${property}" --value "${value}" \
+    --clobber
+}
+
+function configure_yarn() {
+  set_hadoop_property 'capacity-scheduler.xml' \
+    'yarn.scheduler.capacity.resource-calculator' \
+    'org.apache.hadoop.yarn.util.resource.DominantResourceCalculator'
+
+  set_hadoop_property 'yarn-site.xml' 'yarn.resource-types' 'yarn.io/gpu'
+  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.resource-plugins' 'yarn.io/gpu'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.resource-plugins.gpu.allowed-gpu-devices' 'auto'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.resource-plugins.gpu.path-to-discovery-executables' '/usr/bin'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.linux-container-executor.cgroups.mount' 'true'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.linux-container-executor.cgroups.mount-path' '/sys/fs/cgroup'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.linux-container-executor.cgroups.hierarchy' 'yarn'
+  set_hadoop_property 'yarn-site.xml' \
+    'yarn.nodemanager.container-executor.class' \
+    'org.apache.hadoop.yarn.server.nodemanager.LinuxContainerExecutor'
+  set_hadoop_property 'yarn-site.xml' 'yarn.nodemanager.linux-container-executor.group' 'yarn'
+
+  local yarn_local_dirs=()
+  readarray -d ',' yarn_local_dirs < <(bdconfig get_property_value \
+    --configuration_file "/etc/hadoop/conf/yarn-site.xml" \
+    --name "yarn.nodemanager.local-dirs" 2>/dev/null | tr -d '\n')
+  chown yarn:yarn -R "${yarn_local_dirs[@]}"
+}
+
+function configure_gpu_exclusive_mode() {
+  # check if running spark 3, if not, enable GPU exclusive mode
+  local spark_version
+  spark_version=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
+  if [[ ${spark_version} != 3.* ]]; then
+    # include exclusive mode on GPU
+    nvidia-smi -c EXCLUSIVE_PROCESS
+  fi
+}
+
+function configure_gpu_isolation() {
+  # download GPU discovery script
+  local -r spark_gpu_script_dir='/usr/lib/spark/scripts/gpu'
+  mkdir -p ${spark_gpu_script_dir}
+  local -r gpu_resources_url=https://raw.githubusercontent.com/apache/spark/master/examples/src/main/scripts/getGpusResources.sh
+  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    "${gpu_resources_url}" -o ${spark_gpu_script_dir}/getGpusResources.sh
+  chmod a+rwx -R ${spark_gpu_script_dir}
+
+  # enable GPU isolation
+  sed -i "s/yarn.nodemanager\.linux\-container\-executor\.group\=/yarn\.nodemanager\.linux\-container\-executor\.group\=yarn/g" /etc/hadoop/conf/container-executor.cfg
+  printf '\n[gpu]\nmodule.enabled=true\n[cgroups]\nroot=/sys/fs/cgroup\nyarn-hierarchy=yarn\n' >>/etc/hadoop/conf/container-executor.cfg
+
+  chmod a+rwx -R /sys/fs/cgroup/cpu,cpuacct
+  chmod a+rwx -R /sys/fs/cgroup/devices
+}
+
 function main() {
   if [[ ${OS_NAME} != debian ]] && [[ ${OS_NAME} != ubuntu ]]; then
     echo "Unsupported OS: '${OS_NAME}'"
@@ -230,33 +302,36 @@ function main() {
   fi
 
   export DEBIAN_FRONTEND=noninteractive
-
   execute_with_retries "apt-get update"
   execute_with_retries "apt-get install -y -q pciutils"
 
+  configure_gpu_isolation
+  configure_yarn
+
   # Detect NVIDIA GPU
-  if ! (lspci | grep -q NVIDIA); then
-    echo 'No NVIDIA card detected. Skipping installation.' >&2
-    exit 0
-  fi
+  if (lspci | grep -q NVIDIA); then
+    execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
+    if [[ ${GPU_DRIVER_PROVIDER} == 'NVIDIA' ]]; then
+      install_nvidia_gpu_driver
+      install_nvidia_nccl
+    elif [[ ${GPU_DRIVER_PROVIDER} == 'OS' ]]; then
+      install_os_gpu_driver
+    else
+      echo "Unsupported GPU driver provider: '${GPU_DRIVER_PROVIDER}'"
+      exit 1
+    fi
 
-  execute_with_retries "apt-get install -y -q 'linux-headers-$(uname -r)'"
-  if [[ ${GPU_DRIVER_PROVIDER} == 'NVIDIA' ]]; then
-    install_nvidia_gpu_driver
-    install_nvidia_nccl
-  elif [[ ${GPU_DRIVER_PROVIDER} == 'OS' ]]; then
-    install_os_gpu_driver
-  else
-    echo "Unsupported GPU driver provider: '${GPU_DRIVER_PROVIDER}'"
-    exit 1
-  fi
+    # Install GPU metrics collection in Stackdriver if needed
+    if [[ ${INSTALL_GPU_AGENT} == true ]]; then
+      install_gpu_agent
+      echo 'GPU agent successfully deployed.'
+    else
+      echo 'GPU metrics will not be installed.'
+    fi
 
-  # Install GPU metrics collection in Stackdriver if needed
-  if [[ ${INSTALL_GPU_AGENT} == true ]]; then
-    install_gpu_agent
-    echo 'GPU agent successfully deployed.'
-  else
-    echo 'GPU metrics will not be installed.'
+    if [[ "${ROLE}" != "Master" ]]; then
+      configure_gpu_exclusive_mode
+    fi
   fi
 }
 

@@ -14,16 +14,26 @@ readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-maste
 readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'DASK')
 readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
 
-readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '10.0')
-readonly CUDF_VERSION=$(get_metadata_attribute 'cudf-version' '0.9.2')
+# RAPIDS config
+readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '10.2')
+readonly CUDF_VERSION=$(get_metadata_attribute 'cudf-version' '0.14')
+readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' '0.14')
 
-readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' '1.0.0-Beta4')
-readonly RAPIDS_SPARK_VERSION=$(get_metadata_attribute 'rapids-spark-version' '2.x')
+# SPARK config
+readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' '0.1.0')
+readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' '1.0.0')
+readonly SPARK_VERSION=$(get_metadata_attribute 'spark-version' '3.0')
 
+# DASK config
 readonly DASK_LAUNCHER='/usr/local/bin/dask-launcher.sh'
 readonly DASK_SERVICE='dask-cluster'
 readonly RAPIDS_ENV='RAPIDS'
 readonly RAPIDS_ENV_BIN="/opt/conda/anaconda/envs/${RAPIDS_ENV}/bin"
+
+# Dataproc configurations
+readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
+readonly HIVE_CONF_DIR='/etc/hive/conf'
+readonly SPARK_CONF_DIR='/etc/spark/conf'
 
 BUILD_DIR=$(mktemp -d -t rapids-init-action-XXXX)
 readonly BUILD_DIR
@@ -39,8 +49,9 @@ function execute_with_retries() {
   return 1
 }
 
-function install_xgboost4j() {
-  local -r repo_url='https://repo1.maven.org/maven2/ai/rapids'
+function install_spark_rapids() {
+  local -r rapids_repo_url='https://repo1.maven.org/maven2/ai/rapids'
+  local -r nvidia_repo_url='https://repo1.maven.org/maven2/com/nvidia'
 
   if [[ "${CUDA_VERSION}" == "10.0" ]]; then
     local -r cudf_cuda_version="10"
@@ -48,15 +59,60 @@ function install_xgboost4j() {
     local -r cudf_cuda_version="${CUDA_VERSION//\./-}"
   fi
 
+  if [[ "${SPARK_VERSION}" == "3"* ]]; then
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "${nvidia_repo_url}/xgboost4j-spark_${SPARK_VERSION}/${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "${nvidia_repo_url}/xgboost4j_${SPARK_VERSION}/${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}/xgboost4j_${SPARK_VERSION}-${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "${nvidia_repo_url}/rapids-4-spark_2.12/${SPARK_RAPIDS_VERSION}/rapids-4-spark_2.12-${SPARK_RAPIDS_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
+  else
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "${rapids_repo_url}/xgboost4j-spark_${SPARK_VERSION}/${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
+    wget -nv --timeout=30 --tries=5 --retry-connrefused \
+      "${rapids_repo_url}/xgboost4j_${SPARK_VERSION}/${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}/xgboost4j_${SPARK_VERSION}-${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}.jar" \
+      -P /usr/lib/spark/jars/
+  fi
   wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${repo_url}/xgboost4j-spark_${RAPIDS_SPARK_VERSION}/${RAPIDS_VERSION}/xgboost4j-spark_${RAPIDS_SPARK_VERSION}-${RAPIDS_VERSION}.jar" \
+    "${rapids_repo_url}/cudf/${CUDF_VERSION}/cudf-${CUDF_VERSION}-cuda${cudf_cuda_version}.jar" \
     -P /usr/lib/spark/jars/
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${repo_url}/xgboost4j_${RAPIDS_SPARK_VERSION}/${RAPIDS_VERSION}/xgboost4j_${RAPIDS_SPARK_VERSION}-${RAPIDS_VERSION}.jar" \
-    -P /usr/lib/spark/jars/
-  wget -nv --timeout=30 --tries=5 --retry-connrefused \
-    "${repo_url}/cudf/${CUDF_VERSION}/cudf-${CUDF_VERSION}-cuda${cudf_cuda_version}.jar" \
-    -P /usr/lib/spark/jars/
+}
+
+function configure_spark() {
+  if [[ "${SPARK_VERSION}" == "3"* ]]; then
+    cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
+
+###### BEGIN : NVIDIA GPU specific properties ######
+spark.rapids.sql.concurrentGpuTasks=2
+spark.executor.resource.gpu.amount=1
+spark.executor.cores=2
+spark.task.cpus=1
+spark.task.resource.gpu.amount=0.5
+spark.rapids.memory.pinnedPool.size=2G
+spark.executor.memoryOverhead=2G
+spark.plugins=com.nvidia.spark.SQLPlugin
+spark.executor.extraJavaOptions='-Dai.rapids.cudf.prefer-pinned=true'
+spark.locality.wait=0s
+spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh
+spark.sql.shuffle.partitions=48
+spark.sql.files.maxPartitionBytes=512m
+spark.dynamicAllocation.enabled=false
+spark.shuffle.service.enabled=false
+###### END   : NVIDIA GPU specific properties ######
+EOF
+  else
+    cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
+
+###### BEGIN : NVIDIA GPU specific properties ######
+spark.dynamicAllocation.enabled=false
+spark.shuffle.service.enabled=false
+###### END   : NVIDIA GPU specific properties ######
+EOF
+  fi
 }
 
 function create_conda_env() {
@@ -71,16 +127,7 @@ channels:
   - conda-forge
 dependencies:
   - cudatoolkit=${CUDA_VERSION}
-  - dask-cuda=0.7.*
-  - cudf=0.7.*
-  - pyarrow=0.12.1
-  - arrow-cpp=0.12.1
-  - dask-cudf=0.7.*
-  - cuml=0.7.*
-  - dask-cuml=0.7.*
-  - cugraph=0.7.*
-  - rapidsai/label/xgboost::xgboost=0.90.*
-  - rapidsai/label/xgboost::dask-xgboost=0.2.*
+  - rapids=${RAPIDS_VERSION}
   - gcsfs
   - dill
   - ipykernel
@@ -96,21 +143,25 @@ function install_conda_kernel() {
 
 install_systemd_dask_service() {
   echo "Installing systemd Dask service..."
+  local -r dask_worker_local_dir="/tmp/rapids"
+  local -r mem_total=$(free -m | grep -oP '\d+' | head -n1)
 
   if [[ "${ROLE}" == "Master" ]]; then
     cat <<EOF >"${DASK_LAUNCHER}"
 #!/bin/bash
 if [[ "${RUN_WORKER_ON_MASTER}" == true ]]; then
+  nvidia-smi -c DEFAULT
   echo "dask-cuda-worker starting, logging to /var/log/dask-cuda-worker.log."
-  $RAPIDS_ENV_BIN/dask-cuda-worker --memory-limit 0 ${MASTER}:8786 > /var/log/dask-cuda-worker.log 2>&1 &
+  $RAPIDS_ENV_BIN/dask-cuda-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-cuda-worker.log 2>&1 &
 fi
 echo "dask-scheduler starting, logging to /var/log/dask-scheduler.log."
 $RAPIDS_ENV_BIN/dask-scheduler > /var/log/dask-scheduler.log 2>&1
 EOF
   else
+    nvidia-smi -c DEFAULT
     cat <<EOF >"${DASK_LAUNCHER}"
 #!/bin/bash
-$RAPIDS_ENV_BIN/dask-cuda-worker --memory-limit 0 ${MASTER}:8786 > /var/log/dask-cuda-worker.log 2>&1
+$RAPIDS_ENV_BIN/dask-cuda-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-cuda-worker.log 2>&1
 EOF
   fi
   chmod 750 "${DASK_LAUNCHER}"
@@ -143,7 +194,14 @@ function main() {
     systemctl start "${DASK_SERVICE}"
     echo "RAPIDS initialized with Dask runtime"
   elif [[ "${RUNTIME}" == "SPARK" ]]; then
-    install_xgboost4j
+    install_spark_rapids
+    configure_spark
+
+    if [[ "${ROLE}" == "Master" ]]; then
+      systemctl restart hadoop-yarn-resourcemanager.service
+    else
+      systemctl restart hadoop-yarn-nodemanager.service
+    fi
     echo "RAPIDS initialized with Spark runtime"
   else
     echo "Unsupported RAPIDS Runtime: ${RUNTIME}"

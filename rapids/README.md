@@ -14,13 +14,114 @@ action supports Dask and Spark runtimes for RAPIDS on
 [best practices](/README.md#how-initialization-actions-are-used) of using
 initialization actions in production.
 
-## Spark RAPIDS XGBoost
-
-This section describes how to create
-[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with Spark
-RAPIDS XGBoost.
+## Spark RAPIDS Accelerator
 
 ### Prerequisites
+
+To use Spark Rapids SQL plugin, XGBoost4j with Spark 3
+
+*   Apache Spark 3.0.0 RC1+
+*   Hardware Requirements
+    *   NVIDIA Pascal™ GPU architecture or better (V100, P100, T4 and later)
+    *   Multi-node clusters with homogenous GPU configuration
+*   Software Requirements
+    *   NVIDIA driver 440.33+
+    *   CUDA v10.2/v10.1/v10.0
+    *   NCCL 2.4.7 and later
+
+This section describes how to create
+[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with
+[Spark RAPIDS SQL plugin](https://github.com/NVIDIA/spark-rapids) and
+[XGBoost4j](https://github.com/rapidsai/spark-examples/tree/support-spark3.0).
+
+### Step 1. Create Dataproc cluster with Spark RAPIDS Accelerator
+
+The following command will create a new Dataproc cluster named `CLUSTER_NAME`
+with installed GPU drivers, Spark RAPIDS Accelerator, Spark RAPIDS XGBoost
+libraries and Jupyter Notebook.
+
+A few notes:
+
+*   `spark.yarn.unmanagedAM.enabled=false` is set since it current breaks
+    SparkUI, will remove later
+*   for better GPU performance it's recommended to remove IO bottleneck as much
+    as possible, that includes faster disk/networking.
+*   Adjust spark properties in cluster creation command to the hardware
+    availability
+*   For best practice, please refer to NVIDIA
+    [getting started guide](https://nvidia.github.io/spark-rapids/)
+
+```bash
+export CLUSTER_NAME=<cluster_name>
+export GCS_BUCKET=<your bucket for the logs and notebooks>
+export REGION=<region>
+export NUM_GPUS=1
+export NUM_WORKERS=2
+
+gcloud dataproc clusters create $CLUSTER_NAME  \
+    --region $REGION \
+    --image-version=preview-ubuntu \
+    --master-machine-type n1-standard-4 \
+    --master-boot-disk-size 200 \
+    --num-workers $NUM_WORKERS \
+    --worker-accelerator type=nvidia-tesla-t4,count=$NUM_GPUS \
+    --worker-machine-type n1-standard-16 \
+    --num-worker-local-ssds 1 \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
+    --optional-components=ANACONDA,JUPYTER,ZEPPELIN \
+    --metadata gpu-driver-provider="NVIDIA",rapids-runtime="SPARK" \
+    --bucket $GCS_BUCKET \
+    --subnet=default \
+    --enable-component-gateway \
+    --properties="^#^spark:spark.yarn.unmanagedAM.enabled=false"
+```
+User can adjust spark resource default allocation by adding following to `--properties flag.
+The numbers should be adjusted given the hardware resource availability, spark job requirement.   
+```bash
+spark:spark.task.resource.gpu.amount=0.125
+spark:spark.executor.cores=8
+spark:spark.task.cpus=1
+spark:spark.executor.memory=4G
+``` 
+
+
+After submitting this command, please go to the Google Cloud Platform console on
+your browser. Search for "Dataproc" and click on the "Dataproc" icon. This will
+navigate you to the Dataproc clusters page. “Dataproc” page lists all Dataproc
+clusters created under your project directory. You can see `CLUSTER_NAME` with
+status "Running". This cluster is now ready to host RAPIDS Spark XGBoost
+applications.
+
+### Step 2. Run a sample query and exam GPU usage
+
+Once you have started your spark shell or zeppelin notebook you can run the
+following commands to do a basic join and look at the UI to see that it runs on
+the GPU.
+
+```scala
+val df = sc.makeRDD(1 to 10000000, 6).toDF
+val df2 = sc.makeRDD(1 to 10000000, 6).toDF
+val out = df.select( $"value" as "a").join(df2.select($"value" as "b"), $"a" === $"b")
+out.count()
+out.explain()
+```
+
+From `out.explain()`, you should see GpuRowToColumn, GpuFilter,
+GpuColumnarExchange, those all indicate things that would run on the GPU.
+
+Or go to the Spark UI and click on the application you ran and on the "SQL" tab.
+If you click the operation "count at ...", you should see the graph of Spark
+Executors and some of those should have the "GPU" label as well.
+
+## Spark 2.x RAPIDS XGBoost
+
+This section describes how to create
+[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with
+[XGBoost4j](https://github.com/rapidsai/spark-examples).
+
+### Prerequisites
+
+To use XGBoost4j with Spark 2
 
 *   Apache Spark 2.3+
 *   Hardware Requirements
@@ -28,7 +129,7 @@ RAPIDS XGBoost.
     *   Multi-node clusters with homogenous GPU configuration
 *   Software Requirements
     *   NVIDIA driver 410.48+
-    *   CUDA v10.1/10.0/9.2
+    *   CUDA v10.2/v10.1/v10.0/v9.2
     *   NCCL 2.4.7 and later
 *   `EXCLUSIVE_PROCESS` must be set for all GPUs in each NodeManager (this
     initialization action sets this mode by default)
@@ -70,20 +171,20 @@ export GCS_BUCKET=<your bucket for the logs and notebooks>
 export REGION=<region>
 export RAPIDS_SPARK_VERSION=2.x
 export RAPIDS_VERSION=1.0.0-Beta4
-gcloud beta dataproc clusters create $CLUSTER_NAME \
+gcloud dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
     --image-version 1.4-ubuntu18 \
-    --master-machine-type n1-standard-8 \
-    --worker-machine-type n1-highmem-32 \
-    --worker-accelerator type=nvidia-tesla-t4,count=2 \
+    --master-machine-type n1-standard-4 \
+    --worker-machine-type n1-highmem-16 \
+    --worker-accelerator type=nvidia-tesla-t4,count=1 \
     --optional-components=ANACONDA,JUPYTER,ZEPPELIN \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
     --metadata gpu-driver-provider=NVIDIA \
     --metadata rapids-runtime=SPARK \
+    --metadata spark-version=2.x,spark-rapids-version=Beta5,cuda-version=10.1,cudf-version=0.9.2 \
     --bucket $GCS_BUCKET \
     --properties "spark:spark.dynamicAllocation.enabled=false,spark:spark.shuffle.service.enabled=false,spark:spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j-spark_${RAPIDS_SPARK_VERSION}-${RAPIDS_VERSION}.jar" \
-    --enable-component-gateway \
-    --subnet=default 
+    --enable-component-gateway 
 ```
 
 After submitting this command, please go to the Google Cloud Platform console on
@@ -230,13 +331,14 @@ Dask-cuDF cluster:
 ### Create Dataroc cluster with Dask RAPIDS
 
 Using the `gcloud` command to create a new cluster with this initialization
-action.
+action. Because of Anaconda version conflict, script deployment on older images
+is slow, we recommend users to use Dask with Dataproc 2.0+.
 
 ```bash
 GCS_BUCKET=<bucket_name>
 CLUSTER_NAME=<cluster_name>
 REGION=<region>
-gcloud beta dataproc clusters create $CLUSTER_NAME \
+gcloud dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
     --image-version 1.4-ubuntu18 \
     --master-machine-type n1-standard-32 \
@@ -309,7 +411,7 @@ For example:
 ```bash
 CLUSTER_NAME=<cluster_name>
 REGION=<region>
-gcloud beta dataproc clusters create $CLUSTER_NAME \
+gcloud dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
     --image-version 1.4-ubuntu18 \
     --master-machine-type n1-standard-32 \

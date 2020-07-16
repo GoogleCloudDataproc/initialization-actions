@@ -66,6 +66,17 @@ gpu-driver-provider=<OS|NVIDIA>` metadata value.
         --scopes https://www.googleapis.com/auth/monitoring.write
     ```
 
+#### GPU Scheduling in YARN:
+
+YARN is the default Resource Manager for Dataproc. To use GPU scheduling feature
+in Spark, it requires YARN version >= 2.10 or >=3.1.1. If intended to use spark
+with Deep Learning use case, it recommended to use Yarn >= 3.1.3 to get support
+for [nvidia-docker version 2](https://github.com/NVIDIA/nvidia-docker).
+
+In current Dataproc set up, we enable GPU resource isolation by initialization
+script without NVIDIA Docker, you can find more information at
+[NVIDIA Spark RAPIDS getting started guide](https://nvidia.github.io/spark-rapids/).
+
 #### Supported metadata parameters:
 
 -   `install-gpu-agent: true|false` - this is an optional parameter with
