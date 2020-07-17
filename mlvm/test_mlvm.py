@@ -10,34 +10,28 @@ class MLVMTestCase(DataprocTestCase):
     COMPONENT = "mlvm"
     INIT_ACTIONS = ["mlvm/mlvm.sh"]
     OPTIONAL_COMPONENTS = ["ANACONDA", "JUPYTER"]
-    SUPPORTED_IMAGE_VERSION = "1.5"
 
     def createCluster(self, configuration, **config):
         config["optional_components"] = self.OPTIONAL_COMPONENTS
         config["scopes"] = "cloud-platform"
-        config["beta"] = True
         config["timeout_in_minutes"] = 60
+        config["machine_type"] = "n1-standard-8"
+        
+        connector_metadata = "spark-bigquery-connector-version=0.13.1-beta"
+        metadata = config.get("metadata", "")
+        if metadata:
+            if "connector" not in metadata:
+                metadata = "{},{}".format(metadata, connector_metadata)
+        else:
+            metadata = connector_metadata
+        
+        config["metadata"] = metadata
 
-        super().createCluster(configuration,self.INIT_ACTIONS,
+        super().createCluster(configuration, self.INIT_ACTIONS,
                               **config)
 
-
-class H2OTestCase(MLVMTestCase):
-    SAMPLE_H2O_JOB_PATH = "mlvm/scripts/sample-h20-script.py"
-
-    @parameterized.parameters("SINGLE", "STANDARD", "HA")
-    def test_h2o(self, configuration):  
-        # Init action supported on Dataproc 1.5+
-        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-            return
-
-        self.createCluster(configuration)
-        self.assert_dataproc_job(
-            self.name, "pyspark", "{}/{}".format(self.INIT_ACTIONS_REPO,
-                                                 self.SAMPLE_H2O_JOB_PATH))
-
-
 class ConnectorsTestCase(MLVMTestCase):
+    COMPONENT = "mlvm-connectors"
     BQ_CONNECTOR_VERSION = "1.1.1"
     BQ_CONNECTOR_URL = "gs://hadoop-lib/bigquery/bigquery-connector-hadoop2-1.1.1.jar"
 
@@ -49,7 +43,6 @@ class ConnectorsTestCase(MLVMTestCase):
 
     CONNECTORS_DIR = "/usr/local/share/google/dataproc/lib"
     SCALA_VERSION = "2.12"
-
 
     def verify_instances(self, cluster, instances, connector,
                          connector_version):
@@ -154,7 +147,9 @@ class ConnectorsTestCase(MLVMTestCase):
                               "spark-bigquery-connector",
                               self.SPARK_BQ_CONNECTOR_VERSION)
 
+
 class NvidiaGpuDriverTestCase(MLVMTestCase):
+    COMPONENT = "mlvm-gpu"
     GPU_V100 = 'type=nvidia-tesla-v100'
 
     def verify_instance(self, name):
@@ -176,14 +171,13 @@ class NvidiaGpuDriverTestCase(MLVMTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
-        metadata = "include_gpus=true"
+        metadata = "include-gpus=true"
         if driver_provider is not None:
-            metadata = ",gpu-driver-provider={}".format(driver_provider)
+            metadata += ",gpu-driver-provider={}".format(driver_provider)
         self.createCluster(configuration,
                            master_accelerator=master_accelerator,
                            worker_accelerator=worker_accelerator,
-                           metadata=metadata,
-                           )
+                           metadata=metadata)
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),
                                                 machine_suffix))
@@ -200,7 +194,7 @@ class NvidiaGpuDriverTestCase(MLVMTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
-        metadata = 'include_gpus=true,install-gpu-agent=false'
+        metadata = 'include-gpus=true,install-gpu-agent=false'
         if driver_provider is not None:
             metadata += ",gpu-driver-provider={}".format(driver_provider)
         self.createCluster(configuration,
@@ -223,7 +217,7 @@ class NvidiaGpuDriverTestCase(MLVMTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
-        metadata = 'include_gpus=true,install-gpu-agent=true'
+        metadata = 'include-gpus=true,install-gpu-agent=true'
         if driver_provider is not None:
             metadata += ",gpu-driver-provider={}".format(driver_provider)
         self.createCluster(
@@ -238,10 +232,13 @@ class NvidiaGpuDriverTestCase(MLVMTestCase):
             self.verify_instance_gpu_agent("{}-{}".format(
                 self.getClusterName(), machine_suffix))
 
+
 class RapidsTestCase(MLVMTestCase):
+    COMPONENT = "mlvm-rapids"
     GPU_P100 = 'type=nvidia-tesla-p100'
 
-    DASK_TEST_SCRIPT_FILE_NAME = 'mlvm/scripts/verify_rapids_dask.py'
+    DASK_TEST_SCRIPT_FILE_NAME = 'scripts/verify_rapids_dask.py'
+    SPARK_TEST_SCRIPT_FILE_NAME = 'mlvm/scripts/verify_rapids_spark.py'
 
     def verify_dask_instance(self, name):
         self.upload_test_file(
@@ -255,28 +252,26 @@ class RapidsTestCase(MLVMTestCase):
             self.DASK_TEST_SCRIPT_FILE_NAME)
         self.assert_instance_command(name, verify_cmd)
 
-    def verify_spark_instance(self, name):
+    def verify_spark2_instance(self, name):
         self.assert_instance_command(name, "nvidia-smi")
 
-    @parameterized.parameters(("STANDARD", ["m"], GPU_P100, False),
-                              ("STANDARD", ["m"], GPU_P100, True))
-    def test_rapids_dask(self, configuration, machine_suffixes, accelerator,
-                         dask_cuda_worker_on_master):
-        # Init action supported on Dataproc 1.5+
+    def verify_spark3_job(self):
+        self.assert_dataproc_job(
+            self.name, "pyspark", "{}/{}".format(self.INIT_ACTIONS_REPO,
+                                                        self.SPARK_TEST_SCRIPT_FILE_NAME))
+
+    @parameterized.parameters(("STANDARD", ["m", "w-0"], GPU_P100))
+    def test_rapids_dask(self, configuration, machine_suffixes, accelerator):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
-        metadata = 'include_gpus=true,gpu-driver-provider=NVIDIA,rapids-runtime=DASK'
-        if dask_cuda_worker_on_master:
-            master_accelerator = accelerator
-        else:
-            metadata += ',dask-cuda-worker-on-master=false'
-            master_accelerator = None
+        metadata = 'include-gpus=true,gpu-driver-provider=NVIDIA,rapids-runtime=DASK'
+        master_accelerator = accelerator
         self.createCluster(configuration,
                            metadata=metadata,
                            master_accelerator=master_accelerator,
                            worker_accelerator=accelerator,
-                           machine_type='n1-standard-2')
+                           timeout_in_minutes=70)
 
         for machine_suffix in machine_suffixes:
             self.verify_dask_instance("{}-{}".format(self.getClusterName(),
@@ -284,23 +279,22 @@ class RapidsTestCase(MLVMTestCase):
 
     @parameterized.parameters(("STANDARD", ["w-0"], GPU_P100))
     def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
-        # Init action supported on Dataproc 1.5+
-        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-            return
-
         self.createCluster(
             configuration,
-            metadata='include_gpus=true,gpu-driver-provider=NVIDIA,rapids-runtime=SPARK',
-            machine_type='n1-standard-2',
-            worker_accelerator=accelerator)
-
-        for machine_suffix in machine_suffixes:
-            self.verify_spark_instance("{}-{}".format(self.getClusterName(),
-                                                      machine_suffix))
+            metadata='include-gpus=true,gpu-driver-provider=NVIDIA,rapids-runtime=SPARK',
+            worker_accelerator=accelerator,
+            timeout_in_minutes=30)
+        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+            for machine_suffix in machine_suffixes:
+                self.verify_spark2_instance("{}-{}".format(self.getClusterName(),
+                                                           machine_suffix))
+        else:
+            self.verify_spark3_job()
 
 
 class PythonTestCase(MLVMTestCase):
-    PYTHON_SCRIPT = "mlvm/scripts/python-script.py"
+    COMPONENT = "mlvm-python"
+    PYTHON_SCRIPT = "mlvm/scripts/python_packages.py"
           
     @parameterized.parameters(("STANDARD",))
     def test_python(self, configuration):
@@ -316,7 +310,8 @@ class PythonTestCase(MLVMTestCase):
 
 
 class RTestCase(MLVMTestCase):
-    SAMPLE_R_SCRIPT = "mlvm/scripts/r-script.R"
+    COMPONENT = "mlvm-r"
+    R_SCRIPT = "mlvm/scripts/r_packages.R"
 
     @parameterized.parameters(("STANDARD",))
     def test_r(self, configuration):
@@ -327,14 +322,8 @@ class RTestCase(MLVMTestCase):
         self.createCluster(configuration)
 
         self.assert_dataproc_job(
-            self.name, "sparkr", "{}/{}".format(self.INIT_ACTIONS_REPO,
+            self.name, "spark-r", "{}/{}".format(self.INIT_ACTIONS_REPO,
                                                 self.R_SCRIPT))
-#TODO
-class HorovodTestCase(MLVMTestCase):
-    
-    @parameterized.parameters(("STANDARD",))
-    def test_horovod(self, configuration):
-        pass
 
 if __name__ == "__main__":
     absltest.main()

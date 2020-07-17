@@ -3,14 +3,14 @@ from google.cloud import datalabeling
 from google.cloud import storage
 from google.cloud import bigtable
 from google.cloud import dataproc
-import google.api.python.client
+import googleapiclient
 import mxnet as mx
 import tensorflow as tf
 import numpy as np
-import scikit.learn
+import sklearn
 import keras
 import rpy2
-import spark-nlp
+import sparknlp
 import xgboost
 import torch
 import torchvision
@@ -28,6 +28,7 @@ import torchvision
 "keras==2.3.1"
 "rpy2==3.3.3"
 "spark-nlp==2.5.1"
+"spark-tensorflow-connector"
 "xgboost==1.1.0"
 "torch==1.5.0"
 "torchvision==0.6.0"

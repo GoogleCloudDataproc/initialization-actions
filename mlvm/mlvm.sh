@@ -29,16 +29,13 @@ readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/IN
 readonly INIT_ACTIONS_BRANCH="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_BRANCH ||
   echo 'master')"
 readonly INIT_ACTIONS_DIR=/opt/init-actions
-readonly include_gpus="$(/usr/share/google/get_metadata_value attributes/include_gpus || true)"
+readonly SUBCOMPONENTS="$(/usr/share/google/get_metadata_value attributes/subcomponents || true)"
+readonly include_gpus="$(/usr/share/google/get_metadata_value attributes/include-gpus || true)"
 
 BASE_R_PACKAGES=(
-  "xgboost==1.0.0.2"
-  "ggplot2==3.3.0"
-  "caret==6.0-86"
-  "nnet==7.3-14"
-  "randomForest==4.6-14"
-  "sparkbq==0.1.1"
-  "sparklyr==1.2.0"
+  "r-essentials=3.6.0"
+  "r-xgboost=0.90.0.2"
+  "r-sparklyr=1.0.0"
 )
 
 BASE_PIP_PACKAGES=(
@@ -53,28 +50,20 @@ BASE_PIP_PACKAGES=(
   "numpy==1.18.4" 
   "scikit-learn==0.23.1" 
   "keras==2.3.1"
-  "rpy2==3.3.3" 
-  "spark-nlp==2.5.1" 
+  "rpy2==3.3.3"
+  "sparksql-magic==0.0.3" 
   "xgboost==1.1.0" 
   "torch==1.5.0" 
   "torchvision==0.6.0" 
 )
 
+if [ $(echo "$DATAPROC_VERSION >= 2.0" | bc) -eq 1 ]; then 
+  BASE_PIP_PACKAGES+=("spark-tensorflow-distributor==0.1.0")
+fi
+
 mkdir -p ${JARS_DIR}
 mkdir -p ${CONNECTORS_DIR}
 mkdir -p ${INIT_ACTIONS_DIR}
-
-function execute_with_retries() {
-  local -r cmd=$1
-  for ((i = 0; i < 10; i++)); do
-    if eval "$cmd"; then
-      return 0
-    fi
-    sleep 5
-  done
-  echo "Cmd \"${cmd}\" failed."
-  return 1
-}
 
 function download_spark_jar() {
   local -r url=$1
@@ -109,7 +98,7 @@ function install_pip_packages() {
 }
 
 function install_rapids() {
-  # Only install RAPIDS if "rapids-runtime" metadata exists as well as GPU hardware detected.
+  # Only install RAPIDS if "rapids-runtime" metadata exists and GPUs requested.
   local rapids_runtime
   rapids_runtime="$(/usr/share/google/get_metadata_value attributes/rapids-runtime || true)"
   
@@ -165,90 +154,48 @@ function install_spark_nlp() {
   local -r repo_url="http://dl.bintray.com/spark-packages/maven/JohnSnowLabs/"
   local -r version="2.4.3"
   
+  pip install -U "spark-nlp==2.5.1" 
   download_spark_jar "${repo_url}/${name}/${version}/${name}-${version}.jar"
 }
 
-function install_r_packages() {
-  local r_packages
-  local split
-  local name
-  local version
-  local tmp_dir
-  local pwd
-
-  # Install R system dependencies
-  readonly CURL_REPO="https://github.com/curl/curl/releases/download/curl-7_70_0/curl-7.70.0.tar.gz"
-
-
-  # libcurl4 requires building curl from source
-  tmp_dir=$(mktemp -d -t curl-XXX)
-  wget -nv --timeout=30 --tries=5 --retry-connrefused -P ${tmp_dir} "${CURL_REPO}" 
-  gunzip -c "${tmp_dir}/curl-7.70.0.tar.gz" | tar xf - -C ${tmp_dir}
-  
-  cur_dir=$(pwd)
-  cd ${tmp_dir}/curl-7.70.0
-  ./configure
-  make 
-  make install
-  cd ${cur_dir}
-
-  apt-get install -y libcurl4-openssl-dev libssl-dev libxml2-dev
-  
+function install_r_packages() {  
   readonly EXTRA_R_PACKAGES="$(/usr/share/google/get_metadata_value attributes/R_PACKAGES || true)"
-
-  r_packages=("${BASE_R_PACKAGES[@]}" "${EXTRA_R_PACKAGES[@]}")
-  for package in "${r_packages[@]}"; do    
-    split=($(echo ${package} | tr "==" "\n"))
-    name="${split[0]}"
-    set +u
-    version="${split[1]}"
-    set -u
-
-    echo "Installing '${package}'..."
-    if [[ -n "${version}" ]]; then
-      execute_with_retries "Rscript -e 'install.packages(\"${name}\", version=\"${version}\", repo=\"https://cran.rstudio.com\")'"
-    else
-      execute_with_retries "Rscript -e 'install.packages(\"${name}\", repo=\"https://cran.rstudio.com\")'"
-    fi
-    echo "Successfully installed '${package}'"
-  done
+  
+  conda install -y -c r "${BASE_R_PACKAGES[@]}"
+  
+  if [[ -n "${EXTRA_R_PACKAGES}" ]]; then
+    conda install -y -c r "${EXTRA_R_PACKAGES[@]}"
+  fi
 }
 
 function main () {
   # Download initialization actions
-  "Downloading initialization actions"
+  echo "Downloading initialization actions"
   download_init_actions
 
   # Install GPU Drivers
-  "Installing GPU drivers"
+  echo "Installing GPU drivers"
   install_gpu_drivers
 
   # Install Python packages
-  "Installing pip packages"
+  echo "Installing pip packages"
   install_pip_packages
 
   # Install R packages
-  "Installing R Packages"
+  echo "Installing R Packages"
   install_r_packages
 
   # Install Spark Libraries
-  "Installing Spark-NLP"
+  echo "Installing Spark-NLP"
   install_spark_nlp
 
-  "Installing H20"
-  install_h2o_sparkling_water
-
   # Install GCP Connectors
-  "Installing GCP Connectors"
+  echo "Installing GCP Connectors"
   install_connectors
 
   # Install RAPIDS
-  "Installing rapids"
+  echo "Installing rapids"
   install_rapids
-
-  # Install Horovod
-  # echo_wrap "Installing Horovod"
-  # install_horovod
 }
 
 main

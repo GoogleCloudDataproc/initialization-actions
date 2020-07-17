@@ -12,7 +12,6 @@ Features of this configuration include:
 * Jupyter and Anaconda via [Optional Components](https://cloud.google.com/dataproc/docs/concepts/components/overview)
 * [Component Gateway](https://cloud.google.com/dataproc/docs/concepts/accessing/dataproc-gateways)
 
-
 ## Using this initialization action
 
 **:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
@@ -25,22 +24,21 @@ a set of preconfigured machine learning packages.:
     ```bash
     REGION=<region>
     CLUSTER_NAME=<cluster_name>
-    gcloud beta dataproc clusters create ${CLUSTER_NAME} \
+    gcloud dataproc clusters create ${CLUSTER_NAME} \
         --region ${REGION} \
-        --master-machine-type n1-standard-8 \
+        --master-machine-type n1-standard-16 \
         --worker-machine-type n1-highmem-32 \
         --worker-accelerator type=nvidia-tesla-t4,count=2 \
-        --image-version 1.5-ubuntu \
+        --image-version preview-ubuntu \
         --metadata spark-bigquery-connector-version=0.13.1-beta \
         --metadata gpu-driver-provider=NVIDIA \
         --metadata rapids-runtime=SPARK \
-        --scopes "cloud-platform" \
+        --metadata include-gpus=true \
         --optional-components ANACONDA,JUPYTER \
-        --properties "spark:spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j-spark_2.x-1.0.0-Beta4.jar" \
         --initialization-actions gs://dataproc-initialization-actions/mlvm/mlvm.sh \
-        --subnet=default \
         --enable-component-gateway  
     ```
+
 
 You can find more information about using initialization actions with Dataproc
 in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
