@@ -85,8 +85,7 @@ class StarburstPrestoTestCase(DataprocTestCase):
     )
     def test_starburst_presto(self, configuration, machine_suffixes,
                               coordinators, workers):
-        self.createCluster(
-            configuration, self.INIT_ACTIONS, machine_type="n1-standard-2")
+        self.createCluster(configuration, self.INIT_ACTIONS)
         for machine_suffix in machine_suffixes:
             self.verify_instance(
                 "{}-{}".format(self.getClusterName(), machine_suffix),
@@ -99,7 +98,6 @@ class StarburstPrestoTestCase(DataprocTestCase):
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
-            machine_type="n1-standard-2",
             metadata="presto-port=8060")
         for machine_suffix in machine_suffixes:
             machine_name = "{}-{}".format(self.getClusterName(),

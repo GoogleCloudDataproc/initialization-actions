@@ -29,8 +29,7 @@ class JupyterTestCase(DataprocTestCase):
             configuration,
             self.INIT_ACTIONS,
             metadata=metadata,
-            timeout_in_minutes=15,
-            machine_type="n1-standard-2")
+            timeout_in_minutes=15)
 
         for machine_suffix in machine_suffixes:
             self.verify_instance(
@@ -55,8 +54,7 @@ class JupyterTestCase(DataprocTestCase):
             configuration,
             self.INIT_ACTIONS,
             metadata=metadata,
-            timeout_in_minutes=15,
-            machine_type="n1-standard-2")
+            timeout_in_minutes=15)
 
         for machine_suffix in machine_suffixes:
             self.verify_instance(

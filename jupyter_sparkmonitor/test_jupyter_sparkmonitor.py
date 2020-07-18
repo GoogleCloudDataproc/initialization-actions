@@ -31,8 +31,7 @@ class JupyterTestCase(DataprocTestCase):
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
                            optional_components=self.OPTIONAL_COMPONENTS,
-                           timeout_in_minutes=10,
-                           machine_type="n1-standard-2")
+                           timeout_in_minutes=10)
 
         for machine_suffix in machine_suffixes:
             self.verify_instance("{}-{}".format(self.getClusterName(),

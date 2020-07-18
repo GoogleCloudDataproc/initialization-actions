@@ -24,8 +24,7 @@ class H2OTestCase(DataprocTestCase):
         self.createCluster(configuration,
                            init_actions,
                            optional_components=optional_components,
-                           scopes="cloud-platform",
-                           machine_type="n1-standard-2")
+                           scopes="cloud-platform")
 
         self.assert_dataproc_job(
             self.name, "pyspark", "{}/{}".format(self.INIT_ACTIONS_REPO,

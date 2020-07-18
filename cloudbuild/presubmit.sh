@@ -85,12 +85,13 @@ determine_tests_to_run() {
 }
 
 run_tests() {
+  local -r max_parallel_tests=10
   bazel test \
-    --jobs=15 \
-    --local_cpu_resources=15 \
-    --local_ram_resources=$((15 * 1024)) \
-    --action_env=INTERNAL_IP_SSH=true \
-    --test_output=errors \
+    --jobs="${max_parallel_tests}" \
+    --local_cpu_resources="${max_parallel_tests}" \
+    --local_ram_resources="$((max_parallel_tests * 1024))" \
+    --action_env="INTERNAL_IP_SSH=true" \
+    --test_output="errors" \
     --noshow_progress \
     --noshow_loading_progress \
     --test_arg="--image_version=${IMAGE_VERSION}" \

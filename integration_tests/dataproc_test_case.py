@@ -17,7 +17,7 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", logging.INFO))
 
 FLAGS = flags.FLAGS
 flags.DEFINE_string('image', None, 'Dataproc image URL')
-flags.DEFINE_string('image_version', None, 'Dataproc version, e.g. 1.4')
+flags.DEFINE_string('image_version', None, 'Dataproc image version, e.g. 1.4')
 flags.DEFINE_boolean('skip_cleanup', False, 'Skip cleanup of test resources')
 FLAGS(sys.argv)
 
@@ -95,7 +95,7 @@ class DataprocTestCase(parameterized.TestCase):
                       master_accelerator=None,
                       worker_accelerator=None,
                       optional_components=None,
-                      machine_type="n1-standard-1",
+                      machine_type="e2-standard-2",
                       boot_disk_size="50GB"):
         self.initClusterName(configuration)
         self.cluster_version = None
@@ -106,34 +106,41 @@ class DataprocTestCase(parameterized.TestCase):
         ]
 
         args = self.DEFAULT_ARGS[configuration].copy()
-        if properties:
-            args.append("--properties={}".format(properties))
-        if scopes:
-            args.append("--scopes={}".format(scopes))
-        if metadata:
-            args.append("--metadata={}".format(metadata))
         if FLAGS.image:
             args.append("--image={}".format(FLAGS.image))
         if FLAGS.image_version:
             args.append("--image-version={}".format(FLAGS.image_version))
-        if timeout_in_minutes:
-            args.append("--initialization-action-timeout={}m".format(
-                timeout_in_minutes))
-        if init_actions:
-            args.append("--initialization-actions='{}'".format(
-                ','.join(init_actions)))
-        if master_accelerator:
-            args.append("--master-accelerator={}".format(master_accelerator))
-        if worker_accelerator:
-            args.append("--worker-accelerator={}".format(worker_accelerator))
+
         if optional_components:
             args.append("--optional-components={}".format(
                 ','.join(optional_components)))
 
+        if init_actions:
+            args.append("--initialization-actions='{}'".format(
+                ','.join(init_actions)))
+        if timeout_in_minutes:
+            args.append("--initialization-action-timeout={}m".format(
+                timeout_in_minutes))
+
+        if properties:
+            args.append("--properties={}".format(properties))
+        if metadata:
+            args.append("--metadata={}".format(metadata))
+
+        if scopes:
+            args.append("--scopes={}".format(scopes))
+
+        if master_accelerator:
+            args.append("--master-accelerator={}".format(master_accelerator))
+        if worker_accelerator:
+            args.append("--worker-accelerator={}".format(worker_accelerator))
+
         args.append("--master-machine-type={}".format(machine_type))
         args.append("--worker-machine-type={}".format(machine_type))
+
         args.append("--master-boot-disk-size={}".format(boot_disk_size))
         args.append("--worker-boot-disk-size={}".format(boot_disk_size))
+
         args.append("--format=json")
 
         args.append("--region={}".format(self.REGION))

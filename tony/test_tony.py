@@ -22,7 +22,7 @@ class TonYTestCase(DataprocTestCase):
             configuration,
             self.INIT_ACTIONS,
             timeout_in_minutes=30,
-            machine_type="n1-standard-4")
+            machine_type="e2-standard-4")
 
         # Verify a cluster using TensorFlow job
         self.assert_dataproc_job(
@@ -46,8 +46,7 @@ class TonYTestCase(DataprocTestCase):
         self.createCluster(
             "STANDARD",
             self.INIT_ACTIONS,
-            timeout_in_minutes=30,
-            machine_type="n1-standard-2")
+            timeout_in_minutes=30)
 
         self.assert_dataproc_job(
             self.name, 'hadoop', '''\
