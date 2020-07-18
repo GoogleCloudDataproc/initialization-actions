@@ -162,6 +162,7 @@ EOF
 #!/bin/bash
 set -exuo pipefail
 sudo -u yarn -i \
+HADOOP_CLASSPATH=$(hadoop classpath) \
 HADOOP_CONF_DIR=${HADOOP_CONF_DIR} \
   ${FLINK_INSTALL_DIR}/bin/yarn-session.sh \
   -n "${num_taskmanagers}" \
