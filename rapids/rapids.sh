@@ -8,6 +8,21 @@ function get_metadata_attribute() {
   /usr/share/google/get_metadata_value "attributes/${attribute_name}" || echo -n "${default_value}"
 }
 
+readonly SPARK_VERSION_ENV=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
+
+if [[ "${SPARK_VERSION_ENV}" == "3"* ]]; then
+    readonly DEFAULT_CUDA_VERSION="10.2"
+    readonly DEFAULT_CUDF_VERSION="0.14"
+    readonly DEFAULT_SPARK_RAPIDS_VERSION="0.1.0"
+    readonly SPARK_VERSION="${SPARK_VERSION_ENV}"
+else
+    readonly DEFAULT_CUDA_VERSION="10.1"
+    readonly DEFAULT_CUDF_VERSION="0.9.2"
+    readonly DEFAULT_SPARK_RAPIDS_VERSION="Beta5"
+    readonly SPARK_VERSION="2.x"
+fi
+
+
 readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
 
@@ -15,14 +30,13 @@ readonly RUNTIME=$(get_metadata_attribute 'rapids-runtime' 'DASK')
 readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-master' 'true')
 
 # RAPIDS config
-readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '10.2')
-readonly CUDF_VERSION=$(get_metadata_attribute 'cudf-version' '0.14')
+readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
+readonly CUDF_VERSION=$(get_metadata_attribute 'cudf-version' ${DEFAULT_CUDF_VERSION})
 readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' '0.14')
 
 # SPARK config
-readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' '0.1.0')
+readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
 readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' '1.0.0')
-readonly SPARK_VERSION=$(get_metadata_attribute 'spark-version' '3.0')
 
 # DASK config
 readonly DASK_LAUNCHER='/usr/local/bin/dask-launcher.sh'
@@ -31,8 +45,6 @@ readonly RAPIDS_ENV='RAPIDS'
 readonly RAPIDS_ENV_BIN="/opt/conda/anaconda/envs/${RAPIDS_ENV}/bin"
 
 # Dataproc configurations
-readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
-readonly HIVE_CONF_DIR='/etc/hive/conf'
 readonly SPARK_CONF_DIR='/etc/spark/conf'
 
 BUILD_DIR=$(mktemp -d -t rapids-init-action-XXXX)
@@ -108,6 +120,7 @@ EOF
     cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
 
 ###### BEGIN : NVIDIA GPU specific properties ######
+spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j_${SPARK_VERSION}-${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}.jar
 spark.dynamicAllocation.enabled=false
 spark.shuffle.service.enabled=false
 ###### END   : NVIDIA GPU specific properties ######
