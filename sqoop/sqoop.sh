@@ -14,48 +14,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 # This script installs Apache Sqoop (http://sqoop.apache.org/) on a Google Cloud
 # Dataproc cluster.
 
 set -euxo pipefail
 
 readonly SQOOP_HOME='/usr/lib/sqoop'
-readonly SQOOP_CODE_LINK='https://github.com/szewi/sqoop'
-readonly SQOOP_JAR='https://storage.googleapis.com/sqoop-bigtable-connector/sqoop-1.4.6.jar'
-readonly BIGTABLE_HBASE_CLIENT='bigtable-hbase-1.x-hadoop-1.3.0.jar'
-readonly BIGTABLE_HBASE_DL_LINK="http://central.maven.org/maven2/com/google/cloud/bigtable/bigtable-hbase-1.x-hadoop/1.3.0/${BIGTABLE_HBASE_CLIENT}"
 readonly MYSQL_JAR='/usr/share/java/mysql.jar'
 
-function err() {
-  echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
+function execute_with_retries() {
+  local -r cmd=$1
+  for ((i = 0; i < 10; i++)); do
+    if eval "$cmd"; then
+      return 0
+    fi
+    sleep 5
+  done
   return 1
-}
-
-function install_sqoop() {
-  git clone -b sqoop-14 "${SQOOP_CODE_LINK}" "${SQOOP_HOME}" \
-    || err 'Cloning Sqoop sources from code location failed.'
-  wget -q "${SQOOP_JAR}" -O "${SQOOP_HOME}/sqoop-1.4.6.jar" \
-    || err 'Downloading sqoop jar file failed.'
-  echo "export PATH=\"${SQOOP_HOME}/bin:$PATH\"" >> /etc/profile
-}
-
-function install_sqoop_dependencies_and_connectors() {
-  # Install sqoop connectors in /usr/lib/sqoop/lib
-  wget -q "${BIGTABLE_HBASE_DL_LINK}" -O "${SQOOP_HOME}/lib/${BIGTABLE_HBASE_CLIENT}" \
-    || err 'Error getting BigTable-HBase connector.'
-  # Sqoop will use locally available mysql jdbc driver
-  ln -s "${MYSQL_JAR}" "${SQOOP_HOME}/lib/mysql.jar"
 }
 
 function main() {
   local role
   role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-  
-  # Only run the installation on Masters
+
+  # Only run the installation on master nodes
   if [[ "${role}" == 'Master' ]]; then
-    install_sqoop
-    install_sqoop_dependencies_and_connectors
+    execute_with_retries "apt-get install -y -q sqoop"
+    # Sqoop will use locally available MySQL JDBC driver
+    ln -s "${MYSQL_JAR}" "${SQOOP_HOME}/lib/mysql.jar"
   fi
 }
 
