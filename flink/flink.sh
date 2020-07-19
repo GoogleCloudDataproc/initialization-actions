@@ -34,6 +34,8 @@ readonly FLINK_YARN_SCRIPT='/usr/bin/flink-yarn-daemon'
 readonly FLINK_WORKING_USER='yarn'
 readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
 
+readonly MASTER_HOSTNAME="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
+
 # The number of buffers for the network stack.
 # Flink config entry: taskmanager.network.numberOfBuffers.
 readonly FLINK_NETWORK_NUM_BUFFERS=2048
@@ -53,13 +55,15 @@ readonly START_FLINK_YARN_SESSION_DEFAULT=true
 # Set this to install flink from a snapshot URL instead of apt
 readonly FLINK_SNAPSHOT_URL_METADATA_KEY='flink-snapshot-url'
 
+readonly MASTER_ADDITIONAL="$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional)"
+
 function err() {
   echo "[$(date +'%Y-%m-%dT%H:%M:%S%z')]: $*" >&2
   return 1
 }
 
 function retry_apt_command() {
-  cmd="$1"
+  local -r cmd="$1"
   for ((i = 0; i < 10; i++)); do
     if eval "$cmd"; then
       return 0
@@ -78,17 +82,37 @@ function install_apt_get() {
   retry_apt_command "apt-get install -y $pkgs"
 }
 
+# Returns list of zookeeper servers configured in the zoo.cfg file.
+function get_zookeeper_nodes_list() {
+  local -r zookeeper_config_file=/etc/zookeeper/conf/zoo.cfg
+  local zookeeper_client_port
+  zookeeper_client_port=$(grep 'clientPort' "${zookeeper_config_file}" |
+    tail -n 1 |
+    cut -d '=' -f 2)
+  local zookeeper_list
+  zookeeper_list=$(grep '^server.' "${zookeeper_config_file}" |
+    tac |
+    sort -u -t '=' -k1,1 |
+    cut -d '=' -f 2 |
+    cut -d ':' -f 1 |
+    sed "s/$/:${zookeeper_client_port}/" |
+    xargs echo |
+    sed "s/ /,/g")
+  echo "${zookeeper_list}"
+}
+
 function install_flink_snapshot() {
   local work_dir
   work_dir="$(mktemp -d)"
   local flink_url
   flink_url="$(/usr/share/google/get_metadata_value "attributes/${FLINK_SNAPSHOT_URL_METADATA_KEY}")"
-  local flink_local="${work_dir}/flink.tgz"
-  local flink_toplevel_pattern="${work_dir}/flink-*"
+  local -r flink_local="${work_dir}/flink.tgz"
+  local -r flink_toplevel_pattern="${work_dir}/flink-*"
 
   pushd "${work_dir}"
 
-  curl -o "${flink_local}" "${flink_url}"
+  curl -fsSL --retry-connrefused --retry 10 --retry-max-time 30 \
+    "${flink_url}" -o "${flink_local}"
   tar -xzf "${flink_local}"
   rm "${flink_local}"
 
@@ -107,7 +131,7 @@ function configure_flink() {
 
   # Number of Flink TaskManagers to use. Reserve 1 node for the JobManager.
   # NB: This assumes > 1 worker node.
-  local num_taskmanagers="$((num_workers - 1))"
+  local -r num_taskmanagers="$((num_workers - 1))"
 
   # Determine the number of task slots per worker.
   # TODO: Dataproc does not currently set the number of worker cores on the
@@ -121,17 +145,15 @@ function configure_flink() {
       tail -n1 |
       cut -d'=' -f2
   )
-  local flink_taskmanager_slots="$((spark_executor_cores * 2))"
+  local -r flink_taskmanager_slots="$((spark_executor_cores * 2))"
 
   # Determine the default parallelism.
   local flink_parallelism
-  flink_parallelism=$(python -c \
-    "print ${num_taskmanagers} * ${flink_taskmanager_slots}")
+  flink_parallelism="$((num_taskmanagers * flink_taskmanager_slots))"
 
   # Get worker memory from yarn config.
   local worker_total_mem
-  worker_total_mem="$(hdfs getconf \
-    -confKey yarn.nodemanager.resource.memory-mb)"
+  worker_total_mem="$(hdfs getconf -confKey yarn.nodemanager.resource.memory-mb)"
   local flink_jobmanager_memory
   flink_jobmanager_memory=$(python -c \
     "print int(${worker_total_mem} * ${FLINK_JOBMANAGER_MEMORY_FRACTION})")
@@ -139,17 +161,13 @@ function configure_flink() {
   flink_taskmanager_memory=$(python -c \
     "print int(${worker_total_mem} * ${FLINK_TASKMANAGER_MEMORY_FRACTION})")
 
-  # Fetch the primary master name from metadata.
-  local master_hostname
-  master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
-
   # create working directory
   mkdir -p "${FLINK_WORKING_DIR}"
 
   # Apply Flink settings by appending them to the default config.
   cat <<EOF >>${FLINK_INSTALL_DIR}/conf/flink-conf.yaml
 # Settings applied by Cloud Dataproc initialization action
-jobmanager.rpc.address: ${master_hostname}
+jobmanager.rpc.address: ${MASTER_HOSTNAME}
 jobmanager.heap.mb: ${flink_jobmanager_memory}
 taskmanager.heap.mb: ${flink_taskmanager_memory}
 taskmanager.numberOfTaskSlots: ${flink_taskmanager_slots}
@@ -158,13 +176,25 @@ taskmanager.network.numberOfBuffers: ${FLINK_NETWORK_NUM_BUFFERS}
 fs.hdfs.hadoopconf: ${HADOOP_CONF_DIR}
 EOF
 
-  cat >"${FLINK_YARN_SCRIPT}" <<EOF
+  if [[ -n "${MASTER_ADDITIONAL}" ]]; then
+    local zookeeper_nodes
+    zookeeper_nodes="$(get_zookeeper_nodes_list)"
+    cat <<EOF >>"${FLINK_INSTALL_DIR}/conf/flink-conf.yaml"
+high-availability: zookeeper
+high-availability.zookeeper.quorum: ${zookeeper_nodes}
+high-availability.zookeeper.storageDir: hdfs:///flink/recovery
+high-availability.zookeeper.path.root: /flink
+yarn.application-attempts: 10
+EOF
+  fi
+
+  cat <<EOF >"${FLINK_YARN_SCRIPT}"
 #!/bin/bash
 set -exuo pipefail
 sudo -u yarn -i \
 HADOOP_CLASSPATH=$(hadoop classpath) \
 HADOOP_CONF_DIR=${HADOOP_CONF_DIR} \
-  ${FLINK_INSTALL_DIR}/bin/yarn-session.sh \
+${FLINK_INSTALL_DIR}/bin/yarn-session.sh \
   -n "${num_taskmanagers}" \
   -s "${flink_taskmanager_slots}" \
   -jm "${flink_jobmanager_memory}" \
@@ -173,30 +203,24 @@ HADOOP_CONF_DIR=${HADOOP_CONF_DIR} \
   --detached
 EOF
   chmod +x "${FLINK_YARN_SCRIPT}"
-
 }
 
 function start_flink_master() {
-  local master_hostname
-  master_hostname="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
   local start_yarn_session
   start_yarn_session="$(/usr/share/google/get_metadata_value \
     "attributes/${START_FLINK_YARN_SESSION_METADATA_KEY}" ||
     echo "${START_FLINK_YARN_SESSION_DEFAULT}")"
 
   # Start Flink master only on the master node ("0"-master in HA mode)
-  if [[ "${start_yarn_session}" == "true" && "${HOSTNAME}" == "${master_hostname}" ]]; then
+  if [[ "${start_yarn_session}" == "true" && "${HOSTNAME}" == "${MASTER_HOSTNAME}" ]]; then
     "${FLINK_YARN_SCRIPT}"
   else
-    echo "Doing nothing"
+    echo "Skipping Flink master startup - non primary master node"
   fi
 }
 
 function main() {
-  local role
-  role="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
-
-  # check if a flink snapshot URL is specified
+  # Check if a Flink snapshot URL is specified
   if /usr/share/google/get_metadata_value "attributes/${FLINK_SNAPSHOT_URL_METADATA_KEY}"; then
     install_flink_snapshot || err "Unable to install Flink"
   else
@@ -204,7 +228,7 @@ function main() {
     install_apt_get flink || err "Unable to install flink"
   fi
   configure_flink || err "Flink configuration failed"
-  if [[ "${role}" == 'Master' ]]; then
+  if [[ "${HOSTNAME}" == "${MASTER_HOSTNAME}" ]]; then
     start_flink_master || err "Unable to start Flink master"
   fi
 }
