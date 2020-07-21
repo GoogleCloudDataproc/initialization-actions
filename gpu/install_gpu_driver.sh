@@ -265,7 +265,7 @@ function configure_yarn() {
   readarray -d ',' yarn_local_dirs < <(bdconfig get_property_value \
     --configuration_file "/etc/hadoop/conf/yarn-site.xml" \
     --name "yarn.nodemanager.local-dirs" 2>/dev/null | tr -d '\n')
-  chown yarn:yarn -R "${yarn_local_dirs[@]}"
+  chown yarn:yarn -R "${yarn_local_dirs[@]/,}"
 }
 
 function configure_gpu_exclusive_mode() {
