@@ -131,9 +131,10 @@ To use XGBoost4j with Spark 2
     *   NVIDIA driver 410.48+
     *   CUDA v10.2/v10.1/v10.0/v9.2
     *   NCCL 2.4.7 and later
-*   `EXCLUSIVE_PROCESS` must be set for all GPUs in each NodeManager (this
-    initialization action sets this mode by default)
-*   `spark.dynamicAllocation.enabled` property must be set to `false` for Spark
+*   `EXCLUSIVE_PROCESS` must be set for all GPUs in each NodeManager (set by default in this
+    initialization action)
+*   `spark.dynamicAllocation.enabled` property must be set to `false` for Spark (set by default 
+    in this initialization action)
 
 ### Step 1. Download dataset for Spark RAPIDS XGBoost application
 
@@ -169,8 +170,6 @@ with installed GPU drivers, Spark RAPIDS XGBoost libraries and Jupyter Notebook.
 export CLUSTER_NAME=<cluster_name>
 export GCS_BUCKET=<your bucket for the logs and notebooks>
 export REGION=<region>
-export RAPIDS_SPARK_VERSION=2.x
-export RAPIDS_VERSION=1.0.0-Beta4
 gcloud dataproc clusters create $CLUSTER_NAME \
     --region $REGION \
     --image-version 1.4-ubuntu18 \
@@ -181,9 +180,7 @@ gcloud dataproc clusters create $CLUSTER_NAME \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
     --metadata gpu-driver-provider=NVIDIA \
     --metadata rapids-runtime=SPARK \
-    --metadata spark-version=2.x,spark-rapids-version=Beta5,cuda-version=10.1,cudf-version=0.9.2 \
     --bucket $GCS_BUCKET \
-    --properties "spark:spark.dynamicAllocation.enabled=false,spark:spark.shuffle.service.enabled=false,spark:spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j-spark_${RAPIDS_SPARK_VERSION}-${RAPIDS_VERSION}.jar" \
     --enable-component-gateway 
 ```
 
