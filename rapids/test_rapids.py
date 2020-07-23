@@ -38,7 +38,7 @@ class RapidsTestCase(DataprocTestCase):
 
     @parameterized.parameters(("STANDARD", ["m", "w-0"], GPU_P100))
     def test_rapids_dask(self, configuration, machine_suffixes, accelerator):
-        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
             return
 
         metadata = 'gpu-driver-provider=NVIDIA,rapids-runtime=DASK'
