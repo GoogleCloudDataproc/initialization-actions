@@ -28,8 +28,8 @@ Sqoop installed:
 
 1.  Sqoop can be used with different structured data stores. Here is an example
     of using Sqoop with a Cloud SQL database. Use the following extra init
-    actions to setup cloud-sql-proxy. Please see:
-    [cloud-sql-proxy](/cloud-sql-proxy) for more details.
+    actions to setup cloud-sql-proxy. Please see
+    [Cloud SQL Proxy](/cloud-sql-proxy) for more details.
 
     ```bash
     REGION=<region>
