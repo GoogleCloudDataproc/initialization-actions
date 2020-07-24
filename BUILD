@@ -31,6 +31,7 @@ test_suite(
         "//rapids:test_rapids",
         "//rstudio:test_rstudio",
         "//solr:test_solr",
+        "//sqoop:test_sqoop",
         "//tez:test_tez",
         "//tony:test_tony",
     ],

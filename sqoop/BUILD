@@ -6,7 +6,7 @@ py_test(
     srcs = ["test_sqoop.py"],
     data = ["sqoop.sh", "test_sql_db_dump.gz"],
     local = True,
-    shard_count = 6,
+    shard_count = 4,
     deps = [
         "//integration_tests:dataproc_test_case",
         "@io_abseil_py//absl/testing:parameterized",

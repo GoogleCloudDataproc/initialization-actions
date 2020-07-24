@@ -5,6 +5,7 @@ from absl.testing import parameterized
 
 from integration_tests.dataproc_test_case import DataprocTestCase
 
+
 class SqoopTestCase(DataprocTestCase):
   COMPONENT = "sqoop"
   INIT_ACTIONS = ["sqoop/sqoop.sh"]
@@ -15,11 +16,18 @@ class SqoopTestCase(DataprocTestCase):
 
   def verify_importing_to_hdfs(self, name):
     self.assert_instance_command(
-        name, "sqoop import"
-        " --connect jdbc:mysql://localhost:3306/employees"
-        " --username root --table employees --m 1")
+        name, "echo -n 'root-password' >/tmp/mysql.password")
     self.assert_instance_command(
-        name, "hadoop fs -cat /employees/part-m-*")
+        name, "sqoop import --connect jdbc:mysql://localhost:3306/employees"
+        " --username root --password-file file:///tmp/mysql.password"
+        " --table employees --target-dir hdfs:///employees/ --m 1")
+
+    _, imported_records, _ = self.assert_instance_command(
+        name, "hadoop fs -cat hdfs:///employees/part-m-* | wc -l")
+    self.assertTrue(
+        int(imported_records) == 300024,
+        "Unexpected number of imported DB records: wanted 300024, got {}"
+        .format(imported_records))
 
   def import_mysql_db(self, instance):
     self.upload_test_file(
@@ -41,13 +49,9 @@ class SqoopTestCase(DataprocTestCase):
       self.verify_instance("{}-{}".format(self.getClusterName(),
                                           machine_suffix))
 
-  @parameterized.parameters(
-      ("SINGLE", ["m"]),
-      ("STANDARD", ["m"]),
-      ("HA", ["m-0"]),
-  )
-  def test_sqoop_import_from_cloud_sql_to_hdfs(self, configuration,
-                                               machine_suffixes):
+  @parameterized.parameters(("SINGLE", ["m"]))
+  def test_sqoop_import_from_local_mysql_to_hdfs(self, configuration,
+                                                 machine_suffixes):
     self.createCluster(configuration, self.INIT_ACTIONS)
     for machine_suffix in machine_suffixes:
       instance = "{}-{}".format(self.getClusterName(), machine_suffix)
