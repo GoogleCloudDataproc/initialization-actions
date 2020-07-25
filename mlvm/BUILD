@@ -6,7 +6,6 @@ py_test(
         "mlvm.sh", 
         "scripts/python_packages.py",
         "scripts/r_packages.R",
-        "scripts/sample-h2o-script.py",
         "scripts/verify_rapids_dask.py",
         "scripts/verify_rapids_spark.py"],
     local = True,

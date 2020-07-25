@@ -6,7 +6,6 @@ test_suite(
         ":test_cloud_sql_proxy",
         ":test_dr_elephant",
         ":test_hive_hcatalog",
-        ":test_ml_vm",
         ":test_starburst_presto",
         "//alluxio:test_alluxio",
         "//atlas:test_atlas",
