@@ -237,12 +237,13 @@ class RapidsTestCase(MLVMTestCase):
     COMPONENT = "mlvm-rapids"
     GPU_P100 = 'type=nvidia-tesla-p100'
 
-    DASK_TEST_SCRIPT_FILE_NAME = 'scripts/verify_rapids_dask.py'
+    DASK_TEST_SCRIPT_FILE_NAME = 'verify_rapids_dask.py'
     SPARK_TEST_SCRIPT_FILE_NAME = 'mlvm/scripts/verify_rapids_spark.py'
 
     def verify_dask_instance(self, name):
         self.upload_test_file(
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                         "scripts",
                          self.DASK_TEST_SCRIPT_FILE_NAME), name)
         self._run_dask_test_script(name)
         self.remove_test_script(self.DASK_TEST_SCRIPT_FILE_NAME, name)
@@ -279,6 +280,9 @@ class RapidsTestCase(MLVMTestCase):
 
     @parameterized.parameters(("STANDARD", ["w-0"], GPU_P100))
     def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+                  return
+
         self.createCluster(
             configuration,
             metadata='include-gpus=true,gpu-driver-provider=NVIDIA,rapids-runtime=SPARK',
