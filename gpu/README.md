@@ -54,6 +54,17 @@ gpu-driver-provider=<OS|NVIDIA>` metadata value.
     and CUDA installed by initialization action. Additionally, it installs GPU
     monitoring service.
 
+    Prerequisite: Create metrics in Cloud Monitoring
+
+    ```bash
+    git clone https://github.com/GoogleCloudPlatform/ml-on-gcp.git
+    cd ml-on-gcp/dlvm/gcp-gpu-utilization-metrics 
+    pip install -r ./requirements.txt
+    python create_gpu_metrics.py 
+    ```
+
+    Create cluster:
+
     ```bash
     REGION=<region>
     CLUSTER_NAME=<cluster_name>
