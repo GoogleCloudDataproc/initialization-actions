@@ -39,12 +39,12 @@ BASE_R_PACKAGES=(
 )
 
 BASE_PIP_PACKAGES=(
-  "google-cloud-bigquery==1.24.0" 
+  "google-cloud-bigquery==1.26.1" 
   "google-cloud-datalabeling==0.4.0"
-  "google-cloud-storage==1.28.1"
-  "google-cloud-bigtable==1.2.1" 
-  "google-cloud-dataproc==0.8.0" 
-  "google-api-python-client==1.8.4" 
+  "google-cloud-storage==1.30.0"
+  "google-cloud-bigtable==1.4.0" 
+  "google-cloud-dataproc==1.0.1" 
+  "google-api-python-client==1.10.0" 
   "matplotlib==3.3.0"
   "mxnet==1.6.0" 
   "nltk==3.5"
@@ -52,14 +52,14 @@ BASE_PIP_PACKAGES=(
   "rpy2==3.3.3"
   "scikit-learn==0.23.1" 
   "sparksql-magic==0.0.3" 
-  "tensorflow==2.2.0" 
+  "tensorflow==2.3.0" 
   "tensorflow-datasets==3.2.1"
-  "tensorflow-estimator==2.2.0"
-  "tensorflow-hub==0.8.0"
+  "tensorflow-estimator==2.3.0"
+  "tensorflow-hub==0.9.0"
   "tensorflow-io==0.14.0"
   "tensorflow-probability==0.10.1" 
-  "torch==1.5.0" 
-  "torchvision==0.6.0" 
+  "torch==1.5.1" 
+  "torchvision==0.6.1" 
   "xgboost==1.1.0"
 )
 
@@ -70,6 +70,18 @@ fi
 mkdir -p ${JARS_DIR}
 mkdir -p ${CONNECTORS_DIR}
 mkdir -p ${INIT_ACTIONS_DIR}
+
+function execute_with_retries() {
+  local -r cmd=$1
+  for ((i = 0; i < 10; i++)); do
+    if eval "$cmd"; then
+      return 0
+    fi
+    sleep 5
+  done
+  echo "Cmd \"${cmd}\" failed."
+  return 1
+}
 
 function download_spark_jar() {
   local -r url=$1
@@ -96,10 +108,11 @@ function install_connectors() {
 function install_pip_packages() {
   readonly EXTRA_PIP_PACKAGES="$(/usr/share/google/get_metadata_value attributes/PIP_PACKAGES || true)"
 
-  pip install --upgrade "${BASE_PIP_PACKAGES[@]}"
+
+  execute_with_retries "pip install ${BASE_PIP_PACKAGES[@]}"
   
   if [[ -n "${EXTRA_PIP_PACKAGES}" ]]; then
-    pip install --upgrade "${EXTRA_PIP_PACKAGES}"
+    execute_with_retries "pip install ${EXTRA_PIP_PACKAGES}"
   fi 
 }
 
@@ -166,7 +179,10 @@ function install_spark_nlp() {
 
 function install_r_packages() {  
   readonly EXTRA_R_PACKAGES="$(/usr/share/google/get_metadata_value attributes/R_PACKAGES || true)"
+  local package
   
+  cmdconda install -y -c r
+  for package "${BASE_R_PACKAGES[@]}"; do
   conda install -y -c r "${BASE_R_PACKAGES[@]}"
   
   if [[ -n "${EXTRA_R_PACKAGES}" ]]; then

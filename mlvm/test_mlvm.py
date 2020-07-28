@@ -32,14 +32,7 @@ class MLVMTestCase(DataprocTestCase):
 
 class ConnectorsTestCase(MLVMTestCase):
     COMPONENT = "mlvm-connectors"
-    BQ_CONNECTOR_VERSION = "1.1.1"
-    BQ_CONNECTOR_URL = "gs://hadoop-lib/bigquery/bigquery-connector-hadoop2-1.1.1.jar"
-
-    GCS_CONNECTOR_VERSION = "2.1.1"
-    GCS_CONNECTOR_URL = "gs://hadoop-lib/gcs/gcs-connector-hadoop2-2.1.1.jar"
-
     SPARK_BQ_CONNECTOR_VERSION = "0.13.1-beta"
-    SPARK_BQ_CONNECTOR_URL = "gs://spark-lib/bigquery/spark-bigquery-with-dependencies_{}-0.13.1-beta.jar"
 
     CONNECTORS_DIR = "/usr/local/share/google/dataproc/lib"
     SCALA_VERSION = "2.12"
@@ -65,31 +58,6 @@ class ConnectorsTestCase(MLVMTestCase):
             instance, "test -L {}/{}.jar".format(self.CONNECTORS_DIR,
                                                  connector))
 
-    @parameterized.parameters(("SINGLE", ["m"]),
-                              ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
-    def test_gcs_connector_version(self, configuration, instances):
-        # Init action supported on Dataproc 1.5+
-        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-            return
-
-        self.createCluster(configuration,
-                           metadata="gcs-connector-version={}".format(
-                               self.GCS_CONNECTOR_VERSION))
-        self.verify_instances(self.getClusterName(), instances,
-                              "gcs-connector", self.GCS_CONNECTOR_VERSION)
-
-    @parameterized.parameters(("SINGLE", ["m"]),
-                              ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
-    def test_bq_connector_version(self, configuration, instances):
-        # Init action supported on Dataproc 1.5+
-        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-            return
-        
-        self.createCluster(configuration,
-                           metadata="bigquery-connector-version={}".format(
-                               self.BQ_CONNECTOR_VERSION))
-        self.verify_instances(self.getClusterName(), instances,
-                              "bigquery-connector", self.BQ_CONNECTOR_VERSION)
 
     @parameterized.parameters(("SINGLE", ["m"]),
                               ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
@@ -102,47 +70,6 @@ class ConnectorsTestCase(MLVMTestCase):
             configuration,
             metadata="spark-bigquery-connector-version={}".format(
                 self.SPARK_BQ_CONNECTOR_VERSION))
-        self.verify_instances(self.getClusterName(), instances,
-                              "spark-bigquery-connector",
-                              self.SPARK_BQ_CONNECTOR_VERSION)
-
-    @parameterized.parameters(("SINGLE", ["m"]),
-                              ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
-    def test_gcs_connector_url(self, configuration, instances):
-        # Init action supported on Dataproc 1.5+
-        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-            return
-        
-        self.createCluster(configuration,
-                           metadata="gcs-connector-url={}".format(
-                               self.GCS_CONNECTOR_URL))
-        self.verify_instances(self.getClusterName(), instances,
-                              "gcs-connector", self.GCS_CONNECTOR_VERSION)
-
-    @parameterized.parameters(("SINGLE", ["m"]),
-                              ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
-    def test_bq_connector_url(self, configuration, instances):
-        # Init action supported on Dataproc 1.5+
-        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-            return
-        
-        self.createCluster(configuration,
-                           metadata="bigquery-connector-url={}".format(
-                               self.BQ_CONNECTOR_URL))
-        self.verify_instances(self.getClusterName(), instances,
-                              "bigquery-connector", self.BQ_CONNECTOR_VERSION)
-
-    @parameterized.parameters(("SINGLE", ["m"]),
-                              ("HA", ["m-0", "m-1", "m-2", "w-0", "w-1"]))
-    def test_spark_bq_connector_url(self, configuration, instances):
-        # Init action supported on Dataproc 1.5+
-        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-            return
-
-        self.createCluster(configuration,
-                           metadata="spark-bigquery-connector-url={}".format(
-                               self.SPARK_BQ_CONNECTOR_URL.format(
-                                   self.SCALA_VERSION)))
         self.verify_instances(self.getClusterName(), instances,
                               "spark-bigquery-connector",
                               self.SPARK_BQ_CONNECTOR_VERSION)
