@@ -29,7 +29,6 @@ readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/IN
 readonly INIT_ACTIONS_BRANCH="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_BRANCH ||
   echo 'master')"
 readonly INIT_ACTIONS_DIR=/opt/init-actions
-readonly SUBCOMPONENTS="$(/usr/share/google/get_metadata_value attributes/subcomponents || true)"
 readonly include_gpus="$(/usr/share/google/get_metadata_value attributes/include-gpus || true)"
 
 BASE_R_PACKAGES=(
@@ -55,7 +54,7 @@ BASE_PIP_PACKAGES=(
   "tensorflow==2.3.0" 
   "tensorflow-datasets==3.2.1"
   "tensorflow-estimator==2.3.0"
-  "tensorflow-hub==0.9.0"
+  "tensorflow-hub==0.8.0"
   "tensorflow-io==0.14.0"
   "tensorflow-probability==0.10.1" 
   "torch==1.5.1" 
@@ -63,7 +62,7 @@ BASE_PIP_PACKAGES=(
   "xgboost==1.1.0"
 )
 
-if [ $(echo "$DATAPROC_VERSION >= 2.0" | bc) -eq 1 ]; then 
+if [ "$(echo "$DATAPROC_VERSION >= 2.0" | bc)" -eq 1 ]; then 
   BASE_PIP_PACKAGES+=("spark-tensorflow-distributor==0.1.0")
 fi
 
@@ -108,11 +107,15 @@ function install_connectors() {
 function install_pip_packages() {
   readonly EXTRA_PIP_PACKAGES="$(/usr/share/google/get_metadata_value attributes/PIP_PACKAGES || true)"
 
-
-  execute_with_retries "pip install ${BASE_PIP_PACKAGES[@]}"
+  # Installing all at once is flaky. Added this here. 
+  for package in "${BASE_PIP_PACKAGES[@]}"; do
+    execute_with_retries "pip install $package"
+  done
   
   if [[ -n "${EXTRA_PIP_PACKAGES}" ]]; then
-    execute_with_retries "pip install ${EXTRA_PIP_PACKAGES}"
+    for package in "${BASE_PIP_PACKAGES[@]}"; do
+      execute_with_retries "pip install $package"
+    done
   fi 
 }
 
@@ -164,10 +167,6 @@ function install_gpu_drivers() {
   "${INIT_ACTIONS_DIR}/gpu/install_gpu_driver.sh"
 }
 
-function install_h2o_sparkling_water() {
-  "${INIT_ACTIONS_DIR}/h2o/h2o.sh"
-}
-
 function install_spark_nlp() {
   local -r name="spark-nlp"
   local -r repo_url="http://dl.bintray.com/spark-packages/maven/JohnSnowLabs/"
@@ -179,10 +178,7 @@ function install_spark_nlp() {
 
 function install_r_packages() {  
   readonly EXTRA_R_PACKAGES="$(/usr/share/google/get_metadata_value attributes/R_PACKAGES || true)"
-  local package
   
-  cmdconda install -y -c r
-  for package "${BASE_R_PACKAGES[@]}"; do
   conda install -y -c r "${BASE_R_PACKAGES[@]}"
   
   if [[ -n "${EXTRA_R_PACKAGES}" ]]; then
