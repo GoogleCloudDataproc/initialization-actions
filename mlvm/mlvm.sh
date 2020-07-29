@@ -149,9 +149,9 @@ function install_gpu_drivers() {
 function install_spark_nlp() {
   local -r name="spark-nlp"
   local -r repo_url="http://dl.bintray.com/spark-packages/maven/JohnSnowLabs/"
-  local -r version="2.4.3"
+  local -r version="2.5.4"
   
-  pip install -U "spark-nlp==2.5.1" 
+  pip install "spark-nlp==$version" 
   download_spark_jar "${repo_url}/${name}/${version}/${name}-${version}.jar"
 }
 
