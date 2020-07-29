@@ -23,7 +23,7 @@ kubectl wait --for=condition=Ready "pod/${POD_NAME}" --timeout=600s
 kubectl logs -f "${POD_NAME}"
 
 readonly EXIT_CODE=$(kubectl get pod "${POD_NAME}" \
-  -o go-template="{{range .status.containerStatuses}}{{.state.terminated.exitCode}}{{end}}")
+  -o go-template="{{range .status.containerStatuses}}{{.lastState.terminated.exitCode}}{{end}}")
 
 if [[ ${EXIT_CODE} != 0 ]]; then
   echo "Presubmit failed!"
