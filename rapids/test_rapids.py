@@ -48,7 +48,7 @@ class RapidsTestCase(DataprocTestCase):
                            master_accelerator=accelerator,
                            worker_accelerator=accelerator,
                            optional_components=['ANACONDA'],
-                           timeout_in_minutes=70)
+                           timeout_in_minutes=120)
 
         for machine_suffix in machine_suffixes:
             self.verify_dask_instance("{}-{}".format(self.getClusterName(),
