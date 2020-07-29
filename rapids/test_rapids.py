@@ -38,7 +38,7 @@ class RapidsTestCase(DataprocTestCase):
 
     @parameterized.parameters(("STANDARD", ["m", "w-0"], GPU_P100))
     def test_rapids_dask(self, configuration, machine_suffixes, accelerator):
-        if self.getImageVersion() < pkg_resources.parse_version("1.4"):
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
         self.createCluster(configuration,
@@ -56,7 +56,7 @@ class RapidsTestCase(DataprocTestCase):
 
     @parameterized.parameters(("STANDARD", ["w-0"], GPU_P100))
     def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
-        if self.getImageVersion() < pkg_resources.parse_version("1.4"):
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return    
 
         self.createCluster(
