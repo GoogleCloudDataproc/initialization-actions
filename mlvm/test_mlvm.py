@@ -180,10 +180,10 @@ class RapidsTestCase(MLVMTestCase):
             self.DASK_TEST_SCRIPT_FILE_NAME)
         self.assert_instance_command(name, verify_cmd)
 
-    def verify_spark2_instance(self, name):
+    def verify_spark_instance(self, name):
         self.assert_instance_command(name, "nvidia-smi")
 
-    def verify_spark3_job(self):
+    def verify_spark_job(self):
         self.assert_dataproc_job(
             self.name, "pyspark", "{}/{}".format(self.INIT_ACTIONS_REPO,
                                                         self.SPARK_TEST_SCRIPT_FILE_NAME))
@@ -215,12 +215,11 @@ class RapidsTestCase(MLVMTestCase):
             metadata='include-gpus=true,gpu-driver-provider=NVIDIA,rapids-runtime=SPARK',
             worker_accelerator=accelerator,
             timeout_in_minutes=30)
-        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
-            for machine_suffix in machine_suffixes:
-                self.verify_spark2_instance("{}-{}".format(self.getClusterName(),
-                                                           machine_suffix))
-        else:
-            self.verify_spark3_job()
+        for machine_suffix in machine_suffixes:
+            self.verify_spark_instance("{}-{}".format(self.getClusterName(),
+                                                        machine_suffix))
+        # Only need to do this once
+        self.verify_spark_job()
 
 
 class PythonTestCase(MLVMTestCase):

@@ -31,13 +31,15 @@ readonly INIT_ACTIONS_BRANCH="$(/usr/share/google/get_metadata_value attributes/
 readonly INIT_ACTIONS_DIR=/opt/init-actions
 readonly include_gpus="$(/usr/share/google/get_metadata_value attributes/include-gpus || true)"
 
+# Conda
 BASE_R_PACKAGES=(
   "r-essentials=3.6.0"
   "r-xgboost=0.90.0.2"
   "r-sparklyr=1.0.0"
 )
 
-BASE_PIP_PACKAGES=(
+# Pip
+BASE_PYTHON_PACKAGES=(
   "google-cloud-bigquery==1.26.1" 
   "google-cloud-datalabeling==0.4.0"
   "google-cloud-storage==1.30.0"
@@ -51,7 +53,6 @@ BASE_PIP_PACKAGES=(
   "rpy2==3.3.3"
   "scikit-learn==0.23.1" 
   "sparksql-magic==0.0.3" 
-  "tensorflow==2.3.0" 
   "tensorflow-datasets==3.2.1"
   "tensorflow-estimator==2.3.0"
   "tensorflow-hub==0.8.0"
@@ -61,6 +62,13 @@ BASE_PIP_PACKAGES=(
   "torchvision==0.6.1" 
   "xgboost==1.1.0"
 )
+
+if [[ -n ${include_gpus} ]]; then
+  BASE_PYTHON_PACKAGES+=("tensorflow-gpu==2.2.0")
+else
+  BASE_PYTHON_PACKAGES+=("tensorflow==2.2.0")
+fi
+
 
 if [ "$(echo "$DATAPROC_VERSION >= 2.0" | bc)" -eq 1 ]; then 
   BASE_PIP_PACKAGES+=("spark-tensorflow-distributor==0.1.0")
@@ -104,16 +112,16 @@ function install_connectors() {
   "${INIT_ACTIONS_DIR}/connectors/connectors.sh"
 }
 
-function install_pip_packages() {
-  readonly EXTRA_PIP_PACKAGES="$(/usr/share/google/get_metadata_value attributes/PIP_PACKAGES || true)"
+function install_python_packages() {
+  readonly EXTRA_PYTHON_PACKAGES="$(/usr/share/google/get_metadata_value attributes/PYTHON_PACKAGES || true)"
 
   # Installing all at once is flaky. Added this here. 
-  for package in "${BASE_PIP_PACKAGES[@]}"; do
+  for package in "${BASE_PYTHON_PACKAGES[@]}"; do
     execute_with_retries "pip install $package"
   done
-  
-  if [[ -n "${EXTRA_PIP_PACKAGES}" ]]; then
-    for package in "${BASE_PIP_PACKAGES[@]}"; do
+
+  if [[ -n "${EXTRA_PYTHON_PACKAGES}" ]]; then
+    for package in "${EXTRA_PYTHON_PACKAGES[@]}"; do
       execute_with_retries "pip install $package"
     done
   fi 
@@ -132,35 +140,6 @@ function install_rapids() {
       return 1
     fi
   fi
-}
-
-function install_horovod() {
-  readonly MPI_VERSION="4.0.3"
-  readonly MPI_URL="https://download.open-mpi.org/release/open-mpi/v4.0/openmpi-${MPI_VERSION}.tar.gz"
-
-  tmp_dir=$(mktemp -d -t mlvm-horovod-mpi-XXXX)
-  wget -nv --timeout=30 --tries=5 --retry-connrefused -P ${tmp_dir} "${MPI_URL}" 
-  gunzip -c "${tmp_dir}/openmpi-${MPI_VERSION}.tar.gz" | tar xf - -C ${tmp_dir}
-
-  mv /usr/bin/mpirun /usr/bin/bk_mpirun
-  mv /usr/bin/mpirun.openmpi /usr/bin/bk_mpirun.openmpi
-
-  cur_dir=$(pwd)  
-  cd "${tmp_dir}/openmpi-${MPI_VERSION}"
-  ./configure --prefix=/usr/local
-  make all install
-  ldconfig
-  cd ${cur_dir}
-
-  # TensorFlow requires g++-4.8.5
-  apt-get install -y g++-4.8
-  update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 50
-  update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-7 50
-  
-  # Change g++ version when installing Horovod, then change back to default
-  update-alternatives --set g++ /usr/bin/g++-4.8
-  pip install --no-cache-dir horovod==0.19.4
-  update-alternatives --set g++ /usr/bin/g++-7
 }
 
 function install_gpu_drivers() {
@@ -196,8 +175,8 @@ function main () {
   install_gpu_drivers
 
   # Install Python packages
-  echo "Installing pip packages"
-  install_pip_packages
+  echo "Installing python packages"
+  install_python_packages
 
   # Install R packages
   echo "Installing R Packages"

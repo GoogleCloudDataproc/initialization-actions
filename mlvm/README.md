@@ -16,8 +16,7 @@ Features of this configuration include:
 
 **:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
-You can use this initialization action to create a new Dataproc cluster with
-a set of preconfigured machine learning packages.:
+You can use this initialization action to create a new Dataproc cluster with a set of preconfigured machine learning packages:
 
 1.  Use the `gcloud` command to create a new cluster with this initialization action. The command shown below includes a curated list of packages that will be installed on the cluster:
 
@@ -36,9 +35,39 @@ a set of preconfigured machine learning packages.:
         --metadata include-gpus=true \
         --optional-components ANACONDA,JUPYTER \
         --initialization-actions gs://dataproc-initialization-actions/mlvm/mlvm.sh \
+        --initialization-action-timeout=30m
         --enable-component-gateway  
     ```
 
+You can use this initialization action with [Dataproc Hub](https://cloud.google.com/dataproc/docs/tutorials/dataproc-hub-admins) with the following YAML configuration:
+
+```
+config:
+  endpointConfig:
+    enableHttpPortAccess: true
+  gceClusterConfig:
+    metadata:
+      gpu-driver-provider: NVIDIA
+      include-gpus: 'true'
+      rapids-runtime: SPARK
+      spark-bigquery-connector-version: 0.13.1-beta
+  initializationActions:
+  - executableFile: gs://bmiro-test/dataproc-initialization-actions/mlvm/mlvm.sh
+    executionTimeout: 1800s
+  masterConfig:
+    machineTypeUri: n1-standard-16
+  softwareConfig:
+    imageVersion: 2.0.0-RC6-ubuntu18
+    optionalComponents:
+    - JUPYTER
+    - ANACONDA
+  workerConfig:
+    accelerators:
+    - acceleratorCount: 2
+      acceleratorTypeUri: nvidia-tesla-t4
+    machineTypeUri: n1-highmem-32
+    numInstances: 2
+```
 
 You can find more information about using initialization actions with Dataproc
 in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
