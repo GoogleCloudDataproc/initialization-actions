@@ -1,5 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark import SparkConf, SparkContext
+from ml.dmlc.xgboost4j.scala.spark import XGBoostClassificationModel
 
 conf = SparkConf().setAppName("NYTaxiXGBoost4j")
 conf.set("spark.executor.instances", "1")
