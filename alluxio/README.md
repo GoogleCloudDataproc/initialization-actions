@@ -1,18 +1,18 @@
 # Alluxio
 
 This initialization action installs Alluxio (https://www.alluxio.io/) on a
-[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster. The master
-Cloud Dataproc node will be the Alluxio master and all Cloud Dataproc workers
+[Dataproc](https://cloud.google.com/dataproc) cluster. The master
+Dataproc node will be the Alluxio master, and all Dataproc workers
 will be Alluxio workers.
 
 ## Using this initialization action
 
-**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
+**:warning: NOTICE:** See [How initialization actions are used](/README.md#how-initialization-actions-are-used) and [Important considerations and guidelines](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/init-actions#important_considerations_and_guidelines) for additional information.
 
 You can use this initialization action to create a new Dataproc cluster with
 Alluxio installed:
 
-1.  Using the `gcloud` command to create a new cluster with this initialization
+1.  Using the `gcloud` command to create a new cluster that runs this initialization
     action.
 
     ```bash
@@ -23,32 +23,28 @@ Alluxio installed:
         --metadata alluxio_root_ufs_uri=<UNDERSTORAGE_ADDRESS>
     ```
 
-You can find more information about using initialization actions with Dataproc
-in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
+See the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions) for more information.
 
 ## Spark on Alluxio
 
-To run a Spark application accessing data from Alluxio, simply refer to the path
+To run a Spark application accessing data from Alluxio, refer to the path
 as `alluxio://<cluster_name>-m:19998/<path_to_file>`; where `<cluster_name>-m`
-is the dataproc master hostname. Refer to Alluxio on Spark
-[documentation](https://docs.alluxio.io/os/user/stable/en/compute/Spark.html#examples-use-alluxio-as-input-and-output)
-for additional getting started resources.
+is the Dataproc master hostname. See the
+[Alluxio on Spark documentation](https://docs.alluxio.io/os/user/stable/en/compute/Spark.html#examples-use-alluxio-as-input-and-output)
+for additional resources.
 
 ## Presto on Alluxio
 
-If installing the optional Presto component, Presto must be installed before
-Alluxio. Initialization action are executed sequentially and the Presto action
-must precede the Alluxio action.
+Presto must be installed before Alluxio. Use of the [Optional Dataproc Presto component](https://cloud.google.com/dataproc/docs/concepts/components/presto) is recommended for faster component installation. Optional components are installed on the cluster before initialization actions are run; multiple initialization actions are installed on each node in the order specified in the `gcloud dataproc clusters create` command.
 
 ## Notes
 
-*   This script must be updated to specify the Alluxio version to install.
 *   `alluxio_version` is an an optional parameter to override the default
-    Alluxio version to install.
+    Alluxio version that otherwise will be installed.
 *   `alluxio_root_ufs_uri` is a required parameter to specify the root under
-    storage location for Alluxio.
-*   Additional properties can be specified using the metadata key
-    `alluxio_site_properties` delimited using `;`.
+    the storage location for Alluxio.
+*   Additional properties can be specified using the metadata key,
+    `alluxio_site_properties`, delimited using `;`.
 
     ```bash
     REGION=<region>
@@ -60,8 +56,8 @@ must precede the Alluxio action.
     ```
 
 *   Additional files can be downloaded into `/opt/alluxio/conf` using the
-    metadata key `alluxio_download_files_list` by specifying `http(s)` or `gs`
-    uris delimited using `;`.
+    metadata key, `alluxio_download_files_list`, specifying `http(s)` or `gs`
+    URIs delimited with `;`.
 
     ```bash
     REGION=<region>
