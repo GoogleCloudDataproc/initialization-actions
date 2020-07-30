@@ -24,13 +24,13 @@ You can use this initialization action to create a new Dataproc cluster with a s
 ```
 Feel free to use a different connector version. 
 
-If you wish to have GPU / RAPIDS support, include the following.
+If you wish to have GPU and/or RAPIDS support, include the following.
 ```
 --metadata gpu-driver-provider=NVIDIA
 --metadata include-gpus=true
 --metadata rapids-runtime=<SPARK|DASK>
 
-# For Dataproc 1.5
+# For RAPIDS on Dataproc 1.5
 --metadata cuda-version=10.1
 ```
 

@@ -71,7 +71,7 @@ fi
 
 
 if [ "$(echo "$DATAPROC_VERSION >= 2.0" | bc)" -eq 1 ]; then 
-  BASE_PIP_PACKAGES+=("spark-tensorflow-distributor==0.1.0")
+  BASE_PYTHON_PACKAGES+=("spark-tensorflow-distributor==0.1.0")
 fi
 
 mkdir -p ${JARS_DIR}
