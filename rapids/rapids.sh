@@ -98,7 +98,7 @@ function configure_spark() {
   if [[ "${SPARK_VERSION}" == "3"* ]]; then
     cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
 
-###### BEGIN : NVIDIA GPU specific properties ######
+###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
 spark.rapids.sql.concurrentGpuTasks=2
 spark.executor.resource.gpu.amount=1
 spark.executor.cores=2
@@ -112,18 +112,19 @@ spark.locality.wait=0s
 spark.executor.resource.gpu.discoveryScript=/usr/lib/spark/scripts/gpu/getGpusResources.sh
 spark.sql.shuffle.partitions=48
 spark.sql.files.maxPartitionBytes=512m
+spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}.jar
 spark.dynamicAllocation.enabled=false
 spark.shuffle.service.enabled=false
-###### END   : NVIDIA GPU specific properties ######
+###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
   else
     cat >>${SPARK_CONF_DIR}/spark-defaults.conf <<EOF
 
-###### BEGIN : NVIDIA GPU specific properties ######
-spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j_${SPARK_VERSION}-${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}.jar
+###### BEGIN : RAPIDS properties for Spark ${SPARK_VERSION} ######
+spark.submit.pyFiles=/usr/lib/spark/jars/xgboost4j-spark_${SPARK_VERSION}-${XGBOOST_VERSION}-${SPARK_RAPIDS_VERSION}.jar
 spark.dynamicAllocation.enabled=false
 spark.shuffle.service.enabled=false
-###### END   : NVIDIA GPU specific properties ######
+###### END   : RAPIDS properties for Spark ${SPARK_VERSION} ######
 EOF
   fi
 }

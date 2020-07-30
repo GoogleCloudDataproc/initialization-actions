@@ -28,29 +28,27 @@ class RapidsTestCase(DataprocTestCase):
             self.DASK_TEST_SCRIPT_FILE_NAME)
         self.assert_instance_command(name, verify_cmd)
 
-    def verify_spark2_instance(self, name):
+    def verify_spark_instance(self, name):
         self.assert_instance_command(name, "nvidia-smi")
 
-    def verify_spark3_job(self):
+    def verify_spark_job(self):
         self.assert_dataproc_job(
             self.name, "pyspark", "{}/rapids/{}".format(self.INIT_ACTIONS_REPO,
                                                         self.SPARK_TEST_SCRIPT_FILE_NAME))
 
     @parameterized.parameters(("STANDARD", ["m", "w-0"], GPU_P100))
     def test_rapids_dask(self, configuration, machine_suffixes, accelerator):
-        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
-        metadata = 'gpu-driver-provider=NVIDIA,rapids-runtime=DASK'
-        master_accelerator = accelerator
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
-                           metadata=metadata,
+                           metadata='gpu-driver-provider=NVIDIA,rapids-runtime=DASK',
                            machine_type='n1-standard-2',
-                           master_accelerator=master_accelerator,
+                           master_accelerator=accelerator,
                            worker_accelerator=accelerator,
                            optional_components=['ANACONDA'],
-                           timeout_in_minutes=70)
+                           timeout_in_minutes=60)
 
         for machine_suffix in machine_suffixes:
             self.verify_dask_instance("{}-{}".format(self.getClusterName(),
@@ -58,6 +56,9 @@ class RapidsTestCase(DataprocTestCase):
 
     @parameterized.parameters(("STANDARD", ["w-0"], GPU_P100))
     def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
+        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
+            return    
+
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
@@ -65,12 +66,12 @@ class RapidsTestCase(DataprocTestCase):
             machine_type='n1-standard-2',
             worker_accelerator=accelerator,
             timeout_in_minutes=30)
-        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
-            for machine_suffix in machine_suffixes:
-                self.verify_spark2_instance("{}-{}".format(self.getClusterName(),
-                                                           machine_suffix))
-        else:
-            self.verify_spark3_job()
+
+        for machine_suffix in machine_suffixes:
+            self.verify_spark_instance("{}-{}".format(self.getClusterName(),
+                                                        machine_suffix))
+        # Only need to do this once                                           
+        self.verify_spark_job()
 
 
 if __name__ == '__main__':
