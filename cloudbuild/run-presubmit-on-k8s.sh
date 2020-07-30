@@ -27,7 +27,7 @@ kubectl logs -f "${POD_NAME}"
 wait_secs=60
 while ((wait_secs > 0)) && ! kubectl describe "pod/${POD_NAME}" | grep -q Terminated; do
   sleep 5
-  wait_secs-=5
+  ((wait_secs-=5))
 done
 
 readonly EXIT_CODE=$(kubectl get pod "${POD_NAME}" \
