@@ -27,5 +27,6 @@ readonly EXIT_CODE=$(kubectl get pod "${POD_NAME}" \
 
 if [[ ${EXIT_CODE} != 0 ]]; then
   echo "Presubmit failed!"
+  kubectl describe "pod/${POD_NAME}"
   exit 1
 fi
