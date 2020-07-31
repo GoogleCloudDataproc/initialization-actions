@@ -2,19 +2,18 @@
 
 This initialization action installs
 [Starburst Presto](https://www.starburstdata.com) on a
-[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster.
-Additionally, this script will configure Presto to work with Hive on the
-cluster. The master Cloud Dataproc node will be the coordinator and all Cloud
+[Dataproc](https://cloud.google.com/dataproc) cluster.
+This script also configures Presto to work with Apache Hive on the
+cluster. The master Dataproc node will be the coordinator, and all
 Dataproc workers will be Presto workers.
 
 ## Using this initialization action
 
-**:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
+**:warning: NOTICE:** See [How initialization actions are used](/README.md#how-initialization-actions-are-used) and [Important considerations and guidelines](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/init-actions#important_considerations_and_guidelines) for additional information.
 
-You can use this initialization action to create a new Dataproc cluster with
-Presto installed:
+Use this initialization action to create a Dataproc cluster with Presto installed:
 
-1.  Using the `gcloud` command to create a new cluster with this initialization
+1.  Use the `gcloud` command to create a new cluster that runs this initialization
     action.
 
     ```bash
@@ -25,27 +24,22 @@ Presto installed:
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/starburst-presto/presto.sh
     ```
 
-1.  Once the cluster has been created, Presto is configured to run on port
-    `8080` (though you can change this in the script) on the master node in a
-    Cloud Dataproc cluster. To connect to the Presto web interface, you will
-    need to create an SSH tunnel and use a SOCKS 5 Proxy as described in the
-    [dataproc web interfaces](https://cloud.google.com/dataproc/cluster-web-interfaces)
-    documentation. You can also use the
-    [Presto command line interface](https://docs.starburstdata.com/latest/installation/cli.html)
-    using the `presto` command on the master node.
-
-You can find more information about using initialization actions with Dataproc
-in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
+1.  Presto is configured to run on port `8080` on the cluster'a master node (you can change the
+    port assignment in the script). To connect to the Presto web interface,
+    create an SSH tunnel and use a SOCKS5 Proxy&mdash; see
+    [Dataproc cluster web interfaces](https://cloud.google.com/dataproc/cluster-web-interfaces).
+    You can also use the [`presto` command line interface](https://docs.starburstdata.com/latest/installation/cli.html)
+    on the master node.
 
 ## Important notes
 
-*   This script must be updated based on which Presto version you wish to
-    install
-*   You may need to adjust the memory settings in `jvm.config` based on your
-    needs
-*   Presto is set to use HTTP port `8080` by default, but can be changed using
-    `--metadata presto-port=8060`
-*   Only the Hive connector is configured by default
-*   High-Availability configuration is discouraged as coordinator is started
-    only on `m-0` and other master nodes are idle
+*   Update the script to specify a Presto version to install.
+*   You can adjust the memory settings in `jvm.config`.
+*   By default, Presto uses HTTP port `8080`. Update the
+    script to use a different port, for example,
+    `--metadata presto-port=8060`.
+*   The Hive connector is configured by default.
+*   [Dataproc High-Availability mode](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/high-availability)
+    is not recommended because the coordinator is started
+    only on `m-0`, and other master nodes will be idle.
 
