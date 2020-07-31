@@ -260,7 +260,7 @@ function wait_for_atlas_to_start() {
 function wait_for_atlas_becomes_active_or_passive() {
   for ((i = 0; i < 60; i++)); do
     # public check, but some username:password has to be given
-    if status=$(${ATLAS_HOME}/bin/atlas_admin.py -u doesnt:matter -status 2>/dev/null); then
+    if status=$(python2 ${ATLAS_HOME}/bin/atlas_admin.py -u doesnt:matter -status 2>/dev/null); then
       if [[ ${status} == 'ACTIVE' || ${status} == 'PASSIVE' ]]; then
         return 0
       fi
