@@ -1,6 +1,6 @@
 # Intel BigDL and Analytics Zoo
 
-This initialization action installs [BigDL](https://github.com/intel-analytics/BigDL) on a [Dataproc](https://cloud.google.com/dataproc) cluster. BigDL is a distributed deep learning library for Apache Spark. See the GitHub [BigDl website](https://bigdl-project.github.io/) for more information.
+This initialization action installs [BigDL](https://github.com/intel-analytics/BigDL) on a [Dataproc](https://cloud.google.com/dataproc) cluster. BigDL is a distributed deep learning library for Apache Spark. See the GitHub [BigDL website](https://bigdl-project.github.io/) for more information.
 
 This script also supports the Intel [Analytics Zoo](https://software.intel.com/content/www/us/en/develop/topics/ai/analytics-zoo.html),
 which includes BigDL. See the GitHub [Analytics Zoo website](https://analytics-zoo.github.io) site for more information.
