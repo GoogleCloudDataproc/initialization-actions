@@ -23,8 +23,11 @@ set -euxo pipefail
 readonly JARS_DIR=/usr/lib/spark/jars
 readonly CONNECTORS_DIR=/usr/local/share/google/dataproc/lib
 
-readonly DEFAULT_INIT_ACTIONS_REPO=gs://dataproc-initialization-actions
-readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_REPO ||
+# readonly DEFAULT_INIT_ACTIONS_BUCKET=gs://dataproc-initialization-actions
+# readonly INIT_ACTIONS_BUCKET="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_BUCKET ||
+#   echo ${DEFAULT_INIT_ACTIONS_BUCKET})"
+readonly DEFAULT_INIT_ACTIONS_REPO="https://github.com/GoogleCloudDataproc/initialization-actions.git"
+readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_REP ||
   echo ${DEFAULT_INIT_ACTIONS_REPO})"
 readonly INIT_ACTIONS_BRANCH="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_BRANCH ||
   echo 'master')"
@@ -100,11 +103,7 @@ function download_spark_jar() {
 
 function download_init_actions() {
   # Download initialization actions locally.
-  if [[ ${INIT_ACTIONS_REPO} == gs://* ]]; then
-    gsutil -m rsync -r "${INIT_ACTIONS_REPO}" "${INIT_ACTIONS_DIR}"
-  else
-    git clone -b "${INIT_ACTIONS_BRANCH}" --single-branch "${INIT_ACTIONS_REPO}" "${INIT_ACTIONS_DIR}"
-  fi
+  git clone -b "${INIT_ACTIONS_BRANCH}" --single-branch "${INIT_ACTIONS_REPO}" "${INIT_ACTIONS_DIR}"
   find "${INIT_ACTIONS_DIR}" -name '*.sh' -exec chmod +x {} \;
 }
 
