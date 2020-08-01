@@ -35,8 +35,7 @@ Use this initialization action to create a Dataproc cluster with Presto installe
 
 *   Update the script to specify a Presto version to install.
 *   You can adjust the memory settings in `jvm.config`.
-*   By default, Presto uses HTTP port `8080`. Update the
-    script to use a different port, for example,
+*   By default, Presto uses HTTP port `8080`. Use `presto-port` metadata value to configure a different port, for example,
     `--metadata presto-port=8060`.
 *   The Hive connector is configured by default.
 *   [Dataproc High-Availability mode](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/high-availability)
