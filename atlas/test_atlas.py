@@ -94,7 +94,7 @@ class AtlasTestCase(DataprocTestCase):
     )
     def test_atlas(self, configuration, machine_suffixes):
         image_version = self.getImageVersion()
-        if image_version < pkg_resources.parse_version("1.4") or \
+        if image_version < pkg_resources.parse_version("1.5") or \
             image_version > pkg_resources.parse_version("2.0"):
           return
 
@@ -145,7 +145,7 @@ class AtlasTestCase(DataprocTestCase):
     def test_atlas_overrides_admin_credentials(self, configuration,
                                                machine_suffixes):
       image_version = self.getImageVersion()
-      if image_version < pkg_resources.parse_version("1.4") or \
+      if image_version < pkg_resources.parse_version("1.5") or \
           image_version > pkg_resources.parse_version("2.0"):
         return
 
@@ -170,7 +170,7 @@ class AtlasTestCase(DataprocTestCase):
     @parameterized.parameters("ZOOKEEPER", "HBASE", "SOLR")
     def test_atlas_fails_without_component(self, component):
       image_version = self.getImageVersion()
-      if image_version < pkg_resources.parse_version("1.4") or \
+      if image_version < pkg_resources.parse_version("1.5") or \
           image_version > pkg_resources.parse_version("2.0"):
         return
 

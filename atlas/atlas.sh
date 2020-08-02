@@ -337,7 +337,7 @@ function enable_sqoop_hook() {
 }
 
 function main() {
-  if ! is_version_at_least "${DATAPROC_VERSION}" "1.4" || is_version_at_least "${DATAPROC_VERSION}" "2.0"; then
+  if ! is_version_at_least "${DATAPROC_VERSION}" "1.5" || is_version_at_least "${DATAPROC_VERSION}" "2.0"; then
     err "Dataproc ${DATAPROC_VERSION} is not supported"
   fi
 
