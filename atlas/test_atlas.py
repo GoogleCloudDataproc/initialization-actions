@@ -93,8 +93,11 @@ class AtlasTestCase(DataprocTestCase):
         ("HA", ["m-0", "m-1", "m-2"]),
     )
     def test_atlas(self, configuration, machine_suffixes):
-        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-            return
+        image_version = self.getImageVersion()
+        if image_version < pkg_resources.parse_version("1.4") or \
+            image_version > pkg_resources.parse_version("2.0"):
+          return
+
         init_actions = self.INIT_ACTIONS
         optional_components = self.OPTIONAL_COMPONENTS
         if configuration == "HA":
@@ -141,8 +144,10 @@ class AtlasTestCase(DataprocTestCase):
     @parameterized.parameters(("SINGLE", ["m"]))
     def test_atlas_overrides_admin_credentials(self, configuration,
                                                machine_suffixes):
-        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-            return
+      image_version = self.getImageVersion()
+      if image_version < pkg_resources.parse_version("1.4") or \
+          image_version > pkg_resources.parse_version("2.0"):
+        return
 
         username = 'dataproc-user'
         password = 'dataproc-password'
@@ -164,8 +169,10 @@ class AtlasTestCase(DataprocTestCase):
 
     @parameterized.parameters("ZOOKEEPER", "HBASE", "SOLR")
     def test_atlas_fails_without_component(self, component):
-        if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-            return
+      image_version = self.getImageVersion()
+      if image_version < pkg_resources.parse_version("1.4") or \
+          image_version > pkg_resources.parse_version("2.0"):
+        return
 
         with self.assertRaises(AssertionError):
             self.createCluster(

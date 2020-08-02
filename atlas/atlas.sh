@@ -47,7 +47,27 @@ function is_version_at_least() {
     # The grep will show the specific warnings too
     echo 'Error: invalid versions compared'
 
-    exit "${EXIT_CODE_INTERNAL_ERROR}"
+    exit 1
+  fi
+
+  rm -f "${log}"
+  return "${err_code}"
+}
+
+function is_version_lower() {
+  local -r ver1="${1#v}"
+  local -r ver2="${2#v}.0.0.0.0"
+  local log
+  log="$(mktemp)"
+
+  dpkg --compare-versions "${ver1}" lt "${ver2}" >&"${log}"
+  err_code="$?"
+
+  if grep -C 10 -i warning "${log}"; then
+    # The grep will show the specific warnings too
+    echo 'Error: invalid versions compared'
+
+    exit 1
   fi
 
   rm -f "${log}"
@@ -317,7 +337,7 @@ function enable_sqoop_hook() {
 }
 
 function main() {
-  if ! is_version_at_least "${DATAPROC_VERSION}" "1.5"; then
+  if ! is_version_at_least "${DATAPROC_VERSION}" "1.4" || is_version_at_least "${DATAPROC_VERSION}" "2.0"; then
     err "Dataproc ${DATAPROC_VERSION} is not supported"
   fi
 
