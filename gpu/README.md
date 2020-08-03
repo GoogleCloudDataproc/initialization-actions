@@ -54,7 +54,7 @@ gpu-driver-provider=<OS|NVIDIA>` metadata value.
     and CUDA installed by initialization action. Additionally, it installs GPU
     monitoring service.
 
-    *Prerequisite:* Create metrics in [Cloud Monitoring](https://cloud.google.com/monitoring/docs/) using Cloud Shell.
+    *Prerequisite:* Create GPU metrics in [Cloud Monitoring](https://cloud.google.com/monitoring/docs/) using Google Cloud Shell using the script [create_gpu_metrics.py](https://github.com/GoogleCloudPlatform/ml-on-gcp/blob/master/dlvm/gcp-gpu-utilization-metrics/create_gpu_metrics.py).
 
     If you run this locally you will need to set up a service account.
 
@@ -65,6 +65,14 @@ gpu-driver-provider=<OS|NVIDIA>` metadata value.
     cd ml-on-gcp/dlvm/gcp-gpu-utilization-metrics
     pip install -r ./requirements.txt
     python create_gpu_metrics.py
+    ```
+
+    Expected output:
+
+    ```
+    Created projects/project-sample/metricDescriptors/custom.googleapis.com/utilization_memory.
+    Created projects/project-sample/metricDescriptors/custom.googleapis.com/utilization_gpu.
+    Created projects/project-sample/metricDescriptors/custom.googleapis.com/memory_used
     ```
 
     Create cluster:
@@ -125,30 +133,8 @@ For more information about GPU support, take a look at
 
 The initialization action installs a
 [monitoring agent](https://github.com/GoogleCloudPlatform/ml-on-gcp/tree/master/dlvm/gcp-gpu-utilization-metrics)
-that monitors the GPU usage on the instance. This will auto create the GPU
-metrics.
-
-```bash
-pip3 install -r ./requirements.txt
-python3 report_gpu_metrics.py &
-```
-
-### Generate metrics
-
-If you need to create metrics using `create_metric_descriptor` first run the
-following commands:
-
-```bash
-pip3 install -r ./requirements.txt
-python3 create_gpu_metrics.py
-```
-
-Example:
-
-```
-Created projects/project-sample/metricDescriptors/custom.googleapis.com/gpu_utilization.
-Created projects/project-sample/metricDescriptors/custom.googleapis.com/gpu_memory_utilization.
-```
+that monitors the GPU usage on the instance. This will auto create and send the GPU
+metrics to the Cloud Monitoring service.
 
 ### Troubleshooting
 
