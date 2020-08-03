@@ -54,7 +54,7 @@ gpu-driver-provider=<OS|NVIDIA>` metadata value.
     and CUDA installed by initialization action. Additionally, it installs GPU
     monitoring service.
 
-    Prerequisite: Create metrics in Cloud Monitoring using Cloud Shell.
+    *Prerequisite:* Create metrics in [Cloud Monitoring](https://cloud.google.com/monitoring/docs/) using Cloud Shell.
 
     If you run this locally you will need to set up a service account.
 
@@ -78,7 +78,7 @@ gpu-driver-provider=<OS|NVIDIA>` metadata value.
         --worker-accelerator type=nvidia-tesla-v100,count=4 \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh \
         --metadata install-gpu-agent=true \
-        --scopes https://www.googleapis.com/auth/monitoring.write
+        --scopes https://www.googleapis.com/auth/monitoring.write,https://www.googleapis.com/auth/cloud-platform
     ```
 
 #### Supported metadata parameters:
@@ -98,7 +98,7 @@ gpu-driver-provider=<OS|NVIDIA>` metadata value.
 -   `cuda-url: <URL>` - this is an optional parameter for customizing
     NVIDIA-provided CUDA on Debian.
 
--   `cuda-url: 10.0|10.1|10.2` - this is an optional parameter for customizing
+-   `cuda-version: 10.0|10.1|10.2` - this is an optional parameter for customizing
     NVIDIA-provided CUDA version on Ubuntu. If set to empty then the latest
     available CUDA version will be installed.
 
