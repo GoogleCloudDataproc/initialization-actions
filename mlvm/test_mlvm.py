@@ -8,8 +8,8 @@ from integration_tests.dataproc_test_case import DataprocTestCase
 
 class MLVMTestCase(DataprocTestCase):
     COMPONENT = "mlvm"
-    INIT_ACTIONS=["mlvm/mlvm.sh"]
-    OPTIONAL_COMPONENTS=["ANACONDA", "JUPYTER"]
+    INIT_ACTIONS = ["mlvm/mlvm.sh"]
+    OPTIONAL_COMPONENTS = ["ANACONDA", "JUPYTER"]
 
     PYTHON_SCRIPT = "mlvm/scripts/python_packages.py"
     R_SCRIPT = "mlvm/scripts/r_packages.R"
@@ -17,7 +17,7 @@ class MLVMTestCase(DataprocTestCase):
     RAPIDS_SPARK_SCRIPT = "mlvm/scripts/verify_rapids_spark.py"
     RAPIDS_DASK_SCRIPT = "verify_rapids_dask.py"
 
-    GPU_V100="type=nvidia-tesla-v100"
+    GPU_V100 = "type=nvidia-tesla-v100"
 
     def verify_python(self):
         self.assert_dataproc_job(
