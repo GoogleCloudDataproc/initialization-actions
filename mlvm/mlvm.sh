@@ -104,10 +104,7 @@ function download_init_actions() {
 
 function install_connectors() {
   local -r url="gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.12-${SPARK_BIGQUERY_VERSION}.jar" 
-
-  # Remove old connector if exists
-  find "${CONNECTORS_DIR}/" -name "spark-bigquery*.jar" -delete
-
+  
   gsutil cp "${url}" "${CONNECTORS_DIR}/"
 
   local -r jar_name=${url##*/}

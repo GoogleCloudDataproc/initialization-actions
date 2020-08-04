@@ -17,7 +17,7 @@ class MLVMTestCase(DataprocTestCase):
     RAPIDS_SPARK_SCRIPT = "mlvm/scripts/verify_rapids_spark.py"
     RAPIDS_DASK_SCRIPT = "verify_rapids_dask.py"
 
-    GPU_T4="type=nvidia-tesla-t4,count=2"
+    GPU_T4="type=nvidia-tesla-t4"
 
     def verify_python(self):
         self.assert_dataproc_job(
@@ -35,7 +35,7 @@ class MLVMTestCase(DataprocTestCase):
                                                  self.SPARK_BQ_SCRIPT))
     
     def verify_gpu(self):
-        for machine_suffix in ["w-0", "w-1"]:
+        for machine_suffix in ["m", "w-0", "w-1"]:
             self.assert_instance_command("{}-{}".format(
                 self.name, machine_suffix), "nvidia-smi")
 
@@ -81,6 +81,7 @@ class MLVMTestCase(DataprocTestCase):
             self.INIT_ACTIONS,
             optional_components=self.OPTIONAL_COMPONENTS,
             machine_type="n1-standard-32",
+            master_accelerator=accelerator,
             worker_accelerator=accelerator,
             timeout_in_minutes=60,
             metadata=metadata)
