@@ -24,7 +24,7 @@ readonly JARS_DIR=/usr/lib/spark/jars
 readonly CONNECTORS_DIR=/usr/local/share/google/dataproc/lib
 
 readonly DEFAULT_INIT_ACTIONS_REPO=gs://dataproc-initialization-actions
-readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/INIT_ACTIONS_BUCKET ||
+readonly INIT_ACTIONS_REPO="$(/usr/share/google/get_metadata_value attributes/init-actions-repo ||
   echo ${DEFAULT_INIT_ACTIONS_REPO})"
 readonly INIT_ACTIONS_DIR=$(mktemp -d -t dataproc-init-actions-XXXX)
 

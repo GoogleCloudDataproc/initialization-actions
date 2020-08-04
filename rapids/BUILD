@@ -1,5 +1,7 @@
 package(default_visibility = ["//visibility:public"])
 
+exports_files(["rapids.sh"])
+
 py_test(
     name = "test_rapids",
     size = "enormous",
@@ -21,4 +23,10 @@ py_library(
     name = "verify_rapids",
     testonly = True,
     srcs = ["verify_rapids_dask.py", "verify_rapids_spark.py"],
+)
+
+sh_library(
+    name = "install_rapids",
+    testonly = True,
+    data = ["rapids.sh"]
 )

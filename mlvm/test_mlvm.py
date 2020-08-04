@@ -70,11 +70,12 @@ class MLVMTestCase(DataprocTestCase):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return   
 
-        metadata = None
+        metadata = "init-actions-repo={}".format(self.INIT_ACTIONS_REPO)
         if accelerator:
-            metadata="include-gpus=true,gpu-driver-provider={}".format(gpu_provider)
+            metadata += ",include-gpus=true,gpu-driver-provider={}".format(gpu_provider)
             if rapids_runtime:
-                metadata+=",rapids-runtime={}".format(rapids_runtime)
+                metadata += ",rapids-runtime={}".format(rapids_runtime)
+        
 
         self.createCluster(
             configuration, 
