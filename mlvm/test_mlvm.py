@@ -17,7 +17,7 @@ class MLVMTestCase(DataprocTestCase):
     RAPIDS_SPARK_SCRIPT = "mlvm/scripts/verify_rapids_spark.py"
     RAPIDS_DASK_SCRIPT = "verify_rapids_dask.py"
 
-    GPU_T4="type=nvidia-tesla-t4"
+    GPU_V100="type=nvidia-tesla-v100"
 
     def verify_python(self):
         self.assert_dataproc_job(
@@ -61,9 +61,9 @@ class MLVMTestCase(DataprocTestCase):
     
     @parameterized.parameters(
         ("STANDARD", None, None, None),
-        ("STANDARD", GPU_T4, "NVIDIA", None),
-        ("STANDARD", GPU_T4, "NVIDIA", "SPARK"),
-        ("STANDARD", GPU_T4, "NVIDIA", "DASK")
+        ("STANDARD", GPU_V100, "NVIDIA", None),
+        ("STANDARD", GPU_V100, "NVIDIA", "SPARK"),
+        ("STANDARD", GPU_V100, "NVIDIA", "DASK")
     )
     def test_mlvm(self, configuration, accelerator, gpu_provider, rapids_runtime):
         # Supported on Dataproc 1.5+
