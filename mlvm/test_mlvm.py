@@ -72,7 +72,7 @@ class MLVMTestCase(DataprocTestCase):
 
         metadata = None
         if accelerator:
-            metadata="include-gpus=true,gpu_provider={}".format(gpu_provider)
+            metadata="include-gpus=true,gpu-driver-provider={}".format(gpu_provider)
             if rapids_runtime:
                 metadata+=",rapids-runtime={}".format(rapids_runtime)
 
@@ -80,7 +80,7 @@ class MLVMTestCase(DataprocTestCase):
             configuration, 
             self.INIT_ACTIONS,
             optional_components=self.OPTIONAL_COMPONENTS,
-            machine_type="n1-standard-32",
+            machine_type="n1-standard-16",
             master_accelerator=accelerator,
             worker_accelerator=accelerator,
             timeout_in_minutes=60,
