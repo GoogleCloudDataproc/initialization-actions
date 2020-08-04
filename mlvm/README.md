@@ -17,27 +17,30 @@ Features of this configuration include:
 
 **:warning: NOTICE:** See [best practices](/README.md#how-initialization-actions-are-used) of using initialization actions in production.
 
-You can use this initialization action to create a new Dataproc cluster with a set of preconfigured machine learning packages. You'll need to supply the following metadata flags:
+You can use this initialization action to create a new Dataproc cluster with a set of preconfigured machine learning packages.
 
+If you wish to have GPU support, please include the following.
 ```
---metadata spark-bigquery-connector-version=0.17.0
-```
-Feel free to use a different connector version. 
-
-If you wish to have GPU and/or RAPIDS support, include the following.
-```
---metadata gpu-driver-provider=NVIDIA
 --metadata include-gpus=true
+--metadata gpu-driver-provider=NVIDIA
+```
+
+If you wish to have RAPIDS support, you must include the following in addition to the above GPU metadata:
+```
 --metadata rapids-runtime=<SPARK|DASK>
 
-# For RAPIDS on Dataproc 1.5
+# For RAPIDS on Dataproc 1.5, include this as well. 
 --metadata cuda-version=10.1
 ```
 
-You can also include your own Python libraries with the metadata flag `PYTHON_PACKAGES`.
+You can include your own Python libraries with the metadata flag `PYTHON_PACKAGES` and PIP version syntax:
 ```
---metadata PYTHON_PACKAGES=package1==ver1,package2==ver2
+--metadata PYTHON_PACKAGES=package1==ver1 package2==ver2
 ```
+
+You can include your own R libraries with the metadata flag `R_PACKAGES` and CONDA version syntax:
+```
+--metadata R_PACKAGES=package1=ver1 package2=ver2
 
 
 1.  Use the `gcloud` command to create a new cluster with this initialization action. The command shown below includes a curated list of packages that will be installed on the cluster:
@@ -51,13 +54,12 @@ You can also include your own Python libraries with the metadata flag `PYTHON_PA
         --worker-machine-type n1-highmem-32 \
         --worker-accelerator type=nvidia-tesla-t4,count=2 \
         --image-version preview-ubuntu \
-        --metadata spark-bigquery-connector-version=0.17.0 \
         --metadata gpu-driver-provider=NVIDIA \
         --metadata rapids-runtime=SPARK \
         --metadata include-gpus=true \
         --optional-components ANACONDA,JUPYTER \
         --initialization-actions gs://dataproc-initialization-actions/mlvm/mlvm.sh \
-        --initialization-action-timeout=30m
+        --initialization-action-timeout=45m
         --enable-component-gateway  
     ```
 
@@ -72,7 +74,6 @@ config:
       gpu-driver-provider: NVIDIA
       include-gpus: 'true'
       rapids-runtime: SPARK
-      spark-bigquery-connector-version: 0.17.1
   initializationActions:
   - executableFile: gs://bmiro-test/dataproc-initialization-actions/mlvm/mlvm.sh
     executionTimeout: 1800s
@@ -98,6 +99,7 @@ NVIDIA GPU Drivers:
 *NCCL 2.7.6
 *RAPIDS 0.14.0
 *Latest NVIDIA drivers for Ubuntu / Debian
+*spark-bigquery-connector 0.17.0
 
 ### Python Libraries
 ```
@@ -144,7 +146,7 @@ r-sparklyr=1.0.0
 ### Java Libraries
 ```
 spark-nlp - 2.5.4
-spark-bigquery-connector - (version supplied at cluster creation time)
+spark-bigquery-connector - 0.17.0
 RAPIDS XGBOOST libraries - 0.14.0
 ```
 
