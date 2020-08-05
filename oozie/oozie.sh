@@ -141,7 +141,7 @@ function install_oozie() {
     --name 'google.cloud.auth.service.account.enable' --value 'true' \
     --description 'Whether to use a service account for GCS authorization.
     Setting this property to `false` will disable use of service accounts for
-    authentication.'
+    authentication.' \
     --clobber
   
   if [ -e /usr/lib/hadoop/lib/gcs-connector.jar ]
