@@ -138,8 +138,16 @@ function install_oozie() {
     
   bdconfig set_property \
     --configuration_file "/etc/hadoop/conf/core-site.xml" \
-    --name 'google.cloud.auth.service.account.enable' --value 'false' \
+    --name 'google.cloud.auth.service.account.enable' --value 'true' \
+    --description 'Whether to use a service account for GCS authorization.
+    Setting this property to `false` will disable use of service accounts for
+    authentication.'
     --clobber
+  
+  if [ -e /usr/lib/hadoop/lib/gcs-connector.jar ]
+  then
+    cp /usr/lib/hadoop/lib/gcs-connector.jar /usr/lib/oozie/lib/gcs-connector.jar
+  fi
   
   # Detect if current node configuration is HA and then set oozie servers
   local additional_nodes
