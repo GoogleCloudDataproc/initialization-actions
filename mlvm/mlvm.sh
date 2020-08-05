@@ -32,56 +32,53 @@ readonly INCLUDE_GPUS="$(/usr/share/google/get_metadata_value attributes/include
 readonly SPARK_BIGQUERY_VERSION="$(/usr/share/google/get_metadata_value attributes/spark-bigquery-connector-version ||
   echo "0.17.0")"
 
-readonly R_VERSION_ENV="$(R --version | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' )"
+readonly R_VERSION="$(R --version | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' )"
+readonly TENSORFLOW_VERSION="2.2.0"
+readonly SPARK_NLP_VERSION="2.5.5"
 
-if [[ ${R_VERSION_ENV} == "4"* ]]; then
-  R_VERSION="4.0"
-else
-  R_VERSION="3.6.0"
-fi
+CONDA_PACKAGES=(
+  "matplotlib"
+  "mxnet" 
+  "nltk"
+  "rpy2"
+  "r-essentials=${R_VERSION}"
+  "r-xgboost"
+  "r-sparklyr"
+  "scikit-learn"
+  "spark-nlp=${SPARK_NLP_VERSION}"
+  "pytorch"
+  "torchvision" 
+)
 
-# Pip
-BASE_PYTHON_PACKAGES=(
-  "google-cloud-bigquery==1.26.1" 
-  "google-cloud-datalabeling==0.4.0"
-  "google-cloud-storage==1.30.0"
-  "google-cloud-bigtable==1.4.0" 
-  "google-cloud-dataproc==1.0.1" 
-  "google-api-python-client==1.10.0" 
-  "matplotlib==3.3.0"
-  "mxnet==1.6.0" 
-  "nltk==3.5"
-  "numpy==1.18.4" 
-  "rpy2==3.3.3"
-  "scikit-learn==0.23.1" 
-  "scipy==1.4.1"
-  "sparksql-magic==0.0.3" 
+readonly CONDA_PACKAGES
+
+PIP_PACKAGES=(
+  "google-api-python-client" 
+  "google-cloud-bigquery"
+  "google-cloud-bigtable"
+  "google-cloud-datalabeling"
+  "google-cloud-dataproc"
+  "google-cloud-storage"
+  "sparksql-magic" 
   "tensorflow-datasets==3.2.1"
-  "tensorflow-estimator==2.2.0"
+  "tensorflow-estimator==${TENSORFLOW_VERSION}" 
   "tensorflow-hub==0.8.0"
   "tensorflow-io==0.14.0"
   "tensorflow-probability==0.10.1" 
-  "torch==1.5.1" 
-  "torchvision==0.6.1" 
-  "xgboost==1.1.0"
+  "xgboost"
 )
 
 if [[ -n ${INCLUDE_GPUS} ]]; then
-  BASE_PYTHON_PACKAGES+=("tensorflow-gpu==2.2.0")
+  PIP_PACKAGES+=("tensorflow-gpu==${TENSORFLOW_VERSION}")
 else
-  BASE_PYTHON_PACKAGES+=("tensorflow==2.2.0")
+  PIP_PACKAGES+=("tensorflow==${TENSORFLOW_VERSION}")
 fi
 
 if [ "$(echo "$DATAPROC_VERSION >= 2.0" | bc)" -eq 1 ]; then 
-  BASE_PYTHON_PACKAGES+=("spark-tensorflow-distributor==0.1.0")
+  PIP_PACKAGES+=("spark-tensorflow-distributor")
 fi
 
-# Conda
-readonly BASE_R_PACKAGES=(
-  "r-essentials=${R_VERSION}"
-  "r-xgboost=0.90.0.2"
-  "r-sparklyr=1.0.0"
-)
+readonly PIP_PACKAGES
 
 mkdir -p ${JARS_DIR}
 mkdir -p ${CONNECTORS_DIR}
@@ -120,42 +117,41 @@ function install_gpu_drivers() {
   "${INIT_ACTIONS_DIR}/gpu/install_gpu_driver.sh"
 }
 
-function install_python_packages() {
-  local extra_python_packages
-  extra_python_packages="$(/usr/share/google/get_metadata_value attributes/PYTHON_PACKAGES || true)"
+function install_conda_packages() {  
+  local -r extra_packages="$(/usr/share/google/get_metadata_value attributes/CONDA_PACKAGES || true)"
+  local -r extra_channels="$(/usr/share/google/get_metadata_value attributes/CONDA_CHANNELS || true)"
 
-  execute_with_retries "pip install ${BASE_PYTHON_PACKAGES[*]}"
+  conda config --add channels pytorch
+  conda config --add channels johnsnowlabs
 
-  if [[ -n "${extra_python_packages}" ]]; then
-    execute_with_retries "pip install ${extra_python_packages[*]}"
-  fi 
+  conda install -y "${CONDA_PACKAGES[@]}"
+
+  if [[ -n "${extra_channels}" ]]; then
+    for channel in ${extra_channels}; do
+      conda config --add channels "${channel}"
+    done
+  fi
+    
+  if [[ -n "${extra_packages}" ]]; then
+    conda install -y "${extra_packages[@]}"
+  fi
 }
 
-function install_r_packages() {  
-  local extra_r_packages 
-  extra_r_packages="$(/usr/share/google/get_metadata_value attributes/R_PACKAGES || true)"
-  
-  # Conda R channel isn't currently as up-to-date with R4 as conda-forge
-  if [[ ${R_VERSION} == "4"* ]]; then
-    channel="conda-forge"
-  else
-    channel="r"
-  fi
+function install_pip_packages() {
+  local -r extra_packages="$(/usr/share/google/get_metadata_value attributes/PIP_PACKAGES || true)"
 
-  conda install -y -c ${channel} "${BASE_R_PACKAGES[@]}"
-  
-  if [[ -n "${extra_r_packages}" ]]; then
-    conda install -y -c ${channel} "${extra_r_packages[@]}"
-  fi
+  execute_with_retries "pip install ${PIP_PACKAGES[*]}"
+
+  if [[ -n "${extra_packages}" ]]; then
+    execute_with_retries "pip install ${extra_packages[*]}"
+  fi 
 }
 
 function install_spark_nlp() {
   local -r name="spark-nlp"
   local -r repo_url="http://dl.bintray.com/spark-packages/maven/JohnSnowLabs/"
-  local -r version="2.5.4"
   
-  pip install "spark-nlp==$version" 
-  download_spark_jar "${repo_url}/${name}/${version}/${name}-${version}.jar"
+  download_spark_jar "${repo_url}/${name}/${SPARK_NLP_VERSION}/${name}-${SPARK_NLP_VERSION}.jar"
 }
 
 function install_connectors() {
@@ -193,16 +189,16 @@ function main () {
   echo "Installing GPU drivers"
   install_gpu_drivers
 
-  # Install Python packages
-  echo "Installing python packages"
-  install_python_packages
+  # Install Conda packages
+  echo "Installing Conda packages"
+  install_conda_packages
 
-  # Install R packages
-  echo "Installing R Packages"
-  install_r_packages
+  # Install Pip packages
+  echo "Installing Pip Packages"
+  install_pip_packages
 
   # Install Spark Libraries
-  echo "Installing Spark-NLP"
+  echo "Installing Spark-NLP jars"
   install_spark_nlp
 
   # Install GCP Connectors
