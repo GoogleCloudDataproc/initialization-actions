@@ -33,35 +33,25 @@ If you wish to have RAPIDS support, you must include the following in addition t
 --metadata cuda-version=10.1
 ```
 
-You can include your own Python libraries with the metadata flag `PYTHON_PACKAGES` and PIP version syntax:
+Use the `gcloud` command to create a new cluster with this initialization action. The command shown below includes a curated list of packages that will be installed on the cluster:
+
+```bash
+REGION=<region>
+CLUSTER_NAME=<cluster_name>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+    --region ${REGION} \
+    --master-machine-type n1-standard-16 \
+    --worker-machine-type n1-highmem-32 \
+    --worker-accelerator type=nvidia-tesla-t4,count=2 \
+    --image-version preview-ubuntu \
+    --metadata gpu-driver-provider=NVIDIA \
+    --metadata rapids-runtime=SPARK \
+    --metadata include-gpus=true \
+    --optional-components ANACONDA,JUPYTER \
+    --initialization-actions gs://dataproc-initialization-actions/mlvm/mlvm.sh \
+    --initialization-action-timeout=45m
+    --enable-component-gateway  
 ```
---metadata PYTHON_PACKAGES=package1==ver1 package2==ver2
-```
-
-You can include your own R libraries with the metadata flag `R_PACKAGES` and CONDA version syntax:
-```
---metadata R_PACKAGES=package1=ver1 package2=ver2
-
-
-1.  Use the `gcloud` command to create a new cluster with this initialization action. The command shown below includes a curated list of packages that will be installed on the cluster:
-
-    ```bash
-    REGION=<region>
-    CLUSTER_NAME=<cluster_name>
-    gcloud dataproc clusters create ${CLUSTER_NAME} \
-        --region ${REGION} \
-        --master-machine-type n1-standard-16 \
-        --worker-machine-type n1-highmem-32 \
-        --worker-accelerator type=nvidia-tesla-t4,count=2 \
-        --image-version preview-ubuntu \
-        --metadata gpu-driver-provider=NVIDIA \
-        --metadata rapids-runtime=SPARK \
-        --metadata include-gpus=true \
-        --optional-components ANACONDA,JUPYTER \
-        --initialization-actions gs://dataproc-initialization-actions/mlvm/mlvm.sh \
-        --initialization-action-timeout=45m
-        --enable-component-gateway  
-    ```
 
 You can use this initialization action with [Dataproc Hub](https://cloud.google.com/dataproc/docs/tutorials/dataproc-hub-admins) with the following YAML configuration:
 
@@ -95,62 +85,84 @@ config:
 ## Full list of installed libraries:
 
 NVIDIA GPU Drivers: 
-*CUDA 10.2 (10.1 for Dataproc 1.x)
-*NCCL 2.7.6
-*RAPIDS 0.14.0
-*Latest NVIDIA drivers for Ubuntu / Debian
-*spark-bigquery-connector 0.17.0
+* CUDA 10.2 (10.1 for Dataproc 1.x)
+* NCCL 2.7.6
+* RAPIDS 0.14.0
+* Latest NVIDIA drivers for Ubuntu / Debian
+* spark-bigquery-connector 0.17.0
 
 ### Python Libraries
+
+All libraries are installed with their latest versions unless noted otherwise. 
+
+#### Google Cloud Client Libraries (pip)
 ```
-google-cloud-bigquery==1.26.1
-google-cloud-datalabeling==0.4.0
-google-cloud-storage==1.30.0
-google-cloud-bigtable==1.4.0
-google-cloud-dataproc==1.0.1
-google-api-python-client==1.10.0
-matplotlib==3.3.0
-mxnet==1.6.0 
-nltk==3.5
-numpy==1.18.4 
-rpy2==3.3.3
-scikit-learn==0.23.1
-scipy==1.4.1
-spark-nlp==2.5.1
-sparksql-magic==0.0.3
-tensorflow==2.2.0
+google-cloud-bigquery
+google-cloud-datalabeling
+google-cloud-storage
+google-cloud-bigtable
+google-cloud-dataproc
+google-api-python-client
+```
+
+#### Tensorflow (pip)
+```
+tensorflow==2.2.0 (if no GPUs)
+tensorflow-gpu==2.2.0 (if GPUs)
 tensorflow-datasets==3.2.1
-tensorflow-estimator==2.3.0
+tensorflow-estimator==2.2.0
 tensorflow-hub==0.8.0
 tensorflow-io==0.14.0
 tensorflow-probability==0.10.1
-torch==1.5.1
-torchvision: 0.6.1
-xgboost: 1.1.0
 ```
 
-Note: `tensorflow-gpu` is installed in place of `tensorflow` if `--metadata include-gpus=true` is provided.  
+#### Other pip libraries
+```
+"sparksql-magic" 
+"spark-tensorflow-distributor" # Dataproc 2.0+
+"xgboost"
+```
 
-Additionally, the following is also included in Dataproc 2.0+
+#### Conda libraries
 ```
-spark-tensorflow-distributor==0.1.0
+matplotlib
+mxnet 
+nltk
+rpy2
+scikit-learn
+spark-nlp=2.5.5
+pytorch
+torchvision
 ```
 
-### R Libraries
-Conda: 
+For additional Python libraries you can use either of the following:
 ```
-r-essentials=3.6.0
-r-xgboost=0.90.0.2
-r-sparklyr=1.0.0
+--metadata PIP_PACKAGES=package1==version1 package2
+--metadata CONDA_PACKAGES=package1=version1 package2
+```
+
+### R libraries
+
+Conda is used to install R libraries.
+
+```
+rpy2
+r-essentials=${R_VERSION}
+r-xgboost
+r-sparklyr
+```
+
+For additional R libraries you can use the following:
+```
+--metadata CONDA_PACKAGES=package1=version1 version2
 ```
 
 ### Java Libraries
 ```
-spark-nlp - 2.5.4
+spark-nlp - 2.5.5
 spark-bigquery-connector - 0.17.0
 RAPIDS XGBOOST libraries - 0.14.0
 ```
-
 
 You can find more information about using initialization actions with Dataproc
 in the [Dataproc documentation](https://cloud.google.com/dataproc/init-actions).
