@@ -125,7 +125,22 @@ function install_oozie() {
     --configuration_file "/etc/hadoop/conf/core-site.xml" \
     --name 'hadoop.proxyuser.oozie.groups' --value '*' \
     --clobber
+    
+  bdconfig set_property \
+    --configuration_file "/etc/oozie/conf/oozie-site.xml" \
+    --name 'oozie.service.HadoopAccessorService.supported.filesystems' --value "hdfs,gs" \
+    --clobber
 
+  bdconfig set_property \
+    --configuration_file "/etc/hadoop/conf/core-site.xml" \
+    --name 'fs.AbstractFileSystem.gs.impl' --value 'com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS' \
+    --clobber
+    
+  bdconfig set_property \
+    --configuration_file "/etc/hadoop/conf/core-site.xml" \
+    --name 'google.cloud.auth.service.account.enable' --value 'false' \
+    --clobber
+  
   # Detect if current node configuration is HA and then set oozie servers
   local additional_nodes
   additional_nodes=$(/usr/share/google/get_metadata_value attributes/dataproc-master-additional |
