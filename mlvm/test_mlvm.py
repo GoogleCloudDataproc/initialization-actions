@@ -81,7 +81,7 @@ class MLVMTestCase(DataprocTestCase):
             configuration, 
             self.INIT_ACTIONS,
             optional_components=self.OPTIONAL_COMPONENTS,
-            machine_type="n1-standard-16",
+            machine_type="n1-standard-8",
             master_accelerator=accelerator,
             worker_accelerator=accelerator,
             timeout_in_minutes=60,

@@ -32,6 +32,14 @@ readonly INCLUDE_GPUS="$(/usr/share/google/get_metadata_value attributes/include
 readonly SPARK_BIGQUERY_VERSION="$(/usr/share/google/get_metadata_value attributes/spark-bigquery-connector-version ||
   echo "0.17.0")"
 
+readonly R_VERSION_ENV="$(R --version | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' )"
+
+if [[ ${R_VERSION_ENV} == "4"* ]]; then
+  R_VERSION="4.0"
+else
+  R_VERSION="3.6.0"
+fi
+
 # Pip
 BASE_PYTHON_PACKAGES=(
   "google-cloud-bigquery==1.26.1" 
@@ -46,6 +54,7 @@ BASE_PYTHON_PACKAGES=(
   "numpy==1.18.4" 
   "rpy2==3.3.3"
   "scikit-learn==0.23.1" 
+  "scipy==1.4.1"
   "sparksql-magic==0.0.3" 
   "tensorflow-datasets==3.2.1"
   "tensorflow-estimator==2.2.0"
@@ -69,7 +78,7 @@ fi
 
 # Conda
 readonly BASE_R_PACKAGES=(
-  "r-essentials=3.6.0"
+  "r-essentials=${R_VERSION}"
   "r-xgboost=0.90.0.2"
   "r-sparklyr=1.0.0"
 )
@@ -98,19 +107,17 @@ function download_spark_jar() {
 
 function download_init_actions() {
   # Download initialization actions locally.
-  gsutil -m rsync -r "${INIT_ACTIONS_REPO}" "${INIT_ACTIONS_DIR}"
+  mkdir "${INIT_ACTIONS_DIR}/rapids/"
+  mkdir "${INIT_ACTIONS_DIR}/gpu/"
+  
+  gsutil -m rsync -r "${INIT_ACTIONS_REPO}/rapids/" "${INIT_ACTIONS_DIR}/rapids/"
+  gsutil -m rsync -r "${INIT_ACTIONS_REPO}/gpu/" "${INIT_ACTIONS_DIR}/gpu/"
+
   find "${INIT_ACTIONS_DIR}" -name '*.sh' -exec chmod +x {} \;
 }
 
-function install_connectors() {
-  local -r url="gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.12-${SPARK_BIGQUERY_VERSION}.jar" 
-  
-  gsutil cp "${url}" "${CONNECTORS_DIR}/"
-
-  local -r jar_name=${url##*/}
-
-  # Update or create version-less connector link
-  ln -s -f "${CONNECTORS_DIR}/${jar_name}" "${CONNECTORS_DIR}/spark-bigquery-connector.jar"
+function install_gpu_drivers() {
+  "${INIT_ACTIONS_DIR}/gpu/install_gpu_driver.sh"
 }
 
 function install_python_packages() {
@@ -128,11 +135,38 @@ function install_r_packages() {
   local extra_r_packages 
   extra_r_packages="$(/usr/share/google/get_metadata_value attributes/R_PACKAGES || true)"
   
-  conda install -y -c r "${BASE_R_PACKAGES[@]}"
+  # Conda R channel isn't currently as up-to-date with R4 as conda-forge
+  if [[ ${R_VERSION} == "4"* ]]; then
+    channel="conda-forge"
+  else
+    channel="r"
+  fi
+
+  conda install -y -c ${channel} "${BASE_R_PACKAGES[@]}"
   
   if [[ -n "${extra_r_packages}" ]]; then
-    conda install -y -c r "${extra_r_packages[@]}"
+    conda install -y -c ${channel} "${extra_r_packages[@]}"
   fi
+}
+
+function install_spark_nlp() {
+  local -r name="spark-nlp"
+  local -r repo_url="http://dl.bintray.com/spark-packages/maven/JohnSnowLabs/"
+  local -r version="2.5.4"
+  
+  pip install "spark-nlp==$version" 
+  download_spark_jar "${repo_url}/${name}/${version}/${name}-${version}.jar"
+}
+
+function install_connectors() {
+  local -r url="gs://spark-lib/bigquery/spark-bigquery-with-dependencies_2.12-${SPARK_BIGQUERY_VERSION}.jar" 
+  
+  gsutil cp "${url}" "${CONNECTORS_DIR}/"
+
+  local -r jar_name=${url##*/}
+
+  # Update or create version-less connector link
+  ln -s -f "${CONNECTORS_DIR}/${jar_name}" "${CONNECTORS_DIR}/spark-bigquery-connector.jar"
 }
 
 function install_rapids() {
@@ -149,20 +183,6 @@ function install_rapids() {
     fi
   fi
 }
-
-function install_gpu_drivers() {
-  "${INIT_ACTIONS_DIR}/gpu/install_gpu_driver.sh"
-}
-
-function install_spark_nlp() {
-  local -r name="spark-nlp"
-  local -r repo_url="http://dl.bintray.com/spark-packages/maven/JohnSnowLabs/"
-  local -r version="2.5.4"
-  
-  pip install "spark-nlp==$version" 
-  download_spark_jar "${repo_url}/${name}/${version}/${name}-${version}.jar"
-}
-
 
 function main () {
   # Download initialization actions

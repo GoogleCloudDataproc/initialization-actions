@@ -114,7 +114,8 @@ mxnet==1.6.0
 nltk==3.5
 numpy==1.18.4 
 rpy2==3.3.3
-scikit-learn==0.23.1 
+scikit-learn==0.23.1
+scipy==1.4.1
 spark-nlp==2.5.1
 sparksql-magic==0.0.3
 tensorflow==2.2.0

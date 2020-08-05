@@ -24,9 +24,3 @@ py_library(
     testonly = True,
     srcs = ["verify_rapids_dask.py", "verify_rapids_spark.py"],
 )
-
-sh_library(
-    name = "install_rapids",
-    testonly = True,
-    data = ["rapids.sh"]
-)
