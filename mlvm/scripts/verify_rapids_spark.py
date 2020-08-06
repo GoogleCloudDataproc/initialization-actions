@@ -13,8 +13,8 @@ conf.set("spark.task.cpus", "1")
 conf.set("spark.executor.memory", "2g")
 
 if version.parse(os.getenv("DATAPROC_VERSION")) >= version.parse("2.0"):
-    conf.set("spark.task.resource.gpu.amount", "1")
-    conf.set("spark.plugins", "com.nvidia.spark.SQLPlugin")
+  conf.set("spark.task.resource.gpu.amount", "1")
+  conf.set("spark.plugins", "com.nvidia.spark.SQLPlugin")
 
 spark = SparkSession.builder \
                     .config(conf=conf) \

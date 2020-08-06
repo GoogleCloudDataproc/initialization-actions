@@ -23,4 +23,4 @@ import xgboost
 
 import os
 if os.getenv("DATAPROC_VERSION") >= "2.0":
-    import spark_tensorflow_distributor
+  import spark_tensorflow_distributor
