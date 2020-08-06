@@ -133,7 +133,7 @@ function install_oozie() {
 
   bdconfig set_property \
     --configuration_file "/etc/hadoop/conf/core-site.xml" \
-    --name 'fs.AbstractFileSystem.gs.impl'
+    --name 'fs.AbstractFileSystem.gs.impl' \
     --value 'com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS' \
     --clobber
   
