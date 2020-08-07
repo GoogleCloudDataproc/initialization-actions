@@ -138,12 +138,10 @@ function install_oozie() {
     --clobber
   
   local gcs_connector_dir="/usr/local/share/google/dataproc/lib"
-  if [[ ! -d \$install_dir ]]; then
+  if [[ ! -d $gcs_connector_dir ]]; then
     gcs_connector_dir="/usr/lib/hadoop/lib"
-  fi
-  
-  local gcs_connector_path="$gcs_connector_dir/gcs-connector.jar"
-  cp $gcs_connector_path /usr/lib/oozie/lib/gcs-connector.jar
+  fi  
+  cp "${gcs_connector_dir}/gcs-connector.jar" /usr/lib/oozie/lib/
   
   # Detect if current node configuration is HA and then set oozie servers
   local additional_nodes
