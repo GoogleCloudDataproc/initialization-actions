@@ -158,10 +158,9 @@ For additional Python libraries you can use either of the following:
 Conda is used to install R libraries.
 
 ```
-rpy2
 r-essentials=${R_VERSION}
-r-xgboost
-r-sparklyr
+r-xgboost=0.90.0.2
+r-sparklyr=1.0.0
 ```
 
 For additional R libraries you can use the following:
