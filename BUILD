@@ -25,6 +25,7 @@ test_suite(
         "//kafka:test_kafka",
         "//knox:test_knox",
         "//livy:test_livy",
+        "//mlvm:test_mlvm",
         "//oozie:test_oozie",
         "//presto:test_presto",
         "//ranger:test_ranger",

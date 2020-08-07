@@ -1,5 +1,7 @@
 package(default_visibility = ["//visibility:public"])
 
+exports_files(["rapids.sh"])
+
 py_test(
     name = "test_rapids",
     size = "enormous",
