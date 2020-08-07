@@ -143,10 +143,7 @@ function install_oozie() {
   fi
   
   local gcs_connector_path="$gcs_connector_dir/gcs-connector.jar"
-  if [ -e $gcs_connector_path ]
-  then
-    cp $gcs_connector_path /usr/lib/oozie/lib/gcs-connector.jar
-  fi
+  cp $gcs_connector_path /usr/lib/oozie/lib/gcs-connector.jar
   
   # Detect if current node configuration is HA and then set oozie servers
   local additional_nodes
