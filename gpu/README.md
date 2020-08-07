@@ -20,7 +20,7 @@ attached GPU adapters.
 
 This initialization action supports installation of OS-provided and
 NVIDIA-provided GPU drivers and CUDA. By default, this initialization action
-installs OS-provided GPU drivers and CUDA, to chose provider use `--metadata
+installs OS-provided GPU drivers and CUDA, to choose provider use `--metadata
 gpu-driver-provider=<OS|NVIDIA>` metadata value.
 
 1.  Use the `gcloud` command to create a new cluster with OS-provided GPU driver
@@ -53,6 +53,33 @@ gpu-driver-provider=<OS|NVIDIA>` metadata value.
 1.  Use the `gcloud` command to create a new cluster with OS-provided GPU driver
     and CUDA installed by initialization action. Additionally, it installs GPU
     monitoring service.
+
+    *Prerequisite:* Create GPU metrics in
+    [Cloud Monitoring](https://cloud.google.com/monitoring/docs/) using Google
+    Cloud Shell with the
+    [create_gpu_metrics.py](https://github.com/GoogleCloudPlatform/ml-on-gcp/blob/master/dlvm/gcp-gpu-utilization-metrics/create_gpu_metrics.py)
+    script.
+
+    If you run this script locally you will need to set up a service account.
+
+    ```bash
+    export GOOGLE_CLOUD_PROJECT=<project-id>
+
+    git clone https://github.com/GoogleCloudPlatform/ml-on-gcp.git
+    cd ml-on-gcp/dlvm/gcp-gpu-utilization-metrics
+    pip install -r ./requirements.txt
+    python create_gpu_metrics.py
+    ```
+
+    Expected output:
+
+    ```
+    Created projects/project-sample/metricDescriptors/custom.googleapis.com/utilization_memory.
+    Created projects/project-sample/metricDescriptors/custom.googleapis.com/utilization_gpu.
+    Created projects/project-sample/metricDescriptors/custom.googleapis.com/memory_used
+    ```
+
+    Create cluster:
 
     ```bash
     REGION=<region>
@@ -94,9 +121,9 @@ script without NVIDIA Docker, you can find more information at
 -   `cuda-url: <URL>` - this is an optional parameter for customizing
     NVIDIA-provided CUDA on Debian.
 
--   `cuda-url: 10.0|10.1|10.2` - this is an optional parameter for customizing
-    NVIDIA-provided CUDA version on Ubuntu. If set to empty then the latest
-    available CUDA version will be installed.
+-   `cuda-version: 10.0|10.1|10.2` - this is an optional parameter for
+    customizing NVIDIA-provided CUDA version on Ubuntu. If set to empty then the
+    latest available CUDA version will be installed.
 
 #### Verification
 
@@ -121,30 +148,8 @@ For more information about GPU support, take a look at
 
 The initialization action installs a
 [monitoring agent](https://github.com/GoogleCloudPlatform/ml-on-gcp/tree/master/dlvm/gcp-gpu-utilization-metrics)
-that monitors the GPU usage on the instance. This will auto create the GPU
-metrics.
-
-```bash
-pip3 install -r ./requirements.txt
-python3 report_gpu_metrics.py &
-```
-
-### Generate metrics
-
-If you need to create metrics using `create_metric_descriptor` first run the
-following commands:
-
-```bash
-pip3 install -r ./requirements.txt
-python3 create_gpu_metrics.py
-```
-
-Example:
-
-```
-Created projects/project-sample/metricDescriptors/custom.googleapis.com/gpu_utilization.
-Created projects/project-sample/metricDescriptors/custom.googleapis.com/gpu_memory_utilization.
-```
+that monitors the GPU usage on the instance. This will auto create and send the
+GPU metrics to the Cloud Monitoring service.
 
 ### Troubleshooting
 
@@ -168,4 +173,3 @@ sudo systemctl status gpu-utilization-agent.service
     which a GPU is detected.
 *   This initialization script can use OS-provided (Debian or Ubuntu) or
     NVIDIA-provided packages to install GPU drivers and CUDA.
-*   Tested with Dataproc 1.2+.
