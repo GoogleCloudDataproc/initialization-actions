@@ -112,7 +112,7 @@ function install_conda_packages() {
   conda config --add channels pytorch
   conda config --add channels johnsnowlabs
 
-  conda install -y "${CONDA_PACKAGES[@]}"
+  execute_with_retries "conda install -y ${CONDA_PACKAGES[*]}"
 
   if [[ -n "${extra_channels}" ]]; then
     for channel in ${extra_channels}; do
@@ -121,7 +121,7 @@ function install_conda_packages() {
   fi
 
   if [[ -n "${extra_packages}" ]]; then
-    conda install -y "${extra_packages[@]}"
+    execute_with_retries "conda install -y ${extra_packages[*]}"
   fi
 }
 
