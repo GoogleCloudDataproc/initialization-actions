@@ -113,46 +113,37 @@ All libraries are installed with their latest versions unless noted otherwise.
 
 #### Google Cloud Client Libraries (pip)
 
-```
-google-cloud-bigquery
-google-cloud-datalabeling
-google-cloud-storage
-google-cloud-bigtable
-google-cloud-dataproc
-google-api-python-client
-```
-
 #### Tensorflow (pip)
 
 ```
-tensorflow==2.2.0 (if no GPUs)
-tensorflow-gpu==2.2.0 (if GPUs)
+tensorflow==2.3.0 (if no GPUs available)
+tensorflow-gpu==2.3.0 (if GPUs available)
 tensorflow-datasets==3.2.1
-tensorflow-estimator==2.2.0
+tensorflow-estimator==2.3.0
 tensorflow-hub==0.8.0
-tensorflow-io==0.14.0
-tensorflow-probability==0.10.1
+tensorflow-io==0.15.0
+tensorflow-probability==0.11.0
 ```
 
 #### Other pip libraries
 
 ```
-sparksql-magic
-spark-tensorflow-distributor  # Dataproc 2.0+
-xgboost
+sparksql-magic==0.0.3
+spark-tensorflow-distributor==0.1.0  # Dataproc 2.0+
+xgboost==1.1.1
 ```
 
 #### Conda libraries
 
 ```
-matplotlib
-mxnet
-nltk
-rpy2
-scikit-learn
+matplotlib=3.2.2
+mxnet=1.5.0
+nltk=3.5.0
+rpy2=2.9.4
+scikit-learn=0.23.1
 spark-nlp=2.5.5
-pytorch
-torchvision
+pytorch=1.6.0
+torchvision=0.7.0
 ```
 
 For additional Python libraries you can use either of the following:

@@ -33,38 +33,32 @@ readonly SPARK_BIGQUERY_VERSION="$(/usr/share/google/get_metadata_value attribut
   echo "0.17.0")"
 
 readonly R_VERSION="$(R --version | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p')"
-readonly TENSORFLOW_VERSION="2.2.0"
+readonly TENSORFLOW_VERSION="2.3.0"
 readonly SPARK_NLP_VERSION="2.5.5"
 
 CONDA_PACKAGES=(
-  "matplotlib"
-  "mxnet"
-  "nltk"
-  "rpy2"
+  "matplotlib=3.2.2"
+  "mxnet=1.5.0"
+  "nltk=3.5.0"
+  "rpy2=2.9.4"
   "r-essentials=${R_VERSION}"
-  "r-xgboost"
-  "r-sparklyr"
-  "scikit-learn"
+  "r-xgboost=0.90.0.2"
+  "r-sparklyr=1.0.0"
+  "scikit-learn=0.23.1"
   "spark-nlp=${SPARK_NLP_VERSION}"
-  "pytorch"
-  "torchvision"
+  "pytorch=1.6.0"
+  "torchvision=0.7.0"
 )
 readonly CONDA_PACKAGES
 
 PIP_PACKAGES=(
-  "google-api-python-client"
-  "google-cloud-bigquery"
-  "google-cloud-bigtable"
-  "google-cloud-datalabeling"
-  "google-cloud-dataproc"
-  "google-cloud-storage"
-  "sparksql-magic"
+  "sparksql-magic==0.0.3"
   "tensorflow-datasets==3.2.1"
   "tensorflow-estimator==${TENSORFLOW_VERSION}"
   "tensorflow-hub==0.8.0"
-  "tensorflow-io==0.14.0"
-  "tensorflow-probability==0.10.1"
-  "xgboost"
+  "tensorflow-io==0.15.0"
+  "tensorflow-probability==0.11.0"
+  "xgboost==1.1.1"
 )
 if [[ -n ${INCLUDE_GPUS} ]]; then
   PIP_PACKAGES+=("tensorflow-gpu==${TENSORFLOW_VERSION}")
@@ -72,7 +66,7 @@ else
   PIP_PACKAGES+=("tensorflow==${TENSORFLOW_VERSION}")
 fi
 if [ "$(echo "$DATAPROC_VERSION >= 2.0" | bc)" -eq 1 ]; then
-  PIP_PACKAGES+=("spark-tensorflow-distributor")
+  PIP_PACKAGES+=("spark-tensorflow-distributor==0.1.0")
 fi
 readonly PIP_PACKAGES
 
