@@ -128,7 +128,7 @@ function install_oozie() {
     
   bdconfig set_property \
     --configuration_file "/etc/oozie/conf/oozie-site.xml" \
-    --name 'oozie.service.HadoopAccessorService.supported.filesystems' --value "hdfs,gs" \
+    --name 'oozie.service.HadoopAccessorService.supported.filesystems' --value 'hdfs,gs' \
     --clobber
 
   bdconfig set_property \
