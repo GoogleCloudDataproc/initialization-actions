@@ -86,6 +86,24 @@ class NvidiaGpuDriverTestCase(DataprocTestCase):
             self.verify_instance_gpu_agent("{}-{}".format(
                 self.getClusterName(), machine_suffix))
 
-
+    @parameterized.parameters(
+        ("STANDARD", ["m"], GPU_V100, None, "NVIDIA"),
+        ("STANDARD", ["m", "w-0", "w-1"], GPU_V100, GPU_V100, "NVIDIA"),
+        ("STANDARD", ["w-0", "w-1"], None, GPU_V100, "NVIDIA"),
+    )
+    def test_install_gpu_cuda_10_1(self, configuration, machine_suffixes,
+                                       master_accelerator, worker_accelerator,
+                                       driver_provider):
+        metadata = "gpu-driver-provider={},cuda-version=10.1".format(driver_provider)
+        self.createCluster(configuration,
+                           self.INIT_ACTIONS,
+                           machine_type='n1-standard-2',
+                           master_accelerator=master_accelerator,
+                           worker_accelerator=worker_accelerator,
+                           metadata=metadata,
+                           timeout_in_minutes=30)
+        for machine_suffix in machine_suffixes:
+            self.verify_instance("{}-{}".format(self.getClusterName(),
+                                                machine_suffix))
 if __name__ == '__main__':
     absltest.main()

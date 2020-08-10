@@ -58,11 +58,15 @@ class RapidsTestCase(DataprocTestCase):
     def test_rapids_spark(self, configuration, machine_suffixes, accelerator):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return    
+        
+        metadata = 'gpu-driver-provider=NVIDIA,rapids-runtime=SPARK'
+        if self.getImageVersion() < pkg_resources.parse_version("2.0"):
+            metadata += ",cuda-version=10.1"
 
         self.createCluster(
             configuration,
             self.INIT_ACTIONS,
-            metadata='gpu-driver-provider=NVIDIA,rapids-runtime=SPARK',
+            metadata=metadata,
             machine_type='n1-standard-2',
             worker_accelerator=accelerator,
             timeout_in_minutes=30)
