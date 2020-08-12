@@ -28,24 +28,40 @@ OS_DIST=$(lsb_release -cs)
 readonly OS_DIST
 
 # Dataproc role
-readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+readonly ROLE
+
+# CUDA Version
+CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '10.2')
+readonly CUDA_VERSION
 
 # Parameters for NVIDIA-provided Debian GPU driver
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL='http://us.download.nvidia.com/XFree86/Linux-x86_64/450.51/NVIDIA-Linux-x86_64-450.51.run'
-readonly NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL}")
-readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL='http://developer.download.nvidia.com/compute/cuda/10.2/Prod/local_installers/cuda_10.2.89_440.33.01_linux.run'
-readonly NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEBIAN_CUDA_URL}")
+NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL}")
+readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
+readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL_10_1='http://developer.download.nvidia.com/compute/cuda/10.1/Prod/local_installers/cuda_10.1.243_418.87.00_linux.run'
+readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL_10_2='http://developer.download.nvidia.com/compute/cuda/10.2/Prod/local_installers/cuda_10.2.89_440.33.01_linux.run'
+
+if [[ "${CUDA_VERSION}" == "10.1" ]]; then
+  readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL=${DEFAULT_NVIDIA_DEBIAN_CUDA_URL_10_1}
+else
+  readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL=${DEFAULT_NVIDIA_DEBIAN_CUDA_URL_10_2}
+fi
+
+NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEBIAN_CUDA_URL}")
+readonly NVIDIA_DEBIAN_CUDA_URL
 
 # Parameters for NVIDIA-provided Ubuntu GPU driver
-readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '10.2')
 readonly NVIDIA_UBUNTU_REPOSITORY_URL='https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64'
 readonly NVIDIA_UBUNTU_REPOSITORY_KEY="${NVIDIA_UBUNTU_REPOSITORY_URL}/7fa2af80.pub"
 readonly NVIDIA_UBUNTU_REPOSITORY_CUDA_PIN="${NVIDIA_UBUNTU_REPOSITORY_URL}/cuda-ubuntu1804.pin"
 
 # Parameters for NVIDIA-provided NCCL library
 readonly DEFAULT_NCCL_REPO_URL='https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb'
-readonly NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
-readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.7.6')
+NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
+readonly NCCL_REPO_URL
+NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.7.6')
+readonly NCCL_VERSION
 
 # Parameters for Ubuntu-provided NVIDIA GPU driver
 readonly NVIDIA_DRIVER_VERSION_UBUNTU='440'

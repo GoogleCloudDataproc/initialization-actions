@@ -107,23 +107,24 @@ script without NVIDIA Docker, you can find more information at
 #### Supported metadata parameters:
 
 -   `install-gpu-agent: true|false` - this is an optional parameter with
-    case-sensitive value.
+    case-sensitive value. Default is `false`.
 
     **Note:** This parameter will collect GPU utilization and send statistics to
     Stackdriver. Make sure you add the correct scope to access Stackdriver.
 
 -   `gpu-driver-provider: OS|NVIDIA` - this is an optional parameter with
-    case-sensitive value.
+    case-sensitive value. Default is `OS`.
 
 -   `gpu-driver-url: <URL>` - this is an optional parameter for customizing
     NVIDIA-provided GPU driver on Debian.
 
 -   `cuda-url: <URL>` - this is an optional parameter for customizing
-    NVIDIA-provided CUDA on Debian.
+    NVIDIA-provided CUDA on Debian. This is required if not using CUDA 10.1
+    or 10.2 with a Debian image. Please find the appropriate linux-based 
+    runtime-file URL [here](https://developer.nvidia.com/cuda-toolkit-archive).
 
--   `cuda-version: 10.0|10.1|10.2` - this is an optional parameter for
-    customizing NVIDIA-provided CUDA version on Ubuntu. If set to empty then the
-    latest available CUDA version will be installed.
+-   `cuda-version: 10.1|10.2|<VERSION>` - this is an optional parameter for
+    customizing NVIDIA-provided CUDA version. Default is `10.2`. 
 
 #### Verification
 

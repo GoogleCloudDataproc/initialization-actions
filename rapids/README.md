@@ -180,6 +180,7 @@ gcloud dataproc clusters create $CLUSTER_NAME \
     --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
     --metadata gpu-driver-provider=NVIDIA \
     --metadata rapids-runtime=SPARK \
+    --metadata cuda-version=10.1 \
     --bucket $GCS_BUCKET \
     --enable-component-gateway 
 ```
