@@ -28,14 +28,17 @@ OS_DIST=$(lsb_release -cs)
 readonly OS_DIST
 
 # Dataproc role
-readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+readonly ROLE
 
 # CUDA Version
-readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '10.2')
+CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '10.2')
+readonly CUDA_VERSION
 
 # Parameters for NVIDIA-provided Debian GPU driver
 readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL='http://us.download.nvidia.com/XFree86/Linux-x86_64/450.51/NVIDIA-Linux-x86_64-450.51.run'
-readonly NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL}")
+NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL}")
+readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
 readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL_10_1='http://developer.download.nvidia.com/compute/cuda/10.1/Prod/local_installers/cuda_10.1.243_418.87.00_linux.run'
 readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL_10_2='http://developer.download.nvidia.com/compute/cuda/10.2/Prod/local_installers/cuda_10.2.89_440.33.01_linux.run'
 
@@ -45,7 +48,8 @@ else
   readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL=${DEFAULT_NVIDIA_DEBIAN_CUDA_URL_10_2}
 fi
 
-readonly NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEBIAN_CUDA_URL}")
+NVIDIA_DEBIAN_CUDA_URL=$(get_metadata_attribute 'cuda-url' "${DEFAULT_NVIDIA_DEBIAN_CUDA_URL}")
+readonly NVIDIA_DEBIAN_CUDA_URL
 
 # Parameters for NVIDIA-provided Ubuntu GPU driver
 readonly NVIDIA_UBUNTU_REPOSITORY_URL='https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64'
@@ -54,19 +58,23 @@ readonly NVIDIA_UBUNTU_REPOSITORY_CUDA_PIN="${NVIDIA_UBUNTU_REPOSITORY_URL}/cuda
 
 # Parameters for NVIDIA-provided NCCL library
 readonly DEFAULT_NCCL_REPO_URL='https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/nvidia-machine-learning-repo-ubuntu1804_1.0.0-1_amd64.deb'
-readonly NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
-readonly NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.7.6')
+NCCL_REPO_URL=$(get_metadata_attribute 'nccl-repo-url' "${DEFAULT_NCCL_REPO_URL}")
+readonly NCCL_REPO_URL
+NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.7.6')
+readonly NCCL_VERSION
 
 # Parameters for Ubuntu-provided NVIDIA GPU driver
 readonly NVIDIA_DRIVER_VERSION_UBUNTU='440'
 
 # Whether to install NVIDIA-provided or OS-provided GPU driver
-readonly GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'OS')
+GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'OS')
+readonly GPU_DRIVER_PROVIDER
 
 # Stackdriver GPU agent parameters
 readonly GPU_AGENT_REPO_URL='https://raw.githubusercontent.com/GoogleCloudPlatform/ml-on-gcp/master/dlvm/gcp-gpu-utilization-metrics'
 # Whether to install GPU monitoring agent that sends GPU metrics to Stackdriver
-readonly INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'false')
+INSTALL_GPU_AGENT=$(get_metadata_attribute 'install-gpu-agent' 'false')
+readonly INSTALL_GPU_AGENT
 
 # Dataproc configurations
 readonly HADOOP_CONF_DIR='/etc/hadoop/conf'
