@@ -1,6 +1,6 @@
 # Apache Pulsar Initialization Action
 
-Here we've got an initialization action that automates the installation of a single-cluster pulsar instance on bare metal. More detail can be found in the Pulsar documentation here: https://pulsar.apache.org/docs/en/deploy-bare-metal/
+This initialization action installs Apache Pulsar on Dataproc clusters. More detail can be found in the Pulsar documentation here: https://pulsar.apache.org/docs/en/deploy-bare-metal/
 
 ## Usage
 
@@ -25,6 +25,9 @@ gcloud dataproc clusters create cluster-name \
     --metadata=pulsar-functions-enabled=true,builtin-connectors-enabled=true,tiered-storage-offloaders-enabled=true... \
     ... other flags ...
 ```
+
+The script will install the pulsar binary on every node in your cluster, regardless of role. It will install and configure bookies and brokers on worker nodes. Default port definitions follow pulsar best practice guidelines. Script logs can be found on-VM by navigating to /var/log and checking out dataproc-initialization-script-0.log. 
+
 
 The cluster can be tested by publishing a message using pulsar-client. 
 

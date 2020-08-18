@@ -10,6 +10,9 @@ readonly PULSAR_FUNCTIONS_ENABLED="$(/usr/share/google/get_metadata_value attrib
 readonly BUILTIN_CONNECTORS_ENABLED="$(/usr/share/google/get_metadata_value attributes/builtin-connectors-enabled || echo 'false')"
 readonly TIERED_STORAGE_OFFLOADERS_ENABLED="$(/usr/share/google/get_metadata_value attributes/tiered-storage-offloaders-enabled || echo 'false')"
 
+readonly PULSAR_VERSION="$(/usr/share/google/get_metadata_value attributes/pulsar-version || echo '2.6.0')"
+
+
 WEB_SERVICE_URL_PORT="8080" #default value, not recommended to change
 WEB_SERVICE_URL_TLS_PORT="8443" #default value, not recommended to change
 BROKER_SERVICE_URL_PORT="6650" #default value, not recommended to change
@@ -137,9 +140,9 @@ function fetch_urls() {
 }
 
 function install_and_configure_pulsar() {
-    retry_command wget https://archive.apache.org/dist/pulsar/pulsar-2.6.0/apache-pulsar-2.6.0-bin.tar.gz
-    tar xvzf apache-pulsar-2.6.0-bin.tar.gz
-    cd apache-pulsar-2.6.0
+    retry_command wget https://archive.apache.org/dist/pulsar/pulsar-${PULSAR_VERSION}/apache-pulsar-${PULSAR_VERSION}-bin.tar.gz
+    tar xvzf apache-pulsar-${PULSAR_VERSION}-bin.tar.gz
+    cd apache-pulsar-${PULSAR_VERSION}
     fetch_zookeeper_list
     fetch_urls
 
@@ -190,15 +193,15 @@ function deploy_broker() {
     fi
 
     if [[ "${BUILTIN_CONNECTORS_ENABLED}" == true ]]; then
-        retry_command wget https://archive.apache.org/dist/pulsar/pulsar-2.6.0/connectors/{connector}-2.6.0.nar
+        retry_command wget https://archive.apache.org/dist/pulsar/pulsar-${PULSAR_VERSION}/connectors/{connector}-${PULSAR_VERSION}.nar
         mkdir connectors
-        mv pulsar-io-aerospike-2.6.0.nar connectors
+        mv pulsar-io-aerospike-${PULSAR_VERSION}.nar connectors
     fi 
 
     if [[ "${TIERED_STORAGE_OFFLOADERS_ENABLED}" == true ]]; then
-        retry_command wget https://archive.apache.org/dist/pulsar/pulsar-2.6.0/apache-pulsar-offloaders-2.6.0-bin.tar.gz
-        tar xvfz apache-pulsar-offloaders-2.6.0-bin.tar.gz
-        mv apache-pulsar-offloaders-2.6.0/offloaders offloaders
+        retry_command wget https://archive.apache.org/dist/pulsar/pulsar-${PULSAR_VERSION}/apache-pulsar-offloaders-${PULSAR_VERSION}-bin.tar.gz
+        tar xvfz apache-pulsar-offloaders-${PULSAR_VERSION}-bin.tar.gz
+        mv apache-pulsar-offloaders-${PULSAR_VERSION}/offloaders offloaders
     fi
 
     bin/pulsar-daemon start broker
