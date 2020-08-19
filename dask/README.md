@@ -14,11 +14,7 @@ initialization actions in production.
 
 ## Creating Dataproc Cluster with Dask and Dask-Yarn
 
-*Note:* Using the [Anaconda](https://cloud.google.com/dataproc/docs/concepts/components/anaconda) component does not add these new libraries into the Dask environment. You must manually include the libraries you want via the `--metadata CONDA_PACKAGES=...` flag, explained below. 
-
-
-[Spark RAPIDS SQL plugin](https://github.com/NVIDIA/spark-rapids) and
-[XGBoost4j](https://github.com/rapidsai/spark-examples/tree/support-spark3.0).
+*Note:* Using the [Anaconda](https://cloud.google.com/dataproc/docs/concepts/components/anaconda) component does not add these new libraries into the Dask environment. You must manually include the libraries you want via the metadata flag `CONDA_PACKAGES` flag. 
 
 The following command will create a create a
 [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with [Dask](https://dask.org/) and [Dask-Yarn](https://yarn.dask.org/) installed.
