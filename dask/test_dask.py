@@ -25,22 +25,23 @@ class DaskTestCase(DataprocTestCase):
         self.remove_test_script(script, name)
 
     def _run_dask_test_script(self, name, script):
-        verify_cmd = "/opt/conda/anaconda/envs/dask/bin/python {}".format(
+        verify_cmd = "sudo dask-python {}".format(
             script)
         self.assert_instance_command(name, verify_cmd)        
 
-    @parameterized.parameters("STANDARD",)
+    @parameterized.parameters(("STANDARD",))
     def test_dask(self, configuration):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return
 
         self.createCluster(configuration,
                            self.INIT_ACTIONS,
+                           machine_type='n1-standard-2',
                            timeout_in_minutes=45)
 
         self.verify_dask(self.DASK_TEST_SCRIPT)
 
-    @parameterized.parameters("STANDARD",)
+    @parameterized.parameters(("STANDARD",))
     def test_dask_rapids(self, configuration):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
             return    
@@ -49,7 +50,9 @@ class DaskTestCase(DataprocTestCase):
             configuration,
             self.INIT_ACTIONS,
             metadata="include-rapids=true,gpu-driver-provider=NVIDIA",
-            worker_accelerator=GPU_P100,
+            machine_type='n1-standard-2',
+            master_accelerator=self.GPU_P100,
+            worker_accelerator=self.GPU_P100,
             timeout_in_minutes=45)
         
         self.verify_dask(self.DASK_TEST_SCRIPT)

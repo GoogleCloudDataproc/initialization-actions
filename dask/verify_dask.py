@@ -1,6 +1,6 @@
 from dask_yarn import YarnCluster
 from dask.distributed import Client
-import dask.dataframe as da
+import dask.array as da
 
 import numpy as np
 
