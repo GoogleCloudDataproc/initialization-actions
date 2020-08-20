@@ -4,7 +4,7 @@ This initialization action installs Apache Pulsar on Dataproc clusters. More det
 
 ## Usage
 
-Specify the .sh script's location when using gcloud to create your dataproc cluster. Pulsar requires Zookeeper, which can be installed by either including it as an optional component (https://cloud.google.com/dataproc/docs/concepts/components/zookeeper), or by creating a HA cluster by specifying --num-masters=3. Pulsar version defaults to 2.6.0, but can be modified by supplying an appropriate value to pulsar-version in the gcloud's metadata field. 
+Specify the .sh script's location when using gcloud to create your Dataproc cluster. Pulsar requires Zookeeper, which can be installed by either including it as an optional component (https://cloud.google.com/dataproc/docs/concepts/components/zookeeper), or by creating a HA cluster by specifying --num-masters=3. Pulsar version defaults to 2.6.0, but can be modified by supplying an appropriate value to pulsar-version in the gcloud's metadata field. 
 
 e.g.
 ```bash
