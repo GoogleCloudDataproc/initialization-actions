@@ -20,28 +20,26 @@
 
 set -euxo pipefail
 
-readonly DASK_CONFIG_LOCATION=/etc/dask/
-readonly DASK_CONFIG_FILE=${DASK_CONFIG_LOCATION}/config.yaml
-readonly CONDA_ENV=dask
-readonly CONDA_ENV_LOCATION=/opt/envs
-readonly CONDA_ENV_PATH=${CONDA_ENV_LOCATION}/${CONDA_ENV}.tar.gz
+readonly DASK_CONFIG_DIR=/etc/dask/
+readonly DASK_CONFIG_FILE=${DASK_CONFIG_DIR}/config.yaml
+
+readonly CONDA_ENV_DIR=/opt/envs
+readonly CONDA_ENV_NAME=dask
+readonly CONDA_ENV_PACK=${CONDA_ENV_DIR}/${CONDA_ENV_NAME}.tar.gz
+
 readonly CONDA_EXTRA_PACKAGES="$(/usr/share/google/get_metadata_value attributes/CONDA_PACKAGES || echo "")"
 readonly CONDA_EXTRA_CHANNELS="$(/usr/share/google/get_metadata_value attributes/CONDA_CHANNELS || echo "")"
-readonly INCLUDE_RAPIDS="$(/usr/share/google/get_metadata_value attributes/include-rapids || echo "")"
-readonly RAPIDS_VERSION="$(/usr/share/google/get_metadata_value attributes/rapids-version || echo "0.14")"
-readonly CUDA_VERSION="$(/usr/share/google/get_metadata_value attributes/cuda-version || echo "10.2")"
 readonly DASK_VERSION="$(/usr/share/google/get_metadata_value attributes/dask-version || echo "0.8.1")"
 
-ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
-readonly ROLE
+readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 
-mkdir -p ${CONDA_ENV_LOCATION} ${DASK_CONFIG_LOCATION}
+mkdir -p ${CONDA_ENV_DIR} ${DASK_CONFIG_DIR}
 
-readonly BASE_CONDA_CHANNELS=(
+readonly CONDA_BASE_CHANNELS=(
     "conda-forge"
 )
 
-readonly BASE_CONDA_PACKAGES=(
+readonly CONDA_BASE_PACKAGES=(
     "dask-yarn=${DASK_VERSION}"
     "dask>=2.6.0"
     "dill"
@@ -68,51 +66,60 @@ function configure_dask() {
 # https://yarn.dask.org/en/latest/configuration.html#default-configuration
 
 yarn:
-  environment: ${CONDA_ENV_PATH}
+  environment: ${CONDA_ENV_PACK}
 
   worker: 
     count: 2
 EOF
 }
 
-function create_dask_env() {
-  if [[ -n ${INCLUDE_RAPIDS} ]]; then
-    CONDA_CHANNELS=(
-      "rapidsai/label/xgboost"
-      "rapidsai"
-      "nvidia"
-      "${BASE_CONDA_CHANNELS[@]}"
-    )
-    
-    CONDA_PACKAGES=(
-      "cudatoolkit=${CUDA_VERSION}"
-      "rapids=${RAPIDS_VERSION}"
-      "${BASE_CONDA_PACKAGES[@]}"
-    )
+function configure_cluster_env() {
+  if (anaconda -V); then
+    local mngr="anaconda"
   else
-    CONDA_CHANNELS=("${BASE_CONDA_CHANNELS[@]}")
-    CONDA_PACKAGES=("${BASE_CONDA_PACKAGES[@]}")
+    local mngr="miniconda3"
   fi
+
+  local -r dask_env=/opt/conda/${mngr}/envs/dask
+  
+  # Create convenience symlink to dask-python environment
+  ln -s ${dask_env}/bin/python /usr/local/bin/dask-python
+
+  # Expose DASK_ENV and DASK_ENV_TAR to all users
+  cat <<EOF >"/etc/environment"
+DASK_ENV=${dask_env}
+DASK_ENV_PACK=${CONDA_ENV_PACK}
+EOF
+  
+  source "/etc/environment"
+}
+
+function create_dask_env() {
+  local conda_channels
+  local conda_packages
 
   # Add all new channels to the front. 
   if [[ -n ${CONDA_EXTRA_CHANNELS} ]]; then
-    CONDA_CHANNELS=(
+    conda_channels=(
         "${CONDA_EXTRA_CHANNELS[@]}"
-        "${CONDA_CHANNELS[@]}"
+        "${CONDA_BASE_CHANNELS[@]}"
     )
+  else
+    conda_channels=("${CONDA_BASE_CHANNELS[@]}")
   fi
-  readonly CONDA_CHANNELS
 
   if [[ -n ${CONDA_EXTRA_PACKAGES} ]]; then
-    CONDA_PACKAGES=(
-        "${CONDA_PACKAGES[@]}"
+    conda_packages=(
+        "${CONDA_BASE_PACKAGES[@]}"
         "${CONDA_EXTRA_PACKAGES[@]}"
     )
+  else
+    conda_packages=("${CONDA_BASE_PACKAGES[@]}")
   fi
-  readonly CONDA_PACKAGES
+
 
   local channels_cmd=()
-  for channel in "${CONDA_CHANNELS[@]}"; do
+  for channel in "${conda_channels[@]}"; do
     channels_cmd+=("-c $channel")
   done
 
@@ -123,11 +130,11 @@ function create_dask_env() {
   conda install -y -c conda-forge conda-pack
 
   # Create a conda environment
-  cmd="conda create -y ${channels_cmd[*]} -n ${CONDA_ENV} ${CONDA_PACKAGES[*]}"
+  cmd="conda create -y ${channels_cmd[*]} -n ${CONDA_ENV_NAME} ${conda_packages[*]}"
   $cmd
   
   # conda-pack compresses the environment
-  conda pack -n "${CONDA_ENV}" -o "${CONDA_ENV_PATH}"
+  conda pack -n "${CONDA_ENV_NAME}" -o "${CONDA_ENV_PACK}"
 }
 
 function main() {
@@ -140,17 +147,11 @@ function main() {
 
     # Create Dask config file
     configure_dask
+
+    # Configure cluster environment
+    configure_cluster_env
     
     echo 'Dask successfully installed.'
-
-    if (anaconda -V); then
-      local mngr="anaconda"
-    else
-      local mngr="miniconda3"
-    fi
-    
-    # Create alias to dask-python environment
-    echo -e "\nalias dask-python=/opt/conda/${mngr}/envs/dask/bin/python" >> $HOME/.bashrc
   else
     echo 'Dask can be installed only on master node - skipped for worker node.'
   fi
