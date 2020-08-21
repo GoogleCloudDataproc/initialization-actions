@@ -29,7 +29,6 @@ readonly CONDA_ENV_PACK=${CONDA_ENV_DIR}/${CONDA_ENV_NAME}.tar.gz
 
 readonly CONDA_EXTRA_PACKAGES="$(/usr/share/google/get_metadata_value attributes/CONDA_PACKAGES || echo "")"
 readonly CONDA_EXTRA_CHANNELS="$(/usr/share/google/get_metadata_value attributes/CONDA_CHANNELS || echo "")"
-readonly DASK_VERSION="$(/usr/share/google/get_metadata_value attributes/dask-version || echo "0.8.1")"
 
 readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
 
@@ -40,7 +39,7 @@ readonly CONDA_BASE_CHANNELS=(
 )
 
 readonly CONDA_BASE_PACKAGES=(
-    "dask-yarn=${DASK_VERSION}"
+    "dask-yarn=0.8.1"
     "dask>=2.6.0"
     "dill"
     "ipykernel"
