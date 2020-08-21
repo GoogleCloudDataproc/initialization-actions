@@ -78,9 +78,3 @@ This initialization action supports the following `metadata` fields:
 
 - `CONDA_PACKAGES=package1=version1 package2`: packages to install into the Conda Dask environment. 
 - `CONDA_CHANNELS=channel1 channel2`: channels to install packages from.
-
-*   If using the
-    [Jupyter optional component](https://cloud.google.com/dataproc/docs/concepts/components/jupyter),
-    note that RAPIDS init-actions will install
-    [nb_conda_kernels](https://github.com/Anaconda-Platform/nb_conda_kernels)
-    and restart Jupyter so that the RAPIDS conda environment appears in Jupyter.
