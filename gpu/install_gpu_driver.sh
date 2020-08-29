@@ -36,7 +36,7 @@ CUDA_VERSION=$(get_metadata_attribute 'cuda-version' '10.2')
 readonly CUDA_VERSION
 
 # Parameters for NVIDIA-provided Debian GPU driver
-readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL='http://us.download.nvidia.com/XFree86/Linux-x86_64/450.51/NVIDIA-Linux-x86_64-450.51.run'
+readonly DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL='http://us.download.nvidia.com/tesla/450.51.06/NVIDIA-Linux-x86_64-450.51.06.run'
 NVIDIA_DEBIAN_GPU_DRIVER_URL=$(get_metadata_attribute 'gpu-driver-url' "${DEFAULT_NVIDIA_DEBIAN_GPU_DRIVER_URL}")
 readonly NVIDIA_DEBIAN_GPU_DRIVER_URL
 readonly DEFAULT_NVIDIA_DEBIAN_CUDA_URL_10_1='http://developer.download.nvidia.com/compute/cuda/10.1/Prod/local_installers/cuda_10.1.243_418.87.00_linux.run'
