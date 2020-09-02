@@ -30,7 +30,7 @@ readonly RUN_WORKER_ON_MASTER=$(get_metadata_attribute 'dask-cuda-worker-on-mast
 readonly DEFAULT_CUDA_VERSION="10.2"
 readonly CUDA_VERSION=$(get_metadata_attribute 'cuda-version' ${DEFAULT_CUDA_VERSION})
 readonly CUDF_VERSION=$(get_metadata_attribute 'cudf-version' ${DEFAULT_CUDF_VERSION})
-readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' '0.14')
+readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' '0.15')
 
 # SPARK config
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
