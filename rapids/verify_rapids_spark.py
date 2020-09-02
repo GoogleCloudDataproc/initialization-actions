@@ -2,7 +2,7 @@ from pyspark.sql import SparkSession
 from pyspark import SparkConf, SparkContext
 from ml.dmlc.xgboost4j.scala.spark import XGBoostClassificationModel
 
-conf = SparkConf().setAppName("NYTaxiXGBoost4j")
+conf = SparkConf().setAppName("RAPIDS_Accelerator_Spark_join_test")
 conf.set("spark.executor.instances", "1")
 # spark.executor.cores times spark.executor.instances should equal total cores.
 conf.set("spark.executor.cores", "1")
