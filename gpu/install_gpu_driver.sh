@@ -67,7 +67,7 @@ NCCL_VERSION=$(get_metadata_attribute 'nccl-version' '2.7.8')
 readonly NCCL_VERSION
 
 # Parameters for Ubuntu-provided NVIDIA GPU driver
-readonly NVIDIA_DRIVER_VERSION_UBUNTU='450'
+readonly NVIDIA_DRIVER_VERSION_UBUNTU='440'
 
 # Whether to install NVIDIA-provided or OS-provided GPU driver
 GPU_DRIVER_PROVIDER=$(get_metadata_attribute 'gpu-driver-provider' 'OS')
