@@ -100,10 +100,11 @@ function configure_cluster_env() {
   # Create convenience symlink to dask-python environment.
   ln -s ${DASK_ENV}/bin/python /usr/local/bin/dask-python
   
-  # Expose DASK_ENV and DASK_LAUNCHER.
+  # Expose DASK_ENV, DASK_LAUNCHER and DASK_SERVICE.
   cat <<EOF >"/etc/environment"
 DASK_ENV=${DASK_ENV}
 DASK_LAUNCHER=${DASK_LAUNCHER}
+DASK_SERVICE=${DASK_SERVICE}
 EOF
 
   # Expose DASK_ENV_PACK in "yarn" runtime.
