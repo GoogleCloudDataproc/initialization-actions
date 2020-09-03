@@ -6,7 +6,8 @@ py_test(
     srcs = ["test_dask.py"],
     data = [
         "dask.sh",
-        "verify_dask.py",
+        "verify_dask_yarn.py",
+        "verify_dask_standalone.py",
     ],
     local = True,
     shard_count = 3,
