@@ -30,9 +30,8 @@ initialization actions in production.
 component does not add these new libraries into the Dask environment. You must
 manually include the libraries you want via the metadata flag `CONDA_PACKAGES`.
 
-The following command will create a create a
-[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with [Dask](https://dask.org/)
-and [Dask-Yarn](https://yarn.dask.org/) installed.
+The following command will create a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster
+with [Dask](https://dask.org/) and [Dask-Yarn](https://yarn.dask.org/) installed.
 
 ```bash
 CLUSTER_NAME=<cluster-name>
