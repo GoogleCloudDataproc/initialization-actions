@@ -14,9 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This initialization action script will install Dask, Dask-Yarn and other
-# relevant libraries on a Dataproc cluster. Please see dask.org and 
-# yarn.dask.org for more information.
+# This initialization action script will install Dask and other relevant
+# libraries on a Dataproc cluster. This is supported for either "yarn" or
+# "standalone" runtimes Please see dask.org and yarn.dask.org for more
+# information.
 
 set -euxo pipefail
 
