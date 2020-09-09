@@ -28,7 +28,7 @@ readonly KAFKA_CONFIG_FILE=${KAFKA_CONFIG_DIR}/server.properties
 readonly KAFKA_LIBS_DIR=/usr/lib/kafka/libs
 readonly KAFKA_JMX_JAVAAGENT_VERSION='0.11.0'
 readonly KAFKA_JMX_JAVAAGENT_NAME="jmx_prometheus_javaagent-${KAFKA_JMX_JAVAAGENT_VERSION}.jar"
-readonly KAFKA_JMX_JAVAAGENT_URI="http://central.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/${KAFKA_JMX_JAVAAGENT_VERSION}/${KAFKA_JMX_JAVAAGENT_NAME}"
+readonly KAFKA_JMX_JAVAAGENT_URI="https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/${KAFKA_JMX_JAVAAGENT_VERSION}/${KAFKA_JMX_JAVAAGENT_NAME}"
 readonly KAFKA_JMX_EXPORTER_CONFIG_NAME="kafka-0-8-2.yml"
 readonly KAFKA_JMX_EXPORTER_CONFIG_URI="https://raw.githubusercontent.com/prometheus/jmx_exporter/master/example_configs/${KAFKA_JMX_EXPORTER_CONFIG_NAME}"
 
