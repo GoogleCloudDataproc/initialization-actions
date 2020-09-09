@@ -1,4 +1,5 @@
 import os
+import pkg_resources
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -29,6 +30,10 @@ class FlinkTestCase(DataprocTestCase):
       ("HA", ["m-0", "m-1", "m-2"]),
   )
   def test_flink(self, configuration, machine_suffixes):
+    # Skip on 2.0+ version of Dataproc because it's not supported
+    if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
+      self.skipTest("Not supported in 2.0+ images")
+
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,
@@ -43,6 +48,10 @@ class FlinkTestCase(DataprocTestCase):
       ("HA", ["m-0", "m-1", "m-2"]),
   )
   def test_flink_with_optional_metadata(self, configuration, machine_suffixes):
+    # Skip on 2.0+ version of Dataproc because it's not supported
+    if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
+      self.skipTest("Not supported in 2.0+ images")
+
     self.createCluster(
         configuration,
         self.INIT_ACTIONS,

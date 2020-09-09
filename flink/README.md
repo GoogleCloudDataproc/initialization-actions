@@ -1,3 +1,15 @@
+--------------------------------------------------------------------------------
+
+# NOTE: *The Flink initialization action has been deprecated. Please use the Flink Component*
+
+**The
+[Flink Component](https://cloud.google.com/dataproc/docs/concepts/components/flink)
+is the best way to use Flink with Cloud Dataproc. To learn more about
+Dataproc Components see
+[here](https://cloud.google.com/dataproc/docs/concepts/components/overview).**
+
+--------------------------------------------------------------------------------
+
 # Apache Flink Initialization Action
 
 This initialization action installs a binary release of
