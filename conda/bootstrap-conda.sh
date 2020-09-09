@@ -2,9 +2,9 @@
 
 set -exo pipefail
 
-readonly NOT_SUPPORTED_MESSAGE="Conda initialization action is not supported on Dataproc 2.0+.
+readonly NOT_SUPPORTED_MESSAGE="Conda initialization action is not supported on Dataproc ${DATAPROC_VERSION}.
 Use Anaconda Component instead: https://cloud.google.com/dataproc/docs/concepts/components/anaconda"
-[[ $DATAPROC_VERSION = 2.* ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
+[[ $DATAPROC_VERSION != 1.* ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
 
 # Modified from bootstrap-conda.sh script, see:
 # https://bitbucket.org/bombora-datascience/bootstrap-conda

@@ -88,7 +88,7 @@ class PrestoTestCase(DataprocTestCase):
                     workers):
         # Skip on 2.0+ version of Dataproc because it's not supported
         if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
-            return
+            self.skipTest("Not supported in 2.0+ images")
 
         self.createCluster(configuration, self.INIT_ACTIONS)
         for machine_suffix in machine_suffixes:
@@ -101,7 +101,7 @@ class PrestoTestCase(DataprocTestCase):
                                 coordinators, workers):
         # Skip on 2.0+ version of Dataproc because it's not supported
         if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
-            return
+            self.skipTest("Not supported in 2.0+ images")
 
         self.createCluster(
             configuration,

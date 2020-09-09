@@ -36,7 +36,7 @@ class SolrTestCase(DataprocTestCase):
     def test_solr(self, configuration, machine_suffixes):
         # Skip on 2.0+ version of Dataproc because it's not supported
         if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
-            return
+            self.skipTest("Not supported in 2.0+ images")
 
         self.createCluster(configuration, self.INIT_ACTIONS)
         for machine_suffix in machine_suffixes:

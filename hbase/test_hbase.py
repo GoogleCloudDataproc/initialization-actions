@@ -36,7 +36,7 @@ class HBaseTestCase(DataprocTestCase):
     def test_hbase(self, configuration, machine_suffixes):
         # Skip on 2.0+ version of Dataproc because it's not supported
         if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
-            return
+            self.skipTest("Not supported in 2.0+ images")
 
         init_actions = self.INIT_ACTIONS
         if configuration != "HA":
@@ -55,7 +55,7 @@ class HBaseTestCase(DataprocTestCase):
     def test_hbase_on_gcs(self, configuration, machine_suffixes):
         # Skip on 2.0+ version of Dataproc because it's not supported
         if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
-            return
+            self.skipTest("Not supported in 2.0+ images")
 
         init_actions = self.INIT_ACTIONS
         if configuration != "HA":

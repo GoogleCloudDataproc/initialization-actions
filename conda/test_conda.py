@@ -60,7 +60,7 @@ class CondaTestCase(DataprocTestCase):
     def test_conda(self, configuration, conda_packages, pip_packages):
         # Skip on 2.0+ version of Dataproc because it's not supported
         if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
-            return
+            self.skipTest("Not supported in 2.0+ images")
 
         metadata = "'CONDA_PACKAGES={},PIP_PACKAGES={}'".format(
             " ".join(conda_packages), " ".join(pip_packages))

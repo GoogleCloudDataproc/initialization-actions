@@ -95,8 +95,8 @@ class AtlasTestCase(DataprocTestCase):
     def test_atlas(self, configuration, machine_suffixes):
         image_version = self.getImageVersion()
         if image_version < pkg_resources.parse_version("1.5") or \
-            image_version > pkg_resources.parse_version("2.0"):
-          return
+            image_version >= pkg_resources.parse_version("2.0"):
+          self.skipTest("Not supported in pre 1.5 and 2.0+ images")
 
         init_actions = self.INIT_ACTIONS
         optional_components = self.OPTIONAL_COMPONENTS
@@ -146,46 +146,46 @@ class AtlasTestCase(DataprocTestCase):
                                                machine_suffixes):
       image_version = self.getImageVersion()
       if image_version < pkg_resources.parse_version("1.5") or \
-          image_version > pkg_resources.parse_version("2.0"):
-        return
+          image_version >= pkg_resources.parse_version("2.0"):
+        self.skipTest("Not supported in pre 1.5 and 2.0+ images")
 
-        username = 'dataproc-user'
-        password = 'dataproc-password'
-        password_sha256 = hashlib.sha256(password.encode('utf-8')).hexdigest()
-        metadata = \
-          "ATLAS_ADMIN_USERNAME={},ATLAS_ADMIN_PASSWORD_SHA256={}".format(
-              username, password_sha256)
-        self.createCluster(configuration,
-                           self.INIT_ACTIONS,
-                           beta=True,
-                           timeout_in_minutes=30,
-                           metadata=metadata,
-                           optional_components=self.OPTIONAL_COMPONENTS,
-                           machine_type="e2-standard-4")
-        for machine_suffix in machine_suffixes:
-            self.verify_instance(
-                "{}-{}".format(self.getClusterName(), machine_suffix),
-                username, password)
+      username = 'dataproc-user'
+      password = 'dataproc-password'
+      password_sha256 = hashlib.sha256(password.encode('utf-8')).hexdigest()
+      metadata = \
+        "ATLAS_ADMIN_USERNAME={},ATLAS_ADMIN_PASSWORD_SHA256={}".format(
+            username, password_sha256)
+      self.createCluster(configuration,
+                         self.INIT_ACTIONS,
+                         beta=True,
+                         timeout_in_minutes=30,
+                         metadata=metadata,
+                         optional_components=self.OPTIONAL_COMPONENTS,
+                         machine_type="e2-standard-4")
+      for machine_suffix in machine_suffixes:
+          self.verify_instance(
+              "{}-{}".format(self.getClusterName(), machine_suffix),
+              username, password)
 
     @parameterized.parameters("ZOOKEEPER", "HBASE", "SOLR")
     def test_atlas_fails_without_component(self, component):
       image_version = self.getImageVersion()
       if image_version < pkg_resources.parse_version("1.5") or \
-          image_version > pkg_resources.parse_version("2.0"):
-        return
+          image_version >= pkg_resources.parse_version("2.0"):
+        self.skipTest("Not supported in pre 1.5 and 2.0+ images")
 
-        with self.assertRaises(AssertionError):
-            self.createCluster(
-                "SINGLE",
-                self.INIT_ACTIONS,
-                beta=True,
-                timeout_in_minutes=30,
-                machine_type="e2-standard-4",
-                optional_components=self.OPTIONAL_COMPONENTS.remove(component))
+      with self.assertRaises(AssertionError):
+          self.createCluster(
+              "SINGLE",
+              self.INIT_ACTIONS,
+              beta=True,
+              timeout_in_minutes=30,
+              machine_type="e2-standard-4",
+              optional_components=self.OPTIONAL_COMPONENTS.remove(component))
 
     def test_atlas_ha_fails_without_kafka(self):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-            return
+            self.skipTest("Not supported in pre 1.5 images")
 
         with self.assertRaises(AssertionError):
             self.createCluster("HA",

@@ -2,9 +2,9 @@
 
 set -euxo pipefail
 
-readonly NOT_SUPPORTED_MESSAGE="Jupyter 2 initialization action is not supported on Dataproc 2.0+.
+readonly NOT_SUPPORTED_MESSAGE="Jupyter 2 initialization action is not supported on Dataproc ${DATAPROC_VERSION}.
 Use Jupyter Component instead: https://cloud.google.com/dataproc/docs/concepts/components/jupyter"
-[[ $DATAPROC_VERSION = 2.* ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
+[[ $DATAPROC_VERSION != 1.* ]] && echo "$NOT_SUPPORTED_MESSAGE" && exit 1
 
 readonly DATAPROC_MASTER="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 readonly DATAPROC_BUCKET="$(/usr/share/google/get_metadata_value attributes/dataproc-bucket)"

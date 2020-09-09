@@ -67,7 +67,7 @@ class MLVMTestCase(DataprocTestCase):
   def test_mlvm(self, configuration, accelerator, gpu_provider, rapids_runtime):
     # Supported on Dataproc 1.5+
     if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-      return
+      self.skipTest("Not supported in pre 1.5 images")
 
     metadata = "init-actions-repo={}".format(self.INIT_ACTIONS_REPO)
     if accelerator:
