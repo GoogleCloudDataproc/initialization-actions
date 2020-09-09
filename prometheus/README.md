@@ -14,7 +14,9 @@ You can use this initialization action to create a new Dataproc cluster with Pro
     CLUSTER_NAME=<cluster_name>
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --region ${REGION} \
-        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/prometheus/prometheus.sh
+        --num-masters 3 \
+        --metadata "run-on-master=true" \
+        --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/kafka/kafka.sh,gs://goog-dataproc-initialization-actions-${REGION}/prometheus/prometheus.sh
     ```
 1.  Prometheus UI on the master node can be accessed after connecting with the command:
     ```bash
@@ -28,3 +30,5 @@ You can use this initialization action to create a new Dataproc cluster with Pro
 Prometheus uses StatsD to retrieve metrics for Hadoop and Spark, but the StatsD sink for metrics publishing is available on Apache Spark 2.3.0, so aggregating metrics from Spark on clusters with software version other than 1.3+ will result in an error. StatsD sink for Apache Hadoop metrics is available on Hadoop Versions 2.8+ so will work on clusters with image version 1.2+.
 
 Prometheus uses [JMX exporter](https://github.com/prometheus/jmx_exporter) to retrieve metrics for Kafka.
+
+Kafka and Zookeeper need to be installed for Prometheus to work correctly.
