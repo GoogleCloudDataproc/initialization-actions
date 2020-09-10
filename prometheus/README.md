@@ -14,8 +14,7 @@ You can use this initialization action to create a new Dataproc cluster with Pro
     CLUSTER_NAME=<cluster_name>
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --region ${REGION} \
-        --num-masters 3 \
-        --metadata "run-on-master=true" \
+        --optional-components=ZOOKEEPER \
         --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/kafka/kafka.sh,gs://goog-dataproc-initialization-actions-${REGION}/prometheus/prometheus.sh
     ```
 1.  Prometheus UI on the master node can be accessed after connecting with the command:
