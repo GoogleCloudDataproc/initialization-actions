@@ -3,7 +3,7 @@
 set -euxo pipefail
 
 ## Set Spark and Sparkling water versions
-readonly DEFAULT_H2O_SPARKLING_WATER_VERSION="3.28.0.3-1"
+readonly DEFAULT_H2O_SPARKLING_WATER_VERSION="3.30.1.2-1"
 readonly H2O_SPARKLING_WATER_VERSION="$(/usr/share/google/get_metadata_value attributes/H2O_SPARKLING_WATER_VERSION || echo ${DEFAULT_H2O_SPARKLING_WATER_VERSION})"
 
 readonly SPARK_VERSION=$(spark-submit --version 2>&1 | sed -n 's/.*version[[:blank:]]\+\([0-9]\+\.[0-9]\).*/\1/p' | head -n1)
@@ -54,6 +54,11 @@ EOF
 }
 
 function main() {
+  if [[ "${DATAPROC_VERSION}" == "1.5" ]]; then
+    echo "Dataproc 1.5 not supported. Please use Dataproc < 1.5 or 2.0+"
+    exit 1
+  fi
+
   echo "BEGIN Stage 1 : Install H2O libraries and dependencies"
   install_sparkling_water
   install_pysparkling_water

@@ -3,7 +3,7 @@ from pyspark.sql import SparkSession
 from pysparkling import *
 
 spark = SparkSession.builder.appName("SparklingWaterApp").getOrCreate()
-hc = H2OContext.getOrCreate(spark)
+hc = H2OContext.getOrCreate()
 
 bucket = "h2o-bq-large-dataset"
 train_path = "demos/cc_train.csv"
@@ -22,8 +22,8 @@ test_data = spark.read\
                  .csv("gs://{}/{}".format(bucket, test_path))
 
 print("CREATING H2O FRAME")
-training_frame = hc.as_h2o_frame(train_data)
-test_frame = hc.as_h2o_frame(test_data)
+training_frame = hc.asH2OFrame(train_data)
+test_frame = hc.asH2OFrame(test_data)
 
 x = training_frame.columns
 x.remove(y)

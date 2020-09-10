@@ -4,7 +4,8 @@ This [initialization action](https://cloud.google.com/dataproc/init-actions)
 installs
 [H2O Sparkling Water](http://docs.h2o.ai/sparkling-water/2.4/latest-stable/doc/deployment/sw_google_cloud_dataproc.html)
 on all nodes of [Google Cloud Dataproc](https://cloud.google.com/dataproc)
-cluster. This initialization works with Dataproc image version `1.3` and newer.
+cluster. This initialization works with Dataproc image version `1.3` or newer,
+with an exception of version `1.5`. Please file an [issue](https://github.com/GoogleCloudDataproc/initialization-actions/issues/new) if support for `1.5` is desired.
 
 ## Using this initialization action
 
