@@ -34,11 +34,11 @@ class RangerTestCase(DataprocTestCase):
     def test_ranger(self, configuration, machine_suffixes):
         # Skip on 2.0+ version of Dataproc because it's not supported
         if self.getImageVersion() >= pkg_resources.parse_version("2.0"):
-            return
+            self.skipTest("Not supported in 2.0+ images")
 
         # Init action supported on Dataproc 1.3+
         if self.getImageVersion() < pkg_resources.parse_version("1.3"):
-            return
+            self.skipTest("Not supported in pre 1.3 images")
 
         self.createCluster(
             configuration,

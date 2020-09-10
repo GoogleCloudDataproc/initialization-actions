@@ -16,7 +16,7 @@ class TonYTestCase(DataprocTestCase):
     def test_tony_tf(self, configuration):
         # Init action supported on Dataproc 1.3+
         if self.getImageVersion() < pkg_resources.parse_version("1.3"):
-            return
+            self.skipTest("Not supported in pre 1.3 images")
 
         self.createCluster(
             configuration,
@@ -41,7 +41,7 @@ class TonYTestCase(DataprocTestCase):
     def test_tony_torch(self):
         # Init action supported on Dataproc 1.3+
         if self.getImageVersion() < pkg_resources.parse_version("1.3"):
-            return
+            self.skipTest("Not supported in pre 1.3 images")
 
         self.createCluster(
             "STANDARD",

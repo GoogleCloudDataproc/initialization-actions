@@ -31,7 +31,7 @@ class KnoxTestCase(DataprocTestCase):
     def test_knox_localhost_cert(self, configuration, machine_suffixes):
         # Init action supported on Dataproc 1.3+
         if self.getImageVersion() < pkg_resources.parse_version("1.3"):
-            return
+            self.skipTest("Not supported in pre 1.3 images")
 
         self.createCluster(
             configuration,
@@ -54,7 +54,7 @@ class KnoxTestCase(DataprocTestCase):
     def test_knox_hostname_cert(self, configuration, machine_suffixes):
         # Init action supported on Dataproc 1.3+
         if self.getImageVersion() < pkg_resources.parse_version("1.3"):
-            return
+            self.skipTest("Not supported in pre 1.3 images")
 
         self.createCluster(
             configuration,
