@@ -55,7 +55,7 @@ EOF
 
 function main() {
   if [[ "${DATAPROC_VERSION}" == "1.5" ]]; then
-    echo "Dataproc 1.5 not supported. Please use Dataproc < 1.5 or 2.0+"
+    echo "Dataproc 1.5 not supported. Please use Dataproc 1.3, 1.4 or 2.0+"
     exit 1
   fi
 
