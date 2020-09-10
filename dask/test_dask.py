@@ -14,14 +14,17 @@ class DaskTestCase(DataprocTestCase):
     DASK_YARN_TEST_SCRIPT = 'verify_dask_yarn.py'
     DASK_STANDALONE_TEST_SCRIPT = 'verify_dask_standalone.py'
 
-    def verify_dask(self, name, script):
-        self._run_dask_test_script(name, script)
-        self.assert_instance_command(name, "set -u; echo $DASK_ENV")
-        self.assert_instance_command(name, "set -u; echo $DASK_ENV_PACK")
+    def verify_dask_yarn(self, name):
+        self._run_dask_test_script(name, self.DASK_YARN_TEST_SCRIPT)
+
+    def verify_dask_standalone(self, name):
+        self._run_dask_test_script(name, self.DASK_STANDALONE_TEST_SCRIPT)
+        self.assert_instance_command(name, "set -u; echo $DASK_LAUNCHER")
+        self.assert_instance_command(name, "set -u; echo $DASK_SERVICE")
 
 
     def _run_dask_test_script(self, name, script):
-        verify_cmd = "sudo dask-python {}".format(
+        verify_cmd = "/opt/conda/default/bin/python {}".format(
             script)
         self.upload_test_file(
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -29,14 +32,15 @@ class DaskTestCase(DataprocTestCase):
         self.assert_instance_command(name, verify_cmd)
         self.remove_test_script(script, name)        
 
+
     @parameterized.parameters(
-        ("STANDARD", ["m"], None),
-        ("STANDARD", ["m"], "yarn"),
+        ("STANDARD", ["m", "w-0"], None),
+        ("STANDARD", ["m", "w-0"], "yarn"),
         ("STANDARD", ["m"], "standalone"))
     def test_dask(self, configuration, instances, runtime):
         if self.getImageVersion() < pkg_resources.parse_version("1.5"):
-            return
-        
+            self.skipTest("Not supported in pre 1.5 images")
+
         metadata = None
         if runtime:
             metadata = "dask-runtime={}".format(runtime)
@@ -47,12 +51,13 @@ class DaskTestCase(DataprocTestCase):
                            metadata=metadata,
                            timeout_in_minutes=20)
         
-        script = (self.DASK_STANDALONE_TEST_SCRIPT if runtime is "standalone" 
-                  else self.DASK_YARN_TEST_SCRIPT)
-
         for instance in instances:
-            self.verify_dask("{}-{}".format(self.getClusterName(), instance), 
-                             script)
+            name = "{}-{}".format(self.getClusterName(), instance)
+
+            if runtime is "standalone":
+                self.verify_dask_standalone(name)
+            else:
+                self.verify_dask_yarn(name)
 
 if __name__ == '__main__':
     absltest.main()

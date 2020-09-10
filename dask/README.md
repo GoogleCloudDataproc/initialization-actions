@@ -8,12 +8,12 @@ This initialization action will set up Dask on a [Google Cloud Dataproc](https:/
 cluster to run with either `yarn` or `standalone`, both taking advantage of
 [Dask Distributed](https://distributed.dask.org/en/latest/).
 
-In `yarn` mode, a Conda environment bundled with Dask and [Dask-Yarn](https://yarn.dask.org)
-is created on the cluster. You can then take advantage of Dataproc's features
-such as scaling out workloads with [Autoscaling](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/autoscaling).
+In `yarn` mode, the cluster is configured with [Dask-Yarn](https://yarn.dask.org).
+You can then take advantage of Dataproc's features such as scaling out workloads
+with [Autoscaling](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/autoscaling).
 
-In `standalone` mode, a similar Conda environment is created. This mode treats
-Dataproc workers as their own distributed machines separate from YARN.
+In `standalone` mode, Dataproc workers are treated as their own distributed
+machines separate from YARN.
 
 You can also add [RAPIDS](https://rapids.ai) and GPUs to your environment by following the instructions
 in the [RAPIDS initialization action](https://github.com/GoogleCloudDataproc/initialization-actions/tree/master/rapids).
@@ -25,10 +25,6 @@ in the [RAPIDS initialization action](https://github.com/GoogleCloudDataproc/ini
 initialization actions in production.
 
 ### Creating Dataproc Cluster with Dask and Dask-Yarn
-
-*Note:* Using the [Anaconda](https://cloud.google.com/dataproc/docs/concepts/components/anaconda)
-component does not add these new libraries into the Dask environment. You must
-manually include the libraries you want via the metadata flag `CONDA_PACKAGES`.
 
 The following command will create a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster
 with [Dask](https://dask.org/) and [Dask-Yarn](https://yarn.dask.org/) installed.
@@ -65,7 +61,8 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
 
 ### Dask examples
 
-#### Dask standalone:
+#### Dask standalone
+
 ```python
 from dask.distributed import Client
 import dask.array as da
@@ -78,8 +75,10 @@ client.adapt() # Dynamically scale Dask resources
 
 x = da.sum(np.ones(5))
 x.compute()
+```
 
 #### Dask-Yarn
+
 ```python
 from dask_yarn import YarnCluster
 from dask.distributed import Client
@@ -102,16 +101,13 @@ With the [Jupyter](https://cloud.google.com/dataproc/docs/concepts/components/ju
 optional component, you can select the `dask` environment as your kernel.
 
 You can also `ssh` into the cluster and execute Dask jobs from Python files.
-`dask-python` is a symlink that points to the Python installation in your Dask
-environment on the cluster. To run jobs, you can either `scp` a file onto your
-cluster or use `gsutil` on the cluster to download the Python file.
+To run jobs, you can either `scp` a file onto your cluster or use `gsutil`
+on the cluster to download the Python file.
 
-`gcloud compute ssh <cluster-name> --command="gsutil cp gs://path/to/file.py .; dask-python file.py`
+`gcloud compute ssh <cluster-name> --command="gsutil cp gs://path/to/file.py .; python file.py`
 
 ### Supported metadata parameters
 
 This initialization action supports the following `metadata` fields:
 - `dask-runtime=yarn|standalone`: Dask runtime. Default is `yarn`.
 - `dask-worker-on-master`: Treat Dask master node as an additional worker. Default is `true`.
-- `CONDA_PACKAGES=package1=version1 package2`: packages to install into the Conda Dask environment.
-- `CONDA_CHANNELS=channel1 channel2`: channels to install packages from.
