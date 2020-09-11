@@ -12,6 +12,7 @@ test_suite(
         "//bigtable:test_bigtable",
         "//conda:test_conda",
         "//connectors:test_connectors",
+        "//dask:test_dask",
         "//datalab:test_datalab",
         "//drill:test_drill",
         "//flink:test_flink",
