@@ -26,7 +26,6 @@ Sparkling Water installed by:
     CLUSTER_NAME=<cluster_name>
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --image-version 1.3 \
-        --metadata 'H2O_SPARKLING_WATER_VERSION=3.28.0.1-1' \
         --scopes "cloud-platform" \
         --initialization-actions "gs://goog-dataproc-initialization-actions-${REGION}/conda/bootstrap-conda.sh,gs://goog-dataproc-initialization-actions-${REGION}/h2o/h2o.sh"
     ```
@@ -39,7 +38,6 @@ Sparkling Water installed by:
     gcloud dataproc clusters create ${CLUSTER_NAME} \
         --image-version 1.4 \
         --optional-components ANACONDA \
-        --metadata 'H2O_SPARKLING_WATER_VERSION=3.28.0.3-1' \
         --scopes "cloud-platform" \
         --initialization-actions "gs://goog-dataproc-initialization-actions-${REGION}/h2o/h2o.sh"
     ```
@@ -53,3 +51,7 @@ Sparkling Water installed by:
         --cluster ${CLUSTER_NAME} \
         "gs://goog-dataproc-initialization-actions-${REGION}/h2o/sample-script.py"
     ```
+
+### Supported metadata parameters
+
+*   `H2O_SPARKLING_WATER_VERSION`: Sparkling Water version number. You can find the versions from the [releases](https://github.com/h2oai/sparkling-water/releases) page on Github. Default is `3.30.0.7-1`.
