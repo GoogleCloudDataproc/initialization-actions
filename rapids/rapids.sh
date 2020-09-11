@@ -36,6 +36,12 @@ readonly RAPIDS_VERSION=$(get_metadata_attribute 'rapids-version' '0.15')
 readonly SPARK_RAPIDS_VERSION=$(get_metadata_attribute 'spark-rapids-version' ${DEFAULT_SPARK_RAPIDS_VERSION})
 readonly XGBOOST_VERSION=$(get_metadata_attribute 'xgboost-version' '1.0.0')
 
+# DASK config
+readonly DASK_LAUNCHER='/usr/local/bin/dask-launcher.sh'
+readonly DASK_SERVICE='dask-cluster'
+readonly RAPIDS_ENV='RAPIDS'
+readonly RAPIDS_ENV_BIN="/opt/conda/anaconda/envs/${RAPIDS_ENV}/bin"
+
 # Dataproc configurations
 readonly SPARK_CONF_DIR='/etc/spark/conf'
 
@@ -121,14 +127,36 @@ EOF
   fi
 }
 
-configure_systemd_dask_service() {
-  echo "Configuring systemd Dask service for RAPIDS..."
-  local -r dask_worker_local_dir="/tmp/dask"
-  local -r conda_env_bin=$(conda info --base)/bin
+function create_conda_env() {
+  echo "Create RAPIDS Conda environment..."
+  # For use with Anaconda component
+  local -r conda_env_file="${BUILD_DIR}/conda-environment.yaml"
+  cat <<EOF >"${conda_env_file}"
+channels:
+  - rapidsai/label/xgboost
+  - rapidsai
+  - nvidia
+  - conda-forge
+dependencies:
+  - cudatoolkit=${CUDA_VERSION}
+  - rapids=${RAPIDS_VERSION}
+  - gcsfs
+  - dill
+  - ipykernel
+EOF
+  conda env create --name "${RAPIDS_ENV}" --file "${conda_env_file}"
+}
 
-  # Replace Dask Launcher file with dask-cuda config
-  systemctl stop ${DASK_SERVICE}
-  rm "${DASK_LAUNCHER}"
+function install_conda_kernel() {
+  conda install -y nb_conda_kernels
+  # Restart Jupyter service to pickup RAPIDS environment.
+  service jupyter restart || true
+}
+
+install_systemd_dask_service() {
+  echo "Installing systemd Dask service..."
+  local -r dask_worker_local_dir="/tmp/rapids"
+  local -r mem_total=$(free -m | grep -oP '\d+' | head -n1)
 
   if [[ "${ROLE}" == "Master" ]]; then
     cat <<EOF >"${DASK_LAUNCHER}"
@@ -136,39 +164,47 @@ configure_systemd_dask_service() {
 if [[ "${RUN_WORKER_ON_MASTER}" == true ]]; then
   nvidia-smi -c DEFAULT
   echo "dask-cuda-worker starting, logging to /var/log/dask-cuda-worker.log."
-  ${conda_env_bin}/dask-cuda-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-cuda-worker.log 2>&1 &
+  $RAPIDS_ENV_BIN/dask-cuda-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-cuda-worker.log 2>&1 &
 fi
 echo "dask-scheduler starting, logging to /var/log/dask-scheduler.log."
-${conda_env_bin}/dask-scheduler > /var/log/dask-scheduler.log 2>&1
+$RAPIDS_ENV_BIN/dask-scheduler > /var/log/dask-scheduler.log 2>&1
 EOF
   else
     nvidia-smi -c DEFAULT
     cat <<EOF >"${DASK_LAUNCHER}"
 #!/bin/bash
-${conda_env_bin}/dask-cuda-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-cuda-worker.log 2>&1
+$RAPIDS_ENV_BIN/dask-cuda-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-cuda-worker.log 2>&1
 EOF
   fi
   chmod 750 "${DASK_LAUNCHER}"
 
+  local -r dask_service_file=/usr/lib/systemd/system/${DASK_SERVICE}.service
+  cat <<EOF >"${dask_service_file}"
+[Unit]
+Description=Dask Cluster Service
+[Service]
+Type=simple
+Restart=on-failure
+ExecStart=/bin/bash -c 'exec ${DASK_LAUNCHER}'
+[Install]
+WantedBy=multi-user.target
+EOF
+  chmod a+r "${dask_service_file}"
+
   systemctl daemon-reload
-  echo "Restarting Dask cluster..."
-  systemctl start "${DASK_SERVICE}"
+  systemctl enable "${DASK_SERVICE}"
 }
 
 function main() {
   if [[ "${RUNTIME}" == "DASK" ]]; then
-    # RUNTIME is exposed by the Dask initialization action in
-    # "standalone" mode. This configuration is only necessary in 
-    # this case.
-    if [[ -n $"{DASK_SERVICE}" ]]; then
-      configure_systemd_dask_service
+    create_conda_env
+    if [[ "${ROLE}" == "Master" ]]; then
+      install_conda_kernel
     fi
-    
-    # Install RAPIDS
-    conda install -c "rapidsai" -c "nvidia" -c "conda-forge" \
-      "cudatoolkit=${CUDA_VERSION}" "rapids=${RAPIDS_VERSION}"
-
-    echo "RAPIDS installed with Dask runtime"
+    install_systemd_dask_service
+    echo "Starting Dask cluster..."
+    systemctl start "${DASK_SERVICE}"
+    echo "RAPIDS initialized with Dask runtime"
   elif [[ "${RUNTIME}" == "SPARK" ]]; then
     install_spark_rapids
     configure_spark
