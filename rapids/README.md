@@ -344,7 +344,7 @@ gcloud dataproc clusters create $CLUSTER_NAME \
     --worker-machine-type n1-standard-32 \
     --worker-accelerator type=nvidia-tesla-t4,count=4 \
     --optional-components=ANACONDA \
-    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
+    --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/gpu/install_gpu_driver.sh,gs://goog-dataproc-initialization-actions-${REGION}/dask/dask.sh,gs://goog-dataproc-initialization-actions-${REGION}/rapids/rapids.sh \
     --initialization-action-timeout=60m \
     --metadata gpu-driver-provider=NVIDIA,rapids-runtime=DASK \
     --enable-component-gateway
