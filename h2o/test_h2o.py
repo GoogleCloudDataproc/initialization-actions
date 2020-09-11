@@ -12,10 +12,8 @@ class H2OTestCase(DataprocTestCase):
 
     @parameterized.parameters("SINGLE", "STANDARD", "HA")
     def test_h2o(self, configuration):
-        # Init action supported on Dataproc 1.3, 1.4 and 2.0+
-        if (self.getImageVersion() < pkg_resources.parse_version("1.3") or
-            self.getImageVersion() == pkg_resources.parse_version("1.5")):
-            self.skipTest("Not supported on Dataproc 1.5 or < 1.3")
+        if (self.getImageVersion() == pkg_resources.parse_version("1.5")):
+            self.skipTest("Not supported on Dataproc 1.5")
             
         init_actions = self.INIT_ACTIONS
         optional_components = ["ANACONDA"]
