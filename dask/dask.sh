@@ -61,7 +61,7 @@ function configure_dask_yarn() {
 yarn:
   environment: python://${DEFAULT_CONDA_ENV}/bin/python
 
-  worker: 
+  worker:
     count: 2
 EOF
 }
@@ -119,8 +119,8 @@ function main() {
   conda install -c conda-forge "${CONDA_PACKAGES[@]}"
 
   if [[ "${DASK_RUNTIME}" == "yarn" ]]; then
-      # Create Dask Yarn config file
-      configure_dask_yarn
+    # Create Dask Yarn config file
+    configure_dask_yarn
 
   elif [[ "${DASK_RUNTIME}" == "standalone" ]]; then
     # Create Dask service
