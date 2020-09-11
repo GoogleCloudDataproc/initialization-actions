@@ -21,25 +21,21 @@
 
 set -euxo pipefail
 
-readonly DEFAULT_CONDA_ENV=/opt/conda/miniconda3
+readonly DEFAULT_CONDA_ENV=$(conda info --envs | sed -n 's/base[[:blank:]*]*\(.*\)/\1/p')
 readonly DASK_YARN_CONFIG_DIR=/etc/dask/
 readonly DASK_YARN_CONFIG_FILE=${DASK_YARN_CONFIG_DIR}/config.yaml
 
 readonly DASK_RUNTIME="$(/usr/share/google/get_metadata_value attributes/dask-runtime || echo "yarn")"
 readonly RUN_WORKER_ON_MASTER="$(/usr/share/google/get_metadata_value attributes/dask-worker-on-master || echo "true")"
 
-readonly ROLE=$(/usr/share/google/get_metadata_value attributes/dataproc-role)
-readonly MASTER=$(/usr/share/google/get_metadata_value attributes/dataproc-master)
+readonly ROLE="$(/usr/share/google/get_metadata_value attributes/dataproc-role)"
+readonly MASTER="$(/usr/share/google/get_metadata_value attributes/dataproc-master)"
 
 # Dask 'standalone' config
-readonly DASK_LAUNCHER='/usr/local/bin/dask-launcher.sh'
-readonly DASK_SERVICE='dask-cluster'
+readonly DASK_LAUNCHER=/usr/local/bin/dask-launcher.sh
+readonly DASK_SERVICE=dask-cluster
 
 CONDA_PACKAGES=("dask")
-
-if [ "$(echo "$DATAPROC_VERSION < 2.0" | bc)" -eq 1 ]; then
-  CONDA_PACKAGES+=("fastavro" "fastparquet" "gcsfs")
-fi
 
 if [[ "${DASK_RUNTIME}" == "yarn" ]]; then
   if [ "$(echo "$DATAPROC_VERSION < 2.0" | bc)" -eq 1 ]; then
@@ -77,7 +73,6 @@ function install_conda_packages() {
 function install_systemd_dask_service() {
   echo "Installing systemd Dask service..."
   local -r dask_worker_local_dir="/tmp/dask"
-  local -r dask_env_bin=${DEFAULT_CONDA_ENV}/bin
 
   mkdir -p "${dask_worker_local_dir}"
 
@@ -86,16 +81,16 @@ function install_systemd_dask_service() {
 #!/bin/bash
 if [[ "${RUN_WORKER_ON_MASTER}" == true ]]; then
   echo "dask-worker starting, logging to /var/log/dask-worker.log."
-  ${dask_env_bin}/dask-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-worker.log 2>&1 &
+  ${DEFAULT_CONDA_ENV}/bin/dask-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-worker.log 2>&1 &
 fi
 echo "dask-scheduler starting, logging to /var/log/dask-scheduler.log."
-${dask_env_bin}/dask-scheduler > /var/log/dask-scheduler.log 2>&1
+${DEFAULT_CONDA_ENV}/bin/dask-scheduler > /var/log/dask-scheduler.log 2>&1
 EOF
   else
     cat <<EOF >"${DASK_LAUNCHER}"
 #!/bin/bash
 echo "dask-worker starting, logging to /var/log/dask-worker.log."
-${dask_env_bin}/dask-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-worker.log 2>&1
+${DEFAULT_CONDA_ENV}/bin/dask-worker ${MASTER}:8786 --local-directory=${dask_worker_local_dir} --memory-limit=auto > /var/log/dask-worker.log 2>&1
 EOF
   fi
   chmod 750 "${DASK_LAUNCHER}"

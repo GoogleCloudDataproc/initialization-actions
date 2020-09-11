@@ -95,7 +95,36 @@ x = da.sum(np.ones(5))
 x.compute()
 ```
 
-## Interacting with the cluster
+### Interacting with Data Services
+
+Several libraries exist within the Dask ecosystem for interacting with various
+data services. More information can be found [here](https://docs.dask.org/en/latest/remote-data-services.html).
+
+By default, Dataproc image version 2.0+ comes with `pyarrow`, `gcsfs`,
+`fastparquet` and `fastavro` installed. To install additional libraries,
+or to use these libraries on earlier versions of Dataproc, you can use the pip
+or conda [initialization actions](https://github.com/GoogleCloudDataproc/initialization-actions/tree/master/python).
+
+Here's an example of creating a Dataproc 1.5 cluster configured with Dask and
+`gcsfs`.
+
+```bash
+CLUSTER_NAME=<cluster-name>
+REGION=<region>
+gcloud dataproc clusters create ${CLUSTER_NAME} \
+  --region ${REGION} \
+  --master-machine-type n1-standard-16 \
+  --worker-machine-type n1-highmem-32 \
+  --image-version 1.5 \
+  --optional-components ANACONDA,JUPYTER \
+  --initialization-actions gs://dataproc-initialization-actions/dask/dask.sh,gs://dataproc-initialization-actions/python/conda-install.sh \
+  --metadata "CONDA_CHANNELS=conda-forge" \
+  --metadata "CONDA_PACKAGES=gcsfs" \
+  --initialization-action-timeout=45m \
+  --enable-component-gateway
+```
+
+### Interacting with the cluster
 
 With the [Jupyter](https://cloud.google.com/dataproc/docs/concepts/components/jupyter)
 optional component, you can select the `dask` environment as your kernel.
