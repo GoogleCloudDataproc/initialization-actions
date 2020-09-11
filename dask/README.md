@@ -1,22 +1,25 @@
 # Dask
 
 [Dask](https://dask.org/) is an open source set of tools for parallelizing
-Python analytics tasks. It is developed in coordination with popular open
-source Python libraries including Numpy, Pandas and Scikit-Learn.
+Python analytics tasks. It is developed in coordination with popular open source
+Python libraries including Numpy, Pandas and Scikit-Learn.
 
-This initialization action will set up Dask on a [Google Cloud Dataproc](https://cloud.google.com/dataproc)
-cluster to run with either `yarn` or `standalone`, both taking advantage of
+This initialization action will set up Dask on a
+[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster to run with
+either `yarn` or `standalone`, both taking advantage of
 [Dask Distributed](https://distributed.dask.org/en/latest/).
 
-In `yarn` mode, the cluster is configured with [Dask-Yarn](https://yarn.dask.org).
-You can then take advantage of Dataproc's features such as scaling out workloads
-with [Autoscaling](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/autoscaling).
+In `yarn` mode, the cluster is configured with
+[Dask-Yarn](https://yarn.dask.org). You can then take advantage of Dataproc's
+features such as scaling out workloads with
+[Autoscaling](https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/autoscaling).
 
 In `standalone` mode, Dataproc workers are treated as their own distributed
 machines separate from YARN.
 
-You can also add [RAPIDS](https://rapids.ai) and GPUs to your environment by following the instructions
-in the [RAPIDS initialization action](https://github.com/GoogleCloudDataproc/initialization-actions/tree/master/rapids).
+You can also add [RAPIDS](https://rapids.ai) and GPUs to your environment by
+following the instructions in the
+[RAPIDS initialization action](https://github.com/GoogleCloudDataproc/initialization-actions/tree/master/rapids).
 
 ## Using this initialization action
 
@@ -26,8 +29,9 @@ initialization actions in production.
 
 ### Creating Dataproc Cluster with Dask and Dask-Yarn
 
-The following command will create a [Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster
-with [Dask](https://dask.org/) and [Dask-Yarn](https://yarn.dask.org/) installed.
+The following command will create a
+[Google Cloud Dataproc](https://cloud.google.com/dataproc) cluster with
+[Dask](https://dask.org/) and [Dask-Yarn](https://yarn.dask.org/) installed.
 
 ```bash
 CLUSTER_NAME=<cluster-name>
@@ -37,12 +41,14 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
   --master-machine-type n1-standard-16 \
   --worker-machine-type n1-highmem-32 \
   --image-version preview-ubuntu \
-  --initialization-actions gs://bmiro-test/dataproc-initialization-actions/dask/dask.sh \
-  --initialization-action-timeout=20m
+  --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/dask/dask.sh \
+  --initialization-action-timeout 20m
 ```
 
-You can create a cluster with the [Jupyter](https://cloud.google.com/dataproc/docs/concepts/components/jupyter)
-optional component and [component gateway](https://cloud.google.com/dataproc/docs/concepts/accessing/dataproc-gateways)
+You can create a cluster with the
+[Jupyter](https://cloud.google.com/dataproc/docs/concepts/components/jupyter)
+optional component and
+[component gateway](https://cloud.google.com/dataproc/docs/concepts/accessing/dataproc-gateways)
 to use Dask and Dask-Yarn from a notebook environment:
 
 ```bash
@@ -54,8 +60,8 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
   --worker-machine-type n1-highmem-32 \
   --image-version preview-ubuntu \
   --optional-components ANACONDA,JUPYTER \
-  --initialization-actions gs://bmiro-test/dataproc-initialization-actions/dask/dask.sh \
-  --initialization-action-timeout=45m \
+  --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/dask/dask.sh \
+  --initialization-action-timeout 45m \
   --enable-component-gateway
 ```
 
@@ -98,12 +104,14 @@ x.compute()
 ### Interacting with Data Services
 
 Several libraries exist within the Dask ecosystem for interacting with various
-data services. More information can be found [here](https://docs.dask.org/en/latest/remote-data-services.html).
+data services. More information can be found
+[here](https://docs.dask.org/en/latest/remote-data-services.html).
 
 By default, Dataproc image version 2.0+ comes with `pyarrow`, `gcsfs`,
-`fastparquet` and `fastavro` installed. To install additional libraries,
-or to use these libraries on earlier versions of Dataproc, you can use the pip
-or conda [initialization actions](https://github.com/GoogleCloudDataproc/initialization-actions/tree/master/python).
+`fastparquet` and `fastavro` installed. To install additional libraries, or to
+use these libraries on earlier versions of Dataproc, you can use the pip or
+conda
+[initialization actions](https://github.com/GoogleCloudDataproc/initialization-actions/tree/master/python).
 
 Here's an example of creating a Dataproc 1.5 cluster configured with Dask and
 `gcsfs`.
@@ -117,26 +125,30 @@ gcloud dataproc clusters create ${CLUSTER_NAME} \
   --worker-machine-type n1-highmem-32 \
   --image-version 1.5 \
   --optional-components ANACONDA,JUPYTER \
-  --initialization-actions gs://dataproc-initialization-actions/dask/dask.sh,gs://dataproc-initialization-actions/python/conda-install.sh \
+  --initialization-actions gs://goog-dataproc-initialization-actions-${REGION}/dask/dask.sh,gs://goog-dataproc-initialization-actions-${REGION}/python/conda-install.sh \
   --metadata "CONDA_CHANNELS=conda-forge" \
   --metadata "CONDA_PACKAGES=gcsfs" \
-  --initialization-action-timeout=45m \
+  --initialization-action-timeout 45m \
   --enable-component-gateway
 ```
 
 ### Interacting with the cluster
 
-With the [Jupyter](https://cloud.google.com/dataproc/docs/concepts/components/jupyter)
+With the
+[Jupyter](https://cloud.google.com/dataproc/docs/concepts/components/jupyter)
 optional component, you can select the `dask` environment as your kernel.
 
-You can also `ssh` into the cluster and execute Dask jobs from Python files.
-To run jobs, you can either `scp` a file onto your cluster or use `gsutil`
-on the cluster to download the Python file.
+You can also `ssh` into the cluster and execute Dask jobs from Python files. To
+run jobs, you can either `scp` a file onto your cluster or use `gsutil` on the
+cluster to download the Python file.
 
-`gcloud compute ssh <cluster-name> --command="gsutil cp gs://path/to/file.py .; python file.py`
+`gcloud compute ssh <cluster-name> --command="gsutil cp gs://path/to/file.py .;
+python file.py`
 
 ### Supported metadata parameters
 
 This initialization action supports the following `metadata` fields:
-- `dask-runtime=yarn|standalone`: Dask runtime. Default is `yarn`.
-- `dask-worker-on-master`: Treat Dask master node as an additional worker. Default is `true`.
+
+*   `dask-runtime=yarn|standalone`: Dask runtime. Default is `yarn`.
+*   `dask-worker-on-master`: Treat Dask master node as an additional worker.
+    Default is `true`.
